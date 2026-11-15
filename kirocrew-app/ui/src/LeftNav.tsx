@@ -19,6 +19,9 @@ export const TOP_CARD = { ...NAV_CARD, border: '1px solid var(--border-strong, v
 export { NAV_ROW }
 // The nav's small icon buttons (Stop the line, Refresh): 28px, icon only.
 export const NAV_ICON = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, padding: 0, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer' } as const
+// The same icons on the page's top line: square, as tall as the row (the
+// Plan a goal button beside them), never over 28px.
+export const SQUARE = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', aspectRatio: '1 / 1', minWidth: 24, maxHeight: 28, padding: 0, boxSizing: 'border-box', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer' } as const
 // The small section under the nav card that holds those icons, drawn only
 // when there is something to put in it.
 export function NavLine(props: { children: ReactNode }) {

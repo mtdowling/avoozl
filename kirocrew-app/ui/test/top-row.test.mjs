@@ -33,9 +33,12 @@ const settle = () => page.evaluate('new Promise((r) => requestAnimationFrame(() 
 
 // The line controls: on a desktop in their own small section of the left nav,
 // on a phone at the bottom of the menu. Open it when the page is a phone.
+// Where Stop the line is: on a desktop the page's top line, right after Plan
+// a goal; on a phone the bottom of the menu (open it first).
+const LINE = (width) => (width < 768 ? '[data-nav-line]' : '[data-main-actions]')
 const openLine = async (width) => {
   if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-  await page.until(`Boolean(document.querySelector('[data-nav-line] [data-stop-line]'))`)
+  await page.until(`Boolean(document.querySelector('${LINE(width)} [data-stop-line]'))`)
   await settle()
 }
 
@@ -45,7 +48,7 @@ for (const [width, height] of [
   [1280, 800],
 ])
   for (const dark of [false, true])
-    test(`the shell at ${width} px ${dark ? 'dark' : 'light'}: no top bars, Stop the line an icon in the nav section, no visible Stop the line text; no sideways scroll`, { skip }, async () => {
+    test(`the shell at ${width} px ${dark ? 'dark' : 'light'}: no top bars, Stop the line an icon (top line on a desktop, menu on a phone), no visible Stop the line text; no sideways scroll`, { skip }, async () => {
       for (const stopped of [false, true]) {
         await page.open(harness.url({ app: '1', theme: dark ? 'dark' : 'light', ...(stopped ? { stopped: '1' } : {}) }), { width, height, dark })
         await page.until(`Boolean(document.querySelector('[data-main-top] select[aria-label="Workspace"]'))`)
@@ -72,9 +75,10 @@ for (const [width, height] of [
           assert.ok(header <= 56, `the phone header is one row (${header})`)
         }
         await openLine(width)
-        if (stopped) await page.until(`Boolean(document.querySelector('[data-nav-line] [data-stop-line][data-stopped]'))`)
+        if (stopped) await page.until(`Boolean(document.querySelector('${LINE(width)} [data-stop-line][data-stopped]'))`)
         const open = await page.evaluate(`(() => {
-          const stop = document.querySelector('[data-nav-line] [data-stop-line]')
+          const stop = document.querySelector('${LINE(width)} [data-stop-line]')
+          const plan = [...document.querySelectorAll('[data-main-actions] button')].find((b) => b.textContent.trim() === 'Plan a goal')
           const r = stop.getBoundingClientRect()
           const visible = []
           const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
@@ -83,11 +87,17 @@ for (const [width, height] of [
             const box = el.getBoundingClientRect(), style = getComputedStyle(el)
             if (box.width > 1 && box.height > 1 && style.visibility !== 'hidden' && !el.closest('.sr-only')) visible.push(n.nodeValue.trim())
           }
-          return { label: stop.getAttribute('aria-label'), text: stop.textContent.trim(), size: [Math.round(r.width), Math.round(r.height)], onScreen: r.left >= 0 && r.right <= innerWidth, texts: visible.filter((t) => /stop the line|resume the line/i.test(t)) }
+          const p = plan ? plan.getBoundingClientRect() : null
+          return { label: stop.getAttribute('aria-label'), text: stop.textContent.trim(), size: [Math.round(r.width), Math.round(r.height)], matchesPlan: p ? Math.abs(p.height - r.height) < 1 && r.left >= p.right && Math.abs(p.top - r.top) < 1 : null, inNav: Boolean(stop.closest('[data-left-nav]')), onScreen: r.left >= 0 && r.right <= innerWidth, texts: visible.filter((t) => /stop the line|resume the line/i.test(t)) }
         })()`)
         assert.match(open.label, stopped ? /Resume the line/ : /Stop the line/)
         assert.equal(open.text, '', 'the icon has no words')
-        assert.deepEqual(open.size, [28, 28], 'a compact 28 px icon')
+        if (width < 768) assert.deepEqual(open.size, [28, 28], 'a compact 28 px icon')
+        else {
+          assert.equal(open.matchesPlan, true, 'as tall as Plan a goal, right after it')
+          assert.equal(open.size[0], open.size[1], 'square')
+          assert.equal(open.inNav, false, 'not in the left nav')
+        }
         assert.equal(open.onScreen, true, 'it is on screen')
         assert.deepEqual(open.texts, [], 'no visible text reads Stop the line')
         if (shots) {
@@ -97,20 +107,32 @@ for (const [width, height] of [
       }
     })
 
-test('the brand card is its own box under the nav card: logo, instance name, then version', { skip }, async () => {
+test('the brand line sits under the nav: one line, no box, the logo left and the name and version right', { skip }, async () => {
   await page.open(harness.url({ app: '1' }), { width: 1280, height: 800 })
   await page.until(`Boolean(document.querySelector('[data-brand-card] [data-instance-name]'))`)
   const got = await page.evaluate(`(() => {
     const nav = document.querySelector('[data-nav-card]'), brand = document.querySelector('[data-brand-card]'), main = document.querySelector('[data-shell-main]')
     const box = (el) => el.getBoundingClientRect()
-    const kids = [...brand.children].map((c) => c.tagName === 'svg' ? 'logo' : c.hasAttribute('data-instance-name') ? 'name' : c.hasAttribute('data-avoozl-version') ? 'version' : '?')
-    return { kids, apart: !nav.contains(brand), below: box(brand).top >= box(nav).bottom, leftOfMain: box(brand).right <= box(main).left + 1, version: brand.querySelector('[data-avoozl-version]')?.textContent, tagline: document.body.textContent.includes('Specs and epics as a graph') }
+    const logo = brand.querySelector('svg'), name = brand.querySelector('[data-instance-name]'), version = brand.querySelector('[data-avoozl-version]')
+    const mid = (el) => { const r = box(el); return r.top + r.height / 2 }
+    const cs = getComputedStyle(brand)
+    return {
+      oneLine: Math.abs(mid(logo) - mid(name)) < 4 && Math.abs(mid(name) - mid(version)) < 4,
+      order: box(logo).right <= box(name).left && box(name).right <= box(version).left,
+      logoLeft: box(logo).left - box(brand).left < 12,
+      versionRight: box(brand).right - box(version).right < 8,
+      noBox: cs.borderTopWidth === '0px' && (cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent'),
+      apart: !nav.contains(brand), below: box(brand).top >= box(nav).bottom, leftOfMain: box(brand).right <= box(main).left + 1, version: brand.querySelector('[data-avoozl-version]')?.textContent, tagline: document.body.textContent.includes('Specs and epics as a graph') }
   })()`)
-  assert.deepEqual(got.kids, ['logo', 'name', 'version'])
+  assert.equal(got.oneLine, true, 'one line')
+  assert.equal(got.order, true, 'logo, name, version')
+  assert.equal(got.logoLeft, true, 'the logo at the left')
+  assert.equal(got.versionRight, true, 'the name and version at the right')
+  assert.equal(got.noBox, true, 'no border, no background')
   assert.equal(got.apart, true, 'not inside the nav card')
   assert.equal(got.below, true)
   assert.equal(got.leftOfMain, true)
-  assert.match(got.version, /^Version \S+$/)
+  assert.match(got.version, /^v\S+$/)
   assert.equal(got.tagline, false, 'no always-visible tag line')
   // A phone: the menu button, and the brand card at the bottom of the menu.
   await page.open(harness.url({ app: '1' }), { width: 390, height: 844 })
@@ -205,10 +227,10 @@ test('Keep activity sits at the right of the filters on one row, inside the filt
   }
 })
 
-test("Stop the line from the nav opens its dialog, and a tap or click in the dialog keeps it open", { skip }, async () => {
+test("Stop the line from the top line opens its dialog, and a tap or click in the dialog keeps it open", { skip }, async () => {
   await page.open(harness.url({ app: '1' }), { width: 1280, height: 800 })
   await openLine(1280)
-  await page.evaluate(`document.querySelector('[data-nav-line] [data-stop-line]').click()`)
+  await page.evaluate(`document.querySelector('[data-main-actions] [data-stop-line]').click()`)
   await page.until(`Boolean(document.querySelector('[data-stop-reason]'))`)
   await page.evaluate(`(() => {
     const input = document.querySelector('[data-stop-reason]')

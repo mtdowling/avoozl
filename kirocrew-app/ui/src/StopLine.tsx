@@ -13,7 +13,7 @@ import { Picker, taskItems } from './Picker.tsx'
 import type { PickItem } from './picker.ts'
 import { RadioFold } from './RadioFold.tsx'
 import { Tooltip } from './Tooltip.tsx'
-import { NAV_ICON } from './LeftNav.tsx'
+import { NAV_ICON, SQUARE } from './LeftNav.tsx'
 import { Modal } from './Modal.tsx'
 import { FULL_STOP_WARNING, LINE_EVENT, MAX_REASON, PULL_KINDS, PULL_SCOPES, emptyPull, flowClient, lineChanged, toPull, type LineStop, type PullForm } from './flow-api.ts'
 import { plansClient } from './plans-api.ts'
@@ -63,7 +63,7 @@ function useOpenStops(workspaceId: string | null) {
 // The left nav's icon (App.tsx): pause or play, with its words in the
 // tooltip and aria-label only. While a stop is open it says Line stopped; pressing it still
 // opens the dialog to stop more.
-export function StopLineButton(props: { workspaceId: string | null; onPulled?: () => void; bare?: boolean; nav?: boolean }) {
+export function StopLineButton(props: { workspaceId: string | null; onPulled?: () => void; bare?: boolean; nav?: boolean; square?: boolean }) {
   const [open, setOpen] = useState(false)
   const stops = useOpenStops(props.workspaceId)
   const api = useAppApi()
@@ -87,7 +87,7 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
     />
   )
   // The side panel's icon: pause to stop, play to resume. Never text.
-  if (props.bare || props.nav) {
+  if (props.bare || props.nav || props.square) {
     const resumeAll = async () => {
       const yes = await confirm({ title: 'Resume the line?', body: `New work starts again. The line was stopped for: ${why}`, action: 'Resume' })
       if (!yes || !props.workspaceId) return
@@ -99,8 +99,8 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
     return (
       <>
         <Tooltip text={label}>
-          <button type="button" {...(props.nav ? {} : { 'data-pp-icon': '', 'data-bare': '' })} data-stop-line data-stopped={stopped ? '' : undefined} aria-label={label} onClick={() => (stopped ? void resumeAll() : setOpen(true))} style={{ ...(props.nav ? NAV_ICON : {}), color: stopped ? 'var(--ok)' : 'var(--danger)', borderColor: 'var(--border)' }}>
-            <Icon size={13} aria-hidden="true" />
+          <button type="button" {...(props.nav || props.square ? {} : { 'data-pp-icon': '', 'data-bare': '' })} data-stop-line data-stopped={stopped ? '' : undefined} aria-label={label} onClick={() => (stopped ? void resumeAll() : setOpen(true))} style={{ ...(props.square ? SQUARE : props.nav ? NAV_ICON : {}), color: stopped ? 'var(--ok)' : 'var(--danger)', borderColor: 'var(--border)' }}>
+            <Icon size={props.bare ? 13 : 14} aria-hidden="true" />
           </button>
         </Tooltip>
         {dialog}
