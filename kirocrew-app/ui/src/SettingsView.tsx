@@ -2,7 +2,7 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSP
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
-import { Shelf } from './Shelf.tsx'
+import { Modal } from './Modal.tsx'
 import Badge from './Badge.tsx'
 import { ModePicker } from './ModePicker.tsx'
 import {
@@ -109,10 +109,10 @@ export const SETTINGS_TABS = [
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
-// Sections whose editors are large open in a shelf from a Configure button;
+// Sections whose editors are large open in a modal from a Configure button;
 // the small ones (the driver chat, the instance name, the workspace list)
 // stay inline.
-const SHELF_SECTIONS: readonly SettingsTab[] = ['repositories', 'github', 'plugins', 'content', 'flow', 'delivery']
+const DIALOG_SECTIONS: readonly SettingsTab[] = ['repositories', 'github', 'plugins', 'content', 'flow', 'delivery']
 
 // One short line under each Settings heading: what it controls and when
 // you would change it. Each is checked against what the code does.
@@ -1584,8 +1584,8 @@ export default function SettingsView(props: {
   // A remembered section that no longer exists falls back to Workspaces.
   const tab: SettingsTab = SETTINGS_TABS.some((t) => t.key === asked) ? (asked as SettingsTab) : SETTINGS_HOME
   const choose = (next: SettingsTab) => (props.onTab ? props.onTab(next) : setOwn(next))
-  const [shelf, setShelf] = useState<SettingsTab | null>(null)
-  const shelfLabel = SETTINGS_TABS.find((t) => t.key === shelf)?.label ?? ''
+  const [dialog, setDialog] = useState<SettingsTab | null>(null)
+  const dialogLabel = SETTINGS_TABS.find((t) => t.key === dialog)?.label ?? ''
   // A phone shows the section list or one section, never both. Picking a
   // section, or an outside link to one, opens it.
   const ld = useListDetail(tab !== SETTINGS_HOME)
@@ -1606,9 +1606,9 @@ export default function SettingsView(props: {
           {SETTINGS_BLURBS[section.key]}
         </p>
       )}
-      {SHELF_SECTIONS.includes(section.key) ? (
+      {DIALOG_SECTIONS.includes(section.key) ? (
         <div>
-          <Btn type="button" onClick={() => setShelf(section.key)} data-open-shelf={section.key} aria-haspopup="dialog">
+          <Btn type="button" onClick={() => setDialog(section.key)} data-open-settings={section.key} aria-haspopup="dialog">
             Configure {section.label.toLowerCase()}
           </Btn>
         </div>
@@ -1661,14 +1661,14 @@ export default function SettingsView(props: {
           </div>
         </>
       )}
-      {shelf && (
-        <Shelf id={`avoozl-settings-${shelf}`} title={shelfLabel} width="46rem" backLabel="Close the settings shelf" attrs={{ 'data-settings-shelf': shelf }} onDismiss={() => setShelf(null)}>
+      {dialog && (
+        <Modal close id={`avoozl-settings-${dialog}`} title={dialogLabel} width="46rem" backLabel="Close the settings dialog" attrs={{ 'data-settings-dialog': dialog }} onDismiss={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
-            <TabBoundary key={shelf} label={shelfLabel}>
-              <SettingsBody tab={shelf} workspaceId={workspaceId} onTab={(next) => (setShelf(null), choose(next))} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
+            <TabBoundary key={dialog} label={dialogLabel}>
+              <SettingsBody tab={dialog} workspaceId={workspaceId} onTab={(next) => (setDialog(null), choose(next))} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
             </TabBoundary>
           </div>
-        </Shelf>
+        </Modal>
       )}
     </section>
   )

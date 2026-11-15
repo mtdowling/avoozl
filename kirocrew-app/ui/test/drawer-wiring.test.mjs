@@ -26,7 +26,7 @@ test('the drawer closes on Escape, its button and the backdrop, and returns focu
   assert.match(drawer, /panel\.current\?\.focus\(\)/)
   assert.match(drawer, /returnTo\.current\?\.focus\?\.\(\)/)
   assert.match(drawer, /prefers-reduced-motion: reduce/)
-  assert.match(drawer, /transition: still \|\| dragging \? 'none'/)
+  assert.match(drawer, /transition: still \? 'none'/)
   assert.match(drawer, /max-width: 767px/)
   assert.match(drawer, /role="dialog"/)
 })

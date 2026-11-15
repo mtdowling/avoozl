@@ -269,7 +269,8 @@ export default function NewPlanDrawer(props: {
     })
 
   return (
-    <div className="fixed inset-0" style={{ zIndex: LAYER.drawer, display: 'flex', justifyContent: 'flex-end' }}>
+    // A centered modal, full screen on a phone: no pull-out from the right.
+    <div className="fixed inset-0" style={{ zIndex: LAYER.drawer, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div
         aria-hidden="true"
         data-drawer-backdrop
@@ -283,14 +284,16 @@ export default function NewPlanDrawer(props: {
         aria-modal="true"
         aria-labelledby="avoozl-new-plan-title"
         data-new-plan-drawer
-        className="relative flex h-full flex-col border-l shadow-lg outline-none"
+        className="relative flex flex-col border shadow-lg outline-none"
         style={{
-          width: narrow ? '100%' : 'min(36rem, 92vw)',
+          width: narrow ? '100%' : 'min(40rem, 94vw)',
+          height: narrow ? '100%' : 'min(48rem, 90vh)',
+          borderRadius: narrow ? 0 : 10,
           background: 'var(--card, var(--bg))',
           color: 'var(--text)',
           borderColor: 'var(--border)',
-          transform: shown || still ? 'none' : 'translateX(100%)',
-          transition: still ? 'none' : 'transform 180ms ease-out',
+          opacity: shown || still ? 1 : 0,
+          transition: still ? 'none' : 'opacity 120ms ease-out',
         }}
       >
         <div className="border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
