@@ -130,8 +130,8 @@ export function fakeGitHub({
     issues: [],
     created: [],
     branch: async () => ({ commit: { sha: head() } }),
-    contents: async () =>
-      Promise.reject(Object.assign(new Error("Not Found"), { status: 404 })),
+    treeEntries: async () => [],
+    blobTexts: async () => new Map(),
     createIssue: async (repo, input) => {
       assert.equal(repo, MIRROR);
       github.issues.push(input);
