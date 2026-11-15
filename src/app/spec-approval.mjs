@@ -45,7 +45,7 @@ export function approvalChanges({
       "Approved",
     );
   if (record) changes[`docs/decisions/${spec}.md`] = decisionRecord(spec);
-  // Files the pull request adds as they are (a quick goal's manifest).
+  // Files the pull request adds as they are.
   return { ...changes, ...extra };
 }
 

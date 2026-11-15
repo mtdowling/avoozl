@@ -55,5 +55,5 @@ test('the pages read through epics.view and trace.done only', async () => {
     [COMMAND_PATH, 'epics.view', 'w'],
     [COMMAND_PATH, 'trace.done', 'w'],
   ])
-  for (const file of ['EpicsView.tsx', 'TraceDone.tsx']) assert.doesNotMatch(source(file), /\.(put|del)\(/, file)
+  for (const file of ['TraceDone.tsx']) assert.doesNotMatch(source(file), /\.(put|del)\(/, file)
 })

@@ -10,7 +10,8 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Store } from "./store.mjs";
 import { Operations } from "./operations.mjs";
 import { driverSettingsPath } from "./driver.mjs";
-import { driverSessionFile } from "./driver-session.mjs";
+import { driverSessionFile, driverSessionView } from "./driver-session.mjs";
+import { applyDriverModel, chatModel } from "./chat-models.mjs";
 import { CLIENT_OPERATIONS } from "./client.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
 import { workspaceConfig } from "./config.mjs";
@@ -52,6 +53,9 @@ import {
   demoOperations,
   installDemo,
 } from "./demo.mjs";
+
+// The driver chats given their saved model in this process (chat-models.mjs).
+const driverModels = new Map();
 
 export const PRINCIPAL_HEADER = "x-kirocrew-principal";
 const HOST = "127.0.0.1";
@@ -186,16 +190,6 @@ export const APP_OPERATIONS = new Set([
   "radar.releasequeue",
   "epics.view",
   "trace.done",
-  "quickgoal.get",
-  "quickgoal.list",
-  "quickgoal.confirm",
-  "quickgoal.settings.get",
-  "quickgoal.propose",
-  "quickgoal.edit",
-  "quickgoal.discard",
-  "quickgoal.promote",
-  "quickgoal.approve",
-  "quickgoal.settings.update",
   "radar.releasestep",
   "radar.armed",
   "integration.view",
@@ -214,10 +208,6 @@ export const APP_OPERATIONS = new Set([
   "intake.plan",
   "intake.source.add",
   "intake.source.remove",
-  "idea.capture",
-  "idea.append",
-  "idea.archive",
-  "idea.restore",
   "flow.view",
   "untriaged.crews",
   "untriaged.handoff",
@@ -270,6 +260,8 @@ export const APP_OPERATIONS = new Set([
   "budget.settings.get",
   "budget.settings.update",
   "flow.settings.get",
+  "models.settings.get",
+  "models.settings.update",
   "flow.settings.update",
   "driver.status",
   "driversession.view",
@@ -303,14 +295,8 @@ export const APP_OPERATIONS = new Set([
   "flow.retro.decide",
   "flow.retro.start",
   "flow.proposals",
-  "lessons.view",
-  "plugin.lessons.preview",
   "prompt.override.revert",
   "prompt.override.rebase",
-  "plugin.lessons.import",
-  "lessons.export",
-  "lessons.share.preview",
-  "lessons.share",
   "github.settings.get",
   "github.trigger.preview",
   "github.settings.validate",
@@ -708,6 +694,17 @@ export function startAppBackend({
             } catch (error) {
               console.error(error.message);
             }
+          // Settings › Models: the driver chat runs on the saved model.
+          if (modelSwitcher) {
+            const view = driverSessionView(ops.driverWorkspace()),
+              { models } = ops.settingsFile().readModelSettings();
+            await applyDriverModel({
+              slot: view.state === "running" ? view.slot : null,
+              model: chatModel({ models }, "driver"),
+              switcher: modelSwitcher,
+              applied: driverModels,
+            });
+          }
           if (modelSwitcher) {
             const data = store.read(),
               tasks = new Map(data.tasks.map((t) => [t.id, t])),

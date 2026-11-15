@@ -133,7 +133,13 @@ declare module 'lucide-react' {
   export const ScanSearch: LucideIcon
   export const Send: LucideIcon
   export const Check: LucideIcon
+  export const ChevronDown: LucideIcon
+  export const PanelLeftOpen: LucideIcon
+  export const ListFilter: LucideIcon
+  export const CirclePlus: LucideIcon
   export const ChevronRight: LucideIcon
+  export const ChevronsDownUp: LucideIcon
+  export const ChevronsUpDown: LucideIcon
   export const ClipboardCheck: LucideIcon
   export const Copy: LucideIcon
   export const Crosshair: LucideIcon
@@ -157,6 +163,9 @@ declare module 'lucide-react' {
   export const Trash2: LucideIcon
   export const Workflow: LucideIcon
   export const X: LucideIcon
+  export const Menu: LucideIcon
+  export const Link2: LucideIcon
+  export const Ellipsis: LucideIcon
 }
 
 // Prism's grammar files have no types; each only fills the global Prism.

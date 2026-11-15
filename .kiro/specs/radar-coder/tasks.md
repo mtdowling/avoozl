@@ -661,3 +661,21 @@ Requirement RC29. Count every call by source, and read each repository once.
 - [ ] rc-p28 Proof 28: one check costs one call, after rc-28.1, rc-28.2, rc-28.3 [RC29] (§D17)
   - Setup: a repository with open pull requests. Action: open Home and Graph twice inside the cache window, and run one tick. Expected: Settings > GitHub shows one GraphQL call for the pull-request read. Failure means: views still read pull requests one by one. Next decision: batch the remaining readers by hand.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
+
+## Phase 29: One start for new work; ideas and lessons removed
+
+Requirement RC30. Each task is its own pull request with before and after
+screenshots for anything on screen.
+
+- [ ] rc-29.1 From a goal in New spec; remove Quick goal [RC30.1] (§D35.1)
+  - Tests first: New spec offers Blank, From template and From a goal, none picked, Submit off until one is; From a goal opens a planner chat that writes the spec folder; no Quick goal button, modal or operation remains.
+  - Done when: The tests pass, `npm test` passes, and the pull request shows the modal before and after.
+- [ ] rc-29.2 New task only in a spec's detail view [RC30.2] (§D35.2)
+  - Tests first: the spec detail has New task; the Specs list, Home and every other page do not.
+  - Done when: The tests pass and the pull request shows the pages before and after.
+- [ ] rc-29.3 Delete Ideas, keeping public MCP names as removed-error stubs [RC30.3] (§D35.3)
+  - Tests first: each ideas MCP name returns the removed error and writes nothing; no page, row, operation, CLI command or table remains.
+  - Done when: The tests pass, `npm test` passes, and the compatibility test lists the stubs.
+- [ ] rc-29.4 Delete the lessons store; retros propose a steering-file pull request; one-time export [RC30.4, RC30.5] (§D35.4)
+  - Tests first: an approved retro proposal opens one pull request to `.kiro/steering/avoozl-rules.md`; stored lessons are appended once under a dated heading, then the tables drop; a failed write keeps them.
+  - Done when: The tests pass, `npm test` passes, and AGENTS.md points to the steering file.

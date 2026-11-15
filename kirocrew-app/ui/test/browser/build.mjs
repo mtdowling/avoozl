@@ -18,6 +18,10 @@ function lucide() {
   return [`import { Icon } from ${JSON.stringify(path.join(here, 'stubs.tsx'))}`, ...names.map((name) => `export const ${name} = Icon`)].join('\n')
 }
 
+// AVOOZL_LUCIDE names a lucide-react install (a folder with its
+// package.json) so screenshots draw the real icons instead of the glyph.
+const realLucide = process.env.AVOOZL_LUCIDE ? path.resolve(process.env.AVOOZL_LUCIDE) : null
+
 // `hostCss` is an optional stylesheet (the host's own) used instead of the
 // harness's; screenshots use it to look like the real page.
 // `scripts` maps file names to classic scripts that load before the page,
@@ -34,7 +38,7 @@ export async function buildHarness({ hostCss, scripts = {} } = {}) {
         name: 'avoozl-harness-stubs',
         enforce: 'pre',
         resolveId(id) {
-          if (id === 'lucide-react') return '\0lucide-react'
+          if (id === 'lucide-react') return realLucide ? path.join(realLucide, 'dist/esm/lucide-react.js') : '\0lucide-react'
           if (id === '@kirocrew/app-sdk' || id === '@kirocrew/app-sdk/ui') return path.join(here, 'stubs.tsx')
           return null
         },

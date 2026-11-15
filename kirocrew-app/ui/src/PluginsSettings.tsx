@@ -10,9 +10,7 @@ import {
   PLUGIN_PARTS,
   partsOf,
   pluginsClient,
-  lessonsPackText,
   stateLabel,
-  type LessonsPackPreview,
   type PluginRow,
 } from './plugins-api.ts'
 import { useRead } from './useRead.ts'
@@ -84,49 +82,6 @@ export function Parts({ row }: { row: PluginRow }) {
   )
 }
 
-// A plugin's lessons pack: preview first, then a person imports exactly
-// what the preview showed (R69.7).
-function LessonsPack({ row, busy, act, client, workspaceId }: { row: PluginRow; busy: boolean; act: (fn: () => Promise<unknown>) => void; client: ReturnType<typeof pluginsClient>; workspaceId: string }) {
-  const [preview, setPreview] = useState<LessonsPackPreview | null>(null)
-  const [done, setDone] = useState<string | null>(null)
-  const id = row.id ?? ''
-  return (
-    <div className="mt-2 flex flex-col gap-1 text-xs" data-lessons-pack={id}>
-      {preview ? (
-        <>
-          <span>{lessonsPackText(preview)}</span>
-          <div className="flex flex-wrap gap-2">
-            <TipBtn
-              tooltip="Import these lessons read-only, named by this plugin and version"
-              primary
-              disabled={busy || row.state !== 'approved'}
-              onClick={() =>
-                act(async () => {
-                  await client.lessonsImport(workspaceId, id, preview.hash)
-                  setDone(`Imported ${preview.rows.filter((r) => r.action !== 'retire').length} lessons.`)
-                  setPreview(null)
-                })
-              }
-            >
-              Import lessons
-            </TipBtn>
-            <TipBtn tooltip="Close the preview without importing" disabled={busy} onClick={() => setPreview(null)}>
-              Cancel
-            </TipBtn>
-          </div>
-        </>
-      ) : (
-        <div>
-          <TipBtn tooltip="See which lessons importing this pack adds, changes or retires" disabled={busy} onClick={() => act(async () => setPreview(await client.lessonsPreview(workspaceId, id)))}>
-            Preview lessons pack
-          </TipBtn>
-        </div>
-      )}
-      {done && <span className="text-muted">{done}</span>}
-    </div>
-  )
-}
-
 function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Promise<unknown>) => void; client: ReturnType<typeof pluginsClient>; workspaceId: string; onImport: (row: PluginRow) => void; notes: SkillNote[] }) {
   const { row, busy, act, client, workspaceId } = props
   const status = stateLabel(row)
@@ -148,7 +103,6 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
       ) : null}
       <Parts row={row} />
       <Facts row={row} />
-      {partsOf(row).includes('lessons') && row.id ? <LessonsPack row={row} busy={busy} act={act} client={client} workspaceId={workspaceId} /> : null}
       {props.notes.length > 0 && (
         <div className="mt-2 flex flex-col gap-2" data-plugin-notes>
           <span className="text-xs font-semibold">Suggested changes from retros. Copy one to the plugin's owner; Avoozl sends nothing.</span>

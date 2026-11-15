@@ -47,11 +47,14 @@ test('the top row has the red button with a stopped state, and Resume asks first
   const app = source('App.tsx'),
     dialog = source('StopLine.tsx'),
     banner = source('FlowView.tsx')
-  assert.match(app, /<StopLineButton workspaceId=\{active\} \/>/)
+  // In the header's More menu, an icon only (StopLineItem).
+  assert.equal(app.match(/<StopLineItem workspaceId=\{active\} \/>/g).length, 2)
+  assert.match(dialog, /export function StopLineItem[\s\S]*?data-keep-menu[\s\S]*?<StopLineButton workspaceId=\{props\.workspaceId\} \/>/)
   // Stopped: its own words and look while a stop is open; a pull or resume
   // tells the page at once.
   assert.match(dialog, /\{stopped \? 'Line stopped' : 'Stop the line'\}/)
-  assert.match(dialog, /style=\{stopped \? STOPPED : FILL\}/)
+  assert.match(dialog, /style=\{\{ \.\.\.\(stopped \? STOPPED : FILL\), padding: '4px 6px' \}\}/)
+  assert.match(dialog, /<span className="sr-only">\{stopped \? 'Line stopped' : 'Stop the line'\}<\/span>/)
   assert.match(dialog, /filter\(\(stop\) => !stop\.closedAt\)/)
   assert.match(dialog, /lineChanged\(\)/)
   assert.match(banner, /onChanged\?\.\(\)\n\s*lineChanged\(\)/)

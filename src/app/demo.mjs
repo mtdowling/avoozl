@@ -13,9 +13,7 @@ import { renderMarker } from "./github-marker.mjs";
 import { Operations } from "./operations.mjs";
 import { workspaceConfig } from "./config.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
-import { captureIdea } from "./ideas.mjs";
 import { recordActivity } from "./activity-log.mjs";
-import { Lessons, lessonsPath, writeLesson } from "./lessons.mjs";
 import { emptySnapshot } from "./workspace.mjs";
 import { demoFixtures, radarOverlay, seedRadar } from "./demo-radar.mjs";
 
@@ -39,7 +37,7 @@ export function defaultDemoRoot(tmp = os.tmpdir()) {
   return path.join(tmp, `avoozl-demo-${user}`);
 }
 
-// The sample's own paths. Machine settings (plugins, driver, lessons) live
+// The sample's own paths. Machine settings (plugins, driver, prompts) live
 // inside it too, so nothing reaches the person's settings folder.
 export function demoPaths(root) {
   return {
@@ -448,7 +446,6 @@ const SAYS = [
   ["github.setup", "create labels, fields and a Project on GitHub"],
   ["github.", "write to GitHub"],
   ["intake.", "take this item into the graph"],
-  ["idea.", "save this idea"],
   ["flow.stop", "stop the line: no new work starts until you resume"],
   ["flow.resume", "resume the line so new work can start"],
   ["flow.retro", "open a retro chat to learn from this run"],
@@ -462,7 +459,6 @@ const SAYS = [
   ["driver.", "hand this workspace to another machine"],
   ["plugin", "change plugins"],
   ["content.", "change content rules"],
-  ["lessons.", "share or export lessons"],
   ["review.chat", "open a review chat"],
   ["untriaged.plan", "plan this issue"],
   ["untriaged.handoff", "hand this item to Issue Radar"],
@@ -776,7 +772,6 @@ export async function buildDemo(
     // Release queue knows them before the first tick.
     await ops.execute("radar.crews", { refresh: true });
     seedActivity(store, now);
-    seedLessons(paths.settings, now);
     // The checkout as it reads after the rename.
     const finalReal = path.join(
       fs.realpathSync.native(path.dirname(finalRoot)),
@@ -809,7 +804,7 @@ export const DEMO_LINKS = Object.freeze({
   "shopping-list.2.1": { issue: 11 },
 });
 
-// Task states, GitHub records, deliveries, intake, an idea, and Flow.
+// Task states, GitHub records, deliveries, intake, and Flow.
 function seedState(store, now) {
   const at = (h) => hoursAgo(now, h);
   store.mutate("Demo sample state", (data) => {
@@ -969,14 +964,6 @@ function seedState(store, now) {
         at: at(3),
       });
   });
-  captureIdea(
-    store,
-    {
-      title: "Suggest a meal from what is in the pantry",
-      notes: "Made-up demo idea. Could use the pantry photos spec.",
-    },
-    { by: { kind: "person", name: OWNER }, now: at(4) },
-  );
 }
 
 function seedActivity(store, now) {
@@ -1018,39 +1005,4 @@ function seedActivity(store, now) {
       summary,
       at: hoursAgo(now, hours),
     });
-}
-
-function seedLessons(settings, now) {
-  const lessons = new Lessons(lessonsPath(settings));
-  try {
-    for (const [stage, finding, change, hours] of [
-      [
-        "tests",
-        "Tests ran before the build, so they read old files.",
-        "Run the build before the tests.",
-        18,
-      ],
-      [
-        "coding",
-        "Workers guessed the date format in imports.",
-        "Say the date format in the task brief.",
-        9,
-      ],
-    ]) {
-      const written = writeLesson(lessons, {
-        pattern: { stage, check: "test", tool: "npm", traits: [] },
-        finding,
-        change: { summary: change },
-        evidence: [],
-        context: { workspace: "demo" },
-        source: "retro",
-        by: OWNER,
-        now: now - hours * 3600_000,
-      });
-      if (written.refused)
-        throw Error(`Demo lesson refused: ${written.refused}`);
-    }
-  } finally {
-    lessons.close();
-  }
 }

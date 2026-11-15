@@ -3,13 +3,10 @@
 // nothing here starts a chat until a person presses Start. In Demo mode it
 // shows the demo's made-up session and never reads or starts anything.
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Btn, Card } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
-import { SectionHeading } from './controls.tsx'
 import { useDemoFixtures } from './Demo.tsx'
 import { useAppApi, useChatLauncher } from './host.ts'
-import { Info } from './icons.ts'
-import { Tooltip } from './Tooltip.tsx'
+import { ExternalLink, MessageSquare, Play, RefreshCw } from './icons.ts'
+import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
 import { sinceText } from './driver-view-api.ts'
 import { DRIVER_AGENT, DRIVER_START_MESSAGE, driverFromFixture, driverLine, readDriverSession, type DriverRead } from './driver-view-api.ts'
 import { driverView } from './panel-api.ts'
@@ -35,68 +32,50 @@ export function useDriverSession(workspaceId: string | null): { read: DriverRead
   return { read: fixtures ? driverFromFixture(fixtures.driverSession) : read, reload }
 }
 
-export default function DriverSessionBox(props: { workspaceId: string | null }) {
+// The driver as one compact cell: "Driver: not started", its actions beside it.
+// Everything longer is the title's tooltip.
+export function DriverCell(props: { workspaceId: string | null }) {
   const { read, reload } = useDriverSession(props.workspaceId)
   const { openChat } = useChatLauncher()
   const view = useMemo(() => (read ? driverView(read) : null), [read])
   const open = () => read?.slot && openChat({ slotKey: read.slot })
   const start = () => openChat({ agent: DRIVER_AGENT, message: DRIVER_START_MESSAGE, autoSend: true })
   const seen = read?.lastSeenAt ? sinceText(Date.parse(read.lastSeenAt), Date.now()) : null
+  const tip = [
+    TIP,
+    read ? driverLine(read.state) : 'Reading the driver session…',
+    seen && read?.state !== 'none' ? `Last seen ${seen}.` : '',
+    read?.turnsToday !== undefined && read.turnLimit ? `${read.turnsToday} of ${read.turnLimit} turns today.` : '',
+    view?.workspace ? `Workspace: ${view.workspace}.` : '',
+    view?.elsewhere ? view.elsewhere.text : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
   return (
-    <div data-driver-session={read?.state ?? 'loading'}>
-      <Card className="flex flex-col gap-2">
-        <SectionHeading
-          title="Driver session"
-          className="mb-0"
-          meta={
-            <>
-              {read && <Badge variant={read.state === 'running' ? 'success' : undefined}>{LABEL[read.state]}</Badge>}
-              <Tooltip text={TIP}>
-                {(describedBy) => (
-                  <span tabIndex={0} role="img" aria-label="About the driver session" aria-describedby={describedBy} data-info-tip className="inline-flex items-center text-muted">
-                    <Info size={14} aria-hidden="true" />
-                  </span>
-                )}
-              </Tooltip>
-            </>
-          }
-        />
-        {view?.workspace && (
-          <p className="text-xs text-muted" data-driver-workspace>
-            Workspace: {view.workspace}
-          </p>
-        )}
-        {view?.elsewhere && (
-          <p className="text-sm" data-driver-elsewhere>
-            {view.elsewhere.text}{' '}
-            <button type="button" className="underline" style={{ color: 'var(--accent)', background: 'none', border: 0, padding: 0, cursor: 'pointer' }} onClick={() => view.elsewhere && openChat({ slotKey: view.elsewhere.slot })} data-driver-elsewhere-open>
-              Open
-            </button>
-          </p>
-        )}
-        <p className="text-sm text-muted">
-          {read ? driverLine(read.state) : 'Reading the driver session…'}
-          {seen && read?.state !== 'none' ? ` Last seen ${seen}.` : ''}
-          {read?.turnsToday !== undefined && read.turnLimit ? ` ${read.turnsToday} of ${read.turnLimit} turns today.` : ''}
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          {view?.link && (
-            <Btn type="button" primary={!view.start} onClick={open} data-driver-open>
-              Open driver session
-            </Btn>
+    <StatusCell
+      data-driver-session={read?.state ?? 'loading'}
+      tone={read?.state === 'running' ? 'ok' : read?.state === 'unknown' ? 'warn' : 'muted'}
+      title={`Driver: ${read ? LABEL[read.state].toLowerCase() : 'reading'}`}
+      tip={tip}
+      actions={
+        <>
+          {view?.link && <CellAct label="Open driver session" icon={<MessageSquare size={13} aria-hidden="true" />} primary={!view.start} onClick={open} data-driver-open />}
+          {view?.start && <CellAct label={view.link ? 'Start a new driver session' : 'Start a driver session'} icon={<Play size={13} aria-hidden="true" />} primary={!view.link} onClick={start} data-driver-start />}
+          {view?.elsewhere && (
+            <CellAct label={`Open ${view.elsewhere.workspace}'s driver`} icon={<ExternalLink size={13} aria-hidden="true" />} tip={view.elsewhere.text} onClick={() => view.elsewhere && openChat({ slotKey: view.elsewhere.slot })} data-driver-elsewhere data-driver-elsewhere-open />
           )}
-          {view?.start && (
-            <Btn type="button" primary={!view.link} onClick={start} data-driver-start>
-              {view.link ? 'Start a new driver session' : 'Start a driver session'}
-            </Btn>
-          )}
-          {read && (
-            <button type="button" className="text-sm underline" onClick={reload} data-driver-recheck>
-              Check again
-            </button>
-          )}
-        </div>
-      </Card>
-    </div>
+          {read && <CellAct label="Recheck" icon={<RefreshCw size={13} aria-hidden="true" />} onClick={reload} data-driver-recheck />}
+        </>
+      }
+    />
+  )
+}
+
+// On its own (Settings): the one cell, full width.
+export default function DriverSessionBox(props: { workspaceId: string | null }) {
+  return (
+    <StatusRow>
+      <DriverCell workspaceId={props.workspaceId} />
+    </StatusRow>
   )
 }

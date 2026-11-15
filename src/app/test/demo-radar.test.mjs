@@ -1,6 +1,6 @@
 // Demo data for the Radar-based screens (the demo's sample, src/app/demo-radar.mjs):
 // an epic with release state, crew claims on several machines, a handback
-// in Waiting on you, a drafted review, a release queue with a held reason,
+// in Needs you, a drafted review, a release queue with a held reason,
 // recent merges, a Stop the line example, a driver session link and a
 // Mirror sample. Nothing writes to GitHub and no worker rows exist.
 import assert from "node:assert/strict";

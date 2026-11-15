@@ -478,6 +478,8 @@ machine, and what to change, without opening a crew's chat.
 
 ### Requirement RC9: Quick goals
 
+Superseded by RC30.1: Quick goal is no longer its own button, modal or page.
+
 **User story:** As the owner, I want to type "Make tests faster" and get a
 small set of issues I approve once, without writing a spec first.
 
@@ -581,6 +583,14 @@ that other tools call removed by accident.
    the current statement, and those documents SHALL NOT be rewritten
    (AGENTS.md). Remote work SHALL go through a Radar crew on that machine (RC1)
    or through a remote coder (RC15).
+
+9. The **Switch model** button, its dialog and the bulk switch flow SHALL be
+   gone from the page now: local workers are retired and Radar crews pick
+   their own model. `provider.switch` and `provider.switch.dryRun` have no
+   caller left and SHALL be removed with the retirement epic.
+   `provider.switch.preview` stays, since the public MCP tool lists it.
+   Settings › Models SHALL set the model of Avoozl's own chats (planner,
+   driver, retro, review drafts), saved as `models` in `.avoozl.json`.
 
 ### Requirement RC12: Open questions, each with the test that answers it
 
@@ -1625,3 +1635,37 @@ Proof added to D17:
 | Proof  | Proves                                                                                  |
 | ------ | --------------------------------------------------------------------------------------- |
 | rc-p28 | On a live login: one check of a repository with open pull requests costs one GraphQL call |
+
+### Requirement RC30: Goals start in New spec; ideas and the lessons store are gone
+
+**User story:** As the owner, I want one way to start work (New spec), task
+adding only where a spec is open, and no second stores for ideas or lessons, so
+the app has fewer places that mean the same thing.
+
+#### Acceptance criteria
+
+1. Quick goal SHALL NOT be a button, modal or page of its own. New spec SHALL
+   offer a third start, **From a goal**, beside **Blank** and **From
+   template**: the person types a goal, a planner chat writes the draft spec
+   folder, and the draft is approved like any spec. No start SHALL be picked
+   when New spec opens, and Submit SHALL stay off until one is picked.
+2. **New task** SHALL appear only in a spec's detail view, where the task it
+   adds belongs to that spec. Every other New task button SHALL be removed.
+3. The **Ideas** concept SHALL be deleted: the page and its button, its rows
+   in Needs you, its operations, the CLI `intake idea` commands and MCP actions, its storage and
+   its tests. The public MCP actions for ideas (`capture_idea` and
+   `add_idea_note` on the `plans_*` intake tool) SHALL stay as stubs that
+   return the error "Ideas were removed from Avoozl." and change nothing, as
+   AGENTS.md requires for public names.
+4. Avoozl's **lessons store** SHALL be deleted: the Lessons views, lessons
+   packs, their import and Share. A retro SHALL propose rule changes as a
+   pull request to the steering file `.kiro/steering/avoozl-rules.md`,
+   which AGENTS.md points to, and to the crew prompt when the change is about
+   how crews work. A person merges or closes that pull request; Avoozl does
+   not apply a rule itself.
+5. WHEN a workspace still has stored lessons, Avoozl SHALL write them once
+   into `.kiro/steering/avoozl-rules.md` (appending under a dated heading,
+   never overwriting the file), and only after that write succeeds SHALL drop
+   the lessons tables. A failed write SHALL keep the tables and say why.
+6. The design and `docs/overview.md` SHALL list these removals and name no
+   other product.

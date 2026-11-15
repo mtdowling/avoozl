@@ -2511,6 +2511,58 @@
         "rc-28.2",
         "rc-28.3"
       ]
+    },
+    "rc-29.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "From a goal in New spec; remove Quick goal. See RC30.1; \u00a7D35.1.",
+      "acceptance": [
+        "New spec offers Blank, From template and From a goal, none picked and Submit off until one is; From a goal opens a planner chat that writes the spec folder; no Quick goal button, modal or operation remains; `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "rc-29.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "New task only in a spec's detail view. See RC30.2; \u00a7D35.2.",
+      "acceptance": [
+        "The spec detail has New task; the Specs list, Home and every other page do not; `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "rc-29.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Delete Ideas; public MCP actions stay as removed-error stubs. See RC30.3; \u00a7D35.3.",
+      "acceptance": [
+        "`capture_idea` and `add_idea_note` return the removed error and write nothing; no Ideas page, row, operation, CLI command or table remains; `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "rc-29.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Delete the lessons store; retros propose a steering-file pull request; one-time export. See RC30.4, RC30.5; \u00a7D35.4.",
+      "acceptance": [
+        "An approved retro proposal opens one pull request to `.kiro/steering/avoozl-rules.md`; stored lessons are appended once, then the tables drop; a failed write keeps them; AGENTS.md points to the file; `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
     }
   }
 }

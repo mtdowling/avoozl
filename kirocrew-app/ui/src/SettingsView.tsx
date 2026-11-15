@@ -2,7 +2,7 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSP
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
-import { Shelf } from './Shelf.tsx'
+import { Modal } from './Modal.tsx'
 import Badge from './Badge.tsx'
 import { ModePicker } from './ModePicker.tsx'
 import {
@@ -64,6 +64,7 @@ import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, rep
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
+import ModelsSettings from './ModelsSettings.tsx'
 import DriverSessionBox from './DriverSessionBox.tsx'
 import { InstanceRename } from './InstanceName.tsx'
 import MirrorSetup from './MirrorSetup.tsx'
@@ -106,15 +107,17 @@ export const SETTINGS_TABS = [
   { key: 'plugins', label: 'Plugins' },
   { key: 'content', label: 'Content rules' },
   { key: 'flow', label: 'Flow' },
+  // Avoozl's own chats only; Radar crews pick their own model.
+  { key: 'models', label: 'Models' },
   // Who merges (delivery.ship) is read for Radar pull requests too.
   { key: 'delivery', label: 'Delivery' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
-// Sections whose editors are large open in a shelf from a Configure button;
+// Sections whose editors are large open in a modal from a Configure button;
 // the small ones (the driver chat, the instance name, the workspace list)
 // stay inline.
-const SHELF_SECTIONS: readonly SettingsTab[] = ['repositories', 'github', 'plugins', 'content', 'flow', 'delivery']
+const DIALOG_SECTIONS: readonly SettingsTab[] = ['repositories', 'github', 'plugins', 'content', 'flow', 'delivery']
 
 // One short line under each Settings heading: what it controls and when
 // you would change it. Each is checked against what the code does.
@@ -137,6 +140,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   content:
     'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
+  models: "The model each of Avoozl's own chats opens on. Issue Radar crews pick their own.",
   delivery:
     'Who merges a finished pull request, and the writer agent and model, investigate-first and pull request feedback for Avoozl worker chats.',
 }
@@ -1551,6 +1555,7 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => props.onTab('github')} />
   if (tab === 'content') return <ContentRulesSettings workspaceId={workspaceId} />
   if (tab === 'flow') return <FlowSettings workspaceId={workspaceId} />
+  if (tab === 'models') return <ModelsSettings workspaceId={workspaceId} />
   if (tab === 'delivery') return <DeliverySettings workspaceId={workspaceId} />
   return (
     <div className="flex flex-col gap-3.5">
@@ -1619,8 +1624,8 @@ export default function SettingsView(props: {
   // A remembered section that no longer exists falls back to Workspaces.
   const tab: SettingsTab = SETTINGS_TABS.some((t) => t.key === asked) ? (asked as SettingsTab) : SETTINGS_HOME
   const choose = (next: SettingsTab) => (props.onTab ? props.onTab(next) : setOwn(next))
-  const [shelf, setShelf] = useState<SettingsTab | null>(null)
-  const shelfLabel = SETTINGS_TABS.find((t) => t.key === shelf)?.label ?? ''
+  const [dialog, setDialog] = useState<SettingsTab | null>(null)
+  const dialogLabel = SETTINGS_TABS.find((t) => t.key === dialog)?.label ?? ''
   // A phone shows the section list or one section, never both. Picking a
   // section, or an outside link to one, opens it.
   const ld = useListDetail(tab !== SETTINGS_HOME)
@@ -1641,9 +1646,9 @@ export default function SettingsView(props: {
           {SETTINGS_BLURBS[section.key]}
         </p>
       )}
-      {SHELF_SECTIONS.includes(section.key) ? (
+      {DIALOG_SECTIONS.includes(section.key) ? (
         <div>
-          <Btn type="button" onClick={() => setShelf(section.key)} data-open-shelf={section.key} aria-haspopup="dialog">
+          <Btn type="button" onClick={() => setDialog(section.key)} data-open-settings={section.key} aria-haspopup="dialog">
             Configure {section.label.toLowerCase()}
           </Btn>
         </div>
@@ -1681,7 +1686,7 @@ export default function SettingsView(props: {
                       aria-expanded={open}
                       onClick={() => pick(section.key)}
                       className="flex w-full items-center gap-2 py-2.5 text-left text-sm font-semibold"
-                      style={{ cursor: 'pointer', background: 'none', border: 0, color: 'inherit', minHeight: ld.phone ? 48 : undefined }}
+                      style={{ cursor: 'pointer', background: 'none', border: 0, color: 'inherit', }}
                     >
                       <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none' }}>
                         <ChevronRight size={14} />
@@ -1696,14 +1701,14 @@ export default function SettingsView(props: {
           </div>
         </>
       )}
-      {shelf && (
-        <Shelf id={`avoozl-settings-${shelf}`} title={shelfLabel} width="46rem" backLabel="Close the settings shelf" attrs={{ 'data-settings-shelf': shelf }} onDismiss={() => setShelf(null)}>
+      {dialog && (
+        <Modal close id={`avoozl-settings-${dialog}`} title={dialogLabel} width="46rem" backLabel="Close the settings dialog" attrs={{ 'data-settings-dialog': dialog }} onDismiss={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
-            <TabBoundary key={shelf} label={shelfLabel}>
-              <SettingsBody tab={shelf} workspaceId={workspaceId} onTab={(next) => (setShelf(null), choose(next))} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
+            <TabBoundary key={dialog} label={dialogLabel}>
+              <SettingsBody tab={dialog} workspaceId={workspaceId} onTab={(next) => (setDialog(null), choose(next))} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
             </TabBoundary>
           </div>
-        </Shelf>
+        </Modal>
       )}
     </section>
   )

@@ -264,13 +264,15 @@ export async function revertCorrections(store) {
   return found;
 }
 
-// The leaf body for an approved rule: add it to the rules file.
+// The leaf body for an approved rule: add it to the rules file, and point
+// AGENTS.md at that file so every chat and crew reads it (RC30.4).
 export function ruleChangeBody(text, summary) {
   return [
     String(summary || "").slice(0, 1000),
-    `Add this rule to ${RULES_FILE} in this repository, creating the file if it is missing. Keep every rule already there. If the file starts with front matter, keep it; a new file starts with "---\\ninclusion: always\\n---", then a "# Rules from corrections" heading. Add the rule as one "- " list item, word for word, and change nothing else:`,
+    `Add this rule to ${RULES_FILE} in this repository, creating the file if it is missing. Keep every rule already there. If the file starts with front matter, keep it; a new file starts with "---\\ninclusion: always\\n---", then a "# Rules from corrections" heading. Add the rule as one "- " list item, word for word:`,
     "```text",
     text.replaceAll("```", "'''"),
     "```",
+    `If AGENTS.md at the repository root does not already name ${RULES_FILE}, add one line to it: "Follow the rules in ${RULES_FILE}." Create AGENTS.md with only that line if it is missing. Issue Radar crews read AGENTS.md, so a rule about how crews work reaches them too. Change nothing else.`,
   ].join("\n\n");
 }

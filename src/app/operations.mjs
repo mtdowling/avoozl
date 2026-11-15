@@ -342,7 +342,6 @@ import {
   classifyGitHubIssue,
   draftGitHubChildren,
 } from "./github-breakdown.mjs";
-import { quickGoalOperation } from "./quick-goal-ops.mjs";
 import { previewProjection } from "./github-preview.mjs";
 import { planProjectionBatches } from "./radar-coder-batch.mjs";
 import {
@@ -413,15 +412,6 @@ import {
 } from "./intake.mjs";
 import { highlightLanguages } from "./highlight-languages.mjs";
 import { importNewPlans, requestNewPlan } from "./new-plan.mjs";
-import {
-  appendIdea,
-  captureIdea,
-  graduateIdea,
-  ideaView,
-  openIdea,
-  riffMessage,
-  setIdeaState,
-} from "./ideas.mjs";
 import { writeSpecManifest } from "./spec-manifest.mjs";
 import { decideInvestigation } from "./investigate.mjs";
 import { taskEvidence } from "./evidence.mjs";
@@ -963,9 +953,9 @@ export class Operations {
       plugins = workspaceRoot
         ? pluginHost({ workspaceRoot, settingsFile: pluginSettingsFile })
         : null,
-      // This machine's Avoozl settings folder for prompt overrides and the
-      // lessons store (design §4.18). Unset (most tests) leaves retros as
-      // before Phase 28; the app, MCP server and CLI pass it.
+      // This machine's Avoozl settings folder for prompt overrides (design
+      // §4.18). Unset (most tests) leaves retros as before Phase 28; the
+      // app, MCP server and CLI pass it.
       configDirectory = null,
       // The machine's driver session record (driver-session.mjs). The CLI,
       // app backend and app MCP server pass driverSessionFile(); without one
@@ -976,12 +966,8 @@ export class Operations {
       workspaceName = null,
       // Tests replace the shipped prompts to model an Avoozl update.
       shippedPrompts = null,
-      // () => model IDs Kiro Crew lists, or null when unknown.
-      models = null,
       // (issue) => the issue.verify result; tests pass a fake.
       issueVerifier = undefined,
-      // (request) => the planner chat for a quick goal; tests pass a fake.
-      plannerAgent = null,
     } = {},
   ) {
     this.store = store;
@@ -1004,7 +990,6 @@ export class Operations {
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
     this.issueVerifier = issueVerifier;
-    this.plannerAgent = plannerAgent;
     // Every GitHub text write passes content rules first (§4.9).
     const client = github || defaultGitHubClient();
     // Conditional reads and the rate-limit pause live in this workspace.
@@ -1037,14 +1022,6 @@ export class Operations {
         configDirectory,
         workspaceRoot,
         shipped: shippedPrompts,
-        models:
-          models ||
-          (() => {
-            const cached = store.getMeta("kirocrew.models");
-            return cached && Date.now() - Date.parse(cached.at) < 24 * 3600_000
-              ? cached.models
-              : null;
-          }),
         loadPluginFolders: () =>
           inspectPlugins(this.pluginOptions)
             .filter(
@@ -3211,14 +3188,10 @@ export class Operations {
       return cancelSubmission(store, this.plugins.open(), input);
     }
     if (name === "route.resubmit") return resubmit(store, input);
-    // Proposals and Lessons (design §4.18).
+    // Proposals and prompt overrides (design §4.18).
     if (RETRO_READS.has(name) || RETRO_WRITES.has(name))
       return retroOperation(store, name, input, context, {
         by: context.local ? "cli" : "dashboard",
-        config: readFlowConfig(this.workspaceRoot),
-        github: this.github,
-        policy: readGitHubPolicyOrNull(this.workspaceRoot),
-        workspaceRoot: this.workspaceRoot,
       });
     if (PLUGIN_OPERATIONS.has(name)) {
       const result = await this.pluginOperation(name, input, context);
@@ -3273,16 +3246,6 @@ export class Operations {
     if (name === "chat.context") {
       // Ask for help (§8.9): the page's own words and settings.
       if (input.purpose === "help") return { message: helpMessage(input) };
-      // Riff on this (R63.8): the idea as data; the chat may only append.
-      if (input.purpose === "riff-idea")
-        return {
-          message: riffMessage(
-            ideaView(
-              store.get("incoming_items", `local\0${input.idea}`) ??
-                fail(`No idea ${input.idea}.`, 404),
-            ),
-          ),
-        };
       // A plan's seed carries its row and its spec documents.
       let planRow = null,
         documents = null;
@@ -3428,6 +3391,16 @@ export class Operations {
       };
     }
     // Settings > Flow (§8.4) and the retros (§4.11).
+    // Settings › Models: Avoozl's own chats' models, in .avoozl.json.
+    if (name === "models.settings.get")
+      return this.settingsFile().readModelSettings();
+    if (name === "models.settings.update") {
+      if (context.caller || context.mcp)
+        fail("Only a person changes chat models, in Settings.", 403);
+      const written = this.settingsFile().updateModelSettings(input);
+      this.configuration?.reload();
+      return written;
+    }
     if (name === "flow.settings.get")
       return {
         ...this.settingsFile().readFlowSettings(),
@@ -3671,11 +3644,6 @@ export class Operations {
       const plan = store.get("plans", input.planId);
       if (!plan) fail("Plan not found.", 404);
       return { preflight: await this.radarPreflight(plan, input.repository) };
-    }
-    if (name.startsWith("quickgoal.")) {
-      if (context.caller || context.mcp)
-        fail("Only a person works a quick goal, in the Avoozl page.", 403);
-      return quickGoalOperation(this, name, input);
     }
     // Flow from GitHub data (RC8.5): stage times of finished Radar issues.
     // `refresh` reads GitHub first (at most every 10 minutes unless forced).
@@ -4024,30 +3992,10 @@ export class Operations {
         queueNotifications(store, notify);
         return result;
       });
-    // Ideas (R63): anyone captures and appends; a session is named.
-    if (name === "idea.capture" || name === "idea.append") {
-      const by =
-        context.caller || context.mcp
-          ? {
-              kind: "agent",
-              name: `session:${context.caller?.sessionKey || context.caller || "mcp"}`,
-            }
-          : { kind: "person", name: context.local ? "cli" : "person" };
-      return name === "idea.capture"
-        ? captureIdea(store, input, { by })
-        : appendIdea(store, input, { by });
-    }
-    if (name === "idea.archive" || name === "idea.restore") {
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person archives or restores an idea, in the Avoozl page or the CLI.",
-          403,
-        );
-      return setIdeaState(store, {
-        id: input.id,
-        state: name === "idea.archive" ? "archived" : "open",
-      });
-    }
+    // Ideas were removed (RC30.3). The public MCP actions capture_idea and
+    // add_idea_note stay so callers get a clear error, and nothing changes.
+    if (name === "idea.capture" || name === "idea.append")
+      fail("Ideas were removed from Avoozl.", 410);
     if (name === "intake.list") return listItems(store, input);
     // Manual tasks and Links and notes (§4.16, R61.12–R61.22).
     if (name === "task.manual.complete" || name === "task.manual.reopen") {
@@ -5273,14 +5221,7 @@ export class Operations {
     if (name === "plan.new") {
       if (context.caller || context.mcp)
         fail("Only a person starts a new plan, from the Avoozl page.", 403);
-      // Make it a spec (R63.9): the idea must be open, and it graduates
-      // only once the request is recorded.
-      const idea =
-        typeof input.idea === "string" && input.idea
-          ? openIdea(store, input.idea)
-          : null;
-      const { idea: _idea, ...fields } = input;
-      const result = requestNewPlan(store, fields, {
+      const result = requestNewPlan(store, input, {
         readSpec: (spec) => this.readSpec(spec),
         repositories: workspaceRepositories(store).filter(
           (repo) => !repo.planning,
@@ -5288,8 +5229,6 @@ export class Operations {
         specRoot: this.specRoots()[0] || null,
         template: (ref) => pickTemplate(this.pluginOptions, ref),
       });
-      if (idea && input.preview !== true)
-        result.idea = graduateIdea(store, idea.itemId, result.name);
       return result;
     }
     if (name === "plan.create") {
@@ -5537,12 +5476,7 @@ export class Operations {
         fail("The reviewed document hash changed.", 409);
       // Approval is of the stored revision, and only while the folder on
       // disk still matches it.
-      // A quick goal's folder exists only in its approval pull request.
-      if (
-        plan.spec &&
-        !plan.context?.quickGoal &&
-        this.readSpec(plan.spec).hash !== plan.hash
-      )
+      if (plan.spec && this.readSpec(plan.spec).hash !== plan.hash)
         fail(
           "The spec folder changed on disk. Reload it before approving.",
           409,

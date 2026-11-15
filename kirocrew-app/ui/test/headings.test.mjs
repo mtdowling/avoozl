@@ -12,7 +12,9 @@ const views = readdirSync(src).filter((name) => name.endsWith('.tsx'))
 test('one section heading: title and buttons on one centered row, buttons right and wrapping', () => {
   const controls = source('controls.tsx')
   const part = controls.slice(controls.indexOf('export function SectionHeading'), controls.indexOf('export function ViewHeading'))
-  assert.match(part, /<div className="flex flex-wrap items-center gap-x-3 gap-y-2">/)
+  // On a phone a heading with `phoneMenu` keeps one row and puts its buttons in More.
+  assert.match(part, /<div className=\{`flex items-center gap-x-3 gap-y-2 \$\{menu \? 'flex-nowrap' : 'flex-wrap'\}`\}>/)
+  assert.match(part, /<MoreMenu /)
   assert.match(part, /className=\{`m-0 flex min-w-0 items-center gap-2 font-semibold/)
   assert.match(part, /<div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2"/)
   // View headings are the same part at level 2.
@@ -43,15 +45,18 @@ test('headings with buttons pass them as the heading actions', () => {
   for (const name of views) assert.doesNotMatch(source(name), /items-center gap-3">\s*<(ViewHeading|CardTitle)/, name)
 })
 
-test('Specs heading: New spec, Quick goal, New idea, Ideas, New task, then an icon-only Refresh last', () => {
+test('Specs heading: New spec, then an icon-only Refresh last; New task only in a spec', () => {
   const plans = source('PlansView.tsx')
   const part = plans.slice(plans.indexOf('function PlansActions'), plans.indexOf('// The row\'s icon buttons'))
   const at = (text) => part.indexOf(text)
-  assert.ok(at('New spec') > 0 && at('New spec') < at('Quick goal') && at('Quick goal') < at('NewIdeaButton') && at('NewIdeaButton') < at('New task') && at('New task') < at('RefreshCw'), 'order')
-  assert.equal(part.match(/<IconLabel icon=\{Plus\}/g).length, 3)
+  assert.ok(at('New spec') > 0 && at('New spec') < at('RefreshCw') && at('Idea') === -1 && at('New task') === -1, 'order')
+  assert.equal(part.match(/<IconLabel icon=\{Plus\}/g).length, 1)
+  // New task is in the spec's own view, and nowhere else on the page.
+  assert.match(plans, /<span data-new-task className="contents">/)
+  for (const name of views.filter((n) => n !== 'PlansView.tsx' && n !== 'Panel.tsx')) assert.doesNotMatch(source(name), />\s*New task\s*</, name)
   assert.match(part, /<IconBtn icon=\{RefreshCw\} label="Refresh specs" tooltip=\{REFRESH_PLANS_TIP\}/)
   assert.match(plans, /REFRESH_PLANS_TIP = 'Reload specs from disk\. Imports nothing\.'/)
-  assert.match(plans, /actions=\{\s*workspace && !row \? \(\s*<PlansActions/)
+  assert.match(plans, /actions=\{\s*<PlansActions/)
   for (const name of views) assert.doesNotMatch(source(name), />\s*Add task\s*</, name)
 })
 
@@ -75,8 +80,9 @@ test('a Needs you title opens what it is about', () => {
   assert.equal(attentionTip({ ...base, taskId: 'W1' }), 'Open W1 in the drawer')
   assert.equal(attentionTip({ ...base, kind: 'review', taskId: null, group: {} }), 'Open the list of tasks to review')
   const dashboard = source('DashboardView.tsx')
-  // A real button: Tab reaches it, Enter and Space press it, and its name is the title.
-  assert.match(dashboard, /<button type="button" className="text-left font-medium underline" onClick=\{onTitle\} aria-describedby=\{describedBy\} data-attention-title>\s*\{item\.title\}/)
+  // A button role on an inline link, so a long title wraps beside its tag:
+  // Tab reaches it, Enter and Space press it, and its name is the title.
+  assert.match(dashboard, /<a\s+role="button"\s+tabIndex=\{0\}[\s\S]{0,200}onClick=\{onTitle\}[\s\S]{0,300}event\.key === 'Enter' \|\| event\.key === ' '[\s\S]{0,200}data-attention-title\s*>\s*\{item\.title\}/)
   assert.match(dashboard, /onTitle=\{\(\) => \{\s*const target = attentionTarget\(item\)/)
   assert.match(dashboard, /target\.kind === 'review' && item\.group\) drawer\.openReview/)
   assert.match(dashboard, /target\.kind === 'task'\) drawer\.openTask\(target\.id\)/)
@@ -86,10 +92,11 @@ test('Settings > Flow puts each sub-section in its own titled box', () => {
   const flow = source('FlowSettings.tsx')
   assert.match(flow, /function Box\(\{ children \}[\s\S]*?<Card className="flex flex-col gap-4" data-flow-box>/)
   const titles = [...flow.matchAll(/<Box>\s*<Section title="([^"]+)" blurb="[^"]+"/g)].map((m) => m[1])
-  assert.deepEqual(titles, ['Timing', 'Stop the line', 'Local checks first', 'Batching', 'Retro', 'Lessons'])
+  assert.deepEqual(titles, ['Timing', 'Stop the line', 'Local checks first', 'Batching', 'Retro'])
   assert.equal(flow.match(/<Box>/g).length, titles.length)
-  // Retro keeps the model dropdown, then the built-in prompt and your instructions.
+  // Retro: when it runs, then the built-in prompt and your instructions.
+  // Its model is under Settings › Models.
   const retro = flow.slice(flow.indexOf('title="Retro"'))
-  assert.ok(retro.indexOf('title="When it runs"') < retro.indexOf('id="avoozl-flow-model"'))
-  assert.ok(retro.indexOf('<select id="avoozl-flow-model"') < retro.indexOf('<PromptInstructions'))
+  assert.ok(retro.indexOf('title="When it runs"') < retro.indexOf('<PromptInstructions'))
+  assert.equal(retro.includes('avoozl-flow-model'), false)
 })

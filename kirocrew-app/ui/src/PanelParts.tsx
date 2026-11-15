@@ -1,17 +1,21 @@
-// The parts every side-panel view is built from: a toolbar, a folding section,
-// a dense row, a status chip and an empty state. A new section is a few lines:
+// The parts every side-panel view is built from: a one-line header, a folding
+// section, a dense row, a status chip and an empty state. A new section is a
+// few lines:
 //
 //   <PanelSection id="x" title="X" count={rows.length} summary="2 held">
 //     {rows.length ? rows.map((r) => <PanelRow key={r.id} icon={Inbox} title={r.title} age="3 min" />) : <PanelEmpty>Nothing here.</PanelEmpty>}
 //   </PanelSection>
 //
-// Sizes follow Kiro Crew's own panels: 13px titles, 11px meta, a 28px section
-// header and 11px chips. On a phone (a narrow screen or a coarse pointer) every
-// tap target is 44px tall but rows stay two lines, nothing scrolls sideways and
-// nothing is sticky. Colors are the theme's, so light, dark and custom themes
-// work. Kept free of data reads: callers pass what to show.
-import type { ReactNode } from 'react'
-import { ChevronRight, type LucideIcon } from './icons.ts'
+// Sizes are Kiro Crew's own, read from its Crew log and Git panels: a section
+// header is 12px semibold with a 13px chevron, 10px 12px padding and an 11px
+// right-hand summary; rows are 12px with 4px 12px padding and an 11px muted
+// second line; chips are 10px; small buttons are 11px with a 6px radius; an
+// empty state is 12px muted. Hover is the theme's --bg-hover. On a phone (a
+// narrow screen) nothing changes size: rows stay two lines, buttons stay compact,
+// nothing scrolls sideways and nothing is sticky. Colors are theme
+// variables only. Kept free of data reads: callers pass what to show.
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
+import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, type LucideIcon } from './icons.ts'
 import { Tooltip } from './Tooltip.tsx'
 import { linkHref } from './views-api.ts'
 
@@ -19,48 +23,58 @@ export type Tone = 'ok' | 'warn' | 'danger' | 'info' | 'muted'
 
 // Every size and the phone rules live here once, keyed by data attributes.
 export const PANEL_CSS = `
-[data-pp]{font-size:12px;line-height:1.35;min-width:0;max-width:100%;overflow-x:hidden;box-sizing:border-box}
+[data-pp]{container-type:inline-size;font-size:12px;line-height:18px;min-width:0;max-width:100%;overflow-x:hidden;box-sizing:border-box;color:var(--text)}
 [data-pp] *{box-sizing:border-box}
-[data-pp-toolbar]{display:flex;align-items:center;flex-wrap:wrap;gap:4px 6px;padding:6px 8px;border-bottom:1px solid var(--border)}
-[data-pp-toolbar-end]{margin-left:auto;display:inline-flex;align-items:center;gap:6px}
-[data-pp-strip]{display:flex;flex-wrap:wrap;gap:4px 6px;padding:6px 8px;border-bottom:1px solid var(--border)}
+[data-pp-head]{display:flex;align-items:center;flex-wrap:nowrap;gap:6px;padding:6px 12px;border-bottom:1px solid var(--border);min-width:0}
+[data-pp-head-name]{flex:0 1 auto;display:inline-flex;align-items:baseline;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:var(--text-strong,var(--text))}
+[data-pp-head-instance]{font-weight:400;color:var(--muted)}
+[data-pp-head-link]{padding:0;margin:0;background:none;border:0;font:inherit;color:inherit;cursor:pointer;text-decoration:none}
+[data-pp-head-link]:hover,[data-pp-head-link]:focus-visible{color:var(--accent);text-decoration:underline}
+[data-pp-head-tools]{flex:none;display:inline-flex;align-items:center;gap:2px}
+[data-pp-head-end]{flex:none;display:inline-flex;align-items:center;gap:4px;margin-left:auto}
 [data-pp-section]{border-bottom:1px solid var(--border)}
-[data-pp-section]>summary{display:flex;align-items:center;gap:6px;min-height:28px;padding:0 8px;cursor:pointer;list-style:none;font-size:12px;font-weight:600;user-select:none}
-[data-pp-section]>summary::-webkit-details-marker{display:none}
-[data-pp-section]>summary [data-pp-chevron]{transition:transform .12s;flex:none;color:var(--muted)}
-[data-pp-section][open]>summary [data-pp-chevron]{transform:rotate(90deg)}
-[data-pp-summary]{margin-left:auto;font-size:11px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-[data-pp-list]{list-style:none;margin:0;padding:0}
-[data-pp-row]{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;column-gap:6px;padding:3px 8px;min-height:36px;border-top:1px solid color-mix(in srgb,var(--border) 60%,transparent)}
+[data-pp-section-head]{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:transparent;border:0;border-radius:0;text-align:left;cursor:pointer;color:var(--text);font:inherit;font-size:12px;font-weight:600;transition:background-color .12s}
+[data-pp-section-head]:hover{background:var(--bg-hover)}
+[data-pp-section-head] [data-pp-chevron]{flex:none;color:var(--muted)}
+[data-pp-section-title]{color:var(--text-strong,var(--text))}
+[data-pp-summary]{margin-left:auto;max-width:55%;font-size:11px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+[data-pp-list]{list-style:none;margin:0;padding:0 0 8px}
+[data-pp-row]{display:grid;grid-template-columns:14px minmax(0,1fr) auto;align-items:center;column-gap:8px;padding:4px 12px;transition:background-color .12s}
+[data-pp-row]:hover{background:var(--bg-hover)}
 [data-pp-row-icon]{display:inline-flex;color:var(--muted)}
 [data-pp-row-main]{display:flex;flex-direction:column;min-width:0}
-[data-pp-row-line]{display:flex;align-items:center;gap:6px;min-width:0}
-[data-pp-row-title]{display:block;font-size:13px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+[data-pp-row-line]{display:flex;flex-wrap:nowrap;align-items:center;gap:0 6px;min-width:0;overflow:hidden}
+[data-pp-row-title]{display:block;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
 a[data-pp-row-title]{text-decoration:none}
 a[data-pp-row-title]:hover{text-decoration:underline}
-[data-pp-row-line]>[data-tooltip-anchor]{flex:none}
-[data-pp-row-line]>[data-tooltip-anchor]:first-child{flex:1 1 auto;min-width:0}
+[data-pp-row-line]>[data-tooltip-anchor]{flex:0 0 auto;max-width:100%}
+[data-pp-row-line]>[data-tooltip-anchor]:first-child{flex:0 1 auto;min-width:0}
+[data-pp-row-line]>[data-tooltip-anchor]:has([data-pp-age]){margin-left:auto}
 [data-pp-age]{flex:none;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 [data-pp-row-meta]{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 [data-pp-actions]{display:inline-flex;align-items:center;gap:4px;flex:none}
-[data-pp-chip]{display:inline-flex;align-items:center;gap:3px;flex:none;max-width:10rem;padding:0 6px;border-radius:4px;font-size:11px;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);background:color-mix(in srgb,var(--text) 8%,transparent)}
-[data-pp-chip][data-tone=ok]{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
-[data-pp-chip][data-tone=warn]{color:var(--warning,#b7791f);background:color-mix(in srgb,var(--warning,#b7791f) 16%,transparent)}
-[data-pp-chip][data-tone=danger]{color:var(--danger);background:color-mix(in srgb,var(--danger) 14%,transparent)}
-[data-pp-chip][data-tone=info]{color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent)}
-[data-pp-act]{background:transparent;display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:24px;padding:0 8px;border:1px solid var(--border);border-radius:6px;color:var(--text);font:inherit;font-size:12px;text-decoration:none;white-space:nowrap;cursor:pointer}
-[data-pp-act]:hover{background:color-mix(in srgb,var(--text) 8%,transparent)}
+[data-pp-chip]{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto;min-width:0;max-width:10rem;padding:2px 6px;border-radius:4px;font-size:10px;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);background:var(--bg-hover)}
+[data-pp-chip][data-tone=ok]{color:var(--ok);background:color-mix(in srgb,var(--ok) 15%,transparent)}
+[data-pp-chip][data-tone=warn]{color:var(--warning,#b7791f);background:color-mix(in srgb,var(--warning,#b7791f) 15%,transparent)}
+[data-pp-chip][data-tone=danger]{color:var(--danger);background:color-mix(in srgb,var(--danger) 15%,transparent)}
+[data-pp-chip][data-tone=info]{color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent)}
+[data-pp-act],[data-pp-icon]{min-height:22px;background:transparent;display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;font-size:11px;line-height:16px;text-decoration:none;white-space:nowrap;cursor:pointer;transition:background-color .12s,color .12s}
+[data-pp-act]:hover,[data-pp-icon]:hover{background:var(--bg-hover);color:var(--text)}
 [data-pp-act][data-pp-primary]{border-color:var(--accent);color:var(--accent)}
-[data-pp-act]:disabled{opacity:.5;cursor:default}
-[data-pp-empty]{margin:0;padding:6px 8px;font-size:12px;color:var(--muted)}
-@media (max-width:640px),(pointer:coarse){
-[data-pp-section]>summary{min-height:44px}
-[data-pp-row]{min-height:44px;padding-top:0;padding-bottom:0}
-[data-pp-row-main]{padding:4px 0}
-[data-pp] button{min-height:44px;min-width:44px}
-[data-pp-act]{min-height:44px;min-width:44px;padding:0 10px}
-[data-pp-chip][data-tap]{min-height:44px;padding:0 10px}
-[data-pp-row][data-multi]{grid-template-columns:16px minmax(0,1fr)}
+[data-pp-act]:disabled,[data-pp-icon]:disabled{opacity:.6;cursor:default}
+[data-pp-icon][data-bare]{padding:2px 5px;border-color:transparent}
+[data-pp-cells]{padding:0 12px 8px}
+[data-pp-empty]{margin:0;padding:0 12px 12px;font-size:12px;color:var(--muted)}
+@media (max-width:640px){
+[data-pp-narrow-hide]{display:none}
+[data-pp-act][data-narrow-icon]{padding:2px 6px}
+}
+@container (max-width:520px){
+[data-pp-row-line]:has(>[data-tooltip-anchor]:nth-child(n+4)){flex-wrap:wrap}
+[data-pp-row-line]:has(>[data-tooltip-anchor]:nth-child(n+4))>[data-tooltip-anchor]:first-child{max-width:100%}
+}
+@container (max-width:520px){
+[data-pp-row][data-multi]{grid-template-columns:14px minmax(0,1fr)}
 [data-pp-row][data-multi]>[data-pp-actions]{grid-column:2}
 }
 `
@@ -69,18 +83,70 @@ export function PanelStyles() {
   return <style>{PANEL_CSS}</style>
 }
 
-// The panel's root: sets the type scale and stops sideways scroll.
-export function PanelRoot(props: { kind: string; children: ReactNode }) {
-  return (
-    <div data-pp data-panel-kind={props.kind} style={{ display: 'flex', flexDirection: 'column' }}>
-      <PanelStyles />
-      {props.children}
-    </div>
+// Which sections are open, kept in the browser so the panel looks the same
+// next time. Each section registers itself so the header's one icon can fold
+// or open all of them.
+const FOLDS_KEY = 'avoozl.panel.folds'
+interface Folds {
+  isOpen: (id: string, fallback: boolean) => boolean
+  toggle: (id: string, fallback: boolean) => void
+  register: (id: string, fallback: boolean) => void
+  allOpen: boolean
+  setAll: (open: boolean) => void
+}
+const FoldsContext = createContext<Folds | null>(null)
+
+function readFolds(): Record<string, boolean> {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(FOLDS_KEY) ?? '{}')
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  } catch {
+    return {}
+  }
+}
+
+function useFoldsState(): Folds {
+  const [saved, setSaved] = useState(readFolds)
+  const [known, setKnown] = useState<Record<string, boolean>>({})
+  const keep = useCallback((next: Record<string, boolean>) => {
+    setSaved(next)
+    try {
+      window.localStorage.setItem(FOLDS_KEY, JSON.stringify(next))
+    } catch {
+      // No storage: the folds last until the panel closes.
+    }
+  }, [])
+  const isOpen = useCallback((id: string, fallback: boolean) => saved[id] ?? fallback, [saved])
+  const register = useCallback((id: string, fallback: boolean) => setKnown((now) => (now[id] === fallback ? now : { ...now, [id]: fallback })), [])
+  const ids = Object.keys(known)
+  return useMemo(
+    () => ({
+      isOpen,
+      register,
+      toggle: (id, fallback) => keep({ ...saved, [id]: !(saved[id] ?? fallback) }),
+      allOpen: ids.length > 0 && ids.every((id) => saved[id] ?? known[id]),
+      setAll: (open) => keep({ ...saved, ...Object.fromEntries(ids.map((id) => [id, open])) }),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isOpen, register, keep, saved, known],
   )
 }
 
-export function PanelChip(props: { tone?: Tone; tip?: string; tap?: boolean; href?: string | null; children: ReactNode; [attr: `data-${string}`]: unknown }) {
-  const { tone = 'muted', tip, tap, href, children, ...rest } = props
+// The panel's root: sets the type scale, stops sideways scroll and keeps the folds.
+export function PanelRoot(props: { kind: string; children: ReactNode }) {
+  const folds = useFoldsState()
+  return (
+    <FoldsContext.Provider value={folds}>
+      <div data-pp data-panel-kind={props.kind} style={{ display: 'flex', flexDirection: 'column' }}>
+        <PanelStyles />
+        {props.children}
+      </div>
+    </FoldsContext.Provider>
+  )
+}
+
+export function PanelChip(props: { tone?: Tone; tip?: string; href?: string | null; children: ReactNode; [attr: `data-${string}`]: unknown }) {
+  const { tone = 'muted', tip, href, children, ...rest } = props
   return (
     <Tooltip text={tip}>
       {href ? (
@@ -88,7 +154,7 @@ export function PanelChip(props: { tone?: Tone; tip?: string; tap?: boolean; hre
           {children}
         </a>
       ) : (
-        <span data-pp-chip data-tone={tone} data-tap={tap && tip ? '' : undefined} {...rest}>
+        <span data-pp-chip data-tone={tone} {...rest}>
           {children}
         </span>
       )}
@@ -96,32 +162,62 @@ export function PanelChip(props: { tone?: Tone; tip?: string; tap?: boolean; hre
   )
 }
 
-// The top bar: a title and chips at the start, controls at the end.
-export function PanelToolbar(props: { children?: ReactNode; end?: ReactNode }) {
+// The one thin line at the top: the name ("Avoozl" opens the app page), small
+// icon tools (Refresh, then fold all), and the line's pause button at the far
+// right.
+export function PanelHeader(props: { name: string; instance?: string | null; tip?: string; onName?: () => void; nameTip?: string; tools?: ReactNode; end?: ReactNode }) {
+  const folds = useContext(FoldsContext)
+  const label = folds?.allOpen ? 'Collapse all sections' : 'Expand all sections'
+  const Icon = folds?.allOpen ? ChevronsDownUp : ChevronsUpDown
   return (
-    <div data-pp-toolbar>
-      {props.children}
-      {props.end && <span data-pp-toolbar-end>{props.end}</span>}
+    <div data-pp-head>
+      <span data-pp-head-name>
+        {props.onName ? (
+          <Tooltip text={props.nameTip}>
+            <button type="button" data-pp-head-link aria-label={props.nameTip} onClick={props.onName}>
+              {props.name}
+            </button>
+          </Tooltip>
+        ) : (
+          props.name
+        )}
+        {props.instance && (
+          <Tooltip text={props.tip}>
+            <span data-pp-head-instance>· {props.instance}</span>
+          </Tooltip>
+        )}
+      </span>
+      <span data-pp-head-tools>
+        {props.tools}
+        {folds && (
+          <Tooltip text={label}>
+            <button type="button" data-pp-icon data-bare data-pp-toggle-all aria-label={label} aria-pressed={folds.allOpen} onClick={() => folds.setAll(!folds.allOpen)}>
+              <Icon size={13} aria-hidden="true" />
+            </button>
+          </Tooltip>
+        )}
+      </span>
+      {props.end && <span data-pp-head-end>{props.end}</span>}
     </div>
   )
 }
 
-// A wrapped line of chips under the toolbar: the state of everything at a glance.
-export function PanelStrip(props: { children: ReactNode }) {
-  return <div data-pp-strip>{props.children}</div>
-}
-
 export function PanelSection(props: { id: string; title: string; count?: number; tone?: Tone; summary?: string; open?: boolean; children: ReactNode }) {
+  const folds = useContext(FoldsContext)
+  const fallback = Boolean(props.open)
+  useLayoutEffect(() => folds?.register(props.id, fallback), [folds?.register, props.id, fallback])
+  const open = folds ? folds.isOpen(props.id, fallback) : fallback
+  const Chevron = open ? ChevronDown : ChevronRight
   return (
-    <details data-pp-section data-panel-fold={props.id} open={props.open}>
-      <summary>
-        <ChevronRight size={12} data-pp-chevron aria-hidden="true" />
-        {props.title}
+    <div data-pp-section data-panel-fold={props.id} data-open={open ? '' : undefined}>
+      <button type="button" data-pp-section-head aria-expanded={open} onClick={() => folds?.toggle(props.id, fallback)}>
+        <Chevron size={13} data-pp-chevron aria-hidden="true" />
+        <span data-pp-section-title>{props.title}</span>
         {props.count !== undefined && props.count > 0 && <PanelChip tone={props.tone ?? 'info'}>{props.count}</PanelChip>}
         {props.summary && <span data-pp-summary>{props.summary}</span>}
-      </summary>
-      {props.children}
-    </details>
+      </button>
+      {open && props.children}
+    </div>
   )
 }
 
@@ -193,22 +289,25 @@ export function PanelRow(props: {
 }
 
 // A row's action: a link when it has `href`, else a button.
-export function PanelAct(props: { label: string; icon?: LucideIcon; href?: string; onClick?: () => void; disabled?: boolean; primary?: boolean; tip?: string; [attr: `data-${string}`]: unknown }) {
-  const { label, icon: Icon, href, onClick, disabled, primary, tip, ...rest } = props
+// `narrowIcon` shows only the icon on a narrow panel; `name` is then its
+// accessible name (and the tooltip says the rest).
+export function PanelAct(props: { label: string; icon?: LucideIcon; href?: string; onClick?: () => void; disabled?: boolean; primary?: boolean; tip?: string; narrowIcon?: boolean; name?: string; [attr: `data-${string}`]: unknown }) {
+  const { label, icon: Icon, href, onClick, disabled, primary, tip, narrowIcon, name, ...rest } = props
   const inner = (
     <>
-      {Icon && <Icon size={13} aria-hidden="true" />}
-      {label}
+      {Icon && <Icon size={12} aria-hidden="true" />}
+      {narrowIcon ? <span data-pp-narrow-hide>{label}</span> : label}
     </>
   )
+  const named = { 'aria-label': name, 'data-narrow-icon': narrowIcon ? '' : undefined }
   return (
     <Tooltip text={tip}>
       {href ? (
-        <a data-pp-act data-pp-primary={primary ? '' : undefined} href={linkHref(href)} target="_blank" rel="noreferrer" {...rest}>
+        <a data-pp-act data-pp-primary={primary ? '' : undefined} href={linkHref(href)} target="_blank" rel="noreferrer" {...named} {...rest}>
           {inner}
         </a>
       ) : (
-        <button data-pp-act data-pp-primary={primary ? '' : undefined} type="button" disabled={disabled} onClick={onClick} {...rest}>
+        <button data-pp-act data-pp-primary={primary ? '' : undefined} type="button" disabled={disabled} onClick={onClick} {...named} {...rest}>
           {inner}
         </button>
       )}

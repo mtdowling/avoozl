@@ -191,12 +191,12 @@ test('the state buttons share the title line wide, wrap right medium, and grid s
   assert.equal(medium.list.flexWrap, 'wrap')
   assert.equal(medium.list.gap, wide.list.gap)
 
-  // Small: two even columns that can shrink, 32 px tap targets, full width.
+  // Small: two even columns that can shrink, compact buttons, full width.
   const small = countsStyles('small')
   assert.equal(small.list.display, 'grid')
   assert.equal(small.list.gridTemplateColumns, 'repeat(2, minmax(0, 1fr))')
   assert.equal(small.list.width, '100%')
-  assert.ok(small.button.minHeight >= 32)
+  assert.ok(small.button.minHeight <= 28)
   assert.equal(small.button.width, '100%')
 })
 

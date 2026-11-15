@@ -4,6 +4,10 @@
 // real Graph, and the modal's opener inside a card that is also a
 // containing block. ?theme=light|dark sets the host theme attribute.
 import { Component, useState, type ReactNode } from 'react'
+import { FilterPanel } from '../../src/FilterPanel.tsx'
+import ConflictsView from '../../src/ConflictsView.tsx'
+import { IconBtn } from '../../src/controls.tsx'
+import { RefreshCw } from '../../src/icons.ts'
 import { createRoot } from 'react-dom/client'
 import { createPortal } from 'react-dom'
 import { answer, Btn, Card, Refusal, replyFor, useAppApi } from './stubs.tsx'
@@ -22,7 +26,6 @@ import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import { PackImportDialog } from '../../src/PackImport.tsx'
 import { SendToRadar } from '../../src/SendToRadar.tsx'
-import { SwitchModelButton } from '../../src/SwitchModel.tsx'
 import ActivityView from '../../src/ActivityView.tsx'
 import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
 import { setupForm } from '../../src/settings-api.ts'
@@ -36,8 +39,6 @@ import { ReleaseModePicker } from '../../src/ReleaseMode.tsx'
 import { ProjectionModal } from '../../src/ProjectionModal.tsx'
 import { SpecChangedModal } from '../../src/SpecChangedModal.tsx'
 import { projectionClient } from '../../src/projection-api.ts'
-import { QuickGoalModal } from '../../src/QuickGoalModal.tsx'
-import { quickGoalClient } from '../../src/quickgoal-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
@@ -140,34 +141,6 @@ answer('spec.changed.apply', (body) => {
 })
 const projections = projectionClient(useAppApi() as never)
 
-// Quick goal: sample replies. ?tasks=1 gives a one-task proposal, ?big=1 one
-// that crosses a promote rule. Every call is recorded in __harness.calls.
-const goalTask = (id: string, title: string) => ({ id, title, evidence: { file: 'package.json', line: 14 } })
-const goalState = (status = 'proposed') => {
-  const one = query.get('tasks') === '1'
-  const tasks = one ? [goalTask('A', 'Cache dependencies in CI')] : [goalTask('A', 'Share one database fixture across files'), goalTask('B', 'Cache built fixtures'), goalTask('C', 'Run test files in parallel workers with a long title that wraps')]
-  return {
-    id: 'qg_aaaaaaaaaaaa', status, request: { goal: 'Make tests faster', repository: 'example/recipe-box', depth: 'look', budget: { turns: 20, minutes: 15 } },
-    proposal: { tasks, edges: one ? [] : [{ from: 'A', to: 'B' }], batches: [], risks: one ? [] : ['C may expose tests that depend on order.'], questions: [], levels: one ? 1 : 2 },
-    promote: query.get('big') === '1' ? ['public-interface'] : [],
-    hint: one ? { text: 'This fits one pull request. A crew or your coder can take it without a plan.', action: 'Plan it anyway' } : null,
-    plan: null, pull: status === 'approving' ? { number: 7, repository: 'example/recipe-box' } : null,
-  }
-}
-answer('repositories.list', () => ({ items: [{ id: 'recipe', name: 'recipe', localCheckout: '/w/r', github: 'example/recipe-box', baseBranch: 'main' }] }))
-answer('quickgoal.settings.get', () => ({ autoApprove: false }))
-answer('quickgoal.list', () => [])
-answer('quickgoal.propose', (body) => (state.calls.push(body), goalState()))
-answer('quickgoal.confirm', (body) => {
-  state.calls.push(body)
-  const tasks = goalState().proposal.tasks
-  return { id: 'qg_aaaaaaaaaaaa', spec: 'goal-make-tests-faster', repository: 'example/recipe-box', issues: tasks.map((t, i) => ({ id: `goal-make-tests-faster.${i + 1}`, title: t.title, requires: i === 1 ? ['goal-make-tests-faster.1'] : [] })) }
-})
-answer('quickgoal.approve', (body) => (state.calls.push(body), { ...goalState('approving'), pending: true }))
-answer('quickgoal.promote', (body) => (state.calls.push(body), { ...goalState('promoted'), plan: { id: 'goal-make-tests-faster', hash: 'h', spec: 'goal-make-tests-faster' } }))
-answer('quickgoal.discard', (body) => (state.calls.push(body), goalState('discarded')))
-answer('quickgoal.edit', (body) => (state.calls.push(body), goalState()))
-const quickGoals = quickGoalClient(useAppApi() as never)
 const row = { key: 'p1', kind: 'spec', name: 'Modal plan', spec: 'modal-plan', folder: '.kiro/specs/modal-plan', planId: 'modal-plan', type: 'feature', category: null, categoryProblem: null, errors: 0, status: 'approved', tasks: { total: 3, done: 1 }, now: { ready: 1, running: 0, needsYou: 0 }, epics: 1, lastChange: null }
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
 
@@ -267,57 +240,14 @@ export const SCENARIOS: Record<string, Scenario> = {
   'stop-line': own('Stop the line', <StopLineButton workspaceId="w" onPulled={() => undefined} />),
   'pack-import': shown((close) => <PackImportDialog row={{ id: 'pack-1', version: '1.0.0' } as never} workspaceId="w" client={idle} onClose={close} onChanged={async () => undefined} />),
   'send-to-radar': shown((close) => <SendToRadar workspaceId="w" client={idle} items={[]} repository="avoozl" onClose={close} onSent={close} />),
-  'switch-model': own('Switch model', <SwitchModelButton workspaceId="w" />),
   projection: shown((close) => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onCreated={() => undefined} />),
   'spec-changed': shown((close) => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onApplied={() => undefined} />),
-  'quick-goal': shown((close) => <QuickGoalModal workspaceId="w" client={quickGoals} onClose={close} />),
   'task-drawer': own('Open the dialog', <OpenTask />),
   'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onIssue onClose={close} onDone={close} />),
   // The real page shows New spec over the whole page, not inside a card.
+  // New spec with nothing picked: categories and epics to choose from.
+  'new-spec': shown((close) => createPortal(<div {...{ [APP_ATTR]: '' }}><NewPlanDrawer workspaceId="w" taken={[]} categories={['Platform', 'Search']} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} onClose={close} /></div>, document.body)),
   'new-spec-template': shown((close) => createPortal(<div {...{ [APP_ATTR]: '' }}><NewPlanDrawer workspaceId="w" taken={[]} categories={[]} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} start="template" onClose={close} /></div>, document.body)),
-}
-
-// The Switch model steps against fake answers: two running chats, one
-// remote; the first Confirm finds the set changed (?changed=1).
-if (query.get('modal') === 'switch-flow') {
-  const chat = (slot: string, taskId: string, model: string, crew?: string) => ({ slot, taskId, title: `Task ${taskId}`, spec: 'spec-a', role: 'worker', model, to: 'gamma-1', where: crew ?? 'local' })
-  answer('providers.view', () => ({
-    settings: {},
-    hash: null,
-    defaults: { lowPercent: 80, cooldownMinutes: 30, windowHours: 5 },
-    marks: [{ id: 'error:provider:beta', scope: 'provider', name: 'beta', level: 'out', source: 'error', kind: 'credits', since: '' }],
-    switches: [],
-    chats: [
-      { slot: 's1', taskId: 'a1', role: 'worker', model: 'alpha-1', provider: 'alpha', level: 'ok' },
-      { slot: 's2', taskId: 'a2', role: 'worker', model: 'alpha-1', provider: 'alpha', level: 'ok' },
-    ],
-  }))
-  answer('GET /api/models', () => [{ model_id: 'gamma-1', display_name: 'Gamma one' }, { model_id: 'delta-1' }])
-  let runs = 0
-  const flow = state as unknown as { dryRuns: unknown[]; switches: unknown[] }
-  flow.dryRuns = []
-  flow.switches = []
-  answer('provider.switch.dryRun', (body) => {
-    flow.dryRuns.push(body.input)
-    runs += 1
-    const chats = [chat('s1', 'a1', 'alpha-1'), ...(runs > 1 && query.get('changed') ? [chat('s3', 'a3', 'alpha-1')] : [])]
-    return {
-      to: 'gamma-1',
-      alsoNewTasks: true,
-      chats,
-      skipped: [{ ...chat('s2', 'a2', 'alpha-1', 'remote-1'), why: 'runs on remote crew remote-1: only chats on this machine switch' }],
-      marks: [{ scope: 'provider', name: 'alpha', to: 'gamma-1' }],
-      queued: [{ taskId: 'q1', title: 'Task q1', spec: 'spec-a', model: 'alpha-1' }],
-      counts: { switch: chats.length, cannot: 1, queued: 1 },
-      previewHash: `h${runs}`,
-    }
-  })
-  answer('provider.switch', (body) => {
-    const input = body.input as { previewHash: string }
-    if (query.get('changed') && input.previewHash === 'h1') throw Object.assign(Error('The running chats changed since the dry run; check the new set.'), { status: 409 })
-    flow.switches.push(input)
-    return { queued: runs > 1 && query.get('changed') ? 2 : 1, marked: ['provider alpha'] }
-  })
 }
 
 // One In flight row, for the title link test.
@@ -336,11 +266,40 @@ const flightRow = {
   session: { slot: 's1', role: 'worker', attempt: 1, link: null, crew: null },
   budget: null,
 }
+// Needs you's filter row in a list column (?modal=filter-row): two fields on
+// the row, five behind the filter icon, the count and Refresh at the right.
+const FilterRowDemo = () => {
+  const [q, setQ] = useState('')
+  const [kind, setKind] = useState('')
+  const opts = [{ value: 'a', label: 'Alpha' }, { value: 'b', label: 'Beta' }]
+  return (
+    <div style={{ width: 'min(100%, 380px)' }} data-filter-demo>
+      <FilterPanel
+        folded
+        id="demo-filters"
+        label="Filter conflicts"
+        active={Boolean(q || kind)}
+        onClear={() => (setQ(''), setKind(''))}
+        fields={[
+          { kind: 'search', key: 'q', label: 'Search', value: q, placeholder: 'Task, ID or detail', onChange: setQ, primary: true },
+          { kind: 'select', key: 'kind', label: 'Kind', value: kind, options: opts, onChange: setKind, primary: true },
+          { kind: 'select', key: 'epic', label: 'Epic', value: '', options: opts, onChange: () => undefined },
+          { kind: 'select', key: 'repository', label: 'Repository', value: '', options: opts, onChange: () => undefined },
+          { kind: 'select', key: 'age', label: 'Age', value: '', options: opts, onChange: () => undefined },
+          { kind: 'select', key: 'changed-by', label: 'Changed by', value: '', options: opts, onChange: () => undefined },
+        ]}
+      >
+        <span role="status" className="text-xs text-muted">4 of 4</span>
+        <IconBtn icon={RefreshCw} label="Refresh" tooltip="Refresh" onClick={() => undefined} />
+      </FilterPanel>
+    </div>
+  )
+}
+SCENARIOS['filter-row'] = { opener: '', render: () => <FilterRowDemo /> }
 SCENARIOS['in-flight'] = { opener: '', render: () => <ul><InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} /></ul> }
 // Two rows with different roles, ids and actions: their columns must line up.
 const reviewRow = { ...flightRow, slot: 's2', role: 'review:style', taskId: 'b22', title: 'A much longer task title for the second row', session: { ...flightRow.session, slot: 's2', role: 'review:style', link: '/chat?sid=s2' } }
 SCENARIOS['in-flight-pair'] = { opener: '', render: () => <ul style={{ maxWidth: 900 }}><InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} /><InFlightRow row={reviewRow as never} now={Date.now()} onInfo={() => undefined} onPickAgain={undefined} /></ul> }
-SCENARIOS['switch-flow'] = own('Switch model', <SwitchModelButton workspaceId="w" />)
 
 // The whole page's top row (?app=1): workspaces and the line, nothing else
 // answered, so each tab stays on its loading line. ?stopped=1 opens a stop.
@@ -413,8 +372,8 @@ function Scenario({ name }: { name: string }) {
   return <>{scenario.render(open, setOpen, close)}</>
 }
 
-// ?page=app: the whole Avoozl page on one workspace with intake on and one
-// open idea, for tests that move between tabs.
+// ?page=app: the whole Avoozl page on one workspace with intake on, for
+// tests that move between tabs.
 answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true }] }))
 // The install's name: quiet with one instance, shown in more places with &shared=1.
 answer('instance.view', () => ({ id: 'inst-0123456789ab', name: 'Mira', others: query.get('shared') === '1' ? ['inst-aaaaaaaaaaaa'] : [], shared: query.get('shared') === '1' }))
@@ -426,7 +385,6 @@ answer('untriaged.view', () => ({
   repositories: [],
   items: [],
   withRadar: [],
-  ideas: [{ source: 'local', id: 'idea-1', kind: 'idea', title: 'Harness idea', state: 'open', author: 'me', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', notes: [], links: [], graduated: null }],
 }))
 
 function DeepLinkPage() {
@@ -664,7 +622,6 @@ const PAGES: Record<string, () => ReactNode> = {
   'github-flow': () => <GithubFlow workspaceId="w" />,
   'release-queue': () => <ReleaseQueue workspaceId="w" />,
   'release-mode': () => <ReleaseModes />,
-  'quick-goal': () => <QuickGoalModal workspaceId="w" client={quickGoals} onClose={() => undefined} />,
   // The two modals, open at once, for the screenshots.
   projection: () => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onCreated={() => undefined} />,
   'spec-changed': () => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onApplied={() => undefined} />,
@@ -789,6 +746,14 @@ function TraceDonePage() {
 }
 
 const page = query.get('page')
+// ?page=needs: Needs you's list column with four open items, for the filter
+// row and the count shown once.
+if (page === 'needs') {
+  const it = (n: number, kind: string) => ({ key: `k${n}`, kind, taskId: `t${n}`, title: `Item ${n}`, detail: 'Waits on you.', plan: 'meal-planner', epic: null, repository: 'example/recipe-box', since: '2026-11-14T10:00:00Z' })
+  answer('conflicts.view', () => ({ revision: 1, items: [it(1, 'decision'), it(2, 'decision'), it(3, 'needs-human'), it(4, 'review')] }))
+  answer('delivery.view', () => ({ revision: 1, items: [] }))
+}
+const NeedsPage = () => <ConflictsView workspaceId="w" />
 // ?page=radar-values[&grant=1]: the Radar values screen on a fake Radar read.
 if (page === 'radar-values') {
   const grant = query.get('grant') === '1'
@@ -876,6 +841,10 @@ if (page === 'panel') {
     }
   })
   answer('github.conflict.resolve', (body) => (panelWin.__panelCalls.push(body.input), {}))
+  // The line, read by the pause button: ?stopped=1 opens a stop; Resume closes it.
+  let panelStops = query.get('stopped') ? [{ id: 'l1', manual: true, reason: 'bad base', scope: 'all', closedAt: null, branch: 'main', check: null }] : []
+  answer('flow.view', () => ({ line: panelStops, stages: [], tasks: [], retros: [] }))
+  answer('flow.resume', (body) => (panelWin.__panelCalls.push({ resume: (body.input as { stopId?: string }).stopId }), (panelStops = []), { stop: { id: 'l1', closedAt: new Date().toISOString() } }))
   answer('GET /api/apps/spec-builder/specs', () => ({ specs: [{ name: 'search-v2' }] }))
 }
 // ?page=panel&real=1: the panel on the replies a real backend gave over the
@@ -1014,5 +983,5 @@ function PanelPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'needs' ? <NeedsPage /> : page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )

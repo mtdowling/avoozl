@@ -9,13 +9,15 @@ import { attentionTarget, railFor, attentionTip, summarize, type Attention, type
 import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
+import { usePhone } from './list-detail.ts'
 import { plansClient } from './plans-api.ts'
 import { CONFLICT_LABELS, viewsClient, type ConflictItem, type RadarClaim, type RadarCrewStrip } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
 import ArmedPulls from './ArmedPulls.tsx'
 import { StartDemoButton } from './Demo.tsx'
-import DriverSessionBox, { useDriverSession } from './DriverSessionBox.tsx'
+import { DriverCell, useDriverSession } from './DriverSessionBox.tsx'
+import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
 import SetupCard from './SetupCard.tsx'
 import { useInstance } from './InstanceName.tsx'
 import { nameFor } from './instance-api.ts'
@@ -27,9 +29,10 @@ import RadarFlightGroups from './RadarFlightGroups.tsx'
 import IntegrationBranches from './IntegrationBranches.tsx'
 import ReviewDrafts from './ReviewDrafts.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
-import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
-import { RefreshButton } from './RefreshButton.tsx'
-import { Activity, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
+import { IconBtn, IconLabel, IconLink, SectionHeading, ShowMore, SmallBtn, TaskTitleLink, useAskChat, usePages } from './controls.tsx'
+import { useRefreshCountdown } from './RefreshButton.tsx'
+import { usePublishRefresh } from './page-refresh.tsx'
+import { Activity, CirclePlus, Copy, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import type { Drill } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
@@ -101,52 +104,67 @@ function AttentionRow({
   onAsk: () => void
   onTitle: () => void
 }) {
+  // The small icon buttons float right; the kind's tag sits inline before
+  // the title, and the text wraps under both. Nothing is wider than the card.
   return (
-    <li className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
-      <Badge variant={['decision', 'needs-human', 'review', 'manual'].includes(item.kind) ? 'warning' : 'danger'}>
-        {KIND_LABEL[item.kind] ?? item.kind}
-      </Badge>
-      <span className="min-w-0 flex-1">
-        <Tooltip text={attentionTip(item)}>
-          {(describedBy) => (
-            <button type="button" className="text-left font-medium underline" onClick={onTitle} aria-describedby={describedBy} data-attention-title>
-              {item.title}
-            </button>
-          )}
-        </Tooltip>{' '}
-        <span className="text-xs text-muted">{item.taskId}</span>
-        <span className="block text-sm text-muted">{item.detail}</span>
-      </span>
-      <span className="flex gap-1.5">
-        {item.href && (
-          <a href={linkHref(item.href)} target="_blank" rel="noreferrer" className="self-center text-sm underline">
-            Issue
-          </a>
-        )}
-        {attach && (
-          <Tooltip text="Open the task's running chat">
-            <a href={linkHref(attach)} className="self-center text-sm underline" aria-label={`Attach to the chat for ${item.title}`}>
-              Attach
-            </a>
-          </Tooltip>
-        )}
+    <li className="border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)', overflowWrap: 'anywhere' }} data-attention-row>
+      <span className="flex gap-1" style={{ float: 'right', marginLeft: 6 }} data-attention-actions>
+        {item.href && <IconLink icon={ExternalLink} to={item.href} label={`Open the issue for ${item.title}`} external />}
+        {attach && <IconLink icon={CirclePlus} to={attach} label={`Session: the chat for ${item.title}`} />}
         <IconBtn
           icon={DetailsIcon}
           label={item.group ? `Info: ${item.title}` : `Details for ${item.title}`}
-          tooltip={item.group ? 'Why these tasks need review, and the list of them' : 'Open the task drawer'}
+          tooltip={item.group ? 'Why these tasks need review, and the list of them' : 'Open the task details'}
           onClick={onInfo}
         />
         <IconBtn icon={MessageSquare} label={`Ask in a chat about ${item.title}`} tooltip="Ask in a chat: a new chat seeded with this item's full context" onClick={onAsk} />
         <IconBtn
           icon={item.tab === 'waiting' ? Check : ExternalLink}
-          label={item.tab === 'waiting' ? `Resolve ${item.title}` : `Open ${item.title} in the drawer`}
-          tooltip={item.tab === 'waiting' ? 'Resolve it in Waiting on you' : 'Open the task drawer'}
+          label={item.tab === 'waiting' ? `Resolve ${item.title}` : `Open ${item.title}`}
+          tooltip={item.tab === 'waiting' ? 'Resolve it in Needs you' : 'Open the task details'}
           onClick={onOpen}
         />
       </span>
+      <span className="text-sm">
+        <span data-attention-tag>
+          <Badge variant={['decision', 'needs-human', 'review', 'manual'].includes(item.kind) ? 'warning' : 'danger'}>
+            {KIND_LABEL[item.kind] ?? item.kind}
+          </Badge>
+        </span>{' '}
+        {/* An inline link-button, so a long title wraps beside its tag
+            instead of dropping to its own line. */}
+        <Tooltip text={attentionTip(item)} display="inline">
+          {(describedBy) => (
+            <a
+              role="button"
+              tabIndex={0}
+              className="font-medium underline"
+              style={{ cursor: 'pointer', color: 'inherit' }}
+              onClick={onTitle}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onTitle()
+                }
+              }}
+              aria-describedby={describedBy}
+              data-attention-title
+            >
+              {item.title}
+            </a>
+          )}
+        </Tooltip>{' '}
+        <span className="text-xs text-muted">{item.taskId}</span>
+      </span>
+      <span className="block text-sm text-muted">{item.detail}</span>
+      <span style={{ display: 'block', clear: 'both' }} />
     </li>
   )
 }
+
+
+// A compact card's button words; the full action is its name and tooltip.
+const SHORT_ACTION: Record<string, string> = { crew: 'Copy values', repository: 'Add a repo', epics: 'Plan an epic' }
 
 const ROLE_LABEL: Record<string, string> = { worker: 'Worker', checks: 'Checks', planner: 'Planner' }
 const roleLabel = (row: InFlight) =>
@@ -157,7 +175,7 @@ const roleLabel = (row: InFlight) =>
 
 // A live Issue Radar claim, read from GitHub: any machine's crew. GitHub
 // does not show whether the crew is paused, which machine it runs on, or
-// its chat, so there is no Attach here.
+// its chat, so there is no Session here.
 export function RadarFlightRow({ row, now, onTrace, cost }: { row: RadarClaim; now: number; onTrace?: (row: RadarClaim) => void; cost?: RadarCrewStrip['cost'][string] }) {
   return (
     <li data-radar-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
@@ -237,16 +255,16 @@ export function InFlightRow({ row, now, onInfo }: { row: InFlight; now: number; 
       <span data-in-flight-actions className="flex items-center justify-end gap-1.5" style={{ flex: '0 0 11rem' }}>
         <IconBtn icon={DetailsIcon} label={`Details for ${row.title}`} tooltip="Open the task drawer" onClick={onInfo} />
         {!href ? (
-          <span className="text-xs text-muted">Attach waits on Kiro Crew</span>
+          <span className="text-xs text-muted">Session waits on Kiro Crew</span>
         ) : (
         <a
           href={linkHref(href)}
           className="text-sm underline"
-          aria-label={`Attach to the ${row.role} chat for ${row.title}`}
+          aria-label={`Session: the ${row.role} chat for ${row.title}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
         >
-          <ExternalLink size={14} aria-hidden="true" />
-          Attach
+          <CirclePlus size={14} aria-hidden="true" />
+          Session
         </a>
         )}
       </span>
@@ -265,6 +283,7 @@ export default function DashboardView(props: {
   onPlanEpic?: () => void
 }) {
   const { workspaceId, onNavigate } = props
+  const phone = usePhone()
   const [tracing, setTracing] = useState<TraceTarget | null>(null)
   const api = useAppApi()
   const views = useMemo(() => viewsClient(api), [api])
@@ -315,6 +334,9 @@ export default function DashboardView(props: {
     setNow(Date.now())
     void reload()
   }, [reload])
+  // The nav already says Home: no heading row. Refresh, with its countdown,
+  // is in the header's More menu.
+  usePublishRefresh(useRefreshCountdown(workspaceId, refreshHome, busy))
   // The conflict items an attention row stands for, for its chat seed.
   const askAbout = (item: Attention) => {
     const matching = item.group
@@ -336,32 +358,41 @@ export default function DashboardView(props: {
     plans: summary ? summary.plans.total : 1,
   })
 
+  const crewCard = cards.find((card) => card.id === 'crew')
   return (
     <section aria-labelledby="avoozl-dashboard-title" className="flex flex-col gap-3.5">
-      <ViewHeading
-        id="avoozl-dashboard-title"
-        view="dashboard"
-        meta={
-          <>
-            <RefreshButton workspaceId={workspaceId} onRefresh={refreshHome} busy={busy} />
-            <span role="status" className={busy || value?.failed ? 'text-xs text-muted' : 'sr-only'}>
-              {busy ? 'Loading…' : value?.failed ? `${value.failed} of 4 reads failed; those sections are empty.` : ''}
-            </span>
-          </>
-        }
-      >
+      <h2 id="avoozl-dashboard-title" className="sr-only">
         Home
-      </ViewHeading>
+      </h2>
+      <span role="status" className={busy || value?.failed ? 'text-xs text-muted' : 'sr-only'}>
+        {busy ? 'Loading…' : value?.failed ? `${value.failed} of 4 reads failed; those sections are empty.` : ''}
+      </span>
       {/* Line stopped (R44.9, R48.5): above every other section. */}
       <LineBanner stops={flow.value?.line ?? []} workspaceId={workspaceId} onChanged={() => void flow.reload()} />
       <ArmedPulls workspaceId={workspaceId} stopped={(flow.value?.line ?? []).length > 0} />
-      <DriverSessionBox workspaceId={workspaceId} />
+      <StatusRow>
+        <DriverCell workspaceId={workspaceId} />
+        {crewCard && (
+          <StatusCell
+            data-setup-card="crew"
+            tone="warn"
+            title="Radar crew: none"
+            tip={`${crewCard.title}. ${crewCard.line}`}
+            actions={
+              <>
+                <CellAct label="Copy values" icon={<Copy size={13} aria-hidden="true" />} primary tip="Copy the values to paste into a new Radar crew." onClick={setupAction.crew} data-crew-copy />
+                <CellAct label="Open Radar" icon={<ExternalLink size={13} aria-hidden="true" />} tip="Open Radar, Crews." href="/issue-radar" />
+              </>
+            }
+          />
+        )}
+      </StatusRow>
       {(error || chat.error) && (
         <p role="alert" className="text-sm text-danger">
           {error ?? chat.error}
         </p>
       )}
-      {cards.filter((card) => card.id !== 'driver').map((card) => (
+      {cards.filter((card) => card.id !== 'driver' && card.id !== 'crew').map((card) => (
         <SetupCard
           key={card.id}
           id={card.id}
@@ -369,14 +400,10 @@ export default function DashboardView(props: {
           line={card.line}
           action={
             <>
-              <Btn type="button" primary onClick={setupAction[card.id as Exclude<SetupId, 'driver'>]}>
-                {card.action}
-              </Btn>
-              {card.id === 'crew' && (
-                <a href="/issue-radar" className="text-sm underline">
-                  Open Radar › Crews
-                </a>
-              )}
+              {/* Short words on the button; its name is the whole action. */}
+              <SmallBtn primary onClick={setupAction[card.id as Exclude<SetupId, 'driver'>]} attrs={{ 'aria-label': card.action }}>
+                {SHORT_ACTION[card.id] ?? card.action}
+              </SmallBtn>
               {card.id === 'repository' && <StartDemoButton label="Try the demo" />}
             </>
           }
@@ -391,7 +418,7 @@ export default function DashboardView(props: {
               empty={summary.attention.length === 0 && 'Nothing waits on you. When a crew hands work back, it shows here.'}
               actions={
                 <button type="button" className="text-sm underline" onClick={() => onNavigate('waiting')}>
-                  Open Waiting on you
+                  Open Needs you
                 </button>
               }
             >
@@ -459,9 +486,12 @@ export default function DashboardView(props: {
               )}
             </Section>
           </Pair>
-          <ReleaseQueue workspaceId={workspaceId} onOpenSettings={() => props.onOpenSettings?.('repositories')} />
           <TrackerGates workspaceId={workspaceId} />
-          <div data-progress-by-epic>
+          {/* Release queue and Progress by epic share one row, left and right;
+              only a phone stacks them. Both cards take the row's height. */}
+          <div data-dashboard-row="queue-progress" className="grid gap-3.5" style={phone ? undefined : { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', alignItems: 'stretch' }}>
+          <ReleaseQueue workspaceId={workspaceId} onOpenSettings={() => props.onOpenSettings?.('repositories')} />
+          <div data-progress-by-epic className="h-full min-h-0">
             <Section
               title="Progress by epic"
               empty={summary.progress.length === 0 && `No epics yet. ${summary.plans.approved} approved and ${summary.plans.draft} draft specs.`}
@@ -523,6 +553,7 @@ export default function DashboardView(props: {
                 })}
               </ul>
             </Section>
+          </div>
           </div>
           <IntegrationBranches workspaceId={workspaceId} />
           <ReviewDrafts workspaceId={workspaceId} />

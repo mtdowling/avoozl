@@ -312,13 +312,14 @@ const tools = {
         "incoming items: {source?, kind?, state?, untriaged?, offset?}",
       ],
       item: ["intake.view", "one incoming item: {source, id}"],
+      // Ideas were removed (RC30.3); kept so callers get a clear error.
       capture_idea: [
         "idea.capture",
-        "save a rough idea that never runs work: {title, notes?, links?}",
+        "removed: ideas were removed from Avoozl; returns an error",
       ],
       add_idea_note: [
         "idea.append",
-        "add a note or link to an open idea: {id, note?, link?}",
+        "removed: ideas were removed from Avoozl; returns an error",
       ],
       sources: [
         "intake.sources",

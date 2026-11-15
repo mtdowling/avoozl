@@ -12,7 +12,7 @@ import { buildHarness } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
 const WIDTHS = [320, 768, 1280]
-const ALL = ['github-usage', 'budgets', 'coder', 'release-queue', 'release-mode', 'projection', 'spec-changed', 'quick-goal']
+const ALL = ['github-usage', 'budgets', 'coder', 'release-queue', 'release-mode', 'projection', 'spec-changed']
 
 const args = process.argv.slice(2)
 const open = args.includes('--open')

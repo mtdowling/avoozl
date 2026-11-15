@@ -192,6 +192,7 @@ test("plan.table: one row per plan with counts, grouped by authored category", a
   // Two leaves under one package, in no phase and no epic.
   assert.deepEqual(byName.config.tasks, { total: 2, done: 0 });
   assert.equal(byName.config.phases, 0);
+  assert.equal(byName.config.onGitHub, false, "no task has an issue yet");
   assert.equal(byName.config.epic, null);
   assert.equal(
     byName.config.now.ready +

@@ -1,4 +1,4 @@
-// New plan: a right drawer that collects a plan idea and hands it to Kiro
+// New plan: a right drawer that collects what a plan is for and hands it to Kiro
 // Crew's Spec Builder, which drafts the spec folder phase by phase. The
 // backend (plan.new) checks the fields, runs content rules on what is
 // handed over, and writes Avoozl's steering file only after the person
@@ -9,8 +9,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppApi, useChatLauncher, useNavigate } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import { ExternalLink, FileText, MessageSquare, Package, X } from './icons.ts'
+import { Crosshair, ExternalLink, FileText, MessageSquare, Package, X } from './icons.ts'
 import { RadioFold } from './RadioFold.tsx'
+import { Picker } from './Picker.tsx'
 import { TemplateStart, templateKey, type InputValues } from './TemplateStart.tsx'
 import { missingInputs, notesClient, type TemplateSummary } from './notes-api.ts'
 import { importInput, pluginsClient, type PackPreview } from './plugins-api.ts'
@@ -62,6 +63,13 @@ function Field(props: { id: string; label: string; need: 'required' | 'optional'
   )
 }
 
+// The three starts: Spec Builder, a plugin's template, or a planner chat
+// that writes the spec from a goal (RC30.1).
+type Start = 'blank' | 'template' | 'goal'
+
+// A picker's last choice, which turns into a field for a new name.
+const NEW_CHOICE = '__new__'
+
 export default function NewPlanDrawer(props: {
   workspaceId: string
   // Names a plan or spec folder already uses.
@@ -69,10 +77,10 @@ export default function NewPlanDrawer(props: {
   categories: string[]
   // Epic folders to pick from: their folder name and title.
   epics?: { id: string; title: string }[]
-  // Make it a spec (R63.9): fields filled from an idea, and its id.
+  // Fields to start the form with.
   seed?: Partial<NewPlanForm>
-  // Which way it opens; Blank unless said.
-  start?: 'blank' | 'template'
+  // Which way it opens; none picked unless said, and Submit waits for one.
+  start?: Start
   onClose: (notice: string | null) => void
 }) {
   const api = useAppApi()
@@ -96,7 +104,10 @@ export default function NewPlanDrawer(props: {
   const [shown, setShown] = useState(false)
   // Blank, or From template (R61.7): a template's inputs, and its settings
   // imported only when ticked.
-  const [start, setStart] = useState<'blank' | 'template'>(props.start ?? 'blank')
+  const [start, setStart] = useState<Start | null>(props.start ?? null)
+  // A picker's "New …" choice turns into a name field.
+  const [newCategory, setNewCategory] = useState(false)
+  const [newEpic, setNewEpic] = useState(false)
   const [templates, setTemplates] = useState<TemplateSummary[] | null>(null)
   const [picked, setPicked] = useState<string | null>(null)
   const [values, setValues] = useState<InputValues>({})
@@ -188,7 +199,9 @@ export default function NewPlanDrawer(props: {
   }, [])
 
   const problems =
-    start === 'template'
+    start === null
+      ? ['Pick Blank, From template or From a goal.']
+      : start === 'template'
       ? [...(template ? [] : ['Pick a template.']), ...templateProblems(form, props.taken, template ? missingInputs(template, values) : [])]
       : repositories
         ? formProblems(form, props.taken, repositories.length)
@@ -246,11 +259,14 @@ export default function NewPlanDrawer(props: {
 
   const submit = () => {
     setTried(true)
+    if (start === null) return
     if (start === 'template') {
       if (problems.length) return
       return fromTemplate()
     }
     if (problems.length || !repositories) return
+    // From a goal: the planner chat writes the spec folder from the goal.
+    if (start === 'goal') return plannerChat()
     setFallback(false)
     return run(async () => {
       const preview = await client.preview(props.workspaceId, form)
@@ -268,132 +284,9 @@ export default function NewPlanDrawer(props: {
       props.onClose(`A planner chat is drafting ${result.name}. It shows here as a draft once its folder is complete; you approve it.`)
     })
 
-  return (
-    <div className="fixed inset-0" style={{ zIndex: LAYER.drawer, display: 'flex', justifyContent: 'flex-end' }}>
-      <div
-        aria-hidden="true"
-        data-drawer-backdrop
-        onClick={() => void close()}
-        className="absolute inset-0"
-        style={{ background: 'color-mix(in srgb, var(--text) 25%, transparent)' }}
-      />
-      <div
-        ref={panel}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="avoozl-new-plan-title"
-        data-new-plan-drawer
-        className="relative flex h-full flex-col border-l shadow-lg outline-none"
-        style={{
-          width: narrow ? '100%' : 'min(36rem, 92vw)',
-          background: 'var(--card, var(--bg))',
-          color: 'var(--text)',
-          borderColor: 'var(--border)',
-          transform: shown || still ? 'none' : 'translateX(100%)',
-          transition: still ? 'none' : 'transform 180ms ease-out',
-        }}
-      >
-        <div className="border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
-          <SectionHeading
-            level={2}
-            id="avoozl-new-plan-title"
-            title="New spec"
-            actions={
-              <IconLabel icon={X} onClick={() => void close()} aria-label="Close New spec">
-                Close
-              </IconLabel>
-            }
-          />
-        </div>
-        <form
-          id="avoozl-new-plan-form"
-          className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void submit()
-          }}
-        >
-          <p className="text-xs text-muted">
-            {start === 'template'
-              ? 'An Avoozl planner chat drafts the spec from the template and what you fill in. It shows in Specs as a draft. Nothing is approved or started.'
-              : "Kiro Crew's Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. Avoozl then writes the manifest, and the spec shows in Specs as a draft. Nothing is approved or started."}
-          </p>
-          <Field id="avoozl-new-plan-name" need="required" label="Name" hint="Becomes the spec folder name: lowercase letters, digits and hyphens." problem={nameIssue}>
-            <Input
-              id="avoozl-new-plan-name"
-              value={form.name}
-              placeholder="cache-invalidation"
-              aria-invalid={Boolean(nameIssue)}
-              aria-describedby={nameIssue ? 'avoozl-new-plan-name-problem' : undefined}
-              onChange={(event) => set({ name: event.target.value })}
-              onBlur={() => setNameTouched(true)}
-              style={{ maxWidth: '24rem' }}
-            />
-          </Field>
-          <Field id="avoozl-new-plan-category" need="optional" label="Category" hint="Pick one or type a new one. Left blank, the spec is Uncategorized.">
-            <Input
-              id="avoozl-new-plan-category"
-              list="avoozl-new-plan-categories"
-              value={form.category}
-              onChange={(event) => set({ category: event.target.value })}
-              style={{ maxWidth: '18rem' }}
-            />
-            <datalist id="avoozl-new-plan-categories">
-              {props.categories.map((category) => (
-                <option key={category} value={category} />
-              ))}
-            </datalist>
-          </Field>
-          <Field
-            id="avoozl-new-plan-epic"
-            need="optional"
-            label="Epic"
-            hint="Pick an epic, a goal that spans specs. Left blank, the spec is in no epic."
-            problem={form.epic.trim() && !SPEC_NAME.test(form.epic.trim()) ? EPIC_PROBLEM : null}
-          >
-            <Input
-              id="avoozl-new-plan-epic"
-              value={form.epic}
-              list="avoozl-new-plan-epic-list"
-              placeholder="rewrite"
-              onChange={(event) => set({ epic: event.target.value })}
-              style={{ maxWidth: '18rem' }}
-            />
-            <datalist id="avoozl-new-plan-epic-list">
-              {(props.epics ?? []).map((epic) => (
-                <option key={epic.id} value={epic.id}>
-                  {epic.title}
-                </option>
-              ))}
-            </datalist>
-          </Field>
-          <RadioFold<'blank' | 'template'>
-            name="avoozl-new-plan-start"
-            label="How to start"
-            value={start}
-            onChange={(next) => {
-              setStart(next)
-              setTried(false)
-              setError(null)
-            }}
-            sections={[
-              {
-                key: 'blank',
-                title: 'Blank',
-                line: 'Spec Builder drafts it from what you want, phase by phase.',
-                icon: FileText,
-                fields: (
-                  <div className="flex flex-col gap-3">
-          <Field id="avoozl-new-plan-phases" need="optional" label="Phases" hint="One per line; each becomes a heading in tasks.md. Left blank, the planner picks them.">
-            <textarea
-              id="avoozl-new-plan-phases"
-              rows={3}
-              value={form.phases}
-              onChange={(event) => set({ phases: event.target.value })}
-              className="rounded border px-2 py-1 text-sm"
-              style={fieldStyle}
-            />
-          </Field>
+  // Repositories, what you want, and links: Blank and From a goal share them.
+  const sharedFields = (
+    <>
           <fieldset className="flex flex-col gap-1 text-sm">
             <legend className="font-medium">
               Repositories <span className="font-normal text-muted">(required)</span>
@@ -441,13 +334,156 @@ export default function NewPlanDrawer(props: {
               style={fieldStyle}
             />
           </Field>
+    </>
+  )
+
+  return (
+    // A centered modal, full screen on a phone: no pull-out from the right.
+    <div className="fixed inset-0" style={{ zIndex: LAYER.drawer, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        aria-hidden="true"
+        data-drawer-backdrop
+        onClick={() => void close()}
+        className="absolute inset-0"
+        style={{ background: 'color-mix(in srgb, var(--text) 25%, transparent)' }}
+      />
+      <div
+        ref={panel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="avoozl-new-plan-title"
+        data-new-plan-drawer
+        className="relative flex flex-col border shadow-lg outline-none"
+        style={{
+          width: narrow ? '100%' : 'min(40rem, 94vw)',
+          height: narrow ? '100%' : 'min(48rem, 90vh)',
+          borderRadius: narrow ? 0 : 10,
+          background: 'var(--card, var(--bg))',
+          color: 'var(--text)',
+          borderColor: 'var(--border)',
+          opacity: shown || still ? 1 : 0,
+          transition: still ? 'none' : 'opacity 120ms ease-out',
+        }}
+      >
+        <div className="border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
+          <SectionHeading
+            level={2}
+            id="avoozl-new-plan-title"
+            title="New spec"
+            actions={
+              <IconLabel icon={X} onClick={() => void close()} aria-label="Close New spec">
+                Close
+              </IconLabel>
+            }
+          />
+        </div>
+        <form
+          id="avoozl-new-plan-form"
+          className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void submit()
+          }}
+        >
+          <p className="text-xs text-muted">
+            {start === 'template'
+              ? 'An Avoozl planner chat drafts the spec from the template and what you fill in. It shows in Specs as a draft. Nothing is approved or started.'
+              : start === 'goal'
+                ? 'An Avoozl planner chat writes the spec from your goal: requirements, design and tasks. It shows in Specs as a draft and is approved like any spec. Nothing is started.'
+                : start === 'blank'
+                ? "Kiro Crew's Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. Avoozl then writes the manifest, and the spec shows in Specs as a draft. Nothing is approved or started."
+                : 'Name it, then pick how to start: Blank, From template or From a goal. It shows in Specs as a draft. Nothing is approved or started.'}
+          </p>
+          <Field id="avoozl-new-plan-name" need="required" label="Name" hint="Becomes the spec folder name: lowercase letters, digits and hyphens." problem={nameIssue}>
+            <Input
+              id="avoozl-new-plan-name"
+              value={form.name}
+              placeholder="cache-invalidation"
+              aria-invalid={Boolean(nameIssue)}
+              aria-describedby={nameIssue ? 'avoozl-new-plan-name-problem' : undefined}
+              onChange={(event) => set({ name: event.target.value })}
+              onBlur={() => setNameTouched(true)}
+              style={{ maxWidth: '24rem' }}
+            />
+          </Field>
+          <Field id="avoozl-new-plan-category" need="optional" label="Category" hint="Pick one, or New category to name one. Left blank, the spec is Uncategorized.">
+            <Picker
+              id="avoozl-new-plan-category"
+              label={<span className="sr-only">Category</span>}
+              items={[...props.categories.map((c) => ({ id: c, title: c })), { id: NEW_CHOICE, title: 'New category…' }]}
+              value={newCategory ? NEW_CHOICE : form.category}
+              emptyLabel="Uncategorized"
+              plain
+              maxWidth="18rem"
+              onPick={(id) => {
+                setNewCategory(id === NEW_CHOICE)
+                set({ category: id === NEW_CHOICE ? '' : id })
+              }}
+            />
+            {newCategory && (
+              <Input id="avoozl-new-plan-category-new" aria-label="New category" value={form.category} placeholder="Platform" onChange={(event) => set({ category: event.target.value })} style={{ maxWidth: '18rem' }} />
+            )}
+          </Field>
+          <Field
+            id="avoozl-new-plan-epic"
+            need="optional"
+            label="Epic"
+            hint="An epic is a goal that holds several specs. Pick one, or New epic to start one. Left blank, the spec is in no epic."
+            problem={form.epic.trim() && !SPEC_NAME.test(form.epic.trim()) ? EPIC_PROBLEM : null}
+          >
+            <Picker
+              id="avoozl-new-plan-epic"
+              label={<span className="sr-only">Epic</span>}
+              items={[...(props.epics ?? []).map((epic) => ({ id: epic.id, title: epic.title })), { id: NEW_CHOICE, title: 'New epic…' }]}
+              value={newEpic ? NEW_CHOICE : form.epic}
+              emptyLabel="No epic"
+              plain
+              maxWidth="18rem"
+              onPick={(id) => {
+                setNewEpic(id === NEW_CHOICE)
+                set({ epic: id === NEW_CHOICE ? '' : id })
+              }}
+            />
+            {newEpic && (
+              <Input id="avoozl-new-plan-epic-new" aria-label="New epic folder name" value={form.epic} placeholder="rewrite" onChange={(event) => set({ epic: event.target.value })} style={{ maxWidth: '18rem' }} />
+            )}
+          </Field>
+          <RadioFold<Start>
+            name="avoozl-new-plan-start"
+            label="How to start"
+            // Neither is picked at first; each says what it does.
+            value={(start ?? '') as Start}
+            onChange={(next) => {
+              setStart(next)
+              setTried(false)
+              setError(null)
+            }}
+            sections={[
+              {
+                key: 'blank',
+                title: 'Blank',
+                line: "Kiro Crew's Spec Builder writes the spec with you from what you want: requirements, then design, then tasks, each for you to review. Use it for new work with no set shape.",
+                icon: FileText,
+                fields: (
+                  <div className="flex flex-col gap-3">
+          <Field id="avoozl-new-plan-phases" need="optional" label="Phases" hint="One per line; each becomes a heading in tasks.md. Left blank, the planner picks them.">
+            <textarea
+              id="avoozl-new-plan-phases"
+              rows={3}
+              value={form.phases}
+              onChange={(event) => set({ phases: event.target.value })}
+              className="rounded border px-2 py-1 text-sm"
+              style={fieldStyle}
+            />
+          </Field>
+          {sharedFields}
                   </div>
                 ),
               },
               {
                 key: 'template',
                 title: 'From template',
-                line: 'Start from a workflow template in an approved plugin: its phases, proofs and manual steps.',
+                line: "Start from a workflow template in an approved plugin. It brings its own phases, proofs and manual steps, and a planner chat fills them in. Use it when a team's way of working already exists.",
                 icon: Package,
                 fields: (
                   <TemplateStart
@@ -468,6 +504,13 @@ export default function NewPlanDrawer(props: {
                     onPreview={onPreview}
                   />
                 ),
+              },
+              {
+                key: 'goal',
+                title: 'From a goal',
+                line: 'Type the goal. An Avoozl planner chat writes the draft spec, requirements, design and tasks, and you approve it like any spec. Use it when you know the outcome but not the steps.',
+                icon: Crosshair,
+                fields: <div className="flex flex-col gap-3">{sharedFields}</div>,
               },
             ]}
           />
@@ -507,9 +550,14 @@ export default function NewPlanDrawer(props: {
           )}
         </form>
         <div className="flex items-center gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--border)' }}>
-          <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || repositories === null || steering !== null} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            {start === 'template' ? <MessageSquare size={ICON} aria-hidden="true" /> : <ExternalLink size={ICON} aria-hidden="true" />}
-            {busy ? 'Opening…' : start === 'template' ? 'Open a planner chat' : 'Open in Spec Builder'}
+          {tried && start === null && (
+            <span role="alert" className="text-xs text-danger" data-start-problem>
+              Pick Blank, From template or From a goal.
+            </span>
+          )}
+          <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || start === null || repositories === null || steering !== null} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {start === 'template' || start === 'goal' ? <MessageSquare size={ICON} aria-hidden="true" /> : <ExternalLink size={ICON} aria-hidden="true" />}
+            {busy ? 'Opening…' : start === 'template' || start === 'goal' ? 'Open a planner chat' : start === 'blank' ? 'Open in Spec Builder' : 'Pick how to start'}
           </Btn>
           <Btn type="button" onClick={() => void close()} disabled={busy}>
             Cancel

@@ -11,7 +11,7 @@ import { Marker, Section } from './SettingsView.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import PromptInstructions from './PromptInstructions.tsx'
-import { FLOW_DEFAULTS, flowClient, modelOptions, toFlowForm, toFlowSection, type FlowForm, type FlowSettings as Settings } from './flow-api.ts'
+import { FLOW_DEFAULTS, flowClient, toFlowForm, toFlowSection, type FlowForm, type FlowSettings as Settings } from './flow-api.ts'
 
 const OPTIONAL = { required: false } as const
 const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
@@ -64,18 +64,6 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
   const [instructions, setInstructions] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ error?: string; ok?: string } | null>(null)
-  // The models Kiro Crew offers, for the Model dropdown.
-  const [models, setModels] = useState<{ list: { value: string; label: string }[]; error: string | null }>({ list: [], error: null })
-  useEffect(() => {
-    let live = true
-    client.models().then(
-      (list) => live && setModels({ list, error: list.length ? null : 'Kiro Crew listed no models; auto uses its default.' }),
-      () => live && setModels({ list: [], error: "Kiro Crew's model list could not be read; auto uses its default." }),
-    )
-    return () => {
-      live = false
-    }
-  }, [client])
   useEffect(() => {
     if (!value) return
     setForm(toFlowForm(value.flow))
@@ -174,18 +162,8 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
               <Input id="avoozl-flow-slow" inputMode="decimal" value={form.slowFactor} placeholder={String(FLOW_DEFAULTS.slowFactor)} onChange={(event) => set({ slowFactor: event.target.value })} />
             </Labeled>
           </div>
-          <SectionHeading level={4} title="Who runs it and what it weighs" />
-          <div className="flex flex-wrap gap-4" data-flow-group="model">
-            <Labeled id="avoozl-flow-model" label="Model" raw="flow.retro.model" width="16rem" note={models.error ?? undefined}>
-              <select id="avoozl-flow-model" value={form.model || FLOW_DEFAULTS.model} onChange={(event) => set({ model: event.target.value === FLOW_DEFAULTS.model ? '' : event.target.value })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
-                {modelOptions(models.list, form.model).map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </Labeled>
-          </div>
+          {/* The retro's model is under Settings › Models. */}
+          <SectionHeading level={4} title="What it weighs" />
           <PromptInstructions
             id="avoozl-flow-instructions"
             agent="retro"
@@ -196,38 +174,6 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
             placeholder="What the retro should weigh, for example: fewer review rounds matter more than CI time."
             note="Saved on this machine only."
           />
-        </Section>
-      </Box>
-      <Box>
-        <Section title="Lessons" blurb="What retros learned, as short summaries. Lessons stay on this computer and help retros in your other workspaces.">
-          <div className="flex flex-col gap-2" data-flow-group="lessons">
-            {(
-              [
-                ['share', "Share this workspace's lessons"],
-                ['read', 'Use lessons from other workspaces'],
-              ] as const
-            ).map(([key, label]) => (
-              <div key={key} className="flex flex-col gap-0.5">
-                <label className="flex flex-wrap items-center gap-2 text-sm">
-                  <input type="checkbox" checked={form[key] ? form[key] === 'on' : FLOW_DEFAULTS[key]} onChange={(event) => set({ [key]: event.target.checked ? 'on' : 'off' })} />
-                  <span className="font-medium">{label}</span>
-                  <Marker rule={OPTIONAL} />
-                </label>
-                <Raw name={`flow.lessons.${key}`} />
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-4">
-            <Labeled id="avoozl-flow-untested" label="Untested lessons expire after (days)" raw="flow.lessons.untestedDays" width="16rem">
-              <Input id="avoozl-flow-untested" inputMode="numeric" value={form.untestedDays} placeholder={String(FLOW_DEFAULTS.untestedDays)} onChange={(event) => set({ untestedDays: event.target.value })} />
-            </Labeled>
-            <Labeled id="avoozl-flow-confirm" label="Confirm within (days)" raw="flow.lessons.confirmDays" width="14rem">
-              <Input id="avoozl-flow-confirm" inputMode="numeric" value={form.confirmDays} placeholder={String(FLOW_DEFAULTS.confirmDays)} onChange={(event) => set({ confirmDays: event.target.value })} />
-            </Labeled>
-            <Labeled id="avoozl-flow-review" label="Review lessons every (retros)" raw="flow.lessons.reviewEvery" width="15rem">
-              <Input id="avoozl-flow-review" inputMode="numeric" value={form.reviewEvery} placeholder={String(FLOW_DEFAULTS.reviewEvery)} onChange={(event) => set({ reviewEvery: event.target.value })} />
-            </Labeled>
-          </div>
           {drifted > 0 && (
             <p role="status" className="text-sm" style={{ color: 'var(--warning, var(--text))' }} data-override-warning>
               {drifted === 1 ? 'A prompt override is' : `${drifted} prompt overrides are`} based on an older built-in text. Review the rebase in Flow › Proposals.

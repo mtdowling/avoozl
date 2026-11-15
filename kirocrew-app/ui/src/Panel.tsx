@@ -1,5 +1,5 @@
 // The Avoozl side-panel tab (rc-8.3, design D10). One tab that changes with
-// the open chat: Waiting on you, In flight, the release queue and recent
+// the open chat: Needs you, In flight, the release queue and recent
 // merges in a normal chat; the spec check and Approve in a Spec Builder chat;
 // the claim a crew is on in a crew chat; the driver view in an Avoozl chat.
 // The host passes no props, so the chat comes from the page URL
@@ -8,7 +8,6 @@
 // (panel-api.ts). Every view is built from the shared parts in PanelParts.tsx.
 // Local workers are retired: no worker rows here.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import Logo from './Logo.tsx'
 import { ConfirmProvider } from './controls.tsx'
 import { railFor } from './dashboard-api.ts'
 import { DRIVER_AGENT, DRIVER_START_MESSAGE, recapSince, type Away, type DriverRead } from './driver-view-api.ts'
@@ -30,9 +29,10 @@ import {
   type PanelSection as SectionName,
   type WaitingRow,
 } from './panel-api.ts'
-import { PanelAct, PanelChip, PanelEmpty, PanelList, PanelRoot, PanelRow, PanelSection, PanelStrip, PanelToolbar } from './PanelParts.tsx'
-import { Bot, Check, CircleAlert, CircleDot, GitBranch, GitPullRequest, Inbox, MessageSquare, Radar } from './icons.ts'
+import { PanelAct, PanelChip, PanelEmpty, PanelHeader, PanelList, PanelRoot, PanelRow, PanelSection } from './PanelParts.tsx'
+import { Check, CircleAlert, CircleDot, CirclePlus, ExternalLink, GitBranch, GitPullRequest, Inbox, MessageSquare, Play, Radar, RefreshCw } from './icons.ts'
 import { RefreshButton } from './RefreshButton.tsx'
+import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
 import { plansClient } from './plans-api.ts'
 import { releaseClient } from './release-api.ts'
 import { SPEC_BUILDER_SPECS } from './spec-builder-api.ts'
@@ -143,10 +143,10 @@ function FlightRows({ rows, now }: { rows: FlightRow[]; now: number }) {
             meta={[...new Set(meta)].join(' · ')}
             actions={
               row.attach ? (
-                <PanelAct label="Attach" icon={MessageSquare} href={linkHref(row.attach)} tip={row.source === 'radar' ? 'Opens the crew chat, if this crew runs on this machine. Type there to steer it.' : 'Opens the worker chat on its crew. Type there to steer it.'} />
+                <PanelAct label="Session" name="Session" narrowIcon icon={CirclePlus} href={linkHref(row.attach)} tip={row.source === 'radar' ? 'Session. Opens the crew chat, if this crew runs on this machine. Type there to steer it.' : 'Session. Opens the worker chat on its crew. Type there to steer it.'} data-flight-session />
               ) : row.noAttach ? (
                 <Tooltip text={row.noAttach}>
-                  <span data-pp-chip data-tone="muted" data-tap="">
+                  <span data-pp-chip data-tone="muted">
                     No chat
                   </span>
                 </Tooltip>
@@ -164,6 +164,7 @@ export default function AvoozlPanel() {
   const navigate = useNavigate()
   const { openChat } = useChatLauncher()
   const [workspaceId, setWorkspaceId] = useState<string | null>(readPageState(storage()).workspaceId)
+  const [workspaceName, setWorkspaceName] = useState<string | null>(null)
   const [specNames, setSpecNames] = useState<string[]>([])
   const [reads, setReads] = useState<PanelRead | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -176,6 +177,9 @@ export default function AvoozlPanel() {
   const plans = useMemo(() => plansClient(api), [api])
   const views = useMemo(() => viewsClient(api), [api])
   const releases = useMemo(() => releaseClient(api), [api])
+  useEffect(() => {
+    if (workspaceId) workspaceClient(api).list().then((list) => setWorkspaceName(list.items.find((item) => item.id === workspaceId)?.name ?? null), () => undefined)
+  }, [api, workspaceId])
   const idRef = useRef(workspaceId)
   const readsRef = useRef(reads)
   readsRef.current = reads
@@ -312,14 +316,14 @@ export default function AvoozlPanel() {
   const unread = (section: SectionName) => model.unread.includes(section)
   const loading = reads === null
   const stopped = model.stops.length > 0
-  const instanceName = nameFor(instance, 'other') ?? reads?.instance?.name ?? null
+  const headerName = nameFor(instance, 'header') ?? reads?.instance?.name ?? null
 
   // One section: its rows, or why it has none.
   const unreadOr = (section: SectionName, empty: string, rows: number, render: () => ReactNode) =>
     unread(section) ? <PanelEmpty>{loading ? 'Loading…' : NOTE_UNREAD[section]}</PanelEmpty> : rows === 0 ? <PanelEmpty>{empty}</PanelEmpty> : render()
 
   const waiting = (
-    <PanelSection id="waiting" title="Waiting on you" count={model.waiting.length} tone="warn" open>
+    <PanelSection id="waiting" title="Needs you" count={model.waiting.length} tone="warn" open>
       {unreadOr('waiting', 'Nothing is waiting on you.', model.waiting.length, () => (
         <WaitingRows rows={model.waiting.slice(0, 5)} busy={busy} now={now} onAct={(row, action) => void act(row, action)} onOpenPage={() => navigate(AVOOZL_PAGE)} />
       ))}
@@ -360,113 +364,84 @@ export default function AvoozlPanel() {
     </PanelSection>
   )
 
-  // The line's state with its Stop the line button, on one row.
-  const line = (
-    <div data-panel-line data-stopped={stopped ? '' : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-      <PanelChip tone={stopped ? 'danger' : 'ok'}>{stopped ? 'Line stopped' : 'Line running'}</PanelChip>
-      <ConfirmProvider>
-        <StopLineButton workspaceId={workspaceId} />
-      </ConfirmProvider>
-    </div>
-  )
-  const stopRows = model.stops.length > 0 && (
-    <PanelList>
-      {model.stops.map((text) => (
-        <PanelRow key={text} icon={CircleAlert} title={text} />
-      ))}
-    </PanelList>
-  )
-
-  // The top of the panel: the toolbar, then what matters at a glance.
-  const toolbar = (
-    <PanelToolbar
+  // The top: one thin line. "Avoozl · <instance>" (Avoozl opens the app page),
+  // Refresh, fold all, and the line's pause button at the end.
+  const header = (
+    <PanelHeader
+      name="Avoozl"
+      onName={() => navigate(AVOOZL_PAGE)}
+      nameTip="Open Avoozl"
+      instance={headerName}
+      tip={[headerName ? `Avoozl · ${headerName}` : 'Avoozl', workspaceName ? `Workspace: ${workspaceName}` : ''].filter(Boolean).join('. ')}
+      tools={<RefreshButton bare workspaceId={workspaceId} onRefresh={() => void load()} />}
       end={
-        <>
-          <RefreshButton workspaceId={workspaceId} onRefresh={() => void load()} />
-          <button
-            type="button"
-            aria-label="Open Avoozl"
-            data-open-avoozl
-            data-pp-act
-            onClick={() => navigate(AVOOZL_PAGE)}
-            style={{ background: 'var(--bg-elevated, var(--card))', fontWeight: 600 }}
-          >
-            <Logo size={16} />
-            Open Avoozl
-          </button>
-        </>
+        <span data-panel-line data-stopped={stopped ? '' : undefined} style={{ display: 'inline-flex' }}>
+          <ConfirmProvider>
+            <StopLineButton bare workspaceId={workspaceId} />
+          </ConfirmProvider>
+        </span>
       }
-    >
-      <PanelChip tone="info" tip={instanceName ? `This Avoozl is called ${instanceName}.` : undefined}>
-        {instanceName ?? 'Avoozl'}
-      </PanelChip>
-      <span data-recap-line style={{ fontSize: 11, color: 'var(--muted)' }}>
-        {loading ? 'Loading…' : `${model.waiting.length} waiting on you · ${model.inFlight.length} in flight · ${stopped ? 'line stopped' : 'line running'}`}
-      </span>
-    </PanelToolbar>
-  )
-  const strip = (
-    <PanelStrip>
-      {line}
-      {model.queue && (
-        <PanelChip tone={model.queue.next ? 'info' : 'muted'} tap tip={`Release queue: ${queueSummary(model.queue)}${model.queue.mode ? `. Mode: ${model.queue.mode}.` : '.'}`} data-strip-queue>
-          Queue {queueSummary(model.queue)}
-        </PanelChip>
-      )}
-      {model.recent[0] && (
-        <PanelChip tap tip={`${model.recent.length} recent merge${model.recent.length === 1 ? '' : 's'}. Last: ${model.recent[0].title}, ${relativeTime(model.recent[0].at, now)}.`} data-strip-merged>
-          Merged {model.recent.length} · {shortAgo(model.recent[0].at, now)}
-        </PanelChip>
-      )}
-    </PanelStrip>
+    />
   )
 
   // A driver read that failed is unknown, never none: it may be running.
   const view = driverView(reads && !reads.driver ? { state: 'unknown', slot: null, href: null, openedAt: null, lastSeenAt: null } : reads?.driver)
-  const driverBox = loading ? null : (
-    <PanelList>
-      <PanelRow
-        data-panel-driver={view.state}
-        icon={Bot}
-        title="Driver session"
-        chips={
-          <>
-            <PanelChip tone={view.state === 'running' ? 'ok' : view.state === 'unknown' ? 'warn' : 'muted'}>{DRIVER_STATE[view.state]}</PanelChip>
-            {view.workspace && (
-              <PanelChip data-driver-workspace tip="The workspace this driver releases work for.">
-                {view.workspace}
-              </PanelChip>
-            )}
-          </>
-        }
-        multi
-        meta={`${view.note}${driver?.lastSeenAt && view.state !== 'none' ? ` Last seen ${relativeTime(driver.lastSeenAt, now)}.` : ''}`}
-        actions={
-          <>
-            {view.link && <PanelAct label="Open driver session" href={linkHref(view.link)} />}
-            {view.start && (
-              <PanelAct
-                label={view.link ? 'Start a new driver session' : 'Start a driver session'}
-                primary={!view.link}
-                tip="Opens a new chat on the avoozl-driver agent and sends its first message. It releases work only while the chat is open."
-                onClick={() => openChat({ agent: DRIVER_AGENT, message: DRIVER_START_MESSAGE, autoSend: true })}
-                data-driver-start
-              />
-            )}
-          </>
-        }
-      />
-      {view.elsewhere && (
-        <PanelRow
-          data-driver-elsewhere
-          noTip
-          icon={Bot}
-          title={`${view.elsewhere.text} `}
-          actions={<PanelAct label="Open" href={linkHref(view.elsewhere.href)} />}
+  const crewCount = reads?.crews ? (reads.crews.groups?.length ?? 0) : null
+  const driverCells = loading ? null : (
+    <div data-pp-cells>
+      <StatusRow>
+        <StatusCell
+          data-panel-driver={view.state}
+          tone={view.state === 'running' ? 'ok' : view.state === 'unknown' ? 'warn' : 'muted'}
+          title={`Driver: ${DRIVER_STATE[view.state].toLowerCase()}`}
+          tip={[
+            'One long-running chat that releases ready work in graph order and hands you the decisions. It releases work only while the chat is open.',
+            view.note,
+            driver?.lastSeenAt && view.state !== 'none' ? `Last seen ${relativeTime(driver.lastSeenAt, now)}.` : '',
+            view.workspace ? `Workspace: ${view.workspace}.` : '',
+            view.elsewhere ? view.elsewhere.text : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          actions={
+            <>
+              {view.link && <CellAct label="Open driver session" icon={<MessageSquare size={13} aria-hidden="true" />} primary={!view.start} href={linkHref(view.link)} data-driver-open />}
+              {view.start && (
+                <CellAct
+                  label={view.link ? 'Start a new driver session' : 'Start a driver session'}
+                  icon={<Play size={13} aria-hidden="true" />}
+                  primary={!view.link}
+                  tip={view.link ? 'Start a new driver session.' : 'Start a driver session. Opens a new chat on the avoozl-driver agent.'}
+                  onClick={() => openChat({ agent: DRIVER_AGENT, message: DRIVER_START_MESSAGE, autoSend: true })}
+                  data-driver-start
+                />
+              )}
+              {view.elsewhere && <CellAct label={`Open ${view.elsewhere.workspace}'s driver`} icon={<ExternalLink size={13} aria-hidden="true" />} href={linkHref(view.elsewhere.href)} tip={view.elsewhere.text} data-driver-elsewhere />}
+              <CellAct label="Recheck" icon={<RefreshCw size={13} aria-hidden="true" />} onClick={() => void load()} data-driver-recheck />
+            </>
+          }
         />
-      )}
-    </PanelList>
+        <StatusCell
+          data-panel-crew
+          tone={crewCount ? 'ok' : 'warn'}
+          title={crewCount === null ? 'Radar crew: unknown' : crewCount ? `Radar crews: ${crewCount}` : 'Radar crew: none'}
+          tip="Issue Radar crews code the issues Avoozl releases. Create a crew in Radar, Crews."
+          actions={<CellAct label="Open Radar" icon={<ExternalLink size={13} aria-hidden="true" />} href="/issue-radar" tip="Open Radar, Crews." />}
+        />
+      </StatusRow>
+    </div>
   )
+  const lineSection = (
+    <PanelSection id="line" title="Line and driver" summary={stopped ? 'stopped' : undefined} open>
+      <PanelList>
+        {model.stops.map((text) => (
+          <PanelRow key={text} icon={CircleAlert} title={text} />
+        ))}
+      </PanelList>
+      {driverCells}
+    </PanelSection>
+  )
+
   const sinceBox = recap && (
     <div data-since-recap>
       <PanelSection id="since" title="Since you left" summary={recap.since} open>
@@ -500,7 +475,7 @@ export default function AvoozlPanel() {
 
   return (
     <PanelRoot kind={kind.kind}>
-      {toolbar}
+      {header}
       {error && <PanelEmpty role="alert">Avoozl can't read this workspace: {error}</PanelEmpty>}
       {note && <PanelEmpty role="status">{note}</PanelEmpty>}
       {kind.kind === 'spec-builder' && (
@@ -555,8 +530,7 @@ export default function AvoozlPanel() {
               )}
             </PanelSection>
           )}
-          {strip}
-          {stopRows}
+          {lineSection}
         </>
       )}
       {kind.kind === 'crew' && (
@@ -596,32 +570,27 @@ export default function AvoozlPanel() {
               <PanelEmpty>Avoozl cannot message this chat. It shows what the claim on GitHub says.</PanelEmpty>
             </PanelSection>
           </div>
-          {strip}
-          {stopRows}
+          {lineSection}
         </>
       )}
       {kind.kind === 'avoozl' && (
         <>
-          {strip}
-          {stopRows}
-          {driverBox}
           {sinceBox}
           {waiting}
           {inFlight}
           {queue}
           {recent}
+          {lineSection}
         </>
       )}
       {kind.kind === 'other' && (
         <div data-panel-recap>
-          {strip}
-          {stopRows}
-          {driverBox}
           {sinceBox}
           {waiting}
           {inFlight}
           {queue}
           {recent}
+          {lineSection}
         </div>
       )}
     </PanelRoot>
