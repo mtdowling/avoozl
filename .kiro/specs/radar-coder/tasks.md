@@ -559,7 +559,7 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 - [x] rc-25.1 Forward target setting and per-epic override, after rc-23.1, rc-16.1 [RC26.1, RC26.2] (§D31.1)
   - `forwardTarget` (`each`, `branch`, `batch`) and `publicBranch` in the form and the raw file; epic manifest keys win over the repository's; Settings and Trace name the source of the value in force; `src/app/test/mirror-forward-target.test.mjs`.
   - Done when: Precedence tests for epic, repository and default; an unknown value is refused; the form and the raw file agree.
-- [ ] rc-25.2 Path policy and metadata scrub, after rc-23.4 [RC26.5, RC26.6] (§D31.2)
+- [x] rc-25.2 Path policy and metadata scrub, after rc-23.4 [RC26.5, RC26.6] (§D31.2)
   - `forwardExclude`, `forwardAllow`, the default exclusions (`.kiro/`, the plans branch, `AGENTS.md`, steering); one new commit authored by the person, no trailers, markers, mirror history or links; tests 1 and 3 of D31.2 in `src/app/test/mirror-forward-protections.test.mjs`.
   - Done when: Each excluded path blocks naming the rule; an allowlisted path passes; the commit has one parent, the person as author and no trailer or mirror reference.
 - [x] rc-25.3 Leak scan extensions: private terms, hosts, ticket IDs, account IDs, secrets, binary and over-size files, after rc-25.2 [RC26.5] (§D31.2)
