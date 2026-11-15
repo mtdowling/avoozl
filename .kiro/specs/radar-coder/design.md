@@ -432,6 +432,8 @@ leaves to this spec:
 
 ## D11. Quick goals (RC9)
 
+Superseded by D35.1: goals start in New spec as From a goal.
+
 ```text
 "Make tests faster"
   ▼ modal: repository, depth (Look | Measure), budget (20 turns, 15 min)
@@ -1416,3 +1418,47 @@ through the client cache, so any number of views inside the cache window cost
 one call. A repository with more than 500 open pull requests falls back to the
 per-branch query. Claims already come from one search per repository
 (`searchIssuesWithAnyLabel`).
+
+## D35. One start for new work; ideas and lessons removed (RC30)
+
+### D35.1 From a goal
+
+New spec has three starts, none picked at first, and Submit waits for one:
+
+| Start | What happens |
+| --- | --- |
+| Blank | Spec Builder writes the spec with the person, phase by phase. |
+| From template | A planner chat fills a plugin's workflow template. |
+| From a goal | The person types a goal; a planner chat writes `requirements.md`, `design.md`, `tasks.md` and the manifest into the spec folder. |
+
+From a goal reuses the template path's planner chat and handoff
+(`newplan.fromTemplate`'s chat seed, with the goal as the brief and no
+template). The draft shows in Specs and is approved like any spec. The Quick
+goal button, modal, proposal screen, its SQLite rows and `quickgoal.*`
+operations are removed. D11 is superseded by this section.
+
+### D35.2 New task
+
+The New task button lives only in the spec detail view, beside the spec's
+own buttons. The task drawer's "Add a task after this" stays, since it is
+inside a task of a spec. The Specs list heading and Home lose New task.
+
+### D35.3 Ideas
+
+Removed: the Ideas tab under Needs you (Planning and intake keeps its intake
+items), the New idea button and dialog, `idea.*` operations, the `ideas`
+tables (dropped by a migration), the CLI `intake idea` commands, and every test of
+them. The public MCP actions `capture_idea` and `add_idea_note` stay as
+stubs. Each returns
+`{ error: "Ideas were removed from Avoozl." }` and writes nothing.
+
+### D35.4 Lessons
+
+Removed: the lessons tables, the Lessons tab under Flow, lessons packs, pack
+import and Share. A retro's proposal now names a rule and its reason; on
+approval Avoozl opens a pull request that edits
+`.kiro/steering/avoozl-lessons.md` (and the crew prompt file when the rule is
+about crews). AGENTS.md points to the steering file, so every chat and crew
+reads it. The one-time migration exports stored lessons into that file under
+a dated heading, appending only, then drops the tables in the same
+transaction that records the export. If the write fails the tables stay.
