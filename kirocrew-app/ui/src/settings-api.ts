@@ -319,6 +319,8 @@ export interface MirrorForm {
   forwardTarget: string
   publicBranch: string
   forwardMaxFileBytes: string
+  forwardExclude: string
+  forwardAllow: string
 }
 
 export const emptyMirror = (): MirrorForm => ({
@@ -333,6 +335,8 @@ export const emptyMirror = (): MirrorForm => ({
   forwardTarget: '',
   publicBranch: '',
   forwardMaxFileBytes: '',
+  forwardExclude: '',
+  forwardAllow: '',
 })
 
 // What a blank mirror field means (src/app/mirror-policy.mjs MIRROR_DEFAULTS).
@@ -346,6 +350,8 @@ export const MIRROR_DEFAULT_TEXT = {
   branchPrefix: 'blank: avoozl/',
   trustedPersons: 'blank: nobody, so Auto stays off',
   plansBranch: 'blank: avoozl-plans',
+  forwardExclude: 'blank: only the built-in exclusions (.kiro/, AGENTS.md, steering, the specs branch)',
+  forwardAllow: 'blank: nothing is allowed past the exclusions',
 }
 
 function mirrorPolicy(form: MirrorForm) {
@@ -362,6 +368,8 @@ function mirrorPolicy(form: MirrorForm) {
     forwardTarget: blank(form.forwardTarget),
     publicBranch: blank(form.publicBranch),
     forwardMaxFileBytes: form.forwardMaxFileBytes.trim() ? Number(form.forwardMaxFileBytes) : undefined,
+    forwardExclude: splitList(form.forwardExclude),
+    forwardAllow: splitList(form.forwardAllow),
   })
 }
 
@@ -562,6 +570,8 @@ export function toForm(github: Policy): SettingsForm {
             forwardTarget: str(mirror.forwardTarget),
             publicBranch: str(mirror.publicBranch),
             forwardMaxFileBytes: str(mirror.forwardMaxFileBytes),
+            forwardExclude: joined(mirror.forwardExclude),
+            forwardAllow: joined(mirror.forwardAllow),
           }
         })(),
         // radar keeps its other keys (planLabel, conflictLabel, clearPlanLabel).

@@ -6,6 +6,16 @@ import {
 } from "../forward-scan.mjs";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { forwardMaxFileBytesOf } from "../mirror-policy.mjs";
+import { metadataBlocks, pathBlocks } from "../forward-guard.mjs";
+import { forwardRecord } from "../mirror-forward-run.mjs";
+import {
+  branches,
+  fakeGitHub,
+  git,
+  grant,
+  policy,
+  scratch,
+} from "./forward-scratch.mjs";
 
 // rc-25.3: the leak scan of a forward (RC26.5.2, D31.2 test 2). Fake terms
 // only: every planted value below is made up for the test.
@@ -167,4 +177,188 @@ test("a bad size limit is refused", () => {
       () => mirrorOf({ forwardMaxFileBytes: value }),
       /forwardMaxFileBytes/,
     );
+});
+
+// rc-25.2: path policy (test 1) and metadata scrub (test 3) of D31.2.
+const PLANS = { plansBranch: "avoozl-plans" };
+const blocked = (paths, mirror = PLANS) =>
+  pathBlocks(paths, mirror).map((b) => b.rule);
+
+test("each excluded path blocks and names its rule", () => {
+  assert.deepEqual(blocked([".kiro/specs/a/design.md"]), ["path-kiro"]);
+  assert.deepEqual(blocked(["pkg/.kiro/x.md"]), ["path-kiro"]);
+  assert.deepEqual(blocked(["AGENTS.md"]), ["path-agents"]);
+  assert.deepEqual(blocked(["docs/agents.md"]), ["path-agents"]);
+  assert.deepEqual(blocked(["steering/style.md"]), ["path-steering"]);
+  assert.deepEqual(blocked(["avoozl-plans/x.md"]), ["path-plans-branch"]);
+  assert.deepEqual(
+    blocked(["docs/private/a.md", "keys/a.pem", "src/ok.js"], {
+      ...PLANS,
+      forwardExclude: ["docs/private/", "**/*.pem"],
+    }),
+    ["path-excluded", "path-excluded"],
+  );
+  assert.deepEqual(blocked(["src/a.js", "README.md"]), []);
+});
+
+test("an allowlisted path passes; one block never hides another path", () => {
+  const mirror = { ...PLANS, forwardAllow: [".kiro/public.md"] };
+  assert.deepEqual(blocked([".kiro/public.md"], mirror), []);
+  assert.deepEqual(blocked([".kiro/public.md", ".kiro/other.md"], mirror), [
+    "path-kiro",
+  ]);
+  assert.deepEqual(
+    pathBlocks([".kiro/public.md", ".kiro/other.md"], mirror)[0].place,
+    "file 2",
+  );
+});
+
+test("forwardExclude and forwardAllow are checked as lists of safe paths", () => {
+  const ok = mirrorOf({ forwardExclude: ["docs/"], forwardAllow: ["a.md"] });
+  assert.deepEqual(ok.forwardExclude, ["docs/"]);
+  for (const value of ["docs/", [""], ["/etc"], ["../x"], ["a\\b"], [1]])
+    assert.throws(() => mirrorOf({ forwardExclude: value }), /forwardExclude/);
+  assert.throws(() => mirrorOf({ forwardAllow: "x" }), /forwardAllow/);
+});
+
+const run = (t, options, mirror = {}, github = fakeGitHub()) => {
+  const made = scratch(t, options);
+  return forwardRecord(made.store, github, made.sha, {
+    policy: policy("nudge", mirror),
+    person: "dana",
+    git: made.forward,
+    grant,
+  }).then((result) => ({ ...made, github, result }));
+};
+
+test("a forward touching an excluded path pushes nothing and names the rule", async (t) => {
+  const { pub, github, result, commands } = await run(t, {
+    file: ".kiro/specs/a/design.md",
+  });
+  assert.equal(result.blocked, true);
+  assert.match(result.reason, /path policy/);
+  assert.match(result.reason, /path-kiro in file 1/);
+  assert.doesNotMatch(result.reason, /design\.md/);
+  assert.deepEqual(branches(pub), ["main"]);
+  assert.equal(github.created.length, 0);
+  assert.equal(commands.filter((c) => / push /.test(` ${c}`)).length, 0);
+});
+
+test("an allowlisted excluded path forwards", async (t) => {
+  const { pub, result } = await run(
+    t,
+    { file: ".kiro/public.md" },
+    { forwardAllow: [".kiro/public.md"] },
+  );
+  assert.equal(result.record.state, "public_open");
+  assert.deepEqual(branches(pub).sort(), ["avoozl/task-1", "main"]);
+});
+
+test("the pushed commit is one new commit by the person, with no trailer or mirror reference", async (t) => {
+  const body = [
+    "Adds it.",
+    "",
+    "Mirror merge abc1234 is not public.",
+    "",
+    "Signed-off-by: Eve <eve@corp.test>",
+    "Co-authored-by: Bot <bot@corp.test>",
+  ].join("\n");
+  const { pub, sha, result } = await run(
+    t,
+    {},
+    {},
+    fakeGitHub({ title: "Add the feature", body: body.replace("abc1234", "") }),
+  );
+  assert.equal(result.record.state, "public_open");
+  const main = git(pub, "rev-parse", "main"),
+    parents = git(pub, "log", "-1", "--format=%P", "avoozl/task-1");
+  assert.equal(parents, main);
+  assert.equal(git(pub, "rev-list", "--count", "main..avoozl/task-1"), "1");
+  assert.equal(
+    git(pub, "log", "-1", "--format=%an|%ae|%cn|%ce", "avoozl/task-1"),
+    "dana|dana@users.noreply.github.com|dana|dana@users.noreply.github.com",
+  );
+  const message = git(pub, "log", "-1", "--format=%B", "avoozl/task-1");
+  assert.doesNotMatch(message, /Signed-off-by|Co-authored-by|corp\.test/);
+  assert.ok(!message.includes(sha.slice(0, 7)));
+  assert.doesNotMatch(message, /code-private|\/pull\/|#\d/);
+});
+
+test("the metadata scrub blocks each planted case", () => {
+  const person = { name: "dana", email: "dana@users.noreply.github.com" },
+    meta = {
+      parents: ["base"],
+      author: person,
+      committer: person,
+      message: "Add\n\nBody.",
+    },
+    expect = {
+      base: "base",
+      person: "dana",
+      email: person.email,
+      mirror: "acme/app-private",
+      sha: "abcdef1234567890",
+    },
+    texts = { "commit message": meta.message, title: "Add", body: "Body." },
+    names = (m, x = expect, t = texts) =>
+      metadataBlocks(m, x, t).map((b) => b.rule);
+  assert.deepEqual(names(meta), []);
+  assert.deepEqual(names({ ...meta, parents: ["base", "other"] }), [
+    "metadata-history",
+  ]);
+  assert.deepEqual(names({ ...meta, parents: ["other"] }), [
+    "metadata-history",
+  ]);
+  assert.deepEqual(names({ ...meta, author: { ...person, name: "Crew" } }), [
+    "metadata-author",
+  ]);
+  assert.deepEqual(
+    names({ ...meta, committer: { name: "Avoozl", email: "a@b.test" } }),
+    ["metadata-author"],
+  );
+  assert.deepEqual(
+    names({ ...meta, message: "Add\n\nBody.\n\nSigned-off-by: E <e@x.test>" }),
+    ["metadata-trailer"],
+  );
+  const text = (body) => ({ ...texts, body });
+  assert.deepEqual(names(meta, expect, text("by eve@corp.test")), [
+    "metadata-email",
+  ]);
+  assert.deepEqual(names(meta, expect, text("<!-- avoozl-task: 1 -->")), [
+    "metadata-marker",
+  ]);
+  assert.deepEqual(names(meta, expect, text("see acme/app-private")), [
+    "metadata-mirror-link",
+  ]);
+  assert.deepEqual(names(meta, expect, text("commit abcdef1")), [
+    "metadata-mirror-link",
+  ]);
+  assert.deepEqual(names(meta, expect, text("fixes #12")), [
+    "metadata-mirror-link",
+  ]);
+});
+
+test("a binary file and a file over the setting's size block a real forward", async (t) => {
+  const binary = await run(t, {
+    file: "logo.bin",
+    text: Buffer.from([0, 1, 2]),
+  });
+  assert.equal(binary.result.blocked, true);
+  assert.match(binary.result.reason, /binary-file in file 1/);
+  const big = await run(
+      t,
+      { file: "big.txt", text: "x".repeat(40) },
+      { forwardMaxFileBytes: 30 },
+    ),
+    limit = forwardMaxFileBytesOf({ forwardMaxFileBytes: 30 });
+  assert.equal(limit, 30);
+  assert.equal(big.result.blocked, true);
+  assert.match(big.result.reason, /over-size in file 1/);
+  assert.deepEqual(branches(big.pub), ["main"]);
+  const allowed = await run(
+    t,
+    { file: "logo.bin", text: Buffer.from([0, 1, 2]) },
+    { forwardAllow: ["logo.bin"] },
+  );
+  assert.equal(allowed.result.record.state, "public_open");
 });
