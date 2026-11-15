@@ -285,3 +285,56 @@ test("checked marks cannot baseline a task with an unapproved foreign owner", as
   await assert.rejects(approve(w, "consumer"), /cannot be baselined/);
   assert.equal(w.store.list("approvals").length, 0);
 });
+
+test("a prose-only consumer amendment preserves unchanged reviewed foreign links", async (t) => {
+  const w = interleaved(t);
+  await approve(w, "left");
+  await approve(w, "right");
+  assert.equal(
+    w.store.read().tasks.find((task) => task.id === "left-finish").needsReview,
+    false,
+  );
+  const plan = w.store.get("plans", "left");
+  fs.appendFileSync(
+    path.join(w.root, ".kiro/specs/left/design.md"),
+    "\nA clearer explanation only.\n",
+  );
+  await w.ops.execute("plan.save", { id: "left", expectedHash: plan.hash });
+  assert.equal(
+    w.store.read().tasks.find((task) => task.id === "left-finish").needsReview,
+    true,
+  );
+  await approve(w, "left");
+  assert.equal(
+    w.store.read().tasks.find((task) => task.id === "left-finish").needsReview,
+    false,
+  );
+  assert.ok(
+    w.store
+      .read()
+      .edges.some(
+        (edge) => edge.from === "right-step" && edge.to === "left-finish",
+      ),
+  );
+});
+
+test("changing the reviewed foreign dependency still holds a consumer for review", async (t) => {
+  const w = interleaved(t);
+  await approve(w, "left");
+  await approve(w, "right");
+  const plan = w.store.get("plans", "left"),
+    file = path.join(w.root, ".kiro/specs/left/avoozl/manifest.json"),
+    manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+  manifest.tasks["left-finish"].requires = ["left-start"];
+  fs.writeFileSync(file, JSON.stringify(manifest));
+  await w.ops.execute("plan.save", { id: "left", expectedHash: plan.hash });
+  await approve(w, "left");
+  const task = w.store.read().tasks.find((row) => row.id === "left-finish");
+  assert.equal(task.needsReview, true);
+  assert.equal(task.specDependencies, undefined);
+  assert.ok(
+    w.store
+      .read()
+      .edges.some((edge) => edge.from === "left-start" && edge.to === task.id),
+  );
+});
