@@ -1,6 +1,6 @@
 // Needs you: everything that stops until a person acts. Decisions,
 // conflicts and Radar handbacks come from Conflicts; planning-label items,
-// incoming issues and ideas come from Intake. Both lost their own pages.
+// and incoming issues come from Intake. Both lost their own pages.
 // Two tabs, one open at a time; each change of tab is a Back step.
 // Decisions follow Kiro Crew's list-detail pattern: a dense list in the
 // middle column, one item's details and actions on the right.
@@ -9,18 +9,16 @@ import ConflictsView from './ConflictsView.tsx'
 import UntriagedView from './UntriagedView.tsx'
 import { ViewHeading } from './controls.tsx'
 import { useSteppedState } from './NavHistory.tsx'
-import type { Idea } from './ideas-api.ts'
 
 export type WaitingSection = 'decisions' | 'intake'
 
 export const SECTIONS: { key: WaitingSection; title: string; line: string }[] = [
   { key: 'decisions', title: 'Decisions and conflicts', line: 'A crew handed work back, a spec or issue was edited by hand, or a task needs your choice.' },
-  { key: 'intake', title: 'Planning and intake', line: 'Issues labeled for planning, new issues and your own ideas. You choose which become work.' },
+  { key: 'intake', title: 'Planning and intake', line: 'Issues labeled for planning and new issues. You choose which become work.' },
 ]
 
 export default function WaitingView(props: {
   workspaceId: string | null
-  onMakeSpec?: (idea: Idea) => void
   onOpenSources?: () => void
 }) {
   const [open, step] = useSteppedState<WaitingSection>(
@@ -51,7 +49,7 @@ export default function WaitingView(props: {
         {open === 'decisions' ? (
           <ConflictsView workspaceId={props.workspaceId} embedded />
         ) : (
-          <UntriagedView workspaceId={props.workspaceId} onMakeSpec={props.onMakeSpec} onOpenSources={props.onOpenSources} embedded />
+          <UntriagedView workspaceId={props.workspaceId} onOpenSources={props.onOpenSources} embedded />
         )}
       </div>
     </section>

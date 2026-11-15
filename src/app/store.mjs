@@ -183,6 +183,12 @@ export class Store {
   `);
     if (!activityLog && this.initialized())
       this.setMeta("activity.upgrade", true);
+    // Ideas were removed (RC30.3): drop any stored idea. It writes only
+    // when one is left, so a plain open stays read-only.
+    const idea =
+      "FROM incoming_items WHERE json_extract(body,'$.record.kind')='idea'";
+    if (this.db.prepare(`SELECT 1 ${idea} LIMIT 1`).get())
+      this.db.exec(`DELETE ${idea}`);
   }
   transaction(fn) {
     this.db.exec("BEGIN IMMEDIATE");

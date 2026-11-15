@@ -122,7 +122,7 @@ export const TOUR: readonly TourStep[] = [
   {
     id: 'intake',
     title: 'Intake',
-    caption: 'New GitHub issues and your own ideas land here. You pick which become work.',
+    caption: 'New GitHub issues and intake items land here. You pick which become work.',
     tab: 'untriaged',
   },
   {

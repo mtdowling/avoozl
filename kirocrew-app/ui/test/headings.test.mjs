@@ -45,11 +45,11 @@ test('headings with buttons pass them as the heading actions', () => {
   for (const name of views) assert.doesNotMatch(source(name), /items-center gap-3">\s*<(ViewHeading|CardTitle)/, name)
 })
 
-test('Specs heading: New spec, New idea, Ideas, then an icon-only Refresh last; New task only in a spec', () => {
+test('Specs heading: New spec, then an icon-only Refresh last; New task only in a spec', () => {
   const plans = source('PlansView.tsx')
   const part = plans.slice(plans.indexOf('function PlansActions'), plans.indexOf('// The row\'s icon buttons'))
   const at = (text) => part.indexOf(text)
-  assert.ok(at('New spec') > 0 && at('New spec') < at('NewIdeaButton') && at('NewIdeaButton') < at('RefreshCw') && at('New task') === -1, 'order')
+  assert.ok(at('New spec') > 0 && at('New spec') < at('RefreshCw') && at('Idea') === -1 && at('New task') === -1, 'order')
   assert.equal(part.match(/<IconLabel icon=\{Plus\}/g).length, 1)
   // New task is in the spec's own view, and nowhere else on the page.
   assert.match(plans, /<span data-new-task className="contents">/)

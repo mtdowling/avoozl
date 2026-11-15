@@ -283,8 +283,6 @@ const PROTECT = new Set([
   "intake.plan",
   "intake.source.add",
   "intake.source.remove",
-  "idea.archive",
-  "idea.restore",
   "github.setup",
   "github.setup.cancel",
   "radar.setup",

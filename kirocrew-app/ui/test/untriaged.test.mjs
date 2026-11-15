@@ -94,9 +94,9 @@ test('Settings round-trips untriaged and shows the default filter', () => {
   assert.equal(untriagedDefault(['triaged', 'needs info']), '-label:triaged -label:"needs info"')
 })
 
-test('the tab stays for ideas outside GitHub modes, with no count, and its badge is not yellow', () => {
+test('the tab stays outside GitHub modes, with no count, and its badge is not yellow', () => {
   const app = source('App.tsx')
-  // Ideas (R63.7) live on the tab, so it shows in every mode; the count does not.
+  // The tab shows in every mode; the count does not.
   assert.match(app, /const navItems = TABS\.map\(\(t\) => \(\{/)
   assert.doesNotMatch(app, /TABS\.filter\(/)
   assert.match(app, /setUntriaged\(list\.enabled \? list\.total : null\)/)
@@ -178,7 +178,7 @@ test('Intake: the tab is renamed, lists every source, and filters by source', as
   assert.match(view, /<ViewHeading\s+id="avoozl-untriaged-title"\s+view="untriaged"[\s\S]*?>\s*Intake\s*<\/ViewHeading>/)
   // Untriaged stays as the tab's default filter.
   assert.match(view, /\{ key: 'untriaged' as const, label: `Untriaged \(\$\{list\.items\.length\}\)` \}/)
-  assert.match(view, /\{ key: 'ideas' as const, label: `Ideas \(/)
+  assert.doesNotMatch(view, /Idea/)
   assert.match(view, /<th style=\{HEAD\}>Source<\/th>/)
   const ticket = item(null, {
     source: 'tickets',

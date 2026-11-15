@@ -10,12 +10,11 @@ import { errorMessage } from './workspace-api'
 import { relativeTime } from './task-api.ts'
 import { Authority } from './Authority.tsx'
 import NewPlanDrawer from './NewPlanDrawer.tsx'
-import { NewIdeaButton, NewIdeaDialog } from './Ideas.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
 import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
 import type { DriverSpec } from './driver-api.ts'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
-import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, Lightbulb, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X, Menu } from './icons.ts'
+import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X, Menu } from './icons.ts'
 import { FilterPanel } from './FilterPanel.tsx'
 import { STATES, nodeState, type Drill, type NodeState } from './graph-layout.ts'
 import { rowPlanKey, type TaskFilter } from './filters.ts'
@@ -518,18 +517,12 @@ const UNARCHIVE_TIP = 'Unarchive this spec: its tasks may start again and it sho
 // last. New task lives in a spec's detail only (RC30.2). Refresh re-reads plan.table (the spec folders on disk and
 // the stored plans); it imports nothing.
 export const REFRESH_PLANS_TIP = 'Reload specs from disk. Imports nothing.'
-function PlansActions(props: { onNewPlan: () => void; onNewIdea: () => void; onOpenIdeas?: () => void; ideas: number | null; onRefresh: () => void; busy: boolean }) {
+function PlansActions(props: { onNewPlan: () => void; onRefresh: () => void; busy: boolean }) {
   return (
     <>
       <IconLabel icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
         New spec
       </IconLabel>
-      <NewIdeaButton onClick={props.onNewIdea} />
-      {props.onOpenIdeas && (
-        <IconLabel icon={Lightbulb} tooltip="Open your ideas under Needs you" onClick={props.onOpenIdeas}>
-          Ideas{props.ideas !== null ? ` (${props.ideas})` : ''}
-        </IconLabel>
-      )}
       <IconBtn icon={RefreshCw} label="Refresh specs" tooltip={REFRESH_PLANS_TIP} onClick={props.onRefresh} disabled={props.busy} />
     </>
   )
@@ -997,12 +990,8 @@ export default function PlansView(props: {
   workspaceId: string | null
   onScope?: (target: PlanTarget, filter: TaskFilter) => void
   onDrill?: (drill: Drill) => void
-  // Bumped by the header's Plan a goal, or by Make it a spec with the
-  // idea's fields: open the New plan drawer.
+  // Bumped by the header's Plan a goal: open the New plan drawer.
   newPlanRequest?: { n: number; seed?: Partial<NewPlanForm> }
-  // Open ideas, and the Ideas view under Needs you.
-  ideas?: number | null
-  onOpenIdeas?: () => void
   // The Epics fold-out, shown above the spec list (never beside a spec's documents).
 }) {
   const workspace = props.workspaceId
@@ -1022,7 +1011,6 @@ export default function PlansView(props: {
   const [deleting, setDeleting] = useState<PlanRow | null>(null)
   const [archiving, setArchiving] = useState<PlanRow | null>(null)
   const [creating, setCreating] = useState<{ seed?: Partial<NewPlanForm> } | null>(null)
-  const [newIdea, setNewIdea] = useState(false)
   useEffect(() => {
     if (props.newPlanRequest?.n) setCreating({ seed: props.newPlanRequest.seed })
   }, [props.newPlanRequest])
@@ -1191,15 +1179,6 @@ export default function PlansView(props: {
           }}
         />
       )}
-      {newIdea && workspace && (
-        <NewIdeaDialog
-          workspaceId={workspace}
-          onClose={(made) => {
-            setNewIdea(false)
-            if (made) setNotice(`Saved the idea ${made.title}. Find it under Ideas.`)
-          }}
-        />
-      )}
       {creating && workspace && (
         <NewPlanDrawer
           workspaceId={workspace}
@@ -1244,7 +1223,7 @@ export default function PlansView(props: {
                 view="plans"
                 phoneMenu
                 actions={
-                  <PlansActions onNewPlan={() => setCreating({})} onNewIdea={() => setNewIdea(true)} onOpenIdeas={props.onOpenIdeas} ideas={props.ideas ?? null} onRefresh={() => void load(workspace)} busy={busy} />
+                  <PlansActions onNewPlan={() => setCreating({})} onRefresh={() => void load(workspace)} busy={busy} />
                 }
               >
                 Specs

@@ -1,4 +1,4 @@
-// New plan: a right drawer that collects a plan idea and hands it to Kiro
+// New plan: a right drawer that collects what a plan is for and hands it to Kiro
 // Crew's Spec Builder, which drafts the spec folder phase by phase. The
 // backend (plan.new) checks the fields, runs content rules on what is
 // handed over, and writes Avoozl's steering file only after the person
@@ -77,7 +77,7 @@ export default function NewPlanDrawer(props: {
   categories: string[]
   // Epic folders to pick from: their folder name and title.
   epics?: { id: string; title: string }[]
-  // Make it a spec (R63.9): fields filled from an idea, and its id.
+  // Fields to start the form with.
   seed?: Partial<NewPlanForm>
   // Which way it opens; none picked unless said, and Submit waits for one.
   start?: Start
