@@ -503,9 +503,10 @@ Requirement RC24. Crews work a private mirror of a public repository; Avoozl syn
 - [x] rc-23.6 Conflicts: sync, re-apply, then a mirror issue for a crew, after rc-23.4 [RC24.12] (§D29)
   - One retry after a sync and a fresh scan; then one mirror issue naming paths only.
   - Done when: A fake GitHub test: a moved source applies on retry; a true conflict opens one issue with paths and no contents.
-- [ ] rc-p23 Proof 23: two scratch repositories, after rc-23.1, rc-23.2, rc-23.3, rc-23.4, rc-23.5, rc-23.6 [RC24] (§D17)
+- [x] rc-p23 Proof 23: two scratch repositories, after rc-23.1, rc-23.2, rc-23.3, rc-23.4, rc-23.5, rc-23.6 [RC24] (§D17)
   - Setup: two scratch repositories under `mtdowling`, created only for the proof: a public-visibility stand-in as source and a private mirror seeded as a full copy. Action: sync, merge a crew PR in the mirror, forward in nudge mode, merge the public PR; then plant a private term and try again. Expected: the public merge completes the task; the planted term blocks the push with one row. Failure means: private text can reach the public repository. Next decision: keep `forward` at `nudge` and add a second scan layer. List both scratch repositories in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
+  - Live run passed on 2026-11-15 after the fixes of #218; receipt `docs/evidence/rc-proof-23-live.md`.
 ## Phase 22: Tracker gates
 
 Requirement RC23. A task that waits on an outside tracker item, with a label and a plugin that reads the item.
@@ -551,6 +552,7 @@ Requirement RC25. Private plans live on an orphan branch of the mirror and never
 - [ ] rc-p24 Proof 24: a public and a private plan in one mirror, after rc-24.1, rc-24.2, rc-24.3, rc-24.4, rc-24.5, rc-p23 [RC25] (§D17)
   - Setup: the two scratch repositories of Proof 23 (a public-visibility stand-in under `mtdowling` and a private mirror), created only for the proof. Action: make one public plan and one private plan in the mirror, active together, with one public task waiting on a private task (the reverse edge is a unit test), approve both, project, run `verify-issue` on one issue of each, forward a code change for each, then plant the plans branch name in a forward and try again. Expected: both plans appear in one graph and release under the same rules; the cross edge holds and releases; the public issue says only that it waits on a private task; both verify; the private plan's files are on `plansBranch` only; the public repository has no ref of that name and no private path; the planted forward is blocked. Failure means: a private plan can reach the public repository. Next decision: forward only from a clone that never fetched the plans branch and add a second scan layer. List both scratch repositories in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
+  - Live run failed on 2026-11-15: a private spec name and task ID reach the public repository; receipt `docs/evidence/rc-proof-24-live.md`.
 
 ## Phase 25: Forward targets and protections
 
