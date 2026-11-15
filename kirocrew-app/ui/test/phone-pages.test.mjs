@@ -69,9 +69,9 @@ for (const dark of [false, true]) {
     assert.equal(await has('[data-settings-body]'), false)
   })
 
-  test(`Waiting on you on a phone: a section, Back to the list, the other section (${theme})`, { skip }, async () => {
+  test(`Needs you on a phone: a section, Back to the list, the other section (${theme})`, { skip }, async () => {
     await start(390, dark)
-    await goto('Waiting on you', 390)
+    await goto('Needs you', 390)
     assert.equal(await has('[data-waiting-section="decisions"][data-open="true"]'), true, 'opens on the section with work')
     assert.equal(await has('[data-detail-bar]'), true)
     await back()
@@ -112,7 +112,7 @@ for (const dark of [false, true]) {
     await goto('Settings', 1280)
     assert.equal(await has('[data-settings-body]'), true, 'the open section sits under its heading')
     assert.equal(await has('[data-detail-bar]'), false)
-    await goto('Waiting on you', 1280)
+    await goto('Needs you', 1280)
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-waiting-sections] [data-waiting-section]').length`), 2)
     await goto('Specs', 1280)
     await click(button('Meal planner', `document.querySelector('[data-plans-list]')`))

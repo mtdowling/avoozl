@@ -87,7 +87,7 @@ export const VIEW_ICONS = {
   routing: HardDrive,
   conflicts: CircleAlert,
   untriaged: Inbox,
-  // Waiting on you reuses the Conflicts icon; Trace is the route a task took.
+  // Needs you reuses the Conflicts icon; Trace is the route a task took.
   waiting: CircleAlert,
   trace: GitBranch,
   // History is in the list above: the log of what happened.

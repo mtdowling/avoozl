@@ -1,6 +1,6 @@
 // The public pull request after a forward (RC24.6, RC24.11, design D29.7).
 // Each tick reads every open public pull request of a record: a merge makes
-// the task done, a close without a merge returns the item to Waiting on you,
+// the task done, a close without a merge returns the item to Needs you,
 // and review comments are copied to the mirror once.
 //
 // shortcut: reads one pull request at a time, three calls at most per open

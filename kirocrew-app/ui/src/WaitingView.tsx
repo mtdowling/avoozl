@@ -1,4 +1,4 @@
-// Waiting on you: everything that stops until a person acts. Decisions,
+// Needs you: everything that stops until a person acts. Decisions,
 // conflicts and Radar handbacks come from Conflicts; planning-label items,
 // incoming issues and ideas come from Intake. Both lost their own pages.
 // One section is open at a time, and each change of section is a Back step.
@@ -29,7 +29,7 @@ export function WaitingSections(props: { open: WaitingSection; onOpen: (key: Wai
     const section = SECTIONS.find((s) => s.key === props.open) ?? SECTIONS[0]
     return ld.showDetail ? (
       <section data-waiting-section={section.key} data-open="true">
-        <DetailPane backLabel="Waiting on you" onBack={ld.closeDetail} title={section.title}>
+        <DetailPane backLabel="Needs you" onBack={ld.closeDetail} title={section.title}>
           {props.bodies[section.key]}
         </DetailPane>
       </section>
@@ -101,11 +101,11 @@ export default function WaitingView(props: {
   // A phone showing one section gives it the whole pane: no page heading.
   const detail = ld.phone && ld.showDetail
   return (
-    <section aria-labelledby={detail ? undefined : 'avoozl-waiting-title'} aria-label={detail ? 'Waiting on you' : undefined} className="flex flex-col gap-3.5" data-waiting-view>
+    <section aria-labelledby={detail ? undefined : 'avoozl-waiting-title'} aria-label={detail ? 'Needs you' : undefined} className="flex flex-col gap-3.5" data-waiting-view>
       {!detail && (
         <>
           <ViewHeading id="avoozl-waiting-title" view="waiting">
-            Waiting on you
+            Needs you
           </ViewHeading>
           <p className="text-sm text-muted">
             Everything that stops until you act. Crews working, pull requests in checks and merges are not here; they are on Home.

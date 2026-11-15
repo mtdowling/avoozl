@@ -25,7 +25,7 @@ const button = (role, text) => `[...document.querySelectorAll('button${role ? `[
 const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
 const selectedTab = `document.querySelector('[aria-label="Avoozl views"] [aria-selected="true"]')?.textContent.trim()`
 
-test("Specs' Ideas button opens Waiting on you on Ideas; Back returns to Specs", { skip }, async () => {
+test("Specs' Ideas button opens Needs you on Ideas; Back returns to Specs", { skip }, async () => {
   await page.open(harness.url({ page: 'app' }), { width: 1280, height: 800 })
   await page.until(`Boolean(${button('tab', 'Specs')})`)
   await click(button('tab', 'Specs'))
@@ -33,7 +33,7 @@ test("Specs' Ideas button opens Waiting on you on Ideas; Back returns to Specs",
   await click(button('', 'Ideas'))
 
   await page.until(`Boolean(document.querySelector('[data-ideas-view]'))`)
-  assert.match(await page.evaluate(selectedTab), /^Waiting on you/)
+  assert.match(await page.evaluate(selectedTab), /^Needs you/)
   assert.equal(await page.evaluate(`document.querySelector('[aria-label="Show"] [aria-selected="true"]')?.textContent.trim()`), 'Ideas (1)')
 
   // Alt+Left from inside the page is Back.

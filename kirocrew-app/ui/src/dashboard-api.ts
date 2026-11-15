@@ -19,7 +19,7 @@ export interface Attention {
   group?: ConflictItem
   title: string
   detail: string
-  // Where the owner acts: Waiting on you, or the task's own drawer; and a
+  // Where the owner acts: Needs you, or the task's own drawer; and a
   // link out if any.
   tab: 'waiting' | 'task'
   href: string | null
@@ -41,7 +41,7 @@ export function attentionTip(item: Attention): string {
   const target = attentionTarget(item)
   if (target.kind === 'review') return 'Open the list of tasks to review'
   if (target.kind === 'task') return `Open ${target.id} in the drawer`
-  return 'Open it in Waiting on you'
+  return 'Open it in Needs you'
 }
 
 export interface RunningTask {

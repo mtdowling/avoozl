@@ -39,7 +39,7 @@ const SCREENS = [
   { name: 'the side panel', query: { page: 'panel', sid: 'chat-1' }, ready: `Boolean(document.querySelector('[data-flight-row]'))` },
   { name: 'the side panel in a driver chat', query: { page: 'panel', sid: 'avoozl_driver_1' }, ready: `Boolean(document.querySelector('[data-panel-driver]'))` },
 ]
-const TABS = ['Specs', 'Waiting on you', 'Trace', 'Flow', 'Activity', 'Settings']
+const TABS = ['Specs', 'Needs you', 'Trace', 'Flow', 'Activity', 'Settings']
 
 for (const size of SIZES) {
   for (const screen of SCREENS)

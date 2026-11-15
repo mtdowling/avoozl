@@ -1,6 +1,6 @@
 // The reshaped page in a real Chrome (test/browser/harness.tsx ?page=app):
 // the nav row, Home's empty states, the Settings hub with the Mirror setup
-// buttons, the retired-worker banner, and Waiting on you
+// buttons, the retired-worker banner, and Needs you
 // holding what Conflicts and Intake used to. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
@@ -28,10 +28,10 @@ const open = (query = {}) => page.open(harness.url({ page: 'app', ...query }), {
 const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
 const text = `document.body.innerText`
 
-test('the nav row has Home, Specs, Waiting on you, Trace, Flow, Activity and Settings, and no removed page', { skip }, async () => {
+test('the nav row has Home, Specs, Needs you, Trace, Flow, Activity and Settings, and no removed page', { skip }, async () => {
   await open({ radar: '1' })
   await page.until(`${tabs}.length === 7`)
-  assert.deepEqual(await page.evaluate(tabs), ['Home', 'Specs', 'Waiting on you', 'Trace', 'Flow', 'Activity', 'Settings'])
+  assert.deepEqual(await page.evaluate(tabs), ['Home', 'Specs', 'Needs you', 'Trace', 'Flow', 'Activity', 'Settings'])
   assert.deepEqual(page.errors, [])
 })
 
@@ -85,10 +85,10 @@ test('a repository on the retired worker shows the Settings banner; one on Radar
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-retired-banner]'))`), false)
 })
 
-test('Waiting on you holds decisions and intake in one-open sections', { skip }, async () => {
+test('Needs you holds decisions and intake in one-open sections', { skip }, async () => {
   await open({ radar: '1' })
-  await page.until(`Boolean(${tab('Waiting on you')})`)
-  await click(tab('Waiting on you'))
+  await page.until(`Boolean(${tab('Needs you')})`)
+  await click(tab('Needs you'))
   await page.until(`Boolean(document.querySelector('[data-waiting-view]'))`)
   assert.equal(await page.evaluate(`document.querySelector('[data-waiting-section][data-open="true"]').dataset.waitingSection`), 'decisions')
   await click(`document.querySelector('[data-waiting-section="intake"] button[aria-expanded]')`)

@@ -163,7 +163,7 @@ test('Conflicts: tab counts, a plain why, bulk only for one kind, attach to a li
   ])
   assert.equal(chats.get('a'), '/chat?sid=w')
   assert.equal(chats.has('b'), false)
-  // Waiting on you shows a yellow count only when there is one.
+  // Needs you shows a yellow count only when there is one.
   assert.match(source('App.tsx'), /t\.key === 'waiting' && waitingCount > 0 \?/)
   assert.match(source('App.tsx'), /<Badge variant="warning">\{waitingCount\}<\/Badge>/)
 })
