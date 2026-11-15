@@ -199,12 +199,29 @@ print(json.dumps({"owner": sys.argv[3], "repo": sys.argv[4], "settings": cur}))'
     # restart (records the launch), approve that launch, restart (wraps it).
     kc config set mcp_gateway.stub_overrides '{"avoozl:avoozl":true}' >/dev/null
     running && cmd_stop; cmd_start
-    el="$(python3 - "$HOME_DIR/mcp-launch-approvals/approvals.json" <<'PY'
+    # The refusal is recorded a few seconds after the dashboard answers.
+    el=""
+    for _ in $(seq 1 60); do
+      el="$(python3 - "$HOME_DIR/mcp-launch-approvals/approvals.json" <<'PY'
 import json, sys
-r = json.load(open(sys.argv[1])).get("refused", {})
+try:
+    r = json.load(open(sys.argv[1])).get("refused", {})
+except Exception:
+    r = {}
 print(next((v["expected_launch"] for k, v in r.items() if k.lower() == "avoozl:avoozl"), ""))
 PY
 )"
+      [ -n "$el" ] && break
+      python3 - "$HOME_DIR/mcp-gateway/agents/avoozl--avoozl-crew.json" <<'PY' && break
+import json, sys
+try:
+    s = json.load(open(sys.argv[1]))["mcpServers"]["avoozl:avoozl"]
+except Exception:
+    sys.exit(1)
+sys.exit(0 if s.get("_kirocrew_mcp_gateway_wrapped") else 1)
+PY
+      sleep 1
+    done
     if [ -n "$el" ]; then
       api POST /api/mcp-gateway/servers/stub "{\"name\":\"avoozl:avoozl\",\"stub\":true,\"expected_launch\":\"$el\"}"
       cmd_stop; cmd_start
