@@ -217,10 +217,11 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
   - One grant in `permissions.api`; a Crews strip and cost per stage; behind the grant only.
   - Done when: Without the grant nothing changes; with it, crews and counts show.
   - Limit: cost per stage shows on each On the line row, not yet in Trace; the grant is `/api/apps/issue-radar/*` and was not tried against a live Kiro Crew.
-- [ ] rc-p8 Proof 8: observe, and a retro rule a crew follows, after rc-8.1, rc-8.2, rc-8.3, rc-8.4, rc-8.5 [RC8] (§D17)
+- [x] rc-p8 Proof 8: observe, and a retro rule a crew follows, after rc-8.1, rc-8.2, rc-8.3, rc-8.4, rc-8.5 [RC8] (§D17)
   - Setup: a scratch repository with a running crew. Action: run three issues; open Trace; apply a retro rule through a pull request; run a fourth issue. Expected: Trace shows GitHub times; the fourth issue's pull request follows the new rule. Failure means: a crew did not re-read the rules. Next decision: add the rule to the Additional prompt.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
   - Live run 2026-11-15 failed: Trace and the rule pull request worked, but the crew read AGENTS.md once and the fourth pull request ignored the rule; the same rule in the Additional prompt was followed (docs/evidence/rc-proof-8-live.md)
+  - Live run 2 passed: plans_verify_issue now returns AGENTS.md and steering retro rules in each brief, and the next pull request followed the rule (docs/evidence/rc-proof-8-live-2.md)
 
 ## Phase 9: Quick goals
 
@@ -679,3 +680,60 @@ screenshots for anything on screen.
 - [ ] rc-29.4 Delete the lessons store; retros propose a steering-file pull request; one-time export [RC30.4, RC30.5] (§D35.4)
   - Tests first: an approved retro proposal opens one pull request to `.kiro/steering/avoozl-rules.md`; stored lessons are appended once under a dated heading, then the tables drop; a failed write keeps them.
   - Done when: The tests pass, `npm test` passes, and AGENTS.md points to the steering file.
+
+## Phase 30: Smart release ranking
+
+Requirement RC31. Order the tasks that may be released. Screen changes get
+before and after screenshots and auto-merge off.
+
+- [ ] rc-30.1 `rankCandidates`: unblock count, overlap hold-back, aging; `release.ranking` settings [RC31.1, RC31.2, RC31.3, RC31.4, RC31.6] (§D36)
+  - Tests first: unblock-count order; overlap hold-back; aging moves a task up and releases it after the longest wait; plan order and a person's order still win; off equals plan order; no GitHub call is added.
+  - Done when: `src/app/test/release-ranking.test.mjs` passes and `npm test` passes.
+- [ ] rc-30.2 Release queue says why a task is next or held, after rc-30.1 [RC31.5] (§D36)
+  - Tests first: the three reason lines; a row ranking did not affect keeps its text.
+  - Done when: The tests pass, `npm run test:ui` passes, and the pull request shows the queue before and after.
+- [ ] rc-p30 Proof 30: the critical path goes first, after rc-30.1, rc-30.2 [RC31] (§D17)
+  - Setup: a scratch repository with N of 1, one task that unblocks three, one that unblocks none, and one that overlaps an open pull request. Action: run ticks. Expected: the task that unblocks three gets the label first, the overlapping one waits and is released after the aging wait. Failure means: crews still take work in file order. Next decision: set `release.ranking.enabled` to off.
+  - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repository.
+
+## Phase 31: Build receipts
+
+Requirement RC32. Screen changes get before and after screenshots and
+auto-merge off.
+
+- [ ] rc-31.1 `bin/build-receipt`: wrapper, cold or warm, repository parser [RC32.1, RC32.2, RC32.3] (§D37)
+  - Tests first: exit code and output pass through; a failing parser still writes a receipt; an unwritable file never stops the command; warm and cold from the check.
+  - Done when: `src/app/test/build-receipt.test.mjs` passes and `npm test` passes.
+- [ ] rc-31.2 CI runs build and test through the wrapper; job summary and `build-receipt` artifact, after rc-31.1 [RC32.4] (§D37)
+  - The receipt line is at most 2 KB.
+  - Done when: A CI run on the pull request shows the summary and the artifact.
+- [ ] rc-31.3 Reader: one read per merged pull request, counted as `receipt` and cached, after rc-31.1 [RC32.5] (§D37)
+  - Tests first, on a fake GitHub: one read per merged pull request; a repeat check costs 0 calls; a pull request with no receipt is remembered; a failed read is retried next tick.
+  - Done when: The tests pass and `npm test` passes.
+- [ ] rc-31.4 Trace and Flow show receipts; grouped by instance, after rc-31.3 [RC32.6, RC32.7] (§D37)
+  - Tests first: Trace shows duration, start and counters; Flow shows the median per target; rows group by the marker's instance ID.
+  - Done when: The tests pass, `npm run test:ui` passes, and the pull request shows Trace and Flow before and after.
+- [ ] rc-31.5 Repo rules in each issue brief name the wrapper, after rc-31.1 [RC32.8] (§D37)
+  - Tests first: a repository with `bin/build-receipt` gets the line; one without it does not.
+  - Done when: The tests pass and `npm test` passes.
+- [ ] rc-p31 Proof 31: CI writes a receipt and Avoozl reads it once, after rc-31.2, rc-31.3, rc-31.4, rc-31.5 [RC32] (§D17)
+  - Setup: a scratch repository with the wrapper in its CI. Action: merge a pull request and run two ticks. Expected: one receipt read, shown in Trace and Flow, and the second tick costs 0 receipt calls. Failure means: a view reads artifacts again and again. Next decision: lengthen the cache window.
+  - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repository.
+
+## Phase 32: Perf repair (opt-in, not built now)
+
+Requirement RC33. Every task here waits for a person: the owner turns it on
+after `rc-p31` has about a week of receipts.
+
+- [ ] rc-32.1 Budgets and the breach test over comparable receipts [RC33.1, RC33.2] (§D38)
+  - Tests first: one slow run opens nothing; the sample count does; non-comparable receipts do not count.
+  - Done when: The tests pass and `npm test` passes.
+- [ ] rc-32.2 One deduped repair issue; later breaches comment; pre-approved classes, after rc-32.1 [RC33.3, RC33.4] (§D38)
+  - Tests first: a second breach comments only; only the named classes get the ready label on creation.
+  - Done when: The tests pass and `npm test` passes.
+- [ ] rc-32.3 Guards: no deleted, skipped or weakened tests; close needs before and after receipts, after rc-32.2 [RC33.5, RC33.6] (§D38)
+  - Tests first: a diff that removes a test file, adds a skip marker or removes an assertion blocks the close; a missing before or after receipt blocks it.
+  - Done when: The tests pass and `npm test` passes.
+- [ ] rc-p32 Proof 32: a planted slow step is repaired without weakening tests, after rc-32.1, rc-32.2, rc-32.3 [RC33] (§D17)
+  - Setup: a scratch repository with a planted slow step. Action: let the samples accrue and run ticks. Expected: one issue, later hits comment, a skip-the-test fix is refused, a real fix closes it with before and after receipts. Failure means: Avoozl could accept a faster build that checks less. Next decision: keep perf repair off.
+  - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repository.

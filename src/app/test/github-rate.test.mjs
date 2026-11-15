@@ -70,7 +70,7 @@ function bound(t, store, fetch, now = () => T0) {
     apiUrl: "https://api.example.test",
     fetch,
   });
-  github.bind(store, { now, cacheSeconds: () => 0 });
+  github.bind(store, { now, cacheSeconds: () => 0, sleep: async () => {} });
   return github;
 }
 

@@ -1,6 +1,7 @@
 // Retro rule targets (RC8.6, design D10). A retro proposal names where a rule
-// goes: `AGENTS.md` or a steering file (a pull request a person merges; crews
-// re-read both for each issue), or the crew's Additional prompt (shown as full
+// goes: `AGENTS.md` or a steering file (a pull request a person merges;
+// plans_verify_issue returns the rule blocks in each issue's brief, because a
+// crew's long-lived chat reads AGENTS.md only once), or the crew's Additional prompt (shown as full
 // text with Copy and a link, because that edit is owner-only and Avoozl writes
 // nothing to Radar). Each applied rule is recorded, and after N finished
 // issues a check reports how many came since, with an undo offer.
@@ -25,6 +26,19 @@ const blockFor = (id, text) => {
 
 export const withRetroBlock = (file, id, text) =>
   `${file ? file.replace(/\n*$/, "\n\n") : ""}${blockFor(id, text)}`;
+
+// Every retro rule block's text in a file, in file order. A crew's chat reads
+// AGENTS.md once, so plans_verify_issue hands these to it for each issue.
+export function retroBlocks(file) {
+  const found = [];
+  for (const match of String(file ?? "").matchAll(
+    /<!-- avoozl:retro (r[0-9a-z]+) -->\n([\s\S]*?)\n<!-- \/avoozl:retro \1 -->/g,
+  )) {
+    const text = match[2].replace(/\s+/g, " ").trim();
+    if (text) found.push(text);
+  }
+  return found;
+}
 
 export function withoutRetroBlock(file, id) {
   const [start, end] = marker(id),
@@ -124,7 +138,7 @@ export async function applyRetroRule(
     if (target === "steering" && !STEERING.test(path ?? ""))
       fail("A steering file is .kiro/steering/<name>.md.", 400);
     const title = `Add a crew rule to ${path}`,
-      body = `${text}\n\nAdded from a retro. Crews re-read ${path} for each issue.`,
+      body = `${text}\n\nAdded from a retro. Crews get ${path}'s retro rules with each issue's brief.`,
       blocked = check ? check(`${title}\n${body}`) : [];
     if (blocked.length)
       fail(
