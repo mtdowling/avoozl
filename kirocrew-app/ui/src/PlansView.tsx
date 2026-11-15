@@ -445,7 +445,7 @@ const cell: CSSProperties = { padding: '8px 10px', borderTop: '1px solid var(--b
 const head: CSSProperties = { padding: '6px 10px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }
 
 // The Plans list's filters: search, category, status, kind and "has", in
-// the shared filter panel. The count line sits under them in the same box.
+// the shared filter panel. The count sits on the Filters row (one line).
 function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; onChange: (filter: PlanListFilter) => void; children?: ReactNode }) {
   const { filter } = props
   const choices = rowChoices(props.rows)
@@ -1230,9 +1230,9 @@ export default function PlansView(props: {
               </ViewHeading>
               {table && table.items.length > 0 && (
                 <PlanFilters filter={filter} rows={table.items} onChange={setFilter}>
-                  <p className="text-xs text-muted" role="status">
+                  <span className="text-xs text-muted" role="status">
                     {rows.length} of {table.items.length} specs
-                  </p>
+                  </span>
                 </PlanFilters>
               )}
               <div className="flex flex-col gap-2" data-plans-list>
