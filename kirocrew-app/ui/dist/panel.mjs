@@ -498,8 +498,9 @@ function ye(e) {
 				},
 				children: /* @__PURE__ */ p(q.Provider, {
 					value: u,
-					children: v ? /* @__PURE__ */ m(f, { children: [
-						/* @__PURE__ */ m("div", {
+					children: v ? /* @__PURE__ */ m(f, { children: [/* @__PURE__ */ m("div", {
+						className: r ? "min-h-0 flex-1 overflow-y-auto" : "contents",
+						children: [/* @__PURE__ */ m("div", {
 							className: "flex items-center gap-2 border-b px-4 py-3",
 							style: { borderColor: "var(--border)" },
 							children: [/* @__PURE__ */ p("h3", {
@@ -507,17 +508,15 @@ function ye(e) {
 								className: "min-w-0 flex-1 text-lg font-semibold",
 								children: e.title
 							}), r && C]
-						}),
-						/* @__PURE__ */ p("div", {
-							className: "min-h-0 flex-1 overflow-y-auto p-4",
+						}), /* @__PURE__ */ p("div", {
+							className: r ? "p-4" : "min-h-0 flex-1 overflow-y-auto p-4",
 							children: e.children
-						}),
-						e.footer && /* @__PURE__ */ p("div", {
-							className: "border-t px-4 py-3",
-							style: { borderColor: "var(--border)" },
-							children: e.footer
-						})
-					] }) : /* @__PURE__ */ m(f, { children: [r && /* @__PURE__ */ p("div", {
+						})]
+					}), e.footer && /* @__PURE__ */ p("div", {
+						className: "border-t px-4 py-3",
+						style: { borderColor: "var(--border)" },
+						children: e.footer
+					})] }) : /* @__PURE__ */ m(f, { children: [r && /* @__PURE__ */ p("div", {
 						className: "flex justify-end",
 						children: C
 					}), e.children] })
