@@ -320,6 +320,9 @@ test(
       { answers },
     );
     assert.equal(plain.status, 0, plain.stderr);
-    assert.doesNotMatch(plain.stdout, /\.kiro\/specs|git fetch|DO-NOT-ECHO/);
+    assert.doesNotMatch(plain.stdout, /DO-NOT-ECHO/);
+    assert.ok(plain.stdout.includes(`  ${result.source.fetch}\n`));
+    for (const command of result.source.show)
+      assert.ok(plain.stdout.includes(`  ${command}\n`));
   },
 );

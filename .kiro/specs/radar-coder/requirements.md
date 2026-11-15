@@ -1317,8 +1317,9 @@ into one graph.
    fail the check naming the reason. The `spec` check SHALL read the files at
    `commit` in that repository. Output SHALL name the ref, never the
    plan's text (RC3.5). The docs SHALL say a ref is not a signature (RC3.9).
-5. **Crews read it.** `verify-issue --json` SHALL print, when all checks pass
-   and `ref` is set, the two commands a crew runs: `git fetch origin <ref>`
+5. **Crews read it.** `verify-issue` SHALL print, in its plain output and as
+   `source` in `--json`, when all checks pass and `ref` is set, the commands
+   a crew runs: `git fetch https://github.com/<repo>.git refs/heads/<ref>`
    and `git show <commit>:<path>` for each file of the brief. The one-line
    Additional prompt (RC3.7) SHALL stay the same one line, because it sends
    the crew to `verify-issue`, which prints these commands; a test SHALL show
