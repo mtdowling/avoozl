@@ -318,7 +318,8 @@ export const RELEASE_MODES = Object.freeze(["automatic", "step", "hold"]);
 
 // Release capacity (RC4.2): `release.capacity` is N, the most ready issues at
 // once; `release.scopes` gives a crew label its own N. A repository on Issue
-// Radar defaults to 2, any other to its `concurrency` (1). 0 releases nothing.
+// Radar defaults to 2, any other to 1. 0 releases nothing. The older `concurrency` key only set Avoozl's retired local
+// workers; it is still accepted and ignored, so an old file reads without error.
 function releaseInput(value, coder, label) {
   const input = value.release ?? {};
   if (!record(input)) fail(`${label}.release must be an object.`);
@@ -333,7 +334,9 @@ function releaseInput(value, coder, label) {
   const capacity =
     input.capacity !== undefined
       ? whole(input.capacity, `${label}.release.capacity`)
-      : (value.concurrency ?? (coder === "issue-radar" ? 2 : 1));
+      : coder === "issue-radar"
+        ? 2
+        : 1;
   if (input.scopes !== undefined && !Array.isArray(input.scopes))
     fail(`${label}.release.scopes must be a list.`);
   const seen = new Set(),
@@ -416,13 +419,6 @@ function repositoryInput(value, id, mode) {
   // GitHub closes issues only from merges into the default branch (R16.5).
   if (mode && !baseBranch)
     fail(`${label}.baseBranch must name the repository's default branch.`);
-  if (
-    value.concurrency !== undefined &&
-    (!Number.isSafeInteger(value.concurrency) ||
-      value.concurrency < 1 ||
-      value.concurrency > 100)
-  )
-    fail(`${label}.concurrency must be a whole number from 1 to 100.`);
   const release = releaseInput(value, coder, label);
   if (
     value.dependencyText !== undefined &&
@@ -657,7 +653,6 @@ function repositoryInput(value, id, mode) {
     minimumPermission,
     requiredChecks: names(value.requiredChecks, `${label}.requiredChecks`),
     pullRequestReviews,
-    concurrency: value.concurrency ?? 1,
     release,
     dependencyText: value.dependencyText === true,
     priority,

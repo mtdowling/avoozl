@@ -95,7 +95,7 @@ test("a stop on another repository changes nothing here", async (t) => {
 });
 
 test("a worker repository keeps its ready labels under a stop", async (t) => {
-  const w = await setup(t, { concurrency: 2 }, five(), "worker");
+  const w = await setup(t, { release: { capacity: 2 } }, five(), "worker");
   await w.tick();
   await w.ops.execute("flow.stop", { scope: "all", reason: "stop" });
   await w.tick();

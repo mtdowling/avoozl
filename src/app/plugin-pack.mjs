@@ -40,6 +40,8 @@ export const PACK_SETTINGS = Object.freeze({
     "priorityLabels",
     "waitingLabels",
     "managedLabels",
+    // Accepted so an old pack still imports; nothing reads it (Release N,
+    // release.capacity, is the one knob).
     "concurrency",
   ],
   project: ["fields", "statusValues"],

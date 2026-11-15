@@ -88,6 +88,10 @@ const grid = (min = 220): CSSProperties => ({
 })
 const WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 
+// Release N (release.capacity) is the one concurrency knob: Radar crews set
+// their own, and Avoozl's local workers (the old `concurrency`) are retired.
+export const RELEASE_N_HELP = 'How many issues get the ready label at once. Crews pick from these.'
+
 export const SETTINGS_TABS = [
   { key: 'driver', label: 'Driver session' },
   { key: 'instance', label: 'Instance name' },
@@ -196,6 +200,9 @@ function Field(props: {
   raw?: string
   rule?: FieldRule
   width?: keyof typeof WIDTH
+  // One line under the field that says what it does, always shown (it works
+  // on touch, unlike a hover tooltip). The input names it in aria-describedby.
+  help?: string
   children: ReactNode
 }) {
   return (
@@ -205,6 +212,11 @@ function Field(props: {
         <Marker rule={props.rule} />
       </label>
       {props.children}
+      {props.help && (
+        <span id={`${props.id}-help`} className="text-xs text-muted" data-field-help>
+          {props.help}
+        </span>
+      )}
       {props.rule?.blank && <span className="text-xs text-muted">{props.rule.blank}</span>}
       {props.raw && (
         <Tooltip text=".avoozl.json key">
@@ -227,12 +239,14 @@ function Text(props: {
   rule?: FieldRule
   width?: keyof typeof WIDTH
   type?: string
+  help?: string
 }) {
   return (
-    <Field id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width}>
+    <Field id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width} help={props.help}>
       <Input
         id={props.id}
         type={props.type}
+        aria-describedby={props.help ? `${props.id}-help` : undefined}
         value={props.value}
         placeholder={props.placeholder}
         aria-required={props.rule?.required || undefined}
@@ -755,7 +769,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
   )
 }
 
-function RepositoryEditor(props: {
+export function RepositoryEditor(props: {
   index: number
   repository: RepositoryForm
   choices: SettingsChoices
@@ -825,18 +839,17 @@ function RepositoryEditor(props: {
             <div style={grid()}>
               <Text id={`${id}-name`} label="Repository" raw="key" rule={REPOSITORY_FIELD_RULES.name} placeholder="owner/name" value={repository.name} onChange={(value) => set({ name: value })} />
               <Text id={`${id}-base`} label="Default branch" raw="baseBranch" rule={REPOSITORY_FIELD_RULES.baseBranch} placeholder="main" width="md" value={repository.baseBranch} onChange={(value) => set({ baseBranch: value })} />
-              <Text id={`${id}-concurrency`} label="Tasks at once" raw="concurrency" rule={REPOSITORY_FIELD_RULES.concurrency} placeholder="1" type="number" width="sm" value={repository.concurrency} onChange={(value) => set({ concurrency: value })} />
               <Text id={`${id}-cache`} label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={REPOSITORY_FIELD_RULES.cacheSeconds} placeholder="workspace value" type="number" width="sm" value={repository.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
             </div>
             <Field id={`${id}-coder-worker`} label="Who codes" raw="coder" rule={REPOSITORY_FIELD_RULES.coder}>
               <CoderPicker id={`${id}-coder`} mode={props.mode} value={repository.coder} onChange={(value) => set({ coder: value })} />
             </Field>
             <MirrorBox id={`${id}-mirror`} mirror={repository.mirror} onChange={(mirror) => set({ mirror })} />
+            <div style={grid()}>
+              <Text id={`${id}-release-capacity`} label="Release N" raw="release.capacity" rule={REPOSITORY_FIELD_RULES.releaseCapacity} help={RELEASE_N_HELP} placeholder="2" type="number" width="sm" value={repository.releaseCapacity} onChange={(value) => set({ releaseCapacity: value })} />
+            </div>
             {(repository.coder || defaultCoder(props.mode)) === 'issue-radar' && (
               <>
-                <div style={grid()}>
-                  <Text id={`${id}-release-capacity`} label="Crews working this repository" raw="release.capacity" rule={REPOSITORY_FIELD_RULES.releaseCapacity} placeholder="2" type="number" width="sm" value={repository.releaseCapacity} onChange={(value) => set({ releaseCapacity: value })} />
-                </div>
                 <Field id={`${id}-release-mode`} label="Release mode" raw="release.mode">
                   <ReleaseModePicker id={`${id}-release-mode`} mode={repository.releaseMode} onMode={(value) => set({ releaseMode: value })} />
                 </Field>
