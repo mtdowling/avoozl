@@ -478,10 +478,11 @@ added it a pending review to edit and submit; every Avoozl label takes the
 - [x] rc-20.4 Waiting, stale and submitted drafts: rows, the Review drafts list, the search link and Trace, after rc-20.3, rc-8.2 [RC20.6, RC20.7, RC20.8, RC20.11, RC20.12] (§D25)
   - The tick reads each waiting draft: submitted or deleted removes the drafted label and closes the row, recording which and GitHub's time; a moved head marks it stale with both commits; the Review drafts list (page, CLI, MCP read) filters by repository and state and shows `is:pr is:open label:"<drafted>"` with Copy; Trace adds a Review step after CI only when a draft exists; nothing is written to Radar labels; `src/app/test/review-draft-watch.test.mjs`, `kirocrew-app/ui/test/review-drafts.test.mjs`.
   - Done when: Fake-GitHub tests: a submitted draft clears the label and row once; a deleted draft is recorded as discarded; a head move marks stale and deletes nothing; the UI test shows the list, the filter and the search link; Trace shows Review only for a drafted pull request.
-- [ ] rc-p20 Proof 20: a review draft from a label, after rc-20.1, rc-20.2, rc-20.3, rc-20.4 [RC20, RC21] (§D25)
+- [x] rc-p20 Proof 20: a review draft from a label, after rc-20.1, rc-20.2, rc-20.3, rc-20.4 [RC20, RC21] (§D25)
   - Setup: a scratch repository with a pull request that closes a crew-claimed, marked issue; the machine signed in as the person. Action: add the review label as that person; then as a person without write access; then as an allowed person on another login; then submit the first draft in GitHub. Expected: one pending review only that person sees, with line comments; the labels swap; the stranger's label is removed; the wrong login drafts nothing and gets one row; submit clears the drafted label; Trace shows Review. Failure means: a draft can be posted under the wrong account or submitted by Avoozl. Next decision: keep drafts in the chat only.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
   - Live run 2026-11-15 blocked: docs/evidence/rc-proof-20-live.md
+  - Live run 2 2026-11-15 passed after PR #240 and `harness.sh route-avoozl`: docs/evidence/rc-proof-20-live.md
 
 ## Phase 21: The Workflow map
 
