@@ -22,25 +22,30 @@ export function ListDetailBack(props: { label: string; onBack: () => void }) {
   )
 }
 
+// The sticky row alone, for a page that draws its own big title: pass that
+// title's `titleRef` (useTitleScrolledOut) and `scrolledOut`.
+export function DetailBar(props: { backLabel: string; onBack: () => void; title: string; scrolledOut: boolean }) {
+  return (
+    <div data-detail-bar style={{ position: 'sticky', top: 0, zIndex: LAYER.sticky, display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, background: 'var(--bg)' }}>
+      <ListDetailBack label={props.backLabel} onBack={props.onBack} />
+      <span
+        aria-hidden="true"
+        data-detail-echo
+        style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14, fontWeight: 600, opacity: props.scrolledOut ? 1 : 0, transition: 'opacity 150ms' }}
+      >
+        {props.title}
+      </span>
+    </div>
+  )
+}
+
 export function DetailPane(props: { backLabel: string; onBack: () => void; title: string; children: ReactNode }) {
   const phone = usePhone()
   const { scrolledOut, titleRef } = useTitleScrolledOut()
   if (!phone) return <>{props.children}</>
   return (
     <div data-detail-pane>
-      <div
-        data-detail-bar
-        style={{ position: 'sticky', top: 0, zIndex: LAYER.sticky, display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, background: 'var(--bg)' }}
-      >
-        <ListDetailBack label={props.backLabel} onBack={props.onBack} />
-        <span
-          aria-hidden="true"
-          data-detail-echo
-          style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14, fontWeight: 600, opacity: scrolledOut ? 1 : 0, transition: 'opacity 150ms' }}
-        >
-          {props.title}
-        </span>
-      </div>
+      <DetailBar backLabel={props.backLabel} onBack={props.onBack} title={props.title} scrolledOut={scrolledOut} />
       <h2 ref={titleRef} data-detail-title style={{ margin: '4px 0 12px', fontSize: 20, fontWeight: 600, overflowWrap: 'anywhere' }}>
         {props.title}
       </h2>
