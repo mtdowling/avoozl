@@ -4,9 +4,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { IconLabel } from './controls.tsx'
 import { RefreshCw } from './icons.ts'
-import { countdownText, countdownWidth, limitedFor, refreshPeriod, refreshTip } from './refresh-api.ts'
+import { countdownText, countdownWidth, limitedFor, refreshColor, refreshPeriod, refreshTip } from './refresh-api.ts'
 import { type RateView, settingsClient } from './settings-api.ts'
 import { useAppApi } from './host.ts'
+import { Tooltip } from './Tooltip.tsx'
 
 export interface RefreshState {
   refresh: () => void
@@ -80,6 +81,23 @@ export function RefreshControl({ state }: { state: RefreshState }) {
   )
 }
 
-export function RefreshButton(props: { workspaceId: string | null; onRefresh: () => void; busy?: boolean }) {
-  return <RefreshControl state={useRefreshCountdown(props.workspaceId, props.onRefresh, props.busy)} />
+// The side panel's own small icon: no countdown. Its color moves from muted
+// toward red as the cached read ages, and is red while GitHub's limit holds.
+function BareRefresh({ state }: { state: RefreshState }) {
+  const { refresh, busy, left, limited, period } = state
+  const shown = limited > 0 ? limited : left
+  const label = `Refresh, ${limited > 0 ? 'GitHub limit lifts in ' : 'reads again in '}${countdownText(shown, limited > 0)}`
+  const age = limited > 0 ? 100 : Math.round(Math.min(1, Math.max(0, 1 - left / period)) * 100)
+  return (
+    <Tooltip text={state.tip}>
+      <button type="button" data-pp-icon data-bare data-refresh-age={age} data-limited={limited > 0 ? '' : undefined} onClick={refresh} disabled={busy} aria-label={label} style={{ color: refreshColor(age) }}>
+        <RefreshCw size={13} aria-hidden="true" />
+      </button>
+    </Tooltip>
+  )
+}
+
+export function RefreshButton(props: { workspaceId: string | null; onRefresh: () => void; busy?: boolean; bare?: boolean }) {
+  const state = useRefreshCountdown(props.workspaceId, props.onRefresh, props.busy)
+  return props.bare ? <BareRefresh state={state} /> : <RefreshControl state={state} />
 }

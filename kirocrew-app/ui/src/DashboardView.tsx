@@ -16,7 +16,8 @@ import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
 import ArmedPulls from './ArmedPulls.tsx'
 import { StartDemoButton } from './Demo.tsx'
-import DriverSessionBox, { useDriverSession } from './DriverSessionBox.tsx'
+import { DriverCell, useDriverSession } from './DriverSessionBox.tsx'
+import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
 import SetupCard from './SetupCard.tsx'
 import { useInstance } from './InstanceName.tsx'
 import { nameFor } from './instance-api.ts'
@@ -31,7 +32,7 @@ import { LINE_EVENT, flowClient } from './flow-api.ts'
 import { IconBtn, IconLabel, IconLink, SectionHeading, ShowMore, SmallBtn, TaskTitleLink, useAskChat, usePages } from './controls.tsx'
 import { useRefreshCountdown } from './RefreshButton.tsx'
 import { usePublishRefresh } from './page-refresh.tsx'
-import { Activity, DetailsIcon, ExternalLink, Link2, MessageSquare, Check } from './icons.ts'
+import { Activity, CirclePlus, Copy, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import type { Drill } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
@@ -109,7 +110,7 @@ function AttentionRow({
     <li className="border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)', overflowWrap: 'anywhere' }} data-attention-row>
       <span className="flex gap-1" style={{ float: 'right', marginLeft: 6 }} data-attention-actions>
         {item.href && <IconLink icon={ExternalLink} to={item.href} label={`Open the issue for ${item.title}`} external />}
-        {attach && <IconLink icon={Link2} to={attach} label={`Attach to the chat for ${item.title}`} />}
+        {attach && <IconLink icon={CirclePlus} to={attach} label={`Session: the chat for ${item.title}`} />}
         <IconBtn
           icon={DetailsIcon}
           label={item.group ? `Info: ${item.title}` : `Details for ${item.title}`}
@@ -174,7 +175,7 @@ const roleLabel = (row: InFlight) =>
 
 // A live Issue Radar claim, read from GitHub: any machine's crew. GitHub
 // does not show whether the crew is paused, which machine it runs on, or
-// its chat, so there is no Attach here.
+// its chat, so there is no Session here.
 export function RadarFlightRow({ row, now, onTrace, cost }: { row: RadarClaim; now: number; onTrace?: (row: RadarClaim) => void; cost?: RadarCrewStrip['cost'][string] }) {
   return (
     <li data-radar-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
@@ -254,16 +255,16 @@ export function InFlightRow({ row, now, onInfo }: { row: InFlight; now: number; 
       <span data-in-flight-actions className="flex items-center justify-end gap-1.5" style={{ flex: '0 0 11rem' }}>
         <IconBtn icon={DetailsIcon} label={`Details for ${row.title}`} tooltip="Open the task drawer" onClick={onInfo} />
         {!href ? (
-          <span className="text-xs text-muted">Attach waits on Kiro Crew</span>
+          <span className="text-xs text-muted">Session waits on Kiro Crew</span>
         ) : (
         <a
           href={linkHref(href)}
           className="text-sm underline"
-          aria-label={`Attach to the ${row.role} chat for ${row.title}`}
+          aria-label={`Session: the ${row.role} chat for ${row.title}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
         >
-          <ExternalLink size={14} aria-hidden="true" />
-          Attach
+          <CirclePlus size={14} aria-hidden="true" />
+          Session
         </a>
         )}
       </span>
@@ -357,6 +358,7 @@ export default function DashboardView(props: {
     plans: summary ? summary.plans.total : 1,
   })
 
+  const crewCard = cards.find((card) => card.id === 'crew')
   return (
     <section aria-labelledby="avoozl-dashboard-title" className="flex flex-col gap-3.5">
       <h2 id="avoozl-dashboard-title" className="sr-only">
@@ -368,37 +370,45 @@ export default function DashboardView(props: {
       {/* Line stopped (R44.9, R48.5): above every other section. */}
       <LineBanner stops={flow.value?.line ?? []} workspaceId={workspaceId} onChanged={() => void flow.reload()} />
       <ArmedPulls workspaceId={workspaceId} stopped={(flow.value?.line ?? []).length > 0} />
+      <StatusRow>
+        <DriverCell workspaceId={workspaceId} />
+        {crewCard && (
+          <StatusCell
+            data-setup-card="crew"
+            tone="warn"
+            title="Radar crew: none"
+            tip={`${crewCard.title}. ${crewCard.line}`}
+            actions={
+              <>
+                <CellAct label="Copy values" icon={<Copy size={13} aria-hidden="true" />} primary tip="Copy the values to paste into a new Radar crew." onClick={setupAction.crew} data-crew-copy />
+                <CellAct label="Open Radar" icon={<ExternalLink size={13} aria-hidden="true" />} tip="Open Radar, Crews." href="/issue-radar" />
+              </>
+            }
+          />
+        )}
+      </StatusRow>
       {(error || chat.error) && (
         <p role="alert" className="text-sm text-danger">
           {error ?? chat.error}
         </p>
       )}
-      {/* The driver and the setup cards share one compact row, side by side. */}
-      <div data-dashboard-row="cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: 8 }}>
-        <DriverSessionBox workspaceId={workspaceId} />
-        {cards.filter((card) => card.id !== 'driver').map((card) => (
-          <SetupCard
-            key={card.id}
-            id={card.id}
-            title={card.title}
-            line={card.line}
-            action={
-              <>
-                {/* Short words on the button; its name is the whole action. */}
-                <SmallBtn primary onClick={setupAction[card.id as Exclude<SetupId, 'driver'>]} attrs={{ 'aria-label': card.action }}>
-                  {SHORT_ACTION[card.id] ?? card.action}
-                </SmallBtn>
-                {card.id === 'crew' && (
-                  <span className="ml-auto">
-                    <IconLink icon={ExternalLink} to="/issue-radar" label="Open Radar › Crews" />
-                  </span>
-                )}
-                {card.id === 'repository' && <StartDemoButton label="Try the demo" />}
-              </>
-            }
-          />
-        ))}
-      </div>
+      {cards.filter((card) => card.id !== 'driver' && card.id !== 'crew').map((card) => (
+        <SetupCard
+          key={card.id}
+          id={card.id}
+          title={card.title}
+          line={card.line}
+          action={
+            <>
+              {/* Short words on the button; its name is the whole action. */}
+              <SmallBtn primary onClick={setupAction[card.id as Exclude<SetupId, 'driver'>]} attrs={{ 'aria-label': card.action }}>
+                {SHORT_ACTION[card.id] ?? card.action}
+              </SmallBtn>
+              {card.id === 'repository' && <StartDemoButton label="Try the demo" />}
+            </>
+          }
+        />
+      ))}
       {summary ? (
         <>
           <Pair height={ROW_HEIGHT.flight}>

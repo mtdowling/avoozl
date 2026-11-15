@@ -9,14 +9,14 @@ import Badge from './Badge.tsx'
 import { noSessionLabel, reviewRuns, viewsClient, type DeliveryItem, type Graph } from './views-api.ts'
 import { doneStatus, resumeStatus } from './delivery-api.ts'
 import { IconBtn, IconLabel, useAskChat } from './controls.tsx'
-import { Check, DetailsIcon, ExternalLink, MessageSquare, RotateCcw } from './icons.ts'
+import { Check, CirclePlus, DetailsIcon, ExternalLink, MessageSquare, RotateCcw } from './icons.ts'
 import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
 
 const model = (requested: string | null, served: string | null) =>
   `asked ${requested ?? 'agent default'}${served ? `, ran ${served}` : ''}`
 
-// Each review chat or verdict: role, round, models, verdict, Attach, Info.
+// Each review chat or verdict: role, round, models, verdict, Session, Info.
 export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => void; compact?: boolean }) {
   const runs = reviewRuns(props.item)
   if (!runs.length) return null
@@ -37,10 +37,10 @@ export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => vo
               <a
                 href={linkHref(run.link)}
                 className="inline-flex items-center gap-1 underline"
-                aria-label={`Attach to the ${run.role} chat, round ${run.round}`}
+                aria-label={`Session: the ${run.role} chat, round ${run.round}`}
               >
-                <ExternalLink size={12} aria-hidden="true" />
-                Attach
+                <CirclePlus size={12} aria-hidden="true" />
+                Session
               </a>
             )}
             {props.onInfo && <IconBtn icon={DetailsIcon} label={`Details of ${run.role} round ${run.round}`} tooltip="Open the task's details" onClick={props.onInfo} />}

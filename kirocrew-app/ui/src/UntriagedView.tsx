@@ -13,7 +13,7 @@ import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { ICON, IconBtn, IconLabel, ShowMore, ViewHeading, useConfirm, usePages } from './controls.tsx'
-import { Check, CircleDot, FileText, GitPullRequest, GitPullRequestDraft, Inbox, MessageSquare, Play, Radar, RefreshCw, ScanSearch, Users, X, type LucideIcon } from './icons.ts'
+import { Check, CircleDot, CirclePlus, FileText, GitPullRequest, GitPullRequestDraft, Inbox, MessageSquare, Play, Radar, RefreshCw, ScanSearch, Users, X, type LucideIcon } from './icons.ts'
 import { SendToRadar } from './SendToRadar.tsx'
 import { useMedia } from './use-media.ts'
 import { relativeTime } from './task-api.ts'
@@ -159,8 +159,9 @@ function Actions({ item, onSend, onReview, onStart }: { item: UntriagedItem; onS
       )}
       {item.reviewChat?.link ? (
         <Tooltip text="Open this pull request's code review chat">
-          <a href={linkHref(item.reviewChat.link)} target="_top" className="self-center text-sm underline" aria-label={`Attach to the code review chat for ${name}`} data-review-attach>
-            Attach
+          <a href={linkHref(item.reviewChat.link)} target="_top" className="self-center text-sm underline" aria-label={`Session: the code review chat for ${name}`} data-review-attach style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <CirclePlus size={14} aria-hidden="true" />
+            Session
           </a>
         </Tooltip>
       ) : item.reviewChat?.state === 'queued' ? (
@@ -486,7 +487,7 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded }: 
       const chat = await client.review(workspaceId, item)
       setNote(
         chat.state === 'open'
-          ? `${item.repository} #${item.number} already has a code review chat. Use Attach.`
+          ? `${item.repository} #${item.number} already has a code review chat. Use Session.`
           : `Code review chat for ${item.repository} #${item.number} starts on the next tick$.`,
       )
       await reload()

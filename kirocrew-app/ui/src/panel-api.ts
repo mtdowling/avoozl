@@ -117,9 +117,9 @@ export interface FlightRow {
   issueUrl: string | null
   prUrl: string | null
   prNumber: number | null
-  // Where Attach goes, or null when this machine cannot open the chat.
+  // Where Session goes, or null when this machine cannot open the chat.
   attach: string | null
-  // Why there is no Attach, when there is none.
+  // Why there is no Session, when there is none.
   noAttach: string | null
   pr: boolean
   // The pull request's checks, or null when unknown or there is no pull request.
@@ -247,7 +247,7 @@ function remoteRow(worker: RemoteWorker): FlightRow {
     prUrl: null,
     prNumber: null,
     attach,
-    noAttach: attach ? null : `Set the dashboard link for ${worker.host} to attach.`,
+    noAttach: attach ? null : `Set the dashboard link for ${worker.host} to open its session.`,
     pr: false,
     check: null,
     claimedAt: null,

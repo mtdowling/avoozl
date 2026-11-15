@@ -845,6 +845,10 @@ if (page === 'panel') {
     }
   })
   answer('github.conflict.resolve', (body) => (panelWin.__panelCalls.push(body.input), {}))
+  // The line, read by the pause button: ?stopped=1 opens a stop; Resume closes it.
+  let panelStops = query.get('stopped') ? [{ id: 'l1', manual: true, reason: 'bad base', scope: 'all', closedAt: null, branch: 'main', check: null }] : []
+  answer('flow.view', () => ({ line: panelStops, stages: [], tasks: [], retros: [] }))
+  answer('flow.resume', (body) => (panelWin.__panelCalls.push({ resume: (body.input as { stopId?: string }).stopId }), (panelStops = []), { stop: { id: 'l1', closedAt: new Date().toISOString() } }))
   answer('GET /api/apps/spec-builder/specs', () => ({ specs: [{ name: 'search-v2' }] }))
 }
 // ?page=panel&real=1: the panel on the replies a real backend gave over the
