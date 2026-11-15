@@ -67,23 +67,20 @@ async function freshBranch(github, repository, spec, attempt, oid) {
   }
 }
 
-// Open the approval pull request. Returns the pending state. A pull request
-// already open for this revision is returned and no second one opens.
-export async function openApproval(
+// One spec's part of an approval: its earlier state (returned when a pull
+// request for this revision is already open or merged) or the file changes
+// a new one makes.
+function approvalPart(
   store,
   {
-    github,
-    repository,
     planId,
     hash,
     spec,
     files,
     diagnostics = [],
     approvedBy,
-    decisionRecord: record = false,
-    extra = {},
-    // The branch the pull request targets when it is not the default branch:
-    // a private spec's plans branch (RC25.3).
+    record,
+    extra,
     ref,
   },
 ) {
@@ -108,29 +105,42 @@ export async function openApproval(
       409,
     );
   if (previous && (previous.state === "open" || previous.state === "merged"))
-    return previous;
+    return { previous };
   const prose = proseFiles(files);
   if (prose.every((name) => statusOf(files[name]) === "Approved") && !record)
     fail("This spec already says Status: Approved.", 409);
   const changes = approvalChanges({
-      spec,
-      files,
-      decisionRecord: ref === undefined && record,
-      extra: {
-        ...extra,
-        ...(ref !== undefined && files["avoozl/manifest.json"] !== undefined
-          ? {
-              [`.kiro/specs/${spec}/avoozl/manifest.json`]:
-                files["avoozl/manifest.json"],
-            }
-          : {}),
-      },
-    }),
-    defaultBranch = (await github.repository(repository)).default_branch,
+    spec,
+    files,
+    decisionRecord: ref === undefined && record,
+    extra: {
+      ...extra,
+      ...(ref !== undefined && files["avoozl/manifest.json"] !== undefined
+        ? {
+            [`.kiro/specs/${spec}/avoozl/manifest.json`]:
+              files["avoozl/manifest.json"],
+          }
+        : {}),
+    },
+  });
+  if (
+    ref !== undefined &&
+    Object.keys(changes).some(
+      (file) =>
+        !file.startsWith(`.kiro/specs/${spec}/`) ||
+        file.split("/").some((part) => part === ".." || part === "."),
+    )
+  )
+    fail("Private approval changes must stay inside the spec folder.", 409);
+  return { previous, changes };
+}
+
+// The branch an approval targets, checked: a private spec's ref must be an
+// orphan branch apart from the default branch.
+async function approvalBase(github, repository, ref) {
+  const defaultBranch = (await github.repository(repository)).default_branch,
     base = ref ?? defaultBranch,
-    head = await github.branchHead(repository, base),
-    // A closed pull request leaves its branch, so a new try takes a new name.
-    firstAttempt = (previous?.attempt || 0) + 1;
+    head = await github.branchHead(repository, base);
   if (ref !== undefined) {
     if (ref === defaultBranch)
       fail("The private spec ref must differ from the default branch.", 409);
@@ -151,15 +161,45 @@ export async function openApproval(
         409,
       );
   }
-  if (
-    ref !== undefined &&
-    Object.keys(changes).some(
-      (file) =>
-        !file.startsWith(`.kiro/specs/${spec}/`) ||
-        file.split("/").some((part) => part === ".." || part === "."),
-    )
-  )
-    fail("Private approval changes must stay inside the spec folder.", 409);
+  return { base, head };
+}
+
+// Open the approval pull request. Returns the pending state. A pull request
+// already open for this revision is returned and no second one opens.
+export async function openApproval(
+  store,
+  {
+    github,
+    repository,
+    planId,
+    hash,
+    spec,
+    files,
+    diagnostics = [],
+    approvedBy,
+    decisionRecord: record = false,
+    extra = {},
+    // The branch the pull request targets when it is not the default branch:
+    // a private spec's plans branch (RC25.3).
+    ref,
+  },
+) {
+  const part = approvalPart(store, {
+    planId,
+    hash,
+    spec,
+    files,
+    diagnostics,
+    approvedBy,
+    record,
+    extra,
+    ref,
+  });
+  if (!part.changes) return part.previous;
+  const { previous, changes } = part,
+    { base, head } = await approvalBase(github, repository, ref),
+    // A closed pull request leaves its branch, so a new try takes a new name.
+    firstAttempt = (previous?.attempt || 0) + 1;
   // So does a try that failed after making its branch: the name is taken.
   const branch = await freshBranch(
       github,
@@ -194,6 +234,72 @@ export async function openApproval(
     };
   store.setMeta(key(planId, hash), state);
   return state;
+}
+
+// One approval pull request for several specs with the same target
+// (plan.approveMany). Each spec records the same pending state, so each one
+// reconciles from the one merge. A spec whose revision already has an open
+// or merged approval keeps it. Returns each spec's state by plan ID.
+export async function openBatchApproval(
+  store,
+  { github, repository, ref, approvedBy, specs },
+) {
+  const parts = specs.map((entry) => ({
+      entry,
+      ...approvalPart(store, {
+        ...entry,
+        record: entry.decisionRecord === true,
+        extra: {},
+        approvedBy,
+        ref,
+      }),
+    })),
+    fresh = parts.filter((part) => part.changes),
+    result = new Map(
+      parts
+        .filter((part) => !part.changes)
+        .map((part) => [part.entry.planId, part.previous]),
+    );
+  if (!fresh.length) return result;
+  const { base, head } = await approvalBase(github, repository, ref),
+    names = fresh.map((part) => part.entry.spec),
+    branch = await freshBranch(
+      github,
+      repository,
+      `batch-${names[0]}`,
+      1,
+      head.oid,
+    );
+  for (const part of fresh)
+    for (const [path, text] of Object.entries(part.changes))
+      await github.putFile(repository, {
+        path,
+        branch: branch.name,
+        message: `Approve spec ${part.entry.spec}`,
+        content: Buffer.from(text).toString("base64"),
+      });
+  const pull = await github.createPullRequest(repository, {
+    title: `Approve ${names.length} specs`,
+    head: branch.name,
+    base,
+    body: `Sets Status: Approved on these specs. Merge to make their approval one commit.\n\n${names.map((name) => `- ${name}`).join("\n")}`,
+  });
+  for (const part of fresh) {
+    const state = {
+      state: "open",
+      repository: `${repository.owner}/${repository.repo}`,
+      number: pull.number,
+      branch: branch.name,
+      attempt: part.previous?.attempt || 0,
+      base,
+      ...(ref !== undefined ? { ref } : {}),
+      requestedBy: approvedBy,
+      batch: names,
+    };
+    store.setMeta(key(part.entry.planId, part.entry.hash), state);
+    result.set(part.entry.planId, state);
+  }
+  return result;
 }
 
 // Read the pull request. Only a merged one records the merge commit and the

@@ -62,6 +62,8 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "plan.lint",
   "plan.preview",
   "plan.approve",
+  "plan.approveMany",
+  "plan.approvalBatches",
   "plan.extract",
   "plan.extract.get",
   "plan.extraction.submit",

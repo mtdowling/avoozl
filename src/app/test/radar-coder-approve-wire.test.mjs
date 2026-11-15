@@ -254,3 +254,70 @@ test("an already approved plan is not sent through a pull request again", async 
   assert.equal(github.pulls.length, 1);
   assert.equal(store.list("approvals").length, 1);
 });
+
+test("a batch opens one approval pull request and approves all after it merges", async (t) => {
+  const { ops, store, github, specRoot } = open(t, {
+    mode: "single-repo",
+    repositories: { "example/code": {} },
+  });
+  writeSpec(specRoot, "second", {
+    "requirements.md": "# Second\n\nStatus: Draft\n",
+    "design.md": "# Second design\n\nStatus: Draft\n",
+    "tasks.md": "# Tasks\n\nStatus: Draft\n\n- [ ] second-step Build second\n",
+    "avoozl/manifest.json": JSON.stringify({
+      version: 1,
+      tasks: {
+        "second-step": {
+          kind: "leaf",
+          summary: "Build second",
+          paths: ["src/second.mjs"],
+          checks: ["node --check src/second.mjs"],
+          completion: "integrated",
+          acceptance: ["The second fixture works."],
+        },
+      },
+    }),
+  });
+  for (const spec of ["config", "second"])
+    await ops.execute("plan.create", { spec });
+  const items = ["config", "second"].map((id) => ({
+      id,
+      expectedHash: store.get("plans", id).hash,
+    })),
+    first = await ops.execute("plan.approveMany", { items });
+  assert.equal(first.pending, true);
+  assert.equal(first.ok, false);
+  assert.deepEqual(first.approvalPullRequests, [
+    {
+      repository: "example/code",
+      number: 1,
+      branch: "avoozl/approve-batch-config",
+      specs: ["config", "second"],
+    },
+  ]);
+  assert.equal(github.pulls.length, 1);
+  assert.ok(
+    github.written.some((f) => f.path === ".kiro/specs/second/tasks.md"),
+  );
+  assert.equal(store.list("approvals").length, 0);
+  // Asked again while open: the same pull request, nothing approved.
+  assert.equal(
+    (await ops.execute("plan.approveMany", { items })).approvalPullRequests[0]
+      .number,
+    1,
+  );
+  assert.equal(github.pulls.length, 1);
+  merge(github);
+  const done = await ops.execute("plan.approveMany", { items });
+  assert.equal(done.ok, true, JSON.stringify(done.failures));
+  assert.deepEqual(
+    store
+      .list("approvals")
+      .map((a) => [a.planId, a.approvedBy])
+      .sort(),
+    [
+      ["config", "maintainer"],
+      ["second", "maintainer"],
+    ],
+  );
+});
