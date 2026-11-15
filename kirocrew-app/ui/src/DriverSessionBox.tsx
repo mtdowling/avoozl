@@ -64,7 +64,7 @@ export function DriverCell(props: { workspaceId: string | null }) {
           {view?.elsewhere && (
             <CellAct label={`${view.elsewhere.workspace}'s`} tip={view.elsewhere.text} onClick={() => view.elsewhere && openChat({ slotKey: view.elsewhere.slot })} data-driver-elsewhere data-driver-elsewhere-open />
           )}
-          {read && <CellAct label="" icon={<RefreshCw size={12} aria-hidden="true" />} aria-label="Check again" tip="Check again" onClick={reload} data-driver-recheck />}
+          {read && <CellAct label="" icon={<RefreshCw size={12} aria-hidden="true" />} aria-label="Recheck" tip="Recheck" onClick={reload} data-driver-recheck />}
         </>
       }
     />

@@ -54,9 +54,9 @@ for (const size of SIZES) {
     assert.match(tips[0], /Nothing is released and nobody watches merges/)
     assert.match(tips[1], /Issue Radar crews code the issues Avoozl releases/)
     const actions = await page.evaluate(`[...document.querySelectorAll('[data-sc-act]')].map((el) => (el.getAttribute('aria-label') || el.textContent).trim())`)
-    assert.deepEqual(actions, ['Start', 'Check again', 'Copy values', 'Open Radar'])
+    assert.deepEqual(actions, ['Start', 'Recheck', 'Copy values', 'Open Radar'])
     const small = await page.evaluate(`Math.max(...[...document.querySelectorAll('[data-sc-act]')].map((el) => el.getBoundingClientRect().height))`)
-    assert.ok(size.width <= 640 ? small >= 43.5 : small < 30, `buttons are ${small}px`)
+    assert.ok(small < 32, `buttons are ${small}px`)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
   })
 }

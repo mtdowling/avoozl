@@ -25,7 +25,7 @@ const CSS = `
 [data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}
 [data-sc-act][data-primary]{border-color:var(--accent);color:var(--accent)}
 [data-sc-act]:disabled{opacity:.6;cursor:default}
-@media (pointer:coarse),(max-width:640px){[data-sc-act]{min-height:44px;min-width:44px;padding:0 7px}[data-sc-narrow-hide]{display:none}[data-sc-act][data-icon-only]{padding:0}}
+@media (pointer:coarse),(max-width:640px){[data-sc-act]{min-height:28px;min-width:28px;padding:0 8px}[data-sc-narrow-hide]{display:none}[data-sc-act][data-icon-only]{padding:0}}
 `
 
 export function StatusRow(props: { children: ReactNode }) {
