@@ -167,12 +167,41 @@ function statusLine(text) {
   return lines.length === 1 ? lines[0] : null;
 }
 
-async function checkSpec(read, home, marker, tasksText = {}) {
+async function checkSpec(read, home, marker, tasksText = {}, reader) {
   const base = `${repoPath(home)}/contents/.kiro/specs/${marker.spec}`,
     problems = [],
     files = {};
   let unavailable = false;
+  // With a file reader the five files are read at the commit in one go, by
+  // git or one batched query; a read that fails marks every check unavailable.
+  let batch = null;
+  if (reader)
+    try {
+      batch = (
+        await reader.readAt(home, marker.commit, {
+          paths: [
+            "requirements.md",
+            "bugfix.md",
+            "design.md",
+            "tasks.md",
+            "avoozl/manifest.json",
+          ].map((file) => `.kiro/specs/${marker.spec}/${file}`),
+        })
+      ).files;
+    } catch {
+      batch = new Error("unavailable");
+    }
   const fetch = async (file) => {
+    if (batch) {
+      if (batch instanceof Error) {
+        unavailable = true;
+        return { kind: "unavailable", status: 0, reason: "no answer" };
+      }
+      const text = batch.get(`.kiro/specs/${marker.spec}/${file}`);
+      return text === undefined
+        ? { kind: "denied", status: 404 }
+        : { kind: "ok", status: 200, text };
+    }
     const answer = await get(read, `${base}/${file}?ref=${marker.commit}`, {
       raw: true,
     });
@@ -390,7 +419,7 @@ function buildBrief(marker, body, tasksText) {
 // Runs the five checks. `read` is a reader (ghReader() by default).
 export async function verifyIssue(
   reference,
-  { read = ghReader(), brief = false, pull } = {},
+  { read = ghReader(), brief = false, pull, files } = {},
 ) {
   if (pull !== undefined && !(Number.isSafeInteger(pull) && pull > 0))
     fail("Name the pull request as a number.", 64);
@@ -446,7 +475,7 @@ export async function verifyIssue(
     checks.push(await permission(read, code, author, "author"));
   }
   if (marker) {
-    checks.push(await checkSpec(read, home, marker, tasksText));
+    checks.push(await checkSpec(read, home, marker, tasksText, files));
     checks.push(await checkCommit(read, home, marker));
     const base = await checkBase(read, code, marker, tasksText.manifest, pull);
     if (base) checks.push(base);
