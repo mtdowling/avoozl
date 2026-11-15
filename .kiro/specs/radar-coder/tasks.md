@@ -601,3 +601,23 @@ Requirement RC27. Adopt what exists and create what is missing, with a dry run f
 - [ ] rc-p26 Proof 26: Create and Adopt on scratch repositories, after rc-26.1, rc-26.2, rc-26.3, rc-26.4 [RC27] (§D17)
   - Setup: a public-visibility scratch repository under `mtdowling`, created only for the proof. Action: Create setup (dry run, confirm), then both buttons again; then Adopt on a second pre-built private mirror. Expected: a private mirror is built and verified; the repeat runs write nothing; Adopt changes nothing unticked and deletes nothing. Failure means: a setup button can overwrite or expose a repository. Next decision: remove the apply step and keep the dry run only. List every scratch repository in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
+
+## Phase 27: Rebuild after a source conflict
+
+Requirement RC28. Send a conflicted crew task back to the crews on fresh main.
+
+- [ ] rc-27.1 Setting `conflicts.onSourceConflict` and `conflicts.maxRebuilds`: policy, schema, Settings, Workflow map [RC28.4] (§D33)
+  - Validated per repository; defaults `rebuild` and 1; shown in Settings and the Workflow map; `.avoozl.json` round trip.
+  - Done when: A bad value is refused naming the key; the default reads `rebuild` and 1; a page test shows the setting in Settings and in the map.
+- [ ] rc-27.2 Rebuild step on the tick: trigger, eligibility, close and release, limits, after rc-27.1, rc-5.3 [RC28.1, RC28.2, RC28.3, RC28.6] (§D33, §D33.1)
+  - Tests first on a fake GitHub: a rebuild fires once; a second tick writes nothing; a second conflict asks; a human review or commit leaves the pull request untouched; Stop the line blocks it; a reopened old pull request does not release twice.
+  - Done when: The listed tests pass and `npm test` passes.
+- [ ] rc-27.3 Waiting on you row and the `rebuild.decide` operation, after rc-27.2 [RC28.3, RC28.4] (§D33)
+  - **Rebuild again**, **Resolve myself** and **Dismiss**; a person only; the buttons call the operation.
+  - Done when: Each action has a test; MCP and sessions are refused; Dismiss keeps the row away until the pull request changes.
+- [ ] rc-27.4 Trace, Activity and Flow show the rebuild, after rc-27.2 [RC28.5] (§D33.2)
+  - Trace step, activity row and the fix-work mark.
+  - Done when: A rebuilt task shows the step with both pull requests, one activity row, and counts as fix work.
+- [ ] rc-p27 Proof 27: a scratch crew pull request with a source conflict, after rc-27.1, rc-27.2, rc-27.3, rc-27.4 [RC28] (§D17)
+  - Setup: a scratch repository created only for the proof. Action: plant a source conflict on a crew pull request. Expected: it is closed with one comment, the issue is released once, a second conflict asks. Failure means: Avoozl wrote to a pull request it should not touch. Next decision: set `conflicts.onSourceConflict` to `ask`. List the scratch repository in the receipt for the owner to delete.
+  - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repository.
