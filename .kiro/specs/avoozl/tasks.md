@@ -1489,3 +1489,26 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
   - Expected: (1) and (2) refused with rule set, id and place and no text; (3) goes through, then the tick deletes it, pulls the cord and notifies once; (4) a clean comment stays; (5) refused before sign-off, accepted after, refused again when the hook changes.
   - Failure means: a canary stays on GitHub, an edit is used instead of a delete, or the refusal repeats the text.
   - Next decision: ask Kiro Crew for a single write tool for crews.
+
+## Phase 40: Cross-model plan review
+
+Owner request 2026-11-15 (Requirement 86, design §4.26). Numbered after
+Phase 39 because task IDs never move.
+
+- [ ] 40.1 Plan reviewer role and `planReview` settings [R86.1, R86.10, R86.13] (§4.26)
+  - `planReviewer` in `MODEL_ROLES`, `plan-review` in `DISPATCH_ROLE`, `validateModels` refuses a reviewer equal to a named planner; `planReview.mode` and `planReview.rounds` validated; the Settings › Models row. Tests use fake model names.
+- [ ] 40.2 Review rounds and spec findings keyed by hash, after 40.1 [R86.2, R86.5, R86.6] (§4.26)
+  - `review_rounds` rows per pass and round; `plan.review.submit` takes spec findings (kind, severity, file, line, claim, evidence) and refuses a bad file or line and a same-model session. Tests: the different-model rule; findings keyed by hash.
+- [ ] 40.3 Tick opens the reviewer, then the planner answers, after 40.2 [R86.3, R86.4, R86.7, R86.10] (§4.26)
+  - `planReviewStep`: mode, model check, read-only brief with worktrees at recorded commits, content rules at `brief`; `plan.review.findings` and `plan.review.answer`; rounds; `ask` opens one Needs you item. Fake chats only.
+- [ ] 40.4 Review counts in the Approve dialogs, after 40.2 [R86.8, R86.9] (§4.26)
+  - `plan.reviewSummary` on `approvalChecks` and each `approvalBatches` entry; the single and batch dialogs show found, fixed, for you and each open finding. Tests: review never changes approval (and makes no GitHub write); the batch dialog shows counts.
+- [ ] 40.5 CLI, MCP tools and Flow planning, after 40.3 [R86.11, R86.12] (§4.26)
+  - `avoozl plan review SPEC [--start] [--json]`; `plans_plan_review` and `plans_answer_review` with MCP policy (Review anyway and `--start` person only); Planning spans and usage per spec in Flow, kept out of task flow and budgets.
+
+- [ ] avoozl-p50 P50 Proof: a draft is reviewed on another model and the person sees it at approval [R86] (§4.26)
+  - Setup: an isolated workspace, a scratch planning repository with one spec draft that names a missing file and hides an order in prose, fake planner and reviewer chats on two fake models.
+  - Action: (1) store the draft with `planReview.mode: auto` and no reviewer model; (2) set the reviewer to the planner's model; (3) set a different model; (4) let the planner answer; (5) edit the spec by hand; (6) open the Approve dialog alone and in a batch, and approve.
+  - Expected: (1) and (2) skipped with a note and no chat; (3) one read-only round with a `wrong-reference` and a `hidden-order` finding at the right file and line; (4) one fixed, one answered; (5) a fresh round on the new hash, old findings marked older; (6) both dialogs show the model and counts, approval succeeds the same as with no review, and no GitHub write is made.
+  - Failure means: a review runs on the writer's model, findings attach to the wrong revision, or a review changes whether a spec can be approved.
+  - Next decision: ask Kiro Crew for the Spec Builder chat's model, or keep skipping those drafts.
