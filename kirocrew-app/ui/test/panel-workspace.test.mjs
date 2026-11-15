@@ -32,7 +32,7 @@ test('the longest matching root wins', () => {
 })
 
 test('a folder in no workspace falls back to the page\u2019s last workspace, then the default', () => {
-  assert.deepEqual(pick({ project: '/home/someone/else', last: 'nupp', fallback: 'avoozl' }), { id: 'nupp', why: 'last' })
+  assert.deepEqual(pick({ project: '/srv/else', last: 'nupp', fallback: 'avoozl' }), { id: 'nupp', why: 'last' })
   assert.deepEqual(pick({ project: null, last: 'gone', fallback: 'avoozl' }), { id: 'avoozl', why: 'default' }, 'a last workspace no longer listed does not count')
   assert.deepEqual(pick({ last: null, fallback: null }), { id: null, why: 'none' })
 })
