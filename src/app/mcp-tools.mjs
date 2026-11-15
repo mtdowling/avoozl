@@ -127,6 +127,10 @@ const tools = {
       read_spec: ["plan.spec.read", "a spec folder's documents"],
       lint: ["plan.lint", "deterministic checks on a stored revision"],
       preview: ["plan.preview", "the tasks approval would publish"],
+      batches: [
+        "plan.approvalBatches",
+        "draft specs in the order they can be approved: {writes?, ids?}",
+      ],
       project_preview: [
         "github.project.preview",
         "GitHub writes projecting would make",

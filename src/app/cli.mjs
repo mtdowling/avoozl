@@ -91,6 +91,7 @@ try {
           "refused",
           "off",
           "as-person",
+          "writes",
           "retire",
           "delete-spec-folder",
         ].includes(key) &&
@@ -1356,6 +1357,109 @@ try {
     console.log(
       JSON.stringify(await localOrRequest(operation, value), null, 2),
     );
+  } else if (command === "plan" && positionals[0] === "batches") {
+    // Draft specs in the order they can be approved (plan.approvalBatches).
+    const found = await localOrRequest("plan.approvalBatches", {
+      writes: options.writes === true,
+    });
+    if (!found.batches.length) console.log("No draft specs to approve.");
+    for (const batch of found.batches) {
+      console.log(`Batch ${batch.batch} (${batch.specs.length} specs)`);
+      for (const entry of batch.specs) console.log("  " + batchLine(entry));
+    }
+  } else if (command === "plan" && positionals[0] === "approve") {
+    const usage =
+        "plan approve PLAN... [--batch N] [--yes [--expect HASHES]] --as-person",
+      names = positionals.slice(1);
+    if (!names.length && options.batch === undefined) need(undefined, usage);
+    const listed = await localOrRequest("plan.approvalBatches", {}),
+      drafts = listed.batches.flatMap((batch) => batch.specs),
+      ids = [];
+    if (options.batch !== undefined) {
+      const batch = listed.batches[Number(options.batch) - 1];
+      if (!/^[1-9][0-9]*$/.test(String(options.batch)) || !batch)
+        throw Error(
+          `There is no batch ${options.batch}. avoozl plan batches lists ${listed.batches.length}.`,
+        );
+      ids.push(...batch.specs.map((entry) => entry.id));
+    }
+    for (const name of names) {
+      const entry = drafts.find((e) => e.id === name || e.spec === name);
+      if (!entry) throw Error(`${name} is not a draft spec.`);
+      if (!ids.includes(entry.id)) ids.push(entry.id);
+    }
+    const chosen = ids.map((id) => drafts.find((entry) => entry.id === id)),
+      short = (entry) => entry.hash.slice(0, 16);
+    if (!options.yes) {
+      const { selection } = await localOrRequest("plan.approvalBatches", {
+        ids,
+      });
+      console.log("Nothing approved. These specs would be approved:");
+      for (const entry of selection.specs) console.log("  " + batchLine(entry));
+      const tasks = selection.specs.reduce((sum, e) => sum + e.tasks, 0);
+      console.log(
+        `${selection.specs.length} specs, ${tasks} tasks, ${selection.writes} GitHub issue writes when projected.`,
+      );
+      if (selection.pullRequest)
+        console.log(
+          `${selection.pullRequest} of these are approved through one approval pull request: --yes opens it, and running the same command again after it merges approves them.`,
+        );
+      if (selection.missing.length)
+        console.log(
+          `Warning: these need specs left out of the selection: ${selection.missing.join(", ")}.`,
+        );
+      for (const failure of selection.failures)
+        console.log(
+          `Would fail: ${failure.spec || failure.id}: ${failure.error}`,
+        );
+      const workspace = options.workspace
+        ? ` --workspace ${JSON.stringify(options.workspace)}`
+        : "";
+      console.log("To approve exactly these revisions, run:");
+      console.log(
+        `  avoozl plan approve ${options.batch !== undefined ? `--batch ${options.batch} ` : ""}${names.join(" ")}${names.length ? " " : ""}--yes --expect ${chosen.map(short).join(",")}${workspace} --as-person`,
+      );
+      if (!selection.ok) process.exitCode = 1;
+    } else {
+      // --expect pins the reviewed revisions: every chosen spec's hash must
+      // start with one listed prefix, and nothing else may be chosen.
+      if (options.expect !== undefined) {
+        const expected = String(options.expect).split(",").filter(Boolean);
+        if (expected.some((prefix) => !/^[0-9a-f]{16,64}$/.test(prefix)))
+          throw Error("--expect takes hash prefixes of 16 or more hex digits.");
+        const changed = chosen.filter(
+          (entry) => !expected.some((prefix) => entry.hash.startsWith(prefix)),
+        );
+        if (changed.length || expected.length !== chosen.length)
+          throw Error(
+            `The specs changed since that preview${changed.length ? `: ${changed.map((e) => e.spec).join(", ")}` : ""}. Nothing approved. Preview again without --yes.`,
+          );
+      }
+      const result = await localOrRequest("plan.approveMany", {
+        items: chosen.map((entry) => ({
+          id: entry.id,
+          expectedHash: entry.hash,
+        })),
+      });
+      if (result.pending) {
+        console.log(
+          "Nothing approved yet. Merge this approval pull request, then run the same command again:",
+        );
+        for (const pull of result.approvalPullRequests)
+          console.log(
+            `  https://github.com/${pull.repository}/pull/${pull.number}  (${pull.specs.length} specs)`,
+          );
+      } else if (result.ok) {
+        console.log(`Approved ${result.approved.length} specs:`);
+        for (const entry of chosen)
+          console.log(`  ${entry.spec}  ${short(entry)}  ${entry.tasks} tasks`);
+      } else {
+        console.log("Nothing approved. These specs failed:");
+        for (const failure of result.failures)
+          console.log(`  ${failure.spec || failure.id}: ${failure.error}`);
+        process.exitCode = 1;
+      }
+    }
   } else if (command === "plan" && positionals[0] === "delete") {
     const id = need(
         positionals[1],
@@ -1657,6 +1761,9 @@ try {
   content allow DECISION_ID --reason TEXT Allow one blocked write once (a person only)
   content show DECISION_ID              Read the matched line again from its source
   content check --push --task TASK_ID   The pre-push hook: refuse a push whose added lines match
+  plan batches [--writes]               Draft specs in approval order: batch 1 needs no unapproved spec; a loop shares a batch
+  plan approve PLAN... [--batch N] [--yes [--expect HASHES]]
+                                        Preview approving specs together; --yes approves all or none (a person only)
   plan delete PLAN_OR_SPEC [--yes] [--retire] [--delete-spec-folder]
                                         Preview a plan delete; --yes deletes (a person only). --retire is for an approved plan
   plan restore PLAN_ID                  Bring a deleted plan back (a person only)
@@ -1782,4 +1889,21 @@ function receiptText(r) {
       `  ${row.stage}: ${usd(row.usd)}${row.priced ? "" : " (some unpriced)"}`,
     );
   return lines.join("\n");
+}
+
+// One spec in `plan batches` and the approve preview.
+function batchLine(entry) {
+  return [
+    entry.spec,
+    entry.hash.slice(0, 16),
+    `${entry.tasks} tasks`,
+    ...(entry.writes !== undefined && entry.writes !== null
+      ? [`${entry.writes} writes`]
+      : []),
+    ...(entry.writesError ? [`writes unknown: ${entry.writesError}`] : []),
+    ...(entry.loop ? ["loop"] : []),
+    ...(entry.errors ? [`${entry.errors} lint errors`] : []),
+    ...(entry.waitsOn ? [`waits on ${entry.waitsOn.join(", ")}`] : []),
+    ...(entry.failure ? [`fails: ${entry.failure}`] : []),
+  ].join("  ");
 }
