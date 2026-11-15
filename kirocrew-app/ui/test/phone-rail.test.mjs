@@ -34,7 +34,7 @@ for (const dark of [false, true]) {
     await page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
     await settle()
     const bar = await box('[data-top-rail-bar]')
-    assert.equal(bar.height, 38, `the bar is Radar's 38 px top card (${bar.height})`)
+    assert.ok(bar.height <= 28, `the bar is a compact button (${bar.height})`)
     // The hamburger shares the one header row with Stop the line and More.
     assert.ok((await box('[data-phone-header]')).width >= 340, 'the header row spans the screen')
     assert.ok(bar.top < 250, 'the bar is near the top')

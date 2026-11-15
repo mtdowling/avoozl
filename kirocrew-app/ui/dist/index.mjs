@@ -490,7 +490,7 @@ function Rt(e) {
 				display: "flex",
 				alignItems: "center",
 				width: "100%",
-				height: 32,
+				height: 28,
 				padding: "0 12px",
 				background: r ? "var(--accent-subtle, var(--bg-hover, var(--bg-elevated)))" : "none",
 				border: 0,
@@ -638,9 +638,9 @@ function zt(e) {
 			gap: 8,
 			minWidth: 0,
 			flex: "1 1 auto",
-			height: 38,
+			height: 28,
 			boxSizing: "border-box",
-			padding: "0 12px",
+			padding: "0 10px",
 			color: "inherit",
 			cursor: "pointer",
 			fontSize: 14,
@@ -4020,8 +4020,7 @@ function Mo() {
 					border: 0,
 					color: "var(--accent)",
 					cursor: "pointer",
-					minHeight: 32,
-					padding: "0 4px"
+					padding: "2px 4px"
 				},
 				children: "Exit demo"
 			}),

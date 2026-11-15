@@ -27,10 +27,7 @@ const MAX = 28
 // select or text field is not a button.
 // The side panel's section headers are disclosure rows the width of the panel, 38 px
 // like Kiro Crew's own Crew log; they are rows, not buttons.
-// The left nav's rows (32 px) and the phone's top card (38 px) are Issue
-// Radar's sidebar rows and top card, not buttons; radar-heights.test.mjs
-// holds them to Radar's sizes.
-const BUTTONS = `button:not([data-pp-section-head]):not(summary):not([data-nav-item]):not([data-top-rail-bar]), [role="button"], a[data-sc-act], a[data-pp-act]`
+const BUTTONS = `button:not([data-pp-section-head]):not(summary), [role="button"], a[data-sc-act], a[data-pp-act]`
 const tall = `[...document.querySelectorAll(${JSON.stringify(BUTTONS)})].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > ${MAX} + 0.5 }).map((el) => (el.getAttribute('aria-label') || el.textContent).trim().slice(0, 30) + ' ' + Math.round(el.getBoundingClientRect().height) + 'px')`
 
 const SIZES = [
@@ -77,3 +74,17 @@ for (const size of SIZES) {
     assert.deepEqual([...new Set(found)], [])
   })
 }
+
+// No tall tap size comes back in the source: no pointer:coarse bump and no
+// 40-59 px height or minimum on anything.
+test('no source file has a tall tap-target rule', async () => {
+  const fs = await import('node:fs')
+  const dir = new URL('../src/', import.meta.url)
+  const bad = []
+  for (const name of fs.readdirSync(dir).filter((n) => /\.(tsx?|css)$/.test(n))) {
+    const text = fs.readFileSync(new URL(name, dir), 'utf8')
+    for (const [i, line] of text.split('\n').entries())
+      if (/pointer:\s*coarse|tap[- ]target|min-?height:\s*['"]?[45]\d(px)?\b|minHeight:\s*[45]\d\b|\bmin-h-(1[0-4]|\[[45]\d)/i.test(line)) bad.push(`${name}:${i + 1}`)
+  }
+  assert.deepEqual(bad, [])
+})

@@ -186,7 +186,7 @@ export function DemoBar() {
       >
         <DemoBadge />
         <span className="min-w-0 flex-1 truncate text-muted">Made-up sample. Changes nothing.</span>
-        <button type="button" data-demo-exit onClick={() => void demo.exit()} className="text-xs font-semibold" style={{ background: 'none', border: 0, color: 'var(--accent)', cursor: 'pointer', minHeight: 32, padding: '0 4px' }}>
+        <button type="button" data-demo-exit onClick={() => void demo.exit()} className="text-xs font-semibold" style={{ background: 'none', border: 0, color: 'var(--accent)', cursor: 'pointer', padding: '2px 4px' }}>
           Exit demo
         </button>
         {notice}
