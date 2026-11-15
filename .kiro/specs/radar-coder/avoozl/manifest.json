@@ -2563,6 +2563,200 @@
         "npm test",
         "git diff --check"
       ]
+    },
+    "rc-30.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "`rankCandidates`: unblock count, overlap hold-back, aging; `release.ranking` settings. See RC31.1, RC31.2, RC31.3, RC31.4, RC31.6; \u00a7D36.",
+      "acceptance": [
+        "`src/app/test/release-ranking.test.mjs` passes and `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "rc-30.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Release queue says why a task is next or held. See RC31.5; \u00a7D36.",
+      "acceptance": [
+        "The tests pass, `npm run test:ui` passes, and the pull request shows the queue before and after."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-30.1"
+      ]
+    },
+    "rc-p30": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 30: the critical path goes first. See RC31; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/` lists the scratch repository."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-30.1",
+        "rc-30.2"
+      ]
+    },
+    "rc-31.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "`bin/build-receipt`: wrapper, cold or warm, repository parser. See RC32.1, RC32.2, RC32.3; \u00a7D37.",
+      "acceptance": [
+        "`src/app/test/build-receipt.test.mjs` passes and `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "rc-31.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "CI runs build and test through the wrapper; job summary and `build-receipt` artifact. See RC32.4; \u00a7D37.",
+      "acceptance": [
+        "A CI run on the pull request shows the summary and the artifact."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-31.1"
+      ]
+    },
+    "rc-31.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Reader: one read per merged pull request, counted as `receipt` and cached. See RC32.5; \u00a7D37.",
+      "acceptance": [
+        "The tests pass and `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-31.1"
+      ]
+    },
+    "rc-31.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Trace and Flow show receipts; grouped by instance. See RC32.6, RC32.7; \u00a7D37.",
+      "acceptance": [
+        "The tests pass, `npm run test:ui` passes, and the pull request shows Trace and Flow before and after."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-31.3"
+      ]
+    },
+    "rc-31.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Repo rules in each issue brief name the wrapper. See RC32.8; \u00a7D37.",
+      "acceptance": [
+        "The tests pass and `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-31.1"
+      ]
+    },
+    "rc-p31": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 31: CI writes a receipt and Avoozl reads it once. See RC32; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/` lists the scratch repository."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-31.2",
+        "rc-31.3",
+        "rc-31.4",
+        "rc-31.5"
+      ]
+    },
+    "rc-32.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Budgets and the breach test over comparable receipts. See RC33.1, RC33.2; \u00a7D38.",
+      "acceptance": [
+        "The tests pass and `npm test` passes."
+      ],
+      "completion": "person",
+      "manual": true
+    },
+    "rc-32.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "One deduped repair issue; later breaches comment; pre-approved classes. See RC33.3, RC33.4; \u00a7D38.",
+      "acceptance": [
+        "The tests pass and `npm test` passes."
+      ],
+      "completion": "person",
+      "requires": [
+        "rc-32.1"
+      ],
+      "manual": true
+    },
+    "rc-32.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Guards: no deleted, skipped or weakened tests; close needs before and. See RC33.5, RC33.6; \u00a7D38.",
+      "acceptance": [
+        "The tests pass and `npm test` passes."
+      ],
+      "completion": "person",
+      "requires": [
+        "receipts",
+        "after rc-32.2"
+      ],
+      "manual": true
+    },
+    "rc-p32": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 32: a planted slow step is repaired without weakening tests. See RC33; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/` lists the scratch repository."
+      ],
+      "completion": "person",
+      "requires": [
+        "rc-32.1",
+        "rc-32.2",
+        "rc-32.3"
+      ],
+      "manual": true
     }
   }
 }
