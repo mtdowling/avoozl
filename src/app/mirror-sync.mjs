@@ -64,12 +64,15 @@ export async function gitCopy({ source, mirror, branch, sha }) {
   }
 }
 
-// The tick step. Returns {notify, errors}. State is one entry per source:
-// {state: ok|diverged|error, ...}. A row and a notice appear once per cause.
+// The tick step. Returns {notify, errors}. State is one entry per source
+// branch: {state: ok|diverged|error, ...}. A row and a notice appear once per
+// cause. The default branch is synced first; each public branch (RC26.3,
+// `publicBranches`) is synced after it on the same terms, with its own
+// explicit refspec.
 export async function mirrorSyncStep(
   store,
   github,
-  { policy, copy = gitCopy } = {},
+  { policy, copy = gitCopy, publicBranches = () => [] } = {},
 ) {
   const notify = [],
     errors = [],
@@ -80,75 +83,106 @@ export async function mirrorSyncStep(
   )) {
     const mirror = entry.mirror;
     if (!mirror || !github) continue;
-    const before = old.entries?.[repository],
-      stop = (state, cause, row) => {
-        const fresh = before?.cause !== cause;
-        next.entries[repository] = {
-          state,
-          cause,
-          openedAt: fresh ? new Date().toISOString() : before.openedAt,
-          ...row,
+    const sync = async (key, sourceBranch, mirrorBranch, label) => {
+      const before = old.entries?.[key],
+        stop = (state, cause, row) => {
+          const fresh = before?.cause !== cause;
+          next.entries[key] = {
+            state,
+            cause,
+            openedAt: fresh ? new Date().toISOString() : before.openedAt,
+            repository,
+            ...(label ? { branch: label } : {}),
+            ...row,
+          };
+          return fresh;
         };
-        return fresh;
-      };
+      try {
+        const [a, b] = await Promise.all([
+            github.branch(mirror.source, sourceBranch),
+            github.branch(mirror.mirror, mirrorBranch).catch((error) => {
+              // A public branch the mirror has no copy of yet is copied whole.
+              if (label && error.status === 404) return null;
+              throw error;
+            }),
+          ]),
+          sourceHead = a?.commit?.sha,
+          mirrorHead = b?.commit?.sha;
+        if (!sourceHead || (!mirrorHead && !(label && !b)))
+          throw new Error("a branch head could not be read");
+        if (sourceHead === mirrorHead) {
+          next.entries[key] = { state: "ok" };
+          return;
+        }
+        // The mirror head is an ancestor of the source head, or it is not
+        // (GitHub answers 404 when the source has no such commit).
+        let status = mirrorHead ? null : "ahead";
+        if (mirrorHead)
+          try {
+            status = (
+              await github.compareCommits(mirror.source, mirrorHead, sourceHead)
+            )?.status;
+          } catch (error) {
+            if (error.status !== 404 && error.status !== 422) throw error;
+          }
+        if (status !== "ahead") {
+          if (
+            stop("diverged", `diverged:${sourceHead}:${mirrorHead}`, {
+              sourceHead,
+              mirrorHead,
+              branch: mirrorBranch,
+            })
+          )
+            notify.push({
+              channel: "decision",
+              title: `${mirror.mirror} has diverged from ${mirror.source}`,
+              text: `The ${mirrorBranch} branch of ${mirror.mirror} (${short(mirrorHead)}) has commits ${mirror.source} (${short(sourceHead)}) does not. Avoozl changed nothing and stopped syncing it.`,
+            });
+          return;
+        }
+        await copy({
+          source: mirror.source,
+          mirror: mirror.mirror,
+          branch: mirrorBranch,
+          sha: sourceHead,
+        });
+        next.entries[key] = { state: "ok" };
+      } catch (error) {
+        const text = `${mirror.mirror} could not be synced from ${mirror.source}: ${error.message}`;
+        if (stop("error", `error:${error.message}`, { error: text }))
+          errors.push(text);
+      }
+    };
+    let sourceBranch, mirrorBranch;
     try {
       const [from, to] = await Promise.all([
         github.repository(parseRepository(mirror.source)),
         github.repository(parseRepository(mirror.mirror)),
       ]);
-      const sourceBranch = from?.default_branch,
-        mirrorBranch = to?.default_branch;
+      sourceBranch = from?.default_branch;
+      mirrorBranch = to?.default_branch;
       if (!sourceBranch || !mirrorBranch)
         throw new Error("the default branch could not be read");
-      const [a, b] = await Promise.all([
-          github.branch(mirror.source, sourceBranch),
-          github.branch(mirror.mirror, mirrorBranch),
-        ]),
-        sourceHead = a?.commit?.sha,
-        mirrorHead = b?.commit?.sha;
-      if (!sourceHead || !mirrorHead)
-        throw new Error("a branch head could not be read");
-      if (sourceHead === mirrorHead) {
-        next.entries[repository] = { state: "ok" };
-        continue;
-      }
-      // The mirror head is an ancestor of the source head, or it is not
-      // (GitHub answers 404 when the source has no such commit).
-      let status = null;
-      try {
-        status = (
-          await github.compareCommits(mirror.source, mirrorHead, sourceHead)
-        )?.status;
-      } catch (error) {
-        if (error.status !== 404 && error.status !== 422) throw error;
-      }
-      if (status !== "ahead") {
-        if (
-          stop("diverged", `diverged:${sourceHead}:${mirrorHead}`, {
-            sourceHead,
-            mirrorHead,
-            branch: mirrorBranch,
-          })
-        )
-          notify.push({
-            channel: "decision",
-            title: `${mirror.mirror} has diverged from ${mirror.source}`,
-            text: `The default branch of ${mirror.mirror} (${short(mirrorHead)}) has commits ${mirror.source} (${short(sourceHead)}) does not. Avoozl changed nothing and stopped syncing it.`,
-          });
-        continue;
-      }
-      await copy({
-        source: mirror.source,
-        mirror: mirror.mirror,
-        branch: mirrorBranch,
-        sha: sourceHead,
-      });
-      next.entries[repository] = { state: "ok" };
     } catch (error) {
-      const text = `${mirror.mirror} could not be synced from ${mirror.source}: ${error.message}`;
-      if (stop("error", `error:${error.message}`, { error: text }))
-        errors.push(text);
+      const text = `${mirror.mirror} could not be synced from ${mirror.source}: ${error.message}`,
+        before = old.entries?.[repository];
+      next.entries[repository] = {
+        state: "error",
+        cause: `error:${error.message}`,
+        openedAt:
+          before?.cause === `error:${error.message}`
+            ? before.openedAt
+            : new Date().toISOString(),
+        repository,
+        error: text,
+      };
+      if (before?.cause !== `error:${error.message}`) errors.push(text);
+      continue;
     }
+    await sync(repository, sourceBranch, mirrorBranch, null);
+    for (const name of publicBranches(repository, mirror))
+      if (name !== sourceBranch)
+        await sync(`${repository}@${name}`, name, name, name);
   }
   if (Object.keys(next.entries).length || Object.keys(old.entries).length)
     store.setMeta(META, next);
@@ -158,21 +192,23 @@ export async function mirrorSyncStep(
 // The Needs you rows the last step left standing.
 export function mirrorNeedsYou(store) {
   const items = [];
-  for (const [repository, entry] of Object.entries(
+  for (const [key, entry] of Object.entries(
     store.getMeta(META)?.entries ?? {},
   )) {
     if (entry.state === "ok") continue;
+    const repository = entry.repository ?? key,
+      where = entry.branch ? ` (public branch ${entry.branch})` : "";
     items.push({
       kind: "needs-human",
       reason: "crew",
-      id: `mirror-sync:${repository}`,
+      id: `mirror-sync:${key}`,
       taskId: null,
       authority: "github",
       link: `https://github.com/${repository}`,
       title:
         entry.state === "diverged"
-          ? `The mirror of ${repository} has diverged`
-          : `The mirror of ${repository} could not be synced`,
+          ? `The mirror of ${repository}${where} has diverged`
+          : `The mirror of ${repository}${where} could not be synced`,
       detail:
         entry.state === "diverged"
           ? `The mirror's default branch (${short(entry.mirrorHead)}) and ${repository} (${short(entry.sourceHead)}) have different history. Avoozl does not reset, rebase or force push. Fix the mirror yourself; the row clears when the mirror is behind the source again.`
