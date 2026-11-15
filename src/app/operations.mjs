@@ -149,7 +149,13 @@ import {
   decideConflictFix,
   reportConflictFix,
 } from "./radar-conflict-fix.mjs";
-import { rateNeedsYou, rateView } from "./github-rate.mjs";
+import {
+  countFilePath,
+  rateNeedsYou,
+  rateView,
+  sourceOfOperation,
+  withSource,
+} from "./github-rate.mjs";
 import { syncNeedsYou } from "./integration-sync.mjs";
 import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
 import {
@@ -985,7 +991,10 @@ export class Operations {
     const client = github || defaultGitHubClient();
     // Conditional reads and the rate-limit pause live in this workspace.
     if (client instanceof GitHubClient)
-      client.bind(store, { cacheSeconds: (repo) => this.cacheSeconds(repo) });
+      client.bind(store, {
+        cacheSeconds: (repo) => this.cacheSeconds(repo),
+        countFile: countFilePath(),
+      });
     this.github = guardGitHub(client, store);
     this.configuration = configuration;
     this.workspaceRoot = workspaceRoot;
@@ -2147,7 +2156,7 @@ export class Operations {
       error,
       // The last GitHub rate-limit numbers, for Settings > GitHub.
       rate: {
-        ...rateView(this.store),
+        ...rateView(this.store, Date.now(), { countFile: countFilePath() }),
         cacheSeconds: this.cacheSeconds(),
       },
       // Review roles from `delivery` in the same file, shown beside each
@@ -2499,7 +2508,9 @@ export class Operations {
   }
 
   async execute(name, input = {}, expectedRevision, context = {}) {
-    const result = await this.perform(name, input, expectedRevision, context);
+    const result = await withSource(sourceOfOperation(name), () =>
+      this.perform(name, input, expectedRevision, context),
+    );
     // One activity row for a listed local action (§4.19); never fails it.
     recordOperation(this.store, name, input, result, {
       context,

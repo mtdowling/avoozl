@@ -624,3 +624,20 @@ Requirement RC28. One resolver chat merges the base into a crew's conflicted pul
 - [ ] rc-p27 Proof 27: a scratch crew pull request with a source conflict, after rc-27.1, rc-27.2, rc-27.3, rc-27.4, rc-27.5 [RC28] (§D17)
   - Setup: a scratch repository created only for the proof. Action: plant a source conflict on a crew pull request. Expected: one merge commit on the same branch keeps both sides, the pull request is armed again (squash) and lands as one commit, and gets one comment; a planted drop gives one row and no push. Failure means: a change on main can be lost without a word. Next decision: set `conflicts.onSourceConflict` to `ask`. List the scratch repository in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repository.
+
+## Phase 28: GitHub usage counter and batched reads
+
+Requirement RC29. Count every call by source, and read each repository once.
+
+- [x] rc-28.1 Call counter by source, `bin/gh-counted`, and the usage in the rate view [RC29.1, RC29.2] (§D34)
+  - Tests first: calls, 304s and cache hits are counted by source; the wrapper forwards the exit code and records its source.
+  - Done when: `src/app/test/github-usage.test.mjs` passes and `npm test` passes.
+- [x] rc-28.2 One open-pull-request query per repository for heads and closing issues [RC29.4, RC29.5] (§D34)
+  - Tests first: ten open pull requests cost one query, including closing issues, labels and checks.
+  - Done when: The test passes and `npm test` passes.
+- [ ] rc-28.3 Settings > GitHub shows calls this hour by source, after rc-28.1 [RC29.3] (§D34)
+  - A small table beside the rate limit: source, calls, cached, 304; read from the rate view.
+  - Done when: A page test shows the rows; screenshots are in the pull request; `npm run test:ui` passes.
+- [ ] rc-p28 Proof 28: one check costs one call, after rc-28.1, rc-28.2, rc-28.3 [RC29] (§D17)
+  - Setup: a repository with open pull requests. Action: open Home and Graph twice inside the cache window, and run one tick. Expected: Settings > GitHub shows one GraphQL call for the pull-request read. Failure means: views still read pull requests one by one. Next decision: batch the remaining readers by hand.
+  - Done when: Expected result observed; receipt under `docs/evidence/`.
