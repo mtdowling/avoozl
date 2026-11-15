@@ -44,7 +44,7 @@ test("only the right pull request is armed, and only once across three ticks", a
   ])
     github.closes.set(issue, [pull]);
   for (let round = 0; round < 3; round += 1) await tick();
-  assert.deepEqual(github.armed, [["PR_16", "MERGE"]]);
+  assert.deepEqual(github.armed, [["PR_16", "SQUASH"]]);
 });
 
 test("a pull request already armed on GitHub is not armed again", async (t) => {
@@ -83,7 +83,7 @@ test("an edited marker blocks arming and opens one row", async (t) => {
   verdicts.delete(`${REPO}#6`);
   github.issues.get(6).body = managed() + "\n" + provenance(["rc-y"]);
   await tick();
-  assert.deepEqual(github.armed, [["PR_16", "MERGE"]]);
+  assert.deepEqual(github.armed, [["PR_16", "SQUASH"]]);
 });
 
 test("an unchanged marker runs the check once across three ticks", async (t) => {
@@ -107,7 +107,7 @@ test("a check that could not run arms nothing and is tried again", async (t) => 
   assert.equal(verified.length, 2);
   verdicts.delete(`${REPO}#6`);
   await tick();
-  assert.deepEqual(github.armed, [["PR_16", "MERGE"]]);
+  assert.deepEqual(github.armed, [["PR_16", "SQUASH"]]);
 });
 
 test("no pull request is verified before its author and origin pass", async (t) => {
@@ -159,7 +159,7 @@ test("a stop keeps a new pull request unarmed until it is resumed", async (t) =>
   assert.deepEqual(github.armed, []);
   await ops.execute("flow.resume", { stopId: stop.id });
   await tick();
-  assert.deepEqual(github.armed, [["PR_16", "MERGE"]]);
+  assert.deepEqual(github.armed, [["PR_16", "SQUASH"]]);
 });
 
 test("Disarm turns auto-merge off for a person, is refused for an agent, and the tick does not arm again", async (t) => {
@@ -211,7 +211,7 @@ test("a public repository is not armed until its sign-off is complete", async (t
   assert.deepEqual(github.armed, []);
   store.setMeta("publicSignoff", { [REPO]: { complete: true } });
   await tick();
-  assert.deepEqual(github.armed, [["PR_16", "MERGE"]]);
+  assert.deepEqual(github.armed, [["PR_16", "SQUASH"]]);
 });
 
 // rc-16.2: an epic's pull request targets its integration branch.
@@ -233,7 +233,7 @@ test("an epic's pull request is armed only when it targets the integration branc
   github.closes.set(6, [16]);
   github.closes.set(7, [17]);
   for (let round = 0; round < 3; round += 1) await tick();
-  assert.deepEqual(github.armed, [["PR_17", "MERGE"]]);
+  assert.deepEqual(github.armed, [["PR_17", "SQUASH"]]);
 });
 
 test("the branch's own merge path decides arming into it", async (t) => {
@@ -256,5 +256,5 @@ test("the branch's own merge path decides arming into it", async (t) => {
   github.closes.set(6, [17]);
   github.closes.set(7, [18]);
   await tick();
-  assert.deepEqual(github.armed, [["PR_18", "MERGE"]]);
+  assert.deepEqual(github.armed, [["PR_18", "SQUASH"]]);
 });

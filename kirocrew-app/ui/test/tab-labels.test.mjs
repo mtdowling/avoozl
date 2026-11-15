@@ -46,14 +46,30 @@ for (const [width, height] of [[390, 800], [1280, 800]])
   for (const dark of [false, true])
     test(`every tab shows a readable label when inactive at ${width} px ${dark ? 'dark' : 'light'}`, { skip }, async () => {
       await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light' }), { width, height, dark })
-      await page.until(`Boolean(document.querySelector('[data-top-row] [role="tab"]'))`)
+      // A phone shows the tabs as the top rail's list, once the bar is open.
+      const openRail = () => page.evaluate(`(() => { const bar = document.querySelector('[data-top-rail-bar]'); if (bar && bar.getAttribute('aria-expanded') !== 'true') bar.click(); return true })()`)
+      await page.until(`Boolean(document.querySelector('[data-top-row] [role="tab"], [data-top-rail-bar]'))`)
+      await openRail()
+      await settle()
       const seen = new Set()
       const names = await page.evaluate(`[...document.querySelectorAll('[data-top-row] [role="tab"]')].map((t, i) => i)`)
       for (const index of names) {
+        await openRail()
+        await settle()
         await page.evaluate(`document.querySelectorAll('[data-top-row] [role="tab"]')[${index}].click()`)
         await settle()
-        const bars = await page.evaluate(READ)
-        assert.ok(bars.length >= 1, 'the tab row is showing')
+        // A phone's rail list is checked open; the page's own bars, closed.
+        const rail = await page.evaluate(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
+        let bars = []
+        if (rail) {
+          await openRail()
+          await settle()
+          bars = (await page.evaluate(READ)).filter((bar) => bar.bar === 'Avoozl views')
+          await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+          await settle()
+          bars = bars.concat((await page.evaluate(READ)).filter((bar) => bar.bar !== 'Avoozl views'))
+        } else bars = await page.evaluate(READ)
+        assert.ok(bars.length >= 1, 'a tab bar is showing')
         assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-collapsed]'))`), false, 'no tab bar collapses into a dropdown')
         for (const bar of bars) {
           seen.add(bar.bar)
