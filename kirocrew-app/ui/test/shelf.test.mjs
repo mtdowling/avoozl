@@ -29,7 +29,9 @@ const SHELF = `document.querySelector('[data-settings-shelf="repositories"]')`
 
 async function start(width, dark = false) {
   await page.open(harness.url({ page: 'app', radar: '1', theme: dark ? 'dark' : 'light' }), { width, height: 800, dark })
-  await page.until(`Boolean(document.querySelector('[role="tab"]'))`)
+  await page.until(`Boolean(document.querySelector('[role="tab"], [data-top-rail-bar]'))`)
+  // A phone's tabs are in the top rail's list, once its bar is open.
+  await page.evaluate(`document.querySelector('[data-top-rail-bar]')?.click()`)
   await page.evaluate(`[...document.querySelectorAll('button[role="tab"]')].find((b) => b.textContent.trim() === 'Settings').click()`)
   await page.until(`Boolean(document.querySelector('[data-settings-section="repositories"] button[aria-expanded]'))`)
   await page.evaluate(`document.querySelector('[data-settings-section="repositories"] button[aria-expanded]').click()`)

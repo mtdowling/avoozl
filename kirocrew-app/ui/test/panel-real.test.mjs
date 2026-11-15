@@ -23,9 +23,10 @@ before(async () => {
   const demo = demoOperations(root)
   replies = {}
   try {
-    for (const name of ['conflicts.view', 'radar.crews', 'remote.view', 'radar.releasequeue', 'flow.view', 'plan.specs']) replies[name] = await demo.execute(name, {})
+    // The panel's one read, from the real operations over the sample workspace.
+    replies['panel.view'] = await demo.execute('panel.view', {})
     // A driver the chat reported itself, as its hook would.
-    replies['driversession.view'] = { state: 'running', slot: 'chat-7-1', href: '/chat?sid=chat-7-1', openedAt: new Date(Date.now() - 7200000).toISOString(), lastSeenAt: new Date(Date.now() - 300000).toISOString(), source: 'stop', quietAfterMinutes: 30 }
+    replies['panel.view'].driver = { state: 'running', slot: 'chat-7-1', href: '/chat?sid=chat-7-1', openedAt: new Date(Date.now() - 7200000).toISOString(), lastSeenAt: new Date(Date.now() - 300000).toISOString(), source: 'stop', quietAfterMinutes: 30 }
   } finally {
     demo.close()
     fs.rmSync(tmp, { recursive: true, force: true })
@@ -54,7 +55,7 @@ const shot = async (name) => {
 const rows = `Boolean(document.querySelector('[data-waiting-row]')) && Boolean(document.querySelector('[data-flight-row]'))`
 
 test('a normal chat shows real waiting rows, crews and the driver link', { skip }, async () => {
-  assert.ok(replies['conflicts.view'].items.length > 0, 'the sample has something waiting')
+  assert.ok(replies['panel.view'].conflicts.length > 0, 'the sample has something waiting')
   await open('chat-1', rows)
   assert.ok((await count('[data-waiting-row]')) > 0)
   assert.ok((await count('[data-flight-row]')) > 0)
@@ -65,14 +66,14 @@ test('a normal chat shows real waiting rows, crews and the driver link', { skip 
 })
 
 test('a Spec Builder chat shows the spec check for a real spec', { skip }, async () => {
-  const spec = replies['plan.specs'].items[0]
+  const spec = replies['panel.view'].specs[0]
   await open(`spec-builder-${spec.name}`, `Boolean(document.querySelector('[data-panel-spec]')) && document.querySelector('[data-panel-spec]').textContent.includes('Files:')`)
   assert.equal(await page.evaluate(`document.querySelector('[data-panel-kind]').dataset.panelKind`), 'spec-builder')
   await shot('spec-builder-chat')
 })
 
 test('a crew chat shows the claim of a real crew', { skip }, async () => {
-  const row = replies['radar.crews'].rows.find((item) => item.crewId)
+  const row = replies['panel.view'].crews.rows.find((item) => item.crewId)
   assert.ok(row, 'the sample has a crew with an id')
   await open(`crew-${row.crewId}`, `Boolean(document.querySelector('[data-panel-crew]')) && document.querySelector('[data-panel-crew]').textContent.includes(${JSON.stringify(row.title)})`)
   assert.equal(await count('[data-rail-step]') > 0, true)

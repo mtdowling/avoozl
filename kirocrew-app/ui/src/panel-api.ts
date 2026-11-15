@@ -6,10 +6,38 @@
 import { driverLine, type DriverRead, type DriverState } from './driver-view-api.ts'
 import { bannerText, type FlowViewModel } from './flow-api.ts'
 import type { ReleaseQueue } from './release-api.ts'
+import type { SpecSummary } from './plans-api.ts'
 import { linkHref, type ConflictItem, type RadarClaim, type RadarCrews, type RemoteWorker } from './views-api.ts'
+import { COMMAND_PATH } from './workspace-api.ts'
+import type { AppApi } from '@kirocrew/app-sdk'
 
-// How often the panel reads while it is on screen and visible.
+// How often the panel reads while it is on screen and visible, when nothing
+// else drives it. The panel itself passes 0: its Refresh button counts down
+// the GitHub cache time and reads at 0.
 export const PANEL_REFRESH_MS = 30_000
+
+// What `panel.view` returns: every part of the panel in one read. A part whose
+// own read failed is null.
+export interface PanelChecks {
+  state: 'passing' | 'failing' | 'pending' | 'none'
+  total: number
+  done: number
+  failed: string[]
+}
+export interface PanelRead extends PanelInput {
+  readAt?: string
+  driver?: DriverRead | null
+  specs?: SpecSummary[] | null
+  instance?: { id: string; name: string } | null
+  // "owner/repo#57" -> the checks on that pull request's head.
+  checks?: Record<string, PanelChecks> | null
+}
+
+// The panel's one read, for the workspace it shows.
+export async function readPanel(api: AppApi, workspaceId: string): Promise<PanelRead> {
+  const reply = await api.post<{ result: PanelRead }>(COMMAND_PATH, { operation: 'panel.view', input: {}, workspaceId })
+  return reply.result
+}
 
 interface Listener {
   addEventListener(name: string, fn: () => void): void
@@ -45,13 +73,13 @@ export function startRefresh(load: () => unknown, options: RefreshOptions): () =
   const visible = () => options.doc.visibilityState !== 'hidden'
   const onTick = () => visible() && void run()
   const onShow = () => visible() && void run()
-  const timer = options.setTimer(onTick, options.intervalMs)
+  const timer = options.intervalMs > 0 ? options.setTimer(onTick, options.intervalMs) : null
   options.win.addEventListener('focus', onShow)
   options.doc.addEventListener('visibilitychange', onShow)
   void run()
   return () => {
     live = false
-    options.clearTimer(timer)
+    if (timer !== null) options.clearTimer(timer)
     options.win.removeEventListener('focus', onShow)
     options.doc.removeEventListener('visibilitychange', onShow)
   }
@@ -68,6 +96,8 @@ export interface WaitingRow {
   label: string
   title: string
   detail: string
+  // When a person could first act: the edit's time for a conflict, else null.
+  at: string | null
   actions: PanelAction[]
 }
 
@@ -78,6 +108,10 @@ export interface FlightRow {
   // "o/r#52" for a crew's claim, the task id for a remote coder.
   ref: string
   who: string
+  // The Avoozl that released the issue, by name, when its marker names one.
+  instance: string | null
+  crew: string | null
+  repository: string | null
   phase: string | null
   stale: boolean
   issueUrl: string | null
@@ -88,6 +122,9 @@ export interface FlightRow {
   // Why there is no Attach, when there is none.
   noAttach: string | null
   pr: boolean
+  // The pull request's checks, or null when unknown or there is no pull request.
+  check: PanelChecks | null
+  claimedAt: string | null
   updated: string | null
 }
 
@@ -110,7 +147,7 @@ export type PanelSection = 'waiting' | 'inFlight' | 'queue' | 'recent'
 export interface PanelModel {
   waiting: WaitingRow[]
   inFlight: FlightRow[]
-  queue: { head: QueueHead[]; held: number; mode: string | null } | null
+  queue: { head: QueueHead[]; next: number; claimed: number; held: number; mode: string | null } | null
   recent: RecentRow[]
   // Open line stops, each as the sentence the Flow banner shows.
   stops: string[]
@@ -124,6 +161,7 @@ export interface PanelInput {
   remote?: RemoteWorker[] | null
   queue?: ReleaseQueue | null
   flow?: Pick<FlowViewModel, 'tasks' | 'line'> | null
+  checks?: Record<string, PanelChecks> | null
 }
 
 // Items a person settles. Local worker items (a stale session, a delivery
@@ -162,17 +200,21 @@ function waitingRow(item: ConflictItem): WaitingRow | null {
     label: LABELS[item.kind] ?? item.kind,
     title: item.title,
     detail: item.detail,
+    at: item.changedAt ?? null,
     actions,
   }
 }
 
-function crewRow(row: RadarClaim): FlightRow {
+function crewRow(row: RadarClaim, names: Map<string, string>, checks: PanelChecks | null): FlightRow {
   return {
     key: `radar:${row.repository}#${row.number}`,
     source: 'radar',
     title: row.title,
     ref: `${row.repository}#${row.number}`,
     who: row.crewName ?? row.crewId ?? 'no crew named',
+    instance: (row.instanceId && names.get(row.instanceId)) || null,
+    crew: row.crewName ?? row.crewId ?? null,
+    repository: row.repository,
     phase: row.phase,
     stale: row.stale,
     issueUrl: linkHref(row.url) ?? null,
@@ -182,6 +224,8 @@ function crewRow(row: RadarClaim): FlightRow {
     attach: row.crewId ? `/chat?sid=crew-${encodeURIComponent(row.crewId)}` : null,
     noAttach: row.crewId ? null : 'The claim names no crew.',
     pr: Boolean(row.pr),
+    check: checks,
+    claimedAt: row.claimedAt ?? null,
     updated: row.updated,
   }
 }
@@ -194,6 +238,9 @@ function remoteRow(worker: RemoteWorker): FlightRow {
     title: worker.taskId,
     ref: worker.taskId,
     who: `${worker.host}, crew ${worker.crewId}`,
+    instance: null,
+    crew: worker.crewId,
+    repository: null,
     phase: worker.status ?? worker.state,
     stale: worker.stale,
     issueUrl: null,
@@ -202,6 +249,8 @@ function remoteRow(worker: RemoteWorker): FlightRow {
     attach,
     noAttach: attach ? null : `Set the dashboard link for ${worker.host} to attach.`,
     pr: false,
+    check: null,
+    claimedAt: null,
     updated: worker.updatedAt || null,
   }
 }
@@ -214,13 +263,17 @@ export function panelModel(input: PanelInput): PanelModel {
   if (!input.flow) unread.push('recent')
 
   const waiting = (input.conflicts ?? []).map(waitingRow).filter((row): row is WaitingRow => row !== null)
-  const inFlight = [...(input.crews?.rows ?? []).map(crewRow), ...(input.remote ?? []).map(remoteRow)]
+  const names = new Map<string, string>()
+  for (const group of input.crews?.groups ?? []) for (const row of group.rows) if (row.instanceId) names.set(row.instanceId, group.name)
+  const inFlight = [...(input.crews?.rows ?? []).map((row) => crewRow(row, names, input.checks?.[`${row.repository}#${row.pr}`] ?? null)), ...(input.remote ?? []).map(remoteRow)]
 
   let queue: PanelModel['queue'] = null
   if (input.queue) {
     const rows = input.queue.repositories.flatMap((repo) => repo.rows.map((row) => ({ repo, row })))
     queue = {
       head: rows.filter((entry) => entry.row.state === 'next').slice(0, 3).map(({ repo, row }) => ({ taskId: row.taskId, title: row.title, repository: repo.repository, reason: row.reason })),
+      next: rows.filter((entry) => entry.row.state === 'next').length,
+      claimed: rows.filter((entry) => entry.row.state === 'claimed').length,
       held: rows.filter((entry) => entry.row.state === 'held').length,
       mode: input.queue.repositories[0]?.mode ?? null,
     }
@@ -275,4 +328,25 @@ export function drivenRoot(read: DriverRead | null | undefined, chat: string): s
 export const sameRoot = (left: string, right: string) => {
   const plain = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '')
   return plain(left) === plain(right)
+}
+
+// "now", "5m", "3h", "2d": how long since `at`, short enough for a row.
+export function shortAgo(at: string | null | undefined, now = Date.now()): string {
+  const time = at ? Date.parse(at) : NaN
+  if (!Number.isFinite(time)) return ''
+  const minutes = Math.max(0, Math.round((now - time) / 60_000))
+  if (minutes < 1) return 'now'
+  if (minutes < 60) return `${minutes}m`
+  if (minutes < 60 * 48) return `${Math.round(minutes / 60)}h`
+  return `${Math.round(minutes / 60 / 24)}d`
+}
+
+// A pull request's check state as a row shows it: a word for the tooltip and
+// a tone for the chip.
+export function checkLabel(check: PanelChecks | null | undefined): { text: string; tone: 'ok' | 'danger' | 'warn' | 'muted'; tip: string } {
+  if (!check) return { text: '?', tone: 'muted', tip: 'Avoozl could not read this pull request\'s checks.' }
+  if (check.state === 'failing') return { text: `✗ ${check.failed.length}`, tone: 'danger', tip: `Failing: ${check.failed.join(', ')}.` }
+  if (check.state === 'pending') return { text: `… ${check.done}/${check.total}`, tone: 'warn', tip: `${check.done} of ${check.total} checks done.` }
+  if (check.state === 'passing') return { text: `✓ ${check.total}`, tone: 'ok', tip: `All ${check.total} checks passed.` }
+  return { text: 'no checks', tone: 'muted', tip: 'No checks have run on this pull request.' }
 }
