@@ -378,7 +378,7 @@ test("a deleted draft is recorded as discarded", async (t) => {
 });
 
 test("a moved head marks the draft stale and deletes nothing; a new label redrafts and replaces only Avoozl's draft", async (t) => {
-  const { store, github, post } = await bound(t);
+  const { store, github, dispatch, post } = await bound(t);
   await post(DRAFT);
   github.pull.head.sha = NEXT;
   await step(store, github);
@@ -394,6 +394,10 @@ test("a moved head marks the draft stale and deletes nothing; a new label redraf
   github.label();
   await step(store, github);
   const [next] = reviewDraftDispatches(store);
+  // Kiro Crew names the slot from the title: the redraft needs a new one, and
+  // only an avoozl: title gives a slot the app may read.
+  assert.notEqual(next.title, dispatch.title);
+  assert.match(next.title, /^avoozl:/);
   bindSession(store, {
     taskId: next.task,
     slot: "slot-e",
@@ -506,7 +510,11 @@ test("the review draft agent reads and has one way to GitHub", () => {
     "grep",
     "thinking",
   ]);
-  assert.deepEqual(spec.allowedTools, []);
+  // The tick opens this chat with nobody watching, so its one post tool runs
+  // without a prompt; the tool itself checks the login and screens the text.
+  assert.deepEqual(spec.allowedTools, [
+    "@avoozl:avoozl/plans_post_review_draft",
+  ]);
   const patterns = spec.toolsSettings.execute_bash.allowedCommands.map(
       (p) => new RegExp(`^(?:${p})$`),
     ),

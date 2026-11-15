@@ -290,6 +290,8 @@ test("a handed-back conflict starts one resolver chat with the steps", async (t)
   assert.equal(dispatch[0].agent, FIX_AGENT);
   assert.equal(dispatch[0].role, FIX_ROLE);
   assert.equal(dispatch[0].folder, "Avoozl/code");
+  // Only an avoozl: title gives a slot under the app's read grant.
+  assert.match(dispatch[0].title, /^avoozl:/);
   assert.match(dispatch[0].brief, /git merge origin\/main/);
   assert.match(dispatch[0].brief, /never --force/);
   assert.match(dispatch[0].brief, /`npm test`/);
