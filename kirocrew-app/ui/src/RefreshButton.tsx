@@ -7,9 +7,10 @@ import { RefreshCw } from './icons.ts'
 import { countdownText, countdownWidth, limitedFor, refreshPeriod, refreshTip } from './refresh-api.ts'
 import { type RateView, settingsClient } from './settings-api.ts'
 import { useAppApi } from './host.ts'
+import { Tooltip } from './Tooltip.tsx'
 
-export function RefreshButton(props: { workspaceId: string | null; onRefresh: () => void; busy?: boolean }) {
-  const { workspaceId, onRefresh, busy } = props
+export function RefreshButton(props: { workspaceId: string | null; onRefresh: () => void; busy?: boolean; bare?: boolean }) {
+  const { workspaceId, onRefresh, busy, bare } = props
   const api = useAppApi()
   const settings = useMemo(() => settingsClient(api), [api])
   const [rate, setRate] = useState<RateView | null>(null)
@@ -52,6 +53,17 @@ export function RefreshButton(props: { workspaceId: string | null; onRefresh: ()
   }, [rate, refresh])
 
   const shown = limited > 0 ? limited : left
+  const label = `Refresh, ${limited > 0 ? 'GitHub limit lifts in ' : 'reads again in '}${countdownText(shown, limited > 0)}`
+  // The side panel's own small button: [↻ 32s], styled by PanelParts.
+  if (bare)
+    return (
+      <Tooltip text={refreshTip(rate, left, limited)}>
+        <button type="button" data-pp-icon onClick={refresh} disabled={busy} aria-label={label}>
+          <RefreshCw size={11} aria-hidden="true" />
+          <span style={{ display: 'inline-block', minWidth: `${countdownWidth(limited > 0, period)}ch`, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{countdownText(shown, limited > 0)}</span>
+        </button>
+      </Tooltip>
+    )
   return (
     <IconLabel
       icon={RefreshCw}

@@ -8053,38 +8053,59 @@ function _l(e, t, n) {
 }
 // kirocrew-app/ui/src/RefreshButton.tsx
 function vl(e) {
-	let { workspaceId: t, onRefresh: n, busy: r } = e, a = K(), s = l(() => qs(a), [a]), [c, f] = d(null), [p, m] = d(60), [h, g] = d(() => Date.now()), _ = u(n);
-	_.current = n;
-	let v = hl(c), y = gl(c, h), b = i(() => {
-		t && s.get(t).then((e) => f(e.rate ?? null), () => {});
-	}, [s, t]);
-	o(b, [b]);
-	let x = u(60), S = i(() => {
-		_.current(), x.current = v, m(v), setTimeout(b, 1500);
-	}, [v, b]);
+	let { workspaceId: t, onRefresh: n, busy: r, bare: a } = e, s = K(), c = l(() => qs(s), [s]), [f, p] = d(null), [m, h] = d(60), [g, _] = d(() => Date.now()), v = u(n);
+	v.current = n;
+	let y = hl(f), b = gl(f, g), x = i(() => {
+		t && c.get(t).then((e) => p(e.rate ?? null), () => {});
+	}, [c, t]);
+	o(x, [x]);
+	let S = u(60), T = i(() => {
+		v.current(), S.current = y, h(y), setTimeout(x, 1500);
+	}, [y, x]);
 	o(() => {
-		x.current = Math.min(x.current, v), m(x.current);
-	}, [v]), o(() => {
+		S.current = Math.min(S.current, y), h(S.current);
+	}, [y]), o(() => {
 		let e = setInterval(() => {
-			(typeof document > "u" || document.visibilityState !== "hidden") && (g(Date.now()), gl(c, Date.now()) > 0 || (--x.current, x.current <= 0 ? S() : m(x.current)));
+			(typeof document > "u" || document.visibilityState !== "hidden") && (_(Date.now()), gl(f, Date.now()) > 0 || (--S.current, S.current <= 0 ? T() : h(S.current)));
 		}, 1e3);
 		return () => clearInterval(e);
-	}, [c, S]);
-	let w = y > 0 ? y : p;
-	return /* @__PURE__ */ C(J, {
+	}, [f, T]);
+	let E = b > 0 ? b : m, D = `Refresh, ${b > 0 ? "GitHub limit lifts in " : "reads again in "}${pl(E, b > 0)}`;
+	return a ? /* @__PURE__ */ C(q, {
+		text: _l(f, m, b),
+		children: /* @__PURE__ */ w("button", {
+			type: "button",
+			"data-pp-icon": !0,
+			onClick: T,
+			disabled: r,
+			"aria-label": D,
+			children: [/* @__PURE__ */ C(Fe, {
+				size: 11,
+				"aria-hidden": "true"
+			}), /* @__PURE__ */ C("span", {
+				style: {
+					display: "inline-block",
+					minWidth: `${ml(b > 0, y)}ch`,
+					textAlign: "right",
+					fontVariantNumeric: "tabular-nums"
+				},
+				children: pl(E, b > 0)
+			})]
+		})
+	}) : /* @__PURE__ */ C(J, {
 		icon: Fe,
-		onClick: S,
+		onClick: T,
 		disabled: r,
-		tooltip: _l(c, p, y),
-		"aria-label": `Refresh, ${y > 0 ? "GitHub limit lifts in " : "reads again in "}${pl(w, y > 0)}`,
+		tooltip: _l(f, m, b),
+		"aria-label": `Refresh, ${b > 0 ? "GitHub limit lifts in " : "reads again in "}${pl(E, b > 0)}`,
 		children: /* @__PURE__ */ C("span", {
 			style: {
 				display: "inline-block",
-				minWidth: `${ml(y > 0, v)}ch`,
+				minWidth: `${ml(b > 0, y)}ch`,
 				textAlign: "right",
 				fontVariantNumeric: "tabular-nums"
 			},
-			children: pl(w, y > 0)
+			children: pl(E, b > 0)
 		})
 	});
 }
@@ -31006,11 +31027,24 @@ function vx(e) {
 	let i = r.length > 0, a = r.map((e) => e.reason ?? (e.check ? `${e.check} fails on ${e.branch}` : `the line on ${e.branch}`)).slice(0, 3).join("; ");
 	return /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(q, {
 		text: i ? `The line is stopped: ${a}. Resume it from the banner on the Dashboard or Flow. Press to stop more.` : "Stop new work in a scope, or stop all agents, with a reason",
-		children: (e) => /* @__PURE__ */ w(g, {
+		children: (t) => e.bare ? /* @__PURE__ */ w("button", {
+			type: "button",
+			"data-pp-act": !0,
+			"data-stop-line": !0,
+			"data-stopped": i ? "" : void 0,
+			"aria-describedby": t,
+			"aria-label": i ? `Line stopped, ${r.length} open stop${r.length === 1 ? "" : "s"}. Stop more` : void 0,
+			onClick: () => n(!0),
+			style: { color: "var(--danger)" },
+			children: [/* @__PURE__ */ C(Ae, {
+				size: 12,
+				"aria-hidden": "true"
+			}), i ? "Stop more" : "Stop the line"]
+		}) : /* @__PURE__ */ w(g, {
 			type: "button",
 			"data-stop-line": !0,
 			"data-stopped": i ? "" : void 0,
-			"aria-describedby": e,
+			"aria-describedby": t,
 			"aria-label": i ? `Line stopped, ${r.length} open stop${r.length === 1 ? "" : "s"}. Stop more` : void 0,
 			onClick: () => n(!0),
 			style: i ? mx : px,

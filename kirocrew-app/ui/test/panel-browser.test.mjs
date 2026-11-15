@@ -29,18 +29,20 @@ const count = (selector) => page.evaluate(`document.querySelectorAll(${JSON.stri
 const open = async (query, ready) => {
   await page.open(harness.url({ page: 'panel', theme: 'light', ...query }), { width: 360, height: 900 })
   await page.until(ready)
+  // Queue and Recent merges start closed; most tests read their rows.
+  await page.evaluate(`document.querySelector('[data-pp-toggle-all][aria-pressed=false]')?.click()`)
 }
 const shot = async (name) => {
   const dir = process.env.AVOOZL_PANEL_SHOTS
   if (!dir) return
   fs.mkdirSync(dir, { recursive: true })
-  await page.evaluate(`document.querySelectorAll('details').forEach((d) => (d.open = true))`)
+  await page.evaluate(`document.querySelector('[data-pp-toggle-all][aria-pressed=false]')?.click()`)
   await page.screenshot(path.join(dir, `${name}.png`))
 }
 
 test('a normal chat shows Waiting on you, In flight, the queue head, recent merges and the line', { skip }, async () => {
   await open({ sid: 'chat-1' }, `Boolean(document.querySelector('[data-waiting-row]'))`)
-  assert.match(await text('[data-recap-line]'), /2 waiting on you · 3 in flight · line running/)
+  assert.match(await text('[data-recap-line]'), /2 waiting on you · 3 in flight/)
   assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-waiting-row]')].map((r) => r.dataset.waitingRow)`), ['needs-human', 'github-conflict'])
   // The retired worker row is not shown.
   assert.doesNotMatch(await text('[data-panel-recap]'), /retired worker/)
@@ -196,49 +198,84 @@ test('coming back after a while shows what finished and what is new, and Got it 
   assert.equal(await count('[data-since-recap]'), 0)
 })
 
-// The line's status and its Stop the line button share one row, on a wide
-// panel and on a 390 px phone, light and dark.
+// The line's state sits in the status row under the header; Stop the line is
+// a row action in the Line and driver section. Open Avoozl is a button in the
+// same section. On a wide panel and on a 390 px phone, light and dark.
 for (const [width, height] of [[1280, 900], [390, 800]])
   for (const theme of ['light', 'dark'])
-    test(`Line running and Stop the line sit on one row at ${width} px ${theme}`, { skip }, async () => {
+    test(`Stop the line and Open Avoozl are row actions inside the panel at ${width} px ${theme}`, { skip }, async () => {
       await page.open(harness.url({ page: 'panel', theme, sid: 'chat-1' }), { width, height, dark: theme === 'dark' })
-      await page.until(`Boolean(document.querySelector('[data-panel-line] [data-stop-line]'))`)
+      await page.until(`Boolean(document.querySelector('[data-line-row] [data-stop-line]')) && Boolean(document.querySelector('[data-open-avoozl]'))`)
       const row = await page.evaluate(`(() => {
-        const line = document.querySelector('[data-panel-line]')
-        const badge = [...line.querySelectorAll('*')].find((el) => el.children.length === 0 && /^Line (running|stopped)$/.test(el.textContent.trim()))
-        const stop = line.querySelector('[data-stop-line]')
-        const a = badge.getBoundingClientRect(), b = stop.getBoundingClientRect()
-        return { badge: badge.textContent.trim(), stop: stop.textContent.trim(), overlap: Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top), right: b.right, width: innerWidth }
+        const box = (el) => { const r = el.getBoundingClientRect(); return { right: r.right, height: r.height, text: el.textContent.trim(), tag: el.tagName } }
+        return { chip: document.querySelector('[data-panel-line]').textContent.trim(), stop: box(document.querySelector('[data-stop-line]')), open: box(document.querySelector('[data-open-avoozl]')), label: document.querySelector('[data-open-avoozl]').textContent.trim(), width: innerWidth }
       })()`)
-      assert.equal(row.badge, 'Line running')
-      assert.match(row.stop, /Stop the line/)
-      assert.ok(row.overlap > 0, `on one row (vertical overlap ${row.overlap} px)`)
-      assert.ok(row.right <= row.width, 'inside the panel')
+      assert.equal(row.chip, 'Line running')
+      assert.match(row.stop.text, /Stop the line/)
+      assert.equal(row.open.tag, 'BUTTON')
+      assert.equal(row.open.text, 'Open Avoozl')
+      for (const one of [row.stop, row.open]) {
+        assert.ok(one.right <= row.width, 'inside the panel')
+        assert.ok(one.height >= (width <= 640 ? 44 : 20), `big enough to tap (${one.height} px)`)
+      }
     })
 
-// The way to the app page is a styled button with the Avoozl mark, named
-// "Open Avoozl", on a wide panel and on a 390 px phone, light and dark.
+// The header is one thin line: the workspace name and two small icon buttons
+// (Refresh with its countdown, fold all). It never wraps, at both widths.
 for (const [width, height] of [[1280, 900], [390, 800]])
   for (const theme of ['light', 'dark'])
-    test(`Open Avoozl is a button with the logo at ${width} px ${theme}`, { skip }, async () => {
+    test(`the header is one line with the name and two icons at ${width} px ${theme}`, { skip }, async () => {
       await page.open(harness.url({ page: 'panel', theme, sid: 'chat-1' }), { width, height, dark: theme === 'dark' })
-      await page.until(`Boolean(document.querySelector('[data-open-avoozl]'))`)
-      const button = await page.evaluate(`(() => {
-        const b = document.querySelector('[data-open-avoozl]')
-        const r = b.getBoundingClientRect(), s = getComputedStyle(b), logo = b.querySelector('svg').getBoundingClientRect()
-        return { tag: b.tagName, label: b.getAttribute('aria-label'), text: b.textContent.trim(), border: s.borderTopStyle, borderWidth: parseFloat(s.borderTopWidth), bg: s.backgroundColor, logo: logo.width, right: r.right, width: innerWidth, height: r.height }
+      await page.until(`Boolean(document.querySelector('[data-pp-head-name]'))`)
+      const head = await page.evaluate(`(() => {
+        const h = document.querySelector('[data-pp-head]')
+        const kids = [...h.querySelectorAll('[data-pp-head-name], button')]
+        const tops = kids.map((el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2 })
+        const tallest = Math.max(...kids.map((el) => el.getBoundingClientRect().height))
+        return { name: h.querySelector('[data-pp-head-name]').textContent.trim(), buttons: [...h.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')), height: h.getBoundingClientRect().height, tallest, spread: Math.max(...tops) - Math.min(...tops), wrap: getComputedStyle(h).flexWrap, texts: [...h.querySelectorAll('button')].map((b) => b.textContent.trim()), sticky: getComputedStyle(h).position }
       })()`)
-      assert.equal(button.tag, 'BUTTON')
-      assert.equal(button.label, 'Open Avoozl')
-      assert.equal(button.text, 'Open Avoozl')
-      assert.equal(button.border, 'solid')
-      assert.ok(button.borderWidth >= 1, 'it has a border')
-      assert.notEqual(button.bg, 'rgba(0, 0, 0, 0)', 'it has a background')
-      assert.ok(button.logo >= 16, 'the logo shows')
-      assert.ok(button.right <= button.width, 'inside the panel')
-      // A 44 px tap target on a phone; compact with a mouse.
-      assert.ok(button.height >= (width <= 640 ? 44 : 24), `big enough to tap (${button.height} px)`)
+      assert.ok(head.name.length > 0, 'it names the workspace')
+      assert.equal(head.buttons.length, 2)
+      assert.match(head.buttons[0], /^Refresh, reads again in/)
+      assert.match(head.buttons[1], /^(Collapse|Expand) all sections$/)
+      assert.match(head.texts[0], /^\d+s$/)
+      assert.equal(head.wrap, 'nowrap')
+      assert.ok(head.spread < 2, `everything on one line (${head.spread} px apart)`)
+      assert.ok(head.height <= head.tallest + 14, `one line tall (${head.height} px, tallest control ${head.tallest} px)`)
+      assert.notEqual(head.sticky, 'sticky')
     })
+
+// The header's last icon folds or opens every section, and the choice is kept.
+test('fold all closes every section, opens them again, and is remembered', { skip }, async () => {
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1' }), { width: 390, height: 800 })
+  await page.until(`document.querySelectorAll('[data-pp-section]').length >= 4`)
+  await page.evaluate(`localStorage.removeItem('avoozl.panel.folds')`)
+  const state = () => page.evaluate(`({ open: [...document.querySelectorAll('[data-pp-section-head]')].map((b) => b.getAttribute('aria-expanded')), label: document.querySelector('[data-pp-toggle-all]').getAttribute('aria-label') })`)
+  const first = await state()
+  assert.ok(first.open.includes('true'))
+  assert.equal(first.label, first.open.every((v) => v === 'true') ? 'Collapse all sections' : 'Expand all sections')
+  const click = () => page.evaluate(`document.querySelector('[data-pp-toggle-all]').click()`)
+  // Collapse until every section is closed (one click when all are open, two when some are not).
+  while ((await state()).open.includes('true')) await click()
+  const closed = await state()
+  assert.ok(closed.open.every((v) => v === 'false'))
+  assert.equal(closed.label, 'Expand all sections')
+  assert.equal(await count('[data-waiting-row]'), 0)
+  // Remembered across a reload of the panel.
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1' }), { width: 390, height: 800 })
+  await page.until(`document.querySelectorAll('[data-pp-section]').length >= 4`)
+  assert.ok((await state()).open.every((v) => v === 'false'), 'closed after a reload')
+  await click()
+  const opened = await state()
+  assert.ok(opened.open.every((v) => v === 'true'))
+  assert.equal(opened.label, 'Collapse all sections')
+  assert.equal(await count('[data-waiting-row]'), 2)
+  // One section on its own.
+  await page.evaluate(`document.querySelector('[data-panel-fold="recent"] [data-pp-section-head]').click()`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-panel-fold="recent"] [data-pp-section-head]').getAttribute('aria-expanded')`), 'false')
+  assert.equal((await state()).label, 'Expand all sections')
+  await page.evaluate(`localStorage.removeItem('avoozl.panel.folds')`)
+})
 
 // The driver line names its workspace. In a chat that is another workspace's
 // driver, the panel reads that workspace, not the one the app page last

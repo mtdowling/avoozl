@@ -10,6 +10,8 @@
   --accent: #2563eb;
   --danger: #c62828;
   --ok: #2e7d32;
+  --bg-hover: #f0f0f0;
+  --text-strong: #000;
   color-scheme: light;
 }
 [data-theme='dark'] {
@@ -22,6 +24,8 @@
   --accent: #60a5fa;
   --danger: #ef5350;
   --ok: #66bb6a;
+  --bg-hover: #262a35;
+  --text-strong: #fff;
   color-scheme: dark;
 }
 html,

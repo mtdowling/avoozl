@@ -133,7 +133,10 @@ declare module 'lucide-react' {
   export const ScanSearch: LucideIcon
   export const Send: LucideIcon
   export const Check: LucideIcon
+  export const ChevronDown: LucideIcon
   export const ChevronRight: LucideIcon
+  export const ChevronsDownUp: LucideIcon
+  export const ChevronsUpDown: LucideIcon
   export const ClipboardCheck: LucideIcon
   export const Copy: LucideIcon
   export const Crosshair: LucideIcon
