@@ -70,6 +70,7 @@ const OBSERVE = new Set([
   "graph.view",
   "delivery.view",
   "conflicts.view",
+  "panel.view",
   "untriaged.view",
   "radar.crews",
   "radar.trace",

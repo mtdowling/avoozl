@@ -104,9 +104,9 @@ test('recap since you left: tasks finished after, and waiting rows that are new'
   assert.equal(sinceText(away.at, now), '1 h ago')
 })
 
-test('the panel reads the driver through the shared module and the app page uses the demo fixture', () => {
+test('the panel reads the driver through panel.view and the app page uses the demo fixture', () => {
   const src = (name) => fs.readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
-  assert.match(src('Panel.tsx'), /readDriverSession/)
+  assert.match(src('Panel.tsx'), /readPanel/)
   assert.match(src('Panel.tsx'), /agent: DRIVER_AGENT/)
   assert.match(src('DriverSessionBox.tsx'), /useDemoFixtures\(\)/)
   assert.match(src('DashboardView.tsx'), /<DriverSessionBox/)
