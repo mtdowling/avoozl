@@ -96,8 +96,9 @@ function Field({ id, field }: { id: string; field: FilterField }) {
 
 // A box of filter fields and Clear, then the tab's own line under them
 // (counts, Refresh). On a narrow page the fields fold behind one Filters
-// button inside the box.
-export function FilterPanel(props: { id: string; label: string; fields: FilterField[]; active: boolean; onClear: () => void; children?: ReactNode }) {
+// button inside the box. `aside` sits at the right end of the fields' row
+// (under them on a narrow page): a setting that belongs with the filters.
+export function FilterPanel(props: { id: string; label: string; fields: FilterField[]; active: boolean; onClear: () => void; children?: ReactNode; aside?: ReactNode }) {
   const narrow = useMedia('(max-width: 767px)')
   const [open, setOpen] = useState(false)
   const fields = (
@@ -121,9 +122,17 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
             </Btn>
             {open && fields}
           </div>
+        ) : props.aside ? (
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            {fields}
+            <div className="ml-auto" data-filter-aside>
+              {props.aside}
+            </div>
+          </div>
         ) : (
           fields
         )}
+        {narrow && props.aside && <div className="mt-2" data-filter-aside>{props.aside}</div>}
       </div>
       {props.children && <div className="mt-3">{props.children}</div>}
     </Card>
