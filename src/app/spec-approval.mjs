@@ -67,6 +67,9 @@ export async function openApproval(
     approvedBy,
     decisionRecord: record = false,
     extra = {},
+    // The branch the pull request targets when it is not the default branch:
+    // a private spec's plans branch (RC25.3).
+    ref,
   },
 ) {
   const error = diagnostics.find((d) => d.severity === "error");
@@ -89,7 +92,7 @@ export async function openApproval(
       decisionRecord: record,
       extra,
     }),
-    base = (await github.repository(repository)).default_branch,
+    base = ref ?? (await github.repository(repository)).default_branch,
     head = await github.branchHead(repository, base),
     // A closed pull request leaves its branch, so a new try takes a new name.
     attempt = (previous?.attempt || 0) + 1,
@@ -115,6 +118,7 @@ export async function openApproval(
       branch,
       attempt,
       base,
+      ...(ref ? { ref } : {}),
       requestedBy: approvedBy,
     };
   store.setMeta(key(planId, hash), state);

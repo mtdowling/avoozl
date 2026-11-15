@@ -109,6 +109,7 @@ import { mirrorSyncStep } from "./mirror-sync.mjs";
 import { publishInstanceStep } from "./instance-publish.mjs";
 import { mirrorForwardStep } from "./mirror-forward.mjs";
 import { mirrorForwardRunStep } from "./mirror-forward-run.mjs";
+import { mirrorForwardAuditStep } from "./forward-audit.mjs";
 import { mirrorPublicPollStep } from "./mirror-forward-poll.mjs";
 import { armStep } from "./radar-arm.mjs";
 import { headStep } from "./integration-head.mjs";
@@ -874,6 +875,11 @@ async function runTick(
             ).errors,
             ...(
               await under("forward", mirrorPublicPollStep)(store, github, {
+                policy: readGitHubPolicyOrNull(workspaceRoot),
+              })
+            ).errors,
+            ...(
+              await mirrorForwardAuditStep(store, github, {
                 policy: readGitHubPolicyOrNull(workspaceRoot),
               })
             ).errors,
