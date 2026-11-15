@@ -49,8 +49,9 @@ test('lists page through the one hook and button, and a filter change resets the
 
 test('Graph, Plans and Conflicts use the one boxed filter panel', () => {
   assert.match(source('FilterBar.tsx'), /<FilterPanel/)
-  assert.match(source('PlansView.tsx'), /<FilterPanel\s+id="avoozl-plans"/)
-  assert.match(source('ConflictsView.tsx'), /<FilterPanel\s+id="avoozl-conflicts"/)
+  // In a list column the fields fold behind Filters.
+  assert.match(source('PlansView.tsx'), /<FilterPanel\s+folded\s+id="avoozl-plans"/)
+  assert.match(source('ConflictsView.tsx'), /<FilterPanel\s+folded\s+id="avoozl-conflicts"/)
   assert.match(source('GraphView.tsx'), /<FilterBar id="avoozl-graph"/)
   const panel = source('FilterPanel.tsx')
   assert.match(panel, /<Card>\s*<div role="search"/)

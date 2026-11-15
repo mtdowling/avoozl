@@ -98,8 +98,9 @@ function Field({ id, field }: { id: string; field: FilterField }) {
 // (counts, Refresh). On a narrow page the fields fold behind one Filters
 // button inside the box. `aside` sits at the right end of the fields' row
 // (under them on a narrow page): a setting that belongs with the filters.
-export function FilterPanel(props: { id: string; label: string; fields: FilterField[]; active: boolean; onClear: () => void; children?: ReactNode; aside?: ReactNode }) {
-  const narrow = useMedia('(max-width: 767px)')
+// `folded`: the fields fold behind Filters at any width (a list column).
+export function FilterPanel(props: { id: string; label: string; fields: FilterField[]; active: boolean; onClear: () => void; children?: ReactNode; aside?: ReactNode; folded?: boolean }) {
+  const narrow = useMedia('(max-width: 767px)') || Boolean(props.folded)
   const [open, setOpen] = useState(false)
   const fields = (
     <div className="flex flex-wrap items-end gap-3" data-filter-bar>

@@ -85,13 +85,13 @@ test('a repository on the retired worker shows the Settings banner; one on Radar
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-retired-banner]'))`), false)
 })
 
-test('Needs you holds decisions and intake in one-open sections', { skip }, async () => {
+test('Needs you holds decisions and intake as two tabs, one open at a time', { skip }, async () => {
   await open({ radar: '1' })
   await page.until(`Boolean(${tab('Needs you')})`)
   await click(tab('Needs you'))
   await page.until(`Boolean(document.querySelector('[data-waiting-view]'))`)
   assert.equal(await page.evaluate(`document.querySelector('[data-waiting-section][data-open="true"]').dataset.waitingSection`), 'decisions')
-  await click(`document.querySelector('[data-waiting-section="intake"] button[aria-expanded]')`)
+  await click(`[...document.querySelectorAll('[data-waiting-tabs] [role="tab"]')].find((t) => t.textContent.includes('Planning and intake'))`)
   await page.until(`document.querySelector('[data-waiting-section="intake"]').dataset.open === 'true'`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-waiting-section][data-open="true"]').length`), 1)
   assert.deepEqual(page.errors, [])

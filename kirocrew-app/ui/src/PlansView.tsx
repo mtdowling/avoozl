@@ -459,6 +459,7 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; onChange:
   }
   return (
     <FilterPanel
+      folded
       id="avoozl-plans"
       label="Filter specs"
       active={Object.keys(filter).length > 0}
