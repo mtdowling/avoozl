@@ -20,7 +20,10 @@ scripts/live-harness/harness.sh reset     # stop, move old state aside, start cl
 
 `start` is safe to repeat. It installs the app from this repo's committed
 `kirocrew-app/` (run `npm run build` first after changing app source).
-`reset` moves `home`, `kiro` and `app` to `*.old.<time>` and deletes nothing.
+`reset` moves `home` (which holds `kiro`) and `app` to `*.old.<time>` and
+deletes nothing. `KIRO_HOME` is `<home>/kiro`: Kiro Crew writes app agent
+files such as `avoozl-crew` only to `<KIROCREW_HOME>/kiro/agents` for a second
+home, and refuses anywhere else.
 
 Settings (environment):
 
@@ -49,6 +52,7 @@ signs in with its own token, so each one is a command.
 | Edit a crew | `harness.sh crew-edit CREW_ID '{"max_open":1}'` |
 | Change crew defaults | `harness.sh crew-settings '{"claim_ttl_hours":1}'` |
 | Retire a crew | `harness.sh crew-retire CREW_ID` |
+| Route `avoozl:avoozl` through Kiro Crew's MCP broker | `kirocrew config set mcp_gateway.stub_overrides '{"avoozl:avoozl":true}'` with the harness home, then `harness.sh restart`. Some builds rewrite `stub_servers` at boot, so set the override, not the list. On 2026-11-15 the broker still sent no caller identity (`docs/evidence/rc-proof-20-live.md`) |
 | Any other route | `harness.sh api GET /api/apps/issue-radar/crews?owner=O&repo=R` |
 
 A new crew is created paused (`enabled` false, `unattended` false). An enabled,
@@ -64,3 +68,8 @@ creation (`avoozl-crew`).
 - Crews and `gh` use the machine's existing `gh` and Kiro sign-ins. The harness
   has its own dashboard token only.
 - It creates no scratch repo and runs no proof.
+- A crew's checkout goes to the machine's default Kiro Crew workspace folder,
+  not under the harness directory.
+- Reinstalling Avoozl gives the tick cron a new job, which may not read or
+  message chats the old job opened. Start a fresh harness instead of
+  reinstalling mid-proof.

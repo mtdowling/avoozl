@@ -32,6 +32,7 @@ export function buildTrace({
   readyLabel,
   specApproved = null,
   review = null,
+  tracker = null,
   mirror = null,
   fixes = [],
   problems = [],
@@ -73,6 +74,9 @@ export function buildTrace({
         detail: merged ? "Counted in the next retro" : "After merge",
       },
     ].map((step, index) => ({ ...TRACE_STEPS[index], ...step }));
+  // RC23.12: a gate's Tracker step, or a "waits on" line on a held task,
+  // right after Ready.
+  if (tracker) steps.splice(3, 0, tracker);
   // RC20.11: a Review step after CI, only when a draft review was made.
   if (review)
     steps.splice(6, 0, {
@@ -171,7 +175,12 @@ export async function readTrace(
   repository,
   number,
   settings = {},
-  { draftFor = () => null, mirrorFor = () => null, fixesFor = () => [] } = {},
+  {
+    draftFor = () => null,
+    mirrorFor = () => null,
+    fixesFor = () => [],
+    trackerFor = () => null,
+  } = {},
 ) {
   const facts = await readIssueFacts(github, repository, number, settings),
     specApproved = await approvedAt(
@@ -186,6 +195,7 @@ export async function readTrace(
       ...facts,
       specApproved,
       review: facts.pull ? draftFor(facts.pull.number) : null,
+      tracker: trackerFor(number),
       mirror: facts.pull ? mirrorFor(facts.pull.number) : null,
       fixes: facts.pull ? fixesFor(facts.pull.number) : [],
     }),

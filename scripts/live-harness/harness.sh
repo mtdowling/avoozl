@@ -12,7 +12,9 @@ PORT="${AVOOZL_HARNESS_PORT:-5690}"
 REPO_URL="${AVOOZL_HARNESS_REPO:-https://github.com/mtdowling/avoozl-radar-test}"
 AGENT="${AVOOZL_HARNESS_AGENT:-avoozl-crew}"
 HOME_DIR="$DIR/home"
-KIRO_DIR="$DIR/kiro"
+# Kiro Crew lets a second home write agent files only to <home>/kiro/agents;
+# anywhere else it refuses, and app agents such as avoozl-crew never load.
+KIRO_DIR="$HOME_DIR/kiro"
 PIDFILE="$DIR/gateway.pid"
 LOG="$DIR/gateway.log"
 

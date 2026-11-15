@@ -40,7 +40,7 @@ test('Crews and rules modes are radio fold-outs, not selects', () => {
   assert.match(view, /tab === 'crews'[\s\S]*<CrewsRulesSettings/)
 })
 
-test('the six Avoozl labels show with their job, writer and avoozl: default (RC21.4)', () => {
+test('the seven Avoozl labels show with their job, writer and avoozl: default (RC21.4)', () => {
   assert.deepEqual(
     AVOOZL_LABELS.map((entry) => [entry.raw, RADAR_DEFAULTS_SHOWN[entry.key]]),
     [
@@ -50,6 +50,7 @@ test('the six Avoozl labels show with their job, writer and avoozl: default (RC2
       ['radar.conflictLabel', 'avoozl:merge-conflict'],
       ['radar.reviewLabel', 'avoozl:review'],
       ['radar.draftedLabel', 'avoozl:drafted'],
+      ['radar.trackerLabel', 'avoozl:waiting-on-tracker'],
     ],
   )
   for (const entry of AVOOZL_LABELS) assert.ok(entry.job && entry.writer, entry.key)
@@ -61,12 +62,13 @@ test('the six Avoozl labels show with their job, writer and avoozl: default (RC2
 })
 
 test('the review and drafted labels round-trip, and ready stays in managedLabels', () => {
-  const policy = { mode: 'single-repo', repositories: { 'example/code': { baseBranch: 'main', managedLabels: { ready: 'go' }, radar: { reviewLabel: 'review me', draftedLabel: 'drafted' } } } }
+  const policy = { mode: 'single-repo', repositories: { 'example/code': { baseBranch: 'main', managedLabels: { ready: 'go' }, radar: { reviewLabel: 'review me', draftedLabel: 'drafted', trackerLabel: 'waiting' } } } }
   const form = toForm(policy)
   assert.equal(form.repositories[0].reviewLabel, 'review me')
   assert.equal(form.repositories[0].draftedLabel, 'drafted')
+  assert.equal(form.repositories[0].trackerLabel, 'waiting')
   const out = toPolicy(form).repositories['example/code']
-  assert.deepEqual(out.radar, { reviewLabel: 'review me', draftedLabel: 'drafted' })
+  assert.deepEqual(out.radar, { reviewLabel: 'review me', draftedLabel: 'drafted', trackerLabel: 'waiting' })
   assert.deepEqual(out.managedLabels, { ready: 'go' })
 })
 

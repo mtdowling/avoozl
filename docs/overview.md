@@ -46,6 +46,7 @@ sets (RC21).
 | Merge conflict                                    | `radar.conflictLabel`   | `merge conflict`                                        | `avoozl:merge-conflict` | Avoozl                |
 | Review (starts a draft)                           | `radar.reviewLabel`     | none                                                    | `avoozl:review`         | A person              |
 | Drafted                                           | `radar.draftedLabel`    | none                                                    | `avoozl:drafted`        | Avoozl                |
+| Waiting on tracker (a gate, or a task held by one) | `radar.trackerLabel`   | `avoozl:waiting-on-tracker`                             | same                    | Avoozl                |
 | Accepted (a skipped issue may be planned)         | `acceptedLabel`         | unset                                                   | unset                   | An allowed person     |
 | Worker queue states: blocked, review, quarantined | `githubLabelBehaviors`  | `avoozl:blocked`, `avoozl:review`, `avoozl:quarantined` | same                    | Avoozl (worker coder) |
 | Radar's claim                                     | `crewLabels.claim`      | `crew: in progress`                                     | same, Radar's           | Radar                 |
