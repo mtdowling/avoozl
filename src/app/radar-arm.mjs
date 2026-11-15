@@ -1,15 +1,17 @@
 // Arming auto-merge on crew pull requests (RC5.2, RC5.8, design D7). Per
 // Issue Radar repository whose ship mode is `auto-merge` and whose merge path
-// is ready, the tick arms GitHub's merge-commit auto-merge on an open,
+// is ready, the tick arms GitHub auto-merge, with the repository's
+// `merge.method` (squash by default, RC28.7), on an open,
 // non-draft pull request from a branch of the same repository, whose author
 // passes the actor check and which closes a marked issue of this workspace.
 // Each such issue is verified once per marker hash first. Avoozl never merges
 // and never uses an admin path: GitHub merges when its own rules pass.
 import { createHash } from "node:crypto";
-import { actorAllowed } from "./github-policy.mjs";
+import { actorAllowed, mergeMethodOf } from "./github-policy.mjs";
 import { parseMarker } from "./github-marker.mjs";
 import { parseProvenance } from "./github-provenance.mjs";
 import { mergePath } from "./radar-merge-path.mjs";
+import { armCrewPull } from "./radar-merge-method.mjs";
 import { verifyIssue } from "./verify-issue.mjs";
 import { usesMergePath } from "./coder-adapter.mjs";
 import { publicHold } from "./public-signoff.mjs";
@@ -69,16 +71,34 @@ export async function armCrewPullRequests(
     // once per branch and only when a pull request needs it.
     const paths = new Map(),
       pathReady = async (base) => {
-        if (!paths.has(base))
-          paths.set(
-            base,
-            (
-              await mergePath(github, id, repository, {
-                delivery,
-                ...(base ? { branch: base } : {}),
-              })
-            ).ready,
+        if (!paths.has(base)) {
+          const path = await mergePath(github, id, repository, {
+            delivery,
+            ...(base ? { branch: base } : {}),
+          });
+          paths.set(base, path.ready);
+          // A merge method the repository refuses: one Needs you row (RC28.7).
+          const refused = path.items.find(
+            (item) => item.id === "merge-method" && !item.ok && !path.error,
           );
+          state.methodRows ??= {};
+          if (refused && !state.methodRows[id]) {
+            state.methodRows[id] = {
+              method: path.method,
+              detail: refused.detail,
+              at: new Date().toISOString(),
+            };
+            changed = true;
+            notify.push({
+              channel: "decision",
+              title: `${id} does not allow ${path.method} merges`,
+              text: refused.detail,
+            });
+          } else if (!refused && !path.error && state.methodRows[id]) {
+            delete state.methodRows[id];
+            changed = true;
+          }
+        }
         return paths.get(base);
       };
     // The marked open issues of this workspace, and the pull requests that
@@ -162,7 +182,7 @@ export async function armCrewPullRequests(
       }
       if (!ok) continue;
       try {
-        await github.armAutoMerge(config, pull.node_id, "MERGE");
+        await armCrewPull(github, config, pull, mergeMethodOf(repository));
         state.armed[`${id}#${pull.number}`] = new Date().toISOString();
         changed = true;
       } catch (error) {
@@ -232,6 +252,24 @@ export async function disarmPullRequest(store, github, input = {}) {
     disarmed: { ...(state.disarmed || {}), [key]: new Date().toISOString() },
   });
   return { repository: input.repository, pullRequest: input.pullRequest };
+}
+
+// One Needs you row per repository whose merge method GitHub refuses (RC28.7).
+export function mergeMethodNeedsYou(store) {
+  return Object.entries(readState(store).methodRows ?? {}).map(
+    ([repository, row]) => ({
+      kind: "needs-human",
+      reason: "merge-method",
+      id: `merge-method:${repository}`,
+      taskId: null,
+      authority: "github",
+      repository,
+      link: `https://github.com/${repository}/settings`,
+      title: `${repository} does not allow ${row.method} merges`,
+      detail: row.detail,
+      openedAt: row.at,
+    }),
+  );
 }
 
 // The tick's wrapper: a failure is reported, not thrown.

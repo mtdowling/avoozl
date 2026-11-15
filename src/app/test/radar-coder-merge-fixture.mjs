@@ -37,6 +37,8 @@ export class MergeGitHub {
     this.pulls = new Map();
     this.closes = new Map();
     this.armed = [];
+    this.squashTitles = [];
+    this.allows = {};
     this.disarmed = [];
     this.calls = [];
   }
@@ -45,7 +47,11 @@ export class MergeGitHub {
   }
   // The merge path check reads these: ready, with one required check.
   repository() {
-    return Promise.resolve({ default_branch: "main", allow_auto_merge: true });
+    return Promise.resolve({
+      default_branch: "main",
+      allow_auto_merge: true,
+      ...this.allows,
+    });
   }
   branch() {
     return Promise.resolve({ protected: true });
@@ -126,8 +132,9 @@ export class MergeGitHub {
       permission: actor === "maintainer" ? "write" : "none",
     });
   }
-  armAutoMerge(_repository, nodeId, method) {
+  armAutoMerge(_repository, nodeId, method, commit = {}) {
     this.armed.push([nodeId, method]);
+    if (commit.headline) this.squashTitles.push(commit.headline);
     this.pulls.get(Number(nodeId.slice(3))).auto_merge = {
       merge_method: "merge",
     };
@@ -145,7 +152,7 @@ export class MergeGitHub {
 
 export function setup(
   t,
-  { ship = "auto-merge", github = new MergeGitHub() } = {},
+  { ship = "auto-merge", github = new MergeGitHub(), repository = {} } = {},
 ) {
   const { store } = fixture(t),
     root = temporaryDirectory(),
@@ -166,6 +173,7 @@ export function setup(
             minimumPermission: "write",
             requiredChecks: ["build"],
             managedLabels: { ready: "go" },
+            ...repository,
           },
         },
       },
