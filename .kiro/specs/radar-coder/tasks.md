@@ -217,10 +217,11 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
   - One grant in `permissions.api`; a Crews strip and cost per stage; behind the grant only.
   - Done when: Without the grant nothing changes; with it, crews and counts show.
   - Limit: cost per stage shows on each On the line row, not yet in Trace; the grant is `/api/apps/issue-radar/*` and was not tried against a live Kiro Crew.
-- [ ] rc-p8 Proof 8: observe, and a retro rule a crew follows, after rc-8.1, rc-8.2, rc-8.3, rc-8.4, rc-8.5 [RC8] (§D17)
+- [x] rc-p8 Proof 8: observe, and a retro rule a crew follows, after rc-8.1, rc-8.2, rc-8.3, rc-8.4, rc-8.5 [RC8] (§D17)
   - Setup: a scratch repository with a running crew. Action: run three issues; open Trace; apply a retro rule through a pull request; run a fourth issue. Expected: Trace shows GitHub times; the fourth issue's pull request follows the new rule. Failure means: a crew did not re-read the rules. Next decision: add the rule to the Additional prompt.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
   - Live run 2026-11-15 failed: Trace and the rule pull request worked, but the crew read AGENTS.md once and the fourth pull request ignored the rule; the same rule in the Additional prompt was followed (docs/evidence/rc-proof-8-live.md)
+  - Live run 2 passed: plans_verify_issue now returns AGENTS.md and steering retro rules in each brief, and the next pull request followed the rule (docs/evidence/rc-proof-8-live-2.md)
 
 ## Phase 9: Quick goals
 
