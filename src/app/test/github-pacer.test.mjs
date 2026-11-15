@@ -221,7 +221,7 @@ function pacedFake(store, time, limits) {
   return { fake, proxy, pacer, state };
 }
 
-async function projection(t, { tasks, limits }) {
+async function projection(t, { tasks, limits, extra = () => ({}) }) {
   const { store } = fixture(t),
     time = clock(Date.now() - 6 * HOUR),
     { fake, proxy, pacer, state } = pacedFake(store, time, limits),
@@ -268,6 +268,7 @@ async function projection(t, { tasks, limits }) {
             title: "Task " + index,
             acceptance: ["passes"],
             projectId: "code",
+            ...extra(index),
           }) +
           "\n```\n",
       ).join("\n"),
@@ -467,4 +468,95 @@ test("GraphQL createIssue and addBlockedBy are one paced write each", async (t) 
     2,
     "each mutation is one write in the journal",
   );
+});
+
+test("a fresh projection is made in graph order and never edited after", async (t) => {
+  // Listed backwards: leaf-0 waits on leaf-1 and leaf-2, leaf-1 on leaf-3,
+  // and leaf-4 is a package over leaf-2 and leaf-3.
+  const requires = { 0: ["leaf-1", "leaf-2"], 1: ["leaf-3"] },
+    { store, fake, ops, plan } = await projection(t, {
+      tasks: 5,
+      limits: { perMinute: 60, perHour: 400 },
+      extra: (index) => (requires[index] ? { requires: requires[index] } : {}),
+    });
+  const idOf = (title) =>
+    store.read().tasks.find((task) => task.title === title).id;
+  store.mutate("Nest", (data) => {
+    const parent = data.tasks.find((task) => task.title === "Task 4");
+    parent.kind = "package";
+    for (const task of data.tasks)
+      if (["Task 2", "Task 3"].includes(task.title)) task.parent = parent.id;
+  });
+  const calls = { updateIssue: 0, addSubIssue: 0, addIssueBlocker: 0 };
+  for (const name of Object.keys(calls)) {
+    const call = fake[name].bind(fake);
+    fake[name] = (...args) => ((calls[name] += 1), call(...args));
+  }
+  await ops.execute("github.project", { planId: plan.id });
+  assert.equal(calls.updateIssue, 0, "no issue is edited after its create");
+  assert.equal(calls.addSubIssue, 0, "every child is made under its parent");
+  // One link per real edge: 0<-1, 0<-2, 1<-3. A package's own roll-up
+  // edges from its children, if the graph has them, are links too.
+  const rollups = store
+    .read()
+    .edges.filter(
+      (edge) =>
+        edge.to === idOf("Task 4") &&
+        [idOf("Task 2"), idOf("Task 3")].includes(edge.from),
+    ).length;
+  assert.equal(calls.addIssueBlocker, 3 + rollups);
+  // Each issue is made after what it waits on, and its body links them.
+  const made = (title) =>
+      fake.created.find((issue) =>
+        issue.body.includes('"taskId":"' + idOf(title) + '"'),
+      ),
+    at = (title) => fake.created.indexOf(made(title));
+  assert.ok(at("Task 4") < at("Task 2") && at("Task 4") < at("Task 3"));
+  assert.ok(at("Task 3") < at("Task 1") && at("Task 1") < at("Task 0"));
+  assert.ok(at("Task 2") < at("Task 0"));
+  assert.match(
+    made("Task 0").body,
+    new RegExp(`- ${idOf("Task 1")} \\(#${made("Task 1").number}\\)`),
+  );
+  assert.match(
+    made("Task 2").body,
+    new RegExp(`Parent: #${made("Task 4").number}`),
+  );
+  // A second projection finds everything in step and writes nothing.
+  const before =
+    fake.created.length + calls.updateIssue + calls.addIssueBlocker;
+  await ops.execute("github.project", { planId: plan.id });
+  assert.equal(
+    fake.created.length + calls.updateIssue + calls.addIssueBlocker,
+    before,
+  );
+});
+
+test("a cycle through parents and blockers fails the preview, writing nothing", async (t) => {
+  // Task 1 is the package over Task 0, so it is made first. It also waits on
+  // Task 2, which waits on Task 0: no create order exists.
+  const { store, fake, ops, plan } = await projection(t, {
+    tasks: 3,
+    limits: { perMinute: 60, perHour: 400 },
+    extra: (index) =>
+      index === 1
+        ? { requires: ["leaf-2"] }
+        : index === 2
+          ? { requires: ["leaf-0"] }
+          : {},
+  });
+  store.mutate("Nest", (data) => {
+    const parent = data.tasks.find((task) => task.title === "Task 1");
+    parent.kind = "package";
+    data.tasks.find((task) => task.title === "Task 0").parent = parent.id;
+  });
+  await assert.rejects(
+    ops.execute("github.project.preview", { planId: plan.id }),
+    /cycle/,
+  );
+  await assert.rejects(
+    ops.execute("github.project", { planId: plan.id }),
+    /cycle/,
+  );
+  assert.equal(fake.created.length, 0);
 });
