@@ -65,7 +65,7 @@ export function stripPrivate(text, { mirror }) {
 }
 
 const branchFor = (mirror, record) =>
-  `${mirror.branchPrefix ?? "avoozl/"}${record.batch?.name || record.taskId || `change-${String(record.id).slice(0, 8)}`}`;
+  `${mirror.branchPrefix ?? "avoozl/"}${record.batch?.name || `change-${String(record.id).slice(0, 8)}`}`;
 
 const blocked = (store, record, reason) => {
   const next = { ...record, state: "blocked", reason };

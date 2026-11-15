@@ -171,6 +171,8 @@ export const policy = (forward = "nudge", extra = {}) => ({
   },
 });
 export const grant = async () => "token";
+// The public branch of one forward: named by the merge commit, never the task.
+export const forwardName = (sha) => `avoozl/change-${sha.slice(0, 8)}`;
 export const branches = (repo) =>
   git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads").split(
     "\n",

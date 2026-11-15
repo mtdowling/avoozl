@@ -22,6 +22,7 @@ import {
   policy,
   grant,
   branches,
+  forwardName,
 } from "./forward-scratch.mjs";
 
 test("a clean change forwards once, as the person, with a normal push", async (t) => {
@@ -32,10 +33,15 @@ test("a clean change forwards once, as the person, with a normal push", async (t
   assert.equal(first.ok, true);
   assert.equal(first.record.state, "public_open");
   assert.equal(first.record.publicPr, 40);
-  assert.deepEqual(branches(pub).sort(), ["avoozl/task-1", "main"]);
-  const log = git(pub, "log", "--format=%an|%ae|%s", "main..avoozl/task-1");
+  assert.deepEqual(branches(pub).sort(), [forwardName(sha), "main"]);
+  const log = git(
+    pub,
+    "log",
+    "--format=%an|%ae|%s",
+    `main..${forwardName(sha)}`,
+  );
   assert.equal(log, "dana|dana@users.noreply.github.com|Add the feature");
-  assert.equal(git(pub, "show", "avoozl/task-1:feature.txt"), "hello");
+  assert.equal(git(pub, "show", `${forwardName(sha)}:feature.txt`), "hello");
   assert.match(github.created[0].body, /Contributed by @dana/);
   assert.doesNotMatch(github.created[0].body, /code-private/);
   // A second press opens no second pull request and pushes nothing.
@@ -51,9 +57,10 @@ test("a clean change forwards once, as the person, with a normal push", async (t
     pushes[0],
     /--force|-f |--mirror|\+refs|:refs\/heads\/main/,
   );
-  assert.match(
-    pushes[0],
-    /refs\/heads\/avoozl\/task-1:refs\/heads\/avoozl\/task-1/,
+  assert.ok(
+    pushes[0].includes(
+      `refs/heads/${forwardName(sha)}:refs/heads/${forwardName(sha)}`,
+    ),
   );
 });
 
@@ -167,7 +174,7 @@ test("auto forwards for a trusted approver and not for another", async (t) => {
   assert.equal(store.get("mirror_forward", sha).state, "public_open");
   assert.equal(store.get("mirror_forward", "other-sha").state, "to_forward");
   assert.equal(github.created.length, 1);
-  assert.deepEqual(branches(pub).sort(), ["avoozl/task-1", "main"]);
+  assert.deepEqual(branches(pub).sort(), [forwardName(sha), "main"]);
 });
 
 test("nudge prepares and scans once, pushes nothing, and says it is ready", async (t) => {
@@ -253,7 +260,7 @@ test("a moved source applies on the retry after a sync", async (t) => {
     });
   assert.equal(synced, 1);
   assert.equal(result.ok, true);
-  assert.equal(git(pub, "show", "avoozl/task-1:a.txt"), "crew");
+  assert.equal(git(pub, "show", `${forwardName(sha)}:a.txt`), "crew");
   assert.equal(github.issues.length, 0);
   assert.ok(priv);
 });
