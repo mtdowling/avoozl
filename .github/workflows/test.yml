@@ -7,8 +7,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    # Windows spawns git and node more slowly; its suite runs past 10 minutes.
-    timeout-minutes: ${{ matrix.os == 'windows-latest' && 25 || 10 }}
+    # Windows spawns git and node more slowly; its suite plus the UI's browser
+    # tests run 22 to 25 minutes there, so 25 cancelled passing runs.
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 40 || 10 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

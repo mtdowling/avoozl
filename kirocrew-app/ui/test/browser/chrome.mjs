@@ -120,6 +120,9 @@ export async function launch(chrome) {
         await call('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: keyCode })
         await call('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: keyCode })
       },
+      async hover(x, y) {
+        await call('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
+      },
       async click(x, y) {
         for (const type of ['mousePressed', 'mouseReleased']) await call('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 })
       },

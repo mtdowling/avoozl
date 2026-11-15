@@ -97,7 +97,7 @@ test('Settings round-trips untriaged and shows the default filter', () => {
 test('the tab stays outside GitHub modes, with no count, and its badge is not yellow', () => {
   const app = source('App.tsx')
   // The tab shows in every mode; the count does not.
-  assert.match(app, /const navItems = TABS\.map\(\(t\) => \(\{/)
+  assert.match(app, /const groups: NavGroup\[\] = TABS\.map\(\(t\) => \(\{/)
   assert.doesNotMatch(app, /TABS\.filter\(/)
   assert.match(app, /setUntriaged\(list\.enabled \? list\.total : null\)/)
   // Intake lost its tab: its count joins Conflicts in the Needs you badge.

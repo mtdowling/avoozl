@@ -1482,8 +1482,8 @@ it was first held for overlap (kept in the `release-held:<task>` receipt).
    behind another is never ranked above it, because the one behind is not
    eligible yet.
 2. `overlaps(task)` compares its `paths` with the `paths` of claimed tasks and
-   with the changed files of open pull requests in the same repository (from
-   the batched read, first 100 files). A path matches when equal, one is a
+   of the tasks whose issues an open pull request in the same repository
+   closes (from the batched read, which already holds the closing issues). A path matches when equal, one is a
    directory prefix of the other, or a glob of one matches the other. A task
    with no `paths` never overlaps. An overlapping task sorts after every
    non-overlapping candidate.

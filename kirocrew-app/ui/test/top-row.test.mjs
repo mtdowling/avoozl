@@ -1,6 +1,7 @@
 // In a real Chrome (AVOOZL_CHROME, or an installed Chrome or Chromium), on
-// the harness page (test/browser/harness.tsx): the page header (picker,
-// Plan a goal, More with Stop the line as an icon) has no Switch model, no
+// the harness page (test/browser/harness.tsx): the app shell (no top bars; the
+// workspace picker and Plan a goal first in the main column; Stop the line an
+// icon in the nav) has no Switch model, no
 // visible "Stop the line" text and no sideways scroll at 375, 768 and 1280 px,
 // light and dark, running and stopped; an In flight title opens the task
 // drawer as a Back step. Skipped when no Chrome is found.
@@ -30,39 +31,55 @@ after(async () => {
 
 const settle = () => page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
 
+// The line controls: on a desktop in their own small section of the left nav,
+// on a phone at the bottom of the menu. Open it when the page is a phone.
+// Where Stop the line is: on a desktop the page's top line, right after Plan
+// a goal; on a phone the bottom of the menu (open it first).
+const LINE = (width) => (width < 768 ? '[data-nav-line]' : '[data-main-actions]')
+const openLine = async (width) => {
+  if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+  await page.until(`Boolean(document.querySelector('${LINE(width)} [data-stop-line]'))`)
+  await settle()
+}
+
 for (const [width, height] of [
   [375, 740],
   [768, 1024],
   [1280, 800],
 ])
   for (const dark of [false, true])
-    test(`the header at ${width} px ${dark ? 'dark' : 'light'}: no Switch model, Stop the line an icon in More, no visible Stop the line text; no sideways scroll`, { skip }, async () => {
+    test(`the shell at ${width} px ${dark ? 'dark' : 'light'}: no top bars, Stop the line an icon (top line on a desktop, menu on a phone), no visible Stop the line text; no sideways scroll`, { skip }, async () => {
       for (const stopped of [false, true]) {
         await page.open(harness.url({ app: '1', theme: dark ? 'dark' : 'light', ...(stopped ? { stopped: '1' } : {}) }), { width, height, dark })
-        await page.until(`Boolean(document.querySelector('[data-header-actions] [data-more-button]'))`)
+        await page.until(`Boolean(document.querySelector('[data-main-top] select[aria-label="Workspace"]'))`)
         await settle()
         const closed = await page.evaluate(`(() => {
           const pane = document.querySelector('[data-host-pane]')
+          const main = document.querySelector('[data-shell-main]')
           return {
             switchModel: [...document.querySelectorAll('button')].some((b) => /Switch model/.test(b.textContent)) || Boolean(document.querySelector('[data-switch-model]')),
-            stopOnRow: Boolean(document.querySelector('[data-header-actions] > [data-stop-line], [data-phone-header] > * > [data-stop-line]')),
+            moreButtons: document.querySelectorAll('[data-header-more], [data-header-actions]').length,
+            logoBar: Boolean(document.querySelector('[data-header-brand]')),
+            // The workspace selector is the first thing in the main column.
+            selectorFirst: main.firstElementChild.matches('[data-main-top]') && main.firstElementChild.contains(document.querySelector('select[aria-label="Workspace"]')),
             sideways: Math.max(document.scrollingElement.scrollWidth, pane.scrollWidth) > innerWidth,
           }
         })()`)
         assert.equal(closed.switchModel, false, 'no Switch model anywhere')
-        assert.equal(closed.stopOnRow, false, 'Stop the line is not on the header row')
+        assert.equal(closed.moreButtons, 0, 'no header or ... menu')
+        assert.equal(closed.logoBar, false, 'no logo bar')
+        assert.equal(closed.selectorFirst, true, 'the workspace selector starts the main column')
         assert.equal(closed.sideways, false, 'no sideways scroll')
         if (width < 768) {
           const header = await page.evaluate(`document.querySelector('[data-phone-header]').getBoundingClientRect().height`)
           assert.ok(header <= 56, `the phone header is one row (${header})`)
         }
-        await page.evaluate(`document.querySelector('[data-header-actions] [data-more-button]').click()`)
-        await page.until(`Boolean(document.querySelector('[data-more-panel] [data-stop-line]'))`)
-        if (stopped) await page.until(`Boolean(document.querySelector('[data-more-panel] [data-stop-line][data-stopped]'))`)
-        await settle()
+        await openLine(width)
+        if (stopped) await page.until(`Boolean(document.querySelector('${LINE(width)} [data-stop-line][data-stopped]'))`)
         const open = await page.evaluate(`(() => {
-          const stop = document.querySelector('[data-more-panel] [data-stop-line]')
-          const r = document.querySelector('[data-more-panel]').getBoundingClientRect()
+          const stop = document.querySelector('${LINE(width)} [data-stop-line]')
+          const plan = [...document.querySelectorAll('[data-main-actions] button')].find((b) => b.textContent.trim() === 'Plan a goal')
+          const r = stop.getBoundingClientRect()
           const visible = []
           const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
           for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -70,20 +87,61 @@ for (const [width, height] of [
             const box = el.getBoundingClientRect(), style = getComputedStyle(el)
             if (box.width > 1 && box.height > 1 && style.visibility !== 'hidden' && !el.closest('.sr-only')) visible.push(n.nodeValue.trim())
           }
-          return { label: stop.getAttribute('aria-label') ?? stop.textContent.trim(), onScreen: r.left >= 0 && r.right <= innerWidth, texts: visible.filter((t) => /stop the line/i.test(t)) }
+          const p = plan ? plan.getBoundingClientRect() : null
+          return { label: stop.getAttribute('aria-label'), text: stop.textContent.trim(), size: [Math.round(r.width), Math.round(r.height)], matchesPlan: p ? Math.abs(p.height - r.height) < 1 && r.left >= p.right && Math.abs(p.top - r.top) < 1 : null, inNav: Boolean(stop.closest('[data-left-nav]')), onScreen: r.left >= 0 && r.right <= innerWidth, texts: visible.filter((t) => /stop the line|resume the line/i.test(t)) }
         })()`)
-        assert.match(open.label, stopped ? /Line stopped/ : /Stop the line/)
-        assert.equal(open.onScreen, true, 'the menu is on screen')
+        assert.match(open.label, stopped ? /Resume the line/ : /Stop the line/)
+        assert.equal(open.text, '', 'the icon has no words')
+        if (width < 768) assert.deepEqual(open.size, [28, 28], 'a compact 28 px icon')
+        else {
+          assert.equal(open.matchesPlan, true, 'as tall as Plan a goal, right after it')
+          assert.equal(open.size[0], open.size[1], 'square')
+          assert.equal(open.inNav, false, 'not in the left nav')
+        }
+        assert.equal(open.onScreen, true, 'it is on screen')
         assert.deepEqual(open.texts, [], 'no visible text reads Stop the line')
         if (shots) {
           fs.mkdirSync(shots, { recursive: true })
           await page.screenshot(path.join(shots, `top-row-${width}-${dark ? 'dark' : 'light'}${stopped ? '-stopped' : ''}.png`))
         }
-        await page.evaluate(`document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`)
-        await settle()
-        assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-more-panel]'))`), false, 'a tap outside closes it')
       }
     })
+
+test('the brand line sits under the nav: one line, no box, the logo left and the name and version right', { skip }, async () => {
+  await page.open(harness.url({ app: '1' }), { width: 1280, height: 800 })
+  await page.until(`Boolean(document.querySelector('[data-brand-card] [data-instance-name]'))`)
+  const got = await page.evaluate(`(() => {
+    const nav = document.querySelector('[data-nav-card]'), brand = document.querySelector('[data-brand-card]'), main = document.querySelector('[data-shell-main]')
+    const box = (el) => el.getBoundingClientRect()
+    const logo = brand.querySelector('svg'), name = brand.querySelector('[data-instance-name]'), version = brand.querySelector('[data-avoozl-version]')
+    const mid = (el) => { const r = box(el); return r.top + r.height / 2 }
+    const cs = getComputedStyle(brand)
+    return {
+      oneLine: Math.abs(mid(logo) - mid(name)) < 4 && Math.abs(mid(name) - mid(version)) < 4,
+      order: box(logo).right <= box(name).left && box(name).right <= box(version).left,
+      logoLeft: box(logo).left - box(brand).left < 12,
+      versionRight: box(brand).right - box(version).right < 8,
+      noBox: cs.borderTopWidth === '0px' && (cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent'),
+      apart: !nav.contains(brand), below: box(brand).top >= box(nav).bottom, leftOfMain: box(brand).right <= box(main).left + 1, version: brand.querySelector('[data-avoozl-version]')?.textContent, tagline: document.body.textContent.includes('Specs and epics as a graph') }
+  })()`)
+  assert.equal(got.oneLine, true, 'one line')
+  assert.equal(got.order, true, 'logo, name, version')
+  assert.equal(got.logoLeft, true, 'the logo at the left')
+  assert.equal(got.versionRight, true, 'the name and version at the right')
+  assert.equal(got.noBox, true, 'no border, no background')
+  assert.equal(got.apart, true, 'not inside the nav card')
+  assert.equal(got.below, true)
+  assert.equal(got.leftOfMain, true)
+  assert.match(got.version, /^v\S+$/)
+  assert.equal(got.tagline, false, 'no always-visible tag line')
+  // A phone: the menu button, and the brand card at the bottom of the menu.
+  await page.open(harness.url({ app: '1' }), { width: 390, height: 844 })
+  await page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-brand-card]'))`), false, 'closed menu: no brand card')
+  await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+  await page.until(`Boolean(document.querySelector('[data-top-rail-footer] [data-brand-card]'))`)
+  assert.equal(await page.evaluate(`(() => { const f = document.querySelector('[data-top-rail-footer]').getBoundingClientRect(), l = document.querySelector('[data-top-rail-list]').getBoundingClientRect(); return Math.abs(f.bottom - l.bottom) < 2 })()`), true, 'at the bottom of the menu')
+})
 
 test('an In flight title opens the task drawer, and Back closes it and returns focus', { skip }, async () => {
   await page.open(harness.url({ modal: 'in-flight' }), { width: 1280, height: 800 })
@@ -136,12 +194,12 @@ test('Start demo shows in the empty In flight box only while nothing has ever ru
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-demo-start]').length`), 0, 'empty but has run: hidden')
 })
 
-test('the page header never has Start demo or Try the demo', { skip }, async () => {
+test('the top of the main column never has Start demo or Try the demo', { skip }, async () => {
   {
     await page.open(harness.url({ app: '1' }), { width: 1280, height: 800 })
-    await page.until(`Boolean(document.querySelector('[data-header-actions] [data-more-button]'))`)
-    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-header-actions] [data-demo-start]'))`), false)
-    assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-header-actions] button')].some((b) => /demo/i.test(b.textContent))`), false)
+    await page.until(`Boolean(document.querySelector('[data-main-top]'))`)
+    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-main-top] [data-demo-start]'))`), false)
+    assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-main-top] button')].some((b) => /demo/i.test(b.textContent))`), false)
   }
 })
 
@@ -169,12 +227,10 @@ test('Keep activity sits at the right of the filters on one row, inside the filt
   }
 })
 
-test("Stop the line from the More menu opens its dialog, and a tap or click in the dialog keeps it open", { skip }, async () => {
+test("Stop the line from the top line opens its dialog, and a tap or click in the dialog keeps it open", { skip }, async () => {
   await page.open(harness.url({ app: '1' }), { width: 1280, height: 800 })
-  await page.until(`Boolean(document.querySelector('[data-header-actions] [data-more-button]'))`)
-  await page.evaluate(`document.querySelector('[data-header-actions] [data-more-button]').click()`)
-  await page.until(`Boolean(document.querySelector('[data-more-panel] [data-stop-line]'))`)
-  await page.evaluate(`document.querySelector('[data-more-panel] [data-stop-line]').click()`)
+  await openLine(1280)
+  await page.evaluate(`document.querySelector('[data-main-actions] [data-stop-line]').click()`)
   await page.until(`Boolean(document.querySelector('[data-stop-reason]'))`)
   await page.evaluate(`(() => {
     const input = document.querySelector('[data-stop-reason]')
@@ -183,4 +239,35 @@ test("Stop the line from the More menu opens its dialog, and a tap or click in t
   })()`)
   await settle()
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-stop-reason]'))`), true, 'the dialog stays open')
+})
+
+test('a hovered nav item changes color, the selected one stays different, and keyboard focus shows a ring', { skip }, async () => {
+  for (const dark of [false, true]) {
+    await page.open(harness.url({ app: '1', theme: dark ? 'dark' : 'light' }), { width: 1280, height: 800, dark })
+    await page.until(`Boolean(document.querySelector('[data-nav-item="plans"]'))`)
+    // Settings opens in the nav, so its pages are items to hover and focus.
+    await page.evaluate(`document.querySelector('[data-nav-group="settings"]').click()`)
+    await page.until(`Boolean(document.querySelector('[data-nav-item="settings/models"]'))`)
+    await settle()
+    const read = (key) => page.evaluate(`(() => { const el = document.querySelector('[data-nav-item="${key}"]'), s = getComputedStyle(el); return { bg: s.backgroundColor, color: s.color, weight: s.fontWeight, outline: s.outlineStyle } })()`)
+    const before = await read('settings/models')
+    const selected = await read('settings/workspaces')
+    const box = await page.evaluate(`(() => { const r = document.querySelector('[data-nav-item="settings/models"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`)
+    await page.hover(box[0], box[1])
+    await settle()
+    const hover = await read('settings/models')
+    assert.notEqual(hover.bg, before.bg, 'hover changes the background')
+    assert.notEqual(hover.color, before.color, 'hover changes the text color')
+    assert.notDeepEqual([hover.bg, hover.color, hover.weight], [selected.bg, selected.color, selected.weight], 'hover differs from the selected item')
+    await page.hover(5, 5)
+    await page.key('Tab', 'Tab', 9)
+    await page.evaluate(`document.querySelector('[data-nav-item="settings/plugins"]').focus()`)
+    assert.equal((await read('settings/plugins')).outline, 'solid', 'keyboard focus shows a ring')
+    // A section header changes color on hover too.
+    const head = await page.evaluate(`(() => { const r = document.querySelector('[data-nav-group="flow"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`)
+    const headBefore = await page.evaluate(`getComputedStyle(document.querySelector('[data-nav-group="flow"]')).color`)
+    await page.hover(head[0], head[1])
+    await settle()
+    assert.notEqual(await page.evaluate(`getComputedStyle(document.querySelector('[data-nav-group="flow"]')).color`), headBefore, 'a header changes color on hover')
+  }
 })

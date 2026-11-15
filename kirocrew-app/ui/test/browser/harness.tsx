@@ -21,7 +21,7 @@ import AddPlugin from '../../src/AddPlugin.tsx'
 import Onboard from '../../src/Onboard.tsx'
 import { RepositoryDialog } from '../../src/RepositoriesSettings.tsx'
 import { SetupDialog } from '../../src/SetupWizard.tsx'
-import { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansView.tsx'
+import PlansView, { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansView.tsx'
 import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import { PackImportDialog } from '../../src/PackImport.tsx'
@@ -570,12 +570,14 @@ if (query.get('page') === 'release-queue') {
     ['rc-1.1', 'Add the claim marker reader', 'released', 'Ready label is on. A crew has not claimed it yet.', 'Phase 1'],
     ['rc-1.2', 'Read the crew list', 'claimed', 'Claimed by Docs crew.', 'Phase 1'],
     ['rc-2.1', 'Project plans-repo issues into the code repository for the crews', 'next', 'Next in line.', 'Phase 2'],
-    ['rc-2.2', 'Write the preview', 'held', 'Waiting for a free slot (2 of 2 in use).', 'Phase 2'],
+    ['rc-2.2', 'Write the preview', 'held', 'Waiting for a free slot (2 of 2 in use). Next: unblocks 4 tasks.', 'Phase 2'],
+    ['rc-2.3', 'Read the open pull requests once', 'held', 'Held: paths overlap #112 (open pull request); moves up in 7h.', 'Phase 2'],
     ['rc-3.1', 'Verify an issue before a crew builds it', 'held', 'Waiting on rc-2.1, rc-2.2.', 'Phase 3'],
     ['rc-4.1', 'Release engine', 'held', 'Phase Phase 4 waits for phase p3 to merge (rc-3.1, rc-3.2, rc-3.3).', 'Phase 4'],
     ['rc-5.1', 'Merge path check', 'held', 'Step: waiting for a click to release phase Phase 5.', 'Phase 5'],
     ['rc-5.2', 'Arm GitHub auto-merge', 'held', 'The line is stopped: bad base on main.', 'Phase 5'],
   ].map(([taskId, title, state, reason, phase], i) => ({ taskId, title, planId: 'radar-coder', spec: 'radar-coder', phase, scope: null, label: 'ready', number: 10 + i, url: null, manual: false, state, reason, used: 2, capacity: 2 }))
+  answer('delivery.view', () => ({ revision: 1, items: [] }))
   answer('radar.releasequeue', () => ({
     repositories: [
       { repository: 'example/application-with-a-long-name', ready: 'ready', mode: 'step', capacity: 2, scopes: [], rows, steps: [{ planId: 'radar-coder', spec: 'radar-coder', phase: 'p5', title: 'Phase 5', released: false }] },
@@ -722,6 +724,71 @@ function ActivityPage() {
   )
 }
 
+// ?page=specs: the Specs tab alone, with drafts in two approval batches.
+if (query.get('page') === 'specs') {
+  const spec = (name: string, status: string, total: number, extra = {}) => ({
+    key: `spec:${name}`,
+    kind: 'spec',
+    name,
+    spec: name,
+    folder: `.kiro/specs/${name}`,
+    planId: status === 'not imported' ? null : name,
+    type: 'feature',
+    category: null,
+    categoryProblem: null,
+    errors: 0,
+    status,
+    tasks: { total, done: status === 'approved' ? 1 : 0 },
+    now: { ready: 0, running: 0, needsYou: 0 },
+    epic: null,
+    epicTitle: null,
+    lastChange: null,
+    ...extra,
+  })
+  const items = [
+    spec('byte-types', 'draft', 8),
+    spec('compression', 'draft', 12),
+    spec('core-design-values', 'draft', 4),
+    spec('math-matrix-math', 'draft', 5),
+    spec('public-cli-module', 'draft', 3),
+    spec('allocator', 'draft', 7),
+    spec('nupp-native-runtime-winddown-2026-11-11', 'draft', 131),
+    spec('load-config', 'approved', 3, { onGitHub: true }),
+    spec('window-design', 'not imported', 10),
+  ]
+  const entry = (id: string, batch: number, tasks: number, hash: string, extra = {}) => ({ id, spec: id, title: id, hash: hash.repeat(64 / hash.length), batch, tasks, errors: 0, loop: false, needs: [], ...extra })
+  const batches = [
+    { batch: 1, specs: [entry('core-design-values', 1, 4, 'b9dc37bf'), entry('math-matrix-math', 1, 5, 'b18266e9'), entry('public-cli-module', 1, 3, '4b5afd31')] },
+    { batch: 2, specs: [entry('byte-types', 2, 8, '98f38c3b', { loop: true, needs: ['compression', 'core-design-values'] }), entry('compression', 2, 12, 'f1551aa3', { loop: true, needs: ['byte-types'] }), entry('nupp-native-runtime-winddown-2026-11-11', 2, 131, '3a271abe', { loop: true, needs: ['compression'] })] },
+    { batch: 3, specs: [entry('allocator', 3, 7, '4fb54994', { needs: ['byte-types'] })] },
+  ]
+  answer('plan.table', () => ({ root: '/repo', problem: null, specs: [], revision: 7, items }))
+  const writes: Record<string, number> = { 'byte-types': 14, compression: 21, 'nupp-native-runtime-winddown-2026-11-11': 268 }
+  answer('plan.approvalBatches', (body) => {
+    const ids = (body.input as { ids?: string[] } | undefined)?.ids
+    if (!ids) return { batches }
+    const specs = batches.flatMap((b) => b.specs).filter((e) => ids.includes(e.id)).map((e) => ({ ...e, writes: writes[e.id] ?? 3 }))
+    return { batches, selection: { ok: true, specs, writes: specs.reduce((n, e) => n + e.writes, 0), failures: [], missing: [] } }
+  })
+  answer('plan.approveMany', (body) => {
+    state.calls.push(body as never)
+    return { ok: true, approved: [], failures: [] }
+  })
+}
+function SpecsPage() {
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
+      <NavHistoryProvider>
+        <ConfirmProvider>
+          <TaskDrawerProvider workspaceId="w" onFocus={() => undefined}>
+            <PlansView workspaceId="w" />
+          </TaskDrawerProvider>
+        </ConfirmProvider>
+      </NavHistoryProvider>
+    </div>
+  )
+}
+
 function HomePage() {
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
@@ -850,6 +917,17 @@ if (page === 'panel') {
     return panelWin.__panel
   }
   answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true }] }))
+  // ?places=1: two workspaces, Avoozl's (/w) and Nupp's (/n, whose code
+  // checkout is /src/nupp), and chats whose project folders sit in each.
+  if (query.get('places')) {
+    answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Avoozl plans', root: '/w', enabled: true, state: 'ready', served: true }, { id: 'nupp', name: 'Nupp plans with a long name', root: '/n', enabled: true, state: 'ready', served: false }] }))
+    answer('repositories.list', (body) => ({ items: (body as { workspaceId?: string }).workspaceId === 'nupp' ? [{ id: 'nupp', name: 'nupp', localCheckout: '/src/nupp', github: 'o/nupp', baseBranch: 'main' }] : [{ id: 'av', name: 'avoozl', localCheckout: '/src/avoozl', github: 'o/avoozl', baseBranch: 'main' }] }))
+    answer('GET /api/chat/slots', () => [
+      { key: 'nupp-chat', project: '/src/nupp/compiler' },
+      { key: 'avoozl-chat', project: '/src/avoozl' },
+      { key: 'elsewhere-chat', project: '/srv/other' },
+    ])
+  }
   // The one read the panel makes. A failed part is null, as in the backend.
   const part = <T,>(read: () => T): T | null => {
     try {
@@ -1017,5 +1095,5 @@ function PanelPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'needs' ? <NeedsPage /> : page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'needs' ? <NeedsPage /> : page === 'specs' ? <SpecsPage /> : page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )

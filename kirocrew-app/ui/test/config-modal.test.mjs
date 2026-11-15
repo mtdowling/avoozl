@@ -29,12 +29,12 @@ const DIALOG = `document.querySelector('[data-settings-dialog="repositories"]')`
 
 async function start(width, dark = false) {
   await page.open(harness.url({ page: 'app', radar: '1', theme: dark ? 'dark' : 'light' }), { width, height: 800, dark })
-  await page.until(`Boolean(document.querySelector('[role="tab"], [data-top-rail-bar]'))`)
+  await page.until(`Boolean(document.querySelector('[data-nav-head], [data-top-rail-bar]'))`)
   // A phone's tabs are in the top rail's list, once its bar is open.
   await page.evaluate(`document.querySelector('[data-top-rail-bar]')?.click()`)
-  await page.evaluate(`[...document.querySelectorAll('button[role="tab"]')].find((b) => b.textContent.trim() === 'Settings').click()`)
-  await page.until(`Boolean(document.querySelector('[data-settings-section="repositories"] button[aria-expanded]'))`)
-  await page.evaluate(`document.querySelector('[data-settings-section="repositories"] button[aria-expanded]').click()`)
+  await page.evaluate(`[...document.querySelectorAll('button[data-nav-head]')].find((b) => b.textContent.trim() === 'Settings').click()`)
+  await page.until(`Boolean(document.querySelector('[data-nav-item="settings/repositories"]'))`)
+  await page.evaluate(`document.querySelector('[data-nav-item="settings/repositories"]').click()`)
   await page.until(`Boolean(${OPENER})`)
 }
 const openDialog = async () => {

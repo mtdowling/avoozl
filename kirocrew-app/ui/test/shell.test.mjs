@@ -72,7 +72,7 @@ for (const dark of [false, true]) {
     await settle()
     const bar = await box('[data-left-nav="collapsed"]')
     assert.ok(bar.width <= 40, `a thin bar (${bar.width})`)
-    assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[data-left-nav="collapsed"] [role="tab"]')).writingMode`), 'vertical-rl')
+    assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[data-left-nav="collapsed"] [data-nav-collapsed-item]')).writingMode`), 'vertical-rl')
     await page.open(harness.url({ page: 'app', theme }), { width: 1280, height: 800, dark })
     await page.until(`Boolean(document.querySelector('[data-left-nav]'))`)
     assert.ok(await page.evaluate(`Boolean(document.querySelector('[data-left-nav="collapsed"]'))`), 'collapse is remembered')

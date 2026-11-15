@@ -465,6 +465,10 @@ export function approvePlan(
     githubPolicy,
     baseline = false,
     declaredDependencies = [],
+    // Plan IDs approved in the same plan.approveMany transaction. Their
+    // tasks count as approved owners for a checked task; approveMany checks
+    // after the last approval that every one resolved.
+    coApproved = new Set(),
   },
 ) {
   // Authorization is the reviewed hash and database revision below. Who
@@ -716,6 +720,7 @@ export function approvePlan(
       if (
         checked.has(proposal.id) &&
         specDependencies.some((ref) => {
+          if (coApproved.has(ref.planId)) return false;
           const owner = store.get("plans", ref.planId),
             receipt =
               owner?.approvalId && store.get("approvals", owner.approvalId);

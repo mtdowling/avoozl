@@ -41,37 +41,40 @@ async function goto(name, width) {
   if (width < 768) {
     await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
     await wait(100)
-    await click(`[...document.querySelectorAll('[data-top-rail-list] [role="tab"]')].find((t) => t.textContent.includes(${JSON.stringify(name)}))`)
-  } else await click(`[...document.querySelectorAll('[data-top-row] [role="tab"]')].find((t) => t.textContent.includes(${JSON.stringify(name)}))`)
+    await click(`[...document.querySelectorAll('[data-top-rail-list] [data-nav-head]')].find((t) => t.textContent.includes(${JSON.stringify(name)}))`)
+  } else await click(`[...document.querySelectorAll('[data-top-row] [data-nav-head]')].find((t) => t.textContent.includes(${JSON.stringify(name)}))`)
   await wait(500)
+}
+// A section of the nav opens to its pages; on a phone the menu may need opening first.
+async function pickPage(selector, width) {
+  if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) {
+    await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+    await wait(200)
+  }
+  await click(`document.querySelector(${JSON.stringify(selector)})`)
+  await wait(400)
 }
 const back = () => click(`document.querySelector('[data-list-detail-back]')`).then(() => wait())
 
 for (const dark of [false, true]) {
   const theme = dark ? 'dark' : 'light'
 
-  test(`Settings on a phone: the sections, then one section with Back (${theme})`, { skip }, async () => {
+  test(`Settings on a phone: the menu lists the sections, the page shows only the picked one (${theme})`, { skip }, async () => {
     await start(390, dark)
     await goto('Settings', 390)
-    assert.equal(await has('[data-settings-accordion]'), true, 'the section list shows first')
-    assert.equal(await has('[data-settings-body]'), false, 'no section body beside the list')
+    assert.equal(await has('[data-nav-children="settings"]'), true, 'the menu opens the Settings sections')
+    await pickPage('[data-nav-item="settings/repositories"]', 390)
+    assert.equal(await has('[data-top-rail-list]'), false, 'picking a section closes the menu')
+    assert.equal(await has('[data-settings-body="repositories"]'), true, 'the section shows')
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1, 'only the picked section')
     assert.equal(await has('[data-detail-bar]'), false)
-    await click(`document.querySelector('[data-settings-section="repositories"] button')`)
-    await wait()
-    assert.equal(await has('[data-settings-body="repositories"]'), true, 'the section opens')
-    assert.equal(await has('[data-settings-accordion]'), false, 'the list is out of the way')
-    assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[data-detail-bar]')).position`), 'sticky')
-    assert.match(await page.evaluate(`document.querySelector('[data-detail-bar]').textContent`), /Settings/)
-    assert.ok((await page.evaluate(`document.querySelector('[data-list-detail-back]').getBoundingClientRect().height`)) <= 28)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, 'no sideways scroll')
-    await back()
-    assert.equal(await has('[data-settings-accordion]'), true, 'Back returns to the list')
-    assert.equal(await has('[data-settings-body]'), false)
   })
 
   test(`Needs you on a phone: the decision list, one item with Back, then the other tab (${theme})`, { skip }, async () => {
     await start(390, dark)
     await goto('Needs you', 390)
+    await pickPage('[data-nav-item="waiting/decisions"]', 390)
     assert.equal(await has('[data-waiting-section="decisions"][data-open="true"]'), true, 'opens on decisions')
     assert.equal(await has('[data-conflict-list]'), true, 'the list first')
     assert.equal(await has('[data-detail-bar]'), false)
@@ -82,8 +85,7 @@ for (const dark of [false, true]) {
     assert.equal(await has('[data-detail-bar]'), true)
     await back()
     assert.equal(await has('[data-conflict-list]'), true, 'Back returns to the list')
-    await click(`[...document.querySelectorAll('[data-waiting-tabs] [role="tab"]')].find((t) => t.textContent.includes('Planning and intake'))`)
-    await wait()
+    await pickPage('[data-nav-item="waiting/intake"]', 390)
     assert.equal(await has('[data-waiting-section="intake"][data-open="true"]'), true)
   })
 
@@ -107,19 +109,16 @@ for (const dark of [false, true]) {
     await wait(400)
     assert.ok((await page.evaluate(gap)) <= 1, 'the row sticks to the top of the pane')
     assert.equal(await echo(), '1', 'the compact title shows once the big one has scrolled out')
-    // The spec's left column is behind the hamburger in the Back row.
-    assert.equal(await has('[aria-label="Spec summary"]'), false)
-    await click(`document.querySelector('[data-detail-bar] [data-spec-menu]')`)
-    await wait(300)
-    assert.equal(await has('[aria-label="Spec summary"]'), true, 'the spec menu shows its left column')
-    assert.equal(await has('#avoozl-plan-main'), false, 'one pane at a time')
-    await click(`document.querySelector('[data-detail-bar] [data-spec-menu]')`)
-    await wait(300)
+    // The rail stacks under the cards; the header's title is the one big title.
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-detail-title], #avoozl-plan-title').length`), 1, 'one big title')
+    const order = await page.evaluate(`(() => { const main = document.querySelector('#avoozl-plan-main').getBoundingClientRect(), rail = document.querySelector('[data-spec-rail]').getBoundingClientRect(); return { below: rail.top >= main.bottom - 1, wide: Math.round(rail.width) >= Math.round(main.width) - 1 } })()`)
+    assert.deepEqual(order, { below: true, wide: true }, 'the rail is under the main column, as wide')
+    assert.equal(await has('[data-spec-menu]'), false, 'no spec hamburger')
     await back()
     assert.equal(await has('[data-plans-list]'), true, 'Back returns to the list')
   })
 
-  test(`a desktop at 1280 px is unchanged: no detail bar, Settings keeps its accordion, Specs list beside its detail (${theme})`, { skip }, async () => {
+  test(`a desktop at 1280 px is unchanged: no detail bar, Settings shows one section, Specs list beside its detail (${theme})`, { skip }, async () => {
     await start(1280, dark)
     await goto('Settings', 1280)
     assert.equal(await has('[data-settings-body]'), true, 'the open section sits under its heading')
@@ -139,7 +138,9 @@ for (const dark of [false, true]) {
     // The list stays on the left, the spec opens on the right.
     assert.equal(await has('[data-list-pane="specs"] [data-spec-list]'), true)
     assert.equal(await has('[data-detail-column="specs"] [data-spec-detail]'), true)
-    // New task is in the spec's view, not on the list (RC30.2).
+    // New task is in the spec's ... menu, not on the list (RC30.2).
+    await click(`document.querySelector('[data-detail-column="specs"] [data-spec-more] [data-more-button]')`)
+    await wait(200)
     assert.equal(await has('[data-detail-column="specs"] [data-new-task]'), true)
     assert.equal(await has('[data-list-pane="specs"] [data-new-task]'), false)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
