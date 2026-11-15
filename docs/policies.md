@@ -514,7 +514,7 @@ as early.
 
 Every chat, Issue Radar and Avoozl's tick use one GitHub login, which GitHub
 limits to 5,000 REST calls an hour (GraphQL has its own count). Avoozl does
-five things about it:
+six things about it:
 
 - **One cache.** Every view, command and MCP tool reads GitHub through one
   client. An answer it holds is reused with no call for `github.cacheSeconds`
@@ -526,6 +526,25 @@ five things about it:
   stored answer is served at any age. GraphQL queries are kept the same way,
   by their text and variables; mutations and answers with errors are not.
   A read can be up to that many seconds old, including pull-request checks.
+- **Paced writes.** GitHub allows about 80 content-creating requests a minute
+  and 500 an hour, and repeat hits can get a login banned. Every write goes
+  through one serial pacer in the client: at most `github.writesPerMinute`
+  (default 60, up to 80) and `github.writesPerHour` (default 400, up to 500),
+  counted in a journal in the workspace database, and none while under 10% of
+  the primary limit is left. A projection that reaches the hour cap stops, keeps
+  a run record, and the tick carries on when the window opens. It finds what it
+  already made by the marker in each issue, so a stop or a crash makes no
+  duplicate. Issues are made in graph order: a parent before its children and
+  a blocker before the tasks it blocks (a cycle fails the preview). Each
+  GraphQL `createIssue` carries everything known then: title, body (with the
+  issue numbers of its blockers and parent), marker, labels, issue type and
+  parent. A fresh projection edits no issue after it is made. The only writes
+  after are one `addBlockedBy` per dependency, since `createIssue` cannot take
+  one. `addSubIssue` is only for issues that already exist. Each mutation
+  counts as one write against the limits; Avoozl does not batch mutations into
+  one request. The preview shows the write
+  count and how long it takes at this pace. Settings > Where tasks live and
+  Needs you show `312 of 1,740 writes, resumes at 14:00`.
 - **Conditional reads.** Every REST GET stores GitHub's `ETag` and
   `Last-Modified` and the body in the workspace database, and sends them back
   next time. A 304 answer costs nothing against the limit, and Avoozl reuses

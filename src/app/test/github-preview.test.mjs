@@ -116,7 +116,13 @@ function fakeGitHub() {
           ...(input.type ? { type: { name: input.type } } : {}),
         };
       issues.push(issue);
+      const parent = issues.find(
+        (entry) => entry.node_id === input.parentIssueId,
+      );
+      if (parent)
+        subIssues.set(parent.id, [...(subIssues.get(parent.id) || []), issue]);
       write("issue.create", issue, {
+        ...(parent ? { parentTaskId: taskOf(parent) } : {}),
         title: input.title,
         labels: input.labels || [],
         ...(input.assignees ? { assignees: input.assignees } : {}),
@@ -338,13 +344,20 @@ test("the preview lists exactly the writes the projection then makes, and makes 
   for (const kind of [
     "issue.create",
     "issue.update",
-    "label.add",
-    "sub-issue.add",
     "blocker.add",
     "project.add",
     "project.fields",
   ])
     assert.ok(kinds.has(kind), kind + " is missing from the preview");
+  // A new issue is made under its parent in the create call: the create
+  // names the parent, and no separate sub-issue write follows it.
+  assert.ok(
+    preview.writes.some(
+      (write) => write.kind === "issue.create" && write.parentTaskId,
+    ),
+    "a child is created under its parent",
+  );
+  assert.ok(!kinds.has("sub-issue.add"), "no sub-issue call for a new child");
   const fields = preview.writes
     .filter((write) => write.kind === "project.fields")
     .map((write) => write.fields);
