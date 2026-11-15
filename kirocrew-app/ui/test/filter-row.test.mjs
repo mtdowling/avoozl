@@ -69,3 +69,20 @@ for (const width of [390, 1280])
       assert.equal(await page.evaluate(`document.querySelectorAll('[data-more-panel] select').length`), 4)
       assert.ok((await page.evaluate(`document.querySelector('[data-filter-row]').getBoundingClientRect().height`)) <= 28)
     })
+
+for (const width of [390, 1280])
+  test(`Needs you shows its count exactly once, at the right end of the filter line, at ${width} px`, { skip }, async () => {
+    await page.open(harness.url({ page: 'needs' }), { width, height: 800 })
+    await page.until(`Boolean(document.querySelector('[data-filter-panel="avoozl-conflicts"][data-filter-row]'))`)
+    const got = await page.evaluate(`(() => {
+      const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden' }
+      const has = (el) => /\\b4 of 4\\b/.test(el.textContent)
+      // The smallest elements that read 4 of 4 (React splits the numbers into their own text nodes).
+      const counts = [...document.querySelectorAll('body *')].filter((el) => visible(el) && has(el) && ![...el.children].some(has))
+      const row = document.querySelector('[data-filter-row]')
+      return { n: counts.length, inStatus: counts.every((el) => el.closest('[data-filter-status]')), rowHeight: Math.round(row.getBoundingClientRect().height) }
+    })()`)
+    assert.equal(got.n, 1, 'one "4 of 4" on the page')
+    assert.equal(got.inStatus, true, 'it is the filter line\'s status text')
+    assert.ok(got.rowHeight <= 28, `the filter line is one line (${got.rowHeight} px)`)
+  })
