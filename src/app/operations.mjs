@@ -1770,6 +1770,32 @@ export class Operations {
       return null;
     return target;
   }
+  // Who approves a spec. GitHub records the approver as a login (the approval
+  // pull request and the issue write-back check it), so when GitHub is in play
+  // it is the caller's login, else the signed-in GitHub login, cached for
+  // this workspace. git user.name is display provenance and may hold spaces.
+  async specApprover(plan, approvedBy) {
+    const given = approvedBy?.trim();
+    if (given) return given;
+    const github =
+      this.approvalGateTarget(plan) ||
+      (readGitHubPolicyOrNull(this.workspaceRoot)?.mode &&
+        this.github?.available?.());
+    if (!github) return this.operator;
+    if (!this.approverLogin)
+      try {
+        this.approverLogin =
+          (this.github?.available?.() &&
+            (await this.github.currentUser())?.login) ||
+          null;
+      } catch {}
+    if (!this.approverLogin)
+      fail(
+        "Approving a spec needs your GitHub login, and Avoozl could not find one. Run `gh auth login`, then approve again.",
+        401,
+      );
+    return this.approverLogin;
+  }
   async approvalPullRequest(plan, { approvedBy, quality }) {
     const target = this.approvalGateTarget(plan);
     if (!target) return null;
@@ -5626,7 +5652,10 @@ export class Operations {
     if (name === "plan.approve") {
       const { plan, extraction, specQuality, proposals, quality } =
         this.approvalChecks(input);
-      let approver = input.approvedBy?.trim() || this.operator,
+      let approver =
+          plan.spec && !extraction
+            ? await this.specApprover(plan, input.approvedBy)
+            : input.approvedBy?.trim() || this.operator,
         evidence = input.evidence;
       if (plan.spec && !extraction) {
         const gate = await this.approvalPullRequest(plan, {

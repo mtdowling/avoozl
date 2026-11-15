@@ -39,7 +39,8 @@ test("Proof 18: a label, an Avoozl approval and a stranger's label each end in o
   assert.ok(w.github.labelNames(8).includes(APPROVAL));
   const markers = w.github.commentsOn(8, /<!-- avoozl-approval /);
   assert.equal(markers.length, 1);
-  assert.match(markers[0].body, /approver=Owner spec=\.kiro\/specs\/two /);
+  // The signed-in GitHub login approves, not the operator name.
+  assert.match(markers[0].body, /approver=worker spec=\.kiro\/specs\/two /);
   assert.doesNotMatch(markers[0].body, /Load configuration/);
   // Issue 9: the stranger's label is removed, with one row naming the person.
   assert.equal(w.github.labelNames(9).includes(APPROVAL), false);
