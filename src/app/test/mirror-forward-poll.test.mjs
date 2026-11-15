@@ -179,7 +179,9 @@ const marker = (taskId) =>
     applied: { title: hash, body: hash, labels: [], blockers: [] },
   });
 
-function gate(t) {
+// `at` is the repository the task issues live in: the mirror, as projection
+// writes them (RC24.3).
+function gate(t, { at = SOURCE } = {}) {
   const { store } = fixture(t),
     root = temporaryDirectory();
   fs.writeFileSync(
@@ -230,10 +232,10 @@ function gate(t) {
       ...(number
         ? {
             github: {
-              repository: SOURCE,
+              repository: at,
               number,
               nodeId: "I_" + number,
-              url: `https://example.test/${SOURCE}/issues/${number}`,
+              url: `https://example.test/${at}/issues/${number}`,
             },
           }
         : {}),
@@ -253,7 +255,7 @@ function gate(t) {
     closed_at: "2026-11-12T10:05:00Z",
     updated_at: "2026-11-12T10:05:00Z",
     body: marker("a") + "\nBody",
-    html_url: `https://example.test/${SOURCE}/issues/1`,
+    html_url: `https://example.test/${at}/issues/1`,
   };
   const github = {
     available: () => true,
@@ -261,12 +263,12 @@ function gate(t) {
     closingPullRequests: async () => [
       {
         number: 101,
-        url: `https://example.test/${SOURCE}/pull/101`,
+        url: `https://example.test/${at}/pull/101`,
         merged: true,
         mergedAt: "2026-11-12T10:04:00Z",
         headRefOid: SHA,
         baseRefName: "main",
-        repository: { nameWithOwner: SOURCE },
+        repository: { nameWithOwner: at },
       },
     ],
     pullRequestReviews: async () => [],
@@ -293,18 +295,22 @@ function gate(t) {
   };
 }
 
-test("a mirror merge alone releases no dependent; the public merge does", async (t) => {
-  const { store, run, ready, task } = gate(t);
-  store.put("mirror_forward", record({ state: "to_forward", publicPr: null }));
-  await run();
-  assert.notEqual(task("a").githubVerdict?.state, "verified");
-  assert.equal(ready().has("a-next"), false);
-  // Forwarded and still open: dependents still wait.
-  store.put("mirror_forward", record());
-  await run();
-  assert.equal(ready().has("a-next"), false);
-  store.put("mirror_forward", record({ state: "public_merged" }));
-  await run();
-  assert.equal(task("a").githubVerdict.state, "verified");
-  assert.equal(ready().has("a-next"), true);
-});
+for (const at of [SOURCE, MIRROR])
+  test(`a mirror merge alone releases no dependent; the public merge does (issues in ${at})`, async (t) => {
+    const { store, run, ready, task } = gate(t, { at });
+    store.put(
+      "mirror_forward",
+      record({ state: "to_forward", publicPr: null }),
+    );
+    await run();
+    assert.notEqual(task("a").githubVerdict?.state, "verified");
+    assert.equal(ready().has("a-next"), false);
+    // Forwarded and still open: dependents still wait.
+    store.put("mirror_forward", record());
+    await run();
+    assert.equal(ready().has("a-next"), false);
+    store.put("mirror_forward", record({ state: "public_merged" }));
+    await run();
+    assert.equal(task("a").githubVerdict.state, "verified");
+    assert.equal(ready().has("a-next"), true);
+  });
