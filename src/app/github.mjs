@@ -1265,14 +1265,25 @@ export class GitHubClient {
     );
   }
 
-  putFile(value, { path, branch, message, content }) {
+  // Replacing a file needs its current blob sha; a new file needs none.
+  async putFile(value, { path, branch, message, content }) {
     const { owner, repo } =
-      typeof value === "string" ? parseRepository(value) : value;
-    return this.request(
-      "PUT",
-      `/repos/${owner}/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}`,
-      { body: { message, content, branch } },
-    );
+        typeof value === "string" ? parseRepository(value) : value,
+      url = `/repos/${owner}/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}`,
+      existing = await this.request("GET", url, {
+        query: { ref: branch },
+      }).catch((error) => {
+        if (error.status === 404) return null;
+        throw error;
+      });
+    return this.request("PUT", url, {
+      body: {
+        message,
+        content,
+        branch,
+        ...(existing?.sha ? { sha: existing.sha } : {}),
+      },
+    });
   }
 
   pullRequest(value, number) {

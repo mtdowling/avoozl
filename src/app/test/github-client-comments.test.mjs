@@ -236,3 +236,38 @@ test("GitHub completion clients read closing pull requests and exact checks", as
   );
   assert.equal(requests[0].body.variables.number, 7);
 });
+
+test("putFile sends the current sha when the file exists and none when it is new", async () => {
+  const puts = [],
+    github = new GitHubClient({
+      token: "test-token",
+      apiUrl: "https://api.example.test",
+      fetch: async (url, options) => {
+        const json = (status, body) =>
+          new Response(JSON.stringify(body), {
+            status,
+            headers: { "content-type": "application/json" },
+          });
+        if (options.method === "GET")
+          return String(url).includes("old.md")
+            ? json(200, { sha: "abc123" })
+            : json(404, { message: "Not Found" });
+        puts.push(JSON.parse(options.body));
+        return json(200, {});
+      },
+    });
+  await github.putFile("example/code", {
+    path: "old.md",
+    branch: "b",
+    message: "m",
+    content: "eA==",
+  });
+  await github.putFile("example/code", {
+    path: "new.md",
+    branch: "b",
+    message: "m",
+    content: "eA==",
+  });
+  assert.equal(puts[0].sha, "abc123");
+  assert.equal("sha" in puts[1], false);
+});
