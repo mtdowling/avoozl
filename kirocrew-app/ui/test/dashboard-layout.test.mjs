@@ -26,6 +26,10 @@ test('Home has the heading, the driver card, then Needs you beside In flight, th
   const at = order.map((text) => dashboard.indexOf(text))
   assert.deepEqual([...at].sort((a, b) => a - b), at, order.join(' < '))
   assert.ok(at.every((n) => n > 0))
+  // Release queue and Progress by epic share one row; only a phone stacks them.
+  const pair = dashboard.slice(dashboard.indexOf('data-dashboard-row="queue-progress"'), dashboard.indexOf('<IntegrationBranches'))
+  assert.match(pair, /style=\{phone \? undefined : \{ display: 'grid', gridTemplateColumns: 'minmax\(0, 1fr\) minmax\(0, 1fr\)'/)
+  assert.ok(pair.includes('<ReleaseQueue') && pair.includes('data-progress-by-epic'))
   // No yellow: needs-you is the only state that asks for the owner.
   assert.doesNotMatch(dashboard.slice(0, dashboard.indexOf('const KIND_LABEL')), /warn|yellow|amber/i)
 })
