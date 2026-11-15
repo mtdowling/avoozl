@@ -977,6 +977,24 @@
             "minLength": 1
           }
         },
+        "conflicts": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "What Avoozl does with a crew's pull request that conflicts in source code: Avoozl merges the base into it with one resolver chat, or only asks a person.",
+          "properties": {
+            "onSourceConflict": {
+              "enum": ["fix", "ask"],
+              "default": "fix"
+            },
+            "maxAttempts": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 1,
+              "description": "Resolver attempts per conflict (one pull request at one head commit) before a person is asked."
+            }
+          }
+        },
         "cacheSeconds": {
           "type": "integer",
           "minimum": 0,

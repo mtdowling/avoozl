@@ -109,7 +109,7 @@ test('the panel reads the driver through panel.view and the app page uses the de
   assert.match(src('Panel.tsx'), /readPanel/)
   assert.match(src('Panel.tsx'), /agent: DRIVER_AGENT/)
   assert.match(src('DriverSessionBox.tsx'), /useDemoFixtures\(\)/)
-  assert.match(src('DashboardView.tsx'), /<DriverSessionBox/)
+  assert.match(src('DashboardView.tsx'), /<DriverCell/)
 })
 
 const nupp = { root: '/n', workspace: 'Nupp', slot: 'chat-nupp', href: '/chat?sid=chat-nupp' }

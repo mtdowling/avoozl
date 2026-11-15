@@ -15,7 +15,8 @@ import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
 import ArmedPulls from './ArmedPulls.tsx'
 import { StartDemoButton } from './Demo.tsx'
-import DriverSessionBox, { useDriverSession } from './DriverSessionBox.tsx'
+import { DriverCell, useDriverSession } from './DriverSessionBox.tsx'
+import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
 import SetupCard from './SetupCard.tsx'
 import { useInstance } from './InstanceName.tsx'
 import { nameFor } from './instance-api.ts'
@@ -28,7 +29,7 @@ import ReviewDrafts from './ReviewDrafts.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
-import { Activity, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
+import { Activity, Copy, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import type { Drill } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
@@ -335,6 +336,7 @@ export default function DashboardView(props: {
     plans: summary ? summary.plans.total : 1,
   })
 
+  const crewCard = cards.find((card) => card.id === 'crew')
   return (
     <section aria-labelledby="avoozl-dashboard-title" className="flex flex-col gap-3.5">
       <ViewHeading
@@ -354,13 +356,29 @@ export default function DashboardView(props: {
       {/* Line stopped (R44.9, R48.5): above every other section. */}
       <LineBanner stops={flow.value?.line ?? []} workspaceId={workspaceId} onChanged={() => void flow.reload()} />
       <ArmedPulls workspaceId={workspaceId} stopped={(flow.value?.line ?? []).length > 0} />
-      <DriverSessionBox workspaceId={workspaceId} />
+      <StatusRow>
+        <DriverCell workspaceId={workspaceId} />
+        {crewCard && (
+          <StatusCell
+            data-setup-card="crew"
+            tone="warn"
+            title="Radar crew: none"
+            tip={`${crewCard.title}. ${crewCard.line}`}
+            actions={
+              <>
+                <CellAct label="Copy values" icon={<Copy size={11} aria-hidden="true" />} primary onClick={setupAction.crew} tip="Copy the values to paste into a new Radar crew." data-crew-copy />
+                <CellAct label="Open Radar" narrowIcon icon={<ExternalLink size={11} aria-hidden="true" />} href="/issue-radar" tip="Open Radar, Crews." />
+              </>
+            }
+          />
+        )}
+      </StatusRow>
       {(error || chat.error) && (
         <p role="alert" className="text-sm text-danger">
           {error ?? chat.error}
         </p>
       )}
-      {cards.filter((card) => card.id !== 'driver').map((card) => (
+      {cards.filter((card) => card.id !== 'driver' && card.id !== 'crew').map((card) => (
         <SetupCard
           key={card.id}
           id={card.id}
@@ -371,11 +389,6 @@ export default function DashboardView(props: {
               <Btn type="button" primary onClick={setupAction[card.id as Exclude<SetupId, 'driver'>]}>
                 {card.action}
               </Btn>
-              {card.id === 'crew' && (
-                <a href="/issue-radar" className="text-sm underline">
-                  Open Radar › Crews
-                </a>
-              )}
               {card.id === 'repository' && <StartDemoButton label="Try the demo" />}
             </>
           }

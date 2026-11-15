@@ -111,6 +111,7 @@ test("a preview shows each step and writes nothing", async () => {
       ["labels", "change"],
       ["branch-rule", "change"],
       ["auto-merge", "change"],
+      ["merge-method", "ok"],
       ["agents-pr", "change"],
       ["project", "input"],
     ],
@@ -164,7 +165,10 @@ test("only missing labels are created", async () => {
 test("a missing permission writes nothing and names the permission", async () => {
   const github = fake({ admin: false, push: false }),
     preview = await radarSetup(github, REPO, settings());
-  for (const step of preview.steps.filter((entry) => entry.id !== "project")) {
+  // The merge method is read only: Avoozl never changes it on GitHub.
+  for (const step of preview.steps.filter(
+    (entry) => !["project", "merge-method"].includes(entry.id),
+  )) {
     assert.equal(step.status, "blocked", step.id);
     assert.ok(step.permission.length > 10);
   }
@@ -212,7 +216,7 @@ test("no named CI check asks for one; steps that are done change nothing", async
   const result = await radarSetup(github, REPO, settings());
   assert.deepEqual(
     result.steps.map((step) => step.status),
-    ["ok", "ok", "ok", "change", "input"],
+    ["ok", "ok", "ok", "ok", "change", "input"],
   );
   const none = await radarSetup(fake(), REPO, settings({ requiredChecks: [] }));
   assert.equal(byId(none, "branch-rule").status, "input");
@@ -253,7 +257,7 @@ test("radar.setup runs through operations and refuses an unregistered repository
   const github = fake(),
     ops = new Operations(store, { github, workspaceRoot: root }),
     result = await ops.execute("radar.setup", { repository: REPO });
-  assert.equal(result.steps.length, 5);
+  assert.equal(result.steps.length, 6);
   await assert.rejects(
     ops.execute("radar.setup", { repository: "other/repo" }),
     (error) => error.status === 404,

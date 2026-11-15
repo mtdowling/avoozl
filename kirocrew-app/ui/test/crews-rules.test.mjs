@@ -30,7 +30,8 @@ test('no field asks for a model price', () => {
 
 test('Crews and rules modes are radio fold-outs, not selects', () => {
   const text = readFileSync(new URL('../src/CrewsRulesSettings.tsx', import.meta.url), 'utf8')
-  assert.equal((text.match(/<RadioFold\b/g) ?? []).length, 1)
+  // Review rules, the source-conflict action and the merge method (RC28).
+  assert.equal((text.match(/<RadioFold\b/g) ?? []).length, 3)
   assert.doesNotMatch(text, /<select|type="checkbox"/)
   assert.match(text, /<FieldBox title="Review rules"/)
   assert.match(text, /<Fold title="Avoozl labels"/)
