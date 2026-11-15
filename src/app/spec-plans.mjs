@@ -936,6 +936,7 @@ export function lintSpec({
   approved = null,
   retitled = [],
   namespace = null,
+  declaredTasks = [],
 }) {
   const data = { tasks: [], ...given },
     parsed = parseSpec(spec),
@@ -947,6 +948,7 @@ export function lintSpec({
             plan,
             data,
             proposals: parsed.proposals,
+            declaredTasks,
           }),
     diagnostics = [
       ...parsed.diagnostics,
@@ -1189,6 +1191,11 @@ export function createSpecPlan(
   spec,
 ) {
   requireFolder(spec);
+  const sourceHome = spec.home ?? home,
+    sourceRef = spec.ref ?? spec.plansRef,
+    sourceRepository = spec.specRepository ?? spec.repository;
+  if (sourceHome !== undefined && !["main", "plansBranch"].includes(sourceHome))
+    fail("A spec home is main or plansBranch.");
   id ??= spec.name;
   if (
     prompt !== undefined &&
@@ -1206,8 +1213,11 @@ export function createSpecPlan(
         id,
         kind: "plan",
         spec: spec.name,
-        // Set only for a private spec: its home is the plans branch (RC25.2).
-        ...(home === "plansBranch" ? { home } : {}),
+        // The reader owns location metadata; the input home remains a compatible
+        // fallback for callers that read plain spec folders.
+        ...(sourceHome ? { home: sourceHome } : {}),
+        ...(sourceRef ? { ref: sourceRef } : {}),
+        ...(sourceRepository ? { specRepository: sourceRepository } : {}),
         title: specTitle(spec),
         prompt: prompt?.trim() || `Spec ${spec.name}`,
         text: spec.files["tasks.md"] || "",
@@ -1235,6 +1245,35 @@ export function saveSpecPlan(store, { id, expectedHash }, spec) {
     if (!plan || plan.deletedAt) fail("Plan not found.", 404);
     if (plan.hash !== expectedHash)
       fail("This draft changed. Reload before saving.", 409);
+    const sourceRef = spec.ref ?? spec.plansRef,
+      sourceRepository = spec.specRepository ?? spec.repository;
+    if (
+      spec.home &&
+      (plan.home !== spec.home ||
+        plan.ref !== sourceRef ||
+        (sourceRepository && plan.specRepository !== sourceRepository))
+    ) {
+      if (
+        ((plan.home && plan.home !== spec.home) ||
+          (plan.ref && plan.ref !== sourceRef) ||
+          (plan.specRepository &&
+            sourceRepository &&
+            plan.specRepository !== sourceRepository)) &&
+        spec.hash === plan.hash &&
+        store
+          .list("approvals")
+          .some((a) => a.planId === id && a.hash === plan.hash)
+      )
+        fail(
+          "Moving an approved spec to another home requires a changed revision and new approval.",
+          409,
+        );
+      plan.home = spec.home;
+      if (sourceRef) plan.ref = sourceRef;
+      else delete plan.ref;
+      if (sourceRepository) plan.specRepository = sourceRepository;
+      store.put("plans", plan);
+    }
     if (spec.hash === plan.hash) return plan;
     return writeRevision(
       store,
