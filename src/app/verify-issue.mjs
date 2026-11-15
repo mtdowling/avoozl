@@ -215,7 +215,6 @@ async function checkSpec(read, home, marker, tasksText = {}) {
   tasksText.files = Object.keys(files);
   tasksText.value = files["tasks.md"];
   tasksText.manifest = files["avoozl/manifest.json"];
-  tasksText.files = Object.keys(files);
   return problems.length
     ? failed("spec", problems.join("; "), unavailable)
     : pass(
