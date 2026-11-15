@@ -248,7 +248,6 @@ test("no git push in the app source uses --mirror, --all, --tags or a wildcard",
     }
   }
   assert.deepEqual(found.sort(), [
-    "lessons-share.mjs",
     "mirror-forward-git.mjs",
     "workspace-repository.mjs",
   ]);
