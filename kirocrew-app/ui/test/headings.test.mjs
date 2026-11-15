@@ -53,7 +53,7 @@ test('Specs heading: New spec, Quick goal, New idea, Ideas, New task, then an ic
   assert.equal(part.match(/<IconLabel icon=\{Plus\}/g).length, 3)
   assert.match(part, /<IconBtn icon=\{RefreshCw\} label="Refresh specs" tooltip=\{REFRESH_PLANS_TIP\}/)
   assert.match(plans, /REFRESH_PLANS_TIP = 'Reload specs from disk\. Imports nothing\.'/)
-  assert.match(plans, /actions=\{\s*workspace && !row \? \(\s*<PlansActions/)
+  assert.match(plans, /actions=\{\s*<PlansActions/)
   for (const name of views) assert.doesNotMatch(source(name), />\s*Add task\s*</, name)
 })
 

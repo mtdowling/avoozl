@@ -15,17 +15,17 @@ import type { NewPlanForm } from './new-plan-api.ts'
 import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
 import type { DriverSpec } from './driver-api.ts'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
-import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, Lightbulb, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X } from './icons.ts'
+import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, Lightbulb, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X, Menu } from './icons.ts'
 import { FilterPanel } from './FilterPanel.tsx'
 import { STATES, nodeState, type Drill, type NodeState } from './graph-layout.ts'
 import { rowPlanKey, type TaskFilter } from './filters.ts'
 import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
 import { scrollParent, stickyHeight } from './sticky-column.ts'
-import { viewsClient, type Graph } from './views-api.ts'
+import { linkHref, viewsClient, type Graph } from './views-api.ts'
 import { useSteppedState } from './NavHistory.tsx'
 import { usePhone } from './list-detail.ts'
-import { DetailBar } from './ListDetail.tsx'
+import { ListDetailLayout } from './ListDetailLayout.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './Modal.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
@@ -52,6 +52,9 @@ import {
   type PlansClient,
   progressPercent,
   homeBadge,
+  specChip,
+  SPEC_CHIP_LABEL,
+  type SpecChip,
   rowActions,
   rowChoices,
   shortHash,
@@ -76,7 +79,9 @@ export const PROSE_MEASURE = '80ch'
 
 // The plan view's left column width, and the width under which it stacks.
 const ASIDE_WIDTH = '17rem'
-const STACK = '(max-width: 1023px)'
+// The spec's own left column stacks above its body when the detail column
+// is narrow: under 1280 px the list, nav and detail share the page.
+const STACK = '(max-width: 1279px)'
 
 // The left column sticks to the top of whatever scrolls the page (in Kiro
 // Crew, the app's own content pane, not the window) and is never taller
@@ -584,186 +589,67 @@ function HomeBadge(props: { home?: 'main' | 'plansBranch' }) {
   return badge ? <Badge variant={badge.warn ? 'warning' : undefined}>{badge.label}</Badge> : null
 }
 
-export function PlansTable(props: {
-  rows: PlanRow[]
-  busy?: boolean
-  onOpen: (row: PlanRow) => void
-  onScope: (target: PlanTarget, row: PlanRow) => void
-  onChange: (row: PlanRow) => void
-  onImport: (row: PlanRow) => void
-  onDelete?: (row: PlanRow) => void
-  onArchive?: (row: PlanRow) => void
-  onUnarchive?: (row: PlanRow) => void
-  // A filter change: every group starts over at its first page.
-  reset?: string
-}) {
-  const groups = groupByCategory(props.rows)
-  const phone = usePhone()
-  const [shut, setShut] = useState<Set<string>>(new Set())
-  const pages = usePages(props.reset ?? '')
-  const stop = (action: () => void) => (event: { stopPropagation: () => void }) => {
-    event.stopPropagation()
-    action()
-  }
-  const toggle = (set: Set<string>, key: string) => {
-    const next = new Set(set)
-    if (next.has(key)) next.delete(key)
-    else next.add(key)
-    return next
-  }
-  const header = (
-    <thead>
-      <tr className="text-xs text-muted">
-        <th style={head}>Spec</th>
-        <th style={head}>Status</th>
-        <th style={head}>Progress</th>
-        <th style={head}>Now</th>
-        <th style={head}>Epic</th>
-        <th style={head}>Last change</th>
-        <th style={head}>
-          <span className="sr-only">Actions</span>
-        </th>
-      </tr>
-    </thead>
-  )
-  // Each category is its own boxed section with its own table; its heading
-  // carries the name, an icon, the plan count and the category's progress.
+// Every spec in one list (follows Kiro Crew's list-detail pattern): the
+// name, one status chip, the task count, the epic and where it lives.
+// Picking a row opens it in the detail column.
+export function SpecList(props: { rows: PlanRow[]; selected: string | null; onOpen: (row: PlanRow) => void; reset: string }) {
+  const sorted = [...props.rows].sort((a, b) => a.name.localeCompare(b.name))
+  const pages = usePages(props.reset)
   return (
-    <div className="flex flex-col gap-4" data-plan-groups>
-      {groups.map((group) => {
-        const open = !shut.has(group.category)
-        const shown = pages.take(group.category, group.rows)
-        const tasks = group.rows.reduce((sum, row) => ({ total: sum.total + row.tasks.total, done: sum.done + row.tasks.done }), { total: 0, done: 0 })
-        const id = `avoozl-plan-group-${group.category.replace(/[^\w-]/g, '-')}`
+    <>
+    <ul className="m-0 flex list-none flex-col p-0" data-spec-list>
+      {pages.take('specs', sorted).map((row) => {
+        const chip = specChip(row)
+        const selected = row.key === props.selected
         return (
-          <section
-            key={group.category}
-            aria-labelledby={id}
-            data-plan-group={group.category}
-            className="rounded-xl border p-4"
-            style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
-          >
-            <h2 id={id} className="m-0">
-              <button
-                type="button"
-                aria-expanded={open}
-                onClick={() => setShut(toggle(shut, group.category))}
-                className="flex w-full flex-wrap items-center gap-2 text-left text-lg font-semibold"
-              >
-                <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms' }}>
-                  <ChevronRight size={16} />
+          <li key={row.key} className="border-t first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+            <button
+              type="button"
+              data-plan-row={row.key}
+              data-spec-chip={chip}
+              aria-current={selected ? 'true' : undefined}
+              onClick={() => props.onOpen(row)}
+              className="flex w-full flex-col items-stretch gap-0.5 px-2 py-1.5 text-left"
+              style={{ background: selected ? 'var(--accent-subtle, var(--bg-elevated))' : 'none', border: 0, borderRadius: 6, color: 'inherit', cursor: 'pointer' }}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.name}</span>
+                <Badge variant={SPEC_CHIP_VARIANT[chip]}>{SPEC_CHIP_LABEL[chip]}</Badge>
+              </span>
+              <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
+                <span className="tabular-nums">
+                  {row.tasks.total} {row.tasks.total === 1 ? 'task' : 'tasks'}
                 </span>
-                <FolderOpen size={18} aria-hidden="true" style={{ color: 'var(--muted)' }} />
-                <span>{group.category}</span>
-                <span className="text-sm font-normal text-muted">
-                  {group.rows.length} {group.rows.length === 1 ? 'spec' : 'specs'}
-                </span>
-                <span className="ml-auto text-sm font-normal" style={{ width: 'min(14rem, 40%)', minWidth: 120 }}>
-                  <ProgressBar tasks={tasks} />
-                </span>
-              </button>
-            </h2>
-            {open && phone && (
-              // A phone lists each spec as one tappable row (follows Kiro
-              // Crew's list-detail pattern): name, then status, progress and
-              // what needs you on one line. Its buttons are on the spec's page.
-              <ul className="mt-2 flex flex-col" style={{ listStyle: 'none', margin: 0, padding: 0 }} data-plan-phone-list>
-                {shown.map((row) => (
-                  <li key={row.key} className="border-t" style={{ borderColor: 'var(--border)' }}>
-                    <button
-                      type="button"
-                      data-plan-row={row.key}
-                      onClick={() => props.onOpen(row)}
-                      className="flex w-full flex-col items-stretch gap-1 py-2.5 text-left"
-                      style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', minHeight: 52 }}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate font-medium">{row.name}</span>
-                        <Badge variant={STATUS_VARIANT[row.status]}>{STATUS_LABEL[row.status] ?? row.status}</Badge>
-                        <ChevronRight size={14} aria-hidden="true" style={{ color: 'var(--muted)', flexShrink: 0 }} />
-                      </span>
-                      <span className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                        <span className="tabular-nums">
-                          {row.tasks.total ? `${row.tasks.done}/${row.tasks.total} done` : 'no tasks'}
-                        </span>
-                        <Now now={row.now} />
-                        {row.archived && <Badge>Archived</Badge>}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-                {group.rows.length > shown.length && (
-                  <li>
-                    <ShowMore {...pages.more(group.category, group.rows.length)} />
-                  </li>
-                )}
-              </ul>
-            )}
-            {open && !phone && (
-              <div className="mt-3 overflow-x-auto">
-                <table className="w-full border-collapse text-sm" style={{ color: 'var(--text)' }}>
-                  {header}
-                  <tbody>
-                    {shown.map((row) => (
-                      <tr key={row.key} data-plan-row={row.key} onClick={() => props.onOpen(row)} className="hover:bg-accent/10" style={{ cursor: 'pointer' }}>
-                        <td style={cell}>
-                          <button type="button" className="text-left font-medium hover:underline" onClick={stop(() => props.onOpen(row))}>
-                            {row.name}
-                          </button>
-                          <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted">
-                            <Badge>{row.kind === 'epic' ? 'Epic' : row.kind === 'spec' ? (row.type ?? 'spec') : 'old-style'}</Badge>
-                            {row.spec ? <code>{row.spec}</code> : row.planId ? <code>{row.planId}</code> : null}
-                            {row.errors > 0 && <Badge variant="danger">{row.errors} errors</Badge>}
-                            {row.archived && <Badge>Archived</Badge>}
-                            <HomeBadge home={row.home} />
-                          </span>
-                        </td>
-                        <td style={cell} className="whitespace-nowrap">
-                          <Badge variant={STATUS_VARIANT[row.status]}>{STATUS_LABEL[row.status] ?? row.status}</Badge>
-                        </td>
-                        <td style={{ ...cell, width: 150 }}>
-                          <ProgressBar tasks={row.tasks} />
-                        </td>
-                        <td style={cell}>
-                          <Now now={row.now} />
-                        </td>
-                        <td style={cell} className="text-xs">
-                          {row.kind === 'epic'
-                            ? `${row.members?.length ?? 0} plans`
-                            : (row.epicTitle ?? <span className="text-muted">No epic</span>)}
-                        </td>
-                        <td style={cell} className="whitespace-nowrap text-xs text-muted">
-                          <Tooltip text={row.lastChange}>
-                            <span>{row.lastChange ? relativeTime(row.lastChange) : '—'}</span>
-                          </Tooltip>
-                        </td>
-                        <td style={cell} className="whitespace-nowrap" onClick={(event) => event.stopPropagation()}>
-                          <RowButtons
-                            row={row}
-                            busy={props.busy}
-                            onOpen={() => props.onOpen(row)}
-                            onScope={(target) => props.onScope(target, row)}
-                            onReview={() => props.onOpen(row)}
-                            onChange={() => props.onChange(row)}
-                            onImport={() => props.onImport(row)}
-                            onDelete={props.onDelete ? () => props.onDelete!(row) : undefined}
-                            onArchive={props.onArchive ? () => props.onArchive!(row) : undefined}
-                            onUnarchive={props.onUnarchive ? () => props.onUnarchive!(row) : undefined}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {group.rows.length > shown.length && <ShowMore {...pages.more(group.category, group.rows.length)} />}
-              </div>
-            )}
-          </section>
+                <span>·</span>
+                <span className="truncate">{row.kind === 'epic' ? 'Epic' : (row.epicTitle ?? 'No epic')}</span>
+                <HomeBadge home={row.home} />
+                {row.archived && <Badge>Archived</Badge>}
+              </span>
+            </button>
+          </li>
         )
       })}
-    </div>
+    </ul>
+    <ShowMore {...pages.more('specs', sorted.length)} />
+    </>
   )
 }
+
+const SPEC_CHIP_VARIANT: Record<SpecChip, 'success' | 'warning' | 'info' | undefined> = { draft: 'warning', approved: 'info', github: undefined, done: 'success' }
+
+// Where a spec's issues and their graph are: Issue Radar's Graph.
+function RadarGraphLink() {
+  return (
+    <p data-radar-graph className="m-0 text-sm">
+      Issues on GitHub and their graph:{' '}
+      <a href={linkHref(RADAR_GRAPH_URL)} target="_top" className="underline">
+        Open the Issue Radar graph →
+      </a>{' '}
+      <span className="text-xs text-muted">Choose the Graph view there, then the issue.</span>
+    </p>
+  )
+}
+const RADAR_GRAPH_URL = '/issue-radar'
 
 // The plan view's left column: what you act with and what the plan holds.
 function PlanAside(props: {
@@ -1118,7 +1004,6 @@ export default function PlansView(props: {
   ideas?: number | null
   onOpenIdeas?: () => void
   // The Epics fold-out, shown above the spec list (never beside a spec's documents).
-  epics?: ReactNode
 }) {
   const workspace = props.workspaceId
   const api = useAppApi()
@@ -1130,6 +1015,8 @@ export default function PlansView(props: {
   const drawer = useTaskDrawer()
   const chat = useAskChat(workspace)
   const stack = useMedia(STACK)
+  // A phone's spec menu: the spec's left column, opened from its hamburger.
+  const [specMenu, setSpecMenu] = useState(false)
   const phone = usePhone()
   const { scrolledOut, titleRef } = useTitleScrolledOut()
   const [asideRef, asideHeight] = useStickyHeight(!stack)
@@ -1328,29 +1215,6 @@ export default function PlansView(props: {
         />
       )}
       {notice && <p role="status" className="text-sm text-muted">{notice}</p>}
-      {row && phone && <DetailBar backLabel="All specs" onBack={() => openPlan(null)} title={row.name} scrolledOut={scrolledOut} />}
-      <div ref={detailTop} className="flex flex-wrap items-center gap-3" style={phone && row ? { scrollMarginTop: 44 } : undefined}>
-        {row && !phone && <IconLabel icon={ArrowLeft} onClick={() => openPlan(null)}>All specs</IconLabel>}
-        <div ref={row && phone ? titleRef : undefined} className="min-w-0 flex-1">
-          <ViewHeading
-            id="avoozl-plans-title"
-            view="plans"
-            phoneMenu
-            actions={
-              workspace && !row ? (
-                <PlansActions onQuickGoal={() => setDialog('quickgoal')} onNewPlan={() => setCreating({})} onNewIdea={() => setNewIdea(true)} onOpenIdeas={props.onOpenIdeas} ideas={props.ideas ?? null} onNewTask={() => drawer.addTask()} onRefresh={() => void load(workspace)} busy={busy} />
-              ) : row ? (
-                <span className="flex flex-wrap items-center gap-2">
-                  <DriverChip spec={driver.spec} />
-                  <RowButtons row={row} onScope={(target) => scope(target, row)} onReview={() => jump('avoozl-plan-main')} />
-                </span>
-              ) : null
-            }
-          >
-            {row ? row.name : 'Specs'}
-          </ViewHeading>
-        </div>
-      </div>
       {(error || chat.error) && (
         <p role="alert" className="text-sm text-danger">
           {error ?? chat.error}
@@ -1359,116 +1223,164 @@ export default function PlansView(props: {
       <p role="status" className="sr-only">
         {busy ? 'Working…' : ''}
       </p>
-
       {!workspace ? (
         <p className="text-sm text-muted">Choose a workspace in the header.</p>
-      ) : !row ? (
-        <>
-          {props.epics}
-          {table && table.items.length > 0 && (
-            <PlanFilters filter={filter} rows={table.items} onChange={setFilter}>
-              <p className="text-xs text-muted" role="status">
-                {rows.length} of {table.items.length} specs
-              </p>
-            </PlanFilters>
-          )}
-          <div className="flex flex-col gap-2" data-plans-list>
-            {table === null ? (
-              <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
-            ) : table.items.length === 0 ? (
-              <p className="text-sm text-muted">
-                No specs yet{table.root ? ` in ${table.root}/.kiro/specs` : ''}. Use New spec to start one.
-              </p>
-            ) : rows.length ? (
-              <PlansTable rows={rows} reset={JSON.stringify(filter)} busy={busy} onOpen={open} onScope={scope} onChange={change} onImport={importRow} onDelete={setDeleting} onArchive={setArchiving} onUnarchive={unarchive} />
-            ) : (
-              <p className="text-sm text-muted">No spec matches these filters.</p>
-            )}
-            {table?.problem && <p className="mt-2 text-xs text-muted">Spec folders: {table.problem}</p>}
-            <p className="mt-2 text-xs text-muted">
-              Categories come from <code>category:</code> in the front-matter of a spec&apos;s requirements.md or bugfix.md. Avoozl
-              never guesses one. {UNCATEGORIZED} holds the rest.
-            </p>
-          </div>
-        </>
       ) : (
-        <div
-          style={
-            stack
-              ? { display: 'flex', flexDirection: 'column', gap: 14 }
-              : { display: 'grid', gridTemplateColumns: `${ASIDE_WIDTH} minmax(0, 1fr)`, gap: 14, alignItems: 'start' }
+        <ListDetailLayout
+          id="specs"
+          backLabel="All specs"
+          detailTitle={row?.name ?? ''}
+          onBack={() => openPlan(null)}
+          detailActions={
+            row && phone ? (
+              <button type="button" data-spec-menu aria-expanded={specMenu} aria-label={specMenu ? 'Close the spec menu' : 'Open the spec menu'} onClick={() => setSpecMenu(!specMenu)} style={{ display: 'inline-flex', alignItems: 'center', height: 28, padding: '0 6px', background: 'none', border: 0, color: 'inherit', cursor: 'pointer' }}>
+                {specMenu ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
+              </button>
+            ) : undefined
           }
-        >
-          <aside
-            ref={asideRef}
-            aria-label="Spec summary"
-            data-plan-aside-scroll
-            style={stack ? undefined : { position: 'sticky', top: 8, zIndex: LAYER.sticky, maxHeight: asideHeight ?? 'calc(100vh - 2rem)', overflowY: 'auto', overscrollBehavior: 'contain' }}
-          >
-            <Card>
-              <PlanAside
-                row={row}
-                graph={planGraph}
-                docs={docs}
-                onEdit={() => change(row)}
-                onDiscuss={() => void chat.ask(discussSeed(row))}
-                onDelete={rowActions(row).deletable ? () => setDeleting(row) : undefined}
-                onArchive={rowActions(row).archivable ? () => setArchiving(row) : undefined}
-                onUnarchive={rowActions(row).unarchivable ? () => unarchive(row) : undefined}
-                onDrill={(drill) => props.onDrill?.(drill)}
-                onOpenTask={(id) => drawer.openTask(id)}
-                workspaceId={workspace}
-                driver={driver.spec}
-                onDriverChanged={driver.reload}
-              />
-            </Card>
-          </aside>
-          <div id="avoozl-plan-main" className="min-w-0" style={phone ? { scrollMarginTop: 48 } : undefined}>
-            <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
-            {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
-            <SetupList spec={driver.spec} />
-            {row.categoryProblem && (
-              <p className="mb-3 text-sm text-muted">
-                <Badge variant="warning">front-matter</Badge> {row.categoryProblem}
-              </p>
-            )}
-            {spec ? (
-              <SpecDetail
-                docs={docs}
-                docsError={docsError}
-                spec={spec}
-                plan={plan}
-                preview={preview}
-                projection={projection}
-                busy={busy}
-                onStore={() => act((workspaceId) => plans.store(workspaceId, spec.name))}
-                onReload={() => plan && act((workspaceId) => plans.reload(workspaceId, plan.id, plan.hash))}
-                onApprove={() => plan && act((workspaceId) => plans.approve(workspaceId, plan.id, plan.hash))}
-                onProjection={() => plan && void attempt(async () => setProjection(await plans.projection(workspace, plan.id)))}
-                onProject={() => setDialog('project')}
-                onChanged={() => setDialog('changed')}
-              />
-            ) : (
-              <Card>
-                <SectionHeading title={row.name} className="mb-2" />
-                <p className="mt-1 text-xs text-muted">
-                  <code>{row.planId}</code> · written before the spec layout, so it has no folder. Its tasks show in the spec graph.
-                </p>
-                <div className="mt-2">
-                  {!text ? (
-                    <p className="text-sm text-muted">Loading…</p>
-                  ) : text.error ? (
-                    <p className="text-sm text-danger">{text.error}</p>
-                  ) : text.text ? (
-                    <Markdown text={text.text} measure={PROSE_MEASURE} />
-                  ) : (
-                    <p className="text-sm text-muted">This spec has no text.</p>
-                  )}
-                </div>
-              </Card>
-            )}
-          </div>
-        </div>
+          list={
+            <div className="flex flex-col gap-3" data-plans-list-pane>
+              <ViewHeading
+                id="avoozl-plans-title"
+                view="plans"
+                phoneMenu
+                actions={
+                  <PlansActions onQuickGoal={() => setDialog('quickgoal')} onNewPlan={() => setCreating({})} onNewIdea={() => setNewIdea(true)} onOpenIdeas={props.onOpenIdeas} ideas={props.ideas ?? null} onNewTask={() => drawer.addTask()} onRefresh={() => void load(workspace)} busy={busy} />
+                }
+              >
+                Specs
+              </ViewHeading>
+              {table && table.items.length > 0 && (
+                <PlanFilters filter={filter} rows={table.items} onChange={setFilter}>
+                  <p className="text-xs text-muted" role="status">
+                    {rows.length} of {table.items.length} specs
+                  </p>
+                </PlanFilters>
+              )}
+              <div className="flex flex-col gap-2" data-plans-list>
+                {table === null ? (
+                  <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
+                ) : table.items.length === 0 ? (
+                  <p className="text-sm text-muted">
+                    No specs yet{table.root ? ` in ${table.root}/.kiro/specs` : ''}. Use New spec to start one.
+                  </p>
+                ) : rows.length ? (
+                  <SpecList rows={rows} selected={row?.key ?? null} onOpen={open} reset={JSON.stringify(filter)} />
+                ) : (
+                  <p className="text-sm text-muted">No spec matches these filters.</p>
+                )}
+                {table?.problem && <p className="mt-2 text-xs text-muted">Spec folders: {table.problem}</p>}
+              </div>
+            </div>
+          }
+          detail={
+            !row ? null : (
+              <div className="flex flex-col gap-3" data-spec-detail={row.key}>
+                {!phone && (
+                  <div ref={detailTop} className="flex flex-wrap items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <ViewHeading
+                        id="avoozl-plan-title"
+                        view="plans"
+                        actions={
+                          <span className="flex flex-wrap items-center gap-2">
+                            <DriverChip spec={driver.spec} />
+                            <RowButtons row={row} onScope={(target) => scope(target, row)} onReview={() => jump('avoozl-plan-main')} />
+                          </span>
+                        }
+                      >
+                        {row.name}
+                      </ViewHeading>
+                    </div>
+                  </div>
+                )}
+                <RadarGraphLink />
+        <div
+              style={
+                stack
+                  ? { display: 'flex', flexDirection: 'column', gap: 14 }
+                  : { display: 'grid', gridTemplateColumns: `${ASIDE_WIDTH} minmax(0, 1fr)`, gap: 14, alignItems: 'start' }
+              }
+            >
+              {/* A phone shows the spec's left column only from its menu. */}
+              {(!phone || specMenu) && (
+              <aside
+                ref={asideRef}
+                aria-label="Spec summary"
+                data-plan-aside-scroll
+                style={stack ? undefined : { position: 'sticky', top: 8, zIndex: LAYER.sticky, maxHeight: asideHeight ?? 'calc(100vh - 2rem)', overflowY: 'auto', overscrollBehavior: 'contain' }}
+              >
+                <Card>
+                  <PlanAside
+                    row={row}
+                    graph={planGraph}
+                    docs={docs}
+                    onEdit={() => change(row)}
+                    onDiscuss={() => void chat.ask(discussSeed(row))}
+                    onDelete={rowActions(row).deletable ? () => setDeleting(row) : undefined}
+                    onArchive={rowActions(row).archivable ? () => setArchiving(row) : undefined}
+                    onUnarchive={rowActions(row).unarchivable ? () => unarchive(row) : undefined}
+                    onDrill={(drill) => props.onDrill?.(drill)}
+                    onOpenTask={(id) => drawer.openTask(id)}
+                    workspaceId={workspace}
+                    driver={driver.spec}
+                    onDriverChanged={driver.reload}
+                  />
+                </Card>
+              </aside>
+              )}
+              {(!phone || !specMenu) && (
+              <div id="avoozl-plan-main" className="min-w-0" style={phone ? { scrollMarginTop: 48 } : undefined}>
+                <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
+                {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
+                <SetupList spec={driver.spec} />
+                {row.categoryProblem && (
+                  <p className="mb-3 text-sm text-muted">
+                    <Badge variant="warning">front-matter</Badge> {row.categoryProblem}
+                  </p>
+                )}
+                {spec ? (
+                  <SpecDetail
+                    docs={docs}
+                    docsError={docsError}
+                    spec={spec}
+                    plan={plan}
+                    preview={preview}
+                    projection={projection}
+                    busy={busy}
+                    onStore={() => act((workspaceId) => plans.store(workspaceId, spec.name))}
+                    onReload={() => plan && act((workspaceId) => plans.reload(workspaceId, plan.id, plan.hash))}
+                    onApprove={() => plan && act((workspaceId) => plans.approve(workspaceId, plan.id, plan.hash))}
+                    onProjection={() => plan && void attempt(async () => setProjection(await plans.projection(workspace, plan.id)))}
+                    onProject={() => setDialog('project')}
+                    onChanged={() => setDialog('changed')}
+                  />
+                ) : (
+                  <Card>
+                    <SectionHeading title={row.name} className="mb-2" />
+                    <p className="mt-1 text-xs text-muted">
+                      <code>{row.planId}</code> · written before the spec layout, so it has no folder. Its tasks show in the spec graph.
+                    </p>
+                    <div className="mt-2">
+                      {!text ? (
+                        <p className="text-sm text-muted">Loading…</p>
+                      ) : text.error ? (
+                        <p className="text-sm text-danger">{text.error}</p>
+                      ) : text.text ? (
+                        <Markdown text={text.text} measure={PROSE_MEASURE} />
+                      ) : (
+                        <p className="text-sm text-muted">This spec has no text.</p>
+                      )}
+                    </div>
+                  </Card>
+                )}
+              </div>
+              )}
+            </div>
+              </div>
+            )
+          }
+        />
       )}
       {dialog === 'quickgoal' && workspace && (
         <QuickGoalModal workspaceId={workspace} client={quickGoals} onClose={() => setDialog(null)} onPromoted={() => void load(workspace)} />

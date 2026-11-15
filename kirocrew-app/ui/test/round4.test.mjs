@@ -40,7 +40,7 @@ test('lists page through the one hook and button, and a filter change resets the
       assert.match(source(name), new RegExp(`pages\\.take\\('${id}'`), `${name} ${id}`)
       assert.match(source(name), new RegExp(`<ShowMore \\{\\.\\.\\.pages\\.more\\('${id}'`), `${name} ${id}`)
     }
-  assert.match(source('PlansView.tsx'), /pages\.take\(group\.category, group\.rows\)/)
+  assert.match(source('PlansView.tsx'), /pages\.take\('specs', sorted\)/)
   assert.match(source('PlansView.tsx'), /reset=\{JSON\.stringify\(filter\)\}/)
   assert.match(source('ConflictsView.tsx'), /const pages = usePages\(reset\)/)
   // No list keeps its own limit.

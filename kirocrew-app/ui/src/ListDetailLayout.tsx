@@ -18,6 +18,8 @@ export function ListDetailLayout(props: {
   detailTitle: string
   backLabel: string
   onBack: () => void
+  // Buttons at the right of a phone's sticky Back row (a spec's menu).
+  detailActions?: ReactNode
 }) {
   const phone = usePhone()
   const spec = listSpec(props.id)
@@ -36,7 +38,7 @@ export function ListDetailLayout(props: {
       <div data-list-pane={props.id}>{props.list}</div>
     ) : (
       <div data-detail-pane-for={props.id}>
-        <DetailPane backLabel={props.backLabel} onBack={props.onBack} title={props.detailTitle}>
+        <DetailPane backLabel={props.backLabel} onBack={props.onBack} title={props.detailTitle} actions={props.detailActions}>
           {props.detail}
         </DetailPane>
       </div>
