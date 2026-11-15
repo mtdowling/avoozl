@@ -42,6 +42,8 @@ import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
+import { ForwardScreen } from '../../src/ForwardScreen.tsx'
+import forwardLive from './forward-live-replies.json'
 import { CrewsRulesSettings } from '../../src/CrewsRulesSettings.tsx'
 import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
 import WorkflowMap, { focusField } from '../../src/WorkflowMap.tsx'
@@ -804,6 +806,14 @@ if (page === 'radar-values') {
     ],
   }))
 }
+// ?page=forward[&state=ok|blocked|stopped]: the Forward screen on replies the
+// real operations gave in the live scratch run (forward-live-replies.json).
+if (page === 'forward') {
+  const state = query.get('state') ?? 'ok'
+  answer('mirror.forward.review', () =>
+    state === 'blocked' ? { ok: false, blocked: true, reason: forwardLive.blockedReason } : state === 'stopped' ? { ok: false, stopped: forwardLive.stopped, review: forwardLive.review } : { ok: true, ready: true, review: forwardLive.review },
+  )
+}
 const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
 
@@ -903,6 +913,15 @@ class HarnessBoundary extends Component<{ children: ReactNode }, { error: string
     return this.state.error ? <pre data-harness-crash>{this.state.error}</pre> : this.props.children
   }
 }
+function ForwardPage() {
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
+      <HarnessBoundary>
+        <ForwardScreen workspaceId="w" forwardId="live" title="Forward mirror pull request #7" onClose={() => {}} />
+      </HarnessBoundary>
+    </div>
+  )
+}
 function RadarValuesPage() {
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
@@ -995,5 +1014,5 @@ function PanelPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )

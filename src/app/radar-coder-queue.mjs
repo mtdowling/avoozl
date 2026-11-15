@@ -3,7 +3,7 @@
 // reason: why it is released, claimed, next, or held. It repeats the engine's
 // own rules (graph, stop, phase, mode, capacity) and writes nothing.
 import { statusComplete } from "../model.mjs";
-import { isManual, taskKind } from "../work-model.mjs";
+import { isGate, isManual, taskKind } from "../work-model.mjs";
 import { fail } from "./store.mjs";
 import { mirrorForwards } from "./mirror-forward.mjs";
 import { READY_LABEL_DEFAULT } from "./github-policy.mjs";
@@ -20,6 +20,8 @@ import {
 } from "./radar-coder-release.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
+// A gate is met by its plugin's done or a person's clear, never by a status.
+const gateMet = (task) => ["done", "order"].includes(task.gateVerdict?.state);
 const phaseOf = (task) => task.phase?.id ?? "";
 const phaseName = (task) => task.phase?.title || task.phase?.id || "No phase";
 
@@ -91,7 +93,11 @@ export function releaseQueue(store, identity) {
         steps: [],
       };
     repositories.set(id, entry);
-    if (complete(task.status) || task.githubVerdict?.state === "order")
+    if (
+      complete(task.status) ||
+      task.githubVerdict?.state === "order" ||
+      (isGate(task) && gateMet(task))
+    )
       continue;
     const claim = (claims[id]?.rows ?? []).find(
         (row) => row.number === task.github?.number,
@@ -99,7 +105,11 @@ export function releaseQueue(store, identity) {
       open = data.edges
         .filter((edge) => edge.to === task.id && BLOCKING.has(edge.kind))
         .map((edge) => byId.get(edge.from))
-        .filter((blocker) => blocker && !complete(blocker.status)),
+        .filter(
+          (blocker) =>
+            blocker &&
+            !(isGate(blocker) ? gateMet(blocker) : complete(blocker.status)),
+        ),
       stop = stops.find((entryStop) =>
         stopScope(store, data, entryStop).has(task.id),
       ),
