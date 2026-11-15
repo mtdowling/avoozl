@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, EmptyState, PageHeader, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Logo from './Logo'
+import { TopRail } from './TopRail.tsx'
+import { usePhone } from './list-detail.ts'
 import { InstanceBadge } from './InstanceName.tsx'
 import DashboardView, { type DashboardTarget } from './DashboardView'
 import EpicsView from './EpicsView.tsx'
@@ -241,6 +243,23 @@ function AvoozlPage() {
     }
   }, [active, untriagedReads, tab])
 
+  const phone = usePhone()
+  // The phone's top rail takes the whole page while it is open.
+  const [railOpen, setRailOpen] = useState(false)
+  const showRail = phone && railOpen
+  const navItems = TABS.map((t) => ({
+    key: t.key,
+    aria: t.key === 'waiting' && waitingCount > 0 ? `Waiting on you, ${waitingCount} need you` : undefined,
+    label:
+      t.key === 'waiting' && waitingCount > 0 ? (
+        <span className="inline-flex items-center gap-1.5">
+          <ViewLabel view="waiting">Waiting on you</ViewLabel> <Badge variant="warning">{waitingCount}</Badge>
+        </span>
+      ) : (
+        <ViewLabel view={t.key}>{t.label}</ViewLabel>
+      ),
+  }))
+
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ display: 'contents' }}>
     <ConfirmProvider>
@@ -274,26 +293,24 @@ function AvoozlPage() {
       />
       {/* The tab row on every tab: the tabs only. It wraps on a narrow page;
           nothing scrolls sideways. */}
-      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-6 pb-3" data-top-row>
-        <SegmentedControl
-          collapse={false}
-          wrap="hug"
-          layoutId="avoozl-views"
-          ariaLabel="Avoozl views"
-          segments={TABS.map((t) => ({
-            key: t.key,
-            label:
-              t.key === 'waiting' && waitingCount > 0 ? (
-                <span className="inline-flex items-center gap-1.5" aria-label={`Waiting on you, ${waitingCount} need you`}>
-                  <ViewLabel view="waiting">Waiting on you</ViewLabel> <Badge variant="warning">{waitingCount}</Badge>
-                </span>
-              ) : (
-                <ViewLabel view={t.key}>{t.label}</ViewLabel>
-              ),
-          }))}
-          value={navTab(tab)}
-          onChange={(key) => chooseTab(key as Tab)}
-        />
+      <div
+        className={phone ? undefined : 'flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-6 pb-3'}
+        style={phone ? { display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, flex: showRail ? '1 1 0%' : '0 0 auto', marginBottom: showRail ? 0 : 12 } : undefined}
+        data-top-row
+      >
+        {phone ? (
+          <TopRail items={navItems} value={navTab(tab)} onChange={(key) => chooseTab(key as Tab)} open={railOpen} onOpenChange={setRailOpen} ariaLabel="Avoozl views" />
+        ) : (
+          <SegmentedControl
+            collapse={false}
+            wrap="hug"
+            layoutId="avoozl-views"
+            ariaLabel="Avoozl views"
+            segments={navItems}
+            value={navTab(tab)}
+            onChange={(key) => chooseTab(key as Tab)}
+          />
+        )}
       </div>
       <DemoBar />
       {error && (
@@ -307,6 +324,7 @@ function AvoozlPage() {
         }}
         data-avoozl-pane
         className="flex-1 min-h-0 overflow-y-auto px-6 pb-8"
+        hidden={showRail}
       >
         {needsWorkspace ? (
           <EmptyState
