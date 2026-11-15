@@ -193,6 +193,39 @@ cur.update(json.loads(sys.argv[2]))
 print(json.dumps({"owner": sys.argv[3], "repo": sys.argv[4], "settings": cur}))' "$cur" "$2" "$REPO_OWNER" "$REPO_NAME")"
       api PUT /api/apps/issue-radar/settings "$body"
     fi ;;
+  route-avoozl)   # send avoozl:avoozl through the MCP broker so crew chats get a caller identity
+    # Setting the override is not enough: the gateway wraps a stub only for a launch
+    # the owner approved, and records an unapproved one as refused at boot. So: set,
+    # restart (records the launch), approve that launch, restart (wraps it).
+    kc config set mcp_gateway.stub_overrides '{"avoozl:avoozl":true}' >/dev/null
+    running && cmd_stop; cmd_start
+    # The refusal is recorded a few seconds after the dashboard answers.
+    el=""
+    for _ in $(seq 1 60); do
+      el="$(python3 - "$HOME_DIR/mcp-launch-approvals/approvals.json" <<'PY'
+import json, sys
+try:
+    r = json.load(open(sys.argv[1])).get("refused", {})
+except Exception:
+    r = {}
+print(next((v["expected_launch"] for k, v in r.items() if k.lower() == "avoozl:avoozl"), ""))
+PY
+)"
+      [ -n "$el" ] && break
+      python3 - "$HOME_DIR/mcp-gateway/agents/avoozl--avoozl-crew.json" <<'PY' && break
+import json, sys
+try:
+    s = json.load(open(sys.argv[1]))["mcpServers"]["avoozl:avoozl"]
+except Exception:
+    sys.exit(1)
+sys.exit(0 if s.get("_kirocrew_mcp_gateway_wrapped") else 1)
+PY
+      sleep 1
+    done
+    if [ -n "$el" ]; then
+      api POST /api/mcp-gateway/servers/stub "{\"name\":\"avoozl:avoozl\",\"stub\":true,\"expected_launch\":\"$el\"}"
+      cmd_stop; cmd_start
+    else echo "avoozl:avoozl launch already approved"; fi ;;
   check)
     cmd_status
     echo "dashboard:   $(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/")"
@@ -200,5 +233,5 @@ print(json.dumps({"owner": sys.argv[3], "repo": sys.argv[4], "settings": cur}))'
     echo "issue-radar: $(kc app list 2>/dev/null | grep -E '^issue-radar ' | tr -s ' ')"
     api GET /api/apps/issue-radar/repos | head -c 400; echo
     echo "avoozl page: $(api GET /apps/avoozl | grep -c "<html")  (1 or more = loads)" ;;
-  *) sed -n '2,3p' "$0"; echo "commands: start stop restart status reset url check api connect-repo crew-create crew-list crew-edit crew-retire crew-settings radar-settings"; exit 2 ;;
+  *) sed -n '2,3p' "$0"; echo "commands: start stop restart status reset url check api route-avoozl connect-repo crew-create crew-list crew-edit crew-retire crew-settings radar-settings"; exit 2 ;;
 esac

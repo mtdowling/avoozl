@@ -56,8 +56,11 @@ export function pathBlocks(paths, mirror) {
 // Protection 5.2, plans-branch rules (RC25.6c): the plans branch name, a
 // private spec's folder or any path under it, or a commit of the plans branch
 // in any path, message, branch name, title or body blocks the forward. `plans`
-// is {specNames, commits}: the private spec folder names and the commit IDs
-// read from the plans branch. A block names the rule and place only.
+// is {specNames, taskIds, commits}: the private spec folder names, their task
+// IDs and the commit IDs read from the plans branch. A bare spec name or task
+// ID blocks too, as a whole word. A block names the rule and place only.
+// shortcut: a short private spec name blocks any text holding it as a word;
+// a purely numeric task ID (1.1) is not matched, rename the spec's tasks.
 // shortcut: only the commits the caller lists are matched (the plans branch
 // head); an older one cannot reach a forward, whose clone never fetched it.
 export function plansBlocks(change, mirror, plans = {}) {
@@ -67,6 +70,16 @@ export function plansBlocks(change, mirror, plans = {}) {
   if (!name) return blocks;
   const folders = (plans.specNames ?? []).map((spec) => `.kiro/specs/${spec}`),
     commits = (plans.commits ?? []).map((id) => id.toLowerCase()),
+    words = [
+      ...(plans.specNames ?? []),
+      ...(plans.taskIds ?? []).filter((id) => !/^[\d.]+$/.test(id)),
+    ].map(
+      (word) =>
+        new RegExp(
+          `(?<![\\w-])${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`,
+          "i",
+        ),
+    ),
     texts = [
       ...change.paths.map((file, index) => [`file ${index + 1}`, file]),
       ["commit message", change.message],
@@ -79,6 +92,7 @@ export function plansBlocks(change, mirror, plans = {}) {
     if (lower.includes(name.toLowerCase())) block("plans-branch-name", place);
     if (folders.some((folder) => lower.includes(folder.toLowerCase())))
       block("plans-spec-path", place);
+    else if (words.some((word) => word.test(lower))) block("plans-name", place);
     if (
       commits.some((id) =>
         [...lower.matchAll(/\b[0-9a-f]{7,40}\b/g)].some((hit) =>

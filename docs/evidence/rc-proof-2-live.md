@@ -5,7 +5,7 @@ Live run for task `rc-p2`. The fake-GitHub receipt is `rc-proof-2.md`.
 - Recorded: 2026-11-15, Linux, Node 24, real GitHub (private scratch repositories), the real GitHub client.
 - Script: `scripts/live-proofs/p2.mjs`
 - Verdict: **PASS** in single-repo mode, in plans-repo mode, and with a Project board.
-- The live run found two bugs in the approval pull request: one fixed on main by #220 (found the same night by another live run), the other in PR #215.
+- The live run found two bugs in the approval pull request: both also found the same night by another live run and fixed on main (#220 and commit 45a182a).
 
 ## Setup
 
@@ -45,10 +45,10 @@ Details:
 - **Project board** (`--project`). Set up GitHub made a new Project with the Status, Wave and Avoozl state fields. After projection every task issue was on the board with Status and Wave set (the batch issue Done, `1.4` on wave 2, the others on wave 1). There is no Release field, because the scratch workspace names no releases.
 - **plans-repo verify.** `avoozl verify-issue` on a code-repo issue read the spec from the plans repo and passed all five checks.
 
-## Bugs found and fixed
+## Bugs found (fixed on main)
 
 1. `putFile` never sent the file's current `sha`. GitHub refuses to replace a file without it ("sha wasn't supplied"), so the approval pull request failed for every spec whose files already exist. Fixed on main by #220.
-2. The approval branch was always `avoozl/approve-<spec>`. After one approval merged, approving the next revision failed with "Reference already exists". PR #215 puts the spec hash in the branch name.
+2. The approval branch was always `avoozl/approve-<spec>`. After one approval merged, approving the next revision failed with "Reference already exists". Main now retries under the next free branch name (commit 45a182a).
 
 The runs above used a local build with both fixes.
 
