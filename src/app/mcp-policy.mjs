@@ -137,10 +137,6 @@ export const PERSON_ONLY = new Map([
   ["flow.retro.decide", person("Only a person decides retro proposals.")],
   ["prompt.override.revert", person("Only a person changes prompt overrides.")],
   ["prompt.override.rebase", person("Only a person changes prompt overrides.")],
-  ["plugin.lessons.import", person("Only a person imports a lessons pack.")],
-  ["lessons.export", person("Only a person exports lessons.")],
-  ["lessons.share.preview", person("Only a person shares lessons.")],
-  ["lessons.share", person("Only a person shares lessons.")],
   ["driver.handoff", person("Only a person hands off a spec's driver.")],
   ["driver.takeover", person("Only a person takes over a spec's driver.")],
   [
@@ -220,8 +216,8 @@ export const PERSON_ONLY = new Map([
 // Operations no MCP tool routes to, for a reason other than a person's
 // authority. Nothing refuses these by name; no route reaches them.
 const moved = "Moved to Kiro Crew with no old plans_* name; nothing to offer.";
-const lessonsPage =
-  "The Flow tab's Proposals and Lessons views; lessons stay summaries for retros, not sessions.";
+const proposalsPage =
+  "The Flow tab's Proposals view; proposals are a person's to decide.";
 const removed = "Removed; the operation has no handler.";
 const page = "App page rendering only.";
 const remote =
@@ -247,12 +243,7 @@ export const NOT_ON_MCP = new Map([
     "panel.view",
     "The chat side panel's one read; its parts are each on MCP already.",
   ],
-  ["flow.proposals", lessonsPage],
-  ["lessons.view", lessonsPage],
-  [
-    "plugin.lessons.preview",
-    "Settings reads a lessons pack before a person imports it.",
-  ],
+  ["flow.proposals", proposalsPage],
   ["legacy.mcp", "The MCP server's own fallback for the legacy plans_* tools."],
   [
     "state",

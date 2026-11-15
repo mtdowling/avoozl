@@ -28,11 +28,14 @@ import { fail } from "./store.mjs";
 
 // `intake` screens incoming items (design §4.12) and runs only for a set
 // that names it, so GitHub intake is unchanged unless the owner asks.
-// `proposal` screens retro proposals and `lesson` the lessons shared across
-// workspaces (design §4.18); every set covers them unless it narrows.
+// `proposal` screens retro proposals (design §4.18); every set covers them
+// unless it narrows.
 // `activity` screens each activity log row (§4.19); a matching row is saved
 // redacted, so no decision opens. `notes` screens each task link and note
 // when it is saved (§4.16); like `plan`, every set covers it by default.
+// A boundary Avoozl no longer checks. A saved set may still list it; it
+// matches nothing. `lesson` went with the lessons store (RC30.4).
+const REMOVED_BOUNDARIES = ["lesson"];
 export const BOUNDARIES = Object.freeze([
   "plan",
   "github",
@@ -40,7 +43,6 @@ export const BOUNDARIES = Object.freeze([
   "diff",
   "intake",
   "proposal",
-  "lesson",
   "activity",
   // Each evidence bundle entry (§4.22); a match is saved redacted.
   "evidence",
@@ -389,7 +391,9 @@ export function validateContentRules(
       if (
         !Array.isArray(entry.boundaries) ||
         !entry.boundaries.length ||
-        entry.boundaries.some((b) => !BOUNDARIES.includes(b))
+        entry.boundaries.some(
+          (b) => !BOUNDARIES.includes(b) && !REMOVED_BOUNDARIES.includes(b),
+        )
       )
         fail(`${where}.boundaries may list only ${BOUNDARIES.join(", ")}.`);
       boundaries = [...new Set(entry.boundaries)];

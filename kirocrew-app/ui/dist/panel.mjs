@@ -872,14 +872,7 @@ function it(e) {
 		saveInstructions: (e, n) => t(e, "flow.instructions.update", { instructions: n }),
 		proposals: (e) => t(e, "flow.proposals"),
 		revertPrompt: (e, n) => t(e, "prompt.override.revert", { target: n }),
-		rebasePrompt: (e, n) => t(e, "prompt.override.rebase", n),
-		lessons: (e, n = {}) => t(e, "lessons.view", Object.fromEntries(Object.entries(n).filter(([, e]) => e))),
-		sharePreview: (e, n) => t(e, "lessons.share.preview", { ids: n }),
-		share: (e, n, r) => t(e, "lessons.share", {
-			ids: n,
-			previewHash: r
-		}),
-		exportLessons: (e, n) => t(e, "lessons.export", { path: n })
+		rebasePrompt: (e, n) => t(e, "prompt.override.rebase", n)
 	};
 }
 function at(e) {

@@ -23,33 +23,12 @@ import { taskRepository } from "../work-model.mjs";
 import {
   BRIEF_SKILLS,
   SKILL_TEXT_MAX,
-  checkPacks,
   contentBlocks,
   currentPrompts,
-  knownNames,
-  lessonSettings,
-  lessonText,
   overridesFile,
-  promptVersions,
   retroMemory,
   skillText,
-  workspaceChecks,
-  workspaceId,
-  workspaceTraits,
 } from "./retro-memory.mjs";
-import {
-  writeLesson as writeLessonImpl,
-  confirmLesson,
-  contradicted,
-  disagree,
-  editLesson,
-  healLessons,
-  lessonProblem,
-  lessonTextProblem,
-  lessonsForBrief,
-  reviewLessons,
-  setOutcome,
-} from "./lessons.mjs";
 import {
   approveSection,
   revertPrompt,
@@ -59,8 +38,7 @@ import {
   shippedPrompts,
 } from "./prompts.mjs";
 import { contentBinding } from "./content-rules.mjs";
-import { recordTraits } from "./lessons-share.mjs";
-import { applyDiff, reverseDiff, unifiedDiff } from "./text-diff.mjs";
+import { applyDiff, reverseDiff } from "./text-diff.mjs";
 import {
   retroCorrections,
   ruleAgain,
@@ -93,8 +71,6 @@ const METRIC_KEY = {
 // Keys that guard safety, never speed: refused in any proposal (R47.5).
 const REFUSED = [
   /^contentRules/,
-  // Sharing lessons is the owner's choice (R69.6).
-  /^flow\.lessons\./,
   /^plugins/,
   /allowedActors|minimumPermission|minPermission/,
   /trust/i,
@@ -236,27 +212,16 @@ function listSpansSafe(store) {
   }
 }
 
-// What a retro sees of prompts, skills and lessons (design §4.18): every
-// unlocked section of the five prompts with its hash, the text of up to 3
-// skill files the window's sessions loaded, up to 10 matching lessons and a
-// "did not work" list, and on every `reviewEvery`th retro the lessons to
-// review. `seen` keeps the hashes and IDs shown, so a reply can only build
-// on them. Null without a bound memory.
-export function memoryBrief(
-  store,
-  data,
-  retro,
-  config,
-  { now = Date.now() } = {},
-) {
+// What a retro sees of prompts and skills (design §4.18): every unlocked
+// section of the five prompts with its hash, and the text of up to 3 skill
+// files the window's sessions loaded. `seen` keeps the hashes shown, so a
+// reply can only build on them. Null without a bound memory. Lessons were
+// removed (RC30.4); retros propose rules instead.
+export function memoryBrief(store, data) {
   const m = retroMemory(store);
   if (!m) return null;
   const prompts = currentPrompts(store),
-    settings = lessonSettings(flowPolicy(config || {})),
     view = flowView(store, data, {}),
-    stage = view.bottleneck?.stage ?? null,
-    id = workspaceId(store),
-    traits = workspaceTraits(store),
     finished = new Set(
       view.tasks.filter((t) => t.finishedAt).map((t) => t.taskId),
     ),
@@ -277,24 +242,6 @@ export function memoryBrief(
       text: read.text.slice(0, SKILL_TEXT_MAX),
       ...(read.text.length > SKILL_TEXT_MAX ? { truncated: true } : {}),
     }));
-  const allow = (l) =>
-      !contentBlocks(store, "lesson", `lesson:${l.id}`, lessonText(l)).length,
-    { lessons, didNotWork } = lessonsForBrief(m.lessons, {
-      workspaceId: id,
-      traits,
-      stage,
-      read: settings.read,
-      untestedDays: settings.untestedDays,
-      allow,
-      now,
-    }),
-    review =
-      retro.n % settings.reviewEvery === 0
-        ? reviewLessons(m.lessons, {
-            workspaceId: id,
-            read: settings.read,
-          }).filter(allow)
-        : null;
   const payload = {
     prompts: Object.values(prompts).map((p) => ({
       target: p.target,
@@ -304,9 +251,6 @@ export function memoryBrief(
         .map((s) => ({ name: s.name, sha256: s.sha256, text: s.body })),
     })),
     skills,
-    lessons,
-    didNotWork,
-    ...(review ? { lessonsReview: review } : {}),
   };
   return {
     payload,
@@ -321,10 +265,6 @@ export function memoryBrief(
         ]),
       ),
       skills: Object.fromEntries(skills.map((s) => [s.target, s.sha256])),
-      lessons: lessons.map((l) => l.id),
-      review: review ? review.map((l) => l.id) : null,
-      stage,
-      traits,
     },
   };
 }
@@ -420,11 +360,9 @@ const summary = (p) => ({
     ? { key: p.key, from: p.from, to: p.to }
     : p.type === "prompt" || p.type === "skill"
       ? { target: p.target, ...(p.section ? { section: p.section } : {}) }
-      : p.type === "lesson"
-        ? { kind: p.kind, lessons: p.lessons }
-        : p.type === "rule"
-          ? { text: p.text, corrections: p.corrections }
-          : { spec: p.spec, change: p.change }),
+      : p.type === "rule"
+        ? { text: p.text, corrections: p.corrections }
+        : { spec: p.spec, change: p.change }),
   metric: p.metric,
   direction: p.direction,
   status: p.status,
@@ -528,7 +466,6 @@ export function retroStep(
         ),
       };
       store.put("flow_retros", next);
-      lessonResult(store, proposal, result, after, now);
       if (result !== "helped")
         s = { ...s, reverts: [...s.reverts, revertOf(retro, proposal)] };
       changed = true;
@@ -562,9 +499,7 @@ export function retroStep(
         proposals: [],
         dropped: [],
       };
-    // Lessons heal at each retro (R70.2, R70.3), before the brief reads them.
-    healAt(store, data, config, now);
-    const memory = memoryBrief(store, data, retro, config, { now });
+    const memory = memoryBrief(store, data);
     if (memory) retro.seen = memory.seen;
     // The corrections this retro is shown; a rule may cite only these.
     retro.correctionsSince = last?.startedAt ?? null;
@@ -623,17 +558,7 @@ export function pdcaResult(before, after, direction) {
   return "no change";
 }
 
-// ------------------------------------------------- versions and lessons
-
-const AVOOZL_VERSION = (() => {
-  try {
-    return JSON.parse(
-      fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
-    ).version;
-  } catch {
-    return null;
-  }
-})();
+// ------------------------------------------------------------ versions
 
 // The version of a prompt or skill target the finishing attempt of a task
 // ran on (R68.12).
@@ -704,205 +629,6 @@ function otherChangeIn(store, data, retroId, proposalId, ids) {
   );
 }
 
-// A PDCA result on a change's lesson (R69.3, R70.2): helped keeps it, and a
-// lesson for the same pattern and change that disagrees needs a re-check.
-function lessonResult(store, proposal, result, after, now) {
-  const m = retroMemory(store),
-    lesson = m && proposal.lessonId ? m.lessons.get(proposal.lessonId) : null;
-  if (!lesson) return;
-  if (result === "helped")
-    setOutcome(m.lessons, lesson.id, "kept", { now, after });
-  const outcome = result === "helped" ? "kept" : "undone";
-  for (const other of contradicted(m.lessons, lesson, outcome))
-    disagree(m.lessons, other.id, {
-      now,
-      reason: `a newer result for the same change ${result === "helped" ? "helped" : "did not help"}`,
-    });
-}
-
-// The tools the declared checks run: each command's first word.
-const checkTools = (checks) => [
-  ...new Set(
-    checks.map((c) => String(c).trim().split(/\s+/)[0]).filter(Boolean),
-  ),
-];
-
-// Drift checks when lessons are read (R70.2): the Lessons view.
-export function healNow(store, config, { now = Date.now() } = {}) {
-  healAt(store, store.read(), config, now);
-}
-
-// Drift checks and confirmations at a retro (R70.2, R70.3).
-function healAt(store, data, config, now) {
-  const m = retroMemory(store);
-  if (!m) return;
-  const policy = flowPolicy(config || {}),
-    settings = lessonSettings(policy),
-    models = typeof m.models === "function" ? m.models() : m.models,
-    versions = promptVersions(store),
-    checks = workspaceChecks(store),
-    traits = workspaceTraits(store),
-    id = workspaceId(store),
-    tools = checkTools(checks);
-  recordTraits(m.lessons, id, traits);
-  checkPacks(store, { now });
-  healLessons(
-    m.lessons,
-    {
-      workspaceId: id,
-      models: Array.isArray(models) ? models : null,
-      versions,
-      checks,
-      tools,
-      traits,
-    },
-    { now, confirmDays: settings.confirmDays },
-  );
-  // A window confirms a lesson when its change is in effect here and the
-  // metric stays within 10% of its after value, on runs newer than the last
-  // confirmation.
-  const every = policy.workspace.retro.everyTasks,
-    recent = newestFirst(store, data).slice(0, every);
-  if (recent.length < every) return;
-  const oldest = recent.map((t) => finishedAt(t)).sort()[0],
-    prompts = currentPrompts(store);
-  for (const lesson of m.lessons.list()) {
-    if (
-      lesson.source !== id ||
-      lesson.outcome !== "kept" ||
-      lesson.state === "retired"
-    )
-      continue;
-    if ((lesson.confirmedAt || lesson.date) >= oldest) continue;
-    const c = lesson.change || {},
-      inEffect =
-        c.type === "prompt"
-          ? prompts[c.target]?.sections.find((x) => x.name === c.section)
-              ?.sha256 === c.resultSha
-          : c.type === "settings" && String(c.key).startsWith("flow.")
-            ? JSON.stringify(readKey(policy.workspace, c.key.slice(5))) ===
-              JSON.stringify(c.to)
-            : false;
-    if (!inEffect) continue;
-    const metric = lesson.evidence?.metric,
-      after = lesson.evidence?.after,
-      value = METRICS.includes(metric)
-        ? metricOver(store, data, metric, every)
-        : null;
-    if (value === null || typeof after !== "number") continue;
-    if (Math.abs(value - after) > 0.1 * (Math.abs(after) || 1)) continue;
-    confirmLesson(m.lessons, lesson.id, {
-      now,
-      context: {
-        checks,
-        tools,
-        traits,
-        ...(Array.isArray(models)
-          ? {
-              models: (lesson.context?.models || []).filter((x) =>
-                models.includes(x),
-              ),
-            }
-          : {}),
-        versions:
-          c.target && versions[c.target]
-            ? { [c.target]: versions[c.target] }
-            : lesson.context?.versions || {},
-      },
-    });
-  }
-}
-
-// The lesson a person's approval writes (R69.3): `untested`, with the
-// context it was learned in (R70.1). Returns {lessonId} or {lessonRefused}.
-function writeApprovedLesson(
-  store,
-  data,
-  proposal,
-  pdca,
-  config,
-  { by, now, override },
-) {
-  const m = retroMemory(store);
-  if (!m || !proposal.lesson) return {};
-  const settings = lessonSettings(flowPolicy(config || {})),
-    known = knownNames(store),
-    change =
-      proposal.type === "settings"
-        ? {
-            type: "settings",
-            key: proposal.key,
-            to: proposal.to,
-            summary: `${proposal.key} ${JSON.stringify(proposal.from)} to ${JSON.stringify(proposal.to)}`,
-          }
-        : proposal.type === "prompt"
-          ? {
-              type: "prompt",
-              target: proposal.target,
-              section: proposal.section,
-              resultSha: override?.resultSha ?? null,
-              summary: `${proposal.target} section ${proposal.section}`,
-            }
-          : proposal.type === "skill"
-            ? {
-                type: "skill",
-                target: "skill",
-                summary: "a skill file the workers load",
-              }
-            : { type: "plan", summary: "a plan change" },
-    blocks = contentBlocks(
-      store,
-      "lesson",
-      `lesson:${proposal.id}`,
-      [proposal.lesson.finding, change.summary].join("\n"),
-    );
-  if (blocks.length)
-    return { lessonRefused: `content rules: ${blocks.join("; ")}` };
-  const ids = newestFirst(store, data)
-      .slice(0, pdca?.window || 10)
-      .map((t) => t.id),
-    models = [
-      ...new Set(
-        listOr(store, "session_bindings")
-          .filter((b) => ids.includes(b.taskId) && b.model)
-          .map((b) => b.model),
-      ),
-    ],
-    traits = workspaceTraits(store),
-    written = writeLessonImpl(
-      m.lessons,
-      {
-        pattern: { ...proposal.lesson.pattern, traits },
-        finding: proposal.lesson.finding,
-        change,
-        evidence: {
-          tasks: proposal.evidence?.runs?.length ?? pdca?.window ?? null,
-          runs: proposal.evidence?.runs?.length ?? null,
-          metric: proposal.metric,
-          before: pdca?.before ?? null,
-          after: null,
-        },
-        context: {
-          avoozl: AVOOZL_VERSION,
-          models,
-          versions: override?.to ? { [proposal.target]: override.to } : {},
-          checks: workspaceChecks(store),
-          tools: checkTools(workspaceChecks(store)),
-          traits,
-          baseline: pdca?.before ?? null,
-        },
-        source: workspaceId(store),
-        shared: settings.share,
-        by,
-        now,
-      },
-      { known },
-    );
-  return written.refused
-    ? { lessonRefused: written.refused }
-    : { lessonId: written.lesson.id };
-}
-
 function revertOf(retro, proposal) {
   if (proposal.type === "prompt" || proposal.type === "skill")
     return {
@@ -916,7 +642,6 @@ function revertOf(retro, proposal) {
       metric: proposal.metric,
       direction: proposal.direction,
       evidence: `PDCA: the ${proposal.type} change to ${proposal.target} from ${retro.id} did not help (${proposal.metric} ${proposal.pdca?.result ?? "no change"}).`,
-      ...(proposal.lessonId ? { lessonId: proposal.lessonId } : {}),
       revertOf: `${retro.id}:${proposal.id}`,
     };
   return proposal.type === "settings"
@@ -954,8 +679,6 @@ const SETTINGS_FIELDS = [
   "direction",
   "evidence",
   "revertOf",
-  "lesson",
-  "lessons",
 ];
 const PLAN_FIELDS = [
   "type",
@@ -965,8 +688,6 @@ const PLAN_FIELDS = [
   "direction",
   "evidence",
   "revertOf",
-  "lesson",
-  "lessons",
 ];
 const shortText = (v, max = 1000) =>
   typeof v === "string" && v.trim() && v.length <= max;
@@ -980,11 +701,8 @@ const CHANGE_FIELDS = [
   "metric",
   "direction",
   "evidence",
-  "lessons",
-  "lesson",
   "revert",
   "revertOf",
-  "lessonId",
 ];
 const RUN = /^[A-Za-z0-9][\w.:/-]{0,199}#\d{1,4}$/;
 const SKILL_TARGET = /^(?:repo|external):[A-Za-z0-9][\w.-]{0,99}:[^\0]{1,400}$/;
@@ -1017,11 +735,6 @@ function changeProblem(p, retro, store) {
     return "the diff is missing";
   if (typeof p.base !== "string" || !/^[0-9a-f]{64}$/.test(p.base))
     return "base is the sha256 of the text the diff is against";
-  if (
-    p.lessons !== undefined &&
-    (!Array.isArray(p.lessons) || p.lessons.length > 10)
-  )
-    return "lessons lists up to 10 lesson IDs";
   if (!store || !retroMemory(store))
     return `${p.type} proposals need this machine's Avoozl settings folder`;
   if (p.type === "prompt") {
@@ -1165,30 +878,12 @@ export function recordRetroReply(
         if (own) fromReply += 1;
         proposals.push({
           ...p,
-          ...(own ? lessonFields(store, retro, p) : {}),
           id: `p${proposals.length + 1}`,
           status: "open",
           ...(removesCheck(p) ? { removesCheck: true } : {}),
         });
       }
     }
-    // The lessons review's edits (R70.4): each a diff for a person.
-    if (Array.isArray(reply.lessonEdits) && retro.seen?.review)
-      for (const [i, edit] of reply.lessonEdits.slice(0, 5).entries()) {
-        const made = makeLessonEdit(store, retro, edit);
-        if (made.problem)
-          dropped.push({
-            index: `lessonEdits.${i}`,
-            type: "lesson",
-            reason: made.problem,
-          });
-        else
-          proposals.push({
-            ...made.proposal,
-            id: `p${proposals.length + 1}`,
-            status: "open",
-          });
-      }
     const valid = bottleneck || proposals.length,
       next = {
         ...retro,
@@ -1218,7 +913,6 @@ function blockedProposal(store, retroId, index, p) {
     typeof p.evidence === "string"
       ? p.evidence
       : JSON.stringify(p.evidence ?? null),
-    p.lesson?.finding,
   ]
     .filter((v) => typeof v === "string")
     .join("\n");
@@ -1231,90 +925,6 @@ function blockedProposal(store, retroId, index, p) {
   return blocks.length
     ? `content rules blocked it: ${blocks.join("; ")}`
     : null;
-}
-
-// A proposal's cited lessons (only those its brief showed) and its own
-// lesson (summaries only, the content rules at `lesson`). A refused lesson
-// is dropped and the proposal stands (R69.4, R69.5).
-function lessonFields(store, retro, p) {
-  const out = {};
-  if (Array.isArray(p.lessons)) {
-    const shown = new Set(retro.seen?.lessons || []);
-    out.lessons = p.lessons.filter((id) => shown.has(id));
-    const gone = p.lessons.filter((id) => !shown.has(id));
-    if (gone.length) out.droppedLessons = gone.map(String).slice(0, 10);
-  }
-  if (p.lesson !== undefined) {
-    const problem =
-      lessonProblem(p.lesson, { known: knownNames(store) }) ||
-      (() => {
-        const blocks = contentBlocks(
-          store,
-          "lesson",
-          `lesson:${retro.id}`,
-          String(p.lesson?.finding ?? ""),
-        );
-        return blocks.length ? `content rules: ${blocks.join("; ")}` : null;
-      })();
-    if (problem) {
-      out.lesson = undefined;
-      out.lessonRefused = problem;
-    }
-  }
-  return out;
-}
-
-const EDIT_KINDS = ["rewrite", "merge", "retire"];
-
-// One `lessonEdits` entry as a proposal of type `lesson`, with the change to
-// the findings as a diff.
-function makeLessonEdit(store, retro, edit) {
-  const m = retroMemory(store);
-  if (!m) return { problem: "no lessons store" };
-  if (!edit || typeof edit !== "object") return { problem: "not an object" };
-  if (!EDIT_KINDS.includes(edit.kind))
-    return { problem: "kind must be rewrite, merge or retire" };
-  const ids = Array.isArray(edit.lessons) ? edit.lessons.map(String) : [];
-  if (!ids.length || ids.some((id) => !retro.seen.review.includes(id)))
-    return { problem: "name lessons from the review" };
-  if (edit.kind === "rewrite" && ids.length !== 1)
-    return { problem: "a rewrite names one lesson" };
-  if (edit.kind === "merge" && ids.length < 2)
-    return { problem: "a merge names the lesson to keep, then the others" };
-  if (!shortText(edit.evidence, 1000))
-    return { problem: "evidence is missing" };
-  if (edit.kind === "rewrite" || edit.finding !== undefined) {
-    const problem = lessonTextProblem(edit.finding, {
-      known: knownNames(store),
-    });
-    if (problem) return { problem: `the new finding ${problem}` };
-    if (
-      contentBlocks(store, "lesson", `lesson:${retro.id}`, edit.finding).length
-    )
-      return { problem: "the new finding matched a content rule" };
-  }
-  const lessons = ids.map((id) => m.lessons.get(id));
-  if (lessons.some((l) => !l)) return { problem: "a lesson is gone" };
-  const before = lessons.map((l) => `${l.id}: ${l.finding}`).join("\n"),
-    after =
-      edit.kind === "retire"
-        ? lessons.map((l) => `${l.id}: (retired)`).join("\n")
-        : edit.kind === "rewrite"
-          ? `${ids[0]}: ${edit.finding}`
-          : [
-              `${ids[0]}: ${edit.finding ?? lessons[0].finding}`,
-              ...ids.slice(1).map((id) => `${id}: (merged into ${ids[0]})`),
-            ].join("\n");
-  return {
-    proposal: {
-      type: "lesson",
-      kind: edit.kind,
-      lessons: ids,
-      ...(edit.finding !== undefined ? { finding: edit.finding } : {}),
-      evidence: edit.evidence,
-      diff: unifiedDiff(before, after),
-    },
-  };
 }
 
 function parseReply(text) {
@@ -1333,8 +943,8 @@ function parseReply(text) {
 // only. Approve writes a settings change through `apply` (the Settings
 // operation, with an expected hash), opens a planner draft through `draft`,
 // writes a prompt override version through `prompt`, lands a skill change
-// through `skill` (a leaf, or a note for an external skill), or edits
-// lessons through `lessonEdit`. It writes the proposal's lesson, untested.
+// through `skill` (a leaf, or a note for an external skill), or opens a
+// rule's leaf through `rule`.
 export async function decideProposal(
   store,
   input = {},
@@ -1344,7 +954,6 @@ export async function decideProposal(
     prompt,
     skill,
     rule,
-    lessonEdit,
     config,
     by = "person",
     now = Date.now(),
@@ -1373,19 +982,16 @@ export async function decideProposal(
       fail("This proposal removes a check. Confirm again to approve it.", 409);
     const data = store.read(),
       every = flowPolicy(config || {}).workspace.retro.everyTasks,
-      done = finishedTasks(store, data).length,
-      changes = proposal.type === "prompt" || proposal.type === "skill";
+      done = finishedTasks(store, data).length;
     let pdca =
-      proposal.type === "lesson"
-        ? null
-        : proposal.type === "rule"
-          ? { approvedAt: at, window: every, at: done + every }
-          : {
-              before: metricOver(store, data, proposal.metric, every),
-              window: every,
-              at: done + every,
-              approvedAt: at,
-            };
+      proposal.type === "rule"
+        ? { approvedAt: at, window: every, at: done + every }
+        : {
+            before: metricOver(store, data, proposal.metric, every),
+            window: every,
+            at: done + every,
+            approvedAt: at,
+          };
     if (proposal.type === "settings") await apply(proposal, input.expectedHash);
     else if (proposal.type === "plan")
       update = { draft: (await draft(proposal)) ?? null };
@@ -1450,27 +1056,7 @@ export async function decideProposal(
           ),
         }),
       };
-    } else if (proposal.type === "lesson")
-      update = {
-        edited: await (
-          lessonEdit ||
-          ((p) => {
-            const m = retroMemory(store);
-            if (!m) fail("This machine has no lessons store.", 409);
-            return editLesson(
-              m.lessons,
-              {
-                kind: p.kind,
-                lessons: p.lessons,
-                finding: p.finding,
-                reason: p.evidence,
-              },
-              { by, now, known: knownNames(store) },
-            ).map((l) => l.id);
-          })
-        )(proposal),
-      };
-    else fail("Unknown proposal type.", 400);
+    } else fail("Unknown proposal type.", 400);
     update = {
       ...(update || {}),
       status: "approved",
@@ -1478,44 +1064,6 @@ export async function decideProposal(
       decidedBy: by,
       ...(pdca ? { pdca } : {}),
     };
-    // A revert approved after a change did not help undoes its lesson.
-    const m = retroMemory(store);
-    if (proposal.revertOf && m) {
-      const [rid, pid] = proposal.revertOf.split(":"),
-        original = store
-          .get("flow_retros", rid)
-          ?.proposals?.find((q) => q.id === pid);
-      const lessonId = proposal.lessonId || original?.lessonId;
-      if (lessonId) {
-        setOutcome(m.lessons, lessonId, "undone", { now, by });
-        const lesson = m.lessons.get(lessonId);
-        if (lesson)
-          for (const other of contradicted(m.lessons, lesson, "undone"))
-            disagree(m.lessons, other.id, {
-              now,
-              reason: "a newer result for the same change did not help",
-            });
-      }
-    } else if (
-      changes ||
-      proposal.type === "settings" ||
-      proposal.type === "plan"
-    )
-      Object.assign(
-        update,
-        writeApprovedLesson(
-          store,
-          data,
-          { ...proposal, ...update },
-          pdca,
-          config,
-          {
-            by,
-            now,
-            override: update.override,
-          },
-        ),
-      );
   } else fail("Choose decision approve or reject.");
   const latest = store.get("flow_retros", retro.id),
     next = {

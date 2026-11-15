@@ -65,7 +65,6 @@ test("the sample has an epic, specs, phases, states, GitHub and history", async 
     );
     assert.equal(draft.plan.approved, false);
     assert.equal((await demo.execute("intake.list", {})).total, 2);
-    assert.equal((await demo.execute("lessons.view", {})).lessons.length, 2);
     assert.ok((await demo.execute("activity.list", {})).items.length >= 8);
     assert.ok(
       (await demo.execute("conflicts.view", {})).items.some(
