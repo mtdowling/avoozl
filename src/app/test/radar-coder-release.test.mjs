@@ -62,6 +62,22 @@ test("a claimed issue keeps its slot and its labels; a freed slot goes to the ne
   assert.equal(labelsOf(w.issueOf(first)).includes(CLAIM), true);
 });
 
+// Live run of Proof 4: a crew claimed an issue and opened its pull request;
+// the task then left the ready queue (in review), and its slot was given to
+// the next task while the claimed issue still held the label.
+test("an open holder whose task left the ready queue still counts against N", async (t) => {
+  const w = await setup(t, { release: { capacity: 1 } }, five());
+  await w.tick();
+  const [first, second] = w.approved.taskIds;
+  w.issueOf(first).labels.push({ name: CLAIM });
+  w.store.mutate("In review", (data) => {
+    data.tasks.find((task) => task.id === first).status = "review";
+  });
+  await w.tick();
+  assert.equal(labelsOf(w.issueOf(first)).includes(READY), true);
+  assert.equal(labelsOf(w.issueOf(second)).includes(READY), false);
+});
+
 test("N=0 releases nothing", async (t) => {
   const w = await setup(t, { release: { capacity: 0 } }, five());
   await w.tick();

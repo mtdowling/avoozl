@@ -7,6 +7,7 @@
 //
 // `store` needs getMeta and setMeta. `github` needs repository, branchHead,
 // createBranch, putFile, createPullRequest and pullRequest.
+import { branchNameProblem } from "./integration-branch.mjs";
 import { COMMIT, LOGIN } from "./github-marker.mjs";
 import { fail } from "./store.mjs";
 import { specName, statusOf, withStatus } from "./spec-plans.mjs";
@@ -94,7 +95,18 @@ export async function openApproval(
     );
   if (!LOGIN.test(approvedBy || ""))
     fail("The approver must be a GitHub login.", 409);
+  if (ref !== undefined && branchNameProblem(ref) !== null)
+    fail("The private spec ref must be a usable branch name.", 409);
   const previous = approvalState(store, planId, hash);
+  if (
+    previous &&
+    ["open", "merged"].includes(previous.state) &&
+    previous.ref !== ref
+  )
+    fail(
+      "The approval target changed. Close the old approval before requesting this home.",
+      409,
+    );
   if (previous && (previous.state === "open" || previous.state === "merged"))
     return previous;
   const prose = proseFiles(files);
@@ -103,18 +115,57 @@ export async function openApproval(
   const changes = approvalChanges({
       spec,
       files,
-      decisionRecord: record,
-      extra,
+      decisionRecord: ref === undefined && record,
+      extra: {
+        ...extra,
+        ...(ref !== undefined && files["avoozl/manifest.json"] !== undefined
+          ? {
+              [`.kiro/specs/${spec}/avoozl/manifest.json`]:
+                files["avoozl/manifest.json"],
+            }
+          : {}),
+      },
     }),
-    base = ref ?? (await github.repository(repository)).default_branch,
+    defaultBranch = (await github.repository(repository)).default_branch,
+    base = ref ?? defaultBranch,
     head = await github.branchHead(repository, base),
     // A closed pull request leaves its branch, so a new try takes a new name.
-    // So does a try that failed after making its branch: the name is taken.
-    branch = await freshBranch(
+    firstAttempt = (previous?.attempt || 0) + 1;
+  if (ref !== undefined) {
+    if (ref === defaultBranch)
+      fail("The private spec ref must differ from the default branch.", 409);
+    let orphan = false;
+    try {
+      await github.compareCommits(repository, defaultBranch, ref);
+    } catch (error) {
+      if (
+        error.status === 404 &&
+        /no common ancestor/i.test(error.message || "")
+      )
+        orphan = true;
+      else fail("The private spec branch history could not be verified.", 409);
+    }
+    if (!orphan)
+      fail(
+        "The private spec branch shares history with the default branch.",
+        409,
+      );
+  }
+  if (
+    ref !== undefined &&
+    Object.keys(changes).some(
+      (file) =>
+        !file.startsWith(`.kiro/specs/${spec}/`) ||
+        file.split("/").some((part) => part === ".." || part === "."),
+    )
+  )
+    fail("Private approval changes must stay inside the spec folder.", 409);
+  // So does a try that failed after making its branch: the name is taken.
+  const branch = await freshBranch(
       github,
       repository,
       spec,
-      (previous?.attempt || 0) + 1,
+      firstAttempt,
       head.oid,
     ),
     attempt = branch.attempt;
@@ -138,7 +189,7 @@ export async function openApproval(
       branch: branch.name,
       attempt,
       base,
-      ...(ref ? { ref } : {}),
+      ...(ref !== undefined ? { ref } : {}),
       requestedBy: approvedBy,
     };
   store.setMeta(key(planId, hash), state);
@@ -149,12 +200,29 @@ export async function openApproval(
 // approver; a closed unmerged one is marked closed and records neither.
 export async function reconcileApproval(
   store,
-  { github, repository, planId, hash },
+  { github, repository, planId, hash, ref },
 ) {
   const state = approvalState(store, planId, hash);
+  if (
+    state &&
+    state.state !== "closed" &&
+    ref !== undefined &&
+    state.ref !== ref
+  )
+    fail(
+      "The approval target changed. Request approval in the current spec home.",
+      409,
+    );
   if (!state || state.state !== "open") return state;
   const pull = await github.pullRequest(repository, state.number);
   if (pull.merged) {
+    const actualBase =
+      typeof pull.base === "string" ? pull.base : pull.base?.ref;
+    if (state.ref && actualBase !== state.ref)
+      fail(
+        "The approval merged into a different branch from the private spec home.",
+        409,
+      );
     if (!COMMIT.test(pull.merge_commit_sha || ""))
       fail("GitHub returned no merge commit for the approval.", 502);
     const next = {

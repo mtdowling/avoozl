@@ -574,7 +574,7 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 - [x] rc-25.6 Audit on the tick of what landed on the source, after rc-25.4 [RC26.5] (§D31.2)
   - Compares each record's receipt with what GitHub reports on `source`; a difference opens one row and a Stop the line for forwarding; test 6.
   - Done when: A fake source with an extra file, another author or a ref named for the plans branch gives one row and a stop.
-- [ ] rc-25.7 Targets `branch` and `batch`: public branch copy, epic batch, one public PR, after rc-25.1, rc-25.5, rc-23.5 [RC26.3, RC26.4] (§D31.1)
+- [x] rc-25.7 Targets `branch` and `batch`: public branch copy, epic batch, one public PR, after rc-25.1, rc-25.5, rc-23.5 [RC26.3, RC26.4] (§D31.1)
   - The sync step also fast-forwards the copy of `publicBranch`; a `batch` epic builds one net-diff commit at epic done, runs every protection, opens one public PR; dependents inside the epic release on the mirror merge, outside it on the public merge; the public branch's landing in the default branch is a Needs you row and never an Avoozl merge.
   - Done when: Fake GitHub tests: each target opens the right PR against the right base; a `batch` epic opens exactly one PR; no call merges the public branch into the default branch.
 - [ ] rc-p25 Proof 25: forward targets and protections on scratch repositories, after rc-25.1, rc-25.2, rc-25.3, rc-25.4, rc-25.5, rc-25.6, rc-25.7, rc-p23 [RC26] (§D17)

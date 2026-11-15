@@ -1,3 +1,4 @@
+import { hasPendingSpecDependencies } from "./spec-dependencies.mjs";
 import { crossPlanEpics, taskEpic } from "./app/epics.mjs";
 import { activityState } from "./activity.mjs";
 import { statusComplete } from "./query.mjs";
@@ -48,17 +49,27 @@ export function taskIndex(data) {
 
 export function taskSignals(data, task, now = Date.now()) {
   const index = taskIndex(data);
-  const blockers = [...new Set(index.prerequisites.get(task.id) || [])].filter(
-    (id) => !statusComplete(data, index.tasks.get(id)?.status),
+  const pending = new Set(
+    (task.pendingSpecDependencies || [])
+      .filter((entry) => ["requires", "sequence"].includes(entry.kind))
+      .map((entry) => entry.taskId),
+  );
+  const blockers = [
+    ...new Set([...(index.prerequisites.get(task.id) || []), ...pending]),
+  ].filter(
+    (id) =>
+      pending.has(id) || !statusComplete(data, index.tasks.get(id)?.status),
   );
   const dependents = [...new Set(index.dependents.get(task.id) || [])].filter(
     (id) => !statusComplete(data, index.tasks.get(id)?.status),
   );
-  const complete = statusComplete(data, task.status);
+  const complete =
+    !hasPendingSpecDependencies(task) && statusComplete(data, task.status);
   const review =
     task.needsReview || task.source?.removed || task.status === "review";
   const ready =
     !complete &&
+    !hasPendingSpecDependencies(task) &&
     !review &&
     !["blocked", "deferred"].includes(task.status) &&
     blockers.length === 0;
