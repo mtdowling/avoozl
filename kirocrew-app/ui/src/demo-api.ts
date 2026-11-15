@@ -89,7 +89,7 @@ export const TOUR: readonly TourStep[] = [
   {
     id: 'stop-line',
     title: 'Stop the line',
-    caption: 'The pause icon under the left nav (in the menu on a phone) stops the line: it pauses all new work at once. In the demo it only says what it would do. The bar above has an example you can flip.',
+    caption: 'The pause icon after Plan a goal (in the menu on a phone) stops the line: it pauses all new work at once. In the demo it only says what it would do. The bar above has an example you can flip.',
     tab: 'dashboard',
   },
   {

@@ -43,16 +43,17 @@ test('the banner names who pulled it, why, and what it covers', () => {
   assert.equal(scopeText({ scope: 'spec', planId: 's1' }), 'spec s1')
 })
 
-test('the left nav has the Stop the line icon with a stopped state, and Resume asks first', () => {
+test('the top line (the phone menu) has the Stop the line icon with a stopped state, and Resume asks first', () => {
   const app = source('App.tsx'),
     dialog = source('StopLine.tsx'),
     banner = source('FlowView.tsx')
   // In the left nav's line section, an icon only: its words are the tooltip
   // and aria-label, never on screen. Not in the '...' menu.
   assert.match(app, /<StopLineButton nav workspaceId=\{active\} \/>/)
+  assert.match(app, /\{!phone && active && <StopLineButton square workspaceId=\{active\} \/>\}/)
   assert.doesNotMatch(app, /StopLineItem|MoreMenu|PageRefreshItem/)
   assert.doesNotMatch(dialog, /StopLineItem/)
-  assert.match(dialog, /const label = stopped \? 'Resume the line' : 'Stop the line'[\s\S]*?aria-label=\{label\}[\s\S]*?<Icon size=\{13\} aria-hidden="true" \/>/)
+  assert.match(dialog, /const label = stopped \? 'Resume the line' : 'Stop the line'[\s\S]*?aria-label=\{label\}[\s\S]*?<Icon size=\{props\.bare \? 13 : 14\} aria-hidden="true" \/>/)
   // Stopped: its own words and look while a stop is open; a pull or resume
   // tells the page at once.
   assert.match(dialog, /\{stopped \? 'Line stopped' : 'Stop the line'\}/)

@@ -252,8 +252,8 @@ function AvoozlPage() {
   // The phone's top rail takes the whole page while it is open.
   const [railOpen, setRailOpen] = useState(false)
   const showRail = phone && railOpen
-  // Stop the line and Refresh: icons only, in their own small section of the
-  // left nav (the bottom of the phone's menu).
+  // Stop the line and Refresh on a phone: icons only, in their own small
+  // section at the bottom of the menu. A desktop has them on the top line.
   const lineControls = (active || hasRefresh) && (
     <NavLine>
       {active && <StopLineButton nav workspaceId={active} />}
@@ -311,7 +311,7 @@ function AvoozlPage() {
           footer={
             <>
               {lineControls}
-              <BrandCard workspaceId={active} />
+              <BrandCard boxed workspaceId={active} />
             </>
           }
         />
@@ -324,7 +324,6 @@ function AvoozlPage() {
           value={navTab(tab)}
           child={child}
           onPick={pickNav}
-          line={lineControls}
           brand={<BrandCard workspaceId={active} />}
         />
       )}
@@ -333,9 +332,15 @@ function AvoozlPage() {
         {/* The demo reads its own sample, so the picker is not shown in it. */}
         {!demo.active && <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
         <span className="flex-1" />
-        <Btn type="button" primary onClick={planEpic}>
-          Plan a goal
-        </Btn>
+        {/* Plan a goal, then on a desktop Stop the line and Refresh as small
+            icons as tall as it. A phone keeps them in its menu. */}
+        <span className="flex items-stretch gap-1.5" data-main-actions>
+          <Btn type="button" primary onClick={planEpic}>
+            Plan a goal
+          </Btn>
+          {!phone && active && <StopLineButton square workspaceId={active} />}
+          {!phone && <PageRefreshIcon look="square" />}
+        </span>
       </div>
       <DemoBar />
       {error && (

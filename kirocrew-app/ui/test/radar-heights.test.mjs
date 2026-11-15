@@ -30,7 +30,7 @@ after(async () => {
 const RADAR = { top: 42, phoneTop: 28, row: 28, cardRadius: 12, sectionRadius: 16, rowRadius: 8, rowFont: 13, headFont: 12 }
 
 for (const theme of ['light', 'dark']) {
-  test(`at 1280 px ${theme} the nav is Radar's: a card per section with 28 px headers, one open at a time, a line section, then the brand card`, { skip }, async () => {
+  test(`at 1280 px ${theme} the nav is Radar's: a card per section with 28 px headers, one open at a time, then the brand line`, { skip }, async () => {
     await page.open(harness.url({ app: '1', theme }), { width: 1280, height: 800, dark: theme === 'dark' })
     await page.until(`Boolean(document.querySelector('[data-brand-card]') && document.querySelector('[data-nav-section]'))`)
     const read = () => page.evaluate(`(() => {
@@ -50,7 +50,7 @@ for (const theme of ['light', 'dark']) {
         itemFont: [...new Set(items.map((r) => parseFloat(cs(r).fontSize)))],
         open: cards.filter((c) => c.hasAttribute('data-open')).map((c) => c.dataset.navSection),
         chevrons: document.querySelectorAll('[data-nav-chevron]').length,
-        order: [...document.querySelectorAll('[data-nav-accordion], [data-nav-line], [data-brand-card]')].map((el) => el.hasAttribute('data-nav-accordion') ? 'nav' : el.hasAttribute('data-nav-line') ? 'line' : 'brand'),
+        order: [...document.querySelectorAll('[data-left-nav] [data-nav-accordion], [data-left-nav] [data-nav-line], [data-left-nav] [data-brand-card]')].map((el) => el.hasAttribute('data-nav-accordion') ? 'nav' : el.hasAttribute('data-nav-line') ? 'line' : 'brand'),
       }
     })()`)
     const click = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
@@ -69,7 +69,7 @@ for (const theme of ['light', 'dark']) {
     assert.deepEqual(got.itemFont, [RADAR.rowFont])
     assert.deepEqual(got.open, ['settings'])
     assert.equal(got.chevrons, 3, 'a chevron on each section that has pages')
-    assert.deepEqual(got.order, ['nav', 'line', 'brand'])
+    assert.deepEqual(got.order, ['nav', 'brand'], 'the line controls left the nav for the top line')
     // Opening Needs you closes Settings: one section is open at a time.
     await click('[data-nav-group="waiting"]')
     await page.until(`Boolean(document.querySelector('[data-nav-children="waiting"]'))`)
