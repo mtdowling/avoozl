@@ -52,7 +52,7 @@ signs in with its own token, so each one is a command.
 | Edit a crew | `harness.sh crew-edit CREW_ID '{"max_open":1}'` |
 | Change crew defaults | `harness.sh crew-settings '{"claim_ttl_hours":1}'` |
 | Retire a crew | `harness.sh crew-retire CREW_ID` |
-| Route `avoozl:avoozl` through Kiro Crew's MCP broker | `kirocrew config set mcp_gateway.stub_overrides '{"avoozl:avoozl":true}'` with the harness home, then `harness.sh restart`. Some builds rewrite `stub_servers` at boot, so set the override, not the list. On 2026-11-15 the broker still sent no caller identity (`docs/evidence/rc-proof-20-live.md`) |
+| Give crew chats a caller identity | `harness.sh route-avoozl`. It sets `mcp_gateway.stub_overrides`, restarts, approves the launch the gateway refused at boot, and restarts. The override alone is not enough: without the approval the gateway leaves `avoozl:avoozl` unwrapped, and plans tools that need the caller (review drafts, replies, conflict fix, reports) refuse with "no caller identity". The log line is `stubbed server ... resolves to a launch the operator has not approved` |
 | Any other route | `harness.sh api GET /api/apps/issue-radar/crews?owner=O&repo=R` |
 
 A new crew is created paused (`enabled` false, `unattended` false). An enabled,
