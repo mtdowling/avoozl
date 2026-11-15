@@ -43,6 +43,8 @@ import {
   SUB_ISSUE_LINE,
   isGitHubMode,
   rateLines,
+  usageRows,
+  type RateView,
   defaultCoder,
   modeKey,
   unusedInLocal,
@@ -1474,14 +1476,7 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
         />
       )}
       {tab === 'github' && <ThisComputer workspaceId={workspaceId} />}
-      {tab === 'github' && rateLines(settings.rate).length > 0 && (
-        <div className="text-xs text-muted" data-github-rate>
-          <p className="font-medium">GitHub calls, last known</p>
-          {rateLines(settings.rate).map((line) => (
-            <p key={line}>{line}</p>
-          ))}
-        </div>
-      )}
+      {tab === 'github' && <RateBlock rate={settings.rate} />}
       <div className="flex flex-wrap items-center gap-2">
         <TipBtn tooltip="Check these settings without saving them" onClick={() => void check()} disabled={saving}>
           Check
@@ -1563,6 +1558,46 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
         <MirrorSetup workspaceId={workspaceId} onApplied={() => setVersion((n) => n + 1)} />
       )}
       <PolicyEditor key={version} workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
+    </div>
+  )
+}
+
+// The last GitHub rate-limit numbers and the calls of the last hour by source.
+export function RateBlock({ rate }: { rate: RateView | undefined }) {
+  const lines = rateLines(rate),
+    rows = usageRows(rate)
+  if (!lines.length && !rows.length) return null
+  return (
+    <div className="text-xs text-muted" data-github-rate>
+      <p className="font-medium">GitHub calls, last known</p>
+      {lines.map((line) => (
+        <p key={line}>{line}</p>
+      ))}
+      {rows.length > 0 && (
+        <p className="mt-2 font-medium">Calls in the last hour: {rate?.hourCalls ?? 0}</p>
+      )}
+      {rows.length > 0 && (
+        <table data-github-usage>
+          <thead>
+            <tr>
+              <th className="pr-4 text-left font-normal">Source</th>
+              <th className="pr-4 text-right font-normal">Calls</th>
+              <th className="pr-4 text-right font-normal">304 (free)</th>
+              <th className="text-right font-normal">Cached (free)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.source} data-usage-source={row.source}>
+                <td className="pr-4">{row.source}</td>
+                <td className="pr-4 text-right">{row.calls}</td>
+                <td className="pr-4 text-right">{row.notModified}</td>
+                <td className="text-right">{row.cached}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   )
 }

@@ -17,7 +17,14 @@ import {
   instanceIdentity,
   recordSeenInstance,
 } from "./instance.mjs";
-import { blockReason, dropTrailers, forwardGuard } from "./forward-guard.mjs";
+import {
+  blockReason,
+  dropTrailers,
+  forwardGuard,
+  forwardStop,
+} from "./forward-guard.mjs";
+import { plansBranchFacts } from "./plans-facts.mjs";
+import { reviewHash } from "./forward-review.mjs";
 import { forwardGit } from "./mirror-forward-git.mjs";
 import { mirrorSyncStep } from "./mirror-sync.mjs";
 import { READY_LABEL_DEFAULT } from "./github-policy.mjs";
@@ -88,8 +95,12 @@ function scan(store, repository, targets, added) {
   return { rules: [...names].sort(), unavailable: [...unavailable].sort() };
 }
 
-// forwardRecord(store, github, id, {policy, person, push, git, grant, now})
-// Returns {ok, record, ...}. `push: false` prepares and scans only (nudge).
+// forwardRecord(store, github, id, {policy, person, push, git, grant, now,
+// review, seenHash}). Returns {ok, record, review, ...}. `push: false`
+// prepares and checks only (nudge, and the Forward screen). With `review`, a
+// push happens only when `seenHash` is the hash of the diff, title and body
+// as they stand now (RC26.5.4); otherwise `{changed: true, review}` comes back
+// and nothing is pushed. `auto` leaves `review` off and relies on the receipt.
 export async function forwardRecord(
   store,
   github,
@@ -101,6 +112,9 @@ export async function forwardRecord(
     git = forwardGit(),
     grant = defaultGrant(github),
     sync = () => mirrorSyncStep(store, github, { policy }),
+    plansFacts = (found) => plansBranchFacts(github, found),
+    review: needsSeen = false,
+    seenHash = null,
     now = new Date().toISOString(),
   } = {},
 ) {
@@ -109,6 +123,15 @@ export async function forwardRecord(
   const mirror = policy?.repositories?.[record.repository]?.mirror;
   if (!mirror || mirror.forward === "off")
     return { ok: false, record, reason: "Forwarding is off for this mirror." };
+  // An open Stop the line stops every push, in every mode (RC26.5.7).
+  const stopped = forwardStop(store, record.repository);
+  if (stopped && push)
+    return {
+      ok: false,
+      stopped,
+      record,
+      reason: `Forwarding is stopped: ${stopped}`,
+    };
   // One record, one pull request: a second press finds the first.
   if (record.publicPr && record.state !== "closed_unmerged")
     return { ok: true, record, again: true };
@@ -181,6 +204,16 @@ export async function forwardRecord(
       record,
       reason: "The default branch could not be read.",
     };
+  let plans;
+  try {
+    plans = await plansFacts(mirror);
+  } catch {
+    return blocked(
+      store,
+      record,
+      "The plans branch could not be read, so the forward could not be checked against it. Nothing was pushed.",
+    );
+  }
   const email = `${person}@users.noreply.github.com`,
     attempt = async () => {
       let prepared;
@@ -223,6 +256,7 @@ export async function forwardRecord(
           {
             mirror,
             identity,
+            plans,
             sets: () => {
               const found = scan(
                 store,
@@ -250,18 +284,51 @@ export async function forwardRecord(
                 : blockReason(verdict),
             ),
           };
+        const shown = {
+          diff: prepared.shown,
+          title,
+          body,
+          commit: prepared.commit,
+          branch,
+          target: `${forwardTo}:${base}`,
+          person,
+          paths: prepared.paths,
+        };
+        shown.hash = reviewHash(shown);
         if (!push) {
           const ready = {
             ...record,
             state: "to_forward",
             scanClean: true,
+            reviewHash: shown.hash,
             conflictBase: null,
             reason:
               "Merged in the mirror, scan clean, ready for the public repository.",
           };
           store.put("mirror_forward", ready);
-          return { done: { ok: true, ready: true, record: ready } };
+          return {
+            done: {
+              ok: true,
+              ready: true,
+              record: ready,
+              review: shown,
+              ...(stopped ? { stopped } : {}),
+            },
+          };
         }
+        // The person pushes only what they saw (RC26.5.4).
+        if (needsSeen && seenHash !== shown.hash)
+          return {
+            done: {
+              ok: false,
+              changed: true,
+              record,
+              review: shown,
+              reason: seenHash
+                ? "The change differs from what you reviewed. Review it again."
+                : "Review the change before it is forwarded.",
+            },
+          };
         const [owner] = forwardTo.split("/"),
           head = forwardTo === mirror.source ? branch : `${owner}:${branch}`,
           // A pull request closed without a merge is not found again: a person
@@ -272,10 +339,20 @@ export async function forwardRecord(
               head: `${owner}:${branch}`,
             })
           )?.find((pull) => !(pull.state === "closed" && !pull.merged_at));
-        let number = existing?.number;
+        let number = existing?.number,
+          receipt = record.receipt;
         if (!number) {
+          // The receipt is a private record, written before the push (D31.3).
+          receipt = { ...shown, at: now, mode: needsSeen ? "person" : "auto" };
+          store.put("mirror_forward", { ...record, receipt });
           try {
-            await git.push({ ...prepared, forwardTo, branch, token });
+            await git.push({
+              ...prepared,
+              forwardTo,
+              branch,
+              token,
+              forbid: [base, mirror.plansBranch],
+            });
           } catch (error) {
             // The remote moved under the branch: sync, rebuild, once (RC24.12).
             if (
@@ -294,6 +371,7 @@ export async function forwardRecord(
         }
         const next = {
           ...record,
+          ...(receipt ? { receipt } : {}),
           state: "public_open",
           reason: "Forwarded; waiting on the public pull request.",
           scanClean: true,

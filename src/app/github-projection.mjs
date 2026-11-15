@@ -81,8 +81,20 @@ export const MANUAL_LINE =
 // are plain text from the approved spec, never a credential.
 export const gateLine = (task) =>
   `Tracker gate: waits on ${task.gate?.plugin} item ${task.gate?.item}. Done when: ${task.gate?.done}. No agent works on it.`;
-function managedSection(task, plan, requires, notes = [], shown = []) {
-  const list = requires.map((id) => `- ${id}`).join("\n"),
+// A public-safe issue that waits on a private task says only this (RC25.9).
+export const PRIVATE_WAIT_LINE = "Waits on a private task.";
+function managedSection(
+  task,
+  plan,
+  requires,
+  notes = [],
+  shown = [],
+  waitsPrivate = false,
+) {
+  const list = [
+      ...requires.map((id) => `- ${id}`),
+      ...(waitsPrivate ? [PRIVATE_WAIT_LINE] : []),
+    ].join("\n"),
     entries = issueNotesLines(shown).join("\n");
   return `<!-- avoozl:managed:start -->
 This issue is projected from approved design \`${plan.id}\` at \`${plan.hash.slice(0, 12)}\`.
@@ -127,14 +139,25 @@ function taskMarker({
   unlinked = null,
   members = null,
   instance = null,
+  hidden = new Set(),
 }) {
   const commit = plan.sourceCommit || plan.context?.github?.commit || null,
     conditions = {},
     supports = [];
   for (const edge of data.edges) {
-    if (edge.to === task.id && edge.kind === "requires" && edge.condition)
+    // A public issue's marker names no private task ID (RC25.9).
+    if (
+      edge.to === task.id &&
+      edge.kind === "requires" &&
+      edge.condition &&
+      !hidden.has(edge.from)
+    )
       conditions[edge.from] = edge.condition;
-    if (edge.from === task.id && edge.kind === "supports")
+    if (
+      edge.from === task.id &&
+      edge.kind === "supports" &&
+      !hidden.has(edge.to)
+    )
       supports.push(edge.to);
   }
   const edges = {
@@ -836,6 +859,19 @@ export async function refreshProjectedReadiness(
   return result;
 }
 
+// The policy entries also answer to a mirror's own ID, because the write
+// target of a mirrored repository is the mirror (RC24.3): its labels, coder
+// and release rules are the source's.
+function withMirrorEntries(identity) {
+  const extra = {};
+  for (const entry of Object.values(identity.repositories || {}))
+    if (entry.mirror?.mirror)
+      extra[parseRepository(entry.mirror.mirror).id] ??= entry;
+  return Object.keys(extra).length
+    ? { ...identity, repositories: { ...extra, ...identity.repositories } }
+    : identity;
+}
+
 // `dryRun` is set only by `previewProjection`, which passes a scratch store
 // and a GitHub stand-in that records writes instead of making them.
 async function project(
@@ -850,6 +886,7 @@ async function project(
     holdClaimed = false,
   },
 ) {
+  identity = withMirrorEntries(identity);
   const previewOnly = new Set(),
     namespace = requireNamespace(identity),
     markerOptions = {
@@ -859,6 +896,18 @@ async function project(
     plan = store.get("plans", planId);
   if (!plan || plan.state !== "approved")
     fail("Approve the design revision before projecting issues.", 409);
+  // A public plan's issues name no task of a private plan (RC25.9).
+  const hidden =
+    plan.home === "plansBranch"
+      ? new Set()
+      : new Set(
+          store
+            .read()
+            .tasks.filter(
+              (task) => store.get("plans", task.planId)?.home === "plansBranch",
+            )
+            .map((task) => task.id),
+        );
   // Batches (radar-coder D4.2): the ones stored on tasks plus the ones asked
   // for now. Refused before anything is written.
   const early = store.read(),
@@ -1087,16 +1136,29 @@ async function project(
     const { task } = item,
       members = item.memberTasks || [task],
       inside = new Set(members.map((member) => member.id)),
+      blocking = (member) =>
+        data.edges.filter(
+          (edge) => edge.to === member.id && edge.kind === "requires",
+        ),
       parts = members.map((member) => ({
         task: member,
         section: managedSection(
           member,
           plan,
-          data.edges
-            .filter((edge) => edge.to === member.id && edge.kind === "requires")
-            .map((edge) => edge.from),
-          blockerNotes(data, member),
+          blocking(member)
+            .map((edge) => edge.from)
+            .filter((id) => !hidden.has(id)),
+          blockerNotes(
+            hidden.size
+              ? {
+                  ...data,
+                  edges: data.edges.filter((edge) => !hidden.has(edge.from)),
+                }
+              : data,
+            member,
+          ),
           shownNotes(store, member.id),
+          blocking(member).some((edge) => hidden.has(edge.from)),
         ),
       }));
     item.title = item.memberTasks
@@ -1124,7 +1186,14 @@ async function project(
       const local = data.tasks.find((candidate) => candidate.id === id);
       if (!local?.github?.repository || !local.github.number)
         fail(`Dependency ${id} must be projected before ${task.id}.`, 409);
-      const config = store.get("github_repositories", local.github.repository);
+      // A task written to a mirror records the mirror's ID, which no
+      // registered repository has; find the one whose write target it is.
+      const config =
+        store.get("github_repositories", local.github.repository) ??
+        store
+          .list("github_repositories")
+          .map((entry) => mirrorConfig(entry, identity.repositories))
+          .find((entry) => entry.id === local.github.repository);
       if (!config)
         fail(`No GitHub repository is registered for dependency ${id}.`);
       external.set(id, {
@@ -1461,6 +1530,7 @@ async function project(
               applied,
               members: ids.length > 1 ? ids : null,
               instance: markerOptions.instance,
+              hidden,
             }),
             markerOptions,
           ) +
@@ -1729,6 +1799,7 @@ async function project(
         unlinked: item.unlinked,
         members: item.memberTasks ? item.memberTasks.map((m) => m.id) : null,
         instance: markerOptions.instance,
+        hidden,
         applied: {
           title: plans.title.baseline,
           body: plans.body.baseline,

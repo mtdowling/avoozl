@@ -4,6 +4,17 @@
 // the one Needs you row that says so. Everything lives in this workspace's
 // SQLite store, because the tick runs in a new process each time.
 import { createHash } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+} from "node:fs";
+import { homedir } from "node:os";
+import path from "node:path";
 
 const META = "githubRate";
 // Under this many calls left in the hour, the tick stretches its GitHub
@@ -21,6 +32,75 @@ export const CACHE_MAX_BODY = 1024 * 1024;
 export const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const TOUCH_MS = 10 * 60 * 1000;
 const PRUNE_EVERY = 50;
+
+// ---- Calls by source ------------------------------------------------------
+
+// Who asked for a call: a page view, the tick, setup, a forward, a review, or
+// a crew chat through bin/gh-counted. Unmarked code reads as "other".
+const sources = new AsyncLocalStorage();
+export const withSource = (source, fn) => sources.run(source, fn);
+export const currentSource = () => sources.getStore() || "other";
+export const sourceOfOperation = (name) =>
+  /^tick\b/.test(name)
+    ? "tick"
+    : /setup/.test(name)
+      ? "setup"
+      : /^mirror\.forward|^forward/.test(name)
+        ? "forward"
+        : /review/.test(name)
+          ? "review"
+          : "view";
+
+const BUCKET_MS = 5 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const bucketOf = (at) => String(Math.floor(at / BUCKET_MS) * BUCKET_MS);
+
+// The file bin/gh-counted appends to, one JSON line per gh run. One login
+// has one limit, so every workspace reads the same file.
+export const countFilePath = () =>
+  process.env.AVOOZL_GH_COUNT_FILE ||
+  path.join(
+    process.env.AVOOZL_HOME || path.join(homedir(), ".avoozl"),
+    "gh-calls.jsonl",
+  );
+
+export function recordWrapperCall(
+  source,
+  at = Date.now(),
+  file = countFilePath(),
+) {
+  mkdirSync(path.dirname(file), { recursive: true });
+  appendFileSync(file, JSON.stringify({ at, source }) + "\n");
+}
+
+const readLines = (file) => {
+  try {
+    return readFileSync(file, "utf8")
+      .split("\n")
+      .map((line) => {
+        try {
+          const row = JSON.parse(line);
+          return Number.isFinite(row?.at) && typeof row.source === "string"
+            ? row
+            : null;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
+const add = (usage, bucket, source, field) => {
+  const row = ((usage[bucket] ??= {})[source] ??= {
+    calls: 0,
+    notModified: 0,
+    cached: 0,
+  });
+  row[field] += 1;
+};
 
 export const resourceOf = (pathname) =>
   pathname.startsWith("/graphql")
@@ -214,8 +294,10 @@ export const readRate = (store) => {
 // numbers are kept in memory and written to the store at most every two
 // seconds, merged with what another process wrote.
 export class RateState {
-  constructor(store, { now } = {}) {
+  constructor(store, { now, countFile } = {}) {
     this.store = store;
+    this.countFile = countFile || null;
+    this.usage = {};
     this.now = now || Date.now;
     this.resources = {};
     this.pause = null;
@@ -239,10 +321,24 @@ export class RateState {
     this.dirty = true;
   }
 
-  count(notModified) {
+  // A call that went out (a 304 is counted apart), by source.
+  count(notModified, source = currentSource()) {
     this.calls += 1;
     if (notModified) this.notModified += 1;
+    add(
+      this.usage,
+      bucketOf(this.now()),
+      source,
+      notModified ? "notModified" : "calls",
+    );
     this.dirty = true;
+  }
+
+  // A read the cache answered: no call went out.
+  cached(source = currentSource()) {
+    add(this.usage, bucketOf(this.now()), source, "cached");
+    this.dirty = true;
+    this.flush();
   }
 
   // `scope` "all" is a secondary limit, which holds every resource.
@@ -285,6 +381,21 @@ export class RateState {
           calls: stored.calls ?? 0,
           notModified: stored.notModified ?? 0,
         };
+      const usage = stored.usage || {};
+      for (const [bucket, row] of Object.entries(this.usage))
+        for (const [source, mine] of Object.entries(row)) {
+          const into = ((usage[bucket] ??= {})[source] ??= {
+            calls: 0,
+            notModified: 0,
+            cached: 0,
+          });
+          for (const field of Object.keys(into))
+            into[field] += mine[field] || 0;
+        }
+      if (this.countFile) takeWrapperCalls(this.countFile, usage);
+      for (const bucket of Object.keys(usage))
+        if (Number(bucket) < this.now() - HOUR_MS - BUCKET_MS)
+          delete usage[bucket];
       stats.calls += this.calls;
       stats.notModified += this.notModified;
       // Old counts fade, so the share reads recent calls.
@@ -292,7 +403,14 @@ export class RateState {
         stats.calls = Math.round(stats.calls / 2);
         stats.notModified = Math.round(stats.notModified / 2);
       }
-      this.store.setMeta(META, { ...stored, resources, pause, ...stats });
+      this.store.setMeta(META, {
+        ...stored,
+        resources,
+        pause,
+        usage,
+        ...stats,
+      });
+      this.usage = {};
       this.pause = pause;
       this.calls = 0;
       this.notModified = 0;
@@ -302,6 +420,20 @@ export class RateState {
       // A busy or read-only store keeps the numbers for the next flush.
     }
   }
+}
+
+// Moves the wrapper's lines into `usage` and removes them from the file.
+function takeWrapperCalls(file, usage) {
+  if (!existsSync(file)) return;
+  const taken = `${file}.${process.pid}.read`;
+  try {
+    renameSync(file, taken);
+  } catch {
+    return;
+  }
+  for (const row of readLines(taken))
+    add(usage, bucketOf(row.at), row.source, "calls");
+  rmSync(taken, { force: true });
 }
 
 // What a response's headers say about a refusal: until when to wait, and
@@ -423,9 +555,34 @@ export function rateNeedsYou(store, now = Date.now()) {
 }
 
 // For Settings > GitHub: the last-known numbers.
-export function rateView(store, now = Date.now()) {
+export function rateView(store, now = Date.now(), { countFile } = {}) {
   const state = readRate(store),
-    calls = state.calls ?? 0,
+    usage = structuredClone(state.usage || {}),
+    bySource = {};
+  // Lines the wrapper wrote that no tick has taken yet.
+  if (countFile)
+    for (const row of readLines(countFile))
+      add(usage, bucketOf(row.at), row.source, "calls");
+  for (const [bucket, row] of Object.entries(usage))
+    if (Number(bucket) > now - HOUR_MS)
+      for (const [source, mine] of Object.entries(row)) {
+        const into = (bySource[source] ??= {
+          calls: 0,
+          notModified: 0,
+          cached: 0,
+        });
+        for (const field of Object.keys(into)) into[field] += mine[field] || 0;
+      }
+  const view = rateViewOf(state, now);
+  return {
+    ...view,
+    bySource,
+    hourCalls: Object.values(bySource).reduce((n, row) => n + row.calls, 0),
+  };
+}
+
+function rateViewOf(state, now) {
+  const calls = state.calls ?? 0,
     pause = state.pause && state.pause.until > now ? state.pause : null;
   return {
     resources: Object.fromEntries(
