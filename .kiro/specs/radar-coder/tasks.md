@@ -590,6 +590,7 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 - [ ] rc-p25 Proof 25: forward targets and protections on scratch repositories, after rc-25.1, rc-25.2, rc-25.3, rc-25.4, rc-25.5, rc-25.6, rc-25.7, rc-p23 [RC26] (§D17)
   - Setup: the scratch repositories of Proof 23, created only for the proof. Action: forward one change with each target; plant an excluded path, a fake private term, a planted trailer and an extra file in turn. Expected: each target lands where set; each planted case blocks with one row and no retry; the audit catches the extra file. Failure means: a private path, term or history can reach the public repository. Next decision: turn `forward` to `nudge` for the repository and tighten the path policy. List the scratch repositories in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
+  - Live run 2026-11-15: targets `each` and `branch` and the planted path, secret and instance cases passed; `batch` not run live, so this box stays unticked. Receipt `docs/evidence/rc-proof-25-live.md`.
 
 ## Phase 26: Setup buttons for a mirror
 
@@ -608,9 +609,10 @@ Requirement RC27. Adopt what exists and create what is missing, with a dry run f
 - [x] rc-26.4 Mirror section in Settings: two buttons, dry-run view, confirm, after rc-26.2, rc-26.3 [RC27.1, RC27.7] (§D32)
   - Both buttons call the operations; the dry run lists one line per write with a tick; the result fills the form and the raw file; no logic of its own in the page.
   - Done when: A page test: the dry run shows, a ticked line applies, an unticked line does not; `npm run test:ui` passes.
-- [ ] rc-p26 Proof 26: Create and Adopt on scratch repositories, after rc-26.1, rc-26.2, rc-26.3, rc-26.4 [RC27] (§D17)
+- [x] rc-p26 Proof 26: Create and Adopt on scratch repositories, after rc-26.1, rc-26.2, rc-26.3, rc-26.4 [RC27] (§D17)
   - Setup: a public-visibility scratch repository under `mtdowling`, created only for the proof. Action: Create setup (dry run, confirm), then both buttons again; then Adopt on a second pre-built private mirror. Expected: a private mirror is built and verified; the repeat runs write nothing; Adopt changes nothing unticked and deletes nothing. Failure means: a setup button can overwrite or expose a repository. Next decision: remove the apply step and keep the dry run only. List every scratch repository in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
+  - Live run passed on 2026-11-15; receipt `docs/evidence/rc-proof-26-live.md` lists `avoozl-scratch-f1` and `avoozl-scratch-f2` for the owner to delete.
 
 ## Phase 27: Avoozl fixes a source conflict
 
