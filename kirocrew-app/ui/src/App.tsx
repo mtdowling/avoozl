@@ -4,6 +4,7 @@ import { Btn, EmptyState, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Logo from './Logo'
 import { BrandCard } from './BrandCard.tsx'
 import { RailButton, RailList } from './TopRail.tsx'
+import type { NavGroup } from './NavAccordion.tsx'
 import { LeftNav, NavLine } from './LeftNav.tsx'
 import { PageRefreshIcon, useHasPageRefresh } from './page-refresh.tsx'
 import { usePhone } from './list-detail.ts'
@@ -13,7 +14,7 @@ import GraphView from './GraphView'
 import WaitingView from './WaitingView.tsx'
 import FlowView from './FlowView.tsx'
 import { TracePage } from './TraceView.tsx'
-import { TABS, navTab, redirectSettings, redirectTab, tabLabel, type Tab } from './nav-api.ts'
+import { FLOW_TABS, TABS, WAITING_SECTIONS, navTab, redirectSettings, redirectTab, tabLabel, type FlowTab, type Tab, type WaitingSection } from './nav-api.ts'
 import { TRACE_TARGET, parseTraceLink, type TraceTarget } from './trace-api.ts'
 import ActivityView from './ActivityView.tsx'
 import { StopLineButton } from './StopLine.tsx'
@@ -103,6 +104,9 @@ function AvoozlPage() {
   const [tab, setTab] = useState<Tab>('dashboard')
   // Settings starts on Workspaces each visit (settingsTabOnEnter).
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(SETTINGS_HOME)
+  // The sub-pages the nav shows for Flow and Needs you.
+  const [flowTab, setFlowTab] = useState<FlowTab>('overview')
+  const [waitingSection, setWaitingSection] = useState<WaitingSection>('decisions')
   const [focus, setFocus] = useState<string | null>(null)
   // The Graph's drill-in: one epic's sub-graph or one task's chain.
   const [drill, setDrill] = useState<Drill | null>(null)
@@ -138,11 +142,13 @@ function AvoozlPage() {
 
   // Every change of tab or Settings section is a Back step that keeps
   // where the page was (changePage).
-  const here = { tab, settingsTab, focus, drill }
+  const here = { tab, settingsTab, flowTab, waitingSection, focus, drill }
   const apply = (place: Partial<typeof here>) => {
     if (place.focus !== undefined) setFocus(place.focus)
     if (place.drill !== undefined) setDrill(place.drill)
     if (place.settingsTab !== undefined) setSettingsTab(place.settingsTab)
+    if (place.flowTab !== undefined) setFlowTab(place.flowTab)
+    if (place.waitingSection !== undefined) setWaitingSection(place.waitingSection)
     if (place.tab !== undefined) setTab(place.tab)
   }
   // `open` deep-links into the new place's inner views (changePage).
@@ -150,14 +156,17 @@ function AvoozlPage() {
   // that took over its job (redirectTab).
   const go = (next: Partial<typeof here>, open?: Record<string, unknown>) => {
     const place = next.tab === undefined ? null : redirectTab(next.tab)
+    // A removed page's Needs you section is now a field of the place.
+    const section = place?.open?.['waiting-section'] as WaitingSection | undefined
+    const { 'waiting-section': _section, ...inner } = place?.open ?? {}
     const settings = next.settingsTab === undefined ? {} : { settingsTab: redirectSettings(next.settingsTab) as SettingsTab }
     changePage(
       nav,
       here,
-      { ...next, ...settings, ...(place ? { tab: place.tab } : {}) },
+      { ...next, ...settings, ...(place ? { tab: place.tab } : {}), ...(section ? { waitingSection: section } : {}) },
       apply,
-      (before, newTab) => (newTab ? `Back to ${tabLabel(before.tab)}` : 'Back to the previous Settings section'),
-      { ...place?.open, ...open },
+      (before, newTab) => (newTab ? `Back to ${tabLabel(before.tab)}` : 'Back to the previous section'),
+      { ...inner, ...open },
     )
   }
   const openWorkspaces = () => go({ settingsTab: 'workspaces', tab: 'settings' })
@@ -251,10 +260,17 @@ function AvoozlPage() {
       <PageRefreshIcon />
     </NavLine>
   )
-  const navItems = TABS.map((t) => ({
+  // Radar's nav model: Flow, Needs you and Settings open in the nav to their
+  // sub-pages; the other pages are plain entries.
+  const kids: Partial<Record<Tab, { key: string; label: string }[]>> = {
+    waiting: WAITING_SECTIONS.map((x) => ({ key: x.key, label: x.title })),
+    flow: FLOW_TABS,
+    settings: SETTINGS_TABS.map((x) => ({ key: x.key, label: x.label })),
+  }
+  const groups: NavGroup[] = TABS.map((t) => ({
     key: t.key,
     text: t.label,
-    count: t.key === 'waiting' && waitingCount > 0 ? waitingCount : undefined,
+    children: kids[t.key],
     aria: t.key === 'waiting' && waitingCount > 0 ? `Needs you, ${waitingCount} items` : undefined,
     label:
       t.key === 'waiting' && waitingCount > 0 ? (
@@ -265,7 +281,14 @@ function AvoozlPage() {
         <ViewLabel view={t.key}>{t.label}</ViewLabel>
       ),
   }))
-
+  const child = tab === 'settings' ? settingsTab : tab === 'flow' ? flowTab : tab === 'waiting' ? waitingSection : null
+  // A header or sub-page pick: the page, and its sub-page when it has one.
+  const pickNav = (key: string, sub?: string) => {
+    if (sub === undefined) return chooseTab(key as Tab)
+    if (key === 'settings') go({ tab: 'settings', settingsTab: sub as SettingsTab, focus: null, drill: null })
+    else if (key === 'flow') go({ tab: 'flow', flowTab: sub as FlowTab, focus: null, drill: null })
+    else go({ tab: 'waiting', waitingSection: sub as WaitingSection, focus: null, drill: null })
+  }
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ display: 'contents' }}>
     <ConfirmProvider>
@@ -275,16 +298,16 @@ function AvoozlPage() {
         // A phone keeps one thin row: the menu button. The brand card and the
         // line controls are at the bottom of the menu it opens.
         <header className="flex min-w-0 items-center gap-2 px-2 py-1" data-phone-header>
-          <RailButton items={navItems} value={navTab(tab)} open={railOpen} onOpenChange={setRailOpen} />
+          <RailButton groups={groups} value={navTab(tab)} child={child} open={railOpen} onOpenChange={setRailOpen} />
         </header>
       )}
       {showRail && (
         <RailList
-          items={navItems}
+          groups={groups}
           value={navTab(tab)}
-          onChange={(key) => chooseTab(key as Tab)}
+          child={child}
+          onPick={pickNav}
           onOpenChange={setRailOpen}
-          ariaLabel="Avoozl views"
           footer={
             <>
               {lineControls}
@@ -297,9 +320,10 @@ function AvoozlPage() {
       <div className={`flex min-h-0 flex-1 ${phone ? 'flex-col' : 'px-6 pb-2'}`} style={showRail ? { display: 'none' } : undefined} data-shell>
       {!phone && (
         <LeftNav
-          items={navItems}
+          groups={groups}
           value={navTab(tab)}
-          onChange={(key) => chooseTab(key as Tab)}
+          child={child}
+          onPick={pickNav}
           line={lineControls}
           brand={<BrandCard workspaceId={active} />}
         />
@@ -362,10 +386,11 @@ function AvoozlPage() {
         ) : tab === 'graph' ? (
           <GraphView workspaceId={active} focus={focus} drill={drill} onDrill={setDrill} />
         ) : tab === 'flow' ? (
-          <FlowView workspaceId={active} />
+          <FlowView workspaceId={active} tab={flowTab} />
         ) : tab === 'waiting' ? (
           <WaitingView
             workspaceId={active}
+            section={waitingSection}
             onOpenSources={() => go({ settingsTab: 'plugins', tab: 'settings' })}
           />
         ) : tab === 'activity' ? (

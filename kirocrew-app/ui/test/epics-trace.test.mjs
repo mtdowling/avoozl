@@ -24,7 +24,7 @@ after(async () => {
   harness?.remove()
 })
 
-const button = (text, role) => `[...document.querySelectorAll('button${role ? `[role="${role}"]` : ''}')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+const button = (text, role) => `[...document.querySelectorAll('button${role === 'tab' ? '[data-nav-head]' : role ? `[role="${role}"]` : ''}')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
 const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
 const radio = (name, key) => `document.querySelector('input[name="${name}"][value="${key}"]')`
 const open = (query) =>

@@ -55,21 +55,28 @@ for (const size of SIZES) {
     await page.open(harness.url({ page: 'app', radar: '1', theme: size.theme }), { width: size.width, height: size.height, dark: size.dark })
     await page.until(`document.querySelectorAll('[data-sc]').length === 2`)
     const found = []
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 300))
+    // On a phone the nav is behind the rail button; open it when it is shut.
+    const openMenu = () => page.evaluate(`(() => { const bar = document.querySelector('[data-top-rail-bar]'); if (bar && bar.getAttribute('aria-expanded') !== 'true') bar.click(); return true })()`)
     for (const name of TABS) {
-      // On a phone the tabs sit behind the rail button; open it first.
-      await page.evaluate(`(() => {
-        const tab = () => [...document.querySelectorAll('button[role="tab"]')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(name)}))
-        if (!tab()) document.querySelector('[aria-controls="avoozl-top-rail-list"]')?.click()
-        tab()?.click()
-      })()`)
-      await new Promise((resolve) => setTimeout(resolve, 400))
-      if (name === 'Settings')
-        for (const section of await page.evaluate(`[...document.querySelectorAll('[data-settings-section]')].map((s) => s.dataset.settingsSection)`)) {
-          await page.evaluate(`document.querySelector('[data-settings-section="${section}"] button[aria-expanded]')?.click()`)
-          await new Promise((resolve) => setTimeout(resolve, 200))
-          found.push(...(await page.evaluate(tall)).map((entry) => `Settings/${section}: ${entry}`))
-        }
-      else found.push(...(await page.evaluate(tall)).map((entry) => `${name}: ${entry}`))
+      await openMenu()
+      await page.evaluate(`[...document.querySelectorAll('button[data-nav-head]')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(name)}))?.click()`)
+      await settle()
+      // The nav itself, with this section open.
+      await openMenu()
+      found.push(...(await page.evaluate(tall)).map((entry) => `nav at ${name}: ${entry}`))
+      const pages = await page.evaluate(`[...document.querySelectorAll('[data-nav-children] [data-nav-item]')].map((b) => b.dataset.navItem)`)
+      if (!pages.length) {
+        // A plain section closes the phone's menu; measure the page.
+        found.push(...(await page.evaluate(tall)).map((entry) => `${name}: ${entry}`))
+        continue
+      }
+      for (const key of pages) {
+        await openMenu()
+        await page.evaluate(`document.querySelector('[data-nav-item="${key}"]')?.click()`)
+        await settle()
+        found.push(...(await page.evaluate(tall)).map((entry) => `${key}: ${entry}`))
+      }
     }
     assert.deepEqual([...new Set(found)], [])
   })

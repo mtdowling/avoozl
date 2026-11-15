@@ -13,6 +13,21 @@ export const TABS = [
 ] as const
 
 export type NavTab = (typeof TABS)[number]['key']
+
+// The sub-pages of a nav section that has them. Settings' own list is
+// SETTINGS_TABS (SettingsView.tsx). Each is a page of its own, shown by the
+// left nav, never by a tab bar in the content.
+export type FlowTab = 'overview' | 'retros' | 'proposals'
+export const FLOW_TABS: { key: FlowTab; label: string }[] = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'retros', label: 'Retros' },
+  { key: 'proposals', label: 'Proposals' },
+]
+export type WaitingSection = 'decisions' | 'intake'
+export const WAITING_SECTIONS: { key: WaitingSection; title: string; line: string }[] = [
+  { key: 'decisions', title: 'Decisions and conflicts', line: 'A crew handed work back, a spec or issue was edited by hand, or a task needs your choice.' },
+  { key: 'intake', title: 'Planning and intake', line: 'Issues labeled for planning and new issues. You choose which become work.' },
+]
 // Graph is a page inside Specs, not a nav entry: it keeps the plan drill-in.
 export type Tab = NavTab | 'graph'
 
@@ -28,6 +43,8 @@ export interface Place {
   open?: Record<string, unknown>
 }
 
+// `waiting-section` in a Place's `open` is the Needs you section; App turns
+// it into its own place field (waitingSection).
 export function redirectTab(key: string): Place {
   switch (key) {
     case 'delivery':
