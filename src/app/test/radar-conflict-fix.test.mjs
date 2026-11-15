@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { asksForcePush } from "../delivery.mjs";
 import { isFixWork } from "../flow.mjs";
 import { machineIdentity } from "../github-sync.mjs";
 import {
@@ -293,7 +294,9 @@ test("a handed-back conflict starts one resolver chat with the steps", async (t)
   // Only an avoozl: title gives a slot under the app's read grant.
   assert.match(dispatch[0].title, /^avoozl:/);
   assert.match(dispatch[0].brief, /git merge origin\/main/);
-  assert.match(dispatch[0].brief, /never --force/);
+  assert.match(dispatch[0].brief, /never a force push/);
+  // The tick drops any brief that asks for one, so it must not match.
+  assert.equal(asksForcePush(dispatch[0].brief), false);
   assert.match(dispatch[0].brief, /`npm test`/);
   assert.match(dispatch[0].brief, /HEAD:refs\/heads\/crew/);
   assert.deepEqual(w.github.writes, []);
@@ -489,6 +492,31 @@ test("a person's commit after the crew's last push asks and starts nothing", asy
   assert.equal(conflictFixDispatches(w.store).length, 0);
   assert.match(conflictFixNeedsYou(w.store)[0].title, /a person committed/);
   assert.deepEqual(w.github.writes, []);
+});
+
+test("a crew commit GitHub cannot match to a login is still the crew's", async (t) => {
+  const w = world(t);
+  w.github.commits = [
+    {
+      sha: w.github.head,
+      author: null,
+      commit: { message: "Add sum\n\nCrew: c1 (Kiro Crew Issue Radar)" },
+    },
+  ];
+  w.read("r1");
+  await w.step();
+  assert.equal(conflictFixNeedsYou(w.store).length, 0);
+  w.github.commits.push({
+    sha: "d".repeat(40),
+    author: null,
+    commit: { message: "by hand" },
+  });
+  w.github.head = "d".repeat(40);
+  const again = world(t);
+  again.github.commits = w.github.commits;
+  again.read("r1");
+  await again.step();
+  assert.match(conflictFixNeedsYou(again.store)[0].title, /a person committed/);
 });
 
 test("pull requests no crew wrote, unmarked issues and failed verifies are untouched", async (t) => {

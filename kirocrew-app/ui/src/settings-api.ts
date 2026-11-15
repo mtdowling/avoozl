@@ -43,6 +43,20 @@ export interface ReviewSettings {
   repositories: Record<string, ReviewRole[]>
 }
 
+// A projection that stopped at GitHub's write limits and carries on by itself.
+export interface WriteRun {
+  planId: string
+  done: number
+  total: number
+  resumeAt: string | null
+}
+
+// '312 of 1,740 writes, resumes at 14:00'.
+export function writeRunText(run: WriteRun): string {
+  const time = run.resumeAt ? new Date(run.resumeAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ''
+  return `${run.done.toLocaleString('en-US')} of ${run.total.toLocaleString('en-US')} writes${time ? `, resumes at ${time}` : ''}`
+}
+
 // The last GitHub rate-limit numbers Avoozl saw (github-rate.mjs).
 export interface RateView {
   // The effective github.cacheSeconds: how long Avoozl reuses a GitHub answer.
@@ -53,6 +67,9 @@ export interface RateView {
   calls: number
   notModified: number
   notModifiedShare: number | null
+  // The write pace in force, and the projection waiting on it, if any
+  // (github-pacer.mjs).
+  writes?: { perMinute: number; perHour: number; run: WriteRun | null }
   // Calls in the last hour by source, and their total (github-rate.mjs).
   bySource?: Record<string, { calls: number; notModified: number; cached: number }>
   hourCalls?: number
@@ -74,6 +91,8 @@ export function rateLines(rate: RateView | undefined | null): string[] {
     ([name, r]) => `${name}: ${r.remaining} of ${r.limit} left, resets ${new Date(r.resetAt).toLocaleTimeString()}`,
   )
   if (rate.limitedUntil) lines.unshift(`Limit reached (${rate.limitedResource}). Calls resume at ${new Date(rate.limitedUntil).toLocaleTimeString()}.`)
+  if (rate.writes?.run)
+    lines.unshift(`Projecting to GitHub: ${writeRunText(rate.writes.run)}. Writes are paced at ${rate.writes.perMinute} a minute and ${rate.writes.perHour} an hour.`)
   if (rate.notModifiedShare !== null) lines.push(`${Math.round(rate.notModifiedShare * 100)}% of ${rate.calls} calls answered 304 (free)`)
   return lines
 }
@@ -421,6 +440,9 @@ export interface SettingsForm {
   epicIssueType: string
   // github.cacheSeconds; blank is 60.
   cacheSeconds: string
+  // github.writesPerMinute and github.writesPerHour; blank is 60 and 400.
+  writesPerMinute: string
+  writesPerHour: string
   // github.subIssues.maxPerParent (R59.15); blank is GitHub's 100.
   maxPerParent: string
   // github.issues.includeDone (R74); off means only open tasks get issues.
@@ -527,6 +549,8 @@ export function toForm(github: Policy): SettingsForm {
     defaultAuthority: str(github.defaultAuthority),
     epicIssueType: str(github.epicIssueType),
     cacheSeconds: str(github.cacheSeconds),
+    writesPerMinute: str(github.writesPerMinute),
+    writesPerHour: str(github.writesPerHour),
     maxPerParent: (() => {
       const value = record(github.subIssues).maxPerParent
       // The default reads as blank, so an untouched file stays untouched.
@@ -630,6 +654,8 @@ export function toPolicy(form: SettingsForm): Policy {
     defaultAuthority: blank(form.defaultAuthority) ?? null,
     epicIssueType: blank(form.epicIssueType) ?? null,
     cacheSeconds: count(form.cacheSeconds) ?? null,
+    writesPerMinute: count(form.writesPerMinute) ?? null,
+    writesPerHour: count(form.writesPerHour) ?? null,
     subIssues: count(form.maxPerParent) !== undefined ? { maxPerParent: count(form.maxPerParent) } : null,
     issues: form.includeDone ? { includeDone: true } : null,
     project: hasProject

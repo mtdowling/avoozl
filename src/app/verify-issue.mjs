@@ -9,6 +9,7 @@ import { LOGIN } from "./github-marker.mjs";
 import { parseManagedSection } from "./github-rebuild.mjs";
 import { parseProvenance } from "./github-provenance.mjs";
 import { branchNameProblem, integrationOf } from "./integration-branch.mjs";
+import { retroBlocks } from "./radar-retro-rules.mjs";
 import { specItems } from "./spec-plans.mjs";
 import { fail } from "./store.mjs";
 
@@ -167,12 +168,41 @@ function statusLine(text) {
   return lines.length === 1 ? lines[0] : null;
 }
 
-async function checkSpec(read, home, marker, tasksText = {}) {
+async function checkSpec(read, home, marker, tasksText = {}, reader) {
   const base = `${repoPath(home)}/contents/.kiro/specs/${marker.spec}`,
     problems = [],
     files = {};
   let unavailable = false;
+  // With a file reader the five files are read at the commit in one go, by
+  // git or one batched query; a read that fails marks every check unavailable.
+  let batch = null;
+  if (reader)
+    try {
+      batch = (
+        await reader.readAt(home, marker.commit, {
+          paths: [
+            "requirements.md",
+            "bugfix.md",
+            "design.md",
+            "tasks.md",
+            "avoozl/manifest.json",
+          ].map((file) => `.kiro/specs/${marker.spec}/${file}`),
+        })
+      ).files;
+    } catch {
+      batch = new Error("unavailable");
+    }
   const fetch = async (file) => {
+    if (batch) {
+      if (batch instanceof Error) {
+        unavailable = true;
+        return { kind: "unavailable", status: 0, reason: "no answer" };
+      }
+      const text = batch.get(`.kiro/specs/${marker.spec}/${file}`);
+      return text === undefined
+        ? { kind: "denied", status: 404 }
+        : { kind: "ok", status: 200, text };
+    }
     const answer = await get(read, `${base}/${file}?ref=${marker.commit}`, {
       raw: true,
     });
@@ -387,10 +417,44 @@ function buildBrief(marker, body, tasksText) {
   };
 }
 
+// Retro rules (RC8.6) on the code repository's default branch, in AGENTS.md
+// and .kiro/steering/*.md. A crew's chat reads AGENTS.md once and keeps it,
+// so a rule merged later reaches it only through the brief. A read that fails
+// says so in one rule line instead of failing the verification.
+// shortcut: reads at most 20 steering files; page the list if a repo has more.
+const READ_RULES_YOURSELF =
+  "Retro rules: they could not be read. Read AGENTS.md and .kiro/steering/ on the default branch yourself.";
+async function retroRules(read, code) {
+  const rules = [];
+  let unread = false;
+  const take = async (file) => {
+    const answer = await get(read, `${repoPath(code)}/contents/${file}`, {
+      raw: true,
+    });
+    if (answer.kind === "ok")
+      for (const text of retroBlocks(answer.text))
+        rules.push(`Retro rule (${file}): ${text}`);
+    else if (answer.kind === "unavailable") unread = true;
+  };
+  await take("AGENTS.md");
+  const list = await get(read, `${repoPath(code)}/contents/.kiro/steering`);
+  if (list.kind === "unavailable") unread = true;
+  else if (list.kind === "ok" && Array.isArray(list.body))
+    for (const entry of list.body
+      .filter(
+        (entry) =>
+          entry?.type === "file" &&
+          /^[A-Za-z0-9][A-Za-z0-9._-]*\.md$/.test(entry?.name ?? ""),
+      )
+      .slice(0, 20))
+      await take(`.kiro/steering/${entry.name}`);
+  return unread ? [...rules, READ_RULES_YOURSELF] : rules;
+}
+
 // Runs the five checks. `read` is a reader (ghReader() by default).
 export async function verifyIssue(
   reference,
-  { read = ghReader(), brief = false, pull } = {},
+  { read = ghReader(), brief = false, pull, files } = {},
 ) {
   if (pull !== undefined && !(Number.isSafeInteger(pull) && pull > 0))
     fail("Name the pull request as a number.", 64);
@@ -446,7 +510,7 @@ export async function verifyIssue(
     checks.push(await permission(read, code, author, "author"));
   }
   if (marker) {
-    checks.push(await checkSpec(read, home, marker, tasksText));
+    checks.push(await checkSpec(read, home, marker, tasksText, files));
     checks.push(await checkCommit(read, home, marker));
     const base = await checkBase(read, code, marker, tasksText.manifest, pull);
     if (base) checks.push(base);
@@ -471,8 +535,10 @@ export async function verifyIssue(
     result.fetch = result.source.fetch;
     result.show = result.source.show;
   }
-  if (brief && result.ok && marker && tasksText.value !== undefined)
+  if (brief && result.ok && marker && tasksText.value !== undefined) {
     result.brief = buildBrief(marker, issueBody, tasksText.value);
+    result.brief.rules.push(...(await retroRules(read, code)));
+  }
   return result;
 }
 

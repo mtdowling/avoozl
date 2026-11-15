@@ -5,7 +5,7 @@
 import { execFileSync } from "node:child_process";
 import { originRepositorySync } from "./git.mjs";
 import { fail } from "./store.mjs";
-import { parseRepository } from "./github.mjs";
+import { repoFilesOf } from "./repo-files.mjs";
 import {
   CRITIQUE,
   MANIFEST,
@@ -24,10 +24,6 @@ const FILES = [
   "tasks.md",
   MANIFEST,
 ];
-const decode = (entry) =>
-  entry && typeof entry.content === "string"
-    ? Buffer.from(entry.content, entry.encoding || "base64").toString("utf8")
-    : undefined;
 
 // The first mirror a repository entry names, or null.
 export function mirrorOf(policy) {
@@ -40,46 +36,48 @@ export function mirrorOf(policy) {
 export const newSpecHome = (policy) =>
   mirrorOf(policy) ? "plansBranch" : "main";
 
-// Every spec folder on the plans branch, read through the contents API as
-// the same shape readSpecFolder gives. A missing branch or folder reads as
-// none; any other failure throws, so a tick never mistakes it for "no specs".
-// shortcut: up to six contents reads per spec on every tick; cache by branch
-// head when a mirror holds many private specs.
-export async function readPrivateSpecs(github, mirror) {
-  const repository = parseRepository(mirror.mirror),
+// Every spec folder on the plans branch, in the shape readSpecFolder gives.
+// The files come from `files` (a RepoFiles: a git cache, or one tree listing
+// and batched GraphQL reads), at `head` when the caller knows it. A missing
+// branch or folder reads as none; any other failure throws, so a tick never
+// mistakes it for "no specs".
+export async function readPrivateSpecs(source, mirror, head = null) {
+  const files = repoFilesOf(source),
     ref = mirror.plansBranch,
-    get = async (file) => {
-      try {
-        return await github.contents(repository, file, ref);
-      } catch (error) {
-        if (error.status === 404) return null;
-        throw error;
-      }
-    },
-    listing = await get(SPECS_DIRECTORY.split("\\").join("/"));
-  if (!Array.isArray(listing)) return [];
-  const specs = [];
-  for (const entry of listing) {
-    if (entry.type !== "dir" || !NAME.test(entry.name)) continue;
-    const base = `.kiro/specs/${entry.name}`,
-      files = {};
-    for (const file of FILES) {
-      const text = decode(await get(`${base}/${file}`));
-      if (text !== undefined) files[file] = text;
-    }
-    specs.push({
-      name: entry.name,
-      home: "plansBranch",
-      repository: mirror.mirror,
-      ref,
-      folder: `${base}/`,
-      exists: true,
-      files,
-      hash: specHash(files),
-      critique: decode(await get(`${base}/${CRITIQUE}`)) ?? null,
-    });
+    names = [...FILES, CRITIQUE],
+    specsRoot = `${SPECS_DIRECTORY.split("\\").join("/")}/`,
+    { files: found } = await files.readAt(mirror.mirror, head || ref, {
+      prefix: specsRoot,
+      want: (file) => {
+        const [name, ...rest] = file.slice(specsRoot.length).split("/");
+        return NAME.test(name) && names.includes(rest.join("/"));
+      },
+    }),
+    folders = new Map();
+  for (const [file, text] of found) {
+    const [name, ...rest] = file.slice(specsRoot.length).split("/");
+    if (!folders.has(name)) folders.set(name, new Map());
+    folders.get(name).set(rest.join("/"), text);
   }
-  return specs.sort((a, b) => a.name.localeCompare(b.name));
+  return [...folders]
+    .map(([name, texts]) => {
+      const base = `${specsRoot}${name}`,
+        read = {};
+      for (const file of FILES)
+        if (texts.has(file)) read[file] = texts.get(file);
+      return {
+        name,
+        home: "plansBranch",
+        repository: mirror.mirror,
+        ref,
+        folder: `${base}/`,
+        exists: true,
+        files: read,
+        hash: specHash(read),
+        critique: texts.get(CRITIQUE) ?? null,
+      };
+    })
+    .sort((x, y) => x.name.localeCompare(y.name));
 }
 
 const taskIds = (spec) =>

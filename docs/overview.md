@@ -129,6 +129,24 @@ Not retired: the `plans_*` MCP names, the environment aliases, the `aicommander`
 
 Settings keeps an empty slot for a future Mirror section. A repo still set to `coder: worker` shows the banner "Local workers are retired. Switch to Issue Radar." (spec-only until the UI task lands).
 
+## CLI
+
+### Delete and restore a plan
+
+`avoozl plan delete PLAN_ID_OR_SPEC_NAME` prints a preview and changes nothing. The preview shows the
+open tasks that would be archived, tasks already done, running chats (left alone), dependents, and the
+spec folder state. A spec name works in place of the id; if two plans share the name, the command
+refuses and lists their ids.
+
+| Flag                   | Effect                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------- |
+| `--yes`                | Delete. A draft is marked deleted and kept.                                                 |
+| `--retire`             | Needed with `--yes` for a plan that was ever approved, as the page's Delete asks.           |
+| `--delete-spec-folder` | Also remove the spec folder. Off by default. Refused if the folder has uncommitted changes. |
+
+`avoozl plan restore PLAN_ID` brings a deleted plan back. Both are for a person: MCP and chat callers
+are still refused, and inside an agent session the CLI needs `--as-person`.
+
 ## 6. Links
 
 | What                | Where                                                                   |

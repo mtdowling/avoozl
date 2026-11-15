@@ -4,6 +4,7 @@ import {
   declaredDependencies,
 } from "./cross-spec-dependencies.mjs";
 import { parseIssueReference, verifyIssue } from "./verify-issue.mjs";
+import { RepoFiles } from "./repo-files.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
 import { applicationRoot } from "./config.mjs";
@@ -186,6 +187,7 @@ import {
   requireMirrorsPrivate,
   requirePlansBranches,
 } from "./mirror-policy.mjs";
+import { classifyOperation } from "./operation-kinds.mjs";
 import {
   mergeHomes,
   mirrorOf,
@@ -343,6 +345,7 @@ import {
   draftGitHubChildren,
 } from "./github-breakdown.mjs";
 import { previewProjection } from "./github-preview.mjs";
+import { clampLimits, paceNeedsYou, runView } from "./github-pacer.mjs";
 import { planProjectionBatches } from "./radar-coder-batch.mjs";
 import {
   applySpecChange,
@@ -997,6 +1000,7 @@ export class Operations {
       client.bind(store, {
         cacheSeconds: (repo) => this.cacheSeconds(repo),
         countFile: countFilePath(),
+        writeLimits: () => this.writeLimits(),
       });
     this.github = guardGitHub(client, store);
     this.configuration = configuration;
@@ -1007,6 +1011,8 @@ export class Operations {
     this.tickPolicy = {};
     // Specs read from the plans branch on the last tick (RC25.2).
     this.privateSpecs = [];
+    this.privateSpecsAt = 0;
+    this.privateSpecsHead = null;
     this.repositoryBindingGuard = repositoryBindingGuard;
     this.pendingIntents = new Map();
     if (workspaceRoot && driver?.settingsFile)
@@ -1425,9 +1431,24 @@ export class Operations {
         .map((project) => project.root),
     });
   }
+  // Repository files by git, with the API as the fallback (repo-files.mjs).
+  // The cache lives in this workspace's git-ignored state folder.
+  repoFiles() {
+    this.files ??= new RepoFiles({
+      github: this.github,
+      root: this.workspaceRoot
+        ? path.join(this.workspaceRoot, ".avoozl", "local", "git-cache")
+        : null,
+    });
+    return this.files;
+  }
   // Read the plans branch into `privateSpecs`. A failed read keeps the last
   // good list, so a network error never makes private specs vanish.
-  async refreshPrivateSpecs() {
+  // `cached` (a read): do nothing inside github.cacheSeconds of the last
+  // check. Past it, one branch call decides whether the files are read
+  // again. Without `cached` the head is still compared, so an unchanged
+  // branch costs one call, not one per spec file.
+  async refreshPrivateSpecs({ cached = false } = {}) {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot),
       mirror =
         policy?.mode && policy.mode !== "local" ? mirrorOf(policy) : null;
@@ -1436,8 +1457,29 @@ export class Operations {
       return;
     }
     if (!this.github?.available?.()) return;
+    const now = Date.now();
+    if (
+      cached &&
+      this.privateSpecsAt &&
+      now - this.privateSpecsAt < this.cacheSeconds(mirror.mirror) * 1000
+    )
+      return;
     try {
-      this.privateSpecs = await readPrivateSpecs(this.github, mirror);
+      let head = null;
+      try {
+        head = await this.repoFiles().head(mirror.mirror, mirror.plansBranch);
+      } catch {
+        // No head to compare: read the files.
+      }
+      if (!head || head !== this.privateSpecsHead) {
+        this.privateSpecs = await readPrivateSpecs(
+          this.repoFiles(),
+          mirror,
+          head,
+        );
+        this.privateSpecsHead = head;
+      }
+      this.privateSpecsAt = now;
     } catch {
       // Keep the last list.
     }
@@ -2270,6 +2312,11 @@ export class Operations {
       rate: {
         ...rateView(this.store, Date.now(), { countFile: countFilePath() }),
         cacheSeconds: this.cacheSeconds(),
+        // The write pace and the projection that waits on it, if any.
+        writes: {
+          ...clampLimits(this.writeLimits()),
+          run: runView(this.store),
+        },
       },
       // Review roles from `delivery` in the same file, shown beside each
       // repository's pull-request review settings. Read only here.
@@ -2313,6 +2360,16 @@ export class Operations {
   // without a restart. Invalid policy refuses the operation that needs it.
   githubPolicy() {
     return readGitHubPolicy(this.workspaceRoot);
+  }
+  // github.writesPerMinute and github.writesPerHour; blank means the built-in
+  // pace. Read like cacheSeconds, so an edit applies without a restart.
+  writeLimits() {
+    this.cacheSeconds();
+    const policy = this.cachePolicy.policy;
+    return {
+      perMinute: policy?.writesPerMinute ?? undefined,
+      perHour: policy?.writesPerHour ?? undefined,
+    };
   }
   // github.cacheSeconds, with a repository's own value first. The files are
   // read at most every five seconds; an unreadable file means the default.
@@ -2663,7 +2720,12 @@ export class Operations {
     }
     // CLI/MCP spec operations must not depend on a prior app tick. This is
     // read-only, and refreshPrivateSpecs does nothing outside a GitHub mirror.
-    if (name.startsWith("plan.")) await this.refreshPrivateSpecs();
+    // plan.list reads stored plans only. Reads may use the list checked within
+    // the cache window; a change re-reads the branch.
+    if (name.startsWith("plan.") && name !== "plan.list")
+      await this.refreshPrivateSpecs({
+        cached: classifyOperation(name) === "observe",
+      });
     // Budgets and receipts (§4.17). Raise, Stop, Acknowledge, Switch to
     // stop and the price table are a person's only (R67.9).
     if (name === "budget.view") return budgetView(store, this.read());
@@ -3337,6 +3399,7 @@ export class Operations {
       view.items.push(...remoteNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
       view.items.push(...rateNeedsYou(store));
+      view.items.push(...paceNeedsYou(store));
       view.items.push(...mirrorNeedsYou(store));
       view.items.push(...mirrorForwardRows(store, policy));
       view.items.push(...forwardAuditRows(store));
@@ -3840,6 +3903,7 @@ export class Operations {
           push: !look,
           review: true,
           seenHash: input.seenHash ?? null,
+          files: this.repoFiles(),
           ...(this.forwardGit ? { git: this.forwardGit } : {}),
         });
       if (!result.ok && !result.blocked && !result.changed)
@@ -4488,7 +4552,23 @@ export class Operations {
           "Only a person deletes a plan, from the Avoozl page or the CLI.",
           403,
         );
-      const plan = store.get("plans", input.id);
+      // The id, or a spec name (the CLI passes either); a name shared by
+      // two plans is refused instead of guessed.
+      let plan = store.get("plans", input.id);
+      if (!plan && typeof input.id === "string") {
+        const named = store
+          .list("plans")
+          .filter((row) => row.spec === input.id && !row.deletedAt);
+        if (named.length > 1)
+          fail(
+            "More than one plan uses spec " +
+              input.id +
+              ". Use a plan id: " +
+              named.map((row) => row.id).join(", "),
+            409,
+          );
+        plan = named[0];
+      }
       if (!plan || plan.deletedAt) fail("Plan not found.", 404);
       let folder = null;
       if (plan.spec)
@@ -5317,6 +5397,7 @@ export class Operations {
     if (name === "issue.verify")
       return verifyIssue(input.issue, {
         brief: true,
+        ...(this.workspaceRoot ? { files: this.repoFiles() } : {}),
         ...(input.pullRequest !== undefined ? { pull: input.pullRequest } : {}),
       });
     if (name === "plan.lint") {

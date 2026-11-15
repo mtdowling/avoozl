@@ -7,6 +7,7 @@ import { projectPlanIssues } from "./github-projection.mjs";
 import { syncProject } from "./github-project.mjs";
 import { projectedMarker } from "./github-sync.mjs";
 import { parseRepository } from "./github.mjs";
+import { paceEstimate } from "./github-pacer.mjs";
 
 // Stand-in IDs for issues a preview creates: safe integers no real issue has.
 const BASE = 2 ** 52;
@@ -151,7 +152,23 @@ export class PreviewGitHub {
       });
     this.blockers.set(`${repository}#${id}`, []);
     this.subIssues.set(`${repository}#${id}`, []);
+    // Made under its parent in the create call: no sub-issue write follows.
+    const parent = input.parentIssueId
+      ? [...this.issues.values()].find(
+          (entry) => entry.node_id === input.parentIssueId,
+        )
+      : null;
+    if (parent)
+      (
+        await this.related(
+          this.subIssues,
+          "listSubIssues",
+          parent.repository,
+          parent.number,
+        )
+      ).push(structuredClone(issue));
     this.record("issue.create", repository, issue, {
+      ...(parent ? { parentTaskId: this.task(parent) } : {}),
       title: input.title,
       labels: input.labels || [],
       ...(input.assignees ? { assignees: input.assignees } : {}),
@@ -354,6 +371,13 @@ export async function previewProjection(
       planId: projection.planId,
       planHash: projection.planHash,
       writes: stand.writes,
+      // How long these writes take at the pace GitHub allows.
+      pace: paceEstimate(
+        stand.writes.length,
+        github.pacer?.history() ?? [],
+        Date.now(),
+        github.pacer?.limits() ?? {},
+      ),
       conflicts: projection.conflicts,
       notes: projection.notes,
       // Children the sub-issue cap or GitHub leaves unlinked (R59.15).

@@ -168,3 +168,10 @@ for (const name of ['projection', 'spec-changed'])
         })()`)
         assert.deepEqual(fit, { sideways: false, inside: true, text: true })
       })
+
+test('the confirm says how long a long run takes at the write limits, and says nothing for a short one', () => {
+  const data = preview([write('issue.create')])
+  const pace = (minutes) => ({ writes: 1813, perMinute: 60, perHour: 400, finishAt: '', minutes })
+  assert.equal(confirmLines({ ...data, pace: pace(244) }, 'example/app', false).at(-1), 'pace the 1813 writes at 60 a minute and 400 an hour: about 4 h 4 min, and it carries on by itself')
+  assert.equal(confirmLines({ ...data, pace: pace(2) }, 'example/app', false).length, 1)
+})

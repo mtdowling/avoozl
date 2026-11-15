@@ -7,6 +7,8 @@ import { normalizeGitHubPolicy, policySection } from '../../../src/app/github-po
 
 const POLICY = {
   cacheSeconds: 45,
+  writesPerMinute: 50,
+  writesPerHour: 300,
   mode: 'plans-repo',
   planningRepository: 'example/plans',
   defaultAuthority: 'github',
@@ -162,6 +164,8 @@ test('an empty form clears every policy key', () => {
     defaultAuthority: null,
     epicIssueType: null,
     cacheSeconds: null,
+    writesPerMinute: null,
+    writesPerHour: null,
     subIssues: null,
     issues: null,
     project: null,
