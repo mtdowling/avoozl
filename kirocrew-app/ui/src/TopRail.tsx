@@ -33,7 +33,7 @@ export function TopRail(props: {
         aria-expanded={props.open}
         aria-controls="avoozl-top-rail-list"
         onClick={() => props.onOpenChange(!props.open)}
-        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minHeight: 44, padding: '0 16px', background: 'var(--bg-elevated)', border: 0, borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', color: 'inherit', cursor: 'pointer', fontSize: 14, fontWeight: 600, textAlign: 'left' }}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '3px 16px', background: 'var(--bg-elevated)', border: 0, borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', color: 'inherit', cursor: 'pointer', fontSize: 14, fontWeight: 600, textAlign: 'left' }}
       >
         <span style={{ minWidth: 0, flex: 1 }}>{current?.label}</span>
         <span aria-hidden="true" style={{ display: 'inline-flex', transform: props.open ? 'rotate(-90deg)' : 'rotate(90deg)' }}>
@@ -58,7 +58,7 @@ export function TopRail(props: {
                 aria-selected={selected}
                 aria-label={item.aria}
                 onClick={() => pick(item.key)}
-                style={{ display: 'flex', alignItems: 'center', minHeight: 52, padding: '0 16px', background: selected ? 'var(--bg-elevated)' : 'none', border: 0, borderBottom: '1px solid var(--border)', color: selected ? 'var(--accent)' : 'var(--text)', cursor: 'pointer', fontSize: 15, textAlign: 'left' }}
+                style={{ display: 'flex', alignItems: 'center', padding: '3px 16px', background: selected ? 'var(--bg-elevated)' : 'none', border: 0, borderBottom: '1px solid var(--border)', color: selected ? 'var(--accent)' : 'var(--text)', cursor: 'pointer', fontSize: 15, textAlign: 'left' }}
               >
                 {item.label}
               </button>

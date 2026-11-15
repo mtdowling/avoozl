@@ -6,8 +6,8 @@
 //   </PanelSection>
 //
 // Sizes follow Kiro Crew's own panels: 13px titles, 11px meta, a 28px section
-// header and 11px chips. On a phone (a narrow screen or a coarse pointer) every
-// tap target is 44px tall but rows stay two lines, nothing scrolls sideways and
+// header and 11px chips. On a phone (a narrow screen) buttons
+// keep their compact size and rows stay two lines, nothing scrolls sideways and
 // nothing is sticky. Colors are the theme's, so light, dark and custom themes
 // work. Kept free of data reads: callers pass what to show.
 import type { ReactNode } from 'react'
@@ -53,13 +53,7 @@ a[data-pp-row-title]:hover{text-decoration:underline}
 [data-pp-act][data-pp-primary]{border-color:var(--accent);color:var(--accent)}
 [data-pp-act]:disabled{opacity:.5;cursor:default}
 [data-pp-empty]{margin:0;padding:6px 8px;font-size:12px;color:var(--muted)}
-@media (max-width:640px),(pointer:coarse){
-[data-pp-section]>summary{min-height:44px}
-[data-pp-row]{min-height:44px;padding-top:0;padding-bottom:0}
-[data-pp-row-main]{padding:4px 0}
-[data-pp] button{min-height:44px;min-width:44px}
-[data-pp-act]{min-height:44px;min-width:44px;padding:0 10px}
-[data-pp-chip][data-tap]{min-height:44px;padding:0 10px}
+@media (max-width:640px){
 [data-pp-row][data-multi]{grid-template-columns:16px minmax(0,1fr)}
 [data-pp-row][data-multi]>[data-pp-actions]{grid-column:2}
 }
