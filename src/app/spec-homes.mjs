@@ -11,6 +11,7 @@ import {
   MANIFEST,
   SPECS_DIRECTORY,
   specHash,
+  parseSpec,
   specItems,
 } from "./spec-plans.mjs";
 
@@ -195,4 +196,27 @@ export function locateLocalSpec(spec, mirror, policy) {
   // A review/detached branch without a proved public lineage cannot become
   // a route for publishing a private draft to the default code branch.
   return { ...privateSpec, approvalBlocked: true };
+}
+
+// The private task IDs a public spec's files name as a dependency. The
+// approval commit would publish them, so approval refuses (RC25.9).
+// shortcut: the cross edge cannot live in a public spec; record it on the
+// private side or leave it out until a mirror-only file exists.
+export function privateDependencies(spec, privateSpecs) {
+  const privateIds = new Set(privateSpecs.flatMap(taskIds));
+  if (!privateIds.size) return [];
+  const { proposals } = parseSpec({
+    name: spec.name,
+    exists: true,
+    files: spec.files ?? {},
+  });
+  return [
+    ...new Set(
+      proposals.flatMap((proposal) =>
+        ["requires", "sequence", "supports"]
+          .flatMap((kind) => proposal[kind] || [])
+          .filter((id) => privateIds.has(id)),
+      ),
+    ),
+  ];
 }

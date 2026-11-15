@@ -185,3 +185,27 @@ test("without a launch workspace, an unbound caller is refused, not served from 
   assert.equal(replies.get(1).result.isError, true);
   assert.match(text(replies.get(1)), /no workspace for this session/);
 });
+
+test("refuses server/discover so Kiro Crew clients send initialize and get the caller", () => {
+  // kiro-cli 3.3 asks server/discover first; an answer makes it skip
+  // initialize, and the gateway then never learns the caller capability.
+  const dir = temporaryDirectory("avoozl-discover-");
+  const replies = serve(dir, dir, [
+    { jsonrpc: "2.0", id: 1, method: "server/discover", params: {} },
+    {
+      jsonrpc: "2.0",
+      id: 2,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-06-18",
+        capabilities: {},
+        clientInfo: { name: "test", version: "1" },
+      },
+    },
+  ]);
+  assert.equal(replies.get(1).error.code, -32601);
+  assert.deepEqual(
+    replies.get(2).result.capabilities.experimental["kirocrew.caller-identity"],
+    { schemaVersion: 1 },
+  );
+});

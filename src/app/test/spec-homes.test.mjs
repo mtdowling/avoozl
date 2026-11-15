@@ -5,7 +5,12 @@ import path from "node:path";
 import test from "node:test";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { Operations } from "../operations.mjs";
-import { mergeHomes, newSpecHome, readPrivateSpecs } from "../spec-homes.mjs";
+import {
+  mergeHomes,
+  newSpecHome,
+  privateDependencies,
+  readPrivateSpecs,
+} from "../spec-homes.mjs";
 import { readSpecFolder } from "../spec-plans.mjs";
 import { RepositorySettings } from "../repository-settings.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
@@ -317,4 +322,29 @@ test("a proved public review branch in a mirror keeps default-branch approval", 
   const target = ops.approvalPullRequestTarget(plan);
   assert.equal(target.repository.id, "acme/app-private");
   assert.equal(target.ref, undefined);
+});
+
+test("a public spec that requires a private task is named, one that does not passes", async () => {
+  const github = new FakeGitHub();
+  putPrivate(github, "hidden");
+  const privateSpecs = await readPrivateSpecs(github, mirror),
+    files = specFiles(),
+    edge = (id) =>
+      JSON.stringify({
+        tasks: {
+          1.1: {
+            ...JSON.parse(files["avoozl/manifest.json"]).tasks[1.1],
+            requires: [id],
+          },
+        },
+      });
+  const withEdge = {
+    name: "open",
+    files: { ...files, "avoozl/manifest.json": edge("hidden.1.1") },
+  };
+  assert.deepEqual(privateDependencies(withEdge, privateSpecs), ["hidden.1.1"]);
+  assert.deepEqual(
+    privateDependencies({ name: "open", files }, privateSpecs),
+    [],
+  );
 });

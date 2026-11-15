@@ -242,6 +242,8 @@ function fingerprints(store, identity) {
       continue;
     out[task.planId] ??= {
       release: releaseFor(identity.repositories?.[id], identity.mode),
+      // A sign-off or a visibility read changes what may be released.
+      publicHold: Boolean(publicHold(store, id)),
       steps: [],
     };
     const receipt = store.get("receipts", stepReceiptId(task.planId, task));
