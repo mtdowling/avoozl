@@ -212,6 +212,7 @@ async function checkSpec(read, home, marker, tasksText = {}) {
     if (absent.length)
       problems.push(`tasks.md does not list ${absent.join(", ")}`);
   }
+  tasksText.files = Object.keys(files);
   tasksText.value = files["tasks.md"];
   tasksText.manifest = files["avoozl/manifest.json"];
   tasksText.files = Object.keys(files);
@@ -275,50 +276,68 @@ async function checkBase(read, code, marker, manifestText, pull) {
     : failed("base", `pull request #${pull} targets ${shown}, not ${wanted}`);
 }
 
+// A private spec's marker names the orphan branch it lives on (RC25.4): the
+// branch must exist in the repository that holds the spec, share no history
+// with the default branch, and have the commit behind or at its head. The
+// reasons name the ref, never the plan's text.
+async function checkRef(read, home, marker, defaultBranch) {
+  const ref = marker.ref,
+    short = marker.commit.slice(0, 7);
+  if (ref === defaultBranch)
+    return failed(
+      "commit",
+      `the ref ${ref} is the default branch, not an orphan branch`,
+    );
+  const exists = await get(
+    read,
+    `${repoPath(home)}/branches/${encodeURIComponent(ref)}`,
+  );
+  if (exists.kind === "denied")
+    return failed("commit", `the ref ${ref} is not a branch of ${home}`);
+  if (exists.kind !== "ok") return failed("commit", why(exists), true);
+  const history = await get(
+    read,
+    `${repoPath(home)}/compare/${encode(defaultBranch)}...${encode(ref)}`,
+  );
+  if (history.kind === "ok")
+    return failed(
+      "commit",
+      `the ref ${ref} shares history with the default branch, so it is not an orphan branch`,
+    );
+  // A generic denial, missing object or permission failure is not proof that
+  // two existing branches have separate histories. Require GitHub's explicit
+  // no-common-ancestor response; retain the old no-ref path below unchanged.
+  if (!history.noCommonAncestor)
+    return failed(
+      "commit",
+      `plans ref ${ref} orphan history could not be verified: ${why(history)}`,
+      history.kind === "unavailable",
+    );
+  const compare = await get(
+    read,
+    `${repoPath(home)}/compare/${encode(ref)}...${marker.commit}`,
+  );
+  if (compare.kind !== "ok")
+    return failed("commit", why(compare), compare.kind === "unavailable");
+  const state = record(compare.body) ? compare.body.status : undefined;
+  if (state === "identical")
+    return pass("commit", `${short} is identical to ${ref}`);
+  if (state === "behind") return pass("commit", `${short} is behind ${ref}`);
+  return failed("commit", `${short} is not behind ${ref} or identical to it`);
+}
+
 async function checkCommit(read, home, marker) {
   const repo = await get(read, repoPath(home));
   if (repo.kind !== "ok") return failed("commit", why(repo), true);
-  const defaultBranch = record(repo.body) ? repo.body.default_branch : null;
+  const branch = record(repo.body) ? repo.body.default_branch : null;
   if (
-    typeof defaultBranch !== "string" ||
-    !defaultBranch ||
-    defaultBranch.length > 255 ||
-    /[\u0000-\u001f\u007f]/.test(defaultBranch)
+    typeof branch !== "string" ||
+    !branch ||
+    branch.length > 255 ||
+    /[\u0000-\u001f\u007f]/.test(branch)
   )
     return failed("commit", "the default branch is unreadable", true);
-  const branch = marker.ref ?? defaultBranch;
-  if (marker.ref) {
-    if (branch === defaultBranch)
-      return failed(
-        "commit",
-        "the plans ref is the default branch, not an orphan branch",
-      );
-    const exists = await get(
-      read,
-      `${repoPath(home)}/branches/${encodeURIComponent(branch)}`,
-    );
-    if (exists.kind !== "ok")
-      return failed(
-        "commit",
-        `plans ref ${branch} ${why(exists)}`,
-        exists.kind === "unavailable",
-      );
-    const history = await get(
-      read,
-      `${repoPath(home)}/compare/${encode(defaultBranch)}...${encode(branch)}`,
-    );
-    if (history.kind === "ok")
-      return failed(
-        "commit",
-        `plans ref ${branch} shares history with the default branch`,
-      );
-    if (!history.noCommonAncestor)
-      return failed(
-        "commit",
-        `plans ref ${branch} orphan history could not be verified: ${why(history)}`,
-        history.kind === "unavailable",
-      );
-  }
+  if (marker.ref) return checkRef(read, home, marker, branch);
   const compare = await get(
     read,
     `${repoPath(home)}/compare/${encode(branch)}...${marker.commit}`,
@@ -326,16 +345,16 @@ async function checkCommit(read, home, marker) {
   if (compare.kind !== "ok")
     return failed("commit", why(compare), compare.kind === "unavailable");
   const state = record(compare.body) ? compare.body.status : undefined,
-    short = marker.commit.slice(0, 7),
-    label = marker.ref ? `plans ref ${branch}` : "the default branch";
+    short = marker.commit.slice(0, 7);
   if (state === "identical")
-    return pass("commit", `${short} is identical to ${label}`);
-  if (state === "behind") return pass("commit", `${short} is behind ${label}`);
+    return pass("commit", `${short} is identical to the default branch`);
+  if (state === "behind")
+    return pass("commit", `${short} is behind the default branch`);
   return failed(
     "commit",
     COMPARE_KNOWN.has(state)
-      ? `${short} is ${state}, not behind ${label} or identical to it`
-      : `${short} is not behind ${label} or identical to it`,
+      ? `${short} is ${state}, not behind the default branch or identical to it`
+      : `${short} is not behind the default branch or identical to it`,
   );
 }
 
@@ -448,6 +467,8 @@ export async function verifyIssue(
       fetch: `git fetch https://github.com/${home}.git refs/heads/${marker.ref}`,
       show: paths.map((file) => `git show ${marker.commit}:${file}`),
     };
+    result.fetch = result.source.fetch;
+    result.show = result.source.show;
   }
   if (brief && result.ok && marker && tasksText.value !== undefined)
     result.brief = buildBrief(marker, issueBody, tasksText.value);

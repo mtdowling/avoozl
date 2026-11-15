@@ -154,7 +154,13 @@ import {
   decideConflictFix,
   reportConflictFix,
 } from "./radar-conflict-fix.mjs";
-import { rateNeedsYou, rateView } from "./github-rate.mjs";
+import {
+  countFilePath,
+  rateNeedsYou,
+  rateView,
+  sourceOfOperation,
+  withSource,
+} from "./github-rate.mjs";
 import { syncNeedsYou } from "./integration-sync.mjs";
 import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
 import {
@@ -187,6 +193,7 @@ import {
   locateLocalSpec,
 } from "./spec-homes.mjs";
 import { mirrorNeedsYou, writeRepo } from "./mirror-sync.mjs";
+import { forwardAuditRows } from "./forward-audit.mjs";
 import { mirrorForwardRows, mirrorRecordFor } from "./mirror-forward.mjs";
 import { forwardRecord } from "./mirror-forward-run.mjs";
 import { syncProject } from "./github-project.mjs";
@@ -994,7 +1001,10 @@ export class Operations {
     const client = github || defaultGitHubClient();
     // Conditional reads and the rate-limit pause live in this workspace.
     if (client instanceof GitHubClient)
-      client.bind(store, { cacheSeconds: (repo) => this.cacheSeconds(repo) });
+      client.bind(store, {
+        cacheSeconds: (repo) => this.cacheSeconds(repo),
+        countFile: countFilePath(),
+      });
     this.github = guardGitHub(client, store);
     this.configuration = configuration;
     this.workspaceRoot = workspaceRoot;
@@ -1512,7 +1522,8 @@ export class Operations {
             ? publicSpecs.find((entry) => entry.spec === spec).root
             : null),
       })),
-      homeErrors = merged.errors;
+      homeErrors = merged.errors,
+      declarations = specDeclarations(plans);
     return {
       root: roots[0],
       roots,
@@ -1526,6 +1537,9 @@ export class Operations {
               data,
               approved: plan && this.approvedSpec(plan),
               namespace,
+              declaredTasks: declarations.filter(
+                (task) => task.planId !== plan?.id,
+              ),
             }),
             disk,
           );
@@ -1567,6 +1581,10 @@ export class Operations {
       ...(homeErrors.length ? { homeErrors } : {}),
     };
   }
+  // A folder on disk, or else a private spec read from the plans branch
+  // (RC25.2). A private spec has no `root`, so nothing writes it to disk.
+  // shortcut: spec edits that write files (manifest, status) refuse a private
+  // spec for now; they move to a contents write when Spec Builder needs them.
   readSpec(name) {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot),
       mirror = mirrorOf(policy),
@@ -1584,7 +1602,14 @@ export class Operations {
         `Spec ${name} exists in both homes: main and plansBranch. Rename one.`,
         409,
       );
-    return privateSpec || local;
+    return privateSpec
+      ? {
+          ...privateSpec,
+          home: "plansBranch",
+          repository: privateSpec.repository ?? privateSpec.specRepository,
+          ref: privateSpec.ref ?? privateSpec.plansRef,
+        }
+      : local;
   }
   // One folder of the mode's spec roots by name, for the checks that read
   // another folder: an epic's members, a plan's epic (Requirement 59.3).
@@ -1624,29 +1649,55 @@ export class Operations {
   approvalPullRequestTarget(plan) {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot);
     if (!policy?.mode || !plan.spec) return null;
-    const entries = Object.entries(policy.repositories || {}),
-      radar = entries.filter(([, entry]) => entry.coder === "issue-radar"),
-      spec = this.readSpec(plan.spec),
-      root = spec.root,
-      origin = (
-        spec.repository ||
-        (root && originRepositorySync(root))
-      )?.toLowerCase();
-    if (!origin) return null;
+    const spec = this.readSpec(plan.spec);
     if (spec.approvalBlocked)
       fail(
         "Publish the private spec revision on the configured plans branch before requesting approval.",
         409,
       );
-    const privateHolder =
-      spec.home === "plansBranch"
-        ? radar.find(
-            ([, entry]) => entry.mirror?.mirror.toLowerCase() === origin,
-          )
-        : null;
+    const entries = Object.entries(policy.repositories || {}),
+      radar = entries.filter(([, entry]) => entry.coder === "issue-radar"),
+      home = spec.home ?? plan.home,
+      repository =
+        spec.repository ?? spec.specRepository ?? plan.specRepository;
+    // Source-home validation runs before the private shortcut. A task-branch
+    // draft must never use stored home metadata to bypass its publication hold.
+    if (home === "plansBranch") {
+      const mirror = repository
+        ? entries
+            .map(([, entry]) => entry.mirror)
+            .find(
+              (entry) =>
+                entry?.mirror.toLowerCase() === repository.toLowerCase(),
+            )
+        : mirrorOf(policy);
+      if (!mirror)
+        fail("The private spec home does not match a configured mirror.", 409);
+      const ref =
+        spec.ref ??
+        spec.plansRef ??
+        plan.ref ??
+        plan.plansRef ??
+        mirror.plansBranch;
+      if (ref !== mirror.plansBranch)
+        fail(
+          "The private spec branch no longer matches its configured mirror.",
+          409,
+        );
+      return {
+        repository: parseRepository(mirror.mirror),
+        decisionRecord: false,
+        ref,
+      };
+    }
+    const root = spec.root,
+      origin = (
+        repository ||
+        (root && originRepositorySync(root))
+      )?.toLowerCase();
+    if (!origin) return null;
     const holder =
-      privateHolder ||
-      (policy.mode === "single-repo"
+      policy.mode === "single-repo"
         ? radar.find(
             ([id, entry]) =>
               id.toLowerCase() === origin ||
@@ -1654,13 +1705,12 @@ export class Operations {
           )
         : radar.length && policy.planningRepository?.toLowerCase() === origin
           ? [policy.planningRepository, radar[0][1]]
-          : null);
+          : null;
     if (!holder) return null;
     const [owner, repo] = origin.split("/");
     return {
       repository: { owner, repo, id: origin },
       decisionRecord: holder[1].approval.decisionRecord,
-      ...(privateHolder ? { ref: privateHolder[1].mirror.plansBranch } : {}),
     };
   }
   // Approve ends in a commit a crew can read: open the approval pull request,
@@ -1693,6 +1743,7 @@ export class Operations {
         diagnostics: quality.diagnostics,
         approvedBy,
         decisionRecord: target.decisionRecord,
+        ...(target.ref ? { ref: target.ref } : {}),
       });
     return { pending: state };
   }
@@ -2208,7 +2259,7 @@ export class Operations {
       error,
       // The last GitHub rate-limit numbers, for Settings > GitHub.
       rate: {
-        ...rateView(this.store),
+        ...rateView(this.store, Date.now(), { countFile: countFilePath() }),
         cacheSeconds: this.cacheSeconds(),
       },
       // Review roles from `delivery` in the same file, shown beside each
@@ -2560,7 +2611,9 @@ export class Operations {
   }
 
   async execute(name, input = {}, expectedRevision, context = {}) {
-    const result = await this.perform(name, input, expectedRevision, context);
+    const result = await withSource(sourceOfOperation(name), () =>
+      this.perform(name, input, expectedRevision, context),
+    );
     // One activity row for a listed local action (§4.19); never fails it.
     recordOperation(this.store, name, input, result, {
       context,
@@ -3272,6 +3325,7 @@ export class Operations {
       view.items.push(...rateNeedsYou(store));
       view.items.push(...mirrorNeedsYou(store));
       view.items.push(...mirrorForwardRows(store, policy));
+      view.items.push(...forwardAuditRows(store));
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
@@ -5189,7 +5243,11 @@ export class Operations {
       if (input.spec === undefined) return createPlan(store, input);
       const spec = this.readSpec(input.spec);
       if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
-      return createSpecPlan(store, input, spec);
+      return createSpecPlan(
+        store,
+        { ...input, ...(spec.home ? { home: spec.home } : {}) },
+        spec,
+      );
     }
     if (name === "plan.save") {
       const plan = store.get("plans", input.id);
