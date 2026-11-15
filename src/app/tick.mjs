@@ -64,6 +64,7 @@ import {
   listSessionBindings,
   listSessionRequests,
   recordSessionStatus,
+  sessionRequestHold,
 } from "./session-bindings.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { queueNotifications, sessionUrl } from "./notifications.mjs";
@@ -409,7 +410,12 @@ function planDispatches(store, bindings) {
       continue;
     const task = data.tasks.find((t) => t.id === request.taskId),
       repository = repositories.get(request.repository);
-    if (!task || !repository?.localCheckout) continue;
+    if (
+      !task ||
+      !repository?.localCheckout ||
+      sessionRequestHold(data, task.id, request.role)
+    )
+      continue;
     const title = `avoozl:${task.id} ${task.title || ""}`.trim().slice(0, 200);
     dispatch.push({
       task: task.id,

@@ -1,3 +1,6 @@
+import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
+import { queryTasks } from "../query.mjs";
+import { pendingProjection } from "../work-model.mjs";
 // Kiro Crew session bindings: which visible session (slot key) works on which
 // task. Kiro Crew owns the sessions; Avoozl keeps only this pointer, and a lost
 // pointer is recovered from the session title `avoozl:<task-id> <short title>`.
@@ -285,11 +288,46 @@ export function listSessionBindings(store) {
 
 const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
+// Check explicit requests again when the tick consumes them. A request is not
+// permission to bypass a spec approval hold, including one on a prerequisite.
+export function sessionRequestHold(data, taskId, role = "worker") {
+  const tasks = new Map(data.tasks.map((task) => [task.id, task])),
+    incoming = new Map();
+  for (const edge of data.edges)
+    if (["requires", "sequence"].includes(edge.kind)) {
+      if (!incoming.has(edge.to)) incoming.set(edge.to, []);
+      incoming.get(edge.to).push(edge.from);
+    }
+  const seen = new Set(),
+    queue = [taskId];
+  for (let at = 0; at < queue.length; at++) {
+    const id = queue[at];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    if (hasPendingSpecDependencies(tasks.get(id)))
+      return (
+        "Task " + taskId + " waits for referenced spec approval at " + id + "."
+      );
+    queue.push(...(incoming.get(id) || []));
+  }
+  if (role === "worker") {
+    const task = tasks.get(taskId);
+    if (
+      !task ||
+      pendingProjection(task) ||
+      !queryTasks(data, { scope: "all", q: "ready:true" }).some(
+        (row) => row.id === taskId,
+      )
+    )
+      return "Task " + taskId + " is not ready for a worker session.";
+  }
+  return null;
+}
+
 // Ask the tick to open one session for one task and role, in the repository's
 // Kiro Crew folder, on a named agent. The tick dispatches it while no session is
 // bound for that task and role, so a request yields at most one session.
-// shortcut: an explicit request stands in for readiness-driven dispatch until
-// task 2.7 plans dispatches from the graph.
+// Explicit worker requests obey the same graph and approval holds as dispatch.
 export function requestSession(store, input = {}, repositories = []) {
   const role = input.role ?? "worker",
     agent = text(input.agent, "agent name", 128),
@@ -304,6 +342,8 @@ export function requestSession(store, input = {}, repositories = []) {
   return store.transaction(() => {
     const taskId = existingTask(store, text(input.taskId, "task ID", 200));
     if (!taskId) fail("Task not found.", 404);
+    const held = sessionRequestHold(store.read(), taskId, role);
+    if (held) fail(held, 409);
     const id = `${taskId}:${role}`,
       current = store.get("session_requests", id);
     if (current) {

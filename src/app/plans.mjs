@@ -575,9 +575,29 @@ export function approvePlan(
             "needs",
           ].map((key) => task[key] ?? null),
           task.source?.hash ?? null,
-          data.edges
-            .filter((e) => e.to === task.id && e.planId === id)
-            .map((e) => `${e.from}:${e.kind}:${e.condition ?? ""}`)
+          // Foreign edges are materialized at Store.commit, after this review
+          // comparison. Their declaration is the stable reviewed contract in
+          // either the pending or resolved state.
+          [
+            ...new Set([
+              ...data.edges
+                .filter((e) => e.to === task.id && e.planId === id)
+                .map((e) => `${e.from}:${e.kind}:${e.condition ?? ""}`),
+              ...(task.specDependencies || []).map(
+                (ref) => `${ref.taskId}:${ref.kind}:${ref.condition ?? ""}`,
+              ),
+            ]),
+          ].sort(),
+          (task.specDependencies || [])
+            .map((ref) =>
+              JSON.stringify([
+                ref.taskId,
+                ref.spec,
+                ref.planId,
+                ref.kind,
+                ref.condition ?? null,
+              ]),
+            )
             .sort(),
         ]),
       before = new Map(
