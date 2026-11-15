@@ -67,9 +67,9 @@
     "an-2.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "`mirror` setting: form and raw `.avoozl.json`, private-only validation. See AN2.1; \u00a7D29.",
+      "summary": "Marker `ref`, approval on the plans branch, `verify-issue` and crew commands (was rc-24.3). See AN2.1; \u00a7D30.",
       "acceptance": [
-        "A public or unreadable mirror is refused; `forward: auto` with no trusted person is refused; the form and the raw file agree after an edit in either; `npm test` passes."
+        "Tests: a private spec's issue passes; a `ref` that is the default branch, missing, or shares history fails with the reason; the prompt text equals the shipped one."
       ],
       "completion": "integrated",
       "checks": [
@@ -80,9 +80,22 @@
     "an-2.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Sync step and write targets. See AN2.1; \u00a7D29.",
+      "summary": "Containment: sync, forward, leak scan, explicit refspecs (was rc-24.4). See AN2.2; \u00a7D30.",
       "acceptance": [
-        "A fake GitHub test: a fast-forward is applied, a divergence gives one row across three ticks and no write to either branch, no call writes to the source except the forward path."
+        "Tests: a planted plans-branch name or path blocks the push with one row naming the rule; the sync leaves the `plansBranch` head unchanged; a test scans Avoozl's push calls and finds no banned flag."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "an-2.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Issues from public and private plans, with edges across homes (was rc-24.5). See AN2.3; \u00a7D30.",
+      "acceptance": [
+        "A fake GitHub test: both kinds of issue are written; no write reaches the source for a private plan; a public task waits on a private one and the reverse, each releases on its blocker's own rule, and the public body holds no private title, text, ID or link."
       ],
       "completion": "integrated",
       "checks": [
@@ -93,77 +106,12 @@
         "an-2.1"
       ]
     },
-    "an-2.3": {
-      "kind": "leaf",
-      "repository": "avoozl",
-      "summary": "Track merged mirror PRs, rows and Trace steps. See AN2.1; \u00a7D29.",
-      "acceptance": [
-        "A merge in the mirror gives one record across repeated ticks and the four Trace steps appear in order with GitHub times."
-      ],
-      "completion": "integrated",
-      "checks": [
-        "npm test",
-        "git diff --check"
-      ],
-      "requires": [
-        "an-2.2",
-        "an-1.3"
-      ]
-    },
-    "an-2.4": {
-      "kind": "leaf",
-      "repository": "avoozl",
-      "summary": "Forward: one commit, strip, scan, push, public PR; nudge and auto. See AN2.1; \u00a7D29.",
-      "acceptance": [
-        "Tests: a clean change forwards once; a planted private term blocks the push with one row naming the rule; `auto` forwards for a trusted approver and not for another; a second press opens no second PR; no force push is ever issued."
-      ],
-      "completion": "integrated",
-      "checks": [
-        "npm test",
-        "git diff --check"
-      ],
-      "requires": [
-        "an-2.3"
-      ]
-    },
-    "an-2.5": {
-      "kind": "leaf",
-      "repository": "avoozl",
-      "summary": "Public poll: done on public merge, closed unmerged, review copy-back. See AN2.1; \u00a7D29.",
-      "acceptance": [
-        "A fake GitHub test: a mirror merge alone releases no dependent; the public merge releases them; a close returns the row; a comment copies once across three ticks."
-      ],
-      "completion": "integrated",
-      "checks": [
-        "npm test",
-        "git diff --check"
-      ],
-      "requires": [
-        "an-2.4"
-      ]
-    },
-    "an-2.6": {
-      "kind": "leaf",
-      "repository": "avoozl",
-      "summary": "Conflicts: sync, re-apply, then a mirror issue for a crew. See AN2.1; \u00a7D29.",
-      "acceptance": [
-        "A fake GitHub test: a moved source applies on retry; a true conflict opens one issue with paths and no contents."
-      ],
-      "completion": "integrated",
-      "checks": [
-        "npm test",
-        "git diff --check"
-      ],
-      "requires": [
-        "an-2.4"
-      ]
-    },
     "an-p2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Proof: the mirror flow with a fake GitHub. See AN2.2; \u00a7D29.",
+      "summary": "Proof: a public and a private plan in one mirror, with a fake GitHub. See AN2.4; \u00a7D30.",
       "acceptance": [
-        "Expected result observed with the fake GitHub; receipt under `docs/evidence/`. The run on two real scratch repositories is an owner step."
+        "Expected result observed with the fake GitHub; receipt under `docs/evidence/`. The run on real scratch repositories (`rc-p24`) is an owner step."
       ],
       "completion": "integrated",
       "checks": [
@@ -173,10 +121,7 @@
       "requires": [
         "an-2.1",
         "an-2.2",
-        "an-2.3",
-        "an-2.4",
-        "an-2.5",
-        "an-2.6"
+        "an-2.3"
       ]
     },
     "an-3.1": {
