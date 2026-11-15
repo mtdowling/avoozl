@@ -97,6 +97,8 @@ export function noActionReason(item: ConflictItem): string | null {
   // so do findings and Ready to merge (ConflictsView.tsx).
   if (item.kind === 'budget' || item.kind === 'over-budget') return null
   if (item.kind === 'investigation' || item.kind === 'ready-to-merge' || item.kind === 'routing-failed' || item.kind === 'branch-landing') return null
+  // A forward row carries its own button (ConflictsView.tsx ForwardButton).
+  if (item.kind === 'needs-human' && item.reason === 'forward') return null
   // A source conflict Avoozl asked about carries its own buttons (ConflictFixActions.tsx).
   if (item.kind === 'needs-human' && item.reason === 'conflict-fix') return null
   // A merge method the repository refuses (RC28.7) is fixed in GitHub's settings.
