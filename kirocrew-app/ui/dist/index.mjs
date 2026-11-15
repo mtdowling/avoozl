@@ -6382,7 +6382,7 @@ function Ts(e) {
 	});
 }
 // kirocrew-app/ui/src/StatusCells.tsx
-var Es = "\n[data-sc-row]{container-type:inline-size}\n[data-sc-grid]{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}\n@container (max-width:300px){[data-sc-grid]{grid-template-columns:minmax(0,1fr)}}\n[data-sc]{display:flex;flex-wrap:wrap;align-items:center;align-content:flex-start;gap:2px 8px;min-width:0;padding:5px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:18px;color:var(--text)}\n[data-sc-title]{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;font-weight:600;color:var(--text-strong,var(--text));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n[data-sc-dot]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted)}\n[data-sc-dot][data-tone=ok]{background:var(--ok)}\n[data-sc-dot][data-tone=warn]{background:var(--warning,#b7791f)}\n[data-sc-dot][data-tone=danger]{background:var(--danger)}\n[data-sc-actions]{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;margin-left:auto}\n[data-sc-act]{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;font-size:11px;line-height:16px;text-decoration:none;white-space:nowrap;cursor:pointer;transition:background-color .12s,color .12s}\n[data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}\n[data-sc-act][data-primary]{border-color:var(--accent);color:var(--accent)}\n[data-sc-act]:disabled{opacity:.6;cursor:default}\n@media (pointer:coarse),(max-width:640px){[data-sc-act]{min-height:44px;min-width:44px;padding:0 7px}[data-sc-narrow-hide]{display:none}[data-sc-act][data-icon-only]{padding:0}}\n";
+var Es = "\n[data-sc-row]{container-type:inline-size}\n[data-sc-grid]{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}\n@container (max-width:300px){[data-sc-grid]{grid-template-columns:minmax(0,1fr)}}\n[data-sc]{display:flex;flex-wrap:wrap;align-items:center;align-content:flex-start;gap:2px 8px;min-width:0;padding:5px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:18px;color:var(--text)}\n[data-sc-title]{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;font-weight:600;color:var(--text-strong,var(--text));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n[data-sc-dot]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted)}\n[data-sc-dot][data-tone=ok]{background:var(--ok)}\n[data-sc-dot][data-tone=warn]{background:var(--warning,#b7791f)}\n[data-sc-dot][data-tone=danger]{background:var(--danger)}\n[data-sc-actions]{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;margin-left:auto}\n[data-sc-act]{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;font-size:11px;line-height:16px;text-decoration:none;white-space:nowrap;cursor:pointer;transition:background-color .12s,color .12s}\n[data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}\n[data-sc-act][data-primary]{border-color:var(--accent);color:var(--accent)}\n[data-sc-act]:disabled{opacity:.6;cursor:default}\n@media (pointer:coarse),(max-width:640px){[data-sc-act]{min-height:28px;min-width:28px;padding:0 8px}[data-sc-narrow-hide]{display:none}[data-sc-act][data-icon-only]{padding:0}}\n";
 function Ds(e) {
 	return /* @__PURE__ */ w("div", {
 		"data-sc-row": !0,
@@ -6669,8 +6669,8 @@ function Ys(e) {
 					size: 12,
 					"aria-hidden": "true"
 				}),
-				"aria-label": "Check again",
-				tip: "Check again",
+				"aria-label": "Recheck",
+				tip: "Recheck",
 				onClick: n,
 				"data-driver-recheck": !0
 			})
@@ -31414,19 +31414,23 @@ function Ix(e) {
 	let i = r.length > 0, a = r.map((e) => e.reason ?? (e.check ? `${e.check} fails on ${e.branch}` : `the line on ${e.branch}`)).slice(0, 3).join("; ");
 	return /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(q, {
 		text: i ? `The line is stopped: ${a}. Resume it from the banner on the Dashboard or Flow. Press to stop more.` : "Stop new work in a scope, or stop all agents, with a reason",
-		children: (t) => e.bare ? /* @__PURE__ */ w("button", {
+		children: (t) => e.bare ? /* @__PURE__ */ C("button", {
 			type: "button",
-			"data-pp-act": !0,
+			"data-pp-icon": !0,
+			"data-bare": !0,
 			"data-stop-line": !0,
 			"data-stopped": i ? "" : void 0,
 			"aria-describedby": t,
-			"aria-label": i ? `Line stopped, ${r.length} open stop${r.length === 1 ? "" : "s"}. Stop more` : void 0,
+			"aria-label": i ? `Line stopped, ${r.length} open stop${r.length === 1 ? "" : "s"}. Stop more` : "Stop the line",
 			onClick: () => n(!0),
-			style: { color: "var(--danger)" },
-			children: [/* @__PURE__ */ C(Ae, {
-				size: 12,
+			style: {
+				color: "var(--danger)",
+				borderColor: "var(--border)"
+			},
+			children: /* @__PURE__ */ C(Ae, {
+				size: 13,
 				"aria-hidden": "true"
-			}), i ? "Stop more" : "Stop the line"]
+			})
 		}) : /* @__PURE__ */ w(g, {
 			type: "button",
 			"data-stop-line": !0,

@@ -27,8 +27,8 @@ after(async () => {
 })
 
 const SIZES = [
-  { name: 'desktop', width: 1280, height: 900, theme: 'light', dark: false, lines: 2.5 },
-  { name: 'phone', width: 390, height: 800, theme: 'dark', dark: true, lines: 3 },
+  { name: 'desktop', width: 1280, height: 900, theme: 'light', dark: false, lines: 3.5 },
+  { name: 'phone', width: 390, height: 800, theme: 'dark', dark: true, lines: 3.5 },
 ]
 const open = async (size, query = {}) => {
   await page.open(harness.url({ page: 'panel', theme: size.theme, sid: 'chat-1', ...query }), { width: size.width, height: size.height, dark: size.dark })
@@ -77,7 +77,7 @@ for (const size of SIZES) {
     assert.match(await page.evaluate(`document.querySelector('[data-pp-status]').textContent`), /Line running.*2 waiting on you · 3 in flight/)
     assert.match(await page.evaluate(`document.querySelector('[data-panel-fold="queue"] [data-pp-section-head]').textContent`), /Release queue.*1 next · 1 held/)
     assert.match(await page.evaluate(`document.querySelector('[data-panel-fold="recent"] [data-pp-section-head]').textContent`), /Recent merges.*last 1h/)
-    assert.match(await page.evaluate(`document.querySelector('[data-panel-driver]').textContent`), /Driver.*Not started/)
+    assert.match(await page.evaluate(`document.querySelector('[data-panel-driver]').textContent`), /Driver: not started/)
     // The Refresh button reads [↻ 32s] from the shared GitHub cache.
     assert.match(await page.evaluate(`document.querySelector('button[aria-label^="Refresh"]').textContent`), /^\d+s$/)
   })
@@ -99,13 +99,40 @@ for (const size of SIZES) {
   })
 }
 
-test('every tap target is 44 px tall on a phone and compact on a desktop', { skip }, async () => {
+for (const size of SIZES)
+  test(`nothing overflows or overlaps inside a row at ${size.width} px ${size.theme}`, { skip }, async () => {
+    await open(size)
+    const bad = await page.evaluate(`(() => {
+      const out = []
+      for (const row of document.querySelectorAll('[data-pp-row]')) {
+        const box = row.getBoundingClientRect()
+        const parts = [...row.querySelectorAll('[data-pp-row-title], [data-pp-chip], [data-pp-age], [data-pp-act]')].filter((el) => el.getBoundingClientRect().width > 0)
+        for (const el of parts) if (el.getBoundingClientRect().right > box.right + 0.5) out.push('past the row: ' + el.textContent.trim().slice(0, 20))
+        for (let i = 0; i < parts.length; i++) for (let j = i + 1; j < parts.length; j++) {
+          const a = parts[i].getBoundingClientRect(), b = parts[j].getBoundingClientRect()
+          if (parts[i].contains(parts[j]) || parts[j].contains(parts[i])) continue
+          if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) out.push('overlap: ' + parts[i].textContent.trim().slice(0, 14) + ' / ' + parts[j].textContent.trim().slice(0, 14))
+        }
+      }
+      return out
+    })()`)
+    assert.deepEqual(bad, [])
+  })
+
+test('buttons are compact icon and text buttons, on a phone and a desktop', { skip }, async () => {
   const phone = SIZES[1]
   await open(phone)
-  const small = await page.evaluate(`[...document.querySelectorAll('[data-pp] button, [data-pp] a[data-pp-act], [data-pp-section-head], [data-pp-chip][data-tap]')].filter((el) => el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().height < 43.5).map((el) => el.textContent.trim().slice(0, 24) + ' ' + el.getBoundingClientRect().height)`)
-  assert.deepEqual(small, [])
-  const rowHeights = await page.evaluate(`[...document.querySelectorAll('[data-pp-row]')].map((row) => row.getBoundingClientRect().height)`)
-  assert.ok(rowHeights.every((height) => height >= 43.5), 'rows are tap sized')
+  // Kiro Crew's own compact size: header icons 28 px, row buttons 28 px, section headers 40 px.
+  const sizes = await page.evaluate(`({
+    icons: [...document.querySelectorAll('[data-pp-head] button')].map((el) => el.getBoundingClientRect().height),
+    acts: [...document.querySelectorAll('[data-pp-act], [data-sc-act]')].filter((el) => el.getBoundingClientRect().height > 0).map((el) => el.getBoundingClientRect().height),
+    heads: [...document.querySelectorAll('[data-pp-section-head]')].map((el) => el.getBoundingClientRect().height),
+    header: document.querySelector('[data-pp-head]').getBoundingClientRect().height,
+  })`)
+  assert.ok(sizes.icons.length === 2 && sizes.icons.every((h) => h >= 27.5 && h <= 30), 'header icons ' + sizes.icons)
+  assert.ok(sizes.acts.every((h) => h >= 27.5 && h <= 30), 'row buttons ' + sizes.acts)
+  assert.ok(sizes.heads.every((h) => h >= 39.5 && h <= 44), 'section headers ' + sizes.heads)
+  assert.ok(sizes.header <= 40, 'the header is ' + sizes.header)
   const desktop = SIZES[0]
   await open(desktop)
   const act = await page.evaluate(`Math.max(...[...document.querySelectorAll('[data-pp-act]')].map((el) => el.getBoundingClientRect().height))`)

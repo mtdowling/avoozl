@@ -30,8 +30,9 @@ import {
   type WaitingRow,
 } from './panel-api.ts'
 import { PanelAct, PanelChip, PanelEmpty, PanelHeader, PanelList, PanelRoot, PanelRow, PanelSection, PanelStatus } from './PanelParts.tsx'
-import { Bot, Check, CircleAlert, CircleDot, GitBranch, GitPullRequest, Inbox, MessageSquare, Radar } from './icons.ts'
+import { Check, CircleAlert, CircleDot, ExternalLink, GitBranch, GitPullRequest, Inbox, MessageSquare, Radar, RefreshCw } from './icons.ts'
 import { RefreshButton } from './RefreshButton.tsx'
+import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
 import { plansClient } from './plans-api.ts'
 import { releaseClient } from './release-api.ts'
 import { SPEC_BUILDER_SPECS } from './spec-builder-api.ts'
@@ -381,49 +382,49 @@ export default function AvoozlPanel() {
 
   // A driver read that failed is unknown, never none: it may be running.
   const view = driverView(reads && !reads.driver ? { state: 'unknown', slot: null, href: null, openedAt: null, lastSeenAt: null } : reads?.driver)
-  const driverRows = loading ? null : (
-    <>
-      <PanelRow
-        data-panel-driver={view.state}
-        icon={Bot}
-        title="Driver"
-        chips={
-          <>
-            <PanelChip tone={view.state === 'running' ? 'ok' : view.state === 'unknown' ? 'warn' : 'muted'}>{DRIVER_STATE[view.state]}</PanelChip>
-            {view.workspace && (
-              <PanelChip data-driver-workspace tip="The workspace this driver releases work for.">
-                {view.workspace}
-              </PanelChip>
-            )}
-          </>
-        }
-        multi
-        meta={`${view.note}${driver?.lastSeenAt && view.state !== 'none' ? ` Last seen ${relativeTime(driver.lastSeenAt, now)}.` : ''}`}
-        actions={
-          <>
-            {view.link && <PanelAct label="Open driver session" href={linkHref(view.link)} />}
-            {view.start && (
-              <PanelAct
-                label={view.link ? 'Start a new driver session' : 'Start a driver session'}
-                primary={!view.link}
-                tip="Opens a new chat on the avoozl-driver agent and sends its first message. It releases work only while the chat is open."
-                onClick={() => openChat({ agent: DRIVER_AGENT, message: DRIVER_START_MESSAGE, autoSend: true })}
-                data-driver-start
-              />
-            )}
-          </>
-        }
-      />
-      {view.elsewhere && (
-        <PanelRow
-          data-driver-elsewhere
-          noTip
-          icon={Bot}
-          title={`${view.elsewhere.text} `}
-          actions={<PanelAct label="Open" href={linkHref(view.elsewhere.href)} />}
+  const crewCount = reads?.crews ? (reads.crews.groups?.length ?? 0) : null
+  const driverCells = loading ? null : (
+    <div data-pp-cells>
+      <StatusRow>
+        <StatusCell
+          data-panel-driver={view.state}
+          tone={view.state === 'running' ? 'ok' : view.state === 'unknown' ? 'warn' : 'muted'}
+          title={`Driver: ${DRIVER_STATE[view.state].toLowerCase()}`}
+          tip={[
+            'One long-running chat that releases ready work in graph order and hands you the decisions. It releases work only while the chat is open.',
+            view.note,
+            driver?.lastSeenAt && view.state !== 'none' ? `Last seen ${relativeTime(driver.lastSeenAt, now)}.` : '',
+            view.workspace ? `Workspace: ${view.workspace}.` : '',
+            view.elsewhere ? view.elsewhere.text : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          actions={
+            <>
+              {view.link && <CellAct label="Open" primary={!view.start} href={linkHref(view.link)} tip="Open the driver chat." data-driver-open />}
+              {view.start && (
+                <CellAct
+                  label={view.link ? 'New' : 'Start'}
+                  primary={!view.link}
+                  tip={view.link ? 'Start a new driver session.' : 'Start a driver session. Opens a new chat on the avoozl-driver agent.'}
+                  onClick={() => openChat({ agent: DRIVER_AGENT, message: DRIVER_START_MESSAGE, autoSend: true })}
+                  data-driver-start
+                />
+              )}
+              {view.elsewhere && <CellAct label={`${view.elsewhere.workspace}'s`} href={linkHref(view.elsewhere.href)} tip={view.elsewhere.text} data-driver-elsewhere />}
+              <CellAct label="" icon={<RefreshCw size={12} aria-hidden="true" />} aria-label="Recheck" tip="Recheck" onClick={() => void load()} data-driver-recheck />
+            </>
+          }
         />
-      )}
-    </>
+        <StatusCell
+          data-panel-crew
+          tone={crewCount ? 'ok' : 'warn'}
+          title={crewCount === null ? 'Radar crew: unknown' : crewCount ? `Radar crews: ${crewCount}` : 'Radar crew: none'}
+          tip="Issue Radar crews code the issues Avoozl releases. Create a crew in Radar, Crews."
+          actions={<CellAct label="Open Radar" narrowIcon icon={<ExternalLink size={11} aria-hidden="true" />} href="/issue-radar" tip="Open Radar, Crews." />}
+        />
+      </StatusRow>
+    </div>
   )
   const lineSection = (
     <PanelSection id="line" title="Line and driver" summary={stopped ? 'stopped' : undefined} open>
@@ -442,11 +443,14 @@ export default function AvoozlPanel() {
         {model.stops.map((text) => (
           <PanelRow key={text} icon={CircleAlert} title={text} />
         ))}
-        {driverRows}
+      </PanelList>
+      {driverCells}
+      <PanelList>
         <PanelRow icon={Radar} title="Avoozl app" noTip actions={<PanelAct label="Open Avoozl" data-open-avoozl onClick={() => navigate(AVOOZL_PAGE)} />} />
       </PanelList>
     </PanelSection>
   )
+
   const sinceBox = recap && (
     <div data-since-recap>
       <PanelSection id="since" title="Since you left" summary={recap.since} open>

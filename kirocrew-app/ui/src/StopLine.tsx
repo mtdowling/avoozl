@@ -75,9 +75,8 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
       <Tooltip text={stopped ? `The line is stopped: ${why}. Resume it from the banner on the Dashboard or Flow. Press to stop more.` : 'Stop new work in a scope, or stop all agents, with a reason'}>
         {(describedBy) =>
           props.bare ? (
-            <button type="button" data-pp-act data-stop-line data-stopped={stopped ? '' : undefined} aria-describedby={describedBy} aria-label={stopped ? `Line stopped, ${stops.length} open stop${stops.length === 1 ? '' : 's'}. Stop more` : undefined} onClick={() => setOpen(true)} style={{ color: 'var(--danger)' }}>
-              <Pause size={12} aria-hidden="true" />
-              {stopped ? 'Stop more' : 'Stop the line'}
+            <button type="button" data-pp-icon data-bare data-stop-line data-stopped={stopped ? '' : undefined} aria-describedby={describedBy} aria-label={stopped ? `Line stopped, ${stops.length} open stop${stops.length === 1 ? '' : 's'}. Stop more` : 'Stop the line'} onClick={() => setOpen(true)} style={{ color: 'var(--danger)', borderColor: 'var(--border)' }}>
+              <Pause size={13} aria-hidden="true" />
             </button>
           ) : (
             <Btn
