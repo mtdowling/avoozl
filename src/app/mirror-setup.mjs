@@ -12,6 +12,7 @@ import { promisify } from "node:util";
 import { ruleBranch, seenCheckNames } from "./github-branch-rules.mjs";
 import { parseRepository } from "./github.mjs";
 import { assertNoInstance } from "./instance.mjs";
+import { MERGE_METHOD_DEFAULT } from "./github-policy.mjs";
 import { mirrorInput } from "./mirror-policy.mjs";
 import { labelsWanted, writeSetupStep } from "./radar-setup.mjs";
 import { fail } from "./store.mjs";
@@ -307,6 +308,35 @@ async function inspect(kind, deps, target) {
         }),
   );
 
+  // Adopt matches the merge method to what the repository allows (RC28.7):
+  // squash when GitHub allows it, else merge commits.
+  if (kind === "adopt" && remote && deps.saveMergeMethod) {
+    const current = entry?.merge?.method ?? MERGE_METHOD_DEFAULT,
+      wanted =
+        remote.allow_squash_merge !== false
+          ? "squash"
+          : remote.allow_merge_commit !== false
+            ? "merge"
+            : null;
+    if (wanted)
+      add(
+        current === wanted
+          ? {
+              id: "merge-method",
+              state: "found",
+              status: "ok",
+              detail: `merge.method is ${wanted}, which ${mirror} allows.`,
+            }
+          : {
+              id: "merge-method",
+              state: "differs",
+              status: "change",
+              detail: `Set merge.method to ${wanted} to match ${mirror}.`,
+              write: { method: wanted },
+            },
+      );
+  }
+
   // The `mirror` setting itself.
   const desired = mirrorInput(
     { ...(entry?.mirror ?? {}), source, mirror },
@@ -421,6 +451,8 @@ async function perform(line, deps, { mirror, source }, plans) {
     await plansBranchWrite(github, mirror, plans, deps.identity);
   else if (line.id === "setting")
     await deps.saveSetting(mirror, line.write.mirror, line.write.baseBranch);
+  else if (line.id === "merge-method")
+    await deps.saveMergeMethod(line.write.method);
   else await writeSetupStep(github, mirror, line);
   return null;
 }
