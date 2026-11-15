@@ -1265,14 +1265,21 @@ export class GitHubClient {
     );
   }
 
-  putFile(value, { path, branch, message, content }) {
+  // Create or replace one file on a branch. GitHub refuses a replace that
+  // does not name the current file's sha, so it is read first.
+  async putFile(value, { path, branch, message, content }) {
     const { owner, repo } =
-      typeof value === "string" ? parseRepository(value) : value;
-    return this.request(
-      "PUT",
-      `/repos/${owner}/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}`,
-      { body: { message, content, branch } },
-    );
+        typeof value === "string" ? parseRepository(value) : value,
+      route = `/repos/${owner}/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}`;
+    let sha = null;
+    try {
+      sha = (await this.request("GET", route, { query: { ref: branch } }))?.sha;
+    } catch (error) {
+      if (error.status !== 404) throw error;
+    }
+    return this.request("PUT", route, {
+      body: { message, content, branch, ...(sha ? { sha } : {}) },
+    });
   }
 
   pullRequest(value, number) {
