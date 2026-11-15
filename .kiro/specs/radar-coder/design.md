@@ -1458,8 +1458,9 @@ stubs. Each returns
 Removed: the lessons tables, the Lessons tab under Flow, lessons packs, pack
 import and Share. A retro's proposal now names a rule and its reason; on
 approval Avoozl opens a pull request that edits
-`.kiro/steering/avoozl-lessons.md` (and the crew prompt file when the rule is
-about crews). AGENTS.md points to the steering file, so every chat and crew
-reads it. The one-time migration exports stored lessons into that file under
+`.kiro/steering/avoozl-rules.md`, the one steering file for rules from
+corrections and from lessons, and makes AGENTS.md name it. Issue Radar crews
+read AGENTS.md, so a rule about how crews work reaches them without editing
+the crew prompt. The one-time migration exports stored lessons into that file under
 a dated heading, appending only, then drops the tables in the same
 transaction that records the export. If the write fails the tables stay.

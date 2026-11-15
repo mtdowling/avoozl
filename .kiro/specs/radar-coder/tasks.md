@@ -676,5 +676,5 @@ screenshots for anything on screen.
   - Tests first: each ideas MCP name returns the removed error and writes nothing; no page, row, operation, CLI command or table remains.
   - Done when: The tests pass, `npm test` passes, and the compatibility test lists the stubs.
 - [ ] rc-29.4 Delete the lessons store; retros propose a steering-file pull request; one-time export [RC30.4, RC30.5] (§D35.4)
-  - Tests first: an approved retro proposal opens one pull request to `.kiro/steering/avoozl-lessons.md`; stored lessons are appended once under a dated heading, then the tables drop; a failed write keeps them.
+  - Tests first: an approved retro proposal opens one pull request to `.kiro/steering/avoozl-rules.md`; stored lessons are appended once under a dated heading, then the tables drop; a failed write keeps them.
   - Done when: The tests pass, `npm test` passes, and AGENTS.md points to the steering file.
