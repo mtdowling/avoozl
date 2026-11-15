@@ -106,10 +106,10 @@ const INLINE = { ...selectStyle, height: 24, boxSizing: 'border-box' as const, p
 function InlineField({ id, field }: { id: string; field: FilterField }) {
   const fieldId = `${id}-${field.key}`
   if (field.kind === 'search')
-    return <input id={fieldId} type="search" aria-label={field.label} value={field.value} placeholder={field.placeholder} onChange={(event) => field.onChange(event.target.value)} className="border" style={{ ...INLINE, flex: '1 1 6rem', width: '6rem', maxWidth: '16rem' }} />
+    return <input id={fieldId} type="search" aria-label={field.label} value={field.value} placeholder={field.placeholder} onChange={(event) => field.onChange(event.target.value)} className="border" style={{ ...INLINE, flex: '1 1 8rem', width: '8rem', maxWidth: '16rem' }} />
   if (field.kind === 'select')
     return (
-      <select id={fieldId} aria-label={field.label} value={field.value} disabled={field.disabled} onChange={(event) => field.onChange(event.target.value)} className="border" style={{ ...INLINE, flex: '0 1 auto', maxWidth: '9rem' }}>
+      <select id={fieldId} aria-label={field.label} value={field.value} disabled={field.disabled} onChange={(event) => field.onChange(event.target.value)} className="border" style={{ ...INLINE, flex: '0 1 7rem', width: '7rem', maxWidth: '9rem' }}>
         <option value="">{field.label}: all</option>
         {field.options.map((option) => (
           <option key={option.value} value={option.value}>

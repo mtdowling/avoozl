@@ -6139,8 +6139,8 @@ function Fc({ id: e, field: t }) {
 		className: "border",
 		style: {
 			...Pc,
-			flex: "1 1 6rem",
-			width: "6rem",
+			flex: "1 1 8rem",
+			width: "8rem",
 			maxWidth: "16rem"
 		}
 	}) : t.kind === "select" ? /* @__PURE__ */ T("select", {
@@ -6152,7 +6152,8 @@ function Fc({ id: e, field: t }) {
 		className: "border",
 		style: {
 			...Pc,
-			flex: "0 1 auto",
+			flex: "0 1 7rem",
+			width: "7rem",
 			maxWidth: "9rem"
 		},
 		children: [/* @__PURE__ */ T("option", {
