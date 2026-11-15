@@ -45,7 +45,12 @@ export function syncTargets(store, policy) {
       ...new Set(
         Object.values(manifest.tasks || {})
           .filter((entry) => entry?.kind !== "package" && entry?.repository)
-          .map((entry) => entry.repository),
+          // A leaf names a project ID or a repository; policy keys are repositories.
+          .map(
+            (entry) =>
+              store.list("projects").find((p) => p.id === entry.repository)
+                ?.repository ?? entry.repository,
+          ),
       ),
     ];
     if (named.length > 1)

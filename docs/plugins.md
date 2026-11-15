@@ -32,8 +32,8 @@ A pack can carry a `crews` section for Issue Radar: `count`, `agent`
 labels and review rules go to each chosen repository's settings, and the
 crew values show in Set up. A pack creates no crew: you create it in Issue
 Radar with the values Set up shows. Content rules screen the section before
-it is previewed or imported. `examples/sdk-team/avoozl-pack.json` is a
-sample with made-up values. It is tested with fakes only.
+it is previewed or imported. `examples/sdk-team/` is a
+sample (a manifest and a pack) with made-up values; add it with `--path`. It is tested with fakes only.
 
 ## What a plugin is
 

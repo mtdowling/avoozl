@@ -44,6 +44,7 @@ Requirement RC1. The Radar path starts with one setting and four label names. No
   - Setup: a scratch repository, `coder: issue-radar`, three plain open issues, one with the planning label from an allowed person, one with it from a stranger, one `plan me` issue from the owner. Action: run the Untriaged read and the hand-off read; start Plan this. Expected: only the two planned issues appear; the plain ones never; the stranger's is left alone; the `plan me` routes by scope. Failure means: Avoozl still triages. Next decision: drop the Intake list for Radar-coded repositories.
   - Done when: Expected result observed; a receipt under `docs/evidence/` records setup, action, observation and verdict.
   - Fake-GitHub proof merged in PR #141; live run pending owner (see docs/evidence/rc-proof-1.md)
+  - Live run 2026-11-15: pass except the stranger case, which needs a second GitHub account (see docs/evidence/rc-proof-1-live.md)
 
 ## Phase 2: Projection
 
@@ -67,10 +68,11 @@ Requirement RC2. Spec to issues, in both modes, with batching and the preview. N
 - [x] rc-2.6 Preflight checks in the preview, after rc-2.1, rc-5.1 [RC2.9] (§D4.3)
   - Preflight shows: spec on the default branch with `Status: Approved`, decision record, merge path, crew label scope (cannot verify without the grant), and the public sign-off; **Create and release** is refused when one fails.
   - Done when: Each failing preflight item refuses Create and release and names the item; a passing run enables it.
-- [ ] rc-p2 Proof 2: spec to issues in both modes, after rc-2.1, rc-2.2, rc-2.3, rc-2.4, rc-2.5, rc-2.6 [RC2] (§D17)
+- [x] rc-p2 Proof 2: spec to issues in both modes, after rc-2.1, rc-2.2, rc-2.3, rc-2.4, rc-2.5, rc-2.6 [RC2] (§D17)
   - Setup: a scratch single-repo and a scratch plans-repo pair; a spec with 8 tasks, 3 small and ready in one phase. Action: preview, confirm, merge a fake pull request closing the batch, edit the spec, preview Spec changed. Expected: issues in the code repository, sub-issues, blocked-by links, one batch issue of three, Project fields; three tasks close on one merge; the edit changes only unclaimed issues. Failure means: a task ID was lost in a batch. Next decision: cap batches at 1.
   - Done when: Expected result observed on real scratch repositories; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #141; live run pending owner (see docs/evidence/rc-proof-2.md)
+  - Live run 2026-11-15: passed in single-repo and plans-repo mode with Project fields (see docs/evidence/rc-proof-2-live.md)
 
 ## Phase 3: Provenance and verify-issue
 
@@ -98,6 +100,7 @@ Requirement RC3. The approval becomes a commit a crew can read, and one command 
   - Setup: a scratch repository, one Radar crew with the one-line prompt, an approved spec merged through the approval pull request; plans-repo variant with a second private repo. Action: six issues: good; approver with no permission; task ID not in the spec; commit not on the default branch; author with no permission and a valid owner's login in the marker; marker edited after approval. Expected: the good one builds; each bad one is skipped as `needs-decision` and names its check. Failure means: the one-line prompt is not followed. Next decision: put the checks back in a longer prompt or add a hook.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #141; live run pending owner (see docs/evidence/rc-proof-3.md)
+  - Live run 2026-11-15: a real crew refused four bad issues by check name and built the good one; the author case (second account) and the plans-repo crew repeat are not run (see docs/evidence/rc-proof-3-live.md)
 
 ## Phase 4: Release
 
@@ -115,10 +118,11 @@ Requirement RC4. The tick adds the ready label in graph order, N at a time.
 - [x] rc-4.4 Release mode radio fold-out and the Release queue, after rc-4.1 [RC4.5, RC4.6] (§D6)
   - Automatic, Step and Hold as one radio fold-out; the Release queue (Up next) shows what is next and why anything is held; another person's ready label counts as an order only where policy allows.
   - Done when: Step waits for one click per phase; Hold releases nothing; the queue shows the reason for each held item; drawn at 320, 768 and 1280 px.
-- [ ] rc-p4 Proof 4: release honors N, scopes, phases and the stop, after rc-4.1, rc-4.2, rc-4.3, rc-4.4 [RC4] (§D17)
+- [x] rc-p4 Proof 4: release honors N, scopes, phases and the stop, after rc-4.1, rc-4.2, rc-4.3, rc-4.4 [RC4] (§D17)
   - Setup: scratch repository, two crews with different label scopes, a spec of two phases. Action: run ticks while crews claim and merge; pull Stop the line; reopen a closed issue. Expected: never more than N ready per scope; phase 2 waits; a stop clears unclaimed ready labels only. Failure means: the order is lost. Next decision: add a lower N default.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #141; live run pending owner (see docs/evidence/rc-proof-4.md)
+  - Live run 2026-11-15: passed with two real crews after the fix in PR #217 (see docs/evidence/rc-proof-4-live.md)
 
 ## Phase 5: Merge path
 
@@ -143,6 +147,7 @@ Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick d
   - Setup: scratch repository with a required check and auto-merge allowed; one crew. Action: crew PR for a marked issue; a stranger's fork PR; a manual-mode run; a conflict. Expected: only the crew PR merges by itself after green; the rest wait. Failure means: a pull request merged that should not. Next decision: arm only on an explicit label.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #141; live run pending owner (see docs/evidence/rc-proof-5.md)
+  - Live run 2026-11-15: pass except the fork and stranger pull requests, which need a second account (see docs/evidence/rc-proof-5-live.md)
 
 ## Phase 6: The avoozl-crew agent
 
@@ -182,11 +187,11 @@ Requirement RC7. Avoozl does what `gh` can and shows exact values for what only 
 - [x] rc-7.5 Team pack with a `crews` section, after rc-7.3 [RC7.4, RC7.5] (§D9)
   - The settings pack gains `crews` (count, agent, models, labels, prompt, review rules, template); validated; screened by content rules; applying shows a preview and fills Set up; no crew is created; the example `sdk-team` pack ships in `examples/` with fake terms only.
   - Done when: A pack with a private name is refused; applying writes only after the preview confirm; `sdk-team` validates.
-- [ ] rc-p7 Proof 7: Set up end to end, after rc-7.1, rc-7.2, rc-7.3, rc-7.4, rc-7.5 [RC7] (§D17)
+- [x] rc-p7 Proof 7: Set up end to end, after rc-7.1, rc-7.2, rc-7.3, rc-7.4, rc-7.5 [RC7] (§D17)
   - Setup: a scratch repository with nothing configured, Radar on, grant approved. Action: run Set up with the `sdk-team` pack; do the Radar steps by hand with the shown values. Expected: Set up ticks each item after the re-read. Failure means: a shown value was wrong. Next decision: show Radar's own field names.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-7-fake-github.md)
-  - Live run 2026-11-15 failed in part: docs/evidence/rc-proof-7-live.md
+  - Live run 2026-11-15 failed in part, rerun passed (8 of 8 values tick): docs/evidence/rc-proof-7-live.md
 
 ## Phase 8: Observe
 
@@ -587,9 +592,10 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 - [x] rc-25.7 Targets `branch` and `batch`: public branch copy, epic batch, one public PR, after rc-25.1, rc-25.5, rc-23.5 [RC26.3, RC26.4] (§D31.1)
   - The sync step also fast-forwards the copy of `publicBranch`; a `batch` epic builds one net-diff commit at epic done, runs every protection, opens one public PR; dependents inside the epic release on the mirror merge, outside it on the public merge; the public branch's landing in the default branch is a Needs you row and never an Avoozl merge.
   - Done when: Fake GitHub tests: each target opens the right PR against the right base; a `batch` epic opens exactly one PR; no call merges the public branch into the default branch.
-- [ ] rc-p25 Proof 25: forward targets and protections on scratch repositories, after rc-25.1, rc-25.2, rc-25.3, rc-25.4, rc-25.5, rc-25.6, rc-25.7, rc-p23 [RC26] (§D17)
+- [x] rc-p25 Proof 25: forward targets and protections on scratch repositories, after rc-25.1, rc-25.2, rc-25.3, rc-25.4, rc-25.5, rc-25.6, rc-25.7, rc-p23 [RC26] (§D17)
   - Setup: the scratch repositories of Proof 23, created only for the proof. Action: forward one change with each target; plant an excluded path, a fake private term, a planted trailer and an extra file in turn. Expected: each target lands where set; each planted case blocks with one row and no retry; the audit catches the extra file. Failure means: a private path, term or history can reach the public repository. Next decision: turn `forward` to `nudge` for the repository and tighten the path policy. List the scratch repositories in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
+  - Live run 2026-11-15 passed for `each`, `branch` and `batch` and the planted cases. Receipt `docs/evidence/rc-proof-25-live.md`; scratch repositories `avoozl-scratch-f1` and `avoozl-scratch-f2`.
 
 ## Phase 26: Setup buttons for a mirror
 
@@ -608,9 +614,10 @@ Requirement RC27. Adopt what exists and create what is missing, with a dry run f
 - [x] rc-26.4 Mirror section in Settings: two buttons, dry-run view, confirm, after rc-26.2, rc-26.3 [RC27.1, RC27.7] (§D32)
   - Both buttons call the operations; the dry run lists one line per write with a tick; the result fills the form and the raw file; no logic of its own in the page.
   - Done when: A page test: the dry run shows, a ticked line applies, an unticked line does not; `npm run test:ui` passes.
-- [ ] rc-p26 Proof 26: Create and Adopt on scratch repositories, after rc-26.1, rc-26.2, rc-26.3, rc-26.4 [RC27] (§D17)
+- [x] rc-p26 Proof 26: Create and Adopt on scratch repositories, after rc-26.1, rc-26.2, rc-26.3, rc-26.4 [RC27] (§D17)
   - Setup: a public-visibility scratch repository under `mtdowling`, created only for the proof. Action: Create setup (dry run, confirm), then both buttons again; then Adopt on a second pre-built private mirror. Expected: a private mirror is built and verified; the repeat runs write nothing; Adopt changes nothing unticked and deletes nothing. Failure means: a setup button can overwrite or expose a repository. Next decision: remove the apply step and keep the dry run only. List every scratch repository in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
+  - Live run passed on 2026-11-15; receipt `docs/evidence/rc-proof-26-live.md` lists `avoozl-scratch-f1` and `avoozl-scratch-f2` for the owner to delete.
 
 ## Phase 27: Avoozl fixes a source conflict
 

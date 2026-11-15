@@ -7,6 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { packPreview, validatePack } from "../plugin-pack.mjs";
+import { validateManifest } from "../plugins.mjs";
 import { radarValues } from "../radar-values.mjs";
 import { CREW_PROMPT } from "../radar-crew-prompt.mjs";
 import { Store } from "../store.mjs";
@@ -228,4 +229,15 @@ test("a pack with a private name is refused, and a clean one imports only after 
   assert.equal(entry.managedLabels.ready, "ready");
   // Only settings were written; no crew exists anywhere to create.
   assert.equal(entry.radar.crew.agent, "avoozl-crew");
+});
+
+test("the shipped sdk-team example folder has a manifest plugins add accepts", () => {
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(EXAMPLE, "avoozl-plugin.json"), "utf8"),
+  );
+  assert.doesNotThrow(() =>
+    validateManifest(manifest, { id: "sdk-team", contract: 1 }),
+  );
+  assert.deepEqual(manifest.provides, ["pack"]);
+  assert.equal(manifest.pack, "avoozl-pack.json");
 });

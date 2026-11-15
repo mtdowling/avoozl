@@ -247,6 +247,23 @@ test("an invalid approver or merge commit is refused", async () => {
   assert.equal(approvalState(store, "p1", "h1").state, "open");
 });
 
+test("a try that failed after making its branch is retried under the next name", async () => {
+  const { store, github, args } = run();
+  // The first try made avoozl/approve-demo, then failed on a file write.
+  const taken = new Set(["avoozl/approve-demo"]);
+  github.createBranch = async (_r, name) => {
+    if (taken.has(name))
+      throw Object.assign(Error("Reference already exists"), { status: 422 });
+    taken.add(name);
+    github.branches.push(name);
+  };
+  const state = await openApproval(store, args);
+  assert.equal(state.branch, "avoozl/approve-demo-2");
+  assert.equal(state.attempt, 2);
+  assert.ok(github.written.every((f) => f.branch === "avoozl/approve-demo-2"));
+  assert.equal(github.pulls[0].head, "avoozl/approve-demo-2");
+});
+
 test("private approval branches from the orphan ref and records its ref only on the correct merge", async () => {
   const { store, github, args } = run({ ref: "private-plans" });
   let source;
