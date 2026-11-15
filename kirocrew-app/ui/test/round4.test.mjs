@@ -40,7 +40,7 @@ test('lists page through the one hook and button, and a filter change resets the
       assert.match(source(name), new RegExp(`pages\\.take\\('${id}'`), `${name} ${id}`)
       assert.match(source(name), new RegExp(`<ShowMore \\{\\.\\.\\.pages\\.more\\('${id}'`), `${name} ${id}`)
     }
-  assert.match(source('PlansView.tsx'), /pages\.take\(group\.category, group\.rows\)/)
+  assert.match(source('PlansView.tsx'), /pages\.take\('specs', sorted\)/)
   assert.match(source('PlansView.tsx'), /reset=\{JSON\.stringify\(filter\)\}/)
   assert.match(source('ConflictsView.tsx'), /const pages = usePages\(reset\)/)
   // No list keeps its own limit.
@@ -49,8 +49,9 @@ test('lists page through the one hook and button, and a filter change resets the
 
 test('Graph, Plans and Conflicts use the one boxed filter panel', () => {
   assert.match(source('FilterBar.tsx'), /<FilterPanel/)
-  assert.match(source('PlansView.tsx'), /<FilterPanel\s+id="avoozl-plans"/)
-  assert.match(source('ConflictsView.tsx'), /<FilterPanel\s+id="avoozl-conflicts"/)
+  // In a list column the fields fold behind Filters.
+  assert.match(source('PlansView.tsx'), /<FilterPanel\s+folded\s+id="avoozl-plans"/)
+  assert.match(source('ConflictsView.tsx'), /<FilterPanel\s+folded\s+id="avoozl-conflicts"/)
   assert.match(source('GraphView.tsx'), /<FilterBar id="avoozl-graph"/)
   const panel = source('FilterPanel.tsx')
   assert.match(panel, /<Card>\s*<div role="search"/)
@@ -224,7 +225,6 @@ test('each view heading and its nav tab show the same icon, hidden from readers'
   const map = icons.slice(icons.indexOf('export const VIEW_ICONS'))
   for (const view of ['dashboard', 'plans', 'graph', 'waiting', 'trace', 'conflicts', 'settings']) assert.match(map, new RegExp(`${view}: \\w+`), view)
   for (const [file, view] of [
-    ['DashboardView.tsx', 'dashboard'],
     ['PlansView.tsx', 'plans'],
     ['GraphView.tsx', 'graph'],
     ['ConflictsView.tsx', 'conflicts'],

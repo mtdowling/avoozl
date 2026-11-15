@@ -117,8 +117,8 @@ const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b
 // A count badge may follow the label, so compare the start.
 const selectedTab = `document.querySelector('[aria-label="Avoozl views"] [aria-selected="true"]')?.textContent.trim()`
 const tourStep = `document.querySelector('[data-demo-tour]')?.dataset.step`
-// Graph is a page inside Specs, and Intake lives under Waiting on you.
-const TAB = { dashboard: 'Home', plans: 'Specs', graph: 'Specs', untriaged: 'Waiting on you', flow: 'Flow', settings: 'Settings' }
+// Graph is a page inside Specs, and Intake lives under Needs you.
+const TAB = { dashboard: 'Home', plans: 'Specs', graph: 'Specs', untriaged: 'Needs you', flow: 'Flow', settings: 'Settings' }
 
 test('Start demo opens the tour over the real pages, and Exit demo returns', { skip }, async () => {
   await page.open(harness.url({ page: 'demo' }), { width: 1280, height: 800 })

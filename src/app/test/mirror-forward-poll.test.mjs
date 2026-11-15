@@ -108,7 +108,7 @@ test("a public merge records the merge and counts the task as done", async (t) =
   assert.equal(publicMergeReached(store, { id: "z" }, {}), true);
 });
 
-test("a close without a merge returns the item to Waiting on you with the reason", async (t) => {
+test("a close without a merge returns the item to Needs you with the reason", async (t) => {
   const { store } = fixture(t),
     github = fakePublic({ state: "closed", closed_at: "2026-11-14T11:00:00Z" });
   store.put("mirror_forward", record());

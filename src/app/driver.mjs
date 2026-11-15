@@ -27,7 +27,6 @@ import { check as contentCheck } from "./content-rules.mjs";
 import { declaredPlugins, readPluginSettings } from "./plugins.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 import { epicOfPlan } from "./epics.mjs";
-import { retroMemory } from "./retro-memory.mjs";
 import { fail } from "./store.mjs";
 import { mirrorConfig } from "./mirror-sync.mjs";
 import { exportEvidence, importEvidence } from "./evidence.mjs";
@@ -1105,22 +1104,6 @@ function scrub(value) {
   );
 }
 
-// The raw lessons store (§4.18) moves with the export: this machine's
-// lesson rows as they are, and on take-over each row this machine lacks.
-// Tests may replace the hook.
-export const lessonsHook = {
-  export: (store) => {
-    const lessons = retroMemory(store)?.lessons;
-    return lessons ? lessons.list() : null;
-  },
-  import: (store, rows) => {
-    const lessons = retroMemory(store)?.lessons;
-    if (!lessons || !Array.isArray(rows)) return;
-    for (const row of rows)
-      if (typeof row?.id === "string" && !lessons.get(row.id)) lessons.put(row);
-  },
-};
-
 export function buildExport(store, ctx, plan, { unfinished = [] } = {}) {
   const data = store.read(),
     tasks = planTasks(data, plan.id),
@@ -1190,7 +1173,6 @@ export function buildExport(store, ctx, plan, { unfinished = [] } = {}) {
     activity: scrub(activity),
     unfinished,
     machineLocal: machineLocalItems(store, ctx),
-    lessons: lessonsHook.export ? lessonsHook.export(store, plan) : null,
     // Each task's evidence bundle and its files (§4.22, R76.5).
     evidence: exportEvidence(store, [...ids]),
   };
@@ -1378,8 +1360,6 @@ function importExport(store, value, now) {
       for (const row of rows)
         insert.run(...columns.map((column) => row[column]));
     }
-    if (lessonsHook.import && value.lessons)
-      lessonsHook.import(store, value.lessons);
   });
   if (value.evidence) importEvidence(store, value.evidence);
   return [...away.keys()];

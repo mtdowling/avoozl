@@ -86,11 +86,28 @@ for (const [width, height] of [
             copies: document.querySelectorAll('[data-stop-line]').length,
           }
         })()`)
-        assert.deepEqual(row.buttons.slice(-2), ['Switch model', stopped ? 'Line stopped' : 'Stop the line'])
-        assert.ok(row.buttons.indexOf('Plan a goal') >= 0 && row.buttons.indexOf('Plan a goal') < row.buttons.indexOf('Switch model'), 'after Plan a goal')
+        if (width < 768) {
+          // A phone: one thin row with Stop the line, then More holding the rest.
+          const header = await page.evaluate(`document.querySelector('[data-phone-header]').getBoundingClientRect().height`)
+          assert.ok(header <= 56, `the phone header is one row (${header})`)
+          assert.equal(row.buttons[0], stopped ? 'Line stopped' : 'Stop the line')
+          await page.evaluate(`document.querySelector('[data-header-actions] [data-more-button]').click()`)
+          await settle()
+          const menu = await page.evaluate(`[...document.querySelectorAll('[data-more-panel] button')].map((b) => b.textContent.trim())`)
+          assert.ok(menu.includes('Plan a goal') && menu.includes('Switch model'), `More holds Plan a goal and Switch model (${menu})`)
+          assert.ok(menu.indexOf('Plan a goal') < menu.indexOf('Switch model'))
+          const inside = await page.evaluate(`(() => { const r = document.querySelector('[data-more-panel]').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth })()`)
+          assert.equal(inside, true, 'the menu is on screen')
+          await page.evaluate(`document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`)
+          await settle()
+          assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-more-panel]'))`), false, 'a tap outside closes it')
+        } else {
+          assert.deepEqual(row.buttons.slice(-2), ['Switch model', stopped ? 'Line stopped' : 'Stop the line'])
+          assert.ok(row.buttons.indexOf('Plan a goal') >= 0 && row.buttons.indexOf('Plan a goal') < row.buttons.indexOf('Switch model'), 'after Plan a goal')
+          assert.equal(row.stopLast, true, 'Stop the line is last')
+        }
         assert.equal(row.tabRowHasNone, true, 'the tab row keeps only the tabs')
         assert.equal(row.hasTopActions, false, 'no actions group under the tabs')
-        assert.equal(row.stopLast, true, 'Stop the line is last')
         assert.equal(row.copies, 1, 'one Stop the line on the page')
         assert.equal(row.inside, true, 'every top row button is on screen')
         assert.equal(row.sideways, false, 'no sideways scroll')
@@ -162,34 +179,26 @@ test('the page header never has Start demo or Try the demo', { skip }, async () 
   }
 })
 
-test('Keep activity is the shared Section in a bordered card, below the table and its pager', { skip }, async () => {
+test('Keep activity sits at the right of the filters on one row, inside the filter box', { skip }, async () => {
   for (const width of [1280, 375]) {
     await page.open(harness.url({ page: 'activity' }), { width, height: 900 })
     await page.until(`Boolean(document.querySelector('[data-section="Keep activity"]')) && document.body.textContent.includes('Saved a setting 2')`)
     const keep = await page.evaluate(`(() => {
       const section = document.querySelector('[data-section="Keep activity"]')
-      const card = section.closest('[data-stub-card]')
-      const gap = card.getBoundingClientRect().top - (card.parentElement.previousElementSibling?.getBoundingClientRect().bottom ?? 0)
-      const list = document.querySelector('table, ol, ul')
-      const status = [...document.querySelectorAll('[role="status"]')].find((e) => /entries/.test(e.textContent))
-      const before = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
-      const style = card && getComputedStyle(card)
+      const panel = document.querySelector('[data-filter-panel="avoozl-activity"]')
+      const bar = panel.querySelector('[data-filter-bar]')
+      const box = (el) => el.getBoundingClientRect()
       return {
-        inCard: Boolean(card),
-        border: style ? parseFloat(style.borderTopWidth) : 0,
-        afterList: Boolean(list) && before(list, section),
-        afterStatus: Boolean(status) && before(status, section),
-        spaceAbove: gap,
+        inPanel: panel.contains(section),
+        // A narrow page folds the fields behind Filters, so no bar to compare.
+        sameRow: bar ? Math.abs(box(section).bottom - box(bar).bottom) < 6 && box(section).left > box(bar).left : null,
         sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
         inputInside: Boolean(section.querySelector('#avoozl-activity-keep')),
       }
     })()`)
-    assert.equal(keep.inCard, true, `Keep activity is inside a card at ${width}px`)
-    assert.ok(keep.border > 0, 'the card has a border')
-    assert.equal(keep.afterList, true, 'after the table or list')
-    assert.equal(keep.afterStatus, true, 'after the filter panel')
-    assert.ok(keep.spaceAbove > 0, 'space above the card')
-    assert.equal(keep.inputInside, true, 'its field is inside the section')
+    assert.equal(keep.inPanel, true, `Keep activity is in the filter box at ${width}px`)
+    if (width >= 768) assert.equal(keep.sameRow, true, 'on the filters row')
+    assert.equal(keep.inputInside, true, 'its field is inside it')
     assert.equal(keep.sideways, false, 'no sideways scroll')
   }
 })

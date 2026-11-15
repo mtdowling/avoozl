@@ -5,10 +5,9 @@
 // caught says it was redacted.
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAppApi } from './host.ts'
-import { Card, EmptyState } from '@kirocrew/app-sdk/ui'
+import { EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
-import { Section } from './SettingsView.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { ShowMore, TipBtn, ViewHeading } from './controls.tsx'
 import { selectStyle } from './FilterSelect.tsx'
@@ -168,44 +167,41 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
     }
   }
   return (
-    // The same card the Settings pages put their sections in, below the
-    // table and its pager, with space above.
-    <div data-activity-keep style={{ marginTop: 16 }}>
-    <Card className="flex flex-col gap-4">
-      <Section title="Keep activity" blurb="Saved to .avoozl.json. Each tick deletes rows older than this." level="card">
-        <div className="flex flex-wrap items-end gap-2">
-          <label htmlFor="avoozl-activity-keep" className="flex flex-col gap-1 text-sm">
-            <span>Days (optional)</span>
-            <input
-              id="avoozl-activity-keep"
-              type="number"
-              min={1}
-              max={365}
-              value={text}
-              placeholder={String(settings?.default ?? 30)}
-              onChange={(event) => setText(event.target.value)}
-              aria-invalid={parsed.error ? true : undefined}
-              aria-describedby={parsed.error ? 'avoozl-activity-keep-error' : undefined}
-              className="rounded border px-2 py-1 text-sm"
-              style={{ ...selectStyle, width: '6rem' }}
-            />
-          </label>
-          <TipBtn primary tooltip="Save how many days activity is kept" onClick={() => void save()} disabled={!settings || saving || Boolean(parsed.error)}>
-            Save
-          </TipBtn>
-        </div>
-        {parsed.error && (
-          <p id="avoozl-activity-keep-error" role="alert" className="text-xs text-danger">
-            {parsed.error}
-          </p>
-        )}
-        {note && (
-          <p role={note.ok ? 'status' : 'alert'} className={`text-xs ${note.ok ? 'text-muted' : 'text-danger'}`}>
-            {note.text}
-          </p>
-        )}
-      </Section>
-    </Card>
+    // One compact field beside the filters: the days, Save, and a note.
+    <div data-activity-keep data-section="Keep activity" className="flex flex-col gap-1">
+      <div className="flex items-end gap-2">
+        <label htmlFor="avoozl-activity-keep" className="flex flex-col gap-1 text-sm">
+          <Tooltip text="Saved to .avoozl.json. Each tick deletes rows older than this. Blank uses the default.">
+            <span>Keep activity (days)</span>
+          </Tooltip>
+          <input
+            id="avoozl-activity-keep"
+            type="number"
+            min={1}
+            max={365}
+            value={text}
+            placeholder={String(settings?.default ?? 30)}
+            onChange={(event) => setText(event.target.value)}
+            aria-invalid={parsed.error ? true : undefined}
+            aria-describedby={parsed.error ? 'avoozl-activity-keep-error' : undefined}
+            className="rounded border px-2 py-1 text-sm"
+            style={{ ...selectStyle, width: '6rem' }}
+          />
+        </label>
+        <TipBtn primary tooltip="Save how many days activity is kept" onClick={() => void save()} disabled={!settings || saving || Boolean(parsed.error)}>
+          Save
+        </TipBtn>
+      </div>
+      {parsed.error && (
+        <p id="avoozl-activity-keep-error" role="alert" className="text-xs text-danger">
+          {parsed.error}
+        </p>
+      )}
+      {note && (
+        <p role={note.ok ? 'status' : 'alert'} className={`text-xs ${note.ok ? 'text-muted' : 'text-danger'}`}>
+          {note.text}
+        </p>
+      )}
     </div>
   )
 }
@@ -283,24 +279,27 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
           { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: options.kinds, onChange: (kind) => setField({ kind: kind || undefined }) },
           { kind: 'select', key: 'actor', label: 'Who', value: filter.actor ?? '', options: options.actors, onChange: (actor) => setField({ actor: actor || undefined }) },
         ]}
+        aside={workspaceId ? <KeepActivity workspaceId={workspaceId} onSaved={() => void load()} /> : undefined}
       >
         <p role="status" className="text-xs text-muted">
           {page ? `${page.total} ${page.total === 1 ? 'entry' : 'entries'}${filterActive(filter) ? ' match' : ''} · kept ${page.retentionDays} days` : busy ? 'Loading…' : 'Not loaded'}
         </p>
       </FilterPanel>
       {page && rows.length === 0 ? (
-        <EmptyState
-          icon={<History size={36} aria-hidden="true" />}
-          title={filterActive(filter) ? 'No activity matches these filters' : 'No activity yet'}
-          subtitle={filterActive(filter) ? 'Clear the filters to see every entry.' : 'Starting work, stopping the line, approving and saving settings show here, and so do the closes, board moves and labels the tick reads.'}
-        />
+        // In a box with a background, so the empty page reads as one block.
+        <div data-activity-empty className="rounded-lg border" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated, var(--card))' }}>
+          <EmptyState
+            icon={<History size={36} aria-hidden="true" />}
+            title={filterActive(filter) ? 'No activity matches these filters' : 'No activity yet'}
+            subtitle={filterActive(filter) ? 'Clear the filters to see every entry.' : 'Starting work, stopping the line, approving and saving settings show here, and so do the closes, board moves and labels the tick reads.'}
+          />
+        </div>
       ) : narrow ? (
         <Stack rows={rows} now={now} />
       ) : (
         <Table rows={rows} now={now} />
       )}
       {page && <ShowMore left={page.total - rows.length} onMore={() => void more()} />}
-      {workspaceId && <KeepActivity workspaceId={workspaceId} onSaved={() => void load()} />}
     </section>
   )
 }

@@ -47,15 +47,9 @@ Use `avoozl help` to inspect the installed CLI surface before choosing commands.
 
 ## Ideas
 
-An idea is a rough note that may become a spec later. It never runs work.
-
-- When the user has a half-formed thought worth keeping, save it with
-  `plans_intake` action `capture_idea`, input `{title, notes?, links?}`. You
-  are named as its author.
-- In a Riff on this chat, add a note or link only when the user agrees, with
-  action `add_idea_note`, input `{id, note?, link?}`. Make no other change.
-- Archiving, restoring, and Make it a spec are the user's, on the Avoozl
-  page. Never turn an idea into a spec folder yourself.
+Ideas were removed. `plans_intake` actions `capture_idea` and
+`add_idea_note` return an error and change nothing. To keep a thought that
+may become work, start a spec with the user in **New spec**.
 
 ## Templates, manual tasks, links and notes
 

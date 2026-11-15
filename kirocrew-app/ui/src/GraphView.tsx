@@ -527,9 +527,6 @@ export default function GraphView({
         <FilterBar id="avoozl-graph" filter={filter} choices={choices} onChange={changeFilter}>
           <div className="flex flex-wrap gap-2">
             <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy} />
-            <IconLabel icon={Plus} tooltip="Add a draft task. It waits for your review." onClick={() => drawer.addTask()}>
-              New task
-            </IconLabel>
           </div>
           <p role="status" className="mt-2 text-sm text-muted">
             {busy

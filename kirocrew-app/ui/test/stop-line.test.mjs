@@ -51,7 +51,8 @@ test('the top row has the red button with a stopped state, and Resume asks first
   // Stopped: its own words and look while a stop is open; a pull or resume
   // tells the page at once.
   assert.match(dialog, /\{stopped \? 'Line stopped' : 'Stop the line'\}/)
-  assert.match(dialog, /style=\{stopped \? STOPPED : FILL\}/)
+  assert.match(dialog, /style=\{\{ \.\.\.\(stopped \? STOPPED : FILL\), padding: '4px 6px' \}\}/)
+  assert.match(dialog, /<span className="sr-only">\{stopped \? 'Line stopped' : 'Stop the line'\}<\/span>/)
   assert.match(dialog, /filter\(\(stop\) => !stop\.closedAt\)/)
   assert.match(dialog, /lineChanged\(\)/)
   assert.match(banner, /onChanged\?\.\(\)\n\s*lineChanged\(\)/)

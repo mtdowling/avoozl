@@ -88,9 +88,9 @@ test('a deep link opens the new tab on its inner view; Back returns without it',
   const go = (next, open) => changePage(nav, { ...place }, next, (n) => Object.assign(place, n), (before) => `Back to ${before.tab}`, open)
   go({ tab: 'plans' })
   nav.memory.set('plans-selected', null)
-  go({ tab: 'untriaged' }, { 'untriaged-show': 'ideas' })
+  go({ tab: 'untriaged' }, { 'untriaged-show': 'radar' })
   assert.equal(place.tab, 'untriaged')
-  assert.deepEqual([...nav.memory], [['untriaged-show', 'ideas']], 'the fresh tab starts on Ideas, with nothing else')
+  assert.deepEqual([...nav.memory], [['untriaged-show', 'radar']], 'the fresh tab starts on With Issue Radar, with nothing else')
   nav.history.back()
   assert.equal(place.tab, 'plans')
   assert.deepEqual([...nav.memory], [['plans-selected', null]], "Plans gets its own state back, not the link's")
@@ -99,8 +99,8 @@ test('a deep link opens the new tab on its inner view; Back returns without it',
   let shown = 'untriaged'
   nav.setters.set('untriaged-show', (value) => (shown = value))
   const steps = nav.history.steps().length
-  go({ tab: 'untriaged' }, { 'untriaged-show': 'ideas' })
-  assert.equal(shown, 'ideas')
+  go({ tab: 'untriaged' }, { 'untriaged-show': 'radar' })
+  assert.equal(shown, 'radar')
   assert.equal(nav.history.steps().length, steps)
 })
 
@@ -255,11 +255,11 @@ test('focus returns to the opener, and a restore waits for the view to grow', ()
 test('the views use the shared history: inner tabs, the plan, the Graph, the drawer', () => {
   assert.match(source('App.tsx'), /changePage\(\s*nav,\s*here,/)
   // Deep links go through changePage, never a memory write before the switch.
-  assert.match(source('App.tsx'), /go\(\{ focus: null, drill: null, tab: 'waiting' \}, \{ 'waiting-section': 'intake', 'untriaged-show': 'ideas' \}\)/)
+  assert.match(source('App.tsx'), /go\(\{ tab: 'trace', focus: null, drill: null \}, \{ \[TRACE_TARGET\]: target \}\)/)
   assert.doesNotMatch(source('App.tsx'), /nav\.memory\.set\(/)
   assert.match(source('App.tsx'), /onTab=\{\(next\) => go\(\{ settingsTab: next \}\)\}/)
   assert.match(source('SettingsView.tsx'), /useSteppedState<RepositoryTab>\(\s*`settings-repo-tab-\$\{props\.index\}`,\s*'inner',/)
-  assert.match(source('UntriagedView.tsx'), /useSteppedState<'untriaged' \| 'radar' \| 'ideas'>\(\s*'untriaged-show',\s*'inner'/)
+  assert.match(source('UntriagedView.tsx'), /useSteppedState<'untriaged' \| 'radar'>\(\s*'untriaged-show',\s*'inner'/)
   assert.match(source('ContentRulesSettings.tsx'), /useSteppedState<'builder' \| 'file'>\(\s*'content-terms-view',\s*'inner'/)
   assert.match(source('PlansView.tsx'), /useSteppedState<string \| null>\(\s*'plans-selected',\s*'select'/)
   assert.match(source('GraphView.tsx'), /useRemembered<DrillEntry\[\]>\('graph-stack', \[\]\)/)

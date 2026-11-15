@@ -236,3 +236,13 @@ test('the Plans list filters by text, category, status, kind and what a plan has
   assert.deepEqual(names({ has: 'needs-you' }), ['gamma'])
   assert.deepEqual(rowChoices(rows).categories, ['Compiler', 'Runtime', UNCATEGORIZED])
 })
+
+test('a spec row has one chip: Draft, Approved, On GitHub or Done', async () => {
+  const { specChip } = await import('../src/plans-api.ts')
+  assert.equal(specChip({ status: 'draft' }), 'draft')
+  assert.equal(specChip({ status: 'changed' }), 'draft')
+  assert.equal(specChip({ status: 'not imported' }), 'draft')
+  assert.equal(specChip({ status: 'approved' }), 'approved')
+  assert.equal(specChip({ status: 'approved', onGitHub: true }), 'github')
+  assert.equal(specChip({ status: 'done', onGitHub: true }), 'done')
+})

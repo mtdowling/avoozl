@@ -62,25 +62,29 @@ for (const dark of [false, true]) {
     assert.equal(await has('[data-settings-accordion]'), false, 'the list is out of the way')
     assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[data-detail-bar]')).position`), 'sticky')
     assert.match(await page.evaluate(`document.querySelector('[data-detail-bar]').textContent`), /Settings/)
-    assert.ok((await page.evaluate(`document.querySelector('[data-list-detail-back]').getBoundingClientRect().height`)) >= 44)
+    assert.ok((await page.evaluate(`document.querySelector('[data-list-detail-back]').getBoundingClientRect().height`)) <= 28)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, 'no sideways scroll')
     await back()
     assert.equal(await has('[data-settings-accordion]'), true, 'Back returns to the list')
     assert.equal(await has('[data-settings-body]'), false)
   })
 
-  test(`Waiting on you on a phone: a section, Back to the list, the other section (${theme})`, { skip }, async () => {
+  test(`Needs you on a phone: the decision list, one item with Back, then the other tab (${theme})`, { skip }, async () => {
     await start(390, dark)
-    await goto('Waiting on you', 390)
-    assert.equal(await has('[data-waiting-section="decisions"][data-open="true"]'), true, 'opens on the section with work')
+    await goto('Needs you', 390)
+    assert.equal(await has('[data-waiting-section="decisions"][data-open="true"]'), true, 'opens on decisions')
+    assert.equal(await has('[data-conflict-list]'), true, 'the list first')
+    assert.equal(await has('[data-detail-bar]'), false)
+    await click(`document.querySelector('[data-conflict-pick]')`)
+    await wait()
+    assert.equal(await has('[data-conflict-detail]'), true, 'the item opens')
+    assert.equal(await has('[data-conflict-list]'), false, 'one pane at a time')
     assert.equal(await has('[data-detail-bar]'), true)
     await back()
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-waiting-sections] [data-waiting-section]').length`), 2)
-    assert.equal(await has('[data-detail-bar]'), false)
-    await click(`document.querySelector('[data-waiting-section="intake"] button')`)
+    assert.equal(await has('[data-conflict-list]'), true, 'Back returns to the list')
+    await click(`[...document.querySelectorAll('[data-waiting-tabs] [role="tab"]')].find((t) => t.textContent.includes('Planning and intake'))`)
     await wait()
     assert.equal(await has('[data-waiting-section="intake"][data-open="true"]'), true)
-    assert.equal(await has('[data-waiting-section="decisions"]'), false, 'one pane at a time')
   })
 
   test(`Specs on a phone: the list, then one spec whose Back shares a row with the compact title (${theme})`, { skip }, async () => {
@@ -97,29 +101,47 @@ for (const dark of [false, true]) {
     assert.equal(await echo(), '0', 'the title shows once, big, at the top')
     // The page's content pane scrolls; the Back row stays at its top.
     const pane = `document.querySelector('[data-avoozl-pane]')`
-    assert.ok(await page.evaluate(`${pane}.scrollHeight > ${pane}.clientHeight + 600`), 'the spec is long enough to scroll')
+    assert.ok(await page.evaluate(`${pane}.scrollHeight > ${pane}.clientHeight + 150`), 'the spec is long enough to scroll')
     const gap = `Math.abs(document.querySelector('[data-detail-bar]').getBoundingClientRect().top - ${pane}.getBoundingClientRect().top)`
-    await page.evaluate(`${pane}.scrollTop = 600`)
+    await page.evaluate(`${pane}.scrollTop = ${pane}.scrollHeight`)
     await wait(400)
     assert.ok((await page.evaluate(gap)) <= 1, 'the row sticks to the top of the pane')
     assert.equal(await echo(), '1', 'the compact title shows once the big one has scrolled out')
+    // The spec's left column is behind the hamburger in the Back row.
+    assert.equal(await has('[aria-label="Spec summary"]'), false)
+    await click(`document.querySelector('[data-detail-bar] [data-spec-menu]')`)
+    await wait(300)
+    assert.equal(await has('[aria-label="Spec summary"]'), true, 'the spec menu shows its left column')
+    assert.equal(await has('#avoozl-plan-main'), false, 'one pane at a time')
+    await click(`document.querySelector('[data-detail-bar] [data-spec-menu]')`)
+    await wait(300)
     await back()
     assert.equal(await has('[data-plans-list]'), true, 'Back returns to the list')
   })
 
-  test(`a desktop at 1280 px is unchanged: no detail bar, Settings keeps its accordion, Specs its All specs link (${theme})`, { skip }, async () => {
+  test(`a desktop at 1280 px is unchanged: no detail bar, Settings keeps its accordion, Specs list beside its detail (${theme})`, { skip }, async () => {
     await start(1280, dark)
     await goto('Settings', 1280)
     assert.equal(await has('[data-settings-body]'), true, 'the open section sits under its heading')
     assert.equal(await has('[data-detail-bar]'), false)
-    await goto('Waiting on you', 1280)
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-waiting-sections] [data-waiting-section]').length`), 2)
+    await goto('Needs you', 1280)
+    // A dense list in the middle; picking an item opens it on the right.
+    assert.equal(await has('[data-conflict-list]'), true)
+    await click(`document.querySelector('[data-conflict-pick]')`)
+    await wait()
+    assert.equal(await has('[data-detail-column="needs-you"] [data-conflict-detail]'), true)
+    assert.equal(await has('[data-list-pane="needs-you"] [data-conflict-list]'), true, 'the list stays')
     await goto('Specs', 1280)
     await click(button('Meal planner', `document.querySelector('[data-plans-list]')`))
     await wait(600)
     assert.equal(await has('[data-detail-bar]'), false)
     assert.equal(await has('[data-list-detail-back]'), false)
-    assert.equal(await page.evaluate(`Boolean(${button('All specs')})`), true)
+    // The list stays on the left, the spec opens on the right.
+    assert.equal(await has('[data-list-pane="specs"] [data-spec-list]'), true)
+    assert.equal(await has('[data-detail-column="specs"] [data-spec-detail]'), true)
+    // New task is in the spec's view, not on the list (RC30.2).
+    assert.equal(await has('[data-detail-column="specs"] [data-new-task]'), true)
+    assert.equal(await has('[data-list-pane="specs"] [data-new-task]'), false)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
   })
 }

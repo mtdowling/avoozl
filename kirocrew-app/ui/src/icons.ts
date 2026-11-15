@@ -43,8 +43,6 @@ export {
   Info,
   LayoutDashboard,
   LayoutGrid,
-  // Lightbulb is in the host's lucide-react export (checked 2026-11-13).
-  Lightbulb,
   MessageSquare,
   MessagesSquare,
   Network,
@@ -63,6 +61,9 @@ export {
   Users,
   Workflow,
   X,
+  Menu,
+  Link2,
+  Ellipsis,
 } from 'lucide-react'
 export type { LucideIcon } from 'lucide-react'
 
@@ -86,7 +87,7 @@ export const VIEW_ICONS = {
   routing: HardDrive,
   conflicts: CircleAlert,
   untriaged: Inbox,
-  // Waiting on you reuses the Conflicts icon; Trace is the route a task took.
+  // Needs you reuses the Conflicts icon; Trace is the route a task took.
   waiting: CircleAlert,
   trace: GitBranch,
   // History is in the list above: the log of what happened.
