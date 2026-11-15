@@ -39,7 +39,9 @@ test('an empty Home says what to set up, with a button for each, instead of hidi
   await open({ radar: '1' })
   await page.until(`Boolean(document.querySelector('[data-driver-session="none"]') && document.querySelector('[data-release-empty]'))`)
   const body = await page.evaluate(text)
-  for (const line of ['Driver session', 'Not started', 'No epics', 'Plan an epic', 'Release queue', 'Open Repository setup'])
+  assert.equal(await page.evaluate(`document.querySelector('[data-driver-session="none"] [data-sc-title]').innerText.trim()`), 'Driver: not started')
+  assert.equal(await page.evaluate(`document.querySelector('[data-driver-session="none"] [data-driver-start]').getAttribute('aria-label')`), 'Start a driver session')
+  for (const line of ['No epics', 'Plan an epic', 'Release queue', 'Open Repository setup'])
     assert.ok(body.includes(line), line)
   // The compact driver card's button says Start; its name is the whole action.
   assert.ok(await page.evaluate(`Boolean(document.querySelector('[data-driver-start][aria-label="Start a driver session"]'))`))

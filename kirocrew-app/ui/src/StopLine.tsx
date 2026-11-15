@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import { ICON, useConfirm } from './controls.tsx'
-import { Pause } from './icons.ts'
+import { Pause, Play } from './icons.ts'
 import { Picker, taskItems } from './Picker.tsx'
 import type { PickItem } from './picker.ts'
 import { RadioFold } from './RadioFold.tsx'
@@ -62,15 +62,50 @@ function useOpenStops(workspaceId: string | null) {
 // The page's top row (App.tsx), last and red: a pause icon with its words in
 // the tooltip. While a stop is open it says Line stopped; pressing it still
 // opens the dialog to stop more.
-export function StopLineButton(props: { workspaceId: string | null; onPulled?: () => void }) {
+export function StopLineButton(props: { workspaceId: string | null; onPulled?: () => void; bare?: boolean }) {
   const [open, setOpen] = useState(false)
   const stops = useOpenStops(props.workspaceId)
+  const api = useAppApi()
+  const flows = useMemo(() => flowClient(api), [api])
+  const confirm = useConfirm()
   if (!props.workspaceId) return null
   const stopped = stops.length > 0
   const why = stops
     .map((stop) => stop.reason ?? (stop.check ? `${stop.check} fails on ${stop.branch}` : `the line on ${stop.branch}`))
     .slice(0, 3)
     .join('; ')
+  const dialog = open && (
+    <StopLineDialog
+      workspaceId={props.workspaceId}
+      onClose={() => setOpen(false)}
+      onPulled={() => {
+        setOpen(false)
+        lineChanged()
+        props.onPulled?.()
+      }}
+    />
+  )
+  // The side panel's icon: pause to stop, play to resume. Never text.
+  if (props.bare) {
+    const resumeAll = async () => {
+      const yes = await confirm({ title: 'Resume the line?', body: `New work starts again. The line was stopped for: ${why}`, action: 'Resume' })
+      if (!yes || !props.workspaceId) return
+      for (const stop of stops) await flows.resume(props.workspaceId, stop.id)
+      lineChanged()
+    }
+    const label = stopped ? 'Resume the line' : 'Stop the line'
+    const Icon = stopped ? Play : Pause
+    return (
+      <>
+        <Tooltip text={label}>
+          <button type="button" data-pp-icon data-bare data-stop-line data-stopped={stopped ? '' : undefined} aria-label={label} onClick={() => (stopped ? void resumeAll() : setOpen(true))} style={{ color: stopped ? 'var(--ok)' : 'var(--danger)', borderColor: 'var(--border)' }}>
+            <Icon size={13} aria-hidden="true" />
+          </button>
+        </Tooltip>
+        {dialog}
+      </>
+    )
+  }
   return (
     <>
       <Tooltip text={stopped ? `The line is stopped: ${why}. Resume it from the banner on the Dashboard or Flow. Press to stop more.` : 'Stop new work in a scope, or stop all agents, with a reason'}>
@@ -90,17 +125,7 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
           </Btn>
         )}
       </Tooltip>
-      {open && (
-        <StopLineDialog
-          workspaceId={props.workspaceId}
-          onClose={() => setOpen(false)}
-          onPulled={() => {
-            setOpen(false)
-            lineChanged()
-            props.onPulled?.()
-          }}
-        />
-      )}
+      {dialog}
     </>
   )
 }

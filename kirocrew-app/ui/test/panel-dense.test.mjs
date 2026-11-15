@@ -27,8 +27,8 @@ after(async () => {
 })
 
 const SIZES = [
-  { name: 'desktop', width: 1280, height: 900, theme: 'light', dark: false, lines: 2.5 },
-  { name: 'phone', width: 390, height: 800, theme: 'dark', dark: true, lines: 3 },
+  { name: 'desktop', width: 1280, height: 900, theme: 'light', dark: false, lines: 4 },
+  { name: 'phone', width: 390, height: 800, theme: 'dark', dark: true, lines: 4 },
 ]
 const open = async (size, query = {}) => {
   await page.open(harness.url({ page: 'panel', theme: size.theme, sid: 'chat-1', ...query }), { width: size.width, height: size.height, dark: size.dark })
@@ -38,7 +38,7 @@ const shot = async (size, name) => {
   const dir = process.env.AVOOZL_PANEL_SHOTS
   if (!dir) return
   fs.mkdirSync(dir, { recursive: true })
-  await page.evaluate(`document.querySelectorAll('details').forEach((d) => (d.open = true))`)
+  await page.evaluate(`document.querySelector('[data-pp-toggle-all][aria-pressed=false]')?.click()`)
   await page.screenshot(path.join(dir, `${name}-${size.name}.png`))
 }
 
@@ -74,13 +74,11 @@ for (const size of SIZES) {
     assert.match(waiting, /Needs you/)
     assert.match(waiting, /tokenizer A or B/)
     // The top: Stop the line state, the release queue, recent merges and the driver with its workspace.
-    const top = await page.evaluate(`document.querySelector('[data-pp-strip]').textContent`)
-    assert.match(top, /Line running/)
-    assert.match(top, /Queue 1 next · 1 held/)
-    assert.match(top, /Merged 1 · 1h/)
-    assert.match(await page.evaluate(`document.querySelector('[data-panel-driver]').textContent`), /Driver session.*Not started/)
-    // The Refresh button reads [↻ 32s] from the shared GitHub cache.
-    assert.match(await page.evaluate(`document.querySelector('button[aria-label^="Refresh"]').textContent`), /^\d+s$/)
+    assert.match(await page.evaluate(`document.querySelector('[data-panel-fold="queue"] [data-pp-section-head]').textContent`), /Release queue.*1 next · 1 held/)
+    assert.match(await page.evaluate(`document.querySelector('[data-panel-fold="recent"] [data-pp-section-head]').textContent`), /Recent merges.*last 1h/)
+    assert.match(await page.evaluate(`document.querySelector('[data-panel-driver]').textContent`), /Driver: not started/)
+    // Refresh is an icon; its name says when it reads again from the shared GitHub cache.
+    assert.match(await page.evaluate(`document.querySelector('button[aria-label^="Refresh"]').getAttribute('aria-label')`), /reads again in \d+s$/)
   })
 
   test(`nothing scrolls sideways and nothing is sticky at ${size.width} px ${size.theme}`, { skip }, async () => {
@@ -100,15 +98,49 @@ for (const size of SIZES) {
   })
 }
 
-test('buttons and rows keep their compact size on a phone', { skip }, async () => {
+for (const size of SIZES)
+  test(`nothing overflows or overlaps inside a row at ${size.width} px ${size.theme}`, { skip }, async () => {
+    await open(size)
+    const bad = await page.evaluate(`(() => {
+      const out = []
+      for (const row of document.querySelectorAll('[data-pp-row]')) {
+        const box = row.getBoundingClientRect()
+        const parts = [...row.querySelectorAll('[data-pp-row-title], [data-pp-chip], [data-pp-age], [data-pp-act]')].filter((el) => el.getBoundingClientRect().width > 0)
+        for (const el of parts) if (el.getBoundingClientRect().right > box.right + 0.5) out.push('past the row: ' + el.textContent.trim().slice(0, 20))
+        for (let i = 0; i < parts.length; i++) for (let j = i + 1; j < parts.length; j++) {
+          const a = parts[i].getBoundingClientRect(), b = parts[j].getBoundingClientRect()
+          if (parts[i].contains(parts[j]) || parts[j].contains(parts[i])) continue
+          if (a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5) out.push('overlap: ' + parts[i].textContent.trim().slice(0, 14) + ' / ' + parts[j].textContent.trim().slice(0, 14))
+        }
+      }
+      return out
+    })()`)
+    assert.deepEqual(bad, [])
+  })
+
+test('buttons are compact icon and text buttons, on a phone and a desktop', { skip }, async () => {
+  const phone = SIZES[1]
+  await open(phone)
+  // Kiro Crew's own compact size on a phone as on a desktop: no tap-target bump.
   const measure = () => page.evaluate(`({
-    buttons: [...document.querySelectorAll('[data-pp] button, [data-pp] a[data-pp-act]')].filter((el) => el.getBoundingClientRect().height > 0).map((el) => Math.round(el.getBoundingClientRect().height)),
-    minHeights: [...document.querySelectorAll('[data-pp-row]')].map((row) => parseFloat(getComputedStyle(row).minHeight) || 0),
+    icons: [...document.querySelectorAll('[data-pp-head] button')].map((el) => el.getBoundingClientRect().height),
+    acts: [...document.querySelectorAll('[data-pp-act]')].filter((el) => el.getBoundingClientRect().height > 0).map((el) => el.getBoundingClientRect().height),
+    heads: [...document.querySelectorAll('[data-pp-section-head]')].map((el) => el.getBoundingClientRect().height),
+    header: document.querySelector('[data-pp-head]').getBoundingClientRect().height,
   })`)
-  await open(SIZES[1])
-  const phone = await measure()
-  assert.ok(phone.buttons.every((height) => height <= 28), 'buttons ' + phone.buttons)
-  assert.ok(phone.minHeights.every((height) => height <= 36), 'no row has a tap-size minimum height: ' + phone.minHeights)
+  const sizes = await measure()
+  assert.ok(sizes.icons.length === 4 && sizes.icons.every((h) => h <= 28), 'header icons ' + sizes.icons)
+  assert.ok(sizes.acts.every((h) => h <= 28), 'row buttons ' + sizes.acts)
+  assert.ok(sizes.heads.every((h) => h >= 36 && h <= 40), 'section headers ' + sizes.heads)
+  assert.ok(sizes.header <= 40, 'the header is ' + sizes.header)
+  await open(SIZES[0])
+  const wide = await measure()
+  assert.deepEqual([...new Set(wide.heads)], [...new Set(sizes.heads)], 'section headers keep their height on a phone')
+  assert.deepEqual([...new Set(wide.acts)], [...new Set(sizes.acts)], 'row buttons keep their height on a phone')
+  const desktop = SIZES[0]
+  await open(desktop)
+  const act = await page.evaluate(`Math.max(...[...document.querySelectorAll('[data-pp-act]')].map((el) => el.getBoundingClientRect().height))`)
+  assert.ok(act < 44, `desktop actions stay compact (${act} px)`)
 })
 
 test('a new section is a few lines: every view is built from the shared parts', { skip: false }, () => {

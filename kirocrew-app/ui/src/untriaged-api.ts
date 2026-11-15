@@ -42,7 +42,7 @@ export interface UntriagedItem {
   // Why no rule took it, when one matched for someone who does not count.
   reason?: string | null
   // A pull request's code review chat (src/app/pr-review.mjs): queued until
-  // the next tick opens it, then open with a link to Attach.
+  // the next tick opens it, then open with a Session link.
   reviewChat?: ReviewChat | null
 }
 

@@ -29,18 +29,19 @@ const count = (selector) => page.evaluate(`document.querySelectorAll(${JSON.stri
 const open = async (query, ready) => {
   await page.open(harness.url({ page: 'panel', theme: 'light', ...query }), { width: 360, height: 900 })
   await page.until(ready)
+  // Queue and Recent merges start closed; most tests read their rows.
+  await page.evaluate(`document.querySelector('[data-pp-toggle-all][aria-pressed=false]')?.click()`)
 }
 const shot = async (name) => {
   const dir = process.env.AVOOZL_PANEL_SHOTS
   if (!dir) return
   fs.mkdirSync(dir, { recursive: true })
-  await page.evaluate(`document.querySelectorAll('details').forEach((d) => (d.open = true))`)
+  await page.evaluate(`document.querySelector('[data-pp-toggle-all][aria-pressed=false]')?.click()`)
   await page.screenshot(path.join(dir, `${name}.png`))
 }
 
 test('a normal chat shows Waiting on you, In flight, the queue head, recent merges and the line', { skip }, async () => {
   await open({ sid: 'chat-1' }, `Boolean(document.querySelector('[data-waiting-row]'))`)
-  assert.match(await text('[data-recap-line]'), /2 waiting on you · 3 in flight · line running/)
   assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-waiting-row]')].map((r) => r.dataset.waitingRow)`), ['needs-human', 'github-conflict'])
   // The retired worker row is not shown.
   assert.doesNotMatch(await text('[data-panel-recap]'), /retired worker/)
@@ -50,7 +51,8 @@ test('a normal chat shows Waiting on you, In flight, the queue head, recent merg
   assert.equal(await page.evaluate(`document.querySelector('[data-flight-row="radar"] a[href^="/chat"]').getAttribute('href')`), '/chat?sid=crew-abc')
   assert.equal(await count('[data-queue-head]'), 1)
   assert.equal(await count('[data-recent-row]'), 1)
-  assert.match(await text('[data-panel-driver]'), /Start a driver session/)
+  assert.equal(await page.evaluate(`document.querySelector('[data-panel-driver] [data-driver-start]').getAttribute('aria-label')`), 'Start a driver session')
+  assert.match(await page.evaluate(`document.querySelector('[data-panel-driver] [data-sc-title]').innerText`), /^Driver: not started/)
   assert.equal(await page.evaluate(`document.querySelector('[data-panel-driver]').dataset.panelDriver`), 'none')
   assert.equal(await count('[data-panel-line]'), 1)
   await shot('normal-chat')
@@ -88,7 +90,6 @@ test('one failed read leaves the other sections showing', { skip }, async () => 
 test('with nothing to show, each section says so', { skip }, async () => {
   await open({ sid: 'chat-1', state: 'empty' }, `/Nothing is waiting/.test(document.body.textContent)`)
   assert.match(await text('[data-panel-fold="in-flight"]'), /No crew has a claim/)
-  assert.match(await text('[data-recap-line]'), /0 waiting on you · 0 in flight/)
   await shot('empty')
 })
 
@@ -116,15 +117,14 @@ test('an Avoozl chat shows the driver view with waiting, in flight and the queue
   await shot('avoozl-chat')
 })
 
-const driverButtons = `[...document.querySelectorAll('[data-panel-driver] a, [data-panel-driver] button')].map((e) => e.textContent.trim())`
-const ready = `Boolean(document.querySelector('[data-panel-driver]')) && !document.querySelector('[data-panel-driver]').textContent.includes('Reading')`
+const driverButtons = `[...document.querySelectorAll('[data-panel-driver] a, [data-panel-driver] button')].map((e) => e.getAttribute('aria-label')).filter((label) => label !== 'Recheck')`
 
 test('a driver session that checked in shows a link and no Start', { skip }, async () => {
   await open({ sid: 'chat-1', driver: 'running' }, `Boolean(document.querySelector('[data-waiting-row]'))`)
   await page.until(`document.querySelector('[data-panel-driver]')?.dataset.panelDriver === 'running'`)
   assert.deepEqual(await page.evaluate(driverButtons), ['Open driver session'])
   assert.equal(await page.evaluate(`document.querySelector('[data-panel-driver] a').getAttribute('href')`), '/chat?sid=chat-7-1')
-  assert.match(await text('[data-panel-driver]'), /Last seen 5 min ago/)
+  assert.match(await page.evaluate(`document.querySelector('[data-panel-driver]').dataset.tip`), /Last seen 5 min ago/)
   await shot('driver-running')
 })
 
@@ -157,9 +157,9 @@ test('the driver chat itself shows the driver, waiting and in flight views', { s
   assert.equal(await count('[data-flight-row]'), 3)
 })
 
-test('Attach / steer opens the crew chat; a row with no action deep-links into the page', { skip }, async () => {
+test('Session opens the crew chat; a row with no action deep-links into the page', { skip }, async () => {
   await open({ sid: 'chat-1' }, `Boolean(document.querySelector('[data-flight-row]'))`)
-  assert.equal(await page.evaluate(`document.querySelector('[data-flight-row="radar"] a[href^="/chat"]').textContent.trim()`), 'Attach')
+  assert.equal(await page.evaluate(`document.querySelector('[data-flight-row="radar"] a[href^="/chat"]').textContent.trim()`), 'Session')
   await page.evaluate(`window.__panel.conflicts = [{ kind: 'content-match', taskId: 'S1', id: 'd1', title: 'Matched a rule', detail: 'd' }]; window.dispatchEvent(new Event('focus')); true`)
   await page.until(`Boolean(document.querySelector('[data-waiting-row="content-match"]'))`)
   await page.evaluate(`[...document.querySelectorAll('[data-waiting-row] button')].find((b) => b.textContent.trim() === 'Open in Avoozl').click()`)
@@ -196,49 +196,147 @@ test('coming back after a while shows what finished and what is new, and Got it 
   assert.equal(await count('[data-since-recap]'), 0)
 })
 
-// The line's status and its Stop the line button share one row, on a wide
-// panel and on a 390 px phone, light and dark.
+// The header is one thin line: "Avoozl · <instance>" (Avoozl opens the app
+// page), Refresh (an icon, no countdown), fold all, and the pause button at the
+// far right. No count chips, no "The line is running" row and no Avoozl app row.
 for (const [width, height] of [[1280, 900], [390, 800]])
   for (const theme of ['light', 'dark'])
-    test(`Line running and Stop the line sit on one row at ${width} px ${theme}`, { skip }, async () => {
+    test(`the header is one line: name link, icons and pause at ${width} px ${theme}`, { skip }, async () => {
       await page.open(harness.url({ page: 'panel', theme, sid: 'chat-1' }), { width, height, dark: theme === 'dark' })
-      await page.until(`Boolean(document.querySelector('[data-panel-line] [data-stop-line]'))`)
-      const row = await page.evaluate(`(() => {
-        const line = document.querySelector('[data-panel-line]')
-        const badge = [...line.querySelectorAll('*')].find((el) => el.children.length === 0 && /^Line (running|stopped)$/.test(el.textContent.trim()))
-        const stop = line.querySelector('[data-stop-line]')
-        const a = badge.getBoundingClientRect(), b = stop.getBoundingClientRect()
-        return { badge: badge.textContent.trim(), stop: stop.textContent.trim(), overlap: Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top), right: b.right, width: innerWidth }
+      await page.until(`Boolean(document.querySelector('[data-pp-head-link]')) && Boolean(document.querySelector('[data-pp-head] [data-stop-line]')) && Boolean(document.querySelector('[data-flight-row]'))`)
+      const head = await page.evaluate(`(() => {
+        const h = document.querySelector('[data-pp-head]')
+        const kids = [...h.querySelectorAll('[data-pp-head-name], button')]
+        const mids = kids.map((el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2 })
+        const tallest = Math.max(...kids.map((el) => el.getBoundingClientRect().height))
+        const stop = h.querySelector('[data-stop-line]').getBoundingClientRect()
+        const link = h.querySelector('[data-pp-head-link]'), ls = getComputedStyle(link)
+        return {
+          name: h.querySelector('[data-pp-head-name]').innerText.replace(/\\s+/g, ' ').trim(),
+          buttons: [...h.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')),
+          texts: [...h.querySelectorAll('button')].map((b) => b.textContent.trim()),
+          link: { text: link.innerText.trim(), border: ls.borderTopStyle, bg: ls.backgroundColor, underline: ls.textDecorationLine },
+          chips: h.querySelectorAll('[data-pp-head-chip]').length,
+          height: h.getBoundingClientRect().height, tallest, spread: Math.max(...mids) - Math.min(...mids),
+          stopRight: stop.right, inner: h.getBoundingClientRect().right - parseFloat(getComputedStyle(h).paddingRight),
+          wrap: getComputedStyle(h).flexWrap, sticky: getComputedStyle(h).position,
+          lineRow: Boolean(document.querySelector('[data-line-row]')) || /The line is running/.test(document.body.innerText),
+          appRow: Boolean(document.querySelector('[data-open-avoozl]')) || /Avoozl app/.test(document.body.innerText),
+        }
       })()`)
-      assert.equal(row.badge, 'Line running')
-      assert.match(row.stop, /Stop the line/)
-      assert.ok(row.overlap > 0, `on one row (vertical overlap ${row.overlap} px)`)
-      assert.ok(row.right <= row.width, 'inside the panel')
+      assert.match(head.name, /^Avoozl · \S/)
+      assert.deepEqual(head.buttons.slice(0, 1), ['Open Avoozl'])
+      assert.match(head.buttons[1], /^Refresh, reads again in/)
+      assert.match(head.buttons[2], /^(Collapse|Expand) all sections$/)
+      assert.equal(head.buttons[3], 'Stop the line')
+      assert.equal(head.buttons.length, 4)
+      assert.deepEqual(head.texts.slice(1), ['', '', ''], 'icons only, no countdown')
+      assert.deepEqual(head.link, { text: 'Avoozl', border: 'none', bg: 'rgba(0, 0, 0, 0)', underline: 'none' }, 'a plain word, no button box')
+      assert.equal(head.chips, 0, 'no count chips')
+      assert.equal(head.wrap, 'nowrap')
+      assert.ok(head.spread < 2, `everything on one line (${head.spread} px apart)`)
+      assert.ok(head.height <= head.tallest + 14, `one line tall (${head.height} px)`)
+      assert.ok(Math.abs(head.stopRight - head.inner) < 1.5, 'pause sits at the far right')
+      assert.notEqual(head.sticky, 'sticky')
+      assert.equal(head.lineRow, false, 'no "The line is running" row')
+      assert.equal(head.appRow, false, 'no Avoozl app row')
     })
 
-// The way to the app page is a styled button with the Avoozl mark, named
-// "Open Avoozl", on a wide panel and on a 390 px phone, light and dark.
+// "Stop the line" is never text in the side panel: a pause icon named Stop the
+// line, and while stopped a play icon named Resume the line that resumes it.
+const visibleText = `(() => { const out = []; const walk = document.createTreeWalker(document.querySelector('[data-pp]'), NodeFilter.SHOW_TEXT); let n; while ((n = walk.nextNode())) { const el = n.parentElement; const r = el.getBoundingClientRect(); if (r.width && r.height && getComputedStyle(el).visibility !== 'hidden' && n.textContent.trim()) out.push(n.textContent.trim()) } return out })()`
 for (const [width, height] of [[1280, 900], [390, 800]])
-  for (const theme of ['light', 'dark'])
-    test(`Open Avoozl is a button with the logo at ${width} px ${theme}`, { skip }, async () => {
-      await page.open(harness.url({ page: 'panel', theme, sid: 'chat-1' }), { width, height, dark: theme === 'dark' })
-      await page.until(`Boolean(document.querySelector('[data-open-avoozl]'))`)
-      const button = await page.evaluate(`(() => {
-        const b = document.querySelector('[data-open-avoozl]')
-        const r = b.getBoundingClientRect(), s = getComputedStyle(b), logo = b.querySelector('svg').getBoundingClientRect()
-        return { tag: b.tagName, label: b.getAttribute('aria-label'), text: b.textContent.trim(), border: s.borderTopStyle, borderWidth: parseFloat(s.borderTopWidth), bg: s.backgroundColor, logo: logo.width, right: r.right, width: innerWidth, height: r.height }
-      })()`)
-      assert.equal(button.tag, 'BUTTON')
-      assert.equal(button.label, 'Open Avoozl')
-      assert.equal(button.text, 'Open Avoozl')
-      assert.equal(button.border, 'solid')
-      assert.ok(button.borderWidth >= 1, 'it has a border')
-      assert.notEqual(button.bg, 'rgba(0, 0, 0, 0)', 'it has a background')
-      assert.ok(button.logo >= 16, 'the logo shows')
-      assert.ok(button.right <= button.width, 'inside the panel')
-      // Kiro Crew's compact size on every screen.
-      assert.ok(button.height <= 28, `compact (${button.height} px)`)
+  for (const stopped of [false, true])
+    test(`no visible text reads Stop the line at ${width} px${stopped ? ' while stopped' : ''}`, { skip }, async () => {
+      await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1', ...(stopped ? { stopped: '1' } : {}) }), { width, height })
+      await page.until(`Boolean(document.querySelector('[data-pp-head] [data-stop-line]${stopped ? '[data-stopped]' : ''}')) && Boolean(document.querySelector('[data-flight-row]'))`)
+      await page.evaluate(`document.querySelector('[data-pp-toggle-all][aria-pressed=false]')?.click()`)
+      const texts = await page.evaluate(visibleText)
+      assert.deepEqual(texts.filter((t) => /stop the line/i.test(t)), [])
+      const button = await page.evaluate(`(() => { const b = document.querySelector('[data-pp-head] [data-stop-line]'); return { label: b.getAttribute('aria-label'), text: b.innerText.trim() } })()`)
+      assert.deepEqual(button, { label: stopped ? 'Resume the line' : 'Stop the line', text: '' })
     })
+
+test('the play icon resumes a stopped line after asking', { skip }, async () => {
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1', stopped: '1' }), { width: 390, height: 800 })
+  await page.until(`Boolean(document.querySelector('[data-pp-head] [data-stop-line][data-stopped]'))`)
+  await page.evaluate(`document.querySelector('[data-stop-line]').click()`)
+  await page.until(`[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Resume')`)
+  await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Resume').click()`)
+  await page.until(`window.__panelCalls.some((c) => c.resume === 'l1')`)
+  await page.until(`!document.querySelector('[data-stop-line][data-stopped]')`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-stop-line]').getAttribute('aria-label')`), 'Stop the line')
+})
+
+// The word "Avoozl" in the header opens the app page.
+test('the header word Avoozl opens the app page', { skip }, async () => {
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1' }), { width: 390, height: 800 })
+  await page.until(`Boolean(document.querySelector('[data-pp-head-link]'))`)
+  await page.evaluate(`document.querySelector('[data-pp-head-link]').click()`)
+  assert.deepEqual(await page.evaluate(`window.__navigated`), ['/apps/avoozl'])
+})
+
+// The Refresh icon turns from muted toward red as the read ages, and is red
+// while GitHub's rate limit holds.
+test('the Refresh icon reddens as the cache ages and is red when rate limited', { skip }, async () => {
+  const { refreshColor } = await import('../src/refresh-api.ts').catch(() => ({ refreshColor: null }))
+  if (refreshColor) {
+    assert.match(refreshColor(0), /var\(--danger\) 0%/)
+    assert.match(refreshColor(50), /var\(--danger\) 40%/)
+    assert.equal(refreshColor(100), 'var(--danger)')
+  }
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1' }), { width: 390, height: 800 })
+  await page.until(`Boolean(document.querySelector('[data-refresh-age]'))`)
+  const first = Number(await page.evaluate(`document.querySelector('[data-refresh-age]').dataset.refreshAge`))
+  await new Promise((resolve) => setTimeout(resolve, 2300))
+  const later = Number(await page.evaluate(`document.querySelector('[data-refresh-age]').dataset.refreshAge`))
+  assert.ok(later > first, `the age grows (${first} -> ${later})`)
+})
+
+// An In flight row's action is Session: a plus-in-circle icon and the word on
+// a desktop, the icon only on a phone. Both are named "Session".
+for (const [width, words] of [[390, ''], [1280, 'Session']])
+  test(`Session is ${words ? 'a labeled button' : 'an icon'} at ${width} px`, { skip }, async () => {
+    await page.open(harness.url({ page: 'panel', theme: 'dark', sid: 'chat-1' }), { width, height: 800, dark: true })
+    await page.until(`Boolean(document.querySelector('[data-flight-row] a[href^="/chat"]'))`)
+    const attach = await page.evaluate(`(() => { const a = document.querySelector('[data-flight-row] a[href^="/chat"]'); const r = a.getBoundingClientRect(); return { text: a.innerText.trim(), label: a.getAttribute('aria-label'), icon: Boolean(a.querySelector('svg')), height: r.height, width: r.width } })()`)
+    assert.equal(attach.text, words)
+    assert.equal(attach.label, 'Session')
+    assert.ok(attach.icon)
+    assert.ok(attach.height <= 28, `compact (${attach.height} px)`)
+  })
+
+// The header's last icon folds or opens every section, and the choice is kept.
+test('fold all closes every section, opens them again, and is remembered', { skip }, async () => {
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1' }), { width: 390, height: 800 })
+  await page.until(`document.querySelectorAll('[data-pp-section]').length >= 4`)
+  await page.evaluate(`localStorage.removeItem('avoozl.panel.folds')`)
+  const state = () => page.evaluate(`({ open: [...document.querySelectorAll('[data-pp-section-head]')].map((b) => b.getAttribute('aria-expanded')), label: document.querySelector('[data-pp-toggle-all]').getAttribute('aria-label') })`)
+  const first = await state()
+  assert.ok(first.open.includes('true'))
+  assert.equal(first.label, first.open.every((v) => v === 'true') ? 'Collapse all sections' : 'Expand all sections')
+  const click = () => page.evaluate(`document.querySelector('[data-pp-toggle-all]').click()`)
+  // Collapse until every section is closed (one click when all are open, two when some are not).
+  while ((await state()).open.includes('true')) await click()
+  const closed = await state()
+  assert.ok(closed.open.every((v) => v === 'false'))
+  assert.equal(closed.label, 'Expand all sections')
+  assert.equal(await count('[data-waiting-row]'), 0)
+  // Remembered across a reload of the panel.
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1' }), { width: 390, height: 800 })
+  await page.until(`document.querySelectorAll('[data-pp-section]').length >= 4`)
+  assert.ok((await state()).open.every((v) => v === 'false'), 'closed after a reload')
+  await click()
+  const opened = await state()
+  assert.ok(opened.open.every((v) => v === 'true'))
+  assert.equal(opened.label, 'Collapse all sections')
+  assert.equal(await count('[data-waiting-row]'), 2)
+  // One section on its own.
+  await page.evaluate(`document.querySelector('[data-panel-fold="recent"] [data-pp-section-head]').click()`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-panel-fold="recent"] [data-pp-section-head]').getAttribute('aria-expanded')`), 'false')
+  assert.equal((await state()).label, 'Expand all sections')
+  await page.evaluate(`localStorage.removeItem('avoozl.panel.folds')`)
+})
 
 // The driver line names its workspace. In a chat that is another workspace's
 // driver, the panel reads that workspace, not the one the app page last
@@ -246,7 +344,7 @@ for (const [width, height] of [[1280, 900], [390, 800]])
 test('a Nupp driver chat\'s panel reads Nupp and shows it running', { skip }, async () => {
   await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-nupp', driver: 'nupp' }), { width: 390, height: 800 })
   await page.until(`document.querySelector('[data-panel-driver]')?.dataset.panelDriver === 'running'`)
-  assert.equal(await text('[data-driver-workspace]'), 'Nupp')
+  assert.match(await page.evaluate(`document.querySelector('[data-panel-driver]').dataset.tip`), /Workspace: Nupp\./)
   assert.equal(await count('[data-driver-elsewhere]'), 0)
 })
 
@@ -254,7 +352,7 @@ test('another chat: "No driver for Harness. Nupp has one: Open", with the worksp
   await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1', driver: 'nupp' }), { width: 390, height: 800 })
   await page.until(`Boolean(document.querySelector('[data-driver-elsewhere]'))`)
   assert.equal(await page.evaluate(`document.querySelector('[data-panel-driver]').dataset.panelDriver`), 'none')
-  assert.equal(await text('[data-driver-workspace]'), 'Harness')
-  assert.match(await text('[data-driver-elsewhere]'), /^No driver for Harness\. Nupp has one: Open$/)
-  assert.equal(await page.evaluate(`document.querySelector('[data-driver-elsewhere] a').getAttribute('href')`), '/chat?sid=chat-nupp')
+  assert.match(await page.evaluate(`document.querySelector('[data-panel-driver]').dataset.tip`), /Workspace: Harness\. No driver for Harness\. Nupp has one:/)
+  assert.equal(await page.evaluate(`document.querySelector('[data-driver-elsewhere]').getAttribute('aria-label')`), "Open Nupp's driver")
+  assert.equal(await page.evaluate(`document.querySelector('[data-driver-elsewhere]').getAttribute('href')`), '/chat?sid=chat-nupp')
 })
