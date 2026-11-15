@@ -2,6 +2,8 @@
 // default branch, and `plansBranch`, the orphan branch of private specs.
 // One reader reads both into one list. A spec name or task ID found in both
 // homes is refused, naming both.
+import { execFileSync } from "node:child_process";
+import { originRepositorySync } from "./git.mjs";
 import { fail } from "./store.mjs";
 import { parseRepository } from "./github.mjs";
 import {
@@ -66,6 +68,9 @@ export async function readPrivateSpecs(github, mirror) {
     }
     specs.push({
       name: entry.name,
+      home: "plansBranch",
+      repository: mirror.mirror,
+      ref,
       folder: `${base}/`,
       exists: true,
       files,
@@ -126,4 +131,68 @@ export function mergeHomes(publicSpecs, privateSpecs) {
 export function requireHome(home) {
   if (!HOMES.includes(home)) fail("A spec home is main or plansBranch.");
   return home;
+}
+
+// A private plans checkout is another view of that home, not a public twin.
+// Never infer privacy from the folder name alone: both remote and branch match.
+export function locateLocalSpec(spec, mirror, policy) {
+  if (!spec.exists || !spec.root || !mirror) return spec;
+  if (
+    originRepositorySync(spec.root)?.toLowerCase() !==
+    mirror.mirror.toLowerCase()
+  )
+    return { ...spec, home: "main" };
+  const git = (...args) =>
+    execFileSync("git", ["-C", spec.root, ...args], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  let branch;
+  try {
+    branch = git("branch", "--show-current");
+  } catch {
+    return {
+      ...spec,
+      home: "plansBranch",
+      repository: mirror.mirror,
+      ref: mirror.plansBranch,
+      approvalBlocked: true,
+    };
+  }
+  const privateSpec = {
+    ...spec,
+    home: "plansBranch",
+    repository: mirror.mirror,
+    ref: mirror.plansBranch,
+  };
+  if (branch === mirror.plansBranch) return privateSpec;
+  const related = (ref) => {
+    try {
+      return Boolean(git("merge-base", "HEAD", ref));
+    } catch {
+      return false;
+    }
+  };
+  if (
+    [
+      `refs/heads/${mirror.plansBranch}`,
+      `refs/remotes/origin/${mirror.plansBranch}`,
+    ].some(related)
+  )
+    return { ...privateSpec, approvalBlocked: true };
+  const entry = Object.values(policy?.repositories || {}).find(
+      (value) =>
+        value.mirror?.mirror.toLowerCase() === mirror.mirror.toLowerCase(),
+    ),
+    publicRefs = entry?.baseBranch
+      ? [
+          `refs/heads/${entry.baseBranch}`,
+          `refs/remotes/origin/${entry.baseBranch}`,
+        ]
+      : [];
+  publicRefs.push("refs/remotes/origin/HEAD");
+  if (publicRefs.some(related)) return { ...spec, home: "main" };
+  // A review/detached branch without a proved public lineage cannot become
+  // a route for publishing a private draft to the default code branch.
+  return { ...privateSpec, approvalBlocked: true };
 }

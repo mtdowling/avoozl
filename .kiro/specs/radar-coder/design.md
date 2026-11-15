@@ -1394,3 +1394,25 @@ Proof added to D17:
 | Proof  | Proves                                                                                                         |
 | ------ | -------------------------------------------------------------------------------------------------------------- |
 | rc-p27 | A scratch crew pull request with a source conflict gets one merge commit keeping both sides, and is armed again |
+
+## D34. GitHub usage counter and batched reads (RC29)
+
+`github-rate.mjs` keeps an `AsyncLocalStorage` source. `ops.execute` sets it from
+the operation name (`tick`, `setup`, `mirror.forward`, `review`, else `view`),
+`tick()` sets `tick` and wraps its forward and review steps. Unmarked code reads
+as `other`. `RateState` adds each call to a five-minute bucket in the existing
+`githubRate` meta, as calls, 304s or cache hits per source, and drops buckets
+older than an hour. The client counts a cache answer where it returns it.
+
+`bin/gh-counted` appends one JSON line (time, source) to `gh-calls.jsonl` in
+`AVOOZL_HOME` (default `~/.avoozl`), or the path in `AVOOZL_GH_COUNT_FILE`, then
+runs `gh`. The next flush moves the lines into the buckets and empties the file;
+`rateView` also reads lines not yet moved. One run counts as one call, which is
+how `gh` mostly behaves; it is a count of runs, not of what GitHub charged.
+
+`GitHubClient.openPullRequests(repository)` is one paged GraphQL query (100 per
+page, at most 5 pages). `pullRequestHeads` and `pullRequestClosingIssues` read it
+through the client cache, so any number of views inside the cache window cost
+one call. A repository with more than 500 open pull requests falls back to the
+per-branch query. Claims already come from one search per repository
+(`searchIssuesWithAnyLabel`).
