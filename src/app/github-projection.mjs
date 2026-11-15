@@ -830,26 +830,17 @@ export async function refreshProjectedReadiness(
   // A spec taken over is projected once more, so the next tick raises again
   // every conflict whose cause is still on GitHub (§6.10).
   for (const planId of forcePlans) plans.add(planId);
+  // A blocker link a projection could not add yet (its issue did not exist).
+  for (const planId of plansAwaitingLinks(data)) plans.add(planId);
   for (const planId of plans) {
     // A spec driven elsewhere is read-only here (§6.10).
     if (skipPlans.has(planId)) continue;
     if (store.get("plans", planId)?.state !== "approved") continue;
     try {
-      // Plans-repo mode keeps every task issue in the planning repository,
-      // except a plan whose issues sit in an `issue-radar` code repository.
-      const radar = designed.some(
-        (task) =>
-          task.planId === planId &&
-          radarIssueRepository(identity, task.github.repository),
-      );
       await project(store, github, {
         planId,
         identity,
-        ...(identity.mode === "plans-repo" &&
-        identity.planningRepository &&
-        !radar
-          ? { repository: identity.planningRepository }
-          : {}),
+        repository: issueRepository(identity, designed, planId),
       });
       result.projected.push(planId);
     } catch (error) {
@@ -857,6 +848,38 @@ export async function refreshProjectedReadiness(
     }
   }
   return result;
+}
+
+// Plans-repo mode keeps every task issue in the planning repository, except
+// a plan whose issues sit in an `issue-radar` code repository.
+function issueRepository(identity, tasks, planId) {
+  const radar = tasks.some(
+    (task) =>
+      task.planId === planId &&
+      task.github?.number &&
+      radarIssueRepository(identity, task.github.repository),
+  );
+  return identity.mode === "plans-repo" && identity.planningRepository && !radar
+    ? identity.planningRepository
+    : undefined;
+}
+
+// Plans (other than `except`) with a task waiting for a blocker issue that
+// now exists.
+function plansAwaitingLinks(data, except) {
+  const numbered = new Set(
+    data.tasks.filter((task) => task.github?.number).map((task) => task.id),
+  );
+  return new Set(
+    data.tasks
+      .filter(
+        (task) =>
+          task.planId &&
+          task.planId !== except &&
+          task.github?.waitingOn?.some((id) => numbered.has(id)),
+      )
+      .map((task) => task.planId),
+  );
 }
 
 // The policy entries also answer to a mirror's own ID, because the write
@@ -884,6 +907,7 @@ async function project(
     dryRun = false,
     batches = [],
     holdClaimed = false,
+    followUp = true,
   },
 ) {
   identity = withMirrorEntries(identity);
@@ -1198,11 +1222,31 @@ async function project(
           .map((edge) => leadOf.get(edge.from) ?? edge.from),
       ),
     ];
+    const met = new Set();
     for (const id of item.blockerTasks) {
       if (byTask.has(id) || external.has(id)) continue;
       const local = data.tasks.find((candidate) => candidate.id === id);
-      if (!local?.github?.repository || !local.github.number)
+      if (!local?.github?.repository || !local.github.number) {
+        // Specs whose tasks depend on each other both ways project in any
+        // order: a blocker of another approved spec with no issue yet is
+        // linked when that spec projects. Until then the task is not ready.
+        // A done blocker that never gets an issue is met (R74).
+        if (
+          local?.planId &&
+          local.planId !== plan.id &&
+          local.authority !== "local" &&
+          store.get("plans", local.planId)?.state === "approved"
+        ) {
+          if (
+            !identity.includeDone &&
+            (complete(local.status) || completionReached(local, null, complete))
+          )
+            met.add(id);
+          else (item.waiting ||= []).push(id);
+          continue;
+        }
         fail(`Dependency ${id} must be projected before ${task.id}.`, 409);
+      }
       // A task written to a mirror records the mirror's ID, which no
       // registered repository has; find the one whose write target it is.
       const config =
@@ -1218,6 +1262,14 @@ async function project(
         issue: await github.issue(config, local.github.number),
       });
     }
+    if (met.size || item.waiting)
+      item.blockerTasks = item.blockerTasks.filter(
+        (id) => !met.has(id) && !item.waiting?.includes(id),
+      );
+    if (item.waiting)
+      notes.add(
+        `${task.id} waits for the issue of ${item.waiting.join(", ")}; the link is added when that spec is projected.`,
+      );
   }
   // A blocker's issue: projected now, already on GitHub, or not yet created.
   const blockerRef = (id) => {
@@ -1338,6 +1390,8 @@ async function project(
           !item.skip &&
           !item.conflicts.length &&
           !item.closed &&
+          // A blocker with no issue to link yet (another spec's) holds it.
+          !item.waiting &&
           taskKind(item.task) === "leaf" &&
           (item.memberTasks || [item.task]).every((member) =>
             queueReady.has(member.id),
@@ -1892,6 +1946,8 @@ async function project(
         origin: "design",
         bodyHash: record.bodyHash,
         ...(batch ? { batch } : {}),
+        // Blockers still to link once their spec projects.
+        ...(item.waiting ? { waitingOn: item.waiting } : {}),
       };
     // Each member keeps its own task row, pointing at the one issue.
     for (const member of item.memberTasks || [task])
@@ -2031,6 +2087,24 @@ async function project(
       }
     }
   }
+  // Specs whose tasks wait for a blocker issue this projection made get
+  // their missing links now, once (no further cascade).
+  const relinked = [];
+  if (!dryRun && followUp)
+    for (const other of plansAwaitingLinks(store.read(), plan.id)) {
+      if (store.get("plans", other)?.state !== "approved") continue;
+      try {
+        await project(store, github, {
+          planId: other,
+          identity,
+          repository: issueRepository(identity, store.read().tasks, other),
+          followUp: false,
+        });
+        relinked.push(other);
+      } catch (error) {
+        notes.add(`Linking blockers of ${other} failed: ${error.message}`);
+      }
+    }
   store.event(null, "github.plan.projected", {
     planId: plan.id,
     planHash: plan.hash,
@@ -2047,6 +2121,10 @@ async function project(
       .filter((item) => item.unlinked)
       .map((item) => ({ taskId: item.task.id, ...item.unlinked })),
     skippedDone: [...skippedDone],
+    waiting: items
+      .filter((item) => item.waiting)
+      .map((item) => ({ taskId: item.task.id, blockers: item.waiting })),
+    relinked,
     ...(dryRun ? { previewOnly: [...previewOnly] } : {}),
     parent: parent
       ? {
