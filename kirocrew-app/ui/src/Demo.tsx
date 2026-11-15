@@ -107,7 +107,7 @@ export function DemoProvider(props: { children: ReactNode }) {
   )
 }
 
-// The header's badge. Every page shows it while the demo is on.
+// The badge at the top of the page. Every page shows it while the demo is on.
 export function DemoBadge() {
   const { active } = useDemo()
   if (!active) return null
@@ -135,15 +135,12 @@ export function StartDemoButton(props: { label?: string }) {
   )
 }
 
-// The strip under the header: what the demo is, the last preview, Tour,
-// and Exit demo.
-// The Stop the line example and Start the tour: in the bar on a desktop, in
-// the header's More menu on a phone.
+// The Stop the line example and Start the tour, in the demo bar.
 export function DemoControls() {
   const demo = useDemo()
   return (
     <>
-      <span role="group" aria-label="Stop the line example" className="flex flex-wrap items-center gap-1 text-xs" data-keep-menu>
+      <span role="group" aria-label="Stop the line example" className="flex flex-wrap items-center gap-1 text-xs">
         Stop the line example
         {(['running', 'stopped'] as const).map((example) => (
           <Btn key={example} type="button" data-demo-stop-example={example} aria-pressed={demo.stopExample === example} primary={demo.stopExample === example} onClick={() => demo.setStopExample(example)}>
@@ -160,6 +157,10 @@ export function DemoControls() {
   )
 }
 
+// What Avoozl is, and what the demo is. This is the one place the page says it.
+const DEMO_INTRO =
+  'Avoozl turns your specs and epics into a graph of tasks, then Issue Radar crews code the ready ones. This is a made-up sample so you can look around. Nothing you do here changes your work, GitHub or agents.'
+
 export function DemoBar() {
   const demo = useDemo()
   const phone = usePhone()
@@ -174,18 +175,21 @@ export function DemoBar() {
       {demo.notice ?? ''}
     </p>
   )
-  // A phone gets one thin line: the badge, a few words and Exit.
+  // A phone gets a compact box: the badge, the intro, the controls and Exit.
   if (phone)
     return (
       <div
         data-demo-bar
         role="region"
         aria-label="Demo mode"
-        className="mx-4 mb-2 flex items-center gap-2 rounded-md border px-2 text-xs"
+        className="mx-4 mb-2 flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5 text-xs"
         style={{ minHeight: 32, borderColor: 'var(--warning, #c90)', background: 'var(--card, transparent)' }}
       >
         <DemoBadge />
-        <span className="min-w-0 flex-1 truncate text-muted">Made-up sample. Changes nothing.</span>
+        <span className="min-w-0 flex-1 text-muted" data-demo-intro style={{ minWidth: 160 }}>
+          {DEMO_INTRO}
+        </span>
+        <DemoControls />
         <button type="button" data-demo-exit onClick={() => void demo.exit()} className="text-xs font-semibold" style={{ background: 'none', border: 0, color: 'var(--accent)', cursor: 'pointer', padding: '2px 4px' }}>
           Exit demo
         </button>
@@ -200,9 +204,9 @@ export function DemoBar() {
       className="mx-2 mb-3 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm"
       style={{ borderColor: 'var(--warning, #c90)', background: 'var(--card, transparent)' }}
     >
-      <Badge variant="warning">Demo</Badge>
-      <span className="flex-1" style={{ minWidth: 200 }}>
-        Made-up sample. Nothing you do here changes your work, GitHub or agents.
+      <DemoBadge />
+      <span className="flex-1" style={{ minWidth: 200 }} data-demo-intro>
+        {DEMO_INTRO}
       </span>
       <DemoControls />
       <Btn type="button" primary data-demo-exit onClick={() => void demo.exit()}>
@@ -220,9 +224,9 @@ function stepTarget(step: TourStep): Element | null {
     const found = document.querySelector(step.target)
     if (found) return found
   }
-  // Stop the line sits in the header's More menu; while that is shut, the
-  // More button stands in for it.
-  if (step.id === 'stop-line') return document.querySelector('[data-stop-line]') ?? document.querySelector('[data-header-more] [data-more-button]')
+  // On a phone Stop the line is in the menu; while that is shut, the menu
+  // button stands in for it.
+  if (step.id === 'stop-line') return document.querySelector('[data-stop-line]') ?? document.querySelector('[data-top-rail-bar]')
   if (step.id !== 'needs-you') return null
   return [...document.querySelectorAll('h2, h3, h4')].find((h) => h.textContent?.trim().startsWith(step.title)) ?? null
 }

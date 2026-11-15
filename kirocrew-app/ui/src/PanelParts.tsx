@@ -27,7 +27,9 @@ export const PANEL_CSS = `
 [data-pp] *{box-sizing:border-box}
 [data-pp-head]{display:flex;align-items:center;flex-wrap:nowrap;gap:6px;padding:6px 12px;border-bottom:1px solid var(--border);min-width:0}
 [data-pp-head-name]{flex:0 1 auto;display:inline-flex;align-items:baseline;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:var(--text-strong,var(--text))}
-[data-pp-head-instance]{font-weight:400;color:var(--muted)}
+[data-pp-head-brand]{display:inline-flex;align-items:baseline;gap:4px;flex:none}
+[data-pp-head-instance]{font-weight:400;color:var(--muted);flex:none}
+[data-pp-head-workspace]{font-weight:400;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 [data-pp-head-link]{padding:0;margin:0;background:none;border:0;font:inherit;color:inherit;cursor:pointer;text-decoration:none}
 [data-pp-head-link]:hover,[data-pp-head-link]:focus-visible{color:var(--accent);text-decoration:underline}
 [data-pp-head-tools]{flex:none;display:inline-flex;align-items:center;gap:2px}
@@ -66,6 +68,8 @@ a[data-pp-row-title]:hover{text-decoration:underline}
 [data-pp-cells]{padding:0 12px 8px}
 [data-pp-empty]{margin:0;padding:0 12px 12px;font-size:12px;color:var(--muted)}
 @media (max-width:640px){
+[data-pp-head-name]>[data-pp-head-brand]{display:none}
+[data-pp-head-workspace]>[data-pp-head-dot]{display:none}
 [data-pp-narrow-hide]{display:none}
 [data-pp-act][data-narrow-icon]{padding:2px 6px}
 }
@@ -165,26 +169,36 @@ export function PanelChip(props: { tone?: Tone; tip?: string; href?: string | nu
 // The one thin line at the top: the name ("Avoozl" opens the app page), small
 // icon tools (Refresh, then fold all), and the line's pause button at the far
 // right.
-export function PanelHeader(props: { name: string; instance?: string | null; tip?: string; onName?: () => void; nameTip?: string; tools?: ReactNode; end?: ReactNode }) {
+export function PanelHeader(props: { name: string; instance?: string | null; workspace?: string | null; tip?: string; onName?: () => void; nameTip?: string; tools?: ReactNode; end?: ReactNode }) {
   const folds = useContext(FoldsContext)
   const label = folds?.allOpen ? 'Collapse all sections' : 'Expand all sections'
   const Icon = folds?.allOpen ? ChevronsDownUp : ChevronsUpDown
+  // "Avoozl · <instance> · <workspace>"; the workspace truncates first. A
+  // phone shows the workspace alone (the brand and instance hide there).
   return (
     <div data-pp-head>
       <span data-pp-head-name>
-        {props.onName ? (
-          <Tooltip text={props.nameTip}>
-            <button type="button" data-pp-head-link aria-label={props.nameTip} onClick={props.onName}>
-              {props.name}
-            </button>
-          </Tooltip>
-        ) : (
-          props.name
-        )}
-        {props.instance && (
-          <Tooltip text={props.tip}>
-            <span data-pp-head-instance>· {props.instance}</span>
-          </Tooltip>
+        <span data-pp-head-brand>
+          {props.onName ? (
+            <Tooltip text={props.nameTip}>
+              <button type="button" data-pp-head-link aria-label={props.nameTip} onClick={props.onName}>
+                {props.name}
+              </button>
+            </Tooltip>
+          ) : (
+            props.name
+          )}
+          {props.instance && (
+            <Tooltip text={props.tip}>
+              <span data-pp-head-instance>· {props.instance}</span>
+            </Tooltip>
+          )}
+        </span>
+        {props.workspace && (
+          <span data-pp-head-workspace>
+            <span data-pp-head-dot>· </span>
+            {props.workspace}
+          </span>
         )}
       </span>
       <span data-pp-head-tools>

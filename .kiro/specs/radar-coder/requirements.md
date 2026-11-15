@@ -1702,7 +1702,8 @@ conflict.
    per repository, with a workspace default, in `.avoozl.json` and
    Settings. Off means plan order exactly as today.
 4. **Overlap reads.** Open pull requests SHALL come from the one batched read
-   of RC29. A path overlaps when one is equal to, inside, or matches the glob
+   of RC29: an open pull request counts as the declared `paths` of the tasks
+   whose issues it closes. A path overlaps when one is equal to, inside, or matches the glob
    of the other. Ranking SHALL add no GitHub call.
 5. **Release queue.** Each row SHALL say why it is next or held in one line:
    for example `Next: unblocks 4 tasks`, `Held: paths overlap #112 (open pull

@@ -36,8 +36,9 @@ test('the client reads and renames through the command route', async () => {
   assert.deepEqual(calls, ['instance.view', 'instance.rename'])
 })
 
-test('the header, Settings, Home and the side panel use the shared helper', () => {
-  assert.match(source('App.tsx'), /<InstanceBadge workspaceId=\{active\} \/>/)
+test('the brand card, Settings, Home and the side panel use the shared helper', () => {
+  assert.match(source('BrandCard.tsx'), /<InstanceBadge workspaceId=\{props\.workspaceId\} \/>/)
+  assert.match(source('App.tsx'), /<BrandCard workspaceId=\{active\} \/>/)
   assert.match(source('SettingsView.tsx'), /<InstanceRename workspaceId=\{workspaceId\} \/>/)
   assert.match(source('DashboardView.tsx'), /nameFor\(instance, 'other'\)/)
   assert.match(source('Panel.tsx'), /nameFor\(instance, 'header'\)/)

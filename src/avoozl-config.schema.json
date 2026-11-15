@@ -1027,6 +1027,19 @@
               "enum": ["automatic", "step", "hold"],
               "default": "automatic"
             },
+            "ranking": {
+              "description": "Which eligible task gets the ready label next: the one that unblocks most first, a task whose paths overlap claimed work or an open pull request held back, and a held task moved up after each agingHours wait. Only the order changes.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean", "default": true },
+                "agingHours": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "default": 12
+                }
+              }
+            },
             "scopes": {
               "type": "array",
               "items": {

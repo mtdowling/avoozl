@@ -162,7 +162,7 @@ for (const name of ['projection', 'spec-changed'])
         await page.until(`Boolean(document.querySelector('dialog button:not([disabled])')) && document.querySelector('dialog').textContent.length > 120`)
         const fit = await page.evaluate(`(() => {
           const box = document.querySelector('[data-modal-box]')
-          const body = box.querySelector('.overflow-y-auto')
+          const body = box.querySelector('[data-modal-body]')
           const r = box.getBoundingClientRect()
           return { sideways: body.scrollWidth > body.clientWidth, inside: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight, text: getComputedStyle(box).color !== getComputedStyle(box).backgroundColor }
         })()`)

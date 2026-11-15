@@ -192,6 +192,33 @@ export class Store {
       this.db.exec(`DELETE ${idea}`);
   }
   transaction(fn) {
+    // A nested call is a savepoint, so an outer transaction (plan.approveMany)
+    // can run several inner ones and still roll all of them back.
+    if (this.depth) {
+      const name = `nested_${this.depth}`;
+      this.db.exec(`SAVEPOINT ${name}`);
+      this.depth++;
+      try {
+        const result = fn();
+        this.db.exec(`RELEASE ${name}`);
+        return result;
+      } catch (error) {
+        this.db.exec(`ROLLBACK TO ${name}`);
+        this.db.exec(`RELEASE ${name}`);
+        throw error;
+      } finally {
+        this.depth--;
+        this.cache = null;
+      }
+    }
+    this.depth = 1;
+    try {
+      return this.outerTransaction(fn);
+    } finally {
+      this.depth = 0;
+    }
+  }
+  outerTransaction(fn) {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const result = fn();
@@ -207,6 +234,13 @@ export class Store {
   getMeta(key) {
     const row = this.db.prepare("SELECT value FROM meta WHERE key=?").get(key);
     return row ? JSON.parse(row.value) : null;
+  }
+  // Every meta entry whose key starts with `prefix`, as [key, value].
+  metaEntries(prefix) {
+    return this.db
+      .prepare("SELECT key, value FROM meta WHERE substr(key, 1, ?) = ?")
+      .all(prefix.length, prefix)
+      .map((row) => [row.key, JSON.parse(row.value)]);
   }
   setMeta(key, value) {
     this.db
