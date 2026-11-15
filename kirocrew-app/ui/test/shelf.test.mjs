@@ -83,3 +83,20 @@ test('Esc and the Close button close it and focus goes back to the opener; Tab s
   await page.until(`!${SHELF}`)
   assert.equal(await page.evaluate(`document.activeElement === ${OPENER}`), true, 'Close returns focus to the opener')
 })
+
+for (const [width, dark] of [[1280, false], [390, true]])
+  test(`the shelf header is not sticky and scrolls out of view at ${width} px, ${dark ? 'dark' : 'light'}`, { skip }, async () => {
+    await start(width, dark)
+    await openShelf()
+    const head = `${SHELF}.querySelector('h3').parentElement`
+    const pos = await page.evaluate(`(() => { let n = ${head}; const out = []; for (; n && n !== ${SHELF}; n = n.parentElement) out.push(getComputedStyle(n).position); return out })()`)
+    assert.ok(pos.every((p) => p !== 'sticky' && p !== 'fixed'), `no sticky or fixed header: ${pos}`)
+    // Make the body taller than the screen, then scroll the shelf.
+    await page.evaluate(`(() => { const f = document.createElement('div'); f.style.height = '3000px'; f.dataset.filler = ''; ${head}.parentElement.appendChild(f) })()`)
+    const top = () => page.evaluate(`${head}.getBoundingClientRect().bottom`)
+    assert.ok((await top()) > 0, 'header visible at first')
+    await page.evaluate(`${head}.parentElement.scrollTop = 1000`)
+    assert.ok((await top()) <= 0, 'header scrolled out of view')
+    await page.key('Escape', 'Escape', 27)
+    await page.until(`!${SHELF}`)
+  })
