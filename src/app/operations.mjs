@@ -4,6 +4,7 @@ import {
   declaredDependencies,
 } from "./cross-spec-dependencies.mjs";
 import { parseIssueReference, verifyIssue } from "./verify-issue.mjs";
+import { RepoFiles } from "./repo-files.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
 import { applicationRoot } from "./config.mjs";
@@ -1428,6 +1429,17 @@ export class Operations {
         .map((project) => project.root),
     });
   }
+  // Repository files by git, with the API as the fallback (repo-files.mjs).
+  // The cache lives in this workspace's git-ignored state folder.
+  repoFiles() {
+    this.files ??= new RepoFiles({
+      github: this.github,
+      root: this.workspaceRoot
+        ? path.join(this.workspaceRoot, ".avoozl", "local", "git-cache")
+        : null,
+    });
+    return this.files;
+  }
   // Read the plans branch into `privateSpecs`. A failed read keeps the last
   // good list, so a network error never makes private specs vanish.
   // `cached` (a read): do nothing inside github.cacheSeconds of the last
@@ -1453,14 +1465,16 @@ export class Operations {
     try {
       let head = null;
       try {
-        head =
-          (await this.github.branch(mirror.mirror, mirror.plansBranch))?.commit
-            ?.sha ?? null;
+        head = await this.repoFiles().head(mirror.mirror, mirror.plansBranch);
       } catch {
         // No head to compare: read the files.
       }
       if (!head || head !== this.privateSpecsHead) {
-        this.privateSpecs = await readPrivateSpecs(this.github, mirror);
+        this.privateSpecs = await readPrivateSpecs(
+          this.repoFiles(),
+          mirror,
+          head,
+        );
         this.privateSpecsHead = head;
       }
       this.privateSpecsAt = now;
@@ -3871,6 +3885,7 @@ export class Operations {
           push: !look,
           review: true,
           seenHash: input.seenHash ?? null,
+          files: this.repoFiles(),
           ...(this.forwardGit ? { git: this.forwardGit } : {}),
         });
       if (!result.ok && !result.blocked && !result.changed)
@@ -5364,6 +5379,7 @@ export class Operations {
     if (name === "issue.verify")
       return verifyIssue(input.issue, {
         brief: true,
+        ...(this.workspaceRoot ? { files: this.repoFiles() } : {}),
         ...(input.pullRequest !== undefined ? { pull: input.pullRequest } : {}),
       });
     if (name === "plan.lint") {

@@ -31,8 +31,19 @@ class SlowGitHub extends FakeGitHub {
     await new Promise((resolve) => setTimeout(resolve, LATENCY_MS));
     return super.contents(...args);
   }
+  async treeEntries(...args) {
+    this.reads += 1;
+    await new Promise((resolve) => setTimeout(resolve, LATENCY_MS));
+    return super.treeEntries(...args);
+  }
+  async blobTexts(...args) {
+    this.reads += 1;
+    await new Promise((resolve) => setTimeout(resolve, LATENCY_MS));
+    return super.blobTexts(...args);
+  }
   async branch() {
     this.heads += 1;
+    this.shas.set(this.oid, "avoozl-plans");
     await new Promise((resolve) => setTimeout(resolve, LATENCY_MS));
     return { name: "avoozl-plans", commit: { sha: this.oid } };
   }
