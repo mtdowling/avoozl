@@ -98,7 +98,9 @@ try {
       // `avoozl budget receipt TASK --json` prints the receipt object.
       else if (
         key === "json" &&
-        ["budget", "runner", "verify-issue", "review"].includes(args[0]) &&
+        ["budget", "runner", "verify-issue", "review", "gate"].includes(
+          args[0],
+        ) &&
         (args[i + 1] === undefined || args[i + 1].startsWith("--"))
       )
         options.json = true;
@@ -699,7 +701,28 @@ try {
         2,
       ),
     );
-  else if (command === "review" && positionals[0] === "drafts") {
+  else if (command === "gate" && positionals[0] === "list") {
+    // Tracker gates (RC23.11): the rows the page shows.
+    const { gates } = await localOrRequest("gate.list", {});
+    if (options.json) console.log(JSON.stringify({ gates }, null, 2));
+    else if (!gates.length) console.log("No tracker gates.");
+    else
+      for (const gate of gates)
+        console.log(
+          `${gate.state.padEnd(8)} ${gate.taskId}  ${gate.tracker} ${gate.item}  last ${gate.lastCheck ?? "never"}  next ${gate.nextCheck ?? "-"}${gate.held.length ? `  holds ${gate.held.join(", ")}` : ""}`,
+        );
+  } else if (command === "gate" && positionals[0] === "clear") {
+    // A person's order (RC23.10): the gate counts as done, recorded as cleared.
+    const result = await localOrRequest("gate.clear", {
+      taskId: need(positionals[1], "gate clear TASK --reason TEXT"),
+      reason: need(options.reason, "gate clear TASK --reason TEXT"),
+    });
+    console.log(
+      result.cleared
+        ? `Cleared ${positionals[1]} as an order by ${result.actor}.`
+        : `${positionals[1]} was already ${result.state}.`,
+    );
+  } else if (command === "review" && positionals[0] === "drafts") {
     // Review drafts made from the review label (RC20.6): what waits on
     // people, and the GitHub search that finds them.
     const view = await localOrRequest("review.drafts", {
@@ -1654,6 +1677,8 @@ try {
                                         Pull the Andon cord: stop new work in a scope
   flow stop --full --reason TEXT        Stop all agents: also stop every running chat Avoozl opened (needs the app backend)
   gap-report preview|accept SPEC (--path FILE | --issue OWNER/REPO#N)  Turn a gap report into proposed tasks in the sub-specs of a parent spec
+  gate list [--json]                    Tracker gates: state, last and next check, and what each holds
+  gate clear TASK --reason TEXT         Clear a tracker gate as an order (the GitHub login of this machine must be allowed)
   review drafts [--repository OWNER/REPO] [--state STATE] [--json]  Review drafts made from the review label, and the GitHub search for them
   flow resume STOP_ID                   Resume a pulled stop (a person only)
   checks run --task TASK_ID             Run the declared checks in this worktree and record the pass

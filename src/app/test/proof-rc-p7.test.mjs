@@ -202,8 +202,8 @@ test("Set up end to end: pack preview and import, Radar steps by confirm, owner 
   }
   const after = await ops.execute("radar.setup", { repository: REPO });
   assert.ok(after.steps.every((s) => s.status === "ok"));
-  // The pack's names are kept; Set up adds the approval, review and drafted
-  // labels at their avoozl: defaults (RC21.4).
+  // The pack's names are kept; Set up adds the approval, review, drafted and
+  // waiting-on-tracker labels at their avoozl: defaults (RC21.4).
   assert.deepEqual(github.state.labels, [
     "to plan",
     "ready",
@@ -211,6 +211,7 @@ test("Set up end to end: pack preview and import, Radar steps by confirm, owner 
     "avoozl:plan-approved",
     "avoozl:review",
     "avoozl:drafted",
+    "avoozl:waiting-on-tracker",
   ]);
   assert.equal(github.state.autoMerge, true);
   assert.deepEqual(github.state.rules, ["build"]);
