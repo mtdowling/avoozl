@@ -6,9 +6,9 @@
 // backdrop ask `onDismiss`, after a confirm when `unsaved` is set. Tab and
 // Shift+Tab stay inside the topmost modal, focus goes back where it was when
 // it closes, and the page behind it can't scroll. Full screen on a narrow page.
-// `side="right"` makes it a shelf: a pull-out panel on the right, full width
-// under 640 px, with a Close button and a slide-in that motion settings turn off
-// (see Shelf.tsx for the name the pages use).
+// `close` adds a Close button in its corner, for a modal with no Cancel of
+// its own (a settings form). There are no side panels: every modal is
+// centered, and full screen on a phone.
 import { createContext, useCallback, useContext, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useMedia } from './use-media.ts'
@@ -50,7 +50,7 @@ export function Modal(props: {
   id: string
   onDismiss: () => void
   children: ReactNode
-  // With a title: a heading, a body that scrolls and a footer kept in view. On a shelf the heading scrolls with the body.
+  // With a title: a heading, a body that scrolls and a footer kept in view.
   title?: ReactNode
   footer?: ReactNode
   // The box's width and height, each capped by the viewport. `plain` drops
@@ -65,13 +65,13 @@ export function Modal(props: {
   unsaved?: ConfirmCopy | null | false
   backLabel?: string
   kind?: StepKind
-  side?: 'right'
+  close?: boolean
   boxRef?: RefObject<HTMLDivElement | null>
   attrs?: Record<string, string | number | boolean | undefined>
 }) {
   const ask = useConfirm()
-  const shelf = props.side === 'right'
-  const narrow = useMedia(shelf ? '(max-width: 640px)' : '(max-width: 767px)')
+  const closable = Boolean(props.close)
+  const narrow = useMedia('(max-width: 767px)')
   const dialog = useRef<HTMLDialogElement>(null)
   const box = useRef<HTMLDivElement | null>(null)
   const [target, setTarget] = useState<HTMLElement | null>(null)
@@ -99,8 +99,8 @@ export function Modal(props: {
     lockScroll()
     setTarget(el)
     // The first control; the dialog's own effects may move it after.
-    // A shelf's Close button is first in the DOM; focus starts on the first field.
-    ;(box.current?.querySelector<HTMLElement>(`:is(${FOCUSABLE}):not([data-shelf-close])`) ?? box.current)?.focus()
+    // A Close button is first in the DOM; focus starts on the first field.
+    ;(box.current?.querySelector<HTMLElement>(`:is(${FOCUSABLE}):not([data-modal-close])`) ?? box.current)?.focus()
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Tab' || stack.at(-1) !== me || !box.current) return
       const items = [...box.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((item) => item.offsetParent !== null || item === document.activeElement)
@@ -120,16 +120,14 @@ export function Modal(props: {
   }, [])
 
   const sections = props.title !== undefined
-  const size = shelf
-    ? { width: narrow ? '100%' : `min(${props.width ?? '36rem'}, 100vw)`, height: '100%', maxHeight: 'none', borderRadius: 0 }
-    : narrow
+  const size = narrow
     ? { width: '100%', height: '100%', maxHeight: 'none', borderRadius: 0 }
     : sections || props.height
       ? { width: `min(${props.width ?? '64rem'}, 94vw)`, height: `min(${props.height ?? '52rem'}, 90vh)`, borderRadius: 10 }
       : { width: `min(${props.width ?? '36rem'}, 94vw)`, maxHeight: '88vh', borderRadius: 10 }
   const layout = sections || props.plain ? 'relative flex flex-col overflow-hidden border shadow-lg outline-none' : 'relative flex flex-col gap-3 overflow-y-auto border p-4 shadow-lg outline-none'
   const closeButton = (
-    <button type="button" data-shelf-close aria-label="Close" onClick={dismiss} className="rounded border p-1" style={{ cursor: 'pointer', background: 'none', borderColor: 'var(--border)', color: 'inherit', display: 'inline-flex' }}>
+    <button type="button" data-modal-close aria-label="Close" onClick={dismiss} className="rounded border p-1" style={{ cursor: 'pointer', background: 'none', borderColor: 'var(--border)', color: 'inherit', display: 'inline-flex' }}>
       <X size={16} aria-hidden="true" />
     </button>
   )
@@ -141,7 +139,7 @@ export function Modal(props: {
       aria-labelledby={props.labelledBy ?? `${props.id}-title`}
       aria-describedby={props.describedBy}
       data-modal={props.id}
-      data-modal-size={shelf ? (narrow ? 'shelf-full' : 'shelf') : narrow ? 'full' : sections ? 'large' : 'box'}
+      data-modal-size={narrow ? 'full' : sections ? 'large' : 'box'}
       {...{ [APP_ATTR]: '' }}
       {...props.attrs}
       // Esc is the page's Back history's (NavHistory.tsx); never let the
@@ -152,8 +150,8 @@ export function Modal(props: {
       }}
       style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', maxWidth: 'none', maxHeight: 'none', margin: 0, padding: 0, border: 'none', background: 'transparent', overflow: 'hidden', color: 'var(--text)' }}
     >
-      <style>{'dialog[data-modal]::backdrop{background:transparent}' + (shelf ? '@media (prefers-reduced-motion:no-preference){@keyframes avoozl-shelf-in{from{transform:translateX(100%)}to{transform:none}}[data-modal-box][data-shelf]{animation:avoozl-shelf-in 180ms ease-out}}' : '')}</style>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: shelf ? 'stretch' : 'center', justifyContent: shelf ? 'flex-end' : 'center' }}>
+      <style>{'dialog[data-modal]::backdrop{background:transparent}'}</style>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div aria-hidden="true" data-modal-backdrop onClick={dismiss} style={{ position: 'absolute', inset: 0, background: BACKDROP }} />
         <div
           ref={(el) => {
@@ -161,7 +159,6 @@ export function Modal(props: {
             if (props.boxRef) props.boxRef.current = el
           }}
           data-modal-box
-          data-shelf={shelf ? '' : undefined}
           tabIndex={-1}
           className={layout}
           style={{ ...BOX, ...size, boxSizing: 'border-box', overscrollBehavior: 'contain' }}
@@ -169,14 +166,14 @@ export function Modal(props: {
           <PortalTarget.Provider value={target}>
             {sections ? (
               <>
-                <div className={shelf ? 'min-h-0 flex-1 overflow-y-auto' : 'contents'}>
+                <div className="contents">
                   <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
                     <h3 id={`${props.id}-title`} className="min-w-0 flex-1 text-lg font-semibold">
                       {props.title}
                     </h3>
-                    {shelf && closeButton}
+                    {closable && closeButton}
                   </div>
-                  <div className={shelf ? 'p-4' : 'min-h-0 flex-1 overflow-y-auto p-4'}>{props.children}</div>
+                  <div className="min-h-0 flex-1 overflow-y-auto p-4">{props.children}</div>
                 </div>
                 {props.footer && (
                   <div className="border-t px-4 py-3" style={{ borderColor: 'var(--border)' }}>
@@ -186,7 +183,7 @@ export function Modal(props: {
               </>
             ) : (
               <>
-                {shelf && <div className="flex justify-end">{closeButton}</div>}
+                {closable && <div className="flex justify-end">{closeButton}</div>}
                 {props.children}
               </>
             )}

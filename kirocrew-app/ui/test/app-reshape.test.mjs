@@ -56,11 +56,11 @@ test('Settings is one accordion with the Mirror setup buttons', { skip }, async 
   await page.until(`Boolean(document.querySelector('[data-driver-session]'))`)
   // Opening another section closes the first.
   await click(`document.querySelector('[data-settings-section="repositories"] button[aria-expanded]')`)
-  // The large editors open in a shelf from Configure.
-  await page.until(`Boolean(document.querySelector('[data-open-shelf="repositories"]'))`)
+  // The large editors open in a modal from Configure.
+  await page.until(`Boolean(document.querySelector('[data-open-settings="repositories"]'))`)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-mirror-setup]'))`), false)
-  await click(`document.querySelector('[data-open-shelf="repositories"]')`)
-  await page.until(`Boolean(document.querySelector('[data-settings-shelf="repositories"] [data-mirror-setup]'))`)
+  await click(`document.querySelector('[data-open-settings="repositories"]')`)
+  await page.until(`Boolean(document.querySelector('[data-settings-dialog="repositories"] [data-mirror-setup]'))`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section][data-open="true"]').length`), 1)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-driver-session]'))`), false)
   const buttons = await page.evaluate(`[...document.querySelectorAll('[data-setup-action]')].map((b) => [b.dataset.setupAction, b.disabled])`)

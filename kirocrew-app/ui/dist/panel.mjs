@@ -357,7 +357,7 @@ function H() {
 }
 var Ae = e(null), je = () => n(Ae);
 function U(e) {
-	let n = Be(), r = e.side === "right", i = ve(r ? "(max-width: 640px)" : "(max-width: 767px)"), o = s(null), f = s(null), [p, m] = c(null), h = s(e);
+	let n = Be(), r = !!e.close, i = ve("(max-width: 767px)"), o = s(null), f = s(null), [p, m] = c(null), h = s(e);
 	h.current = e;
 	let g = s(!1), _ = t(() => {
 		let { unsaved: e, onDismiss: t } = h.current;
@@ -370,7 +370,7 @@ function U(e) {
 		let e = o.current;
 		if (!e) return;
 		let t = {}, n = document.activeElement;
-		e.open || e.showModal(), z.push(t), V(), m(e), (f.current?.querySelector(`:is(${De}):not([data-shelf-close])`) ?? f.current)?.focus();
+		e.open || e.showModal(), z.push(t), V(), m(e), (f.current?.querySelector(`:is(${De}):not([data-modal-close])`) ?? f.current)?.focus();
 		let r = (e) => {
 			if (e.key !== "Tab" || z.at(-1) !== t || !f.current) return;
 			let n = [...f.current.querySelectorAll(De)].filter((e) => e.offsetParent !== null || e === document.activeElement), r = N(n.length, n.indexOf(document.activeElement), e.shiftKey);
@@ -380,12 +380,7 @@ function U(e) {
 			document.removeEventListener("keydown", r), z.splice(z.indexOf(t), 1), H(), e.open && e.close(), n?.isConnected && n.focus();
 		};
 	}, []);
-	let v = e.title !== void 0, y = r ? {
-		width: i ? "100%" : `min(${e.width ?? "36rem"}, 100vw)`,
-		height: "100%",
-		maxHeight: "none",
-		borderRadius: 0
-	} : i ? {
+	let v = e.title !== void 0, y = i ? {
 		width: "100%",
 		height: "100%",
 		maxHeight: "none",
@@ -400,7 +395,7 @@ function U(e) {
 		borderRadius: 10
 	}, b = v || e.plain ? "relative flex flex-col overflow-hidden border shadow-lg outline-none" : "relative flex flex-col gap-3 overflow-y-auto border p-4 shadow-lg outline-none", x = /* @__PURE__ */ u("button", {
 		type: "button",
-		"data-shelf-close": !0,
+		"data-modal-close": !0,
 		"aria-label": "Close",
 		onClick: _,
 		className: "rounded border p-1",
@@ -423,7 +418,7 @@ function U(e) {
 		"aria-labelledby": e.labelledBy ?? `${e.id}-title`,
 		"aria-describedby": e.describedBy,
 		"data-modal": e.id,
-		"data-modal-size": r ? i ? "shelf-full" : "shelf" : i ? "full" : v ? "large" : "box",
+		"data-modal-size": i ? "full" : v ? "large" : "box",
 		[L]: "",
 		...e.attrs,
 		onCancel: (e) => {
@@ -443,13 +438,13 @@ function U(e) {
 			overflow: "hidden",
 			color: "var(--text)"
 		},
-		children: [/* @__PURE__ */ u("style", { children: "dialog[data-modal]::backdrop{background:transparent}" + (r ? "@media (prefers-reduced-motion:no-preference){@keyframes avoozl-shelf-in{from{transform:translateX(100%)}to{transform:none}}[data-modal-box][data-shelf]{animation:avoozl-shelf-in 180ms ease-out}}" : "") }), /* @__PURE__ */ d("div", {
+		children: [/* @__PURE__ */ u("style", { children: "dialog[data-modal]::backdrop{background:transparent}" }), /* @__PURE__ */ d("div", {
 			style: {
 				position: "absolute",
 				inset: 0,
 				display: "flex",
-				alignItems: r ? "stretch" : "center",
-				justifyContent: r ? "flex-end" : "center"
+				alignItems: "center",
+				justifyContent: "center"
 			},
 			children: [/* @__PURE__ */ u("div", {
 				"aria-hidden": "true",
@@ -465,7 +460,6 @@ function U(e) {
 					f.current = t, e.boxRef && (e.boxRef.current = t);
 				},
 				"data-modal-box": !0,
-				"data-shelf": r ? "" : void 0,
 				tabIndex: -1,
 				className: b,
 				style: {
@@ -477,7 +471,7 @@ function U(e) {
 				children: /* @__PURE__ */ u(Ae.Provider, {
 					value: p,
 					children: v ? /* @__PURE__ */ d(l, { children: [/* @__PURE__ */ d("div", {
-						className: r ? "min-h-0 flex-1 overflow-y-auto" : "contents",
+						className: "contents",
 						children: [/* @__PURE__ */ d("div", {
 							className: "flex items-center gap-2 border-b px-4 py-3",
 							style: { borderColor: "var(--border)" },
@@ -487,7 +481,7 @@ function U(e) {
 								children: e.title
 							}), r && x]
 						}), /* @__PURE__ */ u("div", {
-							className: r ? "p-4" : "min-h-0 flex-1 overflow-y-auto p-4",
+							className: "min-h-0 flex-1 overflow-y-auto p-4",
 							children: e.children
 						})]
 					}), e.footer && /* @__PURE__ */ u("div", {
