@@ -268,6 +268,7 @@ export default function DashboardView(props: {
   onPlanEpic?: () => void
 }) {
   const { workspaceId, onNavigate } = props
+  const phone = usePhone()
   const [tracing, setTracing] = useState<TraceTarget | null>(null)
   const api = useAppApi()
   const views = useMemo(() => viewsClient(api), [api])
@@ -462,8 +463,11 @@ export default function DashboardView(props: {
               )}
             </Section>
           </Pair>
+          {/* Release queue and Progress by epic share one row, left and right;
+              only a phone stacks them. Both cards take the row's height. */}
+          <div data-dashboard-row="queue-progress" className="grid gap-3.5" style={phone ? undefined : { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', alignItems: 'stretch' }}>
           <ReleaseQueue workspaceId={workspaceId} onOpenSettings={() => props.onOpenSettings?.('repositories')} />
-          <div data-progress-by-epic>
+          <div data-progress-by-epic className="h-full min-h-0">
             <Section
               title="Progress by epic"
               empty={summary.progress.length === 0 && `No epics yet. ${summary.plans.approved} approved and ${summary.plans.draft} draft specs.`}
@@ -525,6 +529,7 @@ export default function DashboardView(props: {
                 })}
               </ul>
             </Section>
+          </div>
           </div>
           <IntegrationBranches workspaceId={workspaceId} />
           <ReviewDrafts workspaceId={workspaceId} />

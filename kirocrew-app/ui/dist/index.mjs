@@ -7849,8 +7849,9 @@ function ml(e) {
 	return o && !o.repositories.length && !s ? /* @__PURE__ */ C("div", {
 		"data-release-queue": !0,
 		"data-release-empty": !0,
+		className: "h-full",
 		children: /* @__PURE__ */ w(_, {
-			className: "flex flex-col gap-2",
+			className: "flex h-full flex-col gap-2",
 			children: [
 				/* @__PURE__ */ C(X, {
 					title: "Release queue",
@@ -7869,8 +7870,9 @@ function ml(e) {
 		})
 	}) : !o && !s ? null : /* @__PURE__ */ C("div", {
 		"data-release-queue": !0,
+		className: "h-full",
 		children: /* @__PURE__ */ w(_, {
-			className: "flex flex-col gap-3",
+			className: "flex h-full flex-col gap-3",
 			style: {
 				display: "flex",
 				flexDirection: "column",
@@ -8597,51 +8599,51 @@ function Rl({ row: e, now: t, onInfo: n }) {
 	});
 }
 function zl(e) {
-	let { workspaceId: t, onNavigate: n } = e, [r, a] = d(null), s = K(), c = l(() => qr(s), [s]), u = l(() => va(s), [s]), f = _r(t), { value: p, error: m, busy: h, reload: _ } = Ir(t, i(async (e) => {
+	let { workspaceId: t, onNavigate: n } = e, r = Et(), [a, s] = d(null), c = K(), u = l(() => qr(c), [c]), f = l(() => va(c), [c]), p = _r(t), { value: m, error: h, busy: _, reload: v } = Ir(t, i(async (e) => {
 		let [t, n, r, i, a] = await Promise.allSettled([
-			c.graph(e),
-			c.delivery(e),
-			c.conflicts(e),
-			u.stored(e),
-			c.radarCrews(e)
+			u.graph(e),
+			u.delivery(e),
+			u.conflicts(e),
+			f.stored(e),
+			u.radarCrews(e)
 		]), o = (e) => e.status === "fulfilled" ? e.value : null, s = [
 			t,
 			n,
 			r,
 			i
-		].filter((e) => e.status === "rejected").length, l = o(r);
+		].filter((e) => e.status === "rejected").length, c = o(r);
 		return {
 			summary: Gi({
 				graph: o(t),
 				delivery: o(n),
-				conflicts: l,
+				conflicts: c,
 				plans: o(i),
 				radar: o(a),
 				limit: Infinity
 			}),
-			conflicts: l ?? [],
+			conflicts: c ?? [],
 			total: o(t)?.total ?? 0,
 			failed: s
 		};
-	}, [c, u])), v = l(() => po(s), [s]), y = Ir(t, i((e) => v.view(e, { window: "10" }), [v])), b = p?.summary, x = qs(t), E = jr(t), D = ul(t);
+	}, [u, f])), y = l(() => po(c), [c]), b = Ir(t, i((e) => y.view(e, { window: "10" }), [y])), x = m?.summary, E = qs(t), D = jr(t), O = ul(t);
 	o(() => {
-		let e = () => void y.reload();
+		let e = () => void b.reload();
 		return window.addEventListener(uo, e), () => window.removeEventListener(uo, e);
-	}, [y.reload]);
-	let O = Mt(), k = br(""), [A, j] = d(() => Date.now()), M = i(() => {
-		j(Date.now()), _();
-	}, [_]), N = (e) => {
-		let t = e.group ? [e.group] : (p?.conflicts ?? []).filter((t) => t.taskId === e.taskId && (e.kind === "delivery" || t.kind === e.kind));
-		f.ask(t.length ? { items: t.map(Bl) } : { tasks: e.taskId ? [e.taskId] : [] });
-	}, P = (e) => e.tab === "waiting" ? n("waiting", e.taskId ?? void 0) : e.taskId && O.openTask(e.taskId), F = {
+	}, [b.reload]);
+	let k = Mt(), A = br(""), [j, M] = d(() => Date.now()), N = i(() => {
+		M(Date.now()), v();
+	}, [v]), P = (e) => {
+		let t = e.group ? [e.group] : (m?.conflicts ?? []).filter((t) => t.taskId === e.taskId && (e.kind === "delivery" || t.kind === e.kind));
+		p.ask(t.length ? { items: t.map(Bl) } : { tasks: e.taskId ? [e.taskId] : [] });
+	}, F = (e) => e.tab === "waiting" ? n("waiting", e.taskId ?? void 0) : e.taskId && k.openTask(e.taskId), I = {
 		repository: () => e.onOpenSettings?.("repositories"),
 		epics: () => e.onPlanEpic?.(),
 		crew: () => e.onOpenSettings?.("repositories")
-	}, I = Xs({
-		...D,
-		radarCrews: b?.radarCrewStrip ? b.radarCrewStrip.crews.length : null,
-		driver: x.read?.state ?? "unknown",
-		plans: b ? b.plans.total : 1
+	}, L = Xs({
+		...O,
+		radarCrews: x?.radarCrewStrip ? x.radarCrewStrip.crews.length : null,
+		driver: E.read?.state ?? "unknown",
+		plans: x ? x.plans.total : 1
 	});
 	return /* @__PURE__ */ w("section", {
 		"aria-labelledby": "avoozl-dashboard-title",
@@ -8652,31 +8654,31 @@ function zl(e) {
 				view: "dashboard",
 				meta: /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(Ol, {
 					workspaceId: t,
-					onRefresh: M,
-					busy: h
+					onRefresh: N,
+					busy: _
 				}), /* @__PURE__ */ C("span", {
 					role: "status",
-					className: h || p?.failed ? "text-xs text-muted" : "sr-only",
-					children: h ? "Loading…" : p?.failed ? `${p.failed} of 4 reads failed; those sections are empty.` : ""
+					className: _ || m?.failed ? "text-xs text-muted" : "sr-only",
+					children: _ ? "Loading…" : m?.failed ? `${m.failed} of 4 reads failed; those sections are empty.` : ""
 				})] }),
 				children: "Home"
 			}),
 			/* @__PURE__ */ C(fs, {
-				stops: y.value?.line ?? [],
+				stops: b.value?.line ?? [],
 				workspaceId: t,
-				onChanged: () => void y.reload()
+				onChanged: () => void b.reload()
 			}),
 			/* @__PURE__ */ C(Os, {
 				workspaceId: t,
-				stopped: (y.value?.line ?? []).length > 0
+				stopped: (b.value?.line ?? []).length > 0
 			}),
 			/* @__PURE__ */ C(Js, { workspaceId: t }),
-			(m || f.error) && /* @__PURE__ */ C("p", {
+			(h || p.error) && /* @__PURE__ */ C("p", {
 				role: "alert",
 				className: "text-sm text-danger",
-				children: m ?? f.error
+				children: h ?? p.error
 			}),
-			I.filter((e) => e.id !== "driver").map((e) => /* @__PURE__ */ C(Ys, {
+			L.filter((e) => e.id !== "driver").map((e) => /* @__PURE__ */ C(Ys, {
 				id: e.id,
 				title: e.title,
 				line: e.line,
@@ -8684,7 +8686,7 @@ function zl(e) {
 					/* @__PURE__ */ C(g, {
 						type: "button",
 						primary: !0,
-						onClick: F[e.id],
+						onClick: I[e.id],
 						children: e.action
 					}),
 					e.id === "crew" && /* @__PURE__ */ C("a", {
@@ -8695,12 +8697,12 @@ function zl(e) {
 					e.id === "repository" && /* @__PURE__ */ C(pi, { label: "Try the demo" })
 				] })
 			}, e.id)),
-			b ? /* @__PURE__ */ w(S, { children: [
+			x ? /* @__PURE__ */ w(S, { children: [
 				/* @__PURE__ */ w(Ml, {
 					height: jl.flight,
 					children: [/* @__PURE__ */ w(Nl, {
-						title: `Needs you (${b.attention.length})`,
-						empty: b.attention.length === 0 && "Nothing waits on you. When a crew hands work back, it shows here.",
+						title: `Needs you (${x.attention.length})`,
+						empty: x.attention.length === 0 && "Nothing waits on you. When a crew hands work back, it shows here.",
 						actions: /* @__PURE__ */ C("button", {
 							type: "button",
 							className: "text-sm underline",
@@ -8709,68 +8711,68 @@ function zl(e) {
 						}),
 						children: [/* @__PURE__ */ C("ul", {
 							className: "mt-1",
-							children: k.take("attention", b.attention).map((e) => /* @__PURE__ */ C(Pl, {
+							children: A.take("attention", x.attention).map((e) => /* @__PURE__ */ C(Pl, {
 								item: e,
-								attach: Vl(b.running, e.taskId),
-								onOpen: () => P(e),
-								onInfo: () => e.group ? O.openReview(e.group, () => void _()) : e.taskId && O.openTask(e.taskId),
-								onAsk: () => N(e),
+								attach: Vl(x.running, e.taskId),
+								onOpen: () => F(e),
+								onInfo: () => e.group ? k.openReview(e.group, () => void v()) : e.taskId && k.openTask(e.taskId),
+								onAsk: () => P(e),
 								onTitle: () => {
 									let t = Bi(e);
-									t.kind === "review" && e.group ? O.openReview(e.group, () => void _()) : t.kind === "task" ? O.openTask(t.id) : t.kind === "tab" && n(t.tab);
+									t.kind === "review" && e.group ? k.openReview(e.group, () => void v()) : t.kind === "task" ? k.openTask(t.id) : t.kind === "tab" && n(t.tab);
 								}
 							}, e.key))
-						}), /* @__PURE__ */ C(xr, { ...k.more("attention", b.attention.length) })]
+						}), /* @__PURE__ */ C(xr, { ...A.more("attention", x.attention.length) })]
 					}), /* @__PURE__ */ w(Nl, {
-						title: `In flight (${b.inFlight.length + b.radarFlight.length})${Or(E, "other") ? ` · ${Or(E, "other")}` : ""}`,
-						empty: b.inFlight.length + b.radarFlight.length === 0 && "No crew or chat is working right now. Released issues show here once a crew claims them.",
-						emptyAction: b.neverRan ? /* @__PURE__ */ C(pi, { label: "Start demo" }) : void 0,
+						title: `In flight (${x.inFlight.length + x.radarFlight.length})${Or(D, "other") ? ` · ${Or(D, "other")}` : ""}`,
+						empty: x.inFlight.length + x.radarFlight.length === 0 && "No crew or chat is working right now. Released issues show here once a crew claims them.",
+						emptyAction: x.neverRan ? /* @__PURE__ */ C(pi, { label: "Start demo" }) : void 0,
 						children: [
 							/* @__PURE__ */ C("ul", {
 								className: "mt-1",
-								children: k.take("flight", b.inFlight).map((e) => /* @__PURE__ */ C(Rl, {
+								children: A.take("flight", x.inFlight).map((e) => /* @__PURE__ */ C(Rl, {
 									row: e,
-									now: A,
-									onInfo: () => O.openTask(e.taskId)
+									now: j,
+									onInfo: () => k.openTask(e.taskId)
 								}, e.slot))
 							}),
-							/* @__PURE__ */ C(xr, { ...k.more("flight", b.inFlight.length) }),
-							b.radarFlight.length > 0 && /* @__PURE__ */ w(S, { children: [
+							/* @__PURE__ */ C(xr, { ...A.more("flight", x.inFlight.length) }),
+							x.radarFlight.length > 0 && /* @__PURE__ */ w(S, { children: [
 								/* @__PURE__ */ w("h4", {
 									"data-on-the-line": !0,
 									className: "mt-2 text-xs font-semibold text-muted",
 									children: [
 										"On the line (",
-										b.radarFlight.length,
+										x.radarFlight.length,
 										"): Ready, Claimed, PR, CI, Merge"
 									]
 								}),
-								b.radarGroups.length > 0 ? /* @__PURE__ */ C(_l, {
-									groups: b.radarGroups,
-									now: A,
-									cost: b.radarCrewStrip?.cost,
-									onTrace: (e) => a({
+								x.radarGroups.length > 0 ? /* @__PURE__ */ C(_l, {
+									groups: x.radarGroups,
+									now: j,
+									cost: x.radarCrewStrip?.cost,
+									onTrace: (e) => s({
 										repository: e.repository,
 										number: e.number
 									})
 								}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C("ul", {
 									className: "mt-1",
-									children: k.take("radar", b.radarFlight).map((e) => /* @__PURE__ */ C(Ll, {
+									children: A.take("radar", x.radarFlight).map((e) => /* @__PURE__ */ C(Ll, {
 										row: e,
-										now: A,
-										cost: b.radarCrewStrip?.cost[`${e.repository}#${e.number}`],
-										onTrace: (e) => a({
+										now: j,
+										cost: x.radarCrewStrip?.cost[`${e.repository}#${e.number}`],
+										onTrace: (e) => s({
 											repository: e.repository,
 											number: e.number
 										})
 									}, `${e.repository}#${e.number}`))
-								}), /* @__PURE__ */ C(xr, { ...k.more("radar", b.radarFlight.length) })] }),
+								}), /* @__PURE__ */ C(xr, { ...A.more("radar", x.radarFlight.length) })] }),
 								/* @__PURE__ */ C("p", {
 									className: "mt-1 text-xs text-muted",
-									children: b.radarCrewStrip ? "Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat." : "Issue Radar rows come from GitHub. It does not show if a crew is paused, which machine it is on, or its chat."
+									children: x.radarCrewStrip ? "Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat." : "Issue Radar rows come from GitHub. It does not show if a crew is paused, which machine it is on, or its chat."
 								})
 							] }),
-							b.radarCrewStrip && b.radarCrewStrip.crews.length > 0 && /* @__PURE__ */ w("p", {
+							x.radarCrewStrip && x.radarCrewStrip.crews.length > 0 && /* @__PURE__ */ w("p", {
 								"data-crews-strip": !0,
 								className: "mt-2 text-xs text-muted",
 								children: [
@@ -8779,106 +8781,115 @@ function zl(e) {
 										children: "Crews:"
 									}),
 									" ",
-									b.radarCrewStrip.counts.onDuty,
+									x.radarCrewStrip.counts.onDuty,
 									" on duty, ",
-									b.radarCrewStrip.counts.working,
+									x.radarCrewStrip.counts.working,
 									" working, ",
-									b.radarCrewStrip.counts.paused,
+									x.radarCrewStrip.counts.paused,
 									" paused.",
 									" ",
-									b.radarCrewStrip.crews.map((e) => `${e.name} (${e.status ?? "unknown"})`).join(", ")
+									x.radarCrewStrip.crews.map((e) => `${e.name} (${e.status ?? "unknown"})`).join(", ")
 								]
 							})
 						]
 					})]
 				}),
-				/* @__PURE__ */ C(ml, {
-					workspaceId: t,
-					onOpenSettings: () => e.onOpenSettings?.("repositories")
-				}),
-				/* @__PURE__ */ C("div", {
-					"data-progress-by-epic": !0,
-					children: /* @__PURE__ */ w(Nl, {
-						title: "Progress by epic",
-						empty: b.progress.length === 0 && `No epics yet. ${b.plans.approved} approved and ${b.plans.draft} draft specs.`,
-						emptyAction: /* @__PURE__ */ C(g, {
-							type: "button",
-							onClick: () => n("plans"),
-							children: "Open Specs"
-						}),
-						children: [/* @__PURE__ */ w("p", {
-							className: "mt-1 text-xs text-muted",
-							children: [
-								b.plans.approved,
-								" approved and ",
-								b.plans.draft,
-								" draft specs.",
-								" ",
-								/* @__PURE__ */ C("button", {
-									type: "button",
-									className: "underline",
-									onClick: () => n("plans"),
-									children: "Open Specs"
-								})
-							]
-						}), /* @__PURE__ */ C("ul", {
-							className: "mt-2 flex flex-col gap-1 text-sm",
-							children: b.progress.map((t) => {
-								let n = t.total ? Math.round(t.done / t.total * 100) : 0, r = t.title;
-								return /* @__PURE__ */ C("li", { children: /* @__PURE__ */ C(q, {
-									text: `Show only ${r} in its spec graph${t.running > 0 ? `. ${t.running} Avoozl chats running now.` : ""}`,
-									display: "block",
-									children: /* @__PURE__ */ w("button", {
+				/* @__PURE__ */ w("div", {
+					"data-dashboard-row": "queue-progress",
+					className: "grid gap-3.5",
+					style: r ? void 0 : {
+						display: "grid",
+						gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+						alignItems: "stretch"
+					},
+					children: [/* @__PURE__ */ C(ml, {
+						workspaceId: t,
+						onOpenSettings: () => e.onOpenSettings?.("repositories")
+					}), /* @__PURE__ */ C("div", {
+						"data-progress-by-epic": !0,
+						className: "h-full min-h-0",
+						children: /* @__PURE__ */ w(Nl, {
+							title: "Progress by epic",
+							empty: x.progress.length === 0 && `No epics yet. ${x.plans.approved} approved and ${x.plans.draft} draft specs.`,
+							emptyAction: /* @__PURE__ */ C(g, {
+								type: "button",
+								onClick: () => n("plans"),
+								children: "Open Specs"
+							}),
+							children: [/* @__PURE__ */ w("p", {
+								className: "mt-1 text-xs text-muted",
+								children: [
+									x.plans.approved,
+									" approved and ",
+									x.plans.draft,
+									" draft specs.",
+									" ",
+									/* @__PURE__ */ C("button", {
 										type: "button",
-										className: "w-full rounded px-1 py-1 text-left hover:bg-accent/10",
-										onClick: () => e.onDrill?.({
-											kind: "epic",
-											id: t.epic,
-											title: r
-										}),
-										children: [/* @__PURE__ */ w("span", {
-											className: "flex items-center justify-between gap-2",
-											children: [/* @__PURE__ */ C("span", {
-												className: "truncate",
-												children: r
-											}), /* @__PURE__ */ w("span", {
-												className: "flex shrink-0 items-center gap-2 text-xs text-muted",
-												children: [
-													t.running > 0 && /* @__PURE__ */ w("span", {
-														className: "inline-flex items-center gap-1",
-														style: { color: "var(--tile-purple, var(--aim))" },
-														"aria-label": `${t.running} Avoozl chats running`,
-														children: [/* @__PURE__ */ C(T, {
-															size: 12,
-															"aria-hidden": "true"
-														}), t.running]
-													}),
-													t.done,
-													" of ",
-													t.total
-												]
-											})]
-										}), /* @__PURE__ */ C("span", {
-											role: "progressbar",
-											"aria-label": `${r} progress`,
-											"aria-valuenow": n,
-											"aria-valuemin": 0,
-											"aria-valuemax": 100,
-											className: "mt-1 block h-1.5 overflow-hidden rounded",
-											style: { background: "var(--border)" },
-											children: /* @__PURE__ */ C("span", {
-												className: "block h-full",
-												style: {
-													width: `${n}%`,
-													background: "var(--ok)"
-												}
-											})
-										})]
+										className: "underline",
+										onClick: () => n("plans"),
+										children: "Open Specs"
 									})
-								}) }, t.epic ?? "(none)");
-							})
-						})]
-					})
+								]
+							}), /* @__PURE__ */ C("ul", {
+								className: "mt-2 flex flex-col gap-1 text-sm",
+								children: x.progress.map((t) => {
+									let n = t.total ? Math.round(t.done / t.total * 100) : 0, r = t.title;
+									return /* @__PURE__ */ C("li", { children: /* @__PURE__ */ C(q, {
+										text: `Show only ${r} in its spec graph${t.running > 0 ? `. ${t.running} Avoozl chats running now.` : ""}`,
+										display: "block",
+										children: /* @__PURE__ */ w("button", {
+											type: "button",
+											className: "w-full rounded px-1 py-1 text-left hover:bg-accent/10",
+											onClick: () => e.onDrill?.({
+												kind: "epic",
+												id: t.epic,
+												title: r
+											}),
+											children: [/* @__PURE__ */ w("span", {
+												className: "flex items-center justify-between gap-2",
+												children: [/* @__PURE__ */ C("span", {
+													className: "truncate",
+													children: r
+												}), /* @__PURE__ */ w("span", {
+													className: "flex shrink-0 items-center gap-2 text-xs text-muted",
+													children: [
+														t.running > 0 && /* @__PURE__ */ w("span", {
+															className: "inline-flex items-center gap-1",
+															style: { color: "var(--tile-purple, var(--aim))" },
+															"aria-label": `${t.running} Avoozl chats running`,
+															children: [/* @__PURE__ */ C(T, {
+																size: 12,
+																"aria-hidden": "true"
+															}), t.running]
+														}),
+														t.done,
+														" of ",
+														t.total
+													]
+												})]
+											}), /* @__PURE__ */ C("span", {
+												role: "progressbar",
+												"aria-label": `${r} progress`,
+												"aria-valuenow": n,
+												"aria-valuemin": 0,
+												"aria-valuemax": 100,
+												className: "mt-1 block h-1.5 overflow-hidden rounded",
+												style: { background: "var(--border)" },
+												children: /* @__PURE__ */ C("span", {
+													className: "block h-full",
+													style: {
+														width: `${n}%`,
+														background: "var(--ok)"
+													}
+												})
+											})]
+										})
+									}) }, t.epic ?? "(none)");
+								})
+							})]
+						})
+					})]
 				}),
 				/* @__PURE__ */ C(yl, { workspaceId: t }),
 				/* @__PURE__ */ C(xl, { workspaceId: t }),
@@ -8896,17 +8907,17 @@ function zl(e) {
 						"."
 					]
 				})
-			] }) : !m && /* @__PURE__ */ C("p", {
+			] }) : !h && /* @__PURE__ */ C("p", {
 				className: "text-sm text-muted",
 				children: "Loading…"
 			}),
-			r && /* @__PURE__ */ C(Fi, {
+			a && /* @__PURE__ */ C(Fi, {
 				workspaceId: t,
-				target: r,
-				onClose: () => a(null),
+				target: a,
+				onClose: () => s(null),
 				onOpenPage: () => {
-					let t = r;
-					a(null), e.onTrace?.(t);
+					let t = a;
+					s(null), e.onTrace?.(t);
 				}
 			})
 		]

@@ -83,3 +83,27 @@ for (const dark of [false, true]) {
     assert.ok(await page.evaluate(`[...${heading}.querySelectorAll('[data-heading-actions] button')].some((b) => b.textContent.trim() === 'New spec')`))
   })
 }
+
+// Home: Release queue and Progress by epic sit side by side on a desktop and
+// stack on a phone.
+const pairBoxes = () =>
+  page.evaluate(`(() => {
+    const box = (sel) => { const r = document.querySelector(sel).getBoundingClientRect(); return { top: Math.round(r.top), left: Math.round(r.left), height: Math.round(r.height) } }
+    return { queue: box('[data-release-queue]'), progress: box('[data-progress-by-epic]') }
+  })()`)
+for (const dark of [false, true])
+  for (const width of [390, 1280]) {
+    const theme = dark ? 'dark' : 'light'
+    test(`Home at ${width} px (${theme}): Release queue and Progress by epic ${width < 768 ? 'stack' : 'share one row'}`, { skip }, async () => {
+      await start(width, dark)
+      await page.until(`Boolean(document.querySelector('[data-release-queue]') && document.querySelector('[data-progress-by-epic]'))`, 15000)
+      await wait(300)
+      const { queue, progress } = await pairBoxes()
+      if (width < 768) assert.ok(progress.top >= queue.top + queue.height, `stacked (${JSON.stringify({ queue, progress })})`)
+      else {
+        assert.equal(progress.top, queue.top, 'same row')
+        assert.ok(progress.left > queue.left, 'queue left, progress right')
+        assert.equal(progress.height, queue.height, 'same height')
+      }
+    })
+  }
