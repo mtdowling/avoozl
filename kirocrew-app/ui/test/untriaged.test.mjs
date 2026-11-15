@@ -100,7 +100,7 @@ test('the tab stays for ideas outside GitHub modes, with no count, and its badge
   assert.match(app, /const navItems = TABS\.map\(\(t\) => \(\{/)
   assert.doesNotMatch(app, /TABS\.filter\(/)
   assert.match(app, /setUntriaged\(list\.enabled \? list\.total : null\)/)
-  // Intake lost its tab: its count joins Conflicts in the Waiting on you badge.
+  // Intake lost its tab: its count joins Conflicts in the Needs you badge.
   assert.match(app, /const waitingCount = conflicts \+ \(untriaged \?\? 0\)/)
   assert.match(source('icons.ts'), /untriaged: Inbox/)
   const view = source('UntriagedView.tsx')

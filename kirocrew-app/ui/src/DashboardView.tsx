@@ -143,7 +143,7 @@ function AttentionRow({
         <IconBtn
           icon={item.tab === 'waiting' ? Check : ExternalLink}
           label={item.tab === 'waiting' ? `Resolve ${item.title}` : `Open ${item.title} in the drawer`}
-          tooltip={item.tab === 'waiting' ? 'Resolve it in Waiting on you' : 'Open the task drawer'}
+          tooltip={item.tab === 'waiting' ? 'Resolve it in Needs you' : 'Open the task drawer'}
           onClick={onOpen}
         />
       </span>
@@ -395,7 +395,7 @@ export default function DashboardView(props: {
               empty={summary.attention.length === 0 && 'Nothing waits on you. When a crew hands work back, it shows here.'}
               actions={
                 <button type="button" className="text-sm underline" onClick={() => onNavigate('waiting')}>
-                  Open Waiting on you
+                  Open Needs you
                 </button>
               }
             >

@@ -108,7 +108,7 @@ test("a PR closed without a merge, or merged into another branch, is not recorde
   assert.deepEqual(mirrorForwards(store), []);
 });
 
-test("nudge gives one Waiting on you row per record, auto gives none, both reach the queue", async (t) => {
+test("nudge gives one Needs you row per record, auto gives none, both reach the queue", async (t) => {
   const { store } = fixture(t),
     github = fake([]);
   await mirrorForwardStep(store, github, { policy: policy(), now: T0 });

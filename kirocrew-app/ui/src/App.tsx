@@ -250,11 +250,11 @@ function AvoozlPage() {
   const showRail = phone && railOpen
   const navItems = TABS.map((t) => ({
     key: t.key,
-    aria: t.key === 'waiting' && waitingCount > 0 ? `Waiting on you, ${waitingCount} need you` : undefined,
+    aria: t.key === 'waiting' && waitingCount > 0 ? `Needs you, ${waitingCount} items` : undefined,
     label:
       t.key === 'waiting' && waitingCount > 0 ? (
         <span className="inline-flex items-center gap-1.5">
-          <ViewLabel view="waiting">Waiting on you</ViewLabel> <Badge variant="warning">{waitingCount}</Badge>
+          <ViewLabel view="waiting">Needs you</ViewLabel> <Badge variant="warning">{waitingCount}</Badge>
         </span>
       ) : (
         <ViewLabel view={t.key}>{t.label}</ViewLabel>
@@ -382,7 +382,7 @@ function AvoozlPage() {
             onDrill={openDrill}
             newPlanRequest={planGoal}
             ideas={openIdeas}
-            // Ideas now sit under Waiting on you, in its planning and intake section.
+            // Ideas now sit under Needs you, in its planning and intake section.
             onOpenIdeas={() => go({ focus: null, drill: null, tab: 'waiting' }, { 'waiting-section': 'intake', 'untriaged-show': 'ideas' })}
             epics={<EpicsView workspaceId={active} onDrill={openDrill} onPlanEpic={() => setPlanGoal((goal) => ({ n: goal.n + 1 }))} />}
           />

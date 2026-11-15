@@ -3228,7 +3228,7 @@ function Bi(e) {
 }
 function Vi(e) {
 	let t = Bi(e);
-	return t.kind === "review" ? "Open the list of tasks to review" : t.kind === "task" ? `Open ${t.id} in the drawer` : "Open it in Waiting on you";
+	return t.kind === "review" ? "Open the list of tasks to review" : t.kind === "task" ? `Open ${t.id} in the drawer` : "Open it in Needs you";
 }
 var Hi = (e) => Yr(e.issue?.url ?? null);
 function Ui(e) {
@@ -8397,7 +8397,7 @@ function Pl({ item: e, attach: t, onOpen: n, onInfo: r, onAsk: i, onTitle: a }) 
 					/* @__PURE__ */ C(Y, {
 						icon: e.tab === "waiting" ? N : ie,
 						label: e.tab === "waiting" ? `Resolve ${e.title}` : `Open ${e.title} in the drawer`,
-						tooltip: e.tab === "waiting" ? "Resolve it in Waiting on you" : "Open the task drawer",
+						tooltip: e.tab === "waiting" ? "Resolve it in Needs you" : "Open the task drawer",
 						onClick: n
 					})
 				]
@@ -8709,7 +8709,7 @@ function zl(e) {
 							type: "button",
 							className: "text-sm underline",
 							onClick: () => n("waiting"),
-							children: "Open Waiting on you"
+							children: "Open Needs you"
 						}),
 						children: [/* @__PURE__ */ C("ul", {
 							className: "mt-1",
@@ -15346,7 +15346,7 @@ function Np(e) {
 		/* @__PURE__ */ C(nf, { onClick: e.onNewIdea }),
 		e.onOpenIdeas && /* @__PURE__ */ w(J, {
 			icon: U,
-			tooltip: "Open your ideas under Waiting on you",
+			tooltip: "Open your ideas under Needs you",
 			onClick: e.onOpenIdeas,
 			children: ["Ideas", e.ideas === null ? "" : ` (${e.ideas})`]
 		}),
@@ -20129,7 +20129,7 @@ function Qh(e) {
 			"data-waiting-section": t.key,
 			"data-open": "true",
 			children: /* @__PURE__ */ C(Vf, {
-				backLabel: "Waiting on you",
+				backLabel: "Needs you",
 				onBack: n.closeDetail,
 				title: t.title,
 				children: e.bodies[t.key]
@@ -20221,13 +20221,13 @@ function $h(e) {
 	let [t, n] = Wn("waiting-section", "inner", (e) => `Back to ${Zh.find((t) => t.key === e)?.title ?? e}`, "decisions"), r = Ot(!0), i = r.phone && r.showDetail;
 	return /* @__PURE__ */ w("section", {
 		"aria-labelledby": i ? void 0 : "avoozl-waiting-title",
-		"aria-label": i ? "Waiting on you" : void 0,
+		"aria-label": i ? "Needs you" : void 0,
 		className: "flex flex-col gap-3.5",
 		"data-waiting-view": !0,
 		children: [!i && /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(wr, {
 			id: "avoozl-waiting-title",
 			view: "waiting",
-			children: "Waiting on you"
+			children: "Needs you"
 		}), /* @__PURE__ */ C("p", {
 			className: "text-sm text-muted",
 			children: "Everything that stops until you act. Crews working, pull requests in checks and merges are not here; they are on Home."
@@ -20262,7 +20262,7 @@ var eg = [
 	},
 	{
 		key: "waiting",
-		label: "Waiting on you"
+		label: "Needs you"
 	},
 	{
 		key: "trace",
@@ -34493,13 +34493,13 @@ function kS() {
 	]);
 	let me = Et(), [he, ge] = d(!1), _e = me && he, ve = eg.map((e) => ({
 		key: e.key,
-		aria: e.key === "waiting" && P > 0 ? `Waiting on you, ${P} need you` : void 0,
+		aria: e.key === "waiting" && P > 0 ? `Needs you, ${P} items` : void 0,
 		label: e.key === "waiting" && P > 0 ? /* @__PURE__ */ w("span", {
 			className: "inline-flex items-center gap-1.5",
 			children: [
 				/* @__PURE__ */ C(Tr, {
 					view: "waiting",
-					children: "Waiting on you"
+					children: "Needs you"
 				}),
 				" ",
 				/* @__PURE__ */ C(Z, {

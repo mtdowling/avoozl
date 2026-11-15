@@ -525,7 +525,7 @@ function PlansActions(props: { onQuickGoal: () => void; onNewPlan: () => void; o
       </IconLabel>
       <NewIdeaButton onClick={props.onNewIdea} />
       {props.onOpenIdeas && (
-        <IconLabel icon={Lightbulb} tooltip="Open your ideas under Waiting on you" onClick={props.onOpenIdeas}>
+        <IconLabel icon={Lightbulb} tooltip="Open your ideas under Needs you" onClick={props.onOpenIdeas}>
           Ideas{props.ideas !== null ? ` (${props.ideas})` : ''}
         </IconLabel>
       )}
@@ -1114,7 +1114,7 @@ export default function PlansView(props: {
   // Bumped by the header's Plan a goal, or by Make it a spec with the
   // idea's fields: open the New plan drawer.
   newPlanRequest?: { n: number; seed?: Partial<NewPlanForm> }
-  // Open ideas, and the Ideas view under Waiting on you.
+  // Open ideas, and the Ideas view under Needs you.
   ideas?: number | null
   onOpenIdeas?: () => void
   // The Epics fold-out, shown above the spec list (never beside a spec's documents).
