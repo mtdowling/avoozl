@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, EmptyState, PageHeader, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Logo from './Logo'
-import { TopRail } from './TopRail.tsx'
+import { RailButton, RailList } from './TopRail.tsx'
+import { LeftNav } from './LeftNav.tsx'
+import { MoreMenu } from './MoreMenu.tsx'
+import { PageRefreshItem, useHasPageRefresh } from './page-refresh.tsx'
 import { usePhone } from './list-detail.ts'
 import { InstanceBadge } from './InstanceName.tsx'
 import DashboardView, { type DashboardTarget } from './DashboardView'
-import EpicsView from './EpicsView.tsx'
 import PlansView, { type PlanTarget } from './PlansView'
 import GraphView from './GraphView'
 import WaitingView from './WaitingView.tsx'
@@ -18,7 +20,6 @@ import ActivityView from './ActivityView.tsx'
 import { SwitchModelButton } from './SwitchModel.tsx'
 import { StopLineButton } from './StopLine.tsx'
 import { untriagedClient } from './untriaged-api.ts'
-import { specSeed } from './ideas-api.ts'
 import type { NewPlanForm } from './new-plan-api.ts'
 import SettingsView, { SETTINGS_TABS, type SettingsTab } from './SettingsView'
 import { SETTINGS_HOME, settingsTabOnEnter } from './settings-api.ts'
@@ -31,7 +32,7 @@ import type { Drill } from './graph-layout.ts'
 import { viewsClient } from './views-api.ts'
 import { APP_ATTR, NavHistoryProvider, useNav } from './NavHistory.tsx'
 import { changePage } from './nav-history.ts'
-import { DemoBadge, DemoBar, DemoProvider, DemoTour, StartDemoButton, useDemo } from './Demo.tsx'
+import { DemoBadge, DemoBar, DemoControls, DemoProvider, DemoTour, StartDemoButton, useDemo } from './Demo.tsx'
 import { DEMO_WORKSPACE_ID } from './demo-api.ts'
 import {
   errorMessage,
@@ -109,13 +110,11 @@ function AvoozlPage() {
   const [drill, setDrill] = useState<Drill | null>(null)
   // Open conflicts, for the yellow count after the Conflicts tab's label.
   const [conflicts, setConflicts] = useState(0)
-  // Each Plan a goal or Make it a spec press opens the New plan drawer
-  // once, with an idea's fields for Make it a spec (R63.9).
+  // Each Plan a goal press opens the New plan drawer once.
   const [planGoal, setPlanGoal] = useState<{ n: number; seed?: Partial<NewPlanForm> }>({ n: 0 })
   // Untriaged items in Intake (§8.5): null in Local only mode with no
-  // intake source, which hides the count. The tab stays for ideas (R63.7).
+  // intake source, which hides the count.
   const [untriaged, setUntriaged] = useState<number | null>(null)
-  const [openIdeas, setOpenIdeas] = useState<number | null>(null)
   const views = useMemo(() => viewsClient(api), [api])
 
   const untriagedReads = useMemo(() => untriagedClient(api), [api])
@@ -229,9 +228,7 @@ function AvoozlPage() {
     const read = () =>
       untriagedReads.view(active).then(
         (list) => {
-          if (!live) return
-          setUntriaged(list.enabled ? list.total : null)
-          setOpenIdeas((list.ideas ?? []).filter((idea) => idea.state === 'open').length)
+          if (live) setUntriaged(list.enabled ? list.total : null)
         },
         () => undefined,
       )
@@ -244,16 +241,19 @@ function AvoozlPage() {
   }, [active, untriagedReads, tab])
 
   const phone = usePhone()
+  const hasRefresh = useHasPageRefresh()
   // The phone's top rail takes the whole page while it is open.
   const [railOpen, setRailOpen] = useState(false)
   const showRail = phone && railOpen
   const navItems = TABS.map((t) => ({
     key: t.key,
-    aria: t.key === 'waiting' && waitingCount > 0 ? `Waiting on you, ${waitingCount} need you` : undefined,
+    text: t.label,
+    count: t.key === 'waiting' && waitingCount > 0 ? waitingCount : undefined,
+    aria: t.key === 'waiting' && waitingCount > 0 ? `Needs you, ${waitingCount} items` : undefined,
     label:
       t.key === 'waiting' && waitingCount > 0 ? (
         <span className="inline-flex items-center gap-1.5">
-          <ViewLabel view="waiting">Waiting on you</ViewLabel> <Badge variant="warning">{waitingCount}</Badge>
+          <ViewLabel view="waiting">Needs you</ViewLabel> <Badge variant="warning">{waitingCount}</Badge>
         </span>
       ) : (
         <ViewLabel view={t.key}>{t.label}</ViewLabel>
@@ -265,11 +265,34 @@ function AvoozlPage() {
     <ConfirmProvider>
     <TaskDrawerProvider workspaceId={active} onFocus={(id, title) => openDrill({ kind: 'focus', id, title })}>
     <div className="flex h-full min-h-0 flex-col">
-      <PageHeader
+      {phone ? (
+        // A phone keeps the header to one thin row: the name, Stop the line
+        // and a More menu with the rest (follows Kiro Crew's phone layout).
+        <header className="flex min-w-0 items-center gap-2 px-2 py-1" data-phone-header style={{ borderBottom: '1px solid var(--border)' }}>
+          <span className="inline-flex shrink-0 items-center gap-1.5" data-header-brand>
+            <Logo size={20} />
+            <InstanceBadge workspaceId={active} />
+          </span>
+          <RailButton items={navItems} value={navTab(tab)} open={railOpen} onOpenChange={setRailOpen} />
+          <div className="flex items-center gap-2" data-header-actions>
+            {active && <StopLineButton workspaceId={active} />}
+            <MoreMenu label="More actions" attrs={{ 'data-header-more': '' }}>
+              <PageRefreshItem />
+              {/* The demo's badge is on its own line below; the picker is not shown in it. */}
+              {!demo.active && <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
+              <Btn type="button" primary onClick={planEpic}>
+                Plan a goal
+              </Btn>
+              {active && <SwitchModelButton workspaceId={active} />}
+              {demo.active && <DemoControls />}
+            </MoreMenu>
+          </div>
+        </header>
+      ) : (
+        <PageHeader
         title={
-          <span className="inline-flex items-center gap-2">
+          <span className="inline-flex items-center gap-2" aria-label="Avoozl">
             <Logo size={28} />
-            Avoozl
             <InstanceBadge workspaceId={active} />
           </span>
         }
@@ -280,41 +303,34 @@ function AvoozlPage() {
             <Btn type="button" primary onClick={planEpic}>
               Plan a goal
             </Btn>
+            {/* Refresh, with its countdown, for the page that has one. */}
+            {hasRefresh && (
+              <MoreMenu label="More actions" attrs={{ 'data-header-more': '' }}>
+                <PageRefreshItem />
+              </MoreMenu>
+            )}
             {active && (
               <>
                 {/* Move running chats to another model (§4.20, R72.12). */}
                 <SwitchModelButton workspaceId={active} />
-                {/* Pull the Andon cord (R64); last, red. */}
+                {/* Pull the Andon cord (R64): a red pause icon, last. */}
                 <StopLineButton workspaceId={active} />
               </>
             )}
           </div>
         }
       />
-      {/* The tab row on every tab: the tabs only. It wraps on a narrow page;
-          nothing scrolls sideways. */}
-      <div
-        className={phone ? undefined : 'flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-6 pb-3'}
-        style={phone ? { display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, flex: showRail ? '1 1 0%' : '0 0 auto', marginBottom: showRail ? 0 : 12 } : undefined}
-        data-top-row
-      >
-        {phone ? (
-          <TopRail items={navItems} value={navTab(tab)} onChange={(key) => chooseTab(key as Tab)} open={railOpen} onOpenChange={setRailOpen} ariaLabel="Avoozl views" />
-        ) : (
-          <SegmentedControl
-            collapse={false}
-            wrap="hug"
-            layoutId="avoozl-views"
-            ariaLabel="Avoozl views"
-            segments={navItems}
-            value={navTab(tab)}
-            onChange={(key) => chooseTab(key as Tab)}
-          />
-        )}
-      </div>
+      )}
+      {showRail && (
+        <RailList items={navItems} value={navTab(tab)} onChange={(key) => chooseTab(key as Tab)} onOpenChange={setRailOpen} ariaLabel="Avoozl views" />
+      )}
+      {/* Desktop: the left nav, then the page. A phone has the hamburger. */}
+      <div className={`flex min-h-0 flex-1 ${phone ? 'flex-col' : 'px-6 pb-2'}`} style={showRail ? { display: 'none' } : undefined} data-shell>
+      {!phone && <LeftNav items={navItems} value={navTab(tab)} onChange={(key) => chooseTab(key as Tab)} />}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-shell-main>
       <DemoBar />
       {error && (
-        <p role="alert" className="px-6 pb-2 text-sm text-danger">
+        <p role="alert" className={`pb-2 text-sm text-danger ${phone ? 'px-4' : 'px-2'}`}>
           {error}
         </p>
       )}
@@ -323,8 +339,7 @@ function AvoozlPage() {
           nav.scroller.current = element
         }}
         data-avoozl-pane
-        className="flex-1 min-h-0 overflow-y-auto px-6 pb-8"
-        hidden={showRail}
+        className={`flex-1 min-h-0 overflow-y-auto pb-8 ${phone ? 'px-4' : 'px-2'}`}
       >
         {needsWorkspace ? (
           <EmptyState
@@ -356,10 +371,6 @@ function AvoozlPage() {
             onScope={scopeTo}
             onDrill={openDrill}
             newPlanRequest={planGoal}
-            ideas={openIdeas}
-            // Ideas now sit under Waiting on you, in its planning and intake section.
-            onOpenIdeas={() => go({ focus: null, drill: null, tab: 'waiting' }, { 'waiting-section': 'intake', 'untriaged-show': 'ideas' })}
-            epics={<EpicsView workspaceId={active} onDrill={openDrill} onPlanEpic={() => setPlanGoal((goal) => ({ n: goal.n + 1 }))} />}
           />
         ) : tab === 'trace' ? (
           <TracePage workspaceId={active} target={(nav.memory.get(TRACE_TARGET) as TraceTarget | undefined) ?? null} onPick={pickTrace} onOpenEpics={() => chooseTab('plans')} />
@@ -371,10 +382,6 @@ function AvoozlPage() {
           <WaitingView
             workspaceId={active}
             onOpenSources={() => go({ settingsTab: 'plugins', tab: 'settings' })}
-            onMakeSpec={(idea) => {
-              setPlanGoal((request) => ({ n: request.n + 1, seed: specSeed(idea) }))
-              go({ focus: null, drill: null, tab: 'plans' })
-            }}
           />
         ) : tab === 'activity' ? (
           <ActivityView workspaceId={active} />
@@ -390,6 +397,8 @@ function AvoozlPage() {
             onOpenPlans={() => chooseTab('plans')}
           />
         )}
+      </div>
+      </div>
       </div>
       <DemoTour
         onEnter={(step) =>

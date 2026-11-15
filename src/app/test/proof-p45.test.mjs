@@ -803,6 +803,11 @@ test("P45 (6): the same correction on two tasks becomes one rule proposal and on
     new RegExp(RULES_FILE.replaceAll(".", "\\.")),
   );
   assert.match(JSON.stringify(task), /adds a test for empty input/);
+  // AGENTS.md points every chat and crew at the rules file (RC30.4).
+  assert.match(
+    JSON.stringify(task),
+    /If AGENTS\.md at the repository root does not already name/,
+  );
   // Approval is a person's: MCP is refused by policy.
   const { PERSON_ONLY } = await import("../mcp-policy.mjs");
   for (const name of [

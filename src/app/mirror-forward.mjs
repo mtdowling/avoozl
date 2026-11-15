@@ -100,7 +100,7 @@ export async function mirrorForwardStep(
   return { errors };
 }
 
-// Waiting on you: one row per record still to forward, for a repository whose
+// Needs you: one row per record still to forward, for a repository whose
 // `forward` is nudge. A blocked record keeps its row with the reason.
 export function mirrorForwardRows(store, policy) {
   return mirrorForwards(store)

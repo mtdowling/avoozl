@@ -293,7 +293,7 @@ export async function conflictFixStep(
       channel: "decision",
       title: `${row.repository} #${row.number} has a source conflict`,
       text: ASK_TEXT[reason],
-      resume: "Choose in Waiting on you: Resolve myself or Dismiss.",
+      resume: "Choose in Needs you: Resolve myself or Dismiss.",
     });
   };
   // A good push whose follow-up writes stopped half way is finished first;
@@ -668,7 +668,7 @@ export async function reportConflictFix(
   return { state: store.get("receipts", receipt.id).state };
 }
 
-// Waiting on you: one row per pull request the step asked about.
+// Needs you: one row per pull request the step asked about.
 export function conflictFixNeedsYou(store) {
   return Object.entries(store.getMeta(KEY)?.asked ?? {}).map(([key, row]) => ({
     kind: "needs-human",

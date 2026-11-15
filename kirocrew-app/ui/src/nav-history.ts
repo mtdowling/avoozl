@@ -215,7 +215,7 @@ export interface Place<Tab extends string = string, Section extends string = str
 // Change the page. A new tab or Settings section is a Back step that
 // keeps `here`, the views' remembered state (a new tab starts fresh) and
 // the scroll position. `apply` sets the fields it is given. `open` deep-links
-// into the new place's inner views ({ 'untriaged-show': 'ideas' }): it is
+// into the new place's inner views ({ 'untriaged-show': 'radar' }): it is
 // written after the old tab's memory is taken, so the fresh view starts on it.
 export function changePage<P extends Place>(
   nav: Nav,

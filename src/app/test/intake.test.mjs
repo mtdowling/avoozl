@@ -531,7 +531,6 @@ test("Settings counts each source's items and lists GitHub's reads", (t) => {
       firstSeenAt: "2026-11-03T00:00:00Z",
     });
     put("c", "tickets", { route: { state: "paused" } });
-    put("d", "local", { record: { kind: "idea" } });
     store.put("intake_sources", {
       id: "github:o/app",
       source: "github",
@@ -547,7 +546,6 @@ test("Settings counts each source's items and lists GitHub's reads", (t) => {
     untriaged: 1,
     lastAt: "2026-11-03T00:00:00Z",
   });
-  assert.equal(counts.has("local"), false);
   assert.deepEqual(githubReads(store), [
     { repository: "o/app", checkedAt: "2026-11-02T00:00:00Z", error: null },
   ]);

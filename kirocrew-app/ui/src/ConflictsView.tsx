@@ -36,6 +36,8 @@ import { Authority } from './Authority.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { DangerBtn, IconBtn, IconLabel, ShowMore, TipBtn, ViewHeading, useAskChat, useConfirm, usePages } from './controls.tsx'
+import { ListDetailLayout } from './ListDetailLayout.tsx'
+import { usePhone } from './list-detail.ts'
 import { Tooltip } from './Tooltip.tsx'
 import { ForwardScreen } from './ForwardScreen.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
@@ -547,18 +549,56 @@ function ItemHistory({ item, workspaceId }: { item: ConflictItem; workspaceId: s
   )
 }
 
-// One compact row: why it needs you, its task and plan, its age, and its
-// actions. History and the resolve choices open under it.
-function ConflictRow(props: {
+// One dense list row: the kind, the title, its task and age, and why. A
+// click picks it; its details and actions open in the right column.
+function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectable: boolean; selected: boolean; onSelect: (on: boolean) => void; onFocus: () => void }) {
+  const { item } = props
+  const time = itemTime(item as ConflictItem & { openedAt?: string | null })
+  return (
+    <li className="border-t first:border-t-0" style={{ borderColor: 'var(--border)' }} data-conflict-row>
+      <div className="flex items-start gap-2 px-1 py-1.5" style={{ background: props.focused ? 'var(--accent-subtle, var(--bg-elevated))' : undefined, borderRadius: 6 }}>
+        <input
+          type="checkbox"
+          aria-label={`Select ${item.title}`}
+          checked={props.selected}
+          disabled={!props.selectable}
+          onChange={(event) => props.onSelect(event.target.checked)}
+          style={{ marginTop: 3 }}
+        />
+        <button
+          type="button"
+          data-conflict-pick={itemKey(item)}
+          aria-current={props.focused ? 'true' : undefined}
+          onClick={props.onFocus}
+          className="flex min-w-0 flex-1 flex-col items-stretch gap-0.5 text-left"
+          style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable'].includes(item.kind) ? 'warning' : 'danger'}>
+              {LABELS[item.kind] ?? item.kind}
+            </Badge>
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.title}</span>
+            {time && <span className="shrink-0 text-xs text-muted">{relativeTime(time)}</span>}
+          </span>
+          <span className="truncate text-xs text-muted">
+            {item.taskId ? `${item.taskId} · ` : ''}
+            {whyLine(item)}
+          </span>
+        </button>
+      </div>
+    </li>
+  )
+}
+
+// The picked item: why it needs you, its task and spec, its age, its
+// actions and the ways to resolve it, and its history.
+function ConflictDetail(props: {
   item: ConflictItem
   plan: string | null
   attach: string | null
   workspaceId: string
   revision: number
   busy: boolean
-  selectable: boolean
-  selected: boolean
-  onSelect: (on: boolean) => void
   run: (call: () => Promise<{ ok: boolean; text: string }>) => void
   onSettled: (action: SettleAction, result: SettleResult) => void
   onAsk: () => void
@@ -566,66 +606,63 @@ function ConflictRow(props: {
 }) {
   const { item } = props
   const drawer = useTaskDrawer()
-  const [open, setOpen] = useState<'history' | 'resolve' | null>(null)
+  const [history, setHistory] = useState(false)
+  // A phone's detail pane already shows the title over its Back row.
+  const phone = usePhone()
   const time = itemTime(item as ConflictItem & { openedAt?: string | null })
   return (
-    <li className="border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-conflict-row>
+    <div className="flex flex-col gap-3" data-conflict-detail={itemKey(item)}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <input
-          type="checkbox"
-          aria-label={`Select ${item.title}`}
-          checked={props.selected}
-          disabled={!props.selectable}
-          onChange={(event) => props.onSelect(event.target.checked)}
-        />
         <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable'].includes(item.kind) ? 'warning' : 'danger'}>
           {LABELS[item.kind] ?? item.kind}
         </Badge>
         {item.field && <Badge>{FIELD_NAMES[item.field] ?? item.field}</Badge>}
-        {item.taskId ? (
-          <button type="button" className="font-medium underline" onClick={() => drawer.openTask(item.taskId!)}>
-            {item.title}
-          </button>
-        ) : (
-          <span className="font-medium">{item.title}</span>
-        )}
-        {item.taskId && <span className="text-xs text-muted">{item.taskId}</span>}
         <Authority owner={item} />
+        {item.taskId && <span className="text-xs text-muted">{item.taskId}</span>}
         {props.plan && <span className="text-xs text-muted">· spec {props.plan}</span>}
         {time && (
           <Tooltip text={time}>
             <span className="text-xs text-muted">· {relativeTime(time)}</span>
           </Tooltip>
         )}
-        <span className="ml-auto flex items-center gap-1.5">
-          {props.attach && (
-            <a href={linkHref(props.attach)} className="self-center text-sm underline" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <ExternalLink size={14} aria-hidden="true" />
-              Attach
-            </a>
-          )}
-          <IconBtn icon={MessageSquare} label={`Ask in a chat about ${item.title}`} tooltip="Ask in a chat: a new chat seeded with this item's full context" onClick={props.onAsk} />
-          {item.kind === 'review' ? (
-            <IconBtn icon={DetailsIcon} label={`Info: ${item.title}`} tooltip="Why these tasks need review, and the list of them" onClick={() => drawer.openReview(item, props.onReviewed)} />
-          ) : (
-            <IconBtn icon={History} label={`History of ${item.title}`} tooltip="History" onClick={() => setOpen(open === 'history' ? null : 'history')} />
-          )}
-          {item.taskId && <IconBtn icon={DetailsIcon} label={`View task ${item.taskId}`} tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(item.taskId!)} />}
-          <IconLabel icon={Check} tooltip="Show the ways to resolve this item" onClick={() => setOpen(open === 'resolve' ? null : 'resolve')}>
-            Resolve
-          </IconLabel>
-        </span>
       </div>
-      <p className="mt-0.5 text-sm text-muted" style={{ paddingLeft: 22 }}>
-        {whyLine(item)}
-      </p>
-      {open === 'history' && <ItemHistory item={item} workspaceId={props.workspaceId} />}
-      {open === 'resolve' && (
-        <div className="mt-2 rounded border p-2" style={{ borderColor: 'var(--border)' }}>
-          <ConflictActions item={item} workspaceId={props.workspaceId} revision={props.revision} busy={props.busy} run={props.run} onSettled={props.onSettled} />
-        </div>
+      {!phone && (
+        <h3 className="m-0 text-lg font-semibold" style={{ overflowWrap: 'anywhere' }}>
+          {item.title}
+        </h3>
       )}
-    </li>
+      <p className="m-0 text-sm text-muted">{whyLine(item)}</p>
+      <div className="flex flex-wrap items-center gap-1.5" data-conflict-actions>
+        {item.taskId && (
+          <IconLabel icon={DetailsIcon} tooltip="Open this task's details" onClick={() => drawer.openTask(item.taskId!)}>
+            Task details
+          </IconLabel>
+        )}
+        {props.attach && (
+          <a href={linkHref(props.attach)} className="self-center text-sm underline" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <ExternalLink size={14} aria-hidden="true" />
+            Attach
+          </a>
+        )}
+        <IconLabel icon={MessageSquare} tooltip="Ask in a chat: a new chat seeded with this item's full context" onClick={props.onAsk}>
+          Ask in a chat
+        </IconLabel>
+        {item.kind === 'review' ? (
+          <IconLabel icon={DetailsIcon} tooltip="Why these tasks need review, and the list of them" onClick={() => drawer.openReview(item, props.onReviewed)}>
+            Review info
+          </IconLabel>
+        ) : (
+          <IconLabel icon={History} tooltip="Show this item's history" onClick={() => setHistory(!history)}>
+            {history ? 'Hide history' : 'History'}
+          </IconLabel>
+        )}
+      </div>
+      <Card>
+        <h4 className="m-0 mb-2 text-sm font-semibold">Resolve</h4>
+        <ConflictActions item={item} workspaceId={props.workspaceId} revision={props.revision} busy={props.busy} run={props.run} onSettled={props.onSettled} />
+      </Card>
+      {history && <ItemHistory item={item} workspaceId={props.workspaceId} />}
+    </div>
   )
 }
 
@@ -655,6 +692,8 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [acting, setActing] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+  // The item open in the detail column; null shows the list alone.
+  const [focus, setFocus] = useState<string | null>(null)
 
   useEffect(() => {
     setItems(value?.page.items ?? null)
@@ -699,6 +738,8 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
   // Every item the filters keep; the list shows the first pages of them.
   const matching = all.filter((item) => matchesConflict(item, filter, tasksById.get(conflictTaskId(item) ?? ''), now))
   const shown = pages.take('conflicts', matching)
+  // A settled or filtered-out item closes its detail.
+  const current = focus ? (matching.find((item) => itemKey(item) === focus) ?? null) : null
   // Bulk acts on exactly the selected matching items, shown or not.
   const picked = matching.filter((item) => selected.has(itemKey(item)))
   const allShown = shown.length > 0 && shown.every((item) => selected.has(itemKey(item)))
@@ -726,23 +767,17 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
   }
 
   return (
-    <section aria-labelledby="avoozl-conflicts-title" className="flex flex-col gap-3.5">
-      <ViewHeading
-        id="avoozl-conflicts-title"
-        view="conflicts"
-        level={embedded ? 3 : 2}
-        actions={
-          workspaceId && (
-            <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy || acting} />
-          )
-        }
-      >
-        Conflicts
-      </ViewHeading>
-      <p className="text-sm text-muted">
-        Edits to what Avoozl manages on an issue, decisions, tasks waiting on you, and sessions that ended. Board drags are orders, not
-        conflicts.
-      </p>
+    <section aria-labelledby={embedded ? undefined : 'avoozl-conflicts-title'} aria-label={embedded ? 'Decisions and conflicts' : undefined} className="flex h-full min-h-0 flex-col gap-2">
+      {!embedded && (
+        <ViewHeading
+          id="avoozl-conflicts-title"
+          view="conflicts"
+          level={2}
+          actions={workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy || acting} />}
+        >
+          Conflicts
+        </ViewHeading>
+      )}
       {(error || chat.error) && (
         <p role="alert" className="text-sm text-danger">
           {error ?? chat.error}
@@ -760,109 +795,129 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
       ) : items.length === 0 ? (
         <p className="text-sm text-muted">No open conflicts or decisions.</p>
       ) : (
-        <>
+        <ListDetailLayout
+          id="needs-you"
+          backLabel="Needs you"
+          detailTitle={current?.title ?? ''}
+          onBack={() => setFocus(null)}
+          list={
+            <div className="flex flex-col gap-2" data-conflict-list-pane>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted">{matching.length} of {items.length} items</span>
+                <span className="ml-auto">{workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy || acting} />}</span>
+              </div>
           <FilterPanel
-            id="avoozl-conflicts"
-            label="Filter conflicts"
-            active={conflictFilterActive(filter)}
-            onClear={() => setFilter({})}
-            fields={[
-              { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Task, ID or detail', onChange: (q) => setField({ q }) },
-              { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: choices.kinds, onChange: (kind) => setField({ kind }) },
-              { kind: 'pick', key: 'plan', label: 'Spec', value: filter.plan ?? '', items: optionItems(choices.plans), onChange: (plan) => setField({ plan }) },
-              { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: choices.epics, onChange: (epic) => setField({ epic }) },
-              {
-                kind: 'select',
-                key: 'repository',
-                label: 'Repository',
-                value: filter.repository ?? '',
-                options: choices.repositories,
-                onChange: (repository) => setField({ repository }),
-              },
-              { kind: 'select', key: 'age', label: 'Age', value: filter.age ?? '', options: choices.ages, onChange: (age) => setField({ age }) },
-              {
-                kind: 'select',
-                key: 'changed-by',
-                label: 'Changed by',
-                value: filter.changedBy ?? '',
-                options: choices.changedBy,
-                onChange: (changedBy) => setField({ changedBy }),
-              },
-            ]}
-          >
-            <p role="status" className="text-xs text-muted">
-              {matching.length} of {items.length} items
-            </p>
-          </FilterPanel>
-          <div className="flex flex-wrap items-center gap-2 text-sm" data-bulk-bar>
-            <label className="flex items-center gap-1.5 text-xs">
-              <input
-                type="checkbox"
-                aria-label={`Select the ${shown.length} shown`}
-                checked={allShown}
-                onChange={(event) => {
-                  const next = new Set(selected)
-                  for (const item of shown) event.target.checked ? next.add(itemKey(item)) : next.delete(itemKey(item))
-                  setSelected(next)
-                }}
+                  folded
+                  id="avoozl-conflicts"
+                  label="Filter conflicts"
+                  active={conflictFilterActive(filter)}
+                  onClear={() => setFilter({})}
+                  fields={[
+                    { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Task, ID or detail', onChange: (q) => setField({ q }) },
+                    { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: choices.kinds, onChange: (kind) => setField({ kind }) },
+                    { kind: 'pick', key: 'plan', label: 'Spec', value: filter.plan ?? '', items: optionItems(choices.plans), onChange: (plan) => setField({ plan }) },
+                    { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: choices.epics, onChange: (epic) => setField({ epic }) },
+                    {
+                      kind: 'select',
+                      key: 'repository',
+                      label: 'Repository',
+                      value: filter.repository ?? '',
+                      options: choices.repositories,
+                      onChange: (repository) => setField({ repository }),
+                    },
+                    { kind: 'select', key: 'age', label: 'Age', value: filter.age ?? '', options: choices.ages, onChange: (age) => setField({ age }) },
+                    {
+                      kind: 'select',
+                      key: 'changed-by',
+                      label: 'Changed by',
+                      value: filter.changedBy ?? '',
+                      options: choices.changedBy,
+                      onChange: (changedBy) => setField({ changedBy }),
+                    },
+                  ]}
+                >
+                  <p role="status" className="text-xs text-muted">
+                    {matching.length} of {items.length} items
+                  </p>
+                </FilterPanel>
+                <div className="flex flex-wrap items-center gap-2 text-sm" data-bulk-bar>
+                  <label className="flex items-center gap-1.5 text-xs">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select the ${shown.length} shown`}
+                      checked={allShown}
+                      onChange={(event) => {
+                        const next = new Set(selected)
+                        for (const item of shown) event.target.checked ? next.add(itemKey(item)) : next.delete(itemKey(item))
+                        setSelected(next)
+                      }}
+                    />
+                    Select the {shown.length} shown
+                  </label>
+                  {matching.length > shown.length && (
+                    <TipBtn tooltip="Select every matching item, including ones not shown yet" type="button" onClick={() => setSelected(new Set(matching.map(itemKey)))} disabled={allMatching}>
+                      Select all {matching.length} matching
+                    </TipBtn>
+                  )}
+                  <span role="status" className="text-xs text-muted" data-selection>
+                    {picked.length
+                      ? `${picked.length} selected${allMatching ? `: all ${matching.length} matching` : allShown && picked.length === shown.length ? `: the ${shown.length} shown` : ''}. Bulk acts on these ${picked.length}. · `
+                      : ''}
+                    {shown.length} shown of {matching.length}
+                    {acting ? ' · Working…' : ''}
+                  </span>
+                  {picked.length > 0 && (
+                    <>
+                      <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat seeded with the selected items" onClick={() => void chat.ask({ items: picked.map(itemRef) })}>
+                        Ask in a chat about {picked.length} {picked.length === 1 ? 'item' : 'items'}
+                      </IconLabel>
+                      {action ? (
+                        <TipBtn tooltip={ACTION_TIPS[action]} type="button" primary onClick={() => void applyBulk()} disabled={acting}>
+                          {ACTION_LABELS[action]} {picked.length}
+                        </TipBtn>
+                      ) : (
+                        <span className="text-xs text-muted">Bulk resolve needs items of one kind.</span>
+                      )}
+                      <Btn onClick={() => setSelected(new Set())} disabled={acting}>
+                        Clear selection
+                      </Btn>
+                    </>
+                  )}
+                </div>
+                <ul className="m-0 flex list-none flex-col p-0" data-conflict-list>
+                  {shown.map((item) => (
+                    <ConflictListRow
+                      key={itemKey(item)}
+                      item={item}
+                      focused={focus === itemKey(item)}
+                      selectable
+                      selected={selected.has(itemKey(item))}
+                      onSelect={(on) => select(item, on)}
+                      onFocus={() => setFocus(itemKey(item))}
+                    />
+                  ))}
+                </ul>
+                <ShowMore {...pages.more('conflicts', matching.length)} />
+                {matching.length === 0 && <p className="text-sm text-muted">No item matches these filters.</p>}
+            </div>
+          }
+          detail={
+            current ? (
+              <ConflictDetail
+                item={current}
+                plan={current.taskId ? (plans.get(current.taskId) ?? null) : null}
+                onReviewed={() => void reload()}
+                attach={(current.kind === 'stale-session' ? current.link : null) ?? (current.taskId ? (attach.get(current.taskId) ?? null) : null)}
+                workspaceId={workspaceId}
+                revision={revision}
+                busy={acting}
+                run={run}
+                onSettled={onSettled}
+                onAsk={() => void chat.ask({ items: [itemRef(current)] })}
               />
-              Select the {shown.length} shown
-            </label>
-            {matching.length > shown.length && (
-              <TipBtn tooltip="Select every matching item, including ones not shown yet" type="button" onClick={() => setSelected(new Set(matching.map(itemKey)))} disabled={allMatching}>
-                Select all {matching.length} matching
-              </TipBtn>
-            )}
-            <span role="status" className="text-xs text-muted" data-selection>
-              {picked.length
-                ? `${picked.length} selected${allMatching ? `: all ${matching.length} matching` : allShown && picked.length === shown.length ? `: the ${shown.length} shown` : ''}. Bulk acts on these ${picked.length}. · `
-                : ''}
-              {shown.length} shown of {matching.length}
-              {acting ? ' · Working…' : ''}
-            </span>
-            {picked.length > 0 && (
-              <>
-                <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat seeded with the selected items" onClick={() => void chat.ask({ items: picked.map(itemRef) })}>
-                  Ask in a chat about {picked.length} {picked.length === 1 ? 'item' : 'items'}
-                </IconLabel>
-                {action ? (
-                  <TipBtn tooltip={ACTION_TIPS[action]} type="button" primary onClick={() => void applyBulk()} disabled={acting}>
-                    {ACTION_LABELS[action]} {picked.length}
-                  </TipBtn>
-                ) : (
-                  <span className="text-xs text-muted">Bulk resolve needs items of one kind.</span>
-                )}
-                <Btn onClick={() => setSelected(new Set())} disabled={acting}>
-                  Clear selection
-                </Btn>
-              </>
-            )}
-          </div>
-          <Card>
-            <ul className="flex flex-col">
-              {shown.map((item) => (
-                <ConflictRow
-                  key={itemKey(item)}
-                  item={item}
-                  plan={item.taskId ? (plans.get(item.taskId) ?? null) : null}
-                  onReviewed={() => void reload()}
-                  attach={(item.kind === 'stale-session' ? item.link : null) ?? (item.taskId ? (attach.get(item.taskId) ?? null) : null)}
-                  workspaceId={workspaceId}
-                  revision={revision}
-                  busy={acting}
-                  selectable
-                  selected={selected.has(itemKey(item))}
-                  onSelect={(on) => select(item, on)}
-                  run={run}
-                  onSettled={onSettled}
-                  onAsk={() => void chat.ask({ items: [itemRef(item)] })}
-                />
-              ))}
-            </ul>
-            <ShowMore {...pages.more('conflicts', matching.length)} />
-            {matching.length === 0 && <p className="text-sm text-muted">No item matches these filters.</p>}
-          </Card>
-        </>
+            ) : null
+          }
+        />
       )}
     </section>
   )

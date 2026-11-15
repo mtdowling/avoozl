@@ -11,7 +11,6 @@ import { ItemDetails, RetryForm, SupersedeForm } from './DeliveryDetails.tsx'
 import { ConflictActions, ReviewButton } from './ConflictsView.tsx'
 import { DocumentReader } from './DocumentReader.tsx'
 import { CitedFile } from './CitedFile.tsx'
-import { DRAWER_DEFAULT, DRAWER_MIN, clampDrawer, readDrawerWidth, stepDrawer, writeDrawerWidth } from './drawer-width.ts'
 import { HandSetReview, ReviewRuns } from './ReviewState.tsx'
 import { reviewRuns } from './views-api.ts'
 import { Markdown } from './Markdown.tsx'
@@ -678,70 +677,9 @@ function ReviewPanel(props: { workspaceId: string; group: ConflictItem; open: (i
   )
 }
 
-// The shared task drawer: slides in from the right, a full-width sheet under
-// 768 px. Esc, the close button and a click outside close it; focus moves in
-// and returns to where it was; no motion under prefers-reduced-motion.
-function pageStorage(): Storage | null {
-  try {
-    return window.localStorage
-  } catch {
-    return null
-  }
-}
-
-// The drawer's left edge: drag it, or focus it and press Left or Right, to
-// change the width; double-click puts the default back.
-function DrawerHandle(props: { width: number; onResize: (width: number) => void; onDragging: (on: boolean) => void; onReset: () => void }) {
-  const [hover, setHover] = useState(false)
-  return (
-    <div
-      role="separator"
-      aria-orientation="vertical"
-      aria-label="Resize the task drawer"
-      aria-valuenow={props.width}
-      aria-valuemin={DRAWER_MIN}
-      tabIndex={0}
-      data-drawer-handle
-      onPointerDown={(event) => {
-        event.preventDefault()
-        const target = event.currentTarget
-        target.setPointerCapture?.(event.pointerId)
-        props.onDragging(true)
-        const move = (e: PointerEvent) => props.onResize(window.innerWidth - e.clientX)
-        const up = () => {
-          props.onDragging(false)
-          target.removeEventListener('pointermove', move)
-          target.removeEventListener('pointerup', up)
-        }
-        target.addEventListener('pointermove', move)
-        target.addEventListener('pointerup', up)
-      }}
-      onDoubleClick={props.onReset}
-      onKeyDown={(event) => {
-        const next = stepDrawer(props.width, event.key)
-        if (next === null) return
-        event.preventDefault()
-        props.onResize(next)
-      }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      className="absolute inset-y-0 flex items-center justify-center outline-none"
-      style={{ right: props.width - 5, width: 10, cursor: 'col-resize', zIndex: LAYER.raised }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          width: 6,
-          height: 56,
-          borderRadius: 999,
-          border: '1px solid var(--border)',
-          background: hover ? 'var(--accent)' : 'color-mix(in srgb, var(--muted) 80%, var(--card))',
-        }}
-      />
-    </div>
-  )
-}
-
+// The shared task details: a centered modal, full screen under 768 px. Esc,
+// the close button and a click outside close it; focus moves in and returns
+// to where it was; no motion under prefers-reduced-motion.
 export function TaskDrawerProvider({
   workspaceId,
   children,
@@ -762,21 +700,6 @@ export function TaskDrawerProvider({
   const returnTo = useRef<HTMLElement | null>(null)
   const narrow = useMedia('(max-width: 767px)')
   const still = useMedia('(prefers-reduced-motion: reduce)')
-  // The drawer's width, per workspace; the left-edge handle changes it.
-  const [width, setWidth] = useState(DRAWER_DEFAULT)
-  const [dragging, setDragging] = useState(false)
-  useEffect(() => {
-    setWidth(workspaceId ? readDrawerWidth(pageStorage(), workspaceId) : DRAWER_DEFAULT)
-  }, [workspaceId])
-  const resize = useCallback(
-    (next: number) => {
-      const value = clampDrawer(next, window.innerWidth)
-      setWidth(value)
-      if (workspaceId) writeDrawerWidth(pageStorage(), workspaceId, value)
-    },
-    [workspaceId],
-  )
-
   // The mode as of the last render, so opening a linked task can push the
   // current one onto the Back history.
   const current = useRef<Mode>(null)
@@ -839,7 +762,8 @@ export function TaskDrawerProvider({
     <TaskDrawerContext.Provider value={api_}>
       {children}
       {mode && workspaceId && (
-        <div className="fixed inset-0" style={{ zIndex: LAYER.drawer, display: 'flex', justifyContent: 'flex-end' }}>
+        // A centered modal, full screen on a phone: no pull-out from the right.
+        <div className="fixed inset-0" style={{ zIndex: LAYER.drawer, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div
             aria-hidden="true"
             data-drawer-backdrop
@@ -847,28 +771,23 @@ export function TaskDrawerProvider({
             className="absolute inset-0"
             style={{ background: 'color-mix(in srgb, var(--text) 25%, transparent)' }}
           />
-          {!narrow && (
-            <DrawerHandle
-              width={clampDrawer(width, typeof window === 'undefined' ? width : window.innerWidth)}
-              onResize={resize}
-              onDragging={setDragging}
-              onReset={() => resize(DRAWER_DEFAULT)}
-            />
-          )}
           <div
             ref={panel}
             role="dialog"
             aria-modal="true"
             aria-labelledby="avoozl-drawer-title"
             tabIndex={-1}
-            className="relative flex h-full flex-col overflow-y-auto border-l p-4 shadow-lg outline-none"
+            data-task-modal
+            className="relative flex flex-col overflow-y-auto border p-4 shadow-lg outline-none"
             style={{
-              width: narrow ? '100%' : clampDrawer(width, typeof window === 'undefined' ? width : window.innerWidth),
+              width: narrow ? '100%' : 'min(56rem, 94vw)',
+              height: narrow ? '100%' : 'min(52rem, 90vh)',
+              borderRadius: narrow ? 0 : 10,
               background: 'var(--card, var(--bg))',
               color: 'var(--text)',
               borderColor: 'var(--border)',
-              transform: shown || still ? 'none' : 'translateX(100%)',
-              transition: still || dragging ? 'none' : 'transform 180ms ease-out',
+              opacity: shown || still ? 1 : 0,
+              transition: still ? 'none' : 'opacity 120ms ease-out',
             }}
           >
 

@@ -34,8 +34,9 @@ for (const dark of [false, true]) {
     await page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
     await settle()
     const bar = await box('[data-top-rail-bar]')
-    assert.ok(bar.height >= 44 && bar.height <= 60, `the bar is thin (${bar.height})`)
-    assert.ok(bar.width >= 340, 'the bar spans the screen')
+    assert.ok(bar.height >= 24 && bar.height <= 34, `the bar is thin (${bar.height})`)
+    // The hamburger shares the one header row with Stop the line and More.
+    assert.ok((await box('[data-phone-header]')).width >= 340, 'the header row spans the screen')
     assert.ok(bar.top < 250, 'the bar is near the top')
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [role="tab"]').length`), 0, 'no tab row')
     assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Home/)
@@ -53,7 +54,7 @@ for (const dark of [false, true]) {
     await settle()
     assert.equal(await box('[data-top-rail-list]'), null, 'picking collapses the rail')
     assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Flow/)
-    assert.equal((await box('[data-avoozl-pane]')).hidden, false, 'the page shows again')
+    assert.ok((await box('[data-avoozl-pane]')).height > 100, 'the page shows again')
   })
 
   test(`a desktop at 1280 px keeps its tab row (${theme})`, { skip }, async () => {

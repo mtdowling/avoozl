@@ -1,6 +1,6 @@
 // The side panel is dense and works on a phone: rows are about two text lines
 // tall (the earlier panel stacked a title, a detail and an action row, so a row
-// was three or more lines), nothing scrolls sideways, tap targets are 44 px on
+// was three or more lines), nothing scrolls sideways, buttons stay compact on
 // a phone, nothing is sticky, and each row carries its facts. Measured in a real
 // Chrome at 1280 px light and 390 px dark. Heights are compared with the row's
 // own computed line height, not a fixed number. Skipped when no Chrome is found.
@@ -100,17 +100,15 @@ for (const size of SIZES) {
   })
 }
 
-test('every tap target is 44 px tall on a phone and compact on a desktop', { skip }, async () => {
-  const phone = SIZES[1]
-  await open(phone)
-  const small = await page.evaluate(`[...document.querySelectorAll('[data-pp] button, [data-pp] a[data-pp-act], [data-pp-section] > summary, [data-pp-chip][data-tap]')].filter((el) => el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().height < 43.5).map((el) => el.textContent.trim().slice(0, 24) + ' ' + el.getBoundingClientRect().height)`)
-  assert.deepEqual(small, [])
-  const rowHeights = await page.evaluate(`[...document.querySelectorAll('[data-pp-row]')].map((row) => row.getBoundingClientRect().height)`)
-  assert.ok(rowHeights.every((height) => height >= 43.5), 'rows are tap sized')
-  const desktop = SIZES[0]
-  await open(desktop)
-  const act = await page.evaluate(`Math.max(...[...document.querySelectorAll('[data-pp-act]')].map((el) => el.getBoundingClientRect().height))`)
-  assert.ok(act < 44, `desktop actions stay compact (${act} px)`)
+test('buttons and rows keep their compact size on a phone', { skip }, async () => {
+  const measure = () => page.evaluate(`({
+    buttons: [...document.querySelectorAll('[data-pp] button, [data-pp] a[data-pp-act]')].filter((el) => el.getBoundingClientRect().height > 0).map((el) => Math.round(el.getBoundingClientRect().height)),
+    minHeights: [...document.querySelectorAll('[data-pp-row]')].map((row) => parseFloat(getComputedStyle(row).minHeight) || 0),
+  })`)
+  await open(SIZES[1])
+  const phone = await measure()
+  assert.ok(phone.buttons.every((height) => height <= 28), 'buttons ' + phone.buttons)
+  assert.ok(phone.minHeights.every((height) => height <= 36), 'no row has a tap-size minimum height: ' + phone.minHeights)
 })
 
 test('a new section is a few lines: every view is built from the shared parts', { skip: false }, () => {

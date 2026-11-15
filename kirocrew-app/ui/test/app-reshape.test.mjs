@@ -1,6 +1,6 @@
 // The reshaped page in a real Chrome (test/browser/harness.tsx ?page=app):
 // the nav row, Home's empty states, the Settings hub with the Mirror setup
-// buttons, the retired-worker banner, and Waiting on you
+// buttons, the retired-worker banner, and Needs you
 // holding what Conflicts and Intake used to. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
@@ -28,10 +28,10 @@ const open = (query = {}) => page.open(harness.url({ page: 'app', ...query }), {
 const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
 const text = `document.body.innerText`
 
-test('the nav row has Home, Specs, Waiting on you, Trace, Flow, Activity and Settings, and no removed page', { skip }, async () => {
+test('the nav row has Home, Specs, Needs you, Trace, Flow, Activity and Settings, and no removed page', { skip }, async () => {
   await open({ radar: '1' })
   await page.until(`${tabs}.length === 7`)
-  assert.deepEqual(await page.evaluate(tabs), ['Home', 'Specs', 'Waiting on you', 'Trace', 'Flow', 'Activity', 'Settings'])
+  assert.deepEqual(await page.evaluate(tabs), ['Home', 'Specs', 'Needs you', 'Trace', 'Flow', 'Activity', 'Settings'])
   assert.deepEqual(page.errors, [])
 })
 
@@ -39,8 +39,10 @@ test('an empty Home says what to set up, with a button for each, instead of hidi
   await open({ radar: '1' })
   await page.until(`Boolean(document.querySelector('[data-driver-session="none"]') && document.querySelector('[data-release-empty]'))`)
   const body = await page.evaluate(text)
-  for (const line of ['Driver session', 'Not started', 'Start a driver session', 'No epics', 'Plan an epic', 'Release queue', 'Open Repository setup'])
+  for (const line of ['Driver session', 'Not started', 'No epics', 'Plan an epic', 'Release queue', 'Open Repository setup'])
     assert.ok(body.includes(line), line)
+  // The compact driver card's button says Start; its name is the whole action.
+  assert.ok(await page.evaluate(`Boolean(document.querySelector('[data-driver-start][aria-label="Start a driver session"]'))`))
   assert.deepEqual(page.errors, [])
 })
 
@@ -56,11 +58,11 @@ test('Settings is one accordion with the Mirror setup buttons', { skip }, async 
   await page.until(`Boolean(document.querySelector('[data-driver-session]'))`)
   // Opening another section closes the first.
   await click(`document.querySelector('[data-settings-section="repositories"] button[aria-expanded]')`)
-  // The large editors open in a shelf from Configure.
-  await page.until(`Boolean(document.querySelector('[data-open-shelf="repositories"]'))`)
+  // The large editors open in a modal from Configure.
+  await page.until(`Boolean(document.querySelector('[data-open-settings="repositories"]'))`)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-mirror-setup]'))`), false)
-  await click(`document.querySelector('[data-open-shelf="repositories"]')`)
-  await page.until(`Boolean(document.querySelector('[data-settings-shelf="repositories"] [data-mirror-setup]'))`)
+  await click(`document.querySelector('[data-open-settings="repositories"]')`)
+  await page.until(`Boolean(document.querySelector('[data-settings-dialog="repositories"] [data-mirror-setup]'))`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section][data-open="true"]').length`), 1)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-driver-session]'))`), false)
   const buttons = await page.evaluate(`[...document.querySelectorAll('[data-setup-action]')].map((b) => [b.dataset.setupAction, b.disabled])`)
@@ -85,13 +87,13 @@ test('a repository on the retired worker shows the Settings banner; one on Radar
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-retired-banner]'))`), false)
 })
 
-test('Waiting on you holds decisions and intake in one-open sections', { skip }, async () => {
+test('Needs you holds decisions and intake as two tabs, one open at a time', { skip }, async () => {
   await open({ radar: '1' })
-  await page.until(`Boolean(${tab('Waiting on you')})`)
-  await click(tab('Waiting on you'))
+  await page.until(`Boolean(${tab('Needs you')})`)
+  await click(tab('Needs you'))
   await page.until(`Boolean(document.querySelector('[data-waiting-view]'))`)
   assert.equal(await page.evaluate(`document.querySelector('[data-waiting-section][data-open="true"]').dataset.waitingSection`), 'decisions')
-  await click(`document.querySelector('[data-waiting-section="intake"] button[aria-expanded]')`)
+  await click(`[...document.querySelectorAll('[data-waiting-tabs] [role="tab"]')].find((t) => t.textContent.includes('Planning and intake'))`)
   await page.until(`document.querySelector('[data-waiting-section="intake"]').dataset.open === 'true'`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-waiting-section][data-open="true"]').length`), 1)
   assert.deepEqual(page.errors, [])

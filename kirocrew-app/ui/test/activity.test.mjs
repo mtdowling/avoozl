@@ -51,8 +51,8 @@ test('the tab: its own nav entry and icon, the shared heading, filter panel and 
   assert.match(app, /tab === 'activity' \? \(\s*<ActivityView workspaceId=\{active\} \/>/)
   assert.match(source('icons.ts'), /activity: History,/)
   assert.match(view, /<ViewHeading\s+id="avoozl-activity-title"\s+view="activity"[\s\S]*?actions=\{/)
-  assert.match(view, /<Section title="Keep activity"[^>]*level="card"/)
-  assert.match(view, /<Card className="flex flex-col gap-4">\s*<Section title="Keep activity"/)
+  // Keep activity sits at the right end of the filter row.
+  assert.match(view, /aside=\{workspaceId \? <KeepActivity /)
   assert.match(view, /<FilterPanel\s+id="avoozl-activity"/)
   for (const key of ['source', 'kind', 'actor']) assert.match(view, new RegExp(`key: '${key}'`), key)
   assert.match(view, /<ShowMore left=\{page\.total - rows\.length\}/)

@@ -44,7 +44,6 @@ export const CAPABILITIES = {
 };
 // The parts one plugin may bundle (R55.1), and the code kind each runs as.
 // A pack is settings only and runs as nothing; intake is a tracker's `poll`.
-// `lessons` is a lessons pack (design §4.18), data only like a pack.
 // `template` is a workflow template (design §4.16): folders under
 // templates/, data only too.
 export const PARTS = [
@@ -54,9 +53,12 @@ export const PARTS = [
   "intake",
   "route",
   "gate",
-  "lessons",
   "template",
 ];
+// Parts Avoozl no longer reads. A plugin may still list them, so its other
+// parts keep working; they do nothing. Lessons packs went with the lessons
+// store (RC30.4).
+const REMOVED_PARTS = ["lessons"];
 const PART_KIND = {
   rules: "rules",
   tracker: "tracker",
@@ -333,7 +335,9 @@ export function validateManifest(manifest, entry) {
   if (manifest.provides !== undefined) {
     if (
       !list(manifest.provides) ||
-      manifest.provides.some((part) => !PARTS.includes(part))
+      manifest.provides.some(
+        (part) => !PARTS.includes(part) && !REMOVED_PARTS.includes(part),
+      )
     )
       fail(
         `${PLUGIN_MANIFEST} provides must list ${PARTS.join(", ")}, each once.`,

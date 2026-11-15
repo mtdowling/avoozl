@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { RETIRED_LINE, TABS, navTab, redirectSettings, redirectTab, retiredCoders, tabLabel } from '../src/nav-api.ts'
 
-test('the nav row is Home, Specs, Waiting on you, Trace, Flow, Activity, Settings', () => {
-  assert.deepEqual(TABS.map((t) => t.label), ['Home', 'Specs', 'Waiting on you', 'Trace', 'Flow', 'Activity', 'Settings'])
+test('the nav row is Home, Specs, Needs you, Trace, Flow, Activity, Settings', () => {
+  assert.deepEqual(TABS.map((t) => t.label), ['Home', 'Specs', 'Needs you', 'Trace', 'Flow', 'Activity', 'Settings'])
 })
 
 test('removed pages go to the page that took over, never nowhere', () => {

@@ -190,20 +190,6 @@ To let a Crew Mode conductor claim leaves instead, set
 Avoozl never replaces a worker only because its activity went quiet. It
 checks durable session and delivery records first.
 
-## Ideas
-
-An idea is a rough note that can later become a spec. Choose **New idea** on
-the Specs page or the Intake tab, give it a title, and add notes and links.
-Agents can save ideas too, over MCP (`plans_intake`, action `capture_idea`)
-or the CLI (`avoozl intake idea add --title ...`). An idea never runs work:
-no trigger rule matches it and it never counts as untriaged.
-
-On the Intake tab, **Ideas** lists them. **Riff on this** opens a chat about
-the idea that changes nothing except adding notes and links to it (action
-`add_idea_note`). **Make it a spec** opens New spec filled in from the idea,
-and the idea is marked as that spec once you send it. Only a person archives,
-restores, or makes an idea a spec.
-
 ## Deliver through GitHub
 
 Pick a GitHub mode under **Settings > Where tasks live**, then use **Set up
@@ -435,7 +421,11 @@ These are built and tested with fakes only; no live run has used them yet.
   reason, a revert of an agent's commit, and Pick again with a reason are
   recorded. When the retro sees the same correction on two tasks it may
   propose a rule; once you approve it, it lands as one task that edits
-  `.kiro/steering/avoozl-rules.md` in that repository.
+  `.kiro/steering/avoozl-rules.md` in that repository and makes `AGENTS.md`
+  point to it, so every chat and Issue Radar crew reads the rules. Avoozl
+  keeps no lessons store of its own. Lessons an older version stored on this
+  computer are appended once to the workspace's
+  `.kiro/steering/avoozl-rules.md` under a dated heading, and then deleted.
 - Flow shows the share of finished tasks that were bug fixes, and
   corrections per week.
 
