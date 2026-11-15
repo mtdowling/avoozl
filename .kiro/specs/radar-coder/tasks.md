@@ -534,9 +534,10 @@ Requirement RC23. A task that waits on an outside tracker item, with a label and
 - [x] rc-22.5 Gate rows in Release queue, Trace and Waiting on you, plus the CLI and MCP reads, after rc-22.4, rc-8.2 [RC23.11, RC23.12] (§D28)
   - Release queue and Trace show tracker, state word, last and next check, evidence, link and Clear; Waiting on you lists only failed or twice-unknown gates; `avoozl gate list` and the MCP read return the same rows; docs describe the three example roles by role only; the release scan stays clean; `kirocrew-app/ui/test/tracker-gates.test.mjs`.
   - Done when: The UI test renders an open, a failed and a cleared gate and checks the fields and the Waiting on you filter at 320 px; the CLI read matches the page; `node scripts/release-scan.mjs` is clean.
-- [ ] rc-p22 Proof 22: a gate with a fake plugin, after rc-22.1, rc-22.2, rc-22.3, rc-22.4, rc-22.5 [RC23] (§D28)
+- [x] rc-p22 Proof 22: a gate with a fake plugin, after rc-22.1, rc-22.2, rc-22.3, rc-22.4, rc-22.5 [RC23] (§D28)
   - Setup: a scratch repository, an approved spec with a gate and one dependent, and a fake `gate` plugin whose answer the test sets. Action: let the plugin say `open`, then `unknown` twice, then `failed`, then `done`; in a second run clear the gate as an allowed person and as a stranger. Expected: the label sits on the gate and the dependent; nothing is released until `done`; one Needs you row appears for the failed state and closes on `done`; the dependent is then released and the labels removed; an allowed clear releases the dependent as an order and a stranger's clear is reverted. Failure means: a dependent can run while its outside item is not done, or a failed gate can clear itself. Next decision: make every gate a manual task.
   - Done when: Expected result observed with the fake plugin; receipt under `docs/evidence/`.
+  - Live run passed 2026-11-15 on a private scratch repository; receipt `docs/evidence/rc-proof-22-live.md`. It found a Release queue view bug, fixed in PR #230.
 
 ## Phase 24: Private plans on an orphan branch
 
