@@ -237,3 +237,7 @@ preview and becomes a blocked-by edge only after that approval.
 Planner sessions cannot load this skill. The `avoozl-planner` agent's own
 prompt carries the spec file formats, the manifest fields, and the critique
 format, so a brief only names the mode, the folder, and the goal.
+
+## Waiting on CI
+
+Every chat, Issue Radar and the Avoozl tick share one GitHub login and its rate limit. To wait on a pull request's checks, run `gh pr checks <number>` once every 2 to 3 minutes. Do not use `gh pr checks --watch`, `gh run watch`, or a faster loop. While Avoozl shows "GitHub rate limit reached", make no GitHub calls until the time it gives.

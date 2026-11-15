@@ -92,9 +92,20 @@ import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
 import { mergeStep } from "./radar-merge.mjs";
+import {
+  conflictFixDispatches,
+  conflictFixStep,
+} from "./radar-conflict-fix.mjs";
+import {
+  RATE_LIMIT_TEXT,
+  githubGate,
+  markGithubRun,
+  rateLimitNotices,
+} from "./github-rate.mjs";
 import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { syncStep, syncTargets } from "./integration-sync.mjs";
 import { mirrorSyncStep } from "./mirror-sync.mjs";
+import { publishInstanceStep } from "./instance-publish.mjs";
 import { mirrorForwardStep } from "./mirror-forward.mjs";
 import { mirrorForwardRunStep } from "./mirror-forward-run.mjs";
 import { mirrorPublicPollStep } from "./mirror-forward-poll.mjs";
@@ -716,15 +727,21 @@ export async function tick(
     issueVerify,
   },
 ) {
-  // Every GitHub write of every step passes the driver backstop (§6.10).
-  const github = client ? driverGuard(store, client) : client;
   const at = new Date().toISOString(),
     roster = sessionList(sessions),
     // The script cron, which carries out intents, as opposed to the page's
     // plan-only tick. A Kiro Crew with ScriptContext.session_status (MC-2)
     // also hands the cron a roster; a stock one does not, and the app backend
     // records each session's status instead (session-observer.mjs).
-    script = Boolean(roster) || cron === true;
+    script = Boolean(roster) || cron === true,
+    // While GitHub's rate limit holds calls back, or the budget is low and
+    // reads are spaced out, no GitHub step runs: the steps reconcile from
+    // state, so the first tick after the wait does each pending write once.
+    gate = client && script ? githubGate(store) : { skip: false },
+    live = gate.skip ? null : client,
+    // Every GitHub write of every step passes the driver backstop (§6.10).
+    github = live ? driverGuard(store, live) : live;
+  if (gate.low) markGithubRun(store);
   try {
     const result = await withWorkLock(store, WORKSPACE_LOCK, async () => {
       const { policy, notify } = await loadPolicy(workspaceRoot, memory);
@@ -734,7 +751,7 @@ export async function tick(
       // so a spec driven elsewhere is read-only for this whole tick.
       // Its own plan-issue writes (claim, heartbeat, epic link) are the
       // lock itself, so it holds the unguarded client.
-      notify.push(...(await driverStep(store, client, { script })).notify);
+      notify.push(...(await driverStep(store, live, { script })).notify);
       // Observe first: statuses the script read land before any planning.
       if (roster) {
         const bound = new Set(listSessionBindings(store).map((b) => b.slot));
@@ -834,6 +851,11 @@ export async function tick(
           for (const text of [
             ...step.errors,
             ...(
+              await publishInstanceStep(store, github, {
+                policy: readGitHubPolicyOrNull(workspaceRoot),
+              })
+            ).errors,
+            ...(
               await mirrorForwardStep(store, github, {
                 policy: readGitHubPolicyOrNull(workspaceRoot),
               })
@@ -900,6 +922,30 @@ export async function tick(
           planned.notify.push({
             channel: "failure",
             title: "Avoozl could not check pull requests for merging",
+            text: error.message,
+          });
+        }
+      // Crew pull requests that conflict in source code get one resolver chat
+      // (RC28): it merges the base into the branch and keeps both sides.
+      if (script && github)
+        try {
+          const step = await conflictFixStep(store, github, {
+            policy: readGitHubPolicyOrNull(workspaceRoot),
+            identity: planningIdentity(workspaceRoot),
+            delivery: delivery || {},
+            ...(issueVerify ? { verify: issueVerify } : {}),
+          });
+          planned.notify.push(...step.notify);
+          for (const text of step.errors)
+            planned.notify.push({
+              channel: "failure",
+              title: "Avoozl could not fix a source conflict",
+              text,
+            });
+        } catch (error) {
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl could not fix a source conflict",
             text: error.message,
           });
         }
@@ -1284,7 +1330,11 @@ export async function tick(
       // Code review chats a person asked for (pr-review.mjs), cron only.
       const reviews =
         script && !unobserved.length
-          ? [...reviewDispatches(store), ...reviewDraftDispatches(store)]
+          ? [
+              ...reviewDispatches(store),
+              ...reviewDraftDispatches(store),
+              ...conflictFixDispatches(store),
+            ]
           : [];
       // Read each spec's plan issue again right before its dispatches; a
       // spec reassigned since the sync read dispatches nothing (R66.6).
@@ -1310,7 +1360,7 @@ export async function tick(
       if (script) {
         const lost = await recheckDrivers(
           store,
-          client,
+          live,
           new Set(dispatch.map((d) => taskPlan.get(d.task)).filter(Boolean)),
         );
         if (lost.size)
@@ -1339,7 +1389,17 @@ export async function tick(
             text: "A brief or message asked for a force push, so it was not sent. Writers bring the base branch in with a merge commit instead.",
           });
       }
-      const notices = [...notify, ...planned.notify];
+      // One notice per rate-limit window; a step that failed on the limit
+      // adds nothing of its own.
+      const notices = [
+        ...notify,
+        ...planned.notify,
+        ...(script ? rateLimitNotices(store) : []),
+      ].filter(
+        (n) =>
+          n.title === "GitHub rate limit reached" ||
+          !RATE_LIMIT_TEXT.test(n.text || ""),
+      );
       // Nothing new starts for a task at its budget, and its sessions get
       // only the budget's own messages until a person acts (R67.8).
       const budgetHeld = budgetHeldTaskIds(store),

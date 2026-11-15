@@ -5,7 +5,7 @@ import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { TraceDrawer } from './TraceView.tsx'
 import type { TraceTarget } from './trace-api.ts'
-import { SMALL, attentionTarget, railFor, attentionTip, summarize, type Attention, type InFlight } from './dashboard-api.ts'
+import { attentionTarget, railFor, attentionTip, summarize, type Attention, type InFlight } from './dashboard-api.ts'
 import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
@@ -22,11 +22,13 @@ import { nameFor } from './instance-api.ts'
 import { setupCards, type SetupId } from './setup-api.ts'
 import { useSetupFacts } from './setup-facts.ts'
 import ReleaseQueue from './ReleaseQueue.tsx'
+import RadarFlightGroups from './RadarFlightGroups.tsx'
 import IntegrationBranches from './IntegrationBranches.tsx'
 import ReviewDrafts from './ReviewDrafts.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
-import { Activity, DetailsIcon, ExternalLink, MessageSquare, RefreshCw, Check } from './icons.ts'
+import { RefreshButton } from './RefreshButton.tsx'
+import { Activity, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import type { Drill } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
@@ -151,7 +153,6 @@ const roleLabel = (row: InFlight) =>
 
 // How often the Dashboard reads again while it is on screen, so In flight
 // stays current. Paused while the page is hidden.
-const REFRESH_MS = 20000
 
 // A live Issue Radar claim, read from GitHub: any machine's crew. GitHub
 // does not show whether the crew is paused, which machine it runs on, or
@@ -268,7 +269,6 @@ export default function DashboardView(props: {
   const views = useMemo(() => viewsClient(api), [api])
   const plans = useMemo(() => plansClient(api), [api])
   const chat = useAskChat(workspaceId)
-  const small = useMedia(SMALL)
   // One failed read leaves its section empty rather than the whole page.
   const load = useCallback(
     async (id: string) => {
@@ -309,13 +309,10 @@ export default function DashboardView(props: {
   const drawer = useTaskDrawer()
   const pages = usePages('')
   const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
-      setNow(Date.now())
-      void reload()
-    }, REFRESH_MS)
-    return () => clearInterval(timer)
+  // The Refresh button counts down and reads again at 0.
+  const refreshHome = useCallback(() => {
+    setNow(Date.now())
+    void reload()
   }, [reload])
   // The conflict items an attention row stands for, for its chat seed.
   const askAbout = (item: Attention) => {
@@ -345,13 +342,7 @@ export default function DashboardView(props: {
         view="dashboard"
         meta={
           <>
-            {small ? (
-              <IconBtn icon={RefreshCw} label="Refresh" tooltip="Read Home again" onClick={() => void reload()} disabled={busy} />
-            ) : (
-              <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy}>
-                Refresh
-              </IconLabel>
-            )}
+            <RefreshButton workspaceId={workspaceId} onRefresh={refreshHome} busy={busy} />
             <span role="status" className={busy || value?.failed ? 'text-xs text-muted' : 'sr-only'}>
               {busy ? 'Loading…' : value?.failed ? `${value.failed} of 4 reads failed; those sections are empty.` : ''}
             </span>
@@ -440,12 +431,18 @@ export default function DashboardView(props: {
                   <h4 data-on-the-line className="mt-2 text-xs font-semibold text-muted">
                     On the line ({summary.radarFlight.length}): Ready, Claimed, PR, CI, Merge
                   </h4>
-                  <ul className="mt-1">
-                    {pages.take('radar', summary.radarFlight).map((row) => (
-                      <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} cost={summary.radarCrewStrip?.cost[`${row.repository}#${row.number}`]} onTrace={(claim) => setTracing({ repository: claim.repository, number: claim.number })} />
-                    ))}
-                  </ul>
-                  <ShowMore {...pages.more('radar', summary.radarFlight.length)} />
+                  {summary.radarGroups.length > 0 ? (
+                    <RadarFlightGroups groups={summary.radarGroups} now={now} cost={summary.radarCrewStrip?.cost} onTrace={(claim) => setTracing({ repository: claim.repository, number: claim.number })} />
+                  ) : (
+                    <>
+                      <ul className="mt-1">
+                        {pages.take('radar', summary.radarFlight).map((row) => (
+                          <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} cost={summary.radarCrewStrip?.cost[`${row.repository}#${row.number}`]} onTrace={(claim) => setTracing({ repository: claim.repository, number: claim.number })} />
+                        ))}
+                      </ul>
+                      <ShowMore {...pages.more('radar', summary.radarFlight.length)} />
+                    </>
+                  )}
                   <p className="mt-1 text-xs text-muted">
                     {summary.radarCrewStrip
                       ? 'Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat.'
@@ -468,14 +465,14 @@ export default function DashboardView(props: {
               empty={summary.progress.length === 0 && `No epics yet. ${summary.plans.approved} approved and ${summary.plans.draft} draft specs.`}
               emptyAction={
                 <Btn type="button" onClick={() => onNavigate('plans')}>
-                  Open Epics
+                  Open Specs
                 </Btn>
               }
             >
               <p className="mt-1 text-xs text-muted">
                 {summary.plans.approved} approved and {summary.plans.draft} draft specs.{' '}
                 <button type="button" className="underline" onClick={() => onNavigate('plans')}>
-                  Open Epics
+                  Open Specs
                 </button>
               </p>
               <ul className="mt-2 flex flex-col gap-1 text-sm">

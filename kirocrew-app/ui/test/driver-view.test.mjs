@@ -13,7 +13,7 @@ import {
   recapSince,
   sinceText,
 } from '../src/driver-view-api.ts'
-import { driverView, panelModel } from '../src/panel-api.ts'
+import { driverView, drivenRoot, panelModel, sameRoot } from '../src/panel-api.ts'
 import { classifyChat } from '../src/panel-chat.ts'
 
 const read = (over = {}) => ({ state: 'running', slot: 'chat-7-1', href: '/chat?sid=chat-7-1', openedAt: '2026-11-14T10:00:00Z', lastSeenAt: '2026-11-14T10:20:00Z', source: 'stop', quietAfterMinutes: 30, ...over })
@@ -41,7 +41,7 @@ test('Start opens the avoozl-driver agent with a seeded message, and the message
 })
 
 test('the panel view: a link when seen, a link and Start when quiet, Start alone when none', () => {
-  assert.deepEqual(driverView(read()), { state: 'running', link: '/chat?sid=chat-7-1', start: false, note: driverLine('running') })
+  assert.deepEqual(driverView(read()), { state: 'running', link: '/chat?sid=chat-7-1', start: false, note: driverLine('running'), workspace: null, elsewhere: null })
   const idle = driverView(read({ state: 'idle' }))
   assert.equal(idle.link, '/chat?sid=chat-7-1')
   assert.equal(idle.start, true)
@@ -104,10 +104,30 @@ test('recap since you left: tasks finished after, and waiting rows that are new'
   assert.equal(sinceText(away.at, now), '1 h ago')
 })
 
-test('the panel reads the driver through the shared module and the app page uses the demo fixture', () => {
+test('the panel reads the driver through panel.view and the app page uses the demo fixture', () => {
   const src = (name) => fs.readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
-  assert.match(src('Panel.tsx'), /readDriverSession/)
+  assert.match(src('Panel.tsx'), /readPanel/)
   assert.match(src('Panel.tsx'), /agent: DRIVER_AGENT/)
   assert.match(src('DriverSessionBox.tsx'), /useDemoFixtures\(\)/)
   assert.match(src('DashboardView.tsx'), /<DriverSessionBox/)
+})
+
+const nupp = { root: '/n', workspace: 'Nupp', slot: 'chat-nupp', href: '/chat?sid=chat-nupp' }
+
+test('no driver here but one elsewhere: "No driver for A. B has one:" with its link, and the line names its workspace', () => {
+  const view = driverView({ state: 'none', slot: null, href: null, openedAt: null, lastSeenAt: null, workspace: 'Avoozl', others: [nupp] })
+  assert.equal(view.workspace, 'Avoozl')
+  assert.deepEqual(view.elsewhere, { text: 'No driver for Avoozl. Nupp has one:', href: '/chat?sid=chat-nupp', slot: 'chat-nupp', workspace: 'Nupp' })
+  // A running driver here never points elsewhere.
+  assert.equal(driverView(read({ workspace: 'Avoozl', others: [nupp] })).elsewhere, null)
+})
+
+test('a driver chat finds the workspace it drives from the others list', () => {
+  const here = { state: 'none', slot: null, href: null, openedAt: null, lastSeenAt: null, others: [nupp] }
+  assert.equal(drivenRoot(here, 'chat-nupp'), '/n')
+  assert.equal(drivenRoot(here, 'chat-other'), null)
+  assert.equal(drivenRoot(here, ''), null)
+  assert.ok(sameRoot('/n/', '/n'))
+  assert.ok(sameRoot('C:\\w\\n', 'C:/w/n'))
+  assert.ok(!sameRoot('/n', '/nupp'))
 })

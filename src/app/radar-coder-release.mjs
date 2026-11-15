@@ -4,7 +4,8 @@
 
 // A repository's release settings from the policy as written (the identity
 // holds it unnormalized). N is `release.capacity`, else 2 for Issue Radar,
-// else the older `concurrency`, else no cap.
+// else no cap. The older `concurrency` key (Avoozl's retired local workers)
+// is ignored.
 export function isRadarRepository(repository = {}, mode = null) {
   return (
     (repository?.coder ??
@@ -14,14 +15,11 @@ export function isRadarRepository(repository = {}, mode = null) {
 
 export function releaseFor(repository = {}, mode = null) {
   const input = repository.release ?? {},
-    radar = isRadarRepository(repository, mode),
     capacity = Number.isSafeInteger(input.capacity)
       ? input.capacity
-      : radar
+      : isRadarRepository(repository, mode)
         ? 2
-        : Number.isSafeInteger(repository.concurrency)
-          ? repository.concurrency
-          : Infinity;
+        : Infinity;
   return {
     capacity,
     mode: ["step", "hold"].includes(input.mode) ? input.mode : "automatic",

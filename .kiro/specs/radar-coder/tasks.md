@@ -536,7 +536,7 @@ Requirement RC25. Private plans live on an orphan branch of the mirror and never
 - [x] rc-24.1 `plansBranch` setting: default, orphan creation, validation, after rc-23.1 [RC25.1] (§D30)
   - `mirror.plansBranch` in the form and the raw file; the branch is created from an empty commit with an explicit refspec; a name equal to the default branch, starting with `branchPrefix`, or sharing history with the default branch is refused; `src/app/test/mirror-plans-branch.test.mjs`.
   - Done when: A fake GitHub test: the branch is created once; each refused name is refused with its reason; the form and the raw file agree.
-- [ ] rc-24.2 Spec home, reading both homes, Specs badge, after rc-24.1 [RC25.2, RC25.8] (§D30)
+- [x] rc-24.2 Spec home, reading both homes, Specs badge, after rc-24.1 [RC25.2, RC25.8] (§D30)
   - Each spec records `main` or `plansBranch`; one reader reads both on every tick into one graph; a spec name or task ID in both is refused; new specs start private; a move copies and never deletes; the Specs page shows Private or Public.
   - Done when: Unit tests for both homes read in one tick and the duplicate name or ID; a page test shows both badges; `npm test` and `npm run test:ui` pass.
 - [ ] rc-24.3 Marker `ref`, approval on the plans branch, `verify-issue` and crew commands, after rc-24.2, rc-3.3, rc-3.6, rc-3.2 [RC25.3, RC25.4, RC25.5] (§D30)
@@ -595,9 +595,32 @@ Requirement RC27. Adopt what exists and create what is missing, with a dry run f
   - Steps in order: private repository (visibility read back), one-time `git push --mirror` from the source into the new mirror, orphan plans branch, labels, branch rule requiring CI, auto-merge setting, then the Radar values screen; an existing name is refused and points to Adopt; a mirror that is not private stops the run and deletes nothing.
   - Done when: A fake GitHub test: the steps run in order; an existing name is refused; a non-private result stops with one row and no delete call.
   - Built with the plans branch named `avoozl-plans` until rc-24.1 adds `plansBranch`; the engine reads `mirror.plansBranch` when it exists.
-- [ ] rc-26.4 Mirror section in Settings: two buttons, dry-run view, confirm, after rc-26.2, rc-26.3 [RC27.1, RC27.7] (§D32)
+- [x] rc-26.4 Mirror section in Settings: two buttons, dry-run view, confirm, after rc-26.2, rc-26.3 [RC27.1, RC27.7] (§D32)
   - Both buttons call the operations; the dry run lists one line per write with a tick; the result fills the form and the raw file; no logic of its own in the page.
   - Done when: A page test: the dry run shows, a ticked line applies, an unticked line does not; `npm run test:ui` passes.
 - [ ] rc-p26 Proof 26: Create and Adopt on scratch repositories, after rc-26.1, rc-26.2, rc-26.3, rc-26.4 [RC27] (§D17)
   - Setup: a public-visibility scratch repository under `mtdowling`, created only for the proof. Action: Create setup (dry run, confirm), then both buttons again; then Adopt on a second pre-built private mirror. Expected: a private mirror is built and verified; the repeat runs write nothing; Adopt changes nothing unticked and deletes nothing. Failure means: a setup button can overwrite or expose a repository. Next decision: remove the apply step and keep the dry run only. List every scratch repository in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
+
+## Phase 27: Avoozl fixes a source conflict
+
+Requirement RC28. One resolver chat merges the base into a crew's conflicted pull request.
+
+- [x] rc-27.1 Setting `conflicts.onSourceConflict` and `conflicts.maxAttempts`: policy, schema, Settings, Workflow map [RC28.5] (§D33)
+  - Validated per repository; defaults `fix` and 1; shown in Settings and the Workflow map; `.avoozl.json` round trip.
+  - Done when: A bad value is refused naming the key; the default reads `fix` and 1; the map shows the setting and the form round-trips it.
+- [x] rc-27.2 Fix step on the tick: trigger, limits, receipt and the resolver chat dispatch, after rc-27.1, rc-5.3 [RC28.1, RC28.2, RC28.4] (§D33)
+  - Tests first on a fake GitHub: a candidate starts one chat; a person's commit asks; Stop the line blocks it; no second attempt on the same conflict; `ask` starts nothing.
+  - Done when: The listed tests pass and `npm test` passes.
+- [x] rc-27.3 Drop check and the resolver's report: `plans_conflict_check`, `plans_conflict_report`, the agent, then arm, labels and one comment, after rc-27.2 [RC28.2, RC28.3] (§D33.1)
+  - The check on a real git repository; a fix pushes one merge commit to the same pull request; a failed check pushes nothing and asks; an unchecked push is not armed.
+  - Done when: Each case has a test; only the bound chat may call either tool.
+- [x] rc-27.4 Waiting on you row, Trace, Activity and Flow, after rc-27.3 [RC28.3, RC28.6] (§D33.2)
+  - **Resolve myself** and **Dismiss** through `conflictfix.decide`, a person only; the Trace step, activity row and fix-work mark.
+  - Done when: Each action has a test; a fixed task shows the step with the merge commit, one activity row, and counts as fix work.
+- [x] rc-27.5 Merge method `merge.method` (squash or merge) for every crew auto-merge; Set up and Adopt read the allowed methods, after rc-27.3, rc-5.2 [RC28.7, RC28.8] (§D33.3)
+  - Policy, schema, Settings and the Workflow map; the arm step and the conflict fix arm with it; squash carries the pull request's title and body; the merge path gains the allowed-method item; one Needs you row while refused.
+  - Done when: Fake GitHub tests: squash arms SQUASH with the title, merge arms MERGE, a refused method arms nothing and opens one row; Set up names the setting; Adopt proposes the allowed method.
+- [ ] rc-p27 Proof 27: a scratch crew pull request with a source conflict, after rc-27.1, rc-27.2, rc-27.3, rc-27.4, rc-27.5 [RC28] (§D17)
+  - Setup: a scratch repository created only for the proof. Action: plant a source conflict on a crew pull request. Expected: one merge commit on the same branch keeps both sides, the pull request is armed again (squash) and lands as one commit, and gets one comment; a planted drop gives one row and no push. Failure means: a change on main can be lost without a word. Next decision: set `conflicts.onSourceConflict` to `ask`. List the scratch repository in the receipt for the owner to delete.
+  - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repository.
