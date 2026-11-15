@@ -1669,3 +1669,146 @@ the app has fewer places that mean the same thing.
    the lessons tables. A failed write SHALL keep the tables and say why.
 6. The design and `docs/overview.md` SHALL list these removals and name no
    other product.
+
+### Requirement RC31: Smart release ranking
+
+**User story:** As the owner, I want Avoozl to pick which eligible task gets
+the ready label next by what it unblocks and what it would collide with, so
+crews spend their slots on the critical path and not on work that will
+conflict.
+
+#### Acceptance criteria
+
+1. **Scope.** Ranking SHALL only order tasks that are already eligible under
+   release N, phases, gates, stops, holds and release mode. It SHALL NOT make
+   an ineligible task eligible, change N, or touch a task that already carries
+   the ready label. Crews claim as before.
+2. **Order of the rules.** Plan order and a person's order SHALL win: a task a
+   person labeled by hand keeps its label and slot, and where the plan puts one
+   task before another with an edge or a sequence, the plan decides. Among
+   the rest, in this order:
+   1. **Unblock count.** The task that unblocks the most tasks downstream
+      (every open task reachable through `requires` and `sequence` edges)
+      goes first. A tie keeps plan order.
+   2. **Overlap hold-back.** A task whose declared `paths` overlap a task
+      already claimed, or an open pull request in the same repository, SHALL be
+      held back while another eligible task has no overlap. A task with no
+      declared paths never overlaps.
+   3. **Aging.** A held task SHALL move up by one rank for each configured wait
+      it has spent held, and after the longest wait it SHALL be released
+      whatever it overlaps, if a slot is free. No task waits forever.
+3. **Settings.** `release.ranking` SHALL have `enabled` (default on), and
+   `agingHours` (default 12, a whole number of hours from 1). Both SHALL be
+   per repository, with a workspace default, in `.avoozl.json` and
+   Settings. Off means plan order exactly as today.
+4. **Overlap reads.** Open pull requests SHALL come from the one batched read
+   of RC29. A path overlaps when one is equal to, inside, or matches the glob
+   of the other. Ranking SHALL add no GitHub call.
+5. **Release queue.** Each row SHALL say why it is next or held in one line:
+   for example `Next: unblocks 4 tasks`, `Held: paths overlap #112 (open pull
+   request); moves up in 7h`, `Next: waited 12h`. A row with no ranking effect
+   SHALL keep its present text.
+6. **Only the label.** Avoozl SHALL change which issues get the ready label
+   and write nothing else about the choice.
+7. **Tests** SHALL cover: unblock-count order; the overlap hold-back; aging
+   moving a held task up and releasing it after the longest wait; plan order
+   and a person's order still winning; ranking off equals plan order; and the
+   queue's reason text.
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                                   |
+| ------ | -------------------------------------------------------------------------------------------------------- |
+| rc-p30 | On a scratch repository with N of 1: the task that unblocks most gets the label first, an overlapping task waits, and it is released after the aging wait |
+
+### Requirement RC32: Build receipts
+
+**User story:** As the owner, I want every crew and CI build to leave one
+small, comparable record of what it cost, so I can see where build time goes
+and whether a change made it better or worse.
+
+#### Acceptance criteria
+
+1. **Wrapper.** `bin/build-receipt` SHALL run the command after `--` with the
+   same arguments, output and exit code, and write one receipt. A receipt that
+   cannot be written SHALL never stop or change the command.
+2. **Fields.** A receipt SHALL hold: issue, commit, command, target and
+   toolchain, `cold` or `warm`, duration in milliseconds, exit code, the time,
+   and a `counters` object. Counters come from the repository's own parser:
+   a command named in `receipts.parser` of `.avoozl.json` that reads the
+   command's output on standard input and prints a JSON object of numbers.
+   No parser is required; without one, `counters` is empty. A parser that fails
+   leaves `counters` empty and the receipt still written.
+3. **Cold or warm.** The wrapper SHALL record `warm` when the repository's
+   `receipts.warmCheck` command (optional) exits 0, else `cold` when it exits
+   non-zero, else `unknown`.
+4. **CI.** The CI job SHALL run its build and test commands through the
+   wrapper, write one compact receipt (at most 2 KB, one line of JSON) to the
+   job summary, and upload the same file as a small artifact named
+   `build-receipt`.
+5. **Reader.** For each merged pull request Avoozl SHALL read one receipt: the
+   artifact of the pull request's last successful CI run. Each read SHALL be
+   counted in the GitHub usage counter under `receipt` and cached; a pull
+   request already read SHALL cost 0 on every later check, and a pull request
+   with no receipt SHALL be remembered as having none.
+6. **Show.** Trace SHALL show a task's receipt (duration, cold or warm,
+   counters) on its merged step. Flow SHALL show duration over merged pull
+   requests, with the median by target.
+7. **Across instances.** Receipts SHALL be grouped by the `instance=` ID in the
+   issue marker, so Flow can show each Avoozl's numbers and the sum. No
+   instance reads another's database; every read is from GitHub.
+8. **Crews.** The repo rules in each issue brief SHALL tell the crew to run
+   build and test commands through `bin/build-receipt` when the repository has
+   it, and to leave the commands unchanged otherwise.
+9. **Tests** on a fake GitHub SHALL cover: the wrapper keeps the exit code and
+   output; a failing parser still writes a receipt; one read per merged pull
+   request; a cache hit costs 0 calls; no receipt is remembered; grouping by
+   instance.
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                          |
+| ------ | ----------------------------------------------------------------------------------------------- |
+| rc-p31 | On a scratch repository: CI writes a receipt, Avoozl reads it once after the merge, and Trace and Flow show it |
+
+### Requirement RC33: Perf repair (opt-in, off by default, not built now)
+
+**User story:** As the owner, I want repeated, comparable slowdowns to open one
+repair issue that a crew can fix inside safe limits, without Avoozl ever
+making a build pass by weakening it.
+
+This requirement is spec only. No task here is released until the owner
+turns it on and `rc-p31` has about a week of receipts.
+
+#### Acceptance criteria
+
+1. **Off by default.** `perf.repair.enabled` SHALL default to off, per
+   repository, and nothing in this requirement runs while it is off.
+2. **Budget.** A budget SHALL name a command or target, a duration limit and a
+   sample count (default 5). A breach SHALL need that many comparable receipts
+   over the limit (same command, target and `cold` or `warm`); one slow run
+   SHALL NOT count.
+3. **One issue.** A breach SHALL open ONE repair issue per budget. Later
+   breaches SHALL update that issue (one comment with the new median and the
+   receipts) and SHALL NOT open another while it is open.
+4. **Pre-approval.** A repository policy MAY pre-approve a bounded class:
+   `test-splitting`, `duplicate-builds`, `cache-bugs` or `invalidation`. A
+   pre-approved issue SHALL carry the ready label on creation. Any other
+   repair SHALL wait for a person's approval, as any other task does.
+5. **Guards.** A repair pull request SHALL NOT delete, skip, disable or weaken
+   a test or an assertion. The brief SHALL say so, and the check SHALL scan the
+   diff for removed test files, skip markers and removed assertions and refuse
+   the close of the issue on a hit.
+6. **Close.** The issue SHALL close only when a receipt after the merge and a
+   receipt before it are comparable and the after is under the limit. Without
+   both, it stays open and says which is missing.
+7. **Tests** (when built) SHALL cover: one slow run opens nothing; the sample
+   count opens one issue; a second breach comments only; pre-approval is
+   limited to the named classes; a diff that skips a test blocks the close;
+   non-comparable receipts block the close.
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                              |
+| ------ | --------------------------------------------------------------------------------------------------- |
+| rc-p32 | On a scratch repository with a planted slow step: one issue opens after the samples, later hits comment, a skip-the-test fix is refused, and a real fix closes it with before and after receipts |
