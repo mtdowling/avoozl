@@ -52,15 +52,15 @@ test('switch records say what happened', () => {
 test('Switch model and Stop the line sit once each in the header actions row, not the tab row', () => {
   const app = source('App.tsx'),
     dashboard = source('DashboardView.tsx')
-  const header = app.slice(app.indexOf('<PageHeader'), app.indexOf('data-top-row')),
-    tabs = app.slice(app.indexOf('data-top-row'), app.indexOf('<DemoBar'))
+  const header = app.slice(app.indexOf('<PageHeader'), app.indexOf('<LeftNav')),
+    tabs = source('LeftNav.tsx') + source('TopRail.tsx')
   for (const part of ['<WorkspacePicker', 'Plan a goal', '<SwitchModelButton', '<StopLineButton'])
     assert.ok(header.includes(part), `${part} is in the header actions`)
   const order = ['<WorkspacePicker', 'Plan a goal', '<SwitchModelButton', '<StopLineButton'].map((part) => header.indexOf(part))
   assert.deepEqual(order, [...order].sort((a, b) => a - b), 'picker, Plan a goal, Switch model, Stop the line last')
   assert.doesNotMatch(header, /<StartDemoButton/, 'the header never has Start demo')
   assert.doesNotMatch(tabs, /<SwitchModelButton|<StopLineButton|data-top-actions/, 'the tab row keeps only the tabs')
-  assert.match(tabs, /<SegmentedControl/)
+  assert.match(tabs, /role="tablist"/)
   for (const file of ['DashboardView.tsx', 'FlowView.tsx', 'SettingsView.tsx'])
     assert.doesNotMatch(source(file), /<SwitchModelButton|<StopLineButton/, `${file} has its own copy`)
   // One copy for the desktop header, one for the phone's single row, where

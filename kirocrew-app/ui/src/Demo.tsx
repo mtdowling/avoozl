@@ -197,7 +197,7 @@ export function DemoBar() {
       data-demo-bar
       role="region"
       aria-label="Demo mode"
-      className="mx-6 mb-3 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm"
+      className="mx-2 mb-3 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm"
       style={{ borderColor: 'var(--warning, #c90)', background: 'var(--card, transparent)' }}
     >
       <Badge variant="warning">Demo</Badge>
