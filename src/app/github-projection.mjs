@@ -17,6 +17,14 @@ import { fail } from "./store.mjs";
 import { parseRepository } from "./github.mjs";
 import { withWorkLock } from "./git.mjs";
 import { WORKSPACE_LOCK } from "./tick.mjs";
+import {
+  dueRun,
+  finishRun,
+  noteRemaining,
+  pauseRun,
+  readRun,
+  withRun,
+} from "./github-pacer.mjs";
 import { blockerNotes, closeWithoutCode } from "./github-close.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
 import { ensurePlanIssue } from "./driver.mjs";
@@ -107,6 +115,7 @@ function managedSection(
   shown = [],
   waitsPrivate = false,
   rules = [],
+  parentRef = null,
 ) {
   const list = [
       ...requires.map((id) => `- ${id}`),
@@ -116,7 +125,7 @@ function managedSection(
     ruleLines = rules.map(agentRuleLine).join("\n");
   return `<!-- avoozl:managed:start -->
 This issue is projected from approved design \`${plan.id}\` at \`${plan.hash.slice(0, 12)}\`.
-${task.phase ? `\nPhase: ${task.phase.title}\n` : ""}
+${task.phase ? `\nPhase: ${task.phase.title}\n` : ""}${parentRef ? `\nParent: ${parentRef}\n` : ""}
 ${task.summary || task.nextAction || ""}
 
 ## Acceptance criteria
@@ -397,6 +406,7 @@ async function upsertParent({
   kind,
   taskId,
   parent,
+  parentIssueId,
   type,
   namespace,
   plan,
@@ -423,6 +433,7 @@ async function upsertParent({
       title,
       body: renderMarker(marker(applied), markerOptions) + "\n" + section,
       labels: [labels.managed],
+      ...(parentIssueId ? { parentIssueId } : {}),
       ...(type ? { type } : {}),
     });
   }
@@ -494,7 +505,10 @@ async function projectPlanParents({
     planSource(plan, identity)
   )
     return null;
-  const first = items.find((item) => item.issue) || fallback;
+  const first =
+    items.find((item) => item.issue) ||
+    items.find((item) => !item.skip) ||
+    fallback;
   if (!first) return null;
   const { config, labels } = first,
     find = async (taskId, receipt) => {
@@ -617,6 +631,14 @@ async function projectPlanParents({
       kind: "plan",
       taskId: planTaskId,
       parent: epic ? `epic.${epic.id}` : null,
+      // Made under its epic in the create call when GitHub allows the link.
+      parentIssueId:
+        epicIssue &&
+        lower(epicConfig.owner) === lower(config.owner) &&
+        (Number(epicIssue.sub_issues_summary?.total) || 0) <
+          (identity.maxPerParent ?? 100)
+          ? epicIssue.node_id
+          : undefined,
       type: null,
       namespace,
       plan,
@@ -674,10 +696,56 @@ async function projectPlanParents({
 }
 
 export async function projectPlanIssues(store, github, options) {
-  if (options.locked) return project(store, github, options);
+  if (options.locked) return pacedProject(store, github, options);
   return withWorkLock(store, WORKSPACE_LOCK, () =>
-    project(store, github, options),
+    pacedProject(store, github, options),
   );
+}
+
+// A projection that GitHub's write limits stop is kept as a run record, not
+// lost: the tick carries on when the wait is over, and what is already on
+// GitHub is found again by the marker in each issue. A preview writes nothing
+// and has no run.
+async function pacedProject(store, github, options) {
+  if (options.dryRun) return project(store, github, options);
+  try {
+    const result = await withRun(options.planId, () =>
+      project(store, github, options),
+    );
+    finishRun(store, options.planId);
+    return result;
+  } catch (error) {
+    if (error.paced || error.rateLimited)
+      pauseRun(store, {
+        planId: options.planId,
+        repository: options.repository,
+        error,
+      });
+    // Any other failure ends the run: the tick must not retry it forever.
+    else finishRun(store, options.planId);
+    throw error;
+  }
+}
+
+// About how many writes the items still need, for the progress line. A new
+// issue costs its create (under its parent, so no link call) plus its
+// blocker links with one marker rewrite; known ones cost an edit only when
+// something changed.
+function estimateWrites(items) {
+  let count = 0;
+  for (const item of items) {
+    if (item.skip) continue;
+    if (!item.current) {
+      count +=
+        2 + item.blockerTasks.length + (item.blockerTasks.length ? 1 : 0);
+      continue;
+    }
+    const plans = item.plans;
+    if (plans?.title.write || plans?.body.write) count += 1;
+    if (plans?.blockers.write)
+      count += Math.max(0, item.blockerTasks.length - item.before.length);
+  }
+  return count;
 }
 
 // Leaves the graph lets start now, among `tasks`. `dispatch.ready` on them
@@ -804,7 +872,7 @@ export function stoppedTasks(store, data, identity, tasks, repositoryOf) {
 export async function refreshProjectedReadiness(
   store,
   github,
-  { identity, skipPlans = new Set(), forcePlans = new Set() },
+  { identity, skipPlans = new Set(), forcePlans = new Set(), now = Date.now() },
 ) {
   const data = store.read(),
     result = { projected: [], errors: [] },
@@ -815,9 +883,11 @@ export async function refreshProjectedReadiness(
         task.github.number &&
         !task.projectionConflicts?.length,
     );
+  // A projection a write limit stopped carries on once its wait is over.
+  const due = dueRun(store, now);
   // machineIdentity writes on first use; a workspace with no projected
   // task must stay untouched.
-  if (!designed.length && !forcePlans.size) return result;
+  if (!designed.length && !forcePlans.size && !due) return result;
   const machine = machineIdentity(store).id,
     writers = new Set(
       store
@@ -848,6 +918,14 @@ export async function refreshProjectedReadiness(
   // A spec taken over is projected once more, so the next tick raises again
   // every conflict whose cause is still on GitHub (§6.10).
   for (const planId of forcePlans) plans.add(planId);
+  // Waiting on a write limit, the stopped plan goes first and alone: one spec
+  // at a time, so the writes of the plans behind it are not spent early.
+  const waiting = readRun(store);
+  if (waiting && waiting.state !== "done" && !due) return result;
+  if (due) {
+    plans.clear();
+    plans.add(due.planId);
+  }
   // A blocker link a projection could not add yet (its issue did not exist).
   for (const planId of plansAwaitingLinks(data)) plans.add(planId);
   for (const planId of plans) {
@@ -855,13 +933,21 @@ export async function refreshProjectedReadiness(
     if (skipPlans.has(planId)) continue;
     if (store.get("plans", planId)?.state !== "approved") continue;
     try {
-      await project(store, github, {
+      await pacedProject(store, github, {
         planId,
         identity,
-        repository: issueRepository(identity, designed, planId),
+        repository:
+          due?.planId === planId && due.repository
+            ? due.repository
+            : issueRepository(identity, designed, planId),
       });
       result.projected.push(planId);
     } catch (error) {
+      // Stopped by a write limit: the run waits, and nothing behind it goes.
+      if (error.paced || error.rateLimited) {
+        result.paused = { planId, until: error.rateLimited.until };
+        break;
+      }
       result.errors.push({ planId, error: error.message });
     }
   }
@@ -1191,10 +1277,31 @@ async function project(
   for (const item of items)
     for (const member of item.memberTasks?.slice(1) ?? [])
       byTask.set(member.id, item);
-  for (const item of items) {
-    const { task } = item,
-      members = item.memberTasks || [task],
-      inside = new Set(members.map((member) => member.id)),
+  // How a body names another task's issue: `#N`, and only when that issue
+  // exists in the same repository, so a plans repository's name never lands
+  // in a code repository's body. Called again when an issue is created, so a
+  // new issue links the blockers and parent made before it.
+  const issueRef = (config, id) => {
+    const found = byTask.get(leadOf.get(id) ?? id),
+      issue = found?.issue ?? found?.current;
+    return issue && found.config.id === config.id ? `#${issue.number}` : null;
+  };
+  // A package waits on its own children (it is done when they are), the
+  // opposite way to the order they are made in. Those links are made after
+  // the children exist, and a body does not name them, so it stays the same
+  // from the first projection to the next.
+  const parentOf = new Map(
+      tasks.map((candidate) => [candidate.id, candidate.parent]),
+    ),
+    below = (id, ancestor) => {
+      for (let at = parentOf.get(id), hops = 0; at && hops < 50; hops += 1) {
+        if (at === ancestor) return true;
+        at = parentOf.get(at);
+      }
+      return false;
+    };
+  const buildSection = (item) => {
+    const members = item.memberTasks || [item.task],
       blocking = (member) =>
         data.edges.filter(
           (edge) => edge.to === member.id && edge.kind === "requires",
@@ -1206,7 +1313,13 @@ async function project(
           plan,
           blocking(member)
             .map((edge) => edge.from)
-            .filter((id) => !hidden.has(id)),
+            .filter((id) => !hidden.has(id))
+            .map((id) => {
+              const ref = below(id, member.id)
+                ? null
+                : issueRef(item.config, id);
+              return ref ? `${id} (${ref})` : id;
+            }),
           blockerNotes(
             hidden.size
               ? {
@@ -1229,14 +1342,21 @@ async function project(
                   : []),
               ]
             : [],
+          member.parent && !hidden.has(member.parent)
+            ? issueRef(item.config, member.parent)
+            : null,
         ),
       }));
+    return item.memberTasks ? batchSection(plan, parts) : parts[0].section;
+  };
+  for (const item of items) {
+    const { task } = item,
+      members = item.memberTasks || [task],
+      inside = new Set(members.map((member) => member.id));
     item.title = item.memberTasks
       ? `Batch of ${members.length}: ${members.map((member) => member.id).join(", ")}`
       : task.title;
-    item.section = item.memberTasks
-      ? batchSection(plan, parts)
-      : parts[0].section;
+    item.section = buildSection(item);
     // A dependent of a member waits on the batch issue, once.
     item.blockerTasks = [
       ...new Set(
@@ -1308,6 +1428,58 @@ async function project(
   };
   const blockerRepository = (id) =>
     (byTask.get(id) || external.get(id)).config.id;
+
+  // One order for every create: a parent before its children and a blocker
+  // before the tasks it blocks, so each issue is made with everything it
+  // links to already on GitHub and is never edited after. A cycle in the
+  // combined graph has no such order, and is refused before anything is
+  // written (a preview fails the same way).
+  const created = (() => {
+    const lead = (id) => byTask.get(id),
+      after = new Map(items.map((item) => [item, new Set()])),
+      waits = new Map(items.map((item) => [item, 0]));
+    for (const item of items) {
+      const before = new Set(
+        [
+          item.task.parent,
+          ...item.blockerTasks.filter(
+            (id) =>
+              !(item.memberTasks || [item.task]).some((member) =>
+                below(id, member.id),
+              ),
+          ),
+        ]
+          .filter(Boolean)
+          .map(lead)
+          .filter((other) => other && other !== item),
+      );
+      for (const other of before) {
+        after.get(other).add(item);
+        waits.set(item, waits.get(item) + 1);
+      }
+    }
+    const order = [],
+      ready = items.filter((item) => !waits.get(item));
+    while (ready.length) {
+      const item = ready.shift();
+      order.push(item);
+      for (const next of after.get(item)) {
+        waits.set(next, waits.get(next) - 1);
+        if (!waits.get(next)) ready.push(next);
+      }
+    }
+    if (order.length < items.length)
+      fail(
+        `The task graph has a cycle through ${items
+          .filter((item) => !order.includes(item))
+          .map((item) => item.task.id)
+          .join(
+            ", ",
+          )}: parents and blockers must come before the tasks they hold up.`,
+        409,
+      );
+    return order;
+  })();
 
   // 2. Managed-field conflicts against the marker's baselines (R15).
   for (const item of items) {
@@ -1597,7 +1769,50 @@ async function project(
     notes.add(`${config.owner} has no ${name} issue type; epics have no type.`);
     return null;
   };
-  for (const item of items) {
+  // 5a. The plan issue above the tasks, and its epic's issue above it
+  // (Requirement 59.8). Neither is ever ready. They come first, so each task
+  // issue is made under its parent in one call (no addSubIssue after).
+  const planParent =
+    (await projectPlanParents({
+      store,
+      github,
+      plan,
+      data,
+      items,
+      fallback,
+      identity,
+      namespace,
+      markerOptions,
+      managedByRepository,
+      epicType,
+      notes,
+    })) ?? (await sourceParent({ store, github, plan, identity, notes }));
+
+  if (!dryRun)
+    noteRemaining(store, {
+      planId: plan.id,
+      repository,
+      remaining: estimateWrites(items),
+    });
+  const subCap = identity.maxPerParent ?? 100,
+    madeUnder = new Map(),
+    // The parent a new issue is made under: the same pick and limits as the
+    // linking step below, which links only what this leaves out.
+    parentFor = (item) => {
+      const own = item.task.parent ? byTask.get(item.task.parent) : null,
+        parent = own || planParent;
+      if (!parent?.issue || parent === item) return null;
+      if (lower(parent.config.owner) !== lower(item.config.owner)) return null;
+      const id = own ? item.task.parent : planParent.taskId,
+        total =
+          (Number(parent.issue.sub_issues_summary?.total) || 0) +
+          (madeUnder.get(id) || 0);
+      if (total >= subCap) return null;
+      assertPlanningLink(identity, parent.config.id, item.config.id);
+      madeUnder.set(id, (madeUnder.get(id) || 0) + 1);
+      return parent.issue.node_id || null;
+    };
+  for (const item of created) {
     if (item.skip) continue;
     try {
       await writeIssue(item);
@@ -1615,12 +1830,34 @@ async function project(
       ids = (item.memberTasks || [task]).map((member) => member.id),
       type = null;
     if (!current) {
-      const applied = {
-        title: digest(item.title),
-        body: digest(item.section),
-        labels: [labels.managed],
-        blockers: [],
-      };
+      // The create call carries everything known now, so nothing is edited
+      // after it: the body links the blockers and parent made before this
+      // issue (the order guarantees they exist), the marker records the
+      // blockers it is about to link, and a ready leaf has its ready label.
+      // Only for the coders whose hand-over is that label (no-op if set).
+      item.section = buildSection(item);
+      const withReady =
+          ready.has(task.id) &&
+          ["issue-radar", "remote"].includes(
+            identity.repositories?.[config.id]?.coder ??
+              (identity.mode === "single-repo" ? "issue-radar" : "worker"),
+          ),
+        labelSet = withReady
+          ? [labels.managed, labels.ready]
+          : [labels.managed],
+        applied = {
+          title: digest(item.title),
+          body: digest(item.section),
+          labels: labelSet,
+          // The blockers made before this issue; a package's own children
+          // are linked after they exist (see `below`).
+          blockers: item.blockerTasks
+            .filter((id) => !below(id, task.id))
+            .map((id) => blockerRef(id)?.node_id)
+            .filter(Boolean)
+            .sort(),
+        };
+      const parentNode = parentFor(item);
       item.issue = await github.createIssue(config, {
         title: item.title,
         body:
@@ -1645,7 +1882,8 @@ async function project(
           (item.memberTasks ? checklist(item.memberTasks) + "\n" : "") +
           item.section,
         assignees: config.assignee ? [config.assignee] : undefined,
-        labels: [labels.managed],
+        labels: labelSet,
+        ...(parentNode ? { parentIssueId: parentNode } : {}),
         ...(type ? { type } : {}),
       });
       item.plans = {
@@ -1656,7 +1894,7 @@ async function project(
       };
       item.before = [];
       item.arrays = { blockers: {} };
-      item.currentLabels = [labels.managed];
+      item.currentLabels = labelSet;
       return;
     }
     const patch = {};
@@ -1691,31 +1929,13 @@ async function project(
   for (const item of items)
     if (item.issue) item.issueId = issueDatabaseId(item.issue);
 
-  // 5b. The plan issue above the tasks, and its epic's issue above it
-  // (Requirement 59.8). Neither is ever ready.
-  const planParent =
-    (await projectPlanParents({
-      store,
-      github,
-      plan,
-      data,
-      items,
-      fallback,
-      identity,
-      namespace,
-      markerOptions,
-      managedByRepository,
-      epicType,
-      notes,
-    })) ?? (await sourceParent({ store, github, plan, identity, notes }));
-
   // 6. Links, then dependencies. Sub-issues name the child by database ID, so
   // a parent may sit in another repository or organization (F37, F38); only
   // missing links are added, so a sub-issue a person added stays. A task
   // with no package sits under the plan issue. Each parent takes at most
   // `maxPerParent` sub-issues, counting the ones it has (R59.15); the rest
   // stay unlinked in tasks.md order and say why.
-  const cap = identity.maxPerParent ?? 100,
+  const cap = subCap,
     under = new Map();
   for (const item of items) {
     if (!item.issue) continue;
@@ -1792,7 +2012,8 @@ async function project(
       item.blockerIds = item.before.map(issueDatabaseId);
       continue;
     }
-    const desired = [];
+    const desired = [],
+      nodeOf = new Map();
     for (const id of item.blockerTasks) {
       const issue = blockerRef(id);
       if (!issue) {
@@ -1803,6 +2024,7 @@ async function project(
         continue;
       }
       desired.push(issueDatabaseId(issue));
+      nodeOf.set(issueDatabaseId(issue), issue.node_id);
     }
     assertPlanningLink(
       identity,
@@ -1815,7 +2037,10 @@ async function project(
         await github.removeIssueBlocker(item.config, item.issue.number, id);
     for (const id of desired)
       if (!currentIds.includes(id))
-        await github.addIssueBlocker(item.config, item.issue.number, id);
+        await github.addIssueBlocker(item.config, item.issue.number, id, {
+          issueId: item.issue.node_id,
+          blockingIssueId: nodeOf.get(id),
+        });
     const after = await github.listIssueBlockers(
       item.config,
       item.issue.number,
