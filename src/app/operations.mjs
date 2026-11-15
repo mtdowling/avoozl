@@ -4519,7 +4519,23 @@ export class Operations {
           "Only a person deletes a plan, from the Avoozl page or the CLI.",
           403,
         );
-      const plan = store.get("plans", input.id);
+      // The id, or a spec name (the CLI passes either); a name shared by
+      // two plans is refused instead of guessed.
+      let plan = store.get("plans", input.id);
+      if (!plan && typeof input.id === "string") {
+        const named = store
+          .list("plans")
+          .filter((row) => row.spec === input.id && !row.deletedAt);
+        if (named.length > 1)
+          fail(
+            "More than one plan uses spec " +
+              input.id +
+              ". Use a plan id: " +
+              named.map((row) => row.id).join(", "),
+            409,
+          );
+        plan = named[0];
+      }
       if (!plan || plan.deletedAt) fail("Plan not found.", 404);
       let folder = null;
       if (plan.spec)

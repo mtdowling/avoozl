@@ -91,6 +91,8 @@ try {
           "refused",
           "off",
           "as-person",
+          "retire",
+          "delete-spec-folder",
         ].includes(key) &&
         // `driver takeover --force --confirm SPEC` names the spec (R66.15).
         !(key === "confirm" && command === "driver")
@@ -1354,6 +1356,37 @@ try {
     console.log(
       JSON.stringify(await localOrRequest(operation, value), null, 2),
     );
+  } else if (command === "plan" && positionals[0] === "delete") {
+    const id = need(
+        positionals[1],
+        "plan delete PLAN_ID_OR_SPEC_NAME [--yes] [--retire] [--delete-spec-folder]",
+      ),
+      preview = await localOrRequest("plan.delete.preview", { id });
+    if (!options.yes) {
+      console.log(JSON.stringify(preview, null, 2));
+      console.error("Nothing changed. Add --yes to delete this plan.");
+    } else
+      console.log(
+        JSON.stringify(
+          await localOrRequest("plan.delete", {
+            id: preview.id,
+            retire: options.retire === true,
+            deleteSpecFolder: options["delete-spec-folder"] === true,
+          }),
+          null,
+          2,
+        ),
+      );
+  } else if (command === "plan" && positionals[0] === "restore") {
+    console.log(
+      JSON.stringify(
+        await localOrRequest("plan.restore", {
+          id: need(positionals[1], "plan restore PLAN_ID"),
+        }),
+        null,
+        2,
+      ),
+    );
   } else if (command === "planning") {
     const action = positionals[0];
     if (action === "publish")
@@ -1624,6 +1657,9 @@ try {
   content allow DECISION_ID --reason TEXT Allow one blocked write once (a person only)
   content show DECISION_ID              Read the matched line again from its source
   content check --push --task TASK_ID   The pre-push hook: refuse a push whose added lines match
+  plan delete PLAN_OR_SPEC [--yes] [--retire] [--delete-spec-folder]
+                                        Preview a plan delete; --yes deletes (a person only). --retire is for an approved plan
+  plan restore PLAN_ID                  Bring a deleted plan back (a person only)
   intake [list] [--source ID] [--kind KIND] [--state open|closed] [--untriaged]  Incoming items
   intake view SOURCE ID                 One incoming item, its route and history
   intake submit --source ID --file ITEMS.json  Send 1-100 items to an mcp intake source
