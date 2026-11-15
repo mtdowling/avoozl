@@ -146,7 +146,7 @@ function FlightRows({ rows, now }: { rows: FlightRow[]; now: number }) {
                 <PanelAct label="Attach" icon={MessageSquare} href={linkHref(row.attach)} tip={row.source === 'radar' ? 'Opens the crew chat, if this crew runs on this machine. Type there to steer it.' : 'Opens the worker chat on its crew. Type there to steer it.'} />
               ) : row.noAttach ? (
                 <Tooltip text={row.noAttach}>
-                  <span data-pp-chip data-tone="muted" data-tap="">
+                  <span data-pp-chip data-tone="muted">
                     No chat
                   </span>
                 </Tooltip>
