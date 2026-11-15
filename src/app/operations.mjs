@@ -189,6 +189,7 @@ import {
 import {
   mergeHomes,
   mirrorOf,
+  privateDependencies,
   readPrivateSpecs,
   locateLocalSpec,
 } from "./spec-homes.mjs";
@@ -1661,8 +1662,20 @@ export class Operations {
     const entries = Object.entries(policy.repositories || {}),
       radar = entries.filter(([, entry]) => entry.coder === "issue-radar"),
       home = spec.home ?? plan.home,
+      hidden =
+        home === "plansBranch"
+          ? []
+          : privateDependencies(
+              { name: plan.spec, files: plan.files ?? spec.files },
+              this.privateSpecs || [],
+            ),
       repository =
         spec.repository ?? spec.specRepository ?? plan.specRepository;
+    if (hidden.length)
+      fail(
+        `This public spec names private tasks (${hidden.join(", ")}) as dependencies, and its approval would publish them. Remove it there and list the public task in the private task's unblocks list instead.`,
+        409,
+      );
     // Source-home validation runs before the private shortcut. A task-branch
     // draft must never use stored home metadata to bypass its publication hold.
     if (home === "plansBranch") {
@@ -2081,6 +2094,18 @@ export class Operations {
         namespace: this.safeSpecNamespace(),
         declaredTasks: declarations.filter((task) => task.planId !== plan.id),
       });
+    // A reverse edge (RC25.9): another spec's task lists this spec's task in
+    // `unblocks`, so this task requires it. A private spec declares an edge
+    // into a public one this way, and the public files never name it.
+    // shortcut: the edge is read when this plan is linted; a private plan
+    // created after the public one is approved needs a new public revision.
+    for (const declaration of declarations)
+      if (declaration.planId !== plan.id)
+        for (const id of declaration.unblocks || []) {
+          const proposal = quality.proposals?.find((entry) => entry.id === id);
+          if (proposal && !(proposal.requires || []).includes(declaration.id))
+            proposal.requires = [...(proposal.requires || []), declaration.id];
+        }
     quality.declaredDependencies = declaredDependencies(
       plan,
       quality.proposals,
