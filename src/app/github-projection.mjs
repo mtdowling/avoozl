@@ -1320,7 +1320,6 @@ async function project(
     // Slots are per repository and per ready label, so each crew label scope
     // has its own N (RC4.2).
     scopeKey = (item) => item.config.id + "\n" + item.labels.ready,
-    planned = new Set(items.map((entry) => entry.task.id)),
     firstOf = new Map(),
     eligible = [...items]
       .sort(
@@ -1341,6 +1340,10 @@ async function project(
           !(item.current && item.current.state !== "open"),
       );
   for (const item of eligible) firstOf.set(scopeKey(item), item);
+  // An open issue that holds a scope's label but is not a candidate this tick
+  // (its task is in review, held or has a decision) still takes a slot, so a
+  // claimed issue with an open pull request never frees one early.
+  const candidateIds = new Set(eligible.map((item) => item.task.id));
   // A ready label an allowed person added by hand is an order (RC4.6): kept
   // and counted. Avoozl's own label is told apart by its marker; a person's
   // order stays on a receipt while the label stays.
@@ -1413,7 +1416,7 @@ async function project(
             (issue) =>
               issue.state === "open" &&
               labelNames(issue).includes(item.labels.ready) &&
-              !planned.has(projectedMarker(issue.body)?.taskId),
+              !candidateIds.has(projectedMarker(issue.body)?.taskId),
           ).length;
       },
     }),
