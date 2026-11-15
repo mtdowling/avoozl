@@ -16,6 +16,8 @@ import {
 } from "./spec-plans.mjs";
 
 export const HOMES = Object.freeze(["main", "plansBranch"]);
+// Spec folders read at once: 4 folders x 6 files in flight.
+const READ_BATCH = 4;
 const NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const FILES = [
   "requirements.md",
@@ -58,27 +60,38 @@ export async function readPrivateSpecs(github, mirror) {
     },
     listing = await get(SPECS_DIRECTORY.split("\\").join("/"));
   if (!Array.isArray(listing)) return [];
-  const specs = [];
-  for (const entry of listing) {
-    if (entry.type !== "dir" || !NAME.test(entry.name)) continue;
-    const base = `.kiro/specs/${entry.name}`,
-      files = {};
-    for (const file of FILES) {
-      const text = decode(await get(`${base}/${file}`));
-      if (text !== undefined) files[file] = text;
-    }
-    specs.push({
-      name: entry.name,
-      home: "plansBranch",
-      repository: mirror.mirror,
-      ref,
-      folder: `${base}/`,
-      exists: true,
-      files,
-      hash: specHash(files),
-      critique: decode(await get(`${base}/${CRITIQUE}`)) ?? null,
-    });
-  }
+  // The spec folders are read in batches, each folder's files together, so a
+  // large plans branch takes a few round trips instead of one per file.
+  const folders = listing.filter(
+      (entry) => entry.type === "dir" && NAME.test(entry.name),
+    ),
+    read = async (entry) => {
+      const base = `.kiro/specs/${entry.name}`,
+        names = [...FILES, CRITIQUE],
+        texts = await Promise.all(
+          names.map(async (file) => decode(await get(`${base}/${file}`))),
+        ),
+        files = {};
+      FILES.forEach((file, index) => {
+        if (texts[index] !== undefined) files[file] = texts[index];
+      });
+      return {
+        name: entry.name,
+        home: "plansBranch",
+        repository: mirror.mirror,
+        ref,
+        folder: `${base}/`,
+        exists: true,
+        files,
+        hash: specHash(files),
+        critique: texts[FILES.length] ?? null,
+      };
+    },
+    specs = [];
+  for (let at = 0; at < folders.length; at += READ_BATCH)
+    specs.push(
+      ...(await Promise.all(folders.slice(at, at + READ_BATCH).map(read))),
+    );
   return specs.sort((a, b) => a.name.localeCompare(b.name));
 }
 

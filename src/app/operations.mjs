@@ -186,6 +186,7 @@ import {
   requireMirrorsPrivate,
   requirePlansBranches,
 } from "./mirror-policy.mjs";
+import { classifyOperation } from "./operation-kinds.mjs";
 import {
   mergeHomes,
   mirrorOf,
@@ -1007,6 +1008,8 @@ export class Operations {
     this.tickPolicy = {};
     // Specs read from the plans branch on the last tick (RC25.2).
     this.privateSpecs = [];
+    this.privateSpecsAt = 0;
+    this.privateSpecsHead = null;
     this.repositoryBindingGuard = repositoryBindingGuard;
     this.pendingIntents = new Map();
     if (workspaceRoot && driver?.settingsFile)
@@ -1427,7 +1430,11 @@ export class Operations {
   }
   // Read the plans branch into `privateSpecs`. A failed read keeps the last
   // good list, so a network error never makes private specs vanish.
-  async refreshPrivateSpecs() {
+  // `cached` (a read): do nothing inside github.cacheSeconds of the last
+  // check. Past it, one branch call decides whether the files are read
+  // again. Without `cached` the head is still compared, so an unchanged
+  // branch costs one call, not one per spec file.
+  async refreshPrivateSpecs({ cached = false } = {}) {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot),
       mirror =
         policy?.mode && policy.mode !== "local" ? mirrorOf(policy) : null;
@@ -1436,8 +1443,27 @@ export class Operations {
       return;
     }
     if (!this.github?.available?.()) return;
+    const now = Date.now();
+    if (
+      cached &&
+      this.privateSpecsAt &&
+      now - this.privateSpecsAt < this.cacheSeconds(mirror.mirror) * 1000
+    )
+      return;
     try {
-      this.privateSpecs = await readPrivateSpecs(this.github, mirror);
+      let head = null;
+      try {
+        head =
+          (await this.github.branch(mirror.mirror, mirror.plansBranch))?.commit
+            ?.sha ?? null;
+      } catch {
+        // No head to compare: read the files.
+      }
+      if (!head || head !== this.privateSpecsHead) {
+        this.privateSpecs = await readPrivateSpecs(this.github, mirror);
+        this.privateSpecsHead = head;
+      }
+      this.privateSpecsAt = now;
     } catch {
       // Keep the last list.
     }
@@ -2663,7 +2689,12 @@ export class Operations {
     }
     // CLI/MCP spec operations must not depend on a prior app tick. This is
     // read-only, and refreshPrivateSpecs does nothing outside a GitHub mirror.
-    if (name.startsWith("plan.")) await this.refreshPrivateSpecs();
+    // plan.list reads stored plans only. Reads may use the list checked within
+    // the cache window; a change re-reads the branch.
+    if (name.startsWith("plan.") && name !== "plan.list")
+      await this.refreshPrivateSpecs({
+        cached: classifyOperation(name) === "observe",
+      });
     // Budgets and receipts (§4.17). Raise, Stop, Acknowledge, Switch to
     // stop and the price table are a person's only (R67.9).
     if (name === "budget.view") return budgetView(store, this.read());
