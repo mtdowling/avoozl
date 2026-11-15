@@ -317,7 +317,6 @@ import {
   classifyGitHubIssue,
   draftGitHubChildren,
 } from "./github-breakdown.mjs";
-import { quickGoalOperation } from "./quick-goal-ops.mjs";
 import { previewProjection } from "./github-preview.mjs";
 import { planProjectionBatches } from "./radar-coder-batch.mjs";
 import {
@@ -955,8 +954,6 @@ export class Operations {
       models = null,
       // (issue) => the issue.verify result; tests pass a fake.
       issueVerifier = undefined,
-      // (request) => the planner chat for a quick goal; tests pass a fake.
-      plannerAgent = null,
     } = {},
   ) {
     this.store = store;
@@ -979,7 +976,6 @@ export class Operations {
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
     this.issueVerifier = issueVerifier;
-    this.plannerAgent = plannerAgent;
     // Every GitHub text write passes content rules first (§4.9).
     const client = github || defaultGitHubClient();
     // Conditional reads and the rate-limit pause live in this workspace.
@@ -3481,11 +3477,6 @@ export class Operations {
       if (!plan) fail("Plan not found.", 404);
       return { preflight: await this.radarPreflight(plan, input.repository) };
     }
-    if (name.startsWith("quickgoal.")) {
-      if (context.caller || context.mcp)
-        fail("Only a person works a quick goal, in the Avoozl page.", 403);
-      return quickGoalOperation(this, name, input);
-    }
     // Flow from GitHub data (RC8.5): stage times of finished Radar issues.
     // `refresh` reads GitHub first (at most every 10 minutes unless forced).
     if (name === "radar.flow") {
@@ -5310,12 +5301,7 @@ export class Operations {
         fail("The reviewed document hash changed.", 409);
       // Approval is of the stored revision, and only while the folder on
       // disk still matches it.
-      // A quick goal's folder exists only in its approval pull request.
-      if (
-        plan.spec &&
-        !plan.context?.quickGoal &&
-        this.readSpec(plan.spec).hash !== plan.hash
-      )
+      if (plan.spec && this.readSpec(plan.spec).hash !== plan.hash)
         fail(
           "The spec folder changed on disk. Reload it before approving.",
           409,
