@@ -584,6 +584,14 @@ that other tools call removed by accident.
    (AGENTS.md). Remote work SHALL go through a Radar crew on that machine (RC1)
    or through a remote coder (RC15).
 
+9. The **Switch model** button, its dialog and the bulk switch flow SHALL be
+   gone from the page now: local workers are retired and Radar crews pick
+   their own model. `provider.switch` and `provider.switch.dryRun` have no
+   caller left and SHALL be removed with the retirement epic.
+   `provider.switch.preview` stays, since the public MCP tool lists it.
+   Settings › Models SHALL set the model of Avoozl's own chats (planner,
+   driver, retro, review drafts), saved as `models` in `.avoozl.json`.
+
 ### Requirement RC12: Open questions, each with the test that answers it
 
 **User story:** As the owner, I want every unknown to carry the test that

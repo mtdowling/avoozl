@@ -278,3 +278,14 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
     </Modal>
   )
 }
+
+// Stop the line in the header's More menu: the icon only, never its words
+// (they are the tooltip and the button's name). The menu stays open while
+// its dialog is up.
+export function StopLineItem(props: { workspaceId: string | null }) {
+  return (
+    <span className="inline-flex" data-keep-menu data-stop-line-item>
+      <StopLineButton workspaceId={props.workspaceId} />
+    </span>
+  )
+}

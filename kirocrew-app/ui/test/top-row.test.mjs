@@ -1,10 +1,9 @@
 // In a real Chrome (AVOOZL_CHROME, or an installed Chrome or Chromium), on
-// the harness page (test/browser/harness.tsx): the page header's actions row
-// (picker, Demo, Plan a goal, Switch model, Stop the line) and the tab row wrap without a sideways scroll at 375, 768 and
-// 1280 px, light and dark, and shows a stopped line; an In flight title
-// opens the task drawer as a Back step; and Switch model walks its three
-// steps, showing the difference when the set changed. Skipped when no
-// Chrome is found.
+// the harness page (test/browser/harness.tsx): the page header (picker,
+// Plan a goal, More with Stop the line as an icon) has no Switch model, no
+// visible "Stop the line" text and no sideways scroll at 375, 768 and 1280 px,
+// light and dark, running and stopped; an In flight title opens the task
+// drawer as a Back step. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -30,22 +29,6 @@ after(async () => {
 })
 
 const settle = () => page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
-const button = (text) => `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(text)})`
-const click = async (text) => {
-  await page.until(`Boolean(${button(text)})`)
-  await page.evaluate(`(() => { const b = ${button(text)}; b.focus(); b.click(); return true })()`)
-  await settle()
-}
-// A controlled field's new value, the way React hears a person type.
-const setValue = (selector, value) =>
-  page.evaluate(`(() => {
-    const el = document.querySelector(${JSON.stringify(selector)})
-    const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype
-    Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(value)})
-    el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }))
-    return true
-  })()`)
-const text = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)})?.textContent ?? null`)
 
 for (const [width, height] of [
   [375, 740],
@@ -53,69 +36,52 @@ for (const [width, height] of [
   [1280, 800],
 ])
   for (const dark of [false, true])
-    test(`the header actions at ${width} px ${dark ? 'dark' : 'light'}: Plan a goal, Switch model, then a red Stop the line, none in the tab row; no sideways scroll`, { skip }, async () => {
+    test(`the header at ${width} px ${dark ? 'dark' : 'light'}: no Switch model, Stop the line an icon in More, no visible Stop the line text; no sideways scroll`, { skip }, async () => {
       for (const stopped of [false, true]) {
         await page.open(harness.url({ app: '1', theme: dark ? 'dark' : 'light', ...(stopped ? { stopped: '1' } : {}) }), { width, height, dark })
-        await page.until(`Boolean(document.querySelector('[data-header-actions] [data-stop-line]'))`)
-        if (stopped) await page.until(`Boolean(document.querySelector('[data-stop-line][data-stopped]'))`)
+        await page.until(`Boolean(document.querySelector('[data-header-actions] [data-more-button]'))`)
         await settle()
-        const row = await page.evaluate(`(() => {
-          const actions = document.querySelector('[data-header-actions]')
-          const buttons = [...actions.querySelectorAll('button')].map((b) => b.textContent.trim())
-          const box = (el) => el.getBoundingClientRect()
+        const closed = await page.evaluate(`(() => {
           const pane = document.querySelector('[data-host-pane]')
-          const inside = [...document.querySelectorAll('[data-header-actions] button, [data-top-row] button')].every((b) => box(b).right <= innerWidth + 0.5 && box(b).left >= -0.5)
-          const stop = actions.querySelector('[data-stop-line]')
           return {
-            buttons,
-            inside,
+            switchModel: [...document.querySelectorAll('button')].some((b) => /Switch model/.test(b.textContent)) || Boolean(document.querySelector('[data-switch-model]')),
+            stopOnRow: Boolean(document.querySelector('[data-header-actions] > [data-stop-line], [data-phone-header] > * > [data-stop-line]')),
             sideways: Math.max(document.scrollingElement.scrollWidth, pane.scrollWidth) > innerWidth,
-            stopLast: actions.lastElementChild.contains(stop),
-            tabRowHasNone: !document.querySelector('[data-top-row] [data-stop-line], [data-top-row] [data-switch-model]') && ![...document.querySelectorAll('[data-top-row] button')].some((b) => /Switch model|Stop the line|Line stopped/.test(b.textContent)),
-            hasTopActions: Boolean(document.querySelector('[data-top-actions]')),
-            // The theme's danger color, as the browser resolves it.
-            red: (() => {
-              const probe = document.createElement('span')
-              probe.style.color = 'var(--danger)'
-              stop.parentElement.append(probe)
-              const danger = getComputedStyle(probe).color
-              probe.remove()
-              return getComputedStyle(stop)[stop.dataset.stopped !== undefined ? 'borderTopColor' : 'backgroundColor'] === danger
-            })(),
-            label: stop.textContent.trim(),
-            copies: document.querySelectorAll('[data-stop-line]').length,
           }
         })()`)
+        assert.equal(closed.switchModel, false, 'no Switch model anywhere')
+        assert.equal(closed.stopOnRow, false, 'Stop the line is not on the header row')
+        assert.equal(closed.sideways, false, 'no sideways scroll')
         if (width < 768) {
-          // A phone: one thin row with Stop the line, then More holding the rest.
           const header = await page.evaluate(`document.querySelector('[data-phone-header]').getBoundingClientRect().height`)
           assert.ok(header <= 56, `the phone header is one row (${header})`)
-          assert.equal(row.buttons[0], stopped ? 'Line stopped' : 'Stop the line')
-          await page.evaluate(`document.querySelector('[data-header-actions] [data-more-button]').click()`)
-          await settle()
-          const menu = await page.evaluate(`[...document.querySelectorAll('[data-more-panel] button')].map((b) => b.textContent.trim())`)
-          assert.ok(menu.includes('Plan a goal') && menu.includes('Switch model'), `More holds Plan a goal and Switch model (${menu})`)
-          assert.ok(menu.indexOf('Plan a goal') < menu.indexOf('Switch model'))
-          const inside = await page.evaluate(`(() => { const r = document.querySelector('[data-more-panel]').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth })()`)
-          assert.equal(inside, true, 'the menu is on screen')
-          await page.evaluate(`document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`)
-          await settle()
-          assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-more-panel]'))`), false, 'a tap outside closes it')
-        } else {
-          assert.deepEqual(row.buttons.slice(-2), ['Switch model', stopped ? 'Line stopped' : 'Stop the line'])
-          assert.ok(row.buttons.indexOf('Plan a goal') >= 0 && row.buttons.indexOf('Plan a goal') < row.buttons.indexOf('Switch model'), 'after Plan a goal')
-          assert.equal(row.stopLast, true, 'Stop the line is last')
         }
-        assert.equal(row.tabRowHasNone, true, 'the tab row keeps only the tabs')
-        assert.equal(row.hasTopActions, false, 'no actions group under the tabs')
-        assert.equal(row.copies, 1, 'one Stop the line on the page')
-        assert.equal(row.inside, true, 'every top row button is on screen')
-        assert.equal(row.sideways, false, 'no sideways scroll')
-        assert.equal(row.red, true, stopped ? 'a red frame while stopped' : 'red')
+        await page.evaluate(`document.querySelector('[data-header-actions] [data-more-button]').click()`)
+        await page.until(`Boolean(document.querySelector('[data-more-panel] [data-stop-line]'))`)
+        if (stopped) await page.until(`Boolean(document.querySelector('[data-more-panel] [data-stop-line][data-stopped]'))`)
+        await settle()
+        const open = await page.evaluate(`(() => {
+          const stop = document.querySelector('[data-more-panel] [data-stop-line]')
+          const r = document.querySelector('[data-more-panel]').getBoundingClientRect()
+          const visible = []
+          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+          for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            const el = n.parentElement
+            const box = el.getBoundingClientRect(), style = getComputedStyle(el)
+            if (box.width > 1 && box.height > 1 && style.visibility !== 'hidden' && !el.closest('.sr-only')) visible.push(n.nodeValue.trim())
+          }
+          return { label: stop.getAttribute('aria-label') ?? stop.textContent.trim(), onScreen: r.left >= 0 && r.right <= innerWidth, texts: visible.filter((t) => /stop the line/i.test(t)) }
+        })()`)
+        assert.match(open.label, stopped ? /Line stopped/ : /Stop the line/)
+        assert.equal(open.onScreen, true, 'the menu is on screen')
+        assert.deepEqual(open.texts, [], 'no visible text reads Stop the line')
         if (shots) {
           fs.mkdirSync(shots, { recursive: true })
           await page.screenshot(path.join(shots, `top-row-${width}-${dark ? 'dark' : 'light'}${stopped ? '-stopped' : ''}.png`))
         }
+        await page.evaluate(`document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`)
+        await settle()
+        assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-more-panel]'))`), false, 'a tap outside closes it')
       }
     })
 
@@ -173,7 +139,7 @@ test('Start demo shows in the empty In flight box only while nothing has ever ru
 test('the page header never has Start demo or Try the demo', { skip }, async () => {
   {
     await page.open(harness.url({ app: '1' }), { width: 1280, height: 800 })
-    await page.until(`Boolean(document.querySelector('[data-header-actions] [data-stop-line]'))`)
+    await page.until(`Boolean(document.querySelector('[data-header-actions] [data-more-button]'))`)
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-header-actions] [data-demo-start]'))`), false)
     assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-header-actions] button')].some((b) => /demo/i.test(b.textContent))`), false)
   }
@@ -203,55 +169,18 @@ test('Keep activity sits at the right of the filters on one row, inside the filt
   }
 })
 
-async function chooseAndDryRun() {
-  await click('Switch model')
-  await page.until(`Boolean(document.querySelector('[data-switch-intro]') && document.querySelector('select[data-switch-from]') && document.querySelector('#avoozl-switch-to'))`)
-  // From: a dropdown of what is in use, health marks included.
-  const options = await page.evaluate(`[...document.querySelectorAll('select[data-switch-from] option')].map((o) => o.value)`)
-  assert.deepEqual(options, ['', 'alpha', 'beta'])
-  await setValue('select[data-switch-from]', 'alpha')
-  // To: the shared picker, auto first, then Kiro Crew's list.
-  await page.evaluate(`document.querySelector('#avoozl-switch-to').focus()`)
-  await setValue('#avoozl-switch-to', 'gam')
-  await page.until(`[...document.querySelectorAll('#avoozl-switch-to-list [role="option"]')].length === 1`)
-  await page.evaluate(`document.querySelector('#avoozl-switch-to-list [role="option"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))`)
+test("Stop the line from the More menu opens its dialog, and a tap or click in the dialog keeps it open", { skip }, async () => {
+  await page.open(harness.url({ app: '1' }), { width: 1280, height: 800 })
+  await page.until(`Boolean(document.querySelector('[data-header-actions] [data-more-button]'))`)
+  await page.evaluate(`document.querySelector('[data-header-actions] [data-more-button]').click()`)
+  await page.until(`Boolean(document.querySelector('[data-more-panel] [data-stop-line]'))`)
+  await page.evaluate(`document.querySelector('[data-more-panel] [data-stop-line]').click()`)
+  await page.until(`Boolean(document.querySelector('[data-stop-reason]'))`)
+  await page.evaluate(`(() => {
+    const input = document.querySelector('[data-stop-reason]')
+    input.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    input.click()
+  })()`)
   await settle()
-  await page.evaluate(`document.querySelector('[data-switch-also-new]').click()`)
-  await click('Dry run')
-  await page.until(`document.querySelector('[data-switch-step]')?.dataset.switchStep === 'review'`)
-}
-
-test('Switch model: dropdowns, a dry run that lists who switches and who cannot, Back, then Confirm', { skip }, async () => {
-  await page.open(harness.url({ modal: 'switch-flow' }), { width: 1280, height: 800 })
-  await chooseAndDryRun()
-  assert.match(await text('[data-switch-counts]'), /1 chat switch · 1 can't · 1 queued task affected/)
-  const preview = await text('[data-switch-preview]')
-  assert.match(preview, /Task a1/)
-  assert.match(preview, /runs on remote crew remote-1/)
-  assert.match(preview, /Routing skips provider alpha and uses gamma-1/)
-  assert.match(preview, /Task q1/)
-  const sent = await page.evaluate('window.__harness.dryRuns.at(-1)')
-  assert.deepEqual(sent, { from: { provider: 'alpha' }, to: 'gamma-1', alsoNewTasks: true })
-  assert.equal(await page.evaluate('window.__harness.switches.length'), 0, 'the dry run switches nothing')
-  // Back keeps the choice.
-  await click('Back')
-  assert.equal(await page.evaluate(`document.querySelector('select[data-switch-from]').value`), 'alpha')
-  await click('Dry run')
-  await page.until(`document.querySelector('[data-switch-step]')?.dataset.switchStep === 'review'`)
-  await click('Confirm')
-  await page.until(`document.querySelector('[data-switch-step]')?.dataset.switchStep === 'done'`)
-  assert.match(await text('[data-switch-done]'), /Queued 1 running chat to gamma-1\. Each moves at its next turn\. New tasks skip provider alpha/)
-  assert.equal(await page.evaluate('window.__harness.switches.at(-1).previewHash'), 'h2')
-})
-
-test('Switch model: when the set changed since the dry run, it shows the difference and asks again', { skip }, async () => {
-  await page.open(harness.url({ modal: 'switch-flow', changed: '1' }), { width: 1280, height: 800 })
-  await chooseAndDryRun()
-  await click('Confirm')
-  await page.until(`Boolean(document.querySelector('[data-switch-changed]'))`)
-  assert.match(await text('[data-switch-changed]'), /Added: Task a3/)
-  assert.equal(await page.evaluate('window.__harness.switches.length'), 0, 'the changed set was not switched')
-  await click('Confirm again')
-  await page.until(`document.querySelector('[data-switch-step]')?.dataset.switchStep === 'done'`)
-  assert.equal(await page.evaluate('window.__harness.switches.at(-1).previewHash'), 'h2')
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-stop-reason]'))`), true, 'the dialog stays open')
 })

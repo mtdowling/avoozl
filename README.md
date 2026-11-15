@@ -276,8 +276,14 @@ can override them). The Flow view shows where the time went.
   proposes up to three changes. You approve or reject each, and an approved
   change is measured afterward.
 
-The red **Stop the line** button, last in the page header's button row
-(after Switch model) on every tab, is the Andon cord: a
+**Settings > Models** picks the model of each of Avoozl's own chats: the
+planner, the driver, the retro and review drafts. It is saved as `models` in
+`.avoozl.json`, for example `{"models": {"retro": "<model>"}}`; a role left
+out, or `auto`, runs on its agent's own model. Issue Radar crews pick their
+own model, and Avoozl moves no running chat to another one.
+
+The red **Stop the line** pause icon, in the page header's **…** menu on
+every tab, is the Andon cord: a
 person, or an agent through MCP, stops new work for everything, one
 repository, one spec, or one task, with a one-line reason. Running sessions
 keep going. Only a person presses **Resume**.
@@ -491,24 +497,24 @@ Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`.
 Receipts are in [docs/evidence/](docs/evidence/). "Fakes" means automated
 tests with a fake GitHub, fake sessions, or fake crews, run by `npm test`.
 
-| Feature                                              | Tested                                                |
-| ---------------------------------------------------- | ----------------------------------------------------- |
-| Local delivery with real Kiro Crew sessions          | Live (P4, P5, P6)                                     |
-| Single-repo mode end to end                          | Live, in a test repository (P19, P20)                 |
-| Cross-repository edges and rebuild from GitHub       | Live, in test repositories (P9)                       |
-| Plans-repo mode and its leak screen                  | Fakes, plus read-only live queries                    |
-| Intake list                                          | Fakes, plus a read-only live count (P31)              |
-| Plugins, packs, plugin and MCP intake sources        | Fakes only (P26, P32, P35)                            |
-| Flow: timing, stop the line, batching, retros        | Fakes only (P30)                                      |
-| Andon cord                                           | Fakes only                                            |
-| Routing prompt, checks, and pins                     | Fakes only (P29); remote crews wait on Kiro Crew      |
-| Remote relay                                         | Fakes only (P47); not run on a real remote crew       |
-| Provider health and Switch model                     | Fakes only (P44); Kiro Crew's model change not called |
-| One driver per spec, hand off and take over          | Fakes only (P40)                                      |
-| Pull request feedback                                | Fakes only (P34)                                      |
-| Spec Builder hand-off                                | Fakes only                                            |
-| Stacked pull requests, comment steering, Discussions | Fakes only                                            |
-| Demo mode and its guided tour                        | Fakes only, plus headless Chrome on the harness page  |
+| Feature                                              | Tested                                               |
+| ---------------------------------------------------- | ---------------------------------------------------- |
+| Local delivery with real Kiro Crew sessions          | Live (P4, P5, P6)                                    |
+| Single-repo mode end to end                          | Live, in a test repository (P19, P20)                |
+| Cross-repository edges and rebuild from GitHub       | Live, in test repositories (P9)                      |
+| Plans-repo mode and its leak screen                  | Fakes, plus read-only live queries                   |
+| Intake list                                          | Fakes, plus a read-only live count (P31)             |
+| Plugins, packs, plugin and MCP intake sources        | Fakes only (P26, P32, P35)                           |
+| Flow: timing, stop the line, batching, retros        | Fakes only (P30)                                     |
+| Andon cord                                           | Fakes only                                           |
+| Routing prompt, checks, and pins                     | Fakes only (P29); remote crews wait on Kiro Crew     |
+| Remote relay                                         | Fakes only (P47); not run on a real remote crew      |
+| Provider health                                      | Fakes only (P44)                                     |
+| One driver per spec, hand off and take over          | Fakes only (P40)                                     |
+| Pull request feedback                                | Fakes only (P34)                                     |
+| Spec Builder hand-off                                | Fakes only                                           |
+| Stacked pull requests, comment steering, Discussions | Fakes only                                           |
+| Demo mode and its guided tour                        | Fakes only, plus headless Chrome on the harness page |
 
 ## Configuration and secrets
 

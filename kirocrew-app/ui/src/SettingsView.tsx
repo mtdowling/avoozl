@@ -64,6 +64,7 @@ import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, rep
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
+import ModelsSettings from './ModelsSettings.tsx'
 import DriverSessionBox from './DriverSessionBox.tsx'
 import { InstanceRename } from './InstanceName.tsx'
 import MirrorSetup from './MirrorSetup.tsx'
@@ -106,6 +107,8 @@ export const SETTINGS_TABS = [
   { key: 'plugins', label: 'Plugins' },
   { key: 'content', label: 'Content rules' },
   { key: 'flow', label: 'Flow' },
+  // Avoozl's own chats only; Radar crews pick their own model.
+  { key: 'models', label: 'Models' },
   // Who merges (delivery.ship) is read for Radar pull requests too.
   { key: 'delivery', label: 'Delivery' },
 ] as const
@@ -137,6 +140,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   content:
     'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
+  models: "The model each of Avoozl's own chats opens on. Issue Radar crews pick their own.",
   delivery:
     'Who merges a finished pull request, and the writer agent and model, investigate-first and pull request feedback for Avoozl worker chats.',
 }
@@ -1551,6 +1555,7 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => props.onTab('github')} />
   if (tab === 'content') return <ContentRulesSettings workspaceId={workspaceId} />
   if (tab === 'flow') return <FlowSettings workspaceId={workspaceId} />
+  if (tab === 'models') return <ModelsSettings workspaceId={workspaceId} />
   if (tab === 'delivery') return <DeliverySettings workspaceId={workspaceId} />
   return (
     <div className="flex flex-col gap-3.5">

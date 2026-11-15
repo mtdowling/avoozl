@@ -3387,6 +3387,16 @@ export class Operations {
       };
     }
     // Settings > Flow (§8.4) and the retros (§4.11).
+    // Settings › Models: Avoozl's own chats' models, in .avoozl.json.
+    if (name === "models.settings.get")
+      return this.settingsFile().readModelSettings();
+    if (name === "models.settings.update") {
+      if (context.caller || context.mcp)
+        fail("Only a person changes chat models, in Settings.", 403);
+      const written = this.settingsFile().updateModelSettings(input);
+      this.configuration?.reload();
+      return written;
+    }
     if (name === "flow.settings.get")
       return {
         ...this.settingsFile().readFlowSettings(),
