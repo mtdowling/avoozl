@@ -403,7 +403,11 @@ These are built and tested with fakes only; no live run has used them yet.
   reason, a revert of an agent's commit, and Pick again with a reason are
   recorded. When the retro sees the same correction on two tasks it may
   propose a rule; once you approve it, it lands as one task that edits
-  `.kiro/steering/avoozl-rules.md` in that repository.
+  `.kiro/steering/avoozl-rules.md` in that repository and makes `AGENTS.md`
+  point to it, so every chat and Issue Radar crew reads the rules. Avoozl
+  keeps no lessons store of its own. Lessons an older version stored on this
+  computer are appended once to the workspace's
+  `.kiro/steering/avoozl-rules.md` under a dated heading, and then deleted.
 - Flow shows the share of finished tasks that were bug fixes, and
   corrections per week.
 

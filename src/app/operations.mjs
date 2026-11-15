@@ -928,9 +928,9 @@ export class Operations {
       plugins = workspaceRoot
         ? pluginHost({ workspaceRoot, settingsFile: pluginSettingsFile })
         : null,
-      // This machine's Avoozl settings folder for prompt overrides and the
-      // lessons store (design §4.18). Unset (most tests) leaves retros as
-      // before Phase 28; the app, MCP server and CLI pass it.
+      // This machine's Avoozl settings folder for prompt overrides (design
+      // §4.18). Unset (most tests) leaves retros as before Phase 28; the
+      // app, MCP server and CLI pass it.
       configDirectory = null,
       // The machine's driver session record (driver-session.mjs). The CLI,
       // app backend and app MCP server pass driverSessionFile(); without one
@@ -941,8 +941,6 @@ export class Operations {
       workspaceName = null,
       // Tests replace the shipped prompts to model an Avoozl update.
       shippedPrompts = null,
-      // () => model IDs Kiro Crew lists, or null when unknown.
-      models = null,
       // (issue) => the issue.verify result; tests pass a fake.
       issueVerifier = undefined,
     } = {},
@@ -996,14 +994,6 @@ export class Operations {
         configDirectory,
         workspaceRoot,
         shipped: shippedPrompts,
-        models:
-          models ||
-          (() => {
-            const cached = store.getMeta("kirocrew.models");
-            return cached && Date.now() - Date.parse(cached.at) < 24 * 3600_000
-              ? cached.models
-              : null;
-          }),
         loadPluginFolders: () =>
           inspectPlugins(this.pluginOptions)
             .filter(
@@ -3010,14 +3000,10 @@ export class Operations {
       return cancelSubmission(store, this.plugins.open(), input);
     }
     if (name === "route.resubmit") return resubmit(store, input);
-    // Proposals and Lessons (design §4.18).
+    // Proposals and prompt overrides (design §4.18).
     if (RETRO_READS.has(name) || RETRO_WRITES.has(name))
       return retroOperation(store, name, input, context, {
         by: context.local ? "cli" : "dashboard",
-        config: readFlowConfig(this.workspaceRoot),
-        github: this.github,
-        policy: readGitHubPolicyOrNull(this.workspaceRoot),
-        workspaceRoot: this.workspaceRoot,
       });
     if (PLUGIN_OPERATIONS.has(name)) {
       const result = await this.pluginOperation(name, input, context);

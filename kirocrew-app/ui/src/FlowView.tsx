@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState, SegmentedControl } from '@kirocrew/app-sdk/ui'
-import { LessonsView, ProposalsView } from './FlowMemory.tsx'
+import { ProposalsView } from './FlowMemory.tsx'
 import GithubFlow from './GithubFlow.tsx'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
@@ -426,8 +426,8 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
   }, [reload])
   const setField = (change: Partial<FlowFilter>) => setFilter({ ...filter, ...change })
   const [unit, setUnit] = useState<Unit>('day')
-  // Overview (timing), Retros, Proposals and Lessons (design §4.18).
-  const [tab, setTab] = useState<'overview' | 'retros' | 'proposals' | 'lessons'>('overview')
+  // Overview (timing), Retros and Proposals (design §4.18).
+  const [tab, setTab] = useState<'overview' | 'retros' | 'proposals'>('overview')
   return (
     <section aria-labelledby="avoozl-flow-title" className="flex flex-col gap-3.5">
       <ViewHeading id="avoozl-flow-title" view="flow">
@@ -443,13 +443,11 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
           { key: 'overview', label: 'Overview' },
           { key: 'retros', label: 'Retros' },
           { key: 'proposals', label: 'Proposals' },
-          { key: 'lessons', label: 'Lessons' },
         ]}
         value={tab}
         onChange={(key) => setTab(key as typeof tab)}
       />
       {tab === 'proposals' && <ProposalsView workspaceId={workspaceId} />}
-      {tab === 'lessons' && <LessonsView workspaceId={workspaceId} />}
       {(tab === 'overview' || tab === 'retros') && error && (
         <p role="alert" className="text-sm text-danger">
           {error}

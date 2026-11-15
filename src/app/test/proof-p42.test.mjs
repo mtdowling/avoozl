@@ -1,8 +1,8 @@
-// P42: retro prompt and skill proposals, and lessons (design §4.18,
-// Requirements 68-70). Two temporary workspaces share one temporary Avoozl
-// settings folder; workers, the retro model, the model list and the plugin
-// are fakes. Every step of the proof's action list has its expected result
-// asserted below, numbered as in tasks.md.
+// P42: retro prompt and skill proposals (design §4.18, Requirement 68). A
+// temporary workspace uses a temporary Avoozl settings folder; workers, the
+// retro model and the plugin are fakes. Each step of the proof's action
+// list has its expected result asserted below, numbered as in tasks.md. The
+// lessons steps (5)-(9), (11) and (12) went with the lessons store (RC30.4).
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -35,7 +35,6 @@ const json = (file, value) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(value, null, 2) + "\n");
 };
-const DAY = 24 * 3600_000;
 
 const leaf = (id, repository) => ({
   id,
@@ -50,9 +49,10 @@ const leaf = (id, repository) => ({
   repository,
 });
 
-// The plugin p1: a skill file and a lessons pack, version 1.
+// The plugin p1: a skill file. It still lists the removed lessons part,
+// which loads and does nothing.
 const p1 = path.join(temporaryDirectory("avoozl-p42-p1-"), "p1");
-function writePlugin(version, lessons) {
+function writePlugin(version) {
   json(path.join(p1, "avoozl-plugin.json"), {
     id: "p1",
     version,
@@ -64,24 +64,8 @@ function writePlugin(version, lessons) {
     path.join(p1, "skills", "review", "SKILL.md"),
     "# Review\n\nRead the diff first.\n",
   );
-  json(path.join(p1, "avoozl-lessons.json"), { version, lessons });
 }
-const packLesson = (id, finding) => ({
-  id,
-  pattern: { stage: "queued", check: "test", tool: "npm" },
-  finding,
-  change: {
-    type: "settings",
-    target: "flow.batch.max",
-    summary: "Larger batches",
-  },
-  outcome: "kept",
-  evidence: { tasks: 10, metric: "lead time", before: 60, after: 40 },
-});
-writePlugin("1.0.0", [
-  packLesson("batch", "Small tasks in one epic finish sooner in a batch."),
-  packLesson("queue", "A long queue shrinks when fewer reviews run at once."),
-]);
+writePlugin("1.0.0");
 writePluginSettings(settingsFile, {
   plugins: [{ id: "p1", path: p1, contract: 1 }],
 });
@@ -90,8 +74,6 @@ const approveP1 = (workspaceRoot) => {
     plugin = inspectPlugins(options).find((p) => p.id === "p1");
   approvePlugin(options, { id: "p1", hash: plugin.hash }, "test");
 };
-
-let models = ["m1", "m2"];
 
 function workspace(t, name, { skill = false, ids }) {
   const root = temporaryDirectory(`avoozl-p42-${name}-`),
@@ -153,7 +135,6 @@ function workspace(t, name, { skill = false, ids }) {
       workspaceRoot: root,
       configDirectory,
       pluginSettingsFile: settingsFile,
-      models: () => models,
       ...(shipped ? { shippedPrompts: shipped } : {}),
     });
   const w = {
@@ -268,11 +249,6 @@ const evidence = (w, from, to) => ({
   value: "0%",
   effect: "fewer reworks for a missing test",
 });
-const lesson = (finding, extra = {}) => ({
-  pattern: { stage: "queued", check: "test", tool: "npm", ...extra },
-  finding,
-});
-
 // Decisions happen at the workspace's scripted time, so a PDCA window sees
 // when each change took effect.
 async function decide(w, retroId, proposalId, extra = {}, context = undefined) {
@@ -290,14 +266,11 @@ async function decide(w, retroId, proposalId, extra = {}, context = undefined) {
   }
 }
 
-test("P42: prompt and skill proposals, and lessons, across two workspaces", async (t) => {
+test("P42: prompt and skill proposals", async (t) => {
   const W1 = workspace(t, "wone", {
-      skill: true,
-      ids: Array.from({ length: 70 }, (_, i) => `a${i + 1}`),
-    }),
-    W2 = workspace(t, "wtwo", {
-      ids: Array.from({ length: 20 }, (_, i) => `b${i + 1}`),
-    });
+    skill: true,
+    ids: Array.from({ length: 70 }, (_, i) => `a${i + 1}`),
+  });
   approveP1(W1.root);
   const repoSkill = path.join(W1.repo, ".kiro", "skills", "tests", "SKILL.md"),
     pluginSkill = path.join(p1, "skills", "review", "SKILL.md"),
@@ -341,7 +314,6 @@ test("P42: prompt and skill proposals, and lessons, across two workspaces", asyn
           diff: add(
             "before you report done. Add a test for each changed branch.",
           ),
-          lesson: lesson("Ask workers for a test per changed branch."),
         }),
         change("prompt", {
           target: "brief.worker",
@@ -450,8 +422,8 @@ test("P42: prompt and skill proposals, and lessons, across two workspaces", asyn
     "a running session keeps its version",
   );
 
-  // (3) Ten tasks on the new version raise the first-pass rate: PDCA helped
-  // and the lesson is kept. A second change taking effect inside a window
+  // (3) Ten tasks on the new version raise the first-pass rate: PDCA
+  // helped. A second change taking effect inside a window
   // marks that window mixed.
   await finish(W1, 10, { skills });
   const r2 = await retro(W1, (payload) => ({
@@ -469,7 +441,6 @@ test("P42: prompt and skill proposals, and lessons, across two workspaces", asyn
         metric: "lead time",
         direction: "down",
         evidence: evidence(W1, 10, 13),
-        lesson: lesson("Retros that propose less finish rounds sooner."),
       },
       {
         type: "prompt",
@@ -484,26 +455,18 @@ test("P42: prompt and skill proposals, and lessons, across two workspaces", asyn
         metric: "time to fix",
         direction: "down",
         evidence: evidence(W1, 10, 13),
-        lesson: lesson("Reviews that name the failing check speed up fixes.", {
-          stage: "review",
-        }),
       },
     ],
   }));
   const first = W1.store.get("flow_retros", r1.id).proposals[0];
   assert.equal(first.pdca.result, "helped");
   assert.equal(first.pdca.mixed, undefined);
-  const lessons = () =>
-    W1.ops.execute("lessons.view", {}).then((v) => v.lessons);
-  const kept = (await lessons()).find((l) => l.id === first.lessonId);
-  assert.equal(kept.outcome, "kept");
   await decide(W1, r2.id, "p1");
   await finish(W1, 10, {
     skills,
     between: { at: 5, run: () => decide(W1, r2.id, "p2") },
   });
-  // The retro after it owes a revert of the change that did not help;
-  // approving it marks that lesson undone.
+  // The retro after it owes a revert of the change that did not help.
   const r3 = await retro(W1, (payload) => ({
     proposals: [
       {
@@ -519,9 +482,6 @@ test("P42: prompt and skill proposals, and lessons, across two workspaces", asyn
         metric: "time to fix",
         direction: "down",
         evidence: evidence(W1, 20, 23),
-        // (7) A finding with a path and an issue number is refused, and the
-        // proposal still stands.
-        lesson: lesson("Edit src/app/flow.mjs as in #12.", { stage: "review" }),
       },
     ],
   }));
@@ -531,27 +491,7 @@ test("P42: prompt and skill proposals, and lessons, across two workspaces", asyn
 
   const revert = r3.retro.proposals.find((p) => p.revertOf === `${r2.id}:p1`);
   assert.ok(revert, "a typed revert of the agent.retro change");
-  const refused = r3.retro.proposals.find((p) => p.lessonRefused);
-  assert.match(refused.lessonRefused, /file path/);
-  assert.equal(refused.status, "open", "the proposal still stands");
   await decide(W1, r3.id, revert.id);
-  const undone = (await lessons()).find((l) => l.id === second.lessonId);
-  assert.equal(undone.outcome, "undone");
-  // A second brief.review change: a lesson like an earlier one, for (9).
-  W1.store.put("flow_retros", {
-    ...W1.store.get("flow_retros", r3.id),
-    proposals: W1.store.get("flow_retros", r3.id).proposals.map((p) =>
-      p.id === refused.id
-        ? {
-            ...p,
-            lesson: lesson("Reviews that quote the check speed up fixes.", {
-              stage: "review",
-            }),
-          }
-        : p,
-    ),
-  });
-  await decide(W1, r3.id, refused.id);
 
   // (4) Revert brings the shipped text back and is recorded; reverting the
   // revert restores the override.
@@ -581,104 +521,6 @@ test("P42: prompt and skill proposals, and lessons, across two workspaces", asyn
     (p) => p.target === "brief.worker",
   );
   assert.match(worker.version, /\+o3$/);
-
-  // (5) W2, with matching traits, gets W1's kept lesson first and its undone
-  // one under "did not work", with no task ID, path or repository name.
-  await finish(W2, 10);
-  const w2 = await retro(W2, { proposals: [] });
-  assert.equal(w2.payload.lessons[0].id, first.lessonId);
-  assert.ok(w2.payload.didNotWork.some((l) => l.id === second.lessonId));
-  const shared = JSON.stringify({
-    lessons: w2.payload.lessons,
-    didNotWork: w2.payload.didNotWork,
-  });
-  for (const leak of ["a1#", "wonerepo", W1.root, ".kiro/skills"])
-    assert.equal(shared.includes(leak), false, leak);
-
-  // (6) With flow.lessons.read false, W2 reads only its own lessons.
-  const w2own = await retro(
-    W2,
-    { proposals: [] },
-    { config: { flow: { lessons: { read: false } } } },
-  );
-  assert.deepEqual([w2own.payload.lessons, w2own.payload.didNotWork], [[], []]);
-
-  // (8) Drop the check, retire a model, and age the kept lesson: each mark
-  // is set with its reason, the lesson leaves the citable list, and fresh
-  // runs that confirm it clear every mark, all in its history.
-  W1.store.put("projects", {
-    ...W1.store.get("projects", "wonerepo"),
-    checks: [],
-  });
-  models = ["m2"];
-  W1.clock += 181 * DAY;
-  const realNow = Date.now;
-  Date.now = () => W1.clock;
-  try {
-    const marked = (await lessons()).find((l) => l.id === first.lessonId);
-    assert.equal(marked.state, "stale");
-    for (const reason of [
-      /check `npm test` was removed/,
-      /model m1 is no longer listed/,
-      /not confirmed in 180 days/,
-    ])
-      assert.match(marked.staleReason, reason);
-  } finally {
-    Date.now = realNow;
-  }
-  await finish(W1, 10, { skills, model: "m2" });
-  const r4 = await retro(W1, { proposals: [] });
-  assert.equal(
-    r4.payload.lessons.some((l) => l.id === first.lessonId),
-    true,
-    "cited again once confirmed",
-  );
-  const confirmed = (await lessons()).find((l) => l.id === first.lessonId);
-  assert.equal(confirmed.state, "ok");
-  assert.ok(confirmed.confidence > 0.8);
-  const what = confirmed.history.map((h) => h.what);
-  assert.ok(
-    what.includes("marked") &&
-      what.includes("confirmed") &&
-      what.includes("cleared"),
-  );
-
-  // (9) The fifth retro reviews lessons; a merge is a diff for a person, and
-  // the merged-away lesson stays as history.
-  const similar = (await lessons())
-    .filter(
-      (l) => l.change?.target === "brief.review" && l.outcome !== "undone",
-    )
-    .map((l) => l.id);
-  assert.equal(similar.length, 2);
-  const r5 = await retro(W1, (payload) => {
-    assert.ok(payload.lessonsReview, "the fifth retro reviews lessons");
-    return {
-      proposals: [],
-      lessonEdits: [
-        {
-          kind: "merge",
-          lessons: similar,
-          finding:
-            "Reviews that name and quote the failing check speed up fixes.",
-          evidence: "Two lessons say the same.",
-        },
-      ],
-    };
-  });
-  assert.equal(r5.id, "retro-5");
-  const merge = r5.retro.proposals.find((p) => p.type === "lesson");
-  assert.match(merge.diff, /merged into/);
-  await assert.rejects(
-    decide(W1, r5.id, merge.id, {}, { mcp: true }),
-    (e) => e.status === 403,
-  );
-  await decide(W1, r5.id, merge.id);
-  const after = await lessons(),
-    away = after.find((l) => l.id === similar[1]);
-  assert.equal(away.state, "retired");
-  assert.match(away.staleReason, /merged into/);
-  assert.equal(after.length >= 4, true, "no lesson is deleted");
 
   // (10) An update to the shipped steps section under the override flags it
   // with a three-way diff and a rebase while sessions keep the override; a
@@ -723,64 +565,4 @@ test("P42: prompt and skill proposals, and lessons, across two workspaces", asyn
     ).drift.length,
     0,
   );
-
-  // (11) Importing p1's pack shows a preview first and needs the owner;
-  // version 2 marks the changed lesson and retires the removed one.
-  const preview = await W1.ops.execute("plugin.lessons.preview", { id: "p1" });
-  assert.deepEqual(
-    preview.rows.map((r) => r.action),
-    ["add", "add"],
-  );
-  await assert.rejects(
-    W1.ops.execute(
-      "plugin.lessons.import",
-      { id: "p1", previewHash: preview.hash },
-      undefined,
-      { mcp: true },
-    ),
-    (e) => e.status === 403,
-  );
-  await assert.rejects(
-    W1.ops.execute("plugin.lessons.import", { id: "p1", previewHash: "x" }),
-    /changed since that preview/,
-  );
-  await W1.ops.execute("plugin.lessons.import", {
-    id: "p1",
-    previewHash: preview.hash,
-  });
-  let pack = (await lessons()).filter((l) => l.readOnly);
-  assert.deepEqual(
-    pack.map((l) => l.source),
-    ["pack:p1@1.0.0", "pack:p1@1.0.0"],
-  );
-  writePlugin("2.0.0", [
-    packLesson("batch", "Small tasks in one epic finish sooner together."),
-  ]);
-  pack = (await lessons()).filter((l) => l.readOnly);
-  assert.deepEqual(pack.map((l) => l.state).sort(), [
-    "needs re-check",
-    "retired",
-  ]);
-  approveP1(W1.root);
-  const again = await W1.ops.execute("plugin.lessons.preview", { id: "p1" });
-  await W1.ops.execute("plugin.lessons.import", {
-    id: "p1",
-    previewHash: again.hash,
-  });
-  pack = (await lessons()).filter((l) => l.readOnly && l.state !== "retired");
-  assert.deepEqual(
-    pack.map((l) => [l.state, l.source]),
-    [["ok", "pack:p1@2.0.0"]],
-  );
-
-  // (12) The owner's export passes the content rules; MCP gets 403.
-  const out = path.join(temporaryDirectory("avoozl-p42-out-"), "lessons.json");
-  await assert.rejects(
-    W1.ops.execute("lessons.export", { path: out }, undefined, { mcp: true }),
-    (e) => e.status === 403,
-  );
-  const exported = await W1.ops.execute("lessons.export", { path: out });
-  assert.ok(exported.lessons >= 2);
-  const file = fs.readFileSync(out, "utf8");
-  assert.doesNotMatch(file, /secretword|wonerepo|a\d+#\d/);
 });
