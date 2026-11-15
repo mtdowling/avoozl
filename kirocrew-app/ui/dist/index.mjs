@@ -11724,12 +11724,7 @@ function Wd(e) {
 		backLabel: "Cancel",
 		boxRef: x,
 		attrs: { "data-pack-dialog": !0 },
-		title: /* @__PURE__ */ w(S, { children: [
-			"Import ",
-			t.id,
-			" version ",
-			t.version
-		] }),
+		title: `Import ${t.id} version ${t.version}`,
 		onDismiss: T,
 		footer: /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(_, {
 			type: "button",
@@ -14980,11 +14975,7 @@ function Wp(e) {
 		width: "32rem",
 		backLabel: "Cancel",
 		attrs: { "data-archive-plan": !0 },
-		title: /* @__PURE__ */ w(S, { children: [
-			"Archive the spec ",
-			t.name,
-			"?"
-		] }),
+		title: `Archive the spec ${t.name}?`,
 		onDismiss: () => e.onDone(null),
 		footer: /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(_, {
 			ref: l,
@@ -15092,11 +15083,7 @@ function Kp(e) {
 		width: "32rem",
 		backLabel: "Cancel",
 		attrs: { "data-delete-plan": i?.retire ? "retire" : "draft" },
-		title: /* @__PURE__ */ w(S, { children: [
-			"Delete the spec ",
-			i?.title ?? t.name,
-			"?"
-		] }),
+		title: `Delete the spec ${i?.title ?? t.name}?`,
 		onDismiss: () => e.onDone(null),
 		footer: /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(_, {
 			ref: h,
@@ -18180,14 +18167,17 @@ function Hh(e) {
 			body: "Nothing is sent. What you typed is lost.",
 			action: "Stop"
 		},
-		title: /* @__PURE__ */ w(S, { children: [
-			/* @__PURE__ */ C(Le, {
-				size: 14,
-				"aria-hidden": "true"
-			}),
-			" ",
-			Bh[s][0]
-		] }),
+		title: /* @__PURE__ */ w("span", {
+			className: "inline-flex items-center gap-1.5",
+			children: [
+				/* @__PURE__ */ C(Le, {
+					size: 14,
+					"aria-hidden": "true"
+				}),
+				" ",
+				Bh[s][0]
+			]
+		}),
 		onDismiss: j,
 		footer: /* @__PURE__ */ w(S, { children: [
 			s < 2 && /* @__PURE__ */ C(_, {
@@ -20085,11 +20075,14 @@ function Hg(e) {
 			body: "The line keeps running. What you entered is lost.",
 			action: "Discard"
 		},
-		title: /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(Ne, {
-			size: 14,
-			"aria-hidden": "true",
-			style: { color: "var(--danger)" }
-		}), " Stop the line"] }),
+		title: /* @__PURE__ */ w("span", {
+			className: "inline-flex items-center gap-1.5",
+			children: [/* @__PURE__ */ C(Ne, {
+				size: 14,
+				"aria-hidden": "true",
+				style: { color: "var(--danger)" }
+			}), " Stop the line"]
+		}),
 		onDismiss: x,
 		footer: /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(_, {
 			type: "button",
@@ -20895,7 +20888,7 @@ function m_(e) {
 		describedBy: "avoozl-setup-line",
 		boxRef: v,
 		attrs: { "data-setup-dialog": a },
-		title: /* @__PURE__ */ C(S, { children: p_[a][0] }),
+		title: p_[a][0],
 		onDismiss: y,
 		footer: /* @__PURE__ */ w(S, { children: [
 			/* @__PURE__ */ C(_, {
@@ -23331,7 +23324,7 @@ function vv(e) {
 			body: ae ? `What was done stays: ${D.join("; ")}.` : "What you entered is lost. Nothing was written.",
 			action: "Stop"
 		},
-		title: /* @__PURE__ */ C(S, { children: ie.title }),
+		title: ie.title,
 		onDismiss: U,
 		footer: /* @__PURE__ */ w(S, { children: [
 			/* @__PURE__ */ C(_, {
@@ -24421,7 +24414,7 @@ function Pv(e) {
 			body: g ? `${g.id} is removed again. Nothing ran.` : "What you entered is lost.",
 			action: "Stop"
 		},
-		title: /* @__PURE__ */ C(S, { children: dd[c][0] }),
+		title: dd[c][0],
 		onDismiss: M,
 		footer: /* @__PURE__ */ w(S, { children: [
 			/* @__PURE__ */ C(_, {
@@ -31798,14 +31791,17 @@ function mS(e) {
 			body: "The task stays open. What you typed is lost.",
 			action: "Discard"
 		},
-		title: /* @__PURE__ */ w(S, { children: [
-			/* @__PURE__ */ C(ne, {
-				size: 14,
-				"aria-hidden": "true"
-			}),
-			" Mark done: ",
-			e.title
-		] }),
+		title: /* @__PURE__ */ w("span", {
+			className: "inline-flex items-center gap-1.5",
+			children: [
+				/* @__PURE__ */ C(ne, {
+					size: 14,
+					"aria-hidden": "true"
+				}),
+				" Mark done: ",
+				e.title
+			]
+		}),
 		onDismiss: e.onClose,
 		footer: /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(_, {
 			type: "button",

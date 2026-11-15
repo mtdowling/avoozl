@@ -103,41 +103,47 @@ export function SetupDialog(props: {
   return (
     // Esc, Back and a click outside do what Cancel does. The form lives in
     // the Settings page, so closing loses nothing.
-    <Modal id="avoozl-setup" width="40rem" backLabel="Cancel" describedBy="avoozl-setup-line" boxRef={box} attrs={{ 'data-setup-dialog': step }}
-      title={<>{STEP_TEXT[step][0]}</>}
+    <Modal
+      id="avoozl-setup"
+      width="40rem"
+      backLabel="Cancel"
+      describedBy="avoozl-setup-line"
+      boxRef={box}
+      attrs={{ 'data-setup-dialog': step }}
+      title={STEP_TEXT[step][0]}
       onDismiss={cancel}
       footer={
         <>
-        <Btn type="button" onClick={cancel}>
-          {step === 3 ? 'Close' : 'Cancel'}
-        </Btn>
-        {step === 1 && (
-          <Btn type="button" onClick={() => setStep(0)} disabled={busy}>
-            Back
+          <Btn type="button" onClick={cancel}>
+            {step === 3 ? 'Close' : 'Cancel'}
           </Btn>
-        )}
-        {step === 0 && (
-          <Btn type="button" primary onClick={() => void review()} disabled={busy}>
-            Check the changes
-          </Btn>
-        )}
-        {step === 1 && count > 0 && (
-          <Btn type="button" primary onClick={() => void apply()} disabled={busy}>
-            Apply {count} change{count === 1 ? '' : 's'}
-          </Btn>
-        )}
-        {step === 1 && count === 0 && result?.settings.changed && (
-          <Btn type="button" primary onClick={() => setStep(3)}>
-            Next
-          </Btn>
-        )}
-        {step === 3 && result?.settings.changed && (
-          <Btn type="button" primary onClick={() => void save()} disabled={busy || Boolean(result.settings.error)}>
-            Save to .avoozl.json
-          </Btn>
-        )}
+          {step === 1 && (
+            <Btn type="button" onClick={() => setStep(0)} disabled={busy}>
+              Back
+            </Btn>
+          )}
+          {step === 0 && (
+            <Btn type="button" primary onClick={() => void review()} disabled={busy}>
+              Check the changes
+            </Btn>
+          )}
+          {step === 1 && count > 0 && (
+            <Btn type="button" primary onClick={() => void apply()} disabled={busy}>
+              Apply {count} change{count === 1 ? '' : 's'}
+            </Btn>
+          )}
+          {step === 1 && count === 0 && result?.settings.changed && (
+            <Btn type="button" primary onClick={() => setStep(3)}>
+              Next
+            </Btn>
+          )}
+          {step === 3 && result?.settings.changed && (
+            <Btn type="button" primary onClick={() => void save()} disabled={busy || Boolean(result.settings.error)}>
+              Save to .avoozl.json
+            </Btn>
+          )}
         </>
-  }
+      }
     >
       <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
         {STEP_TEXT.map(([title], i) => (
