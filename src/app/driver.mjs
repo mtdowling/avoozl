@@ -29,6 +29,7 @@ import { listSessionBindings } from "./session-bindings.mjs";
 import { epicOfPlan } from "./epics.mjs";
 import { retroMemory } from "./retro-memory.mjs";
 import { fail } from "./store.mjs";
+import { mirrorConfig } from "./mirror-sync.mjs";
 import { exportEvidence, importEvidence } from "./evidence.mjs";
 
 const TABLE = "drivers";
@@ -268,7 +269,21 @@ function planIssueConfig(store, plan, identity) {
       (configs.length === 1 ? configs[0] : null);
   if (!config)
     fail(`No GitHub repository is registered for spec ${plan.id}.`, 409);
-  return config;
+  // A repository with a private mirror keeps its plan issue there (RC24.3).
+  return mirrorConfig(config, identity.repositories);
+}
+
+// The registered entry for a stored repository ID, which is the mirror's for
+// a repository that has one.
+function configById(store, id, identity) {
+  return (
+    store.get("github_repositories", id) ??
+    store
+      .list("github_repositories")
+      .map((entry) => mirrorConfig(entry, identity.repositories))
+      .find((entry) => same(entry.id, id)) ??
+    null
+  );
 }
 
 // The epic issue that stands in when the plan issue has no assignee: the
@@ -434,7 +449,7 @@ async function readGitHubDriver(
     notify = [];
   let row = store.get(TABLE, plan.id) || { id: plan.id };
   const config = row.repository
-    ? store.get("github_repositories", row.repository) ||
+    ? configById(store, row.repository, identity) ||
       planIssueConfig(store, plan, identity)
     : planIssueConfig(store, plan, identity);
   let issue = null;
@@ -480,7 +495,7 @@ async function readGitHubDriver(
     // The epic issue: this workspace's own record of it, else the plan
     // issue's parent on GitHub (a workspace that never projected the spec).
     const ref = epicIssue(store, plan),
-      epicConfig = ref && store.get("github_repositories", ref.repository),
+      epicConfig = ref && configById(store, ref.repository, ctx.identity()),
       epicCurrent = epicConfig
         ? await github.issue(epicConfig, ref.number)
         : await github.parentIssue?.(config, issue.number);
@@ -703,7 +718,7 @@ export async function ensurePlanIssue(store, github, plan) {
       epicRef = epicIssue(store, plan);
     let assignees = [login];
     if (epicRef) {
-      const epicConfig = store.get("github_repositories", epicRef.repository),
+      const epicConfig = configById(store, epicRef.repository, identity),
         epicAssignees = epicConfig
           ? logins(await github.issue(epicConfig, epicRef.number))
           : [];
@@ -1209,7 +1224,7 @@ async function writeExport(
   // The claim records the file's hash, so only that file takes over.
   if (row.mode === "github") {
     const identity = ctx.identity(),
-      config = store.get("github_repositories", row.repository),
+      config = configById(store, row.repository, identity),
       issue = await github.issue(config, row.number),
       marker = planMarkerOf(issue, identity.namespace, plan.id);
     if (!marker?.claim) fail("The plan issue lost its claim.", 409);
@@ -1433,7 +1448,7 @@ function setupList(ctx, value) {
 
 async function writeClaim(store, github, ctx, row, claim) {
   const identity = ctx.identity(),
-    config = store.get("github_repositories", row.repository),
+    config = configById(store, row.repository, identity),
     issue = await github.issue(config, row.number),
     marker =
       planMarkerOf(issue, identity.namespace, row.id) ||

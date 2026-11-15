@@ -493,8 +493,8 @@ async function githubStep(store, github, workspaceRoot, delivery) {
         policy,
       });
     completeParents(store);
-    await closeGitHubParents(store, github);
-    await closePlanAndEpicIssues(store, github);
+    await closeGitHubParents(store, github, { policy });
+    await closePlanAndEpicIssues(store, github, { policy });
     // Readiness changed by this tick's verdicts reaches GitHub now: the
     // ready label for Issue Radar, `dispatch.ready` for the runner.
     // A taken-over spec, and one whose shown links and notes changed
