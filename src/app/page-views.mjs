@@ -1585,6 +1585,8 @@ export function plansTableView(
       },
       phases: new Set(leaves.map((task) => task.phase?.id).filter(Boolean))
         .size,
+      // Any of its tasks has a GitHub issue: the spec is on GitHub.
+      onGitHub: tasks.some((task) => Boolean(task.github?.number)),
       changedAt: newest(...tasks.map((task) => task.updatedAt)),
     };
   };

@@ -1,22 +1,13 @@
 // What a workspace's retros need from this machine (design §4.18): the
-// prompt override file, the lessons store, skill files the sessions loaded,
-// the workspace's traits, and the content rules at the `proposal` and
-// `lesson` boundaries. Operations binds it once per store; without a
-// binding (old callers, most tests) retros run as before Phase 28.
+// prompt override file, skill files the sessions loaded, and the content
+// rules at the `proposal` boundary. Operations binds it once per store;
+// without a binding (old callers, most tests) retros run as before Phase 28.
+// Binding also exports the removed lessons store once (RC30.5).
 import fs from "node:fs";
 import path from "node:path";
 import { check as checkContent, findingText } from "./content-rules.mjs";
 import { workspaceIdentity } from "./identity.mjs";
-import {
-  LESSONS_FILE,
-  LESSON_DEFAULTS,
-  Lessons,
-  lessonsPath,
-  packChanged,
-  repositoryTraits,
-  validateLessonsPack,
-} from "./lessons.mjs";
-import { fail } from "./store.mjs";
+import { LESSONS_DATABASE, exportLessons } from "./lessons-export.mjs";
 import {
   historicTexts,
   overridesPath,
@@ -25,7 +16,6 @@ import {
   sha256,
   shippedPrompts,
 } from "./prompts.mjs";
-import { readGitHubPolicyOrNull } from "./github-policy.mjs";
 
 const bound = new WeakMap();
 export const SKILL_TEXT_MAX = 8000;
@@ -38,7 +28,6 @@ export function bindRetroMemory(
     workspaceRoot = null,
     loadPluginFolders = null,
     shipped = null,
-    models = null,
   } = {},
 ) {
   if (!configDirectory) return null;
@@ -48,21 +37,29 @@ export function bindRetroMemory(
       workspaceRoot,
       loadPluginFolders,
       ...(shipped ? { shipped } : {}),
-      ...(models ? { models } : {}),
     });
     return previous;
   }
-  previous?.lessons.close();
   const binding = {
     configDirectory,
     workspaceRoot,
     // () => [{id, location}] of declared plugins with a folder.
     loadPluginFolders,
     shipped,
-    // () => list of model IDs Kiro Crew offers, or null when unknown.
-    models,
-    lessons: new Lessons(lessonsPath(configDirectory)),
   };
+  // The removed lessons store's one-time export; a failure is kept for the
+  // Proposals view to show, and the store stays for the next try. With no
+  // store file it reads nothing and writes nothing.
+  if (fs.existsSync(path.join(configDirectory, LESSONS_DATABASE)))
+    try {
+      binding.lessonsExport = exportLessons({
+        configDirectory,
+        workspaceRoot,
+        workspaceId: workspaceIdentity(store),
+      });
+    } catch (error) {
+      binding.lessonsExport = { error: error.message };
+    }
   bound.set(store, binding);
   return binding;
 }
@@ -215,57 +212,8 @@ export function skillHashes(store, files, taskId) {
   return out;
 }
 
-// ---------------------------------------------------------------- traits
-
-export function workspaceTraits(store) {
-  const m = retroMemory(store);
-  let mode = "local";
-  try {
-    mode = readGitHubPolicyOrNull(m?.workspaceRoot)?.mode || "local";
-  } catch {
-    mode = "local";
-  }
-  const traits = new Set();
-  for (const project of store
-    .list("projects")
-    .filter((p) => p.root && !p.planning))
-    for (const t of repositoryTraits(project.root, { mode })) traits.add(t);
-  if (!traits.size) traits.add(`mode:${mode}`);
-  return [...traits].sort();
-}
-
-// Declared checks of every repository with a checkout.
-export const workspaceChecks = (store) => [
-  ...new Set(
-    store
-      .list("projects")
-      .flatMap((p) => (Array.isArray(p.checks) ? p.checks : [])),
-  ),
-];
-
-// Names a lesson must not hold (R69.4): task IDs and repository names.
-export function knownNames(store) {
-  const data = store.read();
-  return [
-    ...data.tasks.map((t) => t.id),
-    ...store
-      .list("projects")
-      .flatMap((p) => [
-        p.id,
-        p.repository,
-        p.repository?.split("/").at(-1),
-        p.github,
-      ]),
-  ].filter((v) => typeof v === "string" && v.length > 2);
-}
-
-export const lessonSettings = (policy) => ({
-  ...LESSON_DEFAULTS,
-  ...(policy?.workspace?.lessons || {}),
-});
-
-// Content rules on a proposal or lesson (R68.6, R69.4): the rules that
-// block it, named without the matched text, or [] when it may stand. An
+// Content rules on a proposal (R68.6): the rules that block it, named
+// without the matched text, or [] when it may stand. An
 // unavailable set blocks too (it fails closed).
 export function contentBlocks(store, boundary, target, text) {
   const result = checkContent(store, { boundary, target, text });
@@ -273,69 +221,4 @@ export function contentBlocks(store, boundary, target, text) {
     ...result.findings.filter((f) => f.action !== "report").map(findingText),
     ...result.unavailable.map((u) => `${u.set} is unavailable`),
   ];
-}
-
-export const lessonText = (l) =>
-  [l.finding, l.change?.summary].filter(Boolean).join("\n");
-
-// A plugin folder's lessons pack, checked like a written lesson and through
-// this workspace's content rules (R69.7).
-export function readLessonsPack(store, folder) {
-  let value;
-  try {
-    value = JSON.parse(
-      fs.readFileSync(path.join(folder.location, LESSONS_FILE), "utf8"),
-    );
-  } catch (error) {
-    fail(
-      error.code === "ENOENT"
-        ? `The plugin has no ${LESSONS_FILE}.`
-        : `${LESSONS_FILE} is not JSON: ${error.message}`,
-      409,
-    );
-  }
-  const pack = validateLessonsPack(value, { known: knownNames(store) });
-  for (const l of pack.lessons) {
-    const blocks = contentBlocks(
-      store,
-      "lesson",
-      `pack:${folder.id}:${l.id}`,
-      lessonText(l),
-    );
-    if (blocks.length)
-      fail(
-        `Lesson ${l.id} of the pack matched a content rule: ${blocks.join("; ")}.`,
-        422,
-      );
-  }
-  return pack;
-}
-
-// Each plugin's lessons pack against what was imported from it (R70.6): a
-// new version marks changed lessons and retires removed ones. A pack that
-// cannot be read is left for its preview to report.
-export function checkPacks(store, { now = Date.now() } = {}) {
-  const m = retroMemory(store);
-  if (!m) return [];
-  const imported = new Set(
-      m.lessons
-        .list()
-        .map((l) => l.pack?.plugin)
-        .filter(Boolean),
-    ),
-    changed = [];
-  for (const folder of m.loadPluginFolders?.() || []) {
-    if (!imported.has(folder.id) || !folder.provides?.includes("lessons"))
-      continue;
-    try {
-      changed.push(
-        ...packChanged(m.lessons, folder.id, readLessonsPack(store, folder), {
-          now,
-        }),
-      );
-    } catch {
-      // Reported when a person previews the pack.
-    }
-  }
-  return changed;
 }

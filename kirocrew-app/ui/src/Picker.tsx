@@ -19,6 +19,8 @@ export function Picker(props: {
   // Keep the text after a pick (a filter) or clear it (an "add" box).
   keep?: boolean
   maxWidth?: string
+  // Show each item's title only, with no ID beside it (a list of names).
+  plain?: boolean
 }) {
   const own = useId(),
     id = props.id ?? `avoozl-pick-${own.replace(/:/g, '')}`,
@@ -26,7 +28,8 @@ export function Picker(props: {
   const index = useMemo(() => pickIndex(props.items), [props.items])
   const keep = props.keep ?? true
   const picked = useMemo(() => props.items.find((item) => item.id === props.value) ?? null, [props.items, props.value])
-  const shownText = picked && keep ? pickLabel(picked) : ''
+  const labelOf = (item: PickItem) => (props.plain ? item.title : pickLabel(item))
+  const shownText = picked && keep ? labelOf(picked) : ''
   const [text, setText] = useState(shownText)
   const [editing, setEditing] = useState(false)
   const [open, setOpen] = useState(false)
@@ -44,7 +47,7 @@ export function Picker(props: {
     props.onPick(item.id)
     setEditing(false)
     setOpen(false)
-    setText(keep ? pickLabel(item) : '')
+    setText(keep ? labelOf(item) : '')
   }
   const onKey = (event: KeyboardEvent<HTMLInputElement>) => {
     const action = pickKey({ open, active }, event.key, shown.length)
@@ -119,8 +122,14 @@ export function Picker(props: {
               className="flex cursor-pointer items-baseline gap-2 rounded px-1.5 py-0.5"
               style={i === active ? { background: 'color-mix(in srgb, var(--text) 10%, transparent)' } : undefined}
             >
-              <span className="shrink-0 text-xs text-muted">{item.id}</span>
-              <span className="min-w-0 flex-1 truncate">{item.title !== item.id ? item.title : ''}</span>
+              {props.plain ? (
+                <span className="min-w-0 flex-1 truncate">{item.title}</span>
+              ) : (
+                <>
+                  <span className="shrink-0 text-xs text-muted">{item.id}</span>
+                  <span className="min-w-0 flex-1 truncate">{item.title !== item.id ? item.title : ''}</span>
+                </>
+              )}
               {item.spec && <span className="shrink-0 text-xs text-muted">{item.spec}</span>}
               {item.state && (
                 <span className="shrink-0 rounded border px-1 text-xs" style={{ borderColor: 'var(--border)' }}>

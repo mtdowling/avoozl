@@ -104,6 +104,7 @@ export const PERSON_ONLY = new Map([
     person("Only a person changes workspace settings."),
   ],
   ["flow.settings.update", person("Only a person changes flow settings.")],
+  ["models.settings.update", person("Only a person changes chat models.")],
   [
     "activity.settings.update",
     person("Only a person changes how long activity is kept."),
@@ -141,10 +142,6 @@ export const PERSON_ONLY = new Map([
   ["flow.retro.decide", person("Only a person decides retro proposals.")],
   ["prompt.override.revert", person("Only a person changes prompt overrides.")],
   ["prompt.override.rebase", person("Only a person changes prompt overrides.")],
-  ["plugin.lessons.import", person("Only a person imports a lessons pack.")],
-  ["lessons.export", person("Only a person exports lessons.")],
-  ["lessons.share.preview", person("Only a person shares lessons.")],
-  ["lessons.share", person("Only a person shares lessons.")],
   ["driver.handoff", person("Only a person hands off a spec's driver.")],
   ["driver.takeover", person("Only a person takes over a spec's driver.")],
   [
@@ -167,16 +164,6 @@ export const PERSON_ONLY = new Map([
     person("Only a person approves landing an integration branch."),
   ],
   ["spec.changed.apply", person("Only a person applies a spec change.")],
-  ["quickgoal.get", person("Only a person works a quick goal.")],
-  ["quickgoal.list", person("Only a person works a quick goal.")],
-  ["quickgoal.confirm", person("Only a person works a quick goal.")],
-  ["quickgoal.settings.get", person("Only a person works a quick goal.")],
-  ["quickgoal.propose", person("Only a person works a quick goal.")],
-  ["quickgoal.edit", person("Only a person works a quick goal.")],
-  ["quickgoal.discard", person("Only a person works a quick goal.")],
-  ["quickgoal.promote", person("Only a person works a quick goal.")],
-  ["quickgoal.approve", person("Only a person works a quick goal.")],
-  ["quickgoal.settings.update", person("Only a person works a quick goal.")],
 
   ["budget.raise", person("Only a person raises a budget.")],
   ["budget.stop", person("Only a person stops a task at its budget.")],
@@ -205,8 +192,6 @@ export const PERSON_ONLY = new Map([
     "intake.confirm",
     person("Only a person confirms an incoming item's changed text."),
   ],
-  ["idea.archive", person("Only a person archives an idea.")],
-  ["idea.restore", person("Only a person restores an idea.")],
   ["intake.source.add", person("Only a person changes intake sources.")],
   ["intake.source.remove", person("Only a person changes intake sources.")],
   [
@@ -236,8 +221,8 @@ export const PERSON_ONLY = new Map([
 // Operations no MCP tool routes to, for a reason other than a person's
 // authority. Nothing refuses these by name; no route reaches them.
 const moved = "Moved to Kiro Crew with no old plans_* name; nothing to offer.";
-const lessonsPage =
-  "The Flow tab's Proposals and Lessons views; lessons stay summaries for retros, not sessions.";
+const proposalsPage =
+  "The Flow tab's Proposals view; proposals are a person's to decide.";
 const removed = "Removed; the operation has no handler.";
 const page = "App page rendering only.";
 const remote =
@@ -263,11 +248,10 @@ export const NOT_ON_MCP = new Map([
     "panel.view",
     "The chat side panel's one read; its parts are each on MCP already.",
   ],
-  ["flow.proposals", lessonsPage],
-  ["lessons.view", lessonsPage],
+  ["flow.proposals", proposalsPage],
   [
-    "plugin.lessons.preview",
-    "Settings reads a lessons pack before a person imports it.",
+    "models.settings.get",
+    "Settings › Models reads the chat models; a chat has no use for them.",
   ],
   ["legacy.mcp", "The MCP server's own fallback for the legacy plans_* tools."],
   [

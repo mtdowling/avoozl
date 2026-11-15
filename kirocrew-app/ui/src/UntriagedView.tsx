@@ -13,15 +13,13 @@ import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { ICON, IconBtn, IconLabel, ShowMore, ViewHeading, useConfirm, usePages } from './controls.tsx'
-import { Check, CircleDot, FileText, GitPullRequest, GitPullRequestDraft, Inbox, MessageSquare, Play, Radar, RefreshCw, ScanSearch, Users, X, type LucideIcon } from './icons.ts'
+import { Check, CircleDot, CirclePlus, FileText, GitPullRequest, GitPullRequestDraft, Inbox, MessageSquare, Play, Radar, RefreshCw, ScanSearch, Users, X, type LucideIcon } from './icons.ts'
 import { SendToRadar } from './SendToRadar.tsx'
 import { useMedia } from './use-media.ts'
 import { relativeTime } from './task-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { useSteppedState } from './NavHistory.tsx'
-import { IdeasList, NewIdeaButton, NewIdeaDialog } from './Ideas.tsx'
-import type { Idea } from './ideas-api.ts'
 import {
   AGE_OPTIONS,
   KIND_OPTIONS,
@@ -161,8 +159,9 @@ function Actions({ item, onSend, onReview, onStart }: { item: UntriagedItem; onS
       )}
       {item.reviewChat?.link ? (
         <Tooltip text="Open this pull request's code review chat">
-          <a href={linkHref(item.reviewChat.link)} target="_top" className="self-center text-sm underline" aria-label={`Attach to the code review chat for ${name}`} data-review-attach>
-            Attach
+          <a href={linkHref(item.reviewChat.link)} target="_top" className="self-center text-sm underline" aria-label={`Session: the code review chat for ${name}`} data-review-attach style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <CirclePlus size={14} aria-hidden="true" />
+            Session
           </a>
         </Tooltip>
       ) : item.reviewChat?.state === 'queued' ? (
@@ -438,19 +437,18 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
   )
 }
 
-export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources, embedded }: { workspaceId: string | null; onMakeSpec?: (idea: Idea) => void; onOpenSources?: () => void; embedded?: boolean }) {
+export default function UntriagedView({ workspaceId, onOpenSources, embedded }: { workspaceId: string | null; onOpenSources?: () => void; embedded?: boolean }) {
   const api = useAppApi()
   const ask = useConfirm()
   const client = useMemo(() => untriagedClient(api), [api])
   const { openChat } = useChatLauncher()
   const radar = useMemo(() => radarClient(api), [api])
-  const [chosenShow, setShow] = useSteppedState<'untriaged' | 'radar' | 'ideas'>(
+  const [chosenShow, setShow] = useSteppedState<'untriaged' | 'radar'>(
     'untriaged-show',
     'inner',
-    (previous) => (previous === 'radar' ? 'Back to With Issue Radar' : previous === 'ideas' ? 'Back to Ideas' : 'Back to Untriaged'),
+    (previous) => (previous === 'radar' ? 'Back to With Issue Radar' : 'Back to Untriaged'),
     'untriaged',
   )
-  const [newIdea, setNewIdea] = useState(false)
   const [sending, setSending] = useState<UntriagedItem[] | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const load = useCallback((id: string) => client.view(id), [client])
@@ -463,9 +461,8 @@ export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources, 
   const narrow = useMedia('(max-width: 767px)')
   const now = Date.now()
   const list = fresh ?? read
-  // With no GitHub mode and no intake source, ideas are all the tab has.
-  const show = list && !list.enabled ? 'ideas' : chosenShow
-  const ideas = list?.ideas ?? []
+  // With Issue Radar needs a GitHub mode; without one, Untriaged is all there is.
+  const show = list?.mode ? chosenShow : 'untriaged'
   const options = useMemo(() => filterOptions(list), [list])
   const shown = useMemo(() => (list?.items ?? []).filter((item) => matchesFilter(item, filter, now)), [list, filter, now])
   const pages = usePages(JSON.stringify(filter))
@@ -490,7 +487,7 @@ export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources, 
       const chat = await client.review(workspaceId, item)
       setNote(
         chat.state === 'open'
-          ? `${item.repository} #${item.number} already has a code review chat. Use Attach.`
+          ? `${item.repository} #${item.number} already has a code review chat. Use Session.`
           : `Code review chat for ${item.repository} #${item.number} starts on the next tick$.`,
       )
       await reload()
@@ -551,21 +548,19 @@ export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources, 
         id="avoozl-untriaged-title"
         view="untriaged"
         level={embedded ? 3 : 2}
+        phoneMenu
         actions={
-          <span className="flex flex-wrap gap-2">
-            <NewIdeaButton onClick={() => setNewIdea(true)} disabled={!workspaceId} />
-            <IconLabel icon={RefreshCw} onClick={() => void checkNow()} disabled={busy || checking || !list?.enabled} tooltip="Read GitHub and poll each plugin source now instead of waiting for the next check">
-              {checking ? 'Checking…' : 'Check now'}
-            </IconLabel>
-          </span>
+          <IconLabel icon={RefreshCw} onClick={() => void checkNow()} disabled={busy || checking || !list?.enabled} tooltip="Read GitHub and poll each plugin source now instead of waiting for the next check">
+            {checking ? 'Checking…' : 'Check now'}
+          </IconLabel>
         }
       >
         Intake
       </ViewHeading>
       <p className="text-sm text-muted">
-        Work that comes in from GitHub and your intake sources, and your own ideas. Untriaged shows the items no trigger rule, triage label or Avoozl task covers. Send GitHub issues to an Issue Radar crew or start a code review chat on a pull request; plan or deliver an item from another source.
+        Work that comes in from GitHub and your intake sources. Untriaged shows the items no trigger rule, triage label or Avoozl task covers. Send GitHub issues to an Issue Radar crew or start a code review chat on a pull request; plan or deliver an item from another source.
       </p>
-      {list && (
+      {list?.enabled && list.mode && (
         <div>
         <SegmentedControl
           collapse={false}
@@ -573,12 +568,11 @@ export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources, 
           layoutId="avoozl-untriaged-show"
           ariaLabel="Show"
           segments={[
-            ...(list.enabled ? [{ key: 'untriaged' as const, label: `Untriaged (${list.items.length})` }] : []),
-            ...(list.enabled && list.mode ? [{ key: 'radar' as const, label: `With Issue Radar (${radarItems.length})` }] : []),
-            { key: 'ideas' as const, label: `Ideas (${ideas.filter((idea) => idea.state === 'open').length})` },
+            { key: 'untriaged' as const, label: `Untriaged (${list.items.length})` },
+            { key: 'radar' as const, label: `With Issue Radar (${radarItems.length})` },
           ]}
           value={show}
-          onChange={(key: 'untriaged' | 'radar' | 'ideas') => setShow(key)}
+          onChange={(key: 'untriaged' | 'radar') => setShow(key)}
         />
         </div>
       )}
@@ -594,15 +588,10 @@ export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources, 
       )}
       {!list ? (
         <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
-      ) : show === 'ideas' ? (
-        <>
-          {!list.enabled && (
-            <p className="text-xs text-muted">
-              Untriaged items need a GitHub mode or an intake source. Choose a mode in Settings › GitHub, or add a source in <SourcesLink onOpen={onOpenSources} />.
-            </p>
-          )}
-          {workspaceId && <IdeasList workspaceId={workspaceId} ideas={ideas} narrow={narrow} onChanged={() => void reload()} onMakeSpec={(idea) => onMakeSpec?.(idea)} />}
-        </>
+      ) : !list.enabled ? (
+        <p className="text-sm text-muted" data-untriaged-off>
+          Untriaged items need a GitHub mode or an intake source. Choose a mode in Settings › GitHub, or add a source in <SourcesLink onOpen={onOpenSources} />.
+        </p>
       ) : show === 'radar' ? (
         <div className="flex flex-col gap-2" data-radar-view>
           <p className="text-xs text-muted">
@@ -676,18 +665,6 @@ export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources, 
           )}
           <ShowMore {...pages.more('untriaged', shown.length)} />
         </>
-      )}
-      {newIdea && workspaceId && (
-        <NewIdeaDialog
-          workspaceId={workspaceId}
-          onClose={(made) => {
-            setNewIdea(false)
-            if (!made) return
-            setNote(`Saved the idea ${made.title}.`)
-            setShow('ideas')
-            void reload()
-          }}
-        />
       )}
       {sending && workspaceId && (
         <SendToRadar

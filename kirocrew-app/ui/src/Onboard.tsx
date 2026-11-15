@@ -15,7 +15,7 @@ import { RadioFold } from './RadioFold.tsx'
 import { MODE_CARDS, groupWrites, writeBadge, type GitHubSettings, type SetupResult } from './settings-api.ts'
 import type { SpecList } from './plans-api.ts'
 import { errorMessage } from './workspace-api.ts'
-import { Shelf } from './Shelf.tsx'
+import { Modal } from './Modal.tsx'
 import {
   ONBOARD_STEPS,
   folderSpecs,
@@ -397,7 +397,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
   return (
     // Esc, Back and a click outside do what Cancel does, asking first once
     // a folder was entered.
-    <Shelf
+    <Modal close
       id="avoozl-onboard"
       width="44rem"
       backLabel="Cancel"
@@ -585,7 +585,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
         {step === 'check' && (
           <>
             <Btn type="button" onClick={() => void checkGitHub()} disabled={busy}>
-              Check again
+              Recheck
             </Btn>
             <Btn type="button" primary onClick={next} disabled={busy || !check || checkFailed}>
               Next
@@ -642,7 +642,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
           </Btn>
         )}
       </div>
-    </Shelf>
+    </Modal>
   )
 }
 

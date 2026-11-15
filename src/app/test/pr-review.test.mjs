@@ -130,7 +130,7 @@ const githubWrites = (github) =>
       !["listPullRequests", "searchOpenIssues"].includes(call[0]),
   );
 
-test("Code review queues one seeded chat, the tick opens it, and the row shows Attach", async (t) => {
+test("Code review queues one seeded chat, the tick opens it, and the row shows Session", async (t) => {
   // Nearby inputs: a second click while queued, a click while open, a click
   // after the chat closed, the head SHA, a pull request with no task.
   const { store, github, ops, home } = workspace(t);

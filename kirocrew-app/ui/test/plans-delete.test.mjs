@@ -28,12 +28,12 @@ test('only a stored plan offers Delete, red, at the far right', () => {
   assert.match(plans, /disabled=\{!preview \|\| busy \|\| blocked\}/)
 })
 
-test('each category is its own boxed section with a heading line', () => {
-  assert.match(plans, /data-plan-group=\{group\.category\}\s+className="rounded-xl border p-4"/)
-  assert.match(plans, /<h2 id=\{id\} className="m-0">/)
-  assert.match(plans, /className="flex w-full flex-wrap items-center gap-2 text-left text-lg font-semibold"/)
-  assert.match(plans, /<ProgressBar tasks=\{tasks\} \/>/)
-  assert.match(plans, /pages\.more\(group\.category, group\.rows\.length\)/)
+test('every spec is in one list: name, status chip, task count, epic and where it lives', () => {
+  assert.match(plans, /export function SpecList/)
+  assert.match(plans, /<Badge variant=\{SPEC_CHIP_VARIANT\[chip\]\}>\{SPEC_CHIP_LABEL\[chip\]\}<\/Badge>/)
+  assert.match(plans, /row\.epicTitle \?\? 'No epic'/)
+  assert.match(plans, /<HomeBadge home=\{row\.home\} \/>/)
+  assert.doesNotMatch(plans, /data-plan-group|EpicsView/)
 })
 
 test('the plan view left column sticks and scrolls on its own', () => {

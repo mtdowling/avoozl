@@ -107,7 +107,7 @@ export interface ChangeEvidence {
 
 export interface Proposal {
   id: string
-  type: 'settings' | 'plan' | 'prompt' | 'skill' | 'lesson'
+  type: 'settings' | 'plan' | 'prompt' | 'skill' | 'rule'
   file?: 'workspace' | 'repository'
   repository?: string
   key?: string
@@ -121,15 +121,11 @@ export interface Proposal {
   base?: string
   diff?: string
   revert?: boolean
-  lessons?: string[]
-  lessonId?: string
-  lessonRefused?: string
   override?: { n: number; from: string; to: string }
   leaf?: string
   note?: SkillNote
-  // lesson edits from the lessons review
-  kind?: 'rewrite' | 'merge' | 'retire'
-  finding?: string
+  // a rule from repeated corrections (design §4.24)
+  text?: string
   metric: string
   direction: 'up' | 'down'
   evidence: string | ChangeEvidence
@@ -176,69 +172,8 @@ export interface ProposalsModel {
   prompts: PromptRow[]
   notes: (SkillNote & { retro: string; proposal: string; target: string })[]
   available: boolean
-}
-
-export interface LessonRow {
-  id: string
-  pattern: { stage: string | null; check: string | null; tool: string | null; traits: string[] }
-  finding: string
-  change: { type: string | null; target: string | null; summary: string | null }
-  outcome: 'untested' | 'kept' | 'undone'
-  evidence: { tasks?: number | null; metric?: string | null; before?: number | null; after?: number | null }
-  confidence: number
-  confirmedAt: string | null
-  state: 'ok' | 'stale' | 'needs re-check' | 'retired'
-  staleReason: string | null
-  source: string
-  readOnly: boolean
-  date: string
-  history: { at: string; by: string; what: string; reason?: string; outcome?: string; state?: string }[]
-}
-
-export interface ShareCandidate {
-  id: string
-  tasks: number
-  fit: number
-  confidence: number
-  why: string
-}
-
-export interface LessonsModel {
-  lessons: LessonRow[]
-  available: boolean
-  candidates?: ShareCandidate[]
-  share?: { mode: string; repository: string | null; file: string | null; off: string | null } | null
-}
-
-export interface SharePreview {
-  mode: string
-  repository: string
-  base: string
-  file: string
-  lessons: string[]
-  text: string
-  hash: string
-}
-
-export interface ShareResult extends Omit<SharePreview, 'text'> {
-  branch: string
-  commit: string
-  pushed: boolean
-  pullRequest: { number: number; url: string } | null
-  reason?: string
-}
-
-// What a finished share says: the pull request, or where the commit waits.
-export function shareResultText(r: ShareResult): string {
-  if (r.pullRequest) return `Opened pull request #${r.pullRequest.number} to ${r.repository}.`
-  return `Committed on branch ${r.branch}${r.pushed ? ' and pushed' : ''}; ${r.reason ?? 'no pull request was opened'}.`
-}
-
-export interface LessonFilter {
-  stage?: string
-  outcome?: string
-  source?: string
-  state?: string
+  // The removed lessons store's one-time export (RC30.5).
+  lessonsExport?: { written?: number; file?: string | null; error?: string } | null
 }
 
 export interface Retro {
@@ -451,19 +386,10 @@ export function flowClient(api: AppApi) {
     models: () => api.get<unknown>('/api/models').then(parseModels),
     saveInstructions: (workspaceId: string, instructions: string) =>
       run<{ instructions: string }>(workspaceId, 'flow.instructions.update', { instructions }),
-    // Proposals and Lessons (design §4.18).
+    // Proposals and prompt overrides (design §4.18).
     proposals: (workspaceId: string) => run<ProposalsModel>(workspaceId, 'flow.proposals'),
     revertPrompt: (workspaceId: string, target: string) => run(workspaceId, 'prompt.override.revert', { target }),
     rebasePrompt: (workspaceId: string, input: { target: string; section: string; hash: string }) => run(workspaceId, 'prompt.override.rebase', input),
-    lessons: (workspaceId: string, filter: LessonFilter = {}) =>
-      run<LessonsModel>(
-        workspaceId,
-        'lessons.view',
-        Object.fromEntries(Object.entries(filter).filter(([, v]) => v)),
-      ),
-    sharePreview: (workspaceId: string, ids: string[]) => run<SharePreview>(workspaceId, 'lessons.share.preview', { ids }),
-    share: (workspaceId: string, ids: string[], previewHash: string) => run<ShareResult>(workspaceId, 'lessons.share', { ids, previewHash }),
-    exportLessons: (workspaceId: string, file: string) => run<{ path: string; lessons: number }>(workspaceId, 'lessons.export', { path: file }),
   }
 }
 
@@ -525,12 +451,12 @@ export function proposalText(p: Proposal): string {
   if (p.type === 'plan') return `${p.change} (spec ${p.spec})`
   if (p.type === 'prompt') return `${p.revert ? 'Revert ' : ''}${p.target}${p.section ? ` § ${p.section}` : ''}`
   if (p.type === 'skill') return `${p.revert ? 'Revert ' : ''}skill ${p.target}`
-  if (p.type === 'lesson') return `${p.kind} ${(p.lessons ?? []).join(', ')}`
+  if (p.type === 'rule') return `rule: ${p.text ?? ''}`
   const where = p.file === 'repository' ? ` in ${p.repository}` : ''
   return `${p.key} ${JSON.stringify(p.from)} → ${JSON.stringify(p.to)}${where}`
 }
 
-export const directionText = (p: Proposal) => (p.type === 'lesson' ? 'lessons review' : `${p.metric} ${p.direction === 'down' ? '↓' : '↑'}`)
+export const directionText = (p: Proposal) => (p.type === 'rule' ? 'corrections' : `${p.metric} ${p.direction === 'down' ? '↓' : '↑'}`)
 
 // A proposal's evidence in one line: plain text, or runs, value and effect.
 export function evidenceText(p: Pick<Proposal, 'evidence'>): string {
@@ -547,20 +473,6 @@ export function diffLines(diff: string | undefined): { kind: 'add' | 'del' | 'hu
     kind: text.startsWith('@@') ? 'hunk' : text.startsWith('+') ? 'add' : text.startsWith('-') ? 'del' : 'same',
     text,
   }))
-}
-
-// What a lesson's state reads as in the Lessons view.
-export function lessonStateText(l: Pick<LessonRow, 'state' | 'staleReason' | 'outcome'>): string {
-  if (l.state === 'retired') return `retired${l.staleReason ? `: ${l.staleReason}` : ''}`
-  if (l.state !== 'ok') return l.staleReason ? `${l.state}: ${l.staleReason}` : l.state
-  return l.outcome === 'undone' ? 'did not work' : l.outcome
-}
-
-// Lessons worth sharing first: kept, confirmed, confident, with evidence.
-export function shareRank(lessons: LessonRow[]): LessonRow[] {
-  return lessons
-    .filter((l) => l.outcome === 'kept' && l.state === 'ok' && !l.readOnly)
-    .sort((a, b) => b.confidence - a.confidence || (b.evidence.tasks ?? 0) - (a.evidence.tasks ?? 0))
 }
 
 export function pdcaText(p: Proposal): string | null {
@@ -661,7 +573,6 @@ export interface FlowSection {
   localChecksFirst?: boolean
   batch?: { max?: number; by?: 'phase' | 'files' }
   retro?: { everyTasks?: number; slowFactor?: number; model?: string }
-  lessons?: { share?: boolean; read?: boolean; untestedDays?: number; confirmDays?: number; reviewEvery?: number }
 }
 
 export interface FlowSettings {
@@ -682,11 +593,6 @@ export const FLOW_DEFAULTS = {
   everyTasks: 10,
   slowFactor: 3,
   model: 'auto',
-  share: true,
-  read: true,
-  untestedDays: 90,
-  confirmDays: 180,
-  reviewEvery: 5,
 } as const
 
 export interface FlowForm {
@@ -697,11 +603,6 @@ export interface FlowForm {
   everyTasks: string
   slowFactor: string
   model: string
-  share: '' | 'on' | 'off'
-  read: '' | 'on' | 'off'
-  untestedDays: string
-  confirmDays: string
-  reviewEvery: string
 }
 
 export function toFlowForm(section: FlowSection = {}): FlowForm {
@@ -713,11 +614,6 @@ export function toFlowForm(section: FlowSection = {}): FlowForm {
     everyTasks: section.retro?.everyTasks === undefined ? '' : String(section.retro.everyTasks),
     slowFactor: section.retro?.slowFactor === undefined ? '' : String(section.retro.slowFactor),
     model: section.retro?.model ?? '',
-    share: section.lessons?.share === undefined ? '' : section.lessons.share ? 'on' : 'off',
-    read: section.lessons?.read === undefined ? '' : section.lessons.read ? 'on' : 'off',
-    untestedDays: section.lessons?.untestedDays === undefined ? '' : String(section.lessons.untestedDays),
-    confirmDays: section.lessons?.confirmDays === undefined ? '' : String(section.lessons.confirmDays),
-    reviewEvery: section.lessons?.reviewEvery === undefined ? '' : String(section.lessons.reviewEvery),
   }
 }
 
@@ -751,19 +647,5 @@ export function toFlowSection(form: FlowForm): { flow?: FlowSection; error?: str
     retro.model = form.model.trim()
   }
   if (Object.keys(retro).length) flow.retro = retro
-  const lessons: NonNullable<FlowSection['lessons']> = {}
-  if (form.share) lessons.share = form.share === 'on'
-  if (form.read) lessons.read = form.read === 'on'
-  for (const [key, label, max] of [
-    ['untestedDays', 'Untested lessons expire after', 3650],
-    ['confirmDays', 'Confirm within', 3650],
-    ['reviewEvery', 'Review lessons every', 100],
-  ] as const) {
-    if (!form[key].trim()) continue
-    const n = Number(form[key])
-    if (!Number.isInteger(n) || n < 1 || n > max) return { error: `${label} must be a whole number 1–${max}.` }
-    lessons[key] = n
-  }
-  if (Object.keys(lessons).length) flow.lessons = lessons
   return { flow }
 }

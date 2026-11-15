@@ -1,7 +1,7 @@
 // Set up GitHub (design §8.2), GitHub modes only. On load it runs the
 // wizard's read-only preview. The button shows only when the preview finds
 // at least one change; else one "GitHub is set up" line with the time of the
-// check and a quiet Check again. A preview that can't run says why and how
+// check and a quiet Recheck. A preview that can't run says why and how
 // to fix it. The dialog is stepped like Add plugin: options, review the
 // changes grouped with create/change/keep badges, apply, then save the
 // .avoozl.json change. Cancel, Esc and a click outside close it on every
@@ -15,7 +15,7 @@ import { CircleCheck, RefreshCw, Workflow, X } from './icons.ts'
 import { groupWrites, setupForm, setupInput, setupState, writeBadge, type GitHubSettings, type SetupForm, type SetupResult, settingsClient } from './settings-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { relativeTime } from './task-api.ts'
-import { Shelf } from './Shelf.tsx'
+import { Modal } from './Modal.tsx'
 import { linkHref } from './views-api.ts'
 import { SCOPE_RULE, SCOPE_STATEMENT } from '../../../src/work-split.mjs'
 
@@ -103,7 +103,7 @@ export function SetupDialog(props: {
   return (
     // Esc, Back and a click outside do what Cancel does. The form lives in
     // the Settings page, so closing loses nothing.
-    <Shelf id="avoozl-setup" width="40rem" backLabel="Cancel" describedBy="avoozl-setup-line" boxRef={box} attrs={{ 'data-setup-dialog': step }} onDismiss={cancel}>
+    <Modal close id="avoozl-setup" width="40rem" backLabel="Cancel" describedBy="avoozl-setup-line" boxRef={box} attrs={{ 'data-setup-dialog': step }} onDismiss={cancel}>
       <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
         {STEP_TEXT.map(([title], i) => (
           <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
@@ -253,7 +253,7 @@ export function SetupDialog(props: {
           </Btn>
         )}
       </div>
-    </Shelf>
+    </Modal>
   )
 }
 
@@ -301,7 +301,7 @@ export default function SetupWizard(props: {
           <Tooltip text={new Date(state.at).toLocaleString()}>
             <span className="text-xs text-muted">Checked {relativeTime(state.at, Date.now())}</span>
           </Tooltip>
-          <IconBtn icon={RefreshCw} label="Check again" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
+          <IconBtn icon={RefreshCw} label="Recheck" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
         </div>
       )}
       {state.kind === 'changes' && (
@@ -312,7 +312,7 @@ export default function SetupWizard(props: {
           <IconLabel icon={Workflow} primary onClick={() => setOpen(true)} tooltip="Show each change first. Nothing is written until you apply.">
             Set up GitHub
           </IconLabel>
-          <IconBtn icon={RefreshCw} label="Check again" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
+          <IconBtn icon={RefreshCw} label="Recheck" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
         </div>
       )}
       {state.kind === 'error' && (
@@ -327,7 +327,7 @@ export default function SetupWizard(props: {
             </span>
           )}
           <span>
-            <IconBtn icon={RefreshCw} label="Check again" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
+            <IconBtn icon={RefreshCw} label="Recheck" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
           </span>
         </div>
       )}

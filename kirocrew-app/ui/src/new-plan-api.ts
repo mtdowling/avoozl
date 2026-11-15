@@ -19,11 +19,9 @@ export interface NewPlanForm {
   repositories: string[]
   goal: string
   context: string
-  // The idea this spec comes from (Make it a spec, R63.9), or blank.
-  idea: string
 }
 
-export const EMPTY_NEW_PLAN: NewPlanForm = { name: '', category: '', epic: '', phases: '', repositories: [], goal: '', context: '', idea: '' }
+export const EMPTY_NEW_PLAN: NewPlanForm = { name: '', category: '', epic: '', phases: '', repositories: [], goal: '', context: '' }
 
 // The planner chat fallback.
 export interface NewPlanResult {
@@ -115,7 +113,6 @@ const fields = (form: NewPlanForm) => ({
   repositories: form.repositories,
   goal: form.goal,
   context: form.context,
-  ...(form.idea ? { idea: form.idea } : {}),
 })
 
 export function newPlanClient(api: AppApi) {
@@ -141,7 +138,6 @@ export function newPlanClient(api: AppApi) {
         repositories: form.repositories,
         goal: form.goal,
         context: form.context,
-        ...(form.idea ? { idea: form.idea } : {}),
         template,
         inputs,
       }),

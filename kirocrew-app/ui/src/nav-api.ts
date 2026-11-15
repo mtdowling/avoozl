@@ -1,11 +1,11 @@
 // The page's top-level views and where an old place now goes. Kept free of
 // JSX so node can test it directly.
 
-// The nav row: Home, Specs, Waiting on you, Trace, Flow, Activity, Settings.
+// The nav row: Home, Specs, Needs you, Trace, Flow, Activity, Settings.
 export const TABS = [
   { key: 'dashboard', label: 'Home' },
   { key: 'plans', label: 'Specs' },
-  { key: 'waiting', label: 'Waiting on you' },
+  { key: 'waiting', label: 'Needs you' },
   { key: 'trace', label: 'Trace' },
   { key: 'flow', label: 'Flow' },
   { key: 'activity', label: 'Activity' },
@@ -24,7 +24,7 @@ export const navTab = (key: Tab): NavTab => (key === 'graph' ? 'plans' : key)
 // goes now. Removed pages land on the page that took over their job.
 export interface Place {
   tab: Tab
-  // An inner view to open there (a Waiting on you section).
+  // An inner view to open there (a Needs you section).
   open?: Record<string, unknown>
 }
 

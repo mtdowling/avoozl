@@ -29,7 +29,6 @@ import { PluginUnavailable } from "./plugin-session.mjs";
 import { declaredPlugins, readPluginSettings } from "./plugins.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { canonical, fail } from "./store.mjs";
-import { listIdeas } from "./ideas.mjs";
 
 // `retro` holds the skill changes a person approved from a retrospective
 // (design §4.18).
@@ -131,7 +130,7 @@ export function validateSource(id, value, where = `intake.sources.${id}`) {
 export function sourceCounts(store) {
   const counts = new Map();
   for (const row of itemRows(store)) {
-    if (!row.record || row.record.kind === "idea") continue;
+    if (!row.record) continue;
     const count = counts.get(row.source) ?? {
       total: 0,
       untriaged: 0,
@@ -988,7 +987,6 @@ export function purgeClosed(store, now = Date.now()) {
     gone = itemRows(store).filter(
       (row) =>
         row.record?.state === "closed" &&
-        row.record.kind !== "idea" &&
         !(row.taskId && tasks.has(row.taskId)) &&
         now -
           Date.parse(row.route?.closedAt || row.record.closedAt || row.seenAt) >
@@ -1021,19 +1019,11 @@ function summary(row) {
     via: row.via ?? null,
     route: row.route,
     taskId: row.taskId ?? null,
-    ...(item.kind === "idea"
-      ? {
-          notes: item.notes?.length ?? 0,
-          links: item.links?.length ?? 0,
-          graduated: item.graduated ?? null,
-        }
-      : {}),
   };
 }
 
-const KINDS = ["issue", "pr", "review", "ticket", "idea"];
-// Ideas (ideas.mjs) are open, archived or graduated; never closed.
-const STATES = ["open", "closed", "archived", "graduated"];
+const KINDS = ["issue", "pr", "review", "ticket"];
+const STATES = ["open", "closed"];
 
 // intake.list: filters source, kind, state, untriaged; 100 per page.
 export function listItems(store, input = {}) {
@@ -1083,9 +1073,6 @@ export function viewItem(store, input = {}) {
     findings: row.findings ?? [],
     history: row.history ?? [],
     snapshotHash: snapshotDigest(row.record),
-    ...(row.record.kind === "idea"
-      ? { notes: row.record.notes, links: row.record.links }
-      : {}),
   };
 }
 
@@ -1147,8 +1134,6 @@ export function startByPerson(
       "A GitHub item starts through its trigger labels or Issue Radar.",
       409,
     );
-  if (id === "local")
-    fail("An idea never runs work. Use Make it a spec instead.", 409);
   const source = sources.get(id);
   if (!source) fail(`Source ${id} is not declared, or cannot be used.`, 404);
   const row = store.get("incoming_items", itemKey(id, itemId));
@@ -1433,8 +1418,6 @@ export function intakeTab(view, store, declared) {
     enabled: view.enabled || usable.length > 0,
     total: items.length,
     items,
-    // Ideas never count as untriaged (R63.6); the tab lists them apart.
-    ideas: listIdeas(store),
     repositories: view.repositories.map((row) => ({
       ...row,
       source: "github",

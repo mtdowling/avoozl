@@ -8,7 +8,6 @@
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import type { Option } from './filters.ts'
-import type { Idea } from './ideas-api.ts'
 
 export interface HandOff {
   url: string
@@ -43,7 +42,7 @@ export interface UntriagedItem {
   // Why no rule took it, when one matched for someone who does not count.
   reason?: string | null
   // A pull request's code review chat (src/app/pr-review.mjs): queued until
-  // the next tick opens it, then open with a link to Attach.
+  // the next tick opens it, then open with a Session link.
   reviewChat?: ReviewChat | null
 }
 
@@ -99,8 +98,6 @@ export interface UntriagedList {
   repositories: UntriagedRepository[]
   items: UntriagedItem[]
   withRadar?: RadarItem[]
-  // Ideas (R63): never untriaged, so never in `items` or `total`.
-  ideas?: Idea[]
 }
 
 export function untriagedClient(api: AppApi) {

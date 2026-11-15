@@ -19,7 +19,7 @@ export interface Attention {
   group?: ConflictItem
   title: string
   detail: string
-  // Where the owner acts: Waiting on you, or the task's own drawer; and a
+  // Where the owner acts: Needs you, or the task's own drawer; and a
   // link out if any.
   tab: 'waiting' | 'task'
   href: string | null
@@ -41,7 +41,7 @@ export function attentionTip(item: Attention): string {
   const target = attentionTarget(item)
   if (target.kind === 'review') return 'Open the list of tasks to review'
   if (target.kind === 'task') return `Open ${target.id} in the drawer`
-  return 'Open it in Waiting on you'
+  return 'Open it in Needs you'
 }
 
 export interface RunningTask {
@@ -67,7 +67,7 @@ export interface InFlight {
   session: DeliverySession
   // Spend against the cap (§4.17).
   budget: BudgetChip | null
-  // Set for a worker on a runner's crew (R84); Attach opens its dashboard.
+  // Set for a worker on a runner's crew (R84); Session opens its dashboard.
   remote?: RemoteWorker
 }
 
@@ -298,7 +298,7 @@ export function countsStyles(layout: CountsLayout) {
   if (layout === 'small')
     return {
       list: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6, width: '100%' },
-      button: { minHeight: 32, width: '100%', justifyContent: 'space-between' },
+      button: { minHeight: 26, width: '100%', justifyContent: 'space-between' },
     }
   return {
     list: {

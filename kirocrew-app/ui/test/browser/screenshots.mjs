@@ -17,7 +17,7 @@ const SIZES = [
   [768, 1024],
   [1280, 800],
 ]
-const OPENERS = { 'add-plugin': 'Add plugin', onboard: 'Onboard', confirm: 'Remove', 'stop-line': 'Stop the line', 'switch-model': 'Switch model' }
+const OPENERS = { 'add-plugin': 'Add plugin', onboard: 'Onboard', confirm: 'Remove', 'stop-line': 'Stop the line': 'Switch model' }
 // Not modals: what to do once open, in place of waiting for the modal.
 const PANELS = {
   'task-files': [`document.querySelector('[data-file="README.md"]')?.click() ?? false`, `Boolean(document.querySelector('[data-diff] [data-line]'))`],
@@ -29,7 +29,7 @@ const PANELS = {
   ],
 }
 const SCENARIO = { 'task-files-split': 'task-files' }
-const ALL = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'crew', 'switch-model', 'task-drawer', 'mark-done', 'new-spec-template']
+const ALL = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'crew', 'task-drawer', 'mark-done', 'new-spec-template']
 
 const [out, ...asked] = process.argv.slice(2)
 if (!out) {

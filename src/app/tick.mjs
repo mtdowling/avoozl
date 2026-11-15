@@ -105,6 +105,7 @@ import {
   withSource,
 } from "./github-rate.mjs";
 import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
+import { withChatModels } from "./chat-models.mjs";
 import { syncStep, syncTargets } from "./integration-sync.mjs";
 import { mirrorSyncStep } from "./mirror-sync.mjs";
 import { publishInstanceStep } from "./instance-publish.mjs";
@@ -1403,6 +1404,9 @@ async function runTick(
         ...retro.dispatch,
         ...reviews.filter((d) => !heldTask(d.task)),
       ];
+      // Settings › Models: the planner, retro and review-draft chats open on
+      // the saved model.
+      dispatch = withChatModels(dispatch, memory.value || {});
       if (script) {
         const lost = await recheckDrivers(
           store,

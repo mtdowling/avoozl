@@ -28,13 +28,12 @@ test('every modal is the shared Modal and every z-index is a named layer', async
 })
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the modal cover tests'
-const MODALS = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'switch-model', 'mark-done', 'projection', 'spec-changed', 'quick-goal']
+const MODALS = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'mark-done', 'projection', 'spec-changed']
 const OPENERS = {
   'add-plugin': 'Add plugin',
   onboard: 'Onboard',
   confirm: 'Remove',
   'stop-line': 'Stop the line',
-  'switch-model': 'Switch model',
 }
 
 let harness, browser, page

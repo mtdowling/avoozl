@@ -161,7 +161,7 @@ test('Running on the Dashboard is exactly the tasks In flight lists', () => {
   // A status:'review' task with no session: Running 0, In flight empty.
   const none = summarize({ graph: g([task('r', { status: 'review', state: 'running' })]), delivery: [item('r')], conflicts: [], plans: null })
   assert.deepEqual([none.counts.running, none.inFlight.length, none.counts['needs-you']], [0, 0, 1])
-  // One live session: Running 1, one In flight row with its Attach link.
+  // One live session: Running 1, one In flight row with its Session link.
   const one = summarize({ graph: g([task('r', { status: 'review', state: 'running' })]), delivery: [item('r', { sessions: [live] })], conflicts: [], plans: null })
   assert.deepEqual([one.counts.running, one.inFlight.length, one.inFlight[0].session.link], [1, 1, '/chat/chat-1'])
   // Delivery puts the session-less one in Needs you, not In progress.

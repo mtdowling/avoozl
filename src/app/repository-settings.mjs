@@ -1,3 +1,4 @@
+import { validateModels } from "./chat-models.mjs";
 import { flowPolicy } from "./flow.mjs";
 import { deliveryPolicy } from "./delivery.mjs";
 import { validateTrackedRouting } from "./placement.mjs";
@@ -771,6 +772,7 @@ export class RepositorySettings {
       `repository Avoozl configuration at ${this.filename}`,
     );
     validateContentRules(value.contentRules);
+    validateModels(value.models);
     try {
       validateActivitySettings(value.activity);
       flowPolicy(value);
@@ -888,6 +890,39 @@ export class RepositorySettings {
     else delete value.flow;
     this.write(value, { expectedHash: before.hash });
     return this.readFlowSettings();
+  }
+
+  // Settings > Models: the model of each of Avoozl's own chats.
+  readModelSettings() {
+    const file = this.readFile();
+    return {
+      filename: this.filename,
+      exists: file.exists,
+      hash: file.hash,
+      models: {
+        // The older `flow.retro.model` shows as the retro's until saved here.
+        ...(typeof file.value.flow?.retro?.model === "string" &&
+        file.value.flow.retro.model !== "auto"
+          ? { retro: file.value.flow.retro.model }
+          : {}),
+        ...(record(file.value.models)
+          ? structuredClone(file.value.models)
+          : {}),
+      },
+    };
+  }
+
+  // Replace `models` whole; an empty object removes it.
+  updateModelSettings({ models, expectedHash } = {}) {
+    const before = this.readFile();
+    if (expectedHash !== before.hash)
+      fail("Avoozl configuration changed; reload before saving.", 409);
+    const checked = validateModels(models);
+    const value = this.updateValue(before);
+    if (Object.keys(checked).length) value.models = checked;
+    else delete value.models;
+    this.write(value, { expectedHash: before.hash });
+    return this.readModelSettings();
   }
 
   // Settings > Budgets (§4.17): the workspace's per-task cap and mode, and

@@ -1,4 +1,4 @@
-// The Epics screen and Trace's Done work in a real Chrome: the harness's own
+// The Specs list and Trace's Done work in a real Chrome: the harness's own
 // answers for the empty and full cases, and the real sample (demo mode) for
 // the data the backend gives. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
@@ -34,58 +34,6 @@ const open = (query) =>
   })
 const specsTab = button('Specs', 'tab')
 
-test('no epics: it says what an epic is and offers Plan an epic', { skip }, async () => {
-  await open({ epics: 'empty' })
-  await page.until(`Boolean(${specsTab})`)
-  await click(specsTab)
-  await page.until(`Boolean(document.querySelector('[data-epics-empty]'))`)
-  const text = await page.evaluate(`document.querySelector('[data-epics-empty]').textContent`)
-  assert.match(text, /No epics yet/)
-  assert.match(text, /fits in one pull request is not an epic/)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-epics-empty] [data-plan-epic]'))`), true)
-  assert.deepEqual(page.errors, [])
-})
-
-test('an epic opens to specs and phases; one epic and one spec are open at a time', { skip }, async () => {
-  await open({ epics: 'full' })
-  await page.until(`Boolean(${specsTab})`)
-  await click(specsTab)
-  await page.until(`Boolean(${radio('epics-open', 'search-v2')})`)
-  assert.equal(await page.evaluate(`document.querySelectorAll('[data-epics-view] [data-radio-fold="epics-open"] > [data-radio-section][data-open="true"]').length`), 0)
-  await click(radio('epics-open', 'search-v2'))
-  await page.until(`Boolean(document.querySelector('[data-epic-phases="search-v2"]'))`)
-  const rows = await page.evaluate(
-    `[...document.querySelectorAll('[data-epic-phases="search-v2"] [data-epic-phase]')].map((r) => [r.dataset.gate, ...[...r.querySelectorAll('td')].filter((c, i) => i !== 1 && i < 4).map((c) => c.textContent.trim())])`,
-  )
-  assert.deepEqual(rows, [
-    ['passed', 'Index', '3 of 3 released', 'none'],
-    ['open', 'Ranking', '1 of 4 released', '3 wait on #52 (CI)'],
-    ['closed', 'Cache', '0 of 5 released', 'Phase Ranking waits for phase Index to merge.'],
-  ])
-  // Opening the second spec closes the first.
-  await click(radio('epic-search-v2', 'search-docs'))
-  await page.until(`Boolean(document.querySelector('[data-epic-phases="search-docs"]'))`)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-epic-phases="search-v2"]'))`), false)
-  // Not on GitHub yet, and the Issue Radar link with what to do there.
-  assert.match(await page.evaluate(`document.querySelector('[data-unprojected="notes"]').textContent`), /Draft spec\. Not approved/)
-  assert.equal(await page.evaluate(`document.querySelector('[data-radar-graph] a').getAttribute('href')`), '/issue-radar')
-  assert.match(await page.evaluate(`document.querySelector('[data-radar-graph]').textContent`), /Choose the Graph view there/)
-  assert.deepEqual(page.errors, [])
-})
-
-test('a phase Graph button opens the Graph, and Back returns to the epics', { skip }, async () => {
-  await open({ epics: 'full' })
-  await page.until(`Boolean(${specsTab})`)
-  await click(specsTab)
-  await page.until(`Boolean(${radio('epics-open', 'search-v2')})`)
-  await click(radio('epics-open', 'search-v2'))
-  await page.until(`Boolean(document.querySelector('[aria-label="Graph of phase Ranking"]'))`)
-  await click(`document.querySelector('[aria-label="Graph of phase Ranking"]')`)
-  await page.until(`Boolean(document.querySelector('[data-graph-view]')) && !document.querySelector('[data-epics-view]')`)
-  await page.evaluate(`document.querySelector('[data-avoozl-pane]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', code: 'ArrowLeft', altKey: true, bubbles: true }))`)
-  await page.until(`Boolean(document.querySelector('[data-epics-view]'))`)
-})
-
 test('Trace with no issue chosen lists the merges with who did them and links', { skip }, async () => {
   await page.open(harness.url({ page: 'trace', done: 'full' }), {
     width: 1280,
@@ -115,7 +63,7 @@ test('Trace with nothing merged says what to do, with a button', { skip }, async
   await page.until(`document.querySelector('[data-picked]').textContent === 'epics'`)
 })
 
-test('the real sample fills both: gates, held reasons, the crews that merged', { skip }, async () => {
+test('the real sample: Specs is one list with a status chip per spec, and a spec opens beside it', { skip }, async () => {
   await page.open(harness.url({ page: 'demo' }), {
     width: 1280,
     height: 800,
@@ -125,17 +73,19 @@ test('the real sample fills both: gates, held reasons, the crews that merged', {
   await page.until(`Boolean(document.querySelector('[data-demo-tour]'))`)
   await click(button('Close the tour'))
   await click(specsTab)
-  await page.until(`Boolean(${radio('epics-open', 'recipe-box')})`)
-  await click(radio('epics-open', 'recipe-box'))
-  await page.until(`Boolean(document.querySelector('[data-epic-phases="recipe-import"]'))`)
-  const gates = await page.evaluate(`[...document.querySelectorAll('[data-epic-phases="recipe-import"] [data-epic-phase]')].map((r) => r.dataset.gate)`)
-  assert.deepEqual(gates, ['passed', 'open'])
-  assert.match(
-    await page.evaluate(
-      `document.querySelector('[data-epic-phases="recipe-import"] [data-epic-held]:last-of-type, [data-epic-phases="recipe-import"] tbody tr:last-child [data-epic-held]').textContent`,
-    ),
-    /Waiting on recipe-import\.2\.1/,
-  )
-  assert.match(await page.evaluate(`document.querySelector('[data-unprojected="pantry-photos"]').textContent`), /Draft spec/)
+  await page.until(`Boolean(document.querySelector('[data-spec-list] [data-plan-row]'))`)
+  const chips = await page.evaluate(`Object.fromEntries([...document.querySelectorAll('[data-spec-list] [data-plan-row]')].map((r) => [r.querySelector('.truncate').textContent, r.dataset.specChip]))`)
+  assert.equal(chips['Pantry photos'], 'draft')
+  assert.ok(Object.values(chips).every((c) => ['draft', 'approved', 'github', 'done'].includes(c)))
+  // The removed blocks are gone.
+  for (const gone of ['[data-epics-view]', '[data-epics-unprojected]', '[data-plan-epic]']) assert.equal(await page.evaluate(`Boolean(document.querySelector(${JSON.stringify(gone)}))`), false, gone)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-plans-list-pane] [data-radar-graph]'))`), false, 'no Radar link on the list')
+  // A spec opens in the detail column; the list stays on the left.
+  await click(`document.querySelector('[data-spec-list] [data-plan-row][data-spec-chip]:not([data-spec-chip="draft"])') || document.querySelector('[data-spec-list] [data-plan-row]')`)
+  await page.until(`Boolean(document.querySelector('[data-detail-column="specs"] [data-spec-detail]'))`)
+  const list = await page.evaluate(`document.querySelector('[data-list-pane="specs"]').getBoundingClientRect().right`)
+  const detail = await page.evaluate(`document.querySelector('[data-detail-column="specs"]').getBoundingClientRect().left`)
+  assert.ok(detail >= list, 'detail right of the list')
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-detail-column="specs"] [data-radar-graph]'))`), true, 'the Radar link is in the detail')
   assert.deepEqual(page.errors, [])
 })

@@ -25,8 +25,10 @@ for (const width of [1280, 390])
   test(`Home at ${width} px: "No driver for Harness. Nupp has one: Open", and the workspace name`, { skip }, async () => {
     await page.open(harness.url({ page: 'home', theme: 'light', driver: 'nupp' }), { width, height: 900 })
     await page.until(`Boolean(document.querySelector('[data-driver-session="none"] [data-driver-elsewhere]'))`)
-    assert.equal(await page.evaluate(`document.querySelector('[data-driver-session] [data-driver-workspace]').textContent.trim()`), 'Workspace: Harness')
-    assert.equal(await page.evaluate(`document.querySelector('[data-driver-elsewhere]').textContent.trim()`), 'No driver for Harness. Nupp has one: Open')
+    // The workspace name is not a line of its own: the header shows it. The sentence is the cell's tooltip.
+    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-driver-workspace]'))`), false)
+    assert.match(await page.evaluate(`document.querySelector('[data-driver-session]').dataset.tip`), /Workspace: Harness\. No driver for Harness\. Nupp has one:/)
+    assert.equal(await page.evaluate(`document.querySelector('[data-driver-elsewhere]').getAttribute('aria-label')`), "Open Nupp's driver")
     // Open opens the Nupp driver chat itself.
     await page.evaluate(`document.querySelector('[data-driver-elsewhere-open]').click()`)
     assert.deepEqual(await page.evaluate(`window.__chats`), [{ slotKey: 'chat-nupp' }])
