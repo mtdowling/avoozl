@@ -104,6 +104,7 @@ export const PERSON_ONLY = new Map([
     person("Only a person changes workspace settings."),
   ],
   ["flow.settings.update", person("Only a person changes flow settings.")],
+  ["models.settings.update", person("Only a person changes chat models.")],
   [
     "activity.settings.update",
     person("Only a person changes how long activity is kept."),
@@ -248,6 +249,10 @@ export const NOT_ON_MCP = new Map([
     "The chat side panel's one read; its parts are each on MCP already.",
   ],
   ["flow.proposals", proposalsPage],
+  [
+    "models.settings.get",
+    "Settings › Models reads the chat models; a chat has no use for them.",
+  ],
   ["legacy.mcp", "The MCP server's own fallback for the legacy plans_* tools."],
   [
     "state",

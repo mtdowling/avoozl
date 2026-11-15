@@ -17,8 +17,7 @@ import { TracePage } from './TraceView.tsx'
 import { TABS, navTab, redirectSettings, redirectTab, tabLabel, type Tab } from './nav-api.ts'
 import { TRACE_TARGET, parseTraceLink, type TraceTarget } from './trace-api.ts'
 import ActivityView from './ActivityView.tsx'
-import { SwitchModelButton } from './SwitchModel.tsx'
-import { StopLineButton } from './StopLine.tsx'
+import { StopLineItem } from './StopLine.tsx'
 import { untriagedClient } from './untriaged-api.ts'
 import type { NewPlanForm } from './new-plan-api.ts'
 import SettingsView, { SETTINGS_TABS, type SettingsTab } from './SettingsView'
@@ -266,8 +265,9 @@ function AvoozlPage() {
     <TaskDrawerProvider workspaceId={active} onFocus={(id, title) => openDrill({ kind: 'focus', id, title })}>
     <div className="flex h-full min-h-0 flex-col">
       {phone ? (
-        // A phone keeps the header to one thin row: the name, Stop the line
-        // and a More menu with the rest (follows Kiro Crew's phone layout).
+        // A phone keeps the header to one thin row: the name and a More menu
+        // with the rest, Stop the line among them (follows Kiro Crew's phone
+        // layout).
         <header className="flex min-w-0 items-center gap-2 px-2 py-1" data-phone-header style={{ borderBottom: '1px solid var(--border)' }}>
           <span className="inline-flex shrink-0 items-center gap-1.5" data-header-brand>
             <Logo size={20} />
@@ -275,15 +275,14 @@ function AvoozlPage() {
           </span>
           <RailButton items={navItems} value={navTab(tab)} open={railOpen} onOpenChange={setRailOpen} />
           <div className="flex items-center gap-2" data-header-actions>
-            {active && <StopLineButton workspaceId={active} />}
             <MoreMenu label="More actions" attrs={{ 'data-header-more': '' }}>
+              {active && <StopLineItem workspaceId={active} />}
               <PageRefreshItem />
               {/* The demo's badge is on its own line below; the picker is not shown in it. */}
               {!demo.active && <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
               <Btn type="button" primary onClick={planEpic}>
                 Plan a goal
               </Btn>
-              {active && <SwitchModelButton workspaceId={active} />}
               {demo.active && <DemoControls />}
             </MoreMenu>
           </div>
@@ -303,19 +302,13 @@ function AvoozlPage() {
             <Btn type="button" primary onClick={planEpic}>
               Plan a goal
             </Btn>
-            {/* Refresh, with its countdown, for the page that has one. */}
-            {hasRefresh && (
+            {/* Stop the line (R64), an icon only, and Refresh with its
+                countdown for the page that has one. */}
+            {(active || hasRefresh) && (
               <MoreMenu label="More actions" attrs={{ 'data-header-more': '' }}>
+                {active && <StopLineItem workspaceId={active} />}
                 <PageRefreshItem />
               </MoreMenu>
-            )}
-            {active && (
-              <>
-                {/* Move running chats to another model (§4.20, R72.12). */}
-                <SwitchModelButton workspaceId={active} />
-                {/* Pull the Andon cord (R64): a red pause icon, last. */}
-                <StopLineButton workspaceId={active} />
-              </>
             )}
           </div>
         }

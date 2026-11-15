@@ -13,7 +13,9 @@ export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Re
     if (!open) return
     const outside = (event: PointerEvent) => {
       const target = event.target as Node
-      // A dialog opened from the menu sits in the top layer, inside this root.
+      // A dialog opened from the menu is portaled to the top layer; a tap in
+      // it is not outside the menu, or the dialog would close with it.
+      if ((target as Element).closest?.('dialog[open]')) return
       if (root.current && !root.current.contains(target)) setOpen(false)
     }
     const key = (event: KeyboardEvent) => {
@@ -44,6 +46,9 @@ export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Re
           data-more-panel
           // A click on a plain item (one that opens nothing) closes the menu.
           onClick={(event) => {
+            // A dialog a control opened is portaled out of the panel; React
+            // still bubbles its clicks here, and they must not close it.
+            if (!event.currentTarget.contains(event.target as Node)) return
             const item = (event.target as Element).closest('button, a')
             if (item && !item.hasAttribute('aria-haspopup') && !item.closest('[data-keep-menu]')) setOpen(false)
           }}

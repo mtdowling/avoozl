@@ -94,8 +94,9 @@ test('Settings > Flow puts each sub-section in its own titled box', () => {
   const titles = [...flow.matchAll(/<Box>\s*<Section title="([^"]+)" blurb="[^"]+"/g)].map((m) => m[1])
   assert.deepEqual(titles, ['Timing', 'Stop the line', 'Local checks first', 'Batching', 'Retro'])
   assert.equal(flow.match(/<Box>/g).length, titles.length)
-  // Retro keeps the model dropdown, then the built-in prompt and your instructions.
+  // Retro: when it runs, then the built-in prompt and your instructions.
+  // Its model is under Settings › Models.
   const retro = flow.slice(flow.indexOf('title="Retro"'))
-  assert.ok(retro.indexOf('title="When it runs"') < retro.indexOf('id="avoozl-flow-model"'))
-  assert.ok(retro.indexOf('<select id="avoozl-flow-model"') < retro.indexOf('<PromptInstructions'))
+  assert.ok(retro.indexOf('title="When it runs"') < retro.indexOf('<PromptInstructions'))
+  assert.equal(retro.includes('avoozl-flow-model'), false)
 })

@@ -482,6 +482,7 @@ A separate last epic. Nothing starts before the real-repository proof
 | Workers' Files and diff fold                        | Requirement 81                           | Removed with the worker UI |
 | Verifier, falsifier, reviewer, responder roles      | `kirocrew-app/agents/*`                  | Yes for `worker`          |
 | Foreman, bot heartbeat                              | research only, not built; superseded by Radar crews (RC11.8) | Stay unbuilt |
+| Model switch of running chats (`provider.switch`, `provider.switch.dryRun`, the tick's `applySwitches` of queued switches) | `provider-health.mjs`, `routing.mjs` `switchModels`, `app-backend.mjs` | Removed. The Switch model button and dialog are gone from the page (RC11.9); `provider.switch.preview` stays as a public MCP read, and the gateway model call stays for Settings › Models' driver chat |
 
 Rules for the removal:
 

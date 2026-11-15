@@ -220,7 +220,9 @@ function stepTarget(step: TourStep): Element | null {
     const found = document.querySelector(step.target)
     if (found) return found
   }
-  if (step.id === 'stop-line') return document.querySelector('[data-stop-line]')
+  // Stop the line sits in the header's More menu; while that is shut, the
+  // More button stands in for it.
+  if (step.id === 'stop-line') return document.querySelector('[data-stop-line]') ?? document.querySelector('[data-header-more] [data-more-button]')
   if (step.id !== 'needs-you') return null
   return [...document.querySelectorAll('h2, h3, h4')].find((h) => h.textContent?.trim().startsWith(step.title)) ?? null
 }

@@ -77,7 +77,7 @@ test('the page wires the Flow tab, its icon, the banner, the Timing fold and Set
     firstSection = dashboard.indexOf('<Pair')
   assert.ok(banner > 0 && banner < firstSection)
   assert.ok(drawer.indexOf('<Fold id="timing"') > drawer.indexOf('<Fold id="delivery"'))
-  for (const key of ['flow.stopTheLine.scope', 'flow.localChecksFirst', 'flow.batch.max', 'flow.batch.by', 'flow.retro.everyTasks', 'flow.retro.slowFactor', 'flow.retro.model', 'flow.retro.instructions'])
+  for (const key of ['flow.stopTheLine.scope', 'flow.localChecksFirst', 'flow.batch.max', 'flow.batch.by', 'flow.retro.everyTasks', 'flow.retro.slowFactor', 'flow.retro.instructions'])
     assert.ok(settings.includes(`"${key}"`), key)
   assert.match(settings, /Saved on this machine only\./)
   for (const title of ['Timing', 'Stop the line', 'Local checks first', 'Batching', 'Retro']) assert.match(settings, new RegExp(`<Section title="${title}"`))
@@ -86,7 +86,7 @@ test('the page wires the Flow tab, its icon, the banner, the Timing fold and Set
   assert.match(flow, /title: 'Run anyway\?'/)
 })
 
-test('the retro model is a dropdown of the models Kiro Crew offers, plus auto', async () => {
+test('model pickers offer the models Kiro Crew lists, plus auto', async () => {
   const { parseModels, modelOptions } = await import('../src/flow-api.ts')
   assert.deepEqual(parseModels([{ model_name: 'claude-opus-5.5', display_name: 'Opus 5.5' }, 'auto', 'm2', 'm2']), [
     { value: 'claude-opus-5.5', label: 'Opus 5.5' },
@@ -95,9 +95,8 @@ test('the retro model is a dropdown of the models Kiro Crew offers, plus auto', 
   assert.deepEqual(parseModels({ models: [{ id: 'x' }] }), [{ value: 'x', label: 'x' }])
   assert.deepEqual(parseModels(null), [])
   assert.deepEqual(modelOptions([], 'gone-model').map((o) => o.value), ['auto', 'gone-model'])
-  const settings = source('FlowSettings.tsx')
-  assert.match(settings, /<select id="avoozl-flow-model"/)
-  assert.doesNotMatch(settings, /<Input id="avoozl-flow-model"/)
+  // The retro's model moved to Settings › Models (ModelsSettings.tsx).
+  assert.doesNotMatch(source('FlowSettings.tsx'), /avoozl-flow-model/)
 })
 
 test('the retro instructions use the shared built-in prompt part', () => {

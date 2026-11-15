@@ -22,7 +22,6 @@ import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import { PackImportDialog } from '../../src/PackImport.tsx'
 import { SendToRadar } from '../../src/SendToRadar.tsx'
-import { SwitchModelButton } from '../../src/SwitchModel.tsx'
 import ActivityView from '../../src/ActivityView.tsx'
 import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
 import { setupForm } from '../../src/settings-api.ts'
@@ -237,7 +236,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   'stop-line': own('Stop the line', <StopLineButton workspaceId="w" onPulled={() => undefined} />),
   'pack-import': shown((close) => <PackImportDialog row={{ id: 'pack-1', version: '1.0.0' } as never} workspaceId="w" client={idle} onClose={close} onChanged={async () => undefined} />),
   'send-to-radar': shown((close) => <SendToRadar workspaceId="w" client={idle} items={[]} repository="avoozl" onClose={close} onSent={close} />),
-  'switch-model': own('Switch model', <SwitchModelButton workspaceId="w" />),
   projection: shown((close) => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onCreated={() => undefined} />),
   'spec-changed': shown((close) => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onApplied={() => undefined} />),
   'task-drawer': own('Open the dialog', <OpenTask />),
@@ -246,49 +244,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   // New spec with nothing picked: categories and epics to choose from.
   'new-spec': shown((close) => createPortal(<div {...{ [APP_ATTR]: '' }}><NewPlanDrawer workspaceId="w" taken={[]} categories={['Platform', 'Search']} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} onClose={close} /></div>, document.body)),
   'new-spec-template': shown((close) => createPortal(<div {...{ [APP_ATTR]: '' }}><NewPlanDrawer workspaceId="w" taken={[]} categories={[]} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} start="template" onClose={close} /></div>, document.body)),
-}
-
-// The Switch model steps against fake answers: two running chats, one
-// remote; the first Confirm finds the set changed (?changed=1).
-if (query.get('modal') === 'switch-flow') {
-  const chat = (slot: string, taskId: string, model: string, crew?: string) => ({ slot, taskId, title: `Task ${taskId}`, spec: 'spec-a', role: 'worker', model, to: 'gamma-1', where: crew ?? 'local' })
-  answer('providers.view', () => ({
-    settings: {},
-    hash: null,
-    defaults: { lowPercent: 80, cooldownMinutes: 30, windowHours: 5 },
-    marks: [{ id: 'error:provider:beta', scope: 'provider', name: 'beta', level: 'out', source: 'error', kind: 'credits', since: '' }],
-    switches: [],
-    chats: [
-      { slot: 's1', taskId: 'a1', role: 'worker', model: 'alpha-1', provider: 'alpha', level: 'ok' },
-      { slot: 's2', taskId: 'a2', role: 'worker', model: 'alpha-1', provider: 'alpha', level: 'ok' },
-    ],
-  }))
-  answer('GET /api/models', () => [{ model_id: 'gamma-1', display_name: 'Gamma one' }, { model_id: 'delta-1' }])
-  let runs = 0
-  const flow = state as unknown as { dryRuns: unknown[]; switches: unknown[] }
-  flow.dryRuns = []
-  flow.switches = []
-  answer('provider.switch.dryRun', (body) => {
-    flow.dryRuns.push(body.input)
-    runs += 1
-    const chats = [chat('s1', 'a1', 'alpha-1'), ...(runs > 1 && query.get('changed') ? [chat('s3', 'a3', 'alpha-1')] : [])]
-    return {
-      to: 'gamma-1',
-      alsoNewTasks: true,
-      chats,
-      skipped: [{ ...chat('s2', 'a2', 'alpha-1', 'remote-1'), why: 'runs on remote crew remote-1: only chats on this machine switch' }],
-      marks: [{ scope: 'provider', name: 'alpha', to: 'gamma-1' }],
-      queued: [{ taskId: 'q1', title: 'Task q1', spec: 'spec-a', model: 'alpha-1' }],
-      counts: { switch: chats.length, cannot: 1, queued: 1 },
-      previewHash: `h${runs}`,
-    }
-  })
-  answer('provider.switch', (body) => {
-    const input = body.input as { previewHash: string }
-    if (query.get('changed') && input.previewHash === 'h1') throw Object.assign(Error('The running chats changed since the dry run; check the new set.'), { status: 409 })
-    flow.switches.push(input)
-    return { queued: runs > 1 && query.get('changed') ? 2 : 1, marked: ['provider alpha'] }
-  })
 }
 
 // One In flight row, for the title link test.
@@ -311,7 +266,6 @@ SCENARIOS['in-flight'] = { opener: '', render: () => <ul><InFlightRow row={fligh
 // Two rows with different roles, ids and actions: their columns must line up.
 const reviewRow = { ...flightRow, slot: 's2', role: 'review:style', taskId: 'b22', title: 'A much longer task title for the second row', session: { ...flightRow.session, slot: 's2', role: 'review:style', link: '/chat?sid=s2' } }
 SCENARIOS['in-flight-pair'] = { opener: '', render: () => <ul style={{ maxWidth: 900 }}><InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} /><InFlightRow row={reviewRow as never} now={Date.now()} onInfo={() => undefined} onPickAgain={undefined} /></ul> }
-SCENARIOS['switch-flow'] = own('Switch model', <SwitchModelButton workspaceId="w" />)
 
 // The whole page's top row (?app=1): workspaces and the line, nothing else
 // answered, so each tab stays on its loading line. ?stopped=1 opens a stop.

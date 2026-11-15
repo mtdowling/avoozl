@@ -11,7 +11,7 @@ import { Marker, Section } from './SettingsView.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import PromptInstructions from './PromptInstructions.tsx'
-import { FLOW_DEFAULTS, flowClient, modelOptions, toFlowForm, toFlowSection, type FlowForm, type FlowSettings as Settings } from './flow-api.ts'
+import { FLOW_DEFAULTS, flowClient, toFlowForm, toFlowSection, type FlowForm, type FlowSettings as Settings } from './flow-api.ts'
 
 const OPTIONAL = { required: false } as const
 const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
@@ -64,18 +64,6 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
   const [instructions, setInstructions] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ error?: string; ok?: string } | null>(null)
-  // The models Kiro Crew offers, for the Model dropdown.
-  const [models, setModels] = useState<{ list: { value: string; label: string }[]; error: string | null }>({ list: [], error: null })
-  useEffect(() => {
-    let live = true
-    client.models().then(
-      (list) => live && setModels({ list, error: list.length ? null : 'Kiro Crew listed no models; auto uses its default.' }),
-      () => live && setModels({ list: [], error: "Kiro Crew's model list could not be read; auto uses its default." }),
-    )
-    return () => {
-      live = false
-    }
-  }, [client])
   useEffect(() => {
     if (!value) return
     setForm(toFlowForm(value.flow))
@@ -174,18 +162,8 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
               <Input id="avoozl-flow-slow" inputMode="decimal" value={form.slowFactor} placeholder={String(FLOW_DEFAULTS.slowFactor)} onChange={(event) => set({ slowFactor: event.target.value })} />
             </Labeled>
           </div>
-          <SectionHeading level={4} title="Who runs it and what it weighs" />
-          <div className="flex flex-wrap gap-4" data-flow-group="model">
-            <Labeled id="avoozl-flow-model" label="Model" raw="flow.retro.model" width="16rem" note={models.error ?? undefined}>
-              <select id="avoozl-flow-model" value={form.model || FLOW_DEFAULTS.model} onChange={(event) => set({ model: event.target.value === FLOW_DEFAULTS.model ? '' : event.target.value })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
-                {modelOptions(models.list, form.model).map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </Labeled>
-          </div>
+          {/* The retro's model is under Settings › Models. */}
+          <SectionHeading level={4} title="What it weighs" />
           <PromptInstructions
             id="avoozl-flow-instructions"
             agent="retro"
