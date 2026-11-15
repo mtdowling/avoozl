@@ -38,6 +38,7 @@ export function provenanceWriter(store, { identity, plan, config, plans }) {
       approvedBy: approval.approvedBy,
       ...(plans ? { plans } : {}),
       ...(base ? { base } : {}),
+      ...(approval.ref ? { ref: approval.ref } : {}),
     }) +
     (base
       ? `\nBase branch: \`${base}\`. Open the pull request against it.`
