@@ -83,7 +83,35 @@ test("an approved commit behind its orphan plans ref passes and returns exact cr
   assert.ok(
     f.calls.includes(`repos/${repo}/compare/private/plans...${commit}`),
   );
-  assert.doesNotMatch(formatVerification(result), /PRIVATE-SPEC|\.kiro\/specs/);
+  const plain = formatVerification(result);
+  assert.doesNotMatch(plain, /PRIVATE-SPEC/);
+  assert.ok(plain.includes(`plans branch ${ref}`));
+  assert.ok(plain.includes(`  ${result.source.fetch}\n`));
+  for (const command of result.source.show)
+    assert.ok(plain.includes(`  ${command}`));
+});
+test("a marker without a ref prints only the check lines", async () => {
+  const marker = renderProvenance({
+      spec: "sample",
+      tasks: ["sample-1"],
+      commit,
+      approvedBy: "owner",
+    }),
+    f = fixture({
+      [`repos/${repo}/issues/1`]: {
+        body: { body: marker, user: { login: "writer" } },
+      },
+      [`repos/${repo}/compare/main...${commit}`]: {
+        body: { status: "behind" },
+      },
+    }),
+    result = await run(f);
+  assert.equal(result.ok, true);
+  assert.equal(result.source, undefined);
+  assert.equal(result.fetch, undefined);
+  const plain = formatVerification(result);
+  assert.equal(plain.split("\n").length, result.checks.length);
+  assert.doesNotMatch(plain, /git (fetch|show)|plans branch/);
 });
 test("identical also passes; ahead, diverged and malformed ancestry never produce commands or a brief", async () => {
   for (const status of ["identical", "ahead", "diverged", "other", null]) {
