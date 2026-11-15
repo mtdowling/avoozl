@@ -4,24 +4,31 @@ Only you can do these steps. Do them in order. Each one says what to expect.
 Nothing here is automatic: Avoozl creates no repository, issue or crew until
 you press the button.
 
-The dry run of step 2 was read from real GitHub on the day this was written
-and wrote nothing. The result is below. It can differ when you run it.
+Live runs of the earlier proofs (p1 to p10, p18 to p26) and the dogfood run
+(`docs/evidence/rc-proof-11-live.md`) changed this list. What changed is marked
+**Changed** below. Each run used scratch repositories, never the real ones.
 
 Setup values:
 
-| Setting | Value |
-| --- | --- |
-| Public repository | `mtdowling/avoozl` |
-| Private mirror | `mtdowling/avoozl-mirror` (must be private) |
-| Public plans | on `main` |
-| Private plans | on the plans branch `avoozl-plans` |
-| Forward mode | `nudge` |
-| Forward target | `each` (one public pull request per merged change) |
-| Forward to | `source` |
+| Setting           | Value                                              |
+| ----------------- | -------------------------------------------------- |
+| Public repository | `mtdowling/avoozl`                                 |
+| Private mirror    | `mtdowling/avoozl-mirror` (must be private)        |
+| Public plans      | on `main`                                          |
+| Private plans     | on the plans branch `avoozl-plans`                 |
+| Forward mode      | `nudge`                                            |
+| Forward target    | `each` (one public pull request per merged change) |
+| Forward to        | `source`                                           |
 
 ## 1. Name the CI checks
 
-1. Open **Settings > Repositories** and edit the entry for the repository.
+**Changed:** do this step first, before step 2. Create setup saves the mirror
+setting on the entry for `mtdowling/avoozl`. If that entry does not exist, the
+setting lands on an entry named after the mirror, and sync then compares the
+mirror with itself and shows a false "has diverged" row.
+
+1. Open **Settings > Repositories** and add or edit the entry for
+   `mtdowling/avoozl`. Set **Allowed actors** to your GitHub login.
 2. Set **Required checks** to `test (ubuntu-latest)`, `test (macos-latest)`
    and `test (windows-latest)`.
 3. Save.
@@ -38,20 +45,22 @@ the line that asks you to name a CI check.
 4. Check the lines against this list (before step 1 the `branch-rule` line asks
    for a check name and is not ticked):
 
-   | Line | What it will do |
-   | --- | --- |
-   | mirror | Create the private repository `mtdowling/avoozl-mirror` |
-   | seed | Copy every branch and tag from `mtdowling/avoozl` once |
-   | plans-branch | Create the orphan branch `avoozl-plans` |
-   | labels | Create `avoozl:plan`, `avoozl:ready`, `avoozl:merge-conflict`, `avoozl:plan-approved`, `avoozl:review`, `avoozl:drafted` |
-   | branch-rule | Require the checks from step 1 on the default branch |
-   | auto-merge | Turn on "Allow auto-merge" in the mirror |
-   | setting | Save the mirror setting |
+   | Line         | What it will do                                                                                                                                                                     |
+   | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | mirror       | Create the private repository `mtdowling/avoozl-mirror`                                                                                                                             |
+   | seed         | Copy every branch and tag from `mtdowling/avoozl` once                                                                                                                              |
+   | plans-branch | Create the orphan branch `avoozl-plans`                                                                                                                                             |
+   | labels       | Create `avoozl:plan`, `avoozl:ready`, `avoozl:merge-conflict`, `avoozl:plan-approved`, `avoozl:review`, `avoozl:drafted`, `avoozl:waiting-on-tracker` (**Changed:** seven, not six) |
+   | branch-rule  | Require the checks from step 1 on the default branch                                                                                                                                |
+   | auto-merge   | Turn on "Allow auto-merge" in the mirror                                                                                                                                            |
+   | setting      | Save the mirror setting                                                                                                                                                             |
 
 5. Press **Apply N ticked lines**.
 
-Expected: the result lists each line as done. Run **Create setup** again: it
-shows 0 writes. Create setup refuses an existing mirror that is public, and it
+Expected: the result lists each line as done, then the mirror reads as
+private. Run **Create setup** again: it shows 0 writes and says to use Adopt.
+The real run in `docs/evidence/rc-proof-11-live.md` did exactly this on
+2026-11-15 with the repository name given here. Create setup refuses an existing mirror that is public, and it
 never deletes or overwrites anything.
 
 If the seed step fails, the repository stays. Delete it in GitHub and run
@@ -71,19 +80,22 @@ Open **Settings** and find **Set up Issue Radar** (it lists the repository
 once it has a crew entry). Copy each value into Issue Radar. Avoozl writes
 none of them. These are the values it shows for the mirror:
 
-| Field | Value |
-| --- | --- |
-| Repository to connect | `mtdowling/avoozl-mirror` |
-| Crew name | `avoozl-avoozl-mirror` (any name works) |
-| Agent | `avoozl-crew` |
-| Model | `auto` (pick the one you use) |
-| Label scope | `avoozl:ready` |
-| Needs-human label | `crew: needs human` |
-| Claim time limit (hours) | `48` |
-| Additional prompt | Copy the one line Avoozl shows. It tells the crew to run `avoozl verify-issue` on each issue before it builds. |
+| Field                    | Value                                                                                                          |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| Repository to connect    | `mtdowling/avoozl-mirror`                                                                                      |
+| Crew name                | `avoozl-avoozl-mirror` (any name works)                                                                        |
+| Agent                    | `avoozl-crew`                                                                                                  |
+| Model                    | `auto` (pick the one you use)                                                                                  |
+| Label scope              | `avoozl:ready`                                                                                                 |
+| Needs-human label        | `crew: needs human`                                                                                            |
+| Claim time limit (hours) | `48`                                                                                                           |
+| Additional prompt        | Copy the one line Avoozl shows. It tells the crew to run `avoozl verify-issue` on each issue before it builds. |
 
 Tick each item as you finish it. The crew's label scope must match the ready
 label.
+
+**Changed:** create the `crew: needs human` label in the mirror first. A crew
+does not create it; it comments instead (Proof 3).
 
 Expected: one crew, on the mirror only. Do not connect a crew to
 `mtdowling/avoozl`.
@@ -97,6 +109,20 @@ Expected: one crew, on the mirror only. Do not connect a crew to
 4. Open the preview of what projecting would write. Check that every issue goes
    to `mtdowling/avoozl-mirror` and none to `mtdowling/avoozl`.
 5. Project it.
+
+**Changed:**
+
+- Leave **Operator** as it is only if it already shows your GitHub login. The
+  approval marker names the operator, and `verify-issue` refuses an approver
+  that is not a GitHub login (Proof 24). There is no field for it in the app.
+  If the approval comment shows your computer's user name, stop and tell the
+  agent.
+- A public spec names no private task in its manifest or branch names. Proof 24
+  found that a private spec's bare name and task ID can still reach a forward.
+  Keep the first plan public-only.
+- Merge the source's `main` into the mirror before the first crew task is
+  checked. An approval merged on the source does not reach the mirror by
+  itself, and `verify-issue` fails until it does (Proof 24).
 
 Expected: issues appear in the mirror with `avoozl:plan` and the first ready
 ones carry `avoozl:ready`. The crew takes only issues with that label.
@@ -119,6 +145,17 @@ this step after it merges.
 
 Expected: the task counts done when the public pull request merges, not when
 the mirror one does.
+
+**Changed:**
+
+- After the first merge in the mirror, **Waiting on you** shows two rows: the
+  forward row and "The mirror ... has diverged". Both are expected. The mirror
+  has a commit the source does not have yet, and Avoozl never resets or
+  force pushes. Do not "fix" the diverged row by hand (Proof 11, Proof 23).
+- Nudge mode already ran the scan when the row appeared. The row says "scan
+  clean, ready for the public repository". Nothing was pushed.
+- If the forward is blocked, the row stays with the reason. Proof 25 showed the
+  Forward button can look enabled on a blocked row; read the reason first.
 
 Do not set Forward mode to `auto` yet. It needs a trusted person in step 3 and
 a few clean forwards by hand.
