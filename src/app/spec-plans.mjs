@@ -1183,7 +1183,11 @@ function requireFolder(spec) {
 
 // Store one revision of a folder as a draft plan. The plan ID defaults to the
 // folder name, which is also the namespace of its numbered task IDs.
-export function createSpecPlan(store, { id, prompt, context = {} }, spec) {
+export function createSpecPlan(
+  store,
+  { id, prompt, context = {}, home },
+  spec,
+) {
   requireFolder(spec);
   id ??= spec.name;
   if (
@@ -1202,6 +1206,8 @@ export function createSpecPlan(store, { id, prompt, context = {} }, spec) {
         id,
         kind: "plan",
         spec: spec.name,
+        // Set only for a private spec: its home is the plans branch (RC25.2).
+        ...(home === "plansBranch" ? { home } : {}),
         title: specTitle(spec),
         prompt: prompt?.trim() || `Spec ${spec.name}`,
         text: spec.files["tasks.md"] || "",
