@@ -203,6 +203,7 @@ export const APP_OPERATIONS = new Set([
   "integration.land",
   "radar.preflight",
   "radar.disarm",
+  "conflictfix.decide",
   "radar.integrationbranch",
   "intake.list",
   "intake.view",

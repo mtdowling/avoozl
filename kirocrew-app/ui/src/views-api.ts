@@ -306,7 +306,9 @@ export interface ConflictItem extends TaskOwner {
   // crew asked for one on an issue no task owns (R52.10). 'hand-set-review':
   // status running or review with no live session behind it. 'review-draft':
   // a review draft made from the review label (RC20).
-  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft'
+  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'conflict-fix' | 'merge-method'
+  // A source conflict Avoozl asked about (RC28): the pull request and the choices.
+  conflictFix?: { repository: string; pullRequest: number; actions: ('resolve' | 'dismiss')[] }
   // A branch-landing item (RC16.6): the branch and the head a person may approve.
   repository?: string
   branch?: string
@@ -422,6 +424,9 @@ export function viewsClient(api: AppApi) {
     radarCrews: (workspaceId: string) => run<RadarCrews>('radar.crews', {}, workspaceId),
     conflictsPage: (workspaceId: string) =>
       run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId),
+    // Resolve myself or Dismiss on a source conflict (RC28.3).
+    decideConflictFix: (workspaceId: string, repository: string, pullRequest: number, action: 'resolve' | 'dismiss') =>
+      run<unknown>('conflictfix.decide', { repository, pullRequest, action }, workspaceId),
     // A person's choice for one conflicted managed field; the next
     // projection applies it.
     resolveConflict: (workspaceId: string, taskId: string, field: string, choice: 'desired' | 'github') =>

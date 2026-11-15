@@ -10,6 +10,8 @@ import { createHash } from "node:crypto";
 import { ruleBranch, seenCheckNames } from "./github-branch-rules.mjs";
 import { READY_LABEL_DEFAULT, RADAR_DEFAULTS } from "./github-policy.mjs";
 import { parseRepository } from "./github.mjs";
+import { methodAllowed, methodFix } from "./radar-merge-path.mjs";
+import { MERGE_METHOD_DEFAULT } from "./github-policy.mjs";
 import { inspectAgentsPr, writeAgentsPr } from "./radar-agents-pr.mjs";
 import { fail } from "./store.mjs";
 
@@ -17,6 +19,7 @@ export const SETUP_STEPS = Object.freeze([
   "labels",
   "branch-rule",
   "auto-merge",
+  "merge-method",
   "agents-pr",
   "project",
 ]);
@@ -170,6 +173,23 @@ async function inspect(github, repository, settings, context = {}) {
             detail: `Turn on "Allow auto-merge" in ${repository}.`,
             write: { allow_auto_merge: true },
           },
+  );
+
+  // The merge method (RC28.7): Avoozl never changes it on GitHub; a method the
+  // repository refuses is refused here, naming the setting to change.
+  const method = settings.merge?.method ?? MERGE_METHOD_DEFAULT;
+  steps.push(
+    methodAllowed(remote, method)
+      ? {
+          id: "merge-method",
+          status: "ok",
+          detail: `The repository allows ${method} merges.`,
+        }
+      : {
+          id: "merge-method",
+          status: "input",
+          detail: methodFix(repository, method),
+        },
   );
 
   // The review-rules pull request.
