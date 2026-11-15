@@ -6,6 +6,7 @@
 import { recordGitHubTiming } from "./flow-checks.mjs";
 import { digest, statusComplete } from "../model.mjs";
 import { canonical } from "./store.mjs";
+import { readOnlyTask } from "./driver-scope.mjs";
 import {
   allowWrite,
   check as checkContent,
@@ -588,7 +589,10 @@ export async function reconcileGitHubCompletion(store, github, { policy }) {
     if (
       taskKind(task) !== "leaf" ||
       !task.github?.number ||
-      !writers.has(repository)
+      !writers.has(repository) ||
+      // Another workspace drives this spec; its writes would be refused and
+      // fail the step for every other spec.
+      readOnlyTask(store, task)
     )
       continue;
     const issue = await github.issue(repository, task.github.number),
@@ -757,7 +761,8 @@ export async function closeGitHubParents(store, github, { policy } = {}) {
       !parent.childrenComplete ||
       parent.githubClosedAt ||
       !parent.github?.number ||
-      !writers.has(parent.github.repository)
+      !writers.has(parent.github.repository) ||
+      readOnlyTask(store, parent)
     )
       continue;
     const issue = await github.issue(
