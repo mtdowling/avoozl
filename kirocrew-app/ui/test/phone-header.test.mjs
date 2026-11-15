@@ -68,7 +68,7 @@ for (const dark of [false, true]) {
     await page.evaluate(`${heading}.querySelector('[data-more-button]').click()`)
     await wait()
     const items = await page.evaluate(`[...${heading}.querySelectorAll('[data-more-panel] button')].map((b) => b.textContent.trim())`)
-    assert.ok(items.includes('New spec') && items.includes('New task'), `More holds the buttons (${items})`)
+    assert.ok(items.includes('New spec') && !items.includes('New task'), `More holds the buttons (${items})`)
     const wide = await page.evaluate(`[...document.querySelectorAll('body *')].filter((el) => el.getBoundingClientRect().right > innerWidth + 1).slice(0, 3).map((el) => el.tagName + '.' + String(el.className).slice(0, 40) + ':' + el.textContent.slice(0, 30))`)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, `no sideways scroll (${wide})`)
   })

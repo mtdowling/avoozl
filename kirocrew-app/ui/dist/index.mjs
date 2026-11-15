@@ -15101,12 +15101,6 @@ function Pp(e) {
 			onClick: e.onOpenIdeas,
 			children: ["Ideas", e.ideas === null ? "" : ` (${e.ideas})`]
 		}),
-		/* @__PURE__ */ w(Y, {
-			icon: Le,
-			tooltip: "Add a draft task. It waits for your review.",
-			onClick: e.onNewTask,
-			children: "New task"
-		}),
 		/* @__PURE__ */ w(qr, {
 			icon: ze,
 			label: "Refresh specs",
@@ -15305,6 +15299,16 @@ function Vp(e) {
 						tooltip: "Start a chat about this spec. It makes no edits.",
 						onClick: e.onDiscuss,
 						children: "Discuss spec"
+					}),
+					/* @__PURE__ */ w("span", {
+						"data-new-task": !0,
+						className: "contents",
+						children: /* @__PURE__ */ w(Y, {
+							icon: Le,
+							tooltip: "Add a draft task from this spec. It waits for your review.",
+							onClick: e.onNewTask,
+							children: "New task"
+						})
 					}),
 					e.workspaceId && /* @__PURE__ */ w(Pf, {
 						workspaceId: e.workspaceId,
@@ -15882,7 +15886,6 @@ function Gp(e) {
 								onNewIdea: () => N(!0),
 								onOpenIdeas: e.onOpenIdeas,
 								ideas: e.ideas ?? null,
-								onNewTask: () => f.addTask(),
 								onRefresh: () => void we(t),
 								busy: ye
 							}),
@@ -15985,6 +15988,7 @@ function Gp(e) {
 									docs: le,
 									onEdit: () => je(U),
 									onDiscuss: () => void p.ask(ms(U)),
+									onNewTask: () => f.addTask(),
 									onDelete: es(U).deletable ? () => D(U) : void 0,
 									onArchive: es(U).archivable ? () => k(U) : void 0,
 									onUnarchive: es(U).unarchivable ? () => Ne(U) : void 0,
@@ -16738,18 +16742,13 @@ function cm({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 				filter: f,
 				choices: b,
 				onChange: ue,
-				children: [/* @__PURE__ */ T("div", {
+				children: [/* @__PURE__ */ w("div", {
 					className: "flex flex-wrap gap-2",
-					children: [/* @__PURE__ */ w(Ja, {
+					children: /* @__PURE__ */ w(Ja, {
 						workspaceId: e,
 						onRefresh: () => void _(),
 						busy: g
-					}), /* @__PURE__ */ w(Y, {
-						icon: Le,
-						tooltip: "Add a draft task. It waits for your review.",
-						onClick: () => c.addTask(),
-						children: "New task"
-					})]
+					})
 				}), /* @__PURE__ */ w("p", {
 					role: "status",
 					className: "mt-2 text-sm text-muted",
