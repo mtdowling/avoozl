@@ -18172,7 +18172,7 @@ function nh(e) {
 	});
 }
 function rh(e) {
-	let { item: t } = e, n = qt(), [r, i] = d(!1), a = Tm(t);
+	let { item: t } = e, n = qt(), [r, i] = d(!1), a = Vt(), o = Tm(t);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3",
 		"data-conflict-detail": mm(t),
@@ -18200,16 +18200,16 @@ function rh(e) {
 						className: "text-xs text-muted",
 						children: ["· spec ", e.plan]
 					}),
-					a && /* @__PURE__ */ C(q, {
-						text: a,
+					o && /* @__PURE__ */ C(q, {
+						text: o,
 						children: /* @__PURE__ */ w("span", {
 							className: "text-xs text-muted",
-							children: ["· ", Q(a)]
+							children: ["· ", Q(o)]
 						})
 					})
 				]
 			}),
-			/* @__PURE__ */ C("h3", {
+			!a && /* @__PURE__ */ C("h3", {
 				className: "m-0 text-lg font-semibold",
 				style: { overflowWrap: "anywhere" },
 				children: t.title

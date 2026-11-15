@@ -37,6 +37,7 @@ import { errorMessage } from './workspace-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { DangerBtn, IconBtn, IconLabel, ShowMore, TipBtn, ViewHeading, useAskChat, useConfirm, usePages } from './controls.tsx'
 import { ListDetailLayout } from './ListDetailLayout.tsx'
+import { usePhone } from './list-detail.ts'
 import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
@@ -579,6 +580,8 @@ function ConflictDetail(props: {
   const { item } = props
   const drawer = useTaskDrawer()
   const [history, setHistory] = useState(false)
+  // A phone's detail pane already shows the title over its Back row.
+  const phone = usePhone()
   const time = itemTime(item as ConflictItem & { openedAt?: string | null })
   return (
     <div className="flex flex-col gap-3" data-conflict-detail={itemKey(item)}>
@@ -596,9 +599,11 @@ function ConflictDetail(props: {
           </Tooltip>
         )}
       </div>
-      <h3 className="m-0 text-lg font-semibold" style={{ overflowWrap: 'anywhere' }}>
-        {item.title}
-      </h3>
+      {!phone && (
+        <h3 className="m-0 text-lg font-semibold" style={{ overflowWrap: 'anywhere' }}>
+          {item.title}
+        </h3>
+      )}
       <p className="m-0 text-sm text-muted">{whyLine(item)}</p>
       <div className="flex flex-wrap items-center gap-1.5" data-conflict-actions>
         {item.taskId && (
