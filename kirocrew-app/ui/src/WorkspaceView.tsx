@@ -251,26 +251,36 @@ export default function WorkspaceView(
         <Modal
           id="avoozl-ws-add"
           width="36rem"
+          title="Add a workspace"
           backLabel="Cancel"
           describedBy="avoozl-ws-add-line"
           attrs={{ 'data-add-workspace-modal': true }}
           unsaved={Boolean(draft.id || draft.root || draft.name) && { title: 'Discard this workspace?', body: 'What you entered is lost.', action: 'Discard' }}
           onDismiss={() => setDialog(null)}
+          footer={
+            <>
+              <Btn type="button" onClick={() => setDialog(null)}>
+                Cancel
+              </Btn>
+              <Btn type="button" disabled={busy} data-add-start-new onClick={() => void submitWorkspace('init')}>
+                Start new
+              </Btn>
+              <Btn type="submit" form="avoozl-ws-form" primary disabled={busy} data-add-existing>
+                Add existing
+              </Btn>
+            </>
+          }
         >
-          <div>
-            <h3 id="avoozl-ws-add-title" className="text-base font-semibold">
-              Add a workspace
-            </h3>
-            <p id="avoozl-ws-add-line" className="mt-1 text-sm text-muted">
-              A workspace is a folder with your specs. Pick one that already has them, or start a new one.
-            </p>
-          </div>
+          <p id="avoozl-ws-add-line" className="text-sm text-muted">
+            A workspace is a folder with your specs. Pick one that already has them, or start a new one.
+          </p>
           {error && (
             <p role="alert" className="text-sm text-danger">
               {error}
             </p>
           )}
           <form
+            id="avoozl-ws-form"
             className="flex flex-col gap-2"
             onSubmit={(event) => {
               event.preventDefault()
@@ -299,38 +309,45 @@ export default function WorkspaceView(
             </h4>
             <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 15rem), 1fr))' }}>
               <div className="flex flex-col gap-1.5 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-choice="add">
-                <Btn type="submit" disabled={busy}>
-                  Add existing
-                </Btn>
+                <span className="text-sm font-medium">Add existing</span>
                 <p className="text-xs text-muted">The folder already has Avoozl specs (an .avoozl.json and its database). Avoozl lists it; nothing in it changes.</p>
               </div>
               <div className="flex flex-col gap-1.5 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-choice="init">
-                <Btn type="button" disabled={busy} onClick={() => void submitWorkspace('init')}>
-                  Start new
-                </Btn>
+                <span className="text-sm font-medium">Start new</span>
                 <p className="text-xs text-muted">Creates an empty workspace in the folder: an .avoozl.json and a new database. Refused if one is already there.</p>
               </div>
-            </div>
-            <div className="flex justify-end">
-              <Btn type="button" onClick={() => setDialog(null)}>
-                Cancel
-              </Btn>
             </div>
           </form>
         </Modal>
       )}
 
       {dialog && dialog !== 'add' && current && current.id === dialog.edit && (
-        <Modal id="avoozl-ws-edit" width="40rem" backLabel="Close" describedBy="avoozl-ws-edit-line" attrs={{ 'data-edit-workspace-modal': true }} onDismiss={() => setDialog(null)}>
-          <div>
-            <h3 id="avoozl-ws-edit-title" className="text-base font-semibold">
-              {current.name}
-            </h3>
-            <p id="avoozl-ws-edit-line" className="mt-1 text-sm text-muted">
-              {current.id} · {current.root}
-            </p>
-          </div>
-          <div data-tick-panel style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+        <Modal
+          id="avoozl-ws-edit"
+          width="40rem"
+          title={current.name}
+          backLabel="Close"
+          describedBy="avoozl-ws-edit-line"
+          attrs={{ 'data-edit-workspace-modal': true }}
+          onDismiss={() => setDialog(null)}
+          footer={
+            <>
+              <Btn onClick={runTick} disabled={busy}>
+                Run tick now
+              </Btn>
+              <Btn onClick={() => selected && void loadSelected(selected)} disabled={busy}>
+                Refresh health
+              </Btn>
+              <Btn type="button" primary onClick={() => setDialog(null)}>
+                Close
+              </Btn>
+            </>
+          }
+        >
+          <p id="avoozl-ws-edit-line" className="text-sm text-muted">
+            {current.id} · {current.root}
+          </p>
+          <div data-tick-panel>
             <SectionHeading title="Tick health" className="mb-2" />
             <p className="my-2 text-sm">{describeTick(health)}</p>
             <h4 className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -341,7 +358,7 @@ export default function WorkspaceView(
             ) : log.length === 0 ? (
               <p className="mt-1 text-xs text-muted">No tick has run yet.</p>
             ) : (
-              <ol className="mt-1 mb-2 flex max-h-64 flex-col overflow-y-auto text-xs" data-tick-log>
+              <ol className="mt-1 mb-2 flex flex-col text-xs" data-tick-log>
                 {log.map((line, i) => (
                   <li key={i} className="flex flex-col gap-0.5 border-t py-1 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
                     <span className="flex items-baseline gap-2">
@@ -359,17 +376,6 @@ export default function WorkspaceView(
                 ))}
               </ol>
             )}
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Btn onClick={runTick} disabled={busy}>
-              Run tick now
-            </Btn>
-            <Btn onClick={() => selected && void loadSelected(selected)} disabled={busy}>
-              Refresh health
-            </Btn>
-            <Btn type="button" onClick={() => setDialog(null)}>
-              Close
-            </Btn>
           </div>
         </Modal>
       )}

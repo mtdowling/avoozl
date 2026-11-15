@@ -397,7 +397,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
   return (
     // Esc, Back and a click outside do what Cancel does, asking first once
     // a folder was entered.
-    <Modal close
+    <Modal
       id="avoozl-onboard"
       width="44rem"
       backLabel="Cancel"
@@ -405,8 +405,93 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
       boxRef={box}
       attrs={{ 'data-onboard-dialog': step }}
       unsaved={folder.trim() !== '' && { title: 'Stop onboarding?', body: wrote ? `What was done stays: ${written.join('; ')}.` : 'What you entered is lost. Nothing was written.', action: 'Stop' }}
+      title={<>{text.title}</>}
       onDismiss={cancel}
-    >
+    
+  footer={
+    <>
+        <Btn type="button" onClick={cancel} disabled={busy}>
+          {step === 'finish' ? 'Close' : 'Cancel'}
+        </Btn>
+        {at > 0 && step !== 'finish' && steps[at - 1] !== 'setup' && (
+          <Btn type="button" onClick={back} disabled={busy}>
+            Back
+          </Btn>
+        )}
+        {step === 'folder' && (
+          <Btn type="button" primary onClick={() => void look()} disabled={busy || !folder.trim()}>
+            Check folder
+          </Btn>
+        )}
+        {step === 'mode' && (
+          <Btn type="button" primary onClick={next} disabled={busy || Boolean(problem)}>
+            Next
+          </Btn>
+        )}
+        {step === 'check' && (
+          <>
+            <Btn type="button" onClick={() => void checkGitHub()} disabled={busy}>
+              Recheck
+            </Btn>
+            <Btn type="button" primary onClick={next} disabled={busy || !check || checkFailed}>
+              Next
+            </Btn>
+          </>
+        )}
+        {step === 'setup' &&
+          (setupLeft.length ? (
+            <Btn type="button" primary onClick={() => void setUp()} disabled={busy}>
+              Set up
+            </Btn>
+          ) : (
+            <Btn type="button" primary onClick={next} disabled={busy}>
+              Next
+            </Btn>
+          ))}
+        {step === 'import' && (
+          <>
+            {picked.size > 0 && (
+              <Btn type="button" onClick={() => void importPicked()} disabled={busy}>
+                Import {picked.size} as draft{picked.size === 1 ? '' : 's'}
+              </Btn>
+            )}
+            <Btn type="button" primary onClick={next} disabled={busy}>
+              {shown.length && !shown.every(imported) && picked.size ? 'Skip import' : 'Next'}
+            </Btn>
+          </>
+        )}
+        {step === 'scan' && (
+          <>
+            <Btn type="button" onClick={() => void runScan()} disabled={busy}>
+              Scan again
+            </Btn>
+            <Btn type="button" primary onClick={next} disabled={busy || !scan || findings.length > 0}>
+              Next
+            </Btn>
+          </>
+        )}
+        {step === 'issues' && (
+          <Btn type="button" primary onClick={next} disabled={busy}>
+            Next
+          </Btn>
+        )}
+        {step === 'finish' && props.onOpenPlans && (
+          <Btn
+            type="button"
+            primary
+            onClick={() => {
+              onClose(written.length ? `Onboarded: ${written.join('; ')}.` : undefined)
+              props.onOpenPlans!()
+            }}
+          >
+            Approve in Specs
+          </Btn>
+        )}
+    </>
+      
+  }
+      
+>
       <ol className="flex flex-wrap gap-x-3 gap-y-1 text-xs" aria-label="Steps">
         {steps.map((key, i) => (
           <li key={key} aria-current={key === step ? 'step' : undefined} className={`inline-flex items-center gap-1 ${key === step ? 'font-semibold' : 'text-muted'}`}>
@@ -416,9 +501,6 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
         ))}
       </ol>
       <div>
-        <h3 id="avoozl-onboard-title" className="text-base font-semibold">
-          {text.title}
-        </h3>
         <p id="avoozl-onboard-line" className="text-sm text-muted">
           {text.line}
         </p>
@@ -563,85 +645,6 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
           {error}
         </p>
       )}
-      <div className="flex flex-wrap justify-end gap-2">
-        <Btn type="button" onClick={cancel} disabled={busy}>
-          {step === 'finish' ? 'Close' : 'Cancel'}
-        </Btn>
-        {at > 0 && step !== 'finish' && steps[at - 1] !== 'setup' && (
-          <Btn type="button" onClick={back} disabled={busy}>
-            Back
-          </Btn>
-        )}
-        {step === 'folder' && (
-          <Btn type="button" primary onClick={() => void look()} disabled={busy || !folder.trim()}>
-            Check folder
-          </Btn>
-        )}
-        {step === 'mode' && (
-          <Btn type="button" primary onClick={next} disabled={busy || Boolean(problem)}>
-            Next
-          </Btn>
-        )}
-        {step === 'check' && (
-          <>
-            <Btn type="button" onClick={() => void checkGitHub()} disabled={busy}>
-              Recheck
-            </Btn>
-            <Btn type="button" primary onClick={next} disabled={busy || !check || checkFailed}>
-              Next
-            </Btn>
-          </>
-        )}
-        {step === 'setup' &&
-          (setupLeft.length ? (
-            <Btn type="button" primary onClick={() => void setUp()} disabled={busy}>
-              Set up
-            </Btn>
-          ) : (
-            <Btn type="button" primary onClick={next} disabled={busy}>
-              Next
-            </Btn>
-          ))}
-        {step === 'import' && (
-          <>
-            {picked.size > 0 && (
-              <Btn type="button" onClick={() => void importPicked()} disabled={busy}>
-                Import {picked.size} as draft{picked.size === 1 ? '' : 's'}
-              </Btn>
-            )}
-            <Btn type="button" primary onClick={next} disabled={busy}>
-              {shown.length && !shown.every(imported) && picked.size ? 'Skip import' : 'Next'}
-            </Btn>
-          </>
-        )}
-        {step === 'scan' && (
-          <>
-            <Btn type="button" onClick={() => void runScan()} disabled={busy}>
-              Scan again
-            </Btn>
-            <Btn type="button" primary onClick={next} disabled={busy || !scan || findings.length > 0}>
-              Next
-            </Btn>
-          </>
-        )}
-        {step === 'issues' && (
-          <Btn type="button" primary onClick={next} disabled={busy}>
-            Next
-          </Btn>
-        )}
-        {step === 'finish' && props.onOpenPlans && (
-          <Btn
-            type="button"
-            primary
-            onClick={() => {
-              onClose(written.length ? `Onboarded: ${written.join('; ')}.` : undefined)
-              props.onOpenPlans!()
-            }}
-          >
-            Approve in Specs
-          </Btn>
-        )}
-      </div>
     </Modal>
   )
 }

@@ -164,7 +164,7 @@ test('Repositories: one list with row actions, a red Remove behind a confirm, th
   assert.doesNotMatch(ws, /data-workspaces-layout|<aside|gridTemplateColumns: 'minmax\(0, 3fr\)|useMedia/)
   assert.match(ws, /<Btn type="button" primary data-add-workspace onClick=\{\(\) => setDialog\('add'\)\}>/)
   assert.match(ws, /<Modal\s+id="avoozl-ws-add"/)
-  assert.match(ws, /<Modal id="avoozl-ws-edit"/)
+  assert.match(ws, /<Modal\s+id="avoozl-ws-edit"/)
   assert.match(ws, /data-edit-workspace=\{workspace\.id\}/)
   assert.match(ws, /<Pencil size=\{14\}/)
   // The add form sits inside its modal, after the list.

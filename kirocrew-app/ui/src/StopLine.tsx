@@ -214,13 +214,22 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       boxRef={box}
       attrs={{ 'data-stop-dialog': true }}
       unsaved={JSON.stringify(form) !== JSON.stringify(emptyPull()) && { title: 'Discard this stop?', body: 'The line keeps running. What you entered is lost.', action: 'Discard' }}
+      title={<><Pause size={ICON} aria-hidden="true" style={{ color: 'var(--danger)' }} /> Stop the line</>}
       onDismiss={close}
+    
+      footer={
+        <>
+        <Btn type="button" onClick={close}>
+          Cancel
+        </Btn>
+        <Btn type="button" data-danger data-stop-confirm onClick={() => void pull()} disabled={busy} style={FILL}>
+          <Pause size={ICON} aria-hidden="true" />
+          {form.kind === 'agents' ? 'Stop all agents' : 'Stop the line'}
+        </Btn>
+        </>
+  }
     >
       <div>
-        <h3 id="avoozl-stop-title" className="flex items-center gap-1.5 text-base font-semibold">
-          <Pause size={ICON} aria-hidden="true" style={{ color: 'var(--danger)' }} />
-          Stop the line
-        </h3>
         <p id="avoozl-stop-line" className="text-sm text-muted">
           Only a person can resume it.
         </p>
@@ -267,15 +276,6 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
           {error}
         </p>
       )}
-      <div className="flex flex-wrap justify-end gap-2">
-        <Btn type="button" onClick={close}>
-          Cancel
-        </Btn>
-        <Btn type="button" data-danger data-stop-confirm onClick={() => void pull()} disabled={busy} style={FILL}>
-          <Pause size={ICON} aria-hidden="true" />
-          {form.kind === 'agents' ? 'Stop all agents' : 'Stop the line'}
-        </Btn>
-      </div>
     </Modal>
   )
 }

@@ -103,7 +103,42 @@ export function SetupDialog(props: {
   return (
     // Esc, Back and a click outside do what Cancel does. The form lives in
     // the Settings page, so closing loses nothing.
-    <Modal close id="avoozl-setup" width="40rem" backLabel="Cancel" describedBy="avoozl-setup-line" boxRef={box} attrs={{ 'data-setup-dialog': step }} onDismiss={cancel}>
+    <Modal id="avoozl-setup" width="40rem" backLabel="Cancel" describedBy="avoozl-setup-line" boxRef={box} attrs={{ 'data-setup-dialog': step }}
+      title={<>{STEP_TEXT[step][0]}</>}
+      onDismiss={cancel}
+      footer={
+        <>
+        <Btn type="button" onClick={cancel}>
+          {step === 3 ? 'Close' : 'Cancel'}
+        </Btn>
+        {step === 1 && (
+          <Btn type="button" onClick={() => setStep(0)} disabled={busy}>
+            Back
+          </Btn>
+        )}
+        {step === 0 && (
+          <Btn type="button" primary onClick={() => void review()} disabled={busy}>
+            Check the changes
+          </Btn>
+        )}
+        {step === 1 && count > 0 && (
+          <Btn type="button" primary onClick={() => void apply()} disabled={busy}>
+            Apply {count} change{count === 1 ? '' : 's'}
+          </Btn>
+        )}
+        {step === 1 && count === 0 && result?.settings.changed && (
+          <Btn type="button" primary onClick={() => setStep(3)}>
+            Next
+          </Btn>
+        )}
+        {step === 3 && result?.settings.changed && (
+          <Btn type="button" primary onClick={() => void save()} disabled={busy || Boolean(result.settings.error)}>
+            Save to .avoozl.json
+          </Btn>
+        )}
+        </>
+  }
+    >
       <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
         {STEP_TEXT.map(([title], i) => (
           <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
@@ -112,9 +147,6 @@ export function SetupDialog(props: {
         ))}
       </ol>
       <div>
-        <h3 id="avoozl-setup-title" className="text-base font-semibold">
-          {STEP_TEXT[step][0]}
-        </h3>
         <p id="avoozl-setup-line" className="text-sm text-muted">
           {STEP_TEXT[step][1]}
         </p>
@@ -223,36 +255,6 @@ export function SetupDialog(props: {
         </div>
       )}
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      <div className="flex flex-wrap justify-end gap-2">
-        <Btn type="button" onClick={cancel}>
-          {step === 3 ? 'Close' : 'Cancel'}
-        </Btn>
-        {step === 1 && (
-          <Btn type="button" onClick={() => setStep(0)} disabled={busy}>
-            Back
-          </Btn>
-        )}
-        {step === 0 && (
-          <Btn type="button" primary onClick={() => void review()} disabled={busy}>
-            Check the changes
-          </Btn>
-        )}
-        {step === 1 && count > 0 && (
-          <Btn type="button" primary onClick={() => void apply()} disabled={busy}>
-            Apply {count} change{count === 1 ? '' : 's'}
-          </Btn>
-        )}
-        {step === 1 && count === 0 && result?.settings.changed && (
-          <Btn type="button" primary onClick={() => setStep(3)}>
-            Next
-          </Btn>
-        )}
-        {step === 3 && result?.settings.changed && (
-          <Btn type="button" primary onClick={() => void save()} disabled={busy || Boolean(result.settings.error)}>
-            Save to .avoozl.json
-          </Btn>
-        )}
-      </div>
     </Modal>
   )
 }

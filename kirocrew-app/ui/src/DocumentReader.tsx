@@ -113,38 +113,44 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
   // Esc, Back, Close and a click outside shut it, this and not the drawer
   // under it.
   return (
-    <Modal id="avoozl-reader" plain width="78rem" height="90vh" backLabel="Close the file" boxRef={panel} attrs={{ 'data-document-reader': true }} onDismiss={onClose}>
-      <div className="border-b px-4 py-2.5" style={{ borderColor: 'var(--border)' }}>
-        <SectionHeading
-          id="avoozl-reader-title"
-          title={<code>{target.document}</code>}
-          actions={
-            <>
-              <IconBtn icon={Copy} label="Copy path" tooltip={`Copy ${target.document}`} onClick={() => void copy()} />
-              {text === undefined && <IconBtn icon={FolderOpen} label="Reveal in Finder" tooltip="Show this file in Finder" onClick={() => void revealFile()} />}
-              <IconLabel icon={X} onClick={onClose} aria-label="Close the file">
-                Close
-              </IconLabel>
-            </>
-          }
-          blurb={
-            line && (
-              <Tooltip text={`Scroll back to ${line.toLowerCase()}`}>
-                {(describedBy) => (
-                  <button type="button" className="text-xs text-muted hover:underline" onClick={toLine} aria-describedby={describedBy}>
-                    {line}
-                  </button>
-                )}
-              </Tooltip>
-            )
-          }
-        />
-        {note && (
-          <p role="status" className="mt-1 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
-            {note}
-          </p>
-        )}
-      </div>
+    <Modal
+      id="avoozl-reader"
+      flush
+      width="78rem"
+      height="90vh"
+      title={<code>{target.document}</code>}
+      backLabel="Close the file"
+      boxRef={panel}
+      attrs={{ 'data-document-reader': true }}
+      onDismiss={onClose}
+      footer={
+        <>
+          <IconBtn icon={Copy} label="Copy path" tooltip={`Copy ${target.document}`} onClick={() => void copy()} />
+          {text === undefined && <IconBtn icon={FolderOpen} label="Reveal in Finder" tooltip="Show this file in Finder" onClick={() => void revealFile()} />}
+          <IconLabel icon={X} primary onClick={onClose} aria-label="Close the file">
+            Close
+          </IconLabel>
+        </>
+      }
+    >
+      {(line || note) && (
+        <div className="border-b px-5 py-2" style={{ borderColor: 'var(--border)' }}>
+          {line && (
+            <Tooltip text={`Scroll back to ${line.toLowerCase()}`}>
+              {(describedBy) => (
+                <button type="button" className="text-xs text-muted hover:underline" onClick={toLine} aria-describedby={describedBy}>
+                  {line}
+                </button>
+              )}
+            </Tooltip>
+          )}
+          {note && (
+            <p role="status" className="text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
+              {note}
+            </p>
+          )}
+        </div>
+      )}
       <div
         className="min-h-0 grow"
         style={narrow ? { display: 'flex', flexDirection: 'column', overflowY: 'auto' } : { display: 'grid', gridTemplateColumns: '15rem minmax(0, 1fr)', minHeight: 0 }}

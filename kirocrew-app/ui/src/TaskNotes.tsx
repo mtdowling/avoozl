@@ -464,13 +464,31 @@ export function MarkDoneDialog(props: {
           action: 'Discard',
         }
       }
+      title={<><ClipboardCheck size={ICON} aria-hidden="true" /> Mark done: {props.title}</>}
       onDismiss={props.onClose}
-    >
-      <div>
-        <h3 id="avoozl-mark-done-title" className="flex items-center gap-1.5 text-base font-semibold">
+    
+  footer={
+    <>
+        <Btn type="button" onClick={props.onClose}>
+          Cancel
+        </Btn>
+        <Btn
+          type="button"
+          primary
+          disabled={busy || problems.some(Boolean)}
+          onClick={() => void submit()}
+          data-mark-done-confirm
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
           <ClipboardCheck size={ICON} aria-hidden="true" />
-          Mark done: {props.title}
-        </h3>
+          {choice === 'done' ? 'Mark done' : choice === 'skipped' ? 'Mark skipped' : 'Mark refused'}
+        </Btn>
+    </>
+      
+  }
+      
+>
+      <div>
         <p id="avoozl-mark-done-line" className="text-sm text-muted">
           {props.onIssue ? 'This closes its issue as you, on GitHub. ' : ''}The tasks that wait on it may start after Done or Skipped. Refused keeps them held.
         </p>
@@ -547,22 +565,6 @@ export function MarkDoneDialog(props: {
           {error}
         </p>
       )}
-      <div className="flex flex-wrap justify-end gap-2">
-        <Btn type="button" onClick={props.onClose}>
-          Cancel
-        </Btn>
-        <Btn
-          type="button"
-          primary
-          disabled={busy || problems.some(Boolean)}
-          onClick={() => void submit()}
-          data-mark-done-confirm
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-        >
-          <ClipboardCheck size={ICON} aria-hidden="true" />
-          {choice === 'done' ? 'Mark done' : choice === 'skipped' ? 'Mark skipped' : 'Mark refused'}
-        </Btn>
-      </div>
     </Modal>
   )
 }

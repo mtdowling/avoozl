@@ -181,24 +181,24 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           role="alertdialog"
           backLabel="Cancel"
           width="28rem"
+          title={pending.title}
           describedBy="avoozl-confirm-body"
           attrs={{ 'data-confirm-dialog': true }}
           onDismiss={() => answer(false)}
+          footer={
+            <>
+              <Btn ref={cancel} type="button" onClick={() => answer(false)}>
+                Cancel
+              </Btn>
+              <Btn type="button" data-danger onClick={() => answer(true)} style={dangerFill}>
+                {pending.action}
+              </Btn>
+            </>
+          }
         >
-          <h3 id="avoozl-confirm-title" className="text-base font-semibold">
-            {pending.title}
-          </h3>
           <p id="avoozl-confirm-body" className="text-sm text-muted">
             {pending.body}
           </p>
-          <div className="flex justify-end gap-2">
-            <Btn ref={cancel} type="button" onClick={() => answer(false)}>
-              Cancel
-            </Btn>
-            <Btn type="button" data-danger onClick={() => answer(true)} style={dangerFill}>
-              {pending.action}
-            </Btn>
-          </div>
         </Modal>
       )}
     </ConfirmContext.Provider>
