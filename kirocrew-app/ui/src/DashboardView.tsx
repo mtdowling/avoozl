@@ -366,8 +366,8 @@ export default function DashboardView(props: {
             tip={`${crewCard.title}. ${crewCard.line}`}
             actions={
               <>
-                <CellAct label="Copy values" icon={<Copy size={11} aria-hidden="true" />} primary onClick={setupAction.crew} tip="Copy the values to paste into a new Radar crew." data-crew-copy />
-                <CellAct label="Open Radar" narrowIcon icon={<ExternalLink size={11} aria-hidden="true" />} href="/issue-radar" tip="Open Radar, Crews." />
+                <CellAct label="Copy values" icon={<Copy size={13} aria-hidden="true" />} primary tip="Copy the values to paste into a new Radar crew." onClick={setupAction.crew} data-crew-copy />
+                <CellAct label="Open Radar" icon={<ExternalLink size={13} aria-hidden="true" />} tip="Open Radar, Crews." href="/issue-radar" />
               </>
             }
           />

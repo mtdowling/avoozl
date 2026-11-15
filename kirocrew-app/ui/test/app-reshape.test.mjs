@@ -40,7 +40,7 @@ test('an empty Home says what to set up, with a button for each, instead of hidi
   await page.until(`Boolean(document.querySelector('[data-driver-session="none"]') && document.querySelector('[data-release-empty]'))`)
   const body = await page.evaluate(text)
   assert.equal(await page.evaluate(`document.querySelector('[data-driver-session="none"] [data-sc-title]').innerText.trim()`), 'Driver: not started')
-  assert.equal(await page.evaluate(`document.querySelector('[data-driver-session="none"] [data-driver-start]').innerText.trim()`), 'Start')
+  assert.equal(await page.evaluate(`document.querySelector('[data-driver-session="none"] [data-driver-start]').getAttribute('aria-label')`), 'Start a driver session')
   for (const line of ['No epics', 'Plan an epic', 'Release queue', 'Open Repository setup'])
     assert.ok(body.includes(line), line)
   assert.deepEqual(page.errors, [])

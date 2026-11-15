@@ -52,7 +52,7 @@ test('a normal chat shows Waiting on you, In flight, the queue head, recent merg
   assert.equal(await page.evaluate(`document.querySelector('[data-flight-row="radar"] a[href^="/chat"]').getAttribute('href')`), '/chat?sid=crew-abc')
   assert.equal(await count('[data-queue-head]'), 1)
   assert.equal(await count('[data-recent-row]'), 1)
-  assert.equal(await page.evaluate(`document.querySelector('[data-panel-driver] [data-driver-start]').innerText.trim()`), 'Start')
+  assert.equal(await page.evaluate(`document.querySelector('[data-panel-driver] [data-driver-start]').getAttribute('aria-label')`), 'Start a driver session')
   assert.match(await page.evaluate(`document.querySelector('[data-panel-driver] [data-sc-title]').innerText`), /^Driver: not started/)
   assert.equal(await page.evaluate(`document.querySelector('[data-panel-driver]').dataset.panelDriver`), 'none')
   assert.equal(await count('[data-panel-line]'), 1)
@@ -119,12 +119,12 @@ test('an Avoozl chat shows the driver view with waiting, in flight and the queue
   await shot('avoozl-chat')
 })
 
-const driverButtons = `[...document.querySelectorAll('[data-panel-driver] a, [data-panel-driver] button')].map((e) => e.getAttribute('aria-label') || e.innerText.trim()).filter((label) => label !== 'Recheck')`
+const driverButtons = `[...document.querySelectorAll('[data-panel-driver] a, [data-panel-driver] button')].map((e) => e.getAttribute('aria-label')).filter((label) => label !== 'Recheck')`
 
 test('a driver session that checked in shows a link and no Start', { skip }, async () => {
   await open({ sid: 'chat-1', driver: 'running' }, `Boolean(document.querySelector('[data-waiting-row]'))`)
   await page.until(`document.querySelector('[data-panel-driver]')?.dataset.panelDriver === 'running'`)
-  assert.deepEqual(await page.evaluate(driverButtons), ['Open'])
+  assert.deepEqual(await page.evaluate(driverButtons), ['Open driver session'])
   assert.equal(await page.evaluate(`document.querySelector('[data-panel-driver] a').getAttribute('href')`), '/chat?sid=chat-7-1')
   assert.match(await page.evaluate(`document.querySelector('[data-panel-driver]').dataset.tip`), /Last seen 5 min ago/)
   await shot('driver-running')
@@ -133,7 +133,7 @@ test('a driver session that checked in shows a link and no Start', { skip }, asy
 test('a quiet driver keeps its link and offers a new one', { skip }, async () => {
   await open({ sid: 'chat-1', driver: 'idle' }, `Boolean(document.querySelector('[data-waiting-row]'))`)
   await page.until(`document.querySelector('[data-panel-driver]')?.dataset.panelDriver === 'idle'`)
-  assert.deepEqual(await page.evaluate(driverButtons), ['Open', 'New'])
+  assert.deepEqual(await page.evaluate(driverButtons), ['Open driver session', 'Start a new driver session'])
 })
 
 test('an unreadable driver offers no Start, so a second one is never opened by mistake', { skip }, async () => {
@@ -293,6 +293,6 @@ test('another chat: "No driver for Harness. Nupp has one: Open", with the worksp
   await page.until(`Boolean(document.querySelector('[data-driver-elsewhere]'))`)
   assert.equal(await page.evaluate(`document.querySelector('[data-panel-driver]').dataset.panelDriver`), 'none')
   assert.match(await page.evaluate(`document.querySelector('[data-panel-driver]').dataset.tip`), /Workspace: Harness\. No driver for Harness\. Nupp has one:/)
-  assert.equal(await page.evaluate(`document.querySelector('[data-driver-elsewhere]').innerText.trim()`), "Nupp's")
+  assert.equal(await page.evaluate(`document.querySelector('[data-driver-elsewhere]').getAttribute('aria-label')`), "Open Nupp's driver")
   assert.equal(await page.evaluate(`document.querySelector('[data-driver-elsewhere]').getAttribute('href')`), '/chat?sid=chat-nupp')
 })

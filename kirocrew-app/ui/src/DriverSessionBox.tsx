@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDemoFixtures } from './Demo.tsx'
 import { useAppApi, useChatLauncher } from './host.ts'
-import { Play, RefreshCw } from './icons.ts'
+import { ExternalLink, MessageSquare, Play, RefreshCw } from './icons.ts'
 import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
 import { sinceText } from './driver-view-api.ts'
 import { DRIVER_AGENT, DRIVER_START_MESSAGE, driverFromFixture, driverLine, readDriverSession, type DriverRead } from './driver-view-api.ts'
@@ -59,12 +59,12 @@ export function DriverCell(props: { workspaceId: string | null }) {
       tip={tip}
       actions={
         <>
-          {view?.link && <CellAct label={view.start ? 'Open' : 'Open session'} primary={!view.start} onClick={open} tip="Open the driver chat." data-driver-open />}
-          {view?.start && <CellAct label="Start" icon={<Play size={11} aria-hidden="true" />} primary={!view.link} onClick={start} tip={view.link ? 'Start a new driver session.' : 'Start a driver session.'} data-driver-start />}
+          {view?.link && <CellAct label="Open driver session" icon={<MessageSquare size={13} aria-hidden="true" />} primary={!view.start} onClick={open} data-driver-open />}
+          {view?.start && <CellAct label={view.link ? 'Start a new driver session' : 'Start a driver session'} icon={<Play size={13} aria-hidden="true" />} primary={!view.link} onClick={start} data-driver-start />}
           {view?.elsewhere && (
-            <CellAct label={`${view.elsewhere.workspace}'s`} tip={view.elsewhere.text} onClick={() => view.elsewhere && openChat({ slotKey: view.elsewhere.slot })} data-driver-elsewhere data-driver-elsewhere-open />
+            <CellAct label={`Open ${view.elsewhere.workspace}'s driver`} icon={<ExternalLink size={13} aria-hidden="true" />} tip={view.elsewhere.text} onClick={() => view.elsewhere && openChat({ slotKey: view.elsewhere.slot })} data-driver-elsewhere data-driver-elsewhere-open />
           )}
-          {read && <CellAct label="" icon={<RefreshCw size={12} aria-hidden="true" />} aria-label="Recheck" tip="Recheck" onClick={reload} data-driver-recheck />}
+          {read && <CellAct label="Recheck" icon={<RefreshCw size={13} aria-hidden="true" />} onClick={reload} data-driver-recheck />}
         </>
       }
     />

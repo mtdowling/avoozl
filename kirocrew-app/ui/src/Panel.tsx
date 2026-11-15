@@ -30,7 +30,7 @@ import {
   type WaitingRow,
 } from './panel-api.ts'
 import { PanelAct, PanelChip, PanelEmpty, PanelHeader, PanelList, PanelRoot, PanelRow, PanelSection, PanelStatus } from './PanelParts.tsx'
-import { Check, CircleAlert, CircleDot, ExternalLink, GitBranch, GitPullRequest, Inbox, MessageSquare, Radar, RefreshCw } from './icons.ts'
+import { Check, CircleAlert, CircleDot, ExternalLink, GitBranch, GitPullRequest, Inbox, MessageSquare, Play, Radar, RefreshCw } from './icons.ts'
 import { RefreshButton } from './RefreshButton.tsx'
 import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
 import { plansClient } from './plans-api.ts'
@@ -401,18 +401,19 @@ export default function AvoozlPanel() {
             .join(' ')}
           actions={
             <>
-              {view.link && <CellAct label="Open" primary={!view.start} href={linkHref(view.link)} tip="Open the driver chat." data-driver-open />}
+              {view.link && <CellAct label="Open driver session" icon={<MessageSquare size={13} aria-hidden="true" />} primary={!view.start} href={linkHref(view.link)} data-driver-open />}
               {view.start && (
                 <CellAct
-                  label={view.link ? 'New' : 'Start'}
+                  label={view.link ? 'Start a new driver session' : 'Start a driver session'}
+                  icon={<Play size={13} aria-hidden="true" />}
                   primary={!view.link}
                   tip={view.link ? 'Start a new driver session.' : 'Start a driver session. Opens a new chat on the avoozl-driver agent.'}
                   onClick={() => openChat({ agent: DRIVER_AGENT, message: DRIVER_START_MESSAGE, autoSend: true })}
                   data-driver-start
                 />
               )}
-              {view.elsewhere && <CellAct label={`${view.elsewhere.workspace}'s`} href={linkHref(view.elsewhere.href)} tip={view.elsewhere.text} data-driver-elsewhere />}
-              <CellAct label="" icon={<RefreshCw size={12} aria-hidden="true" />} aria-label="Recheck" tip="Recheck" onClick={() => void load()} data-driver-recheck />
+              {view.elsewhere && <CellAct label={`Open ${view.elsewhere.workspace}'s driver`} icon={<ExternalLink size={13} aria-hidden="true" />} href={linkHref(view.elsewhere.href)} tip={view.elsewhere.text} data-driver-elsewhere />}
+              <CellAct label="Recheck" icon={<RefreshCw size={13} aria-hidden="true" />} onClick={() => void load()} data-driver-recheck />
             </>
           }
         />
@@ -421,7 +422,7 @@ export default function AvoozlPanel() {
           tone={crewCount ? 'ok' : 'warn'}
           title={crewCount === null ? 'Radar crew: unknown' : crewCount ? `Radar crews: ${crewCount}` : 'Radar crew: none'}
           tip="Issue Radar crews code the issues Avoozl releases. Create a crew in Radar, Crews."
-          actions={<CellAct label="Open Radar" narrowIcon icon={<ExternalLink size={11} aria-hidden="true" />} href="/issue-radar" tip="Open Radar, Crews." />}
+          actions={<CellAct label="Open Radar" icon={<ExternalLink size={13} aria-hidden="true" />} href="/issue-radar" tip="Open Radar, Crews." />}
         />
       </StatusRow>
     </div>
