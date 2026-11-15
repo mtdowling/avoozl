@@ -1,3 +1,4 @@
+import { hasPendingSpecDependencies } from "./spec-dependencies.mjs";
 import { taskEpic } from "./app/epics.mjs";
 import { resolveTaskId, taskSourceRefs } from "./task-identity.mjs";
 import { activityState } from "./activity.mjs";
@@ -217,6 +218,7 @@ export function queryTasks(data, options = {}) {
               t.status,
             ) &&
             !t.needsReview &&
+            !hasPendingSpecDependencies(t) &&
             !t.source?.removed &&
             // Projection's own verdict never holds a manual leaf: it is
             // never ready for an agent, so projection always says no.
