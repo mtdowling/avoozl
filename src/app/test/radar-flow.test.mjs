@@ -129,7 +129,30 @@ test("the view's stage times match the hand-computed minutes", async (t) => {
     [1, 2],
   );
   // Only the Radar-coded repository is read.
-  assert.deepEqual(gh.calls, ["list closed ready"]);
+  assert.deepEqual(gh.calls, [
+    "list closed ready",
+    "list closed avoozl:managed",
+  ]);
+});
+
+// Live run of Proof 8: the tick takes ready off each closed issue it
+// projected, so a read by the ready label alone found none of them.
+test("a closed issue that lost its ready label is still found by the managed label", async (t) => {
+  const { store } = fixture(t),
+    gh = github({
+      extra: {
+        async listIssues(_repo, { label }) {
+          return label === "avoozl:managed"
+            ? [{ number: 1 }, { number: 2 }]
+            : [];
+        },
+      },
+    });
+  await refreshFlow(store, gh, POLICY, {
+    now: Date.parse(at(200)),
+    force: true,
+  });
+  assert.equal(flowView(store).count, 2);
 });
 
 test("a read inside the interval does not call GitHub again; a failure keeps the last rows", async (t) => {
