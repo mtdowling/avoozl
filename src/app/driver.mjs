@@ -29,7 +29,7 @@ import { listSessionBindings } from "./session-bindings.mjs";
 import { epicOfPlan } from "./epics.mjs";
 import { retroMemory } from "./retro-memory.mjs";
 import { fail } from "./store.mjs";
-import { mirrorConfig } from "./mirror-sync.mjs";
+import { mirrorConfig, refusePrivateToSource } from "./mirror-sync.mjs";
 import { exportEvidence, importEvidence } from "./evidence.mjs";
 
 const TABLE = "drivers";
@@ -749,17 +749,18 @@ async function createPlanIssue(
   { config, claim, assignees },
 ) {
   const identity = ctx.identity(),
-    label = managedLabel(config, identity),
-    created = await github.createIssue(config, {
-      title: planTitle(plan),
-      body: withClaimBody(
-        planSection(plan),
-        planMarker(plan, requireNamespace(identity), claim, label),
-        identity,
-      ),
-      ...(label ? { labels: [label] } : {}),
-      ...(assignees.length ? { assignees } : {}),
-    });
+    label = managedLabel(config, identity);
+  refusePrivateToSource(plan, identity.repositories, config.id);
+  const created = await github.createIssue(config, {
+    title: planTitle(plan),
+    body: withClaimBody(
+      planSection(plan),
+      planMarker(plan, requireNamespace(identity), claim, label),
+      identity,
+    ),
+    ...(label ? { labels: [label] } : {}),
+    ...(assignees.length ? { assignees } : {}),
+  });
   // The receipt projection reads to find its plan issue again.
   store.transaction(() =>
     store.put("receipts", {
