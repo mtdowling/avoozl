@@ -42,7 +42,8 @@ const shot = async (name) => {
 
 test('a normal chat shows Waiting on you, In flight, the queue head, recent merges and the line', { skip }, async () => {
   await open({ sid: 'chat-1' }, `Boolean(document.querySelector('[data-waiting-row]'))`)
-  assert.match(await text('[data-recap-line]'), /2 waiting on you · 3 in flight/)
+  assert.equal(await page.evaluate(`document.querySelector('[data-head-needs]').getAttribute('aria-label')`), '2 needs you')
+  assert.equal(await page.evaluate(`document.querySelector('[data-head-flight]').getAttribute('aria-label')`), '3 in flight')
   assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-waiting-row]')].map((r) => r.dataset.waitingRow)`), ['needs-human', 'github-conflict'])
   // The retired worker row is not shown.
   assert.doesNotMatch(await text('[data-panel-recap]'), /retired worker/)
@@ -91,7 +92,8 @@ test('one failed read leaves the other sections showing', { skip }, async () => 
 test('with nothing to show, each section says so', { skip }, async () => {
   await open({ sid: 'chat-1', state: 'empty' }, `/Nothing is waiting/.test(document.body.textContent)`)
   assert.match(await text('[data-panel-fold="in-flight"]'), /No crew has a claim/)
-  assert.match(await text('[data-recap-line]'), /0 waiting on you · 0 in flight/)
+  assert.equal(await page.evaluate(`document.querySelector('[data-head-needs]').getAttribute('aria-label')`), '0 needs you')
+  assert.equal(await page.evaluate(`document.querySelector('[data-head-flight]').getAttribute('aria-label')`), '0 in flight')
   await shot('empty')
 })
 
@@ -198,53 +200,79 @@ test('coming back after a while shows what finished and what is new, and Got it 
   assert.equal(await count('[data-since-recap]'), 0)
 })
 
-// The line's state sits in the status row under the header; Stop the line is
-// a row action in the Line and driver section. Open Avoozl is a button in the
-// same section. On a wide panel and on a 390 px phone, light and dark.
+// The header is one thin line: "Avoozl · <instance>", Refresh (an icon, no
+// countdown), fold all, "2 needs you" and "3 in flight", and the pause button at
+// the far right. Desktop chips show their words; a phone shows icons and counts.
+// No "The line is running" row is left. Open Avoozl stays in the driver section.
 for (const [width, height] of [[1280, 900], [390, 800]])
   for (const theme of ['light', 'dark'])
-    test(`Stop the line and Open Avoozl are row actions inside the panel at ${width} px ${theme}`, { skip }, async () => {
+    test(`the header is one line: name, icons, chips and pause at ${width} px ${theme}`, { skip }, async () => {
       await page.open(harness.url({ page: 'panel', theme, sid: 'chat-1' }), { width, height, dark: theme === 'dark' })
-      await page.until(`Boolean(document.querySelector('[data-line-row] [data-stop-line]')) && Boolean(document.querySelector('[data-open-avoozl]'))`)
-      const row = await page.evaluate(`(() => {
-        const box = (el) => { const r = el.getBoundingClientRect(); return { right: r.right, height: r.height, text: el.innerText.trim(), label: el.getAttribute('aria-label'), tag: el.tagName } }
-        return { chip: document.querySelector('[data-panel-line]').textContent.trim(), stop: box(document.querySelector('[data-stop-line]')), open: box(document.querySelector('[data-open-avoozl]')), label: document.querySelector('[data-open-avoozl]').textContent.trim(), width: innerWidth }
-      })()`)
-      assert.equal(row.chip, 'Line running')
-      assert.equal(row.stop.label, 'Stop the line')
-      assert.equal(row.stop.text, '', 'a pause icon, no text')
-      assert.equal(row.open.tag, 'BUTTON')
-      assert.equal(row.open.text, 'Open Avoozl')
-      for (const one of [row.stop, row.open]) {
-        assert.ok(one.right <= row.width, 'inside the panel')
-        assert.ok(one.height >= 18 && one.height <= 28, `compact (${one.height} px)`)
-      }
-    })
-
-// The header is one thin line: the workspace name and two small icon buttons
-// (Refresh with its countdown, fold all). It never wraps, at both widths.
-for (const [width, height] of [[1280, 900], [390, 800]])
-  for (const theme of ['light', 'dark'])
-    test(`the header is one line with the name and two icons at ${width} px ${theme}`, { skip }, async () => {
-      await page.open(harness.url({ page: 'panel', theme, sid: 'chat-1' }), { width, height, dark: theme === 'dark' })
-      await page.until(`Boolean(document.querySelector('[data-pp-head-name]'))`)
+      await page.until(`Boolean(document.querySelector('[data-head-needs]')) && Boolean(document.querySelector('[data-pp-head] [data-stop-line]'))`)
       const head = await page.evaluate(`(() => {
         const h = document.querySelector('[data-pp-head]')
-        const kids = [...h.querySelectorAll('[data-pp-head-name], button')]
-        const tops = kids.map((el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2 })
+        const kids = [...h.querySelectorAll('[data-pp-head-name], button, [data-pp-head-chip]')]
+        const mids = kids.map((el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2 })
         const tallest = Math.max(...kids.map((el) => el.getBoundingClientRect().height))
-        return { name: h.querySelector('[data-pp-head-name]').textContent.trim(), buttons: [...h.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')), height: h.getBoundingClientRect().height, tallest, spread: Math.max(...tops) - Math.min(...tops), wrap: getComputedStyle(h).flexWrap, texts: [...h.querySelectorAll('button')].map((b) => b.textContent.trim()), sticky: getComputedStyle(h).position }
+        const stop = h.querySelector('[data-stop-line]').getBoundingClientRect()
+        const right = Math.max(...kids.filter((el) => !el.closest('[data-panel-line]')).map((el) => el.getBoundingClientRect().right))
+        return {
+          name: h.querySelector('[data-pp-head-name]').textContent.trim(),
+          buttons: [...h.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')),
+          texts: [...h.querySelectorAll('button')].map((b) => b.textContent.trim()),
+          chips: [...h.querySelectorAll('[data-pp-head-chip]')].map((c) => c.innerText.replace(/\\s+/g, ' ').trim()),
+          height: h.getBoundingClientRect().height, tallest, spread: Math.max(...mids) - Math.min(...mids),
+          stopRight: stop.right, stopLeft: stop.left, right, inner: h.getBoundingClientRect().right - parseFloat(getComputedStyle(h).paddingRight),
+          wrap: getComputedStyle(h).flexWrap, sticky: getComputedStyle(h).position,
+          lineRow: Boolean(document.querySelector('[data-line-row]')) || /The line is running/.test(document.body.innerText),
+          open: document.querySelector('[data-open-avoozl]').textContent.trim(),
+        }
       })()`)
-      assert.ok(head.name.length > 0, 'it names the workspace')
-      assert.equal(head.buttons.length, 2)
+      assert.match(head.name, /^Avoozl · \S/)
+      assert.equal(head.buttons.length, 3)
       assert.match(head.buttons[0], /^Refresh, reads again in/)
       assert.match(head.buttons[1], /^(Collapse|Expand) all sections$/)
-      assert.match(head.texts[0], /^\d+s$/)
+      assert.equal(head.buttons[2], 'Stop the line')
+      assert.deepEqual(head.texts, ['', '', ''], 'icons only, no countdown')
+      assert.deepEqual(head.chips, width > 640 ? ['2 needs you', '3 in flight'] : ['2', '3'])
       assert.equal(head.wrap, 'nowrap')
       assert.ok(head.spread < 2, `everything on one line (${head.spread} px apart)`)
-      assert.ok(head.height <= head.tallest + 14, `one line tall (${head.height} px, tallest control ${head.tallest} px)`)
+      assert.ok(head.height <= head.tallest + 14, `one line tall (${head.height} px)`)
+      assert.ok(Math.abs(head.stopRight - head.inner) < 1.5 && head.stopLeft > head.right, 'pause sits at the far right')
       assert.notEqual(head.sticky, 'sticky')
+      assert.equal(head.lineRow, false, 'no "The line is running" row')
+      assert.equal(head.open, 'Open Avoozl')
     })
+
+// The Refresh icon turns from muted toward red as the read ages, and is red
+// while GitHub's rate limit holds.
+test('the Refresh icon reddens as the cache ages and is red when rate limited', { skip }, async () => {
+  const { refreshColor } = await import('../src/refresh-api.ts').catch(() => ({ refreshColor: null }))
+  if (refreshColor) {
+    assert.match(refreshColor(0), /var\(--danger\) 0%/)
+    assert.match(refreshColor(50), /var\(--danger\) 40%/)
+    assert.equal(refreshColor(100), 'var(--danger)')
+  }
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1' }), { width: 390, height: 800 })
+  await page.until(`Boolean(document.querySelector('[data-refresh-age]'))`)
+  const first = Number(await page.evaluate(`document.querySelector('[data-refresh-age]').dataset.refreshAge`))
+  await new Promise((resolve) => setTimeout(resolve, 2300))
+  const later = Number(await page.evaluate(`document.querySelector('[data-refresh-age]').dataset.refreshAge`))
+  assert.ok(later > first, `the age grows (${first} -> ${later})`)
+})
+
+// On a phone an In flight row's Attach is a speech-bubble icon only; on a
+// desktop it keeps its word. Both are named "Attach / steer".
+for (const [width, words] of [[390, ''], [1280, 'Attach']])
+  test(`Attach is ${words ? 'a labeled button' : 'an icon'} at ${width} px`, { skip }, async () => {
+    await page.open(harness.url({ page: 'panel', theme: 'dark', sid: 'chat-1' }), { width, height: 800, dark: true })
+    await page.until(`Boolean(document.querySelector('[data-flight-row] a[href^="/chat"]'))`)
+    const attach = await page.evaluate(`(() => { const a = document.querySelector('[data-flight-row] a[href^="/chat"]'); const r = a.getBoundingClientRect(); return { text: a.innerText.trim(), label: a.getAttribute('aria-label'), icon: Boolean(a.querySelector('svg')), height: r.height, width: r.width } })()`)
+    assert.equal(attach.text, words)
+    assert.equal(attach.label, 'Attach / steer')
+    assert.ok(attach.icon)
+    assert.ok(attach.height <= 28, `compact (${attach.height} px)`)
+  })
 
 // The header's last icon folds or opens every section, and the choice is kept.
 test('fold all closes every section, opens them again, and is remembered', { skip }, async () => {

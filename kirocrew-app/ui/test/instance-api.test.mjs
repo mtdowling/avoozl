@@ -40,6 +40,6 @@ test('the header, Settings, Home and the side panel use the shared helper', () =
   assert.match(source('App.tsx'), /<InstanceBadge workspaceId=\{active\} \/>/)
   assert.match(source('SettingsView.tsx'), /<InstanceRename workspaceId=\{workspaceId\} \/>/)
   assert.match(source('DashboardView.tsx'), /nameFor\(instance, 'other'\)/)
-  assert.match(source('Panel.tsx'), /nameFor\(instance, 'other'\)/)
+  assert.match(source('Panel.tsx'), /nameFor\(instance, 'header'\)/)
   assert.match(source('Driver.tsx'), /handoffLine\(/)
 })

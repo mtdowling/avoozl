@@ -29,8 +29,8 @@ import {
   type PanelSection as SectionName,
   type WaitingRow,
 } from './panel-api.ts'
-import { PanelAct, PanelChip, PanelEmpty, PanelHeader, PanelList, PanelRoot, PanelRow, PanelSection, PanelStatus } from './PanelParts.tsx'
-import { Check, CircleAlert, CircleDot, ExternalLink, GitBranch, GitPullRequest, Inbox, MessageSquare, Play, Radar, RefreshCw } from './icons.ts'
+import { PanelAct, PanelChip, PanelEmpty, PanelHeadChip, PanelHeader, PanelList, PanelRoot, PanelRow, PanelSection } from './PanelParts.tsx'
+import { Check, CircleAlert, CircleDot, ExternalLink, GitBranch, GitPullRequest, Hand, Inbox, MessageSquare, Play, Radar, RefreshCw } from './icons.ts'
 import { RefreshButton } from './RefreshButton.tsx'
 import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
 import { plansClient } from './plans-api.ts'
@@ -143,7 +143,7 @@ function FlightRows({ rows, now }: { rows: FlightRow[]; now: number }) {
             meta={[...new Set(meta)].join(' · ')}
             actions={
               row.attach ? (
-                <PanelAct label="Attach" icon={MessageSquare} href={linkHref(row.attach)} tip={row.source === 'radar' ? 'Opens the crew chat, if this crew runs on this machine. Type there to steer it.' : 'Opens the worker chat on its crew. Type there to steer it.'} />
+                <PanelAct label="Attach" name="Attach / steer" narrowIcon icon={MessageSquare} href={linkHref(row.attach)} tip={row.source === 'radar' ? 'Attach / steer. Opens the crew chat, if this crew runs on this machine. Type there to steer it.' : 'Attach / steer. Opens the worker chat on its crew. Type there to steer it.'} />
               ) : row.noAttach ? (
                 <Tooltip text={row.noAttach}>
                   <span data-pp-chip data-tone="muted">
@@ -316,7 +316,7 @@ export default function AvoozlPanel() {
   const unread = (section: SectionName) => model.unread.includes(section)
   const loading = reads === null
   const stopped = model.stops.length > 0
-  const instanceName = nameFor(instance, 'other') ?? reads?.instance?.name ?? null
+  const headerName = nameFor(instance, 'header') ?? reads?.instance?.name ?? null
 
   // One section: its rows, or why it has none.
   const unreadOr = (section: SectionName, empty: string, rows: number, render: () => ReactNode) =>
@@ -364,20 +364,30 @@ export default function AvoozlPanel() {
     </PanelSection>
   )
 
-  // The top: one thin line (workspace name, Refresh, fold all), then one
-  // compact row of what matters at a glance.
+  // The top: one thin line. "Avoozl · <instance>", Refresh, fold all, what
+  // needs you and what is in flight, and the line's pause button at the end.
   const header = (
-    <PanelHeader name={workspaceName ?? 'Avoozl'} instance={instanceName}>
-      <RefreshButton bare workspaceId={workspaceId} onRefresh={() => void load()} />
-    </PanelHeader>
-  )
-  const status = (
-    <PanelStatus>
-      <span data-panel-line data-stopped={stopped ? '' : undefined} style={{ display: 'inline-flex' }}>
-        <PanelChip tone={stopped ? 'danger' : 'ok'}>{stopped ? 'Line stopped' : 'Line running'}</PanelChip>
-      </span>
-      <span data-recap-line>{loading ? 'Loading…' : `${model.waiting.length} waiting on you · ${model.inFlight.length} in flight`}</span>
-    </PanelStatus>
+    <PanelHeader
+      name="Avoozl"
+      instance={headerName}
+      tip={[headerName ? `Avoozl · ${headerName}` : 'Avoozl', workspaceName ? `Workspace: ${workspaceName}` : ''].filter(Boolean).join('. ')}
+      tools={<RefreshButton bare workspaceId={workspaceId} onRefresh={() => void load()} />}
+      chips={
+        loading ? null : (
+          <>
+            <PanelHeadChip data-head-needs icon={<Hand size={12} aria-hidden="true" />} count={model.waiting.length} words="needs you" tone={model.waiting.length ? 'warn' : 'muted'} tip={`${model.waiting.length} waiting on you`} />
+            <PanelHeadChip data-head-flight icon={<i data-pp-pulse aria-hidden="true" />} count={model.inFlight.length} words="in flight" tip={`${model.inFlight.length} in flight`} />
+          </>
+        )
+      }
+      end={
+        <span data-panel-line data-stopped={stopped ? '' : undefined} style={{ display: 'inline-flex' }}>
+          <ConfirmProvider>
+            <StopLineButton bare workspaceId={workspaceId} />
+          </ConfirmProvider>
+        </span>
+      }
+    />
   )
 
   // A driver read that failed is unknown, never none: it may be running.
@@ -430,17 +440,6 @@ export default function AvoozlPanel() {
   const lineSection = (
     <PanelSection id="line" title="Line and driver" summary={stopped ? 'stopped' : undefined} open>
       <PanelList>
-        <PanelRow
-          data-line-row
-          icon={CircleDot}
-          title={stopped ? 'The line is stopped' : 'The line is running'}
-          noTip
-          actions={
-            <ConfirmProvider>
-              <StopLineButton bare workspaceId={workspaceId} />
-            </ConfirmProvider>
-          }
-        />
         {model.stops.map((text) => (
           <PanelRow key={text} icon={CircleAlert} title={text} />
         ))}
@@ -486,7 +485,6 @@ export default function AvoozlPanel() {
   return (
     <PanelRoot kind={kind.kind}>
       {header}
-      {status}
       {error && <PanelEmpty role="alert">Avoozl can't read this workspace: {error}</PanelEmpty>}
       {note && <PanelEmpty role="status">{note}</PanelEmpty>}
       {kind.kind === 'spec-builder' && (
