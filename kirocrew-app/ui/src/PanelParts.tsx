@@ -30,9 +30,11 @@ export const PANEL_CSS = `
 [data-pp-head-instance]{font-weight:400;color:var(--muted)}
 [data-pp-head-tools]{flex:none;display:inline-flex;align-items:center;gap:2px}
 [data-pp-head-end]{flex:none;display:inline-flex;align-items:center;gap:4px;margin-left:auto}
-[data-pp-head-chip]{flex:none;display:inline-flex;align-items:center;gap:6px;padding:2px 4px;background:transparent;border:0;border-radius:6px;font:inherit;font-size:12px;font-weight:500;line-height:16px;white-space:nowrap;color:var(--text);cursor:pointer}
+[data-pp-head-chip]{flex:none;display:inline-flex;align-items:center;gap:6px;padding:2px 4px;background:transparent;border:0;border-radius:6px;font:inherit;font-size:12px;font-weight:500;line-height:16px;white-space:nowrap;color:var(--muted);cursor:pointer}
 [data-pp-head-chip]:hover{background:var(--bg-hover)}
 [data-pp-head-chip-count]{color:var(--muted);font-variant-numeric:tabular-nums}
+[data-pp-head-chip][data-zero] [data-pp-hand]{color:var(--muted)}
+[data-pp-head-chip][data-zero] [data-pp-pulse]{background:var(--muted);box-shadow:none;animation:none}
 [data-pp-hand]{flex:none;color:var(--warn,var(--warning,#b7791f))}
 [data-pp-pulse]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 2px color-mix(in srgb,var(--ok) 25%,transparent);animation:pp-pulse 2s ease-in-out infinite}
 @keyframes pp-pulse{0%,100%{box-shadow:0 0 0 2px color-mix(in srgb,var(--ok) 25%,transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--ok) 0%,transparent)}}
@@ -199,8 +201,8 @@ export function PanelHeader(props: { name: string; instance?: string | null; tip
   )
 }
 
-// A count in the header, flat in the row: an icon, its words, then the count
-// in muted. A narrow panel shows the icon and count only. A click opens that
+// A count in the header, flat in the row: an icon, its words in muted, then the
+// count in muted. A zero stays, all muted. A narrow panel shows the icon and count only. A click opens that
 // section and scrolls to it.
 export function PanelHeadChip(props: { icon: ReactNode; count: number; words: string; tip: string; section: string; [attr: `data-${string}`]: unknown }) {
   const { icon, count, words, tip, section, ...rest } = props
@@ -211,7 +213,7 @@ export function PanelHeadChip(props: { icon: ReactNode; count: number; words: st
   }
   return (
     <Tooltip text={tip}>
-      <button type="button" data-pp-head-chip aria-label={`${words}: ${count}`} onClick={jump} {...rest}>
+      <button type="button" data-pp-head-chip data-zero={count === 0 ? '' : undefined} aria-label={`${words}: ${count}`} onClick={jump} {...rest}>
         {icon}
         <span data-pp-narrow-hide aria-hidden="true">
           {words}
