@@ -37,7 +37,7 @@ import { projectionClient } from '../../src/projection-api.ts'
 import { QuickGoalModal } from '../../src/QuickGoalModal.tsx'
 import { quickGoalClient } from '../../src/quickgoal-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
-import SettingsView from '../../src/SettingsView.tsx'
+import SettingsView, { RepositoryEditor } from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
 import { CrewsRulesSettings } from '../../src/CrewsRulesSettings.tsx'
@@ -427,7 +427,8 @@ answer('untriaged.view', () => ({
 
 function DeepLinkPage() {
   return (
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
+    // As tall as the screen, so the page's content pane scrolls on its own, as it does in the host.
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, height: '100vh', boxSizing: 'border-box', background: 'var(--bg)', color: 'var(--text)' }}>
       <AvoozlApp />
     </div>
   )
@@ -628,7 +629,19 @@ if (query.get('page') === 'github-flow')
     errors: [],
     repositories: ['acme/recipe-box'],
   }))
+// ?page=repo-mode: one repository's Edit body on its Mode and branch tab.
+function RepoModePage() {
+  const [repository, setRepository] = useState<RepositoryForm>(emptyRepository('acme/recipe-box'))
+  const choices = { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] }
+  return (
+    <NavHistoryProvider>
+      <RepositoryEditor index={0} repository={repository} choices={choices as never} review={undefined} mode="single-repo" workspaceId="w" planningRepository="" onChange={setRepository} />
+    </NavHistoryProvider>
+  )
+}
+
 const PAGES: Record<string, () => ReactNode> = {
+  'repo-mode': () => <RepoModePage />,
   'github-flow': () => <GithubFlow workspaceId="w" />,
   'release-queue': () => <ReleaseQueue workspaceId="w" />,
   'release-mode': () => <ReleaseModes />,
@@ -783,8 +796,9 @@ if (intake) answerIntake(query.get('empty') === '1')
 // window.__panelCalls records writes.
 type PanelData = { driver: unknown; conflicts: unknown[]; crews: unknown[]; remote: unknown[]; queue: unknown[]; tasks: unknown[]; line: unknown[]; specs: unknown[]; fail?: string }
 const panelWin = window as unknown as { __panel: PanelData; __panelReads: number; __panelCalls: unknown[] }
-const panelClaim = (number: number, crewId: string, crewName: string, phase: string, pr: number | null) => ({ repository: 'acme/recipe-box', number, title: number === 52 ? 'Index builder' : 'Ranking tests', url: `https://github.test/acme/recipe-box/issues/${number}`, crewId, crewName, phase, pr, prUrl: pr ? `https://github.test/acme/recipe-box/pull/${pr}` : null, updated: new Date(Date.now() - 600000).toISOString(), commentUrl: null, stale: false, noMarker: false })
+const panelClaim = (number: number, crewId: string, crewName: string, phase: string, pr: number | null) => ({ repository: 'acme/recipe-box', number, title: number === 52 ? 'Index builder' : 'Ranking tests', url: `https://github.test/acme/recipe-box/issues/${number}`, crewId, crewName, phase, pr, prUrl: pr ? `https://github.test/acme/recipe-box/pull/${pr}` : null, updated: new Date(Date.now() - 600000).toISOString(), commentUrl: null, stale: false, noMarker: false, instanceId: 'inst-1', claimedAt: new Date(Date.now() - 1500000).toISOString() })
 const panelRow = (taskId: string, state: string, reason: string) => ({ taskId, title: `Task ${taskId}`, planId: 'search-v2', spec: 'search-v2', phase: 'one', scope: null, label: 'ready', number: null, url: null, manual: false, state, reason, used: 0, capacity: 2 })
+let panelDriver: ((body: { workspaceId?: string }) => unknown) | null = null
 if (page === 'panel') {
   const full = query.get('state') !== 'empty'
   panelWin.__panelReads = 0
@@ -798,7 +812,7 @@ if (page === 'panel') {
           { kind: 'stale-session', taskId: 'S9', title: 'A retired worker row', detail: 'must not show' },
         ]
       : [],
-    crews: full ? [panelClaim(52, 'abc', 'Draco', 'CI', 57), panelClaim(58, 'def', 'Orla', 'working', null)] : [],
+    crews: full ? [panelClaim(52, 'abc', 'Draco', 'CI', 57), panelClaim(58, 'def', 'Orla', 'working', 59)] : [],
     remote: full ? [{ host: 'box', crewId: 'r1', taskId: 'S5', state: 'running', chatKey: 'k', status: 'working', updatedAt: new Date().toISOString(), attachUrl: 'https://box.test/chat?sid=k', stale: false, lastOkAt: null }] : [],
     queue: full ? [panelRow('S9', 'next', 'Waits on #52, then it is next.'), panelRow('S10', 'held', 'Held by the budget.')] : [],
     tasks: full ? [{ taskId: 'S4', title: 'Tokenizer', repository: 'acme/recipe-box', finishedAt: new Date(Date.now() - 3600000).toISOString() }] : [],
@@ -810,16 +824,30 @@ if (page === 'panel') {
     return panelWin.__panel
   }
   answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true }] }))
-  answer('conflicts.view', () => ({ revision: 1, items: ((panelWin.__panelReads += 1), data().conflicts) }))
-  answer('driversession.view', () => {
-    if (!data().driver) throw new Refusal(500, { error: 'down' })
-    return data().driver
+  // The one read the panel makes. A failed part is null, as in the backend.
+  const part = <T,>(read: () => T): T | null => {
+    try {
+      return read()
+    } catch {
+      return null
+    }
+  }
+  answer('panel.view', (body) => {
+    panelWin.__panelReads += 1
+    const crews = part(() => data().crews as { pr: number | null; repository: string }[])
+    return {
+      readAt: new Date().toISOString(),
+      conflicts: part(() => data().conflicts),
+      crews: crews && { readAt: null, stale: 0, errors: [], unseen: [], rows: crews, groups: [{ instanceId: 'inst-1', name: 'Kelp', own: true, rows: crews }] },
+      remote: part(() => data().remote),
+      queue: part(() => ({ repositories: [{ repository: 'acme/recipe-box', ready: 'ready', mode: 'automatic', capacity: 2, scopes: [], steps: [], rows: data().queue }] })),
+      flow: part(() => ({ tasks: data().tasks, line: data().line })),
+      driver: part(() => (panelDriver ? panelDriver(body as { workspaceId?: string }) : data().driver)),
+      specs: part(() => data().specs),
+      instance: { id: 'inst-1', name: 'Kelp' },
+      checks: crews && Object.fromEntries(crews.filter((c) => c.pr).map((c, i) => [`${c.repository}#${c.pr}`, i === 0 ? { state: 'passing', total: 3, done: 3, failed: [] } : { state: 'failing', total: 3, done: 3, failed: ['test'] }])),
+    }
   })
-  answer('radar.crews', () => ({ readAt: null, stale: 0, errors: [], unseen: [], rows: data().crews }))
-  answer('remote.view', () => ({ workers: data().remote }))
-  answer('radar.releasequeue', () => ({ repositories: [{ repository: 'acme/recipe-box', ready: 'ready', mode: 'automatic', capacity: 2, scopes: [], steps: [], rows: data().queue }] }))
-  answer('flow.view', () => ({ tasks: data().tasks, line: data().line, stops: data().line }))
-  answer('plan.specs', () => ({ root: '/w', items: data().specs }))
   answer('github.conflict.resolve', (body) => (panelWin.__panelCalls.push(body.input), {}))
   answer('GET /api/apps/spec-builder/specs', () => ({ specs: [{ name: 'search-v2' }] }))
 }
@@ -828,9 +856,26 @@ if (page === 'panel') {
 // drifts from what the panel reads shows up here and not only in a live host.
 const realPanel = (window as unknown as { __REAL_PANEL?: Record<string, unknown> }).__REAL_PANEL
 if (page === 'panel' && query.get('real') === '1' && realPanel) {
-  for (const name of ['conflicts.view', 'radar.crews', 'remote.view', 'radar.releasequeue', 'flow.view', 'plan.specs', 'driversession.view'])
-    answer(name, () => realPanel[name])
-  answer('GET /api/apps/spec-builder/specs', () => ({ specs: ((realPanel['plan.specs'] as { items: { name: string }[] }).items ?? []).map((item) => ({ name: item.name })) }))
+  answer('panel.view', () => realPanel['panel.view'])
+  answer('GET /api/apps/spec-builder/specs', () => ({ specs: (((realPanel['panel.view'] as { specs?: { name: string }[] }).specs ?? [])).map((item) => ({ name: item.name })) }))
+}
+// &driver=nupp (any page): two workspaces. Harness (w) has no driver; Nupp (n) has
+// one on chat-nupp. Each read answers for the workspace it names.
+if (query.get('driver') === 'nupp') {
+  answer('workspaces.list', () => ({
+    defaultWorkspace: 'w',
+    items: [
+      { id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true },
+      { id: 'n', name: 'Nupp', root: '/n', enabled: true, state: 'ready', served: true },
+    ],
+  }))
+  const nupp = { root: '/n', workspace: 'Nupp', slot: 'chat-nupp', href: '/chat?sid=chat-nupp', lastSeenAt: new Date().toISOString() }
+  const driverFor = (body: { workspaceId?: string }) =>
+    body.workspaceId === 'n'
+      ? { state: 'running', workspace: 'Nupp', slot: 'chat-nupp', href: '/chat?sid=chat-nupp', openedAt: new Date(Date.now() - 3600000).toISOString(), lastSeenAt: new Date().toISOString(), others: [] }
+      : { state: 'none', workspace: 'Harness', slot: null, href: null, openedAt: null, lastSeenAt: null, others: [nupp] }
+  panelDriver = driverFor
+  answer('driversession.view', driverFor)
 }
 class HarnessBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null as string | null }
@@ -909,7 +954,7 @@ function WorkflowMapPage() {
 }
 function PanelPage() {
   return (
-    <div style={{ width: 360, padding: 0, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
+    <div style={{ width: window.innerWidth <= 640 ? '100%' : 360, padding: 0, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
       <HarnessBoundary>
         <AvoozlPanel />
       </HarnessBoundary>

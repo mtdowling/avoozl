@@ -10,6 +10,7 @@
 import { effectiveShip } from "./radar-merge-path.mjs";
 import { RADAR_INTERVAL_MS } from "./radar-claims.mjs";
 import { usesMergePath } from "./coder-adapter.mjs";
+import { conflictFixAskedKeys } from "./radar-conflict-fix.mjs";
 
 const META = "radarMerge";
 const lower = (value) => String(value ?? "").toLocaleLowerCase();
@@ -61,6 +62,9 @@ async function readRepository(github, repository, settings, ship, old, errors) {
         url: pull.html_url,
         title: String(pull.title ?? ""),
         head: pull.head?.sha,
+        // For RC28's conflict fix.
+        author: pull.user?.login,
+        base: pull.base?.ref,
       },
       conflicted = pull.mergeable === false && pull.mergeable_state === "dirty",
       clear = pull.mergeable === true;
@@ -159,7 +163,8 @@ export async function mergeStep(
 
 // The Needs you rows the last read left standing.
 export function mergeNeedsYou(store) {
-  const items = [];
+  const items = [],
+    asked = conflictFixAskedKeys(store);
   for (const [repository, entry] of Object.entries(
     store.getMeta(META)?.repositories ?? {},
   )) {
@@ -175,7 +180,9 @@ export function mergeNeedsYou(store) {
         detail: `Its required checks pass on ${String(row.head).slice(0, 12)}. You merge it on GitHub; Avoozl never merges it.`,
         openedAt: row.at,
       });
-    for (const row of entry.conflicts ?? [])
+    for (const row of entry.conflicts ?? []) {
+      // RC28 asks about this one already, in its own row.
+      if (asked.has(`${repository}#${row.number}`)) continue;
       items.push({
         kind: "needs-human",
         reason: "crew",
@@ -189,6 +196,7 @@ export function mergeNeedsYou(store) {
           "Merge the base branch into the pull request branch. Avoozl does not resolve conflicts; the label comes off when it is clear.",
         openedAt: row.at,
       });
+    }
   }
   return items;
 }

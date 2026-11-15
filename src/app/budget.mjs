@@ -239,6 +239,7 @@ const UNCAPPED = new Set([
   "router",
   "pr-review",
   "review-draft",
+  "conflict-fix",
 ]);
 const capped = (b) => !UNCAPPED.has(b?.role);
 

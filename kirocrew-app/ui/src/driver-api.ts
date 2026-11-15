@@ -126,7 +126,7 @@ export function bannerTitle(spec: DriverSpec): string {
 // assigned or after this machine handed it off.
 export function bannerAction(spec: DriverSpec): 'takeover' | 'force' | null {
   if (spec.you || spec.state === 'unknown') return null
-  if (['no-assignee', 'several', 'not-projected', 'unreadable'].includes(spec.reason)) return null
+  if (['no-assignee', 'several', 'not-projected', 'unreadable', 'rate-limited'].includes(spec.reason)) return null
   if (spec.reason === 'handed-off') return null
   return spec.offer === 'takeover' ? 'takeover' : spec.mode === 'local' ? 'takeover' : 'force'
 }

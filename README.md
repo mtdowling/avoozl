@@ -376,6 +376,22 @@ with it, or falls behind a base that requires branches to be up to date, the
 writer gets one message to merge the base branch in with a merge commit.
 Avoozl never asks for a force push, and drops any brief or message that does.
 
+Issue Radar crews do not resolve conflicts inside source code; they hand the
+pull request back. With `conflicts.onSourceConflict: fix` (the default) Avoozl
+then starts one resolver chat. It merges the base branch into the same pull
+request branch, keeps both sides, runs the checks, and must pass a drop check
+(every line the base added in a file both sides changed is still there, or is
+explained) before it pushes one merge commit. Avoozl then arms auto-merge again,
+clears the conflict and needs-human labels, and posts one comment listing the
+files. When the chat cannot keep both sides, it pushes nothing and the pull
+request waits in Needs you with **Resolve myself** and **Dismiss**. It makes
+`conflicts.maxAttempts` tries per conflict (default 1), never touches a branch
+a person committed to after the crew, and pauses while the line is stopped.
+`ask` only opens the Needs you row. `merge.method` (`squash`, the default, or
+`merge`) sets how Avoozl arms auto-merge on crew pull requests; Set up refuses
+a method the repository does not allow. Built and tested with fakes only; no
+live run has used it yet.
+
 ## Investigate first, evidence, and who merges
 
 These are built and tested with fakes only; no live run has used them yet.

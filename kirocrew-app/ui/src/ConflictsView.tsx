@@ -4,6 +4,7 @@ import type { BudgetChip } from './budget-api.ts'
 import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
+import { ConflictFixActions } from './ConflictFixActions.tsx'
 import { CONFLICT_LABELS, safeHref, viewsClient, type ConflictItem, type Graph } from './views-api.ts'
 import { relativeTime, taskClient, type SettleAction, type SettleResult, type TaskDetail } from './task-api.ts'
 import {
@@ -38,6 +39,7 @@ import { DangerBtn, IconBtn, IconLabel, ShowMore, TipBtn, ViewHeading, useAskCha
 import { Tooltip } from './Tooltip.tsx'
 import { ForwardScreen } from './ForwardScreen.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
+import { RefreshButton } from './RefreshButton.tsx'
 import { Check, DetailsIcon, ExternalLink, Eye, History, MessageSquare, RefreshCw, RotateCcw, X } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import { linkHref } from './views-api.ts'
@@ -122,6 +124,12 @@ export function ConflictActions(props: {
         await views.decideInvestigation(workspaceId, item.taskId!, action)
         return { ok: true, text }
       })} />}
+      {item.kind === 'needs-human' && item.reason === 'conflict-fix' && item.conflictFix && (
+        <ConflictFixActions fix={item.conflictFix} busy={busy} onDecide={(action, text) => run(async () => {
+          await views.decideConflictFix(workspaceId, item.conflictFix!.repository, item.conflictFix!.pullRequest, action)
+          return { ok: true, text }
+        })} />
+      )}
       {item.kind === 'routing-failed' && <RoutingFailedActions busy={busy} run={run} workspaceId={workspaceId} />}
       {item.kind === 'ready-to-merge' && <ReadyToMerge item={item} busy={busy} onIntegrate={() => run(async () => {
         await views.integrate(workspaceId, item.taskId!, item.commit)
@@ -725,9 +733,7 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
         level={embedded ? 3 : 2}
         actions={
           workspaceId && (
-            <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy || acting}>
-              Refresh
-            </IconLabel>
+            <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy || acting} />
           )
         }
       >

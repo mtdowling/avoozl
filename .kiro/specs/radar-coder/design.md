@@ -1308,3 +1308,89 @@ Proof added to D17:
 | Proof  | Proves                                                                                                         |
 | ------ | -------------------------------------------------------------------------------------------------------------- |
 | rc-p26 | Create builds a scratch mirror, both buttons are then no-ops; Adopt reports an existing mirror and changes nothing unticked |
+
+## D33. Avoozl fixes a source conflict (RC28)
+
+```text
+tick: radarMerge read (RC5.3) -> conflicting crew pull requests
+   |
+   v  candidate? crew claim marker, valid Avoozl marker, verify-issue ok,
+   |             handed back, or conflicting 2 reads with the same head;
+   |             no commit by another login after the crew's last; line not stopped
+   v
+ onSourceConflict = fix and attempts < maxAttempts?
+   | yes                                         | no
+   v                                             v
+ receipt (queued) -> resolver chat        one Waiting on you row:
+   worktree on the PR branch              Resolve myself / Dismiss
+   git merge origin/<base>, resolve, checks, commit
+   plans_conflict_check  --fail--> plans_conflict_report {ok: false} -> row
+   | ok
+   push HEAD:<branch> (no force)
+   plans_conflict_report {ok: true, commit, files}
+   v
+ Avoozl: head == commit, first parent == old head, commit passed the check
+   -> arm auto-merge, labels off, one PR comment, activity, task mark
+```
+
+State: receipts of kind `conflict-fix` (one per attempt: repository, pull
+request, issue, task, old head, base, branch, state, the last drop check), and a
+meta record `radarConflictFix` with `seen` (pull request to head and read, for
+the one-full-read rule), `asked` (rows), `held` (Resolve myself or Dismiss at a
+head) and `ours` (merge commits Avoozl's chats pushed, which never count as
+human commits). The chat is dispatched like the review draft chat (role
+`conflict-fix`, agent `avoozl-conflict-fix`), in the repository's project
+folder, with the checkout path and the declared checks in its brief.
+
+### D33.1 The drop check
+
+`conflictfix.check` (MCP `plans_conflict_check`), called by the bound chat with
+its worktree path and any lines it removed on purpose, runs in that worktree:
+HEAD must be a merge commit whose first parent is the old head; the base side is
+HEAD's second parent. For each file changed on both sides since their merge
+base, every non-blank line the base side added must appear in HEAD's copy of
+the file, unless it is listed as explained. The result and HEAD's commit are
+saved on the receipt; `conflictfix.report` accepts only that commit.
+shortcut: a line is matched by its trimmed text anywhere in the file, so a moved
+line counts as kept; a stricter check would match its neighbors too.
+
+### D33.2 Trace, Activity and Flow
+
+A finished fix records an activity row (kind `conflict.fixed`, "conflict fixed
+by Avoozl") naming the merge commit, and a mark on the task
+(`conflictFixes`). Trace gets a step "Conflict fixed by Avoozl" after "PR
+opened" with the merge commit. Flow's fix work (R79.1) includes a task with
+that mark.
+
+### D33.3 Merge method
+
+`merge.method` (`squash` default, or `merge`) is read where auto-merge is armed:
+`radar-arm.mjs` for every crew pull request and the conflict fix's finish step,
+both through one helper that passes `SQUASH` with the pull request's title
+(with its number) and body, or `MERGE`. The merge path check (RC5.1) gains a
+fourth item, "Merge method allowed", from the repository's
+`allow_squash_merge` or `allow_merge_commit`; a field GitHub does not return
+counts as allowed, only `false` refuses. A refused method keeps the merge path
+not ready, so nothing is armed, and the arm step keeps one Needs you row per
+repository naming the setting until it reads allowed again. Set up shows a
+read-only `merge-method` step (Avoozl never changes the GitHub setting); Adopt
+adds one line that writes `merge.method` to match what the repository allows.
+
+### D33.4 Failure modes
+
+| Failure                                 | What happens                                                        |
+| --------------------------------------- | ------------------------------------------------------------------- |
+| Chat cannot keep both sides             | It pushes nothing; Waiting on you row                               |
+| Drop check fails                        | Push refused by the brief; report with ok false; Waiting on you row |
+| Pushed commit not the checked one       | Not armed, labels kept; Waiting on you row                          |
+| Chat ends without a report              | Waiting on you row; no second attempt on that head                  |
+| Commit by a person after the crew's     | Waiting on you row; no chat                                         |
+| Stop the line open for the task         | Nothing starts                                                      |
+| A write fails after a good push         | Repeated on the next tick until done                                |
+| Merge method refused by the repository  | Nothing armed; one Needs you row naming the GitHub setting          |
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| rc-p27 | A scratch crew pull request with a source conflict gets one merge commit keeping both sides, and is armed again |

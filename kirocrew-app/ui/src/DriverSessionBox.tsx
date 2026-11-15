@@ -61,6 +61,19 @@ export default function DriverSessionBox(props: { workspaceId: string | null }) 
             </>
           }
         />
+        {view?.workspace && (
+          <p className="text-xs text-muted" data-driver-workspace>
+            Workspace: {view.workspace}
+          </p>
+        )}
+        {view?.elsewhere && (
+          <p className="text-sm" data-driver-elsewhere>
+            {view.elsewhere.text}{' '}
+            <button type="button" className="underline" style={{ color: 'var(--accent)', background: 'none', border: 0, padding: 0, cursor: 'pointer' }} onClick={() => view.elsewhere && openChat({ slotKey: view.elsewhere.slot })} data-driver-elsewhere-open>
+              Open
+            </button>
+          </p>
+        )}
         <p className="text-sm text-muted">
           {read ? driverLine(read.state) : 'Reading the driver session…'}
           {seen && read?.state !== 'none' ? ` Last seen ${seen}.` : ''}
