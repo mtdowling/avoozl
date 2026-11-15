@@ -896,6 +896,18 @@ async function project(
     plan = store.get("plans", planId);
   if (!plan || plan.state !== "approved")
     fail("Approve the design revision before projecting issues.", 409);
+  if (
+    store
+      .read()
+      .tasks.some(
+        (task) =>
+          task.planId === plan.id && task.pendingSpecDependencies?.length,
+      )
+  )
+    fail(
+      "Approve referenced spec owners before projecting their dependents.",
+      409,
+    );
   // A public plan's issues name no task of a private plan (RC25.9).
   const hidden =
     plan.home === "plansBranch"
