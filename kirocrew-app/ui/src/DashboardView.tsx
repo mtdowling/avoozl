@@ -29,7 +29,7 @@ import ReviewDrafts from './ReviewDrafts.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
-import { Activity, Copy, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
+import { Activity, CirclePlus, Copy, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import type { Drill } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
@@ -125,8 +125,9 @@ function AttentionRow({
         )}
         {attach && (
           <Tooltip text="Open the task's running chat">
-            <a href={linkHref(attach)} className="self-center text-sm underline" aria-label={`Attach to the chat for ${item.title}`}>
-              Attach
+            <a href={linkHref(attach)} className="self-center text-sm underline" aria-label={`Session: the chat for ${item.title}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <CirclePlus size={14} aria-hidden="true" />
+              Session
             </a>
           </Tooltip>
         )}
@@ -157,7 +158,7 @@ const roleLabel = (row: InFlight) =>
 
 // A live Issue Radar claim, read from GitHub: any machine's crew. GitHub
 // does not show whether the crew is paused, which machine it runs on, or
-// its chat, so there is no Attach here.
+// its chat, so there is no Session here.
 export function RadarFlightRow({ row, now, onTrace, cost }: { row: RadarClaim; now: number; onTrace?: (row: RadarClaim) => void; cost?: RadarCrewStrip['cost'][string] }) {
   return (
     <li data-radar-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
@@ -237,16 +238,16 @@ export function InFlightRow({ row, now, onInfo }: { row: InFlight; now: number; 
       <span data-in-flight-actions className="flex items-center justify-end gap-1.5" style={{ flex: '0 0 11rem' }}>
         <IconBtn icon={DetailsIcon} label={`Details for ${row.title}`} tooltip="Open the task drawer" onClick={onInfo} />
         {!href ? (
-          <span className="text-xs text-muted">Attach waits on Kiro Crew</span>
+          <span className="text-xs text-muted">Session waits on Kiro Crew</span>
         ) : (
         <a
           href={linkHref(href)}
           className="text-sm underline"
-          aria-label={`Attach to the ${row.role} chat for ${row.title}`}
+          aria-label={`Session: the ${row.role} chat for ${row.title}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
         >
-          <ExternalLink size={14} aria-hidden="true" />
-          Attach
+          <CirclePlus size={14} aria-hidden="true" />
+          Session
         </a>
         )}
       </span>

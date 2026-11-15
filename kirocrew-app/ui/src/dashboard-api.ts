@@ -67,7 +67,7 @@ export interface InFlight {
   session: DeliverySession
   // Spend against the cap (§4.17).
   budget: BudgetChip | null
-  // Set for a worker on a runner's crew (R84); Attach opens its dashboard.
+  // Set for a worker on a runner's crew (R84); Session opens its dashboard.
   remote?: RemoteWorker
 }
 

@@ -74,7 +74,7 @@ for (const size of SIZES) {
     assert.match(waiting, /Needs you/)
     assert.match(waiting, /tokenizer A or B/)
     // The top: Stop the line state, the release queue, recent merges and the driver with its workspace.
-    assert.equal(await page.evaluate(`document.querySelector('[data-head-needs]').getAttribute('aria-label')`), '2 needs you')
+    assert.equal(await page.evaluate(`document.querySelector('[data-head-needs]').getAttribute('aria-label')`), 'Needs me: 2')
     assert.match(await page.evaluate(`document.querySelector('[data-panel-fold="queue"] [data-pp-section-head]').textContent`), /Release queue.*1 next · 1 held/)
     assert.match(await page.evaluate(`document.querySelector('[data-panel-fold="recent"] [data-pp-section-head]').textContent`), /Recent merges.*last 1h/)
     assert.match(await page.evaluate(`document.querySelector('[data-panel-driver]').textContent`), /Driver: not started/)
@@ -130,7 +130,7 @@ test('buttons are compact icon and text buttons, on a phone and a desktop', { sk
     header: document.querySelector('[data-pp-head]').getBoundingClientRect().height,
   })`)
   const sizes = await measure()
-  assert.ok(sizes.icons.length === 3 && sizes.icons.every((h) => h <= 28), 'header icons ' + sizes.icons)
+  assert.ok(sizes.icons.length === 5 && sizes.icons.every((h) => h <= 28), 'header icons ' + sizes.icons)
   assert.ok(sizes.acts.every((h) => h <= 28), 'row buttons ' + sizes.acts)
   assert.ok(sizes.heads.every((h) => h >= 36 && h <= 40), 'section headers ' + sizes.heads)
   assert.ok(sizes.header <= 40, 'the header is ' + sizes.header)

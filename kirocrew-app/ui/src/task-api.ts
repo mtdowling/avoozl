@@ -366,7 +366,7 @@ export function duration(at: string | null, now = Date.now()): string {
 // it), else the same Kiro Crew chat route the backend builds (sessionUrl in
 // notifications.mjs). The app SDK has no call to focus a session, so this is
 // a plain link in the page.
-// Where Attach opens a session, or null: a remote chat opens only through
+// Where Session opens a chat, or null: a remote chat opens only through
 // Kiro Crew's MC-10 (R41.14), which gives the link.
 export function attachHref(session: Pick<DeliverySession, 'slot' | 'link' | 'crew'>): string | null {
   if (session.crew && session.crew !== 'local') return session.link ?? null

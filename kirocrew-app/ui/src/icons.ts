@@ -14,6 +14,8 @@ export {
   Bot,
   CircleCheck,
   CircleHelp,
+  // CirclePlus is in the host's lucide-react export (checked 2026-11-15).
+  CirclePlus,
   Code,
   KeyRound,
   Laptop,

@@ -72,7 +72,7 @@ test('a waiting row with no direct action gets a deep link into the page', () =>
   assert.deepEqual(model.waiting[0].actions, [{ kind: 'link', label: 'Open in Avoozl', href: '/apps/avoozl' }])
 })
 
-test('Attach is also steer: the link opens the chat and the tip says to type there', () => {
+test('Session is also steer: the link opens the chat and the tip says to type there', () => {
   const model = panelModel({ crews: { rows: [crewClaim], errors: [], unseen: [], stale: 0, readAt: null } })
   assert.equal(model.inFlight[0].attach, '/chat?sid=crew-abc')
 })

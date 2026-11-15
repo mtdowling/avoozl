@@ -55,7 +55,7 @@ test('the drawer shows every section, and a linked task opens in it', () => {
     assert.match(drawer, new RegExp(action))
 })
 
-test('In flight rows have Info and an Attach link to their session', () => {
+test('In flight rows have Info and a Session link to their chat', () => {
   const dashboard = source('DashboardView.tsx')
   assert.match(dashboard, /<IconBtn icon=\{DetailsIcon\} label=\{`Details for \$\{row\.title\}`\} tooltip="Open the task drawer" onClick=\{onInfo\} \/>/)
   // A remote chat attaches only through Kiro Crew's MC-10 (R41.14).

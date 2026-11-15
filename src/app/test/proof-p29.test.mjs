@@ -511,7 +511,7 @@ test("P29 action 10: chat and stale limits are set and cleared on this machine",
   assert.equal(view.staleSeconds, null, "the placeholder shows 120 s");
 });
 
-test("P29 action 13: Attach opens a local chat and, through MC-10, a remote one", async (t) => {
+test("P29 action 13: Session opens a local chat and, through MC-10, a remote one", async (t) => {
   const env = await workspace(t, {
     ids: ["w1", "w2"],
     manifest: {
