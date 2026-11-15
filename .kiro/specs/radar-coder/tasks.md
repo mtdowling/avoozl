@@ -635,7 +635,7 @@ Requirement RC29. Count every call by source, and read each repository once.
 - [x] rc-28.2 One open-pull-request query per repository for heads and closing issues [RC29.4, RC29.5] (§D34)
   - Tests first: ten open pull requests cost one query, including closing issues, labels and checks.
   - Done when: The test passes and `npm test` passes.
-- [ ] rc-28.3 Settings > GitHub shows calls this hour by source, after rc-28.1 [RC29.3] (§D34)
+- [x] rc-28.3 Settings > GitHub shows calls this hour by source, after rc-28.1 [RC29.3] (§D34)
   - A small table beside the rate limit: source, calls, cached, 304; read from the rate view.
   - Done when: A page test shows the rows; screenshots are in the pull request; `npm run test:ui` passes.
 - [ ] rc-p28 Proof 28: one check costs one call, after rc-28.1, rc-28.2, rc-28.3 [RC29] (§D17)
