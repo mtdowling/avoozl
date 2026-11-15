@@ -81,4 +81,3 @@ test('Settings opens on Workspaces each visit and drops an unknown tab', async (
   assert.match(app, /settingsTab: settingsTabOnEnter\(tab, key, settingsTab,/)
   assert.match(source('SettingsView.tsx'), /SETTINGS_TABS\.some\(\(t\) => t\.key === asked\) \? \(asked as SettingsTab\) : SETTINGS_HOME/)
 })
-
