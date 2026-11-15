@@ -8,8 +8,18 @@ import { countdownText, countdownWidth, limitedFor, refreshPeriod, refreshTip } 
 import { type RateView, settingsClient } from './settings-api.ts'
 import { useAppApi } from './host.ts'
 
-export function RefreshButton(props: { workspaceId: string | null; onRefresh: () => void; busy?: boolean }) {
-  const { workspaceId, onRefresh, busy } = props
+export interface RefreshState {
+  refresh: () => void
+  busy?: boolean
+  left: number
+  limited: number
+  period: number
+  tip: string
+}
+
+// The countdown alone: it keeps reading again on its timer wherever its
+// button is drawn (a page heading, or the header's More menu).
+export function useRefreshCountdown(workspaceId: string | null, onRefresh: () => void, busy?: boolean): RefreshState {
   const api = useAppApi()
   const settings = useMemo(() => settingsClient(api), [api])
   const [rate, setRate] = useState<RateView | null>(null)
@@ -51,16 +61,25 @@ export function RefreshButton(props: { workspaceId: string | null; onRefresh: ()
     return () => clearInterval(timer)
   }, [rate, refresh])
 
+  return { refresh, busy, left, limited, period, tip: refreshTip(rate, left, limited) }
+}
+
+export function RefreshControl({ state }: { state: RefreshState }) {
+  const { refresh, busy, left, limited, period } = state
   const shown = limited > 0 ? limited : left
   return (
     <IconLabel
       icon={RefreshCw}
       onClick={refresh}
       disabled={busy}
-      tooltip={refreshTip(rate, left, limited)}
+      tooltip={state.tip}
       aria-label={`Refresh, ${limited > 0 ? 'GitHub limit lifts in ' : 'reads again in '}${countdownText(shown, limited > 0)}`}
     >
       <span style={{ display: 'inline-block', minWidth: `${countdownWidth(limited > 0, period)}ch`, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{countdownText(shown, limited > 0)}</span>
     </IconLabel>
   )
+}
+
+export function RefreshButton(props: { workspaceId: string | null; onRefresh: () => void; busy?: boolean }) {
+  return <RefreshControl state={useRefreshCountdown(props.workspaceId, props.onRefresh, props.busy)} />
 }

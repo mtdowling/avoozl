@@ -18,8 +18,11 @@ function rows() {
 
 test('Home has the heading, the driver card, then Needs you beside In flight, the Release queue and epic progress', () => {
   assert.deepEqual(rows(), [{ row: 'flight', titles: ['Needs you', 'In flight'] }])
-  const header = dashboard.match(/<ViewHeading\s+id="avoozl-dashboard-title"\s+view="dashboard"([\s\S]*?)>\s*Home\s*<\/ViewHeading>/)
-  assert.ok(header, 'the heading row exists')
+  // The nav says Home, so the heading is for screen readers only; Refresh
+  // is in the header's More menu.
+  assert.match(dashboard, /<h2 id="avoozl-dashboard-title" className="sr-only">\s*Home\s*<\/h2>/)
+  assert.match(dashboard, /usePublishRefresh\(useRefreshCountdown\(workspaceId, refreshHome, busy\)\)/)
+  assert.doesNotMatch(dashboard, /<ViewHeading/)
   // The state buttons and the Untriaged count went with Delivery and Intake.
   assert.doesNotMatch(dashboard, /StateCounts|UntriagedStat|Show them in Delivery|Up next/)
   const order = ['<DriverSessionBox', '<Pair', '<ReleaseQueue', 'data-progress-by-epic', '<IntegrationBranches']

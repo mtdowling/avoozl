@@ -59,8 +59,9 @@ function useOpenStops(workspaceId: string | null) {
   return stops
 }
 
-// The page's top row (App.tsx), last and red. While a stop is open it
-// says Line stopped; pressing it still opens the dialog to stop more.
+// The page's top row (App.tsx), last and red: a pause icon with its words in
+// the tooltip. While a stop is open it says Line stopped; pressing it still
+// opens the dialog to stop more.
 export function StopLineButton(props: { workspaceId: string | null; onPulled?: () => void }) {
   const [open, setOpen] = useState(false)
   const stops = useOpenStops(props.workspaceId)
@@ -81,10 +82,11 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
             aria-describedby={describedBy}
             aria-label={stopped ? `Line stopped, ${stops.length} open stop${stops.length === 1 ? '' : 's'}. Stop more` : undefined}
             onClick={() => setOpen(true)}
-            style={stopped ? STOPPED : FILL}
+            // A pause icon; the words are the tooltip and the button's name.
+            style={{ ...(stopped ? STOPPED : FILL), padding: '4px 6px' }}
           >
             <Pause size={ICON} aria-hidden="true" style={stopped ? { color: 'var(--danger)' } : undefined} />
-            {stopped ? 'Line stopped' : 'Stop the line'}
+            <span className="sr-only">{stopped ? 'Line stopped' : 'Stop the line'}</span>
           </Btn>
         )}
       </Tooltip>

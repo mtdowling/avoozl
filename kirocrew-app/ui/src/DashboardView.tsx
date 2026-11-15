@@ -27,9 +27,10 @@ import RadarFlightGroups from './RadarFlightGroups.tsx'
 import IntegrationBranches from './IntegrationBranches.tsx'
 import ReviewDrafts from './ReviewDrafts.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
-import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
-import { RefreshButton } from './RefreshButton.tsx'
-import { Activity, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
+import { IconBtn, IconLabel, IconLink, SectionHeading, ShowMore, SmallBtn, TaskTitleLink, useAskChat, usePages } from './controls.tsx'
+import { useRefreshCountdown } from './RefreshButton.tsx'
+import { usePublishRefresh } from './page-refresh.tsx'
+import { Activity, DetailsIcon, ExternalLink, Link2, MessageSquare, Check } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import type { Drill } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
@@ -101,55 +102,64 @@ function AttentionRow({
   onAsk: () => void
   onTitle: () => void
 }) {
-  // A phone puts the badge and buttons on one line and the title under them
-  // at full width, so the title does not wrap a word per line.
-  const phone = usePhone()
+  // The small icon buttons float right; the kind's tag sits inline before
+  // the title, and the text wraps under both. Nothing is wider than the card.
   return (
-    <li className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-attention-row>
-      <Badge variant={['decision', 'needs-human', 'review', 'manual'].includes(item.kind) ? 'warning' : 'danger'}>
-        {KIND_LABEL[item.kind] ?? item.kind}
-      </Badge>
-      <span className="min-w-0 flex-1" style={phone ? { order: 3, flexBasis: '100%' } : undefined}>
-        <Tooltip text={attentionTip(item)}>
-          {(describedBy) => (
-            <button type="button" className="text-left font-medium underline" onClick={onTitle} aria-describedby={describedBy} data-attention-title>
-              {item.title}
-            </button>
-          )}
-        </Tooltip>{' '}
-        <span className="text-xs text-muted">{item.taskId}</span>
-        <span className="block text-sm text-muted">{item.detail}</span>
-      </span>
-      <span className="flex gap-1.5" style={phone ? { order: 2, marginLeft: 'auto' } : undefined}>
-        {item.href && (
-          <a href={linkHref(item.href)} target="_blank" rel="noreferrer" className="self-center text-sm underline">
-            Issue
-          </a>
-        )}
-        {attach && (
-          <Tooltip text="Open the task's running chat">
-            <a href={linkHref(attach)} className="self-center text-sm underline" aria-label={`Attach to the chat for ${item.title}`}>
-              Attach
-            </a>
-          </Tooltip>
-        )}
+    <li className="border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)', overflowWrap: 'anywhere' }} data-attention-row>
+      <span className="flex gap-1" style={{ float: 'right', marginLeft: 6 }} data-attention-actions>
+        {item.href && <IconLink icon={ExternalLink} to={item.href} label={`Open the issue for ${item.title}`} external />}
+        {attach && <IconLink icon={Link2} to={attach} label={`Attach to the chat for ${item.title}`} />}
         <IconBtn
           icon={DetailsIcon}
           label={item.group ? `Info: ${item.title}` : `Details for ${item.title}`}
-          tooltip={item.group ? 'Why these tasks need review, and the list of them' : 'Open the task drawer'}
+          tooltip={item.group ? 'Why these tasks need review, and the list of them' : 'Open the task details'}
           onClick={onInfo}
         />
         <IconBtn icon={MessageSquare} label={`Ask in a chat about ${item.title}`} tooltip="Ask in a chat: a new chat seeded with this item's full context" onClick={onAsk} />
         <IconBtn
           icon={item.tab === 'waiting' ? Check : ExternalLink}
-          label={item.tab === 'waiting' ? `Resolve ${item.title}` : `Open ${item.title} in the drawer`}
-          tooltip={item.tab === 'waiting' ? 'Resolve it in Needs you' : 'Open the task drawer'}
+          label={item.tab === 'waiting' ? `Resolve ${item.title}` : `Open ${item.title}`}
+          tooltip={item.tab === 'waiting' ? 'Resolve it in Needs you' : 'Open the task details'}
           onClick={onOpen}
         />
       </span>
+      <span className="text-sm">
+        <span data-attention-tag>
+          <Badge variant={['decision', 'needs-human', 'review', 'manual'].includes(item.kind) ? 'warning' : 'danger'}>
+            {KIND_LABEL[item.kind] ?? item.kind}
+          </Badge>
+        </span>{' '}
+        {/* An inline link-button, so a long title wraps beside its tag
+            instead of dropping to its own line. */}
+        <Tooltip text={attentionTip(item)} display="inline">
+          {(describedBy) => (
+            <a
+              role="button"
+              tabIndex={0}
+              className="font-medium underline"
+              style={{ cursor: 'pointer', color: 'inherit' }}
+              onClick={onTitle}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onTitle()
+                }
+              }}
+              aria-describedby={describedBy}
+              data-attention-title
+            >
+              {item.title}
+            </a>
+          )}
+        </Tooltip>{' '}
+        <span className="text-xs text-muted">{item.taskId}</span>
+      </span>
+      <span className="block text-sm text-muted">{item.detail}</span>
+      <span style={{ display: 'block', clear: 'both' }} />
     </li>
   )
 }
+
 
 const ROLE_LABEL: Record<string, string> = { worker: 'Worker', checks: 'Checks', planner: 'Planner' }
 const roleLabel = (row: InFlight) =>
@@ -319,6 +329,9 @@ export default function DashboardView(props: {
     setNow(Date.now())
     void reload()
   }, [reload])
+  // The nav already says Home: no heading row. Refresh, with its countdown,
+  // is in the header's More menu.
+  usePublishRefresh(useRefreshCountdown(workspaceId, refreshHome, busy))
   // The conflict items an attention row stands for, for its chat seed.
   const askAbout = (item: Attention) => {
     const matching = item.group
@@ -342,50 +355,45 @@ export default function DashboardView(props: {
 
   return (
     <section aria-labelledby="avoozl-dashboard-title" className="flex flex-col gap-3.5">
-      <ViewHeading
-        id="avoozl-dashboard-title"
-        view="dashboard"
-        meta={
-          <>
-            <RefreshButton workspaceId={workspaceId} onRefresh={refreshHome} busy={busy} />
-            <span role="status" className={busy || value?.failed ? 'text-xs text-muted' : 'sr-only'}>
-              {busy ? 'Loading…' : value?.failed ? `${value.failed} of 4 reads failed; those sections are empty.` : ''}
-            </span>
-          </>
-        }
-      >
+      <h2 id="avoozl-dashboard-title" className="sr-only">
         Home
-      </ViewHeading>
+      </h2>
+      <span role="status" className={busy || value?.failed ? 'text-xs text-muted' : 'sr-only'}>
+        {busy ? 'Loading…' : value?.failed ? `${value.failed} of 4 reads failed; those sections are empty.` : ''}
+      </span>
       {/* Line stopped (R44.9, R48.5): above every other section. */}
       <LineBanner stops={flow.value?.line ?? []} workspaceId={workspaceId} onChanged={() => void flow.reload()} />
       <ArmedPulls workspaceId={workspaceId} stopped={(flow.value?.line ?? []).length > 0} />
-      <DriverSessionBox workspaceId={workspaceId} />
       {(error || chat.error) && (
         <p role="alert" className="text-sm text-danger">
           {error ?? chat.error}
         </p>
       )}
-      {cards.filter((card) => card.id !== 'driver').map((card) => (
-        <SetupCard
-          key={card.id}
-          id={card.id}
-          title={card.title}
-          line={card.line}
-          action={
-            <>
-              <Btn type="button" primary onClick={setupAction[card.id as Exclude<SetupId, 'driver'>]}>
-                {card.action}
-              </Btn>
-              {card.id === 'crew' && (
-                <a href="/issue-radar" className="text-sm underline">
-                  Open Radar › Crews
-                </a>
-              )}
-              {card.id === 'repository' && <StartDemoButton label="Try the demo" />}
-            </>
-          }
-        />
-      ))}
+      {/* The driver and the setup cards share one compact row, side by side. */}
+      <div data-dashboard-row="cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: 8 }}>
+        <DriverSessionBox workspaceId={workspaceId} />
+        {cards.filter((card) => card.id !== 'driver').map((card) => (
+          <SetupCard
+            key={card.id}
+            id={card.id}
+            title={card.title}
+            line={card.line}
+            action={
+              <>
+                <SmallBtn primary onClick={setupAction[card.id as Exclude<SetupId, 'driver'>]}>
+                  {card.action}
+                </SmallBtn>
+                {card.id === 'crew' && (
+                  <a href="/issue-radar" className="text-xs underline">
+                    Open Radar › Crews
+                  </a>
+                )}
+                {card.id === 'repository' && <StartDemoButton label="Try the demo" />}
+              </>
+            }
+          />
+        ))}
+      </div>
       {summary ? (
         <>
           <Pair height={ROW_HEIGHT.flight}>

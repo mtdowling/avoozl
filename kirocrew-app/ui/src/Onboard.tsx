@@ -585,7 +585,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
         {step === 'check' && (
           <>
             <Btn type="button" onClick={() => void checkGitHub()} disabled={busy}>
-              Check again
+              Recheck
             </Btn>
             <Btn type="button" primary onClick={next} disabled={busy || !check || checkFailed}>
               Next

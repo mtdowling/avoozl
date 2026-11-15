@@ -24,6 +24,7 @@ import { errorMessage } from './workspace-api.ts'
 import { moreLabel, visibleCount } from './paging.ts'
 import { Tooltip } from './Tooltip.tsx'
 import { Modal } from './Modal.tsx'
+import { linkHref } from './views-api.ts'
 import { MoreMenu } from './MoreMenu.tsx'
 import { usePhone } from './list-detail.ts'
 
@@ -70,6 +71,39 @@ export function IconLabel(props: {
 
 // An icon-only button: the label is its accessible name and its tooltip.
 // A separate `tooltip` text is also wired as its description.
+// Kiro Crew's compact button: small type, little vertical padding. For the
+// buttons inside a compact card (Open, Start, Copy values).
+export const COMPACT_BTN: CSSProperties = { ...row, padding: '1px 8px', fontSize: 12.5, lineHeight: '20px', minHeight: 0 }
+
+export function SmallBtn(props: { children: ReactNode; onClick?: () => void; primary?: boolean; disabled?: boolean; attrs?: Record<string, string | boolean | undefined> }) {
+  return (
+    <Btn type="button" primary={props.primary} disabled={props.disabled} onClick={props.onClick} style={COMPACT_BTN} {...props.attrs}>
+      {props.children}
+    </Btn>
+  )
+}
+
+// A link drawn as a small icon button, its words in the tooltip.
+export function IconLink(props: { icon: LucideIcon; to: string; label: string; tooltip?: string; external?: boolean }) {
+  const Icon = props.icon
+  return (
+    <Tooltip text={props.tooltip ?? props.label}>
+      {(describedBy) => (
+        <a
+          href={linkHref(props.to)}
+          aria-label={props.label}
+          aria-describedby={props.tooltip && props.tooltip !== props.label ? describedBy : undefined}
+          {...(props.external ? { target: '_blank', rel: 'noreferrer' } : {})}
+          className="rounded border"
+          style={{ ...row, padding: '3px 4px', lineHeight: 0, borderColor: 'var(--border)', color: 'inherit' }}
+        >
+          <Icon size={ICON} aria-hidden="true" />
+        </a>
+      )}
+    </Tooltip>
+  )
+}
+
 export function IconBtn(props: {
   icon: LucideIcon
   label: string
@@ -88,7 +122,7 @@ export function IconBtn(props: {
           aria-describedby={props.tooltip && props.tooltip !== props.label ? describedBy : undefined}
           onClick={props.onClick}
           disabled={props.disabled}
-          style={{ ...row, padding: '4px 6px', ...props.style }}
+          style={{ ...row, padding: '3px 4px', minHeight: 0, lineHeight: 0, ...props.style }}
         >
           <Icon size={ICON} aria-hidden="true" />
         </Btn>
