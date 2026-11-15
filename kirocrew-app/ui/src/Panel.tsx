@@ -30,7 +30,7 @@ import {
   type WaitingRow,
 } from './panel-api.ts'
 import { PanelAct, PanelChip, PanelEmpty, PanelHeadChip, PanelHeader, PanelList, PanelRoot, PanelRow, PanelSection } from './PanelParts.tsx'
-import { Check, CircleAlert, CircleDot, ExternalLink, GitBranch, GitPullRequest, Hand, Inbox, MessageSquare, Play, Radar, RefreshCw } from './icons.ts'
+import { Check, CircleAlert, CircleDot, CirclePlus, ExternalLink, GitBranch, GitPullRequest, Hand, Inbox, MessageSquare, Play, Radar, RefreshCw } from './icons.ts'
 import { RefreshButton } from './RefreshButton.tsx'
 import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
 import { plansClient } from './plans-api.ts'
@@ -143,7 +143,7 @@ function FlightRows({ rows, now }: { rows: FlightRow[]; now: number }) {
             meta={[...new Set(meta)].join(' · ')}
             actions={
               row.attach ? (
-                <PanelAct label="Attach" name="Attach / steer" narrowIcon icon={MessageSquare} href={linkHref(row.attach)} tip={row.source === 'radar' ? 'Attach / steer. Opens the crew chat, if this crew runs on this machine. Type there to steer it.' : 'Attach / steer. Opens the worker chat on its crew. Type there to steer it.'} />
+                <PanelAct label="Session" name="Session" narrowIcon icon={CirclePlus} href={linkHref(row.attach)} tip={row.source === 'radar' ? 'Session. Opens the crew chat, if this crew runs on this machine. Type there to steer it.' : 'Session. Opens the worker chat on its crew. Type there to steer it.'} data-flight-session />
               ) : row.noAttach ? (
                 <Tooltip text={row.noAttach}>
                   <span data-pp-chip data-tone="muted">
@@ -375,8 +375,8 @@ export default function AvoozlPanel() {
       chips={
         loading ? null : (
           <>
-            <PanelHeadChip data-head-needs icon={<Hand size={12} aria-hidden="true" />} count={model.waiting.length} words="needs you" tone={model.waiting.length ? 'warn' : 'muted'} tip={`${model.waiting.length} waiting on you`} />
-            <PanelHeadChip data-head-flight icon={<i data-pp-pulse aria-hidden="true" />} count={model.inFlight.length} words="in flight" tip={`${model.inFlight.length} in flight`} />
+            <PanelHeadChip data-head-needs section="waiting" icon={<Hand size={14} data-pp-hand aria-hidden="true" />} count={model.waiting.length} words="Needs me" tip={`${model.waiting.length} waiting on you. Open Waiting on you.`} />
+            <PanelHeadChip data-head-flight section="in-flight" icon={<i data-pp-pulse aria-hidden="true" />} count={model.inFlight.length} words="In flight" tip={`${model.inFlight.length} in flight. Open In flight.`} />
           </>
         )
       }

@@ -30,10 +30,12 @@ export const PANEL_CSS = `
 [data-pp-head-instance]{font-weight:400;color:var(--muted)}
 [data-pp-head-tools]{flex:none;display:inline-flex;align-items:center;gap:2px}
 [data-pp-head-end]{flex:none;display:inline-flex;align-items:center;gap:4px;margin-left:auto}
-[data-pp-head-chip]{flex:none;display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:4px;font-size:11px;line-height:16px;white-space:nowrap;color:var(--muted);background:var(--bg-hover)}
-[data-pp-head-chip][data-tone=warn]{color:var(--warning,#b7791f);background:color-mix(in srgb,var(--warning,#b7791f) 15%,transparent)}
-[data-pp-pulse]{flex:none;width:7px;height:7px;border-radius:50%;background:var(--ok);animation:pp-pulse 1.6s ease-in-out infinite}
-@keyframes pp-pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 50%,transparent)}50%{opacity:.55;box-shadow:0 0 0 3px transparent}}
+[data-pp-head-chip]{flex:none;display:inline-flex;align-items:center;gap:6px;padding:2px 4px;background:transparent;border:0;border-radius:6px;font:inherit;font-size:12px;font-weight:500;line-height:16px;white-space:nowrap;color:var(--text);cursor:pointer}
+[data-pp-head-chip]:hover{background:var(--bg-hover)}
+[data-pp-head-chip-count]{color:var(--muted);font-variant-numeric:tabular-nums}
+[data-pp-hand]{flex:none;color:var(--warn,var(--warning,#b7791f))}
+[data-pp-pulse]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 2px color-mix(in srgb,var(--ok) 25%,transparent);animation:pp-pulse 2s ease-in-out infinite}
+@keyframes pp-pulse{0%,100%{box-shadow:0 0 0 2px color-mix(in srgb,var(--ok) 25%,transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--ok) 0%,transparent)}}
 @media (prefers-reduced-motion:reduce){[data-pp-pulse]{animation:none}}
 [data-pp-section]{border-bottom:1px solid var(--border)}
 [data-pp-section-head]{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:transparent;border:0;border-radius:0;text-align:left;cursor:pointer;color:var(--text);font:inherit;font-size:12px;font-weight:600;transition:background-color .12s}
@@ -96,6 +98,7 @@ interface Folds {
   register: (id: string, fallback: boolean) => void
   allOpen: boolean
   setAll: (open: boolean) => void
+  show: (id: string) => void
 }
 const FoldsContext = createContext<Folds | null>(null)
 
@@ -129,6 +132,7 @@ function useFoldsState(): Folds {
       toggle: (id, fallback) => keep({ ...saved, [id]: !(saved[id] ?? fallback) }),
       allOpen: ids.length > 0 && ids.every((id) => saved[id] ?? known[id]),
       setAll: (open) => keep({ ...saved, ...Object.fromEntries(ids.map((id) => [id, open])) }),
+      show: (id) => keep({ ...saved, [id]: true }),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [isOpen, register, keep, saved, known],
@@ -195,19 +199,27 @@ export function PanelHeader(props: { name: string; instance?: string | null; tip
   )
 }
 
-// A count in the header: an icon and the number, with its words beside them on
-// a wide panel and only in the tooltip and name on a narrow one.
-export function PanelHeadChip(props: { icon: ReactNode; count: number; words: string; tip: string; tone?: 'warn' | 'muted'; [attr: `data-${string}`]: unknown }) {
-  const { icon, count, words, tip, tone, ...rest } = props
+// A count in the header, flat in the row: an icon, its words, then the count
+// in muted. A narrow panel shows the icon and count only. A click opens that
+// section and scrolls to it.
+export function PanelHeadChip(props: { icon: ReactNode; count: number; words: string; tip: string; section: string; [attr: `data-${string}`]: unknown }) {
+  const { icon, count, words, tip, section, ...rest } = props
+  const folds = useContext(FoldsContext)
+  const jump = () => {
+    folds?.show(section)
+    requestAnimationFrame(() => document.querySelector(`[data-panel-fold="${section}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
+  }
   return (
     <Tooltip text={tip}>
-      <span data-pp-head-chip data-tone={tone} role="img" aria-label={`${count} ${words}`} {...rest}>
+      <button type="button" data-pp-head-chip aria-label={`${words}: ${count}`} onClick={jump} {...rest}>
         {icon}
-        <span aria-hidden="true">{count}</span>
         <span data-pp-narrow-hide aria-hidden="true">
           {words}
         </span>
-      </span>
+        <span data-pp-head-chip-count aria-hidden="true">
+          {count}
+        </span>
+      </button>
     </Tooltip>
   )
 }

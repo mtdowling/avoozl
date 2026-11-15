@@ -42,8 +42,8 @@ const shot = async (name) => {
 
 test('a normal chat shows Waiting on you, In flight, the queue head, recent merges and the line', { skip }, async () => {
   await open({ sid: 'chat-1' }, `Boolean(document.querySelector('[data-waiting-row]'))`)
-  assert.equal(await page.evaluate(`document.querySelector('[data-head-needs]').getAttribute('aria-label')`), '2 needs you')
-  assert.equal(await page.evaluate(`document.querySelector('[data-head-flight]').getAttribute('aria-label')`), '3 in flight')
+  assert.equal(await page.evaluate(`document.querySelector('[data-head-needs]').getAttribute('aria-label')`), 'Needs me: 2')
+  assert.equal(await page.evaluate(`document.querySelector('[data-head-flight]').getAttribute('aria-label')`), 'In flight: 3')
   assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-waiting-row]')].map((r) => r.dataset.waitingRow)`), ['needs-human', 'github-conflict'])
   // The retired worker row is not shown.
   assert.doesNotMatch(await text('[data-panel-recap]'), /retired worker/)
@@ -92,8 +92,8 @@ test('one failed read leaves the other sections showing', { skip }, async () => 
 test('with nothing to show, each section says so', { skip }, async () => {
   await open({ sid: 'chat-1', state: 'empty' }, `/Nothing is waiting/.test(document.body.textContent)`)
   assert.match(await text('[data-panel-fold="in-flight"]'), /No crew has a claim/)
-  assert.equal(await page.evaluate(`document.querySelector('[data-head-needs]').getAttribute('aria-label')`), '0 needs you')
-  assert.equal(await page.evaluate(`document.querySelector('[data-head-flight]').getAttribute('aria-label')`), '0 in flight')
+  assert.equal(await page.evaluate(`document.querySelector('[data-head-needs]').getAttribute('aria-label')`), 'Needs me: 0')
+  assert.equal(await page.evaluate(`document.querySelector('[data-head-flight]').getAttribute('aria-label')`), 'In flight: 0')
   await shot('empty')
 })
 
@@ -161,9 +161,9 @@ test('the driver chat itself shows the driver, waiting and in flight views', { s
   assert.equal(await count('[data-flight-row]'), 3)
 })
 
-test('Attach / steer opens the crew chat; a row with no action deep-links into the page', { skip }, async () => {
+test('Session opens the crew chat; a row with no action deep-links into the page', { skip }, async () => {
   await open({ sid: 'chat-1' }, `Boolean(document.querySelector('[data-flight-row]'))`)
-  assert.equal(await page.evaluate(`document.querySelector('[data-flight-row="radar"] a[href^="/chat"]').textContent.trim()`), 'Attach')
+  assert.equal(await page.evaluate(`document.querySelector('[data-flight-row="radar"] a[href^="/chat"]').textContent.trim()`), 'Session')
   await page.evaluate(`window.__panel.conflicts = [{ kind: 'content-match', taskId: 'S1', id: 'd1', title: 'Matched a rule', detail: 'd' }]; window.dispatchEvent(new Event('focus')); true`)
   await page.until(`Boolean(document.querySelector('[data-waiting-row="content-match"]'))`)
   await page.evaluate(`[...document.querySelectorAll('[data-waiting-row] button')].find((b) => b.textContent.trim() === 'Open in Avoozl').click()`)
@@ -211,7 +211,7 @@ for (const [width, height] of [[1280, 900], [390, 800]])
       await page.until(`Boolean(document.querySelector('[data-head-needs]')) && Boolean(document.querySelector('[data-pp-head] [data-stop-line]'))`)
       const head = await page.evaluate(`(() => {
         const h = document.querySelector('[data-pp-head]')
-        const kids = [...h.querySelectorAll('[data-pp-head-name], button, [data-pp-head-chip]')]
+        const kids = [...h.querySelectorAll('[data-pp-head-name], button')]
         const mids = kids.map((el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2 })
         const tallest = Math.max(...kids.map((el) => el.getBoundingClientRect().height))
         const stop = h.querySelector('[data-stop-line]').getBoundingClientRect()
@@ -219,6 +219,7 @@ for (const [width, height] of [[1280, 900], [390, 800]])
         return {
           name: h.querySelector('[data-pp-head-name]').textContent.trim(),
           buttons: [...h.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')),
+          flat: [...h.querySelectorAll('[data-pp-head-chip]')].every((c) => getComputedStyle(c).borderTopStyle === 'none' && getComputedStyle(c).backgroundColor === 'rgba(0, 0, 0, 0)'),
           texts: [...h.querySelectorAll('button')].map((b) => b.textContent.trim()),
           chips: [...h.querySelectorAll('[data-pp-head-chip]')].map((c) => c.innerText.replace(/\\s+/g, ' ').trim()),
           height: h.getBoundingClientRect().height, tallest, spread: Math.max(...mids) - Math.min(...mids),
@@ -229,12 +230,13 @@ for (const [width, height] of [[1280, 900], [390, 800]])
         }
       })()`)
       assert.match(head.name, /^Avoozl · \S/)
-      assert.equal(head.buttons.length, 3)
+      assert.equal(head.buttons.length, 5)
       assert.match(head.buttons[0], /^Refresh, reads again in/)
       assert.match(head.buttons[1], /^(Collapse|Expand) all sections$/)
-      assert.equal(head.buttons[2], 'Stop the line')
-      assert.deepEqual(head.texts, ['', '', ''], 'icons only, no countdown')
-      assert.deepEqual(head.chips, width > 640 ? ['2 needs you', '3 in flight'] : ['2', '3'])
+      assert.deepEqual(head.buttons.slice(2), ['Needs me: 2', 'In flight: 3', 'Stop the line'])
+      assert.deepEqual([head.texts[0], head.texts[1], head.texts[4]], ['', '', ''], 'icons only, no countdown')
+      assert.deepEqual(head.chips, width > 640 ? ['Needs me 2', 'In flight 3'] : ['2', '3'])
+      assert.ok(head.flat, 'chips sit flat: no box, no fill')
       assert.equal(head.wrap, 'nowrap')
       assert.ok(head.spread < 2, `everything on one line (${head.spread} px apart)`)
       assert.ok(head.height <= head.tallest + 14, `one line tall (${head.height} px)`)
@@ -243,6 +245,19 @@ for (const [width, height] of [[1280, 900], [390, 800]])
       assert.equal(head.lineRow, false, 'no "The line is running" row')
       assert.equal(head.open, 'Open Avoozl')
     })
+
+// A header chip opens its section and scrolls to it.
+test('a header chip opens its section', { skip }, async () => {
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1' }), { width: 390, height: 800 })
+  await page.until(`Boolean(document.querySelector('[data-head-flight]'))`)
+  await page.evaluate(`localStorage.setItem('avoozl.panel.folds', JSON.stringify({ 'in-flight': false }))`)
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1' }), { width: 390, height: 800 })
+  await page.until(`Boolean(document.querySelector('[data-head-flight]'))`)
+  assert.equal(await count('[data-flight-row]'), 0)
+  await page.evaluate(`document.querySelector('[data-head-flight]').click()`)
+  await page.until(`document.querySelectorAll('[data-flight-row]').length === 3`)
+  await page.evaluate(`localStorage.removeItem('avoozl.panel.folds')`)
+})
 
 // The Refresh icon turns from muted toward red as the read ages, and is red
 // while GitHub's rate limit holds.
@@ -261,15 +276,15 @@ test('the Refresh icon reddens as the cache ages and is red when rate limited', 
   assert.ok(later > first, `the age grows (${first} -> ${later})`)
 })
 
-// On a phone an In flight row's Attach is a speech-bubble icon only; on a
-// desktop it keeps its word. Both are named "Attach / steer".
-for (const [width, words] of [[390, ''], [1280, 'Attach']])
-  test(`Attach is ${words ? 'a labeled button' : 'an icon'} at ${width} px`, { skip }, async () => {
+// An In flight row's action is Session: a plus-in-circle icon and the word on
+// a desktop, the icon only on a phone. Both are named "Session".
+for (const [width, words] of [[390, ''], [1280, 'Session']])
+  test(`Session is ${words ? 'a labeled button' : 'an icon'} at ${width} px`, { skip }, async () => {
     await page.open(harness.url({ page: 'panel', theme: 'dark', sid: 'chat-1' }), { width, height: 800, dark: true })
     await page.until(`Boolean(document.querySelector('[data-flight-row] a[href^="/chat"]'))`)
     const attach = await page.evaluate(`(() => { const a = document.querySelector('[data-flight-row] a[href^="/chat"]'); const r = a.getBoundingClientRect(); return { text: a.innerText.trim(), label: a.getAttribute('aria-label'), icon: Boolean(a.querySelector('svg')), height: r.height, width: r.width } })()`)
     assert.equal(attach.text, words)
-    assert.equal(attach.label, 'Attach / steer')
+    assert.equal(attach.label, 'Session')
     assert.ok(attach.icon)
     assert.ok(attach.height <= 28, `compact (${attach.height} px)`)
   })

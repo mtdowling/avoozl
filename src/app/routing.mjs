@@ -557,7 +557,7 @@ export function contentForbidsRemote(store, repository) {
   return set?.id ?? null;
 }
 
-// Attach (R41.14): a local chat opens at /chat?sid=<slot>; a remote one
+// Session (R41.14): a local chat opens at /chat?sid=<slot>; a remote one
 // only through MC-10, from the link pattern Kiro Crew gives (Inferred: the
 // contract is not published yet), else null.
 export function attachLink(store, binding, local) {

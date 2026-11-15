@@ -101,7 +101,7 @@ test('times read as relative and running durations', () => {
   assert.equal(duration('2026-11-12T10:55:00Z', now), '1 h 5 min')
 })
 
-test('Attach opens the session the backend links, else its Kiro Crew chat key', () => {
+test('Session opens the chat the backend links, else its Kiro Crew chat key', () => {
   assert.equal(sessionHref({ slot: 'dashboard:abc', link: '/chat?sid=abc' }), '/chat?sid=abc')
   assert.equal(sessionHref({ slot: 'dashboard:abc def', link: null }), '/chat?sid=abc%20def')
   assert.equal(sessionHref({ slot: 'raw', link: undefined }), '/chat?sid=raw')

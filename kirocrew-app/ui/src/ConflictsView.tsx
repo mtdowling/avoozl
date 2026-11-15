@@ -40,7 +40,7 @@ import { Tooltip } from './Tooltip.tsx'
 import { ForwardScreen } from './ForwardScreen.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
-import { Check, DetailsIcon, ExternalLink, Eye, History, MessageSquare, RefreshCw, RotateCcw, X } from './icons.ts'
+import { Check, CirclePlus, DetailsIcon, ExternalLink, Eye, History, MessageSquare, RefreshCw, RotateCcw, X } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import { linkHref } from './views-api.ts'
 import { optionItems } from './picker.ts'
@@ -600,8 +600,8 @@ function ConflictRow(props: {
         <span className="ml-auto flex items-center gap-1.5">
           {props.attach && (
             <a href={linkHref(props.attach)} className="self-center text-sm underline" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <ExternalLink size={14} aria-hidden="true" />
-              Attach
+              <CirclePlus size={14} aria-hidden="true" />
+              Session
             </a>
           )}
           <IconBtn icon={MessageSquare} label={`Ask in a chat about ${item.title}`} tooltip="Ask in a chat: a new chat seeded with this item's full context" onClick={props.onAsk} />

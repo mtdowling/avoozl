@@ -3,7 +3,7 @@
 // pull request and post nothing. The cron opens
 // it with the same session permission it opens worker sessions with, and
 // binds it as role `pr-review` to this request's receipt, so the page can
-// show Attach. Avoozl itself makes no GitHub call here.
+// show Session. Avoozl itself makes no GitHub call here.
 import { allowWrite } from "./content-rules.mjs";
 import { FINAL_STATUSES } from "./session-bindings.mjs";
 import { fail } from "./store.mjs";
