@@ -1865,7 +1865,7 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
 - [x] 55.1 Every line of a receipt file, and task, attempt and phase in the wrapper [R101.2, R101.3] (§4.31)
   - `parseReceipts` returns every record and a skipped count; `bin/build-receipt` takes `--task`, `--attempt` and `--phase` with their fallbacks. Tests: 4 lines keep 4; a bad line is skipped and counted; a version 1 line without the new fields parses; the wrapper tests of rc-31.1 pass unchanged.
   - Built: pass, `src/app/test/build-receipt.test.mjs`.
-- [ ] 55.2 CI uploads a receipt from every platform, after 55.1 [R101.3] (§4.31)
+- [x] 55.2 CI uploads a receipt from every platform, after 55.1 [R101.3] (§4.31)
   - Each test job uploads `build-receipt-<os>` with `if: always()`; the summary prints every line. A workflow file is a protected path, so the diff goes to the owner before it lands. Done when a CI run shows 3 artifacts and every line in the summary.
 - [ ] 55.3 Reader: every artifact, every line, stored observations, after 55.1, 54.2, 54.6 [R101.1, R101.2, R101.5, R101.6] (§4.31)
   - Unfiltered artifact list through the HTTP cache from `ciStep`; `receipt_artifacts` and `build_observations`; `pr_ci` gains `head_sha` and `merged_at`; the old metadata value moves once. Tests: several phases on 3 platforms keep every record; a failed attempt is kept and marked; one list per check, a 304 reads nothing, one download per new artifact, the next check costs 0; complete runs with no artifact store none.
@@ -1938,7 +1938,7 @@ proof or run a real workspace to get past that wait.
   - Tests insert made-up private names into branch names, commit messages, PR bodies, check summaries, records and artifacts and refuse publication before the first write. Preserve useful opaque IDs and public commit/check references. Private-plan mappings and sensitive controls remain private; hidden HTML grants no secrecy.
   - No internal information on public writes: refuse hostname and IP literals, *.corp/*.internal/*.local/*.lan and the owner's private machine-local internal-domain list, home paths, and this machine's own hostname and username before the first write. Records name a machine only by its public alias (machine config; unset means a generated neutral name, never the hostname); the schema has an alias field and no hostname field. Tests insert a made-up hostname and username into every public field and expect refusal with nothing written.
 
-- [ ] 56.12 Every Avoozl-created issue carries crew:avoozl at create [R103.1, R103.2, R103.3] (§4.32)
+- [x] 56.12 Every Avoozl-created issue carries crew:avoozl at create [R103.1, R103.2, R103.3] (§4.32)
   - Add crew:avoozl in the GitHub client's createIssue, REST and GraphQL forms, with one named opt-out for export. No label edit after a create. Covers projection, the extracted-design parent, mirror follow-up and conflict issues today.
   - Treat crew:avoozl as Avoozl's own: Untriaged and the plan-me hand-off skip it; Settings refuses it as any other label's name. A source test fails on any other createIssue opt-out; fake-GitHub tests check each path's request carries the label.
 
