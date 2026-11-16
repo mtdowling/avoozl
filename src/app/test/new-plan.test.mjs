@@ -230,7 +230,13 @@ test("the tick opens New plan's planner chat and credits its draft to that chat"
   assert.ok(start.title.startsWith("avoozl:new-plan:cache-invalidation "));
   // A second ask opens a new attempt; a page-era entry (no brief) opens none.
   await ops.execute("plan.new", request({ goal: "Second try." }));
-  assert.equal(newPlanStarts(store, {})[0].attempt, 2);
+  const second = newPlanStarts(store, {})[0];
+  assert.equal(second.attempt, 2);
+  assert.notEqual(
+    second.title,
+    start.title,
+    "a second attempt gets its own chat",
+  );
   store.setMeta("newPlans", [
     ...pendingNewPlans(store),
     { name: "old-page-chat", goal: "x", repositories: ["app"] },
