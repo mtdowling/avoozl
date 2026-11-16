@@ -340,7 +340,7 @@ export const fieldSelector = (id: string, field: JumpField): string =>
     coder: `[id^="${id}-coder-"][aria-checked="true"], [id^="${id}-coder-"]`,
     capacity: `#${id}-release-capacity`,
     releaseMode: '[data-release-mode] input:checked, [data-release-mode] input',
-    plan: '#' + id + '-plan-label',
+    plan: '#' + id + '-label-planLabel',
     conflict: `#${id}-conflict-label`,
     onSourceConflict: `#${id}-on-source-conflict input:checked, #${id}-on-source-conflict`,
     mergeMethod: `#${id}-merge-method input:checked, #${id}-merge-method`,
