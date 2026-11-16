@@ -6287,6 +6287,512 @@
         "39.4",
         "39.5"
       ]
+    },
+    "40.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R86.3; §4.26.",
+      "acceptance": [
+        "Worker brief edits and commits only",
+        "The GitHub worker brief in `src/app/delivery.mjs` drops the push, pull request, auto-merge and merge steps; Avoozl reads `HEAD` from the worktree; a test asserts no brief tells a worker to push, open a pull request, merge or label."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "40.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R88.2, R88.3; §4.26.",
+      "acceptance": [
+        "Report by CLI, matched by worktree and token",
+        "`avoozl report --task ID --token T`; the brief carries the token and the worktree path; local chats open with `project: false`; tests for a wrong token, a wrong worktree and a report with no MCP sharing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "40.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R88.1; §4.26.",
+      "acceptance": [
+        "Trust mode set at open and again every tick",
+        "A fake Kiro Crew that drops trust on restart; the next tick sets it again, once per chat."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "40.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R88.6; §4.26.",
+      "acceptance": [
+        "Prepare with the worktree helper and clean up after landing",
+        "First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "40.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R86.6, R86.7; §4.26.",
+      "acceptance": [
+        "Verify: warm checks off the tick, per-check timeouts, declared and protected paths",
+        "Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "40.1"
+      ]
+    },
+    "40.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R88.4; §4.26.",
+      "acceptance": [
+        "One automatic resume for a vanished chat",
+        "Only Kiro Crew's \"gone\" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "40.2"
+      ]
+    },
+    "40.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R88.5; §4.26.",
+      "acceptance": [
+        "Lanes: 3 on this Mac by default",
+        "`lanes.local` default 3; a fourth ready task waits."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "avoozl-p50": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). Proof. See R86, R87.10, R88; §4.26.",
+      "acceptance": [
+        "Proof: a three-task chain survives a gateway restart unattended",
+        "Expected: (1) each task lands in order with its checks recorded; (2) trust is set again, task 2 goes on in the same worktree, no second chat unless Kiro Crew says it is gone; (3) the tick push goes through Kiro Crew's push policy; worktrees removed after landing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "40.1",
+        "40.2",
+        "40.3",
+        "40.4",
+        "40.5",
+        "40.6",
+        "40.7"
+      ]
+    },
+    "41.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R86.2, R86.5, R86.9; §4.26.",
+      "acceptance": [
+        "One scheduler: Pick by unblock count with a repository-wide path hold",
+        "RC31's ranking feeds Pick; overlapping declared paths hold a task in line; no cross-machine claim or driver lock is read."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p50"
+      ]
+    },
+    "41.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R87.5; §4.26.",
+      "acceptance": [
+        "Landing queue per base branch with the work lock",
+        "`withWorkLock` kind `integration`; one landing at a time per base; Stop the line pauses and keeps order."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p50"
+      ]
+    },
+    "41.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R87.1, R87.2, R87.4, R87.9; §4.26.",
+      "acceptance": [
+        "`direct` landing",
+        "Merge base in, check that head, fast-forward, `git push origin <base>`; a moved base merges and checks again; the pre-push content rule runs first; never force push."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.2"
+      ]
+    },
+    "41.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R87.6; §4.26.",
+      "acceptance": [
+        "Conflicts go back to the same chat, bounded; remove the resolver chat",
+        "The conflicted file list in the brief; `landing.conflictRounds` default 2; then Needs you; `avoozl-conflict-fix` removed."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.3"
+      ]
+    },
+    "41.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R87.7; §4.26.",
+      "acceptance": [
+        "Epic tasks cut from the integration branch",
+        "`src/app/github-linked-branches.mjs` and Prepare agree on the base."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.3"
+      ]
+    },
+    "41.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R88.7; §4.26.",
+      "acceptance": [
+        "Restore the Delivery page, Settings › Budgets and the Files and diff view",
+        "From ba04389 and 70c2236, updated to the new loop; not Routing; screenshots for the owner."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.3"
+      ]
+    },
+    "41.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R91.5; §4.26.",
+      "acceptance": [
+        "Nupp setup: `direct` on public `core-dev` with the repository's helper and check",
+        "`scripts/worktree` approved by hash, `scripts/test-changed` as the check; plans stay in a private planning workspace; no mirror or forward."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.3"
+      ]
+    },
+    "avoozl-p51": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). Proof. See R86, R87, R91.5; §4.26.",
+      "acceptance": [
+        "Proof: the 13 Nupp pilot tasks land direct",
+        "Expected: each task lands on public `core-dev` after its checks; no private text in any commit message, branch name or added line; a receipt per task with owner minutes, credits and wall-clock."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.1",
+        "41.2",
+        "41.3",
+        "41.4",
+        "41.5",
+        "41.6",
+        "41.7"
+      ]
+    },
+    "42.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 42 (PR landing and the setup command). See R87.3, R87.4, R91.2; §4.26.",
+      "acceptance": [
+        "`pr` landing from the renamed arming and merge code",
+        "Push the task branch, open or reuse the pull request, merge base in when it moves, wait for required checks, merge through the API one at a time."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p51"
+      ]
+    },
+    "42.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 42 (PR landing and the setup command). See R89.1, R89.2, R89.4; §4.26.",
+      "acceptance": [
+        "`avoozl setup`: project config and GitHub in one preview",
+        "A second run says \"Nothing to change\" and writes nothing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "42.1"
+      ]
+    },
+    "42.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 42 (PR landing and the setup command). See R89.3; §4.26.",
+      "acceptance": [
+        "Setup: ruleset update without duplicates, merge methods, CI variable, commit status",
+        "First caller of `createCommitStatus`; a fake GitHub test that a ruleset with the rule gets no second one."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "42.2"
+      ]
+    },
+    "42.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 42 (PR landing and the setup command). See R87.8; §4.26.",
+      "acceptance": [
+        "Avoozl's own repository lands with `pr` and three required checks",
+        "Linux, macOS and Windows required."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "42.3"
+      ]
+    },
+    "avoozl-p52": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 42 (PR landing and the setup command). Proof. See R87, R89; §4.26.",
+      "acceptance": [
+        "Proof: ten tasks land through pull requests on a repository with a required check",
+        "Expected: ten pull requests merge one at a time after the check passes on each head; the moved base is merged in and checked again; the failed task goes back to its chat; no force push; setup run again changes nothing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "42.1",
+        "42.2",
+        "42.3",
+        "42.4"
+      ]
+    },
+    "43.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Remote hosts). See R90.1, R90.3; §4.26.",
+      "acceptance": [
+        "Hosts: `local` and runner-role hosts, choice by free lanes in code",
+        "Builds on `src/app/remote-runner.mjs`; no chat chooses a host."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p52"
+      ]
+    },
+    "43.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Remote hosts). See R90.2, R90.4; §4.26.",
+      "acceptance": [
+        "Send the envelope over SSH; land the pushed branch through the same queue",
+        "A host that stops answering keeps its tasks."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "43.1"
+      ]
+    },
+    "avoozl-p53": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Remote hosts). Proof. See R90; §4.26.",
+      "acceptance": [
+        "Proof: tasks land from two machines through one queue",
+        "Expected: the extra tasks run on the host; every task lands through the one queue in plan order; the dropped-link task stays on its host and lands after the link returns."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "43.1",
+        "43.2"
+      ]
+    },
+    "44.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 44 (Remove the Issue Radar path). See R91.1, R91.3; §4.26.",
+      "acceptance": [
+        "Delete Radar-only leaf modules and their tests",
+        "Modules no non-Radar file imports; `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "44.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 44 (Remove the Issue Radar path). See R91.1; §4.26.",
+      "acceptance": [
+        "Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "44.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 44 (Remove the Issue Radar path). See R86.1, R91.1; §4.26.",
+      "acceptance": [
+        "Delete the remote coder, the relay and the router chat with their agents"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "44.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 44 (Remove the Issue Radar path). See R86.1, R91.3; §4.26.",
+      "acceptance": [
+        "Shared-module edits and the `coder` setting"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "44.1",
+        "44.2",
+        "44.3",
+        "avoozl-p53"
+      ]
+    },
+    "44.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 44 (Remove the Issue Radar path). See R91.4; §4.26.",
+      "acceptance": [
+        "Compatibility names still resolve; docs say one path",
+        "`docs/research/` and `docs/evidence/` untouched except new receipts."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "44.4"
+      ]
+    },
+    "avoozl-p54": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 44 (Remove the Issue Radar path). Proof. See R91; §4.26.",
+      "acceptance": [
+        "Proof: after removal there is one delivery path",
+        "Expected: the task lands; no Radar, relay, router or crew agent or module remains; every compatibility name resolves."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "44.1",
+        "44.2",
+        "44.3",
+        "44.4",
+        "44.5"
+      ]
     }
   }
 }
