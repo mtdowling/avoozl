@@ -38,6 +38,7 @@ import { attachLink } from "./routing.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import { fail } from "./store.mjs";
 import { driverDecisions } from "./driver.mjs";
+import { epicRows } from "./epic-rows.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const ACTIVE_RUNS = new Set([
@@ -522,6 +523,8 @@ export function epicView(store, data, { id, spec = null, members = null }) {
     requirements: files["requirements.md"] ?? null,
     design: files["design.md"] ?? null,
     members: list,
+    // Lifecycle rows, derived from member state (R102.18).
+    rows: epicRows(store, data, files),
     progress: { done, total },
     complete: list.length > 0 && list.every((item) => item.status === "done"),
     decisions: list.flatMap((item) =>

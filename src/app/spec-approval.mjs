@@ -204,6 +204,10 @@ export async function openApproval(
     // The branch the pull request targets when it is not the default branch:
     // a private spec's plans branch (RC25.3).
     ref,
+    // Configured spec reviewers; none leaves CODEOWNERS and rules to GitHub.
+    reviewers = [],
+    // `owner/repo#N` of the spec issue, only when visibility permits.
+    specIssue = null,
   },
 ) {
   const part = approvalPart(store, {
@@ -241,8 +245,11 @@ export async function openApproval(
       title: `Approve spec ${spec}`,
       head: branch.name,
       base,
-      body: `Sets Status: Approved on spec ${spec}. Merge to make the approval a commit.`,
+      body:
+        `Sets Status: Approved on spec ${spec}. Merge to make the approval a commit.` +
+        (specIssue ? `\n\nSpec issue: ${specIssue}` : ""),
     }),
+    requested = await askReviewers(github, repository, pull.number, reviewers),
     state = {
       state: "open",
       repository: `${repository.owner}/${repository.repo}`,
@@ -253,9 +260,31 @@ export async function openApproval(
       spec,
       ...(ref !== undefined ? { ref } : {}),
       requestedBy: approvedBy,
+      ...(requested.length ? { reviewersRequested: requested } : {}),
     };
   store.setMeta(key(planId, hash), state);
   return state;
+}
+
+// Requests the configured reviewers, best effort: the pull request stands
+// whatever GitHub answers. Returns the logins asked.
+async function askReviewers(github, repository, number, reviewers) {
+  if (!reviewers?.length || !github.requestReviewers) return [];
+  try {
+    await github.requestReviewers(repository, number, reviewers);
+    return [...reviewers];
+  } catch {
+    return [];
+  }
+}
+
+// Whether a pull request may name the spec issue (R102.12, R102.18): never
+// a private issue from a public pull request. Unknown visibility links
+// nothing.
+export function mayLinkSpecIssue({ pullPrivate, issuePrivate }) {
+  if (typeof pullPrivate !== "boolean" || typeof issuePrivate !== "boolean")
+    return false;
+  return pullPrivate || !issuePrivate;
 }
 
 const encoded = (changes) =>
@@ -272,7 +301,7 @@ const encoded = (changes) =>
 // or merged approval keeps it. Returns each spec's state by plan ID.
 export async function openBatchApproval(
   store,
-  { github, repository, ref, approvedBy, specs },
+  { github, repository, ref, approvedBy, specs, reviewers = [] },
 ) {
   const parts = specs.map((entry) => ({
       entry,
@@ -312,6 +341,12 @@ export async function openBatchApproval(
     base,
     body: `Sets Status: Approved on these specs. Merge to make their approval one commit.\n\n${names.map((name) => `- ${name}`).join("\n")}`,
   });
+  const requested = await askReviewers(
+    github,
+    repository,
+    pull.number,
+    reviewers,
+  );
   for (const part of fresh) {
     const state = {
       state: "open",
@@ -323,6 +358,7 @@ export async function openBatchApproval(
       spec: part.entry.spec,
       ...(ref !== undefined ? { ref } : {}),
       requestedBy: approvedBy,
+      ...(requested.length ? { reviewersRequested: requested } : {}),
       batch: names,
     };
     store.setMeta(key(part.entry.planId, part.entry.hash), state);
@@ -361,6 +397,7 @@ export async function reconcileOpenApprovals(store, { github }) {
     const once = {
       pullRequest: async () => pull,
       blobTexts: (...args) => github.blobTexts(...args),
+      pullRequestReviews: (...args) => github.pullRequestReviews?.(...args),
     };
     for (const entry of group)
       try {
@@ -449,16 +486,22 @@ export async function reconcileApproval(
         commit: pull.merge_commit_sha,
         landedHash,
         mergedBy,
+        verified: false,
       };
       store.setMeta(key(planId, hash), next);
       return next;
     }
+    // Evidence after the merge (§4.32.6): who asked, who actually approved
+    // on GitHub, who merged and when, and that the re-hash matched.
     const next = {
       ...state,
       state: "merged",
       commit: pull.merge_commit_sha,
       approvedBy: state.requestedBy,
+      reviewers: await approvingReviewers(github, repository, state.number),
       mergedBy,
+      mergedAt: pull.merged_at ?? null,
+      verified: true,
     };
     store.setMeta(key(planId, hash), next);
     return next;
@@ -469,6 +512,28 @@ export async function reconcileApproval(
     return next;
   }
   return state;
+}
+
+// The logins whose newest decisive review approved the pull request. A
+// failed read records none; the approval itself does not depend on them.
+export async function approvingReviewers(github, repository, number) {
+  let reviews;
+  try {
+    reviews = (await github.pullRequestReviews?.(repository, number)) ?? [];
+  } catch {
+    return [];
+  }
+  const latest = new Map();
+  for (const review of reviews) {
+    const login = review?.user?.login,
+      state = String(review?.state ?? "").toUpperCase();
+    if (login && ["APPROVED", "CHANGES_REQUESTED", "DISMISSED"].includes(state))
+      latest.set(login, state);
+  }
+  return [...latest]
+    .filter(([, state]) => state === "APPROVED")
+    .map(([login]) => login)
+    .sort();
 }
 
 // The evidence line of an approval that merged: the commit and who merged it.

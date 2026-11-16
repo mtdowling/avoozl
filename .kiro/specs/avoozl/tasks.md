@@ -1918,7 +1918,7 @@ proof or run a real workspace to get past that wait.
   - Cache repository hashes separately from journal/assignee/control/review/check reads. Use conditional reads or available webhooks; unchanged definitions are not reparsed. Holds and reassignment are observed with no branch commit.
   - Rebuild from qualified heads, validated journal, actual landings and outstanding intents; restore claims and decisions, then hold until person Resume. Private spend travels only in private export; unknown is never zero. Tests cover missing tail, lost database, unavailable fork and unavailable private controls.
 
-- [ ] 56.7 Epic design/review/implement rows and approval evidence, after 56.2 [R59, R102.18] (§4.32)
+- [x] 56.7 Epic design/review/implement rows and approval evidence, after 56.2 [R59, R102.18] (§4.32)
   - Extend epic entries with step, default implement. Allow one row per (plan, step), forbid task fields/dispatch, derive design/review/implement from current member state; never hand-tick lifecycle rows.
   - Keep current merge-commit re-hash; persist actual approving reviewers separately from requester/merger/time after merge. Local approval is explicit. Request configured spec reviewers or honor CODEOWNERS/policy; add no universal second-person rule. Public PRs link only public spec issues.
 
