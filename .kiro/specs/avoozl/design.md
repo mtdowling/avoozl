@@ -3616,7 +3616,7 @@ mirror and forward flow (RC24–RC26) is not used for this setup.
 | 42. PR landing and the setup command    | Ten tasks land on a repository with a required check                                          |
 | 43. Worker machines pull work           | A second machine with a second GitHub login pulls, claims and completes tasks from a shared pool on real GitHub; a race between two workers shows exactly one claim wins |
 | 44. Issues and Pull requests pages      | The pages match Issue Radar's at 390 and 1280 px, light and dark; a list load makes 0 extra GitHub calls |
-| 45. Remove the Issue Radar path         | Leaf modules any time; shared edits last; compatibility names still resolve                   |
+| 45. Remove the Issue Radar path         | Leaf audit any time; 45.2 after P52; 45.2/45.3 have exclusive shared-file access; remaining shared edits last; compatibility names still resolve                   |
 
 ### 4.27 Issues and Pull requests pages
 
