@@ -12,6 +12,8 @@ const files = readdirSync(src).filter((name) => /\.(tsx?|ts)$/.test(name) && !na
 
 // Each entry is one exact phrase that keeps the word, with why (R62.3).
 export const ALLOWED = new Map([
+  // Requirement 99.1 names this role explicitly.
+  ['Plan reviewer', 'the Settings > Models role label required by R99.1'],
   // Plan as a verb.
   ['Plan an epic', 'verb: the Specs button and its empty state'],
   ['Plan a goal', 'verb: the header button and the skill step it names'],

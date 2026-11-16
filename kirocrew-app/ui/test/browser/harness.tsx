@@ -54,6 +54,7 @@ import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
 import AvoozlPanel from '../../src/Panel.tsx'
+import ModelsSettings from '../../src/ModelsSettings.tsx'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
@@ -637,7 +638,19 @@ function RepoModePage() {
   )
 }
 
+if (query.get('page') === 'models') {
+  let settings = { filename: '.avoozl.json', exists: true, hash: 'models-before', models: { planner: 'fake-writer' } }
+  answer('GET /api/models', () => ['fake-writer', 'fake-reviewer'])
+  answer('models.settings.get', () => settings)
+  answer('models.settings.update', (body) => {
+    state.calls.push(body)
+    settings = { ...settings, hash: 'models-after', models: (body.input as { models: typeof settings.models }).models }
+    return settings
+  })
+}
+
 const PAGES: Record<string, () => ReactNode> = {
+  models: () => <ModelsSettings workspaceId="w" />,
   // The GitHub calls of the last hour by source, beside the live limit.
   'github-usage': () => (
     <RateBlock

@@ -1631,7 +1631,7 @@ Requirement 91 (design §4.26). Audit leaf modules any time. Task 45.2
 waits for P52; 45.2 and 45.3 run only when no other lane edits the same
 files. Remaining shared edits wait until Phases 40–44 are proved.
 
-- [ ] 45.1 Audit Radar-only leaf modules and delete any already unreferenced modules and their tests [R91.1, R91.3] (§4.26)
+- [x] 45.1 Audit Radar-only leaf modules and delete any already unreferenced modules and their tests [R91.1, R91.3] (§4.26)
   - Remove only modules with no active production importers; preserve setup and PR landing code. Record retained modules and their importers for 45.4, including when no module can yet be deleted; `npm test` passes.
 - [ ] 45.2 Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant, after avoozl-p52 [R91.1] (§4.26)
   - Retire provenance-based landing gates only after replacement PR landing is proved; keep compatibility names resolving.
@@ -1782,7 +1782,7 @@ Owner request 2026-11-15 (Requirement 99, design §4.29). Numbered after
 Phase 39 because task IDs never move. Planning only: it has no
 dependency on the worker rebuild (Phases 40–52) and may ship before it.
 
-- [ ] 53.1 Plan reviewer role and `planReview` settings [R99.1, R99.10, R99.13] (§4.29)
+- [x] 53.1 Plan reviewer role and `planReview` settings [R99.1, R99.10, R99.13] (§4.29)
   - `planReviewer` in `MODEL_ROLES`, `plan-review` in `DISPATCH_ROLE`, `validateModels` refuses a reviewer equal to a named planner; `planReview.mode` and `planReview.rounds` validated; the Settings › Models row. Tests use fake model names.
 - [ ] 53.2 Review rounds and spec findings keyed by hash, after 53.1 [R99.2, R99.5, R99.6] (§4.29)
   - `review_rounds` rows per pass and round; `plan.review.submit` takes spec findings (kind, severity, file, line, claim, evidence) and refuses a bad file or line and a same-model session. Tests: the different-model rule; findings keyed by hash.
