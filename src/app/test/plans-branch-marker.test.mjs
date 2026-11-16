@@ -54,8 +54,10 @@ class PullGitHub extends FakeGitHub {
   async createBranch(_r, name) {
     this.made.push(name);
   }
-  async putFile(repository, file) {
-    this.written.push({ repository, ...file });
+  async commitFiles(repository, { branch, message, files }) {
+    for (const [path, content] of Object.entries(files))
+      this.written.push({ repository, path, branch, message, content });
+    return "c".repeat(40);
   }
   async createPullRequest(repository, input) {
     this.pulls.push({
@@ -137,6 +139,9 @@ test("approving a private spec opens its pull request against the plans branch",
   );
   assert.equal(store.list("approvals").length, 0);
   Object.assign(pull, { state: "closed", merged: true, merge_commit_sha: SHA });
+  // The merge commit is the plans branch with the Status lines changed,
+  // which the revision hash leaves out.
+  github.shas.set(SHA, PLANS);
   const done = await ops.execute("plan.approve", {
     id: "config",
     expectedHash: preview.reviewedHash,
