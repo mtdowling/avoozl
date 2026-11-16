@@ -4905,8 +4905,12 @@ harness without changing the loop.
    until the proof of Phase 47 passes. On `kirocrew`, the chat's trust mode
    SHALL be set again on every tick (Requirement 88.1), because an ordinary
    worker chat stalls unattended without it.
-6. Moving today's calls behind the interface SHALL leave the existing test
-   suite passing unchanged.
+6. Moving today's calls behind the interface SHALL preserve existing
+   behavior and keep the suite passing. Tests that assert the retired
+   folder, project or agent fields in planner requests MAY change to assert
+   the neutral request and executor behavior instead; their surviving
+   behavior coverage SHALL be retained. Other existing assertions SHALL
+   remain unchanged.
 
 ### Requirement 94: Harness definition files
 
