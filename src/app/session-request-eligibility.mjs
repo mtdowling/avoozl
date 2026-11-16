@@ -5,7 +5,12 @@ import { linePausedTaskIds } from "./flow.mjs";
 import { driverHeldTaskIds, readOnlyPlanIds } from "./driver-scope.mjs";
 import { hasRemoteTask, runnerSessionHold } from "./remote-runner.mjs";
 
-export function sessionStartHold(store, request, queued = {}) {
+export function sessionStartHold(
+  store,
+  request,
+  queued = {},
+  { planReviewMode } = {},
+) {
   const data = store.read();
   if (["plan-review", "plan-answer"].includes(request.role)) {
     const round = store.get("review_rounds", request.task),
@@ -20,6 +25,7 @@ export function sessionStartHold(store, request, queued = {}) {
     )
       return "The queued review revision changed.";
     if (request.role === "plan-review") {
+      if (planReviewMode === "off") return "Plan reviews are off.";
       if (
         round.state !== "running" ||
         round.slot ||
