@@ -3679,7 +3679,7 @@ tick (planner) ──writes──> session requests {executor, role, task, ...}
                      (Kiro Crew chats)            avoozl supervisor (one per machine)
                                                   child = agent CLI in the worktree
                               │                         │
-                              └── avoozl runner report TASK done|blocked ──> Avoozl reads HEAD
+              runner report (chats) ┴ exit code + .avoozl/result.json (children) ──> Avoozl commits or reads HEAD
 ```
 
 **Executor interface.** `start(role, task, worktree, brief, model,
@@ -3700,6 +3700,8 @@ placeholders; nothing is passed through a shell.
   "start": ["example-cli", "--cwd", "{worktree}", "--model", "{model}", "--prompt-file", "{brief_file}", "--sandbox", "{permission}"],
   "resume": ["example-cli", "--resume", "{session}", "--message-file", "{message_file}"],
   "permission": { "write": "workspace-write", "read": "read-only" },
+  "writeRoots": ["{worktree}", "{tmp}", "{project_cache_dirs}"],
+  "allow": ["{project_allow_commands}"],
   "cost": { "from": "output", "field": "total_cost_usd" },
   "spendCap": ["--max-cost", "{budget_usd}"]
 }
@@ -3715,7 +3717,12 @@ sandbox values are not verified yet; they are proof items of Phase 47
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Permissions    | Write roles: the harness's workspace-write sandbox, confined to the task worktree. Read-only roles: read-only. Never a skip-all-permissions or bypass flag. A harness that cannot confine writes is refused for write roles unless the owner opts in per machine. A spend cap the harness offers is set from the task budget |
 | Default        | `process` with Claude Code for the Nupp compiler repository; `kirocrew` for Avoozl's own repository until Phase 47's proof passes                                  |
-| Person-only    | Children get `AVOOZL_CHILD=1`. The CLI refuses person-only commands in a child even with `--as-person`, which is stricter than a speed bump                       |
+| Write roots    | Task folder, temp, and the cache directories in project config. The worktree's git directory is in the main checkout (`git rev-parse --git-common-dir`), so the child only edits and Avoozl commits after it exits |
+| No skip flag   | Enforced in code: a definition with `bypassPermissions`, `danger-full-access` or any `--dangerously-*` flag is refused at load, with a test |
+| Allow-list     | Per project, the build and test commands an unattended child may run without a prompt. `git push` is never on it |
+| Spend          | A spend cap flag caps API spend and may not bind on a plan login (proof item). Plan quota: no new session once the quota reads low |
+| Kiro Crew repo | Avoozl's own repository on `kirocrew` chats has trust mode set again each tick, or ordinary workers stall unattended |
+| Person-only    | Children get `AVOOZL_CHILD=1`, and the CLI refuses person-only commands there even with `--as-person`. That is a speed bump: the child runs as the owner. "Never" holds only through the sandbox: database, credentials and the Kiro Crew home outside its reach, network off or restricted. For `kirocrew` chats it stays a speed bump |
 
 **Supervisor.** `avoozl supervisor` owns children: pid, start time, exit
 code and log file, in SQLite. It takes only `process` requests. On a Kiro
@@ -3726,10 +3733,14 @@ app backend may keep a detached long-lived child is not verified yet; it is
 a proof item of Phase 47. If it may not, the backend asks launchd to run the
 supervisor on Kiro Crew machines too.
 
-**One way to finish.** Every brief ends with `avoozl runner report TASK
-done|blocked`. Avoozl reads the commit from the worktree. A child that
-exits without a report is `exited <code>` and takes the retry path.
-`next`, `claim` and the report stay as the manual path.
+**Finishing.** A sandboxed child cannot reach the database, so a `process`
+child ends by writing `.avoozl/result.json` in its task folder (`state`
+`done` or `blocked`, and `text`) and exiting. The supervisor reads the exit
+code and the file; Avoozl commits the changes and checks the diff. A
+missing or bad file, or `done` with a non-zero exit, is `exited <code>` and
+takes the retry path. Kiro Crew chats and people use `avoozl runner report
+TASK done|blocked`; `next`, `claim` and the report stay as the manual
+path.
 
 **Prompts.** `prompts/<role>.md` holds each role's prompt; the build writes
 the Kiro Crew agent files from them, and a test fails on drift.
