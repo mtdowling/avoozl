@@ -1827,3 +1827,29 @@ dependency on Phases 40–53 and may ship before them.
   - Expected: (2) one retrospective with docs-only waste and repeat run triggers, the pull requests labeled `other`, and a `plan` proposal naming the workflow file; the GitHub rate counters show no call beyond the open pull request read and one runs read per check; (4) PDCA shows CI minutes per pull request for `spec` down at least 10%, and no new repeat run.
   - Failure means: steady waste is still hidden, other pull requests are missed, or the reads cost more than the stated budget.
   - Next decision: read more than one page of runs, or read `closedAt` for exact lead times.
+
+## Phase 55: Every build receipt, and a build breakdown for retrospectives
+
+Owner request 2026-11-16 (Requirement 101, design §4.31). Builds on the
+build receipts of radar-coder Phase 31 and on Phase 54. It does not wait for
+Phase 45; 55.3 moves the reader out of the Radar path first.
+
+- [ ] 55.1 Every line of a receipt file, and task, attempt and phase in the wrapper [R101.2, R101.3] (§4.31)
+  - `parseReceipts` returns every record and a skipped count; `bin/build-receipt` takes `--task`, `--attempt` and `--phase` with their fallbacks. Tests: 4 lines keep 4; a bad line is skipped and counted; a version 1 line without the new fields parses; the wrapper tests of rc-31.1 pass unchanged.
+- [ ] 55.2 CI uploads a receipt from every platform, after 55.1 [R101.3] (§4.31)
+  - Each test job uploads `build-receipt-<os>` with `if: always()`; the summary prints every line. A workflow file is a protected path, so the diff goes to the owner before it lands. Done when a CI run shows 3 artifacts and every line in the summary.
+- [ ] 55.3 Reader: every artifact, every line, stored observations, after 55.1, 54.2, 54.6 [R101.1, R101.2, R101.5, R101.6] (§4.31)
+  - Unfiltered artifact list through the HTTP cache from `ciStep`; `receipt_artifacts` and `build_observations`; `pr_ci` gains `head_sha` and `merged_at`; the old metadata value moves once. Tests: several phases on 3 platforms keep every record; a failed attempt is kept and marked; one list per check, a 304 reads nothing, one download per new artifact, the next check costs 0; complete runs with no artifact store none.
+- [ ] 55.4 Flow and Trace show every record; PDCA on build minutes, after 55.3 [R101.4, R101.12] (§4.31)
+  - `buildView` replaces `receiptsView`: totals, phases, costliest phase, failed apart, medians per phase, target and start; Trace groups every observation by phase. `METRICS` adds Build minutes per pull request. Tests: the costliest phase shows in Flow; failed attempts stay out of medians. Ships before and after screenshots (phone and desktop, light and dark) and waits for the owner's approval before merge.
+- [ ] 55.5 Build report format, `receipts.report` and the adapter, after 55.1 [R101.7, R101.8, R101.9] (§4.31)
+  - `docs/build-report.md` for version 1; `src/app/build-report.mjs` with `parseBuildReport` and `comparisonKey`; `receipts.report` checked as a field or an artifact prefix. Tests: both forms; an unknown version and a missing field are skipped and counted; fixtures use made-up names only.
+- [ ] 55.6 Breakdowns stored, in the retro brief, and compared by key only, after 55.3, 55.5, 54.4 [R101.9, R101.10, R101.11] (§4.31)
+  - `build_breakdowns` from the field or report artifacts; `buildBrief` in `retroBrief`; `PLAN_FIELDS` adds `key` and `part`; `METRICS` adds Build part minutes; Not enough comparable builds. Tests: mismatched keys are never compared; a retro brief includes the breakdown; a repository with no reports gives the same brief and call count as before.
+
+- [ ] avoozl-p65 P65 Proof: every receipt kept and a breakdown in a retro on a real repository, after 55.1, 55.2, 55.3, 55.4, 55.5, 55.6 [R101] (§4.31)
+  - Setup: an isolated workspace naming one scratch GitHub repository with `buildReceipts` on, CI on 3 platforms running build and test through the wrapper, and `receipts.report` set to a field that a test script fills with made-up workload, engine and target names.
+  - Action: (1) open a pull request, fail its test job once, re-run it, and merge; (2) let two checks run; (3) merge 4 more pull requests with the same report key and 1 with a different cache mode; (4) start a retrospective.
+  - Expected: (2) 6 or more observations for the first pull request, the failed attempt marked, the costliest phase in Flow, one artifact list per check and one download per artifact, the second check 0 downloads; (4) the brief holds the breakdown, and the pull request with the other cache mode is never compared with the rest.
+  - Failure means: records are still dropped, artifacts are read again, or builds with different work are compared.
+  - Next decision: read a second page of artifacts, or move reports to their own artifact.

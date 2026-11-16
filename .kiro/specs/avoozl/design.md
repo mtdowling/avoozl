@@ -4032,6 +4032,160 @@ than 50 between two checks misses the oldest, and a new workspace sees only
 the newest 50 of its window. A pull request in neither list closes at the
 first check that no longer lists it open. Read a second page if that shows.
 
+### 4.31 Every build receipt, and a build breakdown for retrospectives
+
+Added 2026-11-16 (Requirement 101). Build receipts (radar-coder §D37) keep
+one record per merged pull request: the last line of the first matching
+artifact. This section keeps every record of every artifact on the head
+commit, and adds a repository's own build report to Flow and the
+retrospective.
+
+```text
+tick's CI step (flow-ci.mjs ciStep), per repository with buildReceipts on
+  ─▶ workflow runs read (§4.30, already made): head commits and run states
+  ─▶ artifact list (one REST call, ETag, no name filter)
+  ─▶ new build-receipt* and report artifacts: one download each
+  ─▶ parseReceipts: every line ─▶ build_observations
+  ─▶ build-report adapter ─▶ build_breakdowns (when receipts.report is set)
+  ─▶ Flow: per pull request totals, phases, costliest phase; Trace: every line
+  ─▶ retroBrief: builds (phases, breakdowns by comparison key)
+  ─▶ PDCA: Build minutes per pull request │ Build part minutes, matching keys only
+```
+
+**Receipt line.** Version 1 stays, with three optional fields. A line
+without them still parses: `task` is null, `attempt` is 1 and `phase` is the
+command.
+
+```
+{"v":1,"issue":12,"task":"7.2","attempt":2,"phase":"test","commit":"abc1234","command":"npm test","target":"macos-latest","start":"warm","ms":41230,"exit":1,"counters":{},"at":"2026-11-16T10:00:00Z"}
+```
+
+`bin/build-receipt` gains `--task`, `--attempt` and `--phase`, with
+`AVOOZL_TASK`, `AVOOZL_ATTEMPT` and then `GITHUB_RUN_ATTEMPT` as fallbacks.
+`parseReceipts(text)` in `src/app/build-receipt.mjs` returns
+`{ records, skipped }` for every line, with the same field checks
+`parseReceipt` does today; `parseReceipt` becomes its last record for any
+caller left. CI uploads `build-receipt-${{ matrix.os }}` from every job
+(`if: always()`), and the summary step prints every line.
+
+**Reading.** `build-receipt-read.mjs` moves from one receipt per pull
+request to artifacts. The artifact list is
+`GET /repos/{owner}/{repo}/actions/artifacts?per_page=100` with no `name`,
+through `github_http_cache`, so an unchanged list is a 304. An artifact is a
+receipt when its name is `build-receipt` or starts with `build-receipt-`, and
+a report when its name starts with `receipts.report.artifact`. It is read
+when its `workflow_run.head_sha` is the head commit of a merged pull request
+in `pr_ci` (which gains `head_sha` and `merged_at` from the same open and
+recent pull request read) and its id is not in `receipt_artifacts`. A pull
+request whose head commit runs in `ci_runs` are all complete and that has no
+matching artifact is stored as `none`. The reader runs from `ciStep`, not
+from `radar-flow.mjs`; Trace's `receiptFor` reads the stored rows and makes
+no call.
+
+**Call budget.**
+
+| Read           | When                                  | New calls                                    |
+| -------------- | ------------------------------------- | -------------------------------------------- |
+| Artifact list  | at most once per repository per check | ≤ 1; a 304 when unchanged                    |
+| Artifact files | once per artifact never read          | 1 each; 3 for a pull request on 3 platforms  |
+| Reports        | in a receipt field, or as artifacts   | 0 for a field; 1 per new artifact otherwise  |
+
+**Stored rows.**
+
+```text
+receipt_artifacts(repository, artifact_id, run_id, head_sha, name, kind,
+                  read_at, lines, skipped)
+build_observations(repository, pr_number, head_sha, run_id, task, attempt,
+                   command, target, seq, phase, start, ms, exit, failed,
+                   counters, at)
+build_breakdowns(repository, pr_number, head_sha, run_id, task, attempt,
+                 workload, engine, target, toolchain, cache, costs, parts,
+                 counters, at)
+```
+
+The `build_observations` key is repository, head commit, run, task,
+attempt, command, target and `seq`, the order among lines with the same
+key. `failed` is a non-zero `exit` or a run whose conclusion is not
+`success`. Rows older than 90 days are removed by the tick, as for `pr_ci`.
+The old `buildReceipts` metadata value is read once into
+`build_observations` and then removed.
+
+**Aggregation.** `buildView(rows)` replaces `receiptsView`:
+
+| Output           | From                                                                    |
+| ---------------- | ----------------------------------------------------------------------- |
+| Per pull request | total ms of every observation; ms per phase over targets; costliest phase; failed ms apart |
+| Per group        | median ms per phase, target and start, successful observations only     |
+| Per instance     | count, median and sum, as before (RC32.7)                               |
+
+Flow's receipts card shows the per pull request rows with the costliest
+phase named, and the medians per group. Trace lists every observation on
+the merged step, grouped by phase, failed ones marked.
+
+**Build report, version 1.** Documented in `docs/build-report.md`, which
+the task that builds the adapter adds.
+
+| Field       | Type                                            | Required |
+| ----------- | ----------------------------------------------- | -------- |
+| `format`    | `"avoozl.build-report"`                         | yes      |
+| `v`         | `1`                                             | yes      |
+| `workload`  | string, at most 80                              | yes      |
+| `engine`    | string, at most 80                              | yes      |
+| `target`    | string, at most 80                              | yes      |
+| `toolchain` | string, at most 120 (a toolchain or seed ID)    | yes      |
+| `cache`     | string, at most 32 (the cache mode)             | yes      |
+| `costs`     | `build`, `provisioning`, `cache`, `test`: ms    | yes      |
+| `parts`     | at most 32 of `{name, kind, ms}`, `kind` a cost | no       |
+| `counters`  | at most 16 names to numbers                     | no       |
+| `task`, `attempt`, `commit`, `at` | as in a receipt line      | no       |
+
+`receipts.report` in `.avoozl.json` is `{"field": "<name>"}`, an object at
+that field of each receipt line, or `{"artifact": "<prefix>"}`, artifacts
+whose files hold one report per line. With neither set, nothing is read.
+`src/app/build-report.mjs` holds `parseBuildReport(value)` (a breakdown or
+a skip reason) and `comparisonKey(b)`: the five fields joined, or null when
+any is missing. Avoozl adds no budget, limit or profiler. A repository that
+wants those keeps them in its own tooling and writes the results into the
+report as parts or counters.
+
+**Retrospective.** `retroBrief` in `src/app/flow-retro.mjs` adds
+`builds: buildBrief(store, repositories, { now })` beside `ci`. Per
+repository it holds the costliest phase of each pull request in the window,
+labeled `task` or `other` as in §4.30, and, per comparison key, the count,
+the latest and median of each cost and part, and the costliest part.
+Breakdowns with a null key are counted as `unmatched` and summarized
+nowhere else. With no observations and no breakdowns for a repository,
+`builds` omits it, so the brief is as it is today. `triggers` is unchanged:
+build data informs a retrospective but does not start one.
+
+`PLAN_FIELDS` gains `key` and `part`; validation refuses a key or part that
+is not in the brief. `METRICS` gains **Build minutes per pull request**
+(by phase, target and start) and **Build part minutes** (by comparison key
+and part). PDCA for either compares only matching groups, the last
+`flow.retro.everyTasks` before approval with the same number after it, and
+keeps the 10% rule. With fewer on either side it records
+`Not enough comparable builds` and no verdict.
+
+**Tests.**
+
+| Test                        | Shows                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| Every line                  | A file with 4 lines keeps 4; a bad line is skipped and counted; an old line parses          |
+| Several phases, 3 platforms | 3 artifacts with build and test lines keep 6 observations for one pull request              |
+| Failed attempt kept         | Attempt 1 failed and attempt 2 passed: both kept, attempt 1 marked failed, out of medians   |
+| Costliest phase             | Flow names the phase with the most ms summed over targets                                   |
+| Calls                       | One list per check; a 304 reads nothing; one download per new artifact; next check 0         |
+| None remembered             | Complete runs with no artifact store `none`; a running run stores nothing yet               |
+| Report parse                | Field and artifact forms; an unknown version and a missing field are skipped and counted    |
+| Mismatched keys             | Breakdowns differing in any of the five fields, or missing one, are never compared          |
+| Breakdown in brief          | A retro brief holds the key, costs, parts and costliest part                                |
+| No reports                  | A repository with no reports: same brief and same call count as before                      |
+| Repository neutral          | Fixtures use made-up workload, engine and target names; the release scan finds nothing      |
+
+shortcut: one page of 100 artifacts per list; a repository that writes more
+than 100 between two checks misses the oldest. Read a second page if Flow
+shows the cap hit.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.
@@ -6459,6 +6613,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P61   | A headless machine under launchd, CLI only (Phase 51) |
 | P62   | The manual next, claim and report path (Phase 52) |
 | P64   | Steady CI waste caught on a real repository with no Avoozl tasks (Phase 54) |
+| P65   | Every receipt kept, failed attempts included, and a build breakdown compared by key in a retro (Phase 55) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
 requires a failed proof that a small Kiro Crew or GitHub contract cannot fix.
@@ -6511,6 +6666,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 51. Headless workers | Supervisor under launchd or systemd, CLI only (§4.28) |
 | 52. Manual path | `next`, `claim`, `runner report` kept (§4.28) |
 | 54. Steady CI waste | File classes per pull request, repeat runs, fixed CI limits over every pull request, CI plan proposals with PDCA by class, the Flow CI card (§4.30) |
+| 55. Every build receipt | Every line of every receipt artifact, failed attempts kept, costliest phase in Flow, the build report format and breakdowns in the retro brief (§4.31) |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
 
