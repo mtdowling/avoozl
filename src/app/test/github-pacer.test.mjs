@@ -13,6 +13,7 @@ import {
   paceEstimate,
   paceNeedsYou,
   readRun,
+  refuseOtherRun,
   runView,
 } from "../github-pacer.mjs";
 import { refreshProjectedReadiness } from "../github-projection.mjs";
@@ -328,6 +329,27 @@ test("a projection stops at the hour cap, resumes from the tick, and makes no du
   assert.equal(new Set(ids).size, 12);
   assert.equal(ids.length, 12, "no task has two issues");
   assert.equal(paceNeedsYou(store, time.now).length, 0);
+});
+
+test("a second plan's projection is refused while another run is paused", async (t) => {
+  const { store, ops, plan } = await projection(t, {
+    tasks: 12,
+    limits: { perMinute: 60, perHour: 10 },
+  });
+  await assert.rejects(
+    ops.execute("github.project", { planId: plan.id }),
+    (error) => error.paced === true,
+  );
+  const paused = readRun(store);
+  await assert.rejects(
+    ops.execute("github.project", { planId: "another-plan" }),
+    (error) =>
+      error.status === 409 &&
+      error.message.includes(`still projecting ${plan.id} (paused)`),
+  );
+  // The paused run is kept as it was, and its own plan may go again.
+  assert.deepEqual(readRun(store), paused);
+  assert.doesNotThrow(() => refuseOtherRun(store, plan.id));
 });
 
 test("a reply lost after the issue was made does not make a second issue", async (t) => {

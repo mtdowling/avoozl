@@ -602,6 +602,19 @@ export class GitHubClient {
       : { changed: true, etag: result.etag };
   }
 
+  // The numbers of the issues updated at or after `since` (ISO), pull
+  // requests left out. Pages of 100, newest first.
+  async issuesUpdatedSince(value, since) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    const items = await this.paginate(`/repos/${owner}/${repo}/issues`, {
+      query: { state: "all", since, sort: "updated", direction: "desc" },
+    });
+    return new Set(
+      items.filter((item) => !item.pull_request).map((item) => item.number),
+    );
+  }
+
   // Every open issue carrying any of `labels`, in one search (pages of 100)
   // so all of a repository's rules share one call per tick. GitHub search
   // returns at most 1,000 results; more, or results GitHub marks
