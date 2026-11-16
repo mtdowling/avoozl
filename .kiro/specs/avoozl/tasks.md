@@ -1808,13 +1808,13 @@ Owner request 2026-11-15 (Requirement 100, design §4.30). Builds on the
 retrospectives of Phase 12 and the open pull request read. It has no
 dependency on Phases 40–53 and may ship before them.
 
-- [ ] 54.1 File classes from the widened open pull request read [R100.1, R100.4, R100.6] (§4.30)
+- [x] 54.1 File classes from the widened open pull request read [R100.1, R100.4, R100.6] (§4.30)
   - `openPullRequests` adds `createdAt`, `files` and head check runs with times, run id and event; `flow.ci` settings in `flowSection`; class globs with defaults through `globToRegex`; `pr_ci` rows for task and other pull requests. Tests: classes, order, override and partial; a fake client sees no new GraphQL call.
-- [ ] 54.2 Workflow runs read and repeat runs, after 54.1 [R100.2, R100.6] (§4.30)
+- [x] 54.2 Workflow runs read and repeat runs, after 54.1 [R100.2, R100.6] (§4.30)
   - At most one `actions/runs` read per repository per check through the HTTP cache; `ci_runs` rows; `job_ms` from check runs or wall time marked an estimate. Tests: a 304 reuses the cache; two runs of one workflow on one commit are a repeat run; attempt 2 of one run is not.
-- [ ] 54.3 Steady waste triggers, after 54.2 [R100.3, R100.4, R100.8] (§4.30)
+- [x] 54.3 Steady waste triggers, after 54.2 [R100.3, R100.4, R100.8] (§4.30)
   - Docs-only waste, CI wait share and repeat run in `triggers`, keyed once per repository, kind and window, outside the spike gap; a retrospective with no finished tasks. Tests: 10 spec-only pull requests with 25 CI minutes fire docs-only waste once; a varied but steady repository fires nothing; the Requirement 47.1 tests pass unchanged.
-- [ ] 54.4 CI facts in the brief, CI plan proposals and PDCA by class, after 54.3 [R100.4, R100.5] (§4.30)
+- [x] 54.4 CI facts in the brief, CI plan proposals and PDCA by class, after 54.3 [R100.4, R100.5] (§4.30)
   - Brief per repository: minutes by class, task and other, wait share, repeat runs, workflow files; `other` pull requests as number, author and classes only. `PLAN_FIELDS` adds `repository` and `workflow`; `METRICS` adds `CI minutes per pull request`. Tests: an unseen workflow is dropped; an approved proposal opens a draft; PDCA compares closed pull requests of one class.
 - [ ] 54.5 Flow CI card and Settings › Flow CI group, after 54.3 [R100.7, R100.8] (§4.30)
   - The CI card (minutes by class, wait share, Repeat runs) and the Settings fields with class globs read-only. Ships before and after screenshots (phone and desktop, light and dark) and waits for the owner's approval before merge. Tests: the view data for the card, and No pull requests read without GitHub.
