@@ -7086,7 +7086,7 @@
       "summary": "Phase 46 (Name the executor seam). See R93.2, R93.6; §4.28.",
       "acceptance": [
         "The `kirocrew` executor holds today's session calls from `tick.py`",
-        "All Kiro Crew folder and project handling becomes the executor's private detail, including callers outside `tick.py`; existing tests stay unchanged."
+        "All Kiro Crew folder and project handling becomes the executor's private detail, including callers outside `tick.py`. Preserve existing behavior coverage; only assertions about retired request fields may change (R93.6)."
       ],
       "completion": "integrated",
       "checks": [
@@ -7137,7 +7137,7 @@
       "summary": "Phase 46 (Name the executor seam). Proof. See R93, R97; §4.28.",
       "acceptance": [
         "Proof: the seam is named and nothing else changed",
-        "Expected: the suite passes with no test edited; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file.",
+        "Expected: the suite passes with behavior coverage retained under R93.6; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file.",
         "A boundary test fails on any code path outside the `kirocrew` executor naming a Kiro Crew folder, project or agent file."
       ],
       "completion": "integrated",

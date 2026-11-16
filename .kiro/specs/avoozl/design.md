@@ -3755,7 +3755,7 @@ role; a task's `session` pin may name a harness. Headless machines have
 
 | Phase | Step                                    | Exit                                                                                              |
 | ----- | --------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| 46    | Name the seam                           | Today's calls behind the interface; the existing suite passes unchanged                           |
+| 46    | Name the seam                           | Today's calls behind the interface; behavior coverage retained under R93.6; the suite passes                           |
 | 47    | Supervisor and `process` with Claude Code | A 3-task chain on a scratch repository with one feedback round by resume, a killed child that recovers, a backend restart mid-run |
 | 48    | Codex by definition file only           | Codex runs a task; the proof fails if any source file changed                                     |
 | 49    | Every role on any executor              | Verifier, reviewer, planner, retro and watch each run on `process`                                |

@@ -1651,12 +1651,12 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
 
 Owner plan 2026-11-15 (Requirements 93, 97; design §4.28). Runs before
 Phase 40: the worker rebuild calls this seam. Exit: today's calls sit behind
-the interface and the existing suite passes unchanged.
+the interface, existing behavior is preserved and the suite passes.
 
 - [ ] 46.1 Executor interface: start, send, status, optional stop and usage [R93.1, R93.4] (§4.28)
   - Contract tests cover the calls and allowed status values; the interface carries no Kiro Crew folder, project or agent-file detail. The comprehensive boundary test runs at P56 after 46.2–46.4 move the existing references.
 - [ ] 46.2 The `kirocrew` executor holds today's session calls from `tick.py`, after 46.1 [R93.2, R93.6] (§4.28)
-  - All Kiro Crew folder and project handling becomes the executor's private detail, including callers outside `tick.py`; existing tests stay unchanged.
+  - All Kiro Crew folder and project handling becomes the executor's private detail, including callers outside `tick.py`. Preserve existing behavior coverage; only assertions about retired request fields may change (R93.6).
 - [ ] 46.3 The tick writes session requests that name an executor; each executor takes only its own, after 46.2 [R93.3, R93.4] (§4.28)
   - Planner requests carry no Kiro Crew folder, project or agent-file details.
 - [ ] 46.4 Role prompts in `prompts/<role>.md`; agent files built from them, after 46.1 [R97.1, R97.2] (§4.28)
@@ -1665,7 +1665,7 @@ the interface and the existing suite passes unchanged.
 - [ ] avoozl-p56 P56 Proof: the seam is named and nothing else changed, after 46.1, 46.2, 46.3, 46.4 [R93, R97] (§4.28)
   - Setup: main before and after the change.
   - Action: run the existing suite and a boundary test that fails on any code path outside the `kirocrew` executor naming a Kiro Crew folder, project or agent file; open one worker through the executor on a scratch repository.
-  - Expected: the suite passes with no test edited; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file.
+  - Expected: the suite passes with behavior coverage retained under R93.6; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file.
   - Failure means: the seam leaks Kiro Crew details or changed behavior.
   - Next decision: start Phase 40 on the seam.
 
