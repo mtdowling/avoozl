@@ -47,12 +47,16 @@ test("the planner agent ships, parses, and is listed in the manifest", () => {
   assert.deepEqual(planner.allowedTools, [], "nothing runs unprompted");
 });
 
-test("the planner stores draft revisions and otherwise reaches read-only Avoozl tools", () => {
+test("the planner stores draft revisions and bound answers and otherwise reaches read-only Avoozl tools", () => {
   const builtins = planner.tools.filter((t) => !t.startsWith("@")),
     mcp = planner.tools.filter((t) => t.startsWith("@")),
     // Breakdown mode records its answer for its own issue (github-planner.mjs).
     breakdown = new Set(["plans_classify_issue", "plans_draft_children"]),
-    revisions = new Set(["plans_create_plan", "plans_save_plan"]);
+    revisions = new Set([
+      "plans_create_plan",
+      "plans_save_plan",
+      "plans_answer_review",
+    ]);
   assert.deepEqual(builtins.sort(), [
     "fs_read",
     "fs_write",
@@ -96,13 +100,17 @@ test("the review and reasons-only answer agents have no file or shell writes", (
       ["fs_read", "grep", "glob", "thinking"],
     );
     assert.equal(agent.includeMcpJson, false);
+    if (name === "avoozl-plan-answer-read")
+      for (const tool of ["plans_plan_review", "plans_answer_review"])
+        assert.ok(agent.allowedTools.includes(ownServer + tool));
     assert.ok(
       agent.tools.every(
         (tool) =>
           !tool.startsWith("@") ||
-          ["plans_get_plan", "plans_submit_review"].some(
-            (allowed) => tool === ownServer + allowed,
-          ),
+          (name === "avoozl-plan-answer-read"
+            ? ["plans_get_plan", "plans_plan_review", "plans_answer_review"]
+            : ["plans_get_plan", "plans_submit_review"]
+          ).some((allowed) => tool === ownServer + allowed),
       ),
     );
   }

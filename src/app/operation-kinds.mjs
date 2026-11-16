@@ -39,6 +39,7 @@ const OBSERVE = new Set([
   "plan.approvalBatches",
   "github.project.preview",
   "plan.extract.get",
+  "plan.review.get",
   "plan.review.list",
   "plan.reviewSummary",
   "plan.review.findings",

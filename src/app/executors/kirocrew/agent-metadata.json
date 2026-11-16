@@ -165,7 +165,9 @@
       "@avoozl:avoozl/plans_classify_issue",
       "@avoozl:avoozl/plans_draft_children",
       "@avoozl:avoozl/plans_create_plan",
-      "@avoozl:avoozl/plans_save_plan"
+      "@avoozl:avoozl/plans_save_plan",
+      "@avoozl:avoozl/plans_plan_review",
+      "@avoozl:avoozl/plans_answer_review"
     ],
     "allowedTools": [],
     "toolsSettings": {
@@ -282,14 +284,18 @@
       "grep",
       "glob",
       "thinking",
-      "@avoozl:avoozl/plans_get_plan"
+      "@avoozl:avoozl/plans_get_plan",
+      "@avoozl:avoozl/plans_plan_review",
+      "@avoozl:avoozl/plans_answer_review"
     ],
     "allowedTools": [
       "fs_read",
       "grep",
       "glob",
       "thinking",
-      "@avoozl:avoozl/plans_get_plan"
+      "@avoozl:avoozl/plans_get_plan",
+      "@avoozl:avoozl/plans_plan_review",
+      "@avoozl:avoozl/plans_answer_review"
     ],
     "includeMcpJson": false
   }
