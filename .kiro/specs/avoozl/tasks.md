@@ -1657,7 +1657,7 @@ the interface, existing behavior is preserved and the suite passes.
   - Contract tests cover the calls and allowed status values; the interface carries no Kiro Crew folder, project or agent-file detail. The comprehensive boundary test runs at P56 after 46.2–46.4 move the existing references.
 - [x] 46.2 The `kirocrew` executor holds today's session calls from `tick.py`, after 46.1 [R93.2, R93.6] (§4.28)
   - All Kiro Crew folder and project handling becomes the executor's private detail, including callers outside `tick.py`. Preserve existing behavior coverage; only assertions about retired request fields may change (R93.6).
-- [ ] 46.3 The tick writes session requests that name an executor; each executor takes only its own, after 46.2 [R93.3, R93.4] (§4.28)
+- [x] 46.3 The tick writes session requests that name an executor; each executor takes only its own, after 46.2 [R93.3, R93.4] (§4.28)
   - Planner requests carry no Kiro Crew folder, project or agent-file details.
 - [x] 46.4 Role prompts in `prompts/<role>.md`; agent files built from them, after 46.1 [R97.1, R97.2] (§4.28)
   - Runtime prompt readers use the prompt files, not generated agent JSON. A test fails when a built agent differs from its prompt.

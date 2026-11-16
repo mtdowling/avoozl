@@ -1,3 +1,4 @@
+import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewSession } from "./executors/kirocrew.mjs";
 // The respond action (R27.2, R27.3; design §4.7, §6.2). For each frozen
 // snapshot of an issue a `respond` rule matched, the tick adds the
@@ -346,22 +347,24 @@ export async function respondStep(
       continue;
     }
     if (binding || !open || response.state !== "open") continue;
-    dispatch.push({
-      task: response.id,
-      role: "responder",
-      attempt: 1,
-      title:
-        `avoozl:${response.id} respond ${response.repository}#${response.number}`.slice(
-          0,
-          200,
-        ),
-      ...kirocrewSession(null, response),
-      agent: RESPONDER_AGENT,
-      brief:
-        response.kind === "discussion"
-          ? responderBrief(response, { kind: "discussion" })
-          : responderBrief(record),
-    });
+    dispatch.push(
+      kirocrewRequest(store, {
+        task: response.id,
+        role: "responder",
+        attempt: 1,
+        title:
+          `avoozl:${response.id} respond ${response.repository}#${response.number}`.slice(
+            0,
+            200,
+          ),
+        ...kirocrewSession(null, response),
+        agent: RESPONDER_AGENT,
+        brief:
+          response.kind === "discussion"
+            ? responderBrief(response, { kind: "discussion" })
+            : responderBrief(record),
+      }),
+    );
   }
   return { dispatch };
 }

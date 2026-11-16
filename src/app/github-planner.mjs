@@ -1,3 +1,4 @@
+import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewSession } from "./executors/kirocrew.mjs";
 // Planner sessions for issues a deliver rule matched (§6.2; the gap proof
 // P12 found). The tick starts one `avoozl-planner` session per trigger event
@@ -197,25 +198,27 @@ export function plannerStep(store, workspaceRoot, { open = true } = {}) {
             breakdown.spec?.hash === planner.specHash;
       if (binding || !open || !needed) continue;
       const label = `${planner.mode === "critique" ? "critique" : "plan"} ${row.repository}#${row.number}`;
-      dispatch.push({
-        task: row.taskId,
-        role: "planner",
-        attempt: planner.attempt,
-        title: sessionTitle(row.taskId, planner.attempt, label),
-        ...kirocrewSession(checkout.id, rules),
-        agent: PLANNER_AGENT,
-        checkout: checkout.localCheckout,
-        brief: withSeed(
-          store,
-          (planner.mode === "critique" ? critiqueBrief : breakdownBrief)(
-            row,
-            planner,
-            checkout,
-            repositories,
+      dispatch.push(
+        kirocrewRequest(store, {
+          task: row.taskId,
+          role: "planner",
+          attempt: planner.attempt,
+          title: sessionTitle(row.taskId, planner.attempt, label),
+          ...kirocrewSession(checkout.id, rules),
+          agent: PLANNER_AGENT,
+          checkout: checkout.localCheckout,
+          brief: withSeed(
+            store,
+            (planner.mode === "critique" ? critiqueBrief : breakdownBrief)(
+              row,
+              planner,
+              checkout,
+              repositories,
+            ),
+            "agent.planner",
           ),
-          "agent.planner",
-        ),
-      });
+        }),
+      );
     }
     // Recorded before the tick returns the dispatch, so nothing starts twice.
     if (changed)

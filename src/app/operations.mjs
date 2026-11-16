@@ -1,3 +1,10 @@
+import { sessionStartHold } from "./session-request-eligibility.mjs";
+import {
+  takeKirocrewRequest,
+  releaseKirocrewRequest,
+  completeKirocrewRequest,
+  kirocrewConsumer,
+} from "./executors/kirocrew.mjs";
 import { approvedSpecDependency } from "../spec-dependencies.mjs";
 import { approvalBatches, approveMany } from "./approval-batches.mjs";
 import {
@@ -2863,7 +2870,12 @@ export class Operations {
     // went (moved-operations.mjs). A run start that names a task, repository,
     // and agent is a dispatch request, and an extraction without provider
     // rounds still opens a record for a planner session to fill.
-    if (name === "run.start" && input.taskId && input.repository && input.agent)
+    if (
+      name === "run.start" &&
+      input.taskId &&
+      input.repository &&
+      (input.agent || input.executor)
+    )
       return requestSession(
         store,
         {
@@ -2871,6 +2883,9 @@ export class Operations {
           repository: input.repository,
           agent: input.agent,
           role: input.role,
+          executor: input.executor,
+          model: input.model,
+          permissionClass: input.permissionClass,
         },
         workspaceRepositories(store),
       );
@@ -2932,7 +2947,9 @@ export class Operations {
     }
     if (name === "session.bind")
       return store.transaction(() => {
-        const result = bindSession(store, input);
+        const result = bindSession(store, input, {
+          consumer: kirocrewConsumer(context),
+        });
         if (result.changed && result.binding.role === "plan-review") {
           bindSpecReviewRound(store, {
             roundId: result.binding.taskId,
@@ -2942,6 +2959,14 @@ export class Operations {
         }
         return stampPrompts(store, result);
       });
+    if (name === "executor.kirocrew.take")
+      return takeKirocrewRequest(store, input, context, (request, queued) =>
+        sessionStartHold(store, request, queued),
+      );
+    if (name === "executor.kirocrew.release")
+      return releaseKirocrewRequest(store, input, context);
+    if (name === "executor.kirocrew.complete")
+      return completeKirocrewRequest(store, input, context);
     if (name === "session.rediscover") return rediscoverSessions(store, input);
     if (name === "session.request")
       return requestSession(store, input, workspaceRepositories(store));

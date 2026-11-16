@@ -1,3 +1,4 @@
+import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewSession } from "./executors/kirocrew.mjs";
 // Investigate before coding (design §4.21, Requirement 75, task 34.1).
 //
@@ -433,17 +434,19 @@ export function investigationStep(
       })
     )
       continue;
-    dispatch.push({
-      task: task.id,
-      role: "falsifier",
-      attempt,
-      title: `avoozl:${task.id} falsify round ${round.n}`.slice(0, 200),
-      ...kirocrewSession(project.id),
-      agent: settings.agent,
-      ...(model ? { model } : {}),
-      checkout: project.root,
-      brief,
-    });
+    dispatch.push(
+      kirocrewRequest(store, {
+        task: task.id,
+        role: "falsifier",
+        attempt,
+        title: `avoozl:${task.id} falsify round ${round.n}`.slice(0, 200),
+        ...kirocrewSession(project.id),
+        agent: settings.agent,
+        ...(model ? { model } : {}),
+        checkout: project.root,
+        brief,
+      }),
+    );
   }
   return { dispatch, messages, notify };
 }

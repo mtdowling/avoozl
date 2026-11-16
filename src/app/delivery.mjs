@@ -1,3 +1,4 @@
+import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import {
   kirocrewSession,
   kirocrewRemoteSession,
@@ -2285,7 +2286,7 @@ export function planReadyDispatches(store, policy, options = {}) {
       ? where.agent || policy.agent
       : keptAgent(store, leaf.task.id, policy);
     return [
-      {
+      kirocrewRequest(store, {
         task: leaf.task.id,
         role: "worker",
         attempt: leaf.attempt,
@@ -2310,7 +2311,7 @@ export function planReadyDispatches(store, policy, options = {}) {
           : {}),
         checkout: leaf.project.root,
         brief,
-      },
+      }),
     ];
   });
 }
@@ -3136,25 +3137,27 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
         })
       )
         continue;
-      dispatch.push({
-        task: task.id,
-        role: role.role,
-        attempt,
-        title: sessionTitle(
-          task.id,
+      dispatch.push(
+        kirocrewRequest(store, {
+          task: task.id,
+          role: role.role,
           attempt,
-          role.id === "checks" ? `verify ${sha}` : `review ${role.id} ${sha}`,
-        ),
-        ...kirocrewSession(project.id),
-        agent: role.agent,
-        ...(role.model ? { model: role.model } : {}),
-        ...(where
-          ? { placement: where.placement, sessionReason: where.sessionReason }
-          : {}),
-        commit: delivery.commit,
-        checkout: project.root,
-        brief,
-      });
+          title: sessionTitle(
+            task.id,
+            attempt,
+            role.id === "checks" ? `verify ${sha}` : `review ${role.id} ${sha}`,
+          ),
+          ...kirocrewSession(project.id),
+          agent: role.agent,
+          ...(role.model ? { model: role.model } : {}),
+          ...(where
+            ? { placement: where.placement, sessionReason: where.sessionReason }
+            : {}),
+          commit: delivery.commit,
+          checkout: project.root,
+          brief,
+        }),
+      );
     }
   }
   return dispatch;

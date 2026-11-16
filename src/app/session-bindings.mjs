@@ -1,3 +1,5 @@
+import { bindSessionRequest } from "./session-requests.mjs";
+import { saveKirocrewIntent } from "./executors/kirocrew.mjs";
 import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
 import { queryTasks } from "../query.mjs";
 import { pendingProjection } from "../work-model.mjs";
@@ -97,7 +99,13 @@ function batchInput(value, role, leader) {
   };
 }
 
-export function bindSession(store, input = {}, { guard, conductor } = {}) {
+export function bindSession(
+  store,
+  input = {},
+  { guard, conductor, consumer } = {},
+) {
+  if (input.executor && input.executor !== "kirocrew" && !input.requestId)
+    fail("Executor bindings require their claimed request.", 403);
   const slot = text(input.slot, "session slot key", MAX_SLOT),
     role = input.role ?? "worker",
     title =
@@ -223,8 +231,19 @@ export function bindSession(store, input = {}, { guard, conductor } = {}) {
       ...(input.investigate === true && role === "worker"
         ? { investigate: true }
         : {}),
+      ...(input.executor ? { executor: input.executor } : {}),
+      ...(input.permissionClass
+        ? { permissionClass: input.permissionClass }
+        : {}),
+      ...(input.worktree ? { worktree: input.worktree } : {}),
+      ...(input.context ? { context: structuredClone(input.context) } : {}),
       boundAt: new Date().toISOString(),
     };
+    if (input.requestId)
+      bindSessionRequest(store, input, binding, {
+        executor: input.executor,
+        consumer,
+      });
     store.put("session_bindings", binding);
     // A batch (§4.11): one record per batch, for the Flow tab and the views.
     if (binding.batch)
@@ -316,18 +335,16 @@ export function sessionRequestHold(data, taskId, role = "worker") {
   return null;
 }
 
-// Ask the tick to open one session for one task and role, in the repository's
-// Kiro Crew folder, on a named agent. The tick dispatches it while no session is
-// bound for that task and role, so a request yields at most one session.
-// Explicit worker requests obey the same graph and approval holds as dispatch.
+// Explicit requests keep their existing API; provider configuration is adapted
+// privately while the planner reads only the portable intent.
 export function requestSession(store, input = {}, repositories = []) {
   const role = input.role ?? "worker",
-    agent = text(input.agent, "agent name", 128),
+    executor = input.executor ?? "kirocrew",
     repositoryId = text(input.repository, "repository ID", 100);
   if (!ROLES.has(role))
     fail("Choose role worker, verifier, responder, or planner.");
-  if (!AGENT.test(agent))
-    fail("Choose an agent name of letters, digits, '.', '_', ':', or '-'.");
+  if (typeof executor !== "string" || !/^[a-z][a-z0-9-]*$/.test(executor))
+    fail("Choose an executor name.");
   const repository = repositories.find((entry) => entry.id === repositoryId);
   if (!repository?.localCheckout)
     fail("Choose a registered repository with a local checkout.", 404);
@@ -337,30 +354,52 @@ export function requestSession(store, input = {}, repositories = []) {
     const held = sessionRequestHold(store.read(), taskId, role);
     if (held) fail(held, 409);
     const id = `${taskId}:${role}`,
-      current = store.get("session_requests", id);
-    if (current) {
-      if (current.repository !== repositoryId || current.agent !== agent)
-        fail(
-          `Task ${taskId} already requests a ${role} session in ${current.repository} on ${current.agent}.`,
-          409,
-        );
-      return { request: current, changed: false };
-    }
+      row = store.get("session_requests", id),
+      current = row?.intent ?? row;
+    if (
+      current &&
+      (current.repository !== repositoryId ||
+        (current.executor ?? "kirocrew") !== executor)
+    )
+      fail(
+        `Task ${taskId} already requests a ${role} session in ${current.repository}.`,
+        409,
+      );
+    const compatibility =
+      executor === "kirocrew" && input.agent !== undefined
+        ? saveKirocrewIntent(store, id, input)
+        : {};
+    if (current)
+      return { request: { ...current, ...compatibility }, changed: false };
     const request = {
       id,
+      kind: "intent",
       taskId,
       role,
       repository: repositoryId,
-      agent,
+      executor,
+      ...(input.model ? { model: input.model } : {}),
+      ...(input.permissionClass
+        ? { permissionClass: input.permissionClass }
+        : {}),
       requestedAt: new Date().toISOString(),
     };
     store.put("session_requests", request);
-    return { request, changed: true };
+    return { request: { ...request, ...compatibility }, changed: true };
   });
 }
 
 export function listSessionRequests(store) {
-  return store.list("session_requests").reverse();
+  return store
+    .list("session_requests")
+    .reverse()
+    .flatMap((row) =>
+      row.intent
+        ? [row.intent]
+        : !["start", "send"].includes(row.kind)
+          ? [row]
+          : [],
+    );
 }
 
 // Statuses Kiro Crew's `session_status` roster reports (kirocrew-dashboard),

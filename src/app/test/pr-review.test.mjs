@@ -1,3 +1,4 @@
+import { nativeDispatch } from "./executor-fixture.mjs";
 // Code review chat (design §8.5): the Code review button queues one Kiro
 // Crew chat seeded to review one pull request.
 // An isolated temporary workspace and a fake GitHub that records every
@@ -145,8 +146,16 @@ test("Code review queues one seeded chat, the tick opens it, and the row shows S
     open = tick.dispatch.filter((d) => d.role === "pr-review");
   assert.equal(open.length, 1);
   assert.equal(open[0].title, "avoozl:code-review o/app#6");
-  assert.equal(open[0].project, false, "opens without a checkout");
-  assert.equal(open[0].agent, "avoozl-code-review", "read-only reviewer");
+  assert.equal(
+    nativeDispatch(store, open[0]).project,
+    false,
+    "opens without a checkout",
+  );
+  assert.equal(
+    nativeDispatch(store, open[0]).agent,
+    "avoozl-code-review",
+    "read-only reviewer",
+  );
   const seed = open[0].brief;
   for (const part of [
     "Review one pull request: https://github.com/o/app/pull/6",

@@ -1,3 +1,4 @@
+import { nativeDispatch } from "./executor-fixture.mjs";
 // Task 4.3: the respond action. A matched issue snapshot gets the configured
 // responding label and one read-only responder session; plans_post_reply
 // screens the reply, posts at most one comment and removes the label.
@@ -126,8 +127,8 @@ test("a matched issue gets the label and one read-only responder session", async
   const [dispatch] = first.dispatch;
   assert.equal(dispatch.task, responseId(ISSUE, w.snapshot()));
   assert.equal(dispatch.role, "responder");
-  assert.equal(dispatch.agent, "avoozl-responder");
-  assert.equal(dispatch.folder, "Avoozl/code");
+  assert.equal(nativeDispatch(w.store, dispatch).agent, "avoozl-responder");
+  assert.equal(nativeDispatch(w.store, dispatch).folder, "Avoozl/code");
   assert.match(dispatch.title, /^avoozl:respond-\w+ respond example\/code#7$/);
   assert.match(dispatch.brief, /```issue-snapshot\nTitle: How do I run/);
   assert.match(dispatch.brief, /plans_post_reply/);

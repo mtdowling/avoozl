@@ -1,3 +1,4 @@
+import { nativeDispatch } from "./executor-fixture.mjs";
 // rc-27.2 to rc-27.4 and the merge method (RC28, design D33): Avoozl fixes a
 // crew's source conflict with one resolver chat and one merge commit. GitHub
 // is a fake that records every write; the drop check runs on a real git
@@ -288,9 +289,9 @@ test("a handed-back conflict starts one resolver chat with the steps", async (t)
   for (let i = 0; i < 3; i += 1) await w.step();
   const dispatch = conflictFixDispatches(w.store);
   assert.equal(dispatch.length, 1);
-  assert.equal(dispatch[0].agent, FIX_AGENT);
+  assert.equal(nativeDispatch(w.store, dispatch[0]).agent, FIX_AGENT);
   assert.equal(dispatch[0].role, FIX_ROLE);
-  assert.equal(dispatch[0].folder, "Avoozl/code");
+  assert.equal(nativeDispatch(w.store, dispatch[0]).folder, "Avoozl/code");
   // Only an avoozl: title gives a slot under the app's read grant.
   assert.match(dispatch[0].title, /^avoozl:/);
   assert.match(dispatch[0].brief, /git merge origin\/main/);
