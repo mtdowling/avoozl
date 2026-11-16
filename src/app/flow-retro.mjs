@@ -20,10 +20,12 @@ import {
 } from "./flow.mjs";
 import { fail } from "./store.mjs";
 import {
+  BUILD_METRIC,
   CI_METRIC,
   CI_RUNS,
   PR_CI,
   ciBrief,
+  buildMinutesPerPullRequest,
   ciMinutesPerPullRequest,
   ciTriggers,
   lastEffectiveCIConfig,
@@ -74,6 +76,7 @@ export const METRICS = Object.freeze([
   "change failure rate",
   // Measured on closed pull requests by class, not on tasks (R100.5).
   CI_METRIC,
+  BUILD_METRIC,
 ]);
 const METRIC_KEY = {
   "lead time": "leadTimeMs",
@@ -493,7 +496,7 @@ export function retroStep(
       }
       // CI minutes per pull request (R100.5): as many closed pull requests
       // of the repository and class after approval as before it.
-      if (proposal.metric === CI_METRIC) {
+      if (closedMetric(proposal.metric)) {
         const save = (pdca) => {
           const retro = store.get("flow_retros", listed.id);
           store.put("flow_retros", {
@@ -506,9 +509,7 @@ export function retroStep(
         };
         const before =
           p.before ??
-          ciMinutesPerPullRequest(store, {
-            repository: proposal.repository,
-            cls: proposal.class,
+          measureClosed(store, proposal, {
             n: p.window,
             at: p.approvedAt,
           });
@@ -518,9 +519,7 @@ export function retroStep(
           continue;
         }
         const { pendingReason: _pendingReason, ...baseline } = { ...p, before };
-        const after = ciMinutesPerPullRequest(store, {
-          repository: proposal.repository,
-          cls: proposal.class,
+        const after = measureClosed(store, proposal, {
           n: p.window,
           at: p.approvedAt,
           after: true,
@@ -682,6 +681,19 @@ export function pdcaResult(before, after, direction) {
   return "no change";
 }
 
+// The two metrics measured on closed pull requests by class (R100.5, R101.12).
+const closedMetric = (metric) =>
+  metric === CI_METRIC || metric === BUILD_METRIC;
+const measureClosed = (store, proposal, options) =>
+  (proposal.metric === BUILD_METRIC
+    ? buildMinutesPerPullRequest
+    : ciMinutesPerPullRequest)(store, {
+    repository: proposal.repository,
+    cls: proposal.class,
+    ...(proposal.phase ? { phase: proposal.phase } : {}),
+    ...options,
+  });
+
 function ciBaselineReason(proposal, count) {
   const cls = proposal.class === "all" ? "" : `${proposal.class} `;
   return `CI comparison pending: fewer than ${count} closed ${cls}pull requests in ${proposal.repository} were recorded before approval.`;
@@ -783,6 +795,7 @@ function revertOf(retro, proposal) {
         to: proposal.from,
         metric: proposal.metric,
         ...(proposal.class ? { class: proposal.class } : {}),
+        ...(proposal.phase ? { phase: proposal.phase } : {}),
         direction: proposal.direction,
         evidence: `PDCA: ${proposal.key} ${JSON.stringify(proposal.from)} → ${JSON.stringify(proposal.to)} from ${retro.id} did not help (${proposal.metric} ${proposal.pdca?.result ?? "no change"}).`,
         revertOf: `${retro.id}:${proposal.id}`,
@@ -795,6 +808,7 @@ function revertOf(retro, proposal) {
         ...(proposal.workflow ? { workflow: proposal.workflow } : {}),
         metric: proposal.metric,
         ...(proposal.class ? { class: proposal.class } : {}),
+        ...(proposal.phase ? { phase: proposal.phase } : {}),
         direction: proposal.direction,
         evidence: `PDCA: the plan change from ${retro.id} did not help.`,
         revertOf: `${retro.id}:${proposal.id}`,
@@ -810,6 +824,7 @@ const SETTINGS_FIELDS = [
   "to",
   "metric",
   "class",
+  "phase",
   "direction",
   "evidence",
   "revertOf",
@@ -823,6 +838,7 @@ const PLAN_FIELDS = [
   "workflow",
   "metric",
   "class",
+  "phase",
   "direction",
   "evidence",
   "revertOf",
@@ -911,14 +927,17 @@ export function proposalProblem(p, retro = null, store = null) {
     return `metric must be one of ${METRICS.join(", ")}`;
   if (!["up", "down"].includes(p.direction))
     return "direction must be up or down";
-  if (p.metric === CI_METRIC) {
+  if (closedMetric(p.metric)) {
     if (p.type !== "settings" && p.type !== "plan")
-      return `${CI_METRIC} is measured for settings and plan proposals`;
+      return `${p.metric} is measured for settings and plan proposals`;
     if (!["all", ...CI_CLASSES].includes(p.class))
-      return `a ${CI_METRIC} proposal names a class: all, ${CI_CLASSES.join(", ")}`;
+      return `a ${p.metric} proposal names a class: all, ${CI_CLASSES.join(", ")}`;
     if (!shortText(p.repository, 100))
-      return `a ${CI_METRIC} proposal names the repository`;
-  } else if (p.class !== undefined) return `class is only for ${CI_METRIC}`;
+      return `a ${p.metric} proposal names the repository`;
+  } else if (p.class !== undefined)
+    return `class is only for ${CI_METRIC} and ${BUILD_METRIC}`;
+  if (p.phase !== undefined && (p.metric !== BUILD_METRIC || !shortText(p.phase, 80)))
+    return `phase is only for ${BUILD_METRIC}, at most 80 characters`;
   if (p.type === "prompt" || p.type === "skill")
     return changeProblem(p, retro, store);
   if (!shortText(p.evidence)) return "evidence is missing";
@@ -1141,7 +1160,7 @@ export async function decideProposal(
       fail("This proposal removes a check. Confirm again to approve it.", 409);
     const data = store.read(),
       every = flowPolicy(
-        (proposal.metric === CI_METRIC ? ciConfig : config) || {},
+        (closedMetric(proposal.metric) ? ciConfig : config) || {},
       ).workspace.retro.everyTasks,
       done = finishedTasks(store, data).length;
     let pdca =
@@ -1149,19 +1168,14 @@ export async function decideProposal(
         ? { approvedAt: at, window: every, at: done + every }
         : {
             before:
-              proposal.metric === CI_METRIC
-                ? ciMinutesPerPullRequest(store, {
-                    repository: proposal.repository,
-                    cls: proposal.class,
-                    n: every,
-                    at,
-                  })
+              closedMetric(proposal.metric)
+                ? measureClosed(store, proposal, { n: every, at })
                 : metricOver(store, data, proposal.metric, every),
             window: every,
             at: done + every,
             approvedAt: at,
           };
-    if (proposal.metric === CI_METRIC && pdca.before === null)
+    if (closedMetric(proposal.metric) && pdca.before === null)
       pdca.pendingReason = ciBaselineReason(proposal, every);
     if (proposal.type === "settings") await apply(proposal, input.expectedHash);
     else if (proposal.type === "plan")
