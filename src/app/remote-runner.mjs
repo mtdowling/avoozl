@@ -1,4 +1,7 @@
-import { enqueueSessionRequests } from "./session-requests.mjs";
+import {
+  enqueueSessionRequests,
+  pendingSessionRequests,
+} from "./session-requests.mjs";
 import { persistKirocrewConfiguration } from "./executors/kirocrew.mjs";
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
@@ -447,9 +450,21 @@ export async function runnerTick(
     );
     for (const request of requests.starts)
       persistKirocrewConfiguration(store, request);
-    return requests;
+    const pending = pendingSessionRequests(store, undefined, [
+      ...requests.starts,
+      ...requests.sends,
+    ]);
+    return {
+      starts: pending.filter((request) => request.operation === "start"),
+      sends: pending.filter((request) => request.operation === "send"),
+    };
   });
-  return { dispatch: transport.starts, messages: [], notify, observe: [] };
+  return {
+    dispatch: transport.starts,
+    messages: transport.sends,
+    notify,
+    observe: [],
+  };
 }
 
 // --- Driver side -----------------------------------------------------------

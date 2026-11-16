@@ -154,15 +154,30 @@ test("a version change fences stale starts, and a claim never expires from age",
   assert.equal(store.get("session_requests", latest.id).state, "pending");
 });
 
-test("a successful binding consumes its start and replay cannot start it again", async (t) => {
+test("a successful binding accepts reordered context and replay cannot start it again", async (t) => {
   const { store, ops } = env(t),
-    request = enqueueSessionRequests(store, { starts: [start()] }).starts[0],
+    request = enqueueSessionRequests(store, {
+      starts: [
+        start({
+          context: {
+            spec: "synthetic",
+            revisionHash: "h",
+            nested: { left: 1, right: 2 },
+          },
+        }),
+      ],
+    }).starts[0],
     claim = await call(ops, "take", input(request));
   await ops.execute(
     "session.bind",
     {
       taskId: request.task,
       slot: "s",
+      context: {
+        nested: { right: 2, left: 1 },
+        revisionHash: "h",
+        spec: "synthetic",
+      },
       role: request.role,
       source: "tick",
       executor: "kirocrew",
@@ -196,6 +211,7 @@ test("worker consumption rechecks prerequisites, owner approval and the approved
       store.put("plans", { ...store.get("plans", "p"), state: "draft" }),
     (store) =>
       store.put("plans", { ...store.get("plans", "p"), hash: "new-hash" }),
+    (store) => store.put("drivers", { id: "p", state: "read-only" }),
   ]) {
     const { store, ops } = env(t);
     store.put("plans", { id: "p", state: "approved", hash: "approved-hash" });
@@ -218,13 +234,21 @@ test("worker consumption rechecks prerequisites, owner approval and the approved
 });
 
 test("virtual review roles check round state, revision, model and write scope", async (t) => {
-  for (const bad of ["round", "revision", "model", "approved", null]) {
+  for (const bad of [
+    "round",
+    "revision",
+    "model",
+    "approved",
+    "deleted",
+    null,
+  ]) {
     const { store, ops } = env(t);
     store.put("plans", {
       id: "p",
       spec: "synthetic",
       state: bad === "approved" ? "approved" : "draft",
       hash: bad === "revision" ? "changed" : "h",
+      ...(bad === "deleted" ? { deletedAt: "2026-01-01T00:00:00Z" } : {}),
     });
     store.put("review_rounds", {
       id: "r",
@@ -353,5 +377,43 @@ test("runner starts recheck their own state without requiring a local plan", asy
     await call(ops, "take", input(request)),
     null,
     "remote flag alone does not bypass task readiness",
+  );
+});
+
+test("later real ticks reoffer pending transport rows but never claimed or completed ones", async (t) => {
+  const { store, ops } = env(t);
+  const queued = enqueueSessionRequests(store, {
+    starts: [start()],
+    sends: [
+      { executor: "kirocrew", slot: "s", text: "Recovered feedback" },
+      { executor: "process", slot: "p", text: "Other executor" },
+    ],
+  });
+  const tick = () =>
+    ops.execute("workspace.tick", { cron: true, sessions: [] });
+  const replay = await tick();
+  assert.equal(
+    replay.dispatch.some((request) => request.id === queued.starts[0].id),
+    true,
+  );
+  assert.deepEqual(
+    replay.messages.map((request) => request.id).sort(),
+    queued.sends.map((request) => request.id).sort(),
+  );
+  await call(ops, "take", input(queued.starts[0]));
+  const claim = await call(ops, "take", input(queued.sends[0]));
+  await call(ops, "complete", {
+    id: queued.sends[0].id,
+    claimToken: claim.claimToken,
+    outcome: "sent",
+  });
+  const again = await tick();
+  assert.equal(
+    again.dispatch.some((request) => request.id === queued.starts[0].id),
+    false,
+  );
+  assert.deepEqual(
+    again.messages.map((request) => request.id),
+    [queued.sends[1].id],
   );
 });

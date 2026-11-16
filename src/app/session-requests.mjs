@@ -1,6 +1,6 @@
 // Durable, executor-neutral starts and messages. A claim never expires by age.
 import { createHash, randomUUID } from "node:crypto";
-import { fail } from "./store.mjs";
+import { canonical, fail } from "./store.mjs";
 
 const digest = (value) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -61,10 +61,33 @@ const queued = (store) =>
   store
     .list("session_requests")
     .filter((row) => ["start", "send"].includes(row.kind));
-export const pendingSessionRequests = (store, executor) =>
-  queued(store)
-    .filter((row) => row.executor === executor && row.state === "pending")
+const hasStartBinding = (store, request) =>
+  store
+    .list("session_bindings")
+    .some(
+      (binding) =>
+        binding.taskId === request.task &&
+        binding.role === request.role &&
+        (binding.attempt ?? 1) === (request.attempt ?? 1),
+    );
+export function pendingSessionRequests(store, executor, preferred = []) {
+  const order = new Map(preferred.map((request, index) => [request.id, index]));
+  return queued(store)
+    .filter(
+      (row) =>
+        (executor === undefined || row.executor === executor) &&
+        row.state === "pending",
+    )
+    .filter(
+      (row) => row.kind !== "start" || !hasStartBinding(store, row.request),
+    )
+    .sort(
+      (a, b) =>
+        (order.get(a.id) ?? preferred.length) -
+        (order.get(b.id) ?? preferred.length),
+    )
     .map(view);
+}
 
 export function enqueueSessionRequests(
   store,
@@ -162,16 +185,7 @@ export function takeSessionRequest(
       return null;
     if (row.kind === "start") {
       const request = row.request;
-      if (
-        store
-          .list("session_bindings")
-          .some(
-            (binding) =>
-              binding.taskId === request.task &&
-              binding.role === request.role &&
-              (binding.attempt ?? 1) === (request.attempt ?? 1),
-          )
-      ) {
+      if (hasStartBinding(store, request)) {
         store.put("session_requests", { ...row, state: "bound" });
         return null;
       }
@@ -252,8 +266,7 @@ export function bindSessionRequest(store, input, binding, owner) {
     (request.commit ?? null) !== (binding.commit ?? null) ||
     (request.worktree ?? null) !== (binding.worktree ?? null) ||
     request.permissionClass !== binding.permissionClass ||
-    JSON.stringify(request.context ?? null) !==
-      JSON.stringify(binding.context ?? null)
+    canonical(request.context ?? null) !== canonical(binding.context ?? null)
   )
     fail("The binding does not match its claimed session request.", 409);
   store.put("session_requests", {

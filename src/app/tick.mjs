@@ -1,4 +1,7 @@
-import { enqueueSessionRequests } from "./session-requests.mjs";
+import {
+  enqueueSessionRequests,
+  pendingSessionRequests,
+} from "./session-requests.mjs";
 import {
   persistKirocrewConfiguration,
   kirocrewExplicitSession,
@@ -1410,15 +1413,22 @@ async function runTick(
       // Settings › Models: the planner, retro and review-draft chats open on
       // the saved model.
       dispatch = withChatModels(dispatch, memory.value || {});
-      if (script) {
-        const lost = await recheckDrivers(
-          store,
-          live,
-          new Set(dispatch.map((d) => taskPlan.get(d.task)).filter(Boolean)),
+      const pending = cron ? pendingSessionRequests(store) : [],
+        lostDispatchPlans = script
+          ? await recheckDrivers(
+              store,
+              live,
+              new Set(
+                [...dispatch, ...pending]
+                  .map((d) => taskPlan.get(d.task))
+                  .filter(Boolean),
+              ),
+            )
+          : new Set();
+      if (lostDispatchPlans.size)
+        dispatch = dispatch.filter(
+          (d) => !lostDispatchPlans.has(taskPlan.get(d.task)),
         );
-        if (lost.size)
-          dispatch = dispatch.filter((d) => !lost.has(taskPlan.get(d.task)));
-      }
       // No message reaches a session of a read-only spec.
       planned.messages = planned.messages.filter(
         (m) => !readOnly.has(taskPlan.get(m.task)),
@@ -1489,7 +1499,33 @@ async function runTick(
             });
             for (const request of requests.starts)
               persistKirocrewConfiguration(store, request);
-            return requests;
+            // A crash before the consumer took a request must not strand it.
+            const pending = pendingSessionRequests(store, undefined, [
+              ...requests.starts,
+              ...requests.sends,
+            ]);
+            return {
+              starts: unobserved.length
+                ? []
+                : pending.filter(
+                    (request) =>
+                      request.operation === "start" &&
+                      !readOnlyTask(request.task) &&
+                      !lostDispatchPlans.has(taskPlan.get(request.task)) &&
+                      (request.role === "verifier" ||
+                        !heldTask(request.task)) &&
+                      open(request) &&
+                      !asksForcePush(request.brief),
+                  ),
+              sends: pending.filter(
+                (request) =>
+                  request.operation === "send" &&
+                  !readOnlyTask(request.task) &&
+                  !lostDispatchPlans.has(taskPlan.get(request.task)) &&
+                  !asksForcePush(request.text) &&
+                  (request.budget || !heldSlots.has(request.slot)),
+              ),
+            };
           })
         : { starts: dispatched, sends };
       // The cron's tick queues each notice once for the app's notification
