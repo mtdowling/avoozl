@@ -1,0 +1,533 @@
+// Steady CI waste (design §4.30, Requirement 100). The retro's outlier CI
+// trigger misses a cost every pull request pays, because that cost is the
+// median. This counts what each pull request changed, repeat runs of one
+// workflow on one commit, and CI time against fixed limits, over every pull
+// request in the workspace's repositories, not only Avoozl tasks.
+//
+// Reads: the open pull request read the other steps already make (shared
+// through the client's cache) and at most one workflow runs read per
+// repository per check. Writes: `pr_ci` and `ci_runs` rows.
+import { CI_CLASSES, flowPolicy, listOr } from "./flow.mjs";
+import { globToRegex } from "./forward-guard.mjs";
+import { LINKED_BRANCHES } from "./github-plans-repo.mjs";
+
+export const PR_CI = "pr_ci";
+export const CI_RUNS = "ci_runs";
+export const CI_METRIC = "CI minutes per pull request";
+const DAY_MS = 86_400_000;
+const KEEP_MS = 90 * DAY_MS;
+const ERRORS_META = "flow.ci.errors";
+// A path takes the first class that matches, in this order; none is code.
+const MATCH_ORDER = ["ci", "spec", "tests", "docs", "other"];
+// A pull request's one class for grouping: its first present, in this order.
+const GROUP_ORDER = ["code", "tests", "ci", "other", "spec", "docs"];
+export const CLASS_GLOBS = Object.freeze({
+  ci: [".github/", ".gitlab-ci.yml", ".circleci/"],
+  spec: [".kiro/specs/"],
+  tests: [
+    "test/",
+    "tests/",
+    "**/test/**",
+    "**/tests/**",
+    "**/*.test.*",
+    "**/*_test.*",
+  ],
+  docs: ["docs/", "*.md", "**/*.md", "*.txt", "LICENSE"],
+  other: [
+    "package-lock.json",
+    "**/package-lock.json",
+    "*.lock",
+    ".gitignore",
+    ".editorconfig",
+  ],
+});
+
+const lower = (value) => String(value || "").toLowerCase();
+const ms = (iso) => (iso ? Date.parse(iso) : NaN);
+const minutes = (value) => Math.round((value || 0) / 6000) / 10;
+
+// The globs of each class: the defaults, with `flow.ci.classes` replacing a
+// class's list (R100.1).
+export function classGlobs(overrides = {}) {
+  return Object.fromEntries(
+    MATCH_ORDER.map((name) => [
+      name,
+      (overrides?.[name] ?? CLASS_GLOBS[name]).map(globToRegex),
+    ]),
+  );
+}
+
+// The classes of a pull request's changed paths, in CI_CLASSES order. When
+// GitHub listed only part of the files the pull request is code too.
+export function fileClasses(paths, globs = classGlobs(), partial = false) {
+  const found = new Set(partial ? ["code"] : []);
+  for (const path of paths)
+    found.add(
+      MATCH_ORDER.find((name) => globs[name].some((re) => re.test(path))) ||
+        "code",
+    );
+  return CI_CLASSES.filter((name) => found.has(name));
+}
+
+export const docsOnly = (classes) =>
+  classes.length > 0 &&
+  classes.every((name) => name === "spec" || name === "docs");
+export const groupClass = (classes) =>
+  GROUP_ORDER.find((name) => classes.includes(name)) || "code";
+
+// The workspace's GitHub repositories: those `github.repositories` names.
+// None in local mode, so no read is made (R100.8).
+export function ciRepositories(policy) {
+  if (!policy?.mode) return [];
+  return Object.keys(policy.repositories || {});
+}
+
+// The flow settings for one GitHub repository: its project's override when
+// a registered repository names one.
+function ciSettings(store, config, repository) {
+  const project = listOr(store, "github_repositories").find(
+    (entry) => lower(entry.id) === lower(repository),
+  )?.projectId;
+  return flowPolicy(config || {}).for(project || repository).ci;
+}
+
+// Window starts are aligned to whole windows since the epoch, so each
+// trigger fires at most once a window (§4.30).
+export function windowStart(now, days) {
+  const size = days * DAY_MS;
+  return Math.floor(now / size) * size;
+}
+
+// The task an open pull request delivers: its linked branch, or an issue it
+// closes that a task tracks. Null for a pull request no task owns.
+function taskOf(store, data, repository, pull) {
+  const branch = listOr(store, LINKED_BRANCHES).find(
+    (row) =>
+      !row.error &&
+      row.name === pull.headRefName &&
+      (!row.repository || lower(row.repository) === lower(repository)),
+  );
+  if (branch) return branch.taskId;
+  for (const ref of pull.closingIssuesReferences?.nodes || []) {
+    const where = ref.repository?.nameWithOwner || repository,
+      task = data.tasks.find(
+        (t) =>
+          t.github?.number === ref.number &&
+          lower(t.github?.repository) === lower(where),
+      );
+    if (task) return task.id;
+  }
+  return null;
+}
+
+// Check run times on a pull request's head commit, by workflow run id.
+function checkTimes(pull) {
+  const rollup = pull.commits?.nodes?.[0]?.commit?.statusCheckRollup,
+    out = new Map();
+  for (const check of rollup?.contexts?.nodes || []) {
+    const id = check?.checkSuite?.workflowRun?.databaseId;
+    if (!id) continue;
+    const entry = out.get(id) || { ms: 0, done: true };
+    const length = ms(check.completedAt) - ms(check.startedAt);
+    if (Number.isFinite(length) && length >= 0) entry.ms += length;
+    else entry.done = false;
+    out.set(id, entry);
+  }
+  return out;
+}
+
+// Merged span length of [start, end] pairs, so parallel runs count once.
+function unionMs(spans) {
+  let total = 0,
+    end = -Infinity;
+  for (const [a, b] of [...spans].sort((x, y) => x[0] - y[0])) {
+    if (b <= end) continue;
+    total += b - Math.max(a, end);
+    end = b;
+  }
+  return total;
+}
+
+// The tick's CI read (R100.1, R100.2, R100.6): per repository, the open pull
+// requests (the shared cached read) and one workflow runs read, then the
+// pr_ci and ci_runs rows. Errors are per repository and returned.
+export async function ciStep(
+  store,
+  github,
+  { policy, config, now = Date.now() } = {},
+) {
+  const repositories = ciRepositories(policy),
+    errors = [];
+  // A client without these reads (a fake, an old build) reads nothing.
+  if (
+    typeof github?.openPullRequests !== "function" ||
+    typeof github?.workflowRuns !== "function" ||
+    !repositories.length
+  )
+    return { errors, repositories: 0 };
+  const data = store.read(),
+    at = new Date(now).toISOString(),
+    // The error last reported per repository: each is reported once.
+    reported = { ...(store.getMeta(ERRORS_META) || {}) },
+    before = JSON.stringify(reported);
+  for (const repository of repositories) {
+    const settings = ciSettings(store, config, repository),
+      globs = classGlobs(settings.classes),
+      since = new Date(
+        windowStart(now, settings.windowDays) - settings.windowDays * DAY_MS,
+      )
+        .toISOString()
+        .slice(0, 10);
+    let pulls, runs;
+    try {
+      pulls = await github.openPullRequests(repository);
+      runs = await github.workflowRuns(repository, since);
+    } catch (error) {
+      errors.push({ repository, error: error.message });
+      continue;
+    }
+    delete reported[repository];
+    store.transaction(() =>
+      record(store, data, repository, { pulls, runs, globs, at, now }),
+    );
+  }
+  const fresh = errors.filter((e) => reported[e.repository] !== e.error);
+  for (const e of errors) reported[e.repository] = e.error;
+  if (JSON.stringify(reported) !== before) store.setMeta(ERRORS_META, reported);
+  return { errors: fresh, repositories: repositories.length };
+}
+
+function record(store, data, repository, { pulls, runs, globs, at, now }) {
+  const rows = new Map(
+      listOr(store, PR_CI)
+        .filter((row) => lower(row.repository) === lower(repository))
+        .map((row) => [row.number, row]),
+    ),
+    timed = new Map(),
+    open = new Set();
+  for (const pull of pulls) {
+    const files = pull.files || { totalCount: 0, nodes: [] },
+      paths = (files.nodes || []).map((node) => node.path),
+      partial = (files.totalCount ?? paths.length) > paths.length,
+      times = checkTimes(pull),
+      head = pull.headRefOid,
+      before = rows.get(pull.number),
+      row = {
+        id: `${lower(repository)}#${pull.number}`,
+        repository,
+        number: pull.number,
+        taskId: taskOf(store, data, repository, pull),
+        author: pull.author?.login || null,
+        classes: fileClasses(paths, globs, partial),
+        partial,
+        createdAt: pull.createdAt || before?.createdAt || at,
+        firstSeen: before?.firstSeen || at,
+        lastSeen: at,
+        closedAt: null,
+        heads: [
+          ...new Set([...(before?.heads || []), head].filter(Boolean)),
+        ].slice(-50),
+        runIds: [
+          ...new Set([...(before?.runIds || []), ...times.keys()]),
+        ].slice(-200),
+      };
+    for (const [id, entry] of times) if (entry.done) timed.set(id, entry.ms);
+    rows.set(pull.number, row);
+    open.add(pull.number);
+  }
+  // A pull request no longer listed open closed at this check (shortcut:
+  // the close time is late by up to one check interval; read closedAt if
+  // lead times must be exact).
+  for (const row of rows.values())
+    if (!open.has(row.number) && !row.closedAt) row.closedAt = at;
+  const byHead = new Map(),
+    byRun = new Map();
+  for (const row of rows.values()) {
+    for (const head of row.heads || []) byHead.set(head, row.number);
+    for (const id of row.runIds || []) byRun.set(id, row.number);
+  }
+  const stored = new Map(
+    listOr(store, CI_RUNS)
+      .filter((run) => lower(run.repository) === lower(repository))
+      .map((run) => [run.runId, run]),
+  );
+  for (const run of runs) {
+    const before = stored.get(run.id),
+      wall = ms(run.endedAt) - ms(run.startedAt),
+      checks = timed.get(run.id),
+      // Check run times when the open pull request read saw them; else the
+      // run's wall time, marked an estimate. Never downgrade a measured one.
+      job =
+        checks !== undefined
+          ? { jobMs: checks, estimate: false }
+          : before && before.estimate === false
+            ? { jobMs: before.jobMs, estimate: false }
+            : Number.isFinite(wall) && wall >= 0
+              ? { jobMs: wall, estimate: true }
+              : { jobMs: null, estimate: true };
+    stored.set(run.id, {
+      id: `${lower(repository)}:${run.id}`,
+      repository,
+      runId: run.id,
+      workflow: run.workflow,
+      headSha: run.headSha,
+      event: run.event,
+      attempt: run.attempt,
+      prNumber:
+        run.pullRequests.find((n) => rows.has(n)) ??
+        byRun.get(run.id) ??
+        byHead.get(run.headSha) ??
+        before?.prNumber ??
+        null,
+      startedAt: run.startedAt,
+      endedAt: run.endedAt,
+      ...job,
+    });
+  }
+  const cut = now - KEEP_MS;
+  for (const run of stored.values()) {
+    const old = ms(run.startedAt) < cut;
+    if (old) store.remove(CI_RUNS, run.id);
+    else if (!same(store.get(CI_RUNS, run.id), run)) store.put(CI_RUNS, run);
+  }
+  for (const row of rows.values()) {
+    const mine = [...stored.values()].filter((r) => r.prNumber === row.number),
+      spans = mine
+        .map((r) => [ms(r.startedAt), ms(r.endedAt)])
+        .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b) && b >= a);
+    row.ciMs = mine.reduce((sum, r) => sum + (r.jobMs || 0), 0);
+    row.waitMs = unionMs(spans);
+    if (row.closedAt && ms(row.closedAt) < cut) store.remove(PR_CI, row.id);
+    else if (!same(store.get(PR_CI, row.id), row, ["lastSeen"]))
+      store.put(PR_CI, row);
+  }
+}
+
+// Equal but for `skip` keys, so an unchanged row is not written each tick.
+function same(a, b, skip = []) {
+  if (!a) return false;
+  const bare = (v) =>
+    JSON.stringify(
+      Object.fromEntries(Object.entries(v).filter(([k]) => !skip.includes(k))),
+    );
+  return bare(a) === bare(b);
+}
+
+// ------------------------------------------------------------ facts
+
+// One repository's CI facts over the window ending `now` (R100.3, R100.5).
+export function ciFacts(store, config, repository, { now = Date.now() } = {}) {
+  const settings = ciSettings(store, config, repository),
+    from = now - settings.windowDays * DAY_MS,
+    pulls = new Map(
+      listOr(store, PR_CI)
+        .filter((row) => lower(row.repository) === lower(repository))
+        .map((row) => [row.number, row]),
+    ),
+    runs = listOr(store, CI_RUNS).filter(
+      (run) =>
+        lower(run.repository) === lower(repository) &&
+        ms(run.startedAt) >= from &&
+        ms(run.startedAt) <= now,
+    ),
+    byClass = {},
+    seen = new Map();
+  let docsOnlyMs = 0;
+  for (const run of runs) {
+    const pull = pulls.get(run.prNumber);
+    if (!pull) continue;
+    const name = groupClass(pull.classes),
+      side = pull.taskId ? "task" : "other",
+      entry = (byClass[name] ||= {
+        task: { minutes: 0, pullRequests: 0 },
+        other: { minutes: 0, pullRequests: 0 },
+      });
+    entry[side].minutes += (run.jobMs || 0) / 60_000;
+    if (!seen.has(pull.number)) {
+      seen.set(pull.number, pull);
+      entry[side].pullRequests += 1;
+    }
+    if (docsOnly(pull.classes)) docsOnlyMs += run.jobMs || 0;
+  }
+  for (const entry of Object.values(byClass))
+    for (const side of ["task", "other"])
+      entry[side].minutes = Math.round(entry[side].minutes * 10) / 10;
+  const closed = [...pulls.values()].filter(
+      (row) =>
+        row.closedAt && ms(row.closedAt) >= from && ms(row.closedAt) <= now,
+    ),
+    lead = closed.reduce(
+      (sum, row) => sum + Math.max(0, ms(row.closedAt) - ms(row.createdAt)),
+      0,
+    ),
+    wait = closed.reduce((sum, row) => sum + (row.waitMs || 0), 0);
+  return {
+    repository,
+    settings,
+    windowStart: windowStart(now, settings.windowDays),
+    byClass,
+    docsOnlyMs,
+    closed: closed.length,
+    waitShare: lead > 0 ? wait / lead : null,
+    repeats: repeatRuns(runs),
+    workflows: [...new Set(runs.map((run) => run.workflow))].sort(),
+    pulls: [...seen.values()],
+  };
+}
+
+// Two or more distinct run ids of one workflow on one head commit. The runs
+// list holds one entry per run, its latest attempt, so a re-run is not
+// another run (R100.2).
+export function repeatRuns(runs) {
+  const groups = new Map();
+  for (const run of runs) {
+    const key = `${run.workflow}\0${run.headSha}`;
+    if (!groups.has(key)) groups.set(key, new Map());
+    groups.get(key).set(run.runId, run);
+  }
+  const out = [];
+  for (const group of groups.values()) {
+    if (group.size < 2) continue;
+    const list = [...group.values()].sort(
+        (a, b) =>
+          (a.startedAt < b.startedAt
+            ? -1
+            : a.startedAt > b.startedAt
+              ? 1
+              : 0) || a.runId - b.runId,
+      ),
+      extra = list.slice(1);
+    out.push({
+      repository: list[0].repository,
+      workflow: list[0].workflow,
+      commit: list[0].headSha,
+      runs: list.length,
+      events: [...new Set(list.map((run) => run.event))],
+      extraMinutes: minutes(extra.reduce((s, r) => s + (r.jobMs || 0), 0)),
+      startedAt: list[0].startedAt,
+    });
+  }
+  return out
+    .sort(
+      (a, b) =>
+        (a.startedAt < b.startedAt ? -1 : a.startedAt > b.startedAt ? 1 : 0) ||
+        (a.commit < b.commit ? -1 : 1),
+    )
+    .map(({ startedAt: _startedAt, ...rest }) => rest);
+}
+
+// The steady waste triggers (R100.3), as [kind, key, detail].
+export function ciTriggers(store, config, repositories, { now = Date.now() }) {
+  const out = [];
+  for (const repository of repositories) {
+    const facts = ciFacts(store, config, repository, { now }),
+      s = facts.settings,
+      window = new Date(facts.windowStart).toISOString().slice(0, 10);
+    if (facts.docsOnlyMs > s.docsOnlyMinutes * 60_000)
+      out.push([
+        "waste-docs",
+        `waste:docs:${repository}:${window}`,
+        `${repository}: ${minutes(facts.docsOnlyMs)} CI min on spec- or docs-only pull requests in ${s.windowDays} days (limit ${s.docsOnlyMinutes})`,
+      ]);
+    if (
+      facts.closed >= s.minPullRequests &&
+      facts.waitShare !== null &&
+      facts.waitShare > s.waitShare
+    )
+      out.push([
+        "waste-wait",
+        `waste:wait:${repository}:${window}`,
+        `${repository}: CI wait was ${Math.round(facts.waitShare * 100)}% of lead time over ${facts.closed} closed pull requests (limit ${Math.round(s.waitShare * 100)}%)`,
+      ]);
+    const byWorkflow = new Map();
+    for (const repeat of facts.repeats) {
+      if (!byWorkflow.has(repeat.workflow)) byWorkflow.set(repeat.workflow, []);
+      byWorkflow.get(repeat.workflow).push(repeat);
+    }
+    for (const [workflow, list] of byWorkflow) {
+      const first = list[0],
+        extra = list.reduce((sum, r) => sum + r.extraMinutes, 0);
+      out.push([
+        "repeat",
+        `repeat:${repository}:${workflow}:${window}`,
+        `${repository}: ${workflow} ran ${first.runs} times on ${first.commit.slice(0, 7)} (${first.events.join(", ")})${list.length > 1 ? ` and repeated on ${list.length - 1} more commits` : ""}; extra runs cost ${Math.round(extra * 10) / 10} CI min`,
+      ]);
+    }
+  }
+  return out;
+}
+
+// What the brief holds per repository (R100.4, R100.5): numbers, workflow
+// files and, per pull request, `task` with its task ID or `other` with its
+// number, author and classes only. Null when nothing was read.
+export function ciBrief(store, config, repositories, { now = Date.now() }) {
+  const out = [];
+  for (const repository of repositories) {
+    const facts = ciFacts(store, config, repository, { now });
+    if (!facts.pulls.length && !facts.workflows.length) continue;
+    out.push({
+      repository,
+      windowDays: facts.settings.windowDays,
+      minutesByClass: facts.byClass,
+      docsOnlyMinutes: minutes(facts.docsOnlyMs),
+      waitShare:
+        facts.waitShare === null
+          ? null
+          : Math.round(facts.waitShare * 1000) / 1000,
+      closedPullRequests: facts.closed,
+      repeatRuns: facts.repeats,
+      workflows: facts.workflows,
+      pullRequests: facts.pulls.slice(0, 50).map((pull) =>
+        pull.taskId
+          ? {
+              kind: "task",
+              task: pull.taskId,
+              number: pull.number,
+              classes: pull.classes,
+            }
+          : {
+              kind: "other",
+              number: pull.number,
+              author: pull.author,
+              classes: pull.classes,
+            },
+      ),
+    });
+  }
+  return out.length ? out : null;
+}
+
+// The workflow files seen for a repository (any, when null), for checking a
+// plan proposal's `workflow` (§4.30).
+export function seenWorkflows(store, repository = null) {
+  return new Set(
+    listOr(store, CI_RUNS)
+      .filter(
+        (run) => !repository || lower(run.repository) === lower(repository),
+      )
+      .map((run) => run.workflow),
+  );
+}
+
+// PDCA for CI minutes per pull request (R100.5): the mean ci_ms, in minutes,
+// of `n` closed pull requests of a repository and class, the last ones
+// closed before `at` or the first ones closed after it. Null with fewer
+// than `n`.
+export function ciMinutesPerPullRequest(
+  store,
+  { repository, cls = "all", n, at, after = false },
+) {
+  const t = ms(at),
+    rows = listOr(store, PR_CI)
+      .filter(
+        (row) =>
+          lower(row.repository) === lower(repository) &&
+          row.closedAt &&
+          (cls === "all" || groupClass(row.classes) === cls) &&
+          (after ? ms(row.closedAt) > t : ms(row.closedAt) <= t),
+      )
+      .sort((a, b) => (a.closedAt < b.closedAt ? -1 : 1)),
+    pick = after ? rows.slice(0, n) : rows.slice(-n);
+  if (pick.length < n || !pick.length) return null;
+  return minutes(pick.reduce((sum, row) => sum + (row.ciMs || 0), 0) / n);
+}
