@@ -436,7 +436,7 @@ import {
   viewItem,
 } from "./intake.mjs";
 import { highlightLanguages } from "./highlight-languages.mjs";
-import { importNewPlans, requestNewPlan } from "./new-plan.mjs";
+import { importNewPlans, newPlanStarts, requestNewPlan } from "./new-plan.mjs";
 import { writeSpecManifest } from "./spec-manifest.mjs";
 import { decideInvestigation } from "./investigate.mjs";
 import { taskEvidence } from "./evidence.mjs";
@@ -3415,22 +3415,36 @@ export class Operations {
             this.workspaceRoot &&
             (input.cron === true || Array.isArray(input.sessions))
           ) {
-            const review = await planReviewStep(store, {
+            const config = loadLayeredConfig({
                 workspaceRoot: this.workspaceRoot,
-                config: loadLayeredConfig({ workspaceRoot: this.workspaceRoot })
-                  .config,
+              }).config,
+              // New plan's planner chat, opened here so it is bound and its
+              // served model read; on the planner's saved model.
+              planners = result.held
+                ? []
+                : newPlanStarts(store, {
+                    model: chatModel(config, "planner"),
+                  }),
+              review = await planReviewStep(store, {
+                workspaceRoot: this.workspaceRoot,
+                config,
                 readSpec: (spec) => this.readSpec(spec),
                 otherSpecs: () => this.specList().items,
                 open: !result.held,
                 prepare: this.planReviewOptions.prepare,
                 remove: this.planReviewOptions.remove,
               }),
+              opened = enqueueSessionRequests(
+                store,
+                { starts: planners },
+                { source: "new-plan" },
+              ),
               queued = enqueueSessionRequests(
                 store,
                 { starts: review.requests, sends: review.messages },
                 { source: "plan-review" },
               );
-            for (const request of queued.starts) {
+            for (const request of [...opened.starts, ...queued.starts]) {
               const index = result.dispatch.findIndex(
                 (entry) => entry.id === request.id,
               );

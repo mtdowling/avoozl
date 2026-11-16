@@ -2,7 +2,8 @@
 // Builder (or, as the fallback, an Avoozl planner chat) drafts its spec
 // folder. `requestNewPlan` checks the fields, runs content rules on the
 // text it hands over, records the request, and returns it; the page makes
-// the Spec Builder create call or opens the chat. `importNewPlans` (each
+// the Spec Builder create call, and the tick opens the planner chat
+// (`newPlanStarts`) so Avoozl knows the model it ran on. `importNewPlans` (each
 // tick) writes avoozl/manifest.json for a Spec Builder folder once its
 // tasks.md holds still, and stores a requested folder as a draft plan once
 // it lints clean. Nothing here approves a plan, starts delivery, or pushes.
@@ -17,6 +18,7 @@ import {
   specName,
 } from "./spec-plans.mjs";
 import { PLANNER_AGENT } from "./github-planner.mjs";
+import { recordPlanReviewWriter } from "./plan-review-authorship.mjs";
 import { draftManifest } from "./spec-manifest.mjs";
 import { steeringOptions, withSeed } from "./retro-memory.mjs";
 import { checkInputs, templateSeed } from "./templates.mjs";
@@ -300,7 +302,9 @@ export function requestNewPlan(store, input = {}, deps, source = null) {
     steering = writeSteering(deps.specRoot, rules);
   const at = new Date().toISOString();
   // Asking again for the same name replaces the earlier request.
-  const rest = pendingNewPlans(store).filter((entry) => entry.name !== name);
+  const earlier = pendingNewPlans(store),
+    rest = earlier.filter((entry) => entry.name !== name),
+    replaced = earlier.find((entry) => entry.name === name);
   store.setMeta(META, [
     ...rest,
     {
@@ -309,7 +313,15 @@ export function requestNewPlan(store, input = {}, deps, source = null) {
       repositories: request.repositories.map((repo) => repo.id),
       requestedAt: at,
       lastError: null,
-      ...(builder ? { handoff } : {}),
+      // The tick opens the planner chat (newPlanStarts), so Avoozl binds it
+      // and reads the model it ran on. A second ask opens a new attempt.
+      ...(builder
+        ? { handoff }
+        : {
+            brief: handed,
+            root: deps.specRoot,
+            attempt: (replaced?.attempt ?? 0) + 1,
+          }),
       ...(epic ? { epic } : {}),
       ...(template ? { template: template.ref } : {}),
       ...(source ? { source } : {}),
@@ -321,6 +333,7 @@ export function requestNewPlan(store, input = {}, deps, source = null) {
       folder,
       agent: PLANNER_AGENT,
       message: handed,
+      opener: "tick",
       ...(template ? { template: template.ref } : {}),
     };
   return {
@@ -361,6 +374,56 @@ function buildManifest(entry, spec, deps) {
   });
   deps.writeManifest(entry.name, text);
   return { ...entry, builtFrom: tasksHash, manifestHash: digest(text) };
+}
+
+// The planner chat's task key for a requested plan; no task has it.
+export const newPlanTask = (name) => "new-plan:" + name;
+
+// The planner chat each requested plan still needs, as executor start
+// requests: one per request attempt, until its folder is stored as a plan.
+// An entry from before the tick opened these chats has no brief; its chat
+// was opened by the page, so nothing is started for it.
+export function newPlanStarts(store, { model = null, executor = "kirocrew" }) {
+  const bindings = store.list("session_bindings");
+  return pendingNewPlans(store)
+    .filter(
+      (entry) =>
+        entry.brief &&
+        entry.root &&
+        entry.handoff !== "spec-builder" &&
+        !store.get("plans", entry.name) &&
+        !bindings.some(
+          (binding) =>
+            binding.taskId === newPlanTask(entry.name) &&
+            binding.role === "planner" &&
+            (binding.attempt ?? 1) === entry.attempt,
+        ),
+    )
+    .map((entry) => ({
+      executor,
+      role: "planner",
+      task: newPlanTask(entry.name),
+      worktree: entry.root,
+      brief: entry.brief,
+      model,
+      permissionClass: "write",
+      title: `avoozl:${newPlanTask(entry.name)} planner ${entry.name}`,
+      attempt: entry.attempt,
+      context: { newPlan: entry.name },
+    }));
+}
+
+// The planner chat Avoozl opened for this request, if it is bound.
+function newPlanWriter(store, entry) {
+  return store
+    .list("session_bindings")
+    .filter(
+      (binding) =>
+        binding.taskId === newPlanTask(entry.name) &&
+        binding.role === "planner" &&
+        (binding.attempt ?? 1) === entry.attempt,
+    )
+    .at(-1);
 }
 
 // Store each requested folder that lints clean as a draft plan.
@@ -427,7 +490,7 @@ export function importNewPlans(store, deps) {
         keep.push({ ...entry, lastError });
         continue;
       }
-      createSpecPlan(
+      const created = createSpecPlan(
         store,
         {
           id: entry.name,
@@ -443,6 +506,12 @@ export function importNewPlans(store, deps) {
         },
         spec,
       );
+      // The first revision is the planner chat's: a plan review reads the
+      // model Kiro Crew reports for it (§4.29). shortcut: a person's edit
+      // between the chat's write and this import is credited to the chat;
+      // upgrade when the planner stores the revision itself.
+      const writer = newPlanWriter(store, entry);
+      if (writer) recordPlanReviewWriter(store, created, { slot: writer.slot });
       imported.push(entry.name);
       // The planner added the plan to the picked epic: the epic's change
       // comes back as its own draft revision (R61.8).
