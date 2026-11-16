@@ -89,6 +89,10 @@ export function workspaceClient(api: AppApi) {
     list: () => run<WorkspaceList>('workspaces.list'),
     add: (input: NewWorkspace) => run<CatalogWorkspace>('workspaces.add', { ...input }),
     init: (input: NewWorkspace) => run<CatalogWorkspace>('workspaces.init', { ...input }),
+    // Off Avoozl's list only (`avoozl workspace remove`): the folder, its
+    // database and repositories stay. Stop turns it off first.
+    remove: (id: string) => run<{ id: string; root: string; removed: boolean; databasePreserved: boolean }>('workspaces.remove', { id }),
+    stop: (id: string) => run<CatalogWorkspace>('workspaces.stop', { id }),
     repositories: (workspaceId: string) =>
       run<{ items: Repository[] }>('repositories.list', {}, workspaceId).then((r) => r.items),
     // Read only: what adding this folder would register.
@@ -126,6 +130,19 @@ export function describeTick(health: TickHealth | null, now = Date.now()): strin
 
 // The workspace to show: the current one while it still exists, else the one
 // this backend serves, else the catalog default, else the first.
+// A workspace that is on: enabled and not turned off.
+export const isRunning = (workspace: Pick<CatalogWorkspace, 'enabled' | 'state'>) => workspace.enabled && workspace.state !== 'stopped'
+
+// The remove confirm's words: it names the folder and says what stays.
+export function removeLines(workspace: Pick<CatalogWorkspace, 'name' | 'root' | 'enabled' | 'state'>): string[] {
+  return [
+    `This takes ${workspace.name} off Avoozl's list of workspaces.`,
+    `Its folder stays, with its database and repositories: ${workspace.root}`,
+    'Nothing is deleted. Add the folder again to bring it back.',
+    ...(isRunning(workspace) ? ['It is running now. Stop it first to end its ticks before it leaves the list.'] : []),
+  ]
+}
+
 export function pickDefault(list: WorkspaceList, current: string | null): string | null {
   if (current && list.items.some((w) => w.id === current)) return current
   return list.items.find((w) => w.served)?.id ?? list.defaultWorkspace ?? list.items[0]?.id ?? null
