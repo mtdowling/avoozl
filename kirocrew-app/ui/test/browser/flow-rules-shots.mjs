@@ -68,7 +68,7 @@ try {
       await page.evaluate(`document.querySelector('[data-section="Pause on a broken check"], [data-section="Stop the line"]')?.scrollIntoView({ block: 'start' })`)
       await shot('settings')
       // The CI and Retro field grids, in the middle.
-      await page.evaluate(`document.querySelector('[data-flow-group="ci"]')?.scrollIntoView({ block: 'start' })`)
+      await page.evaluate(`document.querySelector('[data-flow-group="ci"], [data-ci-settings]')?.scrollIntoView({ block: 'start' })`)
       await shot('settings-fields')
       // The end of the dialog: the last group and the Save footer.
       await page.evaluate(`(() => { const body = [...document.querySelectorAll('[data-modal-body]')].at(-1); if (body) body.scrollTop = body.scrollHeight; return true })()`)
