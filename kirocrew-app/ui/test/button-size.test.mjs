@@ -35,7 +35,7 @@ const SIZES = [
   { width: 1280, height: 900, theme: 'light', dark: false },
 ]
 const SCREENS = [
-  { name: 'Home', query: { page: 'app', radar: '1' }, ready: `document.querySelectorAll('[data-sc]').length === 2` },
+  { name: 'Home', query: { page: 'app', radar: '1' }, ready: `document.querySelectorAll('[data-sc]').length === 1` },
   { name: 'the side panel', query: { page: 'panel', sid: 'chat-1' }, ready: `Boolean(document.querySelector('[data-flight-row]'))` },
   { name: 'the side panel in a driver chat', query: { page: 'panel', sid: 'avoozl_driver_1' }, ready: `Boolean(document.querySelector('[data-panel-driver]'))` },
 ]
@@ -53,7 +53,7 @@ for (const size of SIZES) {
 
   test(`no button on the other tabs and Settings sections is taller than ${MAX} px at ${size.width} px ${size.theme}`, { skip }, async () => {
     await page.open(harness.url({ page: 'app', radar: '1', theme: size.theme }), { width: size.width, height: size.height, dark: size.dark })
-    await page.until(`document.querySelectorAll('[data-sc]').length === 2`)
+    await page.until(`document.querySelectorAll('[data-sc]').length === 1`)
     const found = []
     const settle = () => new Promise((resolve) => setTimeout(resolve, 300))
     // On a phone the nav is behind the rail button; open it when it is shut.

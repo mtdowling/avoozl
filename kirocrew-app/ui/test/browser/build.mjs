@@ -18,9 +18,11 @@ function lucide() {
   return [`import { Icon } from ${JSON.stringify(path.join(here, 'stubs.tsx'))}`, ...names.map((name) => `export const ${name} = Icon`)].join('\n')
 }
 
-// AVOOZL_LUCIDE names a lucide-react install (a folder with its
-// package.json) so screenshots draw the real icons instead of the glyph.
-const realLucide = process.env.AVOOZL_LUCIDE ? path.resolve(process.env.AVOOZL_LUCIDE) : null
+// The real icons: lucide-react as the host ships it (a dev dependency at the
+// host's version), or the install AVOOZL_LUCIDE names. Without one, every
+// icon is the stand-in glyph and the icon test skips.
+const installed = path.resolve(here, '../../../../node_modules/lucide-react')
+export const realLucide = process.env.AVOOZL_LUCIDE ? path.resolve(process.env.AVOOZL_LUCIDE) : fs.existsSync(path.join(installed, 'package.json')) ? installed : null
 
 // `hostCss` is an optional stylesheet (the host's own) used instead of the
 // harness's; screenshots use it to look like the real page.

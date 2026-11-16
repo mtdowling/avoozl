@@ -6,7 +6,7 @@
 // only its own reads. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
-import { buildHarness } from './browser/build.mjs'
+import { buildHarness, realLucide } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
 
 const chrome = findChrome()
@@ -60,6 +60,8 @@ for (const [width, height] of [
       if (width < 768) {
         await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
+        // The open menu's bar is only its close button: no second page pill.
+        assert.equal(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent.trim()`), '', 'no page label over the open menu')
       }
       await page.until(`Boolean(document.querySelector('${scope(width)} [data-nav-count]'))`)
       // The workspace pill is first, inside the nav, and its long name is cut short.
@@ -98,4 +100,37 @@ test('Home sends only its own reads, and shows its cards before the slow Radar r
   assert.ok(ops.includes('radar.crews'), 'Radar was asked')
   // The release queue row is there too, not held back behind Radar.
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-dashboard-row="queue-progress"]'))`), true)
+})
+
+// Every icon on the page draws a glyph: the host's lucide-react icon, never
+// the harness's stand-in circle, and never an empty <svg>. Needs the
+// lucide-react dev dependency (the host's version).
+const ICONS = `(() => {
+  const out = []
+  for (const svg of document.querySelectorAll('[data-shell] svg')) {
+    const r = svg.getBoundingClientRect()
+    if (!r.width || !r.height) continue
+    const shapes = svg.querySelectorAll('path, line, polyline, polygon, rect, circle, ellipse')
+    const drawn = [...shapes].some((s) => { try { const b = s.getBBox(); return b.width > 0 || b.height > 0 } catch { return false } })
+    if (svg.hasAttribute('data-stub-icon') || !drawn) out.push((svg.closest('[aria-label]')?.getAttribute('aria-label') || svg.parentElement?.textContent?.trim().slice(0, 30) || svg.outerHTML.slice(0, 60)))
+  }
+  return out.slice(0, 10)
+})()`
+
+test('every icon on Home, in the nav and the phone menu draws a glyph', { skip: skip || (realLucide ? false : 'lucide-react is not installed (npm ci installs it)') }, async () => {
+  for (const [width, height] of [
+    [1280, 800],
+    [390, 844],
+  ]) {
+    await page.open(harness.url({ page: 'app', theme: 'light', needs: '3' }), { width, height })
+    await page.until(`document.body.textContent.includes('Needs you (3)') || Boolean(document.querySelector('[data-top-rail-bar]'))`)
+    await wait(500)
+    if (width < 768) {
+      await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+      await wait(300)
+    }
+    const count = await page.evaluate(`document.querySelectorAll('[data-shell] svg, [data-top-rail-list] svg').length`)
+    assert.ok(count > 5, `icons drawn at ${width}px (${count})`)
+    assert.deepEqual(await page.evaluate(ICONS.replace("'[data-shell] svg'", "'[data-shell] svg, [data-top-rail-list] svg'")), [], `no empty or stand-in icon at ${width}px`)
+  }
 })

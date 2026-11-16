@@ -17,11 +17,11 @@ import { LineBanner } from './FlowView.tsx'
 import ArmedPulls from './ArmedPulls.tsx'
 import { StartDemoButton } from './Demo.tsx'
 import { DriverCell, useDriverSession } from './DriverSessionBox.tsx'
-import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
+import { StatusRow } from './StatusCells.tsx'
 import SetupCard from './SetupCard.tsx'
 import { useInstance } from './InstanceName.tsx'
 import { nameFor } from './instance-api.ts'
-import { setupCards, type SetupId } from './setup-api.ts'
+import { setupCards } from './setup-api.ts'
 import { useSetupFacts } from './setup-facts.ts'
 import ReleaseQueue from './ReleaseQueue.tsx'
 import TrackerGates from './TrackerGates.tsx'
@@ -32,7 +32,7 @@ import { LINE_EVENT, flowClient } from './flow-api.ts'
 import { IconBtn, IconLabel, IconLink, SectionHeading, ShowMore, SmallBtn, TaskTitleLink, useAskChat, usePages } from './controls.tsx'
 import { useRefreshCountdown } from './RefreshButton.tsx'
 import { usePublishRefresh } from './page-refresh.tsx'
-import { Activity, CirclePlus, Copy, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
+import { Activity, CirclePlus, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import type { Drill } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
@@ -162,9 +162,6 @@ function AttentionRow({
   )
 }
 
-
-// A compact card's button words; the full action is its name and tooltip.
-const SHORT_ACTION: Record<string, string> = { crew: 'Copy values', repository: 'Add a repo', epics: 'Plan an epic' }
 
 const ROLE_LABEL: Record<string, string> = { worker: 'Worker', checks: 'Checks', planner: 'Planner' }
 const roleLabel = (row: InFlight) =>
@@ -350,20 +347,15 @@ export default function DashboardView(props: {
     void chat.ask(matching.length ? { items: matching.map(itemRefOf) } : { tasks: item.taskId ? [item.taskId] : [] })
   }
   const openRow = (item: Attention) => (item.tab === 'waiting' ? onNavigate('waiting', item.taskId ?? undefined) : item.taskId && drawer.openTask(item.taskId))
-  // What each empty state's button does.
-  const setupAction: Record<Exclude<SetupId, 'driver'>, () => void> = {
-    repository: () => props.onOpenSettings?.('repositories'),
-    epics: () => props.onPlanEpic?.(),
-    crew: () => props.onOpenSettings?.('repositories'),
-  }
+  // What the repository empty state's button does. No epics has no button:
+  // New spec on Specs starts one.
+  const openRepositories = () => props.onOpenSettings?.('repositories')
   const cards = setupCards({
-    ...facts,
-    radarCrews: summary?.radarCrewStrip ? summary.radarCrewStrip.crews.length : null,
+    repositories: facts.repositories,
     driver: driver.read?.state ?? 'unknown',
     plans: summary ? summary.plans.total : 1,
   })
 
-  const crewCard = cards.find((card) => card.id === 'crew')
   return (
     <section aria-labelledby="avoozl-dashboard-title" className="flex flex-col gap-3.5">
       <h2 id="avoozl-dashboard-title" className="sr-only">
@@ -377,40 +369,28 @@ export default function DashboardView(props: {
       <ArmedPulls workspaceId={workspaceId} stopped={(flow.value?.line ?? []).length > 0} />
       <StatusRow>
         <DriverCell workspaceId={workspaceId} />
-        {crewCard && (
-          <StatusCell
-            data-setup-card="crew"
-            tone="warn"
-            title="Radar crew: none"
-            tip={`${crewCard.title}. ${crewCard.line}`}
-            actions={
-              <>
-                <CellAct label="Copy values" icon={<Copy size={13} aria-hidden="true" />} primary tip="Copy the values to paste into a new Radar crew." onClick={setupAction.crew} data-crew-copy />
-                <CellAct label="Open Radar" icon={<ExternalLink size={13} aria-hidden="true" />} tip="Open Radar, Crews." href="/issue-radar" />
-              </>
-            }
-          />
-        )}
       </StatusRow>
       {(error || chat.error) && (
         <p role="alert" className="text-sm text-danger">
           {error ?? chat.error}
         </p>
       )}
-      {cards.filter((card) => card.id !== 'driver' && card.id !== 'crew').map((card) => (
+      {cards.filter((card) => card.id !== 'driver').map((card) => (
         <SetupCard
           key={card.id}
           id={card.id}
           title={card.title}
           line={card.line}
           action={
-            <>
-              {/* Short words on the button; its name is the whole action. */}
-              <SmallBtn primary onClick={setupAction[card.id as Exclude<SetupId, 'driver'>]} attrs={{ 'aria-label': card.action }}>
-                {SHORT_ACTION[card.id] ?? card.action}
-              </SmallBtn>
-              {card.id === 'repository' && <StartDemoButton label="Try the demo" />}
-            </>
+            card.id === 'repository' ? (
+              <>
+                {/* Short words on the button; its name is the whole action. */}
+                <SmallBtn primary onClick={openRepositories} attrs={{ 'aria-label': card.action }}>
+                  {card.action}
+                </SmallBtn>
+                <StartDemoButton label="Try the demo" />
+              </>
+            ) : undefined
           }
         />
       ))}
@@ -575,13 +555,6 @@ export default function DashboardView(props: {
           </div>
           <IntegrationBranches workspaceId={workspaceId} />
           <ReviewDrafts workspaceId={workspaceId} />
-          <p className="text-sm text-muted" data-issue-graph-link>
-            Issues on GitHub and their graph:{' '}
-            <a href="/issue-radar" className="underline">
-              open the Issue Radar graph
-            </a>
-            .
-          </p>
       </>
       {tracing && (
         <TraceDrawer

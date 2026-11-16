@@ -1,23 +1,20 @@
 // What Home says to set up first. A card that used to hide when nothing was
-// there is one of these instead: it says what is missing and gives the button
-// that fixes it. Kept free of JSX so node can test it directly.
+// there is one of these instead: it says what is missing and, where a button
+// fixes it, gives that button. Kept free of JSX so node can test it directly.
 
 export interface SetupFacts {
   repositories: number
-  // Repositories whose effective coder is Issue Radar.
-  radarRepositories: number
-  // Crews Issue Radar reported, or null when Avoozl cannot read them.
-  radarCrews: number | null
   plans: number
   driver: 'running' | 'idle' | 'none' | 'unknown'
 }
 
-export type SetupId = 'repository' | 'driver' | 'epics' | 'crew'
+export type SetupId = 'repository' | 'driver' | 'epics'
 
 export interface SetupCardData {
   id: SetupId
   title: string
   line: string
+  // Empty when the line is the whole card: no button of its own.
   action: string
 }
 
@@ -38,19 +35,13 @@ export function setupCards(facts: SetupFacts): SetupCardData[] {
       line: 'Nothing is released and nobody watches merges until a driver session runs.',
       action: 'Start a driver session',
     })
+  // No button: New spec on Specs is the one way to start one.
   if (facts.plans === 0)
     cards.push({
       id: 'epics',
       title: 'No epics',
-      line: 'An epic is a goal that needs many changes in order. Start one in Spec Builder.',
-      action: 'Plan an epic',
-    })
-  if (facts.radarRepositories > 0 && (facts.radarCrews === null || facts.radarCrews === 0))
-    cards.push({
-      id: 'crew',
-      title: facts.radarCrews === null ? 'No Radar crew seen for this repo' : 'No Radar crew for this repo',
-      line: 'Issue Radar crews code the issues Avoozl releases. Copy the values, then create a crew in Radar.',
-      action: 'Copy values for Radar',
+      line: 'No epics yet. Start one with New spec on Specs.',
+      action: '',
     })
   return cards
 }
