@@ -3752,8 +3752,18 @@ export class Operations {
         },
         draft: async (proposal) =>
           createPlan(store, {
-            prompt: `Retro ${input.retroId} proposal for spec ${proposal.spec}: ${proposal.change}\n\nWhy: ${proposal.evidence}`,
-            context: { retro: input.retroId, spec: proposal.spec },
+            // A CI change names its workflow file (§4.30): one new task.
+            prompt: `Retro ${input.retroId} proposal for spec ${proposal.spec}: ${proposal.change}${proposal.workflow ? `\n\nOne new task in ${proposal.repository} that changes ${proposal.workflow}.` : ""}\n\nWhy: ${proposal.evidence}`,
+            context: {
+              retro: input.retroId,
+              spec: proposal.spec,
+              ...(proposal.workflow
+                ? {
+                    repository: proposal.repository,
+                    workflow: proposal.workflow,
+                  }
+                : {}),
+            },
           }).id,
       });
     }

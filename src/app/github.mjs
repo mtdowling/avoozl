@@ -1126,7 +1126,8 @@ export class GitHubClient {
 
   // Every open pull request of a repository in one query (pages of 100, at
   // most 5): head, merge state, labels, the check rollup state and the
-  // issues it closes. Each view reads this through the client's cache, so
+  // issues it closes, and for the CI waste counts (§4.30) its author, its
+  // first 100 changed paths and the head commit's check run times. Each view reads this through the client's cache, so
   // ten pull requests cost one call, not ten.
   // shortcut: 500 open pull requests; a busier repository fails here and
   // pullRequestHeads falls back to one alias per branch.
@@ -1137,7 +1138,7 @@ export class GitHubClient {
     let after = null;
     for (let page = 0; page < 5; page += 1) {
       const data = await this.graphql(
-          `query($owner:String!,$repo:String!,$after:String){repository(owner:$owner,name:$repo){pullRequests(states:OPEN,first:100,after:$after,orderBy:{field:CREATED_AT,direction:DESC}){pageInfo{hasNextPage endCursor} nodes{number url updatedAt isDraft headRefName headRefOid baseRefName baseRef{target{oid}} mergeable mergeStateStatus reviewDecision autoMergeRequest{enabledAt} labels(first:20){nodes{name}} closingIssuesReferences(first:10){nodes{number title url repository{nameWithOwner}}} commits(last:1){nodes{commit{statusCheckRollup{state}}}}}}}}`,
+          `query($owner:String!,$repo:String!,$after:String){repository(owner:$owner,name:$repo){pullRequests(states:OPEN,first:100,after:$after,orderBy:{field:CREATED_AT,direction:DESC}){pageInfo{hasNextPage endCursor} nodes{number url createdAt updatedAt isDraft author{login} headRefName headRefOid baseRefName baseRef{target{oid}} mergeable mergeStateStatus reviewDecision autoMergeRequest{enabledAt} labels(first:20){nodes{name}} closingIssuesReferences(first:10){nodes{number title url repository{nameWithOwner}}} files(first:100){totalCount nodes{path}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){nodes{... on CheckRun{name startedAt completedAt checkSuite{workflowRun{databaseId event file{path}}}}}}}}}}}}}}`,
           { owner, repo, after },
           "read open pull requests",
         ),
@@ -1152,6 +1153,33 @@ export class GitHubClient {
       "More than 500 open pull requests in " + owner + "/" + repo + ".",
       413,
     );
+  }
+
+  // The newest 100 workflow runs created since `since` (a date), one REST
+  // read through the HTTP cache, so an unchanged list is a 304 (§4.30,
+  // R100.6). Each run: id, workflow path, head commit, event, attempt,
+  // times and the pull requests GitHub links it to.
+  // shortcut: one page; a repository with more than 100 runs in the window
+  // undercounts the oldest, read more pages if that shows up.
+  async workflowRuns(value, since) {
+    const { owner, repo } =
+        typeof value === "string" ? parseRepository(value) : value,
+      data = await this.request("GET", `/repos/${owner}/${repo}/actions/runs`, {
+        query: { per_page: 100, created: `>=${since}` },
+      });
+    if (!Array.isArray(data?.workflow_runs))
+      fail("GitHub returned invalid workflow run data.", 502);
+    return data.workflow_runs.map((run) => ({
+      id: run.id,
+      workflow: String(run.path || "").replace(/@.*$/, ""),
+      headSha: run.head_sha,
+      event: run.event,
+      attempt: run.run_attempt ?? 1,
+      status: run.status,
+      startedAt: run.run_started_at || run.created_at || null,
+      endedAt: run.status === "completed" ? run.updated_at || null : null,
+      pullRequests: (run.pull_requests || []).map((pull) => pull.number),
+    }));
   }
 
   // Pull request feedback, first read (task 15.1, R54.2): for each branch,
