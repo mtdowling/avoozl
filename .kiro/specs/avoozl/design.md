@@ -34,7 +34,7 @@ evidence baseline.
 | Content rules                        | `.avoozl.json` names which rule sets apply and the action; the banned terms live in an untracked terms file or an approved private plugin. Every write or approval boundary is checked; a match blocks and opens a decision, never redacts, and can be allowed once with a reason; findings name rule and location, never the term. Today's leak, reply, and secret screens become built-in sets (§4.9)                                                                   | Owner, 2026-11-12; Requirement 40                          |
 | Plan layout                          | Required, not a default: every plan is a Kiro spec folder `.kiro/specs/<name>/` with `requirements.md` or `bugfix.md`, `design.md`, `tasks.md`, and `avoozl/manifest.json`. Fenced plan files are a migration read path only                                                                                                                                                                                                                                              | Owner, 2026-11-11; Requirement 30                          |
 | Untriaged list                       | A read-only list of open issues and pull requests that no trigger rule, triage label, or task covers, linking out to GitHub and Issue Radar, and starting Avoozl's own code review chat; GitHub modes only; deep links wait on MC-14 (§8.5)                                                                                                                                                                                                                                                        | Owner, 2026-11-12; Requirement 49                          |
-| Crew placement                       | Remote workers push their task branches to public and private repositories alike; Avoozl never pushes. The routing prompt (since 2026-11-13; before, router instructions) is machine-local only. MC-10 is a required Kiro Crew ask, and every chat Avoozl opens, local or remote, must be attachable from In flight; until MC-10 ships remote placement is inert. Chat limits (3 local, 2 remote, per crew) and the stale limit (120 s) are configurable defaults (§4.10) | Owner, 2026-11-12; Requirement 41                          |
+| Crew placement                       | Remote workers push their task branches to public and private repositories alike; Avoozl never pushes (reversed 2026-11-15: Avoozl pushes and lands, §4.26). The routing prompt (since 2026-11-13; before, router instructions) is machine-local only. MC-10 is a required Kiro Crew ask, and every chat Avoozl opens, local or remote, must be attachable from In flight; until MC-10 ships remote placement is inert. Chat limits (3 local, 2 remote, per crew) and the stale limit (120 s) are configurable defaults (§4.10) | Owner, 2026-11-12; Requirement 41                          |
 
 ### New verified facts used by this design
 
@@ -107,6 +107,10 @@ turns a large goal into a dependency graph and then keeps that graph moving
 Avoozl is a policy engine and a graph, packaged as one Kiro Crew app. It does
 not write code, run agents, open pull requests, review them, or host a UI
 outside Kiro Crew.
+
+Changed 2026-11-15 (§4.26): Avoozl's own worker chats write the code, and
+Avoozl pushes, opens pull requests and lands them. Issue Radar is no longer
+a coder. It still hosts no UI outside Kiro Crew.
 
 ## 2. Non-goals
 
@@ -1042,7 +1046,8 @@ session Avoozl opens itself. Code and spec keep the two words apart.
 
 1. Remote workers push their task branches, to public and private
    repositories alike. Avoozl itself never pushes. Content rules and the
-   repository's policy still apply to what is pushed.
+   repository's policy still apply to what is pushed. (Reversed 2026-11-15:
+   the worker never pushes and Avoozl lands, §4.26.)
 2. Router instructions are machine-local only, never in a tracked
    `.avoozl.json`. (Since 2026-11-13 this is the routing prompt.)
 3. Avoozl needs Kiro Crew's MC-10 (§7.1). The owner must be able to attach
@@ -1184,8 +1189,8 @@ remote crew only when:
 - for a retry or rework, the earlier attempt's branch is on that remote.
 
 Otherwise the crew fails the reach check with the reason "work not
-fetchable". Avoozl itself never pushes, so a base that exists only here
-keeps the task local. The remote brief carries the clone URL, the base
+fetchable". A base that exists only here keeps the task local. (Until
+2026-11-15 Avoozl never pushed; it now pushes and lands, §4.26.) The remote brief carries the clone URL, the base
 commit, and the task branch name instead of a checkout path; the worker
 clones into its own crew's workspace, checks out the base, works on the
 task branch, and pushes that branch to the same remote before it reports
@@ -1488,7 +1493,7 @@ F77 and F131 and was not tried live (F132).
 | Hard checks are facts, the prompt only chooses among them       | A sentence cannot widen what the checks allow, and an approval or reach fact never rests on a model's guess                  |
 | Off means local only                                            | Nothing changes until the owner opts in                                                                                      |
 | Crew ids and git hosts in machine-local settings                | Machine names and private hosts must not land in a repository                                                                |
-| Base must be fetchable; Avoozl never pushes                     | The owner's rule; a local-only base stays local                                                                              |
+| Base must be fetchable (Avoozl pushes since 2026-11-15, §4.26)                     | The owner's rule; a local-only base stays local                                                                              |
 | Remote push on public and private repositories alike            | Owner, 2026-11-12; visibility is not the guard, content rules and repository policy are                                      |
 | The routing prompt machine-local only                           | Owner, 2026-11-12; it may name private machines                                                                              |
 | MC-10 required, every chat attachable                           | Owner, 2026-11-12: "we need to be able to attach to any chat"                                                                |
@@ -2277,7 +2282,7 @@ worker pushed, so a flaky check that passes once resets it.
 
 | Choice                                | Why                                                                                           |
 | ------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Avoozl relays; the worker acts        | Avoozl never pushes or merges (Requirement 18); one writer per branch                         |
+| Avoozl relays; the worker acts        | Superseded 2026-11-15: Avoozl pushes and merges (Requirement 87); one writer per branch                         |
 | Only allowed actors' comments         | A public pull request's comments are untrusted; steering uses the same bar                    |
 | One message per pull request per tick | A red CI run can fail ten checks at once; one turn should see all of them                     |
 | Check links, not logs                 | Logs are large and may hold secrets; the worker reads them with `gh` in its own worktree      |
@@ -3442,6 +3447,211 @@ pull request closed without merging goes back to its writer once as one
 feedback round. A local task's Integrate approves one commit; a new commit
 needs a new press. Settings > Delivery shows the mode as one radio
 fold-out.
+
+### 4.26 Avoozl owns the coding loop
+
+Added 2026-11-15 (Requirements 86–92). This replaces the Issue Radar path
+(`radar-coder` §D1–§D8, §D12, §D13, §D19, §D20, §D29–§D33) and cancels the
+retirement epic (`radar-coder` Phase 12). The rest of this design still
+holds where it does not say a crew, Issue Radar or "Avoozl never pushes".
+
+**Why.** Under the Radar path three parties shared one task: Avoozl released
+it, a crew claimed it by label and pushed and merged it, and Avoozl read the
+result back from GitHub. Each hand-off was a place to stall (a claim the
+crew never took, a merge that waited on a chat, a conflict no one owned).
+Runner mode already showed the shape that works: the chat edits and
+commits, Avoozl reads the commit, runs the checks and pushes
+(`src/app/remote-runner.mjs`, `reportDone` and the `reported` step of the
+runner tick). This section makes that the only shape.
+
+**Settled owner decisions, 2026-11-15.**
+
+| #   | Decision                                                                                                                                                                                                          |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Avoozl pushes and merges. Per repository: `landing: direct \| pr \| off`. It lands only after checks pass on the updated head. Never force push. Avoozl's own repository uses `pr` with the Linux, macOS and Windows checks required |
+| 2   | A vanished worker chat is resumed once, automatically, in the same worktree, only when Kiro Crew reports the chat gone. Never because it went quiet or its lease expired. A second vanish goes to Needs you       |
+| 3   | This Mac runs 3 lanes by default (the 50% CPU rule). More lanes come from remote hosts                                                                                                                            |
+| 4   | Only runner mode skipped Kiro Crew's project folder and MCP sharing. A local worker used `leaf.project`, and `plans_report` needed MCP sharing. Phase 40 adds the CLI report and `project: false` with the worktree path in the brief |
+| 5   | Kiro Crew's push-to-main policy checks chat shell commands. The tick is not a chat. Phase 40's proof shows a tick push goes through                                                                               |
+| 6   | Nupp lands `direct` on public `core-dev` from the start, with `scripts/worktree` and `scripts/test-changed`. Plans stay in a private planning workspace. No private mirror, forwarding or leak scan for this setup; the pre-push content rule is the one leak guard. The freeze on public `core-dev` is lifted |
+| 7   | Phase order and exits as in the table at the end of this section. Added the same day: worker machines pull work through GitHub (Phase 43), and Issues and Pull requests pages come before the Radar removal (Phase 44)                                                                                                                                                 |
+
+**The loop.**
+
+```
+Pick ──> Prepare ──> Work ──> Verify ──> Land ──> Accept
+Avoozl    Avoozl     chat     Avoozl     Avoozl   Avoozl (Stop the line)
+```
+
+- **Pick.** One scheduler per workspace. Ready tasks are ranked by how many
+  tasks they unblock (RC31's ranking). A task whose declared `paths`
+  overlap a running task's paths anywhere in the repository is held, not
+  skipped: it stays first in line. The owner's picks and the plan order
+  still win, as in RC31.
+- **Prepare.** `createWorktree` (`src/app/git.mjs`) gets its first caller.
+  With `scripts/worktree` present it runs only the hash-approved version
+  (R83.4); otherwise `git worktree add`. A task in an epic with an
+  integration branch is cut from that branch
+  (`src/app/github-linked-branches.mjs`, where `finalBase` is chosen today).
+  After landing, the worktree and the local task branch are removed.
+- **Work.** The chat opens with `project: false`, its trust mode set, and a
+  brief that names the worktree path, the task, its acceptance, its
+  declared paths and one command to report:
+  `avoozl report --task ID --token T done|blocked|question --text ...`.
+  The brief says: edit, run what you like, commit; do not push, open a pull
+  request, merge, label or comment. The trust mode is set again on every
+  tick, because a gateway restart loses it.
+- **Verify.** On `done`, Avoozl reads `HEAD` of the worktree (never the
+  chat's word for it), diffs it against the task's base, refuses a file
+  outside declared paths, and sends a protected path to Needs you. Checks
+  run as their own job, off the tick, warm in the task worktree, each with
+  a timeout. A failure goes back to the same chat as one retry round
+  (Requirement 8's bound).
+- **Land.** One queue per base branch, held by `withWorkLock`
+  (`src/app/git.mjs`) with kind `integration`. One task lands at a time.
+- **Accept.** Stop the line (Requirement 64) watches every head Avoozl
+  landed. A red head pauses the queue for that base and opens a fix task.
+
+**Landing modes.**
+
+| Mode     | Steps                                                                                                                                                                       |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `direct` | Merge base into the task branch (merge commit); run checks on that head; fast-forward base to it; `git push origin <base>`. If base moved meanwhile, merge and check again |
+| `pr`     | `git push origin <task branch>`; open or reuse the pull request; merge base in when it moves; wait for required checks on the head; merge through the API; one at a time   |
+| `off`    | Verify only. The verified commit shows in Needs you; nothing is pushed                                                                                                     |
+
+A merge conflict goes back to the same worker chat with the file list, for
+`landing.conflictRounds` rounds (default 2), then to Needs you. The
+resolver chat (`avoozl-conflict-fix`, RC28) is removed. The arming and
+merge code (`radar-arm.mjs`, `radar-merge*.mjs`) is renamed and becomes the
+`pr` mode. A pause from Stop the line keeps the queue's order.
+
+Every push passes the pre-push content rule first (Requirement 40): commit
+messages, branch name and added lines. The push and the merge run in the
+tick's own process. Kiro Crew's push-to-main policy reads chat shell
+commands, so it does not see them; Phase 40's proof checks that on a real
+gateway, because if the policy also covered the tick, `direct` would need a
+person to push.
+
+**Vanished chats.** Kiro Crew's session list is the only signal. When it
+says the chat is gone, Avoozl opens one new chat in the same worktree with
+the same brief and the last report quoted as data. A quiet chat or an
+expired lease changes nothing (AGENTS.md). A second vanish for the same
+task opens a Needs you item.
+
+**Lanes and worker machines.** Host `local` runs 3 lanes by default.
+Another machine runs Avoozl in worker mode, built on the plan-less runner
+role (`src/app/remote-runner.mjs`): it holds no plans, an envelope carries
+IDs only, and it resolves the repository and checks from its own
+`.avoozl.json`. Work moves by pull, through GitHub, following
+`docs/research/machine-conductors-2026-11-13.md` (an issue with an assignee
+as the queue, a pull request as the result; so far run only on local-file
+stand-ins):
+
+```
+scheduler: approve, project, mark ready ──> GitHub issue (ready)
+worker tick: list ready (one read) ──> claim ──> worktree ──> chat edits, commits
+worker tick: read HEAD, run checks, push branch ──> branch or pull request
+scheduler: recheck diff (declared, protected), rerun checks ──> land queue
+```
+
+| Mode   | Queue                                         | Claim                                                                 |
+| ------ | --------------------------------------------- | --------------------------------------------------------------------- |
+| `solo` | Ready issues assigned to this machine's login | The scheduler's assignment; the marker's machine claim picks the Mac  |
+| `team` | Ready issues in the shared pool               | A claim comment with Avoozl's marker; the earliest one wins           |
+
+The team claim is enforced in code: post the claim, read the comments
+again, and go on only when your claim is the earliest by creation time,
+then lowest comment ID. A loser deletes its comment and starts nothing.
+This is the claim `src/app/tick.mjs` says a second dispatcher would need.
+
+A claim ends when its worker releases it (landed, blocked, gave up), when a
+person releases it, or when the claiming machine's chat vanished twice
+(Requirement 88.4), after which that machine releases it and opens Needs
+you. It never expires because the worker went quiet. After
+`workers.claimStaleAfter` (24 h) with no heartbeat from the claiming
+machine it shows in Needs you with a person-only **Release claim**.
+
+The scheduler never trusts a worker machine: it checks the diff against
+declared and protected paths again and reruns the checks on the updated
+head before it lands. SSH push of an envelope (Requirement 84) stays only
+for a machine with no GitHub access. `avoozl worker setup` previews and
+writes the worker config, checks the login and push access, and checks
+that Kiro Crew runs with the Avoozl app enabled. There is no per-spec
+driver lock; a person moves a workspace by export and import.
+
+**Setup.** `avoozl setup REPO` previews, then applies with `--yes`:
+
+- project config: root, base, checks, protected paths, helper hash, landing;
+- under `pr`: the branch ruleset's required checks (update, never a second
+  rule of the same kind), the allowed merge methods, the CI variable, and
+  the `avoozl/verify` commit status on each verified head
+  (`createCommitStatus`, `src/app/github.mjs`, first caller);
+- RC27's labels, Project and issue types, in the same preview.
+
+A second run with nothing to change writes nothing.
+
+**Approval.** The local hash receipt is the approval. The approval pull
+request (RC3.6) stays only for a spec whose home branch is protected.
+
+**Removed, kept, restored.**
+
+| Removed                                                                                                                                                                     | Kept and renamed                                              | Restored                                                  |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------- |
+| Radar-only modules (about 5,900 backend, 1,300 UI, 12,000 test lines), `verify-issue`, the provenance marker, the `avoozl-crew` agent and Issue Radar grant, the remote coder, the relay, the router chat and their agents | Arming and merge code (now PR landing), release ranking, GitHub setup, build receipts | The Delivery page, Settings › Budgets, the task Files and diff view (removed in ba04389 and 70c2236). Not Routing |
+
+**A public repository with private plans.** For the Nupp compiler, plans
+stay in a private planning workspace and code lands `direct` on the public
+`core-dev`. Nothing private is pushed: the brief carries no plan text into
+commit messages, branch names are `avoozl/<task id>` with task IDs checked
+by the content rule, and the pre-push content rule screens each push. The
+mirror and forward flow (RC24–RC26) is not used for this setup.
+
+**Phases and exits.**
+
+| Phase                                   | Exit                                                                                          |
+| --------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 40. Unattended basics                   | A three-task chain survives a gateway restart with no one at the machine                     |
+| 41. Scheduler and direct landing        | The 13 pilot tasks on Nupp land, with owner minutes, credits and wall-clock per task recorded |
+| 42. PR landing and the setup command    | Ten tasks land on a repository with a required check                                          |
+| 43. Worker machines pull work           | A second machine with a second GitHub login pulls, claims and completes tasks from a shared pool on real GitHub; a race between two workers shows exactly one claim wins |
+| 44. Issues and Pull requests pages      | The pages match Issue Radar's at 390 and 1280 px, light and dark; a list load makes 0 extra GitHub calls |
+| 45. Remove the Issue Radar path         | Leaf modules any time; shared edits last; compatibility names still resolve                   |
+
+### 4.27 Issues and Pull requests pages
+
+Added 2026-11-15 (Requirement 92). Issue Radar goes away, so Avoozl shows
+issues and pull requests itself. The look and behavior follow Kiro Crew's
+Issue Radar app; Avoozl rebuilds them in its own code and copies no files.
+
+```
+┌ nav ──────┐┌ list ─────────────────────────────┐┌ detail ──────────────────────┐
+│ Home      ││ [state▾][label▾][repo▾][Avoozl ☐] ││ #123 Title          [actions]│
+│ Specs     ││ [search……………………]        41 · 7 ││ opened 3d · author · state   │
+│ Issues  ● ││ #123 Title  ●open  lbl  @a  3d ✓ ││ body (Markdown)    │ labels  │
+│ Pull req. ││ #120 Title  ●open  lbl  @b  5d ✗ ││ comments, timeline │ assignee│
+│ …         ││ …                                 ││                    │ spec/task│
+└───────────┘└───────────────────────────────────┘└──────────────────────────────┘
+```
+
+- **List row:** number, title, state chip, labels, assignee or claimant,
+  age, CI state for a pull request, linked task or spec. Filters on one
+  line with search; counts at the right.
+- **Detail:** header row with title, meta line, state and actions; the body
+  as Markdown; comments and timeline; a right column with labels,
+  assignee, linked spec or task, linked pull requests or issues, checks and
+  merge state. A pull request adds its checks, a files-changed summary and
+  the landing state: queued, verifying, landing, landed, conflict round N.
+- **Actions:** only what Avoozl owns: release, hold, re-queue, Stop the
+  line, open on GitHub. Person-only actions stay person-only.
+- **Data:** the list reads only what the tick's one read per repository per
+  check (RC29) already stored, and the cache. The detail is read lazily,
+  once per item, and cached. A test counts calls: a list load makes 0
+  beyond the shared read.
+- **Scope:** every repository in the workspace and every item in it, with
+  an **Avoozl tasks only** filter.
+- At 390 px the list and the detail each take the full width, with a back
+  control, as the other three-column pages do.
 
 ## 5. Local workflow
 
@@ -5856,6 +6066,12 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P45   | Investigate first, evidence bundles, staying current, rules from corrections, fix-work share and ship mode with fake workers, a fake falsifier and a fake GitHub (Phase 34)                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | P47   | The Remote relay with a fake relay chat and a fake Kiro Crew on the P29 crews, MC-10 missing: remote picks queue and never run on local, a turn the owner did not send waits with a Needs you item, one relay only and other chats refused, the person's turn opens each worker on its crew with the brief unchanged, a reply's report line (not its other text) runs the normal report path and verification follows, turns per day, Forget as a person only, a refusal for a chat the owner did not open, other refusals dropped, the setting off or MC-10 present dropping the queue (Phase 32)                                                      |
 | P44   | Provider health and switching with fake usage rows, fake error rows and a fake Kiro Crew model change in a temporary workspace: usage and error marks, recovery by success and cooldown, new tasks and weighted choices skipping low and out, retries keeping a model until it is out, running chats switched in the same session at the next turn, the review gate across a switch, the manual switch with preview hash and Also new tasks, person-only 403s, Needs you, and nothing changed with no settings (Phase 30)                                                                                                                               |
+| P50   | Unattended basics: a three-task chain on a scratch repository survives a gateway restart with no one at the machine, and a tick push goes through Kiro Crew's push policy (Phase 40) |
+| P51   | Direct landing: the 13 Nupp pilot tasks land on public `core-dev`, with owner minutes, credits and wall-clock per task (Phase 41) |
+| P52   | PR landing: ten tasks land through pull requests on a repository with a required check, one at a time, none force pushed (Phase 42) |
+| P53   | Worker machines: a second machine and a second GitHub login pull, claim and complete tasks from a shared pool on real GitHub; of two racing workers exactly one claim wins (Phase 43) |
+| P54   | Issues and Pull requests pages next to Issue Radar's at 390 and 1280 px, light and dark; a list load makes 0 GitHub calls beyond the shared read (Phase 44) |
+| P55   | After removal: one delivery path, the compatibility names resolve, no Radar module remains (Phase 45) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
 requires a failed proof that a small Kiro Crew or GitHub contract cannot fix.
@@ -5894,6 +6110,12 @@ Detailed in `tasks.md`. **Proposed** order:
 | 32. Remote relay                                                              | Opt-in `routing.remoteRelay`, the relay queue, the `avoozl-relay` agent and `plans_relay`, the Routing page block and Needs you, until MC-10 (§4.10 Remote relay)                                                                                                                                                                                                   | Starts after 11.11 and 11.13; P47                                                                                   |
 | 33. Only open tasks get issues                                                | `github.issues.includeDone` (default off): done tasks get no issue, card or link at approval (§6.3)                                                                                                                                                                                                                                                                 | Built in PR #34                                                                                                     |
 | 34. Investigate first, evidence, staying current, rules, fix share, ship mode | Findings and a falsifier before code, an evidence bundle per task, pull requests brought up to date without force pushes, rules from repeated corrections, the fix-work share in Flow, and `delivery.ship` (§4.21–§4.25)                                                                                                                                            | Starts after 15.4, 28.3 and 12.11; P45                                                                              |
+| 40. Unattended basics | Trust re-applied each tick, report by CLI, `project: false`, the worktree helper and cleanup, warm checks off the tick, one resume for a vanished chat (§4.26) |
+| 41. Scheduler and direct landing | One scheduler, path holds, the per-base landing queue, `direct` landing, conflicts back to the same chat, epic branches (§4.26) |
+| 42. PR landing and setup | `pr` landing from the renamed arming code, `avoozl setup` with ruleset, merge methods, CI variable and commit status (§4.26) |
+| 43. Worker machines pull work | Worker mode on the runner role, pull from GitHub (solo assigned, team pool), claim comments where the earliest wins, `avoozl worker setup`, SSH only without GitHub access (§4.26) |
+| 44. Issues and Pull requests pages | Three-column Issues and Pull requests pages from the shared read, lazy cached detail, Avoozl-owned actions only (§4.27) |
+| 45. Remove the Issue Radar path | Radar-only code, `verify-issue`, the provenance marker, the crew, relay and router agents; Delivery, Budgets and Files restored (§4.26) |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
 
