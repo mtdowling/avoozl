@@ -6,7 +6,7 @@
 import { projectPlanIssues } from "./github-projection.mjs";
 import { syncProject } from "./github-project.mjs";
 import { projectedMarker } from "./github-sync.mjs";
-import { parseRepository } from "./github.mjs";
+import { ownedIssueInput, parseRepository } from "./github.mjs";
 import { paceEstimate } from "./github-pacer.mjs";
 
 // Stand-in IDs for issues a preview creates: safe integers no real issue has.
@@ -134,8 +134,10 @@ export class PreviewGitHub {
   }
 
   // Writes: applied to the copy, recorded, never sent.
-  async createIssue(value, input) {
-    const repository = repositoryId(value),
+  async createIssue(value, request) {
+    // The same input the real client sends, label included (R103.1).
+    const input = ownedIssueInput(request),
+      repository = repositoryId(value),
       id = BASE + ++this.created,
       issue = this.cache(repository, {
         id,
