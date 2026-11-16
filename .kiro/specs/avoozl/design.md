@@ -4458,14 +4458,62 @@ Resume. Previously authorized landings that finish after take over are handled a
 - **Initial intake** makes at most two idempotent writes on the filed issue: a `crew:avoozl` label
   and one status comment. The comment names the spec only where visibility permits;
   a public input never names a private plan or its repository. Radar crews drop any issue carrying a `crew:` label
-  (`crew_brief.md:95-103`). Later journal writes on the spec issue are separate and
-  legitimate.
+  (`crew_brief.md:104-106`). Later journal writes on the spec issue are separate and
+  legitimate. The comment carries no Radar claim marker.
 - `Fixes #N` is allowed in a pull request body for Deliver this only, in the same
   repository. A close of an input issue is read as withdrawal.
-- Radar runs beside Avoozl with no code tie.
+- Radar runs beside Avoozl with no code tie (Requirement 103). It keeps maintenance
+  and triage of issues Avoozl did not create, and never takes an Avoozl issue.
+
+**Every Avoozl issue is labeled at create.** `createIssue` in `src/app/github.mjs`
+(the one create call, REST and GraphQL) adds `crew:avoozl` to `labels` before the
+request, so the label lands in the create itself and the write pacer's zero-edit
+rule holds. Today's callers are task projection and its extracted-design parent
+(`src/app/github-projection.mjs`), and the mirror follow-up and conflict issues
+(`src/app/mirror-forward-poll.mjs`, `src/app/mirror-forward-run.mjs`); spec and epic
+publication (56.2) and intake join them. Only export passes the named opt-out. A
+source test lists every `createIssue` caller in `src/` and fails on any other
+opt-out. `crew:avoozl` is Avoozl's own: Untriaged and the plan-me hand-off skip it,
+and Settings refuses it as any other label's name.
+
+**Old task issues.** Until retirement (56.5) runs, nothing hands a projected task
+to a crew. `issueRadarAdapter.handOver` (`src/app/coder-adapter.mjs`) adds no ready
+label, and the claim at approval (`src/app/approval-label.mjs`) writes no claim
+label or marker; Avoozl's executor runs those tasks. The code and the `coder`
+setting stay, because Phase 45 is paused. A ready label is not enough to keep crews
+off, because an empty-scope crew takes any open issue without a `crew:` label. So
+one previewed, paced, idempotent backfill adds `crew:avoozl` to each open projected
+task issue that has no `crew:` label. An issue a crew already claimed is left
+alone and gets one Needs you row. Avoozl never removes a crew's label. A plain
+`crew:avoozl` with no marker is not a claim a crew can prove dead: the brief needs
+a marker version it understands. The scratch proof in 56.8 checks this live.
+
+**Radar punts to Avoozl.** A crew's only escalation is the repository's
+needs-human label (`crewLabels.needsHuman`, default `crew: needs human`). Scope-gate
+passes stay skipped by Radar, which is why they suit a plan. The existing plan-me
+hand-off (`src/app/radar-plan-me.mjs`) keeps its routing: trust check, scope-gate
+scopes to Intake, other scopes to Needs you, untrusted left alone. Changes:
+
+| Where | What changes |
+|---|---|
+| Untriaged, or Intake for a Radar-coded repository | Trusted escalations sort first, marked "Radar asked", with Plan this and Deliver this |
+| The escalation's Needs you row | Gains Plan this and Deliver this |
+| Plan this | Drafts a proportionate fix spec, or the compact bounded-fix acceptance above |
+| Per-repository escalation rule | Off by default. Drafts the plan when the label appears; local only, no GitHub write |
+| Take-over | Intake's label write is `crew:avoozl`; the needs-human label stays |
+
+A person presses Plan this or Deliver this; approval and dispatch stay person-only
+even when the rule drafted the plan. The rule is not a trigger rule, so a crew label
+still cannot start one (Requirement 52.9). Avoozl never removes the needs-human
+label: on Kiro Crew main, removing it hands the issue back to a crew. Once
+`crew:avoozl` is on, a person may clear it and crews still skip the issue. If a live
+crew claim is present, Plan this says so and asks to confirm. Send to Issue Radar
+stays for issues Avoozl did not create and refuses one carrying `crew:avoozl`.
 - **Offboarding:** `avoozl spec export-issues SPEC`, with a preview: one issue per task
   that is not complete, then blocked-by links, then `Status: Exported`. This is the
-  only code that writes task issues.
+  only code that writes task issues. Exported issues carry no `crew:avoozl`: export
+  hands work away from Avoozl, so a crew or a person may take it. This is the owner's
+  choice (2026-11-16); flipping it is one label in the same create call.
 
 #### 4.32.12 Smaller rules
 
