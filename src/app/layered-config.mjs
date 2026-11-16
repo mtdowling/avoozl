@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateReportSetting } from "./build-report.mjs";
 import { validateModels, validatePlanReview } from "./chat-models.mjs";
 
 export const avoozlConfigSchemaPath = fileURLToPath(
@@ -363,6 +364,7 @@ export function loadLayeredConfig({
   const config = mergeLayers(layers);
   validateModels(config.models);
   validatePlanReview(config.planReview);
+  validateReportSetting(config.receipts?.report);
   return {
     config,
     configWithoutRepository: mergeLayers(
