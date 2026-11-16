@@ -16,7 +16,7 @@ export function projectsMarkedIssues(identity, repository) {
         id.toLowerCase() === wanted ||
         entry.mirror?.mirror.toLowerCase() === wanted,
     );
-  return ["issue-radar", "remote"].includes(entry?.[1]?.coder);
+  return entry?.[1]?.coder === "issue-radar";
 }
 
 // Returns `(taskIds) => line` for one plan and repository, or null when the

@@ -1,7 +1,7 @@
 // "Who codes": one card per coder, with a small flow picture, one line,
 // "Use it when", who reviews and a Default tag, plus the shared walkthrough
 // that follows a task from ready to merged. Each claim is checked against
-// the code: github-policy.mjs (default coder per mode; three coders
+// the code: github-policy.mjs (default coder per mode; the available coders
 // in both GitHub modes), delivery.mjs (the tick opens a worker chat per ready task,
 // a verifier runs its checks, reviewer roles review the exact commit),
 // github-crew.mjs (Issue Radar crews code single-repo issues carrying the
@@ -39,7 +39,7 @@ const RADAR_STEPS: WalkStep[] = [
   {
     title: 'If you switch',
     text: 'The choice is per repository. Tasks already running stay with their crew. New tasks use the new coder after you save.',
-    picture: <Flow boxes={['Issue Radar', 'Save', 'Remote coder']} on={1} />,
+    picture: <Flow boxes={['Issue Radar', 'Save', 'Next task']} on={1} />,
   },
 ]
 
@@ -116,7 +116,7 @@ export function CoderPicker(props: { id: string; mode: string; value: string; on
       </div>
       <p className="text-xs text-muted" data-coder-source>{coderSource(props.mode, props.value)}</p>
       {mode === 'plans-repo' && <p className="text-xs text-muted">A Radar crew opens pull requests only in its own repository.</p>}
-      {mode === 'local' && <p className="text-xs text-muted" data-local-no-coder>Local only has no coder. A Radar crew or Remote coder needs a GitHub repository: attach one to code this repository's tasks.</p>}
+      {mode === 'local' && <p className="text-xs text-muted" data-local-no-coder>Local only has no coder. A Radar crew needs a GitHub repository: attach one to code this repository's tasks.</p>}
       {chosen === 'issue-radar' && <div>
         <IconLabel icon={CircleHelp} onClick={() => setWalk(walk ? null : chosen)} aria-label={walk ? 'Hide how this works' : 'How does this work?'}>
           {walk ? 'Hide how this works' : 'How does this work?'}

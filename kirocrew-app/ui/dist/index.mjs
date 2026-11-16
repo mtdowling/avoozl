@@ -3649,7 +3649,7 @@ var Ba = [
 		facts: [
 			["Who closes issues", "GitHub, from \"Closes #N\" when the pull request merges"],
 			["Pull request text", "Names its issue with Closes #N"],
-			["Default coder", "Radar crew (Avoozl worker or Remote coder also allowed)"],
+			["Default coder", "Radar crew (Avoozl worker also allowed)"],
 			["Limit", "Issues and plans are visible to everyone who can see the repository"]
 		]
 	}
@@ -3768,22 +3768,8 @@ var Xa = [{
 	],
 	reviews: "GitHub's branch review rule and the required checks on the pull request.",
 	modes: ["plans-repo", "single-repo"]
-}, {
-	coder: "remote",
-	title: "Remote coder",
-	line: "A managed remote harness codes the task and opens a pull request. Handing tasks over is not built yet.",
-	flow: [
-		"Ready task",
-		"Remote task",
-		"Pull request",
-		"GitHub checks",
-		"Merged"
-	],
-	useWhen: ["The work should not run on this Mac", "The repository is public"],
-	reviews: "GitHub's branch review rule and the required checks on the pull request.",
-	modes: ["plans-repo", "single-repo"]
 }], Za = (e, t) => {
-	let n = (e) => e === "worker" ? "Avoozl worker, retired" : Xa.find((t) => t.coder === e)?.title ?? e, r = Qa(e);
+	let n = (e) => e === "remote" ? "Remote coder, removed; choose an available coder" : e === "worker" ? "Avoozl worker, retired" : Xa.find((t) => t.coder === e)?.title ?? e, r = Qa(e);
 	return t ? `Set on this repository: ${n(t)}.` : `Not set on this repository. Using the default for ${Ba.find((t) => t.mode === Va(e))?.title ?? e} (${n(r)}).`;
 }, Qa = (e) => Va(e) === "single-repo" ? "issue-radar" : "worker", $a = "workspaces";
 function eo(e, t, n, r) {
@@ -14391,16 +14377,6 @@ function Mp(e) {
 						" ",
 						e.message
 					] }, e.code)),
-					a.publishes !== void 0 && /* @__PURE__ */ w("p", {
-						"data-publishes": !0,
-						children: [
-							"A person publishes ",
-							a.publishes,
-							" pull ",
-							a.publishes === 1 ? "request" : "requests",
-							" for this spec."
-						]
-					}),
 					a.preflight && /* @__PURE__ */ w("fieldset", {
 						className: "flex flex-col gap-1 border-0 p-0",
 						"data-preflight": !0,
@@ -18070,12 +18046,6 @@ function Sh(e) {
 		saveProviders: (e, n) => t(e, "providers.settings.update", n),
 		saveCrews: (e, n) => t(e, "crews.update", n),
 		pickAgain: (e, n) => t(e, "delivery.pickAgain", { taskId: n }),
-		saveRelay: (e, n, r) => t(e, "routing.update", {
-			where: "workspace",
-			routing: n ? { remoteRelay: "on" } : {},
-			expectedHash: r
-		}),
-		forgetRelay: (e) => t(e, "relay.forget"),
 		retry: (e) => t(e, "routing.retry"),
 		turnOff: (e) => t(e, "routing.turnOff")
 	};
@@ -21894,7 +21864,7 @@ var N_ = [
 			boxes: [
 				"Issue Radar",
 				"Save",
-				"Remote coder"
+				"Next task"
 			],
 			on: 1
 		})
@@ -21994,7 +21964,7 @@ function P_(e) {
 			r === "local" && /* @__PURE__ */ C("p", {
 				className: "text-xs text-muted",
 				"data-local-no-coder": !0,
-				children: "Local only has no coder. A Radar crew or Remote coder needs a GitHub repository: attach one to code this repository's tasks."
+				children: "Local only has no coder. A Radar crew needs a GitHub repository: attach one to code this repository's tasks."
 			}),
 			i === "issue-radar" && /* @__PURE__ */ C("div", { children: /* @__PURE__ */ C(X, {
 				icon: ee,
@@ -22883,7 +22853,6 @@ var $_ = {
 	"epic-release": "fake-tested",
 	"epic-start": "fake-tested",
 	"epic-build-radar": "not proven live",
-	"epic-build-remote": "not built",
 	"epic-merge": "fake-tested",
 	"review-chat": "not built",
 	"review-find": "not built",
@@ -22938,17 +22907,17 @@ var $_ = {
 	};
 }, cv = (e) => tv[e] ? { tag: tv[e] } : {};
 function lv(e) {
-	let { repository: t, mode: n } = e, r = Ha(n), i = t.coder || Qa(n), a = i === "issue-radar", o = i === "remote", s = av(t.managedLabels.ready ?? "", iv.ready, "Ready label", "ready"), c = av(t.planLabel, iv.plan, "Planning label", "plan"), l = av(t.approvalLabel, iv.approval, "Approval label", "approval"), u = av(t.conflictLabel, iv.conflict, "Conflict label", "conflict"), d = {
+	let { repository: t, mode: n } = e, r = Ha(n), i = t.coder || Qa(n), a = i === "issue-radar", o = av(t.managedLabels.ready ?? "", iv.ready, "Ready label", "ready"), s = av(t.planLabel, iv.plan, "Planning label", "plan"), c = av(t.approvalLabel, iv.approval, "Approval label", "approval"), l = av(t.conflictLabel, iv.conflict, "Conflict label", "conflict"), u = {
 		label: "On a source conflict",
 		text: `${t.onSourceConflict.trim() || "fix"}${t.maxAttempts.trim() ? ` (up to ${t.maxAttempts.trim()})` : ""}`,
 		source: t.onSourceConflict.trim() || t.maxAttempts.trim() ? "set" : "default",
 		jump: rv("onSourceConflict")
-	}, f = {
+	}, d = {
 		label: "Merge method",
 		text: t.mergeMethod.trim() || "squash",
 		source: t.mergeMethod.trim() ? "set" : "default",
 		jump: rv("mergeMethod")
-	}, p = av(t.crewLabels.claim ?? "", iv.claim, "Claim label", "claim"), m = av(t.crewLabels.needsHuman ?? "", iv.needsHuman, "Needs-human label", "needsHuman"), h = sv(t, "reviewLabel", iv.review, "Review label"), g = sv(t, "draftedLabel", iv.drafted, "Drafted label"), _ = t.allowedActors.trim() ? {
+	}, f = av(t.crewLabels.claim ?? "", iv.claim, "Claim label", "claim"), p = av(t.crewLabels.needsHuman ?? "", iv.needsHuman, "Needs-human label", "needsHuman"), m = sv(t, "reviewLabel", iv.review, "Review label"), h = sv(t, "draftedLabel", iv.drafted, "Drafted label"), g = t.allowedActors.trim() ? {
 		label: "Allowed people",
 		text: t.allowedActors.trim(),
 		source: "set",
@@ -22958,95 +22927,94 @@ function lv(e) {
 		text: `anyone with ${t.minimumPermission.trim() || "write"} access`,
 		source: t.minimumPermission.trim() ? "set" : "default",
 		jump: rv("permission")
-	}, v = {
+	}, _ = {
 		label: "Who codes",
 		text: {
 			"issue-radar": "Issue Radar crew",
-			worker: "Avoozl worker chats",
-			remote: "Managed remote provider"
+			worker: "Avoozl worker chats"
 		}[i] ?? i,
 		source: t.coder ? "set" : "default",
 		jump: rv("coder")
-	}, y = {
+	}, v = {
 		label: "Release N",
 		text: t.releaseCapacity.trim() || "2",
 		source: t.releaseCapacity.trim() ? "set" : "default",
 		jump: rv("capacity")
-	}, b = {
+	}, y = {
 		label: "Release mode",
 		text: t.releaseMode.trim() || "automatic",
 		source: t.releaseMode.trim() ? "set" : "default",
 		jump: rv("releaseMode")
-	}, x = {
+	}, b = {
 		label: "Merge",
 		text: e.ship === "manual" ? "you merge" : "auto-merge",
 		source: e.ship ? "set" : "default",
 		elsewhere: "Settings › Delivery › delivery.ship"
-	}, S = {
+	}, x = {
 		label: "Landing branch",
 		text: t.baseBranch.trim() || "main",
 		source: t.baseBranch.trim() ? "set" : "default"
-	}, C = [
+	}, S = [
 		{
 			key: "plan",
 			label: "Planning",
-			name: c.text,
-			source: c.source,
+			name: s.text,
+			source: s.source,
 			writer: "you",
-			jump: c.jump
+			jump: s.jump
 		},
 		{
 			key: "needsHuman",
 			label: "Needs-human",
-			name: m.text,
-			source: m.source,
-			writer: "radar",
-			jump: m.jump
-		},
-		{
-			key: "claim",
-			label: "Claim",
 			name: p.text,
 			source: p.source,
 			writer: "radar",
 			jump: p.jump
 		},
 		{
+			key: "claim",
+			label: "Claim",
+			name: f.text,
+			source: f.source,
+			writer: "radar",
+			jump: f.jump
+		},
+		{
 			key: "ready",
 			label: "Ready",
-			name: s.text,
-			source: s.source,
+			name: o.text,
+			source: o.source,
 			writer: "avoozl",
-			jump: s.jump
+			jump: o.jump
 		},
 		{
 			key: "approval",
 			label: "Approval",
-			name: l.text,
-			source: l.source,
+			name: c.text,
+			source: c.source,
 			writer: "you",
-			jump: l.jump
+			jump: c.jump
 		},
 		{
 			key: "conflict",
 			label: "Conflict (on pull requests)",
-			name: u.text,
-			source: u.source,
+			name: l.text,
+			source: l.source,
 			writer: "avoozl",
-			jump: u.jump
+			jump: l.jump
 		},
 		{
 			key: "review",
 			label: "Review",
-			name: h.text,
-			source: h.source,
+			name: m.text,
+			source: m.source,
 			writer: "you"
 		},
 		{
 			key: "drafted",
 			label: "Drafted",
-			name: g.text,
-			source: g.source,
+			name: h.text,
+			source: h.source,
 			writer: "avoozl"
 		}
 	];
@@ -23081,18 +23049,18 @@ function lv(e) {
 					who: "avoozl",
 					title: "It merges",
 					text: "The branch merges into the landing branch.",
-					values: [S]
+					values: [x]
 				}
 			]
 		}],
 		labels: [],
 		note: "The GitHub lanes and labels are hidden in Local only mode. Pick a GitHub mode under Where tasks live to see them."
 	};
-	let w = e.planningRepository?.trim(), T = Va(n) === "plans-repo" ? {
+	let C = e.planningRepository?.trim(), w = Va(n) === "plans-repo" ? {
 		key: "maint-close",
 		who: "avoozl",
 		title: "Merge closes the issue",
-		text: `Avoozl closes the issue in ${w || "the plans repository"}.`,
+		text: `Avoozl closes the issue in ${C || "the plans repository"}.`,
 		values: []
 	} : {
 		key: "maint-close",
@@ -23100,10 +23068,10 @@ function lv(e) {
 		title: "Merge closes the issue",
 		text: "The pull request says Closes #N, so GitHub closes it.",
 		values: []
-	}, E = {
+	}, T = {
 		key: "maintenance",
 		title: "Maintenance",
-		muted: a ? void 0 : `Needs the Issue Radar coder; this repository's coder is ${v.text}.`,
+		muted: a ? void 0 : `Needs the Issue Radar coder; this repository's coder is ${_.text}.`,
 		cards: [
 			{
 				key: "maint-issue",
@@ -23117,7 +23085,7 @@ function lv(e) {
 				who: "you",
 				title: "You add the crew label",
 				text: "The label in the crew's scope (set in Issue Radar). Avoozl's ready label is the same name.",
-				values: [s]
+				values: [o]
 			},
 			{
 				key: "maint-crew",
@@ -23128,39 +23096,32 @@ function lv(e) {
 				...cv("maint-crew")
 			},
 			{
-				...T,
+				...w,
 				key: "maint-close"
 			}
 		]
-	}, D = a ? {
+	}, E = a ? {
 		key: "epic-build-radar",
 		who: "radar",
 		title: "Crews build",
 		text: "Each crew takes one ready sub-issue and opens a pull request.",
-		values: [v],
+		values: [_],
 		...cv("epic-build-radar")
-	} : o ? {
-		key: "epic-build-remote",
-		who: "avoozl",
-		title: "A managed remote provider builds",
-		text: "It codes the task and opens a pull request. Handing tasks over is not built yet.",
-		values: [v],
-		...cv("epic-build-remote")
 	} : {
 		key: "epic-build-worker",
 		who: "avoozl",
 		title: "Worker chats build",
 		text: "Each worker chat codes one task on its own branch and opens a pull request.",
-		values: [v]
-	}, O = a ? {
+		values: [_]
+	}, D = a ? {
 		key: "epic-release",
 		who: "avoozl",
 		title: "Avoozl adds the ready label in graph order",
 		text: "Only for tasks whose blockers are done, at most N at a time.",
 		values: [
-			s,
-			y,
-			b
+			o,
+			v,
+			y
 		],
 		...cv("epic-release")
 	} : {
@@ -23170,24 +23131,24 @@ function lv(e) {
 		text: "A task starts when its blockers are done.",
 		values: [],
 		...cv("epic-start")
-	}, k = {
+	}, O = {
 		key: "epic-merge",
 		who: e.ship === "manual" ? "you" : "avoozl",
 		title: e.ship === "manual" ? "You merge" : "Auto-merge",
 		text: e.ship === "manual" ? "Avoozl shows a Ready to merge row once the checks pass." : "Avoozl arms auto-merge; GitHub merges when its rules pass.",
-		values: e.ship === "manual" ? [x] : [x, f],
+		values: e.ship === "manual" ? [b] : [b, d],
 		...cv("epic-merge")
-	}, A = {
+	}, k = {
 		key: "epic-conflict-fix",
 		who: "avoozl",
 		title: "Avoozl fixes a source conflict",
 		text: "Crews never resolve source conflicts. One resolver chat merges the base into the branch, checks no line from either side was dropped, and pushes one merge commit. If it cannot keep both sides, it asks you.",
-		values: [d, u],
+		values: [u, l],
 		...a ? {} : { muted: "Only for Issue Radar crews." }
 	};
 	return {
 		lanes: [
-			E,
+			T,
 			{
 				key: "epic",
 				title: "Epic",
@@ -23204,7 +23165,7 @@ function lv(e) {
 						who: "radar",
 						title: "The crew punts",
 						text: "It adds its needs-human label and stops.",
-						values: [m],
+						values: [p],
 						...cv("epic-punt"),
 						...a ? {} : { muted: "Only an Issue Radar crew punts; you can add the planning label yourself." }
 					},
@@ -23213,7 +23174,7 @@ function lv(e) {
 						who: "you",
 						title: "You add the planning label",
 						text: "Only people the repository allows count.",
-						values: [c, _],
+						values: [s, g],
 						...cv("epic-plan-label")
 					},
 					{
@@ -23229,7 +23190,7 @@ function lv(e) {
 						who: "you",
 						title: "You approve",
 						text: "Add the approval label, or approve in Avoozl or a chat.",
-						values: [l],
+						values: [c],
 						...cv("epic-approve")
 					},
 					{
@@ -23237,19 +23198,19 @@ function lv(e) {
 						who: "avoozl",
 						title: "Avoozl claims the parent and writes the sub-issues",
 						text: "It adds blocked-by links, so the order lives on GitHub.",
-						values: [p],
+						values: [f],
 						...cv("epic-claim")
 					},
-					O,
 					D,
-					...a ? [A] : [],
-					k
+					E,
+					...a ? [k] : [],
+					O
 				]
 			},
 			{
 				key: "review",
 				title: "Review draft",
-				muted: h.source === "placeholder" ? "The review label has no setting yet, so this lane shows the planned names. A later change reads the real setting." : void 0,
+				muted: m.source === "placeholder" ? "The review label has no setting yet, so this lane shows the planned names. A later change reads the real setting." : void 0,
 				cards: [
 					{
 						key: "review-pr",
@@ -23263,14 +23224,14 @@ function lv(e) {
 						who: "you",
 						title: "You add the review label",
 						text: "Only people the repository allows count, and it must be your login.",
-						values: [h, _]
+						values: [m, g]
 					},
 					{
 						key: "review-chat",
 						who: "avoozl",
 						title: "A review chat reads the pull request",
 						text: "Read only. It posts one pending review under your login and swaps the label.",
-						values: [g],
+						values: [h],
 						...cv("review-chat")
 					},
 					{
@@ -23278,7 +23239,7 @@ function lv(e) {
 						who: "you",
 						title: "You find the draft",
 						text: "In Needs you here, or on GitHub with a search for the drafted label.",
-						values: [g],
+						values: [h],
 						...cv("review-find")
 					},
 					{
@@ -23300,7 +23261,7 @@ function lv(e) {
 				]
 			}
 		],
-		labels: C
+		labels: S
 	};
 }
 var uv = (e, t) => ({

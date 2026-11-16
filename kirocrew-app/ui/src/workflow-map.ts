@@ -26,7 +26,6 @@ export const WORKFLOW_STATUS: Record<string, StepTag> = {
   'epic-release': 'fake-tested',
   'epic-start': 'fake-tested',
   'epic-build-radar': 'not proven live',
-  'epic-build-remote': 'not built',
   'epic-merge': 'fake-tested',
   'review-chat': 'not built',
   'review-find': 'not built',
@@ -159,7 +158,6 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
   const github = isGitHubMode(mode)
   const coder = repository.coder || defaultCoder(mode)
   const radar = coder === 'issue-radar'
-  const remote = coder === 'remote'
 
   const ready = named(repository.managedLabels.ready ?? '', DEFAULTS.ready, 'Ready label', 'ready')
   const plan = named(repository.planLabel, DEFAULTS.plan, 'Planning label', 'plan')
@@ -192,7 +190,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
       }
   const coderValue: Value = {
     label: 'Who codes',
-    text: { 'issue-radar': 'Issue Radar crew', worker: 'Avoozl worker chats', remote: 'Managed remote provider' }[coder] ?? coder,
+    text: { 'issue-radar': 'Issue Radar crew', worker: 'Avoozl worker chats' }[coder] ?? coder,
     source: repository.coder ? 'set' : 'default',
     jump: jump('coder'),
   }
@@ -267,9 +265,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
 
   const buildCard: Card = radar
     ? { key: 'epic-build-radar', who: 'radar', title: 'Crews build', text: 'Each crew takes one ready sub-issue and opens a pull request.', values: [coderValue], ...tag('epic-build-radar') }
-    : remote
-      ? { key: 'epic-build-remote', who: 'avoozl', title: 'A managed remote provider builds', text: 'It codes the task and opens a pull request. Handing tasks over is not built yet.', values: [coderValue], ...tag('epic-build-remote') }
-      : { key: 'epic-build-worker', who: 'avoozl', title: 'Worker chats build', text: 'Each worker chat codes one task on its own branch and opens a pull request.', values: [coderValue] }
+    : { key: 'epic-build-worker', who: 'avoozl', title: 'Worker chats build', text: 'Each worker chat codes one task on its own branch and opens a pull request.', values: [coderValue] }
   const releaseCard: Card = radar
     ? {
         key: 'epic-release',

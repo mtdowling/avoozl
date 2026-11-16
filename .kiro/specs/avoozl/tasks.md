@@ -1633,7 +1633,7 @@ after the Issues and Pull requests pages (Phase 44) are proved.
 - [ ] 45.1 Delete Radar-only leaf modules and their tests [R91.1, R91.3] (§4.26)
   - Modules no non-Radar file imports; `npm test` passes.
 - [ ] 45.2 Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant [R91.1] (§4.26)
-- [ ] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
+- [x] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
 - [ ] 45.4 Shared-module edits and the `coder` setting, after 45.1, 45.2, 45.3, avoozl-p53, avoozl-p54 [R86.1, R91.3] (§4.26)
 - [ ] 45.5 Compatibility names still resolve; docs say one path, after 45.4 [R91.4] (§4.26)
   - `docs/research/` and `docs/evidence/` untouched except new receipts.
