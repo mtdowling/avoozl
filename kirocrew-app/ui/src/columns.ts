@@ -11,7 +11,10 @@ export interface ColumnSpec {
   max: number
 }
 
-export const NAV: ColumnSpec = { key: 'avoozl:nav-width', initial: 208, min: 160, max: 320 }
+// Issue Radar's rail sizes (DEFAULT, MIN and MAX_RAIL_WIDTH in its
+// lib/format.ts). The key is new so a width saved under the old, narrower
+// default does not keep the nav narrow.
+export const NAV: ColumnSpec = { key: 'avoozl:nav-width-v2', initial: 288, min: 220, max: 460 }
 // Dragging the nav this far under its minimum collapses it.
 export const NAV_COLLAPSE_AT = 110
 export const NAV_COLLAPSED_KEY = 'avoozl:nav-collapsed'

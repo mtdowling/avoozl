@@ -17,11 +17,11 @@ import { LineBanner } from './FlowView.tsx'
 import ArmedPulls from './ArmedPulls.tsx'
 import { StartDemoButton } from './Demo.tsx'
 import { DriverCell, useDriverSession } from './DriverSessionBox.tsx'
-import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
+import { StatusRow } from './StatusCells.tsx'
 import SetupCard from './SetupCard.tsx'
 import { useInstance } from './InstanceName.tsx'
 import { nameFor } from './instance-api.ts'
-import { setupCards, type SetupId } from './setup-api.ts'
+import { setupCards } from './setup-api.ts'
 import { useSetupFacts } from './setup-facts.ts'
 import ReleaseQueue from './ReleaseQueue.tsx'
 import TrackerGates from './TrackerGates.tsx'
@@ -32,7 +32,7 @@ import { LINE_EVENT, flowClient } from './flow-api.ts'
 import { IconBtn, IconLabel, IconLink, SectionHeading, ShowMore, SmallBtn, TaskTitleLink, useAskChat, usePages } from './controls.tsx'
 import { useRefreshCountdown } from './RefreshButton.tsx'
 import { usePublishRefresh } from './page-refresh.tsx'
-import { Activity, CirclePlus, Copy, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
+import { Activity, CirclePlus, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import type { Drill } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
@@ -58,7 +58,7 @@ function Pair({ height, children }: { height: string; children: ReactNode }) {
   )
 }
 
-function Section({ title, children, empty, actions, emptyAction }: { title: string; children: ReactNode; empty?: string | false; actions?: ReactNode; emptyAction?: ReactNode }) {
+function Section({ title, children, empty, actions, emptyAction }: { title: string; children?: ReactNode; empty?: string | false; actions?: ReactNode; emptyAction?: ReactNode }) {
   return (
     <Card className="flex h-full min-h-0 flex-col">
       <SectionHeading title={title} className="mb-2" actions={actions} />
@@ -162,9 +162,6 @@ function AttentionRow({
   )
 }
 
-
-// A compact card's button words; the full action is its name and tooltip.
-const SHORT_ACTION: Record<string, string> = { crew: 'Copy values', repository: 'Add a repo', epics: 'Plan an epic' }
 
 const ROLE_LABEL: Record<string, string> = { worker: 'Worker', checks: 'Checks', planner: 'Planner' }
 const roleLabel = (row: InFlight) =>
@@ -289,29 +286,34 @@ export default function DashboardView(props: {
   const views = useMemo(() => viewsClient(api), [api])
   const plans = useMemo(() => plansClient(api), [api])
   const chat = useAskChat(workspaceId)
-  // One failed read leaves its section empty rather than the whole page.
+  // Each read fills its part of Home as it lands; none waits on another.
+  // Radar's crews read GitHub and Kiro Crew, so it is the slow one, and the
+  // rest of Home shows before it. One failed read leaves its section empty.
   const load = useCallback(
     async (id: string) => {
-      const [graph, delivery, conflicts, stored, radar] = await Promise.allSettled([
-        views.graph(id),
-        views.delivery(id),
-        views.conflicts(id),
-        plans.stored(id),
-        views.radarCrews(id),
-      ])
+      const [graph, delivery, conflicts, stored] = await Promise.allSettled([views.graph(id), views.delivery(id), views.conflicts(id), plans.stored(id)])
       const value = <T,>(result: PromiseSettledResult<T>) => (result.status === 'fulfilled' ? result.value : null)
       const failed = [graph, delivery, conflicts, stored].filter((r) => r.status === 'rejected').length
-      const items = value(conflicts)
-      return {
-        summary: summarize({ graph: value(graph), delivery: value(delivery), conflicts: items, plans: value(stored), radar: value(radar), limit: Infinity }),
-        conflicts: items ?? [],
-        total: value(graph)?.total ?? 0,
-        failed,
-      }
+      return { graph: value(graph), delivery: value(delivery), conflicts: value(conflicts), plans: value(stored), failed }
     },
     [views, plans],
   )
-  const { value, error, busy, reload } = useRead(workspaceId, load)
+  const { value: core, error, busy, reload: reloadCore } = useRead(workspaceId, load)
+  const radarLoad = useCallback((id: string) => views.radarCrews(id), [views])
+  const radarRead = useRead(workspaceId, radarLoad)
+  const value = useMemo(
+    () =>
+      core && {
+        summary: summarize({ graph: core.graph, delivery: core.delivery, conflicts: core.conflicts, plans: core.plans, radar: radarRead.value ?? null, limit: Infinity }),
+        conflicts: core.conflicts ?? [],
+        total: core.graph?.total ?? 0,
+        failed: core.failed,
+      },
+    [core, radarRead.value],
+  )
+  const reload = useCallback(async () => {
+    await Promise.all([reloadCore(), radarRead.reload()])
+  }, [reloadCore, radarRead.reload]) // eslint-disable-line react-hooks/exhaustive-deps
   const flows = useMemo(() => flowClient(api), [api])
   const flowLoad = useCallback((id: string) => flows.view(id, { window: '10' }), [flows])
   const flow = useRead(workspaceId, flowLoad)
@@ -345,20 +347,15 @@ export default function DashboardView(props: {
     void chat.ask(matching.length ? { items: matching.map(itemRefOf) } : { tasks: item.taskId ? [item.taskId] : [] })
   }
   const openRow = (item: Attention) => (item.tab === 'waiting' ? onNavigate('waiting', item.taskId ?? undefined) : item.taskId && drawer.openTask(item.taskId))
-  // What each empty state's button does.
-  const setupAction: Record<Exclude<SetupId, 'driver'>, () => void> = {
-    repository: () => props.onOpenSettings?.('repositories'),
-    epics: () => props.onPlanEpic?.(),
-    crew: () => props.onOpenSettings?.('repositories'),
-  }
+  // What the repository empty state's button does. No epics has no button:
+  // New spec on Specs starts one.
+  const openRepositories = () => props.onOpenSettings?.('repositories')
   const cards = setupCards({
-    ...facts,
-    radarCrews: summary?.radarCrewStrip ? summary.radarCrewStrip.crews.length : null,
+    repositories: facts.repositories,
     driver: driver.read?.state ?? 'unknown',
     plans: summary ? summary.plans.total : 1,
   })
 
-  const crewCard = cards.find((card) => card.id === 'crew')
   return (
     <section aria-labelledby="avoozl-dashboard-title" className="flex flex-col gap-3.5">
       <h2 id="avoozl-dashboard-title" className="sr-only">
@@ -372,46 +369,41 @@ export default function DashboardView(props: {
       <ArmedPulls workspaceId={workspaceId} stopped={(flow.value?.line ?? []).length > 0} />
       <StatusRow>
         <DriverCell workspaceId={workspaceId} />
-        {crewCard && (
-          <StatusCell
-            data-setup-card="crew"
-            tone="warn"
-            title="Radar crew: none"
-            tip={`${crewCard.title}. ${crewCard.line}`}
-            actions={
-              <>
-                <CellAct label="Copy values" icon={<Copy size={13} aria-hidden="true" />} primary tip="Copy the values to paste into a new Radar crew." onClick={setupAction.crew} data-crew-copy />
-                <CellAct label="Open Radar" icon={<ExternalLink size={13} aria-hidden="true" />} tip="Open Radar, Crews." href="/issue-radar" />
-              </>
-            }
-          />
-        )}
       </StatusRow>
       {(error || chat.error) && (
         <p role="alert" className="text-sm text-danger">
           {error ?? chat.error}
         </p>
       )}
-      {cards.filter((card) => card.id !== 'driver' && card.id !== 'crew').map((card) => (
+      {cards.filter((card) => card.id !== 'driver').map((card) => (
         <SetupCard
           key={card.id}
           id={card.id}
           title={card.title}
           line={card.line}
           action={
-            <>
-              {/* Short words on the button; its name is the whole action. */}
-              <SmallBtn primary onClick={setupAction[card.id as Exclude<SetupId, 'driver'>]} attrs={{ 'aria-label': card.action }}>
-                {SHORT_ACTION[card.id] ?? card.action}
-              </SmallBtn>
-              {card.id === 'repository' && <StartDemoButton label="Try the demo" />}
-            </>
+            card.id === 'repository' ? (
+              <>
+                {/* Short words on the button; its name is the whole action. */}
+                <SmallBtn primary onClick={openRepositories} attrs={{ 'aria-label': card.action }}>
+                  {card.action}
+                </SmallBtn>
+                <StartDemoButton label="Try the demo" />
+              </>
+            ) : undefined
           }
         />
       ))}
-      {summary ? (
-        <>
+      {/* The layout shows at once; each card fills when its read lands. */}
+      <>
           <Pair height={ROW_HEIGHT.flight}>
+            {!summary ? (
+              <>
+                <Section title="Needs you" empty="Loading…" />
+                <Section title="In flight" empty="Loading…" />
+              </>
+            ) : (
+            <>
             {/* Anything that stops until you act: decisions, handbacks, conflicts. */}
             <Section
               title={`Needs you (${summary.attention.length})`}
@@ -485,6 +477,8 @@ export default function DashboardView(props: {
                 </p>
               )}
             </Section>
+            </>
+            )}
           </Pair>
           <TrackerGates workspaceId={workspaceId} />
           {/* Release queue and Progress by epic share one row, left and right;
@@ -492,6 +486,9 @@ export default function DashboardView(props: {
           <div data-dashboard-row="queue-progress" className="grid gap-3.5" style={phone ? undefined : { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', alignItems: 'stretch' }}>
           <ReleaseQueue workspaceId={workspaceId} onOpenSettings={() => props.onOpenSettings?.('repositories')} />
           <div data-progress-by-epic className="h-full min-h-0">
+            {!summary ? (
+              <Section title="Progress by epic" empty="Loading…" />
+            ) : (
             <Section
               title="Progress by epic"
               empty={summary.progress.length === 0 && `No epics yet. ${summary.plans.approved} approved and ${summary.plans.draft} draft specs.`}
@@ -553,21 +550,12 @@ export default function DashboardView(props: {
                 })}
               </ul>
             </Section>
+            )}
           </div>
           </div>
           <IntegrationBranches workspaceId={workspaceId} />
           <ReviewDrafts workspaceId={workspaceId} />
-          <p className="text-sm text-muted" data-issue-graph-link>
-            Issues on GitHub and their graph:{' '}
-            <a href="/issue-radar" className="underline">
-              open the Issue Radar graph
-            </a>
-            .
-          </p>
-        </>
-      ) : (
-        !error && <p className="text-sm text-muted">Loading…</p>
-      )}
+      </>
       {tracing && (
         <TraceDrawer
           workspaceId={workspaceId}
