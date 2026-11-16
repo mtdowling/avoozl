@@ -25,7 +25,6 @@ export const STRETCH_MS = 5 * 60 * 1000;
 // the minute GitHub's guidance names.
 export const SECONDARY_WAIT_MS = 60 * 1000;
 const MAX_WAIT_MS = 2 * 60 * 60 * 1000;
-const FLUSH_MS = 2000;
 // How many answers, how large one may be, and how long one may go unused.
 export const CACHE_MAX_ENTRIES = 400;
 export const CACHE_MAX_BODY = 1024 * 1024;
@@ -303,7 +302,6 @@ export class RateState {
     this.pause = null;
     this.calls = 0;
     this.notModified = 0;
-    this.flushedAt = 0;
     this.dirty = false;
   }
 
@@ -361,7 +359,7 @@ export class RateState {
       at,
     };
     this.dirty = true;
-    this.flush(true);
+    this.flush();
   }
 
   // The error a call raises while held back, or null when it may go.
@@ -372,9 +370,10 @@ export class RateState {
     return pause;
   }
 
-  flush(force = false) {
-    if (!this.dirty || (!force && this.now() - this.flushedAt < FLUSH_MS))
-      return;
+  // Writes after every call: a 2-second throttle lost the last calls of a
+  // short process (a CLI tick) and left Settings behind until the next call.
+  flush() {
+    if (!this.dirty) return;
     try {
       const stored = readRate(this.store),
         resources = { ...(stored.resources || {}) };
@@ -422,7 +421,6 @@ export class RateState {
       this.calls = 0;
       this.notModified = 0;
       this.dirty = false;
-      this.flushedAt = this.now();
     } catch {
       // A busy or read-only store keeps the numbers for the next flush.
     }
