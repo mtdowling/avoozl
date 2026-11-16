@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { specHash } from "../spec-plans.mjs";
 import {
+  APPROVAL_MARKER,
   approvalChanges,
   approvalState,
   openApproval,
@@ -185,7 +186,7 @@ test("a spec with lint errors cannot be approved", async () => {
   assert.equal((await openApproval(warn.store, warn.args)).state, "open");
 });
 
-test("an already approved spec is refused, and the decision record is optional", async () => {
+test("a revision edited after approval still opens a pull request, with the marker", async () => {
   const approved = Object.fromEntries(
     Object.entries(files()).map(([n, t]) => [
       n,
@@ -193,16 +194,26 @@ test("an already approved spec is refused, and the decision record is optional",
     ]),
   );
   const { store, github, args } = run({ files: approved });
-  await assert.rejects(
-    () => openApproval(store, args),
-    /already says Status: Approved/,
+  assert.equal((await openApproval(store, args)).state, "open");
+  assert.equal(github.pulls.length, 1);
+  const marker = github.written.find(
+    (f) => f.path === `.kiro/specs/demo/${APPROVAL_MARKER}`,
   );
-  assert.equal(github.pulls.length, 0);
+  assert.deepEqual(JSON.parse(marker.text), { approves: "h1" });
+  // The marker is outside the revision hash.
+  assert.equal(
+    specHash({ ...approved, [APPROVAL_MARKER]: marker.text }),
+    specHash(approved),
+  );
+});
+
+test("the decision record is optional, and a draft spec adds no marker", async () => {
   const off = run();
   await openApproval(off.store, off.args);
   assert.ok(
     !off.github.written.some((f) => f.path.startsWith("docs/decisions/")),
   );
+  assert.ok(!off.github.written.some((f) => f.path.endsWith(APPROVAL_MARKER)));
   const on = run({ decisionRecord: true });
   await openApproval(on.store, on.args);
   const record = on.github.written.find(
