@@ -49,7 +49,7 @@ export default function PromptInstructions(props: {
           <p className="pb-2 text-xs text-muted">The built-in prompt could not be read.</p>
         )}
       </Fold>
-      <label htmlFor={props.id} className="flex flex-wrap items-baseline gap-x-2">
+      <label htmlFor={props.id} className="flex flex-wrap items-baseline gap-x-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 }}>
         <span className="font-medium">Your instructions</span>
         <Marker rule={{ required: false }} />
       </label>
