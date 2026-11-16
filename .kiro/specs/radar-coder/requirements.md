@@ -6,6 +6,18 @@ category: Planning
 
 Status: Approved
 
+**Superseded 2026-11-15** by Requirements 86–91 and design §4.26 of
+`.kiro/specs/avoozl/`: Avoozl owns the coding loop with its own workers,
+pushes and lands the work, and the Issue Radar path is removed. Superseded
+here: the Issue Radar coder and handoff (RC1–RC6, RC10, RC14, RC15), the
+retirement of Avoozl's workers (RC11; Phase 12 is cancelled), labels and
+claims as coordination, the mirror and forward flow for a public repository
+with private plans (RC24–RC26), and the separate conflict-fix chat (RC28).
+Still in force: integration branches (RC16), the approval pull request only
+for a spec on a protected branch (RC3.6), setup (RC27), the GitHub usage
+counter (RC29), release ranking (RC31) and build receipts (RC32). This file
+is kept as the record; it is not deleted.
+
 ## Introduction
 
 Avoozl changes its job. It stops running workers for repositories that have
@@ -325,7 +337,9 @@ Fact 2: Kiro Crew 0.12.2.4 does not arm auto-merge for a crew.
    NOT arm auto-merge. A pull request already armed SHALL be listed in the
    banner with **Disarm**, a person's action.
 5. Avoozl SHALL NOT merge a pull request itself, use `--admin`, or bypass a
-   rule. GitHub merges when its own rules pass.
+   rule. GitHub merges when its own rules pass. (Superseded 2026-11-15 by
+   Requirement 87 of the `avoozl` spec: Avoozl merges after checks pass on
+   the updated head; it still never uses `--admin` or bypasses a rule.)
 6. The tick SHALL label a pull request that has a merge conflict with the
    conflict label (configurable, default `avoozl:merge-conflict`, RC21) and remove it when
    the conflict is gone. It SHALL open one Needs you row per conflicted pull
@@ -747,7 +761,9 @@ branch in main, so that a rewrite never half-lands in main.
    head (RC11.5, Requirement 16), not from the task pull requests.
 4. Landing the branch in the default branch SHALL be **one separate step**
    that a person approves. Avoozl SHALL NOT merge the branch into the default
-   branch on its own. It SHALL show a Needs you row when whole-head acceptance
+   branch on its own. (Changed 2026-11-15, Requirement 87.7 of the `avoozl`
+   spec: after the person approves, Avoozl lands it through the landing
+   queue.) It SHALL show a Needs you row when whole-head acceptance
    is green and the branch is up to date with main, and SHALL record who
    approved and which head. An approval for an older head SHALL NOT count.
 5. Plan approval, implementation (the task pull requests), integration (a

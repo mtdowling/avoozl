@@ -2,6 +2,18 @@
 
 Status: Approved
 
+**Superseded 2026-11-15** by Requirements 86–91 and design §4.26 of
+`.kiro/specs/avoozl/`: Avoozl owns the coding loop with its own workers,
+pushes and lands the work, and the Issue Radar path is removed. Superseded
+here: the Issue Radar coder and handoff (RC1–RC6, RC10, RC14, RC15), the
+retirement of Avoozl's workers (RC11; Phase 12 is cancelled), labels and
+claims as coordination, the mirror and forward flow for a public repository
+with private plans (RC24–RC26), and the separate conflict-fix chat (RC28).
+Still in force: integration branches (RC16), the approval pull request only
+for a spec on a protected branch (RC3.6), setup (RC27), the GitHub usage
+counter (RC29), release ranking (RC31) and build receipts (RC32). This file
+is kept as the record; it is not deleted.
+
 Ordered by phase. Each phase ends with a proof; a phase starts after the
 proofs it depends on pass (the edges in `avoozl/manifest.json` say which).
 Requirement numbers are in brackets (`RC1` to `RC12`, in `requirements.md`);
@@ -293,6 +305,10 @@ The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
 
 ## Phase 12: Retirement epic (runs only after Proof 11)
 
+**Cancelled 2026-11-15** (owner decision; `avoozl` Requirement 86 and
+§4.26). Avoozl's workers are the one coder, so none of these tasks will be
+built. The removal of the Issue Radar path is `avoozl` Phase 44.
+
 Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is accepted. Removals apply by repository `coder` first; code is deleted only when no workspace is on `worker`.
 
 - [ ] rc-12.1 Owner decision to retire, and what to keep, after rc-p11 [RC11.1, RC11.3] (§D13)
@@ -405,7 +421,7 @@ Requirement RC16. A rewrite lands as small pull requests into a long-lived branc
   - The stop takes the branch as a scope: a red head, a failed sync or a person's stop; while open, no release and no arming for the epic; the row says why.
   - Done when: A red head stops release and arming; clearing it resumes both.
 - [x] rc-16.6 Landing the branch in main: one person-approved step, after rc-16.3, rc-16.4 [RC16.4, RC16.5] (§D21)
-  - When the head is green and up to date with main, one Needs you row asks a person to land it; Avoozl records who approved and which head; Avoozl never merges the branch into main; an approval for an older head does not count.
+  - When the head is green and up to date with main, one Needs you row asks a person to land it; Avoozl records who approved and which head; Avoozl never merges the branch into main on its own (since 2026-11-15 it lands it after the person approves, `avoozl` §4.26); an approval for an older head does not count.
   - Done when: No code path merges the branch into the default branch; an approval on an old head is refused; the row records approver and head.
 - [ ] rc-p16 Proof 16: a rewrite on an integration branch, after rc-16.1, rc-16.2, rc-16.3, rc-16.4, rc-16.5, rc-16.6 [RC16] (§D22)
   - Setup: a scratch repository, a protected branch, a four-task epic. Action: merge three tasks, force a conflict in a sync, fail a head check, then fix both and land. Expected: small merges into the branch; the sync conflict and the red head each stop the line; landing needs one person's approval on the current head. Failure means: the rewrite could reach main by itself. Next decision: block the branch feature.
@@ -731,7 +747,7 @@ after `rc-p31` has about a week of receipts.
 - [ ] rc-32.2 One deduped repair issue; later breaches comment; pre-approved classes, after rc-32.1 [RC33.3, RC33.4] (§D38)
   - Tests first: a second breach comments only; only the named classes get the ready label on creation.
   - Done when: The tests pass and `npm test` passes.
-- [ ] rc-32.3 Guards: no deleted, skipped or weakened tests; close needs before and after receipts, after rc-32.2 [RC33.5, RC33.6] (§D38)
+- [ ] rc-32.3 Guards: no deleted, skipped or weakened tests; closing needs a receipt from each side of the fix, after rc-32.2 [RC33.5, RC33.6] (§D38)
   - Tests first: a diff that removes a test file, adds a skip marker or removes an assertion blocks the close; a missing before or after receipt blocks it.
   - Done when: The tests pass and `npm test` passes.
 - [ ] rc-p32 Proof 32: a planted slow step is repaired without weakening tests, after rc-32.1, rc-32.2, rc-32.3 [RC33] (§D17)
