@@ -26,6 +26,7 @@ import {
   ciBrief,
   ciMinutesPerPullRequest,
   ciTriggers,
+  lastEffectiveCIConfig,
   seenWorkflows,
 } from "./flow-ci.mjs";
 import { briefAllowed } from "./delivery.mjs";
@@ -153,7 +154,15 @@ const ciRows = (store) => [
 ];
 
 // What should start a retrospective now (R47.1), as new trigger records.
-function triggers(store, data, config, s, now, ciRepositories = null) {
+function triggers(
+  store,
+  data,
+  config,
+  s,
+  now,
+  ciRepositories = null,
+  ciConfig = config,
+) {
   const policy = flowPolicy(config || {}),
     finished = finishedTasks(store, data),
     out = [],
@@ -223,7 +232,7 @@ function triggers(store, data, config, s, now, ciRepositories = null) {
   // repository, kind and window, never held by the spike gap.
   for (const [kind, key, detail] of ciTriggers(
     store,
-    config,
+    ciConfig,
     ciRepositories ?? ciRows(store),
     { now },
   ))
@@ -306,7 +315,12 @@ export function retroBrief(
   data,
   retro,
   memory = null,
-  { config = {}, ciRepositories = null, now = Date.now() } = {},
+  {
+    config = {},
+    ciConfig = lastEffectiveCIConfig(store, config),
+    ciRepositories = null,
+    now = Date.now(),
+  } = {},
 ) {
   const view = flowView(store, data, {}),
     repos = {};
@@ -377,7 +391,7 @@ export function retroBrief(
       // CI per repository over every pull request (§4.30, R100.5): minutes
       // by class, wait share, repeat runs and workflow files. Other pull
       // requests are a number, author and classes only.
-      ci: ciBrief(store, config, ciRepositories ?? ciRows(store), { now }),
+      ci: ciBrief(store, ciConfig, ciRepositories ?? ciRows(store), { now }),
       ...(memory?.payload || {}),
     };
   return [
@@ -422,7 +436,12 @@ const summary = (p) => ({
 export function retroStep(
   store,
   config,
-  { now = Date.now(), repository = null, ciRepositories = null } = {},
+  {
+    now = Date.now(),
+    repository = null,
+    ciRepositories = null,
+    ciConfig = lastEffectiveCIConfig(store, config),
+  } = {},
 ) {
   const data = store.read(),
     notify = [],
@@ -475,6 +494,30 @@ export function retroStep(
       // CI minutes per pull request (R100.5): as many closed pull requests
       // of the repository and class after approval as before it.
       if (proposal.metric === CI_METRIC) {
+        const save = (pdca) => {
+          const retro = store.get("flow_retros", listed.id);
+          store.put("flow_retros", {
+            ...retro,
+            proposals: retro.proposals.map((q) =>
+              q.id === proposal.id ? { ...q, pdca } : q,
+            ),
+          });
+          changed = true;
+        };
+        const before =
+          p.before ??
+          ciMinutesPerPullRequest(store, {
+            repository: proposal.repository,
+            cls: proposal.class,
+            n: p.window,
+            at: p.approvedAt,
+          });
+        if (before === null) {
+          const pendingReason = ciBaselineReason(proposal, p.window);
+          if (p.pendingReason !== pendingReason) save({ ...p, pendingReason });
+          continue;
+        }
+        const { pendingReason: _pendingReason, ...baseline } = { ...p, before };
         const after = ciMinutesPerPullRequest(store, {
           repository: proposal.repository,
           cls: proposal.class,
@@ -482,24 +525,17 @@ export function retroStep(
           at: p.approvedAt,
           after: true,
         });
-        if (after === null) continue;
+        if (after === null) {
+          if (p.before !== before || p.pendingReason) save(baseline);
+          continue;
+        }
         const retro = store.get("flow_retros", listed.id),
-          result = pdcaResult(p.before, after, proposal.direction);
-        store.put("flow_retros", {
-          ...retro,
-          proposals: retro.proposals.map((q) =>
-            q.id === proposal.id
-              ? {
-                  ...q,
-                  pdca: {
-                    ...p,
-                    after,
-                    result,
-                    measuredAt: new Date(now).toISOString(),
-                  },
-                }
-              : q,
-          ),
+          result = pdcaResult(before, after, proposal.direction);
+        save({
+          ...baseline,
+          after,
+          result,
+          measuredAt: new Date(now).toISOString(),
         });
         if (result !== "helped")
           s = { ...s, reverts: [...s.reverts, revertOf(retro, proposal)] };
@@ -551,7 +587,7 @@ export function retroStep(
         s = { ...s, reverts: [...s.reverts, revertOf(retro, proposal)] };
       changed = true;
     }
-  const found = triggers(store, data, config, s, now, ciRepositories),
+  const found = triggers(store, data, config, s, now, ciRepositories, ciConfig),
     last = retros
       .filter((r) => r.startedAt)
       .sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))[0],
@@ -593,6 +629,7 @@ export function retroStep(
     const brief = retroBrief(store, data, retro, memory, {
         config,
         ciRepositories,
+        ciConfig,
         now,
       }),
       model = flowPolicy(config || {}).workspace.retro.model,
@@ -643,6 +680,11 @@ export function pdcaResult(before, after, direction) {
   if (toward >= 0.1) return "helped";
   if (toward <= -0.1) return "worse";
   return "no change";
+}
+
+function ciBaselineReason(proposal, count) {
+  const cls = proposal.class === "all" ? "" : `${proposal.class} `;
+  return `CI comparison pending: fewer than ${count} closed ${cls}pull requests in ${proposal.repository} were recorded before approval.`;
 }
 
 // ------------------------------------------------------------ versions
@@ -1071,6 +1113,7 @@ export async function decideProposal(
     skill,
     rule,
     config,
+    ciConfig = lastEffectiveCIConfig(store, config),
     by = "person",
     now = Date.now(),
   } = {},
@@ -1097,7 +1140,9 @@ export async function decideProposal(
     if (proposal.removesCheck && input.confirmRemoval !== true)
       fail("This proposal removes a check. Confirm again to approve it.", 409);
     const data = store.read(),
-      every = flowPolicy(config || {}).workspace.retro.everyTasks,
+      every = flowPolicy(
+        (proposal.metric === CI_METRIC ? ciConfig : config) || {},
+      ).workspace.retro.everyTasks,
       done = finishedTasks(store, data).length;
     let pdca =
       proposal.type === "rule"
@@ -1116,6 +1161,8 @@ export async function decideProposal(
             at: done + every,
             approvedAt: at,
           };
+    if (proposal.metric === CI_METRIC && pdca.before === null)
+      pdca.pendingReason = ciBaselineReason(proposal, every);
     if (proposal.type === "settings") await apply(proposal, input.expectedHash);
     else if (proposal.type === "plan")
       update = { draft: (await draft(proposal)) ?? null };
