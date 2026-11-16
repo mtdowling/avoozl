@@ -534,10 +534,8 @@ import {
 import {
   approvalState,
   openApproval,
-  proseFiles,
   reconcileApproval,
   reconcileOpenApprovals,
-  statusOf,
 } from "./spec-approval.mjs";
 import {
   matchingAgentInstructions,
@@ -1762,14 +1760,10 @@ export class Operations {
   // else null.
   approvalGateTarget(plan) {
     const target = this.approvalPullRequestTarget(plan);
+    // A revision with no recorded approval always opens one, even when its
+    // files already say Approved (an edit after an earlier approval): the
+    // pull request then adds the approval marker (spec-approval.mjs).
     if (!target || this.planApproved(plan)) return null;
-    // Nothing to commit: the files already say Approved and no record is on.
-    const files = plan.files || {};
-    if (
-      !target.decisionRecord &&
-      proseFiles(files).every((name) => statusOf(files[name]) === "Approved")
-    )
-      return null;
     return target;
   }
   // Who approves a spec. GitHub records the approver as a login (the approval

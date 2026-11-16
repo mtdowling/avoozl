@@ -16,6 +16,10 @@ export { statusOf, withStatus, withoutStatus } from "./spec-plans.mjs";
 
 const PROSE = ["requirements.md", "bugfix.md", "design.md", "tasks.md"];
 
+// The marker an approval pull request adds when the prose files already say
+// Approved: the revision hash it approves. specHash does not cover it.
+export const APPROVAL_MARKER = "avoozl/approval.json";
+
 const key = (planId, hash) => `spec-approval:${planId}:${hash}`;
 
 export function proseFiles(files) {
@@ -106,15 +110,25 @@ function approvalPart(
     );
   if (previous && (previous.state === "open" || previous.state === "merged"))
     return { previous };
-  const prose = proseFiles(files);
-  if (prose.every((name) => statusOf(files[name]) === "Approved") && !record)
-    fail("This spec already says Status: Approved.", 409);
+  // A revision edited after an earlier approval may already say Approved
+  // everywhere. It still needs its own approval commit, so the pull request
+  // carries a marker naming the revision it approves (outside the hash).
+  const prose = proseFiles(files),
+    stale =
+      prose.every((name) => statusOf(files[name]) === "Approved") &&
+      !(ref === undefined && record);
   const changes = approvalChanges({
     spec,
     files,
     decisionRecord: ref === undefined && record,
     extra: {
       ...extra,
+      ...(stale
+        ? {
+            [`.kiro/specs/${spec}/${APPROVAL_MARKER}`]:
+              JSON.stringify({ approves: hash }) + "\n",
+          }
+        : {}),
       ...(ref !== undefined && files["avoozl/manifest.json"] !== undefined
         ? {
             [`.kiro/specs/${spec}/avoozl/manifest.json`]:
