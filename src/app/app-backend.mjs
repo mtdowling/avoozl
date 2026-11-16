@@ -541,6 +541,8 @@ export function startAppBackend({
           driver: { settingsFile: driverSettingsPath() },
           driverSessionFile: driverSessionFile(),
           workspaceName: target.name,
+          // No page request waits on GitHub or Kiro Crew.
+          backgroundReads: true,
         }),
       };
       opened.set(target.dbPath, entry);

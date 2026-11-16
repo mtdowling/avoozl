@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavSlotHost } from './nav-slot.tsx'
 import { ChevronDown } from './icons.ts'
-import { NAV_ROW } from './nav-style.ts'
+import { NAV_PILL } from './nav-style.ts'
 
 export interface NavChild {
   key: string
@@ -39,12 +39,12 @@ const BODY = { display: 'flex', flexDirection: 'column', gap: 2, padding: '2px 1
 
 // Hover and keyboard focus use Kiro Crew's theme variables, as in Radar's
 // sidebar. The selected item keeps its tint; a hover on it only deepens it.
-export const NAV_CSS = `[data-nav-head]{display:flex;align-items:center;gap:6px;width:100%;min-width:0;flex-shrink:0;box-sizing:border-box;height:${NAV_ROW}px;padding:0 12px;border:0;background:none;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
+export const NAV_CSS = `[data-nav-head]{display:flex;align-items:center;gap:6px;width:100%;min-width:0;flex-shrink:0;box-sizing:border-box;height:${NAV_PILL}px;padding:0 12px;border:0;background:none;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
 [data-nav-head]:hover{color:var(--text)}
 [data-nav-head][data-open],[data-nav-head][data-selected]{color:var(--text)}
 [data-nav-head][data-selected]{background:var(--accent-subtle,var(--bg-hover,var(--bg-elevated)))}
 [data-nav-head][data-selected]:hover{background:color-mix(in srgb,var(--accent) 18%,var(--bg-elevated))}
-[data-nav-item]:not([data-nav-head]){display:flex;align-items:center;gap:8px;width:100%;min-width:0;flex-shrink:0;box-sizing:border-box;height:${NAV_ROW}px;padding:0 8px;border:0;border-radius:8px;background:none;color:var(--muted);font-size:13px;text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
+[data-nav-item]:not([data-nav-head]){display:flex;align-items:center;gap:8px;width:100%;min-width:0;flex-shrink:0;box-sizing:border-box;height:${NAV_PILL}px;padding:0 8px;border:0;border-radius:8px;background:none;color:var(--muted);font-size:13px;text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
 [data-nav-text]{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 [data-nav-item]:not([data-nav-head]):hover{background:var(--bg-hover);color:var(--text)}
 [data-nav-item]:not([data-nav-head])[data-selected]{background:var(--accent-subtle,var(--bg-hover,var(--bg-elevated)));color:var(--text);font-weight:500}

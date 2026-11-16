@@ -26,8 +26,10 @@ const MAX = 28
 // Buttons, links styled as buttons, and the panel's own icon buttons. A native
 // select or text field is not a button.
 // The side panel's section headers are disclosure rows the width of the panel, 38 px
-// like Kiro Crew's own Crew log; they are rows, not buttons.
-const BUTTONS = `button:not([data-pp-section-head]):not(summary), [role="button"], a[data-sc-act], a[data-pp-act]`
+// like Kiro Crew's own Crew log; they are rows, not buttons. The left nav's
+// pills (section heads, their rows, the workspace pill) are 32 px rows, at the
+// owner's ask; nav-overflow.test.mjs checks that size.
+const BUTTONS = `button:not([data-pp-section-head]):not(summary):not([data-nav-head]):not([data-nav-item]):not([data-workspace-pill]), [role="button"], a[data-sc-act], a[data-pp-act]`
 const tall = `[...document.querySelectorAll(${JSON.stringify(BUTTONS)})].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > ${MAX} + 0.5 }).map((el) => (el.getAttribute('aria-label') || el.textContent).trim().slice(0, 30) + ' ' + Math.round(el.getBoundingClientRect().height) + 'px')`
 
 const SIZES = [

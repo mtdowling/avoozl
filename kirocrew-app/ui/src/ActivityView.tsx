@@ -276,6 +276,7 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
         <NavFilters
           id="avoozl-activity"
           label="Filter activity"
+          inline
           active={filterActive(filter)}
           onClear={() => setFilter({})}
           fields={[

@@ -1,0 +1,60 @@
+
+avoozl first load: all done 759 ms, max event-loop stall 451 ms, GitHub 1, git spawns 1, git fetch 0
+│ (index) │ op                    │ sent │ done │ status │ kb │
+│ 0       │ 'workspaces.list'     │ 0    │ 33   │ 200    │ 1  │
+│ 1       │ 'instance.view'       │ 2    │ 176  │ 200    │ 0  │
+│ 2       │ 'conflicts.view'      │ 2    │ 177  │ 200    │ 2  │
+│ 3       │ 'untriaged.view'      │ 3    │ 555  │ 200    │ 7  │
+│ 4       │ 'graph.view'          │ 3    │ 698  │ 200    │ 6  │
+│ 5       │ 'delivery.view'       │ 3    │ 722  │ 200    │ 0  │
+│ 6       │ 'plan.list'           │ 3    │ 176  │ 200    │ 0  │
+│ 7       │ 'radar.crews'         │ 3    │ 639  │ 200    │ 0  │
+│ 8       │ 'flow.view'           │ 3    │ 640  │ 200    │ 1  │
+│ 9       │ 'driversession.view'  │ 3    │ 640  │ 200    │ 0  │
+│ 10      │ 'github.settings.get' │ 3    │ 722  │ 200    │ 3  │
+│ 11      │ 'repositories.list'   │ 3    │ 749  │ 200    │ 1  │
+│ 12      │ 'radar.armed'         │ 3    │ 749  │ 200    │ 0  │
+│ 13      │ 'gate.list'           │ 4    │ 749  │ 200    │ 0  │
+│ 14      │ 'radar.releasequeue'  │ 4    │ 759  │ 200    │ 0  │
+│ 15      │ 'integration.view'    │ 4    │ 759  │ 200    │ 0  │
+│ 16      │ 'review.drafts'       │ 4    │ 759  │ 200    │ 0  │
+
+avoozl reload 1: all done 234 ms, max event-loop stall 150 ms, GitHub 0, git spawns 0, git fetch 0
+│ (index) │ op                    │ sent │ done │ status │ kb │
+│ 0       │ 'workspaces.list'     │ 0    │ 163  │ 200    │ 1  │
+│ 1       │ 'instance.view'       │ 0    │ 163  │ 200    │ 0  │
+│ 2       │ 'conflicts.view'      │ 0    │ 163  │ 200    │ 2  │
+│ 3       │ 'untriaged.view'      │ 1    │ 163  │ 200    │ 7  │
+│ 4       │ 'graph.view'          │ 1    │ 163  │ 200    │ 6  │
+│ 5       │ 'delivery.view'       │ 1    │ 164  │ 200    │ 0  │
+│ 6       │ 'plan.list'           │ 1    │ 198  │ 200    │ 0  │
+│ 7       │ 'radar.crews'         │ 1    │ 198  │ 200    │ 0  │
+│ 8       │ 'flow.view'           │ 1    │ 198  │ 200    │ 1  │
+│ 9       │ 'driversession.view'  │ 1    │ 198  │ 200    │ 0  │
+│ 10      │ 'github.settings.get' │ 1    │ 198  │ 200    │ 3  │
+│ 11      │ 'repositories.list'   │ 1    │ 198  │ 200    │ 1  │
+│ 12      │ 'radar.armed'         │ 1    │ 234  │ 200    │ 0  │
+│ 13      │ 'gate.list'           │ 1    │ 234  │ 200    │ 0  │
+│ 14      │ 'radar.releasequeue'  │ 1    │ 234  │ 200    │ 0  │
+│ 15      │ 'integration.view'    │ 1    │ 234  │ 200    │ 0  │
+│ 16      │ 'review.drafts'       │ 1    │ 234  │ 200    │ 0  │
+
+avoozl serial cost (warm):
+│ (index) │ op                    │ ms │ github │ gitFetch │ git │ syncGit │
+│ 0       │ 'workspaces.list'     │ 5  │ 0      │ 0        │ 0   │ 0       │
+│ 1       │ 'instance.view'       │ 15 │ 0      │ 0        │ 0   │ 0       │
+│ 2       │ 'conflicts.view'      │ 72 │ 0      │ 0        │ 0   │ 0       │
+│ 3       │ 'untriaged.view'      │ 16 │ 0      │ 0        │ 0   │ 0       │
+│ 4       │ 'graph.view'          │ 58 │ 0      │ 0        │ 0   │ 0       │
+│ 5       │ 'delivery.view'       │ 36 │ 0      │ 0        │ 0   │ 0       │
+│ 6       │ 'plan.list'           │ 17 │ 0      │ 0        │ 0   │ 0       │
+│ 7       │ 'radar.crews'         │ 10 │ 0      │ 0        │ 0   │ 0       │
+│ 8       │ 'flow.view'           │ 19 │ 0      │ 0        │ 0   │ 0       │
+│ 9       │ 'driversession.view'  │ 13 │ 0      │ 0        │ 0   │ 0       │
+│ 10      │ 'github.settings.get' │ 10 │ 0      │ 0        │ 0   │ 0       │
+│ 11      │ 'repositories.list'   │ 4  │ 0      │ 0        │ 0   │ 0       │
+│ 12      │ 'radar.armed'         │ 3  │ 0      │ 0        │ 0   │ 0       │
+│ 13      │ 'gate.list'           │ 3  │ 0      │ 0        │ 0   │ 0       │
+│ 14      │ 'radar.releasequeue'  │ 36 │ 0      │ 0        │ 0   │ 0       │
+│ 15      │ 'integration.view'    │ 6  │ 0      │ 0        │ 0   │ 0       │
+│ 16      │ 'review.drafts'       │ 10 │ 0      │ 0        │ 0   │ 0       │
