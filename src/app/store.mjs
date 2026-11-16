@@ -165,6 +165,8 @@ export class Store {
    CREATE TABLE IF NOT EXISTS flow_retros(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS flow_batches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS pr_feedback(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS pr_ci(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS ci_runs(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS incoming_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS intake_sources(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS placement_decisions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
@@ -174,6 +176,8 @@ export class Store {
    CREATE TABLE IF NOT EXISTS task_investigations(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS corrections(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS task_notes(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS planning_spans(id TEXT PRIMARY KEY,spec TEXT NOT NULL,plan_id TEXT NOT NULL,round_id TEXT NOT NULL,slot TEXT NOT NULL,role TEXT NOT NULL,model TEXT,started_at TEXT NOT NULL,ended_at TEXT);
+   CREATE TABLE IF NOT EXISTS planning_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,spec TEXT NOT NULL,plan_id TEXT NOT NULL,round_id TEXT NOT NULL,role TEXT NOT NULL,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
    CREATE TABLE IF NOT EXISTS flow_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,task_id TEXT NOT NULL,attempt INTEGER,role TEXT,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
    CREATE TABLE IF NOT EXISTS price_versions(version INTEGER PRIMARY KEY,sha256 TEXT NOT NULL,saved_at TEXT NOT NULL,table_json TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS budget_raises(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,by TEXT NOT NULL,at TEXT NOT NULL,from_json TEXT,to_json TEXT NOT NULL,price_version INTEGER);
@@ -525,6 +529,8 @@ export class Store {
         "flow_retros",
         "flow_batches",
         "pr_feedback",
+        "pr_ci",
+        "ci_runs",
         "incoming_items",
         "intake_sources",
         "placement_decisions",
@@ -591,6 +597,8 @@ export class Store {
         "flow_retros",
         "flow_batches",
         "pr_feedback",
+        "pr_ci",
+        "ci_runs",
         "incoming_items",
         "intake_sources",
         "placement_decisions",
@@ -653,6 +661,8 @@ export class Store {
         "flow_retros",
         "flow_batches",
         "pr_feedback",
+        "pr_ci",
+        "ci_runs",
         "incoming_items",
         "intake_sources",
         "placement_decisions",
@@ -734,6 +744,8 @@ export class Store {
         "flow_retros",
         "flow_batches",
         "pr_feedback",
+        "pr_ci",
+        "ci_runs",
         "incoming_items",
         "intake_sources",
         "placement_decisions",

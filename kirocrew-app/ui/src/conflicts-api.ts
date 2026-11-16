@@ -82,6 +82,7 @@ export function resultMessage(action: SettleAction, result: SettleResult): { ok:
 
 // What the page says for kinds it cannot change, so no item is only text.
 export function noActionReason(item: ConflictItem): string | null {
+  if (item.kind === 'plan-review') return null
   if (item.kind === 'github-conflict' && !item.choices?.length)
     return item.field === 'identity'
       ? 'Two issues claim this task. Close or merge the duplicate issue on GitHub; Avoozl reads the result on its next tick.'

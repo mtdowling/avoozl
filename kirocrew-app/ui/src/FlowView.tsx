@@ -1,3 +1,4 @@
+import { PlanningFlow } from './PlanningFlow.tsx'
 // The Flow tab (design §8.4, R48): where delivery time goes and what the
 // last retro proposed. Read-only except Approve, Reject, Run a retro now,
 // and Run anyway on a stopped line. Pull requests and CI runs stay in Issue
@@ -480,6 +481,7 @@ export default function FlowView({ workspaceId, tab }: { workspaceId: string | n
             </Card>
           )}
           <FlowCharts view={view} unit={unit} onUnit={setUnit} />
+          <PlanningFlow groups={view.planning ?? []} />
           <UsagePanel view={view} unit={unit} />
           <Records view={view} />
         </>

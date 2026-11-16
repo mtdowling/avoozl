@@ -9,6 +9,7 @@ import { kirocrewSession } from "./executors/kirocrew.mjs";
 // revert proposal in the next retrospective.
 import { retroReceipts } from "./budget.mjs";
 import {
+  CI_CLASSES,
   FLOW_KEYS,
   finishedAt,
   flowPolicy,
@@ -18,6 +19,15 @@ import {
   taskTiming,
 } from "./flow.mjs";
 import { fail } from "./store.mjs";
+import {
+  CI_METRIC,
+  CI_RUNS,
+  PR_CI,
+  ciBrief,
+  ciMinutesPerPullRequest,
+  ciTriggers,
+  seenWorkflows,
+} from "./flow-ci.mjs";
 import { briefAllowed } from "./delivery.mjs";
 import { taskRepository } from "../work-model.mjs";
 import {
@@ -61,6 +71,8 @@ export const METRICS = Object.freeze([
   "first-pass rate",
   "time to fix",
   "change failure rate",
+  // Measured on closed pull requests by class, not on tasks (R100.5).
+  CI_METRIC,
 ]);
 const METRIC_KEY = {
   "lead time": "leadTimeMs",
@@ -131,8 +143,17 @@ export function metricOver(store, data, metric, n) {
   return view.metrics[METRIC_KEY[metric]] ?? null;
 }
 
+// The repositories with CI rows, when the tick did not name them.
+const ciRows = (store) => [
+  ...new Set(
+    [...listOr(store, PR_CI), ...listOr(store, CI_RUNS)].map(
+      (row) => row.repository,
+    ),
+  ),
+];
+
 // What should start a retrospective now (R47.1), as new trigger records.
-function triggers(store, data, config, s, now) {
+function triggers(store, data, config, s, now, ciRepositories = null) {
   const policy = flowPolicy(config || {}),
     finished = finishedTasks(store, data),
     out = [],
@@ -198,6 +219,15 @@ function triggers(store, data, config, s, now) {
         `CI wait on ${span.taskId} took ${Math.round(length / 60_000)} min`,
       );
   }
+  // Steady CI waste (R100.3): fixed limits over every pull request, once per
+  // repository, kind and window, never held by the spike gap.
+  for (const [kind, key, detail] of ciTriggers(
+    store,
+    config,
+    ciRepositories ?? ciRows(store),
+    { now },
+  ))
+    add(kind, key, detail);
   return { out, seen: [...seen], finishedCount: finished.length };
 }
 
@@ -271,7 +301,13 @@ export function memoryBrief(store, data) {
 }
 
 // The brief: the window's numbers and earlier results only, no transcripts.
-export function retroBrief(store, data, retro, memory = null) {
+export function retroBrief(
+  store,
+  data,
+  retro,
+  memory = null,
+  { config = {}, ciRepositories = null, now = Date.now() } = {},
+) {
   const view = flowView(store, data, {}),
     repos = {};
   for (const t of view.tasks.filter((t) => t.finishedAt)) {
@@ -338,6 +374,10 @@ export function retroBrief(store, data, retro, memory = null) {
       ),
       // Rules that landed, and whether the corrected thing happened again.
       rules: landedRules(store),
+      // CI per repository over every pull request (§4.30, R100.5): minutes
+      // by class, wait share, repeat runs and workflow files. Other pull
+      // requests are a number, author and classes only.
+      ci: ciBrief(store, config, ciRepositories ?? ciRows(store), { now }),
       ...(memory?.payload || {}),
     };
   return [
@@ -363,7 +403,13 @@ const summary = (p) => ({
       ? { target: p.target, ...(p.section ? { section: p.section } : {}) }
       : p.type === "rule"
         ? { text: p.text, corrections: p.corrections }
-        : { spec: p.spec, change: p.change }),
+        : {
+            spec: p.spec,
+            change: p.change,
+            ...(p.workflow
+              ? { repository: p.repository, workflow: p.workflow }
+              : {}),
+          }),
   metric: p.metric,
   direction: p.direction,
   status: p.status,
@@ -376,7 +422,7 @@ const summary = (p) => ({
 export function retroStep(
   store,
   config,
-  { now = Date.now(), repository = null } = {},
+  { now = Date.now(), repository = null, ciRepositories = null } = {},
 ) {
   const data = store.read(),
     notify = [],
@@ -426,6 +472,40 @@ export function retroStep(
         changed = true;
         continue;
       }
+      // CI minutes per pull request (R100.5): as many closed pull requests
+      // of the repository and class after approval as before it.
+      if (proposal.metric === CI_METRIC) {
+        const after = ciMinutesPerPullRequest(store, {
+          repository: proposal.repository,
+          cls: proposal.class,
+          n: p.window,
+          at: p.approvedAt,
+          after: true,
+        });
+        if (after === null) continue;
+        const retro = store.get("flow_retros", listed.id),
+          result = pdcaResult(p.before, after, proposal.direction);
+        store.put("flow_retros", {
+          ...retro,
+          proposals: retro.proposals.map((q) =>
+            q.id === proposal.id
+              ? {
+                  ...q,
+                  pdca: {
+                    ...p,
+                    after,
+                    result,
+                    measuredAt: new Date(now).toISOString(),
+                  },
+                }
+              : q,
+          ),
+        });
+        if (result !== "helped")
+          s = { ...s, reverts: [...s.reverts, revertOf(retro, proposal)] };
+        changed = true;
+        continue;
+      }
       const versioned = p.version ? versionWindow(store, data, p) : null;
       if (versioned ? versioned.length < p.window : finished < p.at) continue;
       // Read again: an earlier proposal of this retro may have just been
@@ -471,7 +551,7 @@ export function retroStep(
         s = { ...s, reverts: [...s.reverts, revertOf(retro, proposal)] };
       changed = true;
     }
-  const found = triggers(store, data, config, s, now),
+  const found = triggers(store, data, config, s, now, ciRepositories),
     last = retros
       .filter((r) => r.startedAt)
       .sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))[0],
@@ -510,7 +590,11 @@ export function retroStep(
         (c) => c.id,
       ),
     };
-    const brief = retroBrief(store, data, retro, memory),
+    const brief = retroBrief(store, data, retro, memory, {
+        config,
+        ciRepositories,
+        now,
+      }),
       model = flowPolicy(config || {}).workspace.retro.model,
       // The brief passes the content rules at the brief boundary (R47.3).
       allowed = briefAllowed(store, { taskId: retro.id, role: "retro", brief });
@@ -656,6 +740,7 @@ function revertOf(retro, proposal) {
         from: proposal.to,
         to: proposal.from,
         metric: proposal.metric,
+        ...(proposal.class ? { class: proposal.class } : {}),
         direction: proposal.direction,
         evidence: `PDCA: ${proposal.key} ${JSON.stringify(proposal.from)} → ${JSON.stringify(proposal.to)} from ${retro.id} did not help (${proposal.metric} ${proposal.pdca?.result ?? "no change"}).`,
         revertOf: `${retro.id}:${proposal.id}`,
@@ -664,7 +749,10 @@ function revertOf(retro, proposal) {
         type: "plan",
         spec: proposal.spec,
         change: `Undo: ${proposal.change}`,
+        ...(proposal.repository ? { repository: proposal.repository } : {}),
+        ...(proposal.workflow ? { workflow: proposal.workflow } : {}),
         metric: proposal.metric,
+        ...(proposal.class ? { class: proposal.class } : {}),
         direction: proposal.direction,
         evidence: `PDCA: the plan change from ${retro.id} did not help.`,
         revertOf: `${retro.id}:${proposal.id}`,
@@ -679,6 +767,7 @@ const SETTINGS_FIELDS = [
   "from",
   "to",
   "metric",
+  "class",
   "direction",
   "evidence",
   "revertOf",
@@ -687,7 +776,11 @@ const PLAN_FIELDS = [
   "type",
   "spec",
   "change",
+  // A CI change names the repository and a workflow file seen (§4.30).
+  "repository",
+  "workflow",
   "metric",
+  "class",
   "direction",
   "evidence",
   "revertOf",
@@ -776,6 +869,14 @@ export function proposalProblem(p, retro = null, store = null) {
     return `metric must be one of ${METRICS.join(", ")}`;
   if (!["up", "down"].includes(p.direction))
     return "direction must be up or down";
+  if (p.metric === CI_METRIC) {
+    if (p.type !== "settings" && p.type !== "plan")
+      return `${CI_METRIC} is measured for settings and plan proposals`;
+    if (!["all", ...CI_CLASSES].includes(p.class))
+      return `a ${CI_METRIC} proposal names a class: all, ${CI_CLASSES.join(", ")}`;
+    if (!shortText(p.repository, 100))
+      return `a ${CI_METRIC} proposal names the repository`;
+  } else if (p.class !== undefined) return `class is only for ${CI_METRIC}`;
   if (p.type === "prompt" || p.type === "skill")
     return changeProblem(p, retro, store);
   if (!shortText(p.evidence)) return "evidence is missing";
@@ -784,6 +885,18 @@ export function proposalProblem(p, retro = null, store = null) {
       return "unknown field in a plan proposal";
     if (!shortText(p.spec, 200) || !shortText(p.change))
       return "a plan proposal names a spec and the change";
+    if (p.workflow !== undefined) {
+      if (!shortText(p.repository, 100))
+        return "a CI plan proposal names the repository";
+      if (
+        typeof p.workflow !== "string" ||
+        !p.workflow.startsWith(".github/workflows/") ||
+        !store ||
+        !seenWorkflows(store, p.repository).has(p.workflow)
+      )
+        return `${p.workflow} is not a workflow file seen in ${p.repository}`;
+    } else if (p.repository !== undefined && !shortText(p.repository, 100))
+      return "repository must be a repository name";
     return null;
   }
   if (p.type !== "settings")
@@ -990,7 +1103,15 @@ export async function decideProposal(
       proposal.type === "rule"
         ? { approvedAt: at, window: every, at: done + every }
         : {
-            before: metricOver(store, data, proposal.metric, every),
+            before:
+              proposal.metric === CI_METRIC
+                ? ciMinutesPerPullRequest(store, {
+                    repository: proposal.repository,
+                    cls: proposal.class,
+                    n: every,
+                    at,
+                  })
+                : metricOver(store, data, proposal.metric, every),
             window: every,
             at: done + every,
             approvedAt: at,

@@ -189,7 +189,16 @@ export interface Retro {
   dropped: { index: number; key: string | null; reason: string }[]
 }
 
+export interface PlanningTiming {
+  spec: string
+  planId: string
+  durationMs: number
+  usage: { input: number; output: number; credits: number; turns: number }
+  roles: { role: 'plan-review' | 'plan-answer'; model: string | null; durationMs: number; input: number; output: number; credits: number; turns: number }[]
+}
+
 export interface FlowViewModel {
+  planning?: PlanningTiming[]
   window: { size: number; since: string | null }
   metrics: Metrics
   previous: Metrics

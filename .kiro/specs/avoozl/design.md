@@ -3736,8 +3736,10 @@ supervisor on Kiro Crew machines too.
 **Finishing.** A sandboxed child cannot reach the database, so a `process`
 child ends by writing `.avoozl/result.json` in its task folder (`state`
 `done` or `blocked`, and `text`) and exiting. The supervisor reads the exit
-code and the file; Avoozl commits the changes and checks the diff. A
-missing or bad file, or `done` with a non-zero exit, is `exited <code>` and
+code and the file; Avoozl commits the changes and checks the diff. Avoozl
+never stages a path under `.avoozl/`, whatever the repository's
+.gitignore says, and refuses to land a worker commit that holds one
+(`commitWorkerChanges`, `refuseAvoozlPaths`). A missing or bad file, or `done` with a non-zero exit, is `exited <code>` and
 takes the retry path. Kiro Crew chats and people use `avoozl runner report
 TASK done|blocked`; `next`, `claim` and the report stay as the manual
 path.

@@ -110,8 +110,9 @@ after(async () => {
 for (const width of [320, 768, 1280])
   test(`at ${width} px the rules mode opens its field and the default shows its source`, { skip }, async () => {
     await page.open(harness.url({ page: 'crews-rules' }), { width, height: 900, dark: false })
-    await page.until(`document.querySelectorAll('[data-radio-fold]').length === 1`)
-    assert.match(await page.evaluate(`document.querySelector('[data-radio-section="default"][data-open="true"]').textContent`), /Using Avoozl's built-in review rules/)
+    await page.until(`document.querySelectorAll('[data-radio-fold]').length === 3`)
+    assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-radio-fold]')].map((element) => element.dataset.radioFold)`), ['t-rules-mode', 't-on-source-conflict', 't-merge-method'])
+    assert.match(await page.evaluate(`document.querySelector('[data-radio-fold="t-rules-mode"] [data-radio-section="default"][data-open="true"]').textContent`), /Using Avoozl's built-in review rules/)
     assert.equal(await page.evaluate(`Boolean(document.getElementById('t-rules'))`), false)
     await page.evaluate(`document.getElementById('t-rules-mode-custom').click()`)
     await page.until(`Boolean(document.getElementById('t-rules'))`)

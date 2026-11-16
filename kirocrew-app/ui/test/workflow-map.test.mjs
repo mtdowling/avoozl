@@ -153,7 +153,7 @@ test('the merge method shows on the auto-merge card and round-trips (RC28.7)', (
 test('every who has its own theme-variable color', () => {
   assert.equal(new Set(Object.values(WHO_COLOR)).size, 4)
   for (const color of Object.values(WHO_COLOR)) assert.match(color, /^var\(--/)
-  assert.match(fieldSelector('x', 'plan'), /#x-plan-label/)
+  assert.equal(fieldSelector('x', 'plan'), '#x-label-planLabel')
 })
 
 const chrome = findChrome()
@@ -224,6 +224,6 @@ test('page: a value jumps to its field, opening the fold around it', { skip }, a
   const page = await draw('single')
   assert.equal(await page.evaluate(`document.querySelector('[data-fold] ').open`), false)
   await page.evaluate(`document.querySelector('[data-step="epic-plan-label"] [data-value="Planning label"] button').click()`)
-  await page.until(`document.activeElement?.id === 't-plan-label'`)
+  await page.until(`document.activeElement?.id === 't-label-planLabel'`)
   assert.equal(await page.evaluate(`document.querySelector('[data-fold] ').open`), true)
 })
