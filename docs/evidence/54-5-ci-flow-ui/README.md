@@ -44,3 +44,8 @@ overrides on save, the empty state, minute units and pending CI comparisons,
 and a delayed old-workspace settings response. The latter reproduced an old
 workspace's form replacing the new workspace's values before the scoped-form
 fix; it now verifies that only the new workspace's values are saved.
+
+## Owner review — 2026-11-16
+
+The owner approved the phone and desktop screenshot set in light and dark modes
+for merge. This supersedes the pending review status recorded at capture.
