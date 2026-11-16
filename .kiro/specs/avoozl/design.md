@@ -3616,7 +3616,7 @@ mirror and forward flow (RC24–RC26) is not used for this setup.
 | 42. PR landing and the setup command    | Ten tasks land on a repository with a required check                                          |
 | 43. Worker machines pull work           | A second machine with a second GitHub login pulls, claims and completes tasks from a shared pool on real GitHub; a race between two workers shows exactly one claim wins |
 | 44. Issues and Pull requests pages      | The pages match Issue Radar's at 390 and 1280 px, light and dark; a list load makes 0 extra GitHub calls |
-| 45. Remove the Issue Radar path         | Leaf modules any time; shared edits last; compatibility names still resolve                   |
+| 45. Remove the Issue Radar path         | Leaf audit any time; 45.2 after P52; 45.2/45.3 have exclusive shared-file access; remaining shared edits last; compatibility names still resolve                   |
 
 ### 4.27 Issues and Pull requests pages
 
@@ -3755,7 +3755,7 @@ role; a task's `session` pin may name a harness. Headless machines have
 
 | Phase | Step                                    | Exit                                                                                              |
 | ----- | --------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| 46    | Name the seam                           | Today's calls behind the interface; the existing suite passes unchanged                           |
+| 46    | Name the seam                           | Today's calls behind the interface; behavior coverage retained under R93.6; the suite passes                           |
 | 47    | Supervisor and `process` with Claude Code | A 3-task chain on a scratch repository with one feedback round by resume, a killed child that recovers, a backend restart mid-run |
 | 48    | Codex by definition file only           | Codex runs a task; the proof fails if any source file changed                                     |
 | 49    | Every role on any executor              | Verifier, reviewer, planner, retro and watch each run on `process`                                |

@@ -1627,12 +1627,14 @@ is lost when Issue Radar goes.
 
 ## Phase 45: Remove the Issue Radar path
 
-Requirement 91 (design §4.26). Leaf modules any time; shared edits last,
-after the Issues and Pull requests pages (Phase 44) are proved.
+Requirement 91 (design §4.26). Audit leaf modules any time. Task 45.2
+waits for P52; 45.2 and 45.3 run only when no other lane edits the same
+files. Remaining shared edits wait until Phases 40–44 are proved.
 
-- [ ] 45.1 Delete Radar-only leaf modules and their tests [R91.1, R91.3] (§4.26)
-  - Modules no non-Radar file imports; `npm test` passes.
-- [ ] 45.2 Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant [R91.1] (§4.26)
+- [ ] 45.1 Audit Radar-only leaf modules and delete any already unreferenced modules and their tests [R91.1, R91.3] (§4.26)
+  - Remove only modules with no active production importers; preserve setup and PR landing code. Record retained modules and their importers for 45.4, including when no module can yet be deleted; `npm test` passes.
+- [ ] 45.2 Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant, after avoozl-p52 [R91.1] (§4.26)
+  - Retire provenance-based landing gates only after replacement PR landing is proved; keep compatibility names resolving.
 - [x] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
 - [ ] 45.4 Shared-module edits and the `coder` setting, after 45.1, 45.2, 45.3, avoozl-p53, avoozl-p54 [R86.1, R91.3] (§4.26)
 - [ ] 45.5 Compatibility names still resolve; docs say one path, after 45.4 [R91.4] (§4.26)
@@ -1649,20 +1651,21 @@ after the Issues and Pull requests pages (Phase 44) are proved.
 
 Owner plan 2026-11-15 (Requirements 93, 97; design §4.28). Runs before
 Phase 40: the worker rebuild calls this seam. Exit: today's calls sit behind
-the interface and the existing suite passes unchanged.
+the interface, existing behavior is preserved and the suite passes.
 
 - [ ] 46.1 Executor interface: start, send, status, optional stop and usage [R93.1, R93.4] (§4.28)
-  - A test fails when a path outside the `kirocrew` executor names a Kiro Crew folder, project or agent file.
+  - Contract tests cover the calls and allowed status values; the interface carries no Kiro Crew folder, project or agent-file detail. The comprehensive boundary test runs at P56 after 46.2–46.4 move the existing references.
 - [ ] 46.2 The `kirocrew` executor holds today's session calls from `tick.py`, after 46.1 [R93.2, R93.6] (§4.28)
-  - Folders and project directories become its private detail; no test changes.
-- [ ] 46.3 The tick writes session requests that name an executor; each executor takes only its own, after 46.2 [R93.3] (§4.28)
+  - All Kiro Crew folder and project handling becomes the executor's private detail, including callers outside `tick.py`. Preserve existing behavior coverage; only assertions about retired request fields may change (R93.6).
+- [ ] 46.3 The tick writes session requests that name an executor; each executor takes only its own, after 46.2 [R93.3, R93.4] (§4.28)
+  - Planner requests carry no Kiro Crew folder, project or agent-file details.
 - [ ] 46.4 Role prompts in `prompts/<role>.md`; agent files built from them, after 46.1 [R97.1, R97.2] (§4.28)
-  - A test fails when a built agent differs from its prompt.
+  - Runtime prompt readers use the prompt files, not generated agent JSON. A test fails when a built agent differs from its prompt.
 
 - [ ] avoozl-p56 P56 Proof: the seam is named and nothing else changed, after 46.1, 46.2, 46.3, 46.4 [R93, R97] (§4.28)
   - Setup: main before and after the change.
-  - Action: run the existing suite; open one worker through the `kirocrew` executor on a scratch repository.
-  - Expected: the suite passes with no test edited; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file.
+  - Action: run the existing suite and a boundary test that fails on any code path outside the `kirocrew` executor naming a Kiro Crew folder, project or agent file; open one worker through the executor on a scratch repository.
+  - Expected: the suite passes with behavior coverage retained under R93.6; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file.
   - Failure means: the seam leaks Kiro Crew details or changed behavior.
   - Next decision: start Phase 40 on the seam.
 
@@ -1709,7 +1712,7 @@ Requirement 94.7 (design §4.28). Exit: Codex runs a task with no code change.
 - [ ] avoozl-p58 P58 Proof: Codex runs a task from its definition file alone, after 48.1 [R94.7] (§4.28)
   - Setup: the Phase 47 scratch repository; the Codex definition approved by hash; the source tree at a recorded commit.
   - Action: run one task and one feedback round on Codex.
-  - Expected: the task finishes with `runner report`; `git diff --stat` of every source file against the recorded commit is empty, and the proof fails if any source file changed.
+  - Expected: the child exits with a valid `.avoozl/result.json`, Avoozl commits its changes and the task finishes; `git diff --stat` of every source file against the recorded commit is empty, and the proof fails if any source file changed.
   - Also record (not verified before): the permission and sandbox values Codex accepts, and that its writes stay in the worktree.
   - Failure means: the seam still needs code per harness.
   - Next decision: fix the seam so the next harness needs no code.
