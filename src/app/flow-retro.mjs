@@ -29,6 +29,13 @@ import {
   lastEffectiveCIConfig,
   seenWorkflows,
 } from "./flow-ci.mjs";
+import {
+  BUILD_PART_METRIC,
+  NOT_ENOUGH_BUILDS,
+  buildBrief,
+  buildPartMinutes,
+  keyAndPartProblem,
+} from "./build-breakdown.mjs";
 import { briefAllowed } from "./delivery.mjs";
 import { taskRepository } from "../work-model.mjs";
 import {
@@ -74,6 +81,8 @@ export const METRICS = Object.freeze([
   "change failure rate",
   // Measured on closed pull requests by class, not on tasks (R100.5).
   CI_METRIC,
+  // Measured on builds with one comparison key (R101.11).
+  BUILD_PART_METRIC,
 ]);
 const METRIC_KEY = {
   "lead time": "leadTimeMs",
@@ -335,6 +344,7 @@ export function retroBrief(
         (r.proposals || []).map((p) => ({ retro: r.id, ...summary(p) })),
       ),
     instructions = retroInstructions(store),
+    builds = buildBrief(store, ciRepositories ?? ciRows(store), { now }),
     payload = {
       triggers: retro.triggers.map((t) => t.detail),
       metrics: view.metrics,
@@ -392,6 +402,8 @@ export function retroBrief(
       // by class, wait share, repeat runs and workflow files. Other pull
       // requests are a number, author and classes only.
       ci: ciBrief(store, ciConfig, ciRepositories ?? ciRows(store), { now }),
+      // Build breakdowns by comparison key (§4.31); absent with no builds.
+      ...(builds ? { builds } : {}),
       ...(memory?.payload || {}),
     };
   return [
@@ -527,6 +539,54 @@ export function retroStep(
         });
         if (after === null) {
           if (p.before !== before || p.pendingReason) save(baseline);
+          continue;
+        }
+        const retro = store.get("flow_retros", listed.id),
+          result = pdcaResult(before, after, proposal.direction);
+        save({
+          ...baseline,
+          after,
+          result,
+          measuredAt: new Date(now).toISOString(),
+        });
+        if (result !== "helped")
+          s = { ...s, reverts: [...s.reverts, revertOf(retro, proposal)] };
+        changed = true;
+        continue;
+      }
+      // Build part minutes (R101.11): the same key and part, as many builds
+      // after approval as before it. Fewer on either side is no verdict.
+      if (proposal.metric === BUILD_PART_METRIC) {
+        const save = (pdca) => {
+          const retro = store.get("flow_retros", listed.id);
+          store.put("flow_retros", {
+            ...retro,
+            proposals: retro.proposals.map((q) =>
+              q.id === proposal.id ? { ...q, pdca } : q,
+            ),
+          });
+          changed = true;
+        };
+        const measure = (after) =>
+          buildPartMinutes(store, {
+            repository: proposal.repository,
+            key: proposal.key,
+            part: proposal.part,
+            n: p.window,
+            at: p.approvedAt,
+            after,
+          });
+        const before = p.before ?? measure(false);
+        if (before === null) {
+          if (p.pendingReason !== NOT_ENOUGH_BUILDS)
+            save({ ...p, pendingReason: NOT_ENOUGH_BUILDS });
+          continue;
+        }
+        const { pendingReason: _pending, ...baseline } = { ...p, before },
+          after = measure(true);
+        if (after === null) {
+          if (p.before !== before || p.pendingReason !== NOT_ENOUGH_BUILDS)
+            save({ ...baseline, pendingReason: NOT_ENOUGH_BUILDS });
           continue;
         }
         const retro = store.get("flow_retros", listed.id),
@@ -821,6 +881,9 @@ const PLAN_FIELDS = [
   // A CI change names the repository and a workflow file seen (§4.30).
   "repository",
   "workflow",
+  // A Build part minutes change names a comparison key and a part (§4.31).
+  "key",
+  "part",
   "metric",
   "class",
   "direction",
@@ -919,6 +982,18 @@ export function proposalProblem(p, retro = null, store = null) {
     if (!shortText(p.repository, 100))
       return `a ${CI_METRIC} proposal names the repository`;
   } else if (p.class !== undefined) return `class is only for ${CI_METRIC}`;
+  if (p.metric === BUILD_PART_METRIC) {
+    if (p.type !== "plan")
+      return `${BUILD_PART_METRIC} is measured for plan proposals`;
+    if (!shortText(p.repository, 100))
+      return `a ${BUILD_PART_METRIC} proposal names the repository`;
+    if (!shortText(p.key, 1000) || !shortText(p.part, 80))
+      return `a ${BUILD_PART_METRIC} proposal names a key and a part from the brief`;
+    const problem =
+      store && keyAndPartProblem(store, p.repository, p.key, p.part);
+    if (problem || !store) return problem || "the builds are not available";
+  } else if ((p.key !== undefined && p.type === "plan") || p.part !== undefined)
+    return `key and part are only for ${BUILD_PART_METRIC}`;
   if (p.type === "prompt" || p.type === "skill")
     return changeProblem(p, retro, store);
   if (!shortText(p.evidence)) return "evidence is missing";
@@ -1156,13 +1231,23 @@ export async function decideProposal(
                     n: every,
                     at,
                   })
-                : metricOver(store, data, proposal.metric, every),
+                : proposal.metric === BUILD_PART_METRIC
+                  ? buildPartMinutes(store, {
+                      repository: proposal.repository,
+                      key: proposal.key,
+                      part: proposal.part,
+                      n: every,
+                      at,
+                    })
+                  : metricOver(store, data, proposal.metric, every),
             window: every,
             at: done + every,
             approvedAt: at,
           };
     if (proposal.metric === CI_METRIC && pdca.before === null)
       pdca.pendingReason = ciBaselineReason(proposal, every);
+    if (proposal.metric === BUILD_PART_METRIC && pdca.before === null)
+      pdca.pendingReason = NOT_ENOUGH_BUILDS;
     if (proposal.type === "settings") await apply(proposal, input.expectedHash);
     else if (proposal.type === "plan")
       update = { draft: (await draft(proposal)) ?? null };
