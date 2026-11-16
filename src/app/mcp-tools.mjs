@@ -152,6 +152,12 @@ const tools = {
     summary:
       "Design reviews and design extraction. None of these approve a plan.",
     actions: {
+      current: ["plan.review.get", "current spec revision's review evidence"],
+      findings: ["plan.review.findings", "spec findings and planner answers"],
+      answer: [
+        "plan.review.answer",
+        "answer findings from the bound planner round",
+      ],
       list: ["plan.review.list", "review comments"],
       summary: [
         "plan.reviewSummary",
