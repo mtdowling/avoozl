@@ -14,6 +14,10 @@ export const PERSON_ONLY = new Map([
   ["plan.approveMany", person("Only a person approves a plan.")],
   ["plan.delete", person("Only a person deletes a plan.")],
   ["plan.new", person("Only a person starts a new plan.")],
+  [
+    "plan.review.decide",
+    person("Only a person starts or skips a draft review."),
+  ],
   ["task.manual.complete", person("Only a person marks a manual task done.")],
   ["task.manual.reopen", person("Only a person reopens a manual task.")],
   ["task.notes.edit", person("Only a person edits a link or note.")],

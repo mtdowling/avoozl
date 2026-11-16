@@ -24,7 +24,13 @@ const namedModel = (value) =>
 
 // Only recorded observations count. A requested model is never evidence of
 // the model that wrote or reviewed a revision.
-export function reportedPlanModel(store, { runId, slot } = {}) {
+export function reportedPlanModel(store, { runId, slot, receiptId } = {}) {
+  if (receiptId) {
+    const receipt = store.get("receipts", receiptId);
+    return receipt?.kind === "plan-review-writer"
+      ? namedModel(receipt.actualModel)
+      : null;
+  }
   if (slot) {
     const reading = servedModel(store.get("session_bindings", slot));
     return reading.reported ? namedModel(reading.model) : null;

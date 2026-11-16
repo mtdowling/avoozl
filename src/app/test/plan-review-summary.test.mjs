@@ -266,3 +266,35 @@ test("only a person closes a spec finding, preserving legacy text-plan disposal"
   );
   assert.equal(env.store.get("review_threads", "legacy").state, "closed");
 });
+
+test("Review anyway is offered only for an unknown writer skip that never opened", (t) => {
+  const env = setup(t),
+    round = {
+      id: "skipped",
+      planId: env.plan.id,
+      spec: env.plan.spec,
+      pass: 1,
+      round: 1,
+      revisionHash: env.plan.hash,
+      state: "skipped",
+      writerModel: null,
+      reviewerModel: "fake-reviewer",
+      unproven: false,
+      slot: null,
+    };
+  env.store.put("review_rounds", round);
+  assert.equal(planReviewSummary(env.store, env.plan.id).canReviewAnyway, true);
+  for (const change of [
+    { slot: "opened" },
+    { unproven: true },
+    { writerModel: "fake-writer" },
+    { state: "running" },
+    { state: "done" },
+  ]) {
+    env.store.put("review_rounds", { ...round, ...change });
+    assert.equal(
+      planReviewSummary(env.store, env.plan.id).canReviewAnyway,
+      false,
+    );
+  }
+});

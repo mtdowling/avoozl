@@ -1,3 +1,4 @@
+import { syncPlanningSpans, planningFlowView } from "./planning-flow.mjs";
 // Flow (design §4.11, Requirements 43–48): where each task's time goes, and
 // the settings the flow rules read. Timing is always on; there is no setting
 // for it. A span is one stretch of one attempt in one stage, and names the
@@ -469,6 +470,7 @@ export function readyAt(store, data, task, attempt, memo = {}) {
 // that ends them. Writes only what changed; an open span stays open across a
 // restart and closes here at its ending event (R43.8).
 export function syncSpans(store, { now = Date.now() } = {}) {
+  syncPlanningSpans(store);
   const at = new Date(now).toISOString(),
     bindings = listSessionBindings(store),
     spans = listSpans(store),
@@ -961,6 +963,7 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
     input.stage ? timings.filter((t) => t.stages[input.stage] > 0) : timings
   ).sort((a, b) => ((b.startedAt || "") < (a.startedAt || "") ? -1 : 1));
   return {
+    planning: planningFlowView(store, input, { now }),
     window: { size, since },
     metrics,
     previous: before,

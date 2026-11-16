@@ -234,6 +234,8 @@ const slotKey = (slot) =>
 // Planner, critic, retro, router and code review chats are not a task's
 // work and have no cap; Flow shows them under "no task".
 const UNCAPPED = new Set([
+  "plan-review",
+  "plan-answer",
   "planner",
   "retro",
   "router",
