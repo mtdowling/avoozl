@@ -7,7 +7,7 @@ import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { SectionHeading } from './controls.tsx'
 import { useRead } from './useRead.ts'
-import { flowRows, githubFlowClient, span, summaryLine } from './radar-flow-api.ts'
+import { buildMedian, buildsLine, flowRows, githubFlowClient, span, summaryLine } from './radar-flow-api.ts'
 
 export default function GithubFlow({ workspaceId }: { workspaceId: string | null }) {
   const api = useAppApi()
@@ -52,6 +52,33 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
             </li>
           ))}
         </ul>
+        {view.receipts && view.receipts.count > 0 && (
+          <div data-flow-builds className="flex flex-col gap-1">
+            <h3 className="m-0 text-sm font-semibold">Builds</h3>
+            <p className="text-xs text-muted">{buildsLine(view.receipts)}. From each merged pull request's build receipt.</p>
+            <ul className="m-0 flex list-none flex-col gap-1 p-0" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+              {view.receipts.byTarget.map((row) => (
+                <li key={`${row.target}-${row.start}`} data-flow-build={row.target} className="flex flex-wrap gap-x-3 text-sm" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', overflowWrap: 'anywhere' }}>
+                  <span>{row.target}</span>
+                  <span className="text-muted">{row.start}</span>
+                  <span className="tabular-nums">{buildMedian(row.medianMs)}</span>
+                  <span className="text-muted">{row.count} {row.count === 1 ? 'build' : 'builds'}</span>
+                </li>
+              ))}
+            </ul>
+            {view.receipts.byInstance.length > 1 && (
+              <ul className="m-0 flex list-none flex-col gap-1 p-0" data-flow-instances style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                {view.receipts.byInstance.map((row) => (
+                  <li key={row.instance ?? 'none'} className="flex flex-wrap gap-x-3 text-sm" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', overflowWrap: 'anywhere' }}>
+                    <span>{row.name ?? row.instance ?? 'No instance'}</span>
+                    <span className="tabular-nums">{buildMedian(row.medianMs)}</span>
+                    <span className="text-muted">{row.count} {row.count === 1 ? 'build' : 'builds'}, {span(row.totalMs)} in all</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
         {view.skipped.length > 0 && <p className="text-xs text-muted">Left out for a missing or unordered time: {view.skipped.map((s) => `#${s.number}`).join(', ')}.</p>}
         {[...view.errors.map((e) => `${e.repository}: ${e.error}`), ...(error ? [error] : [])].map((text) => (
           <p key={text} role="alert" className="text-xs text-danger">

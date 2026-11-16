@@ -701,19 +701,19 @@ before and after screenshots and auto-merge off.
 Requirement RC32. Screen changes get before and after screenshots and
 auto-merge off.
 
-- [ ] rc-31.1 `bin/build-receipt`: wrapper, cold or warm, repository parser [RC32.1, RC32.2, RC32.3] (§D37)
+- [x] rc-31.1 `bin/build-receipt`: wrapper, cold or warm, repository parser [RC32.1, RC32.2, RC32.3] (§D37)
   - Tests first: exit code and output pass through; a failing parser still writes a receipt; an unwritable file never stops the command; warm and cold from the check.
   - Done when: `src/app/test/build-receipt.test.mjs` passes and `npm test` passes.
-- [ ] rc-31.2 CI runs build and test through the wrapper; job summary and `build-receipt` artifact, after rc-31.1 [RC32.4] (§D37)
+- [x] rc-31.2 CI runs build and test through the wrapper; job summary and `build-receipt` artifact, after rc-31.1 [RC32.4] (§D37)
   - The receipt line is at most 2 KB.
   - Done when: A CI run on the pull request shows the summary and the artifact.
-- [ ] rc-31.3 Reader: one read per merged pull request, counted as `receipt` and cached, after rc-31.1 [RC32.5] (§D37)
+- [x] rc-31.3 Reader: one read per merged pull request, counted as `receipt` and cached, after rc-31.1 [RC32.5] (§D37)
   - Tests first, on a fake GitHub: one read per merged pull request; a repeat check costs 0 calls; a pull request with no receipt is remembered; a failed read is retried next tick.
   - Done when: The tests pass and `npm test` passes.
-- [ ] rc-31.4 Trace and Flow show receipts; grouped by instance, after rc-31.3 [RC32.6, RC32.7] (§D37)
+- [x] rc-31.4 Trace and Flow show receipts; grouped by instance, after rc-31.3 [RC32.6, RC32.7] (§D37)
   - Tests first: Trace shows duration, start and counters; Flow shows the median per target; rows group by the marker's instance ID.
   - Done when: The tests pass, `npm run test:ui` passes, and the pull request shows Trace and Flow before and after.
-- [ ] rc-31.5 Repo rules in each issue brief name the wrapper, after rc-31.1 [RC32.8] (§D37)
+- [x] rc-31.5 Repo rules in each issue brief name the wrapper, after rc-31.1 [RC32.8] (§D37)
   - Tests first: a repository with `bin/build-receipt` gets the line; one without it does not.
   - Done when: The tests pass and `npm test` passes.
 - [ ] rc-p31 Proof 31: CI writes a receipt and Avoozl reads it once, after rc-31.2, rc-31.3, rc-31.4, rc-31.5 [RC32] (§D17)

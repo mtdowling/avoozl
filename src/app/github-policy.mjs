@@ -427,6 +427,7 @@ function repositoryInput(value, id, mode) {
       "approval",
       "acceptedLabel",
       "rules",
+      "buildReceipts",
       "stackedPullRequests",
       "commentSteering",
       "discussions",
@@ -694,6 +695,8 @@ function repositoryInput(value, id, mode) {
     pullRequestReviews,
     release,
     dependencyText: value.dependencyText === true,
+    // The code repository has bin/build-receipt (RC32.8).
+    buildReceipts: value.buildReceipts === true,
     priority,
     waitingLabels,
     managedLabels: managed,

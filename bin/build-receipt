@@ -1,0 +1,14 @@
+#!/usr/bin/env node
+// Runs a build or test command with the same output and exit code, and
+// appends one receipt line (issue, commit, command, target, cold or warm,
+// duration, counters) to build-receipt.jsonl. Crews and CI run it around
+// their build and test commands:
+//   bin/build-receipt [--issue N] [--target T] -- npm test
+import { wrap } from "../src/app/build-receipt.mjs";
+
+try {
+  process.exitCode = await wrap(process.argv.slice(2));
+} catch (error) {
+  console.error(error.message);
+  process.exitCode = 2;
+}

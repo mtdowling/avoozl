@@ -100,6 +100,15 @@
         "$ref": "#/$defs/project"
       }
     },
+    "receipts": {
+      "description": "Read by bin/build-receipt in the code repository: `parser` is a command that reads the build output on standard input and prints a JSON object of numbers; `warmCheck` exits 0 when caches are warm.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "parser": { "type": "string" },
+        "warmCheck": { "type": "string" }
+      }
+    },
     "github": {
       "$ref": "#/$defs/github"
     },
@@ -1048,6 +1057,11 @@
               }
             }
           }
+        },
+        "buildReceipts": {
+          "description": "The code repository has bin/build-receipt. Each issue brief then tells crews to run build and test commands through it.",
+          "type": "boolean",
+          "default": false
         },
         "dependencyText": {
           "type": "boolean",

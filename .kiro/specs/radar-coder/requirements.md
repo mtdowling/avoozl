@@ -1748,7 +1748,8 @@ and whether a change made it better or worse.
    job summary, and upload the same file as a small artifact named
    `build-receipt`.
 5. **Reader.** For each merged pull request Avoozl SHALL read one receipt: the
-   artifact of the pull request's last successful CI run. Each read SHALL be
+   newest `build-receipt` artifact built from the pull request's head commit
+   (one list call per repository, one download per pull request). Each read SHALL be
    counted in the GitHub usage counter under `receipt` and cached; a pull
    request already read SHALL cost 0 on every later check, and a pull request
    with no receipt SHALL be remembered as having none.
@@ -1759,8 +1760,8 @@ and whether a change made it better or worse.
    issue marker, so Flow can show each Avoozl's numbers and the sum. No
    instance reads another's database; every read is from GitHub.
 8. **Crews.** The repo rules in each issue brief SHALL tell the crew to run
-   build and test commands through `bin/build-receipt` when the repository has
-   it, and to leave the commands unchanged otherwise.
+   build and test commands through `bin/build-receipt` when the repository's
+   `buildReceipts` setting is on, and SHALL say nothing about it otherwise.
 9. **Tests** on a fake GitHub SHALL cover: the wrapper keeps the exit code and
    output; a failing parser still writes a receipt; one read per merged pull
    request; a cache hit costs 0 calls; no receipt is remembered; grouping by
