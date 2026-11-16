@@ -14,7 +14,11 @@ import GraphView from './GraphView'
 import WaitingView from './WaitingView.tsx'
 import FlowView from './FlowView.tsx'
 import { TracePage } from './TraceView.tsx'
-import { FLOW_TABS, TABS, WAITING_SECTIONS, navTab, redirectSettings, redirectTab, tabLabel, type FlowTab, type Tab, type WaitingSection } from './nav-api.ts'
+import { DASHBOARD_PAGES, FLOW_TABS, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, redirectSettings, redirectTab, tabLabel, type FlowTab, type Tab, type WaitingSection } from './nav-api.ts'
+import { WorkspacePill } from './WorkspacePill.tsx'
+import { NavSlotProvider } from './nav-slot.tsx'
+import LanesView from './LanesView.tsx'
+import { VIEW_ICONS } from './icons.ts'
 import { TRACE_TARGET, parseTraceLink, type TraceTarget } from './trace-api.ts'
 import ActivityView from './ActivityView.tsx'
 import { StopLineButton } from './StopLine.tsx'
@@ -24,7 +28,7 @@ import SettingsView, { SETTINGS_TABS, type SettingsTab } from './SettingsView'
 import { SETTINGS_HOME, settingsTabOnEnter } from './settings-api.ts'
 import { TaskDrawerProvider } from './TaskDrawer'
 import Badge from './Badge.tsx'
-import { ConfirmProvider, ViewLabel } from './controls.tsx'
+import { ConfirmProvider, ICON, ViewHeading } from './controls.tsx'
 import { setSharedFilter } from './FilterBar.tsx'
 import type { TaskFilter } from './filters.ts'
 import type { Drill } from './graph-layout.ts'
@@ -50,36 +54,32 @@ function storage(): Storage | null {
   }
 }
 
-function WorkspacePicker(props: {
-  list: WorkspaceList | null
-  value: string | null
-  onChange: (id: string) => void
-}) {
-  const { list } = props
+// A nav entry's label: the view's icon, its word cut short with an ellipsis
+// when the nav is narrow, then a count that always stays whole.
+function NavLabel(props: { view: keyof typeof VIEW_ICONS; text: string; count?: number }) {
+  const Icon = VIEW_ICONS[props.view]
   return (
-    <label className="flex min-w-0 items-center gap-2 text-sm">
-      <span className="text-muted">Workspace</span>
-      <select
-        aria-label="Workspace"
-        value={props.value ?? ''}
-        disabled={!list?.items.length}
-        onChange={(event) => props.onChange(event.target.value)}
-        className="rounded border px-2 py-1 text-sm"
-        style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }}
-      >
-        {!list ? (
-          <option value="">Loading…</option>
-        ) : list.items.length === 0 ? (
-          <option value="">None yet</option>
-        ) : (
-          list.items.map((workspace) => (
-            <option key={workspace.id} value={workspace.id}>
-              {workspace.name}
-            </option>
-          ))
-        )}
-      </select>
-    </label>
+    <span data-nav-label-row style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: '100%' }}>
+      <Icon size={ICON} aria-hidden="true" style={{ flexShrink: 0 }} />
+      <span data-nav-text style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{props.text}</span>
+      {props.count ? (
+        <span data-nav-count style={{ flexShrink: 0, display: 'inline-flex' }}>
+          <Badge variant="warning">{props.count}</Badge>
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
+// A page that is planned and not built yet: its heading and one line.
+function Placeholder(props: { view: keyof typeof VIEW_ICONS; title: string; line: string }) {
+  return (
+    <section aria-labelledby={`avoozl-${props.view}-title`} className="flex flex-col gap-3.5" data-placeholder={props.view}>
+      <ViewHeading id={`avoozl-${props.view}-title`} view={props.view}>
+        {props.title}
+      </ViewHeading>
+      <p className="text-sm text-muted">{props.line}</p>
+    </section>
   )
 }
 
@@ -87,7 +87,9 @@ export default function AvoozlApp() {
   return (
     <NavHistoryProvider>
       <DemoProvider>
-        <AvoozlPage />
+        <NavSlotProvider>
+          <AvoozlPage />
+        </NavSlotProvider>
       </DemoProvider>
     </NavHistoryProvider>
   )
@@ -260,9 +262,11 @@ function AvoozlPage() {
       <PageRefreshIcon />
     </NavLine>
   )
-  // Radar's nav model: Flow, Needs you and Settings open in the nav to their
-  // sub-pages; the other pages are plain entries.
+  // Radar's nav model: Dashboards, Needs you, Flow and Settings open in the
+  // nav to their sub-pages; Specs and Activity open to their filters (a
+  // slot the page fills); the other pages are plain entries.
   const kids: Partial<Record<Tab, { key: string; label: string }[]>> = {
+    dashboard: DASHBOARD_PAGES,
     waiting: WAITING_SECTIONS.map((x) => ({ key: x.key, label: x.title })),
     flow: FLOW_TABS,
     settings: SETTINGS_TABS.map((x) => ({ key: x.key, label: x.label })),
@@ -271,24 +275,22 @@ function AvoozlPage() {
     key: t.key,
     text: t.label,
     children: kids[t.key],
+    slot: t.key === 'plans' || t.key === 'activity',
     aria: t.key === 'waiting' && waitingCount > 0 ? `Needs you, ${waitingCount} items` : undefined,
-    label:
-      t.key === 'waiting' && waitingCount > 0 ? (
-        <span className="inline-flex items-center gap-1.5">
-          <ViewLabel view="waiting">Needs you</ViewLabel> <Badge variant="warning">{waitingCount}</Badge>
-        </span>
-      ) : (
-        <ViewLabel view={t.key}>{t.label}</ViewLabel>
-      ),
+    label: <NavLabel view={t.key} text={t.label} count={t.key === 'waiting' ? waitingCount : 0} />,
   }))
-  const child = tab === 'settings' ? settingsTab : tab === 'flow' ? flowTab : tab === 'waiting' ? waitingSection : null
+  const child = tab === 'settings' ? settingsTab : tab === 'flow' ? flowTab : tab === 'waiting' ? waitingSection : dashboardPage(tab)
   // A header or sub-page pick: the page, and its sub-page when it has one.
   const pickNav = (key: string, sub?: string) => {
     if (sub === undefined) return chooseTab(key as Tab)
-    if (key === 'settings') go({ tab: 'settings', settingsTab: sub as SettingsTab, focus: null, drill: null })
+    if (key === 'dashboard') go({ tab: dashboardTab(sub), focus: null, drill: null })
+    else if (key === 'settings') go({ tab: 'settings', settingsTab: sub as SettingsTab, focus: null, drill: null })
     else if (key === 'flow') go({ tab: 'flow', flowTab: sub as FlowTab, focus: null, drill: null })
     else go({ tab: 'waiting', waitingSection: sub as WaitingSection, focus: null, drill: null })
   }
+  // The workspace pill, first in the nav and in the phone's menu. The demo
+  // reads its own sample, so it has no pill.
+  const pill = !demo.active && <WorkspacePill list={list} value={workspaceId} onChange={setWorkspaceId} onManage={openWorkspaces} />
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ display: 'contents' }}>
     <ConfirmProvider>
@@ -308,6 +310,7 @@ function AvoozlPage() {
           child={child}
           onPick={pickNav}
           onOpenChange={setRailOpen}
+          top={pill}
           footer={
             <>
               {lineControls}
@@ -324,13 +327,13 @@ function AvoozlPage() {
           value={navTab(tab)}
           child={child}
           onPick={pickNav}
+          top={pill}
           brand={<BrandCard workspaceId={active} />}
         />
       )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-shell-main>
       <div className={`flex flex-wrap items-center gap-3 pb-2 ${phone ? 'px-4' : 'px-2'}`} data-main-top>
-        {/* The demo reads its own sample, so the picker is not shown in it. */}
-        {!demo.active && <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
+        {/* The workspace is the pill at the top of the nav (Radar's switcher). */}
         <span className="flex-1" />
         {/* Plan a goal, then on a desktop Stop the line and Refresh as small
             icons as tall as it. A phone keeps them in its menu. */}
@@ -362,7 +365,7 @@ function AvoozlPage() {
             subtitle={
               list?.items.length === 0
                 ? 'Add or initialize a workspace in Settings. Every tab reads from it.'
-                : 'Choose one at the top of the page. Every tab reads from it.'
+                : 'Choose one with the workspace button at the top of the nav. Every tab reads from it.'
             }
             action={
               list?.items.length === 0 ? (
@@ -399,6 +402,14 @@ function AvoozlPage() {
             section={waitingSection}
             onOpenSources={() => go({ settingsTab: 'plugins', tab: 'settings' })}
           />
+        ) : tab === 'lanes' ? (
+          <LanesView workspaceId={active} />
+        ) : tab === 'ci' ? (
+          <Placeholder view="ci" title="CI" line="Coming later: each open pull request's checks and CI wait. Avoozl caches its one batched pull-request read, but no page reads it yet." />
+        ) : tab === 'issues' ? (
+          <Placeholder view="issues" title="Issues" line="Coming in Phase 44." />
+        ) : tab === 'pulls' ? (
+          <Placeholder view="pulls" title="Pull requests" line="Coming in Phase 44." />
         ) : tab === 'activity' ? (
           <ActivityView workspaceId={active} />
         ) : (

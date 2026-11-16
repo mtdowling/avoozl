@@ -60,14 +60,17 @@ export async function readCrewStrip({
   }
   if (!granted) return null;
   const cost = {};
-  for (const row of sessionsReader ? rows.slice(0, COST_LIMIT) : []) {
-    try {
-      const answer = await sessionsReader(row.repository, row.number);
-      if (answer.status === 200)
-        cost[`${row.repository}#${row.number}`] = costOf(answer.body);
-    } catch {
-      // A failed read leaves that issue without a cost.
-    }
-  }
+  // The reads go out together, not one after another: Home waits on this.
+  await Promise.all(
+    (sessionsReader ? rows.slice(0, COST_LIMIT) : []).map(async (row) => {
+      try {
+        const answer = await sessionsReader(row.repository, row.number);
+        if (answer.status === 200)
+          cost[`${row.repository}#${row.number}`] = costOf(answer.body);
+      } catch {
+        // A failed read leaves that issue without a cost.
+      }
+    }),
+  );
   return { crews, counts, cost };
 }

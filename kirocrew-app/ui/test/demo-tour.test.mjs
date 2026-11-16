@@ -117,19 +117,19 @@ const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b
 // A count badge may follow the label, so compare the start.
 const selectedTab = `document.querySelector('[data-nav-head][data-selected], [data-nav-head][data-open]')?.textContent.trim()`
 const tourStep = `document.querySelector('[data-demo-tour]')?.dataset.step`
-// Graph is a page inside Specs, and Intake lives under Needs you.
-const TAB = { dashboard: 'Home', plans: 'Specs', graph: 'Specs', untriaged: 'Needs you', flow: 'Flow', settings: 'Settings' }
+// Graph is a page inside Dashboards, and Intake lives under Needs you.
+const TAB = { dashboard: 'Dashboards', plans: 'Specs', graph: 'Dashboards', untriaged: 'Needs you', flow: 'Flow', settings: 'Settings' }
 
 test('Start demo opens the tour over the real pages, and Exit demo returns', { skip }, async () => {
   await page.open(harness.url({ page: 'demo' }), { width: 1280, height: 800 })
-  await page.until(`Boolean(${button('Start demo')} && document.querySelector('[aria-label="Workspace"]'))`)
+  await page.until(`Boolean(${button('Start demo')} && document.querySelector('[data-workspace-pill]'))`)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-badge]'))`), false)
   await click(button('Start demo'))
 
-  // The badge replaces the workspace picker; the tour starts on step 1.
+  // The badge replaces the workspace pill; the tour starts on step 1.
   await page.until(`${tourStep} === 'dashboard'`)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-badge]'))`), true)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[aria-label="Workspace"]'))`), false)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-workspace-pill]'))`), false)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-bar]'))`), true)
 
   // Next through every step, by button and by key.
@@ -153,7 +153,7 @@ test('Start demo opens the tour over the real pages, and Exit demo returns', { s
   await page.until(`!document.querySelector('[data-demo-tour]')`)
 
   // A change shows what it would do; nothing else happens.
-  await click(button('Home', 'tab'))
+  await click(button('Dashboards', 'tab'))
   // Stop the line is an icon on the top line, after Plan a goal.
   await page.until(`Boolean(document.querySelector('[data-main-actions] [data-stop-line]'))`)
   await click(`document.querySelector('[data-stop-line]')`)
@@ -179,14 +179,14 @@ test('Start demo opens the tour over the real pages, and Exit demo returns', { s
 
   // Exit demo: the person's workspace again, no badge.
   await click(`document.querySelector('[data-demo-exit]')`)
-  await page.until(`!document.querySelector('[data-demo-badge]') && Boolean(document.querySelector('[aria-label="Workspace"]'))`)
-  assert.equal(await page.evaluate(`document.querySelector('[aria-label="Workspace"]').value`), 'w')
+  await page.until(`!document.querySelector('[data-demo-badge]') && Boolean(document.querySelector('[data-workspace-pill]'))`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-workspace-pill]').dataset.workspaceId`), 'w')
   assert.deepEqual(page.errors, [])
 })
 
 test('in the demo the driver session is the made-up one: it opens nothing and starts nothing', { skip }, async () => {
   await page.open(harness.url({ page: 'demo' }), { width: 1280, height: 800 })
-  await page.until(`Boolean(${button('Start demo')} && document.querySelector('[aria-label="Workspace"]'))`)
+  await page.until(`Boolean(${button('Start demo')} && document.querySelector('[data-workspace-pill]'))`)
   await click(button('Start demo'))
   await page.until(`${tourStep} === 'dashboard'`)
   await page.key('Escape')

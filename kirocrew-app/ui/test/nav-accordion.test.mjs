@@ -1,4 +1,4 @@
-// The left nav is Issue Radar's accordion: Flow, Needs you and Settings open
+// The left nav is Issue Radar's accordion: Dashboards, Flow, Needs you and Settings open
 // in the nav to their pages, one section open at a time, and the content
 // shows only the picked page (no tab bar or section list in it). Each pick is
 // a Back step. On a phone the same accordion is in the menu. Skipped when no
@@ -28,7 +28,8 @@ const has = (selector) => page.evaluate(`Boolean(document.querySelector(${JSON.s
 test('Settings opens in the nav; the page shows one section; Needs you does the same; one section is open at a time', { skip }, async () => {
   await page.open(harness.url({ app: '1', radar: '1' }), { width: 1280, height: 800 })
   await page.until(`Boolean(document.querySelector('[data-nav-group="settings"]'))`)
-  assert.equal(await has('[data-nav-children]'), false, 'every section starts shut except the page you are on')
+  // Home is Dashboards' first page, so Dashboards is the one open section.
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-nav-children]')].map((x) => x.dataset.navChildren)`), ['dashboard'], 'every section starts shut except the page you are on')
   await click('[data-nav-group="settings"]')
   await page.until(`Boolean(document.querySelector('[data-nav-children="settings"]'))`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1, 'the page shows one section')
@@ -44,7 +45,7 @@ test('Settings opens in the nav; the page shows one section; Needs you does the 
   await page.until(`document.querySelector('[data-waiting-section][data-open="true"]')?.dataset.waitingSection === 'intake'`)
   assert.equal(await has('[data-waiting-tabs]'), false, 'no section tabs in the page')
   // A plain page closes the open section.
-  await click('[data-nav-item="plans"]')
+  await click('[data-nav-item="trace"]')
   await settle()
   assert.equal(await has('[data-nav-children]'), false)
   assert.deepEqual(page.errors, [])

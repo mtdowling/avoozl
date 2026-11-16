@@ -177,3 +177,27 @@ test("the sessions reader calls the pipeline route with the app token", async ()
   ]);
   assert.equal(issueRadarSessionsReader({}), null);
 });
+
+test("the cost reads go out together, not one after another", async () => {
+  const { readCrewStrip } = await import("../radar-crews.mjs");
+  let inFlight = 0,
+    most = 0;
+  const rows = [1, 2, 3].map((number) => ({ repository: REPO, number }));
+  const strip = await readCrewStrip({
+    crewReader: async () => ({ status: 200, body: CREWS }),
+    sessionsReader: async () => {
+      inFlight += 1;
+      most = Math.max(most, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+      return { status: 200, body: {} };
+    },
+    repositories: [REPO],
+    rows,
+  });
+  assert.equal(most, rows.length);
+  assert.deepEqual(
+    Object.keys(strip.cost).sort(),
+    rows.map((r) => `${REPO}#${r.number}`).sort(),
+  );
+});

@@ -167,7 +167,8 @@ test('Conflicts: tab counts, a plain why, bulk only for one kind, attach to a li
   assert.equal(chats.has('b'), false)
   // Needs you shows a yellow count only when there is one.
   assert.match(source('App.tsx'), /t\.key === 'waiting' && waitingCount > 0 \?/)
-  assert.match(source('App.tsx'), /<Badge variant="warning">\{waitingCount\}<\/Badge>/)
+  assert.match(source('App.tsx'), /count=\{t\.key === 'waiting' \? waitingCount : 0\}/)
+  assert.match(source('App.tsx'), /\{props\.count \? \([\s\S]*?<Badge variant="warning">\{props\.count\}<\/Badge>/)
 })
 
 test('drill-in shows one epic, or one task with everything up and down its chain', () => {

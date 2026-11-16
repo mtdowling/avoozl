@@ -20,7 +20,8 @@ import { useReveal } from './RepositoriesSettings.tsx'
 import { openSpecBuilder } from './spec-builder-api.ts'
 import { settingsClient } from './settings-api.ts'
 import { githubHref } from './repository-rows.ts'
-import { FilterPanel } from './FilterPanel.tsx'
+import { NavFilters, type FilterField } from './FilterPanel.tsx'
+import { NavSlotFor } from './nav-slot.tsx'
 import { STATES, nodeState, type Drill, type NodeState } from './graph-layout.ts'
 import { rowPlanKey, type TaskFilter } from './filters.ts'
 import { outline } from './markdown.ts'
@@ -574,8 +575,9 @@ function Now({ now }: { now: PlanRow['now'] }) {
 const cell: CSSProperties = { padding: '8px 10px', borderTop: '1px solid var(--border)', verticalAlign: 'middle' }
 const head: CSSProperties = { padding: '6px 10px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }
 
-// The Plans list's filters: search, category, status, kind and "has", in
-// the shared filter panel. The count sits on the Filters row (one line).
+// The Specs list's filters: search, category, status, kind, "has", batch
+// and archived. They sit in the left nav under the open Specs section, as
+// Radar's rail holds its filters (nav-slot.tsx); the count stays on the page.
 function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; batches: number; onChange: (filter: PlanListFilter) => void; children?: ReactNode }) {
   const { filter } = props
   const choices = rowChoices(props.rows)
@@ -584,14 +586,7 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; batches: 
     for (const key of Object.keys(next)) if (!next[key]) delete next[key]
     props.onChange(next as PlanListFilter)
   }
-  return (
-    <FilterPanel
-      folded
-      id="avoozl-plans"
-      label="Filter specs"
-      active={Object.keys(filter).length > 0}
-      onClear={() => props.onChange({})}
-      fields={[
+  const fields: FilterField[] = [
         { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Spec name or folder', onChange: (q) => set({ q }) },
         {
           kind: 'select',
@@ -641,10 +636,22 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; batches: 
           onChange: (batch) => set({ batch }),
         },
         { kind: 'check', key: 'archived', label: 'Show archived', checked: Boolean(filter.archived), onChange: (archived) => set({ archived }) },
-      ]}
-    >
-      {props.children}
-    </FilterPanel>
+  ]
+  const active = Object.keys(filter).length > 0
+  return (
+    <>
+      <NavSlotFor section="plans">
+        <NavFilters id="avoozl-plans" label="Filter specs" fields={fields} active={active} onClear={() => props.onChange({})} />
+      </NavSlotFor>
+      <div className="flex min-w-0 items-center gap-1.5 px-1" data-filter-status>
+        {props.children}
+        {active && (
+          <button type="button" className="text-xs underline" onClick={() => props.onChange({})} data-filter-clear-inline>
+            Clear filters
+          </button>
+        )}
+      </div>
+    </>
   )
 }
 

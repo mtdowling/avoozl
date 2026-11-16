@@ -58,7 +58,7 @@ function Pair({ height, children }: { height: string; children: ReactNode }) {
   )
 }
 
-function Section({ title, children, empty, actions, emptyAction }: { title: string; children: ReactNode; empty?: string | false; actions?: ReactNode; emptyAction?: ReactNode }) {
+function Section({ title, children, empty, actions, emptyAction }: { title: string; children?: ReactNode; empty?: string | false; actions?: ReactNode; emptyAction?: ReactNode }) {
   return (
     <Card className="flex h-full min-h-0 flex-col">
       <SectionHeading title={title} className="mb-2" actions={actions} />
@@ -289,29 +289,34 @@ export default function DashboardView(props: {
   const views = useMemo(() => viewsClient(api), [api])
   const plans = useMemo(() => plansClient(api), [api])
   const chat = useAskChat(workspaceId)
-  // One failed read leaves its section empty rather than the whole page.
+  // Each read fills its part of Home as it lands; none waits on another.
+  // Radar's crews read GitHub and Kiro Crew, so it is the slow one, and the
+  // rest of Home shows before it. One failed read leaves its section empty.
   const load = useCallback(
     async (id: string) => {
-      const [graph, delivery, conflicts, stored, radar] = await Promise.allSettled([
-        views.graph(id),
-        views.delivery(id),
-        views.conflicts(id),
-        plans.stored(id),
-        views.radarCrews(id),
-      ])
+      const [graph, delivery, conflicts, stored] = await Promise.allSettled([views.graph(id), views.delivery(id), views.conflicts(id), plans.stored(id)])
       const value = <T,>(result: PromiseSettledResult<T>) => (result.status === 'fulfilled' ? result.value : null)
       const failed = [graph, delivery, conflicts, stored].filter((r) => r.status === 'rejected').length
-      const items = value(conflicts)
-      return {
-        summary: summarize({ graph: value(graph), delivery: value(delivery), conflicts: items, plans: value(stored), radar: value(radar), limit: Infinity }),
-        conflicts: items ?? [],
-        total: value(graph)?.total ?? 0,
-        failed,
-      }
+      return { graph: value(graph), delivery: value(delivery), conflicts: value(conflicts), plans: value(stored), failed }
     },
     [views, plans],
   )
-  const { value, error, busy, reload } = useRead(workspaceId, load)
+  const { value: core, error, busy, reload: reloadCore } = useRead(workspaceId, load)
+  const radarLoad = useCallback((id: string) => views.radarCrews(id), [views])
+  const radarRead = useRead(workspaceId, radarLoad)
+  const value = useMemo(
+    () =>
+      core && {
+        summary: summarize({ graph: core.graph, delivery: core.delivery, conflicts: core.conflicts, plans: core.plans, radar: radarRead.value ?? null, limit: Infinity }),
+        conflicts: core.conflicts ?? [],
+        total: core.graph?.total ?? 0,
+        failed: core.failed,
+      },
+    [core, radarRead.value],
+  )
+  const reload = useCallback(async () => {
+    await Promise.all([reloadCore(), radarRead.reload()])
+  }, [reloadCore, radarRead.reload]) // eslint-disable-line react-hooks/exhaustive-deps
   const flows = useMemo(() => flowClient(api), [api])
   const flowLoad = useCallback((id: string) => flows.view(id, { window: '10' }), [flows])
   const flow = useRead(workspaceId, flowLoad)
@@ -409,9 +414,16 @@ export default function DashboardView(props: {
           }
         />
       ))}
-      {summary ? (
-        <>
+      {/* The layout shows at once; each card fills when its read lands. */}
+      <>
           <Pair height={ROW_HEIGHT.flight}>
+            {!summary ? (
+              <>
+                <Section title="Needs you" empty="Loading…" />
+                <Section title="In flight" empty="Loading…" />
+              </>
+            ) : (
+            <>
             {/* Anything that stops until you act: decisions, handbacks, conflicts. */}
             <Section
               title={`Needs you (${summary.attention.length})`}
@@ -485,6 +497,8 @@ export default function DashboardView(props: {
                 </p>
               )}
             </Section>
+            </>
+            )}
           </Pair>
           <TrackerGates workspaceId={workspaceId} />
           {/* Release queue and Progress by epic share one row, left and right;
@@ -492,6 +506,9 @@ export default function DashboardView(props: {
           <div data-dashboard-row="queue-progress" className="grid gap-3.5" style={phone ? undefined : { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', alignItems: 'stretch' }}>
           <ReleaseQueue workspaceId={workspaceId} onOpenSettings={() => props.onOpenSettings?.('repositories')} />
           <div data-progress-by-epic className="h-full min-h-0">
+            {!summary ? (
+              <Section title="Progress by epic" empty="Loading…" />
+            ) : (
             <Section
               title="Progress by epic"
               empty={summary.progress.length === 0 && `No epics yet. ${summary.plans.approved} approved and ${summary.plans.draft} draft specs.`}
@@ -553,6 +570,7 @@ export default function DashboardView(props: {
                 })}
               </ul>
             </Section>
+            )}
           </div>
           </div>
           <IntegrationBranches workspaceId={workspaceId} />
@@ -564,10 +582,7 @@ export default function DashboardView(props: {
             </a>
             .
           </p>
-        </>
-      ) : (
-        !error && <p className="text-sm text-muted">Loading…</p>
-      )}
+      </>
       {tracing && (
         <TraceDrawer
           workspaceId={workspaceId}

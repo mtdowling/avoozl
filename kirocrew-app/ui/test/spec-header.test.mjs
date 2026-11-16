@@ -54,7 +54,9 @@ async function openSpec(width, dark) {
     await click(`document.querySelector('[data-top-rail-bar]')`)
     await wait(150)
   }
-  await click(`document.querySelector('[data-nav-item="plans"]')`)
+  await click(`document.querySelector('[data-nav-group="plans"]')`)
+  // On a phone Specs opens to its filters in the menu; close it for the page.
+  if (width < 768) await click(`document.querySelector('[data-top-rail-bar]')`)
   await page.until(`Boolean(document.querySelector('[data-plans-list]'))`)
   await click(button('Meal planner', `document.querySelector('[data-plans-list]')`))
   await page.until(`Boolean(document.querySelector('[data-spec-header]') && document.querySelector('[data-spec-rail] [data-state-count]'))`)
