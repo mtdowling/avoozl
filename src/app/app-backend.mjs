@@ -212,6 +212,7 @@ export const APP_OPERATIONS = new Set([
   "flow.view",
   "untriaged.crews",
   "untriaged.handoff",
+  "github.crewlabel.backfill",
   "review.chat",
   "untriaged.plan",
   "github.repository.labels",
