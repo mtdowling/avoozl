@@ -10,6 +10,7 @@ import { ChoiceCards, SectionHeading } from './controls.tsx'
 import { Marker, Section } from './SettingsView.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
+import { Pause } from './icons.ts'
 import PromptInstructions from './PromptInstructions.tsx'
 import { FLOW_DEFAULTS, flowClient, toFlowForm, toFlowSection, type FlowForm, type FlowSettings as Settings } from './flow-api.ts'
 
@@ -120,7 +121,7 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
         <Section title="Timing" blurb="Always on. Avoozl records where each task's time goes; nothing to set." />
       </Box>
       <Box>
-        <Section title="Stop the line" blurb="When a change breaks a check that passed, pause new work until it's fixed.">
+        <Section title="Pause on a broken check" blurb="When a change breaks a check that passed, pause new work until it's fixed." icon={Pause}>
           <div className="flex flex-col gap-1 text-sm">
             <span className="flex flex-wrap items-baseline gap-x-2">
               <span className="font-medium">What to pause</span>
