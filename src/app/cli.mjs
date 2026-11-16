@@ -1369,7 +1369,7 @@ try {
     }
   } else if (command === "plan" && positionals[0] === "approve") {
     const usage =
-        "plan approve PLAN... [--batch N] [--yes [--expect HASHES]] --as-person",
+        "plan approve PLAN... [--batch N] [--yes --expect HASHES] --as-person",
       names = positionals.slice(1);
     if (!names.length && options.batch === undefined) need(undefined, usage);
     const listed = await localOrRequest("plan.approvalBatches", {}),
@@ -1422,19 +1422,22 @@ try {
       if (!selection.ok) process.exitCode = 1;
     } else {
       // --expect pins the reviewed revisions: every chosen spec's hash must
-      // start with one listed prefix, and nothing else may be chosen.
-      if (options.expect !== undefined) {
-        const expected = String(options.expect).split(",").filter(Boolean);
-        if (expected.some((prefix) => !/^[0-9a-f]{16,64}$/.test(prefix)))
-          throw Error("--expect takes hash prefixes of 16 or more hex digits.");
-        const changed = chosen.filter(
-          (entry) => !expected.some((prefix) => entry.hash.startsWith(prefix)),
+      // start with one listed prefix, and nothing else may be chosen. --yes
+      // without it would approve whatever the specs say now.
+      if (options.expect === undefined || options.expect === true)
+        throw Error(
+          "--yes needs --expect HASHES from a preview. Run the command without --yes to see them.",
         );
-        if (changed.length || expected.length !== chosen.length)
-          throw Error(
-            `The specs changed since that preview${changed.length ? `: ${changed.map((e) => e.spec).join(", ")}` : ""}. Nothing approved. Preview again without --yes.`,
-          );
-      }
+      const expected = String(options.expect).split(",").filter(Boolean);
+      if (expected.some((prefix) => !/^[0-9a-f]{16,64}$/.test(prefix)))
+        throw Error("--expect takes hash prefixes of 16 or more hex digits.");
+      const changed = chosen.filter(
+        (entry) => !expected.some((prefix) => entry.hash.startsWith(prefix)),
+      );
+      if (changed.length || expected.length !== chosen.length)
+        throw Error(
+          `The specs changed since that preview${changed.length ? `: ${changed.map((e) => e.spec).join(", ")}` : ""}. Nothing approved. Preview again without --yes.`,
+        );
       const result = await localOrRequest("plan.approveMany", {
         items: chosen.map((entry) => ({
           id: entry.id,
@@ -1762,7 +1765,7 @@ try {
   content show DECISION_ID              Read the matched line again from its source
   content check --push --task TASK_ID   The pre-push hook: refuse a push whose added lines match
   plan batches [--writes]               Draft specs in approval order: batch 1 needs no unapproved spec; a loop shares a batch
-  plan approve PLAN... [--batch N] [--yes [--expect HASHES]]
+  plan approve PLAN... [--batch N] [--yes --expect HASHES]
                                         Preview approving specs together; --yes approves all or none (a person only)
   plan delete PLAN_OR_SPEC [--yes] [--retire] [--delete-spec-folder]
                                         Preview a plan delete; --yes deletes (a person only). --retire is for an approved plan
