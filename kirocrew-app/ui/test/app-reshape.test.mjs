@@ -41,8 +41,12 @@ test('an empty Home says what to set up, with a button for each, instead of hidi
   const body = await page.evaluate(text)
   assert.equal(await page.evaluate(`document.querySelector('[data-driver-session="none"] [data-sc-title]').innerText.trim()`), 'Driver: not started')
   assert.equal(await page.evaluate(`document.querySelector('[data-driver-session="none"] [data-driver-start]').getAttribute('aria-label')`), 'Start a driver session')
-  for (const line of ['No epics', 'Plan an epic', 'Release queue', 'Open Repository setup'])
+  for (const line of ['No epics', 'Start one with New spec on Specs.', 'Release queue', 'Open Repository setup'])
     assert.ok(body.includes(line), line)
+  // No epics has no button of its own, and Radar's crew cell, its wording and
+  // its graph link are gone.
+  assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-setup-card="epics"] button')].length`), 0, 'no button on No epics')
+  for (const gone of ['Plan an epic', 'Radar crew', 'coded by Issue Radar', 'Issue Radar graph']) assert.ok(!body.includes(gone), gone)
   // The compact driver card's button says Start; its name is the whole action.
   assert.ok(await page.evaluate(`Boolean(document.querySelector('[data-driver-start][aria-label="Start a driver session"]'))`))
   assert.deepEqual(page.errors, [])

@@ -12,6 +12,22 @@ import { NavAccordion, type NavGroup } from './NavAccordion.tsx'
 export function RailButton(props: { groups: NavGroup[]; value: string; child?: string | null; open: boolean; onOpenChange: (open: boolean) => void }) {
   const current = props.groups.find((group) => group.key === props.value)
   const sub = current?.children?.find((item) => item.key === props.child)
+  // With the menu open, the open section already names the page: the bar is
+  // only its close button, at the right.
+  if (props.open)
+    return (
+      <button
+        type="button"
+        data-top-rail-bar
+        aria-expanded
+        aria-controls="avoozl-top-rail-list"
+        aria-label="Close the menu"
+        onClick={() => props.onOpenChange(false)}
+        style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, padding: 0, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--muted)', cursor: 'pointer' }}
+      >
+        <X size={16} aria-hidden="true" />
+      </button>
+    )
   return (
     <button
       type="button"
@@ -28,7 +44,7 @@ export function RailButton(props: { groups: NavGroup[]; value: string; child?: s
         {sub && <span style={{ minWidth: 0, flex: '0 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 400, color: 'var(--muted)' }}>{` · ${sub.label}`}</span>}
       </span>
       <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, color: 'var(--muted)' }}>
-        {props.open ? <X size={16} /> : <PanelLeftOpen size={16} />}
+        <PanelLeftOpen size={16} />
       </span>
     </button>
   )

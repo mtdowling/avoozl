@@ -1,21 +1,20 @@
-// Home's empty states: each missing piece is a card with a button, never a
-// hidden section.
+// Home's empty states: each missing piece is a card, never a hidden section.
+// No epics is one line with no button of its own: New spec starts one.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { setupCards } from '../src/setup-api.ts'
 
-const none = { repositories: 0, radarRepositories: 0, radarCrews: null, plans: 0, driver: 'none' }
+const none = { repositories: 0, plans: 0, driver: 'none' }
 
-test('a fresh workspace shows every empty state with its button', () => {
+test('a fresh workspace shows every empty state; only the ones with a fix of their own have a button', () => {
   const cards = setupCards(none)
   assert.deepEqual(cards.map((c) => c.id), ['repository', 'driver', 'epics'])
-  assert.deepEqual(cards.map((c) => c.action), ['Add a repo', 'Start a driver session', 'Plan an epic'])
+  assert.deepEqual(cards.map((c) => c.action), ['Add a repo', 'Start a driver session', ''])
+  assert.equal(cards[2].line, 'No epics yet. Start one with New spec on Specs.')
 })
 
-test('a Radar repository with no crew seen asks for one', () => {
-  const cards = setupCards({ ...none, repositories: 1, radarRepositories: 1, plans: 1, driver: 'running' })
-  assert.deepEqual(cards.map((c) => c.id), ['crew'])
-  assert.equal(setupCards({ ...none, repositories: 1, radarRepositories: 1, radarCrews: 2, plans: 1, driver: 'idle' }).length, 0)
+test('no Radar crew card: Radar is going away', () => {
+  assert.equal(setupCards({ repositories: 1, plans: 1, driver: 'running' }).length, 0)
 })
 
 test('an unreadable driver is not called missing', () => {

@@ -96,14 +96,14 @@ export default function ReleaseQueue(props: { workspaceId: string | null; onOpen
       setBusy(false)
     }
   }
-  // No Issue Radar repository yet: the card stays and says what to set up.
+  // No repository yet: the card stays and says what to set up.
   if (value && !value.repositories.length && !error)
     return (
       <div data-release-queue data-release-empty className="h-full">
         <Card className="flex h-full flex-col gap-2">
           <SectionHeading title="Release queue" className="mb-0" />
           <p className="text-sm text-muted">
-            Nothing is queued. The queue lists each task of an approved epic in the order Avoozl releases it, with the reason each one waits. It needs a repository coded by Issue Radar and an approved spec.
+            Nothing is queued. The queue lists each task of an approved epic in the order Avoozl releases it, with the reason each one waits. It needs a repository and an approved spec.
           </p>
           {props.onOpenSettings && (
             <div>

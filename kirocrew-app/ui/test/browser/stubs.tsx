@@ -71,7 +71,7 @@ export const useChatLauncher = () => ({
 
 export function Icon(props: { size?: number | string; style?: object }) {
   const size = props.size ?? 16
-  return <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden="true" style={props.style}><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" /></svg>
+  return <svg data-stub-icon width={size} height={size} viewBox="0 0 16 16" aria-hidden="true" style={props.style}><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" /></svg>
 }
 
 export function Card(props: { children?: ReactNode; className?: string; style?: object }) {
