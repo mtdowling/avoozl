@@ -70,6 +70,34 @@ const MAX_PAGES = 20;
 // GitHub's built-in repository roles (github-policy.mjs PERMISSIONS).
 const ROLES = new Set(["read", "triage", "write", "maintain", "admin"]);
 
+// Avoozl's ownership label (R103). Issue Radar crews skip any issue with a
+// `crew:` label, so every issue Avoozl creates carries this one from the
+// create call on. It is never a crew's label.
+export const AVOOZL_CREW_LABEL = "crew:avoozl";
+
+// The only create path that leaves the label off: export hands the work away
+// from Avoozl (R103.6). Callers opt out with `withoutCrewLabel: "export"`.
+const CREW_LABEL_OPT_OUTS = new Set(["export"]);
+
+export const hasAvoozlLabel = (labels) =>
+  (labels || []).some(
+    (label) => String(label?.name ?? label).toLowerCase() === AVOOZL_CREW_LABEL,
+  );
+
+// A createIssue input with `crew:avoozl` in its labels, unless it names the
+// export opt-out. Any other opt-out is refused.
+export function ownedIssueInput(input) {
+  const { withoutCrewLabel, ...rest } = input || {};
+  if (withoutCrewLabel !== undefined) {
+    if (!CREW_LABEL_OPT_OUTS.has(withoutCrewLabel))
+      fail(`Only export may create an issue without ${AVOOZL_CREW_LABEL}.`);
+    return rest;
+  }
+  return hasAvoozlLabel(rest.labels)
+    ? rest
+    : { ...rest, labels: [...(rest.labels || []), AVOOZL_CREW_LABEL] };
+}
+
 export function parseRepository(value) {
   const match = String(value || "")
     .trim()
@@ -858,11 +886,12 @@ export class GitHubClient {
   // One content write. With `parentIssueId` (the parent's node ID) the issue
   // is made under its parent in the same GraphQL mutation, so it needs no
   // addSubIssue call after; a `type` name goes in as its issueTypeId. With
-  // neither, REST makes it the same way as before.
+  // neither, REST makes it the same way as before. Every issue carries
+  // `crew:avoozl` in the create itself (R103.1).
   async createIssue(value, input) {
     const { owner, repo } =
         typeof value === "string" ? parseRepository(value) : value,
-      { parentIssueId, ...rest } = input;
+      { parentIssueId, ...rest } = ownedIssueInput(input);
     if (!parentIssueId && !rest.type)
       return this.request("POST", `/repos/${owner}/${repo}/issues`, {
         body: rest,
