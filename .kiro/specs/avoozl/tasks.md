@@ -1607,10 +1607,19 @@ is lost when Issue Radar goes.
 - [ ] 44.5 Avoozl-owned actions only; person-only stays person-only, after 44.3 [R92.5] (§4.27)
   - Release, hold, re-queue, Stop the line, open on GitHub; refused to an agent or MCP caller where person-only.
 
-- [ ] avoozl-p54 P54 Proof: the pages match Issue Radar's, and a list load costs no extra calls, after 44.1, 44.2, 44.3, 44.4, 44.5 [R92] (§4.27)
+- [ ] 44.6 One batched GraphQL read per repository per check fills the pages' cache, after 44.1 [R92.9, R92.13] (§4.27)
+  - Issues, pull requests, labels, check state and linked issues in one paginated query; the pages read only the cache.
+- [ ] 44.7 Detail read: one GraphQL query on first open, cached by `updatedAt`, dropped when the item changes, after 44.6 [R92.10, R92.16] (§4.27)
+  - Comments, files changed and check runs together; nothing read before a detail opens.
+- [ ] 44.8 Conditional REST, no browser polling, Recheck that joins, the `pages` source, after 44.6 [R92.11, R92.12, R92.14] (§4.27)
+  - `If-None-Match` on any REST read; a 304 counts as free; Refresh redraws only.
+- [ ] 44.9 Call-budget tests with a counting fake GitHub, after 44.7, 44.8 [R92.15] (§4.27)
+  - 500 cached issues cost 0 calls to open; 10 unchanged details cost 0 calls; 10 changed pull requests cost 1 query per repository; scrolling and filtering cost 0; two Rechecks cost 1.
+
+- [ ] avoozl-p54 P54 Proof: the pages match Issue Radar's, and a list load costs no extra calls, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6, 44.7, 44.8, 44.9 [R92] (§4.27)
   - Setup: a workspace with two repositories, one with Avoozl tasks and one without; Issue Radar open on the same repositories.
   - Action: open both pages and an issue and a pull request detail at 390 and 1280 px, light and dark; count GitHub calls on a list load.
-  - Expected: screenshots next to Radar's show the same columns, row content and detail parts; a list load makes 0 calls beyond the shared read; a second detail open makes 0 calls.
+  - Expected: screenshots next to Radar's show the same columns, row content and detail parts; a list load makes 0 calls beyond the shared read; a second detail open makes 0 calls; Settings › GitHub shows the `pages` source.
   - Failure means: something Radar showed is missing, or the pages add GitHub load.
   - Next decision: approve the screenshots, then start Phase 45's shared edits.
 
