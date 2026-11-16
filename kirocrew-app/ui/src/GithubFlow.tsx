@@ -6,6 +6,7 @@ import { useAppApi } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { SectionHeading } from './controls.tsx'
+import { Tooltip } from './Tooltip.tsx'
 import { useRead } from './useRead.ts'
 import { buildMedian, buildsLine, costliestLine, flowRows, githubFlowClient, span, summaryLine } from './radar-flow-api.ts'
 
@@ -84,7 +85,13 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
               <ul className="m-0 flex list-none flex-col gap-1 p-0" data-flow-instances style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                 {view.builds.byInstance.map((row) => (
                   <li key={row.instance ?? 'none'} className="flex flex-wrap gap-x-3 text-sm" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', overflowWrap: 'anywhere' }}>
-                    <span>{row.name ?? row.instance ?? 'No instance'}</span>
+                    {row.instance ? (
+                      <Tooltip text={row.instance}>
+                        <span>{row.name ?? 'Unnamed machine'}</span>
+                      </Tooltip>
+                    ) : (
+                      <span>No instance</span>
+                    )}
                     <span className="tabular-nums">{buildMedian(row.medianMs)}</span>
                     <span className="text-muted">{row.count} {row.count === 1 ? 'pull request' : 'pull requests'}, {span(row.totalMs)} in all</span>
                   </li>

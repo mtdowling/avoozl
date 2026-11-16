@@ -405,7 +405,21 @@ test("build minutes per pull request count successful observations, by phase", (
         .prepare(
           "INSERT INTO build_observations(repository,pr_number,head_sha,run_id,task,attempt,command,target,seq,phase,start,ms,failed) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
         )
-        .run(REPO, 1, head, 1, "", 1, phase, "linux", Math.random(), phase, "warm", ms, failed);
+        .run(
+          REPO,
+          1,
+          head,
+          1,
+          "",
+          1,
+          phase,
+          "linux",
+          Math.random(),
+          phase,
+          "warm",
+          ms,
+          failed,
+        );
   closed(store, 1, -1, 0);
   store.put("pr_ci", { ...store.get("pr_ci", `${REPO}#1`), headSha: "h1" });
   add("h1", "build", 60_000);
@@ -413,7 +427,10 @@ test("build minutes per pull request count successful observations, by phase", (
   add("h1", "test", 600_000, 1);
   const args = { repository: REPO, cls: "docs", n: 1, at: iso(0) };
   assert.equal(buildMinutesPerPullRequest(store, args), 3);
-  assert.equal(buildMinutesPerPullRequest(store, { ...args, phase: "test" }), 2);
+  assert.equal(
+    buildMinutesPerPullRequest(store, { ...args, phase: "test" }),
+    2,
+  );
   assert.equal(buildMinutesPerPullRequest(store, { ...args, n: 2 }), null);
   const proposal = {
     type: "settings",

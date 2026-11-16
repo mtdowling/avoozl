@@ -104,8 +104,11 @@ export function ciSettings(store, config, repository) {
 }
 
 function flowConfig(config) {
-  const checked = flowPolicy(config || {}).set;
+  const checked = flowPolicy(config || {}).set,
+    report = config?.receipts?.report;
   return {
+    // The place build reports are kept (§4.31), validated on load.
+    ...(report ? { receipts: { report } } : {}),
     flow: checked.workspace,
     projects: Object.fromEntries(
       Object.entries(checked.repositories).map(([id, flow]) => [id, { flow }]),
@@ -266,7 +269,10 @@ export async function ciStep(
     // Build receipts (§4.31): after the rows, so the runs are known. A failed
     // read keeps nothing and is tried again at the next check.
     if (policy?.repositories?.[repository]?.buildReceipts === true)
-      await readReceipts(store, github, repository, { now }).catch(() => {});
+      await readReceipts(store, github, repository, {
+        now,
+        report: config?.receipts?.report ?? null,
+      }).catch(() => {});
   }
   const fresh = errors.filter((e) => reported[e.repository] !== e.error);
   for (const e of errors) reported[e.repository] = e.error;
