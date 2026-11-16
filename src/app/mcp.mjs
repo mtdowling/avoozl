@@ -97,6 +97,14 @@ export const OLD_TOOLS = {
     "github.project.preview",
     "List every GitHub write projecting an approved plan would make, without making any: issue creates and updates, sub-issue links, blocked-by edges, labels, and Project fields (Release, Wave, Iteration; never Status). Input: planId, optional repository. Repositories this machine does not write are listed in previewOnly.",
   ],
+  plans_plan_review: [
+    "plan.review.findings",
+    "Read spec findings and planner answers: {planId,roundId?,revisionHash?}. Older revision findings stay readable and are marked stale.",
+  ],
+  plans_answer_review: [
+    "plan.review.answer",
+    "Answer your bound review round: {planId,roundId,answers:[{id,action:fixed|answered,revisionHash?,text}]}. Fixed names a revision this planner stored; this never closes findings or approves.",
+  ],
   plans_submit_review: [
     "plan.review.submit",
     "Submit substantive, exact-revision design review comments with unique quoted anchors. This records feedback only; it cannot edit or approve the plan.",
@@ -366,8 +374,13 @@ const replacement = (operation) => {
   return null;
 };
 const deprecated = (operation, description) => {
-  // The one current tool in this table (R56: one new tool).
-  if (operation === "issue.verify") return description;
+  // These names are current public surfaces, alongside the grouped aliases.
+  if (
+    ["issue.verify", "plan.review.findings", "plan.review.answer"].includes(
+      operation,
+    )
+  )
+    return description;
   if (PERSON_ONLY.has(operation) && !replacement(operation))
     return `Person only: refused over MCP; do it in the Avoozl app. ${description}`;
   const next = replacement(operation);
@@ -399,6 +412,7 @@ export const WORKSPACE_TOOLS = Object.entries(operations).map(
         "plan.lint",
         "github.project.preview",
         "plan.extract.get",
+        "plan.review.findings",
         "run.get",
         "run.context",
         "run.list",

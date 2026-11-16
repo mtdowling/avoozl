@@ -70,5 +70,19 @@ export function planReviewSummary(store, planId) {
       })),
     note: latest.note || null,
     unproven: Boolean(latest.unproven),
+    canReviewAnyway:
+      latest.state === "skipped" &&
+      !latest.unproven &&
+      !latest.slot &&
+      !rounds.some(
+        (round) =>
+          round.revisionHash === plan.hash &&
+          (round.slot || ["running", "done"].includes(round.state)),
+      ) &&
+      !latest.writerModel &&
+      Boolean(latest.reviewerModel) &&
+      plan.state === "draft" &&
+      !plan.archivedAt &&
+      latest.revisionHash === plan.hash,
   };
 }

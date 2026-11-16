@@ -65,6 +65,7 @@ try {
       const key = args[i].slice(2);
       if (
         [
+          "start",
           "dry-run",
           "final",
           "auto-start",
@@ -102,7 +103,7 @@ try {
       // `avoozl budget receipt TASK --json` prints the receipt object.
       else if (
         key === "json" &&
-        ["budget", "runner", "verify-issue", "review", "gate"].includes(
+        ["budget", "runner", "verify-issue", "review", "gate", "plan"].includes(
           args[0],
         ) &&
         (args[i + 1] === undefined || args[i + 1].startsWith("--"))
@@ -1357,6 +1358,32 @@ try {
     console.log(
       JSON.stringify(await localOrRequest(operation, value), null, 2),
     );
+  } else if (command === "plan" && positionals[0] === "review") {
+    const value = await localOrRequest("plan.review.get", {
+      spec: need(positionals[1], "plan review SPEC [--start] [--json]"),
+    });
+    if (options.start) {
+      const result = await localOrRequest("plan.review.decide", {
+        planId: value.planId,
+        revisionHash: value.revisionHash,
+        action: "review",
+        unproven: !value.writerModel,
+      });
+      if (result.existing) value.start = result;
+      else value.queued = result;
+    }
+    if (options.json) console.log(JSON.stringify(value, null, 2));
+    else {
+      console.log(
+        `${value.spec} at ${value.revisionHash}: ${value.queued ? "Review queued" : value.start?.existing ? value.start.state : value.review?.current ? value.review.state : "Not reviewed at this revision"}`,
+      );
+      if (value.review?.current && value.review.note)
+        console.log(value.review.note);
+      for (const finding of value.findings)
+        console.log(
+          `${finding.file}:${finding.line} ${finding.severity} ${finding.kind}: ${finding.claim}\n  Evidence: ${finding.evidence}${finding.answer ? "\n  Planner: " + finding.answer.action + " " + finding.answer.text : ""}`,
+        );
+    }
   } else if (command === "plan" && positionals[0] === "batches") {
     // Draft specs in the order they can be approved (plan.approvalBatches).
     const found = await localOrRequest("plan.approvalBatches", {
@@ -1765,6 +1792,7 @@ try {
   content show DECISION_ID              Read the matched line again from its source
   content check --push --task TASK_ID   The pre-push hook: refuse a push whose added lines match
   plan batches [--writes]               Draft specs in approval order: batch 1 needs no unapproved spec; a loop shares a batch
+  plan review SPEC [--start] [--json]
   plan approve PLAN... [--batch N] [--yes --expect HASHES]
                                         Preview approving specs together; --yes approves all or none (a person only)
   plan delete PLAN_OR_SPEC [--yes] [--retire] [--delete-spec-folder]

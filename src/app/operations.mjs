@@ -1,3 +1,6 @@
+import { currentPlanReview } from "./plan-review-tools.mjs";
+import { chatModel, validatePlanReview } from "./chat-models.mjs";
+import { completePlanReviewWriter } from "./plan-review-authorship.mjs";
 import { sessionStartHold } from "./session-request-eligibility.mjs";
 import {
   takeKirocrewRequest,
@@ -496,6 +499,7 @@ import {
   createSpecReviewFindings,
   disposeReview,
   listReviewThreads,
+  listSpecReviewRounds,
   replyToReview,
 } from "./plan-reviews.mjs";
 import { recordPlanReviewWriter } from "./plan-review-authorship.mjs";
@@ -5794,14 +5798,57 @@ export class Operations {
       });
     }
     if (name === "plan.extraction.dispose") return disposeFact(store, input);
+    if (name === "plan.review.get") return currentPlanReview(store, input);
     if (name === "plan.review.list") return listReviewThreads(store, input);
     if (name === "plan.reviewSummary")
       return planReviewSummary(store, input.planId || input.id);
     if (name === "plan.review.findings") return reviewFindings(store, input);
     if (name === "plan.review.answer")
       return answerReview(store, input, context);
-    if (name === "plan.review.decide")
+    if (name === "plan.review.decide") {
+      if (context.caller || context.mcp)
+        fail("Only a person starts or skips a draft review.", 403);
+      if (input.action === "review") {
+        const plan = store.get("plans", input.planId),
+          existing =
+            plan?.hash === input.revisionHash &&
+            listSpecReviewRounds(store, {
+              planId: input.planId,
+              revisionHash: input.revisionHash,
+            }).items.at(-1);
+        if (
+          existing &&
+          (existing.slot || ["running", "done"].includes(existing.state))
+        )
+          return {
+            existing: true,
+            state: existing.state,
+            roundId: existing.id,
+          };
+        const config = loadLayeredConfig({
+            workspaceRoot: this.workspaceRoot,
+          }).config,
+          reviewer = chatModel(config, "planReviewer"),
+          writer = completePlanReviewWriter(
+            store,
+            input.planId,
+            input.revisionHash,
+          )?.actualModel;
+        if (validatePlanReview(config.planReview).mode === "off")
+          fail(
+            "Plan reviews are off. Enable them in Settings before starting a review.",
+            409,
+          );
+        if (!reviewer)
+          fail("Pick a Plan reviewer model in Settings › Models.", 409);
+        if (reviewer === writer)
+          fail(
+            "The reviewer model is the same as the model that wrote this revision.",
+            409,
+          );
+      }
       return decidePlanReview(store, input, context);
+    }
     if (name === "plan.review.submit") {
       if (store.get("plans", input.planId)?.spec)
         return createSpecReviewFindings(store, input, {
