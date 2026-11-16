@@ -1696,7 +1696,7 @@ user-facing work never leaves this machine.
    git host the crew lists, and the base commit is on that remote. A task
    whose base exists only on this machine SHALL stay local. (Changed
    2026-11-15: Avoozl now pushes and lands, Requirement 87; crew placement
-   is replaced by hosts, Requirement 90.) Code MAY come from any git host, GitHub or a
+   is replaced by worker machines, Requirement 90.) Code MAY come from any git host, GitHub or a
    private git host. A remote worker SHALL push its own task branch to that
    remote, and this SHALL be allowed on public and private repositories
    alike. Repository visibility SHALL NOT change placement or the push. What
@@ -4561,15 +4561,18 @@ second system deciding what to claim, push or merge.
    it to push, open or edit a pull request, merge, turn on auto-merge, label,
    or comment. Avoozl SHALL read the commit from the worktree and SHALL NOT
    take the commit from the chat's report.
-4. GitHub SHALL be optional. WHEN a repository is on GitHub THEN Avoozl SHALL
-   use it to land pull requests (Requirement 87) and to show a read-only view
-   of the plan (issues and the Project). GitHub SHALL NOT coordinate work:
-   no issue label, claim comment, assignee or marker SHALL decide who works
-   on what.
-5. One scheduler SHALL decide every task for a workspace. Other machines
-   SHALL be hosts it hands work to (Requirement 90). There SHALL be no
-   cross-machine claim and no per-spec driver lock; Requirement 66's driver
-   handoff SHALL apply only as export and import of the workspace.
+4. GitHub SHALL be optional for a solo workspace, where it is used to land
+   pull requests (Requirement 87) and to show the plan (issues and the
+   Project). For a team repository GitHub SHALL be the queue between people:
+   ready issues, their assignees and claim comments (Requirement 90) decide
+   which worker machine takes which task. Nothing else on GitHub (labels set
+   by hand, a crew's comment, a marker from another tool) SHALL decide who
+   works on what.
+5. One scheduler SHALL decide every task for a workspace and SHALL land every
+   result. Other machines SHALL be worker machines that pull work from it
+   through GitHub (Requirement 90). There SHALL be no per-spec driver lock;
+   Requirement 66's driver handoff SHALL apply only as export and import of
+   the workspace.
 6. Verify SHALL refuse a diff that touches a file outside the task's
    declared paths, and SHALL send a diff that touches a protected path
    (the repository's `protectedPaths`, plus CI workflows and the
@@ -4661,7 +4664,7 @@ instead of a stuck chat.
    Avoozl SHALL NOT replace a chat because it went quiet or its activity
    lease expired.
 5. This Mac SHALL run at most 3 worker lanes by default (the owner's 50%
-   CPU rule). More lanes SHALL come from remote hosts (Requirement 90).
+   CPU rule). More lanes SHALL come from worker machines (Requirement 90).
 6. Prepare SHALL use the approved `scripts/worktree` helper
    (`createWorktree`, `src/app/git.mjs`), which today has no caller.
    Avoozl SHALL remove a task's worktree and its local branch after the
@@ -4695,25 +4698,65 @@ repository is ready to land in minutes.
 4. GitHub setup steps from RC27 (labels, Project, issue types) SHALL stay
    and SHALL appear in the same preview.
 
-### Requirement 90: More machines as hosts
+### Requirement 90: Worker machines pull work
 
-Added 2026-11-15. Design §4.26. Builds on runner mode (Requirement 84).
+Added 2026-11-15; changed the same day (owner add-on): worker machines pull
+work through GitHub instead of receiving it over SSH. Design §4.26. Builds
+on the runner role (Requirement 84) and on
+`docs/research/machine-conductors-2026-11-13.md` (an issue with an
+assignee as the queue, a pull request as the result), which so far ran only
+on local-file stand-ins.
 
-**User story:** As the owner, I want to add lanes on another machine without
-a second scheduler, so that the plan keeps one order.
+**User story:** As the owner, or one of a team, I want another machine to
+take ready work by itself and hand back a branch that the scheduler checks
+again before it lands, so that more machines add lanes without a second
+plan and without trusting those machines.
 
 #### Acceptance criteria
 
-1. This machine SHALL be host `local`. A remote host SHALL run Avoozl in the
-   runner role (Requirement 84).
-2. The scheduler SHALL send a task envelope to a host over SSH. That host's
-   tick SHALL open the worker chat, run the checks and push the task branch;
-   the scheduler SHALL land it through the same queue (Requirement 87.5).
-3. Host choice SHALL be made in code by free lanes and the host's load, with
-   no chat in the loop.
-4. A host that stops answering SHALL keep its tasks; Avoozl SHALL NOT move a
-   task to another host because the link is down (Requirement 88.4 still
-   applies).
+1. This machine SHALL be host `local`. Another machine SHALL run Avoozl in
+   worker mode, which builds on the plan-less runner role
+   (`src/app/remote-runner.mjs`): it holds no plans, and an envelope carries
+   IDs only. The worker machine SHALL resolve the repository and the checks
+   from its own `.avoozl.json`, so nothing it is sent is run as a command.
+2. A worker machine SHALL read the commit from its worktree, run its checks
+   and push the task branch. The scheduler SHALL then check the diff again
+   (declared paths and protected paths, Requirement 86.6), run the checks
+   again on the updated head, and land it through the landing queue
+   (Requirement 87.5). It SHALL NOT trust the worker machine's result.
+3. Pull is the main transport. On each tick a worker machine SHALL list the
+   ready issues of its repositories in one read: in `solo` mode, the issues
+   assigned to its GitHub login; in `team` mode, the issues in the shared
+   pool (ready and with no live claim). It SHALL take at most one per free
+   lane, work it, push the branch, and leave a pull request or a branch that
+   the scheduler lands.
+4. In `team` mode a worker SHALL claim an issue with a claim comment that
+   carries Avoozl's marker (its login, machine and task ID). After posting,
+   it SHALL read the issue's comments again; the claim with the earliest
+   creation time (then the lowest comment ID) SHALL win. A worker whose
+   claim did not win SHALL delete its comment and SHALL NOT start. This
+   SHALL be enforced in code, not in a prompt; it is the claim that
+   `src/app/tick.mjs` notes a second dispatcher would need.
+5. In `solo` mode the scheduler's assignment is the claim: one person with
+   one or more machines needs no claim comment, and a machine claim in the
+   marker names which of that person's machines works it.
+6. A claim SHALL end only when: the claiming worker releases it (landed,
+   blocked, or given up), with a release comment; or a person releases it
+   (person-only); or the claiming machine's chat vanished twice under
+   Requirement 88.4, after which that machine releases it and opens Needs
+   you. A claim SHALL NOT expire because the worker went quiet or a lease
+   ran out. WHEN a claim has had no heartbeat from its machine for
+   `workers.claimStaleAfter` (default 24 h) THEN it SHALL show in Needs you
+   with a person-only **Release claim**; nothing SHALL release it by itself.
+7. SSH push of an envelope (the runner mode of Requirement 84) SHALL stay
+   only for a machine with no GitHub access.
+8. Worker-machine setup SHALL be one command (`avoozl worker setup`), with a
+   preview, that writes the worker-mode config, checks the GitHub login and
+   the repositories it can push, and checks that Kiro Crew runs with the
+   Avoozl app enabled. Each worker machine SHALL still run Kiro Crew with the
+   app enabled.
+9. Host choice for the scheduler's own lanes SHALL be made in code by free
+   lanes and load, with no chat in the loop.
 
 ### Requirement 91: Remove the Issue Radar path
 
@@ -4731,7 +4774,7 @@ removed, so that the app has one way to deliver work.
 2. Avoozl SHALL keep and rename: the arming and merge code (it becomes PR
    landing, Requirement 87.3), release ranking, and GitHub setup.
 3. Leaf modules MAY be deleted at any time. Edits to shared modules SHALL be
-   made last, after Phases 40–43 have landed.
+   made last, after Phases 40–44 have landed.
 4. Every compatibility name that RC11.4 tests (the `plans_*` MCP
    names, `AVOOZL_*`, `AICOMMANDER_*` and `NUPP_WORKSPACE*` variables, the
    `aicommander` command and the `aicommander.*` settings) SHALL still
@@ -4743,3 +4786,42 @@ removed, so that the app has one way to deliver work.
    RC24–RC26 SHALL NOT be used for this setup; the pre-push content rule
    (Requirement 87.9) SHALL be its one leak guard. The freeze on public
    `core-dev` is lifted.
+
+### Requirement 92: Issues and Pull requests pages
+
+Added 2026-11-15 (owner add-on). Design §4.27. Issue Radar goes away
+(Requirement 91), so Avoozl shows the issues and pull requests of its
+repositories itself, before any Radar code is deleted.
+
+**User story:** As the owner, I want to browse and act on the issues and
+pull requests of every repository in my workspace inside Avoozl, so that
+nothing I used Issue Radar for is lost when it goes.
+
+#### Acceptance criteria
+
+1. The left pill nav SHALL have **Issues** and **Pull requests**. Each page
+   SHALL use three columns: nav, list, detail. At 390 px the list and the
+   detail SHALL each take the full width, with a back control.
+2. The list SHALL show one dense row per item: number, title, state chip,
+   labels, assignee or claimant, age, CI state (pull requests only), and the
+   linked task or spec. Filters SHALL sit on one line with a search box, and
+   the counts SHALL sit at the right of that line.
+3. The detail SHALL show, in a header row, the title, a meta line, the state
+   and the actions; the body rendered as Markdown; the comments and timeline;
+   and a right column with labels, assignee, linked spec or task, linked pull
+   requests or issues, checks and merge state.
+4. A pull request's detail SHALL add the list of checks, a summary of files
+   changed, and Avoozl's landing state: queued, verifying, landing, landed,
+   or conflict round N (Requirement 87).
+5. Actions SHALL be offered only where Avoozl owns them: release, hold,
+   re-queue, Stop the line, and open on GitHub. A person-only action SHALL
+   stay person-only, and SHALL be refused to an agent or MCP caller.
+6. A list load SHALL cost no GitHub call beyond the one read per repository
+   per check that the tick already makes (RC29) and its cache. The detail
+   SHALL be read lazily, once per item, and cached.
+7. The pages SHALL work for every repository in the workspace and every
+   issue and pull request in it, not only those Avoozl made, with an
+   **Avoozl tasks only** filter.
+8. The look and behavior SHALL follow Kiro Crew's Issue Radar app. Avoozl
+   SHALL rebuild them in its own code and SHALL NOT copy Issue Radar's
+   files.

@@ -108,6 +108,10 @@ Avoozl is a policy engine and a graph, packaged as one Kiro Crew app. It does
 not write code, run agents, open pull requests, review them, or host a UI
 outside Kiro Crew.
 
+Changed 2026-11-15 (§4.26): Avoozl's own worker chats write the code, and
+Avoozl pushes, opens pull requests and lands them. Issue Radar is no longer
+a coder. It still hosts no UI outside Kiro Crew.
+
 ## 2. Non-goals
 
 **Proposed**, extending the requirements' list:
@@ -3446,7 +3450,7 @@ fold-out.
 
 ### 4.26 Avoozl owns the coding loop
 
-Added 2026-11-15 (Requirements 86–91). This replaces the Issue Radar path
+Added 2026-11-15 (Requirements 86–92). This replaces the Issue Radar path
 (`radar-coder` §D1–§D8, §D12, §D13, §D19, §D20, §D29–§D33) and cancels the
 retirement epic (`radar-coder` Phase 12). The rest of this design still
 holds where it does not say a crew, Issue Radar or "Avoozl never pushes".
@@ -3470,7 +3474,7 @@ runner tick). This section makes that the only shape.
 | 4   | Only runner mode skipped Kiro Crew's project folder and MCP sharing. A local worker used `leaf.project`, and `plans_report` needed MCP sharing. Phase 40 adds the CLI report and `project: false` with the worktree path in the brief |
 | 5   | Kiro Crew's push-to-main policy checks chat shell commands. The tick is not a chat. Phase 40's proof shows a tick push goes through                                                                               |
 | 6   | Nupp lands `direct` on public `core-dev` from the start, with `scripts/worktree` and `scripts/test-changed`. Plans stay in a private planning workspace. No private mirror, forwarding or leak scan for this setup; the pre-push content rule is the one leak guard. The freeze on public `core-dev` is lifted |
-| 7   | Phase order and exits as in the table at the end of this section                                                                                                                                                 |
+| 7   | Phase order and exits as in the table at the end of this section. Added the same day: worker machines pull work through GitHub (Phase 43), and Issues and Pull requests pages come before the Radar removal (Phase 44)                                                                                                                                                 |
 
 **The loop.**
 
@@ -3535,13 +3539,46 @@ the same brief and the last report quoted as data. A quiet chat or an
 expired lease changes nothing (AGENTS.md). A second vanish for the same
 task opens a Needs you item.
 
-**Lanes and hosts.** Host `local` runs 3 lanes by default. A remote host
-runs Avoozl in the runner role (Requirement 84). The scheduler picks a host
-in code by free lanes and load, sends the task envelope over SSH, and the
-host's tick opens the chat, runs the checks and pushes the task branch.
-The scheduler lands it through the same queue. There is no cross-machine
-claim and no per-spec driver lock; a person moves a workspace by export
-and import.
+**Lanes and worker machines.** Host `local` runs 3 lanes by default.
+Another machine runs Avoozl in worker mode, built on the plan-less runner
+role (`src/app/remote-runner.mjs`): it holds no plans, an envelope carries
+IDs only, and it resolves the repository and checks from its own
+`.avoozl.json`. Work moves by pull, through GitHub, following
+`docs/research/machine-conductors-2026-11-13.md` (an issue with an assignee
+as the queue, a pull request as the result; so far run only on local-file
+stand-ins):
+
+```
+scheduler: approve, project, mark ready ──> GitHub issue (ready)
+worker tick: list ready (one read) ──> claim ──> worktree ──> chat edits, commits
+worker tick: read HEAD, run checks, push branch ──> branch or pull request
+scheduler: recheck diff (declared, protected), rerun checks ──> land queue
+```
+
+| Mode   | Queue                                         | Claim                                                                 |
+| ------ | --------------------------------------------- | --------------------------------------------------------------------- |
+| `solo` | Ready issues assigned to this machine's login | The scheduler's assignment; the marker's machine claim picks the Mac  |
+| `team` | Ready issues in the shared pool               | A claim comment with Avoozl's marker; the earliest one wins           |
+
+The team claim is enforced in code: post the claim, read the comments
+again, and go on only when your claim is the earliest by creation time,
+then lowest comment ID. A loser deletes its comment and starts nothing.
+This is the claim `src/app/tick.mjs` says a second dispatcher would need.
+
+A claim ends when its worker releases it (landed, blocked, gave up), when a
+person releases it, or when the claiming machine's chat vanished twice
+(Requirement 88.4), after which that machine releases it and opens Needs
+you. It never expires because the worker went quiet. After
+`workers.claimStaleAfter` (24 h) with no heartbeat from the claiming
+machine it shows in Needs you with a person-only **Release claim**.
+
+The scheduler never trusts a worker machine: it checks the diff against
+declared and protected paths again and reruns the checks on the updated
+head before it lands. SSH push of an envelope (Requirement 84) stays only
+for a machine with no GitHub access. `avoozl worker setup` previews and
+writes the worker config, checks the login and push access, and checks
+that Kiro Crew runs with the Avoozl app enabled. There is no per-spec
+driver lock; a person moves a workspace by export and import.
 
 **Setup.** `avoozl setup REPO` previews, then applies with `--yes`:
 
@@ -3577,8 +3614,44 @@ mirror and forward flow (RC24–RC26) is not used for this setup.
 | 40. Unattended basics                   | A three-task chain survives a gateway restart with no one at the machine                     |
 | 41. Scheduler and direct landing        | The 13 pilot tasks on Nupp land, with owner minutes, credits and wall-clock per task recorded |
 | 42. PR landing and the setup command    | Ten tasks land on a repository with a required check                                          |
-| 43. Remote hosts                        | Tasks land from two machines through one queue                                                |
-| 44. Remove the Issue Radar path         | Leaf modules any time; shared edits last; compatibility names still resolve                   |
+| 43. Worker machines pull work           | A second machine with a second GitHub login pulls, claims and completes tasks from a shared pool on real GitHub; a race between two workers shows exactly one claim wins |
+| 44. Issues and Pull requests pages      | The pages match Issue Radar's at 390 and 1280 px, light and dark; a list load makes 0 extra GitHub calls |
+| 45. Remove the Issue Radar path         | Leaf modules any time; shared edits last; compatibility names still resolve                   |
+
+### 4.27 Issues and Pull requests pages
+
+Added 2026-11-15 (Requirement 92). Issue Radar goes away, so Avoozl shows
+issues and pull requests itself. The look and behavior follow Kiro Crew's
+Issue Radar app; Avoozl rebuilds them in its own code and copies no files.
+
+```
+┌ nav ──────┐┌ list ─────────────────────────────┐┌ detail ──────────────────────┐
+│ Home      ││ [state▾][label▾][repo▾][Avoozl ☐] ││ #123 Title          [actions]│
+│ Specs     ││ [search……………………]        41 · 7 ││ opened 3d · author · state   │
+│ Issues  ● ││ #123 Title  ●open  lbl  @a  3d ✓ ││ body (Markdown)    │ labels  │
+│ Pull req. ││ #120 Title  ●open  lbl  @b  5d ✗ ││ comments, timeline │ assignee│
+│ …         ││ …                                 ││                    │ spec/task│
+└───────────┘└───────────────────────────────────┘└──────────────────────────────┘
+```
+
+- **List row:** number, title, state chip, labels, assignee or claimant,
+  age, CI state for a pull request, linked task or spec. Filters on one
+  line with search; counts at the right.
+- **Detail:** header row with title, meta line, state and actions; the body
+  as Markdown; comments and timeline; a right column with labels,
+  assignee, linked spec or task, linked pull requests or issues, checks and
+  merge state. A pull request adds its checks, a files-changed summary and
+  the landing state: queued, verifying, landing, landed, conflict round N.
+- **Actions:** only what Avoozl owns: release, hold, re-queue, Stop the
+  line, open on GitHub. Person-only actions stay person-only.
+- **Data:** the list reads only what the tick's one read per repository per
+  check (RC29) already stored, and the cache. The detail is read lazily,
+  once per item, and cached. A test counts calls: a list load makes 0
+  beyond the shared read.
+- **Scope:** every repository in the workspace and every item in it, with
+  an **Avoozl tasks only** filter.
+- At 390 px the list and the detail each take the full width, with a back
+  control, as the other three-column pages do.
 
 ## 5. Local workflow
 
@@ -5996,8 +6069,9 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P50   | Unattended basics: a three-task chain on a scratch repository survives a gateway restart with no one at the machine, and a tick push goes through Kiro Crew's push policy (Phase 40) |
 | P51   | Direct landing: the 13 Nupp pilot tasks land on public `core-dev`, with owner minutes, credits and wall-clock per task (Phase 41) |
 | P52   | PR landing: ten tasks land through pull requests on a repository with a required check, one at a time, none force pushed (Phase 42) |
-| P53   | Two machines: tasks run on `local` and a runner host and land through one queue (Phase 43) |
-| P54   | After removal: one delivery path, the compatibility names resolve, no Radar module remains (Phase 44) |
+| P53   | Worker machines: a second machine and a second GitHub login pull, claim and complete tasks from a shared pool on real GitHub; of two racing workers exactly one claim wins (Phase 43) |
+| P54   | Issues and Pull requests pages next to Issue Radar's at 390 and 1280 px, light and dark; a list load makes 0 GitHub calls beyond the shared read (Phase 44) |
+| P55   | After removal: one delivery path, the compatibility names resolve, no Radar module remains (Phase 45) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
 requires a failed proof that a small Kiro Crew or GitHub contract cannot fix.
@@ -6039,8 +6113,9 @@ Detailed in `tasks.md`. **Proposed** order:
 | 40. Unattended basics | Trust re-applied each tick, report by CLI, `project: false`, the worktree helper and cleanup, warm checks off the tick, one resume for a vanished chat (§4.26) |
 | 41. Scheduler and direct landing | One scheduler, path holds, the per-base landing queue, `direct` landing, conflicts back to the same chat, epic branches (§4.26) |
 | 42. PR landing and setup | `pr` landing from the renamed arming code, `avoozl setup` with ruleset, merge methods, CI variable and commit status (§4.26) |
-| 43. Remote hosts | Host `local` plus runner-role hosts over SSH, host choice by free lanes (§4.26) |
-| 44. Remove the Issue Radar path | Radar-only code, `verify-issue`, the provenance marker, the crew, relay and router agents; Delivery, Budgets and Files restored (§4.26) |
+| 43. Worker machines pull work | Worker mode on the runner role, pull from GitHub (solo assigned, team pool), claim comments where the earliest wins, `avoozl worker setup`, SSH only without GitHub access (§4.26) |
+| 44. Issues and Pull requests pages | Three-column Issues and Pull requests pages from the shared read, lazy cached detail, Avoozl-owned actions only (§4.27) |
+| 45. Remove the Issue Radar path | Radar-only code, `verify-issue`, the provenance marker, the crew, relay and router agents; Delivery, Budgets and Files restored (§4.26) |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
 
