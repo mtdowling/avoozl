@@ -84,6 +84,7 @@ export interface PlanReviewSummary {
   forYou: number
   note: string | null
   unproven?: boolean
+  canReviewAnyway?: boolean
   open: {
     id: string
     roundId: string
@@ -305,6 +306,7 @@ export function plansClient(api: AppApi) {
     // a changed hash, a changed database, or a folder that moved on disk.
     // Draft specs in the order they can be approved (plan.approvalBatches).
     batches: (workspaceId: string) => run<ApprovalBatches>(workspaceId, 'plan.approvalBatches'),
+    reviewAnyway: (workspaceId: string, planId: string, revisionHash: string) => run(workspaceId, 'plan.review.decide', { planId, revisionHash, action: 'review', unproven: true }),
     reviewSummary: (workspaceId: string, planId: string) => run<PlanReviewSummary | null>(workspaceId, 'plan.reviewSummary', { planId }),
     closeReviewFinding: (workspaceId: string, id: string, disposition: ReviewDisposition) => run(workspaceId, 'plan.review.dispose', { id, disposition }),
     // What approving just these would do, with each one's issue writes. Writes nothing.

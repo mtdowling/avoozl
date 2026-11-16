@@ -13,8 +13,17 @@ export function reviewStateLabel(review?: Summary | null): string {
 
 // Both approval dialogs use the same evidence. Closing a finding is separate
 // from approving a plan and never controls the Approve button.
-export function PlanReviewSummary(props: { review?: Summary | null; onClose: (id: string, disposition: ReviewDisposition) => Promise<Summary | null> }) {
+export function PlanReviewSummary(props: { review?: Summary | null; onStart?: () => Promise<unknown>; onClose: (id: string, disposition: ReviewDisposition) => Promise<Summary | null> }) {
   const [review, setReview] = useState(props.review)
+  const [queued, setQueued] = useState(false)
+  const [starting, setStarting] = useState(false)
+  const start = async () => {
+    setStarting(true)
+    setError(null)
+    try { await props.onStart?.(); setQueued(true) }
+    catch (caught) { setError(errorMessage(caught)) }
+    finally { setStarting(false) }
+  }
   const [closing, setClosing] = useState<string | null>(null)
   const [choices, setChoices] = useState<Record<string, ReviewDisposition>>({})
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +46,11 @@ export function PlanReviewSummary(props: { review?: Summary | null; onClose: (id
       )}
       {review?.unproven && <p className="m-0 text-muted">The reviewer and writer were not proven to use different models.</p>}
       {review?.note && <p className="m-0 text-muted">{review.note}</p>}
+      {review?.canReviewAnyway && props.onStart && <div className="flex flex-col items-start gap-1">
+        <p className="m-0 text-muted">The writer model is unknown. Reviewing anyway records that the models were not proven different.</p>
+        <SmallBtn disabled={starting || queued} onClick={() => void start()} attrs={{ 'data-review-anyway': true }}>Review anyway</SmallBtn>
+        {queued && <p role="status" className="m-0">Review queued for this revision.</p>}
+      </div>}
       <p className="m-0" data-review-counts>{review?.found ?? 0} found · {review?.fixed ?? 0} fixed · {review?.forYou ?? 0} for you</p>
       {(review?.open ?? []).map((finding) => (
         <article key={finding.id} data-review-finding={finding.id} className="flex flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}>

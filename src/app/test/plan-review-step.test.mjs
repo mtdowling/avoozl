@@ -627,3 +627,36 @@ test("a partial snapshot-copy failure removes its owned directory before returni
   );
   assert.equal(fs.existsSync(ownedRoot), false);
 });
+
+test("an ask-mode unknown-writer skip can be upgraded by a person without reopening a live round", async (t) => {
+  const env = setup(t, { writer: false, mode: "ask" });
+  await env.step();
+  await env.step();
+  const choice = {
+    planId: env.plan.id,
+    revisionHash: env.plan.hash,
+    action: "review",
+  };
+  decidePlanReview(env.store, choice);
+  await env.step();
+  assert.equal(env.store.list("review_rounds").at(-1).state, "skipped");
+  for (const state of ["review", "auto", "skip"]) {
+    const receipt = env.store
+      .list("receipts")
+      .find((row) => row.kind === "plan-review-choice");
+    env.store.put("receipts", { ...receipt, state, unproven: false });
+    decidePlanReview(env.store, { ...choice, unproven: true });
+  }
+  const [request] = (await env.step()).requests;
+  assert.equal(request.role, "plan-review");
+  assert.equal(env.store.get("review_rounds", request.task).unproven, true);
+  const receipt = env.store
+    .list("receipts")
+    .find((row) => row.kind === "plan-review-choice");
+  env.store.put("receipts", { ...receipt, unproven: false });
+  assert.throws(
+    () => decidePlanReview(env.store, { ...choice, unproven: true }),
+    /already has/,
+  );
+  assert.equal(env.store.get("review_rounds", request.task).state, "running");
+});

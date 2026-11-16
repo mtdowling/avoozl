@@ -80,7 +80,22 @@ export function decidePlanReview(
   if (current && current.state !== "pending") {
     if (current.state === action && current.unproven === unproven)
       return current;
-    fail("This revision already has its review choice.", 409);
+    const rounds = listSpecReviewRounds(store, { planId }).items.filter(
+        (round) => round.revisionHash === revisionHash,
+      ),
+      latest = rounds.at(-1);
+    const upgrade =
+      action === "review" &&
+      unproven === true &&
+      !current.unproven &&
+      ["review", "auto", "skip"].includes(current.state) &&
+      latest?.state === "skipped" &&
+      !latest.writerModel &&
+      Boolean(latest.reviewerModel) &&
+      !rounds.some(
+        (round) => round.slot || ["running", "done"].includes(round.state),
+      );
+    if (!upgrade) fail("This revision already has its review choice.", 409);
   }
   const entry = {
     id,
@@ -161,7 +176,7 @@ export function planAnswerBrief(
     canWrite
       ? "For each finding, either fix the spec files and store the new revision using plans_save_plan with the exact expectedHash, then answer fixed with that stored revisionHash; or answer answered with a substantive reason. Write only your named spec folder. Never approve, start delivery, push or write to GitHub."
       : "This revision was already approved or superseded by another edit. Do not change any file or stored revision. Answer each finding answered with a reason only; the person decides what follows.",
-    "Read findings with plan.review.findings; submit answers with plan.review.answer (the planner MCP tools use those operations). Every answer names id, action, optional revisionHash for fixed, and text. A fixed hash must be one this session stored. Do not close findings; their disposition belongs to the person.",
+    "Read findings with plans_plan_review; submit answers with plans_answer_review. Every answer names id, action, optional revisionHash for fixed, and text. A fixed hash must be one this session stored. Do not close findings; their disposition belongs to the person.",
     dataBlock({
       planId: plan.id,
       roundId: round.id,
