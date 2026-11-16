@@ -220,6 +220,7 @@ const EXECUTE = new Set([
   "integration.land",
   "gap.accept",
   "spec.changed.apply",
+  "spec.publish",
   "budget.raise",
   "budget.stop",
   "budget.acknowledge",

@@ -1897,7 +1897,7 @@ proof or run a real workspace to get past that wait.
   - Define the task-definition digest and latest valid outcome reducer; done/skipped/landed complete, refused/reopened/unverified/stale hold. Explicitly carry forward unchanged evidence only on new approval.
   - Accept route: github and merged-pr without rewriting approved files. Branch checkmarks remain outside the revision hash and only verified in-spec dependencies may advance; cross-spec dependencies wait for accepted outcomes. Tests cover every outcome and unchanged source hashes.
 
-- [ ] 56.2 Publish spec issues and validate the minimal journal, after 56.1, 56.12 [R102.1, R102.2, R102.9, R102.10, R102.11, R103.1] (§4.32)
+- [x] 56.2 Publish spec issues and validate the minimal journal, after 56.1, 56.12 [R102.1, R102.2, R102.9, R102.10, R102.11, R103.1] (§4.32)
   - Implement explicit per-spec publication, one issue per spec/epic and local-file parity. Approval alone makes no GitHub write. Keep epic links and existing issue ownership. Spec, epic and sub-issues carry crew:avoozl in their create call.
   - Schema/parser/writer/replay: allowlisted event fields, authenticated actor/permission, revision/digest/generation, previous links, complete pagination, operation-id deduplication and conflicting-duplicate hold. Mutation/missing linked records hold; document the undetectable-tail limit. Count no poll snapshots and reject prohibited public fields.
 
