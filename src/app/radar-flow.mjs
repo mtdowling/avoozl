@@ -6,6 +6,9 @@
 import { flowFromEvents } from "./flow-github.mjs";
 import { flowTimes, readIssueFacts } from "./radar-events.mjs";
 import { READY_LABEL_DEFAULT } from "./github-policy.mjs";
+import { receiptReader, receiptsView } from "./build-receipt-read.mjs";
+import { peekInstance } from "./instance.mjs";
+import { projectedMarker } from "./github-sync.mjs";
 
 export const FLOW_INTERVAL_MS = 10 * 60 * 1000;
 // shortcut: the latest 20 closed issues carrying the ready label or Avoozl's
@@ -17,7 +20,7 @@ const MANAGED_LABEL_DEFAULT = "avoozl:managed";
 
 // One repository's finished issues as flow rows: closed, with a merged pull
 // request the claim named. An issue with no pull request is not a delivery.
-async function readRows(github, repository, settings) {
+async function readRows(github, repository, settings, readReceipt) {
   const label = settings.managedLabels?.ready ?? READY_LABEL_DEFAULT,
     managed = settings.managedLabels?.managed ?? MANAGED_LABEL_DEFAULT,
     found = new Map();
@@ -33,7 +36,17 @@ async function readRows(github, repository, settings) {
     rows = [];
   for (const { number } of issues) {
     const facts = await readIssueFacts(github, repository, number, settings);
-    if (facts.pull?.merged_at) rows.push(flowTimes(facts));
+    if (facts.pull?.merged_at) {
+      // One build receipt per merged pull request (RC32.5); kept after the
+      // first read, so a repeat costs no call.
+      const receipt = await readReceipt(facts.pull);
+      rows.push({
+        ...flowTimes(facts),
+        pullNumber: facts.pull.number,
+        instance: projectedMarker(facts.issue?.body)?.instance ?? null,
+        ...(receipt ? { receipt } : {}),
+      });
+    }
   }
   return rows;
 }
@@ -48,14 +61,20 @@ export async function refreshFlow(
   if (!policy?.mode || !github) return old;
   if (!force && old.readAt && now - Date.parse(old.readAt) < FLOW_INTERVAL_MS)
     return old;
-  const next = { readAt: new Date(now).toISOString(), repositories: {} };
+  const next = { readAt: new Date(now).toISOString(), repositories: {} },
+    readerFor = receiptReader(store, github);
   for (const [repository, settings] of Object.entries(
     policy.repositories || {},
   )) {
     if (settings.coder !== "issue-radar") continue;
     try {
       next.repositories[repository] = {
-        rows: await readRows(github, repository, settings),
+        rows: await readRows(
+          github,
+          repository,
+          settings,
+          readerFor(repository),
+        ),
         error: null,
       };
     } catch (error) {
@@ -80,6 +99,10 @@ export function flowView(store) {
   return {
     readAt: cache.readAt,
     ...flowFromEvents(rows),
+    receipts: receiptsView(rows, {
+      instanceName: (id) =>
+        id && id === peekInstance(store)?.id ? peekInstance(store).name : null,
+    }),
     errors: entries
       .filter(([, entry]) => entry.error)
       .map(([repository, entry]) => ({ repository, error: entry.error })),

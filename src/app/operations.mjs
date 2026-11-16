@@ -141,6 +141,7 @@ import {
   landingNeedsYou,
 } from "./integration-head.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
+import { receiptReader } from "./build-receipt-read.mjs";
 import { epicsView } from "./epics-view.mjs";
 import { doneWork } from "./trace-done.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
@@ -3901,6 +3902,7 @@ export class Operations {
         mirrorFor: (pull) => mirrorRecordFor(store, where, pull),
         fixesFor: (pull) => conflictFixesOf(store, input.repository, pull),
         trackerFor: (issue) => gateTraceStep(store, input.repository, issue),
+        receiptFor: (pull) => receiptReader(store, this.github)(where)(pull),
       });
     }
     // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the

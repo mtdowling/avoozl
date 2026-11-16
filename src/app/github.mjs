@@ -1430,6 +1430,54 @@ export class GitHubClient {
     return this.request("GET", `/repos/${owner}/${repo}/pulls/${number}`);
   }
 
+  // The newest artifacts called `name`, each with the commit its run built.
+  async listArtifacts(value, name) {
+    const { owner, repo } =
+        typeof value === "string" ? parseRepository(value) : value,
+      list = await this.request(
+        "GET",
+        `/repos/${owner}/${repo}/actions/artifacts`,
+        {
+          query: { name, per_page: 100 },
+        },
+      );
+    return Array.isArray(list?.artifacts) ? list.artifacts : [];
+  }
+
+  // One artifact's zip. GitHub answers with a redirect to a signed address;
+  // that address takes no token, so the token is not sent to it.
+  async downloadArtifact(value, id) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    if (!this.signedIn()) fail("GitHub authentication is unavailable.", 503);
+    const url = `${this.apiUrl}/repos/${owner}/${repo}/actions/artifacts/${Number(id)}/zip`;
+    let location;
+    try {
+      const response = await this.fetch(url, {
+        redirect: "manual",
+        headers: {
+          Accept: "application/vnd.github+json",
+          Authorization: "Bearer " + this.token,
+          "X-GitHub-Api-Version": API_VERSION,
+          "User-Agent": "avoozl",
+        },
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+      this.rate?.count(false);
+      this.rate?.flush();
+      location = response.headers?.get?.("location");
+      if (!location) fail(`GitHub gave no download for artifact ${id}.`, 502);
+      const file = await this.fetch(location, {
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+      if (!file.ok) fail(`The artifact download failed (${file.status}).`, 502);
+      return Buffer.from(await file.arrayBuffer());
+    } catch (error) {
+      if (error.status) throw error;
+      fail("GitHub is unreachable: " + error.message, 503);
+    }
+  }
+
   listPullRequests(value, input = {}) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
