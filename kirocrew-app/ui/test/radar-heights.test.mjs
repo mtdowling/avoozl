@@ -26,11 +26,12 @@ after(async () => {
   harness?.remove()
 })
 
-// Radar's own headers are 38 px and its items 32 px; ours keep the compact 28 px.
-const RADAR = { top: 42, phoneTop: 28, row: 28, cardRadius: 12, sectionRadius: 16, rowRadius: 8, rowFont: 13, headFont: 12 }
+// Radar's own headers are 38 px and its items 32 px; ours are 32 px: a 28 px
+// row with 2px more above and below (the owner's ask, 2026-11-16).
+const RADAR = { top: 42, phoneTop: 28, row: 32, cardRadius: 12, sectionRadius: 16, rowRadius: 8, rowFont: 13, headFont: 12 }
 
 for (const theme of ['light', 'dark']) {
-  test(`at 1280 px ${theme} the nav is Radar's: a card per section with 28 px headers, one open at a time, then the brand line`, { skip }, async () => {
+  test(`at 1280 px ${theme} the nav is Radar's: a card per section with 32 px headers, one open at a time, then the brand line`, { skip }, async () => {
     await page.open(harness.url({ app: '1', theme }), { width: 1280, height: 800, dark: theme === 'dark' })
     await page.until(`Boolean(document.querySelector('[data-brand-card]') && document.querySelector('[data-nav-section]'))`)
     const read = () => page.evaluate(`(() => {

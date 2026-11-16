@@ -32,14 +32,22 @@ export async function observeSessions(store, read) {
     // the workers they opened on another crew.
     if (binding.source !== "tick" || binding.relay || !liveAttempt(binding))
       continue;
-    let status;
+    let reading;
     try {
-      status = await read(binding.slot);
+      reading = await read(binding.slot);
     } catch (error) {
       errors.push({ slot: binding.slot, error: error.message });
       continue;
     }
-    recordSessionStatus(store, { slot: binding.slot, status });
+    // A stock Kiro Crew names the served model only on the slot read; the
+    // writer-model check of a plan review (§4.29) needs it.
+    const { status, served } =
+      typeof reading === "string" ? { status: reading } : reading;
+    recordSessionStatus(
+      store,
+      { slot: binding.slot, status },
+      served ? { served } : {},
+    );
     observed += 1;
   }
   return { observed, errors };

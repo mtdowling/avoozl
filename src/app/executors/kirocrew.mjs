@@ -47,10 +47,10 @@ export function kirocrewReadiness(reading) {
 // Keep the planner's order, including its remote-placement fallback. A local
 // dispatch with no inherited project waits and produces the same owner notice.
 export function kirocrewDispatches(store, dispatches, waits, reading) {
-  const pending = new Set(
+  const pending = new Map(
     waits
       .filter(({ result }) => result.folder)
-      .map(({ task }) => sidebarPath(taskRepository(task))),
+      .map(({ task }) => [sidebarPath(taskRepository(task)), null]),
   );
   for (let i = dispatches.length - 1; i >= 0; i--) {
     const dispatch = dispatches[i];
@@ -61,12 +61,15 @@ export function kirocrewDispatches(store, dispatches, waits, reading) {
       !unset(reading, configuration.folder)
     )
       continue;
-    pending.add(configuration.folder);
+    pending.set(
+      configuration.folder,
+      configuration.folder === SPECS_FOLDER ? dispatch.worktree : null,
+    );
     dispatches.splice(i, 1);
   }
-  return [...pending].map((folder) => {
+  return [...pending].map(([folder, root]) => {
     const id = folder.split("/").pop(),
-      checkout = store.get("projects", id)?.root;
+      checkout = root ?? store.get("projects", id)?.root;
     return {
       channel: "decision",
       title: `Set the project directory of chat folder ${folder.replaceAll("/", " › ")}`,
@@ -83,9 +86,25 @@ export function slotStatus(body) {
   return "idle";
 }
 
+// What a slot read says about the session's model, in the tick's `served`
+// shape, or null when Kiro Crew names no served model. The slot carries the
+// pinned model, the model the live session resolved to, and whether the pin
+// was withheld; it has no mid-session change flag.
+export function slotServed(body) {
+  const model = body?.served_model;
+  if (typeof model !== "string" || !model.trim()) return null;
+  return {
+    requested: typeof body.model === "string" && body.model ? body.model : null,
+    model,
+    withheld: body.model_withheld === true,
+    changed: false,
+  };
+}
+
 // A function that reads one slot's status, or null without a gateway client.
 // It throws on any answer but 200 and 404, so an unreadable session keeps its
-// last status rather than reading as gone.
+// last status rather than reading as gone. A read that names the served
+// model returns {status, served}; otherwise the status alone.
 export function gatewaySlotReader(env = process.env, request = fetch) {
   const client = gatewayClient(env, request);
   if (!client) return null;
@@ -97,7 +116,10 @@ export function gatewaySlotReader(env = process.env, request = fetch) {
     if (response.status === 404) return "gone";
     if (!response.ok)
       throw Error(`Kiro Crew refused the session read (${response.status}).`);
-    return slotStatus(await response.json());
+    const body = await response.json(),
+      status = slotStatus(body),
+      served = slotServed(body);
+    return served ? { status, served } : status;
   };
 }
 
@@ -215,6 +237,18 @@ export function kirocrewRequest(store, legacy) {
   return request;
 }
 
+// The planner agents may write only `.kiro/specs/**` under the chat's own
+// project directory, so a planner that writes a workspace's spec folder opens
+// in a folder whose project directory is that workspace.
+// shortcut: one folder for every workspace on this Kiro Crew; name it per
+// workspace once a gateway serves two planning workspaces.
+const SPECS_FOLDER = "Avoozl/Specs";
+const writesSpecs = (request) =>
+  Boolean(request.worktree) &&
+  !request.repository &&
+  request.permissionClass === "write" &&
+  ["planner", "plan-answer"].includes(request.role);
+
 export function kirocrewConfiguration(store, request) {
   const queued = store.get("session_requests", request.id),
     active =
@@ -226,8 +260,12 @@ export function kirocrewConfiguration(store, request) {
         folder:
           active.worktree && active.repository
             ? sidebarPath(active.repository)
-            : "",
-        ...(active.worktree && active.repository ? {} : { project: false }),
+            : writesSpecs(active)
+              ? SPECS_FOLDER
+              : "",
+        ...((active.worktree && active.repository) || writesSpecs(active)
+          ? {}
+          : { project: false }),
         agent: ROLE_AGENTS[active.role] ?? "",
       };
   // The answer's permission class determines its tool access, even when a

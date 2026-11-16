@@ -51,7 +51,7 @@ export const tabLabel = (key: Tab) => PAGE_LABEL[key] ?? TABS.find((t) => t.key 
 // The nav entry that is lit for a page.
 export const navTab = (key: Tab): NavTab => (dashboardPage(key) ? 'dashboard' : (key as NavTab))
 
-// Where a page name from an older link, a saved Back step or the demo tour
+// Where a page name from an older link, or a saved Back step
 // goes now. Removed pages land on the page that took over their job.
 export interface Place {
   tab: Tab

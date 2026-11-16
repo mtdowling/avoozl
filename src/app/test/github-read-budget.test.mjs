@@ -176,7 +176,7 @@ test("large workflow responses cache only validated metadata under a separate ve
   assert.equal(first[0].workflow, ".github/workflows/check.yml");
   const cached = store.db.prepare("SELECT * FROM github_http_cache").all();
   assert.equal(cached.length, 1);
-  assert.ok(cached[0].key.includes("projection:workflow-runs-v1"));
+  assert.ok(cached[0].key.includes("projection:workflow-runs-v3"));
   assert.ok(cached[0].body.length < CACHE_MAX_BODY);
   assert.doesNotMatch(
     cached[0].body,

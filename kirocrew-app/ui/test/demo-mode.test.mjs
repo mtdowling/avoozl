@@ -1,20 +1,22 @@
 // Demo mode on the page (design §6.11): the guard every host call passes,
-// the tour's steps and keys, and, in a real Chrome (AVOOZL_CHROME or an
-// installed Chrome), the whole page on the real sample's replies: Try the
-// demo, the badge, every tour step with Next, Back and the keys, a preview
-// for a change, and Exit demo back to the person's workspace. The browser
-// part is skipped when no Chrome is found.
+// and, in a real Chrome (AVOOZL_CHROME or an installed Chrome), the whole
+// page on the real sample's replies: Start demo, the badge and the demo bar,
+// a preview for a change, and Exit demo back to the person's workspace.
+// There is no guided tour. The browser part is skipped when no Chrome is
+// found.
 import assert from 'node:assert/strict'
 import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
-import { CHAT_PREVIEW, DEMO_CATALOG, DEMO_WORKSPACE_ID, TOUR, demoAllows, guardApi, previewOf, stepTo, tourKey } from '../src/demo-api.ts'
+import * as demoApi from '../src/demo-api.ts'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
 import { demoReplies, demoScript } from './browser/demo-replies.mjs'
-import { SIZES, THEMES, showStep } from './browser/demo-screenshots.mjs'
+import { SIZES, THEMES, showDemo } from './browser/demo-screenshots.mjs'
+
+const { CHAT_PREVIEW, DEMO_CATALOG, DEMO_WORKSPACE_ID, demoAllows, guardApi, previewOf } = demoApi
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
@@ -76,29 +78,16 @@ test('every view takes the host hooks through host.ts', () => {
   assert.match(source('host.ts'), /active \? \{ openChat: \(\) => notice\(CHAT_PREVIEW\) \}/)
 })
 
-test('the tour covers each page, and its keys move inside it', () => {
-  assert.deepEqual(
-    TOUR.map((s) => s.id),
-    ['dashboard', 'needs-you', 'handback', 'review', 'crews', 'release', 'stop-line', 'driver', 'epics', 'graph', 'task', 'intake', 'flow', 'mirror', 'settings'],
-  )
-  for (const step of TOUR) assert.ok(step.caption.length > 20 && step.title, step.id)
-  assert.equal(TOUR.find((s) => s.id === 'task').task, 'recipe-import.2.1')
-  assert.equal(stepTo(0, 'back'), 0)
-  assert.equal(stepTo(0, 'next'), 1)
-  assert.equal(stepTo(TOUR.length - 1, 'next'), TOUR.length - 1)
-  assert.equal(stepTo(4, 'first'), 0)
-  assert.equal(stepTo(0, 'last'), TOUR.length - 1)
-  assert.equal(tourKey('ArrowRight'), 'next')
-  assert.equal(tourKey('ArrowLeft'), 'back')
-  assert.equal(tourKey('Escape'), 'close')
-  assert.equal(tourKey('a'), null)
-  // Motion is off under reduced motion.
-  assert.match(source('Demo.tsx'), /@media \(prefers-reduced-motion: reduce\)\{\[data-demo-caption\]\{animation:none\}\}/)
-  assert.match(source('Demo.tsx'), /behavior: reduced \? 'auto' : 'smooth'/)
+test('Demo mode has no guided tour', () => {
+  for (const name of ['TOUR', 'stepTo', 'tourKey']) assert.equal(name in demoApi, false, name)
+  for (const name of ['Demo.tsx', 'App.tsx']) {
+    assert.doesNotMatch(source(name), /DemoTour|data-demo-tour|data-tour-on|Start the tour/, name)
+  }
+  assert.doesNotMatch(source('Demo.tsx'), /tour/i)
 })
 
 const chrome = findChrome()
-const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the demo tour test'
+const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the Demo mode test'
 
 let harness, browser, page
 before(async () => {
@@ -116,41 +105,25 @@ const button = (text, role) => `[...document.querySelectorAll('button${role === 
 const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
 // A count badge may follow the label, so compare the start.
 const selectedTab = `document.querySelector('[data-nav-head][data-selected], [data-nav-head][data-open]')?.textContent.trim()`
-const tourStep = `document.querySelector('[data-demo-tour]')?.dataset.step`
-// Graph is a page inside Dashboards, and Intake lives under Needs you.
-const TAB = { dashboard: 'Dashboards', plans: 'Specs', graph: 'Dashboards', untriaged: 'Needs you', flow: 'Flow', settings: 'Settings' }
 
-test('Start demo opens the tour over the real pages, and Exit demo returns', { skip }, async () => {
+test('Start demo opens the made-up workspace with its bar, and Exit demo returns', { skip }, async () => {
   await page.open(harness.url({ page: 'demo' }), { width: 1280, height: 800 })
   await page.until(`Boolean(${button('Start demo')} && document.querySelector('[data-workspace-pill]'))`)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-badge]'))`), false)
+  // Its tooltip says what it opens, and names no tour.
+  assert.match(source('Demo.tsx'), /Open a made-up workspace to look around\. Your own work is not touched\./)
   await click(button('Start demo'))
 
-  // The badge replaces the workspace pill; the tour starts on step 1.
-  await page.until(`${tourStep} === 'dashboard'`)
+  // The badge and the bar show; the workspace pill names the sample; no tour opens.
+  await page.until(`Boolean(document.querySelector('[data-demo-bar]'))`)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-badge]'))`), true)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-workspace-pill]'))`), false)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-bar]'))`), true)
-
-  // Next through every step, by button and by key.
-  for (let i = 0; i < TOUR.length; i++) {
-    const step = TOUR[i]
-    await page.until(`${tourStep} === ${JSON.stringify(step.id)}`)
-    await page.until(`${selectedTab}?.startsWith(${JSON.stringify(TAB[step.tab])})`)
-    assert.match(await page.evaluate(`document.querySelector('[data-demo-tour]').textContent`), new RegExp(`Step ${i + 1} of ${TOUR.length}`))
-    if (step.task) await page.until(`document.querySelector('[role="dialog"], [data-task-drawer], aside')?.textContent.includes('Show import errors')`)
-    if (step.id === 'stop-line') await page.until(`document.querySelector('[data-main-actions] [data-stop-line]')?.hasAttribute('data-tour-on')`)
-    if (i === TOUR.length - 1) break
-    if (i % 2) await click(button('Next'))
-    else await page.key('ArrowRight', 'ArrowRight', 39)
-  }
-  // Back by key and by button, then Escape closes the tour.
-  await page.key('ArrowLeft', 'ArrowLeft', 37)
-  await page.until(`${tourStep} === 'mirror'`)
-  await click(button('Back'))
-  await page.until(`${tourStep} === 'flow'`)
-  await page.key('Escape')
-  await page.until(`!document.querySelector('[data-demo-tour]')`)
+  assert.match(await page.evaluate(`document.querySelector('[data-left-nav] [data-workspace-pill]')?.textContent ?? ''`), /Demo: Recipe Box/)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-tour]'))`), false)
+  assert.equal(await page.evaluate(`Boolean(${button('Start the tour')})`), false)
+  // The made-up workspace's pages read its sample.
+  await page.until(`document.querySelector('[data-driver-session]')?.dataset.driverSession === 'running'`)
+  await click(button('Specs', 'tab'))
+  await page.until(`Boolean(document.querySelector('[data-spec-list] [data-plan-row]'))`)
 
   // A change shows what it would do; nothing else happens.
   await click(button('Dashboards', 'tab'))
@@ -172,14 +145,10 @@ test('Start demo opens the tour over the real pages, and Exit demo returns', { s
   await page.until(`Boolean([...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent.trim() === 'Discard')) || !document.querySelector('[data-stop-reason]')`)
   await page.evaluate(`(() => { [...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent.trim() === 'Discard')?.click(); return true })()`)
   await page.until(`!document.querySelector('[data-stop-reason]')`)
-  await click(button('Start the tour'))
-  await page.until(`${tourStep} === 'dashboard'`)
-  await click(button('Close the tour'))
-  await page.until(`!document.querySelector('[data-demo-tour]')`)
 
   // Exit demo: the person's workspace again, no badge.
   await click(`document.querySelector('[data-demo-exit]')`)
-  await page.until(`!document.querySelector('[data-demo-badge]') && Boolean(document.querySelector('[data-workspace-pill]'))`)
+  await page.until(`!document.querySelector('[data-demo-badge]') && document.querySelector('[data-workspace-pill]')?.dataset.workspaceId === 'w'`)
   assert.equal(await page.evaluate(`document.querySelector('[data-workspace-pill]').dataset.workspaceId`), 'w')
   assert.deepEqual(page.errors, [])
 })
@@ -188,8 +157,6 @@ test('in the demo the driver session is the made-up one: it opens nothing and st
   await page.open(harness.url({ page: 'demo' }), { width: 1280, height: 800 })
   await page.until(`Boolean(${button('Start demo')} && document.querySelector('[data-workspace-pill]'))`)
   await click(button('Start demo'))
-  await page.until(`${tourStep} === 'dashboard'`)
-  await page.key('Escape')
   await page.until(`document.querySelector('[data-driver-session]')?.dataset.driverSession === 'running'`)
   assert.match(await page.evaluate(`document.querySelector('[data-driver-session]').dataset.tip`), /11 of 40 turns today/)
   // Only Open: a running session offers no Start.
@@ -201,32 +168,28 @@ test('in the demo the driver session is the made-up one: it opens nothing and st
   assert.deepEqual(page.errors, [])
 })
 
-test('the tour fits the screen at 320, 768 and 1280 px, light and dark', { skip }, async () => {
+test('the demo bar fits the screen at 320, 768 and 1280 px, light and dark', { skip }, async () => {
   const out = mkdtempSync(path.join(os.tmpdir(), 'avoozl-demo-shots-'))
   try {
     for (const [width, height] of SIZES)
-      for (const theme of THEMES)
-        for (const step of ['dashboard', 'task', 'stop-line', 'release', 'mirror']) {
-          const box = await showStep(page, harness, { width, height, theme, step })
-          const where = `${step} at ${width} ${theme}`
-          assert.equal(box.badge, true, where)
-          assert.ok(box.left >= 0 && box.right <= box.inner, `${where}: the card is inside the width`)
-          assert.ok(box.top >= 0 && box.bottom <= box.innerHeight, `${where}: the card is inside the height`)
-          const file = path.join(out, `${step}-${width}-${theme}.png`)
-          await page.screenshot(file)
-          assert.ok(statSync(file).size > 1000, file)
-        }
+      for (const theme of THEMES) {
+        const box = await showDemo(page, harness, { width, height, theme })
+        const where = `${width} ${theme}`
+        assert.equal(box.badge, true, where)
+        assert.ok(box.left >= 0 && box.right <= box.inner, `${where}: the bar is inside the width`)
+        assert.ok(box.scroll <= box.inner, `${where}: no sideways scroll`)
+        const file = path.join(out, `demo-${width}-${theme}.png`)
+        await page.screenshot(file)
+        assert.ok(statSync(file).size > 1000, file)
+      }
     assert.deepEqual(page.errors, [])
   } finally {
     rmSync(out, { recursive: true, force: true })
   }
 })
 
-test('the tour names the new screens and the fixtures stay in their shapes', async () => {
+test('the demo fixtures stay in their shapes', async () => {
   const { fixturesClient, stopExample } = await import('../src/demo-fixtures.ts')
-  const ids = TOUR.map((s) => s.id)
-  for (const id of ['handback', 'review', 'crews', 'release', 'driver', 'epics', 'mirror']) assert.ok(ids.includes(id), id)
-  for (const step of TOUR) assert.doesNotMatch(`${step.title} ${step.caption}`, /osiris|glorp|worker/i, step.id)
   // The page asks for the fixtures through the one command path, read only.
   const seen = []
   const api = { post: async (path, body) => (seen.push([path, body.operation]), { result: { stopLine: { running: { state: 'running' }, stopped: { state: 'stopped' } } } }) }

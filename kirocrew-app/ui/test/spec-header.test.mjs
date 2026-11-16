@@ -48,8 +48,7 @@ async function openSpec(width, dark) {
   await page.open(harness.url({ page: 'demo', theme: dark ? 'dark' : 'light' }), { width, height: 900, dark })
   await page.until(`Boolean(${button('Start demo')})`)
   await click(button('Start demo'))
-  await page.until(`Boolean(document.querySelector('[data-demo-tour]'))`)
-  await page.evaluate(`document.querySelectorAll('[data-demo-tour]').forEach((x) => x.remove())`)
+  await page.until(`Boolean(document.querySelector('[data-demo-bar]'))`)
   if (width < 768) {
     await click(`document.querySelector('[data-top-rail-bar]')`)
     await wait(150)
