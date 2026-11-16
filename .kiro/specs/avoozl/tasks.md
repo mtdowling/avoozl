@@ -1489,3 +1489,147 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
   - Expected: (1) and (2) refused with rule set, id and place and no text; (3) goes through, then the tick deletes it, pulls the cord and notifies once; (4) a clean comment stays; (5) refused before sign-off, accepted after, refused again when the hook changes.
   - Failure means: a canary stays on GitHub, an edit is used instead of a delete, or the refusal repeats the text.
   - Next decision: ask Kiro Crew for a single write tool for crews.
+
+## Phase 40: Unattended basics
+
+Owner decision 2026-11-15 (Requirements 86, 88; design §4.26). Avoozl owns
+the coding loop. Exit: a three-task chain survives a gateway restart
+unattended.
+
+- [ ] 40.1 Worker brief edits and commits only [R86.3] (§4.26)
+  - The GitHub worker brief in `src/app/delivery.mjs` drops the push, pull request, auto-merge and merge steps; Avoozl reads `HEAD` from the worktree; a test asserts no brief tells a worker to push, open a pull request, merge or label.
+- [ ] 40.2 Report by CLI, matched by worktree and token [R88.2, R88.3] (§4.26)
+  - `avoozl report --task ID --token T`; the brief carries the token and the worktree path; local chats open with `project: false`; tests for a wrong token, a wrong worktree and a report with no MCP sharing.
+- [ ] 40.3 Trust mode set at open and again every tick [R88.1] (§4.26)
+  - A fake Kiro Crew that drops trust on restart; the next tick sets it again, once per chat.
+- [ ] 40.4 Prepare with the worktree helper and clean up after landing [R88.6] (§4.26)
+  - First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise.
+- [ ] 40.5 Verify: warm checks off the tick, per-check timeouts, declared and protected paths, after 40.1 [R86.6, R86.7] (§4.26)
+  - Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you.
+- [ ] 40.6 One automatic resume for a vanished chat, after 40.2 [R88.4] (§4.26)
+  - Only Kiro Crew's "gone" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you.
+- [ ] 40.7 Lanes: 3 on this Mac by default [R88.5] (§4.26)
+  - `lanes.local` default 3; a fourth ready task waits.
+
+- [ ] avoozl-p50 P50 Proof: a three-task chain survives a gateway restart unattended, after 40.1, 40.2, 40.3, 40.4, 40.5, 40.6, 40.7 [R86, R87.10, R88] (§4.26)
+  - Setup: an isolated Kiro Crew home, a scratch repository with a bare remote, a three-task chain, landing `direct`.
+  - Action: (1) start the chain and leave it; (2) restart the gateway while task 2 works; (3) let the tick push the base.
+  - Expected: (1) each task lands in order with its checks recorded; (2) trust is set again, task 2 goes on in the same worktree, no second chat unless Kiro Crew says it is gone; (3) the tick push goes through Kiro Crew's push policy; worktrees removed after landing.
+  - Failure means: the loop still needs a person, or the push policy blocks the tick.
+  - Next decision: if the policy blocks the tick, land with `pr` only until Kiro Crew allows it.
+
+## Phase 41: Scheduler and direct landing
+
+Requirements 86, 87 (design §4.26). Exit: the 13 pilot tasks on Nupp, with
+owner minutes, credits and wall-clock per task.
+
+- [ ] 41.1 One scheduler: Pick by unblock count with a repository-wide path hold, after avoozl-p50 [R86.2, R86.5, R86.9] (§4.26)
+  - RC31's ranking feeds Pick; overlapping declared paths hold a task in line; no cross-machine claim or driver lock is read.
+- [ ] 41.2 Landing queue per base branch with the work lock, after avoozl-p50 [R87.5] (§4.26)
+  - `withWorkLock` kind `integration`; one landing at a time per base; Stop the line pauses and keeps order.
+- [ ] 41.3 `direct` landing, after 41.2 [R87.1, R87.2, R87.4, R87.9] (§4.26)
+  - Merge base in, check that head, fast-forward, `git push origin <base>`; a moved base merges and checks again; the pre-push content rule runs first; never force push.
+- [ ] 41.4 Conflicts go back to the same chat, bounded; remove the resolver chat, after 41.3 [R87.6] (§4.26)
+  - The conflicted file list in the brief; `landing.conflictRounds` default 2; then Needs you; `avoozl-conflict-fix` removed.
+- [ ] 41.5 Epic tasks cut from the integration branch, after 41.3 [R87.7] (§4.26)
+  - `src/app/github-linked-branches.mjs` and Prepare agree on the base.
+- [ ] 41.6 Restore the Delivery page, Settings › Budgets and the Files and diff view, after 41.3 [R88.7] (§4.26)
+  - From ba04389 and 70c2236, updated to the new loop; not Routing; screenshots for the owner.
+- [ ] 41.7 Nupp setup: `direct` on public `core-dev` with the repository's helper and check, after 41.3 [R91.5] (§4.26)
+  - `scripts/worktree` approved by hash, `scripts/test-changed` as the check; plans stay in a private planning workspace; no mirror or forward.
+
+- [ ] avoozl-p51 P51 Proof: the 13 Nupp pilot tasks land direct, after 41.1, 41.2, 41.3, 41.4, 41.5, 41.6, 41.7 [R86, R87, R91.5] (§4.26)
+  - Setup: the Nupp compiler checkout, a private planning workspace with the 13 pilot tasks approved, landing `direct` on `core-dev`.
+  - Action: release the pilot and leave it running.
+  - Expected: each task lands on public `core-dev` after its checks; no private text in any commit message, branch name or added line; a receipt per task with owner minutes, credits and wall-clock.
+  - Failure means: the loop needs the owner more than it saves, or something private reached the public branch.
+  - Next decision: tune lanes, checks or the brief from the receipts, or stop direct landing for Nupp.
+
+## Phase 42: PR landing and the setup command
+
+Requirements 87, 89 (design §4.26). Exit: ten tasks on a repository with a
+required check.
+
+- [ ] 42.1 `pr` landing from the renamed arming and merge code, after avoozl-p51 [R87.3, R87.4, R91.2] (§4.26)
+  - Push the task branch, open or reuse the pull request, merge base in when it moves, wait for required checks, merge through the API one at a time.
+- [ ] 42.2 `avoozl setup`: project config and GitHub in one preview, after 42.1 [R89.1, R89.2, R89.4] (§4.26)
+  - A second run says "Nothing to change" and writes nothing.
+- [ ] 42.3 Setup: ruleset update without duplicates, merge methods, CI variable, commit status, after 42.2 [R89.3] (§4.26)
+  - First caller of `createCommitStatus`; a fake GitHub test that a ruleset with the rule gets no second one.
+- [ ] 42.4 Avoozl's own repository lands with `pr` and three required checks, after 42.3 [R87.8] (§4.26)
+  - Linux, macOS and Windows required.
+
+- [ ] avoozl-p52 P52 Proof: ten tasks land through pull requests on a repository with a required check, after 42.1, 42.2, 42.3, 42.4 [R87, R89] (§4.26)
+  - Setup: a scratch GitHub repository set up by `avoozl setup` with one required check.
+  - Action: release ten tasks; move the base during one; make one check fail.
+  - Expected: ten pull requests merge one at a time after the check passes on each head; the moved base is merged in and checked again; the failed task goes back to its chat; no force push; setup run again changes nothing.
+  - Failure means: a merge on an unchecked head, a second ruleset rule, or a force push.
+  - Next decision: keep `pr` as the default for repositories with required checks.
+
+## Phase 43: Worker machines pull work
+
+Requirement 90 (design §4.26). Exit: a second machine (and a second GitHub
+login) pulls, claims and completes tasks from a shared pool against real
+GitHub, and a race between two workers shows exactly one claim wins.
+
+- [ ] 43.1 Worker mode on the plan-less runner role, after avoozl-p52 [R90.1, R90.2] (§4.26)
+  - Envelope with IDs only; repository and checks from the worker's own `.avoozl.json`; the worker reads `HEAD`, runs checks, pushes the branch.
+- [ ] 43.2 Pull: list ready issues in one read, solo by assignee and team by pool, after 43.1 [R90.3, R90.5] (§4.26)
+  - At most one issue per free lane; the result is a branch or a pull request.
+- [ ] 43.3 Team claim: claim comment, earliest wins, loser deletes and stops, after 43.2 [R90.4] (§4.26)
+  - Enforced in code; a fake GitHub test with two workers posting in either order; one starts.
+- [ ] 43.4 Claim release and the stale-claim Needs you row, after 43.3 [R90.6] (§4.26)
+  - Release on landed, blocked or given up; release after a second vanish; never on quiet or a lease; a person-only **Release claim** after `workers.claimStaleAfter`.
+- [ ] 43.5 Scheduler lands a worker's result only after its own diff check and checks, after 43.2 [R90.2] (§4.26)
+  - A worker branch with a file outside declared paths is refused; checks rerun on the updated head.
+- [ ] 43.6 `avoozl worker setup` with a preview; SSH push kept only without GitHub access, after 43.1 [R90.7, R90.8, R90.9] (§4.26)
+  - Checks the login, push access and that Kiro Crew runs with the Avoozl app enabled.
+
+- [ ] avoozl-p53 P53 Proof: a second machine pulls, claims and completes tasks from a shared pool, after 43.1, 43.2, 43.3, 43.4, 43.5, 43.6 [R90] (§4.26)
+  - Setup: this Mac as scheduler; a second machine with a second GitHub login in worker mode, `team`; a scratch repository on real GitHub with a shared pool of ready issues.
+  - Action: (1) let both machines pull; (2) race two workers for one issue; (3) stop the second machine's ticks for a while; (4) let it finish.
+  - Expected: (1) the second machine takes and completes tasks, and the scheduler lands each after its own checks; (2) exactly one claim wins and the loser's comment is gone; (3) nothing releases the quiet machine's claim, and Needs you shows it after the stale time; (4) its work lands.
+  - Failure means: two workers start one task, a quiet worker is replaced, or a worker result lands unchecked.
+  - Next decision: use team pools for shared repositories, or keep one machine per person.
+
+## Phase 44: Issues and Pull requests pages
+
+Requirement 92 (design §4.27). Before any Radar code is deleted, so nothing
+is lost when Issue Radar goes.
+
+- [ ] 44.1 Issues and Pull requests in the pill nav, three columns, after avoozl-p52 [R92.1] (§4.27)
+  - Nav, list, detail; full-width list and detail with a back control at 390 px.
+- [ ] 44.2 List rows, filters on one line, search and counts from the shared read, after 44.1 [R92.2, R92.6, R92.7] (§4.27)
+  - A test with a counting fake GitHub: a list load makes 0 calls beyond the shared read; the **Avoozl tasks only** filter.
+- [ ] 44.3 Issue detail: header row, Markdown body, timeline, right column, lazy and cached, after 44.1 [R92.3, R92.6] (§4.27)
+- [ ] 44.4 Pull request detail: checks, files changed, landing state, after 44.3 [R92.4] (§4.27)
+  - Queued, verifying, landing, landed, conflict round N.
+- [ ] 44.5 Avoozl-owned actions only; person-only stays person-only, after 44.3 [R92.5] (§4.27)
+  - Release, hold, re-queue, Stop the line, open on GitHub; refused to an agent or MCP caller where person-only.
+
+- [ ] avoozl-p54 P54 Proof: the pages match Issue Radar's, and a list load costs no extra calls, after 44.1, 44.2, 44.3, 44.4, 44.5 [R92] (§4.27)
+  - Setup: a workspace with two repositories, one with Avoozl tasks and one without; Issue Radar open on the same repositories.
+  - Action: open both pages and an issue and a pull request detail at 390 and 1280 px, light and dark; count GitHub calls on a list load.
+  - Expected: screenshots next to Radar's show the same columns, row content and detail parts; a list load makes 0 calls beyond the shared read; a second detail open makes 0 calls.
+  - Failure means: something Radar showed is missing, or the pages add GitHub load.
+  - Next decision: approve the screenshots, then start Phase 45's shared edits.
+
+## Phase 45: Remove the Issue Radar path
+
+Requirement 91 (design §4.26). Leaf modules any time; shared edits last,
+after the Issues and Pull requests pages (Phase 44) are proved.
+
+- [ ] 45.1 Delete Radar-only leaf modules and their tests [R91.1, R91.3] (§4.26)
+  - Modules no non-Radar file imports; `npm test` passes.
+- [ ] 45.2 Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant [R91.1] (§4.26)
+- [ ] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
+- [ ] 45.4 Shared-module edits and the `coder` setting, after 45.1, 45.2, 45.3, avoozl-p53, avoozl-p54 [R86.1, R91.3] (§4.26)
+- [ ] 45.5 Compatibility names still resolve; docs say one path, after 45.4 [R91.4] (§4.26)
+  - `docs/research/` and `docs/evidence/` untouched except new receipts.
+
+- [ ] avoozl-p55 P55 Proof: after removal there is one delivery path, after 45.1, 45.2, 45.3, 45.4, 45.5 [R91] (§4.26)
+  - Setup: a temporary workspace on the built app.
+  - Action: run one task through the loop; list the app's agents and modules; resolve each compatibility name.
+  - Expected: the task lands; no Radar, relay, router or crew agent or module remains; every compatibility name resolves.
+  - Failure means: removal broke the loop or a compatibility name.
+  - Next decision: restore the removed piece.

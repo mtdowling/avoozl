@@ -604,10 +604,16 @@ themselves once checks pass, so that delivery continues overnight.
 
 #### Acceptance criteria
 
-1. Merging SHALL use GitHub auto-merge or Issue Radar's merge actions, gated by
-   the repository's required reviews and checks. In plans-repo mode the
-   worker session enables auto-merge on the pull request it opened.
-2. Avoozl SHALL NOT merge pull requests itself.
+Changed 2026-11-15 (owner decision): Avoozl pushes and merges, after
+checks pass on the updated head (Requirement 87). The old rule that Avoozl
+never merges, and that the worker or Issue Radar enables auto-merge, is
+reversed.
+
+1. Merging SHALL follow the repository's landing setting (Requirement 87):
+   `direct`, `pr` or `off`, gated by the repository's required reviews and
+   checks. The worker chat SHALL NOT enable auto-merge or merge.
+2. Avoozl SHALL merge only after checks passed on the head it merges, and
+   SHALL never force push or bypass a required check or review.
 3. WHEN merge completes THEN Requirement 16 SHALL decide completion.
 
 ### Requirement 19: One authority per state
@@ -1687,9 +1693,10 @@ user-facing work never leaves this machine.
    able to add an option the checks removed.
 5. A session SHALL be placed on a remote crew only when its base commit and
    its task branch can be fetched by that crew: the repository's remote is a
-   git host the crew lists, and the base commit is on that remote. Avoozl
-   itself SHALL still never push; a task whose base exists only on this
-   machine SHALL stay local. Code MAY come from any git host, GitHub or a
+   git host the crew lists, and the base commit is on that remote. A task
+   whose base exists only on this machine SHALL stay local. (Changed
+   2026-11-15: Avoozl now pushes and lands, Requirement 87; crew placement
+   is replaced by worker machines, Requirement 90.) Code MAY come from any git host, GitHub or a
    private git host. A remote worker SHALL push its own task branch to that
    remote, and this SHALL be allowed on public and private repositories
    alike. Repository visibility SHALL NOT change placement or the push. What
@@ -2686,9 +2693,9 @@ already fixes CI and review for the leaves it codes.
    under **Needs you** that says which.
 9. A new attempt opened for feedback SHALL count against the retry bound
    of Requirement 8 as well as the round bound.
-10. Avoozl SHALL NOT push, comment, re-run checks, turn on auto-merge, or
-    merge. Only the worker acts on the pull request. Avoozl SHALL write
-    nothing to GitHub for this requirement.
+10. Changed 2026-11-15 (Requirement 87): Avoozl pushes, updates and merges
+    the pull request; the worker chat only edits and commits. Avoozl SHALL
+    NOT comment or re-run checks for this requirement.
 11. A check that failed in CI after passing locally SHALL still be
     recorded as "CI only" (Requirement 45.5), in addition to being
     relayed.
@@ -4521,3 +4528,300 @@ not any file the same operating-system user can read.
     SHALL keep sign-off closed. Public Avoozl files, tests and docs SHALL use
     only fake terms, and SHALL describe the private side as internal names
     and company hosts.
+
+### Requirement 86: Avoozl owns the coding loop
+
+Added 2026-11-15 (owner decision, a change of direction). Design §4.26.
+This supersedes the Issue Radar path of the `radar-coder` spec (RC1–RC6,
+RC10, RC11, RC14, RC15, RC24–RC28) and cancels its Phase 12, the retirement
+of Avoozl's workers.
+
+**User story:** As the owner, I want one coder that Avoozl runs end to end,
+from picking a task to landing it, so that work lands overnight without a
+second system deciding what to claim, push or merge.
+
+#### Acceptance criteria
+
+1. Avoozl SHALL have one coder: its own worker chat. The `coder` setting,
+   `issue-radar`, the remote coder, the remote relay and the router chat
+   SHALL be removed (Requirement 91).
+2. Avoozl SHALL run one loop per task, in this order, and each step SHALL
+   have one owner:
+
+   | Step    | Owner  | What it does                                                                 |
+   | ------- | ------ | ---------------------------------------------------------------------------- |
+   | Pick    | Avoozl | Ranks ready tasks by how many they unblock; holds a task whose declared paths overlap a running task anywhere in the repository |
+   | Prepare | Avoozl | Adds the task worktree with the approved `scripts/worktree` helper or `git worktree add` |
+   | Work    | Chat   | Edits code and commits in that worktree, then reports by CLI               |
+   | Verify  | Avoozl | Runs checks in the task worktree, checks the diff against declared paths    |
+   | Land    | Avoozl | Lands through the per-base-branch queue (Requirement 87)                   |
+   | Accept  | Avoozl | Stop the line (Requirement 64) watches every head Avoozl landed             |
+
+3. The worker chat SHALL only edit code and commit. Its brief SHALL NOT tell
+   it to push, open or edit a pull request, merge, turn on auto-merge, label,
+   or comment. Avoozl SHALL read the commit from the worktree and SHALL NOT
+   take the commit from the chat's report.
+4. GitHub SHALL be optional for a solo workspace, where it is used to land
+   pull requests (Requirement 87) and to show the plan (issues and the
+   Project). For a team repository GitHub SHALL be the queue between people:
+   ready issues, their assignees and claim comments (Requirement 90) decide
+   which worker machine takes which task. Nothing else on GitHub (labels set
+   by hand, a crew's comment, a marker from another tool) SHALL decide who
+   works on what.
+5. One scheduler SHALL decide every task for a workspace and SHALL land every
+   result. Other machines SHALL be worker machines that pull work from it
+   through GitHub (Requirement 90). There SHALL be no per-spec driver lock;
+   Requirement 66's driver handoff SHALL apply only as export and import of
+   the workspace.
+6. Verify SHALL refuse a diff that touches a file outside the task's
+   declared paths, and SHALL send a diff that touches a protected path
+   (the repository's `protectedPaths`, plus CI workflows and the
+   `scripts/worktree` helper by default) to the owner in Needs you before
+   it lands.
+7. Checks SHALL run in the task worktree, warm (the worktree keeps its
+   dependencies and build output between attempts), in their own job off
+   the tick, with a timeout per check. A check that times out SHALL fail
+   with the reason "timed out after N s".
+8. Approval SHALL be the local hash receipt (Requirement 4.8). The approval
+   pull request of RC3.6 SHALL be used only for a spec whose home branch is
+   protected, so a commit can reach it only by pull request.
+9. Release ranking (RC31) and build receipts (RC32) SHALL stay and SHALL feed
+   Pick and Verify.
+
+### Requirement 87: Avoozl lands the work
+
+Added 2026-11-15 (owner decision 1). Design §4.26. This reverses the rule
+that Avoozl never pushes or merges (Requirements 18, 41.5 and 54.10, and
+RC5.5 and RC16.4).
+
+**User story:** As the owner, I want Avoozl to push and merge only after the
+checks pass on the exact head it lands, so that main stays green without me
+pressing merge.
+
+#### Acceptance criteria
+
+1. Each repository SHALL have a landing setting: `direct`, `pr` or `off`.
+   The default SHALL be `off` until Set up (Requirement 89) writes another.
+   Under `off` Avoozl SHALL push nothing and SHALL list the verified commit
+   in Needs you.
+2. `direct` SHALL: merge the base branch into the task branch with a merge
+   commit, run the checks again on that head, fast-forward the base branch
+   to it, and push the base branch. WHEN the base moved during the checks
+   THEN it SHALL merge and check again, and SHALL NOT push a head it did not
+   check.
+3. `pr` SHALL: push the task branch, open the pull request or reuse the
+   open one, merge the base into the task branch when the base moves, wait
+   for the repository's required checks on the pull request's head, and
+   merge it through the API with a method the repository allows, one pull
+   request at a time per base branch.
+4. Avoozl SHALL land only after checks passed on the updated head. It SHALL
+   never force push, never use `--admin`, and never bypass a required
+   review or check.
+5. Landing SHALL be serialized per base branch through one queue, using the
+   work lock (`withWorkLock`, `src/app/git.mjs`). Stop the line SHALL pause
+   the queue; a paused queue SHALL keep its order.
+6. WHEN a merge of the base into the task branch conflicts THEN Avoozl SHALL
+   send the conflict to the same worker chat with the list of conflicted
+   files, for at most `landing.conflictRounds` rounds (default 2). A later
+   failure SHALL go to Needs you. The separate resolver chat
+   (`avoozl-conflict-fix`, RC28) SHALL be removed.
+7. A worker branch of a task in an epic with an integration branch SHALL be
+   cut from that integration branch (RC16), and SHALL land into it; the
+   integration branch SHALL land into the default branch only as RC16 says.
+8. Avoozl's own repository SHALL use `pr` with the Linux, macOS and Windows
+   checks required.
+9. Every push and merge SHALL pass the pre-push content rule (Requirement 40)
+   on the commit messages, the branch name and the added lines first.
+10. A push or merge made by the tick SHALL run as the tick's own process,
+    not from a chat shell. The proof of Phase 40 SHALL show that a tick push
+    goes through under Kiro Crew's push policy, which checks chat shell
+    commands.
+
+### Requirement 88: Unattended worker basics
+
+Added 2026-11-15 (owner decisions 2, 3 and 4). Design §4.26.
+
+**User story:** As the owner, I want a chain of tasks to keep moving while I
+am away, through a gateway restart, so that I come back to landed work
+instead of a stuck chat.
+
+#### Acceptance criteria
+
+1. Avoozl SHALL set the worker chat's trust mode when it opens the chat and
+   SHALL set it again on every tick, because a gateway restart loses it.
+2. A worker SHALL report by CLI (`avoozl report --task ID ...`) from its
+   worktree. Avoozl SHALL match the report to the task by the worktree path
+   and the task's report token in the brief, so a report needs neither MCP
+   sharing nor the gateway's session identity.
+3. A local worker chat SHALL open with `project: false` and the worktree path
+   in its brief, as runner mode does. The earlier claim that an ordinary
+   local worker already skips Kiro Crew's project folder and MCP sharing was
+   wrong: only runner mode did (`src/app/remote-runner.mjs`); a local worker
+   used `leaf.project` and `plans_report` needed MCP sharing.
+4. WHEN Kiro Crew reports a worker chat gone THEN Avoozl SHALL open one new
+   chat in the same worktree with the same brief and the last report
+   quoted as data. A second vanish of the same task SHALL go to Needs you.
+   Avoozl SHALL NOT replace a chat because it went quiet or its activity
+   lease expired.
+5. This Mac SHALL run at most 3 worker lanes by default (the owner's 50%
+   CPU rule). More lanes SHALL come from worker machines (Requirement 90).
+6. Prepare SHALL use the approved `scripts/worktree` helper
+   (`createWorktree`, `src/app/git.mjs`), which today has no caller.
+   Avoozl SHALL remove a task's worktree and its local branch after the
+   task lands, and SHALL keep them for a task that did not land.
+7. The Delivery page, Settings › Budgets and the task drawer's Files and diff
+   view SHALL be restored (they were removed in ba04389 and 70c2236). The
+   Routing page SHALL NOT be restored.
+
+### Requirement 89: One setup command
+
+Added 2026-11-15. Design §4.26.
+
+**User story:** As the owner, I want one command that shows what it will
+change in the project settings and on GitHub and then does it, so that a new
+repository is ready to land in minutes.
+
+#### Acceptance criteria
+
+1. `avoozl setup REPO` SHALL preview every change, then apply it only after
+   `--yes` or a confirm on the page. A second run with nothing to change
+   SHALL say "Nothing to change" and write nothing.
+2. It SHALL write the project config: root, base branch, checks, declared
+   protected paths, the worktree helper hash after the person read it, and
+   the landing setting.
+3. For a GitHub repository under `pr` it SHALL: update the branch ruleset to
+   require the named checks, adding only what is missing and never a second
+   rule of the same kind; set the allowed merge methods; set the CI variable
+   that tells CI an Avoozl run is landing; and post a commit status
+   `avoozl/verify` on each head Avoozl verified (`createCommitStatus`, which
+   today has no caller).
+4. GitHub setup steps from RC27 (labels, Project, issue types) SHALL stay
+   and SHALL appear in the same preview.
+
+### Requirement 90: Worker machines pull work
+
+Added 2026-11-15; changed the same day (owner add-on): worker machines pull
+work through GitHub instead of receiving it over SSH. Design §4.26. Builds
+on the runner role (Requirement 84) and on
+`docs/research/machine-conductors-2026-11-13.md` (an issue with an
+assignee as the queue, a pull request as the result), which so far ran only
+on local-file stand-ins.
+
+**User story:** As the owner, or one of a team, I want another machine to
+take ready work by itself and hand back a branch that the scheduler checks
+again before it lands, so that more machines add lanes without a second
+plan and without trusting those machines.
+
+#### Acceptance criteria
+
+1. This machine SHALL be host `local`. Another machine SHALL run Avoozl in
+   worker mode, which builds on the plan-less runner role
+   (`src/app/remote-runner.mjs`): it holds no plans, and an envelope carries
+   IDs only. The worker machine SHALL resolve the repository and the checks
+   from its own `.avoozl.json`, so nothing it is sent is run as a command.
+2. A worker machine SHALL read the commit from its worktree, run its checks
+   and push the task branch. The scheduler SHALL then check the diff again
+   (declared paths and protected paths, Requirement 86.6), run the checks
+   again on the updated head, and land it through the landing queue
+   (Requirement 87.5). It SHALL NOT trust the worker machine's result.
+3. Pull is the main transport. On each tick a worker machine SHALL list the
+   ready issues of its repositories in one read: in `solo` mode, the issues
+   assigned to its GitHub login; in `team` mode, the issues in the shared
+   pool (ready and with no live claim). It SHALL take at most one per free
+   lane, work it, push the branch, and leave a pull request or a branch that
+   the scheduler lands.
+4. In `team` mode a worker SHALL claim an issue with a claim comment that
+   carries Avoozl's marker (its login, machine and task ID). After posting,
+   it SHALL read the issue's comments again; the claim with the earliest
+   creation time (then the lowest comment ID) SHALL win. A worker whose
+   claim did not win SHALL delete its comment and SHALL NOT start. This
+   SHALL be enforced in code, not in a prompt; it is the claim that
+   `src/app/tick.mjs` notes a second dispatcher would need.
+5. In `solo` mode the scheduler's assignment is the claim: one person with
+   one or more machines needs no claim comment, and a machine claim in the
+   marker names which of that person's machines works it.
+6. A claim SHALL end only when: the claiming worker releases it (landed,
+   blocked, or given up), with a release comment; or a person releases it
+   (person-only); or the claiming machine's chat vanished twice under
+   Requirement 88.4, after which that machine releases it and opens Needs
+   you. A claim SHALL NOT expire because the worker went quiet or a lease
+   ran out. WHEN a claim has had no heartbeat from its machine for
+   `workers.claimStaleAfter` (default 24 h) THEN it SHALL show in Needs you
+   with a person-only **Release claim**; nothing SHALL release it by itself.
+7. SSH push of an envelope (the runner mode of Requirement 84) SHALL stay
+   only for a machine with no GitHub access.
+8. Worker-machine setup SHALL be one command (`avoozl worker setup`), with a
+   preview, that writes the worker-mode config, checks the GitHub login and
+   the repositories it can push, and checks that Kiro Crew runs with the
+   Avoozl app enabled. Each worker machine SHALL still run Kiro Crew with the
+   app enabled.
+9. Host choice for the scheduler's own lanes SHALL be made in code by free
+   lanes and load, with no chat in the loop.
+
+### Requirement 91: Remove the Issue Radar path
+
+Added 2026-11-15. Design §4.26.
+
+**User story:** As the maintainer, I want the code for the path we left
+removed, so that the app has one way to deliver work.
+
+#### Acceptance criteria
+
+1. Avoozl SHALL delete the code that only serves Issue Radar (about 5,900
+   backend, 1,300 UI and 12,000 test lines), `verify-issue`, the provenance
+   marker, the `avoozl-crew` agent and the Issue Radar grant, and the remote
+   coder, the relay and the router chat with their agents.
+2. Avoozl SHALL keep and rename: the arming and merge code (it becomes PR
+   landing, Requirement 87.3), release ranking, and GitHub setup.
+3. Leaf modules MAY be deleted at any time. Edits to shared modules SHALL be
+   made last, after Phases 40–44 have landed.
+4. Every compatibility name that RC11.4 tests (the `plans_*` MCP
+   names, `AVOOZL_*`, `AICOMMANDER_*` and `NUPP_WORKSPACE*` variables, the
+   `aicommander` command and the `aicommander.*` settings) SHALL still
+   resolve after the deletion.
+5. A public Nupp setup SHALL land `direct` on the public `core-dev` branch
+   from the start, with `scripts/worktree` as the helper and
+   `scripts/test-changed` as the check. Its plans SHALL stay in a private
+   planning workspace. The private mirror, forwarding and the leak scan of
+   RC24–RC26 SHALL NOT be used for this setup; the pre-push content rule
+   (Requirement 87.9) SHALL be its one leak guard. The freeze on public
+   `core-dev` is lifted.
+
+### Requirement 92: Issues and Pull requests pages
+
+Added 2026-11-15 (owner add-on). Design §4.27. Issue Radar goes away
+(Requirement 91), so Avoozl shows the issues and pull requests of its
+repositories itself, before any Radar code is deleted.
+
+**User story:** As the owner, I want to browse and act on the issues and
+pull requests of every repository in my workspace inside Avoozl, so that
+nothing I used Issue Radar for is lost when it goes.
+
+#### Acceptance criteria
+
+1. The left pill nav SHALL have **Issues** and **Pull requests**. Each page
+   SHALL use three columns: nav, list, detail. At 390 px the list and the
+   detail SHALL each take the full width, with a back control.
+2. The list SHALL show one dense row per item: number, title, state chip,
+   labels, assignee or claimant, age, CI state (pull requests only), and the
+   linked task or spec. Filters SHALL sit on one line with a search box, and
+   the counts SHALL sit at the right of that line.
+3. The detail SHALL show, in a header row, the title, a meta line, the state
+   and the actions; the body rendered as Markdown; the comments and timeline;
+   and a right column with labels, assignee, linked spec or task, linked pull
+   requests or issues, checks and merge state.
+4. A pull request's detail SHALL add the list of checks, a summary of files
+   changed, and Avoozl's landing state: queued, verifying, landing, landed,
+   or conflict round N (Requirement 87).
+5. Actions SHALL be offered only where Avoozl owns them: release, hold,
+   re-queue, Stop the line, and open on GitHub. A person-only action SHALL
+   stay person-only, and SHALL be refused to an agent or MCP caller.
+6. A list load SHALL cost no GitHub call beyond the one read per repository
+   per check that the tick already makes (RC29) and its cache. The detail
+   SHALL be read lazily, once per item, and cached.
+7. The pages SHALL work for every repository in the workspace and every
+   issue and pull request in it, not only those Avoozl made, with an
+   **Avoozl tasks only** filter.
+8. The look and behavior SHALL follow Kiro Crew's Issue Radar app. Avoozl
+   SHALL rebuild them in its own code and SHALL NOT copy Issue Radar's
+   files.
