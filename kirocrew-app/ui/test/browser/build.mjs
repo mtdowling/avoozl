@@ -26,7 +26,7 @@ const realLucide = process.env.AVOOZL_LUCIDE ? path.resolve(process.env.AVOOZL_L
 // harness's; screenshots use it to look like the real page.
 // `scripts` maps file names to classic scripts that load before the page,
 // such as the Demo mode replies (demo-replies.mjs).
-export async function buildHarness({ hostCss, scripts = {} } = {}) {
+export async function buildHarness({ hostCss, scripts = {}, entry = path.join(here, 'harness.tsx') } = {}) {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'avoozl-harness-'))
   await build({
     configFile: false,
@@ -53,7 +53,7 @@ export async function buildHarness({ hostCss, scripts = {} } = {}) {
       outDir: out,
       emptyOutDir: true,
       minify: false,
-      lib: { entry: path.join(here, 'harness.tsx'), formats: ['iife'], name: 'AvoozlHarness', fileName: () => 'harness.js' },
+      lib: { entry, formats: ['iife'], name: 'AvoozlHarness', fileName: () => 'harness.js' },
     },
   })
   fs.copyFileSync(path.join(here, 'harness.css'), path.join(out, 'harness.css'))
