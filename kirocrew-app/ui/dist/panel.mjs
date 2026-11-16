@@ -929,15 +929,25 @@ function mt(e) {
 	}
 	return `Line stopped: ${e.check ? `\`${e.check}\` fails on ${e.branch}` : `a worker named ${e.culprit} as the cause`}${e.commit ? ` since ${e.commit.slice(0, 7)}` : ""}${e.culprit ? ` (task ${e.culprit})` : " (culprit unknown)"}.${e.fixTaskId ? ` Fix: ${e.fixTaskId}, ${e.fixState ?? "ready"}.` : ""}${e.runAnyway ? " Dispatch resumed by Run anyway." : ` ${e.paused ?? 0} task${e.paused === 1 ? "" : "s"} paused.`}`;
 }
-// kirocrew-app/ui/src/panel-api.ts
+// kirocrew-app/ui/src/executors/kirocrew.ts
 async function ht(e, t) {
+	if (!t) return null;
+	try {
+		let n = await e.get("/api/chat/slots"), r = (Array.isArray(n) ? n : []).find((e) => e.key === t);
+		return typeof r?.project == "string" && r.project ? r.project : null;
+	} catch {
+		return null;
+	}
+}
+// kirocrew-app/ui/src/panel-api.ts
+async function gt(e, t) {
 	return (await e.post(A, {
 		operation: "panel.view",
 		input: {},
 		workspaceId: t
 	})).result;
 }
-function gt(e, t) {
+function _t(e, t) {
 	let n = !1, r = !0, i = async () => {
 		if (r && !n) {
 			n = !0;
@@ -952,7 +962,7 @@ function gt(e, t) {
 		r = !1, c !== null && t.clearTimer(c), t.win.removeEventListener("focus", s), t.doc.removeEventListener("visibilitychange", s);
 	};
 }
-var _t = /* @__PURE__ */ new Set([
+var vt = /* @__PURE__ */ new Set([
 	"needs-human",
 	"github-conflict",
 	"tracker-conflict",
@@ -961,7 +971,7 @@ var _t = /* @__PURE__ */ new Set([
 	"branch-landing",
 	"content-match",
 	"content-unavailable"
-]), vt = {
+]), yt = {
 	"needs-human": "Needs you",
 	"github-conflict": "GitHub edit",
 	"tracker-conflict": "Tracker edit",
@@ -971,8 +981,8 @@ var _t = /* @__PURE__ */ new Set([
 	"content-match": "Content rule",
 	"content-unavailable": "Rule set unavailable"
 };
-function yt(e) {
-	if (!_t.has(e.kind) || e.kind === "needs-human" && e.reason === "hand-set-review" || e.kind === "ready-to-merge" && e.integrate) return null;
+function bt(e) {
+	if (!vt.has(e.kind) || e.kind === "needs-human" && e.reason === "hand-set-review" || e.kind === "ready-to-merge" && e.integrate) return null;
 	let t = [], n = K(e.link) ?? K(e.issue?.url);
 	if (e.kind === "github-conflict" && e.taskId && e.field) for (let n of e.choices ?? []) t.push({
 		kind: "resolve",
@@ -999,14 +1009,14 @@ function yt(e) {
 	}), {
 		key: `${e.kind}:${e.taskId ?? e.id ?? ""}:${e.field ?? ""}:${e.branch ?? ""}`,
 		kind: e.kind,
-		label: vt[e.kind] ?? e.kind,
+		label: yt[e.kind] ?? e.kind,
 		title: e.title,
 		detail: e.detail,
 		at: e.changedAt ?? null,
 		actions: t
 	};
 }
-function bt(e, t, n) {
+function xt(e, t, n) {
 	return {
 		key: `radar:${e.repository}#${e.number}`,
 		source: "radar",
@@ -1029,7 +1039,7 @@ function bt(e, t, n) {
 		updated: e.updated
 	};
 }
-function xt(e) {
+function St(e) {
 	let t = K(e.attachUrl) ?? null;
 	return {
 		key: `remote:${e.host}:${e.chatKey}`,
@@ -1053,12 +1063,12 @@ function xt(e) {
 		updated: e.updatedAt || null
 	};
 }
-function St(e) {
+function Ct(e) {
 	let t = [];
 	e.conflicts || t.push("waiting"), !e.crews && !e.remote && t.push("inFlight"), e.queue || t.push("queue"), e.flow || t.push("recent");
-	let n = (e.conflicts ?? []).map(yt).filter((e) => e !== null), r = /* @__PURE__ */ new Map();
+	let n = (e.conflicts ?? []).map(bt).filter((e) => e !== null), r = /* @__PURE__ */ new Map();
 	for (let t of e.crews?.groups ?? []) for (let e of t.rows) e.instanceId && r.set(e.instanceId, t.name);
-	let i = [...(e.crews?.rows ?? []).map((t) => bt(t, r, e.checks?.[`${t.repository}#${t.pr}`] ?? null)), ...(e.remote ?? []).map(xt)], a = null;
+	let i = [...(e.crews?.rows ?? []).map((t) => xt(t, r, e.checks?.[`${t.repository}#${t.pr}`] ?? null)), ...(e.remote ?? []).map(St)], a = null;
 	if (e.queue) {
 		let t = e.queue.repositories.flatMap((e) => e.rows.map((t) => ({
 			repo: e,
@@ -1092,7 +1102,7 @@ function St(e) {
 		unread: t
 	};
 }
-function Ct(e) {
+function wt(e) {
 	let t = e?.state ?? "none", n = e?.workspace ?? null, r = t === "none" || t === "idle" ? e?.others?.[0] : void 0;
 	return {
 		state: t,
@@ -1108,20 +1118,20 @@ function Ct(e) {
 		} : null
 	};
 }
-function wt(e, t) {
+function Tt(e, t) {
 	return t && e?.others?.find((e) => e.slot === t)?.root || null;
 }
-var Tt = (e, t) => {
+var Et = (e, t) => {
 	let n = (e) => e.replace(/\\/g, "/").replace(/\/+$/, "");
 	return n(e) === n(t);
 };
-function Et(e, t = Date.now()) {
+function Dt(e, t = Date.now()) {
 	let n = e ? Date.parse(e) : NaN;
 	if (!Number.isFinite(n)) return "";
 	let r = Math.max(0, Math.round((t - n) / 6e4));
 	return r < 1 ? "now" : r < 60 ? `${r}m` : r < 2880 ? `${Math.round(r / 60)}h` : `${Math.round(r / 60 / 24)}d`;
 }
-function Dt(e) {
+function Ot(e) {
 	return e ? e.state === "failing" ? {
 		text: `✗ ${e.failed.length}`,
 		tone: "danger",
@@ -1144,14 +1154,14 @@ function Dt(e) {
 		tip: "Avoozl could not read this pull request's checks."
 	};
 }
-function Ot(e, t) {
+function kt(e, t) {
 	let n = (e) => e.replace(/\\/g, "/").replace(/\/+$/, ""), r = n(e), i = n(t);
 	return !!i && (r === i || r.startsWith(`${i}/`));
 }
-function kt(e) {
+function At(e) {
 	let t = (t) => !!(t && e.workspaces.some((e) => e.id === t));
 	if (e.driverRoot) {
-		let t = e.workspaces.find((t) => Tt(t.root, e.driverRoot));
+		let t = e.workspaces.find((t) => Et(t.root, e.driverRoot));
 		if (t) return {
 			id: t.id,
 			why: "driver"
@@ -1159,7 +1169,7 @@ function kt(e) {
 	}
 	if (e.project) {
 		let t = null;
-		for (let n of e.workspaces) for (let r of [n.root, ...n.roots]) r && Ot(e.project, r) && (!t || r.length > t.length) && (t = {
+		for (let n of e.workspaces) for (let r of [n.root, ...n.roots]) r && kt(e.project, r) && (!t || r.length > t.length) && (t = {
 			id: n.id,
 			length: r.length
 		});
@@ -1178,15 +1188,6 @@ function kt(e) {
 		id: null,
 		why: "none"
 	};
-}
-async function At(e, t) {
-	if (!t) return null;
-	try {
-		let n = await e.get("/api/chat/slots"), r = (Array.isArray(n) ? n : []).find((e) => e.key === t);
-		return typeof r?.project == "string" && r.project ? r.project : null;
-	} catch {
-		return null;
-	}
 }
 // kirocrew-app/ui/src/PanelParts.tsx
 var jt = "\n[data-pp]{container-type:inline-size;font-size:12px;line-height:18px;min-width:0;max-width:100%;overflow-x:hidden;box-sizing:border-box;color:var(--text)}\n[data-pp] *{box-sizing:border-box}\n[data-pp-head]{display:flex;align-items:center;flex-wrap:nowrap;gap:6px;padding:6px 12px;border-bottom:1px solid var(--border);min-width:0}\n[data-pp-head-name]{flex:0 1 auto;display:inline-flex;align-items:baseline;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:var(--text-strong,var(--text))}\n[data-pp-head-brand]{display:inline-flex;align-items:baseline;gap:4px;flex:none}\n[data-pp-head-instance]{font-weight:400;color:var(--muted);flex:none}\n[data-pp-head-workspace]{font-weight:400;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n[data-pp-head-link]{padding:0;margin:0;background:none;border:0;font:inherit;color:inherit;cursor:pointer;text-decoration:none}\n[data-pp-head-link]:hover,[data-pp-head-link]:focus-visible{color:var(--accent);text-decoration:underline}\n[data-pp-head-tools]{flex:none;display:inline-flex;align-items:center;gap:2px}\n[data-pp-head-end]{flex:none;display:inline-flex;align-items:center;gap:4px;margin-left:auto}\n[data-pp-section]{border-bottom:1px solid var(--border)}\n[data-pp-section-head]{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:transparent;border:0;border-radius:0;text-align:left;cursor:pointer;color:var(--text);font:inherit;font-size:12px;font-weight:600;transition:background-color .12s}\n[data-pp-section-head]:hover{background:var(--bg-hover)}\n[data-pp-section-head] [data-pp-chevron]{flex:none;color:var(--muted)}\n[data-pp-section-title]{color:var(--text-strong,var(--text))}\n[data-pp-summary]{margin-left:auto;max-width:55%;font-size:11px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}\n[data-pp-list]{list-style:none;margin:0;padding:0 0 8px}\n[data-pp-row]{display:grid;grid-template-columns:14px minmax(0,1fr) auto;align-items:center;column-gap:8px;padding:4px 12px;transition:background-color .12s}\n[data-pp-row]:hover{background:var(--bg-hover)}\n[data-pp-row-icon]{display:inline-flex;color:var(--muted)}\n[data-pp-row-main]{display:flex;flex-direction:column;min-width:0}\n[data-pp-row-line]{display:flex;flex-wrap:nowrap;align-items:center;gap:0 6px;min-width:0;overflow:hidden}\n[data-pp-row-title]{display:block;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}\na[data-pp-row-title]{text-decoration:none}\na[data-pp-row-title]:hover{text-decoration:underline}\n[data-pp-row-line]>[data-tooltip-anchor]{flex:0 0 auto;max-width:100%}\n[data-pp-row-line]>[data-tooltip-anchor]:first-child{flex:0 1 auto;min-width:0}\n[data-pp-row-line]>[data-tooltip-anchor]:has([data-pp-age]){margin-left:auto}\n[data-pp-age]{flex:none;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}\n[data-pp-row-meta]{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}\n[data-pp-actions]{display:inline-flex;align-items:center;gap:4px;flex:none}\n[data-pp-chip]{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto;min-width:0;max-width:10rem;padding:2px 6px;border-radius:4px;font-size:10px;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);background:var(--bg-hover)}\n[data-pp-chip][data-tone=ok]{color:var(--ok);background:color-mix(in srgb,var(--ok) 15%,transparent)}\n[data-pp-chip][data-tone=warn]{color:var(--warning,#b7791f);background:color-mix(in srgb,var(--warning,#b7791f) 15%,transparent)}\n[data-pp-chip][data-tone=danger]{color:var(--danger);background:color-mix(in srgb,var(--danger) 15%,transparent)}\n[data-pp-chip][data-tone=info]{color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent)}\n[data-pp-act],[data-pp-icon]{min-height:22px;background:transparent;display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;font-size:11px;line-height:16px;text-decoration:none;white-space:nowrap;cursor:pointer;transition:background-color .12s,color .12s}\n[data-pp-act]:hover,[data-pp-icon]:hover{background:var(--bg-hover);color:var(--text)}\n[data-pp-act][data-pp-primary]{border-color:var(--accent);color:var(--accent)}\n[data-pp-act]:disabled,[data-pp-icon]:disabled{opacity:.6;cursor:default}\n[data-pp-icon][data-bare]{padding:2px 5px;border-color:transparent}\n[data-pp-cells]{padding:0 12px 8px}\n[data-pp-empty]{margin:0;padding:0 12px 12px;font-size:12px;color:var(--muted)}\n@media (max-width:640px){\n[data-pp-head-name]>[data-pp-head-brand]{display:none}\n[data-pp-head-workspace]>[data-pp-head-dot]{display:none}\n[data-pp-narrow-hide]{display:none}\n[data-pp-act][data-narrow-icon]{padding:2px 6px}\n}\n@container (max-width:520px){\n[data-pp-row-line]:has(>[data-tooltip-anchor]:nth-child(n+4)){flex-wrap:wrap}\n[data-pp-row-line]:has(>[data-tooltip-anchor]:nth-child(n+4))>[data-tooltip-anchor]:first-child{max-width:100%}\n}\n@container (max-width:520px){\n[data-pp-row][data-multi]{grid-template-columns:14px minmax(0,1fr)}\n[data-pp-row][data-multi]>[data-pp-actions]{grid-column:2}\n}\n";
@@ -2384,7 +2385,7 @@ function Pn(e) {
 			tone: "warn",
 			children: t.label
 		}),
-		age: t.at ? Et(t.at, e.now) : null,
+		age: t.at ? Dt(t.at, e.now) : null,
 		ageTip: t.at ? `Changed ${$(t.at, e.now)}` : void 0,
 		meta: t.detail,
 		multi: t.actions.length > 1,
@@ -2403,7 +2404,7 @@ function Pn(e) {
 }
 function Fn({ rows: e, now: t }) {
 	return /* @__PURE__ */ O(Y, { children: e.map((e) => {
-		let n = e.pr ? Dt(e.check) : null, r = [
+		let n = e.pr ? Ot(e.check) : null, r = [
 			e.instance ?? (e.source === "radar" ? "No Avoozl" : null),
 			e.crew ?? e.who,
 			e.source === "radar" ? e.ref : e.who,
@@ -2437,7 +2438,7 @@ function Fn({ rows: e, now: t }) {
 					]
 				})
 			] }),
-			age: Et(e.claimedAt ?? e.updated, t),
+			age: Dt(e.claimedAt ?? e.updated, t),
 			ageTip: [e.claimedAt && `Claimed ${$(e.claimedAt, t)}`, e.updated && `updated ${$(e.updated, t)}`].filter(Boolean).join(", ") || void 0,
 			meta: [...new Set(r)].join(" · "),
 			actions: e.attach ? /* @__PURE__ */ O(Q, {
@@ -2484,8 +2485,8 @@ function Ln() {
 		if (!t) return;
 		let r = Nn;
 		try {
-			r = await ht(e, t), be.current ??= (async () => {
-				let t = await At(e, pe), r = /* @__PURE__ */ new Map();
+			r = await gt(e, t), be.current ??= (async () => {
+				let t = await ht(e, pe), r = /* @__PURE__ */ new Map();
 				t && await Promise.all(n.items.map((t) => se(e).repositories(t.id).then((e) => void r.set(t.id, e.map((e) => e.localCheckout).filter((e) => !!e))).catch(() => void 0))), M.current = {
 					project: t,
 					roots: r
@@ -2494,8 +2495,8 @@ function Ln() {
 			let i = M.current ?? {
 				project: null,
 				roots: /* @__PURE__ */ new Map()
-			}, a = kt({
-				driverRoot: wt(r.driver, pe),
+			}, a = At({
+				driverRoot: Tt(r.driver, pe),
 				project: i.project,
 				workspaces: n.items.map((e) => ({
 					id: e.id,
@@ -2505,7 +2506,7 @@ function Ln() {
 				last: ce(kn()).workspaceId,
 				fallback: n.defaultWorkspace
 			});
-			Ce(a.why), a.id && a.id !== t && (t = a.id, _e.current = t, l(t), r = await ht(e, t));
+			Ce(a.why), a.id && a.id !== t && (t = a.id, _e.current = t, l(t), r = await gt(e, t));
 		} catch {}
 		try {
 			let t = await e.get(rn);
@@ -2513,14 +2514,14 @@ function Ln() {
 		} catch {}
 		x(null), _(r), le(Date.now());
 	}, [e, pe]);
-	xe.current = N, r(() => gt(N, {
+	xe.current = N, r(() => _t(N, {
 		intervalMs: 0,
 		doc: document,
 		win: window,
 		setTimer: (e, t) => setInterval(e, t),
 		clearTimer: (e) => clearInterval(e)
 	}), [N]);
-	let P = o(() => St(g ?? {}), [g]), we = g?.driver ?? null, Te = g?.specs ?? [], F = tt(pe, {
+	let P = o(() => Ct(g ?? {}), [g]), we = g?.driver ?? null, Te = g?.specs ?? [], F = tt(pe, {
 		specs: p,
 		driver: we?.slot ?? null
 	}), I = F.kind === "spec-builder" ? Te.find((e) => e.name === F.spec) : void 0, Ee = s(P);
@@ -2615,12 +2616,12 @@ function Ln() {
 		id: "recent",
 		title: "Recent merges",
 		count: P.recent.length,
-		summary: P.recent[0] ? `last ${Et(P.recent[0].at, A)}` : void 0,
+		summary: P.recent[0] ? `last ${Dt(P.recent[0].at, A)}` : void 0,
 		children: Ne("recent", "Nothing finished lately.", P.recent.length, () => /* @__PURE__ */ O(Y, { children: P.recent.map((e) => /* @__PURE__ */ O(Z, {
 			"data-recent-row": !0,
 			icon: m,
 			title: e.title,
-			age: Et(e.at, A),
+			age: Dt(e.at, A),
 			ageTip: $(e.at, A),
 			meta: [e.repository, e.taskId].filter(Boolean).join(" · ")
 		}, e.taskId)) }))
@@ -2645,7 +2646,7 @@ function Ln() {
 				workspaceId: a
 			}) })
 		})
-	}), V = Ct(g && !g.driver ? {
+	}), V = wt(g && !g.driver ? {
 		state: "unknown",
 		slot: null,
 		href: null,
@@ -2855,7 +2856,7 @@ function Ln() {
 						icon: W.pr ? w : ne,
 						title: `${W.repository}#${W.number} ${W.title}: ${W.phase ?? "no phase"}${W.pr ? `, PR #${W.pr}` : ""}${W.stale ? " (stale)" : ""}`,
 						href: K(W.url),
-						age: W.updated ? Et(W.updated, A) : null,
+						age: W.updated ? Dt(W.updated, A) : null,
 						ageTip: W.updated ? `Updated ${$(W.updated, A)}` : void 0,
 						meta: W.updated ? `Updated ${$(W.updated, A)}` : null,
 						actions: /* @__PURE__ */ k(D, { children: [W.prUrl && /* @__PURE__ */ O(Q, {
