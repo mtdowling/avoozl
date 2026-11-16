@@ -1816,12 +1816,12 @@ dependency on Phases 40–53 and may ship before them.
   - Docs-only waste, CI wait share and repeat run in `triggers`, keyed once per repository, kind and window, outside the spike gap; a retrospective with no finished tasks. Tests: 10 spec-only pull requests with 25 CI minutes fire docs-only waste once; a varied but steady repository fires nothing; the Requirement 47.1 tests pass unchanged.
 - [x] 54.4 CI facts in the brief, CI plan proposals and PDCA by class, after 54.3 [R100.4, R100.5] (§4.30)
   - Brief per repository: minutes by class, task and other, wait share, repeat runs, workflow files; `other` pull requests as number, author and classes only. `PLAN_FIELDS` adds `repository` and `workflow`; `METRICS` adds `CI minutes per pull request`. Tests: an unseen workflow is dropped; an approved proposal opens a draft; PDCA compares closed pull requests of one class.
-- [ ] 54.5 Flow CI card and Settings › Flow CI group, after 54.3 [R100.7, R100.8] (§4.30)
+- [x] 54.5 Flow CI card and Settings › Flow CI group, after 54.3 [R100.7, R100.8] (§4.30)
   - The CI card (minutes by class, wait share, Repeat runs) and the Settings fields with class globs read-only. Ships before and after screenshots (phone and desktop, light and dark) and waits for the owner's approval before merge. Tests: the view data for the card, and No pull requests read without GitHub.
 
 - [ ] avoozl-p64 P64 Proof: the retro catches steady CI waste on a real repository [R100] (§4.30)
-  - Setup: an isolated workspace naming one scratch GitHub repository whose test workflow runs on both `push` and `pull_request` and runs the full matrix for every change; no Avoozl tasks.
-  - Action: (1) open and merge 4 spec-only pull requests by hand; (2) let the tick check; (3) approve the CI plan proposal the retrospective writes and land the task it drafts; (4) open and merge 4 more spec-only pull requests.
+  - Setup: an isolated workspace naming one scratch GitHub repository whose test workflow runs on both `push` and `pull_request` and runs the full matrix for every change; no Avoozl tasks. Set `flow.retro.everyTasks` to 4 and `flow.ci.docsOnlyMinutes` to 1.
+  - Action: (1) open 4 spec-only pull requests by hand and let CI complete; (2) let the tick observe them while still open, then merge them and let it observe their closures; (3) approve the CI plan proposal the retrospective writes and land the task it drafts; (4) open 4 more spec-only pull requests, let CI complete and the tick observe them while still open, then merge them and let it observe their closures.
   - Expected: (2) one retrospective with docs-only waste and repeat run triggers, the pull requests labeled `other`, and a `plan` proposal naming the workflow file; the GitHub rate counters show no call beyond the open pull request read and one runs read per check; (4) PDCA shows CI minutes per pull request for `spec` down at least 10%, and no new repeat run.
   - Failure means: steady waste is still hidden, other pull requests are missed, or the reads cost more than the stated budget.
   - Next decision: read more than one page of runs, or read `closedAt` for exact lead times.

@@ -93,7 +93,7 @@ test('Settings > Flow puts each sub-section in its own titled box', () => {
   const flow = source('FlowSettings.tsx')
   assert.match(flow, /function Box\(\{ children \}[\s\S]*?<Card className="flex flex-col gap-4" data-flow-box>/)
   const titles = [...flow.matchAll(/<Box>\s*<Section title="([^"]+)" blurb="[^"]+"/g)].map((m) => m[1])
-  assert.deepEqual(titles, ['Timing', 'Stop the line', 'Local checks first', 'Batching', 'Retro'])
+  assert.deepEqual(titles, ['Timing', 'Stop the line', 'Local checks first', 'Batching', 'CI', 'Retro'])
   assert.equal(flow.match(/<Box>/g).length, titles.length)
   // Retro: when it runs, then the built-in prompt and your instructions.
   // Its model is under Settings › Models.

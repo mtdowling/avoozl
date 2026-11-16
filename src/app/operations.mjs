@@ -1,3 +1,5 @@
+import { ciSettingsView, ciFlowView } from "./flow-ci-view.mjs";
+import { readEffectiveCIConfig } from "./flow-ci.mjs";
 import { currentPlanReview } from "./plan-review-tools.mjs";
 import { chatModel, validatePlanReview } from "./chat-models.mjs";
 import { completePlanReviewWriter } from "./plan-review-authorship.mjs";
@@ -3593,10 +3595,22 @@ export class Operations {
     }
     if (name === "flow.view") {
       const data = this.read(),
+        config = readEffectiveCIConfig(store, {
+          workspaceRoot: this.workspaceRoot,
+          persist: false,
+        }),
         view = flowView(store, data, input),
         filtered = input.repository || input.epic || input.plan || input.phase;
       return {
         ...view,
+        ci: ciFlowView(
+          store,
+          config,
+          this.workspaceRoot
+            ? readGitHubPolicyOrNull(this.workspaceRoot)
+            : null,
+          input,
+        ),
         line: lineBanner(store, data),
         // Tokens and credits per task, plan, stage and model (§4.11).
         usage: usageView(store, data, {
@@ -3620,6 +3634,12 @@ export class Operations {
     if (name === "flow.settings.get")
       return {
         ...this.settingsFile().readFlowSettings(),
+        ...ciSettingsView(
+          readEffectiveCIConfig(store, {
+            workspaceRoot: this.workspaceRoot,
+            persist: false,
+          }),
+        ),
         // The built-in retro prompt, shown read-only above the owner's own.
         retroPrompt: retroPrompt(),
         instructions:
@@ -3710,9 +3730,15 @@ export class Operations {
       return { queued: true };
     }
     if (name === "flow.retro.decide") {
-      const settings = this.settingsFile();
+      const settings = this.settingsFile(),
+        config = readFlowConfig(this.workspaceRoot);
       return decideProposal(store, input, {
-        config: readFlowConfig(this.workspaceRoot),
+        config,
+        ciConfig: readEffectiveCIConfig(store, {
+          workspaceRoot: this.workspaceRoot,
+          fallback: config,
+          persist: false,
+        }),
         by: context.local ? "cli" : "dashboard",
         // A repository skill change is one leaf through Deliver this
         // (R68.10, R50.15).
