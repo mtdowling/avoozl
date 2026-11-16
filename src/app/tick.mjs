@@ -1,3 +1,4 @@
+import { withGitHubReadSnapshots } from "./github-read-snapshot.mjs";
 import {
   enqueueSessionRequests,
   pendingSessionRequests,
@@ -54,7 +55,7 @@ import {
 } from "./budget.mjs";
 import { blockedNaming, judgeBaseFailures, watchLine } from "./flow-line.mjs";
 import { retroStep } from "./flow-retro.mjs";
-import { ciRepositories, ciStep } from "./flow-ci.mjs";
+import { ciRepositories, ciStep, readEffectiveCIConfig } from "./flow-ci.mjs";
 import { queueCheckRuns } from "./check-runs.mjs";
 import {
   claimedTaskIds,
@@ -791,6 +792,11 @@ async function runTick(
   try {
     const result = await withWorkLock(store, WORKSPACE_LOCK, async () => {
       const { policy, notify } = await loadPolicy(workspaceRoot, memory);
+      const ciConfig = readEffectiveCIConfig(store, {
+        workspaceRoot,
+        fallback: memory.value || {},
+        persist: cron === true,
+      });
       // A content rule set that is available again settles its decision.
       settleUnavailable(store);
       // Who drives each spec (§6.10): read before anything plans or writes,
@@ -1194,11 +1200,11 @@ async function runTick(
         }
       // CI per pull request for the retro (§4.30): after feedback, so the
       // open pull request read is the one this tick already made.
-      if (script && github)
+      if (script)
         try {
           const step = await ciStep(store, github, {
             policy: readGitHubPolicyOrNull(workspaceRoot),
-            config: memory.value || {},
+            config: ciConfig,
           });
           for (const { repository, error } of step.errors)
             planned.notify.push({
@@ -1400,6 +1406,7 @@ async function runTick(
           script && !unobserved.length
             ? retroStep(store, memory.value || {}, {
                 repository: home?.id ?? null,
+                ciConfig,
                 ciRepositories: ciRepositories(
                   readGitHubPolicyOrNull(workspaceRoot),
                 ),
@@ -1634,4 +1641,6 @@ async function runTick(
 }
 
 export const tick = (store, options) =>
-  withSource("tick", () => runTick(store, options));
+  withSource("tick", () =>
+    withGitHubReadSnapshots(() => runTick(store, options)),
+  );

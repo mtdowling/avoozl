@@ -298,7 +298,12 @@ import {
   retroInstructions,
   setRetroInstructions,
 } from "./flow-retro.mjs";
-import { ciRepositories, ciView, classGlobText } from "./flow-ci.mjs";
+import {
+  ciRepositories,
+  ciView,
+  classGlobText,
+  readEffectiveCIConfig,
+} from "./flow-ci.mjs";
 import {
   lineBanner,
   pullCord,
@@ -3608,7 +3613,7 @@ export class Operations {
         // CI by file class over every pull request (§4.30, R100.7).
         ci: ciView(
           store,
-          readFlowConfig(this.workspaceRoot),
+          readEffectiveCIConfig(store, { workspaceRoot: this.workspaceRoot }),
           ciRepositories(readGitHubPolicyOrNull(this.workspaceRoot)),
         ),
       };
