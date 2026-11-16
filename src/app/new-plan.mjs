@@ -407,7 +407,8 @@ export function newPlanStarts(store, { model = null, executor = "kirocrew" }) {
       brief: entry.brief,
       model,
       permissionClass: "write",
-      title: `avoozl:${newPlanTask(entry.name)} planner ${entry.name}`,
+      // Kiro Crew keys a chat by its title, so a second attempt needs its own.
+      title: `avoozl:${newPlanTask(entry.name)} planner ${entry.name}${entry.attempt > 1 ? ` attempt ${entry.attempt}` : ""}`,
       attempt: entry.attempt,
       context: { newPlan: entry.name },
     }));
