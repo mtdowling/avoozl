@@ -415,3 +415,56 @@ test("a migration that would change readiness, or stops part way, stays held", a
   assert.equal(passed.state, "verified");
   assert.equal(passed.failure, undefined);
 });
+
+test("ticks stop from the hold until the verifying tick, which runs once", async (t) => {
+  const { store, github, tickWith } = workspace(t);
+  holdRetirement(store);
+  assert.deepEqual(await tickWith(github), { skipped: "retirement" });
+  applyRetirement(store);
+  assert.deepEqual(await tickWith(github), { skipped: "retirement" });
+  let ran = null;
+  await verifyRetirement(store, {
+    github,
+    runTick: async (client) => {
+      ran = await tickWith(client);
+    },
+  });
+  assert.equal(ran?.skipped, undefined);
+  assert.equal(retirementOf(store).state, "verified");
+  assert.equal((await tickWith(github)).skipped, undefined);
+  // A tick that throws during verify leaves the workspace held.
+  const { store: other, github: client, tickWith: tick } = workspace(t);
+  holdRetirement(other);
+  applyRetirement(other);
+  await assert.rejects(
+    verifyRetirement(other, {
+      github: client,
+      runTick: () => Promise.reject(Error("crashed")),
+    }),
+    /crashed/,
+  );
+  assert.equal(retirementOf(other).state, "retired");
+  assert.deepEqual(await tick(client), { skipped: "retirement" });
+});
+
+test("the CLI maps retire-issues steps and refuses them in an agent session", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const { fileURLToPath } = await import("node:url");
+  const { initializeWorkspace } = await import("../workspace.mjs");
+  const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url)),
+    root = temporaryDirectory("avoozl-retire-cli-");
+  initializeWorkspace(root, { name: "t" });
+  const run = (args) =>
+    spawnSync(process.execPath, [cli, ...args, "--workspace", root], {
+      encoding: "utf8",
+      env: { ...process.env, KIROCREW_SPAWNED: "", KIRO_SESSION_ID: "s1" },
+    });
+  const bad = run(["github", "retire-issues", "nope"]);
+  assert.notEqual(bad.status, 0);
+  assert.match(bad.stderr, /preview, hold, apply, verify, or close/);
+  for (const step of ["preview", "hold", "apply", "verify", "close"]) {
+    const refused = run(["github", "retire-issues", step]);
+    assert.notEqual(refused.status, 0, step);
+    assert.match(refused.stderr, /agent session/, step);
+  }
+});

@@ -39,6 +39,13 @@ export const taskIssuesRetired = (store) => Boolean(retirementOf(store)?.state);
 export const retirementHoldsRelease = (store) =>
   ["held", "retired"].includes(retirementOf(store)?.state);
 
+// Set only while verifyRetirement runs its one tick in this process.
+let verifying = false;
+
+// Ticks stop from the hold until the verifying tick passed; that one tick
+// runs. A crash mid-verify leaves the workspace held.
+export const ticksHeld = (store) => !verifying && retirementHoldsRelease(store);
+
 // A row whose GitHub link is a projection of the spec, not an input issue.
 const projected = (task) =>
   Boolean(
@@ -260,7 +267,14 @@ export async function verifyRetirement(store, { github, runTick, at } = {}) {
   const recorder = github
     ? recordingClient(github, current.bindings || [])
     : { client: null, touched: [] };
-  await runTick(recorder.client);
+  // The one tick a held workspace runs (ticksHeld lets it through);
+  // release stays held during it.
+  verifying = true;
+  try {
+    await runTick(recorder.client);
+  } finally {
+    verifying = false;
+  }
   const data = store.read(),
     ready = readySet(data),
     statuses = statusesOf(data),
