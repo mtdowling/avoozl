@@ -281,3 +281,82 @@ test("a catalog workspace with a read-only database is read without writing", as
   assert.ok(Array.isArray(state.body.result.tasks));
   assert.equal(hash(), before);
 });
+
+test("Remove takes a workspace off the list and keeps its folder and database; the default moves to the next enabled one", async (t) => {
+  const { root, call } = await backend(t);
+  const roots = {};
+  for (const id of ["first", "second", "third"]) {
+    roots[id] = path.join(root, id);
+    assert.equal(
+      (
+        await call({
+          operation: "workspaces.init",
+          input: { id, root: roots[id] },
+        })
+      ).status,
+      200,
+    );
+  }
+  // Stop turns one off; it stays listed.
+  const stopped = await call({
+    operation: "workspaces.stop",
+    input: { id: "second" },
+  });
+  assert.equal(stopped.status, 200, JSON.stringify(stopped.body));
+  assert.equal(stopped.body.result.enabled, false);
+  let listed = (await call({ operation: "workspaces.list" })).body.result;
+  assert.equal(listed.defaultWorkspace, "first");
+  // Removing the default picks the next enabled one, skipping the stopped one.
+  const removed = await call({
+    operation: "workspaces.remove",
+    input: { id: "first" },
+  });
+  assert.equal(removed.status, 200, JSON.stringify(removed.body));
+  assert.deepEqual(
+    {
+      id: removed.body.result.id,
+      removed: removed.body.result.removed,
+      databasePreserved: removed.body.result.databasePreserved,
+    },
+    { id: "first", removed: true, databasePreserved: true },
+  );
+  listed = (await call({ operation: "workspaces.list" })).body.result;
+  assert.deepEqual(
+    listed.items.map((item) => item.id),
+    ["second", "third"],
+  );
+  assert.equal(listed.defaultWorkspace, "third");
+  // Nothing on disk was touched.
+  assert.ok(fs.existsSync(roots.first));
+  assert.ok(fs.existsSync(workspaceConfig({ workspace: roots.first }).dbPath));
+  // An unknown workspace is a 404.
+  assert.equal(
+    (await call({ operation: "workspaces.remove", input: { id: "first" } }))
+      .status,
+    404,
+  );
+});
+
+test("only a person removes or stops a workspace", async (t) => {
+  const { root, call } = await backend(t);
+  const kept = path.join(root, "kept");
+  await call({
+    operation: "workspaces.init",
+    input: { id: "kept", root: kept },
+  });
+  for (const kind of ["app-token", "agent-tool"])
+    for (const operation of ["workspaces.remove", "workspaces.stop"])
+      assert.equal(
+        (await call({ operation, input: { id: "kept" } }, kind)).status,
+        403,
+        `${kind} ${operation}`,
+      );
+  const listed = (await call({ operation: "workspaces.list" })).body.result;
+  assert.deepEqual(
+    listed.items.map((item) => [item.id, item.enabled]),
+    [["kept", true]],
+  );
+  // MCP has no route to either: the MCP server never names them.
+  const mcp = fs.readFileSync(new URL("../mcp.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(mcp, /workspaces\.(remove|stop)/);
+});

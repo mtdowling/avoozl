@@ -335,6 +335,11 @@ const MACHINE_OPERATIONS = new Map([
   ["workspaces.list", "observe"],
   ["workspaces.add", "write"],
   ["workspaces.init", "write"],
+  // Off Avoozl's list (the CLI's `workspace remove`): its folder, database and
+  // repositories stay. Stop turns it off first. Person-only: an app token or
+  // agent tool is refused (principalAllows), and MCP has no route to either.
+  ["workspaces.remove", "write"],
+  ["workspaces.stop", "write"],
   // Demo mode (§6.11): install the sample once and open it, or close it.
   ["demo.start", "write"],
   ["demo.exit", "write"],
@@ -374,7 +379,7 @@ function sameDirectory(a, b) {
   }
 }
 
-// Workspace list, add, and init over the machine catalog. Registry errors are
+// Workspace list, add, init, stop and remove over the machine catalog. Registry errors are
 // path and identity validation for the owner's own input, so they return 400.
 function machineOperation(registry, config, operation, input) {
   try {
@@ -387,6 +392,14 @@ function machineOperation(registry, config, operation, input) {
           served: sameDirectory(workspace.root, config.workspaceRoot),
         })),
       };
+    if (operation === "workspaces.remove" || operation === "workspaces.stop") {
+      const id = String(input.id || "").trim();
+      if (!registry.config.workspaces[id])
+        throw badRequest(`Workspace ${id || "(none)"} is not registered.`, 404);
+      return operation === "workspaces.remove"
+        ? registry.remove(id)
+        : registry.setEnabled(id, false);
+    }
     const id = String(input.id || "").trim(),
       root = String(input.root || "").trim(),
       name = String(input.name || "").trim() || undefined;
