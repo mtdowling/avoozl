@@ -347,7 +347,12 @@ import {
   draftGitHubChildren,
 } from "./github-breakdown.mjs";
 import { previewProjection } from "./github-preview.mjs";
-import { clampLimits, paceNeedsYou, runView } from "./github-pacer.mjs";
+import {
+  clampLimits,
+  paceNeedsYou,
+  refuseOtherRun,
+  runView,
+} from "./github-pacer.mjs";
 import { planProjectionBatches } from "./radar-coder-batch.mjs";
 import {
   applySpecChange,
@@ -6138,13 +6143,15 @@ export class Operations {
             : null;
       if (checked) requirePreflight(checked);
     }
-    if (name === "github.project")
+    if (name === "github.project") {
+      if (!input.dryRun) refuseOtherRun(store, input.planId);
       return this.withProjectSync(
         await projectPlanIssues(store, this.github, {
           ...input,
           identity: planningIdentity(this.workspaceRoot),
         }),
       );
+    }
     // The issues approving a draft spec plan would make, without approving
     // it: approval runs on a scratch copy of the store that is thrown away,
     // then the projection preview reads that copy. Nothing is written here
