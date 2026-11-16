@@ -483,7 +483,9 @@ import {
 } from "./workspace-repository.mjs";
 import {
   applyReviewSuggestion,
+  bindSpecReviewRound,
   createReviewThreads,
+  createSpecReviewFindings,
   disposeReview,
   listReviewThreads,
   replyToReview,
@@ -2929,7 +2931,17 @@ export class Operations {
         );
     }
     if (name === "session.bind")
-      return stampPrompts(store, bindSession(store, input));
+      return store.transaction(() => {
+        const result = bindSession(store, input);
+        if (result.changed && result.binding.role === "plan-review") {
+          bindSpecReviewRound(store, {
+            roundId: result.binding.taskId,
+            slot: result.binding.slot,
+          });
+          result.binding = store.get("session_bindings", result.binding.slot);
+        }
+        return stampPrompts(store, result);
+      });
     if (name === "session.rediscover") return rediscoverSessions(store, input);
     if (name === "session.request")
       return requestSession(store, input, workspaceRepositories(store));
@@ -5668,6 +5680,11 @@ export class Operations {
     if (name === "plan.extraction.dispose") return disposeFact(store, input);
     if (name === "plan.review.list") return listReviewThreads(store, input);
     if (name === "plan.review.submit") {
+      if (store.get("plans", input.planId)?.spec)
+        return createSpecReviewFindings(store, input, {
+          caller: context.caller,
+          mcp: context.mcp,
+        });
       const run = input.runId ? store.get("runs", input.runId) : null;
       if (
         run &&
