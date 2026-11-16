@@ -392,6 +392,26 @@ function baselineAcceptance(item, hash, { at, approver }) {
 const plansById = (store) =>
   new Map(store.list("plans").map((plan) => [plan.id, plan]));
 
+// How a spec revision was approved (§4.32.6): the merged approval pull
+// request's evidence, or an explicit local approval. Written after the
+// merge into the receipt, never into the approval commit.
+function approvalRecord(store, planId, hash, approver) {
+  const state = store.getMeta(`spec-approval:${planId}:${hash}`);
+  if (state?.state === "merged")
+    return {
+      kind: "pull-request",
+      repository: state.repository ?? null,
+      number: state.number ?? null,
+      requestedBy: state.requestedBy ?? null,
+      reviewers: state.reviewers ?? [],
+      mergedBy: state.mergedBy ?? null,
+      commit: state.commit ?? null,
+      mergedAt: state.mergedAt ?? null,
+      verified: state.verified === true,
+    };
+  return { kind: "local", approvedBy: approver || null };
+}
+
 // An epic folder's approval stores its member list and prose. It never
 // approves a member plan or a task (Requirement 59.4).
 function approveEpic(
@@ -417,6 +437,7 @@ function approveEpic(
       taskIds: [],
       spec: plan.spec,
       files: plan.files,
+      approval: approvalRecord(store, plan.id, plan.hash, approver),
       epic: { members: listed },
     };
   store.put("approvals", receipt);
@@ -1002,7 +1023,13 @@ export function approvePlan(
       at: now,
       mapping,
       taskIds: Object.values(mapping),
-      ...(spec ? { spec, files: plan.files } : {}),
+      ...(spec
+        ? {
+            spec,
+            files: plan.files,
+            approval: approvalRecord(store, id, plan.hash, approver),
+          }
+        : {}),
       ...(extracted
         ? {
             extractionId: extraction.id,
