@@ -5370,7 +5370,8 @@ GitHub issue per task or exposing private planning information.
     held and reconcile git/GitHub facts. Comments SHALL NOT be an immutable
     audit log or compare-and-swap lock.
 11. An explicit visibility-aware schema SHALL allow only protocol/event kind,
-    opaque identifiers, generations, previous-record links, revision/definition
+    opaque identifiers, the acting machine's public alias (criterion 24),
+    generations, previous-record links, revision/definition
     digests, authorized public refs, outcome/control flags and minimal check
     references on public surfaces. It SHALL reject private spec/task/repository
     names or URLs, absolute paths, host/workspace/database identifiers, command
@@ -5441,6 +5442,27 @@ GitHub issue per task or exposing private planning information.
     recovery. Tests or stand-ins SHALL NOT tick live proofs. Real workspace,
     second-machine, screenshot, settings and private pilot approvals SHALL
     remain owner actions; implementing this plan SHALL NOT perform them.
+23. No public Avoozl write on GitHub SHALL expose internal information. This
+    covers journal records, spec and epic issue bodies, status and intake
+    comments, pull request bodies and check summaries. Internal information
+    is host, server and machine names, usernames, local and home paths,
+    internal URLs and hostnames, IP addresses, crew, instance and session
+    IDs, gateway ports and session keys.
+24. A record that says which machine or driver acted SHALL use that
+    machine's public alias. The owner picks it per machine (for example
+    "Draco"); it is stored in machine config, and only the private handoff
+    maps it to the machine. The schema SHALL have an alias field and no
+    hostname field. An unset alias SHALL default to a neutral generated
+    name stored on first use, never derived from the hostname or username.
+    Settings SHALL refuse an alias that contains this machine's hostname or
+    username.
+25. The privacy scan (56.11) SHALL refuse, before the first write: hostname
+    and IP literals; internal domains (`*.corp`, `*.internal`, `*.local`,
+    `*.lan`, and a private, machine-local list of internal domains the
+    owner keeps); home paths (`/Users/<name>`, `/home/<name>`,
+    `C:\Users\<name>`, `~/`); and this machine's own hostname and username.
+    Tests SHALL insert a made-up hostname and username into every public
+    field and expect refusal with nothing written.
 
 ### Requirement 103: Issue Radar stays off Avoozl's issues
 
@@ -5493,11 +5515,10 @@ skip is a rule in the crew's prompt, not code.
    confirms, through the write pacer, and idempotently on retry. An issue a
    crew already claimed SHALL be left alone and shown once in Needs you.
    Avoozl SHALL NOT remove a crew's claim or needs-human label.
-6. Export issues (56.9) SHALL create task issues without `crew:avoozl` by
-   default, because export hands the work away from Avoozl and a crew or a
-   person may take it. This is the owner's choice of 2026-11-16. Flipping
-   it means adding the label to the same create call and changing this
-   criterion, nothing else.
+6. Export issues (56.9) SHALL NOT set `crew:avoozl` on any issue they
+   create (owner decision, 2026-11-16). Export hands the work away from
+   Avoozl, so Issue Radar and people may take those issues. A test SHALL
+   check that no export create request carries `crew:avoozl`.
 7. Radar SHALL keep maintenance and triage of issues Avoozl did not create.
    Send to Issue Radar (Requirement 52) SHALL stay for those issues and
    SHALL refuse an issue that carries `crew:avoozl`.
