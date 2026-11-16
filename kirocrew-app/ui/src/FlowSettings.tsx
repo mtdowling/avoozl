@@ -56,6 +56,11 @@ export const FLOW_SCOPE_CARDS = [
 ] as const
 
 export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
+  return <WorkspaceFlowSettings key={workspaceId} workspaceId={workspaceId} />
+}
+
+// A workspace switch discards its form and all pending reads together.
+function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()
   const client = useMemo(() => flowClient(api), [api])
   const load = useCallback((id: string) => client.settings(id), [client])
@@ -108,6 +113,7 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
   if (!value) return <p className="text-sm text-muted">Loading…</p>
   const scope = form.scope || FLOW_DEFAULTS.scope
   const local = form.localChecksFirst ? form.localChecksFirst === 'on' : FLOW_DEFAULTS.localChecksFirst
+  const ciDefaults = value.ciEffective ?? FLOW_DEFAULTS
   return (
     <div className="flex flex-col gap-3" data-flow-settings>
       <Box>
@@ -148,6 +154,33 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
                 <option value="files">Same files</option>
               </select>
             </Labeled>
+          </div>
+        </Section>
+      </Box>
+      <Box>
+        <Section title="CI" blurb="Review steady CI costs across every pull request. These limits trigger a retrospective proposal; you decide what changes.">
+          <div data-ci-settings className="flex flex-col gap-4">
+            <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 13rem), 1fr))' }}>
+              <Labeled id="avoozl-flow-ci-window" label="Window (days)" raw="flow.ci.windowDays" note="Whole number 1–90.">
+                <Input id="avoozl-flow-ci-window" inputMode="numeric" value={form.windowDays} placeholder={String(ciDefaults.windowDays)} onChange={(event) => set({ windowDays: event.target.value })} />
+              </Labeled>
+              <Labeled id="avoozl-flow-ci-docs" label="Docs-only CI limit (minutes)" raw="flow.ci.docsOnlyMinutes" note="Whole number 1–100,000. Includes spec-only changes.">
+                <Input id="avoozl-flow-ci-docs" inputMode="numeric" value={form.docsOnlyMinutes} placeholder={String(ciDefaults.docsOnlyMinutes)} onChange={(event) => set({ docsOnlyMinutes: event.target.value })} />
+              </Labeled>
+              <Labeled id="avoozl-flow-ci-wait" label="CI wait share limit" raw="flow.ci.waitShare" note="0.05–1 of lead time. 0.4 means 40%.">
+                <Input id="avoozl-flow-ci-wait" inputMode="decimal" value={form.waitShare} placeholder={String(ciDefaults.waitShare)} onChange={(event) => set({ waitShare: event.target.value })} />
+              </Labeled>
+              <Labeled id="avoozl-flow-ci-min" label="Closed pull requests before wait check" raw="flow.ci.minPullRequests" note="Whole number 1–1,000.">
+                <Input id="avoozl-flow-ci-min" inputMode="numeric" value={form.minPullRequests} placeholder={String(ciDefaults.minPullRequests)} onChange={(event) => set({ minPullRequests: event.target.value })} />
+              </Labeled>
+            </div>
+            <div className="flex flex-col gap-2" data-ci-globs>
+              <h4 className="m-0 text-sm font-semibold">File classes (read-only)</h4>
+              <p className="m-0 text-xs text-muted">First matching class wins in the order below. A repository can override these lists in its configuration.</p>
+              {Object.entries(value.ciClassGlobs ?? {}).map(([name, globs]) => <div key={name} className="flex min-w-0 flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}><span className="text-sm font-medium">{name}</span><code className="text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{globs.join(', ') || 'No matching paths'}</code></div>)}
+              <div className="flex flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}><span className="text-sm font-medium">code</span><span className="text-xs text-muted">Anything that does not match a class above.</span></div>
+              <Raw name="flow.ci.classes" />
+            </div>
           </div>
         </Section>
       </Box>
