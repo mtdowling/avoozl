@@ -8126,7 +8126,7 @@
         "Idempotent task-issue offboarding export",
         "Preview export-issues SPEC, create only incomplete task issues and blocked-by links, record stable export bindings, then mark Exported and cease dispatch/landing. A retry creates no duplicate issues or links; a partial failure stays held and resumes safely.",
         "Make this the sole code path that creates task issues. Preserve visibility rules, person outcomes and journal access after offboarding.",
-        "Export is the only crew:avoozl opt-out: exported issues carry no crew:avoozl by default (owner choice 2026-11-16, one label to flip). A test checks the opt-out."
+        "Export never sets crew:avoozl (owner decision 2026-11-16), so Issue Radar and people may take exported issues. It is the only crew:avoozl opt-out. A test checks that no export create request carries crew:avoozl."
       ],
       "completion": "integrated",
       "checks": [
@@ -8161,11 +8161,12 @@
     "56.11": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 56 (Working branches and a spec journal). Privacy enforcement for checkpoints and public metadata. See R87.9, R102.11, R102.12; §4.32.",
+      "summary": "Phase 56 (Working branches and a spec journal). Privacy enforcement for checkpoints and public metadata. See R87.9, R102.11, R102.12, R102.23, R102.24, R102.25; §4.32.",
       "acceptance": [
         "Privacy enforcement for checkpoints and public metadata",
         "Reuse existing content scanning in process before every outgoing push range and every externally visible journal/intake/PR/status write. Check ref names, commit messages, added lines and public metadata; apply the explicit journal schema without raw logs, commands, paths or private identifiers.",
-        "Tests insert made-up private names into branch names, commit messages, PR bodies, check summaries, records and artifacts and refuse publication before the first write. Preserve useful opaque IDs and public commit/check references. Private-plan mappings and sensitive controls remain private; hidden HTML grants no secrecy."
+        "Tests insert made-up private names into branch names, commit messages, PR bodies, check summaries, records and artifacts and refuse publication before the first write. Preserve useful opaque IDs and public commit/check references. Private-plan mappings and sensitive controls remain private; hidden HTML grants no secrecy.",
+        "No internal information on public writes: refuse hostname and IP literals, *.corp/*.internal/*.local/*.lan and the owner's private machine-local internal-domain list, home paths, and this machine's own hostname and username before the first write. Records name a machine only by its public alias (machine config; unset means a generated neutral name, never the hostname); the schema has an alias field and no hostname field. Tests insert a made-up hostname and username into every public field and expect refusal with nothing written."
       ],
       "completion": "integrated",
       "checks": [

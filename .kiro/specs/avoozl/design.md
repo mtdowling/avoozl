@@ -4291,6 +4291,7 @@ notices.
 its content has the issue's visibility. The record schema is explicit and holds only:
 
 - protocol version, opaque operation, spec, task and driver identifiers;
+- the acting machine's public alias, never its hostname;
 - event kind, generation, previous record id and digest, and required control flags;
 - revision and definition digests;
 - authorized repository identities, branch and exact commit or pull request references;
@@ -4298,6 +4299,24 @@ its content has the issue's visibility. The record schema is explicit and holds 
 
 Excluded: transcripts, raw output, command arguments, environment variables, absolute
 paths, machine names, workspace or database identifiers, and private execution timing or spending. Actor identity comes from authenticated GitHub metadata.
+
+**No internal information on any public write** (Requirement 102.23–25). This covers
+journal records, spec and epic issue bodies, status and intake comments, pull request
+bodies and check summaries. Refused: host, server and machine names, usernames, local
+and home paths, internal URLs and hostnames, IP addresses, crew, instance and session
+IDs, gateway ports and session keys.
+
+- **Machine alias.** Where a record names the machine or driver that acted, it uses a
+  public alias the owner picks per machine (for example "Draco"), kept in machine
+  config. Only the private handoff export maps alias to machine. With no alias set,
+  Avoozl generates a neutral two-word name once and stores it; it never derives one
+  from the hostname or username. Settings refuses an alias that contains either.
+- **Scan.** The 56.11 scan runs before the first write and refuses hostname and IP
+  literals, `*.corp`, `*.internal`, `*.local` and `*.lan` names, any domain on the
+  owner's private machine-local list of internal domains, home paths (`/Users/<name>`,
+  `/home/<name>`, `C:\Users\<name>`, `~/`), and this machine's own hostname and
+  username, read at scan time. The private domain list never enters the repository.
+  A false hit uses the existing allow-once path with a reason.
 Public records contain no private spec names, task titles, repository names or URLs.
 Private names and control details remain on private surfaces; public control events
 carry only the allowlisted flag and opaque id needed to enforce them.
@@ -4511,9 +4530,9 @@ crew claim is present, Plan this says so and asks to confirm. Send to Issue Rada
 stays for issues Avoozl did not create and refuses one carrying `crew:avoozl`.
 - **Offboarding:** `avoozl spec export-issues SPEC`, with a preview: one issue per task
   that is not complete, then blocked-by links, then `Status: Exported`. This is the
-  only code that writes task issues. Exported issues carry no `crew:avoozl`: export
-  hands work away from Avoozl, so a crew or a person may take it. This is the owner's
-  choice (2026-11-16); flipping it is one label in the same create call.
+  only code that writes task issues. Exported issues never carry `crew:avoozl` (owner
+  decision, 2026-11-16): export hands work away from Avoozl, so Issue Radar and people
+  may take them. A test checks that no export create request sets it.
 
 #### 4.32.12 Smaller rules
 
