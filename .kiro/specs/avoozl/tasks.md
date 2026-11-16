@@ -1867,8 +1867,9 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
   - Built: pass, `src/app/test/build-receipt.test.mjs`.
 - [x] 55.2 CI uploads a receipt from every platform, after 55.1 [R101.3] (§4.31)
   - Each test job uploads `build-receipt-<os>` with `if: always()`; the summary prints every line. A workflow file is a protected path, so the diff goes to the owner before it lands. Done when a CI run shows 3 artifacts and every line in the summary.
-- [ ] 55.3 Reader: every artifact, every line, stored observations, after 55.1, 54.2, 54.6 [R101.1, R101.2, R101.5, R101.6] (§4.31)
+- [x] 55.3 Reader: every artifact, every line, stored observations, after 55.1, 54.2, 54.6 [R101.1, R101.2, R101.5, R101.6] (§4.31)
   - Unfiltered artifact list through the HTTP cache from `ciStep`; `receipt_artifacts` and `build_observations`; `pr_ci` gains `head_sha` and `merged_at`; the old metadata value moves once. Tests: several phases on 3 platforms keep every record; a failed attempt is kept and marked; one list per check, a 304 reads nothing, one download per new artifact, the next check costs 0; complete runs with no artifact store none.
+  - Built: pass, `src/app/test/build-receipt-read.test.mjs`.
 - [ ] 55.4 Flow and Trace show every record; PDCA on build minutes, after 55.3 [R101.4, R101.12] (§4.31)
   - `buildView` replaces `receiptsView`: totals, phases, costliest phase, failed apart, medians per phase, target and start; Trace groups every observation by phase. `METRICS` adds Build minutes per pull request. Tests: the costliest phase shows in Flow; failed attempts stay out of medians. Ships before and after screenshots (phone and desktop, light and dark) and waits for the owner's approval before merge.
 - [x] 55.5 Build report format, `receipts.report` and the adapter, after 55.1 [R101.7, R101.8, R101.9] (§4.31)

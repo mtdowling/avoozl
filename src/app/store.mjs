@@ -173,6 +173,9 @@ export class Store {
    CREATE TABLE IF NOT EXISTS pr_feedback(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS pr_ci(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS ci_runs(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS receipt_artifacts(repository TEXT NOT NULL,artifact_id INTEGER NOT NULL,head_sha TEXT NOT NULL,run_id INTEGER,name TEXT,kind TEXT NOT NULL,read_at TEXT NOT NULL,lines INTEGER NOT NULL DEFAULT 0,skipped INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(repository,artifact_id,head_sha));
+   CREATE TABLE IF NOT EXISTS build_observations(repository TEXT NOT NULL,pr_number INTEGER,head_sha TEXT NOT NULL,run_id INTEGER NOT NULL,task TEXT NOT NULL DEFAULT '',attempt INTEGER NOT NULL,command TEXT NOT NULL,target TEXT NOT NULL,seq INTEGER NOT NULL,phase TEXT,start TEXT,ms REAL NOT NULL,exit INTEGER,failed INTEGER NOT NULL DEFAULT 0,counters TEXT,issue INTEGER,at TEXT,PRIMARY KEY(repository,head_sha,run_id,task,attempt,command,target,seq));
+   CREATE INDEX IF NOT EXISTS build_observations_pr ON build_observations(repository,pr_number);
    CREATE TABLE IF NOT EXISTS incoming_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS intake_sources(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS placement_decisions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
