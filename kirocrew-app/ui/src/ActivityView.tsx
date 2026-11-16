@@ -15,7 +15,8 @@ import { selectStyle } from './FilterSelect.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
 import { relativeTime } from './task-api.ts'
-import { RefreshButton } from './RefreshButton.tsx'
+import { useRefreshCountdown } from './RefreshButton.tsx'
+import { usePublishRefresh } from './page-refresh.tsx'
 import { History } from './icons.ts'
 import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
@@ -247,19 +248,16 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
       setBusy(false)
     }
   }
+  usePublishRefresh(useRefreshCountdown(workspaceId, () => void load(), busy || !workspaceId))
   const options = filterOptions(page, filter)
   const setField = (change: Partial<ActivityFilter>) => setFilter({ ...filter, ...change })
   const rows = page?.items ?? []
 
   return (
     <section aria-labelledby="avoozl-activity-title" className="flex flex-col gap-3.5">
-      <ViewHeading
-        id="avoozl-activity-title"
-        view="activity"
-        actions={
-          <RefreshButton workspaceId={workspaceId} onRefresh={() => void load()} busy={busy || !workspaceId} />
-        }
-      >
+      {/* Refresh, with its countdown, sits on the top line beside the pause
+          icon, as on Home (page-refresh.tsx). */}
+      <ViewHeading id="avoozl-activity-title" view="activity">
         Activity
       </ViewHeading>
       <p className="text-sm text-muted">
@@ -276,6 +274,7 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
         <NavFilters
           id="avoozl-activity"
           label="Filter activity"
+          inline
           active={filterActive(filter)}
           onClear={() => setFilter({})}
           fields={[
