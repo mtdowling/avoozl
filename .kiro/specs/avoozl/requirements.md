@@ -4818,10 +4818,47 @@ nothing I used Issue Radar for is lost when it goes.
    stay person-only, and SHALL be refused to an agent or MCP caller.
 6. A list load SHALL cost no GitHub call beyond the one read per repository
    per check that the tick already makes (RC29) and its cache. The detail
-   SHALL be read lazily, once per item, and cached.
+   SHALL be read lazily, once per item, and cached. Criteria 9–16 make this
+   exact (owner rule, 2026-11-15).
 7. The pages SHALL work for every repository in the workspace and every
    issue and pull request in it, not only those Avoozl made, with an
    **Avoozl tasks only** filter.
 8. The look and behavior SHALL follow Kiro Crew's Issue Radar app. Avoozl
    SHALL rebuild them in its own code and SHALL NOT copy Issue Radar's
    files.
+
+GitHub call budget (owner rule, 2026-11-15). The pages must be careful and
+efficient with GitHub API calls.
+
+9. The pages SHALL NOT call GitHub on their own. The list and the detail
+   SHALL read only Avoozl's local cache. The cache SHALL be filled by one
+   batched GraphQL query per repository per check, which reads issues, pull
+   requests, labels, check state and linked issues together, paginated.
+10. WHEN a detail opens and the cache holds no detail for that item at its
+    current `updatedAt` THEN Avoozl SHALL read the item's comments, files
+    changed and check runs in one GraphQL query, and store them under that
+    `updatedAt`. WHEN the cached detail's `updatedAt` matches the item's
+    `updatedAt` from the latest batched read THEN opening it SHALL make no
+    call. A detail SHALL NOT be read before it is opened.
+11. WHERE a REST call cannot be avoided, it SHALL be conditional (an ETag
+    sent as `If-None-Match`). A 304 answer SHALL be counted as free in the
+    usage counter (RC29.1), apart from calls that cost rate limit.
+12. The browser SHALL NOT poll. Refresh SHALL only redraw from the cache. A
+    manual **Recheck** SHALL force at most one batched query per repository,
+    and a second Recheck while that one runs SHALL join it, not start
+    another.
+13. Lists SHALL page from the cache. Scrolling, filtering, searching and
+    sorting SHALL make no GitHub call.
+14. Settings › GitHub SHALL show the calls these pages cause as their own
+    source, `pages`, with its cached and 304 counts (RC29.3).
+15. Tests SHALL show, with a fake GitHub that counts calls:
+    a. opening the Issues page with 500 cached issues costs 0 calls;
+    b. opening the details of 10 items that have not changed since they were
+       last opened costs 0 calls; the first open of an item costs 1 query;
+    c. a check in which 10 pull requests changed costs 1 query per
+       repository (plus its pages when a result spans more than one);
+    d. scrolling and filtering a 500-item list costs 0 calls;
+    e. two Rechecks at once cost 1 query per repository.
+16. A detail cache entry SHALL be dropped when the batched read shows a newer
+    `updatedAt` for its item, or the item is gone, so a stale detail is
+    never shown as current.
