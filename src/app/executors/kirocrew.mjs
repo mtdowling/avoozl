@@ -47,10 +47,10 @@ export function kirocrewReadiness(reading) {
 // Keep the planner's order, including its remote-placement fallback. A local
 // dispatch with no inherited project waits and produces the same owner notice.
 export function kirocrewDispatches(store, dispatches, waits, reading) {
-  const pending = new Set(
+  const pending = new Map(
     waits
       .filter(({ result }) => result.folder)
-      .map(({ task }) => sidebarPath(taskRepository(task))),
+      .map(({ task }) => [sidebarPath(taskRepository(task)), null]),
   );
   for (let i = dispatches.length - 1; i >= 0; i--) {
     const dispatch = dispatches[i];
@@ -61,12 +61,15 @@ export function kirocrewDispatches(store, dispatches, waits, reading) {
       !unset(reading, configuration.folder)
     )
       continue;
-    pending.add(configuration.folder);
+    pending.set(
+      configuration.folder,
+      configuration.folder === SPECS_FOLDER ? dispatch.worktree : null,
+    );
     dispatches.splice(i, 1);
   }
-  return [...pending].map((folder) => {
+  return [...pending].map(([folder, root]) => {
     const id = folder.split("/").pop(),
-      checkout = store.get("projects", id)?.root;
+      checkout = root ?? store.get("projects", id)?.root;
     return {
       channel: "decision",
       title: `Set the project directory of chat folder ${folder.replaceAll("/", " › ")}`,
@@ -234,6 +237,18 @@ export function kirocrewRequest(store, legacy) {
   return request;
 }
 
+// The planner agents may write only `.kiro/specs/**` under the chat's own
+// project directory, so a planner that writes a workspace's spec folder opens
+// in a folder whose project directory is that workspace.
+// shortcut: one folder for every workspace on this Kiro Crew; name it per
+// workspace once a gateway serves two planning workspaces.
+const SPECS_FOLDER = "Avoozl/Specs";
+const writesSpecs = (request) =>
+  Boolean(request.worktree) &&
+  !request.repository &&
+  request.permissionClass === "write" &&
+  ["planner", "plan-answer"].includes(request.role);
+
 export function kirocrewConfiguration(store, request) {
   const queued = store.get("session_requests", request.id),
     active =
@@ -245,8 +260,12 @@ export function kirocrewConfiguration(store, request) {
         folder:
           active.worktree && active.repository
             ? sidebarPath(active.repository)
-            : "",
-        ...(active.worktree && active.repository ? {} : { project: false }),
+            : writesSpecs(active)
+              ? SPECS_FOLDER
+              : "",
+        ...((active.worktree && active.repository) || writesSpecs(active)
+          ? {}
+          : { project: false }),
         agent: ROLE_AGENTS[active.role] ?? "",
       };
   // The answer's permission class determines its tool access, even when a
