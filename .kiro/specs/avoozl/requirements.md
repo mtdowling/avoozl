@@ -4773,8 +4773,11 @@ removed, so that the app has one way to deliver work.
    coder, the relay and the router chat with their agents.
 2. Avoozl SHALL keep and rename: the arming and merge code (it becomes PR
    landing, Requirement 87.3), release ranking, and GitHub setup.
-3. Leaf modules MAY be deleted at any time. Edits to shared modules SHALL be
-   made last, after Phases 40–44 have landed.
+3. Leaf modules MAY be audited and already unreferenced ones deleted at any
+   time. Task 45.2 SHALL wait for P52 to prove replacement PR landing.
+   Tasks 45.2 and 45.3 MAY edit their shared callers when no other lane is
+   editing the same files. Remaining shared-module edits SHALL be made
+   last, after Phases 40–44 have landed.
 4. Every compatibility name that RC11.4 tests (the `plans_*` MCP
    names, `AVOOZL_*`, `AICOMMANDER_*` and `NUPP_WORKSPACE*` variables, the
    `aicommander` command and the `aicommander.*` settings) SHALL still
