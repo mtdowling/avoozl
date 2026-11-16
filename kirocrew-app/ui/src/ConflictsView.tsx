@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BudgetActions } from './Budget.tsx'
+import { PlanReviewDecision } from './PlanReviewDecision.tsx'
 import type { BudgetChip } from './budget-api.ts'
 import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
@@ -114,6 +115,11 @@ export function ConflictActions(props: {
   const why = noActionReason(item)
   return (
     <div className="flex flex-col gap-2">
+      {item.kind === 'plan-review' && item.planReview && (
+        <PlanReviewDecision key={`${workspaceId}:${item.planReview.planId}:${item.planReview.revisionHash}`} {...item.planReview} busy={busy} run={run} onDecide={(action) =>
+          views.decidePlanReview(workspaceId, item.planReview!.planId, item.planReview!.revisionHash, action)
+        } />
+      )}
       {(item.kind === 'budget' || item.kind === 'over-budget') && item.taskId && (item as ConflictItem & { budget?: BudgetChip }).budget && (
         <BudgetActions
           workspaceId={workspaceId}

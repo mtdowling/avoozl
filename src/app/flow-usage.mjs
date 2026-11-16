@@ -1,3 +1,4 @@
+import { planningRole, ingestPlanningUsage } from "./planning-flow.mjs";
 // Token and credit usage per flow stage (design §4.11, owner addition
 // 2026-11-13). Kiro Crew records each turn's input and output tokens and
 // credits (the kiro backend fills credits, others fill tokens) and lets an
@@ -25,6 +26,8 @@ export function ensureUsageTable(store) {
 // how many were added.
 export function ingestUsage(store, binding, rows) {
   if (!Array.isArray(rows) || !rows.length) return 0;
+  if (planningRole(binding.role))
+    return ingestPlanningUsage(store, binding, rows);
   ensureUsageTable(store);
   const insert = store.db.prepare(
     `INSERT OR IGNORE INTO flow_usage(${COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?,?)`,
@@ -57,7 +60,9 @@ export function ingestUsage(store, binding, rows) {
 export function listUsage(store) {
   try {
     return store.db
-      .prepare(`SELECT ${COLUMNS} FROM flow_usage ORDER BY ts`)
+      .prepare(
+        `SELECT ${COLUMNS} FROM flow_usage WHERE role IS NULL OR role NOT IN ('plan-review','plan-answer') ORDER BY ts`,
+      )
       .all();
   } catch {
     return [];
