@@ -1,0 +1,49 @@
+{
+  "hopMs": 50,
+  "githubMs": 400,
+  "times": {
+    "shell": 122,
+    "firstCard": 267,
+    "allReplies": 710,
+    "ops": 16
+  },
+  "githubCalls": {
+    "instance.view": 0,
+    "flow.view": 0,
+    "driversession.view": 0,
+    "graph.view": 0,
+    "delivery.view": 0,
+    "conflicts.view": 0,
+    "plan.list": 0,
+    "radar.crews": 1,
+    "repositories.list": 0,
+    "github.settings.get": 0,
+    "untriaged.view": 0,
+    "radar.releasequeue": 0,
+    "radar.armed": 0,
+    "gate.list": 0,
+    "integration.view": 0,
+    "review.drafts": 0,
+    "remote.view": 0
+  },
+  "replyMs": {
+    "workspaces.list": 50,
+    "instance.view": 54,
+    "flow.view": 67,
+    "driversession.view": 50,
+    "graph.view": 81,
+    "delivery.view": 59,
+    "conflicts.view": 73,
+    "plan.list": 55,
+    "radar.crews": 534,
+    "repositories.list": 51,
+    "github.settings.get": 54,
+    "untriaged.view": 52,
+    "radar.releasequeue": 59,
+    "radar.armed": 51,
+    "gate.list": 51,
+    "integration.view": 50,
+    "review.drafts": 52,
+    "remote.view": 52
+  }
+}

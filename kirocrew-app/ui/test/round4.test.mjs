@@ -49,8 +49,8 @@ test('lists page through the one hook and button, and a filter change resets the
 
 test('Graph, Plans and Conflicts use the one boxed filter panel', () => {
   assert.match(source('FilterBar.tsx'), /<FilterPanel/)
-  // In a list column the fields fold behind Filters.
-  assert.match(source('PlansView.tsx'), /<FilterPanel\s+folded\s+id="avoozl-plans"/)
+  // Specs' fields sit in the left nav under the open Specs section.
+  assert.match(source('PlansView.tsx'), /<NavSlotFor section="plans">\s*<NavFilters id="avoozl-plans"/)
   assert.match(source('ConflictsView.tsx'), /<FilterPanel\s+folded\s+id="avoozl-conflicts"/)
   assert.match(source('GraphView.tsx'), /<FilterBar id="avoozl-graph"/)
   const panel = source('FilterPanel.tsx')
@@ -231,7 +231,8 @@ test('each view heading and its nav tab show the same icon, hidden from readers'
     ['SettingsView.tsx', 'settings'],
   ])
     assert.match(source(file), new RegExp(`<ViewHeading\\s+id="avoozl-${view}-title"\\s+view="${view}"[\\s>]`), file)
-  assert.match(source('App.tsx'), /<ViewLabel view=\{t\.key\}>\{t\.label\}<\/ViewLabel>/)
+  assert.match(source('App.tsx'), /<NavLabel view=\{t\.key\} text=\{t\.label\}/)
+  assert.match(source('App.tsx'), /const Icon = VIEW_ICONS\[props\.view\][\s\S]*?<Icon size=\{ICON\} aria-hidden="true"/)
   const controls = source('controls.tsx')
   assert.match(controls, /<Icon size=\{level === 2 \? 18 : 16\} aria-hidden="true"/)
   assert.match(controls, /<Icon size=\{ICON\} aria-hidden="true"/)
