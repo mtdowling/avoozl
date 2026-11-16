@@ -16,8 +16,12 @@ const PAGE_SIZE = 100;
 export const DEFAULT_CACHE_SECONDS = 60;
 // Only the metadata CI accounting consumes is kept for this endpoint. GitHub's
 // full 100-run response contains repository/actor prose and can exceed 1 MiB.
+// Closed pull requests for the CI waste counts (§4.30), read in the open
+// pull request query's first page.
+const RECENT_PULLS =
+  "recent:pullRequests(states:[MERGED,CLOSED],first:50,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{number createdAt closedAt author{login} headRefName headRefOid files(first:100){totalCount nodes{path}}}} ";
 const WORKFLOW_RUNS_PROJECTION = {
-  version: "workflow-runs-v1",
+  version: "workflow-runs-v2",
   project(data) {
     const invalid = () =>
         fail("GitHub returned invalid workflow run data.", 502),
@@ -51,6 +55,7 @@ const WORKFLOW_RUNS_PROJECTION = {
         id: run.id,
         workflow: run.path.replace(/@.*$/, ""),
         headSha: run.head_sha,
+        headBranch: text(run.head_branch, 512) ? run.head_branch : null,
         event: run.event,
         attempt: run.run_attempt ?? 1,
         status: run.status,
@@ -1197,6 +1202,21 @@ export class GitHubClient {
   // shortcut: 500 open pull requests; a busier repository fails here and
   // pullRequestHeads falls back to one alias per branch.
   async openPullRequests(value) {
+    return (await this.pullRequestSnapshot(value)).open;
+  }
+
+  // The 50 most recently updated closed pull requests, from the same query
+  // as openPullRequests (no extra call): number, author, times, head and
+  // the first 100 changed paths. The CI waste counts (§4.30) need them
+  // because a pull request opened and merged between two checks is never
+  // listed open, and a new workspace has seen none of its window.
+  // shortcut: 50 per check; a repository closing more than 50 pull requests
+  // between two checks misses the oldest, read a second page if that shows.
+  async recentPullRequests(value) {
+    return (await this.pullRequestSnapshot(value)).recent;
+  }
+
+  pullRequestSnapshot(value) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
     return sharedGitHubRead(
@@ -1210,10 +1230,11 @@ export class GitHubClient {
     const { owner, repo } =
         typeof value === "string" ? parseRepository(value) : value,
       pulls = [];
-    let after = null;
+    let after = null,
+      recent = [];
     for (let page = 0; page < 5; page += 1) {
       const data = await this.graphql(
-          `query($owner:String!,$repo:String!,$after:String){repository(owner:$owner,name:$repo){pullRequests(states:OPEN,first:100,after:$after,orderBy:{field:CREATED_AT,direction:DESC}){pageInfo{hasNextPage endCursor} nodes{number url createdAt updatedAt isDraft author{login} headRefName headRefOid baseRefName baseRef{target{oid}} mergeable mergeStateStatus reviewDecision autoMergeRequest{enabledAt} labels(first:20){nodes{name}} closingIssuesReferences(first:10){nodes{number title url repository{nameWithOwner}}} files(first:100){totalCount nodes{path}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){nodes{... on CheckRun{name startedAt completedAt checkSuite{workflowRun{databaseId event file{path}}}}}}}}}}}}}}`,
+          `query($owner:String!,$repo:String!,$after:String){repository(owner:$owner,name:$repo){${page ? "" : RECENT_PULLS}pullRequests(states:OPEN,first:100,after:$after,orderBy:{field:CREATED_AT,direction:DESC}){pageInfo{hasNextPage endCursor} nodes{number url createdAt updatedAt isDraft author{login} headRefName headRefOid baseRefName baseRef{target{oid}} mergeable mergeStateStatus reviewDecision autoMergeRequest{enabledAt} labels(first:20){nodes{name}} closingIssuesReferences(first:10){nodes{number title url repository{nameWithOwner}}} files(first:100){totalCount nodes{path}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){nodes{... on CheckRun{name startedAt completedAt checkSuite{workflowRun{databaseId event file{path}}}}}}}}}}}}}}`,
           { owner, repo, after },
           "read open pull requests",
         ),
@@ -1221,7 +1242,11 @@ export class GitHubClient {
       if (!Array.isArray(list?.nodes))
         fail("GitHub returned invalid pull-request data.", 502);
       pulls.push(...list.nodes.filter(Boolean));
-      if (!list.pageInfo?.hasNextPage) return pulls;
+      if (!page)
+        recent = (data.repository.recent?.nodes || []).filter(
+          (pull) => pull && Number.isSafeInteger(pull.number),
+        );
+      if (!list.pageInfo?.hasNextPage) return { open: pulls, recent };
       after = list.pageInfo.endCursor;
     }
     fail(
