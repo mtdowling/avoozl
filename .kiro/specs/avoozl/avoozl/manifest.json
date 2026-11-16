@@ -6648,10 +6648,10 @@
     "43.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 43 (Remote hosts). See R90.1, R90.3; §4.26.",
+      "summary": "Phase 43 (Worker machines pull work). See R90.1, R90.2; §4.26.",
       "acceptance": [
-        "Hosts: `local` and runner-role hosts, choice by free lanes in code",
-        "Builds on `src/app/remote-runner.mjs`; no chat chooses a host."
+        "Worker mode on the plan-less runner role",
+        "Envelope with IDs only; repository and checks from the worker's own `.avoozl.json`; the worker reads `HEAD`, runs checks, pushes the branch."
       ],
       "completion": "integrated",
       "checks": [
@@ -6665,10 +6665,78 @@
     "43.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 43 (Remote hosts). See R90.2, R90.4; §4.26.",
+      "summary": "Phase 43 (Worker machines pull work). See R90.3, R90.5; §4.26.",
       "acceptance": [
-        "Send the envelope over SSH; land the pushed branch through the same queue",
-        "A host that stops answering keeps its tasks."
+        "Pull: list ready issues in one read, solo by assignee and team by pool",
+        "At most one issue per free lane; the result is a branch or a pull request."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "43.1"
+      ]
+    },
+    "43.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Worker machines pull work). See R90.4; §4.26.",
+      "acceptance": [
+        "Team claim: claim comment, earliest wins, loser deletes and stops",
+        "Enforced in code; a fake GitHub test with two workers posting in either order; one starts."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "43.2"
+      ]
+    },
+    "43.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Worker machines pull work). See R90.6; §4.26.",
+      "acceptance": [
+        "Claim release and the stale-claim Needs you row",
+        "Release on landed, blocked or given up; release after a second vanish; never on quiet or a lease; a person-only **Release claim** after `workers.claimStaleAfter`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "43.3"
+      ]
+    },
+    "43.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Worker machines pull work). See R90.2; §4.26.",
+      "acceptance": [
+        "Scheduler lands a worker's result only after its own diff check and checks",
+        "A worker branch with a file outside declared paths is refused; checks rerun on the updated head."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "43.2"
+      ]
+    },
+    "43.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Worker machines pull work). See R90.7, R90.8, R90.9; §4.26.",
+      "acceptance": [
+        "`avoozl worker setup` with a preview; SSH push kept only without GitHub access",
+        "Checks the login, push access and that Kiro Crew runs with the Avoozl app enabled."
       ],
       "completion": "integrated",
       "checks": [
@@ -6682,10 +6750,10 @@
     "avoozl-p53": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 43 (Remote hosts). Proof. See R90; §4.26.",
+      "summary": "Phase 43 (Worker machines pull work). Proof. See R90; §4.26.",
       "acceptance": [
-        "Proof: tasks land from two machines through one queue",
-        "Expected: the extra tasks run on the host; every task lands through the one queue in plan order; the dropped-link task stays on its host and lands after the link returns."
+        "Proof: a second machine pulls, claims and completes tasks from a shared pool",
+        "Expected: (1) the second machine takes and completes tasks, and the scheduler lands each after its own checks; (2) exactly one claim wins and the loser's comment is gone; (3) nothing releases the quiet machine's claim, and Needs you shows it after the stale time; (4) its work lands."
       ],
       "completion": "integrated",
       "checks": [
@@ -6694,55 +6762,70 @@
       ],
       "requires": [
         "43.1",
-        "43.2"
+        "43.2",
+        "43.3",
+        "43.4",
+        "43.5",
+        "43.6"
       ]
     },
     "44.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44 (Remove the Issue Radar path). See R91.1, R91.3; §4.26.",
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.1; §4.27.",
       "acceptance": [
-        "Delete Radar-only leaf modules and their tests",
-        "Modules no non-Radar file imports; `npm test` passes."
+        "Issues and Pull requests in the pill nav, three columns",
+        "Nav, list, detail; full-width list and detail with a back control at 390 px."
       ],
       "completion": "integrated",
       "checks": [
         "npm test",
         "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p52"
       ]
     },
     "44.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44 (Remove the Issue Radar path). See R91.1; §4.26.",
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.2, R92.6, R92.7; §4.27.",
       "acceptance": [
-        "Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant"
+        "List rows, filters on one line, search and counts from the shared read",
+        "A test with a counting fake GitHub: a list load makes 0 calls beyond the shared read; the **Avoozl tasks only** filter."
       ],
       "completion": "integrated",
       "checks": [
         "npm test",
         "git diff --check"
+      ],
+      "requires": [
+        "44.1"
       ]
     },
     "44.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44 (Remove the Issue Radar path). See R86.1, R91.1; §4.26.",
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.3, R92.6; §4.27.",
       "acceptance": [
-        "Delete the remote coder, the relay and the router chat with their agents"
+        "Issue detail: header row, Markdown body, timeline, right column, lazy and cached"
       ],
       "completion": "integrated",
       "checks": [
         "npm test",
         "git diff --check"
+      ],
+      "requires": [
+        "44.1"
       ]
     },
     "44.4": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44 (Remove the Issue Radar path). See R86.1, R91.3; §4.26.",
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.4; §4.27.",
       "acceptance": [
-        "Shared-module edits and the `coder` setting"
+        "Pull request detail: checks, files changed, landing state",
+        "Queued, verifying, landing, landed, conflict round N."
       ],
       "completion": "integrated",
       "checks": [
@@ -6750,19 +6833,16 @@
         "git diff --check"
       ],
       "requires": [
-        "44.1",
-        "44.2",
-        "44.3",
-        "avoozl-p53"
+        "44.3"
       ]
     },
     "44.5": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44 (Remove the Issue Radar path). See R91.4; §4.26.",
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.5; §4.27.",
       "acceptance": [
-        "Compatibility names still resolve; docs say one path",
-        "`docs/research/` and `docs/evidence/` untouched except new receipts."
+        "Avoozl-owned actions only; person-only stays person-only",
+        "Release, hold, re-queue, Stop the line, open on GitHub; refused to an agent or MCP caller where person-only."
       ],
       "completion": "integrated",
       "checks": [
@@ -6770,16 +6850,16 @@
         "git diff --check"
       ],
       "requires": [
-        "44.4"
+        "44.3"
       ]
     },
     "avoozl-p54": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44 (Remove the Issue Radar path). Proof. See R91; §4.26.",
+      "summary": "Phase 44 (Issues and Pull requests pages). Proof. See R92; §4.27.",
       "acceptance": [
-        "Proof: after removal there is one delivery path",
-        "Expected: the task lands; no Radar, relay, router or crew agent or module remains; every compatibility name resolves."
+        "Proof: the pages match Issue Radar's, and a list load costs no extra calls",
+        "Expected: screenshots next to Radar's show the same columns, row content and detail parts; a list load makes 0 calls beyond the shared read; a second detail open makes 0 calls."
       ],
       "completion": "integrated",
       "checks": [
@@ -6792,6 +6872,104 @@
         "44.3",
         "44.4",
         "44.5"
+      ]
+    },
+    "45.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). See R91.1, R91.3; §4.26.",
+      "acceptance": [
+        "Delete Radar-only leaf modules and their tests",
+        "Modules no non-Radar file imports; `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "45.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). See R91.1; §4.26.",
+      "acceptance": [
+        "Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "45.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). See R86.1, R91.1; §4.26.",
+      "acceptance": [
+        "Delete the remote coder, the relay and the router chat with their agents"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "45.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). See R86.1, R91.3; §4.26.",
+      "acceptance": [
+        "Shared-module edits and the `coder` setting"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "45.1",
+        "45.2",
+        "45.3",
+        "avoozl-p53",
+        "avoozl-p54"
+      ]
+    },
+    "45.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). See R91.4; §4.26.",
+      "acceptance": [
+        "Compatibility names still resolve; docs say one path",
+        "`docs/research/` and `docs/evidence/` untouched except new receipts."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "45.4"
+      ]
+    },
+    "avoozl-p55": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). Proof. See R91; §4.26.",
+      "acceptance": [
+        "Proof: after removal there is one delivery path",
+        "Expected: the task lands; no Radar, relay, router or crew agent or module remains; every compatibility name resolves."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "45.1",
+        "45.2",
+        "45.3",
+        "45.4",
+        "45.5"
       ]
     }
   }

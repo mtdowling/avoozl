@@ -1566,35 +1566,68 @@ required check.
   - Failure means: a merge on an unchecked head, a second ruleset rule, or a force push.
   - Next decision: keep `pr` as the default for repositories with required checks.
 
-## Phase 43: Remote hosts
+## Phase 43: Worker machines pull work
 
-Requirement 90 (design §4.26). Exit: two machines.
+Requirement 90 (design §4.26). Exit: a second machine (and a second GitHub
+login) pulls, claims and completes tasks from a shared pool against real
+GitHub, and a race between two workers shows exactly one claim wins.
 
-- [ ] 43.1 Hosts: `local` and runner-role hosts, choice by free lanes in code, after avoozl-p52 [R90.1, R90.3] (§4.26)
-  - Builds on `src/app/remote-runner.mjs`; no chat chooses a host.
-- [ ] 43.2 Send the envelope over SSH; land the pushed branch through the same queue, after 43.1 [R90.2, R90.4] (§4.26)
-  - A host that stops answering keeps its tasks.
+- [ ] 43.1 Worker mode on the plan-less runner role, after avoozl-p52 [R90.1, R90.2] (§4.26)
+  - Envelope with IDs only; repository and checks from the worker's own `.avoozl.json`; the worker reads `HEAD`, runs checks, pushes the branch.
+- [ ] 43.2 Pull: list ready issues in one read, solo by assignee and team by pool, after 43.1 [R90.3, R90.5] (§4.26)
+  - At most one issue per free lane; the result is a branch or a pull request.
+- [ ] 43.3 Team claim: claim comment, earliest wins, loser deletes and stops, after 43.2 [R90.4] (§4.26)
+  - Enforced in code; a fake GitHub test with two workers posting in either order; one starts.
+- [ ] 43.4 Claim release and the stale-claim Needs you row, after 43.3 [R90.6] (§4.26)
+  - Release on landed, blocked or given up; release after a second vanish; never on quiet or a lease; a person-only **Release claim** after `workers.claimStaleAfter`.
+- [ ] 43.5 Scheduler lands a worker's result only after its own diff check and checks, after 43.2 [R90.2] (§4.26)
+  - A worker branch with a file outside declared paths is refused; checks rerun on the updated head.
+- [ ] 43.6 `avoozl worker setup` with a preview; SSH push kept only without GitHub access, after 43.1 [R90.7, R90.8, R90.9] (§4.26)
+  - Checks the login, push access and that Kiro Crew runs with the Avoozl app enabled.
 
-- [ ] avoozl-p53 P53 Proof: tasks land from two machines through one queue, after 43.1, 43.2 [R90] (§4.26)
-  - Setup: this Mac and one remote host in the runner role, one scratch repository.
-  - Action: release more tasks than local lanes; drop the link to the host during one task.
-  - Expected: the extra tasks run on the host; every task lands through the one queue in plan order; the dropped-link task stays on its host and lands after the link returns.
-  - Failure means: two schedulers, a task moved for a down link, or an out-of-order landing.
-  - Next decision: add hosts, or keep one.
+- [ ] avoozl-p53 P53 Proof: a second machine pulls, claims and completes tasks from a shared pool, after 43.1, 43.2, 43.3, 43.4, 43.5, 43.6 [R90] (§4.26)
+  - Setup: this Mac as scheduler; a second machine with a second GitHub login in worker mode, `team`; a scratch repository on real GitHub with a shared pool of ready issues.
+  - Action: (1) let both machines pull; (2) race two workers for one issue; (3) stop the second machine's ticks for a while; (4) let it finish.
+  - Expected: (1) the second machine takes and completes tasks, and the scheduler lands each after its own checks; (2) exactly one claim wins and the loser's comment is gone; (3) nothing releases the quiet machine's claim, and Needs you shows it after the stale time; (4) its work lands.
+  - Failure means: two workers start one task, a quiet worker is replaced, or a worker result lands unchecked.
+  - Next decision: use team pools for shared repositories, or keep one machine per person.
 
-## Phase 44: Remove the Issue Radar path
+## Phase 44: Issues and Pull requests pages
 
-Requirement 91 (design §4.26). Leaf modules any time; shared edits last.
+Requirement 92 (design §4.27). Before any Radar code is deleted, so nothing
+is lost when Issue Radar goes.
 
-- [ ] 44.1 Delete Radar-only leaf modules and their tests [R91.1, R91.3] (§4.26)
+- [ ] 44.1 Issues and Pull requests in the pill nav, three columns, after avoozl-p52 [R92.1] (§4.27)
+  - Nav, list, detail; full-width list and detail with a back control at 390 px.
+- [ ] 44.2 List rows, filters on one line, search and counts from the shared read, after 44.1 [R92.2, R92.6, R92.7] (§4.27)
+  - A test with a counting fake GitHub: a list load makes 0 calls beyond the shared read; the **Avoozl tasks only** filter.
+- [ ] 44.3 Issue detail: header row, Markdown body, timeline, right column, lazy and cached, after 44.1 [R92.3, R92.6] (§4.27)
+- [ ] 44.4 Pull request detail: checks, files changed, landing state, after 44.3 [R92.4] (§4.27)
+  - Queued, verifying, landing, landed, conflict round N.
+- [ ] 44.5 Avoozl-owned actions only; person-only stays person-only, after 44.3 [R92.5] (§4.27)
+  - Release, hold, re-queue, Stop the line, open on GitHub; refused to an agent or MCP caller where person-only.
+
+- [ ] avoozl-p54 P54 Proof: the pages match Issue Radar's, and a list load costs no extra calls, after 44.1, 44.2, 44.3, 44.4, 44.5 [R92] (§4.27)
+  - Setup: a workspace with two repositories, one with Avoozl tasks and one without; Issue Radar open on the same repositories.
+  - Action: open both pages and an issue and a pull request detail at 390 and 1280 px, light and dark; count GitHub calls on a list load.
+  - Expected: screenshots next to Radar's show the same columns, row content and detail parts; a list load makes 0 calls beyond the shared read; a second detail open makes 0 calls.
+  - Failure means: something Radar showed is missing, or the pages add GitHub load.
+  - Next decision: approve the screenshots, then start Phase 45's shared edits.
+
+## Phase 45: Remove the Issue Radar path
+
+Requirement 91 (design §4.26). Leaf modules any time; shared edits last,
+after the Issues and Pull requests pages (Phase 44) are proved.
+
+- [ ] 45.1 Delete Radar-only leaf modules and their tests [R91.1, R91.3] (§4.26)
   - Modules no non-Radar file imports; `npm test` passes.
-- [ ] 44.2 Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant [R91.1] (§4.26)
-- [ ] 44.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
-- [ ] 44.4 Shared-module edits and the `coder` setting, after 44.1, 44.2, 44.3, avoozl-p53 [R86.1, R91.3] (§4.26)
-- [ ] 44.5 Compatibility names still resolve; docs say one path, after 44.4 [R91.4] (§4.26)
+- [ ] 45.2 Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant [R91.1] (§4.26)
+- [ ] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
+- [ ] 45.4 Shared-module edits and the `coder` setting, after 45.1, 45.2, 45.3, avoozl-p53, avoozl-p54 [R86.1, R91.3] (§4.26)
+- [ ] 45.5 Compatibility names still resolve; docs say one path, after 45.4 [R91.4] (§4.26)
   - `docs/research/` and `docs/evidence/` untouched except new receipts.
 
-- [ ] avoozl-p54 P54 Proof: after removal there is one delivery path, after 44.1, 44.2, 44.3, 44.4, 44.5 [R91] (§4.26)
+- [ ] avoozl-p55 P55 Proof: after removal there is one delivery path, after 45.1, 45.2, 45.3, 45.4, 45.5 [R91] (§4.26)
   - Setup: a temporary workspace on the built app.
   - Action: run one task through the loop; list the app's agents and modules; resolve each compatibility name.
   - Expected: the task lands; no Radar, relay, router or crew agent or module remains; every compatibility name resolves.
