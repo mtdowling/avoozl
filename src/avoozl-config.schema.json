@@ -101,12 +101,38 @@
       }
     },
     "receipts": {
-      "description": "Read by bin/build-receipt in the code repository: `parser` is a command that reads the build output on standard input and prints a JSON object of numbers; `warmCheck` exits 0 when caches are warm.",
+      "description": "Read by bin/build-receipt in the code repository: `parser` is a command that reads the build output on standard input and prints a JSON object of numbers; `warmCheck` exits 0 when caches are warm. `report` names where build reports (docs/build-report.md) are: a field of each receipt line, or an artifact name prefix.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "parser": { "type": "string" },
-        "warmCheck": { "type": "string" }
+        "warmCheck": { "type": "string" },
+        "report": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["field"],
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["artifact"],
+              "properties": {
+                "artifact": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"
+                }
+              }
+            }
+          ]
+        }
       }
     },
     "github": {
