@@ -15,8 +15,6 @@ import {
   readKey,
   taskTiming,
 } from "./flow.mjs";
-import fs from "node:fs";
-import { appFile } from "./app-files.mjs";
 import { fail } from "./store.mjs";
 import { briefAllowed } from "./delivery.mjs";
 import { taskRepository } from "../work-model.mjs";
@@ -32,6 +30,7 @@ import {
 import {
   approveSection,
   revertPrompt,
+  rolePrompt,
   sectionDiffProblem,
   seedOverrides,
   sha256,
@@ -1210,9 +1209,7 @@ function landedRules(store) {
 
 export function retroPrompt() {
   try {
-    return JSON.parse(
-      fs.readFileSync(appFile("agents/avoozl-retro.json"), "utf8"),
-    ).prompt;
+    return rolePrompt("retro");
   } catch {
     return null;
   }

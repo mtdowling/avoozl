@@ -31,7 +31,9 @@ jobs:
         run: |
           docs=false
           if files=$(git diff --name-only "$BASE...$HEAD" 2>/dev/null) && [ -n "$files" ]; then
-            if ! printf '%s\n' "$files" | grep -Ev '^(\.kiro/specs/|docs/)|\.md$' >/dev/null; then
+            # Portable role prompts are runtime inputs, even though they are Markdown.
+            if ! printf '%s\n' "$files" | grep -Ev '^(\.kiro/specs/|docs/)|\.md$' >/dev/null &&
+               ! printf '%s\n' "$files" | grep '^prompts/' >/dev/null; then
               docs=true
             fi
           fi
