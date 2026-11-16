@@ -244,9 +244,15 @@ export class FakeGitHub {
       number,
       body,
       html_url: `https://example.test/comments/${this.comments.length + 1}`,
+      user: { login: this.login },
     };
     this.comments.push(comment);
     return Promise.resolve(structuredClone(comment));
+  }
+  listIssueComments(_repository, number) {
+    return Promise.resolve(
+      structuredClone(this.comments.filter((item) => item.number === number)),
+    );
   }
   updateIssueComment(_repository, id, body) {
     const comment = this.comments.find((item) => item.id === id);

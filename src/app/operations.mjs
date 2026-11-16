@@ -567,6 +567,7 @@ import {
   specTitle,
   specEpic,
 } from "./spec-plans.mjs";
+import { publishSpec } from "./spec-publication.mjs";
 import {
   approvalChangedAtMerge,
   approvalEvidence,
@@ -6486,6 +6487,20 @@ export class Operations {
       } finally {
         scratch.close();
       }
+    }
+    // Publish issue (R102.2): a person's explicit act, never part of approval.
+    if (name === "spec.publish") {
+      if (context.caller || context.mcp)
+        fail("Only a person publishes a spec issue.", 403);
+      const { journal: _journal, ...published } = await publishSpec(store, {
+        github: this.github,
+        workspaceRoot: this.workspaceRoot,
+        identity: planningIdentity(this.workspaceRoot),
+        planId: input.planId,
+        repository: input.repository,
+        actor: this.operator,
+      });
+      return published;
     }
     // Spec changed (RC2.8): what an edited spec would do to each issue, and
     // the write once the spec is approved again. A person applies it.
