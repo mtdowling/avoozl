@@ -116,8 +116,12 @@ test("P44 actions 2-3: usage marks alpha-1 low, then out; low is a fact, out is 
     preview.items.every((i) => i.options.some((o) => o.model === "alpha-1")),
     "a low model is still offered",
   );
-  assert.match(preview.brief, /alpha-1: 85% used, low/);
-  assert.match(preview.brief, /Prefer beta when alpha is low\./);
+  assert.equal(preview.brief, null, "no router chat is prompted");
+  assert.ok(
+    (await ops.execute("routing.view", {})).providers.rows.some((row) =>
+      /alpha-1: 85% used, low/.test(row.line),
+    ),
+  );
 
   turn(store, "alpha-1", 20);
   refreshHealth(store);

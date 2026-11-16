@@ -73,14 +73,6 @@ test('the worker coder in plans-repo mode: no Tasks at once value, maintenance i
   assert.equal(cards(built, 'epic').find((card) => card.key === 'epic-punt').muted?.length > 0, true)
 })
 
-test('a remote coder names a managed remote provider and is tagged not built', () => {
-  const form = emptyRepository('example/code')
-  form.coder = 'remote'
-  const build = cards(buildWorkflowMap({ mode: 'single-repo', repository: form, ship: null }), 'epic').find((card) => card.key.startsWith('epic-build'))
-  assert.equal(build.tag, 'not built')
-  assert.match(build.title, /managed remote provider/)
-})
-
 test('Local only shows one local-worker lane, no labels, and says why', () => {
   const built = map({ mode: 'local', repositories: { 'example/code': { baseBranch: 'trunk', coder: 'issue-radar' } } })
   assert.deepEqual(built.lanes.map((lane) => lane.key), ['local'])

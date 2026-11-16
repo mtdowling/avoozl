@@ -355,7 +355,7 @@ test("a coder change leaves a handed-over task with its coder and shows the spli
       fs.writeFileSync(file, JSON.stringify(config));
     },
     handed = new Set(),
-    restore = registerCoderAdapter("remote", {
+    restore = registerCoderAdapter("worker", {
       usesMergePath: false,
       handOver: async ({ issue }) => handed.add(issue.number),
       readState: () => ({ state: "filed" }),
@@ -369,18 +369,18 @@ test("a coder change leaves a handed-over task with its coder and shows the spli
   ]);
   await ops.execute("github.project", { planId: plan.id });
   assert.equal(handed.size, 0);
-  setCoder("remote", 2);
+  setCoder("worker", 2);
   const second = await ops.execute("github.project", { planId: plan.id });
   // One task keeps Radar, the other goes to the new coder; one notice.
   assert.equal(handed.size, 1);
   assert.equal(
-    second.notes.filter((note) => /now uses remote/.test(note)).length,
+    second.notes.filter((note) => /now uses worker/.test(note)).length,
     1,
   );
   const third = await ops.execute("github.project", { planId: plan.id });
   assert.equal(handed.size, 1);
   assert.equal(
-    third.notes.filter((note) => /now uses remote/.test(note)).length,
+    third.notes.filter((note) => /now uses worker/.test(note)).length,
     0,
   );
 });
