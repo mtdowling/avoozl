@@ -1,0 +1,692 @@
+Avoozl retro retro-1. Answer with one JSON object only, as your instructions say.
+Data:
+```json
+{
+ "triggers": [
+  "mtdowling/avoozl: 452.2 CI min on spec- or docs-only pull requests in 7 days (limit 1)",
+  "mtdowling/avoozl: .github/workflows/test.yml ran 2 times on 6bd16b0 (push, pull_request) and repeated on 21 more commits; extra runs cost 459.7 CI min"
+ ],
+ "metrics": {
+  "tasks": 0,
+  "leadTimeMs": null,
+  "flowEfficiency": null,
+  "firstPassRate": null,
+  "changeFailureRate": null,
+  "integrationsPerDay": null,
+  "fixWork": {
+   "fixes": 0,
+   "finished": 0,
+   "share": null
+  },
+  "timeToFixMs": null
+ },
+ "previous": {
+  "tasks": 0,
+  "leadTimeMs": null,
+  "flowEfficiency": null,
+  "firstPassRate": null,
+  "changeFailureRate": null,
+  "integrationsPerDay": null,
+  "fixWork": {
+   "fixes": 0,
+   "finished": 0,
+   "share": null
+  },
+  "timeToFixMs": null
+ },
+ "bottleneck": null,
+ "stageTotalsByRepository": {},
+ "tasks": [],
+ "lineStops": [],
+ "flaky": [],
+ "ciOnly": [],
+ "batches": [],
+ "receipts": [],
+ "earlierProposals": [],
+ "revertProposals": [],
+ "fixWork": {
+  "fixes": 0,
+  "finished": 0,
+  "share": null
+ },
+ "corrections": [],
+ "rules": [],
+ "ci": [
+  {
+   "repository": "mtdowling/avoozl",
+   "windowDays": 7,
+   "minutesByClass": {
+    "spec": {
+     "task": {
+      "minutes": 0,
+      "pullRequests": 0
+     },
+     "other": {
+      "minutes": 451.7,
+      "pullRequests": 9
+     }
+    },
+    "code": {
+     "task": {
+      "minutes": 0,
+      "pullRequests": 0
+     },
+     "other": {
+      "minutes": 824.4,
+      "pullRequests": 27
+     }
+    },
+    "docs": {
+     "task": {
+      "minutes": 0,
+      "pullRequests": 0
+     },
+     "other": {
+      "minutes": 0.5,
+      "pullRequests": 1
+     }
+    }
+   },
+   "docsOnlyMinutes": 452.2,
+   "waitShare": 0.06,
+   "closedPullRequests": 50,
+   "repeatRuns": [
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "6bd16b04d1f8457bb04a49e6e32e178ba7862118",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 19.8
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "db4948395900c3a4d647e6954210b21d14da0f79",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 23.1
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "f55e34e6f6d3392d67173d62f2719d12748edf3b",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 20.4
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "54cd9f73cae28518d1d455012b464d483afef5e6",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 22.7
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "42fcfb7b3504507ee89f2ea93722c2ccf258ff1c",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 19.1
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "f55160f1889ae8a795caf7c3227e4c54122b59a4",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 22.1
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "9c6d844fab14c6a5f51c4681499bdf8d7fc5cfc1",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 22.2
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "7d4277f4995ed6c2ac3c6802b89fcc30890b722f",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 18.9
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "cc48e29bad99706cafc14025b37696fbec2f649a",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 20.4
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "41cc32e1fa5f461f26bd977ead89651bfe349703",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 25.4
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "3786699514967e208790ed9faa1085d59a6f0153",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 23.9
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "b682ac493e720499de6a750de0331defae7b2c29",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 22.4
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "02ac585a54692acdfd4dd2d188b21165be3110b5",
+     "runs": 3,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 41.5
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "9d9ffc712c685addc26a7c0ac2d3e52adcc48f8d",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 21.7
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "a99720ef272bab536c87b495979ffbdfb00720cf",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 1
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "010bb1e3432af6e69e3b2a5c3e5bd70094481aa8",
+     "runs": 2,
+     "events": [
+      "pull_request",
+      "push"
+     ],
+     "extraMinutes": 22.5
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "fcbb5ba580525fafad109acb076fd6f0a8e2e5e9",
+     "runs": 2,
+     "events": [
+      "pull_request",
+      "push"
+     ],
+     "extraMinutes": 0.5
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "a4f96f1c284cb87439355195e376f43907f0d5cb",
+     "runs": 2,
+     "events": [
+      "push",
+      "pull_request"
+     ],
+     "extraMinutes": 25.1
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "da3ff27cbfee822d89877b81cc2a0138f004369c",
+     "runs": 2,
+     "events": [
+      "pull_request",
+      "push"
+     ],
+     "extraMinutes": 22.4
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "290ea8a113c839e76b2493bd1363dbea646f0f29",
+     "runs": 2,
+     "events": [
+      "pull_request",
+      "push"
+     ],
+     "extraMinutes": 21.7
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "891227f42153aca892614f24fcb3d474c2fa3e2c",
+     "runs": 2,
+     "events": [
+      "pull_request",
+      "push"
+     ],
+     "extraMinutes": 21.8
+    },
+    {
+     "repository": "mtdowling/avoozl",
+     "workflow": ".github/workflows/test.yml",
+     "commit": "c458c7dbcf28d4e58f33a06a3b04b6ca57052c3d",
+     "runs": 2,
+     "events": [
+      "pull_request",
+      "push"
+     ],
+     "extraMinutes": 21.1
+    }
+   ],
+   "workflows": [
+    ".github/workflows/test.yml"
+   ],
+   "pullRequests": [
+    {
+     "kind": "other",
+     "number": 274,
+     "author": "mtdowling",
+     "classes": [
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 275,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 276,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 277,
+     "author": "mtdowling",
+     "classes": [
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 278,
+     "author": "mtdowling",
+     "classes": [
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 270,
+     "author": "mtdowling",
+     "classes": [
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 279,
+     "author": "mtdowling",
+     "classes": [
+      "docs"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 280,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "ci"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 281,
+     "author": "mtdowling",
+     "classes": [
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 282,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 283,
+     "author": "mtdowling",
+     "classes": [
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 284,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 285,
+     "author": "mtdowling",
+     "classes": [
+      "spec",
+      "docs"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 286,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 273,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 287,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec",
+      "docs",
+      "ci"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 288,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 289,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 290,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 292,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 293,
+     "author": "mtdowling",
+     "classes": [
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 291,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "docs"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 294,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec",
+      "docs"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 295,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 296,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec",
+      "docs"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 297,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec",
+      "docs"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 298,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 299,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 300,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 301,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec",
+      "docs"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 302,
+     "author": "mtdowling",
+     "classes": [
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 304,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 305,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 306,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 307,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "docs"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 308,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests",
+      "spec"
+     ]
+    },
+    {
+     "kind": "other",
+     "number": 309,
+     "author": "mtdowling",
+     "classes": [
+      "code",
+      "tests"
+     ]
+    }
+   ]
+  }
+ ]
+}
+```
