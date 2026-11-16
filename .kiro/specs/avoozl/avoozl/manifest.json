@@ -6900,8 +6900,8 @@
       "repository": "avoozl",
       "summary": "Phase 45 (Remove the Issue Radar path). See R91.1, R91.3; §4.26.",
       "acceptance": [
-        "Delete Radar-only leaf modules and their tests",
-        "Modules no non-Radar file imports; `npm test` passes."
+        "Audit Radar-only leaf modules and delete any already unreferenced modules and their tests",
+        "Remove only modules with no active production importers; preserve setup and PR landing code. Record retained modules and their importers for 45.4, including when no module can yet be deleted; `npm test` passes."
       ],
       "completion": "integrated",
       "checks": [
@@ -6914,12 +6914,16 @@
       "repository": "avoozl",
       "summary": "Phase 45 (Remove the Issue Radar path). See R91.1; §4.26.",
       "acceptance": [
-        "Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant"
+        "Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant",
+        "Retire provenance-based landing gates only after replacement PR landing is proved; keep compatibility names resolving."
       ],
       "completion": "integrated",
       "checks": [
         "npm test",
         "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p52"
       ]
     },
     "45.3": {
@@ -7068,7 +7072,7 @@
       "summary": "Phase 46 (Name the executor seam). See R93.1, R93.4; §4.28.",
       "acceptance": [
         "Executor interface: start, send, status, optional stop and usage",
-        "A test fails when a path outside the `kirocrew` executor names a Kiro Crew folder, project or agent file."
+        "Contract tests cover the calls and allowed status values; the interface carries no Kiro Crew folder, project or agent-file detail. The comprehensive boundary test runs at P56 after 46.2–46.4 move the existing references."
       ],
       "completion": "integrated",
       "checks": [
@@ -7082,7 +7086,7 @@
       "summary": "Phase 46 (Name the executor seam). See R93.2, R93.6; §4.28.",
       "acceptance": [
         "The `kirocrew` executor holds today's session calls from `tick.py`",
-        "Folders and project directories become its private detail; no test changes."
+        "All Kiro Crew folder and project handling becomes the executor's private detail, including callers outside `tick.py`; existing tests stay unchanged."
       ],
       "completion": "integrated",
       "checks": [
@@ -7096,9 +7100,10 @@
     "46.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 46 (Name the executor seam). See R93.3; §4.28.",
+      "summary": "Phase 46 (Name the executor seam). See R93.3, R93.4; §4.28.",
       "acceptance": [
-        "The tick writes session requests that name an executor; each executor takes only its own"
+        "The tick writes session requests that name an executor; each executor takes only its own",
+        "Planner requests carry no Kiro Crew folder, project or agent-file details."
       ],
       "completion": "integrated",
       "checks": [
@@ -7115,7 +7120,7 @@
       "summary": "Phase 46 (Name the executor seam). See R97.1, R97.2; §4.28.",
       "acceptance": [
         "Role prompts in `prompts/<role>.md`; agent files built from them",
-        "A test fails when a built agent differs from its prompt."
+        "Runtime prompt readers use the prompt files, not generated agent JSON. A test fails when a built agent differs from its prompt."
       ],
       "completion": "integrated",
       "checks": [
@@ -7132,7 +7137,8 @@
       "summary": "Phase 46 (Name the executor seam). Proof. See R93, R97; §4.28.",
       "acceptance": [
         "Proof: the seam is named and nothing else changed",
-        "Expected: the suite passes with no test edited; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file."
+        "Expected: the suite passes with no test edited; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file.",
+        "A boundary test fails on any code path outside the `kirocrew` executor naming a Kiro Crew folder, project or agent file."
       ],
       "completion": "integrated",
       "checks": [
@@ -7255,7 +7261,7 @@
       "summary": "Phase 47 (Supervisor and the process executor). Proof. See R93, R94, R95, R96; §4.28.",
       "acceptance": [
         "Proof: a Claude Code chain runs under the supervisor and survives faults",
-        "Expected: (1) all 3 tasks finish with `runner report` and Avoozl reads each commit from the worktree; (2) the resume argv delivers the feedback and the task passes; (3) the killed child is `exited` or `gone` and its task recovers on the retry path; (4) the supervisor keeps or finds its children and nothing runs twice; (5) refused."
+        "Expected: (1) all 3 tasks finish with an exit code and a result file, and Avoozl commits each one; (2) the resume argv delivers the feedback and the task passes; (3) the killed child is `exited` or `gone` and its task recovers on the retry path; (4) the supervisor keeps or finds its children and nothing runs twice; (5) refused."
       ],
       "completion": "integrated",
       "checks": [
@@ -7298,7 +7304,7 @@
       "summary": "Phase 48 (A second harness by definition file only). Proof. See R94.7; §4.28.",
       "acceptance": [
         "Proof: Codex runs a task from its definition file alone",
-        "Expected: the task finishes with `runner report`; `git diff --stat` of every source file against the recorded commit is empty, and the proof fails if any source file changed."
+        "Expected: the child exits with a valid `.avoozl/result.json`, Avoozl commits its changes and the task finishes; `git diff --stat` of every source file against the recorded commit is empty, and the proof fails if any source file changed."
       ],
       "completion": "integrated",
       "checks": [
