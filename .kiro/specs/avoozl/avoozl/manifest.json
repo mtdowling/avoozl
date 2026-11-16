@@ -7278,7 +7278,8 @@
         "47.7",
         "47.8",
         "47.9",
-        "47.10"
+        "47.10",
+        "47.11"
       ]
     },
     "48.1": {
@@ -7515,6 +7516,20 @@
       ],
       "requires": [
         "47.4"
+      ]
+    },
+    "47.11": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). See R94.4a, R96.1, R96.3; §4.28.",
+      "acceptance": [
+        "Avoozl's worker commit never stages a path under `.avoozl/`, and landing refuses a worker commit that holds one",
+        "Whatever the repository's .gitignore says. 47.7 commits through `commitWorkerChanges` (`src/app/git.mjs`); `integrateRun` refuses a branch whose commits touch `.avoozl/` with the paths named; tests in `src/app/test/worker-commit.test.mjs`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
       ]
     },
     "47.8": {
