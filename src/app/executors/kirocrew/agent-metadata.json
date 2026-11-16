@@ -163,7 +163,9 @@
       "@avoozl:avoozl/plans_get_document",
       "@avoozl:avoozl/plans_get_plan",
       "@avoozl:avoozl/plans_classify_issue",
-      "@avoozl:avoozl/plans_draft_children"
+      "@avoozl:avoozl/plans_draft_children",
+      "@avoozl:avoozl/plans_create_plan",
+      "@avoozl:avoozl/plans_save_plan"
     ],
     "allowedTools": [],
     "toolsSettings": {
@@ -249,6 +251,46 @@
       "@avoozl:avoozl/plans_report"
     ],
     "allowedTools": [],
+    "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-plan-review",
+    "model": "auto",
+    "description": "Avoozl Plan reviewer: reads one exact draft revision and records findings only.",
+    "tools": [
+      "fs_read",
+      "grep",
+      "glob",
+      "thinking",
+      "@avoozl:avoozl/plans_submit_review"
+    ],
+    "allowedTools": [
+      "fs_read",
+      "grep",
+      "glob",
+      "thinking",
+      "@avoozl:avoozl/plans_submit_review"
+    ],
+    "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-plan-answer-read",
+    "model": "auto",
+    "description": "Avoozl read-only planner answer: records reasons for review findings after a spec was approved or replaced.",
+    "tools": [
+      "fs_read",
+      "grep",
+      "glob",
+      "thinking",
+      "@avoozl:avoozl/plans_get_plan"
+    ],
+    "allowedTools": [
+      "fs_read",
+      "grep",
+      "glob",
+      "thinking",
+      "@avoozl:avoozl/plans_get_plan"
+    ],
     "includeMcpJson": false
   }
 ]
