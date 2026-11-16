@@ -7,6 +7,7 @@ import test from "node:test";
 import { GitHubClient } from "../github.mjs";
 import {
   CACHE_MAX_AGE_MS,
+  CACHE_ENTRIES_PER_ISSUE,
   CACHE_MAX_BODY,
   LOW_REMAINING,
   RATE_LIMIT_TEXT,
@@ -157,6 +158,23 @@ test("the cache is bounded: oversize skipped, least recently used and old entrie
   put("fresh");
   assert.equal(cache.prune(), 3);
   assert.equal(cache.size(), 1);
+});
+
+test("the cache cap grows with the GitHub issues the workspace tracks", (t) => {
+  const store = workspace(t);
+  let clock = T0;
+  const cache = new ResponseCache(store, { now: () => clock, maxEntries: 3 });
+  // Two tracked issues keep up to CACHE_ENTRIES_PER_ISSUE answers each.
+  store.read = () => ({
+    tasks: [{ github: { number: 1 } }, { github: { number: 2 } }, {}],
+  });
+  assert.equal(cache.limit(), 2 * CACHE_ENTRIES_PER_ISSUE);
+  for (const name of ["a", "b", "c", "d", "e"]) {
+    clock += 1000;
+    cache.put(name, { etag: `"${name}"`, body: "[]" });
+  }
+  assert.equal(cache.prune(), 0);
+  assert.equal(cache.size(), 5);
 });
 
 test("a 403 with no calls left stops every call until the reset, with no retries", async (t) => {

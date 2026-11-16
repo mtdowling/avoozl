@@ -206,7 +206,7 @@ for (const [width, height] of [[1280, 900], [390, 800]])
       await page.until(`Boolean(document.querySelector('[data-pp-head-link]')) && Boolean(document.querySelector('[data-pp-head] [data-stop-line]')) && Boolean(document.querySelector('[data-flight-row]'))`)
       const head = await page.evaluate(`(() => {
         const h = document.querySelector('[data-pp-head]')
-        const kids = [...h.querySelectorAll('[data-pp-head-name], button')]
+        const kids = [...h.querySelectorAll('[data-pp-head-name], button')].filter((el) => el.getBoundingClientRect().width > 0)
         const mids = kids.map((el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2 })
         const tallest = Math.max(...kids.map((el) => el.getBoundingClientRect().height))
         const stop = h.querySelector('[data-stop-line]').getBoundingClientRect()
@@ -224,14 +224,16 @@ for (const [width, height] of [[1280, 900], [390, 800]])
           appRow: Boolean(document.querySelector('[data-open-avoozl]')) || /Avoozl app/.test(document.body.innerText),
         }
       })()`)
-      assert.match(head.name, /^Avoozl · \S/)
+      // A desktop names Avoozl, the instance and the workspace; a phone the workspace alone.
+      if (width >= 768) assert.match(head.name, /^Avoozl · \S+ · Harness$/)
+      else assert.equal(head.name, 'Harness')
       assert.deepEqual(head.buttons.slice(0, 1), ['Open Avoozl'])
       assert.match(head.buttons[1], /^Refresh, reads again in/)
       assert.match(head.buttons[2], /^(Collapse|Expand) all sections$/)
       assert.equal(head.buttons[3], 'Stop the line')
       assert.equal(head.buttons.length, 4)
       assert.deepEqual(head.texts.slice(1), ['', '', ''], 'icons only, no countdown')
-      assert.deepEqual(head.link, { text: 'Avoozl', border: 'none', bg: 'rgba(0, 0, 0, 0)', underline: 'none' }, 'a plain word, no button box')
+      if (width >= 768) assert.deepEqual(head.link, { text: 'Avoozl', border: 'none', bg: 'rgba(0, 0, 0, 0)', underline: 'none' }, 'a plain word, no button box')
       assert.equal(head.chips, 0, 'no count chips')
       assert.equal(head.wrap, 'nowrap')
       assert.ok(head.spread < 2, `everything on one line (${head.spread} px apart)`)

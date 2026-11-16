@@ -277,6 +277,9 @@ export function plansClient(api: AppApi) {
     // a changed hash, a changed database, or a folder that moved on disk.
     // Draft specs in the order they can be approved (plan.approvalBatches).
     batches: (workspaceId: string) => run<ApprovalBatches>(workspaceId, 'plan.approvalBatches'),
+    // What approving just these would do, with each one's issue writes. Writes nothing.
+    selection: (workspaceId: string, ids: string[]) =>
+      run<ApprovalBatches & { selection: BatchSelection }>(workspaceId, 'plan.approvalBatches', { ids }).then((value) => value.selection),
     // Approve exactly these revisions together, all or none (plan.approveMany).
     approveMany: (workspaceId: string, items: { id: string; expectedHash: string }[]) =>
       run<ApproveManyResult>(workspaceId, 'plan.approveMany', { items }),
@@ -310,6 +313,15 @@ export interface BatchEntry {
 }
 export interface ApprovalBatches {
   batches: { batch: number; specs: BatchEntry[] }[]
+}
+// plan.approvalBatches {ids}: approving just these, tried on a scratch
+// copy. `writes` counts the GitHub issue writes projecting each would make.
+export interface BatchSelection {
+  ok: boolean
+  specs: (BatchEntry & { writes?: number | null; writesError?: string; pullRequest?: boolean })[]
+  writes: number
+  failures: { id: string; spec: string | null; error: string }[]
+  missing: string[]
 }
 export interface ApproveManyResult {
   ok: boolean

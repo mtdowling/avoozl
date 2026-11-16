@@ -222,11 +222,16 @@ export async function reviewDraftStep({
     if (!review) continue;
     let found;
     try {
-      found = await github.searchOpenIssues(
-        repository,
-        `is:pr label:"${review}"`,
-        { perPage: 50, pullRequests: true },
-      );
+      // The one open-pull-request read the feedback step also takes
+      // (RC29.4), through the cache, not a search of its own.
+      found = {
+        items: (await github.openPullRequests(repository)).map((pull) => ({
+          number: pull.number,
+          html_url: pull.url,
+          pull_request: {},
+          labels: pull.labels?.nodes ?? [],
+        })),
+      };
     } catch (error) {
       errors.push(`${repository}: ${error.message}`);
       continue;

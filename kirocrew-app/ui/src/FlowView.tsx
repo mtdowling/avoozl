@@ -4,8 +4,9 @@
 // Radar and GitHub; this tab shows graph and delivery timing only.
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, Card, EmptyState, SegmentedControl } from '@kirocrew/app-sdk/ui'
+import { Btn, Card, EmptyState } from '@kirocrew/app-sdk/ui'
 import { ProposalsView } from './FlowMemory.tsx'
+import type { FlowTab } from './nav-api.ts'
 import GithubFlow from './GithubFlow.tsx'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
@@ -411,7 +412,8 @@ function Records({ view }: { view: FlowViewModel }) {
   )
 }
 
-export default function FlowView({ workspaceId }: { workspaceId: string | null }) {
+// `tab` is picked in the left nav; this page shows only that one.
+export default function FlowView({ workspaceId, tab }: { workspaceId: string | null; tab: FlowTab }) {
   const api = useAppApi()
   const client = useMemo(() => flowClient(api), [api])
   const [filter, setFilter] = useStoredFilter<FlowFilter>(workspaceId, FLOW_FILTER_STORE)
@@ -426,27 +428,12 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
   }, [reload])
   const setField = (change: Partial<FlowFilter>) => setFilter({ ...filter, ...change })
   const [unit, setUnit] = useState<Unit>('day')
-  // Overview (timing), Retros and Proposals (design §4.18).
-  const [tab, setTab] = useState<'overview' | 'retros' | 'proposals'>('overview')
   return (
     <section aria-labelledby="avoozl-flow-title" className="flex flex-col gap-3.5">
       <ViewHeading id="avoozl-flow-title" view="flow">
         Flow
       </ViewHeading>
       <p className="text-sm text-muted">Where delivery time goes, and what the last retro proposed.</p>
-      <SegmentedControl
-        collapse={false}
-        wrap="hug"
-        layoutId="avoozl-flow-tabs"
-        ariaLabel="Flow views"
-        segments={[
-          { key: 'overview', label: 'Overview' },
-          { key: 'retros', label: 'Retros' },
-          { key: 'proposals', label: 'Proposals' },
-        ]}
-        value={tab}
-        onChange={(key) => setTab(key as typeof tab)}
-      />
       {tab === 'proposals' && <ProposalsView workspaceId={workspaceId} />}
       {(tab === 'overview' || tab === 'retros') && error && (
         <p role="alert" className="text-sm text-danger">

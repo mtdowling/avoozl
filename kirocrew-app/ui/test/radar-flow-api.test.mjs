@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { flowRows, span, summaryLine } from '../src/radar-flow-api.ts'
+import { buildsLine, flowRows, span, summaryLine } from '../src/radar-flow-api.ts'
 
 const MIN = 60000
 const view = (extra = {}) => ({
@@ -49,4 +49,9 @@ test('the summary names the count, lead time and flow efficiency', () => {
 
 test('the Flow overview shows the section', () => {
   assert.match(readFileSync(new URL('../src/FlowView.tsx', import.meta.url), 'utf8'), /<GithubFlow/)
+})
+
+test('buildsLine words the count and the median', () => {
+  assert.equal(buildsLine({ count: 12, medianMs: 41000, byTarget: [], byInstance: [] }), '12 builds · median 41 s')
+  assert.equal(buildsLine({ count: 1, medianMs: null, byTarget: [], byInstance: [] }), '1 build · median —')
 })

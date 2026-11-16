@@ -141,6 +141,7 @@ import {
   landingNeedsYou,
 } from "./integration-head.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
+import { receiptReader } from "./build-receipt-read.mjs";
 import { epicsView } from "./epics-view.mjs";
 import { doneWork } from "./trace-done.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
@@ -346,7 +347,12 @@ import {
   draftGitHubChildren,
 } from "./github-breakdown.mjs";
 import { previewProjection } from "./github-preview.mjs";
-import { clampLimits, paceNeedsYou, runView } from "./github-pacer.mjs";
+import {
+  clampLimits,
+  paceNeedsYou,
+  refuseOtherRun,
+  runView,
+} from "./github-pacer.mjs";
 import { planProjectionBatches } from "./radar-coder-batch.mjs";
 import {
   applySpecChange,
@@ -531,11 +537,12 @@ import {
   specEpic,
 } from "./spec-plans.mjs";
 import {
+  approvalChangedAtMerge,
+  approvalEvidence,
   approvalState,
   openApproval,
-  proseFiles,
   reconcileApproval,
-  statusOf,
+  reconcileOpenApprovals,
 } from "./spec-approval.mjs";
 import {
   matchingAgentInstructions,
@@ -1760,15 +1767,43 @@ export class Operations {
   // else null.
   approvalGateTarget(plan) {
     const target = this.approvalPullRequestTarget(plan);
+    // A revision with no recorded approval always opens one, even when its
+    // files already say Approved (an edit after an earlier approval): the
+    // pull request then adds the approval marker (spec-approval.mjs).
     if (!target || this.planApproved(plan)) return null;
-    // Nothing to commit: the files already say Approved and no record is on.
-    const files = plan.files || {};
-    if (
-      !target.decisionRecord &&
-      proseFiles(files).every((name) => statusOf(files[name]) === "Approved")
-    )
-      return null;
     return target;
+  }
+  // Who approves a spec. GitHub records the approver as a login (the approval
+  // pull request checks it, and the issue write-back names it), so with
+  // GitHub in play it is the caller's login, else the signed-in GitHub login,
+  // cached for this workspace. git user.name is display provenance and may
+  // hold spaces. Only an approval pull request requires the login; without
+  // one a missing login keeps the operator, as before.
+  async specApprover(plan, approvedBy) {
+    const given = approvedBy?.trim();
+    if (given) return given;
+    const gated = Boolean(this.approvalGateTarget(plan));
+    if (
+      !gated &&
+      !(
+        readGitHubPolicyOrNull(this.workspaceRoot)?.mode &&
+        this.github?.available?.()
+      )
+    )
+      return this.operator;
+    if (!this.approverLogin)
+      try {
+        this.approverLogin =
+          (this.github?.available?.() &&
+            (await this.github.currentUser())?.login) ||
+          null;
+      } catch {}
+    if (this.approverLogin) return this.approverLogin;
+    if (!gated) return this.operator;
+    fail(
+      "Approving a spec needs your GitHub login, and Avoozl could not find one. Run `gh auth login`, then approve again.",
+      401,
+    );
   }
   async approvalPullRequest(plan, { approvedBy, quality }) {
     const target = this.approvalGateTarget(plan);
@@ -1781,6 +1816,7 @@ export class Operations {
       key = { planId: plan.id, hash: plan.hash };
     let state = await reconcileApproval(this.store, { ...ids, ...key });
     if (state?.state === "merged") return { merged: state };
+    approvalChangedAtMerge(state);
     if (state?.state !== "open")
       state = await openApproval(this.store, {
         ...ids,
@@ -1831,10 +1867,29 @@ export class Operations {
       // Nothing here may undo an approval.
     }
   }
+  // An approval pull request that merged is the person's approval (they
+  // merged it): record it under the login that asked for it, with no second
+  // command. One read per open approval pull request.
+  // shortcut: a merged spec that fails its checks is tried again each tick
+  // and says nothing; surface it in Needs you if that turns out to happen.
+  async recordMergedApprovals() {
+    const merged = await reconcileOpenApprovals(this.store, {
+      github: this.github,
+    });
+    for (const pull of merged)
+      await this.perform("plan.approveMany", {
+        items: pull.specs.map(({ planId, hash }) => ({
+          id: planId,
+          expectedHash: hash,
+        })),
+        approvedBy: pull.approvedBy,
+      }).catch(() => {});
+  }
   // The tick's pass over approval labels and Avoozl's own claims (RC18.2, RC19.5).
   async approvalTick() {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot);
     if (!policy?.mode || !this.github?.available?.()) return;
+    await this.recordMergedApprovals().catch(() => {});
     const identity = planningIdentity(this.workspaceRoot),
       plans = this.store.list("plans"),
       drafts = plans
@@ -3849,6 +3904,7 @@ export class Operations {
         mirrorFor: (pull) => mirrorRecordFor(store, where, pull),
         fixesFor: (pull) => conflictFixesOf(store, input.repository, pull),
         trackerFor: (issue) => gateTraceStep(store, input.repository, issue),
+        receiptFor: (pull) => receiptReader(store, this.github)(where)(pull),
       });
     }
     // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the
@@ -5626,7 +5682,10 @@ export class Operations {
     if (name === "plan.approve") {
       const { plan, extraction, specQuality, proposals, quality } =
         this.approvalChecks(input);
-      let approver = input.approvedBy?.trim() || this.operator,
+      let approver =
+          plan.spec && !extraction
+            ? await this.specApprover(plan, input.approvedBy)
+            : input.approvedBy?.trim() || this.operator,
         evidence = input.evidence;
       if (plan.spec && !extraction) {
         const gate = await this.approvalPullRequest(plan, {
@@ -5646,7 +5705,7 @@ export class Operations {
           };
         if (gate?.merged) {
           approver = gate.merged.approvedBy;
-          evidence = evidence || `Approval merged at ${gate.merged.commit}.`;
+          evidence = evidence || approvalEvidence(gate.merged);
         }
       }
       const approved = approvePlan(store, {
@@ -6081,13 +6140,15 @@ export class Operations {
             : null;
       if (checked) requirePreflight(checked);
     }
-    if (name === "github.project")
+    if (name === "github.project") {
+      if (!input.dryRun) refuseOtherRun(store, input.planId);
       return this.withProjectSync(
         await projectPlanIssues(store, this.github, {
           ...input,
           identity: planningIdentity(this.workspaceRoot),
         }),
       );
+    }
     // The issues approving a draft spec plan would make, without approving
     // it: approval runs on a scratch copy of the store that is thrown away,
     // then the projection preview reads that copy. Nothing is written here

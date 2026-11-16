@@ -2,6 +2,18 @@
 
 Status: Approved
 
+**Superseded 2026-11-15** by Requirements 86–91 and design §4.26 of
+`.kiro/specs/avoozl/`: Avoozl owns the coding loop with its own workers,
+pushes and lands the work, and the Issue Radar path is removed. Superseded
+here: the Issue Radar coder and handoff (RC1–RC6, RC10, RC14, RC15), the
+retirement of Avoozl's workers (RC11; Phase 12 is cancelled), labels and
+claims as coordination, the mirror and forward flow for a public repository
+with private plans (RC24–RC26), and the separate conflict-fix chat (RC28).
+Still in force: integration branches (RC16), the approval pull request only
+for a spec on a protected branch (RC3.6), setup (RC27), the GitHub usage
+counter (RC29), release ranking (RC31) and build receipts (RC32). This file
+is kept as the record; it is not deleted.
+
 Requirements are in `requirements.md` (RC1 to RC12). Sections here are
 numbered D1 to D17 so they are not confused with the sections of
 `.kiro/specs/avoozl/design.md`, which this design builds on and sometimes
@@ -320,7 +332,8 @@ tick, ship = manual:
   no-force-push rule need.
 - It uses GitHub's mutation, so the rules the repository set (required checks,
   required reviews) are what decide. Avoozl never merges, uses `--admin` or
-  skips a rule (RC5.5).
+  skips a rule (RC5.5). (Superseded 2026-11-15: Avoozl merges after checks
+  pass, `avoozl` design §4.26; it still never uses `--admin` or skips a rule.)
 - The merge path is ready when: the repository allows auto-merge; the default
   branch has a rule requiring the CI check by name; `delivery.ship` has a
   value. Without a required check GitHub would merge at once or refuse; Avoozl

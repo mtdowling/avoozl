@@ -7,8 +7,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    # Windows spawns git and node more slowly; its suite runs past 10 minutes.
-    timeout-minutes: ${{ matrix.os == 'windows-latest' && 25 || 10 }}
+    # Windows spawns git and node more slowly; its suite plus the UI's browser
+    # tests run 22 to 25 minutes there, so 25 cancelled passing runs.
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 40 || 10 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,7 +18,21 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run format:check
-      - run: npm test
+      # The build receipt: one JSON line for this run (RC32.4).
+      - run: node bin/build-receipt --target ${{ matrix.os }} -- npm test
+        env:
+          AVOOZL_RECEIPT_FILE: build-receipt.jsonl
+      - name: Receipt to the job summary
+        if: always() && matrix.os == 'ubuntu-latest' && hashFiles('build-receipt.jsonl') != ''
+        run: |
+          echo '### Build receipt' >> "$GITHUB_STEP_SUMMARY"
+          tail -n 1 build-receipt.jsonl >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.os == 'ubuntu-latest' && hashFiles('build-receipt.jsonl') != ''
+        with:
+          name: build-receipt
+          path: build-receipt.jsonl
+          retention-days: 30
       # The page's own tests. The browser ones need Chrome and skip without it.
       - run: npm run test:ui
         env:
