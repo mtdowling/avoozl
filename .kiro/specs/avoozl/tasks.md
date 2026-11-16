@@ -1631,7 +1631,7 @@ Requirement 91 (design §4.26). Audit leaf modules any time. Task 45.2
 waits for P52; 45.2 and 45.3 run only when no other lane edits the same
 files. Remaining shared edits wait until Phases 40–44 are proved.
 
-- [ ] 45.1 Audit Radar-only leaf modules and delete any already unreferenced modules and their tests [R91.1, R91.3] (§4.26)
+- [x] 45.1 Audit Radar-only leaf modules and delete any already unreferenced modules and their tests [R91.1, R91.3] (§4.26)
   - Remove only modules with no active production importers; preserve setup and PR landing code. Record retained modules and their importers for 45.4, including when no module can yet be deleted; `npm test` passes.
 - [ ] 45.2 Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant, after avoozl-p52 [R91.1] (§4.26)
   - Retire provenance-based landing gates only after replacement PR landing is proved; keep compatibility names resolving.
