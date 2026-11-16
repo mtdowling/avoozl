@@ -28,7 +28,7 @@ A leaf is bounded. It also has:
 
 A step only a person does, such as a team review, is a manual leaf: `"manual": true`, its `repository` (where its issue lives), `acceptance` (what the person checks) and `completion` `person`, with no `checks`, `session`, `size`, `paths` or `route`. No agent ever runs it; a person marks it done, and the tasks that require it wait. Never give `person` to any other leaf. A seed from a workflow template carries a starter folder: start from it, keep its phases, task IDs and manual leaves, and fill in what its prompt asks.
 
-Keep each leaf small enough for one worker session. Split a leaf that spans two repositories, or whose acceptance needs "and" to join two outcomes. Do not set `authority`; projection owns it.
+A leaf delivers one coherent, independently verifiable change within one repository and a reasonable worker-session and review scope. Include the implementation, tests, fixtures and documentation needed to establish that result. Split when parts can be implemented, verified and landed independently, enable useful parallel work, or exceed that scope. Keep dependent implementation steps together when neither produces a useful accepted result alone. Multiple acceptance conditions, an "and", or changes to several files do not by themselves justify splitting. Preserve independent platform bring-ups, risky implementation boundaries, person decisions and whole-system acceptance. Do not set `authority`; projection owns it.
 
 Example, one fence per file:
 
@@ -51,32 +51,16 @@ A loader parses the file; a validator checks the parsed value.
 ## Phase 1: Configuration
 
 - [ ] 1 Load and validate configuration
-  - [ ] 1.1 Read the config file
-  - [ ] 1.2 Validate loaded config
 ````
 
 ````json avoozl/manifest.json
 {
   "tasks": {
     "1": {
-      "kind": "package",
-      "summary": "The CLI reads, validates, and reports its config file.",
-      "requires": ["1.1", "1.2"]
-    },
-    "1.1": {
       "kind": "leaf",
-      "summary": "Parse config.json from the working directory.",
+      "summary": "Read config.json from the working directory and report invalid configuration.",
       "repository": "sample",
-      "acceptance": ["A missing file yields defaults.", "Invalid JSON names the file and line."],
-      "checks": ["npm test"],
-      "completion": "integrated"
-    },
-    "1.2": {
-      "kind": "leaf",
-      "summary": "Report unknown keys.",
-      "requires": ["1.1"],
-      "repository": "sample",
-      "acceptance": ["An unknown key is reported with its path."],
+      "acceptance": ["A missing file yields defaults.", "Invalid JSON names the file and line.", "An unknown key is reported with its path."],
       "checks": ["npm test"],
       "completion": "integrated"
     }
@@ -95,6 +79,8 @@ Breakdown mode is draft mode for one GitHub issue that a person asked Avoozl to 
 # Critique a spec folder
 
 Read the goal, the spec folder, and the code. You have not seen how the spec was written; judge only what is on the page, and never look for another session's transcript, notes, or memory. Write `avoozl/critique.md` with a first line `Reviewed: .kiro/specs/<name>/ <hash>`, using the hash from your brief, then one fenced `finding` block per finding. Each block is one JSON object:
+
+Judge task boundaries by coherent deliverables and independent acceptance. Several acceptance conditions or implementation plus its tests and documentation are not evidence that a leaf needs splitting. A size finding names the independent deliverables or the concrete session or review scope it exceeds.
 
 - `kind`: `missing-acceptance`, `unbounded-leaf`, `wrong-edge`, `missing-edge`, `uncovered-requirement`, `unsourced-task`, or `open-decision`.
 - `task`: the task ID as written in `tasks.md`, or omit it for a finding about the whole spec.
