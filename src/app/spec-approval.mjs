@@ -6,11 +6,19 @@
 // unmerged. The Status line is outside the revision hash (see specHash).
 //
 // `store` needs getMeta and setMeta. `github` needs repository, branchHead,
-// createBranch, putFile, createPullRequest and pullRequest.
+// createBranch, commitFiles, createPullRequest, pullRequest and blobTexts.
+// Each pull request is one commit, and a merge counts only when the spec at
+// the merge commit still has the hash that was approved.
 import { branchNameProblem } from "./integration-branch.mjs";
 import { COMMIT, LOGIN } from "./github-marker.mjs";
 import { fail } from "./store.mjs";
-import { specName, statusOf, withStatus } from "./spec-plans.mjs";
+import {
+  REVISION_FILES,
+  specHash,
+  specName,
+  statusOf,
+  withStatus,
+} from "./spec-plans.mjs";
 
 export { statusOf, withStatus, withoutStatus } from "./spec-plans.mjs";
 
@@ -223,13 +231,12 @@ export async function openApproval(
       head.oid,
     ),
     attempt = branch.attempt;
-  for (const [path, text] of Object.entries(changes))
-    await github.putFile(repository, {
-      path,
-      branch: branch.name,
-      message: `Approve spec ${spec}`,
-      content: Buffer.from(text).toString("base64"),
-    });
+  await github.commitFiles(repository, {
+    branch: branch.name,
+    message: `Approve spec ${spec}`,
+    expectedHeadOid: head.oid,
+    files: encoded(changes),
+  });
   const pull = await github.createPullRequest(repository, {
       title: `Approve spec ${spec}`,
       head: branch.name,
@@ -243,12 +250,21 @@ export async function openApproval(
       branch: branch.name,
       attempt,
       base,
+      spec,
       ...(ref !== undefined ? { ref } : {}),
       requestedBy: approvedBy,
     };
   store.setMeta(key(planId, hash), state);
   return state;
 }
+
+const encoded = (changes) =>
+  Object.fromEntries(
+    Object.entries(changes).map(([path, text]) => [
+      path,
+      Buffer.from(text).toString("base64"),
+    ]),
+  );
 
 // One approval pull request for several specs with the same target
 // (plan.approveMany). Each spec records the same pending state, so each one
@@ -284,14 +300,12 @@ export async function openBatchApproval(
       1,
       head.oid,
     );
-  for (const part of fresh)
-    for (const [path, text] of Object.entries(part.changes))
-      await github.putFile(repository, {
-        path,
-        branch: branch.name,
-        message: `Approve spec ${part.entry.spec}`,
-        content: Buffer.from(text).toString("base64"),
-      });
+  await github.commitFiles(repository, {
+    branch: branch.name,
+    message: `Approve ${names.length} specs`,
+    expectedHeadOid: head.oid,
+    files: encoded(Object.assign({}, ...fresh.map((part) => part.changes))),
+  });
   const pull = await github.createPullRequest(repository, {
     title: `Approve ${names.length} specs`,
     head: branch.name,
@@ -306,6 +320,7 @@ export async function openBatchApproval(
       branch: branch.name,
       attempt: part.previous?.attempt || 0,
       base,
+      spec: part.entry.spec,
       ...(ref !== undefined ? { ref } : {}),
       requestedBy: approvedBy,
       batch: names,
@@ -343,7 +358,10 @@ export async function reconcileOpenApprovals(store, { github }) {
     } catch {
       continue;
     }
-    const once = { pullRequest: async () => pull };
+    const once = {
+      pullRequest: async () => pull,
+      blobTexts: (...args) => github.blobTexts(...args),
+    };
     for (const entry of group)
       try {
         entry.state = await reconcileApproval(store, {
@@ -408,11 +426,39 @@ export async function reconcileApproval(
       );
     if (!COMMIT.test(pull.merge_commit_sha || ""))
       fail("GitHub returned no merge commit for the approval.", 502);
+    // The spec as it landed: a commit pushed to the approval branch before
+    // the merge changes what was approved, and approves nothing.
+    const spec = state.spec ?? store.get?.("plans", planId)?.spec,
+      folder = `.kiro/specs/${specName(spec)}/`,
+      texts = await github.blobTexts(
+        repository,
+        pull.merge_commit_sha,
+        REVISION_FILES.map((file) => folder + file),
+      ),
+      landed = {};
+    for (const file of REVISION_FILES) {
+      const text = texts.get(folder + file);
+      if (typeof text === "string") landed[file] = text;
+    }
+    const mergedBy = pull.merged_by?.login ?? null,
+      landedHash = specHash(landed);
+    if (landedHash !== hash) {
+      const next = {
+        ...state,
+        state: "changed",
+        commit: pull.merge_commit_sha,
+        landedHash,
+        mergedBy,
+      };
+      store.setMeta(key(planId, hash), next);
+      return next;
+    }
     const next = {
       ...state,
       state: "merged",
       commit: pull.merge_commit_sha,
       approvedBy: state.requestedBy,
+      mergedBy,
     };
     store.setMeta(key(planId, hash), next);
     return next;
@@ -423,4 +469,17 @@ export async function reconcileApproval(
     return next;
   }
   return state;
+}
+
+// The evidence line of an approval that merged: the commit and who merged it.
+export const approvalEvidence = (state) =>
+  `Approval merged at ${state.commit}${state.mergedBy ? ` by @${state.mergedBy}` : ""}.`;
+
+// Refuse an approval whose pull request merged a different revision.
+export function approvalChangedAtMerge(state) {
+  if (state?.state === "changed")
+    fail(
+      `The approval pull request merged a different revision (${String(state.landedHash).slice(0, 12)} at ${String(state.commit).slice(0, 12)}). Nothing was approved. Reload the spec and approve it again.`,
+      409,
+    );
 }

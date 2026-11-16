@@ -3,7 +3,9 @@ import test from "node:test";
 import { specHash } from "../spec-plans.mjs";
 import {
   APPROVAL_MARKER,
+  approvalChangedAtMerge,
   approvalChanges,
+  approvalEvidence,
   approvalState,
   openApproval,
   reconcileApproval,
@@ -41,11 +43,27 @@ class Fake {
   async createBranch(_r, name) {
     this.branches.push(name);
   }
-  async putFile(_r, file) {
-    this.written.push({
-      ...file,
-      text: Buffer.from(file.content, "base64").toString(),
-    });
+  // One commit per call; each file is also kept as written.
+  async commitFiles(_r, { branch, message, files, expectedHeadOid }) {
+    this.commits = [
+      ...(this.commits ?? []),
+      { branch, message, expectedHeadOid },
+    ];
+    for (const [path, content] of Object.entries(files))
+      this.written.push({
+        path,
+        branch,
+        message,
+        content,
+        text: Buffer.from(content, "base64").toString(),
+      });
+    return "c".repeat(40);
+  }
+  // The files at a merge: the base branch's, then what the pull request wrote.
+  async blobTexts(_r, _ref, paths) {
+    const landed = { ...this.base };
+    for (const file of this.written) landed[file.path] = file.text;
+    return new Map(paths.map((path) => [path, landed[path] ?? null]));
   }
   async createPullRequest(_r, input) {
     this.pulls.push({
@@ -74,6 +92,7 @@ class Fake {
     });
   }
 }
+const H = specHash(files());
 const run = (extra = {}) => {
   const store = memoryStore(),
     github = new Fake(),
@@ -82,12 +101,19 @@ const run = (extra = {}) => {
       github,
       repository,
       planId: "p1",
-      hash: "h1",
+      hash: H,
       spec: "demo",
       files: files(),
       approvedBy: "octocat",
     };
-  return { store, github, repository, base, args: { ...base, ...extra } };
+  const args = { ...base, ...extra };
+  github.base = Object.fromEntries(
+    Object.entries(args.files).map(([name, text]) => [
+      `.kiro/specs/${args.spec}/${name}`,
+      text,
+    ]),
+  );
+  return { store, github, repository, base, args };
 };
 
 test("approving does not change the spec hash", () => {
@@ -139,7 +165,7 @@ test("the pull request sets Status in three prose files and nothing is recorded 
   // Still open: a read records nothing.
   const read = await reconcileApproval(store, args);
   assert.equal(read.commit, undefined);
-  assert.equal(approvalState(store, "p1", "h1").approvedBy, undefined);
+  assert.equal(approvalState(store, "p1", H).approvedBy, undefined);
 });
 
 test("a merge records the merge commit and the approver", async () => {
@@ -199,7 +225,7 @@ test("a revision edited after approval still opens a pull request, with the mark
   const marker = github.written.find(
     (f) => f.path === `.kiro/specs/demo/${APPROVAL_MARKER}`,
   );
-  assert.deepEqual(JSON.parse(marker.text), { approves: "h1" });
+  assert.deepEqual(JSON.parse(marker.text), { approves: H });
   // The marker is outside the revision hash.
   assert.equal(
     specHash({ ...approved, [APPROVAL_MARKER]: marker.text }),
@@ -255,7 +281,7 @@ test("an invalid approver or merge commit is refused", async () => {
   await openApproval(store, args);
   github.merge(1, "nothex");
   await assert.rejects(() => reconcileApproval(store, args), /no merge commit/);
-  assert.equal(approvalState(store, "p1", "h1").state, "open");
+  assert.equal(approvalState(store, "p1", H).state, "open");
 });
 
 test("a try that failed after making its branch is retried under the next name", async () => {
@@ -327,4 +353,45 @@ test("private approval refuses unsafe, default, shared and unreadable refs befor
     /history could not/,
   );
   assert.deepEqual(w.github.branches, []);
+});
+
+test("the approval pull request is one commit on the branch head it read", async () => {
+  const { store, github, args } = run({ decisionRecord: true });
+  await openApproval(store, args);
+  assert.equal(github.commits.length, 1);
+  assert.equal(github.commits[0].expectedHeadOid, SHA);
+  assert.equal(github.written.length, 4);
+});
+
+test("a merge whose spec changed on the branch approves nothing; the merger is recorded", async () => {
+  const { store, github, args } = run();
+  await openApproval(store, args);
+  // Someone pushed a body edit to the approval branch before merging.
+  github.written.push({
+    path: ".kiro/specs/demo/design.md",
+    text: "# Design\n\nStatus: Approved\n\nOther body.\n",
+  });
+  github.merge(1);
+  github.pulls[0].merged_by = { login: "merger" };
+  const changed = await reconcileApproval(store, args);
+  assert.equal(changed.state, "changed");
+  assert.equal(changed.mergedBy, "merger");
+  assert.equal(changed.approvedBy, undefined);
+  assert.throws(
+    () => approvalChangedAtMerge(changed),
+    /merged a different revision/,
+  );
+  // An unchanged merge records who merged it beside the approver.
+  const ok = run();
+  await openApproval(ok.store, ok.args);
+  ok.github.merge(1);
+  ok.github.pulls[0].merged_by = { login: "merger" };
+  const merged = await reconcileApproval(ok.store, ok.args);
+  assert.equal(merged.state, "merged");
+  assert.equal(merged.approvedBy, "octocat");
+  assert.equal(merged.mergedBy, "merger");
+  assert.equal(
+    approvalEvidence(merged),
+    `Approval merged at ${SHA} by @merger.`,
+  );
 });

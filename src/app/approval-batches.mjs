@@ -9,6 +9,8 @@ import { approvePlan } from "./plans.mjs";
 import {
   approvalState,
   openBatchApproval,
+  approvalChangedAtMerge,
+  approvalEvidence,
   reconcileApproval,
   reconcileOpenApprovals,
 } from "./spec-approval.mjs";
@@ -258,8 +260,9 @@ export async function approveMany(ops, input = {}) {
         });
         if (state?.state === "merged") {
           approver = state.approvedBy;
-          evidence = evidence || `Approval merged at ${state.commit}.`;
+          evidence = evidence || approvalEvidence(state);
         }
+        approvalChangedAtMerge(state);
       }
       const entry = {
         plan: checked.plan,
