@@ -10,13 +10,14 @@ export const writerReceiptId = (planId, revisionHash) =>
 export function recordPlanReviewWriter(
   store,
   plan,
-  { previousHash, caller, runId } = {},
+  { previousHash, caller, runId, slot: bound } = {},
 ) {
   if (!plan?.spec || previousHash === plan.hash) return null;
   const id = writerReceiptId(plan.id, plan.hash),
     existing = store.get("receipts", id);
   if (existing) return existing;
-  const slot = callerSlot(caller),
+  // `slot` names a chat Avoozl opened and bound for this revision.
+  const slot = bound || callerSlot(caller),
     source = slot ? { slot } : runId ? { runId } : {};
   const binding = slot ? store.get("session_bindings", slot) : null;
   const receipt = {
