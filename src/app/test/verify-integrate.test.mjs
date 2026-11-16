@@ -1,3 +1,4 @@
+import { nativeDispatch } from "./executor-fixture.mjs";
 // Tasks 2.8, 2.9 and 2.10: verify each done report in its own verifier
 // session, integrate verified commits, release dependents in the same tick,
 // and complete parents from children. One test per rule; each lists the nearby
@@ -180,8 +181,8 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   const declared = JSON.parse(
     fs.readFileSync(path.join(app, "agents", "avoozl-verifier.json"), "utf8"),
   ).name;
-  assert.equal(intent.agent, declared);
-  assert.doesNotMatch(intent.agent, /\//);
+  assert.equal(nativeDispatch(store, intent).agent, declared);
+  assert.doesNotMatch(nativeDispatch(store, intent).agent, /\//);
   assert.equal(intent.attempt, 1);
   assert.match(intent.title, /^avoozl:a verify /);
   assert.ok(intent.brief.includes(commit));

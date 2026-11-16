@@ -1,3 +1,4 @@
+import { nativeDispatch } from "./executor-fixture.mjs";
 // Phase 38 (R84): runner mode over SSH. A driver hands a task envelope to a
 // runner, the runner's own tick opens the worker, and status and the worker's
 // identity come back. SSH is replaced by `via: "local"`, which runs the same
@@ -195,7 +196,7 @@ test("a handed task runs end to end and the status carries the worker", async (t
   assert.equal(first.dispatch.length, 1);
   const [d] = first.dispatch;
   assert.equal(d.task, "T1");
-  assert.equal(d.project, false);
+  assert.equal(nativeDispatch(runner.store, d).project, false);
   assert.match(d.brief, /runner report T1 --state done/);
   const worktree = d.brief.match(/worktree: (\S+)/)[1];
   assert.equal(git(worktree, "rev-parse", "HEAD"), code.base);

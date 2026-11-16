@@ -1,3 +1,4 @@
+import { nativeDispatch } from "./executor-fixture.mjs";
 // Proof P34 (Requirement 54, design §4.13, tasks 15.1–15.5): pull request
 // feedback goes back to the worker that wrote the pull request, against a
 // fake GitHub and fake workers. Every value is fake. The fake GitHub answers
@@ -441,7 +442,7 @@ test("P34 single-repo: a gone worker gets a new attempt; Issue Radar and the off
     github: w.policy,
   }).find((entry) => entry.task === "c");
   assert.equal(dispatch.attempt, 2);
-  assert.equal(dispatch.agent, "kirocrew-worker");
+  assert.equal(nativeDispatch(w.store, dispatch).agent, "kirocrew-worker");
   assert.equal(dispatch.model, "model-x");
   assert.match(dispatch.brief, /This is attempt 2/);
   assert.match(

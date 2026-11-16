@@ -1,3 +1,4 @@
+import { kirocrewAgentNames } from "./executors/kirocrew.mjs";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -18,7 +19,6 @@ export function appBuildCheck(appRoot) {
   };
 }
 
-const MATERIALIZED = /^[^/\\]+--(.+)\.json$/;
 const CHANGE_NOTE =
   "Changing the agent of an existing crew is unreliable: Issue Radar did not move the crew's slot. Create a new crew with agent avoozl-crew.";
 
@@ -30,11 +30,7 @@ const CHANGE_NOTE =
 // "not-verified", never a guess. `crews` are {name, agent} as Radar shows them;
 // one on another agent is not covered.
 export function crewAgentCheck({ list, files, crews = [] } = {}) {
-  const names = Array.isArray(list)
-    ? list
-    : Array.isArray(files)
-      ? files.map((file) => MATERIALIZED.exec(String(file))?.[1] ?? null)
-      : null;
+  const names = kirocrewAgentNames(list, files);
   const state = !names
     ? "not-verified"
     : names.includes(CREW_AGENT)

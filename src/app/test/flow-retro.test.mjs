@@ -1,3 +1,4 @@
+import { nativeDispatch } from "./executor-fixture.mjs";
 // Tasks 12.9 and 12.10: retrospectives and PDCA (Requirement 47).
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -124,7 +125,10 @@ test("ten finished tasks start one retro; its proposals are typed, bounded and n
   const now = Date.parse("2026-11-12T16:00:00Z"),
     first = retroStep(s.store, {}, { now, repository: "app" });
   assert.equal(first.dispatch.length, 1);
-  assert.equal(first.dispatch[0].agent, "avoozl-retro");
+  assert.equal(
+    nativeDispatch(s.store, first.dispatch[0]).agent,
+    "avoozl-retro",
+  );
   assert.equal(first.dispatch[0].role, "retro");
   assert.match(first.dispatch[0].brief, /"leadTimeMs"/);
   assert.doesNotMatch(

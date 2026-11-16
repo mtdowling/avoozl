@@ -1,3 +1,4 @@
+import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewSession } from "./executors/kirocrew.mjs";
 // Retrospectives and PDCA (design §4.11, Requirement 47). Now and then the
 // tick starts one session of the tool-less avoozl-retro agent with the
@@ -527,16 +528,18 @@ export function retroStep(
     s = { ...s, pending: [], reverts: [], finishedCount: found.finishedCount };
     changed = true;
     if (repository && allowed)
-      dispatch.push({
-        task: retro.id,
-        role: "retro",
-        attempt: 1,
-        title: `avoozl:${retro.id} retro`,
-        ...kirocrewSession(repository),
-        agent: RETRO_AGENT,
-        ...(model && model !== "auto" ? { model } : {}),
-        brief,
-      });
+      dispatch.push(
+        kirocrewRequest(store, {
+          task: retro.id,
+          role: "retro",
+          attempt: 1,
+          title: `avoozl:${retro.id} retro`,
+          ...kirocrewSession(repository),
+          agent: RETRO_AGENT,
+          ...(model && model !== "auto" ? { model } : {}),
+          brief,
+        }),
+      );
   }
   if (changed) store.setMeta(META.state, s);
   return { dispatch, notify, retro: due ? `retro-${retros.length + 1}` : null };

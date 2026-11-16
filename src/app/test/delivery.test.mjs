@@ -1,3 +1,5 @@
+import { nativeDispatch } from "./executor-fixture.mjs";
+import { kirocrewConfiguration } from "../executors/kirocrew.mjs";
 // Tasks 2.6, 2.7 and 2.11: worktrees, reports, readiness dispatch, and
 // failure handling. One test per rule; each lists the nearby inputs it checks.
 import assert from "node:assert/strict";
@@ -335,7 +337,7 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
   );
   const [intent] = planned.dispatch;
   assert.deepEqual(
-    { ...intent, brief: undefined },
+    { ...nativeDispatch(store, intent), brief: undefined },
     {
       task: "urgent",
       // Investigate first is on by default for a leaf not marked small.
@@ -440,7 +442,10 @@ test("a ready leaf whose chat folder has no project directory waits with one not
       sessions: [],
       ...(folders ? { folders } : {}),
     });
-  assert.equal((await tick()).dispatch[0].folder, "Avoozl/app");
+  assert.equal(
+    kirocrewConfiguration(store, (await tick()).dispatch[0]).folder,
+    "Avoozl/app",
+  );
   assert.equal((await tick({})).dispatch.length, 1, "folder not made yet");
   const waiting = await tick({ Avoozl: false, "Avoozl/app": false });
   assert.deepEqual(waiting.dispatch, []);

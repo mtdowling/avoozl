@@ -1,3 +1,4 @@
+import { nativeDispatch } from "./executor-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash, createHmac, randomBytes } from "node:crypto";
@@ -456,7 +457,7 @@ test("a session request dispatches once, and a closed session is read once", asy
   assert.equal(first.dispatch.length, 1);
   const [intent] = first.dispatch;
   assert.deepEqual(
-    { ...intent, brief: undefined },
+    { ...nativeDispatch(store, intent), brief: undefined },
     {
       task: "sample-task",
       role: "worker",
