@@ -24,6 +24,7 @@ import {
   branches,
   forwardName,
 } from "./forward-scratch.mjs";
+import { throughClient } from "./crew-label-client.mjs";
 
 test("a clean change forwards once, as the person, with a normal push", async (t) => {
   const { store, pub, sha, commands, forward } = scratch(t),
@@ -274,6 +275,7 @@ test("a true conflict opens one mirror issue with paths and no contents", async 
   moveSource(root, pub, "other public text\n");
   const heads = () => git(pub, "rev-parse", "main"),
     github = fakeGitHub({ head: heads }),
+    { requests } = throughClient(github),
     options = {
       policy: policy(),
       person: "dana",
@@ -287,7 +289,11 @@ test("a true conflict opens one mirror issue with paths and no contents", async 
   assert.equal(github.issues.length, 1);
   assert.match(github.issues[0].body, /- a\.txt/);
   assert.doesNotMatch(github.issues[0].body, /secret|public text/);
-  assert.deepEqual(github.issues[0].labels, ["avoozl:ready"]);
+  // crew:avoozl rides in the create request itself (R103.2).
+  assert.deepEqual(github.issues[0].labels, ["avoozl:ready", "crew:avoozl"]);
+  assert.deepEqual(requests, [
+    { form: "rest", labels: ["avoozl:ready", "crew:avoozl"] },
+  ]);
   const record = store.get("mirror_forward", sha);
   assert.equal(record.state, "to_forward");
   assert.match(record.conflictNote, /1 path; mirror issue #61/);

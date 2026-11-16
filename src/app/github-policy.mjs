@@ -6,7 +6,7 @@ import { kirocrewSessionSettings } from "./executors/kirocrew.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
 import { fail } from "./store.mjs";
 import { MAX_WRITES_PER_HOUR, MAX_WRITES_PER_MINUTE } from "./github-pacer.mjs";
-import { parseRepository } from "./github.mjs";
+import { AVOOZL_CREW_LABEL, parseRepository } from "./github.mjs";
 import { parseMatch } from "./issue-match.mjs";
 import { mirrorInput } from "./mirror-policy.mjs";
 import { rankingFor } from "./release-ranking.mjs";
@@ -635,6 +635,21 @@ function repositoryInput(value, id, mode) {
       );
     seen.set(lower(entry), role);
   }
+  // `crew:avoozl` is Avoozl's ownership label and nothing else (R103.3).
+  for (const [role, entry] of [
+    ...[...seen].map(([name, role]) => [role, name]),
+    ...Object.entries(managed).map(([key, entry]) => [key, entry]),
+    ...rules.flatMap((rule) =>
+      [...rule.labelsAll, ...rule.labelsAny].map((entry) => [
+        `rule ${rule.id}`,
+        entry,
+      ]),
+    ),
+  ])
+    if (lower(entry) === AVOOZL_CREW_LABEL)
+      fail(
+        `${label} cannot use ${AVOOZL_CREW_LABEL} for ${role}: it marks Avoozl's own issues.`,
+      );
   for (const entry of Object.values(crewLabels))
     if (managedNames.has(lower(entry)))
       fail(`${label}.crewLabels cannot use managed label ${entry}.`);
