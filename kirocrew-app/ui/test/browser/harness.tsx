@@ -469,7 +469,13 @@ if (query.get('radar') === '1') {
   answer('conflicts.view', () => ({ revision: 1, items: [] }))
   answer('plan.list', () => ({ items: [] }))
   answer('remote.view', () => ({ workers: [] }))
-  answer('flow.view', () => ({ line: [], stages: [], tasks: [], retros: [] }))
+  const noMetrics = { tasks: 0, leadTimeMs: null, flowEfficiency: null, firstPassRate: null, changeFailureRate: null, integrationsPerDay: null, timeToFixMs: null }
+  const noUsage = { input: 0, output: 0, credits: 0, turns: 0 }
+  answer('flow.view', () =>
+    query.get('receipt')
+      ? { window: { size: 20, since: null }, metrics: noMetrics, previous: noMetrics, bottleneck: null, tasks: [], stops: [], line: [], flaky: [], ciOnly: [], retros: [], batches: [], stages: [], repositories: ['acme/recipe-box'], epics: [], series: { day: [], week: [] }, usage: { available: false, total: noUsage, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] } }
+      : { line: [], stages: [], tasks: [], retros: [] },
+  )
   answer('radar.releasequeue', () => ({ repositories: [] }))
   answer('radar.crews', () => ({
     readAt: '2026-11-09T10:10:00Z',
@@ -619,7 +625,7 @@ function ReleaseModes() {
   )
 }
 // ?page=github-flow: Flow from GitHub data on two finished issues.
-if (query.get('page') === 'github-flow')
+if (query.get('page') === 'github-flow' || (query.get('page') === 'app' && query.get('receipt')))
   answer('radar.flow', () => ({
     readAt: new Date(Date.now() - 4 * 60000).toISOString(),
     count: 2,
@@ -645,7 +651,7 @@ if (query.get('page') === 'github-flow')
             ],
             byInstance: [
               { instance: 'inst-0a1b2c3d4e5f', name: 'Draco', count: 9, medianMs: 150000, totalMs: 1700000 },
-              { instance: 'inst-f5e4d3c2b1a0', name: null, count: 3, medianMs: 190000, totalMs: 580000 },
+              { instance: 'inst-f5e4d3c2b1a0', name: 'Cedar', count: 3, medianMs: 190000, totalMs: 580000 },
             ],
             recent: [
               { repository: 'acme/recipe-box', pr: 57, totalMs: 310000, failedMs: 120000, phases: [], costliest: { phase: 'test', ms: 180000 } },

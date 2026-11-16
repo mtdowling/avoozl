@@ -6264,7 +6264,10 @@ function Jc({ workspaceId: e }) {
 									overflowWrap: "anywhere"
 								},
 								children: [
-									/* @__PURE__ */ C("span", { children: e.name ?? e.instance ?? "No instance" }),
+									e.instance ? /* @__PURE__ */ C(q, {
+										text: e.instance,
+										children: /* @__PURE__ */ C("span", { children: e.name ?? "Unnamed machine" })
+									}) : /* @__PURE__ */ C("span", { children: "No instance" }),
 									/* @__PURE__ */ C("span", {
 										className: "tabular-nums",
 										children: Yo(e.medianMs)

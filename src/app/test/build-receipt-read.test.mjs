@@ -10,6 +10,7 @@ import {
   receiptReader,
   buildView,
 } from "../build-receipt-read.mjs";
+import { INSTANCE_NAMES, plainInstanceName } from "../instance.mjs";
 import { ciStep } from "../flow-ci.mjs";
 import { flowView, refreshFlow } from "../radar-flow.mjs";
 import { readTrace } from "../trace.mjs";
@@ -479,6 +480,21 @@ test("Flow names the costliest phase, summed over targets, and keeps failed time
   assert.equal(view.failedMs, 500_000);
 });
 
+test("an instance with no known name gets a plain name, never its ID", () => {
+  const view = buildView(
+    [
+      { pullNumber: 1, instance: INSTANCE("a"), builds: [obs("test", 1000)] },
+      { pullNumber: 2, instance: INSTANCE("b"), builds: [obs("test", 1000)] },
+    ],
+    { instanceName: (id) => (id === INSTANCE("a") ? "Draco" : null) },
+  );
+  const names = view.byInstance.map((row) => row.name);
+  assert.equal(names[0], "Draco");
+  assert.equal(names[1], plainInstanceName(INSTANCE("b")));
+  assert.ok(INSTANCE_NAMES.includes(names[1]));
+  assert.doesNotMatch(names.join(" "), /inst-/);
+});
+
 test("failed attempts stay out of the medians", () => {
   const view = buildView([
     {
@@ -514,7 +530,10 @@ test("Trace groups every observation by phase and marks failed ones", async (t) 
     }),
     merged = trace.steps.find((step) => step.key === "merged");
   assert.deepEqual(
-    merged.builds.map((group) => [group.phase, group.items.map((i) => i.failed)]),
+    merged.builds.map((group) => [
+      group.phase,
+      group.items.map((i) => i.failed),
+    ]),
     [
       ["build", [false]],
       ["test", [true, false]],
