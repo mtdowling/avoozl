@@ -40,6 +40,7 @@ const OBSERVE = new Set([
   "github.project.preview",
   "plan.extract.get",
   "plan.review.list",
+  "plan.reviewSummary",
   "plan.review.pipeline.get",
   "driver.list",
   "run.list",

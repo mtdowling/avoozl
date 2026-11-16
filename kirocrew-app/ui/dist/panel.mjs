@@ -1707,6 +1707,11 @@ function tn(e) {
 		languages: (e) => t(e, "highlight.languages"),
 		projection: (e, n) => t(e, "github.project.preview", { planId: n }),
 		batches: (e) => t(e, "plan.approvalBatches"),
+		reviewSummary: (e, n) => t(e, "plan.reviewSummary", { planId: n }),
+		closeReviewFinding: (e, n, r) => t(e, "plan.review.dispose", {
+			id: n,
+			disposition: r
+		}),
 		selection: (e, n) => t(e, "plan.approvalBatches", { ids: n }).then((e) => e.selection),
 		approveMany: (e, n) => t(e, "plan.approveMany", { items: n }),
 		approve: async (e, r, i) => {
