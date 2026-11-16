@@ -109,7 +109,11 @@ function workspace(t, avoozl, machine) {
 }
 
 function crewMode(t) {
-  const ws = workspace(t, { delivery: { runner: "crew-mode", concurrency: 2 } }, {});
+  const ws = workspace(
+    t,
+    { delivery: { runner: "crew-mode", concurrency: 2 } },
+    {},
+  );
   ws.store.importSnapshot({
     ...snapshot(),
     tasks: [leaf("a"), leaf("b")],
