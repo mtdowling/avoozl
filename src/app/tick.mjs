@@ -1,3 +1,4 @@
+import { withGitHubReadSnapshots } from "./github-read-snapshot.mjs";
 import {
   enqueueSessionRequests,
   pendingSessionRequests,
@@ -1634,4 +1635,6 @@ async function runTick(
 }
 
 export const tick = (store, options) =>
-  withSource("tick", () => runTick(store, options));
+  withSource("tick", () =>
+    withGitHubReadSnapshots(() => runTick(store, options)),
+  );
