@@ -17,6 +17,7 @@ const ROLES = new Set([
   "pr-review",
   // A review draft chat (review-draft.mjs, RC20).
   "review-draft",
+  "plan-review",
   // A conflict fix chat (radar-conflict-fix.mjs, RC28).
   "conflict-fix",
   // Tries to prove a worker's findings wrong (§4.21).
@@ -158,6 +159,8 @@ export function bindSession(store, input = {}, { guard, conductor } = {}) {
         // A review draft chat binds to its draft (review-draft.mjs).
         (role === "review-draft" &&
           store.get("receipts", named)?.kind === "review-draft") ||
+        // A spec review binds to its revision-bound round, not a task.
+        (role === "plan-review" && store.get("review_rounds", named)?.spec) ||
         // A conflict fix chat binds to its attempt (radar-conflict-fix.mjs).
         (role === "conflict-fix" &&
           store.get("receipts", named)?.kind === "conflict-fix")
