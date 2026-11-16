@@ -533,7 +533,22 @@ if (query.get('page') === 'app' && query.get('flow') === '1') {
     budget: { over: [], warning: ['search.3'], stopped: [], paused: [] },
   }))
   answer('flow.proposals', () => ({ proposals: [], dropped: [], prompts: [], notes: [], available: false }))
-  answer('flow.settings.get', () => ({ filename: '.avoozl.json', exists: true, hash: 'h', flow: {}, repositories: {}, instructions: '', retroPrompt: null }))
+  answer('flow.settings.get', () => ({
+    filename: '.avoozl.json',
+    exists: true,
+    hash: 'h',
+    flow: {},
+    repositories: {},
+    instructions: '',
+    retroPrompt: null,
+    ciClassGlobs: {
+      ci: ['.github/', '.gitlab-ci.yml', '.circleci/'],
+      spec: ['.kiro/specs/'],
+      tests: ['test/', 'tests/', '**/test/**', '**/*.test.*'],
+      docs: ['docs/', '*.md', '**/*.md'],
+      other: ['package-lock.json', '*.lock'],
+    },
+  }))
 }
 // ?page=demo: the whole page, where Start demo opens the sample. Calls
 // for the sample answer from window.__DEMO (demo-replies.mjs, built from
