@@ -63,14 +63,14 @@ function fake({ login = "alice", permissions = { alice: "write" } } = {}) {
       github.calls.push(["user"]);
       return { login: github.login };
     },
-    async searchOpenIssues(repository, search, options) {
-      github.calls.push(["search", repository, search, options.pullRequests]);
+    async openPullRequests(repository) {
+      github.calls.push(["open-pulls", repository]);
       const items = github.pull.state === "open" ? [github.pull] : [];
-      return {
-        items: items
-          .filter((p) => p.labels.some((l) => l.name === REVIEW))
-          .map((p) => ({ ...structuredClone(p), pull_request: {} })),
-      };
+      return items.map((p) => ({
+        number: p.number,
+        url: p.html_url,
+        labels: { nodes: structuredClone(p.labels) },
+      }));
     },
     async issueEvents() {
       return structuredClone(github.events);
@@ -216,11 +216,11 @@ test("an allowed labeler on this machine's login gives one read-only chat across
   assert.equal(dispatch[0].role, "review-draft");
   assert.equal(dispatch[0].folder, "");
   assert.deepEqual(writes(github), [], "nothing is written before the draft");
-  // One search per repository per tick, for pull requests only.
-  const searches = github.calls.filter(([kind]) => kind === "search");
-  assert.equal(searches.length, 3);
-  assert.equal(searches[0][3], true);
-  assert.match(searches[0][2], /is:pr label:"avoozl:review"/);
+  // One open-pull-request read per repository per tick, no search.
+  const reads = github.calls.filter(([kind]) => kind === "open-pulls");
+  assert.equal(reads.length, 3);
+  assert.equal(reads[0][1], REPO);
+  assert.equal(github.calls.filter(([kind]) => kind === "search").length, 0);
 });
 
 test("the brief names the closing issue, the crew's claim and findings, and the spec task, fenced as data", async (t) => {
