@@ -72,6 +72,51 @@ export async function git(cwd, args, { env } = {}) {
     })
   ).stdout.trim();
 }
+// Avoozl's own files in a task worktree, such as a child's
+// `.avoozl/result.json` (§4.28), never reach a worker's commit, whatever the
+// repository's .gitignore says: Avoozl stages without them, and landing
+// refuses a worker commit that holds one.
+const AVOOZL_FILES = ":(glob)**/.avoozl/**";
+const EXCLUDE_AVOOZL = ":(exclude,glob)**/.avoozl/**";
+export const isAvoozlPath = (file) =>
+  /(^|\/)\.avoozl(\/|$)/.test(file.replaceAll("\\", "/"));
+// Changes in the worktree, Avoozl's own files left out.
+export const worktreeChanges = (worktree) =>
+  git(worktree, ["status", "--porcelain", "--", ".", EXCLUDE_AVOOZL]);
+// Stage and commit a worker's changes without Avoozl's files; the commit, or
+// null when nothing changed.
+export async function commitWorkerChanges(worktree, message) {
+  await git(worktree, ["add", "-A", "--", ".", EXCLUDE_AVOOZL]);
+  // A file the worker staged itself (`git add -f`) is unstaged again.
+  await git(worktree, ["reset", "-q", "--", AVOOZL_FILES]);
+  if (!(await git(worktree, ["diff", "--cached", "--name-only"]))) return null;
+  await git(worktree, ["commit", "-q", "-m", message]);
+  return git(worktree, ["rev-parse", "HEAD"]);
+}
+// Refuse when any commit in from..to adds, changes or removes a path under
+// `.avoozl/`; the worker may have committed one itself.
+export async function refuseAvoozlPaths(worktree, from, to) {
+  const files = [
+    ...new Set(
+      (
+        await git(worktree, [
+          "log",
+          "--format=",
+          "--name-only",
+          "--no-renames",
+          `${from}..${to}`,
+        ])
+      )
+        .split("\n")
+        .filter((file) => file && isAvoozlPath(file)),
+    ),
+  ];
+  if (files.length)
+    fail(
+      `Worker commits hold Avoozl's own files (${files.slice(0, 5).join(", ")}${files.length > 5 ? ` and ${files.length - 5} more` : ""}); Avoozl never lands a path under .avoozl/. Remove them from the branch's commits, then retry.`,
+      409,
+    );
+}
 // The real path of a Git checkout root, refused in plain words when the
 // folder is missing, is not a checkout, or is inside one.
 export async function checkoutRoot(root, label) {
@@ -612,7 +657,7 @@ async function validateUnlocked(
   const project = store.get("projects", run.projectId);
   if (!project) fail("Project configuration is missing.");
   const head = await git(run.worktree, ["rev-parse", "HEAD"]),
-    dirty = await git(run.worktree, ["status", "--porcelain"]);
+    dirty = await worktreeChanges(run.worktree);
   if (dirty)
     fail(
       "Commit the worktree changes before recording acceptance checks.",
@@ -645,7 +690,7 @@ async function validateUnlocked(
   }
   const unchanged =
     head === (await git(run.worktree, ["rev-parse", "HEAD"])) &&
-    !(await git(run.worktree, ["status", "--porcelain"]));
+    !(await worktreeChanges(run.worktree));
   const passed =
     unchanged &&
     results.length === project.checks.length &&
@@ -776,7 +821,7 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
         409,
       );
   }
-  if (await git(entry.worktree, ["status", "--porcelain"]))
+  if (await worktreeChanges(entry.worktree))
     fail("Run worktree has uncommitted changes.", 409);
   if ((await git(entry.worktree, ["rev-parse", "HEAD"])) !== expectedCommit)
     fail("Run branch changed after validation.", 409);
@@ -799,6 +844,7 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
     () => false,
   );
   if (!forward) await git(entry.worktree, ["rebase", target]);
+  await refuseAvoozlPaths(entry.worktree, target, "HEAD");
   const revalidated = await validateUnlocked(store, id, {
     phase: "integration",
     source: entry.runId ? undefined : { ...entry, state: "integrating" },
@@ -865,8 +911,11 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
   if (
     path.dirname(entry.worktree) === project.worktreeRoot &&
     path.basename(entry.worktree) === id
-  )
+  ) {
+    // Avoozl's own files (a child's result file) go with the worktree.
+    await git(entry.worktree, ["clean", "-fdq", "--", AVOOZL_FILES]);
     await git(project.root, ["worktree", "remove", entry.worktree]);
+  }
   return entry;
 }
 
