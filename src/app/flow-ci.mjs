@@ -11,6 +11,11 @@ import { CI_CLASSES, flowPolicy, listOr } from "./flow.mjs";
 import { globToRegex } from "./forward-guard.mjs";
 import { LINKED_BRANCHES } from "./github-plans-repo.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
+import {
+  migrateReceiptMeta,
+  pruneReceipts,
+  readReceipts,
+} from "./build-receipt-read.mjs";
 
 export const PR_CI = "pr_ci";
 export const CI_RUNS = "ci_runs";
@@ -142,7 +147,7 @@ export function pruneCIHistory(store, { now = Date.now() } = {}) {
         store.remove(CI_RUNS, row.id);
         removed++;
       }
-    return removed;
+    return removed + pruneReceipts(store, cut);
   });
 }
 
@@ -210,6 +215,7 @@ export async function ciStep(
   { policy, config, now = Date.now() } = {},
 ) {
   pruneCIHistory(store, { now });
+  migrateReceiptMeta(store);
   const repositories = ciRepositories(policy),
     errors = [];
   // A client without these reads (a fake, an old build) reads nothing.
@@ -256,6 +262,10 @@ export async function ciStep(
         now,
       }),
     );
+    // Build receipts (§4.31): after the rows, so the runs are known. A failed
+    // read keeps nothing and is tried again at the next check.
+    if (policy?.repositories?.[repository]?.buildReceipts === true)
+      await readReceipts(store, github, repository, { now }).catch(() => {});
   }
   const fresh = errors.filter((e) => reported[e.repository] !== e.error);
   for (const e of errors) reported[e.repository] = e.error;
@@ -282,6 +292,10 @@ function pullRow(store, data, repository, pull, { before, globs, at }) {
     firstSeen: before?.firstSeen || at,
     lastSeen: at,
     closedAt: null,
+    // The head commit and merge time: the reader of build receipts (§4.31)
+    // finds a merged pull request's artifacts by its head commit.
+    headSha: head ?? before?.headSha ?? null,
+    mergedAt: before?.mergedAt ?? null,
     heads: [...new Set([...(before?.heads || []), head].filter(Boolean))].slice(
       -50,
     ),
@@ -335,11 +349,18 @@ function record(
   for (const pull of recent) {
     if (open.has(pull.number) || !(ms(pull.closedAt) >= cut)) continue;
     const before = rows.get(pull.number);
-    if (before?.closedAt === pull.closedAt && before.branch) continue;
+    if (
+      before?.closedAt === pull.closedAt &&
+      before.branch &&
+      before.headSha !== undefined
+    )
+      continue;
     const row = before
       ? { ...before, branch: before.branch || pull.headRefName || null }
       : pullRow(store, data, repository, pull, { before, globs, at });
     row.closedAt = pull.closedAt;
+    row.headSha = pull.headRefOid ?? row.headSha ?? null;
+    row.mergedAt = pull.mergedAt ?? null;
     rows.set(pull.number, row);
   }
   // A pull request no longer listed open, and not in the closed list,
@@ -403,6 +424,7 @@ function record(
       headBranch: run.headBranch ?? before?.headBranch ?? null,
       event: run.event,
       attempt: run.attempt,
+      conclusion: run.conclusion ?? before?.conclusion ?? null,
       prNumber:
         run.pullRequests.find((n) => rows.has(n)) ??
         byRun.get(run.id) ??
