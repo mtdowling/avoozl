@@ -1,3 +1,4 @@
+import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 // Review drafts by label (radar-coder RC20, design D25). A trusted person adds
 // the review label to a pull request; the tick checks that person and that the
@@ -453,19 +454,21 @@ export function reviewDraftDispatches(store) {
   );
   return drafts(store)
     .filter((receipt) => receipt.state === "queued" && !bound.has(receipt.id))
-    .map((receipt) => ({
-      task: receipt.id,
-      role: DRAFT_ROLE,
-      attempt: receipt.attempt,
-      // Kiro Crew names the chat's slot from its title, so each label event
-      // (a redraft is a new one) needs its own title or it lands in the old
-      // chat. The avoozl: prefix puts the slot under the app's
-      // /api/chat/slots/avoozl_* grant, so the backend can read its status.
-      title: `avoozl:review-draft ${receipt.repository}#${receipt.number} (label ${receipt.id.split(":").at(-1)})`,
-      ...kirocrewDetachedSession(),
-      agent: DRAFT_AGENT,
-      brief: receipt.seed,
-    }));
+    .map((receipt) =>
+      kirocrewRequest(store, {
+        task: receipt.id,
+        role: DRAFT_ROLE,
+        attempt: receipt.attempt,
+        // Kiro Crew names the chat's slot from its title, so each label event
+        // (a redraft is a new one) needs its own title or it lands in the old
+        // chat. The avoozl: prefix puts the slot under the app's
+        // /api/chat/slots/avoozl_* grant, so the backend can read its status.
+        title: `avoozl:review-draft ${receipt.repository}#${receipt.number} (label ${receipt.id.split(":").at(-1)})`,
+        ...kirocrewDetachedSession(),
+        agent: DRAFT_AGENT,
+        brief: receipt.seed,
+      }),
+    );
 }
 
 // ---- plans_post_review_draft ------------------------------------------------

@@ -221,8 +221,26 @@ const tools = {
       ],
     },
   },
+  plans_executor: {
+    summary:
+      "Private Kiro Crew executor transport; process requests are never taken here.",
+    actions: {
+      take: [
+        "executor.kirocrew.take",
+        "claim one native request by id and version",
+      ],
+      release: [
+        "executor.kirocrew.release",
+        "release only after a definitive before-open refusal",
+      ],
+      complete: [
+        "executor.kirocrew.complete",
+        "complete a claimed message as sent or refused",
+      ],
+    },
+  },
   plans_session: {
-    summary: "Kiro Crew sessions working on tasks.",
+    summary: "Executor sessions working on tasks.",
     actions: {
       bind: ["session.bind", "bind a slot to a task"],
       rediscover: ["session.rediscover", "rebuild lost bindings from titles"],

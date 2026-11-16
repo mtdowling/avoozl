@@ -1,3 +1,9 @@
+import {
+  enqueueSessionRequests,
+  pendingSessionRequests,
+} from "./session-requests.mjs";
+import { persistKirocrewConfiguration } from "./executors/kirocrew.mjs";
+import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 // Runner mode over SSH (Requirement 84, design §6.13). Off unless
 // `.avoozl.json` has `runner`. A runner holds no plans: it runs the tasks a
@@ -160,6 +166,14 @@ export function validateEnvelope(value, config) {
 
 const tasksOf = (store) => store.getMeta(TASKS) || {};
 export const hasRemoteTask = (store, id) => Boolean(tasksOf(store)[id]);
+export function runnerSessionHold(store, id) {
+  const record = tasksOf(store)[id];
+  return record &&
+    ["accepted", "starting"].includes(record.state) &&
+    !record.worker
+    ? null
+    : "The runner task is no longer waiting for its first worker.";
+}
 const now = () => new Date().toISOString();
 
 function update(store, id, patch) {
@@ -382,17 +396,20 @@ export async function runnerTick(
           record.state === "accepted"
             ? await startWorktree(store, config, id, record)
             : record;
-        dispatch.push({
-          task: id,
-          role: "worker",
-          title: `avoozl:${id} remote task`,
-          ...kirocrewDetachedSession("remote"),
-          agent: record.envelope.agent,
-          ...(record.envelope.model ? { model: record.envelope.model } : {}),
-          remote: true,
-          ...(config.workerMode ? { mode: config.workerMode } : {}),
-          brief: workerBrief(record, { ...started, command }),
-        });
+        dispatch.push(
+          kirocrewRequest(store, {
+            task: id,
+            role: "worker",
+            title: `avoozl:${id} remote task`,
+            ...kirocrewDetachedSession("remote"),
+            agent: record.envelope.agent,
+            ...(record.envelope.model ? { model: record.envelope.model } : {}),
+            remote: true,
+            worktree: started.worktree,
+            ...(config.workerMode ? { mode: config.workerMode } : {}),
+            brief: workerBrief(record, { ...started, command }),
+          }),
+        );
       } else if (record.state === "reported") {
         update(store, id, { state: "checking" });
         const checks = await runChecks(config, record);
@@ -425,7 +442,29 @@ export async function runnerTick(
   }
   // The same notice again is one row, so a repeated tick cannot repeat it.
   queueNotifications(store, notify);
-  return { dispatch, messages: [], notify, observe: [] };
+  const transport = store.transaction(() => {
+    const requests = enqueueSessionRequests(
+      store,
+      { starts: dispatch },
+      { source: "runner" },
+    );
+    for (const request of requests.starts)
+      persistKirocrewConfiguration(store, request);
+    const pending = pendingSessionRequests(store, undefined, [
+      ...requests.starts,
+      ...requests.sends,
+    ]);
+    return {
+      starts: pending.filter((request) => request.operation === "start"),
+      sends: pending.filter((request) => request.operation === "send"),
+    };
+  });
+  return {
+    dispatch: transport.starts,
+    messages: transport.sends,
+    notify,
+    observe: [],
+  };
 }
 
 // --- Driver side -----------------------------------------------------------

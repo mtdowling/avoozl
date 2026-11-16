@@ -171,7 +171,7 @@ export const OLD_TOOLS = {
   ],
   plans_request_session: [
     "session.request",
-    "Ask the tick to open one Kiro Crew session for a task: {taskId, repository, agent, role?: worker|verifier|responder|planner}. The repository is a registered workspace repository with a local checkout; the session opens in its `Avoozl/<repository>` folder on the named agent. The tick dispatches it while no session is bound for that task and role.",
+    "Queue an explicit task/role intent: {taskId, repository, executor?, model?, permissionClass?, role?}. Legacy agent inputs are adapted privately. The repository must have a registered local checkout; approval and prerequisite holds are rechecked before consumption. Planner output carries portable requests, never provider placement details.",
   ],
   plans_session_status: [
     "session.status",
