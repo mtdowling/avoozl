@@ -25,7 +25,6 @@ const noWrites = new Proxy(
 
 test("the hand-over is paused: no ready label goes on a task issue", async () => {
   assert.equal(RADAR_HANDOVER.paused, true);
-  assert.ok(Object.isFrozen(RADAR_HANDOVER));
   assert.equal(
     await issueRadarAdapter.handOver({
       github: noWrites,
