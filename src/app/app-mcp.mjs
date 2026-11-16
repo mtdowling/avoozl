@@ -11,8 +11,9 @@
 //
 // The caller block carries a session key, not a project directory, so an
 // unbound session cannot pick a workspace of its own. A request without a caller
-// block (a script cron spawns its own copy of this server) still runs, with no
-// caller, so tools that need an identity, such as plans_report, refuse it.
+// block (a script cron spawns its own copy of this server) still runs. It takes
+// the cron's key from KIROCREW_SESSION_KEY (withCronCaller); with neither, it
+// has no caller, so tools that need an identity, such as plans_report, refuse it.
 import fs from "node:fs";
 import { workspaceConfig } from "./config.mjs";
 import { loadHostConfig, machineAvoozlPaths } from "./host-config.mjs";
@@ -51,6 +52,33 @@ function cronTick(message) {
     (name === "plans_tick" ||
       (name === "plans_maintain" && args.action === "tick"))
   );
+}
+
+// A script cron spawns its own copy of this server and sends no caller block;
+// Kiro Crew names the job only in KIROCREW_SESSION_KEY ("cron:<job id>",
+// kiro_crew/cron_script_mcp.py), as Kiro Crew's own servers read it. Only a
+// cron key is taken, and only when no block came, so a pooled process never
+// lends one session's identity to another.
+function withCronCaller(message, env) {
+  const key = env.KIROCREW_SESSION_KEY;
+  if (
+    message.method !== "tools/call" ||
+    typeof key !== "string" ||
+    !/^cron:[\w-]{1,128}$/.test(key) ||
+    message.params?._meta?.["kirocrew.caller"]
+  )
+    return message;
+  const params = message.params ?? {};
+  return {
+    ...message,
+    params: {
+      ...params,
+      _meta: {
+        ...params._meta,
+        "kirocrew.caller": { schemaVersion: 1, sessionKey: key },
+      },
+    },
+  };
 }
 
 export function createAppMcp({ fallback = null, env = process.env } = {}) {
@@ -146,6 +174,7 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
       return rpcError(null, "Send one JSON-RPC request object.", -32600);
     // Notifications get no reply.
     if (!Object.hasOwn(message, "id")) return null;
+    message = withCronCaller(message, env);
     // Refused as Kiro Crew's own servers refuse it (mcp_shared_dispatch.py).
     // A client that gets an answer speaks the 2026-07-28 revision and never
     // sends initialize, so the gateway never sees CALLER_CAPABILITY and
