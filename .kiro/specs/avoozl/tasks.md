@@ -1891,7 +1891,7 @@ completed checkboxes stay; unbuilt phases above now use this architecture.
 The foundation may proceed while P56 waits for sign-in; do not weaken a live
 proof or run a real workspace to get past that wait.
 
-- [ ] 56.1 Task outcomes, legacy values and branch-progress semantics [R102.3, R102.4, R102.5, R102.20] (§4.32)
+- [x] 56.1 Task outcomes, legacy values and branch-progress semantics [R102.3, R102.4, R102.5, R102.20] (§4.32)
   - Define the task-definition digest and latest valid outcome reducer; done/skipped/landed complete, refused/reopened/unverified/stale hold. Explicitly carry forward unchanged evidence only on new approval.
   - Accept route: github and merged-pr without rewriting approved files. Branch checkmarks remain outside the revision hash and only verified in-spec dependencies may advance; cross-spec dependencies wait for accepted outcomes. Tests cover every outcome and unchanged source hashes.
 
@@ -1926,15 +1926,16 @@ proof or run a real workspace to get past that wait.
 - [ ] 56.9 Idempotent task-issue offboarding export, after 56.5, 56.7, 56.12 [R102.19, R91.2, R103.6] (§4.32)
   - Preview export-issues SPEC, create only incomplete task issues and blocked-by links, record stable export bindings, then mark Exported and cease dispatch/landing. A retry creates no duplicate issues or links; a partial failure stays held and resumes safely.
   - Make this the sole code path that creates task issues. Preserve visibility rules, person outcomes and journal access after offboarding.
-  - Export is the only crew:avoozl opt-out: exported issues carry no crew:avoozl by default (owner choice 2026-11-16, one label to flip). A test checks the opt-out.
+  - Export never sets crew:avoozl (owner decision 2026-11-16), so Issue Radar and people may take exported issues. It is the only crew:avoozl opt-out. A test checks that no export create request carries crew:avoozl.
 
 - [ ] 56.10 Mirror import PRs and forward ancestry, after 42.1, 56.3 [R102.21] (§4.32)
   - After private divergence, import upstream into a public-tracking branch and a reviewed mirror PR. Forward recognition excludes upstream/import ancestry, including an import merge whose second parent is on the public-tracking branch.
   - Test divergent mirror updates and a second import; forwarding proposes nothing for imported upstream changes and still screens genuine private changes.
 
-- [ ] 56.11 Privacy enforcement for checkpoints and public metadata, after 56.2 [R87.9, R102.11, R102.12] (§4.32)
+- [ ] 56.11 Privacy enforcement for checkpoints and public metadata, after 56.2 [R87.9, R102.11, R102.12, R102.23, R102.24, R102.25] (§4.32)
   - Reuse existing content scanning in process before every outgoing push range and every externally visible journal/intake/PR/status write. Check ref names, commit messages, added lines and public metadata; apply the explicit journal schema without raw logs, commands, paths or private identifiers.
   - Tests insert made-up private names into branch names, commit messages, PR bodies, check summaries, records and artifacts and refuse publication before the first write. Preserve useful opaque IDs and public commit/check references. Private-plan mappings and sensitive controls remain private; hidden HTML grants no secrecy.
+  - No internal information on public writes: refuse hostname and IP literals, *.corp/*.internal/*.local/*.lan and the owner's private machine-local internal-domain list, home paths, and this machine's own hostname and username before the first write. Records name a machine only by its public alias (machine config; unset means a generated neutral name, never the hostname); the schema has an alias field and no hostname field. Tests insert a made-up hostname and username into every public field and expect refusal with nothing written.
 
 - [x] 56.12 Every Avoozl-created issue carries crew:avoozl at create [R103.1, R103.2, R103.3] (§4.32)
   - Add crew:avoozl in the GitHub client's createIssue, REST and GraphQL forms, with one named opt-out for export. No label edit after a create. Covers projection, the extracted-design parent, mirror follow-up and conflict issues today.
