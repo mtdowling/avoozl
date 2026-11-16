@@ -499,6 +499,8 @@ export interface RadarCrews {
   // Issue Radar's own crew list and credits. Present only when Kiro Crew has
   // given Avoozl the Issue Radar grant (Variant A).
   crewStrip?: RadarCrewStrip
+  // The backend answered from its last read and is reading again.
+  refreshing?: boolean
 }
 
 export interface RadarCrewStrip {

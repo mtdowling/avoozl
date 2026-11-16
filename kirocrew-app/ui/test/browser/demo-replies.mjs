@@ -32,7 +32,7 @@ export async function demoReplies() {
         if (error.demo) previews[name] = error.message
       }
     }
-    // The tour opens one task's drawer.
+    // A task's drawer, opened from the Graph.
     replies['demo.fixtures'] = await demo.fixtures()
     replies['task.detail'] = await demo.execute('task.detail', { id: 'recipe-import.2.1' })
   } finally {

@@ -40,7 +40,7 @@ const whole = (value: string) => {
   return Number.isInteger(n) && n > 0 ? n : undefined
 }
 
-function Field({ id, field }: { id: string; field: FilterField }) {
+function Field({ id, field, inline }: { id: string; field: FilterField; inline?: boolean }) {
   const fieldId = `${id}-${field.key}`
   if (field.kind === 'search')
     return (
@@ -58,7 +58,7 @@ function Field({ id, field }: { id: string; field: FilterField }) {
       </label>
     )
   if (field.kind === 'select')
-    return <FilterSelect id={fieldId} label={field.label} value={field.value} options={field.options} onChange={field.onChange} disabled={field.disabled} hint={field.hint} />
+    return <FilterSelect id={fieldId} label={field.label} value={field.value} options={field.options} onChange={field.onChange} disabled={field.disabled} hint={field.hint} inline={inline} />
   if (field.kind === 'pick')
     return <Picker id={fieldId} label={field.label} items={field.items} value={field.value} onPick={field.onChange} emptyLabel="All" maxWidth="16rem" />
   if (field.kind === 'check')
@@ -200,12 +200,13 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
 
 // A page's filters in the left nav, under its open section (nav-slot.tsx):
 // one field per row at the nav's width, then Clear. The page keeps its
-// count line; the fields live here.
-export function NavFilters(props: { id: string; label: string; fields: FilterField[]; active: boolean; onClear: () => void; extra?: ReactNode }) {
+// count line; the fields live here. `inline`: each dropdown on its label's
+// line, labels in one column and dropdowns in the next.
+export function NavFilters(props: { id: string; label: string; fields: FilterField[]; active: boolean; onClear: () => void; extra?: ReactNode; inline?: boolean }) {
   return (
     <div role="search" aria-label={props.label} data-nav-filters={props.id} data-filter-panel={props.id} className="flex flex-col gap-2">
       {props.fields.map((field) => (
-        <Field key={field.key} id={props.id} field={field} />
+        <Field key={field.key} id={props.id} field={field} inline={props.inline} />
       ))}
       <span>
         <TipBtn tooltip="Clear every filter on this page" type="button" onClick={props.onClear} disabled={!props.active} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>

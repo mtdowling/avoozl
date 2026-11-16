@@ -10,7 +10,7 @@ export interface TaskDrawerApi {
   addTask(prefill?: { prerequisite?: string }): void
   // `onReviewed` runs after Mark reviewed, so the caller can reload.
   openReview(group: ConflictItem, onReviewed?: () => void): void
-  // Closes whatever the drawer shows (the demo tour leaving a task step).
+  // Closes whatever the drawer shows.
   close(): void
 }
 

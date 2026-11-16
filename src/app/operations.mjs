@@ -124,7 +124,12 @@ import {
   planningIdentity,
   requireNamespace,
 } from "./github-marker.mjs";
-import { claimsView, refreshClaims } from "./radar-claims.mjs";
+import {
+  claimsFresh,
+  claimsView,
+  RADAR_INTERVAL_MS,
+  refreshClaims,
+} from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
 import { instanceIdentity } from "./instance.mjs";
 import { mirrorEntryKey, mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
@@ -1007,9 +1012,18 @@ export class Operations {
       shippedPrompts = null,
       // (issue) => the issue.verify result; tests pass a fake.
       issueVerifier = undefined,
+      // The app backend's reads that go to GitHub or Kiro Crew (radar.crews,
+      // radar.armed) answer from the last read and refresh after replying,
+      // so no page request waits on the network. The CLI and MCP keep
+      // reading first.
+      backgroundReads = false,
     } = {},
   ) {
     this.store = store;
+    this.backgroundReads = backgroundReads;
+    this.refreshing = new Map();
+    this.crewStrip = null;
+    this.armedRead = null;
     this.driverSessionFile = driverFile;
     this.workspaceName = workspaceName;
     // The plugin loader (plugins.mjs). It opens one plugin session per
@@ -2481,6 +2495,24 @@ export class Operations {
   githubPolicy() {
     return readGitHubPolicy(this.workspaceRoot);
   }
+  // Runs `read` after the reply unless one under `key` is running; returns
+  // true. A failed read leaves the last value, and the next request tries
+  // again (backgroundReads).
+  refreshLater(key, read) {
+    if (!this.refreshing.has(key))
+      this.refreshing.set(
+        key,
+        // After this reply is written: a read's first steps can block
+        // (gh auth token runs once, synchronously).
+        new Promise((resolve) => setImmediate(resolve))
+          .then(read)
+          .catch((error) =>
+            console.error(`${key} refresh failed: ${error.message}`),
+          )
+          .finally(() => this.refreshing.delete(key)),
+      );
+    return true;
+  }
   // github.writesPerMinute and github.writesPerHour; blank means the built-in
   // pace. Read like cacheSeconds, so an edit applies without a restart.
   writeLimits() {
@@ -3876,13 +3908,28 @@ export class Operations {
     }
     // Pull requests Avoozl armed that are still open, and the person-only
     // Disarm (RC5.4).
-    if (name === "radar.armed")
-      return this.github?.available?.()
-        ? armedPullRequests(store, this.github)
-        : { pullRequests: [] };
+    if (name === "radar.armed") {
+      if (!this.github?.available?.()) return { pullRequests: [] };
+      if (!this.backgroundReads) return armedPullRequests(store, this.github);
+      const refreshing =
+        (!this.armedRead ||
+          Date.now() - this.armedRead.at >= RADAR_INTERVAL_MS) &&
+        this.refreshLater("radar.armed", async () => {
+          const at = Date.now();
+          this.armedRead = {
+            at,
+            value: await armedPullRequests(store, this.github),
+          };
+        });
+      return {
+        ...(this.armedRead?.value ?? { pullRequests: [] }),
+        ...(refreshing ? { refreshing: true } : {}),
+      };
+    }
     if (name === "radar.disarm") {
       if (context.caller || context.mcp)
         fail("Only a person disarms auto-merge, in the Avoozl page.", 403);
+      this.armedRead = null;
       return disarmPullRequest(store, this.github, input);
     }
     // A person's choice on a source conflict Avoozl asked about (RC28.3).
@@ -4200,9 +4247,48 @@ export class Operations {
       };
     }
     if (name === "radar.crews") {
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        repositories = Object.keys(policy?.repositories || {}),
+        github = policy?.mode && this.github?.available?.();
+      const shaped = (view, strip) =>
+        // Behind the grant only: without it the view is the GitHub-only one.
+        strip
+          ? {
+              ...view,
+              unseen: view.unseen.filter((name) => name !== "paused"),
+              crewStrip: strip,
+            }
+          : view;
+      if (this.backgroundReads && input.refresh !== true) {
+        const now = Date.now(),
+          stale =
+            (github && !claimsFresh(store, now)) ||
+            (this.crewReader &&
+              repositories.length > 0 &&
+              (!this.crewStrip ||
+                now - this.crewStrip.at >= RADAR_INTERVAL_MS));
+        const refreshing =
+          (stale || this.refreshing.has("radar.crews")) &&
+          this.refreshLater("radar.crews", async () => {
+            // Side by side: a slow GitHub does not hold the crew strip. The
+            // strip's costs are for the claims read last.
+            await Promise.all([
+              github && refreshClaims(store, this.github, policy),
+              readCrewStrip({
+                crewReader: this.crewReader,
+                sessionsReader: this.sessionsReader,
+                repositories,
+                rows: claimsView(store).rows,
+              }).then((value) => {
+                this.crewStrip = { at: Date.now(), value };
+              }),
+            ]);
+          });
+        const view = shaped(claimsView(store), this.crewStrip?.value ?? null);
+        return refreshing ? { ...view, refreshing: true } : view;
+      }
       // Read at most every 2 minutes, however often the Dashboard asks.
-      if (policy?.mode && this.github?.available?.())
+      if (github)
         await refreshClaims(store, this.github, policy, {
           force: input.refresh === true,
         });
@@ -4210,17 +4296,11 @@ export class Operations {
         strip = await readCrewStrip({
           crewReader: this.crewReader,
           sessionsReader: this.sessionsReader,
-          repositories: Object.keys(policy?.repositories || {}),
+          repositories,
           rows: view.rows,
         });
-      // Behind the grant only: without it the view is the GitHub-only one.
-      return strip
-        ? {
-            ...view,
-            unseen: view.unseen.filter((name) => name !== "paused"),
-            crewStrip: strip,
-          }
-        : view;
+      this.crewStrip = { at: Date.now(), value: strip };
+      return shaped(view, strip);
     }
     // The Untriaged list (§8.5): cached GitHub items no rule, triage label,
     // or task covers. `refresh` reads GitHub first (Check now); read only.

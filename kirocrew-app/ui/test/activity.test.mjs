@@ -50,7 +50,9 @@ test('the tab: its own nav entry and icon, the shared heading, filter panel and 
   assert.match(source('nav-api.ts'), /\{ key: 'activity', label: 'Activity' \}/)
   assert.match(app, /tab === 'activity' \? \(\s*<ActivityView workspaceId=\{active\} \/>/)
   assert.match(source('icons.ts'), /activity: History,/)
-  assert.match(view, /<ViewHeading\s+id="avoozl-activity-title"\s+view="activity"[\s\S]*?actions=\{/)
+  assert.match(view, /<ViewHeading id="avoozl-activity-title" view="activity">/)
+  // Refresh is on the top line beside pause, as on Home (page-refresh.tsx).
+  assert.match(view, /usePublishRefresh\(useRefreshCountdown\(workspaceId,/)
   // The filters and Keep activity sit in the left nav, under Activity.
   assert.match(view, /<NavSlotFor section="activity">\s*<NavFilters\s+id="avoozl-activity"/)
   assert.match(view, /extra=\{workspaceId \? <KeepActivity /)
