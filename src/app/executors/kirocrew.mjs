@@ -91,8 +91,7 @@ export function slotServed(body) {
   const model = body?.served_model;
   if (typeof model !== "string" || !model.trim()) return null;
   return {
-    requested:
-      typeof body.model === "string" && body.model ? body.model : null,
+    requested: typeof body.model === "string" && body.model ? body.model : null,
     model,
     withheld: body.model_withheld === true,
     changed: false,
