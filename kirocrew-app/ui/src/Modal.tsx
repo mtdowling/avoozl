@@ -112,7 +112,9 @@ export function Modal(props: {
     setTarget(el)
     // The first control; the dialog's own effects may move it after.
     // A Close button is first in the DOM; focus starts on the first field.
-    ;(box.current?.querySelector<HTMLElement>(`:is(${FOCUSABLE}):not([data-modal-close])`) ?? box.current)?.focus()
+    // A control marked data-autofocus goes first (a footer's safe button,
+    // so a red Remove beside it is never the one Enter presses).
+    ;(box.current?.querySelector<HTMLElement>('[data-autofocus]') ?? box.current?.querySelector<HTMLElement>(`:is(${FOCUSABLE}):not([data-modal-close])`) ?? box.current)?.focus()
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Tab' || stack.at(-1) !== me || !box.current) return
       const items = [...box.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((item) => item.offsetParent !== null || item === document.activeElement)

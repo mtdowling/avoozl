@@ -24,6 +24,7 @@ import { SetupDialog } from '../../src/SetupWizard.tsx'
 import PlansView, { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansView.tsx'
 import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
+import WorkspaceView from '../../src/WorkspaceView.tsx'
 import { PackImportDialog } from '../../src/PackImport.tsx'
 import { SendToRadar } from '../../src/SendToRadar.tsx'
 import ActivityView from '../../src/ActivityView.tsx'
@@ -638,6 +639,33 @@ function RepoModePage() {
   )
 }
 
+// ?page=workspaces: Settings > Workspaces on two workspaces; window.__wsCalls
+// records stop and remove. &stopped=1 starts the first one turned off.
+const wsWin = window as unknown as { __wsCalls: string[] }
+if (query.get('page') === 'workspaces') {
+  wsWin.__wsCalls = []
+  let items = [
+    { id: 'launch', name: 'Product launch', root: '/plans/launch', enabled: query.get('stopped') !== '1', state: query.get('stopped') === '1' ? 'stopped' : 'closed', served: true },
+    { id: 'nupp', name: 'Nupp plans', root: '/plans/nupp', enabled: true, state: 'closed', served: false },
+  ]
+  answer('workspaces.list', () => ({ defaultWorkspace: items[0]?.id ?? null, items }))
+  answer('workspaces.stop', (body) => {
+    const id = (body as { input: { id: string } }).input.id
+    wsWin.__wsCalls.push(`stop ${id}`)
+    items = items.map((item) => (item.id === id ? { ...item, enabled: false, state: 'stopped' } : item))
+    return items.find((item) => item.id === id)
+  })
+  answer('workspaces.remove', (body) => {
+    const id = (body as { input: { id: string } }).input.id
+    wsWin.__wsCalls.push(`remove ${id}`)
+    const gone = items.find((item) => item.id === id)!
+    items = items.filter((item) => item.id !== id)
+    return { id, root: gone.root, removed: true, databasePreserved: true }
+  })
+  answer('workspace.tick.health', () => ({ lastRun: null, lock: null }))
+  answer('workspace.tick.log', () => ({ items: [] }))
+}
+
 if (query.get('page') === 'models') {
   let settings = { filename: '.avoozl.json', exists: true, hash: 'models-before', models: { planner: 'fake-writer' } }
   answer('GET /api/models', () => ['fake-writer', 'fake-reviewer'])
@@ -650,6 +678,7 @@ if (query.get('page') === 'models') {
 }
 
 const PAGES: Record<string, () => ReactNode> = {
+  workspaces: () => <WorkspaceView selected="launch" />,
   models: () => <ModelsSettings workspaceId="w" />,
   // The GitHub calls of the last hour by source, beside the live limit.
   'github-usage': () => (
