@@ -344,6 +344,11 @@ async function openGatePullRequests(ops, gated) {
         ...(target.ref ? { ref: target.ref } : {}),
         // A gated spec's approver is a GitHub login (ops.specApprover).
         approvedBy: group[0].entry.approver,
+        reviewers: [
+          ...new Set(
+            group.flatMap(({ entry }) => ops.specReviewers(entry.plan)),
+          ),
+        ],
         specs: group.map(({ entry, target: own }) => ({
           planId: entry.plan.id,
           hash: entry.plan.hash,

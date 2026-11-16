@@ -46,6 +46,8 @@ const CHECKBOX = /^\s*[-*+] \[([ xX~-])\]\*?[ \t]+(.*)$/;
 // A "Built:" line under a checked item names the work that already landed.
 const BUILT = /^\s+(?:[-*+]\s+)?Built:\s*(.+?)\s*$/;
 export const TITLE_LIMIT = 240;
+// An epic row's lifecycle step (Requirement 59.1, design §4.32.6).
+export const EPIC_STEPS = ["design", "review", "implement"];
 const FENCE = /^\s*(```|~~~)/;
 
 export function specName(value) {
@@ -656,7 +658,7 @@ export function parseSpec({
         extra =
           entry && typeof entry === "object" && !Array.isArray(entry)
             ? Object.keys(entry).filter(
-                (key) => !["plan", "summary"].includes(key),
+                (key) => !["plan", "summary", "step"].includes(key),
               )
             : [];
       if (extra.length)
@@ -665,7 +667,7 @@ export function parseSpec({
             "spec.epic-task-fields",
             MANIFEST,
             line,
-            `Epic entry "${item.key}" holds ${extra.map((key) => `"${key}"`).join(", ")}. An epic entry holds only "plan" and "summary"${extra.includes("memberPlan") ? '; rename "memberPlan" to "plan"' : ""}.`,
+            `Epic entry "${item.key}" holds ${extra.map((key) => `"${key}"`).join(", ")}. An epic entry holds only "plan", "summary" and "step"${extra.includes("memberPlan") ? '; rename "memberPlan" to "plan"' : ""}.`,
             { entry: item.key },
           ),
         );
@@ -692,22 +694,38 @@ export function parseSpec({
             { entry: item.key },
           ),
         );
-      if (named.has(entry.plan)) {
+      // A row's lifecycle step (R59.1); a row without one is implement.
+      if (entry.step !== undefined && !EPIC_STEPS.includes(entry.step)) {
         diagnostics.push(
           diagnostic(
-            "spec.epic-member-twice",
+            "manifest.schema",
             MANIFEST,
             line,
-            `Epic entry "${item.key}" names plan ${entry.plan}, which entry "${named.get(entry.plan)}" already names. Keep one.`,
+            `Epic entry "${item.key}": step must be ${EPIC_STEPS.join(", ")}.`,
             { entry: item.key },
           ),
         );
         continue;
       }
-      named.set(entry.plan, item.key);
+      const step = entry.step ?? "implement",
+        pair = `${entry.plan}\0${step}`;
+      if (named.has(pair)) {
+        diagnostics.push(
+          diagnostic(
+            "spec.epic-member-twice",
+            MANIFEST,
+            line,
+            `Epic entry "${item.key}" names plan ${entry.plan} for step ${step}, which entry "${named.get(pair)}" already names. Keep one.`,
+            { entry: item.key },
+          ),
+        );
+        continue;
+      }
+      named.set(pair, item.key);
       members.push({
         key: item.key,
         plan: entry.plan,
+        step,
         summary: typeof entry.summary === "string" ? entry.summary : "",
         title: item.title,
         line,
@@ -1011,12 +1029,15 @@ export function lintSpec({
     epic: specEpic(spec.files),
     ...(parsed.kind === "epic"
       ? {
-          members: parsed.members.map(({ key, plan, summary, title }) => ({
-            key,
-            plan,
-            summary,
-            title,
-          })),
+          members: parsed.members.map(
+            ({ key, plan, step, summary, title }) => ({
+              key,
+              plan,
+              step,
+              summary,
+              title,
+            }),
+          ),
         }
       : {}),
     diagnostics,
@@ -1038,11 +1059,23 @@ export function specEpic(files = {}) {
   return frontMatter(files["requirements.md"] ?? files["bugfix.md"]).epic;
 }
 
-// The epic's member plans, by spec folder name, in its tasks.md order.
+// The epic's member plans, by spec folder name, in its tasks.md order. A
+// plan with rows for several steps is one member.
 export function epicMembers(files = {}) {
+  return [...new Set(epicRowsOf(files).map((member) => member.plan))];
+}
+
+// The epic's rows, in its tasks.md order: {key, plan, step, summary, title}.
+export function epicRowsOf(files = {}) {
   const parsed = parseSpec({ name: "epic", exists: true, files });
   return parsed.kind === "epic"
-    ? parsed.members.map((member) => member.plan)
+    ? parsed.members.map(({ key, plan, step, summary, title }) => ({
+        key,
+        plan,
+        step,
+        summary,
+        title,
+      }))
     : [];
 }
 

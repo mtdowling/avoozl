@@ -572,6 +572,7 @@ import {
   approvalChangedAtMerge,
   approvalEvidence,
   approvalState,
+  mayLinkSpecIssue,
   openApproval,
   reconcileApproval,
   reconcileOpenApprovals,
@@ -1871,8 +1872,38 @@ export class Operations {
         approvedBy,
         decisionRecord: target.decisionRecord,
         ...(target.ref ? { ref: target.ref } : {}),
+        reviewers: this.specReviewers(plan),
+        specIssue: await this.linkableSpecIssue(plan, target.repository),
       });
     return { pending: state };
+  }
+  // The logins `github.specReviewers` names for a spec (R102.18).
+  specReviewers(plan) {
+    return (
+      readGitHubPolicyOrNull(this.workspaceRoot)?.specReviewers?.[plan.spec] ??
+      []
+    );
+  }
+  // The spec issue a pull request in `repository` may name, or null: only
+  // when the issue is published and visibility permits (R102.18).
+  async linkableSpecIssue(plan, repository) {
+    const issue = this.store.get("receipts", `github-parent:plan:${plan.id}`);
+    if (!issue?.number || !issue.repository) return null;
+    try {
+      const [owner, repo] = issue.repository.split("/"),
+        [pull, home] = await Promise.all([
+          this.github.repository(repository),
+          this.github.repository({ owner, repo }),
+        ]);
+      return mayLinkSpecIssue({
+        pullPrivate: pull?.private,
+        issuePrivate: home?.private,
+      })
+        ? `${issue.repository}#${issue.number}`
+        : null;
+    } catch {
+      return null;
+    }
   }
   // The Create and release preflight (RC2.9) for a plan's repository, or null
   // when that repository is not coded by Issue Radar.
@@ -5033,7 +5064,9 @@ export class Operations {
           return epicView(store, data, {
             id,
             spec: folder ? this.readSpec(id) : null,
-            members: folder?.members?.map((member) => member.plan) ?? null,
+            members: folder?.members
+              ? [...new Set(folder.members.map((member) => member.plan))]
+              : null,
           });
         };
       if (name === "epic.get") {
