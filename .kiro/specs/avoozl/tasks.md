@@ -1891,7 +1891,7 @@ completed checkboxes stay; unbuilt phases above now use this architecture.
 The foundation may proceed while P56 waits for sign-in; do not weaken a live
 proof or run a real workspace to get past that wait.
 
-- [ ] 56.1 Task outcomes, legacy values and branch-progress semantics [R102.3, R102.4, R102.5, R102.20] (§4.32)
+- [x] 56.1 Task outcomes, legacy values and branch-progress semantics [R102.3, R102.4, R102.5, R102.20] (§4.32)
   - Define the task-definition digest and latest valid outcome reducer; done/skipped/landed complete, refused/reopened/unverified/stale hold. Explicitly carry forward unchanged evidence only on new approval.
   - Accept route: github and merged-pr without rewriting approved files. Branch checkmarks remain outside the revision hash and only verified in-spec dependencies may advance; cross-spec dependencies wait for accepted outcomes. Tests cover every outcome and unchanged source hashes.
 
