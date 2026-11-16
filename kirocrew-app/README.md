@@ -39,6 +39,15 @@ A Crew Mode chat can run local delivery when `.avoozl.json` sets
 `~/.kiro/hooks/` so a conductor that starts in one of the workspace's checkouts
 gets the runner steering and the current `next` buckets.
 
+## Tick watchdog
+
+`scripts/tick-watchdog.mjs` is an opt-in check for a tick that stopped
+running. It reads `<workspace>/.avoozl/local/tick-health.json` and posts a
+macOS notification when the last tick is older than `--stale-minutes`
+(default 10) or ended in an error. It only reads. Nothing installs it; to run
+it every 10 minutes, fill in `scripts/tick-watchdog.plist.example` and load
+it with `launchctl load`. `--dry-run` prints the problem without notifying.
+
 ## The driver session
 
 The driver session is one long-running chat that releases ready work and
