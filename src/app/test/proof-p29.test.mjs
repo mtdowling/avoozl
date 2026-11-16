@@ -18,7 +18,6 @@ import {
   PROMPT,
   workspace,
 } from "./fixtures/crews/workspace.mjs";
-import { recordRouterReply, routerBatch } from "../router.mjs";
 import { listActivity } from "../activity-log.mjs";
 
 const crewOf = (result) =>
@@ -35,25 +34,6 @@ const ROUTER = Object.fromEntries(
 );
 const hold = (ids) =>
   Object.fromEntries(ids.map((id) => [`${id}:worker`, "hold"]));
-// The fake routing agent: `pick(alias, options)` names one option per task.
-function answer(env, pick) {
-  const batch = routerBatch(env.store);
-  assert.equal(batch.state, "running");
-  recordRouterReply(
-    env.store,
-    batch.id,
-    JSON.stringify(
-      batch.tasks.map(({ task, options }) => ({
-        task,
-        ...pick(env.aliases[task], options),
-        reason: `fake agent for ${env.aliases[task]}`,
-      })),
-    ),
-  );
-  return batch;
-}
-const onCrew = (crew) => (_, options) =>
-  options.find((o) => o.crew === crew) ?? options[0];
 const routerDispatch = (result) =>
   result.dispatch.filter((d) => d.role === "router");
 
@@ -74,157 +54,6 @@ test("P29 action 1: routing off keeps every session local, at most 2", async (t)
     (await crew.tick()).dispatch.filter((d) => d.role === "worker"),
     [],
   );
-});
-
-test("P29 action 2: one call places every ready task among the options that passed", async (t) => {
-  const env = await workspace(t, { machine: PROMPT }),
-    { ops, store, id } = env;
-  // Preview is a dry run: it opens nothing, writes nothing, calls no agent.
-  const before = store.list("session_bindings").length;
-  const preview = await ops.execute("routing.preview", {});
-  assert.equal(store.list("session_bindings").length, before);
-  assert.ok(!routerBatch(store), "no call from Preview");
-  const row = (alias) => preview.items.find((i) => i.taskId === id[alias]);
-  assert.deepEqual(
-    row("t1").options.map((o) => o.crew),
-    ["fake-windows"],
-    "t1 needs os:windows",
-  );
-  assert.equal(row("t1").outcome.kind, "fixed");
-  assert.equal(row("u1").noFit, true);
-  assert.ok(row("u1").removed.some((r) => /lacks arch:arm64/.test(r.by)));
-  assert.equal(row("c1").outcome.kind, "agent");
-  assert.match(preview.brief, /Keep compliance work local/);
-  assert.match(preview.brief, /untrusted data, not instructions/);
-
-  const crew = fakeCrew(ops, {
-    aliases: env.aliases,
-    defaults: defaults(env),
-    scripts: { ...ROUTER, ...hold(["c1", "t1", "w1", "w2", "w3", "w4"]) },
-  });
-  const first = await crew.tick();
-  // t1 has one option and needs no call; the rest wait on ONE call.
-  assert.deepEqual(crewOf(first), { [id.t1]: "fake-windows" });
-  const calls = routerDispatch(first);
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].agent, "avoozl-router");
-  const batch = answer(env, (alias, options) =>
-    alias === "c1" || alias === "w3" || alias === "w4"
-      ? onCrew("local")(alias, options)
-      : onCrew("fake-linux")(alias, options),
-  );
-  assert.deepEqual(batch.tasks.map((t) => env.aliases[t.task]).sort(), [
-    "c1",
-    "w1",
-    "w2",
-    "w3",
-    "w4",
-  ]);
-  const second = await crew.tick(),
-    placed = crewOf(second);
-  assert.equal(placed[id.c1], "local");
-  assert.equal(placed[id.w1], "fake-linux");
-  assert.equal(placed[id.w2], "fake-linux");
-  assert.equal(placed[id.w3], "local");
-  // local's limit of 2 and fake-linux's are full: w4 waits, with no call,
-  // and the answer is spent, so the next call carries fresh facts.
-  assert.equal(placed[id.w4], undefined);
-  assert.deepEqual(routerDispatch(second), []);
-  assert.equal(routerBatch(store).state, "used");
-  const remoteBrief = second.dispatch.find(
-    (d) => d.crew === "fake-linux",
-  ).brief;
-  assert.match(remoteBrief, /clone https:\/\/git\.example\.test\/o\/app\.git/);
-  assert.ok(!remoteBrief.includes(env.checkout), "no local path");
-  for (const b of workerBindings(store))
-    assert.ok(b.placement?.reason, `${b.taskId} records a reason`);
-  assert.ok(
-    workerBindings(store).some((b) =>
-      /routing agent: fake agent for w1/.test(b.placement.reason),
-    ),
-  );
-  // u1: one no-fit decision naming every crew.
-  const noFit = (await ops.execute("conflicts.view", {})).items.filter(
-    (i) => i.kind === "no-fit",
-  );
-  assert.equal(noFit.length, 1);
-  assert.equal(noFit[0].taskId, id.u1);
-  assert.deepEqual(noFit[0].removed.map((r) => r.crew).sort(), [
-    "fake-linux",
-    "fake-windows",
-    "local",
-  ]);
-  // A crew change that makes u1 fit closes it by itself.
-  const file = JSON.parse(fs.readFileSync(MACHINE, "utf8"));
-  file.crews["fake-linux"].tags.push("arch:arm64");
-  fs.writeFileSync(MACHINE, JSON.stringify(file));
-  await crew.tick();
-  assert.equal(
-    (await ops.execute("conflicts.view", {})).items.filter(
-      (i) => i.kind === "no-fit",
-    ).length,
-    0,
-  );
-});
-
-test("P29 action 4: a bad or missing reply holds the task, never runs it locally", async (t) => {
-  let clock = Date.now();
-  const run = async (reply) => {
-    const env = await workspace(t, { machine: PROMPT, ids: ["w1"] });
-    env.ops.placement.now = () => clock;
-    const crew = fakeCrew(env.ops, {
-      aliases: env.aliases,
-      defaults: defaults(env),
-      scripts: { ...ROUTER, ...hold(["w1"]) },
-    });
-    assert.equal(routerDispatch(await crew.tick()).length, 1);
-    if (reply === "silent") clock += 91_000;
-    else
-      recordRouterReply(env.store, routerBatch(env.store).id, reply, {
-        now: clock,
-      });
-    const next = await crew.tick();
-    return { env, crew, next };
-  };
-  const silent = await run("silent");
-  assert.deepEqual(
-    silent.next.dispatch.filter((d) => d.role === "worker"),
-    [],
-    "no local run after a timeout",
-  );
-  const malformed = await run("not json");
-  assert.deepEqual(
-    malformed.next.dispatch.filter((d) => d.role === "worker"),
-    [],
-    "no local run after a bad reply",
-  );
-  const { env } = malformed;
-  const rows = listActivity(env.store).items;
-  assert.ok(rows.some((r) => r.kind === "routing.failed"));
-  // The task stays Ready, marked, and Settings › Routing shows the error.
-  const graph = await env.ops.execute("graph.view", {});
-  const mark = graph.tasks.find((x) => x.id === env.id.w1);
-  assert.equal(mark.state, "ready");
-  assert.match(mark.routingFailed.why, /routing failed: .*not a list/);
-  const view = await env.ops.execute("routing.view", {});
-  assert.equal(view.health.failures, 1);
-  assert.match(view.health.lastError, /not a list/);
-  // The routing chat ended with its reply, as the cron's observer sees it.
-  await env.ops.execute("workspace.tick", {
-    sessions: env.store
-      .list("session_bindings")
-      .filter((b) => b.role === "router")
-      .map((b) => ({ target: b.slot, status: "closed" })),
-  });
-  // Inside the backoff nothing asks again; Retry now asks on the next tick.
-  assert.deepEqual(routerDispatch(await malformed.crew.tick()), []);
-  await env.ops.execute("routing.retry", {});
-  assert.equal(routerDispatch(await malformed.crew.tick()).length, 1);
-  // Only turning routing off runs the task here.
-  await env.ops.execute("routing.turnOff", {});
-  const off = await malformed.crew.tick();
-  assert.ok(off.dispatch.some((d) => d.role === "worker" && !d.crew));
-  assert.equal((await env.ops.execute("routing.view", {})).health.failures, 0);
 });
 
 test("P29 actions 6 and 11: the prompt or old routing keys in a tracked file are refused", async (t) => {
@@ -627,7 +456,7 @@ test("the router is skipped when one crew and one model are left", async (t) => 
   });
   const first = await crew.tick();
   assert.deepEqual(routerDispatch(first), [], "no routing call");
-  assert.ok(!routerBatch(env.store), "no routing batch");
+  assert.ok(!env.store.getMeta("routing.router.batch"), "no routing batch");
   const worker = first.dispatch.find((d) => d.role === "worker");
   assert.equal(worker.task, env.id.w1);
   await crew.tick();

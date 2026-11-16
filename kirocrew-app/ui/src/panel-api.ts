@@ -105,7 +105,7 @@ export interface FlightRow {
   key: string
   source: 'radar' | 'remote'
   title: string
-  // "o/r#52" for a crew's claim, the task id for a remote coder.
+  // "o/r#52" for a crew's claim, the task id for a remote worker.
   ref: string
   who: string
   // The Avoozl that released the issue, by name, when its marker names one.

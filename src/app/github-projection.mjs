@@ -1059,9 +1059,6 @@ async function project(
       edges: early.edges,
       requested: batches,
       complete: (status) => statusComplete(early, status),
-      chains: Object.values(identity.repositories || {}).some(
-        (entry) => entry.coder === "remote",
-      ),
     }),
     leadOf = new Map(
       groups.flatMap((group) => group.map((id) => [id, group[0]])),
