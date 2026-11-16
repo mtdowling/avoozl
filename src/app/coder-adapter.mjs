@@ -15,7 +15,17 @@ const names = (issue) =>
 // issue and no claim is written at approval; Avoozl's executor runs those
 // tasks. The Radar code below stays because Phase 45 is paused.
 // shortcut: one switch, not a setting; remove it with the task-issue code in 56.5.
-export const RADAR_HANDOVER = Object.freeze({ paused: true });
+export const RADAR_HANDOVER = { paused: true };
+
+// Tests of the kept Radar code turn the pause off; the returned function
+// puts it back.
+export function setRadarHandoverPaused(paused) {
+  const before = RADAR_HANDOVER.paused;
+  RADAR_HANDOVER.paused = paused;
+  return () => {
+    RADAR_HANDOVER.paused = before;
+  };
+}
 
 export const issueRadarAdapter = Object.freeze({
   usesMergePath: true,

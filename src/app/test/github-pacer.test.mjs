@@ -23,6 +23,11 @@ import { Store } from "../store.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { setRadarHandoverPaused } from "../coder-adapter.mjs";
+
+// These tests cover the Radar hand-over kept while Phase 45 is paused
+// (R103.4 pauses it in the product).
+setRadarHandoverPaused(false);
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
