@@ -1,3 +1,8 @@
+import {
+  kirocrewSession,
+  kirocrewReadiness,
+  kirocrewDispatches,
+} from "./executors/kirocrew.mjs";
 // workspace.tick: the one bounded, idempotent step a Kiro Crew script cron runs
 // every minute. It returns intents for the script to carry out; it never opens
 // sessions or sends messages itself. It takes the lock, loads policy, records
@@ -432,7 +437,7 @@ function planDispatches(store, bindings) {
       task: task.id,
       role: request.role,
       title,
-      folder: `Avoozl/${repository.id}`,
+      ...kirocrewSession(repository.id),
       agent: request.agent,
       checkout: repository.localCheckout,
       brief: brief(task, repository),
@@ -1276,16 +1281,7 @@ async function runTick(
       // none for an away task (R66.6, R66.10, R66.11).
       const held = driverHeldTaskIds(store),
         readOnly = readOnlyPlanIds(store);
-      // MC-1: a session takes its project from its chat folder, and only a
-      // person can set a folder's project directory. The cron reads its
-      // folders first. Placement leaves local out for a leaf whose folder
-      // has none, so it asks no routing chat each tick while it cannot start.
-      const folderUnset = (folder) =>
-        Boolean(folders && typeof folders === "object") &&
-        folders[folder] === false;
-      if (routing)
-        routing.localFolderUnset = (task) =>
-          folderUnset(`Avoozl/${taskRepository(task)}`);
+      if (routing) routing.localReadiness = kirocrewReadiness(folders);
       const requested = unobserved.length
           ? []
           : planDispatches(store, bindings).filter((d) => !held.has(d.task)),
@@ -1364,7 +1360,7 @@ async function runTick(
         retro =
           script && !unobserved.length
             ? retroStep(store, memory.value || {}, {
-                folder: home ? `Avoozl/${home.id}` : null,
+                repository: home?.id ?? null,
               })
             : { dispatch: [] };
       // Code review chats a person asked for (pr-review.mjs), cron only.
@@ -1463,29 +1459,7 @@ async function runTick(
         );
       const dispatched = allDispatches,
         messages = sendable;
-      // A dispatch whose folder has no project directory waits too, and the
-      // person hears once what to set (the same notice is queued once).
-      const unset = new Set(
-        waits
-          .filter(({ result }) => result.folder)
-          .map(({ task }) => `Avoozl/${taskRepository(task)}`),
-      );
-      for (let i = dispatched.length - 1; i >= 0; i--) {
-        const d = dispatched[i];
-        if (d.project === false || !folderUnset(d.folder)) continue;
-        unset.add(d.folder);
-        dispatched.splice(i, 1);
-      }
-      for (const folder of unset) {
-        const id = folder.split("/").pop(),
-          checkout = store.get("projects", id)?.root;
-        notices.push({
-          channel: "decision",
-          title: `Set the project directory of chat folder ${folder.replaceAll("/", " › ")}`,
-          text: `Avoozl has work ready for ${id}, but its chat folder ${folder.replaceAll("/", " › ")} has no project directory, so no chat opens there. Only a person can set it.`,
-          resume: `In the Kiro Crew sidebar, open the folder's settings and set its project directory${checkout ? ` to ${checkout}` : " to the checkout"}. The next tick starts the work.`,
-        });
-      }
+      notices.push(...kirocrewDispatches(store, dispatched, waits, folders));
       // The cron's tick queues each notice once for the app's notification
       // channels; the app backend pushes it (notifications.mjs).
       if (script) queueNotifications(store, notices);

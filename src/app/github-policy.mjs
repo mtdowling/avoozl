@@ -1,3 +1,4 @@
+import { kirocrewSessionSettings } from "./executors/kirocrew.mjs";
 // Repository policy in `.avoozl.json` (design §4.4): GitHub mode, task
 // authority, the Project, and per-repository rules that map labels to fixed
 // actions. No label name is built in. Validation is deterministic; the one
@@ -689,7 +690,7 @@ function repositoryInput(value, id, mode) {
     );
   return {
     checkout: name(value.checkout, `${label}.checkout`, { optional: true }),
-    folder: name(value.folder, `${label}.folder`, { optional: true }),
+    ...kirocrewSessionSettings(value, label, name),
     baseBranch,
     coder,
     approval,

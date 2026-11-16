@@ -219,7 +219,7 @@ async function finish(
 // One retro: queued by hand, dispatched, answered by the fake retro model.
 async function retro(w, reply, { config = {} } = {}) {
   await w.ops.execute("flow.retro.start", {});
-  const step = retroStep(w.store, config, { now: w.clock, folder: "Avoozl/x" });
+  const step = retroStep(w.store, config, { now: w.clock, repository: "x" });
   assert.equal(step.dispatch.length, 1, "one retro starts");
   const [d] = step.dispatch,
     id = d.task,

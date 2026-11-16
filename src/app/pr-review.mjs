@@ -1,3 +1,4 @@
+import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 // Code review chat (design §8.5): the Code review button on a pull request
 // asks the tick cron to open one Kiro Crew chat, seeded to review that one
 // pull request and post nothing. The cron opens
@@ -176,8 +177,7 @@ export function reviewDispatches(store) {
       role: REVIEW_ROLE,
       attempt: receipt.attempt,
       title: `avoozl:code-review ${receipt.repository}#${receipt.number}`,
-      folder: "",
-      project: false,
+      ...kirocrewDetachedSession(),
       agent: REVIEW_AGENT,
       brief: receipt.seed,
     }));

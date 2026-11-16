@@ -295,17 +295,14 @@ export function placeOne(store, data, ctx, state, input) {
       checks,
     };
   const roomy = checks.allowed.filter((id) => room(ctx, state, id)),
-    // MC-1: local opens no chat in a folder with no project directory.
+    readiness = ctx.localReadiness?.(task),
     open =
-      checks.role === "worker" && ctx.localFolderUnset?.(task)
+      checks.role === "worker" && readiness?.available === false
         ? roomy.filter((id) => id !== LOCAL)
         : roomy;
   if (roomy.length && !open.length)
     return {
-      wait: true,
-      noFit: false,
-      folder: true,
-      why: "its chat folder has no project directory",
+      ...readiness.hold,
       removed,
       checks,
     };

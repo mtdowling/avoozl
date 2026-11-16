@@ -1,3 +1,7 @@
+import {
+  kirocrewSession,
+  kirocrewRemoteSession,
+} from "./executors/kirocrew.mjs";
 import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
 // Local delivery (design §4.5, §5): each leaf's worktree, its worker's reports,
 // and what the tick does with them. The tick plans; the script cron opens and
@@ -2294,12 +2298,12 @@ export function planReadyDispatches(store, policy, options = {}) {
         ),
         ...(leaf.batch ? { batch: leaf.batch } : {}),
         ...(investigate ? { investigate: true } : {}),
-        folder: `Avoozl/${leaf.project.id}`,
+        ...kirocrewSession(leaf.project.id),
         agent,
         ...(model ? { model } : {}),
         ...(where
           ? {
-              ...(remote ? { crew: remote.id, project: false } : {}),
+              ...(remote ? kirocrewRemoteSession(remote) : {}),
               placement: where.placement,
               sessionReason: where.sessionReason,
             }
@@ -3141,7 +3145,7 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
           attempt,
           role.id === "checks" ? `verify ${sha}` : `review ${role.id} ${sha}`,
         ),
-        folder: `Avoozl/${project.id}`,
+        ...kirocrewSession(project.id),
         agent: role.agent,
         ...(role.model ? { model: role.model } : {}),
         ...(where

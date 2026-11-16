@@ -1,3 +1,4 @@
+import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 // Review drafts by label (radar-coder RC20, design D25). A trusted person adds
 // the review label to a pull request; the tick checks that person and that the
 // machine's GitHub login is theirs, then opens one read-only review chat. The
@@ -461,8 +462,7 @@ export function reviewDraftDispatches(store) {
       // chat. The avoozl: prefix puts the slot under the app's
       // /api/chat/slots/avoozl_* grant, so the backend can read its status.
       title: `avoozl:review-draft ${receipt.repository}#${receipt.number} (label ${receipt.id.split(":").at(-1)})`,
-      folder: "",
-      project: false,
+      ...kirocrewDetachedSession(),
       agent: DRAFT_AGENT,
       brief: receipt.seed,
     }));

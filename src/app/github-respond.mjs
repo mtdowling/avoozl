@@ -1,3 +1,4 @@
+import { kirocrewSession } from "./executors/kirocrew.mjs";
 // The respond action (R27.2, R27.3; design §4.7, §6.2). For each frozen
 // snapshot of an issue a `respond` rule matched, the tick adds the
 // repository's configured `responding` label and opens one read-only
@@ -313,7 +314,7 @@ export async function respondStep(
         number: record.number,
         snapshotHash: record.snapshotHash,
         label,
-        folder: rules.folder || `Avoozl/${checkout.id}`,
+        ...kirocrewSession(checkout.id, rules),
         state: "open",
         labeledAt: new Date().toISOString(),
       });
@@ -354,7 +355,7 @@ export async function respondStep(
           0,
           200,
         ),
-      folder: response.folder,
+      ...kirocrewSession(null, response),
       agent: RESPONDER_AGENT,
       brief:
         response.kind === "discussion"
@@ -424,7 +425,7 @@ async function openDiscussionResponses(store, github, policy, repositories) {
         body: discussion.body,
         snapshotHash,
         label: null,
-        folder: rules.folder || `Avoozl/${checkout.id}`,
+        ...kirocrewSession(checkout.id, rules),
         state: "open",
         openedAt: new Date().toISOString(),
       });
