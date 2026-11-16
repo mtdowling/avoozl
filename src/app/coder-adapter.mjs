@@ -10,10 +10,18 @@
 const names = (issue) =>
   (issue?.labels ?? []).map((label) => (label.name ?? label).toString());
 
+// Requirement 103.4: until issue-binding retirement (56.5) runs, Avoozl hands
+// no task issue to a crew. No ready or scope label goes on a projected task
+// issue and no claim is written at approval; Avoozl's executor runs those
+// tasks. The Radar code below stays because Phase 45 is paused.
+// shortcut: one switch, not a setting; remove it with the task-issue code in 56.5.
+export const RADAR_HANDOVER = Object.freeze({ paused: true });
+
 export const issueRadarAdapter = Object.freeze({
   usesMergePath: true,
   // Radar's crew picks up an issue that carries the ready label.
   async handOver({ github, config, issue, label }) {
+    if (RADAR_HANDOVER.paused) return false;
     if (names(issue).includes(label)) return false;
     await github.addLabels(config, issue.number, [label]);
     return true;
