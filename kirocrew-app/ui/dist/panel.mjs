@@ -27,6 +27,8 @@ function se(e) {
 		list: () => t("workspaces.list"),
 		add: (e) => t("workspaces.add", { ...e }),
 		init: (e) => t("workspaces.init", { ...e }),
+		remove: (e) => t("workspaces.remove", { id: e }),
+		stop: (e) => t("workspaces.stop", { id: e }),
 		repositories: (e) => t("repositories.list", {}, e).then((e) => e.items),
 		detectRepository: (e, n) => t("repositories.detect", { folder: n }, e),
 		removeRepository: (e, n) => t("repositories.remove", { id: n }, e),
@@ -339,7 +341,7 @@ function U(e) {
 		let e = i.current;
 		if (!e) return;
 		let t = {}, n = document.activeElement;
-		e.open || e.showModal(), z.push(t), Ie(), u(e), (o.current?.querySelector(`:is(${je}):not([data-modal-close])`) ?? o.current)?.focus();
+		e.open || e.showModal(), z.push(t), Ie(), u(e), (o.current?.querySelector("[data-autofocus]") ?? o.current?.querySelector(`:is(${je}):not([data-modal-close])`) ?? o.current)?.focus();
 		let r = (e) => {
 			if (e.key !== "Tab" || z.at(-1) !== t || !o.current) return;
 			let n = [...o.current.querySelectorAll(je)].filter((e) => e.offsetParent !== null || e === document.activeElement), r = Ce(n.length, n.indexOf(document.activeElement), e.shiftKey);
