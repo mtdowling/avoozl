@@ -1681,6 +1681,8 @@ recovers, and a backend restart mid-run.
   - Write roots: task folder, temp, project cache dirs; read-only roles read-only; a test loads definitions with `bypassPermissions`, `danger-full-access` and a `--dangerously-*` flag and sees each refused; the per-machine opt-in is person-only.
 - [ ] 47.7 Avoozl commits after the child exits, after 47.4 [R94.4a] (§4.28)
   - The child only edits; Avoozl commits in the worktree from the changed files and checks the diff.
+- [x] 47.11 Avoozl's worker commit never stages a path under `.avoozl/`, and landing refuses a worker commit that holds one [R94.4a, R96.1, R96.3] (§4.28)
+  - Whatever the repository's .gitignore says. 47.7 commits through `commitWorkerChanges` (`src/app/git.mjs`); `integrateRun` refuses a branch whose commits touch `.avoozl/` with the paths named; tests in `src/app/test/worker-commit.test.mjs`.
 - [ ] 47.8 Per-project command allow-list; `git push` never allowed, after 47.2 [R94.4c] (§4.28)
 - [ ] 47.9 Spend cap from the task budget and the plan-quota stop, after 47.4 [R94.6, R94.6a] (§4.28)
 - [ ] 47.10 Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted, after 47.2 [R95.6, R95.7] (§4.28)
@@ -1694,7 +1696,7 @@ recovers, and a backend restart mid-run.
 - [ ] 47.6 Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats, after 47.4 [R96.1, R96.2, R96.3, R96.4] (§4.28)
   - A missing or bad result file, or `done` with a non-zero exit, takes the retry path.
 
-- [ ] avoozl-p57 P57 Proof: a Claude Code chain runs under the supervisor and survives faults, after 47.1, 47.2, 47.3, 47.4, 47.5, 47.6, 47.7, 47.8, 47.9, 47.10 [R93, R94, R95, R96] (§4.28)
+- [ ] avoozl-p57 P57 Proof: a Claude Code chain runs under the supervisor and survives faults, after 47.1, 47.2, 47.3, 47.4, 47.5, 47.6, 47.7, 47.8, 47.9, 47.10, 47.11 [R93, R94, R95, R96] (§4.28)
   - Setup: a scratch repository with a bare remote, a 3-task chain, the Claude Code definition approved, the `process` executor.
   - Action: (1) run the chain; (2) fail one check so the task gets one feedback round by resume; (3) kill one child mid-task; (4) restart the app backend mid-run; (5) run a person-only command from a child with `--as-person`.
   - Expected: (1) all 3 tasks finish with an exit code and a result file, and Avoozl commits each one; (2) the resume argv delivers the feedback and the task passes; (3) the killed child is `exited` or `gone` and its task recovers on the retry path; (4) the supervisor keeps or finds its children and nothing runs twice; (5) refused.
@@ -1786,15 +1788,15 @@ dependency on the worker rebuild (Phases 40–52) and may ship before it.
   - `planReviewer` in `MODEL_ROLES`, `plan-review` in `DISPATCH_ROLE`, `validateModels` refuses a reviewer equal to a named planner; `planReview.mode` and `planReview.rounds` validated; the Settings › Models row. Tests use fake model names.
 - [x] 53.2 Review rounds and spec findings keyed by hash, after 53.1 [R99.2, R99.5, R99.6] (§4.29)
   - `review_rounds` rows per pass and round; `plan.review.submit` takes spec findings (kind, severity, file, line, claim, evidence) and refuses a bad file or line and a same-model session. Tests: the different-model rule; findings keyed by hash.
-- [ ] 53.3 Tick opens the reviewer, then the planner answers, after 53.2 [R99.3, R99.4, R99.7, R99.10] (§4.29)
+- [x] 53.3 Tick opens the reviewer, then the planner answers, after 53.2 [R99.3, R99.4, R99.7, R99.10] (§4.29)
   - `planReviewStep`: mode, model check, read-only brief with worktrees at recorded commits, content rules at `brief`; `plan.review.findings` and `plan.review.answer`; rounds; `ask` opens one Needs you item. Fake chats only.
 - [x] 53.4 Review counts in the Approve dialogs, after 53.2 [R99.8, R99.9] (§4.29)
   - `plan.reviewSummary` on `approvalChecks` and each `approvalBatches` entry; the single and batch dialogs show found, fixed, for you and each open finding. Tests: review never changes approval (and makes no GitHub write); the batch dialog shows counts.
-- [ ] 53.5 CLI, MCP tools and Flow planning, after 53.3 [R99.11, R99.12] (§4.29)
+- [x] 53.5 CLI, MCP tools and Flow planning, after 53.3 [R99.11, R99.12] (§4.29)
   - `avoozl plan review SPEC [--start] [--json]`; `plans_plan_review` and `plans_answer_review` with MCP policy (Review anyway and `--start` person only); Planning spans and usage per spec in Flow, kept out of task flow and budgets.
 
 - [ ] avoozl-p63 P63 Proof: a draft is reviewed on another model and the person sees it at approval [R99] (§4.29)
-  - Setup: an isolated workspace, a scratch planning repository with one spec draft that names a missing file and hides an order in prose, fake planner and reviewer chats on two fake models.
+  - Setup: an isolated workspace and Kiro Crew home, a scratch planning repository with one spec draft that names a missing file and hides an order in prose, and real planner and reviewer chats on two different owner-selected models.
   - Action: (1) store the draft with `planReview.mode: auto` and no reviewer model; (2) set the reviewer to the planner's model; (3) set a different model; (4) let the planner answer; (5) edit the spec by hand; (6) open the Approve dialog alone and in a batch, and approve.
   - Expected: (1) and (2) skipped with a note and no chat; (3) one read-only round with a `wrong-reference` and a `hidden-order` finding at the right file and line; (4) one fixed, one answered; (5) a fresh round on the new hash, old findings marked older; (6) both dialogs show the model and counts, approval succeeds the same as with no review, and no GitHub write is made.
   - Failure means: a review runs on the writer's model, findings attach to the wrong revision, or a review changes whether a spec can be approved.
@@ -1806,13 +1808,13 @@ Owner request 2026-11-15 (Requirement 100, design §4.30). Builds on the
 retrospectives of Phase 12 and the open pull request read. It has no
 dependency on Phases 40–53 and may ship before them.
 
-- [ ] 54.1 File classes from the widened open pull request read [R100.1, R100.4, R100.6] (§4.30)
+- [x] 54.1 File classes from the widened open pull request read [R100.1, R100.4, R100.6] (§4.30)
   - `openPullRequests` adds `createdAt`, `files` and head check runs with times, run id and event; `flow.ci` settings in `flowSection`; class globs with defaults through `globToRegex`; `pr_ci` rows for task and other pull requests. Tests: classes, order, override and partial; a fake client sees no new GraphQL call.
-- [ ] 54.2 Workflow runs read and repeat runs, after 54.1 [R100.2, R100.6] (§4.30)
+- [x] 54.2 Workflow runs read and repeat runs, after 54.1 [R100.2, R100.6] (§4.30)
   - At most one `actions/runs` read per repository per check through the HTTP cache; `ci_runs` rows; `job_ms` from check runs or wall time marked an estimate. Tests: a 304 reuses the cache; two runs of one workflow on one commit are a repeat run; attempt 2 of one run is not.
-- [ ] 54.3 Steady waste triggers, after 54.2 [R100.3, R100.4, R100.8] (§4.30)
+- [x] 54.3 Steady waste triggers, after 54.2 [R100.3, R100.4, R100.8] (§4.30)
   - Docs-only waste, CI wait share and repeat run in `triggers`, keyed once per repository, kind and window, outside the spike gap; a retrospective with no finished tasks. Tests: 10 spec-only pull requests with 25 CI minutes fire docs-only waste once; a varied but steady repository fires nothing; the Requirement 47.1 tests pass unchanged.
-- [ ] 54.4 CI facts in the brief, CI plan proposals and PDCA by class, after 54.3 [R100.4, R100.5] (§4.30)
+- [x] 54.4 CI facts in the brief, CI plan proposals and PDCA by class, after 54.3 [R100.4, R100.5] (§4.30)
   - Brief per repository: minutes by class, task and other, wait share, repeat runs, workflow files; `other` pull requests as number, author and classes only. `PLAN_FIELDS` adds `repository` and `workflow`; `METRICS` adds `CI minutes per pull request`. Tests: an unseen workflow is dropped; an approved proposal opens a draft; PDCA compares closed pull requests of one class.
 - [ ] 54.5 Flow CI card and Settings › Flow CI group, after 54.3 [R100.7, R100.8] (§4.30)
   - The CI card (minutes by class, wait share, Repeat runs) and the Settings fields with class globs read-only. Ships before and after screenshots (phone and desktop, light and dark) and waits for the owner's approval before merge. Tests: the view data for the card, and No pull requests read without GitHub.

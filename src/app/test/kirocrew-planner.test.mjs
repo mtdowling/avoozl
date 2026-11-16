@@ -47,11 +47,16 @@ test("the planner agent ships, parses, and is listed in the manifest", () => {
   assert.deepEqual(planner.allowedTools, [], "nothing runs unprompted");
 });
 
-test("the planner writes files only and reaches read-only Avoozl tools", () => {
+test("the planner stores draft revisions and bound answers and otherwise reaches read-only Avoozl tools", () => {
   const builtins = planner.tools.filter((t) => !t.startsWith("@")),
     mcp = planner.tools.filter((t) => t.startsWith("@")),
     // Breakdown mode records its answer for its own issue (github-planner.mjs).
-    breakdown = new Set(["plans_classify_issue", "plans_draft_children"]);
+    breakdown = new Set(["plans_classify_issue", "plans_draft_children"]),
+    revisions = new Set([
+      "plans_create_plan",
+      "plans_save_plan",
+      "plans_answer_review",
+    ]);
   assert.deepEqual(builtins.sort(), [
     "fs_read",
     "fs_write",
@@ -71,7 +76,7 @@ test("the planner writes files only and reaches read-only Avoozl tools", () => {
     const name = ref.slice(ownServer.length),
       tool = served.get(name);
     assert.ok(tool, ref + " is served");
-    if (breakdown.has(name)) continue;
+    if (breakdown.has(name) || revisions.has(name)) continue;
     assert.equal(tool.annotations?.readOnlyHint, true, ref + " is read-only");
   }
 });
@@ -82,6 +87,32 @@ test("the planner writes a spec folder, not fenced plan files", () => {
     assert.match(text, /avoozl\/manifest\.json/);
     assert.match(text, /avoozl\/critique\.md/);
     assert.doesNotMatch(text, /plans\/<plan-id>|```task/);
+  }
+});
+
+test("the review and reasons-only answer agents have no file or shell writes", () => {
+  for (const name of ["avoozl-plan-review", "avoozl-plan-answer-read"]) {
+    const relative = `agents/${name}.json`,
+      agent = JSON.parse(fs.readFileSync(path.join(app, relative), "utf8"));
+    assert.ok(manifest.agents.includes(relative));
+    assert.deepEqual(
+      agent.tools.filter((tool) => !tool.startsWith("@")),
+      ["fs_read", "grep", "glob", "thinking"],
+    );
+    assert.equal(agent.includeMcpJson, false);
+    if (name === "avoozl-plan-answer-read")
+      for (const tool of ["plans_plan_review", "plans_answer_review"])
+        assert.ok(agent.allowedTools.includes(ownServer + tool));
+    assert.ok(
+      agent.tools.every(
+        (tool) =>
+          !tool.startsWith("@") ||
+          (name === "avoozl-plan-answer-read"
+            ? ["plans_get_plan", "plans_plan_review", "plans_answer_review"]
+            : ["plans_get_plan", "plans_submit_review"]
+          ).some((allowed) => tool === ownServer + allowed),
+      ),
+    );
   }
 });
 

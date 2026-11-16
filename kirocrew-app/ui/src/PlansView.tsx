@@ -1390,7 +1390,7 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
     }>
       <div className="flex flex-col gap-3 text-sm">
         <p className="m-0 text-muted">Approve exactly revision <Tooltip text={plan.hash}><code>{shortHash(plan.hash)}</code></Tooltip>. Review findings are evidence for your decision; they do not block approval.</p>
-        <PlanReviewSummary review={review} onClose={async (id, disposition) => { await client.closeReviewFinding(workspaceId, id, disposition); return client.reviewSummary(workspaceId, plan.id) }} />
+        <PlanReviewSummary key={`${workspaceId}:${plan.id}:${plan.hash}`} review={review} onStart={() => client.reviewAnyway(workspaceId, plan.id, plan.hash)} onClose={async (id, disposition) => { await client.closeReviewFinding(workspaceId, id, disposition); return client.reviewSummary(workspaceId, plan.id) }} />
         {error && <p role="alert" className="m-0 text-danger">{error}</p>}
         {pending && <p role="status" className="m-0">Nothing approved yet. Merge <a className="underline" href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">{pending.repository}#{pending.number}</a>, then approve again.</p>}
       </div>
@@ -1500,7 +1500,7 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
         {entries.map((entry) => (
           <section key={entry.id} data-approve-review={entry.id} className="flex min-w-0 flex-col gap-2 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
             <h3 className="m-0 text-sm font-medium">{entry.spec}</h3>
-            <PlanReviewSummary review={selection?.specs.find((spec) => spec.id === entry.id)?.review ?? entry.review} onClose={async (id, disposition) => { await props.client.closeReviewFinding(props.workspaceId, id, disposition); return props.client.reviewSummary(props.workspaceId, entry.id) }} />
+            <PlanReviewSummary key={`${props.workspaceId}:${entry.id}:${entry.hash}`} onStart={() => props.client.reviewAnyway(props.workspaceId, entry.id, entry.hash)} review={selection?.specs.find((spec) => spec.id === entry.id)?.review ?? entry.review} onClose={async (id, disposition) => { await props.client.closeReviewFinding(props.workspaceId, id, disposition); return props.client.reviewSummary(props.workspaceId, entry.id) }} />
           </section>
         ))}
       </div>
@@ -1558,7 +1558,7 @@ export default function PlansView(props: {
   // Draft specs' approval batches, read again whenever the table loads.
   const [batches, setBatches] = useState<ApprovalBatches | null>(null)
   const [checked, setChecked] = useState<Set<string>>(new Set())
-  const [approving, setApproving] = useState<BatchEntry[] | null>(null)
+  const [approving, setApproving] = useState<{workspaceId: string; entries: BatchEntry[]} | null>(null)
   useEffect(() => {
     if (!workspace || !table) return
     let live = true
@@ -1619,6 +1619,8 @@ export default function PlansView(props: {
       shownWorkspace.current = workspace
       setSelected(null)
       setSingleApproval(null)
+      setApproving(null)
+      setChecked(new Set())
     }
     if (!workspace) return
     void load(workspace)
@@ -1778,12 +1780,14 @@ export default function PlansView(props: {
           }}
         />
       )}
-      {approving && workspace && (
+      {approving && approving.workspaceId === workspace && (
         <ApproveSpecsDialog
-          workspaceId={workspace}
-          entries={approving}
+          key={approving.workspaceId}
+          workspaceId={approving.workspaceId}
+          entries={approving.entries}
           client={plans}
           onDone={(text) => {
+            if (shownWorkspace.current !== approving.workspaceId) return
             setApproving(null)
             if (text === null) return
             setNotice(text)
@@ -1866,7 +1870,7 @@ export default function PlansView(props: {
                     Select all shown
                   </label>
                   <span className="flex-1" />
-                  <SmallBtn primary disabled={entries.length === 0 || busy} onClick={() => setApproving(entries)} attrs={{ 'data-approve-specs-open': true }}>
+                  <SmallBtn primary disabled={entries.length === 0 || busy} onClick={() => { if (workspace) setApproving({workspaceId:workspace,entries}) }} attrs={{ 'data-approve-specs-open': true }}>
                     Approve {entries.length} {entries.length === 1 ? 'spec' : 'specs'}
                   </SmallBtn>
                 </div>

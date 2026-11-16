@@ -646,6 +646,11 @@ function We(e) {
 		...i === void 0 ? {} : { expectedRevision: i }
 	})).result;
 	return {
+		decidePlanReview: (e, n, r, i) => t("plan.review.decide", {
+			planId: n,
+			revisionHash: r,
+			action: i
+		}, e),
 		graph: (e, n = {}) => {
 			let r = {};
 			for (let e of [
@@ -1727,6 +1732,12 @@ function an(e) {
 		languages: (e) => t(e, "highlight.languages"),
 		projection: (e, n) => t(e, "github.project.preview", { planId: n }),
 		batches: (e) => t(e, "plan.approvalBatches"),
+		reviewAnyway: (e, n, r) => t(e, "plan.review.decide", {
+			planId: n,
+			revisionHash: r,
+			action: "review",
+			unproven: !0
+		}),
 		reviewSummary: (e, n) => t(e, "plan.reviewSummary", { planId: n }),
 		closeReviewFinding: (e, n, r) => t(e, "plan.review.dispose", {
 			id: n,

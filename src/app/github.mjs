@@ -1,3 +1,4 @@
+import { sharedGitHubRead } from "./github-read-snapshot.mjs";
 import { execFileSync } from "node:child_process";
 import {
   RateState,
@@ -10,8 +11,56 @@ import { fail } from "./store.mjs";
 import { WritePacer } from "./github-pacer.mjs";
 
 const API_VERSION = "2022-11-28";
+const SNAPSHOT_CLIENT = Symbol("GitHub read snapshot client");
 const PAGE_SIZE = 100;
 export const DEFAULT_CACHE_SECONDS = 60;
+// Only the metadata CI accounting consumes is kept for this endpoint. GitHub's
+// full 100-run response contains repository/actor prose and can exceed 1 MiB.
+const WORKFLOW_RUNS_PROJECTION = {
+  version: "workflow-runs-v1",
+  project(data) {
+    const invalid = () =>
+        fail("GitHub returned invalid workflow run data.", 502),
+      text = (value, max) =>
+        typeof value === "string" && value.length > 0 && value.length <= max,
+      time = (value) =>
+        value == null ||
+        (text(value, 64) && Number.isFinite(Date.parse(value)));
+    if (!Array.isArray(data?.workflow_runs) || data.workflow_runs.length > 100)
+      invalid();
+    return data.workflow_runs.map((run) => {
+      if (
+        !run ||
+        !Number.isSafeInteger(run.id) ||
+        run.id < 1 ||
+        !text(run.path, 4096) ||
+        !text(run.head_sha, 128) ||
+        !text(run.event, 128) ||
+        !text(run.status, 64) ||
+        (run.run_attempt !== undefined &&
+          (!Number.isSafeInteger(run.run_attempt) || run.run_attempt < 1)) ||
+        ![run.run_started_at, run.created_at, run.updated_at].every(time) ||
+        (run.pull_requests != null &&
+          (!Array.isArray(run.pull_requests) ||
+            run.pull_requests.some(
+              (pull) => !Number.isSafeInteger(pull?.number) || pull.number < 1,
+            )))
+      )
+        invalid();
+      return {
+        id: run.id,
+        workflow: run.path.replace(/@.*$/, ""),
+        headSha: run.head_sha,
+        event: run.event,
+        attempt: run.run_attempt ?? 1,
+        status: run.status,
+        startedAt: run.run_started_at || run.created_at || null,
+        endedAt: run.status === "completed" ? run.updated_at || null : null,
+        pullRequests: (run.pull_requests || []).map((pull) => pull.number),
+      };
+    });
+  },
+};
 const MAX_PAGES = 20;
 // GitHub's built-in repository roles (github-policy.mjs PERMISSIONS).
 const ROLES = new Set(["read", "triage", "write", "maintain", "admin"]);
@@ -178,6 +227,8 @@ export class GitHubClient {
     timeoutMs = 30000,
     gitUrl = process.env.AVOOZL_GIT_URL,
   } = {}) {
+    // Read guards forward this identity, so wrapped and direct readers share.
+    this[SNAPSHOT_CLIENT] = {};
     this.token = token || "";
     this.discoverToken = token === undefined;
     this.apiUrl = apiUrl.replace(/\/$/, "");
@@ -289,7 +340,11 @@ export class GitHubClient {
     );
   }
 
-  async send(method, pathname, { query, body, accept, headers, etag } = {}) {
+  async send(
+    method,
+    pathname,
+    { query, body, accept, headers, etag, responseProjection } = {},
+  ) {
     if (!this.token && this.discoverToken) {
       this.token = localToken();
       this.discoverToken = false;
@@ -314,7 +369,9 @@ export class GitHubClient {
         readable && !etag && this.cache
           ? this.cache.key(
               this.token,
-              wanted,
+              responseProjection
+                ? wanted + "|projection:" + responseProjection.version
+                : wanted,
               url.href,
               method === "GET" ? "" : JSON.stringify(body),
             )
@@ -417,6 +474,14 @@ export class GitHubClient {
       error.details = value;
       throw error;
     }
+    if (responseProjection && !reused) {
+      try {
+        value = responseProjection.project(value);
+      } catch (error) {
+        this.rate?.flush();
+        throw error;
+      }
+    }
     const link = reused ? stored.link || "" : header("link") || "",
       scopes = reused ? stored.scopes : (header("x-oauth-scopes") ?? null),
       tag = reused ? stored.etag : header("etag") || null;
@@ -427,7 +492,7 @@ export class GitHubClient {
         {
           etag: tag,
           lastModified: header("last-modified"),
-          body: text,
+          body: responseProjection ? JSON.stringify(value) : text,
           link,
           scopes,
         },
@@ -1126,18 +1191,29 @@ export class GitHubClient {
 
   // Every open pull request of a repository in one query (pages of 100, at
   // most 5): head, merge state, labels, the check rollup state and the
-  // issues it closes. Each view reads this through the client's cache, so
+  // issues it closes, and for the CI waste counts (§4.30) its author, its
+  // first 100 changed paths and the head commit's check run times. Each view reads this through the client's cache, so
   // ten pull requests cost one call, not ten.
   // shortcut: 500 open pull requests; a busier repository fails here and
   // pullRequestHeads falls back to one alias per branch.
   async openPullRequests(value) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return sharedGitHubRead(
+      this[SNAPSHOT_CLIENT],
+      "pulls:" + (owner + "/" + repo).toLowerCase(),
+      () => this.readOpenPullRequests({ owner, repo }),
+    );
+  }
+
+  async readOpenPullRequests(value) {
     const { owner, repo } =
         typeof value === "string" ? parseRepository(value) : value,
       pulls = [];
     let after = null;
     for (let page = 0; page < 5; page += 1) {
       const data = await this.graphql(
-          `query($owner:String!,$repo:String!,$after:String){repository(owner:$owner,name:$repo){pullRequests(states:OPEN,first:100,after:$after,orderBy:{field:CREATED_AT,direction:DESC}){pageInfo{hasNextPage endCursor} nodes{number url updatedAt isDraft headRefName headRefOid baseRefName baseRef{target{oid}} mergeable mergeStateStatus reviewDecision autoMergeRequest{enabledAt} labels(first:20){nodes{name}} closingIssuesReferences(first:10){nodes{number title url repository{nameWithOwner}}} commits(last:1){nodes{commit{statusCheckRollup{state}}}}}}}}`,
+          `query($owner:String!,$repo:String!,$after:String){repository(owner:$owner,name:$repo){pullRequests(states:OPEN,first:100,after:$after,orderBy:{field:CREATED_AT,direction:DESC}){pageInfo{hasNextPage endCursor} nodes{number url createdAt updatedAt isDraft author{login} headRefName headRefOid baseRefName baseRef{target{oid}} mergeable mergeStateStatus reviewDecision autoMergeRequest{enabledAt} labels(first:20){nodes{name}} closingIssuesReferences(first:10){nodes{number title url repository{nameWithOwner}}} files(first:100){totalCount nodes{path}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){nodes{... on CheckRun{name startedAt completedAt checkSuite{workflowRun{databaseId event file{path}}}}}}}}}}}}}}`,
           { owner, repo, after },
           "read open pull requests",
         ),
@@ -1151,6 +1227,30 @@ export class GitHubClient {
     fail(
       "More than 500 open pull requests in " + owner + "/" + repo + ".",
       413,
+    );
+  }
+
+  // The newest 100 workflow runs created since `since` (a date), one REST
+  // read through the HTTP cache, so an unchanged list is a 304 (§4.30,
+  // R100.6). Each run: id, workflow path, head commit, event, attempt,
+  // times and the pull requests GitHub links it to.
+  // shortcut: one page; a repository with more than 100 runs in the window
+  // undercounts the oldest, read more pages if that shows up.
+  async workflowRuns(value, since) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return sharedGitHubRead(
+      this[SNAPSHOT_CLIENT],
+      JSON.stringify([
+        "workflow-runs",
+        (owner + "/" + repo).toLowerCase(),
+        since,
+      ]),
+      () =>
+        this.request("GET", `/repos/${owner}/${repo}/actions/runs`, {
+          query: { per_page: 100, created: `>=${since}` },
+          responseProjection: WORKFLOW_RUNS_PROJECTION,
+        }),
     );
   }
 

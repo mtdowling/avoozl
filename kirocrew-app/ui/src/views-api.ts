@@ -286,6 +286,7 @@ export interface ReviewTask extends TaskOwner {
 }
 
 export interface ConflictItem extends TaskOwner {
+  planReview?: { planId: string; revisionHash: string }
   kind: 'decision' | 'needs-human' | 'review' | 'stale-session' | 'resource' | 'github-conflict' | 'tracker-conflict' | string
   // Null for a review group, which stands for many tasks.
   taskId: string | null
@@ -402,6 +403,8 @@ export function viewsClient(api: AppApi) {
     return reply.result
   }
   return {
+    decidePlanReview: (workspaceId: string, planId: string, revisionHash: string, action: 'review' | 'skip') =>
+      run<unknown>('plan.review.decide', { planId, revisionHash, action }, workspaceId),
     graph: (workspaceId: string, filter: GraphFilter = {}) => {
       const input: Record<string, unknown> = {}
       for (const key of ['epic', 'phase', 'repository', 'status', 'plan', 'spec'] as const)
@@ -597,6 +600,7 @@ export function scalarFields(record: Record<string, unknown>): [string, string][
 }
 
 export const CONFLICT_LABELS: Record<string, string> = {
+  'plan-review': 'Draft review',
   decision: 'Open decision',
   'needs-human': 'Needs you',
   review: 'Review',
