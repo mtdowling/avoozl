@@ -3003,7 +3003,17 @@ export class Operations {
       });
     if (name === "executor.kirocrew.take")
       return takeKirocrewRequest(store, input, context, (request, queued) =>
-        sessionStartHold(store, request, queued),
+        sessionStartHold(store, request, queued, {
+          planReviewMode:
+            request.role === "plan-review"
+              ? validatePlanReview(
+                  this.workspaceRoot
+                    ? loadLayeredConfig({ workspaceRoot: this.workspaceRoot })
+                        .config.planReview
+                    : undefined,
+                ).mode
+              : undefined,
+        }),
       );
     if (name === "executor.kirocrew.release")
       return releaseKirocrewRequest(store, input, context);
