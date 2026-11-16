@@ -1653,7 +1653,7 @@ Owner plan 2026-11-15 (Requirements 93, 97; design §4.28). Runs before
 Phase 40: the worker rebuild calls this seam. Exit: today's calls sit behind
 the interface, existing behavior is preserved and the suite passes.
 
-- [ ] 46.1 Executor interface: start, send, status, optional stop and usage [R93.1, R93.4] (§4.28)
+- [x] 46.1 Executor interface: start, send, status, optional stop and usage [R93.1, R93.4] (§4.28)
   - Contract tests cover the calls and allowed status values; the interface carries no Kiro Crew folder, project or agent-file detail. The comprehensive boundary test runs at P56 after 46.2–46.4 move the existing references.
 - [ ] 46.2 The `kirocrew` executor holds today's session calls from `tick.py`, after 46.1 [R93.2, R93.6] (§4.28)
   - All Kiro Crew folder and project handling becomes the executor's private detail, including callers outside `tick.py`. Preserve existing behavior coverage; only assertions about retired request fields may change (R93.6).
