@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { workspaceConfig } from "../config.mjs";
 import { WorkspaceRegistry } from "../host-config.mjs";
 import { Operations } from "../operations.mjs";
+import { enqueueSessionRequests } from "../session-requests.mjs";
 import { Store } from "../store.mjs";
 import { initializeWorkspace } from "../workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -67,11 +68,11 @@ const call = (id, name, input, sessionKey) => ({
   },
 });
 
-function serve(dir, cwd, messages) {
+function serve(dir, cwd, messages, extraEnv = {}) {
   const output = execFileSync("python3", [launcher], {
     cwd,
     encoding: "utf8",
-    env: isolatedEnv(dir),
+    env: { ...isolatedEnv(dir), ...extraEnv },
     input: messages.map((m) => JSON.stringify(m)).join("\n") + "\n",
   });
   return new Map(
@@ -208,4 +209,62 @@ test("refuses server/discover so Kiro Crew clients send initialize and get the c
     replies.get(2).result.capabilities.experimental["kirocrew.caller-identity"],
     { schemaVersion: 1 },
   );
+});
+
+test("a script cron's own server takes requests as the cron its env names", async () => {
+  // Kiro Crew's script cron sends no caller block; it names the job only in
+  // KIROCREW_SESSION_KEY. Nearby inputs: a chat's key in the env, and a
+  // caller block that names someone else (the block wins).
+  const dir = temporaryDirectory("avoozl-cron-caller-"),
+    root = path.join(dir, "ws");
+  initializeWorkspace(root, { name: "ws" });
+  const store = new Store(workspaceConfig({ workspace: root }).dbPath);
+  let queued;
+  try {
+    await new Operations(store, { workspaceRoot: root }).execute(
+      "task.update",
+      { id: "sample-task", create: true, title: "sample-task" },
+    );
+    queued = enqueueSessionRequests(store, {
+      starts: [
+        {
+          executor: "kirocrew",
+          role: "worker",
+          task: "sample-task",
+          title: "avoozl:sample-task work",
+          brief: "Do the synthetic work.",
+          worktree: null,
+          model: "fake-model",
+          permissionClass: "write",
+        },
+      ],
+    }).starts[0];
+  } finally {
+    store.close();
+  }
+  const take = (id, sessionKey) => {
+    const message = call(id, "plans_executor", {}, sessionKey);
+    message.params.arguments = {
+      action: "take",
+      input: { id: queued.id, version: queued.version },
+    };
+    return message;
+  };
+  const refused = /Only the native executor cron/;
+  const chat = serve(dir, dir, [take(1)], {
+    AVOOZL_WORKSPACE: root,
+    KIROCREW_SESSION_KEY: "dashboard:slot-a",
+  });
+  assert.match(text(chat.get(1)), refused);
+  const forged = serve(dir, dir, [take(1, "dashboard:slot-a")], {
+    AVOOZL_WORKSPACE: root,
+    KIROCREW_SESSION_KEY: "cron:job1",
+  });
+  assert.match(text(forged.get(1)), refused);
+  const cron = serve(dir, dir, [take(1)], {
+    AVOOZL_WORKSPACE: root,
+    KIROCREW_SESSION_KEY: "cron:job1",
+  });
+  assert.equal(cron.get(1).result.isError, undefined, text(cron.get(1)));
+  assert.equal(JSON.parse(text(cron.get(1))).request.id, queued.id);
 });
