@@ -55,7 +55,6 @@ async function start(dark) {
   await page.until(`Boolean(${startButton})`)
   await page.evaluate(`${startButton}.click()`)
   await page.until(`Boolean(document.querySelector('[data-demo-bar]'))`)
-  await page.evaluate(`document.querySelectorAll('[data-demo-tour]').forEach((x) => x.remove())`)
   await wait(800)
 }
 async function goto(name) {

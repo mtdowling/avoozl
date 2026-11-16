@@ -4323,7 +4323,7 @@ task drawer, so that I can review a task without leaving Avoozl.
 6. File lists and diffs SHALL be capped in size, and tests SHALL show the
    path and argument rules failing without them.
 
-### Requirement 82: Demo mode with a guided tour
+### Requirement 82: Demo mode
 
 Added 2026-11-13 (owner request). Design §6.11.
 
@@ -4357,10 +4357,8 @@ stay untouched.
 4. The demo SHALL use a fake GitHub with an epic issue, sub-issues, a
    Project, pull requests and passing, failing and running checks. It SHALL
    refuse every write, every raw call and every method it does not know.
-5. A guided tour SHALL show one large caption per step over the real
-   Dashboard, Specs, Graph, a task drawer, Intake, Flow, Needs you, Stop the
-   line and Settings, with Back, Next, Close and arrow, Home, End and Esc
-   keys. Its motion SHALL be off under `prefers-reduced-motion`.
+5. Withdrawn 2026-11-16 (owner request): the guided tour is removed. Demo
+   mode keeps the sample, the demo bar and Exit demo, with no tour.
 6. A Demo badge SHALL show in the header on every page while the demo is
    on, and Settings SHALL list only the sample, never the machine's own
    workspaces.
