@@ -441,8 +441,8 @@ export function statusFromRoster(roster, slot, title = null) {
 // Record what the tick read for a bound slot. A status that has not changed, or
 // a slot the roster does not list, writes nothing. `served` is what Kiro Crew
 // said about the session's model ({requested, model, withheld, changed}),
-// passed only by the tick; it is kept on the binding as `served`, and left
-// unset by a Kiro Crew that does not report it.
+// passed by the tick or by the backend's slot read; it is kept on the binding
+// as `served`, and left unset by a Kiro Crew that does not report it.
 export function recordSessionStatus(store, input = {}, { served: seen } = {}) {
   const slot = text(input.slot, "session slot key", MAX_SLOT);
   return store.transaction(() => {
