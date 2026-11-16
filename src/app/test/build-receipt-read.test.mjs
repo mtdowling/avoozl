@@ -488,3 +488,28 @@ test("the artifact list is one unfiltered cached read; a 304 reads nothing more"
   assert.equal(seen[1].headers["If-None-Match"], etag);
   assert.deepEqual(again, first);
 });
+
+test("the old build-receipt name and the build-receipt-<os> names are both read", async (t) => {
+  const { store } = fixture(t),
+    gh = github({
+      artifacts: [
+        artifact(940, "build-receipt", "sha51", 900),
+        artifact(941, "build-receipt-ubuntu-latest", "sha52", 901),
+        artifact(942, "build-receipt-macos-latest", "sha52", 901),
+        artifact(943, "build-receipt-windows-latest", "sha52", 901),
+        artifact(944, "build-reports", "sha52", 901),
+      ],
+      files: {
+        940: receiptText(1000),
+        941: receiptText(2000, { target: "ubuntu-latest" }),
+        942: receiptText(3000, { target: "macos-latest" }),
+        943: receiptText(4000, { target: "windows-latest" }),
+      },
+      runs: [run(900, "sha51"), run(901, "sha52")],
+      merged: [51, 52],
+    });
+  await check(store, gh);
+  assert.equal(gh.calls.download, 4);
+  assert.equal(rows(store, "WHERE pr_number=51").length, 1);
+  assert.equal(rows(store, "WHERE pr_number=52").length, 3);
+});
