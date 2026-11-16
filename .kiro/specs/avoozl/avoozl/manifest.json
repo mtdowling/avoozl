@@ -6300,6 +6300,9 @@
       "checks": [
         "npm test",
         "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
       ]
     },
     "40.2": {
@@ -6314,6 +6317,9 @@
       "checks": [
         "npm test",
         "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
       ]
     },
     "40.3": {
@@ -6328,6 +6334,9 @@
       "checks": [
         "npm test",
         "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
       ]
     },
     "40.4": {
@@ -6342,6 +6351,9 @@
       "checks": [
         "npm test",
         "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
       ]
     },
     "40.5": {
@@ -6390,6 +6402,9 @@
       "checks": [
         "npm test",
         "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
       ]
     },
     "avoozl-p50": {
@@ -6659,7 +6674,8 @@
         "git diff --check"
       ],
       "requires": [
-        "avoozl-p52"
+        "avoozl-p52",
+        "avoozl-p61"
       ]
     },
     "43.2": {
@@ -7043,6 +7059,434 @@
       "requires": [
         "44.7",
         "44.8"
+      ]
+    },
+    "46.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 46 (Name the executor seam). See R93.1, R93.4; §4.28.",
+      "acceptance": [
+        "Executor interface: start, send, status, optional stop and usage",
+        "A test fails when a path outside the `kirocrew` executor names a Kiro Crew folder, project or agent file."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "46.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 46 (Name the executor seam). See R93.2, R93.6; §4.28.",
+      "acceptance": [
+        "The `kirocrew` executor holds today's session calls from `tick.py`",
+        "Folders and project directories become its private detail; no test changes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "46.1"
+      ]
+    },
+    "46.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 46 (Name the executor seam). See R93.3; §4.28.",
+      "acceptance": [
+        "The tick writes session requests that name an executor; each executor takes only its own"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "46.2"
+      ]
+    },
+    "46.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 46 (Name the executor seam). See R97.1, R97.2; §4.28.",
+      "acceptance": [
+        "Role prompts in `prompts/<role>.md`; agent files built from them",
+        "A test fails when a built agent differs from its prompt."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "46.1"
+      ]
+    },
+    "avoozl-p56": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 46 (Name the executor seam). Proof. See R93, R97; §4.28.",
+      "acceptance": [
+        "Proof: the seam is named and nothing else changed",
+        "Expected: the suite passes with no test edited; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "46.1",
+        "46.2",
+        "46.3",
+        "46.4"
+      ]
+    },
+    "47.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). See R94.1, R94.2, R94.3; §4.28.",
+      "acceptance": [
+        "Harness definition files: argv lists, placeholders, hash approval",
+        "Loading refuses a shell string, an unknown placeholder and an unapproved hash."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
+      ]
+    },
+    "47.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). See R94.4, R94.5, R94.6; §4.28.",
+      "acceptance": [
+        "Permission classes and spend cap",
+        "Write roles confined to the worktree; read-only roles read-only; a bypass flag refused at load; the per-machine opt-in is person-only; a spend cap set from the task budget."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "47.1"
+      ]
+    },
+    "47.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). See R95.1, R95.2, R95.3, R95.4; §4.28.",
+      "acceptance": [
+        "`avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend",
+        "Finds its children again after a restart; a missing one is `gone`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "47.1"
+      ]
+    },
+    "47.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). See R93.2, R93.5; §4.28.",
+      "acceptance": [
+        "The `process` executor and the Claude Code definition",
+        "Default for the Nupp compiler repository."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "47.2",
+        "47.3"
+      ]
+    },
+    "47.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). See R95.5; §4.28.",
+      "acceptance": [
+        "Child marker; the CLI refuses person-only commands in a child",
+        "Refused even with `--as-person`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "47.3"
+      ]
+    },
+    "47.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). See R96.1, R96.2, R96.3; §4.28.",
+      "acceptance": [
+        "One finish: `avoozl runner report TASK done|blocked` in every brief",
+        "A child that exits without a report takes the retry path."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "47.4"
+      ]
+    },
+    "avoozl-p57": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). Proof. See R93, R94, R95, R96; §4.28.",
+      "acceptance": [
+        "Proof: a Claude Code chain runs under the supervisor and survives faults",
+        "Expected: (1) all 3 tasks finish with `runner report` and Avoozl reads each commit from the worktree; (2) the resume argv delivers the feedback and the task passes; (3) the killed child is `exited` or `gone` and its task recovers on the retry path; (4) the supervisor keeps or finds its children and nothing runs twice; (5) refused."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "47.1",
+        "47.2",
+        "47.3",
+        "47.4",
+        "47.5",
+        "47.6"
+      ]
+    },
+    "48.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 48 (A second harness by definition file only). See R94.1, R94.4; §4.28.",
+      "acceptance": [
+        "A Codex definition file",
+        "Its start and resume argv, permission values and cost source."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p57"
+      ]
+    },
+    "avoozl-p58": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 48 (A second harness by definition file only). Proof. See R94.7; §4.28.",
+      "acceptance": [
+        "Proof: Codex runs a task from its definition file alone",
+        "Expected: the task finishes with `runner report`; `git diff --stat` of every source file against the recorded commit is empty, and the proof fails if any source file changed."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "48.1"
+      ]
+    },
+    "49.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 49 (Every role on any executor). See R97.3, R94.4; §4.28.",
+      "acceptance": [
+        "Verifier, reviewer, planner, retro and watch run on `process`",
+        "Read-only roles get the read-only class."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p57"
+      ]
+    },
+    "avoozl-p59": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 49 (Every role on any executor). Proof. See R97; §4.28.",
+      "acceptance": [
+        "Proof: each role runs on either executor",
+        "Expected: the same result kinds from both; a read-only role cannot write."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "49.1"
+      ]
+    },
+    "50.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 50 (Kiro Crew stays the only UI). See R98.1; §4.28.",
+      "acceptance": [
+        "In flight for `process` sessions: status, log tail, cost, copyable attach command"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p57"
+      ]
+    },
+    "50.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 50 (Kiro Crew stays the only UI). See R98.2; §4.28.",
+      "acceptance": [
+        "Send message queues a `send`"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "50.1"
+      ]
+    },
+    "50.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 50 (Kiro Crew stays the only UI). See R98.3, R98.4; §4.28.",
+      "acceptance": [
+        "Settings › Models picks harness and model per role; a `session` pin may name a harness"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p57"
+      ]
+    },
+    "avoozl-p60": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 50 (Kiro Crew stays the only UI). Proof. See R98; §4.28.",
+      "acceptance": [
+        "Proof: a process session is watched and steered from the Avoozl page",
+        "Expected: status, log tail and cost show; the message reaches the child through `send`; the next task of that role uses the new harness; screenshots at 390 and 1280 px, light and dark."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "50.1",
+        "50.2",
+        "50.3"
+      ]
+    },
+    "51.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 51 (Headless workers). See R95.3; §4.28.",
+      "acceptance": [
+        "The supervisor under launchd or systemd, running the tick too"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p57"
+      ]
+    },
+    "51.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 51 (Headless workers). See R98.5; §4.28.",
+      "acceptance": [
+        "CLI only: `avoozl status` and `avoozl runner status --json`"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "51.1"
+      ]
+    },
+    "avoozl-p61": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 51 (Headless workers). Proof. See R95, R98.5; §4.28.",
+      "acceptance": [
+        "Proof: a headless machine runs tasks with the CLI only",
+        "Expected: both tasks finish; the supervisor comes back and finds its state; `runner status --json` reports both."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "51.1",
+        "51.2"
+      ]
+    },
+    "52.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 52 (The manual path stays). See R96.4; §4.28.",
+      "acceptance": [
+        "`next`, `claim` and `runner report` keep working for a person",
+        "One test per command from a plain shell."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
+      ]
+    },
+    "avoozl-p62": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 52 (The manual path stays). Proof. See R96.4; §4.28.",
+      "acceptance": [
+        "Proof: a person finishes a task by hand",
+        "Expected: the task lands as if a worker did it."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "52.1"
       ]
     }
   }

@@ -3497,7 +3497,7 @@ Avoozl    Avoozl     chat     Avoozl     Avoozl   Avoozl (Stop the line)
 - **Work.** The chat opens with `project: false`, its trust mode set, and a
   brief that names the worktree path, the task, its acceptance, its
   declared paths and one command to report:
-  `avoozl report --task ID --token T done|blocked|question --text ...`.
+  `avoozl runner report TASK done|blocked` (§4.28).
   The brief says: edit, run what you like, commit; do not push, open a pull
   request, merge, label or comment. The trust mode is set again on every
   tick, because a gateway restart loses it.
@@ -3665,6 +3665,92 @@ Issue Radar app; Avoozl rebuilds them in its own code and copies no files.
   an **Avoozl tasks only** filter.
 - At 390 px the list and the detail each take the full width, with a back
   control, as the other three-column pages do.
+
+### 4.28 Any harness runs the work; Kiro Crew stays the only UI
+
+Added 2026-11-15 (Requirements 93–98). This seam comes first: Phase 46 runs
+before the worker rebuild of §4.26 (Phases 40–45), so the rebuild calls the
+executor interface and never Kiro Crew directly.
+
+```
+tick (planner) ──writes──> session requests {executor, role, task, ...}
+                              │                         │
+                     kirocrew executor            process executor
+                     (Kiro Crew chats)            avoozl supervisor (one per machine)
+                                                  child = agent CLI in the worktree
+                              │                         │
+                              └── avoozl runner report TASK done|blocked ──> Avoozl reads HEAD
+```
+
+**Executor interface.** `start(role, task, worktree, brief, model,
+permissionClass) -> sessionId`, `send(sessionId, text)`,
+`status(sessionId) -> working | idle | exited <code> | gone`, and optional
+`stop` and `usage`. The `kirocrew` executor holds today's calls from
+`kirocrew-app/crons/tick.py`; folders and project directories are its
+private detail. The `process` executor hands the request to the
+supervisor.
+
+**Harness definitions.** One JSON file per harness in the machine config,
+approved by hash like the worktree helper. Commands are argv lists with
+placeholders; nothing is passed through a shell.
+
+```json
+{
+  "name": "example-cli",
+  "start": ["example-cli", "--cwd", "{worktree}", "--model", "{model}", "--prompt-file", "{brief_file}", "--sandbox", "{permission}"],
+  "resume": ["example-cli", "--resume", "{session}", "--message-file", "{message_file}"],
+  "permission": { "write": "workspace-write", "read": "read-only" },
+  "cost": { "from": "output", "field": "total_cost_usd" },
+  "spendCap": ["--max-cost", "{budget_usd}"]
+}
+```
+
+The values above are an example. Each real CLI's accepted permission and
+sandbox values are not verified yet; they are proof items of Phase 47
+(Claude Code) and Phase 48 (Codex).
+
+**Settled owner decisions, 2026-11-15.**
+
+| Topic          | Decision                                                                                                                                                          |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Permissions    | Write roles: the harness's workspace-write sandbox, confined to the task worktree. Read-only roles: read-only. Never a skip-all-permissions or bypass flag. A harness that cannot confine writes is refused for write roles unless the owner opts in per machine. A spend cap the harness offers is set from the task budget |
+| Default        | `process` with Claude Code for the Nupp compiler repository; `kirocrew` for Avoozl's own repository until Phase 47's proof passes                                  |
+| Person-only    | Children get `AVOOZL_CHILD=1`. The CLI refuses person-only commands in a child even with `--as-person`, which is stricter than a speed bump                       |
+
+**Supervisor.** `avoozl supervisor` owns children: pid, start time, exit
+code and log file, in SQLite. It takes only `process` requests. On a Kiro
+Crew machine the app backend starts it; on a headless machine launchd or
+systemd starts it and it runs the tick too. After a restart it finds its
+children by pid and start time; one it cannot find is `gone`. Whether the
+app backend may keep a detached long-lived child is not verified yet; it is
+a proof item of Phase 47. If it may not, the backend asks launchd to run the
+supervisor on Kiro Crew machines too.
+
+**One way to finish.** Every brief ends with `avoozl runner report TASK
+done|blocked`. Avoozl reads the commit from the worktree. A child that
+exits without a report is `exited <code>` and takes the retry path.
+`next`, `claim` and the report stay as the manual path.
+
+**Prompts.** `prompts/<role>.md` holds each role's prompt; the build writes
+the Kiro Crew agent files from them, and a test fails on drift.
+
+**UI.** Only the Avoozl page in Kiro Crew. In flight shows a `process`
+session's status, log tail, cost and a copyable attach command; Send
+message queues a `send`; Settings › Models picks a harness and model per
+role; a task's `session` pin may name a harness. Headless machines have
+`avoozl status` and `avoozl runner status --json` only.
+
+**Steps and exits.**
+
+| Phase | Step                                    | Exit                                                                                              |
+| ----- | --------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| 46    | Name the seam                           | Today's calls behind the interface; the existing suite passes unchanged                           |
+| 47    | Supervisor and `process` with Claude Code | A 3-task chain on a scratch repository with one feedback round by resume, a killed child that recovers, a backend restart mid-run |
+| 48    | Codex by definition file only           | Codex runs a task; the proof fails if any source file changed                                     |
+| 49    | Every role on any executor              | Verifier, reviewer, planner, retro and watch each run on `process`                                |
+| 50    | The UI                                  | In flight, Send message, Settings › Models and the `session` pin work for `process` sessions      |
+| 51    | Headless workers                        | A machine under launchd runs tasks with the CLI only; the base for §4.26's pull-based worker mode |
+| 52    | The manual path                         | `next`, `claim` and `runner report` still work for a person                                       |
 
 ## 5. Local workflow
 
@@ -6085,6 +6171,13 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P53   | Worker machines: a second machine and a second GitHub login pull, claim and complete tasks from a shared pool on real GitHub; of two racing workers exactly one claim wins (Phase 43) |
 | P54   | Issues and Pull requests pages next to Issue Radar's at 390 and 1280 px, light and dark; a list load makes 0 GitHub calls beyond the shared read (Phase 44) |
 | P55   | After removal: one delivery path, the compatibility names resolve, no Radar module remains (Phase 45) |
+| P56   | The executor seam: today's calls behind it, the existing suite unchanged (Phase 46) |
+| P57   | Supervisor and `process` with Claude Code: a 3-task chain with a resume round, a killed child, a backend restart (Phase 47) |
+| P58   | Codex from a definition file alone; fails if any source file changed (Phase 48) |
+| P59   | Every role on either executor (Phase 49) |
+| P60   | A process session watched and steered from the Avoozl page (Phase 50) |
+| P61   | A headless machine under launchd, CLI only (Phase 51) |
+| P62   | The manual next, claim and report path (Phase 52) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
 requires a failed proof that a small Kiro Crew or GitHub contract cannot fix.
@@ -6129,6 +6222,13 @@ Detailed in `tasks.md`. **Proposed** order:
 | 43. Worker machines pull work | Worker mode on the runner role, pull from GitHub (solo assigned, team pool), claim comments where the earliest wins, `avoozl worker setup`, SSH only without GitHub access (§4.26) |
 | 44. Issues and Pull requests pages | Three-column Issues and Pull requests pages from the shared read, lazy cached detail, Avoozl-owned actions only (§4.27) |
 | 45. Remove the Issue Radar path | Radar-only code, `verify-issue`, the provenance marker, the crew, relay and router agents; Delivery, Budgets and Files restored (§4.26) |
+| 46. Executor seam | The executor interface, the `kirocrew` executor, session requests by executor, prompts as files; runs before Phase 40 (§4.28) |
+| 47. Supervisor and process executor | Harness definition files, permission classes, `avoozl supervisor`, Claude Code, the child marker, one finish (§4.28) |
+| 48. Second harness by file | Codex with no code change (§4.28) |
+| 49. Every role on any executor | Verifier, reviewer, planner, retro, watch (§4.28) |
+| 50. Kiro Crew stays the only UI | In flight, Send message, harness and model per role (§4.28) |
+| 51. Headless workers | Supervisor under launchd or systemd, CLI only (§4.28) |
+| 52. Manual path | `next`, `claim`, `runner report` kept (§4.28) |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
 

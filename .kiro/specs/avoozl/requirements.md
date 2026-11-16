@@ -4649,8 +4649,8 @@ instead of a stuck chat.
 
 1. Avoozl SHALL set the worker chat's trust mode when it opens the chat and
    SHALL set it again on every tick, because a gateway restart loses it.
-2. A worker SHALL report by CLI (`avoozl report --task ID ...`) from its
-   worktree. Avoozl SHALL match the report to the task by the worktree path
+2. A worker SHALL report by CLI from its worktree. (Changed 2026-11-15:
+   the command is `avoozl runner report TASK done|blocked`, Requirement 96.) Avoozl SHALL match the report to the task by the worktree path
    and the task's report token in the brief, so a report needs neither MCP
    sharing nor the gateway's session identity.
 3. A local worker chat SHALL open with `project: false` and the worktree path
@@ -4862,3 +4862,154 @@ efficient with GitHub API calls.
 16. A detail cache entry SHALL be dropped when the batched read shows a newer
     `updatedAt` for its item, or the item is gone, so a stale detail is
     never shown as current.
+
+### Requirement 93: Any harness runs the work; one executor seam
+
+Added 2026-11-15 (owner plan: any harness runs the work, Kiro Crew stays the
+only UI). Design §4.28. This seam comes before the worker rebuild of
+Phases 40–45, so everything rebuilt there is harness-neutral.
+
+**User story:** As the owner, I want Avoozl to start, message and watch a
+worker through one small interface, so that I can run a task with any agent
+harness without changing the loop.
+
+#### Acceptance criteria
+
+1. Avoozl SHALL start and drive every agent session through one executor
+   interface:
+
+   | Call     | Input                                                            | Output                                  |
+   | -------- | ---------------------------------------------------------------- | --------------------------------------- |
+   | `start`  | role, task, worktree, brief, model, permission class             | session ID                              |
+   | `send`   | session ID, text                                                 | accepted or refused                     |
+   | `status` | session ID                                                       | `working`, `idle`, `exited <code>`, or `gone` |
+   | `stop`   | session ID (optional for an executor)                            | stopped                                 |
+   | `usage`  | session ID (optional for an executor)                            | tokens and cost, when the harness has them |
+
+2. Avoozl SHALL ship two executors. `kirocrew` SHALL hold today's
+   Kiro Crew session calls from `kirocrew-app/crons/tick.py`; folders and
+   project directories SHALL be its private detail, not part of the
+   interface. `process` SHALL run an agent CLI as a child process in the
+   task worktree (Requirement 95).
+3. The tick SHALL stay a pure planner: it SHALL write session requests that
+   name an executor, and each executor SHALL take only the requests that
+   name it.
+4. The interface SHALL carry no Kiro Crew word. A code path outside the
+   `kirocrew` executor that names a Kiro Crew folder, project or agent file
+   SHALL fail a test.
+5. Default executor, settled by the owner: `process` with Claude Code for
+   the Nupp compiler repository; `kirocrew` for Avoozl's own repository
+   until the proof of Phase 47 passes.
+6. Moving today's calls behind the interface SHALL leave the existing test
+   suite passing unchanged.
+
+### Requirement 94: Harness definition files
+
+Added 2026-11-15. Design §4.28.
+
+**User story:** As the owner, I want to add a harness by writing one file
+that I approve, so that a new agent CLI needs no code change.
+
+#### Acceptance criteria
+
+1. Each harness SHALL be one JSON file in the machine config (outside any
+   repository), holding: its name; `start` and `resume` as argv lists; the
+   permission value for write roles and for read-only roles; how to pass the
+   model; and where to read cost (a file or an output field) when it has
+   one.
+2. Every command SHALL be an argv list of strings with named placeholders
+   (`{worktree}`, `{brief_file}`, `{model}`, `{session}`). A shell string, a
+   placeholder inside a shell operator, or an unknown placeholder SHALL be
+   refused when the file is loaded.
+3. A definition SHALL be approved by hash, as the worktree helper is
+   (R83.4). A changed file SHALL not run until a person approves its new
+   hash.
+4. Permission for unattended children, settled by the owner: a write role
+   SHALL use the harness's workspace-write sandbox confined to the task
+   worktree; a read-only role SHALL use its read-only mode. A definition
+   SHALL NOT use a flag that skips or bypasses all permissions; loading one
+   that does SHALL be refused.
+5. A harness that cannot confine writes to the worktree SHALL be refused for
+   write roles, unless the owner opts in for that machine (person-only,
+   recorded in Activity).
+6. WHEN a harness offers a spend cap THEN Avoozl SHALL set it from the
+   task's budget (Requirement 67).
+7. Adding a second harness SHALL need only its definition file: the proof of
+   Phase 48 SHALL fail if any source file changes.
+
+### Requirement 95: One supervisor per machine
+
+Added 2026-11-15. Design §4.28.
+
+**User story:** As the owner, I want one process per machine to own the
+agent children, so that a child outlives a page reload and a backend
+restart, and its exit is never lost.
+
+#### Acceptance criteria
+
+1. `avoozl supervisor` SHALL run once per machine and SHALL own every
+   `process` child: its pid, exit code and log file. A second supervisor on
+   the same machine SHALL exit and name the first.
+2. The supervisor SHALL take only session requests for the `process`
+   executor, start the child in its worktree with the approved definition,
+   and record `status` from the child's state.
+3. On a Kiro Crew machine the app backend SHALL start the supervisor. On a
+   headless machine launchd or systemd SHALL start it, and it SHALL also run
+   the tick there.
+4. WHEN the supervisor restarts THEN it SHALL find its children again by
+   pid and start time, and SHALL record a child it cannot find as `gone`
+   (Requirement 88.4 applies).
+5. Every child SHALL get the environment variable `AVOOZL_CHILD=1` with its
+   session ID. The CLI SHALL refuse a person-only command in a child, even
+   with `--as-person`.
+
+### Requirement 96: One way to finish
+
+Added 2026-11-15. Design §4.28.
+
+**User story:** As the owner, I want every worker, on any harness, to finish
+the same way, so that Avoozl reads one kind of result.
+
+#### Acceptance criteria
+
+1. Every worker brief SHALL end with one finish command:
+   `avoozl runner report TASK done|blocked` (with text for `blocked`). This
+   is the CLI report of Requirement 88.2.
+2. Avoozl SHALL match the report to the session by the child marker or the
+   worktree, and SHALL read the commit from the worktree.
+3. A child that exits without a report SHALL be treated as `exited <code>`,
+   and its task SHALL follow the retry path (Requirement 8).
+4. `avoozl next`, `avoozl claim` and the report SHALL stay as the manual
+   path for a person or a harness Avoozl does not start.
+
+### Requirement 97: Role prompts as files
+
+Added 2026-11-15. Design §4.28.
+
+**User story:** As the maintainer, I want each role's prompt in one file any
+harness can read, so that a role behaves the same on every executor.
+
+#### Acceptance criteria
+
+1. Each role's prompt SHALL live in `prompts/<role>.md` (worker, verifier,
+   reviewer, planner, retro, watch, and the other roles Avoozl starts).
+2. The Kiro Crew agent files SHALL be generated from those prompts at build
+   time. A test SHALL fail when a built agent differs from its prompt.
+3. Every role SHALL run on either executor.
+
+### Requirement 98: Kiro Crew stays the only UI
+
+Added 2026-11-15. Design §4.28.
+
+**User story:** As the owner, I want to watch and steer every session in the
+Avoozl page, whatever harness runs it, so that I never need another UI.
+
+#### Acceptance criteria
+
+1. In flight SHALL show a `process` session's status, the tail of its log,
+   its cost when known, and a copyable attach command.
+2. **Send message** on a `process` session SHALL queue a `send`.
+3. Settings › Models SHALL set a harness and a model per role.
+4. A task's `session` pin MAY name a harness.
+5. A headless machine SHALL get only the CLI: `avoozl status` and
+   `avoozl runner status --json`. Avoozl SHALL host no other UI.
