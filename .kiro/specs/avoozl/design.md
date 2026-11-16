@@ -3763,6 +3763,111 @@ role; a task's `session` pin may name a harness. Headless machines have
 | 51    | Headless workers                        | A machine under launchd runs tasks with the CLI only; the base for §4.26's pull-based worker mode |
 | 52    | The manual path                         | `next`, `claim` and `runner report` still work for a person                                       |
 
+### 4.29 Cross-model plan review
+
+Added 2026-11-15 (Requirement 99). A second model reads each draft before
+the person approves it. Its findings and the planner's answers show in the
+Approve dialog. It never decides anything.
+
+```text
+draft revision stored (planner, Spec Builder import, From a goal, reload)
+  ─▶ mode? off: nothing │ ask: Needs you (Review | Skip) │ auto ─┐
+  ─▶ model check: reviewer named, writer known, the two differ ─┤
+       └─ fails ─▶ Review skipped + reason (Review anyway: person only)
+  ─▶ reviewer chat (read-only, reviewer model) ─▶ plans_submit_review
+  ─▶ planner chat: fixed <hash> | answered <reason>, per finding
+  ─▶ next round while rounds allow and the planner wrote a new revision
+  ─▶ Approve dialog: reviewed by M at H: N found, N fixed, N for you
+```
+
+| Setting               | Values                  | Default |
+| --------------------- | ----------------------- | ------- |
+| `models.planReviewer` | a model name, or `auto` | `auto`  |
+| `planReview.mode`     | `auto`, `ask`, `off`    | `auto`  |
+| `planReview.rounds`   | 1 to 3                  | 1       |
+
+With `models.planReviewer` unset, `auto` mode skips every review and says
+"Pick a Plan reviewer model in Settings › Models", so nothing runs on the
+same model by default.
+
+**Role.** `src/app/chat-models.mjs` adds `planReviewer` to `MODEL_ROLES` and
+dispatch role `plan-review` to `DISPATCH_ROLE`. `validateModels` refuses a
+`planReviewer` equal to a named `planner`. `planReview` is validated with
+the other `.avoozl.json` blocks.
+
+**Writer model.** The model that wrote a revision is the model Kiro Crew
+reports for the session that wrote it: the planner chat's run
+(`actualModel`, as `plan.review.submit` already reads it), the From a goal
+planner chat, or the Spec Builder chat when Kiro Crew reports one. A reload
+of a folder a person edited has no writer model. The check runs before the
+chat opens and again when findings arrive: `plan.review.submit` refuses a
+spec finding from a session whose reported model equals the writer's.
+"Review anyway" is person only (the CLI and MCP policy refuse an agent) and
+sets `unproven: true` on the round.
+
+**Rounds.** One `review_rounds` row per round: `{id, planId, spec,
+revisionHash, pass, round, reviewerModel, writerModel, unproven, state
+(running | done | skipped), note, slot, commits: {repository: sha},
+startedAt, endedAt}`. A pass starts at a revision that did not come from
+the planner answering the pass's last round. The tick's `planReviewStep`
+runs after the new-plan import and the folder reload, and starts at most one
+round per plan per tick. A spec still settling (Requirement 65.6) waits.
+
+**Brief.** The reviewer opens on the planning repository's spec folder at
+the revision, plus a clean detached worktree per repository the manifest
+names at its default branch head, as reviews of a commit do (§4.10). The
+brief quotes the files as data, lists the other spec folders (name, state,
+hash) for `conflict` findings, and names the six kinds. The session is bound
+to the plan and revision (`run.review`), so `plans_submit_review` takes
+findings only for that revision. The worktrees are removed when the round
+ends.
+
+**Findings.** Stored as `review_threads` rows with `source: "plan-review"`,
+`roundId`, `kind`, `severity`, `file`, `line`, `claim` and `evidence`. The
+existing quote-anchored threads for text plans are unchanged. A spec finding
+is checked against the named file of that revision: the file must be in
+the hash, and the line in range. At most 50 findings per round, as today.
+
+**Answers.** After a round the tick sends the planner chat the findings as
+data. The planner reads them with `plans_plan_review` (`plan.review.findings`)
+and answers with `plans_answer_review` (`plan.review.answer`):
+`{planId, roundId, answers: [{id, action: fixed | answered, revisionHash?,
+text}]}`. A `fixed` answer names the hash the planner wrote; the next round
+reviews that hash. A person closes an open finding with
+`plan.review.dispose`.
+
+**Counts.** For the latest pass of a plan: found is every finding; fixed is
+every `fixed` answer whose hash was stored; for you is the rest that no
+person has closed. `plan.reviewSummary` returns `{state, reviewerModel,
+revisionHash, current, found, fixed, forYou, open: [...], note}`.
+`approvalChecks` and the `approvalBatches` entries carry it as `review`;
+`approveSet` never reads it.
+
+**Flow.** Planning spans are keyed by spec, not task: stages `plan-review`
+and `plan-answer` in their own table, and usage rows from those sessions are
+tagged with the spec. The Flow tab shows a Planning group per spec. Task
+flow efficiency and budgets do not read it.
+
+| Choice                                     | Why                                                                                                       |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Skip, not fall back, on an unproven pair   | A model tends to approve its own mistakes; a quiet same-model review reads as a check that did not happen |
+| Reuse `review_threads` and `review_rounds` | Already keyed by plan and hash, with a run bound to one revision                                          |
+| Never blocks approval                      | The person decides; a review is evidence, not a gate                                                      |
+| Default one round                          | Each round is a reviewer chat and a planner chat                                                          |
+| Keep the critique                          | It checks manifest against prose; this checks the plan against the code                                   |
+
+Tests, with fake chats and fake model names:
+
+| Test                          | Shows                                                                                                                                     |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Different-model rule          | Same model, unset reviewer, unknown writer: skipped with a note and no chat; submit from a same-model session refused                     |
+| Findings keyed by hash        | A new revision gets a new round; old findings stay, marked older; the planner's fix revision is reviewed only while rounds remain         |
+| Review never changes approval | `plan.approve` and `plan.approveMany` give the same result with no review, open findings, a skipped and a running review; no GitHub write |
+| Batch dialog shows counts     | `approvalBatches` entries carry found, fixed and for you per spec, and the dialog lists open findings                                     |
+
+shortcut: the writer model comes from what Kiro Crew reports for a session;
+a Spec Builder draft is skipped until Spec Builder reports its chat's model.
+Upgrade when it does.
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.

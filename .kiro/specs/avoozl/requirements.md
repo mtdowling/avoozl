@@ -5061,3 +5061,98 @@ Avoozl page, whatever harness runs it, so that I never need another UI.
 4. A task's `session` pin MAY name a harness.
 5. A headless machine SHALL get only the CLI: `avoozl status` and
    `avoozl runner status --json`. Avoozl SHALL host no other UI.
+
+### Requirement 99: Cross-model plan review
+
+Added 2026-11-15 (owner request). Design §4.29. This adds to Requirement 4.1
+and Requirement 5.3: the planner's critique stays, and this review runs on a
+different model beside it. Settings › Models is RC11.9 in
+`.kiro/specs/radar-coder/`.
+
+**User story:** As the owner, I want every spec draft read by a second model
+before I approve it, with what it found and what the planner did about it
+in front of me when I approve, so that one model's blind spots do not reach
+the task graph unchecked.
+
+Facts. Spec drafting uses one planner chat. Settings › Models has one model
+per role (`planner`, `driver`, `retro`, `reviewDraft`) in
+`src/app/chat-models.mjs`; a role left out or `auto` runs on its agent's own
+model. The only check on another model today is the falsifier
+(Requirement 75), which runs only for Avoozl's own workers. Plan review
+threads (`review_threads`, `plan.review.submit`, `plans_submit_review` in
+`src/app/plan-reviews.mjs`) are already keyed by plan and revision hash,
+and a run bound to a review may submit only for its own plan revision.
+
+#### Acceptance criteria
+
+1. Settings › Models SHALL have a **Plan reviewer** role, saved as
+   `models.planReviewer` in `.avoozl.json`. Its value SHALL be a model name;
+   `auto` SHALL mean no reviewer model is set. Validation SHALL refuse a
+   `planReviewer` equal to a named `planner`.
+2. A review SHALL run only WHEN Avoozl can show that the reviewer's model
+   differs from the model that wrote the revision. The writer's model SHALL
+   be the model Kiro Crew reports for the drafting chat, or, for a revision
+   the planner chat made, the planner's reported model. WHEN the reviewer's
+   model is not set, the writer's model is unknown, or the two are the same
+   THEN Avoozl SHALL NOT start the review, SHALL mark the revision
+   **Review skipped** with the reason in plain words, and SHALL NOT run it on
+   the same model. A person MAY press **Review anyway** on an unknown writer
+   model; the round SHALL then record that the difference was not shown.
+3. WHEN a draft revision is stored (a planner chat, a Spec Builder import,
+   From a goal, or a reload of an edited folder) and `planReview.mode` is
+   `auto` THEN the tick SHALL open one read-only reviewer chat on the
+   reviewer's model for that exact revision. The chat SHALL read the spec
+   folder at that revision and a clean worktree of each repository the
+   manifest names, at the commit Avoozl records. Its only write SHALL be
+   its findings for its own plan revision.
+4. The reviewer's brief SHALL hold the spec files, the other specs in the
+   planning repository, and the code as data, not instructions, and SHALL
+   ask for these kinds of finding: `gap` (a need with no criterion or task),
+   `untestable` (a criterion no check or proof can show), `wrong-reference`
+   (a file, function, route or setting the code does not have, checked
+   against the code), `hidden-order` (an order stated in prose with no
+   manifest edge), `too-big` (a leaf that will not fit in one pull
+   request), and `conflict` (a clash with another spec). The brief SHALL
+   pass content rules at the `brief` boundary.
+5. Each finding SHALL have a kind, a severity (`blocking`, `important`,
+   `suggestion` or `question`), a file of the revision, a line, a claim and
+   its evidence. A `wrong-reference` finding SHALL name the path and commit
+   it read, or the search that found nothing. Avoozl SHALL refuse a finding
+   whose file is not in the revision or whose line is out of range, and
+   SHALL refuse findings from a session whose reported model equals the
+   writer's.
+6. Findings SHALL be stored per plan and revision hash. A revision with a
+   new hash SHALL get a fresh review, except a revision the planner made in
+   answer to the last round of the same pass. Findings of an older hash
+   SHALL stay readable and SHALL be shown as about an older revision.
+7. After each round the planner chat SHALL get the findings as data and
+   SHALL answer each one as `fixed` (naming the revision hash it wrote) or
+   `answered` (with its reason). WHEN `planReview.rounds` (default 1,
+   allowed 1 to 3) allows another round and the planner wrote a new
+   revision THEN the reviewer SHALL review that revision, with the earlier
+   findings and answers as data. A pass SHALL end after its last round.
+8. The Approve dialog, for one spec and for a batch, SHALL show for each
+   spec: reviewed by which model and at which revision, how many findings
+   were found, how many were fixed, and how many are for the person, and
+   SHALL list each open finding with its file, line, claim, evidence and
+   the planner's answer. It SHALL also show Review skipped, Review running,
+   Not reviewed, and Reviewed at an older revision. A person MAY close a
+   finding as resolved, accepted, rejected or deferred.
+9. A review SHALL NOT approve, SHALL NOT block approval, and SHALL NOT write
+   to GitHub. A plan with open findings, a skipped review or a running
+   review SHALL approve exactly as it would with none. Approval SHALL stay
+   person only.
+10. `planReview.mode` SHALL be `auto` (default), `ask` or `off`. With `ask`,
+    each new draft revision SHALL get one Needs you item with **Review** and
+    **Skip**. With `off`, no reviewer chat SHALL start and nothing else
+    SHALL change.
+11. `avoozl plan review SPEC` SHALL print the review of the spec's current
+    revision; `--start` SHALL start one (a person only, as Review anyway
+    does), and `--json` SHALL print it as JSON. The planner SHALL read
+    findings through an MCP tool and answer them through another; the
+    reviewer SHALL submit through `plans_submit_review`.
+12. Each reviewer and planner-answer chat SHALL count in Flow under
+    **Planning** for its spec: time and usage by role and model. These
+    SHALL NOT count toward any task's flow time or budget.
+13. Source and tests SHALL NOT name a model or provider. Tests SHALL use
+    fake chats and fake model names.
