@@ -20,6 +20,7 @@ import {
 export const PR_CI = "pr_ci";
 export const CI_RUNS = "ci_runs";
 export const CI_METRIC = "CI minutes per pull request";
+export const BUILD_METRIC = "Build minutes per pull request";
 const DAY_MS = 86_400_000;
 const KEEP_MS = 90 * DAY_MS;
 const ERRORS_META = "flow.ci.errors";
@@ -679,4 +680,42 @@ export function ciMinutesPerPullRequest(
     pick = after ? rows.slice(0, n) : rows.slice(-n);
   if (pick.length < n || !pick.length) return null;
   return pick.reduce((sum, row) => sum + (row.ciMs || 0), 0) / n / 60_000;
+}
+
+// PDCA for build minutes per pull request (R101.12): the mean minutes of
+// successful build observations (one phase when named) of `n` closed pull
+// requests of a repository and class, chosen as ciMinutesPerPullRequest does.
+// shortcut: filters on phase only, not target or start; add them when a retro
+// needs to compare one platform.
+export function buildMinutesPerPullRequest(
+  store,
+  { repository, cls = "all", phase, n, at, after = false },
+) {
+  const t = ms(at),
+    rows = listOr(store, PR_CI)
+      .filter(
+        (row) =>
+          lower(row.repository) === lower(repository) &&
+          row.closedAt &&
+          (cls === "all" || groupClass(row.classes) === cls) &&
+          (after ? ms(row.closedAt) > t : ms(row.closedAt) <= t),
+      )
+      .sort((a, b) => (a.closedAt < b.closedAt ? -1 : 1)),
+    pick = after ? rows.slice(0, n) : rows.slice(-n);
+  if (pick.length < n || !pick.length) return null;
+  const sum = store.db.prepare(
+    `SELECT COALESCE(SUM(ms),0) AS ms FROM build_observations WHERE repository=? AND head_sha=? AND failed=0${phase ? " AND phase=?" : ""}`,
+  );
+  return (
+    pick.reduce(
+      (total, row) =>
+        total +
+        sum.get(
+          ...[lower(repository), row.headSha ?? "", ...(phase ? [phase] : [])],
+        ).ms,
+      0,
+    ) /
+    n /
+    60_000
+  );
 }

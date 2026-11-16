@@ -8,7 +8,7 @@ import {
   firstZipFile,
   receiptLine,
   receiptReader,
-  receiptsView,
+  buildView,
 } from "../build-receipt-read.mjs";
 import { ciStep } from "../flow-ci.mjs";
 import { flowView, refreshFlow } from "../radar-flow.mjs";
@@ -387,7 +387,7 @@ test("the old metadata value moves once into observations", async (t) => {
     merged_at: at(1),
     head: { sha: "sha51" },
   });
-  assert.equal(read.ms, 7000);
+  assert.equal(read[0].ms, 7000);
   assert.equal(store.getMeta("buildReceipts"), null);
   assert.equal(rows(store).length, 1);
   assert.equal(
@@ -416,7 +416,7 @@ test("Flow shows what was stored, grouped by instance and target", async (t) => 
     gh = github();
   await check(store, gh);
   await refreshFlow(store, gh, POLICY, { force: true });
-  const view = flowView(store).receipts;
+  const view = flowView(store).builds;
   assert.equal(view.count, 2);
   assert.equal(view.medianMs, 50_000);
   assert.deepEqual(
@@ -426,7 +426,7 @@ test("Flow shows what was stored, grouped by instance and target", async (t) => 
       [INSTANCE("b"), 1, 60_000],
     ],
   );
-  assert.equal(view.byTarget.length, 1);
+  assert.equal(view.byPhase.length, 1);
   const before = [gh.calls.list, gh.calls.download];
   await refreshFlow(store, gh, POLICY, { force: true });
   assert.deepEqual([gh.calls.list, gh.calls.download], before);
@@ -445,9 +445,82 @@ test("Trace shows the stored receipt on the merged step with no call", async (t)
   assert.deepEqual([gh.calls.list, gh.calls.download], before);
 });
 
-test("receiptLine and receiptsView word an empty case", () => {
+test("receiptLine and buildView word an empty case", () => {
   assert.equal(receiptLine(null), null);
-  assert.equal(receiptsView([]).count, 0);
+  assert.equal(buildView([]).count, 0);
+});
+
+const obs = (phase, ms, extra = {}) => ({
+  phase,
+  ms,
+  target: "linux",
+  start: "warm",
+  failed: false,
+  ...extra,
+});
+
+test("Flow names the costliest phase, summed over targets, and keeps failed time apart", () => {
+  const view = buildView([
+    {
+      pullNumber: 7,
+      repository: REPO,
+      builds: [
+        obs("build", 30_000),
+        obs("test", 50_000),
+        obs("test", 70_000, { target: "macos" }),
+        obs("test", 500_000, { failed: true }),
+      ],
+    },
+  ]);
+  assert.deepEqual(view.recent[0].costliest, { phase: "test", ms: 120_000 });
+  assert.equal(view.recent[0].failedMs, 500_000);
+  assert.equal(view.recent[0].totalMs, 650_000);
+  assert.equal(view.totalMs, 650_000);
+  assert.equal(view.failedMs, 500_000);
+});
+
+test("failed attempts stay out of the medians", () => {
+  const view = buildView([
+    {
+      pullNumber: 7,
+      builds: [obs("test", 40_000), obs("test", 900_000, { failed: true })],
+    },
+    { pullNumber: 8, builds: [obs("test", 60_000)] },
+  ]);
+  assert.deepEqual(
+    view.byPhase.map((row) => [row.phase, row.count, row.medianMs]),
+    [["test", 2, 50_000]],
+  );
+  assert.equal(view.medianMs, 50_000);
+});
+
+test("Trace groups every observation by phase and marks failed ones", async (t) => {
+  const { store } = fixture(t),
+    gh = github({
+      artifacts: [artifact(960, "build-receipt-linux", "sha51", 900)],
+      files: {
+        960: lines(
+          { ms: 1000, phase: "build" },
+          { ms: 9000, phase: "test", attempt: 1, exit: 1 },
+          { ms: 4000, phase: "test", attempt: 2 },
+        ),
+      },
+      runs: [run(900, "sha51")],
+      merged: [51],
+    });
+  await check(store, gh);
+  const trace = await readTrace(gh, REPO, 1, POLICY.repositories[REPO], {
+      receiptFor: (pull) => receiptReader(store)(REPO)(pull),
+    }),
+    merged = trace.steps.find((step) => step.key === "merged");
+  assert.deepEqual(
+    merged.builds.map((group) => [group.phase, group.items.map((i) => i.failed)]),
+    [
+      ["build", [false]],
+      ["test", [true, false]],
+    ],
+  );
+  assert.match(merged.detail, /3 builds.*costliest test/);
 });
 
 test("the artifact list is one unfiltered cached read; a 304 reads nothing more", async (t) => {
