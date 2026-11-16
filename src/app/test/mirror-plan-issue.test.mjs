@@ -8,6 +8,7 @@ import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
+import { throughClient } from "./crew-label-client.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -19,6 +20,7 @@ const SOURCE = "example/code",
 test("with a driver bound, the plan issue and every task issue go to the mirror", async (t) => {
   const { store } = fixture(t),
     github = new FakeGitHub(),
+    { requests, labelEdits } = throughClient(github),
     root = temporaryDirectory();
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
@@ -86,4 +88,18 @@ test("with a driver bound, the plan issue and every task issue go to the mirror"
   const before = github.created.length;
   await ops.execute("github.project", { planId: plan.id });
   assert.equal(github.created.length, before);
+  // The plan issue and each task issue carry crew:avoozl in their create
+  // request, in both of its forms, and no label edit follows (R103.2).
+  assert.equal(requests.length, github.created.length);
+  assert.deepEqual(
+    [...new Set(requests.map((request) => request.form))].sort(),
+    ["graphql", "rest"],
+  );
+  assert.ok(
+    requests.every((request) => request.labels.includes("crew:avoozl")),
+  );
+  assert.deepEqual(
+    labelEdits.filter((edit) => JSON.stringify(edit).includes("crew:avoozl")),
+    [],
+  );
 });

@@ -7,6 +7,7 @@ import { queryTasks } from "../../model.mjs";
 import { fixture, markdown } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
+import { throughClient } from "./crew-label-client.mjs";
 
 const NAMESPACE = "avz_testtesttesttest";
 
@@ -330,6 +331,7 @@ test("approved design tasks project once, preserve human issue text, and point t
 test("extracted designs project a parent, attach child issues, and comment best effort", async (t) => {
   const { store } = fixture(t),
     github = new FakeGitHub(),
+    { requests, labelEdits } = throughClient(github),
     ops = await configure(store, github),
     text =
       "Build a durable import pipeline.\n\nThe import preserves every source line.",
@@ -387,6 +389,17 @@ test("extracted designs project a parent, attach child issues, and comment best 
   assert.deepEqual(github.subIssues, [[41, 40]]);
   assert.equal(github.comments[0].number, 19);
   assert.match(github.comments[0].body, /Avoozl extracted revision/);
+  // The task issue and the extracted-design parent.
+  assert.equal(requests.length, 2);
+  // Each create's own request carries crew:avoozl; no label edit follows (R103.2).
+  assert.ok(requests.length > 0);
+  assert.ok(
+    requests.every((request) => request.labels.includes("crew:avoozl")),
+  );
+  assert.deepEqual(
+    labelEdits.filter((edit) => JSON.stringify(edit).includes("crew:avoozl")),
+    [],
+  );
 });
 
 test("approved tasks project native dependencies across repositories", async (t) => {
