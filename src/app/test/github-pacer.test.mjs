@@ -482,7 +482,8 @@ test("GraphQL createIssue and addBlockedBy are one paced write each", async (t) 
     title: "t",
     body: "b",
     parentIssueId: "P1",
-    labelIds: ["L_a", "L_b"],
+    // Avoozl's ownership label rides in the same create (R103.1).
+    labelIds: ["L_a", "L_b", "L_crew%3Aavoozl"],
   });
   assert.match(sent[1].body.query, /addBlockedBy/);
   assert.equal(

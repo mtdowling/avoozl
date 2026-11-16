@@ -17,6 +17,7 @@ import { parseMarker, planningIdentity } from "./github-marker.mjs";
 import { actorAllowed, RADAR_DEFAULTS } from "./github-policy.mjs";
 import { latestSkip } from "./radar-claims.mjs";
 import { fail } from "./store.mjs";
+import { hasAvoozlLabel } from "./github.mjs";
 import { issueSpecName } from "./github-planner.mjs";
 
 export const INTAKE_SCOPES = new Set([
@@ -124,6 +125,8 @@ export async function attachHandoffs(
   for (const item of items) {
     delete item.planMe;
     delete item.planLabel;
+    // Avoozl's own issue is never handed over again (R103.3).
+    if (hasAvoozlLabel(item.labels)) continue;
     if (
       item.kind === "issue" &&
       item.labels.some((label) => lower(label) === plan)

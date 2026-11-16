@@ -16,6 +16,7 @@ import {
 import { mirrorForwardRows } from "../mirror-forward.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { throughClient } from "./crew-label-client.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
@@ -131,7 +132,8 @@ test("a close without a merge returns the item to Needs you with the reason", as
 
 test("a review comment is copied once across three ticks, then each new one once", async (t) => {
   const { store } = fixture(t),
-    github = fakePublic();
+    github = fakePublic(),
+    { requests } = throughClient(github);
   store.put("mirror_forward", record());
   github.comments = [
     { id: 1, user: { login: "erin" }, body: "Please rename this." },
@@ -153,6 +155,11 @@ test("a review comment is copied once across three ticks, then each new one once
     "1",
     "2",
   ]);
+  // Each create's own request carries crew:avoozl (R103.2).
+  assert.deepEqual(
+    requests.map((request) => request.labels.includes("crew:avoozl")),
+    [true],
+  );
 });
 
 test("another Avoozl's ID in a public comment is remembered, not copied as a name", async (t) => {

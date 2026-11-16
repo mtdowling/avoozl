@@ -13,6 +13,7 @@ import { itemKey, itemRows } from "./intake.mjs";
 import { attachHandoffs } from "./radar-plan-me.mjs";
 import { SOURCE_KIND } from "./radar-source.mjs";
 import { parseMatch } from "./issue-match.mjs";
+import { hasAvoozlLabel } from "./github.mjs";
 import {
   CREW_LABEL_DEFAULTS,
   ISSUE_RADAR_PATH,
@@ -371,6 +372,8 @@ export function isUntriaged(
   )
     return false;
   if (managed.some((label) => labels.has(label))) return false;
+  // Avoozl's own issue (R103.3).
+  if (hasAvoozlLabel(entry.labels)) return false;
   if (entry.kind === "pr") {
     if (linked.pulls.has(key(repository, entry.number))) return false;
     return !(entry.closes || []).some((ref) =>
