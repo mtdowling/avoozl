@@ -1,6 +1,55 @@
 // Read-only presentation of stored CI facts. Views never fetch GitHub data.
 import { ciFacts, ciRepositories, CLASS_GLOBS } from "./flow-ci.mjs";
-import { flowPolicy } from "./flow.mjs";
+import { flowPolicy, listOr } from "./flow.mjs";
+
+const lower = (value) => String(value || "").toLowerCase();
+
+function repositoryNames(store) {
+  const projects = listOr(store, "projects"),
+    observed = listOr(store, "github_repositories");
+  return {
+    matches(repository, value) {
+      if (lower(repository) === lower(value)) return true;
+      const project = projects.find((row) => row.id === value);
+      if (project?.repository)
+        return lower(project.repository) === lower(repository);
+      return observed.some(
+        (row) => row.projectId === value && lower(row.id) === lower(repository),
+      );
+    },
+    pickerId(repository) {
+      return (
+        projects.find((row) => lower(row.repository) === lower(repository))
+          ?.id ??
+        observed.find(
+          (row) =>
+            lower(row.id) === lower(repository) &&
+            row.projectId &&
+            !projects.some(
+              (project) => project.id === row.projectId && project.repository,
+            ),
+        )?.projectId ??
+        repository
+      );
+    },
+  };
+}
+
+// Add CI-only repositories without renaming the task filter's existing values
+// or adding a GitHub-name alias for a project already in the picker.
+export function ciRepositoryPickerIds(store, policy, existing = []) {
+  const names = repositoryNames(store);
+  return [
+    ...new Set(
+      ciRepositories(policy)
+        .filter(
+          (repository) =>
+            !existing.some((value) => names.matches(repository, value)),
+        )
+        .map((repository) => names.pickerId(repository)),
+    ),
+  ];
+}
 
 export function ciClassGlobs(config = {}) {
   return { ...CLASS_GLOBS, ...flowPolicy(config).workspace.ci.classes };
@@ -16,10 +65,12 @@ export function ciSettingsView(config = {}) {
 }
 
 export function ciFlowView(store, config, policy, input = {}, options = {}) {
+  const names = repositoryNames(store);
   return {
     repositories: ciRepositories(policy)
       .filter(
-        (repository) => !input.repository || repository === input.repository,
+        (repository) =>
+          !input.repository || names.matches(repository, input.repository),
       )
       .map((repository) => {
         const facts = ciFacts(store, config, repository, options),
