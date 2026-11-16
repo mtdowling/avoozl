@@ -1818,6 +1818,8 @@ dependency on Phases 40–53 and may ship before them.
   - Brief per repository: minutes by class, task and other, wait share, repeat runs, workflow files; `other` pull requests as number, author and classes only. `PLAN_FIELDS` adds `repository` and `workflow`; `METRICS` adds `CI minutes per pull request`. Tests: an unseen workflow is dropped; an approved proposal opens a draft; PDCA compares closed pull requests of one class.
 - [x] 54.5 Flow CI card and Settings › Flow CI group, after 54.3 [R100.7, R100.8] (§4.30)
   - The CI card (minutes by class, wait share, Repeat runs) and the Settings fields with class globs read-only. Ships before and after screenshots (phone and desktop, light and dark) and waits for the owner's approval before merge. Tests: the view data for the card, and No pull requests read without GitHub.
+- [x] 54.6 Closed pull requests from the open pull request query, after 54.2 [R100.1, R100.4, R100.6] (§4.30)
+  - The first page of `readOpenPullRequests` adds a `recent` alias: the 50 most recently updated closed pull requests with times, head and files; `recentPullRequests` returns it. A pull request never seen open gets a `pr_ci` row; runs link by `headBranch` while it was open; a seen one takes its exact `closedAt`. Tests: a spec-only pull request closed between checks fires docs-only waste; exact close time; one query, the alias on page 1 only.
 
 - [ ] avoozl-p64 P64 Proof: the retro catches steady CI waste on a real repository [R100] (§4.30)
   - Setup: an isolated workspace naming one scratch GitHub repository whose test workflow runs on both `push` and `pull_request` and runs the full matrix for every change; no Avoozl tasks. Set `flow.retro.everyTasks` to 4 and `flow.ci.docsOnlyMinutes` to 1.
