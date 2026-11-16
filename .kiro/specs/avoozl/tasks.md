@@ -1782,7 +1782,7 @@ Owner request 2026-11-15 (Requirement 99, design §4.29). Numbered after
 Phase 39 because task IDs never move. Planning only: it has no
 dependency on the worker rebuild (Phases 40–52) and may ship before it.
 
-- [ ] 53.1 Plan reviewer role and `planReview` settings [R99.1, R99.10, R99.13] (§4.29)
+- [x] 53.1 Plan reviewer role and `planReview` settings [R99.1, R99.10, R99.13] (§4.29)
   - `planReviewer` in `MODEL_ROLES`, `plan-review` in `DISPATCH_ROLE`, `validateModels` refuses a reviewer equal to a named planner; `planReview.mode` and `planReview.rounds` validated; the Settings › Models row. Tests use fake model names.
 - [ ] 53.2 Review rounds and spec findings keyed by hash, after 53.1 [R99.2, R99.5, R99.6] (§4.29)
   - `review_rounds` rows per pass and round; `plan.review.submit` takes spec findings (kind, severity, file, line, claim, evidence) and refuses a bad file or line and a same-model session. Tests: the different-model rule; findings keyed by hash.
