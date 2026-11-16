@@ -1635,7 +1635,7 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
   - Remove only modules with no active production importers; preserve setup and PR landing code. Record retained modules and their importers for 45.4, including when no module can yet be deleted; `npm test` passes.
 - [ ] 45.2 Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant, after avoozl-p52 [R91.1] (§4.26)
   - Retire provenance-based landing gates only after replacement PR landing is proved; keep compatibility names resolving.
-- [ ] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
+- [x] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
 - [ ] 45.4 Shared-module edits and the `coder` setting, after 45.1, 45.2, 45.3, avoozl-p53, avoozl-p54 [R86.1, R91.3] (§4.26)
 - [ ] 45.5 Compatibility names still resolve; docs say one path, after 45.4 [R91.4] (§4.26)
   - `docs/research/` and `docs/evidence/` untouched except new receipts.
@@ -1799,3 +1799,27 @@ dependency on the worker rebuild (Phases 40–52) and may ship before it.
   - Expected: (1) and (2) skipped with a note and no chat; (3) one read-only round with a `wrong-reference` and a `hidden-order` finding at the right file and line; (4) one fixed, one answered; (5) a fresh round on the new hash, old findings marked older; (6) both dialogs show the model and counts, approval succeeds the same as with no review, and no GitHub write is made.
   - Failure means: a review runs on the writer's model, findings attach to the wrong revision, or a review changes whether a spec can be approved.
   - Next decision: ask Kiro Crew for the Spec Builder chat's model, or keep skipping those drafts.
+
+## Phase 54: Retrospectives catch steady CI waste
+
+Owner request 2026-11-15 (Requirement 100, design §4.30). Builds on the
+retrospectives of Phase 12 and the open pull request read. It has no
+dependency on Phases 40–53 and may ship before them.
+
+- [ ] 54.1 File classes from the widened open pull request read [R100.1, R100.4, R100.6] (§4.30)
+  - `openPullRequests` adds `createdAt`, `files` and head check runs with times, run id and event; `flow.ci` settings in `flowSection`; class globs with defaults through `globToRegex`; `pr_ci` rows for task and other pull requests. Tests: classes, order, override and partial; a fake client sees no new GraphQL call.
+- [ ] 54.2 Workflow runs read and repeat runs, after 54.1 [R100.2, R100.6] (§4.30)
+  - At most one `actions/runs` read per repository per check through the HTTP cache; `ci_runs` rows; `job_ms` from check runs or wall time marked an estimate. Tests: a 304 reuses the cache; two runs of one workflow on one commit are a repeat run; attempt 2 of one run is not.
+- [ ] 54.3 Steady waste triggers, after 54.2 [R100.3, R100.4, R100.8] (§4.30)
+  - Docs-only waste, CI wait share and repeat run in `triggers`, keyed once per repository, kind and window, outside the spike gap; a retrospective with no finished tasks. Tests: 10 spec-only pull requests with 25 CI minutes fire docs-only waste once; a varied but steady repository fires nothing; the Requirement 47.1 tests pass unchanged.
+- [ ] 54.4 CI facts in the brief, CI plan proposals and PDCA by class, after 54.3 [R100.4, R100.5] (§4.30)
+  - Brief per repository: minutes by class, task and other, wait share, repeat runs, workflow files; `other` pull requests as number, author and classes only. `PLAN_FIELDS` adds `repository` and `workflow`; `METRICS` adds `CI minutes per pull request`. Tests: an unseen workflow is dropped; an approved proposal opens a draft; PDCA compares closed pull requests of one class.
+- [ ] 54.5 Flow CI card and Settings › Flow CI group, after 54.3 [R100.7, R100.8] (§4.30)
+  - The CI card (minutes by class, wait share, Repeat runs) and the Settings fields with class globs read-only. Ships before and after screenshots (phone and desktop, light and dark) and waits for the owner's approval before merge. Tests: the view data for the card, and No pull requests read without GitHub.
+
+- [ ] avoozl-p64 P64 Proof: the retro catches steady CI waste on a real repository [R100] (§4.30)
+  - Setup: an isolated workspace naming one scratch GitHub repository whose test workflow runs on both `push` and `pull_request` and runs the full matrix for every change; no Avoozl tasks.
+  - Action: (1) open and merge 4 spec-only pull requests by hand; (2) let the tick check; (3) approve the CI plan proposal the retrospective writes and land the task it drafts; (4) open and merge 4 more spec-only pull requests.
+  - Expected: (2) one retrospective with docs-only waste and repeat run triggers, the pull requests labeled `other`, and a `plan` proposal naming the workflow file; the GitHub rate counters show no call beyond the open pull request read and one runs read per check; (4) PDCA shows CI minutes per pull request for `spec` down at least 10%, and no new repeat run.
+  - Failure means: steady waste is still hidden, other pull requests are missed, or the reads cost more than the stated budget.
+  - Next decision: read more than one page of runs, or read `closedAt` for exact lead times.

@@ -3868,6 +3868,158 @@ Tests, with fake chats and fake model names:
 shortcut: the writer model comes from what Kiro Crew reports for a session;
 a Spec Builder draft is skipped until Spec Builder reports its chat's model.
 Upgrade when it does.
+
+### 4.30 Retrospectives catch steady CI waste
+
+Added 2026-11-15 (Requirement 100). The retrospective's CI trigger in §4.11
+fires only on an outlier: one CI wait far over the repository's median. A
+cost that every pull request pays is the median, so it never fires. This
+section adds what each pull request changed, repeat runs, and fixed limits,
+counted over every pull request in the workspace's repositories.
+
+```text
+tick's GitHub check, per repository
+  ─▶ open pull request read (one GraphQL call, widened): files, createdAt,
+     check runs on the head commit with times, workflow run id and event
+  ─▶ workflow runs read (one REST call, ETag): runs since the window start
+  ─▶ pr_ci and ci_runs rows (task or other)
+  ─▶ steady waste: docs-only minutes │ CI wait share │ repeat run
+  ─▶ retro trigger (with or without finished tasks)
+  ─▶ brief: minutes by class, wait share, repeats, workflow files
+  ─▶ proposals: settings │ plan (repository + workflow + change) │ …
+  ─▶ PDCA: CI minutes per pull request by class, before and after
+```
+
+**File classes.** Each changed path takes the first class whose globs match,
+in this order. A path that matches none is `code`, so an unknown file never
+looks like waste. Globs use `globToRegex` from `src/app/forward-guard.mjs`
+(`*` inside a folder, `**` across folders, a trailing `/` for a folder).
+
+| Class   | Default globs                                                                        |
+| ------- | ------------------------------------------------------------------------------------ |
+| `ci`    | `.github/`, `.gitlab-ci.yml`, `.circleci/`                                           |
+| `spec`  | `.kiro/specs/`                                                                       |
+| `tests` | `test/`, `tests/`, `**/test/**`, `**/tests/**`, `**/*.test.*`, `**/*_test.*`         |
+| `docs`  | `docs/`, `*.md`, `**/*.md`, `*.txt`, `LICENSE`                                       |
+| `other` | `package-lock.json`, `**/package-lock.json`, `*.lock`, `.gitignore`, `.editorconfig` |
+| `code`  | anything else                                                                        |
+
+`flow.ci.classes` replaces one class's list, for example
+`{"docs": ["docs/", "*.md"]}`; classes it does not name keep their defaults.
+A pull request is **docs-only** when its classes are all `spec` or `docs`.
+For grouping in Flow, a pull request belongs to its first class present in
+the order `code`, `tests`, `ci`, `other`, `spec`, `docs`.
+
+**Settings.** In the `flow` block, beside `retro`:
+
+| Setting                   | Values                   | Default |
+| ------------------------- | ------------------------ | ------- |
+| `flow.ci.windowDays`      | whole number 1 to 90     | 7       |
+| `flow.ci.docsOnlyMinutes` | whole number 1 to 100000 | 60      |
+| `flow.ci.waitShare`       | number 0.05 to 1         | 0.4     |
+| `flow.ci.minPullRequests` | whole number 1 to 1000   | 5       |
+| `flow.ci.classes`         | class to a list of globs | above   |
+
+`flowSection` in `src/app/flow.mjs` adds `ci` to its groups and the four
+number keys to `FLOW_KEYS`; `classes` is checked as a record of known class
+names to lists of at most 50 strings. The default of 60 docs-only minutes
+fires on today's 3-OS matrix (about 25 minutes of jobs per spec-only pull
+request) after three such pull requests, and stays quiet once docs-only
+changes skip the suite (about 1 minute each).
+
+**What is read.** `openPullRequests` gains, per pull request, `createdAt`,
+`files(first:100){totalCount nodes{path}}`, and on the head commit's check
+rollup `contexts(first:100)` with each `CheckRun`'s `name`, `startedAt`,
+`completedAt` and `checkSuite{workflowRun{databaseId event workflow{resourcePath}}}`.
+The workflow runs read is `GET /repos/{owner}/{repo}/actions/runs` with
+`per_page=100` and `created=>=` the window start, through the client's HTTP
+cache (`github_http_cache`), so an unchanged list is a 304. A run gives its
+id, workflow path, head commit, event, attempt, start, end and pull request
+numbers.
+
+**Call budget.**
+
+| Read                         | When                            | New calls                                             |
+| ---------------------------- | ------------------------------- | ----------------------------------------------------- |
+| Open pull requests (GraphQL) | already once per repo per check | 0; about 1 point per page today, about 3 when widened |
+| Workflow runs (REST, ETag)   | at most once per repo per check | ≤ 1 per repo per check; a 304 when unchanged          |
+
+With 2 repositories and a check every 5 minutes this is at most 24 REST
+calls an hour, most of them 304s, against 5,000 an hour. No call is made per
+pull request or per run.
+
+**Stored rows.**
+
+```text
+pr_ci(repository, number, task_id, author, classes, partial, created_at,
+      first_seen, last_seen, closed_at, ci_ms, wait_ms)
+ci_runs(repository, run_id, workflow, head_sha, event, attempt, pr_number,
+        started_at, ended_at, job_ms)
+```
+
+`job_ms` is the sum of the run's check run times on the head commit when the
+open pull request read saw them, and otherwise the run's own wall time,
+marked an estimate. A pull request's `ci_ms` sums its runs' `job_ms`; its
+`wait_ms` is the union of its runs' start-to-end spans, and its lead time is
+`created_at` to `closed_at`. Rows older than 90 days are removed by the tick.
+
+**Triggers.** Over the last `flow.ci.windowDays` days, per repository:
+
+| Trigger         | Fires when                                                                                       | Key                                 |
+| --------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------- |
+| Docs-only waste | `ci_ms` of docs-only pull requests > `docsOnlyMinutes`                                           | `waste:docs:<repo>:<window>`        |
+| CI wait share   | ≥ `minPullRequests` closed, and the sum of `wait_ms` > `waitShare` × the sum of their lead times | `waste:wait:<repo>:<window>`        |
+| Repeat run      | one workflow has two or more distinct run ids on one head commit                                 | `repeat:<repo>:<workflow>:<window>` |
+
+`<window>` is the window's start date, so each fires at most once a window.
+They are added to `triggers` in `src/app/flow-retro.mjs` and are not spikes,
+so the one-hour gap does not hold them. A retrospective started only by them
+runs with no finished tasks; its task sections are empty.
+
+**Brief.** Per repository: CI minutes and pull request counts by class, split
+`task` and `other`; the wait share; each repeat run finding; and the workflow
+files seen in `ci_runs`. A `task` pull request names its task ID. An `other`
+pull request is its number, author and classes only. Nothing else about it
+enters the brief, and Avoozl reads no chat it did not open. The brief still
+passes content rules at `brief`.
+
+**Proposals and PDCA.** A `plan` proposal MAY add `repository` and
+`workflow` (a `.github/workflows/` path seen in `ci_runs`); `PLAN_FIELDS`
+gains both and validation refuses a workflow that was not seen. Approval
+opens a planner draft for one new task naming the workflow file and the
+change. `METRICS` gains `CI minutes per pull request`, and a proposal using
+it names a class (`all`, or one class). PDCA compares the mean `ci_ms` of the
+last `flow.retro.everyTasks` closed pull requests of that repository and
+class before approval with the same number closed after it, and keeps the
+10% rule of Requirement 47.7.
+
+**Flow tab.** A **CI** card per repository: minutes by class as bars, split
+task and other; the wait share against its limit; and a **Repeat runs** list
+of workflow, commits with repeats, extra runs and extra minutes. Settings ›
+Flow gets a **CI** group with the four number fields and the class globs
+shown read-only.
+
+**Tests.**
+
+| Test                      | Shows                                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Classes from globs        | Defaults, the class order, `flow.ci.classes` replacing one class, an unmatched path is `code`, partial |
+| One read per check        | A fake client sees the same GraphQL call count as before and at most one runs read per repo per check  |
+| Not-modified reuse        | A 304 runs read reuses the cached list and records no new rows                                         |
+| Spec-only waste fires     | 10 spec-only pull requests with 25 CI minutes each fire docs-only waste once in the window             |
+| Repeat run fires          | Two runs of one workflow on one commit fire repeat run; attempt 2 of one run does not                  |
+| Steady, varied, no waste  | Code pull requests with 10 to 30 CI minutes, one run each, wait share under the limit: nothing fires   |
+| Outliers unchanged        | The Requirement 47.1 tests pass unchanged                                                              |
+| Other pull requests       | Counted in triggers; the brief holds number, author and classes only                                   |
+| CI plan proposal and PDCA | A proposal naming an unseen workflow is dropped; an approved one opens a draft; PDCA by class          |
+
+shortcut: one page of 100 runs per read; a repository with more runs in the
+window sees only the newest 100. Read more pages if Flow shows the cap hit.
+
+shortcut: a pull request's close time is the first check that no longer
+lists it open, so lead time is late by up to one check interval. Read
+`closedAt` in a batched query if that error matters.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.
@@ -6294,6 +6446,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P60   | A process session watched and steered from the Avoozl page (Phase 50) |
 | P61   | A headless machine under launchd, CLI only (Phase 51) |
 | P62   | The manual next, claim and report path (Phase 52) |
+| P64   | Steady CI waste caught on a real repository with no Avoozl tasks (Phase 54) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
 requires a failed proof that a small Kiro Crew or GitHub contract cannot fix.
@@ -6345,6 +6498,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 50. Kiro Crew stays the only UI | In flight, Send message, harness and model per role (§4.28) |
 | 51. Headless workers | Supervisor under launchd or systemd, CLI only (§4.28) |
 | 52. Manual path | `next`, `claim`, `runner report` kept (§4.28) |
+| 54. Steady CI waste | File classes per pull request, repeat runs, fixed CI limits over every pull request, CI plan proposals with PDCA by class, the Flow CI card (§4.30) |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
 

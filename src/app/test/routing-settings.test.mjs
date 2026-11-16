@@ -97,7 +97,7 @@ test("the routing prompt is saved on this machine only, by a person", async (t) 
     { ops } = env;
   const view = await ops.execute("routing.view", {});
   assert.equal(view.enabled, false, "off by default");
-  assert.ok(view.examples.length >= 5, "canned example prompts");
+  assert.deepEqual(view.examples, [], "no retired router prompts");
   await assert.rejects(
     ops.execute("routing.update", {
       where: "workspace",

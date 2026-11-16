@@ -5156,3 +5156,87 @@ and a run bound to a review may submit only for its own plan revision.
     SHALL NOT count toward any task's flow time or budget.
 13. Source and tests SHALL NOT name a model or provider. Tests SHALL use
     fake chats and fake model names.
+
+### Requirement 100: Retrospectives catch steady CI waste
+
+Added 2026-11-15 (owner request). Design §4.30. This adds to Requirement 47
+and Requirement 48: the outlier triggers of Requirement 47.1 stay, and these
+triggers and findings run beside them.
+
+**User story:** As the owner, I want the retrospective to notice CI time
+that is spent the same way on every pull request, such as the full test
+matrix on a spec-only change or two runs of one workflow on one commit, so
+that waste which is the usual case is caught, not hidden by the median.
+
+Facts. On 2026-11-15 every Avoozl pull request, spec-only ones included, ran
+the full test suite on Linux, macOS and Windows, and the test workflow ran on
+both `push` and `pull_request`, so each pull request ran it twice. No
+retrospective fired. That work ran in chats that were not Avoozl tasks, so
+the workspace had no `flow_spans` rows and no `flow_retros` rows. The CI
+trigger in `src/app/flow-retro.mjs` (`triggers`) fires only when one CI wait
+passes `flow.retro.slowFactor` times the repository's median CI wait (or 30
+minutes with fewer than 5 samples), so a cost that every pull request pays
+is the median and never fires. The retro brief has no field for what a pull
+request changed or for repeat runs. `openPullRequests` in
+`src/app/github.mjs` already reads every open pull request of a repository
+in one GraphQL query per check.
+
+#### Acceptance criteria
+
+1. For each pull request in a repository the workspace names, Avoozl SHALL
+   record its changed files as classes: `code`, `tests`, `spec`, `docs`,
+   `ci` and `other`. The paths SHALL come from the existing open pull
+   request read with no extra call. Each class SHALL have a default list of
+   globs, and `flow.ci.classes` in `.avoozl.json` (workspace or repository,
+   the repository's list winning) MAY replace a class's list. A path SHALL
+   take the first class that matches in the order `ci`, `spec`, `tests`,
+   `docs`, `other`; a path that matches none SHALL be `code`. WHEN GitHub
+   lists only part of a pull request's files THEN the pull request SHALL
+   also count as `code` and SHALL be marked partial.
+2. Avoozl SHALL count workflow runs per head commit per workflow. WHEN a
+   workflow has more than one run for the same commit THEN Avoozl SHALL
+   record a **repeat run** finding naming the repository, the workflow
+   file, the commit, the number of runs, their events (such as `push` and
+   `pull_request`) and the CI minutes of the extra runs. A re-run attempt of
+   the same run SHALL NOT count as another run.
+3. Avoozl SHALL start a retrospective on a **steady waste** trigger over the
+   last `flow.ci.windowDays` days (default 7) for a repository, WHEN either
+   (a) the CI minutes spent on pull requests whose classes are all `spec` or
+   `docs` pass `flow.ci.docsOnlyMinutes` (default 60), or (b) at least
+   `flow.ci.minPullRequests` (default 5) pull requests closed in the window
+   and their CI wait is more than `flow.ci.waitShare` (default 0.4) of their
+   lead time. A repeat run finding SHALL also be a trigger. Each SHALL fire
+   at most once per repository, kind and window. These triggers SHALL NOT
+   wait for the one-hour spike gap of Requirement 47.2. The outlier triggers
+   of Requirement 47.1 SHALL stay unchanged.
+4. These counts and triggers SHALL cover every pull request in the
+   workspace's repositories, not only Avoozl tasks, because people and other
+   chats share the same CI. A retrospective SHALL run on these triggers with
+   no finished tasks. The brief SHALL label each pull request `task` (with
+   its task ID) or `other` (with its number and author only), and SHALL NOT
+   hold the title, body, comments or transcript of an `other` pull request.
+   Avoozl SHALL NOT read the transcript of any chat it did not open.
+5. The brief SHALL hold, per repository: CI minutes by class, the CI wait
+   share of lead time, the repeat run findings, and the workflow file of
+   each run. The retrospective MAY propose a CI change as a `plan` proposal
+   that names the repository, the workflow file and the change in words.
+   Approving it SHALL open a planner draft for one new task, as for any plan
+   proposal (Requirement 47.6). The retrospective SHALL still only propose.
+   A new metric, **CI minutes per pull request**, SHALL be measured by class;
+   its PDCA check (Requirement 47.7) SHALL compare the last
+   `flow.retro.everyTasks` closed pull requests of that repository and class
+   before the change with the same number after it.
+6. Avoozl SHALL make no GitHub call for this beyond the existing open pull
+   request read per check and at most one workflow runs read per repository
+   per check. The workflow runs read SHALL send the cached ETag, so an
+   unchanged answer is a not-modified reply. Each call SHALL go through the
+   existing GitHub client and its rate counters.
+7. The Flow tab SHALL show CI minutes by class, task and other, and the
+   repeat runs with their workflow, commit count and extra minutes. Settings
+   › Flow SHALL edit `flow.ci.windowDays`, `flow.ci.docsOnlyMinutes`,
+   `flow.ci.waitShare` and `flow.ci.minPullRequests`, and SHALL show the
+   class globs read-only. These are screen changes: the task that builds
+   them SHALL ship before and after screenshots (phone and desktop, light and
+   dark) for the owner's approval before it merges.
+8. With no GitHub repository in the workspace, Avoozl SHALL make no read
+   for this and SHALL show **No pull requests read** in the Flow tab.

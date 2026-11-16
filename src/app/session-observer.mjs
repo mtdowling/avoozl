@@ -16,7 +16,6 @@ import { gatewayClient } from "./gateway-client.mjs";
 import { ingestToolRows, toolCallsReadable } from "./flow.mjs";
 import { ingestProviderErrors } from "./provider-health.mjs";
 import { recordRetroReply } from "./flow-retro.mjs";
-import { recordRouterReply, routerBatch } from "./router.mjs";
 import {
   listSessionBindings,
   recordSessionStatus,
@@ -75,8 +74,8 @@ export async function observeSessions(store, read) {
   const errors = [];
   let observed = 0;
   for (const binding of listSessionBindings(store)) {
-    // A worker the Remote relay opened lives on another crew this app cannot
-    // read; its relay hands its replies back (relay.mjs).
+    // Keep historical relay bindings untouched: this machine cannot read
+    // the workers they opened on another crew.
     if (binding.source !== "tick" || binding.relay || !liveAttempt(binding))
       continue;
     let status;
@@ -176,34 +175,6 @@ export async function observeRetroReplies(store, readRows) {
             (r) => r?.role === "assistant" && typeof r.content === "string",
           );
       if (reply) recordRetroReply(store, binding.taskId, reply.content);
-    } catch (error) {
-      errors.push({ slot: binding.slot, error: error.message });
-    }
-  }
-  return { errors };
-}
-
-// The routing agent's answer (§4.10): like a retro, one JSON reply from the
-// tool-less avoozl-router agent, read once the session is idle.
-export async function observeRouterReplies(store, readRows) {
-  const errors = [],
-    batch = routerBatch(store);
-  if (batch?.state !== "running") return { errors };
-  for (const binding of listSessionBindings(store)) {
-    if (
-      binding.role !== "router" ||
-      binding.taskId !== batch.id ||
-      binding.status !== "idle"
-    )
-      continue;
-    try {
-      const { rows } = await readRows(binding.slot, null),
-        reply = [...rows]
-          .reverse()
-          .find(
-            (r) => r?.role === "assistant" && typeof r.content === "string",
-          );
-      if (reply) recordRouterReply(store, batch.id, reply.content);
     } catch (error) {
       errors.push({ slot: binding.slot, error: error.message });
     }

@@ -1,8 +1,5 @@
-// Placement in the tick and Settings › Routing (design §4.10, §8.3). Off by
-// default: every session runs on `local`, as before. On, the person's one
-// routing prompt guides the routing agent (router.mjs), which picks a crew
-// and a model for each ready worker among the options that passed the hard
-// checks (placement.mjs). A crew or model pinned in a task's manifest wins.
+// Placement keeps manifest pins, capacity and provider hard checks.
+// The retired routing chat no longer makes placement decisions.
 import fs from "node:fs";
 import path from "node:path";
 import { fail } from "./store.mjs";
@@ -29,19 +26,11 @@ import {
   modelChecks,
   placedRole,
   routingConfig,
-  subjectOf,
   validateRouting,
   validateTrackedRouting,
 } from "./placement.mjs";
 import { contentBinding, resolveSets } from "./content-rules.mjs";
-import {
-  PROMPT_EXAMPLES,
-  routerAnswer,
-  routerBatch,
-  routerBrief,
-} from "./router.mjs";
 import { clearRoutingHealth, routingHealth } from "./routing-health.mjs";
-import { relayActive, relayQueuedByCrew, relayView } from "./relay.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 import { taskRepository } from "../work-model.mjs";
 
@@ -128,9 +117,6 @@ export function routingContext(store, options = {}) {
     counts = runningCounts(bindings),
     now = options.now ?? Date.now();
   validateTrackedRouting(tracked);
-  // A request queued for the Remote relay holds a chat on its crew (R41.17).
-  for (const [crew, n] of relayQueuedByCrew(store))
-    counts.crews.set(crew, (counts.crews.get(crew) || 0) + n);
   const crews = listCrews({
     settings: machine.crews,
     staleSeconds: machine.staleSeconds,
@@ -151,9 +137,6 @@ export function routingContext(store, options = {}) {
     machine,
     snapshot,
     mc10,
-    // The Remote relay opens a worker's remote pick until MC-10 lands
-    // (R41.16); hardChecks reads it.
-    relayActive: relayActive(config, mc10),
     remoteDispatch: snapshot?.remoteDispatch === true,
     counts,
     fetch: options.fetch ?? new Map(),
@@ -232,7 +215,7 @@ export function hardChecks(store, data, ctx, input) {
     needs: role === "worker" ? task.needs || [] : [],
     agent: pin.agent ?? defaults.agent,
     remoteDispatch: ctx.remoteDispatch,
-    canOpenRemote: ctx.mc10 || (ctx.relayActive === true && role === "worker"),
+    canOpenRemote: ctx.mc10,
     contentForbids: contentForbidsRemote(
       store,
       project?.repository || project?.id || taskRepository(task),
@@ -355,31 +338,10 @@ export function placeOne(store, data, ctx, state, input) {
         crew: pick.crew,
         model: pick.model,
       });
-  } else if (ctx.config.enabled && checks.role === "worker") {
-    const answer = routerAnswer(store, ctx, task.id, options, {
-      ...brief(task, data, checks),
-    });
-    if (answer.placing)
-      return { wait: true, noFit: false, why: "placing", removed, checks };
-    if (answer.pick) {
-      pick = { crew: answer.pick.crew, model: answer.pick.model };
-      reason = `routing agent: ${answer.pick.reason}`;
-    } else
-      // Routing is on and failed for this task: it waits, marked. It never
-      // runs on this machine in the router's place.
-      return {
-        wait: true,
-        noFit: false,
-        routingFailed: true,
-        retryAt: answer.retryAt ?? null,
-        why: `routing failed: ${answer.failed}`,
-        removed,
-        checks,
-      };
   } else {
     pick = fallbackPick(options, checks) ?? options[0];
     reason = ctx.config.enabled
-      ? "not a worker: local"
+      ? "selected from the options that passed the checks"
       : "routing is off: local";
   }
   state.crews.set(pick.crew, (state.crews.get(pick.crew) || 0) + 1);
@@ -416,20 +378,6 @@ function fallbackPick(options, checks) {
     local[0] ??
     null
   );
-}
-
-// What the routing agent reads about one task: its own words, as data.
-function brief(task, data, checks) {
-  const subject = subjectOf(task, data, "worker");
-  return {
-    title: task.title || task.id,
-    labels: subject.labels,
-    type: subject.kind,
-    repository: subject.repository,
-    category: subject.category,
-    paths: subject.paths.slice(0, 20),
-    ...(checks.kept ? { lastModel: checks.kept } : {}),
-  };
 }
 
 // The models a running chat may switch to (§4.20 Running chats): the
@@ -683,8 +631,7 @@ export function routingView(store, data, options = {}) {
   const ctx = routingContext(store, options),
     providers = readProviders(store, {
       machineFile: machinePath(store, options) ?? undefined,
-    }),
-    batch = routerBatch(store);
+    });
   return {
     enabled: ctx.config.enabled,
     switchedOn: ctx.config.switchedOn,
@@ -693,7 +640,7 @@ export function routingView(store, data, options = {}) {
     hasPrompt: Boolean(ctx.config.prompt.trim()),
     model: ctx.config.model,
     timeoutSeconds: ctx.config.timeoutSeconds,
-    examples: PROMPT_EXAMPLES,
+    examples: [],
     machineHash: ctx.machine.hash ?? null,
     crews: crewRows(ctx),
     staleSeconds: ctx.machine.staleSeconds,
@@ -707,23 +654,7 @@ export function routingView(store, data, options = {}) {
     },
     mc10: ctx.mc10,
     remoteDispatch: ctx.remoteDispatch,
-    // The Remote relay (R41.16–R41.23): the setting, whether MC-10 makes it
-    // ignored, the registered chat, and the relay's turns per day.
-    relay: relayView(store, {
-      setting: ctx.config.remoteRelay,
-      mc10: ctx.mc10,
-      now: ctx.now,
-    }),
-    lastCall: batch
-      ? {
-          id: batch.id,
-          state: batch.state,
-          tasks: batch.tasks?.length ?? 0,
-          why: batch.why ?? null,
-          openedAt: batch.openedAt,
-          finishedAt: batch.finishedAt ?? null,
-        }
-      : null,
+    lastCall: null,
     noFit: openNoFits(store),
     // Last success, last error and failures in a row (R41.7).
     health: (({
@@ -742,15 +673,12 @@ export function routingView(store, data, options = {}) {
   };
 }
 
-// Preview (§8.3): a dry run on the current ready tasks. For each one, what
-// the hard checks let through and what would happen; with the prompt on,
-// the exact brief one routing call would get. It opens nothing, calls no
-// agent and writes nothing.
+// Preview is a read-only dry run of the hard checks and placement.
+// It opens no session and writes nothing.
 export async function routingPreview(store, data, options = {}) {
   const ctx = routingContext(store, options);
   await fetchAll(store, ctx, { fetch: false });
-  const projects = new Map(store.list("projects").map((p) => [p.id, p])),
-    asked = [];
+  const projects = new Map(store.list("projects").map((p) => [p.id, p]));
   const items = (options.readyCandidates ? options.readyCandidates() : []).map(
     (task) => {
       const project = projects.get(taskRepository(task)),
@@ -776,32 +704,20 @@ export async function routingPreview(store, data, options = {}) {
         outcome = { kind: "no-fit", text: "no crew passes the checks" };
       else if (!checks.models.length)
         outcome = { kind: "wait", text: "every model it may use is out" };
-      else if (optionsFor.length === 1 || !ctx.config.enabled)
+      else
         outcome = {
           kind: "fixed",
-          crew: ctx.config.enabled ? optionsFor[0].crew : fallbackCrew(crews),
-          model:
-            ctx.config.enabled || checks.pin.model
-              ? optionsFor[0].model
-              : (checks.kept ?? checks.defaults.model),
+          crew: (fallbackPick(optionsFor, checks) ?? optionsFor[0]).crew,
+          model: (fallbackPick(optionsFor, checks) ?? optionsFor[0]).model,
           text:
             checks.pin.crew || checks.pin.model
               ? "pinned in the manifest"
               : ctx.config.enabled
-                ? "the only option that passed the checks"
+                ? optionsFor.length === 1
+                  ? "the only option that passed the checks"
+                  : "selected from the options that passed the checks"
                 : "routing is off: local",
         };
-      else {
-        outcome = {
-          kind: "agent",
-          text: `the routing agent picks among ${optionsFor.length} options`,
-        };
-        asked.push({
-          task: task.id,
-          ...brief(task, data, checks),
-          options: optionsFor,
-        });
-      }
       return {
         taskId: task.id,
         title: task.title,
@@ -821,17 +737,9 @@ export async function routingPreview(store, data, options = {}) {
     enabled: ctx.config.enabled,
     mc10: ctx.mc10,
     items,
-    brief: asked.length
-      ? routerBrief({
-          prompt: ctx.config.prompt,
-          tasks: asked,
-          ...routingFacts(store, ctx),
-        })
-      : null,
+    brief: null,
   };
 }
-
-const fallbackCrew = (crews) => (crews.includes(LOCAL) ? LOCAL : crews[0]);
 
 // The facts one routing call gets (§4.10): each crew's checks and load,
 // and each provider's health line. Read live.
@@ -860,6 +768,11 @@ export function updateRouting(settings, store, input = {}, options = {}) {
   const where = input.where ?? "machine";
   if (where === "workspace") {
     const routing = input.routing || {};
+    if (routing.remoteRelay === "on")
+      fail(
+        "The Remote relay was removed. Remove routing.remoteRelay from the workspace configuration.",
+        410,
+      );
     if (Object.keys(routing).some((k) => k !== "remoteRelay"))
       fail(
         "The routing prompt is saved on this machine only (where: machine). The workspace holds only routing.remoteRelay.",
