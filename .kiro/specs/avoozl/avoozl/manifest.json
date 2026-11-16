@@ -7681,6 +7681,109 @@
         "53.4",
         "53.5"
       ]
+    },
+    "54.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 54 (Retrospectives catch steady CI waste). See R100.1, R100.4, R100.6; §4.30.",
+      "acceptance": [
+        "File classes from the widened open pull request read",
+        "Each pull request in the workspace's repositories, task or other, is stored with its file classes from the existing open pull request read; globs, order, override and partial are tested, and a fake client sees no new GraphQL call."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "54.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 54 (Retrospectives catch steady CI waste). See R100.2, R100.6; §4.30.",
+      "acceptance": [
+        "Workflow runs read and repeat runs, after 54.1",
+        "At most one cached workflow runs read per repository per check; a test shows two runs of one workflow on one commit record a repeat run, a re-run attempt does not, and a 304 reuses the cache."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "54.1"
+      ]
+    },
+    "54.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 54 (Retrospectives catch steady CI waste). See R100.3, R100.4, R100.8; §4.30.",
+      "acceptance": [
+        "Steady waste triggers, after 54.2",
+        "Tests: 10 spec-only pull requests with 25 CI minutes each fire docs-only waste once in the window; a varied but steady repository with no waste fires nothing; the existing outlier trigger tests pass unchanged."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "54.2"
+      ]
+    },
+    "54.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 54 (Retrospectives catch steady CI waste). See R100.4, R100.5; §4.30.",
+      "acceptance": [
+        "CI facts in the brief, CI plan proposals and PDCA by class, after 54.3",
+        "The brief holds minutes by class, wait share and repeat runs with other pull requests as number, author and classes only; a test drops a proposal naming an unseen workflow, opens a draft for an approved one, and runs PDCA by class."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "54.3"
+      ]
+    },
+    "54.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 54 (Retrospectives catch steady CI waste). See R100.7, R100.8; §4.30.",
+      "acceptance": [
+        "Flow CI card and Settings › Flow CI group, after 54.3",
+        "The Flow tab shows CI minutes by class and repeat runs and Settings › Flow edits the CI limits, tested on the view data, with before and after screenshots (phone and desktop, light and dark) approved by the owner before merge."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "54.3"
+      ]
+    },
+    "avoozl-p64": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 54 (Retrospectives catch steady CI waste). Proof. See R100; §4.30.",
+      "acceptance": [
+        "Proof: the retro catches steady CI waste on a real repository",
+        "Expected: with no Avoozl tasks, spec-only pull requests on a repository that runs its workflow twice per commit fire docs-only waste and repeat run, the brief labels them other, a CI plan proposal names the workflow, reads stay within the budget, and PDCA shows spec CI minutes per pull request down at least 10%."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "54.1",
+        "54.2",
+        "54.3",
+        "54.4",
+        "54.5"
+      ]
     }
   }
 }
