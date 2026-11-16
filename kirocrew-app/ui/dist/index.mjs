@@ -23677,7 +23677,7 @@ var _v = (e, t) => ({
 	coder: `[id^="${e}-coder-"][aria-checked="true"], [id^="${e}-coder-"]`,
 	capacity: `#${e}-release-capacity`,
 	releaseMode: "[data-release-mode] input:checked, [data-release-mode] input",
-	plan: "#" + e + "-plan-label",
+	plan: "#" + e + "-label-planLabel",
 	conflict: `#${e}-conflict-label`,
 	onSourceConflict: `#${e}-on-source-conflict input:checked, #${e}-on-source-conflict`,
 	mergeMethod: `#${e}-merge-method input:checked, #${e}-merge-method`,
