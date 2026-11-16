@@ -133,7 +133,7 @@ export interface Proposal {
   removesCheck?: boolean
   revertOf?: string
   reason?: string | null
-  pdca?: { before: number | null; after?: number | null; result?: 'helped' | 'no change' | 'worse'; window: number; mixed?: boolean }
+  pdca?: { before: number | null; after?: number | null; result?: 'helped' | 'no change' | 'worse'; window: number; mixed?: boolean; pendingReason?: string }
 }
 
 export interface SkillNote {
@@ -198,6 +198,7 @@ export interface PlanningTiming {
 }
 
 export interface FlowViewModel {
+  ci?: { repositories: RepositoryCi[] }
   planning?: PlanningTiming[]
   window: { size: number; since: string | null }
   metrics: Metrics
@@ -486,10 +487,11 @@ export function diffLines(diff: string | undefined): { kind: 'add' | 'del' | 'hu
 
 export function pdcaText(p: Proposal): string | null {
   if (p.status !== 'approved' || !p.pdca) return null
-  if (!p.pdca.result) return `PDCA: measuring over the next ${p.pdca.window} tasks.`
+  if (!p.pdca.result && p.pdca.pendingReason) return `PDCA: ${p.pdca.pendingReason}`
+  if (!p.pdca.result) return `PDCA: measuring over the next ${p.pdca.window} ${p.metric === 'CI minutes per pull request' ? 'closed pull requests' : 'tasks'}.`
   const verdict = p.pdca.result === 'helped' ? 'helped' : p.pdca.result === 'worse' ? 'worse' : 'did not help'
   const fmt = (v: number | null | undefined) =>
-    v === null || v === undefined ? '–' : /rate|efficiency/.test(p.metric) ? percent(v) : duration(v)
+    v === null || v === undefined ? '–' : p.metric === 'CI minutes per pull request' ? `${v.toLocaleString(undefined, { maximumFractionDigits: 1 })} min` : /rate|efficiency/.test(p.metric) ? percent(v) : duration(v)
   return `PDCA: ${p.metric} ${fmt(p.pdca.before)} → ${fmt(p.pdca.after)}, ${verdict}.`
 }
 
@@ -582,6 +584,17 @@ export interface FlowSection {
   localChecksFirst?: boolean
   batch?: { max?: number; by?: 'phase' | 'files' }
   retro?: { everyTasks?: number; slowFactor?: number; model?: string }
+  ci?: { windowDays?: number; docsOnlyMinutes?: number; waitShare?: number; minPullRequests?: number; classes?: Record<string, string[]> }
+}
+
+export interface RepositoryCi {
+  repository: string
+  windowDays: number
+  byClass: Record<string, { task: { minutes: number; pullRequests: number }; other: { minutes: number; pullRequests: number } }>
+  waitShare: number | null
+  waitLimit: number
+  closedPullRequests: number
+  repeats: { workflow: string; commits: number; extraRuns: number; extraMinutes: number }[]
 }
 
 export interface FlowSettings {
@@ -592,6 +605,8 @@ export interface FlowSettings {
   repositories: Record<string, FlowSection>
   instructions: string | null
   retroPrompt: string | null
+  ciClassGlobs?: Record<string, string[]>
+  ciEffective?: { windowDays: number; docsOnlyMinutes: number; waitShare: number; minPullRequests: number }
 }
 
 export const FLOW_DEFAULTS = {
@@ -602,6 +617,10 @@ export const FLOW_DEFAULTS = {
   everyTasks: 10,
   slowFactor: 3,
   model: 'auto',
+  windowDays: 7,
+  docsOnlyMinutes: 60,
+  waitShare: 0.4,
+  minPullRequests: 5,
 } as const
 
 export interface FlowForm {
@@ -612,6 +631,11 @@ export interface FlowForm {
   everyTasks: string
   slowFactor: string
   model: string
+  windowDays: string
+  docsOnlyMinutes: string
+  waitShare: string
+  minPullRequests: string
+  ciClasses?: Record<string, string[]>
 }
 
 export function toFlowForm(section: FlowSection = {}): FlowForm {
@@ -623,6 +647,11 @@ export function toFlowForm(section: FlowSection = {}): FlowForm {
     everyTasks: section.retro?.everyTasks === undefined ? '' : String(section.retro.everyTasks),
     slowFactor: section.retro?.slowFactor === undefined ? '' : String(section.retro.slowFactor),
     model: section.retro?.model ?? '',
+    windowDays: section.ci?.windowDays === undefined ? '' : String(section.ci.windowDays),
+    docsOnlyMinutes: section.ci?.docsOnlyMinutes === undefined ? '' : String(section.ci.docsOnlyMinutes),
+    waitShare: section.ci?.waitShare === undefined ? '' : String(section.ci.waitShare),
+    minPullRequests: section.ci?.minPullRequests === undefined ? '' : String(section.ci.minPullRequests),
+    ciClasses: section.ci?.classes,
   }
 }
 
@@ -656,5 +685,19 @@ export function toFlowSection(form: FlowForm): { flow?: FlowSection; error?: str
     retro.model = form.model.trim()
   }
   if (Object.keys(retro).length) flow.retro = retro
+  const ci: NonNullable<FlowSection['ci']> = {}
+  for (const [key, label, min, max, whole] of [
+    ['windowDays', 'CI window days', 1, 90, true],
+    ['docsOnlyMinutes', 'Docs-only CI minutes', 1, 100000, true],
+    ['waitShare', 'CI wait share', 0.05, 1, false],
+    ['minPullRequests', 'Closed pull requests', 1, 1000, true],
+  ] as const) {
+    if (!form[key].trim()) continue
+    const n = Number(form[key])
+    if (!Number.isFinite(n) || (whole && !Number.isInteger(n)) || n < min || n > max) return { error: `${label} must be ${whole ? 'a whole number' : 'a number'} ${min}–${max}.` }
+    ci[key] = n
+  }
+  if (form.ciClasses) ci.classes = form.ciClasses
+  if (Object.keys(ci).length) flow.ci = ci
   return { flow }
 }
