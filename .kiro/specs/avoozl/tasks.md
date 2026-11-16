@@ -1895,8 +1895,8 @@ proof or run a real workspace to get past that wait.
   - Define the task-definition digest and latest valid outcome reducer; done/skipped/landed complete, refused/reopened/unverified/stale hold. Explicitly carry forward unchanged evidence only on new approval.
   - Accept route: github and merged-pr without rewriting approved files. Branch checkmarks remain outside the revision hash and only verified in-spec dependencies may advance; cross-spec dependencies wait for accepted outcomes. Tests cover every outcome and unchanged source hashes.
 
-- [ ] 56.2 Publish spec issues and validate the minimal journal, after 56.1 [R102.1, R102.2, R102.9, R102.10, R102.11] (§4.32)
-  - Implement explicit per-spec publication, one issue per spec/epic and local-file parity. Approval alone makes no GitHub write. Keep epic links and existing issue ownership.
+- [ ] 56.2 Publish spec issues and validate the minimal journal, after 56.1, 56.12 [R102.1, R102.2, R102.9, R102.10, R102.11, R103.1] (§4.32)
+  - Implement explicit per-spec publication, one issue per spec/epic and local-file parity. Approval alone makes no GitHub write. Keep epic links and existing issue ownership. Spec, epic and sub-issues carry crew:avoozl in their create call.
   - Schema/parser/writer/replay: allowlisted event fields, authenticated actor/permission, revision/digest/generation, previous links, complete pagination, operation-id deduplication and conflicting-duplicate hold. Mutation/missing linked records hold; document the undetectable-tail limit. Count no poll snapshots and reject prohibited public fields.
 
 - [ ] 56.3 Qualified working heads, fork checkpoints and verified integration, after 56.2, 56.11, 40.5 [R102.6, R102.7, R102.8, R102.15] (§4.32)
@@ -1919,13 +1919,14 @@ proof or run a real workspace to get past that wait.
   - Extend epic entries with step, default implement. Allow one row per (plan, step), forbid task fields/dispatch, derive design/review/implement from current member state; never hand-tick lifecycle rows.
   - Keep current merge-commit re-hash; persist actual approving reviewers separately from requester/merger/time after merge. Local approval is explicit. Request configured spec reviewers or honor CODEOWNERS/policy; add no universal second-person rule. Public PRs link only public spec issues.
 
-- [ ] 56.8 GitHub intake with proportionate plans and private-safe status, after 56.2, 56.7 [R102.19] (§4.32)
+- [ ] 56.8 GitHub intake with proportionate plans and private-safe status, after 56.2, 56.7, 56.12 [R102.19, R103.1, R103.10] (§4.32)
   - Accept GitHub starts in plan/deliver. Bounded fixes use a compact versioned acceptance definition and the existing issue journal, without a full spec; coordinated design uses a proportionate spec. Reuse an issue only when home/visibility match.
-  - Initial intake makes at most two idempotent writes: ownership label and safe status comment; never name a private spec on a public input. Only same-repository Deliver this uses Fixes; closure is withdrawal. Validate the ownership label excludes independent issue crews in a scratch proof before unattended rollout.
+  - Initial intake makes at most two idempotent writes: ownership label and safe status comment; never name a private spec on a public input. Only same-repository Deliver this uses Fixes; closure is withdrawal. Validate the ownership label excludes independent issue crews in a scratch proof before unattended rollout. The ownership label is crew:avoozl; intake-created issues carry it at create, and the status comment carries no Radar claim marker.
 
-- [ ] 56.9 Idempotent task-issue offboarding export, after 56.5, 56.7 [R102.19, R91.2] (§4.32)
+- [ ] 56.9 Idempotent task-issue offboarding export, after 56.5, 56.7, 56.12 [R102.19, R91.2, R103.6] (§4.32)
   - Preview export-issues SPEC, create only incomplete task issues and blocked-by links, record stable export bindings, then mark Exported and cease dispatch/landing. A retry creates no duplicate issues or links; a partial failure stays held and resumes safely.
   - Make this the sole code path that creates task issues. Preserve visibility rules, person outcomes and journal access after offboarding.
+  - Export is the only crew:avoozl opt-out: exported issues carry no crew:avoozl by default (owner choice 2026-11-16, one label to flip). A test checks the opt-out.
 
 - [ ] 56.10 Mirror import PRs and forward ancestry, after 42.1, 56.3 [R102.21] (§4.32)
   - After private divergence, import upstream into a public-tracking branch and a reviewed mirror PR. Forward recognition excludes upstream/import ancestry, including an import merge whose second parent is on the public-tracking branch.
@@ -1934,6 +1935,18 @@ proof or run a real workspace to get past that wait.
 - [ ] 56.11 Privacy enforcement for checkpoints and public metadata, after 56.2 [R87.9, R102.11, R102.12] (§4.32)
   - Reuse existing content scanning in process before every outgoing push range and every externally visible journal/intake/PR/status write. Check ref names, commit messages, added lines and public metadata; apply the explicit journal schema without raw logs, commands, paths or private identifiers.
   - Tests insert made-up private names into branch names, commit messages, PR bodies, check summaries, records and artifacts and refuse publication before the first write. Preserve useful opaque IDs and public commit/check references. Private-plan mappings and sensitive controls remain private; hidden HTML grants no secrecy.
+
+- [ ] 56.12 Every Avoozl-created issue carries crew:avoozl at create [R103.1, R103.2, R103.3] (§4.32)
+  - Add crew:avoozl in the GitHub client's createIssue, REST and GraphQL forms, with one named opt-out for export. No label edit after a create. Covers projection, the extracted-design parent, mirror follow-up and conflict issues today.
+  - Treat crew:avoozl as Avoozl's own: Untriaged and the plan-me hand-off skip it; Settings refuses it as any other label's name. A source test fails on any other createIssue opt-out; fake-GitHub tests check each path's request carries the label.
+
+- [ ] 56.13 Stop handing Avoozl task issues to Issue Radar, after 56.12 [R103.4, R103.5, R103.7] (§4.32)
+  - Until 56.5 runs, issueRadarAdapter.handOver adds no ready label and the claim at approval writes no claim label or marker; the executor runs those tasks. Keep Radar code and settings (Phase 45 paused).
+  - One previewed, paced, idempotent backfill adds crew:avoozl to open projected task issues with no crew: label; claimed issues are left alone with one Needs you row. Send to Issue Radar refuses crew:avoozl issues. Tests cover no hand-over write, backfill retry and the claimed skip.
+
+- [ ] 56.14 Issue Radar escalations open first in intake, after 56.8, 56.12 [R103.8, R103.9, R103.10, R103.11] (§4.32)
+  - Keep plan-me routing. Trusted escalations (the repository's needs-human label) sort first in Untriaged, or Intake for a Radar-coded repository, with Plan this and Deliver this; their Needs you row gains the same buttons. Plan this drafts a fix spec or the compact bounded-fix acceptance.
+  - Person-only start. A per-repository escalation rule, off by default, drafts locally with zero GitHub writes; approval and dispatch stay person-only. Take-over writes crew:avoozl and never removes the needs-human label; a live crew claim asks to confirm. No Radar API or grant. Tests cover order, buttons, zero-write draft and one label write.
 
 - [ ] avoozl-p66 P66 Proof: journal, working-head recovery and takeover, after 56.3, 56.4, 56.5, 56.6, 56.7, 56.8, 41.3 [R102] (§4.32)
   - Setup: isolated scratch GitHub code and private planning repositories, published epic/spec issues, a three-task in-spec chain and one cross-spec successor, actual executor, direct landing and made-up secret canaries. No real workspace or private pilot.

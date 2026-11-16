@@ -2497,7 +2497,8 @@ action: retiring is what Delete does to a plan with an approved revision.
 ### Requirement 52: Send to Issue Radar, and working beside crews
 
 Added 2026-11-13 (owner decision). Design §8.5 "Send to Issue Radar" and
-§6.4.
+§6.4. Requirement 103 (2026-11-16) supersedes criterion 7 for task issues
+Avoozl projected: Avoozl no longer hands its own issues to a crew.
 
 **User story:** As the owner, I want to hand untriaged issues to an Issue
 Radar crew from Avoozl, and I want Avoozl and crews to work on one
@@ -5440,3 +5441,91 @@ GitHub issue per task or exposing private planning information.
     recovery. Tests or stand-ins SHALL NOT tick live proofs. Real workspace,
     second-machine, screenshot, settings and private pilot approvals SHALL
     remain owner actions; implementing this plan SHALL NOT perform them.
+
+### Requirement 103: Issue Radar stays off Avoozl's issues
+
+Added 2026-11-16 (owner decision). Design §4.32.11. Planning only. Extends
+Requirement 102. Where they conflict it supersedes Requirement 52.7 and,
+in `radar-coder`, the hand-over of projected issues (RC1.6, RC2) and the
+claim at approval (RC19). Removing Radar code stays paused (Phase 45).
+
+The owner's words: Issue Radar should not take on Avoozl-created issues.
+It can take on maintenance and triage, and can punt an issue to Avoozl to
+turn it into a spec-driven fix.
+
+Facts checked in Kiro Crew's Issue Radar crew brief (`crew_brief.md`, Kiro
+Crew main, 2026-11-16): selection drops any issue that already carries a
+label starting `crew:`, and an empty label scope makes every open issue a
+candidate. A crew writes only the claim label `crew: in progress` and the
+repository's needs-human label (default `crew: needs human`). A scope-gate
+pass (`architecture`, `new-feature`, `needs-design`, `breaking-change`)
+stays skipped. Removing the needs-human label is how a person hands a
+needs-decision or needs-investigation issue back to a crew. A claim counts
+as dead only with a claim marker whose version the crew understands. The
+skip is a rule in the crew's prompt, not code.
+
+#### Acceptance criteria
+
+1. Every GitHub issue Avoozl creates SHALL carry the `crew:avoozl` label
+   in its create call: spec and epic issues at publication, sub-issues
+   created under an epic, intake-owned issues, mirror follow-up and
+   conflict issues, task issues projected before retirement, and any create
+   path added later. Avoozl SHALL NOT add it by a later label edit. The only
+   exception is criterion 6.
+2. The label SHALL be added in one place, the GitHub client's issue create
+   call, for both its REST and GraphQL forms, so a new caller cannot miss
+   it. Only the export path SHALL opt out, by name. A test SHALL fail when
+   any `createIssue` call in `src/` opts out other than export, and a
+   fake-GitHub test SHALL check that each create path's request carries the
+   label and that no create is followed by a label edit.
+3. `crew:avoozl` SHALL be Avoozl's ownership label, never read as a crew's.
+   Untriaged and the plan-me hand-off SHALL leave out issues that carry it.
+   Settings SHALL refuse it as the name of any other label: ready, planning,
+   claim, needs-human, a trigger rule's label or a Send to Issue Radar label.
+4. Until issue-binding retirement (56.5) has run, Avoozl SHALL add no Radar
+   ready or scope label to any task issue it projected, and SHALL write no
+   Radar claim label or claim marker at approval, in any repository,
+   including one whose coder is `issue-radar`. Avoozl's executor SHALL run
+   those tasks as it does elsewhere. Radar code and settings SHALL stay.
+5. Because an empty-scope crew takes any open issue without a `crew:`
+   label, Avoozl SHALL add `crew:avoozl` once to each open task issue it
+   projected that carries no `crew:` label, after a preview a person
+   confirms, through the write pacer, and idempotently on retry. An issue a
+   crew already claimed SHALL be left alone and shown once in Needs you.
+   Avoozl SHALL NOT remove a crew's claim or needs-human label.
+6. Export issues (56.9) SHALL create task issues without `crew:avoozl` by
+   default, because export hands the work away from Avoozl and a crew or a
+   person may take it. This is the owner's choice of 2026-11-16. Flipping
+   it means adding the label to the same create call and changing this
+   criterion, nothing else.
+7. Radar SHALL keep maintenance and triage of issues Avoozl did not create.
+   Send to Issue Radar (Requirement 52) SHALL stay for those issues and
+   SHALL refuse an issue that carries `crew:avoozl`.
+8. A crew punts an issue to Avoozl with the repository's needs-human label
+   (`crewLabels.needsHuman`), the only escalation it can write. Avoozl
+   SHALL keep the plan-me routing: the trust check, scope-gate skips to
+   Intake, other scopes to Needs you, untrusted issues left alone. It SHALL
+   list trusted escalations first in Untriaged (for a Radar-coded
+   repository, its Intake rows) with **Plan this** and **Deliver this**,
+   and the Needs you row for one SHALL offer the same two buttons. Plan this
+   SHALL draft a proportionate fix spec or the compact bounded-fix
+   acceptance of Requirement 102.19.
+9. Only a person SHALL press Plan this or Deliver this for an escalation.
+   A per-repository escalation rule, off by default, MAY draft the plan
+   when the needs-human label appears. The draft SHALL write nothing to
+   GitHub, and approval and dispatch SHALL stay person-only. The rule is
+   not a trigger rule, so Requirement 52.9 stands.
+10. Taking an escalated issue into Avoozl SHALL apply `crew:avoozl` as one
+    of intake's two writes (Requirement 102.19) so crews skip it. Avoozl
+    SHALL NOT remove the needs-human label, because removing it hands the
+    issue back to a crew; a person MAY clear it afterwards. When the issue
+    carries a live crew claim, Plan this SHALL say so and ask the person to
+    confirm.
+11. None of this SHALL tie Avoozl's code to Radar. Avoozl reads labels,
+    comments and the plan-me scope from GitHub only, calls no Radar API and
+    needs no Radar grant.
+12. Tests SHALL cover: every create path labeled (2); no ready label, claim
+    or marker for a projected task (4); backfill preview, pacing, retry and
+    the claimed-issue skip (5); unlabeled export (6); escalation order,
+    buttons, person-only start, and an auto-draft with zero GitHub writes
+    (8, 9); one label write on take-over and no needs-human removal (10).
