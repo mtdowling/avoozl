@@ -1504,7 +1504,7 @@ foundation tasks without that dependency may proceed while the live proof waits.
 - [ ] 40.2 Report by CLI, matched by worktree and token, after avoozl-p56 [R88.2, R88.3, R96.4] (§4.26)
   - Use `avoozl runner report TASK done|blocked` for chats and people. Carry the worktree path and token in the brief; local chats use project: false. Test wrong tokens/worktrees and reporting without MCP sharing.
 
-- [ ] 40.3 Trust mode set at open and again every tick, after avoozl-p56 [R88.1] (§4.26)
+- [x] 40.3 Trust mode set at open and again every tick, after avoozl-p56 [R88.1] (§4.26)
   - A fake Kiro Crew that drops trust on restart; the next tick sets it again, once per chat.
 - [ ] 40.4 Prepare with the worktree helper and clean up after landing, after avoozl-p56 [R88.6] (§4.26)
   - First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise.
