@@ -8,19 +8,34 @@ import { loadLayeredConfig } from "./layered-config.mjs";
 export const applicationRoot = fileURLToPath(
   new URL("../../", import.meta.url),
 );
+// git's user.name per workspace root, read once per process. The app backend
+// resolves a workspace's config on every request, and each `git config` is a
+// blocking child process (about 50 ms on macOS), so Home's first load of ~17
+// reads spent seconds here with the backend's event loop stopped.
+// shortcut: a changed user.name shows after a restart, as the open
+// Operations' operator already did.
+const gitUserNames = new Map();
+function gitUserName(workspaceRoot) {
+  if (gitUserNames.has(workspaceRoot)) return gitUserNames.get(workspaceRoot);
+  let name = "";
+  try {
+    name = execFileSync("git", ["config", "--get", "user.name"], {
+      cwd: workspaceRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 5000,
+    });
+  } catch {}
+  gitUserNames.set(workspaceRoot, name);
+  return name;
+}
+
 // Who operates this workspace. Provenance of the records it mints, not an
 // authorization check: approval authority comes from the reviewed hashes.
 export function operatorName({ configured, workspaceRoot } = {}) {
   let name = configured;
   if (!name?.trim() && workspaceRoot && fs.existsSync(workspaceRoot))
-    try {
-      name = execFileSync("git", ["config", "--get", "user.name"], {
-        cwd: workspaceRoot,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-        timeout: 5000,
-      });
-    } catch {}
+    name = gitUserName(path.resolve(workspaceRoot));
   if (!name?.trim())
     try {
       name = os.userInfo().username;

@@ -33,7 +33,8 @@ after(async () => {
 const READ = `[...document.querySelectorAll('[data-refresh]')].map((b) => ({ text: b.textContent, label: b.getAttribute('aria-label') ?? '', age: b.dataset.refreshAge, color: getComputedStyle(b).color }))`
 const SCREENS = [
   { name: 'Home', query: { page: 'app', radar: '1' }, ready: `document.querySelectorAll('[data-refresh]').length > 0` },
-  { name: 'Activity', query: { page: 'activity' }, ready: `document.querySelectorAll('[data-refresh]').length > 0` },
+  // Activity publishes its Refresh to the top line, as Home does.
+  { name: 'Activity', query: { page: 'app', activity: '1' }, nav: 'Activity', ready: `document.querySelectorAll('[data-refresh]').length > 0` },
   { name: 'the side panel', query: { page: 'panel', sid: 'chat-1' }, ready: `document.querySelectorAll('[data-refresh]').length > 0` },
 ]
 
@@ -41,7 +42,17 @@ for (const screen of SCREENS)
   for (const width of [1280, 390])
     test(`no countdown text inside Refresh on ${screen.name} at ${width} px`, { skip }, async () => {
       await page.open(harness.url(screen.query), { width, height: 800 })
-      if (width < 768 && screen.name === 'Home') {
+      if (screen.nav) {
+        const menu = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
+        if (width < 768) {
+          await page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
+          await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+        }
+        await page.until(`Boolean(document.querySelector('${menu} [data-nav-head]'))`)
+        await page.evaluate(`[...document.querySelectorAll('${menu} [data-nav-head]')].find((b) => b.textContent.includes(${JSON.stringify(screen.nav)}))?.click()`)
+        await page.until(`Boolean(document.querySelector('#avoozl-activity-title'))`)
+      }
+      if (width < 768 && screen.query.page === 'app' && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) {
         // A phone keeps Refresh in its menu.
         await page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
         await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)

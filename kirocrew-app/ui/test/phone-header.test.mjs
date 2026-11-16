@@ -52,7 +52,7 @@ for (const dark of [false, true]) {
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-bar] [data-demo-badge]'))`), true, 'the bar has the Demo badge')
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-bar] [data-demo-exit]'))`), true, 'Exit demo is one tap')
     // The demo's own controls are in the bar, since there is no header menu.
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-demo-bar] [data-demo-stop-example]').length`), 2)
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-demo-bar] [data-demo-stop-example]').length`), 1, 'one Stop the line example icon')
 
     await toSpecs(true)
     const heading = `document.querySelector('#avoozl-plans-title').closest('[data-section-heading]')`
@@ -71,7 +71,7 @@ for (const dark of [false, true]) {
   test(`a desktop at 1280 px keeps its header, bar and heading buttons (${theme})`, { skip }, async () => {
     await start(1280, dark)
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-phone-header]'))`), false)
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-demo-bar] [data-demo-stop-example]').length`), 2)
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-demo-bar] [data-demo-stop-example]').length`), 1, 'one Stop the line example icon')
     await toSpecs(false)
     const heading = `document.querySelector('#avoozl-plans-title').closest('[data-section-heading]')`
     assert.equal(await page.evaluate(`Boolean(${heading}.querySelector('[data-heading-more]'))`), false)

@@ -7,6 +7,7 @@ import {
 import {
   kirocrewRequest,
   kirocrewConfiguration,
+  kirocrewDispatches,
   persistKirocrewConfiguration,
 } from "../executors/kirocrew.mjs";
 import { Operations } from "../operations.mjs";
@@ -478,4 +479,37 @@ test("a pending write answer rebuilt as read consumes the read-only native agent
     "a claimed permission class stays frozen",
   );
   assert.equal(frozen.folder, "Avoozl/answer");
+});
+
+test("a planner that writes a workspace's specs opens in the Specs folder", (t) => {
+  // Nearby inputs: a read-only answer, a worker with no repository, and a
+  // planner whose folder has no project directory yet.
+  const { store } = env(t);
+  const [planner, answer, worker] = enqueueSessionRequests(store, {
+    starts: [
+      start({ role: "planner", task: "new-plan:x", worktree: "/ws" }),
+      start({
+        role: "plan-answer",
+        task: "round-x",
+        worktree: "/ws",
+        permissionClass: "read",
+      }),
+      start({ worktree: "/ws" }),
+    ],
+  }).starts;
+  const planned = kirocrewConfiguration(store, planner);
+  assert.equal(planned.folder, "Avoozl/Specs");
+  assert.equal(planned.project, undefined);
+  assert.equal(kirocrewConfiguration(store, answer).project, false);
+  assert.equal(kirocrewConfiguration(store, worker).project, false);
+  const dispatches = [planner, worker];
+  const [notice, ...rest] = kirocrewDispatches(store, dispatches, [], {
+    "Avoozl/Specs": false,
+  });
+  assert.deepEqual(rest, []);
+  assert.deepEqual(
+    dispatches.map((d) => d.id),
+    [worker.id],
+  );
+  assert.match(notice.resume, /set its project directory to \/ws\./);
 });

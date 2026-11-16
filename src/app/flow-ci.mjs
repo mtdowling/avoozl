@@ -11,6 +11,11 @@ import { CI_CLASSES, flowPolicy, listOr } from "./flow.mjs";
 import { globToRegex } from "./forward-guard.mjs";
 import { LINKED_BRANCHES } from "./github-plans-repo.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
+import {
+  migrateReceiptMeta,
+  pruneReceipts,
+  readReceipts,
+} from "./build-receipt-read.mjs";
 
 export const PR_CI = "pr_ci";
 export const CI_RUNS = "ci_runs";
@@ -142,7 +147,7 @@ export function pruneCIHistory(store, { now = Date.now() } = {}) {
         store.remove(CI_RUNS, row.id);
         removed++;
       }
-    return removed;
+    return removed + pruneReceipts(store, cut);
   });
 }
 
@@ -210,6 +215,7 @@ export async function ciStep(
   { policy, config, now = Date.now() } = {},
 ) {
   pruneCIHistory(store, { now });
+  migrateReceiptMeta(store);
   const repositories = ciRepositories(policy),
     errors = [];
   // A client without these reads (a fake, an old build) reads nothing.
@@ -232,9 +238,14 @@ export async function ciStep(
       )
         .toISOString()
         .slice(0, 10);
-    let pulls, runs;
+    let pulls, recent, runs;
     try {
       pulls = await github.openPullRequests(repository);
+      // The same query's closed pull requests; none from a client without it.
+      recent =
+        typeof github.recentPullRequests === "function"
+          ? await github.recentPullRequests(repository)
+          : [];
       runs = await github.workflowRuns(repository, since);
     } catch (error) {
       errors.push({ repository, error: error.message });
@@ -242,8 +253,19 @@ export async function ciStep(
     }
     delete reported[repository];
     store.transaction(() =>
-      record(store, data, repository, { pulls, runs, globs, at, now }),
+      record(store, data, repository, {
+        pulls,
+        recent,
+        runs,
+        globs,
+        at,
+        now,
+      }),
     );
+    // Build receipts (§4.31): after the rows, so the runs are known. A failed
+    // read keeps nothing and is tried again at the next check.
+    if (policy?.repositories?.[repository]?.buildReceipts === true)
+      await readReceipts(store, github, repository, { now }).catch(() => {});
   }
   const fresh = errors.filter((e) => reported[e.repository] !== e.error);
   for (const e of errors) reported[e.repository] = e.error;
@@ -251,7 +273,59 @@ export async function ciStep(
   return { errors: fresh, repositories: repositories.length };
 }
 
-function record(store, data, repository, { pulls, runs, globs, at, now }) {
+// A pull request's row from one read of it, open or closed.
+function pullRow(store, data, repository, pull, { before, globs, at }) {
+  const files = pull.files || { totalCount: 0, nodes: [] },
+    paths = (files.nodes || []).map((node) => node.path),
+    partial = (files.totalCount ?? paths.length) > paths.length,
+    head = pull.headRefOid;
+  return {
+    id: `${lower(repository)}#${pull.number}`,
+    repository,
+    number: pull.number,
+    taskId: taskOf(store, data, repository, pull),
+    author: pull.author?.login || null,
+    classes: fileClasses(paths, globs, partial),
+    partial,
+    branch: pull.headRefName || before?.branch || null,
+    createdAt: pull.createdAt || before?.createdAt || at,
+    firstSeen: before?.firstSeen || at,
+    lastSeen: at,
+    closedAt: null,
+    // The head commit and merge time: the reader of build receipts (§4.31)
+    // finds a merged pull request's artifacts by its head commit.
+    headSha: head ?? before?.headSha ?? null,
+    mergedAt: before?.mergedAt ?? null,
+    heads: [...new Set([...(before?.heads || []), head].filter(Boolean))].slice(
+      -50,
+    ),
+    runIds: before?.runIds || [],
+  };
+}
+
+// The pull request a run belongs to by its branch: the newest one on that
+// branch open when the run started.
+function byBranch(rows, run) {
+  if (!run.headBranch) return null;
+  const start = ms(run.startedAt);
+  let found = null;
+  for (const row of rows.values())
+    if (
+      row.branch === run.headBranch &&
+      !(start < ms(row.createdAt)) &&
+      !(row.closedAt && start > ms(row.closedAt)) &&
+      (!found || row.number > found.number)
+    )
+      found = row;
+  return found?.number ?? null;
+}
+
+function record(
+  store,
+  data,
+  repository,
+  { pulls, recent = [], runs, globs, at, now },
+) {
   const rows = new Map(
       listOr(store, PR_CI)
         .filter((row) => lower(row.repository) === lower(repository))
@@ -260,38 +334,37 @@ function record(store, data, repository, { pulls, runs, globs, at, now }) {
     timed = new Map(),
     open = new Set();
   for (const pull of pulls) {
-    const files = pull.files || { totalCount: 0, nodes: [] },
-      paths = (files.nodes || []).map((node) => node.path),
-      partial = (files.totalCount ?? paths.length) > paths.length,
-      times = checkTimes(pull),
-      head = pull.headRefOid,
+    const times = checkTimes(pull),
       before = rows.get(pull.number),
-      row = {
-        id: `${lower(repository)}#${pull.number}`,
-        repository,
-        number: pull.number,
-        taskId: taskOf(store, data, repository, pull),
-        author: pull.author?.login || null,
-        classes: fileClasses(paths, globs, partial),
-        partial,
-        createdAt: pull.createdAt || before?.createdAt || at,
-        firstSeen: before?.firstSeen || at,
-        lastSeen: at,
-        closedAt: null,
-        heads: [
-          ...new Set([...(before?.heads || []), head].filter(Boolean)),
-        ].slice(-50),
-        runIds: [
-          ...new Set([...(before?.runIds || []), ...times.keys()]),
-        ].slice(-200),
-      };
+      row = pullRow(store, data, repository, pull, { before, globs, at });
+    row.runIds = [...new Set([...row.runIds, ...times.keys()])].slice(-200);
     for (const [id, entry] of times) timed.set(id, entry);
     rows.set(pull.number, row);
     open.add(pull.number);
   }
-  // A pull request no longer listed open closed at this check (shortcut:
-  // the close time is late by up to one check interval; read closedAt if
-  // lead times must be exact).
+  // Closed pull requests from the same read: their exact close time, and a
+  // row for one never seen open (opened and merged between two checks, or
+  // before this workspace's first check). Kept only inside the 90 days.
+  const cut = now - KEEP_MS;
+  for (const pull of recent) {
+    if (open.has(pull.number) || !(ms(pull.closedAt) >= cut)) continue;
+    const before = rows.get(pull.number);
+    if (
+      before?.closedAt === pull.closedAt &&
+      before.branch &&
+      before.headSha !== undefined
+    )
+      continue;
+    const row = before
+      ? { ...before, branch: before.branch || pull.headRefName || null }
+      : pullRow(store, data, repository, pull, { before, globs, at });
+    row.closedAt = pull.closedAt;
+    row.headSha = pull.headRefOid ?? row.headSha ?? null;
+    row.mergedAt = pull.mergedAt ?? null;
+    rows.set(pull.number, row);
+  }
+  // A pull request no longer listed open, and not in the closed list,
+  // closed at this check (late by up to one check interval).
   for (const row of rows.values())
     if (!open.has(row.number) && !row.closedAt) row.closedAt = at;
   const byHead = new Map(),
@@ -348,12 +421,15 @@ function record(store, data, repository, { pulls, runs, globs, at, now }) {
       runId: run.id,
       workflow: run.workflow,
       headSha: run.headSha,
+      headBranch: run.headBranch ?? before?.headBranch ?? null,
       event: run.event,
       attempt: run.attempt,
+      conclusion: run.conclusion ?? before?.conclusion ?? null,
       prNumber:
         run.pullRequests.find((n) => rows.has(n)) ??
         byRun.get(run.id) ??
         byHead.get(run.headSha) ??
+        byBranch(rows, run) ??
         before?.prNumber ??
         null,
       startedAt: run.startedAt,
@@ -361,7 +437,6 @@ function record(store, data, repository, { pulls, runs, globs, at, now }) {
       ...job,
     });
   }
-  const cut = now - KEEP_MS;
   for (const run of stored.values()) {
     const old = ms(run.startedAt) < cut;
     if (old) {

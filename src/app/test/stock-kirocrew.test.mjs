@@ -16,6 +16,8 @@ import {
   observeSessions,
   slotStatus,
 } from "../session-observer.mjs";
+import { slotServed } from "../executors/kirocrew.mjs";
+import { servedModel } from "../delivery.mjs";
 import { Store } from "../store.mjs";
 import { tickHealth } from "../tick.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -197,6 +199,7 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
   const calls = [],
     answers = {
       avoozl_live: [401, { running: true, queue: [] }],
+      avoozl_model: [200, { running: false, served_model: "fake-model" }],
       avoozl_gone: [404, {}],
       avoozl_refused: [403, {}],
     };
@@ -216,6 +219,15 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
     return { ok: status === 200, status, json: async () => body };
   });
   assert.equal(await read("avoozl_live"), "working");
+  assert.deepEqual(await read("avoozl_model"), {
+    status: "idle",
+    served: {
+      requested: null,
+      model: "fake-model",
+      withheld: false,
+      changed: false,
+    },
+  });
   assert.equal(await read("avoozl_gone"), "gone");
   await assert.rejects(read("avoozl_refused"), /403/);
   assert.deepEqual(calls.slice(0, 4), [
@@ -224,6 +236,46 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
     ["POST", "/api/apps/avoozl/token"],
     ["GET", "/api/chat/slots/avoozl_live?limit=1&token=t2"],
   ]);
+});
+
+test("the backend keeps the served model a slot read names", async (t) => {
+  // Nearby inputs: no served model, an empty one, a withheld pin, a string reader.
+  assert.equal(slotServed({ model: "fake-pin" }), null);
+  assert.equal(slotServed({ served_model: "" }), null);
+  assert.deepEqual(
+    slotServed({
+      model: "fake-pin",
+      served_model: "fake-default",
+      model_withheld: true,
+    }),
+    {
+      requested: "fake-pin",
+      model: "fake-default",
+      withheld: true,
+      changed: false,
+    },
+  );
+  const { store, ops } = setup(t, [leaf("a"), leaf("b")]);
+  await bind(ops, "a", "avoozl_a");
+  await bind(ops, "b", "avoozl_b");
+  await observeSessions(store, async (slot) =>
+    slot === "avoozl_a"
+      ? {
+          status: "idle",
+          served: slotServed({ model: "", served_model: "fake-writer" }),
+        }
+      : "idle",
+  );
+  const a = store.get("session_bindings", "avoozl_a"),
+    b = store.get("session_bindings", "avoozl_b");
+  assert.equal(a.status, "idle");
+  assert.deepEqual(servedModel(a), {
+    model: "fake-writer",
+    reported: true,
+    cause: null,
+  });
+  assert.equal(b.status, "idle");
+  assert.equal(b.served, undefined, "a read without a model reports none");
 });
 
 // Mirrors kiro_crew/apps/proxy_auth.py `sign_proxy_principal_claim`.

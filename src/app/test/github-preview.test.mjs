@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { WORKSPACE_TOOLS } from "../mcp.mjs";
+import { ownedIssueInput } from "../github.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -100,8 +101,10 @@ function fakeGitHub() {
       copy(blockers.get(find(repository, number).id) || []),
     listSubIssues: (repository, number) =>
       copy(subIssues.get(find(repository, number).id) || []),
-    createIssue(repository, input) {
-      const number = next++,
+    // Stands in for the real client, which adds crew:avoozl (R103.1).
+    createIssue(repository, request) {
+      const input = ownedIssueInput(request),
+        number = next++,
         issue = {
           id: number,
           node_id: "I_" + number,

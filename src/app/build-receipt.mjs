@@ -11,7 +11,7 @@ export const OUTPUT_KEEP = 256 * 1024;
 export const PARSER_TIMEOUT_MS = 10_000;
 export const RECEIPT_FILE = "build-receipt.jsonl";
 
-// `[--issue N] [--target T] [--file F] -- command args...`
+// `[--issue N] [--target T] [--task ID] [--attempt N] [--phase P] [--file F] -- command args...`
 export function parseArguments(argv) {
   const out = { command: [] },
     split = argv.indexOf("--"),
@@ -22,6 +22,9 @@ export function parseArguments(argv) {
       value = head[i + 1];
     if (flag === "--issue") out.issue = value;
     else if (flag === "--target") out.target = value;
+    else if (flag === "--task") out.task = value;
+    else if (flag === "--attempt") out.attempt = value;
+    else if (flag === "--phase") out.phase = value;
     else if (flag === "--file") out.file = value;
     else throw new Error(`Unknown option ${flag}.`);
   }
@@ -83,9 +86,19 @@ function commitOf(cwd) {
   return result.status === 0 ? result.stdout.trim() : null;
 }
 
+const taskOf = (value) => (value ? String(value).slice(0, 80) : null);
+const attemptOf = (value) => {
+  const n = Number(value);
+  return Number.isSafeInteger(n) && n > 0 ? n : 1;
+};
+const phaseOf = (value, command) => String(value || command).slice(0, 80);
+
 // One receipt as the object it is written from.
 export function buildReceipt({
   issue,
+  task,
+  attempt,
+  phase,
   commit,
   command,
   target,
@@ -99,6 +112,9 @@ export function buildReceipt({
   return {
     v: RECEIPT_VERSION,
     issue: Number.isSafeInteger(number) && number > 0 ? number : null,
+    task: taskOf(task),
+    attempt: attemptOf(attempt),
+    phase: phaseOf(phase, command),
     commit: commit ?? null,
     // Capped so one line stays far under the 2 KB CI summary limit.
     command: String(command).slice(0, 200),
@@ -126,7 +142,7 @@ export async function wrap(
   const options = parseArguments(argv);
   if (!options.command.length)
     throw new Error(
-      "Usage: build-receipt [--issue N] [--target T] [--file F] -- <command...>",
+      "Usage: build-receipt [--issue N] [--target T] [--task ID] [--attempt N] [--phase P] [--file F] -- <command...>",
     );
   const settings = receiptSettings(cwd),
     start = startOf(settings.warmCheck, cwd),
@@ -160,6 +176,9 @@ export async function wrap(
   try {
     const receipt = buildReceipt({
       issue: options.issue ?? env.AVOOZL_ISSUE,
+      task: options.task ?? env.AVOOZL_TASK,
+      attempt: options.attempt ?? env.AVOOZL_ATTEMPT ?? env.GITHUB_RUN_ATTEMPT,
+      phase: options.phase,
       commit: commitOf(cwd),
       command: options.command.join(" "),
       target:
@@ -184,11 +203,11 @@ export async function wrap(
   return exit;
 }
 
-// A receipt read back from an artifact: the fields it must have, or null.
-export function parseReceipt(text) {
+// One receipt line read back from an artifact: the fields it must have, or
+// null. A version 1 line without task, attempt or phase still parses.
+function parseLine(text) {
   try {
-    const line = String(text).trim().split("\n").filter(Boolean).at(-1),
-      value = JSON.parse(line);
+    const value = JSON.parse(text);
     if (
       value?.v !== RECEIPT_VERSION ||
       typeof value.command !== "string" ||
@@ -198,6 +217,9 @@ export function parseReceipt(text) {
     return {
       v: value.v,
       issue: Number.isSafeInteger(value.issue) ? value.issue : null,
+      task: taskOf(value.task),
+      attempt: attemptOf(value.attempt),
+      phase: phaseOf(value.phase, value.command),
       commit: typeof value.commit === "string" ? value.commit : null,
       command: value.command.slice(0, 200),
       target: String(value.target ?? "").slice(0, 80),
@@ -215,3 +237,20 @@ export function parseReceipt(text) {
     return null;
   }
 }
+
+// Every line of a receipt file, in order, and how many lines were skipped.
+export function parseReceipts(text) {
+  const records = [];
+  let skipped = 0;
+  for (const line of String(text).split("\n")) {
+    if (!line.trim()) continue;
+    const record = parseLine(line);
+    if (record) records.push(record);
+    else skipped += 1;
+  }
+  return { records, skipped };
+}
+
+// The last record of a receipt file, or null.
+export const parseReceipt = (text) =>
+  parseReceipts(text).records.at(-1) ?? null;

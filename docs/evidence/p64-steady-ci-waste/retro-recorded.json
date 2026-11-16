@@ -1,0 +1,33 @@
+{
+  "state": "done",
+  "error": null,
+  "proposals": [
+    {
+      "type": "plan",
+      "spec": "CI should run once per commit, not once for the push and again for the pull_request.",
+      "change": "Limit the push trigger in test.yml to the default branch (branches: [main]) and keep pull_request for every PR. Add a concurrency group keyed on the workflow and the PR number or ref, with cancel-in-progress: true. A commit pushed to a PR branch then gets one run instead of two, and superseded runs are cancelled.",
+      "repository": "mtdowling/avoozl",
+      "workflow": ".github/workflows/test.yml",
+      "metric": "CI minutes per pull request",
+      "class": "all",
+      "direction": "down",
+      "evidence": "22 commits ran test.yml on both push and pull_request (02ac585 ran 3 times), costing 459.7 extra CI minutes in 7 days. Each extra run took about 19–25 min.",
+      "id": "p1",
+      "status": "open"
+    },
+    {
+      "type": "plan",
+      "spec": "PRs that change only spec or docs files should not run the full test suite.",
+      "change": "Add paths-ignore for the spec and docs directories (and top-level *.md) to the pull_request and push triggers in test.yml. PRs that also touch code, tests or ci still match and run the full suite. If spec files feed generated tests, swap the full suite for a fast lint/validation job on spec-only changes.",
+      "repository": "mtdowling/avoozl",
+      "workflow": ".github/workflows/test.yml",
+      "metric": "CI minutes per pull request",
+      "class": "spec",
+      "direction": "down",
+      "evidence": "The 9 spec-only PRs (#270, #274, #277, #278, #281, #283, #293, #302 and others) used 451.7 CI minutes, about 50 min each, which is more than a code PR (824.4 min / 27 PRs = 30.5 min each). The trigger fired at 452.2 min of spec/docs-only CI against a limit of 1.",
+      "id": "p2",
+      "status": "open"
+    }
+  ],
+  "dropped": []
+}

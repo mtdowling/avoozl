@@ -28,7 +28,7 @@ const SIZES = [
 ]
 const open = async (size) => {
   await page.open(harness.url({ page: 'app', radar: '1', theme: size.theme }), { width: size.width, height: 800, dark: size.dark })
-  await page.until(`document.querySelectorAll('[data-sc]').length === 1`)
+  await page.until(`document.querySelectorAll('[data-sc]').length === 1 && !document.querySelector('[data-sc]').textContent.includes('Driver: reading')`)
 }
 const cells = `[...document.querySelectorAll('[data-sc]')].map((el) => { const r = el.getBoundingClientRect(); const line = parseFloat(getComputedStyle(el).lineHeight); return { right: r.right, height: r.height, line, text: el.textContent.trim().replace(/\\s+/g, ' ') } })`
 

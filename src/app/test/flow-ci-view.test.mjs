@@ -142,3 +142,172 @@ test("read-only class globs preserve effective overrides and matching order", ()
   ]);
   assert.deepEqual(globs.docs, ["guides/"]);
 });
+
+test("Flow repository selections retain CI for project IDs, GitHub names and CI-only repositories", async (t) => {
+  const { root, store } = fixture(t),
+    calls = [],
+    github = new Proxy(
+      {},
+      {
+        get: (_, method) => () => {
+          calls.push(method);
+          throw Error("A Flow view must not read GitHub");
+        },
+      },
+    ),
+    ops = new Operations(store, { workspaceRoot: root, github }),
+    data = store.read();
+  store.importSnapshot({
+    ...data,
+    tasks: [{ ...data.tasks[0], repository: "app" }],
+  });
+  store.put("projects", { id: "app", repository: "EXAMPLE/App" });
+  store.put("projects", { id: "empty", repository: "example/empty" });
+  store.put("github_repositories", {
+    id: "example/legacy",
+    projectId: "legacy",
+  });
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({
+      version: 1,
+      github: {
+        mode: "single-repo",
+        repositories: Object.fromEntries(
+          [
+            "example/app",
+            "example/empty",
+            "example/legacy",
+            "example/without-project",
+          ].map((name) => [name, { baseBranch: "main", coder: "worker" }]),
+        ),
+      },
+    }),
+  );
+  const initial = await ops.execute("flow.view");
+  assert.deepEqual(initial.repositories, [
+    "app",
+    "empty",
+    "example/without-project",
+    "legacy",
+  ]);
+  assert.deepEqual(
+    initial.ci.repositories.map((row) => row.repository),
+    [
+      "example/app",
+      "example/empty",
+      "example/legacy",
+      "example/without-project",
+    ],
+  );
+  for (const [filter, repository] of [
+    ["app", "example/app"],
+    ["example/app", "example/app"],
+    ["EXAMPLE/APP", "example/app"],
+    ["empty", "example/empty"],
+    ["legacy", "example/legacy"],
+    ["example/without-project", "example/without-project"],
+  ]) {
+    const view = await ops.execute("flow.view", { repository: filter });
+    assert.deepEqual(
+      view.ci.repositories.map((row) => row.repository),
+      [repository],
+      filter,
+    );
+    assert.deepEqual(
+      view.repositories,
+      initial.repositories,
+      "filter choices remain available after selecting one",
+    );
+  }
+  assert.deepEqual(
+    (await ops.execute("flow.view", { repository: "example/unconfigured" })).ci
+      .repositories,
+    [],
+  );
+  assert.deepEqual(calls, []);
+  assert.equal(store.getMeta("flow.ci.config"), null);
+
+  // A task that already uses the GitHub name keeps that value; the app ID
+  // must not become a second choice for the same repository.
+  store.importSnapshot({
+    ...data,
+    tasks: [{ ...data.tasks[0], repository: "EXAMPLE/APP" }],
+  });
+  assert.deepEqual((await ops.execute("flow.view")).repositories, [
+    "EXAMPLE/APP",
+    "empty",
+    "example/without-project",
+    "legacy",
+  ]);
+  store.importSnapshot({
+    ...data,
+    tasks: [{ ...data.tasks[0], projectId: "app" }],
+  });
+  assert.deepEqual(
+    (await ops.execute("flow.view", { repository: "app" })).ci.repositories.map(
+      (row) => row.repository,
+    ),
+    ["example/app"],
+  );
+});
+
+test("a project without a repository retains its legacy GitHub mapping until explicitly replaced", async (t) => {
+  const { root, store } = fixture(t),
+    ops = new Operations(store, {
+      workspaceRoot: root,
+      github: new Proxy(
+        {},
+        {
+          get: () => () => {
+            throw Error("A view must not read GitHub");
+          },
+        },
+      ),
+    }),
+    data = store.read();
+  store.importSnapshot({
+    ...data,
+    tasks: [{ ...data.tasks[0], projectId: "app" }],
+  });
+  store.put("projects", { id: "app" });
+  store.put("github_repositories", { id: "example/app", projectId: "app" });
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({
+      version: 1,
+      github: {
+        mode: "single-repo",
+        repositories: {
+          "example/app": { baseBranch: "main", coder: "worker" },
+        },
+      },
+    }),
+  );
+  let view = await ops.execute("flow.view", { repository: "app" });
+  assert.deepEqual(view.repositories, ["app"]);
+  assert.deepEqual(
+    view.ci.repositories.map((row) => row.repository),
+    ["example/app"],
+  );
+  store.importSnapshot({ ...data, tasks: [] });
+  assert.deepEqual(
+    (await ops.execute("flow.view")).repositories,
+    ["app"],
+    "legacy mapping remains selectable without a task",
+  );
+
+  store.put("projects", { id: "app", repository: "example/replacement" });
+  view = await ops.execute("flow.view", { repository: "app" });
+  assert.deepEqual(
+    view.ci.repositories,
+    [],
+    "an explicit project target overrides stale authorization",
+  );
+  assert.deepEqual(
+    view.repositories,
+    ["example/app"],
+    "the configured repository remains inspectable by its GitHub name",
+  );
+  assert.equal(store.getMeta("flow.ci.config"), null);
+});

@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown, Folder, Settings } from './icons.ts'
 import { LAYER } from './layers.ts'
+import { NAV_PILL } from './nav-style.ts'
 import type { WorkspaceList } from './workspace-api.ts'
 
 // Radar's switcher, measured: 12px corners, the strong border, a small
@@ -18,7 +19,7 @@ const PILL = {
   minWidth: 0,
   flexShrink: 0,
   boxSizing: 'border-box',
-  height: 28,
+  height: NAV_PILL,
   padding: '0 10px',
   borderRadius: 12,
   border: '1px solid var(--border-strong, var(--border))',
