@@ -6291,10 +6291,10 @@
     "40.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 40 (Unattended basics). See R86.3; §4.26.",
+      "summary": "Phase 40. Worker brief edits and reports only. See R86.3, R96; §4.26.",
       "acceptance": [
-        "Worker brief edits and commits only",
-        "The GitHub worker brief in `src/app/delivery.mjs` drops the push, pull request, auto-merge and merge steps; Avoozl reads `HEAD` from the worktree; a test asserts no brief tells a worker to push, open a pull request, merge or label."
+        "Worker brief edits and reports only",
+        "The brief drops push, PR, auto-merge, merge and comment steps. Avoozl commits sandboxed process results; chats/people may commit locally. Read HEAD from the worktree, never from a report. A prompt test enforces this boundary."
       ],
       "completion": "integrated",
       "checks": [
@@ -6308,10 +6308,10 @@
     "40.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 40 (Unattended basics). See R88.2, R88.3; §4.26.",
+      "summary": "Phase 40. Report by CLI, matched by worktree and token. See R88.2, R88.3, R96.4; §4.26.",
       "acceptance": [
         "Report by CLI, matched by worktree and token",
-        "`avoozl report --task ID --token T`; the brief carries the token and the worktree path; local chats open with `project: false`; tests for a wrong token, a wrong worktree and a report with no MCP sharing."
+        "Use `avoozl runner report TASK done|blocked` for chats and people. Carry the worktree path and token in the brief; local chats use project: false. Test wrong tokens/worktrees and reporting without MCP sharing."
       ],
       "completion": "integrated",
       "checks": [
@@ -6427,16 +6427,20 @@
         "40.4",
         "40.5",
         "40.6",
-        "40.7"
+        "40.7",
+        "41.1",
+        "41.2",
+        "41.3",
+        "41.5"
       ]
     },
     "41.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 41 (Scheduler and direct landing). See R86.2, R86.5, R86.9; §4.26.",
+      "summary": "Phase 41. Schedule spec drivers with repository-wide path holds. See R86.2, R86.5, R86.9, R102.4; §4.32.",
       "acceptance": [
-        "One scheduler: Pick by unblock count with a repository-wide path hold",
-        "RC31's ranking feeds Pick; overlapping declared paths hold a task in line; no cross-machine claim or driver lock is read."
+        "Schedule spec drivers with repository-wide path holds",
+        "Use unblock ranking, current spec authority and generation, and repository-wide path holds. A verified-on-branch dependency releases only in-spec work based on that working head; cross-spec work waits for accepted outcomes."
       ],
       "completion": "integrated",
       "checks": [
@@ -6444,16 +6448,17 @@
         "git diff --check"
       ],
       "requires": [
-        "avoozl-p50"
+        "40.5",
+        "56.4"
       ]
     },
     "41.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 41 (Scheduler and direct landing). See R87.5; §4.26.",
+      "summary": "Phase 41. Per-base landing queue with brief integration locks. See R87.5, R102.15; §4.32.",
       "acceptance": [
-        "Landing queue per base branch with the work lock",
-        "`withWorkLock` kind `integration`; one landing at a time per base; Stop the line pauses and keeps order."
+        "Per-base landing queue with brief integration locks",
+        "Preserve order on Stop the line; perform checks outside the integration lock, guard only ref movement and push. Test a concurrent base move cannot land an unchecked candidate."
       ],
       "completion": "integrated",
       "checks": [
@@ -6461,16 +6466,17 @@
         "git diff --check"
       ],
       "requires": [
-        "avoozl-p50"
+        "40.5",
+        "56.4"
       ]
     },
     "41.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 41 (Scheduler and direct landing). See R87.1, R87.2, R87.4, R87.9; §4.26.",
+      "summary": "Phase 41. Direct portions and bounded landing trains. See R87.1, R87.2, R87.4, R87.9, R102.13, R102.15; §4.32.",
       "acceptance": [
-        "`direct` landing",
-        "Merge base in, check that head, fast-forward, `git push origin <base>`; a moved base merges and checks again; the pre-push content rule runs first; never force push."
+        "Direct portions and bounded landing trains",
+        "Select exact verified portions, merge/check the current base, write an intent and guard the fast-forward. Up to four tasks for one driver; bisect failures. Merge declared append-only union paths only in the landing worktree. Check outgoing data before every push; never force push."
       ],
       "completion": "integrated",
       "checks": [
@@ -6501,10 +6507,10 @@
     "41.5": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 41 (Scheduler and direct landing). See R87.7; §4.26.",
+      "summary": "Phase 41. Prepare from spec working heads and merge landed bases back. See R87.7, R102.6, R102.15; §4.32.",
       "acceptance": [
-        "Epic tasks cut from the integration branch",
-        "`src/app/github-linked-branches.mjs` and Prepare agree on the base."
+        "Prepare from spec working heads and merge landed bases back",
+        "Generalize RC16 from epic-only integration; Prepare and qualified-ref resolution agree on the exact spec base. Merge the landed target back with a merge commit; preserve verified but unlanded portions and unfinished task refs."
       ],
       "completion": "integrated",
       "checks": [
@@ -6570,16 +6576,18 @@
         "41.5",
         "41.6",
         "41.7",
-        "41.8"
+        "41.8",
+        "avoozl-p50",
+        "avoozl-p66"
       ]
     },
     "42.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 42 (PR landing and the setup command). See R87.3, R87.4, R91.2; §4.26.",
+      "summary": "Phase 42. PR portions from target repositories or forks. See R87.3, R87.4, R91.2, R102.8, R102.18; §4.32.",
       "acceptance": [
-        "`pr` landing from the renamed arming and merge code",
-        "Push the task branch, open or reuse the pull request, merge base in when it moves, wait for required checks, merge through the API one at a time."
+        "PR portions from target repositories or forks",
+        "Open/reuse the PR from an exact verified source head without an upstream copy. Update only the queue head and writable source. Enforce that PR head's required checks and standing reviews; record actual approvers and merger. Without target merge permission, observe an authorized maintainer's merge. No protected-review trains."
       ],
       "completion": "integrated",
       "checks": [
@@ -6587,16 +6595,17 @@
         "git diff --check"
       ],
       "requires": [
-        "avoozl-p51"
+        "41.3",
+        "56.7"
       ]
     },
     "42.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 42 (PR landing and the setup command). See R89.1, R89.2, R89.4; §4.26.",
+      "summary": "Phase 42. Setup target and source access in one preview. See R89.1, R89.2, R89.4; §4.32.",
       "acceptance": [
-        "`avoozl setup`: project config and GitHub in one preview",
-        "A second run says \"Nothing to change\" and writes nothing."
+        "Setup target and source access in one preview",
+        "Preview registered code/plan roots, target/base, trusted forks and separate push/merge access. Do not create task labels, Project or issue types. Publish issue is a separate spec action; a no-change retry writes nothing."
       ],
       "completion": "integrated",
       "checks": [
@@ -6627,19 +6636,16 @@
     "42.4": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 42 (PR landing and the setup command). See R87.8; §4.26.",
+      "summary": "Phase 42. Review Avoozl repository settings against owner policy. See R87.8; §4.26.",
       "acceptance": [
-        "Avoozl's own repository lands with `pr` and three required checks",
-        "Linux, macOS and Windows required."
+        "Review Avoozl repository settings against owner policy",
+        "Owner-only: preview and report the current landing/check policy. Preserve the owner's disabled required-CI gate; do not restore three required checks automatically. Apply a real settings change only if explicitly authorized."
       ],
-      "completion": "integrated",
-      "checks": [
-        "npm test",
-        "git diff --check"
-      ],
+      "completion": "person",
       "requires": [
         "42.3"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p52": {
       "kind": "leaf",
@@ -6657,8 +6663,7 @@
       "requires": [
         "42.1",
         "42.2",
-        "42.3",
-        "42.4"
+        "42.3"
       ]
     },
     "43.1": {
@@ -6682,10 +6687,10 @@
     "43.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 43 (Worker machines pull work). See R90.3, R90.5; §4.26.",
+      "summary": "Phase 43. Pull minimal offers and qualified task refs. See R90.3, R90.5, R102.7; §4.32.",
       "acceptance": [
-        "Pull: list ready issues in one read, solo by assignee and team by pool",
-        "At most one issue per free lane; the result is a branch or a pull request."
+        "Pull minimal offers and qualified task refs",
+        "Read authorized offers from the spec journal, not ready issues. Resolve source repository/ref/SHA including forks separately from target/base; at most one offer per free lane. An unregistered URL cannot create a clone or command."
       ],
       "completion": "integrated",
       "checks": [
@@ -6699,10 +6704,10 @@
     "43.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 43 (Worker machines pull work). See R90.4; §4.26.",
+      "summary": "Phase 43. Canonical claim reservation and generation acknowledgment. See R90.4, R102.14; §4.32.",
       "acceptance": [
-        "Team claim: claim comment, earliest wins, loser deletes and stops",
-        "Enforced in code; a fake GitHub test with two workers posting in either order; one starts."
+        "Canonical claim reservation and generation acknowledgment",
+        "Reserve one task ref in the spec's canonical claim namespace before acknowledging a worker. A worker without write access requests reservation. Race two forks with identically named branches: one acknowledgment, no loser execution; an over-cap request never starts. Comments are not CAS."
       ],
       "completion": "integrated",
       "checks": [
@@ -6716,10 +6721,10 @@
     "43.4": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 43 (Worker machines pull work). See R90.6; §4.26.",
+      "summary": "Phase 43. Person-only release and stale-claim status. See R90.6, R102.14; §4.32.",
       "acceptance": [
-        "Claim release and the stale-claim Needs you row",
-        "Release on landed, blocked or given up; release after a second vanish; never on quiet or a lease; a person-only **Release claim** after `workers.claimStaleAfter`."
+        "Person-only release and stale-claim status",
+        "Reconcile claims across takeover; a settled verified result may close its claim. Quiet, lost leases and vanished chats never release automatically. Needs you offers person-only Release claim after workers.claimStaleAfter."
       ],
       "completion": "integrated",
       "checks": [
@@ -6733,10 +6738,10 @@
     "43.5": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 43 (Worker machines pull work). See R90.2; §4.26.",
+      "summary": "Phase 43. Verify fetched worker results before integration. See R90.2, R102.6, R102.7; §4.32.",
       "acceptance": [
-        "Scheduler lands a worker's result only after its own diff check and checks",
-        "A worker branch with a file outside declared paths is refused; checks rerun on the updated head."
+        "Verify fetched worker results before integration",
+        "Fetch the exact qualified checkpoint commit; independently check paths, protected paths and checks before integrating. Wrong repository/head, inaccessible fork or private metadata holds the result rather than completing it."
       ],
       "completion": "integrated",
       "checks": [
@@ -6750,10 +6755,10 @@
     "43.6": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 43 (Worker machines pull work). See R90.7, R90.8, R90.9; §4.26.",
+      "summary": "Phase 43. Executor-aware worker setup with access preview. See R90.7, R90.8, R90.9; §4.32.",
       "acceptance": [
-        "`avoozl worker setup` with a preview; SSH push kept only without GitHub access",
-        "Checks the login, push access and that Kiro Crew runs with the Avoozl app enabled."
+        "Executor-aware worker setup with access preview",
+        "Preview login, readable targets, writable source/forks and canonical claim access. Process workers may be headless; require Kiro Crew only for that executor. SSH envelopes stay only without GitHub access."
       ],
       "completion": "integrated",
       "checks": [
@@ -6767,10 +6772,15 @@
     "avoozl-p53": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 43 (Worker machines pull work). Proof. See R90; §4.26.",
+      "summary": "Phase proof. P53 Proof: two machines claim across fork locations. See R90, R102.14; §4.32.",
       "acceptance": [
-        "Proof: a second machine pulls, claims and completes tasks from a shared pool",
-        "Expected: (1) the second machine takes and completes tasks, and the scheduler lands each after its own checks; (2) exactly one claim wins and the loser's comment is gone; (3) nothing releases the quiet machine's claim, and Needs you shows it after the stale time; (4) its work lands."
+        "P53 Proof: two machines claim across fork locations",
+        "Setup: owner-provided second machine and login; isolated scratch workspace, registered target and forks, a published scratch spec issue and one canonical claim namespace.",
+        "Action: pull tasks on both machines; race for one task from different forks; leave one worker quiet past the stale interval; release only by authorized person, then finish.",
+        "Expected: one acknowledged winner and no loser agent; quiet never releases; exact fork results are independently verified and land once effectively. No task issue is created.",
+        "Also record: both source identities, canonical reservation and acknowledgment IDs, generations, exact checked and landed SHAs, permission verdicts and redacted call counts.",
+        "Failure means: fork-local duplicate claims, timeout replacement, credentials in agent sandboxes or unchecked landing. Write a live receipt under docs/evidence/; tests do not tick this proof.",
+        "Next decision: enable multi-machine pull for a shared spec, or repair canonical reservation/acknowledgment before allowing competing workers."
       ],
       "completion": "integrated",
       "checks": [
@@ -6789,10 +6799,10 @@
     "44.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44 (Issues and Pull requests pages). See R92.1; §4.27.",
+      "summary": "Phase 44. Landing queue panel and mobile navigation. See R92.1; §4.27.",
       "acceptance": [
-        "Issues and Pull requests in the pill nav, three columns",
-        "Nav, list, detail; full-width list and detail with a back control at 390 px."
+        "Landing queue panel and mobile navigation",
+        "Exact-portion list/detail; full-width list/detail with back control at 390 px. No new general Issues browser."
       ],
       "completion": "integrated",
       "checks": [
@@ -6806,10 +6816,10 @@
     "44.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44 (Issues and Pull requests pages). See R92.2, R92.6, R92.7; §4.27.",
+      "summary": "Phase 44. Cached queue rows, search and filters. See R92.2, R92.6, R92.7; §4.27.",
       "acceptance": [
-        "List rows, filters on one line, search and counts from the shared read",
-        "A test with a counting fake GitHub: a list load makes 0 calls beyond the shared read; the **Avoozl tasks only** filter."
+        "Cached queue rows, search and filters",
+        "Show target/base, source repository/ref/SHA including forks, portion, checks and state. Counting client: cached load/filter costs zero calls."
       ],
       "completion": "integrated",
       "checks": [
@@ -6823,9 +6833,10 @@
     "44.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44 (Issues and Pull requests pages). See R92.3, R92.6; §4.27.",
+      "summary": "Phase 44. Portion detail and visibility-safe spec links. See R92.3, R92.6; §4.27.",
       "acceptance": [
-        "Issue detail: header row, Markdown body, timeline, right column, lazy and cached"
+        "Portion detail and visibility-safe spec links",
+        "Show exact commits and accepted evidence; link the spec issue only when public visibility permits. Use GitHub for discussion."
       ],
       "completion": "integrated",
       "checks": [
@@ -6839,10 +6850,10 @@
     "44.4": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44 (Issues and Pull requests pages). See R92.4; §4.27.",
+      "summary": "Phase 44. PR checks, review and fork source in detail. See R92.4; §4.27.",
       "acceptance": [
-        "Pull request detail: checks, files changed, landing state",
-        "Queued, verifying, landing, landed, conflict round N."
+        "PR checks, review and fork source in detail",
+        "Show required checks, files summary, standing review, source identity and queue/conflict state; never show a stale head as current."
       ],
       "completion": "integrated",
       "checks": [
@@ -6856,10 +6867,10 @@
     "44.5": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44 (Issues and Pull requests pages). See R92.5; §4.27.",
+      "summary": "Phase 44. Queue actions with person-only boundaries. See R92.5; §4.27.",
       "acceptance": [
-        "Avoozl-owned actions only; person-only stays person-only",
-        "Release, hold, re-queue, Stop the line, open on GitHub; refused to an agent or MCP caller where person-only."
+        "Queue actions with person-only boundaries",
+        "Hold, re-queue, Stop the line and open on GitHub. Enforce person-only actions in operations, CLI and MCP."
       ],
       "completion": "integrated",
       "checks": [
@@ -6873,10 +6884,15 @@
     "avoozl-p54": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44 (Issues and Pull requests pages). Proof. See R92; §4.27.",
+      "summary": "Phase proof. P54 Proof: landing queue and cache on real GitHub. See R92, R102.7, R102.12; §4.27.",
       "acceptance": [
-        "Proof: the pages match Issue Radar's, and a list load costs no extra calls",
-        "Expected: screenshots next to Radar's show the same columns, row content and detail parts; a list load makes 0 calls beyond the shared read; a second detail open makes 0 calls."
+        "P54 Proof: landing queue and cache on real GitHub",
+        "Setup: isolated scratch workspace with two registered targets, one PR from a fork, and verified/unlanded portions; no real workspace tick.",
+        "Action: open queue and PR detail at 390 and 1280 px, light and dark; count reads; reopen an unchanged detail and filter cached rows.",
+        "Expected: exact target/source/portion and standing review shown; cached list/filter/detail cost zero extra calls; first new detail one read; pages usage attribution. Private spec references never render on a public surface.",
+        "Also record: screenshots, exact source and target SHAs, cache/conditional-call counters and owner screenshot approval. Live receipt under docs/evidence/; wait for owner approval before ticking.",
+        "Failure means: stale authority, leaked private links, extra list calls or unusable mobile layout. No Issue Radar parity comparison is required.",
+        "Next decision: owner approves the screenshots and remaining shared projection deletion, or names the queue detail to change."
       ],
       "completion": "integrated",
       "checks": [
@@ -6942,9 +6958,10 @@
     "45.4": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 45 (Remove the Issue Radar path). See R86.1, R91.3; §4.26.",
+      "summary": "Phase 45. Retire shared task projection and synchronization callers. See R86.1, R91.2, R91.3, R102.20; §4.32.",
       "acceptance": [
-        "Shared-module edits and the `coder` setting"
+        "Retire shared task projection and synchronization callers",
+        "Remove per-task projection, Project sync, issue close/completion/rebuild and old driver markers after binding retirement and replacement proofs. Keep spec issue publication, epic links, journals, explicit export, ranking, setup, receipts and the executor seam. No task-issue reconciliation remains."
       ],
       "completion": "integrated",
       "checks": [
@@ -6956,7 +6973,10 @@
         "45.2",
         "45.3",
         "avoozl-p53",
-        "avoozl-p54"
+        "avoozl-p54",
+        "56.5",
+        "56.9",
+        "avoozl-p66"
       ]
     },
     "45.5": {
@@ -7005,10 +7025,10 @@
         "npm test",
         "git diff --check"
       ],
-      "summary": "Phase 44 (Issues and Pull requests pages). See R92.9, R92.13; §4.27.",
+      "summary": "Phase 44. Shared paginated queue read fills the cache. See R92.9, R92.13; §4.27.",
       "acceptance": [
-        "One batched GraphQL read per repository per check fills the pages' cache",
-        "Issues, pull requests, labels, check state and linked issues come from one paginated query; the pages read only the cache."
+        "Shared paginated queue read fills the cache",
+        "Reuse the shared target PR/check read with fully qualified head identities. No task-issue list or full GitHub-browser mirror."
       ],
       "requires": [
         "44.1"
@@ -7022,10 +7042,10 @@
         "npm test",
         "git diff --check"
       ],
-      "summary": "Phase 44 (Issues and Pull requests pages). See R92.10, R92.16; §4.27.",
+      "summary": "Phase 44. Lazy current-version PR detail cache. See R92.10, R92.16; §4.27.",
       "acceptance": [
-        "Detail read: one GraphQL query on first open, cached by `updatedAt`, dropped when the item changes",
-        "Comments, files changed and check runs come from one query; nothing is read before a detail opens."
+        "Lazy current-version PR detail cache",
+        "Fetch once on first open; invalidate when source head, reviews or version changes. Journal/control refresh runs regardless of opening detail."
       ],
       "requires": [
         "44.6"
@@ -7039,10 +7059,10 @@
         "npm test",
         "git diff --check"
       ],
-      "summary": "Phase 44 (Issues and Pull requests pages). See R92.11, R92.12, R92.14; §4.27.",
+      "summary": "Phase 44. Conditional reads, joined Recheck and usage source. See R92.11, R92.12, R92.14; §4.27.",
       "acceptance": [
-        "Conditional REST, no browser polling, Recheck that joins, the `pages` source",
-        "Any REST read sends If-None-Match and a 304 counts as free; Refresh redraws only; Settings › GitHub shows `pages`."
+        "Conditional reads, joined Recheck and usage source",
+        "Conditional unavoidable REST, no browser polling; Refresh redraws. Concurrent Rechecks join; count actual rate-limit usage under pages."
       ],
       "requires": [
         "44.6"
@@ -7056,10 +7076,10 @@
         "npm test",
         "git diff --check"
       ],
-      "summary": "Phase 44 (Issues and Pull requests pages). See R92.15; §4.27.",
+      "summary": "Phase 44. Queue cache and call-budget tests. See R92.15; §4.27.",
       "acceptance": [
-        "Call-budget tests with a counting fake GitHub",
-        "500 cached issues cost 0 calls to open; 10 unchanged details cost 0; 10 changed pull requests cost 1 query per repository; scrolling and filtering cost 0; two Rechecks cost 1."
+        "Queue cache and call-budget tests",
+        "500 cached portions cost zero to list/filter; unchanged details zero; one new detail one read; changed PRs share per-repository reads plus pages; concurrent Rechecks join one read."
       ],
       "requires": [
         "44.7",
@@ -7948,6 +7968,260 @@
         "55.5",
         "55.6"
       ]
+    },
+    "56.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). Task outcomes, legacy values and branch-progress semantics. See R102.3, R102.4, R102.5, R102.20; §4.32.",
+      "acceptance": [
+        "Task outcomes, legacy values and branch-progress semantics",
+        "Define the task-definition digest and latest valid outcome reducer; done/skipped/landed complete, refused/reopened/unverified/stale hold. Explicitly carry forward unchanged evidence only on new approval.",
+        "Accept route: github and merged-pr without rewriting approved files. Branch checkmarks remain outside the revision hash and only verified in-spec dependencies may advance; cross-spec dependencies wait for accepted outcomes. Tests cover every outcome and unchanged source hashes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "56.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). Publish spec issues and validate the minimal journal. See R102.1, R102.2, R102.9, R102.10, R102.11; §4.32.",
+      "acceptance": [
+        "Publish spec issues and validate the minimal journal",
+        "Implement explicit per-spec publication, one issue per spec/epic and local-file parity. Approval alone makes no GitHub write. Keep epic links and existing issue ownership.",
+        "Schema/parser/writer/replay: allowlisted event fields, authenticated actor/permission, revision/digest/generation, previous links, complete pagination, operation-id deduplication and conflicting-duplicate hold. Mutation/missing linked records hold; document the undetectable-tail limit. Count no poll snapshots and reject prohibited public fields."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "56.1"
+      ]
+    },
+    "56.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). Qualified working heads, fork checkpoints and verified integration. See R102.6, R102.7, R102.8, R102.15; §4.32.",
+      "acceptance": [
+        "Qualified working heads, fork checkpoints and verified integration",
+        "Generalize spec homes and integration branches to source repository/ref/SHA and target/base. Discover PR fork heads; accept trusted owner-published pre-PR refs. Fetch only registered sources, validate relationships and exact commits; no arbitrary issue URLs or commands.",
+        "Driver creates one spec working branch per affected repository, integrates checked task refs serially, and keeps unfinished checkpoints separate. A fork needs no upstream branch copy. Content checks apply to all checkpoints; acceptance gates apply to verified integrations. Test recovery after database loss, fork deletion/rewrites, two identical branch names and absent upstream push access; sandboxed agents never receive push credentials."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "56.2",
+        "56.11",
+        "40.5"
+      ]
+    },
+    "56.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). Driver generations, guarded intents and landing reconciliation. See R102.5, R102.13, R102.14; §4.32.",
+      "acceptance": [
+        "Driver generations, guarded intents and landing reconciliation",
+        "Retain assignee/fallback authority and private handoff. Person-only takeover writes a generation; ambiguous concurrent takeovers hold. Revalidate controls/authority before dispatch and landing.",
+        "Write/read back exact candidate/base/task/evidence intent before guarded push or head-guarded merge. A displaced driver stops recording. Outstanding intents hold until actual landing reconciliation or safe void; deduplicate effective outcomes. A copied/stale trailer yields landed-unverified. Test the pause-before-push takeover race without claiming exactly-once execution."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "56.2",
+        "56.3"
+      ]
+    },
+    "56.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). Ordered issue-binding retirement without completing work. See R102.20; §4.32.",
+      "acceptance": [
+        "Ordered issue-binding retirement without completing work",
+        "Preview and apply: hold/stop ticks, disable projection and close reconciliation, retire only issue bindings/verdicts/dispatch flags without status or source changes, then run one tick and verify unchanged readiness with no task-issue reads/writes/recreation. Only after that offer closing obsolete issues; keep spec issues.",
+        "Tests close retired issues as done and not planned without releasing a successor; retry changes nothing and interrupted migration remains held. Real workspace migration is owner-only and is not run by this task."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "56.1",
+        "56.2"
+      ]
+    },
+    "56.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). Independent refresh and held reconstruction. See R102.12, R102.16, R102.17; §4.32.",
+      "acceptance": [
+        "Independent refresh and held reconstruction",
+        "Cache repository hashes separately from journal/assignee/control/review/check reads. Use conditional reads or available webhooks; unchanged definitions are not reparsed. Holds and reassignment are observed with no branch commit.",
+        "Rebuild from qualified heads, validated journal, actual landings and outstanding intents; restore claims and decisions, then hold until person Resume. Private spend travels only in private export; unknown is never zero. Tests cover missing tail, lost database, unavailable fork and unavailable private controls."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "56.4",
+        "56.5"
+      ]
+    },
+    "56.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). Epic design/review/implement rows and approval evidence. See R59, R102.18; §4.32.",
+      "acceptance": [
+        "Epic design/review/implement rows and approval evidence",
+        "Extend epic entries with step, default implement. Allow one row per (plan, step), forbid task fields/dispatch, derive design/review/implement from current member state; never hand-tick lifecycle rows.",
+        "Keep current merge-commit re-hash; persist actual approving reviewers separately from requester/merger/time after merge. Local approval is explicit. Request configured spec reviewers or honor CODEOWNERS/policy; add no universal second-person rule. Public PRs link only public spec issues."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "56.2"
+      ]
+    },
+    "56.8": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). GitHub intake with proportionate plans and private-safe status. See R102.19; §4.32.",
+      "acceptance": [
+        "GitHub intake with proportionate plans and private-safe status",
+        "Accept GitHub starts in plan/deliver. Bounded fixes use a compact versioned acceptance definition and the existing issue journal, without a full spec; coordinated design uses a proportionate spec. Reuse an issue only when home/visibility match.",
+        "Initial intake makes at most two idempotent writes: ownership label and safe status comment; never name a private spec on a public input. Only same-repository Deliver this uses Fixes; closure is withdrawal. Validate the ownership label excludes independent issue crews in a scratch proof before unattended rollout."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "56.2",
+        "56.7"
+      ]
+    },
+    "56.9": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). Idempotent task-issue offboarding export. See R102.19, R91.2; §4.32.",
+      "acceptance": [
+        "Idempotent task-issue offboarding export",
+        "Preview export-issues SPEC, create only incomplete task issues and blocked-by links, record stable export bindings, then mark Exported and cease dispatch/landing. A retry creates no duplicate issues or links; a partial failure stays held and resumes safely.",
+        "Make this the sole code path that creates task issues. Preserve visibility rules, person outcomes and journal access after offboarding."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "56.5",
+        "56.7"
+      ]
+    },
+    "56.10": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). Mirror import PRs and forward ancestry. See R102.21; §4.32.",
+      "acceptance": [
+        "Mirror import PRs and forward ancestry",
+        "After private divergence, import upstream into a public-tracking branch and a reviewed mirror PR. Forward recognition excludes upstream/import ancestry, including an import merge whose second parent is on the public-tracking branch.",
+        "Test divergent mirror updates and a second import; forwarding proposes nothing for imported upstream changes and still screens genuine private changes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "42.1",
+        "56.3"
+      ]
+    },
+    "56.11": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). Privacy enforcement for checkpoints and public metadata. See R87.9, R102.11, R102.12; §4.32.",
+      "acceptance": [
+        "Privacy enforcement for checkpoints and public metadata",
+        "Reuse existing content scanning in process before every outgoing push range and every externally visible journal/intake/PR/status write. Check ref names, commit messages, added lines and public metadata; apply the explicit journal schema without raw logs, commands, paths or private identifiers.",
+        "Tests insert made-up private names into branch names, commit messages, PR bodies, check summaries, records and artifacts and refuse publication before the first write. Preserve useful opaque IDs and public commit/check references. Private-plan mappings and sensitive controls remain private; hidden HTML grants no secrecy."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "56.2"
+      ]
+    },
+    "avoozl-p66": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). P66 Proof: journal, working-head recovery and takeover. See R102; §4.32.",
+      "acceptance": [
+        "P66 Proof: journal, working-head recovery and takeover",
+        "Setup: isolated scratch GitHub code and private planning repositories, published epic/spec issues, a three-task in-spec chain and one cross-spec successor, actual executor, direct landing and made-up secret canaries. No real workspace or private pilot.",
+        "Action: push an unfinished checkpoint, verify and integrate the first task, check branch marks; retry a journal write, mutate/delete a linked record; reconstruct after discarding a copied disposable database. Restore journal consistency, review and Resume. Pause the original driver immediately before a guarded push, take over, then resume it. Exercise stale/copied trailers, issue-binding retirement and a hold/reassignment without a commit.",
+        "Expected: checkpoints survive, unverified work releases nothing, only verified in-spec successors advance, cross-spec waits for accepted landing; mutation holds, replay deduplicates, reconstruction holds, old intents reconcile to one effective outcome and old generations authorize no new work. Migration changes no readiness and no task issues are read/created. All canaries are rejected before publication.",
+        "Also record: approved/definition digests, qualified refs and checked/landed SHAs, sanitized record/operation IDs, before/after frontier, intent/generation sequence, pause timing, permission and content-rule verdicts and actual GitHub call counts. Keep sensitive control detail private.",
+        "Write a live docs/evidence/ receipt. Failure means an unchecked/stale completion, a takeover double dispatch, lost hold, automatic reset of spend, task-issue side effects or a leak. Tests/fakes never tick this proof; owner-only actions remain explicit.",
+        "Next decision: use validated journal recovery for the private pilot, or repair the failed invariant before authorizing that rollout."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "56.3",
+        "56.4",
+        "56.5",
+        "56.6",
+        "56.7",
+        "56.8",
+        "41.3"
+      ]
+    },
+    "avoozl-p67": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). P67 Proof: fork source and upstream permissions. See R102.7, R102.8, R102.12, R102.19, R102.21; §4.32.",
+      "acceptance": [
+        "P67 Proof: fork source and upstream permissions",
+        "Setup: isolated scratch upstream and authorized fork, a contributor login without upstream push/merge rights and an authorized maintainer login, plus public and private scratch spec homes. Owner supplies needed accounts; use no real project settings.",
+        "Action: register a pre-PR fork head, checkpoint there, then discover a fork PR head. Rebuild from both while keeping the source branch out of upstream. Move the base and require a refreshed check/review; let the maintainer merge. Try an unregistered source and a private-plan reference on every public surface. Export twice; exercise a divergent mirror import.",
+        "Expected: fork branches work without upstream copies, source push rights never permit target merge, the exact checked/approved head is accepted from the maintainer merge, public/private homes remain separate, untrusted fetches and leaks are refused. Retry export creates nothing new; import is not forwarded upstream.",
+        "Also record: source and target repository/ref/SHA identities, both logins' permission results, PR head and merge SHA, standing review/check evidence, sanitized discovery and reconstruction records, export issue/link counts and import/forward ancestry. No credentials or private planning data in the receipt.",
+        "Write a live docs/evidence/ receipt; do not tick from tests or unavailable second-account behavior. Failure means a permission bypass, assumed upstream source branch, stale head or private disclosure.",
+        "Next decision: enable fork heads in ordinary worker pulls, or fix source resolution and permissions before enabling them."
+      ],
+      "completion": "person",
+      "requires": [
+        "avoozl-p66",
+        "42.1",
+        "42.2",
+        "56.9",
+        "56.10"
+      ],
+      "manual": true
     }
   }
 }

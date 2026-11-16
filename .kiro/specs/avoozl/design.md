@@ -1,5 +1,11 @@
 # Design: Avoozl as a Kiro Crew-native, GitHub-native product
 
+Owner pivot, 2026-11-16: Requirement 102 and design §4.32 govern issues,
+working heads, completion and handoff. They supersede conflicting per-task
+GitHub projection, task-issue completion, epic-only integration and snapshot
+rebuild rules in earlier requirements and the `radar-coder` spec. Historical
+completed tasks remain history, not instructions to recreate the retired path.
+
 ## Overview
 
 This design answers the approved requirements. It is the recommendation: what
@@ -3468,13 +3474,13 @@ runner tick). This section makes that the only shape.
 
 | #   | Decision                                                                                                                                                                                                          |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Avoozl pushes and merges. Per repository: `landing: direct \| pr \| off`. It lands only after checks pass on the updated head. Never force push. Avoozl's own repository uses `pr` with the Linux, macOS and Windows checks required |
+| 1   | Avoozl pushes and merges. Per repository: `landing: direct \| pr \| off`. It lands only after checks pass on the updated head. Never force push. Avoozl's own repository honors the owner-selected policy; do not restore its disabled required-check gate (R87.8) |
 | 2   | A vanished worker chat is resumed once, automatically, in the same worktree, only when Kiro Crew reports the chat gone. Never because it went quiet or its lease expired. A second vanish goes to Needs you       |
 | 3   | This Mac runs 3 lanes by default (the 50% CPU rule). More lanes come from remote hosts                                                                                                                            |
 | 4   | Only runner mode skipped Kiro Crew's project folder and MCP sharing. A local worker used `leaf.project`, and `plans_report` needed MCP sharing. Phase 40 adds the CLI report and `project: false` with the worktree path in the brief |
 | 5   | Kiro Crew's push-to-main policy checks chat shell commands. The tick is not a chat. Phase 40's proof shows a tick push goes through                                                                               |
 | 6   | Nupp lands `direct` on public `core-dev` from the start, with `scripts/worktree` and `scripts/test-changed`. Plans stay in a private planning workspace. No private mirror, forwarding or leak scan for this setup; the pre-push content rule is the one leak guard. The freeze on public `core-dev` is lifted |
-| 7   | Phase order and exits as in the table at the end of this section. Added the same day: worker machines pull work through GitHub (Phase 43), and Issues and Pull requests pages come before the Radar removal (Phase 44)                                                                                                                                                 |
+| 7   | Phase order and exits as in the table at the end of this section. Added the same day: worker machines pull work through GitHub (Phase 43), and the landing queue panel comes before remaining shared Radar removal (Phase 44; revised by §4.32)                                                                                                                                                 |
 
 **The loop.**
 
@@ -3490,9 +3496,7 @@ Avoozl    Avoozl     chat     Avoozl     Avoozl   Avoozl (Stop the line)
   still win, as in RC31.
 - **Prepare.** `createWorktree` (`src/app/git.mjs`) gets its first caller.
   With `scripts/worktree` present it runs only the hash-approved version
-  (R83.4); otherwise `git worktree add`. A task in an epic with an
-  integration branch is cut from that branch
-  (`src/app/github-linked-branches.mjs`, where `finalBase` is chosen today).
+  (R83.4); otherwise `git worktree add`. A task is cut from its spec's recorded working head, including an authorized fork (§4.32).
   After landing, the worktree and the local task branch are removed.
 - **Work.** The chat opens with `project: false`, its trust mode set, and a
   brief that names the worktree path, the task, its acceptance, its
@@ -3508,17 +3512,16 @@ Avoozl    Avoozl     chat     Avoozl     Avoozl   Avoozl (Stop the line)
   a timeout. A failure goes back to the same chat as one retry round
   (Requirement 8's bound).
 - **Land.** One queue per base branch, held by `withWorkLock`
-  (`src/app/git.mjs`) with kind `integration`. One task lands at a time.
+  (`src/app/git.mjs`) with kind `integration`. One exact portion lands at a time; direct trains follow §4.32.5.
 - **Accept.** Stop the line (Requirement 64) watches every head Avoozl
   landed. A red head pauses the queue for that base and opens a fix task.
 
-**Landing modes.**
-
-| Mode     | Steps                                                                                                                                                                       |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `direct` | Merge base into the task branch (merge commit); run checks on that head; fast-forward base to it; `git push origin <base>`. If base moved meanwhile, merge and check again |
-| `pr`     | `git push origin <task branch>`; open or reuse the pull request; merge base in when it moves; wait for required checks on the head; merge through the API; one at a time   |
-| `off`    | Verify only. The verified commit shows in Needs you; nothing is pushed                                                                                                     |
+**Landing modes.** `direct` checks an exact merged portion or bounded train
+against the current target base, then advances it with a guarded fast-forward.
+`pr` proposes an exact verified portion from the target repository or a fork;
+its own required checks and standing review govern the merge. `off` verifies
+only and pushes nothing. No force pushes or bypasses. See Requirement 87 and
+§4.32.5; a checkpoint is not a landing or acceptance receipt.
 
 A merge conflict goes back to the same worker chat with the file list, for
 `landing.conflictRounds` rounds (default 2), then to Needs you. The
@@ -3539,57 +3542,20 @@ the same brief and the last report quoted as data. A quiet chat or an
 expired lease changes nothing (AGENTS.md). A second vanish for the same
 task opens a Needs you item.
 
-**Lanes and worker machines.** Host `local` runs 3 lanes by default.
-Another machine runs Avoozl in worker mode, built on the plan-less runner
-role (`src/app/remote-runner.mjs`): it holds no plans, an envelope carries
-IDs only, and it resolves the repository and checks from its own
-`.avoozl.json`. Work moves by pull, through GitHub, following
-`docs/research/machine-conductors-2026-11-13.md` (an issue with an assignee
-as the queue, a pull request as the result; so far run only on local-file
-stand-ins):
+**Lanes, workers and ownership.** Three local lanes remain the default.
+Each spec has an issue-assigned driver, with an epic-assignee fallback only
+when unambiguous. Plan-less worker machines pull minimal offers, wait for a
+canonical claim reservation and generation acknowledgment, then publish task
+checkpoints. Fork-local refs are not global claims. Driver verification is
+repeated before integration/landing. Quiet and expired leases release nothing;
+claim release is person-only. Headless process workers need no Kiro Crew page.
+See §4.32.7–§4.32.10 and Requirement 90.
 
-```
-scheduler: approve, project, mark ready ──> GitHub issue (ready)
-worker tick: list ready (one read) ──> claim ──> worktree ──> chat edits, commits
-worker tick: read HEAD, run checks, push branch ──> branch or pull request
-scheduler: recheck diff (declared, protected), rerun checks ──> land queue
-```
-
-| Mode   | Queue                                         | Claim                                                                 |
-| ------ | --------------------------------------------- | --------------------------------------------------------------------- |
-| `solo` | Ready issues assigned to this machine's login | The scheduler's assignment; the marker's machine claim picks the Mac  |
-| `team` | Ready issues in the shared pool               | A claim comment with Avoozl's marker; the earliest one wins           |
-
-The team claim is enforced in code: post the claim, read the comments
-again, and go on only when your claim is the earliest by creation time,
-then lowest comment ID. A loser deletes its comment and starts nothing.
-This is the claim `src/app/tick.mjs` says a second dispatcher would need.
-
-A claim ends when its worker releases it (landed, blocked, gave up), when a
-person releases it, or when the claiming machine's chat vanished twice
-(Requirement 88.4), after which that machine releases it and opens Needs
-you. It never expires because the worker went quiet. After
-`workers.claimStaleAfter` (24 h) with no heartbeat from the claiming
-machine it shows in Needs you with a person-only **Release claim**.
-
-The scheduler never trusts a worker machine: it checks the diff against
-declared and protected paths again and reruns the checks on the updated
-head before it lands. SSH push of an envelope (Requirement 84) stays only
-for a machine with no GitHub access. `avoozl worker setup` previews and
-writes the worker config, checks the login and push access, and checks
-that Kiro Crew runs with the Avoozl app enabled. There is no per-spec
-driver lock; a person moves a workspace by export and import.
-
-**Setup.** `avoozl setup REPO` previews, then applies with `--yes`:
-
-- project config: root, base, checks, protected paths, helper hash, landing;
-- under `pr`: the branch ruleset's required checks (update, never a second
-  rule of the same kind), the allowed merge methods, the CI variable, and
-  the `avoozl/verify` commit status on each verified head
-  (`createCommitStatus`, `src/app/github.mjs`, first caller);
-- RC27's labels, Project and issue types, in the same preview.
-
-A second run with nothing to change writes nothing.
+**Setup.** Preview registered roots, target/base, checks, protected paths,
+approved helper, source/fork access and landing policy. Under `pr`, preview
+required rules, merge methods and statuses without duplicating rules. Do not
+create task labels, Project or issue types. Publish issue is a separate
+per-spec action. Real settings changes still need owner authorization.
 
 **Approval.** The local hash receipt is the approval. The approval pull
 request (RC3.6) stays only for a spec whose home branch is protected.
@@ -3615,56 +3581,23 @@ mirror and forward flow (RC24–RC26) is not used for this setup.
 | 41. Scheduler and direct landing        | The 13 pilot tasks on Nupp land, with owner minutes, credits and wall-clock per task recorded |
 | 42. PR landing and the setup command    | Ten tasks land on a repository with a required check                                          |
 | 43. Worker machines pull work           | A second machine with a second GitHub login pulls, claims and completes tasks from a shared pool on real GitHub; a race between two workers shows exactly one claim wins |
-| 44. Issues and Pull requests pages      | The pages match Issue Radar's at 390 and 1280 px, light and dark; a list load makes 0 extra GitHub calls |
+| 44. Landing queue panel      | The landing queue shows exact portions and fork heads at 390 and 1280 px, light and dark; cached lists make 0 calls |
 | 45. Remove the Issue Radar path         | Leaf audit any time; 45.2 after P52; 45.2/45.3 have exclusive shared-file access; remaining shared edits last; compatibility names still resolve                   |
 
-### 4.27 Issues and Pull requests pages
+### 4.27 Landing queue panel
 
-Added 2026-11-15 (Requirement 92). Issue Radar goes away, so Avoozl shows
-issues and pull requests itself. The look and behavior follow Kiro Crew's
-Issue Radar app; Avoozl rebuilds them in its own code and copies no files.
+Revised 2026-11-16 (Requirement 92). Replace the unbuilt Issues and Pull
+requests browser with a focused landing panel: target/base, qualified source
+head (including forks), exact portion, checks/review, landing state, linked
+public slice issue and applicable actions. At 390 px use full-width list
+and detail with back navigation. Screenshots at phone/desktop, light/dark
+wait for owner review. Open on GitHub for issue discussion and full PR browsing.
 
-```
-┌ nav ──────┐┌ list ─────────────────────────────┐┌ detail ──────────────────────┐
-│ Home      ││ [state▾][label▾][repo▾][Avoozl ☐] ││ #123 Title          [actions]│
-│ Specs     ││ [search……………………]        41 · 7 ││ opened 3d · author · state   │
-│ Issues  ● ││ #123 Title  ●open  lbl  @a  3d ✓ ││ body (Markdown)    │ labels  │
-│ Pull req. ││ #120 Title  ●open  lbl  @b  5d ✗ ││ comments, timeline │ assignee│
-│ …         ││ …                                 ││                    │ spec/task│
-└───────────┘└───────────────────────────────────┘└──────────────────────────────┘
-```
-
-- **List row:** number, title, state chip, labels, assignee or claimant,
-  age, CI state for a pull request, linked task or spec. Filters on one
-  line with search; counts at the right.
-- **Detail:** header row with title, meta line, state and actions; the body
-  as Markdown; comments and timeline; a right column with labels,
-  assignee, linked spec or task, linked pull requests or issues, checks and
-  merge state. A pull request adds its checks, a files-changed summary and
-  the landing state: queued, verifying, landing, landed, conflict round N.
-- **Actions:** only what Avoozl owns: release, hold, re-queue, Stop the
-  line, open on GitHub. Person-only actions stay person-only.
-- **Data:** the pages never call GitHub themselves (R92.9–R92.16).
-
-  | Event                      | GitHub calls                                                   |
-  | -------------------------- | -------------------------------------------------------------- |
-  | Check (tick)               | 1 batched GraphQL query per repository, paginated               |
-  | Open list, scroll, filter  | 0, read from the cache                                          |
-  | Open detail, first time    | 1 GraphQL query: comments, files changed, check runs            |
-  | Open detail, item unchanged | 0, cached under the item's `updatedAt`                          |
-  | Refresh                    | 0, redraws from the cache                                       |
-  | Recheck                    | At most 1 batched query per repository; a second one joins it   |
-  | Unavoidable REST           | Conditional with `If-None-Match`; a 304 counts as free          |
-
-  The batched query reads issues, pull requests, labels, check state and
-  linked issues together. A detail entry is keyed by item and `updatedAt`
-  and is dropped when the batched read shows a newer one. The browser does
-  not poll. Settings › GitHub counts these calls under the `pages` source
-  (RC29).
-- **Scope:** every repository in the workspace and every item in it, with
-  an **Avoozl tasks only** filter.
-- At 390 px the list and the detail each take the full width, with a back
-  control, as the other three-column pages do.
+The panel reads the shared tick cache; list/filter/scroll/Refresh make no
+calls. Fetch PR details lazily by current version; invalidate changed data.
+Concurrent Rechecks join the shared paginated read. Conditional REST and
+`pages` usage accounting stay. Journal, ownership and control invalidation
+run independently of opening the panel or changing a branch (§4.32.9).
 
 ### 4.28 Any harness runs the work; Kiro Crew stays the only UI
 
@@ -4185,6 +4118,417 @@ keeps the 10% rule. With fewer on either side it records
 shortcut: one page of 100 artifacts per list; a repository that writes more
 than 100 between two checks misses the oldest. Read a second page if Flow
 shows the cap hit.
+
+### 4.32 Working branches and a spec journal
+
+Added 2026-11-16 (Requirement 102, owner pivot). This section governs the
+revised loop and supersedes conflicting task-issue projection/completion,
+epic-only integration and snapshot recovery rules in earlier sections and
+`radar-coder`. It is a plan, not a claim that these behaviors already ship.
+No separate record branch is created.
+
+Git holds design and implementation. One issue per spec/epic holds ownership
+and minimal durable outcomes; SQLite caches local execution. Tasks stay in
+the spec. Public PRs reference their public slice issue; private slice links
+stay private. Forks are source locations, not workflow modes. Existing
+executor, sandbox, ranking, build-receipt and review capabilities remain.
+
+#### 4.32.1 Progress and acceptance are different things
+
+| State | Meaning | May release |
+|---|---|---|
+| In progress | Work exists on a task's checkpoint ref | Nothing |
+| Verified on branch | The task passed its acceptance checks at an exact commit on the spec's working branch | Successors in the same spec with those exact prerequisite heads available |
+| Landed | Its change reached the declared landing branch with the required evidence | Successors in any spec |
+| Person outcome | An authorized person recorded `done`, `skipped`, `refused` or `reopened` | Per the table below |
+
+**Outcomes.** Each durable outcome is bound to the spec, the task, the approved
+revision hash and the **definition** (a digest of that task's manifest entry at that
+revision), plus the exact commit and the evidence.
+
+| Kind | Completes the task | Successors |
+|---|---|---|
+| `landed` | Yes | Released |
+| `landed-unverified` | No | Held |
+| `done`, `skipped` | Yes | Released |
+| `refused` | No (settled) | Held |
+| `reopened` | No | Held again |
+
+A task is complete only when its **latest** outcome is a completing kind **and** that
+outcome's definition equals the task's definition in the currently approved revision.
+An outcome on an older approved revision is reusable only after the new approval
+explicitly carries forward its unchanged definition and valid evidence. A changed
+definition or missing carry-forward is stale: not complete, one Needs you row.
+Packages complete from their children, as now.
+
+**Marks.** A checkbox on a working branch may show verified-on-branch progress, and the
+page labels that view as branch progress. Canonical progress and every cross-spec
+release use accepted outcomes only. A checked box on an unmerged branch never releases
+work in another spec, which does not have that code. Marks are already outside the
+approved hash (`withoutMarks`, `src/app/spec-plans.mjs:59-71,104-119`); no code writes
+one today.
+
+#### 4.32.2 A trailer identifies work; evidence accepts it
+
+Every landing commit Avoozl makes carries `Avoozl-Task: <id>@<definition>` (opaque where
+the plan is private). A trailer is only a pointer. Reconcile writes `landed` only when:
+
+1. The task exists in the currently approved revision and the definition matches.
+2. No completing outcome already exists for that definition.
+3. Acceptance evidence exists: an authorized landing intent carrying verified check,
+   path and review evidence for the exact candidate and its actual landing (4.32.7),
+   or re-verification at that commit — the diff stays inside declared paths, no
+   protected path is touched, the declared checks pass (`runCheckAt`,
+   `src/app/flow-line.mjs:38`), and the repository's review rule was satisfied
+   (`reviewVerdict`, `src/app/github-reviews.mjs:26`).
+
+Otherwise it writes `landed-unverified` and opens Needs you. Accepting that is
+person-only and writes `done`; it never manufactures a `landed`. A revert of a landing
+commit opens Needs you. Branch verification alone can never become `landed`.
+
+#### 4.32.3 Working branches
+
+Each spec has one active working branch per repository it changes. The branch may
+live in the target repository or an authorized fork. Avoozl records fully qualified
+references on the spec issue: repository identity, branch and exact commit, separately
+from the target repository and landing branch. Branch names alone are never identities. Code and plans stay separate where the plan is
+private: code goes to the code repository; the spec and its checkmarks stay in the
+planning repository.
+
+- **The spec's driver owns integration** into the working branch. Workers run in
+  isolated task worktrees and never push to it. Avoozl makes every commit and push, so
+  a sandboxed worker needs no GitHub credentials.
+- **Checkpoints.** Avoozl pushes useful checkpoints as work progresses. A checkpoint may
+  hold unfinished work and is never acceptance evidence.
+- **Where unfinished work goes (my resolution of an open point).** Unfinished work is
+  checkpointed on the task's own ref under the spec's namespace. The driver integrates
+  a task into the spec's working branch at the commit where it passed its checks. This
+  keeps the working branch a sequence of verified integrations, so a portion can be
+  landed by naming a commit, with no cherry-pick. If unfinished work were pushed onto
+  the spec branch itself, landing a portion would drag it along.
+- **Portions.** A working branch need not become one large pull request. Reviewable
+  portions land while the spec continues (4.32.5).
+- **Exact commits.** A landing intent names an exact commit or range and its tasks. It
+  never means "the current head".
+- Builds on the per-epic integration branch that exists today, which the existing module reads but
+  does not create (`src/app/integration-branch.mjs:1-4`, `src/app/git.mjs:230-295`).
+  Generalize it to one per spec and have Avoozl create it.
+- An externally pushed unverified head is only a checkpoint until the driver
+  verifies its exact commit; retain the last verified head for portion selection.
+  Branch deletion never means completion. Checkpoint pushes do not claim checks passed;
+  local acceptance gates apply to verified integrations and landing, while content and
+  sandbox controls apply to every checkpoint. CI trigger changes require owner review.
+
+#### 4.32.3a Forks are ordinary working-branch locations
+
+A person may push a spec's working branch or task checkpoints to their fork. Avoozl
+fetches and verifies those commits and opens or observes a pull request against the
+registered upstream repository. No upstream copy of the source branch and no separate
+fork workflow mode is required.
+
+- **Discovery.** An existing pull request supplies its head repository, ref and SHA.
+  Before a pull request exists, the driver publishes the authorized working-head
+  reference on the spec issue. Listing only the target repository's refs is insufficient.
+- **Registration.** Fetch only from a repository allowed by trusted project setup or an
+  authorized owner action. Issue prose and branch contents cannot register a clone URL,
+  local path, build command or remote. Verify the source repository's relationship to
+  the configured target and validate the exact fetched commit and intended base.
+- **Permissions.** Source push rights and target merge rights are separate. A contributor
+  can checkpoint to a fork without upstream write access. An authorized maintainer
+  lands the pull request; Avoozl observes it if its own login cannot merge. It does not
+  relax upstream reviews, checks, fork workflow approvals or secret restrictions.
+- **Local storage.** Reuse a registered checkout with isolated task worktrees, or a
+  dedicated clone where required. The repository mapping and exact refs determine
+  what is fetched, not a requirement to clone once per branch.
+- **Journal home.** The spec issue remains in its registered canonical home; a fork checkout does
+  not relocate that home or require issues to be enabled on the fork. A private planning
+  repository does not become public because its code branch lives in a public fork.
+- **Claims.** Fork-local branch creation cannot elect a global winner. Each spec names
+  one canonical claim namespace in a repository writable by its driver. The driver
+  reserves a task's claim ref there before acknowledging it, even when checkpoints
+  live elsewhere. A worker without write access requests the reservation; it waits
+  for the current generation's acknowledgment before starting. Two forks with the same
+  branch name are distinct results competing for the same canonical reservation.
+- Fork deletion, an inaccessible fork, or a source branch rewritten by its owner holds
+  affected work and offers recovery from a retained verified commit; none means done.
+  Avoozl itself never force pushes.
+
+#### 4.32.4 The spec journal
+
+Durable records are structured comments on the spec's issue. The client calls exist
+(`listIssueComments`, `createIssueComment`, `src/app/github.mjs:768,962`).
+
+**Recorded:** accepted outcomes, reopenings and manual decisions; verified branch
+checkpoints needed for handoff; approval evidence; holds, stops and decisions with their release;
+driver-generation changes, claim acknowledgments and landing intents.
+
+**Never recorded:** polling results, unchanged frontiers, rankings, routine checkpoint
+notices.
+
+- One compact record per significant transition, batching related outcomes.
+- Each record has a stable **operation id**; a retried write yields one effective
+  transition.
+- **Order** is the GitHub-assigned comment id; records are fully paginated before
+  replay. Duplicate operation ids must have identical payloads or the affected state holds.
+  Conflicting chain children or ambiguous actor/generation ordering also hold the
+  affected state; a later comment cannot silently overwrite that conflict.
+- **Replay validates** the actor, the revision, the definition digest and the driver
+  generation. The actor is the comment's authenticated author and their permission,
+  never a name inside the record.
+- **Edits and deletions.** Each record links to the previous one (id and digest). A
+  changed or missing record makes the affected state unresolved and held. It never
+  grants approval or completion. A missing tail record cannot be detected from the
+  journal alone; a `landed` record is recoverable from git by re-verification, and a
+  rebuilt spec comes back held (4.32.10).
+- **Not a lock.** A comment is not compare-and-swap storage. Safety comes from guarded
+  branch updates and the takeover protocol (4.32.7).
+- **Publication:** Publish issue is an explicit per-spec action, independent of approval,
+  not a workspace mode. A GitHub-backed run needs a published spec issue for its journal;
+  approval alone makes no GitHub write. A workspace without GitHub uses the same journal
+  protocol in a local file; cross-machine handoff then needs an explicit export.
+
+**Data minimization is a requirement.** A hidden HTML comment only affects rendering;
+its content has the issue's visibility. The record schema is explicit and holds only:
+
+- protocol version, opaque operation, spec, task and driver identifiers;
+- event kind, generation, previous record id and digest, and required control flags;
+- revision and definition digests;
+- authorized repository identities, branch and exact commit or pull request references;
+- the outcome and minimal check-result references.
+
+Excluded: transcripts, raw output, command arguments, environment variables, absolute
+paths, machine names, workspace or database identifiers, and private execution timing or spending. Actor identity comes from authenticated GitHub metadata.
+Public records contain no private spec names, task titles, repository names or URLs.
+Private names and control details remain on private surfaces; public control events
+carry only the allowlisted flag and opaque id needed to enforce them.
+
+- Private-plan records go on the private spec issue. Public branches and commit messages
+  use opaque identifiers. A private issue may reference a public pull request; the
+  public pull request never names the private issue, repository or tasks. When both
+  are public, the pull request references the spec issue so GitHub supplies its timeline.
+  The rule covers record bodies, refs, commit messages, pull request titles and bodies,
+  check summaries and application-authored logs or artifacts published externally.
+- Sensitive controls, including private spending, travel in a private handoff record.
+  The driver handoff export already exists (`src/app/driver.mjs`, `REBUILD_LOSSES:47`).
+  A public reconstruction reports those values as unavailable and stays held. It never
+  resets them to zero.
+
+#### 4.32.5 Landing
+
+Builds on phases 40–42, revised by Requirement 102.
+
+- **Content rule in process.** Before every externally visible write, with an explicit
+  visibility-aware allowlist for journal data. Before every checkpoint or landing push,
+  validate the outgoing range, added lines, commit messages and ref names in process.
+  Reuse the existing push scanner and `enforceDiff` rather than relying on a shell hook.
+- **Hold the lock briefly.** `withWorkLock` kind `integration` blocks every validation
+  (`src/app/git.mjs:36-52`). Hold it for the ref move and push only.
+- **`direct`: a portion is an exact commit on the working branch.** The landing worktree
+  merges it with the current base, checks that head once, fast-forwards, pushes. A
+  train may combine portions of several specs the same driver schedules, up to four
+  tasks. On failure, halve and retry (`findCulprit`, `src/app/flow-line.mjs:107`).
+- **`pr`: a portion is one pull request** from a ref at that exact commit. Its head has
+  its own passing required checks and its own standing approval, so several tasks can
+  land together under protected review. Avoozl updates only a source branch it is authorized to write,
+  and only for the pull request at the head of the queue. Read-only upstream access
+  permits proposing and observing a landing, never authorizing it. If the repository dismisses stale approvals, an update after
+  approval means a new review request, not a merge.
+- After a portion lands, the base is merged back into the working branch with a merge
+  commit. Never a force push.
+- **Union paths (direct only).** `landing.unionPaths` names append-only registry files
+  that merge with union semantics in the landing worktree.
+
+#### 4.32.6 Slices: sharing design and review
+
+A slice is a spec.
+
+| Role | Recorded | Used for |
+|---|---|---|
+| Owner | Assignee on the spec's issue | Drafts the spec; their Avoozl is its driver |
+| Spec approver | Approval evidence in the journal | The design review |
+| Code reviewers | Per spec in `.avoozl.json`, else CODEOWNERS | Approving the slice's pull requests |
+
+- At pull request open, call `requestReviewers` (`src/app/github.mjs:1490`); before
+  landing apply `reviewVerdict` and `branchReviewRule`
+  (`src/app/github-branch-rules.mjs:43`).
+- Avoozl adds no review rule of its own; it honors the repository's. Where a rule
+  requires approval, GitHub will not let the author approve, so that slice needs a
+  second person. With no rule (solo, `direct`), the owner may approve the spec locally.
+  Approval is still an explicit act on the exact revision.
+- **Approval evidence** is written after the merge, never inside the approval commit:
+  `requestedBy`, the approving reviewers, `mergedBy`, the merge commit, and `verified`
+  only when the spec re-hashed at that commit equals the approved hash. The code keeps
+  `requestedBy` and `mergedBy` today (`src/app/spec-approval.mjs:443-461`). A local
+  approval records `kind: local`.
+
+**Epics.** One epic spec whose rows are the lifecycle of each member spec, with an epic
+issue and one sub-issue per member (`addSubIssue`, `src/app/github.mjs:1002`). Today an
+epic entry may hold only `plan` and `summary` (`src/app/spec-plans.mjs:627-716`); add
+`step`. An entry may hold `plan`, `summary` and `step: design | review | implement`.
+Legacy entries without `step` mean implement. A plan may occur once per step, with
+no duplicate plan/step pair. Rows are derived, never hand-ticked:
+
+| Row | Done when |
+|---|---|
+| Design X | X exists as a draft and its owner has asked for approval |
+| Review X with team | Verified approval evidence exists for X's current revision |
+| Implement X | Every leaf and person task of X is complete under 4.32.1; none refused or stale |
+
+#### 4.32.7 One driver per spec, with a generation
+
+The driver's generation is a journal record. Take over is person-only for the effective owner: the single spec assignee,
+else the single epic assignee. Ambiguous ownership holds work. It writes the next
+generation with a new opaque driver id.
+
+**Landing protocol.**
+1. **Intent.** Write an intent record: the exact commit or range, the base head it must
+   advance from, the tasks with their definitions and evidence, and the generation.
+2. **Read back.** Read the journal again. If a newer generation exists, or authority/controls changed,
+   the old driver stops. A takeover after the intent keeps it outstanding for
+   reconciliation; it does not erase that authorization.
+3. **Land** with a guarded update: a fast-forward from that exact base head, or a merge
+   call guarded by the pull request's head.
+4. **Outcome.** Before writing, read the journal again. A displaced driver writes
+   nothing further.
+
+**After take over** the new driver:
+- holds every task named in an outstanding intent of the old generation;
+- if that commit is on the base, writes its outcome once, from the intent's evidence;
+- otherwise shows Wait or Void. Void is allowed when the base has moved past the
+  intent's base head, or when the person confirms the old driver is stopped.
+
+Stale-generation records can never authorize new work. Duplicated work is possible. A takeover cannot retract an already authorized
+intent on an unchanged base. Guarded ref updates and operation-id replay ensure one
+effective acceptance of that landing; they do not promise exactly-once execution or
+atomic journal writes across machines. Concurrent or ambiguous takeover requests hold
+dispatch until the authorized owner resolves the generation; comments are not a mutex. Before every dispatch and
+every landing, the driver revalidates current authority and controls (4.32.9).
+
+#### 4.32.8 Worker machines
+
+Only when one is configured. They are plan-less and never push to the working branch.
+
+1. The driver computes the ready set from the approved graph and validated journal,
+   and publishes minimal offers for authorized worker logins. A journal is not a second
+   copy of the task graph; an offer contains only opaque IDs, digests and authorized refs.
+2. The driver atomically creates a canonical claim ref for the selected worker (4.32.3a).
+   A competing creator loses; a reservation in another fork has no authority.
+3. The worker starts only after the driver's acknowledgment with the current generation,
+   within the lane cap. A claim held during a takeover is reconciled, not reissued.
+4. Its Avoozl, outside the agent sandbox, pushes checkpoints to the task ref in its
+   authorized source repository. The driver fetches, verifies and integrates them.
+
+A claim never expires because a machine went quiet. Release is person-only. Tasks that
+unblock more than a threshold stay on the driver's own lanes.
+
+#### 4.32.9 Refresh git and GitHub independently
+
+| Cached | Invalidated by |
+|---|---|
+| Repository contents | The branch head and the relevant file hashes (`src/app/repo-files.mjs`) |
+| Journal records | Conditional requests, or a webhook where the host provides one (`issueActivity`, `src/app/github.mjs:657`) |
+| Pull request reviews, checks and merge results | Their own reads, independent of branch commits |
+
+Reparse a spec only when its definition changes. Refresh progress when marks or journal
+records change. Ownership, approval, holds and CI change without a commit, so a branch
+change is never the only refresh signal.
+
+#### 4.32.10 Handoff through branches and the issue
+
+A new owner:
+1. Fetches the recorded working branches.
+2. Reads the spec and the validated journal.
+3. Reconciles exact landing commits and outstanding pull requests.
+4. Reconstructs progress, claims, decisions and outstanding intents.
+5. Reviews the reconstruction and resumes.
+
+The spec comes back **held after rebuild**: nothing dispatches until a person presses
+Resume. Previously authorized landings that finish after take over are handled as in
+4.32.7. Disposable: attempt logs, transcripts, Flow spans, queue order.
+
+#### 4.32.11 Intake, Issue Radar beside it, and offboarding
+
+- A single bounded fix may run directly from its input issue, with a compact acceptance
+  definition, exact-head checks and a pull request. It need not become a full spec.
+  Multiple coordinated changes or design choices become a proportionate spec; several
+  separately owned areas become an epic. Reuse the input issue as the spec issue only
+  when its repository and visibility match the spec's home.
+- `intake.plan` and `intake.deliver` must accept GitHub items; today they refuse them
+  (`src/app/intake.mjs:1134`).
+- **Initial intake** makes at most two idempotent writes on the filed issue: a `crew:avoozl` label
+  and one status comment. The comment names the spec only where visibility permits;
+  a public input never names a private plan or its repository. Radar crews drop any issue carrying a `crew:` label
+  (`crew_brief.md:95-103`). Later journal writes on the spec issue are separate and
+  legitimate.
+- `Fixes #N` is allowed in a pull request body for Deliver this only, in the same
+  repository. A close of an input issue is read as withdrawal.
+- Radar runs beside Avoozl with no code tie.
+- **Offboarding:** `avoozl spec export-issues SPEC`, with a preview: one issue per task
+  that is not complete, then blocked-by links, then `Status: Exported`. This is the
+  only code that writes task issues.
+
+#### 4.32.12 Smaller rules
+
+- **Person tasks.** `completeManual` (`src/app/manual-tasks.mjs:101`) writes a journal
+  record instead of closing an issue.
+- **Spec edits.** A changed definition makes earlier outcomes stale. A changed or
+  removed task with a live ref goes to Needs you.
+- **Old manifest values.** Reinterpret, never rewrite. `route: github` means "lands
+  through the queue"; `merged-pr` means "landed". Sites: `src/work-model.mjs:128-140`,
+  `src/app/plan-quality.mjs:59-63`, `src/app/delivery.mjs:2019-2030`.
+
+
+#### 4.32.13 Repository layouts and migration
+
+The same loop supports code and plans together, public code with private
+plans, and private mirrors. Repository layout determines visibility; fork
+location never chooses a different loop. Working heads and checkpoints may
+live in authorized forks in each layout. Mirror imports use reviewed PRs;
+forwarding recognizes imports whose second parent is upstream ancestry and
+does not propose those commits back upstream.
+
+Retire task-issue bindings in this order:
+1. Hold release and stop that workspace's ticks.
+2. Install the build that disables task projection and close reconciliation.
+3. Preview and retire issue numbers, node IDs, verdicts and dispatch flags;
+   preserve task statuses and approved source files.
+4. Run one tick: unchanged ready set, no task-issue reads/writes or recreation.
+5. Only then close obsolete task issues. Existing spec issues remain journals.
+
+An allowed close currently means done by order or skipped and releases
+successors (`github-close.mjs`), so step 5 cannot precede step 4. A failed
+migration stays held and reports its unchanged/changed bindings; retry is
+idempotent. No live workspace is migrated by a spec-editing pull request.
+
+Retain the legacy manifest spellings `route: github` (landing queue) and
+`merged-pr` (accepted landing). Do not rewrite approved plans to rename them.
+
+#### 4.32.14 Module changes and implementation order
+
+- Replace task projection/sync/rebuild/close/completion and Project state
+  with journal validation, outcome reduction and spec issue publication.
+  Keep epic issue links. Move task rendering to the explicit export path.
+- Generalize integration and spec homes to qualified working heads. Keep
+  checkpoint push plumbing; stop publishing task snapshots as GitHub state.
+- Replace the old issue-marker driver claim with generations/intents; keep
+  private handoff export. Keep pure release ranking and build observations.
+- Add head-guarded PR merge and qualified-ref discovery to the GitHub client;
+  do not interpret arbitrary remote URLs in issue content.
+- Phase 44 becomes a landing-queue panel (§4.27), not a GitHub browser.
+- Phase 56 supplies outcomes, journal, migration, qualified branches, driver
+  safety, refresh, recovery, epic/intake/export and mirror import changes.
+  Direct and PR landing remain Phases 41–42; worker claims remain Phase 43.
+  Phase 45 removes shared projection callers only after migration and the
+  replacement landing, worker and UI proofs. Phase 55's receipts remain.
+
+Build Phase 56's foundation while the live executor proof waits; branch
+integration still depends on verified worker preparation. Scratch proofs
+need live receipts. Private pilots, protected-file settings changes, extra
+machines and screenshot approval remain owner work, not reasons to stop
+unrelated implementation. See Phase 56's explicit dependency graph. Direct landing precedes P50
+(which exercises it); the private P51 pilot and real-repository settings
+review do not gate generic PR-landing implementation or scratch proofs.
+
 
 ## 5. Local workflow
 
@@ -4957,6 +5301,10 @@ P18 checks them (F39).
   that path until its plans move to spec folders (§10.2 step 11).
 
 ### 6.9 Epics across plans, phases inside plans
+
+Updated 2026-11-16: Requirement 59 and §4.32.6 add lifecycle `step` rows
+and replace the per-task issue layout below. Those revised rules govern;
+legacy entries without a step still mean implement. Tasks are never issues.
 
 **Proposed**, owner decision 2026-11-13 (Requirement 59). An epic is a goal
 that spans plans, such as a language rewrite. A phase is a group of tasks
@@ -6603,7 +6951,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P51   | Direct landing: the 13 Nupp pilot tasks land on public `core-dev`, with owner minutes, credits and wall-clock per task (Phase 41) |
 | P52   | PR landing: ten tasks land through pull requests on a repository with a required check, one at a time, none force pushed (Phase 42) |
 | P53   | Worker machines: a second machine and a second GitHub login pull, claim and complete tasks from a shared pool on real GitHub; of two racing workers exactly one claim wins (Phase 43) |
-| P54   | Issues and Pull requests pages next to Issue Radar's at 390 and 1280 px, light and dark; a list load makes 0 GitHub calls beyond the shared read (Phase 44) |
+| P54   | Landing queue with exact portions and fork heads at 390 and 1280 px, light and dark; owner screenshot approval and zero cached-list calls (Phase 44) |
 | P55   | After removal: one delivery path, the compatibility names resolve, no Radar module remains (Phase 45) |
 | P56   | The executor seam: today's calls behind it, the existing suite unchanged (Phase 46) |
 | P57   | Supervisor and `process` with Claude Code: a 3-task chain with a resume round, a killed child, a backend restart (Phase 47) |
@@ -6614,6 +6962,8 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P62   | The manual next, claim and report path (Phase 52) |
 | P64   | Steady CI waste caught on a real repository with no Avoozl tasks (Phase 54) |
 | P65   | Every receipt kept, failed attempts included, and a build breakdown compared by key in a retro (Phase 55) |
+| P66   | Live journal/checkpoint recovery, privacy, ordered migration and pause-before-push takeover on isolated scratch repositories (Phase 56) |
+| P67   | Fork PR source without upstream branch copies, separate contributor/maintainer permissions, idempotent export and mirror import (Phase 56) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
 requires a failed proof that a small Kiro Crew or GitHub contract cannot fix.
@@ -6655,8 +7005,8 @@ Detailed in `tasks.md`. **Proposed** order:
 | 40. Unattended basics | Trust re-applied each tick, report by CLI, `project: false`, the worktree helper and cleanup, warm checks off the tick, one resume for a vanished chat (§4.26) |
 | 41. Scheduler and direct landing | One scheduler, path holds, the per-base landing queue, `direct` landing, conflicts back to the same chat, epic branches (§4.26) |
 | 42. PR landing and setup | `pr` landing from the renamed arming code, `avoozl setup` with ruleset, merge methods, CI variable and commit status (§4.26) |
-| 43. Worker machines pull work | Worker mode on the runner role, pull from GitHub (solo assigned, team pool), claim comments where the earliest wins, `avoozl worker setup`, SSH only without GitHub access (§4.26) |
-| 44. Issues and Pull requests pages | Three-column Issues and Pull requests pages from the shared read, lazy cached detail, Avoozl-owned actions only (§4.27) |
+| 43. Worker machines pull work | Qualified task refs, canonical reservations and generation acknowledgments across forks; executor-aware setup (§4.26, §4.32) |
+| 44. Landing queue panel | Exact portions, qualified fork heads, checks/reviews and owned actions from the shared cache (§4.27) |
 | 45. Remove the Issue Radar path | Radar-only code, `verify-issue`, the provenance marker, the crew, relay and router agents; Delivery, Budgets and Files restored (§4.26) |
 | 46. Executor seam | The executor interface, the `kirocrew` executor, session requests by executor, prompts as files; runs before Phase 40 (§4.28) |
 | 47. Supervisor and process executor | Harness definition files, permission classes, `avoozl supervisor`, Claude Code, the child marker, one finish (§4.28) |
@@ -6667,6 +7017,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 52. Manual path | `next`, `claim`, `runner report` kept (§4.28) |
 | 54. Steady CI waste | File classes per pull request, repeat runs, fixed CI limits over every pull request, CI plan proposals with PDCA by class, the Flow CI card (§4.30) |
 | 55. Every build receipt | Every line of every receipt artifact, failed attempts kept, costliest phase in Flow, the build report format and breakdowns in the retro brief (§4.31) |
+| 56. Working branches and a spec journal | Qualified working heads and forks, durable minimal outcomes, guarded intents, held rebuild, epic lifecycle, intake/export and mirror imports; explicit dependencies in tasks.md (§4.32) |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
 

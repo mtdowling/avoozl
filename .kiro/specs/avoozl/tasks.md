@@ -1,7 +1,8 @@
 # Tasks: Avoozl as a Kiro Crew-native, GitHub-native product
 
-Ordered by phase. Each phase ends with its proofs; a phase starts only after the
-previous phase's proofs pass. Every proof lists setup, action, expected result,
+Grouped by phase. Explicit `after` lists and manifest `requires` govern
+execution; phase numbers alone do not impose a dependency. Each phase
+ends with its named proofs. Every proof lists setup, action, expected result,
 failure meaning, and the next design decision (Requirement 25.4). Requirement
 numbers are in brackets; section numbers refer to `design.md`.
 
@@ -1494,12 +1495,15 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
 
 Owner decision 2026-11-15 (Requirements 86, 88; design §4.26). Avoozl owns
 the coding loop. Exit: a three-task chain survives a gateway restart
-unattended. Runs after the executor seam (Phase 46, `avoozl-p56`).
+unattended. Runs after the executor seam (Phase 46, `avoozl-p56`). Phase 56
+foundation tasks without that dependency may proceed while the live proof waits.
 
-- [ ] 40.1 Worker brief edits and commits only, after avoozl-p56 [R86.3] (§4.26)
-  - The GitHub worker brief in `src/app/delivery.mjs` drops the push, pull request, auto-merge and merge steps; Avoozl reads `HEAD` from the worktree; a test asserts no brief tells a worker to push, open a pull request, merge or label.
-- [ ] 40.2 Report by CLI, matched by worktree and token, after avoozl-p56 [R88.2, R88.3] (§4.26)
-  - `avoozl report --task ID --token T`; the brief carries the token and the worktree path; local chats open with `project: false`; tests for a wrong token, a wrong worktree and a report with no MCP sharing.
+- [ ] 40.1 Worker brief edits and reports only, after avoozl-p56 [R86.3, R96] (§4.26)
+  - The brief drops push, PR, auto-merge, merge and comment steps. Avoozl commits sandboxed process results; chats/people may commit locally. Read HEAD from the worktree, never from a report. A prompt test enforces this boundary.
+
+- [ ] 40.2 Report by CLI, matched by worktree and token, after avoozl-p56 [R88.2, R88.3, R96.4] (§4.26)
+  - Use `avoozl runner report TASK done|blocked` for chats and people. Carry the worktree path and token in the brief; local chats use project: false. Test wrong tokens/worktrees and reporting without MCP sharing.
+
 - [ ] 40.3 Trust mode set at open and again every tick, after avoozl-p56 [R88.1] (§4.26)
   - A fake Kiro Crew that drops trust on restart; the next tick sets it again, once per chat.
 - [ ] 40.4 Prepare with the worktree helper and clean up after landing, after avoozl-p56 [R88.6] (§4.26)
@@ -1511,7 +1515,7 @@ unattended. Runs after the executor seam (Phase 46, `avoozl-p56`).
 - [ ] 40.7 Lanes: 3 on this Mac by default, after avoozl-p56 [R88.5] (§4.26)
   - `lanes.local` default 3; a fourth ready task waits.
 
-- [ ] avoozl-p50 P50 Proof: a three-task chain survives a gateway restart unattended, after 40.1, 40.2, 40.3, 40.4, 40.5, 40.6, 40.7 [R86, R87.10, R88] (§4.26)
+- [ ] avoozl-p50 P50 Proof: a three-task chain survives a gateway restart unattended, after 40.1, 40.2, 40.3, 40.4, 40.5, 40.6, 40.7, 41.1, 41.2, 41.3, 41.5 [R86, R87.10, R88] (§4.26)
   - Setup: an isolated Kiro Crew home, a scratch repository with a bare remote, a three-task chain, landing `direct`.
   - Action: (1) start the chain and leave it; (2) restart the gateway while task 2 works; (3) let the tick push the base.
   - Expected: (1) each task lands in order with its checks recorded; (2) trust is set again, task 2 goes on in the same worktree, no second chat unless Kiro Crew says it is gone; (3) the tick push goes through Kiro Crew's push policy; worktrees removed after landing.
@@ -1520,19 +1524,24 @@ unattended. Runs after the executor seam (Phase 46, `avoozl-p56`).
 
 ## Phase 41: Scheduler and direct landing
 
-Requirements 86, 87 (design §4.26). Exit: the 13 pilot tasks on Nupp, with
-owner minutes, credits and wall-clock per task.
+Requirements 86, 87 (design §4.26, §4.32). Direct landing is implemented
+before P50 exercises it; P51 is a separate owner-run private pilot after
+the scratch safety proof, with owner minutes, credits and wall-clock per task.
 
-- [ ] 41.1 One scheduler: Pick by unblock count with a repository-wide path hold, after avoozl-p50 [R86.2, R86.5, R86.9] (§4.26)
-  - RC31's ranking feeds Pick; overlapping declared paths hold a task in line; no cross-machine claim or driver lock is read.
-- [ ] 41.2 Landing queue per base branch with the work lock, after avoozl-p50 [R87.5] (§4.26)
-  - `withWorkLock` kind `integration`; one landing at a time per base; Stop the line pauses and keeps order.
-- [ ] 41.3 `direct` landing, after 41.2 [R87.1, R87.2, R87.4, R87.9] (§4.26)
-  - Merge base in, check that head, fast-forward, `git push origin <base>`; a moved base merges and checks again; the pre-push content rule runs first; never force push.
+- [ ] 41.1 Schedule spec drivers with repository-wide path holds, after 40.5, 56.4 [R86.2, R86.5, R86.9, R102.4] (§4.32)
+  - Use unblock ranking, current spec authority and generation, and repository-wide path holds. A verified-on-branch dependency releases only in-spec work based on that working head; cross-spec work waits for accepted outcomes.
+
+- [ ] 41.2 Per-base landing queue with brief integration locks, after 40.5, 56.4 [R87.5, R102.15] (§4.32)
+  - Preserve order on Stop the line; perform checks outside the integration lock, guard only ref movement and push. Test a concurrent base move cannot land an unchecked candidate.
+
+- [ ] 41.3 Direct portions and bounded landing trains, after 41.2 [R87.1, R87.2, R87.4, R87.9, R102.13, R102.15] (§4.32)
+  - Select exact verified portions, merge/check the current base, write an intent and guard the fast-forward. Up to four tasks for one driver; bisect failures. Merge declared append-only union paths only in the landing worktree. Check outgoing data before every push; never force push.
+
 - [ ] 41.4 Conflicts go back to the same chat, bounded; remove the resolver chat, after 41.3 [R87.6] (§4.26)
   - The conflicted file list in the brief; `landing.conflictRounds` default 2; then Needs you; `avoozl-conflict-fix` removed.
-- [ ] 41.5 Epic tasks cut from the integration branch, after 41.3 [R87.7] (§4.26)
-  - `src/app/github-linked-branches.mjs` and Prepare agree on the base.
+- [ ] 41.5 Prepare from spec working heads and merge landed bases back, after 41.3 [R87.7, R102.6, R102.15] (§4.32)
+  - Generalize RC16 from epic-only integration; Prepare and qualified-ref resolution agree on the exact spec base. Merge the landed target back with a merge commit; preserve verified but unlanded portions and unfinished task refs.
+
 - [ ] 41.6 Restore the Delivery page, Settings › Budgets and the Files and diff view, after 41.3 [R88.7] (§4.26)
   - From ba04389 and 70c2236, updated to the new loop; not Routing; screenshots for the owner.
 - [ ] 41.8 Nupp AGENTS.md clause for Avoozl-run work, after 41.3 [R91.5, R94.4a] (§4.26)
@@ -1540,7 +1549,7 @@ owner minutes, credits and wall-clock per task.
 - [ ] 41.7 Nupp setup: `direct` on public `core-dev` with the repository's helper and check, after 41.3 [R91.5] (§4.26)
   - `scripts/worktree` approved by hash, `scripts/test-changed` as the check; plans stay in a private planning workspace; no mirror or forward.
 
-- [ ] avoozl-p51 P51 Proof: the 13 Nupp pilot tasks land direct, after 41.1, 41.2, 41.3, 41.4, 41.5, 41.6, 41.7, 41.8 [R86, R87, R91.5] (§4.26)
+- [ ] avoozl-p51 P51 Proof: the 13 Nupp pilot tasks land direct, after 41.1, 41.2, 41.3, 41.4, 41.5, 41.6, 41.7, 41.8, avoozl-p50, avoozl-p66 [R86, R87, R91.5] (§4.26)
   - Setup: the Nupp compiler checkout, a private planning workspace with the 13 pilot tasks approved, landing `direct` on `core-dev`.
   - Action: release the pilot and leave it running.
   - Expected: each task lands on public `core-dev` after its checks; no private text in any commit message, branch name or added line; a receipt per task with owner minutes, credits and wall-clock.
@@ -1549,19 +1558,22 @@ owner minutes, credits and wall-clock per task.
 
 ## Phase 42: PR landing and the setup command
 
-Requirements 87, 89 (design §4.26). Exit: ten tasks on a repository with a
-required check.
+Requirements 87, 89 (design §4.26, §4.32). Generic PR landing does not wait
+for the private P51 pilot. Exit: ten tasks on a scratch repository with a
+required check; 42.4 is an independent owner settings review, not its gate.
 
-- [ ] 42.1 `pr` landing from the renamed arming and merge code, after avoozl-p51 [R87.3, R87.4, R91.2] (§4.26)
-  - Push the task branch, open or reuse the pull request, merge base in when it moves, wait for required checks, merge through the API one at a time.
-- [ ] 42.2 `avoozl setup`: project config and GitHub in one preview, after 42.1 [R89.1, R89.2, R89.4] (§4.26)
-  - A second run says "Nothing to change" and writes nothing.
+- [ ] 42.1 PR portions from target repositories or forks, after 41.3, 56.7 [R87.3, R87.4, R91.2, R102.8, R102.18] (§4.32)
+  - Open/reuse the PR from an exact verified source head without an upstream copy. Update only the queue head and writable source. Enforce that PR head's required checks and standing reviews; record actual approvers and merger. Without target merge permission, observe an authorized maintainer's merge. No protected-review trains.
+
+- [ ] 42.2 Setup target and source access in one preview, after 42.1 [R89.1, R89.2, R89.4] (§4.32)
+  - Preview registered code/plan roots, target/base, trusted forks and separate push/merge access. Do not create task labels, Project or issue types. Publish issue is a separate spec action; a no-change retry writes nothing.
+
 - [ ] 42.3 Setup: ruleset update without duplicates, merge methods, CI variable, commit status, after 42.2 [R89.3] (§4.26)
   - First caller of `createCommitStatus`; a fake GitHub test that a ruleset with the rule gets no second one.
-- [ ] 42.4 Avoozl's own repository lands with `pr` and three required checks, after 42.3 [R87.8] (§4.26)
-  - Linux, macOS and Windows required.
+- [ ] 42.4 Review Avoozl repository settings against owner policy, after 42.3 [R87.8] (§4.26)
+  - Owner-only: preview and report the current landing/check policy. Preserve the owner's disabled required-CI gate; do not restore three required checks automatically. Apply a real settings change only if explicitly authorized.
 
-- [ ] avoozl-p52 P52 Proof: ten tasks land through pull requests on a repository with a required check, after 42.1, 42.2, 42.3, 42.4 [R87, R89] (§4.26)
+- [ ] avoozl-p52 P52 Proof: ten tasks land through pull requests on a repository with a required check, after 42.1, 42.2, 42.3 [R87, R89] (§4.26)
   - Setup: a scratch GitHub repository set up by `avoozl setup` with one required check.
   - Action: release ten tasks; move the base during one; make one check fail.
   - Expected: ten pull requests merge one at a time after the check passes on each head; the moved base is merged in and checked again; the failed task goes back to its chat; no force push; setup run again changes nothing.
@@ -1576,54 +1588,68 @@ GitHub, and a race between two workers shows exactly one claim wins.
 
 - [ ] 43.1 Worker mode on the plan-less runner role, after avoozl-p52, avoozl-p61 [R90.1, R90.2] (§4.26)
   - Envelope with IDs only; repository and checks from the worker's own `.avoozl.json`; the worker reads `HEAD`, runs checks, pushes the branch.
-- [ ] 43.2 Pull: list ready issues in one read, solo by assignee and team by pool, after 43.1 [R90.3, R90.5] (§4.26)
-  - At most one issue per free lane; the result is a branch or a pull request.
-- [ ] 43.3 Team claim: claim comment, earliest wins, loser deletes and stops, after 43.2 [R90.4] (§4.26)
-  - Enforced in code; a fake GitHub test with two workers posting in either order; one starts.
-- [ ] 43.4 Claim release and the stale-claim Needs you row, after 43.3 [R90.6] (§4.26)
-  - Release on landed, blocked or given up; release after a second vanish; never on quiet or a lease; a person-only **Release claim** after `workers.claimStaleAfter`.
-- [ ] 43.5 Scheduler lands a worker's result only after its own diff check and checks, after 43.2 [R90.2] (§4.26)
-  - A worker branch with a file outside declared paths is refused; checks rerun on the updated head.
-- [ ] 43.6 `avoozl worker setup` with a preview; SSH push kept only without GitHub access, after 43.1 [R90.7, R90.8, R90.9] (§4.26)
-  - Checks the login, push access and that Kiro Crew runs with the Avoozl app enabled.
+- [ ] 43.2 Pull minimal offers and qualified task refs, after 43.1 [R90.3, R90.5, R102.7] (§4.32)
+  - Read authorized offers from the spec journal, not ready issues. Resolve source repository/ref/SHA including forks separately from target/base; at most one offer per free lane. An unregistered URL cannot create a clone or command.
 
-- [ ] avoozl-p53 P53 Proof: a second machine pulls, claims and completes tasks from a shared pool, after 43.1, 43.2, 43.3, 43.4, 43.5, 43.6 [R90] (§4.26)
-  - Setup: this Mac as scheduler; a second machine with a second GitHub login in worker mode, `team`; a scratch repository on real GitHub with a shared pool of ready issues.
-  - Action: (1) let both machines pull; (2) race two workers for one issue; (3) stop the second machine's ticks for a while; (4) let it finish.
-  - Expected: (1) the second machine takes and completes tasks, and the scheduler lands each after its own checks; (2) exactly one claim wins and the loser's comment is gone; (3) nothing releases the quiet machine's claim, and Needs you shows it after the stale time; (4) its work lands.
-  - Failure means: two workers start one task, a quiet worker is replaced, or a worker result lands unchecked.
-  - Next decision: use team pools for shared repositories, or keep one machine per person.
+- [ ] 43.3 Canonical claim reservation and generation acknowledgment, after 43.2 [R90.4, R102.14] (§4.32)
+  - Reserve one task ref in the spec's canonical claim namespace before acknowledging a worker. A worker without write access requests reservation. Race two forks with identically named branches: one acknowledgment, no loser execution; an over-cap request never starts. Comments are not CAS.
 
-## Phase 44: Issues and Pull requests pages
+- [ ] 43.4 Person-only release and stale-claim status, after 43.3 [R90.6, R102.14] (§4.32)
+  - Reconcile claims across takeover; a settled verified result may close its claim. Quiet, lost leases and vanished chats never release automatically. Needs you offers person-only Release claim after workers.claimStaleAfter.
 
-Requirement 92 (design §4.27). Before any Radar code is deleted, so nothing
-is lost when Issue Radar goes.
+- [ ] 43.5 Verify fetched worker results before integration, after 43.2 [R90.2, R102.6, R102.7] (§4.32)
+  - Fetch the exact qualified checkpoint commit; independently check paths, protected paths and checks before integrating. Wrong repository/head, inaccessible fork or private metadata holds the result rather than completing it.
 
-- [ ] 44.1 Issues and Pull requests in the pill nav, three columns, after avoozl-p52 [R92.1] (§4.27)
-  - Nav, list, detail; full-width list and detail with a back control at 390 px.
-- [ ] 44.2 List rows, filters on one line, search and counts from the shared read, after 44.1 [R92.2, R92.6, R92.7] (§4.27)
-  - A test with a counting fake GitHub: a list load makes 0 calls beyond the shared read; the **Avoozl tasks only** filter.
-- [ ] 44.3 Issue detail: header row, Markdown body, timeline, right column, lazy and cached, after 44.1 [R92.3, R92.6] (§4.27)
-- [ ] 44.4 Pull request detail: checks, files changed, landing state, after 44.3 [R92.4] (§4.27)
-  - Queued, verifying, landing, landed, conflict round N.
-- [ ] 44.5 Avoozl-owned actions only; person-only stays person-only, after 44.3 [R92.5] (§4.27)
-  - Release, hold, re-queue, Stop the line, open on GitHub; refused to an agent or MCP caller where person-only.
+- [ ] 43.6 Executor-aware worker setup with access preview, after 43.1 [R90.7, R90.8, R90.9] (§4.32)
+  - Preview login, readable targets, writable source/forks and canonical claim access. Process workers may be headless; require Kiro Crew only for that executor. SSH envelopes stay only without GitHub access.
 
-- [ ] 44.6 One batched GraphQL read per repository per check fills the pages' cache, after 44.1 [R92.9, R92.13] (§4.27)
-  - Issues, pull requests, labels, check state and linked issues in one paginated query; the pages read only the cache.
-- [ ] 44.7 Detail read: one GraphQL query on first open, cached by `updatedAt`, dropped when the item changes, after 44.6 [R92.10, R92.16] (§4.27)
-  - Comments, files changed and check runs together; nothing read before a detail opens.
-- [ ] 44.8 Conditional REST, no browser polling, Recheck that joins, the `pages` source, after 44.6 [R92.11, R92.12, R92.14] (§4.27)
-  - `If-None-Match` on any REST read; a 304 counts as free; Refresh redraws only.
-- [ ] 44.9 Call-budget tests with a counting fake GitHub, after 44.7, 44.8 [R92.15] (§4.27)
-  - 500 cached issues cost 0 calls to open; 10 unchanged details cost 0 calls; 10 changed pull requests cost 1 query per repository; scrolling and filtering cost 0; two Rechecks cost 1.
+- [ ] avoozl-p53 P53 Proof: two machines claim across fork locations, after 43.1, 43.2, 43.3, 43.4, 43.5, 43.6 [R90, R102.14] (§4.32)
+  - Setup: owner-provided second machine and login; isolated scratch workspace, registered target and forks, a published scratch spec issue and one canonical claim namespace.
+  - Action: pull tasks on both machines; race for one task from different forks; leave one worker quiet past the stale interval; release only by authorized person, then finish.
+  - Expected: one acknowledged winner and no loser agent; quiet never releases; exact fork results are independently verified and land once effectively. No task issue is created.
+  - Also record: both source identities, canonical reservation and acknowledgment IDs, generations, exact checked and landed SHAs, permission verdicts and redacted call counts.
+  - Failure means: fork-local duplicate claims, timeout replacement, credentials in agent sandboxes or unchecked landing. Write a live receipt under docs/evidence/; tests do not tick this proof.
+  - Next decision: enable multi-machine pull for a shared spec, or repair canonical reservation/acknowledgment before allowing competing workers.
 
-- [ ] avoozl-p54 P54 Proof: the pages match Issue Radar's, and a list load costs no extra calls, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6, 44.7, 44.8, 44.9 [R92] (§4.27)
-  - Setup: a workspace with two repositories, one with Avoozl tasks and one without; Issue Radar open on the same repositories.
-  - Action: open both pages and an issue and a pull request detail at 390 and 1280 px, light and dark; count GitHub calls on a list load.
-  - Expected: screenshots next to Radar's show the same columns, row content and detail parts; a list load makes 0 calls beyond the shared read; a second detail open makes 0 calls; Settings › GitHub shows the `pages` source.
-  - Failure means: something Radar showed is missing, or the pages add GitHub load.
-  - Next decision: approve the screenshots, then start Phase 45's shared edits.
+## Phase 44: Landing queue panel
+
+Requirement 92 (design §4.27). Narrow the unbuilt browser to exact landing
+portions and their checks/reviews. Screenshot approval remains owner work.
+
+- [ ] 44.1 Landing queue panel and mobile navigation, after avoozl-p52 [R92.1] (§4.27)
+  - Exact-portion list/detail; full-width list/detail with back control at 390 px. No new general Issues browser.
+
+- [ ] 44.2 Cached queue rows, search and filters, after 44.1 [R92.2, R92.6, R92.7] (§4.27)
+  - Show target/base, source repository/ref/SHA including forks, portion, checks and state. Counting client: cached load/filter costs zero calls.
+
+- [ ] 44.3 Portion detail and visibility-safe spec links, after 44.1 [R92.3, R92.6] (§4.27)
+  - Show exact commits and accepted evidence; link the spec issue only when public visibility permits. Use GitHub for discussion.
+
+- [ ] 44.4 PR checks, review and fork source in detail, after 44.3 [R92.4] (§4.27)
+  - Show required checks, files summary, standing review, source identity and queue/conflict state; never show a stale head as current.
+
+- [ ] 44.5 Queue actions with person-only boundaries, after 44.3 [R92.5] (§4.27)
+  - Hold, re-queue, Stop the line and open on GitHub. Enforce person-only actions in operations, CLI and MCP.
+
+- [ ] 44.6 Shared paginated queue read fills the cache, after 44.1 [R92.9, R92.13] (§4.27)
+  - Reuse the shared target PR/check read with fully qualified head identities. No task-issue list or full GitHub-browser mirror.
+
+- [ ] 44.7 Lazy current-version PR detail cache, after 44.6 [R92.10, R92.16] (§4.27)
+  - Fetch once on first open; invalidate when source head, reviews or version changes. Journal/control refresh runs regardless of opening detail.
+
+- [ ] 44.8 Conditional reads, joined Recheck and usage source, after 44.6 [R92.11, R92.12, R92.14] (§4.27)
+  - Conditional unavoidable REST, no browser polling; Refresh redraws. Concurrent Rechecks join; count actual rate-limit usage under pages.
+
+- [ ] 44.9 Queue cache and call-budget tests, after 44.7, 44.8 [R92.15] (§4.27)
+  - 500 cached portions cost zero to list/filter; unchanged details zero; one new detail one read; changed PRs share per-repository reads plus pages; concurrent Rechecks join one read.
+
+- [ ] avoozl-p54 P54 Proof: landing queue and cache on real GitHub, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6, 44.7, 44.8, 44.9 [R92, R102.7, R102.12] (§4.27)
+  - Setup: isolated scratch workspace with two registered targets, one PR from a fork, and verified/unlanded portions; no real workspace tick.
+  - Action: open queue and PR detail at 390 and 1280 px, light and dark; count reads; reopen an unchanged detail and filter cached rows.
+  - Expected: exact target/source/portion and standing review shown; cached list/filter/detail cost zero extra calls; first new detail one read; pages usage attribution. Private spec references never render on a public surface.
+  - Also record: screenshots, exact source and target SHAs, cache/conditional-call counters and owner screenshot approval. Live receipt under docs/evidence/; wait for owner approval before ticking.
+  - Failure means: stale authority, leaked private links, extra list calls or unusable mobile layout. No Issue Radar parity comparison is required.
+  - Next decision: owner approves the screenshots and remaining shared projection deletion, or names the queue detail to change.
 
 ## Phase 45: Remove the Issue Radar path
 
@@ -1636,7 +1662,9 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
 - [ ] 45.2 Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant, after avoozl-p52 [R91.1] (§4.26)
   - Retire provenance-based landing gates only after replacement PR landing is proved; keep compatibility names resolving.
 - [x] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
-- [ ] 45.4 Shared-module edits and the `coder` setting, after 45.1, 45.2, 45.3, avoozl-p53, avoozl-p54 [R86.1, R91.3] (§4.26)
+- [ ] 45.4 Retire shared task projection and synchronization callers, after 45.1, 45.2, 45.3, avoozl-p53, avoozl-p54, 56.5, 56.9, avoozl-p66 [R86.1, R91.2, R91.3, R102.20] (§4.32)
+  - Remove per-task projection, Project sync, issue close/completion/rebuild and old driver markers after binding retirement and replacement proofs. Keep spec issue publication, epic links, journals, explicit export, ranking, setup, receipts and the executor seam. No task-issue reconciliation remains.
+
 - [ ] 45.5 Compatibility names still resolve; docs say one path, after 45.4 [R91.4] (§4.26)
   - `docs/research/` and `docs/evidence/` untouched except new receipts.
 
@@ -1853,3 +1881,73 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
   - Expected: (2) 6 or more observations for the first pull request, the failed attempt marked, the costliest phase in Flow, one artifact list per check and one download per artifact, the second check 0 downloads; (4) the brief holds the breakdown, and the pull request with the other cache mode is never compared with the rest.
   - Failure means: records are still dropped, artifacts are read again, or builds with different work are compared.
   - Next decision: read a second page of artifacts, or move reports to their own artifact.
+
+## Phase 56: Working branches and a spec journal
+
+Owner pivot 2026-11-16 (Requirement 102; design §4.32). Planning only.
+No record branch, task issues or GitHub Project task state. Forks and target
+repository branches use the same loop. Existing implementation task IDs and
+completed checkboxes stay; unbuilt phases above now use this architecture.
+The foundation may proceed while P56 waits for sign-in; do not weaken a live
+proof or run a real workspace to get past that wait.
+
+- [ ] 56.1 Task outcomes, legacy values and branch-progress semantics [R102.3, R102.4, R102.5, R102.20] (§4.32)
+  - Define the task-definition digest and latest valid outcome reducer; done/skipped/landed complete, refused/reopened/unverified/stale hold. Explicitly carry forward unchanged evidence only on new approval.
+  - Accept route: github and merged-pr without rewriting approved files. Branch checkmarks remain outside the revision hash and only verified in-spec dependencies may advance; cross-spec dependencies wait for accepted outcomes. Tests cover every outcome and unchanged source hashes.
+
+- [ ] 56.2 Publish spec issues and validate the minimal journal, after 56.1 [R102.1, R102.2, R102.9, R102.10, R102.11] (§4.32)
+  - Implement explicit per-spec publication, one issue per spec/epic and local-file parity. Approval alone makes no GitHub write. Keep epic links and existing issue ownership.
+  - Schema/parser/writer/replay: allowlisted event fields, authenticated actor/permission, revision/digest/generation, previous links, complete pagination, operation-id deduplication and conflicting-duplicate hold. Mutation/missing linked records hold; document the undetectable-tail limit. Count no poll snapshots and reject prohibited public fields.
+
+- [ ] 56.3 Qualified working heads, fork checkpoints and verified integration, after 56.2, 56.11, 40.5 [R102.6, R102.7, R102.8, R102.15] (§4.32)
+  - Generalize spec homes and integration branches to source repository/ref/SHA and target/base. Discover PR fork heads; accept trusted owner-published pre-PR refs. Fetch only registered sources, validate relationships and exact commits; no arbitrary issue URLs or commands.
+  - Driver creates one spec working branch per affected repository, integrates checked task refs serially, and keeps unfinished checkpoints separate. A fork needs no upstream branch copy. Content checks apply to all checkpoints; acceptance gates apply to verified integrations. Test recovery after database loss, fork deletion/rewrites, two identical branch names and absent upstream push access; sandboxed agents never receive push credentials.
+
+- [ ] 56.4 Driver generations, guarded intents and landing reconciliation, after 56.2, 56.3 [R102.5, R102.13, R102.14] (§4.32)
+  - Retain assignee/fallback authority and private handoff. Person-only takeover writes a generation; ambiguous concurrent takeovers hold. Revalidate controls/authority before dispatch and landing.
+  - Write/read back exact candidate/base/task/evidence intent before guarded push or head-guarded merge. A displaced driver stops recording. Outstanding intents hold until actual landing reconciliation or safe void; deduplicate effective outcomes. A copied/stale trailer yields landed-unverified. Test the pause-before-push takeover race without claiming exactly-once execution.
+
+- [ ] 56.5 Ordered issue-binding retirement without completing work, after 56.1, 56.2 [R102.20] (§4.32)
+  - Preview and apply: hold/stop ticks, disable projection and close reconciliation, retire only issue bindings/verdicts/dispatch flags without status or source changes, then run one tick and verify unchanged readiness with no task-issue reads/writes/recreation. Only after that offer closing obsolete issues; keep spec issues.
+  - Tests close retired issues as done and not planned without releasing a successor; retry changes nothing and interrupted migration remains held. Real workspace migration is owner-only and is not run by this task.
+
+- [ ] 56.6 Independent refresh and held reconstruction, after 56.4, 56.5 [R102.12, R102.16, R102.17] (§4.32)
+  - Cache repository hashes separately from journal/assignee/control/review/check reads. Use conditional reads or available webhooks; unchanged definitions are not reparsed. Holds and reassignment are observed with no branch commit.
+  - Rebuild from qualified heads, validated journal, actual landings and outstanding intents; restore claims and decisions, then hold until person Resume. Private spend travels only in private export; unknown is never zero. Tests cover missing tail, lost database, unavailable fork and unavailable private controls.
+
+- [ ] 56.7 Epic design/review/implement rows and approval evidence, after 56.2 [R59, R102.18] (§4.32)
+  - Extend epic entries with step, default implement. Allow one row per (plan, step), forbid task fields/dispatch, derive design/review/implement from current member state; never hand-tick lifecycle rows.
+  - Keep current merge-commit re-hash; persist actual approving reviewers separately from requester/merger/time after merge. Local approval is explicit. Request configured spec reviewers or honor CODEOWNERS/policy; add no universal second-person rule. Public PRs link only public spec issues.
+
+- [ ] 56.8 GitHub intake with proportionate plans and private-safe status, after 56.2, 56.7 [R102.19] (§4.32)
+  - Accept GitHub starts in plan/deliver. Bounded fixes use a compact versioned acceptance definition and the existing issue journal, without a full spec; coordinated design uses a proportionate spec. Reuse an issue only when home/visibility match.
+  - Initial intake makes at most two idempotent writes: ownership label and safe status comment; never name a private spec on a public input. Only same-repository Deliver this uses Fixes; closure is withdrawal. Validate the ownership label excludes independent issue crews in a scratch proof before unattended rollout.
+
+- [ ] 56.9 Idempotent task-issue offboarding export, after 56.5, 56.7 [R102.19, R91.2] (§4.32)
+  - Preview export-issues SPEC, create only incomplete task issues and blocked-by links, record stable export bindings, then mark Exported and cease dispatch/landing. A retry creates no duplicate issues or links; a partial failure stays held and resumes safely.
+  - Make this the sole code path that creates task issues. Preserve visibility rules, person outcomes and journal access after offboarding.
+
+- [ ] 56.10 Mirror import PRs and forward ancestry, after 42.1, 56.3 [R102.21] (§4.32)
+  - After private divergence, import upstream into a public-tracking branch and a reviewed mirror PR. Forward recognition excludes upstream/import ancestry, including an import merge whose second parent is on the public-tracking branch.
+  - Test divergent mirror updates and a second import; forwarding proposes nothing for imported upstream changes and still screens genuine private changes.
+
+- [ ] 56.11 Privacy enforcement for checkpoints and public metadata, after 56.2 [R87.9, R102.11, R102.12] (§4.32)
+  - Reuse existing content scanning in process before every outgoing push range and every externally visible journal/intake/PR/status write. Check ref names, commit messages, added lines and public metadata; apply the explicit journal schema without raw logs, commands, paths or private identifiers.
+  - Tests insert made-up private names into branch names, commit messages, PR bodies, check summaries, records and artifacts and refuse publication before the first write. Preserve useful opaque IDs and public commit/check references. Private-plan mappings and sensitive controls remain private; hidden HTML grants no secrecy.
+
+- [ ] avoozl-p66 P66 Proof: journal, working-head recovery and takeover, after 56.3, 56.4, 56.5, 56.6, 56.7, 56.8, 41.3 [R102] (§4.32)
+  - Setup: isolated scratch GitHub code and private planning repositories, published epic/spec issues, a three-task in-spec chain and one cross-spec successor, actual executor, direct landing and made-up secret canaries. No real workspace or private pilot.
+  - Action: push an unfinished checkpoint, verify and integrate the first task, check branch marks; retry a journal write, mutate/delete a linked record; reconstruct after discarding a copied disposable database. Restore journal consistency, review and Resume. Pause the original driver immediately before a guarded push, take over, then resume it. Exercise stale/copied trailers, issue-binding retirement and a hold/reassignment without a commit.
+  - Expected: checkpoints survive, unverified work releases nothing, only verified in-spec successors advance, cross-spec waits for accepted landing; mutation holds, replay deduplicates, reconstruction holds, old intents reconcile to one effective outcome and old generations authorize no new work. Migration changes no readiness and no task issues are read/created. All canaries are rejected before publication.
+  - Also record: approved/definition digests, qualified refs and checked/landed SHAs, sanitized record/operation IDs, before/after frontier, intent/generation sequence, pause timing, permission and content-rule verdicts and actual GitHub call counts. Keep sensitive control detail private.
+  - Write a live docs/evidence/ receipt. Failure means an unchecked/stale completion, a takeover double dispatch, lost hold, automatic reset of spend, task-issue side effects or a leak. Tests/fakes never tick this proof; owner-only actions remain explicit.
+  - Next decision: use validated journal recovery for the private pilot, or repair the failed invariant before authorizing that rollout.
+
+
+- [ ] avoozl-p67 P67 Proof: fork source and upstream permissions, after avoozl-p66, 42.1, 42.2, 56.9, 56.10 [R102.7, R102.8, R102.12, R102.19, R102.21] (§4.32)
+  - Setup: isolated scratch upstream and authorized fork, a contributor login without upstream push/merge rights and an authorized maintainer login, plus public and private scratch spec homes. Owner supplies needed accounts; use no real project settings.
+  - Action: register a pre-PR fork head, checkpoint there, then discover a fork PR head. Rebuild from both while keeping the source branch out of upstream. Move the base and require a refreshed check/review; let the maintainer merge. Try an unregistered source and a private-plan reference on every public surface. Export twice; exercise a divergent mirror import.
+  - Expected: fork branches work without upstream copies, source push rights never permit target merge, the exact checked/approved head is accepted from the maintainer merge, public/private homes remain separate, untrusted fetches and leaks are refused. Retry export creates nothing new; import is not forwarded upstream.
+  - Also record: source and target repository/ref/SHA identities, both logins' permission results, PR head and merge SHA, standing review/check evidence, sanitized discovery and reconstruction records, export issue/link counts and import/forward ancestry. No credentials or private planning data in the receipt.
+  - Write a live docs/evidence/ receipt; do not tick from tests or unavailable second-account behavior. Failure means a permission bypass, assumed upstream source branch, stale head or private disclosure.
+  - Next decision: enable fork heads in ordinary worker pulls, or fix source resolution and permissions before enabling them.
