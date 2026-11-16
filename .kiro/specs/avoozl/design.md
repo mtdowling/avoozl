@@ -3644,10 +3644,23 @@ Issue Radar app; Avoozl rebuilds them in its own code and copies no files.
   the landing state: queued, verifying, landing, landed, conflict round N.
 - **Actions:** only what Avoozl owns: release, hold, re-queue, Stop the
   line, open on GitHub. Person-only actions stay person-only.
-- **Data:** the list reads only what the tick's one read per repository per
-  check (RC29) already stored, and the cache. The detail is read lazily,
-  once per item, and cached. A test counts calls: a list load makes 0
-  beyond the shared read.
+- **Data:** the pages never call GitHub themselves (R92.9–R92.16).
+
+  | Event                      | GitHub calls                                                   |
+  | -------------------------- | -------------------------------------------------------------- |
+  | Check (tick)               | 1 batched GraphQL query per repository, paginated               |
+  | Open list, scroll, filter  | 0, read from the cache                                          |
+  | Open detail, first time    | 1 GraphQL query: comments, files changed, check runs            |
+  | Open detail, item unchanged | 0, cached under the item's `updatedAt`                          |
+  | Refresh                    | 0, redraws from the cache                                       |
+  | Recheck                    | At most 1 batched query per repository; a second one joins it   |
+  | Unavoidable REST           | Conditional with `If-None-Match`; a 304 counts as free          |
+
+  The batched query reads issues, pull requests, labels, check state and
+  linked issues together. A detail entry is keyed by item and `updatedAt`
+  and is dropped when the batched read shows a newer one. The browser does
+  not poll. Settings › GitHub counts these calls under the `pages` source
+  (RC29).
 - **Scope:** every repository in the workspace and every item in it, with
   an **Avoozl tasks only** filter.
 - At 390 px the list and the detail each take the full width, with a back
