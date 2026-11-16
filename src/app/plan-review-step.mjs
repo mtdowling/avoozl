@@ -257,6 +257,41 @@ async function cleanFinished(store, remove, notify) {
   }
 }
 
+function stopUnclaimedReviews(store) {
+  store.transaction(() => {
+    for (const round of listSpecReviewRounds(store).items) {
+      if (
+        round.state !== "running" ||
+        round.slot ||
+        store.list("runs").some((run) => run.review?.roundId === round.id)
+      )
+        continue;
+      const requests = store
+        .list("session_requests")
+        .filter(
+          (row) =>
+            row.kind === "start" &&
+            row.request?.role === "plan-review" &&
+            row.request.task === round.id,
+        );
+      if (requests.some((row) => ["claimed", "bound"].includes(row.state)))
+        continue;
+      for (const request of requests.filter((row) => row.state === "pending"))
+        store.put("session_requests", {
+          ...request,
+          state: "canceled",
+          reason: "Plan reviews are off.",
+        });
+      store.put("review_rounds", {
+        ...store.get("review_rounds", round.id),
+        state: "skipped",
+        note: "Plan reviews are off.",
+        endedAt: new Date().toISOString(),
+      });
+    }
+  });
+}
+
 // Two matching folder observations keep a half-written draft out of review.
 // A filesystem-only change has no writer identity, even while a planner is active.
 function refreshSettled(store, plan, readSpec) {
@@ -302,7 +337,11 @@ export async function planReviewStep(
     settings = validatePlanReview(config.planReview);
   if (!open) return out;
   await cleanFinished(store, remove, out.notify);
-  if (settings.mode === "off") return out;
+  if (settings.mode === "off") {
+    stopUnclaimedReviews(store);
+    await cleanFinished(store, remove, out.notify);
+    return out;
+  }
   const held = readOnlyPlanIds(store),
     snapshots = new Map();
   for (const original of store
@@ -481,6 +520,7 @@ export async function planReviewStep(
     const priorJob = current && store.get("receipts", jobId(current.id));
     if (priorJob?.state === "failed") continue;
     if (priorJob?.state === "blocked") {
+      if (priorJob.resources) continue;
       if (!briefPasses(store, current, "plan-review", priorJob.brief)) continue;
       store.db.prepare("DELETE FROM receipts WHERE id=?").run(priorJob.id);
       store.put("review_rounds", {
@@ -525,13 +565,26 @@ export async function planReviewStep(
     if (round.state === "skipped") continue;
     let job = store.get("receipts", jobId(round.id));
     if (job?.state === "failed") continue;
-    if (!job) {
+    if (!job || job.state === "preparing") {
+      let resources = job?.resources || null;
       try {
-        const resources = await prepare(store, plan, round, {
+        if (!resources) {
+          resources = await prepare(store, plan, round, {
             workspaceRoot,
             planningRoot: folder.root,
-          }),
-          updated = { ...round, commits: resources.commits },
+          });
+          job = {
+            id: jobId(round.id),
+            kind: "plan-review-job",
+            planId: plan.id,
+            roundId: round.id,
+            state: "preparing",
+            resources,
+            at: new Date().toISOString(),
+          };
+          store.put("receipts", job);
+        }
+        const updated = { ...round, commits: resources.commits },
           brief = planReviewBrief(
             store,
             plan,
@@ -541,7 +594,6 @@ export async function planReviewStep(
           );
         round = updated;
         if (!briefPasses(store, round, "plan-review", brief)) {
-          await remove(store, resources);
           store.put("review_rounds", {
             ...round,
             state: "skipped",
@@ -549,33 +601,26 @@ export async function planReviewStep(
             endedAt: new Date().toISOString(),
           });
           store.put("receipts", {
-            id: jobId(round.id),
-            kind: "plan-review-job",
-            planId: plan.id,
-            roundId: round.id,
+            ...job,
             state: "blocked",
-            resources: null,
             brief,
           });
+          await cleanFinished(store, remove, out.notify);
           continue;
         }
         store.put("review_rounds", round);
         job = {
-          id: jobId(round.id),
-          kind: "plan-review-job",
-          planId: plan.id,
-          roundId: round.id,
+          ...job,
           state: "queued",
           resources,
           brief,
-          at: new Date().toISOString(),
         };
         store.put("receipts", job);
       } catch {
         store.put("review_rounds", {
           ...round,
           state: "skipped",
-          note: "The clean code views could not be prepared.",
+          note: "The review brief or clean code views could not be prepared.",
           endedAt: new Date().toISOString(),
         });
         store.put("receipts", {
@@ -584,11 +629,13 @@ export async function planReviewStep(
           planId: plan.id,
           roundId: round.id,
           state: "failed",
+          resources,
         });
+        await cleanFinished(store, remove, out.notify);
         out.notify.push({
           channel: "failure",
           title: `Could not review ${plan.spec}`,
-          text: "A registered repository's clean default-branch view could not be prepared. Check its checkout and origin access.",
+          text: "The review brief or a repository's clean default-branch view could not be prepared. Check the spec folders, registered checkouts, and origin access.",
         });
         continue;
       }
