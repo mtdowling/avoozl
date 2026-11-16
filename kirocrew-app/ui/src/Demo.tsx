@@ -9,6 +9,7 @@ import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { DemoGuardProvider } from './host.ts'
 import { demoClient } from './demo-api.ts'
+import { Pause, Play } from './icons.ts'
 import { fixturesClient, type DemoFixtures } from './demo-fixtures.ts'
 import { errorMessage } from './workspace-api.ts'
 
@@ -124,26 +125,36 @@ export function StartDemoButton(props: { label?: string }) {
   )
 }
 
-// The Stop the line example, in the demo bar.
+// The Stop the line example, in the demo bar: one icon that flips the page
+// between running and stopped. Its words live only in its tooltip and name,
+// never as visible text.
 export function DemoControls() {
   const demo = useDemo()
+  const stopped = demo.stopExample === 'stopped'
+  const Icon = stopped ? Play : Pause
+  const label = stopped ? 'Stop the line example: show the line running again' : 'Stop the line example: show the line stopped'
   return (
-    <>
-      <span role="group" aria-label="Stop the line example" className="flex flex-wrap items-center gap-1 text-xs">
-        Stop the line example
-        {(['running', 'stopped'] as const).map((example) => (
-          <Btn key={example} type="button" data-demo-stop-example={example} aria-pressed={demo.stopExample === example} primary={demo.stopExample === example} onClick={() => demo.setStopExample(example)}>
-            {example === 'running' ? 'Running' : 'Stopped'}
-          </Btn>
-        ))}
-      </span>
-    </>
+    <Tooltip text={label}>
+      {(describedBy) => (
+        <Btn
+          type="button"
+          data-demo-stop-example={demo.stopExample}
+          aria-label={label}
+          aria-describedby={describedBy}
+          aria-pressed={stopped}
+          onClick={() => demo.setStopExample(stopped ? 'running' : 'stopped')}
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, padding: 0, color: stopped ? 'var(--ok, inherit)' : 'var(--danger, inherit)' }}
+        >
+          <Icon size={14} aria-hidden="true" />
+        </Btn>
+      )}
+    </Tooltip>
   )
 }
 
 // What Avoozl is, and what the demo is. This is the one place the page says it.
 const DEMO_INTRO =
-  'Avoozl turns your specs and epics into a graph of tasks, then Issue Radar crews code the ready ones. This is a made-up sample so you can look around. Nothing you do here changes your work, GitHub or agents.'
+  'Avoozl turns your specs and epics into a graph of tasks, then Avoozl’s workers code the ready ones. This is a made-up sample so you can look around. Nothing you do here changes your work, GitHub or agents.'
 
 export function DemoBar() {
   const demo = useDemo()

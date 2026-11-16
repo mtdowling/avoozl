@@ -114,10 +114,10 @@ test('Start demo opens the made-up workspace with its bar, and Exit demo returns
   assert.match(source('Demo.tsx'), /Open a made-up workspace to look around\. Your own work is not touched\./)
   await click(button('Start demo'))
 
-  // The badge replaces the workspace pill; the bar shows; no tour opens.
+  // The badge and the bar show; the workspace pill names the sample; no tour opens.
   await page.until(`Boolean(document.querySelector('[data-demo-bar]'))`)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-badge]'))`), true)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-workspace-pill]'))`), false)
+  assert.match(await page.evaluate(`document.querySelector('[data-left-nav] [data-workspace-pill]')?.textContent ?? ''`), /Demo: Recipe Box/)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-tour]'))`), false)
   assert.equal(await page.evaluate(`Boolean(${button('Start the tour')})`), false)
   // The made-up workspace's pages read its sample.
@@ -148,7 +148,7 @@ test('Start demo opens the made-up workspace with its bar, and Exit demo returns
 
   // Exit demo: the person's workspace again, no badge.
   await click(`document.querySelector('[data-demo-exit]')`)
-  await page.until(`!document.querySelector('[data-demo-badge]') && Boolean(document.querySelector('[data-workspace-pill]'))`)
+  await page.until(`!document.querySelector('[data-demo-badge]') && document.querySelector('[data-workspace-pill]')?.dataset.workspaceId === 'w'`)
   assert.equal(await page.evaluate(`document.querySelector('[data-workspace-pill]').dataset.workspaceId`), 'w')
   assert.deepEqual(page.errors, [])
 })
