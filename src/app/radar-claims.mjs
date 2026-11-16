@@ -198,6 +198,13 @@ async function readInstanceNames(github, repository) {
 export const RADAR_INTERVAL_MS = 2 * 60 * 1000;
 const META = "radarClaims";
 
+// True while the cached claims are younger than the interval, so
+// `refreshClaims` would make no call.
+export function claimsFresh(store, now = Date.now()) {
+  const readAt = store.getMeta(META)?.readAt;
+  return Boolean(readAt) && now - Date.parse(readAt) < RADAR_INTERVAL_MS;
+}
+
 // The tick's read, at most once per interval unless `force`. A repository
 // that fails keeps its last rows and shows its error.
 export async function refreshClaims(

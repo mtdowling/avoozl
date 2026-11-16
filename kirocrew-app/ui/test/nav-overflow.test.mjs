@@ -86,6 +86,37 @@ for (const [width, height] of [
       assert.deepEqual(count, { inside: true, text: '12' })
     })
 
+// Activity's filters in the open nav: each label and its dropdown on one
+// line, the labels in one column and the dropdowns sharing one left edge.
+// The nav's pills are 2px taller above and below than a 28px button.
+for (const [width, height] of [
+  [390, 844],
+  [1280, 800],
+])
+  for (const dark of [false, true])
+    test(`at ${width} px ${dark ? 'dark' : 'light'}: Activity filters are one line each and line up, pills are 32 px`, { skip }, async () => {
+      await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light', needs: '3', activity: '1' }), { width, height, dark })
+      await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
+      if (width < 768) {
+        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+        await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
+      }
+      await open(width, 'Activity')
+      await page.until(`document.querySelectorAll('${scope(width)} [data-nav-filters] [data-filter-line]').length >= 3`)
+      const rows = await page.evaluate(`[...document.querySelectorAll('${scope(width)} [data-nav-filters] [data-filter-line]')].map((line) => {
+        const label = line.querySelector('[data-filter-label]').getBoundingClientRect(), select = line.querySelector('select').getBoundingClientRect()
+        return { text: line.textContent.trim().slice(0, 12), labelLeft: Math.round(label.left), selectLeft: Math.round(select.left), selectRight: Math.round(select.right), oneLine: label.top < select.bottom && select.top < label.bottom && label.right <= select.left, labelLines: Math.round(label.height / parseFloat(getComputedStyle(line).lineHeight || '18')) }
+      })`)
+      assert.equal(rows.length, 3, JSON.stringify(rows))
+      for (const row of rows) assert.ok(row.oneLine && row.labelLines <= 1, `one line: ${JSON.stringify(row)}`)
+      assert.equal(new Set(rows.map((r) => r.labelLeft)).size, 1, `labels share a left edge: ${JSON.stringify(rows)}`)
+      assert.equal(new Set(rows.map((r) => r.selectLeft)).size, 1, `dropdowns share a left edge: ${JSON.stringify(rows)}`)
+      assert.equal(new Set(rows.map((r) => r.selectRight)).size, 1, `dropdowns share a right edge: ${JSON.stringify(rows)}`)
+      assert.deepEqual(await page.evaluate(OVERFLOWS(width)), [], 'nothing passes the pill')
+      const heights = await page.evaluate(`(() => { const nav = document.querySelector('${scope(width)}'); return { heads: [...new Set([...nav.querySelectorAll('[data-nav-head]')].map((h) => Math.round(h.getBoundingClientRect().height)))], rows: [...new Set([...nav.querySelectorAll('[data-nav-children] > [data-nav-item]')].map((h) => Math.round(h.getBoundingClientRect().height)))], workspace: Math.round(nav.querySelector('[data-workspace-pill]').getBoundingClientRect().height) } })()`)
+      assert.deepEqual(heights, { heads: [32], rows: heights.rows.length ? [32] : [], workspace: 32 })
+    })
+
 // Home's reads, by name. A new read on Home (or one that calls GitHub) has
 // to be added here on purpose.
 const HOME_READS = new Set(['workspaces.list', 'instance.view', 'flow.view', 'driversession.view', 'graph.view', 'delivery.view', 'conflicts.view', 'plan.list', 'radar.crews', 'repositories.list', 'github.settings.get', 'untriaged.view', 'radar.releasequeue', 'gate.list', 'integration.view', 'review.drafts'])
