@@ -1494,21 +1494,21 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
 
 Owner decision 2026-11-15 (Requirements 86, 88; design §4.26). Avoozl owns
 the coding loop. Exit: a three-task chain survives a gateway restart
-unattended.
+unattended. Runs after the executor seam (Phase 46, `avoozl-p56`).
 
-- [ ] 40.1 Worker brief edits and commits only [R86.3] (§4.26)
+- [ ] 40.1 Worker brief edits and commits only, after avoozl-p56 [R86.3] (§4.26)
   - The GitHub worker brief in `src/app/delivery.mjs` drops the push, pull request, auto-merge and merge steps; Avoozl reads `HEAD` from the worktree; a test asserts no brief tells a worker to push, open a pull request, merge or label.
-- [ ] 40.2 Report by CLI, matched by worktree and token [R88.2, R88.3] (§4.26)
+- [ ] 40.2 Report by CLI, matched by worktree and token, after avoozl-p56 [R88.2, R88.3] (§4.26)
   - `avoozl report --task ID --token T`; the brief carries the token and the worktree path; local chats open with `project: false`; tests for a wrong token, a wrong worktree and a report with no MCP sharing.
-- [ ] 40.3 Trust mode set at open and again every tick [R88.1] (§4.26)
+- [ ] 40.3 Trust mode set at open and again every tick, after avoozl-p56 [R88.1] (§4.26)
   - A fake Kiro Crew that drops trust on restart; the next tick sets it again, once per chat.
-- [ ] 40.4 Prepare with the worktree helper and clean up after landing [R88.6] (§4.26)
+- [ ] 40.4 Prepare with the worktree helper and clean up after landing, after avoozl-p56 [R88.6] (§4.26)
   - First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise.
 - [ ] 40.5 Verify: warm checks off the tick, per-check timeouts, declared and protected paths, after 40.1 [R86.6, R86.7] (§4.26)
   - Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you.
 - [ ] 40.6 One automatic resume for a vanished chat, after 40.2 [R88.4] (§4.26)
   - Only Kiro Crew's "gone" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you.
-- [ ] 40.7 Lanes: 3 on this Mac by default [R88.5] (§4.26)
+- [ ] 40.7 Lanes: 3 on this Mac by default, after avoozl-p56 [R88.5] (§4.26)
   - `lanes.local` default 3; a fourth ready task waits.
 
 - [ ] avoozl-p50 P50 Proof: a three-task chain survives a gateway restart unattended, after 40.1, 40.2, 40.3, 40.4, 40.5, 40.6, 40.7 [R86, R87.10, R88] (§4.26)
@@ -1535,10 +1535,12 @@ owner minutes, credits and wall-clock per task.
   - `src/app/github-linked-branches.mjs` and Prepare agree on the base.
 - [ ] 41.6 Restore the Delivery page, Settings › Budgets and the Files and diff view, after 41.3 [R88.7] (§4.26)
   - From ba04389 and 70c2236, updated to the new loop; not Routing; screenshots for the owner.
+- [ ] 41.8 Nupp AGENTS.md clause for Avoozl-run work, after 41.3 [R91.5, R94.4a] (§4.26)
+  - Nupp's AGENTS.md tells agents to rebase, fast-forward merge, push and delete the worktree. Propose a clause for work Avoozl runs: edit, commit nothing (or only locally, as the project config says), and stop; no merge, push or worktree removal. Check the copy on `core-dev`, not only `main`. Proposed as a Nupp change, not made from Avoozl's repository.
 - [ ] 41.7 Nupp setup: `direct` on public `core-dev` with the repository's helper and check, after 41.3 [R91.5] (§4.26)
   - `scripts/worktree` approved by hash, `scripts/test-changed` as the check; plans stay in a private planning workspace; no mirror or forward.
 
-- [ ] avoozl-p51 P51 Proof: the 13 Nupp pilot tasks land direct, after 41.1, 41.2, 41.3, 41.4, 41.5, 41.6, 41.7 [R86, R87, R91.5] (§4.26)
+- [ ] avoozl-p51 P51 Proof: the 13 Nupp pilot tasks land direct, after 41.1, 41.2, 41.3, 41.4, 41.5, 41.6, 41.7, 41.8 [R86, R87, R91.5] (§4.26)
   - Setup: the Nupp compiler checkout, a private planning workspace with the 13 pilot tasks approved, landing `direct` on `core-dev`.
   - Action: release the pilot and leave it running.
   - Expected: each task lands on public `core-dev` after its checks; no private text in any commit message, branch name or added line; a receipt per task with owner minutes, credits and wall-clock.
@@ -1572,7 +1574,7 @@ Requirement 90 (design §4.26). Exit: a second machine (and a second GitHub
 login) pulls, claims and completes tasks from a shared pool against real
 GitHub, and a race between two workers shows exactly one claim wins.
 
-- [ ] 43.1 Worker mode on the plan-less runner role, after avoozl-p52 [R90.1, R90.2] (§4.26)
+- [ ] 43.1 Worker mode on the plan-less runner role, after avoozl-p52, avoozl-p61 [R90.1, R90.2] (§4.26)
   - Envelope with IDs only; repository and checks from the worker's own `.avoozl.json`; the worker reads `HEAD`, runs checks, pushes the branch.
 - [ ] 43.2 Pull: list ready issues in one read, solo by assignee and team by pool, after 43.1 [R90.3, R90.5] (§4.26)
   - At most one issue per free lane; the result is a branch or a pull request.
@@ -1642,3 +1644,131 @@ after the Issues and Pull requests pages (Phase 44) are proved.
   - Expected: the task lands; no Radar, relay, router or crew agent or module remains; every compatibility name resolves.
   - Failure means: removal broke the loop or a compatibility name.
   - Next decision: restore the removed piece.
+
+## Phase 46: Name the executor seam
+
+Owner plan 2026-11-15 (Requirements 93, 97; design §4.28). Runs before
+Phase 40: the worker rebuild calls this seam. Exit: today's calls sit behind
+the interface and the existing suite passes unchanged.
+
+- [ ] 46.1 Executor interface: start, send, status, optional stop and usage [R93.1, R93.4] (§4.28)
+  - A test fails when a path outside the `kirocrew` executor names a Kiro Crew folder, project or agent file.
+- [ ] 46.2 The `kirocrew` executor holds today's session calls from `tick.py`, after 46.1 [R93.2, R93.6] (§4.28)
+  - Folders and project directories become its private detail; no test changes.
+- [ ] 46.3 The tick writes session requests that name an executor; each executor takes only its own, after 46.2 [R93.3] (§4.28)
+- [ ] 46.4 Role prompts in `prompts/<role>.md`; agent files built from them, after 46.1 [R97.1, R97.2] (§4.28)
+  - A test fails when a built agent differs from its prompt.
+
+- [ ] avoozl-p56 P56 Proof: the seam is named and nothing else changed, after 46.1, 46.2, 46.3, 46.4 [R93, R97] (§4.28)
+  - Setup: main before and after the change.
+  - Action: run the existing suite; open one worker through the `kirocrew` executor on a scratch repository.
+  - Expected: the suite passes with no test edited; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file.
+  - Failure means: the seam leaks Kiro Crew details or changed behavior.
+  - Next decision: start Phase 40 on the seam.
+
+## Phase 47: Supervisor and the process executor with Claude Code
+
+Requirements 93.5, 94, 95, 96 (design §4.28). Exit: a 3-task chain on a
+scratch repository with one feedback round by resume, a killed child that
+recovers, and a backend restart mid-run.
+
+- [ ] 47.1 Harness definition files: argv lists, placeholders, hash approval, after avoozl-p56 [R94.1, R94.2, R94.3] (§4.28)
+  - Loading refuses a shell string, an unknown placeholder and an unapproved hash.
+- [ ] 47.2 Permission classes, write roots and the skip-flag refusal, after 47.1 [R94.4, R94.4b, R94.5] (§4.28)
+  - Write roots: task folder, temp, project cache dirs; read-only roles read-only; a test loads definitions with `bypassPermissions`, `danger-full-access` and a `--dangerously-*` flag and sees each refused; the per-machine opt-in is person-only.
+- [ ] 47.7 Avoozl commits after the child exits, after 47.4 [R94.4a] (§4.28)
+  - The child only edits; Avoozl commits in the worktree from the changed files and checks the diff.
+- [ ] 47.8 Per-project command allow-list; `git push` never allowed, after 47.2 [R94.4c] (§4.28)
+- [ ] 47.9 Spend cap from the task budget and the plan-quota stop, after 47.4 [R94.6, R94.6a] (§4.28)
+- [ ] 47.10 Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted, after 47.2 [R95.6, R95.7] (§4.28)
+  - Kiro Crew chats: the docs and Settings say the person-only refusal is a speed bump.
+- [ ] 47.3 `avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend, after 47.1 [R95.1, R95.2, R95.3, R95.4] (§4.28)
+  - Finds its children again after a restart; a missing one is `gone`.
+- [ ] 47.4 The `process` executor and the Claude Code definition, after 47.2, 47.3 [R93.2, R93.5] (§4.28)
+  - Default for the Nupp compiler repository.
+- [ ] 47.5 Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
+  - Refused even with `--as-person`.
+- [ ] 47.6 Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats, after 47.4 [R96.1, R96.2, R96.3, R96.4] (§4.28)
+  - A missing or bad result file, or `done` with a non-zero exit, takes the retry path.
+
+- [ ] avoozl-p57 P57 Proof: a Claude Code chain runs under the supervisor and survives faults, after 47.1, 47.2, 47.3, 47.4, 47.5, 47.6, 47.7, 47.8, 47.9, 47.10 [R93, R94, R95, R96] (§4.28)
+  - Setup: a scratch repository with a bare remote, a 3-task chain, the Claude Code definition approved, the `process` executor.
+  - Action: (1) run the chain; (2) fail one check so the task gets one feedback round by resume; (3) kill one child mid-task; (4) restart the app backend mid-run; (5) run a person-only command from a child with `--as-person`.
+  - Expected: (1) all 3 tasks finish with an exit code and a result file, and Avoozl commits each one; (2) the resume argv delivers the feedback and the task passes; (3) the killed child is `exited` or `gone` and its task recovers on the retry path; (4) the supervisor keeps or finds its children and nothing runs twice; (5) refused.
+  - Also record (not verified before): the permission and sandbox values Claude Code accepts; that writes outside the write roots, the git directory included, are refused; that the database and credentials cannot be read; whether `--max-budget-usd` binds on a plan login; and whether the app backend may keep a detached long-lived child.
+  - Failure means: a child escapes the worktree, a restart loses or doubles a child, or a person-only command runs in a child.
+  - Next decision: make `process` the default for Avoozl's own repository, or keep `kirocrew`.
+
+## Phase 48: A second harness by definition file only
+
+Requirement 94.7 (design §4.28). Exit: Codex runs a task with no code change.
+
+- [ ] 48.1 A Codex definition file, after avoozl-p57 [R94.1, R94.4] (§4.28)
+  - Its start and resume argv, permission values and cost source.
+
+- [ ] avoozl-p58 P58 Proof: Codex runs a task from its definition file alone, after 48.1 [R94.7] (§4.28)
+  - Setup: the Phase 47 scratch repository; the Codex definition approved by hash; the source tree at a recorded commit.
+  - Action: run one task and one feedback round on Codex.
+  - Expected: the task finishes with `runner report`; `git diff --stat` of every source file against the recorded commit is empty, and the proof fails if any source file changed.
+  - Also record (not verified before): the permission and sandbox values Codex accepts, and that its writes stay in the worktree.
+  - Failure means: the seam still needs code per harness.
+  - Next decision: fix the seam so the next harness needs no code.
+
+## Phase 49: Every role on any executor
+
+Requirement 97.3 (design §4.28).
+
+- [ ] 49.1 Verifier, reviewer, planner, retro and watch run on `process`, after avoozl-p57 [R97.3, R94.4] (§4.28)
+  - Read-only roles get the read-only class.
+
+- [ ] avoozl-p59 P59 Proof: each role runs on either executor, after 49.1 [R97] (§4.28)
+  - Setup: a scratch workspace; each role pinned once to `kirocrew` and once to `process`.
+  - Action: run each role once per executor.
+  - Expected: the same result kinds from both; a read-only role cannot write.
+  - Failure means: a role still depends on Kiro Crew.
+  - Next decision: move that role's Kiro Crew detail into the executor.
+
+## Phase 50: Kiro Crew stays the only UI
+
+Requirement 98 (design §4.28). Screen changes wait for the owner's
+screenshots review.
+
+- [ ] 50.1 In flight for `process` sessions: status, log tail, cost, copyable attach command, after avoozl-p57 [R98.1] (§4.28)
+- [ ] 50.2 Send message queues a `send`, after 50.1 [R98.2] (§4.28)
+- [ ] 50.3 Settings › Models picks harness and model per role; a `session` pin may name a harness, after avoozl-p57 [R98.3, R98.4] (§4.28)
+
+- [ ] avoozl-p60 P60 Proof: a process session is watched and steered from the Avoozl page, after 50.1, 50.2, 50.3 [R98] (§4.28)
+  - Setup: one `process` session on a scratch repository.
+  - Action: open In flight, copy the attach command, send a message, change the role's harness.
+  - Expected: status, log tail and cost show; the message reaches the child through `send`; the next task of that role uses the new harness; screenshots at 390 and 1280 px, light and dark.
+  - Failure means: a process session needs another UI.
+  - Next decision: approve the screenshots.
+
+## Phase 51: Headless workers
+
+Requirements 95.3, 98.5 (design §4.28). The base for the pull-based worker
+mode of Phase 43.
+
+- [ ] 51.1 The supervisor under launchd or systemd, running the tick too, after avoozl-p57 [R95.3] (§4.28)
+- [ ] 51.2 CLI only: `avoozl status` and `avoozl runner status --json`, after 51.1 [R98.5] (§4.28)
+
+- [ ] avoozl-p61 P61 Proof: a headless machine runs tasks with the CLI only, after 51.1, 51.2 [R95, R98.5] (§4.28)
+  - Setup: a machine without Kiro Crew's page, the supervisor under launchd.
+  - Action: run two tasks; reboot the supervisor; read status.
+  - Expected: both tasks finish; the supervisor comes back and finds its state; `runner status --json` reports both.
+  - Failure means: a headless worker needs the page or a person.
+  - Next decision: build Phase 43 on it.
+
+## Phase 52: The manual path stays
+
+Requirement 96.4 (design §4.28).
+
+- [ ] 52.1 `next`, `claim` and `runner report` keep working for a person, after avoozl-p56 [R96.4] (§4.28)
+  - One test per command from a plain shell.
+
+- [ ] avoozl-p62 P62 Proof: a person finishes a task by hand, after 52.1 [R96.4] (§4.28)
+  - Setup: a scratch workspace with one ready task.
+  - Action: `avoozl next`, `avoozl claim`, edit and commit, `avoozl runner report TASK done`.
+  - Expected: the task lands as if a worker did it.
+  - Failure means: the manual path broke.
+  - Next decision: fix it before removing anything else.
