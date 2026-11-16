@@ -43,6 +43,17 @@ class FakeGitHub {
     this.checks = [{ id: 1, name: "build", conclusion: "success" }];
     this.updates = [];
     this.reads = 0;
+    this.readNumbers = [];
+    // With `listsChanges`, issuesUpdatedSince answers with the issues
+    // changed since its last call; without it, the call fails.
+    this.listsChanges = false;
+    this.touched = new Set();
+  }
+  issuesUpdatedSince() {
+    if (!this.listsChanges) return Promise.reject(Error("not listed"));
+    const numbers = new Set(this.touched);
+    this.touched.clear();
+    return Promise.resolve(numbers);
   }
   available() {
     return true;
@@ -60,6 +71,7 @@ class FakeGitHub {
   }
   close(number, { reason = "completed", actor = "maintainer", at = 5 } = {}) {
     const closedAt = `2026-11-12T10:${String(at).padStart(2, "0")}:00Z`;
+    this.touched.add(number);
     Object.assign(this.issues.get(number), {
       state: "closed",
       state_reason: reason,
@@ -77,6 +89,7 @@ class FakeGitHub {
     ]);
   }
   reopen(number) {
+    this.touched.add(number);
     Object.assign(this.issues.get(number), {
       state: "open",
       state_reason: "reopened",
@@ -100,6 +113,7 @@ class FakeGitHub {
   }
   issue(_repository, number) {
     this.reads += 1;
+    this.readNumbers.push(number);
     return Promise.resolve(structuredClone(this.issues.get(number)));
   }
   closingPullRequests(_repository, number) {
@@ -128,6 +142,7 @@ class FakeGitHub {
   updateIssue(_repository, number, input) {
     this.updates.push([number, input]);
     const issue = this.issues.get(number);
+    this.touched.add(number);
     Object.assign(issue, input, { updated_at: "2026-11-12T12:00:00Z" });
     return Promise.resolve(structuredClone(issue));
   }
@@ -276,6 +291,37 @@ test("a tick with no GitHub change writes nothing", async (t) => {
   await run();
   assert.equal(store.read().revision, revision);
   assert.equal(github.updates.length, updates);
+});
+
+test("a closed leaf is read again only when its issue changed since the last tick", async (t) => {
+  const { github, run, task } = workspace(t);
+  github.listsChanges = true;
+  github.merged(1);
+  github.close(1);
+  await run();
+  assert.equal(task("a").githubVerdict.state, "verified");
+  // The tick after the first verdict starts the listing; the one after
+  // that still sees the close, which happened since the listing began.
+  await run();
+  await run();
+  github.readNumbers = [];
+  await run();
+  assert.ok(!github.readNumbers.includes(1), "a settled leaf is skipped");
+  assert.ok(github.readNumbers.includes(2), "open leaves are still read");
+  // A reopen is in the listing, so the leaf is judged again.
+  github.reopen(1);
+  await run();
+  assert.ok(github.readNumbers.includes(1));
+  assert.notEqual(task("a").githubVerdict.state, "verified");
+  // A failed listing reads every settled leaf, as before.
+  github.close(1);
+  await run();
+  await run();
+  assert.equal(task("a").githubVerdict.state, "verified");
+  github.listsChanges = false;
+  github.readNumbers = [];
+  await run();
+  assert.ok(github.readNumbers.includes(1));
 });
 
 test("failing checks hold the leaf until they pass", async (t) => {

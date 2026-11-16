@@ -7,6 +7,7 @@
 // and the tick carries on when the window opens (the projection finds what
 // it already wrote by the marker in each issue).
 import { AsyncLocalStorage } from "node:async_hooks";
+import { fail } from "./store.mjs";
 
 export const WRITES_PER_MINUTE = 60;
 export const WRITES_PER_HOUR = 400;
@@ -280,6 +281,18 @@ export function finishRun(store, planId) {
   const run = readRun(store);
   if (run?.planId === planId && run.state !== "done")
     store.setMeta(RUN, { ...run, state: "done" });
+}
+
+// A person's projection of `planId` while another plan's run is paused or
+// running would replace that run's record, and its resume with it. Refuse it;
+// the tick carries the other run on by itself.
+export function refuseOtherRun(store, planId) {
+  const run = readRun(store);
+  if (run && run.state !== "done" && run.planId !== planId)
+    fail(
+      `GitHub is still projecting ${run.planId} (${run.state}). Avoozl carries it on by itself; project ${planId} once it finishes.`,
+      409,
+    );
 }
 
 // The plan to carry on with, once its wait is over. A run still marked
