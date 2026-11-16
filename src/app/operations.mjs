@@ -498,6 +498,20 @@ import {
   listReviewThreads,
   replyToReview,
 } from "./plan-reviews.mjs";
+import { recordPlanReviewWriter } from "./plan-review-authorship.mjs";
+import {
+  assertPlanAnswerWrite,
+  bindPlanAnswerSession,
+  reviewFindings,
+  answerReview,
+} from "./plan-review-answers.mjs";
+import {
+  decidePlanReview,
+  planReviewNeedsYou,
+  planReviewStep,
+} from "./plan-review-step.mjs";
+import { loadLayeredConfig } from "./layered-config.mjs";
+import { enqueueSessionRequests } from "./session-requests.mjs";
 import {
   createExtraction,
   disposeFact,
@@ -955,6 +969,8 @@ export class Operations {
       sessionStopper = null,
       // {now} for the code review chat (pr-review.mjs); tests fix the clock.
       reviewOptions = {},
+      // Tests can delay isolated review-view preparation without opening chats.
+      planReviewOptions = {},
       // Placement hooks (§4.10): {localReading, sshCommand, knownHosts};
       // tests pass fakes, nothing else does.
       placement = {},
@@ -1019,6 +1035,7 @@ export class Operations {
     // projections before it returns, so no caller writes the outbox itself.
     this.plansRoot = plansRoot;
     this.tickPolicy = {};
+    this.planReviewOptions = planReviewOptions;
     // Specs read from the plans branch on the last tick (RC25.2).
     this.privateSpecs = [];
     this.privateSpecsAt = 0;
@@ -2965,6 +2982,13 @@ export class Operations {
           });
           result.binding = store.get("session_bindings", result.binding.slot);
         }
+        if (result.changed && result.binding.role === "plan-answer") {
+          bindPlanAnswerSession(store, {
+            roundId: result.binding.taskId,
+            slot: result.binding.slot,
+          });
+          result.binding = store.get("session_bindings", result.binding.slot);
+        }
         return stampPrompts(store, result);
       });
     if (name === "executor.kirocrew.take")
@@ -3296,42 +3320,80 @@ export class Operations {
         placement: this.placement,
         issueVerify: this.issueVerifier,
       });
+      if (result.skipped) return result;
       if (Array.isArray(input.sessions) || input.cron === true)
         await this.approvalTick().catch(() => {});
       // A deleted plan's tasks whose chats have ended are archived now.
       archiveEnded(store);
-      // New plan folders that lint clean become draft plans (never approved).
-      importNewPlans(store, {
-        // A picked epic's folder comes back as its own draft revision.
-        saveEpic: (epic) => {
-          const folder = this.readSpec(epic),
-            stored = store.get("plans", epic);
-          if (!folder.exists) return;
-          if (!stored) createSpecPlan(store, { id: epic }, folder);
-          else if (stored.hash !== folder.hash)
-            saveSpecPlan(
-              store,
-              { id: epic, expectedHash: stored.hash },
-              folder,
-            );
-        },
-        readSpec: (spec) => this.readSpec(spec),
-        writeManifest: (spec, text) =>
-          writeSpecManifest(this.readSpec(spec), text),
-        lint: (spec) =>
-          this.withContentDiagnostics(
-            lintSpec({
-              spec,
-              plan: { id: spec.name },
-              data: {
-                ...this.read(),
-                projects: store.list("projects"),
-                pluginIds: () => this.gatePluginIds(),
-              },
-            }),
-            spec,
-          ),
-      });
+      try {
+        await withWorkLock(store, WORKSPACE_LOCK, async () => {
+          // New plan folders that lint clean become draft plans (never approved).
+          importNewPlans(store, {
+            // A picked epic's folder comes back as its own draft revision.
+            saveEpic: (epic) => {
+              const folder = this.readSpec(epic),
+                stored = store.get("plans", epic);
+              if (!folder.exists) return;
+              if (!stored) createSpecPlan(store, { id: epic }, folder);
+              else if (stored.hash !== folder.hash)
+                saveSpecPlan(
+                  store,
+                  { id: epic, expectedHash: stored.hash },
+                  folder,
+                );
+            },
+            readSpec: (spec) => this.readSpec(spec),
+            writeManifest: (spec, text) =>
+              writeSpecManifest(this.readSpec(spec), text),
+            lint: (spec) =>
+              this.withContentDiagnostics(
+                lintSpec({
+                  spec,
+                  plan: { id: spec.name },
+                  data: {
+                    ...this.read(),
+                    projects: store.list("projects"),
+                    pluginIds: () => this.gatePluginIds(),
+                  },
+                }),
+                spec,
+              ),
+          });
+          if (
+            this.workspaceRoot &&
+            (input.cron === true || Array.isArray(input.sessions))
+          ) {
+            const review = await planReviewStep(store, {
+                workspaceRoot: this.workspaceRoot,
+                config: loadLayeredConfig({ workspaceRoot: this.workspaceRoot })
+                  .config,
+                readSpec: (spec) => this.readSpec(spec),
+                otherSpecs: () => this.specList().items,
+                open: !result.held,
+                prepare: this.planReviewOptions.prepare,
+                remove: this.planReviewOptions.remove,
+              }),
+              queued = enqueueSessionRequests(
+                store,
+                { starts: review.requests, sends: review.messages },
+                { source: "plan-review" },
+              );
+            for (const request of queued.starts) {
+              const index = result.dispatch.findIndex(
+                (entry) => entry.id === request.id,
+              );
+              if (index < 0) result.dispatch.push(request);
+              else result.dispatch[index] = request;
+            }
+            result.messages.push(...queued.sends);
+            result.notify.push(...review.notify);
+            queueNotifications(store, review.notify);
+          }
+        });
+      } catch (error) {
+        if (!error.contention) throw error;
+        // Another tick owns the post-import work; its next pass will finish it.
+      }
       return result;
     }
     if (name === "route.cancel") {
@@ -3481,6 +3543,7 @@ export class Operations {
       view.items.push(...mergeMethodNeedsYou(store));
       view.items.push(...approvalNeedsYou(store));
       view.items.push(...reviewDraftNeedsYou(store));
+      view.items.push(...planReviewNeedsYou(store));
       view.items.push(...gateNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
@@ -5399,27 +5462,45 @@ export class Operations {
       return result;
     }
     if (name === "plan.create") {
+      assertPlanAnswerWrite(store, { id: input.id || input.spec }, context);
       if (input.spec === undefined) return createPlan(store, input);
       const spec = this.readSpec(input.spec);
       if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
-      return createSpecPlan(
+      const previousHash = store.get("plans", input.id || input.spec)?.hash;
+      const created = createSpecPlan(
         store,
         { ...input, ...(spec.home ? { home: spec.home } : {}) },
         spec,
       );
+      recordPlanReviewWriter(store, created, {
+        previousHash,
+        caller: context.caller,
+      });
+      return created;
     }
     if (name === "plan.save") {
+      assertPlanAnswerWrite(store, { id: input.id }, context);
       const plan = store.get("plans", input.id);
       if (plan?.spec && input.text === undefined) {
         const spec = this.readSpec(plan.spec);
         if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
-        return saveSpecPlan(store, input, spec);
+        const saved = saveSpecPlan(store, input, spec);
+        recordPlanReviewWriter(store, saved, {
+          previousHash: plan.hash,
+          caller: context.caller,
+        });
+        return saved;
       }
       // An old-style plan whose spec folder now exists: link it as a draft.
       if (plan && !plan.spec && input.spec !== undefined) {
         const spec = this.readSpec(input.spec);
         if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
-        return linkSpecPlan(store, input, spec);
+        const linked = linkSpecPlan(store, input, spec);
+        recordPlanReviewWriter(store, linked, {
+          previousHash: plan.hash,
+          caller: context.caller,
+        });
+        return linked;
       }
       return savePlan(store, input);
     }
@@ -5716,6 +5797,11 @@ export class Operations {
     if (name === "plan.review.list") return listReviewThreads(store, input);
     if (name === "plan.reviewSummary")
       return planReviewSummary(store, input.planId || input.id);
+    if (name === "plan.review.findings") return reviewFindings(store, input);
+    if (name === "plan.review.answer")
+      return answerReview(store, input, context);
+    if (name === "plan.review.decide")
+      return decidePlanReview(store, input, context);
     if (name === "plan.review.submit") {
       if (store.get("plans", input.planId)?.spec)
         return createSpecReviewFindings(store, input, {
