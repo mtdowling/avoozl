@@ -893,10 +893,27 @@ const page = query.get('page')
 // row and the count shown once.
 if (page === 'needs') {
   const it = (n: number, kind: string) => ({ key: `k${n}`, kind, taskId: `t${n}`, title: `Item ${n}`, detail: 'Waits on you.', plan: 'meal-planner', epic: null, repository: 'example/recipe-box', since: '2026-11-14T10:00:00Z' })
-  answer('conflicts.view', () => ({ revision: 1, items: [it(1, 'decision'), it(2, 'decision'), it(3, 'needs-human'), it(4, 'review')] }))
+  answer('conflicts.view', () => ({ revision: 1, items: query.get('draftReview') === '1' ? [{
+    id: 'draft-review-1', kind: 'plan-review', taskId: null, plan: 'reader', title: 'Review draft reader?',
+    detail: 'Read this draft on a different model, or skip this revision.',
+    planReview: { planId: 'reader', revisionHash: 'a'.repeat(64) },
+  }] : [it(1, 'decision'), it(2, 'decision'), it(3, 'needs-human'), it(4, 'review')] }))
+  answer('plan.review.decide', (body) => {
+    state.calls.push(body)
+    if (query.get('draftDelay') === '1') return new Promise((resolve) => {
+      window.addEventListener('release-draft-review', () => resolve({ state: (body.input as { action: string }).action }), { once: true })
+    })
+    return { state: (body.input as { action: string }).action }
+  })
   answer('delivery.view', () => ({ revision: 1, items: [] }))
 }
-const NeedsPage = () => <ConflictsView workspaceId="w" />
+function NeedsPage() {
+  const [workspaceId, setWorkspaceId] = useState('w')
+  return <>
+    {query.get('draftReview') === '1' && <button data-review-workspace={workspaceId} onClick={() => setWorkspaceId('other')}>Switch workspace</button>}
+    <ConflictsView workspaceId={workspaceId} />
+  </>
+}
 // ?page=radar-values[&grant=1]: the Radar values screen on a fake Radar read.
 if (page === 'radar-values') {
   const grant = query.get('grant') === '1'

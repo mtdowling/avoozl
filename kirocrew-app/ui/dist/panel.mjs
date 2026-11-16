@@ -627,6 +627,11 @@ function Ve(e) {
 		...i === void 0 ? {} : { expectedRevision: i }
 	})).result;
 	return {
+		decidePlanReview: (e, n, r, i) => t("plan.review.decide", {
+			planId: n,
+			revisionHash: r,
+			action: i
+		}, e),
 		graph: (e, n = {}) => {
 			let r = {};
 			for (let e of [

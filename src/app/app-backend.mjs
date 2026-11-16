@@ -174,6 +174,7 @@ export const APP_OPERATIONS = new Set([
   "graph.view",
   "delivery.view",
   "conflicts.view",
+  "plan.review.decide",
   "panel.view",
   "remote.view",
   "untriaged.view",
