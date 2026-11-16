@@ -72,10 +72,8 @@ examples never approves a plan, starts a session, or configures a repository.
 To show Avoozl to someone without touching your work, choose **Start demo**
 in the empty In flight box on the Dashboard. It shows only while nothing is in
 flight and the workspace has never run a task. It is also on the empty page
-when you have no workspace yet. It opens a made-up workspace, Recipe Box, and a guided tour
-of the Dashboard, Specs, Graph, a task, Intake, Flow, Needs you, Stop the
-line and Settings. Use **Next** and **Back** or the arrow keys; Esc closes the
-tour.
+when you have no workspace yet. It opens a made-up workspace, Recipe Box, to look
+around in. **Exit demo** returns to your own workspace.
 
 While the demo is on, a **Demo** badge shows in the header. Reads work.
 Every change only says what it would do, no agent or chat starts, and GitHub
@@ -514,7 +512,7 @@ tests with a fake GitHub, fake sessions, or fake crews, run by `npm test`.
 | Pull request feedback                                | Fakes only (P34)                                     |
 | Spec Builder hand-off                                | Fakes only                                           |
 | Stacked pull requests, comment steering, Discussions | Fakes only                                           |
-| Demo mode and its guided tour                        | Fakes only, plus headless Chrome on the harness page |
+| Demo mode                                            | Fakes only, plus headless Chrome on the harness page |
 
 ## Configuration and secrets
 

@@ -35,7 +35,7 @@ import type { Drill } from './graph-layout.ts'
 import { viewsClient } from './views-api.ts'
 import { APP_ATTR, NavHistoryProvider, useNav } from './NavHistory.tsx'
 import { changePage } from './nav-history.ts'
-import { DemoBar, DemoProvider, DemoTour, StartDemoButton, useDemo } from './Demo.tsx'
+import { DemoBar, DemoProvider, StartDemoButton, useDemo } from './Demo.tsx'
 import { DEMO_WORKSPACE_ID } from './demo-api.ts'
 import {
   errorMessage,
@@ -427,11 +427,6 @@ function AvoozlPage() {
       </div>
       </div>
       </div>
-      <DemoTour
-        onEnter={(step) =>
-          go({ focus: null, drill: null, tab: step.tab as Tab, ...(step.settingsTab ? { settingsTab: step.settingsTab as SettingsTab } : {}) })
-        }
-      />
     </div>
     </TaskDrawerProvider>
     </ConfirmProvider>
