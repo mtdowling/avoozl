@@ -6,7 +6,9 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
-import { pendingNewPlans } from "../new-plan.mjs";
+import { newPlanStarts, newPlanTask, pendingNewPlans } from "../new-plan.mjs";
+import { planReviewWriter } from "../plan-review-authorship.mjs";
+import { recordSessionStatus } from "../session-bindings.mjs";
 import { fixture } from "./fixtures.mjs";
 import { specFiles, writeSpec } from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -197,6 +199,74 @@ test("the tick imports a requested folder as a draft once it lints clean, and ne
     !store.read().tasks.some((task) => task.planId === "cache-invalidation"),
     "an unapproved draft adds no tasks",
   );
+});
+
+test("the tick opens New plan's planner chat and credits its draft to that chat", async (t) => {
+  // Nearby inputs: a bound chat, a second ask, a page-era request, Spec Builder.
+  const { root, store, ops } = workspace(t);
+  await ops.execute("plan.new", request());
+  const [start] = newPlanStarts(store, { model: "fake-planner" });
+  assert.deepEqual(
+    {
+      role: start.role,
+      task: start.task,
+      worktree: start.worktree,
+      model: start.model,
+      permissionClass: start.permissionClass,
+      attempt: start.attempt,
+      context: start.context,
+    },
+    {
+      role: "planner",
+      task: newPlanTask("cache-invalidation"),
+      worktree: root,
+      model: "fake-planner",
+      permissionClass: "write",
+      attempt: 1,
+      context: { newPlan: "cache-invalidation" },
+    },
+  );
+  assert.ok(start.brief.includes("Mode: draft."));
+  assert.ok(start.title.startsWith("avoozl:new-plan:cache-invalidation "));
+  // A second ask opens a new attempt; a page-era entry (no brief) opens none.
+  await ops.execute("plan.new", request({ goal: "Second try." }));
+  assert.equal(newPlanStarts(store, {})[0].attempt, 2);
+  store.setMeta("newPlans", [
+    ...pendingNewPlans(store),
+    { name: "old-page-chat", goal: "x", repositories: ["app"] },
+  ]);
+  assert.equal(newPlanStarts(store, {}).length, 1);
+
+  await ops.execute("session.bind", {
+    taskId: start.task,
+    slot: "avoozl_np",
+    role: "planner",
+    attempt: 2,
+    source: "tick",
+  });
+  assert.deepEqual(
+    newPlanStarts(store, {}),
+    [],
+    "a bound chat is not reopened",
+  );
+  recordSessionStatus(
+    store,
+    { slot: "avoozl_np", status: "idle" },
+    {
+      served: {
+        requested: "fake-planner",
+        model: "fake-planner",
+        withheld: false,
+        changed: false,
+      },
+    },
+  );
+  writeSpec(root, "cache-invalidation", cleanSpec());
+  await ops.execute("workspace.tick", {});
+  const plan = store.get("plans", "cache-invalidation"),
+    writer = planReviewWriter(store, plan.id, plan.hash);
+  assert.equal(writer.slot, "avoozl_np");
+  assert.equal(writer.actualModel, "fake-planner");
 });
 
 // Spec Builder hand-off: plan.new returns the create body, the steering
