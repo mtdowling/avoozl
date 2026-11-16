@@ -1,3 +1,4 @@
+import { kirocrewSession } from "./executors/kirocrew.mjs";
 // Investigate before coding (design §4.21, Requirement 75, task 34.1).
 //
 // A leaf's first turn is findings, not code: the worker reads, says what it
@@ -437,7 +438,7 @@ export function investigationStep(
       role: "falsifier",
       attempt,
       title: `avoozl:${task.id} falsify round ${round.n}`.slice(0, 200),
-      folder: `Avoozl/${project.id}`,
+      ...kirocrewSession(project.id),
       agent: settings.agent,
       ...(model ? { model } : {}),
       checkout: project.root,

@@ -12,7 +12,6 @@
 // hold it). It cannot tell a closed session from a lost one, so "gone" is
 // not final: a worker that is gone opens a decision (delivery.mjs).
 import { liveAttempt } from "./delivery.mjs";
-import { gatewayClient } from "./gateway-client.mjs";
 import { ingestToolRows, toolCallsReadable } from "./flow.mjs";
 import { ingestProviderErrors } from "./provider-health.mjs";
 import { recordRetroReply } from "./flow-retro.mjs";
@@ -20,51 +19,6 @@ import {
   listSessionBindings,
   recordSessionStatus,
 } from "./session-bindings.mjs";
-
-// The status of one slot from its GET /api/chat/slots/<slot> body.
-export function slotStatus(body) {
-  if (body?.running === true) return "working";
-  if (Array.isArray(body?.queue) && body.queue.length) return "queued";
-  return "idle";
-}
-
-// A function that reads one slot's status, or null without a gateway client.
-// It throws on any answer but 200 and 404, so an unreadable session keeps its
-// last status rather than reading as gone.
-export function gatewaySlotReader(env = process.env, request = fetch) {
-  const client = gatewayClient(env, request);
-  if (!client) return null;
-  return async (slot) => {
-    const response = await client.call(
-      `/api/chat/slots/${encodeURIComponent(slot)}?limit=1`,
-      { method: "GET" },
-    );
-    if (response.status === 404) return "gone";
-    if (!response.ok)
-      throw Error(`Kiro Crew refused the session read (${response.status}).`);
-    return slotStatus(await response.json());
-  };
-}
-
-// Stop one session's turn for Stop all agents (R64.12): Kiro Crew's own
-// session stop, on the app token. The app manifest grants
-// /api/chat/slots/avoozl_*; any refusal throws, and the caller names it.
-export function gatewaySessionStopper(env = process.env, request = fetch) {
-  const client = gatewayClient(env, request);
-  if (!client) return null;
-  return async (slot) => {
-    const response = await client.call(
-      `/api/chat/slots/${encodeURIComponent(slot)}/stop`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-      },
-    );
-    if (!response.ok)
-      throw Error(`Kiro Crew refused the session stop (${response.status}).`);
-  };
-}
 
 // sessions.observe: read every live session the tick opened and record what
 // changed. Writes only a changed status. Returns {observed, errors}.
@@ -89,40 +43,6 @@ export async function observeSessions(store, read) {
     observed += 1;
   }
   return { observed, errors };
-}
-
-// Tool rows for timing (§4.11, F90, F91): the same per-slot read with the
-// incremental cursor, so each read returns only rows from the last one on.
-// Kiro Crew stores a tool call as a row with role "tool", its start `ts`, and
-// `meta` {tool_call_id, kind, input}. Only `kind`, the command's first words
-// and `ts` are kept (flow.mjs ingestToolRows). Inferred until a live read
-// settles the row shape for app-owned slots (task 12.2's receipt).
-export function gatewaySlotRows(env = process.env, request = fetch) {
-  const client = gatewayClient(env, request);
-  if (!client) return null;
-  return async (slot, cursor = null) => {
-    const query = new URLSearchParams({ limit: "200", cursor: "1" });
-    if (
-      cursor?.from !== undefined &&
-      cursor?.since !== undefined &&
-      cursor?.digest
-    )
-      for (const key of ["from", "since", "digest"])
-        query.set(key, String(cursor[key]));
-    const response = await client.call(
-      `/api/chat/slots/${encodeURIComponent(slot)}?${query}`,
-      { method: "GET" },
-    );
-    if (response.status === 404) return { rows: [], cursor: null, gone: true };
-    if (!response.ok)
-      throw Error(`Kiro Crew refused the session read (${response.status}).`);
-    const body = await response.json();
-    return {
-      rows: Array.isArray(body?.messages) ? body.messages : [],
-      cursor:
-        body?.cursor && typeof body.cursor === "object" ? body.cursor : null,
-    };
-  };
 }
 
 // Read each live worker session the tick opened and record its new tool
@@ -182,20 +102,10 @@ export async function observeRetroReplies(store, readRows) {
   return { errors };
 }
 
-// Per-turn token and credit rows of one session the app opened (§4.11):
-// GET /api/usage/turns?slot=<slot>&days=30, granted in app.json. Kiro Crew
-// returns only rows stamped with this app. Verified from source, not live.
-export function gatewayUsageTurns(env = process.env, request = fetch) {
-  const client = gatewayClient(env, request);
-  if (!client) return null;
-  return async (slot) => {
-    const response = await client.call(
-      `/api/usage/turns?slot=${encodeURIComponent(slot)}&days=30`,
-      { method: "GET" },
-    );
-    if (!response.ok)
-      throw Error(`Kiro Crew refused the usage read (${response.status}).`);
-    const body = await response.json();
-    return Array.isArray(body?.turns) ? body.turns : [];
-  };
-}
+export {
+  slotStatus,
+  gatewaySlotReader,
+  gatewaySessionStopper,
+  gatewaySlotRows,
+  gatewayUsageTurns,
+} from "./executors/kirocrew.mjs";

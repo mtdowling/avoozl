@@ -1,3 +1,4 @@
+import { kirocrewSession } from "./executors/kirocrew.mjs";
 // Retrospectives and PDCA (design §4.11, Requirement 47). Now and then the
 // tick starts one session of the tool-less avoozl-retro agent with the
 // window's timing. It names the biggest bottleneck and proposes at most
@@ -375,7 +376,7 @@ const summary = (p) => ({
 export function retroStep(
   store,
   config,
-  { now = Date.now(), folder = null } = {},
+  { now = Date.now(), repository = null } = {},
 ) {
   const data = store.read(),
     notify = [],
@@ -526,13 +527,13 @@ export function retroStep(
     );
     s = { ...s, pending: [], reverts: [], finishedCount: found.finishedCount };
     changed = true;
-    if (folder && allowed)
+    if (repository && allowed)
       dispatch.push({
         task: retro.id,
         role: "retro",
         attempt: 1,
         title: `avoozl:${retro.id} retro`,
-        folder,
+        ...kirocrewSession(repository),
         agent: RETRO_AGENT,
         ...(model && model !== "auto" ? { model } : {}),
         brief,

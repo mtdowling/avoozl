@@ -590,7 +590,7 @@ test(
       100,
     );
     clockTo(minute + 120);
-    const retro = retroStep(store, w.config, { folder: "Avoozl/app" });
+    const retro = retroStep(store, w.config, { repository: "app" });
     assert.equal(retro.dispatch[0].agent, "avoozl-retro");
     const reply = recordRetroReply(
       store,
@@ -654,7 +654,7 @@ test(
       minute,
     );
     clockTo(minute + 120);
-    const next = retroStep(store, w.config, { folder: "Avoozl/app" });
+    const next = retroStep(store, w.config, { repository: "app" });
     const approved = store.get("flow_retros", reply.id).proposals[0];
     assert.equal(approved.pdca.result, "no change");
     const revert = recordRetroReply(

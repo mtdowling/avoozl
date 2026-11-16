@@ -1,3 +1,4 @@
+import { kirocrewSession } from "./executors/kirocrew.mjs";
 // Planner sessions for issues a deliver rule matched (§6.2; the gap proof
 // P12 found). The tick starts one `avoozl-planner` session per trigger event
 // to classify an unclassified issue and, when it is broad, draft its child
@@ -201,7 +202,7 @@ export function plannerStep(store, workspaceRoot, { open = true } = {}) {
         role: "planner",
         attempt: planner.attempt,
         title: sessionTitle(row.taskId, planner.attempt, label),
-        folder: rules.folder || `Avoozl/${checkout.id}`,
+        ...kirocrewSession(checkout.id, rules),
         agent: PLANNER_AGENT,
         checkout: checkout.localCheckout,
         brief: withSeed(

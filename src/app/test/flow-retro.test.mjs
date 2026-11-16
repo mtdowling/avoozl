@@ -122,7 +122,7 @@ test("ten finished tasks start one retro; its proposals are typed, bounded and n
   const s = setup(t, 25);
   s.finish(s.ids.slice(0, 10));
   const now = Date.parse("2026-11-12T16:00:00Z"),
-    first = retroStep(s.store, {}, { now, folder: "Avoozl/app" });
+    first = retroStep(s.store, {}, { now, repository: "app" });
   assert.equal(first.dispatch.length, 1);
   assert.equal(first.dispatch[0].agent, "avoozl-retro");
   assert.equal(first.dispatch[0].role, "retro");
@@ -134,7 +134,7 @@ test("ten finished tasks start one retro; its proposals are typed, bounded and n
   );
   // One at a time: a second step starts nothing.
   assert.equal(
-    retroStep(s.store, {}, { now: now + 60_000, folder: "Avoozl/app" }).dispatch
+    retroStep(s.store, {}, { now: now + 60_000, repository: "app" }).dispatch
       .length,
     0,
   );
@@ -201,7 +201,7 @@ test("ten finished tasks start one retro; its proposals are typed, bounded and n
   const second = retroStep(
     s.store,
     { flow: { batch: { max: 5 } } },
-    { now: later, folder: "Avoozl/app" },
+    { now: later, repository: "app" },
   );
   assert.equal(
     s.store.get("flow_retros", "retro-1").proposals[0].pdca.result,
@@ -226,7 +226,7 @@ test("a retro that times out or answers nothing valid is recorded failed", async
   const s = setup(t, 10);
   s.finish(s.ids);
   const now = Date.parse("2026-11-12T16:00:00Z");
-  retroStep(s.store, {}, { now, folder: "Avoozl/app" });
+  retroStep(s.store, {}, { now, repository: "app" });
   retroStep(s.store, {}, { now: now + 11 * 60_000 });
   assert.match(s.store.get("flow_retros", "retro-1").error, /timed out/);
   s.store.put("flow_retros", {
@@ -322,7 +322,7 @@ test("PDCA measures every approved proposal of one retro in the same tick, once"
   });
   s.finish(s.ids);
   const now = Date.parse("2026-11-12T16:00:00Z");
-  retroStep(s.store, {}, { now, folder: "Avoozl/app" });
+  retroStep(s.store, {}, { now, repository: "app" });
   assert.deepEqual(
     s.store.get("flow_retros", "retro-1").proposals.map((p) => p.pdca.result),
     ["no change", "no change"],
@@ -331,7 +331,7 @@ test("PDCA measures every approved proposal of one retro in the same tick, once"
     s.store.get("flow_retros", "retro-2").reverts.map((r) => r.revertOf),
     ["retro-1:p1", "retro-1:p2"],
   );
-  retroStep(s.store, {}, { now: now + 60_000, folder: "Avoozl/app" });
+  retroStep(s.store, {}, { now: now + 60_000, repository: "app" });
   assert.deepEqual(s.store.getMeta("flow.retro.state").reverts, []);
 });
 

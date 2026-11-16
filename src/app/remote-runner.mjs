@@ -1,3 +1,4 @@
+import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 // Runner mode over SSH (Requirement 84, design §6.13). Off unless
 // `.avoozl.json` has `runner`. A runner holds no plans: it runs the tasks a
 // driver hands it. A driver pushes a task envelope over SSH, pulls the
@@ -385,10 +386,9 @@ export async function runnerTick(
           task: id,
           role: "worker",
           title: `avoozl:${id} remote task`,
-          folder: "Avoozl/remote",
+          ...kirocrewDetachedSession("remote"),
           agent: record.envelope.agent,
           ...(record.envelope.model ? { model: record.envelope.model } : {}),
-          project: false,
           remote: true,
           ...(config.workerMode ? { mode: config.workerMode } : {}),
           brief: workerBrief(record, { ...started, command }),
