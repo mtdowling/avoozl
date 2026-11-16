@@ -21789,7 +21789,9 @@ function R_({ workspaceId: e }) {
 				m(!1);
 			}
 		}
-	}, x = T_(s, r), T = (e) => a({
+	};
+	ko(So(e, () => void v(), p || !e));
+	let x = T_(s, r), T = (e) => a({
 		...r,
 		...e
 	}), E = s?.items ?? [];
@@ -21800,11 +21802,6 @@ function R_({ workspaceId: e }) {
 			/* @__PURE__ */ C(Qr, {
 				id: "avoozl-activity-title",
 				view: "activity",
-				actions: /* @__PURE__ */ C(wo, {
-					workspaceId: e,
-					onRefresh: () => void v(),
-					busy: p || !e
-				}),
 				children: "Activity"
 			}),
 			/* @__PURE__ */ C("p", {
