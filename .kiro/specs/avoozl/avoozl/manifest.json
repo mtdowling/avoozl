@@ -7785,6 +7785,23 @@
         "54.3"
       ]
     },
+    "54.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 54 (Retrospectives catch steady CI waste). See R100.1, R100.4, R100.6; §4.30.",
+      "acceptance": [
+        "Closed pull requests from the open pull request query, after 54.2",
+        "The open pull request query's first page also reads the 50 most recently updated closed pull requests; one never seen open gets a row, its runs link by branch, a seen one takes its exact close time, and a test shows no extra call."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "54.2"
+      ]
+    },
     "avoozl-p64": {
       "kind": "leaf",
       "repository": "avoozl",
@@ -7803,7 +7820,8 @@
         "54.2",
         "54.3",
         "54.4",
-        "54.5"
+        "54.5",
+        "54.6"
       ]
     }
   }
