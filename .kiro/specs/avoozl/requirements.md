@@ -5238,3 +5238,100 @@ in one GraphQL query per check.
    dark) for the owner's approval before it merges.
 8. With no GitHub repository in the workspace, Avoozl SHALL make no read
    for this and SHALL show **No pull requests read** in the Flow tab.
+
+### Requirement 101: Every build receipt, and a build breakdown for retrospectives
+
+Added 2026-11-16 (owner request). Design §4.31. This adds to Requirement
+RC32 of the radar-coder spec (kept by Requirement 86.9), Requirement 47 and
+Requirement 100. RC32's wrapper, cold or warm check and counters parser stay.
+
+**User story:** As the owner, I want Avoozl to keep every build and test
+record a pull request's CI writes, failed attempts included, and to hand the
+retrospective a repository's own breakdown of where build time goes, so
+that the costliest step is visible and a change is judged only against
+builds that did the same work.
+
+Facts. `parseReceipt` in `src/app/build-receipt.mjs` keeps only the last
+line of a JSONL file. `receiptReader` in `src/app/build-receipt-read.mjs`
+lists artifacts named exactly `build-receipt` and takes the first one whose
+run matches the head commit, so one pull request keeps one receipt. The CI
+workflow uploads that artifact from the Linux job only, because artifact
+names must be unique within a run. The receipts are kept in one metadata
+value with one receipt per pull request, and they are read from
+`radar-flow.mjs`, only for repositories whose coder is Issue Radar. The
+retrospective brief has no build data; its `receipts` field is the budget
+receipt of Requirement 67.
+
+#### Acceptance criteria
+
+1. **Every record.** For each merged pull request in a repository with
+   `buildReceipts` on, Avoozl SHALL read every artifact whose name is
+   `build-receipt` or starts with `build-receipt-`, from every workflow run
+   on the pull request's head commit, failed, cancelled and re-run attempts
+   included, and SHALL parse every line of each file. A line that does not
+   parse SHALL be skipped and counted; the other lines SHALL be kept.
+2. **Observations.** Each line SHALL be stored as its own observation,
+   keyed by repository, head commit, workflow run, task, attempt, command,
+   target and its order among lines with the same key. A failed attempt (a
+   non-zero exit, or a line from a run that failed) SHALL be kept and marked
+   failed. A version 1 line without the new fields SHALL still parse.
+3. **Wrapper.** `bin/build-receipt` SHALL also record `task` (from `--task`
+   or `AVOOZL_TASK`), `attempt` (from `--attempt`, `AVOOZL_ATTEMPT`, or
+   `GITHUB_RUN_ATTEMPT`, else 1) and `phase` (from `--phase`, else the
+   command). The CI job SHALL upload its file on every platform as
+   `build-receipt-<target>`, and the job summary SHALL show every line.
+4. **Summaries.** Flow SHALL show, per pull request, the total build time,
+   the time per phase summed over targets, and the costliest phase. Medians
+   per phase, target and cold or warm SHALL use every successful
+   observation. Failed attempts SHALL count in a pull request's total and be
+   shown apart, and SHALL NOT enter the success medians. Trace SHALL show
+   every observation on the merged step, grouped by phase. A before and
+   after comparison (PDCA, Requirement 47.7) SHALL compare one phase,
+   target and cold or warm at a time, over every matching observation.
+5. **Calls.** Avoozl SHALL make at most one artifact list call per
+   repository per check, sent with the cached ETag so an unchanged list is a
+   not-modified reply, and one download per artifact it has not read before.
+   A read artifact SHALL cost 0 on every later check. A merged pull request
+   whose head commit runs are all complete and have no receipt artifact
+   SHALL be remembered as having none. Each call SHALL count under `receipt`
+   in the GitHub usage counter.
+6. **Not tied to Issue Radar.** Receipts SHALL be read in the tick's CI step
+   for every repository with `buildReceipts` on, whatever its coder, so the
+   reader survives the removal of Phase 45.
+7. **Report format.** Avoozl SHALL define a documented, versioned build
+   report, `avoozl.build-report` version 1, with: `workload`, `engine`,
+   `target`, `toolchain` (a toolchain or seed ID), `cache` (the cache mode),
+   and a `costs` object of milliseconds for `build`, `provisioning`, `cache`
+   and `test`, plus optional `parts` and `counters`. A repository SHALL name
+   where its reports are in `receipts.report` of `.avoozl.json`: a field
+   inside each receipt line, or an artifact name prefix. A report with an
+   unknown version or a missing field SHALL be skipped and counted, never
+   guessed.
+8. **Repository neutral.** A small adapter SHALL turn a report into a
+   breakdown observation. Profiling, budgets and limits SHALL stay in the
+   repository that writes the reports; Avoozl SHALL only store, show and
+   compare. Avoozl source, tests and fixtures SHALL NOT name any real
+   repository's workloads, engines, targets, paths or tasks.
+9. **Comparable.** Two breakdowns SHALL be compared only when `workload`,
+   `engine`, `target`, `toolchain` and `cache` are all present and all
+   equal. A breakdown missing any of them SHALL be compared with nothing.
+10. **Retro brief.** The retrospective brief SHALL hold a `builds` field per
+    repository: per pull request the costliest phase from receipts, and per
+    comparison key the count, the latest and median cost of each cost and
+    part, and the costliest part. A retrospective MAY propose a `plan`
+    proposal that names the repository, the comparison key and the part.
+    The metric **Build part minutes** SHALL compare only breakdowns with the
+    proposal's key; with fewer than `flow.retro.everyTasks` on either side,
+    PDCA SHALL say **Not enough comparable builds** and give no verdict.
+11. A repository with no reports SHALL behave as today: no `builds`
+    breakdown, no extra call, and an unchanged brief apart from receipt
+    phases. A repository with `buildReceipts` off SHALL make no call for
+    this.
+12. The Flow and Trace changes are screen changes: the task that builds
+    them SHALL ship before and after screenshots (phone and desktop, light
+    and dark) for the owner's approval before it merges.
+13. **Tests** on a fake GitHub SHALL cover: a pull request with several
+    phases on 3 platforms keeps every record; a failed attempt is kept; the
+    costliest phase shows in Flow; one list per check and one download per
+    new artifact; mismatched keys are never compared; a retro brief includes
+    the breakdown; a repository with no reports behaves as today.
