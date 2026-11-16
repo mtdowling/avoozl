@@ -1,5 +1,13 @@
+import { sessionStartHold } from "./session-request-eligibility.mjs";
+import {
+  takeKirocrewRequest,
+  releaseKirocrewRequest,
+  completeKirocrewRequest,
+  kirocrewConsumer,
+} from "./executors/kirocrew.mjs";
 import { approvedSpecDependency } from "../spec-dependencies.mjs";
 import { approvalBatches, approveMany } from "./approval-batches.mjs";
+import { planReviewSummary } from "./plan-review-summary.mjs";
 import {
   specDeclarations,
   declaredDependencies,
@@ -2049,7 +2057,14 @@ export class Operations {
         `Resolve plan diagnostic ${blocking.code} before approval: ${blocking.message}`,
         409,
       );
-    return { plan, extraction, specQuality, proposals, quality };
+    return {
+      plan,
+      extraction,
+      specQuality,
+      proposals,
+      quality,
+      review: planReviewSummary(this.store, plan.id),
+    };
   }
   planApproved(plan) {
     return this.store
@@ -2863,7 +2878,12 @@ export class Operations {
     // went (moved-operations.mjs). A run start that names a task, repository,
     // and agent is a dispatch request, and an extraction without provider
     // rounds still opens a record for a planner session to fill.
-    if (name === "run.start" && input.taskId && input.repository && input.agent)
+    if (
+      name === "run.start" &&
+      input.taskId &&
+      input.repository &&
+      (input.agent || input.executor)
+    )
       return requestSession(
         store,
         {
@@ -2871,6 +2891,9 @@ export class Operations {
           repository: input.repository,
           agent: input.agent,
           role: input.role,
+          executor: input.executor,
+          model: input.model,
+          permissionClass: input.permissionClass,
         },
         workspaceRepositories(store),
       );
@@ -2932,7 +2955,9 @@ export class Operations {
     }
     if (name === "session.bind")
       return store.transaction(() => {
-        const result = bindSession(store, input);
+        const result = bindSession(store, input, {
+          consumer: kirocrewConsumer(context),
+        });
         if (result.changed && result.binding.role === "plan-review") {
           bindSpecReviewRound(store, {
             roundId: result.binding.taskId,
@@ -2942,6 +2967,14 @@ export class Operations {
         }
         return stampPrompts(store, result);
       });
+    if (name === "executor.kirocrew.take")
+      return takeKirocrewRequest(store, input, context, (request, queued) =>
+        sessionStartHold(store, request, queued),
+      );
+    if (name === "executor.kirocrew.release")
+      return releaseKirocrewRequest(store, input, context);
+    if (name === "executor.kirocrew.complete")
+      return completeKirocrewRequest(store, input, context);
     if (name === "session.rediscover") return rediscoverSessions(store, input);
     if (name === "session.request")
       return requestSession(store, input, workspaceRepositories(store));
@@ -5438,6 +5471,7 @@ export class Operations {
         ...(plan.spec ? { disk: this.specOnDisk(plan) } : {}),
         approvals: store.list("approvals").filter((a) => a.planId === plan.id),
         reviews: listReviewThreads(store, { planId: plan.id }).items,
+        review: planReviewSummary(store, plan.id),
         reviewPipelines: store
           .list("review_rounds")
           .filter((round) => round.planId === plan.id),
@@ -5518,6 +5552,7 @@ export class Operations {
       return {
         planId: plan.id,
         reviewedHash: plan.spec ? plan.hash : digest(text),
+        review: planReviewSummary(store, plan.id),
         currentHash: plan.hash,
         state: plan.state,
         quality,
@@ -5679,6 +5714,8 @@ export class Operations {
     }
     if (name === "plan.extraction.dispose") return disposeFact(store, input);
     if (name === "plan.review.list") return listReviewThreads(store, input);
+    if (name === "plan.reviewSummary")
+      return planReviewSummary(store, input.planId || input.id);
     if (name === "plan.review.submit") {
       if (store.get("plans", input.planId)?.spec)
         return createSpecReviewFindings(store, input, {
@@ -5704,11 +5741,17 @@ export class Operations {
         ...input,
         author: input.author || this.operator,
       });
-    if (name === "plan.review.dispose")
+    if (name === "plan.review.dispose") {
+      if (
+        store.get("review_threads", input.id)?.source === "plan-review" &&
+        (context.caller || context.mcp)
+      )
+        fail("Only a person closes a spec review finding.", 403);
       return disposeReview(store, {
         ...input,
         author: input.author || this.operator,
       });
+    }
     if (name === "plan.review.apply")
       return applyReviewSuggestion(store, {
         ...input,
