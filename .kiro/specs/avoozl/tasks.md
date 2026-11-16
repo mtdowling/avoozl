@@ -1865,7 +1865,7 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
 - [x] 55.1 Every line of a receipt file, and task, attempt and phase in the wrapper [R101.2, R101.3] (§4.31)
   - `parseReceipts` returns every record and a skipped count; `bin/build-receipt` takes `--task`, `--attempt` and `--phase` with their fallbacks. Tests: 4 lines keep 4; a bad line is skipped and counted; a version 1 line without the new fields parses; the wrapper tests of rc-31.1 pass unchanged.
   - Built: pass, `src/app/test/build-receipt.test.mjs`.
-- [ ] 55.2 CI uploads a receipt from every platform, after 55.1 [R101.3] (§4.31)
+- [x] 55.2 CI uploads a receipt from every platform, after 55.1 [R101.3] (§4.31)
   - Each test job uploads `build-receipt-<os>` with `if: always()`; the summary prints every line. A workflow file is a protected path, so the diff goes to the owner before it lands. Done when a CI run shows 3 artifacts and every line in the summary.
 - [ ] 55.3 Reader: every artifact, every line, stored observations, after 55.1, 54.2, 54.6 [R101.1, R101.2, R101.5, R101.6] (§4.31)
   - Unfiltered artifact list through the HTTP cache from `ciStep`; `receipt_artifacts` and `build_observations`; `pr_ci` gains `head_sha` and `merged_at`; the old metadata value moves once. Tests: several phases on 3 platforms keep every record; a failed attempt is kept and marked; one list per check, a 304 reads nothing, one download per new artifact, the next check costs 0; complete runs with no artifact store none.
