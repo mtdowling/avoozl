@@ -36,6 +36,8 @@ import { GateList } from '../../src/TrackerGates.tsx'
 import { waitingGates, type GateRow } from '../../src/release-api.ts'
 import ReleaseQueue from '../../src/ReleaseQueue.tsx'
 import GithubFlow from '../../src/GithubFlow.tsx'
+import FlowView from '../../src/FlowView.tsx'
+import FlowSettings from '../../src/FlowSettings.tsx'
 import { ReleaseModePicker } from '../../src/ReleaseMode.tsx'
 import { ProjectionModal } from '../../src/ProjectionModal.tsx'
 import { SpecChangedModal } from '../../src/SpecChangedModal.tsx'
@@ -597,6 +599,76 @@ function ReleaseModes() {
     </div>
   )
 }
+// ?page=flow-ci and ?page=flow-ci-settings: the Flow tab's CI card and
+// Settings › Flow on sample CI counts (§4.30); &ci=none has no GitHub
+// repository, so nothing was read.
+if (query.get('page')?.startsWith('flow-ci')) {
+  const none = query.get('ci') === 'none'
+  const metrics = { tasks: 0, leadTimeMs: null, flowEfficiency: null, firstPassRate: null, changeFailureRate: null, integrationsPerDay: null, timeToFixMs: null }
+  const usage = { available: false, total: { input: 0, output: 0, credits: 0, turns: 0 }, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] }
+  answer('radar.flow', () => ({ readAt: null, count: 0, issues: [], skipped: [], median: null, medianLead: null, efficiency: null, bottleneck: null, errors: [], repositories: [] }))
+  answer('flow.view', () => ({
+    window: { size: 20, since: null },
+    metrics,
+    previous: metrics,
+    bottleneck: null,
+    tasks: [],
+    stops: [],
+    line: [],
+    flaky: [],
+    ciOnly: [],
+    retros: [],
+    batches: [],
+    stages: [],
+    repositories: [],
+    epics: [],
+    plans: [],
+    phases: [],
+    series: { day: [], week: [] },
+    usage,
+    ci: none
+      ? { read: false, repositories: [] }
+      : {
+          read: true,
+          repositories: [
+            {
+              repository: 'acme/recipe-box',
+              windowDays: 7,
+              pullRequests: 14,
+              classes: [
+                { name: 'code', task: 96.4, other: 31.5 },
+                { name: 'tests', task: 22, other: 0 },
+                { name: 'spec', task: 75, other: 175.2 },
+                { name: 'docs', task: 0, other: 24.8 },
+              ],
+              docsOnlyMinutes: 275,
+              docsOnlyLimit: 60,
+              waitShare: 0.46,
+              waitLimit: 0.4,
+              closed: 12,
+              repeats: [{ workflow: '.github/workflows/test.yml', commits: 11, extraRuns: 11, extraMinutes: 262.5 }],
+            },
+          ],
+        },
+  }))
+  answer('flow.proposals', () => ({ proposals: [], dropped: [], prompts: [], notes: [], available: false }))
+  answer('flow.settings.get', () => ({
+    filename: '.avoozl.json',
+    exists: true,
+    hash: 'h',
+    flow: { ci: { docsOnlyMinutes: 90 } },
+    repositories: {},
+    instructions: '',
+    retroPrompt: null,
+    ciClasses: {
+      ci: ['.github/', '.gitlab-ci.yml', '.circleci/'],
+      spec: ['.kiro/specs/'],
+      tests: ['test/', 'tests/', '**/test/**', '**/tests/**', '**/*.test.*', '**/*_test.*'],
+      docs: ['docs/', '*.md', '**/*.md', '*.txt', 'LICENSE'],
+      other: ['package-lock.json', '**/package-lock.json', '*.lock', '.gitignore', '.editorconfig'],
+    },
+  }))
+}
 // ?page=github-flow: Flow from GitHub data on two finished issues.
 if (query.get('page') === 'github-flow')
   answer('radar.flow', () => ({
@@ -698,6 +770,12 @@ const PAGES: Record<string, () => ReactNode> = {
   ),
   'repo-mode': () => <RepoModePage />,
   'github-flow': () => <GithubFlow workspaceId="w" />,
+  'flow-ci': () => (
+    <TaskDrawerProvider workspaceId="w" onFocus={() => undefined}>
+      <FlowView workspaceId="w" tab="overview" />
+    </TaskDrawerProvider>
+  ),
+  'flow-ci-settings': () => <FlowSettings workspaceId="w" />,
   'release-queue': () => <ReleaseQueue workspaceId="w" />,
   'release-mode': () => <ReleaseModes />,
   // The two modals, open at once, for the screenshots.

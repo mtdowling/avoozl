@@ -181,6 +181,45 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
           )}
         </Section>
       </Box>
+      <Box>
+        <Section title="CI" blurb="The retro also counts CI time on every pull request, by what it changed, and starts when CI time passes these limits.">
+          <div className="flex flex-wrap gap-4" data-flow-group="ci">
+            <Labeled id="avoozl-flow-ci-window" label="Window (days)" raw="flow.ci.windowDays" width="12rem">
+              <Input id="avoozl-flow-ci-window" inputMode="numeric" value={form.windowDays} placeholder={String(FLOW_DEFAULTS.windowDays)} onChange={(event) => set({ windowDays: event.target.value })} />
+            </Labeled>
+            <Labeled id="avoozl-flow-ci-docs" label="Docs-only CI limit (minutes)" raw="flow.ci.docsOnlyMinutes" width="14rem" note="CI on pull requests that change only specs or docs.">
+              <Input id="avoozl-flow-ci-docs" inputMode="numeric" value={form.docsOnlyMinutes} placeholder={String(FLOW_DEFAULTS.docsOnlyMinutes)} onChange={(event) => set({ docsOnlyMinutes: event.target.value })} />
+            </Labeled>
+            <Labeled id="avoozl-flow-ci-wait" label="CI wait share limit" raw="flow.ci.waitShare" width="14rem" note="Of lead time; 0.4 is 40%.">
+              <Input id="avoozl-flow-ci-wait" inputMode="decimal" value={form.waitShare} placeholder={String(FLOW_DEFAULTS.waitShare)} onChange={(event) => set({ waitShare: event.target.value })} />
+            </Labeled>
+            <Labeled id="avoozl-flow-ci-min" label="Fewest closed pull requests" raw="flow.ci.minPullRequests" width="14rem" note="Before the wait share counts.">
+              <Input id="avoozl-flow-ci-min" inputMode="numeric" value={form.minPullRequests} placeholder={String(FLOW_DEFAULTS.minPullRequests)} onChange={(event) => set({ minPullRequests: event.target.value })} />
+            </Labeled>
+          </div>
+          {value.ciClasses && (
+            <>
+              <SectionHeading level={4} title="File classes" />
+              <p className="text-xs text-muted">A path takes the first class that matches; anything else is code. Read-only here.</p>
+              <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ display: 'grid', columnGap: 12, rowGap: 4, margin: 0, gridTemplateColumns: 'auto minmax(0, 1fr)' }} data-ci-globs>
+                {Object.entries(value.ciClasses).map(([name, globs]) => (
+                  <div key={name} className="contents" style={{ display: 'contents' }}>
+                    <dt className="font-medium">{name}</dt>
+                    <dd className="flex flex-wrap gap-1" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, margin: 0 }}>
+                      {globs.map((glob) => (
+                        <code key={glob} className="text-xs">
+                          {glob}
+                        </code>
+                      ))}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <Raw name="flow.ci.classes" />
+            </>
+          )}
+        </Section>
+      </Box>
       <div className="flex flex-wrap items-center gap-3">
         <Btn type="button" primary disabled={saving} onClick={() => void save()}>
           {saving ? 'Saving…' : 'Save'}

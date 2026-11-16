@@ -298,6 +298,7 @@ import {
   retroInstructions,
   setRetroInstructions,
 } from "./flow-retro.mjs";
+import { ciRepositories, ciView, classGlobText } from "./flow-ci.mjs";
 import {
   lineBanner,
   pullCord,
@@ -3604,6 +3605,12 @@ export class Operations {
         }),
         // Over-budget and budget-stopped tasks (§4.17).
         budget: flowBudget(store, data),
+        // CI by file class over every pull request (§4.30, R100.7).
+        ci: ciView(
+          store,
+          readFlowConfig(this.workspaceRoot),
+          ciRepositories(readGitHubPolicyOrNull(this.workspaceRoot)),
+        ),
       };
     }
     // Settings > Flow (§8.4) and the retros (§4.11).
@@ -3622,6 +3629,10 @@ export class Operations {
         ...this.settingsFile().readFlowSettings(),
         // The built-in retro prompt, shown read-only above the owner's own.
         retroPrompt: retroPrompt(),
+        // The CI file class globs in effect, shown read-only (§4.30).
+        ciClasses: classGlobText(
+          readFlowConfig(this.workspaceRoot).flow?.ci?.classes,
+        ),
         instructions:
           context.caller || context.mcp ? null : retroInstructions(store),
       };

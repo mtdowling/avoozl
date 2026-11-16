@@ -2,7 +2,8 @@ import { PlanningFlow } from './PlanningFlow.tsx'
 // The Flow tab (design §8.4, R48): where delivery time goes and what the
 // last retro proposed. Read-only except Approve, Reject, Run a retro now,
 // and Run anyway on a stopped line. Pull requests and CI runs stay in Issue
-// Radar and GitHub; this tab shows graph and delivery timing only.
+// Radar and GitHub; this tab shows graph and delivery timing, and CI
+// minutes per pull request by what each changed (§4.30).
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState } from '@kirocrew/app-sdk/ui'
@@ -28,6 +29,8 @@ import {
   STAGE_LABELS,
   WINDOW_OPTIONS,
   bannerText,
+  ciMinutes,
+  percent,
   barSegments,
   budgetMark,
   directionText,
@@ -41,6 +44,8 @@ import {
   pdcaText,
   proposalText,
   scopeText,
+  type CiRepository,
+  type CiView,
   type FlowFilter,
   type FlowViewModel,
   type LineStop,
@@ -394,6 +399,118 @@ function Retros({ view, workspaceId, onChanged }: { view: FlowViewModel; workspa
   )
 }
 
+const CI_TASK = '#3b82f6'
+const CI_OTHER = '#94a3b8'
+const LIST: CSSProperties = { listStyle: 'none', margin: 0, padding: 0, display: 'flex' }
+const CI_NAMES: Record<string, string> = { code: 'Code', tests: 'Tests', spec: 'Spec', docs: 'Docs', ci: 'CI files', other: 'Other' }
+
+function CiLimit({ over, children }: { over: boolean; children: React.ReactNode }) {
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <span>{children}</span>
+      {over && <Badge variant="danger">over limit</Badge>}
+    </span>
+  )
+}
+
+function CiRepositoryCard({ repo }: { repo: CiRepository }) {
+  const scale = Math.max(0, ...repo.classes.map((c) => c.task + c.other))
+  return (
+    <div className="flex flex-col gap-2" data-ci-repository={repo.repository}>
+      <span className="text-sm text-muted">
+        <span className="font-semibold" style={{ color: 'var(--text)', overflowWrap: 'anywhere' }}>
+          {repo.repository}
+        </span>{' '}
+        · Last {repo.windowDays} days · {repo.pullRequests} pull request{repo.pullRequests === 1 ? '' : 's'} with CI
+      </span>
+      {!repo.pullRequests ? (
+        <p className="text-sm text-muted">No pull requests read yet.</p>
+      ) : (
+        <>
+          <ul className="flex flex-wrap gap-x-3 text-xs text-muted" aria-label="Who ran it" style={{ ...LIST, flexWrap: 'wrap', columnGap: 12 }}>
+            {[
+              ['Avoozl tasks', CI_TASK],
+              ['Other pull requests', CI_OTHER],
+            ].map(([label, color]) => (
+              <li key={label} className="inline-flex items-center gap-1">
+                <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 2, background: color, display: 'inline-block' }} />
+                {label}
+              </li>
+            ))}
+          </ul>
+          <ul className="flex flex-col gap-1.5" data-ci-classes style={{ ...LIST, flexDirection: 'column', gap: 6 }}>
+            {repo.classes.map((c) => {
+              const total = c.task + c.other,
+                text = `${CI_NAMES[c.name] ?? c.name}: ${ciMinutes(c.task)} for tasks, ${ciMinutes(c.other)} for other pull requests`
+              return (
+                <li key={c.name} className="grid items-center gap-2 text-sm" style={{ display: 'grid', alignItems: 'center', gap: 8, gridTemplateColumns: '4.5rem minmax(0, 1fr) 4.5rem' }} data-ci-class={c.name}>
+                  <span>{CI_NAMES[c.name] ?? c.name}</span>
+                  <div style={{ width: `${Math.max(4, scale ? (100 * total) / scale : 100)}%` }}>
+                    <Tooltip text={text} display="block">
+                      {(describedBy) => (
+                        <div role="img" aria-label={text} aria-describedby={describedBy} tabIndex={0} style={BAR}>
+                          {total > 0 && <span style={{ width: `${(100 * c.task) / total}%`, background: CI_TASK, display: 'block', height: '100%' }} />}
+                          {total > 0 && <span style={{ width: `${(100 * c.other) / total}%`, background: CI_OTHER, display: 'block', height: '100%' }} />}
+                        </div>
+                      )}
+                    </Tooltip>
+                  </div>
+                  <span className="text-right tabular-nums" style={{ textAlign: 'right' }}>
+                    {ciMinutes(total)}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      )}
+      <div className="flex flex-col gap-1 text-sm" data-ci-limits>
+        <CiLimit over={repo.docsOnlyMinutes > repo.docsOnlyLimit}>
+          Spec- and docs-only pull requests: {ciMinutes(repo.docsOnlyMinutes)} of CI <span className="text-muted">(limit {ciMinutes(repo.docsOnlyLimit)})</span>
+        </CiLimit>
+        <CiLimit over={repo.waitShare !== null && repo.waitShare > repo.waitLimit}>
+          {repo.waitShare === null ? 'CI wait: no closed pull request yet' : `CI wait: ${percent(repo.waitShare)} of lead time over ${repo.closed} closed`} <span className="text-muted">(limit {percent(repo.waitLimit)})</span>
+        </CiLimit>
+      </div>
+      <SectionHeading level={4} title="Repeat runs" />
+      {!repo.repeats.length ? (
+        <p className="text-sm text-muted">No workflow ran twice on one commit.</p>
+      ) : (
+        <ul className="flex flex-col gap-1 text-sm" data-ci-repeats style={{ ...LIST, flexDirection: 'column', gap: 4 }}>
+          {repo.repeats.map((r) => (
+            <li key={r.workflow} style={{ overflowWrap: 'anywhere' }}>
+              <code className="text-xs">{r.workflow}</code>{' '}
+              <span className="text-muted tabular-nums">
+                · {r.commits} commit{r.commits === 1 ? '' : 's'} · {r.extraRuns} extra run{r.extraRuns === 1 ? '' : 's'} · {ciMinutes(r.extraMinutes)} extra
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+// CI per pull request by what it changed, over every pull request in the
+// workspace's repositories (R100.7, R100.8).
+export function CiCard({ ci }: { ci: CiView | undefined }) {
+  if (!ci) return null
+  return (
+    <Card className="flex flex-col gap-3" data-ci-card>
+      <SectionHeading title="CI" />
+      {!ci.read ? (
+        <EmptyState icon={<Gauge size={36} aria-hidden="true" />} title="No pull requests read" subtitle="Name a GitHub repository in Settings to count CI time per pull request." />
+      ) : (
+        ci.repositories.map((repo, i) => (
+          <div key={repo.repository} className={i ? 'border-t pt-3' : undefined} style={{ borderColor: 'var(--border)' }}>
+            <CiRepositoryCard repo={repo} />
+          </div>
+        ))
+      )}
+    </Card>
+  )
+}
+
 function Records({ view }: { view: FlowViewModel }) {
   if (!view.flaky.length && !view.ciOnly.length) return null
   return (
@@ -480,6 +597,7 @@ export default function FlowView({ workspaceId, tab }: { workspaceId: string | n
               <EmptyState icon={<Gauge size={36} aria-hidden="true" />} title="No timing yet" subtitle="Avoozl records where each task's time goes as soon as a task is dispatched." />
             </Card>
           )}
+          <CiCard ci={view.ci} />
           <FlowCharts view={view} unit={unit} onUnit={setUnit} />
           <PlanningFlow groups={view.planning ?? []} />
           <UsagePanel view={view} unit={unit} />

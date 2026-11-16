@@ -551,3 +551,46 @@ test("54.2 a failed runs read is reported once, not every check", async (t) => {
   assert.equal(first.errors.length, 1);
   assert.deepEqual(second.errors, []);
 });
+
+test("54.5 the CI card's view data, and No pull requests read without GitHub", async (t) => {
+  const { ciView } = await import("../flow-ci.mjs");
+  const store = setup(t);
+  assert.deepEqual(ciView(store, {}, [], { now: NOW }), {
+    read: false,
+    repositories: [],
+  });
+  store.put("github_linked_branches", {
+    id: "t1",
+    taskId: "t1",
+    repository: REPO,
+    name: "branch-1",
+  });
+  await openThenClose(
+    store,
+    [
+      pull(1, ["src/a.mjs"], { checks: [check(801, 100, 80)] }),
+      pull(2, [".kiro/specs/a/tasks.md"], { checks: [check(802, 100, 75)] }),
+    ],
+    [
+      run(801, sha(1), 100, 80),
+      run(802, sha(2), 100, 75),
+      run(803, sha(2), 100, 75, { event: "push" }),
+    ],
+  );
+  const [repo] = ciView(store, {}, [REPO], { now: NOW }).repositories;
+  assert.equal(repo.pullRequests, 2);
+  assert.deepEqual(repo.classes, [
+    { name: "code", task: 20, other: 0 },
+    { name: "spec", task: 0, other: 50 },
+  ]);
+  assert.equal(repo.docsOnlyMinutes, 50);
+  assert.equal(repo.docsOnlyLimit, 60);
+  assert.deepEqual(repo.repeats, [
+    {
+      workflow: ".github/workflows/test.yml",
+      commits: 1,
+      extraRuns: 1,
+      extraMinutes: 25,
+    },
+  ]);
+});

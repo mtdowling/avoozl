@@ -86,6 +86,26 @@ test('the page wires the Flow tab, its icon, the banner, the Timing fold and Set
   assert.match(flow, /title: 'Run anyway\?'/)
 })
 
+test('Settings > Flow saves the CI limits, keeps the class globs, and refuses bad values', () => {
+  const form = { ...toFlowForm({ ci: { classes: { docs: ['guide/'] } } }), docsOnlyMinutes: '90', waitShare: '0.3' }
+  assert.deepEqual(toFlowSection(form).flow, { ci: { docsOnlyMinutes: 90, waitShare: 0.3, classes: { docs: ['guide/'] } } })
+  assert.match(toFlowSection({ ...form, waitShare: '2' }).error, /CI wait share limit must be a number 0\.05–1/)
+  assert.match(toFlowSection({ ...form, windowDays: '1.5' }).error, /Window \(days\) must be a whole number 1–90/)
+  assert.equal(toFlowForm({ ci: { minPullRequests: 8 } }).minPullRequests, '8')
+})
+
+test('the Flow tab shows the CI card, and No pull requests read without GitHub', async () => {
+  const { ciMinutes } = await import('../src/flow-api.ts')
+  assert.equal(ciMinutes(262.5), '4 h 23 m')
+  assert.equal(ciMinutes(0.4), '<1 m')
+  const flow = source('FlowView.tsx'),
+    settings = source('FlowSettings.tsx')
+  assert.match(flow, /<CiCard ci=\{view\.ci\} \/>/)
+  assert.match(flow, /title="No pull requests read"/)
+  assert.match(flow, /title="Repeat runs"/)
+  for (const key of ['flow.ci.windowDays', 'flow.ci.docsOnlyMinutes', 'flow.ci.waitShare', 'flow.ci.minPullRequests', 'flow.ci.classes']) assert.ok(settings.includes(`"${key}"`), key)
+})
+
 test('model pickers offer the models Kiro Crew lists, plus auto', async () => {
   const { parseModels, modelOptions } = await import('../src/flow-api.ts')
   assert.deepEqual(parseModels([{ model_name: 'claude-opus-5.5', display_name: 'Opus 5.5' }, 'auto', 'm2', 'm2']), [

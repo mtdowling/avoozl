@@ -88,7 +88,14 @@ function ciSettings(store, config, repository) {
   const project = listOr(store, "github_repositories").find(
     (entry) => lower(entry.id) === lower(repository),
   )?.projectId;
-  return flowPolicy(config || {}).for(project || repository).ci;
+  // An invalid flow block reads as the defaults here; the tick reports it.
+  let policy;
+  try {
+    policy = flowPolicy(config || {});
+  } catch {
+    policy = flowPolicy({});
+  }
+  return policy.for(project || repository).ci;
 }
 
 // Window starts are aligned to whole windows since the epoch, so each
@@ -530,4 +537,62 @@ export function ciMinutesPerPullRequest(
     pick = after ? rows.slice(0, n) : rows.slice(-n);
   if (pick.length < n || !pick.length) return null;
   return minutes(pick.reduce((sum, row) => sum + (row.ciMs || 0), 0) / n);
+}
+
+// The class globs in effect, as text, for Settings › Flow (read-only there).
+export function classGlobText(overrides = {}) {
+  return Object.fromEntries(
+    MATCH_ORDER.map((name) => [
+      name,
+      Array.isArray(overrides?.[name]) ? overrides[name] : CLASS_GLOBS[name],
+    ]),
+  );
+}
+
+// The Flow tab's CI card (R100.7, R100.8): per repository, minutes by class
+// split task and other, the wait share against its limit, and repeat runs
+// by workflow. `read` is false with no GitHub repository, so the tab says
+// No pull requests read.
+export function ciView(store, config, repositories, { now = Date.now() } = {}) {
+  return {
+    read: repositories.length > 0,
+    repositories: repositories.map((repository) => {
+      const facts = ciFacts(store, config, repository, { now }),
+        byWorkflow = new Map();
+      for (const r of facts.repeats) {
+        const entry = byWorkflow.get(r.workflow) || {
+          workflow: r.workflow,
+          commits: 0,
+          extraRuns: 0,
+          extraMinutes: 0,
+        };
+        entry.commits += 1;
+        entry.extraRuns += r.runs - 1;
+        entry.extraMinutes =
+          Math.round((entry.extraMinutes + r.extraMinutes) * 10) / 10;
+        byWorkflow.set(r.workflow, entry);
+      }
+      return {
+        repository,
+        windowDays: facts.settings.windowDays,
+        pullRequests: facts.pulls.length,
+        classes: CI_CLASSES.filter((name) => facts.byClass[name]).map(
+          (name) => ({
+            name,
+            task: facts.byClass[name].task.minutes,
+            other: facts.byClass[name].other.minutes,
+          }),
+        ),
+        docsOnlyMinutes: minutes(facts.docsOnlyMs),
+        docsOnlyLimit: facts.settings.docsOnlyMinutes,
+        waitShare:
+          facts.waitShare === null
+            ? null
+            : Math.round(facts.waitShare * 1000) / 1000,
+        waitLimit: facts.settings.waitShare,
+        closed: facts.closed,
+        repeats: [...byWorkflow.values()],
+      };
+    }),
+  };
 }

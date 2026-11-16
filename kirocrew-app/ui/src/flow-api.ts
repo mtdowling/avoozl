@@ -197,8 +197,33 @@ export interface PlanningTiming {
   roles: { role: 'plan-review' | 'plan-answer'; model: string | null; durationMs: number; input: number; output: number; credits: number; turns: number }[]
 }
 
+// The CI card (§4.30): per repository, minutes by file class split between
+// Avoozl tasks and other pull requests, the wait share and repeat runs.
+export interface CiRepository {
+  repository: string
+  windowDays: number
+  pullRequests: number
+  classes: { name: string; task: number; other: number }[]
+  docsOnlyMinutes: number
+  docsOnlyLimit: number
+  waitShare: number | null
+  waitLimit: number
+  closed: number
+  repeats: { workflow: string; commits: number; extraRuns: number; extraMinutes: number }[]
+}
+
+export interface CiView {
+  read: boolean
+  repositories: CiRepository[]
+}
+
+// "1 h 36 m" for minutes, as duration() words milliseconds.
+export const ciMinutes = (minutes: number) => (minutes < 1 && minutes > 0 ? '<1 m' : duration(Math.round(minutes) * 60_000))
+
 export interface FlowViewModel {
   planning?: PlanningTiming[]
+  // CI by file class (§4.30); older backends omit it.
+  ci?: CiView
   window: { size: number; since: string | null }
   metrics: Metrics
   previous: Metrics
@@ -582,6 +607,7 @@ export interface FlowSection {
   localChecksFirst?: boolean
   batch?: { max?: number; by?: 'phase' | 'files' }
   retro?: { everyTasks?: number; slowFactor?: number; model?: string }
+  ci?: { windowDays?: number; docsOnlyMinutes?: number; waitShare?: number; minPullRequests?: number; classes?: Record<string, string[]> }
 }
 
 export interface FlowSettings {
@@ -592,6 +618,8 @@ export interface FlowSettings {
   repositories: Record<string, FlowSection>
   instructions: string | null
   retroPrompt: string | null
+  // The CI class globs in effect, shown read-only; older backends omit it.
+  ciClasses?: Record<string, string[]>
 }
 
 export const FLOW_DEFAULTS = {
@@ -602,6 +630,10 @@ export const FLOW_DEFAULTS = {
   everyTasks: 10,
   slowFactor: 3,
   model: 'auto',
+  windowDays: 7,
+  docsOnlyMinutes: 60,
+  waitShare: 0.4,
+  minPullRequests: 5,
 } as const
 
 export interface FlowForm {
@@ -612,6 +644,12 @@ export interface FlowForm {
   everyTasks: string
   slowFactor: string
   model: string
+  windowDays: string
+  docsOnlyMinutes: string
+  waitShare: string
+  minPullRequests: string
+  // Kept as saved: the page shows the globs but does not edit them.
+  classes?: Record<string, string[]>
 }
 
 export function toFlowForm(section: FlowSection = {}): FlowForm {
@@ -623,8 +661,21 @@ export function toFlowForm(section: FlowSection = {}): FlowForm {
     everyTasks: section.retro?.everyTasks === undefined ? '' : String(section.retro.everyTasks),
     slowFactor: section.retro?.slowFactor === undefined ? '' : String(section.retro.slowFactor),
     model: section.retro?.model ?? '',
+    windowDays: section.ci?.windowDays === undefined ? '' : String(section.ci.windowDays),
+    docsOnlyMinutes: section.ci?.docsOnlyMinutes === undefined ? '' : String(section.ci.docsOnlyMinutes),
+    waitShare: section.ci?.waitShare === undefined ? '' : String(section.ci.waitShare),
+    minPullRequests: section.ci?.minPullRequests === undefined ? '' : String(section.ci.minPullRequests),
+    ...(section.ci?.classes ? { classes: section.ci.classes } : {}),
   }
 }
+
+// One whole-number or decimal CI field, or the error naming it.
+const CI_FIELDS = [
+  ['windowDays', 'Window (days)', 1, 90, true],
+  ['docsOnlyMinutes', 'Docs-only CI limit (minutes)', 1, 100000, true],
+  ['waitShare', 'CI wait share limit', 0.05, 1, false],
+  ['minPullRequests', 'Fewest closed pull requests', 1, 1000, true],
+] as const
 
 // The form back to a `flow` object: blank means the default, so the key is
 // left out. Returns {flow} or {error} naming the field, before any save.
@@ -656,5 +707,15 @@ export function toFlowSection(form: FlowForm): { flow?: FlowSection; error?: str
     retro.model = form.model.trim()
   }
   if (Object.keys(retro).length) flow.retro = retro
+  const ci: NonNullable<FlowSection['ci']> = {}
+  for (const [key, label, min, max, whole] of CI_FIELDS) {
+    const text = form[key].trim()
+    if (!text) continue
+    const n = Number(text)
+    if (!Number.isFinite(n) || n < min || n > max || (whole && !Number.isInteger(n))) return { error: `${label} must be ${whole ? 'a whole number' : 'a number'} ${min}–${max}.` }
+    ci[key] = n
+  }
+  if (form.classes) ci.classes = form.classes
+  if (Object.keys(ci).length) flow.ci = ci
   return { flow }
 }
