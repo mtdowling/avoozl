@@ -551,3 +551,151 @@ test("54.2 a failed runs read is reported once, not every check", async (t) => {
   assert.equal(first.errors.length, 1);
   assert.deepEqual(second.errors, []);
 });
+
+// A closed pull request as the same query's `recent` list returns it.
+const closedPull = (number, paths, { createdAt, closedAt, branch } = {}) => ({
+  number,
+  createdAt,
+  closedAt,
+  author: { login: "someone" },
+  headRefName: branch ?? `branch-${number}`,
+  headRefOid: sha(number),
+  files: { totalCount: paths.length, nodes: paths.map((p) => ({ path: p })) },
+});
+
+test("54.2 a pull request never seen open is counted from the closed list, its runs linked by branch", async (t) => {
+  const store = setup(t),
+    config = { flow: { ci: { docsOnlyMinutes: 1 } } },
+    state = {
+      pulls: [],
+      recent: [
+        closedPull(7, [".kiro/specs/x/tasks.md"], {
+          createdAt: iso(120),
+          closedAt: iso(60),
+          branch: "spec-x",
+        }),
+      ],
+      runs: [
+        // Its runs: an earlier head, so only the branch links them.
+        run(1, sha(70), 115, 90, { headBranch: "spec-x", event: "push" }),
+        run(2, sha(70), 115, 92, { headBranch: "spec-x" }),
+        // The same branch name before the pull request opened: not its.
+        run(3, sha(71), 300, 280, { headBranch: "spec-x", event: "push" }),
+      ],
+    },
+    github = {
+      ...fakeGitHub(state),
+      async recentPullRequests() {
+        return state.recent;
+      },
+    };
+  await ciStep(store, github, { policy: POLICY, config, now: NOW });
+  const row = store.list("pr_ci")[0];
+  assert.deepEqual(row.classes, ["spec"]);
+  assert.equal(row.closedAt, iso(60));
+  assert.equal(row.ciMs, (25 + 23) * 60_000);
+  const runs = Object.fromEntries(
+    store.list("ci_runs").map((r) => [r.runId, r.prNumber]),
+  );
+  assert.deepEqual(runs, { 1: 7, 2: 7, 3: null });
+  retroStep(store, config, { now: NOW, ciRepositories: [REPO] });
+  const [retro] = store.list("flow_retros");
+  assert.deepEqual(retro.triggers.map((x) => x.kind).sort(), [
+    "repeat",
+    "waste-docs",
+  ]);
+});
+
+test("54.2 a pull request seen open takes its exact close time from the closed list", async (t) => {
+  const store = setup(t),
+    state = {
+      pulls: [pull(8, ["src/a.mjs"], { createdAt: iso(200) })],
+      recent: [],
+      runs: [],
+    },
+    github = {
+      ...fakeGitHub(state),
+      async recentPullRequests() {
+        return state.recent;
+      },
+    };
+  await ciStep(store, github, { policy: POLICY, now: NOW - 30 * 60_000 });
+  state.pulls = [];
+  state.recent = [
+    closedPull(8, ["src/a.mjs"], { createdAt: iso(200), closedAt: iso(50) }),
+  ];
+  await ciStep(store, github, { policy: POLICY, now: NOW });
+  const row = store.list("pr_ci")[0];
+  assert.equal(row.closedAt, iso(50));
+  assert.equal(row.firstSeen, iso(30));
+});
+
+test("54.1 the closed list comes from the open pull request query, with no extra call", async (t) => {
+  const dir = temporaryDirectory("avoozl-ci-recent-"),
+    store = new Store(path.join(dir, "workspace.sqlite")),
+    queries = [];
+  t.after(() => store.close());
+  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  const fetch = async (url, options) => {
+    if (new URL(url).pathname === "/graphql") {
+      const body = JSON.parse(options.body);
+      queries.push(body);
+      const first = !body.variables.after;
+      return new Response(
+        JSON.stringify({
+          data: {
+            repository: {
+              ...(first
+                ? {
+                    recent: {
+                      nodes: [
+                        closedPull(3, ["docs/a.md"], {
+                          createdAt: iso(90),
+                          closedAt: iso(80),
+                        }),
+                      ],
+                    },
+                  }
+                : {}),
+              pullRequests: {
+                pageInfo: first
+                  ? { hasNextPage: true, endCursor: "c1" }
+                  : { hasNextPage: false },
+                nodes: [pull(first ? 1 : 2, ["src/a.mjs"])],
+              },
+            },
+          },
+        }),
+        { status: 200 },
+      );
+    }
+    return new Response(JSON.stringify({ workflow_runs: [] }), {
+      status: 200,
+    });
+  };
+  const github = new GitHubClient({
+    token: "x",
+    apiUrl: "https://api.example.test",
+    fetch,
+  }).bind(store, {
+    now: () => NOW,
+    cacheSeconds: () => 60,
+    countFile: path.join(dir, "gh-calls.jsonl"),
+  });
+  assert.deepEqual(
+    (await github.openPullRequests(REPO)).map((p) => p.number),
+    [1, 2],
+  );
+  assert.deepEqual(
+    (await github.recentPullRequests(REPO)).map((p) => p.number),
+    [3],
+  );
+  // Two pages of open pull requests; only the first asks for closed ones.
+  assert.equal(queries.length, 2);
+  assert.match(
+    queries[0].query,
+    /recent:pullRequests\(states:\[MERGED,CLOSED\]/,
+  );
+  assert.doesNotMatch(queries[1].query, /recent:/);
+  assert.doesNotMatch(queries[0].query, /mutation/);
+});

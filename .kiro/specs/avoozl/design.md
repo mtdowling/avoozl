@@ -3932,12 +3932,21 @@ changes skip the suite (about 1 minute each).
 **What is read.** `openPullRequests` gains, per pull request, `createdAt`,
 `files(first:100){totalCount nodes{path}}`, and on the head commit's check
 rollup `contexts(first:100)` with each `CheckRun`'s `name`, `startedAt`,
-`completedAt` and `checkSuite{workflowRun{databaseId event workflow{resourcePath}}}`.
+`completedAt` and `checkSuite{workflowRun{databaseId event workflow{resourcePath}}}`. The
+first page of the same query also reads, as `recent`, the 50 most recently
+updated closed pull requests with `createdAt`, `closedAt`, author, head and
+the same `files`. A pull request opened and merged between two checks, or
+closed before a workspace's first check, is never listed open, so without
+this it would be missed. A closed one never seen open gets a row; one seen
+open takes its exact `closedAt`.
 The workflow runs read is `GET /repos/{owner}/{repo}/actions/runs` with
 `per_page=100` and `created=>=` the window start, through the client's HTTP
 cache (`github_http_cache`), so an unchanged list is a 304. A run gives its
-id, workflow path, head commit, event, attempt, start, end and pull request
-numbers.
+id, workflow path, head commit, head branch, event, attempt, start, end and
+pull request numbers. GitHub leaves a run's pull request numbers empty once
+the pull request is merged, so a run links to its pull request by the run
+list, the head commit's check runs, the head commit, and then the head
+branch of a pull request open when the run started.
 
 **Call budget.**
 
@@ -4018,9 +4027,10 @@ shown read-only.
 shortcut: one page of 100 runs per read; a repository with more runs in the
 window sees only the newest 100. Read more pages if Flow shows the cap hit.
 
-shortcut: a pull request's close time is the first check that no longer
-lists it open, so lead time is late by up to one check interval. Read
-`closedAt` in a batched query if that error matters.
+shortcut: 50 closed pull requests per check; a repository that closes more
+than 50 between two checks misses the oldest, and a new workspace sees only
+the newest 50 of its window. A pull request in neither list closes at the
+first check that no longer lists it open. Read a second page if that shows.
 
 ## 5. Local workflow
 
