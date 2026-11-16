@@ -14,6 +14,10 @@ export const PERSON_ONLY = new Map([
   ["plan.approveMany", person("Only a person approves a plan.")],
   ["plan.delete", person("Only a person deletes a plan.")],
   ["plan.new", person("Only a person starts a new plan.")],
+  [
+    "plan.review.decide",
+    person("Only a person starts or skips a draft review."),
+  ],
   ["task.manual.complete", person("Only a person marks a manual task done.")],
   ["task.manual.reopen", person("Only a person reopens a manual task.")],
   ["task.notes.edit", person("Only a person edits a link or note.")],
@@ -229,6 +233,14 @@ const page = "App page rendering only.";
 const remote =
   "Runner mode (R84) runs over ssh and the CLI; no MCP tool hands off, accepts or reports a remote task.";
 export const NOT_ON_MCP = new Map([
+  [
+    "plan.review.findings",
+    "Planner review tools are added in Phase 53.5; this revision provides the bound operation only.",
+  ],
+  [
+    "plan.review.answer",
+    "Planner review tools are added in Phase 53.5; this revision provides the bound operation only.",
+  ],
   ...[
     "remote.accept",
     "remote.status",

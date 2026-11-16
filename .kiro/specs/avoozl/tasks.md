@@ -1786,7 +1786,7 @@ dependency on the worker rebuild (Phases 40–52) and may ship before it.
   - `planReviewer` in `MODEL_ROLES`, `plan-review` in `DISPATCH_ROLE`, `validateModels` refuses a reviewer equal to a named planner; `planReview.mode` and `planReview.rounds` validated; the Settings › Models row. Tests use fake model names.
 - [x] 53.2 Review rounds and spec findings keyed by hash, after 53.1 [R99.2, R99.5, R99.6] (§4.29)
   - `review_rounds` rows per pass and round; `plan.review.submit` takes spec findings (kind, severity, file, line, claim, evidence) and refuses a bad file or line and a same-model session. Tests: the different-model rule; findings keyed by hash.
-- [ ] 53.3 Tick opens the reviewer, then the planner answers, after 53.2 [R99.3, R99.4, R99.7, R99.10] (§4.29)
+- [x] 53.3 Tick opens the reviewer, then the planner answers, after 53.2 [R99.3, R99.4, R99.7, R99.10] (§4.29)
   - `planReviewStep`: mode, model check, read-only brief with worktrees at recorded commits, content rules at `brief`; `plan.review.findings` and `plan.review.answer`; rounds; `ask` opens one Needs you item. Fake chats only.
 - [x] 53.4 Review counts in the Approve dialogs, after 53.2 [R99.8, R99.9] (§4.29)
   - `plan.reviewSummary` on `approvalChecks` and each `approvalBatches` entry; the single and batch dialogs show found, fixed, for you and each open finding. Tests: review never changes approval (and makes no GitHub write); the batch dialog shows counts.
