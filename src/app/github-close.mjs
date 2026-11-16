@@ -597,6 +597,12 @@ export async function reconcileGitHubCompletion(store, github, { policy }) {
         );
       return rules.get(code);
     };
+  const { changed, marks } = await changedSince(
+    store,
+    github,
+    data.tasks,
+    writers,
+  );
   for (const task of data.tasks) {
     const repository = task.github?.repository;
     if (
@@ -606,6 +612,16 @@ export async function reconcileGitHubCompletion(store, github, { policy }) {
       // Another workspace drives this spec; its writes would be refused and
       // fail the step for every other spec.
       readOnlyTask(store, task)
+    )
+      continue;
+    // A leaf already judged closed is read again only when its issue changed
+    // since the last tick (a reopen, a new close reason), not every tick.
+    const seen = changed.get(repository);
+    if (
+      seen &&
+      SETTLED.has(task.githubVerdict?.state) &&
+      !task.githubVerdict.retry &&
+      !seen.has(task.github.number)
     )
       continue;
     const issue = await github.issue(repository, task.github.number),
@@ -753,7 +769,53 @@ export async function reconcileGitHubCompletion(store, github, { policy }) {
         });
     }
   }
+  for (const [name, mark] of marks) store.setMeta(name, mark);
   return { notify, messages };
+}
+
+// Verdicts of a closed issue: done, an order, or a refusal.
+const SETTLED = new Set(["verified", "order", "refused"]);
+// How far back each "changed since" read reaches before the last one, so an
+// update that lands while a tick runs is not missed.
+const SINCE_OVERLAP_MS = 2 * 60 * 1000;
+
+// Per repository with a settled leaf: the issue numbers updated since the
+// last tick's read, from one listing call. A repository with no earlier read,
+// or whose read fails, maps to nothing, and its settled leaves are all read.
+// `marks` are saved only once every leaf was judged, so a tick that fails
+// part way reads the same window again.
+async function changedSince(store, github, tasks, writers) {
+  const repositories = new Set(
+      tasks
+        .filter(
+          (task) =>
+            writers.has(task.github?.repository) &&
+            task.github?.number &&
+            SETTLED.has(task.githubVerdict?.state),
+        )
+        .map((task) => task.github.repository),
+    ),
+    changed = new Map(),
+    marks = new Map(),
+    now = Date.now();
+  for (const repository of repositories) {
+    const name = `githubCloseSince:${repository}`,
+      last = store.getMeta(name);
+    try {
+      if (last?.at)
+        changed.set(
+          repository,
+          await github.issuesUpdatedSince(
+            repository,
+            new Date(Date.parse(last.at) - SINCE_OVERLAP_MS).toISOString(),
+          ),
+        );
+      marks.set(name, { at: new Date(now).toISOString() });
+    } catch {
+      // Read every settled leaf this tick; the next one tries again.
+    }
+  }
+  return { changed, marks };
 }
 
 // Repositories this machine writes. Read only: a machine identity is minted

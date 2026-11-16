@@ -335,7 +335,7 @@ export default function DashboardView(props: {
     void reload()
   }, [reload])
   // The nav already says Home: no heading row. Refresh, with its countdown,
-  // is in the header's More menu.
+  // is in the left nav.
   usePublishRefresh(useRefreshCountdown(workspaceId, refreshHome, busy))
   // The conflict items an attention row stands for, for its chat seed.
   const askAbout = (item: Attention) => {

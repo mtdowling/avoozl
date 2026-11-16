@@ -84,7 +84,7 @@ test("calls are counted by source, cache hits apart", async (t) => {
   await withSource("view", () => github.openPullRequests("example/code"));
   await withSource("view", () => github.openPullRequests("example/code"));
   await withSource("tick", () => github.openPullRequests("example/other"));
-  github.rate.flush(true);
+  // No explicit flush: every call is in the store as soon as it returns.
   const view = rateView(store, T0, { countFile });
   assert.deepEqual(view.bySource.view, { calls: 1, notModified: 0, cached: 1 });
   assert.equal(view.bySource.tick.calls, 1);

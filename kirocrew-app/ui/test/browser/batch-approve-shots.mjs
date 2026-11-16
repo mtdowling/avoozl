@@ -42,6 +42,7 @@ try {
       await page.until(`Boolean(document.querySelector('[data-spec-check]'))`);
       await page.evaluate(check("byte-types"));
       await page.evaluate(check("compression"));
+      await page.evaluate(check("nupp-native-runtime-winddown-2026-11-11"));
       await settle();
       await page.screenshot(path.join(out, `specs-${width}-${theme}.png`));
       await page.evaluate(
@@ -50,6 +51,11 @@ try {
       await page.until(
         `Boolean(document.querySelector('[data-approve-list]'))`,
       );
+      // No button on the page or in the dialog is taller than 28 px.
+      const tall = await page.evaluate(
+        `[...document.querySelectorAll('button:not([data-plan-row])')].filter((b) => { const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 28.5 }).map((b) => (b.getAttribute('aria-label') || b.textContent).trim() + ' ' + Math.round(b.getBoundingClientRect().height))`,
+      );
+      if (tall.length) console.error(width, theme, "tall buttons:", tall);
       await settle();
       await page.screenshot(path.join(out, `approve-${width}-${theme}.png`));
       console.log(width, theme);

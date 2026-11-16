@@ -97,7 +97,41 @@ export function SendToRadar(props: {
       boxRef={box}
       attrs={{ 'data-radar-dialog': step }}
       unsaved={step < 2 && typed.trim() !== '' && { title: 'Stop the hand-off?', body: 'Nothing is sent. What you typed is lost.', action: 'Stop' }}
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          <Radar size={ICON} aria-hidden="true" /> {STEPS[step][0]}
+        </span>
+      }
       onDismiss={cancel}
+      footer={
+        <>
+          {step < 2 && (
+            <Btn type="button" onClick={cancel}>
+              Cancel
+            </Btn>
+          )}
+          {step === 1 && (
+            <Btn type="button" onClick={() => setStep(0)} disabled={busy}>
+              Back
+            </Btn>
+          )}
+          {step === 0 && (
+            <Btn type="button" data-radar-review onClick={() => void review()} disabled={busy || !canReview}>
+              {busy ? 'Checking…' : 'Review'}
+            </Btn>
+          )}
+          {step === 1 && (
+            <Btn type="button" data-radar-send onClick={() => void send()} disabled={busy}>
+              {busy ? 'Sending…' : preview?.label ? 'Add label' : 'Send'}
+            </Btn>
+          )}
+          {step === 2 && (
+            <Btn type="button" onClick={() => props.onClose()}>
+              Close
+            </Btn>
+          )}
+        </>
+      }
     >
       <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
         {STEPS.map(([title], i) => (
@@ -107,10 +141,6 @@ export function SendToRadar(props: {
         ))}
       </ol>
       <div>
-        <h3 id="avoozl-radar-title" className="flex items-center gap-1.5 text-base font-semibold">
-          <Radar size={ICON} aria-hidden="true" />
-          {STEPS[step][0]}
-        </h3>
         <p id="avoozl-radar-line" className="text-sm text-muted">
           {STEPS[step][1]}
         </p>
@@ -223,33 +253,6 @@ export function SendToRadar(props: {
           {error}
         </p>
       )}
-      <div className="flex flex-wrap justify-end gap-2">
-        {step < 2 && (
-          <Btn type="button" onClick={cancel}>
-            Cancel
-          </Btn>
-        )}
-        {step === 1 && (
-          <Btn type="button" onClick={() => setStep(0)} disabled={busy}>
-            Back
-          </Btn>
-        )}
-        {step === 0 && (
-          <Btn type="button" data-radar-review onClick={() => void review()} disabled={busy || !canReview}>
-            {busy ? 'Checking…' : 'Review'}
-          </Btn>
-        )}
-        {step === 1 && (
-          <Btn type="button" data-radar-send onClick={() => void send()} disabled={busy}>
-            {busy ? 'Sending…' : preview?.label ? 'Add label' : 'Send'}
-          </Btn>
-        )}
-        {step === 2 && (
-          <Btn type="button" onClick={() => props.onClose()}>
-            Close
-          </Btn>
-        )}
-      </div>
     </Modal>
   )
 }

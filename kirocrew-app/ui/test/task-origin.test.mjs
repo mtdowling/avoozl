@@ -86,7 +86,7 @@ test('the full-file reader is a trapped, closable modal over the page', () => {
   assert.match(reader, /tasks\.document\(workspaceId, target\.document\)/)
   // The shared Modal: Esc and Back close it before the drawer under it (it
   // is the newer step in the page's history); Tab wraps; backdrop closes.
-  assert.match(reader, /<Modal id="avoozl-reader" plain width="78rem" height="90vh" backLabel="Close the file" boxRef=\{panel\}[^\n]*onDismiss=\{onClose\}>/)
+  assert.match(reader, /<Modal\s+id="avoozl-reader"\s+flush\s+width="78rem"\s+height="90vh"[\s\S]*?backLabel="Close the file"\s+boxRef=\{panel\}[\s\S]*?onDismiss=\{onClose\}/)
   // No motion when motion is off; full screen when narrow.
   assert.match(reader, /behavior: still \? 'auto' : 'smooth'/)
   // The cited lines stay marked; no flash.

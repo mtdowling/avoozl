@@ -1,4 +1,3 @@
-import { useMedia } from './use-media.ts'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
@@ -18,6 +17,8 @@ import {
 import { TICK_LOG_LINES, chatClient, type TickLine } from './chat-api.ts'
 import { relativeTime } from './task-api.ts'
 import { SectionHeading } from './controls.tsx'
+import { Modal } from './Modal.tsx'
+import { Pencil, Plus } from './icons.ts'
 
 function Field(props: {
   id: string
@@ -53,15 +54,16 @@ function WorkspaceRow(props: {
   workspace: CatalogWorkspace
   selected: boolean
   onSelect: () => void
+  onEdit: () => void
 }) {
   const { workspace, selected } = props
   return (
-    <li>
+    <li className="flex items-start gap-1">
       <button
         type="button"
         aria-pressed={selected}
         onClick={props.onSelect}
-        className={`w-full rounded px-3 py-2 text-left ${selected ? 'bg-accent/10' : ''}`}
+        className={`min-w-0 flex-1 rounded px-3 py-2 text-left ${selected ? 'bg-accent/10' : ''}`}
       >
         <span className="font-medium">{workspace.name}</span>{' '}
         <span className="text-xs text-muted">{workspace.id}</span>
@@ -75,6 +77,18 @@ function WorkspaceRow(props: {
         </span>
         <span className="block truncate text-xs text-muted">{workspace.root}</span>
       </button>
+      <Tooltip text={`Edit ${workspace.name}`}>
+        <button
+          type="button"
+          data-edit-workspace={workspace.id}
+          aria-label={`Edit ${workspace.name}`}
+          onClick={props.onEdit}
+          className="rounded border"
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, marginTop: 6, background: 'transparent', borderColor: 'var(--border)', color: 'var(--text)', cursor: 'pointer' }}
+        >
+          <Pencil size={14} aria-hidden="true" />
+        </button>
+      </Tooltip>
     </li>
   )
 }
@@ -99,6 +113,8 @@ export default function WorkspaceView(
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [draft, setDraft] = useState({ id: '', root: '', name: '' })
+  // Which dialog is open: the add form, or one workspace's details.
+  const [dialog, setDialog] = useState<'add' | { edit: string } | null>(null)
 
   // Run one call; show its error instead of throwing.
   const attempt = useCallback(async (call: () => Promise<void>) => {
@@ -163,6 +179,7 @@ export default function WorkspaceView(
       const input = { id: draft.id.trim(), root: draft.root.trim(), name: draft.name.trim() || undefined }
       const created = mode === 'add' ? await client.add(input) : await client.init(input)
       setDraft({ id: '', root: '', name: '' })
+      setDialog(null)
       const next = await client.list()
       setList(next)
       setSelected(created.id)
@@ -180,7 +197,6 @@ export default function WorkspaceView(
 
   const current = list?.items.find((w) => w.id === selected) ?? null
 
-  const wide = useMedia('(min-width: 768px)')
   return (
     <section aria-labelledby="avoozl-workspace-title" className="flex flex-col gap-3.5">
       <h2 id="avoozl-workspace-title" className="text-lg font-semibold">
@@ -195,20 +211,19 @@ export default function WorkspaceView(
         {busy ? 'Working…' : ''}
       </p>
 
-      {/* Workspaces and Add on the left; the tick log in its own panel on
-          the right, top-aligned. Narrow pages stack it below. */}
-      <div
-        data-workspaces-layout
-        style={wide && current ? { display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(18rem, 2fr)', gap: 14, alignItems: 'start' } : { display: 'flex', flexDirection: 'column', gap: 14 }}
-      >
-        <div className="flex min-w-0 flex-col gap-3.5">
       <Card>
-        <SectionHeading title={`Your workspaces (${list?.items.length ?? 0})`} className="mb-2" />
+        <div className="flex flex-wrap items-center gap-2">
+          <SectionHeading title={`Your workspaces (${list?.items.length ?? 0})`} className="mb-0" />
+          <span className="flex-1" />
+          <Btn type="button" primary data-add-workspace onClick={() => setDialog('add')}>
+            <Plus size={14} aria-hidden="true" /> Add a workspace
+          </Btn>
+        </div>
         <p className="mt-1 text-sm text-muted">The workspaces on this computer. The one you pick is the one the other tabs show.</p>
         {list === null ? (
           <p className="mt-2 text-sm text-muted">Loading…</p>
         ) : list.items.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">No workspaces yet. Add one below.</p>
+          <p className="mt-2 text-sm text-muted">No workspaces yet. Add one.</p>
         ) : (
           <ul className="mt-2 flex flex-col gap-1">
             {list.items.map((workspace) => (
@@ -217,6 +232,10 @@ export default function WorkspaceView(
                 workspace={workspace}
                 selected={workspace.id === selected}
                 onSelect={() => setSelected(workspace.id)}
+                onEdit={() => {
+                  setSelected(workspace.id)
+                  setDialog({ edit: workspace.id })
+                }}
               />
             ))}
           </ul>
@@ -228,15 +247,41 @@ export default function WorkspaceView(
         </div>
       </Card>
 
-      <Card>
-        <section aria-labelledby="avoozl-ws-add" data-add-workspace>
-          <h3 id="avoozl-ws-add" className="text-base font-semibold">
-            Add a workspace
-          </h3>
-          <p className="mt-1 text-sm text-muted">A workspace is a folder with your specs. Pick one that already has them, or start a new one.</p>
+      {dialog === 'add' && (
+        <Modal
+          id="avoozl-ws-add"
+          width="36rem"
+          title="Add a workspace"
+          backLabel="Cancel"
+          describedBy="avoozl-ws-add-line"
+          attrs={{ 'data-add-workspace-modal': true }}
+          unsaved={Boolean(draft.id || draft.root || draft.name) && { title: 'Discard this workspace?', body: 'What you entered is lost.', action: 'Discard' }}
+          onDismiss={() => setDialog(null)}
+          footer={
+            <>
+              <Btn type="button" onClick={() => setDialog(null)}>
+                Cancel
+              </Btn>
+              <Btn type="button" disabled={busy} data-add-start-new onClick={() => void submitWorkspace('init')}>
+                Start new
+              </Btn>
+              <Btn type="submit" form="avoozl-ws-form" primary disabled={busy} data-add-existing>
+                Add existing
+              </Btn>
+            </>
+          }
+        >
+          <p id="avoozl-ws-add-line" className="text-sm text-muted">
+            A workspace is a folder with your specs. Pick one that already has them, or start a new one.
+          </p>
+          {error && (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          )}
           <form
-            className="mt-3 flex flex-col gap-2"
-            style={{ maxWidth: '36rem' }}
+            id="avoozl-ws-form"
+            className="flex flex-col gap-2"
             onSubmit={(event) => {
               event.preventDefault()
               void submitWorkspace('add')
@@ -264,26 +309,45 @@ export default function WorkspaceView(
             </h4>
             <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 15rem), 1fr))' }}>
               <div className="flex flex-col gap-1.5 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-choice="add">
-                <Btn type="submit" disabled={busy}>
-                  Add existing
-                </Btn>
+                <span className="text-sm font-medium">Add existing</span>
                 <p className="text-xs text-muted">The folder already has Avoozl specs (an .avoozl.json and its database). Avoozl lists it; nothing in it changes.</p>
               </div>
               <div className="flex flex-col gap-1.5 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-choice="init">
-                <Btn type="button" disabled={busy} onClick={() => void submitWorkspace('init')}>
-                  Start new
-                </Btn>
+                <span className="text-sm font-medium">Start new</span>
                 <p className="text-xs text-muted">Creates an empty workspace in the folder: an .avoozl.json and a new database. Refused if one is already there.</p>
               </div>
             </div>
           </form>
-        </section>
-      </Card>
-        </div>
-        {current && (
-          <aside aria-label="Tick health" className="min-w-0">
-          <Card>
-            <div data-tick-panel style={{ maxHeight: 'calc(100vh - 12rem)', overflowY: 'auto' }}>
+        </Modal>
+      )}
+
+      {dialog && dialog !== 'add' && current && current.id === dialog.edit && (
+        <Modal
+          id="avoozl-ws-edit"
+          width="40rem"
+          title={current.name}
+          backLabel="Close"
+          describedBy="avoozl-ws-edit-line"
+          attrs={{ 'data-edit-workspace-modal': true }}
+          onDismiss={() => setDialog(null)}
+          footer={
+            <>
+              <Btn onClick={runTick} disabled={busy}>
+                Run tick now
+              </Btn>
+              <Btn onClick={() => selected && void loadSelected(selected)} disabled={busy}>
+                Refresh health
+              </Btn>
+              <Btn type="button" primary onClick={() => setDialog(null)}>
+                Close
+              </Btn>
+            </>
+          }
+        >
+          <p id="avoozl-ws-edit-line" className="text-sm text-muted">
+            {current.id} · {current.root}
+          </p>
+          <div data-tick-panel>
             <SectionHeading title="Tick health" className="mb-2" />
             <p className="my-2 text-sm">{describeTick(health)}</p>
             <h4 className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -294,7 +358,7 @@ export default function WorkspaceView(
             ) : log.length === 0 ? (
               <p className="mt-1 text-xs text-muted">No tick has run yet.</p>
             ) : (
-              <ol className="mt-1 mb-2 flex max-h-64 flex-col overflow-y-auto text-xs" data-tick-log>
+              <ol className="mt-1 mb-2 flex flex-col text-xs" data-tick-log>
                 {log.map((line, i) => (
                   <li key={i} className="flex flex-col gap-0.5 border-t py-1 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
                     <span className="flex items-baseline gap-2">
@@ -312,20 +376,9 @@ export default function WorkspaceView(
                 ))}
               </ol>
             )}
-            <div className="flex gap-2">
-              <Btn onClick={runTick} disabled={busy}>
-                Run tick now
-              </Btn>
-              <Btn onClick={() => selected && void loadSelected(selected)} disabled={busy}>
-                Refresh health
-              </Btn>
-            </div>
-            </div>
-          </Card>
-          </aside>
-        )}
-      </div>
-
+          </div>
+        </Modal>
+      )}
     </section>
   )
 }

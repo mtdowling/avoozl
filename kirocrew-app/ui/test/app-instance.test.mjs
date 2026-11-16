@@ -22,7 +22,7 @@ after(async () => {
 })
 
 const open = (query = {}) => page.open(harness.url({ page: 'app', radar: '1', ...query }), { width: 1280, height: 800 })
-const tab = (text) => `[...document.querySelectorAll('button[role="tab"]')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+const tab = (text) => `[...document.querySelectorAll('button[data-nav-head]')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
 
 test('one instance: the name is in the header and on no other surface', { skip }, async () => {
   await open()
@@ -43,8 +43,8 @@ test('Settings has the rename box, and it never shows the ID', { skip }, async (
   await open()
   await page.until(`Boolean(${tab('Settings')})`)
   await page.evaluate(`${tab('Settings')}.click()`)
-  await page.until(`Boolean(document.querySelector('[data-settings-section="instance"] button'))`)
-  await page.evaluate(`document.querySelector('[data-settings-section="instance"] button').click()`)
+  await page.until(`Boolean(document.querySelector('[data-nav-item="settings/instance"]'))`)
+  await page.evaluate(`document.querySelector('[data-nav-item="settings/instance"]').click()`)
   await page.until(`Boolean(document.querySelector('[data-instance-rename]'))`)
   assert.equal(await page.evaluate(`document.body.innerText.includes('inst-')`), false)
 })

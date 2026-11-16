@@ -466,9 +466,13 @@ if (query.get('radar') === '1') {
       step('ready', 'Ready', '2026-11-09T09:15:00Z', 'done'),
       step('claimed', 'Claimed', '2026-11-09T09:21:00Z', 'done', { by: 'Draco' }),
       step('pr', 'PR opened', '2026-11-09T09:48:00Z', 'done', { link: 'https://github.com/acme/recipe-box/pull/57' }),
-      step('ci', 'CI', null, 'now', { detail: '4 of 6 checks done', rounds: 2 }),
-      step('merged', 'Merged', null, 'later'),
-      step('retro', 'Retro', null, 'later', { detail: 'After merge' }),
+      query.get('merged')
+        ? step('ci', 'CI', '2026-11-09T10:02:00Z', 'done', { detail: '6 checks passed', rounds: 1 })
+        : step('ci', 'CI', null, 'now', { detail: '4 of 6 checks done', rounds: 2 }),
+      query.get('merged')
+        ? step('merged', 'Merged', '2026-11-09T10:12:00Z', 'done', { link: 'https://github.com/acme/recipe-box/pull/57', ...(query.get('receipt') ? { detail: 'Build 41 s, warm · linux-x64/node26 · cacheHits 412 · cacheMisses 9' } : {}) })
+        : step('merged', 'Merged', null, 'later'),
+      step('retro', 'Retro', null, 'later', { detail: query.get('merged') ? 'Counted in the next retro' : 'After merge' }),
     ],
     crew: { id: 'c_022aea7f', name: 'Draco' },
     crewLastWordAt: '2026-11-09T10:09:00Z',
@@ -604,6 +608,23 @@ if (query.get('page') === 'github-flow')
     bottleneck: 'Claim to PR',
     errors: [],
     repositories: ['acme/recipe-box'],
+    ...(query.get('receipt')
+      ? {
+          receipts: {
+            count: 12,
+            medianMs: 41000,
+            byTarget: [
+              { target: 'linux-x64/node26', start: 'warm', count: 8, medianMs: 38000 },
+              { target: 'linux-x64/node26', start: 'cold', count: 2, medianMs: 174000 },
+              { target: 'win32-x64/node26', start: 'warm', count: 2, medianMs: 96000 },
+            ],
+            byInstance: [
+              { instance: 'inst-0a1b2c3d4e5f', name: 'Draco', count: 9, medianMs: 40000, totalMs: 612000 },
+              { instance: 'inst-f5e4d3c2b1a0', name: null, count: 3, medianMs: 52000, totalMs: 190000 },
+            ],
+          },
+        }
+      : {}),
   }))
 // ?page=repo-mode: one repository's Edit body on its Mode and branch tab.
 function RepoModePage() {
@@ -731,17 +752,24 @@ if (query.get('page') === 'specs') {
     spec('math-matrix-math', 'draft', 5),
     spec('public-cli-module', 'draft', 3),
     spec('allocator', 'draft', 7),
+    spec('nupp-native-runtime-winddown-2026-11-11', 'draft', 131),
     spec('load-config', 'approved', 3, { onGitHub: true }),
     spec('window-design', 'not imported', 10),
   ]
   const entry = (id: string, batch: number, tasks: number, hash: string, extra = {}) => ({ id, spec: id, title: id, hash: hash.repeat(64 / hash.length), batch, tasks, errors: 0, loop: false, needs: [], ...extra })
   const batches = [
     { batch: 1, specs: [entry('core-design-values', 1, 4, 'b9dc37bf'), entry('math-matrix-math', 1, 5, 'b18266e9'), entry('public-cli-module', 1, 3, '4b5afd31')] },
-    { batch: 2, specs: [entry('byte-types', 2, 8, '98f38c3b', { loop: true, needs: ['compression', 'core-design-values'] }), entry('compression', 2, 12, 'f1551aa3', { loop: true, needs: ['byte-types'] })] },
+    { batch: 2, specs: [entry('byte-types', 2, 8, '98f38c3b', { loop: true, needs: ['compression', 'core-design-values'] }), entry('compression', 2, 12, 'f1551aa3', { loop: true, needs: ['byte-types'] }), entry('nupp-native-runtime-winddown-2026-11-11', 2, 131, '3a271abe', { loop: true, needs: ['compression'] })] },
     { batch: 3, specs: [entry('allocator', 3, 7, '4fb54994', { needs: ['byte-types'] })] },
   ]
   answer('plan.table', () => ({ root: '/repo', problem: null, specs: [], revision: 7, items }))
-  answer('plan.approvalBatches', () => ({ batches }))
+  const writes: Record<string, number> = { 'byte-types': 14, compression: 21, 'nupp-native-runtime-winddown-2026-11-11': 268 }
+  answer('plan.approvalBatches', (body) => {
+    const ids = (body.input as { ids?: string[] } | undefined)?.ids
+    if (!ids) return { batches }
+    const specs = batches.flatMap((b) => b.specs).filter((e) => ids.includes(e.id)).map((e) => ({ ...e, writes: writes[e.id] ?? 3 }))
+    return { batches, selection: { ok: true, specs, writes: specs.reduce((n, e) => n + e.writes, 0), failures: [], missing: [] } }
+  })
   answer('plan.approveMany', (body) => {
     state.calls.push(body as never)
     return { ok: true, approved: [], failures: [] }
@@ -889,6 +917,17 @@ if (page === 'panel') {
     return panelWin.__panel
   }
   answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true }] }))
+  // ?places=1: two workspaces, Avoozl's (/w) and Nupp's (/n, whose code
+  // checkout is /src/nupp), and chats whose project folders sit in each.
+  if (query.get('places')) {
+    answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Avoozl plans', root: '/w', enabled: true, state: 'ready', served: true }, { id: 'nupp', name: 'Nupp plans with a long name', root: '/n', enabled: true, state: 'ready', served: false }] }))
+    answer('repositories.list', (body) => ({ items: (body as { workspaceId?: string }).workspaceId === 'nupp' ? [{ id: 'nupp', name: 'nupp', localCheckout: '/src/nupp', github: 'o/nupp', baseBranch: 'main' }] : [{ id: 'av', name: 'avoozl', localCheckout: '/src/avoozl', github: 'o/avoozl', baseBranch: 'main' }] }))
+    answer('GET /api/chat/slots', () => [
+      { key: 'nupp-chat', project: '/src/nupp/compiler' },
+      { key: 'avoozl-chat', project: '/src/avoozl' },
+      { key: 'elsewhere-chat', project: '/srv/other' },
+    ])
+  }
   // The one read the panel makes. A failed part is null, as in the backend.
   const part = <T,>(read: () => T): T | null => {
     try {

@@ -986,7 +986,7 @@
     "rc-12.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Owner decision to retire, and what to keep. See RC11.1, RC11.3; \u00a7D13.",
+      "summary": "Cancelled 2026-11-15 (avoozl R86, \u00a74.26). Owner decision to retire, and what to keep. See RC11.1, RC11.3; \u00a7D13.",
       "acceptance": [
         "A recorded owner decision exists before any removal task starts."
       ],
@@ -999,7 +999,7 @@
     "rc-12.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Switch off worker dispatch for Radar-coded repositories. See RC11.2, RC11.3; \u00a7D13.",
+      "summary": "Cancelled 2026-11-15 (avoozl R86, \u00a74.26). Switch off worker dispatch for Radar-coded repositories. See RC11.2, RC11.3; \u00a7D13.",
       "acceptance": [
         "A Radar-coded repository opens no worker; a worker-coded one still does."
       ],
@@ -1015,7 +1015,7 @@
     "rc-12.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Retire crew routing and placement for Radar-coded repositories. See RC11.2; \u00a7D13.",
+      "summary": "Cancelled 2026-11-15 (avoozl R86, \u00a74.26). Retire crew routing and placement for Radar-coded repositories. See RC11.2; \u00a7D13.",
       "acceptance": [
         "No routing call is made for a Radar-coded repository; the Routing section is hidden only when no repository needs it."
       ],
@@ -1031,7 +1031,7 @@
     "rc-12.4": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Retire runner mode. See RC11.2; \u00a7D13.",
+      "summary": "Cancelled 2026-11-15 (avoozl R86, \u00a74.26). Retire runner mode. See RC11.2; \u00a7D13.",
       "acceptance": [
         "`npm test` passes; the removed names appear nowhere in the app."
       ],
@@ -1047,7 +1047,7 @@
     "rc-12.5": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Retire the remote relay. See RC11.2; \u00a7D13.",
+      "summary": "Cancelled 2026-11-15 (avoozl R86, \u00a74.26). Retire the remote relay. See RC11.2; \u00a7D13.",
       "acceptance": [
         "`npm test` passes; the relay agent is not in the built app."
       ],
@@ -1063,7 +1063,7 @@
     "rc-12.6": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Retire per-task worker budgets and the worker Files and diff fold. See RC11.2; \u00a7D13.",
+      "summary": "Cancelled 2026-11-15 (avoozl R86, \u00a74.26). Retire per-task worker budgets and the worker Files and diff fold. See RC11.2; \u00a7D13.",
       "acceptance": [
         "Budgets still cap a planner chat; the drawer has no Files fold for a Radar-coded task."
       ],
@@ -1079,7 +1079,7 @@
     "rc-12.7": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Compatibility test: names and aliases that must stay. See RC11.4; \u00a7D13.",
+      "summary": "Cancelled 2026-11-15 (avoozl R86, \u00a74.26). Compatibility test: names and aliases that must stay. See RC11.4; \u00a7D13.",
       "acceptance": [
         "The test fails if any listed name stops working."
       ],
@@ -1099,7 +1099,7 @@
     "rc-12.8": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Docs and Demo retargeted to crews. See RC11.7, RC8.1; \u00a7D13.",
+      "summary": "Cancelled 2026-11-15 (avoozl R86, \u00a74.26). Docs and Demo retargeted to crews. See RC11.7, RC8.1; \u00a7D13.",
       "acceptance": [
         "The docs name each path once; the release scan is clean; a diff check shows no change under `docs/research/` or `docs/evidence/` except new receipts."
       ],
@@ -1115,7 +1115,7 @@
     "rc-p12": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Proof 12: after retirement both coders work. See RC11; \u00a7D17.",
+      "summary": "Cancelled 2026-11-15 (avoozl R86, \u00a74.26). Proof 12: after retirement both coders work. See RC11; \u00a7D17.",
       "acceptance": [
         "Expected result observed; receipt under `docs/evidence/`."
       ],
@@ -2732,14 +2732,13 @@
     "rc-32.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Guards: no deleted, skipped or weakened tests; close needs before and. See RC33.5, RC33.6; \u00a7D38.",
+      "summary": "Guards: no deleted, skipped or weakened tests; closing needs a receipt from each side of the fix. See RC33.5, RC33.6; \u00a7D38.",
       "acceptance": [
         "The tests pass and `npm test` passes."
       ],
       "completion": "person",
       "requires": [
-        "receipts",
-        "after rc-32.2"
+        "rc-32.2"
       ],
       "manual": true
     },
