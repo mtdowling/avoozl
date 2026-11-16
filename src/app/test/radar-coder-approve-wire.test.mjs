@@ -40,8 +40,27 @@ class PullGitHub extends FakeGitHub {
   async createBranch(_r, name) {
     this.branches.push(name);
   }
-  async putFile(repository, file) {
-    this.written.push({ repository, ...file });
+  async commitFiles(repository, { branch, message, files }) {
+    this.commits = (this.commits ?? 0) + 1;
+    for (const [path, content] of Object.entries(files))
+      this.written.push({ repository, path, branch, message, content });
+    return "c".repeat(40);
+  }
+  // The files at a merge: the spec folder on disk (the base branch here),
+  // then what the pull requests wrote.
+  async blobTexts(_r, _ref, paths) {
+    const landed = new Map();
+    for (const file of paths) {
+      let text = null;
+      try {
+        text = fs.readFileSync(path.join(this.root, file), "utf8");
+      } catch {}
+      landed.set(file, text);
+    }
+    for (const file of this.written)
+      if (landed.has(file.path))
+        landed.set(file.path, Buffer.from(file.content, "base64").toString());
+    return landed;
   }
   async createPullRequest(_r, input) {
     this.pulls.push({
@@ -109,6 +128,7 @@ function open(
   if (planning)
     store.setMeta("workspaceRepository", { root: specRoot, directory: "." });
   writeSpec(specRoot, "config");
+  github.root = specRoot;
   // The signed-in GitHub login; the operator is only a display name.
   github.login = login === undefined ? "maintainer" : login;
   const ops = new Operations(store, {

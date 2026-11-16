@@ -1406,6 +1406,35 @@ export class GitHubClient {
     );
   }
 
+  // Every file in one commit on `branch` (GraphQL createCommitOnBranch).
+  // `files` maps path -> base64 contents. GitHub refuses the commit when the
+  // branch head is no longer `expectedHeadOid`. Returns the new commit oid.
+  async commitFiles(value, { branch, message, files, expectedHeadOid }) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    const data = await this.graphql(
+      `mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}`,
+      {
+        input: {
+          branch: {
+            repositoryNameWithOwner: `${owner}/${repo}`,
+            branchName: branch,
+          },
+          message: { headline: message },
+          expectedHeadOid,
+          fileChanges: {
+            additions: Object.entries(files).map(([path, contents]) => ({
+              path,
+              contents,
+            })),
+          },
+        },
+      },
+      "commit files",
+    );
+    return data?.createCommitOnBranch?.commit?.oid ?? null;
+  }
+
   // GitHub refuses an update to an existing file unless the request names the
   // file's current blob `sha`, so read it first; a 404 means a new file.
   async putFile(value, { path, branch, message, content }) {

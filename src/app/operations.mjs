@@ -532,6 +532,8 @@ import {
   specEpic,
 } from "./spec-plans.mjs";
 import {
+  approvalChangedAtMerge,
+  approvalEvidence,
   approvalState,
   openApproval,
   reconcileApproval,
@@ -1809,6 +1811,7 @@ export class Operations {
       key = { planId: plan.id, hash: plan.hash };
     let state = await reconcileApproval(this.store, { ...ids, ...key });
     if (state?.state === "merged") return { merged: state };
+    approvalChangedAtMerge(state);
     if (state?.state !== "open")
       state = await openApproval(this.store, {
         ...ids,
@@ -5697,7 +5700,7 @@ export class Operations {
           };
         if (gate?.merged) {
           approver = gate.merged.approvedBy;
-          evidence = evidence || `Approval merged at ${gate.merged.commit}.`;
+          evidence = evidence || approvalEvidence(gate.merged);
         }
       }
       const approved = approvePlan(store, {

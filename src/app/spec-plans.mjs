@@ -27,7 +27,7 @@ export const MANIFEST = "avoozl/manifest.json";
 export const CRITIQUE = "avoozl/critique.md";
 // The files a revision hash covers. The critique is about a revision, so it
 // is read beside it and never changes it.
-const REVISION_FILES = [
+export const REVISION_FILES = [
   "requirements.md",
   "bugfix.md",
   "design.md",
