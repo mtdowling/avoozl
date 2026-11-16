@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { CODERS, normalizeGitHubPolicy } from "../github-policy.mjs";
 
-// rc-14.1: `coder` is issue-radar, worker or remote, per repository.
+// rc-14.1: `coder` is issue-radar or worker, per repository.
 const repo = (mode, repository = {}) =>
   normalizeGitHubPolicy({
     mode,
@@ -10,9 +10,9 @@ const repo = (mode, repository = {}) =>
     repositories: { "example/app": { baseBranch: "main", ...repository } },
   }).repositories["example/app"];
 
-test("each of the three values validates in both GitHub modes", () => {
+test("each remaining value validates in both GitHub modes", () => {
   for (const mode of ["plans-repo", "single-repo"])
-    for (const coder of ["issue-radar", "worker", "remote"])
+    for (const coder of ["issue-radar", "worker"])
       assert.equal(repo(mode, { coder }).coder, coder);
 });
 
@@ -21,7 +21,7 @@ test("an unknown value is refused naming the allowed ones", () => {
     for (const coder of ["", "Remote", "harness", 1])
       assert.throws(
         () => repo(mode, { coder }),
-        /coder must be issue-radar, worker or remote/,
+        /coder must be issue-radar or worker/,
       );
 });
 
@@ -36,17 +36,25 @@ test("repositories choose their coder separately", () => {
   const { repositories } = normalizeGitHubPolicy({
     mode: "single-repo",
     repositories: {
-      "example/a": { baseBranch: "main", coder: "remote" },
+      "example/a": { baseBranch: "main", coder: "worker" },
       "example/b": { baseBranch: "main", coder: "worker" },
       "example/c": { baseBranch: "main" },
     },
   });
   assert.deepEqual(
     ["a", "b", "c"].map((n) => repositories[`example/${n}`].coder),
-    ["remote", "worker", "issue-radar"],
+    ["worker", "worker", "issue-radar"],
   );
 });
 
-test("one list holds the three values", () => {
-  assert.deepEqual([...CODERS].sort(), ["issue-radar", "remote", "worker"]);
+test("one list holds the remaining values", () => {
+  assert.deepEqual([...CODERS].sort(), ["issue-radar", "worker"]);
+});
+
+test("the retired remote coder is refused explicitly", () => {
+  for (const mode of ["plans-repo", "single-repo"])
+    assert.throws(
+      () => repo(mode, { coder: "remote" }),
+      /remote coder was removed/,
+    );
 });

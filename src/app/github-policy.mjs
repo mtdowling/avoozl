@@ -75,7 +75,7 @@ export const CREW_LABEL_DEFAULTS = Object.freeze({
 export const ISSUE_RADAR_PATH = "/issue-radar";
 // One place validates `coder`. Settings shows the display names
 // (kirocrew-app/ui/src/settings-api.ts CODER_CARDS).
-export const CODERS = Object.freeze(["issue-radar", "worker", "remote"]);
+export const CODERS = Object.freeze(["issue-radar", "worker"]);
 // Avoozl's own workflow labels (design D2, D26), each with an `avoozl:`
 // default (RC21). Ready is `managedLabels.ready`. A name set in `.avoozl.json`
 // always wins; only an unset name reads the default.
@@ -427,6 +427,7 @@ function repositoryInput(value, id, mode) {
       "approval",
       "acceptedLabel",
       "rules",
+      "buildReceipts",
       "stackedPullRequests",
       "commentSteering",
       "discussions",
@@ -445,6 +446,10 @@ function repositoryInput(value, id, mode) {
     fail(`${label}.stackedPullRequests must be true or false.`);
   const coder =
     value.coder ?? (mode === "single-repo" ? "issue-radar" : "worker");
+  if (coder === "remote")
+    fail(
+      `${label}.coder: the remote coder was removed. Remove the retired coder setting or choose an available coder.`,
+    );
   if (!CODERS.includes(coder))
     fail(
       `${label}.coder must be ${CODERS.slice(0, -1).join(", ")} or ${CODERS.at(-1)}.`,
@@ -694,6 +699,8 @@ function repositoryInput(value, id, mode) {
     pullRequestReviews,
     release,
     dependencyText: value.dependencyText === true,
+    // The code repository has bin/build-receipt (RC32.8).
+    buildReceipts: value.buildReceipts === true,
     priority,
     waitingLabels,
     managedLabels: managed,

@@ -9,6 +9,7 @@ import {
   readyAt,
   claimOf,
 } from "./radar-events.mjs";
+import { receiptLine } from "./build-receipt-read.mjs";
 
 export const TRACE_STEPS = Object.freeze([
   { key: "spec", label: "Spec approved" },
@@ -35,6 +36,7 @@ export function buildTrace({
   tracker = null,
   mirror = null,
   fixes = [],
+  receipt = null,
   problems = [],
 }) {
   const claim = claimOf(comments),
@@ -68,7 +70,12 @@ export function buildTrace({
               ? `${state.total} checks passed`
               : `${state.done} of ${state.total} checks done`,
       },
-      { at: merged, link: merged ? pull.html_url : null },
+      {
+        at: merged,
+        link: merged ? pull.html_url : null,
+        // RC32.6: what the merged pull request's build cost.
+        ...(receipt ? { detail: receiptLine(receipt) } : {}),
+      },
       {
         at: null,
         detail: merged ? "Counted in the next retro" : "After merge",
@@ -180,6 +187,7 @@ export async function readTrace(
     mirrorFor = () => null,
     fixesFor = () => [],
     trackerFor = () => null,
+    receiptFor = async () => null,
   } = {},
 ) {
   const facts = await readIssueFacts(github, repository, number, settings),
@@ -198,6 +206,7 @@ export async function readTrace(
       tracker: trackerFor(number),
       mirror: facts.pull ? mirrorFor(facts.pull.number) : null,
       fixes: facts.pull ? fixesFor(facts.pull.number) : [],
+      receipt: facts.pull?.merged_at ? await receiptFor(facts.pull) : null,
     }),
   };
 }

@@ -55,6 +55,7 @@ import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
 import AvoozlPanel from '../../src/Panel.tsx'
+import ModelsSettings from '../../src/ModelsSettings.tsx'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
@@ -467,9 +468,13 @@ if (query.get('radar') === '1') {
       step('ready', 'Ready', '2026-11-09T09:15:00Z', 'done'),
       step('claimed', 'Claimed', '2026-11-09T09:21:00Z', 'done', { by: 'Draco' }),
       step('pr', 'PR opened', '2026-11-09T09:48:00Z', 'done', { link: 'https://github.com/acme/recipe-box/pull/57' }),
-      step('ci', 'CI', null, 'now', { detail: '4 of 6 checks done', rounds: 2 }),
-      step('merged', 'Merged', null, 'later'),
-      step('retro', 'Retro', null, 'later', { detail: 'After merge' }),
+      query.get('merged')
+        ? step('ci', 'CI', '2026-11-09T10:02:00Z', 'done', { detail: '6 checks passed', rounds: 1 })
+        : step('ci', 'CI', null, 'now', { detail: '4 of 6 checks done', rounds: 2 }),
+      query.get('merged')
+        ? step('merged', 'Merged', '2026-11-09T10:12:00Z', 'done', { link: 'https://github.com/acme/recipe-box/pull/57', ...(query.get('receipt') ? { detail: 'Build 41 s, warm · linux-x64/node26 · cacheHits 412 · cacheMisses 9' } : {}) })
+        : step('merged', 'Merged', null, 'later'),
+      step('retro', 'Retro', null, 'later', { detail: query.get('merged') ? 'Counted in the next retro' : 'After merge' }),
     ],
     crew: { id: 'c_022aea7f', name: 'Draco' },
     crewLastWordAt: '2026-11-09T10:09:00Z',
@@ -605,6 +610,23 @@ if (query.get('page') === 'github-flow')
     bottleneck: 'Claim to PR',
     errors: [],
     repositories: ['acme/recipe-box'],
+    ...(query.get('receipt')
+      ? {
+          receipts: {
+            count: 12,
+            medianMs: 41000,
+            byTarget: [
+              { target: 'linux-x64/node26', start: 'warm', count: 8, medianMs: 38000 },
+              { target: 'linux-x64/node26', start: 'cold', count: 2, medianMs: 174000 },
+              { target: 'win32-x64/node26', start: 'warm', count: 2, medianMs: 96000 },
+            ],
+            byInstance: [
+              { instance: 'inst-0a1b2c3d4e5f', name: 'Draco', count: 9, medianMs: 40000, totalMs: 612000 },
+              { instance: 'inst-f5e4d3c2b1a0', name: null, count: 3, medianMs: 52000, totalMs: 190000 },
+            ],
+          },
+        }
+      : {}),
   }))
 // ?page=repo-mode: one repository's Edit body on its Mode and branch tab.
 function RepoModePage() {
@@ -644,8 +666,20 @@ if (query.get('page') === 'workspaces') {
   answer('workspace.tick.log', () => ({ items: [] }))
 }
 
+if (query.get('page') === 'models') {
+  let settings = { filename: '.avoozl.json', exists: true, hash: 'models-before', models: { planner: 'fake-writer' } }
+  answer('GET /api/models', () => ['fake-writer', 'fake-reviewer'])
+  answer('models.settings.get', () => settings)
+  answer('models.settings.update', (body) => {
+    state.calls.push(body)
+    settings = { ...settings, hash: 'models-after', models: (body.input as { models: typeof settings.models }).models }
+    return settings
+  })
+}
+
 const PAGES: Record<string, () => ReactNode> = {
   workspaces: () => <WorkspaceView selected="launch" />,
+  models: () => <ModelsSettings workspaceId="w" />,
   // The GitHub calls of the last hour by source, beside the live limit.
   'github-usage': () => (
     <RateBlock

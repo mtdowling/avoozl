@@ -25,9 +25,12 @@ export const STRETCH_MS = 5 * 60 * 1000;
 // the minute GitHub's guidance names.
 export const SECONDARY_WAIT_MS = 60 * 1000;
 const MAX_WAIT_MS = 2 * 60 * 60 * 1000;
-const FLUSH_MS = 2000;
 // How many answers, how large one may be, and how long one may go unused.
+// The cap grows with the workspace: each GitHub-backed task keeps up to
+// CACHE_ENTRIES_PER_ISSUE answers (its issue, events, timeline and checks),
+// so a tick over every issue reads from the cache instead of evicting it.
 export const CACHE_MAX_ENTRIES = 400;
+export const CACHE_ENTRIES_PER_ISSUE = 4;
 export const CACHE_MAX_BODY = 1024 * 1024;
 export const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const TOUCH_MS = 10 * 60 * 1000;
@@ -252,6 +255,19 @@ export class ResponseCache {
 
   // Entries unused for a week go, then the least recently used beyond the
   // cap. Returns how many were removed.
+  // The entry cap: the fixed floor, or more for a workspace with many issues.
+  limit() {
+    let issues = 0;
+    try {
+      issues = this.store
+        .read()
+        .tasks.filter((task) => task.github?.number).length;
+    } catch {
+      // No snapshot yet: the floor.
+    }
+    return Math.max(this.maxEntries, issues * CACHE_ENTRIES_PER_ISSUE);
+  }
+
   prune() {
     try {
       const db = this.#db(),
@@ -262,7 +278,7 @@ export class ResponseCache {
           .prepare(
             "DELETE FROM github_http_cache WHERE key IN (SELECT key FROM github_http_cache ORDER BY at DESC LIMIT -1 OFFSET ?)",
           )
-          .run(this.maxEntries).changes;
+          .run(this.limit()).changes;
       return old + extra;
     } catch {
       return 0;
@@ -303,7 +319,6 @@ export class RateState {
     this.pause = null;
     this.calls = 0;
     this.notModified = 0;
-    this.flushedAt = 0;
     this.dirty = false;
   }
 
@@ -361,7 +376,7 @@ export class RateState {
       at,
     };
     this.dirty = true;
-    this.flush(true);
+    this.flush();
   }
 
   // The error a call raises while held back, or null when it may go.
@@ -372,9 +387,10 @@ export class RateState {
     return pause;
   }
 
-  flush(force = false) {
-    if (!this.dirty || (!force && this.now() - this.flushedAt < FLUSH_MS))
-      return;
+  // Writes after every call: a 2-second throttle lost the last calls of a
+  // short process (a CLI tick) and left Settings behind until the next call.
+  flush() {
+    if (!this.dirty) return;
     try {
       const stored = readRate(this.store),
         resources = { ...(stored.resources || {}) };
@@ -422,7 +438,6 @@ export class RateState {
       this.calls = 0;
       this.notModified = 0;
       this.dirty = false;
-      this.flushedAt = this.now();
     } catch {
       // A busy or read-only store keeps the numbers for the next flush.
     }

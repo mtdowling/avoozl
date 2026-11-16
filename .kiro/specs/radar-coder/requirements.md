@@ -6,6 +6,18 @@ category: Planning
 
 Status: Approved
 
+**Superseded 2026-11-15** by Requirements 86–91 and design §4.26 of
+`.kiro/specs/avoozl/`: Avoozl owns the coding loop with its own workers,
+pushes and lands the work, and the Issue Radar path is removed. Superseded
+here: the Issue Radar coder and handoff (RC1–RC6, RC10, RC14, RC15), the
+retirement of Avoozl's workers (RC11; Phase 12 is cancelled), labels and
+claims as coordination, the mirror and forward flow for a public repository
+with private plans (RC24–RC26), and the separate conflict-fix chat (RC28).
+Still in force: integration branches (RC16), the approval pull request only
+for a spec on a protected branch (RC3.6), setup (RC27), the GitHub usage
+counter (RC29), release ranking (RC31) and build receipts (RC32). This file
+is kept as the record; it is not deleted.
+
 ## Introduction
 
 Avoozl changes its job. It stops running workers for repositories that have
@@ -325,7 +337,9 @@ Fact 2: Kiro Crew 0.12.2.4 does not arm auto-merge for a crew.
    NOT arm auto-merge. A pull request already armed SHALL be listed in the
    banner with **Disarm**, a person's action.
 5. Avoozl SHALL NOT merge a pull request itself, use `--admin`, or bypass a
-   rule. GitHub merges when its own rules pass.
+   rule. GitHub merges when its own rules pass. (Superseded 2026-11-15 by
+   Requirement 87 of the `avoozl` spec: Avoozl merges after checks pass on
+   the updated head; it still never uses `--admin` or bypasses a rule.)
 6. The tick SHALL label a pull request that has a merge conflict with the
    conflict label (configurable, default `avoozl:merge-conflict`, RC21) and remove it when
    the conflict is gone. It SHALL open one Needs you row per conflicted pull
@@ -747,7 +761,9 @@ branch in main, so that a rewrite never half-lands in main.
    head (RC11.5, Requirement 16), not from the task pull requests.
 4. Landing the branch in the default branch SHALL be **one separate step**
    that a person approves. Avoozl SHALL NOT merge the branch into the default
-   branch on its own. It SHALL show a Needs you row when whole-head acceptance
+   branch on its own. (Changed 2026-11-15, Requirement 87.7 of the `avoozl`
+   spec: after the person approves, Avoozl lands it through the landing
+   queue.) It SHALL show a Needs you row when whole-head acceptance
    is green and the branch is up to date with main, and SHALL record who
    approved and which head. An approval for an older head SHALL NOT count.
 5. Plan approval, implementation (the task pull requests), integration (a
@@ -1611,7 +1627,8 @@ the hourly limit is not spent on the same pull requests again and again.
 #### Acceptance criteria
 
 1. **Count by source.** Every GitHub call Avoozl makes SHALL be counted under
-   one source: `view`, `tick`, `setup`, `forward`, `review` or `other`. A read
+   one source: `view`, `tick`, `setup`, `forward`, `review`, `pages` (added
+   2026-11-15, avoozl Requirement 92.14) or `other`. A read
    the cache answered and a call GitHub answered with 304 SHALL be counted apart
    from calls that cost the limit. Counts SHALL cover the last 60 minutes.
 2. **Wrapper.** `bin/gh-counted` SHALL run `gh` with the same arguments and exit
@@ -1748,7 +1765,8 @@ and whether a change made it better or worse.
    job summary, and upload the same file as a small artifact named
    `build-receipt`.
 5. **Reader.** For each merged pull request Avoozl SHALL read one receipt: the
-   artifact of the pull request's last successful CI run. Each read SHALL be
+   newest `build-receipt` artifact built from the pull request's head commit
+   (one list call per repository, one download per pull request). Each read SHALL be
    counted in the GitHub usage counter under `receipt` and cached; a pull
    request already read SHALL cost 0 on every later check, and a pull request
    with no receipt SHALL be remembered as having none.
@@ -1759,8 +1777,8 @@ and whether a change made it better or worse.
    issue marker, so Flow can show each Avoozl's numbers and the sum. No
    instance reads another's database; every read is from GitHub.
 8. **Crews.** The repo rules in each issue brief SHALL tell the crew to run
-   build and test commands through `bin/build-receipt` when the repository has
-   it, and to leave the commands unchanged otherwise.
+   build and test commands through `bin/build-receipt` when the repository's
+   `buildReceipts` setting is on, and SHALL say nothing about it otherwise.
 9. **Tests** on a fake GitHub SHALL cover: the wrapper keeps the exit code and
    output; a failing parser still writes a receipt; one read per merged pull
    request; a cache hit costs 0 calls; no receipt is remembered; grouping by

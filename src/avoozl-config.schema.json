@@ -100,11 +100,46 @@
         "$ref": "#/$defs/project"
       }
     },
+    "receipts": {
+      "description": "Read by bin/build-receipt in the code repository: `parser` is a command that reads the build output on standard input and prints a JSON object of numbers; `warmCheck` exits 0 when caches are warm.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "parser": { "type": "string" },
+        "warmCheck": { "type": "string" }
+      }
+    },
     "github": {
       "$ref": "#/$defs/github"
     },
     "review": {
       "$ref": "#/$defs/reviewPolicy"
+    },
+    "models": {
+      "type": "object",
+      "description": "Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
+      "additionalProperties": false,
+      "properties": {
+        "planner": { "$ref": "#/$defs/chatModel" },
+        "planReviewer": { "$ref": "#/$defs/chatModel" },
+        "driver": { "$ref": "#/$defs/chatModel" },
+        "retro": { "$ref": "#/$defs/chatModel" },
+        "reviewDraft": { "$ref": "#/$defs/chatModel" }
+      }
+    },
+    "planReview": {
+      "type": "object",
+      "description": "Cross-model draft review. Auto skips review until a reviewer is named and its model can be shown to differ from the writer's.",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["auto", "ask", "off"], "default": "auto" },
+        "rounds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3,
+          "default": 1
+        }
+      }
     },
     "safety": {
       "$ref": "#/$defs/safetyPolicy"
@@ -327,6 +362,10 @@
     "$ref": "#/$defs/safeValue"
   },
   "$defs": {
+    "chatModel": {
+      "type": "string",
+      "pattern": "^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$"
+    },
     "runner": {
       "type": "object",
       "description": "Runner mode over SSH, off unless role is set. A runner runs tasks a driver hands it. Machine paths (repos) and a local stand-in for ssh belong in ~/.config/avoozl/config.json.",
@@ -903,8 +942,8 @@
           "description": "Must equal the repository's default branch when a mode is set."
         },
         "coder": {
-          "enum": ["issue-radar", "worker", "remote"],
-          "description": "Who codes the issues: issue-radar (Radar crew), worker (Avoozl worker) or remote (Remote coder), in either GitHub mode."
+          "enum": ["issue-radar", "worker"],
+          "description": "Who codes the issues: issue-radar (Radar crew) or worker (Avoozl worker), in either GitHub mode."
         },
         "radar": {
           "type": "object",
@@ -1048,6 +1087,11 @@
               }
             }
           }
+        },
+        "buildReceipts": {
+          "description": "The code repository has bin/build-receipt. Each issue brief then tells crews to run build and test commands through it.",
+          "type": "boolean",
+          "default": false
         },
         "dependencyText": {
           "type": "boolean",

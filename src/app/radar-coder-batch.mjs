@@ -20,7 +20,6 @@ export function planProjectionBatches({
   max = FLOW_DEFAULTS.batch.max,
   by = FLOW_DEFAULTS.batch.by,
   complete = (status) => status === "done",
-  chains = false,
 }) {
   if (!BATCH_MODES.includes(mode))
     throw new Error(`batch mode must be one of ${BATCH_MODES.join(", ")}`);
@@ -51,52 +50,6 @@ export function planProjectionBatches({
     ),
     taken = new Set(),
     batches = [];
-  // A remote coder takes a chain of small tasks whole when it fits one batch
-  // (RC15.6): a component of linked tasks whose outside blockers are done.
-  if (chains && mode !== "off") {
-    const small = open.filter(
-        (task) =>
-          task.size === "small" &&
-          !["person", "tracker"].includes(taskCompletion(task)) &&
-          task.completion !== "human",
-      ),
-      ids = new Set(small.map((task) => task.id)),
-      seen = new Set();
-    for (const start of small) {
-      if (seen.has(start.id)) continue;
-      const part = new Set([start.id]),
-        queue = [start.id];
-      while (queue.length) {
-        const current = queue.shift();
-        for (const edge of edges) {
-          const next =
-            edge.from === current
-              ? edge.to
-              : edge.to === current
-                ? edge.from
-                : null;
-          if (next && ids.has(next) && !part.has(next)) {
-            part.add(next);
-            queue.push(next);
-          }
-        }
-      }
-      for (const id of part) seen.add(id);
-      const outside = edges.some(
-        (e) =>
-          part.has(e.to) &&
-          !part.has(e.from) &&
-          BLOCKING.has(e.kind) &&
-          !complete(byId.get(e.from)?.status),
-      );
-      if (part.size < 2 || part.size > REMOTE_BATCH_MAX || outside) continue;
-      for (const id of part) taken.add(id);
-      batches.push({
-        key: keyOf(start, by),
-        tasks: small.filter((task) => part.has(task.id)).map((task) => task.id),
-      });
-    }
-  }
   if (mode !== "off" && max > 1)
     for (const lead of candidates) {
       if (taken.has(lead.id)) continue;
@@ -129,8 +82,6 @@ export function planProjectionBatches({
 }
 
 const MAX_BATCH = 5;
-// A remote coder costs a person one publish per batch, so its batches may be larger and may hold a chain (RC15.6).
-export const REMOTE_BATCH_MAX = 8;
 
 // The batches a projection writes (D4.2): those already stored on a task as
 // `github.batch` plus the `requested` ones, each a list of task IDs. Returns
@@ -145,9 +96,8 @@ export function resolveBatchGroups({
   edges = [],
   requested = [],
   complete = (status) => status === "done",
-  chains = false,
 }) {
-  const cap = chains ? REMOTE_BATCH_MAX : MAX_BATCH,
+  const cap = MAX_BATCH,
     order = new Map(tasks.map((task, index) => [task.id, index])),
     byId = new Map(tasks.map((task) => [task.id, task])),
     sorted = (ids) => [...ids].sort((a, b) => order.get(a) - order.get(b)),
@@ -191,7 +141,7 @@ export function resolveBatchGroups({
     }
     const inside = new Set(group);
     for (const edge of edges) {
-      if (!chains && inside.has(edge.from) && inside.has(edge.to))
+      if (inside.has(edge.from) && inside.has(edge.to))
         fail(
           `Tasks ${edge.from} and ${edge.to} have an edge, so they cannot share a batch.`,
           409,

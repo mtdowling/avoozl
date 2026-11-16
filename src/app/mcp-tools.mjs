@@ -250,36 +250,36 @@ const tools = {
   },
   plans_relay: {
     summary:
-      "The Remote relay chat's own calls (routing.remoteRelay on, until MC-10). Only the registered relay chat may call these, except register.",
+      "Retired compatibility tool. Every action refuses with an explanation that the Remote relay was removed; use Avoozl worker sessions instead.",
     actions: {
       register: [
         "relay.call",
-        "make this chat the one relay chat",
+        "retired: the Remote relay was removed",
         (input) => ({ ...input, step: "register" }),
       ],
       pending: [
         "relay.call",
-        "queued requests, live relayed workers, and messages for them; call once per turn",
+        "retired: the Remote relay was removed",
         (input) => ({ ...input, step: "pending" }),
       ],
       brief: [
         "relay.call",
-        "one request's brief, to send unchanged: {request}",
+        "retired: the Remote relay was removed",
         (input) => ({ ...input, step: "brief" }),
       ],
       opened: [
         "relay.call",
-        "record the worker chat you opened: {request, slot}",
+        "retired: the Remote relay was removed",
         (input) => ({ ...input, step: "opened" }),
       ],
       refused: [
         "relay.call",
-        "Kiro Crew refused crew=: {request, code, text?}",
+        "retired: the Remote relay was removed",
         (input) => ({ ...input, step: "refused" }),
       ],
       reply: [
         "relay.call",
-        "hand back a worker's last reply, unchanged: {slot, text}",
+        "retired: the Remote relay was removed",
         (input) => ({ ...input, step: "reply" }),
       ],
     },

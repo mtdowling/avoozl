@@ -301,6 +301,10 @@ test("the CLI preview without --yes writes nothing; --yes approves", () => {
   );
   const hash = read((s) => s.get("plans", "base").hash);
   assert.ok(preview.stdout.includes(`--expect ${hash.slice(0, 16)}`));
+  // --yes alone would approve whatever the specs say now.
+  const unpinned = run("plan", "approve", "--batch", "1", "--yes");
+  assert.notEqual(unpinned.status, 0);
+  assert.match(unpinned.stderr, /--yes needs --expect/);
   const stale = run(
     "plan",
     "approve",
