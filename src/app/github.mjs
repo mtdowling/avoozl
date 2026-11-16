@@ -19,9 +19,9 @@ export const DEFAULT_CACHE_SECONDS = 60;
 // Closed pull requests for the CI waste counts (§4.30), read in the open
 // pull request query's first page.
 const RECENT_PULLS =
-  "recent:pullRequests(states:[MERGED,CLOSED],first:50,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{number createdAt closedAt author{login} headRefName headRefOid files(first:100){totalCount nodes{path}}}} ";
+  "recent:pullRequests(states:[MERGED,CLOSED],first:50,orderBy:{field:UPDATED_AT,direction:DESC}){nodes{number createdAt closedAt mergedAt author{login} headRefName headRefOid files(first:100){totalCount nodes{path}}}} ";
 const WORKFLOW_RUNS_PROJECTION = {
-  version: "workflow-runs-v2",
+  version: "workflow-runs-v3",
   project(data) {
     const invalid = () =>
         fail("GitHub returned invalid workflow run data.", 502),
@@ -59,11 +59,38 @@ const WORKFLOW_RUNS_PROJECTION = {
         event: run.event,
         attempt: run.run_attempt ?? 1,
         status: run.status,
+        conclusion: text(run.conclusion, 64) ? run.conclusion : null,
         startedAt: run.run_started_at || run.created_at || null,
         endedAt: run.status === "completed" ? run.updated_at || null : null,
         pullRequests: (run.pull_requests || []).map((pull) => pull.number),
       };
     });
+  },
+};
+// Only what the receipt reader needs of an artifact list (§4.31).
+const ARTIFACTS_PROJECTION = {
+  version: "artifacts-v1",
+  project(data) {
+    if (!Array.isArray(data?.artifacts) || data.artifacts.length > 100)
+      fail("GitHub returned invalid artifact data.", 502);
+    return data.artifacts
+      .filter(
+        (a) => a && Number.isSafeInteger(a.id) && typeof a.name === "string",
+      )
+      .map((a) => ({
+        id: a.id,
+        name: a.name.slice(0, 200),
+        expired: a.expired === true,
+        workflow_run: {
+          id: Number.isSafeInteger(a.workflow_run?.id)
+            ? a.workflow_run.id
+            : null,
+          head_sha:
+            typeof a.workflow_run?.head_sha === "string"
+              ? a.workflow_run.head_sha
+              : null,
+        },
+      }));
   },
 };
 const MAX_PAGES = 20;
@@ -1597,7 +1624,9 @@ export class GitHubClient {
     return this.request("GET", `/repos/${owner}/${repo}/pulls/${number}`);
   }
 
-  // The newest artifacts called `name`, each with the commit its run built.
+  // The newest 100 artifacts, or those called `name`, each with the run and
+  // commit that made it. One REST read through the HTTP cache, so an
+  // unchanged list is a 304 (§4.31, R101.5).
   async listArtifacts(value, name) {
     const { owner, repo } =
         typeof value === "string" ? parseRepository(value) : value,
@@ -1606,9 +1635,10 @@ export class GitHubClient {
         `/repos/${owner}/${repo}/actions/artifacts`,
         {
           query: { name, per_page: 100 },
+          responseProjection: ARTIFACTS_PROJECTION,
         },
       );
-    return Array.isArray(list?.artifacts) ? list.artifacts : [];
+    return Array.isArray(list) ? list : [];
   }
 
   // One artifact's zip. GitHub answers with a redirect to a signed address;
