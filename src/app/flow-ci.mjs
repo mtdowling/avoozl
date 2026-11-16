@@ -10,6 +10,7 @@
 import { CI_CLASSES, flowPolicy, listOr } from "./flow.mjs";
 import { globToRegex } from "./forward-guard.mjs";
 import { LINKED_BRANCHES } from "./github-plans-repo.mjs";
+import { loadLayeredConfig } from "./layered-config.mjs";
 
 export const PR_CI = "pr_ci";
 export const CI_RUNS = "ci_runs";
@@ -17,6 +18,7 @@ export const CI_METRIC = "CI minutes per pull request";
 const DAY_MS = 86_400_000;
 const KEEP_MS = 90 * DAY_MS;
 const ERRORS_META = "flow.ci.errors";
+const CONFIG_META = "flow.ci.config";
 // A path takes the first class that matches, in this order; none is code.
 const MATCH_ORDER = ["ci", "spec", "tests", "docs", "other"];
 // A pull request's one class for grouping: its first present, in this order.
@@ -84,11 +86,64 @@ export function ciRepositories(policy) {
 
 // The flow settings for one GitHub repository: its project's override when
 // a registered repository names one.
-function ciSettings(store, config, repository) {
-  const project = listOr(store, "github_repositories").find(
-    (entry) => lower(entry.id) === lower(repository),
-  )?.projectId;
+export function ciSettings(store, config, repository) {
+  const project =
+    listOr(store, "projects").find(
+      (entry) => lower(entry.repository) === lower(repository),
+    )?.id ??
+    listOr(store, "github_repositories").find(
+      (entry) => lower(entry.id) === lower(repository),
+    )?.projectId;
   return flowPolicy(config || {}).for(project || repository).ci;
+}
+
+function flowConfig(config) {
+  const checked = flowPolicy(config || {}).set;
+  return {
+    flow: checked.workspace,
+    projects: Object.fromEntries(
+      Object.entries(checked.repositories).map(([id, flow]) => [id, { flow }]),
+    ),
+  };
+}
+
+// Only validated Flow settings are retained; paths, credentials and unrelated
+// configuration never enter this last-valid CI snapshot.
+export function lastEffectiveCIConfig(store, fallback = {}) {
+  return store.getMeta(CONFIG_META) ?? flowConfig(fallback);
+}
+
+export function readEffectiveCIConfig(
+  store,
+  { workspaceRoot, fallback = {}, persist = false } = {},
+) {
+  if (!workspaceRoot) return lastEffectiveCIConfig(store, fallback);
+  try {
+    const config = flowConfig(loadLayeredConfig({ workspaceRoot }).config);
+    if (persist && !store.readOnly && !same(store.getMeta(CONFIG_META), config))
+      store.setMeta(CONFIG_META, config);
+    return config;
+  } catch {
+    return lastEffectiveCIConfig(store, fallback);
+  }
+}
+
+export function pruneCIHistory(store, { now = Date.now() } = {}) {
+  const cut = now - KEEP_MS;
+  return store.transaction(() => {
+    let removed = 0;
+    for (const row of listOr(store, PR_CI))
+      if (row.closedAt && ms(row.closedAt) < cut) {
+        store.remove(PR_CI, row.id);
+        removed++;
+      }
+    for (const row of listOr(store, CI_RUNS))
+      if (ms(row.startedAt) < cut) {
+        store.remove(CI_RUNS, row.id);
+        removed++;
+      }
+    return removed;
+  });
 }
 
 // Window starts are aligned to whole windows since the epoch, so each
@@ -127,10 +182,8 @@ function checkTimes(pull) {
   for (const check of rollup?.contexts?.nodes || []) {
     const id = check?.checkSuite?.workflowRun?.databaseId;
     if (!id) continue;
-    const entry = out.get(id) || { ms: 0, done: true };
-    const length = ms(check.completedAt) - ms(check.startedAt);
-    if (Number.isFinite(length) && length >= 0) entry.ms += length;
-    else entry.done = false;
+    const entry = out.get(id) || [];
+    entry.push({ start: ms(check.startedAt), end: ms(check.completedAt) });
     out.set(id, entry);
   }
   return out;
@@ -156,6 +209,7 @@ export async function ciStep(
   github,
   { policy, config, now = Date.now() } = {},
 ) {
+  pruneCIHistory(store, { now });
   const repositories = ciRepositories(policy),
     errors = [];
   // A client without these reads (a fake, an old build) reads nothing.
@@ -231,7 +285,7 @@ function record(store, data, repository, { pulls, runs, globs, at, now }) {
           ...new Set([...(before?.runIds || []), ...times.keys()]),
         ].slice(-200),
       };
-    for (const [id, entry] of times) if (entry.done) timed.set(id, entry.ms);
+    for (const [id, entry] of times) timed.set(id, entry);
     rows.set(pull.number, row);
     open.add(pull.number);
   }
@@ -254,17 +308,40 @@ function record(store, data, repository, { pulls, runs, globs, at, now }) {
   for (const run of runs) {
     const before = stored.get(run.id),
       wall = ms(run.endedAt) - ms(run.startedAt),
-      checks = timed.get(run.id),
+      attemptStart = ms(run.startedAt),
+      sameAttempt = before && (before.attempt ?? 1) === (run.attempt ?? 1),
+      checks = timed
+        .get(run.id)
+        ?.filter(
+          (check) =>
+            !Number.isFinite(attemptStart) ||
+            !Number.isFinite(check.start) ||
+            check.start >= attemptStart,
+        ),
+      measured =
+        checks?.length &&
+        checks.every(
+          (check) =>
+            Number.isFinite(check.start) &&
+            Number.isFinite(check.end) &&
+            check.end >= check.start,
+        ) &&
+        (!before || sameAttempt || Number.isFinite(attemptStart)),
       // Check run times when the open pull request read saw them; else the
       // run's wall time, marked an estimate. Never downgrade a measured one.
-      job =
-        checks !== undefined
-          ? { jobMs: checks, estimate: false }
-          : before && before.estimate === false
-            ? { jobMs: before.jobMs, estimate: false }
-            : Number.isFinite(wall) && wall >= 0
-              ? { jobMs: wall, estimate: true }
-              : { jobMs: null, estimate: true };
+      job = measured
+        ? {
+            jobMs: checks.reduce(
+              (sum, check) => sum + check.end - check.start,
+              0,
+            ),
+            estimate: false,
+          }
+        : sameAttempt && before.estimate === false
+          ? { jobMs: before.jobMs, estimate: false }
+          : Number.isFinite(wall) && wall >= 0
+            ? { jobMs: wall, estimate: true }
+            : { jobMs: null, estimate: true };
     stored.set(run.id, {
       id: `${lower(repository)}:${run.id}`,
       repository,
@@ -287,8 +364,10 @@ function record(store, data, repository, { pulls, runs, globs, at, now }) {
   const cut = now - KEEP_MS;
   for (const run of stored.values()) {
     const old = ms(run.startedAt) < cut;
-    if (old) store.remove(CI_RUNS, run.id);
-    else if (!same(store.get(CI_RUNS, run.id), run)) store.put(CI_RUNS, run);
+    if (old) {
+      store.remove(CI_RUNS, run.id);
+      stored.delete(run.runId);
+    } else if (!same(store.get(CI_RUNS, run.id), run)) store.put(CI_RUNS, run);
   }
   for (const row of rows.values()) {
     const mine = [...stored.values()].filter((r) => r.prNumber === row.number),
@@ -298,19 +377,14 @@ function record(store, data, repository, { pulls, runs, globs, at, now }) {
     row.ciMs = mine.reduce((sum, r) => sum + (r.jobMs || 0), 0);
     row.waitMs = unionMs(spans);
     if (row.closedAt && ms(row.closedAt) < cut) store.remove(PR_CI, row.id);
-    else if (!same(store.get(PR_CI, row.id), row, ["lastSeen"]))
-      store.put(PR_CI, row);
+    else if (!same(store.get(PR_CI, row.id), row)) store.put(PR_CI, row);
   }
 }
 
 // Equal but for `skip` keys, so an unchanged row is not written each tick.
-function same(a, b, skip = []) {
+function same(a, b) {
   if (!a) return false;
-  const bare = (v) =>
-    JSON.stringify(
-      Object.fromEntries(Object.entries(v).filter(([k]) => !skip.includes(k))),
-    );
-  return bare(a) === bare(b);
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 // ------------------------------------------------------------ facts
@@ -529,5 +603,5 @@ export function ciMinutesPerPullRequest(
       .sort((a, b) => (a.closedAt < b.closedAt ? -1 : 1)),
     pick = after ? rows.slice(0, n) : rows.slice(-n);
   if (pick.length < n || !pick.length) return null;
-  return minutes(pick.reduce((sum, row) => sum + (row.ciMs || 0), 0) / n);
+  return pick.reduce((sum, row) => sum + (row.ciMs || 0), 0) / n / 60_000;
 }
