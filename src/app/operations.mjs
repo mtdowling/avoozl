@@ -484,6 +484,7 @@ import {
 import {
   applyReviewSuggestion,
   createReviewThreads,
+  createSpecReviewFindings,
   disposeReview,
   listReviewThreads,
   replyToReview,
@@ -5668,6 +5669,11 @@ export class Operations {
     if (name === "plan.extraction.dispose") return disposeFact(store, input);
     if (name === "plan.review.list") return listReviewThreads(store, input);
     if (name === "plan.review.submit") {
+      if (store.get("plans", input.planId)?.spec)
+        return createSpecReviewFindings(store, input, {
+          caller: context.caller,
+          mcp: context.mcp,
+        });
       const run = input.runId ? store.get("runs", input.runId) : null;
       if (
         run &&
