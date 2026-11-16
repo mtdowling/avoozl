@@ -54,6 +54,7 @@ import {
 } from "./budget.mjs";
 import { blockedNaming, judgeBaseFailures, watchLine } from "./flow-line.mjs";
 import { retroStep } from "./flow-retro.mjs";
+import { ciRepositories, ciStep } from "./flow-ci.mjs";
 import { queueCheckRuns } from "./check-runs.mjs";
 import {
   claimedTaskIds,
@@ -1191,6 +1192,27 @@ async function runTick(
             text: error.message,
           });
         }
+      // CI per pull request for the retro (§4.30): after feedback, so the
+      // open pull request read is the one this tick already made.
+      if (script && github)
+        try {
+          const step = await ciStep(store, github, {
+            policy: readGitHubPolicyOrNull(workspaceRoot),
+            config: memory.value || {},
+          });
+          for (const { repository, error } of step.errors)
+            planned.notify.push({
+              channel: "failure",
+              title: `Avoozl could not read CI runs for ${repository}`,
+              text: error,
+            });
+        } catch (error) {
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl could not count CI time",
+            text: error.message,
+          });
+        }
       // The board is read after this tick's completion and state changes, and
       // before dispatch, so a Deferred card stops dispatch in this same tick.
       // Only the cron, which carries out notifications, runs it.
@@ -1378,6 +1400,9 @@ async function runTick(
           script && !unobserved.length
             ? retroStep(store, memory.value || {}, {
                 repository: home?.id ?? null,
+                ciRepositories: ciRepositories(
+                  readGitHubPolicyOrNull(workspaceRoot),
+                ),
               })
             : { dispatch: [] };
       // Code review chats a person asked for (pr-review.mjs), cron only.

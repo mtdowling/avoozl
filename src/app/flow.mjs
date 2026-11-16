@@ -51,7 +51,23 @@ export const FLOW_DEFAULTS = Object.freeze({
   localChecksFirst: true,
   batch: Object.freeze({ max: 3, by: "phase" }),
   retro: Object.freeze({ everyTasks: 10, slowFactor: 3, model: "auto" }),
+  // Steady CI waste (§4.30, R100.3). `ci.classes` is checked on its own.
+  ci: Object.freeze({
+    windowDays: 7,
+    docsOnlyMinutes: 60,
+    waitShare: 0.4,
+    minPullRequests: 5,
+  }),
 });
+// The file classes of a pull request's changed paths (§4.30, R100.1).
+export const CI_CLASSES = Object.freeze([
+  "code",
+  "tests",
+  "spec",
+  "docs",
+  "ci",
+  "other",
+]);
 export const SCOPES = Object.freeze(["dependents", "repo", "all"]);
 export const BATCH_BY = Object.freeze(["phase", "files"]);
 const MODEL = /^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$/;
@@ -80,7 +96,32 @@ export const FLOW_KEYS = Object.freeze({
     "a number 1.1–20",
   "retro.model": (v) =>
     (typeof v === "string" && MODEL.test(v)) || 'a model name or "auto"',
+  "ci.windowDays": (v) =>
+    (Number.isInteger(v) && v >= 1 && v <= 90) || "a whole number 1–90",
+  "ci.docsOnlyMinutes": (v) =>
+    (Number.isInteger(v) && v >= 1 && v <= 100000) || "a whole number 1–100000",
+  "ci.waitShare": (v) =>
+    (typeof v === "number" && Number.isFinite(v) && v >= 0.05 && v <= 1) ||
+    "a number 0.05–1",
+  "ci.minPullRequests": (v) =>
+    (Number.isInteger(v) && v >= 1 && v <= 1000) || "a whole number 1–1000",
 });
+
+// `ci.classes`: a class name to at most 50 globs (§4.30).
+function classesProblem(value) {
+  if (!record(value)) return "an object of class names to lists of globs";
+  for (const [name, globs] of Object.entries(value)) {
+    if (!CI_CLASSES.includes(name) || name === "code")
+      return `keyed by ${CI_CLASSES.filter((c) => c !== "code").join(", ")}`;
+    if (
+      !Array.isArray(globs) ||
+      globs.length > 50 ||
+      !globs.every((g) => typeof g === "string" && g && g.length <= 200)
+    )
+      return "lists of at most 50 globs";
+  }
+  return null;
+}
 
 // Check one `flow` object (the workspace's or one repository's) and return
 // it with only the keys it sets. Throws naming the key, so the tick keeps its
@@ -88,7 +129,7 @@ export const FLOW_KEYS = Object.freeze({
 export function flowSection(value, where = "flow") {
   if (value === undefined) return {};
   if (!record(value)) throw Error(`${where} must be an object.`);
-  const groups = { stopTheLine: 1, batch: 1, retro: 1 };
+  const groups = { stopTheLine: 1, batch: 1, retro: 1, ci: 1 };
   // The lessons store was removed (RC30.4); an old `flow.lessons` is read
   // as nothing, so a saved file keeps working.
   if (record(value) && "lessons" in value) {
@@ -104,6 +145,11 @@ export function flowSection(value, where = "flow") {
         throw Error(
           `${where}.retro.instructions is saved on this machine only; remove it from .avoozl.json and set it in Settings > Flow.`,
         );
+      if (key === "ci" && inner === "classes") {
+        const problem = classesProblem(value.ci.classes);
+        if (problem) throw Error(`${where}.ci.classes must be ${problem}.`);
+        continue;
+      }
       if (!(`${key}.${inner}` in FLOW_KEYS))
         throw Error(`${where}.${key}.${inner} is not a flow setting.`);
     }
@@ -133,6 +179,12 @@ function merged(...layers) {
       if (inner) out[group] = { ...out[group], [inner]: v };
       else out[group] = v;
     }
+  // A class's list replaces the default's; a repository's wins (R100.1).
+  for (const layer of layers) {
+    const classes = readKey(layer, "ci.classes");
+    if (record(classes))
+      out.ci = { ...out.ci, classes: { ...out.ci.classes, ...classes } };
+  }
   return out;
 }
 
