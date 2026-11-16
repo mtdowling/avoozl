@@ -26,7 +26,11 @@ CONTRACT = json.loads(_CONTRACT_PATH.read_text())
 
 
 class StartRefused(Exception):
-    """The session cannot be opened; leave its request pending."""
+    """A refusal is releasable only before an open call was attempted."""
+
+    def __init__(self, message, before_open=False):
+        super().__init__(message)
+        self.before_open = before_open
 
 
 class ObservationUnavailable(Exception):
@@ -148,6 +152,7 @@ class KiroCrewExecutor:
         self._ctx = ctx
         self._bind = bind
         self._requests = {}
+        self._active_claims = {}
 
     def observations(self):
         out = {}
@@ -159,9 +164,28 @@ class KiroCrewExecutor:
             out["folders"] = projects
         return out
 
+    def owns(self, request):
+        return request.get("executor", "kirocrew") == "kirocrew"
+
+    def _transport(self, action, payload):
+        result = self._ctx.call_tool("avoozl:avoozl", "plans_executor", {"action": action, "input": payload})
+        return json.loads(result) if isinstance(result, str) else result
+
+    def _take(self, request):
+        if not self.owns(request):
+            return None
+        if not request.get("id") or not request.get("version"):
+            return request  # Compatibility with a previous app's dispatch.
+        taken = self._transport("take", {"id": request["id"], "version": request["version"]})
+        if not isinstance(taken, dict) or not isinstance(taken.get("request"), dict):
+            return None
+        self._active_claims[request["id"]] = taken["claimToken"]
+        return {**taken.get("configuration", {}), **taken["request"], "_claim": taken["claimToken"]}
+
     def arguments(self, request):
-        # Legacy dispatch details are consumed only by this executor. Phase 46.3
-        # changes their transport; start's positional contract stays the same.
+        request = self._take(request)
+        if request is None:
+            return None
         role = request.get("role", "worker")
         self._requests[(role, request["task"])] = dict(request)
         values = {
@@ -170,7 +194,7 @@ class KiroCrewExecutor:
             "worktree": request.get("worktree") or request.get("checkout"),
             "brief": request["brief"],
             "model": request.get("model") or None,
-            "permissionClass": "write" if role in ("worker", "planner") else "read",
+            "permissionClass": request.get("permissionClass") or ("write" if role in ("worker", "planner", "plan-answer") else "read"),
         }
         return tuple(values[field] for field in CONTRACT["start"])
 
@@ -189,7 +213,7 @@ class KiroCrewExecutor:
         }
         folder, project_dir = find_or_create(self._ctx, d.get("folder", ""))
         if not project_dir and d.get("project", True):
-            raise StartRefused("The chat folder has no project directory.")
+            raise StartRefused("The chat folder has no project directory.", before_open=True)
         extra = {"model": model} if model else {}
         if d.get("crew"):
             try:
@@ -218,6 +242,10 @@ class KiroCrewExecutor:
         if d.get("sessionReason") and d.get("agent"):
             binding["agent"] = d["agent"]
         # Binding must land before the first message, including on a crash.
+        if d.get("_claim"):
+            binding.update({"permissionClass": permissionClass, "executor": "kirocrew", "requestId": d["id"], "claimToken": d["_claim"]})
+            for key in ("worktree", "context"):
+                if d.get(key): binding[key] = d[key]
         self._bind(binding)
         if d.get("mode") in ("trust", "trust_reads"):
             try:
@@ -257,3 +285,17 @@ class KiroCrewExecutor:
         if status in ("closed", "lost"):
             return "gone"
         raise ObservationUnavailable("The gateway returned an unknown session status.")
+
+    def release(self, request, refusal):
+        if not refusal.before_open or not request.get("id"):
+            return
+        saved = self._active_claims.pop(request["id"], None)
+        if saved:
+            self._transport("release", {"id": request["id"], "claimToken": saved, "reason": "before-open"})
+
+    def message(self, request):
+        return self._take(request)
+
+    def complete_message(self, request, outcome):
+        if request.get("_claim"):
+            self._transport("complete", {"id": request["id"], "claimToken": request["_claim"], "outcome": outcome})

@@ -1,3 +1,10 @@
+import { fail } from "../store.mjs";
+import {
+  startRequest,
+  takeSessionRequest,
+  releaseSessionRequest,
+  completeSessionRequest,
+} from "../session-requests.mjs";
 import { gatewayClient } from "../gateway-client.mjs";
 // Sidebar placement and project inheritance belong to this executor alone.
 import { taskRepository } from "../../work-model.mjs";
@@ -47,9 +54,14 @@ export function kirocrewDispatches(store, dispatches, waits, reading) {
   );
   for (let i = dispatches.length - 1; i >= 0; i--) {
     const dispatch = dispatches[i];
-    if (dispatch.project === false || !unset(reading, dispatch.folder))
+    if (dispatch.executor !== "kirocrew") continue;
+    const configuration = kirocrewConfiguration(store, dispatch);
+    if (
+      configuration.project === false ||
+      !unset(reading, configuration.folder)
+    )
       continue;
-    pending.add(dispatch.folder);
+    pending.add(configuration.folder);
     dispatches.splice(i, 1);
   }
   return [...pending].map((folder) => {
@@ -159,4 +171,151 @@ export function gatewayUsageTurns(env = process.env, request = fetch) {
     const body = await response.json();
     return Array.isArray(body?.turns) ? body.turns : [];
   };
+}
+
+// Provider selection is kept outside neutral request objects and durable rows.
+const prepared = new WeakMap();
+const privateKey = (id) => `executor.kirocrew.${id}`;
+const selections = (store) => {
+  if (!prepared.has(store)) prepared.set(store, new Map());
+  return prepared.get(store);
+};
+const ROLE_AGENTS = {
+  worker: "kirocrew-worker",
+  verifier: "avoozl-verifier",
+  planner: "avoozl-planner",
+  responder: "avoozl-responder",
+  retro: "avoozl-retro",
+  "pr-review": "avoozl-code-review",
+  "review-draft": "avoozl-review-draft",
+  "conflict-fix": "avoozl-conflict-fix",
+  falsifier: "avoozl-falsifier",
+  "plan-review": "avoozl-plan-review",
+  "plan-answer": "avoozl-planner",
+};
+
+export function kirocrewRequest(store, legacy) {
+  const { folder, project, agent, mode, ...portable } = legacy;
+  const request = startRequest({
+    ...portable,
+    executor: portable.executor ?? "kirocrew",
+  });
+  if (request.executor === "kirocrew")
+    selections(store).set(request.id, {
+      folder: folder ?? "",
+      ...(project === undefined ? {} : { project }),
+      agent:
+        agent ??
+        (request.role === "plan-answer" && request.permissionClass === "read"
+          ? "avoozl-plan-answer-read"
+          : ROLE_AGENTS[request.role]) ??
+        "",
+      ...(mode ? { mode } : {}),
+    });
+  return request;
+}
+
+export function kirocrewConfiguration(store, request) {
+  const queued = store.get("session_requests", request.id),
+    active =
+      queued?.kind === "start" && ["claimed", "bound"].includes(queued.state)
+        ? queued.request
+        : request,
+    configuration = selections(store).get(request.id) ??
+      store.getMeta(privateKey(request.id)) ?? {
+        folder:
+          active.worktree && active.repository
+            ? sidebarPath(active.repository)
+            : "",
+        ...(active.worktree && active.repository ? {} : { project: false }),
+        agent: ROLE_AGENTS[active.role] ?? "",
+      };
+  // The answer's permission class determines its tool access, even when a
+  // pending request retains folder settings from an earlier write version.
+  return active.role === "plan-answer"
+    ? {
+        ...configuration,
+        agent:
+          active.permissionClass === "read"
+            ? "avoozl-plan-answer-read"
+            : ROLE_AGENTS["plan-answer"],
+      }
+    : configuration;
+}
+
+export function persistKirocrewConfiguration(store, request) {
+  if (request.executor !== "kirocrew") return;
+  const current = store.get("session_requests", request.id);
+  if (
+    current?.kind === "start" &&
+    ["claimed", "bound"].includes(current.state)
+  ) {
+    selections(store).delete(request.id);
+    return;
+  }
+  const configuration = kirocrewConfiguration(store, request),
+    key = privateKey(request.id);
+  if (JSON.stringify(store.getMeta(key)) !== JSON.stringify(configuration))
+    store.setMeta(key, configuration);
+  selections(store).delete(request.id);
+}
+
+export const kirocrewConsumer = (context = {}) =>
+  context.caller?.sessionKey ?? context.caller?.slot ?? "local-executor";
+function nativeConsumer(context) {
+  const consumer = kirocrewConsumer(context);
+  if (context.mcp && !consumer.startsWith("cron:"))
+    fail("Only the native executor cron may consume session requests.", 403);
+  return consumer;
+}
+
+export function takeKirocrewRequest(store, input, context = {}, eligible) {
+  const taken = takeSessionRequest(store, input, {
+    executor: "kirocrew",
+    consumer: nativeConsumer(context),
+    eligible,
+  });
+  return taken
+    ? { ...taken, configuration: kirocrewConfiguration(store, taken.request) }
+    : null;
+}
+export function releaseKirocrewRequest(store, input, context = {}) {
+  return releaseSessionRequest(store, input, {
+    executor: "kirocrew",
+    consumer: nativeConsumer(context),
+  });
+}
+export function completeKirocrewRequest(store, input, context = {}) {
+  return completeSessionRequest(store, input, {
+    executor: "kirocrew",
+    consumer: nativeConsumer(context),
+  });
+}
+export function kirocrewExplicitSession(store, request) {
+  const old = store.getMeta(`executor.kirocrew.intent.${request.id}`);
+  return {
+    agent: old?.agent ?? request.agent ?? ROLE_AGENTS[request.role] ?? "",
+  };
+}
+export function saveKirocrewIntent(store, id, input) {
+  if (
+    typeof input.agent !== "string" ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(input.agent)
+  )
+    fail("Choose an agent name of letters, digits, '.', '_', ':', or '-'.");
+  const before = store.getMeta(`executor.kirocrew.intent.${id}`);
+  if (before && before.agent !== input.agent)
+    fail("This task already requests a session on another agent.", 409);
+  if (!before)
+    store.setMeta(`executor.kirocrew.intent.${id}`, { agent: input.agent });
+  return { agent: input.agent };
+}
+
+export function kirocrewAgentNames(list, files) {
+  const materialized = /^[^/\\]+--(.+)\.json$/;
+  return Array.isArray(list)
+    ? list
+    : Array.isArray(files)
+      ? files.map((file) => materialized.exec(String(file))?.[1] ?? null)
+      : null;
 }

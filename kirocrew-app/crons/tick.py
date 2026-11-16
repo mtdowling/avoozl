@@ -59,9 +59,15 @@ def run(ctx):
 
     opened = 0
     for d in intents.get("dispatch") or []:
+        if not executor.owns(d):
+            continue
         try:
-            executor.start(*executor.arguments(d))
-        except _executor.StartRefused:
+            arguments = executor.arguments(d)
+            if arguments is None:
+                continue
+            executor.start(*arguments)
+        except _executor.StartRefused as refusal:
+            executor.release(d, refusal)
             continue
         opened += 1
 
@@ -69,16 +75,24 @@ def run(ctx):
     # that failed every tick would get the cron auto-paused (five in a row).
     # Kiro Crew refuses a session another cron job opened (not_creator), as
     # after an app reinstall gives the tick a new job.
-    # shortcut: Avoozl marks a message sent when it plans it, so a refused one
-    # is not retried; report refusals to the tick once it can take them.
-    messages = intents.get("messages") or []
+    # Complete each claimed message once, including a refused send.
+    messages = [
+        message for message in intents.get("messages") or []
+        if executor.owns(message)
+    ]
     refused = []
-    for m in messages:
+    for original in messages:
+        m = executor.message(original)
+        if m is None:
+            continue
         try:
             if executor.send(m["slot"], m["text"]) == "refused":
                 raise RuntimeError("The session message was refused.")
         except Exception as error:  # the gateway refused this one session
+            executor.complete_message(m, "refused")
             refused.append("%s: %s" % (m["slot"], str(error)[:200]))
+        else:
+            executor.complete_message(m, "sent")
 
     # Notices reach the person on the app's own notification channels, with a
     # link to the session: the tick queued them, and the app backend pushes

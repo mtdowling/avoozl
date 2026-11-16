@@ -1,3 +1,4 @@
+import { nativeDispatch } from "./executor-fixture.mjs";
 // Review drafts by label (radar-coder RC20, design D25; tasks rc-20.2 to
 // rc-20.4), with a fake GitHub that records every call. Nothing reaches the
 // network or Kiro Crew.
@@ -212,9 +213,9 @@ test("an allowed labeler on this machine's login gives one read-only chat across
   for (let i = 0; i < 3; i += 1) await step(store, github);
   const dispatch = reviewDraftDispatches(store);
   assert.equal(dispatch.length, 1);
-  assert.equal(dispatch[0].agent, DRAFT_AGENT);
+  assert.equal(nativeDispatch(store, dispatch[0]).agent, DRAFT_AGENT);
   assert.equal(dispatch[0].role, "review-draft");
-  assert.equal(dispatch[0].folder, "");
+  assert.equal(nativeDispatch(store, dispatch[0]).folder, "");
   assert.deepEqual(writes(github), [], "nothing is written before the draft");
   // One open-pull-request read per repository per tick, no search.
   const reads = github.calls.filter(([kind]) => kind === "open-pulls");

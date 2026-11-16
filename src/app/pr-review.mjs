@@ -1,3 +1,4 @@
+import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 // Code review chat (design §8.5): the Code review button on a pull request
 // asks the tick cron to open one Kiro Crew chat, seeded to review that one
@@ -172,13 +173,15 @@ export function reviewDispatches(store) {
         receipt.state === "queued" &&
         chats.get(receipt.id)?.state === "queued",
     )
-    .map((receipt) => ({
-      task: receipt.id,
-      role: REVIEW_ROLE,
-      attempt: receipt.attempt,
-      title: `avoozl:code-review ${receipt.repository}#${receipt.number}`,
-      ...kirocrewDetachedSession(),
-      agent: REVIEW_AGENT,
-      brief: receipt.seed,
-    }));
+    .map((receipt) =>
+      kirocrewRequest(store, {
+        task: receipt.id,
+        role: REVIEW_ROLE,
+        attempt: receipt.attempt,
+        title: `avoozl:code-review ${receipt.repository}#${receipt.number}`,
+        ...kirocrewDetachedSession(),
+        agent: REVIEW_AGENT,
+        brief: receipt.seed,
+      }),
+    );
 }
