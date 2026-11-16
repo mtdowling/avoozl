@@ -503,6 +503,38 @@ if (query.get('radar') === '1') {
     problems: [],
   }))
 }
+// ?page=app&flow=1: Flow with one task at 80% of its budget, and Settings ›
+// Flow, for the owner-rule screenshots (flow-rules-shots.mjs).
+if (query.get('page') === 'app' && query.get('flow') === '1') {
+  const metrics = { tasks: 1, leadTimeMs: 52 * 60000, flowEfficiency: 0.62, firstPassRate: 1, changeFailureRate: 0, integrationsPerDay: null, timeToFixMs: null }
+  const usage = { available: false, total: { input: 0, output: 0, credits: 0, turns: 0 }, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] }
+  const stages = { queued: 4 * 60000, coding: 30 * 60000, tests: 8 * 60000, 'ci-wait': 10 * 60000 }
+  const task = { taskId: 'search.3', title: 'Index builder', repository: 'acme/recipe-box', epic: null, startedAt: '2026-11-15T09:00:00Z', finishedAt: '2026-11-15T09:52:00Z', leadMs: 52 * 60000, activeMs: 38 * 60000, stages, coarse: false, sources: ['tool-calls'], batch: null, firstPass: true }
+  answer('radar.flow', () => ({ readAt: null, count: 0, issues: [], skipped: [], median: null, medianLead: null, efficiency: null, bottleneck: null, errors: [], repositories: [] }))
+  answer('flow.view', () => ({
+    window: { size: 20, since: null },
+    metrics,
+    previous: metrics,
+    bottleneck: null,
+    tasks: [task],
+    stops: [],
+    line: [],
+    flaky: [],
+    ciOnly: [],
+    retros: [],
+    batches: [],
+    stages: [],
+    repositories: ['acme/recipe-box'],
+    epics: [],
+    plans: [],
+    phases: [],
+    series: { day: [], week: [] },
+    usage,
+    budget: { over: [], warning: ['search.3'], stopped: [], paused: [] },
+  }))
+  answer('flow.proposals', () => ({ proposals: [], dropped: [], prompts: [], notes: [], available: false }))
+  answer('flow.settings.get', () => ({ filename: '.avoozl.json', exists: true, hash: 'h', flow: {}, repositories: {}, instructions: '', retroPrompt: null }))
+}
 // ?page=demo: the whole page, where Start demo opens the sample. Calls
 // for the sample answer from window.__DEMO (demo-replies.mjs, built from
 // the real sample); other calls answer as ?page=app does.

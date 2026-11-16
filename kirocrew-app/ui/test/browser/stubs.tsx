@@ -95,7 +95,16 @@ export const EmptyState = (props: { title: ReactNode; subtitle?: ReactNode; acti
     {props.action}
   </div>
 )
-export const Badge = (props: { children?: ReactNode }) => <span className="rounded border px-1 text-xs">{props.children}</span>
+// The host's badge colors, so a screenshot shows which badges are yellow.
+const BADGE_TONES: Record<string, string> = { ok: '#16a34a', err: 'var(--danger)', warn: '#ca8a04', aim: '#7c3aed', muted: 'var(--muted)' }
+export const Badge = (props: { children?: ReactNode; variant?: string; className?: string }) => {
+  const tone = BADGE_TONES[props.variant ?? 'warn'] ?? BADGE_TONES.warn
+  return (
+    <span className="rounded border px-1 text-xs" data-badge-variant={props.variant ?? 'warn'} style={{ color: tone, borderColor: tone, background: `color-mix(in srgb, ${tone} 12%, transparent)` }}>
+      {props.children}
+    </span>
+  )
+}
 export const Btn = forwardRef<HTMLButtonElement, Record<string, unknown>>(function Btn({ primary, variant, ...rest }, ref) {
   return <button ref={ref} {...rest} data-primary={primary ? '' : undefined} className={`rounded border px-3 py-1 text-sm ${(rest.className as string) ?? ''}`} />
 })
