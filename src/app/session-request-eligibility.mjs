@@ -2,6 +2,7 @@
 import { sessionRequestHold } from "./session-bindings.mjs";
 import { budgetHeldTaskIds } from "./budget.mjs";
 import { linePausedTaskIds } from "./flow.mjs";
+import { driverHeldTaskIds, readOnlyPlanIds } from "./driver-scope.mjs";
 import { hasRemoteTask, runnerSessionHold } from "./remote-runner.mjs";
 
 export function sessionStartHold(store, request, queued = {}) {
@@ -9,8 +10,10 @@ export function sessionStartHold(store, request, queued = {}) {
   if (["plan-review", "plan-answer"].includes(request.role)) {
     const round = store.get("review_rounds", request.task),
       plan = round && store.get("plans", round.planId);
-    if (!round || !plan || plan.archivedAt)
+    if (!round || !plan || plan.archivedAt || plan.deletedAt)
       return "The review round or its plan is no longer available.";
+    if (readOnlyPlanIds(store).has(plan.id))
+      return "This workspace does not drive the review plan.";
     if (
       request.context?.revisionHash &&
       request.context.revisionHash !== plan.hash
@@ -58,6 +61,13 @@ export function sessionStartHold(store, request, queued = {}) {
     hasRemoteTask(store, request.task)
   )
     return runnerSessionHold(store, request.task);
+  const task = data.tasks.find((task) => task.id === request.task);
+  if (
+    readOnlyPlanIds(store).has(task?.planId) ||
+    (request.role !== "verifier" &&
+      driverHeldTaskIds(store, data).has(request.task))
+  )
+    return "The task's driver holds this start.";
   const hold = sessionRequestHold(data, request.task, request.role);
   if (hold) return hold;
   if (request.role === "worker") {

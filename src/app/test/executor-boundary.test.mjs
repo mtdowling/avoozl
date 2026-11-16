@@ -84,6 +84,47 @@ async function jsLeaks(source, name) {
   return found;
 }
 
+function pythonLeaks(sources) {
+  return JSON.parse(
+    execFileSync(
+      "python3",
+      [
+        "-c",
+        `
+import ast,json,re,sys
+native={"open_session","send_to_session","set_session_mode","list_session_folders","create_session_folder"}
+fields={"folder_id","project_dir"}
+def path_problem(value):
+    return isinstance(value,str) and (value.startswith("Avoozl/") or re.match(r"^/api/chat/folders(?:/|$)",value) or re.search(r"(?:^|/)agents/.*[.]json$",value))
+out=[]
+for name,source in json.load(sys.stdin):
+    found=set()
+    def visit(node):
+        # Standalone strings include module, class and function docstrings.
+        if isinstance(node,ast.Expr) and isinstance(node.value,ast.Constant) and isinstance(node.value.value,str): return
+        if isinstance(node,ast.Attribute) and node.attr in native: found.add("native session API")
+        if isinstance(node,ast.Name) and node.id in native: found.add("native session API")
+        if isinstance(node,ast.Attribute) and node.attr in fields: found.add("native project field")
+        if isinstance(node,ast.keyword) and node.arg in fields: found.add("native project field")
+        if isinstance(node,ast.Dict) and any(isinstance(key,ast.Constant) and key.value in fields for key in node.keys): found.add("native project field")
+        if isinstance(node,ast.Constant) and path_problem(node.value): found.add("native asset/sidebar path")
+        if isinstance(node,ast.JoinedStr):
+            joined="".join(value.value if isinstance(value,ast.Constant) and isinstance(value.value,str) else "value" for value in node.values)
+            if path_problem(joined): found.add("native asset/sidebar f-string")
+        if isinstance(node,ast.Call):
+            strings=[value.value for arg in node.args for value in ast.walk(arg) if isinstance(value,ast.Constant) and isinstance(value.value,str)]
+            if "agents" in strings and any(value.endswith(".json") for value in strings): found.add("native agent filename construction")
+        for child in ast.iter_child_nodes(node): visit(child)
+    visit(ast.parse(source,filename=name))
+    if found: out.append([name,sorted(found)])
+print(json.dumps(out))
+`,
+      ],
+      { input: JSON.stringify(sources), encoding: "utf8" },
+    ),
+  );
+}
+
 function files(directory) {
   const result = [];
   for (const entry of fs.readdirSync(path.join(root, directory), {
@@ -114,7 +155,7 @@ test("the runtime boundary rejects native folder/project/agent-file paths outsid
   ]) {
     if (privatePath(name)) continue;
     if (name.endsWith(".py")) {
-      python.push(path.join(root, name));
+      python.push([name, fs.readFileSync(path.join(root, name), "utf8")]);
       continue;
     }
     const found = await jsLeaks(
@@ -123,40 +164,7 @@ test("the runtime boundary rejects native folder/project/agent-file paths outsid
     );
     if (found.length) leaked.push([name, [...new Set(found)]]);
   }
-  const tokens = JSON.parse(
-    execFileSync(
-      "python3",
-      [
-        "-c",
-        `
-import ast,json,sys,tokenize
-out=[]
-for name in sys.argv[1:]:
-    with tokenize.open(name) as f: source=f.read()
-    rows=[]
-    for token in tokenize.generate_tokens(iter(source.splitlines(True)).__next__):
-        if token.type==tokenize.NAME: rows.append(["name",token.string])
-        elif token.type==tokenize.STRING:
-            try: rows.append(["string",ast.literal_eval(token.string)])
-            except (ValueError,SyntaxError): pass
-    out.append([name,rows])
-print(json.dumps(out))
-`,
-        ...python,
-      ],
-      { encoding: "utf8" },
-    ),
-  );
-  for (const [name, rows] of tokens)
-    if (
-      rows.some(([kind, value]) =>
-        kind === "name"
-          ? nativeCalls.has(value) ||
-            ["folder_id", "project_dir"].includes(value)
-          : pathProblem(value),
-      )
-    )
-      leaked.push([path.relative(root, name), ["native Python detail"]]);
+  leaked.push(...pythonLeaks(python));
   assert.deepEqual(leaked, []);
 });
 
@@ -176,4 +184,24 @@ test("the boundary detects executable leaks while ignoring descriptive comments"
     "const asset=new URL('agents/worker.json',import.meta.url)",
   ])
     assert.ok((await jsLeaks(source, "sample.mjs")).length, source);
+});
+
+test("the Python boundary detects f-strings and constructed paths without flagging prose", () => {
+  assert.deepEqual(
+    pythonLeaks([
+      [
+        "prose.py",
+        '# ctx.open_session(folder_id="x")\n"""Avoozl/{repository} and agents/old.json describe old behavior."""\ndef read():\n    """ctx.open_session(project_dir="x")"""\n    return None\n',
+      ],
+    ]),
+    [],
+  );
+  for (const source of [
+    'folder=f"Avoozl/{repository}"',
+    'asset=f"{root}/agents/{role}.json"',
+    'asset=os.path.join(root,"agents",role+".json")',
+    'ctx.open_session("task",folder_id="x")',
+    'request={"project_dir":"x"}',
+  ])
+    assert.ok(pythonLeaks([["leak.py", source]]).length, source);
 });
