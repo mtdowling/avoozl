@@ -1,4 +1,8 @@
-import { ciSettingsView, ciFlowView } from "./flow-ci-view.mjs";
+import {
+  ciSettingsView,
+  ciFlowView,
+  ciRepositoryPickerIds,
+} from "./flow-ci-view.mjs";
 import { readEffectiveCIConfig } from "./flow-ci.mjs";
 import { currentPlanReview } from "./plan-review-tools.mjs";
 import { chatModel, validatePlanReview } from "./chat-models.mjs";
@@ -3599,18 +3603,20 @@ export class Operations {
           workspaceRoot: this.workspaceRoot,
           persist: false,
         }),
+        policy = this.workspaceRoot
+          ? readGitHubPolicyOrNull(this.workspaceRoot)
+          : null,
         view = flowView(store, data, input),
         filtered = input.repository || input.epic || input.plan || input.phase;
       return {
         ...view,
-        ci: ciFlowView(
-          store,
-          config,
-          this.workspaceRoot
-            ? readGitHubPolicyOrNull(this.workspaceRoot)
-            : null,
-          input,
-        ),
+        repositories: [
+          ...new Set([
+            ...view.repositories,
+            ...ciRepositoryPickerIds(store, policy, view.repositories),
+          ]),
+        ].sort(),
+        ci: ciFlowView(store, config, policy, input),
         line: lineBanner(store, data),
         // Tokens and credits per task, plan, stage and model (§4.11).
         usage: usageView(store, data, {
