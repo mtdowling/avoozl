@@ -1,10 +1,10 @@
 // The nav row, and where removed pages go.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { RETIRED_LINE, TABS, navTab, redirectSettings, redirectTab, retiredCoders, tabLabel } from '../src/nav-api.ts'
+import { DASHBOARD_PAGES, RETIRED_LINE, TABS, dashboardPage, dashboardTab, navTab, redirectSettings, redirectTab, retiredCoders, tabLabel } from '../src/nav-api.ts'
 
-test('the nav row is Home, Specs, Needs you, Trace, Flow, Activity, Settings', () => {
-  assert.deepEqual(TABS.map((t) => t.label), ['Home', 'Specs', 'Needs you', 'Trace', 'Flow', 'Activity', 'Settings'])
+test('the nav row is Dashboards, Specs, Issues, Pull requests, Needs you, Trace, Flow, Activity, Settings', () => {
+  assert.deepEqual(TABS.map((t) => t.label), ['Dashboards', 'Specs', 'Issues', 'Pull requests', 'Needs you', 'Trace', 'Flow', 'Activity', 'Settings'])
 })
 
 test('removed pages go to the page that took over, never nowhere', () => {
@@ -16,10 +16,19 @@ test('removed pages go to the page that took over, never nowhere', () => {
   for (const t of TABS) assert.deepEqual(redirectTab(t.key), { tab: t.key })
 })
 
-test('Graph is a page inside Specs', () => {
-  assert.equal(redirectTab('graph').tab, 'graph')
-  assert.equal(navTab('graph'), 'plans')
-  assert.equal(tabLabel('graph'), 'Specs')
+test('Dashboards holds Home, Graph, Lanes and CI; an old Home link lands on Dashboards > Home', () => {
+  assert.deepEqual(DASHBOARD_PAGES.map((p) => p.label), ['Home', 'Graph', 'Lanes', 'CI'])
+  assert.deepEqual(redirectTab('dashboard'), { tab: 'dashboard' })
+  assert.equal(dashboardPage('dashboard'), 'home')
+  for (const page of ['graph', 'lanes', 'ci']) {
+    assert.equal(redirectTab(page).tab, page)
+    assert.equal(navTab(page), 'dashboard')
+    assert.equal(dashboardPage(page), page)
+    assert.equal(dashboardTab(page), page)
+  }
+  assert.equal(dashboardTab('home'), 'dashboard')
+  assert.equal(tabLabel('graph'), 'Graph')
+  assert.equal(tabLabel('dashboard'), 'Home')
 })
 
 test('a Settings section that is gone lands on Repository setup', () => {

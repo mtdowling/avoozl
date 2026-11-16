@@ -1,0 +1,84 @@
+#!/usr/bin/env node
+// Screenshots of the left nav and its pages (harness ?page=app with a long
+// workspace name, 12 Needs you items, specs and activity rows), at 390 px
+// (the phone's menu open) and 1280 px, light and dark:
+// <out>/<view>-<width>-<theme>.png for Home, Needs you, Specs, Activity,
+// Lanes and the open workspace menu.
+//
+//   node test/browser/nav-shots.mjs <out dir>
+//
+// AVOOZL_CHROME names the browser; AVOOZL_HOST_CSS the host's stylesheet.
+import fs from 'node:fs'
+import path from 'node:path'
+import { buildHarness } from './build.mjs'
+import { findChrome, launch } from './chrome.mjs'
+
+const [out] = process.argv.slice(2)
+if (!out) {
+  console.error('Usage: nav-shots.mjs <out dir>')
+  process.exit(2)
+}
+const chrome = findChrome()
+if (!chrome) {
+  console.error('No Chrome found; set AVOOZL_CHROME.')
+  process.exit(1)
+}
+fs.mkdirSync(out, { recursive: true })
+const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
+const browser = await launch(chrome)
+const wait = (page, ms = 400) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`)
+// The nav's scope: the left nav on a desktop, the open menu on a phone.
+const scope = (width) => (width < 768 ? '[data-top-rail-list]' : '[data-left-nav]')
+const head = (width, text) => `[...document.querySelectorAll('${scope(width)} [data-nav-head]')].find((x) => x.textContent.includes(${JSON.stringify(text)}))`
+try {
+  const page = await browser.page()
+  for (const [width, height] of [
+    [390, 844],
+    [1280, 800],
+  ])
+    for (const theme of ['light', 'dark']) {
+      await page.open(harness.url({ page: 'app', theme, needs: '12', long: '1', specs: '1', activity: '1' }), { width, height, dark: theme === 'dark' })
+      await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
+      await wait(page, 1200)
+      const shot = async (name) => {
+        await wait(page)
+        const file = path.join(out, `${name}-${width}-${theme}.png`)
+        await page.screenshot(file)
+        console.log(file)
+      }
+      const menu = async () => {
+        if (width >= 768) return
+        if (!(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+        await wait(page, 200)
+      }
+      const open = async (text) => {
+        await menu()
+        await page.evaluate(`(() => { const b = ${head(width, text)}; if (b && !b.hasAttribute('data-open')) b.click(); return Boolean(b) })()`)
+      }
+      await shot('home-page')
+      await open('Dashboards')
+      await shot('home')
+      await page.evaluate(`[...document.querySelectorAll('${scope(width)} [data-nav-item]')].find((b) => b.textContent.trim() === 'Lanes')?.click()`)
+      await wait(page)
+      if (width < 768) await shot('lanes-page')
+      await open('Dashboards')
+      await shot('lanes')
+      await open('Needs you')
+      await shot('needs-you')
+      await open('Specs')
+      await shot('specs')
+      if (width < 768) {
+        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+        await shot('specs-page')
+      }
+      await open('Activity')
+      await shot('activity')
+      await menu()
+      await page.evaluate(`document.querySelector('${scope(width)} [data-workspace-pill]')?.click()`)
+      await shot('workspace-menu')
+    }
+  if (page.errors.length) console.error(page.errors.join('\n'))
+} finally {
+  await browser.close()
+  harness.remove()
+}

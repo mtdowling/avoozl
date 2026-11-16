@@ -1,10 +1,14 @@
 // The page's top-level views and where an old place now goes. Kept free of
 // JSX so node can test it directly.
 
-// The nav row: Home, Specs, Needs you, Trace, Flow, Activity, Settings.
+// The nav row: Dashboards, Specs, Issues, Pull requests, Needs you, Trace,
+// Flow, Activity, Settings. Dashboards' key stays 'dashboard' (its Home), so
+// an older link or Back step to Home still lands there.
 export const TABS = [
-  { key: 'dashboard', label: 'Home' },
+  { key: 'dashboard', label: 'Dashboards' },
   { key: 'plans', label: 'Specs' },
+  { key: 'issues', label: 'Issues' },
+  { key: 'pulls', label: 'Pull requests' },
   { key: 'waiting', label: 'Needs you' },
   { key: 'trace', label: 'Trace' },
   { key: 'flow', label: 'Flow' },
@@ -28,12 +32,24 @@ export const WAITING_SECTIONS: { key: WaitingSection; title: string; line: strin
   { key: 'decisions', title: 'Decisions and conflicts', line: 'A crew handed work back, a spec or issue was edited by hand, or a task needs your choice.' },
   { key: 'intake', title: 'Planning and intake', line: 'Issues labeled for planning and new issues. You choose which become work.' },
 ]
-// Graph is a page inside Specs, not a nav entry: it keeps the plan drill-in.
-export type Tab = NavTab | 'graph'
+// Dashboards' pages. Home is the 'dashboard' tab itself; Graph, Lanes and CI
+// are pages of their own that light Dashboards in the nav.
+export type DashboardPage = 'home' | 'graph' | 'lanes' | 'ci'
+export const DASHBOARD_PAGES: { key: DashboardPage; label: string }[] = [
+  { key: 'home', label: 'Home' },
+  { key: 'graph', label: 'Graph' },
+  { key: 'lanes', label: 'Lanes' },
+  { key: 'ci', label: 'CI' },
+]
+export type Tab = NavTab | 'graph' | 'lanes' | 'ci'
+export const dashboardTab = (page: string): Tab => (page === 'graph' || page === 'lanes' || page === 'ci' ? page : 'dashboard')
+export const dashboardPage = (tab: Tab): DashboardPage | null =>
+  tab === 'dashboard' ? 'home' : tab === 'graph' || tab === 'lanes' || tab === 'ci' ? tab : null
 
-export const tabLabel = (key: Tab) => (key === 'graph' ? 'Specs' : (TABS.find((t) => t.key === key)?.label ?? key))
+const PAGE_LABEL: Record<string, string> = { graph: 'Graph', lanes: 'Lanes', ci: 'CI', dashboard: 'Home' }
+export const tabLabel = (key: Tab) => PAGE_LABEL[key] ?? TABS.find((t) => t.key === key)?.label ?? key
 // The nav entry that is lit for a page.
-export const navTab = (key: Tab): NavTab => (key === 'graph' ? 'plans' : key)
+export const navTab = (key: Tab): NavTab => (dashboardPage(key) ? 'dashboard' : (key as NavTab))
 
 // Where a page name from an older link, a saved Back step or the demo tour
 // goes now. Removed pages land on the page that took over their job.
@@ -56,7 +72,7 @@ export function redirectTab(key: string): Place {
     case 'routing':
       return { tab: 'settings' }
     default:
-      return { tab: TABS.some((t) => t.key === key) || key === 'graph' ? (key as Tab) : 'dashboard' }
+      return { tab: TABS.some((t) => t.key === key) || dashboardPage(key as Tab) ? (key as Tab) : 'dashboard' }
   }
 }
 

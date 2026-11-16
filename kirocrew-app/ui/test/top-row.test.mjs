@@ -1,6 +1,6 @@
 // In a real Chrome (AVOOZL_CHROME, or an installed Chrome or Chromium), on
 // the harness page (test/browser/harness.tsx): the app shell (no top bars; the
-// workspace picker and Plan a goal first in the main column; Stop the line an
+// workspace pill first in the nav; Plan a goal first in the main column; Stop the line an
 // icon in the nav) has no Switch model, no
 // visible "Stop the line" text and no sideways scroll at 375, 768 and 1280 px,
 // light and dark, running and stopped; an In flight title opens the task
@@ -51,7 +51,7 @@ for (const [width, height] of [
     test(`the shell at ${width} px ${dark ? 'dark' : 'light'}: no top bars, Stop the line an icon (top line on a desktop, menu on a phone), no visible Stop the line text; no sideways scroll`, { skip }, async () => {
       for (const stopped of [false, true]) {
         await page.open(harness.url({ app: '1', theme: dark ? 'dark' : 'light', ...(stopped ? { stopped: '1' } : {}) }), { width, height, dark })
-        await page.until(`Boolean(document.querySelector('[data-main-top] select[aria-label="Workspace"]'))`)
+        await page.until(`Boolean(document.querySelector('[data-main-top]') && document.querySelector('[data-workspace-pill]:not([disabled])') || (${width} < 768 && document.querySelector('[data-top-rail-bar]')))`)
         await settle()
         const closed = await page.evaluate(`(() => {
           const pane = document.querySelector('[data-host-pane]')
@@ -60,15 +60,15 @@ for (const [width, height] of [
             switchModel: [...document.querySelectorAll('button')].some((b) => /Switch model/.test(b.textContent)) || Boolean(document.querySelector('[data-switch-model]')),
             moreButtons: document.querySelectorAll('[data-header-more], [data-header-actions]').length,
             logoBar: Boolean(document.querySelector('[data-header-brand]')),
-            // The workspace selector is the first thing in the main column.
-            selectorFirst: main.firstElementChild.matches('[data-main-top]') && main.firstElementChild.contains(document.querySelector('select[aria-label="Workspace"]')),
+            // The workspace is the pill at the top of the nav, never in the main column.
+            selectorFirst: main.firstElementChild.matches('[data-main-top]') && !main.querySelector('[data-workspace-pill], select[aria-label="Workspace"]') && (${width} < 768 || document.querySelector('[data-left-nav] [data-workspace-pill], [data-left-nav] [data-nav-section]')?.matches('[data-workspace-pill]')),
             sideways: Math.max(document.scrollingElement.scrollWidth, pane.scrollWidth) > innerWidth,
           }
         })()`)
         assert.equal(closed.switchModel, false, 'no Switch model anywhere')
         assert.equal(closed.moreButtons, 0, 'no header or ... menu')
         assert.equal(closed.logoBar, false, 'no logo bar')
-        assert.equal(closed.selectorFirst, true, 'the workspace selector starts the main column')
+        assert.equal(closed.selectorFirst, true, 'the workspace pill starts the nav, not the main column')
         assert.equal(closed.sideways, false, 'no sideways scroll')
         if (width < 768) {
           const header = await page.evaluate(`document.querySelector('[data-phone-header]').getBoundingClientRect().height`)
@@ -203,25 +203,29 @@ test('the top of the main column never has Start demo or Try the demo', { skip }
   }
 })
 
-test('Keep activity sits at the right of the filters on one row, inside the filter box', { skip }, async () => {
+test('Keep activity sits with the Activity filters in the nav, under the open Activity section', { skip }, async () => {
   for (const width of [1280, 375]) {
-    await page.open(harness.url({ page: 'activity' }), { width, height: 900 })
-    await page.until(`Boolean(document.querySelector('[data-section="Keep activity"]')) && document.body.textContent.includes('Saved a setting 2')`)
+    await page.open(harness.url({ page: 'app', activity: '1' }), { width, height: 900 })
+    const scope = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
+    if (width < 768) {
+      await page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
+      await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+    }
+    await page.until(`Boolean([...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')))`)
+    await page.evaluate(`[...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')).click()`)
+    await page.until(`Boolean(document.querySelector('${scope} [data-section="Keep activity"]'))`)
     const keep = await page.evaluate(`(() => {
-      const section = document.querySelector('[data-section="Keep activity"]')
-      const panel = document.querySelector('[data-filter-panel="avoozl-activity"]')
-      const bar = panel.querySelector('[data-filter-bar]')
-      const box = (el) => el.getBoundingClientRect()
+      const section = document.querySelector('${scope} [data-section="Keep activity"]')
+      const panel = document.querySelector('${scope} [data-nav-section="activity"] [data-filter-panel="avoozl-activity"]')
       return {
-        inPanel: panel.contains(section),
-        // A narrow page folds the fields behind Filters, so no bar to compare.
-        sameRow: bar ? Math.abs(box(section).bottom - box(bar).bottom) < 6 && box(section).left > box(bar).left : null,
+        inPanel: Boolean(panel && panel.contains(section)),
+        notInPage: !document.querySelector('[data-avoozl-pane] [data-filter-panel="avoozl-activity"]'),
         sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
         inputInside: Boolean(section.querySelector('#avoozl-activity-keep')),
       }
     })()`)
-    assert.equal(keep.inPanel, true, `Keep activity is in the filter box at ${width}px`)
-    if (width >= 768) assert.equal(keep.sameRow, true, 'on the filters row')
+    assert.equal(keep.inPanel, true, `Keep activity is with the nav's Activity filters at ${width}px`)
+    assert.equal(keep.notInPage, true, 'the filters are not in the page')
     assert.equal(keep.inputInside, true, 'its field is inside it')
     assert.equal(keep.sideways, false, 'no sideways scroll')
   }
@@ -244,7 +248,7 @@ test("Stop the line from the top line opens its dialog, and a tap or click in th
 test('a hovered nav item changes color, the selected one stays different, and keyboard focus shows a ring', { skip }, async () => {
   for (const dark of [false, true]) {
     await page.open(harness.url({ app: '1', theme: dark ? 'dark' : 'light' }), { width: 1280, height: 800, dark })
-    await page.until(`Boolean(document.querySelector('[data-nav-item="plans"]'))`)
+    await page.until(`Boolean(document.querySelector('[data-nav-group="plans"]'))`)
     // Settings opens in the nav, so its pages are items to hover and focus.
     await page.evaluate(`document.querySelector('[data-nav-group="settings"]').click()`)
     await page.until(`Boolean(document.querySelector('[data-nav-item="settings/models"]'))`)

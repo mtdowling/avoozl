@@ -8,11 +8,12 @@ const src = new URL('../src/', import.meta.url)
 const source = (name) => readFileSync(new URL(name, src), 'utf8')
 const dashboard = source('DashboardView.tsx')
 
-// The Section titles inside each <Pair>, in order.
+// The Section titles inside each <Pair>, in order. A card's loading stand-in
+// has the same title, so each title counts once.
 function rows() {
   return [...dashboard.matchAll(/<Pair height=\{ROW_HEIGHT\.(\w+)\}>([\s\S]*?)<\/Pair>/g)].map((m) => ({
     row: m[1],
-    titles: [...m[2].matchAll(/<Section\s+title=\{?[`"]([^`"($]+)/g)].map((t) => t[1].trim()),
+    titles: [...new Set([...m[2].matchAll(/<Section\s+title=\{?[`"]([^`"($]+)/g)].map((t) => t[1].trim()))],
   }))
 }
 
