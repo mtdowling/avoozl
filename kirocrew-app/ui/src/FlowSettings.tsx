@@ -4,7 +4,7 @@
 // instructions are saved on this machine only (flow.instructions.update).
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
+import { Btn, Card, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import { Tooltip } from './Tooltip.tsx'
 import { ChoiceCards, SectionHeading } from './controls.tsx'
 import { Marker, Section } from './SettingsView.tsx'
@@ -15,7 +15,9 @@ import PromptInstructions from './PromptInstructions.tsx'
 import { FLOW_DEFAULTS, flowClient, toFlowForm, toFlowSection, type FlowForm, type FlowSettings as Settings } from './flow-api.ts'
 
 const OPTIONAL = { required: false } as const
-const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
+// A label and its "(optional)" marker, spaced inline so no stylesheet can
+// run them together.
+const LABEL_ROW = { display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 } as const
 
 function Raw({ name }: { name: string }) {
   return (
@@ -27,16 +29,28 @@ function Raw({ name }: { name: string }) {
   )
 }
 
-function Labeled(props: { id: string; label: string; raw: string; width?: string; children: React.ReactNode; note?: string }) {
+// One field in a FieldGrid: label, input, hint, then the .avoozl.json key.
+// Its four rows join the grid's rows (subgrid), so fields side by side line
+// up row by row even when one label wraps.
+function Labeled(props: { id: string; label: string; raw: string; children: React.ReactNode; note?: string }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 text-sm" style={props.width ? { maxWidth: props.width } : undefined}>
-      <label htmlFor={props.id} className="flex flex-wrap items-baseline gap-x-2">
+    <div className="min-w-0 text-sm" data-flow-field style={{ display: 'grid', gridRow: 'span 4', gridTemplateRows: 'subgrid', rowGap: 4, alignContent: 'start' }}>
+      <label htmlFor={props.id} style={{ ...LABEL_ROW, alignSelf: 'end' }}>
         <span className="font-medium">{props.label}</span>
         <Marker rule={OPTIONAL} />
       </label>
-      {props.children}
-      {props.note && <span className="text-xs text-muted">{props.note}</span>}
+      <div style={{ display: 'flex', minWidth: 0 }}>{props.children}</div>
+      <span className="text-xs text-muted">{props.note ?? ''}</span>
       <Raw name={props.raw} />
+    </div>
+  )
+}
+
+// Fields on a grid: as many columns as fit, each at least 13rem.
+function FieldGrid({ children, group }: { children: React.ReactNode; group?: string }) {
+  return (
+    <div data-flow-group={group} style={{ display: 'grid', columnGap: 16, rowGap: 4, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 13rem), 1fr))' }}>
+      {children}
     </div>
   )
 }
@@ -123,7 +137,7 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
       <Box>
         <Section title="Pause on a broken check" blurb="When a change breaks a check that passed, pause new work until it's fixed." icon={Pause}>
           <div className="flex flex-col gap-1 text-sm">
-            <span className="flex flex-wrap items-baseline gap-x-2">
+            <span style={LABEL_ROW}>
               <span className="font-medium">What to pause</span>
               <Marker rule={OPTIONAL} />
             </span>
@@ -134,7 +148,7 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
       </Box>
       <Box>
         <Section title="Local checks first" blurb="Run the checks here before any push, so CI only confirms. It matters only when sessions push.">
-          <label className="flex flex-wrap items-center gap-2 text-sm">
+          <label className="text-sm" style={{ ...LABEL_ROW, alignItems: 'center' }}>
             <input type="checkbox" checked={local} onChange={(event) => set({ localChecksFirst: event.target.checked ? 'on' : 'off' })} />
             <span className="font-medium">Require a local pass before push</span>
             <Marker rule={OPTIONAL} />
@@ -144,24 +158,29 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
       </Box>
       <Box>
         <Section title="Batching" blurb="Run small related tasks together to pay setup and checks once. 1 turns it off.">
-          <div className="flex flex-wrap gap-4">
-            <Labeled id="avoozl-flow-max" label="Most tasks per run" raw="flow.batch.max" width="13rem">
+          <FieldGrid group="batch">
+            <Labeled id="avoozl-flow-max" label="Most tasks per run" raw="flow.batch.max">
               <Input id="avoozl-flow-max" inputMode="numeric" value={form.max} placeholder={String(FLOW_DEFAULTS.max)} onChange={(event) => set({ max: event.target.value })} />
             </Labeled>
-            <Labeled id="avoozl-flow-by" label="Group by" raw="flow.batch.by" width="12rem">
-              <select id="avoozl-flow-by" value={form.by} onChange={(event) => set({ by: event.target.value as FlowForm['by'] })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
-                <option value="">Same phase (default)</option>
-                <option value="phase">Same phase</option>
-                <option value="files">Same files</option>
-              </select>
+            <Labeled id="avoozl-flow-by" label="Group by" raw="flow.batch.by" note="Same phase is the default.">
+              <SegmentedControl
+                layoutId="avoozl-flow-by"
+                ariaLabel="Group by"
+                segments={[
+                  { key: 'phase', label: 'Same phase' },
+                  { key: 'files', label: 'Same files' },
+                ]}
+                value={form.by || FLOW_DEFAULTS.by}
+                onChange={(key) => set({ by: key as FlowForm['by'] })}
+              />
             </Labeled>
-          </div>
+          </FieldGrid>
         </Section>
       </Box>
       <Box>
         <Section title="CI" blurb="Review steady CI costs across every pull request. These limits trigger a retrospective proposal; you decide what changes.">
           <div data-ci-settings className="flex flex-col gap-4">
-            <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 13rem), 1fr))' }}>
+            <FieldGrid group="ci">
               <Labeled id="avoozl-flow-ci-window" label="Window (days)" raw="flow.ci.windowDays" note="Whole number 1–90.">
                 <Input id="avoozl-flow-ci-window" inputMode="numeric" value={form.windowDays} placeholder={String(ciDefaults.windowDays)} onChange={(event) => set({ windowDays: event.target.value })} />
               </Labeled>
@@ -174,7 +193,7 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
               <Labeled id="avoozl-flow-ci-min" label="Closed pull requests before wait check" raw="flow.ci.minPullRequests" note="Whole number 1–1,000.">
                 <Input id="avoozl-flow-ci-min" inputMode="numeric" value={form.minPullRequests} placeholder={String(ciDefaults.minPullRequests)} onChange={(event) => set({ minPullRequests: event.target.value })} />
               </Labeled>
-            </div>
+            </FieldGrid>
             <div className="flex flex-col gap-2" data-ci-globs>
               <h4 className="m-0 text-sm font-semibold">File classes (read-only)</h4>
               <p className="m-0 text-xs text-muted">First matching class wins in the order below. A repository can override these lists in its configuration.</p>
@@ -188,14 +207,14 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
       <Box>
         <Section title="Retro" blurb="A review that finds the biggest slowdown and proposes one change. You approve or reject each proposal.">
           <SectionHeading level={4} title="When it runs" />
-          <div className="flex flex-wrap gap-4" data-flow-group="when">
-            <Labeled id="avoozl-flow-every" label="After this many tasks" raw="flow.retro.everyTasks" width="14rem">
+          <FieldGrid group="when">
+            <Labeled id="avoozl-flow-every" label="After this many tasks" raw="flow.retro.everyTasks">
               <Input id="avoozl-flow-every" inputMode="numeric" value={form.everyTasks} placeholder={String(FLOW_DEFAULTS.everyTasks)} onChange={(event) => set({ everyTasks: event.target.value })} />
             </Labeled>
-            <Labeled id="avoozl-flow-slow" label="Slow when over (× usual)" raw="flow.retro.slowFactor" width="14rem">
+            <Labeled id="avoozl-flow-slow" label="Slow when over (× usual)" raw="flow.retro.slowFactor">
               <Input id="avoozl-flow-slow" inputMode="decimal" value={form.slowFactor} placeholder={String(FLOW_DEFAULTS.slowFactor)} onChange={(event) => set({ slowFactor: event.target.value })} />
             </Labeled>
-          </div>
+          </FieldGrid>
           {/* The retro's model is under Settings › Models. */}
           <SectionHeading level={4} title="What it weighs" />
           <PromptInstructions
@@ -215,17 +234,24 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
           )}
         </Section>
       </Box>
-      <div className="flex flex-wrap items-center gap-3">
-        <Btn type="button" primary disabled={saving} onClick={() => void save()}>
-          {saving ? 'Saving…' : 'Save'}
-        </Btn>
+      {/* The dialog's footer: it stays at the bottom while the groups scroll,
+          on the darker surface over a divider, Save last at the right. */}
+      <div
+        data-flow-footer
+        style={{ position: 'sticky', bottom: -16, zIndex: 1, margin: '0 -20px -16px', padding: '12px 20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid var(--border)', background: 'var(--bg-accent, var(--bg-elevated))' }}
+      >
+        <span className="text-xs text-muted" style={{ marginRight: 'auto' }}>
+          Writes flow in .avoozl.json.
+        </span>
         {message?.error && (
           <span role="alert" className="text-sm text-danger">
             {message.error}
           </span>
         )}
         {message?.ok && <span className="text-sm text-muted">{message.ok}</span>}
-        <span className="text-xs text-muted">Writes flow in .avoozl.json.</span>
+        <Btn type="button" primary disabled={saving} onClick={() => void save()}>
+          {saving ? 'Saving…' : 'Save'}
+        </Btn>
       </div>
     </div>
   )
