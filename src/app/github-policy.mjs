@@ -115,6 +115,7 @@ export const POLICY_KEYS = Object.freeze([
   "writesPerHour",
   "subIssues",
   "issues",
+  "specReviewers",
   "repositories",
 ]);
 // Who may give Avoozl orders when a repository names nobody.
@@ -174,6 +175,34 @@ function subIssuesInput(value) {
   if (!Number.isSafeInteger(cap) || cap < 1)
     fail("github.subIssues.maxPerParent must be a whole number of at least 1.");
   return { maxPerParent: cap };
+}
+
+// `github.specReviewers` (R102.18): the GitHub logins asked to review each
+// spec's approval pull request, by spec folder name. With none for a spec,
+// the repository's own CODEOWNERS and rules decide; Avoozl adds no rule.
+const LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+const SPEC_FOLDER = /^[a-z0-9][a-z0-9-]{0,79}$/;
+function specReviewersInput(value) {
+  if (!record(value)) fail("github.specReviewers must be a JSON object.");
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([spec, logins]) => {
+        const where = `github.specReviewers.${spec}`;
+        if (!SPEC_FOLDER.test(spec))
+          fail("Each github.specReviewers key must be a spec folder name.");
+        if (
+          !Array.isArray(logins) ||
+          logins.length > 10 ||
+          !logins.every(
+            (login) => typeof login === "string" && LOGIN.test(login),
+          ) ||
+          new Set(logins.map(lower)).size !== logins.length
+        )
+          fail(`${where} must be a list of at most 10 distinct GitHub logins.`);
+        return [spec, [...logins]];
+      }),
+  );
 }
 
 // `github.issues.includeDone` (R74): whether a task already done when its
@@ -916,6 +945,9 @@ export function normalizeGitHubPolicy(value) {
     ),
     subIssues: subIssuesInput(value.subIssues),
     issues: issuesInput(value.issues),
+    ...(value.specReviewers === undefined || value.specReviewers === null
+      ? {}
+      : { specReviewers: specReviewersInput(value.specReviewers) }),
     repositories: Object.fromEntries(
       Object.entries(repositories)
         .sort(([left], [right]) => left.localeCompare(right))
