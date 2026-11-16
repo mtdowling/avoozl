@@ -7823,6 +7823,131 @@
         "54.5",
         "54.6"
       ]
+    },
+    "55.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 55 (Every build receipt, and a build breakdown for retrospectives). See R101.2, R101.3; §4.31.",
+      "acceptance": [
+        "Every line of a receipt file, and task, attempt and phase in the wrapper",
+        "`parseReceipts` keeps every line and counts skipped ones, an old version 1 line parses, and the wrapper records task, attempt and phase with the rc-31.1 tests unchanged."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "55.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 55 (Every build receipt, and a build breakdown for retrospectives). See R101.3; §4.31.",
+      "acceptance": [
+        "CI uploads a receipt from every platform, after 55.1",
+        "A CI run uploads `build-receipt-<os>` from each of the 3 platforms and prints every line in the job summary; the workflow diff went to the owner as a protected path."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "55.1"
+      ]
+    },
+    "55.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 55 (Every build receipt, and a build breakdown for retrospectives). See R101.1, R101.2, R101.5, R101.6; §4.31.",
+      "acceptance": [
+        "Reader: every artifact, every line, stored observations, after 55.1, 54.2, 54.6",
+        "Tests on a fake GitHub: a pull request with several phases on 3 platforms keeps every record, a failed attempt is kept and marked, one artifact list per check and one download per new artifact, and the next check costs 0."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "55.1",
+        "54.2",
+        "54.6"
+      ]
+    },
+    "55.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 55 (Every build receipt, and a build breakdown for retrospectives). See R101.4, R101.12; §4.31.",
+      "acceptance": [
+        "Flow and Trace show every record; PDCA on build minutes, after 55.3",
+        "Flow names the costliest phase and keeps failed attempts out of medians, Trace lists every observation by phase, with before and after screenshots (phone and desktop, light and dark) approved by the owner before merge."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "55.3"
+      ]
+    },
+    "55.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 55 (Every build receipt, and a build breakdown for retrospectives). See R101.7, R101.8, R101.9; §4.31.",
+      "acceptance": [
+        "Build report format, `receipts.report` and the adapter, after 55.1",
+        "`docs/build-report.md` documents version 1; the adapter parses the field and artifact forms, skips and counts an unknown version or a missing field, and its fixtures use made-up names only."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "55.1"
+      ]
+    },
+    "55.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 55 (Every build receipt, and a build breakdown for retrospectives). See R101.9, R101.10, R101.11; §4.31.",
+      "acceptance": [
+        "Breakdowns stored, in the retro brief, and compared by key only, after 55.3, 55.5, 54.4",
+        "Tests: mismatched keys are never compared, a retro brief includes the breakdown, and a repository with no reports gives the same brief and call count as before."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "55.3",
+        "55.5",
+        "54.4"
+      ]
+    },
+    "avoozl-p65": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 55 (Every build receipt, and a build breakdown for retrospectives). Proof. See R101; §4.31.",
+      "acceptance": [
+        "Proof: every receipt kept and a breakdown in a retro on a real repository",
+        "Expected: on a scratch repository with CI on 3 platforms, a pull request with a failed and re-run test job keeps every observation with the failed attempt marked, Flow names the costliest phase, reads stay within one list per check and one download per artifact, and the retro brief compares only breakdowns with the same key."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "55.1",
+        "55.2",
+        "55.3",
+        "55.4",
+        "55.5",
+        "55.6"
+      ]
     }
   }
 }
