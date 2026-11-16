@@ -1,4 +1,4 @@
-import { validateModels } from "./chat-models.mjs";
+import { validateModels, validatePlanReview } from "./chat-models.mjs";
 import { flowPolicy } from "./flow.mjs";
 import { deliveryPolicy } from "./delivery.mjs";
 import { validateTrackedRouting } from "./placement.mjs";
@@ -464,6 +464,8 @@ function parse(text, filename, { portable = false } = {}) {
     fail("Workspace Avoozl configuration must contain a JSON object.");
   if (value.version !== 1)
     fail("Unsupported workspace Avoozl configuration version.");
+  validateModels(value.models);
+  validatePlanReview(value.planReview);
   assertSafeConfig(value, `workspace Avoozl configuration at ${filename}`);
   if (portable)
     assertPortableRepositoryConfig(
@@ -540,6 +542,7 @@ export class RepositorySettings {
       repository: this.filename,
     };
     this.sources = sources;
+    this.baseModels = validateModels(baseConfig.models);
     this.baseConversationConfigured = baseConfig.conversations !== undefined;
     this.baseConversationSettings = {
       autoArchiveCompleted: true,
@@ -773,6 +776,8 @@ export class RepositorySettings {
     );
     validateContentRules(value.contentRules);
     validateModels(value.models);
+    validateModels({ ...this.baseModels, ...value.models });
+    validatePlanReview(value.planReview);
     try {
       validateActivitySettings(value.activity);
       flowPolicy(value);
@@ -900,6 +905,7 @@ export class RepositorySettings {
       exists: file.exists,
       hash: file.hash,
       models: {
+        ...this.baseModels,
         // The older `flow.retro.model` shows as the retro's until saved here.
         ...(typeof file.value.flow?.retro?.model === "string" &&
         file.value.flow.retro.model !== "auto"

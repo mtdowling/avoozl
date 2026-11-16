@@ -103,7 +103,11 @@ import {
   withSource,
 } from "./github-rate.mjs";
 import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
-import { withChatModels } from "./chat-models.mjs";
+import {
+  validateModels,
+  validatePlanReview,
+  withChatModels,
+} from "./chat-models.mjs";
 import { syncStep, syncTargets } from "./integration-sync.mjs";
 import { mirrorSyncStep } from "./mirror-sync.mjs";
 import { publishInstanceStep } from "./instance-publish.mjs";
@@ -175,6 +179,8 @@ function parsePolicy(text) {
   repositoryPlugins(value);
   validateTrackedRouting(value);
   validateContentRules(value.contentRules);
+  validateModels(value.models);
+  validatePlanReview(value.planReview);
   validateIntake(value.intake);
   validateTrackedBudgets(value);
   return value;
