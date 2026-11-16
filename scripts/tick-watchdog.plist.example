@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- An example launchd job for scripts/tick-watchdog.mjs. Nothing installs it.
+     Replace NODE, CHECKOUT and WORKSPACE, copy it to
+     ~/Library/LaunchAgents/dev.avoozl.tick-watchdog.plist, then run
+     launchctl load ~/Library/LaunchAgents/dev.avoozl.tick-watchdog.plist
+     Undo: launchctl unload the same path and delete the file. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.avoozl.tick-watchdog</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>NODE</string>
+    <string>CHECKOUT/scripts/tick-watchdog.mjs</string>
+    <string>--workspace</string>
+    <string>WORKSPACE</string>
+    <string>--stale-minutes</string>
+    <string>10</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>600</integer>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>
