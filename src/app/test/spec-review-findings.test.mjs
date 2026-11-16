@@ -77,7 +77,11 @@ function setup(t) {
       role: "plan-review",
       model: "fake-requested-reviewer",
     });
-    bindSpecReviewRound(store, { roundId: round.id, slot });
+    assert.deepEqual(store.get("session_bindings", slot).review, {
+      planId: round.planId,
+      revisionHash: round.revisionHash,
+      roundId: round.id,
+    });
     recordSessionStatus(
       store,
       { slot, status: "idle" },
@@ -209,6 +213,13 @@ test("valid findings use the served model, survive revision changes, and retry w
   assert.equal(duplicate.threads[0].id, result.threads[0].id);
   assert.equal(duplicate.threads[0].existing, true);
   assert.equal(store.list("review_threads").length, 1);
+  const rebound = await ops.execute("session.bind", {
+    taskId: round.id,
+    role: "plan-review",
+    slot: "reviewer",
+  });
+  assert.equal(rebound.changed, false);
+  assert.equal(rebound.binding.review.roundId, round.id);
   await assert.rejects(
     submit([finding({ claim: "A different claim." })]),
     /final findings/,
