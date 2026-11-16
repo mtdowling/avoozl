@@ -6,12 +6,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { rolldown } from "rolldown";
 import { build } from "vite";
+import { buildAgents } from "../src/app/executors/kirocrew/build-agents.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
   app = path.join(root, "kirocrew-app"),
   ui = path.join(app, "ui"),
   lib = path.join(app, "bin", "lib"),
   tsc = path.join(root, "node_modules", "typescript", "bin", "tsc");
+
+buildAgents({ root });
 
 execFileSync(
   process.execPath,
@@ -67,6 +70,7 @@ for (const data of [
   // Started as its own process by plugins.mjs, so the bundle never imports it.
   path.join("src", "app", "plugin-child.mjs"),
   "examples",
+  "prompts",
 ])
   fs.cpSync(path.join(root, data), path.join(lib, data), { recursive: true });
 fs.writeFileSync(

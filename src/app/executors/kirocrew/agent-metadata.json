@@ -1,0 +1,254 @@
+[
+  {
+    "name": "avoozl-code-review",
+    "model": "auto",
+    "description": "Avoozl Code review: reviews one pull request with read-only tools and drafts comments in the chat. Posts nothing.",
+    "tools": ["fs_read", "grep", "glob", "execute_bash", "thinking"],
+    "allowedTools": [],
+    "toolsSettings": {
+      "execute_bash": {
+        "denyByDefault": true,
+        "allowedCommands": [
+          "gh pr (view|diff|checks) [0-9]+ --repo [A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+( --comments)?",
+          "gh issue view [0-9]+ --repo [A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+( --comments)?",
+          "gh api repos/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/(pulls|issues)/[0-9]+(/(files|comments|reviews|commits))?"
+        ]
+      }
+    },
+    "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-conflict-fix",
+    "model": "auto",
+    "description": "Avoozl Conflict fix: merges the base branch into one crew pull request that has a source conflict, keeps both sides, runs the checks, and pushes one merge commit to the same branch. Never rebases or force pushes.",
+    "tools": [
+      "fs_read",
+      "fs_write",
+      "grep",
+      "glob",
+      "execute_bash",
+      "thinking",
+      "@avoozl:avoozl/plans_conflict_check",
+      "@avoozl:avoozl/plans_conflict_report"
+    ],
+    "allowedTools": [],
+    "toolsSettings": {
+      "execute_bash": {
+        "deniedCommands": [
+          "git push .*--force.*",
+          "git push .* -f( .*)?",
+          "git push .* \\+.*",
+          "git push .*--mirror.*",
+          "git push .*--delete.*",
+          "git rebase.*",
+          "git reset.*"
+        ]
+      }
+    },
+    "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-crew",
+    "model": "auto",
+    "description": "Avoozl crew agent: an Issue Radar crew that verifies an issue with Avoozl before it builds.",
+    "tools": [
+      "fs_read",
+      "fs_write",
+      "grep",
+      "glob",
+      "execute_bash",
+      "thinking",
+      "@avoozl:avoozl/plans_verify_issue",
+      "@kirocrew-core/skill_search",
+      "@kirocrew-core/issue_radar_crew_read",
+      "@kirocrew-core/issue_radar_crew_record"
+    ],
+    "allowedTools": [],
+    "resources": [
+      "skill://skills/avoozl/SKILL.md",
+      "skill://skills/avoozl-rules/SKILL.md"
+    ],
+    "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-driver",
+    "model": "auto",
+    "description": "Avoozl driver session: one long-running chat that releases ready work, watches merges and brings you the decisions. Start it from the Avoozl page.",
+    "tools": [
+      "session",
+      "report",
+      "tool_search",
+      "@kirocrew-core",
+      "@kirocrew-dashboard",
+      "@kirocrew-work",
+      "@avoozl:avoozl/plans_next",
+      "@avoozl:avoozl/plans_claim_task",
+      "@avoozl:avoozl/plans_report",
+      "@avoozl:avoozl/plans_retry_delivery"
+    ],
+    "allowedTools": [
+      "session",
+      "report",
+      "tool_search",
+      "@kirocrew-core/monitor_start",
+      "@kirocrew-core/monitor_update",
+      "@kirocrew-core/autonudge_stop",
+      "@kirocrew-core/wait",
+      "@kirocrew-core/resource_status",
+      "@kirocrew-core/list_sessions",
+      "@kirocrew-core/session_ledger_read",
+      "@kirocrew-core/session_ledger_record",
+      "@kirocrew-core/skill_search",
+      "@kirocrew-core/skill_fetch",
+      "@kirocrew-core/send_message",
+      "@kirocrew-core/send_notification",
+      "@kirocrew-core/ask_question",
+      "@kirocrew-core/nothing_to_do",
+      "@kirocrew-dashboard/session_create",
+      "@kirocrew-dashboard/session_read_message",
+      "@kirocrew-dashboard/session_status",
+      "@kirocrew-work/work_ledger_read",
+      "@kirocrew-work/work_ledger_record",
+      "@kirocrew-work/work_ledger_rebuild",
+      "@kirocrew-work/work_brief",
+      "@avoozl:avoozl/plans_next",
+      "@avoozl:avoozl/plans_claim_task",
+      "@avoozl:avoozl/plans_report"
+    ],
+    "resources": ["skill://skills/avoozl/SKILL.md"],
+    "includeMcpJson": false,
+    "hooks": {
+      "agentSpawn": [
+        {
+          "command": "PATH=\"$PATH:/opt/homebrew/bin:/usr/local/bin\" node \"${KIROCREW_HOME:-$HOME/.kiro/crew}/apps/avoozl/bin/avoozl.mjs\" driver hook"
+        }
+      ],
+      "stop": [
+        {
+          "command": "PATH=\"$PATH:/opt/homebrew/bin:/usr/local/bin\" node \"${KIROCREW_HOME:-$HOME/.kiro/crew}/apps/avoozl/bin/avoozl.mjs\" driver hook"
+        }
+      ]
+    }
+  },
+  {
+    "name": "avoozl-falsifier",
+    "model": "auto",
+    "description": "Avoozl Falsifier: tries to prove a worker's findings wrong before any code is written, and reports whether they stand.",
+    "tools": [
+      "fs_read",
+      "grep",
+      "glob",
+      "execute_bash",
+      "thinking",
+      "@avoozl:avoozl/plans_report"
+    ],
+    "allowedTools": [],
+    "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-planner",
+    "model": "auto",
+    "description": "Avoozl Planner: drafts or critiques one Kiro spec folder for one goal. Writes spec files only.",
+    "tools": [
+      "fs_read",
+      "grep",
+      "glob",
+      "fs_write",
+      "thinking",
+      "@avoozl:avoozl/plans_workspace",
+      "@avoozl:avoozl/plans_query",
+      "@avoozl:avoozl/plans_get_task",
+      "@avoozl:avoozl/plans_duplicates",
+      "@avoozl:avoozl/plans_documents",
+      "@avoozl:avoozl/plans_get_document",
+      "@avoozl:avoozl/plans_get_plan",
+      "@avoozl:avoozl/plans_classify_issue",
+      "@avoozl:avoozl/plans_draft_children"
+    ],
+    "allowedTools": [],
+    "toolsSettings": {
+      "fs_write": {
+        "fallbackAction": "deny",
+        "allowedPaths": [".kiro/specs/**"]
+      }
+    },
+    "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-responder",
+    "model": "auto",
+    "description": "Avoozl Responder: drafts an answer to one GitHub issue with read-only tools.",
+    "tools": [
+      "fs_read",
+      "grep",
+      "glob",
+      "thinking",
+      "@avoozl:avoozl/plans_post_reply"
+    ],
+    "allowedTools": [],
+    "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-retro",
+    "model": "auto",
+    "description": "Avoozl Retro: reads one window of delivery timing and proposes up to three changes to how work runs.",
+    "tools": [],
+    "allowedTools": [],
+    "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-review-draft",
+    "model": "auto",
+    "description": "Avoozl Review draft: reviews one pull request with read-only tools and posts one pending review for the person who asked. Never submits.",
+    "tools": [
+      "fs_read",
+      "grep",
+      "glob",
+      "execute_bash",
+      "thinking",
+      "@avoozl:avoozl/plans_post_review_draft"
+    ],
+    "allowedTools": ["@avoozl:avoozl/plans_post_review_draft"],
+    "toolsSettings": {
+      "execute_bash": {
+        "denyByDefault": true,
+        "allowedCommands": [
+          "gh pr (view|diff|checks) [0-9]+ --repo [A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+( --comments)?",
+          "gh issue view [0-9]+ --repo [A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+( --comments)?",
+          "gh api repos/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/(pulls|issues)/[0-9]+(/(files|comments|reviews|commits))?"
+        ]
+      }
+    },
+    "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-reviewer",
+    "model": "auto",
+    "description": "Avoozl Reviewer: judges one reported commit for one review focus and reports a verdict with findings.",
+    "tools": [
+      "fs_read",
+      "grep",
+      "glob",
+      "execute_bash",
+      "thinking",
+      "@avoozl:avoozl/plans_report"
+    ],
+    "allowedTools": [],
+    "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-verifier",
+    "model": "auto",
+    "description": "Avoozl Verifier: checks one reported commit against its task's acceptance and checks.",
+    "tools": [
+      "fs_read",
+      "grep",
+      "glob",
+      "execute_bash",
+      "thinking",
+      "@avoozl:avoozl/plans_report"
+    ],
+    "allowedTools": [],
+    "includeMcpJson": false
+  }
+]
