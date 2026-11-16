@@ -28350,6 +28350,11 @@ var qb = [
 		line: "Drafts specs from a GitHub planning label."
 	},
 	{
+		key: "planReviewer",
+		label: "Plan reviewer",
+		line: "Reviews draft specs on a different model. Auto skips review until a model is picked."
+	},
+	{
 		key: "driver",
 		label: "Driver",
 		line: "Drives approved specs. Set on the chat once it starts."
@@ -28402,7 +28407,10 @@ function Xb({ workspaceId: e }) {
 		className: "text-sm text-muted",
 		children: "Loading…"
 	});
-	let v = JSON.stringify(Jb(c)) !== JSON.stringify(Jb(r.models)), y = async () => {
+	let v = (e) => Us(f, c[e] ?? "").map((t) => e === "planReviewer" && t.value === "auto" ? {
+		...t,
+		label: "auto (no reviewer)"
+	} : t), y = JSON.stringify(Jb(c)) !== JSON.stringify(Jb(r.models)), b = async () => {
 		_(!0), h(null);
 		try {
 			await n.save(e, c, r.hash), await s(), h({ ok: "Saved to .avoozl.json." });
@@ -28427,7 +28435,7 @@ function Xb({ workspaceId: e }) {
 						className: "text-sm font-medium",
 						children: e.label
 					}),
-					items: Rc(Us(f, c[e.key] ?? "")),
+					items: Rc(v(e.key)),
 					value: c[e.key] || "auto",
 					onPick: (t) => u({
 						...c,
@@ -28446,8 +28454,8 @@ function Xb({ workspaceId: e }) {
 			children: [
 				/* @__PURE__ */ C(Or, {
 					primary: !0,
-					onClick: () => void y(),
-					disabled: g || !v,
+					onClick: () => void b(),
+					disabled: g || !y,
 					attrs: { "data-models-save": !0 },
 					children: g ? "Saving…" : "Save"
 				}),

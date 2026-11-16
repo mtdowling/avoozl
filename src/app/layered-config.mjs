@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateModels, validatePlanReview } from "./chat-models.mjs";
 
 export const avoozlConfigSchemaPath = fileURLToPath(
   new URL("../avoozl-config.schema.json", import.meta.url),
@@ -359,8 +360,11 @@ export function loadLayeredConfig({
   );
   const mergeLayers = (selected) =>
     selected.reduce((result, layer) => deepMerge(result, layer.value), {});
+  const config = mergeLayers(layers);
+  validateModels(config.models);
+  validatePlanReview(config.planReview);
   return {
-    config: mergeLayers(layers),
+    config,
     configWithoutRepository: mergeLayers(
       layers.filter(({ filename }) => filename !== files.repository),
     ),
