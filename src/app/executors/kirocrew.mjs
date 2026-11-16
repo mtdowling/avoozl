@@ -216,20 +216,31 @@ export function kirocrewRequest(store, legacy) {
 }
 
 export function kirocrewConfiguration(store, request) {
-  return (
-    selections(store).get(request.id) ??
-    store.getMeta(privateKey(request.id)) ?? {
-      folder:
-        request.worktree && request.repository
-          ? sidebarPath(request.repository)
-          : "",
-      ...(request.worktree && request.repository ? {} : { project: false }),
-      agent:
-        (request.role === "plan-answer" && request.permissionClass === "read"
-          ? "avoozl-plan-answer-read"
-          : ROLE_AGENTS[request.role]) ?? "",
-    }
-  );
+  const queued = store.get("session_requests", request.id),
+    active =
+      queued?.kind === "start" && ["claimed", "bound"].includes(queued.state)
+        ? queued.request
+        : request,
+    configuration = selections(store).get(request.id) ??
+      store.getMeta(privateKey(request.id)) ?? {
+        folder:
+          active.worktree && active.repository
+            ? sidebarPath(active.repository)
+            : "",
+        ...(active.worktree && active.repository ? {} : { project: false }),
+        agent: ROLE_AGENTS[active.role] ?? "",
+      };
+  // The answer's permission class determines its tool access, even when a
+  // pending request retains folder settings from an earlier write version.
+  return active.role === "plan-answer"
+    ? {
+        ...configuration,
+        agent:
+          active.permissionClass === "read"
+            ? "avoozl-plan-answer-read"
+            : ROLE_AGENTS["plan-answer"],
+      }
+    : configuration;
 }
 
 export function persistKirocrewConfiguration(store, request) {

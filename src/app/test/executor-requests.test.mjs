@@ -6,6 +6,7 @@ import {
 } from "../session-requests.mjs";
 import {
   kirocrewRequest,
+  kirocrewConfiguration,
   persistKirocrewConfiguration,
 } from "../executors/kirocrew.mjs";
 import { Operations } from "../operations.mjs";
@@ -416,4 +417,65 @@ test("later real ticks reoffer pending transport rows but never claimed or compl
     again.messages.map((request) => request.id),
     [queued.sends[1].id],
   );
+});
+
+test("a pending write answer rebuilt as read consumes the read-only native agent", async (t) => {
+  const { store, ops } = env(t);
+  store.put("plans", { id: "p", state: "draft", hash: "h" });
+  store.put("review_rounds", {
+    id: "r",
+    planId: "p",
+    spec: "synthetic",
+    state: "done",
+    revisionHash: "h",
+  });
+  store.put("receipts", {
+    id: "plan-answer:r",
+    kind: "plan-answer",
+    roundId: "r",
+    planId: "p",
+    state: "queued",
+    slot: null,
+  });
+  store.put("review_threads", {
+    id: "finding",
+    source: "plan-review",
+    roundId: "r",
+  });
+  const write = kirocrewRequest(store, {
+    ...start({
+      role: "plan-answer",
+      task: "r",
+      context: { revisionHash: "h" },
+    }),
+    folder: "Avoozl/answer",
+    project: false,
+  });
+  const old = enqueueSessionRequests(store, { starts: [write] }).starts[0];
+  persistKirocrewConfiguration(store, old);
+  assert.equal(kirocrewConfiguration(store, old).agent, "avoozl-planner");
+  store.put("plans", { ...store.get("plans", "p"), state: "approved" });
+  const read = enqueueSessionRequests(store, {
+    starts: [{ ...write, permissionClass: "read" }],
+  }).starts[0];
+  assert.equal(read.id, old.id);
+  assert.notEqual(read.version, old.version);
+  assert.equal(await call(ops, "take", input(old)), null);
+  const claim = await call(ops, "take", input(read));
+  assert.equal(claim.configuration.agent, "avoozl-plan-answer-read");
+  assert.equal(claim.configuration.folder, "Avoozl/answer");
+  assert.equal(claim.configuration.project, false);
+  const changed = kirocrewRequest(store, {
+    ...write,
+    folder: "Avoozl/changed",
+    agent: "other-agent",
+  });
+  persistKirocrewConfiguration(store, changed);
+  const frozen = kirocrewConfiguration(store, changed);
+  assert.equal(
+    frozen.agent,
+    "avoozl-plan-answer-read",
+    "a claimed permission class stays frozen",
+  );
+  assert.equal(frozen.folder, "Avoozl/answer");
 });
