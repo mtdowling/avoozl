@@ -4899,7 +4899,9 @@ harness without changing the loop.
    SHALL fail a test.
 5. Default executor, settled by the owner: `process` with Claude Code for
    the Nupp compiler repository; `kirocrew` for Avoozl's own repository
-   until the proof of Phase 47 passes.
+   until the proof of Phase 47 passes. On `kirocrew`, the chat's trust mode
+   SHALL be set again on every tick (Requirement 88.1), because an ordinary
+   worker chat stalls unattended without it.
 6. Moving today's calls behind the interface SHALL leave the existing test
    suite passing unchanged.
 
@@ -4925,15 +4927,35 @@ that I approve, so that a new agent CLI needs no code change.
    (R83.4). A changed file SHALL not run until a person approves its new
    hash.
 4. Permission for unattended children, settled by the owner: a write role
-   SHALL use the harness's workspace-write sandbox confined to the task
-   worktree; a read-only role SHALL use its read-only mode. A definition
-   SHALL NOT use a flag that skips or bypasses all permissions; loading one
-   that does SHALL be refused.
+   SHALL use the harness's workspace-write sandbox, whose write roots are
+   the task folder, the temp directory, and the cache directories the
+   project config names (`sandbox.writeRoots`, for example a compiler cache
+   such as sccache); a read-only role SHALL use its read-only mode.
+4a. A task worktree's git directory lives in the main checkout
+    (`git rev-parse --git-common-dir`), outside those roots, so a confined
+    child cannot commit. The child SHALL only edit. Avoozl SHALL make the
+    commit in the worktree after the child exits, from the changed files,
+    and SHALL check the diff as Verify does (Requirement 86.6); it never
+    trusts a worker's commit (Requirement 90.2).
+4b. Loading a definition SHALL refuse any argv value that contains
+    `bypassPermissions` or `danger-full-access`, or any flag that starts with
+    `--dangerously-`, and SHALL name the value. A test SHALL load one
+    definition with each and see it refused.
+4c. Each project SHALL have a command allow-list for unattended children
+    (`sandbox.allowCommands`: its build and test commands), passed to the
+    harness's allow setting, so a child does not stall on a prompt.
+    `git push` SHALL never be allowed, and adding it SHALL be refused.
 5. A harness that cannot confine writes to the worktree SHALL be refused for
    write roles, unless the owner opts in for that machine (person-only,
    recorded in Activity).
 6. WHEN a harness offers a spend cap THEN Avoozl SHALL set it from the
-   task's budget (Requirement 67).
+   task's budget (Requirement 67). Such a cap (for example a
+   `--max-budget-usd` flag) caps API spend and may not bind when the harness
+   runs on a plan login. Whether it does SHALL be checked in Phase 47's
+   proof.
+6a. Plan quota: WHEN a harness on a plan login reports its quota as low
+    (Requirement 72's `low` or `out`) THEN Avoozl SHALL start no new session
+    on it; running sessions SHALL finish.
 7. Adding a second harness SHALL need only its definition file: the proof of
    Phase 48 SHALL fail if any source file changes.
 
@@ -4961,25 +4983,44 @@ restart, and its exit is never lost.
    (Requirement 88.4 applies).
 5. Every child SHALL get the environment variable `AVOOZL_CHILD=1` with its
    session ID. The CLI SHALL refuse a person-only command in a child, even
-   with `--as-person`.
+   with `--as-person`. This is a speed bump, not a guarantee: the child runs
+   as the owner and could unset the marker, write the database or call `gh`.
+6. "A child never does a person-only act" SHALL hold only through the
+   sandbox: for a `process` child the workspace database, the GitHub and
+   other credentials, and the Kiro Crew home SHALL be outside its read and
+   write roots, and its network SHALL be off or restricted to what the
+   project names. A harness that cannot do this SHALL be refused for
+   unattended roles unless the owner opts in for that machine.
+7. For a `kirocrew` chat, person-only refusal SHALL stay a speed bump, and
+   the docs and Settings SHALL say so plainly.
 
 ### Requirement 96: One way to finish
 
 Added 2026-11-15. Design §4.28.
 
+Changed 2026-11-15 (owner correction): a sandboxed child cannot reach the
+workspace database, so it cannot run `avoozl runner report`.
+
 **User story:** As the owner, I want every worker, on any harness, to finish
-the same way, so that Avoozl reads one kind of result.
+in a way Avoozl reads the same, so that Avoozl reads one kind of result.
 
 #### Acceptance criteria
 
-1. Every worker brief SHALL end with one finish command:
-   `avoozl runner report TASK done|blocked` (with text for `blocked`). This
-   is the CLI report of Requirement 88.2.
-2. Avoozl SHALL match the report to the session by the child marker or the
-   worktree, and SHALL read the commit from the worktree.
-3. A child that exits without a report SHALL be treated as `exited <code>`,
-   and its task SHALL follow the retry path (Requirement 8).
-4. `avoozl next`, `avoozl claim` and the report SHALL stay as the manual
+1. A `process` child SHALL finish by writing a small result file,
+   `.avoozl/result.json` in its task folder (`{"state": "done" | "blocked",
+   "text": "..."}`, at most 8 KB), and exiting. The supervisor SHALL read the
+   exit code and that file, and SHALL record the result. The brief SHALL say
+   so as its last step.
+2. A `kirocrew` chat and a person SHALL finish with
+   `avoozl runner report TASK done|blocked` (with text for `blocked`), the
+   CLI report of Requirement 88.2.
+3. Avoozl SHALL match a result to its session by the supervisor's record or
+   the worktree, SHALL make or read the commit in the worktree itself
+   (Requirement 94.4a), and SHALL treat the result text as data.
+4. A child that exits with no result file, an unreadable one, or a non-zero
+   exit code with `done` SHALL be treated as `exited <code>`, and its task
+   SHALL follow the retry path (Requirement 8).
+5. `avoozl next`, `avoozl claim` and the report SHALL stay as the manual
    path for a person or a harness Avoozl does not start.
 
 ### Requirement 97: Role prompts as files

@@ -6569,7 +6569,8 @@
         "41.4",
         "41.5",
         "41.6",
-        "41.7"
+        "41.7",
+        "41.8"
       ]
     },
     "42.1": {
@@ -7165,10 +7166,10 @@
     "47.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 47 (Supervisor and the process executor). See R94.4, R94.5, R94.6; §4.28.",
+      "summary": "Phase 47 (Supervisor and the process executor). See R94.4, R94.4b, R94.5; §4.28.",
       "acceptance": [
-        "Permission classes and spend cap",
-        "Write roles confined to the worktree; read-only roles read-only; a bypass flag refused at load; the per-machine opt-in is person-only; a spend cap set from the task budget."
+        "Permission classes, write roots and the skip-flag refusal",
+        "Definitions with bypassPermissions, danger-full-access or a --dangerously-* flag are refused at load in a test; write roots are the task folder, temp and project cache dirs."
       ],
       "completion": "integrated",
       "checks": [
@@ -7234,10 +7235,10 @@
     "47.6": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 47 (Supervisor and the process executor). See R96.1, R96.2, R96.3; §4.28.",
+      "summary": "Phase 47 (Supervisor and the process executor). See R96.1, R96.2, R96.3, R96.4; §4.28.",
       "acceptance": [
-        "One finish: `avoozl runner report TASK done|blocked` in every brief",
-        "A child that exits without a report takes the retry path."
+        "Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats",
+        "A missing or bad result file, or done with a non-zero exit, takes the retry path."
       ],
       "completion": "integrated",
       "checks": [
@@ -7267,7 +7268,11 @@
         "47.3",
         "47.4",
         "47.5",
-        "47.6"
+        "47.6",
+        "47.7",
+        "47.8",
+        "47.9",
+        "47.10"
       ]
     },
     "48.1": {
@@ -7487,6 +7492,91 @@
       ],
       "requires": [
         "52.1"
+      ]
+    },
+    "47.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 47 (Supervisor and the process executor). See R94.4a; §4.28.",
+      "acceptance": [
+        "Avoozl commits after the child exits",
+        "The child only edits; Avoozl commits in the worktree from the changed files and checks the diff."
+      ],
+      "requires": [
+        "47.4"
+      ]
+    },
+    "47.8": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 47 (Supervisor and the process executor). See R94.4c; §4.28.",
+      "acceptance": [
+        "Per-project command allow-list; `git push` never allowed",
+        "Unattended children run the project's build and test commands without a prompt; adding git push is refused."
+      ],
+      "requires": [
+        "47.2"
+      ]
+    },
+    "47.9": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 47 (Supervisor and the process executor). See R94.6, R94.6a; §4.28.",
+      "acceptance": [
+        "Spend cap from the task budget and the plan-quota stop",
+        "No new session starts on a harness whose plan quota reads low."
+      ],
+      "requires": [
+        "47.4"
+      ]
+    },
+    "47.10": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 47 (Supervisor and the process executor). See R95.6, R95.7; §4.28.",
+      "acceptance": [
+        "Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted",
+        "A child cannot read the workspace database or credentials; docs and Settings call the chat refusal a speed bump."
+      ],
+      "requires": [
+        "47.2"
+      ]
+    },
+    "41.8": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 41 (Scheduler and direct landing). See R91.5, R94.4a; §4.26.",
+      "acceptance": [
+        "Nupp AGENTS.md clause for Avoozl-run work",
+        "A proposed Nupp AGENTS.md clause, checked against the core-dev copy, says Avoozl-run work edits, commits nothing or only locally, and stops: no merge, push or worktree removal."
+      ],
+      "requires": [
+        "41.3"
       ]
     }
   }
