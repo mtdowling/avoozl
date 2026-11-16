@@ -83,9 +83,26 @@ export function slotStatus(body) {
   return "idle";
 }
 
+// What a slot read says about the session's model, in the tick's `served`
+// shape, or null when Kiro Crew names no served model. The slot carries the
+// pinned model, the model the live session resolved to, and whether the pin
+// was withheld; it has no mid-session change flag.
+export function slotServed(body) {
+  const model = body?.served_model;
+  if (typeof model !== "string" || !model.trim()) return null;
+  return {
+    requested:
+      typeof body.model === "string" && body.model ? body.model : null,
+    model,
+    withheld: body.model_withheld === true,
+    changed: false,
+  };
+}
+
 // A function that reads one slot's status, or null without a gateway client.
 // It throws on any answer but 200 and 404, so an unreadable session keeps its
-// last status rather than reading as gone.
+// last status rather than reading as gone. A read that names the served
+// model returns {status, served}; otherwise the status alone.
 export function gatewaySlotReader(env = process.env, request = fetch) {
   const client = gatewayClient(env, request);
   if (!client) return null;
@@ -97,7 +114,10 @@ export function gatewaySlotReader(env = process.env, request = fetch) {
     if (response.status === 404) return "gone";
     if (!response.ok)
       throw Error(`Kiro Crew refused the session read (${response.status}).`);
-    return slotStatus(await response.json());
+    const body = await response.json(),
+      status = slotStatus(body),
+      served = slotServed(body);
+    return served ? { status, served } : status;
   };
 }
 
