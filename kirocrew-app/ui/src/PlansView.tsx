@@ -34,6 +34,7 @@ import { ListDetailLayout } from './ListDetailLayout.tsx'
 import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './Modal.tsx'
+import { PlanReviewSummary } from './PlanReviewSummary.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
 import { SpecChangedModal } from './SpecChangedModal.tsx'
 import { projectionClient } from './projection-api.ts'
@@ -1358,8 +1359,46 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
   )
 }
 
-// Approve N specs: the exact revisions listed, together, all or none
-// (plan.approveMany). A spec approved through a pull request waits for it.
+// Approve one exact revision after showing its independent review evidence.
+export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; client: PlansClient; onDone: (text: string | null) => void }) {
+  const { plan, client, workspaceId } = props
+  const [review, setReview] = useState(plan.review)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState<{ repository: string; number: number } | null>(null)
+  useEffect(() => {
+    let live = true
+    client.reviewSummary(workspaceId, plan.id).then((value) => live && setReview(value), () => undefined)
+    return () => { live = false }
+  }, [client, workspaceId, plan.id])
+  const run = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const result = await client.approve(workspaceId, plan.id, plan.hash)
+      if (result.pending && result.approvalPullRequest) setPending(result.approvalPullRequest)
+      else props.onDone(`Approved ${plan.spec || plan.title}.`)
+    } catch (caught) { setError(errorMessage(caught)) }
+    finally { setBusy(false) }
+  }
+  return (
+    <Modal id="avoozl-approve-spec" title={`Approve ${plan.spec || plan.title}?`} width="36rem" height="34rem" backLabel="Cancel" attrs={{ 'data-approve-spec': true }} onDismiss={() => props.onDone(null)} footer={
+      <div className="flex flex-wrap justify-end gap-2">
+        <SmallBtn attrs={{ 'data-autofocus': true }} onClick={() => props.onDone(null)}>{pending ? 'Close' : 'Cancel'}</SmallBtn>
+        {!pending && <SmallBtn primary disabled={busy} onClick={() => void run()} attrs={{ 'data-approve-spec-go': true }}>Approve spec</SmallBtn>}
+      </div>
+    }>
+      <div className="flex flex-col gap-3 text-sm">
+        <p className="m-0 text-muted">Approve exactly revision <Tooltip text={plan.hash}><code>{shortHash(plan.hash)}</code></Tooltip>. Review findings are evidence for your decision; they do not block approval.</p>
+        <PlanReviewSummary review={review} onClose={async (id, disposition) => { await client.closeReviewFinding(workspaceId, id, disposition); return client.reviewSummary(workspaceId, plan.id) }} />
+        {error && <p role="alert" className="m-0 text-danger">{error}</p>}
+        {pending && <p role="status" className="m-0">Nothing approved yet. Merge <a className="underline" href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">{pending.repository}#{pending.number}</a>, then approve again.</p>}
+      </div>
+    </Modal>
+  )
+}
+
+// Approve N specs: the exact revisions listed, together, all or none.
 export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchEntry[]; client: PlansClient; onDone: (text: string | null) => void }) {
   const { entries } = props
   const [busy, setBusy] = useState(false)
@@ -1411,7 +1450,7 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
       onDismiss={() => props.onDone(null)}
       footer={
         <div className="flex flex-wrap justify-end gap-2">
-          <SmallBtn onClick={() => props.onDone(finished ? 'Nothing approved yet. Merge the approval pull request, then approve again.' : null)}>{finished ? 'Close' : 'Cancel'}</SmallBtn>
+          <SmallBtn attrs={{ 'data-autofocus': true }} onClick={() => props.onDone(finished ? 'Nothing approved yet. Merge the approval pull request, then approve again.' : null)}>{finished ? 'Close' : 'Cancel'}</SmallBtn>
           {!finished && (
             <SmallBtn primary disabled={busy || entries.length === 0} onClick={() => void run()} attrs={{ 'data-approve-specs-go': true }}>
               {label}
@@ -1457,6 +1496,13 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
           </div>
         )}
         <ApproveTable entries={entries} selection={selection} phone={phone} />
+        <p className="m-0 text-muted">Review findings are evidence for your decision; they do not block approval.</p>
+        {entries.map((entry) => (
+          <section key={entry.id} data-approve-review={entry.id} className="flex min-w-0 flex-col gap-2 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+            <h3 className="m-0 text-sm font-medium">{entry.spec}</h3>
+            <PlanReviewSummary review={selection?.specs.find((spec) => spec.id === entry.id)?.review ?? entry.review} onClose={async (id, disposition) => { await props.client.closeReviewFinding(props.workspaceId, id, disposition); return props.client.reviewSummary(props.workspaceId, entry.id) }} />
+          </section>
+        ))}
       </div>
     </Modal>
   )
@@ -1540,6 +1586,7 @@ export default function PlansView(props: {
   const shownWorkspace = useRef(workspace)
   const [filter, setFilter] = useState<PlanListFilter>({})
   const [plan, setPlan] = useState<SpecPlan | null>(null)
+  const [singleApproval, setSingleApproval] = useState<{ workspaceId: string; plan: SpecPlan } | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [projection, setProjection] = useState<ProjectionPreview | null>(null)
   const [dialog, setDialog] = useState<'project' | 'changed' | null>(null)
@@ -1571,6 +1618,7 @@ export default function PlansView(props: {
     if (shownWorkspace.current !== workspace) {
       shownWorkspace.current = workspace
       setSelected(null)
+      setSingleApproval(null)
     }
     if (!workspace) return
     void load(workspace)
@@ -1679,7 +1727,7 @@ export default function PlansView(props: {
       onNewTask: () => drawer.addTask(),
       onImport: actions.importable ? () => importRow(row) : undefined,
       onReload: plan?.disk.changed ? () => act((workspaceId) => plans.reload(workspaceId, plan.id, plan.hash)) : undefined,
-      onApprove: plan ? () => act((workspaceId) => plans.approve(workspaceId, plan.id, plan.hash)) : undefined,
+      onApprove: plan && workspace ? () => setSingleApproval({ workspaceId: workspace, plan }) : undefined,
       approveBlocker: plan ? blocker : null,
       onSpecBuilder: row.spec ? () => openSpecBuilder(row.spec!, navigate) : undefined,
       onGraph: actions.scoped ? () => scope('graph', row) : undefined,
@@ -1693,6 +1741,16 @@ export default function PlansView(props: {
 
   return (
     <section aria-labelledby="avoozl-plans-title" className="flex flex-col gap-3.5">
+      {singleApproval && singleApproval.workspaceId === workspace && (
+        <ApproveSpecDialog workspaceId={singleApproval.workspaceId} plan={singleApproval.plan} client={plans} onDone={(text) => {
+          if (shownWorkspace.current !== singleApproval.workspaceId) return
+          setSingleApproval(null)
+          if (text === null) return
+          setNotice(text)
+          void load(singleApproval.workspaceId)
+          void loadPlan(singleApproval.workspaceId, singleApproval.plan.id)
+        }} />
+      )}
       {deleting && workspace && (
         <DeletePlanDialog
           workspaceId={workspace}

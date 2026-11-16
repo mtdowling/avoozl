@@ -1,3 +1,4 @@
+import { nativeDispatch } from "./executor-fixture.mjs";
 // Proof P30 (design §4.11, §8.4; Requirements 43–48): flow with fake workers
 // and scripted timings. One workspace, one sample repository with one
 // declared check, fake worker and verifier sessions that follow a script on
@@ -591,7 +592,10 @@ test(
     );
     clockTo(minute + 120);
     const retro = retroStep(store, w.config, { repository: "app" });
-    assert.equal(retro.dispatch[0].agent, "avoozl-retro");
+    assert.equal(
+      nativeDispatch(store, retro.dispatch[0]).agent,
+      "avoozl-retro",
+    );
     const reply = recordRetroReply(
       store,
       retro.retro,

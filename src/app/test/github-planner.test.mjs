@@ -1,3 +1,4 @@
+import { nativeDispatch } from "./executor-fixture.mjs";
 // The tick starts the planner for an issue a deliver rule matched (the gap
 // proof P12 found): one breakdown session per trigger event, one critique per
 // drafted revision, none for a leaf, and none twice across ticks or restarts.
@@ -138,7 +139,7 @@ function fakeKiroCrew(state) {
         if (!session) {
           session = {
             slot: `slot-${sessions.size + 1}`,
-            agent: d.agent,
+            agent: nativeDispatch(state.store, d).agent,
             status: "working",
             briefs: [],
           };
@@ -174,7 +175,7 @@ test("a matched issue gets one planner, then one critique, then publishes", asyn
   let intents = await crew.tick();
   const [start] = planners(intents);
   assert.equal(planners(intents).length, 1);
-  assert.equal(start.agent, PLANNER_AGENT);
+  assert.equal(nativeDispatch(state.store, start).agent, PLANNER_AGENT);
   assert.equal(start.checkout, code);
   assert.match(start.title, /^avoozl:\S+ plan example\/code#7$/);
   assert.match(start.brief, /Mode: breakdown\./);

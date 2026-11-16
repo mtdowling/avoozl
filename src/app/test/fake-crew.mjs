@@ -1,3 +1,4 @@
+import { kirocrewConfiguration } from "../executors/kirocrew.mjs";
 // A test-only stand-in for Kiro Crew's sessions (proof P27). Each tick's
 // dispatch becomes a bound session, as tick.py's open_session would make it,
 // and `play` runs each open session's script: a writer commits in its
@@ -65,7 +66,9 @@ export function fakeCrew(
           )
           .map((target) => ({ target, status: "idle" })),
       });
-      for (const d of result.dispatch) {
+      for (const request of result.dispatch) {
+        if (request.executor !== "kirocrew") continue;
+        const d = { ...request, ...kirocrewConfiguration(ops.store, request) };
         const slot = `s${++opened}-${name(d.task)}-${d.role}-${d.attempt}`;
         await ops.execute("session.bind", {
           taskId: d.task,

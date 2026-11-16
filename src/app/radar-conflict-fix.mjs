@@ -1,3 +1,4 @@
+import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewSession } from "./executors/kirocrew.mjs";
 // Avoozl fixes a crew's source conflict (RC28, design D33). Crews never
 // resolve a conflict inside source code: they hand the task back with the
@@ -418,15 +419,17 @@ export function conflictFixDispatches(store) {
   );
   return fixes(store)
     .filter((receipt) => receipt.state === "queued" && !bound.has(receipt.id))
-    .map((receipt) => ({
-      task: receipt.id,
-      role: FIX_ROLE,
-      attempt: receipt.attempt,
-      title: `avoozl:conflict-fix ${receipt.repository}#${receipt.pr}`,
-      ...kirocrewSession(null, receipt),
-      agent: FIX_AGENT,
-      brief: receipt.seed,
-    }));
+    .map((receipt) =>
+      kirocrewRequest(store, {
+        task: receipt.id,
+        role: FIX_ROLE,
+        attempt: receipt.attempt,
+        title: `avoozl:conflict-fix ${receipt.repository}#${receipt.pr}`,
+        ...kirocrewSession(null, receipt),
+        agent: FIX_AGENT,
+        brief: receipt.seed,
+      }),
+    );
 }
 
 // The receipt of the calling chat, from its binding, never from the input.

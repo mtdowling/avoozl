@@ -1,4 +1,13 @@
 import {
+  enqueueSessionRequests,
+  pendingSessionRequests,
+} from "./session-requests.mjs";
+import {
+  persistKirocrewConfiguration,
+  kirocrewExplicitSession,
+} from "./executors/kirocrew.mjs";
+import { kirocrewRequest } from "./executors/kirocrew.mjs";
+import {
   kirocrewSession,
   kirocrewReadiness,
   kirocrewDispatches,
@@ -433,15 +442,23 @@ function planDispatches(store, bindings) {
     )
       continue;
     const title = `avoozl:${task.id} ${task.title || ""}`.trim().slice(0, 200);
-    dispatch.push({
-      task: task.id,
-      role: request.role,
-      title,
-      ...kirocrewSession(repository.id),
-      agent: request.agent,
-      checkout: repository.localCheckout,
-      brief: brief(task, repository),
-    });
+    dispatch.push(
+      kirocrewRequest(store, {
+        task: task.id,
+        role: request.role,
+        title,
+        ...kirocrewSession(repository.id),
+        id: request.id,
+        executor: request.executor ?? "kirocrew",
+        ...kirocrewExplicitSession(store, request),
+        ...(request.model ? { model: request.model } : {}),
+        ...(request.permissionClass
+          ? { permissionClass: request.permissionClass }
+          : {}),
+        checkout: repository.localCheckout,
+        brief: brief(task, repository),
+      }),
+    );
   }
   return dispatch;
 }
@@ -1396,15 +1413,22 @@ async function runTick(
       // Settings › Models: the planner, retro and review-draft chats open on
       // the saved model.
       dispatch = withChatModels(dispatch, memory.value || {});
-      if (script) {
-        const lost = await recheckDrivers(
-          store,
-          live,
-          new Set(dispatch.map((d) => taskPlan.get(d.task)).filter(Boolean)),
+      const pending = cron ? pendingSessionRequests(store) : [],
+        lostDispatchPlans = script
+          ? await recheckDrivers(
+              store,
+              live,
+              new Set(
+                [...dispatch, ...pending]
+                  .map((d) => taskPlan.get(d.task))
+                  .filter(Boolean),
+              ),
+            )
+          : new Set();
+      if (lostDispatchPlans.size)
+        dispatch = dispatch.filter(
+          (d) => !lostDispatchPlans.has(taskPlan.get(d.task)),
         );
-        if (lost.size)
-          dispatch = dispatch.filter((d) => !lost.has(taskPlan.get(d.task)));
-      }
       // No message reaches a session of a read-only spec.
       planned.messages = planned.messages.filter(
         (m) => !readOnly.has(taskPlan.get(m.task)),
@@ -1460,6 +1484,50 @@ async function runTick(
       const dispatched = allDispatches,
         messages = sendable;
       notices.push(...kirocrewDispatches(store, dispatched, waits, folders));
+      const sends = messages.map((message) => ({
+        ...message,
+        executor:
+          message.executor ??
+          bindings.find((binding) => binding.slot === message.slot)?.executor ??
+          "kirocrew",
+      }));
+      const transport = cron
+        ? store.transaction(() => {
+            const requests = enqueueSessionRequests(store, {
+              starts: dispatched,
+              sends,
+            });
+            for (const request of requests.starts)
+              persistKirocrewConfiguration(store, request);
+            // A crash before the consumer took a request must not strand it.
+            const pending = pendingSessionRequests(store, undefined, [
+              ...requests.starts,
+              ...requests.sends,
+            ]);
+            return {
+              starts: unobserved.length
+                ? []
+                : pending.filter(
+                    (request) =>
+                      request.operation === "start" &&
+                      !readOnlyTask(request.task) &&
+                      !lostDispatchPlans.has(taskPlan.get(request.task)) &&
+                      (request.role === "verifier" ||
+                        !heldTask(request.task)) &&
+                      open(request) &&
+                      !asksForcePush(request.brief),
+                  ),
+              sends: pending.filter(
+                (request) =>
+                  request.operation === "send" &&
+                  !readOnlyTask(request.task) &&
+                  !lostDispatchPlans.has(taskPlan.get(request.task)) &&
+                  !asksForcePush(request.text) &&
+                  (request.budget || !heldSlots.has(request.slot)),
+              ),
+            };
+          })
+        : { starts: dispatched, sends };
       // The cron's tick queues each notice once for the app's notification
       // channels; the app backend pushes it (notifications.mjs).
       if (script) queueNotifications(store, notices);
@@ -1495,8 +1563,8 @@ async function runTick(
         observe: bindings
           .filter((b) => !FINAL_STATUSES.has(b.status))
           .map(({ slot, taskId, role }) => ({ slot, taskId, role })),
-        dispatch: dispatched,
-        messages,
+        dispatch: transport.starts,
+        messages: transport.sends,
         notify: notices.map((notice) => ({
           ...notice,
           link: sessionUrl(notice.slot),

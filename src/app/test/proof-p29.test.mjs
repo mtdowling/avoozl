@@ -1,3 +1,4 @@
+import { nativeDispatch } from "./executor-fixture.mjs";
 // Proof P29: crew placement by one routing prompt, with fake crews
 // (tasks.md Phase 11, design §4.10, §8.3, Requirements 41–42). An isolated
 // temporary workspace, a sample repository with a bare remote that answers
@@ -48,7 +49,12 @@ test("P29 action 1: routing off keeps every session local, at most 2", async (t)
   const workers = first.dispatch.filter((d) => d.role === "worker");
   assert.equal(workers.length, 2, "local's chat limit of 2 holds");
   assert.ok(workers.every((d) => !d.crew));
-  assert.ok(workers.every((d) => d.agent === "kirocrew-worker" && !d.model));
+  assert.ok(
+    workers.every(
+      (d) =>
+        nativeDispatch(env.store, d).agent === "kirocrew-worker" && !d.model,
+    ),
+  );
   assert.deepEqual(routerDispatch(first), [], "no routing call while off");
   assert.deepEqual(
     (await crew.tick()).dispatch.filter((d) => d.role === "worker"),
