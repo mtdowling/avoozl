@@ -1,6 +1,7 @@
 // Settings > Models: one themed picker per Avoozl chat role (planner, driver,
-// retro, review drafts). Save writes `models` in .avoozl.json with the file's
-// hash. Auto runs the role on its agent's own model.
+// retro, review drafts and plan reviewer). Save writes `models` in .avoozl.json
+// with the file's hash. Auto leaves the plan reviewer unset; other roles
+// use their agent's own model.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Picker } from './Picker.tsx'
@@ -9,7 +10,7 @@ import { SmallBtn } from './controls.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { modelOptions } from './flow-api.ts'
-import { MODEL_ROLES, modelsClient, toModels, type ChatModels, type ModelSettings } from './models-api.ts'
+import { MODEL_ROLES, modelsClient, toModels, type ChatModels, type ModelRole, type ModelSettings } from './models-api.ts'
 
 export default function ModelsSettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()
@@ -40,6 +41,9 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
       </p>
     )
   if (!value) return <p className="text-sm text-muted">Loading…</p>
+  const choices = (role: ModelRole) => modelOptions(list, form[role] ?? '').map((option) =>
+    role === 'planReviewer' && option.value === 'auto' ? { ...option, label: 'auto (no reviewer)' } : option,
+  )
   const changed = JSON.stringify(toModels(form)) !== JSON.stringify(toModels(value.models))
   const save = async () => {
     setSaving(true)
@@ -62,7 +66,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
             <Picker
               id={`avoozl-model-${role.key}`}
               label={<span className="text-sm font-medium">{role.label}</span>}
-              items={optionItems(modelOptions(list, form[role.key] ?? ''))}
+              items={optionItems(choices(role.key))}
               value={form[role.key] || 'auto'}
               onPick={(model) => setForm({ ...form, [role.key]: model || 'auto' })}
               placeholder="Type to find a model, or auto"

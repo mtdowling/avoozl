@@ -115,6 +115,32 @@
     "review": {
       "$ref": "#/$defs/reviewPolicy"
     },
+    "models": {
+      "type": "object",
+      "description": "Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
+      "additionalProperties": false,
+      "properties": {
+        "planner": { "$ref": "#/$defs/chatModel" },
+        "planReviewer": { "$ref": "#/$defs/chatModel" },
+        "driver": { "$ref": "#/$defs/chatModel" },
+        "retro": { "$ref": "#/$defs/chatModel" },
+        "reviewDraft": { "$ref": "#/$defs/chatModel" }
+      }
+    },
+    "planReview": {
+      "type": "object",
+      "description": "Cross-model draft review. Auto skips review until a reviewer is named and its model can be shown to differ from the writer's.",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["auto", "ask", "off"], "default": "auto" },
+        "rounds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3,
+          "default": 1
+        }
+      }
+    },
     "safety": {
       "$ref": "#/$defs/safetyPolicy"
     },
@@ -336,6 +362,10 @@
     "$ref": "#/$defs/safeValue"
   },
   "$defs": {
+    "chatModel": {
+      "type": "string",
+      "pattern": "^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$"
+    },
     "runner": {
       "type": "object",
       "description": "Runner mode over SSH, off unless role is set. A runner runs tasks a driver hands it. Machine paths (repos) and a local stand-in for ssh belong in ~/.config/avoozl/config.json.",
