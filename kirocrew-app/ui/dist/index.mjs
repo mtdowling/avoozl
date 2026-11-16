@@ -4146,22 +4146,33 @@ function Jo(e) {
 	});
 }
 function Yo() {
-	let e = Wo();
-	return /* @__PURE__ */ C(S, { children: /* @__PURE__ */ w("span", {
-		role: "group",
-		"aria-label": "Stop the line example",
-		className: "flex flex-wrap items-center gap-1 text-xs",
-		children: ["Stop the line example", ["running", "stopped"].map((t) => /* @__PURE__ */ C(_, {
+	let e = Wo(), t = e.stopExample === "stopped", n = t ? Re : Ie, r = t ? "Stop the line example: show the line running again" : "Stop the line example: show the line stopped";
+	return /* @__PURE__ */ C(q, {
+		text: r,
+		children: (i) => /* @__PURE__ */ C(_, {
 			type: "button",
-			"data-demo-stop-example": t,
-			"aria-pressed": e.stopExample === t,
-			primary: e.stopExample === t,
-			onClick: () => e.setStopExample(t),
-			children: t === "running" ? "Running" : "Stopped"
-		}, t))]
-	}) });
+			"data-demo-stop-example": e.stopExample,
+			"aria-label": r,
+			"aria-describedby": i,
+			"aria-pressed": t,
+			onClick: () => e.setStopExample(t ? "running" : "stopped"),
+			style: {
+				display: "inline-flex",
+				alignItems: "center",
+				justifyContent: "center",
+				width: 28,
+				height: 28,
+				padding: 0,
+				color: t ? "var(--ok, inherit)" : "var(--danger, inherit)"
+			},
+			children: /* @__PURE__ */ C(n, {
+				size: 14,
+				"aria-hidden": "true"
+			})
+		})
+	});
 }
-var Xo = "Avoozl turns your specs and epics into a graph of tasks, then Issue Radar crews code the ready ones. This is a made-up sample so you can look around. Nothing you do here changes your work, GitHub or agents.";
+var Xo = "Avoozl turns your specs and epics into a graph of tasks, then Avoozl’s workers code the ready ones. This is a made-up sample so you can look around. Nothing you do here changes your work, GitHub or agents.";
 function Zo() {
 	let e = Wo(), t = kr();
 	if (!e.active) return e.error ? /* @__PURE__ */ C("p", {
@@ -34988,7 +34999,12 @@ function SC() {
 			focus: null,
 			drill: null
 		});
-	}, Ce = !t.active && /* @__PURE__ */ C(v_, {
+	}, Ce = t.active ? /* @__PURE__ */ C(v_, {
+		list: _t,
+		value: ut,
+		onChange: () => void 0,
+		onManage: re
+	}) : /* @__PURE__ */ C(v_, {
 		list: L,
 		value: F,
 		onChange: I,

@@ -11,22 +11,25 @@ import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
+import { demoReplies, demoScript } from './browser/demo-replies.mjs'
 
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the top row tests'
 // AVOOZL_SHOTS=<dir> keeps a screenshot of each top row size and theme.
 const shots = process.env.AVOOZL_SHOTS || null
 
-let harness, browser, page
+let harness, demoHarness, browser, page
 before(async () => {
   if (skip) return
   harness = await buildHarness()
+  demoHarness = await buildHarness({ scripts: { 'demo.js': demoScript(await demoReplies()) } })
   browser = await launch(chrome)
   page = await browser.page()
 })
 after(async () => {
   await browser?.close()
   harness?.remove()
+  demoHarness?.remove()
 })
 
 const settle = () => page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
@@ -105,6 +108,56 @@ for (const [width, height] of [
           await page.screenshot(path.join(shots, `top-row-${width}-${dark ? 'dark' : 'light'}${stopped ? '-stopped' : ''}.png`))
         }
       }
+    })
+
+// The same no-visible-text rule in Demo mode, demo bar included: its Stop
+// the line example is an icon whose words are only its tooltip and name. The
+// workspace pill still starts the nav, naming the sample.
+const VISIBLE_STOP = `(() => {
+  const out = []
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const el = n.parentElement, box = el.getBoundingClientRect(), style = getComputedStyle(el)
+    if (box.width > 1 && box.height > 1 && style.visibility !== 'hidden' && !el.closest('.sr-only') && /stop the line|resume the line/i.test(n.nodeValue)) out.push(n.nodeValue.trim())
+  }
+  return out
+})()`
+for (const [width, height] of [
+  [390, 844],
+  [1280, 800],
+])
+  for (const dark of [false, true])
+    test(`Demo mode at ${width} px ${dark ? 'dark' : 'light'}: no visible Stop the line text, the demo bar's example is an icon, the workspace pill starts the nav`, { skip }, async () => {
+      await page.open(demoHarness.url({ page: 'demo', theme: dark ? 'dark' : 'light' }), { width, height, dark })
+      const start = `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Start demo')`
+      await page.until(`Boolean(${start})`)
+      await page.evaluate(`${start}.click()`)
+      await page.until(`Boolean(document.querySelector('[data-demo-bar] [data-demo-stop-example]'))`)
+      for (const example of ['running', 'stopped']) {
+        const got = await page.evaluate(`(() => {
+          const b = document.querySelector('[data-demo-bar] [data-demo-stop-example]')
+          return { example: b.dataset.demoStopExample, text: b.textContent.trim(), label: b.getAttribute('aria-label'), icon: Boolean(b.querySelector('svg')), bar: document.querySelector('[data-demo-bar]').textContent }
+        })()`)
+        assert.equal(got.example, example)
+        assert.equal(got.text, '', 'the example has no words')
+        assert.equal(got.icon, true, 'it is an icon')
+        assert.match(got.label, /^Stop the line example: /)
+        assert.doesNotMatch(got.bar, /Issue Radar/, 'the demo bar names no Radar')
+        assert.match(got.bar, /Avoozl’s workers code the ready ones/)
+        assert.deepEqual(await page.evaluate(VISIBLE_STOP), [], `no visible Stop the line text (${example})`)
+        await page.evaluate(`document.querySelector('[data-demo-bar] [data-demo-stop-example]').click()`)
+        await settle()
+      }
+      if (width < 768) {
+        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+        await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
+        assert.deepEqual(await page.evaluate(VISIBLE_STOP), [], 'no visible Stop the line text in the menu')
+      }
+      const nav = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
+      const pill = await page.evaluate(`(() => { const first = document.querySelector('${nav} [data-workspace-pill], ${nav} [data-nav-section]'); return { first: Boolean(first?.matches('[data-workspace-pill]')), text: first?.textContent ?? '' } })()`)
+      assert.equal(pill.first, true, 'the workspace pill starts the nav in the demo')
+      assert.match(pill.text, /Demo: Recipe Box/)
+      assert.deepEqual(page.errors, [])
     })
 
 test('the brand line sits under the nav: one line, no box, the logo left and the name and version right', { skip }, async () => {

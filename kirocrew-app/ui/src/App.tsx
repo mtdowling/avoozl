@@ -36,7 +36,7 @@ import { viewsClient } from './views-api.ts'
 import { APP_ATTR, NavHistoryProvider, useNav } from './NavHistory.tsx'
 import { changePage } from './nav-history.ts'
 import { DemoBar, DemoProvider, StartDemoButton, useDemo } from './Demo.tsx'
-import { DEMO_WORKSPACE_ID } from './demo-api.ts'
+import { DEMO_CATALOG, DEMO_WORKSPACE_ID } from './demo-api.ts'
 import {
   errorMessage,
   pickDefault,
@@ -288,9 +288,13 @@ function AvoozlPage() {
     else if (key === 'flow') go({ tab: 'flow', flowTab: sub as FlowTab, focus: null, drill: null })
     else go({ tab: 'waiting', waitingSection: sub as WaitingSection, focus: null, drill: null })
   }
-  // The workspace pill, first in the nav and in the phone's menu. The demo
-  // reads its own sample, so it has no pill.
-  const pill = !demo.active && <WorkspacePill list={list} value={workspaceId} onChange={setWorkspaceId} onManage={openWorkspaces} />
+  // The workspace pill, first in the nav and in the phone's menu. In the demo
+  // it names the sample alone (the guard's catalog), and picking does nothing.
+  const pill = demo.active ? (
+    <WorkspacePill list={DEMO_CATALOG} value={DEMO_WORKSPACE_ID} onChange={() => undefined} onManage={openWorkspaces} />
+  ) : (
+    <WorkspacePill list={list} value={workspaceId} onChange={setWorkspaceId} onManage={openWorkspaces} />
+  )
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ display: 'contents' }}>
     <ConfirmProvider>
