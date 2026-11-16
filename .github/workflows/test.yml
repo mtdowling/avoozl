@@ -56,15 +56,19 @@ jobs:
         if: steps.changes.outputs.docs-only != 'true'
         env:
           AVOOZL_RECEIPT_FILE: build-receipt.jsonl
+      # Every platform keeps its receipt, and the summary prints every line (R101.3).
       - name: Receipt to the job summary
-        if: always() && matrix.os == 'ubuntu-latest' && hashFiles('build-receipt.jsonl') != ''
+        if: always() && hashFiles('build-receipt.jsonl') != ''
+        shell: bash
         run: |
-          echo '### Build receipt' >> "$GITHUB_STEP_SUMMARY"
-          tail -n 1 build-receipt.jsonl >> "$GITHUB_STEP_SUMMARY"
+          echo '### Build receipt (${{ matrix.os }})' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat build-receipt.jsonl >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
-        if: always() && matrix.os == 'ubuntu-latest' && hashFiles('build-receipt.jsonl') != ''
+        if: always() && hashFiles('build-receipt.jsonl') != ''
         with:
-          name: build-receipt
+          name: build-receipt-${{ matrix.os }}
           path: build-receipt.jsonl
           retention-days: 30
       # The page's own tests. The browser ones need Chrome and skip without it.
