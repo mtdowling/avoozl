@@ -70,6 +70,7 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "plan.extraction.dispose",
   "plan.classify",
   "plan.review.list",
+  "plan.reviewSummary",
   "plan.review.submit",
   "plan.review.reply",
   "plan.review.dispose",

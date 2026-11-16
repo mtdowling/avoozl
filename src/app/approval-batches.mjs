@@ -6,6 +6,7 @@ import { claimedTaskIds } from "./delivery.mjs";
 import { planningIdentity } from "./github-marker.mjs";
 import { previewProjection } from "./github-preview.mjs";
 import { approvePlan } from "./plans.mjs";
+import { planReviewSummary } from "./plan-review-summary.mjs";
 import {
   approvalState,
   openBatchApproval,
@@ -113,6 +114,7 @@ function drafts(ops) {
     }
     return {
       plan,
+      review: planReviewSummary(store, plan.id),
       quality,
       error,
       needs: [...needs],
@@ -415,6 +417,7 @@ function entryOf(draft, batch, inBatch) {
     batch,
     tasks: draft.quality?.proposals?.length ?? 0,
     errors: errorsOf(draft),
+    review: draft.review,
     // Draft specs in this same batch whose tasks this one needs: a loop.
     loop: draft.needs.filter((id) => inBatch.has(id)).length > 0,
     needs: draft.needs,

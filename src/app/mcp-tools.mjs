@@ -153,6 +153,10 @@ const tools = {
       "Design reviews and design extraction. None of these approve a plan.",
     actions: {
       list: ["plan.review.list", "review comments"],
+      summary: [
+        "plan.reviewSummary",
+        "latest spec review pass, counts and open findings",
+      ],
       submit: ["plan.review.submit", "submit anchored review comments"],
       reply: ["plan.review.reply", "reply to a comment"],
       dispose: [

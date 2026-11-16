@@ -70,6 +70,33 @@ export interface SpecPlan {
   quality: { canApprove: boolean; counts: Counts; diagnostics: Diagnostic[] }
   disk: { folder: string; exists: boolean; hash: string | null; changed: boolean; critique: Critique | null }
   approvals: { id: string; hash: string; at: string; approvedBy: string }[]
+  review?: PlanReviewSummary | null
+}
+
+export type ReviewDisposition = 'resolved' | 'accepted' | 'rejected' | 'deferred'
+export interface PlanReviewSummary {
+  state: 'not-reviewed' | 'running' | 'done' | 'skipped'
+  reviewerModel: string | null
+  revisionHash: string | null
+  current: boolean
+  found: number
+  fixed: number
+  forYou: number
+  note: string | null
+  unproven?: boolean
+  open: {
+    id: string
+    roundId: string
+    revisionHash: string
+    current: boolean
+    kind: string
+    severity: string
+    file: string
+    line: number
+    claim: string
+    evidence: string
+    answer: { action: 'fixed' | 'answered'; revisionHash?: string; text: string; at: string } | null
+  }[]
 }
 
 export interface Preview {
@@ -79,6 +106,7 @@ export interface Preview {
   dependencies: { kind: string; from: string; to: string }[]
   // Checked [x] tasks.md items approval creates as accepted.
   baseline?: { count: number; taskIds: string[]; text: string }
+  review?: PlanReviewSummary | null
 }
 
 // One write a projection would make (`github.project.preview`). `issue` is
@@ -277,6 +305,8 @@ export function plansClient(api: AppApi) {
     // a changed hash, a changed database, or a folder that moved on disk.
     // Draft specs in the order they can be approved (plan.approvalBatches).
     batches: (workspaceId: string) => run<ApprovalBatches>(workspaceId, 'plan.approvalBatches'),
+    reviewSummary: (workspaceId: string, planId: string) => run<PlanReviewSummary | null>(workspaceId, 'plan.reviewSummary', { planId }),
+    closeReviewFinding: (workspaceId: string, id: string, disposition: ReviewDisposition) => run(workspaceId, 'plan.review.dispose', { id, disposition }),
     // What approving just these would do, with each one's issue writes. Writes nothing.
     selection: (workspaceId: string, ids: string[]) =>
       run<ApprovalBatches & { selection: BatchSelection }>(workspaceId, 'plan.approvalBatches', { ids }).then((value) => value.selection),
@@ -286,7 +316,7 @@ export function plansClient(api: AppApi) {
     approve: async (workspaceId: string, id: string, expectedHash: string) => {
       const { reviewedHash, expectedRevision } = await preview(workspaceId, id)
       if (reviewedHash !== expectedHash) throw new Error('This revision changed. Reload it before approving.')
-      return run<{ id: string; hash: string }>(workspaceId, 'plan.approve', {
+      return run<ApproveOneResult>(workspaceId, 'plan.approve', {
         id,
         expectedHash,
         expectedRevision,
@@ -310,6 +340,13 @@ export interface BatchEntry {
   loop: boolean
   // Draft specs whose tasks it needs, by name.
   needs: string[]
+  review?: PlanReviewSummary | null
+}
+export interface ApproveOneResult {
+  id: string
+  hash: string
+  pending?: boolean
+  approvalPullRequest?: { repository: string; number: number; branch: string }
 }
 export interface ApprovalBatches {
   batches: { batch: number; specs: BatchEntry[] }[]
