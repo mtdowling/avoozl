@@ -378,7 +378,15 @@ function Scenario({ name }: { name: string }) {
 
 // ?page=app: the whole Avoozl page on one workspace with intake on, for
 // tests that move between tabs.
-answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true }] }))
+// &long=1 names the workspace long enough to need cutting short, and adds a
+// second one to switch to.
+answer('workspaces.list', () => ({
+  defaultWorkspace: 'w',
+  items: [
+    { id: 'w', name: query.get('long') === '1' ? 'Recipe box planning and the meal planner rewrite' : 'Harness', root: '/w', enabled: true, state: 'ready', served: true },
+    ...(query.get('long') === '1' ? [{ id: 'w2', name: 'Avoozl', root: '/w2', enabled: true, state: 'ready', served: false }] : []),
+  ],
+}))
 // The install's name: quiet with one instance, shown in more places with &shared=1.
 answer('instance.view', () => ({ id: 'inst-0123456789ab', name: 'Mira', others: query.get('shared') === '1' ? ['inst-aaaaaaaaaaaa'] : [], shared: query.get('shared') === '1' }))
 answer('instance.rename', (body) => ({ id: 'inst-0123456789ab', name: String((body.input as { name?: string }).name), others: [], shared: false }))
@@ -418,6 +426,19 @@ if (query.get('page') === 'home' || query.get('page') === 'demo') {
 // repository on the retired Avoozl worker, which shows the Settings banner.
 if (query.get('page') === 'app') {
   const worker = query.get('worker') === '1'
+  // &needs=N: N open Needs you items, so the nav shows its count. Home's
+  // other reads answer empty, so Home fills in.
+  const needs = Number(query.get('needs') ?? 0)
+  const item = (n: number) => ({ key: `k${n}`, kind: 'decision', taskId: `t${n}`, title: `Item ${n}`, detail: 'Waits on you.', plan: 'meal-planner', epic: null, repository: 'example/recipe-box', since: '2026-11-14T10:00:00Z' })
+  answer('conflicts.view', () => ({ revision: 1, items: Array.from({ length: needs }, (_, n) => item(n + 1)) }))
+  if (!replyFor('delivery.view')) answer('delivery.view', () => ({ revision: 1, items: [] }))
+  if (!replyFor('plan.list')) answer('plan.list', () => ({ items: [] }))
+  // &slowradar=1: Radar's crews read never answers, as a slow GitHub or
+  // Kiro Crew would; Home must not wait on it.
+  if (query.get('slowradar') === '1') answer('radar.crews', () => new Promise(() => undefined))
+  else if (!replyFor('radar.crews')) answer('radar.crews', () => ({ readAt: null, stale: 0, errors: [], unseen: [], rows: [] }))
+  if (!replyFor('radar.releasequeue')) answer('radar.releasequeue', () => ({ repositories: [] }))
+  if (!replyFor('remote.view')) answer('remote.view', () => ({ workers: [] }))
   answer('driversession.view', () => ({ state: 'none', slot: null, href: null, openedAt: null, lastSeenAt: null }))
   answer('github.settings.get', () => ({
     filename: '.avoozl.json',
@@ -747,7 +768,7 @@ function AppPage() {
 }
 
 // ?page=activity: the Activity tab alone, with two rows.
-if (query.get('page') === 'activity') {
+if (query.get('page') === 'activity' || query.get('activity') === '1') {
   const row = (seq: number) => ({ seq, at: '2026-11-13T10:00:00Z', source: 'person', actor: 'me', kind: 'settings', summary: `Saved a setting ${seq}`, targetId: null, link: null, redacted: false })
   answer('activity.list', () => ({ items: [row(2), row(1)], total: 2, sources: ['person'], kinds: ['settings'], actors: ['me'], retentionDays: 30 }))
   answer('activity.settings.get', () => ({ hash: 'h', retentionDays: 30, default: 30 }))
@@ -767,7 +788,7 @@ function ActivityPage() {
 }
 
 // ?page=specs: the Specs tab alone, with drafts in two approval batches.
-if (query.get('page') === 'specs') {
+if (query.get('page') === 'specs' || query.get('specs') === '1') {
   const spec = (name: string, status: string, total: number, extra = {}) => ({
     key: `spec:${name}`,
     kind: 'spec',

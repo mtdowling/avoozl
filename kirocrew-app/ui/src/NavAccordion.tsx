@@ -5,7 +5,8 @@
 // desktop's left nav and by the phone's menu. Sizes follow Radar's sidebar
 // (12px uppercase headers, 13px items, 16px cards) at Kiro Crew's compact
 // 28px button height.
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useNavSlotHost } from './nav-slot.tsx'
 import { ChevronDown } from './icons.ts'
 import { NAV_ROW } from './nav-style.ts'
 
@@ -22,24 +23,43 @@ export interface NavGroup {
   label: ReactNode
   aria?: string
   children?: NavChild[]
+  // The page draws its own controls (its filters) into the open section,
+  // through NavSlotFor (nav-slot.tsx). A section with a slot opens like one
+  // with sub-pages.
+  slot?: boolean
 }
 
 const CARD = { position: 'relative', overflow: 'hidden', border: '1px solid var(--border)', borderRadius: 16, background: 'var(--bg-elevated)', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)', flexShrink: 0 } as const
+// The open section gives up height first, and its body scrolls, as in
+// Radar's rail: the closed sections around it stay put.
+const OPEN_CARD = { ...CARD, flexShrink: 1, minHeight: 96, display: 'flex', flexDirection: 'column' } as const
+// Sub-pages and slot content line up with the header: 12px in from the
+// card, like the header's own icon; a row's text is 8px further in.
+const BODY = { display: 'flex', flexDirection: 'column', gap: 2, padding: '2px 12px 8px', minHeight: 0, overflowY: 'auto' } as const
 
 // Hover and keyboard focus use Kiro Crew's theme variables, as in Radar's
 // sidebar. The selected item keeps its tint; a hover on it only deepens it.
-export const NAV_CSS = `[data-nav-head]{display:flex;align-items:center;gap:6px;width:100%;height:${NAV_ROW}px;padding:0 12px;border:0;background:none;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
+export const NAV_CSS = `[data-nav-head]{display:flex;align-items:center;gap:6px;width:100%;min-width:0;flex-shrink:0;box-sizing:border-box;height:${NAV_ROW}px;padding:0 12px;border:0;background:none;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
 [data-nav-head]:hover{color:var(--text)}
 [data-nav-head][data-open],[data-nav-head][data-selected]{color:var(--text)}
 [data-nav-head][data-selected]{background:var(--accent-subtle,var(--bg-hover,var(--bg-elevated)))}
 [data-nav-head][data-selected]:hover{background:color-mix(in srgb,var(--accent) 18%,var(--bg-elevated))}
-[data-nav-item]:not([data-nav-head]){display:flex;align-items:center;gap:8px;width:100%;height:${NAV_ROW}px;padding:0 8px;border:0;border-radius:8px;background:none;color:var(--muted);font-size:13px;text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
+[data-nav-item]:not([data-nav-head]){display:flex;align-items:center;gap:8px;width:100%;min-width:0;flex-shrink:0;box-sizing:border-box;height:${NAV_ROW}px;padding:0 8px;border:0;border-radius:8px;background:none;color:var(--muted);font-size:13px;text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
+[data-nav-text]{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 [data-nav-item]:not([data-nav-head]):hover{background:var(--bg-hover);color:var(--text)}
 [data-nav-item]:not([data-nav-head])[data-selected]{background:var(--accent-subtle,var(--bg-hover,var(--bg-elevated)));color:var(--text);font-weight:500}
 [data-nav-item]:not([data-nav-head])[data-selected]:hover{background:color-mix(in srgb,var(--accent) 18%,var(--bg-elevated))}
 [data-nav-head]:focus-visible,[data-nav-item]:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+[data-nav-filters]>label{max-width:none!important;width:100%}
+[data-nav-filters] label{font-size:12px}
+[data-nav-filters] label>span:first-child,[data-nav-filters] legend{color:var(--muted)}
+[data-nav-filters]>label select,[data-nav-filters] input[type=search],[data-nav-filters] input[type=text]{width:100%;min-width:0;box-sizing:border-box;font-size:12.5px}
 [data-nav-chevron]{display:inline-flex;flex-shrink:0;transition:transform .15s}
-@media (prefers-reduced-motion:reduce){[data-nav-head],[data-nav-item],[data-nav-chevron]{transition:none}}`
+@media (prefers-reduced-motion:reduce){[data-nav-head],[data-nav-item],[data-nav-filters]>label{max-width:none!important;width:100%}
+[data-nav-filters] label{font-size:12px}
+[data-nav-filters] label>span:first-child,[data-nav-filters] legend{color:var(--muted)}
+[data-nav-filters]>label select,[data-nav-filters] input[type=search],[data-nav-filters] input[type=text]{width:100%;min-width:0;box-sizing:border-box;font-size:12.5px}
+[data-nav-chevron]{transition:none}}`
 
 export function NavAccordion(props: {
   groups: NavGroup[]
@@ -50,19 +70,29 @@ export function NavAccordion(props: {
   // Called after a pick, so a phone's menu can close.
   onDone?: () => void
 }) {
-  const hasKids = (key: string) => Boolean(props.groups.find((g) => g.key === key)?.children?.length)
+  const opens = (group: NavGroup | undefined) => Boolean(group?.children?.length || group?.slot)
+  const hasKids = (key: string) => opens(props.groups.find((g) => g.key === key))
+  const slots = useNavSlotHost()
+  // One ref callback per section, kept across renders, so React does not
+  // detach and attach the slot on every render.
+  const slotRefs = useRef(new Map<string, (el: HTMLElement | null) => void>())
+  const slotRef = (key: string) => {
+    let ref = slotRefs.current.get(key)
+    if (!ref) slotRefs.current.set(key, (ref = (el) => slots?.register(key, el)))
+    return ref
+  }
   // One section is open; going to a page without sub-pages closes it.
   const [open, setOpen] = useState<string | null>(hasKids(props.value) ? props.value : null)
   useEffect(() => setOpen(hasKids(props.value) ? props.value : null), [props.value]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div data-nav-card data-nav-accordion role="group" aria-label="Avoozl pages" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div data-nav-card data-nav-accordion role="group" aria-label="Avoozl pages" style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: '0 1 auto', minHeight: 0 }}>
       <style>{NAV_CSS}</style>
       {props.groups.map((group) => {
-        const kids = group.children
+        const kids = opens(group) ? (group.children ?? []) : null
         const expanded = Boolean(kids) && open === group.key
         const here = props.value === group.key
         return (
-          <div key={group.key} data-nav-section={group.key} data-open={expanded ? '' : undefined} style={CARD}>
+          <div key={group.key} data-nav-section={group.key} data-open={expanded ? '' : undefined} style={expanded ? OPEN_CARD : CARD}>
             <button
               type="button"
               data-nav-head
@@ -83,7 +113,7 @@ export function NavAccordion(props: {
                 }
               }}
             >
-              <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center' }}>{group.label}</span>
+              <span data-nav-label style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>{group.label}</span>
               {kids && (
                 <span aria-hidden="true" data-nav-chevron style={{ transform: expanded ? 'none' : 'rotate(-90deg)' }}>
                   <ChevronDown size={14} />
@@ -91,7 +121,7 @@ export function NavAccordion(props: {
               )}
             </button>
             {expanded && kids && (
-              <div data-nav-children={group.key} style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '2px 8px 8px' }}>
+              <div data-nav-children={group.key} style={BODY}>
                 {kids.map((item) => {
                   const selected = here && props.child === item.key
                   return (
@@ -106,10 +136,11 @@ export function NavAccordion(props: {
                         props.onDone?.()
                       }}
                     >
-                      {item.label}
+                      <span data-nav-text>{item.label}</span>
                     </button>
                   )
                 })}
+                {group.slot && <div data-nav-slot={group.key} ref={slotRef(group.key)} style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: kids.length ? 6 : 2 }} />}
               </div>
             )}
           </div>

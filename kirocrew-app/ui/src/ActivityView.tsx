@@ -8,7 +8,8 @@ import { useAppApi } from './host.ts'
 import { EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
-import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
+import { NavFilters, useStoredFilter } from './FilterPanel.tsx'
+import { NavSlotFor } from './nav-slot.tsx'
 import { ShowMore, TipBtn, ViewHeading } from './controls.tsx'
 import { selectStyle } from './FilterSelect.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
@@ -269,22 +270,33 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
           {error}
         </p>
       )}
-      <FilterPanel
-        id="avoozl-activity"
-        label="Filter activity"
-        active={filterActive(filter)}
-        onClear={() => setFilter({})}
-        fields={[
-          { kind: 'select', key: 'source', label: 'Source', value: filter.source ?? '', options: options.sources, onChange: (source) => setField({ source: source || undefined }) },
-          { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: options.kinds, onChange: (kind) => setField({ kind: kind || undefined }) },
-          { kind: 'select', key: 'actor', label: 'Who', value: filter.actor ?? '', options: options.actors, onChange: (actor) => setField({ actor: actor || undefined }) },
-        ]}
-        aside={workspaceId ? <KeepActivity workspaceId={workspaceId} onSaved={() => void load()} /> : undefined}
-      >
-        <p role="status" className="text-xs text-muted">
-          {page ? `${page.total} ${page.total === 1 ? 'entry' : 'entries'}${filterActive(filter) ? ' match' : ''} · kept ${page.retentionDays} days` : busy ? 'Loading…' : 'Not loaded'}
-        </p>
-      </FilterPanel>
+      {/* The filters and Keep activity sit in the left nav under the open
+          Activity section (nav-slot.tsx); the count stays here. */}
+      <NavSlotFor section="activity">
+        <NavFilters
+          id="avoozl-activity"
+          label="Filter activity"
+          active={filterActive(filter)}
+          onClear={() => setFilter({})}
+          fields={[
+            { kind: 'select', key: 'source', label: 'Source', value: filter.source ?? '', options: options.sources, onChange: (source) => setField({ source: source || undefined }) },
+            { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: options.kinds, onChange: (kind) => setField({ kind: kind || undefined }) },
+            { kind: 'select', key: 'actor', label: 'Who', value: filter.actor ?? '', options: options.actors, onChange: (actor) => setField({ actor: actor || undefined }) },
+          ]}
+          extra={workspaceId ? <KeepActivity workspaceId={workspaceId} onSaved={() => void load()} /> : undefined}
+        />
+      </NavSlotFor>
+      <p role="status" className="text-xs text-muted" data-filter-status>
+        {page ? `${page.total} ${page.total === 1 ? 'entry' : 'entries'}${filterActive(filter) ? ' match' : ''} · kept ${page.retentionDays} days` : busy ? 'Loading…' : 'Not loaded'}
+        {filterActive(filter) && (
+          <>
+            {' · '}
+            <button type="button" className="underline" onClick={() => setFilter({})} data-filter-clear-inline>
+              Clear filters
+            </button>
+          </>
+        )}
+      </p>
       {page && rows.length === 0 ? (
         // In a box with a background, so the empty page reads as one block.
         <div data-activity-empty className="rounded-lg border" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated, var(--card))' }}>

@@ -198,6 +198,26 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
   )
 }
 
+// A page's filters in the left nav, under its open section (nav-slot.tsx):
+// one field per row at the nav's width, then Clear. The page keeps its
+// count line; the fields live here.
+export function NavFilters(props: { id: string; label: string; fields: FilterField[]; active: boolean; onClear: () => void; extra?: ReactNode }) {
+  return (
+    <div role="search" aria-label={props.label} data-nav-filters={props.id} data-filter-panel={props.id} className="flex flex-col gap-2">
+      {props.fields.map((field) => (
+        <Field key={field.key} id={props.id} field={field} />
+      ))}
+      <span>
+        <TipBtn tooltip="Clear every filter on this page" type="button" onClick={props.onClear} disabled={!props.active} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <X size={ICON} aria-hidden="true" />
+          Clear
+        </TipBtn>
+      </span>
+      {props.extra}
+    </div>
+  )
+}
+
 function storage(): Storage | null {
   try {
     return window.localStorage

@@ -25,11 +25,11 @@ export function useInstance(workspaceId: string | null): InstanceView | null {
   return view
 }
 
-export function InstanceBadge(props: { workspaceId: string | null }) {
+export function InstanceBadge(props: { workspaceId: string | null; className?: string }) {
   const name = nameFor(useInstance(props.workspaceId), 'header')
   if (!name) return null
   return (
-    <span data-instance-name className="text-sm text-muted">
+    <span data-instance-name className={props.className ?? 'text-sm text-muted'}>
       {name}
     </span>
   )

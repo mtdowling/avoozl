@@ -3,7 +3,8 @@
 // controls, then the brand card. Drag its edge to make it wider or narrower; drag it well
 // past its minimum, or press Collapse, and it becomes a thin tall bar whose
 // entries read as vertical text. Width and collapse are remembered.
-import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useNavSlotHost } from './nav-slot.tsx'
 import { NavAccordion, type NavGroup } from './NavAccordion.tsx'
 import { NAV_ROW } from './nav-style.ts'
 import { NAV, NAV_COLLAPSE_AT, NAV_COLLAPSED_KEY, NAV_COLLAPSED_WIDTH, clampWidth, pageStorage, readFlag, readWidth, writeFlag, writeWidth } from './columns.ts'
@@ -32,10 +33,17 @@ export function NavLine(props: { children: ReactNode }) {
   )
 }
 
-export function LeftNav(props: { groups: NavGroup[]; value: string; child?: string | null; onPick: (key: string, child?: string) => void; line?: ReactNode; brand?: ReactNode }) {
+// `top` is the workspace pill, first in the nav as Radar's repo switcher is.
+export function LeftNav(props: { groups: NavGroup[]; value: string; child?: string | null; onPick: (key: string, child?: string) => void; line?: ReactNode; brand?: ReactNode; top?: ReactNode }) {
   const [width, setWidthState] = useState(() => readWidth(pageStorage(), NAV))
   const [collapsed, setCollapsedState] = useState(() => readFlag(pageStorage(), NAV_COLLAPSED_KEY))
   const root = useRef<HTMLElement>(null)
+  // The thin bar has no room for a page's nav controls: they go in the page.
+  const slots = useNavSlotHost()
+  useEffect(() => {
+    slots?.setInline(collapsed)
+    return () => slots?.setInline(false)
+  }, [collapsed, slots?.setInline]) // eslint-disable-line react-hooks/exhaustive-deps
   const setCollapsed = (on: boolean) => {
     setCollapsedState(on)
     writeFlag(pageStorage(), NAV_COLLAPSED_KEY, on)
@@ -71,6 +79,7 @@ export function LeftNav(props: { groups: NavGroup[]; value: string; child?: stri
   return (
     <>
       <nav ref={root} aria-label="Avoozl pages" data-left-nav="open" data-top-row style={{ flex: `0 0 ${width}px`, width, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 8px 4px 0', minHeight: 0, overflowY: 'auto' }}>
+        {props.top}
         <NavAccordion groups={props.groups} value={props.value} child={props.child} onPick={props.onPick} />
         {props.line}
         {props.brand}
