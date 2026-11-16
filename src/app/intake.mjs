@@ -516,12 +516,12 @@ function intakeLink(row, how) {
   };
 }
 
-function setDispatch(task, ready, state, reason) {
+export function setDispatch(task, ready, state, reason) {
   task.dispatch = { ...(task.dispatch || {}), ready, state, reason };
 }
 
 // A leaf for the item, or an inbox task for the planner (task.capture).
-function startTask(store, row, source, action, how) {
+export function startTask(store, row, source, action, how) {
   const taskId = intakeTaskId(row.source, row.itemId);
   let created = null;
   store.mutate(`Take in ${row.source} ${row.itemId}`, (data) => {
@@ -560,7 +560,7 @@ function startTask(store, row, source, action, how) {
   return created;
 }
 
-function patchTask(store, taskId, summary, fn) {
+export function patchTask(store, taskId, summary, fn) {
   const current = store.read().tasks.find((task) => task.id === taskId);
   if (!current) return false;
   const next = structuredClone(current);
@@ -628,7 +628,7 @@ function judgeClose(task, item, source, { mcp, actorCapable }, notify) {
 // ---------------------------------------------------------------------------
 // The pipeline.
 
-function remember(row, entry) {
+export function remember(row, entry) {
   row.history = [...(row.history || []), entry].slice(-HISTORY);
 }
 
