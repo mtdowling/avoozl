@@ -31,7 +31,24 @@ const api = {
   },
   put: never,
   del: never,
-  post: (_path: string, body: { operation?: string }) => {
+  post: (_path: string, body: { operation?: string; workspaceId?: string }) => {
+    // Every operation the page sent, in order, for tests that check what a
+    // page reads.
+    ;((window as unknown as { __ops?: string[] }).__ops ??= []).push(body?.operation ?? '')
+    // window.__REPLAY: recorded replies from a real backend, each after its
+    // own delay in ms (home-timing.mjs); they win over the harness's own.
+    const replay = (window as unknown as { __REPLAY?: Record<string, { result: unknown; ms: number }> }).__REPLAY?.[body?.operation ?? '']
+    if (replay) {
+      const w = window as unknown as { __pending?: number; __lastReply?: number }
+      w.__pending = (w.__pending ?? 0) + 1
+      return new Promise((resolve) =>
+        setTimeout(() => {
+          w.__pending = (w.__pending ?? 1) - 1
+          w.__lastReply = performance.now()
+          resolve({ result: replay.result })
+        }, replay.ms),
+      )
+    }
     const reply = replies[body?.operation ?? '']
     if (!reply) return never()
     try {
