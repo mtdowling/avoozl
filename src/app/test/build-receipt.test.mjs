@@ -3,7 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { Writable } from "node:stream";
-import { parseArguments, parseReceipt, wrap } from "../build-receipt.mjs";
+import {
+  parseArguments,
+  parseReceipt,
+  parseReceipts,
+  wrap,
+} from "../build-receipt.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const sink = () => {
@@ -151,4 +156,36 @@ test("arguments: unknown options are refused; parseReceipt keeps only a valid li
   );
   assert.deepEqual(kept.counters, { a: 1 });
   assert.equal(kept.start, "warm");
+});
+
+test("parseReceipts keeps every line and counts the ones it skips", () => {
+  const line = (n) => JSON.stringify({ v: 1, command: "c", ms: n });
+  const four = [1, 2, 3, 4].map(line).join("\n");
+  assert.equal(parseReceipts(four).records.length, 4);
+  const mixed = parseReceipts(`${line(1)}\nnot json\n\n${line(2)}\n{"v":2}\n`);
+  assert.deepEqual([mixed.records.length, mixed.skipped], [2, 2]);
+  const old = parseReceipts(line(5)).records[0];
+  assert.deepEqual([old.task, old.attempt, old.phase], [null, 1, "c"]);
+});
+
+test("the wrapper records task, attempt and phase, with their fallbacks", async () => {
+  const cwd = temporaryDirectory(),
+    quiet = sink(),
+    run = (argv, env) =>
+      wrap(argv, {
+        cwd,
+        out: quiet.stream,
+        err: quiet.stream,
+        env: { PATH: process.env.PATH, ...env },
+      });
+  const ok = ["--", "node", "-e", "0"];
+  await run(["--task", "7.2", "--attempt", "3", "--phase", "test", ...ok]);
+  await run(ok, { AVOOZL_TASK: "8.1", GITHUB_RUN_ATTEMPT: "2" });
+  await run(ok, { AVOOZL_ATTEMPT: "4", GITHUB_RUN_ATTEMPT: "2" });
+  await run(ok);
+  const [a, b, c, d] = lines(cwd);
+  assert.deepEqual([a.task, a.attempt, a.phase], ["7.2", 3, "test"]);
+  assert.deepEqual([b.task, b.attempt, b.phase], ["8.1", 2, "node -e 0"]);
+  assert.equal(c.attempt, 4);
+  assert.deepEqual([d.task, d.attempt], [null, 1]);
 });
