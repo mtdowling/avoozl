@@ -7492,7 +7492,7 @@ function Nl({ tasks: e, budget: t }) {
 							}),
 							e.batch && /* @__PURE__ */ C($, { children: "batch" }),
 							Xs(t, e.taskId) && /* @__PURE__ */ C($, {
-								variant: Xs(t, e.taskId) === "80% of budget" ? "warning" : "danger",
+								variant: Xs(t, e.taskId) === "80% of budget" ? "info" : "danger",
 								children: Xs(t, e.taskId)
 							}),
 							lc(e.leadMs),
@@ -29284,8 +29284,9 @@ function Dx({ workspaceId: e }) {
 				blurb: "Always on. Avoozl records where each task's time goes; nothing to set."
 			}) }),
 			/* @__PURE__ */ C(wx, { children: /* @__PURE__ */ C(mS, {
-				title: "Stop the line",
+				title: "Pause on a broken check",
 				blurb: "When a change breaks a check that passed, pause new work until it's fixed.",
+				icon: Ie,
 				children: /* @__PURE__ */ w("div", {
 					className: "flex flex-col gap-1 text-sm",
 					children: [
@@ -30596,7 +30597,8 @@ function mS(e) {
 			level: e.level === "sub" ? 4 : 3,
 			title: e.title,
 			blurb: e.blurb,
-			actions: e.actions
+			actions: e.actions,
+			icon: e.icon
 		}), e.children]
 	});
 }
