@@ -57,6 +57,10 @@ def run(ctx):
     if not isinstance(intents, dict) or intents.get("skipped"):
         raise Skip()
 
+    # A gateway restart drops a chat's trust mode, so every live worker chat
+    # gets it again before anything new is sent (Requirement 88.1).
+    executor.keep_trust(intents.get("observe"))
+
     opened = 0
     for d in intents.get("dispatch") or []:
         if not executor.owns(d):
