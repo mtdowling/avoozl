@@ -6871,7 +6871,11 @@
         "44.2",
         "44.3",
         "44.4",
-        "44.5"
+        "44.5",
+        "44.6",
+        "44.7",
+        "44.8",
+        "44.9"
       ]
     },
     "45.1": {
@@ -6970,6 +6974,75 @@
         "45.3",
         "45.4",
         "45.5"
+      ]
+    },
+    "44.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.9, R92.13; §4.27.",
+      "acceptance": [
+        "One batched GraphQL read per repository per check fills the pages' cache",
+        "Issues, pull requests, labels, check state and linked issues come from one paginated query; the pages read only the cache."
+      ],
+      "requires": [
+        "44.1"
+      ]
+    },
+    "44.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.10, R92.16; §4.27.",
+      "acceptance": [
+        "Detail read: one GraphQL query on first open, cached by `updatedAt`, dropped when the item changes",
+        "Comments, files changed and check runs come from one query; nothing is read before a detail opens."
+      ],
+      "requires": [
+        "44.6"
+      ]
+    },
+    "44.8": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.11, R92.12, R92.14; §4.27.",
+      "acceptance": [
+        "Conditional REST, no browser polling, Recheck that joins, the `pages` source",
+        "Any REST read sends If-None-Match and a 304 counts as free; Refresh redraws only; Settings › GitHub shows `pages`."
+      ],
+      "requires": [
+        "44.6"
+      ]
+    },
+    "44.9": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.15; §4.27.",
+      "acceptance": [
+        "Call-budget tests with a counting fake GitHub",
+        "500 cached issues cost 0 calls to open; 10 unchanged details cost 0; 10 changed pull requests cost 1 query per repository; scrolling and filtering cost 0; two Rechecks cost 1."
+      ],
+      "requires": [
+        "44.7",
+        "44.8"
       ]
     }
   }

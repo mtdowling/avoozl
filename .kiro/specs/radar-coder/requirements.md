@@ -1627,7 +1627,8 @@ the hourly limit is not spent on the same pull requests again and again.
 #### Acceptance criteria
 
 1. **Count by source.** Every GitHub call Avoozl makes SHALL be counted under
-   one source: `view`, `tick`, `setup`, `forward`, `review` or `other`. A read
+   one source: `view`, `tick`, `setup`, `forward`, `review`, `pages` (added
+   2026-11-15, avoozl Requirement 92.14) or `other`. A read
    the cache answered and a call GitHub answered with 304 SHALL be counted apart
    from calls that cost the limit. Counts SHALL cover the last 60 minutes.
 2. **Wrapper.** `bin/gh-counted` SHALL run `gh` with the same arguments and exit
