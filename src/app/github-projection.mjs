@@ -98,6 +98,11 @@ export const PRIVATE_WAIT_LINE = "Waits on a private task.";
 // a heading, and the body still passes the content-rule write guard.
 export const AGENT_RULES_LINE =
   "Follow these Avoozl workspace rules for this task:";
+export const BUILD_RECEIPT_RULE = {
+  title: "Build receipts",
+  instruction:
+    "Run build and test commands through bin/build-receipt, for example `bin/build-receipt -- npm test`. It passes the output and exit code through and leaves the commands unchanged.",
+};
 export const agentRuleLine = (rule) =>
   `- ${rule.title}: ${String(rule.instruction).replace(/\s+/g, " ").trim()}`.replace(
     /<!--/g,
@@ -1054,9 +1059,6 @@ async function project(
       edges: early.edges,
       requested: batches,
       complete: (status) => statusComplete(early, status),
-      chains: Object.values(identity.repositories || {}).some(
-        (entry) => entry.coder === "remote",
-      ),
     }),
     leadOf = new Map(
       groups.flatMap((group) => group.map((id) => [id, group[0]])),
@@ -1331,7 +1333,12 @@ async function project(
             identity.repositories?.[item.config.id],
             identity.mode,
           )
-            ? crewAgentInstructions(data, member)
+            ? [
+                ...crewAgentInstructions(data, member),
+                ...(identity.repositories?.[item.config.id]?.buildReceipts
+                  ? [BUILD_RECEIPT_RULE]
+                  : []),
+              ]
             : [],
           member.parent && !hidden.has(member.parent)
             ? issueRef(item.config, member.parent)

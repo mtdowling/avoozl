@@ -150,8 +150,6 @@ export function routingConfig({ workspace = {}, machine = {} } = {}) {
     prompt,
     model: own.model ?? null,
     timeoutSeconds: ROUTER_TIMEOUT_SECONDS,
-    // Off unless the workspace turns it on (R41.16).
-    remoteRelay: workspace.routing?.remoteRelay === "on" ? "on" : "off",
   };
 }
 

@@ -952,7 +952,7 @@ export const MODE_CARDS = [
     facts: [
       ['Who closes issues', 'GitHub, from "Closes #N" when the pull request merges'],
       ['Pull request text', 'Names its issue with Closes #N'],
-      ['Default coder', 'Radar crew (Avoozl worker or Remote coder also allowed)'],
+      ['Default coder', 'Radar crew (Avoozl worker also allowed)'],
       ['Limit', 'Issues and plans are visible to everyone who can see the repository'],
     ],
   },
@@ -1071,20 +1071,11 @@ export const CODER_CARDS = [
     reviews: "GitHub's branch review rule and the required checks on the pull request.",
     modes: ['plans-repo', 'single-repo'],
   },
-  {
-    coder: 'remote',
-    title: 'Remote coder',
-    line: 'A managed remote harness codes the task and opens a pull request. Handing tasks over is not built yet.',
-    flow: ['Ready task', 'Remote task', 'Pull request', 'GitHub checks', 'Merged'],
-    useWhen: ['The work should not run on this Mac', 'The repository is public'],
-    reviews: "GitHub's branch review rule and the required checks on the pull request.",
-    modes: ['plans-repo', 'single-repo'],
-  },
 ] as const
 
 // Where the shown coder comes from and what it is, never "same as above".
 export const coderSource = (mode: string, value: string) => {
-  const name = (coder: string) => (coder === 'worker' ? 'Avoozl worker, retired' : (CODER_CARDS.find((card) => card.coder === coder)?.title ?? coder))
+  const name = (coder: string) => (coder === 'remote' ? 'Remote coder, removed; choose an available coder' : coder === 'worker' ? 'Avoozl worker, retired' : (CODER_CARDS.find((card) => card.coder === coder)?.title ?? coder))
   const fallback = defaultCoder(mode)
   return value
     ? `Set on this repository: ${name(value)}.`

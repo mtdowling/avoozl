@@ -24,9 +24,7 @@ import {
   routingContext,
   routingFacts,
 } from "./routing.mjs";
-import { expireRouter, openRouter, spendRouter } from "./router.mjs";
 import { setRoutingMarks } from "./routing-health.mjs";
-import { dropQueued, relayHeldTasks, relayStep } from "./relay.mjs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { git, withWorkLock } from "./git.mjs";
@@ -105,7 +103,11 @@ import {
   withSource,
 } from "./github-rate.mjs";
 import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
-import { withChatModels } from "./chat-models.mjs";
+import {
+  validateModels,
+  validatePlanReview,
+  withChatModels,
+} from "./chat-models.mjs";
 import { syncStep, syncTargets } from "./integration-sync.mjs";
 import { mirrorSyncStep } from "./mirror-sync.mjs";
 import { publishInstanceStep } from "./instance-publish.mjs";
@@ -177,6 +179,8 @@ function parsePolicy(text) {
   repositoryPlugins(value);
   validateTrackedRouting(value);
   validateContentRules(value.contentRules);
+  validateModels(value.models);
+  validatePlanReview(value.planReview);
   validateIntake(value.intake);
   validateTrackedBudgets(value);
   return value;
@@ -1202,7 +1206,7 @@ async function runTick(
             .map((i) => i.id),
         ),
         unobserved = bindings
-          // A relayed worker is on a crew no roster here lists (relay.mjs).
+          // Historical relay bindings live on another crew; leave them alone.
           .filter((b) => b.source === "tick" && !b.relay && liveAttempt(b))
           .filter((b) => !(b.crew && unreachable.has(b.crew)))
           .filter((b) => !observed(b))
@@ -1256,9 +1260,7 @@ async function runTick(
             script,
           });
           await fetchAll(store, routing, { fetch: script });
-          routing.routerQueue = [];
           routing.onlyOne = [];
-          expireRouter(store, routing, bindings);
         } catch (error) {
           routing = null;
           planned.notify.push({
@@ -1295,8 +1297,6 @@ async function runTick(
                   ...requested.map((d) => d.task),
                   ...(pluginResult?.held || []),
                   ...held,
-                  // A request queued for the Remote relay holds its task.
-                  ...relayHeldTasks(store),
                 ]),
                 github: readGitHubPolicyOrNull(workspaceRoot),
                 routing,
@@ -1333,20 +1333,6 @@ async function runTick(
             (run) => !readOnly.has(run.task.planId),
           ),
         );
-      // One routing call for every worker waiting on a pick (§4.10). An
-      // answer read this tick is spent first, so the next call carries this
-      // tick's facts, not the last one's.
-      const routerHome = store.list("projects").find((p) => p.root);
-      if (routing && script) spendRouter(store);
-      const router =
-        routing && script && routing.config.enabled
-          ? openRouter(store, routing, {
-              folder: routerHome ? `Avoozl/${routerHome.id}` : null,
-              briefAllowed: (input) => briefAllowed(store, input),
-              facts: routingFacts(store, routing),
-            })
-          : null;
-      if (router) ready.push({ ...router, project: false });
       // No fit (R41.8): one decision per task; it closes when the task fits.
       for (const id of fits) closeNoFit(store, id);
       // Marks for tasks routing holds, shown on each task (routing-health.mjs).
@@ -1475,17 +1461,8 @@ async function runTick(
         sendable = planned.messages.filter(
           (m) => m.budget || !heldSlots.has(m.slot),
         );
-      // The Remote relay (relay.mjs, R41.17): a remote pick and any message
-      // for a relayed worker are queued for the relay chat, which only the
-      // person's turn wakes. Off, or MC-10 landed: queued requests go.
-      const relayed = allDispatches.filter((d) => d.relay),
-        dispatched = allDispatches.filter((d) => !d.relay);
-      if (routing && !routing.relayActive) dropQueued(store);
-      const messages = relayStep(store, {
-        dispatches: relayed,
-        messages: sendable,
-        now: routing?.now ?? Date.now(),
-      });
+      const dispatched = allDispatches,
+        messages = sendable;
       // A dispatch whose folder has no project directory waits too, and the
       // person hears once what to set (the same notice is queued once).
       const unset = new Set(

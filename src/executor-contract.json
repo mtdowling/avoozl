@@ -1,0 +1,14 @@
+{
+  "start": ["role", "task", "worktree", "brief", "model", "permissionClass"],
+  "send": ["sessionId", "text"],
+  "status": ["sessionId"],
+  "optional": {
+    "stop": ["sessionId"],
+    "usage": ["sessionId"]
+  },
+  "statusValues": ["working", "idle", "gone"],
+  "exitStatusPattern": "^exited -?(?:0|[1-9][0-9]*)$",
+  "sendValues": ["accepted", "refused"],
+  "stopValue": "stopped",
+  "permissionClasses": ["read", "write"]
+}

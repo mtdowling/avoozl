@@ -602,6 +602,19 @@ export class GitHubClient {
       : { changed: true, etag: result.etag };
   }
 
+  // The numbers of the issues updated at or after `since` (ISO), pull
+  // requests left out. Pages of 100, newest first.
+  async issuesUpdatedSince(value, since) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    const items = await this.paginate(`/repos/${owner}/${repo}/issues`, {
+      query: { state: "all", since, sort: "updated", direction: "desc" },
+    });
+    return new Set(
+      items.filter((item) => !item.pull_request).map((item) => item.number),
+    );
+  }
+
   // Every open issue carrying any of `labels`, in one search (pages of 100)
   // so all of a repository's rules share one call per tick. GitHub search
   // returns at most 1,000 results; more, or results GitHub marks
@@ -1406,6 +1419,35 @@ export class GitHubClient {
     );
   }
 
+  // Every file in one commit on `branch` (GraphQL createCommitOnBranch).
+  // `files` maps path -> base64 contents. GitHub refuses the commit when the
+  // branch head is no longer `expectedHeadOid`. Returns the new commit oid.
+  async commitFiles(value, { branch, message, files, expectedHeadOid }) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    const data = await this.graphql(
+      `mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}`,
+      {
+        input: {
+          branch: {
+            repositoryNameWithOwner: `${owner}/${repo}`,
+            branchName: branch,
+          },
+          message: { headline: message },
+          expectedHeadOid,
+          fileChanges: {
+            additions: Object.entries(files).map(([path, contents]) => ({
+              path,
+              contents,
+            })),
+          },
+        },
+      },
+      "commit files",
+    );
+    return data?.createCommitOnBranch?.commit?.oid ?? null;
+  }
+
   // GitHub refuses an update to an existing file unless the request names the
   // file's current blob `sha`, so read it first; a 404 means a new file.
   async putFile(value, { path, branch, message, content }) {
@@ -1428,6 +1470,54 @@ export class GitHubClient {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
     return this.request("GET", `/repos/${owner}/${repo}/pulls/${number}`);
+  }
+
+  // The newest artifacts called `name`, each with the commit its run built.
+  async listArtifacts(value, name) {
+    const { owner, repo } =
+        typeof value === "string" ? parseRepository(value) : value,
+      list = await this.request(
+        "GET",
+        `/repos/${owner}/${repo}/actions/artifacts`,
+        {
+          query: { name, per_page: 100 },
+        },
+      );
+    return Array.isArray(list?.artifacts) ? list.artifacts : [];
+  }
+
+  // One artifact's zip. GitHub answers with a redirect to a signed address;
+  // that address takes no token, so the token is not sent to it.
+  async downloadArtifact(value, id) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    if (!this.signedIn()) fail("GitHub authentication is unavailable.", 503);
+    const url = `${this.apiUrl}/repos/${owner}/${repo}/actions/artifacts/${Number(id)}/zip`;
+    let location;
+    try {
+      const response = await this.fetch(url, {
+        redirect: "manual",
+        headers: {
+          Accept: "application/vnd.github+json",
+          Authorization: "Bearer " + this.token,
+          "X-GitHub-Api-Version": API_VERSION,
+          "User-Agent": "avoozl",
+        },
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+      this.rate?.count(false);
+      this.rate?.flush();
+      location = response.headers?.get?.("location");
+      if (!location) fail(`GitHub gave no download for artifact ${id}.`, 502);
+      const file = await this.fetch(location, {
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+      if (!file.ok) fail(`The artifact download failed (${file.status}).`, 502);
+      return Buffer.from(await file.arrayBuffer());
+    } catch (error) {
+      if (error.status) throw error;
+      fail("GitHub is unreachable: " + error.message, 503);
+    }
   }
 
   listPullRequests(value, input = {}) {

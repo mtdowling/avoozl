@@ -38,19 +38,18 @@ test('Cancel writes nothing before apply and stops mid-apply', () => {
   assert.match(wizard, /Apply \{count\} change/)
 })
 
-test('Who codes offers Radar crew and Remote coder; the worker is retired but still named', () => {
+test('Who codes omits the removed remote coder', () => {
   assert.equal(defaultCoder('single-repo'), 'issue-radar')
   assert.equal(defaultCoder('plans-repo'), 'worker')
   assert.equal(defaultCoder(''), 'worker')
   assert.deepEqual(CODER_CARDS.map((c) => [c.coder, c.title]), [
     ['issue-radar', 'Radar crew'],
-    ['remote', 'Remote coder'],
   ])
   const only = (coder) => [...CODER_CARDS.find((c) => c.coder === coder).modes]
-  assert.deepEqual(only('remote'), ['plans-repo', 'single-repo'])
+  assert.equal(CODER_CARDS.some((c) => c.coder === 'remote'), false)
   assert.equal(coderSource('single-repo', ''), 'Not set on this repository. Using the default for Single repository (Radar crew).')
   assert.equal(coderSource('plans-repo', ''), 'Not set on this repository. Using the default for Plans repository (Avoozl worker, retired).')
-  assert.equal(coderSource('plans-repo', 'remote'), 'Set on this repository: Remote coder.')
+  assert.equal(coderSource('plans-repo', 'remote'), 'Set on this repository: Remote coder, removed; choose an available coder.')
   assert.doesNotMatch(coderSource('single-repo', ''), /same as above/i)
   const picker = source('CoderPicker.tsx')
   assert.match(picker, /<Walkthrough/)

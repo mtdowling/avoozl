@@ -6287,6 +6287,1509 @@
         "39.4",
         "39.5"
       ]
+    },
+    "40.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R86.3; §4.26.",
+      "acceptance": [
+        "Worker brief edits and commits only",
+        "The GitHub worker brief in `src/app/delivery.mjs` drops the push, pull request, auto-merge and merge steps; Avoozl reads `HEAD` from the worktree; a test asserts no brief tells a worker to push, open a pull request, merge or label."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
+      ]
+    },
+    "40.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R88.2, R88.3; §4.26.",
+      "acceptance": [
+        "Report by CLI, matched by worktree and token",
+        "`avoozl report --task ID --token T`; the brief carries the token and the worktree path; local chats open with `project: false`; tests for a wrong token, a wrong worktree and a report with no MCP sharing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
+      ]
+    },
+    "40.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R88.1; §4.26.",
+      "acceptance": [
+        "Trust mode set at open and again every tick",
+        "A fake Kiro Crew that drops trust on restart; the next tick sets it again, once per chat."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
+      ]
+    },
+    "40.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R88.6; §4.26.",
+      "acceptance": [
+        "Prepare with the worktree helper and clean up after landing",
+        "First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
+      ]
+    },
+    "40.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R86.6, R86.7; §4.26.",
+      "acceptance": [
+        "Verify: warm checks off the tick, per-check timeouts, declared and protected paths",
+        "Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "40.1"
+      ]
+    },
+    "40.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R88.4; §4.26.",
+      "acceptance": [
+        "One automatic resume for a vanished chat",
+        "Only Kiro Crew's \"gone\" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "40.2"
+      ]
+    },
+    "40.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). See R88.5; §4.26.",
+      "acceptance": [
+        "Lanes: 3 on this Mac by default",
+        "`lanes.local` default 3; a fourth ready task waits."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
+      ]
+    },
+    "avoozl-p50": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Unattended basics). Proof. See R86, R87.10, R88; §4.26.",
+      "acceptance": [
+        "Proof: a three-task chain survives a gateway restart unattended",
+        "Expected: (1) each task lands in order with its checks recorded; (2) trust is set again, task 2 goes on in the same worktree, no second chat unless Kiro Crew says it is gone; (3) the tick push goes through Kiro Crew's push policy; worktrees removed after landing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "40.1",
+        "40.2",
+        "40.3",
+        "40.4",
+        "40.5",
+        "40.6",
+        "40.7"
+      ]
+    },
+    "41.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R86.2, R86.5, R86.9; §4.26.",
+      "acceptance": [
+        "One scheduler: Pick by unblock count with a repository-wide path hold",
+        "RC31's ranking feeds Pick; overlapping declared paths hold a task in line; no cross-machine claim or driver lock is read."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p50"
+      ]
+    },
+    "41.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R87.5; §4.26.",
+      "acceptance": [
+        "Landing queue per base branch with the work lock",
+        "`withWorkLock` kind `integration`; one landing at a time per base; Stop the line pauses and keeps order."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p50"
+      ]
+    },
+    "41.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R87.1, R87.2, R87.4, R87.9; §4.26.",
+      "acceptance": [
+        "`direct` landing",
+        "Merge base in, check that head, fast-forward, `git push origin <base>`; a moved base merges and checks again; the pre-push content rule runs first; never force push."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.2"
+      ]
+    },
+    "41.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R87.6; §4.26.",
+      "acceptance": [
+        "Conflicts go back to the same chat, bounded; remove the resolver chat",
+        "The conflicted file list in the brief; `landing.conflictRounds` default 2; then Needs you; `avoozl-conflict-fix` removed."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.3"
+      ]
+    },
+    "41.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R87.7; §4.26.",
+      "acceptance": [
+        "Epic tasks cut from the integration branch",
+        "`src/app/github-linked-branches.mjs` and Prepare agree on the base."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.3"
+      ]
+    },
+    "41.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R88.7; §4.26.",
+      "acceptance": [
+        "Restore the Delivery page, Settings › Budgets and the Files and diff view",
+        "From ba04389 and 70c2236, updated to the new loop; not Routing; screenshots for the owner."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.3"
+      ]
+    },
+    "41.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). See R91.5; §4.26.",
+      "acceptance": [
+        "Nupp setup: `direct` on public `core-dev` with the repository's helper and check",
+        "`scripts/worktree` approved by hash, `scripts/test-changed` as the check; plans stay in a private planning workspace; no mirror or forward."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.3"
+      ]
+    },
+    "avoozl-p51": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). Proof. See R86, R87, R91.5; §4.26.",
+      "acceptance": [
+        "Proof: the 13 Nupp pilot tasks land direct",
+        "Expected: each task lands on public `core-dev` after its checks; no private text in any commit message, branch name or added line; a receipt per task with owner minutes, credits and wall-clock."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.1",
+        "41.2",
+        "41.3",
+        "41.4",
+        "41.5",
+        "41.6",
+        "41.7",
+        "41.8"
+      ]
+    },
+    "42.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 42 (PR landing and the setup command). See R87.3, R87.4, R91.2; §4.26.",
+      "acceptance": [
+        "`pr` landing from the renamed arming and merge code",
+        "Push the task branch, open or reuse the pull request, merge base in when it moves, wait for required checks, merge through the API one at a time."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p51"
+      ]
+    },
+    "42.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 42 (PR landing and the setup command). See R89.1, R89.2, R89.4; §4.26.",
+      "acceptance": [
+        "`avoozl setup`: project config and GitHub in one preview",
+        "A second run says \"Nothing to change\" and writes nothing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "42.1"
+      ]
+    },
+    "42.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 42 (PR landing and the setup command). See R89.3; §4.26.",
+      "acceptance": [
+        "Setup: ruleset update without duplicates, merge methods, CI variable, commit status",
+        "First caller of `createCommitStatus`; a fake GitHub test that a ruleset with the rule gets no second one."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "42.2"
+      ]
+    },
+    "42.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 42 (PR landing and the setup command). See R87.8; §4.26.",
+      "acceptance": [
+        "Avoozl's own repository lands with `pr` and three required checks",
+        "Linux, macOS and Windows required."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "42.3"
+      ]
+    },
+    "avoozl-p52": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 42 (PR landing and the setup command). Proof. See R87, R89; §4.26.",
+      "acceptance": [
+        "Proof: ten tasks land through pull requests on a repository with a required check",
+        "Expected: ten pull requests merge one at a time after the check passes on each head; the moved base is merged in and checked again; the failed task goes back to its chat; no force push; setup run again changes nothing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "42.1",
+        "42.2",
+        "42.3",
+        "42.4"
+      ]
+    },
+    "43.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Worker machines pull work). See R90.1, R90.2; §4.26.",
+      "acceptance": [
+        "Worker mode on the plan-less runner role",
+        "Envelope with IDs only; repository and checks from the worker's own `.avoozl.json`; the worker reads `HEAD`, runs checks, pushes the branch."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p52",
+        "avoozl-p61"
+      ]
+    },
+    "43.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Worker machines pull work). See R90.3, R90.5; §4.26.",
+      "acceptance": [
+        "Pull: list ready issues in one read, solo by assignee and team by pool",
+        "At most one issue per free lane; the result is a branch or a pull request."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "43.1"
+      ]
+    },
+    "43.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Worker machines pull work). See R90.4; §4.26.",
+      "acceptance": [
+        "Team claim: claim comment, earliest wins, loser deletes and stops",
+        "Enforced in code; a fake GitHub test with two workers posting in either order; one starts."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "43.2"
+      ]
+    },
+    "43.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Worker machines pull work). See R90.6; §4.26.",
+      "acceptance": [
+        "Claim release and the stale-claim Needs you row",
+        "Release on landed, blocked or given up; release after a second vanish; never on quiet or a lease; a person-only **Release claim** after `workers.claimStaleAfter`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "43.3"
+      ]
+    },
+    "43.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Worker machines pull work). See R90.2; §4.26.",
+      "acceptance": [
+        "Scheduler lands a worker's result only after its own diff check and checks",
+        "A worker branch with a file outside declared paths is refused; checks rerun on the updated head."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "43.2"
+      ]
+    },
+    "43.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Worker machines pull work). See R90.7, R90.8, R90.9; §4.26.",
+      "acceptance": [
+        "`avoozl worker setup` with a preview; SSH push kept only without GitHub access",
+        "Checks the login, push access and that Kiro Crew runs with the Avoozl app enabled."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "43.1"
+      ]
+    },
+    "avoozl-p53": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 43 (Worker machines pull work). Proof. See R90; §4.26.",
+      "acceptance": [
+        "Proof: a second machine pulls, claims and completes tasks from a shared pool",
+        "Expected: (1) the second machine takes and completes tasks, and the scheduler lands each after its own checks; (2) exactly one claim wins and the loser's comment is gone; (3) nothing releases the quiet machine's claim, and Needs you shows it after the stale time; (4) its work lands."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "43.1",
+        "43.2",
+        "43.3",
+        "43.4",
+        "43.5",
+        "43.6"
+      ]
+    },
+    "44.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.1; §4.27.",
+      "acceptance": [
+        "Issues and Pull requests in the pill nav, three columns",
+        "Nav, list, detail; full-width list and detail with a back control at 390 px."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p52"
+      ]
+    },
+    "44.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.2, R92.6, R92.7; §4.27.",
+      "acceptance": [
+        "List rows, filters on one line, search and counts from the shared read",
+        "A test with a counting fake GitHub: a list load makes 0 calls beyond the shared read; the **Avoozl tasks only** filter."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "44.1"
+      ]
+    },
+    "44.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.3, R92.6; §4.27.",
+      "acceptance": [
+        "Issue detail: header row, Markdown body, timeline, right column, lazy and cached"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "44.1"
+      ]
+    },
+    "44.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.4; §4.27.",
+      "acceptance": [
+        "Pull request detail: checks, files changed, landing state",
+        "Queued, verifying, landing, landed, conflict round N."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "44.3"
+      ]
+    },
+    "44.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.5; §4.27.",
+      "acceptance": [
+        "Avoozl-owned actions only; person-only stays person-only",
+        "Release, hold, re-queue, Stop the line, open on GitHub; refused to an agent or MCP caller where person-only."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "44.3"
+      ]
+    },
+    "avoozl-p54": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 44 (Issues and Pull requests pages). Proof. See R92; §4.27.",
+      "acceptance": [
+        "Proof: the pages match Issue Radar's, and a list load costs no extra calls",
+        "Expected: screenshots next to Radar's show the same columns, row content and detail parts; a list load makes 0 calls beyond the shared read; a second detail open makes 0 calls."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "44.1",
+        "44.2",
+        "44.3",
+        "44.4",
+        "44.5",
+        "44.6",
+        "44.7",
+        "44.8",
+        "44.9"
+      ]
+    },
+    "45.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). See R91.1, R91.3; §4.26.",
+      "acceptance": [
+        "Audit Radar-only leaf modules and delete any already unreferenced modules and their tests",
+        "Remove only modules with no active production importers; preserve setup and PR landing code. Record retained modules and their importers for 45.4, including when no module can yet be deleted; `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "45.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). See R91.1; §4.26.",
+      "acceptance": [
+        "Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant",
+        "Retire provenance-based landing gates only after replacement PR landing is proved; keep compatibility names resolving."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p52"
+      ]
+    },
+    "45.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). See R86.1, R91.1; §4.26.",
+      "acceptance": [
+        "Delete the remote coder, the relay and the router chat with their agents"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "45.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). See R86.1, R91.3; §4.26.",
+      "acceptance": [
+        "Shared-module edits and the `coder` setting"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "45.1",
+        "45.2",
+        "45.3",
+        "avoozl-p53",
+        "avoozl-p54"
+      ]
+    },
+    "45.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). See R91.4; §4.26.",
+      "acceptance": [
+        "Compatibility names still resolve; docs say one path",
+        "`docs/research/` and `docs/evidence/` untouched except new receipts."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "45.4"
+      ]
+    },
+    "avoozl-p55": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). Proof. See R91; §4.26.",
+      "acceptance": [
+        "Proof: after removal there is one delivery path",
+        "Expected: the task lands; no Radar, relay, router or crew agent or module remains; every compatibility name resolves."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "45.1",
+        "45.2",
+        "45.3",
+        "45.4",
+        "45.5"
+      ]
+    },
+    "44.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.9, R92.13; §4.27.",
+      "acceptance": [
+        "One batched GraphQL read per repository per check fills the pages' cache",
+        "Issues, pull requests, labels, check state and linked issues come from one paginated query; the pages read only the cache."
+      ],
+      "requires": [
+        "44.1"
+      ]
+    },
+    "44.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.10, R92.16; §4.27.",
+      "acceptance": [
+        "Detail read: one GraphQL query on first open, cached by `updatedAt`, dropped when the item changes",
+        "Comments, files changed and check runs come from one query; nothing is read before a detail opens."
+      ],
+      "requires": [
+        "44.6"
+      ]
+    },
+    "44.8": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.11, R92.12, R92.14; §4.27.",
+      "acceptance": [
+        "Conditional REST, no browser polling, Recheck that joins, the `pages` source",
+        "Any REST read sends If-None-Match and a 304 counts as free; Refresh redraws only; Settings › GitHub shows `pages`."
+      ],
+      "requires": [
+        "44.6"
+      ]
+    },
+    "44.9": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 44 (Issues and Pull requests pages). See R92.15; §4.27.",
+      "acceptance": [
+        "Call-budget tests with a counting fake GitHub",
+        "500 cached issues cost 0 calls to open; 10 unchanged details cost 0; 10 changed pull requests cost 1 query per repository; scrolling and filtering cost 0; two Rechecks cost 1."
+      ],
+      "requires": [
+        "44.7",
+        "44.8"
+      ]
+    },
+    "46.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 46 (Name the executor seam). See R93.1, R93.4; §4.28.",
+      "acceptance": [
+        "Executor interface: start, send, status, optional stop and usage",
+        "Contract tests cover the calls and allowed status values; the interface carries no Kiro Crew folder, project or agent-file detail. The comprehensive boundary test runs at P56 after 46.2–46.4 move the existing references."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "46.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 46 (Name the executor seam). See R93.2, R93.6; §4.28.",
+      "acceptance": [
+        "The `kirocrew` executor holds today's session calls from `tick.py`",
+        "All Kiro Crew folder and project handling becomes the executor's private detail, including callers outside `tick.py`. Preserve existing behavior coverage; only assertions about retired request fields may change (R93.6)."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "46.1"
+      ]
+    },
+    "46.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 46 (Name the executor seam). See R93.3, R93.4; §4.28.",
+      "acceptance": [
+        "The tick writes session requests that name an executor; each executor takes only its own",
+        "Planner requests carry no Kiro Crew folder, project or agent-file details."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "46.2"
+      ]
+    },
+    "46.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 46 (Name the executor seam). See R97.1, R97.2; §4.28.",
+      "acceptance": [
+        "Role prompts in `prompts/<role>.md`; agent files built from them",
+        "Runtime prompt readers use the prompt files, not generated agent JSON. A test fails when a built agent differs from its prompt."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "46.1"
+      ]
+    },
+    "avoozl-p56": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 46 (Name the executor seam). Proof. See R93, R97; §4.28.",
+      "acceptance": [
+        "Proof: the seam is named and nothing else changed",
+        "Expected: the suite passes with behavior coverage retained under R93.6; the worker opens and reports as before; no code outside the executor names a Kiro Crew folder or agent file.",
+        "A boundary test fails on any code path outside the `kirocrew` executor naming a Kiro Crew folder, project or agent file."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "46.1",
+        "46.2",
+        "46.3",
+        "46.4"
+      ]
+    },
+    "47.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). See R94.1, R94.2, R94.3; §4.28.",
+      "acceptance": [
+        "Harness definition files: argv lists, placeholders, hash approval",
+        "Loading refuses a shell string, an unknown placeholder and an unapproved hash."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
+      ]
+    },
+    "47.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). See R94.4, R94.4b, R94.5; §4.28.",
+      "acceptance": [
+        "Permission classes, write roots and the skip-flag refusal",
+        "Definitions with bypassPermissions, danger-full-access or a --dangerously-* flag are refused at load in a test; write roots are the task folder, temp and project cache dirs."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "47.1"
+      ]
+    },
+    "47.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). See R95.1, R95.2, R95.3, R95.4; §4.28.",
+      "acceptance": [
+        "`avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend",
+        "Finds its children again after a restart; a missing one is `gone`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "47.1"
+      ]
+    },
+    "47.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). See R93.2, R93.5; §4.28.",
+      "acceptance": [
+        "The `process` executor and the Claude Code definition",
+        "Default for the Nupp compiler repository."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "47.2",
+        "47.3"
+      ]
+    },
+    "47.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). See R95.5; §4.28.",
+      "acceptance": [
+        "Child marker; the CLI refuses person-only commands in a child",
+        "Refused even with `--as-person`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "47.3"
+      ]
+    },
+    "47.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). See R96.1, R96.2, R96.3, R96.4; §4.28.",
+      "acceptance": [
+        "Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats",
+        "A missing or bad result file, or done with a non-zero exit, takes the retry path."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "47.4"
+      ]
+    },
+    "avoozl-p57": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 47 (Supervisor and the process executor). Proof. See R93, R94, R95, R96; §4.28.",
+      "acceptance": [
+        "Proof: a Claude Code chain runs under the supervisor and survives faults",
+        "Expected: (1) all 3 tasks finish with an exit code and a result file, and Avoozl commits each one; (2) the resume argv delivers the feedback and the task passes; (3) the killed child is `exited` or `gone` and its task recovers on the retry path; (4) the supervisor keeps or finds its children and nothing runs twice; (5) refused."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "47.1",
+        "47.2",
+        "47.3",
+        "47.4",
+        "47.5",
+        "47.6",
+        "47.7",
+        "47.8",
+        "47.9",
+        "47.10"
+      ]
+    },
+    "48.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 48 (A second harness by definition file only). See R94.1, R94.4; §4.28.",
+      "acceptance": [
+        "A Codex definition file",
+        "Its start and resume argv, permission values and cost source."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p57"
+      ]
+    },
+    "avoozl-p58": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 48 (A second harness by definition file only). Proof. See R94.7; §4.28.",
+      "acceptance": [
+        "Proof: Codex runs a task from its definition file alone",
+        "Expected: the child exits with a valid `.avoozl/result.json`, Avoozl commits its changes and the task finishes; `git diff --stat` of every source file against the recorded commit is empty, and the proof fails if any source file changed."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "48.1"
+      ]
+    },
+    "49.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 49 (Every role on any executor). See R97.3, R94.4; §4.28.",
+      "acceptance": [
+        "Verifier, reviewer, planner, retro and watch run on `process`",
+        "Read-only roles get the read-only class."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p57"
+      ]
+    },
+    "avoozl-p59": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 49 (Every role on any executor). Proof. See R97; §4.28.",
+      "acceptance": [
+        "Proof: each role runs on either executor",
+        "Expected: the same result kinds from both; a read-only role cannot write."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "49.1"
+      ]
+    },
+    "50.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 50 (Kiro Crew stays the only UI). See R98.1; §4.28.",
+      "acceptance": [
+        "In flight for `process` sessions: status, log tail, cost, copyable attach command"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p57"
+      ]
+    },
+    "50.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 50 (Kiro Crew stays the only UI). See R98.2; §4.28.",
+      "acceptance": [
+        "Send message queues a `send`"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "50.1"
+      ]
+    },
+    "50.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 50 (Kiro Crew stays the only UI). See R98.3, R98.4; §4.28.",
+      "acceptance": [
+        "Settings › Models picks harness and model per role; a `session` pin may name a harness"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p57"
+      ]
+    },
+    "avoozl-p60": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 50 (Kiro Crew stays the only UI). Proof. See R98; §4.28.",
+      "acceptance": [
+        "Proof: a process session is watched and steered from the Avoozl page",
+        "Expected: status, log tail and cost show; the message reaches the child through `send`; the next task of that role uses the new harness; screenshots at 390 and 1280 px, light and dark."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "50.1",
+        "50.2",
+        "50.3"
+      ]
+    },
+    "51.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 51 (Headless workers). See R95.3; §4.28.",
+      "acceptance": [
+        "The supervisor under launchd or systemd, running the tick too"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p57"
+      ]
+    },
+    "51.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 51 (Headless workers). See R98.5; §4.28.",
+      "acceptance": [
+        "CLI only: `avoozl status` and `avoozl runner status --json`"
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "51.1"
+      ]
+    },
+    "avoozl-p61": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 51 (Headless workers). Proof. See R95, R98.5; §4.28.",
+      "acceptance": [
+        "Proof: a headless machine runs tasks with the CLI only",
+        "Expected: both tasks finish; the supervisor comes back and finds its state; `runner status --json` reports both."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "51.1",
+        "51.2"
+      ]
+    },
+    "52.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 52 (The manual path stays). See R96.4; §4.28.",
+      "acceptance": [
+        "`next`, `claim` and `runner report` keep working for a person",
+        "One test per command from a plain shell."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p56"
+      ]
+    },
+    "avoozl-p62": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 52 (The manual path stays). Proof. See R96.4; §4.28.",
+      "acceptance": [
+        "Proof: a person finishes a task by hand",
+        "Expected: the task lands as if a worker did it."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "52.1"
+      ]
+    },
+    "47.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 47 (Supervisor and the process executor). See R94.4a; §4.28.",
+      "acceptance": [
+        "Avoozl commits after the child exits",
+        "The child only edits; Avoozl commits in the worktree from the changed files and checks the diff."
+      ],
+      "requires": [
+        "47.4"
+      ]
+    },
+    "47.8": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 47 (Supervisor and the process executor). See R94.4c; §4.28.",
+      "acceptance": [
+        "Per-project command allow-list; `git push` never allowed",
+        "Unattended children run the project's build and test commands without a prompt; adding git push is refused."
+      ],
+      "requires": [
+        "47.2"
+      ]
+    },
+    "47.9": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 47 (Supervisor and the process executor). See R94.6, R94.6a; §4.28.",
+      "acceptance": [
+        "Spend cap from the task budget and the plan-quota stop",
+        "No new session starts on a harness whose plan quota reads low."
+      ],
+      "requires": [
+        "47.4"
+      ]
+    },
+    "47.10": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 47 (Supervisor and the process executor). See R95.6, R95.7; §4.28.",
+      "acceptance": [
+        "Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted",
+        "A child cannot read the workspace database or credentials; docs and Settings call the chat refusal a speed bump."
+      ],
+      "requires": [
+        "47.2"
+      ]
+    },
+    "41.8": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 41 (Scheduler and direct landing). See R91.5, R94.4a; §4.26.",
+      "acceptance": [
+        "Nupp AGENTS.md clause for Avoozl-run work",
+        "A proposed Nupp AGENTS.md clause, checked against the core-dev copy, says Avoozl-run work edits, commits nothing or only locally, and stops: no merge, push or worktree removal."
+      ],
+      "requires": [
+        "41.3"
+      ]
+    },
+    "53.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 53 (Cross-model plan review). See R99.1, R99.10, R99.13; §4.29.",
+      "acceptance": [
+        "Plan reviewer role and `planReview` settings",
+        "`models.planReviewer` saves from Settings › Models, validation refuses one equal to a named planner, and `planReview.mode` and `planReview.rounds` are checked."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "53.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 53 (Cross-model plan review). See R99.2, R99.5, R99.6; §4.29.",
+      "acceptance": [
+        "Review rounds and spec findings keyed by hash, after 53.1",
+        "Spec findings are stored per plan and revision hash; a bad file or line, and a session on the writer's model, are refused; a skipped review records its reason."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "53.1"
+      ]
+    },
+    "53.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 53 (Cross-model plan review). See R99.3, R99.4, R99.7, R99.10; §4.29.",
+      "acceptance": [
+        "Tick opens the reviewer, then the planner answers, after 53.2",
+        "A stored draft revision gets one read-only reviewer chat on the reviewer model, the planner answers each finding fixed or answered, and rounds stop at `planReview.rounds`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "53.2"
+      ]
+    },
+    "53.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 53 (Cross-model plan review). See R99.8, R99.9; §4.29.",
+      "acceptance": [
+        "Review counts in the Approve dialogs, after 53.2",
+        "The single and batch Approve dialogs show reviewer model, found, fixed and for you per spec with each open finding, and approval gives the same result with or without a review."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "53.2"
+      ]
+    },
+    "53.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 53 (Cross-model plan review). See R99.11, R99.12; §4.29.",
+      "acceptance": [
+        "CLI, MCP tools and Flow planning, after 53.3",
+        "`avoozl plan review SPEC` prints and starts a review, the planner reads and answers findings over MCP, and Flow shows review time and usage under Planning per spec."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "53.3"
+      ]
+    },
+    "avoozl-p63": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 53 (Cross-model plan review). Proof. See R99; §4.29.",
+      "acceptance": [
+        "Proof: a draft is reviewed on another model and the person sees it at approval",
+        "Expected: no review runs on the writer's model or with no reviewer set; a different model finds the wrong reference and hidden order at the right line; a new hash gets a fresh round; both Approve dialogs show the counts and approval is unchanged, with no GitHub write."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "53.1",
+        "53.2",
+        "53.3",
+        "53.4",
+        "53.5"
+      ]
+    },
+    "54.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 54 (Retrospectives catch steady CI waste). See R100.1, R100.4, R100.6; §4.30.",
+      "acceptance": [
+        "File classes from the widened open pull request read",
+        "Each pull request in the workspace's repositories, task or other, is stored with its file classes from the existing open pull request read; globs, order, override and partial are tested, and a fake client sees no new GraphQL call."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "54.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 54 (Retrospectives catch steady CI waste). See R100.2, R100.6; §4.30.",
+      "acceptance": [
+        "Workflow runs read and repeat runs, after 54.1",
+        "At most one cached workflow runs read per repository per check; a test shows two runs of one workflow on one commit record a repeat run, a re-run attempt does not, and a 304 reuses the cache."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "54.1"
+      ]
+    },
+    "54.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 54 (Retrospectives catch steady CI waste). See R100.3, R100.4, R100.8; §4.30.",
+      "acceptance": [
+        "Steady waste triggers, after 54.2",
+        "Tests: 10 spec-only pull requests with 25 CI minutes each fire docs-only waste once in the window; a varied but steady repository with no waste fires nothing; the existing outlier trigger tests pass unchanged."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "54.2"
+      ]
+    },
+    "54.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 54 (Retrospectives catch steady CI waste). See R100.4, R100.5; §4.30.",
+      "acceptance": [
+        "CI facts in the brief, CI plan proposals and PDCA by class, after 54.3",
+        "The brief holds minutes by class, wait share and repeat runs with other pull requests as number, author and classes only; a test drops a proposal naming an unseen workflow, opens a draft for an approved one, and runs PDCA by class."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "54.3"
+      ]
+    },
+    "54.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 54 (Retrospectives catch steady CI waste). See R100.7, R100.8; §4.30.",
+      "acceptance": [
+        "Flow CI card and Settings › Flow CI group, after 54.3",
+        "The Flow tab shows CI minutes by class and repeat runs and Settings › Flow edits the CI limits, tested on the view data, with before and after screenshots (phone and desktop, light and dark) approved by the owner before merge."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "54.3"
+      ]
+    },
+    "avoozl-p64": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 54 (Retrospectives catch steady CI waste). Proof. See R100; §4.30.",
+      "acceptance": [
+        "Proof: the retro catches steady CI waste on a real repository",
+        "Expected: with no Avoozl tasks, spec-only pull requests on a repository that runs its workflow twice per commit fire docs-only waste and repeat run, the brief labels them other, a CI plan proposal names the workflow, reads stay within the budget, and PDCA shows spec CI minutes per pull request down at least 10%."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "54.1",
+        "54.2",
+        "54.3",
+        "54.4",
+        "54.5"
+      ]
     }
   }
 }

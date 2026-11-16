@@ -40,8 +40,27 @@ class PullGitHub extends FakeGitHub {
   async createBranch(_r, name) {
     this.branches.push(name);
   }
-  async putFile(repository, file) {
-    this.written.push({ repository, ...file });
+  async commitFiles(repository, { branch, message, files }) {
+    this.commits = (this.commits ?? 0) + 1;
+    for (const [path, content] of Object.entries(files))
+      this.written.push({ repository, path, branch, message, content });
+    return "c".repeat(40);
+  }
+  // The files at a merge: the spec folder on disk (the base branch here),
+  // then what the pull requests wrote.
+  async blobTexts(_r, _ref, paths) {
+    const landed = new Map();
+    for (const file of paths) {
+      let text = null;
+      try {
+        text = fs.readFileSync(path.join(this.root, file), "utf8");
+      } catch {}
+      landed.set(file, text);
+    }
+    for (const file of this.written)
+      if (landed.has(file.path))
+        landed.set(file.path, Buffer.from(file.content, "base64").toString());
+    return landed;
   }
   async createPullRequest(_r, input) {
     this.pulls.push({
@@ -109,6 +128,7 @@ function open(
   if (planning)
     store.setMeta("workspaceRepository", { root: specRoot, directory: "." });
   writeSpec(specRoot, "config");
+  github.root = specRoot;
   // The signed-in GitHub login; the operator is only a display name.
   github.login = login === undefined ? "maintainer" : login;
   const ops = new Operations(store, {
@@ -259,6 +279,39 @@ test("an already approved plan is not sent through a pull request again", async 
   const again = await approve(ops);
   assert.equal(again.existing, true);
   assert.equal(github.pulls.length, 1);
+  assert.equal(store.list("approvals").length, 1);
+});
+
+test("an edit after approval opens a new approval pull request even when the files say Approved", async (t) => {
+  const { ops, store, github, specRoot } = open(t, {
+    mode: "single-repo",
+    repositories: { "example/code": { approval: { decisionRecord: false } } },
+  });
+  await approve(ops);
+  merge(github);
+  await approve(ops);
+  assert.equal(store.list("approvals").length, 1);
+  // The merged files say Approved; a later edit keeps that line.
+  const dir = path.join(specRoot, ".kiro/specs/config");
+  for (const name of ["requirements.md", "design.md", "tasks.md"]) {
+    const merged = github.written.find((f) => f.path.endsWith(`/${name}`));
+    fs.writeFileSync(
+      path.join(dir, name),
+      Buffer.from(merged.content, "base64").toString(),
+    );
+  }
+  fs.appendFileSync(path.join(dir, "design.md"), "\nAn edit.\n");
+  await ops.execute("plan.save", {
+    id: "config",
+    expectedHash: store.get("plans", "config").hash,
+  });
+  const again = await approve(ops);
+  assert.equal(again.pending, true, "no approval without its own commit");
+  assert.equal(github.pulls.length, 2);
+  const marker = github.written.find((f) =>
+    f.path.endsWith("/avoozl/approval.json"),
+  );
+  assert.ok(marker, "the pull request carries the approval marker");
   assert.equal(store.list("approvals").length, 1);
 });
 

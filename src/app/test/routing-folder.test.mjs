@@ -4,7 +4,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { PROMPT, workspace } from "./fixtures/crews/workspace.mjs";
-import { routerBatch } from "../router.mjs";
 
 test("a leaf whose chat folder has no project directory asks no routing chat", async (t) => {
   const env = await workspace(t, {
@@ -24,11 +23,12 @@ test("a leaf whose chat folder has no project directory asks no routing chat", a
     [],
     "no routing chat",
   );
-  assert.ok(!routerBatch(store));
+  assert.ok(!store.getMeta("routing.router.batch"));
   assert.ok(
     waiting.notify.some((n) => /Set the project directory/.test(n.title)),
   );
-  // Set: the routing chat opens for the ready leaves.
+  // Set: workers open directly, without a routing chat.
   const set = await tick({ Avoozl: false, "Avoozl/app": true });
-  assert.equal(set.dispatch.filter((d) => d.role === "router").length, 1);
+  assert.equal(set.dispatch.filter((d) => d.role === "router").length, 0);
+  assert.ok(set.dispatch.some((d) => d.role === "worker"));
 });

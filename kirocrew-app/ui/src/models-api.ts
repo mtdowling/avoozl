@@ -7,6 +7,7 @@ import { parseModels } from './flow-api.ts'
 
 export const MODEL_ROLES = [
   { key: 'planner', label: 'Planner', line: 'Drafts specs from a GitHub planning label.' },
+  { key: 'planReviewer', label: 'Plan reviewer', line: 'Reviews draft specs on a different model. Auto skips review until a model is picked.' },
   { key: 'driver', label: 'Driver', line: 'Drives approved specs. Set on the chat once it starts.' },
   { key: 'retro', label: 'Retro', line: 'Finds the slowest step and proposes one change.' },
   { key: 'reviewDraft', label: 'Review drafts', line: 'Drafts a pending review on a labeled pull request.' },

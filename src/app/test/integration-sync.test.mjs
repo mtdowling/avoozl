@@ -314,7 +314,13 @@ test("the sync code has no way to rewrite history", () => {
     "utf8",
   );
   assert.doesNotMatch(text, /force|rebase|--amend|reset|\+refs/i);
-  for (const method of ["updateRef", "deleteBranch", "createBranch", "putFile"])
+  for (const method of [
+    "updateRef",
+    "deleteBranch",
+    "createBranch",
+    "putFile",
+    "commitFiles",
+  ])
     assert.ok(!text.includes(method), method);
 });
 
