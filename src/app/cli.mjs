@@ -1145,9 +1145,19 @@ try {
         confirm: options.confirm ?? provided.confirm,
         previewHash: options["preview-hash"] ?? provided.previewHash,
       };
+    } else if (action === "retire-issues") {
+      // Retire task-issue bindings in order (R102.20): preview, hold,
+      // apply, verify, close. Each step is a person's own act.
+      const step = positionals[1] || "preview";
+      if (!["preview", "hold", "apply", "verify", "close"].includes(step))
+        throw Error(
+          "Choose github retire-issues preview, hold, apply, verify, or close [--reason completed|not_planned].",
+        );
+      operation = "github.retireTaskIssues";
+      value = { step, ...(options.reason ? { reason: options.reason } : {}) };
     } else
       throw Error(
-        "Choose github status, configure, sync, project, preview, setup, or start.",
+        "Choose github status, configure, sync, project, preview, setup, start, or retire-issues.",
       );
     console.log(
       JSON.stringify(await localOrRequest(operation, value), null, 2),
