@@ -107,7 +107,10 @@ test("setup previews without writing, applies on yes, then has nothing to change
   assert.equal(store.get("projects", "app").landing, "pr");
   assert.equal(written.length, 1);
 
-  const again = await repositorySetup(store, github, { ...input, confirm: true });
+  const again = await repositorySetup(store, github, {
+    ...input,
+    confirm: true,
+  });
   assert.equal(again.message, "Nothing to change");
   assert.equal(again.applied, false);
   assert.equal(github.writes.length, 3);
