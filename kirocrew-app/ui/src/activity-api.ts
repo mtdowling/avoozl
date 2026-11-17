@@ -4,7 +4,6 @@
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'
-import type { Option } from './filters.ts'
 
 export type ActivitySource = 'local' | 'github' | 'plugin' | 'mcp'
 
@@ -28,6 +27,8 @@ export interface ActivityPage {
   sources: string[]
   kinds: string[]
   actors: string[]
+  // Rows per value over the whole log; an older app leaves it out.
+  counts?: { source?: Record<string, number>; kind?: Record<string, number>; actor?: Record<string, number> }
   retentionDays: number
 }
 
@@ -65,17 +66,21 @@ export function activityClient(api: AppApi) {
 
 export const filterActive = (filter: ActivityFilter) => Boolean(filter.source || filter.kind || filter.actor)
 
-// The filter's choices: the values the log holds, with the one in use kept
-// so a filter never points at a choice that vanished.
-export function filterOptions(page: ActivityPage | null, filter: ActivityFilter) {
-  const list = (values: string[], chosen: string | undefined, label: (value: string) => string = (v) => v): Option[] => [
-    { value: '', label: 'All' },
-    ...[...new Set([...values, ...(chosen ? [chosen] : [])])].sort().map((value) => ({ value, label: label(value) })),
-  ]
+// The filter's choices, each with its row count: the values the log holds,
+// with the one in use kept so a filter never points at a choice that
+// vanished. Sources keep the log's order of labels; kinds and people sort.
+export interface ActivityChoice {
+  value: string
+  label: string
+  count: number
+}
+export function filterChoices(page: ActivityPage | null, filter: ActivityFilter) {
+  const list = (values: string[], chosen: string | undefined, counts: Record<string, number> = {}, label: (value: string) => string = (v) => v): ActivityChoice[] =>
+    [...new Set([...values, ...(chosen ? [chosen] : [])])].sort().map((value) => ({ value, label: label(value), count: counts[value] ?? 0 }))
   return {
-    sources: list(page?.sources ?? [], filter.source, (value) => SOURCE_LABELS[value] ?? value),
-    kinds: list(page?.kinds ?? [], filter.kind),
-    actors: list(page?.actors ?? [], filter.actor),
+    sources: list(page?.sources ?? [], filter.source, page?.counts?.source, (value) => SOURCE_LABELS[value] ?? value),
+    kinds: list(page?.kinds ?? [], filter.kind, page?.counts?.kind),
+    actors: list(page?.actors ?? [], filter.actor, page?.counts?.actor),
   }
 }
 

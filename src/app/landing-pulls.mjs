@@ -24,7 +24,7 @@
 import { branchReviewRule } from "./github-branch-rules.mjs";
 import { reviewVerdict } from "./github-reviews.mjs";
 import { headGuardedMerge } from "./driver-generations.mjs";
-import { landWithIntents } from "./landing-trains.mjs";
+import { journalChecks, landWithIntents } from "./landing-trains.mjs";
 import {
   landingRights,
   pushHead,
@@ -106,8 +106,9 @@ export function pullSteps({
         target: { repository: target, base },
       });
     },
-    intents = (entry, candidate, base, ref) => {
-      const given = intent(entry.spec, [entry]);
+    intents = (entry, candidate, base, ref, passed = []) => {
+      const given = intent(entry.spec, [entry]),
+        evidence = journalChecks(passed);
       return [
         {
           journal: given.journal,
@@ -115,6 +116,7 @@ export function pullSteps({
           input: {
             op: `land.${candidate.slice(0, 16)}`,
             ...given.input,
+            ...(evidence.length ? { checks: evidence } : {}),
             refs: [
               {
                 ...ref.source,
@@ -273,12 +275,12 @@ export function pullSteps({
     },
     // Merges only with merge rights; otherwise the next observe() records
     // the maintainer's merge and nothing is written here.
-    async land({ entry, candidate, baseHead }) {
+    async land({ entry, candidate, baseHead, checks = [] }) {
       const { pull, ref } = current,
         rights = await landingRights(github, ref, login);
       if (rights.land !== "merge") return false;
       const { pushed, results } = await landWithIntents(
-        intents(entry, candidate, baseHead, ref),
+        intents(entry, candidate, baseHead, ref, checks),
         () => headGuardedMerge(github, target, pull.number, candidate, method),
       );
       log.results.push(results);

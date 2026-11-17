@@ -1852,6 +1852,20 @@ function currentBranch(root) {
   }
 }
 
+// Added lines of one file's unified diff patch.
+export function patchAdded(file, patch) {
+  const lines = [];
+  let next = 0;
+  for (const line of String(patch || "").split("\n")) {
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+    if (hunk) next = Number(hunk[1]);
+    else if (line.startsWith("+"))
+      lines.push({ target: file, line: next++, text: line.slice(1) });
+    else if (!line.startsWith("-")) next += 1;
+  }
+  return lines;
+}
+
 // The lines an outgoing range publishes: added lines, commit messages and
 // ref names (R87.9, R102.12).
 export function pushLines(root, base, head, refs) {
