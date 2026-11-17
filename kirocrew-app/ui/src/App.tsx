@@ -15,14 +15,13 @@ import { parseGraphLink } from './focus-tree.ts'
 import { parseReviewLink } from './review-view.ts'
 import WaitingView from './WaitingView.tsx'
 import FlowView from './FlowView.tsx'
-import { TracePage } from './TraceView.tsx'
-import { DASHBOARD_PAGES, FLOW_TABS, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, redirectSettings, redirectTab, tabLabel, type FlowTab, type Tab, type WaitingSection } from './nav-api.ts'
+import OldTraceLink from './OldTraceLink.tsx'
+import { DASHBOARD_PAGES, FLOW_TABS, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, parseTraceLink, redirectSettings, redirectTab, tabLabel, type FlowTab, type Tab, type WaitingSection } from './nav-api.ts'
 import { WorkspacePill } from './WorkspacePill.tsx'
 import { NavSlotProvider } from './nav-slot.tsx'
 import LanesView from './LanesView.tsx'
 import DeliveryView from './DeliveryView.tsx'
 import { VIEW_ICONS } from './icons.ts'
-import { TRACE_TARGET, parseTraceLink, type TraceTarget } from './trace-api.ts'
 import ActivityView from './ActivityView.tsx'
 import { StopLineButton } from './StopLine.tsx'
 import { untriagedClient } from './untriaged-api.ts'
@@ -203,24 +202,22 @@ function AvoozlPage() {
       tab: key,
     })
 
-  // A link with ?trace=owner/repo#52 opens that Trace as one Back step from
-  // the Dashboard (RC8.2). Read once, when the page opens.
+  // An old link with ?trace=owner/repo#52 opens Delivery, and OldTraceLink opens
+  // the details of the task that owns that issue (R106.8). Read once, when the
+  // page opens. A ?trace with no issue just opens Delivery.
+  const [traceLink, setTraceLink] = useState<{ repository: string; number: number } | null>(null)
   useEffect(() => {
     const link = parseTraceLink(window.location.search)
-    if (link) go({ tab: 'trace', focus: null, drill: null }, { [TRACE_TARGET]: link })
+    if (link || new URLSearchParams(window.location.search).has('trace')) {
+      go({ tab: 'delivery', focus: null, drill: null })
+      setTraceLink(link)
+    }
     // ?tree=task:<id> or ?graph=frontier opens the Graph there (FocusTree.tsx).
     else if (parseGraphLink(window.location.search)) go({ tab: 'graph', focus: null, drill: null })
     // ?view=review&plan=P opens the Specs page, which opens that Review view.
     else if (parseReviewLink(window.location.search)) go({ tab: 'plans', focus: null, drill: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const openTrace = (target: TraceTarget) => go({ tab: 'trace', focus: null, drill: null }, { [TRACE_TARGET]: target })
-  // Trace's own form picks an issue while Trace is already open.
-  const [, bump] = useState(0)
-  const pickTrace = (target: TraceTarget) => {
-    openTrace(target)
-    bump((n) => n + 1)
-  }
 
   useEffect(() => {
     if (!active) return setConflicts(0)
@@ -306,6 +303,7 @@ function AvoozlPage() {
     <div {...{ [APP_ATTR]: '' }} style={{ display: 'contents' }}>
     <ConfirmProvider>
     <TaskDrawerProvider workspaceId={active} onFocus={(id, title) => openDrill({ kind: 'focus', id, title })}>
+    <OldTraceLink workspaceId={active} link={traceLink} />
     <div className="flex h-full min-h-0 flex-col">
       {phone && (
         // A phone keeps one thin row: the menu button. The brand card and the
@@ -392,7 +390,7 @@ function AvoozlPage() {
             }
           />
         ) : tab === 'dashboard' ? (
-          <DashboardView workspaceId={active} onNavigate={navigate} onDrill={openDrill} onTrace={openTrace} onOpenSettings={openSettings} onPlanEpic={planEpic} />
+          <DashboardView workspaceId={active} onNavigate={navigate} onDrill={openDrill} onOpenSettings={openSettings} onPlanEpic={planEpic} />
         ) : tab === 'plans' ? (
           <PlansView
             workspaceId={active}
@@ -401,8 +399,6 @@ function AvoozlPage() {
             newPlanRequest={planGoal}
             onOpenSettings={openSettings}
           />
-        ) : tab === 'trace' ? (
-          <TracePage workspaceId={active} target={(nav.memory.get(TRACE_TARGET) as TraceTarget | undefined) ?? null} onPick={pickTrace} onOpenEpics={() => chooseTab('plans')} />
         ) : tab === 'graph' ? (
           <GraphPage
             workspaceId={active}

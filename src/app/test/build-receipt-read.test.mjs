@@ -13,7 +13,6 @@ import {
 import { INSTANCE_NAMES, plainInstanceName } from "../instance.mjs";
 import { ciStep } from "../flow-ci.mjs";
 import { flowView, refreshFlow } from "../radar-flow.mjs";
-import { readTrace } from "../trace.mjs";
 import { GitHubClient } from "../github.mjs";
 import { renderMarker } from "../github-marker.mjs";
 import { fixture } from "./fixtures.mjs";
@@ -433,19 +432,6 @@ test("Flow shows what was stored, grouped by instance and target", async (t) => 
   assert.deepEqual([gh.calls.list, gh.calls.download], before);
 });
 
-test("Trace shows the stored receipt on the merged step with no call", async (t) => {
-  const { store } = fixture(t),
-    gh = github();
-  await check(store, gh);
-  const before = [gh.calls.list, gh.calls.download],
-    trace = await readTrace(gh, REPO, 1, POLICY.repositories[REPO], {
-      receiptFor: (pull) => receiptReader(store)(REPO)(pull),
-    }),
-    merged = trace.steps.find((step) => step.key === "merged");
-  assert.equal(merged.detail, "Build 40 s, warm · linux-x64/node26 · hits 4");
-  assert.deepEqual([gh.calls.list, gh.calls.download], before);
-});
-
 test("receiptLine and buildView word an empty case", () => {
   assert.equal(receiptLine(null), null);
   assert.equal(buildView([]).count, 0);
@@ -508,38 +494,6 @@ test("failed attempts stay out of the medians", () => {
     [["test", 2, 50_000]],
   );
   assert.equal(view.medianMs, 50_000);
-});
-
-test("Trace groups every observation by phase and marks failed ones", async (t) => {
-  const { store } = fixture(t),
-    gh = github({
-      artifacts: [artifact(960, "build-receipt-linux", "sha51", 900)],
-      files: {
-        960: lines(
-          { ms: 1000, phase: "build" },
-          { ms: 9000, phase: "test", attempt: 1, exit: 1 },
-          { ms: 4000, phase: "test", attempt: 2 },
-        ),
-      },
-      runs: [run(900, "sha51")],
-      merged: [51],
-    });
-  await check(store, gh);
-  const trace = await readTrace(gh, REPO, 1, POLICY.repositories[REPO], {
-      receiptFor: (pull) => receiptReader(store)(REPO)(pull),
-    }),
-    merged = trace.steps.find((step) => step.key === "merged");
-  assert.deepEqual(
-    merged.builds.map((group) => [
-      group.phase,
-      group.items.map((i) => i.failed),
-    ]),
-    [
-      ["build", [false]],
-      ["test", [true, false]],
-    ],
-  );
-  assert.match(merged.detail, /3 builds.*costliest test/);
 });
 
 test("the artifact list is one unfiltered cached read; a 304 reads nothing more", async (t) => {

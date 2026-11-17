@@ -1641,7 +1641,7 @@ requests pages; specs and in-flight work link to their GitHub items instead.
 No dedicated SCM links page. Phase 44 is no longer paused; Phase 45 stays
 paused. Screenshot approval remains owner work.
 
-- [ ] 44.1 One link set per spec and task from stored records, after 40.4, 41.2, 42.6, 56.2, 56.3, 56.8, 56.14 [R92.1, R92.2, R92.3] (§4.27)
+- [x] 44.1 One link set per spec and task from stored records, after 40.4, 41.2, 42.6, 56.2, 56.3, 56.8, 56.14 [R92.1, R92.2, R92.3] (§4.27)
   - Pure read model over the spec issue and journal, spec working branch, task branch and worktree, task PR and check state from landing, landed commit from delivery records, and intake/escalation issues. URLs come from validated repository, number, ref and SHA fields only.
   - Missing records show as none; check state carries head SHA and age, and a non-current head is never shown as current. A counting-client test asserts the GitHub call count is unchanged with link sets on.
 
@@ -1769,7 +1769,11 @@ Requirement 94.7 (design §4.28). Exit: Codex runs a task with no code change.
   - Its start and resume argv, permission values and cost source.
   - Built: `examples/harnesses/codex.json`: `codex exec --json -C {worktree} --sandbox {permission} -c approval_policy=never`, brief on stdin; resume adds `resume --last -`, since Codex takes no session ID at start and `--last` reads only the worktree's own sessions; `workspace-write` and `read-only`; no allow flag, no spend cap and no cost source (its JSON reports tokens, not dollars). Tests in `src/app/test/codex-definition.test.mjs`. For P58: Codex applies its own `sandbox-exec` per command on macOS, and a nested `sandbox-exec` fails (`sandbox_apply: Operation not permitted`); the project's `sandbox.writeRoots` must name the Codex home, where it records sessions.
 
-- [ ] avoozl-p58 P58 Proof: Codex runs a task from its definition file alone, after 48.1 [R94.7] (§4.28)
+- [x] 48.2 Inner sandbox off only under Avoozl's sandbox, after 48.1 [R94.4b, R94.4d] (§4.28)
+  - `permission.write` may be exactly `danger-full-access`; the child then starts only inside Avoozl's sandbox with the task write roots, and is refused with no Avoozl sandbox, opt-in or not. `examples/harnesses/codex.json` uses it.
+  - Tests: refused without the Avoozl sandbox, allowed with it, every other bypass value still refused.
+
+- [ ] avoozl-p58 P58 Proof: Codex runs a task from its definition file alone, after 48.1, 48.2 [R94.7] (§4.28)
   - Setup: the Phase 47 scratch repository; the Codex definition approved by hash; the source tree at a recorded commit.
   - Action: run one task and one feedback round on Codex.
   - Expected: the child exits with a valid `.avoozl/result.json`, Avoozl commits its changes and the task finishes; `git diff --stat` of every source file against the recorded commit is empty, and the proof fails if any source file changed.
@@ -1781,8 +1785,9 @@ Requirement 94.7 (design §4.28). Exit: Codex runs a task with no code change.
 
 Requirement 97.3 (design §4.28).
 
-- [ ] 49.1 Verifier, reviewer, planner, retro and watch run on `process`, after avoozl-p57 [R97.3, R94.4] (§4.28)
+- [x] 49.1 Verifier, reviewer, planner, retro and watch run on `process`, after avoozl-p57 [R97.3, R94.4] (§4.28)
   - Read-only roles get the read-only class.
+  - Built: a `process` project's verifier and review roles (`planVerifierDispatches`), retro (`retroStep`) and New plan planner (`newPlanStarts`) request `process`; `drainProcessRequests` adds a verdict role's detached worktree at the commit and removes it after, gives a retro a scratch folder, and gives the planner only its spec folder (`src/app/executors/process.mjs`). `processBrief` puts the role's `prompts/<role>.md` first and says how to finish without Avoozl's tools; a read class writes only its temp folder and `.avoozl/` (`harnessPermission`), and a definition's `resultAllow` lets it write the result file (Claude Code: `dontAsk` plus `Edit(.avoozl/result.json)`, checked on Claude Code 2.1.326, where `plan` refused the file). The result file's `report` carries a verdict or a retro's reply. No watch session exists: the line watch runs in the tick with no agent. The GitHub breakdown planner, plan review and pull request review chats stay on `kirocrew`. Tests in `src/app/test/process-roles.test.mjs`.
 
 - [ ] avoozl-p59 P59 Proof: each role runs on either executor, after 49.1 [R97] (§4.28)
   - Setup: a scratch workspace; each role pinned once to `kirocrew` and once to `process`.
@@ -1796,7 +1801,7 @@ Requirement 97.3 (design §4.28).
 Requirement 98 (design §4.28). Screen changes wait for the owner's
 screenshots review.
 
-- [ ] 50.1 In flight for `process` sessions: status, log tail, cost, copyable attach command, after avoozl-p57 [R98.1] (§4.28)
+- [x] 50.1 In flight for `process` sessions: status, log tail, cost, copyable attach command, after avoozl-p57 [R98.1] (§4.28)
 - [ ] 50.2 Send message queues a `send`, after 50.1 [R98.2] (§4.28)
 - [x] 50.3 Settings › Models picks harness and model per role; a `session` pin may name a harness, after avoozl-p57 [R98.3, R98.4] (§4.28)
 
@@ -2044,5 +2049,16 @@ It touches `github-policy.mjs`, `settings-api.ts`, `SettingsView.tsx`,
 Settings pages edit in place, so merge main often and keep to the role
 picker. The owner waived screenshot review for this task.
 
-- [ ] 58.1 Repository roles replace Where tasks live, after 3.14, 20.2 [R105.1, R105.2, R105.3, R105.4, R105.5, R105.6, R105.7, R105.8, R105.9, R105.10, R28.1] (§4.34)
+- [x] 58.1 Repository roles replace Where tasks live, after 3.14, 20.2 [R105.1, R105.2, R105.3, R105.4, R105.5, R105.6, R105.7, R105.8, R105.9, R105.10, R28.1] (§4.34)
   - One resolver in `github-policy.mjs` maps roles to mode and `planningRepository` and back, refuses mixed roles, and runs in the config loader; the schema gains `role` and keeps `mode` and `planningRepository`. Repository setup shows an in-place role picker per repository, the "Tasks live in" line and a synthesized "GitHub only" planning row; the Where tasks live page and tab are removed, the workspace-wide settings move to Settings › Workspaces, and the old link opens Repository setup. Tests for the mapping, migration, refused mixes and screens; screenshots (phone and desktop, light and dark, in the full app shell) under `docs/evidence/repo-roles/`.
+
+## Phase 59: Trace moves into task details
+
+Owner decision 2026-11-17 (Requirement 106, design §4.35). One build task.
+Trace was built for one GitHub issue per task with a Radar claim, which the
+pivot retired. Other changes touch the nav, modals, Needs you and Settings;
+merge main often. If the Trace pill conflicts with another change, it goes.
+The owner waived screenshot review.
+
+- [ ] 59.1 Remove Trace; task details get a Timeline of Avoozl's task steps, after 55.4 [R106.1, R106.2, R106.3, R106.4, R106.5, R106.6, R106.7, R106.8, R106.9] (§4.35)
+  - `task-steps.mjs` builds the steps from stored records and `taskDetailView` returns them; the Timeline box shows them above the history list, with builds by phase. The Trace nav entry, page, drawer, Done work list, `radar.trace`, `trace.done` and the Trace buttons are removed; old links open Delivery or the task's details. Tests for the steps, redirects, nav and zero GitHub calls; screenshots (phone and desktop, light and dark, full app shell) under `docs/evidence/trace-into-task/`.

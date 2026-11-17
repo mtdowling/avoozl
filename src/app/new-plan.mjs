@@ -15,9 +15,12 @@ import {
   createSpecPlan,
   isEpicFolder,
   MANIFEST,
+  SPECS_DIRECTORY,
   specName,
 } from "./spec-plans.mjs";
 import { PLANNER_AGENT } from "./github-planner.mjs";
+import { projectExecutor, sessionProject } from "./executors/process.mjs";
+import { harnessExecutor } from "./chat-models.mjs";
 import { recordPlanReviewWriter } from "./plan-review-authorship.mjs";
 import { draftManifest } from "./spec-manifest.mjs";
 import { steeringOptions, withSeed } from "./retro-memory.mjs";
@@ -382,8 +385,15 @@ export const newPlanTask = (name) => "new-plan:" + name;
 // The planner chat each requested plan still needs, as executor start
 // requests: one per request attempt, until its folder is stored as a plan.
 // An entry from before the tick opened these chats has no brief; its chat
-// was opened by the page, so nothing is started for it.
-export function newPlanStarts(store, { model = null, executor = "kirocrew" }) {
+// was opened by the page, so nothing is started for it. It runs on the
+// executor of the project whose checkout holds the folder (R97.3), else
+// `kirocrew`, unless the caller names one. A `harness` saved for the
+// planner in Settings › Models (R98.3) wins over both.
+export function newPlanStarts(
+  store,
+  { model = null, executor = null, harness = null },
+) {
+  const named = harness ? harnessExecutor(harness) : null;
   const bindings = store.list("session_bindings");
   return pendingNewPlans(store)
     .filter(
@@ -399,19 +409,31 @@ export function newPlanStarts(store, { model = null, executor = "kirocrew" }) {
             (binding.attempt ?? 1) === entry.attempt,
         ),
     )
-    .map((entry) => ({
-      executor,
-      role: "planner",
-      task: newPlanTask(entry.name),
-      worktree: entry.root,
-      brief: entry.brief,
-      model,
-      permissionClass: "write",
-      // Kiro Crew keys a chat by its title, so a second attempt needs its own.
-      title: `avoozl:${newPlanTask(entry.name)} planner ${entry.name}${entry.attempt > 1 ? ` attempt ${entry.attempt}` : ""}`,
-      attempt: entry.attempt,
-      context: { newPlan: entry.name },
-    }));
+    .map((entry) => {
+      const chosen =
+        named?.executor ??
+        executor ??
+        projectExecutor(sessionProject(store, { worktree: entry.root }));
+      return {
+        executor: chosen,
+        ...(named?.harness ? { harness: named.harness } : {}),
+        role: "planner",
+        task: newPlanTask(entry.name),
+        // A `process` child writes only its spec folder: a write root over
+        // the whole checkout would hold its git directory (R94.4a).
+        worktree:
+          chosen === "process"
+            ? path.join(entry.root, SPECS_DIRECTORY, entry.name)
+            : entry.root,
+        brief: entry.brief,
+        model,
+        permissionClass: "write",
+        // Kiro Crew keys a chat by its title, so a second attempt needs its own.
+        title: `avoozl:${newPlanTask(entry.name)} planner ${entry.name}${entry.attempt > 1 ? ` attempt ${entry.attempt}` : ""}`,
+        attempt: entry.attempt,
+        context: { newPlan: entry.name },
+      };
+    });
 }
 
 // The planner chat Avoozl opened for this request, if it is bound.

@@ -15,6 +15,7 @@ import {
   harnessDefinitionHash,
 } from "../harness-definitions.mjs";
 import { Operations } from "../operations.mjs";
+import { newPlanStarts } from "../new-plan.mjs";
 import { validateSession } from "../placement.mjs";
 import { Store } from "../store.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -206,4 +207,34 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
     (await bare.execute("models.settings.get", {})).harnessDefinitions,
     [],
   );
+});
+
+test("the planner's saved harness wins over its project's executor", (t) => {
+  const root = temporaryDirectory("avoozl-role-harness-planner-"),
+    store = new Store(path.join(root, "workspace.sqlite"));
+  t.after(() => store.close());
+  store.importSnapshot(snapshot());
+  const checkout = path.join(root, "app");
+  store.put("projects", { id: "app", root: checkout });
+  store.setMeta("newPlans", [
+    {
+      name: "cache",
+      goal: "x",
+      repositories: ["app"],
+      brief: "Mode: draft.",
+      root: checkout,
+      attempt: 1,
+    },
+  ]);
+  const [chat] = newPlanStarts(store, {});
+  assert.equal(chat.executor, "kirocrew");
+  assert.equal(chat.harness, undefined);
+  const [child] = newPlanStarts(store, { harness: "codex" });
+  assert.equal(child.executor, "process");
+  assert.equal(child.harness, "codex");
+  assert.equal(child.worktree, path.join(checkout, ".kiro", "specs", "cache"));
+  store.put("projects", { id: "app", root: checkout, executor: "process" });
+  const [back] = newPlanStarts(store, { harness: "kirocrew" });
+  assert.equal(back.executor, "kirocrew");
+  assert.equal(back.worktree, checkout);
 });

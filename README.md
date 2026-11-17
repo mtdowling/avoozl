@@ -284,9 +284,9 @@ The same page picks the **harness** each role runs on, saved as `harnesses`,
 for example `{"harnesses": {"worker": "claude-code"}}`: `kirocrew` is a Kiro
 Crew chat, and any other value names a harness definition in this machine's
 config. A role left out, or `auto`, runs on its project's executor. A
-task's `session.harness` pin wins over both. Only the worker follows it
-today; the other roles stay Kiro Crew chats until they can run on any
-executor.
+task's `session.harness` pin wins over both. The worker, planner and retro
+follow it; the plan reviewer and review drafts still run as Kiro Crew
+chats.
 
 The red **Stop the line** pause icon, in the page header's **…** menu on
 every tab, is the Andon cord: a

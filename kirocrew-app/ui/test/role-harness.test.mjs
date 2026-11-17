@@ -40,18 +40,22 @@ for (const width of [390, 1280]) {
       ['auto (project default)', 'Kiro Crew chat', 'claude-code', 'codex (not approved)'],
     )
     await page.evaluate(pick('avoozl-harness-worker', 'claude-code'))
-    // A non-worker role on a harness says it still runs as a chat.
+    // The retro follows its harness; review drafts say they still run as a chat.
     await page.evaluate(`document.querySelector('#avoozl-harness-retro').focus()`)
     await page.until(`document.querySelector('#avoozl-harness-retro').getAttribute('aria-expanded') === 'true'`)
     await page.evaluate(pick('avoozl-harness-retro', 'claude-code'))
-    await page.until(`Boolean(document.querySelector('[data-model-role="retro"] [data-harness-pending]'))`)
+    await page.evaluate(`document.querySelector('#avoozl-harness-reviewDraft').focus()`)
+    await page.until(`document.querySelector('#avoozl-harness-reviewDraft').getAttribute('aria-expanded') === 'true'`)
+    await page.evaluate(pick('avoozl-harness-reviewDraft', 'claude-code'))
+    await page.until(`Boolean(document.querySelector('[data-model-role="reviewDraft"] [data-harness-pending]'))`)
+    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-model-role="retro"] [data-harness-pending]'))`), false)
     await page.until(`!document.querySelector('[data-models-save]').disabled`)
     await page.evaluate(`document.querySelector('[data-models-save]').click()`)
     await page.until(`document.querySelector('[data-models-settings]').textContent.includes('Saved to .avoozl.json.')`)
     const calls = await page.evaluate(`window.__harness.calls.filter((call) => call.operation === 'models.settings.update').map((call) => call.input)`)
     assert.deepEqual(calls.at(-1), {
       models: { planner: 'fake-writer' },
-      harnesses: { worker: 'claude-code', retro: 'claude-code' },
+      harnesses: { worker: 'claude-code', retro: 'claude-code', reviewDraft: 'claude-code' },
       expectedHash: 'models-before',
     })
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)

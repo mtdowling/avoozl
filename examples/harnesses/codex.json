@@ -31,7 +31,7 @@
   ],
   "promptFrom": "stdin",
   "model": ["--model", "{model}"],
-  "permission": { "write": "workspace-write", "read": "read-only" },
+  "permission": { "write": "danger-full-access", "read": "read-only" },
   "writeRoots": ["{worktree}", "{tmp}", "{project_cache_dirs}"],
   "keepEnv": ["OPENAI_API_KEY", "CODEX_API_KEY"]
 }

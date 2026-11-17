@@ -77,7 +77,7 @@ test('the pieces are wired: spec page, Hand off, dialogs and Settings', () => {
   assert.match(plans, /<DriverChip spec=\{driver\.spec\} \/>/)
   assert.match(plans, /<DriverBanner workspaceId=\{workspace\} spec=\{driver\.spec\}/)
   assert.match(plans, /<HandOffButton workspaceId=\{workspace\} spec=\{driver\.spec\} onChanged=\{driver\.reload\} \/>/)
-  assert.match(settings, /\{tab === 'github' && <ThisComputer workspaceId=\{workspaceId\} \/>\}/)
+  assert.match(settings, /\{tab === 'workspaces' && <ThisComputer workspaceId=\{workspaceId\} \/>\}/)
   // Hand off is stepped: drain, export, reassign; Avoozl never reassigns.
   for (const step of ['1. Drain', '2. Export', '3. Reassign']) assert.ok(driver.includes(step), step)
   assert.match(driver, /Export with \$\{running\.length\} unfinished/)

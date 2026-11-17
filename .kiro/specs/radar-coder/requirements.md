@@ -464,6 +464,9 @@ machine, and what to change, without opening a crew's chat.
    in the Back history (Requirement 60). Its steps SHALL be Spec approved,
    Issue created, Ready, Claimed, PR opened, CI, Merged, Retro, with times from
    GitHub, never the marker's `updated=` (fact 6).
+   **Superseded 2026-11-17 (owner decision, Requirement 106 of the avoozl
+   spec):** Trace is removed; a task's steps are the Timeline box in task
+   details.
 3. One side-panel tab, **Avoozl**, SHALL change with the open chat: spec check
    and **Approve** in a Spec Builder chat, the task a crew is on in a crew
    chat the owner's browser can open, and a recap elsewhere. It SHALL open by

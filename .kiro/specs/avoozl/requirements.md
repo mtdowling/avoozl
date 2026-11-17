@@ -4812,7 +4812,18 @@ that I approve, so that a new agent CLI needs no code change.
 4b. Loading a definition SHALL refuse any argv value that contains
     `bypassPermissions` or `danger-full-access`, or any flag that starts with
     `--dangerously-`, and SHALL name the value. A test SHALL load one
-    definition with each and see it refused.
+    definition with each and see it refused. The one exception is 4d.
+4d. Inner sandbox under Avoozl's sandbox, settled by the owner on
+    2026-11-17: a harness whose own sandbox cannot run inside Avoozl's (on
+    macOS a nested `sandbox-exec` fails with `sandbox_apply: Operation not
+    permitted`, so Codex can neither edit a file nor run a command) MAY set
+    `permission.write` to exactly `danger-full-access`, its value for no
+    inner sandbox. Avoozl SHALL then start such a child only inside its own
+    sandbox, with the write roots of 4. WHEN no Avoozl sandbox is active
+    THEN it SHALL refuse the session, opt-in (5) or not. Every other place
+    and value of 4b stays refused, `permission.read` included, and tests
+    SHALL show it refused without the Avoozl sandbox, allowed with it, and
+    the other bypass values still refused.
 4c. Each project SHALL have a command allow-list for unattended children
     (`sandbox.allowCommands`: its build and test commands), passed to the
     harness's allow setting, so a child does not stall on a prompt.
@@ -5655,3 +5666,55 @@ my repositories to it.
    used".
 10. The mapping, the migration, the refused mixes and the screens SHALL have
     tests on fake data and a fake GitHub that records no call for a read.
+
+### Requirement 106: Task details hold the task's timeline; Trace is removed
+
+Added 2026-11-17 (owner decision). Design §4.35. Supersedes RC8.2 (Trace
+as a drawer and a page) and the Trace (Done) lane in RC8's nav list.
+Requirement 101.4 (every build record shown) and
+RC32.6 stay, now shown in the task's Timeline box.
+
+The owner's words, in short: Trace was built for one GitHub issue per task
+with a Radar claim. The pivot (retire-issues) retired that, so the page
+goes. What it showed for a task moves into that task's details.
+
+**User story:** As the owner, I want a task's steps in its own details, so
+that I read how it went in one place and the nav has no page that needs a
+GitHub issue.
+
+#### Acceptance criteria
+
+1. Task details SHALL have a **Timeline** box, collapsible, in the same
+   bordered box style as its other sections. It SHALL list Avoozl's own
+   steps for the task, oldest first: Spec approved, Ready, Started
+   (attempt N), Checks, Landed (with the commit), Integrated, and Builds.
+   Each step SHALL show its time and the wait since the step before it that
+   has a time.
+2. A step with no time that a later step passed SHALL show as Skipped. The
+   first step with no time after the last timed step SHALL show In progress.
+   Later steps SHALL show without a time. This is how Trace drew them.
+3. Every attempt SHALL show in order. A failed, interrupted or handed-back
+   attempt SHALL show its own step with the outcome.
+4. The box SHALL read stored records only: the plan's approval, flow spans,
+   session bindings, the task's delivery record and integration, evidence,
+   and build observations. It SHALL make no GitHub call and need no issue.
+5. What only Trace showed for a task SHALL move into the box so nothing is
+   lost: the build records grouped by phase, with the one-line summary,
+   failed records marked (R101.4, RC32.6). The GitHub-only steps (Issue
+   created, Claimed, PR opened, Review, Mirror steps) SHALL NOT be shown,
+   because they need an issue or a pull request that tasks no longer have.
+6. The earlier history list of task details (row changes, evidence,
+   deliveries, runs) SHALL stay in the same box, below the steps.
+7. The **Trace** nav entry, page, drawer, and Done work list SHALL be
+   removed, and so SHALL the `radar.trace` and `trace.done` operations and
+   every "Trace" button on other pages. Delivery and Home's Recently landed
+   cover the list.
+8. An old link to the Trace page SHALL open Dashboards › Delivery. An old
+   `?trace=owner/repo#N` link SHALL open the details of the task whose
+   issue is that one, with Timeline open; when no task has that issue it
+   SHALL open Delivery.
+9. Tests SHALL cover: the steps from stored records (a failed attempt, a
+   skipped step, an in-progress step, builds); the redirects; no Trace nav
+   entry; and zero GitHub calls. Screenshots of task details in the full app
+   shell (phone and desktop, light and dark) SHALL be under
+   `docs/evidence/trace-into-task/`. The owner needs no review of them.

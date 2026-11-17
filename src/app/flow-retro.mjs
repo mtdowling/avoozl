@@ -1,5 +1,7 @@
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewSession } from "./executors/kirocrew.mjs";
+import { projectExecutor } from "./executors/process.mjs";
+import { harnessExecutor, roleHarness } from "./chat-models.mjs";
 // Retrospectives and PDCA (design §4.11, Requirement 47). Now and then the
 // tick starts one session of the tool-less avoozl-retro agent with the
 // window's timing. It names the biggest bottleneck and proposes at most
@@ -708,19 +710,30 @@ export function retroStep(
     );
     s = { ...s, pending: [], reverts: [], finishedCount: found.finishedCount };
     changed = true;
-    if (repository && allowed)
+    if (repository && allowed) {
+      // R97.3: a `process` project's retro runs as a read-only child in a
+      // scratch folder the drain makes; its reply comes back as the result
+      // file.
+      const project = store.get("projects", repository);
+      // Settings › Models' retro harness (R98.3), else the project's.
+      const named = roleHarness(config, "retro"),
+        run = named
+          ? harnessExecutor(named)
+          : { executor: projectExecutor(project) };
       dispatch.push(
         kirocrewRequest(store, {
           task: retro.id,
           role: "retro",
           attempt: 1,
           title: `avoozl:${retro.id} retro`,
-          ...kirocrewSession(repository),
-          agent: RETRO_AGENT,
+          ...(run.executor === "process"
+            ? { ...run, repository }
+            : { ...kirocrewSession(repository), agent: RETRO_AGENT }),
           ...(model && model !== "auto" ? { model } : {}),
           brief,
         }),
       );
+    }
   }
   if (changed) store.setMeta(META.state, s);
   return { dispatch, notify, retro: due ? `retro-${retros.length + 1}` : null };

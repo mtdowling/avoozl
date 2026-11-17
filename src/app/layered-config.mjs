@@ -10,6 +10,7 @@ import {
 } from "./chat-models.mjs";
 import { validateLanes } from "./lanes.mjs";
 import { conflictRounds } from "./landing-config.mjs";
+import { deriveGitHubKeys } from "./repository-roles.mjs";
 
 export const avoozlConfigSchemaPath = fileURLToPath(
   new URL("../avoozl-config.schema.json", import.meta.url),
@@ -373,6 +374,9 @@ export function loadLayeredConfig({
   const mergeLayers = (selected) =>
     selected.reduce((result, layer) => deepMerge(result, layer.value), {});
   const config = mergeLayers(layers);
+  // Repository roles decide the GitHub mode, so readers of the raw keys see
+  // the derived value (R105.8).
+  if (config.github) config.github = deriveGitHubKeys(config.github);
   validateModels(config.models);
   validateHarnesses(config.harnesses);
   validatePlanReview(config.planReview);

@@ -26,6 +26,9 @@ import {
 } from './models-api.ts'
 
 const hasModel = (role: HarnessRole): role is ModelRole => role !== 'worker'
+// shortcut: these roles do not run on a harness yet; drop a role here once
+// its dispatch reads `harnesses`.
+const CHAT_ONLY = new Set<HarnessRole>(['planReviewer', 'reviewDraft'])
 
 export default function ModelsSettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()
@@ -111,8 +114,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                 />
               )}
               <span className="text-xs text-muted">{role.line}</span>
-              {/* shortcut: only the worker follows a non-chat harness until Phase 49 moves the other roles; drop this line then. */}
-              {hasModel(role.key) && harness !== 'auto' && harness !== KIROCREW_HARNESS && (
+              {CHAT_ONLY.has(role.key) && harness !== 'auto' && harness !== KIROCREW_HARNESS && (
                 <span className="text-xs text-muted" data-harness-pending>
                   Saved. This role still runs as a Kiro Crew chat until it can run on a harness.
                 </span>

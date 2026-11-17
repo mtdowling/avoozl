@@ -15,11 +15,11 @@ import { NavHistoryProvider, APP_ATTR } from '../../src/NavHistory.tsx'
 import { ConfirmProvider, DangerBtn, InfoTip } from '../../src/controls.tsx'
 import { Tooltip } from '../../src/Tooltip.tsx'
 import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
-import { TracePage } from '../../src/TraceView.tsx'
 import GraphView from '../../src/GraphView.tsx'
 import AddPlugin from '../../src/AddPlugin.tsx'
 import Onboard from '../../src/Onboard.tsx'
-import { RepositoryDialog } from '../../src/RepositoriesSettings.tsx'
+import { Modal } from '../../src/Modal.tsx'
+import { installInlineFixture } from './settings-inline-fixture.ts'
 import { SetupDialog } from '../../src/SetupWizard.tsx'
 import PlansView, { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansView.tsx'
 import { DocumentReader } from '../../src/DocumentReader.tsx'
@@ -172,6 +172,17 @@ answer('task.detail', () => ({
     { at: '2026-11-13T09:00:00Z', text: 'Protocol tests finished' },
   ],
   timing: null,
+  steps: [
+    { key: 'spec', label: 'Spec approved', at: '2026-11-13T08:00:00Z', state: 'done', by: 'owner' },
+    { key: 'ready', label: 'Ready', at: null, state: 'skipped' },
+    { key: 'started-1', label: 'Started (attempt 1)', at: '2026-11-13T08:10:00Z', state: 'done', by: 'model-a', detail: 'worker' },
+    { key: 'failed-1', label: 'Attempt 1 failed', at: '2026-11-13T08:40:00Z', state: 'done', failed: true, detail: 'tests red' },
+    { key: 'started-2', label: 'Started (attempt 2)', at: '2026-11-13T09:00:00Z', state: 'done', detail: 'worker' },
+    { key: 'checks', label: 'Checks', at: '2026-11-13T09:30:00Z', state: 'done', detail: '2 passed' },
+    { key: 'landed', label: 'Landed', at: '2026-11-13T09:35:00Z', state: 'done', detail: 'Commit 0123456789ab' },
+    { key: 'builds', label: 'Builds', at: '2026-11-13T09:32:00Z', state: 'done', detail: '2 builds, 2 min in all · costliest test 1.5 min', builds: [{ phase: 'build', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: 'team-review', ms: 38000, failed: false }] }, { phase: 'test', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: 'team-review', ms: 90000, failed: true }] }] },
+    { key: 'integrated', label: 'Integrated', at: null, state: 'now' },
+  ],
 }))
 answer('task.evidence', () => ({
   taskId: 'team-review',
@@ -232,14 +243,15 @@ const shown = (dialog: (close: () => void) => ReactNode): Scenario => ({
     </>
   ),
 })
+// A dialog that asks before it discards edits (Modal's `unsaved`).
 const repoEdit = (edited: boolean) =>
   shown((close) => (
-    <RepositoryDialog name="avoozl" edited={edited} missing={null} saving={false} error={null} onSave={close} onDiscard={close}>
+    <Modal id="avoozl-repo-edit" width="46rem" title="avoozl" unsaved={edited && { title: 'Discard your changes to avoozl?', body: 'Every edit in this dialog is lost.', action: 'Discard changes' }} onDismiss={close}>
       <label className="flex flex-col gap-1 text-sm">
         Base branch
         <input defaultValue="main" className="rounded border px-2 py-1" />
       </label>
-    </RepositoryDialog>
+    </Modal>
   ))
 
 export const SCENARIOS: Record<string, Scenario> = {
@@ -411,8 +423,9 @@ answer('workspaces.list', () => ({
   ],
 }))
 // The install's name: quiet with one instance, shown in more places with &shared=1.
-answer('instance.view', () => ({ id: 'inst-0123456789ab', name: 'Mira', others: query.get('shared') === '1' ? ['inst-aaaaaaaaaaaa'] : [], shared: query.get('shared') === '1' }))
-answer('instance.rename', (body) => ({ id: 'inst-0123456789ab', name: String((body.input as { name?: string }).name), others: [], shared: false }))
+let instanceName = 'Mira'
+answer('instance.view', () => ({ id: 'inst-0123456789ab', name: instanceName, others: query.get('shared') === '1' ? ['inst-aaaaaaaaaaaa'] : [], shared: query.get('shared') === '1' }))
+answer('instance.rename', (body) => ({ id: 'inst-0123456789ab', name: (instanceName = String((body.input as { name?: string }).name)), others: [], shared: false }))
 answer('untriaged.view', () => ({
   enabled: true,
   mode: null,
@@ -466,11 +479,25 @@ if (query.get('page') === 'app') {
   else if (!replyFor('radar.crews')) answer('radar.crews', () => ({ readAt: null, stale: 0, errors: [], unseen: [], rows: [] }))
   if (!replyFor('radar.releasequeue')) answer('radar.releasequeue', () => ({ repositories: [] }))
   if (!replyFor('remote.view')) answer('remote.view', () => ({ workers: [] }))
+  // &roles=plans|single|local: Repository setup with a role on each row
+  // (R105), the planning repository without a checkout in &roles=plans.
+  const roles = query.get('roles')
+  const rolesGithub = roles === 'single'
+    ? { mode: 'single-repo', defaultAuthority: 'github', repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } } }
+    : roles === 'local'
+      ? { repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'local' }, 'acme/recipe-api': { baseBranch: 'main', role: 'local' } } }
+      : { mode: 'plans-repo', planningRepository: 'acme/plans', defaultAuthority: 'github', epicIssueType: 'Epic', project: { owner: 'acme', number: 7 }, repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'code' }, 'acme/recipe-api': { baseBranch: 'main', role: 'code' } } }
+  if (roles)
+    answer('repositories.list', () => ({ items: [
+      { id: 'recipe-box', name: 'recipe-box', localCheckout: '/src/recipe-box', github: 'acme/recipe-box', baseBranch: 'main' },
+      { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main' },
+      { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
+    ] }))
   answer('github.settings.get', () => ({
     filename: '.avoozl.json',
     exists: true,
     hash: 'h',
-    github: { mode: 'plans-repo', repositories: { 'acme/recipe-box': worker ? { coder: 'worker' } : { coder: 'issue-radar' } } },
+    github: roles ? rolesGithub : { mode: 'plans-repo', repositories: { 'acme/recipe-box': worker ? { coder: 'worker' } : { coder: 'issue-radar' } } },
     effective: null,
     error: null,
     crews: [],
@@ -487,6 +514,8 @@ if (query.get('page') === 'app') {
     choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
   }))
 }
+// &inline=1: a stateful backend for the Settings pages that edit in place.
+if (query.get('page') === 'app' && query.get('inline') === '1') installInlineFixture()
 // &escalations=after: one Issue Radar escalation in Intake (listed first,
 // with Plan this and Deliver this) and one in Needs you with the same two
 // buttons. &escalations=before: the same issues as main's backend sends
@@ -592,6 +621,50 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
     repositories: { 'recipe-box': { usd: 8, mode: 'warn' }, search: {} },
   }))
 }
+// &process=1: Home's In flight with a `process` worker (Claude Code under
+// the supervisor, resumed once, cost known) beside a Kiro Crew reviewer
+// chat (task 50.1 shots). Paths are made up.
+if (query.get('page') === 'app' && query.get('process') === '1') {
+  const at = new Date(Date.now() - 12 * 60000).toISOString()
+  const t = (id: string, title: string, extra = {}) => ({ ...task(id, 'e1'), title, planId: 'meal-planner', spec: 'meal-planner', repository: 'recipe-box', phase: null, ...extra })
+  answer('graph.view', () => ({
+    revision: 1,
+    epics: [{ id: 'e1', title: 'Meal planner', count: 2 }],
+    plans: [{ id: 'meal-planner', title: 'Meal planner' }],
+    statuses: [{ id: 'planned', label: 'Planned', complete: false }, { id: 'done', label: 'Done', complete: true }],
+    repositories: ['recipe-box'],
+    total: 2,
+    tasks: [t('m3', 'Sync pantry items between devices', { state: 'running', status: 'running' }), t('s1', 'Index recipes by ingredient', { state: 'running', status: 'review' })],
+    edges: [],
+  }))
+  const uuid = '6f1c2b9e-4d7a-4c1e-9b0a-2f5e8d3c7a41'
+  const log = [
+    'Reading src/pantry/sync.ts',
+    'Editing src/pantry/sync.ts: merge by item id, newest edit wins',
+    'Running npm test -- pantry',
+    '  ✓ merges two devices (12 ms)',
+    '  ✓ keeps a deleted item deleted (4 ms)',
+    'Writing .avoozl/result.json',
+  ].join('\n')
+  const item = (id: string, title: string, sessions: unknown[]) => ({
+    id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', sessions, runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null, budget: null,
+  })
+  answer('delivery.view', () => ({
+    revision: 1,
+    items: [
+      item('m3', 'Sync pantry items between devices', [
+        {
+          slot: `process-${uuid}`, role: 'worker', attempt: 1, title: null, status: 'working', statusAt: at, boundAt: at, model: 'claude-sonnet', crew: 'local', executor: 'process', link: null,
+          process: { harness: 'claude-code', state: 'running', exitCode: null, run: 2, logTail: log, cost: 0.83, attach: `cd /work/recipe-box-m3 && claude --resume ${uuid}` },
+        },
+      ]),
+      item('s1', 'Index recipes by ingredient', [
+        { slot: 'chat-s1', role: 'reviewer', attempt: 1, title: null, status: 'reading', statusAt: at, boundAt: at, agent: 'kirocrew-worker', model: null, crew: 'local', executor: 'kirocrew', link: '/chat?sid=chat-s1' },
+      ]),
+    ],
+    contentReports: [],
+  }))
+}
 // &publiccrews=after: Intake with the Public crews card (task 39.3): one
 // repository ready to sign off, one signed off, and one with no rule set
 // (the banner) whose sign-off lapsed. &publiccrews=before: the same Intake
@@ -630,9 +703,7 @@ if (query.get('page') === 'app' && query.get('publiccrews')) {
     ...(after ? { publicCrews } : {}),
   }))
 }
-// ?page=app&radar=1: the Dashboard has one live Issue Radar claim, and a
-// Trace of it. The marker's own `updated=` (09:46) is ahead of GitHub's time
-// for the claim comment (09:21); the Trace shows GitHub's.
+// ?page=app&radar=1: the Dashboard has one live Issue Radar claim.
 if (query.get('radar') === '1') {
   answer('delivery.view', () => ({ revision: 1, items: [] }))
   answer('conflicts.view', () => ({ revision: 1, items: [] }))
@@ -652,30 +723,6 @@ if (query.get('radar') === '1') {
     errors: [],
     unseen: ['paused', 'machine', 'chat'],
     rows: [{ repository: 'acme/recipe-box', number: 52, title: 'Index builder', url: 'https://github.com/acme/recipe-box/issues/52', crewId: 'c_022aea7f', crewName: 'Draco', phase: 'implementing', pr: 57, prUrl: 'https://github.com/acme/recipe-box/pull/57', updated: '2026-11-09T09:46:00Z', commentUrl: null, stale: false, noMarker: false }],
-  }))
-  const step = (key: string, label: string, at: string | null, state: string, extra = {}) => ({ key, label, at, state, ...extra })
-  answer('radar.trace', () => ({
-    repository: 'acme/recipe-box',
-    number: 52,
-    title: 'Index builder',
-    steps: [
-      step('spec', 'Spec approved', '2026-11-09T08:02:00Z', 'done', { by: 'owner', detail: 'search · commit a41c9e2' }),
-      step('issue', 'Issue created', '2026-11-09T08:10:00Z', 'done', { link: 'https://github.com/acme/recipe-box/issues/52' }),
-      step('ready', 'Ready', '2026-11-09T09:15:00Z', 'done'),
-      step('claimed', 'Claimed', '2026-11-09T09:21:00Z', 'done', { by: 'Draco' }),
-      step('pr', 'PR opened', '2026-11-09T09:48:00Z', 'done', { link: 'https://github.com/acme/recipe-box/pull/57' }),
-      query.get('merged')
-        ? step('ci', 'CI', '2026-11-09T10:02:00Z', 'done', { detail: '6 checks passed', rounds: 1 })
-        : step('ci', 'CI', null, 'now', { detail: '4 of 6 checks done', rounds: 2 }),
-      query.get('merged')
-        ? step('merged', 'Merged', '2026-11-09T10:12:00Z', 'done', { link: 'https://github.com/acme/recipe-box/pull/57', ...(query.get('receipt') ? { detail: '4 builds, 5 min in all · costliest test 3 min', builds: [{ phase: 'build', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: null, ms: 38000, failed: false }] }, { phase: 'test', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: null, ms: 120000, failed: true }, { target: 'linux-x64/node26', start: 'warm', attempt: 2, task: null, ms: 96000, failed: false }, { target: 'win32-x64/node26', start: 'cold', attempt: 1, task: null, ms: 174000, failed: false }] }] } : {}) })
-        : step('merged', 'Merged', null, 'later'),
-      step('retro', 'Retro', null, 'later', { detail: query.get('merged') ? 'Counted in the next retro' : 'After merge' }),
-    ],
-    crew: { id: 'c_022aea7f', name: 'Draco' },
-    crewLastWordAt: '2026-11-09T10:09:00Z',
-    links: { issue: 'https://github.com/acme/recipe-box/issues/52', pr: 'https://github.com/acme/recipe-box/pull/57', claim: null },
-    problems: [],
   }))
 }
 // ?page=app&flow=1: Flow with one task at 80% of its budget, and Settings ›
@@ -1181,12 +1228,10 @@ function HomePage() {
   )
 }
 
-// ?page=app&epics=empty|full and ?page=trace&done=empty|full: the Epics
-// screen above the spec list, and Trace with no issue chosen (Done work).
+// ?page=app&epics=empty|full: the Epics screen above the spec list.
 const RADAR_GRAPH = { url: '/issue-radar', focus: false }
-if (query.get('epics') === 'empty' || query.get('done') === 'empty') {
+if (query.get('epics') === 'empty') {
   answer('epics.view', () => ({ epics: [], unprojected: [], radarGraph: RADAR_GRAPH }))
-  answer('trace.done', () => ({ rows: [] }))
 }
 if (query.get('epics') === 'full') {
   const phase = (id: string, title: string, gate: string, total: number, merged: number, released: number, held: string | null) => ({ id, title, gate, total, merged, released, held })
@@ -1208,22 +1253,6 @@ if (query.get('epics') === 'full') {
     radarGraph: RADAR_GRAPH,
   }))
 }
-if (query.get('done') === 'full') {
-  const row = (taskId: string, title: string, issue: number, pr: number, mergedAt: string, name: string | null) => ({ taskId, title, repository: 'acme/recipe-box', issue, url: `https://github.com/acme/recipe-box/issues/${issue}`, pr, prUrl: `https://github.com/acme/recipe-box/pull/${pr}`, mergedAt, by: name ? { kind: 'radar-crew', id: 'c1', name } : null })
-  answer('trace.done', () => ({ rows: [row('S4', 'Index builder', 52, 57, '2026-11-09T11:40:00Z', 'Draco'), row('S1', 'Tokenizer', 40, 41, '2026-11-08T10:00:00Z', null)] }))
-}
-function TraceDonePage() {
-  const [picked, setPicked] = useState('')
-  return (
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
-      <NavHistoryProvider>
-        <TracePage workspaceId="w" target={null} onPick={(target) => setPicked(`${target.repository}#${target.number}`)} onOpenEpics={() => setPicked('epics')} />
-        <p data-picked>{picked}</p>
-      </NavHistoryProvider>
-    </div>
-  )
-}
-
 const page = query.get('page')
 // ?page=needs: Needs you's list column with four open items, for the filter
 // row and the count shown once.
@@ -1469,5 +1498,5 @@ function PanelPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'needs' ? <NeedsPage /> : page === 'specs' ? <SpecsPage /> : page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'needs' ? <NeedsPage /> : page === 'specs' ? <SpecsPage /> : page === 'tip' ? <TipPage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )

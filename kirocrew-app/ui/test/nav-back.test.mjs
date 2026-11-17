@@ -165,7 +165,7 @@ test('a dialog with unsaved changes asks first, the same way Cancel does', async
   let open = true
   let answer = false
   const asked = []
-  // RepositoryDialog's dismiss: ask, then discard only on yes.
+  // A dialog's dismiss: ask, then discard only on yes.
   const dismiss = () => {
     asked.push('Discard your changes?')
     const confirm = nav.history.push({ kind: 'confirm', label: 'Cancel', back: () => nav.history.release(confirm) })
@@ -194,7 +194,6 @@ test('a dialog with unsaved changes asks first, the same way Cancel does', async
   const shared = source('Modal.tsx')
   assert.match(shared, /useBackStep\(props\.kind \?\? 'modal', true, props\.backLabel \?\? 'Close the dialog', dismiss\)/)
   assert.match(shared, /if \(!unsaved\) return onDismiss\(\)[\s\S]*?void ask\(unsaved\)\.then\(\(yes\) => \{[\s\S]*?if \(yes\) latest\.current\.onDismiss\(\)/)
-  assert.match(source('RepositoriesSettings.tsx'), /unsaved=\{props\.edited && discard\}/)
   for (const name of ['AddPlugin.tsx', 'PackImport.tsx', 'SendToRadar.tsx', 'SetupWizard.tsx'])
     assert.match(source(name), /<(Modal|Shelf)\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/, name)
   assert.match(source('controls.tsx'), /<Modal\s+id="avoozl-confirm"\s+kind="confirm"\s+role="alertdialog"\s+backLabel="Cancel"[\s\S]*?onDismiss=\{\(\) => answer\(false\)\}/)
@@ -255,7 +254,7 @@ test('focus returns to the opener, and a restore waits for the view to grow', ()
 test('the views use the shared history: inner tabs, the plan, the Graph, the drawer', () => {
   assert.match(source('App.tsx'), /changePage\(\s*nav,\s*here,/)
   // Deep links go through changePage, never a memory write before the switch.
-  assert.match(source('App.tsx'), /go\(\{ tab: 'trace', focus: null, drill: null \}, \{ \[TRACE_TARGET\]: target \}\)/)
+  assert.match(source('App.tsx'), /go\(\{ tab: 'delivery', focus: null, drill: null \}\)\n\s+setTraceLink\(link\)/)
   assert.doesNotMatch(source('App.tsx'), /nav\.memory\.set\(/)
   assert.match(source('App.tsx'), /onTab=\{\(next\) => go\(\{ settingsTab: next \}\)\}/)
   assert.match(source('SettingsView.tsx'), /useSteppedState<RepositoryTab>\(\s*`settings-repo-tab-\$\{props\.index\}`,\s*'inner',/)

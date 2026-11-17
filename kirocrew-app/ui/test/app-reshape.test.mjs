@@ -28,10 +28,10 @@ const open = (query = {}) => page.open(harness.url({ page: 'app', ...query }), {
 const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
 const text = `document.body.innerText`
 
-test('the nav row has Dashboards, Specs, Needs you, Trace, Flow, Activity and Settings, and no removed page', { skip }, async () => {
+test('the nav row has Dashboards, Specs, Needs you, Flow, Activity and Settings, and no Trace', { skip }, async () => {
   await open({ radar: '1' })
-  await page.until(`${tabs}.length === 7`)
-  assert.deepEqual(await page.evaluate(tabs), ['Dashboards', 'Specs', 'Needs you', 'Trace', 'Flow', 'Activity', 'Settings'])
+  await page.until(`${tabs}.length === 6`)
+  assert.deepEqual(await page.evaluate(tabs), ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Activity', 'Settings'])
   assert.deepEqual(page.errors, [])
 })
 
@@ -56,17 +56,15 @@ test('Settings lists its sections in the nav, shows only the picked one, and has
   await click(tab('Settings'))
   await page.until(`Boolean(document.querySelector('[data-settings-section]'))`)
   const sections = await page.evaluate(`[...document.querySelectorAll('[data-nav-children="settings"] [data-nav-item]')].map((s) => s.dataset.navItem.replace('settings/', ''))`)
-  assert.deepEqual(sections, ['instance', 'workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
+  assert.deepEqual(sections, ['workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
   // Settings opens alone, and the page shows one section.
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-nav-section][data-open]').length`), 1)
   // Opening another section in the nav shows that one alone.
   await click(`document.querySelector('[data-nav-item="settings/repositories"]')`)
-  // The large editors open in a modal from Configure.
-  await page.until(`Boolean(document.querySelector('[data-open-settings="repositories"]'))`)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-mirror-setup]'))`), false)
-  await click(`document.querySelector('[data-open-settings="repositories"]')`)
-  await page.until(`Boolean(document.querySelector('[data-settings-dialog="repositories"] [data-mirror-setup]'))`)
+  // Repository setup edits in place: no Configure button and no dialog.
+  await page.until(`Boolean(document.querySelector('[data-mirror-setup]'))`)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-open-settings], [data-settings-dialog]'))`), false)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
   const buttons = await page.evaluate(`[...document.querySelectorAll('[data-setup-action]')].map((b) => [b.dataset.setupAction, b.disabled])`)
   // Both buttons wait for the two repository names.
@@ -100,12 +98,4 @@ test('Needs you holds decisions and intake as two nav pages, one shown at a time
   await page.until(`document.querySelector('[data-waiting-section="intake"]').dataset.open === 'true'`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-waiting-section][data-open="true"]').length`), 1)
   assert.deepEqual(page.errors, [])
-})
-
-test('Trace in the nav explains itself and takes an issue', { skip }, async () => {
-  await open({ radar: '1' })
-  await page.until(`Boolean(${tab('Trace')})`)
-  await click(tab('Trace'))
-  await page.until(`Boolean(document.querySelector('[data-trace-start]'))`)
-  assert.equal(await page.evaluate(`document.querySelector('[data-trace-start] button[type="submit"]').disabled`), true)
 })
