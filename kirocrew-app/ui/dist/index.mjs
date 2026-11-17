@@ -5227,7 +5227,7 @@ function sl(e) {
 			value: e.corrections ? `${e.corrections.lastWeek} this week` : "–",
 			was: null,
 			empty: e.corrections ? null : "No corrections yet.",
-			tip: "Times a person told an agent it got something wrong: changes requested, sent back, reverted, or Pick again with a reason."
+			tip: "How many times this week a person told an agent it got something wrong: a pull request got changes requested, a task was sent back or reverted, or someone used Pick again with a reason."
 		}
 	];
 }
@@ -7222,26 +7222,42 @@ function Du({ stops: e, workspaceId: t, onChanged: n }) {
 	});
 }
 function Ou({ view: e }) {
+	let t = Wt("(max-width: 767px)");
 	return /* @__PURE__ */ C("div", {
-		className: "grid gap-3",
-		style: { gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 11rem), 1fr))" },
+		style: {
+			display: "grid",
+			width: "100%",
+			gap: "0.75rem",
+			gridTemplateColumns: `repeat(${t ? 2 : 6}, minmax(0, 1fr))`
+		},
 		"data-flow-cards": !0,
 		children: sl(e).map((e) => /* @__PURE__ */ w(v, {
 			className: "flex flex-col gap-1",
+			style: { minWidth: 0 },
 			children: [/* @__PURE__ */ C(J, {
 				text: e.tip,
 				children: (t) => /* @__PURE__ */ C("span", {
 					"aria-describedby": t,
 					tabIndex: 0,
 					className: "text-xs text-muted",
-					style: { width: "fit-content" },
+					style: {
+						width: "fit-content",
+						overflowWrap: "anywhere",
+						fontWeight: 700,
+						textTransform: "uppercase",
+						fontSize: "0.75rem"
+					},
 					children: e.title
 				})
 			}), e.empty ? /* @__PURE__ */ C("span", {
 				className: "text-sm text-muted",
 				children: e.empty
 			}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C("span", {
-				className: "text-2xl font-semibold tabular-nums",
+				className: "text-xl font-semibold tabular-nums",
+				style: {
+					overflowWrap: "anywhere",
+					fontSize: "1.25rem"
+				},
 				children: e.value
 			}), /* @__PURE__ */ C("span", {
 				className: "text-xs text-muted tabular-nums",
