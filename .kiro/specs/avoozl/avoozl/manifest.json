@@ -6431,7 +6431,8 @@
         "41.1",
         "41.2",
         "41.3",
-        "41.5"
+        "41.5",
+        "41.9"
       ]
     },
     "41.1": {
@@ -6553,6 +6554,24 @@
       ],
       "requires": [
         "41.3"
+      ]
+    },
+    "41.9": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). The tick lands direct portions through the landing queue. See R87.1, R87.2, R88.6; §4.26.",
+      "acceptance": [
+        "The tick lands `direct` portions through the landing queue",
+        "A verified task in a repository with landing `direct` is queued as one portion. Each tick runs `landNext` with `directSteps` per base: checks on the merged candidate, an intent in the spec's journal, a guarded fast-forward push, never forced. Landed marks the task integrated at the candidate, fast-forwards the local base and removes the task worktree and branch; failed checks go back to the chat. Real git test with a bare remote; no live write."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.3",
+        "42.6"
       ]
     },
     "avoozl-p51": {
