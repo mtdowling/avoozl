@@ -19,7 +19,8 @@ import { TracePage } from '../../src/TraceView.tsx'
 import GraphView from '../../src/GraphView.tsx'
 import AddPlugin from '../../src/AddPlugin.tsx'
 import Onboard from '../../src/Onboard.tsx'
-import { RepositoryDialog } from '../../src/RepositoriesSettings.tsx'
+import { Modal } from '../../src/Modal.tsx'
+import { installInlineFixture } from './settings-inline-fixture.ts'
 import { SetupDialog } from '../../src/SetupWizard.tsx'
 import PlansView, { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansView.tsx'
 import { DocumentReader } from '../../src/DocumentReader.tsx'
@@ -232,14 +233,15 @@ const shown = (dialog: (close: () => void) => ReactNode): Scenario => ({
     </>
   ),
 })
+// A dialog that asks before it discards edits (Modal's `unsaved`).
 const repoEdit = (edited: boolean) =>
   shown((close) => (
-    <RepositoryDialog name="avoozl" edited={edited} missing={null} saving={false} error={null} onSave={close} onDiscard={close}>
+    <Modal id="avoozl-repo-edit" width="46rem" title="avoozl" unsaved={edited && { title: 'Discard your changes to avoozl?', body: 'Every edit in this dialog is lost.', action: 'Discard changes' }} onDismiss={close}>
       <label className="flex flex-col gap-1 text-sm">
         Base branch
         <input defaultValue="main" className="rounded border px-2 py-1" />
       </label>
-    </RepositoryDialog>
+    </Modal>
   ))
 
 export const SCENARIOS: Record<string, Scenario> = {
@@ -488,6 +490,8 @@ if (query.get('page') === 'app') {
     choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
   }))
 }
+// &inline=1: a stateful backend for the Settings pages that edit in place.
+if (query.get('page') === 'app' && query.get('inline') === '1') installInlineFixture()
 // &escalations=after: one Issue Radar escalation in Intake (listed first,
 // with Plan this and Deliver this) and one in Needs you with the same two
 // buttons. &escalations=before: the same issues as main's backend sends
