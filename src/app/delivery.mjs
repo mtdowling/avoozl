@@ -47,6 +47,7 @@ import {
   stillQueued,
   syncBase,
 } from "./pr-landing.mjs";
+import { isDirectLanding, queueDirect } from "./direct-landing.mjs";
 import { integrationBranchOf } from "./integration-branch.mjs";
 import { specBase } from "./spec-base.mjs";
 import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
@@ -3436,12 +3437,17 @@ export async function integrateVerified(
           "projects",
           worktree.repository || taskRepository(task),
         ),
-        viaPullRequest = isPullRequestLanding(project);
-      // A `pr` project lands on GitHub (task 42.6): bring the remote base
-      // here first; a queued task waits unless its base moved.
-      if (viaPullRequest) {
+        viaPullRequest = isPullRequestLanding(project),
+        viaDirect = isDirectLanding(project);
+      // A `pr` project lands on GitHub (task 42.6) and a `direct` one on its
+      // remote (41.9): bring the remote base here first; a queued task
+      // waits unless its base moved.
+      if (viaPullRequest || viaDirect) {
         if (delivery.batch)
-          fail("A batch does not land by pull request yet.", 409);
+          fail(
+            `A batch does not land ${viaDirect ? "directly" : "by pull request"} yet.`,
+            409,
+          );
         await syncBase(project).catch(() => null);
         if (await stillQueued(store, { delivery, project })) continue;
       }
@@ -3502,6 +3508,11 @@ export async function integrateVerified(
           task,
           at,
         });
+        store.transaction(() => store.put("task_deliveries", next));
+        continue;
+      }
+      if (viaDirect) {
+        next = queueDirect(store, { delivery, project, task, at });
         store.transaction(() => store.put("task_deliveries", next));
         continue;
       }

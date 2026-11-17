@@ -45,7 +45,7 @@ for (const [width, dark] of [
     assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-review-tab]')].map((t) => t.dataset.reviewTab)`), ['requirements.md', 'design.md', 'tasks.md'])
     assert.match(await text('[data-review-doc]'), /fixed-width byte types/)
     // Requirements' findings in line order, each with its border and label.
-    assert.deepEqual(await cards(), ['f-warn', 'f-blocker'])
+    assert.deepEqual(await cards(), ['f-warn', 'f-blocker', 'f-later'])
     assert.equal(await border('f-blocker'), await color('var(--danger)'))
     assert.equal(await border('f-warn'), await color('var(--warning, #b7791f)'))
     assert.match(await text('[data-finding-card="f-blocker"] [data-severity-label]'), /^Blocker$/)
@@ -72,6 +72,58 @@ for (const [width, dark] of [
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, 'no page overflow')
     assert.deepEqual(page.errors, [])
   })
+
+// Where each card and block sits, relative to the page.
+const tops = () =>
+  page.evaluate(`(() => {
+    const top = (el) => Math.round(el.getBoundingClientRect().top + scrollY)
+    const out = {}
+    for (const c of document.querySelectorAll('[data-review-area] [data-finding-card]')) out[c.dataset.findingCard] = { top: top(c), bottom: top(c) + Math.round(c.getBoundingClientRect().height) }
+    for (const b of document.querySelectorAll('[data-review-doc] [data-source-line]')) out['line ' + b.dataset.sourceLine] = { top: top(b) }
+    return out
+  })()`)
+
+test('at 1280 each card sits level with its line, overlapping cards stack in line order, and moved ones list first', { skip }, async () => {
+  await openReview(1280, false)
+  assert.equal(await page.evaluate(`document.querySelector('[data-review-layout]').dataset.reviewLayout`), 'rail')
+  const at = await tops()
+  // Each card is level with its block unless the card above would overlap
+  // it; then it sits just below that card. Line order holds.
+  const near = (a, b) => Math.abs(a - b) <= 2
+  assert.ok(near(at['f-warn'].top, at['line 5'].top), JSON.stringify(at))
+  assert.ok(near(at['f-blocker'].top, Math.max(at['line 7'].top, at['f-warn'].bottom + 8)), JSON.stringify(at))
+  assert.ok(near(at['f-later'].top, Math.max(at['line 14'].top, at['f-blocker'].bottom + 8)), JSON.stringify(at))
+  await click('[data-review-tab="design.md"]')
+  await page.until(`Boolean(document.querySelector('[data-moved-group] [data-finding-card="f-moved"]'))`)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-moved-group]').compareDocumentPosition(document.querySelector('[data-review-area]')) & Node.DOCUMENT_POSITION_FOLLOWING)`), true, 'Moved or removed is at the top of the rail')
+  assert.deepEqual(page.errors, [])
+})
+
+test('a card click highlights its lines, and a click on highlighted text selects its card', { skip }, async () => {
+  await openReview(1280, false)
+  await click('[data-finding-card="f-later"]')
+  await page.until(`document.querySelector('[data-finding-card="f-later"]').dataset.selected === 'true'`)
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-review-hit]')].map((el) => el.dataset.sourceLine)`), ['14', '15'])
+  // Text inside f-blocker's lines (7-8) selects f-blocker and moves the highlight.
+  await click('[data-review-doc] [data-source-line="7"]')
+  await page.until(`document.querySelector('[data-finding-card="f-blocker"]').dataset.selected === 'true'`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-finding-card="f-later"]').dataset.selected`), undefined)
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-review-hit]')].map((el) => el.dataset.sourceLine)`), ['7', '8'])
+  // A finding's buttons still work on a selected card.
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-finding-card="f-blocker"] [data-finding-action="accept"]'))`), true)
+})
+
+test('at 390 each card sits inline after its block', { skip }, async () => {
+  await openReview(390, true)
+  assert.equal(await page.evaluate(`document.querySelector('[data-review-layout]').dataset.reviewLayout`), 'inline')
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-review-rail]'))`), false)
+  const after = (card, line) =>
+    page.evaluate(`Boolean(document.querySelector('[data-source-line="${line}"]').compareDocumentPosition(document.querySelector('[data-finding-card="${card}"]')) & Node.DOCUMENT_POSITION_FOLLOWING)`)
+  assert.equal(await after('f-later', 14), true)
+  assert.equal(await after('f-blocker', 7), true)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-finding-card="f-later"]').compareDocumentPosition(document.querySelector('[data-source-line="17"]')) & Node.DOCUMENT_POSITION_FOLLOWING)`), true, 'before the next section')
+  assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, 'no page overflow')
+})
 
 test('Reject needs a reason, and each action records the revision on screen', { skip }, async () => {
   await openReview(1280, false)
@@ -117,4 +169,23 @@ test('each chip counts what would show with the other filter applied', () => {
     ['a', 'c'],
   )
   assert.deepEqual(chipCounts(all, { severity: 'warn', state: null }), { severity: { warn: 2, blocker: 1 }, state: { fixed: 1, 'for you': 1 } })
+})
+
+const { blockFor, blocksIn, stackCards } = await import('../src/review-view.ts')
+
+test('an anchor maps to the blocks its lines touch, and cards stack in line order', () => {
+  const lines = [1, 3, 5, 7, 8]
+  assert.equal(blockFor(lines, 6), 2)
+  assert.equal(blockFor(lines, 0), 0, 'before the first block: the first block')
+  assert.deepEqual(blocksIn(lines, 5, 7), [2, 3])
+  assert.deepEqual(blocksIn(lines, 9, 9), [4], 'the last block runs to the end')
+  assert.deepEqual(
+    stackCards([
+      { id: 'b', want: 100, line: 7, height: 50 },
+      { id: 'a', want: 90, line: 5, height: 40 },
+      { id: 'c', want: 300, line: 16, height: 40 },
+      { id: 'd', want: 100, line: 6, height: 10 },
+    ]),
+    { a: 90, d: 138, b: 156, c: 300 },
+  )
 })
