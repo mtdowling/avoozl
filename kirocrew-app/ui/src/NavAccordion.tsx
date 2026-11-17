@@ -9,10 +9,12 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavSlotHost } from './nav-slot.tsx'
 import { ChevronDown } from './icons.ts'
 import { NAV_PILL } from './nav-style.ts'
+import Badge from './Badge.tsx'
 
 export interface NavChild {
   key: string
   label: string
+  count?: number
 }
 
 export interface NavGroup {
@@ -147,6 +149,7 @@ export function NavAccordion(props: {
                       }}
                     >
                       <span data-nav-text>{item.label}</span>
+                      {item.count ? <span data-nav-count style={{ flexShrink: 0, display: 'inline-flex' }}><Badge variant="warning">{item.count}</Badge></span> : null}
                     </button>
                   )
                 })}
