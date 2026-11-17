@@ -1832,7 +1832,7 @@ dependency on the worker rebuild (Phases 40–52) and may ship before it.
 - [x] 53.5 CLI, MCP tools and Flow planning, after 53.3 [R99.11, R99.12] (§4.29)
   - `avoozl plan review SPEC [--start] [--json]`; `plans_plan_review` and `plans_answer_review` with MCP policy (Review anyway and `--start` person only); Planning spans and usage per spec in Flow, kept out of task flow and budgets.
 
-- [ ] avoozl-p63 P63 Proof: a draft is reviewed on another model and the person sees it at approval [R99] (§4.29)
+- [x] avoozl-p63 P63 Proof: a draft is reviewed on another model and the person sees it at approval [R99] (§4.29)
   - Setup: an isolated workspace and Kiro Crew home, a scratch planning repository with one spec draft that names a missing file and hides an order in prose, and real planner and reviewer chats on two different owner-selected models.
   - Action: (1) store the draft with `planReview.mode: auto` and no reviewer model; (2) set the reviewer to the planner's model; (3) set a different model; (4) let the planner answer; (5) edit the spec by hand; (6) open the Approve dialog alone and in a batch, and approve.
   - Expected: (1) and (2) skipped with a note and no chat; (3) one read-only round with a `wrong-reference` and a `hidden-order` finding at the right file and line; (4) one fixed, one answered; (5) a fresh round on the new hash, old findings marked older; (6) both dialogs show the model and counts, approval succeeds the same as with no review, and no GitHub write is made.
