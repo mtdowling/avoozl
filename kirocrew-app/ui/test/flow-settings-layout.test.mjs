@@ -54,10 +54,10 @@ const READ = `(() => {
   })
   // Fields of one grid that share a row: their inputs start at one height.
   const rows = [...root.querySelectorAll('[data-flow-group]')].map((grid) => {
-    const fields = [...grid.querySelectorAll(':scope > [data-flow-field]')].map((f) => ({ top: Math.round(r(f).top), input: Math.round(r(f.children[1]).top), key: Math.round(r(f.children[3]).top) }))
+    const fields = [...grid.querySelectorAll(':scope > [data-flow-field]')].map((f) => ({ top: Math.round(r(f).top), label: Math.round(r(f.children[0]).top), input: Math.round(r(f.children[1]).top), key: Math.round(r(f.children[3]).top) }))
     const byRow = {}
     for (const f of fields) (byRow[f.top] ||= []).push(f)
-    return { group: grid.dataset.flowGroup, rows: Object.values(byRow).map((list) => ({ inputs: [...new Set(list.map((f) => f.input))].length, keys: [...new Set(list.map((f) => f.key))].length })) }
+    return { group: grid.dataset.flowGroup, rows: Object.values(byRow).map((list) => ({ labels: [...new Set(list.map((f) => f.label))].length, inputs: [...new Set(list.map((f) => f.input))].length, keys: [...new Set(list.map((f) => f.key))].length })) }
   })
   const footer = root.querySelector('[data-flow-footer]'), body = footer.closest('[data-modal-body]')
   const buttons = [...footer.querySelectorAll('button')]
@@ -80,6 +80,7 @@ for (const width of [390, 1280])
     for (const { label, gap } of before.gaps) if (gap !== null) assert.ok(gap >= 4, `"${label}" runs into (optional): ${gap}px`)
     for (const { group, rows } of before.rows)
       for (const row of rows) {
+        assert.equal(row.labels, 1, `${group}: labels in one row start at different heights`)
         assert.equal(row.inputs, 1, `${group}: inputs in one row start at different heights`)
         assert.equal(row.keys, 1, `${group}: .avoozl.json keys in one row sit at different heights`)
       }
