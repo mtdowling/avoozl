@@ -330,7 +330,7 @@ test('a hovered nav item changes color, the selected one stays different, and ke
     const read = (key) => page.evaluate(`(() => { const el = document.querySelector('[data-nav-item="${key}"]'), s = getComputedStyle(el); return { bg: s.backgroundColor, color: s.color, weight: s.fontWeight, outline: s.outlineStyle } })()`)
     const before = await read('settings/models')
     const selected = await read('settings/workspaces')
-    const box = await page.evaluate(`(() => { const r = document.querySelector('[data-nav-item="settings/models"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`)
+    const box = await page.evaluate(`(() => { document.querySelector('[data-nav-item="settings/models"]').scrollIntoView({ block: 'center' }); const r = document.querySelector('[data-nav-item="settings/models"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`)
     await page.hover(box[0], box[1])
     await settle()
     const hover = await read('settings/models')

@@ -61,12 +61,12 @@ for (const size of SIZES) {
     const openMenu = () => page.evaluate(`(() => { const bar = document.querySelector('[data-top-rail-bar]'); if (bar && bar.getAttribute('aria-expanded') !== 'true') bar.click(); return true })()`)
     for (const name of TABS) {
       await openMenu()
-      await page.evaluate(`[...document.querySelectorAll('button[data-nav-head]')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(name)}))?.click()`)
+      const group = await page.evaluate(`(() => { const b = [...document.querySelectorAll('button[data-nav-head]')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(name)})); b?.click(); return b?.dataset.navGroup ?? '' })()`)
       await settle()
       // The nav itself, with this section open.
       await openMenu()
       found.push(...(await page.evaluate(tall)).map((entry) => `nav at ${name}: ${entry}`))
-      const pages = await page.evaluate(`[...document.querySelectorAll('[data-nav-children] [data-nav-item]')].map((b) => b.dataset.navItem)`)
+      const pages = await page.evaluate(`[...document.querySelectorAll('[data-nav-children="${group}"] [data-nav-item]')].map((b) => b.dataset.navItem)`)
       if (!pages.length) {
         // A plain section closes the phone's menu; measure the page.
         found.push(...(await page.evaluate(tall)).map((entry) => `${name}: ${entry}`))

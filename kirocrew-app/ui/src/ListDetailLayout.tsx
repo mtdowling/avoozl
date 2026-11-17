@@ -4,7 +4,7 @@
 // remembered width; drag its edge to change that, though it never closes.
 // A phone shows one pane: the list, or the detail with Back in its sticky row.
 import { useCallback, useRef, useState, type ReactNode } from 'react'
-import { clampWidth, listSpec, pageStorage, readWidth, writeWidth } from './columns.ts'
+import { LIST_FOLDED_WIDTH, clampWidth, listSpec, pageStorage, readWidth, writeWidth } from './columns.ts'
 import { DetailPane } from './ListDetail.tsx'
 import { usePhone } from './list-detail.ts'
 import { ResizeHandle } from './ResizeHandle.tsx'
@@ -22,6 +22,9 @@ export function ListDetailLayout(props: {
   detailActions?: ReactNode
   // The detail draws its own big title (useDetailTitleRef).
   detailOwnTitle?: boolean
+  // Desktop: the list is a thin bar for now (a wide spec rail needs its
+  // room); clicking the bar brings it back.
+  listFolded?: { label: string; onUnfold: () => void }
 }) {
   const phone = usePhone()
   const spec = listSpec(props.id)
@@ -51,20 +54,37 @@ export function ListDetailLayout(props: {
         {props.list}
       </div>
     )
+  // One tree whether the list is folded or not, so the detail (and a drag
+  // in progress on its spec rail) stays mounted when the list folds. A
+  // folded list is hidden, not unmounted: it fills the nav's filters.
+  const folded = props.listFolded
   return (
-    <div data-list-detail={props.id} style={{ display: 'flex', alignItems: 'stretch', height: '100%', minHeight: 0 }}>
-      <div ref={column} data-list-pane={props.id} style={{ flex: `0 0 ${width}px`, width, minWidth: 0, minHeight: 0, overflowY: 'auto', paddingRight: 4 }}>
+    <div data-list-detail={props.id} data-list-folded={folded ? '' : undefined} style={{ display: 'flex', alignItems: 'stretch', height: '100%', minHeight: 0 }}>
+      <div ref={column} data-list-pane={props.id} hidden={Boolean(folded)} style={{ flex: `0 0 ${width}px`, width, minWidth: 0, minHeight: 0, overflowY: 'auto', paddingRight: 4, display: folded ? 'none' : undefined }}>
         {props.list}
       </div>
-      <ResizeHandle
-        label="Resize the list"
-        width={width}
-        min={spec.min}
-        max={spec.max}
-        left={() => column.current?.getBoundingClientRect().left ?? 0}
-        onResize={resize}
-        onReset={() => resize(spec.initial)}
-      />
+      {!folded && (
+        <ResizeHandle
+          label="Resize the list"
+          width={width}
+          min={spec.min}
+          max={spec.max}
+          left={() => column.current?.getBoundingClientRect().left ?? 0}
+          onResize={resize}
+          onReset={() => resize(spec.initial)}
+        />
+      )}
+      {folded && (
+        <button
+          type="button"
+          data-list-unfold={props.id}
+          aria-label={folded.label}
+          onClick={folded.onUnfold}
+          style={{ flex: `0 0 ${LIST_FOLDED_WIDTH}px`, width: LIST_FOLDED_WIDTH, display: 'flex', justifyContent: 'center', padding: '10px 0', background: 'none', border: 0, borderRadius: 6, color: 'var(--muted)', cursor: 'pointer', fontSize: 12.5, fontWeight: 500 }}
+        >
+          <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', whiteSpace: 'nowrap' }}>{folded.label}</span>
+        </button>
+      )}
       <div data-detail-column={props.id} style={{ flex: '1 1 0%', minWidth: 0, minHeight: 0, overflowY: 'auto', paddingLeft: 12, borderLeft: '1px solid var(--border)' }}>
         {props.detail}
       </div>
