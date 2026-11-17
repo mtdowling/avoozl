@@ -10,7 +10,8 @@ import { PageRefreshIcon, useHasPageRefresh } from './page-refresh.tsx'
 import { usePhone } from './list-detail.ts'
 import DashboardView, { type DashboardTarget } from './DashboardView'
 import PlansView, { type PlanTarget } from './PlansView'
-import GraphView from './GraphView'
+import GraphPage from './FocusTree.tsx'
+import { parseGraphLink } from './focus-tree.ts'
 import WaitingView from './WaitingView.tsx'
 import FlowView from './FlowView.tsx'
 import { TracePage } from './TraceView.tsx'
@@ -205,6 +206,8 @@ function AvoozlPage() {
   useEffect(() => {
     const link = parseTraceLink(window.location.search)
     if (link) go({ tab: 'trace', focus: null, drill: null }, { [TRACE_TARGET]: link })
+    // ?tree=task:<id> or ?graph=frontier opens the Graph there (FocusTree.tsx).
+    else if (parseGraphLink(window.location.search)) go({ tab: 'graph', focus: null, drill: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const openTrace = (target: TraceTarget) => go({ tab: 'trace', focus: null, drill: null }, { [TRACE_TARGET]: target })
@@ -397,7 +400,13 @@ function AvoozlPage() {
         ) : tab === 'trace' ? (
           <TracePage workspaceId={active} target={(nav.memory.get(TRACE_TARGET) as TraceTarget | undefined) ?? null} onPick={pickTrace} onOpenEpics={() => chooseTab('plans')} />
         ) : tab === 'graph' ? (
-          <GraphView workspaceId={active} focus={focus} drill={drill} onDrill={setDrill} />
+          <GraphPage
+            workspaceId={active}
+            workspaceName={(demo.active ? DEMO_CATALOG : list)?.items.find((w) => w.id === active)?.name ?? null}
+            focus={focus}
+            drill={drill}
+            onDrill={setDrill}
+          />
         ) : tab === 'flow' ? (
           <FlowView workspaceId={active} tab={flowTab} />
         ) : tab === 'waiting' ? (
