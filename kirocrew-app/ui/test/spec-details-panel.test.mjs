@@ -1,9 +1,10 @@
-// A spec's details sit in a panel under the spec, like an IDE's bottom
-// panel. On a desktop the spec above shrinks so both fit on screen; the
+// A spec's details sit in a panel at the bottom of the specs list column,
+// like an IDE's bottom panel. On a desktop the list above shrinks so both
+// fit on screen and the spec keeps the full height of its column; the
 // panel's top bar drags, or takes Up and Down, to change the height, and
 // double-click resets it. A chevron hides and shows the panel. Height and
-// hidden are kept in this browser. A phone stacks the panel under the spec
-// with the same chevron and no divider. Browser parts run in a real Chrome
+// hidden are kept in this browser. A phone shows the list or the spec, so
+// it stacks the panel under the spec with the same chevron and no divider. Browser parts run in a real Chrome
 // (AVOOZL_CHROME), skipped without one.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
@@ -67,38 +68,45 @@ async function openSpec(width, dark, { clear = false } = {}) {
 
 for (const dark of [false, true]) {
   const theme = dark ? 'dark' : 'light'
-  test(`desktop (${theme}): the details sit under the spec, resize from the top bar, hide, and are remembered`, { skip }, async () => {
+  test(`desktop (${theme}): the details sit under the specs list, resize from the top bar, hide, and are remembered`, { skip }, async () => {
     await openSpec(1280, dark, { clear: true })
     const panel = '[aria-label="Spec details"]'
     const scroll = '[data-spec-scroll]'
-    const main = await box('#avoozl-plan-main')
+    const inside = (sel, column) => page.evaluate(`Boolean(document.querySelector(${JSON.stringify(`${column} ${sel}`)}))`)
+    assert.equal(await inside(panel, '[data-list-pane="specs"]'), true, 'the panel is in the specs list column')
+    assert.equal(await inside(panel, '[data-detail-column="specs"]'), false, 'not in the spec column')
+    assert.equal(await inside('[data-plans-list]', scroll), true, 'the list is above it')
     const start = await box(panel)
     const above = await box(scroll)
-    assert.ok(start && above, 'the panel and the spec')
-    assert.ok(start.top >= above.bottom - 1, 'the panel is under the spec')
-    assert.ok(Math.abs(start.left - above.left) <= 1 && Math.abs(start.right - above.right) <= 1, 'as wide as the spec column')
-    assert.ok(start.width > main.width - 30, 'no right-hand column beside the spec')
+    const list = await box('[data-list-pane="specs"]')
+    const column = await box('[data-detail-column="specs"]')
+    assert.ok(start && above, 'the panel and the list')
+    assert.ok(start.top >= above.bottom - 1, 'the panel is under the list')
+    assert.ok(Math.abs(start.left - list.left) <= 1 && start.right <= list.right + 1 && start.right >= list.right - 8, 'as wide as the list column')
+    assert.ok(Math.abs(start.bottom - list.bottom) <= 1, 'at the bottom of the list column')
+    assert.ok(Math.abs(column.bottom - list.bottom) <= 1 && Math.abs(column.top - list.top) <= 1, 'the spec column keeps its full height')
+    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-detail-column="specs"] [data-spec-scroll]'))`), false, 'the spec is not split')
     assert.equal(Math.round(start.height), SPEC_PANEL.initial)
     // Both fit in the page's pane: nothing outside it scrolls.
     const fits = await page.evaluate(`(() => { const p = document.querySelector('[data-avoozl-pane]'); return p.scrollHeight <= p.clientHeight + 1 && document.querySelector(${JSON.stringify(panel)}).getBoundingClientRect().bottom <= p.getBoundingClientRect().bottom + 1 })()`)
-    assert.ok(fits, 'the spec and its panel fit on screen')
+    assert.ok(fits, 'the list and its panel fit on screen')
     // The sections sit side by side, in more than one column.
     const lefts = await page.evaluate(`new Set([...document.querySelectorAll('[data-spec-panel-body] [data-rail-section]')].map((s) => Math.round(s.getBoundingClientRect().left))).size`)
     assert.ok(lefts >= 2, `sections in a grid (${lefts} columns)`)
     const aria = await page.evaluate(`(() => { const h = document.querySelector(${JSON.stringify(DIVIDER)}); return { role: h.getAttribute('role'), orientation: h.getAttribute('aria-orientation'), now: Number(h.getAttribute('aria-valuenow')), tab: h.tabIndex, cursor: getComputedStyle(h).cursor } })()`)
     assert.deepEqual(aria, { role: 'separator', orientation: 'horizontal', now: SPEC_PANEL.initial, tab: 0, cursor: 'row-resize' })
-    // Drag the bar 150 px up: the panel grows 150, the spec shrinks 150.
+    // Drag the bar 150 px up: the panel grows 150, the list shrinks 150.
     const bar = await box(DIVIDER)
     await page.drag(bar.left + 100, bar.top + 6, bar.left + 100, 8, bar.top + 6 - 150)
     await wait()
     const taller = await box(panel)
     assert.equal(Math.round(taller.height), SPEC_PANEL.initial + 150)
-    assert.equal(Math.round((await box(scroll)).height), Math.round(above.height - 150), 'the spec above shrinks')
-    // A drag far up stops with the spec still SPEC_CONTENT_MIN tall.
+    assert.equal(Math.round((await box(scroll)).height), Math.round(above.height - 150), 'the list above shrinks')
+    // A drag far up stops with the list still SPEC_CONTENT_MIN tall.
     const bar2 = await box(DIVIDER)
     await page.drag(bar2.left + 100, bar2.top + 6, bar2.left + 100, 8, 0)
     await wait()
-    assert.ok(Math.round((await box(scroll)).height) >= SPEC_CONTENT_MIN - 1, 'the spec keeps its minimum')
+    assert.ok(Math.round((await box(scroll)).height) >= SPEC_CONTENT_MIN - 1, 'the list keeps its minimum')
     // Double-click resets; the keys step 16 px.
     const bar3 = await box(DIVIDER)
     await page.doubleClick(bar3.left + 100, bar3.top + 6)
@@ -110,13 +118,15 @@ for (const dark of [false, true]) {
     await page.key('ArrowDown', 'ArrowDown', 40)
     await wait()
     assert.equal(Math.round((await box(panel)).height), SPEC_PANEL.initial + 16)
-    // The chevron hides it; the spec takes the full height.
+    // The chevron hides it; the list takes the full height of its column.
     await click(TOGGLE)
     await wait()
     assert.equal(await box(panel), null, 'hidden')
     assert.equal(await page.evaluate(`${TOGGLE}.getAttribute('aria-expanded')`), 'false')
     const full = await box(scroll)
-    assert.ok(full.height > above.height + SPEC_PANEL.initial - 1, 'the spec takes the room')
+    assert.ok(full.height > above.height + SPEC_PANEL.initial - 1, 'the list takes the room')
+    const shut = await box(DIVIDER)
+    assert.ok(Math.abs(full.bottom - shut.top) <= 1 && Math.abs(shut.bottom - list.bottom) <= 1, 'down to the bar at the bottom of the column')
     // Hidden is remembered after a reload, then shown again with its height.
     await openSpec(1280, dark)
     assert.equal(await box(panel), null, 'still hidden after a reload')

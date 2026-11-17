@@ -42,16 +42,14 @@ try {
       let file = path.join(out, `projection-confirm-${width}-${theme}.png`)
       await page.screenshot(file)
       console.log(file)
-      // Settings > Where tasks live (the app shell is shot at 1280 only).
+      // Settings > Workspaces (the app shell is shot at 1280 only).
       if (width !== 1280) continue
       await page.open(harness.url({ page: 'app', radar: '1', theme }), { ...size, height: 900 })
       await page.until(`Boolean(document.querySelector('[data-top-row]'))`)
       await settle()
       await page.evaluate(click('Settings'))
       await settle()
-      await page.evaluate(click('Where tasks live'))
-      await settle()
-      await page.evaluate(click('Configure where tasks live'))
+      await page.evaluate(click('Workspaces'))
       await page.until(`Boolean(document.querySelector('#avoozl-settings-writes-hour'))`)
       await settle()
       await page.evaluate(`(() => { document.querySelector('#avoozl-settings-writes-hour').scrollIntoView({ block: 'center' }); return true })()`)

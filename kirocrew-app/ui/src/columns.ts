@@ -24,11 +24,12 @@ export const listSpec = (id: string): ColumnSpec => ({ key: `avoozl:list-width:$
 // A folded list is a thin bar, as wide as the collapsed nav.
 export const LIST_FOLDED_WIDTH = 36
 
-// The spec view's details panel, under the spec like an IDE's bottom
-// panel: its height and whether it is hidden are kept in this browser.
+// The spec view's details panel, at the bottom of the specs list column
+// like an IDE's bottom panel: its height and whether it is hidden are kept
+// in this browser.
 export const SPEC_PANEL: ColumnSpec = { key: 'avoozl:spec-panel-height', initial: 240, min: 96, max: 720 }
 export const SPEC_PANEL_HIDDEN_KEY = 'avoozl:spec-panel-hidden'
-// The spec content above the panel never gets shorter than this.
+// The specs list above the panel never gets shorter than this.
 export const SPEC_CONTENT_MIN = 160
 
 // The tallest the panel may be when it and the content share `room` px.
