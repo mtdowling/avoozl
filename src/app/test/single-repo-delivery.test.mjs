@@ -2,6 +2,7 @@
 // P19): a blocker's close re-projects readiness, a `worker` repository's
 // leaves get linked branches and briefs, Avoozl closes no leaf, and a
 // Settings edit with a non-default baseBranch is refused.
+import { setRadarHandoverPaused } from "../coder-adapter.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -203,7 +204,8 @@ async function workspace(t, coder) {
 test("a worker repository's leaves get linked branches; each close releases the next in the same tick", async (t) => {
   const { github, ids, issueOf, readyLabels, run, briefs, store } =
     await workspace(t, "worker");
-  assert.deepEqual(readyLabels(), [ids.one]);
+  // No ready label goes on a task issue while the hand-over is paused.
+  assert.deepEqual(readyLabels(), []);
   let result = await run();
   assert.deepEqual(github.branches, [`avoozl/${ids.one}`]);
   assert.deepEqual(briefs(result), [ids.one]);
@@ -217,7 +219,7 @@ test("a worker repository's leaves get linked branches; each close releases the 
   result = await run();
   const task = (id) => store.read().tasks.find((item) => item.id === id);
   assert.equal(task(ids.one).githubVerdict.state, "verified");
-  assert.deepEqual(readyLabels(), [ids.two]);
+  assert.deepEqual(readyLabels(), []);
   assert.deepEqual(result.github.projection.projected, ["chain"]);
   assert.deepEqual(github.branches, [`avoozl/${ids.one}`, `avoozl/${ids.two}`]);
   assert.ok(briefs(result).includes(ids.two));
@@ -227,14 +229,29 @@ test("a worker repository's leaves get linked branches; each close releases the 
   github.mergeAndClose(issueOf(ids.two), `avoozl/${ids.two}`);
   result = await run();
   assert.equal(task(ids.two).githubVerdict.state, "verified");
-  assert.deepEqual(readyLabels(), [ids.three]);
+  assert.deepEqual(readyLabels(), []);
   assert.ok(briefs(result).includes(ids.three));
   // GitHub closed both; Avoozl never wrote an issue's state.
   assert.deepEqual(github.stateWrites, []);
   assert.equal(issueOf(ids.three).state, "open");
 });
 
+test("with the hand-over paused, an Issue Radar repository's leaves run on Avoozl's executor (R103.4)", async (t) => {
+  const { github, ids, issueOf, readyLabels, run, briefs } = await workspace(
+    t,
+    "issue-radar",
+  );
+  let result = await run();
+  assert.deepEqual(github.branches, [`avoozl/${ids.one}`]);
+  assert.deepEqual(briefs(result), [ids.one]);
+  github.mergeAndClose(issueOf(ids.one), `avoozl/${ids.one}`);
+  result = await run();
+  assert.ok(briefs(result).includes(ids.two));
+  assert.deepEqual(readyLabels(), [], "no ready label for a crew");
+});
+
 test("an Issue Radar repository gets the ready label moved by the tick and no Avoozl dispatch", async (t) => {
+  t.after(setRadarHandoverPaused(false));
   const { github, ids, issueOf, readyLabels, run, briefs } = await workspace(
     t,
     "issue-radar",
@@ -249,6 +266,7 @@ test("an Issue Radar repository gets the ready label moved by the tick and no Av
 });
 
 test("an Issue Radar leaf blocked again by a reopened blocker loses the crew's label", async (t) => {
+  t.after(setRadarHandoverPaused(false));
   const { github, ids, issueOf, readyLabels, run } = await workspace(
     t,
     "issue-radar",

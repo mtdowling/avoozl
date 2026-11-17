@@ -14,6 +14,11 @@ import { FakeGitHub } from "./fake-github.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { setRadarHandoverPaused } from "../coder-adapter.mjs";
+
+// These tests cover the Radar hand-over kept while Phase 45 is paused
+// (R103.4 pauses it in the product).
+setRadarHandoverPaused(false);
 
 // No machine-wide Avoozl configuration leaks into these workspaces.
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
