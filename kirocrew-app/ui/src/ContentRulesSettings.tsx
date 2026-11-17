@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppApi, useChatLauncher } from './host.ts'
-import { Btn, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
+import { Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import {
   BOUNDARIES,
@@ -34,6 +34,7 @@ import {
   type TermRow,
   type TermsFile,
 } from './content-api.ts'
+import { SaveFooter } from './SaveFooter.tsx'
 import { ChoiceCards, DangerBtn, ICON, IconBtn, IconLabel, SectionHeading } from './controls.tsx'
 import { BookOpen, Ban, Eye, Lock, MessagesSquare, Plus, ShieldCheck, Trash2, X } from './icons.ts'
 import { DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
@@ -531,7 +532,21 @@ function TryIt({ rows }: { rows: TermRow[] }) {
   )
 }
 
-function TermsEditor(props: { workspaceId: string; client: Client; set: ContentRuleSet; onSaved: () => Promise<unknown> }) {
+// What the page's one footer needs from the terms editor: whether it has
+// unsaved words, why it cannot save, and how to save or put them back.
+export interface TermsControl {
+  save: () => Promise<boolean>
+  discard: () => void
+}
+
+function TermsEditor(props: {
+  workspaceId: string
+  client: Client
+  set: ContentRuleSet
+  onSaved: () => Promise<unknown>
+  control: { current: TermsControl | null }
+  onState: (state: { dirty: boolean; problem: string | null }) => void
+}) {
   const { workspaceId, client, set } = props
   const [file, setFile] = useState<TermsFile | null>(null)
   const [rows, setRows] = useState<TermRow[]>([])
@@ -587,12 +602,21 @@ function TermsEditor(props: { workspaceId: string; client: Client; set: ContentR
       setSaved(text)
       setNote(`Saved ${result.rules} rule${result.rules === 1 ? '' : 's'}.`)
       await props.onSaved()
+      return true
     } catch (caught) {
       setError(errorMessage(caught))
+      return false
     } finally {
       setBusy(false)
     }
   }
+  props.control.current = { save, discard: () => fromText(saved) }
+  const problem = errors.length ? `Fix line ${errors[0].line} of the words and patterns.` : null
+  const { onState } = props
+  useEffect(() => {
+    onState({ dirty, problem })
+    return () => onState({ dirty: false, problem: null })
+  }, [dirty, problem, onState])
   if (error && !file) return <p className="text-sm text-danger">{error}</p>
   if (!file) return <p className="text-sm text-muted">Reading the terms file…</p>
   if (!file.editable)
@@ -675,17 +699,6 @@ function TermsEditor(props: { workspaceId: string; client: Client; set: ContentR
           {note}
         </p>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        <Btn primary disabled={busy || !dirty || errors.length > 0} onClick={() => void save()}>
-          Save terms
-        </Btn>
-        {dirty && (
-          <Btn disabled={busy} onClick={() => fromText(saved)}>
-            Undo changes
-          </Btn>
-        )}
-        {errors.length > 0 && <span className="text-xs text-danger">Fix line {errors[0].line} to save.</span>}
-      </div>
     </div>
   )
 }
@@ -702,6 +715,8 @@ function SetDetails(props: {
   const [form, setForm] = useState<SetForm>(() => (set ? setFormOf(set) : emptySetForm()))
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const termsControl = useRef<TermsControl | null>(null)
+  const [terms, setTerms] = useState<{ dirty: boolean; problem: string | null }>({ dirty: false, problem: null })
   const stored = set ? JSON.stringify(entryOf(set)) : null
   useEffect(() => {
     setForm(set ? setFormOf(set) : emptySetForm())
@@ -716,16 +731,28 @@ function SetDetails(props: {
     setError(null)
     try {
       props.onSaved(await props.client.saveSets(props.workspaceId, sets, value.configHash), select)
+      return true
     } catch (caught) {
       setError(errorMessage(caught))
+      return false
     } finally {
       setBusy(false)
     }
   }
-  const save = () => {
-    if (!checked.entry) return setError(checked.error ?? 'Check the form.')
-    const list = value.sets.map((s) => (s.id === set?.id ? checked.entry! : entryOf(s)))
-    void write(set ? list : [...list, checked.entry], String(checked.entry.id))
+  const setsDirty = set ? changed : JSON.stringify(form) !== JSON.stringify(emptySetForm())
+  const problem = setsDirty && !checked.entry ? (checked.error ?? 'Check the form.') : terms.dirty ? terms.problem : null
+  // One Save: the set's settings first, then its words.
+  const save = async () => {
+    if (setsDirty && checked.entry) {
+      const list = value.sets.map((s) => (s.id === set?.id ? checked.entry! : entryOf(s)))
+      if (!(await write(set ? list : [...list, checked.entry], String(checked.entry.id)))) return
+    }
+    if (terms.dirty) await termsControl.current?.save()
+  }
+  const discard = () => {
+    setForm(set ? setFormOf(set) : emptySetForm())
+    setError(null)
+    termsControl.current?.discard()
   }
   return (
     <div className="flex flex-col gap-4" data-rule-details={set?.id ?? 'new'}>
@@ -772,27 +799,16 @@ function SetDetails(props: {
       <section className="flex flex-col gap-2">
         <h4 className="text-sm font-semibold">Settings</h4>
         <SetFormView form={form} set={(patch) => setForm({ ...form, ...patch })} isNew={!set} choices={choices} />
-        {error && (
-          <p className="text-sm text-danger" role="alert">
-            {error}
-          </p>
-        )}
-        {!checked.entry && checked.error && form.id && <p className="text-xs text-danger">{checked.error}</p>}
-        <div className="flex gap-2">
-          <Btn primary disabled={busy || !changed || !checked.entry} onClick={save}>
-            {set ? 'Save set' : 'Create set'}
-          </Btn>
-          <span className="self-center text-xs text-muted">Saves to .avoozl.json. No words go there.</span>
-        </div>
       </section>
       {set && set.source === 'file' && (
         <section className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
           <h4 className="text-sm font-semibold">Words and patterns</h4>
           <p className="text-xs text-muted">One rule per line. Case doesn’t matter. Only you can see these.</p>
-          <TermsEditor workspaceId={props.workspaceId} client={props.client} set={set} onSaved={props.reload} />
+          <TermsEditor workspaceId={props.workspaceId} client={props.client} set={set} onSaved={props.reload} control={termsControl} onState={setTerms} />
         </section>
       )}
       {set && set.source === 'plugin' && <p className="text-sm text-muted">The plugin {set.plugin} supplies this set’s rules, so there is no terms file to edit.</p>}
+      <SaveFooter dirty={setsDirty || terms.dirty} saving={busy} problem={problem} error={error} note="Settings go to .avoozl.json, words to a file on this machine." onSave={() => void save()} onDiscard={discard} />
     </div>
   )
 }

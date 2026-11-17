@@ -4,14 +4,14 @@
 // instructions are saved on this machine only (flow.instructions.update).
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, Card, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
+import { Card, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import { Tooltip } from './Tooltip.tsx'
 import { ChoiceCards, SectionHeading } from './controls.tsx'
 import { Marker, Section } from './SettingsView.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Pause } from './icons.ts'
-import { LAYER } from './layers.ts'
+import { SaveFooter } from './SaveFooter.tsx'
 import PromptInstructions from './PromptInstructions.tsx'
 import { FLOW_DEFAULTS, flowClient, toFlowForm, toFlowSection, type FlowForm, type FlowSettings as Settings } from './flow-api.ts'
 
@@ -19,8 +19,6 @@ const OPTIONAL = { required: false } as const
 // A label and its "(optional)" marker, spaced inline so no stylesheet can
 // run them together.
 const LABEL_ROW = { display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 } as const
-// The Modal footer's surface (Modal.tsx), for the sticky Save row.
-const FOOTER_BG = 'var(--bg-accent, var(--bg-elevated))'
 
 function Raw({ name }: { name: string }) {
   return (
@@ -93,7 +91,12 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
     setForm(toFlowForm(value.flow))
     setInstructions(value.instructions ?? '')
   }, [value])
-  const set = (change: Partial<FlowForm>) => setForm({ ...form, ...change })
+  const set = (change: Partial<FlowForm>) => {
+    setMessage(null)
+    setForm({ ...form, ...change })
+  }
+  const built = toFlowSection(form)
+  const dirty = Boolean(value) && (JSON.stringify(form) !== JSON.stringify(toFlowForm(value?.flow)) || instructions !== (value?.instructions ?? ''))
   // Overrides an Avoozl update changed under them (R70.5).
   const [drifted, setDrifted] = useState(0)
   useEffect(() => {
@@ -108,8 +111,7 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
   }, [client, workspaceId])
   const save = async () => {
     if (!value) return
-    const built = toFlowSection(form)
-    if (built.error) return setMessage({ error: built.error })
+    if (built.error) return
     setSaving(true)
     setMessage(null)
     try {
@@ -227,7 +229,7 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
             agent="retro"
             builtIn={value.retroPrompt}
             value={instructions}
-            onChange={setInstructions}
+            onChange={(text) => (setMessage(null), setInstructions(text))}
             raw="flow.retro.instructions"
             placeholder="What the retro should weigh, for example: fewer review rounds matter more than CI time."
             note="Saved on this machine only."
@@ -239,41 +241,20 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
           )}
         </Section>
       </Box>
-      {/* The dialog's footer: it stays at the bottom while the groups scroll,
-          on the darker surface over a divider, Save last at the right. The
-          surface reaches the dialog's edges by shadow, not negative margins,
-          so the page never scrolls sideways. */}
-      <div
-        data-flow-footer
-        style={{
-          position: 'sticky',
-          bottom: -16,
-          zIndex: LAYER.raised,
-          marginBottom: -16,
-          padding: '12px 0',
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: 12,
-          background: FOOTER_BG,
-          boxShadow: `0 0 0 20px ${FOOTER_BG}, 0 -1px 0 20px var(--border)`,
-          clipPath: 'inset(-1px -20px -16px -20px)',
+      <SaveFooter
+        dirty={dirty}
+        saving={saving}
+        problem={built.error}
+        error={message?.error}
+        ok={message?.ok}
+        note="Writes flow in .avoozl.json."
+        onSave={() => void save()}
+        onDiscard={() => {
+          setMessage(null)
+          setForm(toFlowForm(value.flow))
+          setInstructions(value.instructions ?? '')
         }}
-      >
-        <span className="text-xs text-muted" style={{ marginRight: 'auto' }}>
-          Writes flow in .avoozl.json.
-        </span>
-        {message?.error && (
-          <span role="alert" className="text-sm text-danger">
-            {message.error}
-          </span>
-        )}
-        {message?.ok && <span className="text-sm text-muted">{message.ok}</span>}
-        <Btn type="button" primary disabled={saving} onClick={() => void save()}>
-          {saving ? 'Saving…' : 'Save'}
-        </Btn>
-      </div>
+      />
     </div>
   )
 }

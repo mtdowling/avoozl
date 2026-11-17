@@ -3453,7 +3453,7 @@ sandbox values are not verified yet; they are proof items of Phase 47
 | Permissions    | Write roles: the harness's workspace-write sandbox, confined to the task worktree. Read-only roles: read-only. Never a skip-all-permissions or bypass flag. A harness that cannot confine writes is refused for write roles unless the owner opts in per machine. Avoozl passes no spend cap (budgets removed 2026-11-17) |
 | Default        | `process` with Claude Code for the Nupp compiler repository; `kirocrew` for Avoozl's own repository until Phase 47's proof passes                                  |
 | Write roots    | Task folder, temp, and the cache directories in project config. The worktree's git directory is in the main checkout (`git rev-parse --git-common-dir`), so the child only edits and Avoozl commits after it exits |
-| No skip flag   | Enforced in code: a definition with `bypassPermissions`, `danger-full-access` or any `--dangerously-*` flag is refused at load, with a test |
+| No skip flag   | Enforced in code: a definition with `bypassPermissions`, `danger-full-access` or any `--dangerously-*` flag is refused at load, with a test. One exception (2026-11-17, R94.4d): `permission.write` may be exactly `danger-full-access` for a harness whose own sandbox cannot nest inside Avoozl's (Codex on macOS); such a child starts only inside Avoozl's sandbox with the task write roots, and with no Avoozl sandbox it is refused, opt-in or not |
 | Allow-list     | Per project, the build and test commands an unattended child may run without a prompt. `git push` is never on it |
 | Spend          | A spend cap flag caps API spend and may not bind on a plan login (proof item). Plan quota: no new session once the quota reads low |
 | Kiro Crew repo | Avoozl's own repository on `kirocrew` chats has trust mode set again each tick, or ordinary workers stall unattended |
@@ -4634,6 +4634,51 @@ synthesized planning row, read writes nothing, two saves equal one, raw
 line, the moved settings, and the old link. Screenshots: Repository setup
 and Workspaces in the full app shell, phone and desktop, light and dark,
 committed under `docs/evidence/repo-roles/`.
+
+### 4.35 Task details hold the timeline; Trace is removed
+
+Added 2026-11-17 (Requirement 106). Replaces RC8.2 and D10's Trace.
+
+**Source.** `src/app/task-steps.mjs` exports `taskSteps(...)`, a pure
+function. `taskDetailView` passes it records it already reads or can read from
+the store, and returns the result as `steps` beside `timeline`:
+
+| Step                | From                                                                 |
+| ------------------- | -------------------------------------------------------------------- |
+| Spec approved       | The plan's approval receipt (`approvals`), with the approver          |
+| Ready               | The earliest `queued` flow span of the task                           |
+| Started (attempt N) | The earliest session binding of attempt N (`boundAt`)                 |
+| Attempt N failed    | The delivery record's attempt N, when its outcome is not `done`       |
+| Checks              | Evidence rows with an exit code: last time, passed and failed counts  |
+| Landed              | The delivery record in state done, verified or integrated, with commit |
+| Builds              | `build_observations` rows of the task, `receiptLine` and `phaseGroups` |
+| Integrated          | `task.integration` (time, commit)                                     |
+
+States and the wait text follow Trace: done, skipped (a later step has a
+time), now (the first without a time after the last timed one), later.
+Attempts expand in order, so a retry reads as Started 1, Attempt 1 failed,
+Started 2. Nothing here calls GitHub; a test builds the view with a GitHub
+double that fails on any call.
+
+**Screen.** `TaskDrawer` keeps its Timeline box (a `SectionBox`, open at first
+like the others). The steps list goes first, drawn as Trace drew it (dot,
+label, time, wait, detail, builds by phase), the history list below under
+"All records". `TraceView.tsx`, `TraceDone.tsx` and `trace-api.ts` go; the
+time helpers `clock` and `afterPrevious` move to `task-api.ts`.
+
+**Navigation.** `trace` leaves `TABS`. `redirectTab('trace')` returns
+Delivery. A `?trace=owner/repo#N` link is read once by a small component
+inside the task drawer provider: it reads the graph, finds the task whose
+issue matches and opens its details; with no match it opens Delivery. The
+Trace buttons on On the line rows and the Dashboard drawer are removed.
+
+**Tests.** `src/app/test/task-steps.test.mjs` (records to steps, failed,
+skipped, in progress, builds, no GitHub call); `kirocrew-app/ui/test`
+cases for the redirects, the nav, and the box; `trace.test.mjs`,
+`trace-page.test.mjs` and `trace-api.test.mjs` are removed with the code.
+
+shortcut: a task made before the pivot with no plan approval receipt shows
+Spec approved without a time; upgrade only if such tasks matter.
 
 ## 5. Local workflow
 

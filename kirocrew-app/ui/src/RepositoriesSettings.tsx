@@ -8,11 +8,10 @@ import { useAppApi } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
-import { DangerBtn, IconBtn, IconLabel, TipBtn, useConfirm } from './controls.tsx'
-import { ExternalLink, FolderOpen, Pencil, Plus } from './icons.ts'
+import { DangerBtn, IconBtn, IconLabel, TipBtn } from './controls.tsx'
+import { ExternalLink, FolderOpen, Plus } from './icons.ts'
 import { errorMessage, workspaceClient, type DetectedCheckout, type Repository } from './workspace-api.ts'
 import { githubHref, type RepositoryRow } from './repository-rows.ts'
-import { Modal } from './Modal.tsx'
 import { linkHref } from './views-api.ts'
 export { repositoryRows, type RepositoryRow } from './repository-rows.ts'
 
@@ -55,7 +54,6 @@ export function RepositoryList(props: {
   mode: string
   busy: boolean
   dirty: boolean
-  onEdit: (key: string) => void
   onRemove: (row: RepositoryRow) => void
   onReveal: (folder: string) => void
   onAdd: () => void
@@ -90,9 +88,6 @@ export function RepositoryList(props: {
             </div>
             <Badge>{modeLabel(row, props.mode)}</Badge>
             <span className="flex items-center gap-1.5">
-              <IconLabel icon={Pencil} tooltip={`Change ${row.name}'s settings in a dialog`} aria-label={`Edit ${row.name}`} onClick={() => props.onEdit(row.key)}>
-                Edit
-              </IconLabel>
               {row.folder && <IconBtn icon={FolderOpen} label={`Open ${row.name} in Finder`} onClick={() => props.onReveal(row.folder!)} />}
               {href && <GitHubLink href={linkHref(href)} name={row.name} />}
               <DangerBtn
@@ -127,58 +122,6 @@ export function RepositoryList(props: {
         )
       })}
     </ul>
-  )
-}
-
-// Edit for one repository: its settings in a large modal. Save writes
-// through the shared Save; Cancel, Esc and a click outside put the form
-// back, asking first when something was edited.
-export function RepositoryDialog(props: {
-  name: string
-  edited: boolean
-  missing: string | null
-  saving: boolean
-  error: string | null
-  onSave: () => void
-  onDiscard: () => void
-  children: ReactNode
-}) {
-  const ask = useConfirm()
-  const discard = {
-    title: `Discard your changes to ${props.name}?`,
-    body: 'Every edit in this dialog is lost. .avoozl.json stays as it is.',
-    action: 'Discard changes',
-  }
-  // Cancel asks too; Esc, Back and a click outside ask through the Modal.
-  const dismiss = () => (props.edited ? void ask(discard).then((yes) => yes && props.onDiscard()) : props.onDiscard())
-  return (
-    <Modal
-      id="avoozl-repo-edit"
-      width="46rem"
-      title={props.name}
-      unsaved={props.edited && discard}
-      onDismiss={props.onDiscard}
-      footer={
-        (
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {(props.error || (props.edited && props.missing)) && (
-              <span role="alert" className="mr-auto text-sm text-danger" data-modal-error>
-                {props.error ?? props.missing}
-              </span>
-            )}
-            {!props.error && !props.missing && props.edited && <span className="mr-auto text-xs text-muted">Unsaved changes</span>}
-            <Btn type="button" onClick={dismiss}>
-              Cancel
-            </Btn>
-            <Btn type="button" primary onClick={props.onSave} disabled={props.saving || !props.edited}>
-              Save
-            </Btn>
-          </div>
-        )
-      }
-    >
-      {props.children}
-    </Modal>
   )
 }
 

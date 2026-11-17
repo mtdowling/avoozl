@@ -223,6 +223,45 @@ test("with no sandbox a child is refused unless the person opted this machine in
   assert.equal(confined.env.GIT_CONFIG_VALUE_0, "");
 });
 
+test("a child with its own sandbox off runs only inside Avoozl's sandbox", (t) => {
+  const s = scratch(t);
+  const argv = ["agent", "--sandbox", "danger-full-access"];
+  const options = {
+    definition,
+    configDirectory: s.configDirectory,
+    writeRoots: [s.worktree],
+    secrets: [],
+    env: s.env,
+  };
+  // Refused with no Avoozl sandbox, even with this machine's opt-in.
+  fs.writeFileSync(
+    path.join(s.configDirectory, "harness-unconfined.json"),
+    JSON.stringify({ "fake-cli": definition.hash }),
+  );
+  assert.throws(
+    () => confineChild(argv, { ...options, kind: null }),
+    /runs only inside Avoozl's sandbox/,
+  );
+  // Refused inside the sandbox with no write roots.
+  assert.throws(
+    () =>
+      confineChild(argv, {
+        ...options,
+        writeRoots: null,
+        kind: "sandbox-exec",
+      }),
+    /needs write roots/,
+  );
+  // Allowed inside it, with the write roots in the profile.
+  const confined = confineChild(argv, { ...options, kind: "sandbox-exec" });
+  assert.equal(confined.sandbox, "sandbox-exec");
+  assert.deepEqual(confined.argv.slice(0, 2), ["/usr/bin/sandbox-exec", "-p"]);
+  assert.match(confined.argv[2], /\(deny file-write\*\)/);
+  const root = fs.realpathSync.native(s.worktree).replace(/\\/g, "\\\\");
+  assert.ok(confined.argv[2].includes(`(subpath "${root}")`));
+  assert.deepEqual(confined.argv.slice(3), argv);
+});
+
 test("a write root inside a secret folder is refused", (t) => {
   const s = scratch(t);
   assert.throws(

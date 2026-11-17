@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
+import { SaveFooter } from './SaveFooter.tsx'
 import { Marker, Section } from './SettingsView.tsx'
 import { AskForHelp, useConfirm } from './controls.tsx'
 import { modelOptions, parseModels } from './flow-api.ts'
@@ -66,11 +67,14 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
   useEffect(() => {
     if (value) setForm(toDeliveryForm(value.delivery))
   }, [value])
-  const set = (change: Partial<DeliveryForm>) => setForm({ ...form, ...change })
+  const set = (change: Partial<DeliveryForm>) => {
+    setMessage(null)
+    setForm({ ...form, ...change })
+  }
+  const built = toDeliverySection(form)
+  const dirty = Boolean(value) && JSON.stringify(form) !== JSON.stringify(toDeliveryForm(value?.delivery))
   const save = async () => {
-    if (!value) return
-    const built = toDeliverySection(form)
-    if (built.error) return setMessage({ error: built.error })
+    if (!value || built.error) return
     setMessage(null)
     try {
       await run('delivery.settings.update', { delivery: built.delivery, expectedHash: value.hash })
@@ -215,18 +219,18 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
           </Labeled>
         </Section>
       </Card>
-      <div className="flex flex-wrap items-center gap-3">
-        <Btn type="button" primary onClick={() => void save()}>
-          Save
-        </Btn>
-        {message?.error && (
-          <span role="alert" className="text-sm text-danger">
-            {message.error}
-          </span>
-        )}
-        {message?.ok && <span className="text-sm text-muted">{message.ok}</span>}
-        <span className="text-xs text-muted">Writes delivery in .avoozl.json.</span>
-      </div>
+      <SaveFooter
+        dirty={dirty}
+        problem={built.error}
+        error={message?.error}
+        ok={message?.ok}
+        note="Writes delivery in .avoozl.json."
+        onSave={() => void save()}
+        onDiscard={() => {
+          setMessage(null)
+          setForm(toDeliveryForm(value.delivery))
+        }}
+      />
     </div>
   )
 }
