@@ -10,6 +10,7 @@ import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { blockerNotes } from "./github-close.mjs";
+import { issueReportToken } from "./report-match.mjs";
 import { fail } from "./store.mjs";
 import { fileURLToPath } from "node:url";
 import {
@@ -30,6 +31,7 @@ import {
 } from "./flow.mjs";
 import { heldByStop } from "./flow-line.mjs";
 import { needsJudgment, taskCheckRuns } from "./check-runs.mjs";
+import { pathOutcome } from "./verify.mjs";
 import { checkDoneList, localCheckList, localPass } from "./flow-checks.mjs";
 import {
   batchBrief,
@@ -1697,8 +1699,16 @@ export const EDIT_ONLY_STEP =
 // it claims the task, and relays a result the worker cannot report itself.
 // Task 4.7 passes its own plans-repo steps (push avoozl/<task-id>, open one
 // pull request, enable auto-merge) to workerBrief instead.
-export function localSteps(task, project, { relay = false } = {}) {
+export function localSteps(
+  task,
+  project,
+  { relay = false, cliReport = null } = {},
+) {
   const report = `{"input": {"taskId": "${task.id}", "kind": "done"}}`,
+    // R88.2: report by command line from the worktree, no MCP sharing needed.
+    cli = cliReport
+      ? `Run it from inside ${cliReport.worktree}. The token matches your report to this task and this attempt; keep it to yourself.`
+      : "",
     commit = `2. Edit, run what you like, and commit every change on that branch. ${EDIT_ONLY_STEP}`;
   return relay
     ? [
@@ -1710,7 +1720,9 @@ export function localSteps(task, project, { relay = false } = {}) {
     : [
         `1. Call plans_prepare_worktree with {"input": {"taskId": "${task.id}"}} and work only in the worktree it returns, on branch avoozl/${task.id}.`,
         commit,
-        `3. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
+        cliReport
+          ? `3. When the work is committed, run exactly: avoozl runner report ${task.id} done --token ${cliReport.token}\n   If you cannot finish, run: avoozl runner report ${task.id} blocked --token ${cliReport.token} --text "<why>"\n   ${cli}`
+          : `3. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
       ];
 }
 
@@ -2161,9 +2173,21 @@ function composeLeafBrief(
         attempt,
       }),
     });
+  const token = issueReportToken(store, { taskId: task.id, attempt });
   return workerBrief(task, project, {
     ...options,
-    ...(relay ? { steps: localSteps(task, project, { relay: true }) } : {}),
+    ...(relay
+      ? { steps: localSteps(task, project, { relay: true }) }
+      : token
+        ? {
+            steps: localSteps(task, project, {
+              cliReport: {
+                worktree: options.worktree?.path || worktreePath(task, project),
+                token,
+              },
+            }),
+          }
+        : {}),
   });
 }
 
@@ -2474,6 +2498,8 @@ export function verdictCause(task, project, commit, report) {
 // One finished check run's record (check-runs.mjs): judged like a verifier
 // report, with the output tails kept beside each check.
 function runRecord(task, project, run) {
+  const held = pathOutcome(run);
+  if (held) return { ...held, checks: run.checks };
   const verdict = verdictCause(task, project, run.commit, {
     commit: run.commit,
     checks: run.checks,
@@ -2820,6 +2846,23 @@ export function reconcileVerifications(
             title: `Avoozl refused review ${roleId} on ${task.id}`,
             text: `Commit ${subject.slice(0, 12)}: ${record.cause}.`,
             resume: `Give review ${roleId} a model Kiro Crew offers that differs from the writer's (.avoozl.json), then ask Avoozl to retry ${task.id} (plans_retry_delivery).`,
+          });
+      } else if (record.outcome === "protected") {
+        // A protected path waits for a person; no writer attempt is spent
+        // (R86.6).
+        next = {
+          ...next,
+          state: "decision",
+          cause: record.cause,
+          ...(script ? { decisionNotifiedAt: at } : {}),
+        };
+        if (script)
+          notify.push({
+            channel: "decision",
+            task: task.id,
+            title: `Avoozl holds ${task.id}: protected paths`,
+            text: `Commit ${subject.slice(0, 12)}: ${record.cause}.`,
+            resume: `Read the diff. To let it land: avoozl verify allow ${task.id} --reason TEXT. To send it back: avoozl retry ${task.id}.`,
           });
       } else if (record.outcome === "rejected" && next.batch) {
         // A failing batch does not say which task broke it: split it, and

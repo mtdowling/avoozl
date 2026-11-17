@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { reconcileSpecDependencies } from "../spec-dependencies.mjs";
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
@@ -457,11 +458,18 @@ export class Store {
       const { tasks, documents, edges, ...metadata } = data;
       this.setMeta("baselineMetadata", metadata);
       this.setMeta("import", { ...report, at: stamp() });
+      this.ensureReportSecret();
       if (final) this.setMeta("mode", "final-import");
       else if (!this.getMeta("mode")) this.setMeta("mode", "shadow");
       this.event(null, "import.completed", report);
       return report;
     });
+  }
+  // The secret behind CLI report tokens (R88.2). Made by an import or a
+  // session binding, never while a brief is planned.
+  ensureReportSecret() {
+    if (!this.getMeta("report.secret"))
+      this.setMeta("report.secret", crypto.randomBytes(32).toString("hex"));
   }
   event(runId, kind, body) {
     const at = stamp();

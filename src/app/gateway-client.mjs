@@ -7,7 +7,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 // only when its proof (HMAC-SHA256 of the origin under the app secret)
 // matches, so an inherited or spoofed KIROCREW_GATEWAY_ORIGIN is never
 // trusted with the secret. `call(route, init)` adds the app token and
-// exchanges it once more when the gateway answers 401.
+// exchanges it once more when the gateway answers 401 or 403.
 export function gatewayClient(env = process.env, request = fetch) {
   const origin = env.KIROCREW_GATEWAY_ORIGIN,
     secret = env.KIROCREW_PROXY_SECRET,
@@ -20,7 +20,15 @@ export function gatewayClient(env = process.env, request = fetch) {
     !timingSafeEqual(Buffer.from(proof), Buffer.from(expected))
   )
     return null;
-  let token = null;
+  // One token per gateway and app for the whole backend: Kiro Crew 0.12.2.4
+  // ends an app's earlier token when it mints a new one, so clients that each
+  // kept their own token revoked each other's.
+  const key = origin + "\n" + app,
+    held = (tokens.get(key)?.secret === secret && tokens.get(key)) || {
+      secret,
+      token: null,
+    };
+  tokens.set(key, held);
   const exchange = async () => {
     const response = await request(
       `${origin}/api/apps/${encodeURIComponent(app)}/token`,
@@ -34,16 +42,20 @@ export function gatewayClient(env = process.env, request = fetch) {
   return {
     async call(route, init = {}) {
       for (let attempt = 0; ; attempt++) {
-        token ||= await exchange();
+        const token = (held.token ||= await exchange());
         const join = route.includes("?") ? "&" : "?",
           response = await request(
             `${origin}${route}${join}token=${encodeURIComponent(token)}`,
             init,
           );
-        // An expired token is exchanged once more; any other answer stands.
-        if (response.status !== 401 || attempt > 0) return response;
-        token = null;
+        // An expired or ended token is exchanged once more; any other answer
+        // stands. Kiro Crew 0.12.2.4 answers both with a bare 403, not 401.
+        if (![401, 403].includes(response.status) || attempt > 0)
+          return response;
+        if (held.token === token) held.token = null;
       }
     },
   };
 }
+
+const tokens = new Map();

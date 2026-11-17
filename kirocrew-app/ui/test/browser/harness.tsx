@@ -868,15 +868,19 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
     lastChange: null,
     ...extra,
   })
+  // Epics and update times for the nav's Epics chips and Sort rows.
+  const runtime = { epic: 'runtime', epicTitle: 'Runtime core' }
+  const tooling = { epic: 'tooling', epicTitle: 'Developer tooling' }
+  const at = (day: number) => ({ lastChange: `2026-11-${String(day).padStart(2, '0')}T12:00:00Z` })
   const items = [
-    spec('byte-types', 'draft', 8),
-    spec('compression', 'draft', 12),
-    spec('core-design-values', 'draft', 4),
-    spec('math-matrix-math', 'draft', 5),
-    spec('public-cli-module', 'draft', 3),
-    spec('allocator', 'draft', 7),
-    spec('nupp-native-runtime-winddown-2026-11-11', 'draft', 131),
-    spec('load-config', 'approved', 3, { onGitHub: true }),
+    spec('byte-types', 'draft', 8, { ...runtime, ...at(14) }),
+    spec('compression', 'draft', 12, { ...runtime, ...at(15) }),
+    spec('core-design-values', 'draft', 4, at(9)),
+    spec('math-matrix-math', 'draft', 5, { ...tooling, ...at(11) }),
+    spec('public-cli-module', 'draft', 3, { ...tooling, ...at(16) }),
+    spec('allocator', 'draft', 7, { ...runtime, ...at(12) }),
+    spec('nupp-native-runtime-winddown-2026-11-11', 'draft', 131, { ...runtime, ...at(13) }),
+    spec('load-config', 'approved', 3, { onGitHub: true, ...at(8) }),
     spec('window-design', 'not imported', 10),
   ]
   const entry = (id: string, batch: number, tasks: number, hash: string, extra = {}) => ({ id, spec: id, title: id, hash: hash.repeat(64 / hash.length), batch, tasks, errors: 0, loop: false, needs: [], ...extra })

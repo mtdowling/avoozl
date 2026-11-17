@@ -186,6 +186,41 @@ test("supervisor starts the approved harness and records pid, log and exit code"
   );
 });
 
+test("a supervised agent gets no push credentials (R102.6)", async (t) => {
+  const { stateDirectory, configDirectory, worktree, defer } = scratch(t);
+  // This agent writes the names of its environment into the worktree.
+  fs.writeFileSync(
+    path.join(worktree, "agent.mjs"),
+    `import fs from "node:fs";
+fs.writeFileSync("env.json", JSON.stringify(Object.keys(process.env)));`,
+  );
+  const db = openSupervisorDatabase(stateDirectory);
+  defer(() => db.close());
+  const id = requestChild(db, request(worktree));
+  const supervisor = startSupervisor({
+    stateDirectory,
+    configDirectory,
+    intervalMs: 60_000,
+    env: {
+      ...process.env,
+      GH_TOKEN: "made-up",
+      GITHUB_TOKEN: "made-up",
+      SSH_AUTH_SOCK: "made-up",
+    },
+  });
+  defer(() => supervisor.close());
+  await until(() => {
+    supervisor.pass();
+    return childStatus(db, id) !== "working";
+  });
+  const names = JSON.parse(
+    fs.readFileSync(path.join(worktree, "env.json"), "utf8"),
+  );
+  for (const name of ["GH_TOKEN", "GITHUB_TOKEN", "SSH_AUTH_SOCK"])
+    assert.equal(names.includes(name), false, name);
+  assert.ok(names.includes("PATH") || names.includes("Path"));
+});
+
 test("an unapproved definition never runs and takes the retry path", (t) => {
   const { stateDirectory, configDirectory, worktree, defer } = scratch(t, {
     approve: false,

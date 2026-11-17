@@ -15,6 +15,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { fail } from "./store.mjs";
+import { withoutPushCredentials } from "./git.mjs";
 import { machineAvoozlPaths } from "./host-config.mjs";
 import {
   fillHarnessArgv,
@@ -385,7 +386,11 @@ export function startSupervisor({
         }),
         readable: [briefFile],
         writable: [log],
-        env: values.tmp ? { ...env, TMPDIR: values.tmp } : env,
+        // Avoozl pushes; an agent gets no push credentials (R102.6). The
+        // sandbox then sets git's own empty credential helper.
+        env: withoutPushCredentials(
+          values.tmp ? { ...env, TMPDIR: values.tmp } : env,
+        ),
       });
       const out = fs.openSync(log, "a", 0o600);
       let child;
