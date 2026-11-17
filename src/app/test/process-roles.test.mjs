@@ -197,7 +197,7 @@ test("a verifier runs read-only in a detached worktree Avoozl adds, and its verd
   assert.equal(gitIn(worktree, "rev-parse", "HEAD"), commit);
   assert.deepEqual(await settle(m, ops, binding.slot), []);
   assert.match(m.log(binding.slot), /You are the Avoozl Verifier/);
-  assert.match(m.log(binding.slot), new RegExp(`cwd: ${worktree} `));
+  assert.ok(m.log(binding.slot).includes(`cwd: ${worktree} `));
   // Avoozl names the task and reads the commit itself; the file's own
   // taskId and commit are ignored.
   assert.deepEqual(reports, [
