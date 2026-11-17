@@ -144,7 +144,11 @@ function fakeGithub(w) {
       pulls.push(pull);
       return structuredClone(pull);
     },
-    permission: async () => ({ permission: "write" }),
+    // Only the signed-in login has rights; the local operator is not a
+    // GitHub login.
+    permission: async (_repo, login) => ({
+      permission: login === "bot" ? "write" : "none",
+    }),
     branchRules: async () => [
       {
         type: "required_status_checks",
