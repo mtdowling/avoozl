@@ -3,10 +3,13 @@
 // severity and state filters with counts, the person's actions, and links to
 // the review and planner chats. It reads plan.review.view and writes only a
 // person's decision (plan.review.finding.decide).
-// shortcut: cards list in line order beside the text; aligning each card
-// with its line, and scroll and highlight, are task 57.5.
-import { useCallback, useEffect, useState } from 'react'
+// Each card sits level with its anchor's first block; cards that would
+// overlap stack in line order. A card click scrolls to and highlights its
+// lines; a click on highlighted text selects its card. Moved or removed
+// findings list first. A narrow view puts each card after its block.
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { Markdown } from './Markdown.tsx'
+import { blocks } from './markdown.ts'
 import { SmallBtn } from './controls.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { usePhone } from './list-detail.ts'
@@ -20,7 +23,10 @@ import {
   SEVERITY_LABEL,
   STATES,
   TAB_LABEL,
+  blockFor,
+  blocksIn,
   chipCounts,
+  stackCards,
   filterFindings,
   lineText,
   type ChatLink,
@@ -32,6 +38,11 @@ import {
 } from './review-view.ts'
 
 const PROSE = '72ch'
+// Below this width the text and the rail do not fit side by side.
+const WIDE = 720
+const HIT_STYLE = `[data-review-doc] [data-review-hit]{background:color-mix(in srgb,var(--accent) 14%,transparent);box-shadow:-3px 0 0 var(--accent);border-radius:4px}
+[data-review-doc] [data-source-line]{cursor:default}`
+const lineOf = (el: Element) => Number(el.getAttribute('data-source-line'))
 
 function Chat(props: { label: string; link: ChatLink | null; attr: string }) {
   if (!props.link) return null
@@ -64,7 +75,16 @@ const ACTION_TEXT: Record<FindingAction, string> = {
   reopen: 'Reopened',
 }
 
-function FindingCard(props: { finding: ReviewFinding; busy: boolean; onDecide: (action: FindingAction, note?: string) => Promise<boolean>; onRevision: (hash: string) => void }) {
+function FindingCard(props: {
+  finding: ReviewFinding
+  busy: boolean
+  onDecide: (action: FindingAction, note?: string) => Promise<boolean>
+  onRevision: (hash: string) => void
+  selected?: boolean
+  onSelect?: () => void
+  cardRef?: (el: HTMLElement | null) => void
+  style?: CSSProperties
+}) {
   const { finding } = props
   const [asking, setAsking] = useState<'reject' | 'defer' | null>(null)
   const [note, setNote] = useState('')
@@ -80,8 +100,15 @@ function FindingCard(props: { finding: ReviewFinding; busy: boolean; onDecide: (
       data-finding-card={finding.id}
       data-severity={finding.severity}
       data-finding-state={finding.state}
+      data-selected={props.selected ? 'true' : undefined}
+      ref={props.cardRef}
+      onClick={props.onSelect}
       className="flex min-w-0 flex-col gap-1.5 text-sm"
       style={{
+        ...props.style,
+        outline: props.selected ? '2px solid var(--accent)' : undefined,
+        outlineOffset: 1,
+        cursor: props.onSelect ? 'pointer' : undefined,
         display: 'flex',
         flexDirection: 'column',
         gap: 6,
@@ -246,6 +273,105 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   const counts = chipCounts(data?.findings ?? [], place)
   const shown = filterFindings(data?.findings ?? [], place)
   const inFile = shown.filter((f) => f.anchor.file === file)
+  const moved = inFile.filter((f) => f.anchor.moved)
+  const placed = inFile.filter((f) => !f.anchor.moved)
+  const text = file && data ? data.files[file] : ''
+
+  // The rail beside the text: measure each anchor's block and each card,
+  // then stack the cards (stackCards). Narrow: cards go inline instead.
+  const row = useRef<HTMLDivElement>(null)
+  const doc = useRef<HTMLDivElement>(null)
+  const area = useRef<HTMLDivElement>(null)
+  const cardEls = useRef(new Map<string, HTMLElement>())
+  const [wide, setWide] = useState(!phone)
+  const [tops, setTops] = useState<Record<string, number>>({})
+  const [areaHeight, setAreaHeight] = useState(0)
+  const [selected, setSelected] = useState<string | null>(null)
+  const scrollTo = useRef<'text' | 'card' | null>(null)
+  const blockEls = () => [...(doc.current?.querySelectorAll('[data-source-line]') ?? [])].sort((a, b) => lineOf(a) - lineOf(b)) as HTMLElement[]
+  const placedKey = placed.map((f) => f.id).join(' ')
+  const layout = useCallback(() => {
+    const width = row.current?.clientWidth ?? 0
+    if (width) setWide(width >= WIDE)
+    const box = area.current
+    if (!box || !doc.current) return
+    const els = blockEls(),
+      lines = els.map(lineOf),
+      base = box.getBoundingClientRect().top
+    const cards = placed.map((f) => {
+      const el = els[blockFor(lines, f.anchor.lineStart)]
+      return { id: f.id, want: el ? Math.round(el.getBoundingClientRect().top - base) : 0, line: f.anchor.lineStart, height: cardEls.current.get(f.id)?.offsetHeight ?? 0 }
+    })
+    const next = stackCards(cards)
+    setTops((previous) => (JSON.stringify(previous) === JSON.stringify(next) ? previous : next))
+    setAreaHeight(Math.max(0, ...cards.map((c) => next[c.id] + c.height)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placedKey, text])
+  useLayoutEffect(() => {
+    layout()
+  })
+  useEffect(() => {
+    const observer = new ResizeObserver(() => layout())
+    for (const el of [row.current, doc.current, ...cardEls.current.values()]) if (el) observer.observe(el)
+    return () => observer.disconnect()
+  }, [layout, wide, data])
+  useEffect(() => setSelected(null), [file])
+
+  // The selected finding's lines are highlighted; a card click also scrolls
+  // to them, and a text click brings its card into view.
+  useEffect(() => {
+    const els = blockEls()
+    for (const el of els) el.removeAttribute('data-review-hit')
+    const finding = placed.find((f) => f.id === selected)
+    if (!finding) return
+    const lines = els.map(lineOf),
+      hit = blocksIn(lines, finding.anchor.lineStart, finding.anchor.lineEnd).map((i) => els[i])
+    for (const el of hit) el.setAttribute('data-review-hit', 'true')
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (scrollTo.current === 'text') hit[0]?.scrollIntoView({ block: 'center', behavior: still ? 'auto' : 'smooth' })
+    if (scrollTo.current === 'card') cardEls.current.get(finding.id)?.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' })
+    scrollTo.current = null
+  })
+  const pick = (id: string) => {
+    scrollTo.current = 'text'
+    setSelected(id)
+  }
+  const pickText = (target: EventTarget) => {
+    const el = (target as Element).closest?.('[data-source-line]')
+    if (!el || (target as Element).closest('a, button')) return
+    const els = blockEls(),
+      lines = els.map(lineOf),
+      at = els.indexOf(el as HTMLElement),
+      found = placed.find((f) => blocksIn(lines, f.anchor.lineStart, f.anchor.lineEnd).includes(at))
+    if (!found) return
+    scrollTo.current = 'card'
+    setSelected(found.id)
+  }
+  const firstLine = text ? (blocks(text)[0]?.line ?? 0) : 0
+  const card = (finding: ReviewFinding, style?: CSSProperties) => (
+    <FindingCard
+      key={finding.id}
+      finding={finding}
+      busy={busy}
+      selected={selected === finding.id}
+      onSelect={finding.anchor.moved ? undefined : () => pick(finding.id)}
+      cardRef={(el) => {
+        if (el) cardEls.current.set(finding.id, el)
+        else cardEls.current.delete(finding.id)
+      }}
+      style={style}
+      onDecide={(action, note) => decide(finding, action, note)}
+      onRevision={(hash) => set({ rev: hash })}
+    />
+  )
+  const movedGroup = moved.length > 0 && (
+    <div data-moved-group className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <h4 className="m-0 text-xs font-medium text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        Moved or removed
+      </h4>
+      {moved.map((f) => card(f))}
+    </div>
+  )
   return (
     <div
       data-review-view={place.plan}
@@ -335,76 +461,96 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               )
             })}
           </div>
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'flex-start',
-              gap: 20,
-            }}
-          >
+          <div className="flex flex-col gap-1.5" style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-review-filters>
+            <div className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-severity-filters>
+              <span className="text-xs text-muted" style={{ width: 52 }}>
+                Severity
+              </span>
+              <Chip label="All" on={!place.severity} onClick={() => set({ severity: null })} attr={{ 'data-severity-filter': 'all' }} />
+              {SEVERITIES.map((s) => (
+                <Chip
+                  key={s}
+                  label={SEVERITY_LABEL[s]}
+                  count={counts.severity[s] ?? 0}
+                  on={place.severity === s}
+                  onClick={() => set({ severity: place.severity === s ? null : s })}
+                  attr={{ 'data-severity-filter': s }}
+                />
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-state-filters>
+              <span className="text-xs text-muted" style={{ width: 52 }}>
+                State
+              </span>
+              <Chip label="All" on={!place.state} onClick={() => set({ state: null })} attr={{ 'data-state-filter': 'all' }} />
+              {STATES.filter((s) => counts.state[s] || place.state === s).map((s) => (
+                <Chip
+                  key={s}
+                  label={s}
+                  count={counts.state[s] ?? 0}
+                  on={place.state === s}
+                  onClick={() => set({ state: place.state === s ? null : s })}
+                  attr={{ 'data-state-filter': s }}
+                />
+              ))}
+            </div>
+          </div>
+          <style>{HIT_STYLE}</style>
+          <div ref={row} data-review-layout={wide ? 'rail' : 'inline'} style={{ display: 'flex', alignItems: 'flex-start', gap: 20, minWidth: 0 }}>
             <section
               role="tabpanel"
               aria-label={file ? (TAB_LABEL[file] ?? file) : 'No file'}
               data-review-doc={file ?? ''}
               className="min-w-0"
-              style={{
-                flex: '1 1 360px',
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                padding: '12px 14px',
-                background: 'var(--card, var(--bg))',
-              }}
+              style={{ flex: '1 1 0', minWidth: 0, border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', background: 'var(--card, var(--bg))' }}
             >
-              {file ? <Markdown text={data.files[file]} measure={PROSE} /> : <p className="m-0 text-sm text-muted">This revision has no spec files.</p>}
-            </section>
-            <aside
-              aria-label="Findings"
-              data-review-rail
-              className="flex min-w-0 flex-col gap-2"
-              style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: '1 1 300px' }}
-            >
-              <div className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-severity-filters>
-                <span className="text-xs text-muted" style={{ width: 52 }}>
-                  Severity
-                </span>
-                <Chip label="All" on={!place.severity} onClick={() => set({ severity: null })} attr={{ 'data-severity-filter': 'all' }} />
-                {SEVERITIES.map((s) => (
-                  <Chip
-                    key={s}
-                    label={SEVERITY_LABEL[s]}
-                    count={counts.severity[s] ?? 0}
-                    on={place.severity === s}
-                    onClick={() => set({ severity: place.severity === s ? null : s })}
-                    attr={{ 'data-severity-filter': s }}
+              {!wide && movedGroup && <div style={{ marginBottom: 12 }}>{movedGroup}</div>}
+              <div ref={doc} onClick={(event) => pickText(event.target)}>
+                {file ? (
+                  <Markdown
+                    text={text}
+                    measure={PROSE}
+                    after={
+                      wide
+                        ? undefined
+                        : (line, next) => {
+                            const here = placed.filter((f) => (f.anchor.lineStart >= line || line === firstLine) && (next === null || f.anchor.lineStart < next))
+                            return here.length ? (
+                              <div data-inline-cards={line} className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {here.map((f) => card(f))}
+                              </div>
+                            ) : null
+                          }
+                    }
                   />
-                ))}
+                ) : (
+                  <p className="m-0 text-sm text-muted">This revision has no spec files.</p>
+                )}
               </div>
-              <div className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-state-filters>
-                <span className="text-xs text-muted" style={{ width: 52 }}>
-                  State
-                </span>
-                <Chip label="All" on={!place.state} onClick={() => set({ state: null })} attr={{ 'data-state-filter': 'all' }} />
-                {STATES.filter((s) => counts.state[s] || place.state === s).map((s) => (
-                  <Chip
-                    key={s}
-                    label={s}
-                    count={counts.state[s] ?? 0}
-                    on={place.state === s}
-                    onClick={() => set({ state: place.state === s ? null : s })}
-                    attr={{ 'data-state-filter': s }}
-                  />
-                ))}
-              </div>
-              {inFile.map((finding) => (
-                <FindingCard key={finding.id} finding={finding} busy={busy} onDecide={(action, note) => decide(finding, action, note)} onRevision={(hash) => set({ rev: hash })} />
-              ))}
-              {inFile.length === 0 && (
-                <p className="m-0 text-sm text-muted" data-review-empty>
+              {!wide && inFile.length === 0 && (
+                <p className="m-0 mt-2 text-sm text-muted" data-review-empty>
                   {data.findings.length === 0 ? 'No findings.' : 'No finding in this file matches these filters.'}
                 </p>
               )}
-            </aside>
+            </section>
+            {wide && (
+              <aside
+                aria-label="Findings"
+                data-review-rail
+                className="flex min-w-0 flex-col gap-2"
+                style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: '0 0 340px', width: 340 }}
+              >
+                {movedGroup}
+                <div ref={area} data-review-area style={{ position: 'relative', height: areaHeight }}>
+                  {placed.map((f) => card(f, { position: 'absolute', left: 0, right: 0, top: tops[f.id] ?? 0 }))}
+                </div>
+                {inFile.length === 0 && (
+                  <p className="m-0 text-sm text-muted" data-review-empty>
+                    {data.findings.length === 0 ? 'No findings.' : 'No finding in this file matches these filters.'}
+                  </p>
+                )}
+              </aside>
+            )}
           </div>
         </>
       )}
