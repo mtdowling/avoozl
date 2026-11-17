@@ -821,6 +821,9 @@ test("github.setup runs through Operations and its proposal saves through Settin
     fake = fakeGitHub({ repositories: APP }),
     ops = new Operations(store, { github: fake.github, workspaceRoot: root }),
     specs = path.join(root, ".kiro", "specs", "demo");
+  // The apply makes over a dozen paced writes, one a second; the pacer's own
+  // tests cover the waits, so this one skips sleeping through them.
+  fake.github.pacer.sleep = async () => {};
   fs.mkdirSync(path.join(specs, "avoozl"), { recursive: true });
   fs.writeFileSync(path.join(specs, "requirements.md"), "# Requirements\n");
   fs.writeFileSync(path.join(specs, "design.md"), "# Design\n");
