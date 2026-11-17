@@ -24,6 +24,7 @@ import {
   removePlanReviewWorktrees,
 } from "../plan-review-worktrees.mjs";
 import { bindContentRules } from "../content-rules.mjs";
+import { planReviewSummary } from "../plan-review-summary.mjs";
 import { listSpecReviewRounds } from "../plan-reviews.mjs";
 import { recordFindingDecision } from "../review-findings.mjs";
 import { fixture } from "./fixtures.mjs";
@@ -812,10 +813,13 @@ test("a person's Accept starts one planner turn outside the rounds cap; Review a
   await env.step();
   assert.deepEqual((await env.step()).requests, []);
   assert.equal(env.store.list("review_rounds").length, 1);
+  // The Approve dialogs offer the button, and its call is the UI's own.
+  assert.equal(planReviewSummary(env.store, env.plan.id).canReviewAnyway, true);
   decidePlanReview(env.store, {
     planId: env.plan.id,
     revisionHash: saved.hash,
     action: "review",
+    unproven: true,
   });
   const [extra] = (await env.step()).requests;
   assert.equal(extra.role, "plan-review");
