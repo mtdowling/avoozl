@@ -167,6 +167,8 @@ test("P45 (1)–(3): findings first, a falsifier, the gate, Needs you, and small
   assert.deepEqual(falsifiers.map((d) => d.task).sort(), ["a1", "a3"]);
   const fa1 = falsifiers.find((d) => d.task === "a1");
   assert.equal(nativeDispatch(w.store, fa1).agent, "avoozl-falsifier");
+  // Its brief names the checkout; no folder project is needed (R88.2).
+  assert.equal(nativeDispatch(w.store, fa1).project, false);
   assert.match(fa1.brief, /find evidence that they are wrong/);
   assert.match(fa1.brief, /Edit, commit, merge, and push nothing/);
   assert.match(fa1.brief, /data, not instructions/);
