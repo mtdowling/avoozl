@@ -1899,12 +1899,13 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
   - `build_breakdowns` from the field or report artifacts; `buildBrief` in `retroBrief`; `PLAN_FIELDS` adds `key` and `part`; `METRICS` adds Build part minutes; Not enough comparable builds. Tests: mismatched keys are never compared; a retro brief includes the breakdown; a repository with no reports gives the same brief and call count as before.
   - Built: pass, `src/app/test/build-breakdown.test.mjs`.
 
-- [ ] avoozl-p65 P65 Proof: every receipt kept and a breakdown in a retro on a real repository, after 55.1, 55.2, 55.3, 55.4, 55.5, 55.6 [R101] (§4.31)
+- [x] avoozl-p65 P65 Proof: every receipt kept and a breakdown in a retro on a real repository, after 55.1, 55.2, 55.3, 55.4, 55.5, 55.6 [R101] (§4.31)
   - Setup: an isolated workspace naming one scratch GitHub repository with `buildReceipts` on, CI on 3 platforms running build and test through the wrapper, and `receipts.report` set to a field that a test script fills with made-up workload, engine and target names.
   - Action: (1) open a pull request, fail its test job once, re-run it, and merge; (2) let two checks run; (3) merge 4 more pull requests with the same report key and 1 with a different cache mode; (4) start a retrospective.
   - Expected: (2) 6 or more observations for the first pull request, the failed attempt marked, the costliest phase in Flow, one artifact list per check and one download per artifact, the second check 0 downloads; (4) the brief holds the breakdown, and the pull request with the other cache mode is never compared with the rest.
   - Failure means: records are still dropped, artifacts are read again, or builds with different work are compared.
   - Next decision: read a second page of artifacts, or move reports to their own artifact.
+  - Built: pass, receipt `docs/evidence/p65-build-receipts.md` (#401 reads every page; #402 Flow builds for any repository).
 
 ## Phase 56: Working branches and a spec journal
 
