@@ -114,6 +114,8 @@ export function pullSteps({
           options: given.options,
           input: {
             op: `land.${candidate.slice(0, 16)}`,
+            // The required checks that passed on this head, unless given.
+            ...(current?.passed ? { checks: current.passed } : {}),
             ...given.input,
             refs: [
               {
@@ -245,6 +247,10 @@ export function pullSteps({
         );
       if (failed) return { ok: false, checks: shown };
       if (results.some((r) => r.pending)) return { wait: true, checks: shown };
+      current.passed = results.map((r) => ({
+        name: r.command,
+        conclusion: r.conclusion,
+      }));
       // Standing reviews on this exact head, by the repository's own rule.
       const rule = await branchReviewRule(github, target, entry.base);
       if (rule.hidden) return { wait: true, checks: shown };

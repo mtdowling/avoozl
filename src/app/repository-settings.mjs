@@ -89,6 +89,12 @@ function helperHash(value, id) {
   return value;
 }
 
+function landingOf(value, id) {
+  if (!["direct", "pr", "off"].includes(value))
+    fail(`Project ${id} landing must be direct, pr or off.`);
+  return value;
+}
+
 function projectInput(value, id, base) {
   if (!record(value)) fail(`Project ${id} must contain a JSON object.`);
   const allowed = new Set([
@@ -100,6 +106,7 @@ function projectInput(value, id, base) {
     "checks",
     "checksEnv",
     "worktreeHelper",
+    "landing",
     "planning",
     "editable",
   ]);
@@ -153,6 +160,9 @@ function projectInput(value, id, base) {
     ...(value.worktreeHelper === undefined
       ? {}
       : { worktreeHelper: helperHash(value.worktreeHelper, id) }),
+    ...(value.landing === undefined
+      ? {}
+      : { landing: landingOf(value.landing, id) }),
     planning: Boolean(value.planning),
     editable: value.editable !== false,
   };
@@ -354,6 +364,7 @@ function appliedActions(store) {
           ...(project.worktreeHelper
             ? { worktreeHelper: project.worktreeHelper }
             : {}),
+          ...(project.landing ? { landing: project.landing } : {}),
           planning: Boolean(project.planning),
           editable: project.editable !== false,
         },
@@ -1146,6 +1157,7 @@ export class RepositorySettings {
       ...(project.worktreeHelper
         ? { worktreeHelper: project.worktreeHelper }
         : {}),
+      ...(project.landing ? { landing: project.landing } : {}),
       planning: Boolean(project.planning),
       editable: project.editable !== false,
     };
