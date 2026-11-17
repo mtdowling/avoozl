@@ -44,6 +44,7 @@ const KEYS = new Set([
   "promptFrom",
   "keepEnv",
   "tmpEnv",
+  "resultAllow",
 ]);
 // Variables a harness may keep to sign in to its own provider. Never a
 // GitHub, git, SSH, Kiro Crew or Avoozl name: those stay out of a child.
@@ -162,7 +163,10 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
     resume: argv(value.resume, "resume", source),
     permission,
   };
-  for (const key of ["writeRoots", "allow"])
+  // `resultAllow`: what a read-only session adds so its harness lets it
+  // write its result file and nothing else (R96.1), such as Claude Code's
+  // `--allowedTools Edit(.avoozl/result.json)`.
+  for (const key of ["writeRoots", "allow", "resultAllow"])
     if (value[key] !== undefined)
       definition[key] = argv(value[key], key, source, { command: false });
   // A definition names where the CLI may write only by these placeholders,
@@ -414,7 +418,7 @@ export function allowUnconfinedWrites({
 
 // What one session may do (R94.4, R94.5): the definition's value for the
 // permission class, and the folders a write class may write. A read class
-// writes nowhere. A write class writes the task folder, the temp folder and
+// writes only its temp and result folders. A write class writes the task folder, the temp folder and
 // the project's cache folders; a harness with no way to confine writes runs
 // a write class only with this machine's opt-in at its current hash.
 export function harnessPermission(
@@ -431,8 +435,21 @@ export function harnessPermission(
   if (!PERMISSION_CLASSES.includes(permissionClass))
     fail(`Permission class must be ${PERMISSION_CLASSES.join(" or ")}.`);
   const permission = definition.permission[permissionClass];
+  // A read class writes only its own temp folder and its result folder
+  // (R96.1), never the task folder itself.
   if (permissionClass === "read")
-    return { permissionClass, permission, writeRoots: [] };
+    return {
+      permissionClass,
+      permission,
+      writeRoots: [
+        ...(typeof tmp === "string" && path.isAbsolute(tmp)
+          ? [path.resolve(tmp)]
+          : []),
+        ...(typeof worktree === "string" && path.isAbsolute(worktree)
+          ? [path.join(path.resolve(worktree), ".avoozl")]
+          : []),
+      ],
+    };
   if (typeof worktree !== "string" || !path.isAbsolute(worktree))
     fail("A write session needs the task folder as an absolute path.");
   // The session's own temp folder, never the shared one, which may hold
