@@ -153,8 +153,9 @@ test("the planning repository with no checkout is a GitHub-only row", () => {
   assert.equal(repositoryRows([checkout], [], "").length, 1);
 });
 
-test("the old Where tasks live link opens Repository setup", () => {
-  assert.equal(redirectSettings("github"), "repositories");
+test("the old Where tasks live link still opens Repository setup; GitHub is its own page", () => {
+  assert.equal(redirectSettings("routing"), "repositories");
+  assert.equal(redirectSettings("github"), "github");
   assert.equal(redirectSettings("workspaces"), "workspaces");
 });
 

@@ -9,7 +9,6 @@ import {
   observeUsage,
 } from "../flow-usage.mjs";
 import { syncPlanningSpans, planningFlowView } from "../planning-flow.mjs";
-import { budgetView } from "../budget.mjs";
 
 function setup(t) {
   const { store } = fixture(t);
@@ -54,15 +53,11 @@ const turns = [
     credits: 2,
   },
 ];
-test("planning usage and spans cannot affect task metrics or budgets even with colliding IDs", async (t) => {
+test("planning usage and spans cannot affect task metrics even with colliding IDs", async (t) => {
   const store = setup(t),
     data = store.read(),
     baseline = flowView(store, data),
     taskUsage = usageView(store, data);
-  const bindings = store.list("session_bindings");
-  store.db.prepare("DELETE FROM session_bindings").run();
-  const budget = budgetView(store, data);
-  for (const binding of bindings) store.put("session_bindings", binding);
   assert.equal(
     ingestUsage(store, store.get("session_bindings", "review"), turns),
     1,
@@ -77,7 +72,6 @@ test("planning usage and spans cannot affect task metrics or budgets even with c
   syncSpans(store);
   assert.deepEqual(listUsage(store), []);
   assert.deepEqual(listSpans(store), []);
-  assert.deepEqual(budgetView(store, data), budget);
   assert.deepEqual(usageView(store, data).total, taskUsage.total);
   assert.deepEqual(flowView(store, data).metrics, baseline.metrics);
   const [planning] = planningFlowView(

@@ -38,7 +38,7 @@ test('headings with buttons pass them as the heading actions', () => {
     assert.match(source(file), new RegExp(`<ViewHeading\\s+id="avoozl-${view}-title"\\s+view="${view}"[\\s\\S]*?actions=\\{`), file)
   assert.match(source('PlansView.tsx'), /<SpecCard\s+title="GitHub preview"[\s\S]*?actions=\{/)
   assert.match(source('GraphView.tsx'), /<SectionHeading\s+title=\{task\.title\}\s+actions=\{/)
-  assert.match(source('NewPlanDrawer.tsx'), /<SectionHeading\s+level=\{2\}\s+id="avoozl-new-plan-title"[\s\S]*?actions=\{/)
+  assert.match(source('NewPlanDrawer.tsx'), /<Modal\s+id="avoozl-new-plan"[\s\S]*?title="New spec"/)
   // The reader's file name is the shared Modal's title; its copy and reveal buttons are the modal's footer.
   assert.match(source('DocumentReader.tsx'), /<Modal\s+id="avoozl-reader"[\s\S]*?title=\{<code>\{target\.document\}<\/code>\}[\s\S]*?footer=\{/)
   assert.match(source('SettingsView.tsx'), /<SectionHeading level=\{props\.level === 'sub' \? 4 : 3\} title=\{props\.title\} blurb=\{props\.blurb\} actions=\{props\.actions\} icon=\{props\.icon\} \/>/)

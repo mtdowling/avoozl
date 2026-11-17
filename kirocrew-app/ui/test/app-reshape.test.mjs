@@ -56,7 +56,7 @@ test('Settings lists its sections in the nav, shows only the picked one, and has
   await click(tab('Settings'))
   await page.until(`Boolean(document.querySelector('[data-settings-section]'))`)
   const sections = await page.evaluate(`[...document.querySelectorAll('[data-nav-children="settings"] [data-nav-item]')].map((s) => s.dataset.navItem.replace('settings/', ''))`)
-  assert.deepEqual(sections, ['workspaces', 'repositories', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
+  assert.deepEqual(sections, ['workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery'])
   // Settings opens alone, and the page shows one section.
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-nav-section][data-open]').length`), 1)
@@ -88,14 +88,19 @@ test('a repository on the retired worker shows the Settings banner; one on Radar
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-retired-banner]'))`), false)
 })
 
-test('Needs you holds decisions and intake as two nav pages, one shown at a time', { skip }, async () => {
+test('Needs you holds Decisions, Triage and Issue Radar as three nav pages, one shown at a time', { skip }, async () => {
   await open({ radar: '1' })
   await page.until(`Boolean(${tab('Needs you')})`)
   await click(tab('Needs you'))
   await page.until(`Boolean(document.querySelector('[data-waiting-view]'))`)
   assert.equal(await page.evaluate(`document.querySelector('[data-waiting-section][data-open="true"]').dataset.waitingSection`), 'decisions')
-  await click(`document.querySelector('[data-nav-item="waiting/intake"]')`)
-  await page.until(`document.querySelector('[data-waiting-section="intake"]').dataset.open === 'true'`)
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-nav-children="waiting"] [data-nav-item]')].map((el) => el.dataset.navItem)`), ['waiting/decisions', 'waiting/triage', 'waiting/radar'])
+  for (const key of ['triage', 'radar']) {
+    await click(`document.querySelector('[data-nav-item="waiting/${key}"]')`)
+    await page.until(`document.querySelector('[data-waiting-section="${key}"]')?.dataset.open === 'true'`)
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-waiting-section][data-open="true"]').length`), 1)
+    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-waiting-line]')?.textContent)`), true, 'one line of description')
+  }
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-waiting-section][data-open="true"]').length`), 1)
   assert.deepEqual(page.errors, [])
 })

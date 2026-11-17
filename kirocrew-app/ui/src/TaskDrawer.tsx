@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { BudgetFold, SpendChip } from './Budget.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn } from '@kirocrew/app-sdk/ui'
@@ -17,17 +16,15 @@ import { reviewRuns } from './views-api.ts'
 import { Markdown } from './Markdown.tsx'
 import TaskForm from './TaskForm.tsx'
 import { Authority } from './Authority.tsx'
-import { useMedia } from './use-media.ts'
+import { Modal } from './Modal.tsx'
 import { errorMessage } from './workspace-api.ts'
-import { IconLabel, SectionBox, SectionHeading, ShowMore, TipBtn, useAskChat, usePages } from './controls.tsx'
+import { IconLabel, SectionBox, ShowMore, TipBtn, useAskChat, usePages } from './controls.tsx'
 import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
 import { itemRef } from './chat-api.ts'
 import { TimingFold } from './FlowView.tsx'
 import { EvidenceFold } from './Evidence.tsx'
 import { TaskFiles } from './TaskFiles.tsx'
-import { Eye, FileText, MessageSquare, Network, Pause, Pencil, Play, Plus, RotateCcw, X } from './icons.ts'
-import { useBackStep } from './NavHistory.tsx'
-import { LAYER } from './layers.ts'
+import { Eye, FileText, MessageSquare, Network, Pause, Pencil, Play, Plus, RotateCcw } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { LinksAndNotes, ManualTask } from './TaskNotes.tsx'
 import { TaskSteps } from './TaskSteps.tsx'
@@ -44,7 +41,6 @@ const SECTIONS = [
   { key: 'files', label: 'Files' },
   { key: 'timing', label: 'Timing' },
   { key: 'evidence', label: 'Evidence' },
-  { key: 'budget', label: 'Budget' },
   { key: 'conflicts', label: 'Conflicts' },
   { key: 'timeline', label: 'Timeline' },
 ] as const
@@ -218,6 +214,7 @@ function TaskPanel(props: {
   open: (id: string) => void
   onClose: () => void
   onFocus?: (id: string, title: string) => void
+  onTitle: (id: string, title: string) => void
 }) {
   const { workspaceId, id } = props
   const api = useAppApi()
@@ -244,6 +241,10 @@ function TaskPanel(props: {
     setMessage(null)
     void load()
   }, [load])
+  const { onTitle } = props
+  useEffect(() => {
+    if (detail) onTitle(id, detail.task.title)
+  }, [detail, id, onTitle])
 
   const run = (call: () => Promise<{ ok: boolean; text: string }>) => {
     setBusy(true)
@@ -278,9 +279,7 @@ function TaskPanel(props: {
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <SectionHeading level={2} id="avoozl-drawer-title" title={task.title} />
-        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-          <span>{task.id}</span>
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
           <Authority owner={task} />
           {task.state && <Badge variant={task.state === 'needs-you' ? 'warning' : undefined}>{task.state}</Badge>}
           {detail.locked && <Badge>locked</Badge>}
@@ -547,14 +546,6 @@ function TaskPanel(props: {
         <SectionBox id="evidence" title="Evidence">
           <EvidenceFold workspaceId={workspaceId} taskId={task.id} />
         </SectionBox>
-        <SectionBox id="budget" title={
-            <span className="flex items-center gap-2">
-              Budget <SpendChip budget={delivery?.budget} />
-            </span>
-          }
-        >
-          <BudgetFold workspaceId={workspaceId} taskId={task.id} onChange={() => void load()} />
-        </SectionBox>
         <SectionBox id="conflicts" title={detail.conflicts.length ? `Conflicts (${detail.conflicts.length})` : 'Conflicts'}>
           {detail.conflicts.length ? (
             <ul className="flex flex-col gap-3">
@@ -659,7 +650,6 @@ function ReviewPanel(props: { workspaceId: string; group: ConflictItem; open: (i
   }
   return (
     <div className="flex flex-col gap-3">
-      <SectionHeading level={2} id="avoozl-drawer-title" title={group?.title ?? props.group.title} />
       <p className="text-sm text-muted">
         Avoozl re-reads a spec when its file changes. A task waits here when its own section changed, or when it is new. Moving a
         spec or fixing its links does not count. Read each task, then mark them reviewed so they may start.
@@ -712,11 +702,7 @@ export function TaskDrawerProvider({
   const [mode, setMode] = useState<Mode>(null)
   const [history, setHistory] = useState<NonNullable<Mode>[]>([])
   const [graph, setGraph] = useState<Graph | null>(null)
-  const [shown, setShown] = useState(false)
-  const panel = useRef<HTMLDivElement>(null)
-  const returnTo = useRef<HTMLElement | null>(null)
-  const narrow = useMedia('(max-width: 767px)')
-  const still = useMedia('(prefers-reduced-motion: reduce)')
+  const [heading, setHeading] = useState<{ id: string; title: string } | null>(null)
   // The mode as of the last render, so opening a linked task can push the
   // current one onto the Back history.
   const current = useRef<Mode>(null)
@@ -726,16 +712,13 @@ export function TaskDrawerProvider({
     () => ({
       openTask: (id) => {
         const now = current.current
-        if (!now) returnTo.current = document.activeElement as HTMLElement | null
-        else if (now.kind === 'review' || (now.kind === 'task' && now.id !== id)) setHistory((h) => [...h, now])
+        if (now && (now.kind === 'review' || (now.kind === 'task' && now.id !== id))) setHistory((h) => [...h, now])
         setMode({ kind: 'task', id })
       },
       addTask: (prefill) => {
-        if (!current.current) returnTo.current = document.activeElement as HTMLElement | null
         setMode({ kind: 'add', prerequisite: prefill?.prerequisite })
       },
       openReview: (group, onReviewed) => {
-        if (!current.current) returnTo.current = document.activeElement as HTMLElement | null
         setHistory([])
         setMode({ kind: 'review', group, onReviewed })
       },
@@ -745,10 +728,9 @@ export function TaskDrawerProvider({
   )
   const open = mode !== null
   const close = useCallback(() => {
-    setShown(false)
     setMode(null)
     setHistory([])
-    returnTo.current?.focus?.()
+    setHeading(null)
   }, [])
   closing.current = close
 
@@ -756,97 +738,85 @@ export function TaskDrawerProvider({
     if (!mode || !workspaceId) return
     views.graph(workspaceId).then(setGraph, () => setGraph(null))
   }, [open, workspaceId, views])
-  useEffect(() => {
-    if (!mode) return
-    const frame = requestAnimationFrame(() => {
-      setShown(true)
-      panel.current?.focus()
-    })
-    return () => cancelAnimationFrame(frame)
-  }, [open])
 
+  const showTitle = useCallback((id: string, text: string) => setHeading({ id, title: text }), [])
   const back = () => {
     const previous = history.at(-1)
     if (!previous) return
     setHistory(history.slice(0, -1))
     setMode(previous)
   }
-  // One page Back step while open: Back walks the drawer's own linked-task
-  // history and then closes it; Esc closes it.
-  useBackStep('drawer', open && Boolean(workspaceId), 'Close the drawer', () => (history.length ? back() : close()), close)
+
+  // The modal's title is the item itself: the task's title with its id small
+  // beside it, the review group's title, or "Add a task".
+  const titled = mode?.kind === 'task' && heading?.id === mode.id ? heading.title : null
+  const title =
+    mode?.kind === 'task' ? (
+      <>
+        {titled ?? 'Loading…'} <small className="font-normal text-muted" data-modal-title-id>{mode.id}</small>
+      </>
+    ) : mode?.kind === 'review' ? (
+      mode.group.title
+    ) : (
+      'Add a task'
+    )
 
   return (
     <TaskDrawerContext.Provider value={api_}>
       {children}
       {mode && workspaceId && (
-        // A centered modal, full screen on a phone: no pull-out from the right.
-        <div className="fixed inset-0" style={{ zIndex: LAYER.drawer, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div
-            aria-hidden="true"
-            data-drawer-backdrop
-            onClick={close}
-            className="absolute inset-0"
-            style={{ background: 'color-mix(in srgb, var(--text) 25%, transparent)' }}
-          />
-          <div
-            ref={panel}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="avoozl-drawer-title"
-            tabIndex={-1}
-            data-task-modal
-            className="relative flex flex-col overflow-y-auto border p-4 shadow-lg outline-none"
-            style={{
-              width: narrow ? '100%' : 'min(56rem, 94vw)',
-              height: narrow ? '100%' : 'min(52rem, 90vh)',
-              borderRadius: narrow ? 0 : 10,
-              background: 'var(--card, var(--bg))',
-              color: 'var(--text)',
-              borderColor: 'var(--border)',
-              opacity: shown || still ? 1 : 0,
-              transition: still ? 'none' : 'opacity 120ms ease-out',
-            }}
-          >
-
-            <div className="mb-3 flex items-center gap-2">
-              {history.length > 0 && <TipBtn tooltip="Go back to what you had open before" onClick={back}>Back</TipBtn>}
+        // The shared modal: centered, full screen on a phone. Back walks the
+        // linked-task history first; Esc, the X and Close close it.
+        <Modal
+          id="avoozl-drawer"
+          role="dialog"
+          kind="drawer"
+          width="56rem"
+          height="52rem"
+          backLabel="Close the drawer"
+          attrs={{ 'data-task-modal': true }}
+          title={title}
+          onDismiss={close}
+          onBack={() => (history.length ? back() : close())}
+          footer={
+            <>
+              {history.length > 0 && (
+                <TipBtn tooltip="Go back to what you had open before" onClick={back}>
+                  Back
+                </TipBtn>
+              )}
               <span className="grow" />
               {mode.kind === 'task' && (
                 <IconLabel icon={Plus} tooltip="Add a draft task that waits on this one" onClick={() => api_.addTask({ prerequisite: mode.id })}>
-                  Add a task after this
+                  Add task after this
                 </IconLabel>
               )}
-              <IconLabel icon={X} onClick={close} aria-label="Close task details">
-                Close
-              </IconLabel>
-            </div>
-            {mode.kind === 'task' ? (
-              <TaskPanel workspaceId={workspaceId} id={mode.id} graph={graph} open={api_.openTask} onClose={close} onFocus={onFocus} />
-            ) : mode.kind === 'review' ? (
-              <ReviewPanel
-                workspaceId={workspaceId}
-                group={mode.group}
-                open={api_.openTask}
-                onReviewed={() => {
-                  mode.onReviewed?.()
-                  close()
-                }}
-              />
-            ) : (
-              <>
-                <SectionHeading level={2} id="avoozl-drawer-title" title="Add a task" className="mb-2" />
-                <TaskForm
-                  workspaceId={workspaceId}
-                  graph={graph}
-                  detail={null}
-                  prerequisite={mode.prerequisite}
-                  onSaved={(id) => setMode({ kind: 'task', id })}
-                  onCancel={close}
-                />
-              </>
-            )}
-          </div>
-        </div>
+            </>
+          }
+        >
+          {mode.kind === 'task' ? (
+            <TaskPanel workspaceId={workspaceId} id={mode.id} graph={graph} open={api_.openTask} onClose={close} onFocus={onFocus} onTitle={showTitle} />
+          ) : mode.kind === 'review' ? (
+            <ReviewPanel
+              workspaceId={workspaceId}
+              group={mode.group}
+              open={api_.openTask}
+              onReviewed={() => {
+                mode.onReviewed?.()
+                close()
+              }}
+            />
+          ) : (
+            <TaskForm
+              workspaceId={workspaceId}
+              graph={graph}
+              detail={null}
+              prerequisite={mode.prerequisite}
+              onSaved={(id) => setMode({ kind: 'task', id })}
+              onCancel={close}
+            />
+          )}
+        </Modal>
       )}
     </TaskDrawerContext.Provider>
   )

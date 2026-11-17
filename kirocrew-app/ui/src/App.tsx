@@ -17,7 +17,7 @@ import WaitingView from './WaitingView.tsx'
 import FlowView from './FlowView.tsx'
 import { RetrosView, type RetroTarget } from './RetrosView.tsx'
 import OldTraceLink from './OldTraceLink.tsx'
-import { DASHBOARD_PAGES, RETROS_PAGES, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, parseTraceLink, redirectSettings, redirectTab, tabLabel, type RetrosPage, type Tab, type WaitingSection } from './nav-api.ts'
+import { DASHBOARD_PAGES, RETROS_PAGES, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, parseTraceLink, redirectSettings, redirectTab, redirectWaiting, tabLabel, type RetrosPage, type Tab, type WaitingSection } from './nav-api.ts'
 import { WorkspacePill } from './WorkspacePill.tsx'
 import { NavSlotProvider } from './nav-slot.tsx'
 import LanesView from './LanesView.tsx'
@@ -124,6 +124,7 @@ function AvoozlPage() {
   // Untriaged items in Intake (§8.5): null in Local only mode with no
   // intake source, which hides the count.
   const [untriaged, setUntriaged] = useState<number | null>(null)
+  const [radarCount, setRadarCount] = useState(0)
   const views = useMemo(() => viewsClient(api), [api])
 
   const untriagedReads = useMemo(() => untriagedClient(api), [api])
@@ -164,9 +165,12 @@ function AvoozlPage() {
   const go = (next: Partial<typeof here>, open?: Record<string, unknown>) => {
     const place = next.tab === undefined ? null : redirectTab(next.tab)
     // A removed page's Needs you section is now a field of the place.
-    const section = place?.open?.['waiting-section'] as WaitingSection | undefined
+    // A saved 'radar' view of the old Triage page is Issue Radar.
     const retros = place?.open?.['retros-page'] as RetrosPage | undefined
-    const { 'waiting-section': _section, 'retros-page': _retros, ...inner } = place?.open ?? {}
+    const { 'waiting-section': oldSection, 'retros-page': _retros, ...inner } = place?.open ?? {}
+    const section = redirectWaiting(oldSection as string | undefined, open?.['untriaged-show'])
+    const { 'untriaged-show': _show, ...rest } = open ?? {}
+    const deep = section ? rest : open
     const settings = next.settingsTab === undefined ? {} : { settingsTab: redirectSettings(next.settingsTab) as SettingsTab }
     changePage(
       nav,
@@ -174,7 +178,7 @@ function AvoozlPage() {
       { ...next, ...settings, ...(place ? { tab: place.tab } : {}), ...(section ? { waitingSection: section } : {}), ...(retros ? { retrosPage: retros } : {}) },
       apply,
       (before, newTab) => (newTab ? `Back to ${tabLabel(before.tab)}` : 'Back to the previous section'),
-      { ...inner, ...open },
+      { ...inner, ...deep },
     )
   }
   const openWorkspaces = () => go({ settingsTab: 'workspaces', tab: 'settings' })
@@ -240,12 +244,17 @@ function AvoozlPage() {
   }, [active, views, tab])
 
   useEffect(() => {
-    if (!active) return setUntriaged(null)
+    if (!active) {
+      setRadarCount(0)
+      return setUntriaged(null)
+    }
     let live = true
     const read = () =>
       untriagedReads.view(active).then(
         (list) => {
-          if (live) setUntriaged(list.enabled ? list.total : null)
+          if (!live) return
+          setUntriaged(list.enabled ? list.total : null)
+          setRadarCount(list.enabled ? (list.withRadar?.length ?? 0) : 0)
         },
         () => undefined,
       )
@@ -275,7 +284,7 @@ function AvoozlPage() {
   // to their filters (a slot the page fills); the other pages are plain entries.
   const kids: Partial<Record<Tab, { key: string; label: string }[]>> = {
     dashboard: DASHBOARD_PAGES,
-    waiting: WAITING_SECTIONS.map((x) => ({ key: x.key, label: x.title })),
+    waiting: WAITING_SECTIONS.map((x) => ({ key: x.key, label: x.title, count: x.key === 'decisions' ? conflicts : x.key === 'triage' ? (untriaged ?? 0) : radarCount })),
     retros: RETROS_PAGES,
     settings: SETTINGS_TABS.map((x) => ({ key: x.key, label: x.label })),
   }

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { SpendChip } from './Budget.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
@@ -82,7 +81,6 @@ function LaneCardView(props: {
             {card.deferred && <Badge>deferred</Badge>}
             {card.review && <Badge>review</Badge>}
             {card.planArchived && <Badge>Archived</Badge>}
-            <SpendChip budget={card.item?.budget} />
           </div>
           {card.subIssue && (
             <p className="mt-2 text-xs" style={{ color: 'var(--warning, var(--muted))' }} data-sub-issue>

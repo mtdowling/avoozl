@@ -25,7 +25,7 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 const settings = source('SettingsView.tsx')
 
 test('every Settings group and repository tab renders its blurb', () => {
-  for (const tab of ['workspaces', 'repositories', 'plugins', 'content'])
+  for (const tab of ['workspaces', 'repositories', 'github', 'plugins', 'content'])
     assert.match(settings, new RegExp(`\\n  ${tab}:\\s*\\n?\\s*['"]`), tab)
   assert.match(settings, /data-blurb=\{section\.key\}>\s*\{SETTINGS_BLURBS\[section\.key\]\}/)
   for (const tab of ['mode', 'triggers', 'checks', 'reviews'])
@@ -68,7 +68,7 @@ test('Save is blocked with a clear message while a required setting is missing',
   assert.match(missingRequired(form), /o\/app needs its default branch/)
   assert.equal(missingRequired({ ...form, mode: '' }), null)
   assert.match(settings, /const missing = missingRequired\(form\)/)
-  assert.match(settings, /disabled=\{saving \|\| !dirty \|\| Boolean\(missing\)\}/)
+  assert.match(settings, /problem=\{missing\}/)
   assert.equal(REPOSITORY_FIELD_RULES.name.required, true)
   assert.equal(REPOSITORY_FIELD_RULES.minimumPermission.blank, 'blank: write, unless actors are named')
 })
@@ -177,11 +177,19 @@ test('who counts is one row on the Triggers tab, with write as the default; no s
   assert.match(triggers, /'Default: write'/)
 })
 
-test('Settings has no Where tasks live tab; Set up GitHub sits in the Workspaces settings', () => {
-  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
-  assert.doesNotMatch(settings, /Where tasks live' \}|key: 'github'/)
+test('Settings has a GitHub page; Workspaces keeps only workspace things', () => {
+  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery'])
+  assert.doesNotMatch(settings, /Where tasks live' \}/)
   assert.match(settings, /setup=\{<SetupWizard/)
-  assert.match(settings, /if \(tab === 'workspaces'\)\s+return \(\s+<div[^>]*>\s+<WorkspaceView[\s\S]*<PolicyEditor/)
+  const workspaces = settings.slice(settings.indexOf("if (tab === 'workspaces')"), settings.indexOf("if (!workspaceId)"))
+  assert.match(workspaces, /<WorkspaceView[\s\S]*<ThisComputer/)
+  assert.doesNotMatch(workspaces, /PolicyEditor|WorkspaceGitHub|RateBlock|SetupWizard/)
+  // The Plugins link to the GitHub settings opens the GitHub page.
+  assert.match(settings, /onOpenGitHub=\{\(\) => props\.onTab\('github'\)\}/)
+  // Any other tab, GitHub included, is the PolicyEditor with one Save bar.
+  assert.match(settings, /<PolicyEditor key=\{version\} workspaceId=\{workspaceId\} tab=\{tab\}/)
+  assert.match(settings, /\{tab === 'github' && <RateBlock rate=\{settings\.rate\} \/>\}/)
+  assert.match(settings, /<SaveFooter[\s\S]*note="Writes \.avoozl\.json\."/)
 })
 
 test('Plugins puts Add plugin on the left and the installed list on the right, stacked when narrow', () => {
