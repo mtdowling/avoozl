@@ -195,7 +195,10 @@ test("delivery.view gives a live process session its details and no chat link", 
   const crew = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-crew-home-"));
   const saved = process.env.KIROCREW_HOME;
   process.env.KIROCREW_HOME = crew;
+  let store = null;
+  // One hook, store first: Windows cannot remove an open database file.
   t.after(() => {
+    store?.close();
     if (saved === undefined) delete process.env.KIROCREW_HOME;
     else process.env.KIROCREW_HOME = saved;
     fs.rmSync(crew, { recursive: true, force: true });
@@ -220,8 +223,7 @@ test("delivery.view gives a live process session its details and no chat link", 
     { stateDirectory, worktree },
     'step one\n{"total_cost_usd":0.1}\n',
   );
-  const store = new Store(path.join(crew, "workspace.sqlite"));
-  t.after(() => store.close());
+  store = new Store(path.join(crew, "workspace.sqlite"));
   store.importSnapshot(snapshot());
   enqueueSessionRequests(store, {
     starts: [
