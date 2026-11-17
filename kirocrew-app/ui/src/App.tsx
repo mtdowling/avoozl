@@ -327,7 +327,7 @@ function AvoozlPage() {
         />
       )}
       {/* Desktop: the left nav, then the page. A phone has the hamburger. */}
-      <div className={`flex min-h-0 flex-1 ${phone ? 'flex-col' : 'px-6 pb-2'}`} style={showRail ? { display: 'none' } : undefined} data-shell>
+      <div className={`flex min-h-0 flex-1 ${phone ? 'flex-col' : 'px-6'}`} style={showRail ? { display: 'none' } : undefined} data-shell>
       {!phone && (
         <LeftNav
           groups={groups}
@@ -338,7 +338,7 @@ function AvoozlPage() {
           brand={<BrandCard workspaceId={active} />}
         />
       )}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-shell-main>
+      <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${phone ? '' : 'pb-2'}`} data-shell-main>
       <div className={`flex flex-wrap items-center gap-3 pb-2 ${phone ? 'px-4' : 'px-2'}`} data-main-top>
         {/* The workspace is the pill at the top of the nav (Radar's switcher). */}
         <span className="flex-1" />
