@@ -27,6 +27,7 @@ import {
   age,
   authorHref,
   emptyText,
+  escalationAsk,
   filterActive,
   filterOptions,
   itemKey,
@@ -113,6 +114,22 @@ function PullState({ item }: { item: UntriagedItem }) {
   )
 }
 
+// An Issue Radar escalation (R103.8): the crew asked for a person, and the
+// person who filed it passes the trust check.
+function EscalationMark({ item }: { item: UntriagedItem }) {
+  const escalation = item.escalation
+  if (!escalation) return null
+  const tip = `An Issue Radar crew added "${escalation.label}"${escalation.scope ? ` (${escalation.scope})` : ''} and handed it to a person.${escalation.claimed ? ' A crew claim is on it too.' : ''}${escalation.draft ? ' The escalation rule drafted a bounded fix; you still start it.' : ''}`
+  return (
+    <Tooltip text={tip}>
+      <span className="inline-flex flex-wrap items-center gap-1 text-xs" data-escalation>
+        <Badge variant="warning">Radar asked</Badge>
+        {escalation.draft && <Badge variant="info">Drafted</Badge>}
+      </span>
+    </Tooltip>
+  )
+}
+
 function Labels({ labels }: { labels: string[] }) {
   if (!labels.length) return null
   return (
@@ -144,7 +161,15 @@ function Actions({ item, onSend, onReview, onStart }: { item: UntriagedItem; onS
   return (
     <span className="inline-flex gap-1.5">
       {onStart && item.start?.plan && (
-        <IconBtn icon={FileText} label={`Plan this: ${name}`} tooltip="Plan this: opens a planner chat that drafts a spec from this issue. Nothing is approved or started." onClick={() => onStart(item, 'plan')} />
+        <IconBtn
+          icon={FileText}
+          label={`Plan this: ${name}`}
+          tooltip={item.escalation ? 'Plan this: a planner drafts a fix spec from this issue. Avoozl adds crew:avoozl so crews skip it.' : 'Plan this: opens a planner chat that drafts a spec from this issue. Nothing is approved or started.'}
+          onClick={() => onStart(item, 'plan')}
+        />
+      )}
+      {onStart && item.start?.deliver && (
+        <IconBtn icon={Play} label={`Deliver this: ${name}`} tooltip="Deliver this: one bounded-fix task pinned to this text. Avoozl adds crew:avoozl so crews skip it." onClick={() => onStart(item, 'deliver')} />
       )}
       {onSend &&
         (item.kind === 'issue' ? (
@@ -259,6 +284,7 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
               <td style={{ ...CELL, minWidth: '16rem' }}>
                 <Title item={item} />
                 <div>
+                  <EscalationMark item={item} />
                   <PullState item={item} />
                 </div>
               </td>
@@ -307,6 +333,7 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
               {sourceOf(item)} · <RepoLink item={item} /> · <AuthorLink item={item} fallback="unknown" /> · {age(item.createdAt, props.now)}
               {sourceOf(item) === 'github' ? ` · ${item.comments} comment${item.comments === 1 ? '' : 's'}` : ''}
             </span>
+            <EscalationMark item={item} />
             <PullState item={item} />
             <Labels labels={item.labels} />
           </div>
@@ -499,6 +526,19 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded }: 
   const start = async (item: UntriagedItem, action: 'deliver' | 'plan') => {
     if (!workspaceId) return
     const name = itemName(item)
+    // An Issue Radar escalation (R103.8): GitHub intake, asked first.
+    if (sourceOf(item) === 'github' && item.escalation) {
+      if (!(await ask(escalationAsk(name, item.title, item.escalation, action)))) return
+      setCheckError(null)
+      try {
+        const made = await client.start(workspaceId, item, action, { confirmClaim: item.escalation.claimed })
+        setNote(`${name} is now task ${made.taskId}.`)
+        await reload()
+      } catch (caught) {
+        setCheckError(errorMessage(caught))
+      }
+      return
+    }
     // A GitHub issue of a Radar-coded repository: a planner chat drafts the spec.
     if (sourceOf(item) === 'github') {
       if (!(await ask({ title: `Plan ${name}?`, body: `A planner chat drafts a spec from "${item.title}". Nothing is approved or started until you approve the spec.`, action: 'Plan this' }))) return
