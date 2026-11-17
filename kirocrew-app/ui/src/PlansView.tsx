@@ -35,6 +35,9 @@ import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './Modal.tsx'
 import { PlanReviewSummary } from './PlanReviewSummary.tsx'
+import { ReviewView } from './ReviewView.tsx'
+import { parseReviewLink, reviewClient, reviewLink, type ReviewPlace } from './review-view.ts'
+import { urlBase } from './focus-tree.ts'
 import { DiffBlock } from './FlowMemory.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
 import { SpecChangedModal } from './SpecChangedModal.tsx'
@@ -394,6 +397,7 @@ function SpecDetail(props: {
   onProject: () => void
   onChanged: () => void
   onOpenTask: (id: string) => void
+  onReview?: () => void
 }) {
   const { spec, plan, preview, busy } = props
   const blocker = approveBlocker(plan)
@@ -401,7 +405,16 @@ function SpecDetail(props: {
   const diagnostics = plan?.quality.diagnostics ?? []
   return (
     <div className="flex min-w-0 flex-col" style={{ gap: 20 }}>
-      <SpecCard title="Summary">
+      <SpecCard
+        title="Summary"
+        actions={
+          plan && props.onReview ? (
+            <TipBtn style={COMPACT_BTN} tooltip="Read each review finding beside the spec text and decide it." onClick={props.onReview} data-open-review="">
+              Open review{plan.review?.found ? ` (${plan.review.found})` : ''}
+            </TipBtn>
+          ) : undefined
+        }
+      >
         <p className="text-sm">
           {plan ? (
             <>
@@ -1653,6 +1666,7 @@ export default function PlansView(props: {
   const plans = useMemo(() => plansClient(api), [api])
   const projections = useMemo(() => projectionClient(api), [api])
   const views = useMemo(() => viewsClient(api), [api])
+  const reviews = useMemo(() => reviewClient(api), [api])
   const drawer = useTaskDrawer()
   const chat = useAskChat(workspace)
   const stack = useMedia(STACK)
@@ -1766,6 +1780,31 @@ export default function PlansView(props: {
   }, [workspace, load, plans])
 
   const row = table?.items.find((item) => item.key === selected) ?? null
+  // The open spec's Review view (R104.9), kept in the page address on
+  // Kiro Crew's route. A pasted ?view=review&plan=P link opens it once.
+  const [review, setReview] = useState<ReviewPlace | null>(null)
+  const reviewLinkRead = useRef(false)
+  useEffect(() => {
+    if (!table || reviewLinkRead.current) return
+    reviewLinkRead.current = true
+    const link = parseReviewLink(window.location.search),
+      found = link && table.items.find((item) => item.planId === link.plan)
+    if (!link || !found) return
+    setSelected(found.key)
+    setReview(link)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table])
+  const placeReview = (next: ReviewPlace | null) => {
+    setReview(next)
+    const base = urlBase(window.location.pathname)
+    if (!base) return
+    try {
+      navigate(base + (next ? reviewLink(next) : ''))
+    } catch {
+      // The address is a convenience; the view still changes.
+    }
+  }
+  const reviewing = review && row?.planId === review.plan ? review : null
   // Who drives the open spec (§6.10): the chip, banner and Hand off.
   const driver = useDriver(workspace, row?.planId ?? null)
   const spec: SpecSummary | null = row?.spec ? (table?.specs.find((item) => item.name === row.spec) ?? null) : null
@@ -2052,6 +2091,9 @@ export default function PlansView(props: {
                   handOff={workspace ? <HandOffButton workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} /> : null}
                   actions={specActions(row)}
                 />
+                {reviewing && workspace ? (
+                  <ReviewView key={`${workspace}:${reviewing.plan}`} workspaceId={workspace} client={reviews} place={reviewing} onPlace={placeReview} onClose={() => placeReview(null)} />
+                ) : (
                 <div
                   data-spec-body
                   ref={rail.ref}
@@ -2081,6 +2123,7 @@ export default function PlansView(props: {
                         onProject={() => setDialog('project')}
                         onChanged={() => setDialog('changed')}
                         onOpenTask={(id) => drawer.openTask(id)}
+                        onReview={row.planId ? () => placeReview({ plan: row.planId!, rev: null, file: null, severity: null, state: null }) : undefined}
                       />
                     ) : (
                       <>
@@ -2137,6 +2180,7 @@ export default function PlansView(props: {
                     />
                   </aside>
                 </div>
+                )}
               </div>
             )
           }
