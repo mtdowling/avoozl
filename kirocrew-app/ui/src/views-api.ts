@@ -38,7 +38,10 @@ export interface GraphTask extends TaskOwner {
   // backends omit it.
   batch?: string | null
   // One drawing state; older backends omit it (see nodeState).
-  state?: 'ready' | 'running' | 'waiting' | 'needs-you' | 'done' | 'deferred'
+  state?: 'ready' | 'running' | 'waiting' | 'needs-you' | 'done' | 'deferred' | 'draft'
+  // A task of a spec not approved yet (graph.view's `drafts`): its spec and
+  // the spec's plan state, 'not stored' when it was never stored.
+  draft?: { spec: string; status: string } | null
   // Waits for review because its own plan text changed (or it is new).
   review?: boolean
   decision: string | null
@@ -101,6 +104,17 @@ export interface Graph {
   total: number
   tasks: GraphTask[]
   edges: GraphEdge[]
+  // Tasks of specs not approved yet, kept apart so no other view counts
+  // them; the Graph draws them with withDrafts. Older backends omit it.
+  drafts?: { specs: { name: string; title: string; status: string; count: number }[]; total: number; tasks: GraphTask[]; edges: GraphEdge[] }
+}
+
+// The Graph with its draft tasks folded in, or as it is with `show` off.
+// Display only: a draft is never ready (its state is 'draft').
+export function withDrafts(graph: Graph, show: boolean): Graph {
+  const drafts = graph.drafts
+  if (!show || !drafts?.tasks.length) return graph
+  return { ...graph, total: graph.total + drafts.tasks.length, tasks: [...graph.tasks, ...drafts.tasks], edges: [...graph.edges, ...drafts.edges] }
 }
 
 export interface GraphFilter {
