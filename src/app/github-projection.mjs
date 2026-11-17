@@ -14,6 +14,7 @@ import {
 } from "../work-model.mjs";
 import { issueNotesLines, shownNotes } from "./task-notes.mjs";
 import { fail } from "./store.mjs";
+import { taskIssuesRetired } from "./task-issue-retirement.mjs";
 import { parseRepository } from "./github.mjs";
 import { withWorkLock } from "./git.mjs";
 import { WORKSPACE_LOCK } from "./tick.mjs";
@@ -697,6 +698,23 @@ async function projectPlanParents({
 }
 
 export async function projectPlanIssues(store, github, options) {
+  // Retired task issues (R102.20) are never projected or recreated.
+  if (taskIssuesRetired(store))
+    return {
+      planId: options.planId,
+      planHash: store.get("plans", options.planId)?.hash ?? null,
+      issues: [],
+      conflicts: [],
+      notes: ["Task issues are retired; the spec journal holds this plan."],
+      parents: [],
+      unlinked: [],
+      skippedDone: [],
+      waiting: [],
+      relinked: [],
+      parent: null,
+      comment: null,
+      retired: true,
+    };
   if (options.locked) return pacedProject(store, github, options);
   return withWorkLock(store, WORKSPACE_LOCK, () =>
     pacedProject(store, github, options),
@@ -876,14 +894,15 @@ export async function refreshProjectedReadiness(
   { identity, skipPlans = new Set(), forcePlans = new Set(), now = Date.now() },
 ) {
   const data = store.read(),
-    result = { projected: [], errors: [] },
-    designed = data.tasks.filter(
-      (task) =>
-        task.planId &&
-        task.github?.origin === "design" &&
-        task.github.number &&
-        !task.projectionConflicts?.length,
-    );
+    result = { projected: [], errors: [] };
+  if (taskIssuesRetired(store)) return result;
+  const designed = data.tasks.filter(
+    (task) =>
+      task.planId &&
+      task.github?.origin === "design" &&
+      task.github.number &&
+      !task.projectionConflicts?.length,
+  );
   // A projection a write limit stopped carries on once its wait is over.
   const due = dueRun(store, now);
   // machineIdentity writes on first use; a workspace with no projected

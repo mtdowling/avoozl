@@ -1913,7 +1913,7 @@ proof or run a real workspace to get past that wait.
   - Retain assignee/fallback authority and private handoff. Person-only takeover writes a generation; ambiguous concurrent takeovers hold. Revalidate controls/authority before dispatch and landing.
   - Write/read back exact candidate/base/task/evidence intent before guarded push or head-guarded merge. A displaced driver stops recording. Outstanding intents hold until actual landing reconciliation or safe void; deduplicate effective outcomes. A copied/stale trailer yields landed-unverified. Test the pause-before-push takeover race without claiming exactly-once execution.
 
-- [ ] 56.5 Ordered issue-binding retirement without completing work, after 56.1, 56.2 [R102.20] (§4.32)
+- [x] 56.5 Ordered issue-binding retirement without completing work, after 56.1, 56.2 [R102.20] (§4.32)
   - Preview and apply: hold/stop ticks, disable projection and close reconciliation, retire only issue bindings/verdicts/dispatch flags without status or source changes, then run one tick and verify unchanged readiness with no task-issue reads/writes/recreation. Only after that offer closing obsolete issues; keep spec issues.
   - Tests close retired issues as done and not planned without releasing a successor; retry changes nothing and interrupted migration remains held. Real workspace migration is owner-only and is not run by this task.
 
