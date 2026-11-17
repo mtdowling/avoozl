@@ -47,20 +47,20 @@ function RetroCard({ retro, linked, onOpen }: { retro: Retro; linked: boolean; o
         {retro.state !== 'done' && <Badge variant={STATE_BADGE[retro.state]}>{retro.state}</Badge>}
         {bottleneck && <span className="font-normal text-muted">bottleneck {bottleneck}</span>}
       </span>
-      <dl className="m-0 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted" data-retro-facts>
-        <div className="flex gap-1">
+      <dl className="m-0 text-xs text-muted" style={{ display: 'flex', flexWrap: 'wrap', columnGap: 16, rowGap: 2 }} data-retro-facts>
+        <div style={{ display: 'flex', gap: 4 }}>
           <dt>Scope</dt>
-          <dd className="m-0 text-text">{retroScope(retro)}</dd>
+          <dd style={{ margin: 0, color: 'var(--text)' }}>{retroScope(retro)}</dd>
         </div>
-        <div className="flex gap-1">
+        <div style={{ display: 'flex', gap: 4 }}>
           <dt>Time</dt>
-          <dd className="m-0 text-text" title={retro.startedAt}>
+          <dd style={{ margin: 0, color: 'var(--text)' }} title={retro.startedAt}>
             {relativeTime(retro.startedAt, Date.now())}
           </dd>
         </div>
-        <div className="flex gap-1">
+        <div style={{ display: 'flex', gap: 4 }}>
           <dt>Model</dt>
-          <dd className="m-0 text-text">{retro.model ?? 'not recorded'}</dd>
+          <dd style={{ margin: 0, color: 'var(--text)' }}>{retro.model ?? 'not recorded'}</dd>
         </div>
       </dl>
       {retro.triggers.length > 0 && <span className="text-xs text-muted">Started by {retro.triggers.map((t) => t.detail).join('; ')}.</span>}

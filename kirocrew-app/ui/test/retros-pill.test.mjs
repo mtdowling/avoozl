@@ -34,7 +34,7 @@ test('Flow keeps its charts and draws its filters as nav rows and chips, with no
   const flow = source('FlowView.tsx'), rail = source('FlowRail.tsx')
   assert.match(rail, /<NavSlotFor section="flow">\s*<div role="search" aria-label="Filter flow timing" data-nav-filters="avoozl-flow" data-filter-panel="avoozl-flow"/)
   assert.match(rail, /<RailSortList/)
-  assert.match(rail, /<RailChips id="repositories"[\s\S]*<RailChips id="plans"[\s\S]*<RailChips id="epics"/)
+  assert.match(rail, /<RailChips id="repositories"[\s\S]*<RailChips id="plans"[\s\S]*<RailChips id="stages"[\s\S]*<RailChips id="epics"/)
   assert.doesNotMatch(rail + flow, /<select|<FilterPanel|FilterSelect/)
   assert.match(flow, /<FlowCharts view=\{view\} unit=\{unit\} onUnit=\{setUnit\} \/>/)
   assert.match(source('App.tsx'), /t\.key === 'flow'/)
@@ -123,10 +123,10 @@ test('Flow nav filters change the charts, and By week still works', { skip }, as
   await click(`${rail} [data-rail-icon]:not([aria-label])`)
   await page.until(`document.querySelectorAll('[data-flow-bar]').length === 3`)
   // A stage row, then a spec chip.
-  await click(`${rail} [data-rail-stage="review"]`)
+  await click(`${rail} [data-rail-chip="review"]`)
   await page.until(`document.querySelectorAll('[data-flow-bar]').length === 1`)
   assert.deepEqual(await bars(), ['pantry.1'])
-  await click(`${rail} [data-rail-stage=""]`)
+  await click(`${rail} [data-rail-chip="review"]`)
   await click(`${rail} [data-rail-chip="search"]`)
   await page.until(`document.querySelectorAll('[data-flow-bar]').length === 2`)
   // Sort reorders the list in place; By week stays.

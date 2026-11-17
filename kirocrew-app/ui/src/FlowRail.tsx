@@ -2,7 +2,7 @@
 // Specs rail draws them (NavRail.tsx): no dropdowns. They set the same stored
 // filter the charts read, so every chart, bar and total follows a pick.
 import { NavSlotFor } from './nav-slot.tsx'
-import { RailBlock, RailChips, RailDivider, RailRow, RailSortList, RailStyle, type RailSort } from './NavRail.tsx'
+import { RailBlock, RailChips, RailRow, RailSortList, RailStyle, type RailSort } from './NavRail.tsx'
 import { ArrowUpDown, CaseSensitive, Clock, Gauge, Layers, ListFilter, Tag, Workflow, X } from './icons.ts'
 import { FLOW_SORT_FIRST, WINDOW_OPTIONS, filterActive, flowChoices, type FlowFilter, type FlowOrder, type FlowSort } from './flow-api.ts'
 
@@ -48,22 +48,11 @@ export function FlowRail(props: {
           {WINDOW_OPTIONS.map((option) => (
             <RailRow key={option.value} label={option.label} active={size === option.value} onClick={() => set({ window: option.value === '20' ? undefined : option.value })} attrs={{ 'data-rail-window': option.value }} />
           ))}
-          <RailDivider />
-          <RailRow label="All stages" active={!filter.stage} onClick={() => set({ stage: undefined })} attrs={{ 'data-rail-stage': '' }} />
-          {choices.stages.map((stage) => (
-            <RailRow
-              key={stage.value}
-              label={stage.label}
-              active={filter.stage === stage.value}
-              onClick={() => set({ stage: filter.stage === stage.value ? undefined : stage.value })}
-              attrs={{ 'data-rail-stage': stage.value }}
-              trail={<span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', opacity: 0.7 }}>{stage.count}</span>}
-            />
-          ))}
         </RailBlock>
         <RailChips id="repositories" icon={Workflow} title="Repositories" noun="repository" items={choices.repositories} picked={filter.repository} onPick={(repository) => set({ repository })} />
         <RailChips id="plans" icon={Tag} title="Specs" noun="spec" items={choices.plans} picked={filter.plan} onPick={(plan) => set({ plan, phase: undefined })} />
         {filter.plan && <RailChips id="phases" icon={Layers} title="Phases" noun="phase" items={choices.phases} picked={filter.phase} onPick={(phase) => set({ phase })} />}
+        <RailChips id="stages" icon={Gauge} title="Stages" noun="stage" items={choices.stages} picked={filter.stage} onPick={(stage) => set({ stage })} />
         <RailChips id="epics" icon={Layers} title="Epics" noun="epic" items={choices.epics} picked={filter.epic} onPick={(epic) => set({ epic })} />
       </div>
     </NavSlotFor>
