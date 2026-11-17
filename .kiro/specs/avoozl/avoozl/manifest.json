@@ -6647,6 +6647,61 @@
       ],
       "manual": true
     },
+    "42.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 42. Take over writes the spec journal's generation. See R102.13, R102.14; §4.32.",
+      "acceptance": [
+        "Take over writes the spec journal's generation",
+        "`avoozl spec publish SPEC` and `avoozl spec takeover SPEC` (operation `spec.takeover`, person-only). Take over on a published spec (local or GitHub journal) appends the next generation with `takeOver` (driver-generations.mjs) and keeps the driver id with `rememberDriver`. Person-only; a held or concurrent journal refuses. Landing reads this driver; no take over means nothing lands."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "56.4"
+      ]
+    },
+    "42.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 42 (PR landing and the setup command). The tick lands pr portions through the landing queue. See R87.3, R87.4, R87.5, R87.6, R89.3; §4.26.",
+      "acceptance": [
+        "The tick lands `pr` portions through the landing queue",
+        "A verified task in a repository with landing `pr` is pushed to its task branch (`pushHead`, never forced) and queued as one portion. Each tick runs `landNext` with `pullSteps` per base, with intents in the spec's journal. Landed marks the task integrated at the merge commit; failed checks send the task back to its chat; a conflict uses `sendConflictBack`. `direct` and `off` keep today's path. Fake GitHub and git test; no live write."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "42.1",
+        "42.3",
+        "42.5",
+        "41.4"
+      ]
+    },
+    "42.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 42 (PR landing and the setup command). avoozl setup REPO. See R89.1, R89.2, R89.3; §4.26.",
+      "acceptance": [
+        "`avoozl setup REPO`: one preview, `--yes` applies",
+        "CLI over `previewAccess` and `previewLanding`: prints every change, writes only with `--yes`, and a second run prints \"Nothing to change\" and writes nothing. Writes the project's landing setting and checks. The old Radar `github setup` stays as it is."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "42.2",
+        "42.3"
+      ]
+    },
     "avoozl-p52": {
       "kind": "leaf",
       "repository": "avoozl",
@@ -6663,7 +6718,10 @@
       "requires": [
         "42.1",
         "42.2",
-        "42.3"
+        "42.3",
+        "42.5",
+        "42.6",
+        "42.7"
       ]
     },
     "43.1": {
