@@ -2,6 +2,7 @@
 // unless the person types --as-person (R83.1).
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -79,3 +80,42 @@ test("the CLI refuses plan.delete in an agent session until --as-person", () => 
   assert.notEqual(child.status, 0);
   assert.match(child.stderr, /supervisor started/);
 });
+
+// P57 run 3: inside the sandbox the machine config cannot be read, and the
+// CLI stopped on that before it reached the person-only refusal.
+test(
+  "a child whose sandbox hides the machine config still gets the refusal",
+  { skip: process.platform === "win32" || process.getuid?.() === 0 },
+  () => {
+    const home = temporaryDirectory("avoozl-child-config-");
+    const configDir = path.join(home, "avoozl");
+    fs.mkdirSync(configDir, { recursive: true });
+    const config = path.join(configDir, "config.json");
+    fs.writeFileSync(config, JSON.stringify({ version: 1 }));
+    fs.chmodSync(config, 0o000);
+    try {
+      const run = (env) =>
+        spawnSync(
+          process.execPath,
+          [cli, "verify", "allow", "t1", "--reason", "x", "--as-person"],
+          {
+            encoding: "utf8",
+            env: { PATH: process.env.PATH, XDG_CONFIG_HOME: home, ...env },
+          },
+        );
+      const child = run({
+        AVOOZL_CHILD: "1",
+        AVOOZL_CHILD_SESSION: "process-1",
+      });
+      assert.equal(child.status, 1);
+      assert.match(child.stderr, /supervisor started \(process-1\)/);
+      // Outside a child an unreadable config still fails loudly.
+      assert.match(
+        run({}).stderr,
+        /Could not parse global Avoozl configuration/,
+      );
+    } finally {
+      fs.chmodSync(config, 0o600);
+    }
+  },
+);
