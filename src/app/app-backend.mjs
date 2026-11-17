@@ -309,6 +309,7 @@ export const APP_OPERATIONS = new Set([
   "mirror.forward",
   "mirror.forward.review",
   "radar.signoff",
+  "publiccrews.signoff",
   // The Onboard flow's reads; its writes are the operations above.
   "onboarding.inspect",
   "onboarding.scan",

@@ -882,7 +882,7 @@ export function writeTermsFile(store, { id, text } = {}) {
   return { id, rules: checked.rules, allows: checked.allows, saved: true };
 }
 
-const covers = (set, boundary, repository) =>
+export const covers = (set, boundary, repository) =>
   (set.boundaries
     ? set.boundaries.includes(boundary)
     : !OPT_IN.has(boundary)) &&
