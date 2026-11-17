@@ -4,6 +4,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { PUBLIC_HELD } from "../public-signoff.mjs";
+import {
+  auditRan,
+  crewHome,
+  fakeRuleSet,
+  signedOff,
+} from "./public-signoff-fixture.mjs";
 import { leaf, setup, labelsOf } from "./radar-coder-release-fixture.mjs";
 import { setRadarHandoverPaused } from "../coder-adapter.mjs";
 
@@ -51,7 +57,7 @@ test("public repository: nothing releases before the sign-off, the queue says wh
   assert.deepEqual(w.readyIds(), []);
 
   // After: a complete sign-off releases up to the capacity.
-  w.store.setMeta("publicSignoff", { [REPO]: { complete: true } });
+  signedOff(w.store, REPO);
   await w.tick();
   assert.equal(w.readyIds().length, 2);
   assert.equal(readyWrites(w).length, 2);
@@ -73,7 +79,18 @@ test("radar.signoff records the sign-off, owner only, and the hold follows it", 
   await w.ops.execute("radar.signoff", { repository: REPO, complete: false });
   await w.tick();
   assert.deepEqual(w.readyIds(), []);
-  await w.ops.execute("radar.signoff", { repository: REPO, complete: true });
+  // The checklist is not met yet, so the sign-off is refused.
+  await assert.rejects(
+    w.ops.execute("radar.signoff", { repository: REPO, complete: true }),
+    { status: 409 },
+  );
+  fakeRuleSet(w.store);
+  auditRan(w.store, REPO);
+  await w.ops.execute("radar.signoff", {
+    repository: REPO,
+    complete: true,
+    home: crewHome(),
+  });
   assert.equal(w.store.getMeta("publicSignoff")[REPO].complete, true);
   await w.tick();
   assert.equal(w.readyIds().length, 1);
@@ -90,6 +107,6 @@ test("a recorded sign-off marks the repository's plans for release on the next t
   const identity = planningIdentity(w.root);
   releaseChangedPlanIds(w.store, identity);
   assert.deepEqual([...releaseChangedPlanIds(w.store, identity)], []);
-  await w.ops.execute("radar.signoff", { repository: REPO, complete: true });
+  signedOff(w.store, REPO);
   assert.deepEqual([...releaseChangedPlanIds(w.store, identity)], ["rel"]);
 });

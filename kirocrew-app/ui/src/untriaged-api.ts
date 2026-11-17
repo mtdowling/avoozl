@@ -129,6 +129,45 @@ export interface UntriagedList {
   repositories: UntriagedRepository[]
   items: UntriagedItem[]
   withRadar?: RadarItem[]
+  // The Public crews card (R85.8): one row per public repository.
+  publicCrews?: PublicCrew[]
+}
+
+// One public repository's checklist and sign-off (src/app/public-signoff.mjs).
+export interface PublicCrew {
+  repository: string
+  visibility: 'public' | 'unknown'
+  home: string | null
+  agent: string
+  signedOff: { by: string; at: string } | null
+  lapsed: boolean
+  banner: string | null
+  items: { key: 'home' | 'hook' | 'rules' | 'audit'; label: string; ok: boolean; line: string }[]
+  ready: boolean
+}
+
+// What the card's badge says about one repository's sign-off.
+export function signoffBadge(row: PublicCrew): { text: string; variant: 'success' | 'warning' | 'danger' } {
+  if (row.signedOff) return { text: 'Signed off', variant: 'success' }
+  if (row.lapsed) return { text: 'Lapsed', variant: 'danger' }
+  return { text: 'Not signed off', variant: 'warning' }
+}
+
+// The line under a repository: who signed off and when, or why it is held.
+export function signoffLine(row: PublicCrew): string {
+  if (row.signedOff) return `Signed off by ${row.signedOff.by} on ${row.signedOff.at.slice(0, 16).replace('T', ' ')} UTC. Changing any item below lapses it.`
+  if (row.lapsed) return 'An item changed since the sign-off, so it lapsed. Check the list and sign off again. Avoozl sends no issue to Issue Radar until then.'
+  return 'Avoozl sends no issue from this repository to Issue Radar until you sign off.'
+}
+
+export function publicCrewsClient(api: AppApi) {
+  const send = (workspaceId: string, input: Record<string, unknown>) =>
+    api.post<{ result: { repository: string; complete: boolean } }>(COMMAND_PATH, { operation: 'publiccrews.signoff', input, workspaceId }).then((reply) => reply.result)
+  return {
+    // Checks every item again and records who and when. Person only.
+    signOff: (workspaceId: string, repository: string, home: string, agent: string) => send(workspaceId, { repository, complete: true, home, agent }),
+    withdraw: (workspaceId: string, repository: string) => send(workspaceId, { repository, complete: false }),
+  }
 }
 
 export function untriagedClient(api: AppApi) {

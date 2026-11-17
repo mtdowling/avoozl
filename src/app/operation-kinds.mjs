@@ -301,6 +301,7 @@ const PROTECT = new Set([
   "mirror.forward",
   "mirror.forward.review",
   "radar.signoff",
+  "publiccrews.signoff",
   "radar.retro.apply",
   "local.ignore.fix",
   "conversations.settings.update",

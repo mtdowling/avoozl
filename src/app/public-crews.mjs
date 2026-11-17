@@ -481,6 +481,8 @@ const MARKER = "kirocrew-crew v=1",
   FOUND = "publicCrewAudit",
   MAX_SEEN = 500,
   MAX_HITS = 50;
+// The audit's cursors: the sign-off reads them to tell the audit is on.
+export const AUDIT_CURSORS = CURSORS;
 export const FIRST_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 export const STAYS_REACHABLE =
   "A pull request body, a commit or an edit history can stay reachable on GitHub by its address after deletion; removing it for good needs a request to GitHub.";
