@@ -105,6 +105,10 @@ export function sandboxSecretPaths({
     path.join(home, ".netrc"),
     path.join(home, ".ssh"),
     path.join(home, ".aws"),
+    // Codex's default home: its auth.json (an API key or ChatGPT tokens)
+    // and the person's own transcripts. A Codex child runs with its own
+    // CODEX_HOME in a project write root instead (found by P58).
+    path.join(home, ".codex"),
     // Avoozl's own machine config (approvals, opt-ins) and state (the
     // supervisor's database, the catalog).
     configDirectory,

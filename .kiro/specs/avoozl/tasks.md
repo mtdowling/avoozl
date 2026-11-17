@@ -1773,13 +1773,14 @@ Requirement 94.7 (design §4.28). Exit: Codex runs a task with no code change.
   - `permission.write` may be exactly `danger-full-access`; the child then starts only inside Avoozl's sandbox with the task write roots, and is refused with no Avoozl sandbox, opt-in or not. `examples/harnesses/codex.json` uses it.
   - Tests: refused without the Avoozl sandbox, allowed with it, every other bypass value still refused.
 
-- [ ] avoozl-p58 P58 Proof: Codex runs a task from its definition file alone, after 48.1, 48.2 [R94.7] (§4.28)
+- [x] avoozl-p58 P58 Proof: Codex runs a task from its definition file alone, after 48.1, 48.2 [R94.7] (§4.28)
   - Setup: the Phase 47 scratch repository; the Codex definition approved by hash; the source tree at a recorded commit.
   - Action: run one task and one feedback round on Codex.
   - Expected: the child exits with a valid `.avoozl/result.json`, Avoozl commits its changes and the task finishes; `git diff --stat` of every source file against the recorded commit is empty, and the proof fails if any source file changed.
   - Also record (not verified before): the permission and sandbox values Codex accepts, and that its writes stay in the worktree.
   - Failure means: the seam still needs code per harness.
   - Next decision: fix the seam so the next harness needs no code.
+  - Proved: `docs/evidence/p58-codex-by-definition.md` (2026-11-17, Avoozl `19af828c`); fixes #446, #451, #465, #470; finding #479 (`~/.codex` readable from a child).
 
 ## Phase 49: Every role on any executor
 

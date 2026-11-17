@@ -6,21 +6,17 @@
 // Plans as a draft once it lints clean. When Spec Builder is off, an Avoozl
 // planner chat is the fallback. Nothing here approves a plan, starts
 // delivery or pushes.
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useAppApi, useNavigate } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import { Crosshair, ExternalLink, FileText, MessageSquare, Package, X } from './icons.ts'
+import { Crosshair, ExternalLink, FileText, MessageSquare, Package } from './icons.ts'
 import { RadioFold } from './RadioFold.tsx'
 import { Picker } from './Picker.tsx'
 import { TemplateStart, templateKey, type InputValues } from './TemplateStart.tsx'
 import { missingInputs, notesClient, type TemplateSummary } from './notes-api.ts'
 import { importInput, pluginsClient, type PackPreview } from './plugins-api.ts'
-import { ICON, IconLabel, SectionHeading, useConfirm } from './controls.tsx'
-import { useMedia } from './use-media.ts'
-import { trapStep } from './focus-trap.ts'
-import { useBackStep } from './NavHistory.tsx'
-import { modalOpen } from './Modal.tsx'
-import { LAYER } from './layers.ts'
+import { ICON } from './controls.tsx'
+import { Modal } from './Modal.tsx'
 import { errorMessage, workspaceClient, type Repository } from './workspace-api.ts'
 import {
   EMPTY_NEW_PLAN,
@@ -43,7 +39,6 @@ const samePath = (left: string, right: string) => {
 }
 
 const fieldStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 function Field(props: { id: string; label: string; need: 'required' | 'optional'; hint?: string; problem?: string | null; children: ReactNode }) {
   return (
@@ -87,9 +82,6 @@ export default function NewPlanDrawer(props: {
   const client = useMemo(() => newPlanClient(api), [api])
   const navigate = useNavigate()
   const builder = useMemo(() => specBuilderClient(api), [api])
-  const ask = useConfirm()
-  const narrow = useMedia('(max-width: 767px)')
-  const still = useMedia('(prefers-reduced-motion: reduce)')
   const [form, setForm] = useState<NewPlanForm>(() => ({ ...EMPTY_NEW_PLAN, ...props.seed }))
   const [repositories, setRepositories] = useState<Repository[] | null>(null)
   const [nameTouched, setNameTouched] = useState(false)
@@ -100,7 +92,6 @@ export default function NewPlanDrawer(props: {
   const [steering, setSteering] = useState<NewPlanPreview['steering'] | null>(null)
   // Spec Builder could not be reached: offer the planner chat instead.
   const [fallback, setFallback] = useState(false)
-  const [shown, setShown] = useState(false)
   // Blank, or From template (R61.7): a template's inputs, and its settings
   // imported only when ticked.
   const [start, setStart] = useState<Start | null>(props.start ?? null)
@@ -119,7 +110,6 @@ export default function NewPlanDrawer(props: {
   const notes = useMemo(() => notesClient(api), [api])
   const plugins = useMemo(() => pluginsClient(api), [api])
   const template = templates?.find((t) => templateKey(t) === picked) ?? null
-  const panel = useRef<HTMLDivElement>(null)
   const set = (change: Partial<NewPlanForm>) => {
     setForm((now) => ({ ...now, ...change }))
     // The question was about the old fields; Open in Spec Builder asks again.
@@ -163,40 +153,6 @@ export default function NewPlanDrawer(props: {
   }, [notes, props.workspaceId, start, templates])
 
   const dirty = isDirty(form) || Object.values(values).some((v) => (Array.isArray(v) ? v.length > 0 : Boolean(String(v).trim())))
-  const close = async () => {
-    if (busy) return
-    if (dirty && !(await ask({ title: 'Discard this new spec?', body: 'What you typed is not saved anywhere.', action: 'Discard' }))) return
-    props.onClose(null)
-  }
-  const closeRef = useRef(close)
-  closeRef.current = close
-  // Esc and Back ask first when something was typed, like Cancel.
-  useBackStep('drawer', true, 'Close New spec', () => void closeRef.current())
-
-  useEffect(() => {
-    const before = document.activeElement as HTMLElement | null
-    const frame = requestAnimationFrame(() => {
-      setShown(true)
-      panel.current?.querySelector<HTMLElement>('#avoozl-new-plan-name')?.focus()
-    })
-    const onKey = (event: KeyboardEvent) => {
-      // A modal over the drawer (a confirm) takes Tab.
-      if (modalOpen()) return
-      if (event.key !== 'Tab' || !panel.current) return
-      const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
-      const next = trapStep(items.length, items.indexOf(document.activeElement as HTMLElement), event.shiftKey)
-      if (next < 0) return
-      event.preventDefault()
-      items[next].focus()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => {
-      cancelAnimationFrame(frame)
-      document.removeEventListener('keydown', onKey)
-      before?.focus?.()
-    }
-  }, [])
-
   const problems =
     start === null
       ? ['Pick Blank, From template or From a goal.']
@@ -336,48 +292,35 @@ export default function NewPlanDrawer(props: {
   )
 
   return (
-    // A centered modal, full screen on a phone: no pull-out from the right.
-    <div className="fixed inset-0" style={{ zIndex: LAYER.drawer, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div
-        aria-hidden="true"
-        data-drawer-backdrop
-        onClick={() => void close()}
-        className="absolute inset-0"
-        style={{ background: 'color-mix(in srgb, var(--text) 25%, transparent)' }}
-      />
-      <div
-        ref={panel}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="avoozl-new-plan-title"
-        data-new-plan-drawer
-        className="relative flex flex-col border shadow-lg outline-none"
-        style={{
-          width: narrow ? '100%' : 'min(40rem, 94vw)',
-          height: narrow ? '100%' : 'min(48rem, 90vh)',
-          borderRadius: narrow ? 0 : 10,
-          background: 'var(--card, var(--bg))',
-          color: 'var(--text)',
-          borderColor: 'var(--border)',
-          opacity: shown || still ? 1 : 0,
-          transition: still ? 'none' : 'opacity 120ms ease-out',
-        }}
-      >
-        <div className="border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
-          <SectionHeading
-            level={2}
-            id="avoozl-new-plan-title"
-            title="New spec"
-            actions={
-              <IconLabel icon={X} onClick={() => void close()} aria-label="Close New spec">
-                Close
-              </IconLabel>
-            }
-          />
-        </div>
+    <Modal
+      id="avoozl-new-plan"
+      width="40rem"
+      height="48rem"
+      title="New spec"
+      kind="drawer"
+      backLabel="Close New spec"
+      attrs={{ 'data-new-plan-drawer': true }}
+      unsaved={dirty && { title: 'Discard this new spec?', body: 'What you typed is not saved anywhere.', action: 'Discard' }}
+      onDismiss={() => {
+        if (!busy) props.onClose(null)
+      }}
+      footer={
+        <>
+          {tried && start === null && (
+            <span role="alert" className="mr-auto text-xs text-danger" data-start-problem>
+              Pick Blank, From template or From a goal.
+            </span>
+          )}
+          <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || start === null || repositories === null || steering !== null} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {start === 'template' || start === 'goal' ? <MessageSquare size={ICON} aria-hidden="true" /> : <ExternalLink size={ICON} aria-hidden="true" />}
+            {busy ? 'Opening…' : start === 'template' || start === 'goal' ? 'Open a planner chat' : start === 'blank' ? 'Open in Spec Builder' : 'Pick how to start'}
+          </Btn>
+        </>
+      }
+    >
         <form
           id="avoozl-new-plan-form"
-          className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
+          className="flex flex-col gap-3"
           onSubmit={(event) => {
             event.preventDefault()
             void submit()
@@ -547,21 +490,6 @@ export default function NewPlanDrawer(props: {
             </div>
           )}
         </form>
-        <div className="flex items-center gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--border)' }}>
-          {tried && start === null && (
-            <span role="alert" className="text-xs text-danger" data-start-problem>
-              Pick Blank, From template or From a goal.
-            </span>
-          )}
-          <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || start === null || repositories === null || steering !== null} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            {start === 'template' || start === 'goal' ? <MessageSquare size={ICON} aria-hidden="true" /> : <ExternalLink size={ICON} aria-hidden="true" />}
-            {busy ? 'Opening…' : start === 'template' || start === 'goal' ? 'Open a planner chat' : start === 'blank' ? 'Open in Spec Builder' : 'Pick how to start'}
-          </Btn>
-          <Btn type="button" onClick={() => void close()} disabled={busy}>
-            Cancel
-          </Btn>
-        </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

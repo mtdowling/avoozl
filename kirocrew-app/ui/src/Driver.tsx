@@ -205,9 +205,6 @@ export function TakeOverDialog(props: { workspaceId: string; spec: DriverSpec; o
       onDismiss={() => props.onClose(false)}
       footer={
         <>
-          <Btn type="button" onClick={() => props.onClose(false)}>
-            Cancel
-          </Btn>
           <Btn type="button" primary disabled={busy || (how === 'file' && !file.trim())} onClick={() => void go()}>
             Take over
           </Btn>
@@ -274,9 +271,6 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
       onDismiss={() => props.onClose(false)}
       footer={
         <>
-          <Btn type="button" onClick={() => props.onClose(false)}>
-            Cancel
-          </Btn>
           <Tooltip text={blocker ?? undefined}>
             {(describedBy) => (
               <Btn type="button" aria-describedby={describedBy} disabled={busy || Boolean(blocker)} onClick={() => void go()} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
@@ -389,9 +383,6 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
               Cancel hand-off
             </Btn>
           )}
-          <Btn type="button" onClick={props.onClose}>
-            Close
-          </Btn>
           {step === 'start' && (
             <Btn type="button" primary disabled={busy} onClick={() => void run(() => client.handoff(props.workspaceId, spec.planId, 'start', folder.trim() ? { folder: folder.trim() } : {}))}>
               Stop new work
