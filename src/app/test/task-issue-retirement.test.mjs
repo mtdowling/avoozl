@@ -468,3 +468,40 @@ test("the CLI maps retire-issues steps and refuses them in an agent session", as
     assert.match(refused.stderr, /agent session/, step);
   }
 });
+
+test("github.retireTaskIssues runs every step for a person and refuses agents", async (t) => {
+  const { store, github, ready } = workspace(t);
+  const root = temporaryDirectory();
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({ version: 1, namespace: NAMESPACE }),
+  );
+  const ops = new Operations(store, { github, workspaceRoot: root }),
+    client = ops.github,
+    before = ready();
+  await assert.rejects(
+    ops.execute("github.retireTaskIssues", { step: "hold" }, undefined, {
+      mcp: true,
+    }),
+    /Only a person/,
+  );
+  assert.equal(retirementOf(store), null);
+  const preview = await ops.execute("github.retireTaskIssues", {});
+  assert.equal(preview.bindings.length, 3);
+  for (const step of ["hold", "apply"])
+    await ops.execute("github.retireTaskIssues", { step });
+  const verified = await ops.execute("github.retireTaskIssues", {
+    step: "verify",
+  });
+  assert.equal(verified.state, "verified", JSON.stringify(verified.failure));
+  assert.equal(ops.github, client);
+  assert.deepEqual(ready(), before);
+  const closed = await ops.execute("github.retireTaskIssues", {
+    step: "close",
+  });
+  assert.equal(closed.state, "closed");
+  await assert.rejects(
+    ops.execute("github.retireTaskIssues", { step: "nope" }),
+    /Choose preview/,
+  );
+});
