@@ -7,7 +7,8 @@ import path from "node:path";
 import { digest } from "../../model.mjs";
 import { fixture } from "./fixtures.mjs";
 import { git } from "../git.mjs";
-import { replayJournal } from "../spec-journal.mjs";
+import { journalOutcomes, replayJournal } from "../spec-journal.mjs";
+import { taskOutcome } from "../task-outcomes.mjs";
 import { driverState, takeOver } from "../driver-generations.mjs";
 import { landNext, landingQueue } from "../landing-queue.mjs";
 import { TRAIN_TASKS, directSteps, queuePortion } from "../landing-trains.mjs";
@@ -130,7 +131,6 @@ async function setup(t) {
           owner,
           login: "owner",
           revision: REVISION,
-          checks: [{ name: "check.mjs", conclusion: "success" }],
         },
       }),
       ...extra,
@@ -229,6 +229,26 @@ test("a train of one driver's portions across specs lands in one guarded push, a
         (o) => o.kind === "landed" && o.commit === result.candidate,
       ),
     );
+    // The intent carries the checks that passed at the candidate, so each
+    // landed outcome has evidence and completes its task (R102.5).
+    const replay = await replayJournal(x.journals.get(spec).entries, {
+      permission: x.journals.get(spec).permission,
+      visibility: "private",
+    });
+    for (const task of tasks)
+      assert.equal(
+        taskOutcome(journalOutcomes(replay), {
+          spec,
+          task,
+          revision: REVISION,
+          definition: def(task),
+        }).state,
+        "complete",
+        `${spec} ${task}`,
+      );
+    const [evidence] = [...st.intents.values()][0].checks;
+    assert.match(evidence.name, /^node(\.exe)? check\.mjs$/);
+    assert.equal(evidence.conclusion, "success");
   }
   // Every merge commit carries its tasks' trailers.
   const log = await git(x.landing, [

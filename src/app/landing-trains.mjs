@@ -67,6 +67,28 @@ const trailers = (entry) =>
     .filter((t) => typeof t !== "string")
     .map((t) => `Avoozl-Task: ${t.task}@${t.definition}`);
 
+// The checks a candidate passed, in the journal's check shape
+// ({name, conclusion}), for its landing intent. Without them a landed
+// outcome carries no evidence and never completes its tasks (R102.5).
+export function journalChecks(checks = []) {
+  return checks.map((check) => {
+    const name = String(check.command ?? check.name ?? "check")
+      .split(" ")
+      .map((part, i) => (i === 0 ? path.basename(part) : part))
+      .join(" ")
+      .replace(/[^A-Za-z0-9 ._()-]/g, "_")
+      .replace(/^[^A-Za-z0-9]+/, "")
+      .slice(0, 80);
+    return {
+      name: name || "check",
+      conclusion:
+        check.exitCode === 0 || check.conclusion === "success"
+          ? "success"
+          : "failure",
+    };
+  });
+}
+
 // Both sides of a conflicted path, appended: `git merge-file --union`.
 async function unionMerge(dir, file) {
   const stage = async (n) => {
@@ -233,8 +255,9 @@ export function directSteps({
       }
       return { ok: true, checks: out };
     },
-    async land({ entries, candidate, baseHead }) {
+    async land({ entries, candidate, baseHead, checks: passed = [] }) {
       const specs = [...new Set(entries.map((e) => e.spec))],
+        evidence = journalChecks(passed),
         intents = specs.map((spec) => {
           const own = entries.filter((e) => e.spec === spec),
             given = intent(spec, own);
@@ -244,6 +267,7 @@ export function directSteps({
             input: {
               op: `land.${candidate.slice(0, 16)}`,
               ...given.input,
+              ...(evidence.length ? { checks: evidence } : {}),
               refs: [{ repository, branch, commit: candidate }],
               spec,
               candidate,
