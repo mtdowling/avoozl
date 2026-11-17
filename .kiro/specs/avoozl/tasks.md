@@ -1793,7 +1793,7 @@ Requirement 97.3 (design §4.28).
 Requirement 98 (design §4.28). Screen changes wait for the owner's
 screenshots review.
 
-- [ ] 50.1 In flight for `process` sessions: status, log tail, cost, copyable attach command, after avoozl-p57 [R98.1] (§4.28)
+- [x] 50.1 In flight for `process` sessions: status, log tail, cost, copyable attach command, after avoozl-p57 [R98.1] (§4.28)
 - [ ] 50.2 Send message queues a `send`, after 50.1 [R98.2] (§4.28)
 - [ ] 50.3 Settings › Models picks harness and model per role; a `session` pin may name a harness, after avoozl-p57 [R98.3, R98.4] (§4.28)
 
