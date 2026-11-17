@@ -419,8 +419,8 @@ if (query.get('graph') === 'drafts') answer('graph.view', () => draftsGraph)
 
 function DeepLinkPage() {
   return (
-    // As tall as the screen, so the page's content pane scrolls on its own, as it does in the host.
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, height: '100vh', boxSizing: 'border-box', background: 'var(--bg)', color: 'var(--text)' }}>
+    // As tall as the screen with no frame around it, so the nav reaches the window's bottom and the page's content pane scrolls on its own, as in the host.
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 0, height: '100vh', boxSizing: 'border-box', background: 'var(--bg)', color: 'var(--text)' }}>
       <AvoozlApp />
     </div>
   )
