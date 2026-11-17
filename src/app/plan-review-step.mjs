@@ -707,6 +707,16 @@ export async function planReviewStep(
     )
       continue;
     const writer = completePlanReviewWriter(store, plan.id, plan.hash);
+    // The writer's chat is still in its turn; its model reading comes when
+    // the turn ends. Wait instead of recording an unknown-writer skip.
+    if (
+      writer?.slot &&
+      !writer.actualModel &&
+      ["working", "queued"].includes(
+        store.get("session_bindings", writer.slot)?.status,
+      )
+    )
+      continue;
     const result = createSpecReviewRound(store, {
       planId: plan.id,
       revisionHash: plan.hash,
