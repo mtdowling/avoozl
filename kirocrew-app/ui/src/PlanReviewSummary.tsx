@@ -93,7 +93,7 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
           {review?.canReviewAnyway && props.onStart && (
             <Note>
               <span className="flex flex-col items-start gap-1">
-                Reviewing anyway records that the models were not proven different.
+                {review.capped ? 'The round limit is reached for this revision. Review anyway runs one more round.' : 'Reviewing anyway records that the models were not proven different.'}
                 <SmallBtn disabled={starting || queued} onClick={() => void start()} attrs={{ 'data-review-anyway': true }}>Review anyway</SmallBtn>
               </span>
             </Note>
