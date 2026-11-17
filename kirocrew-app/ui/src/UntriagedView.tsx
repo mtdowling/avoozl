@@ -632,7 +632,7 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded }: 
         <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
       ) : !list.enabled ? (
         <p className="text-sm text-muted" data-untriaged-off>
-          Untriaged items need a GitHub mode or an intake source. Choose a mode in Settings › GitHub, or add a source in <SourcesLink onOpen={onOpenSources} />.
+          Untriaged items need a GitHub mode or an intake source. Give a repository a GitHub role in Settings › Repository setup, or add a source in <SourcesLink onOpen={onOpenSources} />.
         </p>
       ) : show === 'radar' ? (
         <div className="flex flex-col gap-2" data-radar-view>

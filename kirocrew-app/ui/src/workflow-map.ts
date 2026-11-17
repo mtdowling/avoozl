@@ -241,7 +241,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
         },
       ],
       labels: [],
-      note: 'The GitHub lanes and labels are hidden in Local only mode. Pick a GitHub mode under Where tasks live to see them.',
+      note: 'The GitHub lanes and labels are hidden in Local only mode. Give a repository a GitHub role in Repository setup to see them.',
     }
   }
 

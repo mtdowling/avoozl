@@ -1190,6 +1190,18 @@ function settingsProposal(request, settings, ctx, applied) {
       entry.managedLabels = { ...entry.managedLabels, ...request.labels[id] };
     repositories[id] = entry;
   }
+  // A workspace with roles takes the mode from them (R105.8), so the mode
+  // this run picks is written as roles on the entries too.
+  if (Object.values(repositories).some((entry) => entry.role !== undefined))
+    for (const [id, entry] of Object.entries(repositories))
+      entry.role =
+        request.mode === "single-repo"
+          ? "both"
+          : request.mode === "plans-repo"
+            ? lower(id) === lower(request.planning || "")
+              ? "planning"
+              : "code"
+            : "local";
   next.repositories = repositories;
   let error = null;
   try {
