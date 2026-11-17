@@ -1441,16 +1441,20 @@ export function reconcileDeliveries(
       };
     let next = delivery;
     // A recorded outcome is final: a closed session that reads live again
-    // (its tab reopened) neither undoes the failure nor gets nudged.
+    // (its tab reopened) neither undoes the failure nor gets nudged. A round
+    // sent back after landing reopens it (reopenAttempt): its next done or
+    // blocked replaces the entry.
     const recorded = delivery.attempts.some(
-        (a) => a.attempt === binding.attempt,
+        (a) => a.attempt === binding.attempt && !a.reopened,
       ),
       result = outcomeOf(binding),
       open = !result && !recorded;
     if (result && budgetEnd) result.budget = true;
     if (result && !recorded) {
       const attempts = [
-        ...delivery.attempts,
+        ...delivery.attempts.filter(
+          (a) => !(a.attempt === binding.attempt && a.reopened),
+        ),
         {
           attempt: binding.attempt,
           slot: binding.slot,
