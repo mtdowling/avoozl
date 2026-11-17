@@ -42,12 +42,12 @@ for (const [width, dark] of [
 ])
   test(`the review view shows tabs, severity borders, filters and chat links at ${width}`, { skip }, async () => {
     await openReview(width, dark)
-    assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-review-tab]')].map((t) => t.dataset.reviewTab)`), ['requirements.md', 'design.md', 'tasks.md'])
+    assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-review-tab]')].map((t) => t.dataset.reviewTab)`), ['requirements.md', 'design.md', 'tasks.md', 'avoozl/manifest.json', 'all'])
     assert.match(await text('[data-review-doc]'), /fixed-width byte types/)
     // Requirements' findings in line order, each with its border and label.
     assert.deepEqual(await cards(), ['f-warn', 'f-blocker', 'f-later'])
     assert.equal(await border('f-blocker'), await color('var(--danger)'))
-    assert.equal(await border('f-warn'), await color('var(--warning, #b7791f)'))
+    assert.equal(await border('f-warn'), await color('var(--warn)'))
     assert.match(await text('[data-finding-card="f-blocker"] [data-severity-label]'), /^Blocker$/)
     assert.match(await text('[data-finding-card="f-warn"] [data-planner-response]'), /Fixed in c0ffee12c0ff/)
     // Chats: the reviewer's opens, the planner's is gone.
@@ -149,6 +149,114 @@ test('Reject needs a reason, and each action records the revision on screen', { 
   await page.until(`Boolean(document.querySelector('[data-spec-body]')) && !document.querySelector('[data-review-view]')`)
 })
 
+test('the spec Summary shows the written summary and open findings by severity', { skip }, async () => {
+  await page.open(harness.url({ page: 'specs', review: '1' }), { width: 1280, height: 900 })
+  await page.until(`Boolean(document.querySelector('[data-plan-row="spec:byte-types"]'))`)
+  await click('[data-plan-row="spec:byte-types"]')
+  await page.until(`Boolean(document.querySelector('[data-spec-summary]'))`)
+  assert.match(await text('[data-spec-summary-text]'), /^Adds fixed-width byte types/)
+  // Open: f-blocker and f-later (for you), f-moved (for you). f-warn is
+  // fixed and f-info rejected, so they are not counted.
+  const badges = () => page.evaluate(`[...document.querySelectorAll('[data-spec-summary] [data-severity-badge]')].map((b) => b.dataset.severityBadge + ' ' + b.textContent)`)
+  assert.deepEqual(await badges(), ['blocker 1 blocker', 'warn 1 warn', 'info 1 info'])
+  assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[data-severity-badge="blocker"]')).color`), await color('var(--danger)'))
+  assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[data-severity-badge="warn"]')).color`), await color('var(--warn)'))
+  // Without a written summary the plain line shows; a zero count shows no badge.
+  await page.open(harness.url({ page: 'specs', review: '1', summary: 'none' }), { width: 1280, height: 900 })
+  await page.until(`Boolean(document.querySelector('[data-plan-row="spec:byte-types"]'))`)
+  await click('[data-plan-row="spec:byte-types"]')
+  await page.until(`Boolean(document.querySelector('[data-spec-summary-fallback]'))`)
+  assert.match(await text('[data-spec-summary-fallback]'), /^2 tasks in requirements\.md, design\.md, tasks\.md/)
+  await click('[data-open-review]')
+  await page.until(`Boolean(document.querySelector('[data-finding-card="f-blocker"]'))`)
+  await click('[data-finding-card="f-blocker"] [data-finding-action="resolve"]')
+  await page.until(`document.querySelector('[data-finding-card="f-blocker"]')?.dataset.findingState === 'resolved'`)
+  await click('[data-review-close]')
+  await page.until(`Boolean(document.querySelector('[data-spec-summary] [data-severity-badges]'))`)
+  assert.deepEqual(await badges(), ['warn 1 warn', 'info 1 info'])
+  assert.deepEqual(page.errors, [])
+})
+
+test('the tab bar moves with arrow keys, Home and End, and counts open findings per file', { skip }, async () => {
+  await openReview(1280, false)
+  const tabs = () => page.evaluate(`[...document.querySelectorAll('[data-review-tab]')].map((t) => [t.dataset.reviewTab, t.getAttribute('aria-selected'), t.tabIndex, t.querySelector('[data-tab-count]').textContent])`)
+  assert.deepEqual(await tabs(), [
+    ['requirements.md', 'true', 0, '2'],
+    ['design.md', 'false', -1, '1'],
+    ['tasks.md', 'false', -1, '0'],
+    ['avoozl/manifest.json', 'false', -1, '0'],
+    ['all', 'false', -1, '3'],
+  ])
+  const key = (k) => page.evaluate(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(k)}, bubbles: true }))`)
+  await page.evaluate(`document.querySelector('[data-review-tab="requirements.md"]').focus()`)
+  await key('ArrowRight')
+  await page.until(`document.querySelector('[data-review-tab="design.md"]').getAttribute('aria-selected') === 'true'`)
+  assert.equal(await page.evaluate(`document.activeElement.dataset.reviewTab`), 'design.md')
+  assert.match(await text('[data-review-doc]'), /bytes\.toml/)
+  await key('End')
+  await page.until(`Boolean(document.querySelector('[data-review-all]'))`)
+  await key('ArrowRight')
+  await page.until(`document.querySelector('[data-review-tab="requirements.md"]').getAttribute('aria-selected') === 'true'`)
+  await key('ArrowLeft')
+  await page.until(`Boolean(document.querySelector('[data-review-all]'))`)
+  await key('Home')
+  await page.until(`document.querySelector('[data-review-tab="requirements.md"]').getAttribute('aria-selected') === 'true'`)
+  // The manifest renders as a JSON block.
+  await click('[data-review-tab="avoozl/manifest.json"]')
+  await page.until(`/"version": 1/.test(document.querySelector('[data-review-doc]')?.textContent ?? '')`)
+  assert.equal(await page.evaluate(`document.querySelector('[role="tabpanel"]').getAttribute('aria-labelledby')`), await page.evaluate(`document.querySelector('[data-review-tab="avoozl/manifest.json"]').id`))
+  assert.deepEqual(page.errors, [])
+})
+
+test('All findings lists every file, filters, and a click opens the finding at its lines', { skip }, async () => {
+  await openReview(1280, false)
+  await click('[data-review-tab="all"]')
+  await page.until(`Boolean(document.querySelector('[data-review-all] [data-finding-card]'))`)
+  assert.deepEqual(await cards(), ['f-info', 'f-moved', 'f-warn', 'f-blocker', 'f-later'])
+  await click('[data-severity-filter="info"]')
+  await page.until(`document.querySelectorAll('[data-finding-card]').length === 2`)
+  assert.deepEqual(await cards(), ['f-info', 'f-later'])
+  await click('[data-severity-filter="all"]')
+  await page.until(`document.querySelectorAll('[data-finding-card]').length === 5`)
+  // A button on the card acts without leaving the tab.
+  await click('[data-finding-card="f-later"] [data-finding-action="reject"]')
+  await page.until(`Boolean(document.querySelector('[data-finding-confirm="reject"]'))`)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-review-all]'))`), true)
+  await click('[data-finding-cancel]')
+  // The card itself goes to its file, selects it and highlights its lines.
+  await click('[data-review-all] [data-finding-card="f-later"] [data-finding-title]')
+  await page.until(`document.querySelector('[data-review-tab="requirements.md"]').getAttribute('aria-selected') === 'true'`)
+  await page.until(`document.querySelector('[data-finding-card="f-later"]')?.dataset.selected === 'true'`)
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-review-hit]')].map((el) => el.dataset.sourceLine)`), ['14', '15'])
+  // A design.md finding switches to that tab.
+  await click('[data-review-tab="all"]')
+  await page.until(`Boolean(document.querySelector('[data-review-all]'))`)
+  await click('[data-review-all] [data-finding-card="f-info"] [data-finding-title]')
+  await page.until(`document.querySelector('[data-finding-card="f-info"]')?.dataset.selected === 'true' && document.querySelector('[data-review-tab="design.md"]').getAttribute('aria-selected') === 'true'`)
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-review-hit]')].map((el) => el.dataset.sourceLine)`), ['3'])
+  assert.deepEqual(page.errors, [])
+})
+
+test('a card has a severity icon, a one-line title, a clamped body and one main action', { skip }, async () => {
+  await openReview(1280, false)
+  const card = '[data-finding-card="f-blocker"]'
+  const style = (sel, prop) => page.evaluate(`getComputedStyle(document.querySelector(${JSON.stringify(sel)}))[${JSON.stringify(prop)}]`)
+  assert.equal(await style(card, 'borderTopLeftRadius'), '12px')
+  assert.equal(await style(card, 'borderTopColor'), await color('var(--danger)'))
+  assert.equal(await style(card + ' svg', 'color'), await color('var(--danger)'))
+  assert.equal(await style(card + ' [data-finding-title]', 'whiteSpace'), 'nowrap')
+  assert.equal(await style(card + ' [data-finding-title]', 'textOverflow'), 'ellipsis')
+  assert.equal(await style(card + ' [data-finding-body]', 'webkitLineClamp'), '3')
+  await click(card + ' [data-finding-body]')
+  await page.until(`document.querySelector('${card} [data-finding-body]').getAttribute('aria-expanded') === 'true'`)
+  assert.equal(await style(card + ' [data-finding-body]', 'webkitLineClamp'), 'none')
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('${card} [data-finding-action]')].map((b) => b.dataset.findingAction + (b.dataset.main ? '*' : ''))`), ['accept*', 'reject', 'defer', 'resolve'])
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-finding-card="f-warn"] [data-finding-action]')].map((b) => b.dataset.findingAction + (b.dataset.main ? '*' : ''))`), ['resolve*', 'accept', 'reject', 'defer'], 'a fixed finding leads with Resolve')
+  assert.match(await text(card + ' [data-finding-hint]'), /Accept sends it to the planner/)
+  // The main action's text is the accent, not the body text color.
+  assert.notEqual(await style(card + ' [data-main]', 'color'), await style(card + ' [data-finding-action="reject"]', 'color'))
+})
+
 // The pure parts, under node's type stripping.
 const { chipCounts, filterFindings, parseReviewLink, reviewHref, reviewLink } = await import('../src/review-view.ts')
 
@@ -174,6 +282,24 @@ test('each chip counts what would show with the other filter applied', () => {
     ['a', 'c'],
   )
   assert.deepEqual(chipCounts(all, { severity: 'warn', state: null }), { severity: { warn: 2, blocker: 1 }, state: { fixed: 1, 'for you': 1 } })
+})
+
+const { openCounts, tabKey } = await import('../src/review-view.ts')
+
+test('open counts leave out fixed and closed findings, and tab keys wrap', () => {
+  const f = (severity, state, file) => ({ severity, state, anchor: { file, lineStart: 1, lineEnd: 1 } })
+  assert.deepEqual(openCounts([f('blocker', 'for you', 'a.md'), f('warn', 'accepted', 'b.md'), f('warn', 'fixed', 'a.md'), f('info', 'rejected', 'a.md'), f('info', 'answered', 'a.md')]), {
+    byFile: { 'a.md': 2, 'b.md': 1 },
+    bySeverity: { blocker: 1, warn: 1, info: 1 },
+    total: 3,
+  })
+  const tabs = ['a', 'b', 'all']
+  assert.equal(tabKey('ArrowRight', tabs, 'all'), 'a')
+  assert.equal(tabKey('ArrowLeft', tabs, 'a'), 'all')
+  assert.equal(tabKey('End', tabs, 'a'), 'all')
+  assert.equal(tabKey('Home', tabs, 'b'), 'a')
+  assert.equal(tabKey('Enter', tabs, 'b'), null)
+  assert.equal(parseReviewLink('?view=review&plan=p&file=avoozl/manifest.json').file, 'avoozl/manifest.json')
 })
 
 const { blockFor, blocksIn, stackCards } = await import('../src/review-view.ts')

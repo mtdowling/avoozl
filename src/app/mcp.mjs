@@ -114,7 +114,7 @@ export const OLD_TOOLS = {
   ],
   plans_submit_review: [
     "plan.review.submit",
-    "Submit substantive, exact-revision design review comments with unique quoted anchors. This records feedback only; it cannot edit or approve the plan.",
+    "Submit substantive, exact-revision design review comments with unique quoted anchors, and for a spec an optional summary of 2-3 sentences for the spec page. This records feedback only; it cannot edit or approve the plan.",
   ],
   plans_extract: [
     "plan.extract",
