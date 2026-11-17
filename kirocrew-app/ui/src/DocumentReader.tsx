@@ -10,8 +10,8 @@ import { Markdown } from './Markdown.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useMedia } from './use-media.ts'
 import { PROSE_MEASURE } from './PlansView.tsx'
-import { IconBtn, IconLabel, SectionHeading } from './controls.tsx'
-import { Copy, FolderOpen, X } from './icons.ts'
+import { IconBtn, SectionHeading } from './controls.tsx'
+import { Copy, FolderOpen } from './icons.ts'
 import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
 import { plansClient } from './plans-api.ts'
@@ -127,9 +127,6 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
         <>
           <IconBtn icon={Copy} label="Copy path" tooltip={`Copy ${target.document}`} onClick={() => void copy()} />
           {text === undefined && <IconBtn icon={FolderOpen} label="Reveal in Finder" tooltip="Show this file in Finder" onClick={() => void revealFile()} />}
-          <IconLabel icon={X} primary onClick={onClose} aria-label="Close the file">
-            Close
-          </IconLabel>
         </>
       }
     >

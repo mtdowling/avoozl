@@ -409,9 +409,6 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
       onDismiss={cancel}
       footer={
         <>
-          <Btn type="button" onClick={cancel} disabled={busy}>
-            {step === 'finish' ? 'Close' : 'Cancel'}
-          </Btn>
           {at > 0 && step !== 'finish' && steps[at - 1] !== 'setup' && (
             <Btn type="button" onClick={back} disabled={busy}>
               Back
