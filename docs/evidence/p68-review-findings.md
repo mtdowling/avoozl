@@ -6,16 +6,18 @@ home and port), on Avoozl `main` at `01c5b9f9` plus the fixes below. The
 writer was `claude-sonnet-4.6` and the reviewer `gpt-5.6-sol`, with
 `planReview = {mode: auto, rounds: 1}`. Nothing was written to GitHub.
 
-**Verdict: partial. P68 is not ticked.** Every action ran live, and every
-expected result was seen, except two:
+**Verdict: partial. P68 is not ticked.** Run 3 (below) ran every action
+live on unpatched `main` at `b9e143ce`, and every expected result was
+seen except one:
 
-- No reviewer produced an `info` finding in any round (all were `blocker`
-  or `warn`), so the grey border was never seen live. The red and yellow
-  borders were seen.
-- Review anyway (action 5) was not offered at the rounds cap. That is a bug.
-  Its fix is PR #437, merged as `959ff379` after this run. Action 5
-  ran only after the backend half of #437 was patched into the test Kiro
-  Crew.
+- No reviewer produced an `info` finding in any of the 8 live rounds
+  across three specs (all were `blocker` or `warn`). So the grey border
+  was never seen live. The red and yellow borders were seen. A planted
+  naming slip meant as an `info` finding in run 3 was not raised at all.
+
+Runs 1 and 2 also needed hand patches for bugs found here. Review anyway
+first ran in run 2, with #437's backend half patched in. Run 3 needed no
+patches.
 
 The screenshots also still need the owner's approval.
 
@@ -86,6 +88,30 @@ Desktop light, in order:
 8. Approved: ![](p68-review-findings/desktop-light-approved.png)
 
 The Approve dialog's in-place update was captured at desktop light only.
+
+## Run 3: unpatched main
+
+Run 2026-11-17 20:10–20:38 UTC. The test Kiro Crew's installed app was
+brought to `main` at `b9e143ce` in place: every fix below is in it, and no
+hand patch. The app backend was restarted, and the tick's cron job was
+unchanged. The spec was `cache-reset-3`, with the same planted defects
+plus a naming slip. The person's clicks were driven by the agent in
+headless Chrome, as in run 2.
+
+| Action | Seen |
+|---|---|
+| 1. Round and planner answer | One round, with no unknown-writer skip first (#428). It found 8 findings: the planted `wrong-reference design.md:10`, `hidden-order tasks.md:6` and `untestable requirements.md:9`, plus 5 more (5 `blocker`, 3 `warn`). The planner answered all 8 `fixed` at `309e172d10bf`. |
+| 3. Decide | Reject `wrong-reference` "Test: rejected on purpose.", Defer `untestable` "Later." (a follow-up row, no task), Accept `hidden-order`. Each is recorded with the person and `309e172d10bf`. |
+| 4. In-place update | With Approve open, the person-triggered turn (chat title "… attempt 2", #430) stored `abf7435e2733` and answered the accepted finding `fixed` there. The dialog showed "Changed while open: 309e172d10bf → abf7435e2733 · design.md +1 −0", with 0 page errors. |
+| 5. Review anyway | The dialog offered it at the cap with "The round limit is reached for this revision. Review anyway runs one more round." (#437). One press stored a `review` choice, and round 2 ran at `abf7435e2733` (`unproven` false, writer `claude-sonnet-4.6`). It found 3 `conflict` findings, none of them the rejected `wrong-reference`. Its planner answer stored `6676720728fb`. The dialog moved again in place (manifest.json +10 −3, design.md +3 −2) and offered Review anyway once more. |
+| 6. Approve | One Approve spec press approved `6676720728fb`, the revision on screen (20:38:35 UTC). `outbox` and `github_issues` are empty. |
+
+| | Light |
+|---|---|
+| Changed while open, 1280 | ![](p68-review-findings/run3-desktop-light-5-changed-while-open.png) |
+| Review anyway pressed | ![](p68-review-findings/run3-desktop-light-6-review-anyway.png) |
+| Round limit note, second update | ![](p68-review-findings/run3-desktop-light-7-settled.png) |
+| Approved | ![](p68-review-findings/run3-desktop-light-8-after-approve.png) |
 
 ## Bugs found
 
