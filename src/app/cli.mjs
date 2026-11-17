@@ -611,6 +611,31 @@ try {
     console.log(
       JSON.stringify(await localOrRequest(...calls[action]()), null, 2),
     );
+  } else if (command === "setup") {
+    // Preview by default; --yes applies (R89.1). Not `github setup`.
+    const list = (value) =>
+      value
+        ?.split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    console.log(
+      JSON.stringify(
+        await localOrRequest("repository.setup", {
+          repository: need(
+            positionals[0],
+            "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+          ),
+          project: options.project,
+          base: options.base,
+          checks: list(options.checks),
+          methods: list(options.methods),
+          landing: options.landing,
+          confirm: Boolean(options.yes),
+        }),
+        null,
+        2,
+      ),
+    );
   } else if (command === "tick")
     console.log(
       JSON.stringify(await localOrRequest("workspace.tick"), null, 2),
@@ -1886,6 +1911,9 @@ try {
                                          Preview the GitHub setup; add --confirm --preview-hash HASH to apply
   mirror adopt|create OWNER/MIRROR --source OWNER/REPO [--ticked IDS]
                                          Dry run of the mirror setup; add --confirm --preview-hash HASH to apply
+  setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH]
+      [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]
+                                         Preview repository setup for landing; --yes applies it
   spec publish SPEC [--repository OWNER/REPO]
                                          Publish the spec issue, or its local journal without GitHub
   spec takeover SPEC                     Take over a published spec: write the next driver generation

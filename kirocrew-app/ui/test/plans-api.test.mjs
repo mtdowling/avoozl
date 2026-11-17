@@ -16,6 +16,8 @@ import {
   location,
   plansClient,
   plansWithoutFolder,
+  reviewCounts,
+  revisionChange,
   specStatus,
   writesByRepository,
 } from '../src/plans-api.ts'
@@ -67,10 +69,52 @@ test('approve sends the shown hash and the previewed database revision', async (
   })
 })
 
-test('approve refuses when the stored revision moved since it was shown', async () => {
-  const { api, calls } = fakeApi(() => ({ reviewedHash: 'b'.repeat(64), expectedRevision: 7 }))
-  await assert.rejects(plansClient(api).approve('ws', 'config', hash), /Reload it before approving/)
+test('approve returns the moved revision instead of throwing, and sends nothing', async () => {
+  const moved = { reviewedHash: 'b'.repeat(64), expectedRevision: 7 }
+  const { api, calls } = fakeApi(() => moved)
+  assert.deepEqual(await plansClient(api).approve('ws', 'config', hash), { changed: moved })
   assert.equal(calls.length, 1, 'no approve call is sent')
+})
+
+test('a move between the check and plan.approve reads as the same change; other refusals still throw', async () => {
+  let previews = 0
+  const { api } = fakeApi((body) => {
+    if (body.operation === 'plan.preview') return { reviewedHash: previews++ ? 'b'.repeat(64) : hash, expectedRevision: 7 }
+    throw new Error('The reviewed document hash changed.')
+  })
+  assert.equal((await plansClient(api).approve('ws', 'config', hash)).changed.reviewedHash, 'b'.repeat(64))
+  const refused = fakeApi((body) => {
+    if (body.operation === 'plan.preview') return { reviewedHash: hash, expectedRevision: 7 }
+    throw new Error('The spec folder changed on disk.')
+  })
+  await assert.rejects(plansClient(refused.api).approve('ws', 'config', hash), /changed on disk/)
+})
+
+test('approveMany names each moved spec and sends nothing', async () => {
+  const { api, calls } = fakeApi((body) => ({ reviewedHash: body.input.id === 'moved' ? 'b'.repeat(64) : hash }))
+  const result = await plansClient(api).approveMany('ws', [{ id: 'same', expectedHash: hash }, { id: 'moved', expectedHash: hash }])
+  assert.deepEqual([result.ok, result.changed.map((entry) => entry.id)], [false, ['moved']])
+  assert.ok(calls.every((call) => call.body.operation === 'plan.preview'))
+  const fresh = fakeApi((body) => (body.operation === 'plan.preview' ? { reviewedHash: hash } : { ok: true, failures: [] }))
+  assert.equal((await plansClient(fresh.api).approveMany('ws', [{ id: 'same', expectedHash: hash }])).ok, true)
+  assert.equal(fresh.calls.at(-1).body.operation, 'plan.approveMany')
+})
+
+test('the dialog counts severities then states, leaving out zeros', () => {
+  assert.equal(reviewCounts({ bySeverity: { blocker: 2, warn: 3, info: 1 }, byState: { 'for you': 1, fixed: 0 } }), '2 blocker · 3 warn · 1 info · 1 for you')
+  assert.equal(reviewCounts(null), 'No findings')
+})
+
+test('a revision change lists changed files with line counts and findings newly fixed or moved', () => {
+  const finding = (id, state, moved = false) => ({ id, state, anchor: { file: 'design.md', lineStart: 1, lineEnd: 1, moved } })
+  const change = revisionChange(
+    { hash: 'h1', files: { 'a.md': 'one\ntwo\n', 'b.md': 'same\n' }, review: { open: [finding('f1', 'for you'), finding('f2', 'for you'), finding('f3', 'fixed')] } },
+    { hash: 'h2', files: { 'a.md': 'one\n2\nthree\n', 'b.md': 'same\n' }, review: { open: [finding('f1', 'fixed'), finding('f2', 'for you', true), finding('f3', 'fixed')] } },
+  )
+  assert.deepEqual([change.from, change.to], ['h1', 'h2'])
+  assert.deepEqual(change.files, [{ file: 'a.md', added: 2, removed: 1 }])
+  assert.deepEqual(change.fixed.map((f) => f.id), ['f1'])
+  assert.deepEqual(change.moved.map((f) => f.id), ['f2'])
 })
 
 test('a spec row reads as one line', () => {
