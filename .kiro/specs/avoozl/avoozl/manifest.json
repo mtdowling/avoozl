@@ -8494,6 +8494,24 @@
         "3.14",
         "20.2"
       ]
+    },
+    "59.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 59 (Trace moves into task details). See R106; §4.35.",
+      "acceptance": [
+        "Remove Trace; task details get a Timeline of Avoozl's task steps, after 55.4",
+        "The Timeline box in task details lists spec approved, ready, started (attempt N), failed attempts, checks, landed, builds and integrated from stored records only, each with its time and the wait before it; the Trace nav entry, page, drawer, Done work list, radar.trace and trace.done are gone; an old trace link opens Delivery or the task's details; tests cover the steps, redirects, nav and zero GitHub calls, and screenshots (phone and desktop, light and dark, full app shell) are under docs/evidence/trace-into-task/."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "npm run test:ui",
+        "git diff --check"
+      ],
+      "requires": [
+        "55.4"
+      ]
     }
   }
 }
