@@ -174,6 +174,11 @@ function readLayer(filename, label, { portable = false } = {}) {
   try {
     value = JSON.parse(fs.readFileSync(filename, "utf8"));
   } catch (error) {
+    // A supervisor child's sandbox hides Avoozl's machine config on purpose
+    // (R95.6). There it reads as absent, so the CLI still answers, and
+    // refuses person-only commands with its own reason (R95.5).
+    if (process.env.AVOOZL_CHILD && ["EPERM", "EACCES"].includes(error.code))
+      return null;
     throw Error(`Could not parse ${label} at ${filename}: ${error.message}`);
   }
   if (!isRecord(value))

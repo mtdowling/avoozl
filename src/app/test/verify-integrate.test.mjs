@@ -137,7 +137,15 @@ test("the verifier agent ships with tool refs on the server key Kiro Crew regist
   assert.ok(manifest.agents.includes("agents/avoozl-verifier.json"));
   assert.equal(agent.name, "avoozl-verifier");
   assert.equal(agent.includeMcpJson, false);
-  assert.deepEqual(agent.allowedTools, []);
+  // Reads and its one report run unprompted, so an unattended chat can
+  // report; the shell still asks (P50).
+  assert.deepEqual(agent.allowedTools, [
+    "fs_read",
+    "grep",
+    "glob",
+    "thinking",
+    "@avoozl:avoozl/plans_report",
+  ]);
   assert.ok(!agent.tools.includes("fs_write"), "the verifier writes no files");
   const refs = agent.tools.filter((tool) => tool.startsWith("@"));
   assert.deepEqual(refs, ["@avoozl:avoozl/plans_report"]);
