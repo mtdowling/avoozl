@@ -16,14 +16,15 @@ test('Tab stays inside the dialog and wraps both ways', () => {
   assert.equal(trapStep(0, -1, false), -1)
 })
 
-test('a repository edits in place: no Edit button, no dialog, one footer', () => {
+test('a repository edits in an Edit dialog with Save and Cancel, not in the list', () => {
   const repos = source('RepositoriesSettings.tsx')
   const settings = source('SettingsView.tsx')
-  assert.doesNotMatch(repos, /Pencil|RepositoryDialog|avoozl-repo-edit/)
-  assert.doesNotMatch(settings, /RepositoryDialog|Use Edit to change/)
-  assert.match(settings, /data-repository-editor=\{row\.key\}/)
+  const modals = source('RepositoryModals.tsx')
+  assert.doesNotMatch(settings, /data-repository-editor=\{row\.key\}|RepositoryDialog|DIALOG_SECTIONS|data-open-settings/)
+  assert.doesNotMatch(repos, /<RepositoryEditor|RolePicker/)
+  assert.match(modals, /<Modal\s+id="avoozl-repo-edit"/)
+  assert.match(modals, /Cancel[\s\S]*Save/)
   assert.match(settings, /<SaveFooter\s+dirty=\{dirty\}/)
-  assert.doesNotMatch(settings, /DIALOG_SECTIONS|data-open-settings/)
 })
 
 test('the shared Modal still asks before it discards edits', () => {
