@@ -8,7 +8,6 @@ import {
   mirrorForwardStep,
   mirrorForwards,
 } from "../mirror-forward.mjs";
-import { buildTrace, TRACE_STEPS } from "../trace.mjs";
 import { releaseQueue } from "../radar-coder-queue.mjs";
 import { fixture } from "./fixtures.mjs";
 
@@ -167,42 +166,4 @@ test("nudge gives one Needs you row per record, auto gives none, both reach the 
     queue.forwards.map((f) => [f.id, f.state]),
     [["sha8", "to_forward"]],
   );
-});
-
-test("Trace gains Mirror merged, Forwarded, Public PR and Public merged, in order, with GitHub times", () => {
-  const record = {
-    mirrorMergedAt: iso(5),
-    forwardedAt: iso(9),
-    publicPrAt: iso(10),
-    publicMergedAt: iso(30),
-  };
-  const trace = buildTrace({
-    issue: { number: 1, title: "t", body: "", created_at: iso(-60) },
-    mirror: record,
-  });
-  const keys = trace.steps.map((step) => step.key);
-  const at = keys.indexOf("mirrorMerged");
-  assert.deepEqual(keys.slice(at, at + 4), [
-    "mirrorMerged",
-    "forwarded",
-    "publicPr",
-    "publicMerged",
-  ]);
-  assert.deepEqual(
-    trace.steps.slice(at, at + 4).map((s) => [s.label, s.at]),
-    [
-      ["Mirror merged", iso(5)],
-      ["Forwarded", iso(9)],
-      ["Public PR", iso(10)],
-      ["Public merged", iso(30)],
-    ],
-  );
-  assert.equal(keys.at(-1), "retro");
-});
-
-test("Trace has the eight steps and no mirror steps without a record", () => {
-  const trace = buildTrace({
-    issue: { number: 1, title: "t", body: "", created_at: iso(-60) },
-  });
-  assert.equal(trace.steps.length, TRACE_STEPS.length);
 });

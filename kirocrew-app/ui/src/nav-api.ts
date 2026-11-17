@@ -1,14 +1,13 @@
 // The page's top-level views and where an old place now goes. Kept free of
 // JSX so node can test it directly.
 
-// The nav row: Dashboards, Specs, Needs you, Trace,
+// The nav row: Dashboards, Specs, Needs you,
 // Flow, Activity, Settings. Dashboards' key stays 'dashboard' (its Home), so
 // an older link or Back step to Home still lands there.
 export const TABS = [
   { key: 'dashboard', label: 'Dashboards' },
   { key: 'plans', label: 'Specs' },
   { key: 'waiting', label: 'Needs you' },
-  { key: 'trace', label: 'Trace' },
   { key: 'flow', label: 'Flow' },
   { key: 'activity', label: 'Activity' },
   { key: 'settings', label: 'Settings' },
@@ -68,6 +67,9 @@ export function redirectTab(key: string): Place {
       return { tab: 'waiting', open: { 'waiting-section': 'intake' } }
     case 'routing':
       return { tab: 'settings' }
+    // Trace is gone (R106): its steps are the Timeline box in task details.
+    case 'trace':
+      return { tab: 'delivery' }
     default:
       return { tab: TABS.some((t) => t.key === key) || dashboardPage(key as Tab) ? (key as Tab) : 'dashboard' }
   }
@@ -88,3 +90,15 @@ export const RETIRED_LINE = 'Local workers are retired. Switch to Issue Radar.'
 export function retiredCoders(repositories: { name: string; coder: string }[], defaultCoder: string): string[] {
   return repositories.filter((r) => (r.coder || defaultCoder) === 'worker').map((r) => r.name)
 }
+
+// An old `?trace=owner/repo#52` link: the issue it names. Anything else is no
+// link. The page opens the details of the task that owns that issue (R106.8).
+export function parseTraceLink(search: string): { repository: string; number: number } | null {
+  const value = new URLSearchParams(search).get('trace'),
+    match = /^([^/\s#]+\/[^/\s#]+)#([1-9]\d*)$/.exec(value ?? '')
+  return match ? { repository: match[1], number: Number(match[2]) } : null
+}
+
+// The task that owns the issue an old trace link names, from the stored graph.
+export const taskForIssue = <T extends { issue: { number: number | null; repository: string | null } | null; repository: string | null }>(graph: { tasks: T[] }, link: { repository: string; number: number }) =>
+  graph.tasks.find((task) => task.issue?.number === link.number && (task.issue.repository ?? task.repository) === link.repository)

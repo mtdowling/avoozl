@@ -228,7 +228,7 @@ test('every details button uses the one details icon; Eye stays for show-on-page
 test('each view heading and its nav tab show the same icon, hidden from readers', () => {
   const icons = source('icons.ts')
   const map = icons.slice(icons.indexOf('export const VIEW_ICONS'))
-  for (const view of ['dashboard', 'plans', 'graph', 'waiting', 'trace', 'conflicts', 'settings']) assert.match(map, new RegExp(`${view}: \\w+`), view)
+  for (const view of ['dashboard', 'plans', 'graph', 'waiting', 'conflicts', 'settings']) assert.match(map, new RegExp(`${view}: \\w+`), view)
   for (const [file, view] of [
     ['PlansView.tsx', 'plans'],
     ['GraphView.tsx', 'graph'],

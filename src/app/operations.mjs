@@ -162,9 +162,7 @@ import {
 } from "./integration-head.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
 import { landingView } from "./landing-view.mjs";
-import { receiptReader } from "./build-receipt-read.mjs";
 import { epicsView } from "./epics-view.mjs";
-import { doneWork } from "./trace-done.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
   checkIntegrationBranch,
@@ -174,7 +172,6 @@ import { mergeNeedsYou } from "./radar-merge.mjs";
 import {
   checkConflictFix,
   conflictFixNeedsYou,
-  conflictFixesOf,
   decideConflictFix,
   reportConflictFix,
 } from "./radar-conflict-fix.mjs";
@@ -232,7 +229,7 @@ import {
 } from "./public-crews.mjs";
 import { publicCrewsView, signOff } from "./public-signoff.mjs";
 import { publicBranchRows } from "./mirror-forward-batch.mjs";
-import { mirrorForwardRows, mirrorRecordFor } from "./mirror-forward.mjs";
+import { mirrorForwardRows } from "./mirror-forward.mjs";
 import { forwardRecord } from "./mirror-forward-run.mjs";
 import { syncProject } from "./github-project.mjs";
 import { cancelSetup, githubSetup } from "./github-setup.mjs";
@@ -304,13 +301,12 @@ import {
 } from "./untriaged.mjs";
 import { requestReviewChat, reviewChats } from "./pr-review.mjs";
 import {
-  draftForPull,
   postReviewDraft,
   reviewDraftNeedsYou,
   reviewDraftsView,
 } from "./review-draft.mjs";
 import { clearGate, gateNeedsYou } from "./gate-clear.mjs";
-import { gateRows, gateTraceStep } from "./gate-view.mjs";
+import { gateRows } from "./gate-view.mjs";
 import { handOff, readCrews } from "./radar-handoff.mjs";
 import { readCrewStrip } from "./radar-crews.mjs";
 import { flowView, readFlowConfig, readFlowPolicy } from "./flow.mjs";
@@ -555,7 +551,6 @@ import {
   recordOperation,
 } from "./activity-log.mjs";
 import { lintPlan } from "./plan-quality.mjs";
-import { readTrace } from "./trace.mjs";
 import { flowView as radarFlowView, refreshFlow } from "./radar-flow.mjs";
 import {
   applyRetroRule,
@@ -3988,13 +3983,12 @@ export class Operations {
     // why. Read only. A Step click is a person's.
     if (name === "radar.releasequeue")
       return releaseQueue(store, planningIdentity(this.workspaceRoot));
-    // The Epics screen and Trace's Done work (read only).
+    // The Epics screen (read only).
     if (name === "epics.view")
       return epicsView(
         store,
         releaseQueue(store, planningIdentity(this.workspaceRoot)),
       );
-    if (name === "trace.done") return doneWork(store, this.github);
     if (name === "radar.releasestep") {
       if (context.caller || context.mcp)
         fail("Only a person releases a phase, in the Avoozl page.", 403);
@@ -4102,26 +4096,6 @@ export class Operations {
             ...result.unavailable.map((u) => `${u.set} unavailable`),
           ];
         },
-      });
-    }
-    // One issue's Trace (RC8.2): GitHub's times for its eight steps. Read only.
-    if (name === "radar.trace") {
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
-        entry = policy?.repositories?.[input.repository];
-      if (!entry)
-        fail(`${input.repository ?? "A repository"} is not registered.`, 404);
-      const number = Number(input.number);
-      if (!Number.isInteger(number) || number < 1)
-        fail("Name the issue number to trace.", 400);
-      if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-      // A mirrored repository's issues and pull requests live in the mirror.
-      const where = writeRepo(entry, input.repository);
-      return readTrace(this.github, where, number, entry, {
-        draftFor: (pull) => draftForPull(store, input.repository, pull),
-        mirrorFor: (pull) => mirrorRecordFor(store, where, pull),
-        fixesFor: (pull) => conflictFixesOf(store, input.repository, pull),
-        trackerFor: (issue) => gateTraceStep(store, input.repository, issue),
-        receiptFor: (pull) => receiptReader(store, this.github)(where)(pull),
       });
     }
     // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the
