@@ -36,6 +36,8 @@ const summary = (state: string, at = hash): PlanReviewSummary => {
 const states = ['done', 'older', 'running', 'skipped', 'not-reviewed']
 const entries: BatchEntry[] = states.map((state) => ({ id: state, spec: `fixture-${state}`, title: `Fixture ${state}`, hash, batch: 1, tasks: 1, errors: 0, loop: false, needs: [], review: summary(state) }))
 const reviews = new Map(entries.map((entry) => [entry.id, entry.review!]))
+// A pass at its rounds cap: the round reviewed an older revision (R104.14).
+reviews.set('capped', { ...summary('older'), canReviewAnyway: true, capped: true })
 ;(window as unknown as { __summaryReads: string[] }).__summaryReads = []
 const win = window as unknown as { __settleRunning: (move?: boolean) => void; __moveRevision: (id: string) => void }
 win.__settleRunning = (move = false) => {
