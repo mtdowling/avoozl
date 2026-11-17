@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { SmallBtn } from './controls.tsx'
 import { Tooltip } from './Tooltip.tsx'
+import { Hourglass } from './icons.ts'
 import { errorMessage } from './workspace-api.ts'
 import { shortHash, type PlanReviewSummary as Summary, type ReviewDisposition } from './plans-api.ts'
 
@@ -9,6 +10,36 @@ export function reviewStateLabel(review?: Summary | null): string {
   if (review.state === 'skipped') return 'Review skipped'
   if (review.state === 'running') return 'Review running'
   return review.current ? 'Reviewed' : 'Reviewed at an older revision'
+}
+
+// Kiro Crew's own "AI is working" box (the Projects page's plan banner): a
+// rounded box tinted 10% with a 50% border, and a band of the same tint
+// sweeping across it for 2 s, ease-in-out. The hue is the theme's --aim, the
+// purple Kiro Crew keeps for AI work in every theme. Reduced motion keeps the
+// box and stops the sweep.
+const WORKING = `
+@keyframes avoozl-review-sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+[data-review-working] { position: relative; overflow: hidden; border: 1px solid color-mix(in srgb, var(--aim, #7c3aed) 50%, transparent); background: color-mix(in srgb, var(--aim, #7c3aed) 10%, transparent); }
+[data-review-working]::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--aim, #7c3aed) 10%, transparent), transparent); animation: avoozl-review-sweep 2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { [data-review-working]::before { animation: none; display: none; } }
+`
+
+// The in-progress review, announced once politely and drawn as Kiro Crew's
+// working box.
+export function ReviewWorking(props: { model: string | null }) {
+  const label = `Reviewing with ${props.model ?? 'the reviewer model'}…`
+  return (
+    <div data-review-working role="status" aria-live="polite" aria-label={label} className="rounded-lg px-4 py-3">
+      <style>{WORKING}</style>
+      <div className="relative flex items-center gap-3">
+        <Hourglass size={18} aria-hidden className="shrink-0" style={{ color: 'var(--aim, #7c3aed)' }} />
+        <div className="min-w-0 flex-1">
+          <p className="m-0 font-semibold" style={{ color: 'var(--aim, #7c3aed)' }} data-plan-review-state>Review running</p>
+          <p className="m-0 text-xs text-muted">{label}</p>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // Both approval dialogs use the same evidence. Closing a finding is separate
@@ -37,7 +68,7 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
   }
   return (
     <div data-plan-review className="flex min-w-0 flex-col gap-2 text-sm" style={{ overflowWrap: 'anywhere' }}>
-      <p className="m-0 font-medium" data-plan-review-state>{reviewStateLabel(review)}</p>
+      {review?.state === 'running' ? <ReviewWorking model={review.reviewerModel} /> : <p className="m-0 font-medium" data-plan-review-state>{reviewStateLabel(review)}</p>}
       {review?.revisionHash && (
         <p className="m-0 text-muted">
           {review.state === 'done' ? 'Reviewed by' : 'Reviewer:'} {review.reviewerModel ?? 'not set'} at revision <Tooltip text={review.revisionHash}><code>{shortHash(review.revisionHash)}</code></Tooltip>
