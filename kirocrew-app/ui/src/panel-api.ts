@@ -3,7 +3,6 @@
 // radar.releasequeue, flow.view) and this module turns them into rows, so
 // node can test it and a fixture can feed it (every `panelModel` input is
 // plain data). No JSX and no host imports.
-import { driverLine, type DriverRead, type DriverState } from './driver-view-api.ts'
 import { bannerText, type FlowViewModel } from './flow-api.ts'
 import type { ReleaseQueue } from './release-api.ts'
 import type { SpecSummary } from './plans-api.ts'
@@ -26,7 +25,6 @@ export interface PanelChecks {
 }
 export interface PanelRead extends PanelInput {
   readAt?: string
-  driver?: DriverRead | null
   specs?: SpecSummary[] | null
   instance?: { id: string; name: string } | null
   // "owner/repo#57" -> the checks on that pull request's head.
@@ -288,48 +286,6 @@ export function panelModel(input: PanelInput): PanelModel {
   return { waiting, inFlight, queue, recent, stops, unread }
 }
 
-// The driver session as the panel shows it: a link when one was seen, Start
-// when none runs or the last one went quiet, and neither Start nor a link when
-// the read failed (it may be running; a second one would double-release).
-export interface DriverView {
-  state: DriverState
-  link: string | null
-  start: boolean
-  note: string
-  // The workspace the line is about, by name.
-  workspace: string | null
-  // When this workspace has no running driver and another one does:
-  // "No driver for A. B has one:" and that driver's link.
-  elsewhere: { text: string; href: string; slot: string; workspace: string } | null
-}
-
-export function driverView(read: DriverRead | null | undefined): DriverView {
-  const state = read?.state ?? 'none'
-  const workspace = read?.workspace ?? null
-  const other = state === 'none' || state === 'idle' ? read?.others?.[0] : undefined
-  return {
-    state,
-    link: read?.href ?? null,
-    start: state === 'none' || state === 'idle',
-    note: driverLine(state),
-    workspace,
-    elsewhere: other ? { text: `No driver for ${workspace ?? 'this workspace'}. ${other.workspace} has one:`, href: other.href, slot: other.slot, workspace: other.workspace } : null,
-  }
-}
-
-// The workspace a chat drives, from a driver read's `others`: the root of the
-// workspace whose running driver is this chat, or null.
-export function drivenRoot(read: DriverRead | null | undefined, chat: string): string | null {
-  return (chat && read?.others?.find((other) => other.slot === chat)?.root) || null
-}
-
-// Two workspace roots name the same folder (separators and a trailing slash
-// aside).
-export const sameRoot = (left: string, right: string) => {
-  const plain = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '')
-  return plain(left) === plain(right)
-}
-
 // "now", "5m", "3h", "2d": how long since `at`, short enough for a row.
 export function shortAgo(at: string | null | undefined, now = Date.now()): string {
   const time = at ? Date.parse(at) : NaN
@@ -366,25 +322,19 @@ export interface PanelWorkspace {
   roots: string[]
 }
 
-export type PanelPick = { id: string | null; why: 'driver' | 'folder' | 'last' | 'default' | 'none' }
+export type PanelPick = { id: string | null; why: 'folder' | 'last' | 'default' | 'none' }
 
-// Which workspace the side panel reads, in order: the workspace this driver
-// chat drives; the one whose root, or a repository registered to it, holds
+// Which workspace the side panel reads, in order: the one whose root, or a repository registered to it, holds
 // the chat's project folder (the longest matching root wins); the page's
 // last workspace; the catalog's default. Only a workspace still in the
 // catalog counts.
 export function pickPanelWorkspace(input: {
-  driverRoot: string | null
   project: string | null
   workspaces: (PanelWorkspace & { root: string })[]
   last: string | null
   fallback: string | null
 }): PanelPick {
   const known = (id: string | null) => Boolean(id && input.workspaces.some((w) => w.id === id))
-  if (input.driverRoot) {
-    const drives = input.workspaces.find((w) => sameRoot(w.root, input.driverRoot!))
-    if (drives) return { id: drives.id, why: 'driver' }
-  }
   if (input.project) {
     let best: { id: string; length: number } | null = null
     for (const workspace of input.workspaces)
