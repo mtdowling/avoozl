@@ -16,6 +16,7 @@ import path from "node:path";
 import { fail } from "./store.mjs";
 import { epicOfPlan } from "./epics.mjs";
 import { githubJournal, localJournal } from "./spec-journal.mjs";
+import { reusableInput } from "./github-intake.mjs";
 
 export const OWNERSHIP_LABEL = "crew:avoozl";
 const receiptId = (level, id) => `github-parent:${level}:${id}`;
@@ -101,6 +102,34 @@ export async function publishSpec(
     };
   }
   const epic = epicOfPlan(store.read(), plan.id);
+  // The issue a plan came from becomes its spec issue when it lives in the
+  // spec's home (R102.19). shortcut: only a plan with no epic reuses it;
+  // under an epic a new issue is made, so the sub-issue link comes from the
+  // create call. Lift this if an epic plan should reuse its input too.
+  const input = plan.context?.newPlan?.source;
+  if (!epic && reusableInput(input, config.id)) {
+    const issue = await github.issue(config, input.number);
+    if (issue && issue.state === "open") {
+      const names = (issue.labels || []).map((label) =>
+        typeof label === "string" ? label : label?.name,
+      );
+      if (!names.some((name) => lower(name) === OWNERSHIP_LABEL))
+        await github.addLabels(config, issue.number, [OWNERSHIP_LABEL]);
+      remember(store, "plan", plan.id, config, issue, {
+        planId: plan.id,
+        epic: null,
+        reused: true,
+      });
+      return {
+        home: "github",
+        existing: false,
+        reused: true,
+        repository: config.id,
+        number: issue.number,
+        journal: githubJournal(github, config, issue.number),
+      };
+    }
+  }
   let epicIssue = null;
   if (epic) {
     const stored = store.get("receipts", receiptId("epic", epic.id));

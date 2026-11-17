@@ -189,3 +189,78 @@ test("a workspace without GitHub keeps the journal in a local file", async (t) =
   assert.equal(result.records.length, 1);
   assert.equal(result.held, false);
 });
+
+test("a plan's input issue in the spec's home becomes its spec issue", async (t) => {
+  const w = await workspace(t, { mode: "single-repo" });
+  w.github.created.push({
+    id: 7,
+    node_id: "issue-7",
+    number: 7,
+    state: "open",
+    labels: [],
+    html_url: "https://example.test/issues/7",
+  });
+  const plan = w.store.get("plans", w.plan.id);
+  w.store.put("plans", {
+    ...plan,
+    context: {
+      ...plan.context,
+      newPlan: { source: { repository: REPOSITORY, number: 7 } },
+    },
+  });
+  const published = await w.ops.execute("spec.publish", { planId: w.plan.id });
+  assert.deepEqual(
+    { reused: published.reused, number: published.number },
+    { reused: true, number: 7 },
+  );
+  assert.equal(w.github.created.length, 1, "no new issue");
+  const added = () => w.github.labels.filter(([kind]) => kind === "add");
+  assert.deepEqual(added(), [["add", 7, OWNERSHIP_LABEL]]);
+  const again = await w.ops.execute("spec.publish", { planId: w.plan.id });
+  assert.equal(again.existing, true);
+  assert.equal(added().length, 1);
+});
+
+test("an input issue in another repository is not reused", async (t) => {
+  const w = await workspace(t, { mode: "single-repo" });
+  const plan = w.store.get("plans", w.plan.id);
+  w.store.put("plans", {
+    ...plan,
+    context: {
+      ...plan.context,
+      newPlan: { source: { repository: "example/other", number: 7 } },
+    },
+  });
+  const published = await w.ops.execute("spec.publish", { planId: w.plan.id });
+  assert.equal(published.reused, undefined);
+  assert.equal(w.github.created.length, 1);
+  assert.notEqual(published.number, 7);
+});
+
+test("intake.deliver takes a GitHub issue for a person and refuses MCP", async (t) => {
+  const w = await workspace(t, { mode: "single-repo" });
+  w.github.created.push({
+    id: 21,
+    node_id: "issue-21",
+    number: 21,
+    state: "open",
+    title: "Fix 21",
+    body: "Broken.",
+    labels: [],
+    html_url: "https://example.test/issues/21",
+  });
+  const id = `${REPOSITORY}#21`;
+  await assert.rejects(
+    w.ops.execute("intake.deliver", { source: "github", id }, undefined, {
+      mcp: true,
+    }),
+    /Only a person/,
+  );
+  const result = await w.ops.execute("intake.deliver", {
+    source: "github",
+    id,
+  });
+  assert.deepEqual(result.writes, ["label", "comment"]);
+  const task = w.store.read().tasks.find((entry) => entry.id === result.taskId);
+  assert.equal(task.fix.kind, "bounded-fix");
+});
