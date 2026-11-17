@@ -25,7 +25,6 @@ const HOME = [
   ["plan.list", { limit: 100 }],
   ["radar.crews", {}],
   ["flow.view", { window: "10" }],
-  ["driversession.view", {}],
   ["github.settings.get", {}],
   ["repositories.list", {}],
   ["radar.armed", {}],
