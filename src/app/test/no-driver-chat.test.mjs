@@ -22,7 +22,7 @@ test("the avoozl-driver agent and the driver session setting stay removed", () =
   assert.ok(!exists("kirocrew-app/agents/avoozl-driver.json"));
   assert.ok(!exists("prompts/driver.md"));
   assert.doesNotMatch(read("kirocrew-app/bin/avoozl.mjs"), /driver hook/);
-  assert.doesNotMatch(read("src/app/cli.mjs"), /driver-session|"hook"\)/);
+  assert.doesNotMatch(read("src/app/cli.mjs"), /driver-session|registerDriverSession/);
   assert.ok(!exists("src/app/driver-session.mjs"));
   // No driver session operation.
   for (const name of ["driversession.view", "driversession.register"])

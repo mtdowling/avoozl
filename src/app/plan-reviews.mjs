@@ -5,8 +5,18 @@ import { callerSlot, servedModel } from "./delivery.mjs";
 import { REVISION_FILES, specHash } from "./spec-plans.mjs";
 import { validatePlanReview } from "./chat-models.mjs";
 import { fail } from "./store.mjs";
+import {
+  FINDING_SEVERITIES,
+  MAX_QUOTE,
+  findingSeverity,
+  quoteHash,
+  quoteLines,
+  settledByPerson,
+} from "./review-findings.mjs";
 
 const severities = new Set(["blocking", "important", "suggestion", "question"]);
+// A spec finding takes the Requirement 104 values; the older ones still map.
+const specSeverities = new Set([...FINDING_SEVERITIES, ...severities]);
 export const SPEC_FINDING_KINDS = Object.freeze([
   "gap",
   "untestable",
@@ -85,6 +95,8 @@ export function createSpecReviewRound(
     maxRounds = 1,
     unproven = false,
     person = false,
+    // Review anyway at the rounds cap: one more round of the pass (R104.14).
+    anyway = false,
     commits = {},
   },
 ) {
@@ -138,7 +150,7 @@ export function createSpecReviewRound(
         return { round: latest, created: false };
       fail("Continue only the latest round of a review pass.", 409);
     }
-    if (previous && previous.round >= limit)
+    if (previous && previous.round >= limit && !(anyway && person))
       return { round: null, created: false, limited: true };
     const existing = rows
       .filter((row) => row.revisionHash === revisionHash)
@@ -310,27 +322,39 @@ export function createSpecReviewFindings(
       fail("Each spec finding must be an object.");
     if (!SPEC_FINDING_KINDS.includes(finding.kind))
       fail("Choose a supported spec finding kind.");
-    if (!severities.has(finding.severity))
-      fail("Choose blocking, important, suggestion, or question severity.");
+    if (!specSeverities.has(finding.severity))
+      fail("Choose info, warn or blocker severity.");
     if (
       !REVISION_FILES.includes(finding.file) ||
       typeof files[finding.file] !== "string"
     )
       fail("A finding must name a file in the reviewed revision.");
+    // The lines come from the quote, never from the reviewer (R104.3).
     if (
-      !Number.isInteger(finding.line) ||
-      finding.line < 1 ||
-      finding.line > files[finding.file].split("\n").length
+      typeof finding.quote !== "string" ||
+      !finding.quote.trim() ||
+      finding.quote.length > MAX_QUOTE
     )
-      fail("A finding's line must be in the reviewed file.");
-    const entry = {
-      kind: finding.kind,
-      severity: finding.severity,
-      file: finding.file,
-      line: finding.line,
-      claim: findingText(finding.claim, "a claim"),
-      evidence: findingText(finding.evidence, "evidence", 20000),
-    };
+      fail(
+        `Each spec finding needs an exact quote of 1–${MAX_QUOTE} characters.`,
+      );
+    const lines = quoteLines(files[finding.file], finding.quote);
+    if (!lines) fail("A finding's quote must occur exactly once in its file.");
+    const quote = finding.quote.trim(),
+      entry = {
+        kind: finding.kind,
+        severity: findingSeverity(finding.severity),
+        file: finding.file,
+        line: lines.lineStart,
+        anchor: {
+          file: finding.file,
+          ...lines,
+          quote,
+          quoteHash: quoteHash(quote),
+        },
+        claim: findingText(finding.claim, "a claim"),
+        evidence: findingText(finding.evidence, "evidence", 20000),
+      };
     return { ...entry, fingerprint: digest(JSON.stringify([round.id, entry])) };
   });
   if (waitForModel)
@@ -387,11 +411,39 @@ export function settleSpecReviewRounds(store) {
   }
 }
 
-function finishSpecReviewRound(store, round, checked, model, { slot, run }) {
+function finishSpecReviewRound(store, round, submitted, model, { slot, run }) {
   return store.transaction(() => {
     const current = store.get("review_rounds", round.id);
     if (!["running", "done"].includes(current?.state))
       fail("This review round is not active.", 409);
+    // A person rejected or resolved this in the same pass: drop the repeat.
+    const pass = new Set(
+        store
+          .list("review_rounds")
+          .filter(
+            (row) =>
+              row.planId === round.planId &&
+              row.pass === round.pass &&
+              row.id !== round.id,
+          )
+          .map((row) => row.id),
+      ),
+      settled = new Set(
+        store
+          .list("review_threads")
+          .filter(
+            (thread) =>
+              thread.source === "plan-review" &&
+              pass.has(thread.roundId) &&
+              thread.anchor?.quoteHash &&
+              settledByPerson(thread),
+          )
+          .map((thread) => thread.kind + ":" + thread.anchor.quoteHash),
+      ),
+      checked = submitted.filter(
+        (entry) => !settled.has(entry.kind + ":" + entry.anchor?.quoteHash),
+      ),
+      dropped = submitted.length - checked.length;
     const existing = store
         .list("review_threads")
         .filter((thread) => thread.roundId === round.id),
@@ -427,8 +479,19 @@ function finishSpecReviewRound(store, round, checked, model, { slot, run }) {
         replies: [],
         createdAt: now,
       })),
-      { pendingFindings: _pending, ...settled } = current,
-      done = { ...settled, reviewerModel: model, state: "done", endedAt: now };
+      { pendingFindings: _pending, ...rest } = current,
+      done = {
+        ...rest,
+        reviewerModel: model,
+        state: "done",
+        endedAt: now,
+        ...(dropped
+          ? {
+              dropped,
+              note: `Dropped ${dropped} ${dropped === 1 ? "finding" : "findings"} a person already rejected or resolved.`,
+            }
+          : {}),
+      };
     for (const thread of threads) store.put("review_threads", thread);
     store.put("review_rounds", done);
     store.event(null, "plan.review.submitted", {
