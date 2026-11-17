@@ -365,10 +365,19 @@ export function agentSession(env = process.env) {
 }
 
 // The refusal for a CLI call from an agent session, or null. `--as-person`
-// is the typed override.
+// is the typed override, except in a supervisor child (AVOOZL_CHILD, R95.5),
+// where nobody is typing.
 export function cliRefusal(name, input, { env = process.env, asPerson } = {}) {
   const reason = mcpRefusal(name, input);
-  if (!reason || asPerson || !agentSession(env)) return null;
+  if (!reason) return null;
+  if (env.AVOOZL_CHILD)
+    return (
+      reason.replace(/ Do it in the Avoozl app\.$/, "") +
+      " This command is running inside an agent the supervisor started" +
+      `${env.AVOOZL_CHILD_SESSION ? ` (${env.AVOOZL_CHILD_SESSION})` : ""}.` +
+      " Do it in the Avoozl app; --as-person does not apply here."
+    );
+  if (asPerson || !agentSession(env)) return null;
   return (
     reason.replace(/ Do it in the Avoozl app\.$/, "") +
     " This command is running inside an agent session. Do it in the Avoozl" +
