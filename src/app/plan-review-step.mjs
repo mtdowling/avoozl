@@ -282,7 +282,8 @@ function requestFor(
     brief,
     model,
     permissionClass,
-    title: `avoozl:${round.id} ${role} ${round.spec}`,
+    // A later attempt (a person-started planner turn) needs its own chat.
+    title: `avoozl:${round.id} ${role} ${round.spec}${attempt > 1 ? ` attempt ${attempt}` : ""}`,
     attempt,
     context: {
       planId: round.planId,
@@ -709,6 +710,16 @@ export async function planReviewStep(
     )
       continue;
     const writer = completePlanReviewWriter(store, plan.id, plan.hash);
+    // The writer's chat is still in its turn; its model reading comes when
+    // the turn ends. Wait instead of recording an unknown-writer skip.
+    if (
+      writer?.slot &&
+      !writer.actualModel &&
+      ["working", "queued"].includes(
+        store.get("session_bindings", writer.slot)?.status,
+      )
+    )
+      continue;
     const result = createSpecReviewRound(store, {
       planId: plan.id,
       revisionHash: plan.hash,
