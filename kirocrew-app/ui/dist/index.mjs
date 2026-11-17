@@ -15146,7 +15146,7 @@ function Zm(e) {
 					t?.note && /* @__PURE__ */ C(Ym, { children: t.note }),
 					t?.canReviewAnyway && e.onStart && /* @__PURE__ */ C(Ym, { children: /* @__PURE__ */ w("span", {
 						className: "flex flex-col items-start gap-1",
-						children: ["Reviewing anyway records that the models were not proven different.", /* @__PURE__ */ C(Kr, {
+						children: [t.capped ? "The round limit is reached for this revision. Review anyway runs one more round." : "Reviewing anyway records that the models were not proven different.", /* @__PURE__ */ C(Kr, {
 							disabled: a || r,
 							onClick: () => void l(),
 							attrs: { "data-review-anyway": !0 },
@@ -40326,8 +40326,12 @@ function sD() {
 			tab: "trace",
 			focus: null,
 			drill: null
-		}, { [es]: e }) : Qs(window.location.search) && V({
+		}, { [es]: e }) : Qs(window.location.search) ? V({
 			tab: "graph",
+			focus: null,
+			drill: null
+		}) : wc(window.location.search) && V({
+			tab: "plans",
 			focus: null,
 			drill: null
 		});

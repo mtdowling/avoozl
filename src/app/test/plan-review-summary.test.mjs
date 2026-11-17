@@ -337,6 +337,38 @@ test("only a person closes a spec finding or a text-plan comment", async (t) => 
   assert.equal(env.store.get("review_threads", "legacy").state, "closed");
 });
 
+test("Review anyway is offered at the rounds cap once the planner is done", (t) => {
+  const env = setup(t);
+  // The pass's only round reviewed an older revision; the plan has moved on.
+  round(env, "capped", { revisionHash: "a".repeat(64), writerModel: "w" });
+  const summary = planReviewSummary(env.store, env.plan.id);
+  assert.equal(summary.capped, true);
+  assert.equal(summary.canReviewAnyway, true);
+  // Not while a planner turn still runs, once pressed, or once a round exists.
+  for (const receipt of [
+    { id: "a", kind: "plan-answer", planId: env.plan.id, state: "running" },
+    {
+      id: "c",
+      kind: "plan-review-choice",
+      planId: env.plan.id,
+      revisionHash: env.plan.hash,
+      state: "review",
+    },
+  ]) {
+    env.store.put("receipts", receipt);
+    assert.equal(
+      planReviewSummary(env.store, env.plan.id).canReviewAnyway,
+      false,
+    );
+    env.store.db.prepare("DELETE FROM receipts WHERE id=?").run(receipt.id);
+  }
+  round(env, "next", { round: 2, state: "running" });
+  assert.equal(
+    planReviewSummary(env.store, env.plan.id).canReviewAnyway,
+    false,
+  );
+});
+
 test("Review anyway is offered only for an unknown writer skip that never opened", (t) => {
   const env = setup(t),
     round = {

@@ -264,3 +264,11 @@ test('the reviewer is a bordered table and the status and counts sit in their ow
   await click('[data-review-anyway]')
   await page.until(`document.querySelector('[data-review-status]').textContent.includes('Review queued for this revision')`)
 })
+test('at the rounds cap Review anyway says it runs one more round', { skip }, async () => {
+  await open('single', 'capped', 1280)
+  const text = await page.evaluate(`document.querySelector('[data-review-reviewer]').textContent`)
+  assert.match(text, /The round limit is reached for this revision\. Review anyway runs one more round\./)
+  assert.doesNotMatch(text, /not proven different/)
+  await click('[data-review-anyway]')
+  await page.until(`document.querySelector('[data-review-status]').textContent.includes('Review queued for this revision')`)
+})
