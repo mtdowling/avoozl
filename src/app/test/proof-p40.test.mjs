@@ -232,6 +232,10 @@ class Client {
   issueTimeline() {
     return Promise.resolve([]);
   }
+  // The world writes no comments, so a spec journal reads empty.
+  listIssueComments() {
+    return Promise.resolve([]);
+  }
   permission(_repository, actor) {
     return Promise.resolve({
       permission: ["alice", "bob"].includes(actor) ? "write" : "none",
