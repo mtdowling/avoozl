@@ -203,6 +203,11 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
       avoozl_gone: [404, {}],
       avoozl_refused: [403, {}],
       avoozl_expired: [403, { error: "Forbidden", code: "forbidden" }],
+      avoozl_usage: [200, { running: false }],
+      avoozl_busy: [200, { running: true }],
+    },
+    usage = {
+      avoozl_usage: [{ model: "fake-old" }, { model: "fake-served" }],
     };
   let tokens = 0,
     expiredOnce = 0;
@@ -214,6 +219,14 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
         status: 200,
         json: async () => ({ token: `t${++tokens}` }),
       };
+    if (url.includes("/api/usage/turns")) {
+      const slot = new URL(url).searchParams.get("slot");
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ turns: usage[slot] ?? [] }),
+      };
+    }
     const slot = decodeURIComponent(url.match(/slots\/([^?]+)/)[1]),
       [code, body] = answers[slot];
     // The first read's token has expired; the next one is fresh.
@@ -239,6 +252,19 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
       changed: false,
     },
   });
+  // A read that names no model falls back to the last usage row, idle only.
+  assert.deepEqual(await read("avoozl_usage"), {
+    status: "idle",
+    served: {
+      requested: null,
+      model: "fake-served",
+      withheld: false,
+      changed: false,
+    },
+  });
+  const before = calls.length;
+  assert.equal(await read("avoozl_busy"), "working");
+  assert.ok(!calls.slice(before).some(([, u]) => u.includes("usage")));
   assert.equal(await read("avoozl_gone"), "gone");
   await assert.rejects(read("avoozl_refused"), /403/);
   const minted = tokens;

@@ -229,13 +229,16 @@ export function bindSpecReviewRound(store, { roundId, runId, slot }) {
 function skipSpecReviewRound(store, round, note) {
   store.transaction(() => {
     const current = store.get("review_rounds", round.id);
-    if (current?.state === "running")
+    if (current?.state === "running") {
+      // Findings that waited for the reviewer's model are not kept.
+      const { pendingFindings: _pending, ...rest } = current;
       store.put("review_rounds", {
-        ...current,
+        ...rest,
         state: "skipped",
         note,
         endedAt: new Date().toISOString(),
       });
+    }
   });
   fail(note, 409);
 }
@@ -276,19 +279,23 @@ export function createSpecReviewFindings(
     round.state === "done"
       ? round.reviewerModel
       : reportedPlanModel(store, slot ? { slot } : { runId: run.id });
-  if (!model)
-    skipSpecReviewRound(
-      store,
-      round,
-      "The reviewer session has no proven reported model; review skipped.",
-    );
   if (!round.writerModel && !round.unproven)
     skipSpecReviewRound(
       store,
       round,
       "The model that wrote this revision is unknown; review skipped.",
     );
-  if (model === round.writerModel)
+  // Kiro Crew may name a chat's model only once its turn ends. A reviewer
+  // that submits mid-turn waits for that reading (settleSpecReviewRounds).
+  const waitForModel =
+    !model && round.state === "running" && slot && turnOpen(binding);
+  if (!model && !waitForModel)
+    skipSpecReviewRound(
+      store,
+      round,
+      "The reviewer session has no proven reported model; review skipped.",
+    );
+  if (model && model === round.writerModel)
     skipSpecReviewRound(
       store,
       round,
@@ -326,6 +333,61 @@ export function createSpecReviewFindings(
     };
     return { ...entry, fingerprint: digest(JSON.stringify([round.id, entry])) };
   });
+  if (waitForModel)
+    return store.transaction(() => {
+      const current = store.get("review_rounds", round.id);
+      if (current?.state !== "running")
+        fail("This review round is not active.", 409);
+      const waiting = { ...current, pendingFindings: checked };
+      store.put("review_rounds", waiting);
+      return {
+        planId: round.planId,
+        revisionHash: round.revisionHash,
+        round: waiting,
+        pending: true,
+        note: "Avoozl records these findings once Kiro Crew names this chat's model, after this turn ends. Nothing more to do.",
+      };
+    });
+  return finishSpecReviewRound(store, round, checked, model, { slot, run });
+}
+
+// A running or queued turn has not reported its model yet; a chat whose
+// status was never read is treated the same.
+const turnOpen = (binding) => !["idle", "gone"].includes(binding?.status);
+
+// Findings that waited for the reviewer's model: record them once the chat
+// is idle and Kiro Crew names a model that differs from the writer's.
+export function settleSpecReviewRounds(store) {
+  for (const round of store.list("review_rounds")) {
+    if (round.state !== "running" || !round.pendingFindings || !round.slot)
+      continue;
+    const binding = store.get("session_bindings", round.slot);
+    if (binding && turnOpen(binding)) continue;
+    const model = reportedPlanModel(store, { slot: round.slot });
+    try {
+      if (!model)
+        skipSpecReviewRound(
+          store,
+          round,
+          "The reviewer session has no proven reported model; review skipped.",
+        );
+      if (model === round.writerModel)
+        skipSpecReviewRound(
+          store,
+          round,
+          "The reviewer session ran on the model that wrote this revision; review skipped.",
+        );
+      finishSpecReviewRound(store, round, round.pendingFindings, model, {
+        slot: round.slot,
+        run: null,
+      });
+    } catch {
+      // A skip is already recorded on the round.
+    }
+  }
+}
+
+function finishSpecReviewRound(store, round, checked, model, { slot, run }) {
   return store.transaction(() => {
     const current = store.get("review_rounds", round.id);
     if (!["running", "done"].includes(current?.state))
@@ -365,7 +427,8 @@ export function createSpecReviewFindings(
         replies: [],
         createdAt: now,
       })),
-      done = { ...current, reviewerModel: model, state: "done", endedAt: now };
+      { pendingFindings: _pending, ...settled } = current,
+      done = { ...settled, reviewerModel: model, state: "done", endedAt: now };
     for (const thread of threads) store.put("review_threads", thread);
     store.put("review_rounds", done);
     store.event(null, "plan.review.submitted", {

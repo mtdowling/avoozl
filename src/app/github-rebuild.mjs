@@ -16,6 +16,7 @@ import { isParentMarker, requireNamespace } from "./github-marker.mjs";
 import { computeWaves, projectFieldValue } from "./github-project.mjs";
 import { ensureInbox, issueRecordId, projectedMarker } from "./github-sync.mjs";
 import { fail } from "./store.mjs";
+import { taskIssuesRetired } from "./task-issue-retirement.mjs";
 import { WORKSPACE_LOCK } from "./tick.mjs";
 import { parseSpec, specCategory, specTitle } from "./spec-plans.mjs";
 import { parseIssueNotes } from "./task-notes.mjs";
@@ -26,6 +27,11 @@ const HEADER = /^This issue is projected from approved design `([^`]+)` at `/;
 const REBUILT = "Rebuilt from GitHub";
 
 export async function rebuildFromGitHub(store, github, options) {
+  if (taskIssuesRetired(store))
+    fail(
+      "Task issues are retired in this workspace; they are no longer a source to rebuild from.",
+      409,
+    );
   return withWorkLock(store, WORKSPACE_LOCK, () =>
     rebuild(store, github, options),
   );

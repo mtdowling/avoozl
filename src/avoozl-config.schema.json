@@ -167,6 +167,19 @@
         }
       }
     },
+    "lanes": {
+      "type": "object",
+      "description": "Worker chats this Mac runs at once. A ready task beyond the free lanes waits. More lanes come from remote hosts.",
+      "additionalProperties": false,
+      "properties": {
+        "local": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32,
+          "default": 3
+        }
+      }
+    },
     "safety": {
       "$ref": "#/$defs/safetyPolicy"
     },

@@ -6,6 +6,11 @@ import { queryTasks } from "../../query.mjs";
 import { taskSignals } from "../../workbench-model.mjs";
 import { workspace } from "./radar-fixture.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
+import { setRadarHandoverPaused } from "../coder-adapter.mjs";
+
+// These tests cover the Radar hand-over kept while Phase 45 is paused
+// (R103.4 pauses it in the product).
+setRadarHandoverPaused(false);
 
 const leaf = (summary, requires = []) => ({
   kind: "leaf",

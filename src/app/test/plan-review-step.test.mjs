@@ -660,3 +660,32 @@ test("an ask-mode unknown-writer skip can be upgraded by a person without reopen
   );
   assert.equal(env.store.get("review_rounds", request.task).state, "running");
 });
+
+test("a folder reload credits the one New spec planner that ran since the last revision", async (t) => {
+  // Nearby inputs: the planner idle since before the revision (not credited),
+  // then the same planner after a new turn (credited, so a round opens).
+  const env = setup(t);
+  env.store.put("session_bindings", {
+    id: "np",
+    slot: "np",
+    role: "planner",
+    taskId: "new-plan:reader",
+    status: "idle",
+    statusAt: "2000-01-01T00:00:00.000Z",
+  });
+  env.edit("# Design\n\nA person edit.\n");
+  await env.step();
+  await env.step();
+  const first = env.store.get("plans", env.plan.id);
+  assert.notEqual(first.hash, env.plan.hash);
+  assert.equal(planReviewWriter(env.store, first.id, first.hash).slot, null);
+  recordSessionStatus(env.store, { slot: "np", status: "working" });
+  env.edit("# Design\n\nThe planner's fix.\n");
+  await env.step();
+  env.observe("np", "fake-writer");
+  await env.step();
+  const second = env.store.get("plans", env.plan.id);
+  assert.notEqual(second.hash, first.hash);
+  const writer = planReviewWriter(env.store, second.id, second.hash);
+  assert.equal(writer.slot, "np");
+});
