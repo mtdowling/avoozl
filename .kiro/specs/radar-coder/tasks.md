@@ -327,8 +327,8 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
   - Remove the relay queue, `plans_relay`, the `avoozl-relay` agent and the Routing relay block, and their tests.
   - Done when: `npm test` passes; the relay agent is not in the built app.
 - [ ] rc-12.6 Retire per-task worker budgets and the worker Files and diff fold, after rc-12.2 [RC11.2] (§D13)
-  - Per-task budgets stay for planner, retro and quick-goal chats only; the worker Files and diff fold is removed with the worker drawer parts.
-  - Done when: Budgets still cap a planner chat; the drawer has no Files fold for a Radar-coded task.
+  - Removed 2026-11-17 (owner): per-task budgets are gone for every chat. The worker Files and diff fold is removed with the worker drawer parts.
+  - Done when: The drawer has no Files fold for a Radar-coded task.
 - [ ] rc-12.7 Compatibility test: names and aliases that must stay, after rc-12.2, rc-12.3, rc-12.4, rc-12.5, rc-12.6 [RC11.4] (§D13)
   - One test asserts that every `plans_*` MCP name, `NUPP_WORKSPACE` and `AICOMMANDER_*` variable, the `aicommander` command and `aicommander.*` setting still resolves.
   - Done when: The test fails if any listed name stops working.
