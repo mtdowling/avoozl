@@ -31,7 +31,7 @@ after(async () => {
 const RADAR = { top: 42, phoneTop: 28, row: 32, cardRadius: 12, sectionRadius: 16, rowRadius: 8, rowFont: 13, headFont: 12 }
 
 for (const theme of ['light', 'dark']) {
-  test(`at 1280 px ${theme} the nav is Radar's: a card per section with 32 px headers, one open at a time, then the brand line`, { skip }, async () => {
+  test(`at 1280 px ${theme} the nav is Radar's: a card per section with 32 px headers, sections stay open, then the brand line`, { skip }, async () => {
     await page.open(harness.url({ app: '1', theme }), { width: 1280, height: 800, dark: theme === 'dark' })
     await page.until(`Boolean(document.querySelector('[data-brand-card]') && document.querySelector('[data-nav-section]'))`)
     const read = () => page.evaluate(`(() => {
@@ -68,15 +68,14 @@ for (const theme of ['light', 'dark']) {
     assert.deepEqual(got.items, [RADAR.row])
     assert.deepEqual(got.itemRadius, [RADAR.rowRadius])
     assert.deepEqual(got.itemFont, [RADAR.rowFont])
-    assert.deepEqual(got.open, ['settings'])
+    assert.deepEqual(got.open.sort(), ['dashboard', 'settings'])
     assert.equal(got.chevrons, 6, 'a chevron on each section that opens (pages or filters)')
     assert.deepEqual(got.order, ['nav', 'brand'], 'the line controls left the nav for the top line')
-    // Opening Needs you closes Settings: one section is open at a time.
+    // Opening Needs you leaves the others open.
     await click('[data-nav-group="waiting"]')
     await page.until(`Boolean(document.querySelector('[data-nav-children="waiting"]'))`)
     got = await read()
-    assert.deepEqual(got.open, ['waiting'])
-    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-nav-children="settings"]'))`), false)
+    assert.deepEqual(got.open.sort(), ['dashboard', 'settings', 'waiting'])
   })
 
   test(`at 390 px ${theme} the phone's top card: a 28 px button with the page name and the open-the-list icon`, { skip }, async () => {

@@ -11,6 +11,7 @@ import { replayJournal } from "../spec-journal.mjs";
 import { driverState, takeOver } from "../driver-generations.mjs";
 import { landNext, landingQueue } from "../landing-queue.mjs";
 import { TRAIN_TASKS, directSteps, queuePortion } from "../landing-trains.mjs";
+import { workingBranch } from "../working-heads.mjs";
 
 const Q = { projectId: "fixture", base: "main" };
 const owner = { login: "owner", from: "spec" };
@@ -360,4 +361,33 @@ test("a displaced driver's intent stops before the push", async (t) => {
   assert.equal(s.log.results[0][0].state, "refused");
   assert.equal(await x.head(), x.base);
   assert.equal(landingQueue(x.store, Q)[0].key, "spec-a.t1");
+});
+
+test("after a landing the new base merges back into the spec's working branch, keeping unlanded work", async (t) => {
+  const x = await setup(t);
+  const landed = await x.portion("spec-a", "t1", { "one.txt": "1\n" }),
+    branch = workingBranch("spec-a");
+  // The working branch holds t1 and a verified t2 that is not queued.
+  await git(x.landing, ["checkout", "-q", "-B", "spec-a-t2", x.base]);
+  fs.writeFileSync(path.join(x.landing, "two.txt"), "2\n");
+  await git(x.landing, ["add", "."]);
+  await git(x.landing, ["commit", "-q", "-m", "Work on t2"]);
+  const unlanded = await git(x.landing, ["rev-parse", "HEAD"]);
+  await git(x.landing, ["checkout", "-q", "-B", branch, x.base]);
+  for (const commit of [landed.commit, unlanded])
+    await git(x.landing, ["merge", "-q", "--no-ff", "-m", "Integrate", commit]);
+  await git(x.landing, ["checkout", "-q", "--detach"]);
+  const before = await git(x.landing, ["rev-parse", branch]);
+  const result = await landNext(x.store, Q, x.steps());
+  assert.equal(result.state, "landed");
+  assert.deepEqual(
+    result.mergedBack.map((m) => [m.spec, m.merged]),
+    [["spec-a", true]],
+  );
+  const head = await git(x.landing, ["rev-parse", branch]);
+  assert.equal(
+    await git(x.landing, ["rev-list", "--parents", "-n", "1", head]),
+    `${head} ${before} ${result.candidate}`,
+  );
+  await git(x.landing, ["merge-base", "--is-ancestor", unlanded, head]);
 });
