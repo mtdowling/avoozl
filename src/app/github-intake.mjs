@@ -32,7 +32,8 @@ import {
 
 export const FIX_VERSION = 1;
 export const INTAKE_MARKER = "<!-- avoozl-intake:v1 -->";
-const ITEM_ID = /^([A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100})#([1-9]\d{0,9})$/;
+const ITEM_ID =
+  /^([A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100})#([1-9]\d{0,9})$/;
 const lower = (value) => String(value ?? "").toLowerCase();
 
 // "owner/repo#12" -> {repository, number}.
@@ -258,15 +259,28 @@ export async function startGitHubItem(store, github, policy, input = {}) {
 }
 
 const NODES = `query($ids: [ID!]!) {
-  nodes(ids: $ids) { ... on Issue { id state } }
+  nodes(ids: $ids) {
+    ... on Issue {
+      id state
+      closedByPullRequestsReferences(first: 5, includeClosedPrs: true) {
+        nodes { merged }
+      }
+    }
+  }
 }`;
+
+// Closed by a merged pull request (Deliver this's Fixes #N): that is a
+// landing for reconcile to judge, not a withdrawal.
+const closedByMerge = (node) =>
+  (node?.closedByPullRequestsReferences?.nodes || []).some(
+    (pull) => pull?.merged === true,
+  );
 
 // Closing an input issue withdraws its open task (R102.19): it is held,
 // never completed, and nothing waits on it as if it were done. One
 // GraphQL read covers every watched issue. Returns the withdrawn task IDs.
 export async function watchInputs(store, github) {
-  if (!github?.available?.() || typeof github.graphql !== "function")
-    return [];
+  if (!github?.available?.() || typeof github.graphql !== "function") return [];
   const data = store.read(),
     complete = new Set(
       (data.statuses || []).filter((s) => s.complete).map((s) => s.id),
@@ -287,7 +301,7 @@ export async function watchInputs(store, github) {
     ),
     closed = new Set(
       (answer?.nodes || [])
-        .filter((node) => node?.state === "CLOSED")
+        .filter((node) => node?.state === "CLOSED" && !closedByMerge(node))
         .map((node) => node.id),
     ),
     withdrawn = [];

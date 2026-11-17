@@ -58,7 +58,13 @@ function setup(t, { checkout = true } = {}) {
     return {
       nodes: ids.map((id) => {
         const issue = github.created.find((entry) => entry.node_id === id);
-        return { id, state: issue?.state === "closed" ? "CLOSED" : "OPEN" };
+        return {
+          id,
+          state: issue?.state === "closed" ? "CLOSED" : "OPEN",
+          closedByPullRequestsReferences: {
+            nodes: issue?.closedByMerge ? [{ merged: true }] : [],
+          },
+        };
       }),
     };
   };
@@ -237,6 +243,18 @@ test("closing the input issue withdraws the task and never completes it", async 
   assert.equal(w.github.reads, reads);
 });
 
+test("an issue its merged pull request closed is not withdrawn", async (t) => {
+  const w = setup(t);
+  const issue = w.open(13);
+  const { taskId } = await startGitHubItem(w.store, w.github, w.policy, {
+    id: `${REPOSITORY}#13`,
+    action: "deliver",
+  });
+  Object.assign(issue, { state: "closed", closedByMerge: true });
+  assert.deepEqual(await watchInputs(w.store, w.github), []);
+  assert.equal(task(w.store, taskId).dispatch.state, "authorized");
+});
+
 test("the input issue leaves Untriaged once a task holds it", async (t) => {
   const w = setup(t);
   w.open(11);
@@ -248,7 +266,10 @@ test("the input issue leaves Untriaged once a task holds it", async (t) => {
 });
 
 test("an input issue is reused only in the spec's own home", () => {
-  assert.equal(reusableInput({ repository: "O/App", number: 2 }, "o/app"), true);
+  assert.equal(
+    reusableInput({ repository: "O/App", number: 2 }, "o/app"),
+    true,
+  );
   assert.equal(reusableInput({ repository: "o/app", number: 2 }, "o/x"), false);
   assert.equal(reusableInput({ repository: "o/app" }, "o/app"), false);
   assert.equal(reusableInput(null, "o/app"), false);
