@@ -305,17 +305,21 @@ export async function projectConfig({
 // same checkout integration fast-forwards. Hold a lock that excludes
 // integration, and that integration excludes, for the duration of the add.
 // Worktree adds for different runs still proceed concurrently.
-export async function createWorktree(store, project, runId) {
+// A task passes `branch`, `worktree` and `start` to cut its own branch; a
+// task that already has the branch passes `existing` and gets a plain add.
+export async function createWorktree(store, project, runId, task = {}) {
   return withWorkLock(
     store,
     { id: "worktree:" + runId, projectId: project.id, kind: "worktree" },
     async () => {
-      fs.mkdirSync(project.worktreeRoot, { recursive: true });
-      const branch = "plans/" + runId,
-        worktree = path.join(project.worktreeRoot, runId);
+      const branch = task.branch || "plans/" + runId,
+        worktree = task.worktree || path.join(project.worktreeRoot, runId);
+      fs.mkdirSync(path.dirname(worktree), { recursive: true });
       if (fs.existsSync(worktree)) fail("Run worktree already exists.", 409);
       const helper = path.join(project.root, "scripts/worktree");
-      if (fs.existsSync(helper)) {
+      if (task.existing)
+        await git(project.root, ["worktree", "add", worktree, branch]);
+      else if (fs.existsSync(helper)) {
         // Repository-owned code that runs on every worktree add: a person
         // approves this exact content first (R83.4).
         const seen = helperHash(helper);
@@ -329,11 +333,15 @@ export async function createWorktree(store, project, runId) {
                 : "."),
             409,
           );
-        await exec(helper, [branch, worktree, project.baseBranch], {
-          cwd: project.root,
-          env: repositoryEnvironment(),
-          maxBuffer: 8 * 1024 * 1024,
-        });
+        await exec(
+          helper,
+          [branch, worktree, task.start || project.baseBranch],
+          {
+            cwd: project.root,
+            env: repositoryEnvironment(),
+            maxBuffer: 8 * 1024 * 1024,
+          },
+        );
       } else
         await git(project.root, [
           "worktree",
@@ -341,7 +349,7 @@ export async function createWorktree(store, project, runId) {
           "-b",
           branch,
           worktree,
-          project.baseBranch,
+          task.start || project.baseBranch,
         ]);
       await configureWorktreeIdentity(project.root, worktree);
       return {
@@ -378,7 +386,7 @@ async function listWorktrees(root) {
 export async function prepareTaskWorktree(store, project, { branch, name }) {
   return withWorkLock(
     store,
-    { id: "worktree:" + name, projectId: project.id, kind: "worktree" },
+    { id: "prepare:" + name, projectId: project.id, kind: "worktree" },
     async () => {
       const base = path.resolve(
         project.worktreeRoot ||
@@ -425,13 +433,12 @@ export async function prepareTaskWorktree(store, project, { branch, name }) {
           } catch {
             // Not created yet: the first integration creates it from the base.
           }
-        await git(
-          project.root,
-          exists
-            ? ["worktree", "add", worktree, branch]
-            : ["worktree", "add", "-b", branch, worktree, start],
-        );
-        await configureWorktreeIdentity(project.root, worktree);
+        await createWorktree(store, project, "task-" + name, {
+          branch,
+          worktree,
+          start,
+          existing: exists,
+        });
         created = true;
       }
       return {
@@ -915,8 +922,27 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
     // Avoozl's own files (a child's result file) go with the worktree.
     await git(entry.worktree, ["clean", "-fdq", "--", AVOOZL_FILES]);
     await git(project.root, ["worktree", "remove", entry.worktree]);
-  }
+  } else await removeLandedTaskWorktree(store, project, entry, target, head);
   return entry;
+}
+
+// A task's own worktree and local branch go once its head has landed (R88.6).
+// The work is already on the target, so a failure here only leaves them kept.
+async function removeLandedTaskWorktree(store, project, entry, target, head) {
+  const records = store
+    .list("task_worktrees")
+    .filter((r) => r.path === entry.worktree && r.repository === project.id);
+  if (!records.length) return;
+  try {
+    await git(entry.worktree, ["clean", "-fdq", "--", AVOOZL_FILES]);
+    await git(project.root, ["worktree", "remove", entry.worktree]);
+    store.transaction(() => {
+      for (const r of records) store.remove("task_worktrees", r.id);
+    });
+    // The head is on the target, so the branch has nothing the target lacks.
+    await git(project.root, ["merge-base", "--is-ancestor", head, target]);
+    await git(project.root, ["branch", "-D", entry.branch]);
+  } catch {}
 }
 
 // What adding a checkout would register, read from the folder alone (read
