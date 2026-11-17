@@ -12,8 +12,8 @@ const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url)),
 
 // Commands the help leaves out on purpose: hooks a session runs for itself.
 const UNLISTED = new Set(["help", "register-session", "session-hook"]);
-// A listener that never exits; the write-path tests start and drive it.
-const LONG_RUNNING = new Set(["app-backend"]);
+// Processes that never exit; their own tests start and drive them.
+const LONG_RUNNING = new Set(["app-backend", "supervisor"]);
 // What a crash looks like, as opposed to a refusal a person can act on.
 const CRASH =
   /\n\s+at .+:\d+:\d+|TypeError|ReferenceError|SyntaxError|RangeError|is not a function|Cannot read prop|cannot be bound to SQLite|argument must be of type|fetch failed|Unhandled/;
