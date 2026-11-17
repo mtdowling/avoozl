@@ -231,7 +231,7 @@ function TaskBars({ tasks, budget }: { tasks: TaskTiming[]; budget?: FlowViewMod
               )}
               {task.batch && <Badge>batch</Badge>}
               {budgetMark(budget, task.taskId) && (
-                <Badge variant={budgetMark(budget, task.taskId) === '80% of budget' ? 'warning' : 'danger'}>{budgetMark(budget, task.taskId)}</Badge>
+                <Badge variant={budgetMark(budget, task.taskId) === '80% of budget' ? 'info' : 'danger'}>{budgetMark(budget, task.taskId)}</Badge>
               )}
               {duration(task.leadMs)}
               <Tooltip text="Open this task's details in the drawer">

@@ -7,7 +7,7 @@
 // planner chat is the fallback. Nothing here approves a plan, starts
 // delivery or pushes.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useAppApi, useChatLauncher, useNavigate } from './host.ts'
+import { useAppApi, useNavigate } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import { Crosshair, ExternalLink, FileText, MessageSquare, Package, X } from './icons.ts'
 import { RadioFold } from './RadioFold.tsx'
@@ -85,7 +85,6 @@ export default function NewPlanDrawer(props: {
 }) {
   const api = useAppApi()
   const client = useMemo(() => newPlanClient(api), [api])
-  const { openChat } = useChatLauncher()
   const navigate = useNavigate()
   const builder = useMemo(() => specBuilderClient(api), [api])
   const ask = useConfirm()
@@ -244,16 +243,15 @@ export default function NewPlanDrawer(props: {
   const handOff = (writeSteering: boolean) => run(() => handOffNow(writeSteering))
 
   // From template: import the settings only when ticked, against the exact
-  // preview shown, then open the planner chat the template seeds.
+  // preview shown; the tick opens the planner chat the template seeds.
   const fromTemplate = () =>
     run(async () => {
       if (!template) return
       if (importSettings && settingsPreview)
         await plugins.packImport(props.workspaceId, { ...importInput(settingsPreview, false, false), template: template.id })
       const result = await client.fromTemplate(props.workspaceId, form, { plugin: template.plugin, id: template.id, version: template.version }, values)
-      openChat({ message: result.message, agent: result.agent, autoSend: true })
       props.onClose(
-        `A planner chat is drafting ${result.name} from ${template.title}.${importSettings ? ' Its settings were imported.' : ''} It shows here as a draft once its folder is complete; you approve it.`,
+        `Avoozl is opening a planner chat for ${result.name} from ${template.title}; find it in your chats.${importSettings ? ' Its settings were imported.' : ''} It shows here as a draft once its folder is complete; you approve it.`,
       )
     })
 
@@ -276,12 +274,12 @@ export default function NewPlanDrawer(props: {
     })
   }
 
-  // The fallback: an Avoozl planner chat seeded with the same details.
+  // The fallback: an Avoozl planner chat seeded with the same details. The
+  // tick opens it, so Avoozl knows the model that wrote the draft (§4.29).
   const plannerChat = () =>
     run(async () => {
       const result = await client.request(props.workspaceId, form)
-      openChat({ message: result.message, agent: result.agent, autoSend: true })
-      props.onClose(`A planner chat is drafting ${result.name}. It shows here as a draft once its folder is complete; you approve it.`)
+      props.onClose(`Avoozl is opening a planner chat for ${result.name}; find it in your chats. It shows here as a draft once its folder is complete; you approve it.`)
     })
 
   // Repositories, what you want, and links: Blank and From a goal share them.

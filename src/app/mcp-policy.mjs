@@ -188,6 +188,10 @@ export const PERSON_ONLY = new Map([
     person("Only a person stops all agents.", (input) => input?.full === true),
   ],
   ["untriaged.handoff", person("Only a person sends issues to Issue Radar.")],
+  [
+    "github.crewlabel.backfill",
+    person("Only a person adds crew:avoozl to old task issues."),
+  ],
   ["review.chat", person("Only a person starts a code review chat.")],
   ["untriaged.plan", person("Only a person presses Plan this on an issue.")],
   [

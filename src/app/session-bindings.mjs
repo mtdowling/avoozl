@@ -55,6 +55,17 @@ function text(value, label, max) {
   return value.trim();
 }
 
+// A `new-plan:<name>` key whose New plan request is still pending; the
+// request list is new-plan.mjs's `newPlans` meta entry.
+function newPlanRequested(store, id) {
+  const pending = store.getMeta("newPlans");
+  return (
+    id.startsWith("new-plan:") &&
+    Array.isArray(pending) &&
+    pending.some((entry) => "new-plan:" + entry?.name === id)
+  );
+}
+
 function existingTask(store, id) {
   const data = store.read(),
     taskId = resolveTaskId(data, id);
@@ -173,7 +184,9 @@ export function bindSession(
           store.get("review_rounds", named)?.spec) ||
         // A conflict fix chat binds to its attempt (radar-conflict-fix.mjs).
         (role === "conflict-fix" &&
-          store.get("receipts", named)?.kind === "conflict-fix")
+          store.get("receipts", named)?.kind === "conflict-fix") ||
+        // New plan's planner binds to its pending request (new-plan.mjs).
+        (role === "planner" && newPlanRequested(store, named))
           ? named
           : existingTask(store, named);
     if (!taskId) fail("Task not found.", 404);

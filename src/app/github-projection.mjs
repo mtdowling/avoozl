@@ -51,7 +51,7 @@ import {
   stepReceiptId,
 } from "./radar-coder-release.mjs";
 import { rankEligible } from "./release-ranking-step.mjs";
-import { adapterFor, coderForTask } from "./coder-adapter.mjs";
+import { adapterFor, coderForTask, RADAR_HANDOVER } from "./coder-adapter.mjs";
 import { plansNameForIssue } from "./github-plans-repo.mjs";
 import {
   assertPlanningLink,
@@ -1869,6 +1869,7 @@ async function project(
       // Only for the coders whose hand-over is that label (no-op if set).
       item.section = buildSection(item);
       const withReady =
+          !RADAR_HANDOVER.paused &&
           ready.has(task.id) &&
           ["issue-radar", "remote"].includes(
             identity.repositories?.[config.id]?.coder ??
@@ -2146,7 +2147,10 @@ async function project(
         ? item.appliedLabels
         : plans.labels.kept
           ? item.currentLabels
-          : [labels.managed, ...(isReady ? [labels.ready] : [])],
+          : [
+              labels.managed,
+              ...(isReady && !RADAR_HANDOVER.paused ? [labels.ready] : []),
+            ],
       blockerBaseline = plans.blockers.conflict
         ? item.arrays.blockers[plans.blockers.baseline]
         : item.blockerNodes,
