@@ -223,6 +223,10 @@ async function configureWorktreeIdentity(root, worktree) {
   await git(worktree, ["config", "--worktree", "user.name", identity.name]);
   await git(worktree, ["config", "--worktree", "user.email", identity.email]);
 }
+// How a project lands verified work (R87.1). Unset keeps the local
+// fast-forward. shortcut: R87.1's default `off` until setup writes another
+// is not applied, so existing workspaces keep landing; upgrade with 42.7.
+export const LANDINGS = Object.freeze(["direct", "pr", "off"]);
 export async function projectConfig({
   id,
   root,
@@ -232,9 +236,12 @@ export async function projectConfig({
   checks = [],
   checksEnv,
   worktreeHelper,
+  landing,
 }) {
   if (!/^[a-z][a-z0-9-]{1,60}$/.test(id || ""))
     fail("Choose a stable project ID.");
+  if (landing !== undefined && !LANDINGS.includes(landing))
+    fail("landing must be direct, pr or off.");
   root = await checkoutRoot(root, "project root");
   // A leading dash would reach git as an option.
   if (typeof baseBranch !== "string" || baseBranch.startsWith("-"))
@@ -297,6 +304,7 @@ export async function projectConfig({
     checks,
     ...(checksEnv === undefined ? {} : { checksEnv: [...checksEnv] }),
     ...(worktreeHelper === undefined ? {} : { worktreeHelper }),
+    ...(landing === undefined ? {} : { landing }),
     repository: await remoteRepository(root),
     createdAt: new Date().toISOString(),
   };
