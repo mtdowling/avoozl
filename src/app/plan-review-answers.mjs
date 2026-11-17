@@ -5,6 +5,7 @@ import {
   answerReceiptId,
   findingContext,
   findingFields,
+  needsAnswer,
 } from "./review-findings.mjs";
 
 export { answerReceiptId };
@@ -23,6 +24,7 @@ export function assertPlanAnswerWrite(store, { id }, { caller } = {}) {
     receipt?.state !== "running" ||
     receipt.permissionClass === "read" ||
     (plan.hash !== scope.revisionHash &&
+      plan.hash !== scope.draftHash &&
       planReviewWriter(store, id, plan.hash)?.slot !== binding.slot)
   )
     fail("This planner may change only its own still-draft spec.", 403);
@@ -50,12 +52,18 @@ export function reviewFindings(store, { planId, roundId, revisionHash } = {}) {
           (!roundId || thread.roundId === roundId) &&
           (!revisionHash || thread.revisionHash === revisionHash),
       )
-      .map((thread) => ({
-        ...thread,
-        ...findingFields(thread, plan, context, at),
-        current: thread.revisionHash === plan.hash,
-        stale: thread.revisionHash !== plan.hash,
-      })),
+      .map((thread) => {
+        // `state` stays the stored open or closed; the R104.5 state is
+        // `findingState`.
+        const { state, ...fields } = findingFields(thread, plan, context, at);
+        return {
+          ...thread,
+          ...fields,
+          findingState: state,
+          current: thread.revisionHash === plan.hash,
+          stale: thread.revisionHash !== plan.hash,
+        };
+      }),
   };
 }
 
@@ -78,6 +86,8 @@ export function bindPlanAnswerSession(store, { roundId, slot }) {
     roundId,
     planId: round.planId,
     revisionHash: round.revisionHash,
+    // A turn a person's Accept started may fix the draft it was given.
+    ...(receipt.trigger === "person" ? { draftHash: receipt.draftHash } : {}),
   };
   store.put("session_bindings", { ...binding, planAnswer });
   store.put("receipts", { ...receipt, slot, state: "running" });
@@ -170,6 +180,7 @@ export function answerReview(
       };
       if (
         thread.answer &&
+        !needsAnswer(thread) &&
         (thread.answer.action !== value.action ||
           thread.answer.revisionHash !== value.revisionHash ||
           thread.answer.text !== value.text ||
@@ -181,29 +192,38 @@ export function answerReview(
   return store.transaction(() => {
     const now = new Date().toISOString();
     for (const { thread, value } of checked) {
-      const latest = store.get("review_threads", thread.id);
+      const latest = store.get("review_threads", thread.id),
+        owed = needsAnswer(latest);
       if (
         latest.answer &&
+        !owed &&
         (latest.answer.action !== value.action ||
           latest.answer.revisionHash !== value.revisionHash ||
           latest.answer.text !== value.text ||
           latest.answer.slot !== slot)
       )
         fail("This finding already has its planner answer.", 409);
-      if (!latest.answer)
+      // An accepted finding's new answer replaces the old one; the old one
+      // stays in `answers` for the record.
+      if (owed)
         store.put("review_threads", {
           ...latest,
           answer: { ...value, at: now },
+          ...(latest.answer
+            ? { answers: [...(latest.answers || []), latest.answer] }
+            : {}),
         });
     }
     const currentPlan = store.get("plans", planId),
       findings = reviewFindings(store, { planId, roundId }).findings,
-      complete = findings.every((finding) => finding.answer),
+      complete = findings.every((finding) => !needsAnswer(finding)),
       resultHash =
         currentPlan.hash !== round.revisionHash &&
         planReviewWriter(store, planId, currentPlan.hash)?.slot === slot
           ? currentPlan.hash
-          : null;
+          : receipt.trigger === "person"
+            ? (receipt.resultHash ?? null)
+            : null;
     if (complete && receipt.state !== "done")
       store.put("receipts", {
         ...receipt,

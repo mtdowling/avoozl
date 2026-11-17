@@ -19,6 +19,7 @@ import { latestSkip } from "./radar-claims.mjs";
 import { fail } from "./store.mjs";
 import { hasAvoozlLabel } from "./github.mjs";
 import { issueSpecName } from "./github-planner.mjs";
+import { boundedFix } from "./github-intake.mjs";
 
 export const INTAKE_SCOPES = new Set([
   "new-feature",
@@ -106,11 +107,21 @@ async function labeler(github, repository, settings, item, name, held) {
   return { by, allowed: await allowed(github, repository, settings, by, held) };
 }
 
+// Whether a cached item is an Issue Radar escalation (R103.8): a crew's
+// needs-human label, from an author or label the trust check passes.
+export const isEscalation = (item) => Boolean(item?.planMe?.trust);
+
 // Reads what the route needs for each cached issue that carries the
 // needs-human label, and puts `planMe` on it; for each issue that carries
 // the planning label it puts `planLabel` ({by, allowed}) on it. A read that
 // fails leaves the item without `planMe`, which keeps today's route (Needs
 // you), and without `planLabel`, which plans nothing.
+//
+// Radar runs beside any repository (R103.11), so the needs-human read runs
+// for every coder; the planning label is a Radar-coded repository's only.
+// With `radar.escalationDraft` on (off by default, R103.9) a trusted
+// escalation also gets `planMe.draft`, the compact bounded-fix acceptance,
+// made here from the issue text already read: local only, no GitHub write.
 export async function attachHandoffs(
   github,
   repository,
@@ -118,8 +129,8 @@ export async function attachHandoffs(
   items,
   { namespace = null } = {},
 ) {
-  if (settings.coder !== "issue-radar") return;
-  const human = lower(settings.crewLabels.needsHuman),
+  const radarCoded = settings.coder === "issue-radar",
+    human = lower(settings.crewLabels.needsHuman),
     held = new Map();
   const plan = lower(settings.radar?.planLabel ?? RADAR_DEFAULTS.planLabel);
   for (const item of items) {
@@ -128,6 +139,7 @@ export async function attachHandoffs(
     // Avoozl's own issue is never handed over again (R103.3).
     if (hasAvoozlLabel(item.labels)) continue;
     if (
+      radarCoded &&
       item.kind === "issue" &&
       item.labels.some((label) => lower(label) === plan)
     )
@@ -165,6 +177,13 @@ export async function attachHandoffs(
         scope,
         crewId: skip?.crewId ?? null,
       };
+      if (trust && settings.radar?.escalationDraft === true)
+        item.planMe.draft = boundedFix({
+          repository,
+          number: item.number,
+          title: issue?.title ?? item.title,
+          body: issue?.body ?? "",
+        });
     } catch {
       // Left without `planMe`: the next read tries again.
     }

@@ -20,6 +20,7 @@ import { digest } from "../model.mjs";
 import { canonical, fail } from "./store.mjs";
 import { enforce } from "./content-rules.mjs";
 import { AVOOZL_CREW_LABEL, hasAvoozlLabel } from "./github.mjs";
+import { CREW_LABEL_DEFAULTS } from "./github-policy.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import {
   itemKey,
@@ -180,6 +181,18 @@ export async function startGitHubItem(store, github, policy, input = {}) {
   // its GitHub writes: that one finishes.
   if (hasAvoozlLabel(labelNames(issue)) && !hasStatus(comments, seen.login))
     fail(`${id} is Avoozl's own issue.`, 409);
+  // A live crew claim (R103.10): the person confirms taking it over. The
+  // claim and needs-human labels stay; Avoozl only adds crew:avoozl.
+  const claim =
+    policy.repositories[name]?.crewLabels?.claim ?? CREW_LABEL_DEFAULTS.claim;
+  if (
+    input.confirmClaim !== true &&
+    labelNames(issue).some((label) => lower(label) === lower(claim))
+  )
+    fail(
+      `An Issue Radar crew has claimed ${id} ("${claim}"). Confirm to take it into Avoozl anyway; Avoozl adds crew:avoozl and removes no crew label.`,
+      409,
+    );
   const repo = workspaceRepositories(store).find(
       (entry) => entry.github && lower(entry.github) === lower(name),
     ),
@@ -208,6 +221,18 @@ export async function startGitHubItem(store, github, policy, input = {}) {
       text: [item.title, item.body, item.labels.join(" ")]
         .filter(Boolean)
         .join("\n"),
+    },
+    { mode: "refuse", source: { kind: "intake", source: "github", id } },
+  );
+  // What goes out (R102.23): the privacy scan and content rules see the
+  // label and comment before the first write.
+  enforce(
+    store,
+    {
+      boundary: "github",
+      repository: name,
+      target: `intake:github/${id}:status`,
+      text: `${AVOOZL_CREW_LABEL}\n${statusComment(action)}`,
     },
     { mode: "refuse", source: { kind: "intake", source: "github", id } },
   );
