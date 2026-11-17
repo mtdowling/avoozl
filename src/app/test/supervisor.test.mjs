@@ -43,7 +43,19 @@ if (brief.waitFor) {
 
 function scratch(t, { approve = true } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-supervisor-"));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  // Windows cannot remove an open database or a live process's folder, so
+  // every test's own cleanup runs first, newest first.
+  const cleanups = [];
+  const defer = (fn) => cleanups.push(fn);
+  t.after(async () => {
+    for (const fn of cleanups.reverse()) await fn();
+    fs.rmSync(root, {
+      recursive: true,
+      force: true,
+      maxRetries: 20,
+      retryDelay: 100,
+    });
+  });
   const stateDirectory = path.join(root, "state");
   const configDirectory = path.join(root, "config");
   const worktree = path.join(root, "worktree");
@@ -66,7 +78,7 @@ function scratch(t, { approve = true } = {}) {
       name: "fake-cli",
       hash: harnessDefinitionHash(Buffer.from(bytes)),
     });
-  return { root, stateDirectory, configDirectory, worktree };
+  return { root, stateDirectory, configDirectory, worktree, defer };
 }
 
 const request = (worktree, brief = {}, extra = {}) => ({
@@ -81,6 +93,23 @@ const request = (worktree, brief = {}, extra = {}) => ({
   ...extra,
 });
 
+// Stop a process this test started and wait until it is gone.
+async function stopProcess(pid) {
+  try {
+    process.kill(pid);
+  } catch {
+    return;
+  }
+  await until(() => {
+    try {
+      process.kill(pid, 0);
+      return false;
+    } catch {
+      return true;
+    }
+  });
+}
+
 async function until(check, timeoutMs = 30_000) {
   const end = Date.now() + timeoutMs;
   for (;;) {
@@ -92,9 +121,9 @@ async function until(check, timeoutMs = 30_000) {
 }
 
 test("requests: only process requests, and the supervisor fills its own placeholders", (t) => {
-  const { stateDirectory, worktree } = scratch(t);
+  const { stateDirectory, worktree, defer } = scratch(t);
   const db = openSupervisorDatabase(stateDirectory);
-  t.after(() => db.close());
+  defer(() => db.close());
   assert.throws(
     () => requestChild(db, request(worktree, {}, { executor: "kirocrew" })),
     /only process requests/,
@@ -114,16 +143,16 @@ test("requests: only process requests, and the supervisor fills its own placehol
 });
 
 test("supervisor starts the approved harness and records pid, log and exit code", async (t) => {
-  const { stateDirectory, configDirectory, worktree } = scratch(t);
+  const { stateDirectory, configDirectory, worktree, defer } = scratch(t);
   const db = openSupervisorDatabase(stateDirectory);
-  t.after(() => db.close());
+  defer(() => db.close());
   const id = requestChild(db, request(worktree, { exit: 3 }));
   const supervisor = startSupervisor({
     stateDirectory,
     configDirectory,
     intervalMs: 60_000,
   });
-  t.after(() => supervisor.close());
+  defer(() => supervisor.close());
   const running = childRecord(db, id);
   assert.equal(running.state, "running");
   assert.ok(Number.isInteger(running.pid));
@@ -143,31 +172,31 @@ test("supervisor starts the approved harness and records pid, log and exit code"
 });
 
 test("an unapproved definition never runs and takes the retry path", (t) => {
-  const { stateDirectory, configDirectory, worktree } = scratch(t, {
+  const { stateDirectory, configDirectory, worktree, defer } = scratch(t, {
     approve: false,
   });
   const db = openSupervisorDatabase(stateDirectory);
-  t.after(() => db.close());
+  defer(() => db.close());
   const id = requestChild(db, request(worktree));
   const supervisor = startSupervisor({
     stateDirectory,
     configDirectory,
     intervalMs: 60_000,
   });
-  t.after(() => supervisor.close());
+  defer(() => supervisor.close());
   assert.equal(childStatus(db, id), "exited -1");
   assert.match(childRecord(db, id).error, /approve this exact version/);
   assert.equal(fs.existsSync(path.join(worktree, "edited.txt")), false);
 });
 
 test("a second supervisor on the machine exits and names the first", async (t) => {
-  const { stateDirectory, configDirectory } = scratch(t);
+  const { stateDirectory, configDirectory, defer } = scratch(t);
   const supervisor = startSupervisor({
     stateDirectory,
     configDirectory,
     intervalMs: 60_000,
   });
-  t.after(() => supervisor.close());
+  defer(() => supervisor.close());
   assert.throws(
     () => startSupervisor({ stateDirectory, configDirectory }),
     new RegExp(`already runs on this machine: pid ${process.pid}`),
@@ -188,9 +217,9 @@ test("a second supervisor on the machine exits and names the first", async (t) =
 });
 
 test("after a restart the supervisor finds its children again; a missing one is gone", async (t) => {
-  const { root, stateDirectory, configDirectory, worktree } = scratch(t);
+  const { root, stateDirectory, configDirectory, worktree, defer } = scratch(t);
   const db = openSupervisorDatabase(stateDirectory);
-  t.after(() => db.close());
+  defer(() => db.close());
   const release = path.join(root, "release");
   const id = requestChild(db, request(worktree, { waitFor: release, exit: 0 }));
 
@@ -206,13 +235,7 @@ test("after a restart the supervisor finds its children again; a missing one is 
   const pid = await until(() => childRecord(db, id).pid);
   first.kill("SIGKILL");
   await firstExit;
-  t.after(() => {
-    try {
-      process.kill(pid);
-    } catch {
-      // Already exited.
-    }
-  });
+  defer(() => stopProcess(pid));
 
   // A dead pid and a reused pid, both left `running` by the old supervisor.
   const dead = spawnSync(process.execPath, ["-e", ""]).pid;
@@ -236,7 +259,7 @@ test("after a restart the supervisor finds its children again; a missing one is 
     // Some sandboxes cannot run ps; name this process's start time here.
     startTime: (at) => (at === process.pid ? "this process" : null),
   });
-  t.after(() => second.close());
+  defer(() => second.close());
   assert.equal(childStatus(db, id), "working");
   assert.equal(childStatus(db, lost), "gone");
   assert.equal(childStatus(db, reused), "gone");
@@ -254,16 +277,10 @@ test("after a restart the supervisor finds its children again; a missing one is 
 });
 
 test("launchSupervisor starts one detached supervisor and reuses it", async (t) => {
-  const { stateDirectory, configDirectory } = scratch(t);
+  const { stateDirectory, configDirectory, defer } = scratch(t);
   const first = launchSupervisor({ stateDirectory, configDirectory });
   assert.equal(first.started, true);
-  t.after(() => {
-    try {
-      process.kill(first.pid);
-    } catch {
-      // Already exited.
-    }
-  });
+  defer(() => stopProcess(first.pid));
   await until(() => runningSupervisor(stateDirectory));
   assert.equal(runningSupervisor(stateDirectory).pid, first.pid);
   const again = launchSupervisor({ stateDirectory, configDirectory });
@@ -272,7 +289,7 @@ test("launchSupervisor starts one detached supervisor and reuses it", async (t) 
 });
 
 test("the app backend starts the supervisor once it listens", async (t) => {
-  const { root } = scratch(t);
+  const { root, defer } = scratch(t);
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(root, "xdg") };
   for (const name of Object.keys(env))
     if (/^(AVOOZL|AICOMMANDER|NUPP_WORKSPACE)_/.test(name)) delete env[name];
@@ -287,7 +304,7 @@ test("the app backend starts the supervisor once it listens", async (t) => {
     modelSwitcher: null,
     modelReader: null,
   });
-  t.after(() => server.close());
+  defer(() => server.close());
   await new Promise((resolve) => server.once("listening", resolve));
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls, 1);
