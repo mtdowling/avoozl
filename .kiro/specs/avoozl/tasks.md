@@ -685,6 +685,7 @@ IDs never move.
 - [ ] 11.1 Crew registry [R41.1, R41.3, R41.6] (§4.10, F77–F82)
   - New `src/app/crews.mjs` lists crews from Kiro Crew's `GET /api/instances` plus `local`; tags (`os`, `arch`, `tools`, `trust`), `gitHosts`, and `chatLimit` from machine-local settings only (`crews.<id>`), `chatLimit` per crew with 3 for `local` and 2 for a remote crew when unset; a crew without settings is `trust:remote` with no git hosts; readings for `local` from `os.freemem`, `os.loadavg`, and `fs.statfs`, for a remote from its headroom snapshot (F80), each with source and `measured_at`; stale after `crewStaleSeconds` (machine-local, 120 when unset); minimum memory and disk read from Kiro Crew's `remote_dispatch_memory_gb` and `_disk_gb`, never stored in Avoozl. First, call `session_create` with `crew` from the tick script cron and from the app backend against one connected crew and record the refusal codes in the receipt, settling F78.
   - Built (registry only): `src/app/crews.mjs` (`listCrews`, `localReading`, `recordCrewSnapshot`, machine-local `crews.<id>` and `crewStaleSeconds`), `3068954`. Not checked off: the live `session_create` call with `crew` waits on MC-10, so F78 stays Inferred, and the app backend is not granted `GET /api/instances` or headroom yet; only `local` shows on a real install.
+  - 2026-11-17: F78 settled from Kiro Crew source and docs (cron and app refused `owner_only`). `src/app/crew-reader.mjs` reads `GET /api/instances` and each crew's headroom through the proxy route and records the snapshot or the refusal; Kiro Crew refuses both to an app token (MC-12), so 11.1 stays unticked until that changes. Wiring `readCrews` into the tick or app backend is a one-line call in a file other tasks own.
 - [x] 11.2 Routing rules (superseded 2026-11-13 by 11.14–11.17) [R41.2–R41.5, R41.8, R41.12, R22.5] (§4.10)
   - `routing.rules`, `routing.pick`, and `routing.router` in `.avoozl.json` (workspace and repository) and machine-local settings; validation per §4.4 and §4.10 (refuse a crew id or router instructions in a tracked file, an unknown tag key, a missing plugin route, a rule without `id`); `evaluatePlacement(task, role, crews, readings)` per §4.10 steps 1–4, returning the allowed set, the removed crews each with the rule or check that removed it, and the route; route precedence manifest task, first matching rule, repository, workspace; categories from front-matter only.
   - Built: `src/app/placement.mjs` (`validateRouting`, `validateTrackedRouting`, `evaluatePlacement`, `routingConfig`), `3068954`. Repository rules live under `projects.<id>.routing`. `kinds` match the manifest `type`. A rule's `route` shows in Preview and on the page; the tick still delivers by each task's own route. Plugin routes are checked when saved through the page or CLI.
@@ -1473,7 +1474,7 @@ Owner request 2026-11-14 (Requirement 84, design §6.13). Prototype, off by defa
 Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
 38 because task IDs never move.
 
-- [ ] 39.1 Hook command: scan a crew's writes before they run [R85.3, R85.4] (§6.14)
+- [x] 39.1 Hook command: scan a crew's writes before they run [R85.3, R85.4] (§6.14)
   - `avoozl content hook`, `src/app/public-crews.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
 - [ ] 39.2 Audit on the tick: delete a hit, pull the cord, alert, after 39.1 [R85.6, R85.7] (§6.14)
   - `publicCrewAudit`, cursor per repository, fake GitHub; a comment is deleted, a pull request closed, one notice and one Needs you item.
@@ -1706,8 +1707,9 @@ recovers, and a backend restart mid-run.
 - [x] 47.1 Harness definition files: argv lists, placeholders, hash approval, after avoozl-p56 [R94.1, R94.2, R94.3] (§4.28)
   - Loading refuses a shell string, an unknown placeholder and an unapproved hash.
   - Built: `src/app/harness-definitions.mjs` (machine config `harnesses/<name>.json`, approvals in `harness-approvals.json`); tests in `src/app/test/harness-definitions.test.mjs`.
-- [ ] 47.2 Permission classes, write roots and the skip-flag refusal, after 47.1 [R94.4, R94.4b, R94.5] (§4.28)
+- [x] 47.2 Permission classes, write roots and the skip-flag refusal, after 47.1 [R94.4, R94.4b, R94.5] (§4.28)
   - Write roots: task folder, temp, project cache dirs; read-only roles read-only; a test loads definitions with `bypassPermissions`, `danger-full-access` and a `--dangerously-*` flag and sees each refused; the per-machine opt-in is person-only.
+  - Built: `harnessPermission`, `sandboxWriteRoots` and `allowUnconfinedWrites` in `src/app/harness-definitions.mjs`; tests in `src/app/test/harness-permissions.test.mjs`.
 - [ ] 47.7 Avoozl commits after the child exits, after 47.4 [R94.4a] (§4.28)
   - The child only edits; Avoozl commits in the worktree from the changed files and checks the diff.
 - [x] 47.11 Avoozl's worker commit never stages a path under `.avoozl/`, and landing refuses a worker commit that holds one [R94.4a, R96.1, R96.3] (§4.28)
@@ -1718,6 +1720,7 @@ recovers, and a backend restart mid-run.
   - Kiro Crew chats: the docs and Settings say the person-only refusal is a speed bump.
 - [ ] 47.3 `avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend, after 47.1 [R95.1, R95.2, R95.3, R95.4] (§4.28)
   - Finds its children again after a restart; a missing one is `gone`.
+  - Built: `src/app/supervisor.mjs` (state in the machine state folder's `supervisor/supervisor.sqlite`, lock `supervisor.lock`), entry `src/app/supervisor-main.mjs`, wrapper `src/app/supervisor-child.mjs` that writes each exit code; the app backend launches it under Kiro Crew's gateway; tests in `src/app/test/supervisor.test.mjs`.
 - [ ] 47.4 The `process` executor and the Claude Code definition, after 47.2, 47.3 [R93.2, R93.5] (§4.28)
   - Default for the Nupp compiler repository.
 - [ ] 47.5 Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
