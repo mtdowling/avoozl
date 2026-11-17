@@ -7,6 +7,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createExecutor } from "../executors.mjs";
 import {
+  childRecord,
   childStatus,
   openSupervisorDatabase,
   requestChild,
@@ -20,6 +21,7 @@ import {
   takeSessionRequest,
 } from "../session-requests.mjs";
 import { bindSession, recordSessionStatus } from "../session-bindings.mjs";
+import { commitWorkerChanges, git } from "../git.mjs";
 import { sessionStartHold } from "../session-request-eligibility.mjs";
 import { taskRepository } from "../../work-model.mjs";
 
@@ -90,6 +92,31 @@ export function bindingStatus(status) {
 }
 
 const FINISHED = new Set(["closed", "lost", "gone"]);
+
+// R94.4a: a write worker's worktree has its git directory in the main
+// checkout, outside the child's write roots, so the child only edits and
+// Avoozl commits the changed files once it exits. Only a linked worktree is
+// committed in, never a main checkout. The commit then goes through Verify
+// like any worker's (declared and protected paths, checks). Returns the
+// commit, or null when nothing changed.
+export async function commitChildWork(binding, worktree) {
+  const [dir, common] = (
+    await git(worktree, [
+      "rev-parse",
+      "--path-format=absolute",
+      "--git-dir",
+      "--git-common-dir",
+    ])
+  ).split("\n");
+  if (dir === common)
+    throw Error(
+      `${worktree} is not a task worktree; Avoozl commits only there.`,
+    );
+  return commitWorkerChanges(
+    worktree,
+    `Avoozl task ${binding.taskId}, attempt ${binding.attempt ?? 1}`,
+  );
+}
 
 // Consume this workspace's `process` requests (R93.3: the tick only writes
 // them): start each claimed one, bind its session, and queue each message.
@@ -185,9 +212,27 @@ export async function drainProcessRequests(
   for (const binding of store.list("session_bindings"))
     if (binding.executor === PROCESS_EXECUTOR && !FINISHED.has(binding.status))
       try {
+        const status = await executor.status(binding.slot);
+        // Commit before the exit is recorded, so whatever reads the result
+        // reads HEAD with the child's work in it. A failed commit keeps the
+        // files in the worktree for the retry and does not hold the exit.
+        if (
+          status.startsWith("exited ") &&
+          binding.role === "worker" &&
+          binding.permissionClass === "write"
+        )
+          await commitChildWork(
+            binding,
+            withDatabase(
+              stateDirectory,
+              (db) => childRecord(db, binding.slot).worktree,
+            ),
+          ).catch((error) =>
+            errors.push({ id: binding.slot, error: error.message }),
+          );
         recordSessionStatus(store, {
           slot: binding.slot,
-          status: bindingStatus(await executor.status(binding.slot)),
+          status: bindingStatus(status),
         });
       } catch (error) {
         // An unreadable record is not evidence the child is gone.

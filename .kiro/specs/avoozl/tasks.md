@@ -1721,8 +1721,9 @@ recovers, and a backend restart mid-run.
 - [x] 47.2 Permission classes, write roots and the skip-flag refusal, after 47.1 [R94.4, R94.4b, R94.5] (§4.28)
   - Write roots: task folder, temp, project cache dirs; read-only roles read-only; a test loads definitions with `bypassPermissions`, `danger-full-access` and a `--dangerously-*` flag and sees each refused; the per-machine opt-in is person-only.
   - Built: `harnessPermission`, `sandboxWriteRoots` and `allowUnconfinedWrites` in `src/app/harness-definitions.mjs`; tests in `src/app/test/harness-permissions.test.mjs`.
-- [ ] 47.7 Avoozl commits after the child exits, after 47.4 [R94.4a] (§4.28)
+- [x] 47.7 Avoozl commits after the child exits, after 47.4 [R94.4a] (§4.28)
   - The child only edits; Avoozl commits in the worktree from the changed files and checks the diff.
+  - Built: `drainProcessRequests` in `src/app/executors/process.mjs` commits a write worker's changes with `commitWorkerChanges` (`.avoozl/` left out) when its child exits, before the exit is recorded, and only in a linked worktree (`commitChildWork`); the commit then goes through Verify. A `process` project's brief uses `childSteps` in `src/app/delivery.mjs`: edit, do not stage or commit, exit. Tests: `src/app/test/process-executor.test.mjs`, `worker-brief-boundary.test.mjs`.
 - [x] 47.11 Avoozl's worker commit never stages a path under `.avoozl/`, and landing refuses a worker commit that holds one [R94.4a, R96.1, R96.3] (§4.28)
   - Whatever the repository's .gitignore says. 47.7 commits through `commitWorkerChanges` (`src/app/git.mjs`); `integrateRun` refuses a branch whose commits touch `.avoozl/` with the paths named; tests in `src/app/test/worker-commit.test.mjs`.
 - [x] 47.8 Per-project command allow-list; `git push` never allowed, after 47.2 [R94.4c] (§4.28)

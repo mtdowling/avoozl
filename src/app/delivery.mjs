@@ -1797,6 +1797,17 @@ export function localSteps(
       ];
 }
 
+// A `process` child's steps (R94.4a): it starts in its task worktree, whose
+// git directory lives in the main checkout outside its write roots, so it
+// only edits. Avoozl commits the changed files after it exits.
+export function childSteps(task, worktree) {
+  return [
+    `1. Work only in ${worktree}, the folder you start in, on branch avoozl/${task.id}.`,
+    "2. Edit and run what you like, but do not stage or commit: Avoozl commits your changes after you exit and checks the diff. Do not push, open or edit a pull request, merge, label, or comment.",
+    "3. When the work is done, or you cannot finish, exit.",
+  ];
+}
+
 // Phase markers (§4.11, R43.5): asked for only where Avoozl cannot read the
 // session's tool calls, which is a Crew Mode worker; a tick-opened session's
 // tool rows say the same thing. shortcut: a tick-opened session on a Kiro
@@ -2245,6 +2256,16 @@ function composeLeafBrief(
       }),
     });
   const token = issueReportToken(store, { taskId: task.id, attempt });
+  // A `process` child only edits (R94.4a): its worktree's git directory is
+  // out of its reach, so Avoozl commits after it exits.
+  if (!relay && projectExecutor(project) === "process")
+    return workerBrief(task, project, {
+      ...options,
+      steps: childSteps(
+        task,
+        options.worktree?.path || worktreePath(task, project),
+      ),
+    });
   return workerBrief(task, project, {
     ...options,
     ...(relay
