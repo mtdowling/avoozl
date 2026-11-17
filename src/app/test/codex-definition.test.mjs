@@ -44,15 +44,18 @@ const values = (definition, permissionClass) => ({
   model: "gpt-5",
 });
 
-test("the Codex definition loads by hash and never skips permissions", (t) => {
-  assert.doesNotMatch(
-    fs.readFileSync(CODEX, "utf8"),
-    /bypass|danger-full-access|--dangerously-|--full-auto|--yolo/,
-  );
+// Codex's own macOS sandbox cannot nest inside Avoozl's (a nested
+// sandbox-exec fails with "sandbox_apply: Operation not permitted"), so its
+// write class turns the inner sandbox off and runs only inside Avoozl's
+// (R94.4d). That one value is the only skip in the file.
+test("the Codex definition loads by hash and skips nothing but its inner sandbox", (t) => {
+  const text = fs.readFileSync(CODEX, "utf8");
+  assert.doesNotMatch(text, /bypass|--dangerously-|--full-auto|--yolo/);
+  assert.equal(text.split("danger-full-access").length, 2);
   const definition = approved(t);
   assert.equal(definition.promptFrom, "stdin");
   assert.deepEqual(definition.permission, {
-    write: "workspace-write",
+    write: "danger-full-access",
     read: "read-only",
   });
 });
@@ -60,7 +63,7 @@ test("the Codex definition loads by hash and never skips permissions", (t) => {
 test("start reads the brief on stdin in the task folder's sandbox", (t) => {
   const definition = approved(t);
   for (const [permissionClass, sandbox] of [
-    ["write", "workspace-write"],
+    ["write", "danger-full-access"],
     ["read", "read-only"],
   ])
     assert.deepEqual(
@@ -105,7 +108,7 @@ test("resume sends the message on stdin to the folder's last session", (t) => {
   // The sandbox and approval flags belong to `exec`, so they sit before
   // `resume`, which does not take them itself.
   assert.ok(argv.indexOf("--sandbox") < argv.indexOf("resume"));
-  assert.equal(argv[argv.indexOf("--sandbox") + 1], "workspace-write");
+  assert.equal(argv[argv.indexOf("--sandbox") + 1], "danger-full-access");
   assert.ok(!argv.some((item) => item.includes("{")));
 });
 
@@ -129,8 +132,8 @@ test("writes stay in the write roots; read roles write nowhere", (t) => {
   );
 });
 
-// Codex has no allow-list flag: in its workspace-write sandbox, with
-// approvals off, a command runs or fails without a prompt, so no child
+// Codex has no allow-list flag: inside Avoozl's sandbox, with approvals
+// off, a command runs or fails without a prompt, so no child
 // stalls. Its JSON output reports tokens, not dollars, and it has no spend
 // cap flag, so the file names no cost source and no cap.
 test("Codex takes no allow flag, cost field or spend cap", (t) => {

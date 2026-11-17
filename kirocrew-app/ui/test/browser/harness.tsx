@@ -18,7 +18,8 @@ import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
 import GraphView from '../../src/GraphView.tsx'
 import AddPlugin from '../../src/AddPlugin.tsx'
 import Onboard from '../../src/Onboard.tsx'
-import { RepositoryDialog } from '../../src/RepositoriesSettings.tsx'
+import { Modal } from '../../src/Modal.tsx'
+import { installInlineFixture } from './settings-inline-fixture.ts'
 import { SetupDialog } from '../../src/SetupWizard.tsx'
 import PlansView, { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansView.tsx'
 import { DocumentReader } from '../../src/DocumentReader.tsx'
@@ -242,14 +243,15 @@ const shown = (dialog: (close: () => void) => ReactNode): Scenario => ({
     </>
   ),
 })
+// A dialog that asks before it discards edits (Modal's `unsaved`).
 const repoEdit = (edited: boolean) =>
   shown((close) => (
-    <RepositoryDialog name="avoozl" edited={edited} missing={null} saving={false} error={null} onSave={close} onDiscard={close}>
+    <Modal id="avoozl-repo-edit" width="46rem" title="avoozl" unsaved={edited && { title: 'Discard your changes to avoozl?', body: 'Every edit in this dialog is lost.', action: 'Discard changes' }} onDismiss={close}>
       <label className="flex flex-col gap-1 text-sm">
         Base branch
         <input defaultValue="main" className="rounded border px-2 py-1" />
       </label>
-    </RepositoryDialog>
+    </Modal>
   ))
 
 export const SCENARIOS: Record<string, Scenario> = {
@@ -498,6 +500,8 @@ if (query.get('page') === 'app') {
     choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
   }))
 }
+// &inline=1: a stateful backend for the Settings pages that edit in place.
+if (query.get('page') === 'app' && query.get('inline') === '1') installInlineFixture()
 // &escalations=after: one Issue Radar escalation in Intake (listed first,
 // with Plan this and Deliver this) and one in Needs you with the same two
 // buttons. &escalations=before: the same issues as main's backend sends
@@ -601,6 +605,50 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
     hash: 'h1',
     budget: { usd: 5, mode: 'stop' },
     repositories: { 'recipe-box': { usd: 8, mode: 'warn' }, search: {} },
+  }))
+}
+// &process=1: Home's In flight with a `process` worker (Claude Code under
+// the supervisor, resumed once, cost known) beside a Kiro Crew reviewer
+// chat (task 50.1 shots). Paths are made up.
+if (query.get('page') === 'app' && query.get('process') === '1') {
+  const at = new Date(Date.now() - 12 * 60000).toISOString()
+  const t = (id: string, title: string, extra = {}) => ({ ...task(id, 'e1'), title, planId: 'meal-planner', spec: 'meal-planner', repository: 'recipe-box', phase: null, ...extra })
+  answer('graph.view', () => ({
+    revision: 1,
+    epics: [{ id: 'e1', title: 'Meal planner', count: 2 }],
+    plans: [{ id: 'meal-planner', title: 'Meal planner' }],
+    statuses: [{ id: 'planned', label: 'Planned', complete: false }, { id: 'done', label: 'Done', complete: true }],
+    repositories: ['recipe-box'],
+    total: 2,
+    tasks: [t('m3', 'Sync pantry items between devices', { state: 'running', status: 'running' }), t('s1', 'Index recipes by ingredient', { state: 'running', status: 'review' })],
+    edges: [],
+  }))
+  const uuid = '6f1c2b9e-4d7a-4c1e-9b0a-2f5e8d3c7a41'
+  const log = [
+    'Reading src/pantry/sync.ts',
+    'Editing src/pantry/sync.ts: merge by item id, newest edit wins',
+    'Running npm test -- pantry',
+    '  ✓ merges two devices (12 ms)',
+    '  ✓ keeps a deleted item deleted (4 ms)',
+    'Writing .avoozl/result.json',
+  ].join('\n')
+  const item = (id: string, title: string, sessions: unknown[]) => ({
+    id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', sessions, runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null, budget: null,
+  })
+  answer('delivery.view', () => ({
+    revision: 1,
+    items: [
+      item('m3', 'Sync pantry items between devices', [
+        {
+          slot: `process-${uuid}`, role: 'worker', attempt: 1, title: null, status: 'working', statusAt: at, boundAt: at, model: 'claude-sonnet', crew: 'local', executor: 'process', link: null,
+          process: { harness: 'claude-code', state: 'running', exitCode: null, run: 2, logTail: log, cost: 0.83, attach: `cd /work/recipe-box-m3 && claude --resume ${uuid}` },
+        },
+      ]),
+      item('s1', 'Index recipes by ingredient', [
+        { slot: 'chat-s1', role: 'reviewer', attempt: 1, title: null, status: 'reading', statusAt: at, boundAt: at, agent: 'kirocrew-worker', model: null, crew: 'local', executor: 'kirocrew', link: '/chat?sid=chat-s1' },
+      ]),
+    ],
+    contentReports: [],
   }))
 }
 // &publiccrews=after: Intake with the Public crews card (task 39.3): one

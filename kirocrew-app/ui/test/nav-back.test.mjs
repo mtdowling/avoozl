@@ -165,7 +165,7 @@ test('a dialog with unsaved changes asks first, the same way Cancel does', async
   let open = true
   let answer = false
   const asked = []
-  // RepositoryDialog's dismiss: ask, then discard only on yes.
+  // A dialog's dismiss: ask, then discard only on yes.
   const dismiss = () => {
     asked.push('Discard your changes?')
     const confirm = nav.history.push({ kind: 'confirm', label: 'Cancel', back: () => nav.history.release(confirm) })
@@ -194,7 +194,6 @@ test('a dialog with unsaved changes asks first, the same way Cancel does', async
   const shared = source('Modal.tsx')
   assert.match(shared, /useBackStep\(props\.kind \?\? 'modal', true, props\.backLabel \?\? 'Close the dialog', dismiss\)/)
   assert.match(shared, /if \(!unsaved\) return onDismiss\(\)[\s\S]*?void ask\(unsaved\)\.then\(\(yes\) => \{[\s\S]*?if \(yes\) latest\.current\.onDismiss\(\)/)
-  assert.match(source('RepositoriesSettings.tsx'), /unsaved=\{props\.edited && discard\}/)
   for (const name of ['AddPlugin.tsx', 'PackImport.tsx', 'SendToRadar.tsx', 'SetupWizard.tsx'])
     assert.match(source(name), /<(Modal|Shelf)\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/, name)
   assert.match(source('controls.tsx'), /<Modal\s+id="avoozl-confirm"\s+kind="confirm"\s+role="alertdialog"\s+backLabel="Cancel"[\s\S]*?onDismiss=\{\(\) => answer\(false\)\}/)
