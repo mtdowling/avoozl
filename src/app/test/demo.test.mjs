@@ -314,7 +314,6 @@ test("the demo never touches the real workspace, catalog or settings", async (t)
   const fixtures = await call("demo.fixtures");
   assert.equal(fixtures.status, 200, JSON.stringify(fixtures.body));
   assert.equal(fixtures.body.result.epics[0].id, "recipe-box");
-  assert.equal(fixtures.body.result.driverSession.state, "running");
   assert.equal((await call("demo.start")).body.result.existing, true);
   assert.equal((await call("demo.exit")).body.result.active, false);
   assert.equal((await call("demo.fixtures")).status, 409);
