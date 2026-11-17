@@ -1,6 +1,5 @@
 // Recheck execution authority at consumption; unrelated writes do not fence work.
 import { sessionRequestHold } from "./session-bindings.mjs";
-import { budgetHeldTaskIds } from "./budget.mjs";
 import { linePausedTaskIds } from "./flow.mjs";
 import { driverHeldTaskIds, readOnlyPlanIds } from "./driver-scope.mjs";
 import { hasRemoteTask, runnerSessionHold } from "./remote-runner.mjs";
@@ -80,8 +79,6 @@ export function sessionStartHold(
   if (request.role === "worker") {
     if (linePausedTaskIds(store, data).has(request.task))
       return "Stop the line holds this task.";
-    if (budgetHeldTaskIds(store).has(request.task))
-      return "The task budget holds this start.";
     const approval = queued.approval;
     if (approval) {
       const plan = store.get("plans", approval.planId);
