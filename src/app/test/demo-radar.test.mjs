@@ -1,8 +1,7 @@
 // Demo data for the Radar-based screens (the demo's sample, src/app/demo-radar.mjs):
 // an epic with release state, crew claims on several machines, a handback
 // in Needs you, a drafted review, a release queue with a held reason,
-// recent merges, a Stop the line example, a driver session link and a
-// Mirror sample. Nothing writes to GitHub and no worker rows exist.
+// recent merges, a Stop the line example and a Mirror sample. Nothing writes to GitHub and no worker rows exist.
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
@@ -100,7 +99,7 @@ test("the epic reads epic, plan, phase with a gate, release count and held reaso
   });
 });
 
-test("a drafted review, recent merges, a trace, a driver session and a mirror are present", async () => {
+test("a drafted review, recent merges, a trace and a mirror are present", async () => {
   await withDemo(async (demo) => {
     const f = await demoFixtures(demo);
     assert.equal(f.reviewDraft.state, "ready-to-post");
@@ -114,9 +113,6 @@ test("a drafted review, recent merges, a trace, a driver session and a mirror ar
     assert.ok(
       f.traces.some((trace) => trace.steps.some((s) => s.state === "now")),
     );
-    assert.equal(f.driverSession.state, "running");
-    assert.match(f.driverSession.link, /^\/chat\?sid=/);
-    assert.ok(f.driverSession.turnsToday < f.driverSession.turnLimit);
     assert.equal(f.mirror.sample, true);
     assert.ok(f.mirror.items.length >= 3);
     assert.ok(f.mirror.items.some((item) => item.state === "to_forward"));

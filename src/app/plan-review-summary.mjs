@@ -1,9 +1,8 @@
 import { fail } from "./store.mjs";
-import { answerReceiptId } from "./plan-review-answers.mjs";
 import {
   FINDING_SEVERITIES,
-  anchorAt,
-  findingAnchor,
+  findingContext,
+  findingFields,
   findingSeverity,
   findingState,
 } from "./review-findings.mjs";
@@ -41,10 +40,8 @@ export function planReviewSummary(store, planId) {
         .filter((round) => round.pass === latest.pass)
         .map((round) => round.id),
     ),
-    hashes = new Set([
-      plan.hash,
-      ...(plan.history || []).map((entry) => entry.hash),
-    ]),
+    context = findingContext(store, plan),
+    { hashes } = context,
     findings = store
       .list("review_threads")
       .filter(
@@ -56,12 +53,7 @@ export function planReviewSummary(store, planId) {
     fixed = (thread) =>
       thread.answer?.action === "fixed" &&
       hashes.has(thread.answer.revisionHash);
-  // A round or a planner answer turn still running for the latest round.
-  const answerTurn = store.get("receipts", answerReceiptId(latest.id)),
-    busy =
-      latest.state === "running" ||
-      ["queued", "running"].includes(answerTurn?.state),
-    state = (thread) => findingState(thread, { hashes, busy }),
+  const state = (thread) => findingState(thread, context),
     bySeverity = noSeverities(),
     byState = {};
   for (const thread of findings) {
@@ -89,14 +81,10 @@ export function planReviewSummary(store, planId) {
         revisionHash: thread.revisionHash,
         current: thread.revisionHash === plan.hash,
         kind: thread.kind,
-        severity: findingSeverity(thread.severity),
         file: thread.file,
         line: thread.line,
-        state: state(thread),
-        quote: findingAnchor(thread).quote,
-        // Its lines in the plan's current revision, or moved.
-        anchor: anchorAt(thread, plan.files, plan.hash),
-        decisions: thread.decisions || [],
+        // Severity, state, and its lines in the current revision, or moved.
+        ...findingFields(thread, plan, context, plan.hash),
         claim: thread.claim,
         evidence: thread.evidence,
         answer: thread.answer || null,
