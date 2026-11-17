@@ -58,6 +58,7 @@ const CREDS = (process.env.P58_CREDS || "codex amzn credential-process").split(
 const MODEL = process.env.P58_MODEL || "openai.gpt-5.6-luna";
 const REGION = process.env.P58_REGION || "us-east-1";
 const PROXY_PORT = Number(process.env.P58_PROXY_PORT || 18458);
+const CA_BUNDLE = process.env.P58_CA_BUNDLE || "/etc/ssl/cert.pem";
 const TASK = ["p58-one", "notes/one.txt", "alpha"];
 const SIGN_IN = [
   "AWS_REGION",
@@ -430,6 +431,13 @@ function agentEnv() {
   return {
     ...env,
     CODEX_HOME: P.codexHome,
+    // Codex verifies TLS through macOS's Security framework by default.
+    // Inside Avoozl's sandbox, which denies the keychain services, every
+    // model request failed ("error sending request"; the preflight's first
+    // step shows it). Given a CA bundle file, Codex verifies with that
+    // bundle instead; /etc/ssl/cert.pem is the system's.
+    ...(fs.existsSync(CA_BUNDLE) ? { SSL_CERT_FILE: CA_BUNDLE } : {}),
+    RUST_LOG: process.env.P58_RUST_LOG || "warn",
     AWS_REGION: REGION,
     AWS_ACCESS_KEY_ID: creds.AccessKeyId,
     AWS_SECRET_ACCESS_KEY: creds.SecretAccessKey,
@@ -846,13 +854,15 @@ async function preflight() {
   ];
   const proxy = startProxy();
   await sleep(1000);
-  try {
-    const env = {
-      ...agentEnv(),
-      CODEX_HOME: home,
-      TMPDIR: tmp,
-      AVOOZL_CHILD: "1",
-    };
+  const base = {
+    ...agentEnv(),
+    CODEX_HOME: home,
+    TMPDIR: tmp,
+    AVOOZL_CHILD: "1",
+  };
+  // One Codex run in Avoozl's sandbox; its whole stdout (JSON events) and
+  // stderr (Codex's own log) are kept under the root.
+  const attempt = (label, env, input) => {
     const confined = confineChild(argv, {
       definition: { ...definition, hash: "preflight" },
       writeRoots: [folder, tmp, home],
@@ -867,30 +877,66 @@ async function preflight() {
     const run = spawnSync(confined.argv[0], confined.argv.slice(1), {
       cwd: folder,
       env: confined.env,
-      input:
-        "Create the file hello.txt containing the word hi and a newline. Then run the shell command `cat hello.txt > copy.txt`. Then reply with the single word OK.",
+      input,
       encoding: "utf8",
       timeout: 300_000,
     });
-    const items = (() => {
-      const file = path.join(ROOT, "preflight.log");
-      fs.writeFileSync(file, run.stdout);
-      return codexItems(file);
-    })();
+    const out = path.join(ROOT, `preflight-${label}.jsonl`);
+    fs.writeFileSync(out, run.stdout ?? "");
+    fs.writeFileSync(
+      path.join(ROOT, `preflight-${label}.stderr`),
+      run.stderr ?? "",
+    );
+    const errors = (run.stdout ?? "")
+      .split("\n")
+      .filter((line) => /"type":"(error|turn\.failed)"/.test(line))
+      .slice(-2);
+    return {
+      label,
+      sandbox: confined.sandbox,
+      exit: run.status,
+      // Names only: which sign-in and TLS variables reached the child.
+      childEnv: Object.keys(confined.env)
+        .filter((name) =>
+          /^(AWS_|CODEX_|SSL_|HTTPS?_PROXY|RUST_LOG)/i.test(name),
+        )
+        .sort(),
+      items: codexItems(out),
+      errors,
+      stderrTail: (run.stderr ?? "").slice(-1500),
+    };
+  };
+  try {
+    // Step 1, diagnosis: Codex's default TLS (the macOS Security framework),
+    // no CA bundle, a reply only. Expected to fail inside the sandbox.
+    const { SSL_CERT_FILE, ...withoutBundle } = base;
+    const one = attempt(
+      "default-tls",
+      {
+        ...withoutBundle,
+        RUST_LOG:
+          "warn,codex_client=debug,codex_api=debug,reqwest=debug,hyper_util=debug",
+      },
+      "Reply with the single word OK.",
+    );
+    // Step 2, the check: as the proof runs it, an edit and a command.
+    const two = attempt(
+      "bundle",
+      base,
+      "Create the file hello.txt containing the word hi and a newline. Then run the shell command `cat hello.txt > copy.txt`. Then reply with the single word OK.",
+    );
     const wrote = fs.existsSync(path.join(folder, "hello.txt"));
     const ran = fs.existsSync(path.join(folder, "copy.txt"));
     console.log(
       JSON.stringify(
         {
-          sandbox: confined.sandbox,
           argv: argv.slice(0, -1),
-          exit: run.status,
-          items,
+          caBundle: SSL_CERT_FILE ?? null,
+          steps: [one, two],
           wrote,
           ran,
-          stderr: run.stderr.slice(-800),
           proxy: fs.existsSync(P.proxyLog)
-            ? fs.readFileSync(P.proxyLog, "utf8").slice(-800)
+            ? fs.readFileSync(P.proxyLog, "utf8").slice(-1200)
             : null,
         },
         null,
@@ -898,7 +944,7 @@ async function preflight() {
       ),
     );
     console.log(
-      run.status === 0 && wrote && ran ? "PREFLIGHT OK" : "PREFLIGHT FAILED",
+      two.exit === 0 && wrote && ran ? "PREFLIGHT OK" : "PREFLIGHT FAILED",
     );
   } finally {
     proxy.kill("SIGTERM");
