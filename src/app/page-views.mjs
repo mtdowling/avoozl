@@ -35,7 +35,9 @@ import { FEEDBACK, feedbackSummary } from "./github-feedback.mjs";
 import { remoteLeaf, routeNeedsYou } from "./routes.mjs";
 import { pluginHealth } from "./plugin-session.mjs";
 import { taskSourceRefs } from "../task-identity.mjs";
-import { taskFlow } from "./flow.mjs";
+import { listSpans, taskFlow } from "./flow.mjs";
+import { taskSteps } from "./task-steps.mjs";
+import { observationsForTask } from "./build-receipt-read.mjs";
 import { avoozlState } from "../delivery-lanes.mjs";
 import { attachLink } from "./routing.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
@@ -1369,7 +1371,16 @@ export function taskDetailView(
               message: `This task comes from the approved plan ${plan.title || plan.id}. Changes become a draft plan change for you to approve.`,
             }
           : null;
-  const timeline = taskTimeline(detail, delivery);
+  const timeline = taskTimeline(detail, delivery),
+    approval = plan?.approvalId
+      ? store.get("approvals", plan.approvalId)
+      : null,
+    steps = taskSteps({
+      approval,
+      spans: listSpans(store, { taskId: id }),
+      delivery,
+      builds: observationsForTask(store, id),
+    });
   return {
     revision: data.revision,
     task: {
@@ -1421,6 +1432,8 @@ export function taskDetailView(
     delivery,
     conflicts,
     timeline,
+    // The Timeline box's steps, from stored records only (R106).
+    steps,
     // The drawer's Timing fold (§8.4): stages, spans and their sources.
     timing: taskFlow(store, detail),
   };

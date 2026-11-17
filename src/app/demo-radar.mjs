@@ -12,7 +12,6 @@
 // Local workers are retired: the sample has no worker rows. Crews are Issue
 // Radar crews on three made-up machines.
 import { epicsView } from "./epics-view.mjs";
-import { buildTrace } from "./trace.mjs";
 import { renderProvenance } from "./github-provenance.mjs";
 
 export const DEMO_FIXTURES_VERSION = 1;
@@ -398,21 +397,6 @@ export async function demoFixtures(demo, { now = Date.now() } = {}) {
     }))
     .sort((a, b) => b.mergedAt.localeCompare(a.mergedAt));
 
-  const trace = (number, pr) =>
-    buildTrace({
-      issue: issueOf(number),
-      comments: overlay.comments[number],
-      events: overlay.events[number],
-      pull: sample.pulls.find((entry) => entry.number === pr),
-      checks: overlay.runs[pr],
-      readyLabel: READY,
-      specApproved: { at: overlay.approvedAt },
-    });
-  const traces = [
-    { repository, ...trace(3, 21) },
-    { repository, ...trace(4, 22) },
-  ];
-
   return {
     version: DEMO_FIXTURES_VERSION,
     generatedAt: new Date(now).toISOString(),
@@ -422,7 +406,6 @@ export async function demoFixtures(demo, { now = Date.now() } = {}) {
     waitingOnYou,
     reviewDraft,
     recentMerges,
-    traces,
     // Read the Release queue itself with `radar.releasequeue`.
     // The example toggle: the page picks one of the two states to show. The
     // sample's own line never stops (the demo changes nothing).

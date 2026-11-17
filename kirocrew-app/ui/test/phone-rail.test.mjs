@@ -48,7 +48,7 @@ for (const dark of [false, true]) {
     const pane = await box('[data-avoozl-pane]')
     assert.ok(list.height > 300, `the list takes the page (${list.height})`)
     assert.ok(pane.hidden || pane.height === 0, 'the page content is out of the way')
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [data-nav-head]').length`), 7, 'seven sections')
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [data-nav-head]').length`), 6, 'six sections')
 
     // A section opens in the menu; picking one of its pages closes the menu.
     await page.evaluate(`[...document.querySelectorAll('[data-top-rail-list] [data-nav-head]')].find((t) => t.textContent.includes('Needs you')).click()`)
@@ -65,7 +65,7 @@ for (const dark of [false, true]) {
     await page.open(harness.url({ page: 'app', theme }), { width: 1280, height: 800, dark })
     await page.until(`Boolean(document.querySelector('[data-top-row] [data-nav-head]'))`)
     await settle()
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [data-nav-head]').length`), 7)
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [data-nav-head]').length`), 6)
     assert.equal(await box('[data-top-rail-bar]'), null, 'no top bar')
     assert.equal(await sideways(), false)
   })

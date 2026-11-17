@@ -46,12 +46,7 @@ test('Settings opens in the nav; the page shows one section; Needs you does the 
   await click('[data-nav-item="waiting/triage"]')
   await page.until(`document.querySelector('[data-waiting-section][data-open="true"]')?.dataset.waitingSection === 'triage'`)
   assert.equal(await has('[data-waiting-tabs]'), false, 'no section tabs in the page')
-  // A plain page shuts the open section; a header click on an open one shuts it.
-  await click('[data-nav-item="trace"]')
-  await settle()
-  assert.equal(await has('[data-nav-children]'), false, 'Trace has no section, so none is open')
-  await click('[data-nav-group="waiting"]')
-  await page.until(`Boolean(document.querySelector('[data-nav-children="waiting"]'))`)
+  // A header click on an open section shuts it.
   await click('[data-nav-group="waiting"]')
   await settle()
   assert.equal(await has('[data-nav-children]'), false)
