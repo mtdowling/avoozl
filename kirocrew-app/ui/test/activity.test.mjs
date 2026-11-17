@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { ACTIVITY_FILTER_STORE, filterActive, filterChoices, retentionInput, rowTarget } from '../src/activity-api.ts'
+import { ACTIVITY_FILTER_STORE, filterActive, filterChoices, retentionAutosave, retentionInput, rowTarget } from '../src/activity-api.ts'
 import { PAGE } from '../src/paging.ts'
 
 const src = new URL('../src/', import.meta.url)
@@ -69,4 +69,80 @@ test('the tab: its own nav entry and icon, the shared heading, filter panel and 
   assert.doesNotMatch(view, /rel="noreferrer"/)
   assert.match(view, /drawer\.openTask\(target\.id\)/)
   assert.match(source('activity-api.ts'), /'activity\.list', \{ \.\.\.filter, offset \}/)
+})
+
+// A fake clock so the 800 ms pause runs without waiting.
+function autosave(known = '') {
+  const sent = []
+  let now = 0, next = 1
+  const timers = new Map()
+  const box = retentionAutosave({
+    save: (days) => sent.push(days),
+    setTimer: (run, ms) => (timers.set(next, { at: now + ms, run }), next++),
+    clearTimer: (id) => timers.delete(id),
+  })
+  box.reset(known)
+  const wait = (ms) => {
+    now += ms
+    for (const [id, t] of [...timers]) if (t.at <= now) (timers.delete(id), t.run())
+  }
+  return { box, sent, wait }
+}
+
+test('Keep activity: typing then a pause saves once, after 800 ms', () => {
+  const { box, sent, wait } = autosave()
+  box.change('14')
+  wait(799)
+  assert.deepEqual(sent, [])
+  wait(1)
+  assert.deepEqual(sent, [14])
+  wait(5000)
+  assert.deepEqual(sent, [14])
+})
+
+test('Keep activity: fast typing saves once, with the last value', () => {
+  const { box, sent, wait } = autosave()
+  for (const text of ['1', '12', '120']) (box.change(text), wait(300))
+  assert.deepEqual(sent, [])
+  wait(800)
+  assert.deepEqual(sent, [120])
+})
+
+test('Keep activity: an invalid value never saves, not even on blur', () => {
+  const { box, sent, wait } = autosave()
+  for (const bad of ['0', '366', '2.5', 'ten']) (box.change(bad), wait(900), box.flush(bad))
+  assert.deepEqual(sent, [])
+})
+
+test('Keep activity: blur saves at once, once; an unchanged value does not save', () => {
+  const { box, sent, wait } = autosave('10')
+  box.change('20')
+  box.flush('20')
+  wait(900)
+  box.flush('20')
+  assert.deepEqual(sent, [20])
+  box.change('10')
+  box.change('20')
+  wait(900)
+  assert.deepEqual(sent, [20])
+  box.reset('')
+  box.flush('')
+  assert.deepEqual(sent, [20])
+})
+
+test('Keep activity: clearing the field saves the default (null)', () => {
+  const { box, sent, wait } = autosave('10')
+  box.change('')
+  wait(800)
+  assert.deepEqual(sent, [null])
+})
+
+test('Keep activity has no Save button and saves on blur and Enter', () => {
+  const view = source('ActivityView.tsx')
+  const keep = view.slice(view.indexOf('function KeepActivity'), view.indexOf('export default function ActivityView'))
+  assert.doesNotMatch(keep, /Save<|<TipBtn/)
+  assert.match(keep, /onBlur=\{\(\) => auto\.current\?\.flush\(text\)\}/)
+  assert.match(keep, /event\.key === 'Enter'/)
+  assert.match(keep, /'Saving…'/)
+  assert.match(keep, /'Saved'/)
 })
