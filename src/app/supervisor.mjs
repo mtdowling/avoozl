@@ -606,7 +606,14 @@ export function startSupervisor({
         // with --as-person (R95.5).
         env: withoutPushCredentials({
           ...env,
-          ...(values.tmp ? { TMPDIR: values.tmp } : {}),
+          ...(values.tmp
+            ? Object.fromEntries(
+                ["TMPDIR", ...(definition.tmpEnv ?? [])].map((name) => [
+                  name,
+                  values.tmp,
+                ]),
+              )
+            : {}),
           AVOOZL_CHILD: "1",
           AVOOZL_CHILD_SESSION: row.session_id,
         }),
