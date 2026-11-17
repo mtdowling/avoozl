@@ -79,7 +79,6 @@ export function ListDetailLayout(props: {
           type="button"
           data-list-unfold={props.id}
           aria-label={folded.label}
-          title={folded.label}
           onClick={folded.onUnfold}
           style={{ flex: `0 0 ${LIST_FOLDED_WIDTH}px`, width: LIST_FOLDED_WIDTH, display: 'flex', justifyContent: 'center', padding: '10px 0', background: 'none', border: 0, borderRadius: 6, color: 'var(--muted)', cursor: 'pointer', fontSize: 12.5, fontWeight: 500 }}
         >

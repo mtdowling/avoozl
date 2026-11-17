@@ -14731,7 +14731,6 @@ function rm(e) {
 				type: "button",
 				"data-list-unfold": e.id,
 				"aria-label": c.label,
-				title: c.label,
 				onClick: c.onUnfold,
 				style: {
 					flex: "0 0 36px",
