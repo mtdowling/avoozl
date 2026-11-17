@@ -1192,6 +1192,25 @@ try {
     console.log(
       JSON.stringify(await localOrRequest(operation, value), null, 2),
     );
+  } else if (command === "spec") {
+    // Export issues (R102.19): preview first; --confirm creates the spec's
+    // unfinished task issues and stops Avoozl driving it.
+    if (positionals[0] !== "export-issues")
+      throw Error("Choose spec export-issues.");
+    console.log(
+      JSON.stringify(
+        await localOrRequest("spec.exportIssues", {
+          planId: need(
+            options.plan || positionals[1],
+            "spec export-issues SPEC [--repository OWNER/REPO] [--confirm]",
+          ),
+          repository: options.repository,
+          confirm: Boolean(options.confirm),
+        }),
+        null,
+        2,
+      ),
+    );
   } else if (command === "mirror") {
     // Preview first; rerun with --confirm --preview-hash HASH to apply.
     const action = positionals[0];
@@ -1801,6 +1820,8 @@ try {
                                          Preview the GitHub setup; add --confirm --preview-hash HASH to apply
   mirror adopt|create OWNER/MIRROR --source OWNER/REPO [--ticked IDS]
                                          Dry run of the mirror setup; add --confirm --preview-hash HASH to apply
+  spec export-issues SPEC [--repository OWNER/REPO] [--confirm]
+                                         Preview, then with --confirm create the spec's unfinished task issues and stop driving it
   workspace-repo configure PATH [--branch avoozl-workspace] [--directory .avoozl]
   workspace-repo publish [--dry-run]     Safely publish portable planning state
   workspace-repo sync                    Hydrate from the configured private repo

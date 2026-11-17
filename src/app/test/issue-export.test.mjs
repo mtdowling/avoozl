@@ -244,3 +244,38 @@ test("spec.exportIssues previews, exports with confirm, and refuses agents", asy
   assert.equal(done.state, "exported");
   assert.equal(github.created.length, 2);
 });
+
+test("the CLI maps spec export-issues and refuses it in an agent session", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const { fileURLToPath } = await import("node:url");
+  const { initializeWorkspace } = await import("../workspace.mjs");
+  const { temporaryDirectory } = await import("./temporary.mjs");
+  const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url)),
+    root = temporaryDirectory("avoozl-export-cli-");
+  initializeWorkspace(root, { name: "t" });
+  const run = (args, env = {}) =>
+    spawnSync(process.execPath, [cli, ...args, "--workspace", root], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        KIROCREW_SPAWNED: "",
+        KIRO_SESSION_ID: "",
+        ...env,
+      },
+    });
+  const wrong = run(["spec", "nope"]);
+  assert.notEqual(wrong.status, 0);
+  assert.match(wrong.stderr, /spec export-issues/);
+  const missing = run(["spec", "export-issues"]);
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /SPEC/);
+  const agent = run(["spec", "export-issues", "p", "--confirm"], {
+    KIRO_SESSION_ID: "s1",
+  });
+  assert.notEqual(agent.status, 0);
+  assert.match(agent.stderr, /agent session/);
+  // A person reaches the operation: an unknown plan is its own refusal.
+  const person = run(["spec", "export-issues", "nope"]);
+  assert.notEqual(person.status, 0);
+  assert.match(person.stderr, /Plan not found/);
+});
