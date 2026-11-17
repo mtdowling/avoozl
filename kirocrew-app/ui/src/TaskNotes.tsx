@@ -472,9 +472,6 @@ export function MarkDoneDialog(props: {
       onDismiss={props.onClose}
       footer={
         <>
-          <Btn type="button" onClick={props.onClose}>
-            Cancel
-          </Btn>
           <Btn
             type="button"
             primary

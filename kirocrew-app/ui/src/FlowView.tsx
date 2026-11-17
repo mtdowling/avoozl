@@ -173,14 +173,16 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
   )
 }
 
+// Six tiles on one full-width row; two per row on a phone so none gets narrow.
 function MetricCards({ view }: { view: FlowViewModel }) {
+  const phone = useMedia('(max-width: 767px)')
   return (
-    <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 11rem), 1fr))' }} data-flow-cards>
+    <div style={{ display: 'grid', width: '100%', gap: '0.75rem', gridTemplateColumns: `repeat(${phone ? 2 : 6}, minmax(0, 1fr))` }} data-flow-cards>
       {metricCards(view).map((card) => (
-        <Card key={card.key} className="flex flex-col gap-1">
+        <Card key={card.key} className="flex flex-col gap-1" style={{ minWidth: 0 }}>
           <Tooltip text={card.tip}>
             {(describedBy) => (
-              <span aria-describedby={describedBy} tabIndex={0} className="text-xs text-muted" style={{ width: 'fit-content' }}>
+              <span aria-describedby={describedBy} tabIndex={0} className="text-xs text-muted" style={{ width: 'fit-content', overflowWrap: 'anywhere', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.75rem' }}>
                 {card.title}
               </span>
             )}
@@ -189,7 +191,9 @@ function MetricCards({ view }: { view: FlowViewModel }) {
             <span className="text-sm text-muted">{card.empty}</span>
           ) : (
             <>
-              <span className="text-2xl font-semibold tabular-nums">{card.value}</span>
+              <span className="text-xl font-semibold tabular-nums" style={{ overflowWrap: 'anywhere', fontSize: '1.25rem' }}>
+                {card.value}
+              </span>
               <span className="text-xs text-muted tabular-nums">{card.was ? `was ${card.was}` : 'no earlier window'}</span>
             </>
           )}
