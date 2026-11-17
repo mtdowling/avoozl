@@ -1237,6 +1237,15 @@ function runnerAttempts(bindings) {
 // Still working on its attempt as far as Avoozl knows: not closed or lost,
 // not stopped by a full stop, and no done or blocked report. Elapsed time
 // never changes this.
+// A gateway restart lists no chats until it restores them, so a slot read
+// says "gone" for a while (found by P50). Gone counts only once it has held
+// this long. shortcut: a fixed grace; upgrade when Kiro Crew reports that
+// its sessions are restored.
+export const GONE_GRACE_MS = 5 * 60_000;
+const goneSettled = (binding, now) =>
+  binding.status === "gone" &&
+  now - Date.parse(binding.statusAt || binding.boundAt || 0) >= GONE_GRACE_MS;
+
 export const liveAttempt = (binding) =>
   !binding.interrupted &&
   !FINAL_STATUSES.has(binding.status) &&
@@ -1470,7 +1479,7 @@ export function reconcileDeliveries(
       };
     } else if (
       open &&
-      binding.status === "gone" &&
+      goneSettled(binding, now) &&
       !binding.batch &&
       !delivery.attempts.slice(delivery.retryFrom || 0).some((a) => a.vanished)
     ) {
@@ -1508,7 +1517,7 @@ export function reconcileDeliveries(
           statusAt: at,
         }),
       );
-    } else if (open && binding.status === "gone") {
+    } else if (open && goneSettled(binding, now)) {
       // A second vanish since the last person retry, or a gone batch: a
       // person decides. Retry ends this attempt (retryDelivery); a session
       // that reads live again resumes below.

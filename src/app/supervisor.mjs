@@ -36,6 +36,9 @@ const CHILD_WRAPPER = fileURLToPath(
 const SUPERVISOR_MAIN = fileURLToPath(
   new URL("./supervisor-main.mjs", import.meta.url),
 );
+const TICK_MAIN = fileURLToPath(
+  new URL("./headless-tick-main.mjs", import.meta.url),
+);
 const SESSION = /^process-[0-9a-f-]{36}$/;
 // Placeholders the supervisor fills itself; a request cannot set them.
 const OWN_VALUES = [
@@ -59,6 +62,7 @@ export function supervisorPaths(stateDirectory) {
     database: path.join(root, "supervisor.sqlite"),
     lock: path.join(root, "supervisor.lock"),
     log: path.join(root, "supervisor.log"),
+    tickLog: path.join(root, "tick.log"),
     children: path.join(root, "children"),
   };
 }
@@ -502,14 +506,22 @@ function killGroup(pid) {
 
 // Run the supervisor until close(). Takes the machine lock first, so a second
 // one refuses and names the first (R95.1). Each pass starts requested children
-// and records the state of running ones.
+// and records the state of running ones. With `tickIntervalMs` (a headless
+// machine, R95.3) it also runs the tick of every catalog workspace, one pass
+// at a time, that long after the last pass ended.
 export function startSupervisor({
   stateDirectory,
   configDirectory,
   intervalMs = 1000,
+  tickIntervalMs = null,
   startTime = processStartTime,
   env = process.env,
 }) {
+  if (
+    tickIntervalMs !== null &&
+    !(Number.isInteger(tickIntervalMs) && tickIntervalMs > 0)
+  )
+    fail("The tick interval must be a whole number of milliseconds.");
   const lock = acquireSupervisorLock(stateDirectory, { startTime });
   const paths = supervisorPaths(stateDirectory);
   const db = openSupervisorDatabase(stateDirectory);
@@ -517,6 +529,37 @@ export function startSupervisor({
   const own = new Map();
   let timer = null;
   let closed = false;
+  let ticking = null;
+  let nextTick = 0;
+
+  // The tick runs as its own process, so a slow or failing tick never
+  // stalls the children's records. It keeps the supervisor's environment,
+  // which reads GitHub; only agent children are confined.
+  const tick = () => {
+    if (ticking || Date.now() < nextTick) return;
+    const out = fs.openSync(paths.tickLog, "a", 0o600);
+    try {
+      ticking = spawn(
+        process.execPath,
+        [
+          TICK_MAIN,
+          "--state-directory",
+          path.resolve(stateDirectory),
+          "--config-directory",
+          path.resolve(configDirectory),
+        ],
+        { stdio: ["ignore", out, out], env, windowsHide: true },
+      );
+    } finally {
+      fs.closeSync(out);
+    }
+    const ended = () => {
+      ticking = null;
+      nextTick = Date.now() + tickIntervalMs;
+    };
+    ticking.once("exit", ended);
+    ticking.once("error", ended);
+  };
 
   const start = (row, message = null) => {
     const folder = path.join(paths.children, row.session_id);
@@ -738,6 +781,7 @@ export function startSupervisor({
       )
       .all())
       start(row, queuedMessage(db, row.session_id));
+    if (tickIntervalMs) tick();
   };
 
   const schedule = () => {
@@ -761,7 +805,13 @@ export function startSupervisor({
 
   pass();
   schedule();
-  return { pass, close, holder: lock.holder, database: paths.database };
+  return {
+    pass,
+    close,
+    holder: lock.holder,
+    database: paths.database,
+    ticking: () => Boolean(ticking),
+  };
 }
 
 // Start a detached supervisor unless one runs (R95.3, used by the app
@@ -800,13 +850,19 @@ export function launchSupervisor({
 
 // Run as this process's job until a signal, with the machine's folders by
 // default. A second supervisor sets exit code 1 and names the first.
-export function runSupervisor({ stateDirectory, configDirectory } = {}) {
+// `tickSeconds` runs the tick too, on a headless machine (R95.3).
+export function runSupervisor({
+  stateDirectory,
+  configDirectory,
+  tickSeconds = null,
+} = {}) {
   const machine = machineAvoozlPaths();
   let supervisor;
   try {
     supervisor = startSupervisor({
       stateDirectory: stateDirectory ?? machine.stateDirectory,
       configDirectory: configDirectory ?? machine.configDirectory,
+      tickIntervalMs: tickSeconds === null ? null : tickSeconds * 1000,
     });
   } catch (error) {
     console.error(error.message);

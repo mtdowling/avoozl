@@ -1,0 +1,37 @@
+{
+  "name": "codex",
+  "start": [
+    "codex",
+    "exec",
+    "--json",
+    "--color",
+    "never",
+    "-C",
+    "{worktree}",
+    "--sandbox",
+    "{permission}",
+    "-c",
+    "approval_policy=never"
+  ],
+  "resume": [
+    "codex",
+    "exec",
+    "--json",
+    "--color",
+    "never",
+    "-C",
+    "{worktree}",
+    "--sandbox",
+    "{permission}",
+    "-c",
+    "approval_policy=never",
+    "resume",
+    "--last",
+    "-"
+  ],
+  "promptFrom": "stdin",
+  "model": ["--model", "{model}"],
+  "permission": { "write": "workspace-write", "read": "read-only" },
+  "writeRoots": ["{worktree}", "{tmp}", "{project_cache_dirs}"],
+  "keepEnv": ["OPENAI_API_KEY", "CODEX_API_KEY"]
+}
