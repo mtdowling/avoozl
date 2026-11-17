@@ -140,7 +140,11 @@ function setup(t, { paths, checks, flow } = {}) {
   });
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
-    JSON.stringify({ version: 1, ...(flow ? { flow } : {}) }),
+    JSON.stringify({
+      version: 1,
+      delivery: { concurrency: 2, retries: 1 },
+      ...(flow ? { flow } : {}),
+    }),
   );
   return { store, ops: new Operations(store, { workspaceRoot: root }) };
 }
@@ -265,4 +269,68 @@ test("a file outside declared paths runs no check; a protected path waits for a 
   assert.deepEqual(again.paths.protected, []);
   assert.deepEqual(again.paths.allowed, [".github/workflows/ci.yml"]);
   assert.equal(again.checks[0].exitCode, 0);
+});
+
+// A worker's done through the tick, the run, and the next tick's judgment.
+async function judgedAfter(store, ops, files) {
+  await ops.execute("session.bind", {
+    taskId: "a",
+    slot: "w-1",
+    role: "worker",
+    attempt: 1,
+    source: "tick",
+    title: "avoozl:a worker",
+  });
+  const { path: worktree } = await ops.execute("worktree.prepare", {
+    taskId: "a",
+  });
+  for (const file of files) {
+    fs.mkdirSync(path.dirname(path.join(worktree, file)), { recursive: true });
+    fs.writeFileSync(path.join(worktree, file), "work\n");
+  }
+  git(worktree, "add", ".");
+  git(worktree, "commit", "-qm", "Work a");
+  await ops.execute(
+    "session.report",
+    { taskId: "a", kind: "done" },
+    undefined,
+    {
+      caller: { sessionKey: "dashboard:w-1" },
+    },
+  );
+  const tick = () =>
+    ops.execute("workspace.tick", {
+      sessions: [{ target: "w-1", status: "idle" }],
+    });
+  await tick();
+  await drainCheckRuns(store);
+  const result = await tick();
+  return { result, delivery: store.get("task_deliveries", "a") };
+}
+
+test("the tick fails an attempt outside declared paths and holds a protected path for a person", async (t) => {
+  // Nearby inputs: an undeclared file (the writer's attempt fails and
+  // retries) and a workflow file (a decision, no attempt spent, one notice).
+  const outside = setup(t, { paths: ["src/**"] });
+  const failed = await judgedAfter(outside.store, outside.ops, ["notes.txt"]);
+  assert.equal(failed.delivery.state, "failed");
+  assert.match(
+    failed.delivery.attempts[0].cause,
+    /^outside declared paths: notes\.txt$/,
+  );
+
+  const { store, ops } = setup(t);
+  const held = await judgedAfter(store, ops, [".github/workflows/ci.yml"]);
+  assert.equal(held.delivery.state, "decision");
+  assert.match(held.delivery.cause, /touches protected paths/);
+  assert.equal(held.delivery.attempts[0].outcome, "done", "no attempt spent");
+  assert.equal(held.delivery.verifications.at(-1).outcome, "protected");
+  allowProtectedPaths(
+    store,
+    { taskId: "a", reason: "CI change" },
+    {
+      local: true,
+    },
+  );
+  assert.equal(store.get("task_deliveries", "a").state, "done");
 });
