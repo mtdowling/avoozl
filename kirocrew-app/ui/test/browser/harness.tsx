@@ -479,11 +479,25 @@ if (query.get('page') === 'app') {
   else if (!replyFor('radar.crews')) answer('radar.crews', () => ({ readAt: null, stale: 0, errors: [], unseen: [], rows: [] }))
   if (!replyFor('radar.releasequeue')) answer('radar.releasequeue', () => ({ repositories: [] }))
   if (!replyFor('remote.view')) answer('remote.view', () => ({ workers: [] }))
+  // &roles=plans|single|local: Repository setup with a role on each row
+  // (R105), the planning repository without a checkout in &roles=plans.
+  const roles = query.get('roles')
+  const rolesGithub = roles === 'single'
+    ? { mode: 'single-repo', defaultAuthority: 'github', repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } } }
+    : roles === 'local'
+      ? { repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'local' }, 'acme/recipe-api': { baseBranch: 'main', role: 'local' } } }
+      : { mode: 'plans-repo', planningRepository: 'acme/plans', defaultAuthority: 'github', epicIssueType: 'Epic', project: { owner: 'acme', number: 7 }, repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'code' }, 'acme/recipe-api': { baseBranch: 'main', role: 'code' } } }
+  if (roles)
+    answer('repositories.list', () => ({ items: [
+      { id: 'recipe-box', name: 'recipe-box', localCheckout: '/src/recipe-box', github: 'acme/recipe-box', baseBranch: 'main' },
+      { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main' },
+      { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
+    ] }))
   answer('github.settings.get', () => ({
     filename: '.avoozl.json',
     exists: true,
     hash: 'h',
-    github: { mode: 'plans-repo', repositories: { 'acme/recipe-box': worker ? { coder: 'worker' } : { coder: 'issue-radar' } } },
+    github: roles ? rolesGithub : { mode: 'plans-repo', repositories: { 'acme/recipe-box': worker ? { coder: 'worker' } : { coder: 'issue-radar' } } },
     effective: null,
     error: null,
     crews: [],
