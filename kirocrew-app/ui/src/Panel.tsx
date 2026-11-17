@@ -1,7 +1,7 @@
 // The Avoozl side-panel tab (rc-8.3, design D10). One tab that changes with
 // the open chat: Needs you, In flight, the release queue and recent
 // merges in a normal chat; the spec check and Approve in a Spec Builder chat;
-// the claim a crew is on in a crew chat; the driver view in an Avoozl chat.
+// the claim a crew is on in a crew chat.
 // The host passes no props, so the chat comes from the page URL
 // (panel-chat.ts). All data comes from one operation, `panel.view`, read when
 // the Refresh countdown ends, when the window gains focus, and not while hidden
@@ -10,13 +10,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ConfirmProvider } from './controls.tsx'
 import { railFor } from './dashboard-api.ts'
-import { DRIVER_AGENT, DRIVER_START_MESSAGE, recapSince, type Away, type DriverRead } from './driver-view-api.ts'
-import { useAppApi, useChatLauncher, useNavigate } from './host.ts'
+import { recapSince, type Away } from './recap-api.ts'
+import { useAppApi, useNavigate } from './host.ts'
 import { classifyChat, currentChat, opensItself, type PanelChat } from './panel-chat.ts'
 import {
   checkLabel,
-  driverView,
-  drivenRoot,
   panelModel,
   chatProject,
   pickPanelWorkspace,
@@ -32,7 +30,7 @@ import {
   type WaitingRow,
 } from './panel-api.ts'
 import { PanelAct, PanelChip, PanelEmpty, PanelHeader, PanelList, PanelRoot, PanelRow, PanelSection } from './PanelParts.tsx'
-import { Check, CircleAlert, CircleDot, CirclePlus, ExternalLink, GitBranch, GitPullRequest, Inbox, MessageSquare, Play, Radar, RefreshCw } from './icons.ts'
+import { Check, CircleAlert, CircleDot, CirclePlus, ExternalLink, GitBranch, GitPullRequest, Inbox, Radar } from './icons.ts'
 import { RefreshButton } from './RefreshButton.tsx'
 import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
 import { plansClient } from './plans-api.ts'
@@ -48,7 +46,7 @@ import { errorMessage, readPageState, workspaceClient, type WorkspaceList } from
 
 const AVOOZL_PAGE = '/apps/avoozl'
 
-// What the panel kept when the window last lost focus (driver-view-api.ts
+// What the panel kept when the window last lost focus (recap-api.ts
 // Away), read once on return and then removed.
 const AWAY_KEY = 'avoozl.panel.away'
 
@@ -80,10 +78,8 @@ const NOTE_UNREAD: Record<SectionName, string> = {
 
 const WAITING_ICON: Record<string, typeof CircleAlert> = { review: GitPullRequest, 'ready-to-merge': GitPullRequest, 'branch-landing': GitBranch }
 
-const DRIVER_STATE = { running: 'Running', idle: 'Quiet', none: 'Not started', unknown: 'Unknown' } as const
-
 // What no read has returned yet: every part null, so each section says unread.
-const UNREAD: PanelRead = { conflicts: null, crews: null, remote: null, queue: null, flow: null, driver: null, specs: null, instance: null, checks: null }
+const UNREAD: PanelRead = { conflicts: null, crews: null, remote: null, queue: null, flow: null, specs: null, instance: null, checks: null }
 
 function WaitingRows(props: { rows: WaitingRow[]; busy: string | null; now: number; onAct: (row: WaitingRow, action: PanelAction) => void; onOpenPage: () => void }) {
   return (
@@ -163,7 +159,6 @@ function FlightRows({ rows, now }: { rows: FlightRow[]; now: number }) {
 
 // Why the panel reads its workspace, for the header's tooltip.
 const PICKED_BY: Record<PanelPick['why'], string> = {
-  driver: 'this driver chat drives it',
   folder: "this chat's project folder is in it",
   last: 'the app page showed it last',
   default: 'the default workspace',
@@ -173,7 +168,6 @@ const PICKED_BY: Record<PanelPick['why'], string> = {
 export default function AvoozlPanel() {
   const api = useAppApi()
   const navigate = useNavigate()
-  const { openChat } = useChatLauncher()
   const [workspaceId, setWorkspaceId] = useState<string | null>(readPageState(storage()).workspaceId)
   const [workspaceName, setWorkspaceName] = useState<string | null>(null)
   const [specNames, setSpecNames] = useState<string[]>([])
@@ -243,8 +237,6 @@ export default function AvoozlPanel() {
       })()
       const placed = place.current ?? { project: null, roots: new Map<string, string[]>() }
       const pick = pickPanelWorkspace({
-        // In a driver chat, the workspace this chat drives: a Nupp driver's panel shows Nupp.
-        driverRoot: drivenRoot(read.driver, chat),
         project: placed.project,
         workspaces: list.items.map((item) => ({ id: item.id, root: item.root, roots: placed.roots.get(item.id) ?? [] })),
         last: readPageState(storage()).workspaceId,
@@ -287,9 +279,8 @@ export default function AvoozlPanel() {
   )
 
   const model: PanelModel = useMemo(() => panelModel(reads ?? {}), [reads])
-  const driver: DriverRead | null = reads?.driver ?? null
   const specs = reads?.specs ?? []
-  const kind: PanelChat = classifyChat(chat, { specs: specNames, driver: driver?.slot ?? null })
+  const kind: PanelChat = classifyChat(chat, { specs: specNames })
   const spec = kind.kind === 'spec-builder' ? specs.find((item) => item.name === kind.spec) : undefined
 
   // "Since you left": remember what was waiting when the window lost focus
@@ -429,43 +420,10 @@ export default function AvoozlPanel() {
     />
   )
 
-  // A driver read that failed is unknown, never none: it may be running.
-  const view = driverView(reads && !reads.driver ? { state: 'unknown', slot: null, href: null, openedAt: null, lastSeenAt: null } : reads?.driver)
   const crewCount = reads?.crews ? (reads.crews.groups?.length ?? 0) : null
-  const driverCells = loading ? null : (
+  const crewCells = loading ? null : (
     <div data-pp-cells>
       <StatusRow>
-        <StatusCell
-          data-panel-driver={view.state}
-          tone={view.state === 'running' ? 'ok' : view.state === 'unknown' ? 'warn' : 'muted'}
-          title={`Driver: ${DRIVER_STATE[view.state].toLowerCase()}`}
-          tip={[
-            'One long-running chat that releases ready work in graph order and hands you the decisions. It releases work only while the chat is open.',
-            view.note,
-            driver?.lastSeenAt && view.state !== 'none' ? `Last seen ${relativeTime(driver.lastSeenAt, now)}.` : '',
-            view.workspace ? `Workspace: ${view.workspace}.` : '',
-            view.elsewhere ? view.elsewhere.text : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          actions={
-            <>
-              {view.link && <CellAct label="Open driver session" icon={<MessageSquare size={13} aria-hidden="true" />} primary={!view.start} href={linkHref(view.link)} data-driver-open />}
-              {view.start && (
-                <CellAct
-                  label={view.link ? 'Start a new driver session' : 'Start a driver session'}
-                  icon={<Play size={13} aria-hidden="true" />}
-                  primary={!view.link}
-                  tip={view.link ? 'Start a new driver session.' : 'Start a driver session. Opens a new chat on the avoozl-driver agent.'}
-                  onClick={() => openChat({ agent: DRIVER_AGENT, message: DRIVER_START_MESSAGE, autoSend: true })}
-                  data-driver-start
-                />
-              )}
-              {view.elsewhere && <CellAct label={`Open ${view.elsewhere.workspace}'s driver`} icon={<ExternalLink size={13} aria-hidden="true" />} href={linkHref(view.elsewhere.href)} tip={view.elsewhere.text} data-driver-elsewhere />}
-              <CellAct label="Recheck" icon={<RefreshCw size={13} aria-hidden="true" />} onClick={() => void load()} data-driver-recheck />
-            </>
-          }
-        />
         <StatusCell
           data-panel-crew
           tone={crewCount ? 'ok' : 'warn'}
@@ -477,13 +435,13 @@ export default function AvoozlPanel() {
     </div>
   )
   const lineSection = (
-    <PanelSection id="line" title="Line and driver" summary={stopped ? 'stopped' : undefined} open>
+    <PanelSection id="line" title="Line and crews" summary={stopped ? 'stopped' : undefined} open>
       <PanelList>
         {model.stops.map((text) => (
           <PanelRow key={text} icon={CircleAlert} title={text} />
         ))}
       </PanelList>
-      {driverCells}
+      {crewCells}
     </PanelSection>
   )
 

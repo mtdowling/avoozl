@@ -107,13 +107,31 @@ export function anchorAt(thread, files, revisionHash) {
 }
 
 // The decision that stands: the last one after the last reopen.
-function standing(thread) {
+export function standing(thread) {
   const decisions = thread.decisions || [];
   const last = decisions.at(-1);
   if (last && last.action !== "reopen") return last;
   if (!last && thread.state === "closed" && DISPOSED[thread.disposition])
     return { action: thread.disposition, at: thread.disposedAt };
   return null;
+}
+
+// The planner owes this finding an answer: it has none, or a person
+// accepted it after the planner's last answer (R104.7).
+export function needsAnswer(thread) {
+  if (!thread.answer) return true;
+  const decision = standing(thread);
+  return (
+    decision?.action === "accept" &&
+    String(decision.at || "") >= String(thread.answer.at || "")
+  );
+}
+
+// A person rejected or resolved it, so a reviewer must not raise it again.
+export function settledByPerson(thread) {
+  return ["reject", "resolve", "rejected", "resolved"].includes(
+    standing(thread)?.action,
+  );
 }
 
 // One of open, fixed, answered, for you, accepted, rejected, deferred,
@@ -139,9 +157,50 @@ export function findingState(thread, { hashes, busy = false }) {
   return "for you";
 }
 
+export const answerReceiptId = (roundId) => "plan-answer:" + roundId;
+
+const planHashes = (plan) =>
+  new Set([plan.hash, ...(plan.history || []).map((entry) => entry.hash)]);
+
+// What findingState needs for one plan: its stored revision hashes, and
+// whether a review round or a planner answer turn is running for it.
+export function findingContext(store, plan) {
+  const rounds = store
+    .list("review_rounds")
+    .filter((round) => round.spec && round.planId === plan.id);
+  const busy = rounds.some(
+    (round) =>
+      round.state === "running" ||
+      ["queued", "running"].includes(
+        store.get("receipts", answerReceiptId(round.id))?.state,
+      ),
+  );
+  return { hashes: planHashes(plan), busy };
+}
+
+// The revision's files: the current ones, or a stored earlier revision's.
+export function filesAt(plan, revisionHash) {
+  if (revisionHash === plan.hash) return plan.files;
+  return (plan.history || []).find((entry) => entry.hash === revisionHash)
+    ?.files;
+}
+
+// A finding as a read shows it: the Requirement 104 severity, its state,
+// and its anchor at `revisionHash`. Reads only.
+export function findingFields(thread, plan, context, revisionHash) {
+  return {
+    severity: findingSeverity(thread.severity),
+    category: thread.kind,
+    state: findingState(thread, context),
+    quote: findingAnchor(thread).quote,
+    anchor: anchorAt(thread, filesAt(plan, revisionHash), revisionHash),
+    decisions: thread.decisions || [],
+  };
+}
+
 // Appends a person's action to a plan-review finding. Defer also stores a
-// follow-up; it makes no task and no issue. The operation and its
-// person-only policy are added by task 57.3.
+// follow-up; it makes no task and no issue. Only a person reaches this:
+// plan.review.finding.decide and plan.review.dispose are in PERSON_ONLY.
 export function recordFindingDecision(
   store,
   { id, action, revisionHash, note, by, at = new Date().toISOString() },
@@ -153,6 +212,10 @@ export function recordFindingDecision(
     fail("Choose accept, reject, defer, resolve or reopen.");
   if (typeof revisionHash !== "string" || !revisionHash)
     fail("Name the revision on screen.");
+  const plan = store.get("plans", thread.planId);
+  if (!plan || plan.deletedAt) fail("Spec plan not found.", 404);
+  if (!planHashes(plan).has(revisionHash))
+    fail("That revision is not one of this spec's stored revisions.", 409);
   const text = typeof note === "string" ? note.trim() : "";
   if (text.length > 10000) fail("Keep the note under 10,000 characters.");
   if (action === "reject" && !text) fail("Give a reason to reject a finding.");
@@ -183,7 +246,7 @@ export function recordFindingDecision(
       store.put("review_followups", {
         id: "followup-" + randomUUID(),
         planId: thread.planId,
-        spec: thread.spec ?? store.get("plans", thread.planId)?.spec ?? null,
+        spec: thread.spec ?? plan.spec ?? null,
         findingId: thread.id,
         revisionHash,
         note: text,

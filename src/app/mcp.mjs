@@ -106,7 +106,7 @@ export const OLD_TOOLS = {
   ],
   plans_plan_review: [
     "plan.review.findings",
-    "Read spec findings and planner answers: {planId,roundId?,revisionHash?}. Older revision findings stay readable and are marked stale.",
+    "Read spec findings and planner answers: {planId,roundId?,revisionHash?}. Each finding has severity (info|warn|blocker), category, findingState, anchor at the asked revision (moved when its quote is gone) and the person's decisions. Older revision findings stay readable and are marked stale. Read only: only a person decides a finding.",
   ],
   plans_answer_review: [
     "plan.review.answer",

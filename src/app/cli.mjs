@@ -16,14 +16,14 @@ import { workspaceConfig, applicationRoot } from "./config.mjs";
 import { initializeWorkspace } from "./workspace.mjs";
 import { Operations } from "./operations.mjs";
 import { driverSettingsPath } from "./driver.mjs";
-import { driverSessionFile, registerDriverSession } from "./driver-session.mjs";
 import { handleMcp } from "./mcp.mjs";
 import { cliRefusal } from "./mcp-policy.mjs";
 import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
+import { contentHook } from "./public-crews.mjs";
+import { runSupervisor } from "./supervisor.mjs";
 import { reportByToken } from "./report-match.mjs";
 import { hookEvent, runnerHookBrief } from "./runner.mjs";
-import { callerSlot } from "./delivery.mjs";
 import { validate } from "../model.mjs";
 import { planFiles } from "../catalog.mjs";
 import { reconcileSource } from "./source-sync.mjs";
@@ -200,8 +200,6 @@ try {
       plansRoot: config.plansRoot,
       configDirectory: machineAvoozlPaths().configDirectory,
       driver: { settingsFile: driverSettingsPath() },
-      driverSessionFile: driverSessionFile(),
-      workspaceName: config.name,
     });
   // Without a server, every CLI write goes through Operations in process.
   // `local` marks the caller as the person at this machine's command line.
@@ -433,6 +431,12 @@ try {
         );
       }
     }
+  } else if (command === "supervisor") {
+    // One per machine (R95.1); a second one exits 1 and names the first.
+    runSupervisor({
+      stateDirectory: options["state-directory"],
+      configDirectory: options["config-directory"],
+    });
   } else if (command === "app-backend") {
     const server = startAppBackend({
       config,
@@ -511,6 +515,22 @@ try {
     console.log(
       JSON.stringify(await localOrRequest(...calls[action]()), null, 2),
     );
+  } else if (command === "content" && positionals[0] === "hook") {
+    // A PreToolUse hook (§6.14): reads the event JSON on stdin, exits 2 with
+    // the refusal on stderr when the call would write a blocked line.
+    const result = contentHook({
+      stdin: await new Promise((resolve) => {
+        let text = "";
+        process.stdin.setEncoding("utf8");
+        process.stdin.on("data", (chunk) => (text += chunk));
+        process.stdin.on("end", () => resolve(text));
+        process.stdin.on("error", () => resolve(""));
+      }),
+      dbPath,
+      workspaceRoot: config.workspaceRoot,
+    });
+    if (result.stderr) process.stderr.write(result.stderr);
+    process.exitCode = result.code;
   } else if (command === "content") {
     // Content rules (design §4.9). `check --push` is the pre-push hook
     // Avoozl installs in each worktree it prepares; it reads the refs Git
@@ -868,38 +888,7 @@ try {
     const action = positionals[0] || "status",
       planId = options.spec || positionals[1];
     let result;
-    if (action === "hook") {
-      // The avoozl-driver agent's agentSpawn and stop hooks: record the chat
-      // Kiro Crew names in `session_key` as the driver of this workspace (the
-      // one plans_next serves the chat: --workspace, the AVOOZL_WORKSPACE
-      // family, or the catalog default the launcher passes). Prints nothing,
-      // and no failure ever blocks a turn; a failure is logged.
-      try {
-        const event = await hookEvent(process.stdin),
-          slot = callerSlot({ sessionKey: event?.session_key });
-        if (slot) {
-          if (!fs.existsSync(dbPath))
-            throw Error(`No Avoozl workspace at ${config.workspaceRoot}.`);
-          registerDriverSession({
-            slot,
-            source: String(event.hook_event_name || "hook"),
-            root: config.workspaceRoot,
-            name: config.name,
-          });
-        }
-      } catch (error) {
-        try {
-          const file = driverSessionFile() + ".log";
-          fs.mkdirSync(path.dirname(file), { recursive: true });
-          fs.appendFileSync(
-            file,
-            `${new Date().toISOString()} ${String(error?.message || error).slice(0, 300)}\n`,
-          );
-        } catch {
-          // Nothing more to try.
-        }
-      }
-    } else if (action === "status")
+    if (action === "status")
       result = await localOrRequest("driver.status", planId ? { planId } : {});
     else if (action === "handoff") {
       // Draining already: --folder writes the export now. Otherwise this
@@ -945,11 +934,10 @@ try {
           ? { heartbeatMinutes: Number(options.heartbeat) }
           : {}),
       });
-    else throw Error("Use driver status|handoff|takeover|set|hook.");
-    if (action !== "hook")
-      console.log(
-        typeof result === "string" ? result : JSON.stringify(result, null, 2),
-      );
+    else throw Error("Use driver status|handoff|takeover|set.");
+    console.log(
+      typeof result === "string" ? result : JSON.stringify(result, null, 2),
+    );
   } else if (command === "claim")
     console.log(
       JSON.stringify(
@@ -1419,11 +1407,35 @@ try {
       );
       if (value.review?.current && value.review.note)
         console.log(value.review.note);
-      for (const finding of value.findings)
+      for (const finding of value.findings) {
+        const { anchor } = finding,
+          lines =
+            anchor.lineStart === anchor.lineEnd
+              ? anchor.lineStart
+              : `${anchor.lineStart}-${anchor.lineEnd}`,
+          where = `${anchor.file}:${lines}${anchor.moved ? " (moved or removed)" : ""}`;
         console.log(
-          `${finding.file}:${finding.line} ${finding.severity} ${finding.kind}: ${finding.claim}\n  Evidence: ${finding.evidence}${finding.answer ? "\n  Planner: " + finding.answer.action + " " + finding.answer.text : ""}`,
+          `${finding.id} ${where} ${finding.severity} ${finding.findingState} ${finding.category}: ${finding.claim}\n  Evidence: ${finding.evidence}${finding.answer ? "\n  Planner: " + finding.answer.action + " " + finding.answer.text : ""}`,
         );
+      }
     }
+  } else if (command === "plan" && positionals[0] === "finding") {
+    // A person's action on one review finding (R104.5), at the spec's
+    // current revision unless --revision names another stored one.
+    const usage =
+      "plan finding ID accept|reject|defer|resolve|reopen [--note TEXT] [--revision HASH]";
+    const result = await localOrRequest("plan.review.finding.decide", {
+      id: need(positionals[1], usage),
+      action: need(positionals[2], usage),
+      ...(typeof options.note === "string" ? { note: options.note } : {}),
+      ...(typeof options.revision === "string"
+        ? { revisionHash: options.revision }
+        : {}),
+    });
+    const last = result.decisions.at(-1);
+    console.log(
+      `${result.id}: ${last.action} by ${last.by} at ${last.revisionHash}`,
+    );
   } else if (command === "plan" && positionals[0] === "batches") {
     // Draft specs in the order they can be approved (plan.approvalBatches).
     const found = await localOrRequest("plan.approvalBatches", {
@@ -1829,10 +1841,13 @@ try {
   tick --workspace PATH                 Run one workspace tick and print its intents
   content [list]                        Content rule sets, open decisions and report findings
   content allow DECISION_ID --reason TEXT Allow one blocked write once (a person only)
+  content hook                          A PreToolUse hook: refuse a crew write that matches a rule
   content show DECISION_ID              Read the matched line again from its source
   content check --push --task TASK_ID   The pre-push hook: refuse a push whose added lines match
   plan batches [--writes]               Draft specs in approval order: batch 1 needs no unapproved spec; a loop shares a batch
-  plan review SPEC [--start] [--json]
+  plan review SPEC [--start] [--json]    A spec's review findings: severity, state and anchor
+  plan finding ID accept|reject|defer|resolve|reopen [--note TEXT] [--revision HASH]
+                                        Decide one review finding; reject needs --note (a person only)
   plan approve PLAN... [--batch N] [--yes --expect HASHES]
                                         Preview approving specs together; --yes approves all or none (a person only)
   plan delete PLAN_OR_SPEC [--yes] [--retire] [--delete-spec-folder]
@@ -1892,6 +1907,7 @@ try {
   routing set --file ROUTING.json       This machine's routing: {enabled, prompt, model}
   crews set --file CREWS.json [--stale SECONDS]  This machine's crew tags, limits, and hand-back
   app-backend --workspace PATH          Kiro Crew app backend on 127.0.0.1 ($PORT)
+  supervisor                            This machine's owner of process children (one per machine)
   backup --workspace PATH --output FILE  Local-only; registered IDs are refused
   export --workspace PATH [--output FILE] Local-only; registered IDs are refused
   import SNAPSHOT.json --workspace PATH [--dry-run] Local-only; registered IDs are refused

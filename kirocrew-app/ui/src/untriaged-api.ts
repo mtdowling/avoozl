@@ -37,13 +37,44 @@ export interface UntriagedItem {
   // `github` and `issueRadar` are null for an item from another source,
   // which links to its own `item` page instead.
   links: { github: string | null; item?: string; issueRadar: HandOff | null; review: { tooltip: string } | null }
-  // A person's Plan this and Deliver this, for an item from another source.
+  // A person's Plan this and Deliver this, for an item from another source
+  // or an Issue Radar escalation.
   start?: { plan: boolean; deliver: boolean }
+  // An Issue Radar escalation (R103.8): a crew's needs-human label on an
+  // issue a trusted person filed. Listed first; Plan this and Deliver this
+  // take it into Avoozl through GitHub intake.
+  escalation?: Escalation | null
   // Why no rule took it, when one matched for someone who does not count.
   reason?: string | null
   // A pull request's code review chat (src/app/pr-review.mjs): queued until
   // the next tick opens it, then open with a Session link.
   reviewChat?: ReviewChat | null
+}
+
+export interface Escalation {
+  label: string
+  scope: string | null
+  // A crew claim label is on it too: taking it over asks first.
+  claimed: boolean
+  // The escalation rule's local draft (radar.escalationDraft), if on.
+  draft: { kind: 'bounded-fix'; acceptance: string[]; definition: string } | null
+}
+
+// The confirm step for Plan this or Deliver this on an escalation. It says
+// what Avoozl writes (crew:avoozl and one status comment), that the crew's
+// label stays, and, when a crew holds a claim, that it is taken over.
+export function escalationAsk(name: string, title: string, escalation: Escalation, action: 'deliver' | 'plan') {
+  const what =
+    action === 'deliver'
+      ? `Avoozl makes one bounded-fix task from "${title}", pinned to its text now, and a worker starts it.`
+      : `Avoozl adds "${title}" to the Inbox for a planner, who drafts a fix spec. Nothing starts until you approve it.`
+  const writes = `On GitHub it adds crew:avoozl, so crews skip the issue, and posts one status comment. "${escalation.label}" stays; clear it yourself if you want.`
+  const claim = escalation.claimed ? ' An Issue Radar crew has claimed this issue. Taking it over does not remove the crew’s label.' : ''
+  return {
+    title: `${escalation.claimed ? 'Take over' : action === 'deliver' ? 'Deliver' : 'Plan'} ${name}?`,
+    body: `${what} ${writes}${claim}`,
+    action: action === 'deliver' ? 'Deliver this' : 'Plan this',
+  }
 }
 
 export interface ReviewChat {
@@ -110,11 +141,11 @@ export function untriagedClient(api: AppApi) {
     refresh: (workspaceId: string) => run(workspaceId, { refresh: true }),
     // Plan this and Deliver this (R50.15): a person's start for an item
     // from another source. The backend refuses a session or MCP caller.
-    start: (workspaceId: string, item: Pick<UntriagedItem, 'source' | 'id'>, action: 'deliver' | 'plan') =>
+    start: (workspaceId: string, item: Pick<UntriagedItem, 'source' | 'id'>, action: 'deliver' | 'plan', options: { confirmClaim?: boolean } = {}) =>
       api
         .post<{ result: { taskId: string } }>(COMMAND_PATH, {
           operation: action === 'deliver' ? 'intake.deliver' : 'intake.plan',
-          input: { source: item.source, id: item.id },
+          input: { source: item.source, id: item.id, ...(options.confirmClaim ? { confirmClaim: true } : {}) },
           workspaceId,
         })
         .then((reply) => reply.result),

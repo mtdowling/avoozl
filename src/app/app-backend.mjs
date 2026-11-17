@@ -10,8 +10,6 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Store } from "./store.mjs";
 import { Operations } from "./operations.mjs";
 import { driverSettingsPath } from "./driver.mjs";
-import { driverSessionFile, driverSessionView } from "./driver-session.mjs";
-import { applyDriverModel, chatModel } from "./chat-models.mjs";
 import { CLIENT_OPERATIONS } from "./client.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
 import { workspaceConfig } from "./config.mjs";
@@ -53,9 +51,6 @@ import {
   demoOperations,
   installDemo,
 } from "./demo.mjs";
-
-// The driver chats given their saved model in this process (chat-models.mjs).
-const driverModels = new Map();
 
 export const PRINCIPAL_HEADER = "x-kirocrew-principal";
 const HOST = "127.0.0.1";
@@ -268,7 +263,6 @@ export const APP_OPERATIONS = new Set([
   "models.settings.update",
   "flow.settings.update",
   "driver.status",
-  "driversession.view",
   "instance.view",
   "instance.rename",
   "driver.takeover.preview",
@@ -554,8 +548,6 @@ export function startAppBackend({
           sessionsReader,
           sessionStopper,
           driver: { settingsFile: driverSettingsPath() },
-          driverSessionFile: driverSessionFile(),
-          workspaceName: target.name,
           // No page request waits on GitHub or Kiro Crew.
           backgroundReads: true,
         }),
@@ -723,17 +715,6 @@ export function startAppBackend({
             } catch (error) {
               console.error(error.message);
             }
-          // Settings › Models: the driver chat runs on the saved model.
-          if (modelSwitcher) {
-            const view = driverSessionView(ops.driverWorkspace()),
-              { models } = ops.settingsFile().readModelSettings();
-            await applyDriverModel({
-              slot: view.state === "running" ? view.slot : null,
-              model: chatModel({ models }, "driver"),
-              switcher: modelSwitcher,
-              applied: driverModels,
-            });
-          }
           if (modelSwitcher) {
             const data = store.read(),
               tasks = new Map(data.tasks.map((t) => [t.id, t])),
