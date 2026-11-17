@@ -74,6 +74,7 @@ const { values } = parseArgs({
     code: { type: "string" },
     plans: { type: "string" },
     out: { type: "string" },
+    only: { type: "string" },
   },
 });
 if (!values.root || !values.code || !values.plans) {
@@ -753,7 +754,7 @@ async function main() {
     mutated: { held: mut.held, reasons: mut.reasons.map((r) => r.reason) },
     deleted: { held: del.held, reasons: del.reasons.map((r) => r.reason) },
     takeoverOnHeld: mutTake,
-    restore: "not run: no restore path exists in code or design",
+    restore: "see the journal-reanchor step",
   });
 
   // Land t1's portion through the landing queue (direct).
@@ -1353,6 +1354,187 @@ async function main() {
   };
   save();
   await retirement();
+  await reanchorLive();
+}
+
+// Restore a held journal by a person's reanchor (56.15), live, through the
+// same Operations.execute path the local CLI uses: publish and take over two
+// scratch specs, break one journal by an edit and one by a deletion, then
+// reanchor, check the spec stays held, and Resume.
+async function reanchorLive() {
+  const ws = path.join(root, `reanchor-ws-${Date.now()}`);
+  fs.mkdirSync(ws, { recursive: true });
+  fs.writeFileSync(
+    path.join(ws, ".avoozl.json"),
+    JSON.stringify({
+      version: 1,
+      namespace: "avz_0123456789abcdee",
+      github: {
+        mode: "single-repo",
+        repositories: { [PLANS]: { baseBranch: "main" } },
+      },
+    }),
+  );
+  const s3 = new Store(path.join(ws, "workspace.sqlite"));
+  try {
+    s3.read();
+  } catch {
+    s3.importSnapshot(emptySnapshot("P66 reanchor"));
+  }
+  const { Operations } = await import("../src/app/operations.mjs");
+  const ops = new Operations(s3, {
+    github,
+    operator: LOGIN,
+    workspaceRoot: ws,
+    driver: { settingsFile: path.join(ws, "driver.json") },
+  });
+  // Single-repo mode keeps the spec folders in the project checkout.
+  s3.put("projects", { id: "code", root: ws, baseBranch: "main" });
+  await ops.execute("github.configure", {
+    repository: PLANS,
+    projectId: "code",
+    allowedActors: [LOGIN],
+  });
+  const results = {};
+  for (const [spec, damage] of [
+    ["p66-edit", "edit"],
+    ["p66-gone", "delete"],
+  ]) {
+    manifests[spec] = {
+      tasks: {
+        r1: {
+          kind: "leaf",
+          repository: "code",
+          summary: "A scratch leaf",
+          checks: ["npm test"],
+          acceptance: ["Works."],
+        },
+      },
+    };
+    for (const [file, text] of Object.entries(specFiles(spec))) {
+      const at = path.join(ws, ".kiro", "specs", spec, file);
+      fs.mkdirSync(path.dirname(at), { recursive: true });
+      fs.writeFileSync(at, text);
+    }
+    const plan = await ops.execute("plan.create", {
+      spec,
+      prompt: "Scratch spec for P66",
+      context: { projectId: "code" },
+    });
+    const published = await ops.execute("spec.publish", {
+      planId: plan.id,
+      repository: PLANS,
+    });
+    // The owner assigns themselves on the new spec issue, as on GitHub.
+    await github.addAssignees(PLANS, published.number, [LOGIN]);
+    const took = await ops.execute("spec.takeover", { planId: plan.id });
+    const journal = githubJournal(github, PLANS, published.number);
+    for (const id of ["a", "b", "c"])
+      await appendRecord(
+        journal,
+        {
+          op: `control.${id}`,
+          kind: "control",
+          spec: plan.id,
+          controls: [{ flag: "resume", id }],
+        },
+        journalOptions,
+      );
+    const entries = await journal.list(),
+      target = entries.at(-2);
+    if (damage === "edit")
+      await github.updateIssueComment(
+        PLANS,
+        target.id,
+        target.body.replace('"id":"b"', '"id":"x"'),
+      );
+    else
+      await github.request(
+        "DELETE",
+        `/repos/${PLANS}/issues/comments/${target.id}`,
+      );
+    const replay = await replayJournal(await journal.list(), {
+      ...journalOptions,
+      permission: journal.permission,
+    });
+    const held = replay.reasons.map((r) => r.id),
+      tail = replay.tail.id,
+      commentsBefore = (await journal.list()).length;
+    const agent = await ops
+      .execute(
+        "spec.journal.reanchor",
+        { planId: plan.id, held, tail, apply: true },
+        undefined,
+        { mcp: true },
+      )
+      .then(
+        () => "written",
+        (e) => e.message,
+      );
+    const preview = await ops.execute("spec.journal.reanchor", {
+      planId: plan.id,
+      held,
+      tail,
+    });
+    const stale = await ops
+      .execute("spec.journal.reanchor", {
+        planId: plan.id,
+        held,
+        tail: tail - 1,
+        apply: true,
+      })
+      .then(
+        () => "written",
+        (e) => e.message,
+      );
+    const applied = await ops.execute("spec.journal.reanchor", {
+      planId: plan.id,
+      held,
+      tail,
+      apply: true,
+    });
+    const stopped = await revalidateSpecs(s3, {
+      github,
+      workspaceRoot: ws,
+      planIds: [plan.id],
+    });
+    const resumed = await ops.execute("spec.journal.resume", {
+      planId: plan.id,
+      tail,
+    });
+    const after = await revalidateSpecs(s3, {
+      github,
+      workspaceRoot: ws,
+      planIds: [plan.id],
+    });
+    const remaining = await journal.list();
+    results[spec] = {
+      issue: published.number,
+      generation: took.generation,
+      damage,
+      heldOn: replay.reasons,
+      agentCaller: agent,
+      preview: { written: preview.written, after: preview.after },
+      staleTail: stale,
+      applied: {
+        written: applied.written,
+        after: applied.after,
+        heldUntilResume: applied.heldUntilResume,
+      },
+      beforeResume: Object.fromEntries(stopped.reasons),
+      resumed: Boolean(resumed.id),
+      afterResume: Object.fromEntries(after.reasons),
+      commentsBefore,
+      commentsAfter: remaining.length,
+      damagedStillThere:
+        damage === "edit"
+          ? remaining.find((e) => e.id === target.id)?.edited === true
+          : !remaining.some((e) => e.id === target.id),
+      cli: `avoozl spec journal reanchor ${plan.id} --held ${held.join(",")} --tail ${tail} --yes`,
+    };
+  }
+  step("journal-reanchor", results);
+  s3.close();
 }
 
 // Issue-binding retirement on a second scratch workspace whose two tasks
@@ -1510,7 +1692,23 @@ async function retirement() {
   s2.close();
 }
 
-main().then(
+// `--only reanchor` adds the reanchor step to an earlier run's report.
+const entry =
+  values.only === "reanchor"
+    ? async () => {
+        if (fs.existsSync(outFile)) {
+          const earlier = JSON.parse(fs.readFileSync(outFile, "utf8"));
+          report.steps = earlier.steps.filter((s) => s.name !== "error");
+          report.calls = earlier.calls;
+          report.startedAt = earlier.startedAt;
+          report.final = earlier.final;
+        }
+        await reanchorLive();
+        report.finishedAt = new Date().toISOString();
+        save();
+      }
+    : main;
+entry().then(
   () => console.log(`report: ${outFile}`),
   (error) => {
     step("error", {
