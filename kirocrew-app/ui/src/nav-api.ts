@@ -1,14 +1,12 @@
 // The page's top-level views and where an old place now goes. Kept free of
 // JSX so node can test it directly.
 
-// The nav row: Dashboards, Specs, Issues, Pull requests, Needs you, Trace,
+// The nav row: Dashboards, Specs, Needs you, Trace,
 // Flow, Activity, Settings. Dashboards' key stays 'dashboard' (its Home), so
 // an older link or Back step to Home still lands there.
 export const TABS = [
   { key: 'dashboard', label: 'Dashboards' },
   { key: 'plans', label: 'Specs' },
-  { key: 'issues', label: 'Issues' },
-  { key: 'pulls', label: 'Pull requests' },
   { key: 'waiting', label: 'Needs you' },
   { key: 'trace', label: 'Trace' },
   { key: 'flow', label: 'Flow' },
