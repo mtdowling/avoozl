@@ -49,8 +49,13 @@ test('lists page through the one hook and button, and a filter change resets the
 
 test('Graph, Plans and Conflicts use the one boxed filter panel', () => {
   assert.match(source('FilterBar.tsx'), /<FilterPanel/)
-  // Specs' fields sit in the left nav under the open Specs section.
-  assert.match(source('PlansView.tsx'), /<NavSlotFor section="plans">\s*<NavFilters id="avoozl-plans"/)
+  // Specs' sort and filters sit in the left nav under the open Specs
+  // section, as rows and chips like Radar's Issues rail: no dropdowns.
+  assert.match(source('PlansView.tsx'), /<NavSlotFor section="plans">\s*<div role="search" aria-label="Filter specs" data-nav-filters="avoozl-plans"/)
+  const rail = source('PlansView.tsx').slice(source('PlansView.tsx').indexOf('function PlanFilters'), source('PlansView.tsx').indexOf('const ARCHIVE_TIP'))
+  assert.doesNotMatch(rail, /<select|kind: 'select'/)
+  assert.match(source('NavRail.tsx'), /aria-pressed=\{props\.active\}/)
+  assert.match(source('NavRail.tsx'), /aria-pressed=\{picked\}/)
   assert.match(source('ConflictsView.tsx'), /<FilterPanel\s+folded\s+id="avoozl-conflicts"/)
   assert.match(source('GraphView.tsx'), /<FilterBar id="avoozl-graph"/)
   const panel = source('FilterPanel.tsx')
