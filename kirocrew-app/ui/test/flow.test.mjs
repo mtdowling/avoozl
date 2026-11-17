@@ -76,7 +76,7 @@ test('the page wires the Flow tab, its icon, the banner, the Timing fold and Set
   const banner = dashboard.indexOf('<LineBanner'),
     firstSection = dashboard.indexOf('<Pair')
   assert.ok(banner > 0 && banner < firstSection)
-  assert.ok(drawer.indexOf('<Fold id="timing"') > drawer.indexOf('<Fold id="delivery"'))
+  assert.ok(drawer.indexOf('<SectionBox id="timing"') > drawer.indexOf('<SectionBox id="delivery"'))
   for (const key of ['flow.stopTheLine.scope', 'flow.localChecksFirst', 'flow.batch.max', 'flow.batch.by', 'flow.retro.everyTasks', 'flow.retro.slowFactor', 'flow.retro.instructions'])
     assert.ok(settings.includes(`"${key}"`), key)
   assert.match(settings, /Saved on this machine only\./)
