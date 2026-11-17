@@ -37,18 +37,16 @@ test('the nav row has Dashboards, Specs, Needs you, Trace, Flow, Activity and Se
 
 test('an empty Home says what to set up, with a button for each, instead of hiding cards', { skip }, async () => {
   await open({ radar: '1' })
-  await page.until(`Boolean(document.querySelector('[data-driver-session="none"]') && document.querySelector('[data-release-empty]'))`)
+  await page.until(`Boolean(document.querySelector('[data-release-empty]'))`)
   const body = await page.evaluate(text)
-  assert.equal(await page.evaluate(`document.querySelector('[data-driver-session="none"] [data-sc-title]').innerText.trim()`), 'Driver: not started')
-  assert.equal(await page.evaluate(`document.querySelector('[data-driver-session="none"] [data-driver-start]').getAttribute('aria-label')`), 'Start a driver session')
   for (const line of ['No epics', 'Start one with New spec on Specs.', 'Release queue', 'Open Repository setup'])
     assert.ok(body.includes(line), line)
   // No epics has no button of its own, and Radar's crew cell, its wording and
   // its graph link are gone.
   assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-setup-card="epics"] button')].length`), 0, 'no button on No epics')
-  for (const gone of ['Plan an epic', 'Radar crew', 'coded by Issue Radar', 'Issue Radar graph']) assert.ok(!body.includes(gone), gone)
-  // The compact driver card's button says Start; its name is the whole action.
-  assert.ok(await page.evaluate(`Boolean(document.querySelector('[data-driver-start][aria-label="Start a driver session"]'))`))
+  for (const gone of ['Plan an epic', 'Radar crew', 'coded by Issue Radar', 'Issue Radar graph', 'driver session']) assert.ok(!body.includes(gone), gone)
+  // The driver chat is gone: no driver cell and no Start.
+  assert.equal(await page.evaluate(`document.querySelectorAll('[data-driver-session], [data-driver-start]').length`), 0)
   assert.deepEqual(page.errors, [])
 })
 
@@ -58,12 +56,10 @@ test('Settings lists its sections in the nav, shows only the picked one, and has
   await click(tab('Settings'))
   await page.until(`Boolean(document.querySelector('[data-settings-section]'))`)
   const sections = await page.evaluate(`[...document.querySelectorAll('[data-nav-children="settings"] [data-nav-item]')].map((s) => s.dataset.navItem.replace('settings/', ''))`)
-  assert.deepEqual(sections, ['driver', 'instance', 'workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery'])
-  // Opening a section in the nav closes the others, and the page shows one.
+  assert.deepEqual(sections, ['instance', 'workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery'])
+  // Settings opens beside Dashboards, and the page shows one section.
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
-  assert.equal(await page.evaluate(`document.querySelectorAll('[data-nav-section][data-open]').length`), 1)
-  await click(`document.querySelector('[data-nav-item="settings/driver"]')`)
-  await page.until(`Boolean(document.querySelector('[data-driver-session]'))`)
+  assert.equal(await page.evaluate(`document.querySelectorAll('[data-nav-section][data-open]').length`), 2)
   // Opening another section in the nav shows that one alone.
   await click(`document.querySelector('[data-nav-item="settings/repositories"]')`)
   // The large editors open in a modal from Configure.
@@ -72,7 +68,6 @@ test('Settings lists its sections in the nav, shows only the picked one, and has
   await click(`document.querySelector('[data-open-settings="repositories"]')`)
   await page.until(`Boolean(document.querySelector('[data-settings-dialog="repositories"] [data-mirror-setup]'))`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-driver-session]'))`), false)
   const buttons = await page.evaluate(`[...document.querySelectorAll('[data-setup-action]')].map((b) => [b.dataset.setupAction, b.disabled])`)
   // Both buttons wait for the two repository names.
   assert.deepEqual(buttons, [['Adopt existing setup', true], ['Create setup', true]])
@@ -95,7 +90,7 @@ test('a repository on the retired worker shows the Settings banner; one on Radar
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-retired-banner]'))`), false)
 })
 
-test('Needs you holds decisions and intake as two nav pages, one open at a time', { skip }, async () => {
+test('Needs you holds decisions and intake as two nav pages, one shown at a time', { skip }, async () => {
   await open({ radar: '1' })
   await page.until(`Boolean(${tab('Needs you')})`)
   await click(tab('Needs you'))
