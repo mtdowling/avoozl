@@ -325,7 +325,8 @@ test("plans_next puts every local leaf in one bucket with what it waits on", asy
   // a deferred leaf, an epic (not a leaf), a GitHub-routed leaf, and capacity 1.
   const { store, ops } = setup(t, {
     tasks: [
-      leaf("asks"),
+      // Ranked first: a and b unblock dep, so they would go before it.
+      leaf("asks", { rank: 1 }),
       leaf("a"),
       leaf("b"),
       leaf("dep"),
