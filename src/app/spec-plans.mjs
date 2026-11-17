@@ -18,7 +18,6 @@ import { validateProposal, writeRevision } from "./plans.mjs";
 import { lintPlan } from "./plan-quality.mjs";
 import { frontMatter, withoutFrontMatter } from "../front-matter.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
-import { validateManifestBudget } from "./budget.mjs";
 import { integrationOf } from "./integration-branch.mjs";
 import { checkForwardTarget } from "./mirror-policy.mjs";
 
@@ -515,7 +514,6 @@ export function parseSpec({
 
   const text = files[MANIFEST];
   let entries = null,
-    specBudget,
     specShip,
     manifest = null;
   if (text !== undefined) {
@@ -538,9 +536,7 @@ export function parseSpec({
         );
       else {
         entries = manifest.tasks;
-        // The spec's per-task cap (§4.17, R67.2).
         try {
-          specBudget = validateManifestBudget(manifest);
           specShip = manifest.ship;
           if (
             specShip !== undefined &&
@@ -554,12 +550,7 @@ export function parseSpec({
             diagnostic(
               "manifest.schema",
               MANIFEST,
-              manifestLine(
-                text,
-                specShip === undefined && manifest.ship !== undefined
-                  ? "ship"
-                  : "budget",
-              ),
+              manifestLine(text, "ship"),
               error.message,
             ),
           );
@@ -876,11 +867,15 @@ export function parseSpec({
       const local = (reference) => byKey.get(reference)?.id ?? reference;
       try {
         const title = shortTitle(item.title),
-          { phase: phaseValue, ...rest } = structuredClone(entry),
+          // A leaf's old `budget` key is ignored (budgets removed 2026-11-17).
+          {
+            phase: phaseValue,
+            budget: _budget,
+            ...rest
+          } = structuredClone(entry),
           fields = {
             ...rest,
             title,
-            ...(specBudget && entry?.kind !== "package" ? { specBudget } : {}),
             // The spec's ship mode and a bugfix spec's type reach each leaf
             // (§4.25, §4.11).
             ...(specShip && entry?.kind !== "package" ? { specShip } : {}),

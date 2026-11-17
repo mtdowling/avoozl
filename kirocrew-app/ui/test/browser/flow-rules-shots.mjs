@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Screenshots of the Flow page (a task at 80% of its budget) and Settings ›
+// Screenshots of the Flow page and Settings ›
 // Flow in the app shell (harness ?page=app&flow=1), at 390 and 1280 px,
 // light and dark: <out>/<flow|settings>-<width>-<theme>.png.
 //
