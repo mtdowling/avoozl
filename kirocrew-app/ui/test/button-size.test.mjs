@@ -54,7 +54,7 @@ for (const size of SIZES) {
 
   test(`no button on the other tabs and Settings sections is taller than ${MAX} px at ${size.width} px ${size.theme}`, { skip }, async () => {
     await page.open(harness.url({ page: 'app', radar: '1', theme: size.theme }), { width: size.width, height: size.height, dark: size.dark })
-    await page.until(`document.querySelectorAll('[data-sc]').length === 1`)
+    await page.until(`Boolean(document.querySelector('[data-release-empty]'))`)
     const found = []
     const settle = () => new Promise((resolve) => setTimeout(resolve, 300))
     // On a phone the nav is behind the rail button; open it when it is shut.

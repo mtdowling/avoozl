@@ -121,7 +121,7 @@ test('Start demo opens the made-up workspace with its bar, and Exit demo returns
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-tour]'))`), false)
   assert.equal(await page.evaluate(`Boolean(${button('Start the tour')})`), false)
   // The made-up workspace's pages read its sample.
-  await page.until(`Boolean(document.querySelector('[data-radar-flight-row]'))`)
+  await page.until(`Boolean(document.querySelector('[data-attention-row]'))`)
   await click(button('Specs', 'tab'))
   await page.until(`Boolean(document.querySelector('[data-spec-list] [data-plan-row]'))`)
 
