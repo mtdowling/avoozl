@@ -43,6 +43,7 @@ function scratch(t) {
     netrc: path.join(home, ".netrc"),
     ssh: path.join(home, ".ssh", "id_ed25519"),
     aws: path.join(home, ".aws", "credentials"),
+    codex: path.join(home, ".codex", "auth.json"),
     kirocrew: path.join(home, ".kiro", "crew", "gateway.secret"),
     config: path.join(configDirectory, "harness-approvals.json"),
     state: path.join(stateDirectory, "supervisor", "supervisor.sqlite"),

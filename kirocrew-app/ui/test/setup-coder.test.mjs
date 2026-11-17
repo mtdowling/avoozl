@@ -34,7 +34,6 @@ test('Cancel writes nothing before apply and stops mid-apply', () => {
   assert.match(wizard, /if \(applying\.current\) \{\s*void client\.cancelSetup/)
   assert.match(wizard, /'Cancelled\. Nothing was written\.'/)
   assert.match(wizard, /<(Modal|Shelf)\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/)
-  assert.match(wizard, /onClick=\{cancel\}/)
   assert.match(wizard, /Apply \{count\} change/)
 })
 

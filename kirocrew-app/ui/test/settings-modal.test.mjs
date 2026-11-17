@@ -29,7 +29,7 @@ test('a repository edits in an Edit dialog with Save and Cancel, not in the list
 
 test('the shared Modal still asks before it discards edits', () => {
   const modal = source('Modal.tsx')
-  assert.match(modal, /useBackStep\(props\.kind \?\? 'modal', true, props\.backLabel \?\? 'Close the dialog', dismiss\)/)
+  assert.match(modal, /useBackStep\(props\.kind \?\? 'modal', true, props\.backLabel \?\? 'Close the dialog', \(\) => \(latest\.current\.onBack \?\? dismiss\)\(\), dismiss\)/)
   assert.match(modal, /data-modal-backdrop onClick=\{dismiss\}/)
   assert.match(modal, /narrow\s*\? \{ width: '100%', height: '100%'/)
   assert.match(modal, /aria-modal="true"/)
