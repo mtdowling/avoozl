@@ -31,7 +31,6 @@ import { declaredChecks, prepareWorktree } from "./delivery.mjs";
 import { drainProcessRequests } from "./executors/process.mjs";
 import { drainCheckRuns } from "./check-runs.mjs";
 import { observeUsage } from "./flow-usage.mjs";
-import { budgetStep } from "./budget.mjs";
 import { gatewayClient } from "./gateway-client.mjs";
 import {
   applySwitches,
@@ -252,14 +251,6 @@ export const APP_OPERATIONS = new Set([
   "publiccrews.stop",
   "flow.resume",
   "gate.clear",
-  "budget.view",
-  "budget.receipt",
-  "budget.raise",
-  "budget.stop",
-  "budget.acknowledge",
-  "budget.switchToStop",
-  "budget.settings.get",
-  "budget.settings.update",
   "flow.settings.get",
   "models.settings.get",
   "models.settings.update",
@@ -742,16 +733,6 @@ export function startAppBackend({
           if (usageReader) {
             const { errors } = await observeUsage(store, usageReader);
             if (errors.length) console.error(errors[0].error);
-            // The budget check after each usage read (§4.17): a stop is
-            // recorded now; the next tick sends its messages and notices.
-            // Under the tick's lock; a running tick checks it itself.
-            try {
-              await withWorkLock(store, WORKSPACE_LOCK, async () =>
-                budgetStep(store, store.read()),
-              );
-            } catch (error) {
-              if (!error.contention) throw error;
-            }
           }
           // Provider health (§4.20): marks from the reads above, then move
           // live chats off an out model, and apply a person's switches.

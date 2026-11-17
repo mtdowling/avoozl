@@ -2,7 +2,6 @@
 // Each one reads the store and writes nothing, so all three classify as
 // `observe`. Old or read-only workspaces may lack newer tables; those read as
 // empty rather than failing the view.
-import { budgetSummaries } from "./budget.mjs";
 import { routingFailedItems, routingHealth } from "./routing-health.mjs";
 import { providerOutItems } from "./provider-health.mjs";
 import { investigationItems } from "./investigate.mjs";
@@ -134,20 +133,12 @@ export function manualWaitingIds(data, repositories) {
   );
 }
 
-function needsYou(task, submissions, health, budgets = null, manual = null) {
+function needsYou(task, submissions, health, manual = null) {
   if (manual?.has(task.id))
     return {
       reason: `Waiting for a person: ${task.title ?? task.id}`,
       link: null,
       manual: true,
-    };
-  // A task stopped at its budget waits for Raise budget or Stop (§4.17).
-  const budget = budgets?.get(task.id);
-  if (budget?.state === "open")
-    return {
-      reason: `Budget reached: ${budgetText(budget)}`,
-      link: null,
-      budget: true,
     };
   const tracker = pluginId(taskAuthority(task)),
     trackerHealth = tracker ? health.get(tracker) : null;
@@ -161,16 +152,6 @@ function needsYou(task, submissions, health, budgets = null, manual = null) {
     submissions.get(task.id),
     health.get(pluginId(task.route)),
   );
-}
-
-const usd = (n) => (n == null ? "no cap" : `$${Number(n).toFixed(2)}`);
-function budgetText(budget) {
-  const stop = budget.stopKey;
-  if (stop === "tokens")
-    return `${budget.tokens} tokens of ${budget.cap.tokens}`;
-  if (stop === "credits")
-    return `${budget.credits} credits of ${budget.cap.credits}`;
-  return `${usd(budget.spent)} of ${usd(budget.cap.usd)}`;
 }
 
 // A task waits for review: flagged, and not done, recorded or archived.
@@ -304,7 +285,6 @@ export function graphView(store, data, input = {}, folders = []) {
     health = pluginHealth(store),
     live = liveSessions(store),
     archivedOf = archivedPlanOf(store),
-    budgets = budgetSummaries(store, data),
     manual = manualWaitingIds(data, registered),
     routingMarks = routingHealth(store).marks,
     counts = new Map();
@@ -316,14 +296,13 @@ export function graphView(store, data, input = {}, folders = []) {
       task.decision ||
       task.status === "blocked" ||
       statusWithoutSession(task, live, claimed) ||
-      needsYou(task, submissions, health, budgets, manual)
+      needsYou(task, submissions, health, manual)
     )
       return "needs-you";
     if (
       task.status === "deferred" ||
       task.planArchived ||
-      board.get(task.id)?.paused ||
-      budgets.get(task.id)?.state === "paused"
+      board.get(task.id)?.paused
     )
       return "deferred";
     // Running only while a session is live; a delivery between sessions
@@ -428,12 +407,11 @@ export function graphView(store, data, input = {}, folders = []) {
       // badge, and once per plan in Conflicts, not as needs-you.
       review: needsTextReview(data, task),
       decision: task.decision ?? null,
-      needsYou: needsYou(task, submissions, health, budgets, manual),
+      needsYou: needsYou(task, submissions, health, manual),
       // A step only a person does (R61.9), and how it was marked done.
       manual: isManual(task),
       manualDone: isManual(task) ? (task.manualDone ?? null) : null,
       // Spend against the cap (§4.17), or null with no usage.
-      budget: budgets.get(task.id) ?? null,
       // Ready, held by routing: {why, retryAt}. Never runs locally instead.
       routingFailed: routingMarks[task.id] ?? null,
       // Status review with no session, run or delivery behind it.
@@ -836,7 +814,6 @@ export function deliveryView(store, data) {
     feedback = new Map(
       optionalList(store, FEEDBACK).map((row) => [row.id, row]),
     ),
-    budgets = budgetSummaries(store, data),
     unreachableCrews = new Set(
       (store.getMeta("crews.snapshot")?.instances || [])
         .filter((i) => i.reachable === false)
@@ -961,9 +938,8 @@ export function deliveryView(store, data) {
       worktrees: worktrees.get(id) || [],
       project: projectNotes(board.get(id)),
       route: routeDelivery(submissions.get(id)),
-      needsYou: needsYou(task, submissions, health, budgets),
+      needsYou: needsYou(task, submissions, health),
       // The $spent / $cap chip (§4.17).
-      budget: budgets.get(id) ?? null,
       noSession: statusWithoutSession(task, live, claimed),
       handSetReview: statusWithoutSession(task, live, claimed) !== null,
       nextAction: task.nextAction ?? null,
@@ -1171,33 +1147,6 @@ export function conflictsView(store, data) {
       readable: Boolean(decision.source),
       openedAt: decision.openedAt ?? null,
     });
-  }
-  // Budgets (§4.17): a stop waits for Raise budget or Stop; in warn mode an
-  // over-budget task waits for Acknowledge, Raise budget or Switch to stop
-  // until spend passes the next half of its cap.
-  for (const budget of budgetSummaries(store, data).values()) {
-    const task = byId.get(budget.taskId);
-    if (!task) continue;
-    if (budget.state === "open")
-      items.push({
-        kind: "budget",
-        id: "budget:" + task.id,
-        taskId: task.id,
-        ...ownership(task),
-        title: `Budget reached on ${task.id}: ${budgetText(budget)}`,
-        detail: `No new session starts for ${task.title ?? task.id}. Its sessions were asked to stop at their next turn.`,
-        budget,
-      });
-    else if (budget.over?.open)
-      items.push({
-        kind: "over-budget",
-        id: "over-budget:" + task.id,
-        taskId: task.id,
-        ...ownership(task),
-        title: `Over budget: ${usd(budget.spent)} of ${usd(budget.cap.usd)}`,
-        detail: `${task.title ?? task.id} keeps running: its budget is in warn mode.`,
-        budget,
-      });
   }
   // Driver (§6.10): no single assignee on a plan issue, and away tasks
   // waiting for Start it here or Wait.
