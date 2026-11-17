@@ -7,7 +7,12 @@ import path from "node:path";
 import test from "node:test";
 import { digest } from "../../model.mjs";
 import { Store } from "../store.mjs";
-import { integrateVerified } from "../delivery.mjs";
+import {
+  deliveryPolicy,
+  integrateVerified,
+  reconcileDeliveries,
+  reportSession,
+} from "../delivery.mjs";
 import { landingQueue } from "../landing-queue.mjs";
 import { landPullRequests } from "../pr-landing.mjs";
 import { takeOverSpec } from "../spec-takeover.mjs";
@@ -93,7 +98,7 @@ function verified(w, taskId, file = `${taskId}.txt`) {
     taskId,
     state: "verified",
     commit,
-    attempts: [],
+    attempts: [{ attempt: 1, outcome: "done", commit }],
     verifications: [],
   });
   w.store.put("session_bindings", {
@@ -103,6 +108,11 @@ function verified(w, taskId, file = `${taskId}.txt`) {
     role: "worker",
     attempt: 1,
     status: "working",
+    report: { kind: "done", text: "", commit, at: "2026-11-17T00:00:00Z" },
+    // Claimed by the command line, as `avoozl claim` does.
+    source: "conductor",
+    conductor: "cli",
+    boundAt: "2026-11-17T00:00:00Z",
   });
   return commit;
 }
@@ -144,7 +154,11 @@ function fakeGithub(w) {
       pulls.push(pull);
       return structuredClone(pull);
     },
-    permission: async () => ({ permission: "write" }),
+    // Only the signed-in login has rights; the local operator is not a
+    // GitHub login.
+    permission: async (_repo, login) => ({
+      permission: login === "bot" ? "write" : "none",
+    }),
     branchRules: async () => [
       {
         type: "required_status_checks",
@@ -228,6 +242,27 @@ test("a failed check sends the task back to its chat", async (t) => {
   assert.match(result.messages[0].text, /build: failure/);
   assert.equal(w.store.get("task_deliveries", "t1").state, "running");
   assert.deepEqual(github.calls.merged, []);
+  // The same chat reports done again on its fix, and that is recorded.
+  const wt = w.store.get("task_worktrees", "t1").path;
+  fs.writeFileSync(path.join(wt, "fix.txt"), "fix\n");
+  git(wt, "add", ".");
+  git(wt, "commit", "-qm", "Fix");
+  const fixed = git(wt, "rev-parse", "HEAD");
+  await reportSession(
+    w.store,
+    { taskId: "t1", slot: "slot-t1", kind: "done", commit: fixed },
+    null,
+    { local: true },
+  );
+  reconcileDeliveries(
+    w.store,
+    deliveryPolicy({ delivery: { runner: "crew-mode" } }),
+    {},
+  );
+  const delivery = w.store.get("task_deliveries", "t1");
+  assert.equal(delivery.state, "done");
+  assert.equal(delivery.commit, fixed);
+  assert.equal(delivery.returnedAttempts.length, 1);
 });
 
 test("a queued task whose base moved is withdrawn, merged with the base and verified again", async (t) => {

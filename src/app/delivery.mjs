@@ -2,6 +2,7 @@ import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { projectExecutor } from "./executors/process.mjs";
 import {
   kirocrewSession,
+  kirocrewDetachedSession,
   kirocrewRemoteSession,
 } from "./executors/kirocrew.mjs";
 import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
@@ -1441,20 +1442,16 @@ export function reconcileDeliveries(
       };
     let next = delivery;
     // A recorded outcome is final: a closed session that reads live again
-    // (its tab reopened) neither undoes the failure nor gets nudged. A round
-    // sent back after landing reopens it (reopenAttempt): its next done or
-    // blocked replaces the entry.
+    // (its tab reopened) neither undoes the failure nor gets nudged.
     const recorded = delivery.attempts.some(
-        (a) => a.attempt === binding.attempt && !a.reopened,
+        (a) => a.attempt === binding.attempt,
       ),
       result = outcomeOf(binding),
       open = !result && !recorded;
     if (result && budgetEnd) result.budget = true;
     if (result && !recorded) {
       const attempts = [
-        ...delivery.attempts.filter(
-          (a) => !(a.attempt === binding.attempt && a.reopened),
-        ),
+        ...delivery.attempts,
         {
           attempt: binding.attempt,
           slot: binding.slot,
@@ -2460,7 +2457,11 @@ export function planReadyDispatches(store, policy, options = {}) {
         // A project on `process` runs its worker as a supervisor child
         // (R93.5); other roles move in Phase 49.
         executor: remote ? "kirocrew" : projectExecutor(leaf.project),
-        ...kirocrewSession(leaf.project.id),
+        // A local worker opens with `project: false` (R88.2, §4.26 Work): its
+        // brief names the worktree, so the sidebar folder needs no project
+        // directory. shortcut: with the routing prompt on, routing.mjs still
+        // holds the leaf on that folder; upgrade with the routing readiness.
+        ...kirocrewDetachedSession(leaf.project.id),
         agent,
         ...(model ? { model } : {}),
         ...(where

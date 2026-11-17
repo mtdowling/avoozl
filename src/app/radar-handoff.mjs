@@ -9,6 +9,7 @@ import { allowWrite } from "./content-rules.mjs";
 import { gatewayClient } from "./gateway-client.mjs";
 import { actorAllowed } from "./github-policy.mjs";
 import { AVOOZL_CREW_LABEL, hasAvoozlLabel } from "./github.mjs";
+import { publicHold } from "./public-signoff.mjs";
 import { fail } from "./store.mjs";
 import {
   HANDOFF_KIND,
@@ -231,6 +232,12 @@ export async function handOff(store, github, policy, tasks, input, { reader }) {
         ([name]) => lower(name) === lower(repository),
       ) || [];
   if (!settings) fail(`${repository} is not a registered repository.`, 404);
+  // A public repository goes to a crew only with a current sign-off (R85.8).
+  if (publicHold(store, id))
+    fail(
+      `${id} is public, or its visibility could not be read, and its public crew sign-off is not current. Sign off its checklist under Public crews first.`,
+      409,
+    );
   // The crew, read again here so the label is Issue Radar's, not the page's.
   let crew = null,
     label = typeof input.label === "string" ? input.label.trim() : "";
