@@ -23,6 +23,7 @@ import { startAppBackend } from "./app-backend.mjs";
 import { contentHook } from "./public-crews.mjs";
 import { runSupervisor } from "./supervisor.mjs";
 import { reportByToken } from "./report-match.mjs";
+import { readRunnerConfig } from "./remote-runner.mjs";
 import { hookEvent, runnerHookBrief } from "./runner.mjs";
 import { validate } from "../model.mjs";
 import { planFiles } from "../catalog.mjs";
@@ -848,15 +849,16 @@ try {
         positionals[1] && state,
         "runner report TASK done|blocked [--token T]",
       );
-      if (token) {
-        // R88.2: matched by the report token and the worktree it runs in.
+      if (token || readRunnerConfig(config.workspaceRoot)?.role !== "runner") {
+        // R88.2: matched by the report token and the worktree it runs in;
+        // with no token, by the worktree of this command line's claim.
         requireDatabase();
         const store = new Store(dbPath);
         try {
           result = await reportByToken(store, localOperations(store), {
             taskId: positionals[1],
             state,
-            token,
+            token: token || undefined,
             cwd: process.cwd(),
             text: typeof options.text === "string" ? options.text : undefined,
           });
@@ -1181,20 +1183,33 @@ try {
       JSON.stringify(await localOrRequest(operation, value), null, 2),
     );
   } else if (command === "spec") {
-    // Export issues (R102.19): preview first; --confirm creates the spec's
-    // unfinished task issues and stops Avoozl driving it.
-    if (positionals[0] !== "export-issues")
-      throw Error("Choose spec export-issues.");
+    const action = positionals[0];
+    if (!["publish", "takeover", "export-issues"].includes(action))
+      throw Error("Choose spec publish, spec takeover or spec export-issues.");
+    const planId = need(
+      options.plan || positionals[1],
+      action === "takeover"
+        ? "spec takeover SPEC"
+        : `spec ${action} SPEC [--repository OWNER/REPO]${action === "export-issues" ? " [--confirm]" : ""}`,
+    );
+    // Publish the spec issue or local journal (R102.2) and take it over
+    // (R102.13): each a person's own act. Export issues (R102.19): preview
+    // first; --confirm creates the spec's unfinished task issues and stops
+    // Avoozl driving it.
     console.log(
       JSON.stringify(
-        await localOrRequest("spec.exportIssues", {
-          planId: need(
-            options.plan || positionals[1],
-            "spec export-issues SPEC [--repository OWNER/REPO] [--confirm]",
-          ),
-          repository: options.repository,
-          confirm: Boolean(options.confirm),
-        }),
+        await localOrRequest(
+          action === "export-issues" ? "spec.exportIssues" : `spec.${action}`,
+          action === "takeover"
+            ? { planId }
+            : action === "publish"
+              ? { planId, repository: options.repository }
+              : {
+                  planId,
+                  repository: options.repository,
+                  confirm: Boolean(options.confirm),
+                },
+        ),
         null,
         2,
       ),
@@ -1832,6 +1847,9 @@ try {
                                          Preview the GitHub setup; add --confirm --preview-hash HASH to apply
   mirror adopt|create OWNER/MIRROR --source OWNER/REPO [--ticked IDS]
                                          Dry run of the mirror setup; add --confirm --preview-hash HASH to apply
+  spec publish SPEC [--repository OWNER/REPO]
+                                         Publish the spec issue, or its local journal without GitHub
+  spec takeover SPEC                     Take over a published spec: write the next driver generation
   spec export-issues SPEC [--repository OWNER/REPO] [--confirm]
                                          Preview, then with --confirm create the spec's unfinished task issues and stop driving it
   workspace-repo configure PATH [--branch avoozl-workspace] [--directory .avoozl]
