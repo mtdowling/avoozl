@@ -21,6 +21,21 @@ export const NAV_COLLAPSED_KEY = 'avoozl:nav-collapsed'
 export const NAV_COLLAPSED_WIDTH = 36
 export const LIST: Omit<ColumnSpec, 'key'> = { initial: 360, min: 240, max: 640 }
 export const listSpec = (id: string): ColumnSpec => ({ key: `avoozl:list-width:${id}`, ...LIST })
+// A spec's right rail, beside its cards. Its handle sits on its left edge.
+export const SPEC_RAIL: ColumnSpec = { key: 'avoozl:spec-rail-width', initial: 236, min: 200, max: 560 }
+// The cards never get narrower than this (the width they already wrap at);
+// the rail gives way first.
+export const SPEC_CARDS_MIN = 260
+// What sits between the cards and the rail: two 8px gaps and the handle.
+export const SPEC_RAIL_GUTTER = 24
+
+// The widest the rail may be in a spec body this wide (its content box), or
+// null when even the narrowest rail would squeeze the cards: then the rail
+// wraps under them as before and shows no handle.
+export function railMax(bodyWidth: number): number | null {
+  const room = Math.floor(bodyWidth - SPEC_CARDS_MIN - SPEC_RAIL_GUTTER)
+  return room < SPEC_RAIL.min ? null : Math.min(SPEC_RAIL.max, room)
+}
 
 export const clampWidth = (spec: ColumnSpec, width: number) =>
   Math.round(Math.min(spec.max, Math.max(spec.min, Number.isFinite(width) ? width : spec.initial)))
@@ -63,8 +78,11 @@ export function writeFlag(storage: Store, key: string, on: boolean): void {
 }
 
 // Left and Right move a focused handle 16 px; anything else is not a step.
-export function stepWidth(width: number, key: string): number | null {
-  return key === 'ArrowRight' ? width + 16 : key === 'ArrowLeft' ? width - 16 : null
+// A handle on a column's left edge widens it to the left, so the keys swap.
+export function stepWidth(width: number, key: string, edge: 'left' | 'right' = 'right'): number | null {
+  const wider = edge === 'right' ? 'ArrowRight' : 'ArrowLeft'
+  const narrower = edge === 'right' ? 'ArrowLeft' : 'ArrowRight'
+  return key === wider ? width + 16 : key === narrower ? width - 16 : null
 }
 
 export function pageStorage(): Storage | null {
