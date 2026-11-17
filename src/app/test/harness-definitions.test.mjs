@@ -158,6 +158,53 @@ test("loading refuses permission-skipping values", () => {
     );
 });
 
+// R94.4d: the one exception, permission.write exactly danger-full-access.
+test("permission.write may turn the inner sandbox off; nothing else may", () => {
+  const off = parseHarnessDefinition({
+    ...example(),
+    permission: { write: "danger-full-access", read: "read-only" },
+  });
+  assert.equal(off.permission.write, "danger-full-access");
+  for (const [patch, value] of [
+    [
+      { permission: { write: "workspace-write", read: "danger-full-access" } },
+      "danger-full-access",
+    ],
+    [
+      { permission: { write: "--sandbox=danger-full-access", read: "x" } },
+      "danger-full-access",
+    ],
+    [
+      {
+        permission: { write: "danger-full-access", read: "bypassPermissions" },
+      },
+      "bypassPermissions",
+    ],
+    [
+      {
+        permission: { write: "danger-full-access", read: "read-only" },
+        start: ["example-cli", "--dangerously-bypass-approvals-and-sandbox"],
+      },
+      "--dangerously-bypass-approvals-and-sandbox",
+    ],
+  ])
+    assert.throws(
+      () => parseHarnessDefinition({ ...example(), ...patch }),
+      (error) =>
+        error.message.includes(value) &&
+        /skips permissions/.test(error.message),
+    );
+  assert.throws(
+    () =>
+      parseHarnessDefinition({
+        ...example(),
+        permission: { write: "danger-full-access", read: "read-only" },
+        writeRoots: undefined,
+      }),
+    /writeRoots must name/,
+  );
+});
+
 test("loading refuses bad shapes", () => {
   for (const [patch, pattern] of [
     [{ extra: true }, /unknown key extra/],

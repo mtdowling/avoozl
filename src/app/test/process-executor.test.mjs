@@ -51,7 +51,7 @@ test("the Claude Code definition loads, never skips permissions, and fills", () 
   assert.equal(definition.promptFrom, "stdin");
   assert.deepEqual(definition.permission, {
     write: "acceptEdits",
-    read: "plan",
+    read: "dontAsk",
   });
   const values = {
     session_uuid: "00000000-0000-4000-8000-000000000001",

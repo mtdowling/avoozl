@@ -22,9 +22,10 @@
   ],
   "promptFrom": "stdin",
   "model": ["--model", "{model}"],
-  "permission": { "write": "acceptEdits", "read": "plan" },
+  "permission": { "write": "acceptEdits", "read": "dontAsk" },
   "writeRoots": ["{worktree}", "{tmp}", "{project_cache_dirs}"],
   "allow": ["--allowedTools", "Bash({project_allow_commands}:*)"],
+  "resultAllow": ["--allowedTools", "Edit(.avoozl/result.json)"],
   "cost": { "from": "output", "field": "total_cost_usd" },
   "keepEnv": ["ANTHROPIC_API_KEY"],
   "tmpEnv": ["CLAUDE_CODE_TMPDIR"]

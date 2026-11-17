@@ -3294,6 +3294,8 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
         })
       )
         continue;
+      const label = role.id === "checks" ? "verify" : "review-" + role.id,
+        processRun = projectExecutor(project) === "process";
       dispatch.push(
         kirocrewRequest(store, {
           task: task.id,
@@ -3305,8 +3307,15 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
             role.id === "checks" ? `verify ${sha}` : `review ${role.id} ${sha}`,
           ),
           // Its brief names a detached worktree (R88.2, as for the worker).
-          ...kirocrewDetachedSession(project.id),
-          agent: role.agent,
+          // A `process` child cannot add it, so the request names it and
+          // Avoozl adds it before the child starts (R97.3).
+          ...(processRun
+            ? {
+                executor: "process",
+                worktree: detachedWorktree(project, task, label, attempt),
+              }
+            : kirocrewDetachedSession(project.id)),
+          ...(processRun ? {} : { agent: role.agent }),
           ...(role.model ? { model: role.model } : {}),
           ...(where
             ? { placement: where.placement, sessionReason: where.sessionReason }
