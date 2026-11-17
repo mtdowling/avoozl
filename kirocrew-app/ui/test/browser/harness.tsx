@@ -229,6 +229,17 @@ function OpenTask() {
   )
 }
 
+// Review info from Needs you: a review group of two tasks.
+function OpenReview() {
+  const drawer = useTaskDrawer()
+  const group = { key: 'g1', kind: 'review', taskId: null, title: 'Meal planner: sections changed', detail: 'Two tasks changed.', plan: 'meal-planner', epic: null, repository: null, since: '2026-11-14T10:00:00Z', tasks: [{ id: 'team-review', title: 'Review with team', status: 'planned' }, { id: 'cutover', title: 'Cutover', status: 'planned' }] }
+  return (
+    <Btn type="button" onClick={() => drawer.openReview(group as never)}>
+      Open the dialog
+    </Btn>
+  )
+}
+
 // Each modal: the label of the button that opens it, and what it renders.
 type Scenario = { opener: string; render: (open: boolean, setOpen: (open: boolean) => void, close: () => void) => ReactNode }
 const own = (opener: string, node: ReactNode): Scenario => ({ opener, render: () => node })
@@ -282,6 +293,7 @@ export const SCENARIOS: Record<string, Scenario> = {
   projection: shown((close) => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onCreated={() => undefined} />),
   'spec-changed': shown((close) => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onApplied={() => undefined} />),
   'task-drawer': own('Open the dialog', <OpenTask />),
+  'review-info': own('Open the dialog', <OpenReview />),
   'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onIssue onClose={close} onDone={close} />),
   // The real page shows New spec over the whole page, not inside a card.
   // New spec with nothing picked: categories and epics to choose from.
@@ -449,6 +461,25 @@ function DeepLinkPage() {
   )
 }
 
+// &triage=1: two untriaged items and two held by an Issue Radar crew, so the
+// Needs you nav shows a count on each page (the Triage and Issue Radar shots).
+if (query.get('page') === 'app' && query.get('triage') === '1') {
+  const link = { url: '/issue-radar', exact: false, tooltip: 'Opens Issue Radar.' }
+  const row = (number: number, title: string) => ({
+    kind: 'issue', number, title, url: `https://github.com/acme/recipe-box/issues/${number}`, repository: 'acme/recipe-box', author: 'mira', createdAt: '2026-11-15T09:00:00Z', labels: ['bug'], comments: 1,
+    source: 'github', id: `acme/recipe-box#${number}`, links: { github: `https://github.com/acme/recipe-box/issues/${number}`, issueRadar: link, review: null }, start: { plan: true, deliver: false },
+  })
+  const held = (number: number, title: string) => ({ ...row(number, title), claimed: number % 2 === 0, needsHuman: false, needsHumanLabel: 'crew: needs human', handoff: null })
+  answer('untriaged.view', () => ({
+    enabled: true,
+    mode: 'plans-repo',
+    total: 2,
+    repositories: [{ repository: 'acme/recipe-box', checkedAt: '2026-11-16T09:00:00Z', error: null, searched: 4, read: 4, truncated: false, count: 4, query: null, filter: null, defaultFilter: '', notify: false }],
+    items: [row(44, 'Recipe photos load slowly on the list'), row(45, 'Add a shopping list export')],
+    withRadar: [held(51, 'Search ignores accents'), held(52, 'Print view cuts off steps')],
+  }))
+}
+
 // ?page=home: the Dashboard alone with nothing in flight (?page=demo uses
 // the same answers for the real workspace, before the sample opens). &ran=1 gives the
 // workspace one finished task (it has run before); without it, none has.
@@ -470,7 +501,9 @@ if (query.get('page') === 'app') {
   // other reads answer empty, so Home fills in.
   const needs = Number(query.get('needs') ?? 0)
   const item = (n: number) => ({ key: `k${n}`, kind: 'decision', taskId: `t${n}`, title: `Item ${n}`, detail: 'Waits on you.', plan: 'meal-planner', epic: null, repository: 'example/recipe-box', since: '2026-11-14T10:00:00Z' })
-  answer('conflicts.view', () => ({ revision: 1, items: Array.from({ length: needs }, (_, n) => item(n + 1)) }))
+  // &reviewgroup=1: one review group (two tasks changed in a spec) in Needs you.
+  const reviewGroup = { key: 'g1', kind: 'review', reason: 'review', taskId: null, title: 'Meal planner: sections changed', detail: 'Two tasks changed.', plan: 'meal-planner', epic: null, repository: null, since: '2026-11-14T10:00:00Z', tasks: [{ id: 'team-review', title: 'Review with team', status: 'planned' }, { id: 'cutover', title: 'Cutover', status: 'planned' }] }
+  answer('conflicts.view', () => ({ revision: 1, items: [...Array.from({ length: needs }, (_, n) => item(n + 1)), ...(query.get('reviewgroup') === '1' ? [reviewGroup] : [])] }))
   if (!replyFor('delivery.view')) answer('delivery.view', () => ({ revision: 1, items: [] }))
   if (!replyFor('plan.list')) answer('plan.list', () => ({ items: [] }))
   // &slowradar=1: Radar's crews read never answers, as a slow GitHub or

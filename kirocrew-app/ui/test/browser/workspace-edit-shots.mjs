@@ -48,7 +48,7 @@ try {
       await page.until(`Boolean(document.querySelector('[data-folder="launch"]'))`)
       await wait(page)
       await page.screenshot(name('edit-browse'))
-      await click(page, '[data-edit-cancel]')
+      await click(page, '[data-edit-workspace-modal] [data-modal-footer-close]')
       await wait(page)
       // Add a workspace, with ~/ typed and Browse open.
       await click(page, '[data-add-workspace]')

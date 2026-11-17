@@ -114,9 +114,6 @@ export function SetupDialog(props: {
       onDismiss={cancel}
       footer={
         <>
-          <Btn type="button" onClick={cancel}>
-            {step === 3 ? 'Close' : 'Cancel'}
-          </Btn>
           {step === 1 && (
             <Btn type="button" onClick={() => setStep(0)} disabled={busy}>
               Back

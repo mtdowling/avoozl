@@ -93,7 +93,7 @@ test('the pencil edits the name and picks a folder with Browse; Save sends the c
   assert.deepEqual(page.errors, [])
 })
 
-test('a bad form keeps Save off and says why; a refused save shows the backend error; Cancel sends nothing', { skip }, async () => {
+test('a bad form keeps Save off and says why; a refused save shows the backend error; Close sends nothing', { skip }, async () => {
   await openEdit()
   await type('#avoozl-ws-edit-name', '')
   await wait()
@@ -108,7 +108,7 @@ test('a bad form keeps Save off and says why; a refused save shows the backend e
   await page.evaluate('window.__wsCalls.length = 0')
   await type('#avoozl-ws-edit-root', '/plans/launch')
   await wait()
-  await click('[data-edit-cancel]')
+  await click('[data-edit-workspace-modal] [data-modal-footer-close]')
   await page.until(`!document.querySelector('[data-edit-workspace-modal]')`)
   assert.deepEqual(await page.evaluate('window.__wsCalls'), [])
 })
