@@ -85,9 +85,9 @@ const READ = `(() => {
     sections: sections.map((s) => s.dataset.railSection.replace(/ \\(\\d+\\)$/, '')),
     edits: sections.filter((s) => s.querySelector('[data-rail-edit]')).map((s) => s.dataset.railSection),
     railFont: cs(rail).fontSize,
-    railWidth: Math.round(r(rail).width),
-    railRight: r(rail).left >= r(main).right - 1,
-    railBelow: r(rail).top >= r(main).bottom - 1,
+    // A desktop clips the spec in its own scroller, with the panel under it.
+    railBelow: r(rail).top >= r(q('[data-spec-scroll]') ?? main).bottom - 1,
+    railWide: Math.round(r(rail).width) >= Math.round(r(main).width) - 30,
     noOldAside: !q('[aria-label="Spec summary"]'),
     sideways: document.documentElement.scrollWidth > innerWidth,
   }
@@ -112,10 +112,8 @@ for (const dark of [false, true])
       for (const name of ['Epic', 'Repositories', 'Phases', 'Progress', 'Dates']) assert.ok(got.sections.includes(name), `the rail has ${name}`)
       for (const name of ['Epic', 'Phases']) assert.ok(got.edits.includes(name), `${name} has Edit`)
       assert.equal(got.railFont, '12.5px')
-      if (width >= 768) {
-        assert.equal(got.railWidth, 236)
-        assert.equal(got.railRight, true, 'the rail is right of the cards')
-      } else assert.equal(got.railBelow, true, 'the rail stacks under the cards on a phone')
+      assert.equal(got.railBelow, true, 'the details sit under the spec')
+      assert.equal(got.railWide, true, 'as wide as the spec')
       assert.equal(got.noOldAside, true, 'no left column')
       assert.equal(got.sideways, false, 'no sideways scroll')
       // The ... menu holds the rest of the spec's actions.

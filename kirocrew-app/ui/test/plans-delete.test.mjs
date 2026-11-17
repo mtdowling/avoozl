@@ -37,7 +37,8 @@ test('every spec is in one list: name, status chip, task count, epic and where i
   assert.doesNotMatch(plans, /data-plan-group|EpicsView/)
 })
 
-test('the plan view left column sticks and scrolls on its own', () => {
-  assert.match(plans, /position: 'sticky', top: 8, zIndex: LAYER\.sticky, maxHeight: asideHeight \?\? 'calc\(100vh - 2rem\)', overflowY: 'auto'/)
-  assert.match(plans, /const \[asideRef, asideHeight\] = useStickyHeight\(!stack\)/)
+test('the plan view keeps its details in a panel under the spec', () => {
+  assert.match(plans, /<SpecDetailsPanel\s+phone=\{phone\}/)
+  assert.match(plans, /fill=\{Boolean\(row\) && !reviewing\}/)
+  assert.doesNotMatch(plans, /useStickyHeight|useRailWidth|SPEC_RAIL/)
 })
