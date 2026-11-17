@@ -179,6 +179,28 @@ test("avoozl claim gives a person the task and its worktree from a plain shell",
   assert.equal(store.get("session_bindings", "me").report.kind, "done");
 });
 
+test("avoozl runner report finishes a person's claim from its worktree with no token", (t) => {
+  const { root, store } = crewMode(t);
+  const claim = avoozl(root, "claim", "a", "--slot", "me");
+  const head = commit(claim.worktree.path, "a.txt");
+  const report = (cwd, id) =>
+    spawnSync(
+      process.execPath,
+      [cli, "runner", "report", id, "done", "--workspace", root],
+      { encoding: "utf8", env: plainEnv(), cwd },
+    );
+  // Outside the worktree, or for a task nobody claimed, it is refused.
+  const outside = report(root, "a");
+  assert.notEqual(outside.status, 0);
+  assert.match(outside.stderr, /this task's worktree/);
+  assert.match(report(claim.worktree.path, "b").stderr, /No one has claimed b/);
+  // From the worktree, the commit is read from HEAD.
+  const done = report(claim.worktree.path, "a");
+  assert.equal(done.status, 0, done.stderr);
+  assert.equal(JSON.parse(done.stdout).report.commit, head);
+  assert.equal(store.get("session_bindings", "me").report.kind, "done");
+});
+
 test("avoozl runner report finishes a runner task from a plain shell", async (t) => {
   const repo = repository(
       path.join(temporaryDirectory("avoozl-manual-repo-"), "app"),
