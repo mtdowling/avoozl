@@ -11,7 +11,7 @@
 import path from "node:path";
 import { itemKey, itemRows } from "./intake.mjs";
 import { watchInputs } from "./github-intake.mjs";
-import { attachHandoffs } from "./radar-plan-me.mjs";
+import { attachHandoffs, isEscalation } from "./radar-plan-me.mjs";
 import { SOURCE_KIND } from "./radar-source.mjs";
 import { parseMatch } from "./issue-match.mjs";
 import { hasAvoozlLabel } from "./github.mjs";
@@ -418,6 +418,20 @@ export function crewState(entry, settings = {}) {
   };
 }
 
+// What a row shows for an Issue Radar escalation (R103.8-R103.10): the
+// label the crew wrote, the scope it skipped for, whether a crew claim is
+// live (Plan this then asks to confirm), and the escalation rule's local
+// draft, if any.
+function escalationOf(entry, settings) {
+  const state = crewState(entry, settings);
+  return {
+    label: state.needsHumanLabel,
+    scope: entry.planMe?.scope ?? null,
+    claimed: state.claimed,
+    draft: entry.planMe?.draft ?? null,
+  };
+}
+
 // An issue not tied to a task that a crew has, or was sent to (R52.6).
 function withRadar(entry, repository, settings, linked, handoffs) {
   if (entry.kind !== "issue") return null;
@@ -432,12 +446,17 @@ function withRadar(entry, repository, settings, linked, handoffs) {
   if (state.needsHuman && route === "intake" && !receipt && !state.claimed)
     return null;
   if (!receipt && !state.claimed && !state.needsHuman) return null;
+  const escalation =
+    state.needsHuman && isEscalation(entry)
+      ? escalationOf(entry, settings)
+      : null;
   return {
     claimed: state.claimed,
     // Left alone: shown with the crew's issues, but nobody is asked.
     needsHuman: state.needsHuman && route !== "left-alone",
     planMe: entry.planMe ?? null,
     needsHumanLabel: state.needsHumanLabel,
+    escalation,
     handoff: receipt
       ? {
           label: receipt.label,
@@ -509,7 +528,20 @@ function radarRows(view) {
       },
       link: entry.url,
       title: `${entry.repository} #${entry.number} needs a person: ${entry.title}`,
-      detail: `An Issue Radar crew added "${entry.needsHumanLabel}". Answer it on GitHub; the crew picks the issue up again when the label comes off.`,
+      detail: entry.escalation
+        ? `An Issue Radar crew added "${entry.needsHumanLabel}". Plan this or Deliver this takes it into Avoozl and adds crew:avoozl, so crews skip it; the needs-human label stays. Or answer it on GitHub; the crew picks the issue up again when the label comes off.`
+        : `An Issue Radar crew added "${entry.needsHumanLabel}". Answer it on GitHub; the crew picks the issue up again when the label comes off.`,
+      // A trusted escalation's row offers Intake's two buttons (R103.8).
+      ...(entry.escalation
+        ? {
+            item: {
+              source: "github",
+              id: `${entry.repository}#${entry.number}`,
+            },
+            escalation: entry.escalation,
+            start: { plan: true, deliver: true },
+          }
+        : {}),
     }));
 }
 
@@ -612,10 +644,17 @@ export function untriagedView(
         ...candidate,
         repository,
         links: itemLinks(repository, candidate),
-        // Plan this: a planner chat for an issue of a Radar-coded repository.
-        ...(isRadarCoded(settings) && candidate.kind === "issue"
-          ? { start: { plan: true, deliver: false } }
-          : {}),
+        // An Issue Radar escalation (R103.8): a person's Plan this and
+        // Deliver this through GitHub intake (github-intake.mjs).
+        ...(isEscalation(candidate)
+          ? {
+              escalation: escalationOf(candidate, settings),
+              start: { plan: true, deliver: true },
+            }
+          : // Plan this: a planner chat for an issue of a Radar-coded repository.
+            isRadarCoded(settings) && candidate.kind === "issue"
+            ? { start: { plan: true, deliver: false } }
+            : {}),
         ...(candidate.kind === "pr"
           ? {
               reviewChat:
@@ -628,7 +667,12 @@ export function untriagedView(
   }
   const newest = (a, b) =>
     String(b.createdAt).localeCompare(String(a.createdAt));
-  items.sort(newest);
+  // Issue Radar escalations first (R103.8), then newest.
+  items.sort(
+    (a, b) =>
+      Number(Boolean(b.escalation)) - Number(Boolean(a.escalation)) ||
+      newest(a, b),
+  );
   // Needs a person first, then newest.
   radar.sort(
     (a, b) => Number(b.needsHuman) - Number(a.needsHuman) || newest(a, b),
