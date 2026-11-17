@@ -6,6 +6,11 @@ import test from "node:test";
 import { PUBLIC_HELD, publicHold } from "../public-signoff.mjs";
 import { fixture } from "./fixtures.mjs";
 import { leaf, setup as release } from "./radar-coder-release-fixture.mjs";
+import { setRadarHandoverPaused } from "../coder-adapter.mjs";
+
+// These tests cover the Radar hand-over kept while Phase 45 is paused
+// (R103.4 pauses it in the product).
+setRadarHandoverPaused(false);
 
 const REPO = "example/code";
 const setup = (t, record) => {

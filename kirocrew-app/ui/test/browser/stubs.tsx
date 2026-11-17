@@ -95,12 +95,27 @@ export const EmptyState = (props: { title: ReactNode; subtitle?: ReactNode; acti
     {props.action}
   </div>
 )
-export const Badge = (props: { children?: ReactNode }) => <span className="rounded border px-1 text-xs">{props.children}</span>
-export const Btn = forwardRef<HTMLButtonElement, Record<string, unknown>>(function Btn({ primary, variant, ...rest }, ref) {
-  return <button ref={ref} {...rest} data-primary={primary ? '' : undefined} className={`rounded border px-3 py-1 text-sm ${(rest.className as string) ?? ''}`} />
+// The host's badge colors, so a screenshot shows which badges are yellow.
+const BADGE_TONES: Record<string, string> = { ok: '#16a34a', err: 'var(--danger)', warn: '#ca8a04', aim: '#7c3aed', muted: 'var(--muted)' }
+export const Badge = (props: { children?: ReactNode; variant?: string; className?: string }) => {
+  const tone = BADGE_TONES[props.variant ?? 'warn'] ?? BADGE_TONES.warn
+  return (
+    <span className="rounded border px-1 text-xs" data-badge-variant={props.variant ?? 'warn'} style={{ color: tone, borderColor: tone, background: `color-mix(in srgb, ${tone} 12%, transparent)` }}>
+      {props.children}
+    </span>
+  )
+}
+// Btn and Input carry the host's own classes (its components/ui.tsx), so
+// with the host stylesheet a screenshot shows primary and secondary buttons
+// and inputs as the app does.
+const BTN = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[13px] cursor-pointer font-body transition-all disabled:cursor-not-allowed'
+const BTN_PRIMARY = 'bg-accent text-accent-fg border-accent hover:bg-accent-hover disabled:bg-bg-hover disabled:text-muted disabled:border-transparent disabled:opacity-60'
+const BTN_SECONDARY = 'border-border bg-transparent text-text hover:border-border-strong hover:bg-bg-hover disabled:opacity-30'
+export const Btn = forwardRef<HTMLButtonElement, Record<string, unknown>>(function Btn({ primary, variant, danger, ...rest }, ref) {
+  return <button ref={ref} {...rest} data-primary={primary ? '' : undefined} className={`${BTN} ${primary ? BTN_PRIMARY : danger ? 'border-border bg-transparent text-danger' : BTN_SECONDARY} ${(rest.className as string) ?? ''}`} />
 })
 export const Input = forwardRef<HTMLInputElement, Record<string, unknown>>(function Input(props, ref) {
-  return <input ref={ref} {...props} className="rounded border px-2 py-1 text-sm" />
+  return <input ref={ref} {...props} className="bg-bg-elevated border border-border rounded-md px-3 py-2 text-text text-sm font-body flex-1 min-w-0" />
 })
 // Models the host control: with room (80 px a segment) it shows every label; with less
 // it shows only the selected label (`compact`), and under 44 px a segment

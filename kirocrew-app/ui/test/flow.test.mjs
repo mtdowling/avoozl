@@ -80,10 +80,19 @@ test('the page wires the Flow tab, its icon, the banner, the Timing fold and Set
   for (const key of ['flow.stopTheLine.scope', 'flow.localChecksFirst', 'flow.batch.max', 'flow.batch.by', 'flow.retro.everyTasks', 'flow.retro.slowFactor', 'flow.retro.instructions'])
     assert.ok(settings.includes(`"${key}"`), key)
   assert.match(settings, /Saved on this machine only\./)
-  for (const title of ['Timing', 'Stop the line', 'Local checks first', 'Batching', 'Retro']) assert.match(settings, new RegExp(`<Section title="${title}"`))
+  for (const title of ['Timing', 'Pause on a broken check', 'Local checks first', 'Batching', 'Retro']) assert.match(settings, new RegExp(`<Section title="${title}"`))
   // Approve is not red; Run anyway asks first.
   assert.match(flow, /<Btn type="button" primary disabled=\{busy\} onClick=\{\(\) => onDecide\(retro, proposal, 'approve'\)\}>/)
   assert.match(flow, /title: 'Run anyway\?'/)
+})
+
+test('Flow screens keep the owner rules: no visible Stop the line, yellow only for what needs the owner', () => {
+  const settings = source('FlowSettings.tsx'),
+    flow = source('FlowView.tsx')
+  assert.doesNotMatch(settings, /title="Stop the line"/)
+  assert.match(settings, /<Section title="Pause on a broken check" blurb="[^"]+" icon=\{Pause\}>/)
+  // 80% of a budget asks nothing of the owner, so it is not yellow.
+  assert.match(flow, /'80% of budget' \? 'info' : 'danger'/)
 })
 
 test('model pickers offer the models Kiro Crew lists, plus auto', async () => {
