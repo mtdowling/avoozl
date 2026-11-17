@@ -30,6 +30,7 @@ import {
 } from "./flow.mjs";
 import { heldByStop } from "./flow-line.mjs";
 import { needsJudgment, taskCheckRuns } from "./check-runs.mjs";
+import { pathOutcome } from "./verify.mjs";
 import { checkDoneList, localCheckList, localPass } from "./flow-checks.mjs";
 import {
   batchBrief,
@@ -2474,6 +2475,8 @@ export function verdictCause(task, project, commit, report) {
 // One finished check run's record (check-runs.mjs): judged like a verifier
 // report, with the output tails kept beside each check.
 function runRecord(task, project, run) {
+  const held = pathOutcome(run);
+  if (held) return { ...held, checks: run.checks };
   const verdict = verdictCause(task, project, run.commit, {
     commit: run.commit,
     checks: run.checks,
@@ -2820,6 +2823,23 @@ export function reconcileVerifications(
             title: `Avoozl refused review ${roleId} on ${task.id}`,
             text: `Commit ${subject.slice(0, 12)}: ${record.cause}.`,
             resume: `Give review ${roleId} a model Kiro Crew offers that differs from the writer's (.avoozl.json), then ask Avoozl to retry ${task.id} (plans_retry_delivery).`,
+          });
+      } else if (record.outcome === "protected") {
+        // A protected path waits for a person; no writer attempt is spent
+        // (R86.6).
+        next = {
+          ...next,
+          state: "decision",
+          cause: record.cause,
+          ...(script ? { decisionNotifiedAt: at } : {}),
+        };
+        if (script)
+          notify.push({
+            channel: "decision",
+            task: task.id,
+            title: `Avoozl holds ${task.id}: protected paths`,
+            text: `Commit ${subject.slice(0, 12)}: ${record.cause}.`,
+            resume: `Read the diff. To let it land: avoozl verify allow ${task.id} --reason TEXT. To send it back: avoozl retry ${task.id}.`,
           });
       } else if (record.outcome === "rejected" && next.batch) {
         // A failing batch does not say which task broke it: split it, and
