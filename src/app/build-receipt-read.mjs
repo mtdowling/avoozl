@@ -7,6 +7,13 @@
 import { inflateRawSync } from "node:zlib";
 import { parseReceipts } from "./build-receipt.mjs";
 import { listOr } from "./flow.mjs";
+import { plainInstanceName } from "./instance.mjs";
+import {
+  isReportArtifact,
+  reportsFromArtifact,
+  reportsFromReceipts,
+} from "./build-report.mjs";
+import { insertBreakdowns } from "./build-breakdown.mjs";
 import { withSource } from "./github-rate.mjs";
 
 const META = "buildReceipts";
@@ -110,6 +117,11 @@ export function pruneReceipts(store, cut) {
       .prepare(
         "DELETE FROM build_observations WHERE NOT EXISTS (SELECT 1 FROM receipt_artifacts a WHERE a.repository=build_observations.repository AND a.head_sha=build_observations.head_sha)",
       )
+      .run().changes +
+    store.db
+      .prepare(
+        "DELETE FROM build_breakdowns WHERE NOT EXISTS (SELECT 1 FROM receipt_artifacts a WHERE a.repository=build_breakdowns.repository AND a.head_sha=build_breakdowns.head_sha)",
+      )
       .run().changes
   );
 }
@@ -122,7 +134,7 @@ export async function readReceipts(
   store,
   github,
   repository,
-  { now = Date.now() } = {},
+  { now = Date.now(), report = null } = {},
 ) {
   if (typeof github?.listArtifacts !== "function") return { calls: 0 };
   const repo = lower(repository),
@@ -165,7 +177,9 @@ export async function readReceipts(
       conclusion = new Map(headRuns.map((run) => [run.runId, run.conclusion])),
       mine = listed.filter(
         (a) =>
-          isReceipt(a.name) && !a.expired && a.workflow_run?.head_sha === head,
+          (isReceipt(a.name) || isReportArtifact(a.name, report)) &&
+          !a.expired &&
+          a.workflow_run?.head_sha === head,
       );
     let ok = true;
     for (const artifact of mine) {
@@ -183,7 +197,13 @@ export async function readReceipts(
         continue;
       }
       const run = artifact.workflow_run?.id ?? 0,
-        { records, skipped } = parseReceipts(text ?? ""),
+        isReport = !isReceipt(artifact.name),
+        { records, skipped } = isReport
+          ? { records: [], skipped: 0 }
+          : parseReceipts(text ?? ""),
+        found = isReport
+          ? reportsFromArtifact(text ?? "")
+          : reportsFromReceipts(text ?? "", report),
         seen = new Map();
       store.transaction(() => {
         records.forEach((record) => {
@@ -206,6 +226,15 @@ export async function readReceipts(
             seq,
           );
         });
+        insertBreakdowns(store, {
+          repository: repo,
+          pr: pull.number,
+          head,
+          run,
+          artifact: artifact.id,
+          at,
+          breakdowns: found.breakdowns,
+        });
         store.db
           .prepare(
             "INSERT OR REPLACE INTO receipt_artifacts(repository,artifact_id,head_sha,run_id,name,kind,read_at,lines,skipped) VALUES (?,?,?,?,?,?,?,?,?)",
@@ -216,10 +245,10 @@ export async function readReceipts(
             head,
             run,
             artifact.name,
-            "receipt",
+            isReport ? "report" : "receipt",
             at,
-            records.length,
-            skipped,
+            isReport ? found.breakdowns.length : records.length,
+            isReport ? found.skipped : skipped,
           );
       });
       known.add(artifact.id);
@@ -240,9 +269,9 @@ export async function readReceipts(
     if (!ok || !complete) continue;
     const have = store.db
       .prepare(
-        "SELECT 1 FROM build_observations WHERE repository=? AND head_sha=? LIMIT 1",
+        "SELECT 1 FROM build_observations WHERE repository=? AND head_sha=? UNION ALL SELECT 1 FROM build_breakdowns WHERE repository=? AND head_sha=? LIMIT 1",
       )
-      .get(repo, head);
+      .get(repo, head, repo, head);
     store.db
       .prepare(
         "INSERT OR REPLACE INTO receipt_artifacts(repository,artifact_id,head_sha,run_id,name,kind,read_at,lines,skipped) VALUES (?,?,?,?,?,?,?,?,?)",
@@ -283,17 +312,20 @@ export function observationsFor(store, repository, head, number) {
   }));
 }
 
-// `readerFor(repository)` returns `async (pull) => receipt | null`: the last
+// `readerFor(repository)` returns `async (pull) => observations | null`: every
 // stored observation of the pull request's head commit, or null. It makes no
 // call; the tick's CI step does the reading.
 export function receiptReader(store) {
   return (repository) => async (pull) => {
     migrateReceiptMeta(store);
     if (!pull?.merged_at) return null;
-    return (
-      observationsFor(store, repository, pull.head?.sha, pull.number).at(-1) ??
-      null
+    const rows = observationsFor(
+      store,
+      repository,
+      pull.head?.sha,
+      pull.number,
     );
+    return rows.length ? rows : null;
   };
 }
 
@@ -306,10 +338,33 @@ const median = (values) => {
     : (sorted[middle - 1] + sorted[middle]) / 2;
 };
 
-// Flow rows ({pr, repository, instance, receipt}) as the receipts block:
-// every receipt, the median per target and start, and per instance with the sum.
-export function receiptsView(rows, { instanceName = () => null } = {}) {
-  const found = rows.filter((row) => row.receipt),
+// A pull request's observations: failed ones apart, the rest summed per phase
+// over targets, and the phase that took the most (R101.4).
+export function buildOf(observations) {
+  const phases = new Map();
+  let totalMs = 0,
+    failedMs = 0;
+  for (const o of observations) {
+    totalMs += o.ms;
+    if (o.failed) failedMs += o.ms;
+    else phases.set(o.phase, (phases.get(o.phase) ?? 0) + o.ms);
+  }
+  const list = [...phases].map(([phase, ms]) => ({ phase, ms }));
+  list.sort((a, b) => b.ms - a.ms);
+  return { totalMs, failedMs, phases: list, costliest: list[0] ?? null };
+}
+
+// Flow rows ({pullNumber, repository, instance, builds}) as the builds block:
+// per pull request totals and costliest phase, the median per phase, target
+// and start over successful observations only, and per instance with the sum.
+export function buildView(rows, { instanceName = () => null } = {}) {
+  const found = rows
+      .map((row) => ({
+        ...row,
+        builds: row.builds ?? (row.receipt ? [row.receipt] : []),
+      }))
+      .filter((row) => row.builds.length)
+      .map((row) => ({ ...row, build: buildOf(row.builds) })),
     group = (key) => {
       const groups = new Map();
       for (const row of found) {
@@ -317,27 +372,40 @@ export function receiptsView(rows, { instanceName = () => null } = {}) {
         groups.set(id, [...(groups.get(id) ?? []), row]);
       }
       return groups;
-    };
+    },
+    cells = new Map();
+  for (const row of found)
+    for (const o of row.builds) {
+      if (o.failed) continue;
+      const id = `${o.phase}\n${o.target}\n${o.start}`;
+      cells.set(id, [...(cells.get(id) ?? []), o.ms]);
+    }
+  const sum = (key) => found.reduce((n, row) => n + row.build[key], 0);
   return {
     count: found.length,
-    medianMs: median(found.map((row) => row.receipt.ms)),
-    byTarget: [
-      ...group((row) => `${row.receipt.target}\n${row.receipt.start}`),
-    ].map(([id, list]) => {
-      const [target, start] = id.split("\n");
+    totalMs: sum("totalMs"),
+    failedMs: sum("failedMs"),
+    medianMs: median(
+      found.map((row) => row.build.totalMs - row.build.failedMs),
+    ),
+    byPhase: [...cells].map(([id, list]) => {
+      const [phase, target, start] = id.split("\n");
       return {
+        phase,
         target,
         start,
         count: list.length,
-        medianMs: median(list.map((row) => row.receipt.ms)),
+        medianMs: median(list),
       };
     }),
     byInstance: [...group((row) => row.instance ?? "")].map(([id, list]) => ({
       instance: id || null,
-      name: instanceName(id) ?? null,
+      name: id ? (instanceName(id) ?? plainInstanceName(id)) : null,
       count: list.length,
-      medianMs: median(list.map((row) => row.receipt.ms)),
-      totalMs: list.reduce((sum, row) => sum + row.receipt.ms, 0),
+      medianMs: median(
+        list.map((row) => row.build.totalMs - row.build.failedMs),
+      ),
+      totalMs: list.reduce((n, row) => n + row.build.totalMs, 0),
     })),
     recent: found
       .slice(-10)
@@ -346,25 +414,60 @@ export function receiptsView(rows, { instanceName = () => null } = {}) {
         repository: row.repository ?? null,
         pr: row.pullNumber,
         number: row.number,
-        ms: row.receipt.ms,
-        start: row.receipt.start,
-        target: row.receipt.target,
+        ...row.build,
       })),
   };
 }
 
-// The one line Trace shows on the merged step.
-export function receiptLine(receipt) {
-  if (!receipt) return null;
-  const seconds = receipt.ms / 1000,
-    time =
-      seconds < 90
-        ? `${seconds < 10 ? seconds.toFixed(1) : Math.round(seconds)} s`
-        : `${Math.round(seconds / 60)} min`,
+const timeOf = (ms) => {
+  const seconds = ms / 1000;
+  return seconds < 90
+    ? `${seconds < 10 ? seconds.toFixed(1) : Math.round(seconds)} s`
+    : `${Math.round(seconds / 60)} min`;
+};
+
+// The one line Trace shows on the merged step: the last observation, or the
+// totals and costliest phase when there are several.
+export function receiptLine(receipts) {
+  const list = !receipts ? [] : Array.isArray(receipts) ? receipts : [receipts];
+  if (!list.length) return null;
+  if (list.length > 1) {
+    const { totalMs, costliest } = buildOf(list);
+    return [
+      `${list.length} builds, ${timeOf(totalMs)} in all`,
+      costliest && `costliest ${costliest.phase} ${timeOf(costliest.ms)}`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+  const receipt = list[0],
     counters = Object.entries(receipt.counters ?? {})
       .slice(0, 3)
       .map(([key, value]) => `${key} ${value}`);
-  return [`Build ${time}, ${receipt.start}`, receipt.target, ...counters]
+  return [
+    `Build ${timeOf(receipt.ms)}, ${receipt.start}`,
+    receipt.target,
+    ...counters,
+  ]
     .filter(Boolean)
     .join(" · ");
+}
+
+// Every observation, grouped by phase, for Trace's merged step; failed ones
+// are marked.
+export function phaseGroups(observations) {
+  const groups = new Map();
+  for (const o of observations)
+    groups.set(o.phase, [
+      ...(groups.get(o.phase) ?? []),
+      {
+        target: o.target,
+        start: o.start,
+        attempt: o.attempt,
+        task: o.task,
+        ms: o.ms,
+        failed: o.failed === true,
+      },
+    ]);
+  return [...groups].map(([phase, items]) => ({ phase, items }));
 }

@@ -7,6 +7,7 @@ import { saveSpecPlan, specHash } from "./spec-plans.mjs";
 import {
   createSpecReviewRound,
   listSpecReviewRounds,
+  settleSpecReviewRounds,
 } from "./plan-reviews.mjs";
 import {
   planReviewWriter,
@@ -314,10 +315,51 @@ function refreshSettled(store, plan, readSpec) {
       { id: plan.id, expectedHash: plan.hash },
       folder,
     );
-    recordPlanReviewWriter(store, saved, { previousHash: plan.hash });
+    recordPlanReviewWriter(store, saved, {
+      previousHash: plan.hash,
+      slot: folderWriter(store, plan),
+    });
     return { plan: saved, folder };
   }
   return { plan, folder };
+}
+
+// The one Avoozl chat that may write this draft's folder and ran since its
+// last revision: a write-class planner answer, or the New spec planner
+// (task newPlanTask(name)). With none or several, the writer stays unknown.
+// shortcut: a person who edits the folder while such a chat runs is credited
+// to the chat; record folder edits per session if that matters.
+function folderWriter(store, plan) {
+  const since = plan.updatedAt || "",
+    slots = [
+      ...store
+        .list("receipts")
+        .filter(
+          (receipt) =>
+            receipt.kind === "plan-answer" &&
+            receipt.planId === plan.id &&
+            receipt.state === "running" &&
+            receipt.permissionClass === "write" &&
+            receipt.slot,
+        )
+        .map((receipt) => receipt.slot),
+      ...store
+        .list("session_bindings")
+        .filter(
+          (binding) =>
+            binding.role === "planner" &&
+            binding.taskId === "new-plan:" + plan.spec,
+        )
+        .map((binding) => binding.slot),
+    ].filter((slot) => {
+      const binding = store.get("session_bindings", slot);
+      return (
+        binding &&
+        (["working", "queued"].includes(binding.status) ||
+          (binding.statusAt || "") > since)
+      );
+    });
+  return new Set(slots).size === 1 ? slots[0] : undefined;
 }
 
 export async function planReviewStep(
@@ -336,6 +378,7 @@ export async function planReviewStep(
   const out = { requests: [], messages: [], notify: [] },
     settings = validatePlanReview(config.planReview);
   if (!open) return out;
+  settleSpecReviewRounds(store);
   await cleanFinished(store, remove, out.notify);
   if (settings.mode === "off") {
     stopUnclaimedReviews(store);

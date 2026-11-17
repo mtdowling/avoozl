@@ -11,6 +11,11 @@ import {
   REPO,
   proofWorkspace,
 } from "./radar-proof-approval-fixture.mjs";
+import { setRadarHandoverPaused } from "../coder-adapter.mjs";
+
+// These tests cover the Radar hand-over kept while Phase 45 is paused
+// (R103.4 pauses it in the product).
+setRadarHandoverPaused(false);
 
 const names = (issue) => (issue.labels || []).map((l) => l.name);
 // What a crew with label scope `ready` would take now.

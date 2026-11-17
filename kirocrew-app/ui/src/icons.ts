@@ -80,7 +80,7 @@ import { Info } from 'lucide-react'
 // something on the page.
 export const DetailsIcon = Info
 
-import { CircleAlert, CircleCheck, CircleDot, FileText, Gauge, GitBranch, GitPullRequest, HardDrive, History, Inbox, LayoutDashboard, LayoutGrid, Network, Settings } from 'lucide-react'
+import { CircleAlert, CircleCheck, FileText, Gauge, GitBranch, HardDrive, History, Inbox, LayoutDashboard, LayoutGrid, Network, Settings } from 'lucide-react'
 // One icon per top-level view, shared by its nav tab and its page heading.
 // Network and LayoutGrid match the Graph and Delivery row buttons.
 export const VIEW_ICONS = {
@@ -92,8 +92,6 @@ export const VIEW_ICONS = {
   // in the host's lucide-react export list (kirocrew-app-sdk.d.ts).
   lanes: LayoutGrid,
   ci: CircleCheck,
-  issues: CircleDot,
-  pulls: GitPullRequest,
   // Gauge is in the host's lucide-react export list (checked 2026-11-13).
   flow: Gauge,
   // HardDrive is already in the list above: crews are machines.

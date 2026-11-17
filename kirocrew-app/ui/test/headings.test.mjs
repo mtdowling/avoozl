@@ -41,7 +41,7 @@ test('headings with buttons pass them as the heading actions', () => {
   assert.match(source('NewPlanDrawer.tsx'), /<SectionHeading\s+level=\{2\}\s+id="avoozl-new-plan-title"[\s\S]*?actions=\{/)
   // The reader's file name is the shared Modal's title; its copy and reveal buttons are the modal's footer.
   assert.match(source('DocumentReader.tsx'), /<Modal\s+id="avoozl-reader"[\s\S]*?title=\{<code>\{target\.document\}<\/code>\}[\s\S]*?footer=\{/)
-  assert.match(source('SettingsView.tsx'), /<SectionHeading level=\{props\.level === 'sub' \? 4 : 3\} title=\{props\.title\} blurb=\{props\.blurb\} actions=\{props\.actions\} \/>/)
+  assert.match(source('SettingsView.tsx'), /<SectionHeading level=\{props\.level === 'sub' \? 4 : 3\} title=\{props\.title\} blurb=\{props\.blurb\} actions=\{props\.actions\} icon=\{props\.icon\} \/>/)
   // No hand-made heading row is left beside its buttons.
   for (const name of views) assert.doesNotMatch(source(name), /items-center gap-3">\s*<(ViewHeading|CardTitle)/, name)
 })
@@ -93,7 +93,7 @@ test('Settings > Flow puts each sub-section in its own titled box', () => {
   const flow = source('FlowSettings.tsx')
   assert.match(flow, /function Box\(\{ children \}[\s\S]*?<Card className="flex flex-col gap-4" data-flow-box>/)
   const titles = [...flow.matchAll(/<Box>\s*<Section title="([^"]+)" blurb="[^"]+"/g)].map((m) => m[1])
-  assert.deepEqual(titles, ['Timing', 'Stop the line', 'Local checks first', 'Batching', 'CI', 'Retro'])
+  assert.deepEqual(titles, ['Timing', 'Pause on a broken check', 'Local checks first', 'Batching', 'CI', 'Retro'])
   assert.equal(flow.match(/<Box>/g).length, titles.length)
   // Retro: when it runs, then the built-in prompt and your instructions.
   // Its model is under Settings › Models.

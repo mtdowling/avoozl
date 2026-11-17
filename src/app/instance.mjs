@@ -72,6 +72,14 @@ export function instanceIdentity(store, { random = Math.random } = {}) {
   return identity;
 }
 
+// A plain name for an instance whose own name is not known here: the same ID
+// always gives the same word from the list, so the page never shows an ID.
+export const plainInstanceName = (id) =>
+  INSTANCE_NAMES[
+    Number.parseInt(String(id).replace(/\D*/, "").slice(0, 8) || "0", 16) %
+      INSTANCE_NAMES.length
+  ];
+
 // The ID if one exists, without making one (a planning-only read must not write).
 export const peekInstance = (store) => store.getMeta(KEY) ?? null;
 export const peekInstanceId = (store) => peekInstance(store)?.id ?? null;

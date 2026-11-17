@@ -1009,6 +1009,17 @@ try {
         2,
       ),
     );
+  else if (command === "verify" && positionals[0] === "allow")
+    console.log(
+      JSON.stringify(
+        await localOrRequest("verify.allow", {
+          taskId: positionals[1],
+          reason: options.reason,
+        }),
+        null,
+        2,
+      ),
+    );
   else if (command === "retry")
     console.log(
       JSON.stringify(
@@ -1145,9 +1156,19 @@ try {
         confirm: options.confirm ?? provided.confirm,
         previewHash: options["preview-hash"] ?? provided.previewHash,
       };
+    } else if (action === "retire-issues") {
+      // Retire task-issue bindings in order (R102.20): preview, hold,
+      // apply, verify, close. Each step is a person's own act.
+      const step = positionals[1] || "preview";
+      if (!["preview", "hold", "apply", "verify", "close"].includes(step))
+        throw Error(
+          "Choose github retire-issues preview, hold, apply, verify, or close [--reason completed|not_planned].",
+        );
+      operation = "github.retireTaskIssues";
+      value = { step, ...(options.reason ? { reason: options.reason } : {}) };
     } else
       throw Error(
-        "Choose github status, configure, sync, project, preview, setup, or start.",
+        "Choose github status, configure, sync, project, preview, setup, start, or retire-issues.",
       );
     console.log(
       JSON.stringify(await localOrRequest(operation, value), null, 2),
@@ -1846,6 +1867,7 @@ try {
   claim TASK_ID --slot SESSION [--model MODEL] Claim a ready leaf for a Crew Mode worker session
   report TASK_ID --slot SESSION --kind done|blocked|question|progress [--commit SHA] [--text TEXT]
   retry TASK_ID [--dismiss FINDING --reason TEXT] Resume a leaf that stopped for a decision
+  verify allow TASK_ID --reason TEXT  Let one held commit's protected paths land
   pick-again TASK_ID                    The next attempt picks its agent and model afresh
   routing [view|preview]                Crews and checks, the routing prompt, providers; a dry run on ready tasks
   routing set --file ROUTING.json       This machine's routing: {enabled, prompt, model}

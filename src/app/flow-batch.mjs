@@ -7,6 +7,7 @@
 // once on the batch head; the batch integrates as one rebase. A failing
 // batch splits, and each task retries alone at no attempt cost.
 import { readFlowPolicy } from "./flow.mjs";
+import { EDIT_ONLY_STEP } from "./delivery.mjs";
 import { taskAuthority, taskRepository, taskRoute } from "../work-model.mjs";
 import { listSessionBindings, FINAL_STATUSES } from "./session-bindings.mjs";
 
@@ -188,7 +189,8 @@ export function batchBrief(store, data, leaf, brief) {
       ]),
       "",
       `Work only in the worktree of ${leaf.task.id} (call plans_prepare_worktree with {"input": {"taskId": "${leaf.task.id}"}}), on its branch.`,
-      'Do the tasks in this order. Make exactly one commit per task, and after each commit call plans_report for that task with kind "done" and that commit\'s full SHA. If one task cannot be done, report it blocked with the reason and stop.',
+      'Do the tasks in this order. Make exactly one commit per task, and after each commit call plans_report for that task with kind "done"; Avoozl reads the commit from HEAD. If one task cannot be done, report it blocked with the reason and stop.',
+      EDIT_ONLY_STEP,
       "Avoozl runs the checks and review once, on the last commit.",
     ].filter((line) => line !== null);
   void brief;
