@@ -446,7 +446,6 @@ import { importNewPlans, newPlanStarts, requestNewPlan } from "./new-plan.mjs";
 import { writeSpecManifest } from "./spec-manifest.mjs";
 import { decideInvestigation } from "./investigate.mjs";
 import { taskEvidence } from "./evidence.mjs";
-import { driverSessionView, registerDriverSession } from "./driver-session.mjs";
 import { instanceView, renameInstance } from "./instance.mjs";
 import { panelView, pullChecks } from "./panel-view.mjs";
 import {
@@ -1018,13 +1017,6 @@ export class Operations {
       // §4.18). Unset (most tests) leaves retros as before Phase 28; the
       // app, MCP server and CLI pass it.
       configDirectory = null,
-      // The machine's driver session record (driver-session.mjs). The CLI,
-      // app backend and app MCP server pass driverSessionFile(); without one
-      // nothing is recorded and the view is "none", so tests never write
-      // this machine's file.
-      driverSessionFile: driverFile = null,
-      // The name the driver line shows for this workspace.
-      workspaceName = null,
       // Tests replace the shipped prompts to model an Avoozl update.
       shippedPrompts = null,
       // (issue) => the issue.verify result; tests pass a fake.
@@ -1041,8 +1033,6 @@ export class Operations {
     this.refreshing = new Map();
     this.crewStrip = null;
     this.armedRead = null;
-    this.driverSessionFile = driverFile;
-    this.workspaceName = workspaceName;
     // The plugin loader (plugins.mjs). It opens one plugin session per
     // tick, and runs nothing unless a plugin is declared and approved.
     this.plugins = plugins;
@@ -2866,15 +2856,6 @@ export class Operations {
   // only to open it, read it, or close it.
   // `context.caller` is the gateway-attested Kiro Crew session calling through
   // the app's stdio MCP server, and nothing else sets it (see mcp.mjs).
-  // This workspace's place in the machine's driver records.
-  driverWorkspace() {
-    return {
-      root: this.workspaceRoot,
-      name: this.workspaceName,
-      file: this.driverSessionFile,
-    };
-  }
-
   async execute(name, input = {}, expectedRevision, context = {}) {
     const result = await withSource(sourceOfOperation(name), () =>
       this.perform(name, input, expectedRevision, context),
@@ -3213,33 +3194,11 @@ export class Operations {
       renameInstance(store, input.name);
       return instanceView(store);
     }
-    if (name === "driversession.view")
-      return driverSessionView(this.driverWorkspace());
-    if (name === "driversession.register") {
-      if (!this.driverSessionFile || !this.workspaceRoot)
-        fail("This Avoozl process has no driver session record.");
-      registerDriverSession({
-        slot: input.slot,
-        source: input.source,
-        ...this.driverWorkspace(),
-      });
-      return driverSessionView(this.driverWorkspace());
-    }
-    if (name === "runner.next") {
-      // A conductor's attested call is the driver session's heartbeat. Only a
-      // gateway-attested caller counts; the model cannot name its own slot.
-      const slot = callerSlot(context.caller);
-      if (slot && this.driverSessionFile && this.workspaceRoot)
-        registerDriverSession({
-          slot,
-          source: "next",
-          ...this.driverWorkspace(),
-        });
+    if (name === "runner.next")
       return nextView(store, {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
       });
-    }
     if (name === "runner.claim")
       return stampPrompts(
         store,
@@ -3701,7 +3660,6 @@ export class Operations {
           tasks: flowView(store, data, { window: "10" }).tasks,
           line: lineBanner(store, data),
         }),
-        driver: () => sub("driversession.view"),
         specs: async () => (await sub("plan.specs")).items,
         instance: () => instanceView(store),
         checks: async () => pullChecks(this.github, await crews),

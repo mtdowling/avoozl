@@ -25,7 +25,7 @@ export const useDemoGuard = () => useContext(DemoGuardContext)
 // count and Home's own list, the driver cell and Home's setup cards). Two
 // identical calls in flight at the same time share one request. Only these
 // read-only operations; a write is never shared.
-const SHARED_READS = new Set(['conflicts.view', 'delivery.view', 'driversession.view', 'flow.view', 'github.settings.get', 'instance.view', 'repositories.list'])
+const SHARED_READS = new Set(['conflicts.view', 'delivery.view', 'flow.view', 'github.settings.get', 'instance.view', 'repositories.list'])
 type HostApi = ReturnType<typeof useHostApi>
 const shared = new WeakMap<object, HostApi>()
 export function shareReads(api: HostApi): HostApi {
