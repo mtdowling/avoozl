@@ -132,3 +132,25 @@ test('batch Review anyway stays pinned to its opening workspace with identical I
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-approve-specs]'))`),false)
   assert.deepEqual(await page.evaluate('window.__reviewCalls'),[])
 })
+
+test('a running review shows the purple working box, announced politely and still under reduced motion', { skip }, async () => {
+  for (const [width, dark] of [[1280, false], [390, true]]) {
+    await open('single', 'running', width, dark)
+    const box = await page.evaluate(`(() => {
+      const el = document.querySelector('[data-review-working]')
+      const before = getComputedStyle(el, '::before')
+      return { role: el.getAttribute('role'), live: el.getAttribute('aria-live'), label: el.getAttribute('aria-label'), text: el.textContent, border: getComputedStyle(el).borderTopColor, radius: getComputedStyle(el).borderTopLeftRadius, sweep: before.animationName, shown: before.display }
+    })()`)
+    assert.deepEqual([box.role, box.live, box.label], ['status', 'polite', 'Reviewing with fake-reviewer…'])
+    assert.match(box.text, /Review running/)
+    assert.notEqual(box.border, 'rgba(0, 0, 0, 0)', 'the box has a tinted border')
+    assert.notEqual(box.radius, '0px', 'the box is rounded')
+    assert.equal(box.sweep, 'none', 'reduced motion stops the sweep')
+    assert.equal(box.shown, 'none')
+    assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
+    assert.equal(await page.evaluate(`document.querySelector('[data-approve-spec-go]').disabled`), false)
+    assert.deepEqual(page.errors, [])
+  }
+  const source = await import('node:fs').then((fs) => fs.readFileSync(new URL('../src/PlanReviewSummary.tsx', import.meta.url), 'utf8'))
+  assert.match(source, /animation: avoozl-review-sweep 2s ease-in-out infinite/, 'motion matches Kiro Crew when motion is allowed')
+})
