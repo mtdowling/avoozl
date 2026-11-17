@@ -53,6 +53,7 @@ import WorkflowMap, { focusField } from '../../src/WorkflowMap.tsx'
 import { toForm } from '../../src/settings-api.ts'
 import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
+import { reviewFixture } from './review-fixture.ts'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
 import AvoozlPanel from '../../src/Panel.tsx'
@@ -931,6 +932,29 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
     { batch: 3, specs: [entry('allocator', 3, 7, '4fb54994', { needs: ['byte-types'] })] },
   ]
   answer('plan.table', () => ({ root: '/repo', problem: null, specs: [], revision: 7, items }))
+  // &review=1: byte-types is stored and reviewed, so its page has Open
+  // review (ReviewView.tsx) on fake findings (review-fixture.ts).
+  if (query.get('review') === '1') {
+    const fixture = reviewFixture()
+    const hash = fixture.data.revisionHash
+    const files = fixture.data.files
+    const summary = { name: 'byte-types', folder: '.kiro/specs/byte-types/', type: 'feature', hash, files: Object.keys(files), counts: { error: 0, warning: 0, info: 0 }, taskCount: 2, critique: null, plan: { id: 'byte-types', state: 'draft', hash, revision: 3, changed: false, approved: false } }
+    answer('plan.table', () => ({ root: '/repo', problem: null, specs: [summary], revision: 7, items }))
+    answer('plan.get', () => ({
+      id: 'byte-types', spec: 'byte-types', title: 'Byte types', hash, revision: 3, state: 'draft', files, approvals: [],
+      quality: { canApprove: true, counts: { error: 0, warning: 0, info: 0 }, diagnostics: [] },
+      disk: { folder: '.kiro/specs/byte-types/', exists: true, hash, changed: false, critique: null },
+      review: { state: 'done', reviewerModel: 'fake-reviewer', revisionHash: hash, current: true, found: fixture.data.findings.length, fixed: 1, forYou: 2, note: null, open: [] },
+    }))
+    answer('plan.preview', () => ({ reviewedHash: hash, expectedRevision: 3, tasks: [], dependencies: [] }))
+    answer('plan.spec.read', () => ({ name: 'byte-types', folder: '.kiro/specs/byte-types/', hash, documents: files }))
+    answer('plan.review.view', () => structuredClone(fixture.data))
+    answer('plan.review.finding.decide', (body) => {
+      state.calls.push(body as never)
+      fixture.decide(body.input as Parameters<typeof fixture.decide>[0])
+      return {}
+    })
+  }
   const writes: Record<string, number> = { 'byte-types': 14, compression: 21, 'nupp-native-runtime-winddown-2026-11-11': 268 }
   answer('plan.approvalBatches', (body) => {
     const ids = (body.input as { ids?: string[] } | undefined)?.ids

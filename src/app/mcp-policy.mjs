@@ -292,6 +292,8 @@ export const NOT_ON_MCP = new Map([
   ["onboarding.inspect", page],
   ["onboarding.scan", page],
   ["plan.issues.preview", page],
+  // The spec page's Review view; plans_plan_review reads the same findings.
+  ["plan.review.view", page],
   ["spec.changed.preview", page],
   ...[
     "run.model",
