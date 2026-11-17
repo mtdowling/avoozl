@@ -255,7 +255,7 @@ test('focus returns to the opener, and a restore waits for the view to grow', ()
 test('the views use the shared history: inner tabs, the plan, the Graph, the drawer', () => {
   assert.match(source('App.tsx'), /changePage\(\s*nav,\s*here,/)
   // Deep links go through changePage, never a memory write before the switch.
-  assert.match(source('App.tsx'), /go\(\{ tab: 'trace', focus: null, drill: null \}, \{ \[TRACE_TARGET\]: target \}\)/)
+  assert.match(source('App.tsx'), /go\(\{ tab: 'delivery', focus: null, drill: null \}\)\n\s+setTraceLink\(link\)/)
   assert.doesNotMatch(source('App.tsx'), /nav\.memory\.set\(/)
   assert.match(source('App.tsx'), /onTab=\{\(next\) => go\(\{ settingsTab: next \}\)\}/)
   assert.match(source('SettingsView.tsx'), /useSteppedState<RepositoryTab>\(\s*`settings-repo-tab-\$\{props\.index\}`,\s*'inner',/)

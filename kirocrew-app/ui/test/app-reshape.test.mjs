@@ -28,10 +28,10 @@ const open = (query = {}) => page.open(harness.url({ page: 'app', ...query }), {
 const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
 const text = `document.body.innerText`
 
-test('the nav row has Dashboards, Specs, Needs you, Trace, Flow, Activity and Settings, and no removed page', { skip }, async () => {
+test('the nav row has Dashboards, Specs, Needs you, Flow, Activity and Settings, and no Trace', { skip }, async () => {
   await open({ radar: '1' })
-  await page.until(`${tabs}.length === 7`)
-  assert.deepEqual(await page.evaluate(tabs), ['Dashboards', 'Specs', 'Needs you', 'Trace', 'Flow', 'Activity', 'Settings'])
+  await page.until(`${tabs}.length === 6`)
+  assert.deepEqual(await page.evaluate(tabs), ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Activity', 'Settings'])
   assert.deepEqual(page.errors, [])
 })
 
@@ -102,10 +102,3 @@ test('Needs you holds decisions and intake as two nav pages, one shown at a time
   assert.deepEqual(page.errors, [])
 })
 
-test('Trace in the nav explains itself and takes an issue', { skip }, async () => {
-  await open({ radar: '1' })
-  await page.until(`Boolean(${tab('Trace')})`)
-  await click(tab('Trace'))
-  await page.until(`Boolean(document.querySelector('[data-trace-start]'))`)
-  assert.equal(await page.evaluate(`document.querySelector('[data-trace-start] button[type="submit"]').disabled`), true)
-})
