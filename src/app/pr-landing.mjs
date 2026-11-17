@@ -271,13 +271,18 @@ export async function landPullRequests(
         ),
         plan = store.get("plans", head.spec),
         registry = await registryOf(project),
+        // GitHub rights are the signed-in login's; a local journal's login
+        // is this workspace's operator, which GitHub does not know.
+        githubLogin = authority.journal.local
+          ? String((await github.currentUser())?.login ?? "")
+          : authority.login,
         steps = pullSteps({
           github,
           registry,
           root: project.root,
           target: project.repository,
           base,
-          login: authority.login,
+          login: githubLogin,
           method: "merge",
           env,
           machine,
