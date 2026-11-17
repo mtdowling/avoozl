@@ -6653,7 +6653,7 @@
       "summary": "Phase 42. Take over writes the spec journal's generation. See R102.13, R102.14; §4.32.",
       "acceptance": [
         "Take over writes the spec journal's generation",
-        "A person's Take over on a published spec (local or GitHub journal) appends the next generation with `takeOver` (driver-generations.mjs) and keeps the driver id with `rememberDriver`. Person-only; a held or concurrent journal refuses. Landing reads this driver; no take over means nothing lands."
+        "`avoozl spec publish SPEC` and `avoozl spec takeover SPEC` (operation `spec.takeover`, person-only). Take over on a published spec (local or GitHub journal) appends the next generation with `takeOver` (driver-generations.mjs) and keeps the driver id with `rememberDriver`. Person-only; a held or concurrent journal refuses. Landing reads this driver; no take over means nothing lands."
       ],
       "completion": "integrated",
       "checks": [
