@@ -674,6 +674,7 @@ export function startAppBackend({
             const { errors } = await drainProcessRequests(store, {
               stateDirectory: machineAvoozlPaths().stateDirectory,
               prepareWorktree,
+              ops,
             });
             if (errors.length) console.error(errors[0].error);
           }
