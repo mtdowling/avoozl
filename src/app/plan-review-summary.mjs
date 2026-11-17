@@ -88,6 +88,28 @@ export function planReviewSummary(store, planId) {
     if (OPEN_STATES.has(name)) openBySeverity[severity]++;
     byState[name] = (byState[name] ?? 0) + 1;
   }
+  // At the rounds cap the step opens no round for a newer revision, so the
+  // pass's done round is behind the plan with nothing at plan.hash and no
+  // planner turn left (R104.14). shortcut: the summary has no config, so for
+  // up to one tick under the cap this also shows; pressing it then only asks
+  // for the round the tick is about to start.
+  const capped =
+    latest.state === "done" &&
+    latest.revisionHash !== plan.hash &&
+    Boolean(latest.reviewerModel) &&
+    !rounds.some((round) => round.revisionHash === plan.hash) &&
+    !store
+      .list("receipts")
+      .some(
+        (receipt) =>
+          receipt.planId === planId &&
+          ((receipt.kind === "plan-answer" && receipt.state !== "done") ||
+            (receipt.kind === "plan-review-choice" &&
+              receipt.revisionHash === plan.hash &&
+              receipt.state === "review")),
+      ) &&
+    plan.state === "draft" &&
+    !plan.archivedAt;
   return {
     state: latest.state,
     // The stored revision now. An open Approve dialog compares it with the
@@ -124,19 +146,21 @@ export function planReviewSummary(store, planId) {
       })),
     note: latest.note || null,
     unproven: Boolean(latest.unproven),
+    capped,
     canReviewAnyway:
-      latest.state === "skipped" &&
-      !latest.unproven &&
-      !latest.slot &&
-      !rounds.some(
-        (round) =>
-          round.revisionHash === plan.hash &&
-          (round.slot || ["running", "done"].includes(round.state)),
-      ) &&
-      !latest.writerModel &&
-      Boolean(latest.reviewerModel) &&
-      plan.state === "draft" &&
-      !plan.archivedAt &&
-      latest.revisionHash === plan.hash,
+      capped ||
+      (latest.state === "skipped" &&
+        !latest.unproven &&
+        !latest.slot &&
+        !rounds.some(
+          (round) =>
+            round.revisionHash === plan.hash &&
+            (round.slot || ["running", "done"].includes(round.state)),
+        ) &&
+        !latest.writerModel &&
+        Boolean(latest.reviewerModel) &&
+        plan.state === "draft" &&
+        !plan.archivedAt &&
+        latest.revisionHash === plan.hash),
   };
 }
