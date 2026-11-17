@@ -7,6 +7,8 @@ import path from "node:path";
 import test from "node:test";
 import { leaf, setup } from "./radar-coder-release-fixture.mjs";
 import { preflight, requirePreflight } from "../radar-preflight.mjs";
+import { fixture } from "./fixtures.mjs";
+import { signedOff } from "./public-signoff-fixture.mjs";
 
 const REPO = "example/code";
 const APPROVED = "# S\n\nStatus: Approved\n";
@@ -22,12 +24,10 @@ const plan = (extra = {}) => ({
   ...extra,
 });
 const ready = { ready: true, items: [] };
-const store = ({ merged = true, signoff = false, isPrivate = true } = {}) => ({
+const store = ({ merged = true, isPrivate = true } = {}) => ({
   getMeta: (key) =>
     key === "publicSignoff"
-      ? signoff
-        ? { [REPO]: { complete: true } }
-        : undefined
+      ? undefined
       : merged
         ? {
             state: "merged",
@@ -101,7 +101,17 @@ test("manual ship mode does not need a ready merge path, and a sign-off clears a
     run({ input: { mergePath: notReady, delivery: { ship: "manual" } } }).ok,
     true,
   );
-  assert.equal(run({ store: { isPrivate: false, signoff: true } }).ok, true);
+});
+
+test("a current public sign-off clears a public repository", (t) => {
+  const { store: real } = fixture(t);
+  real.put("github_repositories", { id: REPO, private: false });
+  assert.equal(
+    run({ input: { store: real, decisionRecord: false } }).ok,
+    false,
+  );
+  signedOff(real, REPO);
+  assert.equal(run({ input: { store: real, decisionRecord: false } }).ok, true);
 });
 
 test("the decision record is not needed when the repository turns it off", () => {
