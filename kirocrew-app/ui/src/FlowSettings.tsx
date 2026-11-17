@@ -11,6 +11,7 @@ import { Marker, Section } from './SettingsView.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Pause } from './icons.ts'
+import { LAYER } from './layers.ts'
 import PromptInstructions from './PromptInstructions.tsx'
 import { FLOW_DEFAULTS, flowClient, toFlowForm, toFlowSection, type FlowForm, type FlowSettings as Settings } from './flow-api.ts'
 
@@ -18,6 +19,8 @@ const OPTIONAL = { required: false } as const
 // A label and its "(optional)" marker, spaced inline so no stylesheet can
 // run them together.
 const LABEL_ROW = { display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 } as const
+// The Modal footer's surface (Modal.tsx), for the sticky Save row.
+const FOOTER_BG = 'var(--bg-accent, var(--bg-elevated))'
 
 function Raw({ name }: { name: string }) {
   return (
@@ -164,6 +167,7 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
             </Labeled>
             <Labeled id="avoozl-flow-by" label="Group by" raw="flow.batch.by" note="Same phase is the default.">
               <SegmentedControl
+                collapse={false}
                 layoutId="avoozl-flow-by"
                 ariaLabel="Group by"
                 segments={[
@@ -235,10 +239,26 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
         </Section>
       </Box>
       {/* The dialog's footer: it stays at the bottom while the groups scroll,
-          on the darker surface over a divider, Save last at the right. */}
+          on the darker surface over a divider, Save last at the right. The
+          surface reaches the dialog's edges by shadow, not negative margins,
+          so the page never scrolls sideways. */}
       <div
         data-flow-footer
-        style={{ position: 'sticky', bottom: -16, zIndex: 1, margin: '0 -20px -16px', padding: '12px 20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid var(--border)', background: 'var(--bg-accent, var(--bg-elevated))' }}
+        style={{
+          position: 'sticky',
+          bottom: -16,
+          zIndex: LAYER.raised,
+          marginBottom: -16,
+          padding: '12px 0',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: 12,
+          background: FOOTER_BG,
+          boxShadow: `0 0 0 20px ${FOOTER_BG}, 0 -1px 0 20px var(--border)`,
+          clipPath: 'inset(-1px -20px -16px -20px)',
+        }}
       >
         <span className="text-xs text-muted" style={{ marginRight: 'auto' }}>
           Writes flow in .avoozl.json.
