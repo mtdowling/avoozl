@@ -135,6 +135,10 @@ at the start, the bug #428 fixes.
 ## Not shown
 
 - The grey `info` border (no `info` finding in any live round).
+  On 2026-11-17 the owner accepted grey on UI test coverage
+  (`kirocrew-app/ui/test/browser/review-fixture.ts`,
+  `kirocrew-app/ui/test/browser/plan-review-summary.tsx`), because 8 live
+  rounds produced no `info` finding.
 - An MCP or agent session trying to decide a finding. Live, the planner and
   reviewer chats only ever used `plans_answer_review` and
   `plans_submit_review`. MCP has no decide tool, and the refusal is
