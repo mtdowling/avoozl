@@ -32,6 +32,6 @@ test('findings and Ready to merge are Needs you items with their own actions', (
   for (const words of ['Go ahead', 'Investigate again', 'Integrate', 'Open pull request']) assert.ok(page.includes(words), words)
   assert.match(source('views-api.ts'), /'investigation\.decide'/)
   assert.match(source('views-api.ts'), /'delivery\.integrate'/)
-  assert.match(source('TaskDrawer.tsx'), /<Fold id="evidence" group="task-drawer" title="Evidence">/)
+  assert.match(source('TaskDrawer.tsx'), /<SectionBox id="evidence" title="Evidence">/)
   assert.match(source('evidence-api.ts'), /'task\.evidence'/)
 })
