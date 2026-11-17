@@ -480,6 +480,31 @@ export function repositoryEnvironment(env = process.env, allow) {
       kept[key] = out[key];
   return kept;
 }
+// Push and GitHub credentials an agent process must never hold: tokens,
+// askpass helpers, the SSH agent and git config injected by environment.
+const PUSH_CREDENTIALS = [
+  /^GH_TOKEN$/i,
+  /^GITHUB_TOKEN$/i,
+  /^GH_ENTERPRISE_TOKEN$/i,
+  /^GITHUB_ENTERPRISE_TOKEN$/i,
+  /^AVOOZL_GITHUB_TOKEN$/i,
+  /^AICOMMANDER_GITHUB_TOKEN$/i,
+  /^GIT_ASKPASS$/i,
+  /^SSH_ASKPASS$/i,
+  /^SSH_AUTH_SOCK$/i,
+  /^GIT_SSH$/i,
+  /^GIT_SSH_COMMAND$/i,
+  /^GIT_CONFIG_(?:COUNT|KEY_\d+|VALUE_\d+|PARAMETERS)$/i,
+  /^GIT_CREDENTIAL/i,
+];
+export function withoutPushCredentials(env = process.env) {
+  const out = {};
+  for (const [name, value] of Object.entries(env))
+    if (!PUSH_CREDENTIALS.some((pattern) => pattern.test(name)))
+      out[name] = value;
+  out.GIT_TERMINAL_PROMPT = "0";
+  return out;
+}
 const BASE_ENV = [
   "PATH",
   "HOME",
