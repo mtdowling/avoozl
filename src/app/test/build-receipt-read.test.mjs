@@ -196,10 +196,10 @@ function github(options = {}) {
         },
       ];
     },
-    async listArtifacts() {
+    async listArtifacts(_repo, _name, { page = 1 } = {}) {
       calls.list += 1;
       if (options.failList && calls.list <= 1) throw new Error("down");
-      return artifacts;
+      return options.pages ? (options.pages[page - 1] ?? []) : artifacts;
     },
     async downloadArtifact(_repo, id) {
       calls.download += 1;
@@ -604,4 +604,59 @@ test("the old build-receipt name and the build-receipt-<os> names are both read"
   assert.equal(gh.calls.download, 4);
   assert.equal(rows(store, "WHERE pr_number=51").length, 1);
   assert.equal(rows(store, "WHERE pr_number=52").length, 3);
+});
+
+// A head whose artifacts span two pages of the list keeps all three
+// (P65: two of three receipts were dropped when only page 1 was read).
+const made = (a, minute) => ({ ...a, created_at: at(minute) });
+const filler = (from, minute) =>
+  Array.from({ length: from }, (_, i) =>
+    made(artifact(5000 + i, "build-receipt-linux", "shaother", 999), minute),
+  );
+
+test("a head's artifacts across two pages are all read", async (t) => {
+  const { store } = fixture(t),
+    targets = ["ubuntu-latest", "macos-latest", "windows-latest"],
+    mine = targets.map((target, i) =>
+      made(artifact(911 + i, `build-receipt-${target}`, "sha51", 901), 95 - i),
+    ),
+    gh = github({
+      merged: [51],
+      runs: [run(901, "sha51")],
+      pages: [
+        [...filler(99, 200), mine[0]],
+        [mine[1], mine[2]],
+      ],
+      files: Object.fromEntries(
+        targets.map((target, i) => [911 + i, receiptText(1000, { target })]),
+      ),
+    });
+  await check(store, gh);
+  assert.deepEqual(
+    rows(store, "WHERE head_sha='sha51'")
+      .map((r) => r.target)
+      .sort(),
+    [...targets].sort(),
+  );
+  assert.deepEqual([gh.calls.list, gh.calls.download], [2, 3]);
+});
+
+test("paging stops at a page older than every head still to settle", async (t) => {
+  const { store } = fixture(t),
+    gh = github({
+      merged: [51],
+      runs: [run(901, "sha51")],
+      // Run 901 started at minute 90; page 1's oldest artifact is from 50.
+      pages: [
+        [
+          made(artifact(921, "build-receipt-linux", "sha51", 901), 95),
+          ...filler(99, 50),
+        ],
+        [made(artifact(922, "build-receipt-linux", "sha51", 901), 40)],
+      ],
+      files: { 921: receiptText(1000) },
+    });
+  await check(store, gh);
+  assert.equal(gh.calls.list, 1);
+  assert.equal(rows(store, "WHERE head_sha='sha51'").length, 1);
 });
