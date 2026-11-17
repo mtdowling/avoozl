@@ -19,7 +19,8 @@ export function expandHome(value, home, platform = process.platform) {
 }
 
 const inside = (child, parent) =>
-  child === parent || child.startsWith(parent.endsWith(path.sep) ? parent : parent + path.sep);
+  child === parent ||
+  child.startsWith(parent.endsWith(path.sep) ? parent : parent + path.sep);
 
 // One folder's subfolders, for the picker. `at` defaults to home and must
 // resolve (after links) to home or a folder inside it.
@@ -34,7 +35,9 @@ export function listFolders(at, home) {
     throw Error(`No such folder: ${wanted}`);
   }
   if (!inside(real, realHome))
-    throw Error("The folder picker shows folders in your home folder only. Type the path instead.");
+    throw Error(
+      "The folder picker shows folders in your home folder only. Type the path instead.",
+    );
   if (!fs.statSync(real).isDirectory()) throw Error(`Not a folder: ${real}`);
   let entries;
   try {

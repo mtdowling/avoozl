@@ -371,11 +371,23 @@ test("a folder typed with ~ is under the person's home folder", async (t) => {
     input: { id: "tilde", root: "~/plans" },
   });
   assert.equal(started.status, 200, JSON.stringify(started.body));
-  assert.equal(started.body.result.root, fs.realpathSync(path.join(home, "plans")));
-  assert.ok(fs.existsSync(workspaceConfig({ workspace: path.join(home, "plans") }).dbPath));
+  assert.equal(
+    started.body.result.root,
+    fs.realpathSync(path.join(home, "plans")),
+  );
+  assert.ok(
+    fs.existsSync(
+      workspaceConfig({ workspace: path.join(home, "plans") }).dbPath,
+    ),
+  );
   // `~user` names someone else's home: it stays relative and is refused.
   assert.equal(
-    (await call({ operation: "workspaces.add", input: { id: "other", root: "~other/plans" } })).status,
+    (
+      await call({
+        operation: "workspaces.add",
+        input: { id: "other", root: "~other/plans" },
+      })
+    ).status,
     400,
   );
 });
@@ -393,9 +405,16 @@ test("the folder picker lists folders under home only, and only for a person", a
   assert.equal(top.body.result.parent, null);
   assert.deepEqual(
     top.body.result.folders.map(({ name, workspace }) => [name, workspace]),
-    [["a", false], ["b", false], ["plans", true]],
+    [
+      ["a", false],
+      ["b", false],
+      ["plans", true],
+    ],
   );
-  const inner = await call({ operation: "workspaces.browse", input: { path: "~/a" } });
+  const inner = await call({
+    operation: "workspaces.browse",
+    input: { path: "~/a" },
+  });
   assert.equal(inner.status, 200, JSON.stringify(inner.body));
   assert.equal(inner.body.result.parent, fs.realpathSync(home));
   // Outside home, directly or through a link, is refused.
@@ -406,26 +425,55 @@ test("the folder picker lists folders under home only, and only for a person", a
   } catch {
     linked = false;
   }
-  for (const at of [root, ...(linked ? ["~/out"] : []), "~/../served", "relative"])
-    assert.equal((await call({ operation: "workspaces.browse", input: { path: at } })).status, 400, at);
+  for (const at of [
+    root,
+    ...(linked ? ["~/out"] : []),
+    "~/../served",
+    "relative",
+  ])
+    assert.equal(
+      (await call({ operation: "workspaces.browse", input: { path: at } }))
+        .status,
+      400,
+      at,
+    );
   for (const kind of ["app-token", "agent-tool"])
-    assert.equal((await call({ operation: "workspaces.browse", input: {} }, kind)).status, 403, kind);
+    assert.equal(
+      (await call({ operation: "workspaces.browse", input: {} }, kind)).status,
+      403,
+      kind,
+    );
 });
 
 test("a person edits a workspace's name, folder, run limit, on/off and default", async (t) => {
   const { root, home, call } = await backend(t);
   for (const id of ["one", "two"])
     assert.equal(
-      (await call({ operation: "workspaces.init", input: { id, root: path.join(root, id) } })).status,
+      (
+        await call({
+          operation: "workspaces.init",
+          input: { id, root: path.join(root, id) },
+        })
+      ).status,
       200,
     );
   const named = await call({
     operation: "workspaces.update",
-    input: { id: "two", name: "  Second  ", maxConcurrentRuns: 5, enabled: false, default: true },
+    input: {
+      id: "two",
+      name: "  Second  ",
+      maxConcurrentRuns: 5,
+      enabled: false,
+      default: true,
+    },
   });
   assert.equal(named.status, 200, JSON.stringify(named.body));
   assert.deepEqual(
-    { name: named.body.result.name, max: named.body.result.maxConcurrentRuns, enabled: named.body.result.enabled },
+    {
+      name: named.body.result.name,
+      max: named.body.result.maxConcurrentRuns,
+      enabled: named.body.result.enabled,
+    },
     { name: "Second", max: 5, enabled: false },
   );
   let listed = (await call({ operation: "workspaces.list" })).body.result;
@@ -433,9 +481,15 @@ test("a person edits a workspace's name, folder, run limit, on/off and default",
 
   // A moved folder: the new path holds this workspace.
   fs.renameSync(path.join(root, "two"), path.join(home, "moved"));
-  const moved = await call({ operation: "workspaces.update", input: { id: "two", root: "~/moved" } });
+  const moved = await call({
+    operation: "workspaces.update",
+    input: { id: "two", root: "~/moved" },
+  });
   assert.equal(moved.status, 200, JSON.stringify(moved.body));
-  assert.equal(moved.body.result.root, fs.realpathSync(path.join(home, "moved")));
+  assert.equal(
+    moved.body.result.root,
+    fs.realpathSync(path.join(home, "moved")),
+  );
   assert.equal(moved.body.result.name, "Second");
 
   // Refused: a blank name, a bad limit, a relative or missing folder, an
@@ -451,13 +505,25 @@ test("a person edits a workspace's name, folder, run limit, on/off and default",
     [{ id: "three", name: "x" }, 404],
   ];
   for (const [input, status] of refused)
-    assert.equal((await call({ operation: "workspaces.update", input })).status, status, JSON.stringify(input));
+    assert.equal(
+      (await call({ operation: "workspaces.update", input })).status,
+      status,
+      JSON.stringify(input),
+    );
   listed = (await call({ operation: "workspaces.list" })).body.result;
   const two = listed.items.find((item) => item.id === "two");
-  assert.deepEqual([two.name, two.maxConcurrentRuns, two.root], ["Second", 5, fs.realpathSync(path.join(home, "moved"))]);
+  assert.deepEqual(
+    [two.name, two.maxConcurrentRuns, two.root],
+    ["Second", 5, fs.realpathSync(path.join(home, "moved"))],
+  );
   for (const kind of ["app-token", "agent-tool"])
     assert.equal(
-      (await call({ operation: "workspaces.update", input: { id: "two", name: "x" } }, kind)).status,
+      (
+        await call(
+          { operation: "workspaces.update", input: { id: "two", name: "x" } },
+          kind,
+        )
+      ).status,
       403,
       kind,
     );

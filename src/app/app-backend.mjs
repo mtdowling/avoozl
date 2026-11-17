@@ -419,7 +419,10 @@ function machineOperation(registry, config, operation, input, home) {
       if (input.maxConcurrentRuns !== undefined)
         change.maxConcurrentRuns = input.maxConcurrentRuns;
       let result = registry.update(id, change);
-      if (input.enabled !== undefined && Boolean(input.enabled) !== result.enabled)
+      if (
+        input.enabled !== undefined &&
+        Boolean(input.enabled) !== result.enabled
+      )
         result = registry.setEnabled(id, Boolean(input.enabled));
       if (input.default === true && registry.config.defaultWorkspace !== id)
         result = registry.setDefault(id);
@@ -643,7 +646,13 @@ export function startAppBackend({
         });
       }
       if (MACHINE_OPERATIONS.has(operation)) {
-        const result = machineOperation(machine(), config, operation, input, home);
+        const result = machineOperation(
+          machine(),
+          config,
+          operation,
+          input,
+          home,
+        );
         if (MACHINE_OPERATIONS.get(operation) === "write") follow();
         return send(res, 200, { result });
       }
