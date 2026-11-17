@@ -11,8 +11,7 @@ after two repairs the first live run found (PRs #413 and #418).
   two commits: the README and `.github/workflows/ci.yml`. That workflow has
   one job, `build`, which fails when a file named `FAIL` exists.
 - Isolated workspace under `/private/tmp`, made with `avoozl init`, with its
-  own `XDG_CONFIG_HOME`, `delivery.runner` set to `crew-mode` and concurrency
-  10. No real workspace, gateway or Kiro Crew home was read or written.
+  own `XDG_CONFIG_HOME`, `delivery.runner` set to `crew-mode` and concurrency 10. No real workspace, gateway or Kiro Crew home was read or written.
 - Seeded with a script, as `scripts/live-proofs/lib.mjs` seeds live proofs:
   one project `scratch` over a clone of the repository, one spec plan `p52`
   with ten ready leaves `p52-t01` to `p52-t10` (each adds `p52-tNN.txt`), and
@@ -24,13 +23,13 @@ after two repairs the first live run found (PRs #413 and #418).
 
 Person steps ran with `--as-person`, as in the earlier live proofs.
 
-| Run | Command | Result |
-| --- | --- | --- |
-| 1 | `avoozl setup mtdowling/avoozl-scratch-p52b --project scratch --checks build` | preview: 4 access lines, `landing: pr`, ruleset, merge methods and `AVOOZL_LANDING` to change; nothing written |
-| 2 | same with `--yes` | wrote the `avoozl-required-check` ruleset (`main` requires `build`), merge commits only, `AVOOZL_LANDING=pr`, and the project's `landing: pr` |
-| 3 | same with `--yes`, right after run 2 | rewrote merge methods only (see Noted) |
-| 4 | same with `--yes`, a minute later | `Nothing to change`, nothing written |
-| 5 | same with `--yes`, after all ten landed | `Nothing to change`, nothing written |
+| Run | Command                                                                       | Result                                                                                                                                        |
+| --- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `avoozl setup mtdowling/avoozl-scratch-p52b --project scratch --checks build` | preview: 4 access lines, `landing: pr`, ruleset, merge methods and `AVOOZL_LANDING` to change; nothing written                                |
+| 2   | same with `--yes`                                                             | wrote the `avoozl-required-check` ruleset (`main` requires `build`), merge commits only, `AVOOZL_LANDING=pr`, and the project's `landing: pr` |
+| 3   | same with `--yes`, right after run 2                                          | rewrote merge methods only (see Noted)                                                                                                        |
+| 4   | same with `--yes`, a minute later                                             | `Nothing to change`, nothing written                                                                                                          |
+| 5   | same with `--yes`, after all ten landed                                       | `Nothing to change`, nothing written                                                                                                          |
 
 After the run the repository has one ruleset, with one
 `required_status_checks` rule naming `build`.
@@ -74,18 +73,18 @@ There were 48 rounds, 20 seconds apart.
 From one GraphQL read of every PR's commits, check runs and force-push
 events:
 
-| PR | Task | Merged (UTC) | Head | `build` on head | Force pushes |
-| --- | --- | --- | --- | --- | --- |
-| #1 | p52-t10 | 16:07:28 | 49d29c23 | success 16:06:32 | 0 |
-| #2 | p52-t09 | 16:13:36 | 52243d2e | success 16:13:19 (before it, 43121afd success) | 0 |
-| #4 | p52-t08 | 16:16:09 | f83d022d | success 16:15:11 | 0 |
-| #5 | p52-t07 | 16:18:53 | d5ab7319 | success 16:17:41 | 0 |
-| #6 | p52-t06 | 16:21:25 | e94f42d6 | success 16:20:18 | 0 |
-| #8 | p52-t04 | 16:25:14 | 9fce2b9f | success 16:24:19 | 0 |
-| #7 | p52-t05 | 16:26:44 | e2fe2bb5 | success 16:26:17 (before it, f99d1e69 failure, d9c8eacb success) | 0 |
-| #9 | p52-t03 | 16:28:58 | 74293b92 | success 16:27:56 | 0 |
-| #10 | p52-t02 | 16:31:05 | 86074bcd | success 16:30:04 | 0 |
-| #11 | p52-t01 | 16:33:01 | 2fd608c2 | success 16:32:08 | 0 |
+| PR  | Task    | Merged (UTC) | Head     | `build` on head                                                  | Force pushes |
+| --- | ------- | ------------ | -------- | ---------------------------------------------------------------- | ------------ |
+| #1  | p52-t10 | 16:07:28     | 49d29c23 | success 16:06:32                                                 | 0            |
+| #2  | p52-t09 | 16:13:36     | 52243d2e | success 16:13:19 (before it, 43121afd success)                   | 0            |
+| #4  | p52-t08 | 16:16:09     | f83d022d | success 16:15:11                                                 | 0            |
+| #5  | p52-t07 | 16:18:53     | d5ab7319 | success 16:17:41                                                 | 0            |
+| #6  | p52-t06 | 16:21:25     | e94f42d6 | success 16:20:18                                                 | 0            |
+| #8  | p52-t04 | 16:25:14     | 9fce2b9f | success 16:24:19                                                 | 0            |
+| #7  | p52-t05 | 16:26:44     | e2fe2bb5 | success 16:26:17 (before it, f99d1e69 failure, d9c8eacb success) | 0            |
+| #9  | p52-t03 | 16:28:58     | 74293b92 | success 16:27:56                                                 | 0            |
+| #10 | p52-t02 | 16:31:05     | 86074bcd | success 16:30:04                                                 | 0            |
+| #11 | p52-t01 | 16:33:01     | 2fd608c2 | success 16:32:08                                                 | 0            |
 
 - All ten merged one at a time. In each case `build` passed on the exact
   merged head before the merge.
