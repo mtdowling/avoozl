@@ -4917,7 +4917,18 @@ that I approve, so that a new agent CLI needs no code change.
 4b. Loading a definition SHALL refuse any argv value that contains
     `bypassPermissions` or `danger-full-access`, or any flag that starts with
     `--dangerously-`, and SHALL name the value. A test SHALL load one
-    definition with each and see it refused.
+    definition with each and see it refused. The one exception is 4d.
+4d. Inner sandbox under Avoozl's sandbox, settled by the owner on
+    2026-11-17: a harness whose own sandbox cannot run inside Avoozl's (on
+    macOS a nested `sandbox-exec` fails with `sandbox_apply: Operation not
+    permitted`, so Codex can neither edit a file nor run a command) MAY set
+    `permission.write` to exactly `danger-full-access`, its value for no
+    inner sandbox. Avoozl SHALL then start such a child only inside its own
+    sandbox, with the write roots of 4. WHEN no Avoozl sandbox is active
+    THEN it SHALL refuse the session, opt-in (5) or not. Every other place
+    and value of 4b stays refused, `permission.read` included, and tests
+    SHALL show it refused without the Avoozl sandbox, allowed with it, and
+    the other bypass values still refused.
 4c. Each project SHALL have a command allow-list for unattended children
     (`sandbox.allowCommands`: its build and test commands), passed to the
     harness's allow setting, so a child does not stall on a prompt.
