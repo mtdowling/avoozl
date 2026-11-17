@@ -1513,8 +1513,9 @@ foundation tasks without that dependency may proceed while the live proof waits.
   - First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise.
 - [x] 40.5 Verify: warm checks off the tick, per-check timeouts, declared and protected paths, after 40.1 [R86.6, R86.7] (§4.26)
   - Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you.
-- [ ] 40.6 One automatic resume for a vanished chat, after 40.2 [R88.4] (§4.26)
+- [x] 40.6 One automatic resume for a vanished chat, after 40.2 [R88.4] (§4.26)
   - Only Kiro Crew's "gone" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you.
+  - Built: `reconcileDeliveries` in `src/app/delivery.mjs` ends the first gone attempt since the last person retry as `vanished` (outside the retry count) and marks its binding lost, so the next tick opens attempt 2 in the same worktree with the last report quoted; a second vanish, or a gone batch, opens the decision. Test: `src/app/test/stock-kirocrew.test.mjs`.
 - [x] 40.7 Lanes: 3 on this Mac by default, after avoozl-p56 [R88.5] (§4.26)
   - `lanes.local` default 3; a fourth ready task waits.
 

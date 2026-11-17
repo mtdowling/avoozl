@@ -1268,11 +1268,12 @@ function* expandBatches(attempts) {
 }
 
 // Failed attempts since the last time a person chose to retry (retryDelivery).
-// An attempt a budget stop ended costs nothing (R67.9).
+// An attempt a budget stop ended costs nothing (R67.9), nor does the one
+// resume of a vanished chat (R88.4), which has its own bound.
 const failuresSince = (delivery, attempts) =>
   attempts
     .slice(delivery.retryFrom || 0)
-    .filter((a) => a.outcome === "failed" && !a.budget).length;
+    .filter((a) => a.outcome === "failed" && !a.budget && !a.vanished).length;
 
 // plans_retry_delivery: a person resumes a leaf that stopped for a decision.
 // The next attempt resumes on the same worktree with a fresh retry budget.
@@ -1470,11 +1471,50 @@ export function reconcileDeliveries(
         ...(binding.batch ? { batch: binding.batch.id } : {}),
         updatedAt: at,
       };
+    } else if (
+      open &&
+      binding.status === "gone" &&
+      !binding.batch &&
+      !delivery.attempts.slice(delivery.retryFrom || 0).some((a) => a.vanished)
+    ) {
+      // Kiro Crew says the chat is gone and it never reported (R88.4): the
+      // attempt ends once, so the next tick opens one new chat in the same
+      // worktree with the same brief and the last report quoted as data.
+      // Quiet or an expired lease never gets here; only Kiro Crew's answer.
+      // shortcut: a batch keeps the decision below; resume it once batches
+      // carry one vanish count per member.
+      next = {
+        ...delivery,
+        attempts: [
+          ...delivery.attempts,
+          {
+            attempt: binding.attempt,
+            slot: binding.slot,
+            ...(binding.prompts ? { prompts: binding.prompts } : {}),
+            ...(binding.skills ? { skills: binding.skills } : {}),
+            outcome: "failed",
+            vanished: true,
+            cause: `Kiro Crew no longer lists session ${binding.slot}, and it had not reported`,
+            ...(binding.report?.text
+              ? { lastReport: binding.report.text }
+              : {}),
+            at,
+          },
+        ],
+        state: "failed",
+        updatedAt: at,
+      };
+      store.transaction(() =>
+        store.put("session_bindings", {
+          ...binding,
+          status: "lost",
+          statusAt: at,
+        }),
+      );
     } else if (open && binding.status === "gone") {
-      // A stock Kiro Crew no longer holds the session and it never reported.
-      // Avoozl cannot tell finished from lost there, and never replaces a
-      // worker on a guess: a person decides. Retry ends this attempt
-      // (retryDelivery); a session that reads live again resumes below.
+      // A second vanish since the last person retry, or a gone batch: a
+      // person decides. Retry ends this attempt (retryDelivery); a session
+      // that reads live again resumes below.
       if (delivery.state !== "decision")
         next = {
           ...delivery,
