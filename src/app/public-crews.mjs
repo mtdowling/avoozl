@@ -684,6 +684,11 @@ async function remove(github, repository, item) {
   return done;
 }
 
+// A repository stop pauses the tasks whose repository is the stop's
+// projectId, which for a GitHub repository is its local project.
+const cordProject = (store, repository) =>
+  store.get("github_repositories", repository)?.projectId ?? repository;
+
 // One stop for the repository, opened once and kept until a person resumes.
 function raise(store, repository, records, now) {
   const at = iso(now),
@@ -702,7 +707,7 @@ function raise(store, repository, records, now) {
       by: { kind: "system", name: "public crew audit" },
       reason: `The public crew audit found a content rule match on ${repository}.`,
       scope: "repo",
-      projectId: repository,
+      projectId: cordProject(store, repository),
       planId: null,
       spec: null,
       taskId: null,
@@ -841,4 +846,77 @@ export function publicCrewAuditRows(store) {
       detail: `${[...new Set(found.records.map(hitText))].join("; ")}. Avoozl removed what it could and stopped the line. ${STAYS_REACHABLE}`,
       openedAt: found.at,
     }));
+}
+
+// ---- Kill switch: Stop public crews (R85.9, design §6.14) -----------------
+// `publiccrews.stop` pulls the cord with scope `repo` for every public
+// repository in the GitHub policy, and one whose visibility was not read,
+// and lists the crews to pause in Kiro Crew. It cannot pause a crew: that
+// route is for the dashboard owner only, so a running crew keeps going.
+// Resuming is `flow.resume`, a person only (Requirement 64).
+export const PUBLIC_STOP_REASON = "Stop public crews was pressed.";
+export const PAUSE_NOTE =
+  "Avoozl stopped its own work on these repositories. It cannot pause a crew, so a running crew keeps going until you pause it in Issue Radar. Only a person resumes the stop.";
+
+// The policy repositories a public crew could write to.
+export const publicRepositories = (store, policy) =>
+  Object.keys(policy?.repositories ?? {}).filter(
+    (id) => store.get("github_repositories", id)?.private !== true,
+  );
+
+// `crews` is one readCrews answer per repository (radar-handoff.mjs).
+// Returns {stops, pause, note}; a repository with an open stop keeps it.
+export function stopPublicCrews(
+  store,
+  { policy, crews = [] } = {},
+  { by, now = Date.now(), link = "/issue-radar" } = {},
+) {
+  const at = new Date(now).toISOString(),
+    open = store.list("flow_stops").filter((s) => !s.closedAt),
+    stops = [],
+    pause = [];
+  for (const repository of publicRepositories(store, policy)) {
+    const projectId = cordProject(store, repository),
+      held = open.find(
+        (s) => s.manual && s.scope === "repo" && s.projectId === projectId,
+      );
+    if (held) stops.push({ repository, stopId: held.id, changed: false });
+    else {
+      const stop = {
+        id: `stop:public-crews:${repository}:${Date.parse(at)}`,
+        manual: true,
+        by,
+        reason: PUBLIC_STOP_REASON,
+        scope: "repo",
+        projectId,
+        planId: null,
+        spec: null,
+        taskId: null,
+        check: null,
+        culprit: null,
+        fixTaskId: null,
+        openedAt: at,
+        closedAt: null,
+        runAnyway: null,
+      };
+      store.put("flow_stops", stop);
+      stops.push({ repository, stopId: stop.id, changed: true });
+    }
+    const read = crews.find((c) => c?.repository === repository);
+    pause.push({
+      repository,
+      available: read?.available === true,
+      ...(read?.available === true
+        ? {}
+        : { reason: read?.reason ?? "Issue Radar's crews were not read." }),
+      crews: (read?.crews ?? []).map((crew) => ({
+        id: crew.id,
+        name: crew.name,
+        link,
+        tooltip: `Opens Issue Radar. Pause ${crew.name} there.`,
+      })),
+      link,
+    });
+  }
+  return { stops, pause, note: PAUSE_NOTE };
 }
