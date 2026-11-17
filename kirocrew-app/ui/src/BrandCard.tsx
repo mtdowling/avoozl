@@ -1,7 +1,7 @@
 // The brand line under the left nav (and at the bottom of the phone's menu):
 // the logo, the instance name and the Avoozl version.
 import Logo from './Logo'
-import { InstanceBadge } from './InstanceName.tsx'
+import { InstanceBadge, InstanceEdit } from './InstanceName.tsx'
 
 // Set from the root package.json by the build (vite.config.ts); absent when a
 // test loads the source directly.
@@ -19,6 +19,7 @@ export function BrandCard(props: { workspaceId: string | null; boxed?: boolean }
         <span className="min-w-0 truncate" style={{ fontSize: 12 }}>
           <InstanceBadge workspaceId={props.workspaceId} className="text-muted" />
         </span>
+        {props.workspaceId && <InstanceEdit workspaceId={props.workspaceId} />}
         {AVOOZL_VERSION && (
           <span data-avoozl-version className="shrink-0 text-muted" style={{ fontSize: 11 }}>
             v{AVOOZL_VERSION}
