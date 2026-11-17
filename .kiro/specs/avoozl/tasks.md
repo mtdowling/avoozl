@@ -1537,7 +1537,7 @@ the scratch safety proof, with owner minutes, credits and wall-clock per task.
 - [x] 41.2 Per-base landing queue with brief integration locks, after 40.5, 56.4 [R87.5, R102.15] (§4.32)
   - Preserve order on Stop the line; perform checks outside the integration lock, guard only ref movement and push. Test a concurrent base move cannot land an unchecked candidate.
 
-- [ ] 41.3 Direct portions and bounded landing trains, after 41.2 [R87.1, R87.2, R87.4, R87.9, R102.13, R102.15] (§4.32)
+- [x] 41.3 Direct portions and bounded landing trains, after 41.2 [R87.1, R87.2, R87.4, R87.9, R102.13, R102.15] (§4.32)
   - Select exact verified portions, merge/check the current base, write an intent and guard the fast-forward. Up to four tasks for one driver; bisect failures. Merge declared append-only union paths only in the landing worktree. Check outgoing data before every push; never force push.
 
 - [ ] 41.4 Conflicts go back to the same chat, bounded; remove the resolver chat, after 41.3 [R87.6] (§4.26)
@@ -1989,7 +1989,7 @@ with any other task that edits those files. UI tasks ship before and after
 screenshots (phone and desktop, light and dark) and wait for the owner's
 approval before merge.
 
-- [ ] 57.1 Finding schema, anchors and storage, after 53.2, 53.4 [R104.1, R104.2, R104.3, R104.4, R104.5, R104.8, R104.15] (§4.33)
+- [x] 57.1 Finding schema, anchors and storage, after 53.2, 53.4 [R104.1, R104.2, R104.3, R104.4, R104.5, R104.8, R104.15] (§4.33)
   - `review_threads` plan-review rows gain `anchor {file, lineStart, lineEnd, quote, quoteHash}` and append-only `decisions`; `review_followups` table; severity `info`/`warn`/`blocker` with the read mapping for old values; pure `findingState` and `anchorAt`; `plan.reviewSummary` adds `bySeverity` and `byState`. Tests: severity mapping, anchor survives edits, moved or removed, old rows without a quote, zero GitHub calls.
 - [ ] 57.2 Reviewer and planner briefs, severity and quote parsing, after 57.1 [R104.3, R104.7, R104.14, R104.16] (§4.33)
   - The reviewer brief asks for `info`/`warn`/`blocker` and an exact quote; `plan.review.submit` derives lines from the quote, refuses a missing or ambiguous quote, and drops a same-pass repeat of a rejected or resolved finding with a count in the note. The planner answer brief carries accepted, rejected and deferred lists. `planReviewStep` opens one person-triggered planner turn per plan per tick for an accepted, unfixed finding, outside `planReview.rounds`; Review anyway starts one more round at the cap. Fake chats only.
