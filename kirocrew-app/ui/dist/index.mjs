@@ -5230,7 +5230,7 @@ function cl(e) {
 			value: e.corrections ? `${e.corrections.lastWeek} this week` : "–",
 			was: null,
 			empty: e.corrections ? null : "No corrections yet.",
-			tip: "Times a person told an agent it got something wrong: changes requested, sent back, reverted, or Pick again with a reason."
+			tip: "How many times this week a person told an agent it got something wrong: a pull request got changes requested, a task was sent back or reverted, or someone used Pick again with a reason."
 		}
 	];
 }
@@ -7225,26 +7225,42 @@ function Ou({ stops: e, workspaceId: t, onChanged: n }) {
 	});
 }
 function ku({ view: e }) {
+	let t = Wt("(max-width: 767px)");
 	return /* @__PURE__ */ C("div", {
-		className: "grid gap-3",
-		style: { gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 11rem), 1fr))" },
+		style: {
+			display: "grid",
+			width: "100%",
+			gap: "0.75rem",
+			gridTemplateColumns: `repeat(${t ? 2 : 6}, minmax(0, 1fr))`
+		},
 		"data-flow-cards": !0,
 		children: cl(e).map((e) => /* @__PURE__ */ w(v, {
 			className: "flex flex-col gap-1",
+			style: { minWidth: 0 },
 			children: [/* @__PURE__ */ C(J, {
 				text: e.tip,
 				children: (t) => /* @__PURE__ */ C("span", {
 					"aria-describedby": t,
 					tabIndex: 0,
 					className: "text-xs text-muted",
-					style: { width: "fit-content" },
+					style: {
+						width: "fit-content",
+						overflowWrap: "anywhere",
+						fontWeight: 700,
+						textTransform: "uppercase",
+						fontSize: "0.75rem"
+					},
 					children: e.title
 				})
 			}), e.empty ? /* @__PURE__ */ C("span", {
 				className: "text-sm text-muted",
 				children: e.empty
 			}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C("span", {
-				className: "text-2xl font-semibold tabular-nums",
+				className: "text-xl font-semibold tabular-nums",
+				style: {
+					overflowWrap: "anywhere",
+					fontSize: "1.25rem"
+				},
 				children: e.value
 			}), /* @__PURE__ */ C("span", {
 				className: "text-xs text-muted tabular-nums",
@@ -24482,7 +24498,7 @@ function My(e) {
 	}
 }
 function Ny(e) {
-	return e === "routing" || e === "github" ? "repositories" : e === "instance" ? "workspaces" : e;
+	return e === "routing" ? "repositories" : e === "instance" ? "workspaces" : e;
 }
 var Py = "Local workers are retired. Switch to Issue Radar.";
 function Fy(e, t) {
@@ -35293,6 +35309,10 @@ var gT = {
 		label: "Repository setup"
 	},
 	{
+		key: "github",
+		label: "GitHub"
+	},
+	{
 		key: "plugins",
 		label: "Plugins"
 	},
@@ -35317,7 +35337,8 @@ var gT = {
 		label: "Budgets"
 	}
 ], bT = {
-	workspaces: "The Avoozl workspaces on this machine, each a folder with its own task database. Below them, the GitHub settings that belong to the whole workspace: new-task authority, the Project board and Set up GitHub, which creates what's missing after showing each change.",
+	workspaces: "The Avoozl workspaces on this machine, each a folder with its own task database, and the settings that stay on this computer.",
+	github: "The GitHub settings of the selected workspace, for every repository in it: new-task authority, the Project board and Set up GitHub, which creates what's missing after showing each change.",
 	repositories: "Each repository's role says where its tasks live. Its coder, labels, Crews and rules, Workflow map, checks and reviews are tabs under its name. Save only writes .avoozl.json.",
 	plugins: "A plugin can bring a team’s settings pack, content rules, a tracker, an intake source or a delivery route. Each one runs or imports only after you approve it on this machine.",
 	content: "Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.",
@@ -37006,22 +37027,6 @@ function XT(e) {
 		...p,
 		...e
 	}), b = async () => {
-		if (p) try {
-			let e = await a.validate(t, so(p));
-			g(e.valid ? {
-				ok: !0,
-				text: "Settings are valid."
-			} : {
-				ok: !1,
-				text: e.error || "Invalid."
-			});
-		} catch (e) {
-			g({
-				ok: !1,
-				text: K(e)
-			});
-		}
-	}, x = async () => {
 		if (!p || !s) return "Settings are not loaded.";
 		let e = po(p);
 		if (e) return g({
@@ -37042,17 +37047,17 @@ function XT(e) {
 		} finally {
 			v(!1);
 		}
-	}, T = s?.choices;
+	}, x = s?.choices;
 	if (c) return /* @__PURE__ */ C("p", {
 		role: "alert",
 		className: "text-sm text-danger",
 		children: c
 	});
-	if (!s || !p || !T) return /* @__PURE__ */ C("p", {
+	if (!s || !p || !x) return /* @__PURE__ */ C("p", {
 		className: "text-sm text-muted",
 		children: u ? "Loading…" : "Not loaded"
 	});
-	let E = JSON.stringify(so(p)) !== JSON.stringify(so(io(s.github))), D = po(p);
+	let T = JSON.stringify(so(p)) !== JSON.stringify(so(io(s.github))), E = po(p);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3.5",
 		children: [
@@ -37063,17 +37068,17 @@ function XT(e) {
 			}),
 			n === "repositories" ? /* @__PURE__ */ C(GT, {
 				form: p,
-				choices: T,
+				choices: x,
 				review: s.review,
 				workspaceId: t,
-				dirty: E,
+				dirty: T,
 				set: y,
 				onRegistryChanged: f,
 				onOpenPlans: e.onOpenPlans,
 				rolesNote: s.rolesNote
 			}) : /* @__PURE__ */ C(qT, {
 				form: p,
-				choices: T,
+				choices: x,
 				set: y,
 				setup: /* @__PURE__ */ C(Px, {
 					workspaceId: t,
@@ -37087,65 +37092,16 @@ function XT(e) {
 					repositories: (s.crews ?? []).map((e) => e.repository)
 				})] }) : null
 			}),
-			n === "workspaces" && /* @__PURE__ */ C(Xp, { workspaceId: t }),
-			n === "workspaces" && /* @__PURE__ */ C($T, { rate: s.rate }),
-			n === "repositories" ? /* @__PURE__ */ C(cw, {
-				dirty: E,
+			n === "github" && /* @__PURE__ */ C($T, { rate: s.rate }),
+			/* @__PURE__ */ C(cw, {
+				dirty: T,
 				saving: _,
-				problem: D,
+				problem: E,
 				error: h && !h.ok ? h.text : null,
 				ok: h?.ok ? h.text : null,
 				note: "Writes .avoozl.json.",
-				onSave: () => void x(),
+				onSave: () => void b(),
 				onDiscard: () => void f()
-			}) : null,
-			n !== "repositories" && /* @__PURE__ */ w("div", {
-				className: "flex flex-wrap items-center gap-2",
-				children: [
-					/* @__PURE__ */ C(ci, {
-						tooltip: "Check these settings without saving them",
-						onClick: () => void b(),
-						disabled: _,
-						children: "Check"
-					}),
-					/* @__PURE__ */ C(ci, {
-						primary: !0,
-						onClick: () => void x(),
-						disabled: _ || !E || !!D,
-						tooltip: D,
-						children: "Save"
-					}),
-					E ? /* @__PURE__ */ C(Qr, {
-						disabled: u || _,
-						confirm: {
-							title: "Discard your unsaved changes?",
-							body: "Every edit since the last save on these Settings tabs is lost. .avoozl.json stays as it is.",
-							action: "Discard changes"
-						},
-						onConfirm: () => void f(),
-						children: "Discard changes"
-					}) : /* @__PURE__ */ C(ci, {
-						tooltip: "Read the settings from disk again",
-						onClick: () => void f(),
-						disabled: u || _,
-						children: "Reload"
-					}),
-					E && /* @__PURE__ */ C("span", {
-						className: "text-xs text-muted",
-						children: "Unsaved changes"
-					}),
-					E && D && /* @__PURE__ */ C("span", {
-						className: "text-xs",
-						style: { color: "var(--danger)" },
-						role: "alert",
-						children: D
-					})
-				]
-			}),
-			h && n !== "repositories" && /* @__PURE__ */ C("p", {
-				role: h.ok ? "status" : "alert",
-				className: `text-sm ${h.ok ? "text-muted" : "text-danger"}`,
-				children: h.text
 			})
 		]
 	});
@@ -37178,14 +37134,10 @@ function QT(e) {
 			selected: n,
 			onSelect: e.onSelectWorkspace,
 			onListChange: e.onListChange
-		}), n && /* @__PURE__ */ C(XT, {
-			workspaceId: n,
-			tab: t,
-			onOpenPlans: e.onOpenPlans
-		}, `${n}-${r}`)]
+		}), /* @__PURE__ */ C(Xp, { workspaceId: n })]
 	}) : n ? t === "plugins" ? /* @__PURE__ */ C(DC, {
 		workspaceId: n,
-		onOpenGitHub: () => e.onTab("workspaces")
+		onOpenGitHub: () => e.onTab("github")
 	}) : t === "content" ? /* @__PURE__ */ C(Mw, { workspaceId: n }) : t === "flow" ? /* @__PURE__ */ C(Hw, { workspaceId: n }) : t === "models" ? /* @__PURE__ */ C(qw, { workspaceId: n }) : t === "delivery" ? /* @__PURE__ */ C(sT, { workspaceId: n }) : t === "budgets" ? /* @__PURE__ */ C(hT, { workspaceId: n }) : /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3.5",
 		children: [t === "repositories" && /* @__PURE__ */ C(eT, {
