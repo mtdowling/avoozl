@@ -30,7 +30,6 @@ import {
   WINDOW_OPTIONS,
   bannerText,
   barSegments,
-  budgetMark,
   directionText,
   duration,
   evidenceText,
@@ -200,7 +199,7 @@ function MetricCards({ view }: { view: FlowViewModel }) {
   )
 }
 
-function TaskBars({ tasks, budget }: { tasks: TaskTiming[]; budget?: FlowViewModel['budget'] }) {
+function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
   const drawer = useTaskDrawer()
   const narrow = useMedia('(max-width: 767px)')
   const pages = usePages(String(tasks.length))
@@ -230,9 +229,6 @@ function TaskBars({ tasks, budget }: { tasks: TaskTiming[]; budget?: FlowViewMod
                 </Tooltip>
               )}
               {task.batch && <Badge>batch</Badge>}
-              {budgetMark(budget, task.taskId) && (
-                <Badge variant={budgetMark(budget, task.taskId) === '80% of budget' ? 'info' : 'danger'}>{budgetMark(budget, task.taskId)}</Badge>
-              )}
               {duration(task.leadMs)}
               <Tooltip text="Open this task's details in the drawer">
                 {(describedBy) => (
@@ -475,7 +471,7 @@ export default function FlowView({ workspaceId, tab }: { workspaceId: string | n
             </Card>
           )}
           {view.tasks.length ? (
-            <TaskBars tasks={view.tasks} budget={view.budget} />
+            <TaskBars tasks={view.tasks} />
           ) : (
             <Card data-no-timing>
               <EmptyState icon={<Gauge size={36} aria-hidden="true" />} title="No timing yet" subtitle="Avoozl records where each task's time goes as soon as a task is dispatched." />
