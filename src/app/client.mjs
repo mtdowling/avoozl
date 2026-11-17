@@ -75,6 +75,7 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "plan.review.reply",
   "plan.review.dispose",
   "plan.review.finding.decide",
+  "plan.review.view",
   "plan.review.apply",
   "plan.review.pipeline",
   "plan.review.pipeline.get",

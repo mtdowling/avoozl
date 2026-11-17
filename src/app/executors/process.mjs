@@ -6,8 +6,11 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { createExecutor } from "../executors.mjs";
+import { execFile } from "node:child_process";
+import { cliReportCaller } from "../report-match.mjs";
 import {
   childRecord,
+  childResult,
   childStatus,
   openSupervisorDatabase,
   requestChild,
@@ -118,6 +121,36 @@ export async function commitChildWork(binding, worktree) {
   );
 }
 
+// Record a child's result as its session's report, as `runner report` does
+// for a chat (R96.2, R96.3): matched by the supervisor's record, the text
+// kept as data, and a done report's commit read from the worktree's HEAD,
+// never from the child. Avoozl's own commit of the child's edits (R94.4a)
+// comes before this read.
+export async function finishProcessSession(ops, binding, result) {
+  const input =
+    result.state === "done"
+      ? {
+          taskId: binding.taskId,
+          kind: "done",
+          commit: await new Promise((resolve, reject) =>
+            execFile(
+              "git",
+              ["rev-parse", "HEAD"],
+              { cwd: result.worktree },
+              (error, out) => (error ? reject(error) : resolve(out.trim())),
+            ),
+          ),
+        }
+      : {
+          taskId: binding.taskId,
+          kind: "blocked",
+          text: result.text || "The worker reported blocked.",
+        };
+  return ops.execute("session.report", input, undefined, {
+    caller: cliReportCaller(binding),
+  });
+}
+
 // Consume this workspace's `process` requests (R93.3: the tick only writes
 // them): start each claimed one, bind its session, and queue each message.
 // Then record the status of each live `process` session. A write worker
@@ -125,7 +158,7 @@ export async function commitChildWork(binding, worktree) {
 // for one request; returns the errors it saw.
 export async function drainProcessRequests(
   store,
-  { stateDirectory, prepareWorktree },
+  { stateDirectory, prepareWorktree, ops = null },
 ) {
   const projectFor = (taskId) => {
     const task = store.read().tasks.find((t) => t.id === taskId);
@@ -215,7 +248,9 @@ export async function drainProcessRequests(
         const status = await executor.status(binding.slot);
         // Commit before the exit is recorded, so whatever reads the result
         // reads HEAD with the child's work in it. A failed commit keeps the
-        // files in the worktree for the retry and does not hold the exit.
+        // files in the worktree and closes the session unreported, so the
+        // retry path resumes there instead of a done at the old HEAD.
+        let committed = true;
         if (
           status.startsWith("exited ") &&
           binding.role === "worker" &&
@@ -227,9 +262,27 @@ export async function drainProcessRequests(
               stateDirectory,
               (db) => childRecord(db, binding.slot).worktree,
             ),
-          ).catch((error) =>
-            errors.push({ id: binding.slot, error: error.message }),
+          ).catch((error) => {
+            committed = false;
+            errors.push({ id: binding.slot, error: error.message });
+          });
+        // A finished run's result file is its report (R96.1, R96.3); one
+        // with none, a bad one, or done with a non-zero exit closes the
+        // session unreported, which takes the retry path (R96.4).
+        if (
+          status.startsWith("exited ") &&
+          ops &&
+          committed &&
+          !binding.report
+        ) {
+          const result = withDatabase(stateDirectory, (db) =>
+            childResult(db, binding.slot),
           );
+          if (result?.state)
+            await finishProcessSession(ops, binding, result).catch((error) =>
+              errors.push({ id: binding.slot, error: error.message }),
+            );
+        }
         recordSessionStatus(store, {
           slot: binding.slot,
           status: bindingStatus(status),
