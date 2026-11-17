@@ -433,7 +433,7 @@ export function metricCards(view: FlowViewModel) {
     { key: 'first-pass', title: 'First-pass rate', value: percent(m.firstPassRate), was: p.tasks ? percent(p.firstPassRate) : null, empty: m.firstPassRate === null ? 'Finish a task to see how many pass the first time.' : null, tip: 'Tasks accepted on their first attempt with no rework.' },
     { key: 'fix', title: 'Time to fix', value: duration(m.timeToFixMs), was: p.tasks && p.timeToFixMs !== null ? duration(p.timeToFixMs) : null, empty: m.timeToFixMs === null ? 'No line stop yet.' : null, tip: 'From the line stopping to the check passing on the branch again.' },
     { key: 'fix-work', title: 'Fix work', value: fixText(m.fixWork), was: p.tasks ? fixText(p.fixWork) : null, empty: m.fixWork?.share == null ? 'Finish a task to see how much was bug fixes.' : null, tip: 'Finished tasks that were fixes: a bugfix spec, type fix, a stop-the-line fix, or a GitHub Bug.' },
-    { key: 'corrections', title: 'Corrections', value: view.corrections ? `${view.corrections.lastWeek} this week` : '–', was: null, empty: view.corrections ? null : 'No corrections yet.', tip: 'Times a person told an agent it got something wrong: changes requested, sent back, reverted, or Pick again with a reason.' },
+    { key: 'corrections', title: 'Corrections', value: view.corrections ? `${view.corrections.lastWeek} this week` : '–', was: null, empty: view.corrections ? null : 'No corrections yet.', tip: 'How many times this week a person told an agent it got something wrong: a pull request got changes requested, a task was sent back or reverted, or someone used Pick again with a reason.' },
   ]
 }
 

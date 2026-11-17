@@ -15,10 +15,9 @@ import { findChrome, launch } from './browser/chrome.mjs'
 test('every modal is the shared Modal and every z-index is a named layer', async () => {
   const dir = new URL('../src/', import.meta.url)
   const files = readdirSync(dir).filter((name) => /\.tsx?$/.test(name))
-  const drawers = ['TaskDrawer.tsx', 'NewPlanDrawer.tsx']
   for (const name of files) {
     const text = readFileSync(new URL(name, dir), 'utf8')
-    if (name !== 'Modal.tsx' && !drawers.includes(name)) assert.doesNotMatch(text, /aria-modal|fixed inset-0/, `${name} draws its own modal`)
+    if (name !== 'Modal.tsx') assert.doesNotMatch(text, /aria-modal|fixed inset-0/, `${name} draws its own modal`)
     assert.doesNotMatch(text, /zIndex: (?!LAYER\.)|\bz-\d|\bz-\[/, `${name} sets a z-index outside layers.ts`)
   }
   const { LAYER } = await import('../src/layers.ts')
