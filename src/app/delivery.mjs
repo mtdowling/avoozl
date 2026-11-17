@@ -44,6 +44,7 @@ import { integrationBranchOf } from "./integration-branch.mjs";
 import { specBase } from "./spec-base.mjs";
 import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
 import { queryTasks, statusComplete } from "../query.mjs";
+import { unblockCounts } from "./release-ranking.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
 import { budgetHeldTaskIds, budgetStopSlots } from "./budget.mjs";
@@ -1598,13 +1599,24 @@ export function graphOrder(data) {
 // The order the tick dispatches ready leaves in: tasks a person asked to
 // start now (task.start) first, then rank (a set rank, else the place of
 // its item's best priority label, intake.mjs labelEffects), then graph
-// order. The page's Up next list sorts by the same comparator (graph.view
+// order. Within one rank, a task that unblocks more open tasks goes first
+// (R86.2). The page's Up next list sorts by the same comparator (graph.view
 // `order`), so the two never disagree.
 export function dispatchOrder(data, first = [], order = graphOrder(data)) {
   const head = new Map(first.map((id, i) => [id, i])),
     pin = (task) => (head.has(task.id) ? head.get(task.id) : first.length),
-    rank = (task) => task.rank ?? task.labelRank ?? 1000;
-  return (a, b) => pin(a) - pin(b) || rank(a) - rank(b) || order(a, b);
+    rank = (task) => task.rank ?? task.labelRank ?? 1000,
+    byId = new Map(data.tasks.map((task) => [task.id, task])),
+    counts = unblockCounts(
+      data.edges.filter((e) => ["requires", "sequence"].includes(e.kind)),
+      (id) => byId.has(id) && !statusComplete(data, byId.get(id).status),
+    ),
+    unblocks = (task) => counts.get(task.id) ?? 0;
+  return (a, b) =>
+    pin(a) - pin(b) ||
+    rank(a) - rank(b) ||
+    unblocks(b) - unblocks(a) ||
+    order(a, b);
 }
 
 // Meta key for task.start's list; read by readyLeaves.

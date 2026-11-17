@@ -9,8 +9,9 @@
 // issue is its own action. A run with nothing to change says so and writes
 // nothing.
 //
-// shortcut: the ruleset, merge methods, CI variable and commit status steps
-// are task 42.3; checks and protected paths are not compared here.
+// The ruleset, merge methods, CI variable and commit status steps are in
+// setup-landing.mjs (task 42.3).
+// shortcut: checks and protected paths are not compared here.
 import { parseRepository } from "./github.mjs";
 import { sourceRegistry } from "./working-heads.mjs";
 import { fail } from "./store.mjs";

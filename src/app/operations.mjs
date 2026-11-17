@@ -1543,22 +1543,10 @@ export class Operations {
       // Keep the last list.
     }
   }
-  // Every spec folder the mode reads, linted, with its stored plan. Each
-  // item carries its title, its front-matter category (Requirement 30.9),
-  // and when its files last changed on disk.
-  specList() {
-    const store = this.store;
-    const namespace = this.specNamespace();
+  // Every spec folder the mode reads, in both homes (RC25.2), each with its
+  // root (null for a private spec). specList and graph.view read it.
+  specHomes() {
     const roots = this.specRoots(),
-      data = {
-        ...this.read(),
-        projects: store.list("projects"),
-        pluginIds: () => this.gatePluginIds(),
-      },
-      plans = store
-        .list("plans")
-        .filter((plan) => plan.spec && !plan.deletedAt),
-      approvals = store.list("approvals"),
       policy = readGitHubPolicyOrNull(this.workspaceRoot),
       mirror = mirrorOf(policy);
     // Both homes in one list (RC25.2). The plans branch is read on each tick
@@ -1598,8 +1586,12 @@ export class Operations {
               spec: entry.spec,
             })),
             errors: [],
-          },
-      homes = merged.specs.map(({ home, spec }) => ({
+          };
+    return {
+      roots,
+      mirror,
+      errors: merged.errors,
+      homes: merged.specs.map(({ home, spec }) => ({
         home,
         spec,
         root:
@@ -1608,7 +1600,24 @@ export class Operations {
             ? publicSpecs.find((entry) => entry.spec === spec).root
             : null),
       })),
-      homeErrors = merged.errors,
+    };
+  }
+  // Every spec folder the mode reads, linted, with its stored plan. Each
+  // item carries its title, its front-matter category (Requirement 30.9),
+  // and when its files last changed on disk.
+  specList() {
+    const store = this.store;
+    const namespace = this.specNamespace();
+    const data = {
+        ...this.read(),
+        projects: store.list("projects"),
+        pluginIds: () => this.gatePluginIds(),
+      },
+      plans = store
+        .list("plans")
+        .filter((plan) => plan.spec && !plan.deletedAt),
+      approvals = store.list("approvals"),
+      { roots, mirror, homes, errors: homeErrors } = this.specHomes(),
       declarations = specDeclarations(plans);
     return {
       root: roots[0],
@@ -3610,7 +3619,19 @@ export class Operations {
       return showDecisionLine(store, input.id);
     }
     if (name === "content.check") return this.contentCheck(input, context);
-    if (name === "graph.view") return graphView(store, this.read(), input);
+    if (name === "graph.view") {
+      // Draft spec folders, display only; none when specs cannot be read.
+      let folders = [];
+      try {
+        folders = this.specHomes().homes.map(({ spec }) => ({
+          name: spec.name,
+          spec,
+        }));
+      } catch {
+        // No spec roots in this mode.
+      }
+      return graphView(store, this.read(), input, folders);
+    }
     if (name === "delivery.view") return deliveryView(store, this.read());
     if (name === "conflicts.view") {
       const data = this.read(),

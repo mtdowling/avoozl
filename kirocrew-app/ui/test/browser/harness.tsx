@@ -43,7 +43,7 @@ import { projectionClient } from '../../src/projection-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
-import { chainsGraph } from './graph-chains.ts'
+import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
 import { ForwardScreen } from '../../src/ForwardScreen.tsx'
 import forwardLive from './forward-live-replies.json'
@@ -403,11 +403,13 @@ answer('untriaged.view', () => ({
 
 // &graph=chains: the Graph on three specs with real chains (graph-chains.ts).
 if (query.get('graph') === 'chains') answer('graph.view', () => chainsGraph)
+// &graph=drafts: the same, plus one draft spec's tasks (graph-chains.ts).
+if (query.get('graph') === 'drafts') answer('graph.view', () => draftsGraph)
 
 function DeepLinkPage() {
   return (
-    // As tall as the screen, so the page's content pane scrolls on its own, as it does in the host.
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, height: '100vh', boxSizing: 'border-box', background: 'var(--bg)', color: 'var(--text)' }}>
+    // As tall as the screen with no frame around it, so the nav reaches the window's bottom and the page's content pane scrolls on its own, as in the host.
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 0, height: '100vh', boxSizing: 'border-box', background: 'var(--bg)', color: 'var(--text)' }}>
       <AvoozlApp />
     </div>
   )

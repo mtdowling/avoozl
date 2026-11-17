@@ -31,6 +31,7 @@ import {
   qualifiedRef,
   verifyRelationship,
 } from "./working-heads.mjs";
+import { postVerified } from "./setup-landing.mjs";
 import { fail } from "./store.mjs";
 
 const lower = (value) => String(value).toLowerCase();
@@ -194,6 +195,11 @@ export function pullSteps({
           `Pull request #${pull.number} does not carry the exact commit.`,
           409,
         );
+      // The exact verified head says so on GitHub. A login that may not
+      // write statuses on the target skips it; landing does not depend on it.
+      await postVerified(github, target, entry.commit).catch((error) => {
+        if (error?.status !== 403 && error?.status !== 404) throw error;
+      });
       current = { pull, ref: { ...ref, pr: pull.number } };
       if (pull.mergeable === false)
         return { conflict: ["(conflicts with the base)"], key: entry.key };

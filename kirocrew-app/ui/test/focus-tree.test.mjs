@@ -23,6 +23,22 @@ test('Frontier: newly unlocked has every blocker met; waiting has one still open
   assert.ok(![...ready, ...waiting].some((f) => ['B4', 'Y1', 'Y4'].includes(f.task.id)))
 })
 
+test('a draft task is never newly unlocked, and drafts fold in only with the toggle on', async () => {
+  const { draftsGraph } = await import('./browser/graph-chains.ts')
+  const { withDrafts } = await import('../src/views-api.ts')
+  assert.equal(withDrafts(draftsGraph, false), draftsGraph)
+  const shown = withDrafts(draftsGraph, true)
+  assert.equal(shown.total, chainsGraph.total + 4)
+  assert.ok(shown.tasks.filter((t) => t.state === 'draft').every((t) => !t.ready))
+  const { ready, waiting } = tree.frontier(shown)
+  // M1 waits only on done S1, yet its spec is a draft: not unlocked.
+  assert.deepEqual(ready.map((f) => f.task.id), ['S3', 'B2'])
+  assert.ok(!waiting.some((f) => f.task.id === 'M1'))
+  assert.ok(waiting.some((f) => f.task.id === 'M2'))
+  const m2 = tree.focusTree(shown, { kind: 'task', id: 'M2' })
+  assert.deepEqual(m2.graph.tasks.map((t) => t.id).sort(), ['M1', 'M2', 'M3', 'M4', 'S3'])
+})
+
 test('a task tree is its live chain up and down, with met blockers as ghosts', () => {
   const s3 = tree.focusTree(chainsGraph, { kind: 'task', id: 'S3' })
   assert.deepEqual(s3.graph.tasks.map((t) => t.id).sort(), ['B3', 'B4', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'Y3'])

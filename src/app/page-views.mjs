@@ -19,6 +19,7 @@ import {
   taskRoute,
 } from "../work-model.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
+import { draftGraph } from "./graph-drafts.mjs";
 import { FINAL_STATUSES } from "./session-bindings.mjs";
 import {
   claimedTaskIds,
@@ -271,7 +272,11 @@ export function reviewGroups(store, data) {
 // a plan), repository and status. Edges are kept only when both ends are
 // shown. `ready` uses the same rule as `queue`. Each task carries its epic,
 // plan and phase, read from records, never from a file path (R59.6).
-export function graphView(store, data, input = {}) {
+//
+// `folders` are the spec folders on disk ([{name, spec}]). Tasks of the ones
+// not approved come back apart, in `drafts`, with state "draft": never
+// ready, never in `tasks`, so no reader of `tasks` counts or releases them.
+export function graphView(store, data, input = {}, folders = []) {
   const epics = list(input.epic),
     phases = list(input.phase),
     repositories = list(input.repository),
@@ -369,6 +374,18 @@ export function graphView(store, data, input = {}) {
       batch.members.map((id) => [id, batch.id]),
     ),
   );
+  // Draft spec tasks, through the same filters (a draft has no epic and the
+  // status "draft"). An edge from an approved task is judged as above.
+  const draft = draftGraph(data, folders, optionalList(store, "plans")),
+    draftShown = draft.tasks.filter(
+      (task) =>
+        (!scope || [scope.plan, scope.spec].includes(task.spec)) &&
+        (!epics || epics.has(NO_EPIC)) &&
+        (!phases || phases.has(String(task.phase?.id ?? NO_PHASE))) &&
+        (!repositories || repositories.has(String(task.repository))) &&
+        (!statuses || statuses.has("draft")),
+    ),
+    draftIds = new Set(draftShown.map((task) => task.id));
   return {
     revision: data.revision,
     batches: [...batches.values()],
@@ -437,6 +454,29 @@ export function graphView(store, data, input = {}) {
           complete,
         ),
       })),
+    drafts: {
+      specs: draft.specs,
+      total: draft.tasks.length,
+      tasks: draftShown,
+      edges: draft.edges
+        .filter(
+          (edge) =>
+            draftIds.has(edge.to) &&
+            (draftIds.has(edge.from) || ids.has(edge.from)),
+        )
+        .map((edge) =>
+          byId.has(edge.from)
+            ? {
+                ...edge,
+                satisfied: completionReached(
+                  supersedingTask(byId, edge.from),
+                  edge.condition ?? undefined,
+                  complete,
+                ),
+              }
+            : edge,
+        ),
+    },
   };
 }
 
