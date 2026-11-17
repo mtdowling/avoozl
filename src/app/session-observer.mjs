@@ -10,7 +10,8 @@
 //
 // What it can tell: working, queued, idle, and "gone" (the gateway does not
 // hold it). It cannot tell a closed session from a lost one, so "gone" is
-// not final: a worker that is gone opens a decision (delivery.mjs).
+// not final: a gone worker is resumed once, and a second vanish opens a
+// decision (delivery.mjs).
 import { liveAttempt } from "./delivery.mjs";
 import { ingestToolRows, toolCallsReadable } from "./flow.mjs";
 import { ingestProviderErrors } from "./provider-health.mjs";
