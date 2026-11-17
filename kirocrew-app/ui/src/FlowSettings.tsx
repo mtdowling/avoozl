@@ -32,13 +32,14 @@ function Raw({ name }: { name: string }) {
   )
 }
 
-// One field in a FieldGrid: label, input, hint, then the .avoozl.json key.
-// Its four rows join the grid's rows (subgrid), so fields side by side line
-// up row by row even when one label wraps.
+// One field in a FieldGrid: label, "(optional)", input, hint, then the
+// .avoozl.json key. Its rows join the grid's rows (subgrid), so in each row
+// of fields the labels start on one line and the inputs on one line, even
+// when one label wraps.
 function Labeled(props: { id: string; label: string; raw: string; children: React.ReactNode; note?: string }) {
   return (
     <div className="min-w-0 text-sm" data-flow-field style={{ display: 'grid', gridRow: 'span 4', gridTemplateRows: 'subgrid', rowGap: 4, alignContent: 'start' }}>
-      <label htmlFor={props.id} style={{ ...LABEL_ROW, alignSelf: 'end' }}>
+      <label htmlFor={props.id} data-flow-label style={{ display: 'flex', flexDirection: 'column', alignSelf: 'start', rowGap: 2 }}>
         <span className="font-medium">{props.label}</span>
         <Marker rule={OPTIONAL} />
       </label>
