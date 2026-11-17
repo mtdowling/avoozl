@@ -214,3 +214,33 @@ test("export writes pass the content scan; a blocked write makes nothing and sta
   assert.equal(github.created.length, 0);
   assert.equal(exportOf(store, "p").state, "exporting");
 });
+
+test("spec.exportIssues previews, exports with confirm, and refuses agents", async (t) => {
+  const { Operations } = await import("../operations.mjs");
+  const { temporaryDirectory } = await import("./temporary.mjs");
+  const { store, github } = workspace(t);
+  const ops = new Operations(store, {
+    github,
+    workspaceRoot: temporaryDirectory(),
+  });
+  await assert.rejects(
+    ops.execute(
+      "spec.exportIssues",
+      { planId: "p", confirm: true },
+      undefined,
+      {
+        mcp: true,
+      },
+    ),
+    /Only a person/,
+  );
+  const preview = await ops.execute("spec.exportIssues", { planId: "p" });
+  assert.equal(preview.create.length, 2);
+  assert.equal(github.created.length, 0);
+  const done = await ops.execute("spec.exportIssues", {
+    planId: "p",
+    confirm: true,
+  });
+  assert.equal(done.state, "exported");
+  assert.equal(github.created.length, 2);
+});
