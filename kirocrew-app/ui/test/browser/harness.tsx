@@ -727,18 +727,21 @@ function ReleaseModes() {
   )
 }
 // ?page=github-flow: Flow from GitHub data on two finished issues.
+// &receipt=only: builds from a repository with receipts and no Radar crew,
+// so no finished issues.
+const buildsOnly = query.get('receipt') === 'only'
 if (query.get('page') === 'github-flow' || (query.get('page') === 'app' && query.get('receipt')))
   answer('radar.flow', () => ({
     readAt: new Date(Date.now() - 4 * 60000).toISOString(),
-    count: 2,
+    count: buildsOnly ? 0 : 2,
     issues: [],
-    skipped: [{ number: 61 }],
-    median: [15 * 60000, 45 * 60000, 35 * 60000, 10 * 60000],
-    medianLead: 105 * 60000,
-    efficiency: 90 / 210,
-    bottleneck: 'Claim to PR',
+    skipped: buildsOnly ? [] : [{ number: 61 }],
+    median: buildsOnly ? null : [15 * 60000, 45 * 60000, 35 * 60000, 10 * 60000],
+    medianLead: buildsOnly ? null : 105 * 60000,
+    efficiency: buildsOnly ? null : 90 / 210,
+    bottleneck: buildsOnly ? null : 'Claim to PR',
     errors: [],
-    repositories: ['acme/recipe-box'],
+    repositories: buildsOnly ? [] : ['acme/recipe-box'],
     ...(query.get('receipt')
       ? {
           builds: {

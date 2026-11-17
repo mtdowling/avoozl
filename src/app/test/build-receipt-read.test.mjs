@@ -605,3 +605,30 @@ test("the old build-receipt name and the build-receipt-<os> names are both read"
   assert.equal(rows(store, "WHERE pr_number=51").length, 1);
   assert.equal(rows(store, "WHERE pr_number=52").length, 3);
 });
+
+// P65: Flow built only from Issue Radar rows, so a repository with receipts
+// and no Radar crew never showed its builds.
+test("Flow shows the builds of a repository with receipts and no Radar crew", async (t) => {
+  const { store } = fixture(t),
+    gh = github(),
+    policy = {
+      mode: "single-repo",
+      repositories: { [REPO]: { buildReceipts: true } },
+    };
+  await ciStep(store, gh, { policy, now: NOW });
+  await refreshFlow(store, gh, policy, { force: true });
+  const view = flowView(store);
+  assert.deepEqual(view.repositories, [], "no Radar repository");
+  assert.equal(view.count, 0, "no finished issues");
+  assert.equal(view.builds.count, 2);
+  assert.deepEqual(
+    view.builds.recent.map((row) => [row.pr, row.costliest.phase]).sort(),
+    [
+      [51, "npm test"],
+      [52, "npm test"],
+    ],
+  );
+  // A Radar repository's rows are not counted twice.
+  await refreshFlow(store, gh, POLICY, { force: true });
+  assert.equal(flowView(store).builds.count, 2);
+});
