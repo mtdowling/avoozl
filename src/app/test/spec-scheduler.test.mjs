@@ -9,6 +9,7 @@ import test from "node:test";
 import { digest } from "../../model.mjs";
 import { Operations } from "../operations.mjs";
 import { Store } from "../store.mjs";
+import { GitHubClient } from "../github.mjs";
 import {
   branchOnly,
   rememberDriver,
@@ -301,6 +302,29 @@ test("a GitHub journal that cannot be read holds its spec", async (t) => {
     planIds: ["spec-a"],
   });
   assert.equal(readable.plans.size, 0);
+  // With no repository row, the real client still reads the receipt's
+  // repository (it once asked for /repos/undefined/undefined).
+  const paths = [],
+    client = new GitHubClient({
+      token: "test",
+      fetch: async (input) => {
+        const at = new URL(String(input)).pathname;
+        paths.push(at);
+        return new Response(
+          at.endsWith("/comments") ? "[]" : '{"private":true}',
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        );
+      },
+    });
+  const real = await revalidateSpecs(store, {
+    github: client,
+    planIds: ["spec-a"],
+  });
+  assert.equal(real.plans.size, 0, JSON.stringify([...real.reasons]));
+  assert.ok(paths.includes("/repos/acme/app/issues/7/comments"), paths.join());
 });
 
 test("the tick dispatches the leaf that unblocks more first, within a rank", async (t) => {
