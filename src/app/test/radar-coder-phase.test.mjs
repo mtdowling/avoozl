@@ -14,6 +14,11 @@ import {
   leaf,
   setup,
 } from "./radar-coder-release-fixture.mjs";
+import { setRadarHandoverPaused } from "../coder-adapter.mjs";
+
+// These tests cover the Radar hand-over kept while Phase 45 is paused
+// (R103.4 pauses it in the product).
+setRadarHandoverPaused(false);
 
 const phased = (w, phases) =>
   w.store.mutate("Phases", (data) => {

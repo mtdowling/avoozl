@@ -9,6 +9,7 @@ import { actorAllowed } from "./github-policy.mjs";
 import { recordActivity } from "./activity-log.mjs";
 import { planSource } from "./radar-source.mjs";
 import { parseMarkers, liveClaim } from "./radar-claims.mjs";
+import { RADAR_HANDOVER } from "./coder-adapter.mjs";
 
 const ROWS = "approvalRows";
 const lower = (value) => String(value ?? "").toLowerCase();
@@ -145,6 +146,9 @@ export async function claimParent({
   plan,
   now = new Date().toISOString(),
 }) {
+  // R103.4: no Radar claim label or marker at approval while the hand-over
+  // is paused (coder-adapter.mjs).
+  if (RADAR_HANDOVER.paused) return null;
   const source = planSource(plan, identity),
     receipt = `approval-claim:${plan.id}:${plan.hash}`;
   if (!source || store.get("receipts", receipt)) return null;

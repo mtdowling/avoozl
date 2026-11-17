@@ -535,3 +535,19 @@ test("crew label events never make a trigger rule true, and a rule may not name 
       /uses Issue Radar's label .* as a trigger/,
     );
 });
+
+test("Send to Issue Radar refuses an issue carrying crew:avoozl (R103.7)", async (t) => {
+  const { github, ops, send } = workspace(t);
+  github.items.push(issue(8, ["crew:avoozl"]));
+  await ops.execute("untriaged.view", { refresh: true });
+  for (const flag of [{ preview: true }, { confirm: true }])
+    await assert.rejects(
+      send({
+        items: [{ repository: REPO, number: 8 }],
+        crew: { id: "c1" },
+        ...flag,
+      }),
+      /#8 carries crew:avoozl: it is Avoozl's own issue/,
+    );
+  assert.deepEqual(github.labelWrites, []);
+});

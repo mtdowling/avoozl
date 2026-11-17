@@ -13,6 +13,8 @@ export interface TraceStep {
   state: 'done' | 'now' | 'later' | 'skipped'
   by?: string | null
   detail?: string
+  // Every build record of the merged step, grouped by phase (R101.4).
+  builds?: { phase: string; items: { target: string; start: string; attempt: number; task: string | null; ms: number; failed: boolean }[] }[]
   link?: string | null
   rounds?: number
 }

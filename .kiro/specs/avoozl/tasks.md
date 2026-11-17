@@ -1498,21 +1498,21 @@ the coding loop. Exit: a three-task chain survives a gateway restart
 unattended. Runs after the executor seam (Phase 46, `avoozl-p56`). Phase 56
 foundation tasks without that dependency may proceed while the live proof waits.
 
-- [ ] 40.1 Worker brief edits and reports only, after avoozl-p56 [R86.3, R96] (§4.26)
+- [x] 40.1 Worker brief edits and reports only, after avoozl-p56 [R86.3, R96] (§4.26)
   - The brief drops push, PR, auto-merge, merge and comment steps. Avoozl commits sandboxed process results; chats/people may commit locally. Read HEAD from the worktree, never from a report. A prompt test enforces this boundary.
 
 - [ ] 40.2 Report by CLI, matched by worktree and token, after avoozl-p56 [R88.2, R88.3, R96.4] (§4.26)
   - Use `avoozl runner report TASK done|blocked` for chats and people. Carry the worktree path and token in the brief; local chats use project: false. Test wrong tokens/worktrees and reporting without MCP sharing.
 
-- [ ] 40.3 Trust mode set at open and again every tick, after avoozl-p56 [R88.1] (§4.26)
+- [x] 40.3 Trust mode set at open and again every tick, after avoozl-p56 [R88.1] (§4.26)
   - A fake Kiro Crew that drops trust on restart; the next tick sets it again, once per chat.
-- [ ] 40.4 Prepare with the worktree helper and clean up after landing, after avoozl-p56 [R88.6] (§4.26)
+- [x] 40.4 Prepare with the worktree helper and clean up after landing, after avoozl-p56 [R88.6] (§4.26)
   - First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise.
 - [ ] 40.5 Verify: warm checks off the tick, per-check timeouts, declared and protected paths, after 40.1 [R86.6, R86.7] (§4.26)
   - Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you.
 - [ ] 40.6 One automatic resume for a vanished chat, after 40.2 [R88.4] (§4.26)
   - Only Kiro Crew's "gone" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you.
-- [ ] 40.7 Lanes: 3 on this Mac by default, after avoozl-p56 [R88.5] (§4.26)
+- [x] 40.7 Lanes: 3 on this Mac by default, after avoozl-p56 [R88.5] (§4.26)
   - `lanes.local` default 3; a fourth ready task waits.
 
 - [ ] avoozl-p50 P50 Proof: a three-task chain survives a gateway restart unattended, after 40.1, 40.2, 40.3, 40.4, 40.5, 40.6, 40.7, 41.1, 41.2, 41.3, 41.5 [R86, R87.10, R88] (§4.26)
@@ -1703,8 +1703,9 @@ Requirements 93.5, 94, 95, 96 (design §4.28). Exit: a 3-task chain on a
 scratch repository with one feedback round by resume, a killed child that
 recovers, and a backend restart mid-run.
 
-- [ ] 47.1 Harness definition files: argv lists, placeholders, hash approval, after avoozl-p56 [R94.1, R94.2, R94.3] (§4.28)
+- [x] 47.1 Harness definition files: argv lists, placeholders, hash approval, after avoozl-p56 [R94.1, R94.2, R94.3] (§4.28)
   - Loading refuses a shell string, an unknown placeholder and an unapproved hash.
+  - Built: `src/app/harness-definitions.mjs` (machine config `harnesses/<name>.json`, approvals in `harness-approvals.json`); tests in `src/app/test/harness-definitions.test.mjs`.
 - [ ] 47.2 Permission classes, write roots and the skip-flag refusal, after 47.1 [R94.4, R94.4b, R94.5] (§4.28)
   - Write roots: task folder, temp, project cache dirs; read-only roles read-only; a test loads definitions with `bypassPermissions`, `danger-full-access` and a `--dangerously-*` flag and sees each refused; the per-machine opt-in is person-only.
 - [ ] 47.7 Avoozl commits after the child exits, after 47.4 [R94.4a] (§4.28)
@@ -1796,8 +1797,9 @@ mode of Phase 43.
 
 Requirement 96.4 (design §4.28).
 
-- [ ] 52.1 `next`, `claim` and `runner report` keep working for a person, after avoozl-p56 [R96.4] (§4.28)
+- [x] 52.1 `next`, `claim` and `runner report` keep working for a person, after avoozl-p56 [R96.4] (§4.28)
   - One test per command from a plain shell.
+  - Built: `src/app/test/manual-path.test.mjs` runs the CLI with no Kiro Crew, gateway or Avoozl variables: `next` lists ready work, `claim --slot` binds as `cli` with a worktree and `report --kind done` finishes it in crew mode, and `runner report TASK --state done` reports a runner task. The positional `runner report TASK done|blocked` and its use outside runner mode are 40.2's.
 
 - [ ] avoozl-p62 P62 Proof: a person finishes a task by hand, after 52.1 [R96.4] (§4.28)
   - Setup: a scratch workspace with one ready task.
@@ -1870,13 +1872,14 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
 - [x] 55.3 Reader: every artifact, every line, stored observations, after 55.1, 54.2, 54.6 [R101.1, R101.2, R101.5, R101.6] (§4.31)
   - Unfiltered artifact list through the HTTP cache from `ciStep`; `receipt_artifacts` and `build_observations`; `pr_ci` gains `head_sha` and `merged_at`; the old metadata value moves once. Tests: several phases on 3 platforms keep every record; a failed attempt is kept and marked; one list per check, a 304 reads nothing, one download per new artifact, the next check costs 0; complete runs with no artifact store none.
   - Built: pass, `src/app/test/build-receipt-read.test.mjs`.
-- [ ] 55.4 Flow and Trace show every record; PDCA on build minutes, after 55.3 [R101.4, R101.12] (§4.31)
+- [x] 55.4 Flow and Trace show every record; PDCA on build minutes, after 55.3 [R101.4, R101.12] (§4.31)
   - `buildView` replaces `receiptsView`: totals, phases, costliest phase, failed apart, medians per phase, target and start; Trace groups every observation by phase. `METRICS` adds Build minutes per pull request. Tests: the costliest phase shows in Flow; failed attempts stay out of medians. Ships before and after screenshots (phone and desktop, light and dark) and waits for the owner's approval before merge.
 - [x] 55.5 Build report format, `receipts.report` and the adapter, after 55.1 [R101.7, R101.8, R101.9] (§4.31)
   - `docs/build-report.md` for version 1; `src/app/build-report.mjs` with `parseBuildReport` and `comparisonKey`; `receipts.report` checked as a field or an artifact prefix. Tests: both forms; an unknown version and a missing field are skipped and counted; fixtures use made-up names only.
   - Built: pass, `src/app/test/build-report.test.mjs`.
-- [ ] 55.6 Breakdowns stored, in the retro brief, and compared by key only, after 55.3, 55.5, 54.4 [R101.9, R101.10, R101.11] (§4.31)
+- [x] 55.6 Breakdowns stored, in the retro brief, and compared by key only, after 55.3, 55.5, 54.4 [R101.9, R101.10, R101.11] (§4.31)
   - `build_breakdowns` from the field or report artifacts; `buildBrief` in `retroBrief`; `PLAN_FIELDS` adds `key` and `part`; `METRICS` adds Build part minutes; Not enough comparable builds. Tests: mismatched keys are never compared; a retro brief includes the breakdown; a repository with no reports gives the same brief and call count as before.
+  - Built: pass, `src/app/test/build-breakdown.test.mjs`.
 
 - [ ] avoozl-p65 P65 Proof: every receipt kept and a breakdown in a retro on a real repository, after 55.1, 55.2, 55.3, 55.4, 55.5, 55.6 [R101] (§4.31)
   - Setup: an isolated workspace naming one scratch GitHub repository with `buildReceipts` on, CI on 3 platforms running build and test through the wrapper, and `receipts.report` set to a field that a test script fills with made-up workload, engine and target names.
@@ -1935,7 +1938,7 @@ proof or run a real workspace to get past that wait.
   - After private divergence, import upstream into a public-tracking branch and a reviewed mirror PR. Forward recognition excludes upstream/import ancestry, including an import merge whose second parent is on the public-tracking branch.
   - Test divergent mirror updates and a second import; forwarding proposes nothing for imported upstream changes and still screens genuine private changes.
 
-- [ ] 56.11 Privacy enforcement for checkpoints and public metadata, after 56.2 [R87.9, R102.11, R102.12, R102.23, R102.24, R102.25] (§4.32)
+- [x] 56.11 Privacy enforcement for checkpoints and public metadata, after 56.2 [R87.9, R102.11, R102.12, R102.23, R102.24, R102.25] (§4.32)
   - Reuse existing content scanning in process before every outgoing push range and every externally visible journal/intake/PR/status write. Check ref names, commit messages, added lines and public metadata; apply the explicit journal schema without raw logs, commands, paths or private identifiers.
   - Tests insert made-up private names into branch names, commit messages, PR bodies, check summaries, records and artifacts and refuse publication before the first write. Preserve useful opaque IDs and public commit/check references. Private-plan mappings and sensitive controls remain private; hidden HTML grants no secrecy.
   - No internal information on public writes: refuse hostname and IP literals, *.corp/*.internal/*.local/*.lan and the owner's private machine-local internal-domain list, home paths, and this machine's own hostname and username before the first write. Records name a machine only by its public alias (machine config; unset means a generated neutral name, never the hostname); the schema has an alias field and no hostname field. Tests insert a made-up hostname and username into every public field and expect refusal with nothing written.
@@ -1944,7 +1947,7 @@ proof or run a real workspace to get past that wait.
   - Add crew:avoozl in the GitHub client's createIssue, REST and GraphQL forms, with one named opt-out for export. No label edit after a create. Covers projection, the extracted-design parent, mirror follow-up and conflict issues today.
   - Treat crew:avoozl as Avoozl's own: Untriaged and the plan-me hand-off skip it; Settings refuses it as any other label's name. A source test fails on any other createIssue opt-out; fake-GitHub tests check each path's request carries the label.
 
-- [ ] 56.13 Stop handing Avoozl task issues to Issue Radar, after 56.12 [R103.4, R103.5, R103.7] (§4.32)
+- [x] 56.13 Stop handing Avoozl task issues to Issue Radar, after 56.12 [R103.4, R103.5, R103.7] (§4.32)
   - Until 56.5 runs, issueRadarAdapter.handOver adds no ready label and the claim at approval writes no claim label or marker; the executor runs those tasks. Keep Radar code and settings (Phase 45 paused).
   - One previewed, paced, idempotent backfill adds crew:avoozl to open projected task issues with no crew: label; claimed issues are left alone with one Needs you row. Send to Issue Radar refuses crew:avoozl issues. Tests cover no hand-over write, backfill retry and the claimed skip.
 
