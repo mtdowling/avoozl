@@ -5136,7 +5136,7 @@
     "27.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 27 (Budgets and receipts). See R67.1–R67.5; §4.17.",
+      "summary": "Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.1–R67.5; §4.17.",
       "acceptance": [
         "Price table and budget levels, after 12.12",
         "A machine-local, versioned price table with no shipped prices, refused in tracked files, packs and manifests; budget usd, tokens and credits at workspace, repository, spec and task, most specific key winning; fallback caps of 2,000,000 tokens and 200 credits; the driver export leaves prices out."
@@ -5153,7 +5153,7 @@
     "27.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 27 (Budgets and receipts). See R67.4, R67.7, R67.11–R67.14; §4.17.",
+      "summary": "Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.4, R67.7, R67.11–R67.14; §4.17.",
       "acceptance": [
         "Spend and receipts, after 27.1 and 12.9",
         "Turns are priced on read from raw counts; budget.receipt gives totals by stage, model and attempt with priced flags, cap and level, raises, stops, price version and hash, and missing reasons; the CLI, plans_view action receipt and the retro payload carry it; no prompt or text is held."
@@ -5171,7 +5171,7 @@
     "27.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 27 (Budgets and receipts). See R67.6–R67.9, R67.14, R67.15; §4.17.",
+      "summary": "Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.6–R67.9, R67.14, R67.15; §4.17.",
       "acceptance": [
         "Stop at the cap, Raise budget and Stop, after 27.2, 12.8 and 15.4",
         "At a cap nothing new is dispatched for the task, each live session gets one stop message and budget_reached on its Avoozl calls, and no session is stopped, interrupted or closed; Raise budget and Stop are person only and cost no attempt; unpriced turns use the token and credit caps; unknown spend warns and never stops; no gate reads the budget."
@@ -5190,7 +5190,7 @@
     "27.4": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 27 (Budgets and receipts). See R67.2, R67.10, R67.11; §4.17.",
+      "summary": "Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.2, R67.10, R67.11; §4.17.",
       "acceptance": [
         "Spend on the page, after 27.3 and 12.11",
         "The drawer Budget fold with Export JSON, the spend chip on the Delivery and In flight cards, and the budget fields work at 375 and 1280 px in light and dark. Settings › Prices was removed 2026-11-14 (owner)."
@@ -5208,7 +5208,7 @@
     "avoozl-p41": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 27 (Budgets and receipts). Proof. See R67; §4.17.",
+      "summary": "Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). Proof. See R67; §4.17.",
       "acceptance": [
         "Proof: budgets and receipts",
         "Expected: caps resolve by level; a capped task gets no new session and a stop message only after its running turn, with no session stopped; retries, verifier and review rounds share one cap; a batch shares the sum of its caps; unpriced turns stop at the token or credit cap; Raise budget and Stop are person only; a price change recomputes the receipt and keeps the stop's old dollars; unknown spend warns without stopping; export, CLI and MCP agree with no text; no budget opens a gate."
@@ -6876,10 +6876,11 @@
     "44.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44. Landing queue panel and mobile navigation. See R92.1; §4.27.",
+      "summary": "Phase 44. One link set per spec and task from stored records. See R92.1, R92.2, R92.3; §4.27.",
       "acceptance": [
-        "Landing queue panel and mobile navigation",
-        "Exact-portion list/detail; full-width list/detail with back control at 390 px. No new general Issues browser."
+        "One link set per spec and task from stored records",
+        "Pure read model over the spec issue and journal, spec working branch, task branch and worktree, task PR and check state from landing, landed commit from delivery records, and intake/escalation issues. URLs come from validated repository, number, ref and SHA fields only.",
+        "Missing records show as none; check state carries head SHA and age, and a non-current head is never shown as current. A counting-client test asserts the GitHub call count is unchanged with link sets on."
       ],
       "completion": "integrated",
       "checks": [
@@ -6887,16 +6888,22 @@
         "git diff --check"
       ],
       "requires": [
-        "avoozl-p52"
+        "40.4",
+        "41.2",
+        "42.6",
+        "56.2",
+        "56.3",
+        "56.8",
+        "56.14"
       ]
     },
     "44.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44. Cached queue rows, search and filters. See R92.2, R92.6, R92.7; §4.27.",
+      "summary": "Phase 44. Links box in the spec details panel. See R92.4, R92.9, R92.10, R92.12; §4.27.",
       "acceptance": [
-        "Cached queue rows, search and filters",
-        "Show target/base, source repository/ref/SHA including forks, portion, checks and state. Counting client: cached load/filter costs zero calls."
+        "Links box in the spec details panel",
+        "Spec issue, working branch, open PRs with a check dot each, Radar issues it came from. Links open with target=_blank rel=\"noopener noreferrer\"; a private spec issue renders only locally."
       ],
       "completion": "integrated",
       "checks": [
@@ -6910,10 +6917,10 @@
     "44.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44. Portion detail and visibility-safe spec links. See R92.3, R92.6; §4.27.",
+      "summary": "Phase 44. Links box in the task details view and the Graph modal. See R92.5, R92.9, R92.10, R92.12; §4.27.",
       "acceptance": [
-        "Portion detail and visibility-safe spec links",
-        "Show exact commits and accepted evidence; link the spec issue only when public visibility permits. Use GitHub for discussion."
+        "Links box in the task details view and the Graph modal",
+        "Branch, PR, checks, landed commit and issue; the Graph modal reuses the same view. A worktree path shows as local text only."
       ],
       "completion": "integrated",
       "checks": [
@@ -6927,10 +6934,10 @@
     "44.4": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44. PR checks, review and fork source in detail. See R92.4; §4.27.",
+      "summary": "Phase 44. PR and branch chips on In flight rows. See R92.6, R92.9, R92.12; §4.27.",
       "acceptance": [
-        "PR checks, review and fork source in detail",
-        "Show required checks, files summary, standing review, source identity and queue/conflict state; never show a stale head as current."
+        "PR and branch chips on In flight rows",
+        "`PR #N` with a check dot, and the branch. Chips fit a 390 px row."
       ],
       "completion": "integrated",
       "checks": [
@@ -6938,16 +6945,16 @@
         "git diff --check"
       ],
       "requires": [
-        "44.3"
+        "44.1"
       ]
     },
     "44.5": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 44. Queue actions with person-only boundaries. See R92.5; §4.27.",
+      "summary": "Phase 44. Landing queue page under Dashboards. See R92.7, R92.2, R92.12; §4.27.",
       "acceptance": [
-        "Queue actions with person-only boundaries",
-        "Hold, re-queue, Stop the line and open on GitHub. Enforce person-only actions in operations, CLI and MCP."
+        "Landing queue page under Dashboards",
+        "A Dashboards page next to CI, not a nav pill. Per target base, items in landing order with each hold reason; full-width rows at 390 px. No GitHub call; Refresh redraws."
       ],
       "completion": "integrated",
       "checks": [
@@ -6955,21 +6962,21 @@
         "git diff --check"
       ],
       "requires": [
-        "44.3"
+        "44.1"
       ]
     },
     "avoozl-p54": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase proof. P54 Proof: landing queue and cache on real GitHub. See R92, R102.7, R102.12; §4.27.",
+      "summary": "Phase proof. P54 Proof: links and the landing queue on real GitHub. See R92, R102.7, R102.12; §4.27.",
       "acceptance": [
-        "P54 Proof: landing queue and cache on real GitHub",
-        "Setup: isolated scratch workspace with two registered targets, one PR from a fork, and verified/unlanded portions; no real workspace tick.",
-        "Action: open queue and PR detail at 390 and 1280 px, light and dark; count reads; reopen an unchanged detail and filter cached rows.",
-        "Expected: exact target/source/portion and standing review shown; cached list/filter/detail cost zero extra calls; first new detail one read; pages usage attribution. Private spec references never render on a public surface.",
-        "Also record: screenshots, exact source and target SHAs, cache/conditional-call counters and owner screenshot approval. Live receipt under docs/evidence/; wait for owner approval before ticking.",
-        "Failure means: stale authority, leaked private links, extra list calls or unusable mobile layout. No Issue Radar parity comparison is required.",
-        "Next decision: owner approves the screenshots and remaining shared projection deletion, or names the queue detail to change."
+        "P54 Proof: links and the landing queue on real GitHub",
+        "Setup: isolated scratch workspace with two registered targets, one PR from a fork, a spec created from a scratch Radar-style issue, one landed and one held task; no real workspace tick.",
+        "Action: open the spec details panel, a task's details and its Graph modal, In flight and the Landing queue at 390 and 1280 px, light and dark; follow each link; count GitHub calls before and after.",
+        "Expected: every link reaches the right GitHub item in a new tab; held items show the right reason; opening and refreshing the views adds zero calls; the scratch Radar issue shows the spec link only when the spec is public. Private spec references, host names, usernames and paths never render on a public surface.",
+        "Also record: screenshots, exact source and target SHAs, call counts and owner screenshot approval. Live receipt under docs/evidence/; wait for owner approval before ticking.",
+        "Failure means: a wrong or stale link shown as current, a leaked private reference, an extra GitHub call or an unusable mobile layout.",
+        "Next decision: owner approves the screenshots and remaining shared projection deletion, or names the link or queue detail to change."
       ],
       "completion": "integrated",
       "checks": [
@@ -6982,10 +6989,7 @@
         "44.3",
         "44.4",
         "44.5",
-        "44.6",
-        "44.7",
-        "44.8",
-        "44.9"
+        "44.6"
       ]
     },
     "45.1": {
@@ -7097,70 +7101,19 @@
     "44.6": {
       "kind": "leaf",
       "repository": "avoozl",
+      "summary": "Phase 44. Radar back-links through intake and the journal. See R92.8, R92.10; §4.27.",
+      "acceptance": [
+        "Radar back-links through intake and the journal",
+        "Spec shows its Radar source issues. The intake status comment names the spec issue where visibility permits; the journal records the source issue as owner/repo#N under the privacy scan, so GitHub shows a cross-reference. Tests: a public Radar issue never names a private spec; no Radar API, grant or import; no new GitHub write."
+      ],
       "completion": "integrated",
       "checks": [
         "npm test",
         "git diff --check"
       ],
-      "summary": "Phase 44. Shared paginated queue read fills the cache. See R92.9, R92.13; §4.27.",
-      "acceptance": [
-        "Shared paginated queue read fills the cache",
-        "Reuse the shared target PR/check read with fully qualified head identities. No task-issue list or full GitHub-browser mirror."
-      ],
       "requires": [
-        "44.1"
-      ]
-    },
-    "44.7": {
-      "kind": "leaf",
-      "repository": "avoozl",
-      "completion": "integrated",
-      "checks": [
-        "npm test",
-        "git diff --check"
-      ],
-      "summary": "Phase 44. Lazy current-version PR detail cache. See R92.10, R92.16; §4.27.",
-      "acceptance": [
-        "Lazy current-version PR detail cache",
-        "Fetch once on first open; invalidate when source head, reviews or version changes. Journal/control refresh runs regardless of opening detail."
-      ],
-      "requires": [
-        "44.6"
-      ]
-    },
-    "44.8": {
-      "kind": "leaf",
-      "repository": "avoozl",
-      "completion": "integrated",
-      "checks": [
-        "npm test",
-        "git diff --check"
-      ],
-      "summary": "Phase 44. Conditional reads, joined Recheck and usage source. See R92.11, R92.12, R92.14; §4.27.",
-      "acceptance": [
-        "Conditional reads, joined Recheck and usage source",
-        "Conditional unavoidable REST, no browser polling; Refresh redraws. Concurrent Rechecks join; count actual rate-limit usage under pages."
-      ],
-      "requires": [
-        "44.6"
-      ]
-    },
-    "44.9": {
-      "kind": "leaf",
-      "repository": "avoozl",
-      "completion": "integrated",
-      "checks": [
-        "npm test",
-        "git diff --check"
-      ],
-      "summary": "Phase 44. Queue cache and call-budget tests. See R92.15; §4.27.",
-      "acceptance": [
-        "Queue cache and call-budget tests",
-        "500 cached portions cost zero to list/filter; unchanged details zero; one new detail one read; changed PRs share per-repository reads plus pages; concurrent Rechecks join one read."
-      ],
-      "requires": [
-        "44.7",
-        "44.8"
+        "44.1",
+        "56.11"
       ]
     },
     "46.1": {
@@ -8504,6 +8457,25 @@
         "avoozl-p63"
       ],
       "manual": true
+    },
+    "58.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 58 (A role per repository replaces Where tasks live). See R105; §4.34.",
+      "acceptance": [
+        "Repository roles replace Where tasks live, after 3.14, 20.2",
+        "Repository setup shows an in-place role picker per repository (local, code, planning, both); the mode and planningRepository derive from roles through one resolver that also reads old files without writing; mixed roles are refused; the Where tasks live page is gone with its link opening Repository setup and workspace-wide settings in Settings › Workspaces. Tests cover the mapping, migration and screens, and screenshots (phone and desktop, light and dark, full app shell) are under docs/evidence/repo-roles/."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "npm run test:ui",
+        "git diff --check"
+      ],
+      "requires": [
+        "3.14",
+        "20.2"
+      ]
     }
   }
 }

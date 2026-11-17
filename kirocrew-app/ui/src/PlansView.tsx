@@ -26,7 +26,6 @@ import { STATES, nodeState, type Drill, type NodeState } from './graph-layout.ts
 import { rowPlanKey, type TaskFilter } from './filters.ts'
 import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
-import { scrollParent, stickyHeight } from './sticky-column.ts'
 import { linkHref, safeHref, viewsClient, type Graph } from './views-api.ts'
 import { useSteppedState } from './NavHistory.tsx'
 import { usePhone } from './list-detail.ts'
@@ -43,9 +42,7 @@ import { DiffBlock } from './FlowMemory.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
 import { SpecChangedModal } from './SpecChangedModal.tsx'
 import { projectionClient } from './projection-api.ts'
-import { LAYER } from './layers.ts'
-import { ResizeHandle } from './ResizeHandle.tsx'
-import { LIST_FOLDED_WIDTH, SPEC_RAIL, clampWidth, listSpec, pageStorage, railRoom, readWidth, writeWidth } from './columns.ts'
+import { SpecDetailsPanel } from './SpecDetailsPanel.tsx'
 import {
   UNCATEGORIZED,
   approveBlocker,
@@ -102,94 +99,6 @@ export type PlanTarget = 'graph'
 // Plan prose stays at a readable line length (about 80 characters); tables
 // and code blocks may use the column's full width.
 export const PROSE_MEASURE = '80ch'
-
-// Under 1280 px the list, nav and detail share the page, so the spec's
-// rail stops sticking and scrolls with the cards.
-const STACK = '(max-width: 1279px)'
-
-// The spec rail's width: remembered in this browser, and never so wide the
-// cards get narrower than SPEC_CARDS_MIN. A rail wider than fits beside the
-// specs list folds the list into a thin bar (railRoom), so it can grow well
-// past its default on a 1280 px screen. The callback ref watches the spec
-// body; max is null when the body is too narrow for a handle at all.
-function useRailWidth(on: boolean) {
-  const [stored, setStored] = useState(() => readWidth(pageStorage(), SPEC_RAIL))
-  const [body, setBody] = useState<{ width: number; folded: boolean; gain: number } | null>(null)
-  const stop = useRef<(() => void) | null>(null)
-  // The open list's width with its handle, as last laid out.
-  const listOuter = useRef<number | null>(null)
-  const ref = useCallback(
-    (node: HTMLElement | null) => {
-      stop.current?.()
-      stop.current = null
-      if (!node || !on || typeof ResizeObserver === 'undefined') return setBody(null)
-      const measure = () => {
-        const style = getComputedStyle(node)
-        const shell = node.closest('[data-list-detail]')
-        const folded = shell?.hasAttribute('data-list-folded') ?? false
-        const pane = shell?.querySelector<HTMLElement>(':scope > [data-list-pane]')
-        if (pane && !folded) listOuter.current = pane.offsetWidth + ((pane.nextElementSibling as HTMLElement | null)?.offsetWidth ?? 0)
-        const bar = shell?.querySelector<HTMLElement>(':scope > [data-list-unfold]')?.offsetWidth ?? LIST_FOLDED_WIDTH
-        const list = listOuter.current ?? readWidth(pageStorage(), listSpec('specs')) + 8
-        setBody({
-          width: node.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
-          folded,
-          gain: shell ? list - bar : 0,
-        })
-      }
-      measure()
-      const observer = new ResizeObserver(measure)
-      observer.observe(node)
-      stop.current = () => observer.disconnect()
-    },
-    [on],
-  )
-  useEffect(() => () => stop.current?.(), [])
-  const room = on && body !== null ? railRoom(body.width, body.folded, body.gain, stored) : null
-  const max = room?.max ?? null
-  const width = max === null ? SPEC_RAIL.initial : Math.min(stored, max)
-  const resize = useCallback(
-    (next: number) => {
-      const value = Math.min(clampWidth(SPEC_RAIL, next), max ?? SPEC_RAIL.max)
-      setStored(value)
-      writeWidth(pageStorage(), SPEC_RAIL, value)
-    },
-    [max],
-  )
-  // Back to the widest rail that fits beside the open list.
-  const unfold = useCallback(() => resize(Math.min(stored, room?.fits ?? SPEC_RAIL.initial)), [resize, stored, room?.fits])
-  return { ref, width, max, fold: Boolean(room?.fold), unfold, resize }
-}
-
-// The left column sticks to the top of whatever scrolls the page (in Kiro
-// Crew, the app's own content pane, not the window) and is never taller
-// than the part of it on screen, so it scrolls on its own. The callback ref
-// measures when the column mounts, which is after the plan opens, and again
-// whenever that pane changes size.
-function useStickyHeight(on: boolean) {
-  const [height, setHeight] = useState<number | null>(null)
-  const stop = useRef<(() => void) | null>(null)
-  const ref = useCallback(
-    (node: HTMLElement | null) => {
-      stop.current?.()
-      stop.current = null
-      if (!node || !on) return
-      const parent = scrollParent(node)
-      const measure = () => setHeight(stickyHeight(parent, window.innerHeight))
-      measure()
-      const observer = parent && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
-      if (parent) observer?.observe(parent)
-      window.addEventListener('resize', measure)
-      stop.current = () => {
-        observer?.disconnect()
-        window.removeEventListener('resize', measure)
-      }
-    },
-    [on],
-  )
-  useEffect(() => () => stop.current?.(), [])
-  return [ref, height] as const
-}
 
 const docPrefix = (file: string) => `avoozl-doc-${file.replace(/\.md$/, '')}`
 const jump = (id: string) => document.getElementById(id)?.scrollIntoView?.({ block: 'start' })
@@ -1766,7 +1675,6 @@ export default function PlansView(props: {
   const reviews = useMemo(() => reviewClient(api), [api])
   const drawer = useTaskDrawer()
   const chat = useAskChat(workspace)
-  const stack = useMedia(STACK)
   const phone = usePhone()
   const navigate = useNavigate()
   const reveal = useReveal()
@@ -1787,8 +1695,6 @@ export default function PlansView(props: {
     )
   }, [settings, workspace])
   const { scrolledOut, titleRef } = useTitleScrolledOut()
-  const [asideRef, asideHeight] = useStickyHeight(!stack)
-  const rail = useRailWidth(!phone)
   const [deleting, setDeleting] = useState<PlanRow | null>(null)
   const [archiving, setArchiving] = useState<PlanRow | null>(null)
   const [creating, setCreating] = useState<{ seed?: Partial<NewPlanForm> } | null>(null)
@@ -1913,7 +1819,7 @@ export default function PlansView(props: {
   // by side; the bar brings the list back until the view is opened again.
   const [reviewList, setReviewList] = useState(false)
   useEffect(() => setReviewList(false), [reviewing?.plan])
-  const listFolded = row && rail.fold ? { label: 'Show the specs list', onUnfold: rail.unfold } : reviewing && !reviewList ? { label: 'Show the specs list', onUnfold: () => setReviewList(true) } : undefined
+  const listFolded = reviewing && !reviewList ? { label: 'Show the specs list', onUnfold: () => setReviewList(true) } : undefined
   // Who drives the open spec (§6.10): the chip, banner and Hand off.
   const driver = useDriver(workspace, row?.planId ?? null)
   const spec: SpecSummary | null = row?.spec ? (table?.specs.find((item) => item.name === row.spec) ?? null) : null
@@ -2021,6 +1927,17 @@ export default function PlansView(props: {
     }
   }
 
+  const specHeader = row ? (
+    <SpecHeader
+      row={row}
+      plan={plan}
+      busy={busy}
+      flush={phone}
+      driver={<DriverChip spec={driver.spec} />}
+      handOff={workspace ? <HandOffButton workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} /> : null}
+      actions={specActions(row)}
+    />
+  ) : null
   return (
     <section aria-labelledby="avoozl-plans-title" className="flex flex-col gap-3.5">
       {singleApproval && singleApproval.workspaceId === workspace && (
@@ -2105,6 +2022,7 @@ export default function PlansView(props: {
         <ListDetailLayout
           id="specs"
           listFolded={listFolded}
+          fill={Boolean(row) && !reviewing}
           backLabel="All specs"
           detailTitle={row?.name ?? ''}
           detailOwnTitle
@@ -2191,110 +2109,87 @@ export default function PlansView(props: {
           }
           detail={
             !row ? null : (
-              <div className="flex flex-col" data-spec-detail={row.key} ref={detailTop}>
-                <SpecHeader
-                  row={row}
-                  plan={plan}
-                  busy={busy}
-                  flush={phone}
-                  driver={<DriverChip spec={driver.spec} />}
-                  handOff={workspace ? <HandOffButton workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} /> : null}
-                  actions={specActions(row)}
-                />
+              <div className="flex flex-col" data-spec-detail={row.key} ref={detailTop} style={reviewing || phone ? undefined : { height: '100%', minHeight: 0 }}>
                 {reviewing && workspace ? (
-                  <ReviewView key={`${workspace}:${reviewing.plan}`} workspaceId={workspace} client={reviews} place={reviewing} onPlace={placeReview} onClose={() => {
-                      placeReview(null)
-                      // Decisions change the Summary's open counts: re-read the plan in place.
-                      const id = row.planId
-                      if (id) plans.get(workspace, id).then((fresh) => setPlan((shown) => (shown?.id === id ? fresh : shown)), () => undefined)
-                    }} />
+                  <>
+                    {specHeader}
+                    <ReviewView key={`${workspace}:${reviewing.plan}`} workspaceId={workspace} client={reviews} place={reviewing} onPlace={placeReview} onClose={() => {
+                        placeReview(null)
+                        // Decisions change the Summary's open counts: re-read the plan in place.
+                        const id = row.planId
+                        if (id) plans.get(workspace, id).then((fresh) => setPlan((shown) => (shown?.id === id ? fresh : shown)), () => undefined)
+                      }} />
+                  </>
                 ) : (
-                <div
-                  data-spec-body
-                  ref={rail.ref}
-                  style={{ display: 'flex', flexWrap: rail.max === null ? 'wrap' : 'nowrap', alignItems: 'flex-start', gap: rail.max === null ? 24 : 8, padding: phone ? '20px 0' : '20px 12px 20px 12px' }}
+                <SpecDetailsPanel
+                  phone={phone}
+                  content={
+                    <>
+                      {specHeader}
+                      <div data-spec-body style={{ padding: phone ? '20px 0' : '20px 12px 20px 12px' }}>
+                        <div id="avoozl-plan-main" className="flex min-w-0 flex-col" style={{ gap: 20, scrollMarginTop: 48 }}>
+                          <RadarGraphLink />
+                          <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
+                          {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
+                          <SetupList spec={driver.spec} />
+                          {row.categoryProblem && (
+                            <p className="text-sm text-muted">
+                              <Badge variant="warning">front-matter</Badge> {row.categoryProblem}
+                            </p>
+                          )}
+                          {spec ? (
+                            <SpecDetail
+                              docs={docs}
+                              docsError={docsError}
+                              spec={spec}
+                              plan={plan}
+                              preview={preview}
+                              projection={projection}
+                              graph={planGraph}
+                              busy={busy}
+                              onProjection={() => plan && void attempt(async () => setProjection(await plans.projection(workspace, plan.id)))}
+                              onProject={() => setDialog('project')}
+                              onChanged={() => setDialog('changed')}
+                              onOpenTask={(id) => drawer.openTask(id)}
+                              onReview={row.planId ? () => placeReview({ plan: row.planId!, rev: null, file: null, severity: null, state: null }) : undefined}
+                            />
+                          ) : (
+                            <>
+                              <SpecCard title="Summary">
+                                <p className="text-xs text-muted">
+                                  <code>{row.planId}</code> · written before the spec layout, so it has no folder. Its tasks show in the spec graph.
+                                </p>
+                                <div className="mt-2">
+                                  {!text ? (
+                                    <p className="text-sm text-muted">Loading…</p>
+                                  ) : text.error ? (
+                                    <p className="text-sm text-danger">{text.error}</p>
+                                  ) : text.text ? (
+                                    <Markdown text={text.text} measure={PROSE_MEASURE} />
+                                  ) : (
+                                    <p className="text-sm text-muted">This spec has no text.</p>
+                                  )}
+                                </div>
+                              </SpecCard>
+                              <PhaseTasks graph={planGraph} onOpenTask={(id) => drawer.openTask(id)} />
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  }
                 >
-                  <div id="avoozl-plan-main" className="flex min-w-0 flex-col" style={{ flex: rail.max === null ? '1 1 260px' : '1 1 0%', gap: 20, scrollMarginTop: 48 }}>
-                    <RadarGraphLink />
-                    <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
-                    {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
-                    <SetupList spec={driver.spec} />
-                    {row.categoryProblem && (
-                      <p className="text-sm text-muted">
-                        <Badge variant="warning">front-matter</Badge> {row.categoryProblem}
-                      </p>
-                    )}
-                    {spec ? (
-                      <SpecDetail
-                        docs={docs}
-                        docsError={docsError}
-                        spec={spec}
-                        plan={plan}
-                        preview={preview}
-                        projection={projection}
-                        graph={planGraph}
-                        busy={busy}
-                        onProjection={() => plan && void attempt(async () => setProjection(await plans.projection(workspace, plan.id)))}
-                        onProject={() => setDialog('project')}
-                        onChanged={() => setDialog('changed')}
-                        onOpenTask={(id) => drawer.openTask(id)}
-                        onReview={row.planId ? () => placeReview({ plan: row.planId!, rev: null, file: null, severity: null, state: null }) : undefined}
-                      />
-                    ) : (
-                      <>
-                        <SpecCard title="Summary">
-                          <p className="text-xs text-muted">
-                            <code>{row.planId}</code> · written before the spec layout, so it has no folder. Its tasks show in the spec graph.
-                          </p>
-                          <div className="mt-2">
-                            {!text ? (
-                              <p className="text-sm text-muted">Loading…</p>
-                            ) : text.error ? (
-                              <p className="text-sm text-danger">{text.error}</p>
-                            ) : text.text ? (
-                              <Markdown text={text.text} measure={PROSE_MEASURE} />
-                            ) : (
-                              <p className="text-sm text-muted">This spec has no text.</p>
-                            )}
-                          </div>
-                        </SpecCard>
-                        <PhaseTasks graph={planGraph} onOpenTask={(id) => drawer.openTask(id)} />
-                      </>
-                    )}
-                  </div>
-                  {/* The rail sits beside the cards, and under them when the
-                      column is narrow (a phone). Beside them, its left edge
-                      drags to widen it. */}
-                  {rail.max !== null && (
-                    <ResizeHandle
-                      label="Resize the spec details"
-                      width={rail.width}
-                      min={SPEC_RAIL.min}
-                      max={rail.max}
-                      edge="left"
-                      onResize={rail.resize}
-                      onReset={() => rail.resize(SPEC_RAIL.initial)}
-                      line
-                    />
-                  )}
-                  <aside
-                    ref={asideRef}
-                    aria-label="Spec details"
-                    data-plan-aside-scroll
-                    style={{ flex: phone ? '1 1 100%' : `0 0 ${rail.width}px`, width: phone ? '100%' : rail.width, minWidth: 0, ...(stack || phone ? {} : { position: 'sticky', top: 8, zIndex: LAYER.sticky, maxHeight: asideHeight ?? 'calc(100vh - 2rem)', overflowY: 'auto', overscrollBehavior: 'contain' }) }}
-                  >
-                    <SpecRail
-                      row={row}
-                      plan={plan}
-                      graph={planGraph}
-                      docs={docs}
-                      onEdit={() => change(row)}
-                      onRepositories={props.onOpenSettings ? () => props.onOpenSettings!('repositories') : undefined}
-                      onDrill={(drill) => props.onDrill?.(drill)}
-                      onOpenTask={(id) => drawer.openTask(id)}
-                    />
-                  </aside>
-                </div>
+                  <SpecRail
+                    row={row}
+                    plan={plan}
+                    graph={planGraph}
+                    docs={docs}
+                    onEdit={() => change(row)}
+                    onRepositories={props.onOpenSettings ? () => props.onOpenSettings!('repositories') : undefined}
+                    onDrill={(drill) => props.onDrill?.(drill)}
+                    onOpenTask={(id) => drawer.openTask(id)}
+                  />
+                </SpecDetailsPanel>
                 )}
               </div>
             )
