@@ -1478,7 +1478,7 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
   - `avoozl content hook`, `src/app/public-crews.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
 - [x] 39.2 Audit on the tick: delete a hit, pull the cord, alert, after 39.1 [R85.6, R85.7] (§6.14)
   - `publicCrewAudit`, cursor per repository, fake GitHub; a comment is deleted, a pull request closed, one notice and one Needs you item.
-- [ ] 39.3 Public crew checklist, sign-off and handoff gate, after 39.1 and 39.2 [R85.1, R85.2, R85.8, R85.10] (§6.14)
+- [x] 39.3 Public crew checklist, sign-off and handoff gate, after 39.1 and 39.2 [R85.1, R85.2, R85.8, R85.10] (§6.14)
   - `publiccrews.signoff`, the Public crews card, the `untriaged.handoff` check; person-only; lapse on a changed hash.
 - [x] 39.4 Stop public crews, after 39.2 [R85.9] (§6.14)
   - `publiccrews.stop` in the app, the CLI and MCP policy (person only to resume).
@@ -1981,11 +1981,11 @@ proof or run a real workspace to get past that wait.
   - Keep plan-me routing. Trusted escalations (the repository's needs-human label) sort first in Untriaged, or Intake for a Radar-coded repository, with Plan this and Deliver this; their Needs you row gains the same buttons. Plan this drafts a fix spec or the compact bounded-fix acceptance.
   - Person-only start. A per-repository escalation rule, off by default, drafts locally with zero GitHub writes; approval and dispatch stay person-only. Take-over writes crew:avoozl and never removes the needs-human label; a live crew claim asks to confirm. No Radar API or grant. Tests cover order, buttons, zero-write draft and one label write.
 
-- [ ] 56.15 Reanchor a held journal by a person's record, after 56.2 [R102.26] (§4.32)
+- [x] 56.15 Reanchor a held journal by a person's record, after 56.2 [R102.26] (§4.32)
   - Schema, writer and replay: a `reanchor` record names held record IDs and the reviewed tail (ID and current digest); replay accepts it only from a write-access author whose tail is the last known record, ignores the named records' contents, clears their holds and continues. Unnamed or later holds stay. No comment is edited or deleted; no approval, completion or generation change.
   - Person-only `spec.journal.reanchor` with preview, and `avoozl spec journal reanchor SPEC --held ID,... --tail ID [--yes]`; refused for MCP and agent sessions. Tests: a mutated record and a deleted record each restore; a stale tail digest, an agent caller and an unnamed hold refuse; the spec stays held until Resume.
 
-- [ ] avoozl-p66 P66 Proof: journal, working-head recovery and takeover, after 56.3, 56.4, 56.5, 56.6, 56.7, 56.8, 56.15, 41.3 [R102] (§4.32)
+- [x] avoozl-p66 P66 Proof: journal, working-head recovery and takeover, after 56.3, 56.4, 56.5, 56.6, 56.7, 56.8, 56.15, 41.3 [R102] (§4.32)
   - Setup: isolated scratch GitHub code and private planning repositories, published epic/spec issues, a three-task in-spec chain and one cross-spec successor, actual executor, direct landing and made-up secret canaries. No real workspace or private pilot.
   - Action: push an unfinished checkpoint, verify and integrate the first task, check branch marks; retry a journal write, mutate/delete a linked record; reconstruct after discarding a copied disposable database. Restore journal consistency by a person's reanchor (56.15), review and Resume. Pause the original driver immediately before a guarded push, take over, then resume it. Exercise stale/copied trailers, issue-binding retirement and a hold/reassignment without a commit.
   - Expected: checkpoints survive, unverified work releases nothing, only verified in-spec successors advance, cross-spec waits for accepted landing; mutation holds, replay deduplicates, reconstruction holds, old intents reconcile to one effective outcome and old generations authorize no new work. Migration changes no readiness and no task issues are read/created. All canaries are rejected before publication.

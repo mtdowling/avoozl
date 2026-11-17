@@ -28,7 +28,7 @@ import {
   withdrawLanding,
 } from "./landing-queue.mjs";
 import { pullSteps } from "./landing-pulls.mjs";
-import { sendConflictBack } from "./landing-conflicts.mjs";
+import { reopenAttempt, sendConflictBack } from "./landing-conflicts.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 import { driverIdOf } from "./spec-scheduler.mjs";
 import { specAuthority } from "./spec-takeover.mjs";
@@ -183,7 +183,7 @@ export function sendFailureBack(store, result, { rounds, now, where }) {
           ].join("\n"),
         });
         store.put("task_deliveries", {
-          ...delivery,
+          ...reopenAttempt(store, delivery, binding, at),
           state: "running",
           landingFailures: [
             ...used,
@@ -271,13 +271,18 @@ export async function landPullRequests(
         ),
         plan = store.get("plans", head.spec),
         registry = await registryOf(project),
+        // GitHub rights are the signed-in login's; a local journal's login
+        // is this workspace's operator, which GitHub does not know.
+        githubLogin = authority.journal.local
+          ? String((await github.currentUser())?.login ?? "")
+          : authority.login,
         steps = pullSteps({
           github,
           registry,
           root: project.root,
           target: project.repository,
           base,
-          login: authority.login,
+          login: githubLogin,
           method: "merge",
           env,
           machine,

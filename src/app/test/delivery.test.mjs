@@ -346,6 +346,7 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
       attempt: 1,
       title: "avoozl:urgent Task urgent",
       folder: "Avoozl/app",
+      project: false,
       agent: "kirocrew-worker",
       checkout: store.get("projects", "app").root,
       brief: undefined,
@@ -430,10 +431,11 @@ test("a task with a live bound session is never dispatched twice", async (t) => 
   assert.equal(store.get("task_deliveries", "a").state, "done");
 });
 
-test("a ready leaf whose chat folder has no project directory waits with one notice", async (t) => {
+test("a local worker opens with project false, whatever its chat folder", async (t) => {
   // Nearby inputs: folders not read (old cron), the folder not made yet, the
-  // folder with a project directory, and the same notice on a second tick.
-  const { store, ops, checkout } = setup(t, {
+  // folder without and with a project directory (R88.2: the brief names the
+  // worktree, so no folder project is needed and no notice is raised).
+  const { store, ops } = setup(t, {
     tasks: [leaf("a")],
     delivery: { concurrency: 1 },
   });
@@ -442,28 +444,25 @@ test("a ready leaf whose chat folder has no project directory waits with one not
       sessions: [],
       ...(folders ? { folders } : {}),
     });
-  assert.equal(
-    kirocrewConfiguration(store, (await tick()).dispatch[0]).folder,
-    "Avoozl/app",
-  );
-  assert.equal((await tick({})).dispatch.length, 1, "folder not made yet");
-  const waiting = await tick({ Avoozl: false, "Avoozl/app": false });
-  assert.deepEqual(waiting.dispatch, []);
-  const notice = waiting.notify.find((n) => n.title.includes("project"));
-  assert.equal(notice.channel, "decision");
-  assert.match(notice.resume, new RegExp(checkout.replace(/\\/g, "\\\\")));
-  const queued = () =>
-    store
-      .list("app_notifications")
-      .filter((n) => n.payload.title.includes("project")).length;
-  assert.equal(queued(), 1);
-  await tick({ "Avoozl/app": false });
-  assert.equal(queued(), 1, "queued once");
-  assert.equal(
-    (await tick({ "Avoozl/app": true })).dispatch[0].task,
-    "a",
-    "set: it starts",
-  );
+  for (const folders of [
+    undefined,
+    {},
+    { Avoozl: false, "Avoozl/app": false },
+    { "Avoozl/app": true },
+  ]) {
+    const result = await tick(folders),
+      label = JSON.stringify(folders ?? null);
+    assert.equal(result.dispatch[0]?.task, "a", label);
+    assert.deepEqual(
+      kirocrewConfiguration(store, result.dispatch[0]),
+      { folder: "Avoozl/app", project: false, agent: "kirocrew-worker" },
+      label,
+    );
+    assert.ok(
+      !result.notify.some((n) => /project directory/.test(n.title ?? "")),
+      label,
+    );
+  }
 });
 
 test("a failed attempt retries on the same worktree, up to the bound, then opens a decision", async (t) => {

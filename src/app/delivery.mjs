@@ -2,6 +2,7 @@ import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { projectExecutor } from "./executors/process.mjs";
 import {
   kirocrewSession,
+  kirocrewDetachedSession,
   kirocrewRemoteSession,
 } from "./executors/kirocrew.mjs";
 import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
@@ -2456,7 +2457,11 @@ export function planReadyDispatches(store, policy, options = {}) {
         // A project on `process` runs its worker as a supervisor child
         // (R93.5); other roles move in Phase 49.
         executor: remote ? "kirocrew" : projectExecutor(leaf.project),
-        ...kirocrewSession(leaf.project.id),
+        // A local worker opens with `project: false` (R88.2, §4.26 Work): its
+        // brief names the worktree, so the sidebar folder needs no project
+        // directory. shortcut: with the routing prompt on, routing.mjs still
+        // holds the leaf on that folder; upgrade with the routing readiness.
+        ...kirocrewDetachedSession(leaf.project.id),
         agent,
         ...(model ? { model } : {}),
         ...(where

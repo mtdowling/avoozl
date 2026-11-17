@@ -229,6 +229,7 @@ import {
   publicRepositories,
   stopPublicCrews,
 } from "./public-crews.mjs";
+import { publicCrewsView, signOff } from "./public-signoff.mjs";
 import { publicBranchRows } from "./mirror-forward-batch.mjs";
 import { mirrorForwardRows, mirrorRecordFor } from "./mirror-forward.mjs";
 import { forwardRecord } from "./mirror-forward-run.mjs";
@@ -582,6 +583,7 @@ import {
 } from "./spec-plans.mjs";
 import { publishSpec } from "./spec-publication.mjs";
 import { takeOverSpec } from "./spec-takeover.mjs";
+import { reanchorSpec, resumeSpec } from "./spec-reanchor.mjs";
 import {
   applyRetirement,
   closeRetiredIssues,
@@ -4279,20 +4281,12 @@ export class Operations {
         },
       });
     }
-    // The public sign-off for one registered repository (RC10.1, RC10.2).
-    // Owner only through the app; releasing a public repository follows it.
-    if (name === "radar.signoff") {
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
-      if (!input.repository) fail("Name the repository.", 400);
-      if (!policy?.repositories?.[input.repository])
-        fail(`${input.repository} is not a registered repository.`, 404);
-      if (typeof input.complete !== "boolean")
-        fail("Say whether the sign-off is complete.", 400);
-      const all = { ...store.getMeta("publicSignoff") };
-      all[input.repository] = { complete: input.complete };
-      store.setMeta("publicSignoff", all);
-      return { repository: input.repository, complete: input.complete };
-    }
+    // The public sign-off for one registered repository (R85.8, RC10.1):
+    // person only. `radar.signoff` is the older name of the same operation.
+    if (name === "publiccrews.signoff" || name === "radar.signoff")
+      return signOff(store, readGitHubPolicyOrNull(this.workspaceRoot), input, {
+        by: this.operator,
+      });
     if (name === "radar.integrationbranch") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         entry = policy?.repositories?.[input.repository];
@@ -4408,7 +4402,7 @@ export class Operations {
       if (input.refresh === true && this.plugins) await this.pollNow();
       // The Intake tab: GitHub's Untriaged list plus every other source's
       // items (design §4.12, §8.5).
-      return intakeTab(
+      const tab = intakeTab(
         untriagedView(
           policy,
           tasks,
@@ -4420,6 +4414,8 @@ export class Operations {
         store,
         declaredSources(this.pluginOptions, store),
       );
+      // The Public crews card (R85.8): each public repository's checklist.
+      return { ...tab, publicCrews: publicCrewsView(store, policy) };
     }
     // Incoming items (§4.12). Submit runs the pipeline at once, under the
     // tick's lock; list and view only read.
@@ -6653,6 +6649,28 @@ export class Operations {
         },
         input.planId,
       );
+    }
+    // Reanchor a held journal and Resume after it (R102.26, task 56.15):
+    // each a person's own act; reanchor previews unless `apply`.
+    if (name === "spec.journal.reanchor" || name === "spec.journal.resume") {
+      if (context.caller || context.mcp)
+        fail("Only a person reanchors or resumes a spec journal.", 403);
+      const authority = {
+        github: this.github,
+        workspaceRoot: this.workspaceRoot,
+        actor: this.operator,
+      };
+      return name === "spec.journal.reanchor"
+        ? reanchorSpec(store, authority, {
+            planId: input.planId,
+            held: input.held,
+            tail: input.tail,
+            apply: input.apply === true,
+          })
+        : resumeSpec(store, authority, {
+            planId: input.planId,
+            tail: input.tail,
+          });
     }
     // Retire task-issue bindings (R102.20, §4.32.13): preview, hold, apply,
     // one verifying tick, then close. Each step is a person's own act.
