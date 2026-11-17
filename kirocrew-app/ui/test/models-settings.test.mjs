@@ -28,6 +28,10 @@ test('Settings has a Models section with a themed picker per role; Flow has no m
   assert.doesNotMatch(source('FlowSettings.tsx'), /avoozl-flow-model|modelOptions/)
 })
 
+test('Settings > Models says person-only refusal in a Kiro Crew chat is only a speed bump (R95.7)', () => {
+  assert.match(source('ModelsSettings.tsx'), /Kiro Crew chats run as you\. Avoozl refuses person-only actions in them, but that only slows an agent down: it is not a lock\./)
+})
+
 test('Switch model, its dialog and the bulk switch calls are gone from the page', () => {
   assert.equal(existsSync(new URL('../src/SwitchModel.tsx', import.meta.url)), false)
   for (const name of ['App.tsx', 'providers-api.ts'])

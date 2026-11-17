@@ -21,6 +21,7 @@ import {
   startSupervisor,
   supervisorPaths,
 } from "../supervisor.mjs";
+import { sandboxKind } from "../sandbox.mjs";
 import { startAppBackend } from "../app-backend.mjs";
 import { workspaceConfig } from "../config.mjs";
 
@@ -67,6 +68,7 @@ function scratch(t, { approve = true } = {}) {
     start: ["node", "{worktree}/agent.mjs", "{brief_file}"],
     resume: ["node", "{worktree}/agent.mjs", "{message_file}"],
     permission: { write: "workspace-write", read: "read-only" },
+    writeRoots: ["{worktree}", "{tmp}"],
   });
   fs.writeFileSync(
     path.join(configDirectory, "harnesses", "fake-cli.json"),
@@ -78,6 +80,12 @@ function scratch(t, { approve = true } = {}) {
       name: "fake-cli",
       hash: harnessDefinitionHash(Buffer.from(bytes)),
     });
+  // A machine with no sandbox runs children only with the person's opt-in.
+  if (!sandboxKind())
+    fs.writeFileSync(
+      path.join(configDirectory, "harness-unconfined.json"),
+      JSON.stringify({ "fake-cli": harnessDefinitionHash(Buffer.from(bytes)) }),
+    );
   return { root, stateDirectory, configDirectory, worktree, defer };
 }
 
@@ -90,6 +98,7 @@ const request = (worktree, brief = {}, extra = {}) => ({
   permissionClass: "write",
   model: null,
   brief: JSON.stringify(brief),
+  values: { tmp: path.join(path.dirname(worktree), "tmp") },
   ...extra,
 });
 
