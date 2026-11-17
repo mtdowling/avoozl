@@ -4634,6 +4634,51 @@ line, the moved settings, and the old link. Screenshots: Repository setup
 and Workspaces in the full app shell, phone and desktop, light and dark,
 committed under `docs/evidence/repo-roles/`.
 
+### 4.35 Task details hold the timeline; Trace is removed
+
+Added 2026-11-17 (Requirement 106). Replaces RC8.2 and D10's Trace.
+
+**Source.** `src/app/task-steps.mjs` exports `taskSteps(...)`, a pure
+function. `taskDetailView` passes it records it already reads or can read from
+the store, and returns the result as `steps` beside `timeline`:
+
+| Step                | From                                                                 |
+| ------------------- | -------------------------------------------------------------------- |
+| Spec approved       | The plan's approval receipt (`approvals`), with the approver          |
+| Ready               | The earliest `queued` flow span of the task                           |
+| Started (attempt N) | The earliest session binding of attempt N (`boundAt`)                 |
+| Attempt N failed    | The delivery record's attempt N, when its outcome is not `done`       |
+| Checks              | Evidence rows with an exit code: last time, passed and failed counts  |
+| Landed              | The delivery record in state done, verified or integrated, with commit |
+| Builds              | `build_observations` rows of the task, `receiptLine` and `phaseGroups` |
+| Integrated          | `task.integration` (time, commit)                                     |
+
+States and the wait text follow Trace: done, skipped (a later step has a
+time), now (the first without a time after the last timed one), later.
+Attempts expand in order, so a retry reads as Started 1, Attempt 1 failed,
+Started 2. Nothing here calls GitHub; a test builds the view with a GitHub
+double that fails on any call.
+
+**Screen.** `TaskDrawer` keeps its Timeline box (a `SectionBox`, open at first
+like the others). The steps list goes first, drawn as Trace drew it (dot,
+label, time, wait, detail, builds by phase), the history list below under
+"All records". `TraceView.tsx`, `TraceDone.tsx` and `trace-api.ts` go; the
+time helpers `clock` and `afterPrevious` move to `task-api.ts`.
+
+**Navigation.** `trace` leaves `TABS`. `redirectTab('trace')` returns
+Delivery. A `?trace=owner/repo#N` link is read once by a small component
+inside the task drawer provider: it reads the graph, finds the task whose
+issue matches and opens its details; with no match it opens Delivery. The
+Trace buttons on On the line rows and the Dashboard drawer are removed.
+
+**Tests.** `src/app/test/task-steps.test.mjs` (records to steps, failed,
+skipped, in progress, builds, no GitHub call); `kirocrew-app/ui/test`
+cases for the redirects, the nav, and the box; `trace.test.mjs`,
+`trace-page.test.mjs` and `trace-api.test.mjs` are removed with the code.
+
+shortcut: a task made before the pivot with no plan approval receipt shows
+Spec approved without a time; upgrade only if such tasks matter.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.
