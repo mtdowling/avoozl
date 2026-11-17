@@ -35384,7 +35384,7 @@ function vT({ workspaceId: e }) {
 		operation: n,
 		input: r,
 		workspaceId: e
-	}).then((e) => e.result), [t, e]), { value: r, error: a, reload: s } = es(e, i(() => n("budget.settings.get"), [n])), [c, l] = d({}), [u, f] = d(!1), [m, h] = d(null), [g, _] = d(!1);
+	}).then((e) => e.result), [t, e]), { value: r, error: a, reload: s } = es(e, i(() => n("budget.settings.get"), [n])), [c, l] = d({}), [u, f] = d(!1), [m, h] = d({});
 	if (o(() => {
 		r && (l({
 			"": y_(r.budget),
@@ -35398,7 +35398,7 @@ function vT({ workspaceId: e }) {
 		className: "text-sm text-muted",
 		children: "Loading…"
 	});
-	let y = c[""] ?? y_(null), b = {
+	let g = c[""] ?? y_(null), y = {
 		from: "built-in default",
 		usd: "no dollar cap",
 		tokens: `${mT(fT)} tokens`,
@@ -35409,56 +35409,56 @@ function vT({ workspaceId: e }) {
 			tokens: mT(fT),
 			credits: mT(pT)
 		}
-	}, x = {
+	}, b = {
 		from: "workspace default",
-		usd: y.usd ? `the workspace default ($${y.usd})` : "the workspace default (no dollar cap)",
-		tokens: `the workspace default (${mT(Number(y.tokens) || fT)} tokens)`,
-		credits: `the workspace default (${mT(Number(y.credits) || pT)} credits)`,
-		mode: y.mode || "stop",
+		usd: g.usd ? `the workspace default ($${g.usd})` : "the workspace default (no dollar cap)",
+		tokens: `the workspace default (${mT(Number(g.tokens) || fT)} tokens)`,
+		credits: `the workspace default (${mT(Number(g.credits) || pT)} credits)`,
+		mode: g.mode || "stop",
 		short: {
-			usd: y.usd ? `$${y.usd}` : "no cap",
-			tokens: mT(Number(y.tokens) || fT),
-			credits: mT(Number(y.credits) || pT)
+			usd: g.usd ? `$${g.usd}` : "no cap",
+			tokens: mT(Number(g.tokens) || fT),
+			credits: mT(Number(g.credits) || pT)
 		}
-	}, S = (e) => e ? r.repositories[e] : r.budget, T = ["", ...Object.keys(r.repositories).sort()].filter((e) => JSON.stringify(c[e] ?? y_(null)) !== JSON.stringify(y_(S(e))) || !e && u !== (r.budget.notify === !0)), E = T.map((e) => ({
-		key: e,
-		...b_(c[e] ?? y_(null))
-	})), D = E.find((e) => e.error), O = T.length > 0, k = (e, t) => {
-		h(null), l({
-			...c,
-			[e]: t
+	}, x = async (e) => {
+		let t = b_(c[e] ?? y_(null));
+		if (t.error) return h({
+			...m,
+			[e]: { error: t.error }
 		});
-	}, A = async () => {
-		if (D) return;
-		_(!0), h(null);
-		let e = r.hash;
+		let i = {
+			...t.budget ?? {},
+			...!e && u ? { notify: !0 } : {}
+		};
 		try {
-			for (let t of E) {
-				let r = {
-					...t.budget ?? {},
-					...!t.key && u ? { notify: !0 } : {}
-				};
-				e = (await n("budget.settings.update", {
-					budget: r,
-					...t.key ? { repository: t.key } : {},
-					expectedHash: e
-				}))?.hash ?? e;
-			}
-			await s(), h({ ok: "Saved." });
-		} catch (e) {
-			h({ error: K(e) }), await s();
-		} finally {
-			_(!1);
+			await n("budget.settings.update", {
+				budget: i,
+				...e ? { repository: e } : {},
+				expectedHash: r.hash
+			}), await s(), h({
+				...m,
+				[e]: { ok: "Saved." }
+			});
+		} catch (t) {
+			h({
+				...m,
+				[e]: { error: K(t) }
+			});
 		}
-	}, j = {
+	}, S = (e) => m[e] && /* @__PURE__ */ C("p", {
+		role: m[e].error ? "alert" : "status",
+		className: "text-sm",
+		style: m[e].error ? { color: "var(--danger)" } : void 0,
+		children: m[e].error ?? m[e].ok
+	}), T = {
 		page: "Settings › Budgets",
 		says: "A spending cap per task for the workspace and each repository, and what happens when a task reaches it. Blank fields use the default.",
 		settings: u_({
 			budget: {
-				usd: y.usd,
-				mode: y.mode,
-				tokens: y.tokens,
-				credits: y.credits,
+				usd: g.usd,
+				mode: g.mode,
+				tokens: g.tokens,
+				credits: g.credits,
 				notify: u
 			},
 			projects: Object.fromEntries(Object.keys(r.repositories).map((e) => {
@@ -35482,26 +35482,29 @@ function vT({ workspaceId: e }) {
 				className: "flex flex-wrap items-center gap-2",
 				children: /* @__PURE__ */ C(ai, {
 					workspaceId: e,
-					help: j
+					help: T
 				})
 			}),
 			/* @__PURE__ */ C(v, {
 				className: "flex flex-col gap-3",
-				children: /* @__PURE__ */ C(FT, {
+				children: /* @__PURE__ */ w(FT, {
 					title: "Workspace default",
 					blurb: "Each task's cap, unless its repository, spec or task sets its own. Retries, checks and reviews share the task's cap. Receipts are kept even with no cap.",
-					children: /* @__PURE__ */ C(gT, {
+					children: [/* @__PURE__ */ C(gT, {
 						id: "budget-workspace",
-						form: y,
-						onChange: (e) => k("", e),
-						fallback: b,
+						form: g,
+						onChange: (e) => l({
+							...c,
+							"": e
+						}),
+						fallback: y,
 						inherit: !1,
 						warnFields: /* @__PURE__ */ w("label", {
 							className: "flex items-start gap-2 text-sm",
 							children: [/* @__PURE__ */ C("input", {
 								type: "checkbox",
 								checked: u,
-								onChange: (e) => (h(null), f(e.target.checked)),
+								onChange: (e) => f(e.target.checked),
 								style: { marginTop: 3 }
 							}), /* @__PURE__ */ w("span", { children: [
 								"Also send a Kiro Crew notice when a task goes over budget",
@@ -35513,7 +35516,15 @@ function vT({ workspaceId: e }) {
 								})
 							] })]
 						})
-					})
+					}), /* @__PURE__ */ w("div", {
+						className: "flex flex-wrap items-center gap-2",
+						children: [/* @__PURE__ */ C(_, {
+							type: "button",
+							primary: !0,
+							onClick: () => void x(""),
+							children: "Save"
+						}), S("")]
+					})]
 				})
 			}),
 			/* @__PURE__ */ C(v, {
@@ -35538,7 +35549,6 @@ function vT({ workspaceId: e }) {
 						})]
 					}) : Object.keys(r.repositories).sort().map((e) => /* @__PURE__ */ C(ti, {
 						id: `budget-repo-${e}`,
-						open: !0,
 						title: /* @__PURE__ */ w("span", {
 							className: "flex flex-wrap items-baseline gap-x-2",
 							children: [/* @__PURE__ */ C("span", { children: e }), /* @__PURE__ */ C("span", {
@@ -35546,33 +35556,29 @@ function vT({ workspaceId: e }) {
 								children: _T(r.repositories[e])
 							})]
 						}),
-						children: /* @__PURE__ */ C("div", {
+						children: /* @__PURE__ */ w("div", {
 							className: "flex flex-col gap-3",
-							children: /* @__PURE__ */ C(gT, {
+							children: [/* @__PURE__ */ C(gT, {
 								id: `budget-${e}`,
 								form: c[e] ?? y_(null),
-								onChange: (t) => k(e, t),
-								fallback: x,
+								onChange: (t) => l({
+									...c,
+									[e]: t
+								}),
+								fallback: b,
 								inherit: !0
-							})
+							}), /* @__PURE__ */ w("div", {
+								className: "flex flex-wrap items-center gap-2",
+								children: [/* @__PURE__ */ w(_, {
+									type: "button",
+									primary: !0,
+									onClick: () => void x(e),
+									children: ["Save ", e]
+								}), S(e)]
+							})]
 						})
 					}, e))
 				})
-			}),
-			/* @__PURE__ */ C(dw, {
-				dirty: O,
-				saving: g,
-				problem: D?.error && (D.key ? `${D.key}: ${D.error}` : D.error),
-				error: m?.error,
-				ok: m?.ok,
-				note: "Writes budget in .avoozl.json.",
-				onSave: () => void A(),
-				onDiscard: () => {
-					h(null), l({
-						"": y_(r.budget),
-						...Object.fromEntries(Object.entries(r.repositories).map(([e, t]) => [e, y_(t)]))
-					}), f(r.budget.notify === !0);
-				}
 			})
 		]
 	});

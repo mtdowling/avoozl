@@ -4,8 +4,7 @@
 // list; there is no price page.
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useAppApi } from "@kirocrew/app-sdk";
-import { Card, Input } from "@kirocrew/app-sdk/ui";
-import { SaveFooter } from "./SaveFooter.tsx";
+import { Btn, Card, Input } from "@kirocrew/app-sdk/ui";
 import { Marker, Section } from "./SettingsView.tsx";
 import { RadioFold, type RadioSection } from "./RadioFold.tsx";
 import { Fold } from "./controls.tsx";
@@ -209,8 +208,9 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
   );
   const [forms, setForms] = useState<Record<string, BudgetForm>>({});
   const [notify, setNotify] = useState(false);
-  const [message, setMessage] = useState<{ ok?: string; error?: string } | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<
+    Record<string, { ok?: string; error?: string }>
+  >({});
   useEffect(() => {
     if (!value) return;
     setForms({
@@ -253,54 +253,36 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
       credits: n(Number(workspace.credits) || DEFAULT_CREDITS),
     },
   };
-  const levelOf = (repository: string) =>
-    repository ? value.repositories[repository] : value.budget;
-  // The levels whose fields differ from the file, the workspace first.
-  const changed = ["", ...Object.keys(value.repositories).sort()].filter(
-    (key) =>
-      JSON.stringify(forms[key] ?? toBudgetForm(null)) !==
-        JSON.stringify(toBudgetForm(levelOf(key))) ||
-      (!key && notify !== (value.budget.notify === true)),
-  );
-  const built = changed.map((key) => ({
-    key,
-    ...fromBudgetForm(forms[key] ?? toBudgetForm(null)),
-  }));
-  const problem = built.find((b) => b.error);
-  const dirty = changed.length > 0;
-  const setForm = (key: string, form: BudgetForm) => {
-    setMessage(null);
-    setForms({ ...forms, [key]: form });
-  };
-  // One Save writes every changed level, each with the hash the last write
-  // returned, so a second level does not trip the changed-file check.
-  const save = async () => {
-    if (problem) return;
-    setSaving(true);
-    setMessage(null);
-    let hash = value.hash;
+  const save = async (repository: string) => {
+    const built = fromBudgetForm(forms[repository] ?? toBudgetForm(null));
+    if (built.error)
+      return setMessage({ ...message, [repository]: { error: built.error } });
+    const budget = {
+      ...(built.budget ?? {}),
+      ...(!repository && notify ? { notify: true } : {}),
+    };
     try {
-      for (const level of built) {
-        const budget = {
-          ...(level.budget ?? {}),
-          ...(!level.key && notify ? { notify: true } : {}),
-        };
-        const written = await run<{ hash: string | null }>("budget.settings.update", {
-          budget,
-          ...(level.key ? { repository: level.key } : {}),
-          expectedHash: hash,
-        });
-        hash = written?.hash ?? hash;
-      }
+      await run("budget.settings.update", {
+        budget,
+        ...(repository ? { repository } : {}),
+        expectedHash: value.hash,
+      });
       await reload();
-      setMessage({ ok: "Saved." });
+      setMessage({ ...message, [repository]: { ok: "Saved." } });
     } catch (caught) {
-      setMessage({ error: errorMessage(caught) });
-      await reload();
-    } finally {
-      setSaving(false);
+      setMessage({ ...message, [repository]: { error: errorMessage(caught) } });
     }
   };
+  const status = (key: string) =>
+    message[key] && (
+      <p
+        role={message[key].error ? "alert" : "status"}
+        className="text-sm"
+        style={message[key].error ? { color: "var(--danger)" } : undefined}
+      >
+        {message[key].error ?? message[key].ok}
+      </p>
+    );
   const help = {
     page: "Settings › Budgets",
     says: "A spending cap per task for the workspace and each repository, and what happens when a task reaches it. Blank fields use the default.",
@@ -345,7 +327,7 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
           <CapFields
             id="budget-workspace"
             form={workspace}
-            onChange={(form) => setForm("", form)}
+            onChange={(form) => setForms({ ...forms, "": form })}
             fallback={builtIn}
             inherit={false}
             warnFields={
@@ -353,7 +335,7 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
                 <input
                   type="checkbox"
                   checked={notify}
-                  onChange={(e) => (setMessage(null), setNotify(e.target.checked))}
+                  onChange={(e) => setNotify(e.target.checked)}
                   style={{ marginTop: 3 }}
                 />
                 <span>
@@ -366,6 +348,12 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
               </label>
             }
           />
+          <div className="flex flex-wrap items-center gap-2">
+            <Btn type="button" primary onClick={() => void save("")}>
+              Save
+            </Btn>
+            {status("")}
+          </div>
         </Section>
       </Card>
       <Card className="flex flex-col gap-3">
@@ -397,7 +385,6 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
                 <Fold
                   key={id}
                   id={`budget-repo-${id}`}
-                  open
                   title={
                     <span className="flex flex-wrap items-baseline gap-x-2">
                       <span>{id}</span>
@@ -411,35 +398,22 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
                     <CapFields
                       id={`budget-${id}`}
                       form={forms[id] ?? toBudgetForm(null)}
-                      onChange={(form) => setForm(id, form)}
+                      onChange={(form) => setForms({ ...forms, [id]: form })}
                       fallback={fromWorkspace}
                       inherit
                     />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Btn type="button" primary onClick={() => void save(id)}>
+                        Save {id}
+                      </Btn>
+                      {status(id)}
+                    </div>
                   </div>
                 </Fold>
               ))
           )}
         </Section>
       </Card>
-      <SaveFooter
-        dirty={dirty}
-        saving={saving}
-        problem={problem?.error && (problem.key ? `${problem.key}: ${problem.error}` : problem.error)}
-        error={message?.error}
-        ok={message?.ok}
-        note="Writes budget in .avoozl.json."
-        onSave={() => void save()}
-        onDiscard={() => {
-          setMessage(null);
-          setForms({
-            "": toBudgetForm(value.budget),
-            ...Object.fromEntries(
-              Object.entries(value.repositories).map(([id, b]) => [id, toBudgetForm(b)]),
-            ),
-          });
-          setNotify(value.budget.notify === true);
-        }}
-      />
     </div>
   );
 }
