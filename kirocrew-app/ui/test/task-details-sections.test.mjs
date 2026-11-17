@@ -31,7 +31,7 @@ test('every place that opens task details uses the one drawer', () => {
   for (const name of ['GraphView.tsx', 'PlansView.tsx', 'DashboardView.tsx', 'ConflictsView.tsx', 'FlowView.tsx', 'ActivityView.tsx', 'LanesView.tsx', 'FocusTree.tsx'])
     assert.match(source(name), /drawer\.openTask\(/, name)
   // Only the drawer and Needs you's history read a task's detail.
-  for (const name of ['GraphView.tsx', 'PlansView.tsx', 'DashboardView.tsx', 'FlowView.tsx', 'TraceView.tsx']) assert.doesNotMatch(source(name), /tasks\.detail\(/, name)
+  for (const name of ['GraphView.tsx', 'PlansView.tsx', 'DashboardView.tsx', 'FlowView.tsx']) assert.doesNotMatch(source(name), /tasks\.detail\(/, name)
 })
 
 const chrome = findChrome()

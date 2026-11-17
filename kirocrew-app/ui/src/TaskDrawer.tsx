@@ -30,6 +30,7 @@ import { useBackStep } from './NavHistory.tsx'
 import { LAYER } from './layers.ts'
 import { linkHref } from './views-api.ts'
 import { LinksAndNotes, ManualTask } from './TaskNotes.tsx'
+import { TaskSteps } from './TaskSteps.tsx'
 
 // The drawer's sections, each a bordered, titled box that folds. All start
 // open, so everything shows at once.
@@ -587,8 +588,10 @@ function TaskPanel(props: {
           )}
         </SectionBox>
         <SectionBox id="timeline" title="Timeline">
+          {detail.steps?.length ? <TaskSteps steps={detail.steps} /> : null}
           {detail.timeline.length ? (
             <>
+            {detail.steps?.length ? <h4 className="mt-2 text-sm font-semibold">All records</h4> : null}
             <ol className="flex flex-col gap-1 text-sm">
               {pages.take('timeline', detail.timeline).map((entry, i) => (
                 <li key={i} className="flex gap-2">
@@ -601,7 +604,7 @@ function TaskPanel(props: {
             </ol>
             <ShowMore {...pages.more('timeline', detail.timeline.length)} />
             </>
-          ) : (
+          ) : detail.steps?.length ? null : (
             <p className="text-sm text-muted">Nothing recorded yet.</p>
           )}
         </SectionBox>
