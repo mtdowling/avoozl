@@ -24,6 +24,11 @@ export const PERSON_ONLY = new Map([
     "plan.review.decide",
     person("Only a person starts or skips a draft review."),
   ],
+  [
+    "plan.review.finding.decide",
+    person("Only a person decides a review finding."),
+  ],
+  ["plan.review.dispose", person("Only a person closes a review comment.")],
   ["task.manual.complete", person("Only a person marks a manual task done.")],
   ["task.manual.reopen", person("Only a person reopens a manual task.")],
   ["task.notes.edit", person("Only a person edits a link or note.")],
@@ -259,10 +264,6 @@ export const NOT_ON_MCP = new Map([
     name,
     "The app page shows and renames this install's display name; a chat has no use for it.",
   ]),
-  ...["driversession.view", "driversession.register"].map((name) => [
-    name,
-    "The app page reads the driver session; the session records itself through its hooks and plans_next.",
-  ]),
   [
     "panel.view",
     "The chat side panel's one read; its parts are each on MCP already.",
@@ -365,10 +366,19 @@ export function agentSession(env = process.env) {
 }
 
 // The refusal for a CLI call from an agent session, or null. `--as-person`
-// is the typed override.
+// is the typed override, except in a supervisor child (AVOOZL_CHILD, R95.5),
+// where nobody is typing.
 export function cliRefusal(name, input, { env = process.env, asPerson } = {}) {
   const reason = mcpRefusal(name, input);
-  if (!reason || asPerson || !agentSession(env)) return null;
+  if (!reason) return null;
+  if (env.AVOOZL_CHILD)
+    return (
+      reason.replace(/ Do it in the Avoozl app\.$/, "") +
+      " This command is running inside an agent the supervisor started" +
+      `${env.AVOOZL_CHILD_SESSION ? ` (${env.AVOOZL_CHILD_SESSION})` : ""}.` +
+      " Do it in the Avoozl app; --as-person does not apply here."
+    );
+  if (asPerson || !agentSession(env)) return null;
   return (
     reason.replace(/ Do it in the Avoozl app\.$/, "") +
     " This command is running inside an agent session. Do it in the Avoozl" +

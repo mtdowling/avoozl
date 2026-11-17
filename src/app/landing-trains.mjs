@@ -26,6 +26,7 @@ import { guardedFastForward, landIntent } from "./driver-generations.mjs";
 import { runCheckAt } from "./flow-line.mjs";
 import { enqueueLanding } from "./landing-queue.mjs";
 import { privacyScan, verifiedEvidence } from "./working-heads.mjs";
+import { mergeBaseBack } from "./spec-base.mjs";
 import { fail } from "./store.mjs";
 
 export const TRAIN_TASKS = 4;
@@ -262,6 +263,21 @@ export function directSteps({
       );
       log.results.push(results);
       return pushed;
+    },
+    // The landed base comes back into each spec's working branch in `root`
+    // as a merge commit; unlanded integrations and checkpoints stay.
+    async afterLand({ entries, candidate }) {
+      const out = [];
+      for (const spec of [...new Set(entries.map((e) => e.spec))])
+        out.push({
+          spec,
+          ...(await mergeBaseBack(root, {
+            spec,
+            landed: candidate,
+            base: branch,
+          })),
+        });
+      return out;
     },
   };
 }
