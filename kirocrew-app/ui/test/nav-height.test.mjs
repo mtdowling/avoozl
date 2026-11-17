@@ -1,8 +1,8 @@
 // The nav is as tall as the window, as Issue Radar's is: its bottom edge is the
-// window's bottom at 1280x800 and 390x844 (the phone's menu). Open pills share
-// the height the closed ones leave, so the pills end where the brand row
-// begins, and an open pill whose content is short shows its background down
-// to its bottom edge. Skipped when no Chrome is found.
+// window's bottom at 1280x800 and 390x844 (the phone's menu). The one open
+// pill takes the height the closed ones leave, so the pills end where the
+// brand row begins, and an open pill whose content is short shows its
+// background down to its bottom edge. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
@@ -45,7 +45,7 @@ for (const [width, height] of [
   [390, 844],
 ])
   for (const dark of [false, true])
-    test(`at ${width}x${height} ${dark ? 'dark' : 'light'}: the nav reaches the window's bottom and open pills fill the gap`, { skip }, async () => {
+    test(`at ${width}x${height} ${dark ? 'dark' : 'light'}: the nav reaches the window's bottom and the open pill fills the gap`, { skip }, async () => {
       await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light', needs: '12', specs: '1', activity: '1' }), { width, height, dark })
       await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
       if (width < 768) {
@@ -56,15 +56,13 @@ for (const [width, height] of [
       for (const key of [null, 'settings']) {
         if (key) await toggle(width, key)
         const m = await page.evaluate(MEASURE(width))
-        const label = key ? 'two pills open' : 'one pill open'
-        assert.equal(m.open.length, key ? 2 : 1, label)
+        const label = key ? 'Settings open' : 'Dashboards open'
+        assert.equal(m.open.length, 1, `${label}: one pill open`)
         assert.ok(Math.abs(m.navBottom - m.view) <= 1, `${label}: the nav ends at ${m.navBottom}, the window at ${m.view}`)
         // Only the Collapse row, the line controls and 8px gaps sit between the pills and the brand.
         assert.ok(m.brandTop - m.lastSection <= (width < 768 ? 80 : 48), `${label}: pills end at ${m.lastSection}, brand starts at ${m.brandTop}`)
         assert.ok(m.brandBottom <= m.view + 1, `${label}: the brand row is inside the window`)
         assert.ok(Math.abs(m.accordionBottom - m.lastSection) <= 1, `${label}: the open pills run to the accordion's bottom`)
-        const free = m.open.filter((o) => !o.scrolls)
-        if (free.length === 2) assert.ok(Math.abs(free[0].height - free[1].height) <= 1, 'short pills share the height equally')
         if (!m.scrollsNav) for (const o of m.open) assert.ok(o.height >= 96, 'an open pill keeps its minimum height')
       }
       assert.deepEqual(page.errors, [])

@@ -84,12 +84,13 @@ export function NavAccordion(props: {
     if (!ref) slotRefs.current.set(key, (ref = (el) => slots?.register(key, el)))
     return ref
   }
-  // Sections open on their own and stay open until shut. Going to a page
-  // with sub-pages or filters opens its section. A section with only a slot
-  // draws only while its page is showing, as its filters are that page's.
-  const [open, setOpen] = useState<string[]>(hasKids(props.value) ? [props.value] : [])
-  useEffect(() => setOpen((now) => (hasKids(props.value) && !now.includes(props.value) ? [...now, props.value] : now)), [props.value]) // eslint-disable-line react-hooks/exhaustive-deps
-  const shown = (group: NavGroup) => opens(group) && open.includes(group.key) && (props.value === group.key || !group.slot || Boolean(group.children?.length))
+  // One section is open at most. Going to a page opens its section, if it
+  // has one, and shuts every other; opening one by hand shuts the rest. A
+  // section with only a slot draws only while its page is showing, as its
+  // filters are that page's.
+  const [open, setOpen] = useState<string | null>(hasKids(props.value) ? props.value : null)
+  useEffect(() => setOpen(hasKids(props.value) ? props.value : null), [props.value]) // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = (group: NavGroup) => opens(group) && open === group.key && (props.value === group.key || !group.slot || Boolean(group.children?.length))
   // The least height the sections need: open ones their minimum, closed ones
   // their head. Below it the nav scrolls; above it the open ones stretch.
   const least = props.groups.reduce((sum, group) => sum + (shown(group) ? OPEN_MIN : NAV_PILL + 2), 8 * (props.groups.length - 1))
@@ -115,9 +116,9 @@ export function NavAccordion(props: {
                 if (!kids) {
                   props.onPick(group.key)
                   props.onDone?.()
-                } else if (expanded) setOpen((now) => now.filter((key) => key !== group.key))
+                } else if (expanded) setOpen(null)
                 else {
-                  setOpen((now) => [...now, group.key])
+                  setOpen(group.key)
                   if (!here) props.onPick(group.key)
                 }
               }}

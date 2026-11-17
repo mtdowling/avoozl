@@ -53,7 +53,7 @@ for (const dark of [false, true]) {
     // A section opens in the menu; picking one of its pages closes the menu.
     await page.evaluate(`[...document.querySelectorAll('[data-top-rail-list] [data-nav-head]')].find((t) => t.textContent.includes('Needs you')).click()`)
     await settle()
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [data-nav-section][data-open]').length`), 2, 'Dashboards and Needs you are open')
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [data-nav-section][data-open]').length`), 1, 'only Needs you is open')
     await page.evaluate(`document.querySelector('[data-top-rail-list] [data-nav-item="waiting/intake"]').click()`)
     await settle()
     assert.equal(await box('[data-top-rail-list]'), null, 'picking collapses the rail')
