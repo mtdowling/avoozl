@@ -1,108 +1,123 @@
-# P65 live: every build receipt kept, on a real repository
+# P65 live: every build receipt kept, and a build breakdown in a retro
 
-Proof P65 (Requirement 101, design §4.31), run 2026-11-17 14:10 UTC
-against the real `mtdowling/avoozl` repository, read only, on `main` at
-`1abb1792` (after #390). Its CI uploads `build-receipt-<os>` from Linux,
-macOS and Windows (#324).
+Proof P65 (Requirement 101, design §4.31), run with
+`scripts/proof-p65-live.mjs` in scratch Avoozl workspaces in the temporary
+folder. No real workspace was opened or ticked.
 
-**Verdict: partial. P65 stays unticked.** Reading every receipt, the call
-budget and the retro brief's costliest phase pass on real data. The failed
-attempt, the 6-observation pull request and the breakdown comparison cannot
-be shown read only on this repository. Details under "Not shown".
+| Run | When (UTC)       | Repository                               | Report form | Result           |
+| --- | ---------------- | ---------------------------------------- | ----------- | ---------------- |
+| 1   | 2026-11-17 14:10 | `mtdowling/avoozl`, read only            | none        | partial (#391)   |
+| 2   | 2026-11-17 15:21 | `mtdowling/avoozl-scratch-p65` (private) | field       | pass, every part |
+| 3   | 2026-11-17 15:02 | `mtdowling/avoozl-scratch-p65` (private) | artifact    | pass, every part |
 
-## Setup
+**Verdict: pass. P65 is ticked.** Run 2 follows the proof's setup exactly
+(`receipts.report` set to a field). Run 3 shows the same with the artifact
+form.
 
-- A scratch workspace in the temporary folder: an empty snapshot, no tasks,
-  `.avoozl.json` = `{}`, GitHub policy naming only `mtdowling/avoozl` with
-  `buildReceipts: true`. No real workspace was opened or ticked.
-- `scripts/proof-p65-live.mjs` runs the tick's CI step (`ciStep`) twice
-  with a real `GitHubClient` on the owner's `gh` login. A fetch guard allows
-  only GraphQL queries with no mutation for this repository, GET requests
-  under `/repos/mtdowling/avoozl/`, and the signed address an allowed
-  artifact download redirected to, sent with no token. It refused nothing.
-- No `receipts.report`: this repository's CI writes no build report.
-- No GitHub writes. The only write is this pull request.
+## Bugs found by run 1, fixed first
 
-Raw output: `p65-build-receipts/live.json`.
+| Pull request | Bug                                                                                                               | Fix                                                                                                        |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| #401         | Only the newest 100 artifacts were read. #378 and #381 kept 1 of 3 receipts and were then marked done.            | The reader pages the list until a page is short or older than every run it still needs (at most 10 pages). |
+| #402         | Flow's Builds block came only from Issue Radar rows, so a repository with receipts and no Radar crew showed none. | `radar.flow` adds every merged pull request with stored observations; the card shows builds alone.         |
 
-## Results
+Each was merged after Linux, macOS and Windows passed. Runs 2 and 3 ran on
+code with both fixes.
 
-| Check                            | Value                                 |
-| -------------------------------- | ------------------------------------- |
-| Merged pull requests in the read | 50                                    |
-| Merged heads with receipts read  | 12 (#367 to #390)                     |
-| Receipt artifacts read           | 32, 32 lines, 0 skipped               |
-| Observations stored              | 32, one per artifact, 0 failed        |
-| Observations per pull request    | 3 (one per OS) on 10; 1 on #378, #381 |
-| Heads stored as `none`           | 23 (no artifact on the listed page)   |
-| Breakdowns                       | 0 (no report)                         |
+## The scratch repository
 
-Calls per check:
+`mtdowling/avoozl-scratch-p65` (private) runs a copy of `mtdowling/avoozl`'s
+receipt steps on Linux, macOS and Windows: `bin/build-receipt --phase build
+-- npm run build` and `--phase test -- npm test`, each job uploading
+`build-receipt-<os>` (`if: always()`). A test script (`scripts/report.mjs`)
+then writes one R101 v1 build report per job, with made-up workload and
+engine names (`recipe-index`, `quill`), the target, the toolchain, the cache
+mode from a `cache-mode` file, the costs and two parts. It fills the
+`report` field of the job's last receipt line (run 2) and also writes it as
+a `build-report-<os>` artifact (run 3).
 
-| Read               | Check 1 | Check 2 |
-| ------------------ | ------- | ------- |
-| GraphQL pull reqs  | 1       | 1       |
-| Workflow runs      | 1       | 1       |
-| Artifact list      | 1 (200) | 1 (304) |
-| Artifact downloads | 32      | 0       |
-| Signed file reads  | 32      | 0       |
+The workspace: GitHub policy naming only the scratch repository with
+`buildReceipts: true`; `receipts.report` = `{"field": "report"}` (run 2) or
+`{"artifact": "build-report"}` (run 3).
 
-One list per check, one download per artifact, and 0 downloads on the second
-check: as the call budget says.
+The script's fetch guard allows only GraphQL queries with no mutation for
+the repository, GET requests under `/repos/mtdowling/avoozl-scratch-p65/`,
+and the signed address an allowed artifact download redirected to, with no
+token. It refused nothing. GitHub writes went only to the scratch
+repository: its pull requests and two re-runs.
 
-Flow's build view (`buildView`, over the stored observations of the 12
-pull requests):
+## Run 2: the field form (the proof's setup)
 
-| Target         | Phase      | Count | Median  |
-| -------------- | ---------- | ----- | ------- |
-| ubuntu-latest  | `npm test` | 11    | 2.2 min |
-| macos-latest   | `npm test` | 10    | 4.0 min |
-| windows-latest | `npm test` | 11    | 6.3 min |
+| Step | What was done                                                                                             |
+| ---- | --------------------------------------------------------------------------------------------------------- |
+| 1    | PR 7: a `fail-once` file fails the Linux test on run attempt 1. Re-ran the failed job; it passed. Merged. |
+| 2    | Two checks (`ciStep` twice).                                                                              |
+| 3    | PRs 8–11 merged with the same report key; PR 12 merged with `cache-mode` = `cold`.                        |
+| 4    | A retrospective started by hand (the trigger `flow.retro.start` queues), then `retroStep`.                |
 
-Each pull request's costliest phase is `npm test` (#390: 11.8 min over 3
-targets). The retro brief (`buildBrief`) holds the same: per pull request,
-`kind` `other`, `costliestPhase` `npm test` and its minutes. It has no
-breakdowns and `unmatched` 0.
+The workspace reads all 12 merged scratch pull requests; PRs 1–6 (run 3's)
+carry no `report` field, so only PRs 7–12 give breakdowns.
 
-## Not shown
+| Expected                                | Seen                                                                                                   | Pass |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---- |
+| 6 or more observations for the first PR | PR 7: 8, build and test on 3 targets plus the Linux re-run's build and test (attempts 1 and 2)         | yes  |
+| The failed attempt marked               | PR 7, `ubuntu-latest`, attempt 1, `test`, exit 1, failed; Flow shows 1.6 s failed                      | yes  |
+| The costliest phase in Flow             | `radar.flow`'s builds name each PR's costliest phase (PR 7 `build`, failed ms apart; PRs 8–12 `test`)  | yes  |
+| One artifact list per check             | Check 1: one list, read in 2 pages (more than 100 artifacts, #401). Check 2: none (every head settled) | yes  |
+| One download per artifact               | 38 receipt artifacts, 38 downloads; no artifact read twice                                             | yes  |
+| The second check: 0 downloads           | 0                                                                                                      | yes  |
+| The brief holds the breakdown           | `builds` per key: count, latest and median of each cost and part, and the costliest part               | yes  |
+| The other cache mode never compared     | 6 keys: `warm` Linux 6, macOS 5, Windows 5; `cold` 1 each (PR 12 only); `unmatched` 0                  | yes  |
 
-- **Failed attempt marked.** No pull request in the window had a failed or
-  re-run CI job (no run with `run_attempt` above 1, no non-zero exit). The
-  proof's step 1 fails a job on purpose; that is a write, so it was not done.
-- **6 or more observations for one pull request.** The CI wraps one
-  command (`npm test`), so each pull request has at most 3 lines (3 targets).
-  6 needs a second phase (a build step through `bin/build-receipt`) or a
-  re-run.
-- **Breakdown in the retro, other cache mode never compared.** The CI
-  writes no build report, so there are no breakdowns or keys. Steps 3 and 4
-  (merging 5 pull requests with report keys) are writes.
-- **Flow's page.** The Flow page's build card is filled by `radar.flow`
-  (`radar-flow.mjs`), which reads only repositories whose coder is
-  `issue-radar`. This repository is not, so its stored observations reach
-  Trace and the retro brief but not the Flow page. The numbers above come
-  from Flow's own `buildView` on the stored rows, not from the page.
+Linux `warm` holds PR 7's two attempts and PRs 8–11. PR 12 is only in its
+three `cold` keys.
 
-## Finding: the one-page artifact list loses receipts on a first read
+Stored: 76 observations from 38 receipt artifacts (0 lines skipped), 2
+failed (PR 1 and PR 7, each Linux attempt 1), 19 breakdowns.
 
-#378 and #381 kept 1 observation each, not 3. Their runs uploaded 3
-artifacts, but only the newest fell inside the 100 artifacts the list
-returns. The head then counts as `done`, so the other 2 are never read. With
-a check every few minutes fewer than 100 artifacts appear between checks,
-so this hits the first read of a busy repository and any long gap. It is the
-§4.31 shortcut, and P65's own next decision: **read a second page of
-artifacts**. Not fixed here, since it changes the call budget.
+Calls, check 1: 1 GraphQL, 1 workflow runs, 2 artifact list pages, 38
+downloads (and 38 signed file reads). Check 2: 1 GraphQL, 1 workflow runs,
+nothing else.
 
-## To pass P65
+## Run 3: the artifact form
 
-On a scratch repository (writes allowed): add a build step through
-`bin/build-receipt --phase build`, set `receipts.report` to a field a test
-script fills, fail one test job and re-run it, merge 4 pull requests with
-one report key and 1 with another cache mode, then run this script and a
-retrospective.
+PRs 1–6, the same steps (PR 1 failed once and re-ran; PRs 2–5 one key; PR 6
+`cold`), with `receipts.report` = `{"artifact": "build-report"}`. Before
+PRs 7–12 existed.
 
-Remake the read:
+| Measure                 | Seen                                                             |
+| ----------------------- | ---------------------------------------------------------------- |
+| First PR's observations | 8, 1 failed (Linux attempt 1, `test`)                            |
+| Calls, check 1          | 1 list, 38 downloads (19 receipts, 19 reports)                   |
+| Calls, check 2          | no list, 0 downloads                                             |
+| Brief keys              | `warm` Linux 6, macOS 5, Windows 5; `cold` 1 each; `unmatched` 0 |
+
+Re-running a failed job kept both Linux artifacts: GitHub gave the second
+upload of `build-receipt-ubuntu-latest` its own artifact ID, so the workflow
+needs no name change.
+
+## Seen, not asked
+
+- The brief's per pull request costliest phase counts failed observations;
+  Flow leaves them apart. For PR 7 the brief says `test`, Flow `build`.
+- A failed attempt's breakdown is in its key's medians (PR 7, Linux
+  `warm`).
+
+Neither changes a verdict above. Both are recorded for the next change to
+build retrospectives.
+
+## Files
+
+- `p65-build-receipts/live.json`: run 1 (`mtdowling/avoozl`).
+- `p65-build-receipts/scratch-field-live.json`,
+  `scratch-field-retro-brief.txt`: run 2.
+- `p65-build-receipts/scratch-artifact-live.json`,
+  `scratch-artifact-retro-brief.txt`: run 3.
+
+Remake run 2 (the scratch repository is private to its owner):
 
 ```sh
 node scripts/proof-p65-live.mjs --root "$(mktemp -d)" \
-  --repository mtdowling/avoozl --out live.json
+  --repository mtdowling/avoozl-scratch-p65 \
+  --report-field report --out live.json
 ```
