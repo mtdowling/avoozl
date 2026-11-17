@@ -37,9 +37,8 @@ const SIZES = [
   { width: 1280, height: 900, theme: 'light', dark: false },
 ]
 const SCREENS = [
-  { name: 'Home', query: { page: 'app', radar: '1' }, ready: `document.querySelectorAll('[data-sc]').length === 1` },
+  { name: 'Home', query: { page: 'app', radar: '1' }, ready: `Boolean(document.querySelector('[data-release-empty]'))` },
   { name: 'the side panel', query: { page: 'panel', sid: 'chat-1' }, ready: `Boolean(document.querySelector('[data-flight-row]'))` },
-  { name: 'the side panel in a driver chat', query: { page: 'panel', sid: 'avoozl_driver_1' }, ready: `Boolean(document.querySelector('[data-panel-driver]'))` },
 ]
 const TABS = ['Specs', 'Needs you', 'Trace', 'Flow', 'Activity', 'Settings']
 

@@ -71,66 +71,6 @@
     "includeMcpJson": false
   },
   {
-    "name": "avoozl-driver",
-    "model": "auto",
-    "description": "Avoozl driver session: one long-running chat that releases ready work, watches merges and brings you the decisions. Start it from the Avoozl page.",
-    "tools": [
-      "session",
-      "report",
-      "tool_search",
-      "@kirocrew-core",
-      "@kirocrew-dashboard",
-      "@kirocrew-work",
-      "@avoozl:avoozl/plans_next",
-      "@avoozl:avoozl/plans_claim_task",
-      "@avoozl:avoozl/plans_report",
-      "@avoozl:avoozl/plans_retry_delivery"
-    ],
-    "allowedTools": [
-      "session",
-      "report",
-      "tool_search",
-      "@kirocrew-core/monitor_start",
-      "@kirocrew-core/monitor_update",
-      "@kirocrew-core/autonudge_stop",
-      "@kirocrew-core/wait",
-      "@kirocrew-core/resource_status",
-      "@kirocrew-core/list_sessions",
-      "@kirocrew-core/session_ledger_read",
-      "@kirocrew-core/session_ledger_record",
-      "@kirocrew-core/skill_search",
-      "@kirocrew-core/skill_fetch",
-      "@kirocrew-core/send_message",
-      "@kirocrew-core/send_notification",
-      "@kirocrew-core/ask_question",
-      "@kirocrew-core/nothing_to_do",
-      "@kirocrew-dashboard/session_create",
-      "@kirocrew-dashboard/session_read_message",
-      "@kirocrew-dashboard/session_status",
-      "@kirocrew-work/work_ledger_read",
-      "@kirocrew-work/work_ledger_record",
-      "@kirocrew-work/work_ledger_rebuild",
-      "@kirocrew-work/work_brief",
-      "@avoozl:avoozl/plans_next",
-      "@avoozl:avoozl/plans_claim_task",
-      "@avoozl:avoozl/plans_report"
-    ],
-    "resources": ["skill://skills/avoozl/SKILL.md"],
-    "includeMcpJson": false,
-    "hooks": {
-      "agentSpawn": [
-        {
-          "command": "PATH=\"$PATH:/opt/homebrew/bin:/usr/local/bin\" node \"${KIROCREW_HOME:-$HOME/.kiro/crew}/apps/avoozl/bin/avoozl.mjs\" driver hook"
-        }
-      ],
-      "stop": [
-        {
-          "command": "PATH=\"$PATH:/opt/homebrew/bin:/usr/local/bin\" node \"${KIROCREW_HOME:-$HOME/.kiro/crew}/apps/avoozl/bin/avoozl.mjs\" driver hook"
-        }
-      ]
-    }
-  },
-  {
     "name": "avoozl-falsifier",
     "model": "auto",
     "description": "Avoozl Falsifier: tries to prove a worker's findings wrong before any code is written, and reports whether they stand.",
