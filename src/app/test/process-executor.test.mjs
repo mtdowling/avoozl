@@ -20,6 +20,7 @@ import {
   readChildResult,
   RESULT_FILE,
   startSupervisor,
+  supervisorPaths,
 } from "../supervisor.mjs";
 import { sandboxKind } from "../sandbox.mjs";
 import { spawnSync } from "node:child_process";
@@ -28,6 +29,7 @@ import {
   bindingStatus,
   drainProcessRequests,
   finishProcessSession,
+  planQuotaHold,
   processExecutor,
   projectExecutor,
 } from "../executors/process.mjs";
@@ -125,6 +127,7 @@ test("a project opts into process; everything else stays on kirocrew", () => {
 const AGENT = `
 import fs from "node:fs";
 const text = fs.readFileSync(0, "utf8");
+console.log("argv:", process.argv.slice(2).join(" "), "|", text);
 fs.appendFileSync("seen.txt", process.argv.slice(2).join(" ") + "|" + text + "\\n");
 const wait = /WAIT:(\\S+)/.exec(text);
 // RESULT:<json> writes the result file; EXIT:<n> sets the exit code.
@@ -144,7 +147,7 @@ if (wait) {
 const gitIn = (cwd, ...args) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
-function machine(t) {
+function machine(t, extra = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-process-"));
   const cleanups = [];
   t.after(async () => {
@@ -188,6 +191,7 @@ function machine(t) {
     model: ["--model", "{model}"],
     permission: { write: "workspace-write", read: "read-only" },
     writeRoots: ["{worktree}", "{tmp}"],
+    ...extra,
   });
   fs.writeFileSync(
     path.join(configDirectory, "harnesses", "fake-cli.json"),
@@ -463,6 +467,152 @@ test("Avoozl commits a write child's changes after it exits, never .avoozl/", as
   assert.match(errors[0].error, /not a task worktree/);
   assert.equal(run(checkout, "rev-list", "--count", "main"), "1");
   assert.equal(reports.length, 1, "no done at the old HEAD");
+});
+
+// R94.6: the harness's spend cap is set from the task budget's dollars left.
+test("the harness spend cap comes from the task budget", async (t) => {
+  const { root, stateDirectory, worktree, supervisor, defer } = machine(t, {
+    spendCap: ["--max-budget-usd", "{budget_usd}"],
+  });
+  const store = new Store(path.join(root, "workspace.sqlite"));
+  defer(() => store.close());
+  const data = snapshot();
+  data.tasks[0].repository = "app";
+  data.tasks[0].budget = { usd: 5 };
+  store.importSnapshot(data);
+  store.put("projects", {
+    id: "app",
+    root: worktree,
+    executor: "process",
+    harness: "fake-cli",
+  });
+  const start = (role, permissionClass) => ({
+    executor: "process",
+    role,
+    task: "sample-task",
+    brief: `Run as ${role}.`,
+    worktree,
+    permissionClass,
+  });
+  enqueueSessionRequests(store, {
+    starts: [start("worker", "write"), start("planner", "read")],
+  });
+  const { errors } = await drainProcessRequests(store, {
+    stateDirectory,
+    prepareWorktree: async () => ({ path: worktree }),
+  });
+  assert.deepEqual(errors, []);
+  // Each child prints its argv to its own log: a read-only child cannot
+  // write the worktree under a sandbox.
+  const logs = () =>
+    store.list("session_bindings").map((b) => {
+      const file = path.join(
+        supervisorPaths(stateDirectory).children,
+        b.slot,
+        "log",
+      );
+      return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+    });
+  const argvOf = (role) =>
+    logs().find((l) => l.includes(`Run as ${role}.`)) ?? null;
+  await until(() => {
+    supervisor.pass();
+    return argvOf("worker") && argvOf("planner");
+  });
+  // A worker is capped; a planner's spend is no task's (R67.7).
+  assert.match(argvOf("worker"), / --max-budget-usd 5\.00 \|/);
+  assert.doesNotMatch(argvOf("planner"), /max-budget/);
+
+  // Warn mode never stops work, so it sets no cap.
+  data.tasks[0].budget = { usd: 5, mode: "warn" };
+  store.importSnapshot(data);
+  enqueueSessionRequests(store, { starts: [start("verifier", "read")] });
+  await drainProcessRequests(store, { stateDirectory });
+  await until(() => {
+    supervisor.pass();
+    return argvOf("verifier");
+  });
+  assert.match(argvOf("verifier"), /^argv:/m);
+  assert.doesNotMatch(argvOf("verifier"), /max-budget/);
+});
+
+// R94.6a: no new session on a harness whose plan quota reads low.
+test("a low plan quota holds new sessions and leaves running ones", async (t) => {
+  const health = (levels) => ({ level: (name) => levels[name] ?? "ok" });
+  assert.equal(
+    planQuotaHold(health({}), { model: null, harness: "claude-code" }),
+    null,
+  );
+  assert.match(
+    planQuotaHold(health({ "claude-code": "low" }), {
+      model: null,
+      harness: "claude-code",
+    }),
+    /claude plan quota reads low/,
+  );
+  assert.match(
+    planQuotaHold(health({ "claude-sonnet": "out" }), {
+      model: "claude-sonnet",
+      harness: "claude-code",
+    }),
+    /reads out/,
+  );
+
+  const { root, stateDirectory, worktree, supervisor, defer } = machine(t);
+  const store = new Store(path.join(root, "workspace.sqlite"));
+  defer(() => store.close());
+  const data = snapshot();
+  data.tasks[0].repository = "app";
+  store.importSnapshot(data);
+  store.put("projects", {
+    id: "app",
+    root: worktree,
+    executor: "process",
+    harness: "fake-cli",
+  });
+  const start = {
+    executor: "process",
+    role: "worker",
+    task: "sample-task",
+    brief: "Do the work.",
+    worktree,
+    permissionClass: "write",
+  };
+  // A running session first, then the quota reads low.
+  enqueueSessionRequests(store, { starts: [start] });
+  await drainProcessRequests(store, {
+    stateDirectory,
+    prepareWorktree: async () => ({ path: worktree }),
+  });
+  const [running] = store.list("session_bindings");
+  assert.ok(running);
+  store.put("provider_health", {
+    id: "usage:key:fake",
+    scope: "key",
+    name: "fake",
+    level: "low",
+    source: "usage",
+    kind: "usage",
+    percent: 85,
+    since: new Date().toISOString(),
+  });
+  enqueueSessionRequests(store, {
+    starts: [{ ...start, role: "verifier", permissionClass: "read" }],
+  });
+  const { errors } = await drainProcessRequests(store, { stateDirectory });
+  assert.deepEqual(errors, []);
+  assert.equal(store.list("session_bindings").length, 1);
+  const held = store
+    .list("session_requests")
+    .find((r) => r.request.role === "verifier");
+  assert.equal(held.state, "canceled");
+  assert.match(held.reason, /fake plan quota reads low/);
+  // The running session goes on and finishes.
+  await until(async () => {
+    supervisor.pass();
+    await drainProcessRequests(store, { stateDirectory });
+    return store.get("session_bindings", running.slot).status === "closed";
+  });
 });
 
 test("the result file: done, blocked, and each bad shape", (t) => {

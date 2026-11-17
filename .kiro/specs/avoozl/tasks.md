@@ -1728,7 +1728,8 @@ recovers, and a backend restart mid-run.
   - Whatever the repository's .gitignore says. 47.7 commits through `commitWorkerChanges` (`src/app/git.mjs`); `integrateRun` refuses a branch whose commits touch `.avoozl/` with the paths named; tests in `src/app/test/worker-commit.test.mjs`.
 - [x] 47.8 Per-project command allow-list; `git push` never allowed, after 47.2 [R94.4c] (§4.28)
   - Built: `src/app/harness-allow.mjs` (`sandboxAllowCommands`, `harnessAllow`); tests in `src/app/test/harness-allow.test.mjs`.
-- [ ] 47.9 Spend cap from the task budget and the plan-quota stop, after 47.4 [R94.6, R94.6a] (§4.28)
+- [x] 47.9 Spend cap from the task budget and the plan-quota stop, after 47.4 [R94.6, R94.6a] (§4.28)
+  - Built: `spendCapUsd` in `src/app/budget.mjs` (dollars left on a stop-mode cap, null for warn mode and uncapped roles) fills `{budget_usd}`, and the supervisor appends the definition's `spendCap`; `planQuotaHold` in `src/app/executors/process.mjs` holds a new `process` session when its model or harness provider reads `low` or `out`, and a spent budget holds it too; tests in `src/app/test/process-executor.test.mjs`. Whether `--max-budget-usd` binds on a plan login is checked by `src/app/test/claude-plan-budget.test.mjs`, which runs only with `AVOOZL_LIVE_CLAUDE_PLAN=1` on a plan login and refuses an API or cloud login; it has not been run on one yet.
 - [x] 47.10 Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted, after 47.2 [R95.6, R95.7] (§4.28)
   - Kiro Crew chats: the docs and Settings say the person-only refusal is a speed bump.
   - Built: `src/app/sandbox.mjs` (`sandbox-exec` on macOS, `bwrap` on Linux, else the per-machine opt-in), wrapped around each child in `src/app/supervisor.mjs`; text in `docs/policies.md` and Settings › Models; tests in `src/app/test/sandbox.test.mjs`.
@@ -1901,12 +1902,13 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
   - `build_breakdowns` from the field or report artifacts; `buildBrief` in `retroBrief`; `PLAN_FIELDS` adds `key` and `part`; `METRICS` adds Build part minutes; Not enough comparable builds. Tests: mismatched keys are never compared; a retro brief includes the breakdown; a repository with no reports gives the same brief and call count as before.
   - Built: pass, `src/app/test/build-breakdown.test.mjs`.
 
-- [ ] avoozl-p65 P65 Proof: every receipt kept and a breakdown in a retro on a real repository, after 55.1, 55.2, 55.3, 55.4, 55.5, 55.6 [R101] (§4.31)
+- [x] avoozl-p65 P65 Proof: every receipt kept and a breakdown in a retro on a real repository, after 55.1, 55.2, 55.3, 55.4, 55.5, 55.6 [R101] (§4.31)
   - Setup: an isolated workspace naming one scratch GitHub repository with `buildReceipts` on, CI on 3 platforms running build and test through the wrapper, and `receipts.report` set to a field that a test script fills with made-up workload, engine and target names.
   - Action: (1) open a pull request, fail its test job once, re-run it, and merge; (2) let two checks run; (3) merge 4 more pull requests with the same report key and 1 with a different cache mode; (4) start a retrospective.
   - Expected: (2) 6 or more observations for the first pull request, the failed attempt marked, the costliest phase in Flow, one artifact list per check and one download per artifact, the second check 0 downloads; (4) the brief holds the breakdown, and the pull request with the other cache mode is never compared with the rest.
   - Failure means: records are still dropped, artifacts are read again, or builds with different work are compared.
   - Next decision: read a second page of artifacts, or move reports to their own artifact.
+  - Built: pass, receipt `docs/evidence/p65-build-receipts.md` (#401 reads every page; #402 Flow builds for any repository).
 
 ## Phase 56: Working branches and a spec journal
 
