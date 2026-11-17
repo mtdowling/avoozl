@@ -6,7 +6,7 @@ after two repairs the first live run found (PRs #413 and #418).
 ## Setup
 
 - Code: `038bb546`, which is `main` at the time plus PRs #409 (42.7), #413 and
-  #418, merged locally. All three have since merged to `main` unchanged.
+  #418, merged locally. All three have since merged to `main` (#409 with only an import-list merge).
 - Private scratch repository `mtdowling/avoozl-scratch-p52b`. It started with
   two commits: the README and `.github/workflows/ci.yml`. That workflow has
   one job, `build`, which fails when a file named `FAIL` exists.
