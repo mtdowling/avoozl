@@ -76,61 +76,117 @@ function setup() {
   return { t, src, dir, env, run, calls, clear, installed };
 }
 
-test("start installs the app, then reinstalls only when the build changed", { skip }, (t) => {
-  const h = setup();
-  t.after(() => h.run("stop"));
-  let r = h.run("start");
-  assert.equal(r.status, 0, r.out);
-  assert.match(h.calls(), /kirocrew app install .*\/h\/app/);
-  assert.equal(fs.readFileSync(path.join(h.installed, "ui", "index.mjs"), "utf8"), "export const v = 1;\n");
-  fs.mkdirSync(path.join(h.installed, "data"));
-  fs.writeFileSync(path.join(h.installed, "data", "keep.txt"), "keep");
+test(
+  "start installs the app, then reinstalls only when the build changed",
+  { skip },
+  (t) => {
+    const h = setup();
+    t.after(() => h.run("stop"));
+    let r = h.run("start");
+    assert.equal(r.status, 0, r.out);
+    assert.match(h.calls(), /kirocrew app install .*\/h\/app/);
+    assert.equal(
+      fs.readFileSync(path.join(h.installed, "ui", "index.mjs"), "utf8"),
+      "export const v = 1;\n",
+    );
+    fs.mkdirSync(path.join(h.installed, "data"));
+    fs.writeFileSync(path.join(h.installed, "data", "keep.txt"), "keep");
 
-  h.clear();
-  r = h.run("restart");
-  assert.equal(r.status, 0, r.out);
-  assert.doesNotMatch(h.calls(), /app (install|uninstall)/, "unchanged build: no reinstall");
+    h.clear();
+    r = h.run("restart");
+    assert.equal(r.status, 0, r.out);
+    assert.doesNotMatch(
+      h.calls(),
+      /app (install|uninstall)/,
+      "unchanged build: no reinstall",
+    );
 
-  fs.writeFileSync(path.join(h.src, "ui", "index.mjs"), "export const v = 2;\n");
-  h.clear();
-  r = h.run("restart");
-  assert.equal(r.status, 0, r.out);
-  assert.match(r.out, /app reinstalled/);
-  const log = h.calls();
-  assert.match(log, /kirocrew app uninstall avoozl\n/, "uninstall keeps data (no --purge-data)");
-  // The readiness probe is the first curl call, after the gateway is launched.
-  assert.ok(log.indexOf("app install") < log.indexOf("curl -s -o /dev/null"), "reinstall happens before the gateway starts");
-  assert.equal(fs.readFileSync(path.join(h.installed, "ui", "index.mjs"), "utf8"), "export const v = 2;\n");
-  assert.equal(fs.readFileSync(path.join(h.installed, "data", "keep.txt"), "utf8"), "keep");
-});
+    fs.writeFileSync(
+      path.join(h.src, "ui", "index.mjs"),
+      "export const v = 2;\n",
+    );
+    h.clear();
+    r = h.run("restart");
+    assert.equal(r.status, 0, r.out);
+    assert.match(r.out, /app reinstalled/);
+    const log = h.calls();
+    assert.match(
+      log,
+      /kirocrew app uninstall avoozl\n/,
+      "uninstall keeps data (no --purge-data)",
+    );
+    // The readiness probe is the first curl call, after the gateway is launched.
+    assert.ok(
+      log.indexOf("app install") < log.indexOf("curl -s -o /dev/null"),
+      "reinstall happens before the gateway starts",
+    );
+    assert.equal(
+      fs.readFileSync(path.join(h.installed, "ui", "index.mjs"), "utf8"),
+      "export const v = 2;\n",
+    );
+    assert.equal(
+      fs.readFileSync(path.join(h.installed, "data", "keep.txt"), "utf8"),
+      "keep",
+    );
+  },
+);
 
-test("reload-app updates in place through the gateway with a sign-in cookie", { skip }, (t) => {
-  const h = setup();
-  t.after(() => h.run("stop"));
-  assert.equal(h.run("start").status, 0);
-  fs.writeFileSync(path.join(h.dir, "cookies.txt"), "# Netscape HTTP Cookie File\n");
-  fs.writeFileSync(path.join(h.src, "ui", "index.mjs"), "export const v = 3;\n");
-  h.clear();
-  const r = h.run("reload-app");
-  assert.equal(r.status, 0, r.out);
-  assert.match(r.out, /app updated in place/);
-  const log = h.calls();
-  assert.match(log, /-X POST -b \S+cookies\.txt .*\/api\/apps\/avoozl\/update/);
-  assert.doesNotMatch(log, /app uninstall|curl -s -o \/dev\/null/, "no reinstall, no gateway restart");
-  assert.equal(fs.readFileSync(path.join(h.installed, "ui", "index.mjs"), "utf8"), "export const v = 3;\n");
-  assert.match(h.run("reload-app").out, /app already current/);
-});
+test(
+  "reload-app updates in place through the gateway with a sign-in cookie",
+  { skip },
+  (t) => {
+    const h = setup();
+    t.after(() => h.run("stop"));
+    assert.equal(h.run("start").status, 0);
+    fs.writeFileSync(
+      path.join(h.dir, "cookies.txt"),
+      "# Netscape HTTP Cookie File\n",
+    );
+    fs.writeFileSync(
+      path.join(h.src, "ui", "index.mjs"),
+      "export const v = 3;\n",
+    );
+    h.clear();
+    const r = h.run("reload-app");
+    assert.equal(r.status, 0, r.out);
+    assert.match(r.out, /app updated in place/);
+    const log = h.calls();
+    assert.match(
+      log,
+      /-X POST -b \S+cookies\.txt .*\/api\/apps\/avoozl\/update/,
+    );
+    assert.doesNotMatch(
+      log,
+      /app uninstall|curl -s -o \/dev\/null/,
+      "no reinstall, no gateway restart",
+    );
+    assert.equal(
+      fs.readFileSync(path.join(h.installed, "ui", "index.mjs"), "utf8"),
+      "export const v = 3;\n",
+    );
+    assert.match(h.run("reload-app").out, /app already current/);
+  },
+);
 
 test("reload-app without a cookie restarts and reinstalls", { skip }, (t) => {
   const h = setup();
   t.after(() => h.run("stop"));
   assert.equal(h.run("start").status, 0);
-  fs.writeFileSync(path.join(h.src, "ui", "index.mjs"), "export const v = 4;\n");
+  fs.writeFileSync(
+    path.join(h.src, "ui", "index.mjs"),
+    "export const v = 4;\n",
+  );
   h.clear();
   const r = h.run("reload-app");
   assert.equal(r.status, 0, r.out);
-  assert.match(h.calls(), /app uninstall avoozl[\s\S]*app install[\s\S]*curl -s -o \/dev\/null/);
-  assert.equal(fs.readFileSync(path.join(h.installed, "ui", "index.mjs"), "utf8"), "export const v = 4;\n");
+  assert.match(
+    h.calls(),
+    /app uninstall avoozl[\s\S]*app install[\s\S]*curl -s -o \/dev\/null/,
+  );
+  assert.equal(
+    fs.readFileSync(path.join(h.installed, "ui", "index.mjs"), "utf8"),
+    "export const v = 4;\n",
+  );
 });
 
 test("harness refuses a directory outside its own", { skip }, () => {
@@ -139,7 +195,13 @@ test("harness refuses a directory outside its own", { skip }, () => {
   fs.mkdirSync(kiro, { recursive: true });
   const link = path.join(h.t, "link");
   fs.symlinkSync(kiro, link);
-  for (const dir of [kiro, path.join(h.env.HOME, ".local", "state", "x"), "relative/dir", "/", link]) {
+  for (const dir of [
+    kiro,
+    path.join(h.env.HOME, ".local", "state", "x"),
+    "relative/dir",
+    "/",
+    link,
+  ]) {
     const r = spawnSync("bash", [script, "status"], {
       env: { ...h.env, AVOOZL_HARNESS_DIR: dir },
       encoding: "utf8",
@@ -147,33 +209,57 @@ test("harness refuses a directory outside its own", { skip }, () => {
     assert.notEqual(r.status, 0, dir);
     assert.match(r.stderr, /unsafe AVOOZL_HARNESS_DIR/, dir);
   }
-  assert.deepEqual(fs.readdirSync(kiro), [], "nothing written into the real home");
+  assert.deepEqual(
+    fs.readdirSync(kiro),
+    [],
+    "nothing written into the real home",
+  );
   assert.equal(h.calls(), "");
 });
 
-test("signin from a refused shell says why and saves no cookie", { skip }, (t) => {
-  const h = setup();
-  t.after(() => h.run("stop"));
-  assert.equal(h.run("start").status, 0);
-  const r = h.run("signin");
-  assert.notEqual(r.status, 0);
-  assert.match(r.stderr, /refused .*run 'harness.sh signin' in your own terminal/);
-  assert.equal(fs.existsSync(path.join(h.dir, "cookies.txt")), false);
-});
+test(
+  "signin from a refused shell says why and saves no cookie",
+  { skip },
+  (t) => {
+    const h = setup();
+    t.after(() => h.run("stop"));
+    assert.equal(h.run("start").status, 0);
+    const r = h.run("signin");
+    assert.notEqual(r.status, 0);
+    assert.match(
+      r.stderr,
+      /refused .*run 'harness.sh signin' in your own terminal/,
+    );
+    assert.equal(fs.existsSync(path.join(h.dir, "cookies.txt")), false);
+  },
+);
 
-test("browser-state turns the sign-in cookie into Playwright storage state", { skip }, () => {
-  const h = setup();
-  fs.mkdirSync(h.dir, { recursive: true });
-  fs.writeFileSync(
-    path.join(h.dir, "cookies.txt"),
-    "# Netscape HTTP Cookie File\n#HttpOnly_localhost\tFALSE\t/\tFALSE\t1797526690\tsess\tabc\n",
-  );
-  const r = h.run("browser-state");
-  assert.equal(r.status, 0, r.out);
-  const file = r.stdout.trim();
-  assert.equal(fs.statSync(file).mode & 0o077, 0, "owner-only file");
-  const state = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.deepEqual(state.cookies, [
-    { name: "sess", value: "abc", domain: "localhost", path: "/", expires: 1797526690, httpOnly: true, secure: false, sameSite: "Lax" },
-  ]);
-});
+test(
+  "browser-state turns the sign-in cookie into Playwright storage state",
+  { skip },
+  () => {
+    const h = setup();
+    fs.mkdirSync(h.dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(h.dir, "cookies.txt"),
+      "# Netscape HTTP Cookie File\n#HttpOnly_localhost\tFALSE\t/\tFALSE\t1797526690\tsess\tabc\n",
+    );
+    const r = h.run("browser-state");
+    assert.equal(r.status, 0, r.out);
+    const file = r.stdout.trim();
+    assert.equal(fs.statSync(file).mode & 0o077, 0, "owner-only file");
+    const state = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert.deepEqual(state.cookies, [
+      {
+        name: "sess",
+        value: "abc",
+        domain: "localhost",
+        path: "/",
+        expires: 1797526690,
+        httpOnly: true,
+        secure: false,
+        sameSite: "Lax",
+      },
+    ]);
+  },
+);
