@@ -1506,7 +1506,7 @@ foundation tasks without that dependency may proceed while the live proof waits.
 
 - [ ] 40.3 Trust mode set at open and again every tick, after avoozl-p56 [R88.1] (§4.26)
   - A fake Kiro Crew that drops trust on restart; the next tick sets it again, once per chat.
-- [ ] 40.4 Prepare with the worktree helper and clean up after landing, after avoozl-p56 [R88.6] (§4.26)
+- [x] 40.4 Prepare with the worktree helper and clean up after landing, after avoozl-p56 [R88.6] (§4.26)
   - First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise.
 - [ ] 40.5 Verify: warm checks off the tick, per-check timeouts, declared and protected paths, after 40.1 [R86.6, R86.7] (§4.26)
   - Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you.
@@ -1703,8 +1703,9 @@ Requirements 93.5, 94, 95, 96 (design §4.28). Exit: a 3-task chain on a
 scratch repository with one feedback round by resume, a killed child that
 recovers, and a backend restart mid-run.
 
-- [ ] 47.1 Harness definition files: argv lists, placeholders, hash approval, after avoozl-p56 [R94.1, R94.2, R94.3] (§4.28)
+- [x] 47.1 Harness definition files: argv lists, placeholders, hash approval, after avoozl-p56 [R94.1, R94.2, R94.3] (§4.28)
   - Loading refuses a shell string, an unknown placeholder and an unapproved hash.
+  - Built: `src/app/harness-definitions.mjs` (machine config `harnesses/<name>.json`, approvals in `harness-approvals.json`); tests in `src/app/test/harness-definitions.test.mjs`.
 - [ ] 47.2 Permission classes, write roots and the skip-flag refusal, after 47.1 [R94.4, R94.4b, R94.5] (§4.28)
   - Write roots: task folder, temp, project cache dirs; read-only roles read-only; a test loads definitions with `bypassPermissions`, `danger-full-access` and a `--dangerously-*` flag and sees each refused; the per-machine opt-in is person-only.
 - [ ] 47.7 Avoozl commits after the child exits, after 47.4 [R94.4a] (§4.28)
@@ -1796,8 +1797,9 @@ mode of Phase 43.
 
 Requirement 96.4 (design §4.28).
 
-- [ ] 52.1 `next`, `claim` and `runner report` keep working for a person, after avoozl-p56 [R96.4] (§4.28)
+- [x] 52.1 `next`, `claim` and `runner report` keep working for a person, after avoozl-p56 [R96.4] (§4.28)
   - One test per command from a plain shell.
+  - Built: `src/app/test/manual-path.test.mjs` runs the CLI with no Kiro Crew, gateway or Avoozl variables: `next` lists ready work, `claim --slot` binds as `cli` with a worktree and `report --kind done` finishes it in crew mode, and `runner report TASK --state done` reports a runner task. The positional `runner report TASK done|blocked` and its use outside runner mode are 40.2's.
 
 - [ ] avoozl-p62 P62 Proof: a person finishes a task by hand, after 52.1 [R96.4] (§4.28)
   - Setup: a scratch workspace with one ready task.
@@ -1875,8 +1877,9 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
 - [x] 55.5 Build report format, `receipts.report` and the adapter, after 55.1 [R101.7, R101.8, R101.9] (§4.31)
   - `docs/build-report.md` for version 1; `src/app/build-report.mjs` with `parseBuildReport` and `comparisonKey`; `receipts.report` checked as a field or an artifact prefix. Tests: both forms; an unknown version and a missing field are skipped and counted; fixtures use made-up names only.
   - Built: pass, `src/app/test/build-report.test.mjs`.
-- [ ] 55.6 Breakdowns stored, in the retro brief, and compared by key only, after 55.3, 55.5, 54.4 [R101.9, R101.10, R101.11] (§4.31)
+- [x] 55.6 Breakdowns stored, in the retro brief, and compared by key only, after 55.3, 55.5, 54.4 [R101.9, R101.10, R101.11] (§4.31)
   - `build_breakdowns` from the field or report artifacts; `buildBrief` in `retroBrief`; `PLAN_FIELDS` adds `key` and `part`; `METRICS` adds Build part minutes; Not enough comparable builds. Tests: mismatched keys are never compared; a retro brief includes the breakdown; a repository with no reports gives the same brief and call count as before.
+  - Built: pass, `src/app/test/build-breakdown.test.mjs`.
 
 - [ ] avoozl-p65 P65 Proof: every receipt kept and a breakdown in a retro on a real repository, after 55.1, 55.2, 55.3, 55.4, 55.5, 55.6 [R101] (§4.31)
   - Setup: an isolated workspace naming one scratch GitHub repository with `buildReceipts` on, CI on 3 platforms running build and test through the wrapper, and `receipts.report` set to a field that a test script fills with made-up workload, engine and target names.
