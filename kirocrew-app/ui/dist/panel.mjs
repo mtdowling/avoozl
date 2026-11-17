@@ -1695,20 +1695,35 @@ function Zt(e) {
 			unproven: !0
 		}),
 		reviewSummary: (e, n) => t(e, "plan.reviewSummary", { planId: n }),
-		closeReviewFinding: (e, n, r) => t(e, "plan.review.dispose", {
-			id: n,
-			disposition: r
-		}),
 		selection: (e, n) => t(e, "plan.approvalBatches", { ids: n }).then((e) => e.selection),
-		approveMany: (e, n) => t(e, "plan.approveMany", { items: n }),
+		approveMany: async (e, r) => {
+			let i = (await Promise.all(r.map(async (t) => ({
+				item: t,
+				preview: await n(e, t.id)
+			})))).filter(({ item: e, preview: t }) => t.reviewedHash !== e.expectedHash).map(({ item: e, preview: t }) => ({
+				id: e.id,
+				preview: t
+			}));
+			return i.length ? {
+				ok: !1,
+				failures: [],
+				changed: i
+			} : t(e, "plan.approveMany", { items: r });
+		},
 		approve: async (e, r, i) => {
-			let { reviewedHash: a, expectedRevision: o } = await n(e, r);
-			if (a !== i) throw Error("This revision changed. Reload it before approving.");
-			return t(e, "plan.approve", {
-				id: r,
-				expectedHash: i,
-				expectedRevision: o
-			});
+			let a = await n(e, r);
+			if (a.reviewedHash !== i) return { changed: a };
+			try {
+				return await t(e, "plan.approve", {
+					id: r,
+					expectedHash: i,
+					expectedRevision: a.expectedRevision
+				});
+			} catch (t) {
+				let a = await n(e, r).catch(() => null);
+				if (a && a.reviewedHash !== i) return { changed: a };
+				throw t;
+			}
 		}
 	};
 }
@@ -2543,7 +2558,8 @@ function jn() {
 		}
 	}, be = async () => {
 		if (i && R?.plan && R.hash) try {
-			await ce.approve(i, R.plan.id, R.hash), T("Approved this revision for Avoozl."), await F();
+			let e = await ce.approve(i, R.plan.id, R.hash);
+			T("changed" in e ? "This spec has a newer revision. Review it, then approve." : "Approved this revision for Avoozl."), await F();
 		} catch (e) {
 			T(ne(e));
 		}
