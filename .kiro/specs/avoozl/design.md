@@ -4825,7 +4825,11 @@ Any other mix is refused on save (R105.2): one `planning` plus a `both`;
 two `planning`; `code` with no `planning`; `local` beside a GitHub role.
 No current mode needs such a mix, so no mode is lost. A workspace in
 `plans-repo` that registers only code repositories has its planning row
-synthesized from `planningRepository` ("GitHub only", no checkout).
+synthesized from `planningRepository` ("GitHub only", no checkout). Such a
+planning repository has no `github.repositories` entry, so no `role` key can
+sit on it: `planningRepository` stays stored and names it, and the `code`
+roles are valid because it exists. With a `planning` role on an entry,
+`planningRepository` is set from that entry.
 `coder` is a repository setting and stays beside the role.
 
 **Storage and migration.** The canonical key is

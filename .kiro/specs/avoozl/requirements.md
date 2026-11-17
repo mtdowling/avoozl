@@ -5735,6 +5735,8 @@ my repositories to it.
    All repositories `local` (or none registered) SHALL mean Local only.
    Exactly one `planning` and every other GitHub repository `code` SHALL
    mean `plans-repo`, with `planningRepository` the `planning` repository.
+   A planning repository with no checkout has no repository entry, so it is
+   named by the stored `planningRepository` instead of a `planning` role.
    One or more `both` and no other role SHALL mean `single-repo`. Any other
    mix SHALL be refused on save with one line naming the repositories and
    the fix, and nothing SHALL be written.
