@@ -5,7 +5,6 @@ import { digest } from "../model.mjs";
 import { COMPLETIONS, TASK_KINDS, isSource } from "../work-model.mjs";
 import { fail } from "./store.mjs";
 import { validateNeeds, validateSession } from "./placement.mjs";
-import { budgetInput } from "./budget.mjs";
 import { frontMatterCategory } from "../front-matter.mjs";
 import { newTaskAuthority } from "./github-policy.mjs";
 import {
@@ -200,10 +199,6 @@ export function validateProposal(item) {
     fail("type must be one lowercase word, such as test.");
   if (item.session !== undefined) validateSession(item.session);
   if (item.needs !== undefined) validateNeeds(item.needs);
-  // A leaf's cap, and its spec's from the manifest top level (§4.17).
-  if (item.budget !== undefined) budgetInput(item.budget, "budget");
-  if (item.specBudget !== undefined)
-    budgetInput(item.specBudget, "the spec budget");
   return item;
 }
 export function createPlan(
@@ -697,8 +692,6 @@ export function approvePlan(
               "type",
               "session",
               "needs",
-              "budget",
-              "specBudget",
               "size",
               "investigate",
               "ship",
@@ -817,8 +810,6 @@ export function approvePlan(
           "type",
           "session",
           "needs",
-          "budget",
-          "specBudget",
           "size",
           "investigate",
           "ship",

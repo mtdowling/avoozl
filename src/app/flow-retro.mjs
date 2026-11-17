@@ -7,7 +7,6 @@ import { kirocrewSession } from "./executors/kirocrew.mjs";
 // owner's Approve or Reject, and an approved change is measured before and
 // after (plan, do, check, act). A change that did not help gets a typed
 // revert proposal in the next retrospective.
-import { retroReceipts } from "./budget.mjs";
 import {
   CI_CLASSES,
   FLOW_KEYS,
@@ -379,16 +378,6 @@ export function retroBrief(
         tasks: b.tasks,
         state: b.state,
       })),
-      // Each finished task's receipt totals by stage and model, and whether
-      // it ran over budget (§4.17, R67.13). Counts and dollars only.
-      receipts: retroReceipts(
-        store,
-        data,
-        view.tasks
-          .filter((t) => t.finishedAt)
-          .slice(0, 20)
-          .map((t) => t.taskId),
-      ),
       earlierProposals: earlier,
       revertProposals: retro.reverts || [],
       // How much finished work was bug fixes (§4.11, R79.3).

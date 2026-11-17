@@ -137,6 +137,5 @@ test("Codex takes no allow flag, cost field or spend cap", (t) => {
   const definition = approved(t);
   assert.deepEqual(harnessAllow(definition, [["npm", "test"]]), []);
   assert.equal(definition.cost, undefined);
-  assert.equal(definition.spendCap, undefined);
   assert.deepEqual(definition.keepEnv, ["OPENAI_API_KEY", "CODEX_API_KEY"]);
 });

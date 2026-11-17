@@ -457,7 +457,6 @@ const SAYS = [
   ["routing.", "change where tasks run"],
   ["crews.", "change your crews"],
   ["provider", "switch a running chat to another model"],
-  ["budget.", "change a budget"],
   ["delivery.", "change delivery"],
   ["driver.", "hand this workspace to another machine"],
   ["plugin", "change plugins"],

@@ -596,11 +596,6 @@ export function startSupervisor({
         ...(row.model && definition.model
           ? fillHarnessArgv(definition.model, filled)
           : []),
-        // The task budget's dollars left, when the harness offers a spend
-        // cap (R94.6). Before the allow-list, whose flag takes a list.
-        ...(values.budget_usd && definition.spendCap
-          ? fillHarnessArgv(definition.spendCap, filled)
-          : []),
         // An empty list adds no flag: a bare allow flag would take the
         // next argument as its value.
         ...(settings.allowCommands?.length
