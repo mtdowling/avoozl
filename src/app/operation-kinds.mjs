@@ -221,6 +221,7 @@ const EXECUTE = new Set([
   "gap.accept",
   "spec.changed.apply",
   "spec.publish",
+  "spec.takeover",
   "github.retireTaskIssues",
   "spec.exportIssues",
   "budget.raise",
