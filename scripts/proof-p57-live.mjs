@@ -26,7 +26,16 @@ import { parseArgs } from "node:util";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLI = path.join(REPO, "cli.mjs");
-const CLAUDE = process.env.P57_CLAUDE || "/Users/dowling/.toolbox/bin/claude";
+// The Claude Code CLI: P57_CLAUDE, else `claude` on PATH, resolved once.
+const CLAUDE =
+  process.env.P57_CLAUDE ||
+  (() => {
+    const found = spawnSync("command -v claude", {
+      shell: true,
+      encoding: "utf8",
+    });
+    return found.stdout.trim() || "claude";
+  })();
 const MODEL = process.env.P57_MODEL || "global.anthropic.claude-sonnet-5";
 const PROXY_PORT = Number(process.env.P57_PROXY_PORT || 18457);
 const TASKS = [
