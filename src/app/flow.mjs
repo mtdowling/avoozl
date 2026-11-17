@@ -58,6 +58,13 @@ export const FLOW_DEFAULTS = Object.freeze({
     waitShare: 0.4,
     minPullRequests: 5,
   }),
+  // Verify (§4.26, R86.6, R86.7): protected paths beyond the built-in ones,
+  // and each check's timeout.
+  verify: Object.freeze({
+    checkTimeoutSeconds: 1200,
+    protectedPaths: Object.freeze([]),
+    checkTimeouts: Object.freeze({}),
+  }),
 });
 // The file classes of a pull request's changed paths (§4.30, R100.1).
 export const CI_CLASSES = Object.freeze([
@@ -105,7 +112,31 @@ export const FLOW_KEYS = Object.freeze({
     "a number 0.05–1",
   "ci.minPullRequests": (v) =>
     (Number.isInteger(v) && v >= 1 && v <= 1000) || "a whole number 1–1000",
+  "verify.checkTimeoutSeconds": (v) =>
+    (Number.isInteger(v) && v >= 1 && v <= 86400) || "a whole number 1–86400",
 });
+
+// `verify.protectedPaths`: at most 50 path globs. `verify.checkTimeouts`: a
+// check's command to its own timeout in seconds.
+function verifyProblem(inner, value) {
+  if (inner === "protectedPaths")
+    return Array.isArray(value) &&
+      value.length <= 50 &&
+      value.every((g) => typeof g === "string" && g && g.length <= 200)
+      ? null
+      : "a list of at most 50 path globs";
+  if (
+    record(value) &&
+    Object.keys(value).length <= 100 &&
+    Object.entries(value).every(
+      ([k, v]) =>
+        k && k.length <= 500 && Number.isInteger(v) && v >= 1 && v <= 86400,
+    )
+  )
+    return null;
+  return "an object of check commands to whole seconds 1–86400";
+}
+const VERIFY_LISTS = new Set(["protectedPaths", "checkTimeouts"]);
 
 // `ci.classes`: a class name to at most 50 globs (§4.30).
 function classesProblem(value) {
@@ -129,7 +160,7 @@ function classesProblem(value) {
 export function flowSection(value, where = "flow") {
   if (value === undefined) return {};
   if (!record(value)) throw Error(`${where} must be an object.`);
-  const groups = { stopTheLine: 1, batch: 1, retro: 1, ci: 1 };
+  const groups = { stopTheLine: 1, batch: 1, retro: 1, ci: 1, verify: 1 };
   // The lessons store was removed (RC30.4); an old `flow.lessons` is read
   // as nothing, so a saved file keeps working.
   if (record(value) && "lessons" in value) {
@@ -148,6 +179,12 @@ export function flowSection(value, where = "flow") {
       if (key === "ci" && inner === "classes") {
         const problem = classesProblem(value.ci.classes);
         if (problem) throw Error(`${where}.ci.classes must be ${problem}.`);
+        continue;
+      }
+      if (key === "verify" && VERIFY_LISTS.has(inner)) {
+        const problem = verifyProblem(inner, value.verify[inner]);
+        if (problem)
+          throw Error(`${where}.verify.${inner} must be ${problem}.`);
         continue;
       }
       if (!(`${key}.${inner}` in FLOW_KEYS))
@@ -184,6 +221,21 @@ function merged(...layers) {
     const classes = readKey(layer, "ci.classes");
     if (record(classes))
       out.ci = { ...out.ci, classes: { ...out.ci.classes, ...classes } };
+    // A repository adds protected paths; it never removes the workspace's.
+    const guarded = readKey(layer, "verify.protectedPaths"),
+      timeouts = readKey(layer, "verify.checkTimeouts");
+    if (Array.isArray(guarded))
+      out.verify = {
+        ...out.verify,
+        protectedPaths: [
+          ...new Set([...out.verify.protectedPaths, ...guarded]),
+        ],
+      };
+    if (record(timeouts))
+      out.verify = {
+        ...out.verify,
+        checkTimeouts: { ...out.verify.checkTimeouts, ...timeouts },
+      };
   }
   return out;
 }
