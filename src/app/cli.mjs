@@ -20,6 +20,8 @@ import { handleMcp } from "./mcp.mjs";
 import { cliRefusal } from "./mcp-policy.mjs";
 import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
+import { contentHook } from "./public-crews.mjs";
+import { runSupervisor } from "./supervisor.mjs";
 import { reportByToken } from "./report-match.mjs";
 import { hookEvent, runnerHookBrief } from "./runner.mjs";
 import { validate } from "../model.mjs";
@@ -429,6 +431,12 @@ try {
         );
       }
     }
+  } else if (command === "supervisor") {
+    // One per machine (R95.1); a second one exits 1 and names the first.
+    runSupervisor({
+      stateDirectory: options["state-directory"],
+      configDirectory: options["config-directory"],
+    });
   } else if (command === "app-backend") {
     const server = startAppBackend({
       config,
@@ -507,6 +515,22 @@ try {
     console.log(
       JSON.stringify(await localOrRequest(...calls[action]()), null, 2),
     );
+  } else if (command === "content" && positionals[0] === "hook") {
+    // A PreToolUse hook (§6.14): reads the event JSON on stdin, exits 2 with
+    // the refusal on stderr when the call would write a blocked line.
+    const result = contentHook({
+      stdin: await new Promise((resolve) => {
+        let text = "";
+        process.stdin.setEncoding("utf8");
+        process.stdin.on("data", (chunk) => (text += chunk));
+        process.stdin.on("end", () => resolve(text));
+        process.stdin.on("error", () => resolve(""));
+      }),
+      dbPath,
+      workspaceRoot: config.workspaceRoot,
+    });
+    if (result.stderr) process.stderr.write(result.stderr);
+    process.exitCode = result.code;
   } else if (command === "content") {
     // Content rules (design §4.9). `check --push` is the pre-push hook
     // Avoozl installs in each worktree it prepares; it reads the refs Git
@@ -1793,6 +1817,7 @@ try {
   tick --workspace PATH                 Run one workspace tick and print its intents
   content [list]                        Content rule sets, open decisions and report findings
   content allow DECISION_ID --reason TEXT Allow one blocked write once (a person only)
+  content hook                          A PreToolUse hook: refuse a crew write that matches a rule
   content show DECISION_ID              Read the matched line again from its source
   content check --push --task TASK_ID   The pre-push hook: refuse a push whose added lines match
   plan batches [--writes]               Draft specs in approval order: batch 1 needs no unapproved spec; a loop shares a batch
@@ -1856,6 +1881,7 @@ try {
   routing set --file ROUTING.json       This machine's routing: {enabled, prompt, model}
   crews set --file CREWS.json [--stale SECONDS]  This machine's crew tags, limits, and hand-back
   app-backend --workspace PATH          Kiro Crew app backend on 127.0.0.1 ($PORT)
+  supervisor                            This machine's owner of process children (one per machine)
   backup --workspace PATH --output FILE  Local-only; registered IDs are refused
   export --workspace PATH [--output FILE] Local-only; registered IDs are refused
   import SNAPSHOT.json --workspace PATH [--dry-run] Local-only; registered IDs are refused

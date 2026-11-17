@@ -180,6 +180,18 @@
         }
       }
     },
+    "landing": {
+      "type": "object",
+      "description": "How Avoozl lands finished work. conflictRounds is how many times a landing conflict goes back to the same worker chat before the task goes to Needs you.",
+      "properties": {
+        "conflictRounds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 2
+        }
+      }
+    },
     "safety": {
       "$ref": "#/$defs/safetyPolicy"
     },
@@ -1004,6 +1016,11 @@
               "default": "plan approved"
             },
             "clearPlanLabel": { "type": "boolean", "default": false },
+            "escalationDraft": {
+              "type": "boolean",
+              "default": false,
+              "description": "Draft a trusted Issue Radar escalation's bounded-fix acceptance locally when the needs-human label appears. Writes nothing to GitHub; a person still starts it."
+            },
             "showPlansRepo": {
               "type": "boolean",
               "description": "Show the plans repository name in issues. Unset: on for a private code repository, off for a public one."
