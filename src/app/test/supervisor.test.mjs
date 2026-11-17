@@ -21,6 +21,7 @@ import {
   startSupervisor,
   supervisorPaths,
 } from "../supervisor.mjs";
+import { sandboxKind } from "../sandbox.mjs";
 import { startAppBackend } from "../app-backend.mjs";
 import { workspaceConfig } from "../config.mjs";
 
@@ -67,6 +68,7 @@ function scratch(t, { approve = true } = {}) {
     start: ["node", "{worktree}/agent.mjs", "{brief_file}"],
     resume: ["node", "{worktree}/agent.mjs", "{message_file}"],
     permission: { write: "workspace-write", read: "read-only" },
+    writeRoots: ["{worktree}", "{tmp}"],
   });
   fs.writeFileSync(
     path.join(configDirectory, "harnesses", "fake-cli.json"),
@@ -78,6 +80,12 @@ function scratch(t, { approve = true } = {}) {
       name: "fake-cli",
       hash: harnessDefinitionHash(Buffer.from(bytes)),
     });
+  // A machine with no sandbox runs children only with the person's opt-in.
+  if (!sandboxKind())
+    fs.writeFileSync(
+      path.join(configDirectory, "harness-unconfined.json"),
+      JSON.stringify({ "fake-cli": harnessDefinitionHash(Buffer.from(bytes)) }),
+    );
   return { root, stateDirectory, configDirectory, worktree, defer };
 }
 
@@ -90,8 +98,15 @@ const request = (worktree, brief = {}, extra = {}) => ({
   permissionClass: "write",
   model: null,
   brief: JSON.stringify(brief),
+  values: { tmp: path.join(path.dirname(worktree), "tmp") },
   ...extra,
 });
+
+// The child's log, to explain a failed status.
+const childLog = (db, id) => {
+  const row = childRecord(db, id);
+  return `${row.error ?? ""}\n${row.log_file && fs.existsSync(row.log_file) ? fs.readFileSync(row.log_file, "utf8") : ""}`;
+};
 
 // Stop a process this test started and wait until it is gone.
 async function stopProcess(pid) {
@@ -161,7 +176,7 @@ test("supervisor starts the approved harness and records pid, log and exit code"
     supervisor.pass();
     return childStatus(db, id) !== "working";
   });
-  assert.equal(childStatus(db, id), "exited 3");
+  assert.equal(childStatus(db, id), "exited 3", childLog(db, id));
   const row = childRecord(db, id);
   assert.equal(row.exit_code, 3);
   assert.match(fs.readFileSync(row.log_file, "utf8"), /agent says hello/);
@@ -304,7 +319,7 @@ test("after a restart the supervisor finds its children again; a missing one is 
     second.pass();
     return childStatus(db, id) !== "working";
   });
-  assert.equal(childStatus(db, id), "exited 0");
+  assert.equal(childStatus(db, id), "exited 0", childLog(db, id));
   assert.match(
     fs.readFileSync(childRecord(db, id).log_file, "utf8"),
     /agent says hello/,

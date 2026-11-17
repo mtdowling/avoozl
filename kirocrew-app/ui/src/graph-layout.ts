@@ -732,12 +732,14 @@ export function nodeClick(node: { members?: unknown }, dragged: boolean): 'none'
 
 // A drill-in (Requirement 59.10): one epic's member plans (id null is No
 // epic), one plan's phases, one phase's tasks, or one task's whole upstream
-// and downstream chain (Focus).
+// and downstream chain (Focus). A spec drill opens the Graph's Focus tree
+// on that spec (FocusTree.tsx); the whole-graph view never draws it.
 export type Drill =
   | { kind: 'epic'; id: string | null; title: string }
   | { kind: 'plan'; id: string | null; title: string }
   | { kind: 'phase'; plan: string | null; id: string | null; title: string }
   | { kind: 'focus'; id: string; title: string }
+  | { kind: 'spec'; id: string; title: string }
 
 // The graph a drill-in shows: only those tasks and the edges between them.
 export function drillGraph(graph: Graph, drill: Drill | null): Graph {
@@ -748,6 +750,7 @@ export function drillGraph(graph: Graph, drill: Drill | null): Graph {
   else if (drill.kind === 'plan') keep = pick((t) => (t.planId ?? null) === drill.id)
   else if (drill.kind === 'phase')
     keep = pick((t) => (t.planId ?? null) === drill.plan && (t.phase?.id ?? null) === drill.id)
+  else if (drill.kind === 'spec') keep = pick((t) => (t.planId ?? null) === drill.id)
   else {
     const { up, down } = lineage(graph.edges.filter((e) => e.blocking), drill.id)
     keep = new Set([drill.id, ...up, ...down])

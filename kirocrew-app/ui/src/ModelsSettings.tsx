@@ -77,6 +77,9 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
           </div>
         ))}
       </div>
+      <p className="text-xs text-muted" data-models-person-only>
+        Kiro Crew chats run as you. Avoozl refuses person-only actions in them, but that only slows an agent down: it is not a lock.
+      </p>
       <div className="flex flex-wrap items-center gap-2">
         <SmallBtn primary onClick={() => void save()} disabled={saving || !changed} attrs={{ 'data-models-save': true }}>
           {saving ? 'Saving…' : 'Save'}
@@ -87,7 +90,6 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
           </span>
         )}
         {message?.ok && <span className="text-xs text-muted">{message.ok}</span>}
-        <code className="text-[11px] text-muted">models</code>
       </div>
     </div>
   )

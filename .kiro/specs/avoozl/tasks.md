@@ -1534,7 +1534,7 @@ the scratch safety proof, with owner minutes, credits and wall-clock per task.
 - [ ] 41.1 Schedule spec drivers with repository-wide path holds, after 40.5, 56.4 [R86.2, R86.5, R86.9, R102.4] (§4.32)
   - Use unblock ranking, current spec authority and generation, and repository-wide path holds. A verified-on-branch dependency releases only in-spec work based on that working head; cross-spec work waits for accepted outcomes.
 
-- [ ] 41.2 Per-base landing queue with brief integration locks, after 40.5, 56.4 [R87.5, R102.15] (§4.32)
+- [x] 41.2 Per-base landing queue with brief integration locks, after 40.5, 56.4 [R87.5, R102.15] (§4.32)
   - Preserve order on Stop the line; perform checks outside the integration lock, guard only ref movement and push. Test a concurrent base move cannot land an unchecked candidate.
 
 - [ ] 41.3 Direct portions and bounded landing trains, after 41.2 [R87.1, R87.2, R87.4, R87.9, R102.13, R102.15] (§4.32)
@@ -1719,8 +1719,9 @@ recovers, and a backend restart mid-run.
 - [x] 47.8 Per-project command allow-list; `git push` never allowed, after 47.2 [R94.4c] (§4.28)
   - Built: `src/app/harness-allow.mjs` (`sandboxAllowCommands`, `harnessAllow`); tests in `src/app/test/harness-allow.test.mjs`.
 - [ ] 47.9 Spend cap from the task budget and the plan-quota stop, after 47.4 [R94.6, R94.6a] (§4.28)
-- [ ] 47.10 Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted, after 47.2 [R95.6, R95.7] (§4.28)
+- [x] 47.10 Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted, after 47.2 [R95.6, R95.7] (§4.28)
   - Kiro Crew chats: the docs and Settings say the person-only refusal is a speed bump.
+  - Built: `src/app/sandbox.mjs` (`sandbox-exec` on macOS, `bwrap` on Linux, else the per-machine opt-in), wrapped around each child in `src/app/supervisor.mjs`; text in `docs/policies.md` and Settings › Models; tests in `src/app/test/sandbox.test.mjs`.
 - [ ] 47.3 `avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend, after 47.1 [R95.1, R95.2, R95.3, R95.4] (§4.28)
   - Finds its children again after a restart; a missing one is `gone`.
   - Built: `src/app/supervisor.mjs` (state in the machine state folder's `supervisor/supervisor.sqlite`, lock `supervisor.lock`), entry `src/app/supervisor-main.mjs`, wrapper `src/app/supervisor-child.mjs` that writes each exit code; the app backend launches it under Kiro Crew's gateway; tests in `src/app/test/supervisor.test.mjs`.
@@ -1831,7 +1832,7 @@ dependency on the worker rebuild (Phases 40–52) and may ship before it.
 - [x] 53.5 CLI, MCP tools and Flow planning, after 53.3 [R99.11, R99.12] (§4.29)
   - `avoozl plan review SPEC [--start] [--json]`; `plans_plan_review` and `plans_answer_review` with MCP policy (Review anyway and `--start` person only); Planning spans and usage per spec in Flow, kept out of task flow and budgets.
 
-- [ ] avoozl-p63 P63 Proof: a draft is reviewed on another model and the person sees it at approval [R99] (§4.29)
+- [x] avoozl-p63 P63 Proof: a draft is reviewed on another model and the person sees it at approval [R99] (§4.29)
   - Setup: an isolated workspace and Kiro Crew home, a scratch planning repository with one spec draft that names a missing file and hides an order in prose, and real planner and reviewer chats on two different owner-selected models.
   - Action: (1) store the draft with `planReview.mode: auto` and no reviewer model; (2) set the reviewer to the planner's model; (3) set a different model; (4) let the planner answer; (5) edit the spec by hand; (6) open the Approve dialog alone and in a batch, and approve.
   - Expected: (1) and (2) skipped with a note and no chat; (3) one read-only round with a `wrong-reference` and a `hidden-order` finding at the right file and line; (4) one fixed, one answered; (5) a fresh round on the new hash, old findings marked older; (6) both dialogs show the model and counts, approval succeeds the same as with no review, and no GitHub write is made.
@@ -1923,7 +1924,7 @@ proof or run a real workspace to get past that wait.
   - Preview and apply: hold/stop ticks, disable projection and close reconciliation, retire only issue bindings/verdicts/dispatch flags without status or source changes, then run one tick and verify unchanged readiness with no task-issue reads/writes/recreation. Only after that offer closing obsolete issues; keep spec issues.
   - Tests close retired issues as done and not planned without releasing a successor; retry changes nothing and interrupted migration remains held. Real workspace migration is owner-only and is not run by this task.
 
-- [ ] 56.6 Independent refresh and held reconstruction, after 56.4, 56.5 [R102.12, R102.16, R102.17] (§4.32)
+- [x] 56.6 Independent refresh and held reconstruction, after 56.4, 56.5 [R102.12, R102.16, R102.17] (§4.32)
   - Cache repository hashes separately from journal/assignee/control/review/check reads. Use conditional reads or available webhooks; unchanged definitions are not reparsed. Holds and reassignment are observed with no branch commit.
   - Rebuild from qualified heads, validated journal, actual landings and outstanding intents; restore claims and decisions, then hold until person Resume. Private spend travels only in private export; unknown is never zero. Tests cover missing tail, lost database, unavailable fork and unavailable private controls.
 
@@ -1977,3 +1978,33 @@ proof or run a real workspace to get past that wait.
   - Also record: source and target repository/ref/SHA identities, both logins' permission results, PR head and merge SHA, standing review/check evidence, sanitized discovery and reconstruction records, export issue/link counts and import/forward ancestry. No credentials or private planning data in the receipt.
   - Write a live docs/evidence/ receipt; do not tick from tests or unavailable second-account behavior. Failure means a permission bypass, assumed upstream source branch, stale head or private disclosure.
   - Next decision: enable fork heads in ordinary worker pulls, or fix source resolution and permissions before enabling them.
+
+## Phase 57: Review findings the owner can read and decide
+
+Owner request 2026-11-16 (Requirement 104, design §4.33). Builds on the
+finished Phase 53. Planning only: it has no dependency on the worker
+rebuild (Phases 40–52) or Phase 56. Tasks 57.2 and 57.3 touch
+`operations.mjs`, `mcp-tools.mjs` or `cli.mjs`; run them one at a time
+with any other task that edits those files. UI tasks ship before and after
+screenshots (phone and desktop, light and dark) and wait for the owner's
+approval before merge.
+
+- [ ] 57.1 Finding schema, anchors and storage, after 53.2, 53.4 [R104.1, R104.2, R104.3, R104.4, R104.5, R104.8, R104.15] (§4.33)
+  - `review_threads` plan-review rows gain `anchor {file, lineStart, lineEnd, quote, quoteHash}` and append-only `decisions`; `review_followups` table; severity `info`/`warn`/`blocker` with the read mapping for old values; pure `findingState` and `anchorAt`; `plan.reviewSummary` adds `bySeverity` and `byState`. Tests: severity mapping, anchor survives edits, moved or removed, old rows without a quote, zero GitHub calls.
+- [ ] 57.2 Reviewer and planner briefs, severity and quote parsing, after 57.1 [R104.3, R104.7, R104.14, R104.16] (§4.33)
+  - The reviewer brief asks for `info`/`warn`/`blocker` and an exact quote; `plan.review.submit` derives lines from the quote, refuses a missing or ambiguous quote, and drops a same-pass repeat of a rejected or resolved finding with a count in the note. The planner answer brief carries accepted, rejected and deferred lists. `planReviewStep` opens one person-triggered planner turn per plan per tick for an accepted, unfixed finding, outside `planReview.rounds`; Review anyway starts one more round at the cap. Fake chats only.
+- [ ] 57.3 Person actions: operation, policy, CLI and MCP read, after 57.1 [R104.5, R104.6, R104.8] (§4.33)
+  - `plan.review.finding.decide` (accept, reject with reason, defer with a follow-up row, resolve, reopen) recording who, when and revision; added to `PERSON_ONLY`; `plan.review.dispose` maps onto it and becomes person-only; `avoozl plan finding ID ACTION [--note]`; `avoozl plan review SPEC` and `plans_plan_review` show severity, state and anchor. Tests: MCP and agent refusal for both operations; history order; defer makes no task and no GitHub call.
+- [ ] 57.4 Review view with tabs, cards, filters and chat links, after 57.1, 57.3 [R104.9, R104.10, R104.11, R104.15] (§4.33)
+  - `plan.review.view`; the spec page's Review mode with requirements, design and tasks tabs; severity borders and labels; card body, history and Accept, Reject, Defer, Resolve and Reopen; severity and state filters with counts in the address; Open review chat and Open planner chat, or Chat closed. Tests on the view data. Owner screenshot approval before merge.
+- [ ] 57.5 Rail alignment, scroll and highlight, and moved findings, after 57.4 [R104.4, R104.9] (§4.33)
+  - `data-source-line` on rendered blocks in `Markdown.tsx`; cards level with their anchor, overlaps stacked; card click scrolls and highlights, text click selects the card; Moved or removed group first; inline cards on narrow screens. UI tests for alignment order and selection. Owner screenshot approval before merge.
+- [ ] 57.6 Approve dialogs: counts, Open review link and in-place revision updates, after 57.1, 57.4 [R104.12, R104.13] (§4.33)
+  - `PlanReviewSummary.tsx` shows counts by severity and state and Open review, without close controls; both dialogs re-read on the page refresh, update in place on a hash change with the changed files and findings, and reset Approve; `plansClient.approve` returns the change instead of throwing; `plan.approve` still refuses a stale hash. Tests: no thrown "changed" error, batch per entry. Owner screenshot approval before merge.
+
+- [ ] avoozl-p68 P68 Proof: a person reads, decides and approves a reviewed spec, after 57.1, 57.2, 57.3, 57.4, 57.5, 57.6, avoozl-p63 [R104] (§4.33)
+  - Setup: an isolated workspace and Kiro Crew home, a scratch planning repository with one draft spec that names a missing file, hides an order in prose and has one vague criterion, and real planner and reviewer chats on two different owner-selected models with `planReview.rounds: 1`.
+  - Action: (1) let the round run and the planner answer; (2) open the Review view, filter by severity, click each finding; (3) accept one answered finding, reject one with a reason, defer one; (4) let the planner's person-triggered turn write a new revision while the Approve dialog is open; (5) press Review anyway once; (6) approve from the dialog.
+  - Expected: (1) findings with severities, categories and quote anchors; (2) borders grey, yellow and red, the rail lines up and each click highlights its lines; (3) history shows the owner and revision, the deferred one is a follow-up with no task; (4) the dialog updates in place with the changed files, no error, and the accepted finding is fixed; (5) one more round that does not repeat the rejected finding; (6) approval at the revision on screen, the same as with no review, with zero GitHub calls. Screenshots at 390 and 1280 px, light and dark, approved by the owner.
+  - Failure means: an anchor points at the wrong lines, an agent can decide a finding, a blocker changes approval, or the dialog makes the person reopen it.
+  - Next decision: search other files for moved quotes, or keep same-file anchoring.
