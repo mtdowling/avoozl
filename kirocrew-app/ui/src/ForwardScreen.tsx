@@ -49,7 +49,6 @@ export function ForwardScreen(props: { workspaceId: string; forwardId: string; t
       attrs={{ 'data-forward-screen': forwardId }}
       footer={
         <>
-          <Btn onClick={() => props.onClose(false)}>Close</Btn>
           <Btn
             primary
             disabled={busy || blocked || !review || stopped !== null}

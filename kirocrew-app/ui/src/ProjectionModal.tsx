@@ -65,17 +65,16 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
       onDismiss={() => props.onClose('Cancelled. Nothing was written.')}
       footer={
         confirm ? (
-          <div className="flex flex-wrap justify-end gap-2">
+          <>
             <Btn onClick={() => setConfirm(null)} disabled={busy}>
               Back
             </Btn>
             <Btn onClick={() => void create(confirm === 'release')} disabled={busy}>
               {confirm === 'release' ? 'Create and release' : 'Create issues (held)'}
             </Btn>
-          </div>
+          </>
         ) : (
-          <div className="flex flex-wrap justify-end gap-2">
-            <Btn onClick={() => props.onClose('Cancelled. Nothing was written.')}>Cancel</Btn>
+          <>
             <Btn onClick={() => setConfirm('held')} disabled={busy || !preview || writes === 0 || Boolean(blocked)}>
               Create issues (held)…
             </Btn>
@@ -86,7 +85,7 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
             >
               Create and release…
             </Btn>
-          </div>
+          </>
         )
       }
     >

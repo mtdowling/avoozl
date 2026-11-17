@@ -192,11 +192,11 @@ test('a dialog with unsaved changes asks first, the same way Cancel does', async
   // The wiring: Back and Esc go through the shared Modal, which asks first
   // when `unsaved` is set, then through the dialog's own Cancel.
   const shared = source('Modal.tsx')
-  assert.match(shared, /useBackStep\(props\.kind \?\? 'modal', true, props\.backLabel \?\? 'Close the dialog', dismiss\)/)
+  assert.match(shared, /useBackStep\(props\.kind \?\? 'modal', true, props\.backLabel \?\? 'Close the dialog', \(\) => \(latest\.current\.onBack \?\? dismiss\)\(\), dismiss\)/)
   assert.match(shared, /if \(!unsaved\) return onDismiss\(\)[\s\S]*?void ask\(unsaved\)\.then\(\(yes\) => \{[\s\S]*?if \(yes\) latest\.current\.onDismiss\(\)/)
   for (const name of ['AddPlugin.tsx', 'PackImport.tsx', 'SendToRadar.tsx', 'SetupWizard.tsx'])
     assert.match(source(name), /<(Modal|Shelf)\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/, name)
-  assert.match(source('controls.tsx'), /<Modal\s+id="avoozl-confirm"\s+kind="confirm"\s+role="alertdialog"\s+backLabel="Cancel"[\s\S]*?onDismiss=\{\(\) => answer\(false\)\}/)
+  assert.match(source('controls.tsx'), /<Modal\s+id="avoozl-confirm"\s+kind="confirm"\s+role="alertdialog"\s+focusClose\s+backLabel="Cancel"[\s\S]*?onDismiss=\{\(\) => answer\(false\)\}/)
 })
 
 test('the keys and the mouse back button: ours only with a step and from the page', () => {
@@ -258,12 +258,12 @@ test('the views use the shared history: inner tabs, the plan, the Graph, the dra
   assert.doesNotMatch(source('App.tsx'), /nav\.memory\.set\(/)
   assert.match(source('App.tsx'), /onTab=\{\(next\) => go\(\{ settingsTab: next \}\)\}/)
   assert.match(source('SettingsView.tsx'), /useSteppedState<RepositoryTab>\(\s*`settings-repo-tab-\$\{props\.index\}`,\s*'inner',/)
-  assert.match(source('UntriagedView.tsx'), /useSteppedState<'untriaged' \| 'radar'>\(\s*'untriaged-show',\s*'inner'/)
+  assert.doesNotMatch(source('UntriagedView.tsx'), /untriaged-show/)
   assert.match(source('ContentRulesSettings.tsx'), /useSteppedState<'builder' \| 'file'>\(\s*'content-terms-view',\s*'inner'/)
   assert.match(source('PlansView.tsx'), /useSteppedState<string \| null>\(\s*'plans-selected',\s*'select'/)
   assert.match(source('GraphView.tsx'), /useRemembered<DrillEntry\[\]>\('graph-stack', \[\]\)/)
-  assert.match(source('TaskDrawer.tsx'), /useBackStep\('drawer',/)
-  assert.match(source('NewPlanDrawer.tsx'), /useBackStep\('drawer', true, 'Close New spec', \(\) => void closeRef\.current\(\)\)/)
+  assert.match(source('TaskDrawer.tsx'), /<Modal\s+id="avoozl-drawer"\s+role="dialog"\s+kind="drawer"/)
+  assert.match(source('NewPlanDrawer.tsx'), /<Modal\s+id="avoozl-new-plan"[\s\S]*?kind="drawer"[\s\S]*?unsaved=\{dirty/)
   assert.match(source('Onboard.tsx'), /<(Modal|Shelf)\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/)
   // No view keeps its own Esc listener any more.
   for (const name of ['Modal.tsx', 'TaskDrawer.tsx', 'AddPlugin.tsx', 'PackImport.tsx', 'SendToRadar.tsx', 'SetupWizard.tsx', 'DocumentReader.tsx', 'controls.tsx', 'PlansView.tsx', 'NewPlanDrawer.tsx', 'Onboard.tsx'])
