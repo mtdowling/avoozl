@@ -58,6 +58,8 @@ import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
 import AvoozlPanel from '../../src/Panel.tsx'
 import ModelsSettings from '../../src/ModelsSettings.tsx'
+import { TaskFiles } from '../../src/TaskFiles.tsx'
+import { BudgetSettings } from '../../src/BudgetSettings.tsx'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
@@ -258,6 +260,13 @@ export const SCENARIOS: Record<string, Scenario> = {
   'stop-line': own('Stop the line', <StopLineButton workspaceId="w" onPulled={() => undefined} />),
   'pack-import': shown((close) => <PackImportDialog row={{ id: 'pack-1', version: '1.0.0' } as never} workspaceId="w" client={idle} onClose={close} onChanged={async () => undefined} />),
   'send-to-radar': shown((close) => <SendToRadar workspaceId="w" client={idle} items={[]} repository="avoozl" onClose={close} onSent={close} />),
+  // Not a modal: the drawer's Files fold, at a drawer's width.
+  'task-files': shown(() => (
+    <div style={{ maxWidth: 620 }}>
+      <TaskFiles workspaceId="w" taskId="a1" active />
+    </div>
+  )),
+  budgets: () => <BudgetSettings workspaceId="w" />,
   projection: shown((close) => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onCreated={() => undefined} />),
   'spec-changed': shown((close) => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onApplied={() => undefined} />),
   'task-drawer': own('Open the dialog', <OpenTask />),
@@ -516,6 +525,72 @@ if (query.get('page') === 'app' && query.get('escalations')) {
       : {}),
   }
   answer('conflicts.view', () => ({ revision: 1, items: [crewRow] }))
+}
+// &delivery=1: tasks in every Delivery lane across two epics and specs, a
+// spend chip, and Settings › Budgets' sample values (task 41.6 shots).
+if (query.get('page') === 'app' && query.get('delivery') === '1') {
+  const at = '2026-11-16T09:00:00Z'
+  const t = (id: string, title: string, epic: string, planId: string, repository: string, extra = {}) => ({ ...task(id, epic), title, planId, spec: planId, repository, phase: null, ...extra })
+  const graphTasks = [
+    t('m1', 'Add the shopping list export', 'e1', 'meal-planner', 'recipe-box', { state: 'ready', ready: true }),
+    t('m2', 'Scale servings in the recipe card', 'e1', 'meal-planner', 'recipe-box', { state: 'ready', ready: true }),
+    t('m3', 'Sync pantry items between devices', 'e1', 'meal-planner', 'recipe-box', { state: 'running', status: 'running' }),
+    t('s1', 'Index recipes by ingredient', 'e2', 'search-v2', 'search', { state: 'running', status: 'review' }),
+    t('s2', 'Rank results by cooking time', 'e2', 'search-v2', 'search', { state: 'needs-you', decision: 'Pick a ranking rule' }),
+    t('s3', 'Typo-tolerant search', 'e2', 'search-v2', 'search', { state: 'waiting' }),
+    t('s4', 'Search history', 'e2', 'search-v2', 'search', { state: 'deferred', status: 'deferred' }),
+  ]
+  answer('graph.view', () => ({
+    revision: 1,
+    epics: [
+      { id: 'e1', title: 'Meal planner', count: 3 },
+      { id: 'e2', title: 'Search v2', count: 4 },
+    ],
+    plans: [
+      { id: 'meal-planner', title: 'Meal planner' },
+      { id: 'search-v2', title: 'Search v2' },
+    ],
+    statuses: [
+      { id: 'planned', label: 'Planned', complete: false },
+      { id: 'deferred', label: 'Deferred', complete: false },
+      { id: 'done', label: 'Done', complete: true },
+    ],
+    repositories: ['recipe-box', 'search'],
+    total: graphTasks.length,
+    tasks: graphTasks,
+    edges: [{ from: 's1', to: 's3', kind: 'requires', blocking: true, satisfied: false }],
+  }))
+  const session = (slot: string, role: string, status: string) => ({ slot, role, status, attempt: 1, link: `/sessions/${slot}`, boundAt: at, statusAt: at, agent: 'kirocrew-worker', model: null })
+  const item = (id: string, title: string, extra = {}) => ({
+    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, budget: null, ...extra,
+  })
+  const chip = (spent: number, cap: number) => ({ taskId: 'm3', spent, tokens: 0, credits: 0, unpricedTurns: 0, cap: { usd: cap, tokens: null, credits: null, mode: 'stop', level: 'workspace' }, ratio: spent / cap, warning: spent / cap >= 0.8, reached: spent >= cap, state: null, over: null, unknown: [], unpricedModels: [] })
+  answer('delivery.view', () => ({
+    revision: 1,
+    items: [
+      item('m3', 'Sync pantry items between devices', { status: 'running', sessions: [session('chat-m3', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }], budget: chip(4.2, 5) }),
+      item('s1', 'Index recipes by ingredient', { status: 'review', sessions: [session('chat-s1', 'reviewer', 'reading')], deliveries: [{ state: 'done', updatedAt: at }], budget: chip(1.1, 5) }),
+      item('s2', 'Rank results by cooking time', { deliveries: [{ state: 'decision', updatedAt: at }] }),
+    ],
+    contentReports: [],
+  }))
+  const line = (key: string, name: string, usd: number) => ({ [key]: name, input: 120000, output: 18000, credits: 0, usd, turns: 6, priced: true, shared: false })
+  answer('budget.receipt', (body) => ({
+    taskId: (body.input as { taskId?: string }).taskId ?? 'm3', spec: 'meal-planner', repository: 'recipe-box', complete: true, missing: [],
+    cap: { usd: 5, tokens: 2000000, credits: 200, mode: 'stop', level: 'workspace', levels: {} },
+    raises: [], price: { updated: '2026-11-01', sha256: 'p' }, stops: [],
+    warning: { at80: true, ratio: 0.84, since: at }, over: null, state: null,
+    totals: { input: 240000, output: 36000, credits: 0, usd: 4.2, unpricedTurns: 0 }, overrun: null, shared: false,
+    byStage: [line('stage', 'code', 3.1), line('stage', 'review', 1.1)],
+    byModel: [line('model', 'claude-sonnet', 4.2)],
+    byAttempt: [line('attempt', '1', 4.2)],
+    readAt: at,
+  }))
+  answer('budget.settings.get', () => ({
+    hash: 'h1',
+    budget: { usd: 5, mode: 'stop' },
+    repositories: { 'recipe-box': { usd: 8, mode: 'warn' }, search: {} },
+  }))
 }
 // &publiccrews=after: Intake with the Public crews card (task 39.3): one
 // repository ready to sign off, one signed off, and one with no rule set
