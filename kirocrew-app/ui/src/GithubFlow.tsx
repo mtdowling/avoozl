@@ -17,15 +17,19 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
   const [presses, setPresses] = useState(0)
   const load = useCallback((id: string) => client.read(id, presses > 0), [client, presses])
   const { value: view, error, busy } = useRead(workspaceId, load)
-  if (!view || (!view.repositories.length && !error)) return null
+  // A repository with build receipts but no Issue Radar crew shows only its
+  // builds: there are no finished issues to time.
+  const builds = Boolean(view?.builds?.count)
+  if (!view || (!view.repositories.length && !builds && !error)) return null
+  const issues = view.repositories.length > 0
   const rows = flowRows(view),
     widest = Math.max(1, ...(view.median ?? [0]))
   return (
     <Card className="flex flex-col gap-2">
       <div data-github-flow className="flex flex-col gap-2">
         <SectionHeading title="From GitHub" />
-        <p className="text-sm text-muted">{summaryLine(view)}. Times are GitHub's.</p>
-        <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+        {issues && <p className="text-sm text-muted">{summaryLine(view)}. Times are GitHub's.</p>}
+        <ul className="m-0 flex list-none flex-col gap-1.5 p-0" hidden={!issues}>
           {rows.map((row, index) => (
             <li key={row.name} data-flow-stage={row.name} className="flex flex-wrap items-center gap-2 text-sm">
               <span style={{ flex: '0 0 9rem' }}>{row.name}</span>
