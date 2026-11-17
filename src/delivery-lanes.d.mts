@@ -13,7 +13,8 @@ export type LaneNodeState =
   | "deferred"
   | "running"
   | "ready"
-  | "waiting";
+  | "waiting"
+  | "draft";
 
 export interface LaneTask {
   state?: LaneNodeState | null;

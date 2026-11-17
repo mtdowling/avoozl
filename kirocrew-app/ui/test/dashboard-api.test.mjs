@@ -77,7 +77,7 @@ test('the dashboard puts what needs the owner first and orders ready work by wav
     ],
   )
   // Epics are not counted; only leaves are.
-  assert.deepEqual(summary.counts, { ready: 2, running: 0, waiting: 0, 'needs-you': 1, done: 1, deferred: 0 })
+  assert.deepEqual(summary.counts, { ready: 2, running: 0, waiting: 0, 'needs-you': 1, done: 1, deferred: 0, draft: 0 })
   assert.deepEqual(summary.running.map((r) => r.id), ['r'])
   assert.deepEqual(summary.readyNext.map((t) => [t.id, t.wave]), [['c', 2], ['b', 3]])
   assert.deepEqual(summary.progress, [{ epic: 'e1', title: 'Epic one', done: 1, total: 4, running: 0 }])

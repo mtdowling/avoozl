@@ -157,7 +157,7 @@ export function summarize(input: {
     conflicts: input.conflicts && input.conflicts.filter((item) => !item.planArchived),
   }
   const leaves = (graph?.tasks ?? []).filter((t) => t.kind === 'leaf')
-  const counts: Record<NodeState, number> = { ready: 0, running: 0, waiting: 0, 'needs-you': 0, done: 0, deferred: 0 }
+  const counts: Record<NodeState, number> = { ready: 0, running: 0, waiting: 0, 'needs-you': 0, done: 0, deferred: 0, draft: 0 }
   // Running counts the same thing In flight lists: an open task with a live
   // session. A task drawn running with none needs the owner instead.
   const liveTasks = new Set(
