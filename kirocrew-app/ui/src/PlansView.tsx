@@ -1925,6 +1925,155 @@ export default function PlansView(props: {
       actions={specActions(row)}
     />
   ) : null
+  // The specs list column. On a desktop the open spec's details sit in a
+  // panel at its bottom; a phone stacks them under the spec instead.
+  const specList = (
+    <div className="flex flex-col gap-3" data-plans-list-pane>
+      <ViewHeading
+        id="avoozl-plans-title"
+        view="plans"
+        phoneMenu
+        actions={
+          <PlansActions onNewPlan={() => setCreating({})} onRefresh={() => workspace && void load(workspace)} busy={busy} />
+        }
+      >
+        Specs
+      </ViewHeading>
+      {table && table.items.length > 0 && (
+        <PlanFilters filter={filter} rows={table.items} batches={batches?.batches.length ?? 0} order={order} onOrder={setOrder} onChange={setFilter}>
+          <span className="text-xs text-muted" role="status">
+            {rows.length} of {table.items.length} specs
+          </span>
+        </PlanFilters>
+      )}
+      {pickable.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 px-1" data-approve-bar>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              data-select-shown
+              checked={allPicked}
+              ref={(el) => {
+                if (el) el.indeterminate = !allPicked && pickable.some((id) => checked.has(id))
+              }}
+              onChange={(event) =>
+                setChecked((previous) => {
+                  const next = new Set(previous)
+                  for (const id of pickable) {
+                    if (event.target.checked) next.add(id)
+                    else next.delete(id)
+                  }
+                  return next
+                })
+              }
+            />
+            Select all shown
+          </label>
+          <span className="flex-1" />
+          <SmallBtn primary disabled={entries.length === 0 || busy} onClick={() => { if (workspace) setApproving({workspaceId:workspace,entries}) }} attrs={{ 'data-approve-specs-open': true }}>
+            Approve {entries.length} {entries.length === 1 ? 'spec' : 'specs'}
+          </SmallBtn>
+        </div>
+      )}
+      <div className="flex flex-col gap-2" data-plans-list>
+        {table === null ? (
+          <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
+        ) : table.items.length === 0 ? (
+          <p className="text-sm text-muted">
+            No specs yet{table.root ? ` in ${table.root}/.kiro/specs` : ''}. Use New spec to start one.
+          </p>
+        ) : rows.length ? (
+          <SpecList
+            rows={rows}
+            selected={row?.key ?? null}
+            onOpen={open}
+            order={order}
+            reset={JSON.stringify(filter)}
+            batchOf={batchOf}
+            checked={checked}
+            onCheck={(id, on) =>
+              setChecked((previous) => {
+                const next = new Set(previous)
+                if (on) next.add(id)
+                else next.delete(id)
+                return next
+              })
+            }
+          />
+        ) : (
+          <p className="text-sm text-muted">No spec matches these filters.</p>
+        )}
+        {table?.problem && <p className="mt-2 text-xs text-muted">Spec folders: {table.problem}</p>}
+      </div>
+    </div>
+  )
+  const specContent = row ? (
+    <>
+      {specHeader}
+      <div data-spec-body style={{ padding: phone ? '20px 0' : '20px 12px 20px 12px' }}>
+        <div id="avoozl-plan-main" className="flex min-w-0 flex-col" style={{ gap: 20, scrollMarginTop: 48 }}>
+          <RadarGraphLink />
+          <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
+          {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
+          <SetupList spec={driver.spec} />
+          {row.categoryProblem && (
+            <p className="text-sm text-muted">
+              <Badge variant="warning">front-matter</Badge> {row.categoryProblem}
+            </p>
+          )}
+          {spec ? (
+            <SpecDetail
+              docs={docs}
+              docsError={docsError}
+              spec={spec}
+              plan={plan}
+              preview={preview}
+              projection={projection}
+              graph={planGraph}
+              busy={busy}
+              onProjection={() => plan && workspace && void attempt(async () => setProjection(await plans.projection(workspace, plan.id)))}
+              onProject={() => setDialog('project')}
+              onChanged={() => setDialog('changed')}
+              onOpenTask={(id) => drawer.openTask(id)}
+              onReview={row.planId ? () => placeReview({ plan: row.planId!, rev: null, file: null, severity: null, state: null }) : undefined}
+            />
+          ) : (
+            <>
+              <SpecCard title="Summary">
+                <p className="text-xs text-muted">
+                  <code>{row.planId}</code> · written before the spec layout, so it has no folder. Its tasks show in the spec graph.
+                </p>
+                <div className="mt-2">
+                  {!text ? (
+                    <p className="text-sm text-muted">Loading…</p>
+                  ) : text.error ? (
+                    <p className="text-sm text-danger">{text.error}</p>
+                  ) : text.text ? (
+                    <Markdown text={text.text} measure={PROSE_MEASURE} />
+                  ) : (
+                    <p className="text-sm text-muted">This spec has no text.</p>
+                  )}
+                </div>
+              </SpecCard>
+              <PhaseTasks graph={planGraph} onOpenTask={(id) => drawer.openTask(id)} />
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  ) : null
+  const specRail = row ? (
+    <SpecRail
+      row={row}
+      plan={plan}
+      graph={planGraph}
+      docs={docs}
+      onEdit={() => change(row)}
+      onRepositories={props.onOpenSettings ? () => props.onOpenSettings!('repositories') : undefined}
+      onDrill={(drill) => props.onDrill?.(drill)}
+      onOpenTask={(id) => drawer.openTask(id)}
+    />
+  ) : null
   return (
     <section aria-labelledby="avoozl-plans-title" className="flex flex-col gap-3.5">
       {singleApproval && singleApproval.workspaceId === workspace && (
@@ -2015,88 +2164,17 @@ export default function PlansView(props: {
           detailOwnTitle
           onBack={() => openPlan(null)}
           list={
-            <div className="flex flex-col gap-3" data-plans-list-pane>
-              <ViewHeading
-                id="avoozl-plans-title"
-                view="plans"
-                phoneMenu
-                actions={
-                  <PlansActions onNewPlan={() => setCreating({})} onRefresh={() => void load(workspace)} busy={busy} />
-                }
-              >
-                Specs
-              </ViewHeading>
-              {table && table.items.length > 0 && (
-                <PlanFilters filter={filter} rows={table.items} batches={batches?.batches.length ?? 0} order={order} onOrder={setOrder} onChange={setFilter}>
-                  <span className="text-xs text-muted" role="status">
-                    {rows.length} of {table.items.length} specs
-                  </span>
-                </PlanFilters>
-              )}
-              {pickable.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 px-1" data-approve-bar>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      data-select-shown
-                      checked={allPicked}
-                      ref={(el) => {
-                        if (el) el.indeterminate = !allPicked && pickable.some((id) => checked.has(id))
-                      }}
-                      onChange={(event) =>
-                        setChecked((previous) => {
-                          const next = new Set(previous)
-                          for (const id of pickable) {
-                            if (event.target.checked) next.add(id)
-                            else next.delete(id)
-                          }
-                          return next
-                        })
-                      }
-                    />
-                    Select all shown
-                  </label>
-                  <span className="flex-1" />
-                  <SmallBtn primary disabled={entries.length === 0 || busy} onClick={() => { if (workspace) setApproving({workspaceId:workspace,entries}) }} attrs={{ 'data-approve-specs-open': true }}>
-                    Approve {entries.length} {entries.length === 1 ? 'spec' : 'specs'}
-                  </SmallBtn>
-                </div>
-              )}
-              <div className="flex flex-col gap-2" data-plans-list>
-                {table === null ? (
-                  <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
-                ) : table.items.length === 0 ? (
-                  <p className="text-sm text-muted">
-                    No specs yet{table.root ? ` in ${table.root}/.kiro/specs` : ''}. Use New spec to start one.
-                  </p>
-                ) : rows.length ? (
-                  <SpecList
-                    rows={rows}
-                    selected={row?.key ?? null}
-                    onOpen={open}
-                    order={order}
-                    reset={JSON.stringify(filter)}
-                    batchOf={batchOf}
-                    checked={checked}
-                    onCheck={(id, on) =>
-                      setChecked((previous) => {
-                        const next = new Set(previous)
-                        if (on) next.add(id)
-                        else next.delete(id)
-                        return next
-                      })
-                    }
-                  />
-                ) : (
-                  <p className="text-sm text-muted">No spec matches these filters.</p>
-                )}
-                {table?.problem && <p className="mt-2 text-xs text-muted">Spec folders: {table.problem}</p>}
-              </div>
-            </div>
+            phone ? (
+              specList
+            ) : (
+              <SpecDetailsPanel phone={false} content={specList}>
+                {row && !reviewing ? specRail : null}
+              </SpecDetailsPanel>
+            )
           }
           detail={
             !row ? null : (
-              <div className="flex flex-col" data-spec-detail={row.key} ref={detailTop} style={reviewing || phone ? undefined : { height: '100%', minHeight: 0 }}>
+              <div className="flex flex-col" data-spec-detail={row.key} ref={detailTop}>
                 {reviewing && workspace ? (
                   <>
                     {specHeader}
@@ -2108,75 +2186,13 @@ export default function PlansView(props: {
                       }} />
                   </>
                 ) : (
-                <SpecDetailsPanel
-                  phone={phone}
-                  content={
-                    <>
-                      {specHeader}
-                      <div data-spec-body style={{ padding: phone ? '20px 0' : '20px 12px 20px 12px' }}>
-                        <div id="avoozl-plan-main" className="flex min-w-0 flex-col" style={{ gap: 20, scrollMarginTop: 48 }}>
-                          <RadarGraphLink />
-                          <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
-                          {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
-                          <SetupList spec={driver.spec} />
-                          {row.categoryProblem && (
-                            <p className="text-sm text-muted">
-                              <Badge variant="warning">front-matter</Badge> {row.categoryProblem}
-                            </p>
-                          )}
-                          {spec ? (
-                            <SpecDetail
-                              docs={docs}
-                              docsError={docsError}
-                              spec={spec}
-                              plan={plan}
-                              preview={preview}
-                              projection={projection}
-                              graph={planGraph}
-                              busy={busy}
-                              onProjection={() => plan && void attempt(async () => setProjection(await plans.projection(workspace, plan.id)))}
-                              onProject={() => setDialog('project')}
-                              onChanged={() => setDialog('changed')}
-                              onOpenTask={(id) => drawer.openTask(id)}
-                              onReview={row.planId ? () => placeReview({ plan: row.planId!, rev: null, file: null, severity: null, state: null }) : undefined}
-                            />
-                          ) : (
-                            <>
-                              <SpecCard title="Summary">
-                                <p className="text-xs text-muted">
-                                  <code>{row.planId}</code> · written before the spec layout, so it has no folder. Its tasks show in the spec graph.
-                                </p>
-                                <div className="mt-2">
-                                  {!text ? (
-                                    <p className="text-sm text-muted">Loading…</p>
-                                  ) : text.error ? (
-                                    <p className="text-sm text-danger">{text.error}</p>
-                                  ) : text.text ? (
-                                    <Markdown text={text.text} measure={PROSE_MEASURE} />
-                                  ) : (
-                                    <p className="text-sm text-muted">This spec has no text.</p>
-                                  )}
-                                </div>
-                              </SpecCard>
-                              <PhaseTasks graph={planGraph} onOpenTask={(id) => drawer.openTask(id)} />
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  }
-                >
-                  <SpecRail
-                    row={row}
-                    plan={plan}
-                    graph={planGraph}
-                    docs={docs}
-                    onEdit={() => change(row)}
-                    onRepositories={props.onOpenSettings ? () => props.onOpenSettings!('repositories') : undefined}
-                    onDrill={(drill) => props.onDrill?.(drill)}
-                    onOpenTask={(id) => drawer.openTask(id)}
-                  />
-                </SpecDetailsPanel>
+                phone ? (
+                  <SpecDetailsPanel phone content={specContent}>
+                    {specRail}
+                  </SpecDetailsPanel>
+                ) : (
+                  specContent
+                )
                 )}
               </div>
             )
