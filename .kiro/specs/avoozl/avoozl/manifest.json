@@ -8457,6 +8457,25 @@
         "avoozl-p63"
       ],
       "manual": true
+    },
+    "58.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 58 (A role per repository replaces Where tasks live). See R105; §4.34.",
+      "acceptance": [
+        "Repository roles replace Where tasks live, after 3.14, 20.2",
+        "Repository setup shows an in-place role picker per repository (local, code, planning, both); the mode and planningRepository derive from roles through one resolver that also reads old files without writing; mixed roles are refused; the Where tasks live page is gone with its link opening Repository setup and workspace-wide settings in Settings › Workspaces. Tests cover the mapping, migration and screens, and screenshots (phone and desktop, light and dark, full app shell) are under docs/evidence/repo-roles/."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "npm run test:ui",
+        "git diff --check"
+      ],
+      "requires": [
+        "3.14",
+        "20.2"
+      ]
     }
   }
 }

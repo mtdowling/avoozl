@@ -393,6 +393,8 @@ registered; and its route has capacity.
 
 ### 4.4 Repository policy in `.avoozl.json`
 
+Since 2026-11-17 `mode` and `planningRepository` are derived from each repository's `role` (§4.34, Requirement 105); older files that hold only them still read.
+
 **Proposed.** Replaces `github.queue` label behaviors and single-label intake
 (F15). No names are built in; the values below are examples.
 
@@ -4796,6 +4798,85 @@ Tests, with fake chats, fake model names and a fake GitHub:
 shortcut: anchors search only the same file, so a passage moved to another
 file reads as moved. Upgrade if reviews of split files show it often.
 
+### 4.34 A role per repository decides where tasks live
+
+Added 2026-11-17 (Requirement 105). Replaces the **Where tasks live**
+Settings page and the mode choice of §4.4. The three modes stay as the
+derived result; only the way a person sets them changes.
+
+**Roles.**
+
+| Role       | Issues, sub-issues, specs live in | Pull requests land in | Needs a GitHub remote |
+| ---------- | --------------------------------- | --------------------- | --------------------- |
+| `local`    | The workspace database            | The repository        | No                    |
+| `code`     | The planning repository           | The repository        | Yes                   |
+| `planning` | The repository itself             | None                  | Yes                   |
+| `both`     | The repository itself             | The repository        | Yes                   |
+
+**Mapping, both ways.**
+
+| Today's `github.mode` | Roles it gives (read)                                                  | Roles that give it (write)                                   |
+| --------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
+| absent or `local`     | Every repository `local`                                               | All `local`, or no repository                                |
+| `plans-repo`          | The `planningRepository` row `planning`; every other GitHub row `code` | Exactly one `planning`; every other GitHub repository `code` |
+| `single-repo`         | Every GitHub row `both`                                                | At least one `both`; no `planning`, no `code`                |
+
+Any other mix is refused on save (R105.2): one `planning` plus a `both`;
+two `planning`; `code` with no `planning`; `local` beside a GitHub role.
+No current mode needs such a mix, so no mode is lost. A workspace in
+`plans-repo` that registers only code repositories has its planning row
+synthesized from `planningRepository` ("GitHub only", no checkout). Such a
+planning repository has no `github.repositories` entry, so no `role` key can
+sit on it: `planningRepository` stays stored and names it, and the `code`
+roles are valid because it exists. With a `planning` role on an entry,
+`planningRepository` is set from that entry.
+`coder` is a repository setting and stays beside the role.
+
+**Storage and migration.** The canonical key is
+`github.repositories["owner/name"].role`. `github.mode` and
+`github.planningRepository` stay in the schema as derived values. One
+resolver in `github-policy.mjs` does both directions:
+
+```text
+read:  any role present? ─yes─▶ roles win; mode and planningRepository derived
+                         └no──▶ roles derived from mode and planningRepository
+write: roles ─▶ validate mix ─▶ write role per row + derived mode + planningRepository
+```
+
+The resolver runs inside the config loader, so readers of the raw
+`github.mode` (the marker, linked branches, the driver, content rules, the
+approval batches) see the derived value and need no change. Reading writes
+nothing. The first save of Repository setup writes `role` on every row with
+a GitHub remote and the derived keys, which equal the old values for an
+untouched workspace. A second save writes nothing new. The default coder
+(`worker` in plans-repo, `issue-radar` in single-repo, §4.4) follows the
+derived mode as before.
+
+**Screens.** Repository setup lists each repository with a role picker that
+saves in place (no Edit button for it; another change makes the other
+Settings pages edit in place, so this task touches only the role picker and
+what feeds it). The picker is the old RadioFold with the four roles; each
+role's body keeps the old pictures and facts for the mode it makes. Above
+the list: "Tasks live in the database", "Tasks live in acme/plans" or
+"Tasks live in each repository's own issues". A refused mix shows its line
+under the list and keeps the old roles.
+
+Settings › Workspaces takes what was not per repository: default authority,
+epic issue type, cache and write limits, sub-issue cap, include-done, Project
+and field names, **Set up GitHub**, crews and This computer. These show only
+when the derived mode is a GitHub mode, as before, with the same "Kept, not
+used" line in Local only. The `github` tab and `ModePicker` page are
+removed; a link to the old tab (`?tab=github`) opens Repository setup. The
+Set up GitHub wizard and Onboard read the derived mode and write roles, not
+`mode`, when they propose a change.
+
+**Tests.** Mapping both ways for every row of the table, the refused
+mixes, a stored mode that disagrees with the roles, a workspace with a
+synthesized planning row, read writes nothing, two saves equal one, raw
+`github.mode` readers see the derived value, the role picker and summary
+line, the moved settings, and the old link. Screenshots: Repository setup
+and Workspaces in the full app shell, phone and desktop, light and dark,
+committed under `docs/evidence/repo-roles/`.
 
 ## 5. Local workflow
 
