@@ -60,9 +60,9 @@ async function start(dark) {
 async function goto(name) {
   await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   await wait(150)
-  await page.evaluate(`[...document.querySelectorAll('[data-top-rail-list] [data-nav-head]')].find((t) => t.textContent.includes(${JSON.stringify(name)})).click()`)
+  const key = await page.evaluate(`(() => { const h = [...document.querySelectorAll('[data-top-rail-list] [data-nav-head]')].find((t) => t.textContent.includes(${JSON.stringify(name)})); h.click(); return h.dataset.navGroup })()`)
   // A section with pages stays open in the menu; take its first page.
-  await page.evaluate(`document.querySelector('[data-top-rail-list] [data-nav-children] [data-nav-item]')?.click()`)
+  await page.evaluate(`document.querySelector('[data-top-rail-list] [data-nav-children="${key}"] [data-nav-item]')?.click()`)
   await wait(800)
 }
 

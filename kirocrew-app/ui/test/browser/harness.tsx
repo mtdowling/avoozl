@@ -43,7 +43,7 @@ import { projectionClient } from '../../src/projection-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
-import { chainsGraph } from './graph-chains.ts'
+import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
 import { ForwardScreen } from '../../src/ForwardScreen.tsx'
 import forwardLive from './forward-live-replies.json'
@@ -154,13 +154,25 @@ answer('task.detail', () => ({
   revision: 1,
   task: {
     id: 'team-review', title: 'Review with team', summary: 'The team reviews the results before cutover.',
-    acceptance: ['The team agreed the runtime and protocol results are good enough to cut over'], checks: [],
+    acceptance: ['The team agreed the runtime and protocol results are good enough to cut over'], checks: ['npm run test:protocol'],
     epic: null, epicTitle: null, phase: { id: 'review', title: 'Review' }, kind: 'leaf', authority: 'github', route: 'github',
     completion: 'person', repository: 'sdk', status: 'planned', state: 'needs-you', ready: false, needsReview: false, decision: null,
     owner: null, issue: { number: 47, url: 'https://github.example.test/o/sdk/issues/47', repository: 'o/sdk' }, wave: 5, context: '',
     manual: true, manualDone: null, onGitHub: true,
   },
-  plan: null, locked: null, waitsOn: [], blocks: [], delivery: null, conflicts: [], timeline: [], timing: null,
+  plan: null, locked: null,
+  waitsOn: [{ id: 'protocol-tests', title: 'Protocol tests', kind: 'requires', condition: null, satisfied: true }],
+  blocks: [{ id: 'cutover', title: 'Cutover', kind: 'requires', condition: null, satisfied: false }],
+  delivery: null, conflicts: [],
+  timeline: [
+    { at: '2026-11-13T10:05:00Z', text: 'Waiting for a person: Review with team' },
+    { at: '2026-11-13T09:00:00Z', text: 'Protocol tests finished' },
+  ],
+  timing: null,
+}))
+answer('task.evidence', () => ({
+  taskId: 'team-review',
+  entries: [{ id: 'ev-1', kind: 'check', at: '2026-11-13T09:00:00Z', source: 'session:chat-1', text: 'npm run test:protocol passed' }],
 }))
 answer('task.notes.list', () => ({
   taskId: 'team-review',
@@ -402,11 +414,13 @@ answer('untriaged.view', () => ({
 
 // &graph=chains: the Graph on three specs with real chains (graph-chains.ts).
 if (query.get('graph') === 'chains') answer('graph.view', () => chainsGraph)
+// &graph=drafts: the same, plus one draft spec's tasks (graph-chains.ts).
+if (query.get('graph') === 'drafts') answer('graph.view', () => draftsGraph)
 
 function DeepLinkPage() {
   return (
-    // As tall as the screen, so the page's content pane scrolls on its own, as it does in the host.
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, height: '100vh', boxSizing: 'border-box', background: 'var(--bg)', color: 'var(--text)' }}>
+    // As tall as the screen with no frame around it, so the nav reaches the window's bottom and the page's content pane scrolls on its own, as in the host.
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 0, height: '100vh', boxSizing: 'border-box', background: 'var(--bg)', color: 'var(--text)' }}>
       <AvoozlApp />
     </div>
   )

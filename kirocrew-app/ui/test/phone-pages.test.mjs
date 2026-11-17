@@ -44,7 +44,7 @@ async function goto(name, width) {
     await click(`[...document.querySelectorAll('[data-top-rail-list] [data-nav-head]')].find((t) => t.textContent.includes(${JSON.stringify(name)}))`)
     // Specs opens to its filters in the menu and keeps it open; close it.
     await wait(100)
-    if (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list] [data-nav-section][data-open] [data-nav-slot]') && !document.querySelector('[data-top-rail-list] [data-nav-section][data-open] [data-nav-children] > [data-nav-item]'))`))
+    if (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list] [data-nav-section="plans"][data-open] [data-nav-slot]') && !document.querySelector('[data-top-rail-list] [data-nav-section="plans"][data-open] [data-nav-children] > [data-nav-item]'))`))
       await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   } else await click(`[...document.querySelectorAll('[data-top-row] [data-nav-head]')].find((t) => t.textContent.includes(${JSON.stringify(name)}))`)
   await wait(500)

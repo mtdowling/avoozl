@@ -30,6 +30,18 @@ test("cliRefusal gates only person-only operations in an agent session", () => {
   assert.equal(cliRefusal("session.report", {}, { env: agent }), null);
 });
 
+test("a supervisor child is refused even with --as-person (R95.5)", () => {
+  const child = { AVOOZL_CHILD: "1", AVOOZL_CHILD_SESSION: "process-1" };
+  const refused = cliRefusal(
+    "plan.approve",
+    {},
+    { env: child, asPerson: true },
+  );
+  assert.match(refused, /supervisor started \(process-1\)/);
+  assert.doesNotMatch(refused, /add --as-person/);
+  assert.equal(cliRefusal("session.report", {}, { env: child }), null);
+});
+
 test("the CLI refuses plan.delete in an agent session until --as-person", () => {
   const workspace = temporaryDirectory("avoozl-person-only-");
   initializeWorkspace(workspace, { name: "t" });
@@ -51,6 +63,7 @@ test("the CLI refuses plan.delete in an agent session until --as-person", () => 
           ...process.env,
           KIROCREW_SPAWNED: "",
           KIRO_SESSION_ID: "",
+          AVOOZL_CHILD: "",
           ...env,
         },
       },
@@ -62,4 +75,7 @@ test("the CLI refuses plan.delete in an agent session until --as-person", () => 
   assert.doesNotMatch(typed.stderr, /agent session/);
   const terminal = run([], {});
   assert.doesNotMatch(terminal.stderr, /agent session/);
+  const child = run(["--as-person"], { AVOOZL_CHILD: "1" });
+  assert.notEqual(child.status, 0);
+  assert.match(child.stderr, /supervisor started/);
 });
