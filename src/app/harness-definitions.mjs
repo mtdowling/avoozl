@@ -40,6 +40,7 @@ const KEYS = new Set([
   "allow",
   "cost",
   "spendCap",
+  "attach",
   "model",
   "promptFrom",
   "keepEnv",
@@ -246,6 +247,10 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
     definition.spendCap = argv(value.spendCap, "spendCap", source, {
       command: false,
     });
+  // What a person runs in the worktree to join the session (R98.1); In
+  // flight shows it to copy. Avoozl never runs it.
+  if (value.attach !== undefined)
+    definition.attach = argv(value.attach, "attach", source);
   if (value.cost !== undefined) {
     const cost = words(value.cost, "cost", source);
     const field = { output: "field", file: "path" }[cost.from];
