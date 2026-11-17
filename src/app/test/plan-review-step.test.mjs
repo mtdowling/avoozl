@@ -288,7 +288,12 @@ test("planner answers are revision-bound, preserve open findings, and stop at th
     as("answerer"),
   );
   assert.equal(result.complete, true);
-  assert.ok(result.findings.every((thread) => thread.state === "open"));
+  // Answers never close a finding.
+  assert.ok(
+    result.findings.every(
+      (thread) => env.store.get("review_threads", thread.id).state === "open",
+    ),
+  );
   assert.equal(
     env.store.get("receipts", answerReceiptId(review.task)).resultHash,
     saved.hash,

@@ -1419,11 +1419,35 @@ try {
       );
       if (value.review?.current && value.review.note)
         console.log(value.review.note);
-      for (const finding of value.findings)
+      for (const finding of value.findings) {
+        const { anchor } = finding,
+          lines =
+            anchor.lineStart === anchor.lineEnd
+              ? anchor.lineStart
+              : `${anchor.lineStart}-${anchor.lineEnd}`,
+          where = `${anchor.file}:${lines}${anchor.moved ? " (moved or removed)" : ""}`;
         console.log(
-          `${finding.file}:${finding.line} ${finding.severity} ${finding.kind}: ${finding.claim}\n  Evidence: ${finding.evidence}${finding.answer ? "\n  Planner: " + finding.answer.action + " " + finding.answer.text : ""}`,
+          `${finding.id} ${where} ${finding.severity} ${finding.state} ${finding.category}: ${finding.claim}\n  Evidence: ${finding.evidence}${finding.answer ? "\n  Planner: " + finding.answer.action + " " + finding.answer.text : ""}`,
         );
+      }
     }
+  } else if (command === "plan" && positionals[0] === "finding") {
+    // A person's action on one review finding (R104.5), at the spec's
+    // current revision unless --revision names another stored one.
+    const usage =
+      "plan finding ID accept|reject|defer|resolve|reopen [--note TEXT] [--revision HASH]";
+    const result = await localOrRequest("plan.review.finding.decide", {
+      id: need(positionals[1], usage),
+      action: need(positionals[2], usage),
+      ...(typeof options.note === "string" ? { note: options.note } : {}),
+      ...(typeof options.revision === "string"
+        ? { revisionHash: options.revision }
+        : {}),
+    });
+    const last = result.decisions.at(-1);
+    console.log(
+      `${result.id}: ${last.action} by ${last.by} at ${last.revisionHash}`,
+    );
   } else if (command === "plan" && positionals[0] === "batches") {
     // Draft specs in the order they can be approved (plan.approvalBatches).
     const found = await localOrRequest("plan.approvalBatches", {
@@ -1832,7 +1856,9 @@ try {
   content show DECISION_ID              Read the matched line again from its source
   content check --push --task TASK_ID   The pre-push hook: refuse a push whose added lines match
   plan batches [--writes]               Draft specs in approval order: batch 1 needs no unapproved spec; a loop shares a batch
-  plan review SPEC [--start] [--json]
+  plan review SPEC [--start] [--json]    A spec's review findings: severity, state and anchor
+  plan finding ID accept|reject|defer|resolve|reopen [--note TEXT] [--revision HASH]
+                                        Decide one review finding; reject needs --note (a person only)
   plan approve PLAN... [--batch N] [--yes --expect HASHES]
                                         Preview approving specs together; --yes approves all or none (a person only)
   plan delete PLAN_OR_SPEC [--yes] [--retire] [--delete-spec-folder]

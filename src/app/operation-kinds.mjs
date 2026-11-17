@@ -159,6 +159,7 @@ const DRAFT = new Set([
   "plan.review.decide",
   "plan.review.reply",
   "plan.review.dispose",
+  "plan.review.finding.decide",
   "plan.review.apply",
   "plan.review.pipeline",
   "plan.extraction.submit",
