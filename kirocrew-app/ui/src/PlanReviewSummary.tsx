@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { SmallBtn } from './controls.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { Hourglass } from './icons.ts'
@@ -42,9 +42,24 @@ export function ReviewWorking(props: { model: string | null }) {
   )
 }
 
+// The dialog's boxes: a bordered section, the reviewer facts as a two-column
+// table, and a tinted note for each caveat.
+const BOX = { borderColor: 'var(--border)' }
+const ROW_TH = { textAlign: 'left' as const, fontWeight: 600, padding: '2px 12px 2px 0', color: 'var(--text-muted, var(--muted))', whiteSpace: 'nowrap' as const, verticalAlign: 'top' as const }
+const ROW_TD = { padding: '2px 0' }
+function Note(props: { children: ReactNode }) {
+  return (
+    <p role="note" data-review-note className="m-0 rounded border px-3 py-2" style={{ borderColor: 'color-mix(in srgb, var(--info, var(--accent)) 40%, transparent)', background: 'color-mix(in srgb, var(--info, var(--accent)) 8%, transparent)' }}>
+      {props.children}
+    </p>
+  )
+}
+
 // Both approval dialogs use the same evidence. Closing a finding is separate
 // from approving a plan and never controls the Approve button.
-export function PlanReviewSummary(props: { review?: Summary | null; onStart?: () => Promise<unknown>; onClose: (id: string, disposition: ReviewDisposition) => Promise<Summary | null> }) {
+export const REVIEW_POLL_MS = 3000
+
+export function PlanReviewSummary(props: { review?: Summary | null; onStart?: () => Promise<unknown>; onRefresh?: () => Promise<Summary | null>; onClose: (id: string, disposition: ReviewDisposition) => Promise<Summary | null> }) {
   const [review, setReview] = useState(props.review)
   const [queued, setQueued] = useState(false)
   const [starting, setStarting] = useState(false)
@@ -59,6 +74,19 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
   const [choices, setChoices] = useState<Record<string, ReviewDisposition>>({})
   const [error, setError] = useState<string | null>(null)
   useEffect(() => setReview(props.review), [props.review])
+  // A running review settles in Avoozl's own store; re-read it (no GitHub
+  // call) until it leaves running, and swap the findings in place.
+  const running = review?.state === 'running'
+  const refresh = useRef(props.onRefresh)
+  refresh.current = props.onRefresh
+  useEffect(() => {
+    if (!running) return
+    let live = true
+    const timer = setInterval(() => {
+      refresh.current?.().then((next) => { if (live && next) setReview(next) }).catch(() => undefined)
+    }, REVIEW_POLL_MS)
+    return () => { live = false; clearInterval(timer) }
+  }, [running])
   const close = async (id: string) => {
     setClosing(id)
     setError(null)
@@ -68,21 +96,34 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
   }
   return (
     <div data-plan-review className="flex min-w-0 flex-col gap-2 text-sm" style={{ overflowWrap: 'anywhere' }}>
-      {review?.state === 'running' ? <ReviewWorking model={review.reviewerModel} /> : <p className="m-0 font-medium" data-plan-review-state>{reviewStateLabel(review)}</p>}
-      {review?.revisionHash && (
-        <p className="m-0 text-muted">
-          {review.state === 'done' ? 'Reviewed by' : 'Reviewer:'} {review.reviewerModel ?? 'not set'} at revision <Tooltip text={review.revisionHash}><code>{shortHash(review.revisionHash)}</code></Tooltip>
-          {!review.current && review.state !== 'done' && ' · older revision'}
-        </p>
+      {(review?.revisionHash || review?.note || review?.unproven || (review?.canReviewAnyway && props.onStart)) && (
+        <section data-review-reviewer className="flex flex-col gap-2 rounded border p-3" style={BOX}>
+          {review?.revisionHash && (
+            <table className="text-sm" style={{ borderCollapse: 'collapse' }}>
+              <tbody>
+                <tr><th scope="row" style={ROW_TH}>Reviewer</th><td style={ROW_TD}>{review.reviewerModel ?? 'not set'}</td></tr>
+                <tr><th scope="row" style={ROW_TH}>Revision</th><td style={ROW_TD}><Tooltip text={review.revisionHash}><code>{shortHash(review.revisionHash)}</code></Tooltip>{!review.current && <span className="text-muted"> · older revision</span>}</td></tr>
+                <tr><th scope="row" style={ROW_TH}>Writer</th><td style={ROW_TD}>{review.writerModel ?? 'unknown'}</td></tr>
+              </tbody>
+            </table>
+          )}
+          {review?.unproven && <Note>The reviewer and writer were not proven to use different models.</Note>}
+          {review?.note && <Note>{review.note}</Note>}
+          {review?.canReviewAnyway && props.onStart && (
+            <Note>
+              <span className="flex flex-col items-start gap-1">
+                Reviewing anyway records that the models were not proven different.
+                <SmallBtn disabled={starting || queued} onClick={() => void start()} attrs={{ 'data-review-anyway': true }}>Review anyway</SmallBtn>
+              </span>
+            </Note>
+          )}
+        </section>
       )}
-      {review?.unproven && <p className="m-0 text-muted">The reviewer and writer were not proven to use different models.</p>}
-      {review?.note && <p className="m-0 text-muted">{review.note}</p>}
-      {review?.canReviewAnyway && props.onStart && <div className="flex flex-col items-start gap-1">
-        <p className="m-0 text-muted">The writer model is unknown. Reviewing anyway records that the models were not proven different.</p>
-        <SmallBtn disabled={starting || queued} onClick={() => void start()} attrs={{ 'data-review-anyway': true }}>Review anyway</SmallBtn>
+      <section data-review-status className="flex flex-col gap-2 rounded border p-3" style={BOX}>
+        {review?.state === 'running' ? <ReviewWorking model={review.reviewerModel} /> : <p className="m-0 font-medium" data-plan-review-state>{reviewStateLabel(review)}</p>}
         {queued && <p role="status" className="m-0">Review queued for this revision.</p>}
-      </div>}
-      <p className="m-0" data-review-counts>{review?.found ?? 0} found · {review?.fixed ?? 0} fixed · {review?.forYou ?? 0} for you</p>
+        <p className="m-0" data-review-counts>{review?.found ?? 0} found · {review?.fixed ?? 0} fixed · {review?.forYou ?? 0} for you</p>
+      </section>
       {(review?.open ?? []).map((finding) => (
         <article key={finding.id} data-review-finding={finding.id} className="flex flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
           <p className="m-0 text-xs text-muted"><code>{finding.file}:{finding.line}</code> · {finding.kind} · {finding.severity}{!finding.current && ' · older revision'}</p>
