@@ -30,12 +30,15 @@ export interface NavGroup {
 }
 
 const CARD = { position: 'relative', overflow: 'hidden', border: '1px solid var(--border)', borderRadius: 16, background: 'var(--bg-elevated)', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)', flexShrink: 0 } as const
-// The open section gives up height first, and its body scrolls, as in
-// Radar's rail: the closed sections around it stay put.
-const OPEN_CARD = { ...CARD, flexShrink: 1, minHeight: 96, display: 'flex', flexDirection: 'column' } as const
+// Open sections share the height the closed ones leave, so the nav always
+// ends at the bottom, as in Radar's rail. A short one shows its background
+// to the bottom edge; a tall one scrolls its body. Closed sections keep
+// their own height.
+const OPEN_MIN = 96
+const OPEN_CARD = { ...CARD, flex: '1 1 0%', minHeight: OPEN_MIN, display: 'flex', flexDirection: 'column' } as const
 // Sub-pages and slot content line up with the header: 12px in from the
 // card, like the header's own icon; a row's text is 8px further in.
-const BODY = { display: 'flex', flexDirection: 'column', gap: 2, padding: '2px 12px 8px', minHeight: 0, overflowY: 'auto' } as const
+const BODY = { display: 'flex', flexDirection: 'column', gap: 2, padding: '2px 12px 8px', minHeight: 0, flex: '1 1 auto', overflowY: 'auto' } as const
 
 // Hover and keyboard focus use Kiro Crew's theme variables, as in Radar's
 // sidebar. The selected item keeps its tint; a hover on it only deepens it.
@@ -81,16 +84,22 @@ export function NavAccordion(props: {
     if (!ref) slotRefs.current.set(key, (ref = (el) => slots?.register(key, el)))
     return ref
   }
-  // One section is open; going to a page without sub-pages closes it.
-  const [open, setOpen] = useState<string | null>(hasKids(props.value) ? props.value : null)
-  useEffect(() => setOpen(hasKids(props.value) ? props.value : null), [props.value]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Sections open on their own and stay open until shut. Going to a page
+  // with sub-pages or filters opens its section. A section with only a slot
+  // draws only while its page is showing, as its filters are that page's.
+  const [open, setOpen] = useState<string[]>(hasKids(props.value) ? [props.value] : [])
+  useEffect(() => setOpen((now) => (hasKids(props.value) && !now.includes(props.value) ? [...now, props.value] : now)), [props.value]) // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = (group: NavGroup) => opens(group) && open.includes(group.key) && (props.value === group.key || !group.slot || Boolean(group.children?.length))
+  // The least height the sections need: open ones their minimum, closed ones
+  // their head. Below it the nav scrolls; above it the open ones stretch.
+  const least = props.groups.reduce((sum, group) => sum + (shown(group) ? OPEN_MIN : NAV_PILL + 2), 8 * (props.groups.length - 1))
   return (
-    <div data-nav-card data-nav-accordion role="group" aria-label="Avoozl pages" style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: '0 1 auto', minHeight: 0 }}>
+    <div data-nav-card data-nav-accordion role="group" aria-label="Avoozl pages" style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: '1 1 auto', minHeight: least }}>
       <style>{NAV_CSS}</style>
       {props.groups.map((group) => {
         const kids = opens(group) ? (group.children ?? []) : null
-        const expanded = Boolean(kids) && open === group.key
         const here = props.value === group.key
+        const expanded = Boolean(kids) && shown(group)
         return (
           <div key={group.key} data-nav-section={group.key} data-open={expanded ? '' : undefined} style={expanded ? OPEN_CARD : CARD}>
             <button
@@ -106,9 +115,9 @@ export function NavAccordion(props: {
                 if (!kids) {
                   props.onPick(group.key)
                   props.onDone?.()
-                } else if (expanded) setOpen(null)
+                } else if (expanded) setOpen((now) => now.filter((key) => key !== group.key))
                 else {
-                  setOpen(group.key)
+                  setOpen((now) => [...now, group.key])
                   if (!here) props.onPick(group.key)
                 }
               }}
