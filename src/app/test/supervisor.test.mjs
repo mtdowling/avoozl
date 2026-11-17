@@ -102,6 +102,12 @@ const request = (worktree, brief = {}, extra = {}) => ({
   ...extra,
 });
 
+// The child's log, to explain a failed status.
+const childLog = (db, id) => {
+  const row = childRecord(db, id);
+  return `${row.error ?? ""}\n${row.log_file && fs.existsSync(row.log_file) ? fs.readFileSync(row.log_file, "utf8") : ""}`;
+};
+
 // Stop a process this test started and wait until it is gone.
 async function stopProcess(pid) {
   try {
@@ -170,7 +176,7 @@ test("supervisor starts the approved harness and records pid, log and exit code"
     supervisor.pass();
     return childStatus(db, id) !== "working";
   });
-  assert.equal(childStatus(db, id), "exited 3");
+  assert.equal(childStatus(db, id), "exited 3", childLog(db, id));
   const row = childRecord(db, id);
   assert.equal(row.exit_code, 3);
   assert.match(fs.readFileSync(row.log_file, "utf8"), /agent says hello/);
@@ -278,7 +284,7 @@ test("after a restart the supervisor finds its children again; a missing one is 
     second.pass();
     return childStatus(db, id) !== "working";
   });
-  assert.equal(childStatus(db, id), "exited 0");
+  assert.equal(childStatus(db, id), "exited 0", childLog(db, id));
   assert.match(
     fs.readFileSync(childRecord(db, id).log_file, "utf8"),
     /agent says hello/,

@@ -384,6 +384,7 @@ export function startSupervisor({
           ),
         }),
         readable: [briefFile],
+        writable: [log],
         env: values.tmp ? { ...env, TMPDIR: values.tmp } : env,
       });
       const out = fs.openSync(log, "a", 0o600);

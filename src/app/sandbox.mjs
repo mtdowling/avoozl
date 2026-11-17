@@ -201,6 +201,7 @@ export function sandboxProfile({
   writeRoots,
   secrets,
   readable = [],
+  writable = [],
   network,
 }) {
   const lines = ["(version 1)", "(allow default)", "(deny network*)"];
@@ -223,13 +224,17 @@ export function sandboxProfile({
     lines.push(`(deny file-read* file-write* ${secrets.map(rule).join(" ")})`);
   if (readable.length)
     lines.push(`(allow file-read* ${readable.map(rule).join(" ")})`);
+  if (writable.length)
+    lines.push(
+      `(allow file-read* file-write* ${writable.map(rule).join(" ")})`,
+    );
   lines.push(
     `(deny mach-lookup ${KEYCHAIN_SERVICES.map((name) => `(global-name "${name}")`).join(" ")})`,
   );
   return lines.join("\n");
 }
 
-function bwrapArgs({ writeRoots, secrets, readable, network }) {
+function bwrapArgs({ writeRoots, secrets, readable, writable, network }) {
   if (network.mode !== "off")
     fail(
       "On Linux the sandbox turns the network off; a list of loopback ports is not supported yet.",
@@ -254,16 +259,21 @@ function bwrapArgs({ writeRoots, secrets, readable, network }) {
     fs.mkdirSync(root, { recursive: true });
     args.push("--bind", root, root);
   }
-  // Secrets: an empty read-only folder over each folder, /dev/null over each
-  // file. A missing path needs nothing: the root is read-only.
+  // Secrets: an empty folder over each folder, /dev/null over each file. A
+  // missing path needs nothing: the root is read-only. The readable and
+  // writable files are bound into the empty folders before they turn
+  // read-only, since bwrap makes their mount points there.
+  const remount = [];
   for (const file of secrets) {
     if (!fs.existsSync(file)) continue;
-    if (fs.statSync(file).isDirectory())
-      args.push("--tmpfs", file, "--remount-ro", file);
-    else args.push("--ro-bind", "/dev/null", file);
+    if (fs.statSync(file).isDirectory()) {
+      args.push("--tmpfs", file);
+      remount.push("--remount-ro", file);
+    } else args.push("--ro-bind", "/dev/null", file);
   }
   for (const file of readable) args.push("--ro-bind", file, file);
-  return [...args, "--"];
+  for (const file of writable) args.push("--bind", file, file);
+  return [...args, ...remount, "--"];
 }
 
 function optedIn(configDirectory, definition) {
@@ -284,7 +294,7 @@ function optedIn(configDirectory, definition) {
 // harnessPermission: a list (read roles: empty), or null for a harness the
 // person let write anywhere, which still keeps secrets and network out.
 // `readable` names files under a secret folder the child must read (its
-// brief). Returns { argv, env, sandbox }; sandbox is null only with the
+// brief), and `writable` the ones it must also write (its log). Returns { argv, env, sandbox }; sandbox is null only with the
 // per-machine opt-in.
 export function confineChild(
   argv,
@@ -294,6 +304,7 @@ export function confineChild(
     writeRoots,
     secrets,
     readable = [],
+    writable = [],
     network = sandboxNetwork(undefined),
     env = process.env,
     keepEnv = [],
@@ -318,8 +329,13 @@ export function confineChild(
         fail(
           `Write root ${root} is inside ${secret}, which a child must not reach.`,
         );
-  const open = readable.map(realPath);
-  const shape = { writeRoots: roots, secrets: denied, readable: open, network };
+  const shape = {
+    writeRoots: roots,
+    secrets: denied,
+    readable: readable.map(realPath),
+    writable: writable.map(realPath),
+    network,
+  };
   if (kind === "sandbox-exec")
     return {
       argv: [SANDBOX_EXEC, "-p", sandboxProfile(shape), ...argv],
