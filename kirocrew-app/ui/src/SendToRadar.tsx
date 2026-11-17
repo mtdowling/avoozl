@@ -105,11 +105,6 @@ export function SendToRadar(props: {
       onDismiss={cancel}
       footer={
         <>
-          {step < 2 && (
-            <Btn type="button" onClick={cancel}>
-              Cancel
-            </Btn>
-          )}
           {step === 1 && (
             <Btn type="button" onClick={() => setStep(0)} disabled={busy}>
               Back
@@ -123,11 +118,6 @@ export function SendToRadar(props: {
           {step === 1 && (
             <Btn type="button" data-radar-send onClick={() => void send()} disabled={busy}>
               {busy ? 'Sending…' : preview?.label ? 'Add label' : 'Send'}
-            </Btn>
-          )}
-          {step === 2 && (
-            <Btn type="button" onClick={() => props.onClose()}>
-              Close
             </Btn>
           )}
         </>

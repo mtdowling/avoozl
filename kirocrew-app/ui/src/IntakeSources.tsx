@@ -9,7 +9,7 @@
 // source is changed by removing it and adding it again.
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, Card, EmptyState, Input } from '@kirocrew/app-sdk/ui'
+import { Card, EmptyState, Input } from '@kirocrew/app-sdk/ui'
 import Badge, { type BadgeVariant } from './Badge.tsx'
 import { DangerBtn, IconLabel, SectionHeading } from './controls.tsx'
 import { Modal } from './Modal.tsx'
@@ -321,21 +321,16 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
       backLabel="Close Add an intake source"
       attrs={{ 'data-intake-source-add': true }}
       footer={
-        <div className="flex flex-col gap-2">
+        <>
           {problem && (
-            <p role="alert" className="m-0 text-xs text-danger">
+            <p role="alert" className="m-0 mr-auto text-xs text-danger">
               {problem.text}
             </p>
           )}
-          <div className="flex flex-wrap justify-end gap-2">
-            <Btn type="button" onClick={props.onClose} disabled={busy}>
-              Cancel
-            </Btn>
-            <IconLabel icon={Plus} primary onClick={add} disabled={busy}>
-              Add source
-            </IconLabel>
-          </div>
-        </div>
+          <IconLabel icon={Plus} primary onClick={add} disabled={busy}>
+            Add source
+          </IconLabel>
+        </>
       }
     >
       <div className="flex flex-col gap-5">

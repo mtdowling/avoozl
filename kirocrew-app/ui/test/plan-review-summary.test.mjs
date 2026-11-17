@@ -24,7 +24,7 @@ for (const [width, dark] of [[1280, false], [390, true]])
   test(`single and batch approval show model, revision, counts, evidence and planner answers at ${width}`, { skip }, async () => {
     for (const mode of ['single', 'batch']) {
       await open(mode, 'done', width, dark)
-      assert.equal(await page.evaluate(`document.activeElement?.textContent`), 'Cancel', 'focus starts on Cancel')
+      assert.equal(await page.evaluate(`document.activeElement?.textContent`), 'Close', 'focus starts on Close')
       assert.equal(await page.evaluate(`document.querySelector('[data-modal-body]').scrollTop`), 0, 'the review overview starts in view')
       const text = await page.evaluate(`document.querySelector('[data-approve-spec], [data-approve-specs]').textContent`)
       assert.match(text, /fake-reviewer/)
@@ -114,7 +114,7 @@ test('the batch dialog updates only the spec that moved and sends each shown rev
   assert.deepEqual(page.errors, [])
 })
 
-test('batch Approve ignores open and skipped reviews, while Cancel approves nothing', { skip }, async () => {
+test('batch Approve ignores open and skipped reviews, while Close approves nothing', { skip }, async () => {
   await open('batch')
   assert.equal(await page.evaluate(`document.querySelector('[data-approve-specs-go]').disabled`), false)
   await click('[data-approve-specs-go]')
@@ -124,7 +124,7 @@ test('batch Approve ignores open and skipped reviews, while Cancel approves noth
   assert.equal(calls[0].items.length, 5)
   assert.ok(calls[0].items.every((item) => item.expectedHash === 'a'.repeat(64)))
   await open('single')
-  await page.evaluate(`[...document.querySelectorAll('[data-modal-footer] button')].find((button) => button.textContent === 'Cancel').click()`)
+  await page.evaluate(`[...document.querySelectorAll('[data-modal-footer] button')].find((button) => button.textContent === 'Close').click()`)
   await page.until(`Boolean(document.querySelector('[data-dialog-closed]'))`)
   assert.deepEqual(await page.evaluate('window.__reviewCalls'), [{ done: null }])
 })

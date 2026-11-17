@@ -138,7 +138,6 @@ test('the dialog writes only after preview and its confirm button; Cancel is on 
   assert.match(api, /'untriaged\.handoff', \{ \.\.\.input, confirm: true \}/)
   assert.match(dialog, /setPreview\(await client\.preview\(/)
   assert.match(dialog, /data-radar-send onClick=\{\(\) => void send\(\)\}/)
-  assert.match(dialog, /\{step < 2 && \(\s*<Btn type="button" onClick=\{cancel\}>\s*Cancel/)
   assert.match(dialog, /<Modal\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/)
   assert.match(dialog, /data-radar-empty-scope/)
   const view = source('UntriagedView.tsx')
