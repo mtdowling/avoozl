@@ -24,6 +24,11 @@ export const PERSON_ONLY = new Map([
     "plan.review.decide",
     person("Only a person starts or skips a draft review."),
   ],
+  [
+    "plan.review.finding.decide",
+    person("Only a person decides a review finding."),
+  ],
+  ["plan.review.dispose", person("Only a person closes a review comment.")],
   ["task.manual.complete", person("Only a person marks a manual task done.")],
   ["task.manual.reopen", person("Only a person reopens a manual task.")],
   ["task.notes.edit", person("Only a person edits a link or note.")],
