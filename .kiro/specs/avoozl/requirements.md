@@ -5705,3 +5705,73 @@ per file on the spec page.
 16. Tests SHALL use fake chats, fake model names and a fake GitHub that
     records zero calls. Source and tests SHALL NOT name a model or
     provider.
+
+### Requirement 105: Where tasks live follows from each repository's role
+
+Added 2026-11-17 (owner request). Design §4.34. Extends Requirement 28.
+Where they conflict it supersedes the part of Requirement 28.1 that says a
+workspace configures the mode: a person now picks a role per repository and
+the mode follows from the roles. Requirements 28.2–28.11 hold unchanged.
+
+The owner's words, in short: "Where tasks live" is not its own Settings
+page. Each repository gets a role on the Repository setup page, and where
+tasks live follows from those roles. Parts that cannot be a per-repository
+role stay in the workspace settings.
+
+**User story:** As the owner, I want to say what each repository is for,
+so that I never choose a workspace mode on a separate page and then match
+my repositories to it.
+
+#### Acceptance criteria
+
+1. Each repository SHALL have one role: `local`, `code`, `planning` or
+   `both`. `local` means no GitHub issues: the repository's tasks live in
+   the workspace database. `code` means a repository whose pull requests
+   land code while its issues live in the planning repository. `planning`
+   means the repository that holds issues, sub-issues, dependencies and spec
+   folders and receives no code pull requests. `both` means a code
+   repository that also holds its own issues and spec folders.
+2. The mode SHALL follow from the roles, and nothing else SHALL set it.
+   All repositories `local` (or none registered) SHALL mean Local only.
+   Exactly one `planning` and every other GitHub repository `code` SHALL
+   mean `plans-repo`, with `planningRepository` the `planning` repository.
+   One or more `both` and no other role SHALL mean `single-repo`. Any other
+   mix SHALL be refused on save with one line naming the repositories and
+   the fix, and nothing SHALL be written.
+3. Only a repository with a GitHub remote MAY take a role other than
+   `local`. A repository with none SHALL show `local` and say why.
+4. Repository setup SHALL show the role of every repository in its list as
+   a picker that edits in place, with no Edit button for the role. Above
+   the list a single line SHALL say where tasks live as a result (for
+   example "Tasks live in acme/plans" or "Tasks live in each repository's
+   own issues"), and the picker SHALL show, for the role chosen, the
+   one-line meaning, the picture and the facts the old mode panes showed.
+5. The planning repository SHALL appear as a row in Repository setup even
+   when it has no checkout on this computer, marked "GitHub only". It SHALL
+   NOT be added as a checkout by this change.
+6. Settings SHALL have no **Where tasks live** page and no `github` tab.
+   The settings that belong to the whole workspace (default authority, epic
+   issue type, GitHub cache and write limits, sub-issue cap, include-done,
+   Project and its field names, the **Set up GitHub** wizard, crews and
+   This computer) SHALL move to Settings › Workspaces. An old link to the
+   Where tasks live page SHALL open Repository setup.
+7. Every existing workspace SHALL keep its behavior. On read, a workspace
+   with no `role` keys SHALL get roles from its stored mode: `local` or
+   absent gives every repository `local`; `plans-repo` gives the repository
+   named by `planningRepository` the role `planning` and every other
+   repository with a GitHub remote `code`; `single-repo` gives every such
+   repository `both`. Reading SHALL write nothing. The first save of
+   Repository setup SHALL write each repository's `role` and the mode and
+   `planningRepository` the roles derive, and running it twice SHALL change
+   nothing more.
+8. The keys `github.mode` and `github.planningRepository` SHALL stay in the
+   schema and stay readable. WHEN any repository has a `role` THEN the
+   roles SHALL win and the loader SHALL derive both keys from them, so
+   every existing reader sees one consistent value. A stored mode that
+   disagrees with the roles SHALL be shown once as "The file says X; the
+   roles say Y" and replaced on the next save. Keys SHALL NOT be deleted.
+9. Switching a role SHALL delete no stored setting, as switching a mode did
+   not. Settings that the new mode does not read SHALL show as "Kept, not
+   used".
+10. The mapping, the migration, the refused mixes and the screens SHALL have
+    tests on fake data and a fake GitHub that records no call for a read.

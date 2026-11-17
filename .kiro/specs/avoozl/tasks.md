@@ -2027,3 +2027,14 @@ approval before merge.
   - Expected: (1) findings with severities, categories and quote anchors; (2) borders grey, yellow and red, the rail lines up and each click highlights its lines; (3) history shows the owner and revision, the deferred one is a follow-up with no task; (4) the dialog updates in place with the changed files, no error, and the accepted finding is fixed; (5) one more round that does not repeat the rejected finding; (6) approval at the revision on screen, the same as with no review, with zero GitHub calls. Screenshots at 390 and 1280 px, light and dark, approved by the owner.
   - Failure means: an anchor points at the wrong lines, an agent can decide a finding, a blocker changes approval, or the dialog makes the person reopen it.
   - Next decision: search other files for moved quotes, or keep same-file anchoring.
+
+## Phase 58: A role per repository replaces Where tasks live
+
+Owner request 2026-11-17 (Requirement 105, design §4.34). One build task.
+It touches `github-policy.mjs`, `settings-api.ts`, `SettingsView.tsx`,
+`RepositoriesSettings.tsx` and `ModePicker.tsx`; another change makes
+Settings pages edit in place, so merge main often and keep to the role
+picker. The owner waived screenshot review for this task.
+
+- [ ] 58.1 Repository roles replace Where tasks live, after 3.14, 20.2 [R105.1, R105.2, R105.3, R105.4, R105.5, R105.6, R105.7, R105.8, R105.9, R105.10, R28.1] (§4.34)
+  - One resolver in `github-policy.mjs` maps roles to mode and `planningRepository` and back, refuses mixed roles, and runs in the config loader; the schema gains `role` and keeps `mode` and `planningRepository`. Repository setup shows an in-place role picker per repository, the "Tasks live in" line and a synthesized "GitHub only" planning row; the Where tasks live page and tab are removed, the workspace-wide settings move to Settings › Workspaces, and the old link opens Repository setup. Tests for the mapping, migration, refused mixes and screens; screenshots (phone and desktop, light and dark, in the full app shell) under `docs/evidence/repo-roles/`.
