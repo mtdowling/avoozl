@@ -302,6 +302,25 @@ export async function readReceipts(
   return { calls };
 }
 
+const observationOf = (row) => ({
+  v: 1,
+  issue: row.issue,
+  task: row.task || null,
+  attempt: row.attempt,
+  phase: row.phase,
+  commit: row.head_sha,
+  command: row.command,
+  target: row.target,
+  start: row.start,
+  ms: row.ms,
+  exit: row.exit,
+  failed: row.failed === 1,
+  seq: row.seq,
+  runId: row.run_id,
+  counters: JSON.parse(row.counters || "{}"),
+  at: row.at,
+});
+
 // Every stored observation of a pull request's head commit, oldest first.
 export function observationsFor(store, repository, head, number) {
   const find = (where, value) =>
@@ -313,24 +332,16 @@ export function observationsFor(store, repository, head, number) {
     byHead = find("head_sha", head ?? ""),
     // The old metadata value kept the pull request, not the head commit.
     rows = byHead.length ? byHead : find("pr_number", number ?? -1);
-  return rows.map((row) => ({
-    v: 1,
-    issue: row.issue,
-    task: row.task || null,
-    attempt: row.attempt,
-    phase: row.phase,
-    commit: row.head_sha,
-    command: row.command,
-    target: row.target,
-    start: row.start,
-    ms: row.ms,
-    exit: row.exit,
-    failed: row.failed === 1,
-    seq: row.seq,
-    runId: row.run_id,
-    counters: JSON.parse(row.counters || "{}"),
-    at: row.at,
-  }));
+  return rows.map(observationOf);
+}
+
+// Every stored observation a build wrote for one task, oldest first. Reads
+// the store only, so task details need no pull request or GitHub call.
+export function observationsForTask(store, taskId) {
+  return store.db
+    .prepare("SELECT * FROM build_observations WHERE task=? ORDER BY rowid")
+    .all(taskId)
+    .map(observationOf);
 }
 
 // `readerFor(repository)` returns `async (pull) => observations | null`: every

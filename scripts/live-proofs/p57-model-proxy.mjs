@@ -1,7 +1,9 @@
 // P57 model proxy: an HTTPS CONNECT proxy on 127.0.0.1 that tunnels only to
-// AWS Bedrock runtime hosts on port 443, so a sandboxed child whose network is
-// limited to one loopback port (sandbox.network ["localhost:PORT"]) can reach
-// its model and nothing else. Every request is logged as allowed or denied.
+// AWS Bedrock runtime hosts on port 443 (bedrock-runtime for Claude Code,
+// bedrock-mantle for Codex's OpenAI models), so a sandboxed child whose
+// network is limited to one loopback port (sandbox.network ["localhost:PORT"])
+// can reach its model and nothing else. Every request is logged as allowed
+// or denied.
 //
 //   node model-proxy.mjs PORT LOGFILE
 import fs from "node:fs";
@@ -9,7 +11,8 @@ import http from "node:http";
 import net from "node:net";
 
 const [port, logFile] = [Number(process.argv[2] || 18457), process.argv[3]];
-const ALLOW = /^bedrock-runtime(-fips)?\.[a-z0-9-]+\.amazonaws\.com:443$/;
+const ALLOW =
+  /^(bedrock-runtime(-fips)?\.[a-z0-9-]+\.amazonaws\.com|bedrock-mantle\.[a-z0-9-]+\.api\.aws):443$/;
 const log = (line) =>
   logFile
     ? fs.appendFileSync(logFile, `${new Date().toISOString()} ${line}\n`)
