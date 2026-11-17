@@ -302,3 +302,20 @@ test("a GitHub journal that cannot be read holds its spec", async (t) => {
   });
   assert.equal(readable.plans.size, 0);
 });
+
+test("the tick dispatches the leaf that unblocks more first, within a rank", async (t) => {
+  const { ops } = workspace(t, {
+    tasks: [
+      leaf("few"),
+      leaf("many"),
+      leaf("x"),
+      leaf("y"),
+      leaf("top", { rank: 1 }),
+    ],
+    edges: [
+      { from: "many", to: "x", kind: "requires" },
+      { from: "many", to: "y", kind: "requires" },
+    ],
+  });
+  assert.deepEqual(await dispatched(ops), ["top", "many", "few"]);
+});

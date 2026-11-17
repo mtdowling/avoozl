@@ -1531,7 +1531,7 @@ Requirements 86, 87 (design §4.26, §4.32). Direct landing is implemented
 before P50 exercises it; P51 is a separate owner-run private pilot after
 the scratch safety proof, with owner minutes, credits and wall-clock per task.
 
-- [ ] 41.1 Schedule spec drivers with repository-wide path holds, after 40.5, 56.4 [R86.2, R86.5, R86.9, R102.4] (§4.32)
+- [x] 41.1 Schedule spec drivers with repository-wide path holds, after 40.5, 56.4 [R86.2, R86.5, R86.9, R102.4] (§4.32)
   - Use unblock ranking, current spec authority and generation, and repository-wide path holds. A verified-on-branch dependency releases only in-spec work based on that working head; cross-spec work waits for accepted outcomes.
 
 - [x] 41.2 Per-base landing queue with brief integration locks, after 40.5, 56.4 [R87.5, R102.15] (§4.32)
