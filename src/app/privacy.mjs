@@ -10,7 +10,7 @@
 // records) gets every rule. `code` (a pushed diff's added lines) keeps only
 // this machine's own names (which covers its own home path) and the private
 // domain list, because code and test fixtures legitimately say
-// `options.local`, `127.0.0.1` or `/Users/alice`.
+// `options.local`, `127.0.0.1` or a made-up home path in a fixture.
 //
 // The owner's internal domains are a private, machine-local list in the
 // machine config (`privacy.internalDomains`), never in a repository. This
