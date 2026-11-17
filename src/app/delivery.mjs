@@ -41,6 +41,12 @@ import {
   waitingForBatch,
 } from "./flow-batch.mjs";
 import { git, integrateRun, prepareTaskWorktree } from "./git.mjs";
+import {
+  isPullRequestLanding,
+  queuePullRequest,
+  stillQueued,
+  syncBase,
+} from "./pr-landing.mjs";
 import { integrationBranchOf } from "./integration-branch.mjs";
 import { specBase } from "./spec-base.mjs";
 import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
@@ -3413,11 +3419,20 @@ export async function integrateVerified(
           "projects",
           worktree.repository || taskRepository(task),
         ),
-        rebased = await rebaseForIntegration(
-          project,
-          worktree,
-          delivery.commit,
-        );
+        viaPullRequest = isPullRequestLanding(project);
+      // A `pr` project lands on GitHub (task 42.6): bring the remote base
+      // here first; a queued task waits unless its base moved.
+      if (viaPullRequest) {
+        if (delivery.batch)
+          fail("A batch does not land by pull request yet.", 409);
+        await syncBase(project).catch(() => null);
+        if (await stillQueued(store, { delivery, project })) continue;
+      }
+      const rebased = await rebaseForIntegration(
+        project,
+        worktree,
+        delivery.commit,
+      );
       if (rebased) {
         const moved = {
           ...delivery,
@@ -3461,6 +3476,17 @@ export async function integrateVerified(
           );
           continue;
         }
+      }
+      if (viaPullRequest) {
+        next = await queuePullRequest(store, {
+          delivery,
+          project,
+          worktree,
+          task,
+          at,
+        });
+        store.transaction(() => store.put("task_deliveries", next));
+        continue;
       }
       if (!store.get("integration", id))
         store.transaction(() =>
