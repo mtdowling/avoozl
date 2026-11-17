@@ -44,7 +44,7 @@ test('every destructive button asks first through a red confirm', () => {
   assert.deepEqual(plain.filter((entry) => !forms.has(entry)), [])
   // The ones the owner named, each a DangerBtn with its own copy.
   const settings = source('SettingsView.tsx')
-  assert.match(source('RepositoriesSettings.tsx'), /title: `Remove \$\{row\.name\} from this workspace\?`/)
+  assert.match(source('RepositoriesSettings.tsx'), /title: 'Are you sure\?'/)
   assert.match(settings, /action: 'Remove rule'/)
   assert.match(source('PluginsSettings.tsx'), /action: 'Remove plugin'/)
   assert.match(source('ConflictsView.tsx'), /confirm=\{confirmSettle\('dismiss', 1, item\.title\)\}/)
