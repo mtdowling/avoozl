@@ -2,7 +2,7 @@
 // `avoozl runner report TASK done|blocked` from the task's worktree. Avoozl
 // matches the report to the task by the worktree path and by the report token
 // in the brief, so a report needs neither MCP sharing nor the gateway's
-// session identity. The store keeps only the token's SHA-256.
+// session identity.
 import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import fs from "node:fs";
@@ -10,20 +10,22 @@ import path from "node:path";
 import { fail } from "./store.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 
-const TOKENS = "report.tokens";
-const hash = (token) => crypto.createHash("sha256").update(token).digest("hex");
 const slotKey = (slot) =>
   slot.startsWith("dashboard:") ? slot.slice("dashboard:".length) : slot;
+const SECRET = "report.secret";
 
-// A new token for one session on one task. Asking again replaces the old one,
-// so a rebuilt brief carries the only token that works.
-export function issueReportToken(store, { taskId, slot }) {
-  const token = crypto.randomBytes(24).toString("hex");
-  store.setMeta(TOKENS, {
-    ...(store.getMeta(TOKENS) || {}),
-    [`${taskId}\n${slotKey(slot)}`]: hash(token),
-  });
-  return token;
+// The token is an HMAC of the task and attempt under a secret kept in the
+// store, so a brief built twice carries the same token, and a new attempt
+// gets a new one. The store keeps the secret, never a token. It reads only:
+// null means no secret exists yet, and the brief keeps the MCP report.
+export function issueReportToken(store, { taskId, attempt = 1 }) {
+  const secret = store.getMeta(SECRET);
+  if (!secret) return null;
+  return crypto
+    .createHmac("sha256", secret)
+    .update(`${taskId}\n${attempt}`)
+    .digest("hex")
+    .slice(0, 48);
 }
 
 const real = (p) => {
@@ -49,18 +51,17 @@ export function matchCliReport(store, { taskId, token, cwd }) {
   if (typeof taskId !== "string" || !taskId) fail("Name the task.");
   if (typeof token !== "string" || !/^[0-9a-f]{48}$/.test(token))
     fail("The report token is missing or malformed.", 403);
-  const tokens = store.getMeta(TOKENS) || {},
-    given = Buffer.from(hash(token)),
-    binding = listSessionBindings(store).find((b) => {
-      const stored = tokens[`${taskId}\n${slotKey(b.slot)}`];
-      return (
-        b.taskId === taskId &&
-        stored &&
-        stored.length === given.length &&
-        crypto.timingSafeEqual(Buffer.from(stored), given)
-      );
-    });
-  if (!binding) fail("The report token does not match this task.", 403);
+  const binding = listSessionBindings(store)
+    .filter((b) => b.taskId === taskId && b.role === "worker")
+    .sort((x, y) => (y.attempt || 0) - (x.attempt || 0))[0];
+  if (!binding || !store.getMeta(SECRET))
+    fail("The report token does not match this task.", 403);
+  const want = Buffer.from(
+      issueReportToken(store, { taskId, attempt: binding.attempt }),
+    ),
+    got = Buffer.from(token);
+  if (want.length !== got.length || !crypto.timingSafeEqual(want, got))
+    fail("The report token does not match this task.", 403);
   const worktree = store.get("task_worktrees", taskId)?.path;
   if (!worktree || !inside(worktree, cwd))
     fail("Run the report from this task's worktree.", 403);
