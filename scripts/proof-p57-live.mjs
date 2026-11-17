@@ -110,7 +110,10 @@ for (const name of notes) {
 }
 const marker = ${JSON.stringify(path.join(faults, "fail-two-at-landing"))};
 const seen = ${JSON.stringify(path.join(faults, "two-runs"))};
-if (notes.includes("two.txt") && fs.existsSync(marker)) {
+// Only Avoozl's own check runs (Verify, landing) count toward the fault; a
+// child running the check in its sandbox (AVOOZL_CHILD) neither counts nor
+// writes outside its roots.
+if (!process.env.AVOOZL_CHILD && notes.includes("two.txt") && fs.existsSync(marker)) {
   fs.appendFileSync(seen, process.cwd() + "\\n");
   if (fs.readFileSync(seen, "utf8").trim().split("\\n").length >= 2) {
     fs.rmSync(marker);
