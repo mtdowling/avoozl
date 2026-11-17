@@ -47,23 +47,3 @@ macOS notification when the last tick is older than `--stale-minutes`
 (default 10) or ended in an error. It only reads. Nothing installs it; to run
 it every 10 minutes, fill in `scripts/tick-watchdog.plist.example` and load
 it with `launchctl load`. `--dry-run` prints the problem without notifying.
-
-## The driver session
-
-The driver session is one long-running chat that releases ready work and
-watches merges. Start it from the Start button on Home or in the side panel.
-The button opens a new chat on the `avoozl-driver` agent and sends its first
-message. Nothing starts one for you.
-
-Kiro Crew lets an app read only the chats the app opened, and the person opens
-this one, so Avoozl cannot look its slot up. The chat tells Avoozl instead: the
-agent's `agentSpawn` and `stop` hooks run `avoozl.mjs driver hook`, which
-records the chat key Kiro Crew puts in the hook payload, and a `plans_next`
-call from a Kiro Crew session records it too. The page shows a link to that
-chat. It reads as running for 30 minutes after the last hook or call, then as
-quiet, with the link kept and a Start button for a new one. Avoozl has no
-read of whether the chat is still open or mid-turn.
-
-Not built, because the host does not allow it: sending a message into the
-driver chat from the page, stopping it, and reading its turn count.
-Attach / steer opens a crew's chat; you type there.

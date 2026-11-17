@@ -24,6 +24,11 @@ export const PERSON_ONLY = new Map([
     "plan.review.decide",
     person("Only a person starts or skips a draft review."),
   ],
+  [
+    "plan.review.finding.decide",
+    person("Only a person decides a review finding."),
+  ],
+  ["plan.review.dispose", person("Only a person closes a review comment.")],
   ["task.manual.complete", person("Only a person marks a manual task done.")],
   ["task.manual.reopen", person("Only a person reopens a manual task.")],
   ["task.notes.edit", person("Only a person edits a link or note.")],
@@ -258,10 +263,6 @@ export const NOT_ON_MCP = new Map([
   ...["instance.view", "instance.rename"].map((name) => [
     name,
     "The app page shows and renames this install's display name; a chat has no use for it.",
-  ]),
-  ...["driversession.view", "driversession.register"].map((name) => [
-    name,
-    "The app page reads the driver session; the session records itself through its hooks and plans_next.",
   ]),
   [
     "panel.view",

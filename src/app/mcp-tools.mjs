@@ -165,10 +165,6 @@ const tools = {
       ],
       submit: ["plan.review.submit", "submit anchored review comments"],
       reply: ["plan.review.reply", "reply to a comment"],
-      dispose: [
-        "plan.review.dispose",
-        "resolve, accept, reject or defer a comment",
-      ],
       apply: ["plan.review.apply", "apply a suggestion to the draft"],
       pipeline: ["plan.review.pipeline.get", "one review round"],
       extract: ["plan.extract", "open an extraction record"],
