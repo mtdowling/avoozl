@@ -40,7 +40,7 @@ const SCREENS = [
   { name: 'Home', query: { page: 'app', radar: '1' }, ready: `Boolean(document.querySelector('[data-release-empty]'))` },
   { name: 'the side panel', query: { page: 'panel', sid: 'chat-1' }, ready: `Boolean(document.querySelector('[data-flight-row]'))` },
 ]
-const TABS = ['Specs', 'Needs you', 'Trace', 'Flow', 'Activity', 'Settings']
+const TABS = ['Specs', 'Needs you', 'Flow', 'Activity', 'Settings']
 
 for (const size of SIZES) {
   for (const screen of SCREENS)

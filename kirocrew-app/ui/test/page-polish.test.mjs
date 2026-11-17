@@ -1,14 +1,10 @@
-// Trace runs full width; Flow has a Retros tab, a boxed "No timing yet" and a
+// Flow has a Retros tab, a boxed "No timing yet" and a
 // greyed Phase filter whose why is a tooltip, not a line under the field.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
-
-test('Trace has no centered max width', () => {
-  assert.doesNotMatch(source('TraceView.tsx'), /mx-auto|max-w-/)
-})
 
 test('Flow: Retros is its own tab, and Overview no longer lists retros', () => {
   const flow = source('FlowView.tsx')
