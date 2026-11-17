@@ -101,6 +101,7 @@ export const SETTINGS_TABS = [
   { key: 'workspaces', label: 'Workspaces' },
   // Coder, Labels, Crews and rules and the Workflow map are tabs of each repository's editor.
   { key: 'repositories', label: 'Repository setup' },
+  { key: 'github', label: 'GitHub' },
   { key: 'plugins', label: 'Plugins' },
   { key: 'content', label: 'Content rules' },
   { key: 'flow', label: 'Flow' },
@@ -115,8 +116,9 @@ export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 // One short line under each Settings heading: what it controls and when
 // you would change it. Each is checked against what the code does.
 export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
-  workspaces:
-    "The Avoozl workspaces on this machine, each a folder with its own task database. Below them, the GitHub settings that belong to the whole workspace: new-task authority, the Project board and Set up GitHub, which creates what's missing after showing each change.",
+  workspaces: 'The Avoozl workspaces on this machine, each a folder with its own task database, and the settings that stay on this computer.',
+  github:
+    "The GitHub settings of the selected workspace, for every repository in it: new-task authority, the Project board and Set up GitHub, which creates what's missing after showing each change.",
   repositories:
     "Each repository's role says where its tasks live. Its coder, labels, Crews and rules, Workflow map, checks and reviews are tabs under its name. Save only writes .avoozl.json.",
   plugins:
@@ -1213,7 +1215,7 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
   )
 }
 
-// The GitHub settings that belong to the whole workspace, under Workspaces:
+// The GitHub settings that belong to the whole workspace, on the GitHub page:
 // what no single repository's role can say. Switching a role never deletes a
 // stored setting.
 function WorkspaceGitHub(props: {
@@ -1357,15 +1359,6 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
   }, [settings])
 
   const set = (change: Partial<SettingsForm>) => form && setForm({ ...form, ...change })
-  const check = async () => {
-    if (!form) return
-    try {
-      const result = await client.validate(workspaceId, toPolicy(form))
-      setMessage(result.valid ? { ok: true, text: 'Settings are valid.' } : { ok: false, text: result.error || 'Invalid.' })
-    } catch (caught) {
-      setMessage({ ok: false, text: errorMessage(caught) })
-    }
-  }
   const save = async (): Promise<string | null> => {
     if (!form || !settings) return 'Settings are not loaded.'
     const missing = missingRequired(form)
@@ -1432,58 +1425,17 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
           }
         />
       )}
-      {tab === 'workspaces' && <ThisComputer workspaceId={workspaceId} />}
-      {tab === 'workspaces' && <RateBlock rate={settings.rate} />}
-      {tab === 'repositories' ? (
-        <SaveFooter
-          dirty={dirty}
-          saving={saving}
-          problem={missing}
-          error={message && !message.ok ? message.text : null}
-          ok={message?.ok ? message.text : null}
-          note="Writes .avoozl.json."
-          onSave={() => void save()}
-          onDiscard={() => void reload()}
-        />
-      ) : null}
-      {tab !== 'repositories' && (
-      <div className="flex flex-wrap items-center gap-2">
-        <TipBtn tooltip="Check these settings without saving them" onClick={() => void check()} disabled={saving}>
-          Check
-        </TipBtn>
-        <TipBtn primary onClick={() => void save()} disabled={saving || !dirty || Boolean(missing)} tooltip={missing}>
-          Save
-        </TipBtn>
-        {dirty ? (
-          <DangerBtn
-            disabled={busy || saving}
-            confirm={{
-              title: 'Discard your unsaved changes?',
-              body: 'Every edit since the last save on these Settings tabs is lost. .avoozl.json stays as it is.',
-              action: 'Discard changes',
-            }}
-            onConfirm={() => void reload()}
-          >
-            Discard changes
-          </DangerBtn>
-        ) : (
-          <TipBtn tooltip="Read the settings from disk again" onClick={() => void reload()} disabled={busy || saving}>
-            Reload
-          </TipBtn>
-        )}
-        {dirty && <span className="text-xs text-muted">Unsaved changes</span>}
-        {dirty && missing && (
-          <span className="text-xs" style={{ color: 'var(--danger)' }} role="alert">
-            {missing}
-          </span>
-        )}
-      </div>
-      )}
-      {message && tab !== 'repositories' && (
-        <p role={message.ok ? 'status' : 'alert'} className={`text-sm ${message.ok ? 'text-muted' : 'text-danger'}`}>
-          {message.text}
-        </p>
-      )}
+      {tab === 'github' && <RateBlock rate={settings.rate} />}
+      <SaveFooter
+        dirty={dirty}
+        saving={saving}
+        problem={missing}
+        error={message && !message.ok ? message.text : null}
+        ok={message?.ok ? message.text : null}
+        note="Writes .avoozl.json."
+        onSave={() => void save()}
+        onDiscard={() => void reload()}
+      />
     </div>
   )
 }
@@ -1512,7 +1464,7 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
     return (
       <div className="flex flex-col gap-3.5">
         <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
-        {workspaceId && <PolicyEditor key={`${workspaceId}-${version}`} workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />}
+        <ThisComputer workspaceId={workspaceId} />
       </div>
     )
   if (!workspaceId)
@@ -1523,7 +1475,7 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
         action={<Btn onClick={() => props.onTab('workspaces')}>Open Workspaces</Btn>}
       />
     )
-  if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => props.onTab('workspaces')} />
+  if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => props.onTab('github')} />
   if (tab === 'content') return <ContentRulesSettings workspaceId={workspaceId} />
   if (tab === 'flow') return <FlowSettings workspaceId={workspaceId} />
   if (tab === 'models') return <ModelsSettings workspaceId={workspaceId} />
