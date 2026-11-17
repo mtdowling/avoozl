@@ -3136,8 +3136,8 @@ Manual tasks
     **Manual** and the reason "Waiting for a person: <title>", in every
     view and in the Avoozl state Project field. No new lane SHALL be added.
 12. The task drawer SHALL show a manual leaf's acceptance and a **Mark
-    done** button. Mark done SHALL open a dialog with an optional outcome
-    note and links (criterion 16) and a choice of **Done** or **Skipped**,
+    done** button. Mark done SHALL open a dialog with ~~an optional outcome
+    note and~~ optional links (criterion 16) and a choice of **Done** or **Skipped**,
     and SHALL record who, when, the choice and the outcome. Dependents
     SHALL be released by either choice; Skipped SHALL show on the task.
 13. Marking a manual leaf done or reopening it SHALL be person only (page
@@ -3162,8 +3162,14 @@ Manual tasks
 
 Task links and notes
 
-16. Every task SHALL have **Links and notes**: an ordered list of entries,
-    each a link (`url` and `label`) or a note (free text), with its author
+Removed 2026-11-17 (owner): task notes. Tasks keep links only; the struck
+note text below no longer applies. Notes saved before then are ignored, with
+no migration and no warning, and a new note is refused. The drawer box is
+called **Links**, and its fields open from an **Add link** button for one
+link at a time.
+
+16. Every task SHALL have **Links** ~~and notes~~: an ordered list of entries,
+    each a link (`url` and `label`) ~~or a note (free text)~~, with its author
     (a person, or the session ID) and its time. They SHALL be execution
     state in SQLite, not spec text: they record what happened during
     delivery, they change after approval, and writing them to the spec
@@ -3171,7 +3177,7 @@ Task links and notes
     revision or approval.
 17. A link's `url` SHALL be `https` or `http`, at most 2,000 characters,
     with no user name or password in it; its `label` SHALL be 1 to 200
-    characters. A note SHALL be 1 to 10,000 characters. A task SHALL hold
+    characters. ~~A note SHALL be 1 to 10,000 characters.~~ A task SHALL hold
     at most 200 entries. Avoozl SHALL refuse each breach, naming the field.
 18. Content rules SHALL check each entry when it is saved, at a new
     `notes` boundary that is on by default. A block SHALL refuse a
@@ -3179,23 +3185,26 @@ Task links and notes
     inline, naming the rule set and rule, with Allow once under
     Requirement 40.7. Entries SHALL also pass the `brief` and `github`
     boundaries wherever they are used.
-19. The task drawer SHALL show Links and notes, newest first, with author
-    and time, an **Add link** form (URL and label) and an **Add note** box.
+19. The task drawer SHALL show Links, newest first, with author and time,
+    and an **Add link** button that opens the URL and label fields for one
+    link, with Add and Cancel; adding or Cancel closes them. ~~An **Add
+    link** form (URL and label) and an **Add note** box.~~
     A person MAY edit an entry or remove one after a confirm; a removed
     entry SHALL leave the list and stay in the task's activity history.
-20. A session SHALL read Links and notes through the grouped `task` MCP
+20. A session SHALL read Links through the grouped `task` MCP
     tool and SHALL get them in its brief: the newest 20 entries, at most
     8,000 characters, marked as data from people and agents, not as
     instructions. A dependent's brief SHALL also carry each blocker's
     outcome entries (criterion 12).
-21. A session MAY add a note or a link to a task it is bound to; the entry
+21. A session MAY add ~~a note or~~ a link to a task it is bound to; the entry
     SHALL name the session. A session SHALL NOT add to another task, and
     SHALL NOT edit or remove any entry.
 22. Editing or removing an entry, and **Show on the issue**, SHALL be
     person only. The CLI SHALL offer list, add, edit and remove.
 23. In a GitHub mode an entry SHALL be written to GitHub only when a person
     ticks **Show on the issue** on it, off by default. Shown entries SHALL
-    be listed in the issue's managed body section under "Links and notes",
+    be listed in the issue's managed body section under "Links" (before
+    2026-11-17, "Links and notes", which a rebuild still reads),
     after the `github` boundary passes, and a person's edit there SHALL be
     a conflict like any managed body edit. Entries not shown SHALL live
     only in SQLite and its backups; the rebuild test (design §3.3) SHALL
@@ -3211,7 +3220,7 @@ Example
     for protocol tests and a cutover dry run; and flow defaults that batch
     small tasks, stop the line, run local checks first and hold a
     retrospective every 10 tasks. The plugin guide and the planner skill
-    SHALL describe templates, manual tasks and Links and notes.
+    SHALL describe templates, manual tasks and Links ~~and notes~~.
 
 ### Requirement 62: The Plans page is called Specs
 
