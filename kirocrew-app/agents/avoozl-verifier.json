@@ -11,6 +11,12 @@
     "thinking",
     "@avoozl:avoozl/plans_report"
   ],
-  "allowedTools": [],
+  "allowedTools": [
+    "fs_read",
+    "grep",
+    "glob",
+    "thinking",
+    "@avoozl:avoozl/plans_report"
+  ],
   "includeMcpJson": false
 }
