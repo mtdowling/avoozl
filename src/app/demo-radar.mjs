@@ -424,18 +424,6 @@ export async function demoFixtures(demo, { now = Date.now() } = {}) {
     recentMerges,
     traces,
     // Read the Release queue itself with `radar.releasequeue`.
-    driverSession: {
-      state: "running",
-      slot: "demo-driver",
-      // The chat link, as the side panel's `DriverSession` reads it. Opening
-      // it in the demo shows the chat preview sentence.
-      link: "/chat?sid=demo-driver",
-      previewOnly: true,
-      startedAt: iso(now, 2),
-      lastTurnAt: iso(now, 0.01),
-      turnsToday: 11,
-      turnLimit: 40,
-    },
     // The example toggle: the page picks one of the two states to show. The
     // sample's own line never stops (the demo changes nothing).
     stopLine: {

@@ -383,7 +383,11 @@ async function listWorktrees(root) {
 // One task's worktree on its own branch. A retry finds the same worktree, or
 // re-adds it on the existing branch so earlier commits are kept. Nothing is
 // ever removed or reset here.
-export async function prepareTaskWorktree(store, project, { branch, name }) {
+export async function prepareTaskWorktree(
+  store,
+  project,
+  { branch, name, start: chosen = null },
+) {
   return withWorkLock(
     store,
     { id: "prepare:" + name, projectId: project.id, kind: "worktree" },
@@ -398,7 +402,8 @@ export async function prepareTaskWorktree(store, project, { branch, name }) {
         ref = "refs/heads/" + branch;
       const listed = await listWorktrees(project.root),
         holder = [...listed].find(([, value]) => value === ref)?.[0];
-      let created = false;
+      let created = false,
+        started = null;
       if (listed.has(worktree)) {
         if (listed.get(worktree) !== ref)
           fail(`Worktree ${worktree} is not on branch ${branch}.`, 409);
@@ -418,10 +423,11 @@ export async function prepareTaskWorktree(store, project, { branch, name }) {
         } catch {
           exists = false;
         }
-        // A dependent starts from the work already integrated: the integration
-        // branch when the project has one and it exists, else the base branch.
-        let start = project.baseBranch || "main";
-        if (project.integrationBranch)
+        // A dependent starts from the work already integrated: the spec base
+        // the caller resolved (spec-base.mjs), else the integration branch
+        // when the project has one and it exists, else the base branch.
+        let start = chosen || project.baseBranch || "main";
+        if (!chosen && project.integrationBranch)
           try {
             await git(project.root, [
               "rev-parse",
@@ -433,18 +439,21 @@ export async function prepareTaskWorktree(store, project, { branch, name }) {
           } catch {
             // Not created yet: the first integration creates it from the base.
           }
-        await createWorktree(store, project, "task-" + name, {
+        const made = await createWorktree(store, project, "task-" + name, {
           branch,
           worktree,
           start,
           existing: exists,
         });
         created = true;
+        // The exact commit a new branch started from.
+        if (!exists) started = { branch: start, commit: made.baseCommit };
       }
       return {
         branch,
         worktree,
         created,
+        ...(started ? { started } : {}),
         head: await git(worktree, ["rev-parse", "HEAD"]),
       };
     },

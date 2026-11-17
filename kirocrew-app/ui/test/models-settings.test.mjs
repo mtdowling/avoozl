@@ -10,9 +10,9 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 test('the roles are Avoozl’s own chats, and auto or blank leaves a role out', () => {
   assert.deepEqual(
     MODEL_ROLES.map((r) => r.key),
-    ['planner', 'planReviewer', 'driver', 'retro', 'reviewDraft'],
+    ['planner', 'planReviewer', 'retro', 'reviewDraft'],
   )
-  assert.deepEqual(toModels({ planner: 'm1', driver: 'auto', retro: '' }), { planner: 'm1' })
+  assert.deepEqual(toModels({ planner: 'm1', reviewDraft: 'auto', retro: '' }), { planner: 'm1' })
   assert.deepEqual(toModels({ planner: 'fake-writer', planReviewer: 'fake-reviewer' }), { planner: 'fake-writer', planReviewer: 'fake-reviewer' })
   assert.deepEqual(toModels({ planReviewer: 'auto' }), {})
 })
