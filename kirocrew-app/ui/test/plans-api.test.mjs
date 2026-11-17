@@ -4,6 +4,8 @@ import test from 'node:test'
 import {
   filterRows,
   rowChoices,
+  NO_EPIC,
+  sortRows,
   UNCATEGORIZED,
   approveBlocker,
   changeMessage,
@@ -235,6 +237,28 @@ test('the Plans list filters by text, category, status, kind and what a plan has
   assert.deepEqual(names({ has: 'running' }), ['beta'])
   assert.deepEqual(names({ has: 'needs-you' }), ['gamma'])
   assert.deepEqual(rowChoices(rows).categories, ['Compiler', 'Runtime', UNCATEGORIZED])
+})
+
+test('the Specs list filters by epic and sorts by name, last update or tasks', () => {
+  const rows = [
+    row('beta', { epic: 'e1', epicTitle: 'Runtime', lastChange: '2026-11-10T00:00:00Z', tasks: { total: 9, done: 0 } }),
+    row('alpha', { epic: null, lastChange: '2026-11-12T00:00:00Z', tasks: { total: 2, done: 0 } }),
+    row('gamma', { epic: 'e1', epicTitle: 'Runtime', lastChange: null, tasks: { total: 9, done: 0 } }),
+  ]
+  assert.deepEqual(filterRows(rows, { epic: 'e1' }).map((r) => r.name), ['beta', 'gamma'])
+  assert.deepEqual(filterRows(rows, { epic: NO_EPIC }).map((r) => r.name), ['alpha'])
+  assert.deepEqual(rowChoices(rows).epics, [
+    { value: 'e1', label: 'Runtime', count: 2 },
+    { value: NO_EPIC, label: 'No epic', count: 1 },
+  ])
+  const names = (...args) => sortRows(rows, ...args).map((r) => r.name)
+  assert.deepEqual(names(), ['alpha', 'beta', 'gamma'])
+  assert.deepEqual(names('name', 'desc'), ['gamma', 'beta', 'alpha'])
+  assert.deepEqual(names('updated'), ['alpha', 'beta', 'gamma'])
+  assert.deepEqual(names('updated', 'asc'), ['gamma', 'beta', 'alpha'])
+  // Equal task counts fall back to the name.
+  assert.deepEqual(names('tasks'), ['beta', 'gamma', 'alpha'])
+  assert.deepEqual(names('tasks', 'asc'), ['alpha', 'beta', 'gamma'])
 })
 
 test('a spec row has one chip: Draft, Approved, On GitHub or Done', async () => {

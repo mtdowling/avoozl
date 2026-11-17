@@ -71,6 +71,14 @@ export {
   Menu,
   Link2,
   Ellipsis,
+  // The Specs rail's icons, as Radar's Issues rail (lucide 1.7, checked 2026-11-16).
+  ArrowUpDown,
+  CaseSensitive,
+  Clock,
+  Layers,
+  ListChecks,
+  Search,
+  Tag,
 } from 'lucide-react'
 export type { LucideIcon } from 'lucide-react'
 
