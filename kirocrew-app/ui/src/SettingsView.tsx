@@ -76,7 +76,7 @@ import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api
 import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
 import { Fold } from './controls.tsx'
 import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
-import { Plus, Trash2 } from './icons.ts'
+import { Plus, Trash2, type LucideIcon } from './icons.ts'
 import { redirectSettings } from './nav-api.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
@@ -298,10 +298,10 @@ function Hint({ children }: { children: ReactNode }) {
 }
 
 // A heading with its one-line blurb, then the fields.
-export function Section(props: { title: string; blurb?: string; actions?: ReactNode; children?: ReactNode; level?: 'card' | 'sub' }) {
+export function Section(props: { title: string; blurb?: string; actions?: ReactNode; children?: ReactNode; level?: 'card' | 'sub'; icon?: LucideIcon }) {
   return (
     <div className="flex flex-col gap-2.5" data-section={props.title}>
-      <SectionHeading level={props.level === 'sub' ? 4 : 3} title={props.title} blurb={props.blurb} actions={props.actions} />
+      <SectionHeading level={props.level === 'sub' ? 4 : 3} title={props.title} blurb={props.blurb} actions={props.actions} icon={props.icon} />
       {props.children}
     </div>
   )
