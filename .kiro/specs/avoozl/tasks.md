@@ -1191,6 +1191,8 @@ machine claim in its marker.
 
 ## Phase 27: Budgets and receipts
 
+Removed 2026-11-17 (owner): budgets. A budget only caps Kiro Crew chats; Avoozl cannot see Claude Code or Codex spend. Ticked tasks stay ticked as history; their code is removed by task/remove-budgets.
+
 Owner decisions 2026-11-13 (Requirement 67, design §4.17). Numbered after
 Phase 26 because task IDs never move. It prices the turns `flow_usage`
 already holds (12.11) and caps each task in dollars.
@@ -1198,12 +1200,15 @@ already holds (12.11) and caps each task in dollars.
 - [x] 27.1 Price table and budget levels, after 12.12 [R67.1–R67.5] (§4.17)
   - Machine-local `prices` with `version`, `creditUsd` and per-model `inputPerMTokUsd` and `outputPerMTokUsd`, empty by default; person-only `prices.save` bumps the version, hashes the canonical JSON and writes `price_versions`; validation refuses `prices` in `.avoozl.json`, packs and manifests; `budget {usd, tokens, credits}` at workspace, `projects.<id>`, manifest top level and leaf, most specific key wins; fallback defaults 2,000,000 tokens and 200 credits; the driver export leaves prices out.
   - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (`src/app/budget.mjs`; caps in Settings › Budgets, not the repository Edit modal; the driver export is not built yet, so it is not wired).
+  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
 - [x] 27.2 Spend and receipts, after 27.1 and 12.9 [R67.4, R67.7, R67.11–R67.14] (§4.17)
   - Price each `flow_usage` turn on read (credits first, then tokens); `budget.view` and `budget.receipt` with totals by stage, model and attempt, priced flags, cap and level, raises, stops, price version and hash, `complete` and `missing` reasons for Crew Mode, remote, Issue Radar and failed reads; batch turns shared evenly and marked; `avoozl budget receipt TASK [--json]`; `plans_view` action `receipt`; the retro payload's `receipts`; no prompts or text.
   - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (`budget.view`, `budget.receipt`, `avoozl budget receipt TASK --json`, `plans_view` action `receipt`, retro `receipts`).
+  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
 - [x] 27.3 Stop at the cap, Raise budget and Stop, after 27.2, 12.8 and 15.4 [R67.6–R67.9, R67.14–R67.18, R67.21] (§4.17)
   - Check after each usage read and before each dispatch for the task (attempts, verifier, review roles, responders, batch); at a cap record a `budget` stop, dispatch nothing for the task, queue one stop message per live bound session, and answer its Avoozl MCP calls except `plans_report` with `budget_reached`; never stop, interrupt or close a session; one Needs you decision with person-only `budget.raise` (writes `budget_raises`, messages a live session) and `budget.stop` (the Deferred pause); 403 for other callers; no attempt cost; unpriced turns warn once per task and model; unknown spend warns once and never stops; no gate reads the budget.
   - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (stop and warn modes, 80% warning, `budget_holds`, `budget.raise|stop|acknowledge|switchToStop`); 1112e0e Name the task when a budget call has none.
+  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
 - [x] 27.4 Spend on the page, after 27.3 and 12.11 [R67.2, R67.10, R67.11, R67.19, R67.20] (§4.17)
   - The drawer's Budget fold after Timing with spend against cap, receipt tables and Export JSON; the `$spent / $cap` chip on the Delivery and In flight cards (muted, red at the cap, "spend unknown"); Settings › Prices marked this computer only, with models from `GET /api/models` and `flow_usage`, the credit price, the version and the unpriced-model notes; budget fields in Settings › General and the repository Edit modal; checked by drawing the page at 375 and 1280 px in light and dark.
   - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (Budget fold, spend chip, Dashboard over-budget count, Flow marks, Settings › Budgets and › Prices; drawn at 375 and 1280 px, light and dark, in a screenshot harness).
@@ -1216,6 +1221,7 @@ already holds (12.11) and caps each task in dollars.
   - Failure means: a task can spend past its cap without a person, a stop ends a running turn, or a budget opens a gate.
   - Next decision: stop by closing the session instead of by message, or cap by tokens instead of dollars.
   - Built: dbdad6c `src/app/test/proof-p41.test.mjs` passes (steps 1-12 plus 13, warn mode).
+  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
 
 ## Phase 28: Retro prompt and skill proposals, and lessons
 
@@ -1549,6 +1555,7 @@ the scratch safety proof, with owner minutes, credits and wall-clock per task.
 
 - [x] 41.6 Restore the Delivery page, Settings › Budgets and the Files and diff view, after 41.3 [R88.7] (§4.26)
   - From ba04389 and 70c2236, updated to the new loop; not Routing; screenshots for the owner.
+  - Removed 2026-11-17 (owner): Settings › Budgets.
 - [ ] 41.8 Nupp AGENTS.md clause for Avoozl-run work, after 41.3 [R91.5, R94.4a] (§4.26)
   - Nupp's AGENTS.md tells agents to rebase, fast-forward merge, push and delete the worktree. Propose a clause for work Avoozl runs: edit, commit nothing (or only locally, as the project config says), and stop; no merge, push or worktree removal. Check the copy on `core-dev`, not only `main`. Proposed as a Nupp change, not made from Avoozl's repository.
 - [ ] 41.7 Nupp setup: `direct` on public `core-dev` with the repository's helper and check, after 41.3 [R91.5] (§4.26)
@@ -1627,45 +1634,39 @@ GitHub, and a race between two workers shows exactly one claim wins.
   - Failure means: fork-local duplicate claims, timeout replacement, credentials in agent sandboxes or unchecked landing. Write a live receipt under docs/evidence/; tests do not tick this proof.
   - Next decision: enable multi-machine pull for a shared spec, or repair canonical reservation/acknowledgment before allowing competing workers.
 
-## Phase 44: Landing queue panel
+## Phase 44: Links to related GitHub items, and the landing queue
 
-Requirement 92 (design §4.27). Narrow the unbuilt browser to exact landing
-portions and their checks/reviews. Screenshot approval remains owner work.
+Requirement 92 (design §4.27). Owner decision 2026-11-17: no Issues or Pull
+requests pages; specs and in-flight work link to their GitHub items instead.
+No dedicated SCM links page. Phase 44 is no longer paused; Phase 45 stays
+paused. Screenshot approval remains owner work.
 
-- [ ] 44.1 Landing queue panel and mobile navigation, after avoozl-p52 [R92.1] (§4.27)
-  - Exact-portion list/detail; full-width list/detail with back control at 390 px. No new general Issues browser.
+- [x] 44.1 One link set per spec and task from stored records, after 40.4, 41.2, 42.6, 56.2, 56.3, 56.8, 56.14 [R92.1, R92.2, R92.3] (§4.27)
+  - Pure read model over the spec issue and journal, spec working branch, task branch and worktree, task PR and check state from landing, landed commit from delivery records, and intake/escalation issues. URLs come from validated repository, number, ref and SHA fields only.
+  - Missing records show as none; check state carries head SHA and age, and a non-current head is never shown as current. A counting-client test asserts the GitHub call count is unchanged with link sets on.
 
-- [ ] 44.2 Cached queue rows, search and filters, after 44.1 [R92.2, R92.6, R92.7] (§4.27)
-  - Show target/base, source repository/ref/SHA including forks, portion, checks and state. Counting client: cached load/filter costs zero calls.
+- [ ] 44.2 Links box in the spec details panel, after 44.1 [R92.4, R92.9, R92.10, R92.12] (§4.27)
+  - Spec issue, working branch, open PRs with a check dot each, Radar issues it came from. Links open with target=_blank rel="noopener noreferrer"; a private spec issue renders only locally.
 
-- [ ] 44.3 Portion detail and visibility-safe spec links, after 44.1 [R92.3, R92.6] (§4.27)
-  - Show exact commits and accepted evidence; link the spec issue only when public visibility permits. Use GitHub for discussion.
+- [ ] 44.3 Links box in the task details view and the Graph modal, after 44.1 [R92.5, R92.9, R92.10, R92.12] (§4.27)
+  - Branch, PR, checks, landed commit and issue; the Graph modal reuses the same view. A worktree path shows as local text only.
 
-- [ ] 44.4 PR checks, review and fork source in detail, after 44.3 [R92.4] (§4.27)
-  - Show required checks, files summary, standing review, source identity and queue/conflict state; never show a stale head as current.
+- [ ] 44.4 PR and branch chips on In flight rows, after 44.1 [R92.6, R92.9, R92.12] (§4.27)
+  - `PR #N` with a check dot, and the branch. Chips fit a 390 px row.
 
-- [ ] 44.5 Queue actions with person-only boundaries, after 44.3 [R92.5] (§4.27)
-  - Hold, re-queue, Stop the line and open on GitHub. Enforce person-only actions in operations, CLI and MCP.
+- [ ] 44.5 Landing queue page under Dashboards, after 44.1 [R92.7, R92.2, R92.12] (§4.27)
+  - A Dashboards page next to CI, not a nav pill. Per target base, items in landing order with each hold reason; full-width rows at 390 px. No GitHub call; Refresh redraws.
 
-- [ ] 44.6 Shared paginated queue read fills the cache, after 44.1 [R92.9, R92.13] (§4.27)
-  - Reuse the shared target PR/check read with fully qualified head identities. No task-issue list or full GitHub-browser mirror.
+- [ ] 44.6 Radar back-links through intake and the journal, after 44.1, 56.11 [R92.8, R92.10] (§4.27)
+  - Spec shows its Radar source issues. The intake status comment names the spec issue where visibility permits; the journal records the source issue as owner/repo#N under the privacy scan, so GitHub shows a cross-reference. Tests: a public Radar issue never names a private spec; no Radar API, grant or import; no new GitHub write.
 
-- [ ] 44.7 Lazy current-version PR detail cache, after 44.6 [R92.10, R92.16] (§4.27)
-  - Fetch once on first open; invalidate when source head, reviews or version changes. Journal/control refresh runs regardless of opening detail.
-
-- [ ] 44.8 Conditional reads, joined Recheck and usage source, after 44.6 [R92.11, R92.12, R92.14] (§4.27)
-  - Conditional unavoidable REST, no browser polling; Refresh redraws. Concurrent Rechecks join; count actual rate-limit usage under pages.
-
-- [ ] 44.9 Queue cache and call-budget tests, after 44.7, 44.8 [R92.15] (§4.27)
-  - 500 cached portions cost zero to list/filter; unchanged details zero; one new detail one read; changed PRs share per-repository reads plus pages; concurrent Rechecks join one read.
-
-- [ ] avoozl-p54 P54 Proof: landing queue and cache on real GitHub, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6, 44.7, 44.8, 44.9 [R92, R102.7, R102.12] (§4.27)
-  - Setup: isolated scratch workspace with two registered targets, one PR from a fork, and verified/unlanded portions; no real workspace tick.
-  - Action: open queue and PR detail at 390 and 1280 px, light and dark; count reads; reopen an unchanged detail and filter cached rows.
-  - Expected: exact target/source/portion and standing review shown; cached list/filter/detail cost zero extra calls; first new detail one read; pages usage attribution. Private spec references never render on a public surface.
-  - Also record: screenshots, exact source and target SHAs, cache/conditional-call counters and owner screenshot approval. Live receipt under docs/evidence/; wait for owner approval before ticking.
-  - Failure means: stale authority, leaked private links, extra list calls or unusable mobile layout. No Issue Radar parity comparison is required.
-  - Next decision: owner approves the screenshots and remaining shared projection deletion, or names the queue detail to change.
+- [ ] avoozl-p54 P54 Proof: links and the landing queue on real GitHub, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6 [R92, R102.7, R102.12] (§4.27)
+  - Setup: isolated scratch workspace with two registered targets, one PR from a fork, a spec created from a scratch Radar-style issue, one landed and one held task; no real workspace tick.
+  - Action: open the spec details panel, a task's details and its Graph modal, In flight and the Landing queue at 390 and 1280 px, light and dark; follow each link; count GitHub calls before and after.
+  - Expected: every link reaches the right GitHub item in a new tab; held items show the right reason; opening and refreshing the views adds zero calls; the scratch Radar issue shows the spec link only when the spec is public. Private spec references, host names, usernames and paths never render on a public surface.
+  - Also record: screenshots, exact source and target SHAs, call counts and owner screenshot approval. Live receipt under docs/evidence/; wait for owner approval before ticking.
+  - Failure means: a wrong or stale link shown as current, a leaked private reference, an extra GitHub call or an unusable mobile layout.
+  - Next decision: owner approves the screenshots and remaining shared projection deletion, or names the link or queue detail to change.
 
 ## Phase 45: Remove the Issue Radar path
 
@@ -1734,6 +1735,7 @@ recovers, and a backend restart mid-run.
   - Built: `src/app/harness-allow.mjs` (`sandboxAllowCommands`, `harnessAllow`); tests in `src/app/test/harness-allow.test.mjs`.
 - [x] 47.9 Spend cap from the task budget and the plan-quota stop, after 47.4 [R94.6, R94.6a] (§4.28)
   - Built: `spendCapUsd` in `src/app/budget.mjs` (dollars left on a stop-mode cap, null for warn mode and uncapped roles) fills `{budget_usd}`, and the supervisor appends the definition's `spendCap`; `planQuotaHold` in `src/app/executors/process.mjs` holds a new `process` session when its model or harness provider reads `low` or `out`, and a spent budget holds it too; tests in `src/app/test/process-executor.test.mjs`. Whether `--max-budget-usd` binds on a plan login is checked by `src/app/test/claude-plan-budget.test.mjs`, which runs only with `AVOOZL_LIVE_CLAUDE_PLAN=1` on a plan login and refuses an API or cloud login; it has not been run on one yet.
+  - Removed 2026-11-17 (owner): `spendCapUsd`, `{budget_usd}`, `spendCap` and the spent-budget hold. The plan-quota stop (`planQuotaHold`) stays; it moves out of the budget code.
 - [x] 47.10 Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted, after 47.2 [R95.6, R95.7] (§4.28)
   - Kiro Crew chats: the docs and Settings say the person-only refusal is a speed bump.
   - Built: `src/app/sandbox.mjs` (`sandbox-exec` on macOS, `bwrap` on Linux, else the per-machine opt-in), wrapped around each child in `src/app/supervisor.mjs`; text in `docs/policies.md` and Settings › Models; tests in `src/app/test/sandbox.test.mjs`.
@@ -1767,7 +1769,11 @@ Requirement 94.7 (design §4.28). Exit: Codex runs a task with no code change.
   - Its start and resume argv, permission values and cost source.
   - Built: `examples/harnesses/codex.json`: `codex exec --json -C {worktree} --sandbox {permission} -c approval_policy=never`, brief on stdin; resume adds `resume --last -`, since Codex takes no session ID at start and `--last` reads only the worktree's own sessions; `workspace-write` and `read-only`; no allow flag, no spend cap and no cost source (its JSON reports tokens, not dollars). Tests in `src/app/test/codex-definition.test.mjs`. For P58: Codex applies its own `sandbox-exec` per command on macOS, and a nested `sandbox-exec` fails (`sandbox_apply: Operation not permitted`); the project's `sandbox.writeRoots` must name the Codex home, where it records sessions.
 
-- [ ] avoozl-p58 P58 Proof: Codex runs a task from its definition file alone, after 48.1 [R94.7] (§4.28)
+- [x] 48.2 Inner sandbox off only under Avoozl's sandbox, after 48.1 [R94.4b, R94.4d] (§4.28)
+  - `permission.write` may be exactly `danger-full-access`; the child then starts only inside Avoozl's sandbox with the task write roots, and is refused with no Avoozl sandbox, opt-in or not. `examples/harnesses/codex.json` uses it.
+  - Tests: refused without the Avoozl sandbox, allowed with it, every other bypass value still refused.
+
+- [ ] avoozl-p58 P58 Proof: Codex runs a task from its definition file alone, after 48.1, 48.2 [R94.7] (§4.28)
   - Setup: the Phase 47 scratch repository; the Codex definition approved by hash; the source tree at a recorded commit.
   - Action: run one task and one feedback round on Codex.
   - Expected: the child exits with a valid `.avoozl/result.json`, Avoozl commits its changes and the task finishes; `git diff --stat` of every source file against the recorded commit is empty, and the proof fails if any source file changed.
@@ -1779,8 +1785,9 @@ Requirement 94.7 (design §4.28). Exit: Codex runs a task with no code change.
 
 Requirement 97.3 (design §4.28).
 
-- [ ] 49.1 Verifier, reviewer, planner, retro and watch run on `process`, after avoozl-p57 [R97.3, R94.4] (§4.28)
+- [x] 49.1 Verifier, reviewer, planner, retro and watch run on `process`, after avoozl-p57 [R97.3, R94.4] (§4.28)
   - Read-only roles get the read-only class.
+  - Built: a `process` project's verifier and review roles (`planVerifierDispatches`), retro (`retroStep`) and New plan planner (`newPlanStarts`) request `process`; `drainProcessRequests` adds a verdict role's detached worktree at the commit and removes it after, gives a retro a scratch folder, and gives the planner only its spec folder (`src/app/executors/process.mjs`). `processBrief` puts the role's `prompts/<role>.md` first and says how to finish without Avoozl's tools; a read class writes only its temp folder and `.avoozl/` (`harnessPermission`), and a definition's `resultAllow` lets it write the result file (Claude Code: `dontAsk` plus `Edit(.avoozl/result.json)`, checked on Claude Code 2.1.326, where `plan` refused the file). The result file's `report` carries a verdict or a retro's reply. No watch session exists: the line watch runs in the tick with no agent. The GitHub breakdown planner, plan review and pull request review chats stay on `kirocrew`. Tests in `src/app/test/process-roles.test.mjs`.
 
 - [ ] avoozl-p59 P59 Proof: each role runs on either executor, after 49.1 [R97] (§4.28)
   - Setup: a scratch workspace; each role pinned once to `kirocrew` and once to `process`.
@@ -1794,7 +1801,7 @@ Requirement 97.3 (design §4.28).
 Requirement 98 (design §4.28). Screen changes wait for the owner's
 screenshots review.
 
-- [ ] 50.1 In flight for `process` sessions: status, log tail, cost, copyable attach command, after avoozl-p57 [R98.1] (§4.28)
+- [x] 50.1 In flight for `process` sessions: status, log tail, cost, copyable attach command, after avoozl-p57 [R98.1] (§4.28)
 - [ ] 50.2 Send message queues a `send`, after 50.1 [R98.2] (§4.28)
 - [ ] 50.3 Settings › Models picks harness and model per role; a `session` pin may name a harness, after avoozl-p57 [R98.3, R98.4] (§4.28)
 
@@ -1810,8 +1817,8 @@ screenshots review.
 Requirements 95.3, 98.5 (design §4.28). The base for the pull-based worker
 mode of Phase 43.
 
-- [ ] 51.1 The supervisor under launchd or systemd, running the tick too, after avoozl-p57 [R95.3] (§4.28)
-- [ ] 51.2 CLI only: `avoozl status` and `avoozl runner status --json`, after 51.1 [R98.5] (§4.28)
+- [x] 51.1 The supervisor under launchd or systemd, running the tick too, after avoozl-p57 [R95.3] (§4.28)
+- [x] 51.2 CLI only: `avoozl status` and `avoozl runner status --json`, after 51.1 [R98.5] (§4.28)
 
 - [ ] avoozl-p61 P61 Proof: a headless machine runs tasks with the CLI only, after 51.1, 51.2 [R95, R98.5] (§4.28)
   - Setup: a machine without Kiro Crew's page, the supervisor under launchd.
@@ -2027,9 +2034,31 @@ approval before merge.
 - [x] 57.6 Approve dialogs: counts, Open review link and in-place revision updates, after 57.1, 57.4 [R104.12, R104.13] (§4.33)
   - `PlanReviewSummary.tsx` shows counts by severity and state and Open review, without close controls; both dialogs re-read on the page refresh, update in place on a hash change with the changed files and findings, and reset Approve; `plansClient.approve` returns the change instead of throwing; `plan.approve` still refuses a stale hash. Tests: no thrown "changed" error, batch per entry. Owner screenshot approval before merge.
 
-- [ ] avoozl-p68 P68 Proof: a person reads, decides and approves a reviewed spec, after 57.1, 57.2, 57.3, 57.4, 57.5, 57.6, avoozl-p63 [R104] (§4.33)
+- [x] avoozl-p68 P68 Proof: a person reads, decides and approves a reviewed spec, after 57.1, 57.2, 57.3, 57.4, 57.5, 57.6, avoozl-p63 [R104] (§4.33)
   - Setup: an isolated workspace and Kiro Crew home, a scratch planning repository with one draft spec that names a missing file, hides an order in prose and has one vague criterion, and real planner and reviewer chats on two different owner-selected models with `planReview.rounds: 1`.
   - Action: (1) let the round run and the planner answer; (2) open the Review view, filter by severity, click each finding; (3) accept one answered finding, reject one with a reason, defer one; (4) let the planner's person-triggered turn write a new revision while the Approve dialog is open; (5) press Review anyway once; (6) approve from the dialog.
   - Expected: (1) findings with severities, categories and quote anchors; (2) borders grey, yellow and red, the rail lines up and each click highlights its lines; (3) history shows the owner and revision, the deferred one is a follow-up with no task; (4) the dialog updates in place with the changed files, no error, and the accepted finding is fixed; (5) one more round that does not repeat the rejected finding; (6) approval at the revision on screen, the same as with no review, with zero GitHub calls. Screenshots at 390 and 1280 px, light and dark, approved by the owner.
   - Failure means: an anchor points at the wrong lines, an agent can decide a finding, a blocker changes approval, or the dialog makes the person reopen it.
   - Next decision: search other files for moved quotes, or keep same-file anchoring.
+
+## Phase 58: A role per repository replaces Where tasks live
+
+Owner request 2026-11-17 (Requirement 105, design §4.34). One build task.
+It touches `github-policy.mjs`, `settings-api.ts`, `SettingsView.tsx`,
+`RepositoriesSettings.tsx` and `ModePicker.tsx`; another change makes
+Settings pages edit in place, so merge main often and keep to the role
+picker. The owner waived screenshot review for this task.
+
+- [x] 58.1 Repository roles replace Where tasks live, after 3.14, 20.2 [R105.1, R105.2, R105.3, R105.4, R105.5, R105.6, R105.7, R105.8, R105.9, R105.10, R28.1] (§4.34)
+  - One resolver in `github-policy.mjs` maps roles to mode and `planningRepository` and back, refuses mixed roles, and runs in the config loader; the schema gains `role` and keeps `mode` and `planningRepository`. Repository setup shows an in-place role picker per repository, the "Tasks live in" line and a synthesized "GitHub only" planning row; the Where tasks live page and tab are removed, the workspace-wide settings move to Settings › Workspaces, and the old link opens Repository setup. Tests for the mapping, migration, refused mixes and screens; screenshots (phone and desktop, light and dark, in the full app shell) under `docs/evidence/repo-roles/`.
+
+## Phase 59: Trace moves into task details
+
+Owner decision 2026-11-17 (Requirement 106, design §4.35). One build task.
+Trace was built for one GitHub issue per task with a Radar claim, which the
+pivot retired. Other changes touch the nav, modals, Needs you and Settings;
+merge main often. If the Trace pill conflicts with another change, it goes.
+The owner waived screenshot review.
+
+- [ ] 59.1 Remove Trace; task details get a Timeline of Avoozl's task steps, after 55.4 [R106.1, R106.2, R106.3, R106.4, R106.5, R106.6, R106.7, R106.8, R106.9] (§4.35)
+  - `task-steps.mjs` builds the steps from stored records and `taskDetailView` returns them; the Timeline box shows them above the history list, with builds by phase. The Trace nav entry, page, drawer, Done work list, `radar.trace`, `trace.done` and the Trace buttons are removed; old links open Delivery or the task's details. Tests for the steps, redirects, nav and zero GitHub calls; screenshots (phone and desktop, light and dark, full app shell) under `docs/evidence/trace-into-task/`.

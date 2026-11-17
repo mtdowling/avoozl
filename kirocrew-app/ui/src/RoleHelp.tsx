@@ -1,12 +1,8 @@
-// The mode chooser: one radio fold-out section per mode, Local only, Plans
-// repository and Single repository (RadioFold). The open section is the
-// selected mode and holds its picture, "Use it when" and facts, then a
-// rule, then that mode's settings. Nothing is saved until Save. Theme
-// variables only; no warning yellow.
+// What the roles make (R105.4): one card per outcome, with the picture,
+// "Use it when" and facts the old mode panes showed. Read only; the role
+// itself is picked in each repository's row. Theme variables only.
 import type { CSSProperties, ReactNode } from 'react'
-import { GitBranch, Laptop, Lock as LockIcon } from './icons.ts'
-import { MODE_CARDS, modeKey } from './settings-api.ts'
-import { RadioFold } from './RadioFold.tsx'
+import { MODE_CARDS } from './settings-api.ts'
 
 const OPEN = 'var(--ok)'
 const MERGED = 'var(--tile-purple, var(--accent))'
@@ -163,66 +159,54 @@ const CAPTION: Record<string, string> = {
   'single-repo': 'The pull request says Closes #12; GitHub closes the issue when it merges.',
 }
 
-const ICONS = { local: Laptop, 'plans-repo': LockIcon, 'single-repo': GitBranch } as const
+// Which roles make each outcome.
+const MAKES: Record<string, string> = {
+  local: 'Every repository is Local only.',
+  'plans-repo': 'One repository is the Planning repository and every other GitHub repository is a Code repository.',
+  'single-repo': 'Every GitHub repository is Code and planning.',
+}
 
-export function ModePicker(props: {
-  value: string
-  onChange: (mode: string) => void
-  idPrefix?: string
-  // The selected mode's settings fields, under a rule below its description.
-  children?: ReactNode
-  // Notes that belong with the description, with no rule (Local only).
-  note?: ReactNode
-}) {
-  const id = props.idPrefix ?? 'avoozl-mode'
-  const current = modeKey(props.value)
+export function RoleHelp() {
   return (
-    <div data-mode-picker>
-      <RadioFold
-        name={id}
-        label="Where tasks live"
-        value={current}
-        onChange={(mode) => props.onChange(mode)}
-        sections={MODE_CARDS.map((card) => {
+    <details className="text-sm" data-role-help>
+      <summary className="cursor-pointer font-medium">What the roles make</summary>
+      <div className="mt-2 flex flex-col gap-4">
+        {MODE_CARDS.map((card) => {
           const Picture = PICTURE[card.mode]
-          return {
-            key: card.mode,
-            title: card.title,
-            line: card.line,
-            icon: ICONS[card.mode],
-            description: (
-              <div className="flex min-w-0 flex-col gap-3" data-mode-options={card.mode}>
-                <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' }}>
-                  <div className="rounded-md p-2.5" style={{ background: 'var(--bg-elevated, transparent)' }}>
-                    <Picture />
-                    <p className="mt-2 text-[11px] text-muted">{CAPTION[card.mode]}</p>
-                  </div>
-                  <div className="flex flex-col gap-2 text-xs">
-                    <div>
-                      <span className="font-semibold">Use it when</span>
-                      <ul className="mt-1 flex flex-col gap-0.5 pl-4" style={{ listStyle: 'disc' }}>
-                        {card.useWhen.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <dl className="grid gap-x-3 gap-y-1" style={{ gridTemplateColumns: 'max-content 1fr' }}>
-                      {card.facts.map(([label, text]) => (
-                        <div key={label} className="contents">
-                          <dt className="text-muted">{label}</dt>
-                          <dd>{text}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
-                </div>
-                {card.mode === current && props.note}
+          return (
+            <div key={card.mode} className="flex min-w-0 flex-col gap-2" data-role-outcome={card.mode}>
+              <div>
+                <span className="font-semibold">{card.title}</span>
+                <p className="text-xs text-muted">{MAKES[card.mode]}</p>
               </div>
-            ),
-            fields: card.mode === current ? props.children : undefined,
-          }
+              <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' }}>
+                <div className="rounded-md p-2.5" style={{ background: 'var(--bg-elevated, transparent)' }}>
+                  <Picture />
+                  <p className="mt-2 text-[11px] text-muted">{CAPTION[card.mode]}</p>
+                </div>
+                <div className="flex flex-col gap-2 text-xs">
+                  <div>
+                    <span className="font-semibold">Use it when</span>
+                    <ul className="mt-1 flex flex-col gap-0.5 pl-4" style={{ listStyle: 'disc' }}>
+                      {card.useWhen.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <dl className="grid gap-x-3 gap-y-1" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+                    {card.facts.map(([label, text]) => (
+                      <div key={label} className="contents">
+                        <dt className="text-muted">{label}</dt>
+                        <dd>{text}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              </div>
+            </div>
+          )
         })}
-      />
-    </div>
+      </div>
+    </details>
   )
 }

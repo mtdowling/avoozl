@@ -393,6 +393,8 @@ registered; and its route has capacity.
 
 ### 4.4 Repository policy in `.avoozl.json`
 
+Since 2026-11-17 `mode` and `planningRepository` are derived from each repository's `role` (§4.34, Requirement 105); older files that hold only them still read.
+
 **Proposed.** Replaces `github.queue` label behaviors and single-label intake
 (F15). No names are built in; the values below are examples.
 
@@ -1279,7 +1281,7 @@ reply that is not the list, a pick outside the options or no pick, a
 content rule holds the brief, the router's model is out (rate limit or
 credits), or there is no folder to open the router chat in. A task no
 crew passes is a no-fit decision (above), never a local run. Router chats
-have no budget cap (§4.17), so a budget never stops one; if anything drops
+are not stopped by spend (budgets removed 2026-11-17); if anything drops
 the router's dispatch, the 90-second limit makes it a failure.
 
 - The task stays Ready and is marked `routing failed` with the reason (the
@@ -2591,259 +2593,16 @@ Each new SDK plan made this way can join one epic, such as an SDK target
 architecture epic, through the drawer's Epic field. The review's outcome
 note and links reach the cutover workers' briefs.
 
-### 4.17 Budgets and usage receipts
+### 4.17 Budgets and usage receipts (removed)
 
-**Proposed**, owner decisions 2026-11-13 (Requirement 67). A task that loops
-or keeps asking for review rounds can spend without limit, and nobody sees
-it until the bill. Avoozl already reads every turn's tokens and credits for
-the sessions its tick opened (§4.11, owner additions, `flow_usage`). This
-section adds a price table, a cap per task, a stop at the cap, and a receipt.
-
-```text
-GET /api/usage/turns (after each tick receipt) ─▶ flow_usage (raw counts only)
-                                                       │
-built-in dated price list ─▶ priced on read ──────────┤
-                                                       ▼
-cap = task ▸ spec ▸ repository ▸ workspace ─▶ spend ≥ cap?
-   │ no: Delivery card, In flight, drawer show $spent / $cap
-   ▼ yes
-no new session for the task; stop message to each live session
-   ▼
-Needs you: Raise budget (person) │ Stop (person, pauses like Deferred)
-```
-
-#### Price table
-
-- **Built in.** `src/app/default-prices.mjs` holds public list prices
-  (base input and output, dollars per million tokens) for known models,
-  with `updated` (the date read) and `sources` (the pricing page URLs).
-  Avoozl uses it with no setup. A model ID matches after `priceKey`
-  normalizes it: lower case, no provider prefix, no date or version suffix,
-  dots between version numbers (`claude-sonnet-4-5-20250929` →
-  `claude-sonnet-4.5`). Cache writes and hits are not in Kiro Crew's usage
-  rows, so they are not priced. Updating the table is a code change that
-  moves `updated` with the numbers (owner decision 2026-11-13: nobody
-  should have to type prices).
-- **No user price list.** There is no price page, no override, no credit
-  price and no `prices.get` or `prices.save` (owner decision 2026-11-14).
-  A saved `prices` key in `~/.config/avoozl/config.json`, `.avoozl.json` or a
-  manifest is ignored, never an error. A settings pack has no `prices`
-  setting, so it is refused like any unknown key.
-- **Receipts.** A receipt names the built-in list by its `updated` date and
-  a sha256 of that date (`price: { updated, sha256 }`). Rows an older
-  build wrote keep their `priceVersion` number.
-- **Pricing a turn.** `credits > 0`: unpriced, counted against the credit
-  cap: Kiro Crew bills it in credits, and a token list price is not what it
-  cost. Otherwise tokens at the built-in price for the model:
-  `input × inputPerMTokUsd / 1e6 + output × outputPerMTokUsd / 1e6`.
-  Anything else is unpriced and counts against the token cap.
-
-#### Caps
-
-- **Levels.** `budget: { usd?, tokens?, credits?, mode? }` at the workspace
-  (`.avoozl.json` `budget`), the repository (`projects.<id>.budget`), the
-  spec (manifest top-level `budget`), and the task (a leaf's `budget`). The
-  most specific level that sets a key wins, key by key. Every level is a
-  per-task cap; there is no spec-wide total. With no `usd` anywhere, the
-  task has no dollar cap; its receipt is still kept.
-- **Fallback.** Unpriced turns count against `tokens` (input plus output)
-  and `credits`, defaulting to 2,000,000 and 200 per task. Priced turns
-  count only against `usd`. A task stops when any of the three is reached.
-  The first unpriced turn of a model on a task raises one warning on the
-  task that says why (no known price, or billed in credits) and which cap
-  it counts against.
-- **What counts.** Every binding of the task: writer attempts and retries,
-  the verifier, review roles (§5.2), responders for pull request feedback
-  (§4.13), and the batch (§4.11). A batch's cap is the sum of its tasks'
-  caps; its turns are shared out evenly across its tasks and marked
-  `shared` on their receipts. A fix task (`<culprit-id>.fix-<n>`) has its
-  own cap from its repository and workspace. Planner, critic, retro and
-  router sessions are not tasks and have no cap; their turns show on Flow
-  under "no task".
-- **Modes.** `mode` is `"stop"` (default) or `"warn"`, most specific
-  level winning. In `stop` mode the cap works as "The stop" below. In
-  `warn` mode nothing is stopped, paused or messaged: at 100% the task
-  gets an Over budget badge (spend / cap) on the drawer, the Delivery card
-  and In flight, and one Needs you item, "Over budget: $X of $Y", with
-  Acknowledge, Raise budget and Switch to stop (person only).
-  Acknowledge clears it until spend passes the next step, each further
-  50% of the cap. `budget.notify: true` at the workspace also sends a Kiro
-  Crew notice per step; it is off by default. Switch to stop records who
-  and when in `budget_holds` and the next check stops the task.
-- **80% warning.** At 80% of any cap the task and the receipt show a
-  warning in both modes; nothing else changes.
-- **Fallback settings.** The 2,000,000-token and 200-credit fallbacks are
-  the defaults of the workspace `budget.tokens` and `budget.credits`.
-- **Intake grants.** A grant (`intakeBudget` on the task) only fills a
-  dollar cap no level set, never raises a person's cap, and forces `stop`
-  mode.
-- **Raises.** `budget.raise {taskId, usd?, tokens?, credits?}` (person
-  only) writes a row to `budget_raises` (`task_id`, `by`, `at`,
-  `from_json`, `to_json`, `price_version`). A raise overrides the computed cap for that task
-  without editing the approved manifest, whose hash stays pinned.
-
-#### The stop
-
-Spend is known after each usage read, which runs after each tick receipt,
-about once a minute. The check runs then (in the app backend, under the
-tick's lock) and again in the tick before any dispatch for the task. A
-task can pass its cap by the turns that run between two reads; the
-receipt shows the overrun. Stops, pauses, over-budget steps and sent
-messages live in SQLite `budget_holds`. The rest of this section is
-`stop` mode.
-
-1. Spend reaches a cap. The tick records a `budget` stop on the task:
-   spend, cap, level, and the price version used.
-2. The tick dispatches nothing new for the task: no retry, verifier,
-   review round, responder, or batch slot.
-3. For each live session bound to the task, the tick queues one message
-   through the existing `messages` intent and `send_to_session` (§4.6):
-   "Budget reached. Finish the tool call you are in, leave the worktree as
-   it is, report `blocked` with `budget`, and stop." Kiro Crew delivers it
-   as the session's next turn (**Inferred**: a message sent to a busy
-   session waits for the current turn; P41 checks it with the fake, and
-   the first live stop records it). Avoozl never calls a stop, interrupt
-   or close on the session.
-4. Every Avoozl MCP call from a bound session, except `plans_report`,
-   returns `budget_reached` (status 409, error code `budget_reached`) with the same text, so a worker that missed the
-   message still learns at its next Avoozl call.
-5. The task opens one Needs you decision of kind `budget` with **Raise
-   budget** and **Stop**. Turns that ran between the cap and the stop are
-   still recorded; the receipt shows the overrun in dollars.
-
-Raise budget sends one "Budget raised to $N; go on" message to a live
-session, or lets the next tick dispatch the next attempt as usual. Stop
-pauses the task exactly as an allowed drag to Deferred does (§6.7): nothing
-new is dispatched, the session and worktree are left alone, dependents
-wait, and in GitHub modes the Project Status shows Deferred. Neither costs
-an attempt (§5.2).
-
-#### Receipts
-
-`budget.receipt {taskId}` is an observe operation:
-
-```json
-{
-  "taskId": "s1.a1",
-  "spec": "s1",
-  "repository": "r1",
-  "complete": false,
-  "missing": [{ "slot": "avoozl_…", "reason": "crew-mode" }],
-  "cap": { "usd": 5, "tokens": 2000000, "credits": 200, "level": "spec" },
-  "raises": [
-    { "by": "owner", "at": "…", "from": { "usd": 5 }, "to": { "usd": 8 } }
-  ],
-  "price": { "version": 3, "sha256": "…" },
-  "stops": [{ "at": "…", "usd": 5.12, "priceVersion": 2 }],
-  "totals": {
-    "input": 0,
-    "output": 0,
-    "credits": 0,
-    "usd": 0,
-    "unpricedTurns": 0
-  },
-  "byStage": [
-    {
-      "stage": "coding",
-      "input": 0,
-      "output": 0,
-      "credits": 0,
-      "usd": 0,
-      "priced": true
-    }
-  ],
-  "byModel": [],
-  "byAttempt": [],
-  "readAt": "…"
-}
-```
-
-- Stages are the Flow stages, attributed by `turnStage` (§4.11).
-- Dollars use the current price version on every read, so a price edit
-  recomputes old receipts. A stop or raise also keeps the dollars and
-  version that applied then.
-- The drawer's **Budget** fold, after Timing, shows spend against the cap,
-  the receipt tables, and **Export JSON**, which downloads the same object.
-  The CLI is `avoozl budget receipt TASK [--json]`; MCP is `plans_view`
-  action `receipt` (R56: no new tool).
-- The retro payload gains `receipts`: each finished task's totals by stage
-  and model. Counts, dollars, model IDs and stage names only.
-- The Delivery card and In flight card show a chip `$1.20 / $5.00`, muted
-  below 80% of the cap, red at the cap, and "spend unknown" when it is.
-
-#### Where usage can be missing
-
-| Case               | Why                                                                                                                 | What the budget does                                          |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Crew Mode worker   | Bound by a conductor, not opened by the tick; `observeUsage` reads `source: "tick"` bindings only                   | Spend unknown; warn once; no stop                             |
-| Remote chat        | `/api/usage/turns` reads this gateway's rows; remote placement is inert until MC-10, and MC-10 does not cover usage | Spend unknown; warn once; no stop                             |
-| Issue Radar route  | Avoozl opens no session (§6.4)                                                                                      | No receipt beyond "not run by Avoozl"                         |
-| Usage read fails   | Kiro Crew refuses or the backend is down                                                                            | Keep last known spend with its time; retry next tick; no stop |
-| Turn with no model | Row has tokens but no `model`                                                                                       | Unpriced; counts against the token cap                        |
-
-Unknown spend never stops a task, because a budget is a cap, not a
-permission, and stopping on missing data would turn a read failure into a
-blocked line. Known spend from readable sessions of the same task still
-counts.
-
-#### Incoming item budgets (hook only)
-
-An incoming item (§4.12) may later carry `budget: { usd }` from a plugin
-source whose entry the owner approved with a `budget` capability. A task
-made from that item by Plan this or Deliver this would take it at the spec
-level, below the manifest task. Nothing builds this until a real grant
-plugin exists; payments, escrow and refunds are out of scope. A grant only sets a cap where none
-exists and is always `stop` mode (owner decision 2026-11-13).
-
-#### Built (2026-11-13)
-
-`src/app/budget.mjs` holds the price lookup, caps, spend, holds and
-receipts. Settings puts caps in **Settings › Budgets** (workspace and each
-repository, `budget.settings.get` and `budget.settings.update`) rather than
-in the repository Edit modal, so each cap lives in one place. The CLI adds
-`avoozl budget view|raise|stop|acknowledge|switch-to-stop`. The driver
-export (§6.10) is not built yet.
-
-#### Settings pages (owner UX audit, 2026-11-13)
-
-- **Budgets.** Each level is titled bordered boxes: **Dollar cap** (a blank
-  field says what it falls back to: "Blank: the workspace default ($5)"),
-  and **When a task reaches its cap**, the shared radio fold-out with Stop
-  and Warn. A repository's first choice says where it comes from and what
-  it is, "Use the workspace default (Stop)"; nothing says "same as above".
-  The Warn choice holds the notice checkbox at the workspace. The token and
-  credit caps fold away under **Advanced: caps for turns not counted in
-  dollars**.
-- **Ask for help.** The shared chat-icon link (`AskForHelp` in
-  `controls.tsx`, §8.9) on Budgets and Settings › Routing ›
-  Providers
-  opens a Kiro Crew chat through `chat.context` purpose `help`, seeded with
-  the page, its current values and the `avoozl-costs` skill
-  (`skills/avoozl-costs/SKILL.md`), which explains every field and
-  default. The chat proposes values and is told to save nothing, so the
-  page's Save stays the only write.
-
-#### Why each choice
-
-| Choice                               | Why                                                                                                                                        |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Dollars as the unit                  | Tokens and credits do not compare across models                                                                                            |
-| Built-in dated prices only           | Nobody knows list prices by heart; a dated table with its source says how fresh it is. A price page nobody needed was removed (2026-11-14) |
-| Credit turns budgeted in credits     | Kiro Crew bills them in credits; a token list price is not what they cost                                                                  |
-| Raw counts stored, dollars on read   | A price change recomputes every receipt                                                                                                    |
-| Receipt names the price list's date  | A receipt can say which prices made a stop                                                                                                 |
-| Token and credit fallback            | An unpriced model must still have a ceiling                                                                                                |
-| Most specific level wins, key by key | A task can tighten one cap without restating the rest                                                                                      |
-| Raise in SQLite, not the manifest    | The approved manifest's hash stays pinned                                                                                                  |
-| Stop at the next turn by message     | Ending a tool call mid-change can lose work                                                                                                |
-| Retries and reviews share the cap    | The point is a task's total cost                                                                                                           |
-| Unknown spend warns, never stops     | A missing read must not block delivery                                                                                                     |
-| Warn mode                            | Some owners want to see overspend, not block it                                                                                            |
-| Acknowledge until the next 50% step  | One item per step cannot nag every tick                                                                                                    |
-| Grant caps always stop               | It is someone else's money                                                                                                                 |
-| No spec-wide total                   | Owner decision 2026-11-13; per-task caps first                                                                                             |
-| Raise and Stop person only           | Spending more is the owner's call                                                                                                          |
-| Budget never a permission            | Spend limits must not loosen safety gates                                                                                                  |
+Removed 2026-11-17 (owner): budgets. A budget only caps Kiro Crew chats; Avoozl cannot see Claude Code or Codex spend.
+Removed: caps at four levels, the price table (`default-prices.mjs`),
+`budget.mjs`, `budget_holds`, the stop message and `budget_reached`, Raise
+budget, Over budget, receipts, the drawer's Budget fold, Settings › Budgets
+and the spend cap in harness definitions. Kept: the per-turn usage reads and
+`flow_usage` (§4.11) for Flow's usage charts, and the plan-quota stop (§4.28).
+A `budget` or `prices` key in `.avoozl.json`, a repository entry or a manifest
+is ignored with one warning, never an error.
 
 ---
 
@@ -3581,23 +3340,66 @@ mirror and forward flow (RC24–RC26) is not used for this setup.
 | 41. Scheduler and direct landing        | The 13 pilot tasks on Nupp land, with owner minutes, credits and wall-clock per task recorded |
 | 42. PR landing and the setup command    | Ten tasks land on a repository with a required check                                          |
 | 43. Worker machines pull work           | A second machine with a second GitHub login pulls, claims and completes tasks from a shared pool on real GitHub; a race between two workers shows exactly one claim wins |
-| 44. Landing queue panel      | The landing queue shows exact portions and fork heads at 390 and 1280 px, light and dark; cached lists make 0 calls |
+| 44. Links and the landing queue | Specs, tasks and In flight link to their issue, branch, PR, checks and landed commit; the Landing queue shows hold reasons at 390 and 1280 px, light and dark; 0 new GitHub calls |
 | 45. Remove the Issue Radar path         | Leaf audit any time; 45.2 after P52; 45.2/45.3 have exclusive shared-file access; remaining shared edits last; compatibility names still resolve                   |
 
-### 4.27 Landing queue panel
+### 4.27 Links to related GitHub items, and the landing queue
 
-Revised 2026-11-16 (Requirement 92). Replace the unbuilt Issues and Pull
-requests browser with a focused landing panel: target/base, qualified source
-head (including forks), exact portion, checks/review, landing state, linked
-public slice issue and applicable actions. At 390 px use full-width list
-and detail with back navigation. Screenshots at phone/desktop, light/dark
-wait for owner review. Open on GitHub for issue discussion and full PR browsing.
+Revised 2026-11-17 (Requirement 92). Owner decision: no Issues or Pull
+requests pages. Avoozl links from specs and in-flight work to the GitHub items
+they relate to, and shows what waits to land. Discussion and full browsing stay
+on GitHub. A dedicated SCM links page is out of scope.
 
-The panel reads the shared tick cache; list/filter/scroll/Refresh make no
-calls. Fetch PR details lazily by current version; invalidate changed data.
-Concurrent Rechecks join the shared paginated read. Conditional REST and
-`pages` usage accounting stay. Journal, ownership and control invalidation
-run independently of opening the panel or changing a branch (§4.32.9).
+**One link set, from stored records only.** A pure read model builds one link
+set per spec and one per task from rows the tick and landing already write.
+It adds no GitHub read, and its only input is the local store:
+
+| Link | Stored source |
+|---|---|
+| Spec issue | Spec publication and journal (56.2) |
+| Spec working branch | Qualified working heads (56.3) |
+| Task branch and worktree | Worktree preparation (40.4) |
+| Task PR and check state | Landing queue and the shared PR/check read (41.x, 42.x) |
+| Landed commit | Delivery records |
+| Radar issues a spec came from | Intake and escalation records (56.8, 56.14) |
+
+Each link carries its repository, kind, number or ref or SHA, and, for check
+state, the head SHA and read time. A URL is built from those fields for the
+repository's registered host; no URL is taken from issue or comment content.
+A missing record shows as "none". Check state shows its age; when the stored
+head differs from the task's current head the dot is grey and says so. A
+counting-client test builds link sets for a seeded workspace and asserts the
+GitHub call count is the same as with link sets off.
+
+**Where links show.**
+
+| Surface | Links box or chips |
+|---|---|
+| Spec details panel | Spec issue, working branch, open PRs with a check dot each, Radar issues it came from |
+| Task details view, and the Graph modal that reuses it | Branch, PR, checks, landed commit, issue |
+| In flight rows | `PR #N` chip with a check dot; branch chip |
+
+Every GitHub link is an anchor with `target="_blank"` and
+`rel="noopener noreferrer"`. A worktree path is shown only in the local app,
+as text, never as a link and never in a GitHub write. A spec issue in a private
+home renders only on local surfaces.
+
+**Landing queue page.** Dashboards gains a Landing queue page next to CI (a
+Dashboards page, not a nav pill). It reads the per-base landing queue (41.2)
+and the cached check state: one group per target base, items in landing order,
+and for each held item the reason (checks pending or failing, conflict round
+N, path hold, review missing, line stopped, landing off). At 390 px rows stack
+full width. It makes no GitHub call; Refresh redraws from the store.
+
+**Radar back-links.** A spec lists the Radar issues it came from in its Links
+box. The Radar issue reaches its spec only through writes Avoozl already
+makes: the `crew:avoozl` intake status comment (§4.32.11), which names the spec
+issue where visibility permits, and the spec's journal, which records the
+source issue as `owner/repo#N` under the privacy scan (56.11), so GitHub shows
+its own cross-reference on the Radar issue. A public Radar issue never names a
+private spec. No Radar API, grant or shared module ties the two.
+
+Phase 44 is no longer paused. Phase 45 (Radar removal) stays paused.
 
 ### 4.28 Any harness runs the work; Kiro Crew stays the only UI
 
@@ -3635,8 +3437,7 @@ placeholders; nothing is passed through a shell.
   "permission": { "write": "workspace-write", "read": "read-only" },
   "writeRoots": ["{worktree}", "{tmp}", "{project_cache_dirs}"],
   "allow": ["{project_allow_commands}"],
-  "cost": { "from": "output", "field": "total_cost_usd" },
-  "spendCap": ["--max-cost", "{budget_usd}"]
+  "cost": { "from": "output", "field": "total_cost_usd" }
 }
 ```
 
@@ -3648,10 +3449,10 @@ sandbox values are not verified yet; they are proof items of Phase 47
 
 | Topic          | Decision                                                                                                                                                          |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Permissions    | Write roles: the harness's workspace-write sandbox, confined to the task worktree. Read-only roles: read-only. Never a skip-all-permissions or bypass flag. A harness that cannot confine writes is refused for write roles unless the owner opts in per machine. A spend cap the harness offers is set from the task budget |
+| Permissions    | Write roles: the harness's workspace-write sandbox, confined to the task worktree. Read-only roles: read-only. Never a skip-all-permissions or bypass flag. A harness that cannot confine writes is refused for write roles unless the owner opts in per machine. Avoozl passes no spend cap (budgets removed 2026-11-17) |
 | Default        | `process` with Claude Code for the Nupp compiler repository; `kirocrew` for Avoozl's own repository until Phase 47's proof passes                                  |
 | Write roots    | Task folder, temp, and the cache directories in project config. The worktree's git directory is in the main checkout (`git rev-parse --git-common-dir`), so the child only edits and Avoozl commits after it exits |
-| No skip flag   | Enforced in code: a definition with `bypassPermissions`, `danger-full-access` or any `--dangerously-*` flag is refused at load, with a test |
+| No skip flag   | Enforced in code: a definition with `bypassPermissions`, `danger-full-access` or any `--dangerously-*` flag is refused at load, with a test. One exception (2026-11-17, R94.4d): `permission.write` may be exactly `danger-full-access` for a harness whose own sandbox cannot nest inside Avoozl's (Codex on macOS); such a child starts only inside Avoozl's sandbox with the task write roots, and with no Avoozl sandbox it is refused, opt-in or not |
 | Allow-list     | Per project, the build and test commands an unattended child may run without a prompt. `git push` is never on it |
 | Spend          | A spend cap flag caps API spend and may not bind on a plan login (proof item). Plan quota: no new session once the quota reads low |
 | Kiro Crew repo | Avoozl's own repository on `kirocrew` chats has trust mode set again each tick, or ordinary workers stall unattended |
@@ -3781,7 +3582,7 @@ revisionHash, current, found, fixed, forYou, open: [...], note}`.
 **Flow.** Planning spans are keyed by spec, not task: stages `plan-review`
 and `plan-answer` in their own table, and usage rows from those sessions are
 tagged with the spec. The Flow tab shows a Planning group per spec. Task
-flow efficiency and budgets do not read it.
+flow efficiency does not read it.
 
 | Choice                                     | Why                                                                                                       |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
@@ -4593,7 +4394,8 @@ Retain the legacy manifest spellings `route: github` (landing queue) and
   private handoff export. Keep pure release ranking and build observations.
 - Add head-guarded PR merge and qualified-ref discovery to the GitHub client;
   do not interpret arbitrary remote URLs in issue content.
-- Phase 44 becomes a landing-queue panel (§4.27), not a GitHub browser.
+- Phase 44 becomes links from specs and in-flight work plus a Landing queue
+  page (§4.27), not a GitHub browser.
 - Phase 56 supplies outcomes, journal, migration, qualified branches, driver
   safety, refresh, recovery, epic/intake/export and mirror import changes.
   Direct and PR landing remain Phases 41–42; worker claims remain Phase 43.
@@ -4752,6 +4554,130 @@ Tests, with fake chats, fake model names and a fake GitHub:
 shortcut: anchors search only the same file, so a passage moved to another
 file reads as moved. Upgrade if reviews of split files show it often.
 
+### 4.34 A role per repository decides where tasks live
+
+Added 2026-11-17 (Requirement 105). Replaces the **Where tasks live**
+Settings page and the mode choice of §4.4. The three modes stay as the
+derived result; only the way a person sets them changes.
+
+**Roles.**
+
+| Role       | Issues, sub-issues, specs live in | Pull requests land in | Needs a GitHub remote |
+| ---------- | --------------------------------- | --------------------- | --------------------- |
+| `local`    | The workspace database            | The repository        | No                    |
+| `code`     | The planning repository           | The repository        | Yes                   |
+| `planning` | The repository itself             | None                  | Yes                   |
+| `both`     | The repository itself             | The repository        | Yes                   |
+
+**Mapping, both ways.**
+
+| Today's `github.mode` | Roles it gives (read)                                                  | Roles that give it (write)                                   |
+| --------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
+| absent or `local`     | Every repository `local`                                               | All `local`, or no repository                                |
+| `plans-repo`          | The `planningRepository` row `planning`; every other GitHub row `code` | Exactly one `planning`; every other GitHub repository `code` |
+| `single-repo`         | Every GitHub row `both`                                                | At least one `both`; no `planning`, no `code`                |
+
+Any other mix is refused on save (R105.2): one `planning` plus a `both`;
+two `planning`; `code` with no `planning`; `local` beside a GitHub role.
+No current mode needs such a mix, so no mode is lost. A workspace in
+`plans-repo` that registers only code repositories has its planning row
+synthesized from `planningRepository` ("GitHub only", no checkout). Such a
+planning repository has no `github.repositories` entry, so no `role` key can
+sit on it: `planningRepository` stays stored and names it, and the `code`
+roles are valid because it exists. With a `planning` role on an entry,
+`planningRepository` is set from that entry.
+`coder` is a repository setting and stays beside the role.
+
+**Storage and migration.** The canonical key is
+`github.repositories["owner/name"].role`. `github.mode` and
+`github.planningRepository` stay in the schema as derived values. One
+resolver in `github-policy.mjs` does both directions:
+
+```text
+read:  any role present? ─yes─▶ roles win; mode and planningRepository derived
+                         └no──▶ roles derived from mode and planningRepository
+write: roles ─▶ validate mix ─▶ write role per row + derived mode + planningRepository
+```
+
+The resolver runs inside the config loader, so readers of the raw
+`github.mode` (the marker, linked branches, the driver, content rules, the
+approval batches) see the derived value and need no change. Reading writes
+nothing. The first save of Repository setup writes `role` on every row with
+a GitHub remote and the derived keys, which equal the old values for an
+untouched workspace. A second save writes nothing new. The default coder
+(`worker` in plans-repo, `issue-radar` in single-repo, §4.4) follows the
+derived mode as before.
+
+**Screens.** Repository setup lists each repository with a role picker that
+saves in place (no Edit button for it; another change makes the other
+Settings pages edit in place, so this task touches only the role picker and
+what feeds it). The picker is the old RadioFold with the four roles; each
+role's body keeps the old pictures and facts for the mode it makes. Above
+the list: "Tasks live in the database", "Tasks live in acme/plans" or
+"Tasks live in each repository's own issues". A refused mix shows its line
+under the list and keeps the old roles.
+
+Settings › Workspaces takes what was not per repository: default authority,
+epic issue type, cache and write limits, sub-issue cap, include-done, Project
+and field names, **Set up GitHub**, crews and This computer. These show only
+when the derived mode is a GitHub mode, as before, with the same "Kept, not
+used" line in Local only. The `github` tab and `ModePicker` page are
+removed; a link to the old tab (`?tab=github`) opens Repository setup. The
+Set up GitHub wizard and Onboard read the derived mode and write roles, not
+`mode`, when they propose a change.
+
+**Tests.** Mapping both ways for every row of the table, the refused
+mixes, a stored mode that disagrees with the roles, a workspace with a
+synthesized planning row, read writes nothing, two saves equal one, raw
+`github.mode` readers see the derived value, the role picker and summary
+line, the moved settings, and the old link. Screenshots: Repository setup
+and Workspaces in the full app shell, phone and desktop, light and dark,
+committed under `docs/evidence/repo-roles/`.
+
+### 4.35 Task details hold the timeline; Trace is removed
+
+Added 2026-11-17 (Requirement 106). Replaces RC8.2 and D10's Trace.
+
+**Source.** `src/app/task-steps.mjs` exports `taskSteps(...)`, a pure
+function. `taskDetailView` passes it records it already reads or can read from
+the store, and returns the result as `steps` beside `timeline`:
+
+| Step                | From                                                                 |
+| ------------------- | -------------------------------------------------------------------- |
+| Spec approved       | The plan's approval receipt (`approvals`), with the approver          |
+| Ready               | The earliest `queued` flow span of the task                           |
+| Started (attempt N) | The earliest session binding of attempt N (`boundAt`)                 |
+| Attempt N failed    | The delivery record's attempt N, when its outcome is not `done`       |
+| Checks              | Evidence rows with an exit code: last time, passed and failed counts  |
+| Landed              | The delivery record in state done, verified or integrated, with commit |
+| Builds              | `build_observations` rows of the task, `receiptLine` and `phaseGroups` |
+| Integrated          | `task.integration` (time, commit)                                     |
+
+States and the wait text follow Trace: done, skipped (a later step has a
+time), now (the first without a time after the last timed one), later.
+Attempts expand in order, so a retry reads as Started 1, Attempt 1 failed,
+Started 2. Nothing here calls GitHub; a test builds the view with a GitHub
+double that fails on any call.
+
+**Screen.** `TaskDrawer` keeps its Timeline box (a `SectionBox`, open at first
+like the others). The steps list goes first, drawn as Trace drew it (dot,
+label, time, wait, detail, builds by phase), the history list below under
+"All records". `TraceView.tsx`, `TraceDone.tsx` and `trace-api.ts` go; the
+time helpers `clock` and `afterPrevious` move to `task-api.ts`.
+
+**Navigation.** `trace` leaves `TABS`. `redirectTab('trace')` returns
+Delivery. A `?trace=owner/repo#N` link is read once by a small component
+inside the task drawer provider: it reads the graph, finds the task whose
+issue matches and opens its details; with no match it opens Delivery. The
+Trace buttons on On the line rows and the Dashboard drawer are removed.
+
+**Tests.** `src/app/test/task-steps.test.mjs` (records to steps, failed,
+skipped, in progress, builds, no GitHub call); `kirocrew-app/ui/test`
+cases for the redirects, the nav, and the box; `trace.test.mjs`,
+`trace-page.test.mjs` and `trace-api.test.mjs` are removed with the code.
+
+shortcut: a task made before the pivot with no plan approval receipt shows
+Spec approved without a time; upgrade only if such tasks matter.
 
 ## 5. Local workflow
 
@@ -7164,7 +7090,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P37   | Workflow templates, manual leaves, and links and notes, in a temporary single-repo workspace with a fake GitHub and the sample SDK rewrite template: the template makes a draft that joins an epic and imports no setting unless ticked, the manual review leaf is never dispatched and gates cutover, only a person or an allowed GitHub closer completes it, and links and notes pass content rules, reach briefs, and reach the issue only when shown (Phase 22)                                                                                                                                                                                     |
 | P38   | The Specs name and ideas, in a temporary workspace with a fake chat and a fake New spec entry point: no user-facing plan word outside the allowlist, the compat names unchanged, an idea captured by a person, by MCP and by a session, refused fields and blocked text, an idea that never matches a rule or counts as untriaged, a riff that only appends, Make it a spec that prefills New spec and graduates the idea, and archive kept past the purge (Phase 23)                                                                                                                                                                                   |
 | P40   | Driver handoff with temporary workspaces on one fake GitHub: the plan issue's single assignee and the machine claim pick one driver, the epic's assignee stands in, zero or several assignees read only with one decision, one login on two machines, the check before dispatch, age never moves the role, drain then export then reassign and take over, a tampered file refused, rebuild and forced take-over with the loss list, a silently ignored reassignment, the old driver going read-only on return, away tasks never restarted by lease, the re-approve list, person-only 403s, and the Local only row (Phase 26)                            |
-| P41   | Budgets and receipts in a temporary workspace with fake workers and fake usage rows: priced and unpriced turns, caps by level, retries and review rounds on one cap, a batch's shared cap, the stop message at the next turn with no session stopped, `budget_reached` on MCP, Raise budget and Stop as a person only, a price change recomputing a receipt with both versions shown, unknown spend for Crew Mode and a failed read, JSON export, the retro payload, and no budget changing a gate (Phase 27)                                                                                                                                           |
+| P41   | Removed 2026-11-17. Budgets and receipts in a temporary workspace with fake workers and fake usage rows: priced and unpriced turns, caps by level, retries and review rounds on one cap, a batch's shared cap, the stop message at the next turn with no session stopped, `budget_reached` on MCP, Raise budget and Stop as a person only, a price change recomputing a receipt with both versions shown, unknown spend for Crew Mode and a failed read, JSON export, the retro payload, and no budget changing a gate (Phase 27)                                                                                                                                           |
 | P42   | Prompt and skill proposals and lessons with fake workers and a fake retro model in two temporary workspaces: locked sections, stale bases and blocked text dropped, person-only approve and revert, overrides outside shipped files, a repository skill change as a leaf and an external one as a note, PDCA per version with mixed windows, lessons shared with no source text, opt-out, refused lesson text, drift marks that clear on confirmation, the lessons review, override drift with a three-way diff, pack versions, and person-only export (Phase 28)                                                                                       |
 | P43   | The activity log in a temporary workspace with a fake GitHub and a fake plugin: every listed local action and tick event makes one row, a change seen twice makes one, a secret-shaped or rule-matched value is saved redacted, rows past retention go on the tick, and the tab and `plans_view` read the same rows (Phase 29)                                                                                                                                                                                                                                                                                                                          |
 | P45   | Investigate first, evidence bundles, staying current, rules from corrections, fix-work share and ship mode with fake workers, a fake falsifier and a fake GitHub (Phase 34)                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -7174,7 +7100,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P51   | Direct landing: the 13 Nupp pilot tasks land on public `core-dev`, with owner minutes, credits and wall-clock per task (Phase 41) |
 | P52   | PR landing: ten tasks land through pull requests on a repository with a required check, one at a time, none force pushed (Phase 42) |
 | P53   | Worker machines: a second machine and a second GitHub login pull, claim and complete tasks from a shared pool on real GitHub; of two racing workers exactly one claim wins (Phase 43) |
-| P54   | Landing queue with exact portions and fork heads at 390 and 1280 px, light and dark; owner screenshot approval and zero cached-list calls (Phase 44) |
+| P54   | Links and the landing queue at 390 and 1280 px, light and dark: every link reaches its GitHub item, zero new GitHub calls, owner screenshot approval (Phase 44) |
 | P55   | After removal: one delivery path, the compatibility names resolve, no Radar module remains (Phase 45) |
 | P56   | The executor seam: today's calls behind it, the existing suite unchanged (Phase 46) |
 | P57   | Supervisor and `process` with Claude Code: a 3-task chain with a resume round, a killed child, a backend restart (Phase 47) |
@@ -7218,7 +7144,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 22. Templates, manual tasks, links and notes                                  | The `template` plugin part and From template in New plan; `manual` leaves in Needs you and on GitHub; Links and notes on every task (§4.16)                                                                                                                                                                                                                         | Starts after 21.1, 16.3, 17.1 and P28; P37 runs after P36                                                           |
 | 23. Specs and ideas                                                           | The page says spec (§8.7); ideas as `local` incoming items with notes and links, Riff on this, Make it a spec through the New spec entry point, and archive (§8.8)                                                                                                                                                                                                  | Starts after 14.10, 17.1 and 19.1; P38                                                                              |
 | 26. Driver handoff                                                            | One driver per spec: the plan issue's assignee plus a machine claim, read-only ticks elsewhere, the check before dispatch, hand off with drain, export and reassign, take over from the file or a rebuild, force take over, what never moves, the header and banner (§6.10)                                                                                         | Starts after 3.8, 3.10 and 21.4; P40                                                                                |
-| 27. Budgets and receipts                                                      | A machine-local, versioned price table; dollar caps per task from workspace, repository, spec and task, with token and credit fallbacks; the stop at the next turn and Raise budget or Stop in Needs you; receipts by stage, model and attempt with JSON export; spend on the drawer, Delivery and In flight (§4.17)                                                | Starts after 12.12 and 12.9; P41                                                                                    |
+| 27. Budgets and receipts (removed 2026-11-17)                                                      | A machine-local, versioned price table; dollar caps per task from workspace, repository, spec and task, with token and credit fallbacks; the stop at the next turn and Raise budget or Stop in Needs you; receipts by stage, model and attempt with JSON export; spend on the drawer, Delivery and In flight (§4.17)                                                | Starts after 12.12 and 12.9; P41                                                                                    |
 | 28. Retro prompt and skill proposals, and lessons                             | Prompt and skill diffs with evidence from the retro, local per-workspace prompt overrides with revert, repository skill changes as leaves and external ones as notes, PDCA per version, a lessons store on this Mac shared across workspaces, lessons packs, and healing of lessons and overrides (§4.18)                                                           | Starts after 12.9 and 12.10; P42                                                                                    |
 | 29. Activity log                                                              | One SQLite activity table, one `recordActivity` helper, local actions and the tick's GitHub and plugin events, screening and redaction, retention on the tick, the Activity tab and `plans_view` action `activity` (§4.19)                                                                                                                                          | Starts after 10.4, 12.11 and 14.10; P43                                                                             |
 | 30. Provider health and switching                                             | Health levels from usage reads and error rows, routing that skips low and out, running chats moved with Kiro Crew's model change, the manual Switch model dialog, Needs you, and Settings › Providers (§4.20)                                                                                                                                                       | Starts after 11.11 and 12.12; P44                                                                                   |
@@ -7229,8 +7155,8 @@ Detailed in `tasks.md`. **Proposed** order:
 | 41. Scheduler and direct landing | One scheduler, path holds, the per-base landing queue, `direct` landing, conflicts back to the same chat, epic branches (§4.26) |
 | 42. PR landing and setup | `pr` landing from the renamed arming code, `avoozl setup` with ruleset, merge methods, CI variable and commit status (§4.26) |
 | 43. Worker machines pull work | Qualified task refs, canonical reservations and generation acknowledgments across forks; executor-aware setup (§4.26, §4.32) |
-| 44. Landing queue panel | Exact portions, qualified fork heads, checks/reviews and owned actions from the shared cache (§4.27) |
-| 45. Remove the Issue Radar path | Radar-only code, `verify-issue`, the provenance marker, the crew, relay and router agents; Delivery, Budgets and Files restored (§4.26) |
+| 44. Links and the landing queue | One stored link set per spec and task; Links boxes, In flight chips, a Landing queue page under Dashboards and Radar back-links (§4.27) |
+| 45. Remove the Issue Radar path | Radar-only code, `verify-issue`, the provenance marker, the crew, relay and router agents; Delivery and Files restored (§4.26) |
 | 46. Executor seam | The executor interface, the `kirocrew` executor, session requests by executor, prompts as files; runs before Phase 40 (§4.28) |
 | 47. Supervisor and process executor | Harness definition files, permission classes, `avoozl supervisor`, Claude Code, the child marker, one finish (§4.28) |
 | 48. Second harness by file | Codex with no code change (§4.28) |

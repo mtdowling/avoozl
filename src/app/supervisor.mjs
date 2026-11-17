@@ -36,6 +36,9 @@ const CHILD_WRAPPER = fileURLToPath(
 const SUPERVISOR_MAIN = fileURLToPath(
   new URL("./supervisor-main.mjs", import.meta.url),
 );
+const TICK_MAIN = fileURLToPath(
+  new URL("./headless-tick-main.mjs", import.meta.url),
+);
 const SESSION = /^process-[0-9a-f-]{36}$/;
 // Placeholders the supervisor fills itself; a request cannot set them.
 const OWN_VALUES = [
@@ -59,6 +62,7 @@ export function supervisorPaths(stateDirectory) {
     database: path.join(root, "supervisor.sqlite"),
     lock: path.join(root, "supervisor.lock"),
     log: path.join(root, "supervisor.log"),
+    tickLog: path.join(root, "tick.log"),
     children: path.join(root, "children"),
   };
 }
@@ -202,8 +206,10 @@ export const RESULT_FILE = path.join(".avoozl", "result.json");
 const RESULT_BYTES = 8192;
 
 // Read a finished run's result file (R96.1, R96.4): a regular file of at
-// most 8 KB holding {"state": "done" | "blocked", "text": "..."}. Returns
-// { state, text } or { problem }. The text is data, never an instruction.
+// most 8 KB holding {"state": "done" | "blocked", "text": "..."}, and for a
+// role that reports more than that (a verdict, a retro's reply) a `report`
+// object. Returns { state, text, report? } or { problem }. Both are data,
+// never an instruction.
 export function readChildResult(worktree) {
   const file = path.join(worktree, RESULT_FILE);
   let stat;
@@ -226,15 +232,25 @@ export function readChildResult(worktree) {
     !value ||
     typeof value !== "object" ||
     Array.isArray(value) ||
-    Object.keys(value).some((key) => !["state", "text"].includes(key)) ||
+    Object.keys(value).some(
+      (key) => !["state", "text", "report"].includes(key),
+    ) ||
     !["done", "blocked"].includes(value.state) ||
-    (value.text !== undefined && typeof value.text !== "string")
+    (value.text !== undefined && typeof value.text !== "string") ||
+    (value.report !== undefined &&
+      (!value.report ||
+        typeof value.report !== "object" ||
+        Array.isArray(value.report)))
   )
     return {
       problem:
-        'The result file must be {"state": "done" | "blocked", "text": "..."}.',
+        'The result file must be {"state": "done" | "blocked", "text": "...", "report"?: {...}}.',
     };
-  return { state: value.state, text: value.text ?? "" };
+  return {
+    state: value.state,
+    text: value.text ?? "",
+    ...(value.report ? { report: value.report } : {}),
+  };
 }
 
 // The finished run's outcome (R96.3, R96.4), or null while it runs. `done`
@@ -255,6 +271,7 @@ export function childResult(db, sessionId) {
     worktree: row.worktree,
     state,
     text: state ? read.text : null,
+    ...(state && read.report ? { report: read.report } : {}),
     problem: state
       ? null
       : read.state === "done"
@@ -489,14 +506,22 @@ function killGroup(pid) {
 
 // Run the supervisor until close(). Takes the machine lock first, so a second
 // one refuses and names the first (R95.1). Each pass starts requested children
-// and records the state of running ones.
+// and records the state of running ones. With `tickIntervalMs` (a headless
+// machine, R95.3) it also runs the tick of every catalog workspace, one pass
+// at a time, that long after the last pass ended.
 export function startSupervisor({
   stateDirectory,
   configDirectory,
   intervalMs = 1000,
+  tickIntervalMs = null,
   startTime = processStartTime,
   env = process.env,
 }) {
+  if (
+    tickIntervalMs !== null &&
+    !(Number.isInteger(tickIntervalMs) && tickIntervalMs > 0)
+  )
+    fail("The tick interval must be a whole number of milliseconds.");
   const lock = acquireSupervisorLock(stateDirectory, { startTime });
   const paths = supervisorPaths(stateDirectory);
   const db = openSupervisorDatabase(stateDirectory);
@@ -504,6 +529,37 @@ export function startSupervisor({
   const own = new Map();
   let timer = null;
   let closed = false;
+  let ticking = null;
+  let nextTick = 0;
+
+  // The tick runs as its own process, so a slow or failing tick never
+  // stalls the children's records. It keeps the supervisor's environment,
+  // which reads GitHub; only agent children are confined.
+  const tick = () => {
+    if (ticking || Date.now() < nextTick) return;
+    const out = fs.openSync(paths.tickLog, "a", 0o600);
+    try {
+      ticking = spawn(
+        process.execPath,
+        [
+          TICK_MAIN,
+          "--state-directory",
+          path.resolve(stateDirectory),
+          "--config-directory",
+          path.resolve(configDirectory),
+        ],
+        { stdio: ["ignore", out, out], env, windowsHide: true },
+      );
+    } finally {
+      fs.closeSync(out);
+    }
+    const ended = () => {
+      ticking = null;
+      nextTick = Date.now() + tickIntervalMs;
+    };
+    ticking.once("exit", ended);
+    ticking.once("error", ended);
+  };
 
   const start = (row, message = null) => {
     const folder = path.join(paths.children, row.session_id);
@@ -563,6 +619,10 @@ export function startSupervisor({
         ...(settings.allowCommands?.length
           ? harnessAllow(definition, settings.allowCommands)
           : []),
+        // A read-only session may still write its result file (R96.1).
+        ...(row.permission_class === "read" && definition.resultAllow
+          ? fillHarnessArgv(definition.resultAllow, filled)
+          : []),
       ];
       const promptFile = message ? messageFile : briefFile;
       const stdin =
@@ -577,7 +637,7 @@ export function startSupervisor({
         gitCommonDir: gitCommonDir(row.worktree),
         configDirectory,
       });
-      if (row.permission_class === "write" && values.tmp)
+      if (values.tmp)
         fs.mkdirSync(values.tmp, { recursive: true, mode: 0o700 });
       const confined = confineChild(argv, {
         definition,
@@ -639,22 +699,33 @@ export function startSupervisor({
       child.on("error", () => {});
       child.unref();
       own.set(row.session_id, child);
-      if (message)
-        db.prepare("UPDATE messages SET state = 'delivered' WHERE id = ?").run(
-          message.id,
-        );
-      update(db, row.session_id, {
-        state: "running",
-        harness_hash: hash,
-        pid: child.pid,
-        process_started: startTime(child.pid),
-        log_file: log,
-        exit_file: exitFile,
-        exit_code: null,
-        result: null,
-        error: null,
-        runs: run,
-      });
+      // One step for readers: the message is delivered only as the child
+      // reads running, so no reader sees the earlier run's exit with no
+      // queued message and takes it for this run's end.
+      const started = startTime(child.pid);
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        if (message)
+          db.prepare(
+            "UPDATE messages SET state = 'delivered' WHERE id = ?",
+          ).run(message.id);
+        update(db, row.session_id, {
+          state: "running",
+          harness_hash: hash,
+          pid: child.pid,
+          process_started: started,
+          log_file: log,
+          exit_file: exitFile,
+          exit_code: null,
+          result: null,
+          error: null,
+          runs: run,
+        });
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
     } catch (error) {
       // Refused before it ran (an unapproved definition, a missing worktree):
       // `exited -1` takes the retry path rather than reopening as gone. A
@@ -721,6 +792,7 @@ export function startSupervisor({
       )
       .all())
       start(row, queuedMessage(db, row.session_id));
+    if (tickIntervalMs) tick();
   };
 
   const schedule = () => {
@@ -744,7 +816,13 @@ export function startSupervisor({
 
   pass();
   schedule();
-  return { pass, close, holder: lock.holder, database: paths.database };
+  return {
+    pass,
+    close,
+    holder: lock.holder,
+    database: paths.database,
+    ticking: () => Boolean(ticking),
+  };
 }
 
 // Start a detached supervisor unless one runs (R95.3, used by the app
@@ -783,13 +861,19 @@ export function launchSupervisor({
 
 // Run as this process's job until a signal, with the machine's folders by
 // default. A second supervisor sets exit code 1 and names the first.
-export function runSupervisor({ stateDirectory, configDirectory } = {}) {
+// `tickSeconds` runs the tick too, on a headless machine (R95.3).
+export function runSupervisor({
+  stateDirectory,
+  configDirectory,
+  tickSeconds = null,
+} = {}) {
   const machine = machineAvoozlPaths();
   let supervisor;
   try {
     supervisor = startSupervisor({
       stateDirectory: stateDirectory ?? machine.stateDirectory,
       configDirectory: configDirectory ?? machine.configDirectory,
+      tickIntervalMs: tickSeconds === null ? null : tickSeconds * 1000,
     });
   } catch (error) {
     console.error(error.message);

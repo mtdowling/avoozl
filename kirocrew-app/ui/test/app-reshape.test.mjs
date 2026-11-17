@@ -56,17 +56,15 @@ test('Settings lists its sections in the nav, shows only the picked one, and has
   await click(tab('Settings'))
   await page.until(`Boolean(document.querySelector('[data-settings-section]'))`)
   const sections = await page.evaluate(`[...document.querySelectorAll('[data-nav-children="settings"] [data-nav-item]')].map((s) => s.dataset.navItem.replace('settings/', ''))`)
-  assert.deepEqual(sections, ['instance', 'workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
+  assert.deepEqual(sections, ['workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
   // Settings opens alone, and the page shows one section.
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-nav-section][data-open]').length`), 1)
   // Opening another section in the nav shows that one alone.
   await click(`document.querySelector('[data-nav-item="settings/repositories"]')`)
-  // The large editors open in a modal from Configure.
-  await page.until(`Boolean(document.querySelector('[data-open-settings="repositories"]'))`)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-mirror-setup]'))`), false)
-  await click(`document.querySelector('[data-open-settings="repositories"]')`)
-  await page.until(`Boolean(document.querySelector('[data-settings-dialog="repositories"] [data-mirror-setup]'))`)
+  // Repository setup edits in place: no Configure button and no dialog.
+  await page.until(`Boolean(document.querySelector('[data-mirror-setup]'))`)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-open-settings], [data-settings-dialog]'))`), false)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
   const buttons = await page.evaluate(`[...document.querySelectorAll('[data-setup-action]')].map((b) => [b.dataset.setupAction, b.disabled])`)
   // Both buttons wait for the two repository names.

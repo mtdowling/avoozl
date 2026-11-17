@@ -428,6 +428,7 @@ leaves to this spec:
 - **Trace.** The eight steps of the experience proposal. Times come from
   GitHub events and comment `updated_at`, never `updated=` (fact 6). Cost per
   stage is Variant A only.
+  *Superseded 2026-11-17: Trace is removed; see §4.35 of the avoozl design.*
 - **Side panel.** One tab. Matches the open chat from the URL, as the proposal
   says; the contract is **Inferred** and the first task includes a test that
   fails if the URL shape changes.
@@ -491,7 +492,7 @@ A separate last epic. Nothing starts before the real-repository proof
 | Crew routing and placement, router prompt           | Requirements 41, 42                      | Yes (placement), router off |
 | Runner mode over SSH                                | Requirement 84, `remote-runner.mjs`      | Removed (crews replace it) |
 | Remote relay                                        | Phase 32                                 | Removed                   |
-| Per-task budgets for workers                        | Requirement 67                           | Stay for planner, retro, quick goal |
+| Per-task budgets for workers                        | Requirement 67                           | Removed entirely 2026-11-17 (owner)  |
 | Workers' Files and diff fold                        | Requirement 81                           | Removed with the worker UI |
 | Verifier, falsifier, reviewer, responder roles      | `kirocrew-app/agents/*`                  | Yes for `worker`          |
 | Foreman, bot heartbeat                              | research only, not built; superseded by Radar crews (RC11.8) | Stay unbuilt |

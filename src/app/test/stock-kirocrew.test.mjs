@@ -17,7 +17,7 @@ import {
   slotStatus,
 } from "../session-observer.mjs";
 import { slotServed } from "../executors/kirocrew.mjs";
-import { servedModel } from "../delivery.mjs";
+import { GONE_GRACE_MS, servedModel } from "../delivery.mjs";
 import { Store } from "../store.mjs";
 import { tickHealth } from "../tick.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -106,6 +106,13 @@ test("a cron tick without a roster dispatches, then holds until the backend obse
   assert.equal(tickHealth(store).lastRun.observer, "roster");
 });
 
+// Gone for longer than the grace a restart needs to restore its chats.
+const age = (store, slot) =>
+  store.put("session_bindings", {
+    ...store.get("session_bindings", slot),
+    statusAt: new Date(Date.now() - GONE_GRACE_MS - 1000).toISOString(),
+  });
+
 test("a gone worker is resumed once, and a second vanish opens one decision", async (t) => {
   // Nearby inputs: a quiet session, its last report, the same session reading
   // live again, and the person's retry.
@@ -120,6 +127,16 @@ test("a gone worker is resumed once, and a second vanish opens one decision", as
     { caller: { sessionKey: "dashboard:avoozl_a" } },
   );
   await status(ops, "avoozl_a", "gone");
+  // P50: after a gateway restart a live chat reads gone until it is restored.
+  assert.deepEqual(
+    (await cronTick(ops)).dispatch,
+    [],
+    "gone within the grace opens nothing",
+  );
+  await status(ops, "avoozl_a", "idle");
+  assert.equal(store.get("task_deliveries", "a")?.attempts?.length ?? 0, 0);
+  await status(ops, "avoozl_a", "gone");
+  age(store, "avoozl_a");
   let resumed = (await cronTick(ops)).dispatch;
   if (!resumed.length) resumed = (await cronTick(ops)).dispatch;
   assert.deepEqual(
@@ -137,6 +154,7 @@ test("a gone worker is resumed once, and a second vanish opens one decision", as
 
   await bind(ops, "a", "avoozl_a2", 2);
   await status(ops, "avoozl_a2", "gone");
+  age(store, "avoozl_a2");
   const first = await cronTick(ops);
   assert.deepEqual(first.dispatch, [], "no third chat on its own");
   assert.equal(store.get("task_deliveries", "a").state, "decision");
@@ -153,6 +171,7 @@ test("a gone worker is resumed once, and a second vanish opens one decision", as
   assert.equal(back.cause, undefined);
 
   await status(ops, "avoozl_a2", "gone");
+  age(store, "avoozl_a2");
   await cronTick(ops);
   assert.equal(store.get("task_deliveries", "a").state, "decision");
   await ops.execute("delivery.retry", { taskId: "a" }, undefined, {
