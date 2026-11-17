@@ -957,10 +957,26 @@ function AppPage() {
   )
 }
 
-// ?page=activity: the Activity tab alone, with two rows.
+// ?page=activity: the Activity tab alone, with rows from every source, many
+// kinds and four people, filtered as activity.list filters them.
 if (query.get('page') === 'activity' || query.get('activity') === '1') {
-  const row = (seq: number) => ({ seq, at: '2026-11-13T10:00:00Z', source: 'person', actor: 'me', kind: 'settings', summary: `Saved a setting ${seq}`, targetId: null, link: null, redacted: false })
-  answer('activity.list', () => ({ items: [row(2), row(1)], total: 2, sources: ['person'], kinds: ['settings'], actors: ['me'], retentionDays: 30 }))
+  const kinds = ['dispatch', 'settings', 'github.close', 'approve', 'board.move', 'label', 'stop', 'resume', 'session.end', 'plugin.sync']
+  const sources = ['local', 'github', 'mcp', 'plugin']
+  const actors = ['mira', 'worker-chat', 'octo-reviewer', 'github-actions']
+  const all = Array.from({ length: 24 }, (_, at) => {
+    const seq = 24 - at
+    return { seq, at: new Date(Date.parse('2026-11-13T10:00:00Z') - at * 3600e3).toISOString(), source: sources[at % 4], actor: actors[(at * 3) % 4], kind: kinds[at % kinds.length], summary: `${kinds[at % kinds.length]} entry ${seq}`, targetId: null, link: null, redacted: false }
+  })
+  const count = (key: 'source' | 'kind' | 'actor') => {
+    const out: Record<string, number> = {}
+    for (const row of all) out[row[key]] = (out[row[key]] ?? 0) + 1
+    return out
+  }
+  answer('activity.list', (body) => {
+    const input = body.input as { source?: string; kind?: string; actor?: string }
+    const items = all.filter((row) => (!input.source || row.source === input.source) && (!input.kind || row.kind === input.kind) && (!input.actor || row.actor === input.actor))
+    return { items, total: items.length, sources: [...sources].sort(), kinds: [...kinds].sort(), actors: [...actors].sort(), counts: { source: count('source'), kind: count('kind'), actor: count('actor') }, retentionDays: 30 }
+  })
   answer('activity.settings.get', () => ({ hash: 'h', retentionDays: 30, default: 30 }))
 }
 function ActivityPage() {

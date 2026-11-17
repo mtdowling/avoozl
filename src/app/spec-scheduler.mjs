@@ -32,8 +32,7 @@ import { lineFirstIds } from "./flow.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 import { pathsOverlap, unblockCounts } from "./release-ranking.mjs";
 import { localJournalFile } from "./spec-publication.mjs";
-import { githubJournal, replayJournal } from "./spec-journal.mjs";
-import fs from "node:fs";
+import { githubJournal, localJournal, replayJournal } from "./spec-journal.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const DRIVERS = "specDrivers";
@@ -186,23 +185,17 @@ export function scheduleHolds(store, { github = null, skip = new Set() } = {}) {
 }
 
 // The journal a spec was published with, or null. A local file is this
-// workspace's own, so its author is the operator.
-function journalOf(store, { github, workspaceRoot }, planId) {
-  if (store.get("receipts", `spec-journal:${planId}`) && workspaceRoot) {
-    const file = localJournalFile(workspaceRoot, planId);
+// workspace's own, so its author is the operator. `actor` writes a local
+// file; a GitHub journal writes as the signed-in login. `issue` names a
+// GitHub journal's spec issue.
+export function journalOf(store, { github, workspaceRoot, actor }, planId) {
+  if (store.get("receipts", `spec-journal:${planId}`) && workspaceRoot)
     return {
-      list: async () =>
-        fs.existsSync(file)
-          ? fs
-              .readFileSync(file, "utf8")
-              .split("\n")
-              .filter(Boolean)
-              .map((line) => JSON.parse(line))
-          : [],
+      ...localJournal(localJournalFile(workspaceRoot, planId), actor ?? ""),
       permission: async () => "admin",
       visibility: async () => "private",
+      local: true,
     };
-  }
   const issue = store.get("receipts", `github-parent:plan:${planId}`);
   if (!issue?.number) return null;
   if (!github) return { unreadable: true };
@@ -218,6 +211,7 @@ function journalOf(store, { github, workspaceRoot }, planId) {
         ? "private"
         : "public",
     publicRepositories: [config.id],
+    issue: { repository: config.id, number: issue.number },
   };
 }
 
