@@ -7349,6 +7349,23 @@
         "avoozl-p57"
       ]
     },
+    "48.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 48 (A second harness by definition file only). See R94.4b, R94.4d; §4.28.",
+      "acceptance": [
+        "Inner sandbox off only under Avoozl's sandbox",
+        "`permission.write` may be exactly `danger-full-access`; the child then starts only inside Avoozl's sandbox with the task write roots, and is refused with no Avoozl sandbox, opt-in or not. Tests: refused without the Avoozl sandbox, allowed with it, every other bypass value still refused."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "48.1"
+      ]
+    },
     "avoozl-p58": {
       "kind": "leaf",
       "repository": "avoozl",
@@ -7363,7 +7380,8 @@
         "git diff --check"
       ],
       "requires": [
-        "48.1"
+        "48.1",
+        "48.2"
       ]
     },
     "49.1": {
