@@ -2,7 +2,7 @@
 // JSX so node can test it directly.
 
 // The nav row: Dashboards, Specs, Needs you, Trace,
-// Flow, Activity, Settings. Dashboards' key stays 'dashboard' (its Home), so
+// Flow, Retros, Activity, Settings. Dashboards' key stays 'dashboard' (its Home), so
 // an older link or Back step to Home still lands there.
 export const TABS = [
   { key: 'dashboard', label: 'Dashboards' },
@@ -10,6 +10,7 @@ export const TABS = [
   { key: 'waiting', label: 'Needs you' },
   { key: 'trace', label: 'Trace' },
   { key: 'flow', label: 'Flow' },
+  { key: 'retros', label: 'Retros' },
   { key: 'activity', label: 'Activity' },
   { key: 'settings', label: 'Settings' },
 ] as const
@@ -19,9 +20,8 @@ export type NavTab = (typeof TABS)[number]['key']
 // The sub-pages of a nav section that has them. Settings' own list is
 // SETTINGS_TABS (SettingsView.tsx). Each is a page of its own, shown by the
 // left nav, never by a tab bar in the content.
-export type FlowTab = 'overview' | 'retros' | 'proposals'
-export const FLOW_TABS: { key: FlowTab; label: string }[] = [
-  { key: 'overview', label: 'Overview' },
+export type RetrosPage = 'retros' | 'proposals'
+export const RETROS_PAGES: { key: RetrosPage; label: string }[] = [
   { key: 'retros', label: 'Retros' },
   { key: 'proposals', label: 'Proposals' },
 ]
@@ -58,8 +58,8 @@ export interface Place {
   open?: Record<string, unknown>
 }
 
-// `waiting-section` in a Place's `open` is the Needs you section; App turns
-// it into its own place field (waitingSection).
+// `waiting-section` and `retros-page` in a Place's `open` are the Needs you
+// section and the Retros page; App turns them into place fields.
 export function redirectTab(key: string): Place {
   switch (key) {
     case 'conflicts':
@@ -68,6 +68,11 @@ export function redirectTab(key: string): Place {
       return { tab: 'waiting', open: { 'waiting-section': 'intake' } }
     case 'routing':
       return { tab: 'settings' }
+    // Flow's own Retros and Proposals tabs moved to the Retros pill (owner
+    // note 2026-11-17); an older link or Back step that names one lands there.
+    case 'flow:retros':
+    case 'flow:proposals':
+      return { tab: 'retros', open: { 'retros-page': key.slice(5) } }
     default:
       return { tab: TABS.some((t) => t.key === key) || dashboardPage(key as Tab) ? (key as Tab) : 'dashboard' }
   }

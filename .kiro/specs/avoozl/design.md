@@ -2802,6 +2802,7 @@ retires removed ones with that reason.
 
 The Flow tab gets **Overview** (today's content), **Proposals**, and
 **Lessons** views.
+Owner note 2026-11-17: Proposals moved to the Retros pill (§8.4).
 
 ```text
 ◔ Flow   Overview │ Proposals │ Lessons
@@ -6513,6 +6514,18 @@ matters only when sessions push.
 Owner approval 2026-11-13 (Requirements 68–70): the Flow tab gains
 **Proposals** and **Lessons** views, and Settings › Flow a **Lessons**
 sub-group, sketched in §4.18.
+
+Owner note 2026-11-17: Retros is its own nav pill after Flow, with two pages,
+**Retros** (every retro, newest first, with its scope, time, model and the
+proposals it made) and **Proposals** (§4.18's view, for every proposal). Each
+retro links to each of its proposals and each proposal links back. Flow keeps
+only its charts (Overview) and has no sub-pages. Flow's sort and filters sit
+in the left nav as rows and chips, as Specs' do: sort by newest, lead time or
+task; window and stage rows; repository, spec, phase and epic chips with
+counts. By day and By week stay on the Over time card. The old Flow Retros
+and Proposals links open the new pages. The retro's settings stay in
+Settings › Flow. Where §4.18 and §8.4 above say "the Flow tab gets
+Proposals", read the Retros pill's Proposals page.
 
 ### 8.5 Intake tab
 

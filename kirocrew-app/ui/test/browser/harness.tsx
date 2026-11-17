@@ -726,6 +726,52 @@ if (query.get('page') === 'app' && query.get('flow') === '1') {
     },
   }))
 }
+// ?page=app&retros=1: Flow with three tasks in two repositories and two
+// specs, whose read follows the repository, spec and stage it is asked for,
+// and Retros with two retros and the proposals they made (the Retros pill
+// and Flow nav filters shots and test).
+if (query.get('page') === 'app' && query.get('retros') === '1') {
+  const noUsage = { available: false, total: { input: 0, output: 0, credits: 0, turns: 0 }, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] }
+  const min = 60000
+  const mk = (taskId: string, title: string, repository: string, plan: string, at: string, stages: Record<string, number>) => {
+    const leadMs = Object.values(stages).reduce((a, b) => a + b, 0)
+    return { taskId, title, repository, epic: null, plan, phase: null, startedAt: `2026-11-${at}T09:00:00Z`, finishedAt: `2026-11-${at}T10:00:00Z`, leadMs, activeMs: leadMs, stages, coarse: false, sources: ['tool-calls'], batch: null, firstPass: true }
+  }
+  const all = [
+    mk('search.3', 'Index builder', 'acme/recipe-box', 'search', '15', { queued: 4 * min, coding: 30 * min, tests: 8 * min, 'ci-wait': 10 * min }),
+    mk('search.4', 'Ranking', 'acme/recipe-box', 'search', '16', { queued: 2 * min, coding: 12 * min, 'ci-wait': 40 * min }),
+    mk('pantry.1', 'Shelf list', 'acme/pantry', 'pantry', '14', { queued: 6 * min, coding: 20 * min, review: 15 * min }),
+  ]
+  const retros = [
+    { id: 'retro-2', n: 2, state: 'done', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-16T12:00:00Z', finishedAt: '2026-11-16T12:09:00Z', model: 'claude-sonnet', bottleneck: { stage: 'ci-wait', repository: 'acme/recipe-box', evidence: 'CI wait was 58% of lead time over 8 tasks.' }, dropped: [], proposals: [
+      { id: 'p1', type: 'settings', file: 'workspace', key: 'flow.batch.max', from: 3, to: 5, metric: 'lead time', direction: 'down', evidence: 'Batches of 3 waited on CI 6 times.', status: 'open' },
+      { id: 'p2', type: 'prompt', target: 'worker', section: 'Checks', diff: '@@ -1,2 +1,2 @@\n Run the checks.\n-Run all tests.\n+Run the tests you touched first.', metric: 'first-pass rate', direction: 'up', evidence: 'Two reviews asked for narrower runs.', status: 'open' },
+    ] },
+    { id: 'retro-1', n: 1, state: 'done', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-12T12:00:00Z', finishedAt: '2026-11-12T12:08:00Z', bottleneck: null, dropped: [], proposals: [
+      { id: 'p1', type: 'rule', text: 'Name the spec in every commit message.', metric: 'corrections', direction: 'down', evidence: { runs: ['search.1', 'search.2'], value: 2, effect: 'corrections' }, status: 'approved' },
+    ] },
+  ]
+  answer('radar.flow', () => ({ readAt: null, count: 0, issues: [], skipped: [], median: null, medianLead: null, efficiency: null, bottleneck: null, errors: [], repositories: [] }))
+  answer('flow.view', (body) => {
+    const input = ((body as { input?: Record<string, string> }).input ?? {}) as Record<string, string>
+    const tasks = all.filter((t) => (!input.repository || t.repository === input.repository) && (!input.plan || t.plan === input.plan) && (!input.stage || (t.stages[input.stage] ?? 0) > 0))
+    const lead = tasks.length ? tasks.map((t) => t.leadMs).sort((a, b) => a - b)[Math.floor(tasks.length / 2)] : null
+    const metrics = { tasks: tasks.length, leadTimeMs: lead, flowEfficiency: 0.6, firstPassRate: 1, changeFailureRate: 0, integrationsPerDay: null, timeToFixMs: null }
+    const point = (t: (typeof all)[number]) => ({ key: t.finishedAt.slice(0, 10), tasks: 1, leadTimeMs: t.leadMs, flowEfficiency: 0.6, firstPassRate: 1, timeToFixMs: null, stages: t.stages })
+    return {
+      window: { size: Number(input.window ?? 20), since: null }, metrics, previous: metrics, bottleneck: null, tasks, stops: [], line: [], flaky: [], ciOnly: [], retros, batches: [],
+      stages: ['queued', 'coding', 'tests', 'ci-wait', 'review'], repositories: ['acme/pantry', 'acme/recipe-box'], epics: [],
+      plans: [{ id: 'pantry', title: 'Pantry' }, { id: 'search', title: 'Search' }], phases: [],
+      series: { day: tasks.map(point), week: tasks.map(point) }, usage: noUsage,
+    }
+  })
+  answer('flow.proposals', () => ({
+    proposals: retros.flatMap((r) => r.proposals.map((p) => ({ retro: r.id, ...p }))), dropped: [],
+    prompts: [{ target: 'worker', version: 'built-in', shipped: 'abc', active: 0, versions: [], sections: [], drift: [] }], notes: [], available: true,
+  }))
+  answer('flow.settings.get', () => ({ filename: '.avoozl.json', exists: true, hash: 'h', flow: {}, repositories: {}, instructions: '', retroPrompt: null, ciClassGlobs: {} }))
+  answer('flow.retro.decide', () => ({ ok: true }))
+}
 // ?page=demo: the whole page, where Start demo opens the sample. Calls
 // for the sample answer from window.__DEMO (demo-replies.mjs, built from
 // the real sample); other calls answer as ?page=app does.

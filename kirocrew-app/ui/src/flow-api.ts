@@ -46,6 +46,9 @@ export interface TaskTiming {
   title: string
   repository: string | null
   epic: string | null
+  // The spec the task belongs to; older backends omit it.
+  plan?: string | null
+  phase?: string | null
   startedAt: string | null
   finishedAt: string | null
   leadMs: number
@@ -184,6 +187,8 @@ export interface Retro {
   startedAt: string
   finishedAt?: string
   error?: string
+  // The model the retro ran on; retros from before it was recorded omit it.
+  model?: string
   bottleneck: { stage: string; repository: string | null; evidence: string } | null
   proposals: Proposal[]
   dropped: { index: number; key: string | null; reason: string }[]
@@ -575,6 +580,58 @@ export function bannerText(stop: LineStop): string {
 
 export function filterActive(filter: FlowFilter) {
   return Boolean(filter.repository || filter.epic || filter.plan || filter.phase || filter.window || filter.stage)
+}
+
+// The Time per task list's order, picked in the Flow nav's Sort rows. The
+// backend sends it newest first.
+export type FlowSort = 'recent' | 'lead' | 'task'
+export interface FlowOrder {
+  sort: FlowSort
+  dir: 'asc' | 'desc'
+}
+export const FLOW_ORDER: FlowOrder = { sort: 'recent', dir: 'desc' }
+// A field's first direction when it is picked: newest and longest first, tasks A to Z.
+export const FLOW_SORT_FIRST: Record<FlowSort, 'asc' | 'desc'> = { recent: 'desc', lead: 'desc', task: 'asc' }
+
+export function sortTasks(tasks: TaskTiming[], { sort, dir }: FlowOrder): TaskTiming[] {
+  const sign = dir === 'asc' ? 1 : -1
+  const key = (t: TaskTiming) => (sort === 'lead' ? t.leadMs : t.startedAt ?? '')
+  return [...tasks].sort((a, b) => {
+    if (sort === 'task') return sign * a.taskId.localeCompare(b.taskId, undefined, { numeric: true })
+    const [x, y] = [key(a), key(b)]
+    return x === y ? 0 : sign * (x < y ? -1 : 1)
+  })
+}
+
+export interface FlowChoice {
+  value: string
+  label: string
+  count: number
+}
+// The nav's chips and their counts, from an unfiltered read, so picking one
+// value does not hide the others. Each count is the tasks that carry it.
+// Phases come from the filtered read: the backend lists them once a spec is picked.
+export function flowChoices(base: Pick<FlowViewModel, 'tasks' | 'repositories' | 'epics' | 'stages' | 'plans'>, phaseList: FlowViewModel['phases'] = []) {
+  const count = (pick: (t: TaskTiming) => string | null | undefined) => {
+    const counts = new Map<string, number>()
+    for (const t of base.tasks) {
+      const value = pick(t)
+      if (value) counts.set(value, (counts.get(value) ?? 0) + 1)
+    }
+    return counts
+  }
+  const repos = count((t) => t.repository),
+    epics = count((t) => t.epic),
+    plans = count((t) => t.plan),
+    phases = count((t) => t.phase)
+  const make = (list: { value: string; label: string }[], counts: Map<string, number>): FlowChoice[] => list.map((x) => ({ ...x, count: counts.get(x.value) ?? 0 }))
+  return {
+    repositories: make(base.repositories.map((r) => ({ value: r, label: r })), repos),
+    epics: make(base.epics.map((e) => ({ value: e.id, label: e.title })), epics),
+    plans: make((base.plans ?? []).map((p) => ({ value: p.id, label: p.title })), plans),
+    phases: make((phaseList ?? []).map((p) => ({ value: p.id, label: p.title })), phases),
+    stages: base.stages.map((stage): FlowChoice => ({ value: stage, label: STAGE_LABELS[stage], count: base.tasks.filter((t) => (t.stages[stage] || 0) > 0).length })),
+  }
 }
 
 // ------------------------------------------------------------ settings
