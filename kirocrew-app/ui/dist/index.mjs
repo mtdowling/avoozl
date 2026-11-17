@@ -16939,7 +16939,7 @@ function eh(e) {
 					className: "m-0",
 					"data-revision-moved": !0,
 					children: [
-						"The plan changed while it was reviewed. Approve now targets revision ",
+						"The spec changed while it was reviewed. Approve now targets revision ",
 						/* @__PURE__ */ C("code", { children: Ys(r.hash) }),
 						"."
 					]

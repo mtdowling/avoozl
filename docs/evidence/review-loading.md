@@ -1,7 +1,7 @@
 # Plan review in progress: Kiro Crew's working box
 
 Captured 2026-11-17 in a throwaway Kiro Crew 0.12.2.4 (own home, port
-5697), with this branch's UI bundle installed, on spec `cache-reset-2`.
+5697), with this branch's UI bundle installed, on spec `cache-reset-2` (first pass) and the draft `cache-reset` (second pass, after `cache-reset-2` was approved).
 Approve was never pressed and nothing was written to GitHub.
 
 ## What changed
@@ -14,6 +14,25 @@ tint, a 50% border, a band of the same tint sweeping across in 2 s
 Crew keeps purple for AI work in every theme. The box is `role="status"`,
 `aria-live="polite"`, labeled "Reviewing with <model>…". Under
 `prefers-reduced-motion` the box stays and the sweep stops.
+
+## Second pass: live refresh and boxes
+
+- **Live refresh.** While the review is `running`, the dialog re-reads
+  Avoozl's stored review summary every 3 s (`plan.reviewSummary`, no GitHub
+  call). When it settles, the findings appear in place. If the planner wrote
+  a new revision meanwhile, the dialog reloads the spec, says so, and
+  Approve targets the new revision.
+- **Revision link.** The revision in "Approve exactly revision …" opens the
+  diff, per file, since the last approved revision (else the previous one).
+- **Reviewer box.** Its own bordered box: a Reviewer / Revision / Writer
+  table, with each caveat as a tinted note under it.
+- **Status box.** A separate bordered box: the purple working box while the
+  review runs, else the state, plus "Review queued" and the counts.
+
+`avoozl-desktop-light-settled.png` was taken in the same open dialog after
+the running round was deleted from the store: the box cleared on its own.
+The harness ran an older backend, so Writer reads "unknown" there; this
+branch adds `writerModel` to the summary.
 
 ## How the state was shown
 
@@ -33,6 +52,8 @@ was generated; those shots are cropped to the banner.
 | Phone 390, light | `avoozl-phone-light.png` |
 | Phone 390, dark | `avoozl-phone-dark.png` |
 | Desktop, reduced motion | `avoozl-desktop-light-reduced-motion.png` |
+| Same dialog after the review settled | `avoozl-desktop-light-settled.png` |
+| Revision diff opened | `avoozl-desktop-light-diff.png` |
 | Kiro Crew Projects banner, light | `kirocrew-projects-planning-light.png` |
 | Kiro Crew Projects banner, dark | `kirocrew-projects-planning-dark.png` |
 
