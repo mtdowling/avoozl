@@ -1191,6 +1191,8 @@ machine claim in its marker.
 
 ## Phase 27: Budgets and receipts
 
+Removed 2026-11-17 (owner): budgets. A budget only caps Kiro Crew chats; Avoozl cannot see Claude Code or Codex spend. Ticked tasks stay ticked as history; their code is removed by task/remove-budgets.
+
 Owner decisions 2026-11-13 (Requirement 67, design §4.17). Numbered after
 Phase 26 because task IDs never move. It prices the turns `flow_usage`
 already holds (12.11) and caps each task in dollars.
@@ -1198,12 +1200,15 @@ already holds (12.11) and caps each task in dollars.
 - [x] 27.1 Price table and budget levels, after 12.12 [R67.1–R67.5] (§4.17)
   - Machine-local `prices` with `version`, `creditUsd` and per-model `inputPerMTokUsd` and `outputPerMTokUsd`, empty by default; person-only `prices.save` bumps the version, hashes the canonical JSON and writes `price_versions`; validation refuses `prices` in `.avoozl.json`, packs and manifests; `budget {usd, tokens, credits}` at workspace, `projects.<id>`, manifest top level and leaf, most specific key wins; fallback defaults 2,000,000 tokens and 200 credits; the driver export leaves prices out.
   - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (`src/app/budget.mjs`; caps in Settings › Budgets, not the repository Edit modal; the driver export is not built yet, so it is not wired).
+  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
 - [x] 27.2 Spend and receipts, after 27.1 and 12.9 [R67.4, R67.7, R67.11–R67.14] (§4.17)
   - Price each `flow_usage` turn on read (credits first, then tokens); `budget.view` and `budget.receipt` with totals by stage, model and attempt, priced flags, cap and level, raises, stops, price version and hash, `complete` and `missing` reasons for Crew Mode, remote, Issue Radar and failed reads; batch turns shared evenly and marked; `avoozl budget receipt TASK [--json]`; `plans_view` action `receipt`; the retro payload's `receipts`; no prompts or text.
   - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (`budget.view`, `budget.receipt`, `avoozl budget receipt TASK --json`, `plans_view` action `receipt`, retro `receipts`).
+  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
 - [x] 27.3 Stop at the cap, Raise budget and Stop, after 27.2, 12.8 and 15.4 [R67.6–R67.9, R67.14–R67.18, R67.21] (§4.17)
   - Check after each usage read and before each dispatch for the task (attempts, verifier, review roles, responders, batch); at a cap record a `budget` stop, dispatch nothing for the task, queue one stop message per live bound session, and answer its Avoozl MCP calls except `plans_report` with `budget_reached`; never stop, interrupt or close a session; one Needs you decision with person-only `budget.raise` (writes `budget_raises`, messages a live session) and `budget.stop` (the Deferred pause); 403 for other callers; no attempt cost; unpriced turns warn once per task and model; unknown spend warns once and never stops; no gate reads the budget.
   - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (stop and warn modes, 80% warning, `budget_holds`, `budget.raise|stop|acknowledge|switchToStop`); 1112e0e Name the task when a budget call has none.
+  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
 - [x] 27.4 Spend on the page, after 27.3 and 12.11 [R67.2, R67.10, R67.11, R67.19, R67.20] (§4.17)
   - The drawer's Budget fold after Timing with spend against cap, receipt tables and Export JSON; the `$spent / $cap` chip on the Delivery and In flight cards (muted, red at the cap, "spend unknown"); Settings › Prices marked this computer only, with models from `GET /api/models` and `flow_usage`, the credit price, the version and the unpriced-model notes; budget fields in Settings › General and the repository Edit modal; checked by drawing the page at 375 and 1280 px in light and dark.
   - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (Budget fold, spend chip, Dashboard over-budget count, Flow marks, Settings › Budgets and › Prices; drawn at 375 and 1280 px, light and dark, in a screenshot harness).
@@ -1216,6 +1221,7 @@ already holds (12.11) and caps each task in dollars.
   - Failure means: a task can spend past its cap without a person, a stop ends a running turn, or a budget opens a gate.
   - Next decision: stop by closing the session instead of by message, or cap by tokens instead of dollars.
   - Built: dbdad6c `src/app/test/proof-p41.test.mjs` passes (steps 1-12 plus 13, warn mode).
+  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
 
 ## Phase 28: Retro prompt and skill proposals, and lessons
 
@@ -1549,6 +1555,7 @@ the scratch safety proof, with owner minutes, credits and wall-clock per task.
 
 - [x] 41.6 Restore the Delivery page, Settings › Budgets and the Files and diff view, after 41.3 [R88.7] (§4.26)
   - From ba04389 and 70c2236, updated to the new loop; not Routing; screenshots for the owner.
+  - Removed 2026-11-17 (owner): Settings › Budgets.
 - [ ] 41.8 Nupp AGENTS.md clause for Avoozl-run work, after 41.3 [R91.5, R94.4a] (§4.26)
   - Nupp's AGENTS.md tells agents to rebase, fast-forward merge, push and delete the worktree. Propose a clause for work Avoozl runs: edit, commit nothing (or only locally, as the project config says), and stop; no merge, push or worktree removal. Check the copy on `core-dev`, not only `main`. Proposed as a Nupp change, not made from Avoozl's repository.
 - [ ] 41.7 Nupp setup: `direct` on public `core-dev` with the repository's helper and check, after 41.3 [R91.5] (§4.26)
@@ -1728,6 +1735,7 @@ recovers, and a backend restart mid-run.
   - Built: `src/app/harness-allow.mjs` (`sandboxAllowCommands`, `harnessAllow`); tests in `src/app/test/harness-allow.test.mjs`.
 - [x] 47.9 Spend cap from the task budget and the plan-quota stop, after 47.4 [R94.6, R94.6a] (§4.28)
   - Built: `spendCapUsd` in `src/app/budget.mjs` (dollars left on a stop-mode cap, null for warn mode and uncapped roles) fills `{budget_usd}`, and the supervisor appends the definition's `spendCap`; `planQuotaHold` in `src/app/executors/process.mjs` holds a new `process` session when its model or harness provider reads `low` or `out`, and a spent budget holds it too; tests in `src/app/test/process-executor.test.mjs`. Whether `--max-budget-usd` binds on a plan login is checked by `src/app/test/claude-plan-budget.test.mjs`, which runs only with `AVOOZL_LIVE_CLAUDE_PLAN=1` on a plan login and refuses an API or cloud login; it has not been run on one yet.
+  - Removed 2026-11-17 (owner): `spendCapUsd`, `{budget_usd}`, `spendCap` and the spent-budget hold. The plan-quota stop (`planQuotaHold`) stays; it moves out of the budget code.
 - [x] 47.10 Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted, after 47.2 [R95.6, R95.7] (§4.28)
   - Kiro Crew chats: the docs and Settings say the person-only refusal is a speed bump.
   - Built: `src/app/sandbox.mjs` (`sandbox-exec` on macOS, `bwrap` on Linux, else the per-machine opt-in), wrapped around each child in `src/app/supervisor.mjs`; text in `docs/policies.md` and Settings › Models; tests in `src/app/test/sandbox.test.mjs`.
@@ -2028,3 +2036,14 @@ approval before merge.
   - Expected: (1) findings with severities, categories and quote anchors; (2) borders grey, yellow and red, the rail lines up and each click highlights its lines; (3) history shows the owner and revision, the deferred one is a follow-up with no task; (4) the dialog updates in place with the changed files, no error, and the accepted finding is fixed; (5) one more round that does not repeat the rejected finding; (6) approval at the revision on screen, the same as with no review, with zero GitHub calls. Screenshots at 390 and 1280 px, light and dark, approved by the owner.
   - Failure means: an anchor points at the wrong lines, an agent can decide a finding, a blocker changes approval, or the dialog makes the person reopen it.
   - Next decision: search other files for moved quotes, or keep same-file anchoring.
+
+## Phase 58: A role per repository replaces Where tasks live
+
+Owner request 2026-11-17 (Requirement 105, design §4.34). One build task.
+It touches `github-policy.mjs`, `settings-api.ts`, `SettingsView.tsx`,
+`RepositoriesSettings.tsx` and `ModePicker.tsx`; another change makes
+Settings pages edit in place, so merge main often and keep to the role
+picker. The owner waived screenshot review for this task.
+
+- [ ] 58.1 Repository roles replace Where tasks live, after 3.14, 20.2 [R105.1, R105.2, R105.3, R105.4, R105.5, R105.6, R105.7, R105.8, R105.9, R105.10, R28.1] (§4.34)
+  - One resolver in `github-policy.mjs` maps roles to mode and `planningRepository` and back, refuses mixed roles, and runs in the config loader; the schema gains `role` and keeps `mode` and `planningRepository`. Repository setup shows an in-place role picker per repository, the "Tasks live in" line and a synthesized "GitHub only" planning row; the Where tasks live page and tab are removed, the workspace-wide settings move to Settings › Workspaces, and the old link opens Repository setup. Tests for the mapping, migration, refused mixes and screens; screenshots (phone and desktop, light and dark, in the full app shell) under `docs/evidence/repo-roles/`.
