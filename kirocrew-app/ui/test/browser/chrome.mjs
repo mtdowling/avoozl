@@ -126,12 +126,12 @@ export async function launch(chrome) {
       async click(x, y) {
         for (const type of ['mousePressed', 'mouseReleased']) await call('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 })
       },
-      // Press at (x, y), move to (toX, y) in steps, release there.
-      async drag(x, y, toX, steps = 8) {
+      // Press at (x, y), move to (toX, toY) in steps, release there.
+      async drag(x, y, toX, steps = 8, toY = y) {
         await call('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
         await call('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 })
-        for (let i = 1; i <= steps; i++) await call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x + ((toX - x) * i) / steps, y, button: 'left', buttons: 1 })
-        await call('Input.dispatchMouseEvent', { type: 'mouseReleased', x: toX, y, button: 'left', buttons: 0, clickCount: 1 })
+        for (let i = 1; i <= steps; i++) await call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x + ((toX - x) * i) / steps, y: y + ((toY - y) * i) / steps, button: 'left', buttons: 1 })
+        await call('Input.dispatchMouseEvent', { type: 'mouseReleased', x: toX, y: toY, button: 'left', buttons: 0, clickCount: 1 })
       },
       async doubleClick(x, y) {
         for (const clickCount of [1, 2])
