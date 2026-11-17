@@ -7,7 +7,11 @@ import path from "node:path";
 import test from "node:test";
 import { digest } from "../../model.mjs";
 import { Store } from "../store.mjs";
-import { integrateVerified } from "../delivery.mjs";
+import {
+  DELIVERY_DEFAULTS,
+  integrateVerified,
+  reconcileDeliveries,
+} from "../delivery.mjs";
 import { landingQueue } from "../landing-queue.mjs";
 import { landDirect } from "../direct-landing.mjs";
 import { takeOverSpec } from "../spec-takeover.mjs";
@@ -161,6 +165,63 @@ test("a failed check at the candidate goes back to the chat and pushes nothing",
   assert.match(result.messages[0].text, /exit 1/);
   assert.equal(w.store.get("task_deliveries", "t1").state, "running");
   assert.equal(git(w.origin, "rev-parse", "main"), start);
+});
+
+// The round sent back is finished by the same attempt's next done report,
+// which replaces the first and goes through Verify again on the new commit.
+test("a landing failure round reopens the attempt; its next done is taken", async (t) => {
+  const w = await workspace(t),
+    { commit, wt } = verified(w, "t1", "FAIL");
+  w.store.put("task_deliveries", {
+    ...w.store.get("task_deliveries", "t1"),
+    attempts: [{ attempt: 1, slot: "slot-t1", outcome: "done", commit }],
+  });
+  w.store.put("session_bindings", {
+    ...w.store.get("session_bindings", "slot-t1"),
+    status: "closed",
+    source: "tick",
+    executor: "process",
+    report: { kind: "done", commit, at: "2026-01-01T00:00:00.000Z" },
+  });
+  await integrateVerified(w.store);
+  const result = await step(w);
+  assert.match(result.messages[0].text, /\.avoozl\/result\.json/);
+  assert.doesNotMatch(result.messages[0].text, /report done again/);
+  const reopened = w.store.get("session_bindings", "slot-t1");
+  assert.equal(reopened.report, undefined, "the done is set aside");
+  assert.equal(reopened.reopenedReport.commit, commit);
+  assert.equal(reopened.status, "working", "the backend watches the resume");
+  assert.equal(w.store.get("task_deliveries", "t1").attempts[0].reopened, true);
+  // The worker fixes it; its new done replaces the first.
+  git(wt, "rm", "-q", "FAIL");
+  git(wt, "commit", "-qm", "Fix t1");
+  const fixed = git(wt, "rev-parse", "HEAD");
+  w.store.put("session_bindings", {
+    ...reopened,
+    status: "closed",
+    report: { kind: "done", commit: fixed, at: "2026-01-01T00:01:00.000Z" },
+  });
+  reconcileDeliveries(w.store, DELIVERY_DEFAULTS, { script: false });
+  const delivery = w.store.get("task_deliveries", "t1");
+  assert.equal(delivery.state, "done");
+  assert.equal(delivery.commit, fixed);
+  assert.deepEqual(
+    delivery.attempts.map((a) => [a.attempt, a.outcome, a.commit]),
+    [[1, "done", fixed]],
+  );
+});
+
+test("a chat sent back after landing is told to report done again", async (t) => {
+  const w = await workspace(t);
+  verified(w, "t1", "FAIL");
+  await integrateVerified(w.store);
+  const result = await step(w);
+  assert.match(result.messages[0].text, /report done again/);
+  assert.equal(
+    w.store.get("session_bindings", "slot-t1").status,
+    "working",
+    "a chat's own status is left alone",
+  );
 });
 
 test("without a take over nothing is queued or pushed", async (t) => {
