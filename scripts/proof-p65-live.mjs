@@ -9,15 +9,22 @@
 // else before it leaves the machine.
 //
 //   node scripts/proof-p65-live.mjs --root <temp dir> --repository o/r \
-//     [--out report.json]
+//     [--report-field report | --report-artifact build-report] [--out report.json]
+//
+// With --report-field, `receipts.report` names that field of each receipt
+// line; with --report-artifact, that artifact prefix. With either, the
+// script then starts a retrospective (a manual trigger, as
+// flow.retro.start queues one) and writes its brief to <root>/retro-brief.txt.
+// The retro makes no GitHub call.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { PR_CI, ciStep } from "../src/app/flow-ci.mjs";
-import { buildView, observationsFor } from "../src/app/build-receipt-read.mjs";
 import { buildBrief } from "../src/app/build-breakdown.mjs";
+import { retroStep } from "../src/app/flow-retro.mjs";
+import { flowView } from "../src/app/radar-flow.mjs";
 import { GitHubClient } from "../src/app/github.mjs";
 import { withGitHubReadSnapshots } from "../src/app/github-read-snapshot.mjs";
 import { Store } from "../src/app/store.mjs";
@@ -28,6 +35,8 @@ const { values } = parseArgs({
     root: { type: "string" },
     repository: { type: "string" },
     out: { type: "string" },
+    "report-artifact": { type: "string" },
+    "report-field": { type: "string" },
   },
 });
 if (!values.root || !values.repository) {
@@ -46,9 +55,16 @@ if (!temp.some((dir) => (root + path.sep).startsWith(dir))) {
   process.exit(2);
 }
 fs.mkdirSync(path.join(root, ".avoozl", "local"), { recursive: true });
-// P65 setup: receipts on; no `receipts.report`, because the repository's CI
-// writes none (a field set to a name no line carries reads nothing).
-const config = {};
+// P65 setup: receipts on, and the repository's build reports when it writes
+// them; a retro every 4 tasks, as in P64.
+const config = {
+  flow: { retro: { everyTasks: 4 } },
+  ...(values["report-field"]
+    ? { receipts: { report: { field: values["report-field"] } } }
+    : values["report-artifact"]
+      ? { receipts: { report: { artifact: values["report-artifact"] } } }
+      : {}),
+};
 fs.writeFileSync(path.join(root, ".avoozl.json"), JSON.stringify(config));
 
 // Requests per check, by kind.
@@ -145,18 +161,41 @@ try {
       "SELECT pr_number AS pr, head_sha AS head, COUNT(*) AS n, SUM(failed) AS failed, COUNT(DISTINCT target) AS targets, COUNT(DISTINCT run_id) AS runs, COUNT(DISTINCT attempt) AS attempts, GROUP_CONCAT(DISTINCT phase) AS phases FROM build_observations WHERE repository=? GROUP BY pr_number, head_sha ORDER BY pr_number DESC",
       repo,
     ),
-    // Flow's build view (buildView, as radar-flow's flowView calls it) over
-    // every merged pull request with stored observations.
-    flowRows = pulls
-      .map((pull) => ({
-        pullNumber: pull.number,
-        repository,
-        instance: null,
-        builds: observationsFor(store, repository, pull.headSha, pull.number),
-      }))
-      .filter((row) => row.builds.length),
-    view = buildView(flowRows),
+    // Flow's own view (radar.flow), which now carries the builds of any
+    // repository with stored observations.
+    view = flowView(store).builds,
     brief = buildBrief(store, [repository], { now });
+  // Start a retrospective by hand, as flow.retro.start does, and keep its
+  // brief.
+  let retro = null;
+  if (config.receipts) {
+    const s = store.getMeta("flow.retro.state") || {
+      seen: [],
+      pending: [],
+      reverts: [],
+    };
+    store.setMeta("flow.retro.state", {
+      ...s,
+      pending: [
+        ...s.pending,
+        {
+          kind: "manual",
+          key: "manual:" + now,
+          detail: "started by hand",
+          at: new Date(now).toISOString(),
+        },
+      ],
+    });
+    const out = retroStep(store, config, {
+      now,
+      repository,
+      ciRepositories: [repository],
+      ciConfig: config,
+    });
+    const text = out.dispatch[0]?.brief ?? null;
+    if (text) fs.writeFileSync(path.join(root, "retro-brief.txt"), text);
+    retro = { started: Boolean(out.retro), brief: Boolean(text) };
+  }
   report = {
     at: new Date(now).toISOString(),
     repository,
@@ -179,6 +218,11 @@ try {
     ),
     flow: view,
     brief,
+    breakdownRows: rows(
+      "SELECT pr_number AS pr, target, attempt, workload, engine, toolchain, cache, costs, parts FROM build_breakdowns WHERE repository=? ORDER BY pr_number",
+      repo,
+    ),
+    retro,
     rate: {
       core: github.rateLimit("core"),
       graphql: github.rateLimit("graphql"),
