@@ -572,7 +572,7 @@ test("tick cron sends every other message when the gateway refuses one", () => {
       observe: [],
       dispatch: [],
       messages: [
-        { slot: "slot-old", text: "Budget reached." },
+        { slot: "slot-old", text: "Stand by." },
         { slot: "slot-2", text: "Resume." },
       ],
       notify: [],
