@@ -108,6 +108,8 @@ export interface GitHubSettings {
   rate?: RateView
   review?: ReviewSettings
   choices: SettingsChoices
+  // The file's own mode when it disagrees with the roles, else null (R105.8).
+  rolesNote?: string | null
 }
 
 export interface Validation {
@@ -301,6 +303,8 @@ export interface RuleForm {
 export interface RepositoryForm {
   name: string
   baseBranch: string
+  // local, code, planning or both (design §4.34); blank until chosen.
+  role: string
   coder: string
   allowedActors: string
   minimumPermission: string
@@ -481,6 +485,7 @@ function count(text: string): number | string | undefined {
 }
 
 const SHOWN = new Set([
+  'role',
   'baseBranch',
   'coder',
   'allowedActors',
@@ -512,6 +517,7 @@ export function emptyRepository(name = ''): RepositoryForm {
   return {
     name,
     baseBranch: 'main',
+    role: '',
     coder: '',
     allowedActors: '',
     minimumPermission: '',
@@ -567,6 +573,7 @@ export function toForm(github: Policy): SettingsForm {
       return {
         name,
         baseBranch: str(entry.baseBranch),
+        role: str(entry.role),
         coder: str(entry.coder),
         allowedActors: joined(entry.allowedActors),
         minimumPermission: str(entry.minimumPermission),
@@ -673,6 +680,7 @@ export function toPolicy(form: SettingsForm): Policy {
             compact({
               ...repository.rest,
               baseBranch: blank(repository.baseBranch),
+              role: blank(repository.role),
               coder: blank(repository.coder),
               allowedActors: splitList(repository.allowedActors),
               minimumPermission: blank(repository.minimumPermission),
@@ -797,7 +805,7 @@ export const MANAGED_LABEL_TEXT: Record<string, string> = {
 // Save is blocked while one is missing, so the message names what to fill.
 export function missingRequired(form: SettingsForm): string | null {
   if (form.mode === 'plans-repo' && !form.planningRepository.trim())
-    return 'Plans repository mode needs its planning repository (Where tasks live).'
+    return 'A code repository needs a planning repository: give one repository the planning role in Repository setup.'
   // Local only reads no Project or repository GitHub setting.
   if (!isGitHubMode(form.mode)) return null
   const project =
@@ -805,8 +813,8 @@ export function missingRequired(form: SettingsForm): string | null {
     form.projectNumber.trim() ||
     Object.values(form.fields).some((v) => v.trim()) ||
     Object.values(form.statusValues).some((v) => v.trim())
-  if (project && !form.projectOwner.trim()) return 'The Project needs its owner (Where tasks live › Project fields).'
-  if (project && !form.projectNumber.trim()) return 'The Project needs its number (Where tasks live › Project fields).'
+  if (project && !form.projectOwner.trim()) return 'The Project needs its owner (Settings › Workspaces › Project fields).'
+  if (project && !form.projectNumber.trim()) return 'The Project needs its number (Settings › Workspaces › Project fields).'
   for (const [index, repository] of form.repositories.entries()) {
     const name = repository.name.trim() || `Repository ${index + 1}`
     if (!repository.name.trim()) return `${name} needs its owner/name (Repositories › Mode and branch).`
@@ -962,15 +970,67 @@ export const MODE_CARDS = [
 export const modeKey = (mode: string) => (mode === 'plans-repo' || mode === 'single-repo' ? mode : 'local')
 export const isGitHubMode = (mode: string) => modeKey(mode) !== 'local'
 
-// The radio group's arrow keys: the next or previous pane, wrapping.
-export function stepMode(current: string, key: string): string | null {
-  const modes: string[] = MODE_CARDS.map((card) => card.mode)
-  const at = Math.max(0, modes.indexOf(modeKey(current)))
-  if (key === 'ArrowRight' || key === 'ArrowDown') return modes[(at + 1) % modes.length]
-  if (key === 'ArrowLeft' || key === 'ArrowUp') return modes[(at - 1 + modes.length) % modes.length]
-  if (key === 'Home') return modes[0]
-  if (key === 'End') return modes[modes.length - 1]
-  return null
+// Repository roles (design §4.34, R105). The backend decides the mode from
+// them (repository-roles.mjs); this file only draws them and builds the edit.
+export const ROLE_OPTIONS = [
+  { value: 'local', label: 'Local only', line: "Tasks stay in this workspace's database. Nothing goes to GitHub." },
+  { value: 'code', label: 'Code repository', line: 'Pull requests land here. Its issues live in the planning repository.' },
+  { value: 'planning', label: 'Planning repository', line: 'Holds the issues, sub-issues and specs. No code pull requests land here.' },
+  { value: 'both', label: 'Code and planning', line: 'Pull requests land here, and its own issues and specs live here too.' },
+] as const
+
+export const roleLabel = (role: string) => ROLE_OPTIONS.find((option) => option.value === role)?.label ?? 'Local only'
+
+const sameRepository = (left: string, right: string) => left.trim().toLowerCase() === right.trim().toLowerCase()
+
+// The role a stored mode gives a repository that has none (R105.7).
+export function roleFromMode(mode: string, github: string | null, planningRepository: string): string {
+  if (!github) return 'local'
+  if (mode === 'plans-repo') return sameRepository(github, planningRepository) ? 'planning' : 'code'
+  return mode === 'single-repo' ? 'both' : 'local'
+}
+
+export interface RoleRow {
+  policy: number
+  github: string | null
+}
+
+// A row's role: the one saved on its entry, else the one the mode gives.
+export function roleOfRow(form: Pick<SettingsForm, 'mode' | 'planningRepository' | 'repositories'>, row: RoleRow): string {
+  if (!row.github) return 'local'
+  const saved = row.policy >= 0 ? form.repositories[row.policy]?.role : ''
+  return saved || roleFromMode(modeKey(form.mode), row.github, form.planningRepository)
+}
+
+// The mode the roles make, for the form's own checks until the save derives it.
+export function modeFromRoles(roles: string[]): string {
+  if (roles.includes('both')) return 'single-repo'
+  return roles.includes('planning') || roles.includes('code') ? 'plans-repo' : ''
+}
+
+// The form after one repository gets a role. A repository with no entry gets
+// one. Choosing planning turns the old planning repository into code, the one
+// consequence nobody wants to click twice. A mix the roles cannot make is the
+// backend's to refuse, with its one line.
+export function withRole(form: SettingsForm, row: RoleRow & { branch: string }, role: string): SettingsForm {
+  if (!row.github) return form
+  const repositories = form.repositories.map((entry, index) => ({ ...entry, role: roleOfRow(form, { policy: index, github: entry.name.trim() }) }))
+  let at = row.policy
+  if (at < 0) {
+    repositories.push({ ...emptyRepository(row.github), baseBranch: row.branch, role })
+    at = repositories.length - 1
+  }
+  repositories[at].role = role
+  if (role === 'planning') for (const [index, entry] of repositories.entries()) if (index !== at && entry.role === 'planning') entry.role = 'code'
+  const planning = repositories.find((entry) => entry.role === 'planning')?.name.trim() || form.planningRepository
+  return { ...form, repositories, mode: modeFromRoles(repositories.map((entry) => entry.role)), planningRepository: planning }
+}
+
+// The one line above the repository list: where tasks live as a result.
+export function tasksLiveLine(mode: string, planningRepository: string): string {
+  if (mode === 'plans-repo') return `Tasks live in ${planningRepository || 'the planning repository'}, a planning repository for the code repositories.`
+  if (mode === 'single-repo') return "Tasks live in each repository's own issues."
+  return "Tasks live in this workspace's database on this Mac."
 }
 
 // Which settings each mode reads, so Settings shows only those. Checked in
