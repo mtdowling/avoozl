@@ -12,7 +12,7 @@ import { buildHarness } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
 const TABS = ['Dashboard', 'Specs', 'Graph', 'Delivery', 'Flow', 'Conflicts', 'Intake', 'Activity', 'Settings']
-const SETTINGS = ['Workspaces', 'Repositories', 'Plugins', 'Content rules', 'Flow', 'Delivery', 'Budgets', 'Routing']
+const SETTINGS = ['Workspaces', 'Repositories', 'Plugins', 'Content rules', 'Flow', 'Delivery', 'Routing']
 
 const [out] = process.argv.slice(2)
 if (!out) {
