@@ -231,3 +231,41 @@ test('the lane rule is the one the Avoozl state Project field uses', async () =>
   assert.equal(shared.avoozlState({ state: 'deferred' }, null), 'deferred')
   assert.equal(shared.laneOf({ state: 'deferred' }, null), 'waiting')
 })
+test('the state icons are labelled, theme-colored, and still under reduced motion', () => {
+  const view = readFileSync(new URL('../src/DeliveryView.tsx', import.meta.url), 'utf8')
+  const icon = view.slice(view.indexOf('export function StateIcon'), view.indexOf('const LANE_GAP'))
+  assert.match(icon, /useMedia\('\(prefers-reduced-motion: reduce\)'\)/)
+  // Each animation is drawn only when motion is allowed.
+  assert.equal((icon.match(/\{!still && \(\s*<animateTransform/g) ?? []).length, 2)
+  assert.match(icon, /aria-label=\{label\}/)
+  assert.match(icon, /<title>\{label\}<\/title>/)
+  assert.doesNotMatch(icon, /--warn|#[0-9a-f]{3,6}\b/i)
+  // In progress cards carry their group's icon.
+  assert.match(view, /\{props\.phase && <StateIcon phase=\{props\.phase\} \/>\}/)
+  assert.match(view, /list\(`\$\{lane\.id\}:\$\{group\.id\}`, group\.cards, group\.id\)/)
+})
+
+
+// Task 41.6: Delivery is a Dashboards page again, with its filters in the
+// left nav as rail rows and chips, no native dropdown and no Routing part.
+test('Delivery is a Dashboards page with nav rail filters and no Routing part', async () => {
+  const { DASHBOARD_PAGES, redirectTab } = await import('../src/nav-api.ts')
+  assert.ok(DASHBOARD_PAGES.some((page) => page.key === 'delivery'))
+  assert.deepEqual(redirectTab('delivery'), { tab: 'delivery' })
+  const view = readFileSync(new URL('../src/DeliveryView.tsx', import.meta.url), 'utf8')
+  assert.match(view, /<NavSlotFor section="dashboard">/)
+  assert.match(view, /<RailChips id="epics"/)
+  assert.doesNotMatch(view, /<select|FilterBar id=|routing|Pick again|Radar|driver/i)
+  const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
+  assert.match(app, /tab === 'delivery' \? \(\s*<DeliveryView workspaceId=\{active\} \/>/)
+  assert.match(app, /t\.key === 'dashboard',/)
+})
+
+test('chip counts keep only values a card has, in the choices order', async () => {
+  const { chipCounts } = await import('../src/delivery-api.ts')
+  const cards = [{ epicId: 'b' }, { epicId: 'b' }, { epicId: null }]
+  assert.deepEqual(
+    chipCounts([{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }, { value: '(none)', label: 'No epic' }], cards, (card) => card.epicId ?? '(none)'),
+    [{ value: 'b', label: 'B', count: 2 }, { value: '(none)', label: 'No epic', count: 1 }],
+  )
+})

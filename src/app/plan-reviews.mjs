@@ -243,7 +243,11 @@ function skipSpecReviewRound(store, round, note) {
     const current = store.get("review_rounds", round.id);
     if (current?.state === "running") {
       // Findings that waited for the reviewer's model are not kept.
-      const { pendingFindings: _pending, ...rest } = current;
+      const {
+        pendingFindings: _pending,
+        pendingSummary: _summary,
+        ...rest
+      } = current;
       store.put("review_rounds", {
         ...rest,
         state: "skipped",
@@ -357,12 +361,17 @@ export function createSpecReviewFindings(
       };
     return { ...entry, fingerprint: digest(JSON.stringify([round.id, entry])) };
   });
+  const summary = reviewSummaryText(input.summary);
   if (waitForModel)
     return store.transaction(() => {
       const current = store.get("review_rounds", round.id);
       if (current?.state !== "running")
         fail("This review round is not active.", 409);
-      const waiting = { ...current, pendingFindings: checked };
+      const waiting = {
+        ...current,
+        pendingFindings: checked,
+        ...(summary ? { pendingSummary: summary } : {}),
+      };
       store.put("review_rounds", waiting);
       return {
         planId: round.planId,
@@ -372,7 +381,21 @@ export function createSpecReviewFindings(
         note: "Avoozl records these findings once Kiro Crew names this chat's model, after this turn ends. Nothing more to do.",
       };
     });
-  return finishSpecReviewRound(store, round, checked, model, { slot, run });
+  return finishSpecReviewRound(store, round, checked, model, {
+    slot,
+    run,
+    summary,
+  });
+}
+
+// The reviewer's optional plain summary of the revision it read, shown on
+// the spec page. Stored on the round, so it is cached per revision.
+const MAX_SUMMARY = 800;
+function reviewSummaryText(value) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value !== "string" || !value.trim() || value.length > MAX_SUMMARY)
+    fail(`A review summary must be 1–${MAX_SUMMARY} characters.`);
+  return value.trim();
 }
 
 // A running or queued turn has not reported its model yet; a chat whose
@@ -404,6 +427,7 @@ export function settleSpecReviewRounds(store) {
       finishSpecReviewRound(store, round, round.pendingFindings, model, {
         slot: round.slot,
         run: null,
+        summary: round.pendingSummary ?? null,
       });
     } catch {
       // A skip is already recorded on the round.
@@ -411,7 +435,13 @@ export function settleSpecReviewRounds(store) {
   }
 }
 
-function finishSpecReviewRound(store, round, submitted, model, { slot, run }) {
+function finishSpecReviewRound(
+  store,
+  round,
+  submitted,
+  model,
+  { slot, run, summary = null },
+) {
   return store.transaction(() => {
     const current = store.get("review_rounds", round.id);
     if (!["running", "done"].includes(current?.state))
@@ -479,12 +509,17 @@ function finishSpecReviewRound(store, round, submitted, model, { slot, run }) {
         replies: [],
         createdAt: now,
       })),
-      { pendingFindings: _pending, ...rest } = current,
+      {
+        pendingFindings: _pending,
+        pendingSummary: _summary,
+        ...rest
+      } = current,
       done = {
         ...rest,
         reviewerModel: model,
         state: "done",
         endedAt: now,
+        ...(summary ? { summary } : {}),
         ...(dropped
           ? {
               dropped,

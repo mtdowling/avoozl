@@ -16,7 +16,7 @@ test('the nav has no Issues or Pull requests pill, and old links open Dashboards
 })
 
 test('removed pages go to the page that took over, never nowhere', () => {
-  assert.deepEqual(redirectTab('delivery'), { tab: 'dashboard' })
+  assert.deepEqual(redirectTab('delivery'), { tab: 'delivery' })
   assert.equal(redirectTab('conflicts').tab, 'waiting')
   assert.equal(redirectTab('untriaged').tab, 'waiting')
   assert.deepEqual(redirectTab('routing'), { tab: 'settings' })
@@ -25,10 +25,10 @@ test('removed pages go to the page that took over, never nowhere', () => {
 })
 
 test('Dashboards holds Home, Graph, Lanes and CI; an old Home link lands on Dashboards > Home', () => {
-  assert.deepEqual(DASHBOARD_PAGES.map((p) => p.label), ['Home', 'Graph', 'Lanes', 'CI'])
+  assert.deepEqual(DASHBOARD_PAGES.map((p) => p.label), ['Home', 'Graph', 'Delivery', 'Lanes', 'CI'])
   assert.deepEqual(redirectTab('dashboard'), { tab: 'dashboard' })
   assert.equal(dashboardPage('dashboard'), 'home')
-  for (const page of ['graph', 'lanes', 'ci']) {
+  for (const page of ['graph', 'delivery', 'lanes', 'ci']) {
     assert.equal(redirectTab(page).tab, page)
     assert.equal(navTab(page), 'dashboard')
     assert.equal(dashboardPage(page), page)

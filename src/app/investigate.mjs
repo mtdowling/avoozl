@@ -1,5 +1,5 @@
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
-import { kirocrewSession } from "./executors/kirocrew.mjs";
+import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 // Investigate before coding (design §4.21, Requirement 75, task 34.1).
 //
 // A leaf's first turn is findings, not code: the worker reads, says what it
@@ -13,7 +13,7 @@ import { kirocrewSession } from "./executors/kirocrew.mjs";
 // here reads or writes that row; the tick turns it into dispatches and
 // messages (investigationStep).
 import { fail } from "./store.mjs";
-import { listSessionBindings } from "./session-bindings.mjs";
+import { listSessionBindings, quietStep } from "./session-bindings.mjs";
 import { taskRepository } from "../work-model.mjs";
 import { flowOnDecision } from "./flow.mjs";
 import { addEvidence } from "./evidence.mjs";
@@ -358,7 +358,12 @@ export function falsifierBrief(task, project, round) {
 export function investigationStep(
   store,
   policy,
-  { script = false, briefAllowed = () => true, writerModel = () => null } = {},
+  {
+    script = false,
+    briefAllowed = () => true,
+    writerModel = () => null,
+    now = Date.now(),
+  } = {},
 ) {
   const dispatch = [],
     messages = [],
@@ -407,13 +412,54 @@ export function investigationStep(
         }),
       );
     }
-    const round = row.rounds.at(-1);
-    if (
-      row.state !== "falsifying" ||
-      falsifierFor(store, task.id, round, bindings) ||
-      !project?.root
-    )
-      continue;
+    const round = row.rounds.at(-1),
+      falsifier =
+        row.state === "falsifying"
+          ? falsifierFor(store, task.id, round, bindings)
+          : null;
+    // A falsifier that went quiet without a verdict is nudged like a
+    // verifier, up to the bound; then a person decides (R75.3).
+    if (falsifier && script && !falsifier.report) {
+      const held =
+          row.falsifierNudge?.slot === falsifier.slot
+            ? row.falsifierNudge
+            : null,
+        step = quietStep(falsifier, held, policy, now),
+        at = new Date(now).toISOString();
+      if (step === "nudge") {
+        messages.push({
+          slot: falsifier.slot,
+          task: task.id,
+          text: `Avoozl falsifier for ${task.id}: you have not reported a verdict. Call plans_report with kind "done" and your falsifier verdict ("stands" or "refuted"), evidence and confidence.`,
+        });
+        store.transaction(() =>
+          store.put(TABLE, {
+            ...store.get(TABLE, row.id),
+            falsifierNudge: {
+              slot: falsifier.slot,
+              count: (held?.count || 0) + 1,
+              at,
+            },
+          }),
+        );
+      } else if (step === "exhausted" && !held?.notifiedAt) {
+        notify.push({
+          channel: "decision",
+          task: task.id,
+          slot: falsifier.slot,
+          title: `${task.id}: the falsifier did not report`,
+          text: `The falsifier has not reported after ${held?.count || 0} nudges. Coding waits.`,
+          resume: `Open the falsifier chat for ${task.id} and ask it to call plans_report with its verdict.`,
+        });
+        store.transaction(() =>
+          store.put(TABLE, {
+            ...store.get(TABLE, row.id),
+            falsifierNudge: { ...held, notifiedAt: at },
+          }),
+        );
+      }
+    }
+    if (row.state !== "falsifying" || falsifier || !project?.root) continue;
     const settings = investigatePolicy(policy, project.id),
       writer = writerModel(worker),
       own = bindings.filter(
@@ -440,7 +486,9 @@ export function investigationStep(
         role: "falsifier",
         attempt,
         title: `avoozl:${task.id} falsify round ${round.n}`.slice(0, 200),
-        ...kirocrewSession(project.id),
+        // Its brief names the checkout, so no folder project is needed
+        // (R88.2, as for the worker).
+        ...kirocrewDetachedSession(project.id),
         agent: settings.agent,
         ...(model ? { model } : {}),
         checkout: project.root,
