@@ -7,7 +7,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 // only when its proof (HMAC-SHA256 of the origin under the app secret)
 // matches, so an inherited or spoofed KIROCREW_GATEWAY_ORIGIN is never
 // trusted with the secret. `call(route, init)` adds the app token and
-// exchanges it once more when the gateway answers 401.
+// exchanges it once more when the gateway says the token expired.
 export function gatewayClient(env = process.env, request = fetch) {
   const origin = env.KIROCREW_GATEWAY_ORIGIN,
     secret = env.KIROCREW_PROXY_SECRET,
@@ -41,9 +41,22 @@ export function gatewayClient(env = process.env, request = fetch) {
             init,
           );
         // An expired token is exchanged once more; any other answer stands.
-        if (response.status !== 401 || attempt > 0) return response;
+        // Kiro Crew 0.12.2.4 answers an expired token with 403
+        // {"error": "token expired"}, not 401.
+        if (!(await expired(response)) || attempt > 0) return response;
         token = null;
       }
     },
   };
+}
+
+async function expired(response) {
+  if (response.status === 401) return true;
+  if (response.status !== 403 || typeof response.clone !== "function")
+    return false;
+  const body = await response
+    .clone()
+    .json()
+    .catch(() => null);
+  return body?.error === "token expired";
 }
