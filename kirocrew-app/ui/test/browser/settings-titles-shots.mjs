@@ -38,6 +38,7 @@ try {
     `(() => { const b = [...document.querySelectorAll('${scope(width)} [data-nav-item]')].find((x) => x.textContent.trim() === ${JSON.stringify(text)}); if (b) b.click(); return Boolean(b) })()`
   const shots = [
     ['repository-setup', 'Repository setup'],
+    ['github', 'GitHub'],
     ['delivery', 'Delivery'],
     ['content-rules', 'Content rules'],
     ['flow', 'Flow'],
