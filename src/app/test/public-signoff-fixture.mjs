@@ -54,7 +54,10 @@ export function fakeRuleSet(store) {
     );
   const dir = path.join(root, ".avoozl", "local", "content-rules");
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, `${FAKE_SET}.txt`), "canary: zorblatcanary\n");
+  fs.writeFileSync(
+    path.join(dir, `${FAKE_SET}.txt`),
+    "canary: zorblatcanary\n",
+  );
   return root;
 }
 

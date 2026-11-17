@@ -134,7 +134,8 @@ function rulesItem(store, repository) {
     (set) =>
       covers(set, "github", repository) && covers(set, "diff", repository),
   );
-  if (!applying.length) return item(false, "No rule set covers this repository.");
+  if (!applying.length)
+    return item(false, "No rule set covers this repository.");
   const missing = applying.filter((set) => !set.available);
   if (missing.length)
     return item(

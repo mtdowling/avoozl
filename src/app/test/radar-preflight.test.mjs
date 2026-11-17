@@ -106,7 +106,10 @@ test("manual ship mode does not need a ready merge path, and a sign-off clears a
 test("a current public sign-off clears a public repository", (t) => {
   const { store: real } = fixture(t);
   real.put("github_repositories", { id: REPO, private: false });
-  assert.equal(run({ input: { store: real, decisionRecord: false } }).ok, false);
+  assert.equal(
+    run({ input: { store: real, decisionRecord: false } }).ok,
+    false,
+  );
   signedOff(real, REPO);
   assert.equal(run({ input: { store: real, decisionRecord: false } }).ok, true);
 });

@@ -64,7 +64,10 @@ test("a complete checklist passes; each item fails alone with its reason", (t) =
   assert.deepEqual(failing(list), ["home"]);
   assert.match(list.items[0].line, /steering/);
 
-  assert.deepEqual(failing(checklist(store, REPO, { home: crewHome({ hook: null }) })), ["hook"]);
+  assert.deepEqual(
+    failing(checklist(store, REPO, { home: crewHome({ hook: null }) })),
+    ["hook"],
+  );
   assert.deepEqual(
     failing(checklist(store, REPO, { home: crewHome({ hook: "echo hi" }) })),
     ["hook"],
@@ -78,7 +81,13 @@ test("a complete checklist passes; each item fails alone with its reason", (t) =
   auditRan(store, REPO);
 
   // A covering set whose terms file is gone is unavailable: no banner.
-  const terms = path.join(root, ".avoozl", "local", "content-rules", `${FAKE_SET}.txt`);
+  const terms = path.join(
+    root,
+    ".avoozl",
+    "local",
+    "content-rules",
+    `${FAKE_SET}.txt`,
+  );
   fs.rmSync(terms);
   const missing = checklist(store, REPO, { home });
   assert.deepEqual(failing(missing), ["rules"]);
@@ -102,10 +111,13 @@ test("no covering rule set shows the banner and keeps sign-off closed (R85.10)",
 test("the sign-off records who, when and a hash, and is refused while an item fails", (t) => {
   const { store, home } = ready(t);
   assert.equal(publicHold(store, REPO), PUBLIC_HELD);
-  assert.throws(() => sign(store, null), (error) =>
-    error.status === 409 && /Crew home/.test(error.message),
+  assert.throws(
+    () => sign(store, null),
+    (error) => error.status === 409 && /Crew home/.test(error.message),
   );
-  assert.throws(() => sign(store, home, { agent: "bad name!" }), { status: 400 });
+  assert.throws(() => sign(store, home, { agent: "bad name!" }), {
+    status: 400,
+  });
   assert.throws(
     () => signOff(store, POLICY, { repository: "x/y", complete: true }),
     { status: 404 },
@@ -116,7 +128,9 @@ test("the sign-off records who, when and a hash, and is refused while an item fa
   assert.match(record.hash, /^[0-9a-f]{64}$/);
   assert.equal(publicHold(store, REPO), null);
   // No term or path text is kept in the record, only the home and a hash.
-  assert.ok(!JSON.stringify(store.getMeta("publicSignoff")).includes("zorblat"));
+  assert.ok(
+    !JSON.stringify(store.getMeta("publicSignoff")).includes("zorblat"),
+  );
   // A private repository is never held.
   store.put("github_repositories", { id: "example/private", private: true });
   assert.equal(publicHold(store, "example/private"), null);
@@ -129,7 +143,9 @@ test("the sign-off lapses when any hashed item changes, and withdraw holds again
         path.join(home, "agents", "avoozl-crew.json"),
         JSON.stringify({
           hooks: {
-            preToolUse: [{ matcher: "execute_bash", command: "avoozl content hook" }],
+            preToolUse: [
+              { matcher: "execute_bash", command: "avoozl content hook" },
+            ],
           },
         }),
       ),
@@ -172,7 +188,11 @@ test("only a person signs off: agents, app tokens, MCP and agent CLIs are refuse
     assert.equal(principalAllows({ kind: "owner-session" }, name), true);
     assert.match(mcpRefusal(name, {}), /Only a person signs off/);
     assert.ok(
-      cliRefusal(name, {}, { env: { KIROCREW_SPAWNED: "1", KIRO_SESSION_ID: "s" } }),
+      cliRefusal(
+        name,
+        {},
+        { env: { KIROCREW_SPAWNED: "1", KIRO_SESSION_ID: "s" } },
+      ),
       name,
     );
   }
