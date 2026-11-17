@@ -39,6 +39,8 @@ import { ProjectionModal } from './ProjectionModal.tsx'
 import { SpecChangedModal } from './SpecChangedModal.tsx'
 import { projectionClient } from './projection-api.ts'
 import { LAYER } from './layers.ts'
+import { ResizeHandle } from './ResizeHandle.tsx'
+import { SPEC_RAIL, clampWidth, pageStorage, railMax, readWidth, writeWidth } from './columns.ts'
 import {
   UNCATEGORIZED,
   approveBlocker,
@@ -94,6 +96,43 @@ export const PROSE_MEASURE = '80ch'
 // Under 1280 px the list, nav and detail share the page, so the spec's
 // rail stops sticking and scrolls with the cards.
 const STACK = '(max-width: 1279px)'
+
+// The spec rail's width: remembered in this browser, and never so wide the
+// cards get narrower than SPEC_CARDS_MIN. The callback ref watches the spec
+// body; max is null when the body is too narrow for a handle at all.
+function useRailWidth(on: boolean) {
+  const [stored, setStored] = useState(() => readWidth(pageStorage(), SPEC_RAIL))
+  const [body, setBody] = useState<number | null>(null)
+  const stop = useRef<(() => void) | null>(null)
+  const ref = useCallback(
+    (node: HTMLElement | null) => {
+      stop.current?.()
+      stop.current = null
+      if (!node || !on || typeof ResizeObserver === 'undefined') return setBody(null)
+      const measure = () => {
+        const style = getComputedStyle(node)
+        setBody(node.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight))
+      }
+      measure()
+      const observer = new ResizeObserver(measure)
+      observer.observe(node)
+      stop.current = () => observer.disconnect()
+    },
+    [on],
+  )
+  useEffect(() => () => stop.current?.(), [])
+  const max = on && body !== null ? railMax(body) : null
+  const width = max === null ? SPEC_RAIL.initial : Math.min(stored, max)
+  const resize = useCallback(
+    (next: number) => {
+      const value = Math.min(clampWidth(SPEC_RAIL, next), max ?? SPEC_RAIL.max)
+      setStored(value)
+      writeWidth(pageStorage(), SPEC_RAIL, value)
+    },
+    [max],
+  )
+  return { ref, width, max, resize }
+}
 
 // The left column sticks to the top of whatever scrolls the page (in Kiro
 // Crew, the app's own content pane, not the window) and is never taller
@@ -1567,6 +1606,7 @@ export default function PlansView(props: {
   }, [settings, workspace])
   const { scrolledOut, titleRef } = useTitleScrolledOut()
   const [asideRef, asideHeight] = useStickyHeight(!stack)
+  const rail = useRailWidth(!phone)
   const [deleting, setDeleting] = useState<PlanRow | null>(null)
   const [archiving, setArchiving] = useState<PlanRow | null>(null)
   const [creating, setCreating] = useState<{ seed?: Partial<NewPlanForm> } | null>(null)
@@ -1942,7 +1982,8 @@ export default function PlansView(props: {
                 />
                 <div
                   data-spec-body
-                  style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 24, padding: phone ? '20px 0' : '20px 12px 20px 12px' }}
+                  ref={rail.ref}
+                  style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: rail.max === null ? 24 : 8, padding: phone ? '20px 0' : '20px 12px 20px 12px' }}
                 >
                   <div id="avoozl-plan-main" className="flex min-w-0 flex-col" style={{ flex: '1 1 260px', gap: 20, scrollMarginTop: 48 }}>
                     <RadarGraphLink />
@@ -1992,12 +2033,25 @@ export default function PlansView(props: {
                     )}
                   </div>
                   {/* The rail sits beside the cards, and under them when the
-                      column is narrow (a phone). */}
+                      column is narrow (a phone). Beside them, its left edge
+                      drags to widen it. */}
+                  {rail.max !== null && (
+                    <ResizeHandle
+                      label="Resize the spec details"
+                      width={rail.width}
+                      min={SPEC_RAIL.min}
+                      max={rail.max}
+                      edge="left"
+                      onResize={rail.resize}
+                      onReset={() => rail.resize(SPEC_RAIL.initial)}
+                      line
+                    />
+                  )}
                   <aside
                     ref={asideRef}
                     aria-label="Spec details"
                     data-plan-aside-scroll
-                    style={{ flex: phone ? '1 1 100%' : '0 0 236px', width: phone ? '100%' : 236, minWidth: 0, ...(stack || phone ? {} : { position: 'sticky', top: 8, zIndex: LAYER.sticky, maxHeight: asideHeight ?? 'calc(100vh - 2rem)', overflowY: 'auto', overscrollBehavior: 'contain' }) }}
+                    style={{ flex: phone ? '1 1 100%' : `0 0 ${rail.width}px`, width: phone ? '100%' : rail.width, minWidth: 0, ...(stack || phone ? {} : { position: 'sticky', top: 8, zIndex: LAYER.sticky, maxHeight: asideHeight ?? 'calc(100vh - 2rem)', overflowY: 'auto', overscrollBehavior: 'contain' }) }}
                   >
                     <SpecRail
                       row={row}
