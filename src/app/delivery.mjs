@@ -59,7 +59,6 @@ import { queryTasks, statusComplete } from "../query.mjs";
 import { unblockCounts } from "./release-ranking.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
-import { budgetHeldTaskIds, budgetStopSlots } from "./budget.mjs";
 import { LOCAL } from "./crews.mjs";
 import {
   crewAllowed,
@@ -1289,7 +1288,7 @@ function* expandBatches(attempts) {
 }
 
 // Failed attempts since the last time a person chose to retry (retryDelivery).
-// An attempt a budget stop ended costs nothing (R67.9), nor does the one
+// An attempt a removed budget stop ended (`budget`) costs nothing, nor does the one
 // resume of a vanished chat (R88.4), which has its own bound.
 const failuresSince = (delivery, attempts) =>
   attempts
@@ -1413,23 +1412,10 @@ export function reconcileDeliveries(
 ) {
   const messages = [],
     notify = [],
-    at = new Date(now).toISOString(),
-    budgetSlots = budgetStopSlots(store),
-    budgetHeld = budgetHeldTaskIds(store);
+    at = new Date(now).toISOString();
   for (const [taskId, binding] of expandBatches(
     runnerAttempts(listSessionBindings(store)),
   )) {
-    // A session a budget stop asked to stop (R67.8, R67.9): its `budget`
-    // blocked report, or its end while the task is held, is not a failure.
-    // While it stays open nothing is recorded, so the task stays claimed and
-    // Raise budget lets the same session go on.
-    const stopped = budgetSlots.get(slotKey(binding.slot)),
-      budgetEnd =
-        stopped &&
-        ((binding.report?.kind === "blocked" &&
-          /\bbudget\b/i.test(binding.report.text || "")) ||
-          (budgetHeld.has(taskId) && !binding.report));
-    if (budgetEnd && !FINAL_STATUSES.has(binding.status)) continue;
     const stored = store.get("task_deliveries", taskId),
       delivery = stored || {
         id: taskId,
@@ -1445,7 +1431,6 @@ export function reconcileDeliveries(
       ),
       result = outcomeOf(binding),
       open = !result && !recorded;
-    if (result && budgetEnd) result.budget = true;
     if (result && !recorded) {
       const attempts = [
         ...delivery.attempts,
@@ -1573,8 +1558,7 @@ export function reconcileDeliveries(
         open &&
         !binding.member &&
         binding.status === "idle" &&
-        binding.source === "tick" &&
-        !budgetHeld.has(taskId)
+        binding.source === "tick"
       ) {
         // Only the cron can message a session it opened; a Crew Mode
         // conductor watches its own workers.
@@ -2144,9 +2128,7 @@ export function readyCandidates(
     paused = true,
   } = {},
 ) {
-  const held = paused
-      ? new Set([...pausedTaskIds(store), ...budgetHeldTaskIds(store)])
-      : new Set(),
+  const held = paused ? pausedTaskIds(store) : new Set(),
     stacked = stackedBlockers(store, github, stack),
     line = paused ? linePausedTaskIds(store, data) : new Set();
   return queryTasks(data, {
@@ -3149,14 +3131,11 @@ export function reviewBrief(task, project, commit, attempt, role, open) {
 // project, writer model and recorded attempts. Shared by the verifier and
 // review dispatch and by the check-run queue, so both obey the same holds.
 function judgeable(store, data) {
-  const budgetHeld = budgetHeldTaskIds(store),
-    out = [];
+  const out = [];
   // A full stop opens no checks or review session until Resume (R64.12).
   if (openStops(store).some((s) => s.full)) return out;
   for (const delivery of store.list("task_deliveries")) {
     if (delivery.state !== "done") continue;
-    // A task at its budget gets no checks or review session (R67.8).
-    if (budgetHeld.has(delivery.taskId)) continue;
     const task = data.tasks.find((t) => t.id === delivery.taskId),
       project = store.get("projects", taskRepository(task) || "");
     if (!task || !project?.root) continue;
