@@ -146,6 +146,7 @@ export class Store {
    CREATE TABLE IF NOT EXISTS execution_jobs(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS team_checkpoints(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS review_requests(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS review_followups(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS safety_incidents(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS safety_permits(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS safety_submissions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
@@ -534,6 +535,7 @@ export class Store {
         "execution_jobs",
         "team_checkpoints",
         "review_requests",
+        "review_followups",
         "safety_incidents",
         "safety_permits",
         "safety_submissions",
@@ -603,6 +605,7 @@ export class Store {
         "execution_jobs",
         "team_checkpoints",
         "review_requests",
+        "review_followups",
         "safety_incidents",
         "safety_permits",
         "safety_submissions",
@@ -668,6 +671,7 @@ export class Store {
         "execution_jobs",
         "team_checkpoints",
         "review_requests",
+        "review_followups",
         "safety_incidents",
         "safety_permits",
         "safety_submissions",
@@ -753,6 +757,7 @@ export class Store {
         "execution_jobs",
         "team_checkpoints",
         "review_requests",
+        "review_followups",
         "safety_incidents",
         "safety_permits",
         "safety_submissions",
