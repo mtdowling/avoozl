@@ -142,7 +142,7 @@ test('the dialog writes only after preview and its confirm button; Cancel is on 
   assert.match(dialog, /<Modal\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/)
   assert.match(dialog, /data-radar-empty-scope/)
   const view = source('UntriagedView.tsx')
-  assert.match(view, /With Issue Radar \(\$\{radarItems\.length\}\)/)
+  assert.doesNotMatch(view, /SegmentedControl/)
   assert.match(view, /Send selected to Issue Radar/)
 })
 
@@ -175,9 +175,7 @@ test('Intake: the tab is renamed, lists every source, and filters by source', as
   assert.match(source('WaitingView.tsx'), /<UntriagedView\b/)
   assert.doesNotMatch(app, />Untriaged</)
   const view = source('UntriagedView.tsx')
-  assert.match(view, /<ViewHeading\s+id="avoozl-untriaged-title"\s+view="untriaged"[\s\S]*?>\s*Intake\s*<\/ViewHeading>/)
-  // Untriaged stays as the tab's default filter.
-  assert.match(view, /\{ key: 'untriaged' as const, label: `Untriaged \(\$\{list\.items\.length\}\)` \}/)
+  assert.match(view, /<ViewHeading\s+id="avoozl-untriaged-title"\s+view="untriaged"[\s\S]*?>\s*\{show === 'radar' \? 'Issue Radar' : 'Triage'\}\s*<\/ViewHeading>/)
   assert.doesNotMatch(view, /Idea/)
   assert.match(view, /<th style=\{HEAD\}>Source<\/th>/)
   const ticket = item(null, {

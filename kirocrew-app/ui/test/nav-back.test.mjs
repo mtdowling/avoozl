@@ -259,7 +259,7 @@ test('the views use the shared history: inner tabs, the plan, the Graph, the dra
   assert.doesNotMatch(source('App.tsx'), /nav\.memory\.set\(/)
   assert.match(source('App.tsx'), /onTab=\{\(next\) => go\(\{ settingsTab: next \}\)\}/)
   assert.match(source('SettingsView.tsx'), /useSteppedState<RepositoryTab>\(\s*`settings-repo-tab-\$\{props\.index\}`,\s*'inner',/)
-  assert.match(source('UntriagedView.tsx'), /useSteppedState<'untriaged' \| 'radar'>\(\s*'untriaged-show',\s*'inner'/)
+  assert.doesNotMatch(source('UntriagedView.tsx'), /untriaged-show/)
   assert.match(source('ContentRulesSettings.tsx'), /useSteppedState<'builder' \| 'file'>\(\s*'content-terms-view',\s*'inner'/)
   assert.match(source('PlansView.tsx'), /useSteppedState<string \| null>\(\s*'plans-selected',\s*'select'/)
   assert.match(source('GraphView.tsx'), /useRemembered<DrillEntry\[\]>\('graph-stack', \[\]\)/)
