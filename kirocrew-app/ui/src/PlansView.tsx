@@ -1096,6 +1096,19 @@ function SpecRail(props: {
             </div>
           ))}
         </dl>
+        {row.planId && leaves.length > 0 && (
+          <Tooltip text="Show this spec's live dependency tree in the Graph" display="block">
+            <button
+              type="button"
+              className="mt-2 text-left underline underline-offset-2"
+              style={{ color: 'var(--accent)' }}
+              data-spec-open-tree={row.planId}
+              onClick={() => props.onDrill({ kind: 'spec', id: row.planId!, title: row.name })}
+            >
+              open tree →
+            </button>
+          </Tooltip>
+        )}
       </RailSection>
       <RailSection title="Dates">
         <div className="flex flex-col gap-0.5">
