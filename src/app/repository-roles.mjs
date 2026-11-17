@@ -25,7 +25,9 @@ export function resolveRoles(github) {
     named = github?.mode ?? null,
     storedMode = named === "local" ? null : named,
     stored = github?.planningRepository || null,
-    fromRoles = entries.some(([, entry]) => record(entry) && entry.role !== undefined);
+    fromRoles = entries.some(
+      ([, entry]) => record(entry) && entry.role !== undefined,
+    );
   const fallback = (id) =>
     storedMode === "plans-repo"
       ? same(id, stored)
@@ -36,7 +38,8 @@ export function resolveRoles(github) {
         : "local";
   const roles = {};
   for (const [id, entry] of entries) {
-    const role = record(entry) && entry.role !== undefined ? entry.role : fallback(id);
+    const role =
+      record(entry) && entry.role !== undefined ? entry.role : fallback(id);
     if (!ROLES.includes(role))
       throw Error(
         `github.repositories.${id}.role must be ${ROLES.slice(0, -1).join(", ")} or ${ROLES.at(-1)}.`,
@@ -45,7 +48,8 @@ export function resolveRoles(github) {
   }
   if (!fromRoles)
     return { roles, fromRoles, mode: storedMode, planningRepository: stored };
-  const ids = (role) => entries.map(([id]) => id).filter((id) => roles[id] === role),
+  const ids = (role) =>
+      entries.map(([id]) => id).filter((id) => roles[id] === role),
     planning = ids("planning"),
     code = ids("code"),
     both = ids("both"),
@@ -69,7 +73,12 @@ export function resolveRoles(github) {
       `${list(code)} keeps its issues in a planning repository, but ${list(both)} keeps its own. Make them all code with one planning repository, or all both.`,
     );
   if (both.length)
-    return { roles, fromRoles, mode: "single-repo", planningRepository: stored };
+    return {
+      roles,
+      fromRoles,
+      mode: "single-repo",
+      planningRepository: stored,
+    };
   const planningRepository = planning[0] ?? stored;
   if (
     !planningRepository ||
@@ -95,8 +104,10 @@ export function deriveGitHubKeys(github) {
   if (!result.fromRoles) return github;
   const next = { ...github };
   if (result.mode) next.mode = result.mode;
-  else if (github.mode !== undefined && github.mode !== null) next.mode = "local";
-  if (result.planningRepository) next.planningRepository = result.planningRepository;
+  else if (github.mode !== undefined && github.mode !== null)
+    next.mode = "local";
+  if (result.planningRepository)
+    next.planningRepository = result.planningRepository;
   return next;
 }
 
@@ -130,7 +141,8 @@ export function rolesNote(github) {
     return null;
   }
   if (!result.fromRoles) return null;
-  const was = github.mode === undefined || github.mode === null ? "local" : github.mode,
+  const was =
+      github.mode === undefined || github.mode === null ? "local" : github.mode,
     now = result.mode ?? "local";
   if (was === now) return null;
   return `The file says ${was}; the roles say ${now}. Saving writes ${now}.`;

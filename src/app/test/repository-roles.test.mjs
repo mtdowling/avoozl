@@ -8,7 +8,11 @@ import test from "node:test";
 import { readGitHubPolicy, normalizeGitHubPolicy } from "../github-policy.mjs";
 import { loadLayeredConfig } from "../layered-config.mjs";
 import { Operations } from "../operations.mjs";
-import { deriveGitHubKeys, resolveRoles, rolesNote } from "../repository-roles.mjs";
+import {
+  deriveGitHubKeys,
+  resolveRoles,
+  rolesNote,
+} from "../repository-roles.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -21,7 +25,11 @@ const repos = (map) =>
   );
 
 test("a file with no role reads its roles from the stored mode", () => {
-  const entries = repos({ "a/app": undefined, "a/plans": undefined, "a/lib": undefined });
+  const entries = repos({
+    "a/app": undefined,
+    "a/plans": undefined,
+    "a/lib": undefined,
+  });
   assert.deepEqual(resolveRoles({ repositories: entries }).roles, {
     "a/app": "local",
     "a/plans": "local",
@@ -32,26 +40,40 @@ test("a file with no role reads its roles from the stored mode", () => {
     planningRepository: "A/Plans",
     repositories: entries,
   });
-  assert.deepEqual(plans.roles, { "a/app": "code", "a/plans": "planning", "a/lib": "code" });
+  assert.deepEqual(plans.roles, {
+    "a/app": "code",
+    "a/plans": "planning",
+    "a/lib": "code",
+  });
   assert.equal(plans.mode, "plans-repo");
   assert.equal(plans.fromRoles, false);
   const single = resolveRoles({ mode: "single-repo", repositories: entries });
   assert.deepEqual(Object.values(single.roles), ["both", "both", "both"]);
-  assert.equal(resolveRoles({ mode: "local", repositories: entries }).mode, null);
+  assert.equal(
+    resolveRoles({ mode: "local", repositories: entries }).mode,
+    null,
+  );
 });
 
 test("roles give the mode and the planning repository", () => {
   const plans = resolveRoles({
-    repositories: repos({ "a/app": "code", "a/plans": "planning", "a/lib": "code" }),
+    repositories: repos({
+      "a/app": "code",
+      "a/plans": "planning",
+      "a/lib": "code",
+    }),
   });
   assert.equal(plans.mode, "plans-repo");
   assert.equal(plans.planningRepository, "a/plans");
   assert.equal(
-    resolveRoles({ repositories: repos({ "a/app": "both", "a/lib": "both" }) }).mode,
+    resolveRoles({ repositories: repos({ "a/app": "both", "a/lib": "both" }) })
+      .mode,
     "single-repo",
   );
   assert.equal(
-    resolveRoles({ repositories: repos({ "a/app": "local", "a/lib": "local" }) }).mode,
+    resolveRoles({
+      repositories: repos({ "a/app": "local", "a/lib": "local" }),
+    }).mode,
     null,
   );
   // A planning repository with no checkout has no entry: the stored name serves.
@@ -64,10 +86,22 @@ test("roles give the mode and the planning repository", () => {
 });
 
 const MIXES = [
-  ["two planning", { "a/x": "planning", "a/y": "planning" }, /Only one repository/],
-  ["planning with both", { "a/x": "planning", "a/y": "both" }, /cannot also hold/],
+  [
+    "two planning",
+    { "a/x": "planning", "a/y": "planning" },
+    /Only one repository/,
+  ],
+  [
+    "planning with both",
+    { "a/x": "planning", "a/y": "both" },
+    /cannot also hold/,
+  ],
   ["code with both", { "a/x": "code", "a/y": "both" }, /Make them all code/],
-  ["code with no planning", { "a/x": "code" }, /Give one repository the planning role/],
+  [
+    "code with no planning",
+    { "a/x": "code" },
+    /Give one repository the planning role/,
+  ],
   ["local beside GitHub", { "a/x": "local", "a/y": "both" }, /is local while/],
 ];
 for (const [label, map, message] of MIXES)
@@ -119,8 +153,15 @@ test("an unchanged file with no roles keeps its keys and behavior", () => {
 function workspace(t, github) {
   const { root, store } = fixture(t),
     filename = path.join(root, ".avoozl.json");
-  fs.writeFileSync(filename, JSON.stringify({ version: 1, github }, null, 2) + "\n");
-  return { root, filename, ops: new Operations(store, { workspaceRoot: root }) };
+  fs.writeFileSync(
+    filename,
+    JSON.stringify({ version: 1, github }, null, 2) + "\n",
+  );
+  return {
+    root,
+    filename,
+    ops: new Operations(store, { workspaceRoot: root }),
+  };
 }
 
 test("the config loader gives raw readers the derived mode", (t) => {
@@ -179,7 +220,10 @@ test("saving roles writes the derived mode and refuses a mix without writing", a
   const text = fs.readFileSync(filename, "utf8");
   next.repositories["a/lib"].role = "both";
   await assert.rejects(
-    ops.execute("github.settings.update", { github: next, expectedHash: saved.hash }),
+    ops.execute("github.settings.update", {
+      github: next,
+      expectedHash: saved.hash,
+    }),
     /cannot also hold/,
   );
   assert.equal(fs.readFileSync(filename, "utf8"), text);
