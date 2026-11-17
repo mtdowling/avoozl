@@ -652,3 +652,67 @@ test("integration releases dependents in the same tick and completes parents, ne
     "acceptance is its own action",
   );
 });
+
+test("a landed task's worktree and branch go; a held one keeps them", async (t) => {
+  const { store, ops, checkout } = setup(t, { tasks: [leaf("a"), leaf("b")] });
+  await verified(ops, "a");
+  const kept = store.get("task_worktrees", "a");
+  assert.ok(fs.existsSync(kept.path), "kept until it lands");
+  await tick(ops);
+  assert.equal(store.get("task_deliveries", "a").state, "integrated");
+  assert.equal(fs.existsSync(kept.path), false);
+  assert.equal(store.get("task_worktrees", "a"), null);
+  assert.equal(git(checkout, "branch", "--list", kept.branch), "");
+  assert.ok(
+    fs.existsSync(path.join(checkout, "a-1.txt")),
+    "work stays on main",
+  );
+
+  // A task that has not landed keeps both.
+  fs.writeFileSync(path.join(checkout, "README.md"), "edited\n");
+  await verified(ops, "b");
+  await tick(ops);
+  const held = store.get("task_worktrees", "b");
+  assert.equal(store.get("task_deliveries", "b").state, "decision");
+  assert.ok(fs.existsSync(held.path));
+  assert.notEqual(git(checkout, "branch", "--list", held.branch), "");
+});
+
+test(
+  "preparing a task runs the approved scripts/worktree helper",
+  {
+    skip: process.platform === "win32" && "the helper is a shell script",
+  },
+  async (t) => {
+    const { store, ops, checkout } = setup(t, { tasks: [leaf("a")] });
+    const helper = path.join(checkout, "scripts", "worktree");
+    fs.mkdirSync(path.dirname(helper));
+    fs.writeFileSync(
+      helper,
+      '#!/bin/sh\ntouch "$2.ran"; git worktree add -b "$1" "$2" "$3"\n',
+      { mode: 0o755 },
+    );
+    git(checkout, "add", ".");
+    git(
+      checkout,
+      "-c",
+      "user.name=t",
+      "-c",
+      "user.email=t@example.com",
+      "commit",
+      "-m",
+      "helper",
+    );
+    const { helperHash } = await import("../git.mjs");
+    await assert.rejects(
+      ops.execute("worktree.prepare", { taskId: "a" }),
+      /runs every time a worktree is added/,
+    );
+    store.put("projects", {
+      ...store.list("projects")[0],
+      worktreeHelper: helperHash(helper),
+    });
+    const made = await ops.execute("worktree.prepare", { taskId: "a" });
+    assert.ok(fs.existsSync(made.path + ".ran"), "the helper made it");
+  },
+);
