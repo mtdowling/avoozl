@@ -1474,7 +1474,7 @@ Owner request 2026-11-14 (Requirement 84, design §6.13). Prototype, off by defa
 Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
 38 because task IDs never move.
 
-- [ ] 39.1 Hook command: scan a crew's writes before they run [R85.3, R85.4] (§6.14)
+- [x] 39.1 Hook command: scan a crew's writes before they run [R85.3, R85.4] (§6.14)
   - `avoozl content hook`, `src/app/public-crews.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
 - [ ] 39.2 Audit on the tick: delete a hit, pull the cord, alert, after 39.1 [R85.6, R85.7] (§6.14)
   - `publicCrewAudit`, cursor per repository, fake GitHub; a comment is deleted, a pull request closed, one notice and one Needs you item.
