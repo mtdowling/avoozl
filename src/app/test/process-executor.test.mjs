@@ -1,5 +1,6 @@
 // The `process` executor and the Claude Code definition (R93.2, R93.5).
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -143,6 +144,9 @@ if (wait) {
 } else process.exit(code);
 `;
 
+const gitIn = (cwd, ...args) =>
+  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+
 function machine(t, extra = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-process-"));
   const cleanups = [];
@@ -157,9 +161,27 @@ function machine(t, extra = {}) {
   });
   const stateDirectory = path.join(root, "state");
   const configDirectory = path.join(root, "config");
+  // A write worker runs in a linked worktree of the main checkout (R88.6).
+  const checkout = path.join(root, "checkout");
   const worktree = path.join(root, "worktree");
-  fs.mkdirSync(worktree, { recursive: true });
-  fs.writeFileSync(path.join(worktree, "agent.mjs"), AGENT);
+  fs.mkdirSync(checkout);
+  gitIn(checkout, "init", "-q", "-b", "main");
+  gitIn(checkout, "config", "user.name", "Test");
+  gitIn(checkout, "config", "user.email", "test@example.com");
+  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
+  gitIn(checkout, "add", ".");
+  gitIn(checkout, "commit", "-q", "-m", "Start");
+  gitIn(
+    checkout,
+    "worktree",
+    "add",
+    "-q",
+    "-b",
+    "avoozl/sample-task",
+    worktree,
+  );
+  for (const where of [worktree, checkout])
+    fs.writeFileSync(path.join(where, "agent.mjs"), AGENT);
   fs.mkdirSync(path.join(configDirectory, "harnesses"), { recursive: true });
   const bytes = JSON.stringify({
     name: "fake-cli",
@@ -191,6 +213,7 @@ function machine(t, extra = {}) {
   return {
     root,
     stateDirectory,
+    checkout,
     worktree,
     supervisor,
     defer: (fn) => cleanups.push(fn),
@@ -355,6 +378,95 @@ test("the drain hands process requests to the supervisor and records status", as
   await drainProcessRequests(store, { stateDirectory, ops });
   assert.equal(reports.length, 1);
   assert.equal(store.list("session_bindings").length, 1);
+});
+
+// R94.4a: the child only edits; Avoozl commits in the worktree after it exits.
+test("Avoozl commits a write child's changes after it exits, never .avoozl/", async (t) => {
+  const { root, stateDirectory, checkout, worktree, supervisor, defer } =
+    machine(t);
+  const run = gitIn;
+  const task = worktree;
+  const store = new Store(path.join(root, "workspace.sqlite"));
+  defer(() => store.close());
+  const data = snapshot();
+  data.tasks[0].repository = "app";
+  store.importSnapshot(data);
+  store.put("projects", {
+    id: "app",
+    root: checkout,
+    executor: "process",
+    harness: "fake-cli",
+  });
+  const start = (where, brief, attempt = 1) =>
+    enqueueSessionRequests(store, {
+      starts: [
+        {
+          executor: "process",
+          role: "worker",
+          task: "sample-task",
+          brief,
+          worktree: where,
+          permissionClass: "write",
+          attempt,
+        },
+      ],
+    });
+  const reports = [];
+  const ops = {
+    execute: async (name, input) => reports.push({ name, input }),
+  };
+  start(
+    task,
+    'Edit only. RESULT:{"state": "done", "text": "Added the feature."}',
+  );
+  await drainProcessRequests(store, {
+    stateDirectory,
+    ops,
+    prepareWorktree: async () => ({ path: task }),
+  });
+  const [binding] = store.list("session_bindings");
+  // The child's edit; the fake agent also writes its result file.
+  fs.writeFileSync(path.join(task, "feature.txt"), "done\n");
+  const before = run(task, "rev-parse", "HEAD");
+  await until(async () => {
+    supervisor.pass();
+    await drainProcessRequests(store, { stateDirectory, ops });
+    return store.get("session_bindings", binding.slot).status === "closed";
+  });
+  const head = run(task, "rev-parse", "HEAD");
+  assert.notEqual(head, before, "Avoozl made the commit");
+  assert.equal(run(task, "rev-parse", "HEAD~1"), before);
+  const files = run(task, "show", "--name-only", "--format=", "HEAD").split(
+    "\n",
+  );
+  assert.ok(files.includes("feature.txt"));
+  assert.ok(!files.some((f) => f.startsWith(".avoozl/")));
+  assert.match(run(task, "log", "-1", "--format=%s"), /sample-task, attempt 1/);
+  // The done report carries Avoozl's commit, which Verify then checks.
+  assert.deepEqual(
+    reports.map((r) => [r.input.kind, r.input.commit]),
+    [["done", head]],
+  );
+  // The main checkout is never committed in: the exit is recorded with no
+  // report, so the task takes the retry path.
+  fs.writeFileSync(path.join(checkout, "stray.txt"), "x\n");
+  store.remove("session_bindings", binding.slot);
+  start(
+    checkout,
+    'Edit only, again. RESULT:{"state": "done", "text": "Added the feature."}',
+    2,
+  );
+  await drainProcessRequests(store, { stateDirectory, ops });
+  const [second] = store.list("session_bindings");
+  let errors = [];
+  await until(async () => {
+    supervisor.pass();
+    ({ errors } = await drainProcessRequests(store, { stateDirectory, ops }));
+    return store.get("session_bindings", second.slot).status === "closed";
+  });
+  assert.match(errors[0].error, /not a task worktree/);
+  assert.equal(run(checkout, "rev-list", "--count", "main"), "1");
+  assert.equal(reports.length, 1, "no done at the old HEAD");
 });
 
 // R94.6: the harness's spend cap is set from the task budget's dollars left.

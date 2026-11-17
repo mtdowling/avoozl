@@ -5463,6 +5463,13 @@ GitHub issue per task or exposing private planning information.
     `C:\Users\<name>`, `~/`); and this machine's own hostname and username.
     Tests SHALL insert a made-up hostname and username into every public
     field and expect refusal with nothing written.
+26. A held journal SHALL be restored only by a person's reanchor record:
+    it names the held record IDs and the reviewed tail (record ID and
+    digest), and only a person with write access may write it. Replay
+    SHALL ignore the named records' contents and continue from the
+    reanchor; a hold on any record it does not name SHALL stay. Reanchor
+    SHALL NOT edit or delete any comment, SHALL NOT grant approval or
+    completion, and the spec SHALL stay held until a person's Resume.
 
 ### Requirement 103: Issue Radar stays off Avoozl's issues
 

@@ -9,6 +9,7 @@ import { createExecutor } from "../executors.mjs";
 import { execFile } from "node:child_process";
 import { cliReportCaller } from "../report-match.mjs";
 import {
+  childRecord,
   childResult,
   childStatus,
   openSupervisorDatabase,
@@ -23,6 +24,7 @@ import {
   takeSessionRequest,
 } from "../session-requests.mjs";
 import { bindSession, recordSessionStatus } from "../session-bindings.mjs";
+import { commitWorkerChanges, git } from "../git.mjs";
 import { sessionStartHold } from "../session-request-eligibility.mjs";
 import { spendCapUsd } from "../budget.mjs";
 import { healthContext, providerOf } from "../provider-health.mjs";
@@ -123,6 +125,31 @@ export function planQuotaHold(health, { model, harness }) {
     if (name && LOW.has(health.level(name)))
       return `The ${providerOf(name)} plan quota reads ${health.level(name)}; no new session starts on ${harness}.`;
   return null;
+}
+
+// R94.4a: a write worker's worktree has its git directory in the main
+// checkout, outside the child's write roots, so the child only edits and
+// Avoozl commits the changed files once it exits. Only a linked worktree is
+// committed in, never a main checkout. The commit then goes through Verify
+// like any worker's (declared and protected paths, checks). Returns the
+// commit, or null when nothing changed.
+export async function commitChildWork(binding, worktree) {
+  const [dir, common] = (
+    await git(worktree, [
+      "rev-parse",
+      "--path-format=absolute",
+      "--git-dir",
+      "--git-common-dir",
+    ])
+  ).split("\n");
+  if (dir === common)
+    throw Error(
+      `${worktree} is not a task worktree; Avoozl commits only there.`,
+    );
+  return commitWorkerChanges(
+    worktree,
+    `Avoozl task ${binding.taskId}, attempt ${binding.attempt ?? 1}`,
+  );
 }
 
 // Record a child's result as its session's report, as `runner report` does
@@ -269,10 +296,35 @@ export async function drainProcessRequests(
     if (binding.executor === PROCESS_EXECUTOR && !FINISHED.has(binding.status))
       try {
         const status = await executor.status(binding.slot);
+        // Commit before the exit is recorded, so whatever reads the result
+        // reads HEAD with the child's work in it. A failed commit keeps the
+        // files in the worktree and closes the session unreported, so the
+        // retry path resumes there instead of a done at the old HEAD.
+        let committed = true;
+        if (
+          status.startsWith("exited ") &&
+          binding.role === "worker" &&
+          binding.permissionClass === "write"
+        )
+          await commitChildWork(
+            binding,
+            withDatabase(
+              stateDirectory,
+              (db) => childRecord(db, binding.slot).worktree,
+            ),
+          ).catch((error) => {
+            committed = false;
+            errors.push({ id: binding.slot, error: error.message });
+          });
         // A finished run's result file is its report (R96.1, R96.3); one
         // with none, a bad one, or done with a non-zero exit closes the
         // session unreported, which takes the retry path (R96.4).
-        if (status.startsWith("exited ") && ops && !binding.report) {
+        if (
+          status.startsWith("exited ") &&
+          ops &&
+          committed &&
+          !binding.report
+        ) {
           const result = withDatabase(stateDirectory, (db) =>
             childResult(db, binding.slot),
           );

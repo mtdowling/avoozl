@@ -1805,6 +1805,11 @@ export default function PlansView(props: {
     }
   }
   const reviewing = review && row?.planId === review.plan ? review : null
+  // The Review view folds the specs list so the text and its rail sit side
+  // by side; the bar brings the list back until the view is opened again.
+  const [reviewList, setReviewList] = useState(false)
+  useEffect(() => setReviewList(false), [reviewing?.plan])
+  const listFolded = row && rail.fold ? { label: 'Show the specs list', onUnfold: rail.unfold } : reviewing && !reviewList ? { label: 'Show the specs list', onUnfold: () => setReviewList(true) } : undefined
   // Who drives the open spec (§6.10): the chip, banner and Hand off.
   const driver = useDriver(workspace, row?.planId ?? null)
   const spec: SpecSummary | null = row?.spec ? (table?.specs.find((item) => item.name === row.spec) ?? null) : null
@@ -1994,7 +1999,7 @@ export default function PlansView(props: {
       ) : (
         <ListDetailLayout
           id="specs"
-          listFolded={row && rail.fold ? { label: 'Show the specs list', onUnfold: rail.unfold } : undefined}
+          listFolded={listFolded}
           backLabel="All specs"
           detailTitle={row?.name ?? ''}
           detailOwnTitle
