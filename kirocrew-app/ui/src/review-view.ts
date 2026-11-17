@@ -169,3 +169,36 @@ export function chipCounts(findings: ReviewFinding[], place: Pick<ReviewPlace, '
 
 export const lineText = (anchor: ReviewFinding['anchor']) =>
   anchor.lineStart === anchor.lineEnd ? `${anchor.file}:${anchor.lineStart}` : `${anchor.file}:${anchor.lineStart}-${anchor.lineEnd}`
+
+// Rendered blocks' first source lines, in order: block i runs from lines[i]
+// to lines[i + 1] - 1 (the last one to the end).
+// The block an anchor starts in: the last one at or before its first line,
+// else the first block.
+export function blockFor(lines: number[], line: number): number {
+  let at = 0
+  for (let i = 0; i < lines.length; i++) if (lines[i] <= line) at = i
+  return at
+}
+
+// The blocks an anchor's lines touch.
+export function blocksIn(lines: number[], start: number, end: number): number[] {
+  const out: number[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const last = i + 1 < lines.length ? lines[i + 1] - 1 : Infinity
+    if (lines[i] <= end && last >= start) out.push(i)
+  }
+  return out.length ? out : lines.length ? [blockFor(lines, start)] : []
+}
+
+// Each card's top in the rail: level with its block (`want`), pushed down
+// below the card above when they would overlap. In `want` order, then line.
+export function stackCards(cards: { id: string; want: number; line: number; height: number }[], gap = 8): Record<string, number> {
+  const tops: Record<string, number> = {}
+  let floor = 0
+  for (const card of [...cards].sort((a, b) => a.want - b.want || a.line - b.line)) {
+    const top = Math.max(card.want, floor)
+    tops[card.id] = top
+    floor = top + card.height + gap
+  }
+  return tops
+}

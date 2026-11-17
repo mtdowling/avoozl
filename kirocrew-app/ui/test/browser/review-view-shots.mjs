@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// Full-app screenshots of a spec's page and its Review view (task 57.4) on
+// Full-app screenshots of a spec's page and its Review view (tasks 57.4, 57.5) on
 // fake findings, desktop (1280) and phone (390), light and dark:
-// <out>/<before|after>-<width>-<theme>.png. "before" is the spec page with
-// Open review; "after" is the Review view.
+// <out>/<before|after|selected|moved>-<width>-<theme>.png. "before" is the spec page with
+// Open review; "after" is the Review view; "selected" has one card picked;
+// "moved" is the Design tab with its Moved or removed group.
 //
 //   node test/browser/review-view-shots.mjs <out dir>
 import fs from 'node:fs'
@@ -33,6 +34,10 @@ try {
       for (const [name, steps] of [
         ['before', []],
         ['after', [click('[data-open-review]')]],
+        // One card selected: its lines highlighted.
+        ['selected', [click('[data-open-review]'), 'wait', click('[data-finding-card="f-later"]')]],
+        // Design: a moved finding lists first under Moved or removed.
+        ['moved', [click('[data-open-review]'), 'wait', click('[data-review-tab="design.md"]')]],
       ]) {
         const url = harness.url({ page: 'app', radar: '1', specs: '1', review: '1', theme })
         const run = async (height) => {
@@ -49,8 +54,10 @@ try {
           await page.until(`Boolean(document.querySelector('[data-plan-row="spec:byte-types"]'))`, 30000)
           await page.evaluate(click('[data-plan-row="spec:byte-types"]'))
           await page.until(`Boolean(document.querySelector('[data-open-review]'))`, 30000)
-          for (const step of steps) await page.evaluate(step)
-          if (name === 'after') await page.until(`Boolean(document.querySelector('[data-finding-card]'))`, 30000)
+          for (const step of steps)
+            if (step === 'wait') await page.until(`Boolean(document.querySelector('[data-finding-card]'))`, 30000)
+            else await page.evaluate(step)
+          if (name !== 'before') await page.until(`Boolean(document.querySelector('[data-finding-card]'))`, 30000)
           await settle()
         }
         // Tall enough for the whole view: the app scrolls inside its own pane.
