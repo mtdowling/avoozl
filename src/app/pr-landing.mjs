@@ -28,7 +28,7 @@ import {
   withdrawLanding,
 } from "./landing-queue.mjs";
 import { pullSteps } from "./landing-pulls.mjs";
-import { sendConflictBack } from "./landing-conflicts.mjs";
+import { reopenAttempt, sendConflictBack } from "./landing-conflicts.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 import { driverIdOf } from "./spec-scheduler.mjs";
 import { specAuthority } from "./spec-takeover.mjs";
@@ -183,7 +183,7 @@ export function sendFailureBack(store, result, { rounds, now, where }) {
           ].join("\n"),
         });
         store.put("task_deliveries", {
-          ...delivery,
+          ...reopenAttempt(store, delivery, binding, at),
           state: "running",
           landingFailures: [
             ...used,

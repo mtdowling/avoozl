@@ -15,6 +15,28 @@ import { DEFAULT_CONFLICT_ROUNDS, conflictRounds } from "./landing-config.mjs";
 export { DEFAULT_CONFLICT_ROUNDS, conflictRounds };
 const MAX_FILES = 50;
 
+// Sending work back to the same chat reopens its attempt: the chat's final
+// report and the attempt it closed are set aside (kept under `returned`), so
+// the chat can report done again on its new commit and that report is
+// recorded as usual. Returns the delivery to write.
+export function reopenAttempt(store, delivery, binding, at) {
+  const { report, ...open } = binding,
+    closed = (delivery.attempts ?? []).filter(
+      (a) => a.attempt === binding.attempt,
+    );
+  store.put("session_bindings", {
+    ...open,
+    returned: [...(binding.returned ?? []), { report: report ?? null, at }],
+  });
+  return {
+    ...delivery,
+    attempts: (delivery.attempts ?? []).filter(
+      (a) => a.attempt !== binding.attempt,
+    ),
+    returnedAttempts: [...(delivery.returnedAttempts ?? []), ...closed],
+  };
+}
+
 // The message for the worker chat. File names are repository data, so they
 // sit in a fenced block the chat is told to read as data.
 export function conflictMessage(taskId, { files, base, round, rounds }) {
@@ -71,7 +93,7 @@ export function sendConflictBack(
           }),
         });
         store.put("task_deliveries", {
-          ...delivery,
+          ...reopenAttempt(store, delivery, binding, at),
           state: "running",
           landingConflicts: [
             ...used,
