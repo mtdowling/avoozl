@@ -6210,9 +6210,9 @@ function cl({ note: e }) {
 }
 // kirocrew-app/ui/src/GithubFlow.tsx
 function ll({ workspaceId: e }) {
-	let t = q(), n = l(() => ns(t), [t]), [r, a] = d(0), { value: o, error: s, busy: c } = qo(e, i((e) => n.read(e, r > 0), [n, r]));
-	if (!o || !o.repositories.length && !s) return null;
-	let u = is(o), f = Math.max(1, ...o.median ?? [0]);
+	let t = q(), n = l(() => ns(t), [t]), [r, a] = d(0), { value: o, error: s, busy: c } = qo(e, i((e) => n.read(e, r > 0), [n, r])), u = !!o?.builds?.count;
+	if (!o || !o.repositories.length && !u && !s) return null;
+	let f = o.repositories.length > 0, p = is(o), m = Math.max(1, ...o.median ?? [0]);
 	return /* @__PURE__ */ C(v, {
 		className: "flex flex-col gap-2",
 		children: /* @__PURE__ */ w("div", {
@@ -6220,13 +6220,14 @@ function ll({ workspaceId: e }) {
 			className: "flex flex-col gap-2",
 			children: [
 				/* @__PURE__ */ C(Z, { title: "From GitHub" }),
-				/* @__PURE__ */ w("p", {
+				f && /* @__PURE__ */ w("p", {
 					className: "text-sm text-muted",
 					children: [as(o), ". Times are GitHub's."]
 				}),
 				/* @__PURE__ */ C("ul", {
 					className: "m-0 flex list-none flex-col gap-1.5 p-0",
-					children: u.map((e, t) => /* @__PURE__ */ w("li", {
+					hidden: !f,
+					children: p.map((e, t) => /* @__PURE__ */ w("li", {
 						"data-flow-stage": e.name,
 						className: "flex flex-wrap items-center gap-2 text-sm",
 						children: [
@@ -6246,7 +6247,7 @@ function ll({ workspaceId: e }) {
 									display: "block",
 									height: "100%",
 									borderRadius: 4,
-									width: `${100 * (o.median?.[t] ?? 0) / f}%`,
+									width: `${100 * (o.median?.[t] ?? 0) / m}%`,
 									background: e.slowest ? "var(--accent)" : "var(--muted)"
 								} })
 							}),
