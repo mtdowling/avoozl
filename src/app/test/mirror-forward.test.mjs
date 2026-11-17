@@ -31,16 +31,29 @@ const policy = (forward = "nudge") => ({
   },
 });
 
-function fake(pulls) {
+// `tracking`: commits on the mirror's avoozl-upstream/main branch.
+function fake(pulls, tracking = []) {
   const github = {
     pulls,
     detailReads: 0,
+    commitReads: 0,
+    commit: async (repo, sha) => {
+      assert.equal(repo, MIRROR);
+      github.commitReads++;
+      const pull = github.pulls.find((p) => p.merge_commit_sha === sha);
+      return { parents: pull.parents ?? [{ sha: "base" }] };
+    },
+    compareCommits: async (repo, base, head) => {
+      assert.equal(repo, MIRROR);
+      assert.equal(head, "avoozl-upstream/main");
+      return { status: tracking.includes(base) ? "ahead" : "diverged" };
+    },
     available: () => true,
     repository: async () => ({ default_branch: "main" }),
     listPullRequests: async (repo, input) => {
       assert.equal(repo, MIRROR);
       assert.equal(input.state, "closed");
-      return github.pulls.map(({ approver: _a, ...pull }) => pull);
+      return github.pulls.map(({ approver: _a, parents: _p, ...pull }) => pull);
     },
     pullRequest: async (_repo, number) => {
       github.detailReads++;
@@ -94,6 +107,35 @@ test("a PR merged after the first tick gives one record, whatever the tick count
     },
   );
   assert.equal(github.detailReads, 1, "the approver is read once");
+});
+
+test("upstream imports are never recorded; a private change beside them is (R102.21)", async (t) => {
+  const { store } = fixture(t),
+    github = fake([], ["u1", "u2"]);
+  await mirrorForwardStep(store, github, { policy: policy(), now: T0 });
+  github.pulls.push(
+    // The import pull request from the tracking branch.
+    merged(20, 5, { head: { ref: "avoozl-upstream/main" } }),
+    // A second import, merged by hand from another branch: its second
+    // parent is on the tracking branch.
+    merged(21, 6, {
+      head: { ref: "sync-upstream" },
+      parents: [{ sha: "m1" }, { sha: "u2" }],
+    }),
+    // A genuine private change merged with a merge commit.
+    merged(22, 7, { parents: [{ sha: "m2" }, { sha: "c9" }] }),
+  );
+  for (let i = 1; i <= 3; i++)
+    await mirrorForwardStep(store, github, {
+      policy: policy(),
+      now: T0 + i * 60000,
+    });
+  assert.deepEqual(
+    mirrorForwards(store).map((record) => record.mirrorPr),
+    [22],
+  );
+  assert.deepEqual(mirrorForwardRows(store, policy()).length, 1);
+  assert.equal(github.commitReads, 2, "each merge commit is read once");
 });
 
 test("a PR closed without a merge, or merged into another branch, is not recorded", async (t) => {

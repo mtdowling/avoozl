@@ -92,6 +92,7 @@ test("the forward step records a merge into the public branch copy with its base
       repository: async () => ({ default_branch: "main" }),
       listPullRequests: async (_repo, { base }) => pulls[base] ?? [],
       pullRequest: async () => ({ merged_by: { login: "dana" } }),
+      commit: async () => ({ parents: [{ sha: "p1" }] }),
     },
     pol = policy("nudge", { forwardTarget: "branch", publicBranch: "rewrite" }),
     options = {
@@ -133,15 +134,30 @@ test("the sync step also fast-forwards the copy of a public branch, with its own
     copies.map((c) => [c.branch, c.sha]),
     [["rewrite", "r2"]],
   );
-  // A diverged copy names the branch in its row and is not touched.
+  // A diverged copy is not touched: the source comes in through the
+  // branch's own tracking branch and import pull request (R102.21).
   heads[MIRROR].rewrite = "x1";
   github.compareCommits = async () => ({ status: "diverged" });
+  const created = [];
+  github.listPullRequests = async () => [];
+  github.createPullRequest = async (_repo, input) => {
+    created.push(input);
+    return { number: 4, head: { ref: input.head } };
+  };
   copies.length = 0;
   const store = fakeStore(),
     again = await mirrorSyncStep(store, github, options);
-  assert.equal(copies.length, 0);
+  assert.deepEqual(again.errors, []);
+  assert.deepEqual(
+    copies.map((c) => [c.branch, c.target, c.sha]),
+    [["rewrite", "avoozl-upstream/rewrite", "r2"]],
+  );
+  assert.deepEqual(
+    created.map((c) => [c.head, c.base]),
+    [["avoozl-upstream/rewrite", "rewrite"]],
+  );
   assert.equal(again.notify.length, 1);
-  assert.match(mirrorNeedsYou(store)[0].title, /public branch rewrite/);
+  assert.match(mirrorNeedsYou(store)[0].title, /branch rewrite/);
 });
 
 function fakeStore() {

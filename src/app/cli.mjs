@@ -23,6 +23,7 @@ import { startAppBackend } from "./app-backend.mjs";
 import { contentHook } from "./public-crews.mjs";
 import { runSupervisor } from "./supervisor.mjs";
 import { reportByToken } from "./report-match.mjs";
+import { readRunnerConfig } from "./remote-runner.mjs";
 import { hookEvent, runnerHookBrief } from "./runner.mjs";
 import { validate } from "../model.mjs";
 import { planFiles } from "../catalog.mjs";
@@ -848,15 +849,16 @@ try {
         positionals[1] && state,
         "runner report TASK done|blocked [--token T]",
       );
-      if (token) {
-        // R88.2: matched by the report token and the worktree it runs in.
+      if (token || readRunnerConfig(config.workspaceRoot)?.role !== "runner") {
+        // R88.2: matched by the report token and the worktree it runs in;
+        // with no token, by the worktree of this command line's claim.
         requireDatabase();
         const store = new Store(dbPath);
         try {
           result = await reportByToken(store, localOperations(store), {
             taskId: positionals[1],
             state,
-            token,
+            token: token || undefined,
             cwd: process.cwd(),
             text: typeof options.text === "string" ? options.text : undefined,
           });
