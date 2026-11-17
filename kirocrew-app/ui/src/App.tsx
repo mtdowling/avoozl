@@ -12,6 +12,7 @@ import DashboardView, { type DashboardTarget } from './DashboardView'
 import PlansView, { type PlanTarget } from './PlansView'
 import GraphPage from './FocusTree.tsx'
 import { parseGraphLink } from './focus-tree.ts'
+import { parseReviewLink } from './review-view.ts'
 import WaitingView from './WaitingView.tsx'
 import FlowView from './FlowView.tsx'
 import { TracePage } from './TraceView.tsx'
@@ -209,6 +210,8 @@ function AvoozlPage() {
     if (link) go({ tab: 'trace', focus: null, drill: null }, { [TRACE_TARGET]: link })
     // ?tree=task:<id> or ?graph=frontier opens the Graph there (FocusTree.tsx).
     else if (parseGraphLink(window.location.search)) go({ tab: 'graph', focus: null, drill: null })
+    // ?view=review&plan=P opens the Specs page, which opens that Review view.
+    else if (parseReviewLink(window.location.search)) go({ tab: 'plans', focus: null, drill: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const openTrace = (target: TraceTarget) => go({ tab: 'trace', focus: null, drill: null }, { [TRACE_TARGET]: target })
