@@ -408,8 +408,9 @@ answer('workspaces.list', () => ({
   ],
 }))
 // The install's name: quiet with one instance, shown in more places with &shared=1.
-answer('instance.view', () => ({ id: 'inst-0123456789ab', name: 'Mira', others: query.get('shared') === '1' ? ['inst-aaaaaaaaaaaa'] : [], shared: query.get('shared') === '1' }))
-answer('instance.rename', (body) => ({ id: 'inst-0123456789ab', name: String((body.input as { name?: string }).name), others: [], shared: false }))
+let instanceName = 'Mira'
+answer('instance.view', () => ({ id: 'inst-0123456789ab', name: instanceName, others: query.get('shared') === '1' ? ['inst-aaaaaaaaaaaa'] : [], shared: query.get('shared') === '1' }))
+answer('instance.rename', (body) => ({ id: 'inst-0123456789ab', name: (instanceName = String((body.input as { name?: string }).name)), others: [], shared: false }))
 answer('untriaged.view', () => ({
   enabled: true,
   mode: null,

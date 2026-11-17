@@ -65,7 +65,6 @@ import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
 import ModelsSettings from './ModelsSettings.tsx'
-import { InstanceRename } from './InstanceName.tsx'
 import MirrorSetup from './MirrorSetup.tsx'
 import { RetiredBanner } from './SettingsSlots.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
@@ -95,7 +94,6 @@ const WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 export const RELEASE_N_HELP = 'How many issues get the ready label at once. Crews pick from these.'
 
 export const SETTINGS_TABS = [
-  { key: 'instance', label: 'Instance name' },
   { key: 'workspaces', label: 'Workspaces' },
   // Coder, Labels, Crews and rules and the Workflow map are tabs of each repository's Edit dialog.
   { key: 'repositories', label: 'Repository setup' },
@@ -111,7 +109,7 @@ export const SETTINGS_TABS = [
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
 // Sections whose editors are large open in a modal from a Configure button;
-// the small ones (the instance name, the workspace list) stay inline.
+// the small one (the workspace list) stay inline.
 const DIALOG_SECTIONS: readonly SettingsTab[] = ['repositories', 'github', 'plugins', 'content', 'flow', 'delivery']
 
 // One short line under each Settings heading: what it controls and when
@@ -120,8 +118,6 @@ const DIALOG_SECTIONS: readonly SettingsTab[] = ['repositories', 'github', 'plug
 export const LOCAL_TAB_BLURB = 'The mode for this workspace. Save only writes .avoozl.json.'
 
 export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
-  instance:
-    'The short name this install shows to people. Hidden markers carry a fixed ID, so a rename changes nothing on GitHub.',
   workspaces:
     'The Avoozl workspaces on this machine, each a folder with its own task database. Add one for each set of specs you keep apart.',
   repositories:
@@ -1537,7 +1533,6 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   // Bumped after a mirror setup applies, so the form and raw file reload.
   const [version, setVersion] = useState(0)
   if (tab === 'workspaces') return <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
-  if (tab === 'instance') return workspaceId ? <InstanceRename workspaceId={workspaceId} /> : <p className="text-sm text-muted">Pick a workspace first.</p>
   if (!workspaceId)
     return (
       <EmptyState
