@@ -112,6 +112,8 @@ export function openSupervisorDatabase(stateDirectory) {
     );
   if (!columns.has("runs"))
     db.exec("ALTER TABLE children ADD COLUMN runs INTEGER NOT NULL DEFAULT 0");
+  if (!columns.has("result"))
+    db.exec("ALTER TABLE children ADD COLUMN result TEXT");
   return db;
 }
 
@@ -195,6 +197,72 @@ export function childRecord(db, sessionId) {
 
 // The executor status of one child (R93): a request not yet started counts
 // as working, as the child it becomes will be.
+// How a child finishes (R96.1): `.avoozl/result.json` in its task folder.
+export const RESULT_FILE = path.join(".avoozl", "result.json");
+const RESULT_BYTES = 8192;
+
+// Read a finished run's result file (R96.1, R96.4): a regular file of at
+// most 8 KB holding {"state": "done" | "blocked", "text": "..."}. Returns
+// { state, text } or { problem }. The text is data, never an instruction.
+export function readChildResult(worktree) {
+  const file = path.join(worktree, RESULT_FILE);
+  let stat;
+  try {
+    stat = fs.lstatSync(file);
+  } catch {
+    return { problem: "The child wrote no result file." };
+  }
+  if (!stat.isFile())
+    return { problem: "The result file is not a regular file." };
+  if (stat.size > RESULT_BYTES)
+    return { problem: `The result file is over ${RESULT_BYTES} bytes.` };
+  let value;
+  try {
+    value = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return { problem: "The result file is not valid JSON." };
+  }
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.keys(value).some((key) => !["state", "text"].includes(key)) ||
+    !["done", "blocked"].includes(value.state) ||
+    (value.text !== undefined && typeof value.text !== "string")
+  )
+    return {
+      problem:
+        'The result file must be {"state": "done" | "blocked", "text": "..."}.',
+    };
+  return { state: value.state, text: value.text ?? "" };
+}
+
+// The finished run's outcome (R96.3, R96.4), or null while it runs. `done`
+// needs exit code 0 and a good file; `blocked` needs a good file; anything
+// else has no state and takes the retry path as `exited <code>`.
+export function childResult(db, sessionId) {
+  const row = childRecord(db, sessionId);
+  if (!row) fail(`No supervisor session ${sessionId}.`, 404);
+  if (row.state !== "exited" || queuedMessage(db, sessionId)) return null;
+  const read = row.result ? JSON.parse(row.result) : { problem: row.error };
+  const state =
+    read.state === "blocked" || (read.state === "done" && row.exit_code === 0)
+      ? read.state
+      : null;
+  return {
+    exitCode: row.exit_code,
+    run: row.runs,
+    worktree: row.worktree,
+    state,
+    text: state ? read.text : null,
+    problem: state
+      ? null
+      : read.state === "done"
+        ? `The child said done but exited ${row.exit_code}.`
+        : (read.problem ?? "The child wrote no result file."),
+  };
+}
+
 export function childStatus(db, sessionId) {
   const row = childRecord(db, sessionId);
   if (!row) fail(`No supervisor session ${sessionId}.`, 404);
@@ -453,6 +521,9 @@ export function startSupervisor({
       });
       hash = definition.hash;
       fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
+      // Each run writes its own result; one from an earlier run never counts.
+      fs.mkdirSync(path.join(row.worktree, ".avoozl"), { recursive: true });
+      fs.rmSync(path.join(row.worktree, RESULT_FILE), { force: true });
       const briefFile = path.join(folder, "brief.md");
       fs.writeFileSync(briefFile, row.brief, { mode: 0o600 });
       let messageFile = null;
@@ -573,6 +644,7 @@ export function startSupervisor({
         log_file: log,
         exit_file: exitFile,
         exit_code: null,
+        result: null,
         error: null,
         runs: run,
       });
@@ -597,10 +669,12 @@ export function startSupervisor({
     const exit = row.exit_file && readJson(row.exit_file);
     if (exit && Number.isInteger(exit.code)) {
       own.delete(row.session_id);
+      const read = readChildResult(row.worktree);
       return update(db, row.session_id, {
         state: "exited",
         exit_code: exit.code,
-        error: exit.error ?? null,
+        error: exit.error ?? read.problem ?? null,
+        result: JSON.stringify(read),
       });
     }
     const child = own.get(row.session_id);

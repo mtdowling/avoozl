@@ -43,6 +43,7 @@ const OBSERVE = new Set([
   "plan.review.list",
   "plan.reviewSummary",
   "plan.review.findings",
+  "plan.review.view",
   "plan.review.pipeline.get",
   "driver.list",
   "run.list",
