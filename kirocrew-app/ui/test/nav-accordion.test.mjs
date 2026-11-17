@@ -1,5 +1,5 @@
 // The left nav is Issue Radar's accordion: Dashboards, Flow, Needs you and Settings open
-// in the nav to their pages, sections stay open until shut, and the content
+// in the nav to their pages, one section is open at a time, and the content
 // shows only the picked page (no tab bar or section list in it). Each pick is
 // a Back step. On a phone the same accordion is in the menu. Skipped when no
 // Chrome is found.
@@ -23,9 +23,11 @@ after(async () => {
 })
 const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 250))')
 const click = (selector) => page.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`)
+// The sections drawn open, inside the given nav.
+const openPills = (scope) => page.evaluate(`[...document.querySelectorAll(${JSON.stringify(scope + ' [data-nav-section][data-open]')})].map((x) => x.dataset.navSection)`)
 const has = (selector) => page.evaluate(`Boolean(document.querySelector(${JSON.stringify(selector)}))`)
 
-test('Settings opens in the nav; the page shows one section; Needs you does the same; opened sections stay open', { skip }, async () => {
+test('Settings opens in the nav; the page shows one section; Needs you does the same and shuts Settings', { skip }, async () => {
   await page.open(harness.url({ app: '1', radar: '1' }), { width: 1280, height: 800 })
   await page.until(`Boolean(document.querySelector('[data-nav-group="settings"]'))`)
   // Home is Dashboards' first page, so Dashboards is the one open section.
@@ -37,20 +39,20 @@ test('Settings opens in the nav; the page shows one section; Needs you does the 
   await click('[data-nav-item="settings/models"]')
   await page.until(`document.querySelector('[data-settings-section]').dataset.settingsSection === 'models'`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
-  // Opening Needs you leaves Settings open; its two sections are nav pages.
+  // Opening Needs you shuts Settings; its two sections are nav pages.
   await click('[data-nav-group="waiting"]')
   await page.until(`Boolean(document.querySelector('[data-nav-children="waiting"]'))`)
-  assert.equal(await has('[data-nav-children="settings"]'), true, 'Settings stays open')
+  assert.equal(await has('[data-nav-children="settings"]'), false, 'Settings shuts')
   await click('[data-nav-item="waiting/intake"]')
   await page.until(`document.querySelector('[data-waiting-section][data-open="true"]')?.dataset.waitingSection === 'intake'`)
   assert.equal(await has('[data-waiting-tabs]'), false, 'no section tabs in the page')
-  // A plain page leaves them open; a header click shuts its section.
+  // A plain page shuts the open section; a header click on an open one shuts it.
   await click('[data-nav-item="trace"]')
   await settle()
-  assert.equal(await has('[data-nav-children="waiting"]'), true)
+  assert.equal(await has('[data-nav-children]'), false, 'Trace has no section, so none is open')
   await click('[data-nav-group="waiting"]')
-  await click('[data-nav-group="settings"]')
-  await click('[data-nav-group="dashboard"]')
+  await page.until(`Boolean(document.querySelector('[data-nav-children="waiting"]'))`)
+  await click('[data-nav-group="waiting"]')
   await settle()
   assert.equal(await has('[data-nav-children]'), false)
   assert.deepEqual(page.errors, [])
@@ -76,10 +78,47 @@ test('a phone: the menu holds the same accordion, and picking a page closes the 
   await page.until(`Boolean(document.querySelector('[data-nav-children="settings"]'))`)
   await click('[data-nav-group="waiting"]')
   await page.until(`Boolean(document.querySelector('[data-nav-children="waiting"]'))`)
-  assert.equal(await page.evaluate(`document.querySelectorAll('[data-nav-section][data-open]').length`), 3, 'Dashboards, Settings and Needs you are open')
+  assert.deepEqual(await openPills('[data-top-rail-list]'), ['waiting'], 'only Needs you is open')
   assert.equal(await has('[data-top-rail-footer] [data-brand-card]'), true, 'the brand card is at the bottom of the menu')
   await click('[data-nav-item="waiting/intake"]')
   await settle()
   assert.equal(await has('[data-top-rail-list]'), false, 'the menu closes')
   assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Needs you · Planning and intake/)
 })
+
+// The owner's ask (2026-11-17): moving from page to page leaves only that
+// page's pill open, and opening one by hand shuts the rest.
+for (const [width, height, scope] of [
+  [1280, 800, '[data-left-nav]'],
+  [390, 844, '[data-top-rail-list]'],
+])
+  test(`at ${width} px one pill is open: Specs, then Activity, then Dashboards, then a pill opened by hand`, { skip }, async () => {
+    await page.open(harness.url({ app: '1', radar: '1', specs: '1', activity: '1' }), { width, height })
+    await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
+    const menu = async () => {
+      if (width >= 768 || (await has('[data-top-rail-list]'))) return
+      await click('[data-top-rail-bar]')
+      await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
+    }
+    const go = async (key) => {
+      await menu()
+      await click(`${scope} [data-nav-group="${key}"]`)
+      await page.until(`Boolean(document.querySelector('${scope} [data-nav-children="${key}"]'))`)
+      await settle()
+    }
+    await menu()
+    assert.deepEqual(await openPills(scope), ['dashboard'], 'Home: Dashboards alone')
+    for (const key of ['plans', 'activity', 'dashboard']) {
+      await go(key)
+      assert.deepEqual(await openPills(scope), [key], `after going to ${key}, only its pill is open`)
+    }
+    // A page inside a pill keeps that pill the only one open.
+    await click(`${scope} [data-nav-item="dashboard/graph"]`)
+    await settle()
+    await menu()
+    assert.deepEqual(await openPills(scope), ['dashboard'], 'Graph: Dashboards alone')
+    await go('settings')
+    assert.deepEqual(await openPills(scope), ['settings'], 'opening Settings by hand shuts Dashboards')
+    assert.equal(await page.evaluate(`document.querySelectorAll('${scope} [aria-expanded="true"][data-nav-group]').length`), 1, 'one header says it is expanded')
+    assert.deepEqual(page.errors, [])
+  })
