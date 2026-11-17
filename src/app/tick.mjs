@@ -175,6 +175,7 @@ import {
 import { ticksHeld } from "./task-issue-retirement.mjs";
 import { revalidateSpecs, scheduleHolds } from "./spec-scheduler.mjs";
 import { landPullRequests } from "./pr-landing.mjs";
+import { landDirect } from "./direct-landing.mjs";
 import { conflictRounds } from "./landing-config.mjs";
 
 // The colon keeps this lock out of every configured project's namespace.
@@ -890,6 +891,14 @@ async function runTick(
           });
           planned.notify.push(...landed.notify);
           planned.messages.push(...landed.messages);
+          // `direct` projects push to their remote from the tick (41.9).
+          const pushed = await landDirect(store, {
+            github,
+            workspaceRoot,
+            rounds: conflictRounds((memory.value || {}).landing),
+          });
+          planned.notify.push(...pushed.notify);
+          planned.messages.push(...pushed.messages);
         }
         // Stop the line (§4.11): a failure on the task's own base, a worker
         // that names its cause, and the landing branch's checks. Pauses new
