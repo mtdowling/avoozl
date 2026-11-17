@@ -3,7 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateReportSetting } from "./build-report.mjs";
-import { validateModels, validatePlanReview } from "./chat-models.mjs";
+import {
+  validateHarnesses,
+  validateModels,
+  validatePlanReview,
+} from "./chat-models.mjs";
 import { validateLanes } from "./lanes.mjs";
 import { conflictRounds } from "./landing-config.mjs";
 
@@ -370,6 +374,7 @@ export function loadLayeredConfig({
     selected.reduce((result, layer) => deepMerge(result, layer.value), {});
   const config = mergeLayers(layers);
   validateModels(config.models);
+  validateHarnesses(config.harnesses);
   validatePlanReview(config.planReview);
   validateLanes(config.lanes);
   conflictRounds(config.landing);

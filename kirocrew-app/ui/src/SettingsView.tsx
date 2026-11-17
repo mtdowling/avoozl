@@ -135,7 +135,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   content:
     'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
-  models: "The model each of Avoozl's own chats opens on. Issue Radar crews pick their own.",
+  models: "The harness each role runs on, and the model of Avoozl's own chats. Issue Radar crews pick their own.",
   delivery:
     'Who merges a finished pull request, and the writer agent and model, investigate-first and pull request feedback for Avoozl worker chats.',
   budgets:

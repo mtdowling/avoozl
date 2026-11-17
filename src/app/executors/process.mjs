@@ -52,11 +52,13 @@ function withDatabase(stateDirectory, use) {
 // `projectFor(task)` names the task's project record, whose `harness` and
 // `sandbox` ({writeRoots, allowCommands, network}) shape the child.
 // `budgetFor(task, role)` gives the dollars left on the task's cap, or null,
-// which fills the harness's spend cap (R94.6).
+// which fills the harness's spend cap (R94.6). `harnessFor(task, role)` names
+// the harness a request asked for (R98.3, R98.4), or null for the project's.
 export function processExecutor({
   stateDirectory,
   projectFor = () => null,
   budgetFor = () => null,
+  harnessFor = () => null,
 }) {
   return createExecutor({
     start(role, task, worktree, brief, model, permissionClass) {
@@ -72,7 +74,7 @@ export function processExecutor({
           role,
           task,
           worktree,
-          harness: project.harness ?? DEFAULT_HARNESS,
+          harness: harnessFor(task, role) ?? project.harness ?? DEFAULT_HARNESS,
           permissionClass,
           model,
           brief,
@@ -195,10 +197,17 @@ export async function drainProcessRequests(
     const task = store.read().tasks.find((t) => t.id === taskId);
     return store.get("projects", taskRepository(task) || "") ?? null;
   };
+  // The start being taken; its request may name a harness. Starts run one
+  // at a time below.
+  let starting = null;
   const executor = processExecutor({
     stateDirectory,
     projectFor,
     budgetFor: (taskId, role) => spendCapUsd(store, taskId, role),
+    harnessFor: (taskId, role) =>
+      starting?.task === taskId && starting.role === role
+        ? (starting.harness ?? null)
+        : null,
   });
   const owner = { executor: PROCESS_EXECUTOR, consumer: CONSUMER };
   const errors = [];
@@ -208,7 +217,8 @@ export async function drainProcessRequests(
   const startHold = (request) => {
     if (request.operation === "send") return null;
     health ??= healthContext(store);
-    const harness = projectFor(request.task)?.harness ?? DEFAULT_HARNESS;
+    const harness =
+      request.harness ?? projectFor(request.task)?.harness ?? DEFAULT_HARNESS;
     return (
       planQuotaHold(health, { model: request.model, harness }) ??
       (spendCapUsd(store, request.task, request.role) === 0
@@ -248,6 +258,7 @@ export async function drainProcessRequests(
           ? (await prepareWorktree(store, { taskId: request.task })).path
           : request.worktree;
       let sessionId;
+      starting = request;
       try {
         sessionId = await executor.start(
           request.role,

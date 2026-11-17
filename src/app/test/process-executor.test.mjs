@@ -15,6 +15,7 @@ import {
 } from "../harness-definitions.mjs";
 import { harnessAllow } from "../harness-allow.mjs";
 import {
+  childRecord,
   childResult,
   openSupervisorDatabase,
   readChildResult,
@@ -809,4 +810,46 @@ test("a process worker's brief ends with the result file", () => {
   assert.match(steps.at(-1), /"state": "blocked"/);
   assert.doesNotMatch(steps.join("\n"), /runner report|plans_report/);
   assert.match(steps.join("\n"), /Do not commit/);
+});
+
+// R98.3, R98.4: a request that names a harness runs on it, not on its
+// project's.
+test("a start's own harness wins over its project's", async (t) => {
+  const { root, stateDirectory, worktree, defer } = machine(t);
+  const store = new Store(path.join(root, "workspace.sqlite"));
+  defer(() => store.close());
+  const data = snapshot();
+  data.tasks[0].repository = "app";
+  store.importSnapshot(data);
+  store.put("projects", {
+    id: "app",
+    root: worktree,
+    executor: "process",
+    harness: "other-cli",
+  });
+  enqueueSessionRequests(store, {
+    starts: [
+      {
+        executor: "process",
+        harness: "fake-cli",
+        role: "worker",
+        task: "sample-task",
+        brief: "Do the synthetic work.",
+        worktree,
+        permissionClass: "write",
+      },
+    ],
+  });
+  const { errors } = await drainProcessRequests(store, {
+    stateDirectory,
+    prepareWorktree: async () => ({ path: worktree }),
+  });
+  assert.deepEqual(errors, []);
+  const [binding] = store.list("session_bindings");
+  const db = openSupervisorDatabase(stateDirectory);
+  try {
+    assert.equal(childRecord(db, binding.slot).harness, "fake-cli");
+  } finally {
+    db.close();
+  }
 });

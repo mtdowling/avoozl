@@ -1401,6 +1401,8 @@ async function runTick(
           ? []
           : planReadyDispatches(store, delivery, {
               skip: new Set([...readySkip, ...schedule.skip]),
+              // Settings › Models' worker harness (R98.3).
+              harnesses: (memory.value || {}).harnesses,
               github: readGitHubPolicyOrNull(workspaceRoot),
               routing,
               placementState,

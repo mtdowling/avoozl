@@ -280,6 +280,14 @@ planner, the driver, the retro and review drafts. It is saved as `models` in
 out, or `auto`, runs on its agent's own model. Issue Radar crews pick their
 own model, and Avoozl moves no running chat to another one.
 
+The same page picks the **harness** each role runs on, saved as `harnesses`,
+for example `{"harnesses": {"worker": "claude-code"}}`: `kirocrew` is a Kiro
+Crew chat, and any other value names a harness definition in this machine's
+config. A role left out, or `auto`, runs on its project's executor. A
+task's `session.harness` pin wins over both. Only the worker follows it
+today; the other roles stay Kiro Crew chats until they can run on any
+executor.
+
 The red **Stop the line** pause icon, in the page header's **…** menu on
 every tab, is the Andon cord: a
 person, or an agent through MCP, stops new work for everything, one
@@ -313,8 +321,8 @@ from **Settings > Delivery**, as before.
   you** offers **Retry now** and **Turn routing off**. The Routing page
   shows the last success, the last error, and the failures in a row; each
   failure and recovery is an Activity row. Only routing off runs tasks here.
-- **Pins win.** A manifest task's `session` may pin `agent`, `model`, or
-  `crew`.
+- **Pins win.** A manifest task's `session` may pin `agent`, `model`,
+  `crew`, or `harness`.
 - **Providers** shows each provider's health and usage in the last 5 hours,
   with one **Low at** setting (80% by default) and an optional credits
   limit per provider. Low is a fact the prompt can weigh, for new tasks
