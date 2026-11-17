@@ -24,31 +24,31 @@ found the bugs listed below and prove nothing on their own.
 
 ## Results
 
-| Expected | Seen |
-|---|---|
-| Each task lands in order | Bare `main`: `5ae5a8f Land relay.1` (21:48:39Z), `0acc00d Land relay.2` (22:13:31Z), `923eec0 Land relay.3` (23:25:26Z), each a merge of the task commit onto the previous landing |
-| … with its checks recorded | Each landing-queue entry has `npm test` exit 0 on the candidate. The spec journal holds an intent with `checks: [{name: "npm test", conclusion: "success"}]` before each push, and a landed outcome after it (7 records: generation, then 3 intent and outcome pairs) |
-| Restart while task 2 works | The test crew was stopped at 21:49:45Z while `relay.2`'s worker read `working`. It was started again later, by the owner (see Gaps) |
+| Expected                                                             | Seen                                                                                                                                                                                                                                                                                       |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Each task lands in order                                             | Bare `main`: `5ae5a8f Land relay.1` (21:48:39Z), `0acc00d Land relay.2` (22:13:31Z), `923eec0 Land relay.3` (23:25:26Z), each a merge of the task commit onto the previous landing                                                                                                         |
+| … with its checks recorded                                           | Each landing-queue entry has `npm test` exit 0 on the candidate. The spec journal holds an intent with `checks: [{name: "npm test", conclusion: "success"}]` before each push, and a landed outcome after it (7 records: generation, then 3 intent and outcome pairs)                      |
+| Restart while task 2 works                                           | The test crew was stopped at 21:49:45Z while `relay.2`'s worker read `working`. It was started again later, by the owner (see Gaps)                                                                                                                                                        |
 | Trust set again; task 2 goes on in the same worktree; no second chat | `relay.2` kept exactly one worker binding, attempt 1, slot `avoozl_relay.2_Add_shout__after_1`. Its delivery has one attempt, `done`, with no vanish. After the restart the slot reads `trust: true`. The chat reported findings and then `done` with commit `3b4f98e` in `avoozl/relay.2` |
-| The tick push goes through Kiro Crew's push policy | All three pushes were made by the tick (`directSteps`, guarded fast-forward, never forced). None was refused, and no chat ran `git push` |
-| Worktrees removed after landing | After `relay.3` landed, `scratch3` has only `main`: no task worktree, no `avoozl/relay.*` branch |
-| No person in the loop | No Avoozl decision, approval or retry was made by a person in run 3. The second `relay.3` attempt was opened by the tick after the first reported blocked (a bug, fixed in #471) |
+| The tick push goes through Kiro Crew's push policy                   | All three pushes were made by the tick (`directSteps`, guarded fast-forward, never forced). None was refused, and no chat ran `git push`                                                                                                                                                   |
+| Worktrees removed after landing                                      | After `relay.3` landed, `scratch3` has only `main`: no task worktree, no `avoozl/relay.*` branch                                                                                                                                                                                           |
+| No person in the loop                                                | No Avoozl decision, approval or retry was made by a person in run 3. The second `relay.3` attempt was opened by the tick after the first reported blocked (a bug, fixed in #471)                                                                                                           |
 
 ## Bugs found and fixed
 
 Each was fixed in its own pull request and merged after Linux, macOS and
 Windows passed.
 
-| PR | Merge | Found |
-|---|---|---|
-| #412 | `4596a076` | The tick never pushed a `direct` base; task 41.9 wires `directSteps` |
-| #422 | `3e6753f7` | Local workers opened with the folder's project and waited on a person to set it |
-| #429 | `ae188af8` | Same for falsifier, verifier and review chats |
-| #431 | `7d30c8a3` | A quiet falsifier was never nudged; the task sat in `falsifying` |
-| #436 | `e5a963a4` | Read roles' `plans_report` waited on a tool approval and was declined unattended |
+| PR   | Merge      | Found                                                                                                                            |
+| ---- | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| #412 | `4596a076` | The tick never pushed a `direct` base; task 41.9 wires `directSteps`                                                             |
+| #422 | `3e6753f7` | Local workers opened with the folder's project and waited on a person to set it                                                  |
+| #429 | `ae188af8` | Same for falsifier, verifier and review chats                                                                                    |
+| #431 | `7d30c8a3` | A quiet falsifier was never nudged; the task sat in `falsifying`                                                                 |
+| #436 | `e5a963a4` | Read roles' `plans_report` waited on a tool approval and was declined unattended                                                 |
 | #443 | `94dda408` | Run 1: right after the restart a live chat read `gone` and the tick opened a second chat. Gone now counts after a 5-minute grace |
-| #471 | `933954e3` | The brief's `avoozl runner report` ran from the task worktree and could not find the workspace |
-| #474 | `ed0e6a50` | A later attempt's falsifier reused attempt 1's chat title, so Kiro Crew never opened it |
+| #471 | `933954e3` | The brief's `avoozl runner report` ran from the task worktree and could not find the workspace                                   |
+| #474 | `ed0e6a50` | A later attempt's falsifier reused attempt 1's chat title, so Kiro Crew never opened it                                          |
 
 Run 2 reused run 1's task IDs. Kiro Crew keys a chat by its title, so
 run 2's first brief went to run 1's old chat, and Avoozl refused its report
