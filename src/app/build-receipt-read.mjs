@@ -18,6 +18,9 @@ import { withSource } from "./github-rate.mjs";
 
 const META = "buildReceipts";
 export const ARTIFACT_NAME = "build-receipt";
+// shortcut: at most this many pages of 100 per check; a head with artifacts past
+// it keeps only what the first pages hold.
+export const ARTIFACT_PAGES = 10;
 const ZIP_MAX = 64 * 1024;
 const DAY_MS = 86_400_000;
 // shortcut: one page of 100 artifacts per list; a repository that writes more
@@ -162,16 +165,37 @@ export async function readReceipts(
     ),
     at = new Date(now).toISOString();
   let calls = 0;
-  const listed = await withSource("receipt", () => {
+  // Pages, newest first, until one is short or its oldest artifact was made
+  // before the earliest run of a head still to settle: older pages hold
+  // nothing it needs. A head's artifacts can span two pages (R101.1).
+  const needed = Math.min(
+      ...runs
+        .filter((run) => heads.has(run.headSha) && run.startedAt)
+        .map((run) => Date.parse(run.startedAt))
+        .filter(Number.isFinite),
+    ),
+    listed = [];
+  for (let page = 1; page <= ARTIFACT_PAGES; page++) {
+    const batch = await withSource("receipt", () => {
       calls += 1;
-      return github.listArtifacts(repository);
-    }),
-    known = new Set(
-      store.db
-        .prepare("SELECT artifact_id FROM receipt_artifacts WHERE repository=?")
-        .all(repo)
-        .map((row) => row.artifact_id),
-    );
+      return github.listArtifacts(repository, undefined, { page });
+    });
+    listed.push(...batch);
+    const oldest = Date.parse(batch.at(-1)?.created_at ?? "");
+    if (
+      batch.length < 100 ||
+      !Number.isFinite(needed) ||
+      !Number.isFinite(oldest) ||
+      oldest < needed
+    )
+      break;
+  }
+  const known = new Set(
+    store.db
+      .prepare("SELECT artifact_id FROM receipt_artifacts WHERE repository=?")
+      .all(repo)
+      .map((row) => row.artifact_id),
+  );
   for (const [head, pull] of heads) {
     const headRuns = runs.filter((run) => run.headSha === head),
       conclusion = new Map(headRuns.map((run) => [run.runId, run.conclusion])),
