@@ -24,6 +24,7 @@ import {
   removePlanReviewWorktrees,
 } from "../plan-review-worktrees.mjs";
 import { bindContentRules } from "../content-rules.mjs";
+import { listSpecReviewRounds } from "../plan-reviews.mjs";
 import { recordFindingDecision } from "../review-findings.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -450,7 +451,14 @@ test("a first-turn save waits for the recorded writer's reported model", async (
     planReviewWriter(env.store, saved.id, saved.hash).actualModel,
     null,
   );
-  await env.step();
+  // Two steps: the folder settles, then the writer is still in its turn.
+  assert.deepEqual((await env.step()).requests, []);
+  assert.deepEqual((await env.step()).requests, []);
+  // No unknown-writer skip is recorded while the writer is mid-turn.
+  assert.equal(
+    listSpecReviewRounds(env.store, { planId: env.plan.id }).items.length,
+    0,
+  );
   env.observe("writer", "fake-writer");
   const [request] = (await env.step()).requests;
   assert.equal(request.role, "plan-review");
