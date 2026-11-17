@@ -61,7 +61,7 @@ for (const [width, dark] of [[1280, false], [1280, true], [390, false], [390, tr
       return { first: buttons[0] === remove, left: Math.round(remove.getBoundingClientRect().left - foot.getBoundingClientRect().left), color: getComputedStyle(remove).color, danger: getComputedStyle(document.documentElement).getPropertyValue('--danger').trim(), text: remove.textContent.trim() }
     })()`)
     assert.equal(footer.first, true, 'the first footer button')
-    assert.equal(await page.evaluate(`document.activeElement?.textContent.trim()`), 'Close', 'focus starts on Close, not Remove')
+    assert.equal(await page.evaluate(`document.activeElement?.textContent.trim()`), 'Cancel', 'focus starts on Cancel, not Remove')
     assert.ok(footer.left <= 21, `at the footer's left (${footer.left})`)
     assert.equal(footer.text, 'Remove')
     assert.notEqual(footer.color, 'rgb(0, 0, 0)', 'red text')

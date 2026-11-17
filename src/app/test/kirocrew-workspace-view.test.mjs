@@ -48,8 +48,10 @@ function isolatedEnv(root) {
 // A backend serving one initialized workspace, with its own machine catalog.
 async function backend(t) {
   const root = temporaryDirectory(),
-    served = path.join(root, "served");
+    served = path.join(root, "served"),
+    home = path.join(root, "home");
   initializeWorkspace(served);
+  fs.mkdirSync(home);
   const server = startAppBackend({
     config: workspaceConfig({ workspace: served, env: isolatedEnv(root) }),
     secret: SECRET,
@@ -57,6 +59,7 @@ async function backend(t) {
       configPath: path.join(root, "machine", "config.json"),
       catalogPath: path.join(root, "machine", "catalog.sqlite"),
     },
+    home,
   });
   t.after(() => server.close());
   await new Promise((resolve) => server.once("listening", resolve));
@@ -73,7 +76,7 @@ async function backend(t) {
       });
     return { status: response.status, body: await response.json() };
   };
-  return { root, served, call };
+  return { root, served, home, call };
 }
 
 test("Workspace view lists, adds, and initializes catalog workspaces", async (t) => {
@@ -359,4 +362,103 @@ test("only a person removes or stops a workspace", async (t) => {
   // MCP has no route to either: the MCP server never names them.
   const mcp = fs.readFileSync(new URL("../mcp.mjs", import.meta.url), "utf8");
   assert.doesNotMatch(mcp, /workspaces\.(remove|stop)/);
+});
+
+test("a folder typed with ~ is under the person's home folder", async (t) => {
+  const { home, call } = await backend(t);
+  const started = await call({
+    operation: "workspaces.init",
+    input: { id: "tilde", root: "~/plans" },
+  });
+  assert.equal(started.status, 200, JSON.stringify(started.body));
+  assert.equal(started.body.result.root, fs.realpathSync(path.join(home, "plans")));
+  assert.ok(fs.existsSync(workspaceConfig({ workspace: path.join(home, "plans") }).dbPath));
+  // `~user` names someone else's home: it stays relative and is refused.
+  assert.equal(
+    (await call({ operation: "workspaces.add", input: { id: "other", root: "~other/plans" } })).status,
+    400,
+  );
+});
+
+test("the folder picker lists folders under home only, and only for a person", async (t) => {
+  const { root, home, call } = await backend(t);
+  fs.mkdirSync(path.join(home, "b"));
+  fs.mkdirSync(path.join(home, "a"));
+  fs.mkdirSync(path.join(home, ".hidden"));
+  fs.writeFileSync(path.join(home, "file.txt"), "");
+  initializeWorkspace(path.join(home, "plans"));
+  const top = await call({ operation: "workspaces.browse", input: {} });
+  assert.equal(top.status, 200, JSON.stringify(top.body));
+  assert.equal(top.body.result.path, fs.realpathSync(home));
+  assert.equal(top.body.result.parent, null);
+  assert.deepEqual(
+    top.body.result.folders.map(({ name, workspace }) => [name, workspace]),
+    [["a", false], ["b", false], ["plans", true]],
+  );
+  const inner = await call({ operation: "workspaces.browse", input: { path: "~/a" } });
+  assert.equal(inner.status, 200, JSON.stringify(inner.body));
+  assert.equal(inner.body.result.parent, fs.realpathSync(home));
+  // Outside home, directly or through a link, is refused.
+  // Windows needs a privilege for links; there the link case is skipped.
+  let linked = true;
+  try {
+    fs.symlinkSync(root, path.join(home, "out"), "dir");
+  } catch {
+    linked = false;
+  }
+  for (const at of [root, ...(linked ? ["~/out"] : []), "~/../served", "relative"])
+    assert.equal((await call({ operation: "workspaces.browse", input: { path: at } })).status, 400, at);
+  for (const kind of ["app-token", "agent-tool"])
+    assert.equal((await call({ operation: "workspaces.browse", input: {} }, kind)).status, 403, kind);
+});
+
+test("a person edits a workspace's name, folder, run limit, on/off and default", async (t) => {
+  const { root, home, call } = await backend(t);
+  for (const id of ["one", "two"])
+    assert.equal(
+      (await call({ operation: "workspaces.init", input: { id, root: path.join(root, id) } })).status,
+      200,
+    );
+  const named = await call({
+    operation: "workspaces.update",
+    input: { id: "two", name: "  Second  ", maxConcurrentRuns: 5, enabled: false, default: true },
+  });
+  assert.equal(named.status, 200, JSON.stringify(named.body));
+  assert.deepEqual(
+    { name: named.body.result.name, max: named.body.result.maxConcurrentRuns, enabled: named.body.result.enabled },
+    { name: "Second", max: 5, enabled: false },
+  );
+  let listed = (await call({ operation: "workspaces.list" })).body.result;
+  assert.equal(listed.defaultWorkspace, "two");
+
+  // A moved folder: the new path holds this workspace.
+  fs.renameSync(path.join(root, "two"), path.join(home, "moved"));
+  const moved = await call({ operation: "workspaces.update", input: { id: "two", root: "~/moved" } });
+  assert.equal(moved.status, 200, JSON.stringify(moved.body));
+  assert.equal(moved.body.result.root, fs.realpathSync(path.join(home, "moved")));
+  assert.equal(moved.body.result.name, "Second");
+
+  // Refused: a blank name, a bad limit, a relative or missing folder, an
+  // empty folder, another workspace's folder, an unknown ID.
+  fs.mkdirSync(path.join(home, "empty"));
+  const refused = [
+    [{ id: "two", name: "  " }, 400],
+    [{ id: "two", maxConcurrentRuns: 99 }, 400],
+    [{ id: "two", root: "relative" }, 400],
+    [{ id: "two", root: path.join(root, "nope") }, 400],
+    [{ id: "two", root: "~/empty" }, 400],
+    [{ id: "two", root: path.join(root, "one") }, 400],
+    [{ id: "three", name: "x" }, 404],
+  ];
+  for (const [input, status] of refused)
+    assert.equal((await call({ operation: "workspaces.update", input })).status, status, JSON.stringify(input));
+  listed = (await call({ operation: "workspaces.list" })).body.result;
+  const two = listed.items.find((item) => item.id === "two");
+  assert.deepEqual([two.name, two.maxConcurrentRuns, two.root], ["Second", 5, fs.realpathSync(path.join(home, "moved"))]);
+  for (const kind of ["app-token", "agent-tool"])
+    assert.equal(
+      (await call({ operation: "workspaces.update", input: { id: "two", name: "x" } }, kind)).status,
+      403,
+      kind,
+    );
 });
