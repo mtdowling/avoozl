@@ -14,8 +14,12 @@ import {
   bindContentRules,
   check,
   findingText,
+  patchAdded,
   pushLines,
+  sha256,
 } from "./content-rules.mjs";
+import { AVOOZL_CREW_LABEL, parseRepository } from "./github.mjs";
+import { CREW_LABEL_DEFAULTS } from "./github-policy.mjs";
 import { Store } from "./store.mjs";
 
 const MAX_STDIN = 1024 * 1024;
@@ -455,4 +459,386 @@ export function contentHook({
   } finally {
     store?.close();
   }
+}
+
+// ---- Layer 3: the audit on the tick (R85.6, R85.7, design §6.14) ---------
+// For each public repository in the GitHub policy, the tick reads what
+// changed since a per-repository cursor and keeps what a crew wrote: an item
+// that carries the crew marker, a pull request from a `crew/` branch, and an
+// issue, pull request or comment by the signed-in login on a thread with a
+// crew label. Content rules check each. A comment hit is deleted, never
+// edited, because GitHub keeps edit history. A pull request or issue hit is
+// closed and a crew branch deleted. One stop holds the repository, and each
+// pass with a new hit sends one notice. Records keep who, what, when and a
+// hash, never the text.
+//
+// shortcut: pull request review comments are not read, and only the 100 most
+// recently updated pull requests are. Upgrade when Kiro Crew routes crew
+// writes through one tool.
+const MARKER = "kirocrew-crew v=1",
+  BRANCH_PREFIX = "crew/",
+  CURSORS = "publicCrewAuditCursors",
+  FOUND = "publicCrewAudit",
+  MAX_SEEN = 500,
+  MAX_HITS = 50;
+export const FIRST_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+export const STAYS_REACHABLE =
+  "A pull request body, a commit or an edit history can stay reachable on GitHub by its address after deletion; removing it for good needs a request to GitHub.";
+
+const lower = (value) => String(value ?? "").toLowerCase();
+const iso = (ms) => new Date(ms).toISOString();
+const labelsOf = (item) =>
+  (item?.labels || []).map((label) => String(label?.name ?? label));
+const marked = (item) => String(item?.body ?? "").includes(MARKER);
+const textLines = (target, text) =>
+  String(text ?? "")
+    .split("\n")
+    .map((line, i) => ({ target, line: i + 1, text: line }));
+
+function crewLabel(entry) {
+  const own = new Set(
+    Object.values(entry?.crewLabels || CREW_LABEL_DEFAULTS).map(lower),
+  );
+  return (labels) =>
+    labels.some((name) => {
+      const n = lower(name);
+      return own.has(n) || (n.startsWith("crew:") && n !== AVOOZL_CREW_LABEL);
+    });
+}
+
+// Block findings as {set, rule, place, hash}; the hash is of the matched
+// line, so a record can be matched later without keeping the text.
+function scan(store, repository, boundary, added) {
+  if (!added.length) return { hits: [], unavailable: [] };
+  const result = check(store, {
+      boundary,
+      repository,
+      target: "audit",
+      added,
+    }),
+    text = new Map(added.map((l) => [`${l.target}\0${l.line}`, l.text]));
+  return {
+    hits: result.findings
+      .filter((f) => f.action === "block")
+      .map((f) => ({
+        set: f.set,
+        rule: f.rule,
+        place: `${f.target}${f.line ? ` line ${f.line}` : ""}`,
+        hash: sha256(text.get(`${f.target}\0${f.line}`) ?? ""),
+      })),
+    unavailable: result.unavailable,
+  };
+}
+
+// What the crew wrote since the cursor, as items to check.
+async function crewWrites(github, repository, entry, cursor, since, login) {
+  const isCrewLabel = crewLabel(entry),
+    mine = (item) => login && lower(item?.user?.login) === lower(login),
+    issues = await github.issuesSince(repository, since),
+    pulls = await github.recentlyUpdatedPullRequests(repository),
+    comments = await github.issueCommentsSince(repository, since),
+    sameRepo = (pr) =>
+      !pr.head?.repo?.full_name ||
+      lower(pr.head.repo.full_name) === lower(repository),
+    crewBranch = (pr) =>
+      sameRepo(pr) && String(pr.head?.ref ?? "").startsWith(BRANCH_PREFIX),
+    threads = new Map(),
+    items = [];
+  for (const issue of issues)
+    threads.set(issue.number, {
+      crew: isCrewLabel(labelsOf(issue)) || marked(issue),
+    });
+  for (const pr of pulls) {
+    const crew =
+      crewBranch(pr) || isCrewLabel(labelsOf(pr)) || marked(pr) || false;
+    threads.set(pr.number, { crew: crew || threads.get(pr.number)?.crew });
+    if (String(pr.updated_at ?? "") < since) continue;
+    if (!(crewBranch(pr) || marked(pr) || (crew && mine(pr)))) continue;
+    items.push({
+      kind: "pull",
+      key: `pull:${pr.number}`,
+      number: pr.number,
+      state: pr.state,
+      branch: crewBranch(pr) ? pr.head.ref : null,
+      link: pr.html_url ?? null,
+      who: pr.user?.login ?? null,
+      when: pr.updated_at ?? null,
+      boundary: "github",
+      lines: [
+        ...textLines(`pull #${pr.number} title`, pr.title),
+        ...textLines(`pull #${pr.number} body`, pr.body),
+        ...labelsOf(pr).map((name, i) => ({
+          target: `pull #${pr.number} label ${i + 1}`,
+          line: 1,
+          text: name,
+        })),
+      ],
+    });
+  }
+  for (const issue of issues) {
+    if (issue.pull_request) continue;
+    if (!(marked(issue) || (threads.get(issue.number)?.crew && mine(issue))))
+      continue;
+    items.push({
+      kind: "issue",
+      key: `issue:${issue.number}`,
+      number: issue.number,
+      state: issue.state,
+      link: issue.html_url ?? null,
+      who: issue.user?.login ?? null,
+      when: issue.updated_at ?? null,
+      boundary: "github",
+      lines: [
+        ...textLines(`issue #${issue.number} title`, issue.title),
+        ...textLines(`issue #${issue.number} body`, issue.body),
+        ...labelsOf(issue).map((name, i) => ({
+          target: `issue #${issue.number} label ${i + 1}`,
+          line: 1,
+          text: name,
+        })),
+      ],
+    });
+  }
+  for (const comment of comments) {
+    const number = Number(
+      /\/issues\/(\d+)$/.exec(String(comment.issue_url ?? ""))?.[1],
+    );
+    if (!(marked(comment) || (threads.get(number)?.crew && mine(comment))))
+      continue;
+    items.push({
+      kind: "comment",
+      key: `comment:${comment.id}`,
+      id: comment.id,
+      number,
+      link: comment.html_url ?? null,
+      who: comment.user?.login ?? null,
+      when: comment.updated_at ?? comment.created_at ?? null,
+      boundary: "github",
+      lines: textLines(`comment on #${number}`, comment.body),
+    });
+  }
+  // Crew branches: the name, and for a new or moved branch its commits'
+  // messages and added lines.
+  const refs = await github.branchesUnder(repository, BRANCH_PREFIX),
+    branches = {};
+  let base = cursor.defaultBranch ?? null;
+  for (const ref of refs) {
+    const name = String(ref.ref ?? "").replace(/^refs\/heads\//, ""),
+      sha = ref.object?.sha ?? null;
+    if (!name.startsWith(BRANCH_PREFIX)) continue;
+    branches[name] = sha;
+    if (cursor.branches?.[name] === sha) continue;
+    base ??= (await github.repository(parseRepository(repository)))
+      ?.default_branch;
+    const previous = cursor.branches?.[name],
+      compared = await (previous
+        ? github
+            .compareCommits(repository, previous, name)
+            .catch(() => github.compareCommits(repository, base, name))
+        : github.compareCommits(repository, base, name)),
+      lines = [
+        { target: "ref:1", line: 1, text: name },
+        ...(compared?.commits ?? []).flatMap((commit, i) =>
+          textLines(`commit:${i + 1}`, commit.commit?.message),
+        ),
+        ...(compared?.files ?? []).flatMap((file) =>
+          patchAdded(file.filename, file.patch),
+        ),
+      ];
+    items.push({
+      kind: "branch",
+      key: `branch:${name}@${sha}`,
+      branch: name,
+      sha,
+      link: `https://github.com/${repository}/tree/${name.split("/").map(encodeURIComponent).join("/")}`,
+      who: compared?.commits?.at(-1)?.author?.login ?? null,
+      when: compared?.commits?.at(-1)?.commit?.committer?.date ?? null,
+      boundary: "diff",
+      lines,
+      pulls: pulls.filter(
+        (pr) => pr.state === "open" && sameRepo(pr) && pr.head?.ref === name,
+      ),
+    });
+  }
+  return { items, branches, defaultBranch: base };
+}
+
+// Delete, close and remove what matched. Returns the actions taken.
+async function remove(github, repository, item) {
+  if (item.kind === "comment") {
+    await github.deleteIssueComment(repository, item.id);
+    return ["deleted comment"];
+  }
+  const done = [];
+  const close = async (number) => {
+    await github.updateIssue(repository, number, { state: "closed" });
+    done.push(`closed #${number}`);
+  };
+  if (item.kind === "issue" || item.kind === "pull") {
+    if (item.state !== "closed") await close(item.number);
+  } else for (const pr of item.pulls) await close(pr.number);
+  if (item.branch) {
+    await github.deleteBranch(repository, item.branch);
+    done.push(`deleted branch ${item.branch}`);
+  }
+  return done;
+}
+
+// One stop for the repository, opened once and kept until a person resumes.
+function raise(store, repository, records, now) {
+  const at = iso(now),
+    all = { ...(store.getMeta(FOUND) ?? {}) },
+    open = all[repository] && store.get("flow_stops", all[repository].stopId);
+  if (open && !open.closedAt) {
+    all[repository] = {
+      ...all[repository],
+      records: [...all[repository].records, ...records].slice(-MAX_HITS),
+    };
+  } else {
+    const stopId = `stop:public-crew-audit:${repository}:${Date.parse(at)}`;
+    store.put("flow_stops", {
+      id: stopId,
+      manual: true,
+      by: { kind: "system", name: "public crew audit" },
+      reason: `The public crew audit found a content rule match on ${repository}.`,
+      scope: "repo",
+      projectId: repository,
+      planId: null,
+      spec: null,
+      taskId: null,
+      check: null,
+      culprit: null,
+      fixTaskId: null,
+      openedAt: at,
+      closedAt: null,
+      runAnyway: null,
+    });
+    all[repository] = { at, stopId, records: records.slice(-MAX_HITS) };
+  }
+  store.setMeta(FOUND, all);
+}
+
+const hitText = (r) =>
+  `${r.set} rule ${r.rule} at ${r.place} (${r.link ?? r.what})`;
+
+// The tick step: {notify, errors}. A repository whose read, check or removal
+// failed keeps its cursor, so the next tick reads it again.
+export async function publicCrewAudit(
+  store,
+  github,
+  { policy, now = Date.now() } = {},
+) {
+  const notify = [],
+    errors = [];
+  if (!github?.available?.()) return { notify, errors };
+  const repositories = Object.entries(policy?.repositories ?? {}).filter(
+    ([id]) => store.get("github_repositories", id)?.private === false,
+  );
+  if (!repositories.length) return { notify, errors };
+  let login = null;
+  try {
+    login = (await github.currentUser())?.login ?? null;
+  } catch {
+    // Without a login only the marker and the branch prefix find crew writes.
+  }
+  for (const [repository, entry] of repositories) {
+    const cursors = store.getMeta(CURSORS) ?? {},
+      cursor = cursors[repository] ?? {},
+      since = cursor.since ?? iso(now - FIRST_LOOKBACK_MS),
+      seen = new Set(cursor.seen ?? []),
+      records = [];
+    let ok = true;
+    try {
+      const found = await crewWrites(
+        github,
+        repository,
+        entry,
+        cursor,
+        since,
+        login,
+      );
+      for (const item of found.items) {
+        if (seen.has(item.key)) continue;
+        const { hits, unavailable } = scan(
+          store,
+          repository,
+          item.boundary,
+          item.lines,
+        );
+        if (unavailable.length) {
+          ok = false;
+          errors.push(
+            `${repository}: content rule set ${unavailable.map((u) => `${u.set} (${u.reason})`).join(", ")} is unavailable, so the audit could not check it.`,
+          );
+          break;
+        }
+        if (!hits.length) continue;
+        let actions = [],
+          error = null;
+        try {
+          actions = await remove(github, repository, item);
+          seen.add(item.key);
+        } catch (failure) {
+          ok = false;
+          error = failure.message;
+          errors.push(
+            `${repository}: the audit could not remove ${item.link ?? item.key}: ${failure.message}`,
+          );
+        }
+        for (const hit of hits)
+          records.push({
+            ...hit,
+            what: item.key,
+            link: item.link,
+            who: item.who,
+            when: item.when,
+            foundAt: iso(now),
+            actions,
+            ...(error ? { error } : {}),
+          });
+      }
+      if (ok)
+        store.setMeta(CURSORS, {
+          ...cursors,
+          [repository]: {
+            since: iso(now),
+            branches: found.branches,
+            defaultBranch: found.defaultBranch,
+            seen: [...seen].slice(-MAX_SEEN),
+          },
+        });
+    } catch (failure) {
+      errors.push(`${repository}: the audit failed: ${failure.message}`);
+    }
+    if (!records.length) continue;
+    raise(store, repository, records, now);
+    notify.push({
+      channel: "failure",
+      title: `A public crew's write on ${repository} matched content rules`,
+      text: `${[...new Set(records.map(hitText))].join("; ")}. Avoozl removed it and stopped the line for ${repository}. ${STAYS_REACHABLE}`,
+      resume:
+        "Check what was removed, then press Resume on the Dashboard banner.",
+    });
+  }
+  return { notify, errors };
+}
+
+// Needs you: one row per repository while its audit stop is open.
+export function publicCrewAuditRows(store) {
+  return Object.entries(store.getMeta(FOUND) ?? {})
+    .filter(([, found]) => {
+      const stop = store.get("flow_stops", found.stopId);
+      return stop && !stop.closedAt;
+    })
+    .map(([repository, found]) => ({
+      kind: "needs-human",
+      reason: "public-crew-audit",
+      id: `public-crew-audit:${repository}`,
+      taskId: null,
+      authority: "github",
+      link: found.records.find((r) => r.link)?.link ?? null,
+      title: `A public crew's write on ${repository} matched content rules`,
+      detail: `${[...new Set(found.records.map(hitText))].join("; ")}. Avoozl removed what it could and stopped the line. ${STAYS_REACHABLE}`,
+      openedAt: found.at,
+    }));
 }
