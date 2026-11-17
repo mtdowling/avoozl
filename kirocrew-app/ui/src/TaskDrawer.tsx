@@ -29,7 +29,7 @@ import { Eye, FileText, MessageSquare, Network, Pause, Pencil, Play, Plus, Rotat
 import { useBackStep } from './NavHistory.tsx'
 import { LAYER } from './layers.ts'
 import { linkHref } from './views-api.ts'
-import { LinksAndNotes, ManualTask } from './TaskNotes.tsx'
+import { ManualTask, TaskLinks } from './TaskNotes.tsx'
 
 // The drawer's sections, each a bordered, titled box that folds. All start
 // open, so everything shows at once.
@@ -38,7 +38,7 @@ const SECTIONS = [
   { key: 'summary', label: 'Summary' },
   { key: 'description', label: 'Description' },
   { key: 'links', label: 'Edges' },
-  { key: 'notes', label: 'Links and notes' },
+  { key: 'task-links', label: 'Links' },
   { key: 'delivery', label: 'Delivery' },
   { key: 'files', label: 'Files' },
   { key: 'timing', label: 'Timing' },
@@ -491,8 +491,8 @@ function TaskPanel(props: {
             <Links title="Blocks" links={detail.blocks} open={props.open} />
           </div>
         </SectionBox>
-        <SectionBox id="notes" title="Links and notes">
-          <LinksAndNotes workspaceId={workspaceId} taskId={task.id} onGitHub={Boolean(task.onGitHub)} refresh={detail.revision} />
+        <SectionBox id="task-links" title="Links">
+          <TaskLinks workspaceId={workspaceId} taskId={task.id} onGitHub={Boolean(task.onGitHub)} refresh={detail.revision} />
         </SectionBox>
         <SectionBox id="delivery" title="Delivery">
           {delivery ? (

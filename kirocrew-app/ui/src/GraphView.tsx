@@ -113,7 +113,7 @@ function Node(props: {
     : `${node.id} · ${STATE_LABEL[node.state]}`
   const label = node.members
     ? `${node.title}, collapsed, ${sub}. Press to open it.`
-    : `${node.title}, ${node.id}, ${STATE_LABEL[node.state]}${node.task?.review ? ', waits for review' : ''}${node.task?.planArchived ? ', archived plan' : ''}${node.task?.handSetReview ? ', review set by hand, none running' : ''}${props.onOpen ? '. Enter shows its tree; O opens it here' : ''}`
+    : `${node.title}, ${node.id}, ${STATE_LABEL[node.state]}${node.task?.review ? ', waits for review' : ''}${node.task?.planArchived ? ', archived plan' : ''}${node.task?.handSetReview ? ', review set by hand, none running' : ''}${props.onOpen ? '. Enter shows its tree; O opens its details' : ''}`
   return (
     <g
       transform={`translate(${node.x},${node.y})`}
@@ -168,7 +168,7 @@ function Node(props: {
         <g
           role="button"
           tabIndex={-1}
-          aria-label={`Open ${node.id} here`}
+          aria-label={`Open ${node.id} details`}
           data-node-open={node.id}
           transform={`translate(${NODE_WIDTH - 18},2)`}
           onClick={(e) => {
@@ -176,7 +176,7 @@ function Node(props: {
             props.onOpen!(node.id)
           }}
         >
-          <title>{`Open ${node.id} here`}</title>
+          <title>{`Open ${node.id} details`}</title>
           <rect width={16} height={16} rx={3} style={{ fill: 'var(--card)' }} />
           <g transform="translate(3,3)" style={{ color: 'var(--muted)' }}>
             <ExternalLink size={10} aria-hidden="true" />
@@ -336,7 +336,7 @@ export default function GraphView({
   source?: ReturnType<typeof useRead<Graph>>
   // Inside the Graph page: no heading or Refresh of its own.
   bare?: boolean
-  // A task click drills into its Focus tree; the ↗ on a node opens it in place.
+  // A task click drills into its Focus tree; the ↗ on a node opens its details.
   onTree?: (id: string) => void
   onOpenItem?: (id: string) => void
 }) {

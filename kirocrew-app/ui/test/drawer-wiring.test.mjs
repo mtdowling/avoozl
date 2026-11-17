@@ -42,8 +42,9 @@ test('the drawer shows every section, and a linked task opens in it', () => {
   // The Waits on / Blocks box is Edges; its id stays 'links' so saved state and deep links still work.
   assert.match(drawer, /<SectionBox id="links" title="Edges">/)
   assert.match(drawer, /\{ key: 'links', label: 'Edges' \}/)
-  assert.doesNotMatch(drawer, /label: 'Links' \}|title="Links"/)
-  assert.match(drawer, /label: 'Links and notes'/)
+  // The task's own links have their own box, keyed apart from Edges.
+  assert.match(drawer, /\{ key: 'task-links', label: 'Links' \}/)
+  assert.doesNotMatch(drawer, /notes'/)
   assert.doesNotMatch(drawer, /SegmentedControl/)
   assert.match(source('controls.tsx'), /<details\b/)
   assert.match(drawer, /setEditing\(!editing\)/)

@@ -547,7 +547,7 @@ async function githubStep(store, github, workspaceRoot, delivery) {
     await closePlanAndEpicIssues(store, github, { policy });
     // Readiness changed by this tick's verdicts reaches GitHub now: the
     // ready label for Issue Radar, `dispatch.ready` for the runner.
-    // A taken-over spec, and one whose shown links and notes changed
+    // A taken-over spec, and one whose shown links changed
     // (R61.23), are projected once more.
     const identity = planningIdentity(workspaceRoot),
       reproject = takenOverPlanIds(store),

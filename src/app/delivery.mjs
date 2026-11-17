@@ -1974,7 +1974,7 @@ export function workerBrief(
       `Repository: ${project.id}, checkout ${project.root}, base branch ${project.baseBranch || "main"}.`,
     ...(outside ? [checks, ...own.text] : [own.text[0], checks, own.text[1]]),
     ...(notes.length ? ["", ...notes] : []),
-    // Links and notes people and agents left (R61.20), framed as data.
+    // Links people and agents left (R61.20), framed as data.
     ...(linksAndNotes ? ["", linksAndNotes] : []),
     "",
     // Investigate first (R75.1): findings before any change.
