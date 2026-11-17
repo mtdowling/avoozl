@@ -4796,45 +4796,59 @@ removed, so that the app has one way to deliver work.
    (Requirement 87.9) SHALL be its one leak guard. The freeze on public
    `core-dev` is lifted.
 
-### Requirement 92: Landing queue panel
+### Requirement 92: Links to related GitHub items, and the landing queue
 
-Revised 2026-11-16 (owner pivot; design §4.27 and §4.32). Replaces the
-unbuilt Issues and Pull requests browser; existing task IDs are retained.
+Revised 2026-11-17 (owner decision; design §4.27). Avoozl has no Issues or
+Pull requests pages. It links from specs and in-flight work to the related
+GitHub items instead, and shows what waits to land. Replaces the 2026-11-16
+landing queue panel; task IDs 44.1–44.6 and P54 are reused.
 
-**User story:** As a driver, I want to see and act on pending landings,
-so that I can share review responsibility without copying GitHub's browser.
+**User story:** As a driver, I want each spec and task to link to its issue,
+branch, pull request, checks and landed commit, so that I can reach the
+GitHub item in one click without Avoozl copying GitHub's browser.
 
 #### Acceptance criteria
 
-1. Avoozl SHALL show a landing queue panel, usable at 390 and 1280 px.
-2. Rows SHALL show target repository/base, qualified source head, portion,
-   state and checks. Search and filtering SHALL use the local cache.
-3. Detail SHALL show exact commits, relevant outcome evidence and the spec
-   issue link only when its visibility permits; open on GitHub for discussion.
-4. Pull request detail SHALL show checks, files summary, standing review,
-   fork head and state: queued, verifying, landing, landed or conflict round N.
-5. Actions SHALL include hold, re-queue, Stop the line and open on GitHub.
-   Person-only actions SHALL remain refused to workers and MCP agents.
-6. Opening the panel SHALL cost no calls beyond the shared tick read.
-7. The panel SHALL cover Avoozl-owned portions across registered targets,
-   including fork heads; it SHALL NOT mirror every issue in a repository.
-8. Before merge, screen changes SHALL have phone and desktop, light and dark
-   screenshots for owner approval. No Issue Radar visual-parity gate remains.
-9. The panel SHALL read Avoozl's cache, filled by the shared paginated reads.
-10. Relevant PR details SHALL be fetched lazily once per current version and
-    cached; journal/control refresh SHALL remain independent of detail opens.
-11. Unavoidable REST reads SHALL use conditional requests; usage SHALL count
-    actual rate-limit cost, including any nonfree 304 response.
-12. The browser SHALL NOT poll. Refresh SHALL redraw; concurrent Rechecks
-    SHALL join at most one shared read per repository plus pagination.
-13. Scrolling, filtering, searching and sorting SHALL make no GitHub call.
-14. Settings › GitHub SHALL attribute panel reads to `pages`, including cache
-    and conditional-response counts.
-15. Counting-client tests SHALL prove zero cached list/detail calls, one lazy
-    read for a new detail, shared reads for changed PRs, zero filter calls,
-    and joined concurrent Rechecks.
-16. Changed or inaccessible heads, reviews and detail entries SHALL be
-    invalidated. Stale data SHALL NOT be displayed as current authority.
+1. Avoozl SHALL build one link set per spec and one per task, only from
+   records it already stores: the spec issue and journal (Requirement 102),
+   the spec working branch, the task branch and worktree, the task pull
+   request and its check state from landing (Requirements 87 and 88), the
+   landed commit from delivery records, and the intake issues a spec came
+   from (Requirement 103).
+2. Building, showing, filtering or refreshing link sets SHALL make no GitHub
+   call. A counting-client test SHALL show the call count with link sets on
+   equals the count without them.
+3. Link targets SHALL be built from validated repository names, numbers,
+   ref names and SHAs only, never from a URL read from issue or comment
+   content. A missing record SHALL show as missing. Check state SHALL show
+   its age, and state from a head that is no longer current SHALL NOT show
+   as current.
+4. The spec details panel SHALL have a **Links** box: the spec issue, the
+   working branch, open pull requests with a check dot each, and the Issue
+   Radar issues the spec came from.
+5. The task details view, and the Graph modal that reuses it, SHALL have a
+   **Links** box: branch, pull request, checks, landed commit and issue.
+6. Each In flight row SHALL show small chips: `PR #N` with a check dot, and
+   the branch.
+7. Dashboards SHALL have a **Landing queue** page next to CI, not its own
+   nav pill. It SHALL list what waits to land per target base, in landing
+   order, and why each held item is held. It SHALL be usable at 390 and
+   1280 px.
+8. A spec SHALL show the Issue Radar issues it came from. The Radar issue
+   SHALL get a link to its Avoozl spec only through the existing
+   `crew:avoozl` intake status comment and the privacy-scanned journal, and
+   only where the spec's visibility permits. Avoozl and Issue Radar code
+   SHALL stay uncoupled: no Radar API, grant or import.
+9. Every link to GitHub SHALL open in a new tab with `target="_blank"` and
+   `rel="noopener noreferrer"`.
+10. Public text SHALL follow the privacy rule (Requirements 102.12 and
+    102.23–102.25):
+    no host names, usernames, local paths or private spec references. A
+    worktree path SHALL show only in the local app, never in a GitHub write.
+11. Avoozl SHALL NOT have an Issues page, a Pull requests page or a
+    dedicated SCM links page. Discussion and full browsing stay on GitHub.
+12. Before merge, screen changes SHALL have phone and desktop, light and
+    dark screenshots for owner approval.
 
 ### Requirement 93: Any harness runs the work; one executor seam
 

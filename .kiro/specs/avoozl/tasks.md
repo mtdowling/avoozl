@@ -1627,45 +1627,39 @@ GitHub, and a race between two workers shows exactly one claim wins.
   - Failure means: fork-local duplicate claims, timeout replacement, credentials in agent sandboxes or unchecked landing. Write a live receipt under docs/evidence/; tests do not tick this proof.
   - Next decision: enable multi-machine pull for a shared spec, or repair canonical reservation/acknowledgment before allowing competing workers.
 
-## Phase 44: Landing queue panel
+## Phase 44: Links to related GitHub items, and the landing queue
 
-Requirement 92 (design §4.27). Narrow the unbuilt browser to exact landing
-portions and their checks/reviews. Screenshot approval remains owner work.
+Requirement 92 (design §4.27). Owner decision 2026-11-17: no Issues or Pull
+requests pages; specs and in-flight work link to their GitHub items instead.
+No dedicated SCM links page. Phase 44 is no longer paused; Phase 45 stays
+paused. Screenshot approval remains owner work.
 
-- [ ] 44.1 Landing queue panel and mobile navigation, after avoozl-p52 [R92.1] (§4.27)
-  - Exact-portion list/detail; full-width list/detail with back control at 390 px. No new general Issues browser.
+- [ ] 44.1 One link set per spec and task from stored records, after 40.4, 41.2, 42.6, 56.2, 56.3, 56.8, 56.14 [R92.1, R92.2, R92.3] (§4.27)
+  - Pure read model over the spec issue and journal, spec working branch, task branch and worktree, task PR and check state from landing, landed commit from delivery records, and intake/escalation issues. URLs come from validated repository, number, ref and SHA fields only.
+  - Missing records show as none; check state carries head SHA and age, and a non-current head is never shown as current. A counting-client test asserts the GitHub call count is unchanged with link sets on.
 
-- [ ] 44.2 Cached queue rows, search and filters, after 44.1 [R92.2, R92.6, R92.7] (§4.27)
-  - Show target/base, source repository/ref/SHA including forks, portion, checks and state. Counting client: cached load/filter costs zero calls.
+- [ ] 44.2 Links box in the spec details panel, after 44.1 [R92.4, R92.9, R92.10, R92.12] (§4.27)
+  - Spec issue, working branch, open PRs with a check dot each, Radar issues it came from. Links open with target=_blank rel="noopener noreferrer"; a private spec issue renders only locally.
 
-- [ ] 44.3 Portion detail and visibility-safe spec links, after 44.1 [R92.3, R92.6] (§4.27)
-  - Show exact commits and accepted evidence; link the spec issue only when public visibility permits. Use GitHub for discussion.
+- [ ] 44.3 Links box in the task details view and the Graph modal, after 44.1 [R92.5, R92.9, R92.10, R92.12] (§4.27)
+  - Branch, PR, checks, landed commit and issue; the Graph modal reuses the same view. A worktree path shows as local text only.
 
-- [ ] 44.4 PR checks, review and fork source in detail, after 44.3 [R92.4] (§4.27)
-  - Show required checks, files summary, standing review, source identity and queue/conflict state; never show a stale head as current.
+- [ ] 44.4 PR and branch chips on In flight rows, after 44.1 [R92.6, R92.9, R92.12] (§4.27)
+  - `PR #N` with a check dot, and the branch. Chips fit a 390 px row.
 
-- [ ] 44.5 Queue actions with person-only boundaries, after 44.3 [R92.5] (§4.27)
-  - Hold, re-queue, Stop the line and open on GitHub. Enforce person-only actions in operations, CLI and MCP.
+- [ ] 44.5 Landing queue page under Dashboards, after 44.1 [R92.7, R92.2, R92.12] (§4.27)
+  - A Dashboards page next to CI, not a nav pill. Per target base, items in landing order with each hold reason; full-width rows at 390 px. No GitHub call; Refresh redraws.
 
-- [ ] 44.6 Shared paginated queue read fills the cache, after 44.1 [R92.9, R92.13] (§4.27)
-  - Reuse the shared target PR/check read with fully qualified head identities. No task-issue list or full GitHub-browser mirror.
+- [ ] 44.6 Radar back-links through intake and the journal, after 44.1, 56.11 [R92.8, R92.10] (§4.27)
+  - Spec shows its Radar source issues. The intake status comment names the spec issue where visibility permits; the journal records the source issue as owner/repo#N under the privacy scan, so GitHub shows a cross-reference. Tests: a public Radar issue never names a private spec; no Radar API, grant or import; no new GitHub write.
 
-- [ ] 44.7 Lazy current-version PR detail cache, after 44.6 [R92.10, R92.16] (§4.27)
-  - Fetch once on first open; invalidate when source head, reviews or version changes. Journal/control refresh runs regardless of opening detail.
-
-- [ ] 44.8 Conditional reads, joined Recheck and usage source, after 44.6 [R92.11, R92.12, R92.14] (§4.27)
-  - Conditional unavoidable REST, no browser polling; Refresh redraws. Concurrent Rechecks join; count actual rate-limit usage under pages.
-
-- [ ] 44.9 Queue cache and call-budget tests, after 44.7, 44.8 [R92.15] (§4.27)
-  - 500 cached portions cost zero to list/filter; unchanged details zero; one new detail one read; changed PRs share per-repository reads plus pages; concurrent Rechecks join one read.
-
-- [ ] avoozl-p54 P54 Proof: landing queue and cache on real GitHub, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6, 44.7, 44.8, 44.9 [R92, R102.7, R102.12] (§4.27)
-  - Setup: isolated scratch workspace with two registered targets, one PR from a fork, and verified/unlanded portions; no real workspace tick.
-  - Action: open queue and PR detail at 390 and 1280 px, light and dark; count reads; reopen an unchanged detail and filter cached rows.
-  - Expected: exact target/source/portion and standing review shown; cached list/filter/detail cost zero extra calls; first new detail one read; pages usage attribution. Private spec references never render on a public surface.
-  - Also record: screenshots, exact source and target SHAs, cache/conditional-call counters and owner screenshot approval. Live receipt under docs/evidence/; wait for owner approval before ticking.
-  - Failure means: stale authority, leaked private links, extra list calls or unusable mobile layout. No Issue Radar parity comparison is required.
-  - Next decision: owner approves the screenshots and remaining shared projection deletion, or names the queue detail to change.
+- [ ] avoozl-p54 P54 Proof: links and the landing queue on real GitHub, after 44.1, 44.2, 44.3, 44.4, 44.5, 44.6 [R92, R102.7, R102.12] (§4.27)
+  - Setup: isolated scratch workspace with two registered targets, one PR from a fork, a spec created from a scratch Radar-style issue, one landed and one held task; no real workspace tick.
+  - Action: open the spec details panel, a task's details and its Graph modal, In flight and the Landing queue at 390 and 1280 px, light and dark; follow each link; count GitHub calls before and after.
+  - Expected: every link reaches the right GitHub item in a new tab; held items show the right reason; opening and refreshing the views adds zero calls; the scratch Radar issue shows the spec link only when the spec is public. Private spec references, host names, usernames and paths never render on a public surface.
+  - Also record: screenshots, exact source and target SHAs, call counts and owner screenshot approval. Live receipt under docs/evidence/; wait for owner approval before ticking.
+  - Failure means: a wrong or stale link shown as current, a leaked private reference, an extra GitHub call or an unusable mobile layout.
+  - Next decision: owner approves the screenshots and remaining shared projection deletion, or names the link or queue detail to change.
 
 ## Phase 45: Remove the Issue Radar path
 

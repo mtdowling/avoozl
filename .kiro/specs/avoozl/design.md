@@ -3581,23 +3581,66 @@ mirror and forward flow (RC24–RC26) is not used for this setup.
 | 41. Scheduler and direct landing        | The 13 pilot tasks on Nupp land, with owner minutes, credits and wall-clock per task recorded |
 | 42. PR landing and the setup command    | Ten tasks land on a repository with a required check                                          |
 | 43. Worker machines pull work           | A second machine with a second GitHub login pulls, claims and completes tasks from a shared pool on real GitHub; a race between two workers shows exactly one claim wins |
-| 44. Landing queue panel      | The landing queue shows exact portions and fork heads at 390 and 1280 px, light and dark; cached lists make 0 calls |
+| 44. Links and the landing queue | Specs, tasks and In flight link to their issue, branch, PR, checks and landed commit; the Landing queue shows hold reasons at 390 and 1280 px, light and dark; 0 new GitHub calls |
 | 45. Remove the Issue Radar path         | Leaf audit any time; 45.2 after P52; 45.2/45.3 have exclusive shared-file access; remaining shared edits last; compatibility names still resolve                   |
 
-### 4.27 Landing queue panel
+### 4.27 Links to related GitHub items, and the landing queue
 
-Revised 2026-11-16 (Requirement 92). Replace the unbuilt Issues and Pull
-requests browser with a focused landing panel: target/base, qualified source
-head (including forks), exact portion, checks/review, landing state, linked
-public slice issue and applicable actions. At 390 px use full-width list
-and detail with back navigation. Screenshots at phone/desktop, light/dark
-wait for owner review. Open on GitHub for issue discussion and full PR browsing.
+Revised 2026-11-17 (Requirement 92). Owner decision: no Issues or Pull
+requests pages. Avoozl links from specs and in-flight work to the GitHub items
+they relate to, and shows what waits to land. Discussion and full browsing stay
+on GitHub. A dedicated SCM links page is out of scope.
 
-The panel reads the shared tick cache; list/filter/scroll/Refresh make no
-calls. Fetch PR details lazily by current version; invalidate changed data.
-Concurrent Rechecks join the shared paginated read. Conditional REST and
-`pages` usage accounting stay. Journal, ownership and control invalidation
-run independently of opening the panel or changing a branch (§4.32.9).
+**One link set, from stored records only.** A pure read model builds one link
+set per spec and one per task from rows the tick and landing already write.
+It adds no GitHub read, and its only input is the local store:
+
+| Link | Stored source |
+|---|---|
+| Spec issue | Spec publication and journal (56.2) |
+| Spec working branch | Qualified working heads (56.3) |
+| Task branch and worktree | Worktree preparation (40.4) |
+| Task PR and check state | Landing queue and the shared PR/check read (41.x, 42.x) |
+| Landed commit | Delivery records |
+| Radar issues a spec came from | Intake and escalation records (56.8, 56.14) |
+
+Each link carries its repository, kind, number or ref or SHA, and, for check
+state, the head SHA and read time. A URL is built from those fields for the
+repository's registered host; no URL is taken from issue or comment content.
+A missing record shows as "none". Check state shows its age; when the stored
+head differs from the task's current head the dot is grey and says so. A
+counting-client test builds link sets for a seeded workspace and asserts the
+GitHub call count is the same as with link sets off.
+
+**Where links show.**
+
+| Surface | Links box or chips |
+|---|---|
+| Spec details panel | Spec issue, working branch, open PRs with a check dot each, Radar issues it came from |
+| Task details view, and the Graph modal that reuses it | Branch, PR, checks, landed commit, issue |
+| In flight rows | `PR #N` chip with a check dot; branch chip |
+
+Every GitHub link is an anchor with `target="_blank"` and
+`rel="noopener noreferrer"`. A worktree path is shown only in the local app,
+as text, never as a link and never in a GitHub write. A spec issue in a private
+home renders only on local surfaces.
+
+**Landing queue page.** Dashboards gains a Landing queue page next to CI (a
+Dashboards page, not a nav pill). It reads the per-base landing queue (41.2)
+and the cached check state: one group per target base, items in landing order,
+and for each held item the reason (checks pending or failing, conflict round
+N, path hold, review missing, line stopped, landing off). At 390 px rows stack
+full width. It makes no GitHub call; Refresh redraws from the store.
+
+**Radar back-links.** A spec lists the Radar issues it came from in its Links
+box. The Radar issue reaches its spec only through writes Avoozl already
+makes: the `crew:avoozl` intake status comment (§4.32.11), which names the spec
+issue where visibility permits, and the spec's journal, which records the
+source issue as `owner/repo#N` under the privacy scan (56.11), so GitHub shows
+its own cross-reference on the Radar issue. A public Radar issue never names a
+private spec. No Radar API, grant or shared module ties the two.
+
+Phase 44 is no longer paused. Phase 45 (Radar removal) stays paused.
 
 ### 4.28 Any harness runs the work; Kiro Crew stays the only UI
 
@@ -4593,7 +4636,8 @@ Retain the legacy manifest spellings `route: github` (landing queue) and
   private handoff export. Keep pure release ranking and build observations.
 - Add head-guarded PR merge and qualified-ref discovery to the GitHub client;
   do not interpret arbitrary remote URLs in issue content.
-- Phase 44 becomes a landing-queue panel (§4.27), not a GitHub browser.
+- Phase 44 becomes links from specs and in-flight work plus a Landing queue
+  page (§4.27), not a GitHub browser.
 - Phase 56 supplies outcomes, journal, migration, qualified branches, driver
   safety, refresh, recovery, epic/intake/export and mirror import changes.
   Direct and PR landing remain Phases 41–42; worker claims remain Phase 43.
@@ -7174,7 +7218,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P51   | Direct landing: the 13 Nupp pilot tasks land on public `core-dev`, with owner minutes, credits and wall-clock per task (Phase 41) |
 | P52   | PR landing: ten tasks land through pull requests on a repository with a required check, one at a time, none force pushed (Phase 42) |
 | P53   | Worker machines: a second machine and a second GitHub login pull, claim and complete tasks from a shared pool on real GitHub; of two racing workers exactly one claim wins (Phase 43) |
-| P54   | Landing queue with exact portions and fork heads at 390 and 1280 px, light and dark; owner screenshot approval and zero cached-list calls (Phase 44) |
+| P54   | Links and the landing queue at 390 and 1280 px, light and dark: every link reaches its GitHub item, zero new GitHub calls, owner screenshot approval (Phase 44) |
 | P55   | After removal: one delivery path, the compatibility names resolve, no Radar module remains (Phase 45) |
 | P56   | The executor seam: today's calls behind it, the existing suite unchanged (Phase 46) |
 | P57   | Supervisor and `process` with Claude Code: a 3-task chain with a resume round, a killed child, a backend restart (Phase 47) |
@@ -7229,7 +7273,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 41. Scheduler and direct landing | One scheduler, path holds, the per-base landing queue, `direct` landing, conflicts back to the same chat, epic branches (§4.26) |
 | 42. PR landing and setup | `pr` landing from the renamed arming code, `avoozl setup` with ruleset, merge methods, CI variable and commit status (§4.26) |
 | 43. Worker machines pull work | Qualified task refs, canonical reservations and generation acknowledgments across forks; executor-aware setup (§4.26, §4.32) |
-| 44. Landing queue panel | Exact portions, qualified fork heads, checks/reviews and owned actions from the shared cache (§4.27) |
+| 44. Links and the landing queue | One stored link set per spec and task; Links boxes, In flight chips, a Landing queue page under Dashboards and Radar back-links (§4.27) |
 | 45. Remove the Issue Radar path | Radar-only code, `verify-issue`, the provenance marker, the crew, relay and router agents; Delivery, Budgets and Files restored (§4.26) |
 | 46. Executor seam | The executor interface, the `kirocrew` executor, session requests by executor, prompts as files; runs before Phase 40 (§4.28) |
 | 47. Supervisor and process executor | Harness definition files, permission classes, `avoozl supervisor`, Claude Code, the child marker, one finish (§4.28) |
