@@ -44,6 +44,7 @@ export const JOURNAL_KINDS = [
   "generation",
   "claim",
   "intent",
+  "void",
 ];
 const CONTROL_FLAGS = ["hold", "stop", "resume", "release", "budget"];
 const CONCLUSIONS = [
@@ -155,6 +156,12 @@ export function validateRecord(
         ),
         true),
       alias: matches(ALIAS),
+      // The opaque driver a generation names, and the driver that wrote a
+      // record (driver-generations.mjs).
+      driver: matches(OPAQUE),
+      // An intent's check evidence; a void names the intent it voids.
+      checks,
+      voids: matches(OPERATION),
       revision: matches(DIGEST),
       base: matches(COMMIT),
       outcomes: list((entry) =>
@@ -212,6 +219,7 @@ export function validateRecord(
     control: ["controls"],
     claim: ["tasks"],
     intent: ["tasks", "refs", "base"],
+    void: ["voids"],
   }[record.kind];
   for (const name of needs || [])
     if (record[name] === undefined)
