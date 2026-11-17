@@ -1279,7 +1279,7 @@ reply that is not the list, a pick outside the options or no pick, a
 content rule holds the brief, the router's model is out (rate limit or
 credits), or there is no folder to open the router chat in. A task no
 crew passes is a no-fit decision (above), never a local run. Router chats
-have no budget cap (§4.17), so a budget never stops one; if anything drops
+are not stopped by spend (budgets removed 2026-11-17); if anything drops
 the router's dispatch, the 90-second limit makes it a failure.
 
 - The task stays Ready and is marked `routing failed` with the reason (the
@@ -2591,259 +2591,16 @@ Each new SDK plan made this way can join one epic, such as an SDK target
 architecture epic, through the drawer's Epic field. The review's outcome
 note and links reach the cutover workers' briefs.
 
-### 4.17 Budgets and usage receipts
+### 4.17 Budgets and usage receipts (removed)
 
-**Proposed**, owner decisions 2026-11-13 (Requirement 67). A task that loops
-or keeps asking for review rounds can spend without limit, and nobody sees
-it until the bill. Avoozl already reads every turn's tokens and credits for
-the sessions its tick opened (§4.11, owner additions, `flow_usage`). This
-section adds a price table, a cap per task, a stop at the cap, and a receipt.
-
-```text
-GET /api/usage/turns (after each tick receipt) ─▶ flow_usage (raw counts only)
-                                                       │
-built-in dated price list ─▶ priced on read ──────────┤
-                                                       ▼
-cap = task ▸ spec ▸ repository ▸ workspace ─▶ spend ≥ cap?
-   │ no: Delivery card, In flight, drawer show $spent / $cap
-   ▼ yes
-no new session for the task; stop message to each live session
-   ▼
-Needs you: Raise budget (person) │ Stop (person, pauses like Deferred)
-```
-
-#### Price table
-
-- **Built in.** `src/app/default-prices.mjs` holds public list prices
-  (base input and output, dollars per million tokens) for known models,
-  with `updated` (the date read) and `sources` (the pricing page URLs).
-  Avoozl uses it with no setup. A model ID matches after `priceKey`
-  normalizes it: lower case, no provider prefix, no date or version suffix,
-  dots between version numbers (`claude-sonnet-4-5-20250929` →
-  `claude-sonnet-4.5`). Cache writes and hits are not in Kiro Crew's usage
-  rows, so they are not priced. Updating the table is a code change that
-  moves `updated` with the numbers (owner decision 2026-11-13: nobody
-  should have to type prices).
-- **No user price list.** There is no price page, no override, no credit
-  price and no `prices.get` or `prices.save` (owner decision 2026-11-14).
-  A saved `prices` key in `~/.config/avoozl/config.json`, `.avoozl.json` or a
-  manifest is ignored, never an error. A settings pack has no `prices`
-  setting, so it is refused like any unknown key.
-- **Receipts.** A receipt names the built-in list by its `updated` date and
-  a sha256 of that date (`price: { updated, sha256 }`). Rows an older
-  build wrote keep their `priceVersion` number.
-- **Pricing a turn.** `credits > 0`: unpriced, counted against the credit
-  cap: Kiro Crew bills it in credits, and a token list price is not what it
-  cost. Otherwise tokens at the built-in price for the model:
-  `input × inputPerMTokUsd / 1e6 + output × outputPerMTokUsd / 1e6`.
-  Anything else is unpriced and counts against the token cap.
-
-#### Caps
-
-- **Levels.** `budget: { usd?, tokens?, credits?, mode? }` at the workspace
-  (`.avoozl.json` `budget`), the repository (`projects.<id>.budget`), the
-  spec (manifest top-level `budget`), and the task (a leaf's `budget`). The
-  most specific level that sets a key wins, key by key. Every level is a
-  per-task cap; there is no spec-wide total. With no `usd` anywhere, the
-  task has no dollar cap; its receipt is still kept.
-- **Fallback.** Unpriced turns count against `tokens` (input plus output)
-  and `credits`, defaulting to 2,000,000 and 200 per task. Priced turns
-  count only against `usd`. A task stops when any of the three is reached.
-  The first unpriced turn of a model on a task raises one warning on the
-  task that says why (no known price, or billed in credits) and which cap
-  it counts against.
-- **What counts.** Every binding of the task: writer attempts and retries,
-  the verifier, review roles (§5.2), responders for pull request feedback
-  (§4.13), and the batch (§4.11). A batch's cap is the sum of its tasks'
-  caps; its turns are shared out evenly across its tasks and marked
-  `shared` on their receipts. A fix task (`<culprit-id>.fix-<n>`) has its
-  own cap from its repository and workspace. Planner, critic, retro and
-  router sessions are not tasks and have no cap; their turns show on Flow
-  under "no task".
-- **Modes.** `mode` is `"stop"` (default) or `"warn"`, most specific
-  level winning. In `stop` mode the cap works as "The stop" below. In
-  `warn` mode nothing is stopped, paused or messaged: at 100% the task
-  gets an Over budget badge (spend / cap) on the drawer, the Delivery card
-  and In flight, and one Needs you item, "Over budget: $X of $Y", with
-  Acknowledge, Raise budget and Switch to stop (person only).
-  Acknowledge clears it until spend passes the next step, each further
-  50% of the cap. `budget.notify: true` at the workspace also sends a Kiro
-  Crew notice per step; it is off by default. Switch to stop records who
-  and when in `budget_holds` and the next check stops the task.
-- **80% warning.** At 80% of any cap the task and the receipt show a
-  warning in both modes; nothing else changes.
-- **Fallback settings.** The 2,000,000-token and 200-credit fallbacks are
-  the defaults of the workspace `budget.tokens` and `budget.credits`.
-- **Intake grants.** A grant (`intakeBudget` on the task) only fills a
-  dollar cap no level set, never raises a person's cap, and forces `stop`
-  mode.
-- **Raises.** `budget.raise {taskId, usd?, tokens?, credits?}` (person
-  only) writes a row to `budget_raises` (`task_id`, `by`, `at`,
-  `from_json`, `to_json`, `price_version`). A raise overrides the computed cap for that task
-  without editing the approved manifest, whose hash stays pinned.
-
-#### The stop
-
-Spend is known after each usage read, which runs after each tick receipt,
-about once a minute. The check runs then (in the app backend, under the
-tick's lock) and again in the tick before any dispatch for the task. A
-task can pass its cap by the turns that run between two reads; the
-receipt shows the overrun. Stops, pauses, over-budget steps and sent
-messages live in SQLite `budget_holds`. The rest of this section is
-`stop` mode.
-
-1. Spend reaches a cap. The tick records a `budget` stop on the task:
-   spend, cap, level, and the price version used.
-2. The tick dispatches nothing new for the task: no retry, verifier,
-   review round, responder, or batch slot.
-3. For each live session bound to the task, the tick queues one message
-   through the existing `messages` intent and `send_to_session` (§4.6):
-   "Budget reached. Finish the tool call you are in, leave the worktree as
-   it is, report `blocked` with `budget`, and stop." Kiro Crew delivers it
-   as the session's next turn (**Inferred**: a message sent to a busy
-   session waits for the current turn; P41 checks it with the fake, and
-   the first live stop records it). Avoozl never calls a stop, interrupt
-   or close on the session.
-4. Every Avoozl MCP call from a bound session, except `plans_report`,
-   returns `budget_reached` (status 409, error code `budget_reached`) with the same text, so a worker that missed the
-   message still learns at its next Avoozl call.
-5. The task opens one Needs you decision of kind `budget` with **Raise
-   budget** and **Stop**. Turns that ran between the cap and the stop are
-   still recorded; the receipt shows the overrun in dollars.
-
-Raise budget sends one "Budget raised to $N; go on" message to a live
-session, or lets the next tick dispatch the next attempt as usual. Stop
-pauses the task exactly as an allowed drag to Deferred does (§6.7): nothing
-new is dispatched, the session and worktree are left alone, dependents
-wait, and in GitHub modes the Project Status shows Deferred. Neither costs
-an attempt (§5.2).
-
-#### Receipts
-
-`budget.receipt {taskId}` is an observe operation:
-
-```json
-{
-  "taskId": "s1.a1",
-  "spec": "s1",
-  "repository": "r1",
-  "complete": false,
-  "missing": [{ "slot": "avoozl_…", "reason": "crew-mode" }],
-  "cap": { "usd": 5, "tokens": 2000000, "credits": 200, "level": "spec" },
-  "raises": [
-    { "by": "owner", "at": "…", "from": { "usd": 5 }, "to": { "usd": 8 } }
-  ],
-  "price": { "version": 3, "sha256": "…" },
-  "stops": [{ "at": "…", "usd": 5.12, "priceVersion": 2 }],
-  "totals": {
-    "input": 0,
-    "output": 0,
-    "credits": 0,
-    "usd": 0,
-    "unpricedTurns": 0
-  },
-  "byStage": [
-    {
-      "stage": "coding",
-      "input": 0,
-      "output": 0,
-      "credits": 0,
-      "usd": 0,
-      "priced": true
-    }
-  ],
-  "byModel": [],
-  "byAttempt": [],
-  "readAt": "…"
-}
-```
-
-- Stages are the Flow stages, attributed by `turnStage` (§4.11).
-- Dollars use the current price version on every read, so a price edit
-  recomputes old receipts. A stop or raise also keeps the dollars and
-  version that applied then.
-- The drawer's **Budget** fold, after Timing, shows spend against the cap,
-  the receipt tables, and **Export JSON**, which downloads the same object.
-  The CLI is `avoozl budget receipt TASK [--json]`; MCP is `plans_view`
-  action `receipt` (R56: no new tool).
-- The retro payload gains `receipts`: each finished task's totals by stage
-  and model. Counts, dollars, model IDs and stage names only.
-- The Delivery card and In flight card show a chip `$1.20 / $5.00`, muted
-  below 80% of the cap, red at the cap, and "spend unknown" when it is.
-
-#### Where usage can be missing
-
-| Case               | Why                                                                                                                 | What the budget does                                          |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| Crew Mode worker   | Bound by a conductor, not opened by the tick; `observeUsage` reads `source: "tick"` bindings only                   | Spend unknown; warn once; no stop                             |
-| Remote chat        | `/api/usage/turns` reads this gateway's rows; remote placement is inert until MC-10, and MC-10 does not cover usage | Spend unknown; warn once; no stop                             |
-| Issue Radar route  | Avoozl opens no session (§6.4)                                                                                      | No receipt beyond "not run by Avoozl"                         |
-| Usage read fails   | Kiro Crew refuses or the backend is down                                                                            | Keep last known spend with its time; retry next tick; no stop |
-| Turn with no model | Row has tokens but no `model`                                                                                       | Unpriced; counts against the token cap                        |
-
-Unknown spend never stops a task, because a budget is a cap, not a
-permission, and stopping on missing data would turn a read failure into a
-blocked line. Known spend from readable sessions of the same task still
-counts.
-
-#### Incoming item budgets (hook only)
-
-An incoming item (§4.12) may later carry `budget: { usd }` from a plugin
-source whose entry the owner approved with a `budget` capability. A task
-made from that item by Plan this or Deliver this would take it at the spec
-level, below the manifest task. Nothing builds this until a real grant
-plugin exists; payments, escrow and refunds are out of scope. A grant only sets a cap where none
-exists and is always `stop` mode (owner decision 2026-11-13).
-
-#### Built (2026-11-13)
-
-`src/app/budget.mjs` holds the price lookup, caps, spend, holds and
-receipts. Settings puts caps in **Settings › Budgets** (workspace and each
-repository, `budget.settings.get` and `budget.settings.update`) rather than
-in the repository Edit modal, so each cap lives in one place. The CLI adds
-`avoozl budget view|raise|stop|acknowledge|switch-to-stop`. The driver
-export (§6.10) is not built yet.
-
-#### Settings pages (owner UX audit, 2026-11-13)
-
-- **Budgets.** Each level is titled bordered boxes: **Dollar cap** (a blank
-  field says what it falls back to: "Blank: the workspace default ($5)"),
-  and **When a task reaches its cap**, the shared radio fold-out with Stop
-  and Warn. A repository's first choice says where it comes from and what
-  it is, "Use the workspace default (Stop)"; nothing says "same as above".
-  The Warn choice holds the notice checkbox at the workspace. The token and
-  credit caps fold away under **Advanced: caps for turns not counted in
-  dollars**.
-- **Ask for help.** The shared chat-icon link (`AskForHelp` in
-  `controls.tsx`, §8.9) on Budgets and Settings › Routing ›
-  Providers
-  opens a Kiro Crew chat through `chat.context` purpose `help`, seeded with
-  the page, its current values and the `avoozl-costs` skill
-  (`skills/avoozl-costs/SKILL.md`), which explains every field and
-  default. The chat proposes values and is told to save nothing, so the
-  page's Save stays the only write.
-
-#### Why each choice
-
-| Choice                               | Why                                                                                                                                        |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Dollars as the unit                  | Tokens and credits do not compare across models                                                                                            |
-| Built-in dated prices only           | Nobody knows list prices by heart; a dated table with its source says how fresh it is. A price page nobody needed was removed (2026-11-14) |
-| Credit turns budgeted in credits     | Kiro Crew bills them in credits; a token list price is not what they cost                                                                  |
-| Raw counts stored, dollars on read   | A price change recomputes every receipt                                                                                                    |
-| Receipt names the price list's date  | A receipt can say which prices made a stop                                                                                                 |
-| Token and credit fallback            | An unpriced model must still have a ceiling                                                                                                |
-| Most specific level wins, key by key | A task can tighten one cap without restating the rest                                                                                      |
-| Raise in SQLite, not the manifest    | The approved manifest's hash stays pinned                                                                                                  |
-| Stop at the next turn by message     | Ending a tool call mid-change can lose work                                                                                                |
-| Retries and reviews share the cap    | The point is a task's total cost                                                                                                           |
-| Unknown spend warns, never stops     | A missing read must not block delivery                                                                                                     |
-| Warn mode                            | Some owners want to see overspend, not block it                                                                                            |
-| Acknowledge until the next 50% step  | One item per step cannot nag every tick                                                                                                    |
-| Grant caps always stop               | It is someone else's money                                                                                                                 |
-| No spec-wide total                   | Owner decision 2026-11-13; per-task caps first                                                                                             |
-| Raise and Stop person only           | Spending more is the owner's call                                                                                                          |
-| Budget never a permission            | Spend limits must not loosen safety gates                                                                                                  |
+Removed 2026-11-17 (owner): budgets. A budget only caps Kiro Crew chats; Avoozl cannot see Claude Code or Codex spend.
+Removed: caps at four levels, the price table (`default-prices.mjs`),
+`budget.mjs`, `budget_holds`, the stop message and `budget_reached`, Raise
+budget, Over budget, receipts, the drawer's Budget fold, Settings › Budgets
+and the spend cap in harness definitions. Kept: the per-turn usage reads and
+`flow_usage` (§4.11) for Flow's usage charts, and the plan-quota stop (§4.28).
+A `budget` or `prices` key in `.avoozl.json`, a repository entry or a manifest
+is ignored with one warning, never an error.
 
 ---
 
@@ -3678,8 +3435,7 @@ placeholders; nothing is passed through a shell.
   "permission": { "write": "workspace-write", "read": "read-only" },
   "writeRoots": ["{worktree}", "{tmp}", "{project_cache_dirs}"],
   "allow": ["{project_allow_commands}"],
-  "cost": { "from": "output", "field": "total_cost_usd" },
-  "spendCap": ["--max-cost", "{budget_usd}"]
+  "cost": { "from": "output", "field": "total_cost_usd" }
 }
 ```
 
@@ -3691,7 +3447,7 @@ sandbox values are not verified yet; they are proof items of Phase 47
 
 | Topic          | Decision                                                                                                                                                          |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Permissions    | Write roles: the harness's workspace-write sandbox, confined to the task worktree. Read-only roles: read-only. Never a skip-all-permissions or bypass flag. A harness that cannot confine writes is refused for write roles unless the owner opts in per machine. A spend cap the harness offers is set from the task budget |
+| Permissions    | Write roles: the harness's workspace-write sandbox, confined to the task worktree. Read-only roles: read-only. Never a skip-all-permissions or bypass flag. A harness that cannot confine writes is refused for write roles unless the owner opts in per machine. Avoozl passes no spend cap (budgets removed 2026-11-17) |
 | Default        | `process` with Claude Code for the Nupp compiler repository; `kirocrew` for Avoozl's own repository until Phase 47's proof passes                                  |
 | Write roots    | Task folder, temp, and the cache directories in project config. The worktree's git directory is in the main checkout (`git rev-parse --git-common-dir`), so the child only edits and Avoozl commits after it exits |
 | No skip flag   | Enforced in code: a definition with `bypassPermissions`, `danger-full-access` or any `--dangerously-*` flag is refused at load, with a test |
@@ -3824,7 +3580,7 @@ revisionHash, current, found, fixed, forYou, open: [...], note}`.
 **Flow.** Planning spans are keyed by spec, not task: stages `plan-review`
 and `plan-answer` in their own table, and usage rows from those sessions are
 tagged with the spec. The Flow tab shows a Planning group per spec. Task
-flow efficiency and budgets do not read it.
+flow efficiency does not read it.
 
 | Choice                                     | Why                                                                                                       |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
@@ -7208,7 +6964,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P37   | Workflow templates, manual leaves, and links and notes, in a temporary single-repo workspace with a fake GitHub and the sample SDK rewrite template: the template makes a draft that joins an epic and imports no setting unless ticked, the manual review leaf is never dispatched and gates cutover, only a person or an allowed GitHub closer completes it, and links and notes pass content rules, reach briefs, and reach the issue only when shown (Phase 22)                                                                                                                                                                                     |
 | P38   | The Specs name and ideas, in a temporary workspace with a fake chat and a fake New spec entry point: no user-facing plan word outside the allowlist, the compat names unchanged, an idea captured by a person, by MCP and by a session, refused fields and blocked text, an idea that never matches a rule or counts as untriaged, a riff that only appends, Make it a spec that prefills New spec and graduates the idea, and archive kept past the purge (Phase 23)                                                                                                                                                                                   |
 | P40   | Driver handoff with temporary workspaces on one fake GitHub: the plan issue's single assignee and the machine claim pick one driver, the epic's assignee stands in, zero or several assignees read only with one decision, one login on two machines, the check before dispatch, age never moves the role, drain then export then reassign and take over, a tampered file refused, rebuild and forced take-over with the loss list, a silently ignored reassignment, the old driver going read-only on return, away tasks never restarted by lease, the re-approve list, person-only 403s, and the Local only row (Phase 26)                            |
-| P41   | Budgets and receipts in a temporary workspace with fake workers and fake usage rows: priced and unpriced turns, caps by level, retries and review rounds on one cap, a batch's shared cap, the stop message at the next turn with no session stopped, `budget_reached` on MCP, Raise budget and Stop as a person only, a price change recomputing a receipt with both versions shown, unknown spend for Crew Mode and a failed read, JSON export, the retro payload, and no budget changing a gate (Phase 27)                                                                                                                                           |
+| P41   | Removed 2026-11-17. Budgets and receipts in a temporary workspace with fake workers and fake usage rows: priced and unpriced turns, caps by level, retries and review rounds on one cap, a batch's shared cap, the stop message at the next turn with no session stopped, `budget_reached` on MCP, Raise budget and Stop as a person only, a price change recomputing a receipt with both versions shown, unknown spend for Crew Mode and a failed read, JSON export, the retro payload, and no budget changing a gate (Phase 27)                                                                                                                                           |
 | P42   | Prompt and skill proposals and lessons with fake workers and a fake retro model in two temporary workspaces: locked sections, stale bases and blocked text dropped, person-only approve and revert, overrides outside shipped files, a repository skill change as a leaf and an external one as a note, PDCA per version with mixed windows, lessons shared with no source text, opt-out, refused lesson text, drift marks that clear on confirmation, the lessons review, override drift with a three-way diff, pack versions, and person-only export (Phase 28)                                                                                       |
 | P43   | The activity log in a temporary workspace with a fake GitHub and a fake plugin: every listed local action and tick event makes one row, a change seen twice makes one, a secret-shaped or rule-matched value is saved redacted, rows past retention go on the tick, and the tab and `plans_view` read the same rows (Phase 29)                                                                                                                                                                                                                                                                                                                          |
 | P45   | Investigate first, evidence bundles, staying current, rules from corrections, fix-work share and ship mode with fake workers, a fake falsifier and a fake GitHub (Phase 34)                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -7262,7 +7018,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 22. Templates, manual tasks, links and notes                                  | The `template` plugin part and From template in New plan; `manual` leaves in Needs you and on GitHub; Links and notes on every task (§4.16)                                                                                                                                                                                                                         | Starts after 21.1, 16.3, 17.1 and P28; P37 runs after P36                                                           |
 | 23. Specs and ideas                                                           | The page says spec (§8.7); ideas as `local` incoming items with notes and links, Riff on this, Make it a spec through the New spec entry point, and archive (§8.8)                                                                                                                                                                                                  | Starts after 14.10, 17.1 and 19.1; P38                                                                              |
 | 26. Driver handoff                                                            | One driver per spec: the plan issue's assignee plus a machine claim, read-only ticks elsewhere, the check before dispatch, hand off with drain, export and reassign, take over from the file or a rebuild, force take over, what never moves, the header and banner (§6.10)                                                                                         | Starts after 3.8, 3.10 and 21.4; P40                                                                                |
-| 27. Budgets and receipts                                                      | A machine-local, versioned price table; dollar caps per task from workspace, repository, spec and task, with token and credit fallbacks; the stop at the next turn and Raise budget or Stop in Needs you; receipts by stage, model and attempt with JSON export; spend on the drawer, Delivery and In flight (§4.17)                                                | Starts after 12.12 and 12.9; P41                                                                                    |
+| 27. Budgets and receipts (removed 2026-11-17)                                                      | A machine-local, versioned price table; dollar caps per task from workspace, repository, spec and task, with token and credit fallbacks; the stop at the next turn and Raise budget or Stop in Needs you; receipts by stage, model and attempt with JSON export; spend on the drawer, Delivery and In flight (§4.17)                                                | Starts after 12.12 and 12.9; P41                                                                                    |
 | 28. Retro prompt and skill proposals, and lessons                             | Prompt and skill diffs with evidence from the retro, local per-workspace prompt overrides with revert, repository skill changes as leaves and external ones as notes, PDCA per version, a lessons store on this Mac shared across workspaces, lessons packs, and healing of lessons and overrides (§4.18)                                                           | Starts after 12.9 and 12.10; P42                                                                                    |
 | 29. Activity log                                                              | One SQLite activity table, one `recordActivity` helper, local actions and the tick's GitHub and plugin events, screening and redaction, retention on the tick, the Activity tab and `plans_view` action `activity` (§4.19)                                                                                                                                          | Starts after 10.4, 12.11 and 14.10; P43                                                                             |
 | 30. Provider health and switching                                             | Health levels from usage reads and error rows, routing that skips low and out, running chats moved with Kiro Crew's model change, the manual Switch model dialog, Needs you, and Settings › Providers (§4.20)                                                                                                                                                       | Starts after 11.11 and 12.12; P44                                                                                   |
@@ -7274,7 +7030,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 42. PR landing and setup | `pr` landing from the renamed arming code, `avoozl setup` with ruleset, merge methods, CI variable and commit status (§4.26) |
 | 43. Worker machines pull work | Qualified task refs, canonical reservations and generation acknowledgments across forks; executor-aware setup (§4.26, §4.32) |
 | 44. Links and the landing queue | One stored link set per spec and task; Links boxes, In flight chips, a Landing queue page under Dashboards and Radar back-links (§4.27) |
-| 45. Remove the Issue Radar path | Radar-only code, `verify-issue`, the provenance marker, the crew, relay and router agents; Delivery, Budgets and Files restored (§4.26) |
+| 45. Remove the Issue Radar path | Radar-only code, `verify-issue`, the provenance marker, the crew, relay and router agents; Delivery and Files restored (§4.26) |
 | 46. Executor seam | The executor interface, the `kirocrew` executor, session requests by executor, prompts as files; runs before Phase 40 (§4.28) |
 | 47. Supervisor and process executor | Harness definition files, permission classes, `avoozl supervisor`, Claude Code, the child marker, one finish (§4.28) |
 | 48. Second harness by file | Codex with no code change (§4.28) |
