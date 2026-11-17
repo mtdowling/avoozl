@@ -1804,7 +1804,7 @@ screenshots review.
 Requirements 95.3, 98.5 (design §4.28). The base for the pull-based worker
 mode of Phase 43.
 
-- [ ] 51.1 The supervisor under launchd or systemd, running the tick too, after avoozl-p57 [R95.3] (§4.28)
+- [x] 51.1 The supervisor under launchd or systemd, running the tick too, after avoozl-p57 [R95.3] (§4.28)
 - [ ] 51.2 CLI only: `avoozl status` and `avoozl runner status --json`, after 51.1 [R98.5] (§4.28)
 
 - [ ] avoozl-p61 P61 Proof: a headless machine runs tasks with the CLI only, after 51.1, 51.2 [R95, R98.5] (§4.28)

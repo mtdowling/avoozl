@@ -22,6 +22,11 @@ import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
 import { contentHook } from "./public-crews.mjs";
 import { runSupervisor } from "./supervisor.mjs";
+import {
+  supervisorUnit,
+  unitKindFor,
+  writeSupervisorUnit,
+} from "./supervisor-unit.mjs";
 import { reportByToken } from "./report-match.mjs";
 import { readRunnerConfig } from "./remote-runner.mjs";
 import { hookEvent, runnerHookBrief } from "./runner.mjs";
@@ -97,6 +102,7 @@ try {
           "writes",
           "retire",
           "delete-spec-folder",
+          "write",
         ].includes(key) &&
         // `driver takeover --force --confirm SPEC` names the spec (R66.15).
         !(key === "confirm" && command === "driver")
@@ -432,11 +438,64 @@ try {
         );
       }
     }
+  } else if (command === "supervisor" && positionals[0] === "unit") {
+    // A launchd or systemd unit for a headless machine (R95.3). It only
+    // writes the file; loading it is the person's command, printed here.
+    if (process.env.AVOOZL_CHILD)
+      throw Error(
+        "A supervisor child may not write a service unit. Do it at this machine's command line.",
+      );
+    if (positionals.length > 2)
+      throw Error(
+        "Usage: avoozl supervisor unit [launchd|systemd] [--tick-seconds N] [--write [--force]]",
+      );
+    const machine = machineAvoozlPaths();
+    const unit = supervisorUnit({
+      kind: positionals[1] ?? unitKindFor(),
+      cli: fs.realpathSync(process.argv[1]),
+      stateDirectory: path.resolve(
+        options["state-directory"] ?? machine.stateDirectory,
+      ),
+      configDirectory: path.resolve(
+        options["config-directory"] ?? machine.configDirectory,
+      ),
+      ...(options["tick-seconds"] !== undefined
+        ? { tickSeconds: Number(options["tick-seconds"]) }
+        : {}),
+    });
+    if (!options.write) process.stdout.write(unit.text);
+    else {
+      const written = writeSupervisorUnit(unit, { force: options.force });
+      console.log(
+        `${written.unchanged ? "Unchanged" : written.replaced ? "Replaced" : "Wrote"} ${unit.file}. To start it now and at each login, run:\n` +
+          unit.load.map((line) => `  ${line}`).join("\n") +
+          `\nTo stop it: ${unit.unload.join("; ")}`,
+      );
+    }
   } else if (command === "supervisor") {
     // One per machine (R95.1); a second one exits 1 and names the first.
+    // --tick-seconds runs the tick too, on a headless machine (R95.3).
+    if (positionals.length)
+      throw Error(
+        "Choose supervisor unit, or run avoozl supervisor with no subcommand.",
+      );
+    const tickSeconds =
+      options["tick-seconds"] === undefined
+        ? null
+        : Number(options["tick-seconds"]);
+    if (
+      tickSeconds !== null &&
+      !(
+        Number.isInteger(tickSeconds) &&
+        tickSeconds >= 1 &&
+        tickSeconds <= 86400
+      )
+    )
+      throw Error("--tick-seconds must be 1 to 86400.");
     runSupervisor({
       stateDirectory: options["state-directory"],
       configDirectory: options["config-directory"],
+      tickSeconds,
     });
   } else if (command === "app-backend") {
     const server = startAppBackend({
@@ -2017,7 +2076,8 @@ try {
   routing set --file ROUTING.json       This machine's routing: {enabled, prompt, model}
   crews set --file CREWS.json [--stale SECONDS]  This machine's crew tags, limits, and hand-back
   app-backend --workspace PATH          Kiro Crew app backend on 127.0.0.1 ($PORT)
-  supervisor                            This machine's owner of process children (one per machine)
+  supervisor [--tick-seconds N]         This machine's owner of process children (one per machine); --tick-seconds runs the tick too (headless)
+  supervisor unit [launchd|systemd] [--write [--force]]  Print or write the unit that runs the supervisor and tick at login
   backup --workspace PATH --output FILE  Local-only; registered IDs are refused
   export --workspace PATH [--output FILE] Local-only; registered IDs are refused
   import SNAPSHOT.json --workspace PATH [--dry-run] Local-only; registered IDs are refused
