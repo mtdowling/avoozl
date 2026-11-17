@@ -1769,7 +1769,7 @@ Requirement 94.7 (design §4.28). Exit: Codex runs a task with no code change.
   - Its start and resume argv, permission values and cost source.
   - Built: `examples/harnesses/codex.json`: `codex exec --json -C {worktree} --sandbox {permission} -c approval_policy=never`, brief on stdin; resume adds `resume --last -`, since Codex takes no session ID at start and `--last` reads only the worktree's own sessions; `workspace-write` and `read-only`; no allow flag, no spend cap and no cost source (its JSON reports tokens, not dollars). Tests in `src/app/test/codex-definition.test.mjs`. For P58: Codex applies its own `sandbox-exec` per command on macOS, and a nested `sandbox-exec` fails (`sandbox_apply: Operation not permitted`); the project's `sandbox.writeRoots` must name the Codex home, where it records sessions.
 
-- [ ] 48.2 Inner sandbox off only under Avoozl's sandbox, after 48.1 [R94.4b, R94.4d] (§4.28)
+- [x] 48.2 Inner sandbox off only under Avoozl's sandbox, after 48.1 [R94.4b, R94.4d] (§4.28)
   - `permission.write` may be exactly `danger-full-access`; the child then starts only inside Avoozl's sandbox with the task write roots, and is refused with no Avoozl sandbox, opt-in or not. `examples/harnesses/codex.json` uses it.
   - Tests: refused without the Avoozl sandbox, allowed with it, every other bypass value still refused.
 
