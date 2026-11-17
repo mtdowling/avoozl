@@ -240,7 +240,10 @@ test(
     assert.equal(c1.activeMs, 12 * MIN);
     assert.equal(c1.firstPass, true);
     // The Flow nav counts tasks by spec from this field.
-    assert.equal(c1.plan, store.read().tasks.find((x) => x.id === "c1").planId ?? null);
+    assert.equal(
+      c1.plan,
+      store.read().tasks.find((x) => x.id === "c1").planId ?? null,
+    );
     receipt.c1 = {
       stages: c1.stages,
       leadMs: c1.leadMs,
