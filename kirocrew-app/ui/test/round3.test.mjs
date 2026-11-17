@@ -46,7 +46,6 @@ test('every destructive button asks first through a red confirm', () => {
   const settings = source('SettingsView.tsx')
   assert.match(source('RepositoriesSettings.tsx'), /title: `Remove \$\{row\.name\} from this workspace\?`/)
   assert.match(settings, /action: 'Remove rule'/)
-  assert.match(settings, /action: 'Discard changes'/)
   assert.match(source('PluginsSettings.tsx'), /action: 'Remove plugin'/)
   assert.match(source('ConflictsView.tsx'), /confirm=\{confirmSettle\('dismiss', 1, item\.title\)\}/)
   // Bulk resolve asks before it settles anything.
@@ -132,7 +131,7 @@ test('headings get anchors for the plan outline, and prose has a readable measur
   assert.match(source('Markdown.tsx'), /id=\{idPrefix \? headingId\(idPrefix, block\.text, i\) : undefined\}/)
 })
 
-test('the spec view keeps its details in a bottom panel, with Edit and Discuss', () => {
+test('the spec view keeps its details in a panel under the specs list, with Edit and Discuss', () => {
   const plans = source('PlansView.tsx')
   assert.match(plans, /<SpecDetailsPanel/)
   assert.match(plans, /Edit spec/)

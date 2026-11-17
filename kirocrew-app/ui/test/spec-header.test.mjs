@@ -85,9 +85,9 @@ const READ = `(() => {
     sections: sections.map((s) => s.dataset.railSection.replace(/ \\(\\d+\\)$/, '')),
     edits: sections.filter((s) => s.querySelector('[data-rail-edit]')).map((s) => s.dataset.railSection),
     railFont: cs(rail).fontSize,
-    // A desktop clips the spec in its own scroller, with the panel under it.
-    railBelow: r(rail).top >= r(q('[data-spec-scroll]') ?? main).bottom - 1,
-    railWide: Math.round(r(rail).width) >= Math.round(r(main).width) - 30,
+    // A desktop docks the details under the specs list; a phone stacks
+    // them under the spec.
+    railPlace: q('[data-list-pane="specs"] [data-spec-rail]') ? 'list' : rail.closest('[data-detail-column="specs"], [data-detail-pane-for="specs"]') && r(rail).top >= r(main).bottom - 1 ? 'under spec' : 'elsewhere',
     noOldAside: !q('[aria-label="Spec summary"]'),
     sideways: document.documentElement.scrollWidth > innerWidth,
   }
@@ -112,8 +112,7 @@ for (const dark of [false, true])
       for (const name of ['Epic', 'Repositories', 'Phases', 'Progress', 'Dates']) assert.ok(got.sections.includes(name), `the rail has ${name}`)
       for (const name of ['Epic', 'Phases']) assert.ok(got.edits.includes(name), `${name} has Edit`)
       assert.equal(got.railFont, '12.5px')
-      assert.equal(got.railBelow, true, 'the details sit under the spec')
-      assert.equal(got.railWide, true, 'as wide as the spec')
+      assert.equal(got.railPlace, width < 768 ? 'under spec' : 'list', 'where the details sit')
       assert.equal(got.noOldAside, true, 'no left column')
       assert.equal(got.sideways, false, 'no sideways scroll')
       // The ... menu holds the rest of the spec's actions.
