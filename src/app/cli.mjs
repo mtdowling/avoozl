@@ -196,9 +196,9 @@ try {
   const useServer = () =>
     Boolean(
       options.url ||
-      process.env.AVOOZL_URL ||
-      process.env.AICOMMANDER_URL ||
-      process.env.NUPP_WORKSPACE_URL,
+        process.env.AVOOZL_URL ||
+        process.env.AICOMMANDER_URL ||
+        process.env.NUPP_WORKSPACE_URL,
     );
   const localOperations = (store) =>
     new Operations(store, {

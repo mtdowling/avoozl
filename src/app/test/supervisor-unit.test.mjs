@@ -217,7 +217,9 @@ test("the CLI writes the unit into the home and prints how to load it; a child i
   assert.match(out, /Wrote .*avoozl-supervisor\.service/);
   assert.match(out, /systemctl --user enable --now avoozl-supervisor\.service/);
   const text = fs.readFileSync(file, "utf8");
-  assert(text.includes(`"--state-directory" "${m.stateDirectory}"`), text);
+  // systemd escapes a backslash (a Windows temp path) inside its quotes.
+  const word = (value) => `"${value.replaceAll("\\", "\\\\")}"`;
+  assert(text.includes(`"--state-directory" ${word(m.stateDirectory)}`), text);
   assert(text.includes('"--tick-seconds" "30"'));
   const child = spawnSync(
     process.execPath,
