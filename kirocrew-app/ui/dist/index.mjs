@@ -2,7 +2,7 @@ import { Component as e, Fragment as t, createContext as n, createElement as r, 
 import { useAppApi as p, useChatLauncher as m, useNavigate as h } from "@kirocrew/app-sdk";
 import { Badge as g, Btn as _, Card as v, EmptyState as y, Input as b, SegmentedControl as x } from "@kirocrew/app-sdk/ui";
 import { Fragment as S, jsx as C, jsxs as w } from "react/jsx-runtime";
-import { Activity as T, Archive as E, ArchiveRestore as D, ArrowLeft as O, ArrowRight as k, Ban as A, BookOpen as j, Check as M, ChevronDown as N, ChevronRight as P, CircleAlert as F, CircleAlert as I, CircleCheck as L, CircleCheck as ee, CircleDot as te, CircleHelp as ne, CirclePlus as re, ClipboardCheck as ie, Copy as R, Crosshair as z, Download as B, Ellipsis as V, ExternalLink as ae, Eye as oe, FileText as H, FileText as se, Folder as U, FolderOpen as ce, Gauge as le, Gauge as ue, GitBranch as de, GitBranch as fe, GitPullRequest as pe, GitPullRequestDraft as me, HardDrive as he, History as ge, History as _e, Inbox as ve, Inbox as ye, Info as be, Info as xe, KeyRound as Se, Laptop as Ce, LayoutDashboard as we, LayoutGrid as Te, ListFilter as Ee, Lock as De, MessageSquare as Oe, MessagesSquare as ke, Network as Ae, Network as je, Package as Me, PanelLeftOpen as Ne, Pause as Pe, Pencil as Fe, Play as Ie, Plus as Le, Radar as Re, RefreshCw as ze, RotateCcw as Be, ScanSearch as Ve, Send as He, Settings as Ue, Settings as We, ShieldCheck as Ge, Trash2 as Ke, Users as qe, Workflow as Je, X as Ye } from "lucide-react";
+import { Activity as T, Archive as E, ArchiveRestore as D, ArrowLeft as O, ArrowRight as k, Ban as A, BookOpen as j, Check as M, ChevronDown as N, ChevronRight as P, CircleAlert as F, CircleAlert as I, CircleCheck as L, CircleCheck as ee, CircleDot as te, CircleHelp as R, CirclePlus as ne, ClipboardCheck as re, Copy as z, Crosshair as B, Download as V, Ellipsis as H, ExternalLink as ie, Eye as ae, FileText as oe, FileText as se, Folder as U, FolderOpen as ce, Gauge as le, Gauge as ue, GitBranch as de, GitBranch as fe, GitPullRequest as pe, GitPullRequestDraft as me, HardDrive as he, History as ge, History as _e, Inbox as ve, Inbox as ye, Info as be, Info as xe, KeyRound as Se, Laptop as Ce, LayoutDashboard as we, LayoutGrid as Te, ListFilter as Ee, Lock as De, MessageSquare as Oe, MessagesSquare as ke, Network as Ae, Network as je, Package as Me, PanelLeftOpen as Ne, Pause as Pe, Pencil as Fe, Play as Ie, Plus as Le, Radar as Re, RefreshCw as ze, RotateCcw as Be, ScanSearch as Ve, Send as He, Settings as Ue, Settings as We, ShieldCheck as Ge, Trash2 as Ke, Users as qe, Workflow as Je, X as Ye } from "lucide-react";
 import { createPortal as Xe } from "react-dom";
 // \0rolldown/runtime.js
 var Ze = (e, t) => () => (t || (e((t = { exports: {} }).exports, t, t.exports), e = null), t.exports), W = "/apps/avoozl/api/command";
@@ -250,7 +250,7 @@ function Ct({ size: e = 32 }) {
 // kirocrew-app/ui/src/icons.ts
 var wt = be, Tt = {
 	dashboard: we,
-	plans: H,
+	plans: oe,
 	graph: Ae,
 	delivery: Te,
 	lanes: Te,
@@ -660,30 +660,30 @@ function an(e, t = /* @__PURE__ */ new Set(), n = {}) {
 		looseColumns: N(0)
 	}, ee = new Map(h.map((e) => [e.id, []]));
 	for (let e of v) ee.get(e.lo).push(e.hi), ee.get(e.hi).push(e.lo);
-	let te = /* @__PURE__ */ new Map(), ne = /* @__PURE__ */ new Map(), re = 0, ie = [];
+	let te = /* @__PURE__ */ new Map(), R = /* @__PURE__ */ new Map(), ne = 0, re = [];
 	for (let e of j) {
 		let t = Math.max(1, Math.ceil(e.length / F));
 		e.forEach((e, n) => {
-			te.set(e, re + Math.floor(n / F)), ne.set(e, t > 1 ? n % F : n);
-		}), t === 1 && ie.push(e), re += t;
+			te.set(e, ne + Math.floor(n / F)), R.set(e, t > 1 ? n % F : n);
+		}), t === 1 && re.push(e), ne += t;
 	}
 	for (let e = 0; e < qt; e++) {
-		let t = e % 2 == 0 ? ie : [...ie].reverse();
+		let t = e % 2 == 0 ? re : [...re].reverse();
 		for (let e of t) {
 			let t = e.map((e) => {
-				let t = ee.get(e).map((e) => ne.get(e));
-				return t.length ? rn(t) : ne.get(e);
+				let t = ee.get(e).map((e) => R.get(e));
+				return t.length ? rn(t) : R.get(e);
 			}), n = e.length;
-			nn(t, e.map(() => 1)).forEach((t, r) => ne.set(e[r], Math.min(Math.max(Math.round(t), r), F - n + r)));
+			nn(t, e.map(() => 1)).forEach((t, r) => R.set(e[r], Math.min(Math.max(Math.round(t), r), F - n + r)));
 		}
 	}
-	for (let e of h) e.wave = _.get(e.id), e.x = s + te.get(e.id) * D, e.y = k + ne.get(e.id) * O;
-	let R = /* @__PURE__ */ new Map(), z = (e, t) => {
-		R.has(e) || R.set(e, /* @__PURE__ */ new Map());
-		let n = R.get(e);
+	for (let e of h) e.wave = _.get(e.id), e.x = s + te.get(e.id) * D, e.y = k + R.get(e.id) * O;
+	let z = /* @__PURE__ */ new Map(), B = (e, t) => {
+		z.has(e) || z.set(e, /* @__PURE__ */ new Map());
+		let n = z.get(e);
 		return n.has(t) || n.set(t, n.size), n.get(t);
-	}, B = d.map((e) => {
-		let t = p.get(e.from), n = p.get(e.to), s = te.get(t.id), c = te.get(n.id), l = t.y + i / 2, u = n.y + i / 2, d = (a / 2 - 4) / 2, f = t.x + r + 3 + z(`c${s}:out`, t.id) % 3 * d, m = n.x - 3 - z(`c${c - 1}:in`, n.id) % 3 * d;
+	}, V = d.map((e) => {
+		let t = p.get(e.from), n = p.get(e.to), s = te.get(t.id), c = te.get(n.id), l = t.y + i / 2, u = n.y + i / 2, d = (a / 2 - 4) / 2, f = t.x + r + 3 + B(`c${s}:out`, t.id) % 3 * d, m = n.x - 3 - B(`c${c - 1}:in`, n.id) % 3 * d;
 		if (c === s + 1) return {
 			...e,
 			points: l === u ? [[t.x + r, l], [n.x, u]] : [
@@ -693,7 +693,7 @@ function an(e, t = /* @__PURE__ */ new Set(), n = {}) {
 				[n.x, u]
 			]
 		};
-		let h = n.y - o / 2, g = n.y + i + o / 2, _ = Math.abs(l - h) <= Math.abs(l - g) ? h : g, v = _ + (z(`r${Math.round(_)}`, t.id) % 3 - 1) * 3;
+		let h = n.y - o / 2, g = n.y + i + o / 2, _ = Math.abs(l - h) <= Math.abs(l - g) ? h : g, v = _ + (B(`r${Math.round(_)}`, t.id) % 3 - 1) * 3;
 		return {
 			...e,
 			points: [
@@ -705,28 +705,28 @@ function an(e, t = /* @__PURE__ */ new Set(), n = {}) {
 				[n.x, u]
 			]
 		};
-	}), V = [], ae = /* @__PURE__ */ new Set(), oe = /* @__PURE__ */ new Map();
-	for (let e of u) oe.set(Xt(e.group), (oe.get(Xt(e.group)) ?? 0) + (e.members?.total ?? 1));
-	let H = /* @__PURE__ */ new Map();
+	}), H = [], ie = /* @__PURE__ */ new Set(), ae = /* @__PURE__ */ new Map();
+	for (let e of u) ae.set(Xt(e.group), (ae.get(Xt(e.group)) ?? 0) + (e.members?.total ?? 1));
+	let oe = /* @__PURE__ */ new Map();
 	for (let e of h) {
 		let t = te.get(e.id);
-		H.has(t) || H.set(t, []), H.get(t).push(e);
+		oe.has(t) || oe.set(t, []), oe.get(t).push(e);
 	}
-	for (let e of [...H.keys()].sort((e, t) => e - t)) {
-		let n = H.get(e).sort((e, t) => e.y - t.y), a = [], s = () => {
+	for (let e of [...oe.keys()].sort((e, t) => e - t)) {
+		let n = oe.get(e).sort((e, t) => e.y - t.y), a = [], s = () => {
 			if (!a.length) return;
 			let e = Xt(a[0].group), n = t.has(e);
-			V.push({
+			H.push({
 				group: a[0].group,
 				title: f(a[0].group),
-				count: oe.get(e) ?? a.length,
+				count: ae.get(e) ?? a.length,
 				collapsed: n,
 				x: a[0].x - 4,
 				y: a[0].y - o + 2,
 				width: r + 8,
 				height: a[a.length - 1].y + i + 2 - (a[0].y - o + 2),
-				label: !n && !ae.has(e)
-			}), n || ae.add(e), a = [];
+				label: !n && !ie.has(e)
+			}), n || ie.add(e), a = [];
 		};
 		for (let e of n) a.length && Xt(a[0].group) !== Xt(e.group) && s(), a.push(e);
 		s();
@@ -747,8 +747,8 @@ function an(e, t = /* @__PURE__ */ new Set(), n = {}) {
 	let ue = le.length ? Math.ceil(le.length / L) : 0, de = Math.max(I, le.length ? Math.min(L, le.length) : 0, 1);
 	return {
 		nodes: [...h, ...le],
-		edges: B,
-		clusters: V,
+		edges: V,
+		clusters: H,
 		loose: ce,
 		waves: x,
 		crossings: E,
@@ -1635,7 +1635,7 @@ function wr(e) {
 }
 // kirocrew-app/ui/src/MoreMenu.tsx
 function Tr(e) {
-	let t = e.icon ?? V, [n, r] = d(!1), [i, a] = d(!1), s = u(null);
+	let t = e.icon ?? H, [n, r] = d(!1), [i, a] = d(!1), s = u(null);
 	return o(() => {
 		if (!n) return;
 		let e = (e) => {
@@ -4051,15 +4051,58 @@ function zo(e, t) {
 	}
 	return null;
 }
+// kirocrew-app/ui/src/radar-flow-api.ts
+var Bo = [
+	"Ready to Claim",
+	"Claim to PR",
+	"PR to green",
+	"Green to merge"
+];
+function Vo(e) {
+	return { read: async (t, n = !1) => (await e.post(W, {
+		operation: "radar.flow",
+		input: n ? { refresh: !0 } : {},
+		workspaceId: t
+	})).result };
+}
+function Ho(e) {
+	if (e == null || !Number.isFinite(e)) return "—";
+	let t = Math.round(e / 6e4);
+	if (t < 60) return `${t} min`;
+	let n = Math.floor(t / 60);
+	if (n < 24) return t % 60 ? `${n} h ${t % 60} min` : `${n} h`;
+	let r = Math.floor(n / 24);
+	return n % 24 ? `${r} d ${n % 24} h` : `${r} d`;
+}
+function Uo(e) {
+	return e.median ? Bo.map((t, n) => ({
+		name: t,
+		median: Ho(e.median[n]),
+		slowest: t === e.bottleneck
+	})) : [];
+}
+function Wo(e) {
+	return e.count ? `${e.count} ${e.count === 1 ? "issue" : "issues"} · median lead time ${Ho(e.medianLead)} · flow efficiency ${Math.round((e.efficiency ?? 0) * 100)}%` : "No finished issue yet";
+}
+function Go(e) {
+	let t = e.failedMs > 0 ? ` · ${qo(e.failedMs)} in failed attempts` : "";
+	return `${e.count} ${e.count === 1 ? "pull request" : "pull requests"} · median ${qo(e.medianMs)}${t}`;
+}
+function Ko(e) {
+	return e.costliest ? `${e.costliest.phase} ${qo(e.costliest.ms)}` : "—";
+}
+function qo(e) {
+	return e == null ? "—" : e < 9e4 ? `${Math.round(e / 1e3)} s` : Ho(e);
+}
 // kirocrew-app/ui/src/demo-fixtures.ts
-function Bo(e) {
+function Jo(e) {
 	return { read: async () => (await e.post(W, {
 		operation: "demo.fixtures",
 		input: {}
 	})).result };
 }
 // kirocrew-app/ui/src/Demo.tsx
-var Vo = n({
+var Yo = n({
 	active: !1,
 	starting: !1,
 	error: null,
@@ -4070,12 +4113,12 @@ var Vo = n({
 	start: async () => void 0,
 	exit: async () => void 0,
 	clearNotice: () => void 0
-}), Ho = () => a(Vo), Uo = () => a(Vo).fixtures;
-function Wo(e) {
+}), Xo = () => a(Yo), Zo = () => a(Yo).fixtures;
+function Qo(e) {
 	let t = p(), n = l(() => lt(t), [t]), [r, a] = d(!1), [o, s] = d(!1), [c, u] = d(null), [f, m] = d(null), [h, g] = d(null), [_, v] = d("running"), y = i(async () => {
 		s(!0), u(null);
 		try {
-			await n.start(), g(await Bo(t).read().catch(() => null)), a(!0);
+			await n.start(), g(await Jo(t).read().catch(() => null)), a(!0);
 		} catch (e) {
 			u(G(e));
 		} finally {
@@ -4110,7 +4153,7 @@ function Wo(e) {
 		y,
 		b
 	]);
-	return /* @__PURE__ */ C(Vo.Provider, {
+	return /* @__PURE__ */ C(Yo.Provider, {
 		value: S,
 		children: /* @__PURE__ */ C(_t, {
 			value: x,
@@ -4118,8 +4161,8 @@ function Wo(e) {
 		})
 	});
 }
-function Go() {
-	let { active: e } = Ho();
+function $o() {
+	let { active: e } = Xo();
 	return e ? /* @__PURE__ */ C("span", {
 		"data-demo-badge": !0,
 		"aria-label": "Demo mode is on",
@@ -4129,8 +4172,8 @@ function Go() {
 		})
 	}) : null;
 }
-function Ko(e) {
-	let { active: t, starting: n, start: r } = Ho();
+function es(e) {
+	let { active: t, starting: n, start: r } = Xo();
 	return t ? null : /* @__PURE__ */ C(q, {
 		text: "Open a made-up workspace to look around. Your own work is not touched.",
 		children: (t) => /* @__PURE__ */ C(_, {
@@ -4143,8 +4186,8 @@ function Ko(e) {
 		})
 	});
 }
-function qo() {
-	let e = Ho(), t = e.stopExample === "stopped", n = t ? Ie : Pe, r = t ? "Stop the line example: show the line running again" : "Stop the line example: show the line stopped";
+function ts() {
+	let e = Xo(), t = e.stopExample === "stopped", n = t ? Ie : Pe, r = t ? "Stop the line example: show the line running again" : "Stop the line example: show the line stopped";
 	return /* @__PURE__ */ C(q, {
 		text: r,
 		children: (i) => /* @__PURE__ */ C(_, {
@@ -4170,9 +4213,9 @@ function qo() {
 		})
 	});
 }
-var Jo = "Avoozl turns your specs and epics into a graph of tasks, then Avoozl’s workers code the ready ones. This is a made-up sample so you can look around. Nothing you do here changes your work, GitHub or agents.";
-function Yo() {
-	let e = Ho(), t = Dr();
+var ns = "Avoozl turns your specs and epics into a graph of tasks, then Avoozl’s workers code the ready ones. This is a made-up sample so you can look around. Nothing you do here changes your work, GitHub or agents.";
+function rs() {
+	let e = Xo(), t = Dr();
 	if (!e.active) return e.error ? /* @__PURE__ */ C("p", {
 		role: "alert",
 		className: "px-6 pb-2 text-sm text-danger",
@@ -4196,14 +4239,14 @@ function Yo() {
 			background: "var(--card, transparent)"
 		},
 		children: [
-			/* @__PURE__ */ C(Go, {}),
+			/* @__PURE__ */ C($o, {}),
 			/* @__PURE__ */ C("span", {
 				className: "min-w-0 flex-1 text-muted",
 				"data-demo-intro": !0,
 				style: { minWidth: 160 },
-				children: Jo
+				children: ns
 			}),
-			/* @__PURE__ */ C(qo, {}),
+			/* @__PURE__ */ C(ts, {}),
 			/* @__PURE__ */ C("button", {
 				type: "button",
 				"data-demo-exit": !0,
@@ -4230,14 +4273,14 @@ function Yo() {
 			background: "var(--card, transparent)"
 		},
 		children: [
-			/* @__PURE__ */ C(Go, {}),
+			/* @__PURE__ */ C($o, {}),
 			/* @__PURE__ */ C("span", {
 				className: "flex-1",
 				style: { minWidth: 200 },
 				"data-demo-intro": !0,
-				children: Jo
+				children: ns
 			}),
-			/* @__PURE__ */ C(qo, {}),
+			/* @__PURE__ */ C(ts, {}),
 			/* @__PURE__ */ C(_, {
 				type: "button",
 				primary: !0,
@@ -4250,7 +4293,7 @@ function Yo() {
 	});
 }
 // kirocrew-app/ui/src/epics-api.ts
-function Xo(e) {
+function is(e) {
 	let t = async (t, n) => (await e.post(W, {
 		operation: t,
 		input: {},
@@ -4261,13 +4304,13 @@ function Xo(e) {
 		done: (e) => t("trace.done", e)
 	};
 }
-function Zo(e, t) {
+function as(e, t) {
 	if (!e.by) return "No crew found on the issue";
 	let n = e.by.name ?? e.by.id ?? "a crew";
 	return t ? `Radar crew ${n} on ${t}` : `Radar crew ${n}`;
 }
 // kirocrew-app/ui/src/TraceDone.tsx
-function Qo({ row: e, machine: t, onPick: n }) {
+function os({ row: e, machine: t, onPick: n }) {
 	let r = J(e.prUrl), i = J(e.url);
 	return /* @__PURE__ */ w("li", {
 		"data-done-row": e.taskId,
@@ -4296,7 +4339,7 @@ function Qo({ row: e, machine: t, onPick: n }) {
 					/* @__PURE__ */ C("span", {
 						"data-done-who": !0,
 						className: "block text-xs text-muted",
-						children: Zo(e, t)
+						children: as(e, t)
 					})
 				]
 			}),
@@ -4336,8 +4379,8 @@ function Qo({ row: e, machine: t, onPick: n }) {
 		]
 	});
 }
-function $o(e) {
-	let t = K(), n = l(() => Xo(t), [t]), r = i((e) => n.done(e), [n]), { value: a, error: o, busy: s, reload: c } = Mo(e.workspaceId, r), u = Uo(), d = (e) => u?.recentMerges.find((t) => t.pr === e.pr)?.machine ?? null;
+function ss(e) {
+	let t = K(), n = l(() => is(t), [t]), r = i((e) => n.done(e), [n]), { value: a, error: o, busy: s, reload: c } = Mo(e.workspaceId, r), u = Zo(), d = (e) => u?.recentMerges.find((t) => t.pr === e.pr)?.machine ?? null;
 	return /* @__PURE__ */ w("section", {
 		"data-trace-done": !0,
 		"aria-labelledby": "avoozl-done-title",
@@ -4389,7 +4432,7 @@ function $o(e) {
 			}) }),
 			a && a.rows.length > 0 && /* @__PURE__ */ C("ul", {
 				className: "m-0 list-none p-0",
-				children: a.rows.map((t) => /* @__PURE__ */ C(Qo, {
+				children: a.rows.map((t) => /* @__PURE__ */ C(os, {
 					row: t,
 					machine: d(t),
 					onPick: e.onPick
@@ -4399,7 +4442,7 @@ function $o(e) {
 	});
 }
 // kirocrew-app/ui/src/TraceView.tsx
-var es = {
+var cs = {
 	done: {
 		border: "var(--ok)",
 		background: "var(--ok)"
@@ -4417,8 +4460,8 @@ var es = {
 		background: "transparent"
 	}
 };
-function ts({ steps: e, index: t }) {
-	let n = e[t], r = zo(e, t), i = J(n.link), a = es[n.state];
+function ls({ steps: e, index: t }) {
+	let n = e[t], r = zo(e, t), i = J(n.link), a = cs[n.state];
 	return /* @__PURE__ */ w("li", {
 		"data-trace-step": n.key,
 		"data-state": n.state,
@@ -4463,6 +4506,33 @@ function ts({ steps: e, index: t }) {
 						n.detail
 					].filter(Boolean).join(" · ")
 				}),
+				n.builds && /* @__PURE__ */ C("ul", {
+					"data-trace-builds": !0,
+					className: "m-0 mt-1 flex list-none flex-col gap-1 p-0 text-xs",
+					style: {
+						margin: 0,
+						padding: 0,
+						listStyle: "none"
+					},
+					children: n.builds.map((e) => /* @__PURE__ */ w("li", {
+						"data-trace-phase": e.phase,
+						children: [/* @__PURE__ */ C("span", {
+							className: "font-medium",
+							children: e.phase
+						}), e.items.map((e, t) => /* @__PURE__ */ C("span", {
+							"data-trace-build": e.failed ? "failed" : "ok",
+							className: "block break-words text-muted",
+							style: e.failed ? { color: "var(--danger)" } : void 0,
+							children: [
+								e.target,
+								e.start,
+								e.attempt > 1 && `attempt ${e.attempt}`,
+								qo(e.ms),
+								e.failed && "failed"
+							].filter(Boolean).join(" · ")
+						}, t))]
+					}, e.phase))
+				}),
 				i && /* @__PURE__ */ C("a", {
 					href: J(n.link),
 					target: "_blank",
@@ -4474,7 +4544,7 @@ function ts({ steps: e, index: t }) {
 		})]
 	});
 }
-function ns({ trace: e }) {
+function us({ trace: e }) {
 	let t = [
 		["Issue", e.links.issue],
 		["Pull request", e.links.pr],
@@ -4508,7 +4578,7 @@ function ns({ trace: e }) {
 			}),
 			/* @__PURE__ */ C("ol", {
 				className: "m-0 list-none p-0",
-				children: e.steps.map((t, n) => /* @__PURE__ */ C(ts, {
+				children: e.steps.map((t, n) => /* @__PURE__ */ C(ls, {
 					steps: e.steps,
 					index: n
 				}, e.steps[n].key))
@@ -4549,7 +4619,7 @@ function ns({ trace: e }) {
 		]
 	});
 }
-function rs(e, t) {
+function ds(e, t) {
 	let n = K(), r = l(() => Fo(n), [n]);
 	return Mo(e, i((e) => r.read(e, t), [
 		r,
@@ -4557,18 +4627,18 @@ function rs(e, t) {
 		t.number
 	]));
 }
-function is({ read: e }) {
+function fs({ read: e }) {
 	return e.error ? /* @__PURE__ */ C("p", {
 		role: "alert",
 		className: "text-sm text-danger",
 		children: e.error
-	}) : e.value ? /* @__PURE__ */ C(ns, { trace: e.value }) : /* @__PURE__ */ C("p", {
+	}) : e.value ? /* @__PURE__ */ C(us, { trace: e.value }) : /* @__PURE__ */ C("p", {
 		className: "text-sm text-muted",
 		children: "Reading the trace from GitHub…"
 	});
 }
-function as(e) {
-	let t = rs(e.workspaceId, e.target);
+function ps(e) {
+	let t = ds(e.workspaceId, e.target);
 	return /* @__PURE__ */ C(nr, {
 		id: "avoozl-trace",
 		kind: "drawer",
@@ -4590,10 +4660,10 @@ function as(e) {
 				children: "Open page"
 			})]
 		}),
-		children: /* @__PURE__ */ C(is, { read: t })
+		children: /* @__PURE__ */ C(fs, { read: t })
 	});
 }
-function os({ onPick: e }) {
+function ms({ onPick: e }) {
 	let [t, n] = d(""), r = Io(`?trace=${encodeURIComponent(t.trim())}`);
 	return /* @__PURE__ */ w("section", {
 		"data-trace-start": !0,
@@ -4634,23 +4704,23 @@ function os({ onPick: e }) {
 		]
 	});
 }
-function ss({ workspaceId: e, target: t, onPick: n, onOpenEpics: r }) {
+function hs({ workspaceId: e, target: t, onPick: n, onOpenEpics: r }) {
 	let i = Rn();
-	return t ? /* @__PURE__ */ C(cs, {
+	return t ? /* @__PURE__ */ C(gs, {
 		workspaceId: e,
 		target: t,
 		onBack: () => i.history.back()
-	}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(os, { onPick: n }), /* @__PURE__ */ C("section", {
+	}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(ms, { onPick: n }), /* @__PURE__ */ C("section", {
 		className: "py-2",
-		children: /* @__PURE__ */ C($o, {
+		children: /* @__PURE__ */ C(ss, {
 			workspaceId: e,
 			onPick: n,
 			onOpenEpics: r
 		})
 	})] });
 }
-function cs({ workspaceId: e, target: t, onBack: n }) {
-	let r = rs(e, t);
+function gs({ workspaceId: e, target: t, onBack: n }) {
+	let r = ds(e, t);
 	return /* @__PURE__ */ w("section", {
 		"data-trace-page": !0,
 		className: "flex flex-col gap-3 py-2",
@@ -4673,12 +4743,12 @@ function cs({ workspaceId: e, target: t, onBack: n }) {
 					children: r.busy ? "Reading…" : "Refresh"
 				})
 			]
-		}), /* @__PURE__ */ C(is, { read: r })]
+		}), /* @__PURE__ */ C(fs, { read: r })]
 	});
 }
 // kirocrew-app/ui/src/dashboard-api.ts
-var ls = /* @__PURE__ */ new Set(["closed", "lost"]);
-function us(e) {
+var _s = /* @__PURE__ */ new Set(["closed", "lost"]);
+function vs(e) {
 	return e.group ? { kind: "review" } : e.taskId ? {
 		kind: "task",
 		id: e.taskId
@@ -4687,15 +4757,15 @@ function us(e) {
 		tab: "waiting"
 	};
 }
-function ds(e) {
-	let t = us(e);
+function ys(e) {
+	let t = vs(e);
 	return t.kind === "review" ? "Open the list of tasks to review" : t.kind === "task" ? `Open ${t.id} in the drawer` : "Open it in Needs you";
 }
-var fs = (e) => pr(e.issue?.url ?? null);
-function ps(e) {
+var bs = (e) => pr(e.issue?.url ?? null);
+function xs(e) {
 	return e.complete ? null : e.deliveries.some((e) => e.state === "decision") ? "Stopped after its retries; retry it or dismiss the findings." : null;
 }
-function ms(e) {
+function Ss(e) {
 	return {
 		slot: `remote:${e.host}:${e.chatKey}`,
 		role: "worker",
@@ -4724,7 +4794,7 @@ function ms(e) {
 		remote: e
 	};
 }
-function hs(e) {
+function Cs(e) {
 	e.limit;
 	let t = e.graph && {
 		...e.graph,
@@ -4742,7 +4812,7 @@ function hs(e) {
 		"needs-you": 0,
 		done: 0,
 		deferred: 0
-	}, a = new Set((n ?? []).filter((e) => !e.complete && e.sessions.some((e) => !ls.has(e.status ?? ""))).map((e) => e.id));
+	}, a = new Set((n ?? []).filter((e) => !e.complete && e.sessions.some((e) => !_s.has(e.status ?? ""))).map((e) => e.id));
 	for (let e of r) {
 		let t = Jt(e);
 		i[t === "done" ? "done" : a.has(e.id) ? "running" : t === "running" ? "needs-you" : t] += 1;
@@ -4751,7 +4821,7 @@ function hs(e) {
 		s.has(e.key) || (s.add(e.key), o.push(e));
 	};
 	for (let t of e.delivery ?? []) {
-		let e = ps(t);
+		let e = xs(t);
 		e && c({
 			key: `delivery:${t.id}`,
 			kind: "delivery",
@@ -4759,7 +4829,7 @@ function hs(e) {
 			title: t.title,
 			detail: e,
 			tab: "task",
-			href: fs(t)
+			href: bs(t)
 		});
 	}
 	for (let e of r) e.needsYou?.manual && Jt(e) === "needs-you" && c({
@@ -4784,13 +4854,13 @@ function hs(e) {
 		title: t.title,
 		detail: t.detail,
 		tab: "waiting",
-		href: fs(t)
+		href: bs(t)
 	});
 	let u = (n ?? []).filter((e) => !e.complete).map((e) => ({
 		id: e.id,
 		title: e.title,
 		budget: e.budget ?? null,
-		sessions: e.sessions.filter((e) => !ls.has(e.status ?? ""))
+		sessions: e.sessions.filter((e) => !_s.has(e.status ?? ""))
 	})).filter((e) => e.sessions.length > 0), d = new Map((t?.tasks ?? []).map((e) => [e.id, e])), f = new Map((t?.epics ?? []).map((e) => [e.id, e.title])), p = u.flatMap((e) => e.sessions.map((t) => {
 		let n = d.get(e.id)?.epic ?? null;
 		return {
@@ -4808,7 +4878,7 @@ function hs(e) {
 			session: t,
 			budget: e.budget
 		};
-	})).concat((e.remote ?? []).map(ms)).sort((e, t) => (t.lastAt ?? "").localeCompare(e.lastAt ?? "")), m = t ? Yt(t) : /* @__PURE__ */ new Map(), h = r.filter((e) => Jt(e) === "ready").map((e) => ({
+	})).concat((e.remote ?? []).map(Ss)).sort((e, t) => (t.lastAt ?? "").localeCompare(e.lastAt ?? "")), m = t ? Yt(t) : /* @__PURE__ */ new Map(), h = r.filter((e) => Jt(e) === "ready").map((e) => ({
 		...e,
 		wave: m.get(e.id) ?? 1
 	})).sort((e, t) => (e.order ?? Infinity) - (t.order ?? Infinity) || e.wave - t.wave || e.id.localeCompare(t.id)), g = new Map((t?.epics ?? []).map((e) => [e.id, e.title])), _ = /* @__PURE__ */ new Map();
@@ -4859,24 +4929,24 @@ function hs(e) {
 		}
 	};
 }
-var gs = [
+var ws = [
 	"Ready",
 	"Claimed",
 	"PR",
 	"CI",
 	"Merge"
 ];
-function _s(e) {
+function Ts(e) {
 	let t = e.pr ? 3 : e.noMarker ? 1 : 2;
-	return gs.map((e, n) => ({
+	return ws.map((e, n) => ({
 		label: e,
 		state: n < t ? "done" : n === t ? "now" : "later"
 	}));
 }
-function vs(e) {
+function Es(e) {
 	return e.total ? Math.round(e.done / e.total * 100) : null;
 }
-function ys(e) {
+function Ds(e) {
 	return {
 		review: e.kind === "spec" && [
 			"not imported",
@@ -4890,10 +4960,10 @@ function ys(e) {
 		unarchivable: !!(e.planId && e.archived)
 	};
 }
-function bs(e) {
+function Os(e) {
 	return `Use the Avoozl skill's "Plan a goal" steps 2 to 4 to change ${e.spec ? `the existing spec folder .kiro/specs/${e.spec}/${e.planId ? ` (plan ${e.planId})` : ""}` : `the stored spec ${e.planId}, which has no spec folder yet; move it to .kiro/specs/<name>/ first`}. Ask me what should change. Edit it in a planner session, critique it in a second isolated session, store the new revision, and show me the result. Do not approve it; I approve the exact revision in the Avoozl Specs view.`;
 }
-function xs(e) {
+function ks(e) {
 	let t = async (t, n, r = {}) => (await e.post(W, {
 		operation: n,
 		input: r,
@@ -4946,38 +5016,38 @@ function xs(e) {
 		}
 	};
 }
-function Ss(e) {
+function As(e) {
 	return new Map((e?.batches ?? []).flatMap((e) => e.specs.map((t) => [t.id, e.batch])));
 }
-function Cs(e) {
+function js(e) {
 	let t = new Set(e.map((e) => e.spec));
 	return [...new Set(e.flatMap((e) => e.needs.filter((e) => !t.has(e))))].sort();
 }
-var ws = (e, t, n = t + "s") => `${e} ${e === 1 ? t : n}`;
-function Ts(e) {
+var Ms = (e, t, n = t + "s") => `${e} ${e === 1 ? t : n}`;
+function Ns(e) {
 	return e.retire ? [
-		`${ws(e.open, "open task")}: archived. Their rows stay as history.`,
-		`${ws(e.running, "running chat")}: left alone. Each task is archived when its chat ends.`,
-		`${ws(e.done, "done task")}: kept as they are.`,
-		`${ws(e.dependents, "task")} outside the spec that wait on it: each gets a decision for you.`,
+		`${Ms(e.open, "open task")}: archived. Their rows stay as history.`,
+		`${Ms(e.running, "running chat")}: left alone. Each task is archived when its chat ends.`,
+		`${Ms(e.done, "done task")}: kept as they are.`,
+		`${Ms(e.dependents, "task")} outside the spec that wait on it: each gets a decision for you.`,
 		"The spec is marked deleted and stays in history. There is no undo button."
 	] : ["The draft is marked deleted. No task was made from it.", "The spec stays in history."];
 }
-var Es = [
+var Ps = [
 	["requirements.md", "Requirements"],
 	["bugfix.md", "Bugfix"],
 	["design.md", "Design"],
 	["tasks.md", "Tasks"]
 ];
-function Ds(e) {
-	return e ? Es.filter(([t]) => typeof e.documents?.[t] == "string").map(([t, n]) => ({
+function Fs(e) {
+	return e ? Ps.filter(([t]) => typeof e.documents?.[t] == "string").map(([t, n]) => ({
 		file: t,
 		label: n,
 		text: e.documents[t]
 	})) : [];
 }
-var Os = (e) => e ? e.slice(0, 12) : "—", ks = (e) => `${e.file ?? "tasks.md"}:${e.lineStart}`;
-function As(e) {
+var Is = (e) => e ? e.slice(0, 12) : "—", Ls = (e) => `${e.file ?? "tasks.md"}:${e.lineStart}`;
+function Rs(e) {
 	let t = e.issue === null ? "new issue" : `#${e.issue}`, n = e.taskId ?? "parent issue";
 	switch (e.kind) {
 		case "issue.create": return `Create ${n}: ${e.title ?? ""}${e.type ? ` (${e.type})` : ""}`;
@@ -4996,7 +5066,7 @@ function As(e) {
 		default: return `${e.kind} on ${n}`;
 	}
 }
-function js(e) {
+function zs(e) {
 	let t = /* @__PURE__ */ new Map();
 	for (let n of e) {
 		let e = n.repository ?? "unknown repository";
@@ -5004,43 +5074,43 @@ function js(e) {
 	}
 	return [...t];
 }
-function Ms(e) {
+function Bs(e) {
 	return e ? e.disk.changed ? "The folder changed on disk. Reload it first." : e.approvals.some((t) => t.hash === e.hash) ? "This revision is approved." : e.quality.canApprove ? null : "Fix the errors below first." : "Store this spec first.";
 }
-function Ns(e, t, n = /* @__PURE__ */ new Map()) {
+function Vs(e, t, n = /* @__PURE__ */ new Map()) {
 	let r = t.q?.trim().toLowerCase() ?? "";
 	return e.filter((e) => (!e.archived || t.archived) && (!r || e.name.toLowerCase().includes(r) || (e.spec ?? "").toLowerCase().includes(r) || (e.planId ?? "").toLowerCase().includes(r)) && (!t.category || (e.category ?? "Uncategorized") === t.category) && (!t.status || e.status === t.status) && (!t.kind || e.kind === t.kind) && (!t.batch || e.planId !== null && n.get(e.planId) === Number(t.batch)) && (!t.has || (t.has === "ready" ? e.now.ready > 0 : t.has === "running" ? e.now.running > 0 : e.now.needsYou > 0)));
 }
-function Ps(e) {
+function Hs(e) {
 	let t = (t) => [...new Set(e.map(t))].sort((e, t) => e === "Uncategorized" ? 1 : t === "Uncategorized" ? -1 : e.localeCompare(t));
 	return {
 		categories: t((e) => e.category ?? "Uncategorized"),
 		statuses: t((e) => e.status)
 	};
 }
-var Fs = (e) => ({
+var Us = (e) => ({
 	plan: e.key,
 	purpose: "discuss-plan"
-}), Is = [
+}), Ws = [
 	"Its open tasks stop starting. Running chats keep going.",
 	"Tasks in other specs that wait on it get a decision for you.",
 	"It is hidden on Specs, Graph, Delivery and the Dashboard. Show archived brings it back.",
 	"Nothing is deleted, and its spec folder is not touched. Unarchive undoes all of it."
 ];
-function Ls(e) {
+function Gs(e) {
 	let t = e.action === "archived" ? "Archived" : e.action === "unarchived" ? "Unarchived" : e.action;
 	return e.by ? `${t} by ${e.by}` : t;
 }
-var Rs = {
+var Ks = {
 	draft: "Draft",
 	approved: "Approved",
 	github: "On GitHub",
 	done: "Done"
 };
-function zs(e) {
+function qs(e) {
 	return e.status === "done" ? "done" : e.status === "approved" ? e.onGitHub ? "github" : "approved" : "draft";
 }
-function Bs(e) {
+function Js(e) {
 	return e ? e === "plansBranch" ? {
 		label: "Private",
 		warn: !0
@@ -5050,7 +5120,7 @@ function Bs(e) {
 	} : null;
 }
 // kirocrew-app/ui/src/flow-api.ts
-var Vs = [
+var Ys = [
 	"queued",
 	"investigate",
 	"falsify",
@@ -5063,7 +5133,7 @@ var Vs = [
 	"rework",
 	"merge",
 	"waiting"
-], Hs = {
+], Xs = {
 	queued: "#94a3b8",
 	investigate: "#6366f1",
 	falsify: "#f97316",
@@ -5076,7 +5146,7 @@ var Vs = [
 	rework: "#ef4444",
 	merge: "#14b8a6",
 	waiting: "#a8a29e"
-}, Us = {
+}, Zs = {
 	queued: "Queued",
 	investigate: "Investigate",
 	falsify: "Falsify",
@@ -5090,21 +5160,21 @@ var Vs = [
 	merge: "Merge",
 	waiting: "Waiting"
 };
-function Ws(e, t) {
+function Qs(e, t) {
 	return e ? e.stopped.includes(t) || e.paused.includes(t) ? "stopped at budget" : e.over.includes(t) ? "over budget" : e.warning.includes(t) ? "80% of budget" : null : null;
 }
-function Gs(e) {
+function $s(e) {
 	return Number.isFinite(e) ? e >= 1e6 ? `${(e / 1e6).toFixed(1)}M` : e >= 1e4 ? `${Math.round(e / 1e3)}k` : e >= 1e3 ? `${(e / 1e3).toFixed(1)}k` : String(Math.round(e)) : "–";
 }
-var Ks = (e) => e ? e.toFixed(2) : "0";
-function qs(e) {
+var ec = (e) => e ? e.toFixed(2) : "0";
+function tc(e) {
 	return e?.available ? e.total.turns ? null : "No turns recorded for these tasks yet." : "Not available: Kiro Crew has not reported usage for this workspace's chats yet.";
 }
-function Js(e) {
+function nc(e) {
 	let t = [];
-	return (e.input || e.output) && t.push(`${Gs(e.input)} in · ${Gs(e.output)} out`), e.credits && t.push(`${Ks(e.credits)} credits`), t.join(" · ") || "none";
+	return (e.input || e.output) && t.push(`${$s(e.input)} in · ${$s(e.output)} out`), e.credits && t.push(`${ec(e.credits)} credits`), t.join(" · ") || "none";
 }
-function Ys(e) {
+function rc(e) {
 	let t = Array.isArray(e) ? e : Array.isArray(e?.models) ? e.models : [], n = [];
 	for (let e of t) {
 		let t = e, r = typeof e == "string" ? e : String(t?.model_name ?? t?.model_id ?? t?.id ?? "");
@@ -5117,7 +5187,7 @@ function Ys(e) {
 	}
 	return n;
 }
-function Xs(e, t) {
+function ic(e, t) {
 	let n = [{
 		value: "auto",
 		label: "auto (Kiro Crew picks)"
@@ -5127,12 +5197,12 @@ function Xs(e, t) {
 		label: `${t} (not offered now)`
 	}), n;
 }
-var Zs = "avoozl.flow.filter.", Qs = {
+var ac = "avoozl.flow.filter.", oc = {
 	event: "avoozl:flow-filter",
 	empty: {},
 	read(e, t) {
 		try {
-			let n = JSON.parse(e?.getItem(Zs + t) ?? "{}");
+			let n = JSON.parse(e?.getItem(ac + t) ?? "{}");
 			return n && typeof n == "object" && !Array.isArray(n) ? n : {};
 		} catch {
 			return {};
@@ -5140,10 +5210,10 @@ var Zs = "avoozl.flow.filter.", Qs = {
 	},
 	write(e, t, n) {
 		try {
-			e?.setItem(Zs + t, JSON.stringify(n));
+			e?.setItem(ac + t, JSON.stringify(n));
 		} catch {}
 	}
-}, $s = [
+}, sc = [
 	{
 		value: "10",
 		label: "Last 10 tasks"
@@ -5156,10 +5226,10 @@ var Zs = "avoozl.flow.filter.", Qs = {
 		value: "50",
 		label: "Last 50 tasks"
 	}
-], ec = "avoozl:line-changed", tc = () => {
-	typeof window < "u" && window.dispatchEvent(new Event(ec));
+], cc = "avoozl:line-changed", lc = () => {
+	typeof window < "u" && window.dispatchEvent(new Event(cc));
 };
-function nc(e) {
+function uc(e) {
 	let t = (t, n, r = {}) => e.post(W, {
 		operation: n,
 		input: r,
@@ -5184,14 +5254,14 @@ function nc(e) {
 		decide: (e, n) => t(e, "flow.retro.decide", n),
 		settings: (e) => t(e, "flow.settings.get"),
 		saveSettings: (e, n) => t(e, "flow.settings.update", n),
-		models: () => e.get("/api/models").then(Ys),
+		models: () => e.get("/api/models").then(rc),
 		saveInstructions: (e, n) => t(e, "flow.instructions.update", { instructions: n }),
 		proposals: (e) => t(e, "flow.proposals"),
 		revertPrompt: (e, n) => t(e, "prompt.override.revert", { target: n }),
 		rebasePrompt: (e, n) => t(e, "prompt.override.rebase", n)
 	};
 }
-function rc(e) {
+function dc(e) {
 	if (e == null || !Number.isFinite(e)) return "–";
 	let t = Math.round(e / 6e4);
 	if (e < 6e4) return `${Math.round(e / 1e3)} s`;
@@ -5199,47 +5269,47 @@ function rc(e) {
 	let n = Math.floor(t / 60), r = t % 60;
 	return n < 48 ? r ? `${n} h ${r} m` : `${n} h` : `${Math.round(n / 24)} d`;
 }
-var ic = (e) => e == null ? "–" : `${Math.round(e * 100)}%`, ac = (e) => e && e.share !== null && e.finished ? `${ic(e.share)} (${e.fixes} of ${e.finished})` : "–";
-function oc(e) {
+var fc = (e) => e == null ? "–" : `${Math.round(e * 100)}%`, pc = (e) => e && e.share !== null && e.finished ? `${fc(e.share)} (${e.fixes} of ${e.finished})` : "–";
+function mc(e) {
 	let t = e.metrics, n = e.previous;
 	return [
 		{
 			key: "lead",
 			title: "Lead time",
-			value: rc(t.leadTimeMs),
-			was: n.tasks ? rc(n.leadTimeMs) : null,
+			value: dc(t.leadTimeMs),
+			was: n.tasks ? dc(n.leadTimeMs) : null,
 			empty: t.leadTimeMs === null ? "Finish a task to see lead time." : null,
 			tip: "Median time from ready to integrated or merged."
 		},
 		{
 			key: "efficiency",
 			title: "Flow efficiency",
-			value: ic(t.flowEfficiency),
-			was: n.tasks ? ic(n.flowEfficiency) : null,
+			value: fc(t.flowEfficiency),
+			was: n.tasks ? fc(n.flowEfficiency) : null,
 			empty: t.flowEfficiency === null ? "Finish a task to see how much of its time was active." : null,
 			tip: "Coding, tests, commands, rework and merge over lead time. Queued, CI wait, review and waiting count as waiting."
 		},
 		{
 			key: "first-pass",
 			title: "First-pass rate",
-			value: ic(t.firstPassRate),
-			was: n.tasks ? ic(n.firstPassRate) : null,
+			value: fc(t.firstPassRate),
+			was: n.tasks ? fc(n.firstPassRate) : null,
 			empty: t.firstPassRate === null ? "Finish a task to see how many pass the first time." : null,
 			tip: "Tasks accepted on their first attempt with no rework."
 		},
 		{
 			key: "fix",
 			title: "Time to fix",
-			value: rc(t.timeToFixMs),
-			was: n.tasks && n.timeToFixMs !== null ? rc(n.timeToFixMs) : null,
+			value: dc(t.timeToFixMs),
+			was: n.tasks && n.timeToFixMs !== null ? dc(n.timeToFixMs) : null,
 			empty: t.timeToFixMs === null ? "No line stop yet." : null,
 			tip: "From the line stopping to the check passing on the branch again."
 		},
 		{
 			key: "fix-work",
 			title: "Fix work",
-			value: ac(t.fixWork),
-			was: n.tasks ? ac(n.fixWork) : null,
+			value: pc(t.fixWork),
+			was: n.tasks ? pc(n.fixWork) : null,
 			empty: t.fixWork?.share == null ? "Finish a task to see how much was bug fixes." : null,
 			tip: "Finished tasks that were fixes: a bugfix spec, type fix, a stop-the-line fix, or a GitHub Bug."
 		},
@@ -5253,22 +5323,22 @@ function oc(e) {
 		}
 	];
 }
-function sc(e) {
-	let t = Vs.reduce((t, n) => t + (e[n] || 0), 0);
-	return t ? Vs.filter((t) => e[t] > 0).map((n) => ({
+function hc(e) {
+	let t = Ys.reduce((t, n) => t + (e[n] || 0), 0);
+	return t ? Ys.filter((t) => e[t] > 0).map((n) => ({
 		stage: n,
 		ms: e[n],
 		share: e[n] / t,
-		color: Hs[n],
-		label: Us[n]
+		color: Xs[n],
+		label: Zs[n]
 	})) : [];
 }
-var cc = {
+var gc = {
 	"tool-calls": "from tool calls",
 	markers: "from phase markers (coarse)",
 	events: "from events"
 };
-function lc(e) {
+function _c(e) {
 	if (e.type === "plan") return `${e.change} (spec ${e.spec})`;
 	if (e.type === "prompt") return `${e.revert ? "Revert " : ""}${e.target}${e.section ? ` § ${e.section}` : ""}`;
 	if (e.type === "skill") return `${e.revert ? "Revert " : ""}skill ${e.target}`;
@@ -5276,28 +5346,28 @@ function lc(e) {
 	let t = e.file === "repository" ? ` in ${e.repository}` : "";
 	return `${e.key} ${JSON.stringify(e.from)} → ${JSON.stringify(e.to)}${t}`;
 }
-var uc = (e) => e.type === "rule" ? "corrections" : `${e.metric} ${e.direction === "down" ? "↓" : "↑"}`;
-function dc(e) {
+var vc = (e) => e.type === "rule" ? "corrections" : `${e.metric} ${e.direction === "down" ? "↓" : "↑"}`;
+function yc(e) {
 	let t = e.evidence;
 	return typeof t == "string" ? t : t ? `${t.runs.join(", ")} · now ${t.value} · ${t.effect}` : "";
 }
-function fc(e) {
+function bc(e) {
 	return e ? e.split("\n").map((e) => ({
 		kind: e.startsWith("@@") ? "hunk" : e.startsWith("+") ? "add" : e.startsWith("-") ? "del" : "same",
 		text: e
 	})) : [];
 }
-function pc(e) {
+function xc(e) {
 	if (e.status !== "approved" || !e.pdca) return null;
 	if (!e.pdca.result && e.pdca.pendingReason) return `PDCA: ${e.pdca.pendingReason}`;
-	if (!e.pdca.result) return `PDCA: measuring over the next ${e.pdca.window} ${e.metric === "CI minutes per pull request" ? "closed pull requests" : "tasks"}.`;
-	let t = e.pdca.result === "helped" ? "helped" : e.pdca.result === "worse" ? "worse" : "did not help", n = (t) => t == null ? "–" : e.metric === "CI minutes per pull request" ? `${t.toLocaleString(void 0, { maximumFractionDigits: 1 })} min` : /rate|efficiency/.test(e.metric) ? ic(t) : rc(t);
+	if (!e.pdca.result) return `PDCA: measuring over the next ${e.pdca.window} ${e.metric === "CI minutes per pull request" || e.metric === "Build minutes per pull request" ? "closed pull requests" : "tasks"}.`;
+	let t = e.pdca.result === "helped" ? "helped" : e.pdca.result === "worse" ? "worse" : "did not help", n = (t) => t == null ? "–" : e.metric === "CI minutes per pull request" || e.metric === "Build minutes per pull request" ? `${t.toLocaleString(void 0, { maximumFractionDigits: 1 })} min` : /rate|efficiency/.test(e.metric) ? fc(t) : dc(t);
 	return `PDCA: ${e.metric} ${n(e.pdca.before)} → ${n(e.pdca.after)}, ${t}.`;
 }
-function mc(e) {
+function Sc(e) {
 	return e.scope === "repo" ? `repository ${e.projectId}` : e.scope === "spec" ? `spec ${e.planId}` : e.scope === "task" ? `task ${e.taskId} and its dependents` : "everything in this workspace";
 }
-var hc = [
+var Cc = [
 	{
 		value: "all",
 		label: "Everything",
@@ -5318,7 +5388,7 @@ var hc = [
 		label: "One task and its dependents",
 		line: "The task and everything that waits on it hold."
 	}
-], gc = [{
+], wc = [{
 	value: "line",
 	label: "Stop the line",
 	line: "No new work starts in what you pick. Chats already running keep going."
@@ -5326,7 +5396,7 @@ var hc = [
 	value: "agents",
 	label: "Stop all agents",
 	line: "No new work starts anywhere, and every running chat Avoozl opened stops now."
-}], _c = "Every running chat Avoozl opened stops now. Replies in progress are lost; committed and saved files, worktrees and branches are kept. Resume starts each task again on the same branch and model.", vc = () => ({
+}], Tc = "Every running chat Avoozl opened stops now. Replies in progress are lost; committed and saved files, worktrees and branches are kept. Resume starts each task again on the same branch and model.", Ec = () => ({
 	kind: "line",
 	scope: "all",
 	repository: "",
@@ -5334,7 +5404,7 @@ var hc = [
 	taskId: "",
 	reason: ""
 });
-function yc(e) {
+function Dc(e) {
 	let t = e.reason.trim();
 	return t ? /[\r\n]/.test(t) ? { error: "Keep the reason to one line." } : t.length > 200 ? { error: "Keep the reason to 200 characters or fewer." } : e.kind === "agents" ? { input: {
 		scope: "all",
@@ -5357,21 +5427,21 @@ function yc(e) {
 		reason: t
 	} } : { error: "Reason is required." };
 }
-function bc(e) {
+function Oc(e) {
 	if (e.manual && e.full) {
 		let t = e.sessions ?? [], n = t.filter((e) => e.stopped && !e.finished).length, r = t.filter((e) => !e.stopped).length, i = ` ${n} chat${n === 1 ? "" : "s"} stopped${r ? `; ${r} could not be stopped` : ""}.`;
 		return `All agents stopped by ${e.by?.name ?? "someone"}: ${e.reason ?? ""}.${i} ${e.paused ?? 0} task${e.paused === 1 ? "" : "s"} paused.`;
 	}
 	if (e.manual) {
 		let t = ` ${e.paused ?? 0} task${e.paused === 1 ? "" : "s"} paused.`;
-		return `Line stopped by ${e.by?.name ?? "someone"}: ${e.reason ?? ""}. Scope: ${mc(e)}.${t}`;
+		return `Line stopped by ${e.by?.name ?? "someone"}: ${e.reason ?? ""}. Scope: ${Sc(e)}.${t}`;
 	}
 	return `Line stopped: ${e.check ? `\`${e.check}\` fails on ${e.branch}` : `a worker named ${e.culprit} as the cause`}${e.commit ? ` since ${e.commit.slice(0, 7)}` : ""}${e.culprit ? ` (task ${e.culprit})` : " (culprit unknown)"}.${e.fixTaskId ? ` Fix: ${e.fixTaskId}, ${e.fixState ?? "ready"}.` : ""}${e.runAnyway ? " Dispatch resumed by Run anyway." : ` ${e.paused ?? 0} task${e.paused === 1 ? "" : "s"} paused.`}`;
 }
-function xc(e) {
+function kc(e) {
 	return !!(e.repository || e.epic || e.plan || e.phase || e.window || e.stage);
 }
-var Sc = {
+var Ac = {
 	scope: "dependents",
 	localChecksFirst: !0,
 	max: 3,
@@ -5384,7 +5454,7 @@ var Sc = {
 	waitShare: .4,
 	minPullRequests: 5
 };
-function Cc(e = {}) {
+function jc(e = {}) {
 	return {
 		scope: e.stopTheLine?.scope ?? "",
 		localChecksFirst: e.localChecksFirst === void 0 ? "" : e.localChecksFirst ? "on" : "off",
@@ -5400,7 +5470,7 @@ function Cc(e = {}) {
 		ciClasses: e.ci?.classes
 	};
 }
-function wc(e) {
+function Mc(e) {
 	let t = {};
 	e.scope && (t.stopTheLine = { scope: e.scope }), e.localChecksFirst && (t.localChecksFirst = e.localChecksFirst === "on");
 	let n = {};
@@ -5465,7 +5535,7 @@ function wc(e) {
 	return e.ciClasses && (i.classes = e.ciClasses), Object.keys(i).length && (t.ci = i), { flow: t };
 }
 // kirocrew-app/ui/src/PlanningFlow.tsx
-function Tc({ groups: e }) {
+function Nc({ groups: e }) {
 	return e.length ? /* @__PURE__ */ w("section", {
 		"data-planning-flow": !0,
 		className: "flex flex-col gap-3",
@@ -5487,7 +5557,7 @@ function Tc({ groups: e }) {
 					}),
 					/* @__PURE__ */ w("p", {
 						className: "my-1 text-sm",
-						children: [rc(e.durationMs), " of session time"]
+						children: [dc(e.durationMs), " of session time"]
 					}),
 					/* @__PURE__ */ C("div", {
 						className: "flex flex-col gap-2 text-sm",
@@ -5499,7 +5569,7 @@ function Tc({ groups: e }) {
 								" · ",
 								e.model ?? "Unreported model"
 							] }), /* @__PURE__ */ w("span", { children: [
-								rc(e.durationMs),
+								dc(e.durationMs),
 								" · ",
 								e.turns ? `${e.input.toLocaleString()} input / ${e.output.toLocaleString()} output tokens · ${e.credits.toLocaleString()} credits` : "No usage recorded yet"
 							] })]
@@ -5511,15 +5581,15 @@ function Tc({ groups: e }) {
 	}) : null;
 }
 // kirocrew-app/ui/src/CiFlow.tsx
-var Ec = [
+var Pc = [
 	"code",
 	"tests",
 	"ci",
 	"other",
 	"spec",
 	"docs"
-], Dc = (e) => e.toLocaleString(void 0, { maximumFractionDigits: 1 }), Oc = (e) => `${Dc(e * 100)}%`;
-function kc({ row: e }) {
+], Fc = (e) => e.toLocaleString(void 0, { maximumFractionDigits: 1 }), Ic = (e) => `${Fc(e * 100)}%`;
+function Lc({ row: e }) {
 	let t = Math.max(1, ...Object.values(e.byClass).map((e) => e.task.minutes + e.other.minutes));
 	return /* @__PURE__ */ C(v, {
 		className: "flex min-w-0 flex-col gap-3",
@@ -5567,7 +5637,7 @@ function kc({ row: e }) {
 								}
 							})] })]
 						}),
-						Ec.map((n) => {
+						Pc.map((n) => {
 							let r = e.byClass[n], i = r?.task.minutes ?? 0, a = r?.other.minutes ?? 0;
 							return /* @__PURE__ */ w("div", {
 								"data-ci-class": n,
@@ -5578,14 +5648,14 @@ function kc({ row: e }) {
 										className: "font-medium",
 										children: n
 									}), /* @__PURE__ */ w("span", { children: [
-										Dc(i),
+										Fc(i),
 										" task · ",
-										Dc(a),
+										Fc(a),
 										" other min"
 									] })]
 								}), /* @__PURE__ */ w("div", {
 									role: "img",
-									"aria-label": `${n}: ${Dc(i)} task minutes, ${Dc(a)} other minutes`,
+									"aria-label": `${n}: ${Fc(i)} task minutes, ${Fc(a)} other minutes`,
 									style: {
 										display: "flex",
 										height: 9,
@@ -5609,9 +5679,9 @@ function kc({ row: e }) {
 					className: "m-0 text-sm",
 					"data-ci-wait": !0,
 					children: [
-						e.waitShare === null ? "CI wait share not available yet" : `CI wait: ${Oc(e.waitShare)} of lead time`,
+						e.waitShare === null ? "CI wait share not available yet" : `CI wait: ${Ic(e.waitShare)} of lead time`,
 						" · limit ",
-						Oc(e.waitLimit),
+						Ic(e.waitLimit),
 						" · ",
 						e.closedPullRequests,
 						" closed pull requests"
@@ -5640,7 +5710,7 @@ function kc({ row: e }) {
 								" extra ",
 								e.extraRuns === 1 ? "run" : "runs",
 								" · ",
-								Dc(e.extraMinutes),
+								Fc(e.extraMinutes),
 								" extra min"
 							]
 						})]
@@ -5653,26 +5723,26 @@ function kc({ row: e }) {
 		})
 	});
 }
-function Ac({ value: e }) {
+function Rc({ value: e }) {
 	return /* @__PURE__ */ C("section", {
 		"data-flow-ci": !0,
 		className: "flex min-w-0 flex-col gap-3",
 		"aria-label": "CI",
-		children: e?.repositories.length ? e.repositories.map((e) => /* @__PURE__ */ C(kc, { row: e }, e.repository)) : /* @__PURE__ */ w(v, { children: [/* @__PURE__ */ C(X, { title: "CI" }), /* @__PURE__ */ C("p", {
+		children: e?.repositories.length ? e.repositories.map((e) => /* @__PURE__ */ C(Lc, { row: e }, e.repository)) : /* @__PURE__ */ w(v, { children: [/* @__PURE__ */ C(X, { title: "CI" }), /* @__PURE__ */ C("p", {
 			className: "text-sm text-muted",
 			children: "No pull requests read"
 		})] })
 	});
 }
 // kirocrew-app/ui/src/FlowMemory.tsx
-var jc = {
+var zc = {
 	add: "var(--success, #1a7f37)",
 	del: "var(--danger)",
 	hunk: "var(--muted)",
 	same: "var(--text)"
 };
-function Mc({ diff: e, label: t }) {
-	let n = fc(e);
+function Bc({ diff: e, label: t }) {
+	let n = bc(e);
 	return n.length ? /* @__PURE__ */ C("pre", {
 		"aria-label": t,
 		className: "max-h-64 overflow-auto rounded border p-2 text-xs",
@@ -5686,14 +5756,14 @@ function Mc({ diff: e, label: t }) {
 		children: n.map((e, t) => /* @__PURE__ */ C("span", {
 			style: {
 				display: "block",
-				color: jc[e.kind]
+				color: zc[e.kind]
 			},
 			children: e.text || " "
 		}, t))
 	}) : null;
 }
-function Nc({ proposal: e, busy: t, onDecide: n }) {
-	let r = pc(e);
+function Vc({ proposal: e, busy: t, onDecide: n }) {
+	let r = xc(e);
 	return /* @__PURE__ */ w("li", {
 		className: "flex flex-col gap-1.5 border-t pt-2 first:border-t-0 first:pt-0 text-sm",
 		style: { borderColor: "var(--border)" },
@@ -5706,11 +5776,11 @@ function Nc({ proposal: e, busy: t, onDecide: n }) {
 					/* @__PURE__ */ C($, { children: e.type }),
 					/* @__PURE__ */ C("code", {
 						className: "text-xs",
-						children: lc(e)
+						children: _c(e)
 					}),
 					/* @__PURE__ */ C("span", {
 						className: "text-muted",
-						children: uc(e)
+						children: vc(e)
 					}),
 					/* @__PURE__ */ C("span", {
 						className: "text-xs text-muted",
@@ -5727,14 +5797,14 @@ function Nc({ proposal: e, busy: t, onDecide: n }) {
 				className: "text-xs text-muted",
 				children: ["Base ", e.base.slice(0, 12)]
 			}),
-			/* @__PURE__ */ C(Mc, {
+			/* @__PURE__ */ C(Bc, {
 				diff: e.diff,
-				label: `Diff of ${lc(e)}`
+				label: `Diff of ${_c(e)}`
 			}),
 			/* @__PURE__ */ w("span", {
 				className: "text-xs text-muted",
 				style: { overflowWrap: "anywhere" },
-				children: ["Evidence: ", dc(e)]
+				children: ["Evidence: ", yc(e)]
 			}),
 			e.leaf && /* @__PURE__ */ w("span", {
 				className: "text-xs",
@@ -5773,7 +5843,7 @@ function Nc({ proposal: e, busy: t, onDecide: n }) {
 		]
 	});
 }
-function Pc({ drift: e, target: t, busy: n, onRebase: r }) {
+function Hc({ drift: e, target: t, busy: n, onRebase: r }) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-1.5 rounded border p-2 text-sm",
 		style: { borderColor: "var(--warning, var(--border))" },
@@ -5797,7 +5867,7 @@ function Pc({ drift: e, target: t, busy: n, onRebase: r }) {
 				className: "text-xs font-medium",
 				children: "Built-in: old to new"
 			}),
-			/* @__PURE__ */ C(Mc, {
+			/* @__PURE__ */ C(Bc, {
 				diff: e.diffs.builtIn,
 				label: "Built-in change"
 			}),
@@ -5805,7 +5875,7 @@ function Pc({ drift: e, target: t, busy: n, onRebase: r }) {
 				className: "text-xs font-medium",
 				children: "Your override against the old built-in"
 			}),
-			/* @__PURE__ */ C(Mc, {
+			/* @__PURE__ */ C(Bc, {
 				diff: e.diffs.override,
 				label: "Override"
 			}),
@@ -5837,7 +5907,7 @@ function Pc({ drift: e, target: t, busy: n, onRebase: r }) {
 		]
 	});
 }
-function Fc({ prompts: e, busy: t, onRevert: n, onRebase: r }) {
+function Uc({ prompts: e, busy: t, onRevert: n, onRebase: r }) {
 	return /* @__PURE__ */ w(v, {
 		className: "flex flex-col gap-2",
 		"data-prompt-versions": !0,
@@ -5878,7 +5948,7 @@ function Fc({ prompts: e, busy: t, onRevert: n, onRebase: r }) {
 								children: "Revert"
 							})
 						]
-					}), e.drift.map((n) => /* @__PURE__ */ C(Pc, {
+					}), e.drift.map((n) => /* @__PURE__ */ C(Hc, {
 						drift: n,
 						target: e.target,
 						busy: t,
@@ -5889,8 +5959,8 @@ function Fc({ prompts: e, busy: t, onRevert: n, onRebase: r }) {
 		]
 	});
 }
-function Ic({ workspaceId: e }) {
-	let t = K(), n = l(() => nc(t), [t]), r = Lr(), { value: a, error: o, reload: s } = Mo(e, i((e) => n.proposals(e), [n])), [c, u] = d(!1), [f, p] = d(null), m = async (e) => {
+function Wc({ workspaceId: e }) {
+	let t = K(), n = l(() => uc(t), [t]), r = Lr(), { value: a, error: o, reload: s } = Mo(e, i((e) => n.proposals(e), [n])), [c, u] = d(!1), [f, p] = d(null), m = async (e) => {
 		u(!0), p(null);
 		try {
 			await e(), await s();
@@ -5951,7 +6021,7 @@ function Ic({ workspaceId: e }) {
 					}),
 					h.length ? /* @__PURE__ */ C("ul", {
 						className: "flex flex-col gap-3",
-						children: h.map((t) => /* @__PURE__ */ C(Nc, {
+						children: h.map((t) => /* @__PURE__ */ C(Vc, {
 							proposal: t,
 							busy: c,
 							onDecide: (t, r) => void m(() => n.decide(e, {
@@ -5970,7 +6040,7 @@ function Ic({ workspaceId: e }) {
 					})
 				]
 			}),
-			/* @__PURE__ */ C(Fc, {
+			/* @__PURE__ */ C(Uc, {
 				prompts: a.prompts,
 				busy: c,
 				onRevert: (t) => void m(async () => {
@@ -5994,13 +6064,13 @@ function Ic({ workspaceId: e }) {
 						className: "text-xs text-muted",
 						children: "For skills no plugin owns. Copy one to its owner; Avoozl sends nothing."
 					}),
-					a.notes.filter((e) => !e.plugin).map((e) => /* @__PURE__ */ C(Lc, { note: e }, `${e.retro}:${e.proposal}`))
+					a.notes.filter((e) => !e.plugin).map((e) => /* @__PURE__ */ C(Gc, { note: e }, `${e.retro}:${e.proposal}`))
 				]
 			})
 		]
 	});
 }
-function Lc({ note: e }) {
+function Gc({ note: e }) {
 	let [t, n] = d(!1), r = `Suggested change to ${e.file}\n\n${e.summary}\n\n${e.diff}\n`;
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-1 text-sm",
@@ -6017,7 +6087,7 @@ function Lc({ note: e }) {
 				className: "text-xs text-muted",
 				children: e.summary
 			}),
-			/* @__PURE__ */ C(Mc, {
+			/* @__PURE__ */ C(Bc, {
 				diff: e.diff,
 				label: `Suggested change to ${e.file}`
 			}),
@@ -6029,50 +6099,11 @@ function Lc({ note: e }) {
 		]
 	});
 }
-// kirocrew-app/ui/src/radar-flow-api.ts
-var Rc = [
-	"Ready to Claim",
-	"Claim to PR",
-	"PR to green",
-	"Green to merge"
-];
-function zc(e) {
-	return { read: async (t, n = !1) => (await e.post(W, {
-		operation: "radar.flow",
-		input: n ? { refresh: !0 } : {},
-		workspaceId: t
-	})).result };
-}
-function Bc(e) {
-	if (e == null || !Number.isFinite(e)) return "—";
-	let t = Math.round(e / 6e4);
-	if (t < 60) return `${t} min`;
-	let n = Math.floor(t / 60);
-	if (n < 24) return t % 60 ? `${n} h ${t % 60} min` : `${n} h`;
-	let r = Math.floor(n / 24);
-	return n % 24 ? `${r} d ${n % 24} h` : `${r} d`;
-}
-function Vc(e) {
-	return e.median ? Rc.map((t, n) => ({
-		name: t,
-		median: Bc(e.median[n]),
-		slowest: t === e.bottleneck
-	})) : [];
-}
-function Hc(e) {
-	return e.count ? `${e.count} ${e.count === 1 ? "issue" : "issues"} · median lead time ${Bc(e.medianLead)} · flow efficiency ${Math.round((e.efficiency ?? 0) * 100)}%` : "No finished issue yet";
-}
-function Uc(e) {
-	return `${e.count} ${e.count === 1 ? "build" : "builds"} · median ${((e) => e == null ? "—" : e < 9e4 ? `${Math.round(e / 1e3)} s` : Bc(e))(e.medianMs)}`;
-}
-function Wc(e) {
-	return e == null ? "—" : e < 9e4 ? `${Math.round(e / 1e3)} s` : Bc(e);
-}
 // kirocrew-app/ui/src/GithubFlow.tsx
-function Gc({ workspaceId: e }) {
-	let t = K(), n = l(() => zc(t), [t]), [r, a] = d(0), { value: o, error: s, busy: c } = Mo(e, i((e) => n.read(e, r > 0), [n, r]));
+function Kc({ workspaceId: e }) {
+	let t = K(), n = l(() => Vo(t), [t]), [r, a] = d(0), { value: o, error: s, busy: c } = Mo(e, i((e) => n.read(e, r > 0), [n, r]));
 	if (!o || !o.repositories.length && !s) return null;
-	let u = Vc(o), f = Math.max(1, ...o.median ?? [0]);
+	let u = Uo(o), f = Math.max(1, ...o.median ?? [0]);
 	return /* @__PURE__ */ C(v, {
 		className: "flex flex-col gap-2",
 		children: /* @__PURE__ */ w("div", {
@@ -6082,7 +6113,7 @@ function Gc({ workspaceId: e }) {
 				/* @__PURE__ */ C(X, { title: "From GitHub" }),
 				/* @__PURE__ */ w("p", {
 					className: "text-sm text-muted",
-					children: [Hc(o), ". Times are GitHub's."]
+					children: [Wo(o), ". Times are GitHub's."]
 				}),
 				/* @__PURE__ */ C("ul", {
 					className: "m-0 flex list-none flex-col gap-1.5 p-0",
@@ -6121,7 +6152,7 @@ function Gc({ workspaceId: e }) {
 						]
 					}, e.name))
 				}),
-				o.receipts && o.receipts.count > 0 && /* @__PURE__ */ w("div", {
+				o.builds && o.builds.count > 0 && /* @__PURE__ */ w("div", {
 					"data-flow-builds": !0,
 					className: "flex flex-col gap-1",
 					children: [
@@ -6131,7 +6162,50 @@ function Gc({ workspaceId: e }) {
 						}),
 						/* @__PURE__ */ w("p", {
 							className: "text-xs text-muted",
-							children: [Uc(o.receipts), ". From each merged pull request's build receipt."]
+							children: [Go(o.builds), ". From every build record of each merged pull request."]
+						}),
+						/* @__PURE__ */ C("ul", {
+							className: "m-0 flex list-none flex-col gap-1 p-0",
+							"data-flow-build-prs": !0,
+							style: {
+								margin: 0,
+								padding: 0,
+								listStyle: "none"
+							},
+							children: o.builds.recent.map((e) => /* @__PURE__ */ w("li", {
+								"data-flow-build-pr": e.pr,
+								className: "flex flex-wrap items-center gap-x-3 text-sm",
+								style: {
+									display: "flex",
+									flexWrap: "wrap",
+									gap: "0 12px",
+									overflowWrap: "anywhere"
+								},
+								children: [
+									/* @__PURE__ */ w("span", { children: [
+										e.repository ? `${e.repository} ` : "",
+										"#",
+										e.pr
+									] }),
+									/* @__PURE__ */ C("span", {
+										className: "tabular-nums",
+										children: qo(e.totalMs)
+									}),
+									/* @__PURE__ */ w("span", {
+										"data-flow-costliest": !0,
+										className: "text-muted",
+										children: ["costliest ", Ko(e)]
+									}),
+									e.failedMs > 0 && /* @__PURE__ */ w($, {
+										variant: "danger",
+										children: [qo(e.failedMs), " failed"]
+									})
+								]
+							}, `${e.repository}-${e.pr}`))
+						}),
+						/* @__PURE__ */ C("p", {
+							className: "m-0 text-xs text-muted",
+							children: "Median per phase, target and start, without failed attempts."
 						}),
 						/* @__PURE__ */ C("ul", {
 							className: "m-0 flex list-none flex-col gap-1 p-0",
@@ -6140,8 +6214,8 @@ function Gc({ workspaceId: e }) {
 								padding: 0,
 								listStyle: "none"
 							},
-							children: o.receipts.byTarget.map((e) => /* @__PURE__ */ w("li", {
-								"data-flow-build": e.target,
+							children: o.builds.byPhase.map((e) => /* @__PURE__ */ w("li", {
+								"data-flow-build": e.phase,
 								className: "flex flex-wrap gap-x-3 text-sm",
 								style: {
 									display: "flex",
@@ -6150,6 +6224,7 @@ function Gc({ workspaceId: e }) {
 									overflowWrap: "anywhere"
 								},
 								children: [
+									/* @__PURE__ */ C("span", { children: e.phase }),
 									/* @__PURE__ */ C("span", { children: e.target }),
 									/* @__PURE__ */ C("span", {
 										className: "text-muted",
@@ -6157,7 +6232,7 @@ function Gc({ workspaceId: e }) {
 									}),
 									/* @__PURE__ */ C("span", {
 										className: "tabular-nums",
-										children: Wc(e.medianMs)
+										children: qo(e.medianMs)
 									}),
 									/* @__PURE__ */ w("span", {
 										className: "text-muted",
@@ -6168,9 +6243,9 @@ function Gc({ workspaceId: e }) {
 										]
 									})
 								]
-							}, `${e.target}-${e.start}`))
+							}, `${e.phase}-${e.target}-${e.start}`))
 						}),
-						o.receipts.byInstance.length > 1 && /* @__PURE__ */ C("ul", {
+						o.builds.byInstance.length > 1 && /* @__PURE__ */ C("ul", {
 							className: "m-0 flex list-none flex-col gap-1 p-0",
 							"data-flow-instances": !0,
 							style: {
@@ -6178,7 +6253,7 @@ function Gc({ workspaceId: e }) {
 								padding: 0,
 								listStyle: "none"
 							},
-							children: o.receipts.byInstance.map((e) => /* @__PURE__ */ w("li", {
+							children: o.builds.byInstance.map((e) => /* @__PURE__ */ w("li", {
 								className: "flex flex-wrap gap-x-3 text-sm",
 								style: {
 									display: "flex",
@@ -6187,19 +6262,22 @@ function Gc({ workspaceId: e }) {
 									overflowWrap: "anywhere"
 								},
 								children: [
-									/* @__PURE__ */ C("span", { children: e.name ?? e.instance ?? "No instance" }),
+									e.instance ? /* @__PURE__ */ C(q, {
+										text: e.instance,
+										children: /* @__PURE__ */ C("span", { children: e.name ?? "Unnamed machine" })
+									}) : /* @__PURE__ */ C("span", { children: "No instance" }),
 									/* @__PURE__ */ C("span", {
 										className: "tabular-nums",
-										children: Wc(e.medianMs)
+										children: qo(e.medianMs)
 									}),
 									/* @__PURE__ */ w("span", {
 										className: "text-muted",
 										children: [
 											e.count,
 											" ",
-											e.count === 1 ? "build" : "builds",
+											e.count === 1 ? "pull request" : "pull requests",
 											", ",
-											Bc(e.totalMs),
+											Ho(e.totalMs),
 											" in all"
 										]
 									})
@@ -6223,7 +6301,7 @@ function Gc({ workspaceId: e }) {
 				}, e)),
 				/* @__PURE__ */ w("p", {
 					className: "flex items-center gap-2 text-xs text-muted",
-					children: [o.readAt ? `Read ${Bc(Date.now() - Date.parse(o.readAt))} ago.` : "", /* @__PURE__ */ C(_, {
+					children: [o.readAt ? `Read ${Ho(Date.now() - Date.parse(o.readAt))} ago.` : "", /* @__PURE__ */ C(_, {
 						type: "button",
 						disabled: c,
 						onClick: () => a((e) => e + 1),
@@ -6235,12 +6313,12 @@ function Gc({ workspaceId: e }) {
 	});
 }
 // kirocrew-app/ui/src/FilterSelect.tsx
-var Kc = {
+var qc = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
 	background: "var(--card, transparent)"
-}, qc = "4rem";
-function Jc(e) {
+}, Jc = "4rem";
+function Yc(e) {
 	let t = (t) => /* @__PURE__ */ w("select", {
 		id: e.id,
 		value: e.value,
@@ -6249,7 +6327,7 @@ function Jc(e) {
 		onChange: (t) => e.onChange(t.target.value),
 		className: "rounded border px-2 py-1 text-sm",
 		style: {
-			...Kc,
+			...qc,
 			...e.inline ? {
 				width: "100%",
 				minWidth: 0
@@ -6274,7 +6352,7 @@ function Jc(e) {
 		className: "min-w-0 text-sm",
 		style: {
 			display: "grid",
-			gridTemplateColumns: `${qc} minmax(0, 1fr)`,
+			gridTemplateColumns: `${Jc} minmax(0, 1fr)`,
 			alignItems: "center",
 			columnGap: 8
 		},
@@ -6298,14 +6376,14 @@ function Jc(e) {
 		}) : t()]
 	});
 }
-function Yc(e) {
+function Xc(e) {
 	return {
 		items: e,
 		ids: e.map((e) => e.id.toLowerCase()),
 		text: e.map((e) => `${e.id}\n${e.title}\n${e.spec ?? ""}`.toLowerCase())
 	};
 }
-function Xc(e, t, n = 50) {
+function Zc(e, t, n = 50) {
 	let r = t.trim().toLowerCase();
 	if (!r) return {
 		shown: e.items.slice(0, n),
@@ -6318,7 +6396,7 @@ function Xc(e, t, n = 50) {
 		total: o
 	};
 }
-function Zc(e, t, n) {
+function Qc(e, t, n) {
 	let r = n - 1;
 	return t === "ArrowDown" ? {
 		kind: "move",
@@ -6349,17 +6427,17 @@ function Zc(e, t, n) {
 		index: e.active
 	} : { kind: "none" } : t === "Escape" ? e.open ? { kind: "close" } : { kind: "clear" } : { kind: "none" };
 }
-var Qc = (e) => e.map((e) => ({
+var $c = (e) => e.map((e) => ({
 	id: e.value,
 	title: e.label
-})), $c = (e) => e.title && e.title !== e.id ? `${e.id}: ${e.title}` : e.id;
+})), el = (e) => e.title && e.title !== e.id ? `${e.id}: ${e.title}` : e.id;
 // kirocrew-app/ui/src/Picker.tsx
-function el(e) {
-	let t = s(), n = e.id ?? `avoozl-pick-${t.replace(/:/g, "")}`, r = `${n}-list`, i = l(() => Yc(e.items), [e.items]), a = e.keep ?? !0, c = l(() => e.items.find((t) => t.id === e.value) ?? null, [e.items, e.value]), f = (t) => e.plain ? t.title : $c(t), p = c && a ? f(c) : "", [m, h] = d(p), [g, _] = d(!1), [v, y] = d(!1), [b, x] = d(0), T = u(null);
+function tl(e) {
+	let t = s(), n = e.id ?? `avoozl-pick-${t.replace(/:/g, "")}`, r = `${n}-list`, i = l(() => Xc(e.items), [e.items]), a = e.keep ?? !0, c = l(() => e.items.find((t) => t.id === e.value) ?? null, [e.items, e.value]), f = (t) => e.plain ? t.title : el(t), p = c && a ? f(c) : "", [m, h] = d(p), [g, _] = d(!1), [v, y] = d(!1), [b, x] = d(0), T = u(null);
 	o(() => {
 		g || h(p);
 	}, [p, g]);
-	let { shown: E, total: D } = l(() => Xc(i, g ? m : ""), [
+	let { shown: E, total: D } = l(() => Zc(i, g ? m : ""), [
 		i,
 		m,
 		g
@@ -6370,7 +6448,7 @@ function el(e) {
 	let O = (t) => {
 		e.onPick(t.id), _(!1), y(!1), h(a ? f(t) : "");
 	}, k = (t) => {
-		let n = Zc({
+		let n = Qc({
 			open: v,
 			active: b
 		}, t.key, E.length);
@@ -6410,7 +6488,7 @@ function el(e) {
 				},
 				onKeyDown: k,
 				className: "rounded border px-2 py-1 text-sm",
-				style: Kc,
+				style: qc,
 				"data-picker": !0
 			}),
 			/* @__PURE__ */ w("div", {
@@ -6481,19 +6559,19 @@ function el(e) {
 		]
 	});
 }
-var tl = (e) => e.filter((e) => e.kind !== "package").map((e) => ({
+var nl = (e) => e.filter((e) => e.kind !== "package").map((e) => ({
 	id: e.id,
 	title: e.title || e.id,
 	spec: e.spec ?? e.planId ?? null,
 	state: e.state ?? e.status ?? null
-})), nl = {
-	...Kc,
+})), rl = {
+	...qc,
 	width: "4.5rem"
-}, rl = (e) => {
+}, il = (e) => {
 	let t = Number(e);
 	return Number.isInteger(t) && t > 0 ? t : void 0;
 };
-function il({ id: e, field: t, inline: n }) {
+function al({ id: e, field: t, inline: n }) {
 	let r = `${e}-${t.key}`;
 	return t.kind === "search" ? /* @__PURE__ */ w("label", {
 		htmlFor: r,
@@ -6505,9 +6583,9 @@ function il({ id: e, field: t, inline: n }) {
 			placeholder: t.placeholder,
 			onChange: (e) => t.onChange(e.target.value),
 			className: "rounded border px-2 py-1 text-sm",
-			style: Kc
+			style: qc
 		})]
-	}) : t.kind === "select" ? /* @__PURE__ */ C(Jc, {
+	}) : t.kind === "select" ? /* @__PURE__ */ C(Yc, {
 		id: r,
 		label: t.label,
 		value: t.value,
@@ -6516,7 +6594,7 @@ function il({ id: e, field: t, inline: n }) {
 		disabled: t.disabled,
 		hint: t.hint,
 		inline: n
-	}) : t.kind === "pick" ? /* @__PURE__ */ C(el, {
+	}) : t.kind === "pick" ? /* @__PURE__ */ C(tl, {
 		id: r,
 		label: t.label,
 		items: t.items,
@@ -6546,9 +6624,9 @@ function il({ id: e, field: t, inline: n }) {
 					max: t.limit || void 0,
 					value: t.min ?? "",
 					placeholder: "1",
-					onChange: (e) => t.onChange(rl(e.target.value), t.max),
+					onChange: (e) => t.onChange(il(e.target.value), t.max),
 					className: "rounded border px-2 py-1 text-sm",
-					style: nl
+					style: rl
 				}),
 				/* @__PURE__ */ C("span", {
 					className: "text-muted",
@@ -6561,16 +6639,16 @@ function il({ id: e, field: t, inline: n }) {
 					max: t.limit || void 0,
 					value: t.max ?? "",
 					placeholder: String(t.limit || ""),
-					onChange: (e) => t.onChange(t.min, rl(e.target.value)),
+					onChange: (e) => t.onChange(t.min, il(e.target.value)),
 					className: "rounded border px-2 py-1 text-sm",
-					style: nl
+					style: rl
 				})
 			]
 		})]
 	});
 }
-var al = {
-	...Kc,
+var ol = {
+	...qc,
 	height: 24,
 	boxSizing: "border-box",
 	padding: "0 6px",
@@ -6578,7 +6656,7 @@ var al = {
 	borderRadius: 6,
 	minWidth: 0
 };
-function ol({ id: e, field: t }) {
+function sl({ id: e, field: t }) {
 	let n = `${e}-${t.key}`;
 	return t.kind === "search" ? /* @__PURE__ */ C("input", {
 		id: n,
@@ -6589,7 +6667,7 @@ function ol({ id: e, field: t }) {
 		onChange: (e) => t.onChange(e.target.value),
 		className: "border",
 		style: {
-			...al,
+			...ol,
 			flex: "1 1 8rem",
 			width: "8rem",
 			maxWidth: "16rem"
@@ -6602,7 +6680,7 @@ function ol({ id: e, field: t }) {
 		onChange: (e) => t.onChange(e.target.value),
 		className: "border",
 		style: {
-			...al,
+			...ol,
 			flex: "0 1 7rem",
 			width: "7rem",
 			maxWidth: "9rem"
@@ -6614,16 +6692,16 @@ function ol({ id: e, field: t }) {
 			value: e.value,
 			children: e.label
 		}, e.value))]
-	}) : /* @__PURE__ */ C(il, {
+	}) : /* @__PURE__ */ C(al, {
 		id: e,
 		field: t
 	});
 }
-function sl(e) {
+function cl(e) {
 	let t = It("(max-width: 767px)") || !!e.folded, [n, r] = d(!1), i = /* @__PURE__ */ w("div", {
 		className: "flex flex-wrap items-end gap-3",
 		"data-filter-bar": !0,
-		children: [e.fields.map((t) => /* @__PURE__ */ C(il, {
+		children: [e.fields.map((t) => /* @__PURE__ */ C(al, {
 			id: e.id,
 			field: t
 		}, t.key)), /* @__PURE__ */ w(Jr, {
@@ -6652,7 +6730,7 @@ function sl(e) {
 			className: "flex min-w-0 items-center gap-1.5",
 			style: { flexWrap: "nowrap" },
 			children: [
-				r.map((t) => /* @__PURE__ */ C(ol, {
+				r.map((t) => /* @__PURE__ */ C(sl, {
 					id: e.id,
 					field: t
 				}, t.key)),
@@ -6664,7 +6742,7 @@ function sl(e) {
 					children: /* @__PURE__ */ C("div", {
 						className: "flex flex-col gap-2",
 						"data-keep-menu": !0,
-						children: i.map((t) => /* @__PURE__ */ C(il, {
+						children: i.map((t) => /* @__PURE__ */ C(al, {
 							id: e.id,
 							field: t
 						}, t.key))
@@ -6716,7 +6794,7 @@ function sl(e) {
 		children: e.children
 	})] });
 }
-function cl(e) {
+function ll(e) {
 	return /* @__PURE__ */ w("div", {
 		role: "search",
 		"aria-label": e.label,
@@ -6724,7 +6802,7 @@ function cl(e) {
 		"data-filter-panel": e.id,
 		className: "flex flex-col gap-2",
 		children: [
-			e.fields.map((t) => /* @__PURE__ */ C(il, {
+			e.fields.map((t) => /* @__PURE__ */ C(al, {
 				id: e.id,
 				field: t,
 				inline: e.inline
@@ -6748,18 +6826,18 @@ function cl(e) {
 		]
 	});
 }
-function ll() {
+function ul() {
 	try {
 		return window.localStorage;
 	} catch {
 		return null;
 	}
 }
-function ul(e, t) {
-	let { event: n, read: r, write: a, empty: s } = t, [c, l] = d(() => e ? r(ll(), e) : s);
+function dl(e, t) {
+	let { event: n, read: r, write: a, empty: s } = t, [c, l] = d(() => e ? r(ul(), e) : s);
 	return o(() => {
-		l(e ? r(ll(), e) : s);
-		let t = () => e && l(r(ll(), e));
+		l(e ? r(ul(), e) : s);
+		let t = () => e && l(r(ul(), e));
 		return window.addEventListener(n, t), () => window.removeEventListener(n, t);
 	}, [
 		e,
@@ -6767,36 +6845,36 @@ function ul(e, t) {
 		r,
 		s
 	]), [c, i((t) => {
-		l(t), e && (a(ll(), e, t), window.dispatchEvent(new Event(n)));
+		l(t), e && (a(ul(), e, t), window.dispatchEvent(new Event(n)));
 	}, [
 		e,
 		n,
 		a
 	])];
 }
-function dl(e, t, n) {
-	e.write(ll(), t, n), window.dispatchEvent(new Event(e.event));
+function fl(e, t, n) {
+	e.write(ul(), t, n), window.dispatchEvent(new Event(e.event));
 }
 // kirocrew-app/ui/src/FlowCharts.tsx
-var fl = 300, pl = 90, ml = 4;
-function hl({ points: e, value: t, format: n, color: r }) {
-	let i = e.map(t), a = i.filter((e) => e !== null), o = Math.max(...a, 0) || 1, s = (t) => e.length < 2 ? fl / 2 : ml + t * 292 / (e.length - 1), c = (e) => 86 - e / o * 82, l = i.map((e, t) => e === null ? null : `${s(t)},${c(e)}`).reduce((e, t) => (t === null ? e.push([]) : e[e.length - 1].push(t), e), [[]]).filter((e) => e.length), u = a.at(-1);
+var pl = 300, ml = 90, hl = 4;
+function gl({ points: e, value: t, format: n, color: r }) {
+	let i = e.map(t), a = i.filter((e) => e !== null), o = Math.max(...a, 0) || 1, s = (t) => e.length < 2 ? pl / 2 : hl + t * 292 / (e.length - 1), c = (e) => 86 - e / o * 82, l = i.map((e, t) => e === null ? null : `${s(t)},${c(e)}`).reduce((e, t) => (t === null ? e.push([]) : e[e.length - 1].push(t), e), [[]]).filter((e) => e.length), u = a.at(-1);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-1",
 		children: [/* @__PURE__ */ C("span", {
 			className: "text-lg font-semibold tabular-nums",
 			children: u === void 0 ? "–" : n(u)
 		}), /* @__PURE__ */ w("svg", {
-			viewBox: `0 0 ${fl} ${pl}`,
+			viewBox: `0 0 ${pl} ${ml}`,
 			width: "100%",
-			height: pl,
+			height: ml,
 			role: "img",
 			"aria-label": e.map((e, t) => `${e.key}: ${i[t] === null ? "none" : n(i[t])}`).join(", "),
 			preserveAspectRatio: "none",
 			children: [
 				/* @__PURE__ */ C("line", {
 					x1: 0,
-					x2: fl,
+					x2: pl,
 					y1: 86,
 					y2: 86,
 					stroke: "var(--border)",
@@ -6819,30 +6897,30 @@ function hl({ points: e, value: t, format: n, color: r }) {
 		})]
 	});
 }
-function gl({ points: e }) {
+function _l({ points: e }) {
 	return /* @__PURE__ */ C("div", {
 		className: "flex flex-col gap-1",
 		children: /* @__PURE__ */ C("div", {
 			className: "flex items-end gap-1",
-			style: { height: pl },
+			style: { height: ml },
 			role: "img",
 			"aria-label": "Stage mix per period",
 			children: e.map((e) => {
-				let t = Vs.reduce((t, n) => t + e.stages[n], 0);
+				let t = Ys.reduce((t, n) => t + e.stages[n], 0);
 				return /* @__PURE__ */ C(q, {
-					text: `${e.key}: ${Vs.filter((t) => e.stages[t]).map((t) => `${Us[t]} ${rc(e.stages[t])}`).join(", ") || "no time"}`,
+					text: `${e.key}: ${Ys.filter((t) => e.stages[t]).map((t) => `${Zs[t]} ${dc(e.stages[t])}`).join(", ") || "no time"}`,
 					children: (n) => /* @__PURE__ */ C("div", {
 						tabIndex: 0,
 						"aria-describedby": n,
 						className: "flex flex-col-reverse overflow-hidden rounded-sm",
 						style: {
-							height: pl,
+							height: ml,
 							width: 14,
 							background: "color-mix(in srgb, var(--muted) 12%, transparent)"
 						},
-						children: Vs.filter((t) => e.stages[t]).map((n) => /* @__PURE__ */ C("span", { style: {
+						children: Ys.filter((t) => e.stages[t]).map((n) => /* @__PURE__ */ C("span", { style: {
 							height: `${100 * e.stages[n] / (t || 1)}%`,
-							background: Hs[n],
+							background: Xs[n],
 							display: "block"
 						} }, n))
 					})
@@ -6851,26 +6929,26 @@ function gl({ points: e }) {
 		})
 	});
 }
-function _l({ rows: e }) {
+function vl({ rows: e }) {
 	let t = (e) => e.credits || e.input + e.output, n = Math.max(...e.map(t), 0) || 1;
 	return /* @__PURE__ */ C("div", {
 		className: "flex items-end gap-1",
-		style: { height: pl },
+		style: { height: ml },
 		role: "img",
-		"aria-label": e.map((e) => `${e.key}: ${Js(e)}`).join(", "),
+		"aria-label": e.map((e) => `${e.key}: ${nc(e)}`).join(", "),
 		children: e.map((e) => /* @__PURE__ */ C("span", {
 			className: "rounded-sm",
 			style: {
 				display: "block",
 				flex: "none",
-				height: Math.max(2, Math.round(pl * t(e) / n)),
+				height: Math.max(2, Math.round(ml * t(e) / n)),
 				width: 14,
 				background: "var(--accent)"
 			}
 		}, e.key))
 	});
 }
-function vl({ title: e, children: t, empty: n }) {
+function yl({ title: e, children: t, empty: n }) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex min-w-0 flex-col gap-1 rounded-lg border p-3",
 		style: { borderColor: "var(--border)" },
@@ -6883,7 +6961,7 @@ function vl({ title: e, children: t, empty: n }) {
 		}) : t]
 	});
 }
-function yl({ unit: e, onUnit: t }) {
+function bl({ unit: e, onUnit: t }) {
 	return /* @__PURE__ */ C("div", {
 		role: "radiogroup",
 		"aria-label": "Group by",
@@ -6904,14 +6982,14 @@ function yl({ unit: e, onUnit: t }) {
 		}, n))
 	});
 }
-function bl({ view: e, unit: t, onUnit: n }) {
+function xl({ view: e, unit: t, onUnit: n }) {
 	let r = e.series?.[t] ?? [], i = !r.length;
 	return /* @__PURE__ */ w(v, {
 		className: "flex flex-col gap-3",
 		children: [
 			/* @__PURE__ */ C(X, {
 				title: "Over time",
-				actions: /* @__PURE__ */ C(yl, {
+				actions: /* @__PURE__ */ C(bl, {
 					unit: t,
 					onUnit: n
 				})
@@ -6921,78 +6999,78 @@ function bl({ view: e, unit: t, onUnit: n }) {
 				style: { gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 16rem), 1fr))" },
 				"data-flow-charts": !0,
 				children: [
-					/* @__PURE__ */ C(vl, {
+					/* @__PURE__ */ C(yl, {
 						title: "Lead time (median)",
 						empty: i,
-						children: /* @__PURE__ */ C(hl, {
+						children: /* @__PURE__ */ C(gl, {
 							points: r,
 							value: (e) => e.leadTimeMs,
-							format: rc,
+							format: dc,
 							color: "var(--accent)"
 						})
 					}),
-					/* @__PURE__ */ C(vl, {
+					/* @__PURE__ */ C(yl, {
 						title: "Flow efficiency",
 						empty: i,
-						children: /* @__PURE__ */ C(hl, {
+						children: /* @__PURE__ */ C(gl, {
 							points: r,
 							value: (e) => e.flowEfficiency,
-							format: ic,
+							format: fc,
 							color: "var(--ok)"
 						})
 					}),
-					/* @__PURE__ */ C(vl, {
+					/* @__PURE__ */ C(yl, {
 						title: "First-pass rate",
 						empty: i,
-						children: /* @__PURE__ */ C(hl, {
+						children: /* @__PURE__ */ C(gl, {
 							points: r,
 							value: (e) => e.firstPassRate,
-							format: ic,
+							format: fc,
 							color: "var(--accent)"
 						})
 					}),
-					/* @__PURE__ */ C(vl, {
+					/* @__PURE__ */ C(yl, {
 						title: "Fix work",
 						empty: !r.some((e) => e.fixShare != null),
-						children: /* @__PURE__ */ C(hl, {
+						children: /* @__PURE__ */ C(gl, {
 							points: r,
 							value: (e) => e.fixShare ?? null,
-							format: ic,
+							format: fc,
 							color: "var(--accent)"
 						})
 					}),
-					/* @__PURE__ */ C(vl, {
+					/* @__PURE__ */ C(yl, {
 						title: "Corrections",
 						empty: !r.some((e) => (e.corrections ?? 0) > 0),
-						children: /* @__PURE__ */ C(hl, {
+						children: /* @__PURE__ */ C(gl, {
 							points: r,
 							value: (e) => e.corrections ?? 0,
 							format: (e) => String(e ?? 0),
 							color: "var(--danger)"
 						})
 					}),
-					/* @__PURE__ */ C(vl, {
+					/* @__PURE__ */ C(yl, {
 						title: "Time to fix",
 						empty: !r.some((e) => e.timeToFixMs !== null),
-						children: /* @__PURE__ */ C(hl, {
+						children: /* @__PURE__ */ C(gl, {
 							points: r,
 							value: (e) => e.timeToFixMs,
-							format: rc,
+							format: dc,
 							color: "var(--danger)"
 						})
 					}),
-					/* @__PURE__ */ C(vl, {
+					/* @__PURE__ */ C(yl, {
 						title: "Stage mix",
 						empty: i,
-						children: /* @__PURE__ */ C(gl, { points: r })
+						children: /* @__PURE__ */ C(_l, { points: r })
 					})
 				]
 			}),
-			!i && /* @__PURE__ */ C(Tl, {})
+			!i && /* @__PURE__ */ C(El, {})
 		]
 	});
 }
-function xl({ title: e, rows: t }) {
+function Sl({ title: e, rows: t }) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex min-w-0 flex-col gap-1",
 		children: [/* @__PURE__ */ C("span", {
@@ -7004,17 +7082,17 @@ function xl({ title: e, rows: t }) {
 				className: "flex flex-wrap justify-between gap-x-3",
 				children: [/* @__PURE__ */ C("span", {
 					className: "min-w-0 truncate",
-					children: Us[e.key] ?? e.key
+					children: Zs[e.key] ?? e.key
 				}), /* @__PURE__ */ C("span", {
 					className: "tabular-nums text-muted",
-					children: Js(e)
+					children: nc(e)
 				})]
 			}, e.key))
 		})]
 	});
 }
-function Sl({ view: e, unit: t }) {
-	let n = e.usage, r = qs(n), i = t === "day" ? n?.byDay ?? [] : n?.byWeek ?? [];
+function Cl({ view: e, unit: t }) {
+	let n = e.usage, r = tc(n), i = t === "day" ? n?.byDay ?? [] : n?.byWeek ?? [];
 	return /* @__PURE__ */ w(v, {
 		className: "flex flex-col gap-3",
 		"data-usage-card": !0,
@@ -7028,7 +7106,7 @@ function Sl({ view: e, unit: t }) {
 					"Total: ",
 					/* @__PURE__ */ C("span", {
 						className: "tabular-nums",
-						children: Js(n.total)
+						children: nc(n.total)
 					}),
 					" over ",
 					n.total.turns,
@@ -7040,25 +7118,25 @@ function Sl({ view: e, unit: t }) {
 				children: [/* @__PURE__ */ C("span", {
 					className: "text-xs text-muted",
 					children: t === "day" ? "By day" : "By week"
-				}), /* @__PURE__ */ C(_l, { rows: i })]
+				}), /* @__PURE__ */ C(vl, { rows: i })]
 			}),
 			/* @__PURE__ */ w("div", {
 				className: "grid gap-4",
 				style: { gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 16rem), 1fr))" },
 				children: [
-					/* @__PURE__ */ C(xl, {
+					/* @__PURE__ */ C(Sl, {
 						title: "By stage",
 						rows: n.byStage
 					}),
-					/* @__PURE__ */ C(xl, {
+					/* @__PURE__ */ C(Sl, {
 						title: "By model",
 						rows: n.byModel
 					}),
-					/* @__PURE__ */ C(xl, {
+					/* @__PURE__ */ C(Sl, {
 						title: "By spec",
 						rows: n.byPlan
 					}),
-					/* @__PURE__ */ C(xl, {
+					/* @__PURE__ */ C(Sl, {
 						title: "By task (top 8)",
 						rows: n.byTask
 					})
@@ -7068,15 +7146,15 @@ function Sl({ view: e, unit: t }) {
 	});
 }
 // kirocrew-app/ui/src/FlowView.tsx
-var Cl = {
+var wl = {
 	display: "flex",
 	height: 12,
 	borderRadius: 4,
 	overflow: "hidden",
 	background: "color-mix(in srgb, var(--muted) 15%, transparent)"
 };
-function wl({ stages: e, scale: t, label: n }) {
-	let r = sc(e), i = r.reduce((e, t) => e + t.ms, 0), a = `${n}: ${r.map((e) => `${e.label} ${rc(e.ms)}`).join(", ") || "no time yet"}`;
+function Tl({ stages: e, scale: t, label: n }) {
+	let r = hc(e), i = r.reduce((e, t) => e + t.ms, 0), a = `${n}: ${r.map((e) => `${e.label} ${dc(e.ms)}`).join(", ") || "no time yet"}`;
 	return /* @__PURE__ */ C("div", {
 		style: { width: `${Math.max(4, t ? 100 * i / t : 100)}%` },
 		children: /* @__PURE__ */ C(q, {
@@ -7087,7 +7165,7 @@ function wl({ stages: e, scale: t, label: n }) {
 				"aria-label": a,
 				"aria-describedby": e,
 				tabIndex: 0,
-				style: Cl,
+				style: wl,
 				children: r.map((e) => /* @__PURE__ */ C("span", { style: {
 					width: `${e.share * 100}%`,
 					background: e.color,
@@ -7098,11 +7176,11 @@ function wl({ stages: e, scale: t, label: n }) {
 		})
 	});
 }
-function Tl() {
+function El() {
 	return /* @__PURE__ */ C("ul", {
 		className: "flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted",
 		"aria-label": "Stages",
-		children: Vs.map((e) => /* @__PURE__ */ w("li", {
+		children: Ys.map((e) => /* @__PURE__ */ w("li", {
 			className: "inline-flex items-center gap-1",
 			children: [/* @__PURE__ */ C("span", {
 				"aria-hidden": "true",
@@ -7110,15 +7188,15 @@ function Tl() {
 					width: 10,
 					height: 10,
 					borderRadius: 2,
-					background: Hs[e],
+					background: Xs[e],
 					display: "inline-block"
 				}
-			}), Us[e]]
+			}), Zs[e]]
 		}, e))
 	});
 }
-function El({ stops: e, workspaceId: t, onChanged: n }) {
-	let r = K(), i = l(() => nc(r), [r]), a = kt(), o = Lr(), [s, c] = d(null);
+function Dl({ stops: e, workspaceId: t, onChanged: n }) {
+	let r = K(), i = l(() => uc(r), [r]), a = kt(), o = Lr(), [s, c] = d(null);
 	if (!e.length) return null;
 	let u = async (e) => {
 		if (t && await o({
@@ -7126,17 +7204,17 @@ function El({ stops: e, workspaceId: t, onChanged: n }) {
 			body: `New work will start while ${e.check ? `\`${e.check}\`` : "the line"} still fails on ${e.branch}. The stop stays open and shows who ran anyway.`,
 			action: "Run anyway"
 		})) try {
-			await i.runAnyway(t, e.id), n?.(), tc();
+			await i.runAnyway(t, e.id), n?.(), lc();
 		} catch (e) {
 			c(G(e));
 		}
 	}, f = async (e) => {
 		if (t && await o({
 			title: e.full ? "Resume all agents?" : "Resume the line?",
-			body: e.full ? `New work starts again everywhere, and each interrupted task starts again on its branch and model. The stop was pulled for: ${e.reason ?? ""}` : `New work starts again in ${mc(e)}. The stop was pulled for: ${e.reason ?? ""}`,
+			body: e.full ? `New work starts again everywhere, and each interrupted task starts again on its branch and model. The stop was pulled for: ${e.reason ?? ""}` : `New work starts again in ${Sc(e)}. The stop was pulled for: ${e.reason ?? ""}`,
 			action: "Resume"
 		})) try {
-			await i.resume(t, e.id), n?.(), tc();
+			await i.resume(t, e.id), n?.(), lc();
 		} catch (e) {
 			c(G(e));
 		}
@@ -7166,7 +7244,7 @@ function El({ stops: e, workspaceId: t, onChanged: n }) {
 					children: [
 						/* @__PURE__ */ C("span", {
 							style: { overflowWrap: "anywhere" },
-							children: bc(e)
+							children: Oc(e)
 						}),
 						e.manual && /* @__PURE__ */ w("span", {
 							className: "text-xs text-muted",
@@ -7223,12 +7301,12 @@ function El({ stops: e, workspaceId: t, onChanged: n }) {
 		})]
 	});
 }
-function Dl({ view: e }) {
+function Ol({ view: e }) {
 	return /* @__PURE__ */ C("div", {
 		className: "grid gap-3",
 		style: { gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 11rem), 1fr))" },
 		"data-flow-cards": !0,
-		children: oc(e).map((e) => /* @__PURE__ */ w(v, {
+		children: mc(e).map((e) => /* @__PURE__ */ w(v, {
 			className: "flex flex-col gap-1",
 			children: [/* @__PURE__ */ C(q, {
 				text: e.tip,
@@ -7252,13 +7330,13 @@ function Dl({ view: e }) {
 		}, e.key))
 	});
 }
-function Ol({ tasks: e, budget: t }) {
-	let n = kt(), r = It("(max-width: 767px)"), i = Kr(String(e.length)), a = Math.max(0, ...e.map((e) => Vs.reduce((t, n) => t + (e.stages[n] || 0), 0))), o = i.take("flow-bars", e);
+function kl({ tasks: e, budget: t }) {
+	let n = kt(), r = It("(max-width: 767px)"), i = Kr(String(e.length)), a = Math.max(0, ...e.map((e) => Ys.reduce((t, n) => t + (e.stages[n] || 0), 0))), o = i.take("flow-bars", e);
 	return /* @__PURE__ */ w(v, {
 		className: "flex flex-col gap-2",
 		children: [
 			/* @__PURE__ */ C(X, { title: "Time per task" }),
-			/* @__PURE__ */ C(Tl, {}),
+			/* @__PURE__ */ C(El, {}),
 			/* @__PURE__ */ C("ul", {
 				className: "flex flex-col gap-1.5",
 				children: o.map((e) => {
@@ -7275,7 +7353,7 @@ function Ol({ tasks: e, budget: t }) {
 								children: e.title
 							})
 						]
-					}), o = /* @__PURE__ */ C(wl, {
+					}), o = /* @__PURE__ */ C(Tl, {
 						stages: e.stages,
 						scale: a,
 						label: e.taskId
@@ -7292,11 +7370,11 @@ function Ol({ tasks: e, budget: t }) {
 								})
 							}),
 							e.batch && /* @__PURE__ */ C($, { children: "batch" }),
-							Ws(t, e.taskId) && /* @__PURE__ */ C($, {
-								variant: Ws(t, e.taskId) === "80% of budget" ? "info" : "danger",
-								children: Ws(t, e.taskId)
+							Qs(t, e.taskId) && /* @__PURE__ */ C($, {
+								variant: Qs(t, e.taskId) === "80% of budget" ? "info" : "danger",
+								children: Qs(t, e.taskId)
 							}),
-							rc(e.leadMs),
+							dc(e.leadMs),
 							/* @__PURE__ */ C(q, {
 								text: "Open this task's details in the drawer",
 								children: (t) => /* @__PURE__ */ C("button", {
@@ -7343,8 +7421,8 @@ function Ol({ tasks: e, budget: t }) {
 		]
 	});
 }
-function kl({ proposal: e, retro: t, onDecide: n, busy: r }) {
-	let i = pc(e);
+function Al({ proposal: e, retro: t, onDecide: n, busy: r }) {
+	let i = xc(e);
 	return /* @__PURE__ */ w("li", {
 		className: "flex flex-wrap items-start gap-3 border-t pt-2 first:border-t-0 first:pt-0",
 		style: { borderColor: "var(--border)" },
@@ -7358,12 +7436,12 @@ function kl({ proposal: e, retro: t, onDecide: n, busy: r }) {
 					children: [
 						/* @__PURE__ */ C("code", {
 							className: "text-xs",
-							children: lc(e)
+							children: _c(e)
 						}),
 						" ",
 						/* @__PURE__ */ C("span", {
 							className: "text-muted",
-							children: uc(e)
+							children: vc(e)
 						}),
 						e.removesCheck && /* @__PURE__ */ w(S, { children: [" ", /* @__PURE__ */ C($, {
 							variant: "warning",
@@ -7375,7 +7453,7 @@ function kl({ proposal: e, retro: t, onDecide: n, busy: r }) {
 				/* @__PURE__ */ w("span", {
 					className: "text-xs text-muted",
 					style: { overflowWrap: "anywhere" },
-					children: ["Evidence: ", dc(e)]
+					children: ["Evidence: ", yc(e)]
 				}),
 				e.status !== "open" && /* @__PURE__ */ w("span", {
 					className: "text-xs",
@@ -7399,13 +7477,13 @@ function kl({ proposal: e, retro: t, onDecide: n, busy: r }) {
 		})]
 	});
 }
-function Al({ view: e, workspaceId: t, onChanged: n }) {
-	let r = K(), i = l(() => nc(r), [r]), a = Lr(), [o, s] = d(!1), [c, u] = d(null), [f, p] = d(!1), m = async (e, r, o) => {
+function jl({ view: e, workspaceId: t, onChanged: n }) {
+	let r = K(), i = l(() => uc(r), [r]), a = Lr(), [o, s] = d(!1), [c, u] = d(null), [f, p] = d(!1), m = async (e, r, o) => {
 		if (!t) return;
 		let c = !1;
 		if (!(o === "approve" && r.removesCheck && (c = await a({
 			title: "Approve removing a check?",
-			body: `${lc(r)} removes a review role or a declared check, so fewer things are checked before work lands.`,
+			body: `${_c(r)} removes a review role or a declared check, so fewer things are checked before work lands.`,
 			action: "Remove the check"
 		}), !c))) {
 			s(!0), u(null);
@@ -7462,7 +7540,7 @@ function Al({ view: e, workspaceId: t, onChanged: n }) {
 								e.n,
 								" · ",
 								e.triggers.map((e) => e.detail).join("; ") || "started",
-								e.bottleneck ? ` · bottleneck ${Us[e.bottleneck.stage] ?? e.bottleneck.stage}` : ""
+								e.bottleneck ? ` · bottleneck ${Zs[e.bottleneck.stage] ?? e.bottleneck.stage}` : ""
 							]
 						}),
 						e.state === "running" && /* @__PURE__ */ w("span", {
@@ -7483,7 +7561,7 @@ function Al({ view: e, workspaceId: t, onChanged: n }) {
 						}),
 						e.proposals.length > 0 && /* @__PURE__ */ C("ul", {
 							className: "flex flex-col gap-2",
-							children: e.proposals.map((t) => /* @__PURE__ */ C(kl, {
+							children: e.proposals.map((t) => /* @__PURE__ */ C(Al, {
 								proposal: t,
 								retro: e,
 								onDecide: (e, t, n) => void m(e, t, n),
@@ -7503,7 +7581,7 @@ function Al({ view: e, workspaceId: t, onChanged: n }) {
 		]
 	});
 }
-function jl({ view: e }) {
+function Ml({ view: e }) {
 	return !e.flaky.length && !e.ciOnly.length ? null : /* @__PURE__ */ w(v, {
 		className: "flex flex-col gap-1 text-sm",
 		children: [
@@ -7530,11 +7608,11 @@ function jl({ view: e }) {
 		]
 	});
 }
-function Ml({ workspaceId: e, tab: t }) {
-	let n = K(), r = l(() => nc(n), [n]), [a, s] = ul(e, Qs), c = JSON.stringify(a), { value: u, error: f, busy: p, reload: m } = Mo(e, i((e) => r.view(e, JSON.parse(c)), [r, c]));
+function Nl({ workspaceId: e, tab: t }) {
+	let n = K(), r = l(() => uc(n), [n]), [a, s] = dl(e, oc), c = JSON.stringify(a), { value: u, error: f, busy: p, reload: m } = Mo(e, i((e) => r.view(e, JSON.parse(c)), [r, c]));
 	o(() => {
 		let e = () => void m();
-		return window.addEventListener(ec, e), () => window.removeEventListener(ec, e);
+		return window.addEventListener(cc, e), () => window.removeEventListener(cc, e);
 	}, [m]);
 	let h = (e) => s({
 		...a,
@@ -7553,13 +7631,13 @@ function Ml({ workspaceId: e, tab: t }) {
 				className: "text-sm text-muted",
 				children: "Where delivery time goes, and what the last retro proposed."
 			}),
-			t === "proposals" && /* @__PURE__ */ C(Ic, { workspaceId: e }),
+			t === "proposals" && /* @__PURE__ */ C(Wc, { workspaceId: e }),
 			(t === "overview" || t === "retros") && f && /* @__PURE__ */ C("p", {
 				role: "alert",
 				className: "text-sm text-danger",
 				children: f
 			}),
-			t === "retros" ? u ? /* @__PURE__ */ C(Al, {
+			t === "retros" ? u ? /* @__PURE__ */ C(jl, {
 				view: u,
 				workspaceId: e,
 				onChanged: () => void m()
@@ -7567,16 +7645,16 @@ function Ml({ workspaceId: e, tab: t }) {
 				className: "text-sm text-muted",
 				children: p ? "Loading…" : "Not loaded"
 			}) : t === "overview" ? u ? /* @__PURE__ */ w(S, { children: [
-				/* @__PURE__ */ C(El, {
+				/* @__PURE__ */ C(Dl, {
 					stops: u.line,
 					workspaceId: e,
 					onChanged: () => void m()
 				}),
-				/* @__PURE__ */ C(Gc, { workspaceId: e }),
-				/* @__PURE__ */ C(sl, {
+				/* @__PURE__ */ C(Kc, { workspaceId: e }),
+				/* @__PURE__ */ C(cl, {
 					id: "avoozl-flow",
 					label: "Filter flow timing",
-					active: xc(a),
+					active: kc(a),
 					onClear: () => s({}),
 					fields: [
 						{
@@ -7633,7 +7711,7 @@ function Ml({ workspaceId: e, tab: t }) {
 							key: "window",
 							label: "Window",
 							value: a.window ?? "20",
-							options: $s,
+							options: sc,
 							onChange: (e) => h({ window: e || void 0 })
 						},
 						{
@@ -7641,39 +7719,39 @@ function Ml({ workspaceId: e, tab: t }) {
 							key: "stage",
 							label: "Stage",
 							value: a.stage ?? "",
-							options: [...Vs.map((e) => ({
+							options: [...Ys.map((e) => ({
 								value: e,
-								label: Us[e]
+								label: Zs[e]
 							}))],
 							onChange: (e) => h({ stage: e || void 0 })
 						}
 					]
 				}),
-				/* @__PURE__ */ C(Dl, { view: u }),
+				/* @__PURE__ */ C(Ol, { view: u }),
 				u.bottleneck && /* @__PURE__ */ w(v, {
 					className: "flex items-start gap-2 text-sm",
 					children: [/* @__PURE__ */ C(ue, {
 						size: 18,
 						"aria-hidden": "true",
 						style: {
-							color: Hs[u.bottleneck.stage],
+							color: Xs[u.bottleneck.stage],
 							flex: "none"
 						}
 					}), /* @__PURE__ */ w("span", { children: [
 						/* @__PURE__ */ w("span", {
 							className: "font-semibold",
-							children: ["Biggest bottleneck: ", Us[u.bottleneck.stage]]
+							children: ["Biggest bottleneck: ", Zs[u.bottleneck.stage]]
 						}),
 						", ",
 						Math.round(u.bottleneck.share * 100),
 						"% of lead time",
 						u.bottleneck.repository ? ` in ${u.bottleneck.repository}` : "",
 						" (median ",
-						rc(u.bottleneck.medianMs),
+						dc(u.bottleneck.medianMs),
 						" per task)."
 					] })]
 				}),
-				u.tasks.length ? /* @__PURE__ */ C(Ol, {
+				u.tasks.length ? /* @__PURE__ */ C(kl, {
 					tasks: u.tasks,
 					budget: u.budget
 				}) : /* @__PURE__ */ C(v, {
@@ -7687,18 +7765,18 @@ function Ml({ workspaceId: e, tab: t }) {
 						subtitle: "Avoozl records where each task's time goes as soon as a task is dispatched."
 					})
 				}),
-				/* @__PURE__ */ C(bl, {
+				/* @__PURE__ */ C(xl, {
 					view: u,
 					unit: g,
 					onUnit: _
 				}),
-				/* @__PURE__ */ C(Tc, { groups: u.planning ?? [] }),
-				/* @__PURE__ */ C(Ac, { value: u.ci }),
-				/* @__PURE__ */ C(Sl, {
+				/* @__PURE__ */ C(Nc, { groups: u.planning ?? [] }),
+				/* @__PURE__ */ C(Rc, { value: u.ci }),
+				/* @__PURE__ */ C(Cl, {
 					view: u,
 					unit: g
 				}),
-				/* @__PURE__ */ C(jl, { view: u })
+				/* @__PURE__ */ C(Ml, { view: u })
 			] }) : /* @__PURE__ */ C("p", {
 				className: "text-sm text-muted",
 				children: p ? "Loading…" : "Not loaded"
@@ -7706,7 +7784,7 @@ function Ml({ workspaceId: e, tab: t }) {
 		]
 	});
 }
-function Nl({ timing: e }) {
+function Pl({ timing: e }) {
 	return e ? /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-2 text-sm",
 		"data-timing-fold": !0,
@@ -7715,14 +7793,14 @@ function Nl({ timing: e }) {
 				className: "flex items-center gap-2",
 				children: [/* @__PURE__ */ C("div", {
 					className: "min-w-0 flex-1",
-					children: /* @__PURE__ */ C(wl, {
+					children: /* @__PURE__ */ C(Tl, {
 						stages: e.stages,
 						scale: 0,
 						label: e.taskId
 					})
 				}), /* @__PURE__ */ C("span", {
 					className: "tabular-nums",
-					children: rc(e.leadMs)
+					children: dc(e.leadMs)
 				})]
 			}),
 			e.batch && /* @__PURE__ */ w("span", {
@@ -7744,22 +7822,22 @@ function Nl({ timing: e }) {
 								width: 8,
 								height: 8,
 								borderRadius: 2,
-								background: Hs[e.stage] ?? "var(--muted)",
+								background: Xs[e.stage] ?? "var(--muted)",
 								flex: "none"
 							}
 						}),
-						/* @__PURE__ */ C("span", { children: Us[e.stage] ?? e.stage }),
+						/* @__PURE__ */ C("span", { children: Zs[e.stage] ?? e.stage }),
 						e.detail && /* @__PURE__ */ C("code", {
 							className: "text-xs",
 							children: e.detail
 						}),
 						/* @__PURE__ */ C("span", {
 							className: "tabular-nums",
-							children: rc(e.lengthMs)
+							children: dc(e.lengthMs)
 						}),
 						/* @__PURE__ */ C("span", {
 							className: "text-xs text-muted",
-							children: cc[e.source]
+							children: gc[e.source]
 						})
 					]
 				}, e.id))
@@ -7786,11 +7864,11 @@ function Nl({ timing: e }) {
 	});
 }
 // kirocrew-app/ui/src/release-api.ts
-var Pl = [
+var Fl = [
 	"automatic",
 	"step",
 	"hold"
-], Fl = {
+], Il = {
 	automatic: {
 		title: "Automatic",
 		line: "The tick adds the ready label as slots free, in graph order.",
@@ -7807,11 +7885,11 @@ var Pl = [
 		use: "Use it while you change the spec or the crews."
 	}
 };
-function Il(e) {
+function Ll(e) {
 	let t = e.behind === null ? "distance unknown" : e.behind === 0 ? `level with ${e.base}` : `${e.behind} behind ${e.base}`, n = e.checks ? `head checks ${e.checks}` : "head not read yet";
 	return `${e.tasksMerged} of ${e.tasksTotal} tasks merged · ${t} · ${n}${e.accepted ? " · accepted" : ""}`;
 }
-var Ll = {
+var Rl = {
 	queued: "Waiting for a chat",
 	chat: "Chat drafting",
 	waiting: "Waiting for you",
@@ -7822,8 +7900,8 @@ var Ll = {
 	ended: "Chat ended without a draft",
 	refused: "Blocked by content rules",
 	closed: "Pull request closed"
-}, Rl = (e) => e.state !== "done" && e.state !== "cleared";
-function zl(e) {
+}, zl = (e) => e.state !== "done" && e.state !== "cleared";
+function Bl(e) {
 	let t = async (t, n, r) => (await e.post(W, {
 		operation: t,
 		input: n,
@@ -7851,22 +7929,22 @@ function zl(e) {
 		step: (e, n) => t("radar.releasestep", { planId: n }, e)
 	};
 }
-var Bl = {
+var Vl = {
 	released: "Released",
 	claimed: "Claimed",
 	next: "Next",
 	held: "Held"
 };
-function Vl(e) {
+function Hl(e) {
 	return Number.isFinite(e) ? e === 0 ? "nothing released" : `${e} at a time` : "no limit";
 }
-function Hl(e) {
+function Ul(e) {
 	let t = /* @__PURE__ */ new Set();
 	return e.steps.filter((e) => e.released || t.has(e.planId) ? !1 : (t.add(e.planId), !0));
 }
 // kirocrew-app/ui/src/ArmedPulls.tsx
-function Ul(e) {
-	let t = K(), n = l(() => zl(t), [t]), r = i((e) => n.armed(e), [n]), { value: a, reload: o } = Mo(e.stopped ? e.workspaceId : null, r), [s, c] = d(null), u = a?.pullRequests ?? [];
+function Wl(e) {
+	let t = K(), n = l(() => Bl(t), [t]), r = i((e) => n.armed(e), [n]), { value: a, reload: o } = Mo(e.stopped ? e.workspaceId : null, r), [s, c] = d(null), u = a?.pullRequests ?? [];
 	if (!e.stopped || !e.workspaceId || !u.length) return null;
 	let f = async (t, r) => {
 		c(null);
@@ -7919,17 +7997,17 @@ function Ul(e) {
 	});
 }
 // kirocrew-app/ui/src/StatusCells.tsx
-var Wl = "\n[data-sc-row]{container-type:inline-size}\n[data-sc-grid]{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}\n@container (max-width:420px){[data-sc-grid]{grid-template-columns:minmax(0,1fr)}}\n[data-sc]{display:flex;flex-wrap:nowrap;align-items:center;align-content:flex-start;gap:0 8px;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:18px;color:var(--text)}\n[data-sc-title]{flex:0 1 auto;display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;font-weight:600;color:var(--text-strong,var(--text));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n[data-sc-dot]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted)}\n[data-sc-dot][data-tone=ok]{background:var(--ok)}\n[data-sc-dot][data-tone=warn]{background:var(--warning,#b7791f)}\n[data-sc-dot][data-tone=danger]{background:var(--danger)}\n[data-sc-actions]{flex:none;display:inline-flex;flex-wrap:nowrap;align-items:center;gap:4px;margin-left:auto}\n[data-sc-act]{display:inline-flex;align-items:center;justify-content:center;width:24px;height:22px;padding:0;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--muted);font:inherit;text-decoration:none;cursor:pointer;transition:background-color .12s,color .12s}\n[data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}\n[data-sc-act][data-primary]{color:var(--accent)}\n[data-sc-act]:disabled{opacity:.6;cursor:default}\n";
-function Gl(e) {
+var Gl = "\n[data-sc-row]{container-type:inline-size}\n[data-sc-grid]{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}\n@container (max-width:420px){[data-sc-grid]{grid-template-columns:minmax(0,1fr)}}\n[data-sc]{display:flex;flex-wrap:nowrap;align-items:center;align-content:flex-start;gap:0 8px;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:18px;color:var(--text)}\n[data-sc-title]{flex:0 1 auto;display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;font-weight:600;color:var(--text-strong,var(--text));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n[data-sc-dot]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted)}\n[data-sc-dot][data-tone=ok]{background:var(--ok)}\n[data-sc-dot][data-tone=warn]{background:var(--warning,#b7791f)}\n[data-sc-dot][data-tone=danger]{background:var(--danger)}\n[data-sc-actions]{flex:none;display:inline-flex;flex-wrap:nowrap;align-items:center;gap:4px;margin-left:auto}\n[data-sc-act]{display:inline-flex;align-items:center;justify-content:center;width:24px;height:22px;padding:0;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--muted);font:inherit;text-decoration:none;cursor:pointer;transition:background-color .12s,color .12s}\n[data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}\n[data-sc-act][data-primary]{color:var(--accent)}\n[data-sc-act]:disabled{opacity:.6;cursor:default}\n";
+function Kl(e) {
 	return /* @__PURE__ */ w("div", {
 		"data-sc-row": !0,
-		children: [/* @__PURE__ */ C("style", { children: Wl }), /* @__PURE__ */ C("div", {
+		children: [/* @__PURE__ */ C("style", { children: Gl }), /* @__PURE__ */ C("div", {
 			"data-sc-grid": !0,
 			children: e.children
 		})]
 	});
 }
-function Kl(e) {
+function ql(e) {
 	let { tone: t, title: n, tip: r, actions: i, ...a } = e;
 	return /* @__PURE__ */ w("div", {
 		"data-sc": !0,
@@ -7953,7 +8031,7 @@ function Kl(e) {
 		})]
 	});
 }
-function ql(e) {
+function Jl(e) {
 	let { label: t, icon: n, onClick: r, href: i, primary: a, tip: o, ...s } = e;
 	return /* @__PURE__ */ C(q, {
 		text: o ?? t,
@@ -7975,7 +8053,7 @@ function ql(e) {
 		})
 	});
 }
-function Jl(e, t = Date.now()) {
+function Yl(e, t = Date.now()) {
 	let n = e ? Date.parse(e) : NaN;
 	if (!Number.isFinite(n)) return "never";
 	let r = Math.max(0, Math.round((t - n) / 6e4));
@@ -7984,16 +8062,16 @@ function Jl(e, t = Date.now()) {
 	let i = Math.round(r / 60);
 	return i < 48 ? `${i} h ago` : `${Math.round(i / 24)} d ago`;
 }
-function Yl(e, t = Date.now()) {
+function Xl(e, t = Date.now()) {
 	if (!e) return "Driver: unknown";
 	if (e.you) return "Driver: you";
 	if (e.mode === "local") return `Driver: ${e.driver?.label || e.driver?.machine || "another machine"} · this file`;
 	let n = e.driver;
 	if (!n || ["no-assignee", "several"].includes(e.reason)) return "Driver: nobody";
 	let r = [n.login, n.label].filter(Boolean).join(" · ");
-	return e.seenAt ? e.stale ? `Driver: ${r} · not seen since ${e.seenAt}` : `Driver: ${r} · seen ${Jl(e.seenAt, t)}` : `Driver: ${r}`;
+	return e.seenAt ? e.stale ? `Driver: ${r} · not seen since ${e.seenAt}` : `Driver: ${r} · seen ${Yl(e.seenAt, t)}` : `Driver: ${r}`;
 }
-function Xl(e) {
+function Zl(e) {
 	switch (e.reason) {
 		case "other-person": return "Assigned to someone else";
 		case "other-machine": return "Your other machine drives this spec";
@@ -8008,7 +8086,7 @@ function Xl(e) {
 		default: return "Read only here";
 	}
 }
-function Zl(e) {
+function Ql(e) {
 	return e.you || e.state === "unknown" || [
 		"no-assignee",
 		"several",
@@ -8017,7 +8095,7 @@ function Zl(e) {
 		"rate-limited"
 	].includes(e.reason) || e.reason === "handed-off" ? null : e.offer === "takeover" || e.mode === "local" ? "takeover" : "force";
 }
-function Ql(e) {
+function $l(e) {
 	switch (e.kind) {
 		case "plugin": return `Approve plugin ${e.id} in Settings › Plugins`;
 		case "terms": return `Add the terms file for rule set ${e.id} in Settings › Content rules`;
@@ -8026,10 +8104,10 @@ function Ql(e) {
 		default: return `Set up ${e.kind}${e.id ? " " + e.id : ""} again`;
 	}
 }
-function $l(e, t, n, r) {
+function eu(e, t, n, r) {
 	return t.trim() === e.spec ? !r.trim() && !n ? "Tick that you understand what a rebuild loses, or give an export file." : r.trim() && !/^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(r.trim()) ? "Give the export file by its full path." : null : `Type ${e.spec} to confirm.`;
 }
-function eu(e) {
+function tu(e) {
 	let t = e.label.trim();
 	if (t.length > 40) return { error: "A machine label is at most 40 characters." };
 	if (/[/\\]/.test(t)) return { error: "A machine label has no slash." };
@@ -8039,7 +8117,7 @@ function eu(e) {
 		heartbeatMinutes: r
 	} };
 }
-function tu(e) {
+function nu(e) {
 	let t = (t, n, r = {}) => e.post(W, {
 		operation: n,
 		input: r,
@@ -8077,19 +8155,19 @@ function tu(e) {
 	};
 }
 // kirocrew-app/ui/src/driver-view-api.ts
-var nu = "avoozl-driver", ru = "Start the Avoozl driver session. Keep this chat open. Release ready work in graph order, watch pull requests through checks and merge, and bring anything that needs a person to me. Use the avoozl tools. Do not merge anything yourself and do not code issues yourself.", iu = (e) => ({
+var ru = "avoozl-driver", iu = "Start the Avoozl driver session. Keep this chat open. Release ready work in graph order, watch pull requests through checks and merge, and bring anything that needs a person to me. Use the avoozl tools. Do not merge anything yourself and do not code issues yourself.", au = (e) => ({
 	running: "A driver session is working. Open it to watch or steer.",
 	idle: "The driver session has been quiet for a while. Open it to check on it, or start a new one.",
 	none: "No driver session. Nothing is released and nobody watches merges until one runs. Crews already working keep going.",
 	unknown: "Avoozl could not read the driver session. It tries again soon."
-})[e], au = {
+})[e], ou = {
 	state: "unknown",
 	slot: null,
 	href: null,
 	openedAt: null,
 	lastSeenAt: null
 };
-async function ou(e, t) {
+async function su(e, t) {
 	try {
 		return (await e.post(W, {
 			operation: "driversession.view",
@@ -8097,10 +8175,10 @@ async function ou(e, t) {
 			...t ? { workspaceId: t } : {}
 		})).result;
 	} catch {
-		return au;
+		return ou;
 	}
 }
-function su(e) {
+function cu(e) {
 	return {
 		state: e.state === "running" ? "running" : "none",
 		slot: e.slot,
@@ -8111,15 +8189,15 @@ function su(e) {
 		turnLimit: e.turnLimit
 	};
 }
-var cu = (e, t) => Jl(new Date(e).toISOString(), t);
+var lu = (e, t) => Yl(new Date(e).toISOString(), t);
 // kirocrew-app/ui/src/panel-api.ts
-function lu(e) {
+function uu(e) {
 	let t = e?.state ?? "none", n = e?.workspace ?? null, r = t === "none" || t === "idle" ? e?.others?.[0] : void 0;
 	return {
 		state: t,
 		link: e?.href ?? null,
 		start: t === "none" || t === "idle",
-		note: iu(t),
+		note: au(t),
 		workspace: n,
 		elsewhere: r ? {
 			text: `No driver for ${n ?? "this workspace"}. ${r.workspace} has one:`,
@@ -8130,15 +8208,15 @@ function lu(e) {
 	};
 }
 // kirocrew-app/ui/src/DriverSessionBox.tsx
-var uu = {
+var du = {
 	running: "Running",
 	idle: "Quiet",
 	none: "Not started",
 	unknown: "Unknown"
-}, du = "One long-running chat that releases ready work in graph order, watches merges and hands you the decisions. Avoozl does not start one for you. Crews already working keep going without it.";
-function fu(e) {
-	let t = K(), n = Uo(), [r, a] = d(null), s = i(() => {
-		n || ou(t, e).then(a);
+}, fu = "One long-running chat that releases ready work in graph order, watches merges and hands you the decisions. Avoozl does not start one for you. Crews already working keep going without it.";
+function pu(e) {
+	let t = K(), n = Zo(), [r, a] = d(null), s = i(() => {
+		n || su(t, e).then(a);
 	}, [
 		t,
 		e,
@@ -8149,30 +8227,30 @@ function fu(e) {
 		let e = setInterval(s, 6e4);
 		return () => clearInterval(e);
 	}, [s]), {
-		read: n ? su(n.driverSession) : r,
+		read: n ? cu(n.driverSession) : r,
 		reload: s
 	};
 }
-function pu(e) {
-	let { read: t, reload: n } = fu(e.workspaceId), { openChat: r } = St(), i = l(() => t ? lu(t) : null, [t]), a = () => t?.slot && r({ slotKey: t.slot }), o = () => r({
-		agent: nu,
-		message: ru,
+function mu(e) {
+	let { read: t, reload: n } = pu(e.workspaceId), { openChat: r } = St(), i = l(() => t ? uu(t) : null, [t]), a = () => t?.slot && r({ slotKey: t.slot }), o = () => r({
+		agent: ru,
+		message: iu,
 		autoSend: !0
-	}), s = t?.lastSeenAt ? cu(Date.parse(t.lastSeenAt), Date.now()) : null, c = [
-		du,
-		t ? iu(t.state) : "Reading the driver session…",
+	}), s = t?.lastSeenAt ? lu(Date.parse(t.lastSeenAt), Date.now()) : null, c = [
+		fu,
+		t ? au(t.state) : "Reading the driver session…",
 		s && t?.state !== "none" ? `Last seen ${s}.` : "",
 		t?.turnsToday !== void 0 && t.turnLimit ? `${t.turnsToday} of ${t.turnLimit} turns today.` : "",
 		i?.workspace ? `Workspace: ${i.workspace}.` : "",
 		i?.elsewhere ? i.elsewhere.text : ""
 	].filter(Boolean).join(" ");
-	return /* @__PURE__ */ C(Kl, {
+	return /* @__PURE__ */ C(ql, {
 		"data-driver-session": t?.state ?? "loading",
 		tone: t?.state === "running" ? "ok" : t?.state === "unknown" ? "warn" : "muted",
-		title: `Driver: ${t ? uu[t.state].toLowerCase() : "reading"}`,
+		title: `Driver: ${t ? du[t.state].toLowerCase() : "reading"}`,
 		tip: c,
 		actions: /* @__PURE__ */ w(S, { children: [
-			i?.link && /* @__PURE__ */ C(ql, {
+			i?.link && /* @__PURE__ */ C(Jl, {
 				label: "Open driver session",
 				icon: /* @__PURE__ */ C(Oe, {
 					size: 13,
@@ -8182,7 +8260,7 @@ function pu(e) {
 				onClick: a,
 				"data-driver-open": !0
 			}),
-			i?.start && /* @__PURE__ */ C(ql, {
+			i?.start && /* @__PURE__ */ C(Jl, {
 				label: i.link ? "Start a new driver session" : "Start a driver session",
 				icon: /* @__PURE__ */ C(Ie, {
 					size: 13,
@@ -8192,9 +8270,9 @@ function pu(e) {
 				onClick: o,
 				"data-driver-start": !0
 			}),
-			i?.elsewhere && /* @__PURE__ */ C(ql, {
+			i?.elsewhere && /* @__PURE__ */ C(Jl, {
 				label: `Open ${i.elsewhere.workspace}'s driver`,
-				icon: /* @__PURE__ */ C(ae, {
+				icon: /* @__PURE__ */ C(ie, {
 					size: 13,
 					"aria-hidden": "true"
 				}),
@@ -8203,7 +8281,7 @@ function pu(e) {
 				"data-driver-elsewhere": !0,
 				"data-driver-elsewhere-open": !0
 			}),
-			t && /* @__PURE__ */ C(ql, {
+			t && /* @__PURE__ */ C(Jl, {
 				label: "Recheck",
 				icon: /* @__PURE__ */ C(ze, {
 					size: 13,
@@ -8215,11 +8293,11 @@ function pu(e) {
 		] })
 	});
 }
-function mu(e) {
-	return /* @__PURE__ */ C(Gl, { children: /* @__PURE__ */ C(pu, { workspaceId: e.workspaceId }) });
+function hu(e) {
+	return /* @__PURE__ */ C(Kl, { children: /* @__PURE__ */ C(mu, { workspaceId: e.workspaceId }) });
 }
 // kirocrew-app/ui/src/SetupCard.tsx
-function hu(e) {
+function gu(e) {
 	return /* @__PURE__ */ C("div", {
 		"data-setup-card": e.id,
 		"data-compact-card": !0,
@@ -8253,7 +8331,7 @@ function hu(e) {
 	});
 }
 // kirocrew-app/ui/src/setup-api.ts
-function gu(e) {
+function _u(e) {
 	let t = [];
 	return e.repositories === 0 && t.push({
 		id: "repository",
@@ -8273,7 +8351,7 @@ function gu(e) {
 	}), t;
 }
 // kirocrew-app/ui/src/repository-rows.ts
-function _u(e, t) {
+function vu(e, t) {
 	let n = /* @__PURE__ */ new Set(), r = e.map((e) => {
 		let r = e.github ? t.findIndex((t) => t.name.trim() === e.github) : -1;
 		return r >= 0 && n.add(r), {
@@ -8298,11 +8376,11 @@ function _u(e, t) {
 		});
 	}), r;
 }
-var vu = (e) => e && /^[\w.-]+\/[\w.-]+$/.test(e) ? `https://github.com/${e}` : null;
+var yu = (e) => e && /^[\w.-]+\/[\w.-]+$/.test(e) ? `https://github.com/${e}` : null;
 // kirocrew-app/ui/src/setup-facts.ts
-function yu(e) {
+function bu(e) {
 	let t = K(), n = l(() => la(t), [t]), r = l(() => Qe(t), [t]), { value: a } = Mo(e, i(async (e) => {
-		let [t, i] = await Promise.all([r.repositories(e).catch(() => []), n.get(e).catch(() => null)]), a = i ? Pa(i.github) : null, o = _u(t, a?.repositories ?? []), s = a?.mode ?? "", c = (a?.repositories ?? []).filter((e) => (e.coder || oo(s)) === "issue-radar").length;
+		let [t, i] = await Promise.all([r.repositories(e).catch(() => []), n.get(e).catch(() => null)]), a = i ? Pa(i.github) : null, o = vu(t, a?.repositories ?? []), s = a?.mode ?? "", c = (a?.repositories ?? []).filter((e) => (e.coder || oo(s)) === "issue-radar").length;
 		return {
 			repositories: o.length,
 			radarRepositories: c
@@ -8314,13 +8392,13 @@ function yu(e) {
 	};
 }
 // kirocrew-app/ui/src/ReleaseQueue.tsx
-var bu = {
+var xu = {
 	released: "success",
 	claimed: "info",
 	next: "wave",
 	held: "warning"
 };
-function xu({ row: e, held: t }) {
+function Su({ row: e, held: t }) {
 	return /* @__PURE__ */ w("li", {
 		"data-release-row": e.state,
 		style: {
@@ -8338,8 +8416,8 @@ function xu({ row: e, held: t }) {
 				className: "flex flex-none items-center gap-2 sm:w-28",
 				style: { flex: "0 0 88px" },
 				children: /* @__PURE__ */ C($, {
-					variant: bu[e.state],
-					children: Bl[e.state]
+					variant: xu[e.state],
+					children: Vl[e.state]
 				})
 			}),
 			/* @__PURE__ */ w("span", {
@@ -8381,8 +8459,8 @@ function xu({ row: e, held: t }) {
 		]
 	});
 }
-function Su({ repository: e, onStep: t, busy: n, held: r }) {
-	let i = e.mode === "step" ? Hl(e) : [];
+function Cu({ repository: e, onStep: t, busy: n, held: r }) {
+	let i = e.mode === "step" ? Ul(e) : [];
 	return /* @__PURE__ */ w("section", {
 		"data-release-repository": e.repository,
 		className: "flex flex-col gap-2",
@@ -8408,11 +8486,11 @@ function Su({ repository: e, onStep: t, busy: n, held: r }) {
 					}),
 					/* @__PURE__ */ C($, {
 						variant: "info",
-						children: Fl[e.mode].title
+						children: Il[e.mode].title
 					}),
 					/* @__PURE__ */ C("span", {
 						className: "text-xs text-muted",
-						children: Vl(e.capacity)
+						children: Hl(e.capacity)
 					})
 				]
 			}),
@@ -8456,7 +8534,7 @@ function Su({ repository: e, onStep: t, busy: n, held: r }) {
 					padding: 0,
 					listStyle: "none"
 				},
-				children: e.rows.map((e) => /* @__PURE__ */ C(xu, {
+				children: e.rows.map((e) => /* @__PURE__ */ C(Su, {
 					row: e,
 					held: r.get(e.taskId)
 				}, e.taskId))
@@ -8464,8 +8542,8 @@ function Su({ repository: e, onStep: t, busy: n, held: r }) {
 		]
 	});
 }
-function Cu(e) {
-	let t = K(), n = l(() => zl(t), [t]), r = l(() => dr(t), [t]), a = i(async (e) => {
+function wu(e) {
+	let t = K(), n = l(() => Bl(t), [t]), r = l(() => dr(t), [t]), a = i(async (e) => {
 		let [t, i] = await Promise.all([n.queue(e), r.delivery(e).catch(() => [])]), a = /* @__PURE__ */ new Map();
 		for (let e of i) e.subIssue && a.set(e.id, `Sub-issue link left out: ${e.subIssue.reason}`);
 		return {
@@ -8535,7 +8613,7 @@ function Cu(e) {
 					style: { color: "var(--danger)" },
 					children: p
 				}),
-				o?.repositories.map((e) => /* @__PURE__ */ C(Su, {
+				o?.repositories.map((e) => /* @__PURE__ */ C(Cu, {
 					repository: e,
 					onStep: (e) => void h(e),
 					busy: u,
@@ -8546,14 +8624,14 @@ function Cu(e) {
 	});
 }
 // kirocrew-app/ui/src/TrackerGates.tsx
-var wu = {
+var Tu = {
 	open: "info",
 	failed: "danger",
 	unknown: "warning",
 	done: "success",
 	cleared: "success"
 };
-function Tu(e) {
+function Eu(e) {
 	let [t, n] = d(null), [r, i] = d("");
 	return /* @__PURE__ */ C("div", {
 		className: "flex flex-col gap-2",
@@ -8583,7 +8661,7 @@ function Tu(e) {
 					},
 					children: [
 						/* @__PURE__ */ C($, {
-							variant: wu[a.state],
+							variant: Tu[a.state],
 							children: a.state
 						}),
 						/* @__PURE__ */ C("span", {
@@ -8653,7 +8731,7 @@ function Tu(e) {
 					className: "text-xs text-muted",
 					children: ["Holds ", a.held.join(", ")]
 				}),
-				e.onClear && Rl(a) && /* @__PURE__ */ C("div", {
+				e.onClear && zl(a) && /* @__PURE__ */ C("div", {
 					className: "flex flex-wrap items-center gap-2",
 					style: {
 						display: "flex",
@@ -8685,8 +8763,8 @@ function Tu(e) {
 		}, a.taskId))
 	});
 }
-function Eu(e) {
-	let t = K(), n = l(() => zl(t), [t]), r = i((e) => n.gates(e), [n]), { value: a, reload: o } = Mo(e.workspaceId, r), [s, c] = d(!1), [u, f] = d(null), p = a?.gates ?? [];
+function Du(e) {
+	let t = K(), n = l(() => Bl(t), [t]), r = i((e) => n.gates(e), [n]), { value: a, reload: o } = Mo(e.workspaceId, r), [s, c] = d(!1), [u, f] = d(null), p = a?.gates ?? [];
 	if (!p.length) return null;
 	let m = async (t, r) => {
 		if (e.workspaceId) {
@@ -8724,7 +8802,7 @@ function Eu(e) {
 					style: { color: "var(--danger)" },
 					children: u
 				}),
-				/* @__PURE__ */ C(Tu, {
+				/* @__PURE__ */ C(Eu, {
 					gates: p,
 					busy: s,
 					onClear: (e, t) => void m(e, t)
@@ -8734,7 +8812,7 @@ function Eu(e) {
 	});
 }
 // kirocrew-app/ui/src/RadarFlightGroups.tsx
-var Du = [
+var Ou = [
 	"Issue",
 	"Crew",
 	"Phase",
@@ -8742,7 +8820,7 @@ var Du = [
 	"Last update",
 	"PR"
 ];
-function Ou({ row: e, now: t, onTrace: n, cost: r }) {
+function ku({ row: e, now: t, onTrace: n, cost: r }) {
 	return /* @__PURE__ */ w("tr", {
 		"data-radar-group-row": !0,
 		className: "border-t align-top",
@@ -8821,7 +8899,7 @@ function Ou({ row: e, now: t, onTrace: n, cost: r }) {
 		]
 	});
 }
-function ku({ row: e, now: t, onTrace: n }) {
+function Au({ row: e, now: t, onTrace: n }) {
 	return /* @__PURE__ */ w("li", {
 		"data-radar-group-row": !0,
 		className: "border-t py-1.5 text-sm",
@@ -8871,7 +8949,7 @@ function ku({ row: e, now: t, onTrace: n }) {
 		]
 	});
 }
-function Au({ groups: e, now: t, onTrace: n, cost: r }) {
+function ju({ groups: e, now: t, onTrace: n, cost: r }) {
 	let i = Dr();
 	return /* @__PURE__ */ C("div", {
 		"data-radar-groups": !0,
@@ -8890,7 +8968,7 @@ function Au({ groups: e, now: t, onTrace: n, cost: r }) {
 				]
 			}), i ? /* @__PURE__ */ C("ul", {
 				className: "m-0 list-none p-0",
-				children: e.rows.map((e) => /* @__PURE__ */ C(ku, {
+				children: e.rows.map((e) => /* @__PURE__ */ C(Au, {
 					row: e,
 					now: t,
 					onTrace: n
@@ -8899,12 +8977,12 @@ function Au({ groups: e, now: t, onTrace: n, cost: r }) {
 				className: "w-full text-left text-sm",
 				children: [/* @__PURE__ */ C("thead", { children: /* @__PURE__ */ C("tr", {
 					className: "text-xs text-muted",
-					children: Du.map((e) => /* @__PURE__ */ C("th", {
+					children: Ou.map((e) => /* @__PURE__ */ C("th", {
 						scope: "col",
 						className: "pr-2 font-normal",
 						children: e
 					}, e))
-				}) }), /* @__PURE__ */ C("tbody", { children: e.rows.map((e) => /* @__PURE__ */ C(Ou, {
+				}) }), /* @__PURE__ */ C("tbody", { children: e.rows.map((e) => /* @__PURE__ */ C(ku, {
 					row: e,
 					now: t,
 					onTrace: n,
@@ -8915,13 +8993,13 @@ function Au({ groups: e, now: t, onTrace: n, cost: r }) {
 	});
 }
 // kirocrew-app/ui/src/IntegrationBranches.tsx
-var ju = {
+var Mu = {
 	green: "success",
 	red: "danger",
 	pending: "warning"
 };
-function Mu(e) {
-	let t = K(), n = l(() => zl(t), [t]), r = i((e) => n.branches(e), [n]), { value: a } = Mo(e.workspaceId, r);
+function Nu(e) {
+	let t = K(), n = l(() => Bl(t), [t]), r = i((e) => n.branches(e), [n]), { value: a } = Mo(e.workspaceId, r);
 	return a?.branches.length ? /* @__PURE__ */ C("div", {
 		"data-integration-branches": !0,
 		children: /* @__PURE__ */ w(v, {
@@ -8950,13 +9028,13 @@ function Mu(e) {
 						children: e.branch
 					}),
 					e.checks && /* @__PURE__ */ C($, {
-						variant: ju[e.checks] ?? "info",
+						variant: Mu[e.checks] ?? "info",
 						children: e.checks
 					}),
 					/* @__PURE__ */ C("span", {
 						className: "text-muted",
 						style: { overflowWrap: "anywhere" },
-						children: Il(e)
+						children: Ll(e)
 					}),
 					e.error && /* @__PURE__ */ w("span", {
 						className: "text-muted",
@@ -8968,15 +9046,15 @@ function Mu(e) {
 	}) : null;
 }
 // kirocrew-app/ui/src/ReviewDrafts.tsx
-var Nu = {
+var Pu = {
 	waiting: "warning",
 	stale: "danger",
 	submitted: "success",
 	chat: "info",
 	queued: "info"
 };
-function Pu(e) {
-	let t = K(), n = l(() => zl(t), [t]), r = i((e) => n.drafts(e), [n]), { value: a } = Mo(e.workspaceId, r), [o, s] = d(""), [c, u] = d(""), [f, p] = d(null), m = a?.items ?? [];
+function Fu(e) {
+	let t = K(), n = l(() => Bl(t), [t]), r = i((e) => n.drafts(e), [n]), { value: a } = Mo(e.workspaceId, r), [o, s] = d(""), [c, u] = d(""), [f, p] = d(null), m = a?.items ?? [];
 	if (!m.length) return null;
 	let h = [...new Set(m.map((e) => e.repository))].sort(), g = [...new Set(m.map((e) => e.state))], y = m.filter((e) => (!o || e.repository === o) && (!c || e.state === c)), b = async (e) => {
 		try {
@@ -9034,7 +9112,7 @@ function Pu(e) {
 						flexWrap: "wrap",
 						gap: 12
 					},
-					children: [/* @__PURE__ */ C(Jc, {
+					children: [/* @__PURE__ */ C(Yc, {
 						id: "review-drafts-repository",
 						label: "Repository",
 						value: o,
@@ -9043,13 +9121,13 @@ function Pu(e) {
 							label: e
 						})),
 						onChange: s
-					}), /* @__PURE__ */ C(Jc, {
+					}), /* @__PURE__ */ C(Yc, {
 						id: "review-drafts-state",
 						label: "State",
 						value: c,
 						options: g.map((e) => ({
 							value: e,
-							label: Ll[e]
+							label: Rl[e]
 						})),
 						onChange: u
 					})]
@@ -9077,8 +9155,8 @@ function Pu(e) {
 							]
 						}),
 						/* @__PURE__ */ C($, {
-							variant: Nu[e.state] ?? "info",
-							children: Ll[e.state]
+							variant: Pu[e.state] ?? "info",
+							children: Rl[e.state]
 						}),
 						/* @__PURE__ */ w("span", {
 							className: "text-muted",
@@ -9106,14 +9184,14 @@ function Pu(e) {
 	});
 }
 // kirocrew-app/ui/src/DashboardView.tsx
-var Fu = {
+var Iu = {
 	...yr,
 	delivery: "Delivery",
 	"github-conflict": "GitHub edit",
 	manual: "Manual"
-}, Iu = "(min-width: 1024px)", Lu = { flight: "22rem" };
-function Ru({ height: e, children: t }) {
-	let n = It(Iu);
+}, Lu = "(min-width: 1024px)", Ru = { flight: "22rem" };
+function zu({ height: e, children: t }) {
+	let n = It(Lu);
 	return /* @__PURE__ */ C("div", {
 		"data-dashboard-row": !0,
 		className: "grid gap-3.5",
@@ -9124,7 +9202,7 @@ function Ru({ height: e, children: t }) {
 		children: t
 	});
 }
-function zu({ title: e, children: t, empty: n, actions: r, emptyAction: i }) {
+function Bu({ title: e, children: t, empty: n, actions: r, emptyAction: i }) {
 	return /* @__PURE__ */ w(v, {
 		className: "flex h-full min-h-0 flex-col",
 		children: [/* @__PURE__ */ C(X, {
@@ -9144,7 +9222,7 @@ function zu({ title: e, children: t, empty: n, actions: r, emptyAction: i }) {
 		})]
 	});
 }
-function Bu({ item: e, attach: t, onOpen: n, onInfo: r, onAsk: i, onTitle: a }) {
+function Vu({ item: e, attach: t, onOpen: n, onInfo: r, onAsk: i, onTitle: a }) {
 	return /* @__PURE__ */ w("li", {
 		className: "border-t py-2 first:border-t-0",
 		style: {
@@ -9162,13 +9240,13 @@ function Bu({ item: e, attach: t, onOpen: n, onInfo: r, onAsk: i, onTitle: a }) 
 				"data-attention-actions": !0,
 				children: [
 					e.href && /* @__PURE__ */ C(Nr, {
-						icon: ae,
+						icon: ie,
 						to: e.href,
 						label: `Open the issue for ${e.title}`,
 						external: !0
 					}),
 					t && /* @__PURE__ */ C(Nr, {
-						icon: re,
+						icon: ne,
 						to: t,
 						label: `Session: the chat for ${e.title}`
 					}),
@@ -9185,7 +9263,7 @@ function Bu({ item: e, attach: t, onOpen: n, onInfo: r, onAsk: i, onTitle: a }) 
 						onClick: i
 					}),
 					/* @__PURE__ */ C(Pr, {
-						icon: e.tab === "waiting" ? M : ae,
+						icon: e.tab === "waiting" ? M : ie,
 						label: e.tab === "waiting" ? `Resolve ${e.title}` : `Open ${e.title}`,
 						tooltip: e.tab === "waiting" ? "Resolve it in Needs you" : "Open the task details",
 						onClick: n
@@ -9204,12 +9282,12 @@ function Bu({ item: e, attach: t, onOpen: n, onInfo: r, onAsk: i, onTitle: a }) 
 								"review",
 								"manual"
 							].includes(e.kind) ? "warning" : "danger",
-							children: Fu[e.kind] ?? e.kind
+							children: Iu[e.kind] ?? e.kind
 						})
 					}),
 					" ",
 					/* @__PURE__ */ C(q, {
-						text: ds(e),
+						text: ys(e),
 						display: "inline",
 						children: (t) => /* @__PURE__ */ C("a", {
 							role: "button",
@@ -9246,12 +9324,12 @@ function Bu({ item: e, attach: t, onOpen: n, onInfo: r, onAsk: i, onTitle: a }) 
 		]
 	});
 }
-var Vu = {
+var Hu = {
 	worker: "Worker",
 	checks: "Checks",
 	planner: "Planner"
-}, Hu = (e) => Vu[e.role] ?? (e.role === "worker" ? "Worker" : `Reviewer · ${e.role}`);
-function Uu({ row: e, now: t, onTrace: n, cost: r }) {
+}, Uu = (e) => Hu[e.role] ?? (e.role === "worker" ? "Worker" : `Reviewer · ${e.role}`);
+function Wu({ row: e, now: t, onTrace: n, cost: r }) {
 	return /* @__PURE__ */ w("li", {
 		"data-radar-flight-row": !0,
 		className: "flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0",
@@ -9288,8 +9366,8 @@ function Uu({ row: e, now: t, onTrace: n, cost: r }) {
 						"data-rail": !0,
 						className: "ml-1 inline-flex items-center gap-0.5 align-middle",
 						role: "img",
-						"aria-label": _s(e).map((e) => `${e.label} ${e.state === "done" ? "done" : e.state === "now" ? "now" : "next"}`).join(", "),
-						children: _s(e).map((e) => /* @__PURE__ */ C("i", {
+						"aria-label": Ts(e).map((e) => `${e.label} ${e.state === "done" ? "done" : e.state === "now" ? "now" : "next"}`).join(", "),
+						children: Ts(e).map((e) => /* @__PURE__ */ C("i", {
 							"data-rail-step": e.state,
 							title: e.label,
 							style: {
@@ -9358,7 +9436,7 @@ function Uu({ row: e, now: t, onTrace: n, cost: r }) {
 		]
 	});
 }
-function Wu({ row: e, now: t, onInfo: n }) {
+function Gu({ row: e, now: t, onInfo: n }) {
 	let r = ia(e.session), i = e.session.crew && e.session.crew !== "local";
 	return /* @__PURE__ */ w("li", {
 		"data-in-flight-row": !0,
@@ -9368,7 +9446,7 @@ function Wu({ row: e, now: t, onInfo: n }) {
 			/* @__PURE__ */ C("span", {
 				"data-in-flight-role": !0,
 				style: { flex: "0 0 7.5rem" },
-				children: /* @__PURE__ */ C($, { children: Hu(e) })
+				children: /* @__PURE__ */ C($, { children: Uu(e) })
 			}),
 			/* @__PURE__ */ w("span", {
 				className: "min-w-0 flex-1",
@@ -9429,7 +9507,7 @@ function Wu({ row: e, now: t, onInfo: n }) {
 						alignItems: "center",
 						gap: 4
 					},
-					children: [/* @__PURE__ */ C(re, {
+					children: [/* @__PURE__ */ C(ne, {
 						size: 14,
 						"aria-hidden": "true"
 					}), "Session"]
@@ -9441,8 +9519,8 @@ function Wu({ row: e, now: t, onInfo: n }) {
 		]
 	});
 }
-function Gu(e) {
-	let { workspaceId: t, onNavigate: n } = e, r = Dr(), [a, s] = d(null), c = K(), u = l(() => dr(c), [c]), f = l(() => xs(c), [c]), p = Ur(t), { value: m, error: h, busy: g, reload: v } = Mo(t, i(async (e) => {
+function Ku(e) {
+	let { workspaceId: t, onNavigate: n } = e, r = Dr(), [a, s] = d(null), c = K(), u = l(() => dr(c), [c]), f = l(() => ks(c), [c]), p = Ur(t), { value: m, error: h, busy: g, reload: v } = Mo(t, i(async (e) => {
 		let [t, n, r, i] = await Promise.allSettled([
 			u.graph(e),
 			u.delivery(e),
@@ -9462,7 +9540,7 @@ function Gu(e) {
 			failed: o
 		};
 	}, [u, f])), y = Mo(t, i((e) => u.radarCrews(e), [u])), b = l(() => m && {
-		summary: hs({
+		summary: Cs({
 			graph: m.graph,
 			delivery: m.delivery,
 			conflicts: m.conflicts,
@@ -9475,10 +9553,10 @@ function Gu(e) {
 		failed: m.failed
 	}, [m, y.value]), x = i(async () => {
 		await Promise.all([v(), y.reload()]);
-	}, [v, y.reload]), E = l(() => nc(c), [c]), D = Mo(t, i((e) => E.view(e, { window: "10" }), [E])), O = b?.summary, k = fu(t), A = ni(t), j = yu(t);
+	}, [v, y.reload]), E = l(() => uc(c), [c]), D = Mo(t, i((e) => E.view(e, { window: "10" }), [E])), O = b?.summary, k = pu(t), A = ni(t), j = bu(t);
 	o(() => {
 		let e = () => void D.reload();
-		return window.addEventListener(ec, e), () => window.removeEventListener(ec, e);
+		return window.addEventListener(cc, e), () => window.removeEventListener(cc, e);
 	}, [D.reload]);
 	let M = kt(), N = Kr(""), [P, F] = d(() => Date.now());
 	Do(bo(t, i(() => {
@@ -9486,8 +9564,8 @@ function Gu(e) {
 	}, [x]), g));
 	let I = (e) => {
 		let t = e.group ? [e.group] : (b?.conflicts ?? []).filter((t) => t.taskId === e.taskId && (e.kind === "delivery" || t.kind === e.kind));
-		p.ask(t.length ? { items: t.map(Ku) } : { tasks: e.taskId ? [e.taskId] : [] });
-	}, L = (e) => e.tab === "waiting" ? n("waiting", e.taskId ?? void 0) : e.taskId && M.openTask(e.taskId), ee = () => e.onOpenSettings?.("repositories"), te = gu({
+		p.ask(t.length ? { items: t.map(qu) } : { tasks: e.taskId ? [e.taskId] : [] });
+	}, L = (e) => e.tab === "waiting" ? n("waiting", e.taskId ?? void 0) : e.taskId && M.openTask(e.taskId), ee = () => e.onOpenSettings?.("repositories"), te = _u({
 		repositories: j.repositories,
 		driver: k.read?.state ?? "unknown",
 		plans: O ? O.plans.total : 1
@@ -9506,22 +9584,22 @@ function Gu(e) {
 				className: g || b?.failed ? "text-xs text-muted" : "sr-only",
 				children: g ? "Loading…" : b?.failed ? `${b.failed} of 4 reads failed; those sections are empty.` : ""
 			}),
-			/* @__PURE__ */ C(El, {
+			/* @__PURE__ */ C(Dl, {
 				stops: D.value?.line ?? [],
 				workspaceId: t,
 				onChanged: () => void D.reload()
 			}),
-			/* @__PURE__ */ C(Ul, {
+			/* @__PURE__ */ C(Wl, {
 				workspaceId: t,
 				stopped: (D.value?.line ?? []).length > 0
 			}),
-			/* @__PURE__ */ C(Gl, { children: /* @__PURE__ */ C(pu, { workspaceId: t }) }),
+			/* @__PURE__ */ C(Kl, { children: /* @__PURE__ */ C(mu, { workspaceId: t }) }),
 			(h || p.error) && /* @__PURE__ */ C("p", {
 				role: "alert",
 				className: "text-sm text-danger",
 				children: h ?? p.error
 			}),
-			te.filter((e) => e.id !== "driver").map((e) => /* @__PURE__ */ C(hu, {
+			te.filter((e) => e.id !== "driver").map((e) => /* @__PURE__ */ C(gu, {
 				id: e.id,
 				title: e.title,
 				line: e.line,
@@ -9530,12 +9608,12 @@ function Gu(e) {
 					onClick: ee,
 					attrs: { "aria-label": e.action },
 					children: e.action
-				}), /* @__PURE__ */ C(Ko, { label: "Try the demo" })] }) : void 0
+				}), /* @__PURE__ */ C(es, { label: "Try the demo" })] }) : void 0
 			}, e.id)),
 			/* @__PURE__ */ w(S, { children: [
-				/* @__PURE__ */ C(Ru, {
-					height: Lu.flight,
-					children: O ? /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ w(zu, {
+				/* @__PURE__ */ C(zu, {
+					height: Ru.flight,
+					children: O ? /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ w(Bu, {
 						title: `Needs you (${O.attention.length})`,
 						empty: O.attention.length === 0 && "Nothing waits on you. When a crew hands work back, it shows here.",
 						actions: /* @__PURE__ */ C("button", {
@@ -9546,26 +9624,26 @@ function Gu(e) {
 						}),
 						children: [/* @__PURE__ */ C("ul", {
 							className: "mt-1",
-							children: N.take("attention", O.attention).map((e) => /* @__PURE__ */ C(Bu, {
+							children: N.take("attention", O.attention).map((e) => /* @__PURE__ */ C(Vu, {
 								item: e,
-								attach: qu(O.running, e.taskId),
+								attach: Ju(O.running, e.taskId),
 								onOpen: () => L(e),
 								onInfo: () => e.group ? M.openReview(e.group, () => void x()) : e.taskId && M.openTask(e.taskId),
 								onAsk: () => I(e),
 								onTitle: () => {
-									let t = us(e);
+									let t = vs(e);
 									t.kind === "review" && e.group ? M.openReview(e.group, () => void x()) : t.kind === "task" ? M.openTask(t.id) : t.kind === "tab" && n(t.tab);
 								}
 							}, e.key))
 						}), /* @__PURE__ */ C(qr, { ...N.more("attention", O.attention.length) })]
-					}), /* @__PURE__ */ w(zu, {
+					}), /* @__PURE__ */ w(Bu, {
 						title: `In flight (${O.inFlight.length + O.radarFlight.length})${$r(A, "other") ? ` · ${$r(A, "other")}` : ""}`,
 						empty: O.inFlight.length + O.radarFlight.length === 0 && "No crew or chat is working right now. Released issues show here once a crew claims them.",
-						emptyAction: O.neverRan ? /* @__PURE__ */ C(Ko, { label: "Start demo" }) : void 0,
+						emptyAction: O.neverRan ? /* @__PURE__ */ C(es, { label: "Start demo" }) : void 0,
 						children: [
 							/* @__PURE__ */ C("ul", {
 								className: "mt-1",
-								children: N.take("flight", O.inFlight).map((e) => /* @__PURE__ */ C(Wu, {
+								children: N.take("flight", O.inFlight).map((e) => /* @__PURE__ */ C(Gu, {
 									row: e,
 									now: P,
 									onInfo: () => M.openTask(e.taskId)
@@ -9582,7 +9660,7 @@ function Gu(e) {
 										"): Ready, Claimed, PR, CI, Merge"
 									]
 								}),
-								O.radarGroups.length > 0 ? /* @__PURE__ */ C(Au, {
+								O.radarGroups.length > 0 ? /* @__PURE__ */ C(ju, {
 									groups: O.radarGroups,
 									now: P,
 									cost: O.radarCrewStrip?.cost,
@@ -9592,7 +9670,7 @@ function Gu(e) {
 									})
 								}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C("ul", {
 									className: "mt-1",
-									children: N.take("radar", O.radarFlight).map((e) => /* @__PURE__ */ C(Uu, {
+									children: N.take("radar", O.radarFlight).map((e) => /* @__PURE__ */ C(Wu, {
 										row: e,
 										now: P,
 										cost: O.radarCrewStrip?.cost[`${e.repository}#${e.number}`],
@@ -9627,15 +9705,15 @@ function Gu(e) {
 								]
 							})
 						]
-					})] }) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(zu, {
+					})] }) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(Bu, {
 						title: "Needs you",
 						empty: "Loading…"
-					}), /* @__PURE__ */ C(zu, {
+					}), /* @__PURE__ */ C(Bu, {
 						title: "In flight",
 						empty: "Loading…"
 					})] })
 				}),
-				/* @__PURE__ */ C(Eu, { workspaceId: t }),
+				/* @__PURE__ */ C(Du, { workspaceId: t }),
 				/* @__PURE__ */ w("div", {
 					"data-dashboard-row": "queue-progress",
 					className: "grid gap-3.5",
@@ -9644,13 +9722,13 @@ function Gu(e) {
 						gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
 						alignItems: "stretch"
 					},
-					children: [/* @__PURE__ */ C(Cu, {
+					children: [/* @__PURE__ */ C(wu, {
 						workspaceId: t,
 						onOpenSettings: () => e.onOpenSettings?.("repositories")
 					}), /* @__PURE__ */ C("div", {
 						"data-progress-by-epic": !0,
 						className: "h-full min-h-0",
-						children: O ? /* @__PURE__ */ w(zu, {
+						children: O ? /* @__PURE__ */ w(Bu, {
 							title: "Progress by epic",
 							empty: O.progress.length === 0 && `No epics yet. ${O.plans.approved} approved and ${O.plans.draft} draft specs.`,
 							emptyAction: /* @__PURE__ */ C(_, {
@@ -9730,16 +9808,16 @@ function Gu(e) {
 									}) }, t.epic ?? "(none)");
 								})
 							})]
-						}) : /* @__PURE__ */ C(zu, {
+						}) : /* @__PURE__ */ C(Bu, {
 							title: "Progress by epic",
 							empty: "Loading…"
 						})
 					})]
 				}),
-				/* @__PURE__ */ C(Mu, { workspaceId: t }),
-				/* @__PURE__ */ C(Pu, { workspaceId: t })
+				/* @__PURE__ */ C(Nu, { workspaceId: t }),
+				/* @__PURE__ */ C(Fu, { workspaceId: t })
 			] }),
-			a && /* @__PURE__ */ C(as, {
+			a && /* @__PURE__ */ C(ps, {
 				workspaceId: t,
 				target: a,
 				onClose: () => s(null),
@@ -9751,15 +9829,15 @@ function Gu(e) {
 		]
 	});
 }
-var Ku = (e) => Et(e);
-function qu(e, t) {
+var qu = (e) => Et(e);
+function Ju(e, t) {
 	let n = [...e.find((e) => e.id === t)?.sessions ?? []].sort((e, t) => (e.role === "worker" ? -1 : 0) - (t.role === "worker" ? -1 : 0) || t.attempt - e.attempt);
 	return n[0] ? aa(n[0]) : null;
 }
 // kirocrew-app/ui/src/markdown.ts
-var Ju = /(`[^`]+`)|(\*\*[^*]+\*\*|__[^_]+__)|(\*[^*\s][^*]*\*|_[^_\s][^_]*_)|(\[([^\]]+)\]\(([^)\s]+)\))/g;
-function Yu(e) {
-	let t = [], n = new RegExp(Ju.source, "g"), r = 0, i;
+var Yu = /(`[^`]+`)|(\*\*[^*]+\*\*|__[^_]+__)|(\*[^*\s][^*]*\*|_[^_\s][^_]*_)|(\[([^\]]+)\]\(([^)\s]+)\))/g;
+function Xu(e) {
+	let t = [], n = new RegExp(Yu.source, "g"), r = 0, i;
 	for (; i = n.exec(e);) i.index > r && t.push({
 		kind: "text",
 		text: e.slice(r, i.index)
@@ -9768,22 +9846,22 @@ function Yu(e) {
 		text: i[1].slice(1, -1)
 	}) : i[2] ? t.push({
 		kind: "strong",
-		children: Yu(i[2].slice(2, -2))
+		children: Xu(i[2].slice(2, -2))
 	}) : i[3] ? t.push({
 		kind: "em",
-		children: Yu(i[3].slice(1, -1))
+		children: Xu(i[3].slice(1, -1))
 	}) : t.push({
 		kind: "link",
 		href: pr(i[6]),
-		children: Yu(i[5])
+		children: Xu(i[5])
 	}), r = i.index + i[0].length;
 	return r < e.length && t.push({
 		kind: "text",
 		text: e.slice(r)
 	}), t;
 }
-var Xu = (e) => e.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((e) => e.trim()), Zu = /^\s*\|.*\|\s*$/, Qu = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/, $u = /^(\s*)([-*+]|\d+[.)])\s+(?:\[([ xX])\]\s+)?(.*)$/;
-function ed(e) {
+var Zu = (e) => e.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((e) => e.trim()), Qu = /^\s*\|.*\|\s*$/, $u = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/, ed = /^(\s*)([-*+]|\d+[.)])\s+(?:\[([ xX])\]\s+)?(.*)$/;
+function td(e) {
 	let t = e.replace(/\r\n/g, "\n").split("\n"), n = [], r = [], i = 1, a = () => {
 		r.length && n.push({
 			kind: "paragraph",
@@ -9805,10 +9883,10 @@ function ed(e) {
 			});
 			continue;
 		}
-		if (Zu.test(o) && e + 1 < t.length && Qu.test(t[e + 1])) {
+		if (Qu.test(o) && e + 1 < t.length && $u.test(t[e + 1])) {
 			a();
-			let r = e + 1, i = Xu(o), s = [];
-			for (e += 2; e < t.length && Zu.test(t[e]); e++) s.push(Xu(t[e]));
+			let r = e + 1, i = Zu(o), s = [];
+			for (e += 2; e < t.length && Qu.test(t[e]); e++) s.push(Zu(t[e]));
 			e--, n.push({
 				kind: "table",
 				head: i,
@@ -9845,7 +9923,7 @@ function ed(e) {
 			});
 			continue;
 		}
-		let u = $u.exec(o);
+		let u = ed.exec(o);
 		if (u) {
 			a();
 			let t = /\d/.test(u[2]), r = {
@@ -9872,18 +9950,18 @@ function ed(e) {
 	}
 	return a(), n;
 }
-var td = (e, t, n) => `${e}-${t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "section"}-${n}`;
-function nd(e, t, n = 3) {
-	return ed(e).flatMap((e, r) => e.kind === "heading" && e.level <= n ? [{
+var nd = (e, t, n) => `${e}-${t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "section"}-${n}`;
+function rd(e, t, n = 3) {
+	return td(e).flatMap((e, r) => e.kind === "heading" && e.level <= n ? [{
 		level: e.level,
 		text: e.text.replace(/[*_`]/g, ""),
-		id: td(t, e.text, r)
+		id: nd(t, e.text, r)
 	}] : []);
 }
 // kirocrew-app/ui/src/prism/before.ts
-var rd = globalThis;
+var id = globalThis;
 // node_modules/prismjs/components/prism-sql.js
-rd.__avoozlPrismPrevious = rd.Prism, rd.Prism = {
+id.__avoozlPrismPrevious = id.Prism, id.Prism = {
 	manual: !0,
 	disableWorkerMessageHandler: !0
 }, (/* @__PURE__ */ Ze(((e, t) => {
@@ -11226,10 +11304,10 @@ rd.__avoozlPrismPrevious = rd.Prism, rd.Prism = {
 	punctuation: /[;[\]()`,.]/
 };
 // kirocrew-app/ui/src/prism/after.ts
-var id = globalThis, ad = id.Prism;
-id.__avoozlPrismPrevious === void 0 ? delete id.Prism : id.Prism = id.__avoozlPrismPrevious, delete id.__avoozlPrismPrevious;
+var ad = globalThis, od = ad.Prism;
+ad.__avoozlPrismPrevious === void 0 ? delete ad.Prism : ad.Prism = ad.__avoozlPrismPrevious, delete ad.__avoozlPrismPrevious;
 // kirocrew-app/ui/src/highlight.ts
-var od = [
+var sd = [
 	"comment",
 	"string",
 	"keyword",
@@ -11247,7 +11325,7 @@ var od = [
 	"regex",
 	"attribute",
 	"tag"
-], sd = {
+], cd = {
 	js: "javascript",
 	ts: "typescript",
 	sh: "bash",
@@ -11260,13 +11338,13 @@ var od = [
 	xml: "markup",
 	"c++": "cpp",
 	golang: "go"
-}, cd = /* @__PURE__ */ new Map();
-function ld(e) {
+}, ld = /* @__PURE__ */ new Map();
+function ud(e) {
 	if (!e || !Array.isArray(e.tokens)) return null;
 	let t = {};
 	try {
 		e.tokens.forEach((e, n) => {
-			let r = od.includes(e.type) ? e.type : "plain", i = [...new Set(String(e.flags ?? "").replace(/[^imsu]/g, ""))].join("");
+			let r = sd.includes(e.type) ? e.type : "plain", i = [...new Set(String(e.flags ?? "").replace(/[^imsu]/g, ""))].join("");
 			t[`t${n}`] = {
 				pattern: new RegExp(String(e.pattern), i),
 				greedy: !0,
@@ -11278,33 +11356,33 @@ function ld(e) {
 	}
 	return t;
 }
-function ud(e) {
-	cd.clear();
-	for (let [t, n] of Object.entries(e ?? {})) {
-		let e = ld(n);
-		e && cd.set(t.toLowerCase(), e);
-	}
-	return [...cd.keys()];
-}
 function dd(e) {
+	ld.clear();
+	for (let [t, n] of Object.entries(e ?? {})) {
+		let e = ud(n);
+		e && ld.set(t.toLowerCase(), e);
+	}
+	return [...ld.keys()];
+}
+function fd(e) {
 	if (!e) return null;
 	let t = e.toLowerCase();
-	return cd.get(t) ?? ad.languages[sd[t] ?? t] ?? null;
+	return ld.get(t) ?? od.languages[cd[t] ?? t] ?? null;
 }
-var fd = (e) => Array.isArray(e) ? e.flatMap(fd) : typeof e == "string" ? [e] : [{
+var pd = (e) => Array.isArray(e) ? e.flatMap(pd) : typeof e == "string" ? [e] : [{
 	types: [e.type, ...[e.alias ?? []].flat()],
-	content: fd(e.content)
+	content: pd(e.content)
 }];
-function pd(e, t) {
-	let n = dd(t);
+function md(e, t) {
+	let n = fd(t);
 	if (!n || e.length > 2e4) return null;
 	try {
-		return fd(ad.tokenize(e, n));
+		return pd(od.tokenize(e, n));
 	} catch {
 		return null;
 	}
 }
-var md = {
+var hd = {
 	comment: "var(--muted)",
 	string: "var(--tile-green, var(--ok))",
 	char: "var(--tile-green, var(--ok))",
@@ -11328,37 +11406,37 @@ var md = {
 	inserted: "var(--tile-green, var(--ok))",
 	deleted: "var(--tile-red, var(--danger))"
 };
-function hd(e) {
-	let t = [...e].reverse().find((e) => md[e]) ?? e.find((e) => md[e]);
+function gd(e) {
+	let t = [...e].reverse().find((e) => hd[e]) ?? e.find((e) => hd[e]);
 	return {
-		...t ? { color: md[t] } : {},
+		...t ? { color: hd[t] } : {},
 		...e.includes("comment") ? { fontStyle: "italic" } : {}
 	};
 }
 // kirocrew-app/ui/src/Markdown.tsx
-function gd({ parts: e }) {
+function _d({ parts: e }) {
 	return e.map((e, t) => e.kind === "text" ? e.text : e.kind === "code" ? /* @__PURE__ */ C("code", {
 		className: "rounded px-1 text-[12px]",
 		style: { background: "var(--bg-elevated)" },
 		children: e.text
-	}, t) : e.kind === "strong" ? /* @__PURE__ */ C("strong", { children: /* @__PURE__ */ C(gd, { parts: e.children }) }, t) : e.kind === "em" ? /* @__PURE__ */ C("em", { children: /* @__PURE__ */ C(gd, { parts: e.children }) }, t) : e.href ? /* @__PURE__ */ C("a", {
+	}, t) : e.kind === "strong" ? /* @__PURE__ */ C("strong", { children: /* @__PURE__ */ C(_d, { parts: e.children }) }, t) : e.kind === "em" ? /* @__PURE__ */ C("em", { children: /* @__PURE__ */ C(_d, { parts: e.children }) }, t) : e.href ? /* @__PURE__ */ C("a", {
 		href: J(e.href),
 		target: "_blank",
 		rel: "noreferrer",
 		className: "underline",
 		style: { color: "var(--accent)" },
-		children: /* @__PURE__ */ C(gd, { parts: e.children })
-	}, t) : /* @__PURE__ */ C(gd, { parts: e.children }, t));
+		children: /* @__PURE__ */ C(_d, { parts: e.children })
+	}, t) : /* @__PURE__ */ C(_d, { parts: e.children }, t));
 }
-var _d = ({ text: e }) => /* @__PURE__ */ C(gd, { parts: Yu(e) });
-function vd({ tokens: e }) {
+var vd = ({ text: e }) => /* @__PURE__ */ C(_d, { parts: Xu(e) });
+function yd({ tokens: e }) {
 	return e.map((e, t) => typeof e == "string" ? e : /* @__PURE__ */ C("span", {
-		style: hd(e.types),
-		children: /* @__PURE__ */ C(vd, { tokens: e.content })
+		style: gd(e.types),
+		children: /* @__PURE__ */ C(yd, { tokens: e.content })
 	}, t));
 }
-function yd({ text: e, lang: t, line: n }) {
-	let r = pd(e, t);
+function bd({ text: e, lang: t, line: n }) {
+	let r = md(e, t);
 	return /* @__PURE__ */ C("pre", {
 		className: "overflow-x-auto rounded border p-2 text-[12px]",
 		style: {
@@ -11368,15 +11446,15 @@ function yd({ text: e, lang: t, line: n }) {
 		"data-lang": t ?? void 0,
 		"data-line": n,
 		"data-highlighted": r ? "true" : void 0,
-		children: /* @__PURE__ */ C("code", { children: r ? /* @__PURE__ */ C(vd, { tokens: r }) : e })
+		children: /* @__PURE__ */ C("code", { children: r ? /* @__PURE__ */ C(yd, { tokens: r }) : e })
 	});
 }
-function bd({ text: e, idPrefix: t, measure: n }) {
+function xd({ text: e, idPrefix: t, measure: n }) {
 	let r = n ? { maxWidth: n } : void 0;
 	return /* @__PURE__ */ C("div", {
 		className: "flex min-w-0 flex-col gap-2 break-words text-sm leading-relaxed",
 		style: { color: "var(--text)" },
-		children: ed(e).map((e, n) => {
+		children: td(e).map((e, n) => {
 			if (e.kind === "heading") {
 				let i = [
 					"text-xl",
@@ -11390,19 +11468,19 @@ function bd({ text: e, idPrefix: t, measure: n }) {
 					role: "heading",
 					"aria-level": e.level,
 					"data-line": e.line,
-					id: t ? td(t, e.text, n) : void 0,
+					id: t ? nd(t, e.text, n) : void 0,
 					className: `${i} mt-2 font-semibold`,
 					style: {
 						...r,
 						scrollMarginTop: 12
 					},
-					children: /* @__PURE__ */ C(_d, { text: e.text })
+					children: /* @__PURE__ */ C(vd, { text: e.text })
 				}, n);
 			}
 			if (e.kind === "paragraph") return /* @__PURE__ */ C("p", {
 				"data-line": e.line,
 				style: r,
-				children: /* @__PURE__ */ C(_d, { text: e.text })
+				children: /* @__PURE__ */ C(vd, { text: e.text })
 			}, n);
 			if (e.kind === "rule") return /* @__PURE__ */ C("hr", {
 				"data-line": e.line,
@@ -11415,9 +11493,9 @@ function bd({ text: e, idPrefix: t, measure: n }) {
 					borderColor: "var(--border)",
 					...r
 				},
-				children: /* @__PURE__ */ C(_d, { text: e.text })
+				children: /* @__PURE__ */ C(vd, { text: e.text })
 			}, n);
-			if (e.kind === "code") return /* @__PURE__ */ C(yd, {
+			if (e.kind === "code") return /* @__PURE__ */ C(bd, {
 				text: e.text,
 				lang: e.lang,
 				line: e.line
@@ -11430,11 +11508,11 @@ function bd({ text: e, idPrefix: t, measure: n }) {
 					children: [/* @__PURE__ */ C("thead", { children: /* @__PURE__ */ C("tr", { children: e.head.map((e, t) => /* @__PURE__ */ C("th", {
 						className: "border px-2 py-1 text-left font-semibold",
 						style: { borderColor: "var(--border)" },
-						children: /* @__PURE__ */ C(_d, { text: e })
+						children: /* @__PURE__ */ C(vd, { text: e })
 					}, t)) }) }), /* @__PURE__ */ C("tbody", { children: e.rows.map((t, n) => /* @__PURE__ */ C("tr", { children: e.head.map((e, n) => /* @__PURE__ */ C("td", {
 						className: "border px-2 py-1 align-top",
 						style: { borderColor: "var(--border)" },
-						children: /* @__PURE__ */ C(_d, { text: t[n] ?? "" })
+						children: /* @__PURE__ */ C(vd, { text: t[n] ?? "" })
 					}, n)) }, n)) })]
 				})
 			}, n);
@@ -11453,14 +11531,14 @@ function bd({ text: e, idPrefix: t, measure: n }) {
 						"aria-label": e.checked ? "done" : "not done",
 						className: "mr-1.5",
 						children: e.checked ? "☑" : "☐"
-					}), /* @__PURE__ */ C(_d, { text: e.text })]
+					}), /* @__PURE__ */ C(vd, { text: e.text })]
 				}, t))
 			}, n);
 		})
 	});
 }
 // kirocrew-app/ui/src/Authority.tsx
-function xd({ owner: e }) {
+function Sd({ owner: e }) {
 	if (!e.authority) return null;
 	if (e.authority !== "github") return /* @__PURE__ */ C($, { children: e.authority });
 	if (!e.issue) return /* @__PURE__ */ C($, { children: "pending projection" });
@@ -11474,8 +11552,8 @@ function xd({ owner: e }) {
 	}) : /* @__PURE__ */ C($, { children: n });
 }
 // kirocrew-app/ui/src/RadioFold.tsx
-var Sd = "\n@keyframes avoozl-radio-fold-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }\n[data-radio-fold-body] { animation: avoozl-radio-fold-in 180ms ease-out; }\n@media (prefers-reduced-motion: reduce) { [data-radio-fold-body] { animation: none !important; } }\n";
-function Cd() {
+var Cd = "\n@keyframes avoozl-radio-fold-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }\n[data-radio-fold-body] { animation: avoozl-radio-fold-in 180ms ease-out; }\n@media (prefers-reduced-motion: reduce) { [data-radio-fold-body] { animation: none !important; } }\n";
+function wd() {
 	return /* @__PURE__ */ C("hr", {
 		"data-section-rule": !0,
 		className: "my-3 border-0 border-t",
@@ -11486,13 +11564,13 @@ function Cd() {
 		}
 	});
 }
-function wd(e) {
+function Td(e) {
 	return /* @__PURE__ */ w("div", {
 		role: "radiogroup",
 		"aria-label": e.label,
 		className: "flex flex-col",
 		"data-radio-fold": e.name,
-		children: [/* @__PURE__ */ C("style", { children: Sd }), e.sections.map((t) => {
+		children: [/* @__PURE__ */ C("style", { children: Cd }), e.sections.map((t) => {
 			let n = t.key === e.value, r = t.icon, i = `${e.name}-${t.key}`;
 			return /* @__PURE__ */ w("section", {
 				"data-radio-section": t.key,
@@ -11557,7 +11635,7 @@ function wd(e) {
 					style: { padding: "0 13px 13px" },
 					children: [
 						t.description,
-						t.description && t.fields && /* @__PURE__ */ C(Cd, {}),
+						t.description && t.fields && /* @__PURE__ */ C(wd, {}),
 						t.fields
 					]
 				})]
@@ -11566,7 +11644,7 @@ function wd(e) {
 	});
 }
 // kirocrew-app/ui/src/plugins-api.ts
-var Td = "Contract version", Ed = "Which version of Avoozl's plugin interface this plugin was built for. Not the plugin's own version.", Dd = () => ({
+var Ed = "Contract version", Dd = "Which version of Avoozl's plugin interface this plugin was built for. Not the plugin's own version.", Od = () => ({
 	id: "",
 	where: "path",
 	path: "",
@@ -11578,12 +11656,12 @@ var Td = "Contract version", Ed = "Which version of Avoozl's plugin interface th
 	contract: "1",
 	config: "",
 	scope: "machine"
-}), Od = [
+}), kd = [
 	["Where from", "Pick where the plugin’s files are. Open one source and fill it in."],
 	["What", "What Avoozl found there. Check it is the plugin you meant."],
 	["Applies to", "Declare it on this computer only, or share it with the repository."],
 	["Review and approve", "Nothing runs until you approve this exact version."]
-], kd = [
+], Ad = [
 	{
 		key: "path",
 		title: "Folder",
@@ -11599,7 +11677,7 @@ var Td = "Contract version", Ed = "Which version of Avoozl's plugin interface th
 		title: "Git",
 		line: "A tag, branch or commit of a git repository. Use it to share one exact commit."
 	}
-], Ad = (e) => e[e.where].trim(), jd = {
+], jd = (e) => e[e.where].trim(), Md = {
 	pack: {
 		title: "Settings pack",
 		line: "Settings you preview and copy into .avoozl.json once. Runs no code."
@@ -11624,8 +11702,8 @@ var Td = "Contract version", Ed = "Which version of Avoozl's plugin interface th
 		title: "Lessons pack (removed)",
 		line: "Avoozl no longer reads lessons packs. Remove lessons from provides."
 	}
-}, Md = (e) => e.provides ?? e.kinds ?? [], Nd = (e) => Md(e).map((e) => jd[e]?.title ?? e);
-function Pd(e) {
+}, Nd = (e) => e.provides ?? e.kinds ?? [], Pd = (e) => Nd(e).map((e) => Md[e]?.title ?? e);
+function Fd(e) {
 	let t = {
 		create: 0,
 		change: 0,
@@ -11635,23 +11713,23 @@ function Pd(e) {
 	for (let n of e) t[n.action]++;
 	return t;
 }
-function Fd(e) {
+function Id(e) {
 	if (e === void 0) return "";
 	let t = typeof e == "string" ? e : JSON.stringify(e);
 	return t.length > 80 ? t.slice(0, 77) + "..." : t;
 }
-var Id = (e, t, n) => ({
+var Ld = (e, t, n) => ({
 	id: e.id,
 	repositories: e.repositories,
 	previewHash: e.previewHash,
 	acceptLowered: t,
 	confirmPublic: n
 });
-function Ld(e, t, n, r) {
+function Rd(e, t, n, r) {
 	return e.state === "approved" ? t ? t.changes.some((e) => e.action === "create" || e.action === "change") ? t.warnings.length && !n ? "Accept the who-counts change to import." : e.source === "machine" && !r ? "Confirm that the settings and the plugin id go into .avoozl.json." : null : "Nothing to import: every setting is already the same." : "Avoozl has not previewed the pack yet." : `Approve version ${e.version ?? ""} first. Nothing from the pack applies before that.`;
 }
-function Rd(e) {
-	let t = Ad(e);
+function zd(e) {
+	let t = jd(e);
 	if (e.where !== "git") return {
 		[e.where]: t,
 		scope: e.scope
@@ -11664,28 +11742,28 @@ function Rd(e) {
 		scope: e.scope
 	};
 }
-function zd(e, t) {
+function Bd(e, t) {
 	return {
 		...e,
 		...t.id ? { id: t.id } : {},
 		...t.contract === void 0 ? {} : { contract: String(t.contract) }
 	};
 }
-function Bd(e, t, n) {
+function Vd(e, t, n) {
 	if (!t) return "Avoozl has not looked at the source yet.";
 	if (t.error) return t.error;
 	if (t.contract !== void 0 && t.supported === !1) return `The plugin is built for contract version ${t.contract}; this Avoozl loads ${n.join(", ") || "1"}.`;
 	let r = e.where === "package" ? e.version.trim() : "";
 	return r && t.version && r !== t.version ? `The installed package is version ${t.version}, not ${r}. Install ${r} or clear the version.` : null;
 }
-function Vd(e) {
+function Hd(e) {
 	return e.where === "path" && /^(?:\/|~|[A-Za-z]:[\\/])/.test(e.path.trim()) ? "A shared folder must be a path inside the repository, written relative to it." : null;
 }
-function Hd(e, t = !1) {
+function Ud(e, t = !1) {
 	let n = e.id.trim();
 	if (!/^[a-z][a-z0-9-]{0,60}$/.test(n)) return { error: "Give the plugin a lowercase id." };
 	if (n === "local" || n === "github") return { error: `${n} is a built-in route.` };
-	let r = Ad(e);
+	let r = jd(e);
 	if (!r) return { error: e.where === "path" ? "Name the plugin folder." : e.where === "git" ? "Give the git URL." : "Name the package." };
 	let i = e.ref.trim(), a = e.subdir.trim();
 	if (e.where === "git" && !i) return { error: "Give a tag, branch or commit." };
@@ -11715,7 +11793,7 @@ function Hd(e, t = !1) {
 		}
 	} };
 }
-function Ud(e) {
+function Wd(e) {
 	return e.state === "approved" ? e.health?.state === "unavailable" ? {
 		label: "Unavailable",
 		attention: !0
@@ -11735,7 +11813,7 @@ function Ud(e) {
 		attention: e.state !== "disabled"
 	};
 }
-var Wd = (e) => !!e.hash && (e.state === "unapproved" || e.state === "changed"), Gd = (e) => {
+var Gd = (e) => !!e.hash && (e.state === "unapproved" || e.state === "changed"), Kd = (e) => {
 	if (!e || typeof e != "object" || !("body" in e)) return null;
 	try {
 		let t = JSON.parse(String(e.body));
@@ -11744,7 +11822,7 @@ var Wd = (e) => !!e.hash && (e.state === "unapproved" || e.state === "changed"),
 		return null;
 	}
 };
-function Kd(e) {
+function qd(e) {
 	let t = async (t, n, r) => (await e.post(W, {
 		operation: t,
 		input: n,
@@ -11774,7 +11852,7 @@ function Kd(e) {
 		packImport: (e, n) => t("plugin.pack.import", n, e)
 	};
 }
-var qd = () => ({
+var Jd = () => ({
 	id: "",
 	via: "mcp",
 	repository: "",
@@ -11784,16 +11862,16 @@ var qd = () => ({
 	minimumPermission: "",
 	allowedActors: "",
 	scope: "machine"
-}), Jd = [
+}), Yd = [
 	"read",
 	"triage",
 	"write",
 	"maintain",
 	"admin"
-], Yd = /^[a-z][a-z0-9-]{0,60}$/, Xd = (e) => e.split(",").map((e) => e.trim()).filter(Boolean);
-function Zd(e, t) {
+], Xd = /^[a-z][a-z0-9-]{0,60}$/, Zd = (e) => e.split(",").map((e) => e.trim()).filter(Boolean);
+function Qd(e, t) {
 	let n = e.id.trim();
-	if (!Yd.test(n)) return {
+	if (!Xd.test(n)) return {
 		error: "Name the source with lowercase letters, digits and dashes.",
 		field: "id"
 	};
@@ -11809,7 +11887,7 @@ function Zd(e, t) {
 		error: "Pick the repository its work lands in.",
 		field: "repository"
 	};
-	let r = Xd(e.labelFields), i = e.via !== "mcp", a = i && e.who === "people" ? Xd(e.allowedActors) : [];
+	let r = Zd(e.labelFields), i = e.via !== "mcp", a = i && e.who === "people" ? Zd(e.allowedActors) : [];
 	return i && e.who === "people" && !a.length ? {
 		error: "Name at least one person, or choose a permission.",
 		field: "allowedActors"
@@ -11825,12 +11903,12 @@ function Zd(e, t) {
 		}
 	};
 }
-function Qd(e) {
+function $d(e) {
 	let t = String(e ?? "");
 	return t.startsWith("plugin:") ? `Plugin ${t.slice(7)}` : t === "mcp" ? "MCP (a script or cron job sends items)" : t || "Unknown";
 }
-var $d = (e) => Array.isArray(e) ? e.filter((e) => typeof e == "string") : [];
-function ef(e, t, n = Date.now()) {
+var ef = (e) => Array.isArray(e) ? e.filter((e) => typeof e == "string") : [];
+function tf(e, t, n = Date.now()) {
 	let r = String(e.entry?.via ?? ""), i = r.startsWith("plugin:") ? r.slice(7) : null, a = i ? t.find((e) => e.id === i) : null, o = e.items, s = [];
 	i && s.push(e.state?.readAt ? `Polled ${Z(e.state.readAt, n)}${e.state.more ? ", more next tick" : ""}` : "Not polled yet"), o && s.push(`${o.total} item${o.total === 1 ? "" : "s"}, ${o.untriaged} untriaged`), o?.lastAt && s.push(`newest ${Z(o.lastAt, n)}`);
 	let c = e.state?.refused?.length ?? 0;
@@ -11843,7 +11921,7 @@ function ef(e, t, n = Date.now()) {
 		tone: "off",
 		label: "Off",
 		facts: s,
-		problem: `Plugin ${i} is ${Ud(a).label.toLowerCase()}. Turn it on in its plugin card above.`
+		problem: `Plugin ${i} is ${Wd(a).label.toLowerCase()}. Turn it on in its plugin card above.`
 	} : e.state?.error ? {
 		tone: "error",
 		label: "Error",
@@ -11871,7 +11949,7 @@ function ef(e, t, n = Date.now()) {
 		problem: null
 	};
 }
-function tf(e, t) {
+function nf(e, t) {
 	let n = String(e.entry?.via ?? "");
 	if (!n.startsWith("plugin:")) return {
 		level: "Untriaged only",
@@ -11886,13 +11964,13 @@ function tf(e, t) {
 		line: "Its rules can start, deliver, pause or quarantine work, when the person who acted counts."
 	};
 }
-function nf(e) {
+function rf(e) {
 	if (!e || e.via === "mcp") return "Not used: an MCP caller is you";
-	let t = $d(e.allowedActors), n = typeof e.minimumPermission == "string" ? e.minimumPermission : null;
+	let t = ef(e.allowedActors), n = typeof e.minimumPermission == "string" ? e.minimumPermission : null;
 	return t.length ? `${t.join(", ")}${n ? `, or anyone with ${n} or higher` : ""}` : `Anyone with ${n ?? "write"} or higher${n ? "" : " (default)"}`;
 }
-var rf = (e) => $d(e).join(", ");
-function af(e) {
+var af = (e) => ef(e).join(", ");
+function of(e) {
 	let t = async (t, n, r) => (await e.post(W, {
 		operation: t,
 		input: n,
@@ -11908,7 +11986,7 @@ function af(e) {
 	};
 }
 // kirocrew-app/ui/src/PackImport.tsx
-var of = {
+var sf = {
 	create: {
 		label: "Create",
 		variant: "success"
@@ -11920,8 +11998,8 @@ var of = {
 	keep: { label: "Keep" },
 	skip: { label: "Skip" }
 };
-function sf({ preview: e }) {
-	let t = Pd(e.changes);
+function cf({ preview: e }) {
+	let t = Fd(e.changes);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-2 text-sm",
 		"data-pack-preview": !0,
@@ -11980,8 +12058,8 @@ function sf({ preview: e }) {
 							/* @__PURE__ */ C("td", {
 								className: "py-1 pr-2",
 								children: /* @__PURE__ */ C($, {
-									variant: e.warning ? "warning" : of[e.action].variant,
-									children: of[e.action].label
+									variant: e.warning ? "warning" : sf[e.action].variant,
+									children: sf[e.action].label
 								})
 							}),
 							/* @__PURE__ */ C("td", {
@@ -11992,9 +12070,9 @@ function sf({ preview: e }) {
 								}) : /* @__PURE__ */ w(S, { children: [
 									e.action === "change" && /* @__PURE__ */ w("span", {
 										className: "block text-muted",
-										children: ["was ", /* @__PURE__ */ C("code", { children: Fd(e.from) })]
+										children: ["was ", /* @__PURE__ */ C("code", { children: Id(e.from) })]
 									}),
-									/* @__PURE__ */ C("code", { children: Fd(e.to) }),
+									/* @__PURE__ */ C("code", { children: Id(e.to) }),
 									e.warning && /* @__PURE__ */ C("span", {
 										className: "block text-danger",
 										children: "Lowers who counts, as said above."
@@ -12008,7 +12086,7 @@ function sf({ preview: e }) {
 		]
 	});
 }
-function cf(e) {
+function lf(e) {
 	let { row: t, workspaceId: n, client: r, onClose: a, onChanged: s } = e, [c, l] = d(null), [f, p] = d(!1), [m, h] = d(!1), [g, v] = d(!1), [y, b] = d(null), x = u(null), T = i(() => a(), [a]);
 	o(() => {
 		let e = !0;
@@ -12022,11 +12100,11 @@ function cf(e) {
 	]), o(() => {
 		x.current?.querySelector("button")?.focus();
 	}, []);
-	let E = Ld(t, c, f, m), D = async () => {
+	let E = Rd(t, c, f, m), D = async () => {
 		if (c && !E) {
 			v(!0), b(null);
 			try {
-				await r.packImport(n, Id(c, f, m)), await s(), a(`Imported ${t.id} version ${t.version} into .avoozl.json.`);
+				await r.packImport(n, Ld(c, f, m)), await s(), a(`Imported ${t.id} version ${t.version} into .avoozl.json.`);
 			} catch (e) {
 				b(G(e));
 			} finally {
@@ -12059,7 +12137,7 @@ function cf(e) {
 				className: "text-sm text-muted",
 				children: "Copies these settings into .avoozl.json once. Later versions offer their changes here again."
 			}) }),
-			c ? /* @__PURE__ */ C(sf, { preview: c }) : !y && /* @__PURE__ */ C("p", {
+			c ? /* @__PURE__ */ C(cf, { preview: c }) : !y && /* @__PURE__ */ C("p", {
 				className: "text-sm text-muted",
 				children: "Reading the pack..."
 			}),
@@ -12097,18 +12175,18 @@ function cf(e) {
 	});
 }
 // kirocrew-app/ui/src/notes-api.ts
-var lf = {
+var uf = {
 	url: 2e3,
 	label: 200,
 	text: 1e4
 };
-function uf(e) {
+function df(e) {
 	return e.author === "person" ? e.login ? `${e.login} (person)` : "A person" : e.author.startsWith("session:") ? `Session ${e.author.slice(8)}` : e.author;
 }
-function df(e, t) {
+function ff(e, t) {
 	let n = e.trim();
 	if (!n) return "Give a link.";
-	if (n.length > lf.url) return `The link is longer than ${lf.url} characters.`;
+	if (n.length > uf.url) return `The link is longer than ${uf.url} characters.`;
 	let r;
 	try {
 		r = new URL(n);
@@ -12118,13 +12196,13 @@ function df(e, t) {
 	if (r.protocol !== "https:" && r.protocol !== "http:") return "Use an http or https link.";
 	if (r.username || r.password) return "Leave the user name and password out of the link.";
 	let i = t.trim();
-	return i ? i.length > lf.label ? `The label is longer than ${lf.label} characters.` : null : "Give the link a label.";
-}
-function ff(e) {
-	let t = e.trim();
-	return t ? t.length > lf.text ? `The note is longer than ${lf.text} characters.` : null : "Write the note.";
+	return i ? i.length > uf.label ? `The label is longer than ${uf.label} characters.` : null : "Give the link a label.";
 }
 function pf(e) {
+	let t = e.trim();
+	return t ? t.length > uf.text ? `The note is longer than ${uf.text} characters.` : null : "Write the note.";
+}
+function mf(e) {
 	if (!e || typeof e != "object" || !("body" in e)) return [];
 	try {
 		let t = JSON.parse(String(e.body));
@@ -12133,17 +12211,17 @@ function pf(e) {
 		return [];
 	}
 }
-function mf(e, t) {
+function hf(e, t) {
 	return e.inputs.filter((e) => e.required).filter((e) => {
 		let n = t[e.id];
 		return Array.isArray(n) ? !n.length : !String(n ?? "").trim();
 	}).map((e) => e.label);
 }
-async function hf(e) {
+async function gf(e) {
 	if (e.size > 204800) throw Error("That file is larger than 200 KB. Pick a smaller one.");
 	return e.text();
 }
-function gf(e) {
+function _f(e) {
 	let t = async (t, n, r) => (await e.post(W, {
 		operation: t,
 		workspaceId: n,
@@ -12189,12 +12267,12 @@ function gf(e) {
 	};
 }
 // kirocrew-app/ui/src/TemplateStart.tsx
-var _f = {
+var vf = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
 	background: "var(--card, transparent)"
-}, vf = (e) => `${e.plugin}/${e.id}`;
-function yf(e) {
+}, yf = (e) => `${e.plugin}/${e.id}`;
+function bf(e) {
 	let { input: t } = e, n = `avoozl-template-input-${t.id}`, [r, i] = d(null), [a, o] = d(null), s = Array.isArray(e.value) ? !e.value.length : !String(e.value ?? "").trim(), c = e.tried && t.required && s, l = /* @__PURE__ */ w("span", {
 		className: "font-medium",
 		children: [
@@ -12245,7 +12323,7 @@ function yf(e) {
 				onChange: (t) => e.onChange(t.target.value),
 				className: "rounded border px-2 py-1 text-sm",
 				style: {
-					..._f,
+					...vf,
 					maxWidth: "24rem"
 				},
 				children: [/* @__PURE__ */ C("option", {
@@ -12262,7 +12340,7 @@ function yf(e) {
 					accept: ".md,.txt,.json,.csv,text/*",
 					onChange: (t) => {
 						let n = t.target.files?.[0];
-						o(null), n && hf(n).then((t) => {
+						o(null), n && gf(n).then((t) => {
 							i({
 								name: n.name,
 								size: n.size
@@ -12306,8 +12384,8 @@ function yf(e) {
 		]
 	});
 }
-function bf(e) {
-	let t = K(), n = l(() => Kd(t), [t]), r = e.templates?.find((t) => vf(t) === e.picked) ?? null, [i, a] = d(null), [s, c] = d(null), { onPreview: u } = e;
+function xf(e) {
+	let t = K(), n = l(() => qd(t), [t]), r = e.templates?.find((t) => yf(t) === e.picked) ?? null, [i, a] = d(null), [s, c] = d(null), { onPreview: u } = e;
 	return o(() => {
 		if (a(null), c(null), u(null), !r?.settings) return;
 		let t = !0;
@@ -12339,13 +12417,13 @@ function bf(e) {
 					}),
 					e.templates.map((t) => /* @__PURE__ */ w("label", {
 						className: "flex items-start gap-2 rounded border p-2",
-						style: { borderColor: e.picked === vf(t) ? "var(--accent)" : "var(--border)" },
+						style: { borderColor: e.picked === yf(t) ? "var(--accent)" : "var(--border)" },
 						children: [/* @__PURE__ */ C("input", {
 							type: "radio",
 							name: "avoozl-template",
 							className: "mt-1",
-							checked: e.picked === vf(t),
-							onChange: () => e.onPick(vf(t))
+							checked: e.picked === yf(t),
+							onChange: () => e.onPick(yf(t))
 						}), /* @__PURE__ */ w("span", {
 							className: "flex flex-col",
 							children: [
@@ -12363,14 +12441,14 @@ function bf(e) {
 								})
 							]
 						})]
-					}, vf(t))),
+					}, yf(t))),
 					e.tried && !r && /* @__PURE__ */ C("span", {
 						className: "text-xs text-danger",
 						children: "Pick a template."
 					})
 				]
 			}),
-			r && r.inputs.map((t) => /* @__PURE__ */ C(yf, {
+			r && r.inputs.map((t) => /* @__PURE__ */ C(bf, {
 				input: t,
 				value: e.values[t.id],
 				repositories: e.repositories,
@@ -12395,7 +12473,7 @@ function bf(e) {
 						className: "text-xs text-muted",
 						children: "Picking a template changes no setting. Tick the box to copy these into .avoozl.json when you submit."
 					}),
-					i ? /* @__PURE__ */ C(sf, { preview: i }) : s ? /* @__PURE__ */ C("p", {
+					i ? /* @__PURE__ */ C(cf, { preview: i }) : s ? /* @__PURE__ */ C("p", {
 						className: "text-xs text-danger",
 						children: s
 					}) : /* @__PURE__ */ C("p", {
@@ -12422,7 +12500,7 @@ function bf(e) {
 	});
 }
 // kirocrew-app/ui/src/new-plan-api.ts
-var xf = /^[a-z0-9][a-z0-9-]{0,79}$/, Sf = "Name the epic by its spec folder: lowercase letters, digits and hyphens.", Cf = {
+var Sf = /^[a-z0-9][a-z0-9-]{0,79}$/, Cf = "Name the epic by its spec folder: lowercase letters, digits and hyphens.", wf = {
 	name: "",
 	category: "",
 	epic: "",
@@ -12431,39 +12509,39 @@ var xf = /^[a-z0-9][a-z0-9-]{0,79}$/, Sf = "Name the epic by its spec folder: lo
 	goal: "",
 	context: ""
 };
-function wf(e) {
+function Tf(e) {
 	return e.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "").slice(0, 80).replace(/-+$/, "");
 }
-function Tf(e, t) {
+function Ef(e, t) {
 	let n = e.trim();
 	if (!n) return "Name the spec.";
-	if (!xf.test(n)) {
-		let e = wf(n);
+	if (!Sf.test(n)) {
+		let e = Tf(n);
 		return `Use lowercase letters, digits and hyphens, up to 80 characters${e && e !== n ? `, like ${e}` : ""}.`;
 	}
 	for (let e of t) if (e === n) return `${n} is already used by a spec or its folder.`;
 	return null;
 }
-function Ef(e, t, n) {
-	let r = [], i = Tf(e.name, t);
-	i && r.push(i), e.epic.trim() && !xf.test(e.epic.trim()) && r.push(Sf);
+function Df(e, t, n) {
+	let r = [], i = Ef(e.name, t);
+	i && r.push(i), e.epic.trim() && !Sf.test(e.epic.trim()) && r.push(Cf);
 	for (let e of n) r.push(`Fill in ${e}.`);
 	return r;
 }
-function Df(e, t, n) {
-	let r = [], i = Tf(e.name, t);
-	return i && r.push(i), n ? e.repositories.length || r.push("Pick at least one repository.") : r.push("Register a repository in Settings › Repositories first."), e.epic.trim() && !xf.test(e.epic.trim()) && r.push(Sf), e.goal.trim() || r.push("Say what you want."), r;
+function Of(e, t, n) {
+	let r = [], i = Ef(e.name, t);
+	return i && r.push(i), n ? e.repositories.length || r.push("Pick at least one repository.") : r.push("Register a repository in Settings › Repositories first."), e.epic.trim() && !Sf.test(e.epic.trim()) && r.push(Cf), e.goal.trim() || r.push("Say what you want."), r;
 }
-var Of = (e) => e.split("\n").map((e) => e.trim()).filter(Boolean), kf = (e) => JSON.stringify(e) !== JSON.stringify(Cf), Af = (e) => ({
+var kf = (e) => e.split("\n").map((e) => e.trim()).filter(Boolean), Af = (e) => JSON.stringify(e) !== JSON.stringify(wf), jf = (e) => ({
 	name: e.name.trim(),
 	category: e.category.trim(),
 	epic: e.epic.trim(),
-	phases: Of(e.phases),
+	phases: kf(e.phases),
 	repositories: e.repositories,
 	goal: e.goal,
 	context: e.context
 });
-function jf(e) {
+function Mf(e) {
 	let t = async (t, n) => (await e.post(W, {
 		operation: "plan.new",
 		workspaceId: t,
@@ -12471,16 +12549,16 @@ function jf(e) {
 	})).result;
 	return {
 		preview: (e, n) => t(e, {
-			...Af(n),
+			...jf(n),
 			handoff: "spec-builder",
 			preview: !0
 		}),
 		specBuilder: (e, n, r) => t(e, {
-			...Af(n),
+			...jf(n),
 			handoff: "spec-builder",
 			writeSteering: r
 		}),
-		request: (e, n) => t(e, Af(n)),
+		request: (e, n) => t(e, jf(n)),
 		fromTemplate: (e, n, r, i) => t(e, {
 			name: n.name.trim(),
 			category: n.category.trim(),
@@ -12494,11 +12572,11 @@ function jf(e) {
 	};
 }
 // kirocrew-app/ui/src/spec-builder-api.ts
-var Mf = "/api/apps/spec-builder/specs", Nf = "/spec-builder", Pf = "spec-builder:last-open";
-function Ff(e) {
-	return { create: (t) => e.post(Mf, t) };
-}
+var Nf = "/api/apps/spec-builder/specs", Pf = "/spec-builder", Ff = "spec-builder:last-open";
 function If(e) {
+	return { create: (t) => e.post(Nf, t) };
+}
+function Lf(e) {
 	let t = e, n = "", r = "";
 	try {
 		let e = JSON.parse(t?.body ?? "");
@@ -12521,22 +12599,22 @@ function If(e) {
 		fallback: !1
 	};
 }
-function Lf(e, t) {
+function Rf(e, t) {
 	try {
-		window.localStorage.setItem(Pf, e);
+		window.localStorage.setItem(Ff, e);
 	} catch {}
-	t(Nf);
+	t(Pf);
 }
 // kirocrew-app/ui/src/NewPlanDrawer.tsx
-var Rf = (e, t) => {
+var zf = (e, t) => {
 	let n = (e) => e.replace(/\\/g, "/").replace(/\/+$/, "").replace(/^\/private(?=\/)/, "");
 	return n(e) === n(t);
-}, zf = {
+}, Bf = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
 	background: "var(--card, transparent)"
-}, Bf = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
-function Vf(e) {
+}, Vf = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
+function Hf(e) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-1 text-sm",
 		children: [
@@ -12568,14 +12646,14 @@ function Vf(e) {
 		]
 	});
 }
-var Hf = "__new__";
-function Uf(e) {
-	let t = K(), n = l(() => jf(t), [t]), r = h(), a = l(() => Ff(t), [t]), s = Lr(), c = It("(max-width: 767px)"), f = It("(prefers-reduced-motion: reduce)"), [p, m] = d(() => ({
-		...Cf,
+var Uf = "__new__";
+function Wf(e) {
+	let t = K(), n = l(() => Mf(t), [t]), r = h(), a = l(() => If(t), [t]), s = Lr(), c = It("(max-width: 767px)"), f = It("(prefers-reduced-motion: reduce)"), [p, m] = d(() => ({
+		...wf,
 		...e.seed
-	})), [g, v] = d(null), [y, x] = d(!1), [T, E] = d(!1), [D, O] = d(!1), [k, A] = d(null), [j, M] = d(null), [N, P] = d(!1), [F, I] = d(!1), [L, ee] = d(e.start ?? null), [te, ne] = d(!1), [re, ie] = d(!1), [R, B] = d(null), [V, oe] = d(null), [H, U] = d({}), [ce, le] = d(!1), [ue, de] = d(null), fe = i((e) => {
+	})), [g, v] = d(null), [y, x] = d(!1), [T, E] = d(!1), [D, O] = d(!1), [k, A] = d(null), [j, M] = d(null), [N, P] = d(!1), [F, I] = d(!1), [L, ee] = d(e.start ?? null), [te, R] = d(!1), [ne, re] = d(!1), [z, V] = d(null), [H, ae] = d(null), [oe, U] = d({}), [ce, le] = d(!1), [ue, de] = d(null), fe = i((e) => {
 		de(e), le(!1);
-	}, []), pe = l(() => gf(t), [t]), me = l(() => Kd(t), [t]), he = R?.find((e) => vf(e) === V) ?? null, ge = u(null), _e = (e) => {
+	}, []), pe = l(() => _f(t), [t]), me = l(() => qd(t), [t]), he = z?.find((e) => yf(e) === H) ?? null, ge = u(null), _e = (e) => {
 		m((t) => ({
 			...t,
 			...e
@@ -12591,20 +12669,20 @@ function Uf(e) {
 			n = !1;
 		};
 	}, [t, e.workspaceId]), o(() => {
-		if (L !== "template" || R !== null) return;
+		if (L !== "template" || z !== null) return;
 		let t = !0;
 		return pe.templates(e.workspaceId).then((e) => {
-			t && (B(e.templates), e.templates.length === 1 && oe(vf(e.templates[0])));
-		}, (e) => t && (B([]), A(G(e)))), () => {
+			t && (V(e.templates), e.templates.length === 1 && ae(yf(e.templates[0])));
+		}, (e) => t && (V([]), A(G(e)))), () => {
 			t = !1;
 		};
 	}, [
 		pe,
 		e.workspaceId,
 		L,
-		R
+		z
 	]);
-	let ve = kf(p) || Object.values(H).some((e) => Array.isArray(e) ? e.length > 0 : !!String(e).trim()), ye = async () => {
+	let ve = Af(p) || Object.values(oe).some((e) => Array.isArray(e) ? e.length > 0 : !!String(e).trim()), ye = async () => {
 		D || (!ve || await s({
 			title: "Discard this new spec?",
 			body: "What you typed is not saved anywhere.",
@@ -12616,14 +12694,14 @@ function Uf(e) {
 			I(!0), ge.current?.querySelector("#avoozl-new-plan-name")?.focus();
 		}), n = (e) => {
 			if (Xn() || e.key !== "Tab" || !ge.current) return;
-			let t = [...ge.current.querySelectorAll(Bf)], n = Lt(t.length, t.indexOf(document.activeElement), e.shiftKey);
+			let t = [...ge.current.querySelectorAll(Vf)], n = Lt(t.length, t.indexOf(document.activeElement), e.shiftKey);
 			n < 0 || (e.preventDefault(), t[n].focus());
 		};
 		return document.addEventListener("keydown", n), () => {
 			cancelAnimationFrame(t), document.removeEventListener("keydown", n), e?.focus?.();
 		};
 	}, []);
-	let xe = L === null ? ["Pick Blank, From template or From a goal."] : L === "template" ? [...he ? [] : ["Pick a template."], ...Ef(p, e.taken, he ? mf(he, H) : [])] : g ? Df(p, e.taken, g.length) : [], Se = y || T ? Tf(p.name, e.taken) : null, Ce = async (e) => {
+	let xe = L === null ? ["Pick Blank, From template or From a goal."] : L === "template" ? [...he ? [] : ["Pick a template."], ...Df(p, e.taken, he ? hf(he, oe) : [])] : g ? Of(p, e.taken, g.length) : [], Se = y || T ? Ef(p.name, e.taken) : null, Ce = async (e) => {
 		O(!0), A(null);
 		try {
 			await e();
@@ -12639,23 +12717,23 @@ function Uf(e) {
 		try {
 			o = await a.create(i.specBuilder);
 		} catch (e) {
-			let t = If(e);
+			let t = Lf(e);
 			P(t.fallback), A(t.message);
 			return;
 		}
-		let s = o.spec_dir && !Rf(o.spec_dir, i.folder);
-		e.onClose(s ? `Spec Builder made ${i.name} in ${o.spec_dir}, but Avoozl reads ${i.folder}. Clear Spec Builder's base path setting, or move the folder.` : `Spec Builder is drafting ${i.name}. Avoozl writes its manifest after tasks.md, and it shows here as a draft; you approve it.`), Lf(i.name, r);
+		let s = o.spec_dir && !zf(o.spec_dir, i.folder);
+		e.onClose(s ? `Spec Builder made ${i.name} in ${o.spec_dir}, but Avoozl reads ${i.folder}. Clear Spec Builder's base path setting, or move the folder.` : `Spec Builder is drafting ${i.name}. Avoozl writes its manifest after tasks.md, and it shows here as a draft; you approve it.`), Rf(i.name, r);
 	}, Te = (e) => Ce(() => we(e)), Ee = () => Ce(async () => {
 		if (!he) return;
 		ce && ue && await me.packImport(e.workspaceId, {
-			...Id(ue, !1, !1),
+			...Ld(ue, !1, !1),
 			template: he.id
 		});
 		let t = await n.fromTemplate(e.workspaceId, p, {
 			plugin: he.plugin,
 			id: he.id,
 			version: he.version
-		}, H);
+		}, oe);
 		e.onClose(`Avoozl is opening a planner chat for ${t.name} from ${he.title}; find it in your chats.${ce ? " Its settings were imported." : ""} It shows here as a draft once its folder is complete; you approve it.`);
 	}), De = () => {
 		if (E(!0), L !== null) {
@@ -12706,7 +12784,7 @@ function Uf(e) {
 				})
 			]
 		}),
-		/* @__PURE__ */ C(Vf, {
+		/* @__PURE__ */ C(Hf, {
 			id: "avoozl-new-plan-goal",
 			need: "required",
 			label: "What you want",
@@ -12718,10 +12796,10 @@ function Uf(e) {
 				value: p.goal,
 				onChange: (e) => _e({ goal: e.target.value }),
 				className: "rounded border px-2 py-1 text-sm",
-				style: zf
+				style: Bf
 			})
 		}),
-		/* @__PURE__ */ C(Vf, {
+		/* @__PURE__ */ C(Hf, {
 			id: "avoozl-new-plan-context",
 			need: "optional",
 			label: "Links and context",
@@ -12732,7 +12810,7 @@ function Uf(e) {
 				value: p.context,
 				onChange: (e) => _e({ context: e.target.value }),
 				className: "rounded border px-2 py-1 text-sm",
-				style: zf
+				style: Bf
 			})
 		})
 	] });
@@ -12794,7 +12872,7 @@ function Uf(e) {
 							className: "text-xs text-muted",
 							children: L === "template" ? "An Avoozl planner chat drafts the spec from the template and what you fill in. It shows in Specs as a draft. Nothing is approved or started." : L === "goal" ? "An Avoozl planner chat writes the spec from your goal: requirements, design and tasks. It shows in Specs as a draft and is approved like any spec. Nothing is started." : L === "blank" ? "Kiro Crew's Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. Avoozl then writes the manifest, and the spec shows in Specs as a draft. Nothing is approved or started." : "Name it, then pick how to start: Blank, From template or From a goal. It shows in Specs as a draft. Nothing is approved or started."
 						}),
-						/* @__PURE__ */ C(Vf, {
+						/* @__PURE__ */ C(Hf, {
 							id: "avoozl-new-plan-name",
 							need: "required",
 							label: "Name",
@@ -12811,12 +12889,12 @@ function Uf(e) {
 								style: { maxWidth: "24rem" }
 							})
 						}),
-						/* @__PURE__ */ w(Vf, {
+						/* @__PURE__ */ w(Hf, {
 							id: "avoozl-new-plan-category",
 							need: "optional",
 							label: "Category",
 							hint: "Pick one, or New category to name one. Left blank, the spec is Uncategorized.",
-							children: [/* @__PURE__ */ C(el, {
+							children: [/* @__PURE__ */ C(tl, {
 								id: "avoozl-new-plan-category",
 								label: /* @__PURE__ */ C("span", {
 									className: "sr-only",
@@ -12826,15 +12904,15 @@ function Uf(e) {
 									id: e,
 									title: e
 								})), {
-									id: Hf,
+									id: Uf,
 									title: "New category…"
 								}],
-								value: te ? Hf : p.category,
+								value: te ? Uf : p.category,
 								emptyLabel: "Uncategorized",
 								plain: !0,
 								maxWidth: "18rem",
 								onPick: (e) => {
-									ne(e === Hf), _e({ category: e === Hf ? "" : e });
+									R(e === Uf), _e({ category: e === Uf ? "" : e });
 								}
 							}), te && /* @__PURE__ */ C(b, {
 								id: "avoozl-new-plan-category-new",
@@ -12845,13 +12923,13 @@ function Uf(e) {
 								style: { maxWidth: "18rem" }
 							})]
 						}),
-						/* @__PURE__ */ w(Vf, {
+						/* @__PURE__ */ w(Hf, {
 							id: "avoozl-new-plan-epic",
 							need: "optional",
 							label: "Epic",
 							hint: "An epic is a goal that holds several specs. Pick one, or New epic to start one. Left blank, the spec is in no epic.",
-							problem: p.epic.trim() && !xf.test(p.epic.trim()) ? Sf : null,
-							children: [/* @__PURE__ */ C(el, {
+							problem: p.epic.trim() && !Sf.test(p.epic.trim()) ? Cf : null,
+							children: [/* @__PURE__ */ C(tl, {
 								id: "avoozl-new-plan-epic",
 								label: /* @__PURE__ */ C("span", {
 									className: "sr-only",
@@ -12861,17 +12939,17 @@ function Uf(e) {
 									id: e.id,
 									title: e.title
 								})), {
-									id: Hf,
+									id: Uf,
 									title: "New epic…"
 								}],
-								value: re ? Hf : p.epic,
+								value: ne ? Uf : p.epic,
 								emptyLabel: "No epic",
 								plain: !0,
 								maxWidth: "18rem",
 								onPick: (e) => {
-									ie(e === Hf), _e({ epic: e === Hf ? "" : e });
+									re(e === Uf), _e({ epic: e === Uf ? "" : e });
 								}
-							}), re && /* @__PURE__ */ C(b, {
+							}), ne && /* @__PURE__ */ C(b, {
 								id: "avoozl-new-plan-epic-new",
 								"aria-label": "New epic folder name",
 								value: p.epic,
@@ -12880,7 +12958,7 @@ function Uf(e) {
 								style: { maxWidth: "18rem" }
 							})]
 						}),
-						/* @__PURE__ */ C(wd, {
+						/* @__PURE__ */ C(Td, {
 							name: "avoozl-new-plan-start",
 							label: "How to start",
 							value: L ?? "",
@@ -12895,7 +12973,7 @@ function Uf(e) {
 									icon: se,
 									fields: /* @__PURE__ */ w("div", {
 										className: "flex flex-col gap-3",
-										children: [/* @__PURE__ */ C(Vf, {
+										children: [/* @__PURE__ */ C(Hf, {
 											id: "avoozl-new-plan-phases",
 											need: "optional",
 											label: "Phases",
@@ -12906,7 +12984,7 @@ function Uf(e) {
 												value: p.phases,
 												onChange: (e) => _e({ phases: e.target.value }),
 												className: "rounded border px-2 py-1 text-sm",
-												style: zf
+												style: Bf
 											})
 										}), Ae]
 									})
@@ -12916,14 +12994,14 @@ function Uf(e) {
 									title: "From template",
 									line: "Start from a workflow template in an approved plugin. It brings its own phases, proofs and manual steps, and a planner chat fills them in. Use it when a team's way of working already exists.",
 									icon: Me,
-									fields: /* @__PURE__ */ C(bf, {
+									fields: /* @__PURE__ */ C(xf, {
 										workspaceId: e.workspaceId,
-										templates: R,
-										picked: V,
+										templates: z,
+										picked: H,
 										onPick: (e) => {
-											oe(e), U({});
+											ae(e), U({});
 										},
-										values: H,
+										values: oe,
 										onValues: U,
 										repositories: g ?? [],
 										epics: e.epics ?? [],
@@ -12937,7 +13015,7 @@ function Uf(e) {
 									key: "goal",
 									title: "From a goal",
 									line: "Type the goal. An Avoozl planner chat writes the draft spec, requirements, design and tasks, and you approve it like any spec. Use it when you know the outcome but not the steps.",
-									icon: z,
+									icon: B,
 									fields: /* @__PURE__ */ C("div", {
 										className: "flex flex-col gap-3",
 										children: Ae
@@ -13030,7 +13108,7 @@ function Uf(e) {
 								alignItems: "center",
 								gap: 6
 							},
-							children: [C(L === "template" || L === "goal" ? Oe : ae, {
+							children: [C(L === "template" || L === "goal" ? Oe : ie, {
 								size: 14,
 								"aria-hidden": "true"
 							}), D ? "Opening…" : L === "template" || L === "goal" ? "Open a planner chat" : L === "blank" ? "Open in Spec Builder" : "Pick how to start"]
@@ -13048,14 +13126,14 @@ function Uf(e) {
 	});
 }
 // kirocrew-app/ui/src/Driver.tsx
-var Wf = {
+var Gf = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
 	background: "var(--card, transparent)",
 	maxWidth: "100%"
 };
-function Gf(e, t) {
-	let n = K(), r = l(() => tu(n), [n]), [a, s] = d(null), c = i(() => {
+function Kf(e, t) {
+	let n = K(), r = l(() => nu(n), [n]), [a, s] = d(null), c = i(() => {
 		e && r.status(e, t ?? void 0).then(s, () => void 0);
 	}, [
 		r,
@@ -13073,7 +13151,7 @@ function Gf(e, t) {
 		client: r
 	};
 }
-function Kf(e) {
+function qf(e) {
 	let { spec: t } = e;
 	return t ? /* @__PURE__ */ w("span", {
 		"data-driver-chip": !0,
@@ -13084,14 +13162,14 @@ function Kf(e) {
 			style: { color: "var(--muted)" }
 		}), /* @__PURE__ */ C($, {
 			variant: t.you ? "success" : t.stale ? "warning" : void 0,
-			children: Yl(t)
+			children: Xl(t)
 		})]
 	}) : null;
 }
-function qf(e) {
+function Jf(e) {
 	let { spec: t } = e, [n, r] = d(null);
 	if (!t || t.you || t.state === "unknown") return null;
-	let i = Zl(t), a = pr(t.issue?.url ?? null);
+	let i = Ql(t), a = pr(t.issue?.url ?? null);
 	return /* @__PURE__ */ w("div", {
 		role: "status",
 		"data-driver-banner": !0,
@@ -13113,7 +13191,7 @@ function qf(e) {
 						className: "font-medium",
 						children: [
 							"Read only here. ",
-							Xl(t),
+							Zl(t),
 							"."
 						]
 					}),
@@ -13131,7 +13209,7 @@ function qf(e) {
 							"Plan issue #",
 							t.issue?.number,
 							" ",
-							/* @__PURE__ */ C(ae, {
+							/* @__PURE__ */ C(ie, {
 								size: 12,
 								"aria-hidden": "true"
 							})
@@ -13153,14 +13231,14 @@ function qf(e) {
 				style: Or,
 				children: "Force take over"
 			}),
-			n === "takeover" && /* @__PURE__ */ C(Zf, {
+			n === "takeover" && /* @__PURE__ */ C(Qf, {
 				workspaceId: e.workspaceId,
 				spec: t,
 				onClose: (t) => {
 					r(null), t && e.onChanged();
 				}
 			}),
-			n === "force" && /* @__PURE__ */ C(Qf, {
+			n === "force" && /* @__PURE__ */ C($f, {
 				workspaceId: e.workspaceId,
 				spec: t,
 				onClose: (t) => {
@@ -13170,7 +13248,7 @@ function qf(e) {
 		]
 	});
 }
-function Jf(e) {
+function Yf(e) {
 	let t = e.spec?.you ? e.spec.setup : [];
 	return t.length ? /* @__PURE__ */ w("div", {
 		"data-driver-setup": !0,
@@ -13187,12 +13265,12 @@ function Jf(e) {
 			}),
 			/* @__PURE__ */ C("ul", {
 				className: "mt-1 list-disc pl-5",
-				children: t.map((e) => /* @__PURE__ */ C("li", { children: Ql(e) }, e.kind + (e.id ?? "")))
+				children: t.map((e) => /* @__PURE__ */ C("li", { children: $l(e) }, e.kind + (e.id ?? "")))
 			})
 		]
 	}) : null;
 }
-function Yf(e) {
+function Xf(e) {
 	return e.preview?.lost.length ? /* @__PURE__ */ w("div", {
 		"data-driver-loss": !0,
 		className: "flex flex-col gap-1 text-sm",
@@ -13216,7 +13294,7 @@ function Yf(e) {
 		]
 	}) : null;
 }
-function Xf(e) {
+function Zf(e) {
 	return /* @__PURE__ */ w("label", {
 		className: "flex flex-col gap-1 text-sm",
 		htmlFor: e.id,
@@ -13234,14 +13312,14 @@ function Xf(e) {
 				id: e.id,
 				value: e.value,
 				onChange: (t) => e.onChange(t.target.value),
-				style: Wf,
+				style: Gf,
 				placeholder: "/path/to/s1.avoozl-driver.json"
 			})
 		]
 	});
 }
-function Zf(e) {
-	let { spec: t } = e, n = K(), r = l(() => tu(n), [n]), [i, a] = d((t.mode, "file")), [s, c] = d(""), [u, f] = d(null), [p, m] = d(null), [h, g] = d(!1);
+function Qf(e) {
+	let { spec: t } = e, n = K(), r = l(() => nu(n), [n]), [i, a] = d((t.mode, "file")), [s, c] = d(""), [u, f] = d(null), [p, m] = d(null), [h, g] = d(!1);
 	o(() => {
 		if (i !== "rebuild") return f(null);
 		r.preview(e.workspaceId, t.planId, !0).then(f, (e) => m(G(e)));
@@ -13321,12 +13399,12 @@ function Zf(e) {
 						] })]
 					}, e.key))]
 				}),
-				i === "file" && /* @__PURE__ */ C(Xf, {
+				i === "file" && /* @__PURE__ */ C(Zf, {
 					id: "avoozl-driver-file",
 					value: s,
 					onChange: c
 				}),
-				i === "rebuild" && /* @__PURE__ */ C(Yf, { preview: u }),
+				i === "rebuild" && /* @__PURE__ */ C(Xf, { preview: u }),
 				/* @__PURE__ */ C("p", {
 					className: "text-xs text-muted",
 					children: "Avoozl waits 10 seconds and reads the plan issue again; it drives only if its claim is still there."
@@ -13340,8 +13418,8 @@ function Zf(e) {
 		})
 	});
 }
-function Qf(e) {
-	let { spec: t } = e, n = K(), r = l(() => tu(n), [n]), [i, a] = d(""), [s, c] = d(""), [u, f] = d(!1), [p, m] = d(null), [h, g] = d(null), [v, y] = d(!1);
+function $f(e) {
+	let { spec: t } = e, n = K(), r = l(() => nu(n), [n]), [i, a] = d(""), [s, c] = d(""), [u, f] = d(!1), [p, m] = d(null), [h, g] = d(null), [v, y] = d(!1);
 	o(() => {
 		r.preview(e.workspaceId, t.planId, !0).then(m, (e) => g(G(e)));
 	}, [
@@ -13349,7 +13427,7 @@ function Qf(e) {
 		e.workspaceId,
 		t.planId
 	]);
-	let x = $l(t, i, u, s), T = async () => {
+	let x = eu(t, i, u, s), T = async () => {
 		y(!0), g(null);
 		try {
 			await r.force(e.workspaceId, t.planId, i.trim(), s.trim() || void 0), e.onClose(!0);
@@ -13411,16 +13489,16 @@ function Qf(e) {
 							className: "text-muted",
 							children: "Last heartbeat"
 						}),
-						/* @__PURE__ */ C("dd", { children: t.seenAt ? `${t.seenAt} (${Jl(t.seenAt)})` : "never" })
+						/* @__PURE__ */ C("dd", { children: t.seenAt ? `${t.seenAt} (${Yl(t.seenAt)})` : "never" })
 					]
 				}),
 				/* @__PURE__ */ C("p", { children: "That machine may still be running chats for this spec. Their local results will not come here; what they push to GitHub does. Avoozl sets the plan issue's assignee to you, the one assignee change it ever makes." }),
-				/* @__PURE__ */ C(Xf, {
+				/* @__PURE__ */ C(Zf, {
 					id: "avoozl-driver-force-file",
 					value: s,
 					onChange: c
 				}),
-				!s.trim() && /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(Yf, { preview: p }), /* @__PURE__ */ w("label", {
+				!s.trim() && /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(Xf, { preview: p }), /* @__PURE__ */ w("label", {
 					className: "flex items-center gap-2",
 					children: [/* @__PURE__ */ C("input", {
 						type: "checkbox",
@@ -13439,7 +13517,7 @@ function Qf(e) {
 							id: "avoozl-driver-force-name",
 							value: i,
 							onChange: (e) => a(e.target.value),
-							style: Wf,
+							style: Gf,
 							autoComplete: "off"
 						})
 					]
@@ -13453,14 +13531,14 @@ function Qf(e) {
 		})
 	});
 }
-function $f(e) {
+function ep(e) {
 	let [t, n] = d(!1), { spec: r } = e;
 	return !r?.you && r?.handoff?.state !== "exported" ? null : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(Y, {
 		icon: He,
 		tooltip: "Stop new work for this spec, export its run state, then reassign it on GitHub",
 		onClick: () => n(!0),
 		children: r.handoff ? "Hand off…" : "Hand off driver"
-	}), t && /* @__PURE__ */ C(ep, {
+	}), t && /* @__PURE__ */ C(tp, {
 		workspaceId: e.workspaceId,
 		spec: r,
 		onClose: () => {
@@ -13468,8 +13546,8 @@ function $f(e) {
 		}
 	})] });
 }
-function ep(e) {
-	let t = ni(e.workspaceId), n = K(), r = l(() => tu(n), [n]), [i, a] = d(e.spec), [o, s] = d(e.spec.handoff?.folder ?? ""), [c, u] = d(e.spec.handoff?.file ?? null), [f, p] = d(null), [m, h] = d(!1), g = i.handoff ? i.handoff.state === "draining" ? "drain" : "reassign" : "start", v = async (e) => {
+function tp(e) {
+	let t = ni(e.workspaceId), n = K(), r = l(() => nu(n), [n]), [i, a] = d(e.spec), [o, s] = d(e.spec.handoff?.folder ?? ""), [c, u] = d(e.spec.handoff?.file ?? null), [f, p] = d(null), [m, h] = d(!1), g = i.handoff ? i.handoff.state === "draining" ? "drain" : "reassign" : "start", v = async (e) => {
 		h(!0), p(null);
 		try {
 			let t = await e(), n = t.specs.find((e) => e.planId === i.planId);
@@ -13579,7 +13657,7 @@ function ep(e) {
 									id: "avoozl-driver-folder",
 									value: o,
 									onChange: (e) => s(e.target.value),
-									style: Wf,
+									style: Gf,
 									placeholder: "/path/to/a/folder"
 								})
 							]
@@ -13610,7 +13688,7 @@ function ep(e) {
 							target: "_blank",
 							rel: "noreferrer",
 							className: "mt-1 inline-flex items-center gap-1 underline",
-							children: ["Reassign it on GitHub ", /* @__PURE__ */ C(ae, {
+							children: ["Reassign it on GitHub ", /* @__PURE__ */ C(ie, {
 								size: 12,
 								"aria-hidden": "true"
 							})]
@@ -13626,8 +13704,8 @@ function ep(e) {
 		})
 	});
 }
-function tp(e) {
-	let { status: t, client: n, reload: r } = Gf(e.workspaceId, null), [i, a] = d({
+function np(e) {
+	let { status: t, client: n, reload: r } = Kf(e.workspaceId, null), [i, a] = d({
 		label: "",
 		heartbeat: ""
 	}), [s, c] = d(null), [l, u] = d(null);
@@ -13638,7 +13716,7 @@ function tp(e) {
 		});
 	}, [t?.machine?.label, t?.machine?.heartbeatMinutes]), !e.workspaceId || !t?.enabled || !t.machine) return null;
 	let f = async () => {
-		let t = eu(i);
+		let t = tu(i);
 		if (t.error || !t.input) return u(t.error ?? null);
 		u(null);
 		try {
@@ -13680,7 +13758,7 @@ function tp(e) {
 								...i,
 								label: e.target.value
 							}),
-							style: Wf,
+							style: Gf,
 							placeholder: "laptop"
 						})
 					]
@@ -13701,7 +13779,7 @@ function tp(e) {
 								...i,
 								heartbeat: e.target.value
 							}),
-							style: Wf,
+							style: Gf,
 							placeholder: "15"
 						})
 					]
@@ -13737,8 +13815,8 @@ function tp(e) {
 	}) });
 }
 // kirocrew-app/ui/src/RepositoriesSettings.tsx
-var np = "A repository is a code checkout on this computer. Tasks change its code in their own worktrees and land on its branch. Each workspace keeps its own list.";
-function rp() {
+var rp = "A repository is a code checkout on this computer. Tasks change its code in their own worktrees and land on its branch. Each workspace keeps its own list.";
+function ip() {
 	let e = K();
 	return i(async (t) => {
 		try {
@@ -13754,16 +13832,16 @@ function rp() {
 		}
 	}, [e]);
 }
-function ip(e, t) {
+function ap(e, t) {
 	return e.github ? t === "local" ? "Local only mode" : t ? t === "plans-repo" ? "Plans repository mode" : "Single repository mode" : "GitHub, no mode yet" : "Local only";
 }
-function ap(e) {
+function op(e) {
 	return e.rows.length ? /* @__PURE__ */ C("ul", {
 		className: "flex flex-col",
 		"aria-label": "Added repositories",
 		"data-repository-list": !0,
 		children: e.rows.map((t) => {
-			let n = vu(t.github);
+			let n = yu(t.github);
 			return /* @__PURE__ */ w("li", {
 				className: "flex flex-wrap items-center gap-x-3 gap-y-1 border-t py-2 first:border-t-0",
 				style: { borderColor: "var(--border)" },
@@ -13785,7 +13863,7 @@ function ap(e) {
 							]
 						})]
 					}),
-					/* @__PURE__ */ C($, { children: ip(t, e.mode) }),
+					/* @__PURE__ */ C($, { children: ap(t, e.mode) }),
 					/* @__PURE__ */ w("span", {
 						className: "flex items-center gap-1.5",
 						children: [
@@ -13801,7 +13879,7 @@ function ap(e) {
 								label: `Open ${t.name} in Finder`,
 								onClick: () => e.onReveal(t.folder)
 							}),
-							n && /* @__PURE__ */ C(sp, {
+							n && /* @__PURE__ */ C(cp, {
 								href: J(n),
 								name: t.name
 							}),
@@ -13836,7 +13914,7 @@ function ap(e) {
 			}),
 			/* @__PURE__ */ C("p", {
 				className: "text-sm text-muted",
-				children: np
+				children: rp
 			}),
 			/* @__PURE__ */ C(Y, {
 				icon: Le,
@@ -13847,7 +13925,7 @@ function ap(e) {
 		]
 	});
 }
-function op(e) {
+function sp(e) {
 	let t = Lr(), n = {
 		title: `Discard your changes to ${e.name}?`,
 		body: "Every edit in this dialog is lost. .avoozl.json stays as it is.",
@@ -13889,11 +13967,11 @@ function op(e) {
 		children: e.children
 	});
 }
-function sp({ href: e, name: t }) {
-	return /* @__PURE__ */ w(cp, {
+function cp({ href: e, name: t }) {
+	return /* @__PURE__ */ w(lp, {
 		href: J(e),
 		tip: "Open on GitHub",
-		children: [/* @__PURE__ */ C(ae, {
+		children: [/* @__PURE__ */ C(ie, {
 			size: 14,
 			"aria-hidden": "true"
 		}), /* @__PURE__ */ w("span", {
@@ -13906,7 +13984,7 @@ function sp({ href: e, name: t }) {
 		})]
 	});
 }
-function cp(e) {
+function lp(e) {
 	return /* @__PURE__ */ C(q, {
 		text: e.tip,
 		children: /* @__PURE__ */ C("a", {
@@ -13923,7 +14001,7 @@ function cp(e) {
 		})
 	});
 }
-function lp(e) {
+function up(e) {
 	let t = K(), n = l(() => Qe(t), [t]), [r, i] = d(""), [a, s] = d(null), [c, u] = d(""), [f, p] = d(""), [m, h] = d(!1), [g, v] = d(null);
 	o(() => {
 		s(null), v(null);
@@ -14090,12 +14168,12 @@ function lp(e) {
 	});
 }
 // kirocrew-app/ui/src/filters.ts
-var up = "(none)", dp = "(none)", fp = (e) => e.spec ? `spec:${e.spec}` : e.planId ? `plan:${e.planId}` : null, pp = (e) => e.spec ? `spec:${e.spec}` : e.planId ? `plan:${e.planId}` : void 0, mp = (e) => !!(e.q?.trim() || e.plan || e.epic || e.phase || e.repository || e.state || e.waveMin || e.waveMax || e.authority || e.needsYou || e.archived), hp = (e, t) => !e.planArchived || !!(t.archived || t.plan);
-function gp(e, t) {
+var dp = "(none)", fp = "(none)", pp = (e) => e.spec ? `spec:${e.spec}` : e.planId ? `plan:${e.planId}` : null, mp = (e) => e.spec ? `spec:${e.spec}` : e.planId ? `plan:${e.planId}` : void 0, hp = (e) => !!(e.q?.trim() || e.plan || e.epic || e.phase || e.repository || e.state || e.waveMin || e.waveMax || e.authority || e.needsYou || e.archived), gp = (e, t) => !e.planArchived || !!(t.archived || t.plan);
+function _p(e, t) {
 	let n = t.q?.trim().toLowerCase() ?? "", r = t.plan;
-	return hp(e, t) && (!n || e.title.toLowerCase().includes(n) || e.id.toLowerCase().includes(n)) && (!r || (r.startsWith("spec:") ? e.spec === r.slice(5) : r.startsWith("plan:") ? e.planId === r.slice(5) : !1)) && (!t.epic || (t.epic === "(none)" ? !e.epic : e.epic === t.epic)) && (!t.phase || !r || (t.phase === "(none)" ? !e.phase : e.phase?.id === t.phase)) && (!t.repository || (t.repository === "(none)" ? !e.repository : e.repository === t.repository)) && (!t.state || e.state === t.state) && (!t.waveMin || e.wave >= t.waveMin) && (!t.waveMax || e.wave <= t.waveMax) && (!t.authority || (e.authority ?? "local") === t.authority) && (!t.needsYou || e.state === "needs-you" || !!e.decision);
+	return gp(e, t) && (!n || e.title.toLowerCase().includes(n) || e.id.toLowerCase().includes(n)) && (!r || (r.startsWith("spec:") ? e.spec === r.slice(5) : r.startsWith("plan:") ? e.planId === r.slice(5) : !1)) && (!t.epic || (t.epic === "(none)" ? !e.epic : e.epic === t.epic)) && (!t.phase || !r || (t.phase === "(none)" ? !e.phase : e.phase?.id === t.phase)) && (!t.repository || (t.repository === "(none)" ? !e.repository : e.repository === t.repository)) && (!t.state || e.state === t.state) && (!t.waveMin || e.wave >= t.waveMin) && (!t.waveMax || e.wave <= t.waveMax) && (!t.authority || (e.authority ?? "local") === t.authority) && (!t.needsYou || e.state === "needs-you" || !!e.decision);
 }
-var _p = (e, t) => ({
+var vp = (e, t) => ({
 	id: e.id,
 	title: e.title,
 	epic: e.epic,
@@ -14109,7 +14187,7 @@ var _p = (e, t) => ({
 	decision: e.decision,
 	planArchived: e.planArchived ?? null
 });
-function vp(e, t = {}, n) {
+function yp(e, t = {}, n) {
 	let r = e?.tasks ?? [], i = e ? Yt(e) : /* @__PURE__ */ new Map(), a = (e, t) => {
 		let n = /* @__PURE__ */ new Set();
 		for (let t of r) {
@@ -14122,20 +14200,20 @@ function vp(e, t = {}, n) {
 		})).sort((e, t) => e.label.localeCompare(t.label));
 	}, o = new Map((e?.epics ?? []).map((e) => [e.id, e.title])), s = /* @__PURE__ */ new Set([...e?.repositories ?? [], ...r.map((e) => e.repository).filter((e) => !!e)]);
 	return {
-		plans: a(fp, (e) => t[e] ?? e.replace(/^(spec|plan):/, "")),
+		plans: a(pp, (e) => t[e] ?? e.replace(/^(spec|plan):/, "")),
 		epics: [...a((e) => e.epic, (e) => o.get(e) ?? e), ...r.some((e) => !e.epic) ? [{
-			value: dp,
+			value: fp,
 			label: "No epic"
 		}] : []],
 		phases: (() => {
 			if (!n) return [];
-			let e = r.filter((e) => fp(e) === n), t = /* @__PURE__ */ new Map();
+			let e = r.filter((e) => pp(e) === n), t = /* @__PURE__ */ new Map();
 			for (let n of e) n.phase && !t.has(n.phase.id) && t.set(n.phase.id, n.phase.title);
 			return [...[...t].map(([e, t]) => ({
 				value: e,
 				label: t
 			})), ...e.some((e) => !e.phase) ? [{
-				value: dp,
+				value: fp,
 				label: "No phase"
 			}] : []];
 		})(),
@@ -14143,7 +14221,7 @@ function vp(e, t = {}, n) {
 			value: e,
 			label: e
 		})), ...r.some((e) => !e.repository) ? [{
-			value: up,
+			value: dp,
 			label: "No repository"
 		}] : []],
 		states: zt.map((e) => ({
@@ -14154,19 +14232,19 @@ function vp(e, t = {}, n) {
 		waves: Math.max(0, ...i.values())
 	};
 }
-function yp(e, t) {
-	if (!mp(t) && !e.tasks.some((e) => e.planArchived)) return e;
-	let n = Yt(e), r = e.tasks.filter((e) => gp(_p(e, n.get(e.id) ?? 1), t)), i = new Set(r.map((e) => e.id));
+function bp(e, t) {
+	if (!hp(t) && !e.tasks.some((e) => e.planArchived)) return e;
+	let n = Yt(e), r = e.tasks.filter((e) => _p(vp(e, n.get(e.id) ?? 1), t)), i = new Set(r.map((e) => e.id));
 	return {
 		...e,
 		tasks: r,
 		edges: e.edges.filter((e) => i.has(e.from) && i.has(e.to))
 	};
 }
-var bp = (e) => `avoozl.filters.${e}`, xp = "avoozl-filter";
-function Sp(e, t) {
+var xp = (e) => `avoozl.filters.${e}`, Sp = "avoozl-filter";
+function Cp(e, t) {
 	try {
-		let n = JSON.parse(e?.getItem(bp(t)) ?? "null");
+		let n = JSON.parse(e?.getItem(xp(t)) ?? "null");
 		if (!n || typeof n != "object") return {};
 		let r = {};
 		for (let e of [
@@ -14184,12 +14262,12 @@ function Sp(e, t) {
 		return {};
 	}
 }
-function Cp(e, t, n) {
+function wp(e, t, n) {
 	try {
-		e?.setItem(bp(t), JSON.stringify(n));
+		e?.setItem(xp(t), JSON.stringify(n));
 	} catch {}
 }
-function wp(e, t) {
+function Tp(e, t) {
 	let n = {
 		...e,
 		...t
@@ -14198,11 +14276,11 @@ function wp(e, t) {
 	return n;
 }
 // kirocrew-app/ui/src/sticky-column.ts
-function Tp(e, t = (e) => getComputedStyle(e)) {
+function Ep(e, t = (e) => getComputedStyle(e)) {
 	for (let n = e?.parentElement ?? null; n; n = n.parentElement) if (/(auto|scroll|overlay)/.test(t(n).overflowY)) return n;
 	return null;
 }
-function Ep(e, t) {
+function Dp(e, t) {
 	let n = t;
 	if (e) {
 		let r = e.getBoundingClientRect?.(), i = r ? Math.min(t, r.bottom) - Math.max(0, r.top) : e.clientHeight;
@@ -14211,7 +14289,7 @@ function Ep(e, t) {
 	return Math.max(240, Math.floor(n - 16));
 }
 // kirocrew-app/ui/src/use-title-scrolled-out.ts
-function Dp() {
+function Op() {
 	let [e, t] = d(!1), n = u(null), r = i((e) => {
 		if (n.current?.disconnect(), n.current = null, !e || typeof IntersectionObserver > "u") return;
 		let r = new IntersectionObserver(([e]) => t(!e.isIntersecting), { threshold: 0 });
@@ -14223,7 +14301,7 @@ function Dp() {
 	};
 }
 // kirocrew-app/ui/src/ListDetail.tsx
-function Op(e) {
+function kp(e) {
 	return /* @__PURE__ */ w("button", {
 		type: "button",
 		"data-list-detail-back": !0,
@@ -14248,7 +14326,7 @@ function Op(e) {
 		}), e.label]
 	});
 }
-function kp(e) {
+function Ap(e) {
 	return /* @__PURE__ */ w("div", {
 		"data-detail-bar": !0,
 		style: {
@@ -14261,7 +14339,7 @@ function kp(e) {
 			background: "var(--bg)"
 		},
 		children: [
-			/* @__PURE__ */ C(Op, {
+			/* @__PURE__ */ C(kp, {
 				label: e.backLabel,
 				onBack: e.onBack
 			}),
@@ -14285,13 +14363,13 @@ function kp(e) {
 		]
 	});
 }
-var Ap = n(null), jp = () => a(Ap);
-function Mp(e) {
-	let t = Dr(), { scrolledOut: n, titleRef: r } = Dp();
+var jp = n(null), Mp = () => a(jp);
+function Np(e) {
+	let t = Dr(), { scrolledOut: n, titleRef: r } = Op();
 	return t ? /* @__PURE__ */ w("div", {
 		"data-detail-pane": !0,
 		children: [
-			/* @__PURE__ */ C(kp, {
+			/* @__PURE__ */ C(Ap, {
 				backLabel: e.backLabel,
 				onBack: e.onBack,
 				title: e.title,
@@ -14309,7 +14387,7 @@ function Mp(e) {
 				},
 				children: e.title
 			}),
-			/* @__PURE__ */ C(Ap.Provider, {
+			/* @__PURE__ */ C(jp.Provider, {
 				value: e.ownTitle ? r : null,
 				children: e.children
 			})
@@ -14317,7 +14395,7 @@ function Mp(e) {
 	}) : /* @__PURE__ */ C(S, { children: e.children });
 }
 // kirocrew-app/ui/src/ListDetailLayout.tsx
-function Np(e) {
+function Pp(e) {
 	let t = Dr(), n = yi(e.id), [r, a] = d(() => xi(Ei(), n)), o = u(null), s = i((e) => {
 		let t = bi(n, e);
 		a(t), Si(Ei(), n, t);
@@ -14327,7 +14405,7 @@ function Np(e) {
 		children: e.list
 	}) : /* @__PURE__ */ C("div", {
 		"data-detail-pane-for": e.id,
-		children: /* @__PURE__ */ C(Mp, {
+		children: /* @__PURE__ */ C(Np, {
 			backLabel: e.backLabel,
 			onBack: e.onBack,
 			title: e.detailTitle,
@@ -14386,10 +14464,10 @@ function Np(e) {
 	});
 }
 // kirocrew-app/ui/src/PlanReviewSummary.tsx
-function Pp(e) {
+function Fp(e) {
 	return !e || e.state === "not-reviewed" ? "Not reviewed" : e.state === "skipped" ? "Review skipped" : e.state === "running" ? "Review running" : e.current ? "Reviewed" : "Reviewed at an older revision";
 }
-function Fp(e) {
+function Ip(e) {
 	let [t, n] = d(e.review), [r, i] = d(!1), [a, s] = d(!1), c = async () => {
 		s(!0), h(null);
 		try {
@@ -14419,7 +14497,7 @@ function Fp(e) {
 			/* @__PURE__ */ C("p", {
 				className: "m-0 font-medium",
 				"data-plan-review-state": !0,
-				children: Pp(t)
+				children: Fp(t)
 			}),
 			t?.revisionHash && /* @__PURE__ */ w("p", {
 				className: "m-0 text-muted",
@@ -14430,7 +14508,7 @@ function Fp(e) {
 					" at revision ",
 					/* @__PURE__ */ C(q, {
 						text: t.revisionHash,
-						children: /* @__PURE__ */ C("code", { children: Os(t.revisionHash) })
+						children: /* @__PURE__ */ C("code", { children: Is(t.revisionHash) })
 					}),
 					!t.current && t.state !== "done" && " · older revision"
 				]
@@ -14509,7 +14587,7 @@ function Fp(e) {
 							"Planner: ",
 							e.answer.action === "fixed" ? /* @__PURE__ */ w(S, { children: [
 								"Fixed in ",
-								/* @__PURE__ */ C("code", { children: Os(e.answer.revisionHash) }),
+								/* @__PURE__ */ C("code", { children: Is(e.answer.revisionHash) }),
 								"."
 							] }) : "Answered.",
 							" ",
@@ -14561,8 +14639,8 @@ function Fp(e) {
 	});
 }
 // kirocrew-app/ui/src/projection-api.ts
-var Ip = (e) => e?.preflight?.items.filter((e) => e.status === "fail") ?? [];
-function Lp(e) {
+var Lp = (e) => e?.preflight?.items.filter((e) => e.status === "fail") ?? [];
+function Rp(e) {
 	let t = async (t, n, r) => (await e.post(W, {
 		operation: t,
 		input: n,
@@ -14582,50 +14660,50 @@ function Lp(e) {
 		apply: (e, n) => t("spec.changed.apply", { planId: n }, e)
 	};
 }
-var Rp = {
+var zp = {
 	create: "issue.create",
 	update: "issue.update",
 	sub: "sub-issue.add",
 	blocker: "blocker.add",
 	project: "project.add",
 	label: "label.add"
-}, zp = (e, t) => e.filter((e) => e.kind === t).length, Bp = (e, t, n = `${t}s`) => `${e} ${e === 1 ? t : n}`;
-function Vp(e, t) {
-	let n = zp(e.writes, Rp.create), r = t.reduce((e, t) => e + t.length, 0);
-	return `${Bp(n, "issue")} to create${r ? `, ${Bp(r, "task")} batched into ${Bp(t.length, "issue")}` : ""}. Nothing is written until you confirm.`;
+}, Bp = (e, t) => e.filter((e) => e.kind === t).length, Vp = (e, t, n = `${t}s`) => `${e} ${e === 1 ? t : n}`;
+function Hp(e, t) {
+	let n = Bp(e.writes, zp.create), r = t.reduce((e, t) => e + t.length, 0);
+	return `${Vp(n, "issue")} to create${r ? `, ${Vp(r, "task")} batched into ${Vp(t.length, "issue")}` : ""}. Nothing is written until you confirm.`;
 }
-function Hp(e, t, n) {
+function Up(e, t, n) {
 	let r = t ?? "the repository", i = [
-		[zp(e.writes, Rp.create), (e) => `create ${Bp(e, "issue")} in ${r}`],
-		[zp(e.writes, Rp.update), (e) => `update ${Bp(e, "issue")}`],
-		[zp(e.writes, Rp.sub), (e) => `link ${Bp(e, "sub-issue")}`],
-		[zp(e.writes, Rp.blocker), (e) => `add ${Bp(e, "blocked-by link")}`],
-		[zp(e.writes, Rp.project), (e) => `add ${Bp(e, "issue")} to the Project`],
-		[zp(e.writes, Rp.label), (e) => `add labels to ${Bp(e, "issue")}`]
+		[Bp(e.writes, zp.create), (e) => `create ${Vp(e, "issue")} in ${r}`],
+		[Bp(e.writes, zp.update), (e) => `update ${Vp(e, "issue")}`],
+		[Bp(e.writes, zp.sub), (e) => `link ${Vp(e, "sub-issue")}`],
+		[Bp(e.writes, zp.blocker), (e) => `add ${Vp(e, "blocked-by link")}`],
+		[Bp(e.writes, zp.project), (e) => `add ${Vp(e, "issue")} to the Project`],
+		[Bp(e.writes, zp.label), (e) => `add labels to ${Vp(e, "issue")}`]
 	].filter(([e]) => e > 0).map(([e, t]) => t(e));
 	n && i.push("check the merge path, then release by your release mode");
 	let a = e.pace;
-	return a && a.minutes > 2 && i.push(`pace the ${Bp(a.writes, "write")} at ${a.perMinute} a minute and ${a.perHour} an hour: about ${Up(a.minutes)}, and it carries on by itself`), i;
+	return a && a.minutes > 2 && i.push(`pace the ${Vp(a.writes, "write")} at ${a.perMinute} a minute and ${a.perHour} an hour: about ${Wp(a.minutes)}, and it carries on by itself`), i;
 }
-var Up = (e) => e < 60 ? `${e} min` : `${Math.floor(e / 60)} h ${e % 60} min`;
-function Wp(e, t) {
+var Wp = (e) => e < 60 ? `${e} min` : `${Math.floor(e / 60)} h ${e % 60} min`;
+function Gp(e, t) {
 	let n = t.join();
 	return e.some((e) => e.join() === n) ? e.filter((e) => e.join() !== n) : [...e, t];
 }
-var Gp = {
+var Kp = {
 	update: "Update the issue",
 	comment: "Comment only",
 	create: "Create the issue",
 	close: "Close as not planned",
 	none: "Nothing"
-}, Kp = {
+}, qp = {
 	none: "no issue",
 	closed: "closed",
 	claimed: "claimed",
 	unclaimed: "unclaimed"
-}, qp = (e) => e.filter((e) => e.action !== "none");
+}, Jp = (e) => e.filter((e) => e.action !== "none");
 // kirocrew-app/ui/src/ProjectionModal.tsx
-function Jp(e) {
+function Yp(e) {
 	let { workspaceId: t, client: n, planId: r } = e, [a, s] = d(null), [c, l] = d([]), [u, f] = d(null), [p, m] = d(!1), [h, g] = d(null), v = i(async (e) => {
 		m(!0), g(null);
 		try {
@@ -14652,7 +14730,7 @@ function Jp(e) {
 		} finally {
 			m(!1);
 		}
-	}, b = a?.writes.find((e) => e.repository)?.repository ?? null, x = a?.blocked?.length ? a.blocked : null, T = a?.writes.length ?? 0, E = Ip(a);
+	}, b = a?.writes.find((e) => e.repository)?.repository ?? null, x = a?.blocked?.length ? a.blocked : null, T = a?.writes.length ?? 0, E = Lp(a);
 	return /* @__PURE__ */ C(nr, {
 		id: "avoozl-projection",
 		width: "52rem",
@@ -14706,7 +14784,7 @@ function Jp(e) {
 				a && !u && /* @__PURE__ */ w(S, { children: [
 					/* @__PURE__ */ C("p", {
 						className: "text-muted",
-						children: Vp(a, c)
+						children: Hp(a, c)
 					}),
 					x?.map((e) => /* @__PURE__ */ w("p", { children: [
 						/* @__PURE__ */ C($, {
@@ -14761,7 +14839,7 @@ function Jp(e) {
 									type: "checkbox",
 									checked: c.some((t) => t.join() === e.join()),
 									disabled: p,
-									onChange: () => void v(Wp(c, e))
+									onChange: () => void v(Gp(c, e))
 								}), /* @__PURE__ */ w("span", { children: [/* @__PURE__ */ C("code", { children: e.join(", ") }), " as one issue"] })]
 							}, e.join()))
 						]
@@ -14769,7 +14847,7 @@ function Jp(e) {
 					T === 0 ? /* @__PURE__ */ C("p", {
 						className: "text-muted",
 						children: "GitHub already matches this revision."
-					}) : js(a.writes).map(([e, t]) => /* @__PURE__ */ w("div", { children: [/* @__PURE__ */ w("p", {
+					}) : zs(a.writes).map(([e, t]) => /* @__PURE__ */ w("div", { children: [/* @__PURE__ */ w("p", {
 						className: "font-medium",
 						children: [
 							e,
@@ -14781,7 +14859,7 @@ function Jp(e) {
 						className: "mt-1 flex flex-col gap-0.5",
 						children: t.map((e, t) => /* @__PURE__ */ C("li", {
 							className: "break-words",
-							children: As(e)
+							children: Rs(e)
 						}, t))
 					})] }, e)),
 					a.conflicts.map((e) => /* @__PURE__ */ w("p", { children: [
@@ -14809,7 +14887,7 @@ function Jp(e) {
 						] }),
 						/* @__PURE__ */ C("ul", {
 							className: "mt-1 flex list-disc flex-col gap-0.5 pl-5",
-							children: Hp(a, b, u === "release").map((e) => /* @__PURE__ */ C("li", { children: e }, e))
+							children: Up(a, b, u === "release").map((e) => /* @__PURE__ */ C("li", { children: e }, e))
 						}),
 						/* @__PURE__ */ C("p", {
 							className: "mt-2 text-muted",
@@ -14826,7 +14904,7 @@ function Jp(e) {
 	});
 }
 // kirocrew-app/ui/src/SpecChangedModal.tsx
-function Yp(e) {
+function Xp(e) {
 	let { workspaceId: t, client: n, planId: r } = e, [i, a] = d(null), [s, c] = d(!1), [l, u] = d(null);
 	o(() => {
 		let e = !0;
@@ -14847,7 +14925,7 @@ function Yp(e) {
 		} finally {
 			c(!1);
 		}
-	}, p = i ? qp(i.rows).length : 0, m = i ? i.applied ? "Already applied." : i.approved ? p === 0 ? "Nothing to write." : null : "Approve the spec again at this revision first." : "Reading the change…";
+	}, p = i ? Jp(i.rows).length : 0, m = i ? i.applied ? "Already applied." : i.approved ? p === 0 ? "Nothing to write." : null : "Approve the spec again at this revision first." : "Reading the change…";
 	return /* @__PURE__ */ C(nr, {
 		id: "avoozl-spec-changed",
 		width: "52rem",
@@ -14904,9 +14982,9 @@ function Yp(e) {
 						className: "text-muted",
 						children: [
 							e.number ? `#${e.number} ` : "",
-							Kp[e.issueState],
+							qp[e.issueState],
 							" · ",
-							Gp[e.action],
+							Kp[e.action],
 							". ",
 							e.text
 						]
@@ -14917,11 +14995,11 @@ function Yp(e) {
 	});
 }
 // kirocrew-app/ui/src/PlansView.tsx
-var Xp = "80ch", Zp = "(max-width: 1279px)";
-function Qp(e) {
+var Zp = "80ch", Qp = "(max-width: 1279px)";
+function $p(e) {
 	let [t, n] = d(null), r = u(null), a = i((t) => {
 		if (r.current?.(), r.current = null, !t || !e) return;
-		let i = Tp(t), a = () => n(Ep(i, window.innerHeight));
+		let i = Ep(t), a = () => n(Dp(i, window.innerHeight));
 		a();
 		let o = i && typeof ResizeObserver < "u" ? new ResizeObserver(a) : null;
 		i && o?.observe(i), window.addEventListener("resize", a), r.current = () => {
@@ -14930,8 +15008,8 @@ function Qp(e) {
 	}, [e]);
 	return o(() => () => r.current?.(), []), [a, t];
 }
-var $p = (e) => `avoozl-doc-${e.replace(/\.md$/, "")}`, em = (e) => document.getElementById(e)?.scrollIntoView?.({ block: "start" });
-function tm(e) {
+var em = (e) => `avoozl-doc-${e.replace(/\.md$/, "")}`, tm = (e) => document.getElementById(e)?.scrollIntoView?.({ block: "start" });
+function nm(e) {
 	return /* @__PURE__ */ w("section", {
 		"aria-label": e.title,
 		id: e.id,
@@ -14980,8 +15058,8 @@ function tm(e) {
 		})]
 	});
 }
-var nm = "[data-spec-rail]>[data-rail-section]:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}\n[data-rail-edit]{font-size:11.5px;color:var(--accent);background:none;border:0;padding:0;cursor:pointer}\n[data-rail-edit]:hover{text-decoration:underline}\n[data-rail-edit]:focus-visible,[data-spec-menu-item]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n[data-spec-menu-item]{display:flex;align-items:center;gap:8px;width:100%;height:28px;padding:0 8px;border:0;border-radius:6px;background:none;color:var(--text);font-size:13px;text-align:left;cursor:pointer;text-decoration:none;white-space:nowrap}\n[data-spec-menu-item]:hover{background:var(--bg-hover)}\n[data-spec-menu-item][aria-disabled=true]{color:var(--muted);cursor:default;background:none}\n[data-spec-menu-item][data-danger]{color:var(--danger)}";
-function rm(e) {
+var rm = "[data-spec-rail]>[data-rail-section]:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}\n[data-rail-edit]{font-size:11.5px;color:var(--accent);background:none;border:0;padding:0;cursor:pointer}\n[data-rail-edit]:hover{text-decoration:underline}\n[data-rail-edit]:focus-visible,[data-spec-menu-item]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}\n[data-spec-menu-item]{display:flex;align-items:center;gap:8px;width:100%;height:28px;padding:0 8px;border:0;border-radius:6px;background:none;color:var(--text);font-size:13px;text-align:left;cursor:pointer;text-decoration:none;white-space:nowrap}\n[data-spec-menu-item]:hover{background:var(--bg-hover)}\n[data-spec-menu-item][aria-disabled=true]{color:var(--muted);cursor:default;background:none}\n[data-spec-menu-item][data-danger]{color:var(--danger)}";
+function im(e) {
 	return /* @__PURE__ */ w("section", {
 		"data-rail-section": e.title,
 		...e.attrs,
@@ -15019,7 +15097,7 @@ function rm(e) {
 		}), e.children]
 	});
 }
-function im(e) {
+function am(e) {
 	let t = e.icon, n = /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(t, {
 		size: 14,
 		"aria-hidden": "true"
@@ -15048,7 +15126,7 @@ function im(e) {
 		children: r
 	}) : r;
 }
-var am = {
+var om = {
 	approved: {
 		color: "var(--accent)",
 		background: "var(--accent-subtle, color-mix(in srgb, var(--accent) 12%, transparent))"
@@ -15062,8 +15140,8 @@ var am = {
 		background: "color-mix(in srgb, var(--warning, #b7791f) 14%, transparent)"
 	}
 };
-function om(e) {
-	let t = am[e.status] ?? {
+function sm(e) {
+	let t = om[e.status] ?? {
 		color: "var(--muted)",
 		background: "var(--bg-hover)"
 	};
@@ -15080,18 +15158,18 @@ function om(e) {
 			lineHeight: "18.6px",
 			...t
 		},
-		children: e.archived ? "Archived" : fm[e.status] ?? e.status
+		children: e.archived ? "Archived" : pm[e.status] ?? e.status
 	});
 }
-function sm({ docs: e, error: t }) {
-	let n = Ds(e);
-	return t ? /* @__PURE__ */ C(tm, {
+function cm({ docs: e, error: t }) {
+	let n = Fs(e);
+	return t ? /* @__PURE__ */ C(nm, {
 		title: "Documents",
 		children: /* @__PURE__ */ C("p", {
 			className: "text-sm text-danger",
 			children: t
 		})
-	}) : e ? n.length ? /* @__PURE__ */ C(S, { children: n.map((t) => /* @__PURE__ */ C(tm, {
+	}) : e ? n.length ? /* @__PURE__ */ C(S, { children: n.map((t) => /* @__PURE__ */ C(nm, {
 		title: t.label,
 		id: `avoozl-doc-${t.file}`,
 		actions: /* @__PURE__ */ w("span", {
@@ -15099,18 +15177,18 @@ function sm({ docs: e, error: t }) {
 			style: { overflowWrap: "anywhere" },
 			children: [e.folder, t.file]
 		}),
-		children: /* @__PURE__ */ C(bd, {
+		children: /* @__PURE__ */ C(xd, {
 			text: t.text,
-			idPrefix: $p(t.file),
-			measure: Xp
+			idPrefix: em(t.file),
+			measure: Zp
 		})
-	}, t.file)) }) : /* @__PURE__ */ C(tm, {
+	}, t.file)) }) : /* @__PURE__ */ C(nm, {
 		title: "Documents",
 		children: /* @__PURE__ */ C("p", {
 			className: "text-sm text-muted",
 			children: "This folder has no requirements, design or tasks file yet."
 		})
-	}) : /* @__PURE__ */ C(tm, {
+	}) : /* @__PURE__ */ C(nm, {
 		title: "Documents",
 		children: /* @__PURE__ */ C("p", {
 			className: "text-sm text-muted",
@@ -15118,9 +15196,9 @@ function sm({ docs: e, error: t }) {
 		})
 	});
 }
-function cm(e) {
+function lm(e) {
 	let { projection: t, busy: n } = e;
-	return /* @__PURE__ */ w(tm, {
+	return /* @__PURE__ */ w(nm, {
 		title: "GitHub preview",
 		actions: /* @__PURE__ */ w("div", {
 			className: "flex flex-wrap gap-2",
@@ -15164,7 +15242,7 @@ function cm(e) {
 				t.writes.length === 0 ? /* @__PURE__ */ C("p", {
 					className: "text-muted",
 					children: "GitHub already matches this revision."
-				}) : js(t.writes).map(([e, t]) => /* @__PURE__ */ w("div", { children: [/* @__PURE__ */ w("p", {
+				}) : zs(t.writes).map(([e, t]) => /* @__PURE__ */ w("div", { children: [/* @__PURE__ */ w("p", {
 					className: "font-medium",
 					children: [
 						e,
@@ -15174,7 +15252,7 @@ function cm(e) {
 					]
 				}), /* @__PURE__ */ C("ul", {
 					className: "mt-1 flex flex-col gap-0.5",
-					children: t.map((e, t) => /* @__PURE__ */ C("li", { children: As(e) }, t))
+					children: t.map((e, t) => /* @__PURE__ */ C("li", { children: Rs(e) }, t))
 				})] }, e)),
 				t.conflicts.map((e) => /* @__PURE__ */ w("p", { children: [
 					/* @__PURE__ */ C($, {
@@ -15203,13 +15281,13 @@ function cm(e) {
 		})]
 	});
 }
-function lm(e) {
-	let { spec: t, plan: n, preview: r, busy: i } = e, a = Ms(n), o = n?.disk.critique ?? t.critique, s = n?.quality.diagnostics ?? [];
+function um(e) {
+	let { spec: t, plan: n, preview: r, busy: i } = e, a = Bs(n), o = n?.disk.critique ?? t.critique, s = n?.quality.diagnostics ?? [];
 	return /* @__PURE__ */ w("div", {
 		className: "flex min-w-0 flex-col",
 		style: { gap: 20 },
 		children: [
-			/* @__PURE__ */ w(tm, {
+			/* @__PURE__ */ w(nm, {
 				title: "Summary",
 				children: [
 					/* @__PURE__ */ C("p", {
@@ -15218,7 +15296,7 @@ function lm(e) {
 							"Revision ",
 							n.revision,
 							" · ",
-							/* @__PURE__ */ C("code", { children: Os(n.hash) }),
+							/* @__PURE__ */ C("code", { children: Is(n.hash) }),
 							" · ",
 							n.state
 						] }) : "Not imported. Import stores this folder as a draft spec, so you can check and approve it. It approves nothing and starts nothing."
@@ -15245,15 +15323,15 @@ function lm(e) {
 					})
 				]
 			}),
-			/* @__PURE__ */ C(sm, {
+			/* @__PURE__ */ C(cm, {
 				docs: e.docs,
 				error: e.docsError
 			}, t.name),
-			/* @__PURE__ */ C(um, {
+			/* @__PURE__ */ C(dm, {
 				graph: e.graph,
 				onOpenTask: e.onOpenTask
 			}),
-			/* @__PURE__ */ C(tm, {
+			/* @__PURE__ */ C(nm, {
 				title: "Diagnostics",
 				children: n ? s.length === 0 ? /* @__PURE__ */ C("p", {
 					className: "text-sm text-muted",
@@ -15266,7 +15344,7 @@ function lm(e) {
 							children: e.severity
 						}),
 						" ",
-						/* @__PURE__ */ C("code", { children: ks(e) }),
+						/* @__PURE__ */ C("code", { children: Ls(e) }),
 						" ",
 						e.message
 					] }, e.id))
@@ -15280,11 +15358,11 @@ function lm(e) {
 					]
 				})
 			}),
-			/* @__PURE__ */ C(tm, {
+			/* @__PURE__ */ C(nm, {
 				title: "Critique",
 				children: o ? /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C("p", {
 					className: "text-sm",
-					children: o.current ? "Reviews this revision." : `Reviews ${Os(o.reviewedHash)}, not this revision.`
+					children: o.current ? "Reviews this revision." : `Reviews ${Is(o.reviewedHash)}, not this revision.`
 				}), o.findings.length === 0 ? /* @__PURE__ */ C("p", {
 					className: "mt-1 text-sm text-muted",
 					children: "No findings."
@@ -15302,7 +15380,7 @@ function lm(e) {
 					children: "No avoozl/critique.md yet."
 				})
 			}),
-			r && /* @__PURE__ */ w(tm, {
+			r && /* @__PURE__ */ w(nm, {
 				title: "Manifest",
 				children: [r.baseline?.text && /* @__PURE__ */ w("p", {
 					className: "text-sm text-muted",
@@ -15316,7 +15394,7 @@ function lm(e) {
 							" ",
 							e.title,
 							" ",
-							/* @__PURE__ */ C(xd, { owner: e }),
+							/* @__PURE__ */ C(Sd, { owner: e }),
 							r.baseline?.taskIds.includes(e.taskId) && /* @__PURE__ */ C($, { children: "done" }),
 							t.length > 0 && /* @__PURE__ */ w("span", {
 								className: "text-muted",
@@ -15326,19 +15404,19 @@ function lm(e) {
 					})
 				})]
 			}),
-			n?.state === "approved" && /* @__PURE__ */ C(cm, {
+			n?.state === "approved" && /* @__PURE__ */ C(lm, {
 				projection: e.projection,
 				busy: i,
 				onPreview: e.onProjection,
 				onProject: e.onProject,
 				onChanged: e.onChanged
 			}),
-			n && n.approvals.length > 0 && /* @__PURE__ */ C(tm, {
+			n && n.approvals.length > 0 && /* @__PURE__ */ C(nm, {
 				title: "Approvals",
 				children: /* @__PURE__ */ C("ul", {
 					className: "flex flex-col gap-1 text-sm",
 					children: n.approvals.map((e) => /* @__PURE__ */ w("li", { children: [
-						/* @__PURE__ */ C("code", { children: Os(e.hash) }),
+						/* @__PURE__ */ C("code", { children: Is(e.hash) }),
 						" · ",
 						e.at,
 						e.approvedBy ? ` · ${e.approvedBy}` : ""
@@ -15348,7 +15426,7 @@ function lm(e) {
 		]
 	});
 }
-function um(e) {
+function dm(e) {
 	let t = (e.graph?.tasks ?? []).filter((e) => e.kind === "leaf"), n = /* @__PURE__ */ new Map();
 	for (let e of t) {
 		let t = e.phase?.id ?? null, r = n.get(t) ?? {
@@ -15358,7 +15436,7 @@ function um(e) {
 		r.tasks.push(e), n.set(t, r);
 	}
 	let r = [...n].sort(([e], [t]) => Number(e === null) - Number(t === null));
-	return /* @__PURE__ */ C(tm, {
+	return /* @__PURE__ */ C(nm, {
 		title: "Tasks by phase",
 		children: e.graph ? r.length === 0 ? /* @__PURE__ */ C("p", {
 			className: "text-sm text-muted",
@@ -15401,8 +15479,8 @@ function um(e) {
 		})
 	});
 }
-function dm({ tasks: e }) {
-	let t = vs(e), n = It("(prefers-reduced-motion: reduce)"), [r, i] = d(n ? t ?? 0 : 0);
+function fm({ tasks: e }) {
+	let t = Es(e), n = It("(prefers-reduced-motion: reduce)"), [r, i] = d(n ? t ?? 0 : 0);
 	if (o(() => {
 		if (t === null) return;
 		if (n) {
@@ -15456,15 +15534,15 @@ function dm({ tasks: e }) {
 		})]
 	});
 }
-var fm = {
+var pm = {
 	done: "Done",
 	approved: "Approved",
 	changed: "Changed on disk",
 	draft: "Draft",
 	"not imported": "Not imported"
 };
-function pm(e) {
-	let { filter: t } = e, n = Ps(e.rows), r = (n) => {
+function mm(e) {
+	let { filter: t } = e, n = Hs(e.rows), r = (n) => {
 		let r = {
 			...t,
 			...n
@@ -15498,7 +15576,7 @@ function pm(e) {
 			value: t.status ?? "",
 			options: n.statuses.map((e) => ({
 				value: e,
-				label: fm[e] ?? e
+				label: pm[e] ?? e
 			})),
 			onChange: (e) => r({ status: e })
 		},
@@ -15558,7 +15636,7 @@ function pm(e) {
 	], a = Object.keys(t).length > 0;
 	return /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(ui, {
 		section: "plans",
-		children: /* @__PURE__ */ C(cl, {
+		children: /* @__PURE__ */ C(ll, {
 			id: "avoozl-plans",
 			label: "Filter specs",
 			fields: i,
@@ -15577,8 +15655,8 @@ function pm(e) {
 		})]
 	})] });
 }
-var mm = "Archive this spec: its tasks stop starting and it is hidden. You can undo it.", hm = "Unarchive this spec: its tasks may start again and it shows everywhere.", gm = "Reload specs from disk. Imports nothing.";
-function _m(e) {
+var hm = "Archive this spec: its tasks stop starting and it is hidden. You can undo it.", gm = "Unarchive this spec: its tasks may start again and it shows everywhere.", _m = "Reload specs from disk. Imports nothing.";
+function vm(e) {
 	return /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(Y, {
 		style: jr,
 		icon: Le,
@@ -15589,25 +15667,25 @@ function _m(e) {
 	}), /* @__PURE__ */ C(Pr, {
 		icon: ze,
 		label: "Refresh specs",
-		tooltip: gm,
+		tooltip: _m,
 		onClick: e.onRefresh,
 		disabled: e.busy
 	})] });
 }
-function vm(e) {
-	let t = Bs(e.home);
+function ym(e) {
+	let t = Js(e.home);
 	return t ? /* @__PURE__ */ C($, {
 		variant: t.warn ? "warning" : void 0,
 		children: t.label
 	}) : null;
 }
-function ym(e) {
+function bm(e) {
 	let t = [...e.rows].sort((e, t) => e.name.localeCompare(t.name)), n = Kr(e.reset), r = e.batchOf ?? /* @__PURE__ */ new Map(), i = !!e.onCheck && e.rows.some((e) => e.planId && r.has(e.planId));
 	return /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C("ul", {
 		className: "m-0 flex list-none flex-col p-0",
 		"data-spec-list": !0,
 		children: n.take("specs", t).map((t) => {
-			let n = zs(t), a = t.key === e.selected, o = t.planId ? r.get(t.planId) : void 0;
+			let n = qs(t), a = t.key === e.selected, o = t.planId ? r.get(t.planId) : void 0;
 			return /* @__PURE__ */ w("li", {
 				className: "flex items-center gap-1 border-t first:border-t-0",
 				style: { borderColor: "var(--border)" },
@@ -15640,8 +15718,8 @@ function ym(e) {
 							className: "min-w-0 flex-1 truncate text-sm font-medium",
 							children: t.name
 						}), /* @__PURE__ */ C($, {
-							variant: bm[n],
-							children: Rs[n]
+							variant: xm[n],
+							children: Ks[n]
 						})]
 					}), /* @__PURE__ */ w("span", {
 						className: "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted",
@@ -15659,7 +15737,7 @@ function ym(e) {
 								className: "truncate",
 								children: t.kind === "epic" ? "Epic" : t.epicTitle ?? "No epic"
 							}),
-							/* @__PURE__ */ C(vm, { home: t.home }),
+							/* @__PURE__ */ C(ym, { home: t.home }),
 							o !== void 0 && /* @__PURE__ */ w($, { children: ["Batch ", o] }),
 							t.archived && /* @__PURE__ */ C($, { children: "Archived" })
 						]
@@ -15669,13 +15747,13 @@ function ym(e) {
 		})
 	}), /* @__PURE__ */ C(qr, { ...n.more("specs", t.length) })] });
 }
-var bm = {
+var xm = {
 	draft: "warning",
 	approved: "info",
 	github: void 0,
 	done: "success"
 };
-function xm() {
+function Sm() {
 	return /* @__PURE__ */ w("p", {
 		"data-radar-graph": !0,
 		className: "m-0 text-sm",
@@ -15683,7 +15761,7 @@ function xm() {
 			"Issues on GitHub and their graph:",
 			" ",
 			/* @__PURE__ */ C("a", {
-				href: J(Sm),
+				href: J(Cm),
 				target: "_top",
 				className: "underline",
 				children: "Open the Issue Radar graph →"
@@ -15696,11 +15774,11 @@ function xm() {
 		]
 	});
 }
-var Sm = "/issue-radar";
-function Cm(e, t, n) {
+var Cm = "/issue-radar";
+function wm(e, t, n) {
 	return e.status === "not imported" ? "import" : t && (t.state === "draft" || e.status === "changed") ? n === null ? "approve" : e.spec ? "spec-builder" : "edit" : e.status === "draft" && e.spec ? "spec-builder" : "edit";
 }
-function wm(e, t) {
+function Tm(e, t) {
 	let n = [/* @__PURE__ */ C("span", { children: e.category ?? "Uncategorized" }, "category")], r = t?.approvals.at(-1);
 	return r ? n.push(/* @__PURE__ */ w("span", { children: [
 		r.approvedBy ? `${r.approvedBy} approved it` : "Approved",
@@ -15725,18 +15803,18 @@ function wm(e, t) {
 		})
 	] }, "who")), n;
 }
-function Tm(e) {
-	let { row: t, plan: n, actions: r } = e, i = Cm(t, n, r.approveBlocker ?? null), a = t.planId ?? t.spec ?? t.key, o = {
+function Em(e) {
+	let { row: t, plan: n, actions: r } = e, i = wm(t, n, r.approveBlocker ?? null), a = t.planId ?? t.spec ?? t.key, o = {
 		import: {
 			label: "Import",
-			icon: B,
+			icon: V,
 			tooltip: "Store this folder as a draft spec. Approves and starts nothing.",
 			onClick: r.onImport
 		},
 		approve: {
 			label: "Approve",
-			icon: ie,
-			tooltip: `Approve revision ${Os(n?.hash)}. Its ready tasks may then start.`,
+			icon: re,
+			tooltip: `Approve revision ${Is(n?.hash)}. Its ready tasks may then start.`,
 			onClick: r.onApprove
 		},
 		"spec-builder": {
@@ -15751,7 +15829,7 @@ function Tm(e) {
 			tooltip: "Start a planner chat that drafts a change to the spec files",
 			onClick: r.onEdit
 		}
-	}[i], s = o.icon, c = jp(), l = e.flush ? 0 : 12, u = {
+	}[i], s = o.icon, c = Mp(), l = e.flush ? 0 : 12, u = {
 		borderBottom: "1px solid var(--border)",
 		marginLeft: e.flush ? 0 : -12,
 		paddingLeft: e.flush ? 0 : 24,
@@ -15789,7 +15867,7 @@ function Tm(e) {
 					lineHeight: "19.4px",
 					color: "var(--muted)"
 				},
-				children: [wm(t, n).map((e, t) => /* @__PURE__ */ w("span", {
+				children: [Tm(t, n).map((e, t) => /* @__PURE__ */ w("span", {
 					style: { display: "contents" },
 					children: [t > 0 && /* @__PURE__ */ C("span", {
 						"aria-hidden": "true",
@@ -15808,7 +15886,7 @@ function Tm(e) {
 				...u
 			},
 			children: [
-				/* @__PURE__ */ C(om, {
+				/* @__PURE__ */ C(sm, {
 					status: t.status,
 					archived: !!t.archived
 				}),
@@ -15855,17 +15933,17 @@ function Tm(e) {
 					}), /* @__PURE__ */ w(Tr, {
 						label: "More spec actions",
 						attrs: { "data-spec-more": "" },
-						children: [/* @__PURE__ */ C("style", { children: nm }), /* @__PURE__ */ w("div", {
+						children: [/* @__PURE__ */ C("style", { children: rm }), /* @__PURE__ */ w("div", {
 							className: "flex flex-col",
 							style: { gap: 2 },
 							children: [
-								i !== "edit" && /* @__PURE__ */ C(im, {
+								i !== "edit" && /* @__PURE__ */ C(am, {
 									icon: Fe,
 									label: "Edit spec",
 									tooltip: "Start a planner chat that drafts a change to the spec files",
 									onClick: r.onEdit
 								}),
-								/* @__PURE__ */ C(im, {
+								/* @__PURE__ */ C(am, {
 									icon: ke,
 									label: "Discuss spec",
 									tooltip: "Start a chat about this spec. It makes no edits.",
@@ -15874,46 +15952,46 @@ function Tm(e) {
 								/* @__PURE__ */ C("span", {
 									"data-new-task": !0,
 									className: "contents",
-									children: /* @__PURE__ */ C(im, {
+									children: /* @__PURE__ */ C(am, {
 										icon: Le,
 										label: "New task",
 										tooltip: "Add a draft task from this spec. It waits for your review.",
 										onClick: r.onNewTask
 									})
 								}),
-								i !== "spec-builder" && r.onSpecBuilder && /* @__PURE__ */ C(im, {
+								i !== "spec-builder" && r.onSpecBuilder && /* @__PURE__ */ C(am, {
 									icon: se,
 									label: "Open in Spec Builder",
 									onClick: r.onSpecBuilder
 								}),
-								i !== "approve" && r.onApprove && n?.state === "draft" && /* @__PURE__ */ C(im, {
-									icon: ie,
+								i !== "approve" && r.onApprove && n?.state === "draft" && /* @__PURE__ */ C(am, {
+									icon: re,
 									label: "Approve",
 									disabled: r.approveBlocker !== null,
 									tooltip: r.approveBlocker ?? void 0,
 									onClick: r.onApprove
 								}),
-								r.onReload && /* @__PURE__ */ C(im, {
+								r.onReload && /* @__PURE__ */ C(am, {
 									icon: ze,
 									label: "Reload from disk",
 									tooltip: "Store the changed files as a new revision to approve",
 									onClick: r.onReload
 								}),
-								r.onGraph && /* @__PURE__ */ C(im, {
+								r.onGraph && /* @__PURE__ */ C(am, {
 									icon: je,
 									label: "Show in Graph",
 									tooltip: "Show this spec's tasks in the Graph",
 									onClick: r.onGraph
 								}),
-								/* @__PURE__ */ C(im, {
+								/* @__PURE__ */ C(am, {
 									icon: ce,
 									label: "Open folder",
 									tooltip: r.onFolder ? "Show the spec folder in Finder" : "This spec has no folder on disk",
 									disabled: !r.onFolder,
 									onClick: r.onFolder
 								}),
-								/* @__PURE__ */ C(im, {
-									icon: ae,
+								/* @__PURE__ */ C(am, {
+									icon: ie,
 									label: "Open on GitHub",
 									tooltip: r.github ? void 0 : "No GitHub repository holds this spec",
 									link: r.github
@@ -15923,19 +16001,19 @@ function Tm(e) {
 									className: "contents",
 									children: e.handOff
 								}),
-								r.onArchive && /* @__PURE__ */ C(im, {
+								r.onArchive && /* @__PURE__ */ C(am, {
 									icon: E,
 									label: "Archive",
-									tooltip: mm,
+									tooltip: hm,
 									onClick: r.onArchive
 								}),
-								r.onUnarchive && /* @__PURE__ */ C(im, {
+								r.onUnarchive && /* @__PURE__ */ C(am, {
 									icon: D,
 									label: "Unarchive",
-									tooltip: hm,
+									tooltip: gm,
 									onClick: r.onUnarchive
 								}),
-								r.onDelete && /* @__PURE__ */ C(im, {
+								r.onDelete && /* @__PURE__ */ C(am, {
 									icon: Ke,
 									label: "Delete",
 									danger: !0,
@@ -15950,7 +16028,7 @@ function Tm(e) {
 		})]
 	});
 }
-function Em(e) {
+function Dm(e) {
 	let { row: t, graph: n, docs: r, plan: i } = e, a = (n?.tasks ?? []).filter((e) => e.kind === "leaf"), o = Object.fromEntries(zt.map((e) => [e.id, 0]));
 	for (let e of a) o[Jt(e)] += 1;
 	let s = /* @__PURE__ */ new Map();
@@ -15962,7 +16040,7 @@ function Em(e) {
 		};
 		n.total += 1, Jt(e) === "done" && (n.done += 1), s.set(t, n);
 	}
-	let c = [...s].sort(([e], [t]) => Number(e === null) - Number(t === null)), l = [...new Set(a.map((e) => e.repository).filter((e) => !!e))].sort(), u = (n?.tasks ?? []).filter((e) => e.decision), d = Ds(r), f = "var(--muted)", p = (e, t) => /* @__PURE__ */ w("div", {
+	let c = [...s].sort(([e], [t]) => Number(e === null) - Number(t === null)), l = [...new Set(a.map((e) => e.repository).filter((e) => !!e))].sort(), u = (n?.tasks ?? []).filter((e) => e.decision), d = Fs(r), f = "var(--muted)", p = (e, t) => /* @__PURE__ */ w("div", {
 		className: "flex items-baseline justify-between gap-3",
 		"data-rail-date": e,
 		children: [/* @__PURE__ */ C("span", {
@@ -15987,8 +16065,8 @@ function Em(e) {
 			lineHeight: "19.4px"
 		},
 		children: [
-			/* @__PURE__ */ C("style", { children: nm }),
-			t.kind !== "epic" && /* @__PURE__ */ C(rm, {
+			/* @__PURE__ */ C("style", { children: rm }),
+			t.kind !== "epic" && /* @__PURE__ */ C(im, {
 				title: "Epic",
 				edit: m("epic"),
 				children: t.epic ? /* @__PURE__ */ C("button", {
@@ -16005,7 +16083,7 @@ function Em(e) {
 					children: "No epic"
 				})
 			}),
-			/* @__PURE__ */ w(rm, {
+			/* @__PURE__ */ w(im, {
 				title: "Category",
 				edit: m("category"),
 				children: [t.category ?? /* @__PURE__ */ C("span", {
@@ -16013,10 +16091,10 @@ function Em(e) {
 					children: "None in its front-matter"
 				}), (t.type || t.home) && /* @__PURE__ */ w("span", {
 					className: "mt-1 flex flex-wrap gap-1",
-					children: [t.type && /* @__PURE__ */ C($, { children: t.type }), /* @__PURE__ */ C(vm, { home: t.home })]
+					children: [t.type && /* @__PURE__ */ C($, { children: t.type }), /* @__PURE__ */ C(ym, { home: t.home })]
 				})]
 			}),
-			/* @__PURE__ */ C(rm, {
+			/* @__PURE__ */ C(im, {
 				title: "Repositories",
 				edit: e.onRepositories ? {
 					label: "Edit repositories in Settings",
@@ -16033,7 +16111,7 @@ function Em(e) {
 					children: n ? "No repository yet" : "…"
 				})
 			}),
-			/* @__PURE__ */ C(rm, {
+			/* @__PURE__ */ C(im, {
 				title: "Phases",
 				edit: m("phases"),
 				children: c.length === 0 ? /* @__PURE__ */ C("span", {
@@ -16085,9 +16163,9 @@ function Em(e) {
 					})
 				})
 			}),
-			/* @__PURE__ */ w(rm, {
+			/* @__PURE__ */ w(im, {
 				title: "Progress",
-				children: [/* @__PURE__ */ C(dm, { tasks: t.tasks }), /* @__PURE__ */ C("dl", {
+				children: [/* @__PURE__ */ C(fm, { tasks: t.tasks }), /* @__PURE__ */ C("dl", {
 					className: "mt-2 flex flex-col gap-0.5",
 					style: { margin: 0 },
 					children: zt.map((e) => /* @__PURE__ */ w("div", {
@@ -16104,7 +16182,7 @@ function Em(e) {
 					}, e.id))
 				})]
 			}),
-			/* @__PURE__ */ C(rm, {
+			/* @__PURE__ */ C(im, {
 				title: "Dates",
 				children: /* @__PURE__ */ w("div", {
 					className: "flex flex-col gap-0.5",
@@ -16115,7 +16193,7 @@ function Em(e) {
 					]
 				})
 			}),
-			/* @__PURE__ */ C(rm, {
+			/* @__PURE__ */ C(im, {
 				title: `Open decisions (${u.length})`,
 				children: u.length === 0 ? /* @__PURE__ */ C("span", {
 					style: { color: f },
@@ -16134,7 +16212,7 @@ function Em(e) {
 					})] }, t.id))
 				})
 			}),
-			d.length > 0 && /* @__PURE__ */ C(rm, {
+			d.length > 0 && /* @__PURE__ */ C(im, {
 				title: "Outline",
 				children: /* @__PURE__ */ C("nav", {
 					"aria-label": "Spec outline",
@@ -16143,17 +16221,17 @@ function Em(e) {
 						children: d.map((e) => /* @__PURE__ */ w("li", { children: [/* @__PURE__ */ C("button", {
 							type: "button",
 							className: "font-medium hover:underline",
-							onClick: () => em(`avoozl-doc-${e.file}`),
+							onClick: () => tm(`avoozl-doc-${e.file}`),
 							children: e.label
 						}), /* @__PURE__ */ C("ul", {
 							className: "flex flex-col",
-							children: nd(e.text, $p(e.file), 2).filter((e) => e.level === 2).map((e) => /* @__PURE__ */ C("li", {
+							children: rd(e.text, em(e.file), 2).filter((e) => e.level === 2).map((e) => /* @__PURE__ */ C("li", {
 								className: "truncate pl-3",
 								children: /* @__PURE__ */ C("button", {
 									type: "button",
 									className: "text-left hover:underline",
 									style: { color: f },
-									onClick: () => em(e.id),
+									onClick: () => tm(e.id),
 									children: e.text
 								})
 							}, e.id))
@@ -16161,14 +16239,14 @@ function Em(e) {
 					})
 				})
 			}),
-			(t.timeline ?? []).length > 0 && /* @__PURE__ */ C(rm, {
+			(t.timeline ?? []).length > 0 && /* @__PURE__ */ C(im, {
 				title: "Activity",
 				attrs: { "data-plan-timeline": "" },
 				children: /* @__PURE__ */ C("ol", {
 					className: "flex flex-col gap-0.5",
 					children: t.timeline.map((e, t) => /* @__PURE__ */ w("li", {
 						className: "flex justify-between gap-2",
-						children: [/* @__PURE__ */ C("span", { children: Ls(e) }), /* @__PURE__ */ C(q, {
+						children: [/* @__PURE__ */ C("span", { children: Gs(e) }), /* @__PURE__ */ C(q, {
 							text: e.at,
 							children: /* @__PURE__ */ C("span", {
 								className: "shrink-0",
@@ -16182,7 +16260,7 @@ function Em(e) {
 		]
 	});
 }
-function Dm(e) {
+function Om(e) {
 	let { row: t, client: n, workspaceId: r } = e, [i, a] = d(null), [s, c] = d(!1), l = u(null);
 	o(() => {
 		l.current?.focus();
@@ -16224,7 +16302,7 @@ function Dm(e) {
 		children: [/* @__PURE__ */ C("ul", {
 			className: "flex flex-col gap-1 pl-5 text-sm",
 			style: { listStyle: "disc" },
-			children: Is.map((e) => /* @__PURE__ */ C("li", { children: e }, e))
+			children: Ws.map((e) => /* @__PURE__ */ C("li", { children: e }, e))
 		}), i && /* @__PURE__ */ C("p", {
 			role: "alert",
 			className: "text-sm text-danger",
@@ -16232,7 +16310,7 @@ function Dm(e) {
 		})]
 	});
 }
-function Om(e) {
+function km(e) {
 	let { archived: t } = e.row;
 	return t ? /* @__PURE__ */ w("div", {
 		role: "status",
@@ -16275,14 +16353,14 @@ function Om(e) {
 				icon: D,
 				primary: !0,
 				disabled: e.busy,
-				tooltip: hm,
+				tooltip: gm,
 				onClick: e.onUnarchive,
 				children: "Unarchive"
 			})
 		]
 	}) : null;
 }
-function km(e) {
+function Am(e) {
 	let { row: t, client: n, workspaceId: r } = e, [i, a] = d(null), [s, c] = d(!1), [l, f] = d(null), [p, m] = d(!1), h = u(null);
 	o(() => {
 		n.deletePreview(r, t.planId).then(a, (e) => f(G(e)));
@@ -16344,7 +16422,7 @@ function km(e) {
 			i && /* @__PURE__ */ C("ul", {
 				className: "flex flex-col gap-1 pl-5 text-sm",
 				style: { listStyle: "disc" },
-				children: Ts(i).map((e) => /* @__PURE__ */ C("li", { children: e }, e))
+				children: Ns(i).map((e) => /* @__PURE__ */ C("li", { children: e }, e))
 			}),
 			i?.folder?.exists && /* @__PURE__ */ w("label", {
 				className: "flex flex-col gap-1 text-sm",
@@ -16386,22 +16464,22 @@ function km(e) {
 		]
 	});
 }
-var Am = {
+var jm = {
 	padding: "6px 10px",
 	fontWeight: 600,
 	whiteSpace: "nowrap",
 	color: "var(--text-muted, var(--muted))",
 	background: "var(--bg-elevated)",
 	borderBottom: "1px solid var(--border)"
-}, jm = {
+}, Mm = {
 	padding: "6px 10px",
 	borderTop: "1px solid var(--border)",
 	whiteSpace: "nowrap"
-}, Mm = {
+}, Nm = {
 	textAlign: "right",
 	fontVariantNumeric: "tabular-nums"
 };
-function Nm(e) {
+function Pm(e) {
 	let t = (t) => {
 		let n = e.selection?.specs.find((e) => e.id === t);
 		return e.selection ? n?.writes === null || n?.writes === void 0 ? "—" : String(n.writes) : "…";
@@ -16427,41 +16505,41 @@ function Nm(e) {
 				/* @__PURE__ */ C("thead", { children: /* @__PURE__ */ w("tr", { children: [
 					/* @__PURE__ */ C("th", {
 						style: {
-							...Am,
+							...jm,
 							textAlign: "left"
 						},
 						children: "Spec"
 					}),
 					!e.phone && /* @__PURE__ */ C("th", {
 						style: {
-							...Am,
+							...jm,
 							textAlign: "left"
 						},
 						children: "Revision"
 					}),
 					!e.phone && /* @__PURE__ */ C("th", {
 						style: {
-							...Am,
-							...Mm
+							...jm,
+							...Nm
 						},
 						children: "Tasks"
 					}),
 					/* @__PURE__ */ C("th", {
 						style: {
-							...Am,
-							...Mm
+							...jm,
+							...Nm
 						},
 						children: "Writes"
 					})
 				] }) }),
 				/* @__PURE__ */ C("tbody", { children: e.entries.map((n) => {
-					let r = e.phone ? `${n.spec} · revision ${Os(n.hash)} · ${n.tasks} ${n.tasks === 1 ? "task" : "tasks"} · ${t(n.id)} writes` : n.spec;
+					let r = e.phone ? `${n.spec} · revision ${Is(n.hash)} · ${n.tasks} ${n.tasks === 1 ? "task" : "tasks"} · ${t(n.id)} writes` : n.spec;
 					return /* @__PURE__ */ w("tr", {
 						"data-approve-row": n.id,
 						children: [
 							/* @__PURE__ */ C("td", {
 								style: {
-									...jm,
+									...Mm,
 									overflow: "hidden"
 								},
 								children: /* @__PURE__ */ C(q, {
@@ -16474,23 +16552,23 @@ function Nm(e) {
 								})
 							}),
 							!e.phone && /* @__PURE__ */ C("td", {
-								style: jm,
+								style: Mm,
 								children: /* @__PURE__ */ C("code", {
 									className: "text-xs text-muted",
-									children: Os(n.hash)
+									children: Is(n.hash)
 								})
 							}),
 							!e.phone && /* @__PURE__ */ C("td", {
 								style: {
-									...jm,
-									...Mm
+									...Mm,
+									...Nm
 								},
 								children: n.tasks
 							}),
 							/* @__PURE__ */ C("td", {
 								style: {
-									...jm,
-									...Mm
+									...Mm,
+									...Nm
 								},
 								children: t(n.id)
 							})
@@ -16501,7 +16579,7 @@ function Nm(e) {
 		})
 	});
 }
-function Pm(e) {
+function Fm(e) {
 	let { plan: t, client: n, workspaceId: r } = e, [i, a] = d(t.review), [s, c] = d(!1), [l, u] = d(null), [f, p] = d(null);
 	o(() => {
 		let e = !0;
@@ -16555,12 +16633,12 @@ function Pm(e) {
 						"Approve exactly revision ",
 						/* @__PURE__ */ C(q, {
 							text: t.hash,
-							children: /* @__PURE__ */ C("code", { children: Os(t.hash) })
+							children: /* @__PURE__ */ C("code", { children: Is(t.hash) })
 						}),
 						". Review findings are evidence for your decision; they do not block approval."
 					]
 				}),
-				/* @__PURE__ */ C(Fp, {
+				/* @__PURE__ */ C(Ip, {
 					review: i,
 					onStart: () => n.reviewAnyway(r, t.id, t.hash),
 					onClose: async (e, i) => (await n.closeReviewFinding(r, e, i), n.reviewSummary(r, t.id))
@@ -16593,7 +16671,7 @@ function Pm(e) {
 		})
 	});
 }
-function Fm(e) {
+function Im(e) {
 	let { entries: t } = e, [n, r] = d(!1), [i, a] = d(null), [s, c] = d(null), [l, u] = d(null), f = Dr();
 	o(() => {
 		let n = !0;
@@ -16601,7 +16679,7 @@ function Fm(e) {
 			n = !1;
 		};
 	}, []);
-	let p = Cs(t), m = t.reduce((e, t) => e + t.tasks, 0), h = `Approve ${t.length} ${t.length === 1 ? "spec" : "specs"}`, g = async () => {
+	let p = js(t), m = t.reduce((e, t) => e + t.tasks, 0), h = `Approve ${t.length} ${t.length === 1 ? "spec" : "specs"}`, g = async () => {
 		r(!0), a(null);
 		try {
 			let n = await e.client.approveMany(e.workspaceId, t.map((e) => ({
@@ -16709,7 +16787,7 @@ function Fm(e) {
 						] }, e.id))
 					})]
 				}),
-				/* @__PURE__ */ C(Nm, {
+				/* @__PURE__ */ C(Pm, {
 					entries: t,
 					selection: l,
 					phone: f
@@ -16725,7 +16803,7 @@ function Fm(e) {
 					children: [/* @__PURE__ */ C("h3", {
 						className: "m-0 text-sm font-medium",
 						children: t.spec
-					}), /* @__PURE__ */ C(Fp, {
+					}), /* @__PURE__ */ C(Ip, {
 						onStart: () => e.client.reviewAnyway(e.workspaceId, t.id, t.hash),
 						review: l?.specs.find((e) => e.id === t.id)?.review ?? t.review,
 						onClose: async (n, r) => (await e.client.closeReviewFinding(e.workspaceId, n, r), e.client.reviewSummary(e.workspaceId, t.id))
@@ -16735,8 +16813,8 @@ function Fm(e) {
 		})
 	});
 }
-function Im(e) {
-	let t = e.workspaceId, n = K(), { openChat: r } = St(), a = l(() => xs(n), [n]), s = l(() => Lp(n), [n]), c = l(() => dr(n), [n]), f = kt(), p = Ur(t), m = It(Zp), g = Dr(), _ = h(), v = rp(), y = l(() => la(n), [n]), [b, x] = d(null);
+function Lm(e) {
+	let t = e.workspaceId, n = K(), { openChat: r } = St(), a = l(() => ks(n), [n]), s = l(() => Rp(n), [n]), c = l(() => dr(n), [n]), f = kt(), p = Ur(t), m = It(Qp), g = Dr(), _ = h(), v = ip(), y = l(() => la(n), [n]), [b, x] = d(null);
 	o(() => {
 		x(null), t && y.get(t).then((e) => {
 			let t = e.effective ?? e.github;
@@ -16746,20 +16824,20 @@ function Im(e) {
 			});
 		}, () => void 0);
 	}, [y, t]);
-	let { scrolledOut: T, titleRef: E } = Dp(), [D, O] = Qp(!m), [k, A] = d(null), [j, M] = d(null), [N, P] = d(null);
+	let { scrolledOut: T, titleRef: E } = Op(), [D, O] = $p(!m), [k, A] = d(null), [j, M] = d(null), [N, P] = d(null);
 	o(() => {
 		e.newPlanRequest?.n && P({ seed: e.newPlanRequest.seed });
 	}, [e.newPlanRequest]);
-	let [F, I] = d(null), [L, ee] = d(null), [te, ne] = d(null), [re, ie] = d(/* @__PURE__ */ new Set()), [R, z] = d(null);
+	let [F, I] = d(null), [L, ee] = d(null), [te, R] = d(null), [ne, re] = d(/* @__PURE__ */ new Set()), [z, B] = d(null);
 	o(() => {
 		if (!t || !L) return;
 		let e = !0;
 		return a.batches(t).then((t) => {
 			if (!e) return;
-			ne(t);
-			let n = Ss(t);
-			ie((e) => new Set([...e].filter((e) => n.has(e))));
-		}, () => e && ne(null)), () => {
+			R(t);
+			let n = As(t);
+			re((e) => new Set([...e].filter((e) => n.has(e))));
+		}, () => e && R(null)), () => {
 			e = !1;
 		};
 	}, [
@@ -16767,7 +16845,7 @@ function Im(e) {
 		L,
 		a
 	]);
-	let [B, V, ae] = Un("plans-selected", "select", (e) => e ? "Back to the spec" : "Back to all specs", null), oe = u(t), [H, se] = d({}), [U, ce] = d(null), [le, ue] = d(null), [de, fe] = d(null), [pe, me] = d(null), [he, ge] = d(null), [_e, ve] = d(null), [ye, be] = d(null), [xe, Se] = d(null), [Ce, we] = d(null), [Te, Ee] = d(null), [De, Oe] = d(!1), [, ke] = d(0), Ae = u(null), je = i(async (e) => {
+	let [V, H, ie] = Un("plans-selected", "select", (e) => e ? "Back to the spec" : "Back to all specs", null), ae = u(t), [oe, se] = d({}), [U, ce] = d(null), [le, ue] = d(null), [de, fe] = d(null), [pe, me] = d(null), [he, ge] = d(null), [_e, ve] = d(null), [ye, be] = d(null), [xe, Se] = d(null), [Ce, we] = d(null), [Te, Ee] = d(null), [De, Oe] = d(!1), [, ke] = d(0), Ae = u(null), je = i(async (e) => {
 		Oe(!0), Ee(null);
 		try {
 			await e();
@@ -16778,15 +16856,15 @@ function Im(e) {
 		}
 	}, []), Me = i((e) => je(async () => ee(await a.table(e))), [je, a]);
 	o(() => {
-		ee(null), oe.current !== t && (oe.current = t, ae(null), ue(null), z(null), ie(/* @__PURE__ */ new Set())), t && (Me(t), a.languages(t).then((e) => {
-			ud(e.languages), ke((e) => e + 1);
+		ee(null), ae.current !== t && (ae.current = t, ie(null), ue(null), B(null), re(/* @__PURE__ */ new Set())), t && (Me(t), a.languages(t).then((e) => {
+			dd(e.languages), ke((e) => e + 1);
 		}, () => void 0));
 	}, [
 		t,
 		Me,
 		a
 	]);
-	let Ne = L?.items.find((e) => e.key === B) ?? null, Pe = Gf(t, Ne?.planId ?? null), Fe = Ne?.spec ? L?.specs.find((e) => e.name === Ne.spec) ?? null : null, Ie = i(async (e, t) => {
+	let Ne = L?.items.find((e) => e.key === V) ?? null, Pe = Kf(t, Ne?.planId ?? null), Fe = Ne?.spec ? L?.specs.find((e) => e.name === Ne.spec) ?? null : null, Ie = i(async (e, t) => {
 		if (ce(null), fe(null), me(null), !t) return;
 		let [n, r] = await Promise.all([a.get(e, t), a.preview(e, t).catch(() => null)]);
 		ce(n), fe(r);
@@ -16806,11 +16884,11 @@ function Im(e) {
 		})), () => {
 			e = !1;
 		};
-	}, [t, B]), o(() => {
-		B && Ae.current?.scrollIntoView?.({ block: "start" });
-	}, [B]);
-	let Le = (e) => V(e.key), Re = (t, n) => e.onScope?.(t, { plan: pp(n) }), ze = (e) => r({
-		message: bs(e),
+	}, [t, V]), o(() => {
+		V && Ae.current?.scrollIntoView?.({ block: "start" });
+	}, [V]);
+	let Le = (e) => H(e.key), Re = (t, n) => e.onScope?.(t, { plan: mp(n) }), ze = (e) => r({
+		message: Os(e),
 		autoSend: !1
 	}), Be = (e) => {
 		if (!t) return;
@@ -16818,17 +16896,17 @@ function Im(e) {
 		je(async () => {
 			let t = await e(n), r = await a.table(n);
 			ee(r);
-			let i = r.items.find((e) => e.key === B) ?? null;
+			let i = r.items.find((e) => e.key === V) ?? null;
 			await Ie(n, i?.planId ?? t?.id ?? null);
 		});
 	}, Ve = (e) => e.spec && Be((t) => a.store(t, e.spec)), He = (e) => e.planId && Be(async (t) => {
 		let n = await a.unarchive(t, e.planId);
 		return I(`Unarchived ${e.name}. ${n.released} tasks may start again; ${n.decisions} decisions closed.`), { id: e.planId };
-	}), Ue = Ss(te), We = L ? Ns(L.items, H, Ue) : [], Ge = We.flatMap((e) => e.planId && Ue.has(e.planId) ? [e.planId] : []), Ke = Ge.length > 0 && Ge.every((e) => re.has(e)), qe = (te?.batches ?? []).flatMap((e) => e.specs).filter((e) => re.has(e.id)), Je = (e) => {
-		let n = ys(e), r = Ms(U), i = [...new Set((xe?.tasks ?? []).map((e) => e.repository).filter((e) => !!e))], o = vu(b?.mode === "plans-repo" ? b.planning : b?.mode === "single-repo" && i.length === 1 ? i[0] : null);
+	}), Ue = As(te), We = L ? Vs(L.items, oe, Ue) : [], Ge = We.flatMap((e) => e.planId && Ue.has(e.planId) ? [e.planId] : []), Ke = Ge.length > 0 && Ge.every((e) => ne.has(e)), qe = (te?.batches ?? []).flatMap((e) => e.specs).filter((e) => ne.has(e.id)), Je = (e) => {
+		let n = Ds(e), r = Bs(U), i = [...new Set((xe?.tasks ?? []).map((e) => e.repository).filter((e) => !!e))], o = yu(b?.mode === "plans-repo" ? b.planning : b?.mode === "single-repo" && i.length === 1 ? i[0] : null);
 		return {
 			onEdit: () => ze(e),
-			onDiscuss: () => void p.ask(Fs(e)),
+			onDiscuss: () => void p.ask(Us(e)),
 			onNewTask: () => f.addTask(),
 			onImport: n.importable ? () => Ve(e) : void 0,
 			onReload: U?.disk.changed ? () => Be((e) => a.reload(e, U.id, U.hash)) : void 0,
@@ -16837,7 +16915,7 @@ function Im(e) {
 				plan: U
 			}) : void 0,
 			approveBlocker: U ? r : null,
-			onSpecBuilder: e.spec ? () => Lf(e.spec, _) : void 0,
+			onSpecBuilder: e.spec ? () => Rf(e.spec, _) : void 0,
 			onGraph: n.scoped ? () => Re("graph", e) : void 0,
 			onFolder: L?.root && e.folder ? () => void v(`${L.root.replace(/\/$/, "")}/${e.folder}`).then(I) : void 0,
 			github: o && e.folder ? `${o}/tree/HEAD/${e.folder}` : null,
@@ -16850,23 +16928,23 @@ function Im(e) {
 		"aria-labelledby": "avoozl-plans-title",
 		className: "flex flex-col gap-3.5",
 		children: [
-			le && le.workspaceId === t && /* @__PURE__ */ C(Pm, {
+			le && le.workspaceId === t && /* @__PURE__ */ C(Fm, {
 				workspaceId: le.workspaceId,
 				plan: le.plan,
 				client: a,
 				onDone: (e) => {
-					oe.current === le.workspaceId && (ue(null), e !== null && (I(e), Me(le.workspaceId), Ie(le.workspaceId, le.plan.id)));
+					ae.current === le.workspaceId && (ue(null), e !== null && (I(e), Me(le.workspaceId), Ie(le.workspaceId, le.plan.id)));
 				}
 			}),
-			k && t && /* @__PURE__ */ C(km, {
+			k && t && /* @__PURE__ */ C(Am, {
 				workspaceId: t,
 				row: k,
 				client: a,
 				onDone: (e) => {
-					A(null), e !== null && (ae(null), I(e), Me(t));
+					A(null), e !== null && (ie(null), I(e), Me(t));
 				}
 			}),
-			j && t && /* @__PURE__ */ C(Dm, {
+			j && t && /* @__PURE__ */ C(Om, {
 				workspaceId: t,
 				row: j,
 				client: a,
@@ -16874,15 +16952,15 @@ function Im(e) {
 					M(null), e !== null && (I(e), Me(t));
 				}
 			}),
-			R && R.workspaceId === t && /* @__PURE__ */ C(Fm, {
-				workspaceId: R.workspaceId,
-				entries: R.entries,
+			z && z.workspaceId === t && /* @__PURE__ */ C(Im, {
+				workspaceId: z.workspaceId,
+				entries: z.entries,
 				client: a,
 				onDone: (e) => {
-					oe.current === R.workspaceId && (z(null), e !== null && (I(e), ie(/* @__PURE__ */ new Set()), Me(t)));
+					ae.current === z.workspaceId && (B(null), e !== null && (I(e), re(/* @__PURE__ */ new Set()), Me(t)));
 				}
-			}, R.workspaceId),
-			N && t && /* @__PURE__ */ C(Uf, {
+			}, z.workspaceId),
+			N && t && /* @__PURE__ */ C(Wf, {
 				workspaceId: t,
 				seed: N.seed,
 				taken: (L?.items ?? []).flatMap((e) => [e.spec, e.planId]).filter((e) => !!e),
@@ -16910,12 +16988,12 @@ function Im(e) {
 				className: "sr-only",
 				children: De ? "Working…" : ""
 			}),
-			t ? /* @__PURE__ */ C(Np, {
+			t ? /* @__PURE__ */ C(Pp, {
 				id: "specs",
 				backLabel: "All specs",
 				detailTitle: Ne?.name ?? "",
 				detailOwnTitle: !0,
-				onBack: () => V(null),
+				onBack: () => H(null),
 				list: /* @__PURE__ */ w("div", {
 					className: "flex flex-col gap-3",
 					"data-plans-list-pane": !0,
@@ -16924,15 +17002,15 @@ function Im(e) {
 							id: "avoozl-plans-title",
 							view: "plans",
 							phoneMenu: !0,
-							actions: /* @__PURE__ */ C(_m, {
+							actions: /* @__PURE__ */ C(vm, {
 								onNewPlan: () => P({}),
 								onRefresh: () => void Me(t),
 								busy: De
 							}),
 							children: "Specs"
 						}),
-						L && L.items.length > 0 && /* @__PURE__ */ C(pm, {
-							filter: H,
+						L && L.items.length > 0 && /* @__PURE__ */ C(mm, {
+							filter: oe,
 							rows: L.items,
 							batches: te?.batches.length ?? 0,
 							onChange: se,
@@ -16958,9 +17036,9 @@ function Im(e) {
 										"data-select-shown": !0,
 										checked: Ke,
 										ref: (e) => {
-											e && (e.indeterminate = !Ke && Ge.some((e) => re.has(e)));
+											e && (e.indeterminate = !Ke && Ge.some((e) => ne.has(e)));
 										},
-										onChange: (e) => ie((t) => {
+										onChange: (e) => re((t) => {
 											let n = new Set(t);
 											for (let t of Ge) e.target.checked ? n.add(t) : n.delete(t);
 											return n;
@@ -16972,7 +17050,7 @@ function Im(e) {
 									primary: !0,
 									disabled: qe.length === 0 || De,
 									onClick: () => {
-										t && z({
+										t && B({
 											workspaceId: t,
 											entries: qe
 										});
@@ -17000,14 +17078,14 @@ function Im(e) {
 									L.root ? ` in ${L.root}/.kiro/specs` : "",
 									". Use New spec to start one."
 								]
-							}) : We.length ? /* @__PURE__ */ C(ym, {
+							}) : We.length ? /* @__PURE__ */ C(bm, {
 								rows: We,
 								selected: Ne?.key ?? null,
 								onOpen: Le,
-								reset: JSON.stringify(H),
+								reset: JSON.stringify(oe),
 								batchOf: Ue,
-								checked: re,
-								onCheck: (e, t) => ie((n) => {
+								checked: ne,
+								onCheck: (e, t) => re((n) => {
 									let r = new Set(n);
 									return t ? r.add(e) : r.delete(e), r;
 								})
@@ -17025,13 +17103,13 @@ function Im(e) {
 					className: "flex flex-col",
 					"data-spec-detail": Ne.key,
 					ref: Ae,
-					children: [/* @__PURE__ */ C(Tm, {
+					children: [/* @__PURE__ */ C(Em, {
 						row: Ne,
 						plan: U,
 						busy: De,
 						flush: g,
-						driver: /* @__PURE__ */ C(Kf, { spec: Pe.spec }),
-						handOff: t ? /* @__PURE__ */ C($f, {
+						driver: /* @__PURE__ */ C(qf, { spec: Pe.spec }),
+						handOff: t ? /* @__PURE__ */ C(ep, {
 							workspaceId: t,
 							spec: Pe.spec,
 							onChanged: Pe.reload
@@ -17055,18 +17133,18 @@ function Im(e) {
 								scrollMarginTop: 48
 							},
 							children: [
-								/* @__PURE__ */ C(xm, {}),
-								/* @__PURE__ */ C(Om, {
+								/* @__PURE__ */ C(Sm, {}),
+								/* @__PURE__ */ C(km, {
 									row: Ne,
 									busy: De,
 									onUnarchive: () => He(Ne)
 								}),
-								t && /* @__PURE__ */ C(qf, {
+								t && /* @__PURE__ */ C(Jf, {
 									workspaceId: t,
 									spec: Pe.spec,
 									onChanged: Pe.reload
 								}),
-								/* @__PURE__ */ C(Jf, { spec: Pe.spec }),
+								/* @__PURE__ */ C(Yf, { spec: Pe.spec }),
 								Ne.categoryProblem && /* @__PURE__ */ w("p", {
 									className: "text-sm text-muted",
 									children: [
@@ -17078,7 +17156,7 @@ function Im(e) {
 										Ne.categoryProblem
 									]
 								}),
-								Fe ? /* @__PURE__ */ C(lm, {
+								Fe ? /* @__PURE__ */ C(um, {
 									docs: _e,
 									docsError: ye,
 									spec: Fe,
@@ -17091,7 +17169,7 @@ function Im(e) {
 									onProject: () => ge("project"),
 									onChanged: () => ge("changed"),
 									onOpenTask: (e) => f.openTask(e)
-								}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ w(tm, {
+								}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ w(nm, {
 									title: "Summary",
 									children: [/* @__PURE__ */ w("p", {
 										className: "text-xs text-muted",
@@ -17101,9 +17179,9 @@ function Im(e) {
 										children: Ce ? Ce.error ? /* @__PURE__ */ C("p", {
 											className: "text-sm text-danger",
 											children: Ce.error
-										}) : Ce.text ? /* @__PURE__ */ C(bd, {
+										}) : Ce.text ? /* @__PURE__ */ C(xd, {
 											text: Ce.text,
-											measure: Xp
+											measure: Zp
 										}) : /* @__PURE__ */ C("p", {
 											className: "text-sm text-muted",
 											children: "This spec has no text."
@@ -17112,7 +17190,7 @@ function Im(e) {
 											children: "Loading…"
 										})
 									})]
-								}), /* @__PURE__ */ C(um, {
+								}), /* @__PURE__ */ C(dm, {
 									graph: xe,
 									onOpenTask: (e) => f.openTask(e)
 								})] })
@@ -17134,7 +17212,7 @@ function Im(e) {
 									overscrollBehavior: "contain"
 								}
 							},
-							children: /* @__PURE__ */ C(Em, {
+							children: /* @__PURE__ */ C(Dm, {
 								row: Ne,
 								plan: U,
 								graph: xe,
@@ -17151,14 +17229,14 @@ function Im(e) {
 				className: "text-sm text-muted",
 				children: "Choose a workspace in the header."
 			}),
-			he && t && U && /* @__PURE__ */ w(S, { children: [he === "project" && /* @__PURE__ */ C(Jp, {
+			he && t && U && /* @__PURE__ */ w(S, { children: [he === "project" && /* @__PURE__ */ C(Yp, {
 				workspaceId: t,
 				client: s,
 				planId: U.id,
 				title: U.title,
 				onClose: () => ge(null),
 				onCreated: () => void Ie(t, U.id)
-			}), he === "changed" && /* @__PURE__ */ C(Yp, {
+			}), he === "changed" && /* @__PURE__ */ C(Xp, {
 				workspaceId: t,
 				client: s,
 				planId: U.id,
@@ -17170,8 +17248,8 @@ function Im(e) {
 	});
 }
 // kirocrew-app/ui/src/EpicPanel.tsx
-var Lm = (e, t) => t ? Math.round(e / t * 100) : 0;
-function Rm(e) {
+var Rm = (e, t) => t ? Math.round(e / t * 100) : 0;
+function zm(e) {
 	let t = i((t) => e.client.epic(t, e.id), [e.client, e.id]), { value: n, error: r } = Mo(e.workspaceId, t);
 	return r ? /* @__PURE__ */ C("p", {
 		role: "alert",
@@ -17271,7 +17349,7 @@ function Rm(e) {
 							children: /* @__PURE__ */ C("span", {
 								className: "block h-full",
 								style: {
-									width: `${Lm(t.progress.done, t.progress.total)}%`,
+									width: `${Rm(t.progress.done, t.progress.total)}%`,
 									background: "var(--ok)"
 								}
 							})
@@ -17283,24 +17361,24 @@ function Rm(e) {
 	}) : null;
 }
 // kirocrew-app/ui/src/FilterBar.tsx
-var zm = {
-	event: xp,
-	read: Sp,
-	write: Cp,
+var Bm = {
+	event: Sp,
+	read: Cp,
+	write: wp,
 	empty: {}
 };
-function Bm(e) {
-	return ul(e, zm);
+function Vm(e) {
+	return dl(e, Bm);
 }
-function Vm(e, t) {
-	dl(zm, e, t);
+function Hm(e, t) {
+	fl(Bm, e, t);
 }
-function Hm(e) {
-	let { filter: t, choices: n } = e, r = (n) => e.onChange(wp(t, n));
-	return /* @__PURE__ */ C(sl, {
+function Um(e) {
+	let { filter: t, choices: n } = e, r = (n) => e.onChange(Tp(t, n));
+	return /* @__PURE__ */ C(cl, {
 		id: e.id,
 		label: "Filter tasks",
-		active: mp(t),
+		active: hp(t),
 		onClear: () => e.onChange({}),
 		fields: [
 			{
@@ -17324,7 +17402,7 @@ function Hm(e) {
 				key: "plan",
 				label: "Spec",
 				value: t.plan ?? "",
-				items: Qc(n.plans),
+				items: $c(n.plans),
 				onChange: (e) => r({
 					plan: e,
 					phase: void 0
@@ -17395,17 +17473,17 @@ function Hm(e) {
 	});
 }
 // kirocrew-app/ui/src/GraphView.tsx
-var Um = 60, Wm = 640, Gm = {
+var Wm = 60, Gm = 640, Km = {
 	ready: "var(--accent)",
 	running: "var(--tile-purple, var(--aim))",
 	waiting: "var(--border)",
 	"needs-you": "var(--danger)",
 	done: "var(--ok)",
 	deferred: "var(--muted)"
-}, Km = Object.fromEntries(zt.map((e) => [e.id, e.label])), qm = (e, t) => e.length > t ? e.slice(0, t - 1) + "…" : e, Jm = (e, t) => {
+}, qm = Object.fromEntries(zt.map((e) => [e.id, e.label])), Jm = (e, t) => e.length > t ? e.slice(0, t - 1) + "…" : e, Ym = (e, t) => {
 	(e.key === "Enter" || e.key === " ") && (e.preventDefault(), t());
 };
-function Ym({ task: e, x: t, y: n }) {
+function Xm({ task: e, x: t, y: n }) {
 	if (e.authority !== "github") return /* @__PURE__ */ C("text", {
 		x: t,
 		y: n,
@@ -17431,8 +17509,8 @@ function Ym({ task: e, x: t, y: n }) {
 		children: a
 	}) : a;
 }
-function Xm(e) {
-	let { node: t, selected: n } = e, r = Gm[t.state], i = t.members ? `${t.members.done} of ${t.members.total} done` : `${t.id} · ${Km[t.state]}`, a = t.members ? `${t.title}, collapsed, ${i}. Press to open it.` : `${t.title}, ${t.id}, ${Km[t.state]}${t.task?.review ? ", waits for review" : ""}${t.task?.planArchived ? ", archived plan" : ""}${t.task?.handSetReview ? ", review set by hand, none running" : ""}`;
+function Zm(e) {
+	let { node: t, selected: n } = e, r = Km[t.state], i = t.members ? `${t.members.done} of ${t.members.total} done` : `${t.id} · ${qm[t.state]}`, a = t.members ? `${t.title}, collapsed, ${i}. Press to open it.` : `${t.title}, ${t.id}, ${qm[t.state]}${t.task?.review ? ", waits for review" : ""}${t.task?.planArchived ? ", archived plan" : ""}${t.task?.handSetReview ? ", review set by hand, none running" : ""}`;
 	return /* @__PURE__ */ w("g", {
 		transform: `translate(${t.x},${t.y})`,
 		role: "button",
@@ -17441,7 +17519,7 @@ function Xm(e) {
 		"aria-pressed": t.members ? void 0 : n,
 		"data-node": t.id,
 		onClick: () => e.onSelect(t),
-		onKeyDown: (n) => Jm(n, () => e.onSelect(t)),
+		onKeyDown: (n) => Ym(n, () => e.onSelect(t)),
 		onPointerEnter: () => e.onHover(t.id),
 		onPointerLeave: () => e.onHover(null),
 		onFocus: () => e.onHover(t.id),
@@ -17476,7 +17554,7 @@ function Xm(e) {
 				fontSize: 11,
 				fontWeight: 600,
 				style: { fill: "var(--text)" },
-				children: qm(t.title, t.task?.review ? 19 : 25)
+				children: Jm(t.title, t.task?.review ? 19 : 25)
 			}),
 			t.task?.review && /* @__PURE__ */ C("text", {
 				x: Ut - 6,
@@ -17492,9 +17570,9 @@ function Xm(e) {
 				y: 29,
 				fontSize: 10,
 				style: { fill: "var(--muted)" },
-				children: qm(i, t.task ? 20 : 28)
+				children: Jm(i, t.task ? 20 : 28)
 			}),
-			t.task && /* @__PURE__ */ C(Ym, {
+			t.task && /* @__PURE__ */ C(Xm, {
 				task: t.task,
 				x: Ut - 6,
 				y: 29
@@ -17502,7 +17580,7 @@ function Xm(e) {
 		]
 	});
 }
-function Zm() {
+function Qm() {
 	return /* @__PURE__ */ w("ul", {
 		"aria-label": "Node colors",
 		className: "flex flex-wrap gap-3 text-xs text-muted",
@@ -17516,13 +17594,13 @@ function Zm() {
 					width: 10,
 					height: 10,
 					rx: 2,
-					style: { fill: Gm[e.id] }
+					style: { fill: Km[e.id] }
 				})
 			}), e.label]
 		}, e.id)), /* @__PURE__ */ C("li", { children: "Solid arrow: waiting · faded arrow: met · dashed arrow: sequence" })]
 	});
 }
-function Qm(e) {
+function $m(e) {
 	let { task: t, batch: n } = e, r = kt(), { waitsOn: i, blocks: a } = e.neighbors, o = Jt(t);
 	return /* @__PURE__ */ C(v, { children: /* @__PURE__ */ w("div", {
 		"aria-label": "Task details",
@@ -17548,14 +17626,14 @@ function Qm(e) {
 						children: t.id
 					}),
 					/* @__PURE__ */ C($, { children: t.kind }),
-					/* @__PURE__ */ C(xd, { owner: t }),
+					/* @__PURE__ */ C(Sd, { owner: t }),
 					/* @__PURE__ */ C($, {
 						variant: t.complete ? "success" : void 0,
 						children: t.status ?? "no status"
 					}),
 					/* @__PURE__ */ C($, {
 						variant: o === "needs-you" ? "warning" : o === "ready" ? "info" : void 0,
-						children: Km[o]
+						children: qm[o]
 					}),
 					t.review && /* @__PURE__ */ C($, { children: "review" }),
 					t.planArchived && /* @__PURE__ */ C($, { children: "Archived" }),
@@ -17666,34 +17744,34 @@ function Qm(e) {
 		]
 	}) });
 }
-function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
-	let a = K(), s = l(() => dr(a), [a]), c = kt(), [f, p] = Bm(e), { value: m, error: h, busy: g, reload: _ } = Mo(e, i((e) => s.graph(e), [s])), y = l(() => m ? _n(sn(yp(m, f), n), n) : null, [
+function eh({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
+	let a = K(), s = l(() => dr(a), [a]), c = kt(), [f, p] = Vm(e), { value: m, error: h, busy: g, reload: _ } = Mo(e, i((e) => s.graph(e), [s])), y = l(() => m ? _n(sn(bp(m, f), n), n) : null, [
 		m,
 		f,
 		n
-	]), b = l(() => vp(m, {}, f.plan), [m, f.plan]), [x, T] = d(null);
+	]), b = l(() => yp(m, {}, f.plan), [m, f.plan]), [x, T] = d(null);
 	o(() => T(null), [n]);
 	let E = Rn(), [D, k] = Hn("graph-selected", null), [A, j] = d(null), [M, N] = Hn("graph-view", {
 		x: 0,
 		y: 0,
 		scale: 1
-	}), [P] = d(() => E.memory.has("graph-stack")), F = u(null), I = u(null), L = u(!1), ee = l(() => [...new Set((y?.tasks ?? []).map((e) => Xt(e.group ?? null)))], [y]), te = l(() => x ?? new Set((!n || n.kind === "epic") && (y?.tasks.length ?? 0) > Um ? ee : []), [
+	}), [P] = d(() => E.memory.has("graph-stack")), F = u(null), I = u(null), L = u(!1), ee = l(() => [...new Set((y?.tasks ?? []).map((e) => Xt(e.group ?? null)))], [y]), te = l(() => x ?? new Set((!n || n.kind === "epic") && (y?.tasks.length ?? 0) > Wm ? ee : []), [
 		x,
 		y,
 		ee,
 		n
-	]), [ne, re] = d(1100), ie = l(() => Ht(y?.tasks.length ?? 0, ne), [y, ne]), R = l(() => y ? an(y, te, { spacing: ie }) : null, [
+	]), [R, ne] = d(1100), re = l(() => Ht(y?.tasks.length ?? 0, R), [y, R]), z = l(() => y ? an(y, te, { spacing: re }) : null, [
 		y,
 		te,
-		ie
-	]), z = l(() => new Map(R?.nodes.map((e) => [e.id, e]) ?? []), [R]), B = y?.tasks.find((e) => e.id === D) ?? null, V = y ? fr(y) : null, ae = (e) => y?.groups?.find((t) => t.id === e)?.title ?? e ?? "None", [oe, H] = Hn("graph-stack", []), se = u({
+		re
+	]), B = l(() => new Map(z?.nodes.map((e) => [e.id, e]) ?? []), [z]), V = y?.tasks.find((e) => e.id === D) ?? null, H = y ? fr(y) : null, ie = (e) => y?.groups?.find((t) => t.id === e)?.title ?? e ?? "None", [ae, oe] = Hn("graph-stack", []), se = u({
 		drill: n,
 		view: M,
 		selected: D
 	}), U = u(!1), ce = u(P ? M : null);
 	o(() => {
 		let e = se.current;
-		U.current ? U.current = !1 : e.drill !== n && H((t) => bn(t, e, n)), se.current = {
+		U.current ? U.current = !1 : e.drill !== n && oe((t) => bn(t, e, n)), se.current = {
 			drill: n,
 			view: M,
 			selected: D
@@ -17706,16 +17784,16 @@ function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 		};
 	}, [M, D]);
 	let le = (e) => {
-		H((t) => mn(t, {
+		oe((t) => mn(t, {
 			drill: n,
 			view: M,
 			selected: D
 		}, f, e)), p(e);
 	}, ue = (e) => {
-		let t = xn(oe, e);
+		let t = xn(ae, e);
 		if (!t) return;
-		let { entry: i } = t, a = oe.slice(t.stack.length).find((e) => e.filter)?.filter;
-		ce.current = i.view, H(t.stack), k(i.selected), a && p(a), i.drill === n ? N(i.view) : (U.current = !0, r?.(i.drill));
+		let { entry: i } = t, a = ae.slice(t.stack.length).find((e) => e.filter)?.filter;
+		ce.current = i.view, oe(t.stack), k(i.selected), a && p(a), i.drill === n ? N(i.view) : (U.current = !0, r?.(i.drill));
 	}, de = u(ue);
 	de.current = ue, o(() => {
 		let e = () => de.current();
@@ -17723,23 +17801,23 @@ function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 			E.handlers.get("graph") === e && E.handlers.delete("graph");
 		};
 	}, [E]), o(() => {
-		E.history.sync("graph", oe.length, () => ({
+		E.history.sync("graph", ae.length, () => ({
 			label: "Back in the Graph",
 			back: () => E.handlers.get("graph")?.()
 		}));
-	}, [E, oe.length]);
+	}, [E, ae.length]);
 	let fe = (e) => {
-		let t = vn(n, e, ae(e));
+		let t = vn(n, e, ie(e));
 		t && r?.(t);
 	}, pe = i(() => {
-		R && F.current && (ce.current ? (N(ce.current), ce.current = null) : N(fn(R, F.current.clientWidth || 800, Wm)));
-	}, [R]);
+		z && F.current && (ce.current ? (N(ce.current), ce.current = null) : N(fn(z, F.current.clientWidth || 800, Gm)));
+	}, [z]);
 	o(pe, [pe]), o(() => {
 		let e = F.current;
 		if (!e || typeof ResizeObserver > "u") return;
-		let t = new ResizeObserver(() => re((t) => Math.abs(t - e.clientWidth) > 40 ? e.clientWidth : t));
+		let t = new ResizeObserver(() => ne((t) => Math.abs(t - e.clientWidth) > 40 ? e.clientWidth : t));
 		return t.observe(e), () => t.disconnect();
-	}, [R !== null]), o(() => {
+	}, [z !== null]), o(() => {
 		let e = F.current;
 		if (!e) return;
 		let t = (t) => {
@@ -17749,10 +17827,10 @@ function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 			N((e) => dn(e, r, t.clientX - n.left, t.clientY - n.top));
 		};
 		return e.addEventListener("wheel", t, { passive: !1 }), () => e.removeEventListener("wheel", t);
-	}, [R]);
+	}, [z]);
 	let me = (e) => {
 		let t = F.current?.clientWidth || 800;
-		N((n) => dn(n, e, t / 2, Wm / 2));
+		N((n) => dn(n, e, t / 2, Gm / 2));
 	}, he = (e) => {
 		let t = new Set(te);
 		t.has(e) ? t.delete(e) : t.add(e), T(t);
@@ -17788,16 +17866,16 @@ function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 	}, xe = () => {
 		I.current = null;
 	}, Se = (e, t) => D !== null && (e === D || t === D), Ce = A ?? D, we = l(() => {
-		if (!R || !Ce || !z.has(Ce)) return null;
-		let { up: e, down: t } = ln(R.edges, Ce);
+		if (!z || !Ce || !B.has(Ce)) return null;
+		let { up: e, down: t } = ln(z.edges, Ce);
 		return {
 			up: /* @__PURE__ */ new Set([...e, Ce]),
 			down: /* @__PURE__ */ new Set([...t, Ce])
 		};
 	}, [
-		R,
+		z,
 		Ce,
-		z
+		B
 	]), Te = (e) => !we || we.up.has(e) || we.down.has(e), Ee = (e, t) => !we || we.up.has(e) && we.up.has(t) || we.down.has(e) && we.down.has(t);
 	return /* @__PURE__ */ w("section", {
 		"aria-labelledby": "avoozl-graph-title",
@@ -17814,7 +17892,7 @@ function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 				className: "text-sm text-danger",
 				children: h
 			}),
-			e ? /* @__PURE__ */ w(Hm, {
+			e ? /* @__PURE__ */ w(Um, {
 				id: "avoozl-graph",
 				filter: f,
 				choices: b,
@@ -17829,13 +17907,13 @@ function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 				}), /* @__PURE__ */ C("p", {
 					role: "status",
 					className: "mt-2 text-sm text-muted",
-					children: g ? "Loading…" : V ? `${V.tasks} of ${m.total} tasks · ${V.blocking} blocking edges · ${V.ready} ready · ${R?.waves ?? 0} waves` : ""
+					children: g ? "Loading…" : H ? `${H.tasks} of ${m.total} tasks · ${H.blocking} blocking edges · ${H.ready} ready · ${z?.waves ?? 0} waves` : ""
 				})]
 			}) : /* @__PURE__ */ C("p", {
 				className: "text-sm text-muted",
 				children: "Choose a workspace in the header."
 			}),
-			e && n?.kind === "epic" && n.id && /* @__PURE__ */ C(Rm, {
+			e && n?.kind === "epic" && n.id && /* @__PURE__ */ C(zm, {
 				workspaceId: e,
 				id: n.id,
 				client: s,
@@ -17845,21 +17923,21 @@ function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 				className: "text-sm text-muted",
 				children: "No tasks yet. Store and approve a spec in the Specs tab to fill the graph."
 			}),
-			R && R.nodes.length > 0 && /* @__PURE__ */ w(v, { children: [
+			z && z.nodes.length > 0 && /* @__PURE__ */ w(v, { children: [
 				/* @__PURE__ */ w("div", {
 					className: "flex flex-wrap items-center gap-2",
 					children: [
-						oe.length > 0 && /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(Y, {
+						ae.length > 0 && /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(Y, {
 							icon: O,
-							tooltip: yn(oe) ?? void 0,
+							tooltip: yn(ae) ?? void 0,
 							onClick: () => ue(),
-							"aria-label": yn(oe) ?? "Back",
+							"aria-label": yn(ae) ?? "Back",
 							children: "Back"
 						}), /* @__PURE__ */ w("nav", {
 							"aria-label": "Graph drill-in",
 							className: "flex flex-wrap items-center gap-1 text-sm",
 							"data-graph-crumbs": !0,
-							children: [hn(oe, n).map(({ at: e, label: t }) => /* @__PURE__ */ w("span", {
+							children: [hn(ae, n).map(({ at: e, label: t }) => /* @__PURE__ */ w("span", {
 								className: "inline-flex items-center gap-1",
 								children: [/* @__PURE__ */ C("button", {
 									type: "button",
@@ -17916,21 +17994,21 @@ function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 				}),
 				/* @__PURE__ */ C("div", {
 					className: "mt-2",
-					children: /* @__PURE__ */ C(Zm, {})
+					children: /* @__PURE__ */ C(Qm, {})
 				}),
 				/* @__PURE__ */ C("div", {
 					ref: F,
 					className: "mt-2 overflow-hidden rounded border",
 					style: {
 						borderColor: "var(--border)",
-						height: Wm,
+						height: Gm,
 						touchAction: "none"
 					},
 					children: /* @__PURE__ */ w("svg", {
 						role: "group",
 						"aria-label": "Task graph. Drag to pan; pinch or hold Ctrl or Cmd and scroll to zoom.",
 						width: "100%",
-						height: Wm,
+						height: Gm,
 						onPointerDown: ye,
 						onPointerMove: be,
 						onPointerUp: xe,
@@ -17966,7 +18044,7 @@ function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 						})] }), /* @__PURE__ */ w("g", {
 							transform: `translate(${M.x},${M.y}) scale(${M.scale})`,
 							children: [
-								R.clusters.map((e, t) => {
+								z.clusters.map((e, t) => {
 									let n = Xt(e.group);
 									return /* @__PURE__ */ w("g", {
 										opacity: we ? .5 : 1,
@@ -17990,16 +18068,16 @@ function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 											"aria-expanded": !e.collapsed,
 											"aria-label": `${e.title}, ${e.count} tasks. Press to open it.`,
 											onClick: () => !L.current && fe(e.group),
-											onKeyDown: (t) => Jm(t, () => fe(e.group)),
+											onKeyDown: (t) => Ym(t, () => fe(e.group)),
 											style: {
 												fill: "var(--muted)",
 												cursor: "pointer"
 											},
-											children: [qm(e.title, 30), " ›"]
+											children: [Jm(e.title, 30), " ›"]
 										})]
 									}, `${n}:${t}`);
 								}),
-								R.loose.map((e) => {
+								z.loose.map((e) => {
 									let t = Xt(e.group);
 									return /* @__PURE__ */ C("text", {
 										x: e.x,
@@ -18009,15 +18087,15 @@ function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 										tabIndex: 0,
 										"aria-label": `${e.title}: ${e.count} with no dependencies. Press to open it.`,
 										onClick: () => !L.current && fe(e.group),
-										onKeyDown: (t) => Jm(t, () => fe(e.group)),
+										onKeyDown: (t) => Ym(t, () => fe(e.group)),
 										style: {
 											fill: "var(--muted)",
 											cursor: "pointer"
 										},
-										children: qm(`${e.title} · ${e.count} with no dependencies`, e.chars)
+										children: Jm(`${e.title} · ${e.count} with no dependencies`, e.chars)
 									}, `loose:${t}`);
 								}),
-								R.edges.map((e) => {
+								z.edges.map((e) => {
 									let t = we !== null && Ee(e.from, e.to), n = we !== null && !t, r = Se(e.from, e.to);
 									return /* @__PURE__ */ C("path", {
 										d: cn(e.points),
@@ -18033,7 +18111,7 @@ function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 										}
 									}, `${e.from}->${e.to}`);
 								}),
-								R.nodes.map((e) => /* @__PURE__ */ C(Xm, {
+								z.nodes.map((e) => /* @__PURE__ */ C(Zm, {
 									node: e,
 									selected: e.id === D,
 									dim: !Te(e.id),
@@ -18045,22 +18123,22 @@ function $m({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 					})
 				})
 			] }),
-			y && B && /* @__PURE__ */ C(Qm, {
-				task: B,
-				batch: y.batches?.find((e) => e.id === B.batch) ?? null,
-				neighbors: un(y, B.id),
+			y && V && /* @__PURE__ */ C($m, {
+				task: V,
+				batch: y.batches?.find((e) => e.id === V.batch) ?? null,
+				neighbors: un(y, V.id),
 				onSelect: _e
 			})
 		]
 	});
 }
 // kirocrew-app/ui/src/budget-api.ts
-var eh = (e) => e == null ? "no cap" : `$${e.toFixed(2)}`;
-function th(e) {
+var th = (e) => e == null ? "no cap" : `$${e.toFixed(2)}`;
+function nh(e) {
 	let t = Number(e.trim().replace(/^\$/, ""));
 	return !e.trim() || !Number.isFinite(t) || t <= 0 ? { error: "Enter a dollar amount above 0." } : { usd: Math.round(t * 100) / 100 };
 }
-function nh(e) {
+function rh(e) {
 	let t = (t, n, r = {}) => e.post(W, {
 		operation: n,
 		input: r,
@@ -18079,8 +18157,8 @@ function nh(e) {
 	};
 }
 // kirocrew-app/ui/src/Budget.tsx
-function rh(e) {
-	let t = nh(p()), { budget: n } = e, [r, i] = d(() => String(Math.max(1, Math.ceil((n.cap.usd ?? n.spent) * 1.5)))), [a, o] = d(null), [s, c] = d(!1), l = async (t, n) => {
+function ih(e) {
+	let t = rh(p()), { budget: n } = e, [r, i] = d(() => String(Math.max(1, Math.ceil((n.cap.usd ?? n.spent) * 1.5)))), [a, o] = d(null), [s, c] = d(!1), l = async (t, n) => {
 		c(!0), o(null);
 		try {
 			await t(), await e.onDone(n);
@@ -18090,8 +18168,8 @@ function rh(e) {
 			c(!1);
 		}
 	}, u = () => {
-		let n = th(r);
-		return n.error ? o(n.error) : l(() => t.raise(e.workspaceId, e.taskId, n.usd), `Budget raised to ${eh(n.usd)}.`);
+		let n = nh(r);
+		return n.error ? o(n.error) : l(() => t.raise(e.workspaceId, e.taskId, n.usd), `Budget raised to ${th(n.usd)}.`);
 	}, f = n.state === "open", m = n.over?.open && n.state === null;
 	return !f && !m && n.state !== "paused" ? null : /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-2",
@@ -18148,7 +18226,7 @@ function rh(e) {
 	});
 }
 // kirocrew-app/ui/src/PlanReviewDecision.tsx
-function ih(e) {
+function ah(e) {
 	let [t, n] = d(null);
 	o(() => n(null), [e.planId, e.revisionHash]);
 	let r = (t) => e.run(async () => (await e.onDecide(t), n(t), {
@@ -18175,11 +18253,11 @@ function ih(e) {
 	});
 }
 // kirocrew-app/ui/src/ConflictFixActions.tsx
-var ah = {
+var oh = {
 	resolve: "Left to you. Avoozl does nothing more until the pull request changes.",
 	dismiss: "Dismissed until the pull request changes."
 };
-function oh(e) {
+function sh(e) {
 	let { fix: t, busy: n } = e;
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-wrap items-center gap-2",
@@ -18188,7 +18266,7 @@ function oh(e) {
 			icon: M,
 			tooltip: "You fix the conflict on the branch yourself. Avoozl stops watching this conflict.",
 			disabled: n,
-			onClick: () => e.onDecide("resolve", ah.resolve),
+			onClick: () => e.onDecide("resolve", oh.resolve),
 			children: "Resolve myself"
 		}), t.actions.includes("dismiss") && /* @__PURE__ */ C(zr, {
 			icon: Ye,
@@ -18199,42 +18277,42 @@ function oh(e) {
 				body: "Avoozl stops asking about this conflict until the pull request changes.",
 				action: "Dismiss"
 			},
-			onConfirm: () => e.onDecide("dismiss", ah.dismiss),
+			onConfirm: () => e.onDecide("dismiss", oh.dismiss),
 			children: "Dismiss"
 		})]
 	});
 }
 // kirocrew-app/ui/src/conflicts-api.ts
-function sh(e) {
+function ch(e) {
 	let t = (e.authority ?? "local") === "local";
-	return e.kind === "stale-session" && e.slot ? "dismiss" : e.kind === "review" ? dh(e).length ? "reviewed" : null : !t || e.kind === "needs-human" && e.reason === "hand-set-review" ? null : e.kind === "needs-human" ? e.reason === "blocked" ? "unblock" : "reviewed" : e.kind === "decision" ? "settle" : null;
+	return e.kind === "stale-session" && e.slot ? "dismiss" : e.kind === "review" ? fh(e).length ? "reviewed" : null : !t || e.kind === "needs-human" && e.reason === "hand-set-review" ? null : e.kind === "needs-human" ? e.reason === "blocked" ? "unblock" : "reviewed" : e.kind === "decision" ? "settle" : null;
 }
-var ch = {
+var lh = {
 	reviewed: "Mark reviewed",
 	unblock: "Unblock",
 	dismiss: "Dismiss",
 	settle: "Settle"
-}, lh = {
+}, uh = {
 	reviewed: "Count it as reviewed so it may start. Undo by editing it.",
 	unblock: "Return it to planned so it may start when ready.",
 	dismiss: "Remove the ended session from this list. Its chat is kept.",
 	settle: "Clear the decision and note your answer on the task."
-}, uh = (e) => `${e.kind ?? ""}:${e.taskId ?? ""}:${e.field ?? ""}:${e.slot ?? ""}${e.id ? `:${e.id}` : ""}`, dh = (e) => (e.tasks ?? []).filter((e) => (e.authority ?? "local") === "local").map((e) => ({ taskId: e.id })), fh = (e) => e.kind === "review" ? dh(e) : [e.slot ? {
+}, dh = (e) => `${e.kind ?? ""}:${e.taskId ?? ""}:${e.field ?? ""}:${e.slot ?? ""}${e.id ? `:${e.id}` : ""}`, fh = (e) => (e.tasks ?? []).filter((e) => (e.authority ?? "local") === "local").map((e) => ({ taskId: e.id })), ph = (e) => e.kind === "review" ? fh(e) : [e.slot ? {
 	taskId: e.taskId,
 	slot: e.slot
-} : { taskId: e.taskId }], ph = (e) => e.reduce((e, t) => e + fh(t).length, 0);
-function mh(e, t, n) {
+} : { taskId: e.taskId }], mh = (e) => e.reduce((e, t) => e + ph(t).length, 0);
+function hh(e, t, n) {
 	let r = new Set(n.settled.map((e) => `${e.taskId}\u0000${e.slot ?? ""}`)), i = (e) => r.has(`${e}\u0000`);
 	return e.flatMap((e) => {
-		if (sh(e) !== t) return [e];
+		if (ch(e) !== t) return [e];
 		if (e.kind === "review") {
 			let t = (e.tasks ?? []).filter((e) => !i(e.id));
-			return t.length === (e.tasks ?? []).length ? [e] : t.length ? [hh(e, t)] : [];
+			return t.length === (e.tasks ?? []).length ? [e] : t.length ? [gh(e, t)] : [];
 		}
 		return r.has(`${e.taskId}\u0000${t === "dismiss" ? e.slot ?? "" : ""}`) ? [] : [e];
 	});
 }
-function hh(e, t) {
+function gh(e, t) {
 	let n = t.length;
 	return {
 		...e,
@@ -18242,17 +18320,17 @@ function hh(e, t) {
 		title: `Review ${n} ${n === 1 ? "task" : "tasks"} in ${e.plan ?? "this spec"}: their design text changed`
 	};
 }
-function gh(e, t) {
-	let n = t.settled.length, r = [n ? `${ch[e]}: ${n} done.` : ""];
+function _h(e, t) {
+	let n = t.settled.length, r = [n ? `${lh[e]}: ${n} done.` : ""];
 	return t.refused.length && r.push(`Refused ${t.refused.length}: ${t.refused.map((e) => `${e.taskId} (${e.reason})`).join("; ")}`), {
 		ok: t.refused.length === 0,
 		text: r.filter(Boolean).join(" ")
 	};
 }
-function _h(e) {
-	return e.kind === "plan-review" ? null : e.kind === "github-conflict" && !e.choices?.length ? e.field === "identity" ? "Two issues claim this task. Close or merge the duplicate issue on GitHub; Avoozl reads the result on its next tick." : e.field === "Avoozl state" ? "Avoozl fills Avoozl state and already wrote its value back. Move the card’s Status instead. This clears when the task’s state next changes." : "GitHub owns the issue state. Reopen or close it on GitHub; Avoozl reads the result on its next tick." : e.kind === "resource" ? "Two active runs share a resource. Stop one run, or wait for one to finish." : e.kind === "tracker-conflict" ? "The tracker record owns this field. Change it there or in the spec." : e.kind === "content-unavailable" ? "Add or fix this rule set’s terms file or plugin on this machine. Avoozl checks again on the next tick." : e.kind === "content-match" || e.kind === "budget" || e.kind === "over-budget" || e.kind === "investigation" || e.kind === "ready-to-merge" || e.kind === "routing-failed" || e.kind === "branch-landing" || e.kind === "needs-human" && e.reason === "forward" ? null : e.kind === "needs-human" && e.reason === "public-branch" ? "Merge the public branch on GitHub yourself. Avoozl never merges it, and the row clears when it has landed." : e.kind === "needs-human" && e.reason === "forward-audit" ? "Check the public repository, then resume the stop from the banner. Avoozl forwards nothing until you do." : e.kind === "needs-human" && e.reason === "conflict-fix" ? null : e.kind === "needs-human" && e.reason === "merge-method" ? "Change the GitHub setting it names, or change merge.method in Settings. The row clears on the next check." : e.kind === "needs-human" && e.reason === "hand-set-review" ? "Discuss it, mark it done, or move it back to planned from the task." : e.kind === "needs-human" && e.reason === "review-draft" ? "Act on the pull request on GitHub. Avoozl clears this row on its next tick once the draft is submitted or the cause is gone." : e.kind === "needs-human" && e.reason === "tracker-gate" ? "Clear the gate in the Release queue, or change the spec. Avoozl never clears a gate itself; the row closes when the tracker reports done." : e.kind === "review" && sh(e) === null ? "GitHub or a plugin owns these tasks. Review them where they live." : sh(e) === null && e.kind !== "github-conflict" ? `${e.authority} owns this task. Settle it where it lives.` : null;
+function vh(e) {
+	return e.kind === "plan-review" ? null : e.kind === "github-conflict" && !e.choices?.length ? e.field === "identity" ? "Two issues claim this task. Close or merge the duplicate issue on GitHub; Avoozl reads the result on its next tick." : e.field === "Avoozl state" ? "Avoozl fills Avoozl state and already wrote its value back. Move the card’s Status instead. This clears when the task’s state next changes." : "GitHub owns the issue state. Reopen or close it on GitHub; Avoozl reads the result on its next tick." : e.kind === "resource" ? "Two active runs share a resource. Stop one run, or wait for one to finish." : e.kind === "tracker-conflict" ? "The tracker record owns this field. Change it there or in the spec." : e.kind === "content-unavailable" ? "Add or fix this rule set’s terms file or plugin on this machine. Avoozl checks again on the next tick." : e.kind === "content-match" || e.kind === "budget" || e.kind === "over-budget" || e.kind === "investigation" || e.kind === "ready-to-merge" || e.kind === "routing-failed" || e.kind === "branch-landing" || e.kind === "needs-human" && e.reason === "forward" ? null : e.kind === "needs-human" && e.reason === "public-branch" ? "Merge the public branch on GitHub yourself. Avoozl never merges it, and the row clears when it has landed." : e.kind === "needs-human" && e.reason === "forward-audit" ? "Check the public repository, then resume the stop from the banner. Avoozl forwards nothing until you do." : e.kind === "needs-human" && e.reason === "conflict-fix" ? null : e.kind === "needs-human" && e.reason === "merge-method" ? "Change the GitHub setting it names, or change merge.method in Settings. The row clears on the next check." : e.kind === "needs-human" && e.reason === "hand-set-review" ? "Discuss it, mark it done, or move it back to planned from the task." : e.kind === "needs-human" && e.reason === "review-draft" ? "Act on the pull request on GitHub. Avoozl clears this row on its next tick once the draft is submitted or the cause is gone." : e.kind === "needs-human" && e.reason === "tracker-gate" ? "Clear the gate in the Release queue, or change the spec. Avoozl never clears a gate itself; the row closes when the tracker reports done." : e.kind === "review" && ch(e) === null ? "GitHub or a plugin owns these tasks. Review them where they live." : ch(e) === null && e.kind !== "github-conflict" ? `${e.authority} owns this task. Settle it where it lives.` : null;
 }
-var vh = [
+var yh = [
 	{
 		key: "all",
 		label: "All",
@@ -18294,33 +18372,33 @@ var vh = [
 		].includes(e.kind)
 	}
 ];
-function yh(e) {
-	return Object.fromEntries(vh.map((t) => [t.key, e.filter(t.keep).length]));
-}
 function bh(e) {
+	return Object.fromEntries(yh.map((t) => [t.key, e.filter(t.keep).length]));
+}
+function xh(e) {
 	return e.kind === "github-conflict" ? `${e.changedBy ?? "Someone"} changed ${e.field ?? "a managed field"} on GitHub; Avoozl manages it. ${e.detail}` : e.kind === "needs-human" && e.reason === "crew" || e.kind === "needs-human" && e.reason === "hand-set-review" || e.kind === "needs-human" && e.reason === "review-draft" || e.kind === "needs-human" && e.reason === "tracker-gate" ? e.detail : e.kind === "needs-human" ? e.reason === "blocked" ? "Marked blocked: nothing starts until you unblock it." : "New or edited: it waits for your review before it can start." : e.kind === "review" ? e.detail : e.kind === "decision" ? `An open question stops this task: ${e.detail}` : e.kind === "stale-session" ? `Its chat ended before the task finished. ${e.detail}` : e.detail;
 }
-var xh = (e) => e.changedAt ?? e.openedAt ?? null;
-function Sh(e) {
-	let t = new Set(e.map(sh));
+var Sh = (e) => e.changedAt ?? e.openedAt ?? null;
+function Ch(e) {
+	let t = new Set(e.map(ch));
 	if (t.size !== 1) return null;
 	let [n] = t;
 	return n && n !== "settle" ? n : null;
 }
-function Ch(e, t, n) {
+function wh(e, t, n) {
 	let r = t === 1 && n ? n : `${t} ${e === "reviewed" ? "tasks" : "items"}`;
 	return {
-		title: `${ch[e]}: ${r}?`,
+		title: `${lh[e]}: ${r}?`,
 		body: {
 			reviewed: "They count as reviewed and may start when ready. To undo, edit each task again.",
 			unblock: "They go back to planned and may start when ready.",
 			dismiss: "The ended sessions leave the list. Their chats are not deleted.",
 			settle: "The decision is cleared and your answer is noted on the task."
 		}[e],
-		action: ch[e]
+		action: lh[e]
 	};
 }
-function wh(e) {
+function Th(e) {
 	let t = /* @__PURE__ */ new Set(["closed", "lost"]), n = /* @__PURE__ */ new Map();
 	for (let r of e) {
 		let e = r.sessions.filter((e) => !t.has(e.status ?? "")).sort((e, t) => (e.role === "worker" ? -1 : 0) - (t.role === "worker" ? -1 : 0) || t.attempt - e.attempt);
@@ -18328,29 +18406,29 @@ function wh(e) {
 	}
 	return n;
 }
-var Th = 864e5, Eh = [
+var Eh = 864e5, Dh = [
 	{
 		value: "1d",
 		label: "Older than a day",
-		ms: Th
+		ms: Eh
 	},
 	{
 		value: "7d",
 		label: "Older than a week",
-		ms: 7 * Th
+		ms: 7 * Eh
 	},
 	{
 		value: "30d",
 		label: "Older than 30 days",
-		ms: 30 * Th
+		ms: 30 * Eh
 	}
-], Dh = (e) => e.taskId ?? e.tasks?.[0]?.id ?? null, Oh = (e, t) => e.issue?.repository ?? t?.repository ?? null;
-function kh(e, t, n, r) {
-	let i = t.q?.trim().toLowerCase() ?? "", a = vh.find((e) => e.key === t.kind), o = Eh.find((e) => e.value === t.age), s = xh(e), c = Oh(e, n);
-	return (!i || e.title.toLowerCase().includes(i) || (e.taskId ?? "").toLowerCase().includes(i) || e.detail.toLowerCase().includes(i)) && (!a || a.keep(e)) && (!t.plan || (n ? fp(n) : null) === t.plan) && (!t.epic || n?.epic === t.epic) && (!t.repository || (t.repository === "(none)" ? !c : c === t.repository)) && (!o || s !== null && r - Date.parse(s) > o.ms) && (!t.changedBy || e.changedBy === t.changedBy);
+], Oh = (e) => e.taskId ?? e.tasks?.[0]?.id ?? null, kh = (e, t) => e.issue?.repository ?? t?.repository ?? null;
+function Ah(e, t, n, r) {
+	let i = t.q?.trim().toLowerCase() ?? "", a = yh.find((e) => e.key === t.kind), o = Dh.find((e) => e.value === t.age), s = Sh(e), c = kh(e, n);
+	return (!i || e.title.toLowerCase().includes(i) || (e.taskId ?? "").toLowerCase().includes(i) || e.detail.toLowerCase().includes(i)) && (!a || a.keep(e)) && (!t.plan || (n ? pp(n) : null) === t.plan) && (!t.epic || n?.epic === t.epic) && (!t.repository || (t.repository === "(none)" ? !c : c === t.repository)) && (!o || s !== null && r - Date.parse(s) > o.ms) && (!t.changedBy || e.changedBy === t.changedBy);
 }
-function Ah(e, t) {
-	let n = new Map((t?.tasks ?? []).map((e) => [e.id, e])), r = new Map((t?.epics ?? []).map((e) => [e.id, e.title])), i = yh(e), a = (t, n = (e) => e) => {
+function jh(e, t) {
+	let n = new Map((t?.tasks ?? []).map((e) => [e.id, e])), r = new Map((t?.epics ?? []).map((e) => [e.id, e.title])), i = bh(e), a = (t, n = (e) => e) => {
 		let r = /* @__PURE__ */ new Set();
 		for (let n of e) {
 			let e = t(n);
@@ -18360,29 +18438,29 @@ function Ah(e, t) {
 			value: e,
 			label: n(e)
 		})).sort((e, t) => e.label.localeCompare(t.label));
-	}, o = (e) => n.get(Dh(e) ?? "");
+	}, o = (e) => n.get(Oh(e) ?? "");
 	return {
-		kinds: vh.filter((e) => e.key !== "all").map((e) => ({
+		kinds: yh.filter((e) => e.key !== "all").map((e) => ({
 			value: e.key,
 			label: `${e.label} (${i[e.key]})`
 		})),
 		plans: a((e) => {
 			let t = o(e);
-			return t ? fp(t) : null;
+			return t ? pp(t) : null;
 		}, (e) => e.replace(/^(spec|plan):/, "")),
 		epics: a((e) => o(e)?.epic, (e) => r.get(e) ?? e),
-		repositories: [...a((e) => Oh(e, o(e))), ...e.some((e) => !Oh(e, o(e))) ? [{
-			value: up,
+		repositories: [...a((e) => kh(e, o(e))), ...e.some((e) => !kh(e, o(e))) ? [{
+			value: dp,
 			label: "No repository"
 		}] : []],
-		ages: Eh.map(({ value: e, label: t }) => ({
+		ages: Dh.map(({ value: e, label: t }) => ({
 			value: e,
 			label: t
 		})),
 		changedBy: a((e) => e.changedBy)
 	};
 }
-var jh = "avoozl-conflict-filter", Mh = (e) => `avoozl.conflict-filters.${e}`, Nh = [
+var Mh = "avoozl-conflict-filter", Nh = (e) => `avoozl.conflict-filters.${e}`, Ph = [
 	"q",
 	"kind",
 	"plan",
@@ -18391,25 +18469,25 @@ var jh = "avoozl-conflict-filter", Mh = (e) => `avoozl.conflict-filters.${e}`, N
 	"age",
 	"changedBy"
 ];
-function Ph(e, t) {
+function Fh(e, t) {
 	try {
-		let n = JSON.parse(e?.getItem(Mh(t)) ?? "null");
+		let n = JSON.parse(e?.getItem(Nh(t)) ?? "null");
 		if (!n || typeof n != "object") return {};
 		let r = {};
-		for (let e of Nh) typeof n[e] == "string" && n[e] && (r[e] = n[e]);
-		return r.kind && !vh.some((e) => e.key === r.kind && e.key !== "all") && delete r.kind, r.age && !Eh.some((e) => e.value === r.age) && delete r.age, r;
+		for (let e of Ph) typeof n[e] == "string" && n[e] && (r[e] = n[e]);
+		return r.kind && !yh.some((e) => e.key === r.kind && e.key !== "all") && delete r.kind, r.age && !Dh.some((e) => e.value === r.age) && delete r.age, r;
 	} catch {
 		return {};
 	}
 }
-function Fh(e, t, n) {
+function Ih(e, t, n) {
 	try {
-		e?.setItem(Mh(t), JSON.stringify(n));
+		e?.setItem(Nh(t), JSON.stringify(n));
 	} catch {}
 }
-var Ih = (e) => Nh.some((t) => !!e[t]?.trim());
+var Lh = (e) => Ph.some((t) => !!e[t]?.trim());
 // kirocrew-app/ui/src/forward-api.ts
-function Lh(e) {
+function Rh(e) {
 	let t = async (t, n, r) => (await e.post(W, {
 		operation: t,
 		input: n,
@@ -18423,7 +18501,7 @@ function Lh(e) {
 		}, e)
 	};
 }
-function Rh(e) {
+function zh(e) {
 	if (e.stopped) return `Forwarding is stopped: ${e.stopped}`;
 	if (e.changed) return "The change differs from what you reviewed. Review the new one below.";
 	if (e.blocked) return e.reason ?? "The checks blocked this change. Nothing was pushed.";
@@ -18431,9 +18509,9 @@ function Rh(e) {
 	return t ? `Forwarded. Public pull request #${t} is open.` : "Forwarded.";
 }
 // kirocrew-app/ui/src/ForwardScreen.tsx
-function zh(e) {
-	let { workspaceId: t, forwardId: n } = e, r = Lh(K()), [i, a] = d(null), [s, c] = d(null), [l, u] = d(!0), [f, p] = d(!1), [m, h] = d(null), g = (e) => {
-		p(e.blocked === !0), h(e.stopped ?? null), a(e.review ?? null), c(e.stopped || e.blocked || e.changed || !e.ok ? Rh(e) : null);
+function Bh(e) {
+	let { workspaceId: t, forwardId: n } = e, r = Rh(K()), [i, a] = d(null), [s, c] = d(null), [l, u] = d(!0), [f, p] = d(!1), [m, h] = d(null), g = (e) => {
+		p(e.blocked === !0), h(e.stopped ?? null), a(e.review ?? null), c(e.stopped || e.blocked || e.changed || !e.ok ? zh(e) : null);
 	}, v = async (e, t) => {
 		u(!0);
 		try {
@@ -18461,7 +18539,7 @@ function zh(e) {
 			disabled: l || f || !i || m !== null,
 			"data-forward-push": !0,
 			onClick: () => void v(() => r.push(t, n, i.hash), (t) => {
-				c(Rh(t)), e.onClose(!0);
+				c(zh(t)), e.onClose(!0);
 			}),
 			children: "Forward"
 		})] }),
@@ -18533,7 +18611,7 @@ function zh(e) {
 	});
 }
 // kirocrew-app/ui/src/routing-api.ts
-function Bh(e) {
+function Vh(e) {
 	let t = (t, n, r = {}) => e.post(W, {
 		operation: n,
 		input: r,
@@ -18554,24 +18632,24 @@ function Bh(e) {
 	};
 }
 // kirocrew-app/ui/src/ConflictsView.tsx
-var Vh = {
-	event: jh,
-	read: Ph,
-	write: Fh,
+var Hh = {
+	event: Mh,
+	read: Fh,
+	write: Ih,
 	empty: {}
-}, Hh = {
+}, Uh = {
 	...yr,
 	"github-conflict": "GitHub edit",
 	"tracker-conflict": "Tracker edit"
-}, Uh = {
+}, Wh = {
 	title: "Title",
 	body: "Managed body section",
 	labels: "Managed labels",
 	blockers: "Blocked-by links",
 	state: "Issue state",
 	identity: "Issue identity"
-}, Wh = (e) => Array.isArray(e) ? e.length ? e.join(", ") : "none" : e || "empty";
-function Gh({ item: e }) {
+}, Gh = (e) => Array.isArray(e) ? e.length ? e.join(", ") : "none" : e || "empty";
+function Kh({ item: e }) {
 	if (e.expected === void 0 && e.actual === void 0) return null;
 	let t = (e, t) => /* @__PURE__ */ w("div", {
 		className: "min-w-0",
@@ -18581,7 +18659,7 @@ function Gh({ item: e }) {
 		}), /* @__PURE__ */ C("pre", {
 			className: "mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded border p-2 text-xs",
 			style: { borderColor: "var(--border)" },
-			children: Wh(t)
+			children: Gh(t)
 		})]
 	});
 	return /* @__PURE__ */ w("div", {
@@ -18590,21 +18668,21 @@ function Gh({ item: e }) {
 		children: [t("Avoozl expected", e.expected), t(e.changedBy ? `GitHub has (changed by ${e.changedBy})` : "GitHub has", e.actual)]
 	});
 }
-function Kh(e) {
-	let { item: t, workspaceId: n, revision: r, busy: i, run: a } = e, o = K(), s = l(() => dr(o), [o]), c = l(() => Ji(o), [o]), [u, f] = d(""), p = sh(t), m = pr(t.issue?.url ?? null), h = (i, o) => a(async () => {
-		let a = await c.settle(n, i, fh(t), r, o);
-		return e.onSettled(i, a), gh(i, a);
-	}), g = _h(t);
+function qh(e) {
+	let { item: t, workspaceId: n, revision: r, busy: i, run: a } = e, o = K(), s = l(() => dr(o), [o]), c = l(() => Ji(o), [o]), [u, f] = d(""), p = ch(t), m = pr(t.issue?.url ?? null), h = (i, o) => a(async () => {
+		let a = await c.settle(n, i, ph(t), r, o);
+		return e.onSettled(i, a), _h(i, a);
+	}), g = vh(t);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-2",
 		children: [
-			t.kind === "plan-review" && t.planReview && /* @__PURE__ */ C(ih, {
+			t.kind === "plan-review" && t.planReview && /* @__PURE__ */ C(ah, {
 				...t.planReview,
 				busy: i,
 				run: a,
 				onDecide: (e) => s.decidePlanReview(n, t.planReview.planId, t.planReview.revisionHash, e)
 			}, `${n}:${t.planReview.planId}:${t.planReview.revisionHash}`),
-			(t.kind === "budget" || t.kind === "over-budget") && t.taskId && t.budget && /* @__PURE__ */ C(rh, {
+			(t.kind === "budget" || t.kind === "over-budget") && t.taskId && t.budget && /* @__PURE__ */ C(ih, {
 				workspaceId: n,
 				taskId: t.taskId,
 				budget: t.budget,
@@ -18613,7 +18691,7 @@ function Kh(e) {
 					text: e
 				}))
 			}),
-			t.kind === "investigation" && t.taskId && /* @__PURE__ */ C(Jh, {
+			t.kind === "investigation" && t.taskId && /* @__PURE__ */ C(Yh, {
 				item: t,
 				busy: i,
 				onDecide: (e, r) => a(async () => (await s.decideInvestigation(n, t.taskId, e), {
@@ -18621,7 +18699,7 @@ function Kh(e) {
 					text: r
 				}))
 			}),
-			t.kind === "needs-human" && t.reason === "conflict-fix" && t.conflictFix && /* @__PURE__ */ C(oh, {
+			t.kind === "needs-human" && t.reason === "conflict-fix" && t.conflictFix && /* @__PURE__ */ C(sh, {
 				fix: t.conflictFix,
 				busy: i,
 				onDecide: (e, r) => a(async () => (await s.decideConflictFix(n, t.conflictFix.repository, t.conflictFix.pullRequest, e), {
@@ -18629,12 +18707,12 @@ function Kh(e) {
 					text: r
 				}))
 			}),
-			t.kind === "routing-failed" && /* @__PURE__ */ C(Yh, {
+			t.kind === "routing-failed" && /* @__PURE__ */ C(Xh, {
 				busy: i,
 				run: a,
 				workspaceId: n
 			}),
-			t.kind === "ready-to-merge" && /* @__PURE__ */ C(Qh, {
+			t.kind === "ready-to-merge" && /* @__PURE__ */ C($h, {
 				item: t,
 				busy: i,
 				onIntegrate: () => a(async () => (await s.integrate(n, t.taskId, t.commit), {
@@ -18642,15 +18720,15 @@ function Kh(e) {
 					text: `${t.taskId} lands on the next tick.`
 				}))
 			}),
-			t.kind === "branch-landing" && t.repository && t.branch && t.head && /* @__PURE__ */ C(Zh, {
+			t.kind === "branch-landing" && t.repository && t.branch && t.head && /* @__PURE__ */ C(Qh, {
 				item: t,
 				busy: i,
-				onLand: () => a(async () => (await zl(o).land(n, t.repository, t.branch, t.head), {
+				onLand: () => a(async () => (await Bl(o).land(n, t.repository, t.branch, t.head), {
 					ok: !0,
 					text: `${t.branch} is approved to land. Merge it on GitHub.`
 				}))
 			}),
-			t.kind === "needs-human" && t.reason === "forward" && t.forwardId && /* @__PURE__ */ C(Xh, {
+			t.kind === "needs-human" && t.reason === "forward" && t.forwardId && /* @__PURE__ */ C(Zh, {
 				item: t,
 				workspaceId: n,
 				onDone: () => void a(async () => ({
@@ -18658,7 +18736,7 @@ function Kh(e) {
 					text: "Forwarded."
 				}))
 			}),
-			t.kind === "content-match" && t.id && /* @__PURE__ */ C(eg, {
+			t.kind === "content-match" && t.id && /* @__PURE__ */ C(tg, {
 				id: t.id,
 				readable: t.readable === !0,
 				workspaceId: n,
@@ -18673,7 +18751,7 @@ function Kh(e) {
 						tooltip: "Next tick writes Avoozl's value over the GitHub edit",
 						disabled: i || t.resolution === "desired",
 						confirm: {
-							title: `Re-apply Avoozl's ${Uh[t.field ?? ""] ?? t.field} on ${t.taskId}?`,
+							title: `Re-apply Avoozl's ${Wh[t.field ?? ""] ?? t.field} on ${t.taskId}?`,
 							body: `The next tick writes Avoozl's value over the edit ${t.changedBy ?? "someone"} made on GitHub. Their text is lost unless they keep a copy.`,
 							action: "Re-apply"
 						},
@@ -18702,7 +18780,7 @@ function Kh(e) {
 			p === "settle" && /* @__PURE__ */ w("div", {
 				className: "flex flex-wrap items-end gap-2",
 				children: [/* @__PURE__ */ w("label", {
-					htmlFor: `answer-${uh(t)}`,
+					htmlFor: `answer-${dh(t)}`,
 					className: "flex flex-1 flex-col gap-1 text-xs",
 					style: { minWidth: "16rem" },
 					children: [/* @__PURE__ */ w("span", { children: [
@@ -18710,15 +18788,15 @@ function Kh(e) {
 						t.detail,
 						"”"
 					] }), /* @__PURE__ */ C(b, {
-						id: `answer-${uh(t)}`,
+						id: `answer-${dh(t)}`,
 						value: u,
 						onChange: (e) => f(e.target.value)
 					})]
 				}), /* @__PURE__ */ C(zr, {
 					icon: M,
-					tooltip: lh.settle,
+					tooltip: uh.settle,
 					disabled: i || !u.trim(),
-					confirm: Ch("settle", 1, t.title),
+					confirm: wh("settle", 1, t.title),
 					onConfirm: () => h("settle", u.trim()),
 					children: "Settle"
 				})]
@@ -18728,23 +18806,23 @@ function Kh(e) {
 				children: [
 					p === "dismiss" && /* @__PURE__ */ C(zr, {
 						icon: Ye,
-						tooltip: lh.dismiss,
+						tooltip: uh.dismiss,
 						disabled: i,
-						confirm: Ch("dismiss", 1, t.title),
+						confirm: wh("dismiss", 1, t.title),
 						onConfirm: () => h("dismiss"),
 						children: "Dismiss"
 					}),
-					t.kind === "review" && p === "reviewed" && /* @__PURE__ */ C($h, {
+					t.kind === "review" && p === "reviewed" && /* @__PURE__ */ C(eg, {
 						item: t,
 						busy: i,
 						onConfirm: () => h("reviewed")
 					}),
 					p && p !== "settle" && p !== "dismiss" && t.kind !== "review" && /* @__PURE__ */ C(Y, {
 						icon: M,
-						tooltip: lh[p],
+						tooltip: uh[p],
 						disabled: i,
 						onClick: () => h(p),
-						children: ch[p]
+						children: lh[p]
 					}),
 					t.kind === "stale-session" && t.deliveryState === "decision" && /* @__PURE__ */ C(Y, {
 						icon: Be,
@@ -18783,12 +18861,12 @@ function Kh(e) {
 		]
 	});
 }
-var qh = {
+var Jh = {
 	low: "Low",
 	medium: "Medium",
 	high: "High"
 };
-function Jh(e) {
+function Yh(e) {
 	let { item: t, busy: n } = e, r = t.findings, i = (e, t) => /* @__PURE__ */ w("div", {
 		className: "min-w-0",
 		children: [/* @__PURE__ */ C("dt", {
@@ -18811,7 +18889,7 @@ function Jh(e) {
 					i("Cause or approach", r.cause),
 					i("Planned change", r.plan),
 					i("How it is checked", r.check),
-					i("Worker is sure", qh[r.confidence])
+					i("Worker is sure", Jh[r.confidence])
 				]
 			}),
 			t.reply && /* @__PURE__ */ w("div", {
@@ -18823,7 +18901,7 @@ function Jh(e) {
 						"Falsifier: ",
 						t.reply.verdict === "refuted" ? "refuted" : "stands",
 						", ",
-						qh[t.reply.confidence].toLowerCase(),
+						Jh[t.reply.confidence].toLowerCase(),
 						" confidence"
 					]
 				}), /* @__PURE__ */ C("p", {
@@ -18865,8 +18943,8 @@ function Jh(e) {
 		]
 	});
 }
-function Yh(e) {
-	let t = K(), n = l(() => Bh(t), [t]);
+function Xh(e) {
+	let t = K(), n = l(() => Vh(t), [t]);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-wrap items-center gap-2",
 		"data-routing-failed": !0,
@@ -18896,7 +18974,7 @@ function Yh(e) {
 		})]
 	});
 }
-function Xh(e) {
+function Zh(e) {
 	let [t, n] = d(!1);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-wrap items-center gap-2",
@@ -18906,7 +18984,7 @@ function Xh(e) {
 			tooltip: "Shows the exact public diff, title and body before anything is pushed.",
 			onClick: () => n(!0),
 			children: "Review and forward"
-		}), t && /* @__PURE__ */ C(zh, {
+		}), t && /* @__PURE__ */ C(Bh, {
 			workspaceId: e.workspaceId,
 			forwardId: e.item.forwardId,
 			title: e.item.title,
@@ -18916,7 +18994,7 @@ function Xh(e) {
 		})]
 	});
 }
-function Zh(e) {
+function Qh(e) {
 	let { item: t, busy: n } = e, r = pr(t.link ?? null);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-wrap items-center gap-2",
@@ -18927,7 +19005,7 @@ function Zh(e) {
 			rel: "noreferrer",
 			className: "inline-flex items-center gap-1 text-sm underline",
 			children: [
-				/* @__PURE__ */ C(ae, {
+				/* @__PURE__ */ C(ie, {
 					size: 14,
 					"aria-hidden": "true"
 				}),
@@ -18949,7 +19027,7 @@ function Zh(e) {
 		})]
 	});
 }
-function Qh(e) {
+function $h(e) {
 	let { item: t, busy: n } = e, r = pr(t.link ?? null);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-wrap items-center gap-2",
@@ -18960,7 +19038,7 @@ function Qh(e) {
 			rel: "noreferrer",
 			className: "inline-flex items-center gap-1 text-sm underline",
 			children: [
-				/* @__PURE__ */ C(ae, {
+				/* @__PURE__ */ C(ie, {
 					size: 14,
 					"aria-hidden": "true"
 				}),
@@ -18982,13 +19060,13 @@ function Qh(e) {
 		})]
 	});
 }
-function $h({ item: e, busy: t, onConfirm: n }) {
-	let r = Lr(), i = ph([e]);
+function eg({ item: e, busy: t, onConfirm: n }) {
+	let r = Lr(), i = mh([e]);
 	return /* @__PURE__ */ w(Y, {
 		icon: M,
 		tooltip: "Count these tasks as reviewed so they may start when ready",
 		disabled: t,
-		onClick: () => void r(Ch("reviewed", i, i === 1 ? e.tasks?.[0]?.title : void 0)).then((e) => e && n()),
+		onClick: () => void r(wh("reviewed", i, i === 1 ? e.tasks?.[0]?.title : void 0)).then((e) => e && n()),
 		children: [
 			"Mark ",
 			i,
@@ -18996,7 +19074,7 @@ function $h({ item: e, busy: t, onConfirm: n }) {
 		]
 	});
 }
-function eg(e) {
+function tg(e) {
 	let { id: t, readable: n, workspaceId: r, busy: i, run: a } = e, o = K(), s = l(() => dr(o), [o]), [c, u] = d(""), [f, p] = d(null);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-2",
@@ -19004,7 +19082,7 @@ function eg(e) {
 			n && /* @__PURE__ */ C("div", {
 				className: "flex flex-wrap items-center gap-2",
 				children: /* @__PURE__ */ C(Y, {
-					icon: oe,
+					icon: ae,
 					tooltip: "Read the matched line again from its source. Not stored.",
 					disabled: i,
 					onClick: () => a(async () => {
@@ -19055,7 +19133,7 @@ function eg(e) {
 		]
 	});
 }
-function tg({ item: e, workspaceId: t }) {
+function ng({ item: e, workspaceId: t }) {
 	let n = K(), r = l(() => Ji(n), [n]), [i, a] = d(null), [s, c] = d(null);
 	return o(() => {
 		e.taskId && r.detail(t, e.taskId).then(a, (e) => c(G(e)));
@@ -19068,7 +19146,7 @@ function tg({ item: e, workspaceId: t }) {
 		style: { borderColor: "var(--border)" },
 		"data-history": !0,
 		children: [
-			/* @__PURE__ */ C(Gh, { item: e }),
+			/* @__PURE__ */ C(Kh, { item: e }),
 			s && /* @__PURE__ */ C("p", {
 				className: "text-xs text-danger",
 				children: s
@@ -19105,8 +19183,8 @@ function tg({ item: e, workspaceId: t }) {
 		]
 	});
 }
-function ng(e) {
-	let { item: t } = e, n = xh(t);
+function rg(e) {
+	let { item: t } = e, n = Sh(t);
 	return /* @__PURE__ */ C("li", {
 		className: "border-t first:border-t-0",
 		style: { borderColor: "var(--border)" },
@@ -19126,7 +19204,7 @@ function ng(e) {
 				style: { marginTop: 3 }
 			}), /* @__PURE__ */ w("button", {
 				type: "button",
-				"data-conflict-pick": uh(t),
+				"data-conflict-pick": dh(t),
 				"aria-current": e.focused ? "true" : void 0,
 				onClick: e.onFocus,
 				className: "flex min-w-0 flex-1 flex-col items-stretch gap-0.5 text-left",
@@ -19148,7 +19226,7 @@ function ng(e) {
 								"content-match",
 								"content-unavailable"
 							].includes(t.kind) ? "warning" : "danger",
-							children: Hh[t.kind] ?? t.kind
+							children: Uh[t.kind] ?? t.kind
 						}),
 						/* @__PURE__ */ C("span", {
 							className: "min-w-0 flex-1 truncate text-sm font-medium",
@@ -19161,17 +19239,17 @@ function ng(e) {
 					]
 				}), /* @__PURE__ */ w("span", {
 					className: "truncate text-xs text-muted",
-					children: [t.taskId ? `${t.taskId} · ` : "", bh(t)]
+					children: [t.taskId ? `${t.taskId} · ` : "", xh(t)]
 				})]
 			})]
 		})
 	});
 }
-function rg(e) {
-	let { item: t } = e, n = kt(), [r, i] = d(!1), a = Dr(), o = xh(t);
+function ig(e) {
+	let { item: t } = e, n = kt(), [r, i] = d(!1), a = Dr(), o = Sh(t);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3",
-		"data-conflict-detail": uh(t),
+		"data-conflict-detail": dh(t),
 		children: [
 			/* @__PURE__ */ w("div", {
 				className: "flex flex-wrap items-center gap-x-2 gap-y-1",
@@ -19184,10 +19262,10 @@ function rg(e) {
 							"content-match",
 							"content-unavailable"
 						].includes(t.kind) ? "warning" : "danger",
-						children: Hh[t.kind] ?? t.kind
+						children: Uh[t.kind] ?? t.kind
 					}),
-					t.field && /* @__PURE__ */ C($, { children: Uh[t.field] ?? t.field }),
-					/* @__PURE__ */ C(xd, { owner: t }),
+					t.field && /* @__PURE__ */ C($, { children: Wh[t.field] ?? t.field }),
+					/* @__PURE__ */ C(Sd, { owner: t }),
 					t.taskId && /* @__PURE__ */ C("span", {
 						className: "text-xs text-muted",
 						children: t.taskId
@@ -19212,7 +19290,7 @@ function rg(e) {
 			}),
 			/* @__PURE__ */ C("p", {
 				className: "m-0 text-sm text-muted",
-				children: bh(t)
+				children: xh(t)
 			}),
 			/* @__PURE__ */ w("div", {
 				className: "flex flex-wrap items-center gap-1.5",
@@ -19232,7 +19310,7 @@ function rg(e) {
 							alignItems: "center",
 							gap: 4
 						},
-						children: [/* @__PURE__ */ C(re, {
+						children: [/* @__PURE__ */ C(ne, {
 							size: 14,
 							"aria-hidden": "true"
 						}), "Session"]
@@ -19259,7 +19337,7 @@ function rg(e) {
 			/* @__PURE__ */ w(v, { children: [/* @__PURE__ */ C("h4", {
 				className: "m-0 mb-2 text-sm font-semibold",
 				children: "Resolve"
-			}), /* @__PURE__ */ C(Kh, {
+			}), /* @__PURE__ */ C(qh, {
 				item: t,
 				workspaceId: e.workspaceId,
 				revision: e.revision,
@@ -19267,14 +19345,14 @@ function rg(e) {
 				run: e.run,
 				onSettled: e.onSettled
 			})] }),
-			r && /* @__PURE__ */ C(tg, {
+			r && /* @__PURE__ */ C(ng, {
 				item: t,
 				workspaceId: e.workspaceId
 			})
 		]
 	});
 }
-function ig({ workspaceId: e, embedded: t }) {
+function ag({ workspaceId: e, embedded: t }) {
 	let n = K(), r = l(() => dr(n), [n]), a = l(() => Ji(n), [n]), s = Ur(e), c = Lr(), { value: u, error: f, busy: p, reload: m } = Mo(e, i(async (e) => {
 		let [t, n, i] = await Promise.all([
 			r.conflictsPage(e),
@@ -19286,7 +19364,7 @@ function ig({ workspaceId: e, embedded: t }) {
 			graph: n,
 			delivery: i
 		};
-	}, [r])), [h, g] = ul(e, Vh), v = JSON.stringify(h), y = Kr(v), [b, x] = d(null), [T, E] = d(0), [D, O] = d(/* @__PURE__ */ new Set()), [k, A] = d(!1), [j, M] = d(null), [N, P] = d(null);
+	}, [r])), [h, g] = dl(e, Hh), v = JSON.stringify(h), y = Kr(v), [b, x] = d(null), [T, E] = d(0), [D, O] = d(/* @__PURE__ */ new Set()), [k, A] = d(!1), [j, M] = d(null), [N, P] = d(null);
 	o(() => {
 		x(u?.page.items ?? null), E(u?.page.revision ?? 0), O(/* @__PURE__ */ new Set());
 	}, [u]);
@@ -19295,7 +19373,7 @@ function ig({ workspaceId: e, embedded: t }) {
 		return new Map((e?.tasks ?? []).map((e) => [e.id, e.spec ?? e.planId ?? null]));
 	}, [u]), I = l(() => new Map((u?.graph?.tasks ?? []).map((e) => [e.id, e])), [u]);
 	o(() => O(/* @__PURE__ */ new Set()), [v]);
-	let L = l(() => wh(u?.delivery ?? []), [u]), ee = (e) => {
+	let L = l(() => Th(u?.delivery ?? []), [u]), ee = (e) => {
 		A(!0), M(null), (async () => {
 			try {
 				M(await e());
@@ -19310,8 +19388,8 @@ function ig({ workspaceId: e, embedded: t }) {
 			}
 		})();
 	}, te = (e, t) => {
-		E(t.revision), x((n) => n && mh(n, e, t)), O(/* @__PURE__ */ new Set());
-	}, ne = b ?? [], re = Ah(ne, u?.graph ?? null), ie = Date.now(), R = ne.filter((e) => kh(e, h, I.get(Dh(e) ?? ""), ie)), z = y.take("conflicts", R), B = N ? R.find((e) => uh(e) === N) ?? null : null, V = R.filter((e) => D.has(uh(e))), ae = z.length > 0 && z.every((e) => D.has(uh(e))), oe = V.length === R.length && R.length > 0, H = Sh(V), se = (e) => {
+		E(t.revision), x((n) => n && hh(n, e, t)), O(/* @__PURE__ */ new Set());
+	}, R = b ?? [], ne = jh(R, u?.graph ?? null), re = Date.now(), z = R.filter((e) => Ah(e, h, I.get(Oh(e) ?? ""), re)), B = y.take("conflicts", z), V = N ? z.find((e) => dh(e) === N) ?? null : null, H = z.filter((e) => D.has(dh(e))), ie = B.length > 0 && B.every((e) => D.has(dh(e))), ae = H.length === z.length && z.length > 0, oe = Ch(H), se = (e) => {
 		let t = {
 			...h,
 			...e
@@ -19319,13 +19397,13 @@ function ig({ workspaceId: e, embedded: t }) {
 		for (let e of Object.keys(t)) t[e] || delete t[e];
 		g(t);
 	}, U = async () => {
-		e && H && await c(Ch(H, ph(V))) && ee(async () => {
-			let t = await a.settle(e, H, V.flatMap(fh), T);
-			return te(H, t), gh(H, t);
+		e && oe && await c(wh(oe, mh(H))) && ee(async () => {
+			let t = await a.settle(e, oe, H.flatMap(ph), T);
+			return te(oe, t), _h(oe, t);
 		});
 	}, ce = (e, t) => {
 		let n = new Set(D);
-		t ? n.add(uh(e)) : n.delete(uh(e)), O(n);
+		t ? n.add(dh(e)) : n.delete(dh(e)), O(n);
 	};
 	return /* @__PURE__ */ w("section", {
 		"aria-labelledby": t ? void 0 : "avoozl-conflicts-title",
@@ -19359,20 +19437,20 @@ function ig({ workspaceId: e, embedded: t }) {
 			}) : b.length === 0 ? /* @__PURE__ */ C("p", {
 				className: "text-sm text-muted",
 				children: "No open conflicts or decisions."
-			}) : /* @__PURE__ */ C(Np, {
+			}) : /* @__PURE__ */ C(Pp, {
 				id: "needs-you",
 				backLabel: "Needs you",
-				detailTitle: B?.title ?? "",
+				detailTitle: V?.title ?? "",
 				onBack: () => P(null),
 				list: /* @__PURE__ */ w("div", {
 					className: "flex flex-col gap-2",
 					"data-conflict-list-pane": !0,
 					children: [
-						/* @__PURE__ */ w(sl, {
+						/* @__PURE__ */ w(cl, {
 							folded: !0,
 							id: "avoozl-conflicts",
 							label: "Filter conflicts",
-							active: Ih(h),
+							active: Lh(h),
 							onClear: () => g({}),
 							fields: [
 								{
@@ -19389,7 +19467,7 @@ function ig({ workspaceId: e, embedded: t }) {
 									key: "kind",
 									label: "Kind",
 									value: h.kind ?? "",
-									options: re.kinds,
+									options: ne.kinds,
 									onChange: (e) => se({ kind: e }),
 									primary: !0
 								},
@@ -19398,7 +19476,7 @@ function ig({ workspaceId: e, embedded: t }) {
 									key: "plan",
 									label: "Spec",
 									value: h.plan ?? "",
-									items: Qc(re.plans),
+									items: $c(ne.plans),
 									onChange: (e) => se({ plan: e })
 								},
 								{
@@ -19406,7 +19484,7 @@ function ig({ workspaceId: e, embedded: t }) {
 									key: "epic",
 									label: "Epic",
 									value: h.epic ?? "",
-									options: re.epics,
+									options: ne.epics,
 									onChange: (e) => se({ epic: e })
 								},
 								{
@@ -19414,7 +19492,7 @@ function ig({ workspaceId: e, embedded: t }) {
 									key: "repository",
 									label: "Repository",
 									value: h.repository ?? "",
-									options: re.repositories,
+									options: ne.repositories,
 									onChange: (e) => se({ repository: e })
 								},
 								{
@@ -19422,7 +19500,7 @@ function ig({ workspaceId: e, embedded: t }) {
 									key: "age",
 									label: "Age",
 									value: h.age ?? "",
-									options: re.ages,
+									options: ne.ages,
 									onChange: (e) => se({ age: e })
 								},
 								{
@@ -19430,7 +19508,7 @@ function ig({ workspaceId: e, embedded: t }) {
 									key: "changed-by",
 									label: "Changed by",
 									value: h.changedBy ?? "",
-									options: re.changedBy,
+									options: ne.changedBy,
 									onChange: (e) => se({ changedBy: e })
 								}
 							],
@@ -19439,7 +19517,7 @@ function ig({ workspaceId: e, embedded: t }) {
 								className: "text-xs text-muted",
 								"data-conflict-count": !0,
 								children: [
-									R.length,
+									z.length,
 									" of ",
 									b.length
 								]
@@ -19461,27 +19539,27 @@ function ig({ workspaceId: e, embedded: t }) {
 									children: [
 										/* @__PURE__ */ C("input", {
 											type: "checkbox",
-											"aria-label": `Select the ${z.length} shown`,
-											checked: ae,
+											"aria-label": `Select the ${B.length} shown`,
+											checked: ie,
 											onChange: (e) => {
 												let t = new Set(D);
-												for (let n of z) e.target.checked ? t.add(uh(n)) : t.delete(uh(n));
+												for (let n of B) e.target.checked ? t.add(dh(n)) : t.delete(dh(n));
 												O(t);
 											}
 										}),
 										"Select the ",
-										z.length,
+										B.length,
 										" shown"
 									]
 								}),
-								R.length > z.length && /* @__PURE__ */ w(Jr, {
+								z.length > B.length && /* @__PURE__ */ w(Jr, {
 									tooltip: "Select every matching item, including ones not shown yet",
 									type: "button",
-									onClick: () => O(new Set(R.map(uh))),
-									disabled: oe,
+									onClick: () => O(new Set(z.map(dh))),
+									disabled: ae,
 									children: [
 										"Select all ",
-										R.length,
+										z.length,
 										" matching"
 									]
 								}),
@@ -19490,33 +19568,33 @@ function ig({ workspaceId: e, embedded: t }) {
 									className: "text-xs text-muted",
 									"data-selection": !0,
 									children: [
-										V.length ? `${V.length} selected${oe ? `: all ${R.length} matching` : ae && V.length === z.length ? `: the ${z.length} shown` : ""}. Bulk acts on these ${V.length}. · ` : "",
-										z.length < R.length ? `${z.length} shown of ${R.length}` : "",
+										H.length ? `${H.length} selected${ae ? `: all ${z.length} matching` : ie && H.length === B.length ? `: the ${B.length} shown` : ""}. Bulk acts on these ${H.length}. · ` : "",
+										B.length < z.length ? `${B.length} shown of ${z.length}` : "",
 										k ? " · Working…" : ""
 									]
 								}),
-								V.length > 0 && /* @__PURE__ */ w(S, { children: [
+								H.length > 0 && /* @__PURE__ */ w(S, { children: [
 									/* @__PURE__ */ w(Y, {
 										icon: Oe,
 										tooltip: "Start a Kiro Crew chat seeded with the selected items",
-										onClick: () => void s.ask({ items: V.map(Et) }),
+										onClick: () => void s.ask({ items: H.map(Et) }),
 										children: [
 											"Ask in a chat about ",
-											V.length,
+											H.length,
 											" ",
-											V.length === 1 ? "item" : "items"
+											H.length === 1 ? "item" : "items"
 										]
 									}),
-									H ? /* @__PURE__ */ w(Jr, {
-										tooltip: lh[H],
+									oe ? /* @__PURE__ */ w(Jr, {
+										tooltip: uh[oe],
 										type: "button",
 										primary: !0,
 										onClick: () => void U(),
 										disabled: k,
 										children: [
-											ch[H],
+											lh[oe],
 											" ",
-											V.length
+											H.length
 										]
 									}) : /* @__PURE__ */ C("span", {
 										className: "text-xs text-muted",
@@ -19533,33 +19611,33 @@ function ig({ workspaceId: e, embedded: t }) {
 						/* @__PURE__ */ C("ul", {
 							className: "m-0 flex list-none flex-col p-0",
 							"data-conflict-list": !0,
-							children: z.map((e) => /* @__PURE__ */ C(ng, {
+							children: B.map((e) => /* @__PURE__ */ C(rg, {
 								item: e,
-								focused: N === uh(e),
+								focused: N === dh(e),
 								selectable: !0,
-								selected: D.has(uh(e)),
+								selected: D.has(dh(e)),
 								onSelect: (t) => ce(e, t),
-								onFocus: () => P(uh(e))
-							}, uh(e)))
+								onFocus: () => P(dh(e))
+							}, dh(e)))
 						}),
-						/* @__PURE__ */ C(qr, { ...y.more("conflicts", R.length) }),
-						R.length === 0 && /* @__PURE__ */ C("p", {
+						/* @__PURE__ */ C(qr, { ...y.more("conflicts", z.length) }),
+						z.length === 0 && /* @__PURE__ */ C("p", {
 							className: "text-sm text-muted",
 							children: "No item matches these filters."
 						})
 					]
 				}),
-				detail: B ? /* @__PURE__ */ C(rg, {
-					item: B,
-					plan: B.taskId ? F.get(B.taskId) ?? null : null,
+				detail: V ? /* @__PURE__ */ C(ig, {
+					item: V,
+					plan: V.taskId ? F.get(V.taskId) ?? null : null,
 					onReviewed: () => void m(),
-					attach: (B.kind === "stale-session" ? B.link : null) ?? (B.taskId ? L.get(B.taskId) ?? null : null),
+					attach: (V.kind === "stale-session" ? V.link : null) ?? (V.taskId ? L.get(V.taskId) ?? null : null),
 					workspaceId: e,
 					revision: T,
 					busy: k,
 					run: ee,
 					onSettled: te,
-					onAsk: () => void s.ask({ items: [Et(B)] })
+					onAsk: () => void s.ask({ items: [Et(V)] })
 				}) : null
 			}) : /* @__PURE__ */ C("p", {
 				className: "text-sm text-muted",
@@ -19569,7 +19647,7 @@ function ig({ workspaceId: e, embedded: t }) {
 	});
 }
 // kirocrew-app/ui/src/untriaged-api.ts
-function ag(e) {
+function og(e) {
 	let t = (t, n) => e.post(W, {
 		operation: "untriaged.view",
 		input: n,
@@ -19604,7 +19682,7 @@ function ag(e) {
 		}).then((e) => e.result)
 	};
 }
-function og(e) {
+function sg(e) {
 	let t = (t, n, r) => e.post(W, {
 		operation: n,
 		input: r,
@@ -19622,13 +19700,13 @@ function og(e) {
 		})
 	};
 }
-function sg(e) {
+function cg(e) {
 	if (!e.length) return {
 		ok: !1,
 		reason: "Select issues to send them to an Issue Radar crew.",
 		repository: null
 	};
-	if (e.some((e) => hg(e) !== "github")) return {
+	if (e.some((e) => gg(e) !== "github")) return {
 		ok: !1,
 		reason: "Issue Radar works GitHub issues. Unselect the items from other sources first.",
 		repository: null
@@ -19649,10 +19727,10 @@ function sg(e) {
 		repository: t
 	};
 }
-function cg(e) {
+function lg(e) {
 	return e.emptyScope ? "Empty scope: takes every open issue, labeled or not." : `Watches ${e.labels.join(", ")}. Avoozl adds ${e.labels[0]}.`;
 }
-function lg(e) {
+function ug(e) {
 	return e.needsHuman ? {
 		text: "Needs you",
 		tone: "warning"
@@ -19664,12 +19742,12 @@ function lg(e) {
 		tone: void 0
 	};
 }
-var ug = (e) => (t, n) => e.post(W, {
+var dg = (e) => (t, n) => e.post(W, {
 	operation: "github.repository.labels",
 	input: { repository: n },
 	workspaceId: t
 }).then((e) => e.result);
-function dg(e, t) {
+function fg(e, t) {
 	let n = (e) => e.toLocaleLowerCase(), r = new Set(e.map(n)), i = t ?? [], a = new Set(i.map(n));
 	return [...i.map((e) => ({
 		name: e,
@@ -19681,7 +19759,7 @@ function dg(e, t) {
 		missing: t !== null
 	}))];
 }
-var fg = [
+var pg = [
 	{
 		value: "1",
 		label: "Last day"
@@ -19698,7 +19776,7 @@ var fg = [
 		value: "older",
 		label: "Older than 30 days"
 	}
-], pg = [
+], mg = [
 	{
 		value: "issue",
 		label: "Issues"
@@ -19715,50 +19793,50 @@ var fg = [
 		value: "review",
 		label: "Reviews"
 	}
-], mg = (e) => !!(e.source || e.repository || e.kind || e.age || e.author || e.label), hg = (e) => e.source ?? "github", gg = 864e5;
-function _g(e, t, n = Date.now()) {
-	if (t.source && hg(e) !== t.source || t.repository && e.repository !== t.repository || t.kind && e.kind !== t.kind || t.author && e.author !== t.author || t.label && !e.labels.includes(t.label)) return !1;
+], hg = (e) => !!(e.source || e.repository || e.kind || e.age || e.author || e.label), gg = (e) => e.source ?? "github", _g = 864e5;
+function vg(e, t, n = Date.now()) {
+	if (t.source && gg(e) !== t.source || t.repository && e.repository !== t.repository || t.kind && e.kind !== t.kind || t.author && e.author !== t.author || t.label && !e.labels.includes(t.label)) return !1;
 	if (t.age) {
 		let r = e.createdAt ? Date.parse(e.createdAt) : NaN;
-		return Number.isFinite(r) ? t.age === "older" ? n - r > 30 * gg : n - r <= Number(t.age) * gg : !1;
+		return Number.isFinite(r) ? t.age === "older" ? n - r > 30 * _g : n - r <= Number(t.age) * _g : !1;
 	}
 	return !0;
 }
-function vg(e) {
+function yg(e) {
 	let t = (e) => [...new Set(e)].sort((e, t) => e.localeCompare(t)).map((e) => ({
 		value: e,
 		label: e
 	})), n = e?.items ?? [];
 	return {
-		sources: t([...(e?.sources ?? []).map((e) => e.id), ...n.map(hg)]),
+		sources: t([...(e?.sources ?? []).map((e) => e.id), ...n.map(gg)]),
 		repositories: t((e?.repositories ?? []).map((e) => e.repository)),
 		authors: t(n.map((e) => e.author).filter((e) => !!e)),
 		labels: t(n.flatMap((e) => e.labels))
 	};
 }
-function yg(e, t = Date.now()) {
+function bg(e, t = Date.now()) {
 	if (!e) return "";
 	let n = Date.parse(e);
 	if (!Number.isFinite(n)) return "";
 	let r = Math.max(0, Math.round((t - n) / 6e4));
 	return r < 60 ? `${r} min` : r < 1440 ? `${Math.round(r / 60)} h` : r < 525600 ? `${Math.round(r / 60 / 24)} d` : `${Math.round(r / 60 / 24 / 365)} y`;
 }
-var bg = (e) => hg(e) === "github" ? `${e.repository}#${e.number}` : `${e.source}:${e.id}`, xg = (e) => hg(e) === "github" ? `${e.repository} #${e.number}` : `${e.source} ${e.id}`;
-function Sg(e) {
+var xg = (e) => gg(e) === "github" ? `${e.repository}#${e.number}` : `${e.source}:${e.id}`, Sg = (e) => gg(e) === "github" ? `${e.repository} #${e.number}` : `${e.source} ${e.id}`;
+function Cg(e) {
 	try {
-		return new URL(e.links?.github || (hg(e) === "github" ? e.url : "") || "").origin;
+		return new URL(e.links?.github || (gg(e) === "github" ? e.url : "") || "").origin;
 	} catch {
 		return "https://github.com";
 	}
 }
-var Cg = (e) => `${Sg(e)}/${e.repository.split("/").map(encodeURIComponent).join("/")}`, wg = (e) => e.author ? `${Sg(e)}/${encodeURIComponent(e.author)}` : null;
-function Tg(e, t, n) {
+var wg = (e) => `${Cg(e)}/${e.repository.split("/").map(encodeURIComponent).join("/")}`, Tg = (e) => e.author ? `${Cg(e)}/${encodeURIComponent(e.author)}` : null;
+function Eg(e, t, n) {
 	let r = new Set(e);
 	for (let e of t) n ? r.add(e) : r.delete(e);
 	return r;
 }
-function Eg(e) {
-	let t = e.filter((e) => hg(e) === "github" && e.links.issueRadar);
+function Dg(e) {
+	let t = e.filter((e) => gg(e) === "github" && e.links.issueRadar);
 	if (!t.length) return {
 		url: "/issue-radar",
 		exact: !1,
@@ -19773,7 +19851,7 @@ function Eg(e) {
 		tooltip: `Issue Radar can't take a selection from a link yet, so this opens Issue Radar. Pick these there: ${r}.`
 	};
 }
-function Dg(e) {
+function Og(e) {
 	let t = e.repositories.find((e) => e.error);
 	return !e.repositories.length && (e.sources ?? []).length ? {
 		title: "Nothing untriaged",
@@ -19789,12 +19867,12 @@ function Dg(e) {
 		subtitle: "Add a GitHub repository in Settings › Repositories, and its untriaged items show here."
 	};
 }
-var Og = "avoozl:untriaged-filter:", kg = {
+var kg = "avoozl:untriaged-filter:", Ag = {
 	event: "avoozl:untriaged-filter",
 	empty: {},
 	read(e, t) {
 		try {
-			let n = JSON.parse(e?.getItem(Og + t) ?? "{}");
+			let n = JSON.parse(e?.getItem(kg + t) ?? "{}");
 			return n && typeof n == "object" && !Array.isArray(n) ? n : {};
 		} catch {
 			return {};
@@ -19802,15 +19880,15 @@ var Og = "avoozl:untriaged-filter:", kg = {
 	},
 	write(e, t, n) {
 		try {
-			e?.setItem(Og + t, JSON.stringify(n));
+			e?.setItem(kg + t, JSON.stringify(n));
 		} catch {}
 	}
-}, Ag = [
+}, jg = [
 	["Pick a crew", "A crew works the open issues that carry a label it watches. Avoozl adds that label."],
 	["Check the label", "Avoozl adds this one label to each issue, with your GitHub login. Nothing is written until you press Add label."],
 	["Sent", "A crew picks an issue on its own next turn. Follow it under With Issue Radar."]
-], jg = { color: "var(--danger)" };
-function Mg(e) {
+], Mg = { color: "var(--danger)" };
+function Ng(e) {
 	let { workspaceId: t, client: n, items: r, repository: a } = e, [s, c] = d(0), [l, f] = d(null), [p, m] = d(""), [h, g] = d(""), [v, y] = d(null), [x, T] = d(null), [E, D] = d(!1), [O, k] = d(null), A = u(null), j = i(() => e.onClose(s === 2 ? void 0 : "Cancelled. Nothing was written."), [e, s]);
 	o(() => {
 		let e = !0;
@@ -19866,7 +19944,7 @@ function Mg(e) {
 					"aria-hidden": "true"
 				}),
 				" ",
-				Ag[s][0]
+				jg[s][0]
 			]
 		}),
 		onDismiss: j,
@@ -19906,7 +19984,7 @@ function Mg(e) {
 			/* @__PURE__ */ C("ol", {
 				className: "flex flex-wrap gap-2 text-xs",
 				"aria-label": "Steps",
-				children: Ag.map(([e], t) => /* @__PURE__ */ w("li", {
+				children: jg.map(([e], t) => /* @__PURE__ */ w("li", {
 					"aria-current": t === s ? "step" : void 0,
 					className: t === s ? "font-semibold" : "text-muted",
 					children: [
@@ -19919,7 +19997,7 @@ function Mg(e) {
 			/* @__PURE__ */ C("div", { children: /* @__PURE__ */ C("p", {
 				id: "avoozl-radar-line",
 				className: "text-sm text-muted",
-				children: Ag[s][1]
+				children: jg[s][1]
 			}) }),
 			s === 0 && /* @__PURE__ */ w("div", {
 				className: "flex flex-col gap-2 text-sm",
@@ -19978,7 +20056,7 @@ function Mg(e) {
 									]
 								}), /* @__PURE__ */ C("span", {
 									className: "text-xs text-muted",
-									children: cg(e)
+									children: lg(e)
 								})]
 							})]
 						}, e.id))]
@@ -20013,7 +20091,7 @@ function Mg(e) {
 					N?.emptyScope && /* @__PURE__ */ w("p", {
 						role: "alert",
 						className: "flex items-start gap-1.5 text-sm",
-						style: jg,
+						style: Mg,
 						"data-radar-empty-scope": !0,
 						children: [
 							/* @__PURE__ */ C(I, {
@@ -20061,7 +20139,7 @@ function Mg(e) {
 					}),
 					v.warnings.map((e) => /* @__PURE__ */ C("p", {
 						role: "alert",
-						style: jg,
+						style: Mg,
 						children: e
 					}, e)),
 					/* @__PURE__ */ C("p", {
@@ -20106,7 +20184,7 @@ function Mg(e) {
 	});
 }
 // kirocrew-app/ui/src/UntriagedView.tsx
-var Ng = {
+var Pg = {
 	textAlign: "left",
 	fontWeight: 500,
 	fontSize: 12,
@@ -20114,11 +20192,11 @@ var Ng = {
 	padding: "4px 8px",
 	borderBottom: "1px solid var(--border)",
 	whiteSpace: "nowrap"
-}, Pg = {
+}, Fg = {
 	padding: "6px 8px",
 	borderTop: "1px solid var(--border)",
 	verticalAlign: "top"
-}, Fg = {
+}, Ig = {
 	display: "inline-flex",
 	alignItems: "center",
 	justifyContent: "center",
@@ -20129,7 +20207,7 @@ var Ng = {
 	color: "var(--text)",
 	background: "var(--card, transparent)"
 };
-function Ig(e) {
+function Lg(e) {
 	let t = e.icon;
 	return /* @__PURE__ */ C(q, {
 		text: e.tooltip,
@@ -20141,7 +20219,7 @@ function Ig(e) {
 				target: "_blank",
 				rel: "noopener noreferrer"
 			} : { target: "_top" },
-			style: Fg,
+			style: Ig,
 			className: "text-sm",
 			children: [/* @__PURE__ */ C(t, {
 				size: 14,
@@ -20150,7 +20228,7 @@ function Ig(e) {
 		})
 	});
 }
-function Lg({ item: e }) {
+function Rg({ item: e }) {
 	let t = e.kind === "issue" ? te : e.kind === "ticket" ? se : e.kind === "review" ? Ve : e.draft ? me : pe, n = e.kind === "issue" ? "Issue" : e.kind === "ticket" ? "Ticket" : e.kind === "review" ? "Review request" : e.draft ? "Draft pull request" : "Pull request";
 	return /* @__PURE__ */ C(q, {
 		text: n,
@@ -20168,12 +20246,12 @@ function Lg({ item: e }) {
 		})
 	});
 }
-var Rg = {
+var zg = {
 	passing: "Checks pass",
 	failing: "Checks fail",
 	pending: "Checks running"
 };
-function zg({ item: e }) {
+function Bg({ item: e }) {
 	if (e.kind !== "pr") return null;
 	let t = e.checks;
 	return /* @__PURE__ */ w("span", {
@@ -20187,19 +20265,19 @@ function zg({ item: e }) {
 			}) : t === "failing" ? /* @__PURE__ */ C(Ye, {
 				size: 12,
 				"aria-hidden": "true"
-			}) : null, Rg[t]]
+			}) : null, zg[t]]
 		})]
 	});
 }
-function Bg({ labels: e }) {
+function Vg({ labels: e }) {
 	return e.length ? /* @__PURE__ */ C("span", {
 		className: "inline-flex flex-wrap gap-1",
 		children: e.map((e) => /* @__PURE__ */ C($, { children: e }, e))
 	}) : null;
 }
-function Vg({ item: e, onSend: t, onReview: n, onStart: r }) {
-	let i = xg(e);
-	return hg(e) === "github" ? /* @__PURE__ */ w("span", {
+function Hg({ item: e, onSend: t, onReview: n, onStart: r }) {
+	let i = Sg(e);
+	return gg(e) === "github" ? /* @__PURE__ */ w("span", {
 		className: "inline-flex gap-1.5",
 		children: [
 			r && e.start?.plan && /* @__PURE__ */ C(Pr, {
@@ -20220,7 +20298,7 @@ function Vg({ item: e, onSend: t, onReview: n, onStart: r }) {
 					width: 28
 				}
 			})),
-			e.links.issueRadar && /* @__PURE__ */ C(Ig, {
+			e.links.issueRadar && /* @__PURE__ */ C(Lg, {
 				icon: Re,
 				label: `Open ${i} in Issue Radar`,
 				tooltip: e.links.issueRadar.tooltip,
@@ -20245,7 +20323,7 @@ function Vg({ item: e, onSend: t, onReview: n, onStart: r }) {
 						alignItems: "center",
 						gap: 4
 					},
-					children: [/* @__PURE__ */ C(re, {
+					children: [/* @__PURE__ */ C(ne, {
 						size: 14,
 						"aria-hidden": "true"
 					}), "Session"]
@@ -20274,9 +20352,9 @@ function Vg({ item: e, onSend: t, onReview: n, onStart: r }) {
 		})]
 	});
 }
-function Hg({ item: e }) {
+function Ug({ item: e }) {
 	return /* @__PURE__ */ C("a", {
-		href: J(Cg(e)),
+		href: J(wg(e)),
 		target: "_blank",
 		rel: "noopener noreferrer",
 		className: "underline",
@@ -20284,8 +20362,8 @@ function Hg({ item: e }) {
 		children: e.repository
 	});
 }
-function Ug({ item: e, fallback: t = "" }) {
-	let n = hg(e) === "github" ? wg(e) : null;
+function Wg({ item: e, fallback: t = "" }) {
+	let n = gg(e) === "github" ? Tg(e) : null;
 	return n ? /* @__PURE__ */ C("a", {
 		href: J(n),
 		target: "_blank",
@@ -20295,8 +20373,8 @@ function Ug({ item: e, fallback: t = "" }) {
 		children: e.author
 	}) : /* @__PURE__ */ C(S, { children: e.author ?? t });
 }
-function Wg({ item: e }) {
-	let t = hg(e) === "github";
+function Gg({ item: e }) {
+	let t = gg(e) === "github";
 	return /* @__PURE__ */ w("a", {
 		href: J(e.links.github ?? e.links.item ?? e.url),
 		target: "_blank",
@@ -20316,16 +20394,16 @@ function Wg({ item: e }) {
 		]
 	});
 }
-function Gg(e) {
+function Kg(e) {
 	return /* @__PURE__ */ C("input", {
 		type: "checkbox",
 		checked: e.checked,
-		"aria-label": `Select ${xg(e.item)}`,
+		"aria-label": `Select ${Sg(e.item)}`,
 		onChange: (t) => e.onChange(t.target.checked)
 	});
 }
-function Kg(e) {
-	let t = e.items.map(bg), n = t.length > 0 && t.every((t) => e.selected.has(t));
+function qg(e) {
+	let t = e.items.map(xg), n = t.length > 0 && t.every((t) => e.selected.has(t));
 	return /* @__PURE__ */ C("div", {
 		style: { overflowX: "auto" },
 		children: /* @__PURE__ */ w("table", {
@@ -20335,7 +20413,7 @@ function Kg(e) {
 			children: [/* @__PURE__ */ C("thead", { children: /* @__PURE__ */ w("tr", { children: [
 				/* @__PURE__ */ C("th", {
 					style: {
-						...Ng,
+						...Pg,
 						width: 28
 					},
 					children: /* @__PURE__ */ C("input", {
@@ -20347,7 +20425,7 @@ function Kg(e) {
 				}),
 				/* @__PURE__ */ C("th", {
 					style: {
-						...Ng,
+						...Pg,
 						width: 28
 					},
 					children: /* @__PURE__ */ C("span", {
@@ -20356,32 +20434,32 @@ function Kg(e) {
 					})
 				}),
 				/* @__PURE__ */ C("th", {
-					style: Ng,
+					style: Pg,
 					children: "Item"
 				}),
 				/* @__PURE__ */ C("th", {
-					style: Ng,
+					style: Pg,
 					children: "Source"
 				}),
 				/* @__PURE__ */ C("th", {
-					style: Ng,
+					style: Pg,
 					children: "Repository"
 				}),
 				/* @__PURE__ */ C("th", {
-					style: Ng,
+					style: Pg,
 					children: "Author"
 				}),
 				/* @__PURE__ */ C("th", {
-					style: Ng,
+					style: Pg,
 					children: "Age"
 				}),
 				/* @__PURE__ */ C("th", {
-					style: Ng,
+					style: Pg,
 					children: "Labels"
 				}),
 				/* @__PURE__ */ C("th", {
 					style: {
-						...Ng,
+						...Pg,
 						textAlign: "right"
 					},
 					children: /* @__PURE__ */ C(q, {
@@ -20398,87 +20476,87 @@ function Kg(e) {
 					})
 				}),
 				/* @__PURE__ */ C("th", {
-					style: Ng,
+					style: Pg,
 					children: /* @__PURE__ */ C("span", {
 						className: "sr-only",
 						children: "Open in"
 					})
 				})
 			] }) }), /* @__PURE__ */ C("tbody", { children: e.items.map((t) => /* @__PURE__ */ w("tr", {
-				"data-untriaged-row": bg(t),
+				"data-untriaged-row": xg(t),
 				children: [
 					/* @__PURE__ */ C("td", {
-						style: Pg,
-						children: /* @__PURE__ */ C(Gg, {
+						style: Fg,
+						children: /* @__PURE__ */ C(Kg, {
 							item: t,
-							checked: e.selected.has(bg(t)),
-							onChange: (n) => e.onSelect([bg(t)], n)
+							checked: e.selected.has(xg(t)),
+							onChange: (n) => e.onSelect([xg(t)], n)
 						})
 					}),
 					/* @__PURE__ */ C("td", {
-						style: Pg,
-						children: /* @__PURE__ */ C(Lg, { item: t })
+						style: Fg,
+						children: /* @__PURE__ */ C(Rg, { item: t })
 					}),
 					/* @__PURE__ */ w("td", {
 						style: {
-							...Pg,
+							...Fg,
 							minWidth: "16rem"
 						},
-						children: [/* @__PURE__ */ C(Wg, { item: t }), /* @__PURE__ */ C("div", { children: /* @__PURE__ */ C(zg, { item: t }) })]
+						children: [/* @__PURE__ */ C(Gg, { item: t }), /* @__PURE__ */ C("div", { children: /* @__PURE__ */ C(Bg, { item: t }) })]
 					}),
 					/* @__PURE__ */ C("td", {
 						style: {
-							...Pg,
+							...Fg,
 							whiteSpace: "nowrap"
 						},
 						"data-intake-source": !0,
-						children: hg(t)
+						children: gg(t)
 					}),
 					/* @__PURE__ */ C("td", {
 						style: {
-							...Pg,
-							whiteSpace: "nowrap"
-						},
-						children: /* @__PURE__ */ C(Hg, { item: t })
-					}),
-					/* @__PURE__ */ C("td", {
-						style: {
-							...Pg,
+							...Fg,
 							whiteSpace: "nowrap"
 						},
 						children: /* @__PURE__ */ C(Ug, { item: t })
 					}),
 					/* @__PURE__ */ C("td", {
 						style: {
-							...Pg,
+							...Fg,
+							whiteSpace: "nowrap"
+						},
+						children: /* @__PURE__ */ C(Wg, { item: t })
+					}),
+					/* @__PURE__ */ C("td", {
+						style: {
+							...Fg,
 							whiteSpace: "nowrap"
 						},
 						children: /* @__PURE__ */ C(q, {
 							text: t.createdAt ? `Opened ${t.createdAt.slice(0, 10)}` : null,
 							children: /* @__PURE__ */ C("span", {
 								className: "tabular-nums",
-								children: yg(t.createdAt, e.now)
+								children: bg(t.createdAt, e.now)
 							})
 						})
 					}),
 					/* @__PURE__ */ C("td", {
-						style: Pg,
-						children: /* @__PURE__ */ C(Bg, { labels: t.labels })
+						style: Fg,
+						children: /* @__PURE__ */ C(Vg, { labels: t.labels })
 					}),
 					/* @__PURE__ */ C("td", {
 						style: {
-							...Pg,
+							...Fg,
 							textAlign: "right"
 						},
 						className: "tabular-nums",
-						children: hg(t) === "github" ? t.comments : ""
+						children: gg(t) === "github" ? t.comments : ""
 					}),
 					/* @__PURE__ */ C("td", {
 						style: {
-							...Pg,
+							...Fg,
 							whiteSpace: "nowrap"
 						},
-						children: /* @__PURE__ */ C(Vg, {
+						children: /* @__PURE__ */ C(Hg, {
 							item: t,
 							onSend: e.onSend,
 							onReview: e.onReview,
@@ -20486,60 +20564,60 @@ function Kg(e) {
 						})
 					})
 				]
-			}, bg(t))) })]
+			}, xg(t))) })]
 		})
 	});
 }
-function qg(e) {
+function Jg(e) {
 	return /* @__PURE__ */ C("ul", {
 		className: "flex flex-col",
 		"data-untriaged-stack": !0,
 		children: e.items.map((t) => /* @__PURE__ */ w("li", {
 			className: "flex items-start gap-2 border-t py-2 first:border-t-0",
 			style: { borderColor: "var(--border)" },
-			"data-untriaged-row": bg(t),
+			"data-untriaged-row": xg(t),
 			children: [
-				/* @__PURE__ */ C(Gg, {
+				/* @__PURE__ */ C(Kg, {
 					item: t,
-					checked: e.selected.has(bg(t)),
-					onChange: (n) => e.onSelect([bg(t)], n)
+					checked: e.selected.has(xg(t)),
+					onChange: (n) => e.onSelect([xg(t)], n)
 				}),
-				/* @__PURE__ */ C(Lg, { item: t }),
+				/* @__PURE__ */ C(Rg, { item: t }),
 				/* @__PURE__ */ w("div", {
 					className: "flex min-w-0 flex-1 flex-col gap-1 text-sm",
 					children: [
-						/* @__PURE__ */ C(Wg, { item: t }),
+						/* @__PURE__ */ C(Gg, { item: t }),
 						/* @__PURE__ */ w("span", {
 							className: "text-xs text-muted",
 							children: [
-								hg(t),
+								gg(t),
 								" · ",
-								/* @__PURE__ */ C(Hg, { item: t }),
+								/* @__PURE__ */ C(Ug, { item: t }),
 								" · ",
-								/* @__PURE__ */ C(Ug, {
+								/* @__PURE__ */ C(Wg, {
 									item: t,
 									fallback: "unknown"
 								}),
 								" · ",
-								yg(t.createdAt, e.now),
-								hg(t) === "github" ? ` · ${t.comments} comment${t.comments === 1 ? "" : "s"}` : ""
+								bg(t.createdAt, e.now),
+								gg(t) === "github" ? ` · ${t.comments} comment${t.comments === 1 ? "" : "s"}` : ""
 							]
 						}),
-						/* @__PURE__ */ C(zg, { item: t }),
-						/* @__PURE__ */ C(Bg, { labels: t.labels })
+						/* @__PURE__ */ C(Bg, { item: t }),
+						/* @__PURE__ */ C(Vg, { labels: t.labels })
 					]
 				}),
-				/* @__PURE__ */ C(Vg, {
+				/* @__PURE__ */ C(Hg, {
 					item: t,
 					onSend: e.onSend,
 					onReview: e.onReview,
 					onStart: e.onStart
 				})
 			]
-		}, bg(t)))
+		}, xg(t)))
 	});
 }
-function Jg({ onOpen: e }) {
+function Yg({ onOpen: e }) {
 	return e ? /* @__PURE__ */ C("button", {
 		type: "button",
 		className: "underline",
@@ -20548,7 +20626,7 @@ function Jg({ onOpen: e }) {
 		children: "Settings › Plugins › Intake sources"
 	}) : /* @__PURE__ */ C(S, { children: "Settings › Plugins" });
 }
-function Yg({ list: e, now: t, onOpenSources: n }) {
+function Xg({ list: e, now: t, onOpenSources: n }) {
 	let r = e.repositories.filter((e) => e.error || e.truncated), i = (e.sources ?? []).filter((e) => e.id !== "github"), a = e.repositories.map((e) => e.checkedAt).filter((e) => !!e).sort();
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-0.5 text-xs text-muted",
@@ -20571,7 +20649,7 @@ function Yg({ list: e, now: t, onOpenSources: n }) {
 					" other source",
 					i.length === 1 ? "" : "s",
 					". Status and settings: ",
-					/* @__PURE__ */ C(Jg, { onOpen: n }),
+					/* @__PURE__ */ C(Yg, { onOpen: n }),
 					"."
 				]
 			}),
@@ -20586,9 +20664,9 @@ function Yg({ list: e, now: t, onOpenSources: n }) {
 		]
 	});
 }
-function Xg({ items: e, now: t, narrow: n }) {
+function Zg({ items: e, now: t, narrow: n }) {
 	let r = (e) => e.handoff ? `Sent${e.handoff.crew ? ` to ${e.handoff.crew.name}` : ""}${e.handoff.label ? ` with ${e.handoff.label}` : ""}${e.handoff.at ? ` ${Z(e.handoff.at, t)}` : ""}` : "A crew found it on its own", i = ({ item: e }) => {
-		let t = lg(e);
+		let t = ug(e);
 		return /* @__PURE__ */ C($, {
 			variant: t.tone,
 			children: t.text
@@ -20600,17 +20678,17 @@ function Xg({ items: e, now: t, narrow: n }) {
 		children: e.map((e) => /* @__PURE__ */ w("li", {
 			className: "flex items-start gap-2 border-t py-2 first:border-t-0",
 			style: { borderColor: "var(--border)" },
-			"data-radar-row": bg(e),
+			"data-radar-row": xg(e),
 			children: [
-				/* @__PURE__ */ C(Lg, { item: e }),
+				/* @__PURE__ */ C(Rg, { item: e }),
 				/* @__PURE__ */ w("div", {
 					className: "flex min-w-0 flex-1 flex-col gap-1 text-sm",
 					children: [
-						/* @__PURE__ */ C(Wg, { item: e }),
+						/* @__PURE__ */ C(Gg, { item: e }),
 						/* @__PURE__ */ w("span", {
 							className: "text-xs text-muted",
 							children: [
-								/* @__PURE__ */ C(Hg, { item: e }),
+								/* @__PURE__ */ C(Ug, { item: e }),
 								" · ",
 								r(e)
 							]
@@ -20618,9 +20696,9 @@ function Xg({ items: e, now: t, narrow: n }) {
 						/* @__PURE__ */ C("span", { children: /* @__PURE__ */ C(i, { item: e }) })
 					]
 				}),
-				/* @__PURE__ */ C(Vg, { item: e })
+				/* @__PURE__ */ C(Hg, { item: e })
 			]
-		}, bg(e)))
+		}, xg(e)))
 	}) : /* @__PURE__ */ C("div", {
 		style: { overflowX: "auto" },
 		children: /* @__PURE__ */ w("table", {
@@ -20630,7 +20708,7 @@ function Xg({ items: e, now: t, narrow: n }) {
 			children: [/* @__PURE__ */ C("thead", { children: /* @__PURE__ */ w("tr", { children: [
 				/* @__PURE__ */ C("th", {
 					style: {
-						...Ng,
+						...Pg,
 						width: 28
 					},
 					children: /* @__PURE__ */ C("span", {
@@ -20639,98 +20717,98 @@ function Xg({ items: e, now: t, narrow: n }) {
 					})
 				}),
 				/* @__PURE__ */ C("th", {
-					style: Ng,
+					style: Pg,
 					children: "Item"
 				}),
 				/* @__PURE__ */ C("th", {
-					style: Ng,
+					style: Pg,
 					children: "Repository"
 				}),
 				/* @__PURE__ */ C("th", {
-					style: Ng,
+					style: Pg,
 					children: "State"
 				}),
 				/* @__PURE__ */ C("th", {
-					style: Ng,
+					style: Pg,
 					children: "How it got there"
 				}),
 				/* @__PURE__ */ C("th", {
-					style: Ng,
+					style: Pg,
 					children: /* @__PURE__ */ C("span", {
 						className: "sr-only",
 						children: "Open in"
 					})
 				})
 			] }) }), /* @__PURE__ */ C("tbody", { children: e.map((e) => /* @__PURE__ */ w("tr", {
-				"data-radar-row": bg(e),
+				"data-radar-row": xg(e),
 				children: [
 					/* @__PURE__ */ C("td", {
-						style: Pg,
-						children: /* @__PURE__ */ C(Lg, { item: e })
+						style: Fg,
+						children: /* @__PURE__ */ C(Rg, { item: e })
 					}),
 					/* @__PURE__ */ C("td", {
 						style: {
-							...Pg,
+							...Fg,
 							minWidth: "16rem"
 						},
-						children: /* @__PURE__ */ C(Wg, { item: e })
+						children: /* @__PURE__ */ C(Gg, { item: e })
 					}),
 					/* @__PURE__ */ C("td", {
 						style: {
-							...Pg,
+							...Fg,
 							whiteSpace: "nowrap"
 						},
-						children: /* @__PURE__ */ C(Hg, { item: e })
+						children: /* @__PURE__ */ C(Ug, { item: e })
 					}),
 					/* @__PURE__ */ C("td", {
 						style: {
-							...Pg,
+							...Fg,
 							whiteSpace: "nowrap"
 						},
 						children: /* @__PURE__ */ C(i, { item: e })
 					}),
 					/* @__PURE__ */ C("td", {
-						style: Pg,
+						style: Fg,
 						className: "text-muted",
 						children: r(e)
 					}),
 					/* @__PURE__ */ C("td", {
 						style: {
-							...Pg,
+							...Fg,
 							whiteSpace: "nowrap"
 						},
-						children: /* @__PURE__ */ C(Vg, { item: e })
+						children: /* @__PURE__ */ C(Hg, { item: e })
 					})
 				]
-			}, bg(e))) })]
+			}, xg(e))) })]
 		})
 	});
 }
-function Zg({ workspaceId: e, onOpenSources: t, embedded: n }) {
-	let r = K(), a = Lr(), o = l(() => ag(r), [r]), { openChat: s } = St(), c = l(() => og(r), [r]), [u, f] = Un("untriaged-show", "inner", (e) => e === "radar" ? "Back to With Issue Radar" : "Back to Untriaged", "untriaged"), [p, m] = d(null), [h, g] = d(null), { value: _, error: v, busy: b } = Mo(e, i((e) => o.view(e), [o])), [T, E] = d(null), [D, O] = d(!1), [k, A] = d(null), [j, M] = ul(e, kg), [N, P] = d(() => /* @__PURE__ */ new Set()), F = It("(max-width: 767px)"), I = Date.now(), L = T ?? _, ee = L?.mode ? u : "untriaged", te = l(() => vg(L), [L]), ne = l(() => (L?.items ?? []).filter((e) => _g(e, j, I)), [
+function Qg({ workspaceId: e, onOpenSources: t, embedded: n }) {
+	let r = K(), a = Lr(), o = l(() => og(r), [r]), { openChat: s } = St(), c = l(() => sg(r), [r]), [u, f] = Un("untriaged-show", "inner", (e) => e === "radar" ? "Back to With Issue Radar" : "Back to Untriaged", "untriaged"), [p, m] = d(null), [h, g] = d(null), { value: _, error: v, busy: b } = Mo(e, i((e) => o.view(e), [o])), [T, E] = d(null), [D, O] = d(!1), [k, A] = d(null), [j, M] = dl(e, Ag), [N, P] = d(() => /* @__PURE__ */ new Set()), F = It("(max-width: 767px)"), I = Date.now(), L = T ?? _, ee = L?.mode ? u : "untriaged", te = l(() => yg(L), [L]), R = l(() => (L?.items ?? []).filter((e) => vg(e, j, I)), [
 		L,
 		j,
 		I
-	]), re = Kr(JSON.stringify(j)), ie = ne.filter((e) => N.has(bg(e))), R = Eg(ie), z = sg(ie), B = L?.withRadar ?? [], V = async () => {
+	]), ne = Kr(JSON.stringify(j)), re = R.filter((e) => N.has(xg(e))), z = Dg(re), B = cg(re), V = L?.withRadar ?? [], H = async () => {
 		if (e) try {
 			E(await o.view(e)), P(/* @__PURE__ */ new Set());
 		} catch (e) {
 			A(G(e));
 		}
-	}, ae = async (t) => {
+	}, ie = async (t) => {
 		if (e) {
 			A(null);
 			try {
 				let n = await o.review(e, t);
-				g(n.state === "open" ? `${t.repository} #${t.number} already has a code review chat. Use Session.` : `Code review chat for ${t.repository} #${t.number} starts on the next tick$.`), await V();
+				g(n.state === "open" ? `${t.repository} #${t.number} already has a code review chat. Use Session.` : `Code review chat for ${t.repository} #${t.number} starts on the next tick$.`), await H();
 			} catch (e) {
 				A(G(e));
 			}
 		}
-	}, oe = async (t, n) => {
+	}, ae = async (t, n) => {
 		if (!e) return;
-		let r = xg(t);
-		if (hg(t) === "github") {
+		let r = Sg(t);
+		if (gg(t) === "github") {
 			if (!await a({
 				title: `Plan ${r}?`,
 				body: `A planner chat drafts a spec from "${t.title}". Nothing is approved or started until you approve the spec.`,
@@ -20759,15 +20837,15 @@ function Zg({ workspaceId: e, onOpenSources: t, embedded: n }) {
 			A(null);
 			try {
 				let i = await o.start(e, t, n);
-				g(`${r} is now task ${i.taskId}.`), await V();
+				g(`${r} is now task ${i.taskId}.`), await H();
 			} catch (e) {
 				A(G(e));
 			}
 		}
-	}, H = (e) => M({
+	}, oe = (e) => M({
 		...j,
 		...e
-	}), se = (e, t) => P(Tg(N, e, t)), U = async () => {
+	}), se = (e, t) => P(Eg(N, e, t)), U = async () => {
 		if (e) {
 			O(!0), A(null);
 			try {
@@ -20811,7 +20889,7 @@ function Zg({ workspaceId: e, onOpenSources: t, embedded: n }) {
 					label: `Untriaged (${L.items.length})`
 				}, {
 					key: "radar",
-					label: `With Issue Radar (${B.length})`
+					label: `With Issue Radar (${V.length})`
 				}],
 				value: ee,
 				onChange: (e) => f(e)
@@ -20833,19 +20911,19 @@ function Zg({ workspaceId: e, onOpenSources: t, embedded: n }) {
 				children: [/* @__PURE__ */ C("p", {
 					className: "text-xs text-muted",
 					children: "Issues a crew holds, or that you sent to one. Crews act with your GitHub login, so Avoozl tells their work apart by label: a close on an issue a crew claimed counts only once its pull request merges, a crew’s labels never start Avoozl rules, and a crew’s “needs human” label shows under Needs you."
-				}), B.length === 0 ? /* @__PURE__ */ C(y, {
+				}), V.length === 0 ? /* @__PURE__ */ C(y, {
 					icon: /* @__PURE__ */ C(Re, {
 						size: 36,
 						"aria-hidden": "true"
 					}),
 					title: "Nothing with Issue Radar",
 					subtitle: "Select issues under Untriaged and press Send to Issue Radar."
-				}) : /* @__PURE__ */ C(Xg, {
-					items: B,
+				}) : /* @__PURE__ */ C(Zg, {
+					items: V,
 					now: I,
 					narrow: F
 				})]
-			}) : L.items.length === 0 ? /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(Yg, {
+			}) : L.items.length === 0 ? /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(Xg, {
 				list: L,
 				now: I,
 				onOpenSources: t
@@ -20854,12 +20932,12 @@ function Zg({ workspaceId: e, onOpenSources: t, embedded: n }) {
 					size: 36,
 					"aria-hidden": "true"
 				}),
-				...Dg(L)
+				...Og(L)
 			})] }) : /* @__PURE__ */ w(S, { children: [
-				/* @__PURE__ */ C(sl, {
+				/* @__PURE__ */ C(cl, {
 					id: "avoozl-untriaged",
 					label: "Filter untriaged items",
-					active: mg(j),
+					active: hg(j),
 					onClear: () => M({}),
 					fields: [
 						{
@@ -20868,7 +20946,7 @@ function Zg({ workspaceId: e, onOpenSources: t, embedded: n }) {
 							label: "Source",
 							value: j.source ?? "",
 							options: te.sources,
-							onChange: (e) => H({ source: e || void 0 })
+							onChange: (e) => oe({ source: e || void 0 })
 						},
 						{
 							kind: "select",
@@ -20876,23 +20954,23 @@ function Zg({ workspaceId: e, onOpenSources: t, embedded: n }) {
 							label: "Repository",
 							value: j.repository ?? "",
 							options: te.repositories,
-							onChange: (e) => H({ repository: e || void 0 })
+							onChange: (e) => oe({ repository: e || void 0 })
 						},
 						{
 							kind: "select",
 							key: "kind",
 							label: "Kind",
 							value: j.kind ?? "",
-							options: pg,
-							onChange: (e) => H({ kind: e || void 0 })
+							options: mg,
+							onChange: (e) => oe({ kind: e || void 0 })
 						},
 						{
 							kind: "select",
 							key: "age",
 							label: "Age",
 							value: j.age ?? "",
-							options: fg,
-							onChange: (e) => H({ age: e || void 0 })
+							options: pg,
+							onChange: (e) => oe({ age: e || void 0 })
 						},
 						{
 							kind: "select",
@@ -20900,7 +20978,7 @@ function Zg({ workspaceId: e, onOpenSources: t, embedded: n }) {
 							label: "Author",
 							value: j.author ?? "",
 							options: te.authors,
-							onChange: (e) => H({ author: e || void 0 })
+							onChange: (e) => oe({ author: e || void 0 })
 						},
 						{
 							kind: "select",
@@ -20908,7 +20986,7 @@ function Zg({ workspaceId: e, onOpenSources: t, embedded: n }) {
 							label: "Label",
 							value: j.label ?? "",
 							options: te.labels,
-							onChange: (e) => H({ label: e || void 0 })
+							onChange: (e) => oe({ label: e || void 0 })
 						}
 					],
 					children: /* @__PURE__ */ w("div", {
@@ -20920,26 +20998,26 @@ function Zg({ workspaceId: e, onOpenSources: t, embedded: n }) {
 								children: [/* @__PURE__ */ w("p", {
 									role: "status",
 									className: "text-xs text-muted",
-									children: [ne.length === L.items.length ? `${L.items.length} untriaged` : `${ne.length} of ${L.items.length} untriaged`, ie.length ? ` · ${ie.length} selected` : ""]
-								}), /* @__PURE__ */ C(Yg, {
+									children: [R.length === L.items.length ? `${L.items.length} untriaged` : `${R.length} of ${L.items.length} untriaged`, re.length ? ` · ${re.length} selected` : ""]
+								}), /* @__PURE__ */ C(Xg, {
 									list: L,
 									now: I,
 									onOpenSources: t
 								})]
 							}),
 							/* @__PURE__ */ C(q, {
-								text: R.tooltip,
+								text: z.tooltip,
 								children: (e) => /* @__PURE__ */ w("a", {
-									href: J(ie.length ? R.url : void 0),
+									href: J(re.length ? z.url : void 0),
 									target: "_top",
 									role: "button",
-									"aria-disabled": !ie.length || void 0,
+									"aria-disabled": !re.length || void 0,
 									"aria-describedby": e,
 									tabIndex: 0,
 									style: {
-										...Fg,
-										opacity: ie.length ? 1 : .5,
-										cursor: ie.length ? "pointer" : "default"
+										...Ig,
+										opacity: re.length ? 1 : .5,
+										cursor: re.length ? "pointer" : "default"
 									},
 									className: "text-sm",
 									"data-bulk-open": !0,
@@ -20951,49 +21029,49 @@ function Zg({ workspaceId: e, onOpenSources: t, embedded: n }) {
 							}),
 							/* @__PURE__ */ C(Y, {
 								icon: qe,
-								onClick: () => m(ie),
-								disabled: !z.ok,
-								tooltip: z.reason,
+								onClick: () => m(re),
+								disabled: !B.ok,
+								tooltip: B.reason,
 								children: "Send selected to Issue Radar"
 							})
 						]
 					})
 				}),
-				ne.length === 0 ? /* @__PURE__ */ w("p", {
+				R.length === 0 ? /* @__PURE__ */ w("p", {
 					className: "text-sm text-muted",
 					children: [
 						"No untriaged item matches these filters. Clear them to see all ",
 						L.items.length,
 						"."
 					]
-				}) : C(F ? qg : Kg, {
-					items: re.take("untriaged", ne),
+				}) : C(F ? Jg : qg, {
+					items: ne.take("untriaged", R),
 					selected: N,
 					now: I,
 					onSelect: se,
 					onSend: (e) => m([e]),
-					onReview: (e) => void ae(e),
-					onStart: (e, t) => void oe(e, t)
+					onReview: (e) => void ie(e),
+					onStart: (e, t) => void ae(e, t)
 				}),
-				/* @__PURE__ */ C(qr, { ...re.more("untriaged", ne.length) })
+				/* @__PURE__ */ C(qr, { ...ne.more("untriaged", R.length) })
 			] }) : /* @__PURE__ */ w("p", {
 				className: "text-sm text-muted",
 				"data-untriaged-off": !0,
 				children: [
 					"Untriaged items need a GitHub mode or an intake source. Choose a mode in Settings › GitHub, or add a source in ",
-					/* @__PURE__ */ C(Jg, { onOpen: t }),
+					/* @__PURE__ */ C(Yg, { onOpen: t }),
 					"."
 				]
 			}) : /* @__PURE__ */ C("p", {
 				className: "text-sm text-muted",
 				children: b ? "Loading…" : "Not loaded"
 			}),
-			p && e && /* @__PURE__ */ C(Mg, {
+			p && e && /* @__PURE__ */ C(Ng, {
 				workspaceId: e,
 				client: c,
 				items: p,
 				repository: p[0].repository,
-				onSent: () => void V(),
+				onSent: () => void H(),
 				onClose: (e) => {
 					m(null), g(e ?? null);
 				}
@@ -21002,7 +21080,7 @@ function Zg({ workspaceId: e, onOpenSources: t, embedded: n }) {
 	});
 }
 // kirocrew-app/ui/src/nav-api.ts
-var Qg = [
+var $g = [
 	{
 		key: "dashboard",
 		label: "Dashboards"
@@ -21031,7 +21109,7 @@ var Qg = [
 		key: "settings",
 		label: "Settings"
 	}
-], $g = [
+], e_ = [
 	{
 		key: "overview",
 		label: "Overview"
@@ -21044,7 +21122,7 @@ var Qg = [
 		key: "proposals",
 		label: "Proposals"
 	}
-], e_ = [{
+], t_ = [{
 	key: "decisions",
 	title: "Decisions and conflicts",
 	line: "A crew handed work back, a spec or issue was edited by hand, or a task needs your choice."
@@ -21052,7 +21130,7 @@ var Qg = [
 	key: "intake",
 	title: "Planning and intake",
 	line: "Issues labeled for planning and new issues. You choose which become work."
-}], t_ = [
+}], n_ = [
 	{
 		key: "home",
 		label: "Home"
@@ -21069,13 +21147,13 @@ var Qg = [
 		key: "ci",
 		label: "CI"
 	}
-], n_ = (e) => e === "graph" || e === "lanes" || e === "ci" ? e : "dashboard", r_ = (e) => e === "dashboard" ? "home" : e === "graph" || e === "lanes" || e === "ci" ? e : null, i_ = {
+], r_ = (e) => e === "graph" || e === "lanes" || e === "ci" ? e : "dashboard", i_ = (e) => e === "dashboard" ? "home" : e === "graph" || e === "lanes" || e === "ci" ? e : null, a_ = {
 	graph: "Graph",
 	lanes: "Lanes",
 	ci: "CI",
 	dashboard: "Home"
-}, a_ = (e) => i_[e] ?? Qg.find((t) => t.key === e)?.label ?? e, o_ = (e) => r_(e) ? "dashboard" : e;
-function s_(e) {
+}, o_ = (e) => a_[e] ?? $g.find((t) => t.key === e)?.label ?? e, s_ = (e) => i_(e) ? "dashboard" : e;
+function c_(e) {
 	switch (e) {
 		case "delivery": return { tab: "dashboard" };
 		case "conflicts": return {
@@ -21087,20 +21165,20 @@ function s_(e) {
 			open: { "waiting-section": "intake" }
 		};
 		case "routing": return { tab: "settings" };
-		default: return { tab: Qg.some((t) => t.key === e) || r_(e) ? e : "dashboard" };
+		default: return { tab: $g.some((t) => t.key === e) || i_(e) ? e : "dashboard" };
 	}
 }
-function c_(e) {
+function l_(e) {
 	return e === "routing" ? "repositories" : e;
 }
-var l_ = "Local workers are retired. Switch to Issue Radar.";
-function u_(e, t) {
+var u_ = "Local workers are retired. Switch to Issue Radar.";
+function d_(e, t) {
 	return e.filter((e) => (e.coder || t) === "worker").map((e) => e.name);
 }
 // kirocrew-app/ui/src/WaitingView.tsx
-var d_ = e_;
-function f_(e) {
-	let t = e.section, n = d_.find((e) => e.key === t) ?? d_[0];
+var f_ = t_;
+function p_(e) {
+	let t = e.section, n = f_.find((e) => e.key === t) ?? f_[0];
 	return /* @__PURE__ */ w("section", {
 		"aria-labelledby": "avoozl-waiting-title",
 		className: "flex h-full min-h-0 flex-col gap-2",
@@ -21124,10 +21202,10 @@ function f_(e) {
 				className: "min-h-0 flex-1",
 				"data-waiting-section": n.key,
 				"data-open": "true",
-				children: t === "decisions" ? /* @__PURE__ */ C(ig, {
+				children: t === "decisions" ? /* @__PURE__ */ C(ag, {
 					workspaceId: e.workspaceId,
 					embedded: !0
-				}) : /* @__PURE__ */ C(Zg, {
+				}) : /* @__PURE__ */ C(Qg, {
 					workspaceId: e.workspaceId,
 					onOpenSources: e.onOpenSources,
 					embedded: !0
@@ -21137,7 +21215,7 @@ function f_(e) {
 	});
 }
 // kirocrew-app/ui/src/WorkspacePill.tsx
-var p_ = {
+var m_ = {
 	display: "flex",
 	alignItems: "center",
 	gap: 8,
@@ -21155,7 +21233,7 @@ var p_ = {
 	cursor: "pointer",
 	textAlign: "left",
 	fontSize: 14
-}, m_ = {
+}, h_ = {
 	display: "flex",
 	alignItems: "center",
 	gap: 8,
@@ -21171,14 +21249,14 @@ var p_ = {
 	fontSize: 13,
 	textAlign: "left",
 	cursor: "pointer"
-}, h_ = {
+}, g_ = {
 	minWidth: 0,
 	flex: "1 1 auto",
 	overflow: "hidden",
 	textOverflow: "ellipsis",
 	whiteSpace: "nowrap"
 };
-function g_(e) {
+function __(e) {
 	let { list: t } = e, [n, r] = d(null), i = u(null), a = t?.items.find((t) => t.id === e.value) ?? null, s = t ? a?.name ?? (t.items.length ? "Pick a workspace" : "No workspace yet") : "Loading…";
 	o(() => {
 		if (!n) return;
@@ -21208,7 +21286,7 @@ function g_(e) {
 			"aria-expanded": !!n,
 			disabled: !t,
 			onClick: (e) => r(n ? null : e.currentTarget.getBoundingClientRect()),
-			style: p_,
+			style: m_,
 			children: [
 				/* @__PURE__ */ C(U, {
 					size: 16,
@@ -21220,7 +21298,7 @@ function g_(e) {
 				}),
 				/* @__PURE__ */ C("span", {
 					style: {
-						...h_,
+						...g_,
 						fontWeight: 600,
 						lineHeight: "20px"
 					},
@@ -21279,7 +21357,7 @@ function g_(e) {
 						"data-workspace-option": t.id,
 						onClick: () => c(t.id),
 						style: {
-							...m_,
+							...h_,
 							fontWeight: n ? 500 : 400
 						},
 						children: [
@@ -21292,7 +21370,7 @@ function g_(e) {
 								}
 							}),
 							/* @__PURE__ */ C("span", {
-								style: h_,
+								style: g_,
 								children: t.name
 							}),
 							n && /* @__PURE__ */ C(M, {
@@ -21318,7 +21396,7 @@ function g_(e) {
 						r(null), e.onManage();
 					},
 					style: {
-						...m_,
+						...h_,
 						color: "var(--muted)"
 					},
 					children: [/* @__PURE__ */ C(We, {
@@ -21326,7 +21404,7 @@ function g_(e) {
 						"aria-hidden": "true",
 						style: { flexShrink: 0 }
 					}), /* @__PURE__ */ C("span", {
-						style: h_,
+						style: g_,
 						children: "Manage workspaces"
 					})]
 				})
@@ -21334,7 +21412,7 @@ function g_(e) {
 		})]
 	});
 }
-function __(e) {
+function v_(e) {
 	let t = /* @__PURE__ */ new Map();
 	for (let n of e) {
 		let e = n.remote?.host ?? "This Mac";
@@ -21345,11 +21423,11 @@ function __(e) {
 		rows: t
 	})).sort((e, t) => Number(t.host === "This Mac") - Number(e.host === "This Mac") || e.host.localeCompare(t.host));
 }
-var v_ = (e) => [e.role, e.status].filter(Boolean).join(" · ") || "running";
-function y_(e) {
+var y_ = (e) => [e.role, e.status].filter(Boolean).join(" · ") || "running";
+function b_(e) {
 	let t = K(), n = l(() => dr(t), [t]), r = kt(), a = i(async (e) => {
 		let [t, r] = await Promise.all([n.delivery(e), n.remote(e).then((e) => e.workers, () => [])]);
-		return hs({
+		return Cs({
 			graph: null,
 			delivery: t,
 			conflicts: null,
@@ -21357,7 +21435,7 @@ function y_(e) {
 			remote: r,
 			limit: Infinity
 		}).inFlight;
-	}, [n]), { value: o, error: s } = Mo(e.workspaceId, a), c = Date.now(), u = o ? __(o) : [];
+	}, [n]), { value: o, error: s } = Mo(e.workspaceId, a), c = Date.now(), u = o ? v_(o) : [];
 	return /* @__PURE__ */ w("section", {
 		"aria-labelledby": "avoozl-lanes-title",
 		className: "flex flex-col gap-3.5",
@@ -21402,7 +21480,7 @@ function y_(e) {
 						/* @__PURE__ */ C("span", {
 							className: "shrink-0 text-xs text-muted",
 							"data-lane-stage": !0,
-							children: v_(e)
+							children: y_(e)
 						}),
 						/* @__PURE__ */ C("span", {
 							className: "shrink-0 text-xs tabular-nums text-muted",
@@ -21419,13 +21497,13 @@ function y_(e) {
 	});
 }
 // kirocrew-app/ui/src/activity-api.ts
-var b_ = {
+var x_ = {
 	local: "This workspace",
 	github: "GitHub",
 	plugin: "Plugin sync",
 	mcp: "MCP or a session"
 };
-function x_(e) {
+function S_(e) {
 	let t = async (t, n, r) => (await e.post(W, {
 		operation: t,
 		input: n,
@@ -21443,8 +21521,8 @@ function x_(e) {
 		}, e)
 	};
 }
-var S_ = (e) => !!(e.source || e.kind || e.actor);
-function C_(e, t) {
+var C_ = (e) => !!(e.source || e.kind || e.actor);
+function w_(e, t) {
 	let n = (e, t, n = (e) => e) => [{
 		value: "",
 		label: "All"
@@ -21453,12 +21531,12 @@ function C_(e, t) {
 		label: n(e)
 	}))];
 	return {
-		sources: n(e?.sources ?? [], t.source, (e) => b_[e] ?? e),
+		sources: n(e?.sources ?? [], t.source, (e) => x_[e] ?? e),
 		kinds: n(e?.kinds ?? [], t.kind),
 		actors: n(e?.actors ?? [], t.actor)
 	};
 }
-function w_(e) {
+function T_(e) {
 	if (e.targetId && e.task) return {
 		kind: "task",
 		id: e.targetId
@@ -21469,7 +21547,7 @@ function w_(e) {
 		href: t
 	} : null;
 }
-function T_(e) {
+function E_(e) {
 	let t = e.trim();
 	if (!t) return { days: null };
 	let n = Number(t);
@@ -21478,12 +21556,12 @@ function T_(e) {
 		error: "Use a whole number of days, 1–365."
 	} : { days: n };
 }
-var E_ = "avoozl:activity-filter:", D_ = {
+var D_ = "avoozl:activity-filter:", O_ = {
 	event: "avoozl:activity-filter",
 	empty: {},
 	read(e, t) {
 		try {
-			let n = JSON.parse(e?.getItem(E_ + t) ?? "{}");
+			let n = JSON.parse(e?.getItem(D_ + t) ?? "{}");
 			return n && typeof n == "object" && !Array.isArray(n) ? n : {};
 		} catch {
 			return {};
@@ -21491,10 +21569,10 @@ var E_ = "avoozl:activity-filter:", D_ = {
 	},
 	write(e, t, n) {
 		try {
-			e?.setItem(E_ + t, JSON.stringify(n));
+			e?.setItem(D_ + t, JSON.stringify(n));
 		} catch {}
 	}
-}, O_ = {
+}, k_ = {
 	textAlign: "left",
 	fontWeight: 500,
 	fontSize: 12,
@@ -21502,12 +21580,12 @@ var E_ = "avoozl:activity-filter:", D_ = {
 	padding: "4px 8px",
 	borderBottom: "1px solid var(--border)",
 	whiteSpace: "nowrap"
-}, k_ = {
+}, A_ = {
 	padding: "6px 8px",
 	borderTop: "1px solid var(--border)",
 	verticalAlign: "top"
 };
-function A_({ at: e, now: t }) {
+function j_({ at: e, now: t }) {
 	return /* @__PURE__ */ C(q, {
 		text: e.replace("T", " ").slice(0, 19),
 		children: /* @__PURE__ */ C("span", {
@@ -21516,7 +21594,7 @@ function A_({ at: e, now: t }) {
 		})
 	});
 }
-function j_({ row: e }) {
+function M_({ row: e }) {
 	return e.redacted ? /* @__PURE__ */ w("span", {
 		className: "inline-flex flex-wrap items-center gap-1.5",
 		"data-activity-redacted": !0,
@@ -21532,8 +21610,8 @@ function j_({ row: e }) {
 		children: e.summary
 	});
 }
-function M_({ row: e }) {
-	let t = kt(), n = w_(e);
+function N_({ row: e }) {
+	let t = kt(), n = T_(e);
 	return n ? n.kind === "task" ? /* @__PURE__ */ C("button", {
 		type: "button",
 		className: "underline",
@@ -21553,7 +21631,7 @@ function M_({ row: e }) {
 		children: e.targetId ?? ""
 	});
 }
-function N_({ rows: e, now: t }) {
+function P_({ rows: e, now: t }) {
 	return /* @__PURE__ */ C("div", {
 		style: { overflowX: "auto" },
 		children: /* @__PURE__ */ w("table", {
@@ -21562,23 +21640,23 @@ function N_({ rows: e, now: t }) {
 			"data-activity-table": !0,
 			children: [/* @__PURE__ */ C("thead", { children: /* @__PURE__ */ w("tr", { children: [
 				/* @__PURE__ */ C("th", {
-					style: O_,
+					style: k_,
 					children: "When"
 				}),
 				/* @__PURE__ */ C("th", {
-					style: O_,
+					style: k_,
 					children: "Source"
 				}),
 				/* @__PURE__ */ C("th", {
-					style: O_,
+					style: k_,
 					children: "Who"
 				}),
 				/* @__PURE__ */ C("th", {
-					style: O_,
+					style: k_,
 					children: "What"
 				}),
 				/* @__PURE__ */ C("th", {
-					style: O_,
+					style: k_,
 					children: "Target"
 				})
 			] }) }), /* @__PURE__ */ C("tbody", { children: e.map((e) => /* @__PURE__ */ w("tr", {
@@ -21586,51 +21664,51 @@ function N_({ rows: e, now: t }) {
 				children: [
 					/* @__PURE__ */ C("td", {
 						style: {
-							...k_,
+							...A_,
 							whiteSpace: "nowrap"
 						},
-						children: /* @__PURE__ */ C(A_, {
+						children: /* @__PURE__ */ C(j_, {
 							at: e.at,
 							now: t
 						})
 					}),
 					/* @__PURE__ */ C("td", {
 						style: {
-							...k_,
+							...A_,
 							whiteSpace: "nowrap"
 						},
-						children: b_[e.source] ?? e.source
+						children: x_[e.source] ?? e.source
 					}),
 					/* @__PURE__ */ C("td", {
 						style: {
-							...k_,
+							...A_,
 							whiteSpace: "nowrap"
 						},
 						children: e.actor ?? ""
 					}),
 					/* @__PURE__ */ w("td", {
 						style: {
-							...k_,
+							...A_,
 							minWidth: "16rem"
 						},
-						children: [/* @__PURE__ */ C(j_, { row: e }), /* @__PURE__ */ C("div", {
+						children: [/* @__PURE__ */ C(M_, { row: e }), /* @__PURE__ */ C("div", {
 							className: "text-xs text-muted",
 							children: e.kind
 						})]
 					}),
 					/* @__PURE__ */ C("td", {
 						style: {
-							...k_,
+							...A_,
 							whiteSpace: "nowrap"
 						},
-						children: /* @__PURE__ */ C(M_, { row: e })
+						children: /* @__PURE__ */ C(N_, { row: e })
 					})
 				]
 			}, e.seq)) })]
 		})
 	});
 }
-function P_({ rows: e, now: t }) {
+function F_({ rows: e, now: t }) {
 	return /* @__PURE__ */ C("ul", {
 		className: "flex flex-col",
 		"data-activity-stack": !0,
@@ -21639,16 +21717,16 @@ function P_({ rows: e, now: t }) {
 			style: { borderColor: "var(--border)" },
 			"data-activity-row": e.seq,
 			children: [
-				/* @__PURE__ */ C(j_, { row: e }),
+				/* @__PURE__ */ C(M_, { row: e }),
 				/* @__PURE__ */ w("span", {
 					className: "text-xs text-muted",
 					children: [
-						/* @__PURE__ */ C(A_, {
+						/* @__PURE__ */ C(j_, {
 							at: e.at,
 							now: t
 						}),
 						" · ",
-						b_[e.source] ?? e.source,
+						x_[e.source] ?? e.source,
 						e.actor ? ` · ${e.actor}` : "",
 						" · ",
 						e.kind
@@ -21656,14 +21734,14 @@ function P_({ rows: e, now: t }) {
 				}),
 				/* @__PURE__ */ C("span", {
 					className: "text-xs",
-					children: /* @__PURE__ */ C(M_, { row: e })
+					children: /* @__PURE__ */ C(N_, { row: e })
 				})
 			]
 		}, e.seq))
 	});
 }
-function F_({ workspaceId: e, onSaved: t }) {
-	let n = K(), r = l(() => x_(n), [n]), [a, s] = d(null), [c, u] = d(""), [f, p] = d(null), [m, h] = d(!1), g = i(async () => {
+function I_({ workspaceId: e, onSaved: t }) {
+	let n = K(), r = l(() => S_(n), [n]), [a, s] = d(null), [c, u] = d(""), [f, p] = d(null), [m, h] = d(!1), g = i(async () => {
 		try {
 			let t = await r.settings(e);
 			s(t), u(t.retentionDays === t.default ? "" : String(t.retentionDays));
@@ -21677,7 +21755,7 @@ function F_({ workspaceId: e, onSaved: t }) {
 	o(() => {
 		g();
 	}, [g]);
-	let _ = T_(c), v = async () => {
+	let _ = E_(c), v = async () => {
 		if (a && !_.error) {
 			h(!0), p(null);
 			try {
@@ -21721,7 +21799,7 @@ function F_({ workspaceId: e, onSaved: t }) {
 						"aria-describedby": _.error ? "avoozl-activity-keep-error" : void 0,
 						className: "rounded border px-2 py-1 text-sm",
 						style: {
-							...Kc,
+							...qc,
 							width: "6rem"
 						}
 					})]
@@ -21747,8 +21825,8 @@ function F_({ workspaceId: e, onSaved: t }) {
 		]
 	});
 }
-function I_({ workspaceId: e }) {
-	let t = K(), n = l(() => x_(t), [t]), [r, a] = ul(e, D_), [s, c] = d(null), [u, f] = d(null), [p, m] = d(!1), h = It("(max-width: 767px)"), g = Date.now(), _ = JSON.stringify(r), v = i(async () => {
+function L_({ workspaceId: e }) {
+	let t = K(), n = l(() => S_(t), [t]), [r, a] = dl(e, O_), [s, c] = d(null), [u, f] = d(null), [p, m] = d(!1), h = It("(max-width: 767px)"), g = Date.now(), _ = JSON.stringify(r), v = i(async () => {
 		if (e) {
 			m(!0), f(null);
 			try {
@@ -21784,7 +21862,7 @@ function I_({ workspaceId: e }) {
 		}
 	};
 	Do(bo(e, () => void v(), p || !e));
-	let x = C_(s, r), T = (e) => a({
+	let x = w_(s, r), T = (e) => a({
 		...r,
 		...e
 	}), E = s?.items ?? [];
@@ -21808,11 +21886,11 @@ function I_({ workspaceId: e }) {
 			}),
 			/* @__PURE__ */ C(ui, {
 				section: "activity",
-				children: /* @__PURE__ */ C(cl, {
+				children: /* @__PURE__ */ C(ll, {
 					id: "avoozl-activity",
 					label: "Filter activity",
 					inline: !0,
-					active: S_(r),
+					active: C_(r),
 					onClear: () => a({}),
 					fields: [
 						{
@@ -21840,7 +21918,7 @@ function I_({ workspaceId: e }) {
 							onChange: (e) => T({ actor: e || void 0 })
 						}
 					],
-					extra: e ? /* @__PURE__ */ C(F_, {
+					extra: e ? /* @__PURE__ */ C(I_, {
 						workspaceId: e,
 						onSaved: () => void v()
 					}) : void 0
@@ -21850,7 +21928,7 @@ function I_({ workspaceId: e }) {
 				role: "status",
 				className: "text-xs text-muted",
 				"data-filter-status": !0,
-				children: [s ? `${s.total} ${s.total === 1 ? "entry" : "entries"}${S_(r) ? " match" : ""} · kept ${s.retentionDays} days` : p ? "Loading…" : "Not loaded", S_(r) && /* @__PURE__ */ w(S, { children: [" · ", /* @__PURE__ */ C("button", {
+				children: [s ? `${s.total} ${s.total === 1 ? "entry" : "entries"}${C_(r) ? " match" : ""} · kept ${s.retentionDays} days` : p ? "Loading…" : "Not loaded", C_(r) && /* @__PURE__ */ w(S, { children: [" · ", /* @__PURE__ */ C("button", {
 					type: "button",
 					className: "underline",
 					onClick: () => a({}),
@@ -21870,10 +21948,10 @@ function I_({ workspaceId: e }) {
 						size: 36,
 						"aria-hidden": "true"
 					}),
-					title: S_(r) ? "No activity matches these filters" : "No activity yet",
-					subtitle: S_(r) ? "Clear the filters to see every entry." : "Starting work, stopping the line, approving and saving settings show here, and so do the closes, board moves and labels the tick reads."
+					title: C_(r) ? "No activity matches these filters" : "No activity yet",
+					subtitle: C_(r) ? "Clear the filters to see every entry." : "Starting work, stopping the line, approving and saving settings show here, and so do the closes, board moves and labels the tick reads."
 				})
-			}) : C(h ? P_ : N_, {
+			}) : C(h ? F_ : P_, {
 				rows: E,
 				now: g
 			}),
@@ -21885,44 +21963,44 @@ function I_({ workspaceId: e }) {
 	});
 }
 // kirocrew-app/ui/src/StopLine.tsx
-var L_ = {
+var R_ = {
 	background: "var(--danger)",
 	borderColor: "var(--danger)",
 	color: "#fff",
 	display: "inline-flex",
 	alignItems: "center",
 	gap: 6
-}, R_ = {
-	...L_,
+}, z_ = {
+	...R_,
 	background: "color-mix(in srgb, var(--danger) 16%, var(--card, var(--bg)))",
 	color: "var(--text)",
 	borderWidth: 2
-}, z_ = {
+}, B_ = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
 	background: "var(--card, transparent)",
 	maxWidth: "100%"
-}, B_ = 6e4;
-function V_(e) {
-	let t = K(), n = l(() => nc(t), [t]), [r, i] = d([]);
+}, V_ = 6e4;
+function H_(e) {
+	let t = K(), n = l(() => uc(t), [t]), [r, i] = d([]);
 	return o(() => {
 		if (!e) return i([]);
 		let t = !0, r = () => n.view(e, { window: "10" }).then((e) => t && i((e.line ?? []).filter((e) => !e.closedAt)), () => void 0);
 		r();
-		let a = setInterval(r, B_);
-		return window.addEventListener(ec, r), () => {
-			t = !1, clearInterval(a), window.removeEventListener(ec, r);
+		let a = setInterval(r, V_);
+		return window.addEventListener(cc, r), () => {
+			t = !1, clearInterval(a), window.removeEventListener(cc, r);
 		};
 	}, [n, e]), r;
 }
-function H_(e) {
-	let [t, n] = d(!1), r = V_(e.workspaceId), i = K(), a = l(() => nc(i), [i]), o = Lr();
+function U_(e) {
+	let [t, n] = d(!1), r = H_(e.workspaceId), i = K(), a = l(() => uc(i), [i]), o = Lr();
 	if (!e.workspaceId) return null;
-	let s = r.length > 0, c = r.map((e) => e.reason ?? (e.check ? `${e.check} fails on ${e.branch}` : `the line on ${e.branch}`)).slice(0, 3).join("; "), u = t && /* @__PURE__ */ C(U_, {
+	let s = r.length > 0, c = r.map((e) => e.reason ?? (e.check ? `${e.check} fails on ${e.branch}` : `the line on ${e.branch}`)).slice(0, 3).join("; "), u = t && /* @__PURE__ */ C(W_, {
 		workspaceId: e.workspaceId,
 		onClose: () => n(!1),
 		onPulled: () => {
-			n(!1), tc(), e.onPulled?.();
+			n(!1), lc(), e.onPulled?.();
 		}
 	});
 	if (e.bare || e.nav || e.square) {
@@ -21933,7 +22011,7 @@ function H_(e) {
 				action: "Resume"
 			}) && e.workspaceId) {
 				for (let t of r) await a.resume(e.workspaceId, t.id);
-				tc();
+				lc();
 			}
 		}, i = s ? "Resume the line" : "Stop the line", l = s ? Ie : Pe;
 		return /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(q, {
@@ -21970,7 +22048,7 @@ function H_(e) {
 			"aria-label": s ? `Line stopped, ${r.length} open stop${r.length === 1 ? "" : "s"}. Stop more` : void 0,
 			onClick: () => n(!0),
 			style: {
-				...s ? R_ : L_,
+				...s ? z_ : R_,
 				padding: "4px 6px"
 			},
 			children: [/* @__PURE__ */ C(Pe, {
@@ -21984,8 +22062,8 @@ function H_(e) {
 		})
 	}), u] });
 }
-function U_(e) {
-	let t = K(), n = l(() => nc(t), [t]), [r, a] = d(vc), [s, c] = d(null), [f, p] = d(null), [m, h] = d(!1), g = Lr(), v = u(null), y = (e) => a((t) => ({
+function W_(e) {
+	let t = K(), n = l(() => uc(t), [t]), [r, a] = d(Ec), [s, c] = d(null), [f, p] = d(null), [m, h] = d(!1), g = Lr(), v = u(null), y = (e) => a((t) => ({
 		...t,
 		...e
 	})), x = i(() => e.onClose(), [e]);
@@ -21993,7 +22071,7 @@ function U_(e) {
 		let n = !0, r = e.workspaceId;
 		return Promise.allSettled([
 			Qe(t).repositories(r),
-			xs(t).stored(r),
+			ks(t).stored(r),
 			dr(t).graph(r)
 		]).then(([e, t, r]) => {
 			n && c({
@@ -22003,7 +22081,7 @@ function U_(e) {
 					title: e.title || e.id,
 					state: e.state
 				})) : [],
-				tasks: r.status === "fulfilled" ? tl(r.value.tasks) : []
+				tasks: r.status === "fulfilled" ? nl(r.value.tasks) : []
 			});
 		}), () => {
 			n = !1;
@@ -22012,7 +22090,7 @@ function U_(e) {
 		v.current?.querySelector("input, button")?.focus();
 	}, []);
 	let T = async () => {
-		let { input: t, error: i } = yc(r);
+		let { input: t, error: i } = Dc(r);
 		if (!t) return p(i ?? null);
 		if (!t.full || await g({
 			title: "Stop all agents?",
@@ -22038,7 +22116,7 @@ function U_(e) {
 			className: "text-xs text-muted",
 			children: "(required)"
 		})
-	] }), O = (e, t, n, r, i) => n.length ? /* @__PURE__ */ C(el, {
+	] }), O = (e, t, n, r, i) => n.length ? /* @__PURE__ */ C(tl, {
 		label: D(e),
 		items: n,
 		value: t,
@@ -22052,7 +22130,7 @@ function U_(e) {
 				value: r.repository,
 				onChange: (e) => y({ repository: e.target.value }),
 				className: "rounded border px-2 py-1 text-sm",
-				style: z_,
+				style: B_,
 				"data-stop-target": !0,
 				children: [/* @__PURE__ */ C("option", {
 					value: "",
@@ -22073,7 +22151,7 @@ function U_(e) {
 		describedBy: "avoozl-stop-line",
 		boxRef: v,
 		attrs: { "data-stop-dialog": !0 },
-		unsaved: JSON.stringify(r) !== JSON.stringify(vc()) && {
+		unsaved: JSON.stringify(r) !== JSON.stringify(Ec()) && {
 			title: "Discard this stop?",
 			body: "The line keeps running. What you entered is lost.",
 			action: "Discard"
@@ -22097,7 +22175,7 @@ function U_(e) {
 			"data-stop-confirm": !0,
 			onClick: () => void T(),
 			disabled: m,
-			style: L_,
+			style: R_,
 			children: [/* @__PURE__ */ C(Pe, {
 				size: 14,
 				"aria-hidden": "true"
@@ -22109,25 +22187,25 @@ function U_(e) {
 				className: "text-sm text-muted",
 				children: "Only a person can resume it."
 			}) }),
-			/* @__PURE__ */ C(wd, {
+			/* @__PURE__ */ C(Td, {
 				name: "avoozl-stop-kind",
 				label: "How to stop",
 				value: r.kind,
 				onChange: (e) => y({ kind: e }),
-				sections: gc.map((e) => ({
+				sections: wc.map((e) => ({
 					key: e.value,
 					title: e.label,
 					line: e.line,
 					...e.value === "agents" ? { description: /* @__PURE__ */ C("p", {
 						className: "text-sm text-muted",
 						"data-full-warning": !0,
-						children: _c
-					}) } : { fields: /* @__PURE__ */ C(wd, {
+						children: Tc
+					}) } : { fields: /* @__PURE__ */ C(Td, {
 						name: "avoozl-stop-scope",
 						label: "What to stop",
 						value: r.scope,
 						onChange: (e) => y({ scope: e }),
-						sections: hc.map((e) => ({
+						sections: Cc.map((e) => ({
 							key: e.value,
 							title: e.label,
 							line: e.line,
@@ -22165,8 +22243,8 @@ function U_(e) {
 	});
 }
 // kirocrew-app/ui/src/ModePicker.tsx
-var W_ = "var(--ok)", G_ = "var(--tile-purple, var(--accent))";
-function K_({ color: e, children: t }) {
+var G_ = "var(--ok)", K_ = "var(--tile-purple, var(--accent))";
+function q_({ color: e, children: t }) {
 	return /* @__PURE__ */ C("span", {
 		className: "inline-flex items-center rounded-full px-1.5 text-[10px] font-semibold leading-4",
 		style: {
@@ -22176,7 +22254,7 @@ function K_({ color: e, children: t }) {
 		children: t
 	});
 }
-function q_() {
+function J_() {
 	return /* @__PURE__ */ C("svg", {
 		width: 10,
 		height: 10,
@@ -22190,7 +22268,7 @@ function q_() {
 		})
 	});
 }
-function J_({ color: e }) {
+function Y_({ color: e }) {
 	return /* @__PURE__ */ w("svg", {
 		width: 11,
 		height: 11,
@@ -22215,7 +22293,7 @@ function J_({ color: e }) {
 		})]
 	});
 }
-function Y_({ color: e }) {
+function X_({ color: e }) {
 	return /* @__PURE__ */ w("svg", {
 		width: 11,
 		height: 11,
@@ -22259,16 +22337,16 @@ function Y_({ color: e }) {
 		]
 	});
 }
-var X_ = {
+var Z_ = {
 	border: "1px solid var(--border)",
 	borderRadius: 6,
 	background: "var(--card)",
 	minWidth: 0,
 	overflow: "hidden"
 };
-function Z_({ name: e, locked: t, children: n }) {
+function Q_({ name: e, locked: t, children: n }) {
 	return /* @__PURE__ */ w("div", {
-		style: X_,
+		style: Z_,
 		className: "flex-1 text-[11px] leading-4",
 		children: [/* @__PURE__ */ w("div", {
 			className: "flex items-center gap-1 px-2 py-1 font-semibold",
@@ -22277,7 +22355,7 @@ function Z_({ name: e, locked: t, children: n }) {
 				borderBottom: "1px solid var(--border)",
 				color: "var(--text)"
 			},
-			children: [t && /* @__PURE__ */ C(q_, {}), /* @__PURE__ */ C("span", {
+			children: [t && /* @__PURE__ */ C(J_, {}), /* @__PURE__ */ C("span", {
 				className: "truncate",
 				children: e
 			})]
@@ -22287,7 +22365,7 @@ function Z_({ name: e, locked: t, children: n }) {
 		})]
 	});
 }
-function Q_({ icon: e, title: t, pill: n, sub: r }) {
+function $_({ icon: e, title: t, pill: n, sub: r }) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-0.5 px-2 py-1",
 		style: { borderTop: "1px solid var(--border)" },
@@ -22308,30 +22386,30 @@ function Q_({ icon: e, title: t, pill: n, sub: r }) {
 		})]
 	});
 }
-function $_() {
+function ev() {
 	return /* @__PURE__ */ w("div", {
 		"aria-hidden": "true",
 		children: [/* @__PURE__ */ w("div", {
 			className: "flex gap-3",
-			children: [/* @__PURE__ */ C(Z_, {
+			children: [/* @__PURE__ */ C(Q_, {
 				name: "acme/plans",
 				locked: !0,
-				children: /* @__PURE__ */ C(Q_, {
-					icon: /* @__PURE__ */ C(J_, { color: W_ }),
+				children: /* @__PURE__ */ C($_, {
+					icon: /* @__PURE__ */ C(Y_, { color: G_ }),
 					title: "Add login",
-					pill: /* @__PURE__ */ C(K_, {
-						color: W_,
+					pill: /* @__PURE__ */ C(q_, {
+						color: G_,
 						children: "Open"
 					}),
 					sub: "#12 · spec 1.2"
 				})
-			}), /* @__PURE__ */ C(Z_, {
+			}), /* @__PURE__ */ C(Q_, {
 				name: "acme/app",
-				children: /* @__PURE__ */ C(Q_, {
-					icon: /* @__PURE__ */ C(Y_, { color: G_ }),
+				children: /* @__PURE__ */ C($_, {
+					icon: /* @__PURE__ */ C(X_, { color: K_ }),
 					title: "Add login",
-					pill: /* @__PURE__ */ C(K_, {
-						color: G_,
+					pill: /* @__PURE__ */ C(q_, {
+						color: K_,
 						children: "Merged"
 					}),
 					sub: "branch avoozl/1.2"
@@ -22363,25 +22441,25 @@ function $_() {
 		})]
 	});
 }
-function ev() {
+function tv() {
 	return /* @__PURE__ */ C("div", {
 		className: "flex",
 		"aria-hidden": "true",
-		children: /* @__PURE__ */ w(Z_, {
+		children: /* @__PURE__ */ w(Q_, {
 			name: "acme/app",
-			children: [/* @__PURE__ */ C(Q_, {
-				icon: /* @__PURE__ */ C(J_, { color: W_ }),
+			children: [/* @__PURE__ */ C($_, {
+				icon: /* @__PURE__ */ C(Y_, { color: G_ }),
 				title: "Add login",
-				pill: /* @__PURE__ */ C(K_, {
-					color: W_,
+				pill: /* @__PURE__ */ C(q_, {
+					color: G_,
 					children: "Open"
 				}),
 				sub: "#12 · spec 1.2"
-			}), /* @__PURE__ */ C(Q_, {
-				icon: /* @__PURE__ */ C(Y_, { color: G_ }),
+			}), /* @__PURE__ */ C($_, {
+				icon: /* @__PURE__ */ C(X_, { color: K_ }),
 				title: "Add login",
-				pill: /* @__PURE__ */ C(K_, {
-					color: G_,
+				pill: /* @__PURE__ */ C(q_, {
+					color: K_,
 					children: "Merged"
 				}),
 				sub: /* @__PURE__ */ w(S, { children: ["body: ", /* @__PURE__ */ C("code", { children: "Closes #12" })] })
@@ -22389,25 +22467,25 @@ function ev() {
 		})
 	});
 }
-function tv() {
+function nv() {
 	return /* @__PURE__ */ C("div", {
 		className: "flex",
 		"aria-hidden": "true",
-		children: /* @__PURE__ */ w(Z_, {
+		children: /* @__PURE__ */ w(Q_, {
 			name: "This Mac · Avoozl workspace",
-			children: [/* @__PURE__ */ C(Q_, {
-				icon: /* @__PURE__ */ C(J_, { color: W_ }),
+			children: [/* @__PURE__ */ C($_, {
+				icon: /* @__PURE__ */ C(Y_, { color: G_ }),
 				title: "Add login",
-				pill: /* @__PURE__ */ C(K_, {
-					color: G_,
+				pill: /* @__PURE__ */ C(q_, {
+					color: K_,
 					children: "Done"
 				}),
 				sub: "task 1.2 · in the database"
-			}), /* @__PURE__ */ C(Q_, {
-				icon: /* @__PURE__ */ C(Y_, { color: G_ }),
+			}), /* @__PURE__ */ C($_, {
+				icon: /* @__PURE__ */ C(X_, { color: K_ }),
 				title: "avoozl/1.2 → main",
-				pill: /* @__PURE__ */ C(K_, {
-					color: G_,
+				pill: /* @__PURE__ */ C(q_, {
+					color: K_,
 					children: "Merged"
 				}),
 				sub: "merged in your checkout"
@@ -22415,35 +22493,35 @@ function tv() {
 		})
 	});
 }
-var nv = {
-	local: tv,
-	"plans-repo": $_,
-	"single-repo": ev
-}, rv = {
+var rv = {
+	local: nv,
+	"plans-repo": ev,
+	"single-repo": tv
+}, iv = {
 	local: "A worker chat codes the task, Avoozl checks it and merges the branch on this Mac. Nothing is sent to GitHub.",
 	"plans-repo": "The pull request merges from the linked branch; GitHub closes the private issue. The code repository never names the plans repository.",
 	"single-repo": "The pull request says Closes #12; GitHub closes the issue when it merges."
-}, iv = {
+}, av = {
 	local: Ce,
 	"plans-repo": De,
 	"single-repo": fe
 };
-function av(e) {
+function ov(e) {
 	let t = e.idPrefix ?? "avoozl-mode", n = Ya(e.value);
 	return /* @__PURE__ */ C("div", {
 		"data-mode-picker": !0,
-		children: /* @__PURE__ */ C(wd, {
+		children: /* @__PURE__ */ C(Td, {
 			name: t,
 			label: "Where tasks live",
 			value: n,
 			onChange: (t) => e.onChange(t),
 			sections: Ja.map((t) => {
-				let r = nv[t.mode];
+				let r = rv[t.mode];
 				return {
 					key: t.mode,
 					title: t.title,
 					line: t.line,
-					icon: iv[t.mode],
+					icon: av[t.mode],
 					description: /* @__PURE__ */ w("div", {
 						className: "flex min-w-0 flex-col gap-3",
 						"data-mode-options": t.mode,
@@ -22455,7 +22533,7 @@ function av(e) {
 								style: { background: "var(--bg-elevated, transparent)" },
 								children: [/* @__PURE__ */ C(r, {}), /* @__PURE__ */ C("p", {
 									className: "mt-2 text-[11px] text-muted",
-									children: rv[t.mode]
+									children: iv[t.mode]
 								})]
 							}), /* @__PURE__ */ w("div", {
 								className: "flex flex-col gap-2 text-xs",
@@ -22487,7 +22565,7 @@ function av(e) {
 	});
 }
 // kirocrew-app/ui/src/Walkthrough.tsx
-function ov(e) {
+function sv(e) {
 	let [t, n] = d(0), r = e.steps[t], i = e.steps.length - 1, a = (e) => n(Math.max(0, Math.min(i, e)));
 	return /* @__PURE__ */ w("section", {
 		"aria-roledescription": "walkthrough",
@@ -22603,7 +22681,7 @@ function ov(e) {
 		]
 	});
 }
-function sv(e) {
+function cv(e) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-2",
 		children: [/* @__PURE__ */ C("div", {
@@ -22630,11 +22708,11 @@ function sv(e) {
 	});
 }
 // kirocrew-app/ui/src/CoderPicker.tsx
-var cv = [
+var lv = [
 	{
 		title: "A task becomes ready",
 		text: "When everything it waits on is done, Avoozl adds the repository's ready label to its issue.",
-		picture: /* @__PURE__ */ C(sv, {
+		picture: /* @__PURE__ */ C(cv, {
 			boxes: ["Waits on", "Ready label"],
 			on: 1,
 			note: "Scope the crew to this exact label in Issue Radar."
@@ -22643,7 +22721,7 @@ var cv = [
 	{
 		title: "Issue Radar takes it",
 		text: "The crew scoped to that label claims the issue and codes it in its own session.",
-		picture: /* @__PURE__ */ C(sv, {
+		picture: /* @__PURE__ */ C(cv, {
 			boxes: [
 				"Ready label",
 				"Crew claims",
@@ -22656,7 +22734,7 @@ var cv = [
 	{
 		title: "A pull request with Closes #N",
 		text: "The crew opens a pull request that names the issue. Required checks and the review rule run on it.",
-		picture: /* @__PURE__ */ C(sv, {
+		picture: /* @__PURE__ */ C(cv, {
 			boxes: [
 				"Pull request",
 				"Checks",
@@ -22668,7 +22746,7 @@ var cv = [
 	{
 		title: "It merges",
 		text: "GitHub closes the issue when the pull request merges. Avoozl counts it done and starts what waited on it.",
-		picture: /* @__PURE__ */ C(sv, {
+		picture: /* @__PURE__ */ C(cv, {
 			boxes: [
 				"Merged",
 				"Issue closed",
@@ -22681,7 +22759,7 @@ var cv = [
 	{
 		title: "If you switch",
 		text: "The choice is per repository. Tasks already running stay with their crew. New tasks use the new coder after you save.",
-		picture: /* @__PURE__ */ C(sv, {
+		picture: /* @__PURE__ */ C(cv, {
 			boxes: [
 				"Issue Radar",
 				"Save",
@@ -22691,7 +22769,7 @@ var cv = [
 		})
 	}
 ];
-function lv(e) {
+function uv(e) {
 	let [t, n] = d(null), r = Ya(e.mode), i = e.value || oo(e.mode), a = io.filter((e) => e.modes.includes(r));
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-2.5",
@@ -22749,7 +22827,7 @@ function lv(e) {
 							}),
 							/* @__PURE__ */ C("div", {
 								"aria-hidden": "true",
-								children: /* @__PURE__ */ C(sv, { boxes: [...t.flow] })
+								children: /* @__PURE__ */ C(cv, { boxes: [...t.flow] })
 							}),
 							/* @__PURE__ */ w("div", {
 								className: "text-xs",
@@ -22788,44 +22866,44 @@ function lv(e) {
 				children: "Local only has no coder. A Radar crew needs a GitHub repository: attach one to code this repository's tasks."
 			}),
 			i === "issue-radar" && /* @__PURE__ */ C("div", { children: /* @__PURE__ */ C(Y, {
-				icon: ne,
+				icon: R,
 				onClick: () => n(t ? null : i),
 				"aria-label": t ? "Hide how this works" : "How does this work?",
 				children: t ? "Hide how this works" : "How does this work?"
 			}) }),
-			t && /* @__PURE__ */ C(ov, {
+			t && /* @__PURE__ */ C(sv, {
 				id: `${e.id}-walk`,
 				label: "How a Radar crew codes a task",
-				steps: cv,
+				steps: lv,
 				onClose: () => n(null)
 			})
 		]
 	});
 }
 // kirocrew-app/ui/src/ReleaseMode.tsx
-function uv(e) {
-	let t = Pl.includes(e.mode) ? e.mode : "automatic";
+function dv(e) {
+	let t = Fl.includes(e.mode) ? e.mode : "automatic";
 	return /* @__PURE__ */ C("div", {
 		"data-release-mode": !0,
-		children: /* @__PURE__ */ C(wd, {
+		children: /* @__PURE__ */ C(Td, {
 			name: `${e.id}-release`,
 			label: "Release mode",
 			value: t,
 			onChange: e.onMode,
-			sections: Pl.map((e) => ({
+			sections: Fl.map((e) => ({
 				key: e,
-				title: Fl[e].title,
-				line: Fl[e].line,
+				title: Il[e].title,
+				line: Il[e].line,
 				description: /* @__PURE__ */ C("p", {
 					className: "text-sm text-muted",
-					children: Fl[e].use
+					children: Il[e].use
 				})
 			}))
 		})
 	});
 }
 // src/work-split.mjs
-var dv = "Avoozl is for epics: approved goals that need many changes in a set order. Maintenance, triage and one-off pull request handling belong to Issue Radar crews or to your team's coder. Avoozl can hand each task of an epic to any coder.", fv = "If the work fits in one pull request, it is not an Avoozl job. If it needs a plan with an order, it is.", pv = {
+var fv = "Avoozl is for epics: approved goals that need many changes in a set order. Maintenance, triage and one-off pull request handling belong to Issue Radar crews or to your team's coder. Avoozl can hand each task of an epic to any coder.", pv = "If the work fits in one pull request, it is not an Avoozl job. If it needs a plan with an order, it is.", mv = {
 	create: {
 		color: "var(--ok)",
 		borderColor: "var(--ok)"
@@ -22838,13 +22916,13 @@ var dv = "Avoozl is for epics: approved goals that need many changes in a set or
 		color: "var(--muted)",
 		borderColor: "var(--border)"
 	}
-}, mv = [
+}, hv = [
 	["What to set up", "Avoozl reads GitHub first. Pick the extras; the mode, repositories and Project come from this tab."],
 	["Check each change", "Every write Avoozl would make on GitHub. It never deletes or renames anything."],
 	["Making the changes", "Avoozl makes them one at a time. Cancel stops before the next one."],
 	["Save the settings file", "Write the names GitHub gave back into .avoozl.json. Nothing is saved until you press Save."]
 ];
-function hv(e) {
+function gv(e) {
 	let { workspaceId: t, client: n, form: r } = e, [a, s] = d(0), [c, l] = d(e.first), [f, p] = d(!1), [m, h] = d(null), g = u(null), v = u(null), y = i(() => {
 		g.current ? (n.cancelSetup(t, g.current), e.onClose("Cancelled. Avoozl stops before its next write; check again to see what was made.")) : e.onClose(a === 3 ? void 0 : "Cancelled. Nothing was written.");
 	}, [
@@ -22891,7 +22969,7 @@ function hv(e) {
 		describedBy: "avoozl-setup-line",
 		boxRef: v,
 		attrs: { "data-setup-dialog": a },
-		title: mv[a][0],
+		title: hv[a][0],
 		onDismiss: y,
 		footer: /* @__PURE__ */ w(S, { children: [
 			/* @__PURE__ */ C(_, {
@@ -22942,7 +23020,7 @@ function hv(e) {
 			/* @__PURE__ */ C("ol", {
 				className: "flex flex-wrap gap-2 text-xs",
 				"aria-label": "Steps",
-				children: mv.map(([e], t) => /* @__PURE__ */ w("li", {
+				children: hv.map(([e], t) => /* @__PURE__ */ w("li", {
 					"aria-current": t === a ? "step" : void 0,
 					className: t === a ? "font-semibold" : "text-muted",
 					children: [
@@ -22955,7 +23033,7 @@ function hv(e) {
 			/* @__PURE__ */ C("div", { children: /* @__PURE__ */ C("p", {
 				id: "avoozl-setup-line",
 				className: "text-sm text-muted",
-				children: mv[a][1]
+				children: hv[a][1]
 			}) }),
 			a === 0 && /* @__PURE__ */ w("div", {
 				className: "flex flex-col gap-2 text-sm",
@@ -23040,7 +23118,7 @@ function hv(e) {
 								children: [
 									/* @__PURE__ */ C("span", {
 										className: "rounded-full border px-1.5 text-[10px] font-semibold",
-										style: pv[to(e)],
+										style: mv[to(e)],
 										children: to(e)
 									}),
 									/* @__PURE__ */ w("span", { children: [
@@ -23130,7 +23208,7 @@ function hv(e) {
 		]
 	});
 }
-function gv(e) {
+function _v(e) {
 	let { workspaceId: t, client: n, settings: r, shared: a } = e, [s, c] = d(() => ua(r.github)), l = {
 		...s,
 		...a,
@@ -23160,9 +23238,9 @@ function gv(e) {
 				className: "text-xs text-muted",
 				"data-scope-statement": "",
 				children: [
-					dv,
+					fv,
 					" ",
-					fv
+					pv
 				]
 			}),
 			T.kind === "checking" && /* @__PURE__ */ C("p", {
@@ -23251,7 +23329,7 @@ function gv(e) {
 				role: "status",
 				children: y
 			}),
-			_ && /* @__PURE__ */ C(hv, {
+			_ && /* @__PURE__ */ C(gv, {
 				workspaceId: t,
 				client: n,
 				form: l,
@@ -23269,7 +23347,7 @@ function gv(e) {
 	});
 }
 // kirocrew-app/ui/src/FieldBox.tsx
-function _v(e) {
+function vv(e) {
 	return /* @__PURE__ */ w("fieldset", {
 		"data-field-box": e.title,
 		className: "flex min-w-0 flex-col gap-2 rounded-lg",
@@ -23293,12 +23371,12 @@ function _v(e) {
 	});
 }
 // kirocrew-app/ui/src/radar-values-api.ts
-var vv = (e) => ({ read: (t, n) => e.post(W, {
+var yv = (e) => ({ read: (t, n) => e.post(W, {
 	operation: "radar.values",
 	input: { repository: n },
 	workspaceId: t
 }).then((e) => e.result) });
-function yv(e, t) {
+function bv(e, t) {
 	return e.status === "ok" ? {
 		checked: !0,
 		locked: !0,
@@ -23313,11 +23391,11 @@ function yv(e, t) {
 		badge: "Cannot verify"
 	};
 }
-function bv(e, t) {
-	return `${e.filter((e) => yv(e, t.has(e.id)).checked).length} of ${e.length} done`;
+function xv(e, t) {
+	return `${e.filter((e) => bv(e, t.has(e.id)).checked).length} of ${e.length} done`;
 }
 // kirocrew-app/ui/src/RadarValues.tsx
-function xv({ text: e, label: t }) {
+function Sv({ text: e, label: t }) {
 	let [n, r] = d(!1);
 	return /* @__PURE__ */ w(_, {
 		type: "button",
@@ -23325,7 +23403,7 @@ function xv({ text: e, label: t }) {
 		"data-copy": t,
 		onClick: () => void navigator.clipboard?.writeText(e).then(() => r(!0), () => r(!1)),
 		children: [
-			C(n ? M : R, {
+			C(n ? M : z, {
 				size: 14,
 				"aria-hidden": !0
 			}),
@@ -23334,8 +23412,8 @@ function xv({ text: e, label: t }) {
 		]
 	});
 }
-function Sv({ item: e, ticked: t, onTick: n }) {
-	let r = yv(e, t), i = `radar-value-${e.id}`;
+function Cv({ item: e, ticked: t, onTick: n }) {
+	let r = bv(e, t), i = `radar-value-${e.id}`;
 	return /* @__PURE__ */ w("li", {
 		className: "flex min-w-0 flex-col gap-1 border-t py-2 first:border-t-0",
 		style: { borderColor: "var(--border)" },
@@ -23371,7 +23449,7 @@ function Sv({ item: e, ticked: t, onTick: n }) {
 					style: { overflowWrap: "anywhere" },
 					"data-value": !0,
 					children: e.value
-				}), /* @__PURE__ */ C(xv, {
+				}), /* @__PURE__ */ C(Sv, {
 					text: e.value,
 					label: e.label
 				})]
@@ -23387,12 +23465,12 @@ function Sv({ item: e, ticked: t, onTick: n }) {
 		]
 	});
 }
-function Cv(e) {
+function wv(e) {
 	let t = K(), [n, r] = d(e.repositories[0] ?? ""), [a, s] = d(null), [c, l] = d(null), [u, f] = d(!1), [p, m] = d(/* @__PURE__ */ new Set()), h = i(async () => {
 		if (n) {
 			f(!0), l(null);
 			try {
-				s(await vv(t).read(e.workspaceId, n));
+				s(await yv(t).read(e.workspaceId, n));
 			} catch (e) {
 				l(G(e));
 			} finally {
@@ -23406,7 +23484,7 @@ function Cv(e) {
 	]);
 	return o(() => {
 		m(/* @__PURE__ */ new Set()), h();
-	}, [h]), e.repositories.length ? /* @__PURE__ */ w(_v, {
+	}, [h]), e.repositories.length ? /* @__PURE__ */ w(vv, {
 		title: "Set up Issue Radar",
 		blurb: "Only you can enter these in Issue Radar. Copy each one there. Avoozl writes none of them.",
 		children: [
@@ -23441,7 +23519,7 @@ function Cv(e) {
 				/* @__PURE__ */ C("p", {
 					className: "text-xs text-muted",
 					"data-progress": !0,
-					children: bv(a.items, p)
+					children: xv(a.items, p)
 				}),
 				/* @__PURE__ */ w("p", {
 					className: "text-xs text-muted",
@@ -23451,7 +23529,7 @@ function Cv(e) {
 				/* @__PURE__ */ C("ul", {
 					className: "flex min-w-0 flex-col",
 					"data-radar-values": !0,
-					children: a.items.map((e) => /* @__PURE__ */ C(Sv, {
+					children: a.items.map((e) => /* @__PURE__ */ C(Cv, {
 						item: e,
 						ticked: p.has(e.id),
 						onTick: (t) => m((n) => {
@@ -23480,7 +23558,7 @@ function Cv(e) {
 	}) : null;
 }
 // kirocrew-app/ui/src/CrewsRulesSettings.tsx
-function wv(e) {
+function Tv(e) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex min-w-0 flex-col gap-1",
 		children: [
@@ -23518,25 +23596,25 @@ function wv(e) {
 		]
 	});
 }
-function Tv(e, t) {
+function Ev(e, t) {
 	return t === "ready" ? e.managedLabels.ready ?? "" : e[t];
 }
-function Ev(e, t, n) {
+function Dv(e, t, n) {
 	return t === "ready" ? { managedLabels: {
 		...e.managedLabels,
 		ready: n
 	} } : { [t]: n };
 }
-function Dv(e) {
+function Ov(e) {
 	let { id: t, repository: n, set: r } = e;
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-4",
 		"data-crews-rules": !0,
 		children: [
-			/* @__PURE__ */ C(_v, {
+			/* @__PURE__ */ C(vv, {
 				title: "Review rules",
 				blurb: "Text Set up adds to AGENTS.md in a pull request, so crews read it for every issue.",
-				children: /* @__PURE__ */ C(wd, {
+				children: /* @__PURE__ */ C(Td, {
 					name: `${t}-rules-mode`,
 					label: "Review rules",
 					value: yo(n),
@@ -23581,7 +23659,7 @@ function Dv(e) {
 					}]
 				})
 			}),
-			/* @__PURE__ */ C(_v, {
+			/* @__PURE__ */ C(vv, {
 				title: "When a crew's pull request conflicts in source code",
 				blurb: "Crews never resolve source conflicts. Avoozl can start one resolver chat that merges the base into the branch, keeps both sides and pushes one merge commit.",
 				children: /* @__PURE__ */ w("div", {
@@ -23589,7 +23667,7 @@ function Dv(e) {
 					"data-conflicts": !0,
 					children: [/* @__PURE__ */ C("div", {
 						id: `${t}-on-source-conflict`,
-						children: /* @__PURE__ */ C(wd, {
+						children: /* @__PURE__ */ C(Td, {
 							name: `${t}-on-source-conflict`,
 							label: "On a source conflict",
 							value: n.onSourceConflict || po.onSourceConflict,
@@ -23600,7 +23678,7 @@ function Dv(e) {
 								line: `${mo[e]}.${!n.onSourceConflict && e === po.onSourceConflict ? " Not set on this repository; this is the default." : ""}`
 							}))
 						})
-					}), /* @__PURE__ */ C(wv, {
+					}), /* @__PURE__ */ C(Tv, {
 						id: `${t}-max-attempts`,
 						label: "Attempts per conflict",
 						raw: "conflicts.maxAttempts",
@@ -23612,12 +23690,12 @@ function Dv(e) {
 					})]
 				})
 			}),
-			/* @__PURE__ */ C(_v, {
+			/* @__PURE__ */ C(vv, {
 				title: "How crew pull requests land",
 				blurb: "The merge method Avoozl uses when it arms auto-merge. A conflict fix still merges the base into the branch; with squash that merge commit never reaches the base.",
 				children: /* @__PURE__ */ C("div", {
 					id: `${t}-merge-method`,
-					children: /* @__PURE__ */ C(wd, {
+					children: /* @__PURE__ */ C(Td, {
 						name: `${t}-merge-method`,
 						label: "Merge method",
 						value: n.mergeMethod || "squash",
@@ -23639,14 +23717,14 @@ function Dv(e) {
 					children: [/* @__PURE__ */ w("p", {
 						className: "text-xs text-muted",
 						children: ["Labels Avoozl reads or writes for its own work. Each must differ from the others and from Issue Radar's labels. ", _o]
-					}), uo.map((e) => /* @__PURE__ */ C(wv, {
+					}), uo.map((e) => /* @__PURE__ */ C(Tv, {
 						id: `${t}-label-${e.key}`,
 						label: e.label,
 						raw: e.raw,
 						help: `${e.job} ${e.writer}`,
-						value: Tv(n, e.key),
+						value: Ev(n, e.key),
 						fallback: lo[e.key],
-						onChange: (t) => r(Ev(n, e.key, t))
+						onChange: (t) => r(Dv(n, e.key, t))
 					}, e.key))]
 				})
 			})
@@ -23654,17 +23732,17 @@ function Dv(e) {
 	});
 }
 // kirocrew-app/ui/src/workflow-map.ts
-var Ov = {
+var kv = {
 	you: "You",
 	radar: "Radar crew",
 	avoozl: "Avoozl",
 	github: "GitHub"
-}, kv = {
+}, Av = {
 	you: "var(--accent)",
 	radar: "var(--tile-purple, var(--aim))",
 	avoozl: "var(--ok)",
 	github: "var(--tile-orange, var(--warning))"
-}, Av = {
+}, jv = {
 	"maint-crew": "not proven live",
 	"epic-punt": "not proven live",
 	"epic-plan-label": "fake-tested",
@@ -23678,7 +23756,7 @@ var Ov = {
 	"review-chat": "not built",
 	"review-find": "not built",
 	"review-answer": "not proven live"
-}, jv = {
+}, Mv = {
 	coder: "mode",
 	capacity: "mode",
 	releaseMode: "mode",
@@ -23692,10 +23770,10 @@ var Ov = {
 	needsHuman: "triggers",
 	actors: "triggers",
 	permission: "triggers"
-}, Mv = (e) => ({
-	tab: jv[e],
+}, Nv = (e) => ({
+	tab: Mv[e],
 	field: e
-}), Nv = {
+}), Pv = {
 	claim: "crew: in progress",
 	needsHuman: "crew: needs human",
 	plan: "avoozl:plan",
@@ -23704,19 +23782,19 @@ var Ov = {
 	conflict: "avoozl:merge-conflict",
 	review: "avoozl:review",
 	drafted: "avoozl:drafted"
-}, Pv = (e, t, n, r) => {
+}, Fv = (e, t, n, r) => {
 	let i = e.trim();
 	return {
 		label: n,
 		text: i || t,
 		source: i ? "set" : "default",
-		...r ? { jump: Mv(r) } : {}
+		...r ? { jump: Nv(r) } : {}
 	};
-}, Fv = (e) => {
+}, Iv = (e) => {
 	let t = e.rest.radar;
 	return t && typeof t == "object" && !Array.isArray(t) ? t : {};
-}, Iv = (e, t, n, r) => {
-	let i = Fv(e)[t];
+}, Lv = (e, t, n, r) => {
+	let i = Iv(e)[t];
 	return typeof i == "string" && i.trim() ? {
 		label: r,
 		text: i.trim(),
@@ -23726,28 +23804,28 @@ var Ov = {
 		text: n,
 		source: "placeholder"
 	};
-}, Lv = (e) => Av[e] ? { tag: Av[e] } : {};
-function Rv(e) {
-	let { repository: t, mode: n } = e, r = Xa(n), i = t.coder || oo(n), a = i === "issue-radar", o = Pv(t.managedLabels.ready ?? "", Nv.ready, "Ready label", "ready"), s = Pv(t.planLabel, Nv.plan, "Planning label", "plan"), c = Pv(t.approvalLabel, Nv.approval, "Approval label", "approval"), l = Pv(t.conflictLabel, Nv.conflict, "Conflict label", "conflict"), u = {
+}, Rv = (e) => jv[e] ? { tag: jv[e] } : {};
+function zv(e) {
+	let { repository: t, mode: n } = e, r = Xa(n), i = t.coder || oo(n), a = i === "issue-radar", o = Fv(t.managedLabels.ready ?? "", Pv.ready, "Ready label", "ready"), s = Fv(t.planLabel, Pv.plan, "Planning label", "plan"), c = Fv(t.approvalLabel, Pv.approval, "Approval label", "approval"), l = Fv(t.conflictLabel, Pv.conflict, "Conflict label", "conflict"), u = {
 		label: "On a source conflict",
 		text: `${t.onSourceConflict.trim() || "fix"}${t.maxAttempts.trim() ? ` (up to ${t.maxAttempts.trim()})` : ""}`,
 		source: t.onSourceConflict.trim() || t.maxAttempts.trim() ? "set" : "default",
-		jump: Mv("onSourceConflict")
+		jump: Nv("onSourceConflict")
 	}, d = {
 		label: "Merge method",
 		text: t.mergeMethod.trim() || "squash",
 		source: t.mergeMethod.trim() ? "set" : "default",
-		jump: Mv("mergeMethod")
-	}, f = Pv(t.crewLabels.claim ?? "", Nv.claim, "Claim label", "claim"), p = Pv(t.crewLabels.needsHuman ?? "", Nv.needsHuman, "Needs-human label", "needsHuman"), m = Iv(t, "reviewLabel", Nv.review, "Review label"), h = Iv(t, "draftedLabel", Nv.drafted, "Drafted label"), g = t.allowedActors.trim() ? {
+		jump: Nv("mergeMethod")
+	}, f = Fv(t.crewLabels.claim ?? "", Pv.claim, "Claim label", "claim"), p = Fv(t.crewLabels.needsHuman ?? "", Pv.needsHuman, "Needs-human label", "needsHuman"), m = Lv(t, "reviewLabel", Pv.review, "Review label"), h = Lv(t, "draftedLabel", Pv.drafted, "Drafted label"), g = t.allowedActors.trim() ? {
 		label: "Allowed people",
 		text: t.allowedActors.trim(),
 		source: "set",
-		jump: Mv("actors")
+		jump: Nv("actors")
 	} : {
 		label: "Allowed people",
 		text: `anyone with ${t.minimumPermission.trim() || "write"} access`,
 		source: t.minimumPermission.trim() ? "set" : "default",
-		jump: Mv("permission")
+		jump: Nv("permission")
 	}, _ = {
 		label: "Who codes",
 		text: {
@@ -23755,17 +23833,17 @@ function Rv(e) {
 			worker: "Avoozl worker chats"
 		}[i] ?? i,
 		source: t.coder ? "set" : "default",
-		jump: Mv("coder")
+		jump: Nv("coder")
 	}, v = {
 		label: "Release N",
 		text: t.releaseCapacity.trim() || "2",
 		source: t.releaseCapacity.trim() ? "set" : "default",
-		jump: Mv("capacity")
+		jump: Nv("capacity")
 	}, y = {
 		label: "Release mode",
 		text: t.releaseMode.trim() || "automatic",
 		source: t.releaseMode.trim() ? "set" : "default",
-		jump: Mv("releaseMode")
+		jump: Nv("releaseMode")
 	}, b = {
 		label: "Merge",
 		text: e.ship === "manual" ? "you merge" : "auto-merge",
@@ -23914,7 +23992,7 @@ function Rv(e) {
 				title: "The crew claims, fixes, opens a PR",
 				text: "It runs CI on the pull request.",
 				values: [],
-				...Lv("maint-crew")
+				...Rv("maint-crew")
 			},
 			{
 				...w,
@@ -23927,7 +24005,7 @@ function Rv(e) {
 		title: "Crews build",
 		text: "Each crew takes one ready sub-issue and opens a pull request.",
 		values: [_],
-		...Lv("epic-build-radar")
+		...Rv("epic-build-radar")
 	} : {
 		key: "epic-build-worker",
 		who: "avoozl",
@@ -23944,21 +24022,21 @@ function Rv(e) {
 			v,
 			y
 		],
-		...Lv("epic-release")
+		...Rv("epic-release")
 	} : {
 		key: "epic-start",
 		who: "avoozl",
 		title: "The tick starts ready tasks in graph order",
 		text: "A task starts when its blockers are done.",
 		values: [],
-		...Lv("epic-start")
+		...Rv("epic-start")
 	}, O = {
 		key: "epic-merge",
 		who: e.ship === "manual" ? "you" : "avoozl",
 		title: e.ship === "manual" ? "You merge" : "Auto-merge",
 		text: e.ship === "manual" ? "Avoozl shows a Ready to merge row once the checks pass." : "Avoozl arms auto-merge; GitHub merges when its rules pass.",
 		values: e.ship === "manual" ? [b] : [b, d],
-		...Lv("epic-merge")
+		...Rv("epic-merge")
 	}, k = {
 		key: "epic-conflict-fix",
 		who: "avoozl",
@@ -23987,7 +24065,7 @@ function Rv(e) {
 						title: "The crew punts",
 						text: "It adds its needs-human label and stops.",
 						values: [p],
-						...Lv("epic-punt"),
+						...Rv("epic-punt"),
 						...a ? {} : { muted: "Only an Issue Radar crew punts; you can add the planning label yourself." }
 					},
 					{
@@ -23996,7 +24074,7 @@ function Rv(e) {
 						title: "You add the planning label",
 						text: "Only people the repository allows count.",
 						values: [s, g],
-						...Lv("epic-plan-label")
+						...Rv("epic-plan-label")
 					},
 					{
 						key: "epic-draft",
@@ -24004,7 +24082,7 @@ function Rv(e) {
 						title: "Avoozl drafts the spec",
 						text: "A spec with tasks and their order.",
 						values: [],
-						...Lv("epic-draft")
+						...Rv("epic-draft")
 					},
 					{
 						key: "epic-approve",
@@ -24012,7 +24090,7 @@ function Rv(e) {
 						title: "You approve",
 						text: "Add the approval label, or approve in Avoozl or a chat.",
 						values: [c],
-						...Lv("epic-approve")
+						...Rv("epic-approve")
 					},
 					{
 						key: "epic-claim",
@@ -24020,7 +24098,7 @@ function Rv(e) {
 						title: "Avoozl claims the parent and writes the sub-issues",
 						text: "It adds blocked-by links, so the order lives on GitHub.",
 						values: [f],
-						...Lv("epic-claim")
+						...Rv("epic-claim")
 					},
 					D,
 					E,
@@ -24053,7 +24131,7 @@ function Rv(e) {
 						title: "A review chat reads the pull request",
 						text: "Read only. It posts one pending review under your login and swaps the label.",
 						values: [h],
-						...Lv("review-chat")
+						...Rv("review-chat")
 					},
 					{
 						key: "review-find",
@@ -24061,7 +24139,7 @@ function Rv(e) {
 						title: "You find the draft",
 						text: "In Needs you here, or on GitHub with a search for the drafted label.",
 						values: [h],
-						...Lv("review-find")
+						...Rv("review-find")
 					},
 					{
 						key: "review-submit",
@@ -24076,7 +24154,7 @@ function Rv(e) {
 						title: "The crew answers on its pull request",
 						text: "Only when a crew opened it.",
 						values: [],
-						...Lv("review-answer"),
+						...Rv("review-answer"),
 						...a ? {} : { muted: "Only an Issue Radar crew answers a review itself." }
 					}
 				]
@@ -24085,7 +24163,7 @@ function Rv(e) {
 		labels: S
 	};
 }
-var zv = (e, t) => ({
+var Bv = (e, t) => ({
 	coder: `[id^="${e}-coder-"][aria-checked="true"], [id^="${e}-coder-"]`,
 	capacity: `#${e}-release-capacity`,
 	releaseMode: "[data-release-mode] input:checked, [data-release-mode] input",
@@ -24099,19 +24177,19 @@ var zv = (e, t) => ({
 	needsHuman: `#${e}-crew-needsHuman`,
 	actors: `#${e}-actors`,
 	permission: `#${e}-permission`
-})[t], Bv = "How work flows through this repository, read from its saved settings. A value in a card opens the field that sets it.";
-function Vv(e, t) {
-	let n = document.querySelector(zv(e, t.field));
+})[t], Vv = "How work flows through this repository, read from its saved settings. A value in a card opens the field that sets it.";
+function Hv(e, t) {
+	let n = document.querySelector(Bv(e, t.field));
 	if (!n) return !1;
 	for (let e = n.parentElement; e; e = e.parentElement) e instanceof HTMLDetailsElement && (e.open = !0);
 	return n.scrollIntoView({ block: "center" }), n.focus(), !0;
 }
-var Hv = {
+var Uv = {
 	set: "",
 	default: " (default)",
 	placeholder: " (planned name, no setting yet)"
 };
-function Uv({ value: e, onJump: t }) {
+function Wv({ value: e, onJump: t }) {
 	return /* @__PURE__ */ w("span", {
 		className: "text-xs",
 		"data-value": e.label,
@@ -24141,7 +24219,7 @@ function Uv({ value: e, onJump: t }) {
 			}),
 			/* @__PURE__ */ C("span", {
 				className: "text-muted",
-				children: Hv[e.source]
+				children: Uv[e.source]
 			}),
 			e.elsewhere && /* @__PURE__ */ w("span", {
 				className: "text-muted",
@@ -24154,13 +24232,13 @@ function Uv({ value: e, onJump: t }) {
 		]
 	});
 }
-function Wv({ card: e, off: t, onJump: n }) {
+function Gv({ card: e, off: t, onJump: n }) {
 	let r = t || !!e.muted;
 	return /* @__PURE__ */ w("li", {
 		className: "flex min-w-0 flex-col gap-1 rounded border p-2 text-sm",
 		style: {
 			borderColor: "var(--border)",
-			borderInlineStartColor: kv[e.who],
+			borderInlineStartColor: Av[e.who],
 			borderInlineStartWidth: 4,
 			background: "var(--card, transparent)",
 			opacity: r ? .65 : 1,
@@ -24175,9 +24253,9 @@ function Wv({ card: e, off: t, onJump: n }) {
 				className: "flex flex-wrap items-center gap-x-2 gap-y-0.5",
 				children: [/* @__PURE__ */ C("span", {
 					className: "text-xs font-semibold",
-					style: { color: kv[e.who] },
+					style: { color: Av[e.who] },
 					"data-who-tag": !0,
-					children: Ov[e.who]
+					children: kv[e.who]
 				}), e.tag && /* @__PURE__ */ C("span", {
 					className: "rounded border px-1 text-[11px] text-muted",
 					style: { borderColor: "var(--border)" },
@@ -24193,7 +24271,7 @@ function Wv({ card: e, off: t, onJump: n }) {
 				className: "text-xs text-muted",
 				children: e.text
 			}),
-			e.values.map((e) => /* @__PURE__ */ C(Uv, {
+			e.values.map((e) => /* @__PURE__ */ C(Wv, {
 				value: e,
 				onJump: n
 			}, e.label)),
@@ -24205,7 +24283,7 @@ function Wv({ card: e, off: t, onJump: n }) {
 		]
 	});
 }
-function Gv({ lane: e, onJump: n }) {
+function Kv({ lane: e, onJump: n }) {
 	return /* @__PURE__ */ w("section", {
 		"aria-label": `${e.title} lane`,
 		className: "flex flex-col gap-1.5",
@@ -24227,7 +24305,7 @@ function Gv({ lane: e, onJump: n }) {
 					"aria-hidden": "true",
 					className: "self-center text-muted",
 					children: "→"
-				}), /* @__PURE__ */ C(Wv, {
+				}), /* @__PURE__ */ C(Gv, {
 					card: r,
 					off: !!e.muted,
 					onJump: n
@@ -24236,12 +24314,12 @@ function Gv({ lane: e, onJump: n }) {
 		]
 	});
 }
-function Kv(e) {
+function qv(e) {
 	let t = K(), n = i(() => t.post(W, {
 		operation: "delivery.settings.get",
 		input: {},
 		workspaceId: e.workspaceId
-	}).then((e) => e.result), [t, e.workspaceId]), { value: r } = Mo(e.workspaceId, n), a = r?.delivery.ship ?? (r ? "auto-merge" : null), o = l(() => Rv({
+	}).then((e) => e.result), [t, e.workspaceId]), { value: r } = Mo(e.workspaceId, n), a = r?.delivery.ship ?? (r ? "auto-merge" : null), o = l(() => zv({
 		mode: e.mode,
 		repository: e.repository,
 		ship: a,
@@ -24259,9 +24337,9 @@ function Kv(e) {
 			/* @__PURE__ */ C("p", {
 				className: "text-xs text-muted",
 				"data-workflow-blurb": !0,
-				children: Bv
+				children: Vv
 			}),
-			o.lanes.map((t) => /* @__PURE__ */ C(Gv, {
+			o.lanes.map((t) => /* @__PURE__ */ C(Kv, {
 				lane: t,
 				onJump: e.onJump
 			}, t.key)),
@@ -24315,13 +24393,13 @@ function Kv(e) {
 										children: t.name
 									}), /* @__PURE__ */ C("span", {
 										className: "text-muted",
-										children: Hv[t.source]
+										children: Uv[t.source]
 									})]
 								}),
 								/* @__PURE__ */ C("td", {
 									className: "pe-2 align-top",
-									style: { color: kv[t.writer] },
-									children: Ov[t.writer]
+									style: { color: Av[t.writer] },
+									children: kv[t.writer]
 								}),
 								/* @__PURE__ */ C("td", {
 									className: "align-top",
@@ -24351,7 +24429,7 @@ function Kv(e) {
 	});
 }
 // kirocrew-app/ui/src/WorkspaceView.tsx
-function qv(e) {
+function Jv(e) {
 	return /* @__PURE__ */ w("label", {
 		htmlFor: e.id,
 		className: "flex flex-col gap-1 text-sm",
@@ -24364,12 +24442,12 @@ function qv(e) {
 		})]
 	});
 }
-var Jv = {
+var Yv = {
 	info: "var(--muted)",
 	warn: "var(--text)",
 	error: "var(--danger)"
 };
-function Yv(e) {
+function Xv(e) {
 	let { workspace: t, selected: n } = e;
 	return /* @__PURE__ */ w("li", {
 		className: "flex items-start gap-1",
@@ -24437,7 +24515,7 @@ function Yv(e) {
 		})]
 	});
 }
-function Xv(e = {}) {
+function Zv(e = {}) {
 	let { onSelect: t, onListChange: n } = e, r = K(), a = l(() => Qe(r), [r]), s = l(() => Dt(r), [r]), [c, u] = d(null), [f, p] = d(null), [m, h] = d(e.selected ?? null), [g, y] = d(null), [b, x] = d(null), [T, E] = d(!1), [D, O] = d({
 		id: "",
 		root: "",
@@ -24550,7 +24628,7 @@ function Xv(e = {}) {
 					children: "No workspaces yet. Add one."
 				}) : /* @__PURE__ */ C("ul", {
 					className: "mt-2 flex flex-col gap-1",
-					children: f.items.map((e) => /* @__PURE__ */ C(Yv, {
+					children: f.items.map((e) => /* @__PURE__ */ C(Xv, {
 						workspace: e,
 						selected: e.id === m,
 						onSelect: () => h(e.id),
@@ -24621,7 +24699,7 @@ function Xv(e = {}) {
 							e.preventDefault(), P("add");
 						},
 						children: [
-							/* @__PURE__ */ C(qv, {
+							/* @__PURE__ */ C(Jv, {
 								id: "avoozl-ws-root",
 								label: "Folder (absolute path)",
 								value: D.root,
@@ -24632,7 +24710,7 @@ function Xv(e = {}) {
 									root: e
 								})
 							}),
-							/* @__PURE__ */ C(qv, {
+							/* @__PURE__ */ C(Jv, {
 								id: "avoozl-ws-id",
 								label: "Short ID",
 								value: D.id,
@@ -24643,7 +24721,7 @@ function Xv(e = {}) {
 									id: e
 								})
 							}),
-							/* @__PURE__ */ C(qv, {
+							/* @__PURE__ */ C(Jv, {
 								id: "avoozl-ws-name",
 								label: "Name (optional)",
 								value: D.name,
@@ -24778,7 +24856,7 @@ function Xv(e = {}) {
 										})
 									}), /* @__PURE__ */ C("span", {
 										className: "font-medium uppercase",
-										style: { color: Jv[e.level] },
+										style: { color: Yv[e.level] },
 										children: e.level
 									})]
 								}), /* @__PURE__ */ C("span", {
@@ -24852,7 +24930,7 @@ function Xv(e = {}) {
 	});
 }
 // kirocrew-app/ui/src/onboarding-api.ts
-var Zv = [
+var Qv = [
 	{
 		key: "folder",
 		title: "Pick folder",
@@ -24894,7 +24972,7 @@ var Zv = [
 		line: "What was done. Approve specs in Specs when you are ready."
 	}
 ];
-function Qv(e, t) {
+function $v(e, t) {
 	let n = t?.github ?? {}, r = typeof n.mode == "string" ? n.mode : "", i = typeof n.planningRepository == "string" ? n.planningRepository : "", a = r === "plans-repo" || r === "single-repo" ? r : e.github ? "single-repo" : "local";
 	return {
 		mode: r === "local" ? "local" : a,
@@ -24904,18 +24982,18 @@ function Qv(e, t) {
 		baseBranch: e.registered?.baseBranch ?? e.baseBranch
 	};
 }
-var $v = (e) => e !== "local";
-function ey(e) {
+var ey = (e) => e !== "local";
+function ty(e) {
 	return e.mode === "single-repo" || e.mode === "plans-repo" && e.isPlanning;
 }
-function ty(e, t) {
-	let n = ["folder", "mode"];
-	return $v(e.mode) && n.push("check"), n.push("setup", "import"), $v(e.mode) && ey(e) && t?.visibility === "public" && n.push("scan"), $v(e.mode) && n.push("issues"), n.push("finish"), n;
-}
 function ny(e, t) {
+	let n = ["folder", "mode"];
+	return ey(e.mode) && n.push("check"), n.push("setup", "import"), ey(e.mode) && ty(e) && t?.visibility === "public" && n.push("scan"), ey(e.mode) && n.push("issues"), n.push("finish"), n;
+}
+function ry(e, t) {
 	return /^[a-z][a-z0-9-]{1,60}$/.test(e.id.trim()) ? e.baseBranch.trim() ? e.mode === "local" ? null : t.github ? e.mode === "plans-repo" && !e.isPlanning && !/^[\w.-]+\/[\w.-]+$/.test(e.planningRepository.trim()) ? "Name the planning repository as owner/name." : e.mode === "plans-repo" && e.isPlanning && t.visibility === "public" ? "A planning repository must be private: its issues name specs and code repositories." : null : t.remote ? `${t.remote} is not a GitHub remote, so GitHub modes can't use this folder. Pick Local only.` : "This folder has no GitHub remote. Pick Local only, or add a GitHub remote first." : "Name the branch tasks land on." : "Give a short ID: lower-case letters, digits and dashes, starting with a letter.";
 }
-function ry(e, t, n) {
+function iy(e, t, n) {
 	let r = n?.github ?? {}, i = Object.keys(r.repositories ?? {}), a = e.isPlanning ? t.github : e.planningRepository.trim(), o = e.mode === "plans-repo" && e.isPlanning ? i : [...i, t.github];
 	return {
 		mode: e.mode,
@@ -24923,9 +25001,9 @@ function ry(e, t, n) {
 		repositories: [...new Set(o.filter((t) => t && t.toLowerCase() !== (e.mode === "plans-repo" ? a.toLowerCase() : "")))]
 	};
 }
-function iy(e, t, n, r) {
+function ay(e, t, n, r) {
 	let i = [], a = n?.github ?? {};
-	if ($v(e.mode)) {
+	if (ey(e.mode)) {
 		let e = r?.writes.length ?? 0;
 		i.push({
 			key: "github",
@@ -24939,15 +25017,15 @@ function iy(e, t, n, r) {
 			} : null
 		});
 	}
-	let o = $v(e.mode) ? !!r?.settings.changed : a.mode !== "local" && a.mode !== void 0;
+	let o = ey(e.mode) ? !!r?.settings.changed : a.mode !== "local" && a.mode !== void 0;
 	i.push({
 		key: "settings",
-		title: o ? `Save the mode${$v(e.mode) ? " and GitHub names" : ""} to .avoozl.json` : ".avoozl.json already matches",
-		detail: $v(e.mode) ? "The settings Set up GitHub proposed, shown in Check GitHub." : "Local only. Kept GitHub settings stay in the file, unused.",
+		title: o ? `Save the mode${ey(e.mode) ? " and GitHub names" : ""} to .avoozl.json` : ".avoozl.json already matches",
+		detail: ey(e.mode) ? "The settings Set up GitHub proposed, shown in Check GitHub." : "Local only. Kept GitHub settings stay in the file, unused.",
 		done: !o,
 		confirm: null
 	});
-	let s = ey(e) && $v(e.mode) ? t.github : null;
+	let s = ty(e) && ey(e.mode) ? t.github : null;
 	return i.push({
 		key: "register",
 		title: t.registered ? `${t.registered.id} is already added` : `Add ${e.id.trim()} to this workspace`,
@@ -24960,25 +25038,25 @@ function iy(e, t, n, r) {
 		} : null
 	}), i;
 }
-function ay(e, t, n) {
-	let r = $v(e.mode) ? t.github : null;
+function oy(e, t, n) {
+	let r = ey(e.mode) ? t.github : null;
 	return {
 		id: e.id.trim(),
 		localCheckout: t.root,
 		baseBranch: e.baseBranch.trim(),
 		...r ? { github: r } : {},
-		...r && ey(e) ? { issueAuthorization: !0 } : {},
+		...r && ty(e) ? { issueAuthorization: !0 } : {},
 		planning: e.mode === "plans-repo" ? e.isPlanning : e.mode === "local" && t.specs.length > 0 && !n
 	};
 }
-function oy(e, t) {
+function sy(e, t) {
 	return (e?.items ?? []).filter((e) => !e.root || e.root === t.root || t.specs.includes(e.name));
 }
-var sy = (e) => !!e.plan, cy = (e) => (e?.items ?? []).flatMap((e) => e.findings.map((t) => ({
+var cy = (e) => !!e.plan, ly = (e) => (e?.items ?? []).flatMap((e) => e.findings.map((t) => ({
 	spec: e.name,
 	...t
 })));
-function ly(e) {
+function uy(e) {
 	let t = e?.writes ?? [];
 	return {
 		create: t.filter((e) => e.kind === "issue.create"),
@@ -24986,7 +25064,7 @@ function ly(e) {
 		other: t.filter((e) => e.kind !== "issue.create" && e.kind !== "issue.update").length
 	};
 }
-function uy(e) {
+function dy(e) {
 	let t = async (t, n, r = {}) => (await e.post(W, {
 		operation: n,
 		input: r,
@@ -25014,7 +25092,7 @@ function uy(e) {
 	};
 }
 // kirocrew-app/ui/src/Onboard.tsx
-var dy = {
+var fy = {
 	create: {
 		color: "var(--ok)",
 		borderColor: "var(--ok)"
@@ -25027,19 +25105,19 @@ var dy = {
 		color: "var(--muted)",
 		borderColor: "var(--border)"
 	}
-}, fy = {
+}, py = {
 	local: Ce,
 	"plans-repo": De,
 	"single-repo": fe
 };
-function py({ kind: e }) {
+function my({ kind: e }) {
 	return /* @__PURE__ */ C("span", {
 		className: "rounded-full border px-1.5 text-[10px] font-semibold",
-		style: dy[e] ?? dy.keep,
+		style: fy[e] ?? fy.keep,
 		children: e
 	});
 }
-function my({ rows: e }) {
+function hy({ rows: e }) {
 	return /* @__PURE__ */ C("dl", {
 		className: "grid gap-x-3 gap-y-1 text-sm",
 		style: { gridTemplateColumns: "max-content minmax(0, 1fr)" },
@@ -25056,7 +25134,7 @@ function my({ rows: e }) {
 		}, e))
 	});
 }
-function hy({ children: e }) {
+function gy({ children: e }) {
 	return /* @__PURE__ */ w("p", {
 		className: "flex items-center gap-1.5 text-sm",
 		"data-step-done": !0,
@@ -25067,7 +25145,7 @@ function hy({ children: e }) {
 		}), e]
 	});
 }
-function gy(e) {
+function _y(e) {
 	let { found: t } = e;
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3 text-sm",
@@ -25092,7 +25170,7 @@ function gy(e) {
 					})
 				]
 			}),
-			t && /* @__PURE__ */ C(my, { rows: [
+			t && /* @__PURE__ */ C(hy, { rows: [
 				["Checkout", t.root],
 				["GitHub", t.github ? `${t.github}${t.visibility ? ` (${t.visibility})` : ""}` : t.remote ? `${t.remote} is not on GitHub` : "No remote: local only"],
 				["Default branch", t.baseBranch],
@@ -25107,13 +25185,13 @@ function gy(e) {
 		]
 	});
 }
-function _y(e) {
+function vy(e) {
 	let { form: t, found: n, set: r } = e, i = n.github ? null : n.remote ? `${n.remote} is not a GitHub remote.` : "This folder has no GitHub remote.";
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3 text-sm",
 		"data-onboard-mode": !0,
 		children: [
-			/* @__PURE__ */ C(wd, {
+			/* @__PURE__ */ C(Td, {
 				name: "avoozl-onboard-mode",
 				label: "Mode",
 				value: t.mode,
@@ -25122,7 +25200,7 @@ function _y(e) {
 					key: e.mode,
 					title: e.title,
 					line: e.line,
-					icon: fy[e.mode],
+					icon: py[e.mode],
 					disabled: e.mode === "local" ? null : i,
 					description: /* @__PURE__ */ w("div", {
 						className: "flex flex-col gap-1 text-sm",
@@ -25133,7 +25211,7 @@ function _y(e) {
 								e.useWhen.join("; "),
 								"."
 							]
-						}), /* @__PURE__ */ C(my, { rows: e.facts.map(([e, t]) => [e, t]) })]
+						}), /* @__PURE__ */ C(hy, { rows: e.facts.map(([e, t]) => [e, t]) })]
 					}),
 					fields: e.mode === "plans-repo" ? /* @__PURE__ */ w("div", {
 						className: "flex flex-col gap-2",
@@ -25220,7 +25298,7 @@ function _y(e) {
 		]
 	});
 }
-function vy({ result: e }) {
+function yy({ result: e }) {
 	if (!e) return /* @__PURE__ */ C("p", {
 		className: "text-sm text-muted",
 		children: "Reading GitHub…"
@@ -25230,7 +25308,7 @@ function vy({ result: e }) {
 		className: "flex flex-col gap-3 text-sm",
 		"data-onboard-check": !0,
 		children: [
-			e.writes.length === 0 && /* @__PURE__ */ C(hy, { children: "Nothing to create or change on GitHub." }),
+			e.writes.length === 0 && /* @__PURE__ */ C(gy, { children: "Nothing to create or change on GitHub." }),
 			t.map((e) => /* @__PURE__ */ w("section", { children: [/* @__PURE__ */ C("h4", {
 				className: "text-xs font-semibold uppercase tracking-wide text-muted",
 				children: e.title
@@ -25239,7 +25317,7 @@ function vy({ result: e }) {
 				children: e.writes.map((e, t) => /* @__PURE__ */ w("li", {
 					className: "flex flex-wrap items-baseline gap-2",
 					children: [
-						/* @__PURE__ */ C(py, { kind: to(e) }),
+						/* @__PURE__ */ C(my, { kind: to(e) }),
 						/* @__PURE__ */ w("span", { children: [
 							e.object,
 							" ",
@@ -25263,7 +25341,7 @@ function vy({ result: e }) {
 				children: n.map((e) => /* @__PURE__ */ w("li", {
 					className: "flex flex-wrap items-baseline gap-2",
 					children: [
-						/* @__PURE__ */ C(py, { kind: "keep" }),
+						/* @__PURE__ */ C(my, { kind: "keep" }),
 						/* @__PURE__ */ C("span", { children: e.title }),
 						e.notes[0] && /* @__PURE__ */ C("span", {
 							className: "w-full pl-12 text-xs text-muted",
@@ -25297,35 +25375,35 @@ function vy({ result: e }) {
 		]
 	});
 }
-function yy(e) {
-	let { workspaceId: t, client: n, onClose: r } = e, a = Lr(), [s, c] = d("folder"), [l, f] = d(""), [p, m] = d(null), [h, g] = d(null), [v, y] = d(!1), [b, x] = d(null), [T, E] = d(null), [D, O] = d([]), [k, A] = d(!1), [j, N] = d(null), [P, F] = d(/* @__PURE__ */ new Set()), [I, L] = d(null), [ee, te] = d({}), [ne, re] = d(!1), [ie, R] = d(null), z = u(null), B = b ? ty(b, p) : [
+function by(e) {
+	let { workspaceId: t, client: n, onClose: r } = e, a = Lr(), [s, c] = d("folder"), [l, f] = d(""), [p, m] = d(null), [h, g] = d(null), [v, y] = d(!1), [b, x] = d(null), [T, E] = d(null), [D, O] = d([]), [k, A] = d(!1), [j, N] = d(null), [P, F] = d(/* @__PURE__ */ new Set()), [I, L] = d(null), [ee, te] = d({}), [R, ne] = d(!1), [re, z] = d(null), B = u(null), V = b ? ny(b, p) : [
 		"folder",
 		"mode",
 		"setup",
 		"import",
 		"finish"
-	], V = B.indexOf(s), ae = Zv.find((e) => e.key === s), oe = D.length > 0, H = i(() => {
-		r(oe ? `Stopped. Done so far: ${D.join("; ")}.` : "Cancelled. Nothing was written.");
+	], H = V.indexOf(s), ie = Qv.find((e) => e.key === s), ae = D.length > 0, oe = i(() => {
+		r(ae ? `Stopped. Done so far: ${D.join("; ")}.` : "Cancelled. Nothing was written.");
 	}, [
 		r,
-		oe,
+		ae,
 		D
 	]);
 	o(() => {
-		z.current?.querySelector("input:not([disabled]), button")?.focus();
+		B.current?.querySelector("input:not([disabled]), button")?.focus();
 	}, [s]);
 	let se = async (e) => {
-		re(!0), R(null);
+		ne(!0), z(null);
 		try {
 			await e();
 		} catch (e) {
-			R(G(e));
+			z(G(e));
 		} finally {
-			re(!1);
+			ne(!1);
 		}
 	}, U = (e) => {
-		R(null), c(e);
-	}, ce = () => U(B[Math.min(B.length - 1, V + 1)]), le = () => U(B[Math.max(0, V - 1)]), ue = (e) => x((t) => t && {
+		z(null), c(e);
+	}, ce = () => U(V[Math.min(V.length - 1, H + 1)]), le = () => U(V[Math.max(0, H - 1)]), ue = (e) => x((t) => t && {
 		...t,
 		...e
 	}), de = () => se(async () => {
@@ -25335,23 +25413,23 @@ function yy(e) {
 			n.settings(t),
 			n.repositories(t)
 		]);
-		m(e), g(r), y(i.items.some((t) => t.planning && t.id !== e.registered?.id)), x(Qv(e, r)), U("mode");
+		m(e), g(r), y(i.items.some((t) => t.planning && t.id !== e.registered?.id)), x($v(e, r)), U("mode");
 	}), fe = () => se(async () => {
-		b && p && (E(null), E(await n.checkGitHub(t, ry(b, p, h))));
+		b && p && (E(null), E(await n.checkGitHub(t, iy(b, p, h))));
 	});
 	o(() => {
 		s === "check" && !T && fe();
 	}, [s]);
-	let pe = b && p ? iy(b, p, h, T) : [], me = () => se(async () => {
+	let pe = b && p ? ay(b, p, h, T) : [], me = () => se(async () => {
 		if (!b || !p) return;
 		let r = T;
 		for (let e of pe) if (!e.done) {
 			if (e.confirm && !await a(e.confirm)) {
-				R(`Stopped before “${e.title}”. Nothing after it was written.`);
+				z(`Stopped before “${e.title}”. Nothing after it was written.`);
 				return;
 			}
 			if (e.key === "github" && r) {
-				r = await n.applyGitHub(t, ry(b, p, h), r.previewHash), E(r);
+				r = await n.applyGitHub(t, iy(b, p, h), r.previewHash), E(r);
 				let e = (r.results ?? []).filter((e) => e.status !== "done");
 				if (O((t) => [...t, `made ${(r.results ?? []).length - e.length} GitHub changes`]), e.length) throw Error(`${e.length} GitHub change${e.length === 1 ? "" : "s"} failed: ${e.map((e) => `${e.action} ${e.name}${e.reason ? ` (${e.reason})` : ""}`).join("; ")}`);
 			}
@@ -25362,13 +25440,13 @@ function yy(e) {
 				} : r.settings.github, a = await n.saveSettings(t, i, b.mode === "local" ? e.hash : r.settings.expectedHash);
 				g(a), O((e) => [...e, "saved .avoozl.json"]);
 			}
-			e.key === "register" && (await n.register(t, ay(b, p, v)), O((e) => [...e, `added ${b.id.trim()}`]));
+			e.key === "register" && (await n.register(t, oy(b, p, v)), O((e) => [...e, `added ${b.id.trim()}`]));
 		}
 		let i = await n.inspect(t, p.root);
 		m(i), N(await n.specs(t).catch(() => null)), await e.onChanged(), A(!0), ce();
-	}), he = p ? oy(j, p) : [];
+	}), he = p ? sy(j, p) : [];
 	o(() => {
-		s === "import" && F(new Set(he.filter((e) => !sy(e)).map((e) => e.name)));
+		s === "import" && F(new Set(he.filter((e) => !cy(e)).map((e) => e.name)));
 	}, [s, j]);
 	let ge = () => se(async () => {
 		for (let e of P) await n.importSpec(t, e), O((t) => [...t, `imported ${e} as a draft`]);
@@ -25382,77 +25460,77 @@ function yy(e) {
 			te(Object.fromEntries(r));
 		});
 	}, [s]);
-	let ve = cy(I), ye = s === "mode" && b && p ? ny(b, p) : null, be = s === "check" && T ? T.steps.some((e) => e.status === "failed") && T.writes.length === 0 : !1, xe = k ? [] : pe.filter((e) => !e.done), Se = (e) => e === "folder" && !!p || e === "check" && !!T && T.writes.length === 0 || e === "setup" && (k || !!b && xe.length === 0) || e === "import" && he.length > 0 && he.every(sy);
+	let ve = ly(I), ye = s === "mode" && b && p ? ry(b, p) : null, be = s === "check" && T ? T.steps.some((e) => e.status === "failed") && T.writes.length === 0 : !1, xe = k ? [] : pe.filter((e) => !e.done), Se = (e) => e === "folder" && !!p || e === "check" && !!T && T.writes.length === 0 || e === "setup" && (k || !!b && xe.length === 0) || e === "import" && he.length > 0 && he.every(cy);
 	return /* @__PURE__ */ w(nr, {
 		id: "avoozl-onboard",
 		width: "44rem",
 		backLabel: "Cancel",
 		describedBy: "avoozl-onboard-line",
-		boxRef: z,
+		boxRef: B,
 		attrs: { "data-onboard-dialog": s },
 		unsaved: l.trim() !== "" && {
 			title: "Stop onboarding?",
-			body: oe ? `What was done stays: ${D.join("; ")}.` : "What you entered is lost. Nothing was written.",
+			body: ae ? `What was done stays: ${D.join("; ")}.` : "What you entered is lost. Nothing was written.",
 			action: "Stop"
 		},
-		title: ae.title,
-		onDismiss: H,
+		title: ie.title,
+		onDismiss: oe,
 		footer: /* @__PURE__ */ w(S, { children: [
 			/* @__PURE__ */ C(_, {
 				type: "button",
-				onClick: H,
-				disabled: ne,
+				onClick: oe,
+				disabled: R,
 				children: s === "finish" ? "Close" : "Cancel"
 			}),
-			V > 0 && s !== "finish" && B[V - 1] !== "setup" && /* @__PURE__ */ C(_, {
+			H > 0 && s !== "finish" && V[H - 1] !== "setup" && /* @__PURE__ */ C(_, {
 				type: "button",
 				onClick: le,
-				disabled: ne,
+				disabled: R,
 				children: "Back"
 			}),
 			s === "folder" && /* @__PURE__ */ C(_, {
 				type: "button",
 				primary: !0,
 				onClick: () => void de(),
-				disabled: ne || !l.trim(),
+				disabled: R || !l.trim(),
 				children: "Check folder"
 			}),
 			s === "mode" && /* @__PURE__ */ C(_, {
 				type: "button",
 				primary: !0,
 				onClick: ce,
-				disabled: ne || !!ye,
+				disabled: R || !!ye,
 				children: "Next"
 			}),
 			s === "check" && /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(_, {
 				type: "button",
 				onClick: () => void fe(),
-				disabled: ne,
+				disabled: R,
 				children: "Recheck"
 			}), /* @__PURE__ */ C(_, {
 				type: "button",
 				primary: !0,
 				onClick: ce,
-				disabled: ne || !T || be,
+				disabled: R || !T || be,
 				children: "Next"
 			})] }),
 			s === "setup" && (xe.length ? /* @__PURE__ */ C(_, {
 				type: "button",
 				primary: !0,
 				onClick: () => void me(),
-				disabled: ne,
+				disabled: R,
 				children: "Set up"
 			}) : /* @__PURE__ */ C(_, {
 				type: "button",
 				primary: !0,
 				onClick: ce,
-				disabled: ne,
+				disabled: R,
 				children: "Next"
 			})),
 			s === "import" && /* @__PURE__ */ w(S, { children: [P.size > 0 && /* @__PURE__ */ w(_, {
 				type: "button",
 				onClick: () => void ge(),
-				disabled: ne,
+				disabled: R,
 				children: [
 					"Import ",
 					P.size,
@@ -25463,26 +25541,26 @@ function yy(e) {
 				type: "button",
 				primary: !0,
 				onClick: ce,
-				disabled: ne,
-				children: he.length && !he.every(sy) && P.size ? "Skip import" : "Next"
+				disabled: R,
+				children: he.length && !he.every(cy) && P.size ? "Skip import" : "Next"
 			})] }),
 			s === "scan" && /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(_, {
 				type: "button",
 				onClick: () => void _e(),
-				disabled: ne,
+				disabled: R,
 				children: "Scan again"
 			}), /* @__PURE__ */ C(_, {
 				type: "button",
 				primary: !0,
 				onClick: ce,
-				disabled: ne || !I || ve.length > 0,
+				disabled: R || !I || ve.length > 0,
 				children: "Next"
 			})] }),
 			s === "issues" && /* @__PURE__ */ C(_, {
 				type: "button",
 				primary: !0,
 				onClick: ce,
-				disabled: ne,
+				disabled: R,
 				children: "Next"
 			}),
 			s === "finish" && e.onOpenPlans && /* @__PURE__ */ C(_, {
@@ -25498,7 +25576,7 @@ function yy(e) {
 			/* @__PURE__ */ C("ol", {
 				className: "flex flex-wrap gap-x-3 gap-y-1 text-xs",
 				"aria-label": "Steps",
-				children: B.map((e, t) => /* @__PURE__ */ w("li", {
+				children: V.map((e, t) => /* @__PURE__ */ w("li", {
 					"aria-current": e === s ? "step" : void 0,
 					className: `inline-flex items-center gap-1 ${e === s ? "font-semibold" : "text-muted"}`,
 					children: [
@@ -25509,29 +25587,29 @@ function yy(e) {
 						}),
 						t + 1,
 						". ",
-						Zv.find((t) => t.key === e).title
+						Qv.find((t) => t.key === e).title
 					]
 				}, e))
 			}),
 			/* @__PURE__ */ C("div", { children: /* @__PURE__ */ C("p", {
 				id: "avoozl-onboard-line",
 				className: "text-sm text-muted",
-				children: ae.line
+				children: ie.line
 			}) }),
-			s === "folder" && /* @__PURE__ */ C(gy, {
+			s === "folder" && /* @__PURE__ */ C(_y, {
 				folder: l,
 				setFolder: (e) => {
 					f(e), m(null);
 				},
 				found: p
 			}),
-			s === "mode" && b && p && /* @__PURE__ */ C(_y, {
+			s === "mode" && b && p && /* @__PURE__ */ C(vy, {
 				form: b,
 				set: ue,
 				found: p,
 				problem: ye
 			}),
-			s === "check" && /* @__PURE__ */ C(vy, { result: T }),
+			s === "check" && /* @__PURE__ */ C(yy, { result: T }),
 			s === "setup" && /* @__PURE__ */ C("ol", {
 				className: "flex flex-col gap-2 text-sm",
 				"data-onboard-setup": !0,
@@ -25571,7 +25649,7 @@ function yy(e) {
 						className: "text-muted",
 						children: "No spec folders here for this mode. Write one with Plan a goal, or add one under .kiro/specs/ and come back."
 					}),
-					he.length > 0 && he.every(sy) && /* @__PURE__ */ C(hy, { children: "Every spec here is imported." }),
+					he.length > 0 && he.every(cy) && /* @__PURE__ */ C(gy, { children: "Every spec here is imported." }),
 					/* @__PURE__ */ C("ul", {
 						className: "flex flex-col gap-1.5",
 						children: he.map((e) => /* @__PURE__ */ w("li", {
@@ -25581,8 +25659,8 @@ function yy(e) {
 								/* @__PURE__ */ C("input", {
 									type: "checkbox",
 									"aria-label": `Import ${e.name}`,
-									disabled: sy(e),
-									checked: sy(e) || P.has(e.name),
+									disabled: cy(e),
+									checked: cy(e) || P.has(e.name),
 									onChange: (t) => {
 										let n = new Set(P);
 										t.target.checked ? n.add(e.name) : n.delete(e.name), F(n);
@@ -25619,7 +25697,7 @@ function yy(e) {
 						className: "text-muted",
 						children: "Scanning…"
 					}),
-					I && ve.length === 0 && /* @__PURE__ */ w(hy, { children: [
+					I && ve.length === 0 && /* @__PURE__ */ w(gy, { children: [
 						"No secrets, local paths or content-rule matches in ",
 						I.items.length,
 						" spec",
@@ -25681,7 +25759,7 @@ function yy(e) {
 							t.error
 						]
 					}, e);
-					let n = ly(t);
+					let n = uy(t);
 					return /* @__PURE__ */ w("section", {
 						"data-onboard-preview": e,
 						children: [/* @__PURE__ */ C("h4", {
@@ -25704,7 +25782,7 @@ function yy(e) {
 						}), /* @__PURE__ */ w("ul", {
 							className: "mt-1 flex flex-col gap-0.5 text-xs",
 							children: [n.create.slice(0, 8).map((e, t) => /* @__PURE__ */ w("li", { children: [
-								/* @__PURE__ */ C(py, { kind: "create" }),
+								/* @__PURE__ */ C(my, { kind: "create" }),
 								" ",
 								e.title,
 								" ",
@@ -25738,16 +25816,16 @@ function yy(e) {
 					children: "Nothing was approved, no agent was started and nothing was pushed. Approve each draft in Specs when you are ready."
 				})]
 			}),
-			ie && /* @__PURE__ */ C("p", {
+			re && /* @__PURE__ */ C("p", {
 				role: "alert",
 				className: "text-sm text-danger",
-				children: ie
+				children: re
 			})
 		]
 	});
 }
-function by(e) {
-	let t = K(), n = l(() => uy(t), [t]), [r, a] = d(!1), [o, s] = d(null), c = i((e) => {
+function xy(e) {
+	let t = K(), n = l(() => dy(t), [t]), [r, a] = d(!1), [o, s] = d(null), c = i((e) => {
 		a(!1), s(e ?? null);
 	}, []);
 	return /* @__PURE__ */ w(v, { children: [
@@ -25761,7 +25839,7 @@ function by(e) {
 		}),
 		/* @__PURE__ */ C("ol", {
 			className: "mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted",
-			children: Zv.map((e, t) => /* @__PURE__ */ w("li", { children: [
+			children: Qv.map((e, t) => /* @__PURE__ */ w("li", { children: [
 				t + 1,
 				". ",
 				e.title
@@ -25789,7 +25867,7 @@ function by(e) {
 			role: "status",
 			children: o
 		}),
-		r && /* @__PURE__ */ C(yy, {
+		r && /* @__PURE__ */ C(by, {
 			workspaceId: e.workspaceId,
 			client: n,
 			onChanged: e.onChanged,
@@ -25799,12 +25877,12 @@ function by(e) {
 	] });
 }
 // kirocrew-app/ui/src/AddPlugin.tsx
-var xy = {
+var Sy = {
 	path: U,
 	package: Me,
 	git: fe
 };
-function Sy(e) {
+function Cy(e) {
 	return /* @__PURE__ */ w("label", {
 		className: "flex flex-col gap-1 text-sm",
 		children: [
@@ -25832,14 +25910,14 @@ function Sy(e) {
 		]
 	});
 }
-var Cy = {
+var wy = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
 	background: "var(--card, transparent)"
 };
-function wy({ form: e, set: t }) {
+function Ty({ form: e, set: t }) {
 	let n = {
-		path: /* @__PURE__ */ C(Sy, {
+		path: /* @__PURE__ */ C(Cy, {
 			label: "Folder",
 			marker: "required",
 			raw: "path",
@@ -25853,7 +25931,7 @@ function wy({ form: e, set: t }) {
 		package: /* @__PURE__ */ w("div", {
 			className: "grid gap-2",
 			style: { gridTemplateColumns: "minmax(0, 2fr) minmax(6rem, 1fr)" },
-			children: [/* @__PURE__ */ C(Sy, {
+			children: [/* @__PURE__ */ C(Cy, {
 				label: "Package name",
 				marker: "required",
 				raw: "package",
@@ -25862,7 +25940,7 @@ function wy({ form: e, set: t }) {
 					placeholder: "@example/avoozl-tracker",
 					onChange: (e) => t({ package: e.target.value })
 				})
-			}), /* @__PURE__ */ C(Sy, {
+			}), /* @__PURE__ */ C(Cy, {
 				label: "Version",
 				marker: "optional",
 				hint: "Checked against what is installed.",
@@ -25876,7 +25954,7 @@ function wy({ form: e, set: t }) {
 		git: /* @__PURE__ */ w("div", {
 			className: "flex flex-col gap-2",
 			children: [
-				/* @__PURE__ */ C(Sy, {
+				/* @__PURE__ */ C(Cy, {
 					label: "Git URL or repository path",
 					marker: "required",
 					raw: "git",
@@ -25889,7 +25967,7 @@ function wy({ form: e, set: t }) {
 				/* @__PURE__ */ w("div", {
 					className: "grid gap-2",
 					style: { gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" },
-					children: [/* @__PURE__ */ C(Sy, {
+					children: [/* @__PURE__ */ C(Cy, {
 						label: "Tag, branch or commit",
 						marker: "required",
 						raw: "ref",
@@ -25898,7 +25976,7 @@ function wy({ form: e, set: t }) {
 							placeholder: "v1.0.0",
 							onChange: (e) => t({ ref: e.target.value })
 						})
-					}), /* @__PURE__ */ C(Sy, {
+					}), /* @__PURE__ */ C(Cy, {
 						label: "Folder in the repository",
 						marker: "optional",
 						raw: "subdir",
@@ -25918,27 +25996,27 @@ function wy({ form: e, set: t }) {
 	};
 	return /* @__PURE__ */ C("div", {
 		"data-plugin-sources": !0,
-		children: /* @__PURE__ */ C(wd, {
+		children: /* @__PURE__ */ C(Td, {
 			name: "avoozl-plugin-source",
 			label: "Where from",
 			value: e.where,
 			onChange: (e) => t({ where: e }),
-			sections: kd.map((e) => ({
+			sections: Ad.map((e) => ({
 				key: e.key,
 				title: e.title,
 				line: e.line,
-				icon: xy[e.key],
+				icon: Sy[e.key],
 				fields: n[e.key]
 			}))
 		})
 	});
 }
-function Ty(e) {
+function Ey(e) {
 	let { form: t, preview: n, set: r } = e, i = n.contract !== void 0, a = n.capabilities ? Object.entries(n.capabilities).map(([e, t]) => `${e}: ${t.length ? t.join(", ") : "none"}`).join("; ") || "none" : void 0, o = [
-		["Source", `${kd.find((e) => e.key === t.where)?.title}: ${Ad(t)}${t.where === "git" ? ` at ${t.ref}` : ""}`],
+		["Source", `${Ad.find((e) => e.key === t.where)?.title}: ${jd(t)}${t.where === "git" ? ` at ${t.ref}` : ""}`],
 		["Commit found", n.commit],
 		["Version", n.version],
-		["Parts", n.provides || n.kinds ? Nd(n).join(", ") : void 0],
+		["Parts", n.provides || n.kinds ? Pd(n).join(", ") : void 0],
 		["Pack", n.pack ? (n.pack.description ?? "Settings only") + ` (${Object.keys(n.pack.settings).join(", ")})` : void 0],
 		["Capabilities", a]
 	];
@@ -25960,7 +26038,7 @@ function Ty(e) {
 					})]
 				}, e))
 			}),
-			/* @__PURE__ */ C(Sy, {
+			/* @__PURE__ */ C(Cy, {
 				label: "Id",
 				marker: "required",
 				raw: "id",
@@ -25972,11 +26050,11 @@ function Ty(e) {
 					onChange: (e) => r({ id: e.target.value })
 				})
 			}),
-			/* @__PURE__ */ C(Sy, {
-				label: Td,
+			/* @__PURE__ */ C(Cy, {
+				label: Ed,
 				marker: "required",
 				raw: "contract",
-				hint: i ? `From the plugin’s own avoozl-plugin.json. ${Ed}` : Ed,
+				hint: i ? `From the plugin’s own avoozl-plugin.json. ${Dd}` : Dd,
 				children: i ? /* @__PURE__ */ C("div", {
 					style: { maxWidth: "8rem" },
 					children: /* @__PURE__ */ C(b, {
@@ -25989,7 +26067,7 @@ function Ty(e) {
 					onChange: (e) => r({ contract: e.target.value }),
 					className: "rounded border px-2 py-1 text-sm",
 					style: {
-						...Cy,
+						...wy,
 						maxWidth: "8rem"
 					},
 					children: e.supported.map((e) => /* @__PURE__ */ C("option", {
@@ -25998,7 +26076,7 @@ function Ty(e) {
 					}, e))
 				})
 			}),
-			/* @__PURE__ */ C(Sy, {
+			/* @__PURE__ */ C(Cy, {
 				label: "Config (JSON)",
 				marker: "optional",
 				raw: "config",
@@ -26017,8 +26095,8 @@ function Ty(e) {
 		]
 	});
 }
-function Ey(e) {
-	let { form: t } = e, n = Vd(t), r = t.where === "git" ? "Written to .avoozl.json. Each computer fetches the commit with Update, then approves it." : t.where === "package" ? "Written to .avoozl.json. Each computer installs the package, then approves it." : "Written to .avoozl.json. Each computer approves it for itself.", i = (e, t, n) => /* @__PURE__ */ w("div", {
+function Dy(e) {
+	let { form: t } = e, n = Hd(t), r = t.where === "git" ? "Written to .avoozl.json. Each computer fetches the commit with Update, then approves it." : t.where === "package" ? "Written to .avoozl.json. Each computer installs the package, then approves it." : "Written to .avoozl.json. Each computer approves it for itself.", i = (e, t, n) => /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-1 text-sm",
 		children: [
 			/* @__PURE__ */ C("p", { children: e }),
@@ -26035,7 +26113,7 @@ function Ey(e) {
 	return /* @__PURE__ */ C("div", {
 		className: "flex flex-col gap-3 text-sm",
 		"data-plugin-scope": !0,
-		children: /* @__PURE__ */ C(wd, {
+		children: /* @__PURE__ */ C(Td, {
 			name: "avoozl-plugin-scope",
 			label: "Applies to",
 			value: t.scope,
@@ -26071,8 +26149,8 @@ function Ey(e) {
 		})
 	});
 }
-function Dy(e) {
-	let { workspaceId: t, client: n, onClose: r, onChanged: a } = e, s = e.supported.length ? e.supported : [1], [c, l] = d(0), [f, p] = d(Dd()), [m, h] = d(null), [g, v] = d(null), [y, b] = d(null), [x, T] = d(!1), [E, D] = d(!1), [O, k] = d(null), A = u(null), j = (e) => {
+function Oy(e) {
+	let { workspaceId: t, client: n, onClose: r, onChanged: a } = e, s = e.supported.length ? e.supported : [1], [c, l] = d(0), [f, p] = d(Od()), [m, h] = d(null), [g, v] = d(null), [y, b] = d(null), [x, T] = d(!1), [E, D] = d(!1), [O, k] = d(null), A = u(null), j = (e) => {
 		p((t) => ({
 			...t,
 			...e
@@ -26101,25 +26179,25 @@ function Dy(e) {
 			D(!1);
 		}
 	}, P = () => N(async () => {
-		if (!Ad(f)) throw Error(f.where === "path" ? "Name the plugin folder." : f.where === "git" ? "Give the git URL." : "Name the package.");
+		if (!jd(f)) throw Error(f.where === "path" ? "Name the plugin folder." : f.where === "git" ? "Give the git URL." : "Name the package.");
 		if (f.where === "git" && !f.ref.trim()) throw Error("Give a tag, branch or commit.");
-		let e = await n.preview(t, Rd(f));
+		let e = await n.preview(t, zd(f));
 		if (e.error) throw Error(e.error);
-		h(e), p((t) => zd(t, e)), l(1);
+		h(e), p((t) => Bd(t, e)), l(1);
 	}), F = () => N(async () => {
-		let e = Hd(f, x);
+		let e = Ud(f, x);
 		if (!e.input) throw Error(e.error ?? "Check the form.");
 		try {
 			let r = await n.add(t, e.input);
 			v(r), r.pack && r.id && b(await n.packPreview(t, r.id).catch(() => null));
 		} catch (e) {
-			let t = Gd(e);
+			let t = Kd(e);
 			throw t ? Error(`${t} Tick the box to share it anyway.`) : e;
 		}
 		await a(), l(3);
 	}), I = () => N(async () => {
 		g && (await n.approve(t, g), await a(), r(`Approved ${g.id} version ${g.version}.`));
-	}), L = c === 1 ? Bd(f, m, s) : null;
+	}), L = c === 1 ? Vd(f, m, s) : null;
 	return /* @__PURE__ */ w(nr, {
 		id: "avoozl-plugin",
 		width: "40rem",
@@ -26127,12 +26205,12 @@ function Dy(e) {
 		describedBy: "avoozl-plugin-line",
 		boxRef: A,
 		attrs: { "data-plugin-dialog": c },
-		unsaved: (!!g || c > 0 || JSON.stringify(f) !== JSON.stringify(Dd())) && {
+		unsaved: (!!g || c > 0 || JSON.stringify(f) !== JSON.stringify(Od())) && {
 			title: "Stop adding this plugin?",
 			body: g ? `${g.id} is removed again. Nothing ran.` : "What you entered is lost.",
 			action: "Stop"
 		},
-		title: Od[c][0],
+		title: kd[c][0],
 		onDismiss: M,
 		footer: /* @__PURE__ */ w(S, { children: [
 			/* @__PURE__ */ C(_, {
@@ -26159,7 +26237,7 @@ function Dy(e) {
 				primary: !0,
 				disabled: E || !!L,
 				onClick: () => {
-					let e = Hd(f);
+					let e = Ud(f);
 					if (e.error) return k(e.error);
 					l(2);
 				},
@@ -26172,7 +26250,7 @@ function Dy(e) {
 				disabled: E || f.scope === "repository" && !x,
 				children: f.where === "git" ? "Fetch and review" : "Add and review"
 			}),
-			c === 3 && g && Wd(g) && /* @__PURE__ */ w(_, {
+			c === 3 && g && Gd(g) && /* @__PURE__ */ w(_, {
 				type: "button",
 				primary: !0,
 				onClick: () => void I(),
@@ -26183,10 +26261,10 @@ function Dy(e) {
 					g.commit ? ` at ${g.commit.slice(0, 12)}` : ""
 				]
 			}),
-			c === 3 && g && !Wd(g) && /* @__PURE__ */ C(_, {
+			c === 3 && g && !Gd(g) && /* @__PURE__ */ C(_, {
 				type: "button",
 				primary: !0,
-				onClick: () => r(`Added ${g.id}. It can't be approved yet: ${g.reason ?? Ud(g).label}.`),
+				onClick: () => r(`Added ${g.id}. It can't be approved yet: ${g.reason ?? Wd(g).label}.`),
 				children: "Keep it unapproved"
 			})
 		] }),
@@ -26194,7 +26272,7 @@ function Dy(e) {
 			/* @__PURE__ */ C("ol", {
 				className: "flex flex-wrap gap-2 text-xs",
 				"aria-label": "Steps",
-				children: Od.map(([e], t) => /* @__PURE__ */ w("li", {
+				children: kd.map(([e], t) => /* @__PURE__ */ w("li", {
 					"aria-current": t === c ? "step" : void 0,
 					className: t === c ? "font-semibold" : "text-muted",
 					children: [
@@ -26207,20 +26285,20 @@ function Dy(e) {
 			/* @__PURE__ */ C("div", { children: /* @__PURE__ */ C("p", {
 				id: "avoozl-plugin-line",
 				className: "text-sm text-muted",
-				children: Od[c][1]
+				children: kd[c][1]
 			}) }),
-			c === 0 && /* @__PURE__ */ C(wy, {
+			c === 0 && /* @__PURE__ */ C(Ty, {
 				form: f,
 				set: j
 			}),
-			c === 1 && m && /* @__PURE__ */ C(Ty, {
+			c === 1 && m && /* @__PURE__ */ C(Ey, {
 				form: f,
 				preview: m,
 				supported: s,
 				set: j,
 				problem: L
 			}),
-			c === 2 && /* @__PURE__ */ C(Ey, {
+			c === 2 && /* @__PURE__ */ C(Dy, {
 				form: f,
 				set: j,
 				confirmPublic: x,
@@ -26236,16 +26314,16 @@ function Dy(e) {
 							className: "font-semibold",
 							children: g.id
 						}), /* @__PURE__ */ C($, {
-							variant: Ud(g).attention ? "warning" : void 0,
-							children: Ud(g).label
+							variant: Wd(g).attention ? "warning" : void 0,
+							children: Wd(g).label
 						})]
 					}),
 					g.reason && /* @__PURE__ */ C("p", {
 						className: "text-xs text-muted",
 						children: g.reason
 					}),
+					/* @__PURE__ */ C(cb, { row: g }),
 					/* @__PURE__ */ C(sb, { row: g }),
-					/* @__PURE__ */ C(ob, { row: g }),
 					y && /* @__PURE__ */ w("div", {
 						className: "flex flex-col gap-1",
 						children: [
@@ -26253,7 +26331,7 @@ function Dy(e) {
 								className: "text-sm font-semibold",
 								children: "Settings pack"
 							}),
-							/* @__PURE__ */ C(sf, { preview: y }),
+							/* @__PURE__ */ C(cf, { preview: y }),
 							/* @__PURE__ */ C("p", {
 								className: "text-xs text-muted",
 								children: "After you approve, import these from the plugin’s card. Nothing is imported now."
@@ -26274,7 +26352,7 @@ function Dy(e) {
 		]
 	});
 }
-function Oy(e) {
+function ky(e) {
 	let [t, n] = d(!1), [r, a] = d(null), o = i((e) => {
 		n(!1), a(e ?? null);
 	}, []);
@@ -26289,7 +26367,7 @@ function Oy(e) {
 		}),
 		/* @__PURE__ */ C("ol", {
 			className: "mt-2 flex flex-col gap-1 text-xs",
-			children: Od.map(([e, t], n) => /* @__PURE__ */ w("li", {
+			children: kd.map(([e, t], n) => /* @__PURE__ */ w("li", {
 				className: "flex gap-2",
 				children: [/* @__PURE__ */ w("span", {
 					className: "font-semibold",
@@ -26316,7 +26394,7 @@ function Oy(e) {
 			role: "status",
 			children: r
 		}),
-		t && /* @__PURE__ */ C(Dy, {
+		t && /* @__PURE__ */ C(Oy, {
 			workspaceId: e.workspaceId,
 			client: e.client,
 			supported: e.supported,
@@ -26326,24 +26404,24 @@ function Oy(e) {
 	] });
 }
 // kirocrew-app/ui/src/IntakeSources.tsx
-var ky = {
+var Ay = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
 	background: "var(--card, transparent)",
 	maxWidth: "100%"
-}, Ay = { borderColor: "var(--border)" }, jy = {
+}, jy = { borderColor: "var(--border)" }, My = {
 	ok: "success",
 	off: void 0,
 	error: "danger",
 	waiting: "info"
-}, My = {
+}, Ny = {
 	machine: "This computer only",
 	repository: "Shared with the repo"
-}, Ny = {
+}, Py = {
 	machine: "Saved in this computer's Avoozl settings. Nobody else sees it.",
 	repository: "Saved in the repo's .avoozl.json, so everyone with the repo gets it."
 };
-function Py({ label: e, raw: t, children: n }) {
+function Fy({ label: e, raw: t, children: n }) {
 	return /* @__PURE__ */ w("div", {
 		className: "contents",
 		children: [/* @__PURE__ */ w("dt", {
@@ -26359,7 +26437,7 @@ function Py({ label: e, raw: t, children: n }) {
 		})]
 	});
 }
-function Fy({ children: e }) {
+function Iy({ children: e }) {
 	let t = It("(max-width: 767px)");
 	return /* @__PURE__ */ C("dl", {
 		className: "mt-2 grid gap-x-4 text-xs",
@@ -26371,12 +26449,12 @@ function Fy({ children: e }) {
 		children: e
 	});
 }
-function Iy(e) {
+function Ly(e) {
 	let t = `avoozl-intake-${e.id}`;
 	return /* @__PURE__ */ C("li", { children: /* @__PURE__ */ w("article", {
 		"aria-labelledby": t,
 		className: "rounded-lg border p-3",
-		style: Ay,
+		style: jy,
 		...e.attrs,
 		children: [
 			/* @__PURE__ */ w("div", {
@@ -26420,19 +26498,19 @@ function Iy(e) {
 		]
 	}) });
 }
-function Ly({ scope: e }) {
+function Ry({ scope: e }) {
 	return /* @__PURE__ */ C(q, {
-		text: Ny[e],
+		text: Py[e],
 		children: /* @__PURE__ */ C("span", {
 			tabIndex: 0,
 			className: "inline-flex",
-			children: /* @__PURE__ */ C($, { children: My[e] })
+			children: /* @__PURE__ */ C($, { children: Ny[e] })
 		})
 	});
 }
-function Ry({ github: e, onOpen: t }) {
+function zy({ github: e, onOpen: t }) {
 	let n = Date.now(), r = e.repositories.filter((e) => e.error), i = e.repositories.map((e) => e.checkedAt).filter((e) => !!e).sort(), a = !!e.mode, o = a ? [i.length ? `Read ${Z(i[0], n)}` : "Not read yet", e.items ? `${e.items.total} items, ${e.items.untriaged} untriaged` : null].filter(Boolean).join(" · ") : "Off: no GitHub mode is set for this workspace.";
-	return /* @__PURE__ */ C(Iy, {
+	return /* @__PURE__ */ C(Ly, {
 		id: "github",
 		title: "GitHub",
 		badges: /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C($, { children: "Built in" }), /* @__PURE__ */ C($, {
@@ -26451,29 +26529,29 @@ function Ry({ github: e, onOpen: t }) {
 			tooltip: "Its mode, repositories and trigger rules are set there",
 			children: "Open GitHub settings"
 		}) : void 0,
-		children: /* @__PURE__ */ w(Fy, { children: [
-			/* @__PURE__ */ C(Py, {
+		children: /* @__PURE__ */ w(Iy, { children: [
+			/* @__PURE__ */ C(Fy, {
 				label: "Mode",
 				children: e.mode ?? "None"
 			}),
-			/* @__PURE__ */ C(Py, {
+			/* @__PURE__ */ C(Fy, {
 				label: "Repositories",
 				children: e.repositories.map((e) => e.repository).join(", ") || "None read yet"
 			}),
-			/* @__PURE__ */ C(Py, {
+			/* @__PURE__ */ C(Fy, {
 				label: "Can trigger",
 				children: a ? "Full rules: each repository's trigger rules, for people with its minimum permission." : "Nothing until a GitHub mode is set."
 			})
 		] })
 	});
 }
-function zy({ row: e, plugins: t, busy: n, onRemove: r }) {
-	let i = e.entry ?? {}, a = ef(e, t), o = tf(e, t), s = e.id ?? "unreadable";
-	return /* @__PURE__ */ C(Iy, {
+function By({ row: e, plugins: t, busy: n, onRemove: r }) {
+	let i = e.entry ?? {}, a = tf(e, t), o = nf(e, t), s = e.id ?? "unreadable";
+	return /* @__PURE__ */ C(Ly, {
 		id: `source-${s}`,
 		title: e.id ?? "Unreadable entry",
-		badges: /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(Ly, { scope: e.scope }), /* @__PURE__ */ C($, {
-			variant: jy[a.tone],
+		badges: /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(Ry, { scope: e.scope }), /* @__PURE__ */ C($, {
+			variant: My[a.tone],
 			children: a.label
 		})] }),
 		status: a.facts.join(" · "),
@@ -26497,18 +26575,18 @@ function zy({ row: e, plugins: t, busy: n, onRemove: r }) {
 			onConfirm: r,
 			children: "Remove"
 		}) : void 0,
-		children: /* @__PURE__ */ w(Fy, { children: [
-			/* @__PURE__ */ C(Py, {
+		children: /* @__PURE__ */ w(Iy, { children: [
+			/* @__PURE__ */ C(Fy, {
 				label: "Comes from",
 				raw: "via",
-				children: Qd(i.via)
+				children: $d(i.via)
 			}),
-			/* @__PURE__ */ C(Py, {
+			/* @__PURE__ */ C(Fy, {
 				label: "Work lands in",
 				raw: "repository",
 				children: String(i.repository ?? "")
 			}),
-			/* @__PURE__ */ w(Py, {
+			/* @__PURE__ */ w(Fy, {
 				label: "Can trigger",
 				children: [
 					/* @__PURE__ */ w("span", {
@@ -26519,22 +26597,22 @@ function zy({ row: e, plugins: t, busy: n, onRemove: r }) {
 					o.line
 				]
 			}),
-			/* @__PURE__ */ C(Py, {
+			/* @__PURE__ */ C(Fy, {
 				label: "Who counts",
 				raw: i.via === "mcp" ? void 0 : i.allowedActors ? "allowedActors" : "minimumPermission",
-				children: nf(e.entry)
+				children: rf(e.entry)
 			}),
-			rf(i.labelFields) && /* @__PURE__ */ C(Py, {
+			af(i.labelFields) && /* @__PURE__ */ C(Fy, {
 				label: "Fields as labels",
 				raw: "labelFields",
-				children: rf(i.labelFields)
+				children: af(i.labelFields)
 			}),
-			typeof i.assigneeField == "string" && /* @__PURE__ */ C(Py, {
+			typeof i.assigneeField == "string" && /* @__PURE__ */ C(Fy, {
 				label: "Assignee field",
 				raw: "assigneeField",
 				children: i.assigneeField
 			}),
-			e.state?.cursor && /* @__PURE__ */ C(Py, {
+			e.state?.cursor && /* @__PURE__ */ C(Fy, {
 				label: "Next poll from",
 				raw: "cursor",
 				children: /* @__PURE__ */ C("code", { children: e.state.cursor })
@@ -26542,7 +26620,7 @@ function zy({ row: e, plugins: t, busy: n, onRemove: r }) {
 		] })
 	});
 }
-function By(e) {
+function Vy(e) {
 	let t = [e.hint ? `${e.id}-hint` : "", `${e.id}-raw`].filter(Boolean).join(" ");
 	return /* @__PURE__ */ w("div", {
 		className: "flex min-w-0 flex-col gap-1",
@@ -26579,7 +26657,7 @@ function By(e) {
 		]
 	});
 }
-function Vy({ legend: e, children: t }) {
+function Hy({ legend: e, children: t }) {
 	return /* @__PURE__ */ w("fieldset", {
 		className: "m-0 flex min-w-0 flex-col gap-3 border-0 p-0",
 		children: [/* @__PURE__ */ C("legend", {
@@ -26588,12 +26666,12 @@ function Vy({ legend: e, children: t }) {
 		}), t]
 	});
 }
-function Hy(e) {
-	let [t, n] = d(qd), [r, i] = d(!1), [a, o] = d(!1), [s, c] = d(null), l = (e) => n({
+function Uy(e) {
+	let [t, n] = d(Jd), [r, i] = d(!1), [a, o] = d(!1), [s, c] = d(null), l = (e) => n({
 		...t,
 		...e
-	}), u = e.plugins.filter((e) => e.id && e.capabilities?.tracker?.includes("poll")), f = t.via !== "mcp", p = JSON.stringify(t) !== JSON.stringify(qd()), m = (e) => s?.field === e || void 0, h = () => {
-		let n = Zd(t, e.taken);
+	}), u = e.plugins.filter((e) => e.id && e.capabilities?.tracker?.includes("poll")), f = t.via !== "mcp", p = JSON.stringify(t) !== JSON.stringify(Jd()), m = (e) => s?.field === e || void 0, h = () => {
+		let n = Qd(t, e.taken);
 		n.error || !n.id || !n.entry ? (c({
 			text: n.error ?? "Check the fields.",
 			field: n.field
@@ -26605,7 +26683,7 @@ function Hy(e) {
 			entry: n.entry
 		}, t, r).then(e.onClose).catch((e) => c({ text: G(e) })).finally(() => o(!1)));
 	}, g = [...u.map((t) => {
-		let n = tf({
+		let n = nf({
 			id: null,
 			scope: "machine",
 			error: null,
@@ -26676,9 +26754,9 @@ function Hy(e) {
 		children: /* @__PURE__ */ w("div", {
 			className: "flex flex-col gap-5",
 			children: [
-				/* @__PURE__ */ w(Vy, {
+				/* @__PURE__ */ w(Hy, {
 					legend: "Source",
-					children: [/* @__PURE__ */ C(By, {
+					children: [/* @__PURE__ */ C(Vy, {
 						id: "intake-id",
 						label: "Name",
 						marker: "required",
@@ -26696,7 +26774,7 @@ function Hy(e) {
 								maxWidth: "100%"
 							}
 						})
-					}), /* @__PURE__ */ C(By, {
+					}), /* @__PURE__ */ C(Vy, {
 						id: "intake-repository",
 						label: "Work lands in",
 						marker: "required",
@@ -26706,7 +26784,7 @@ function Hy(e) {
 							id: "intake-repository",
 							className: "rounded-md border px-2 py-1 text-sm",
 							style: {
-								...ky,
+								...Ay,
 								width: "fit-content"
 							},
 							value: t.repository,
@@ -26723,9 +26801,9 @@ function Hy(e) {
 						})
 					})]
 				}),
-				/* @__PURE__ */ w(Vy, {
+				/* @__PURE__ */ w(Hy, {
 					legend: "Comes from (required)",
-					children: [/* @__PURE__ */ C(wd, {
+					children: [/* @__PURE__ */ C(Td, {
 						name: "intake-via",
 						label: "Comes from",
 						value: t.via,
@@ -26736,9 +26814,9 @@ function Hy(e) {
 						children: "No plugin with poll is installed. Add one above to poll a tracker."
 					})]
 				}),
-				/* @__PURE__ */ w(Vy, {
+				/* @__PURE__ */ w(Hy, {
 					legend: "Item fields",
-					children: [/* @__PURE__ */ C(By, {
+					children: [/* @__PURE__ */ C(Vy, {
 						id: "intake-labelFields",
 						label: "Fields as labels",
 						marker: "optional",
@@ -26755,7 +26833,7 @@ function Hy(e) {
 								maxWidth: "100%"
 							}
 						})
-					}), /* @__PURE__ */ C(By, {
+					}), /* @__PURE__ */ C(Vy, {
 						id: "intake-assigneeField",
 						label: "Assignee field",
 						marker: "optional",
@@ -26774,9 +26852,9 @@ function Hy(e) {
 						})
 					})]
 				}),
-				f && /* @__PURE__ */ C(Vy, {
+				f && /* @__PURE__ */ C(Hy, {
 					legend: "Who counts (optional)",
-					children: /* @__PURE__ */ C(wd, {
+					children: /* @__PURE__ */ C(Td, {
 						name: "intake-who",
 						label: "Who counts",
 						value: t.who,
@@ -26785,7 +26863,7 @@ function Hy(e) {
 							key: "permission",
 							title: "People with a permission",
 							line: "The standing the plugin reports for the person who acted.",
-							fields: /* @__PURE__ */ C(By, {
+							fields: /* @__PURE__ */ C(Vy, {
 								id: "intake-minimumPermission",
 								label: "At least",
 								marker: "optional",
@@ -26794,7 +26872,7 @@ function Hy(e) {
 									id: "intake-minimumPermission",
 									className: "rounded-md border px-2 py-1 text-sm",
 									style: {
-										...ky,
+										...Ay,
 										width: "fit-content"
 									},
 									value: t.minimumPermission,
@@ -26803,7 +26881,7 @@ function Hy(e) {
 									children: [/* @__PURE__ */ w("option", {
 										value: "",
 										children: ["write", " (default)"]
-									}), Jd.map((e) => /* @__PURE__ */ C("option", {
+									}), Yd.map((e) => /* @__PURE__ */ C("option", {
 										value: e,
 										children: e
 									}, e))]
@@ -26813,7 +26891,7 @@ function Hy(e) {
 							key: "people",
 							title: "Only named people",
 							line: "Only these people can set off a rule.",
-							fields: /* @__PURE__ */ C(By, {
+							fields: /* @__PURE__ */ C(Vy, {
 								id: "intake-allowedActors",
 								label: "People",
 								marker: "required",
@@ -26835,21 +26913,21 @@ function Hy(e) {
 						}]
 					})
 				}),
-				/* @__PURE__ */ C(Vy, {
+				/* @__PURE__ */ C(Hy, {
 					legend: "Saved in (required)",
-					children: /* @__PURE__ */ C(wd, {
+					children: /* @__PURE__ */ C(Td, {
 						name: "intake-scope",
 						label: "Saved in",
 						value: t.scope,
 						onChange: (e) => l({ scope: e }),
 						sections: [{
 							key: "machine",
-							title: My.machine,
-							line: Ny.machine
+							title: Ny.machine,
+							line: Py.machine
 						}, {
 							key: "repository",
-							title: My.repository,
-							line: Ny.repository,
+							title: Ny.repository,
+							line: Py.repository,
 							fields: /* @__PURE__ */ w("label", {
 								className: "inline-flex items-start gap-2 text-xs",
 								"data-intake-public-warning": !0,
@@ -26869,8 +26947,8 @@ function Hy(e) {
 		})
 	});
 }
-function Uy({ workspaceId: e, plugins: t, onOpenGitHub: n }) {
-	let r = K(), a = l(() => af(r), [r]), { value: o, error: s, reload: c } = Mo(e, i((e) => a.list(e), [a])), u = l(() => Qe(r), [r]), { value: f } = Mo(e, i((e) => u.repositories(e), [u])), [p, m] = d(!1), [h, g] = d(!1), [_, b] = d(null), x = o?.sources ?? [], S = (t) => {
+function Wy({ workspaceId: e, plugins: t, onOpenGitHub: n }) {
+	let r = K(), a = l(() => of(r), [r]), { value: o, error: s, reload: c } = Mo(e, i((e) => a.list(e), [a])), u = l(() => Qe(r), [r]), { value: f } = Mo(e, i((e) => u.repositories(e), [u])), [p, m] = d(!1), [h, g] = d(!1), [_, b] = d(null), x = o?.sources ?? [], S = (t) => {
 		g(!0), b(null), a.remove(e, t).then(() => c()).catch((e) => b(G(e))).finally(() => g(!1));
 	}, T = /* @__PURE__ */ C(Y, {
 		icon: Le,
@@ -26898,10 +26976,10 @@ function Uy({ workspaceId: e, plugins: t, onOpenGitHub: n }) {
 			/* @__PURE__ */ w("ul", {
 				className: "m-0 flex list-none flex-col gap-3 p-0",
 				"aria-label": "Intake sources",
-				children: [o?.github && /* @__PURE__ */ C(Ry, {
+				children: [o?.github && /* @__PURE__ */ C(zy, {
 					github: o.github,
 					onOpen: n
-				}), x.map((e, n) => /* @__PURE__ */ C(zy, {
+				}), x.map((e, n) => /* @__PURE__ */ C(By, {
 					row: e,
 					plugins: t,
 					busy: h,
@@ -26911,7 +26989,7 @@ function Uy({ workspaceId: e, plugins: t, onOpenGitHub: n }) {
 			o && !x.length && /* @__PURE__ */ C("div", {
 				className: "mt-3 rounded-lg border p-3",
 				style: {
-					...Ay,
+					...jy,
 					borderStyle: "dashed"
 				},
 				"data-intake-empty": !0,
@@ -26921,7 +26999,7 @@ function Uy({ workspaceId: e, plugins: t, onOpenGitHub: n }) {
 					action: T
 				})
 			})
-		] }), p && /* @__PURE__ */ C(Hy, {
+		] }), p && /* @__PURE__ */ C(Uy, {
 			plugins: t,
 			repositories: f ?? [],
 			taken: x.flatMap((e) => e.id ? [e.id] : []),
@@ -26938,18 +27016,18 @@ function Uy({ workspaceId: e, plugins: t, onOpenGitHub: n }) {
 	});
 }
 // kirocrew-app/ui/src/CitedFile.tsx
-var Wy = "avoozl-cited", Gy = "\n[data-cited=\"true\"] { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 3px 0 0 var(--accent); border-radius: 4px; padding-left: 10px; }\n";
-function Ky(e) {
+var Gy = "avoozl-cited", Ky = "\n[data-cited=\"true\"] { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 3px 0 0 var(--accent); border-radius: 4px; padding-left: 10px; }\n";
+function qy(e) {
 	return e.getAttribute("role") === "heading" ? `h${e.getAttribute("aria-level") ?? "6"}` : e.tagName.toLowerCase();
 }
-function qy(e, t, n, r, i = e) {
+function Jy(e, t, n, r, i = e) {
 	let a = [...e.querySelectorAll("[data-line]")];
-	for (let e of a) e.classList.remove(Wy), delete e.dataset.cited;
+	for (let e of a) e.classList.remove(Gy), delete e.dataset.cited;
 	let o = qi(a.map((e) => ({
 		line: Number(e.dataset.line),
-		tag: Ky(e)
+		tag: qy(e)
 	})), t, n).map((e) => a[e]);
-	for (let e of o) e.classList.add(Wy), e.dataset.cited = "true";
+	for (let e of o) e.classList.add(Gy), e.dataset.cited = "true";
 	let s = o[0] ?? null;
 	if (s && i) {
 		let e = s.getBoundingClientRect().top - i.getBoundingClientRect().top + i.scrollTop - 24;
@@ -26960,12 +27038,12 @@ function qy(e, t, n, r, i = e) {
 	}
 	return s;
 }
-function Jy(e) {
+function Yy(e) {
 	let t = u(null), n = It("(prefers-reduced-motion: reduce)"), { text: r, lineStart: i, lineEnd: a } = e;
 	return o(() => {
 		let e = t.current;
 		if (!e) return;
-		let r = requestAnimationFrame(() => qy(e, i, a, n));
+		let r = requestAnimationFrame(() => Jy(e, i, a, n));
 		return () => cancelAnimationFrame(r);
 	}, [
 		r,
@@ -26982,16 +27060,16 @@ function Jy(e) {
 			overflowY: "auto",
 			overscrollBehavior: "contain"
 		},
-		children: [/* @__PURE__ */ C("style", { children: Gy }), /* @__PURE__ */ C(bd, {
+		children: [/* @__PURE__ */ C("style", { children: Ky }), /* @__PURE__ */ C(xd, {
 			text: r,
 			idPrefix: e.idPrefix
 		})]
 	});
 }
 // kirocrew-app/ui/src/DocumentReader.tsx
-var Yy = "avoozl-reader";
-function Xy(e) {
-	let { workspaceId: t, target: n, onClose: r, text: a } = e, s = K(), c = l(() => Ji(s), [s]), f = rp(), p = It("(max-width: 767px)"), m = It("(prefers-reduced-motion: reduce)"), [h, g] = d({
+var Xy = "avoozl-reader";
+function Zy(e) {
+	let { workspaceId: t, target: n, onClose: r, text: a } = e, s = K(), c = l(() => Ji(s), [s]), f = ip(), p = It("(max-width: 767px)"), m = It("(prefers-reduced-motion: reduce)"), [h, g] = d({
 		text: null,
 		error: null
 	}), [_, v] = d(null), [, y] = d(0), b = u(null), x = u(null);
@@ -27006,8 +27084,8 @@ function Xy(e) {
 		})) : g({
 			text: a,
 			error: null
-		}), xs(s).languages(t).then((t) => {
-			ud(t.languages), e && y((e) => e + 1);
+		}), ks(s).languages(t).then((t) => {
+			dd(t.languages), e && y((e) => e + 1);
 		}, () => void 0), () => {
 			e = !1;
 		};
@@ -27020,7 +27098,7 @@ function Xy(e) {
 	]);
 	let T = i(() => {
 		let e = x.current;
-		e && n.lineStart && qy(e, n.lineStart, n.lineEnd, m);
+		e && n.lineStart && Jy(e, n.lineStart, n.lineEnd, m);
 	}, [
 		n.lineStart,
 		n.lineEnd,
@@ -27048,7 +27126,7 @@ function Xy(e) {
 		} catch (e) {
 			v(G(e));
 		}
-	}, O = h.text ? nd(h.text, Yy, 3) : [], k = Wi(n), A = (e) => b.current?.querySelector(`#${CSS.escape(e)}`)?.scrollIntoView?.({
+	}, O = h.text ? rd(h.text, Xy, 3) : [], k = Wi(n), A = (e) => b.current?.querySelector(`#${CSS.escape(e)}`)?.scrollIntoView?.({
 		block: "start",
 		behavior: m ? "auto" : "smooth"
 	});
@@ -27064,7 +27142,7 @@ function Xy(e) {
 		onDismiss: r,
 		footer: /* @__PURE__ */ w(S, { children: [
 			/* @__PURE__ */ C(Pr, {
-				icon: R,
+				icon: z,
 				label: "Copy path",
 				tooltip: `Copy ${n.document}`,
 				onClick: () => void E()
@@ -27119,7 +27197,7 @@ function Xy(e) {
 				children: [/* @__PURE__ */ C("summary", {
 					className: "cursor-pointer font-medium",
 					children: "Outline"
-				}), /* @__PURE__ */ C(Zy, {
+				}), /* @__PURE__ */ C(Qy, {
 					headings: O,
 					onJump: A
 				})]
@@ -27130,7 +27208,7 @@ function Xy(e) {
 				children: [/* @__PURE__ */ C("h4", {
 					className: "text-xs font-semibold uppercase tracking-wide text-muted",
 					children: "Outline"
-				}), /* @__PURE__ */ C(Zy, {
+				}), /* @__PURE__ */ C(Qy, {
 					headings: O,
 					onJump: A
 				})]
@@ -27149,16 +27227,16 @@ function Xy(e) {
 				}) : h.text === null ? /* @__PURE__ */ C("p", {
 					className: "text-sm text-muted",
 					children: "Reading…"
-				}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C("style", { children: Gy }), /* @__PURE__ */ C(bd, {
+				}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C("style", { children: Ky }), /* @__PURE__ */ C(xd, {
 					text: h.text,
-					idPrefix: Yy,
-					measure: Xp
+					idPrefix: Xy,
+					measure: Zp
 				})] })
 			})]
 		})]
 	});
 }
-function Zy(e) {
+function Qy(e) {
 	return /* @__PURE__ */ C("ul", {
 		className: "mt-1 flex flex-col gap-0.5",
 		children: e.headings.map((t) => /* @__PURE__ */ C("li", {
@@ -27174,32 +27252,32 @@ function Zy(e) {
 	});
 }
 // kirocrew-app/ui/src/design-chat.ts
-var Qy = "docs/plugins.md", $y = "Open a chat that helps you plan a plugin and write its files. It approves nothing.", eb = `Read ${Qy}: the plugin contract, parts, sources and approval`, tb = "Open a chat that suggests rules for you to paste here and save. What you type there stays in its transcript, so type truly private words straight into the editor.", nb = (e) => e.length ? e.join(", ") : "none";
-function rb(e) {
+var $y = "docs/plugins.md", eb = "Open a chat that helps you plan a plugin and write its files. It approves nothing.", tb = `Read ${$y}: the plugin contract, parts, sources and approval`, nb = "Open a chat that suggests rules for you to paste here and save. What you type there stays in its transcript, so type truly private words straight into the editor.", rb = (e) => e.length ? e.join(", ") : "none";
+function ib(e) {
 	return [
 		"Use the avoozl-plugin skill to help me design an Avoozl plugin.",
 		"Ask what it is for and which system it talks to, then help me pick its parts, its source (folder, package or git) and whether it applies to this computer only or is shared with the repo.",
 		"Then write the plugin folder: avoozl-plugin.json, any pack, the entry module, and a test against a fake host.",
-		`This Avoozl supports contract version ${nb(e.supported.map(String))}. Plugins already declared here: ${nb(e.installed)}.`,
+		`This Avoozl supports contract version ${rb(e.supported.map(String))}. Plugins already declared here: ${rb(e.installed)}.`,
 		"Do not approve the plugin or import its pack; I do that in Settings > Plugins."
 	].join(" ");
 }
-function ib(e) {
+function ab(e) {
 	return [
 		"Use the avoozl-rules skill to help me plan an Avoozl content rule set.",
 		"Ask what kind of text must stay out, then suggest rule and allow lines, where the set checks, and whether it blocks or reports.",
 		"Do not write the terms file or save terms: I paste the lines into Settings > Content rules, check them with Try it, and save there.",
 		"Remind me that terms typed in this chat stay in its transcript, so I type truly private words straight into the editor.",
-		`Rule sets already here: ${nb(e.sets)}.`
+		`Rule sets already here: ${rb(e.sets)}.`
 	].join(" ");
 }
 // docs/plugins.md?raw
-var ab = "# Writing a plugin\n\nA plugin adds to Avoozl without changing Avoozl itself. One plugin can\nbundle several parts, so a team installs one plugin and gets its settings,\nits content rules, its tracker and its intake source together:\n\n| Part       | What it is                                                                | Runs code |\n| ---------- | ------------------------------------------------------------------------- | --------- |\n| `pack`     | Settings a person previews and copies into `.avoozl.json` once            | No        |\n| `rules`    | Content rule sets supplied while Avoozl runs                              | Yes       |\n| `tracker`  | A task tracker that keeps Avoozl's task records                           | Yes       |\n| `intake`   | An intake source: the tracker kind's `poll`, which brings outside work in | Yes       |\n| `route`    | A delivery route for tasks that are not run by a local worker             | Yes       |\n| `gate`     | A read-only check of an outside item that a tracker gate waits on         | Yes       |\n| `template` | A workflow template that starts a new spec from a reusable folder         | No        |\n\nLocal and GitHub are the only built-in routes and trackers. Everything\nelse, including any integration that must stay private, is a separate\npackage or folder that plugs in here.\n\nThe examples on this page are the test-only plugins in Avoozl's own test\ntree: `src/app/test/fixtures/plugins/sdk-team/` bundles a pack, rules, a\ntracker and an intake source; `sdk-templates/` holds one workflow template;\n`fake-route/`, `fake-tracker/`, `fake-gate/` and `fake-rules/` each provide one part. Read them alongside this guide. These\nfakes are the only plugins tested so far; no real plugin has run live.\n\n## A pack's `crews` section\n\nA pack can carry a `crews` section for Issue Radar: `count`, `agent`\n(`avoozl-crew`), `models`, `labels` (`plan`, `ready`, `conflict`), `prompt`\n(the one-line crew prompt, word for word), `reviewRules` and `template`. The\nlabels and review rules go to each chosen repository's settings, and the\ncrew values show in Set up. A pack creates no crew: you create it in Issue\nRadar with the values Set up shows. Content rules screen the section before\nit is previewed or imported. `examples/sdk-team/` is a\nsample (a manifest and a pack) with made-up values; add it with `--path`. It is tested with fakes only.\n\n## What a plugin is\n\nA plugin is a folder with a manifest, `avoozl-plugin.json`, an entry module\nfor the parts that run code, and, with a pack, `avoozl-pack.json`:\n\n```json\n{\n  \"id\": \"sdk-team\",\n  \"version\": \"1.0.0\",\n  \"contract\": 1,\n  \"provides\": [\"pack\", \"rules\", \"tracker\", \"intake\"],\n  \"capabilities\": { \"tracker\": [\"actor\", \"poll\"], \"rules\": [] },\n  \"pack\": \"avoozl-pack.json\",\n  \"entry\": \"index.mjs\"\n}\n```\n\n- `id` is lowercase letters, digits and dashes. `local` and `github` are\n  reserved. Tasks name the plugin as `plugin:<id>`.\n- `version` changes whenever you release a new build.\n- `contract` is the contract version: which version of Avoozl's plugin\n  interface this plugin was built for. It is not the plugin's own version.\n  Settings shows it as **Contract version**. This Avoozl supports contract\n  version `1`.\n- `provides` lists the parts: `pack`, `rules`, `tracker`, `intake`,\n  `route`, `gate`, `lessons` and `template`. `intake` runs as the `tracker` kind and needs the `poll`\n  capability. A manifest written before `provides` lists `kinds` instead\n  (`route`, `tracker`, `rules`), and each kind is its own part. With\n  `provides`, leave `kinds` out; if you keep it, it must match.\n- `capabilities` lists optional features per kind. A tracker may list\n  `edges`, `subtasks`, `actor`, `pause` and `poll`. A route lists none yet.\n- `pack` names the pack file inside the folder; it defaults to\n  `avoozl-pack.json`.\n- `entry` is a `.mjs` or `.js` file inside the folder. A plugin that provides\n  only data parts (`pack`, `lessons`, `template`) runs no code, so it has no\n  `entry`; Avoozl refuses one that names an entry, and never starts a\n  process for it.\n\nThe entry module exports one object per kind: `route`, `tracker`, or\n`rules`. Each\nmethod takes `(params, { config })` and returns a JSON value or a promise of\none:\n\n```js\nexport const route = {\n  submit({ task, brief }, { config }) { ... },\n  status({ id }, { config }) { ... },\n  completion({ id }, { config }) { ... },\n  cancel({ id }, { config }) { ... },\n};\n```\n\n## The `gate` part\n\nA tracker gate is a task whose manifest entry has `completion: \"tracker\"` and\na `tracker` reference: `{ \"plugin\": \"<id>\", \"item\": \"<id or URL>\", \"done\":\n\"<what counts as done, in plain words>\" }`. No crew builds it. Avoozl reads\nthe outside item through the plugin and releases the tasks that require the\ngate when the plugin says `done`.\n\nA `gate` part exports `gate` with one read-only call:\n\n```js\nexport const gate = {\n  status({ ref }, { config }) {\n    // ref is { item, done }. Return the state of the outside item.\n    return { state: \"open\", evidence: \"In review.\", link: \"https://...\" };\n  },\n};\n```\n\n- `state` is `open`, `done`, `failed` or `unknown`. `evidence` is plain text\n  of at most 500 characters. `link` is an http or https URL.\n- The plugin has no call that writes to the outside item.\n- Avoozl runs content rules over `evidence` and `link` before it stores or\n  shows them, and treats them as data, never as instructions.\n- A call that throws, takes longer than 30 seconds, or returns a value outside\n  this shape counts as `unknown`. A sign-in that expired is `unknown` with the\n  evidence \"sign-in expired\".\n- Each tick reads the gates that are due. The gap after a read is 1, 2, 5 and\n  15 minutes, then 30 minutes, and starts again when the state changes. A\n  `done` is recorded once and is never undone. If the outside item later\n  reads differently, Avoozl adds one note and changes nothing else.\n- Credentials stay in the plugin's own sign-in or in an environment variable\n  its `config` names with an `Env` key. They never go in `.avoozl.json`, the\n  manifest, an issue or the evidence.\n\nWhat a person sees and does:\n\n- Avoozl puts `avoozl:waiting-on-tracker` (`radar.trackerLabel`) on the gate's\n  issue and on tasks held only by gates. It triggers nothing.\n- Waiting on you gets one row for a failed gate or one unknown twice in a row.\n  Avoozl never clears a gate.\n- Clear a gate by taking the label off its issue, with `avoozl gate clear TASK\n  --reason TEXT`, the matching MCP call, or the Clear button in the Release\n  queue. The person must pass the repository's actor check. The clear is kept\n  as an order (who, how, when, why, last state), not as verified completion,\n  and the brief of each released task says so. Someone who is not allowed gets\n  the label put back and one row.\n- `avoozl gate list` and the MCP read show each gate's state, last and next\n  check, evidence, link and what it holds, as the Release queue and Trace do.\n\nExamples, by role only. Each would be its own package, outside this\nrepository: a ticket tracker, a check that a code review shipped to a live\nrelease on a private code host, and a managed remote harness task. The only\nplugin in this repository is `fake-gate/`, which tests use.\n\n## Declaring and approving a plugin\n\nA `plugins` entry declares each plugin, either in the repository's\n`.avoozl.json` (shared and reviewed in Git) or in this machine's\n`plugins.json`, beside the global Avoozl configuration\n(`~/.config/avoozl/plugins.json`, never committed):\n\n```json\n{\n  \"plugins\": [\n    {\n      \"id\": \"fake-route\",\n      \"path\": \"../fake-route\",\n      \"contract\": 1,\n      \"config\": { \"stateFile\": \"route-state.json\" }\n    }\n  ]\n}\n```\n\n- Name exactly one of `path` (a folder, relative to the file that declares\n  it), `package` (a package installed into the `plugins` folder beside\n  `plugins.json`), or `git` (below).\n- `config` is plain data passed to every call. It never holds a credential. A\n  key ending in `Env`, such as `tokenEnv`, names the environment variable the\n  plugin reads its credential from; Avoozl passes that variable, and only the\n  variables `config` names this way, to the plugin.\n- Declare a plugin whose name must stay private in `plugins.json`. Settings\n  asks you to confirm before it saves a `plugins` entry into `.avoozl.json`.\n\n### Add plugin in Settings\n\n**Settings > Plugins > Add plugin** walks four steps, with Cancel on each:\n\n1. **Where from**: open Folder, Package or Git and fill it in. Each keeps\n   what you typed until you cancel. Git shows the exact commit its ref names.\n2. **What**: the id, version, kinds and capabilities the plugin's own\n   `avoozl-plugin.json` declares. The id and **Contract version** come from\n   that file; a git plugin, whose files are fetched later, picks a supported\n   contract version. A package's optional version is checked against the\n   installed package; the entry stores no version, the approval pins it.\n3. **Applies to**: this computer only (`plugins.json`) or shared with the\n   repository (`.avoozl.json`). A shared plugin is approved on each computer\n   for itself; a shared package is installed on each, and a shared git plugin\n   is fetched on each with **Update**. A shared folder is a path inside the\n   repository, relative to it.\n4. **Review and approve**: the version, content hash and, for git, the commit.\n   Cancel here removes the entry step 3 declared.\n\n### A plugin from a git repository\n\n```json\n{\n  \"id\": \"fake-route\",\n  \"git\": \"https://git.example.com/team/fake-route.git\",\n  \"ref\": \"v1.0.0\",\n  \"subdir\": \"plugin\",\n  \"contract\": 1\n}\n```\n\n`git` is a URL or a local repository path. `ref` is a tag, a branch or a full\ncommit, and `subdir` is the plugin's folder inside the repository. **Add from\ngit** in Settings (or `avoozl plugins add ID --git URL --ref REF`) resolves\n`ref` to one commit, fetches only that commit into\n`plugins/git/<id>/<commit>/` beside `plugins.json`, and stores the commit on\nthis machine. Git runs as you, with your credential helper or SSH key, so\nprivate repositories work. Git hooks are off, submodules are skipped, and\nAvoozl runs no `npm install`: commit the plugin ready to run, bundled or with\n`node_modules`. The approval names the commit, so a new commit needs a new\napproval. **Update** (or `avoozl plugins update ID`) resolves `ref` again.\nThe tick never fetches. Avoozl refuses a URL with a password or token in it,\na `subdir` outside the repository, and a commit with no `avoozl-plugin.json`.\n\nNothing loads until a person approves the plugin in **Settings** (or with\n`avoozl plugins approve ID --hash HASH`). Settings shows the id, version,\neach part, the code kinds it runs as, capabilities, location and content\nhash, a SHA-256 over every file in the folder, the pack included. The\napproval lists the parts and is stored on this machine only. Any change to\nthe version or to any file needs approval again. The tick and example\ninstallation never approve a plugin.\n\nA plugin **shared with the repo** puts its entry in `.avoozl.json`, where\nit is committed and reviewed like any other change. Each computer still\napproves it for itself. Because a shared entry is the same on every\ncomputer, its `config` holds no machine path: name an environment variable\n(`termsFileEnv`, `stateFileEnv`) that holds each computer's own path, as the\n`sdk-team` sample does.\n\n## How Avoozl runs a plugin\n\n- Each approved plugin runs in its own Node child process. Avoozl talks to it\n  in JSON lines over stdin and stdout, and gives it no port.\n- A plugin may call its own system over the network. It must not open a\n  listener. A plugin that listens is stopped and marked broken.\n- Write nothing to stdout yourself; it carries the protocol. `console.log`\n  output goes to stderr, which Avoozl discards.\n- Each call has a time limit (20 seconds by default) inside the tick's own\n  time budget.\n- Every reply is checked against the contract. Links must be `http` or\n  `https`. Reply text is untrusted data: Avoozl quotes it as data in briefs\n  and escapes it in views.\n- When a plugin is missing, unapproved, disabled, crashes, times out, replies\n  with the wrong shape, or expects an unsupported contract, Avoozl marks it\n  unavailable for that tick. Its tasks show \"needs you\" with the reason, and\n  every other task keeps moving. The next tick tries again. A plugin's tasks\n  never fall back to another route or tracker on their own.\n\n## Route kind\n\nA task whose manifest entry says `\"route\": \"plugin:<id>\"` is delivered by\nthat route instead of a local worker session. One graph can mix routes, for\nexample a local leaf, then a remote one, then a local one.\n\n| Call                    | Reply                                                                            |\n| ----------------------- | -------------------------------------------------------------------------------- |\n| `submit({task, brief})` | `{id, link}`: the remote ID and a link to the work                               |\n| `status({id})`          | `{state, link?, reason?}`: `queued`, `running`, `needs-person`, `failed`, `done` |\n| `completion({id})`      | `{pr?, answer?}`: a pull request link, an answer, or both                        |\n| `cancel({id})`          | `{cancelled}`                                                                    |\n\n- `submit` gets the task's own title, summary, acceptance and checks, and a\n  brief. Make it idempotent by task ID.\n- The tick reads `status` every tick until the work is done. `needs-person`\n  shows the task as \"needs you\" with your link.\n- A remote task is done only when `status` says `done` and `completion`\n  returns its result. Each dependent's brief quotes that result as data.\n- `failed` stops the task for a person. `route.resubmit` starts it again.\n\n## Tracker kind\n\nA task with `\"authority\": \"plugin:<id>\"` keeps its record in that tracker,\nthe way a GitHub task keeps its record in an issue. SQLite only caches it:\ndirect edits are refused, and changes go through the spec and projection.\n\n| Call                               | Reply                                                                                  |\n| ---------------------------------- | -------------------------------------------------------------------------------------- |\n| `project({task, desired, marker})` | `{id, link, marker}`: create or update the record, idempotent by namespace and task ID |\n| `read({ids})`                      | `{records: [...]}`: each record's state and fields                                     |\n| `list({namespace})`                | `{records: [...]}`: every record carrying this namespace, for rebuild                  |\n| `close({id, reason})`              | `{closed}`: close with reason `completed` or `not_planned`                             |\n\nEach record in a `read` or `list` reply has:\n\n- `id`, `link`, `state` (`open` or `closed`), and `closeReason` when closed;\n- `fields`: the managed values as they are in the tracker now: `title`,\n  `section` (the managed description section) and `tags`, plus `blockedBy`\n  with the `edges` capability;\n- `marker`: the namespace, task ID and last applied values Avoozl stored with\n  the record, returned unchanged;\n- with the `actor` capability, `closedBy` and `pausedBy`: who closed or paused\n  it; with `pause`, `paused`.\n\nRules a tracker plugin must follow:\n\n- **Store the marker.** Keep the `marker` from `project` with the record (a\n  hidden field or a managed description section) and return it unchanged from\n  `project`, `read` and `list`. A plugin that does not is refused as a\n  tracker.\n- **Edges.** Without the `edges` capability, the graph stays in Avoozl: its\n  edges come from the approved spec. With `edges`, `desired.blockedBy` lists\n  the record IDs that block this one; store them as the tracker's own links.\n- **Edit only managed fields.** Avoozl changes the title, the managed section,\n  managed tags and, with `edges`, blocking links. A field a person changed is a\n  conflict that Avoozl reports and leaves alone.\n- **Completion is Avoozl's.** Avoozl decides a task is done and then calls\n  `close(id, \"completed\")`. A close or pause by someone else is judged with\n  the actor you report, against the entry's `config.allowedActors`. Without\n  the `actor` capability, every outside close holds the task's dependents for\n  a person.\n\n## Rules kind\n\nA rules plugin supplies content rule sets: terms Avoozl must never write\n(see \"Ban private terms\" in `docs/policies.md`). It lets a team ship its\nlist as a private package that public Avoozl never sees.\n\n| Call           | Reply                                             |\n| -------------- | ------------------------------------------------- |\n| `ruleSets({})` | `{sets: [{id, version, rules: [{id, pattern}]}]}` |\n\n- `pattern` is a regular expression, matched per line ignoring case.\n- A set or rule must not carry `allow`. Allow lines exist only in a person's\n  own terms file; a plugin writes its exception into the pattern itself\n  (for example `\\bzebra\\b(?!-ui)`). A reply with `allow` is refused, which\n  makes that plugin's sets unavailable.\n- A `.avoozl.json` set `{ \"id\": \"<set id>\", \"plugin\": \"<plugin id>\" }` picks\n  one set by id. In **Settings > Content rules**, pick the plugin as the set's\n  **Rules plugin**; such a set has no terms file to edit there.\n- Without a plugin, a set's rules live in its terms file,\n  `.avoozl/local/content-rules/<set id>.txt`, one `name: pattern` per line,\n  plus `allow:` lines for false matches.\n  Settings edits it with a Rule builder (word or phrase, or pattern) and a\n  File view, writes it readable by your account only, and refuses to write\n  it where Git could commit it. **How rules work** on that tab explains the\n  format with made-up examples.\n- Avoozl keeps the rules in memory for the tick. It never writes them to\n  SQLite, receipts, or Git; findings record the set's `version`.\n- A plugin that is missing, unapproved, or broken makes only its own sets\n  unavailable, and every boundary those sets cover writes nothing until it is\n  fixed.\n\n## Pack part\n\nA pack is settings only. Avoozl never runs anything from it. It is one JSON\nfile:\n\n```json\n{\n  \"description\": \"Triage labels, triggers and who counts for SDK repositories.\",\n  \"settings\": {\n    \"repositories\": {\n      \"minimumPermission\": \"write\",\n      \"rules\": [\n        {\n          \"id\": \"deliver\",\n          \"action\": \"deliver\",\n          \"match\": \"label:avoozl:deliver -label:needs-triage -label:response-requested\"\n        }\n      ],\n      \"untriaged\": {\n        \"filter\": \"label:needs-triage\",\n        \"triageLabels\": [\"response-requested\", \"closing-soon\"]\n      }\n    },\n    \"project\": { \"fields\": { \"status\": \"Status\", \"release\": \"Release\" } },\n    \"contentRules\": { \"sets\": [{ \"id\": \"team-terms\", \"plugin\": \"sdk-team\" }] }\n  }\n}\n```\n\nWhat a pack may set, and where each lands in `.avoozl.json`:\n\n| Pack key                     | Sets                                                                                                                                                                                                                    |\n| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |\n| `settings.repositories`      | For each repository you pick at import: `rules` (trigger `match` lines), `untriaged`, `allowedActors`, `minimumPermission`, `requiredChecks`, `priority`, `managedLabels`. An old `concurrency` is accepted and ignored |\n| `settings.project`           | `github.project.fields` and `statusValues`, when a GitHub Project is set                                                                                                                                                |\n| `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                                                  |\n| `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                                               |\n| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`, `concurrency`                                                                                                                                                   |\n| `settings.flow`              | Flow settings, such as `batch.max`                                                                                                                                                                                      |\n\n- Every key is checked with the same rules Settings uses. Any other key is\n  refused by name, such as `Pack key settings.repositories.autoMerge is not\na pack setting.`, and the plugin shows as invalid until it is fixed.\n- A pack cannot hold a credential or a content rule pattern. Terms come\n  from the `rules` part at run time, so they are never stored in a public\n  repository.\n- A pack has no follow mode and no org minimums. Avoozl copies the\n  settings once; after that they are the repository's own settings.\n\n**Import.** On the plugin's card in **Settings > Plugins**, **Preview and\nimport pack** shows each setting as **Create**, **Change**, **Keep** or\n**Skip** (a setting that cannot apply here, such as Project fields with no\nProject set), with the old and new values. Nothing is written until\n**Import settings**, and only:\n\n- after this computer approved this exact plugin version;\n- for the exact preview shown: if the pack or `.avoozl.json` changed since,\n  Avoozl asks you to preview again;\n- when a setting would let more people give orders than before (a lower\n  `minimumPermission`, or new `allowedActors`), only after you accept that\n  change, which the preview names on its own line;\n- for a plugin declared on this computer only, after you confirm that its\n  id and settings go into `.avoozl.json`.\n\nImport writes `packs` into `.avoozl.json`: for each plugin, the version\nimported, when and by whom, and the settings that came from it. When a\nnewer version arrives, approve it, and the card offers its preview again;\nimporting it records the new version. At the command line:\n\n```sh\navoozl plugins pack-preview sdk-team\navoozl plugins pack-import sdk-team --preview HASH [--accept-lowered]\n```\n\n## Template part\n\nA workflow template starts a new spec the same way each time, such as one\nSDK rewrite after another. It is data only. Each template is a folder under\n`templates/` in the plugin:\n\n```\ntemplates/sdk-rewrite/\n  avoozl-template.json\n  prompt.md\n  starter/requirements.md\n  starter/design.md\n  starter/tasks.md\n  starter/avoozl/manifest.json\n```\n\n`avoozl-template.json` holds:\n\n| Key                          | Holds                                                                                                                                    |\n| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |\n| `id`, `title`, `description` | What the New spec drawer shows                                                                                                           |\n| `inputs`                     | Fields the person fills; each has `id`, `label`, `type` (`text`, `choice` with `options`, `file`, `repositories`, `epic`) and `required` |\n| `prompt`                     | The planner prompt, a Markdown file                                                                                                      |\n| `starter`                    | A spec folder in the usual layout                                                                                                        |\n| `phases`                     | Optional: the starter's phases, `{id, title}` in order                                                                                   |\n| `proofKinds`                 | Optional: proof outlines the prompt asks the planner to fill in                                                                          |\n| `pack`                       | Optional: a settings pack, as in the pack part                                                                                           |\n| `flow`                       | Optional: flow defaults: `batch`, `stopTheLine`, `localChecksFirst`, `retro.everyTasks`                                                  |\n\nThe prompt and starter files may use `{{<input id>}}`. Avoozl puts in what\nthe person typed, as plain text, once, and never runs it. A `file` input is\nread in the page, at most 200 KB of text; Avoozl never opens a path someone\ntyped. The plugin shows as invalid, naming the key or file, when:\n\n- a key or input setting is unknown, or an input ID is used twice;\n- a file uses a placeholder that is no input ID;\n- the starter, with sample values put in, does not lint clean;\n- `phases` does not match the starter's headings or manifest `phase` values;\n- `pack` or `flow` fails its own check.\n\nA template is offered only while its plugin is approved on this computer.\nIn **New spec**, choose **From template**, pick it, and fill its inputs\nbeside Name, Category and Epic. Submit checks the inputs and runs content\nrules on the seed, then opens a planner chat with the prompt, the filled\nstarter and the inputs. Picking a template changes no setting: with a `pack`\nor `flow`, the drawer shows the pack preview with **Import these settings**\nunticked, and only ticking it imports them, as Settings does. The folder\ncomes back as a draft spec that records the template; with an epic picked,\nthe epic's change comes back as its own draft. Nothing is approved, started\nor pushed.\n\nThe sample `sdk-templates/` plugin has an **SDK rewrite** template: six\nphases (inventory, codegen, runtime, protocol tests, review, cutover), a\nmanual **Review with team** task that cutover waits on, two proof kinds and\nflow defaults. Proof P37 runs it with a fake GitHub; no template has run\nlive yet.\n\nA starter may hold manual tasks (`\"manual\": true`): steps only a person\ndoes. See [Manual tasks and links and notes](policies.md#manual-tasks-and-links-and-notes).\n\n## Intake part\n\nAn intake source is a tracker kind with the `poll` capability, listed in\n`provides` as `intake`. The fake tracker (`fake-tracker/`) is the example:\nits `poll` reads a JSON file of items and returns those changed since the\ncursor.\n\n| Call                    | Reply                                                                  |\n| ----------------------- | ---------------------------------------------------------------------- |\n| `poll({cursor, limit})` | `{items, cursor, more}`: items changed since `cursor`, at most `limit` |\n\n```js\nexport const tracker = {\n  poll({ cursor, limit }, { config }) {\n    const changed = readItems(config).filter(\n      (item) => !cursor || mark(item) > cursor,\n    );\n    const page = changed.slice(0, limit);\n    return {\n      items: page,\n      cursor: page.length ? mark(page.at(-1)) : cursor,\n      more: changed.length > page.length,\n    };\n  },\n};\n```\n\n- `cursor` is your own text of at most 2,000 characters, or null on the\n  first poll. Return the cursor for the next poll and `more: true` when a\n  page is left. Avoozl asks for at most 500 items, polls each source at most\n  once per tick, and stores the new cursor only after every item of the\n  reply is handled, so a crash replays the same page. A failed poll keeps\n  the cursor and the items and shows the error on the source.\n- Each item has `id`, `link` (`http` or `https`), `kind` (`issue`, `pr`,\n  `review` or `ticket`), `title`, `state` (`open` or `closed`), and\n  `updatedAt`; and may have `body`, `labels`, `author`, `assignees`,\n  `closeReason`, `closedBy`, `closedAt`, `fields` (text, number or\n  true/false values) and `trigger`. An item that breaks a limit is refused\n  with a reason naming the field; the other items of the reply still count.\n- `trigger` is `{actor, permission, eventId, at}`: who last changed what a\n  rule would match, and that person's standing in your system, mapped to\n  `none`, `read`, `triage`, `write`, `maintain` or `admin`. Avoozl checks it\n  against the source's `allowedActors` and `minimumPermission` (default\n  `write`). Without the `actor` capability nobody counts, so your items only\n  list, pause or quarantine. A close counts as an order only when\n  `closedBy` is the trigger's actor and that actor counts.\n- A plugin that provides `intake` but not `tracker` is never asked to\n  `project`, `read`, `list` or `close`. Avoozl writes nothing back to an\n  intake source.\n\nDeclare the source under `intake.sources`, in `.avoozl.json` or in this\nmachine's `plugins.json` when its name must stay private:\n\n```json\n{\n  \"intake\": {\n    \"sources\": {\n      \"tickets\": {\n        \"via\": \"plugin:fake-tracker\",\n        \"repository\": \"example/app\",\n        \"labelFields\": [\"component\"],\n        \"minimumPermission\": \"write\"\n      }\n    }\n  }\n}\n```\n\n`repository` names a registered repository: its trigger rules apply, and a\ndelivered item's task lands there. A rule matches a source's items only\nwith a `source:` term, such as `label:go source:tickets`; a rule without\none matches GitHub only. `labelFields` adds a `<field>:<value>` label per\nfield and `assigneeField` an assignee before matching. Items no rule takes\nshow in the **Intake** tab with their source.\n\n## Testing your plugin\n\nCopy the fake plugins' approach: keep the remote system in a file or a local\nstand-in, declare the plugin in a temporary `plugins.json`, approve its hash,\nand run ticks. Avoozl's proof P26 does exactly this with the two fakes,\nproof P35 installs, previews, imports and polls the `sdk-team` bundle, and\nproof P37 starts a spec from the `sdk-templates` template.\nProof P32 polls the fake tracker as an intake source.\n";
+var ob = "# Writing a plugin\n\nA plugin adds to Avoozl without changing Avoozl itself. One plugin can\nbundle several parts, so a team installs one plugin and gets its settings,\nits content rules, its tracker and its intake source together:\n\n| Part       | What it is                                                                | Runs code |\n| ---------- | ------------------------------------------------------------------------- | --------- |\n| `pack`     | Settings a person previews and copies into `.avoozl.json` once            | No        |\n| `rules`    | Content rule sets supplied while Avoozl runs                              | Yes       |\n| `tracker`  | A task tracker that keeps Avoozl's task records                           | Yes       |\n| `intake`   | An intake source: the tracker kind's `poll`, which brings outside work in | Yes       |\n| `route`    | A delivery route for tasks that are not run by a local worker             | Yes       |\n| `gate`     | A read-only check of an outside item that a tracker gate waits on         | Yes       |\n| `template` | A workflow template that starts a new spec from a reusable folder         | No        |\n\nLocal and GitHub are the only built-in routes and trackers. Everything\nelse, including any integration that must stay private, is a separate\npackage or folder that plugs in here.\n\nThe examples on this page are the test-only plugins in Avoozl's own test\ntree: `src/app/test/fixtures/plugins/sdk-team/` bundles a pack, rules, a\ntracker and an intake source; `sdk-templates/` holds one workflow template;\n`fake-route/`, `fake-tracker/`, `fake-gate/` and `fake-rules/` each provide one part. Read them alongside this guide. These\nfakes are the only plugins tested so far; no real plugin has run live.\n\n## A pack's `crews` section\n\nA pack can carry a `crews` section for Issue Radar: `count`, `agent`\n(`avoozl-crew`), `models`, `labels` (`plan`, `ready`, `conflict`), `prompt`\n(the one-line crew prompt, word for word), `reviewRules` and `template`. The\nlabels and review rules go to each chosen repository's settings, and the\ncrew values show in Set up. A pack creates no crew: you create it in Issue\nRadar with the values Set up shows. Content rules screen the section before\nit is previewed or imported. `examples/sdk-team/` is a\nsample (a manifest and a pack) with made-up values; add it with `--path`. It is tested with fakes only.\n\n## What a plugin is\n\nA plugin is a folder with a manifest, `avoozl-plugin.json`, an entry module\nfor the parts that run code, and, with a pack, `avoozl-pack.json`:\n\n```json\n{\n  \"id\": \"sdk-team\",\n  \"version\": \"1.0.0\",\n  \"contract\": 1,\n  \"provides\": [\"pack\", \"rules\", \"tracker\", \"intake\"],\n  \"capabilities\": { \"tracker\": [\"actor\", \"poll\"], \"rules\": [] },\n  \"pack\": \"avoozl-pack.json\",\n  \"entry\": \"index.mjs\"\n}\n```\n\n- `id` is lowercase letters, digits and dashes. `local` and `github` are\n  reserved. Tasks name the plugin as `plugin:<id>`.\n- `version` changes whenever you release a new build.\n- `contract` is the contract version: which version of Avoozl's plugin\n  interface this plugin was built for. It is not the plugin's own version.\n  Settings shows it as **Contract version**. This Avoozl supports contract\n  version `1`.\n- `provides` lists the parts: `pack`, `rules`, `tracker`, `intake`,\n  `route`, `gate`, `lessons` and `template`. `intake` runs as the `tracker` kind and needs the `poll`\n  capability. A manifest written before `provides` lists `kinds` instead\n  (`route`, `tracker`, `rules`), and each kind is its own part. With\n  `provides`, leave `kinds` out; if you keep it, it must match.\n- `capabilities` lists optional features per kind. A tracker may list\n  `edges`, `subtasks`, `actor`, `pause` and `poll`. A route lists none yet.\n- `pack` names the pack file inside the folder; it defaults to\n  `avoozl-pack.json`.\n- `entry` is a `.mjs` or `.js` file inside the folder. A plugin that provides\n  only data parts (`pack`, `lessons`, `template`) runs no code, so it has no\n  `entry`; Avoozl refuses one that names an entry, and never starts a\n  process for it.\n\nThe entry module exports one object per kind: `route`, `tracker`, or\n`rules`. Each\nmethod takes `(params, { config })` and returns a JSON value or a promise of\none:\n\n```js\nexport const route = {\n  submit({ task, brief }, { config }) { ... },\n  status({ id }, { config }) { ... },\n  completion({ id }, { config }) { ... },\n  cancel({ id }, { config }) { ... },\n};\n```\n\n## The `gate` part\n\nA tracker gate is a task whose manifest entry has `completion: \"tracker\"` and\na `tracker` reference: `{ \"plugin\": \"<id>\", \"item\": \"<id or URL>\", \"done\":\n\"<what counts as done, in plain words>\" }`. No crew builds it. Avoozl reads\nthe outside item through the plugin and releases the tasks that require the\ngate when the plugin says `done`.\n\nA `gate` part exports `gate` with one read-only call:\n\n```js\nexport const gate = {\n  status({ ref }, { config }) {\n    // ref is { item, done }. Return the state of the outside item.\n    return { state: \"open\", evidence: \"In review.\", link: \"https://...\" };\n  },\n};\n```\n\n- `state` is `open`, `done`, `failed` or `unknown`. `evidence` is plain text\n  of at most 500 characters. `link` is an http or https URL.\n- The plugin has no call that writes to the outside item.\n- Avoozl runs content rules over `evidence` and `link` before it stores or\n  shows them, and treats them as data, never as instructions.\n- A call that throws, takes longer than 30 seconds, or returns a value outside\n  this shape counts as `unknown`. A sign-in that expired is `unknown` with the\n  evidence \"sign-in expired\".\n- Each tick reads the gates that are due. The gap after a read is 1, 2, 5 and\n  15 minutes, then 30 minutes, and starts again when the state changes. A\n  `done` is recorded once and is never undone. If the outside item later\n  reads differently, Avoozl adds one note and changes nothing else.\n- Credentials stay in the plugin's own sign-in or in an environment variable\n  its `config` names with an `Env` key. They never go in `.avoozl.json`, the\n  manifest, an issue or the evidence.\n\nWhat a person sees and does:\n\n- Avoozl puts `avoozl:waiting-on-tracker` (`radar.trackerLabel`) on the gate's\n  issue and on tasks held only by gates. It triggers nothing.\n- Waiting on you gets one row for a failed gate or one unknown twice in a row.\n  Avoozl never clears a gate.\n- Clear a gate by taking the label off its issue, with `avoozl gate clear TASK\n  --reason TEXT`, the matching MCP call, or the Clear button in the Release\n  queue. The person must pass the repository's actor check. The clear is kept\n  as an order (who, how, when, why, last state), not as verified completion,\n  and the brief of each released task says so. Someone who is not allowed gets\n  the label put back and one row.\n- `avoozl gate list` and the MCP read show each gate's state, last and next\n  check, evidence, link and what it holds, as the Release queue and Trace do.\n\nExamples, by role only. Each would be its own package, outside this\nrepository: a ticket tracker, a check that a code review shipped to a live\nrelease on a private code host, and a managed remote harness task. The only\nplugin in this repository is `fake-gate/`, which tests use.\n\n## Declaring and approving a plugin\n\nA `plugins` entry declares each plugin, either in the repository's\n`.avoozl.json` (shared and reviewed in Git) or in this machine's\n`plugins.json`, beside the global Avoozl configuration\n(`~/.config/avoozl/plugins.json`, never committed):\n\n```json\n{\n  \"plugins\": [\n    {\n      \"id\": \"fake-route\",\n      \"path\": \"../fake-route\",\n      \"contract\": 1,\n      \"config\": { \"stateFile\": \"route-state.json\" }\n    }\n  ]\n}\n```\n\n- Name exactly one of `path` (a folder, relative to the file that declares\n  it), `package` (a package installed into the `plugins` folder beside\n  `plugins.json`), or `git` (below).\n- `config` is plain data passed to every call. It never holds a credential. A\n  key ending in `Env`, such as `tokenEnv`, names the environment variable the\n  plugin reads its credential from; Avoozl passes that variable, and only the\n  variables `config` names this way, to the plugin.\n- Declare a plugin whose name must stay private in `plugins.json`. Settings\n  asks you to confirm before it saves a `plugins` entry into `.avoozl.json`.\n\n### Add plugin in Settings\n\n**Settings > Plugins > Add plugin** walks four steps, with Cancel on each:\n\n1. **Where from**: open Folder, Package or Git and fill it in. Each keeps\n   what you typed until you cancel. Git shows the exact commit its ref names.\n2. **What**: the id, version, kinds and capabilities the plugin's own\n   `avoozl-plugin.json` declares. The id and **Contract version** come from\n   that file; a git plugin, whose files are fetched later, picks a supported\n   contract version. A package's optional version is checked against the\n   installed package; the entry stores no version, the approval pins it.\n3. **Applies to**: this computer only (`plugins.json`) or shared with the\n   repository (`.avoozl.json`). A shared plugin is approved on each computer\n   for itself; a shared package is installed on each, and a shared git plugin\n   is fetched on each with **Update**. A shared folder is a path inside the\n   repository, relative to it.\n4. **Review and approve**: the version, content hash and, for git, the commit.\n   Cancel here removes the entry step 3 declared.\n\n### A plugin from a git repository\n\n```json\n{\n  \"id\": \"fake-route\",\n  \"git\": \"https://git.example.com/team/fake-route.git\",\n  \"ref\": \"v1.0.0\",\n  \"subdir\": \"plugin\",\n  \"contract\": 1\n}\n```\n\n`git` is a URL or a local repository path. `ref` is a tag, a branch or a full\ncommit, and `subdir` is the plugin's folder inside the repository. **Add from\ngit** in Settings (or `avoozl plugins add ID --git URL --ref REF`) resolves\n`ref` to one commit, fetches only that commit into\n`plugins/git/<id>/<commit>/` beside `plugins.json`, and stores the commit on\nthis machine. Git runs as you, with your credential helper or SSH key, so\nprivate repositories work. Git hooks are off, submodules are skipped, and\nAvoozl runs no `npm install`: commit the plugin ready to run, bundled or with\n`node_modules`. The approval names the commit, so a new commit needs a new\napproval. **Update** (or `avoozl plugins update ID`) resolves `ref` again.\nThe tick never fetches. Avoozl refuses a URL with a password or token in it,\na `subdir` outside the repository, and a commit with no `avoozl-plugin.json`.\n\nNothing loads until a person approves the plugin in **Settings** (or with\n`avoozl plugins approve ID --hash HASH`). Settings shows the id, version,\neach part, the code kinds it runs as, capabilities, location and content\nhash, a SHA-256 over every file in the folder, the pack included. The\napproval lists the parts and is stored on this machine only. Any change to\nthe version or to any file needs approval again. The tick and example\ninstallation never approve a plugin.\n\nA plugin **shared with the repo** puts its entry in `.avoozl.json`, where\nit is committed and reviewed like any other change. Each computer still\napproves it for itself. Because a shared entry is the same on every\ncomputer, its `config` holds no machine path: name an environment variable\n(`termsFileEnv`, `stateFileEnv`) that holds each computer's own path, as the\n`sdk-team` sample does.\n\n## How Avoozl runs a plugin\n\n- Each approved plugin runs in its own Node child process. Avoozl talks to it\n  in JSON lines over stdin and stdout, and gives it no port.\n- A plugin may call its own system over the network. It must not open a\n  listener. A plugin that listens is stopped and marked broken.\n- Write nothing to stdout yourself; it carries the protocol. `console.log`\n  output goes to stderr, which Avoozl discards.\n- Each call has a time limit (20 seconds by default) inside the tick's own\n  time budget.\n- Every reply is checked against the contract. Links must be `http` or\n  `https`. Reply text is untrusted data: Avoozl quotes it as data in briefs\n  and escapes it in views.\n- When a plugin is missing, unapproved, disabled, crashes, times out, replies\n  with the wrong shape, or expects an unsupported contract, Avoozl marks it\n  unavailable for that tick. Its tasks show \"needs you\" with the reason, and\n  every other task keeps moving. The next tick tries again. A plugin's tasks\n  never fall back to another route or tracker on their own.\n\n## Route kind\n\nA task whose manifest entry says `\"route\": \"plugin:<id>\"` is delivered by\nthat route instead of a local worker session. One graph can mix routes, for\nexample a local leaf, then a remote one, then a local one.\n\n| Call                    | Reply                                                                            |\n| ----------------------- | -------------------------------------------------------------------------------- |\n| `submit({task, brief})` | `{id, link}`: the remote ID and a link to the work                               |\n| `status({id})`          | `{state, link?, reason?}`: `queued`, `running`, `needs-person`, `failed`, `done` |\n| `completion({id})`      | `{pr?, answer?}`: a pull request link, an answer, or both                        |\n| `cancel({id})`          | `{cancelled}`                                                                    |\n\n- `submit` gets the task's own title, summary, acceptance and checks, and a\n  brief. Make it idempotent by task ID.\n- The tick reads `status` every tick until the work is done. `needs-person`\n  shows the task as \"needs you\" with your link.\n- A remote task is done only when `status` says `done` and `completion`\n  returns its result. Each dependent's brief quotes that result as data.\n- `failed` stops the task for a person. `route.resubmit` starts it again.\n\n## Tracker kind\n\nA task with `\"authority\": \"plugin:<id>\"` keeps its record in that tracker,\nthe way a GitHub task keeps its record in an issue. SQLite only caches it:\ndirect edits are refused, and changes go through the spec and projection.\n\n| Call                               | Reply                                                                                  |\n| ---------------------------------- | -------------------------------------------------------------------------------------- |\n| `project({task, desired, marker})` | `{id, link, marker}`: create or update the record, idempotent by namespace and task ID |\n| `read({ids})`                      | `{records: [...]}`: each record's state and fields                                     |\n| `list({namespace})`                | `{records: [...]}`: every record carrying this namespace, for rebuild                  |\n| `close({id, reason})`              | `{closed}`: close with reason `completed` or `not_planned`                             |\n\nEach record in a `read` or `list` reply has:\n\n- `id`, `link`, `state` (`open` or `closed`), and `closeReason` when closed;\n- `fields`: the managed values as they are in the tracker now: `title`,\n  `section` (the managed description section) and `tags`, plus `blockedBy`\n  with the `edges` capability;\n- `marker`: the namespace, task ID and last applied values Avoozl stored with\n  the record, returned unchanged;\n- with the `actor` capability, `closedBy` and `pausedBy`: who closed or paused\n  it; with `pause`, `paused`.\n\nRules a tracker plugin must follow:\n\n- **Store the marker.** Keep the `marker` from `project` with the record (a\n  hidden field or a managed description section) and return it unchanged from\n  `project`, `read` and `list`. A plugin that does not is refused as a\n  tracker.\n- **Edges.** Without the `edges` capability, the graph stays in Avoozl: its\n  edges come from the approved spec. With `edges`, `desired.blockedBy` lists\n  the record IDs that block this one; store them as the tracker's own links.\n- **Edit only managed fields.** Avoozl changes the title, the managed section,\n  managed tags and, with `edges`, blocking links. A field a person changed is a\n  conflict that Avoozl reports and leaves alone.\n- **Completion is Avoozl's.** Avoozl decides a task is done and then calls\n  `close(id, \"completed\")`. A close or pause by someone else is judged with\n  the actor you report, against the entry's `config.allowedActors`. Without\n  the `actor` capability, every outside close holds the task's dependents for\n  a person.\n\n## Rules kind\n\nA rules plugin supplies content rule sets: terms Avoozl must never write\n(see \"Ban private terms\" in `docs/policies.md`). It lets a team ship its\nlist as a private package that public Avoozl never sees.\n\n| Call           | Reply                                             |\n| -------------- | ------------------------------------------------- |\n| `ruleSets({})` | `{sets: [{id, version, rules: [{id, pattern}]}]}` |\n\n- `pattern` is a regular expression, matched per line ignoring case.\n- A set or rule must not carry `allow`. Allow lines exist only in a person's\n  own terms file; a plugin writes its exception into the pattern itself\n  (for example `\\bzebra\\b(?!-ui)`). A reply with `allow` is refused, which\n  makes that plugin's sets unavailable.\n- A `.avoozl.json` set `{ \"id\": \"<set id>\", \"plugin\": \"<plugin id>\" }` picks\n  one set by id. In **Settings > Content rules**, pick the plugin as the set's\n  **Rules plugin**; such a set has no terms file to edit there.\n- Without a plugin, a set's rules live in its terms file,\n  `.avoozl/local/content-rules/<set id>.txt`, one `name: pattern` per line,\n  plus `allow:` lines for false matches.\n  Settings edits it with a Rule builder (word or phrase, or pattern) and a\n  File view, writes it readable by your account only, and refuses to write\n  it where Git could commit it. **How rules work** on that tab explains the\n  format with made-up examples.\n- Avoozl keeps the rules in memory for the tick. It never writes them to\n  SQLite, receipts, or Git; findings record the set's `version`.\n- A plugin that is missing, unapproved, or broken makes only its own sets\n  unavailable, and every boundary those sets cover writes nothing until it is\n  fixed.\n\n## Pack part\n\nA pack is settings only. Avoozl never runs anything from it. It is one JSON\nfile:\n\n```json\n{\n  \"description\": \"Triage labels, triggers and who counts for SDK repositories.\",\n  \"settings\": {\n    \"repositories\": {\n      \"minimumPermission\": \"write\",\n      \"rules\": [\n        {\n          \"id\": \"deliver\",\n          \"action\": \"deliver\",\n          \"match\": \"label:avoozl:deliver -label:needs-triage -label:response-requested\"\n        }\n      ],\n      \"untriaged\": {\n        \"filter\": \"label:needs-triage\",\n        \"triageLabels\": [\"response-requested\", \"closing-soon\"]\n      }\n    },\n    \"project\": { \"fields\": { \"status\": \"Status\", \"release\": \"Release\" } },\n    \"contentRules\": { \"sets\": [{ \"id\": \"team-terms\", \"plugin\": \"sdk-team\" }] }\n  }\n}\n```\n\nWhat a pack may set, and where each lands in `.avoozl.json`:\n\n| Pack key                     | Sets                                                                                                                                                                                                                    |\n| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |\n| `settings.repositories`      | For each repository you pick at import: `rules` (trigger `match` lines), `untriaged`, `allowedActors`, `minimumPermission`, `requiredChecks`, `priority`, `managedLabels`. An old `concurrency` is accepted and ignored |\n| `settings.project`           | `github.project.fields` and `statusValues`, when a GitHub Project is set                                                                                                                                                |\n| `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                                                  |\n| `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                                               |\n| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`, `concurrency`                                                                                                                                                   |\n| `settings.flow`              | Flow settings, such as `batch.max`                                                                                                                                                                                      |\n\n- Every key is checked with the same rules Settings uses. Any other key is\n  refused by name, such as `Pack key settings.repositories.autoMerge is not\na pack setting.`, and the plugin shows as invalid until it is fixed.\n- A pack cannot hold a credential or a content rule pattern. Terms come\n  from the `rules` part at run time, so they are never stored in a public\n  repository.\n- A pack has no follow mode and no org minimums. Avoozl copies the\n  settings once; after that they are the repository's own settings.\n\n**Import.** On the plugin's card in **Settings > Plugins**, **Preview and\nimport pack** shows each setting as **Create**, **Change**, **Keep** or\n**Skip** (a setting that cannot apply here, such as Project fields with no\nProject set), with the old and new values. Nothing is written until\n**Import settings**, and only:\n\n- after this computer approved this exact plugin version;\n- for the exact preview shown: if the pack or `.avoozl.json` changed since,\n  Avoozl asks you to preview again;\n- when a setting would let more people give orders than before (a lower\n  `minimumPermission`, or new `allowedActors`), only after you accept that\n  change, which the preview names on its own line;\n- for a plugin declared on this computer only, after you confirm that its\n  id and settings go into `.avoozl.json`.\n\nImport writes `packs` into `.avoozl.json`: for each plugin, the version\nimported, when and by whom, and the settings that came from it. When a\nnewer version arrives, approve it, and the card offers its preview again;\nimporting it records the new version. At the command line:\n\n```sh\navoozl plugins pack-preview sdk-team\navoozl plugins pack-import sdk-team --preview HASH [--accept-lowered]\n```\n\n## Template part\n\nA workflow template starts a new spec the same way each time, such as one\nSDK rewrite after another. It is data only. Each template is a folder under\n`templates/` in the plugin:\n\n```\ntemplates/sdk-rewrite/\n  avoozl-template.json\n  prompt.md\n  starter/requirements.md\n  starter/design.md\n  starter/tasks.md\n  starter/avoozl/manifest.json\n```\n\n`avoozl-template.json` holds:\n\n| Key                          | Holds                                                                                                                                    |\n| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |\n| `id`, `title`, `description` | What the New spec drawer shows                                                                                                           |\n| `inputs`                     | Fields the person fills; each has `id`, `label`, `type` (`text`, `choice` with `options`, `file`, `repositories`, `epic`) and `required` |\n| `prompt`                     | The planner prompt, a Markdown file                                                                                                      |\n| `starter`                    | A spec folder in the usual layout                                                                                                        |\n| `phases`                     | Optional: the starter's phases, `{id, title}` in order                                                                                   |\n| `proofKinds`                 | Optional: proof outlines the prompt asks the planner to fill in                                                                          |\n| `pack`                       | Optional: a settings pack, as in the pack part                                                                                           |\n| `flow`                       | Optional: flow defaults: `batch`, `stopTheLine`, `localChecksFirst`, `retro.everyTasks`                                                  |\n\nThe prompt and starter files may use `{{<input id>}}`. Avoozl puts in what\nthe person typed, as plain text, once, and never runs it. A `file` input is\nread in the page, at most 200 KB of text; Avoozl never opens a path someone\ntyped. The plugin shows as invalid, naming the key or file, when:\n\n- a key or input setting is unknown, or an input ID is used twice;\n- a file uses a placeholder that is no input ID;\n- the starter, with sample values put in, does not lint clean;\n- `phases` does not match the starter's headings or manifest `phase` values;\n- `pack` or `flow` fails its own check.\n\nA template is offered only while its plugin is approved on this computer.\nIn **New spec**, choose **From template**, pick it, and fill its inputs\nbeside Name, Category and Epic. Submit checks the inputs and runs content\nrules on the seed, then opens a planner chat with the prompt, the filled\nstarter and the inputs. Picking a template changes no setting: with a `pack`\nor `flow`, the drawer shows the pack preview with **Import these settings**\nunticked, and only ticking it imports them, as Settings does. The folder\ncomes back as a draft spec that records the template; with an epic picked,\nthe epic's change comes back as its own draft. Nothing is approved, started\nor pushed.\n\nThe sample `sdk-templates/` plugin has an **SDK rewrite** template: six\nphases (inventory, codegen, runtime, protocol tests, review, cutover), a\nmanual **Review with team** task that cutover waits on, two proof kinds and\nflow defaults. Proof P37 runs it with a fake GitHub; no template has run\nlive yet.\n\nA starter may hold manual tasks (`\"manual\": true`): steps only a person\ndoes. See [Manual tasks and links and notes](policies.md#manual-tasks-and-links-and-notes).\n\n## Intake part\n\nAn intake source is a tracker kind with the `poll` capability, listed in\n`provides` as `intake`. The fake tracker (`fake-tracker/`) is the example:\nits `poll` reads a JSON file of items and returns those changed since the\ncursor.\n\n| Call                    | Reply                                                                  |\n| ----------------------- | ---------------------------------------------------------------------- |\n| `poll({cursor, limit})` | `{items, cursor, more}`: items changed since `cursor`, at most `limit` |\n\n```js\nexport const tracker = {\n  poll({ cursor, limit }, { config }) {\n    const changed = readItems(config).filter(\n      (item) => !cursor || mark(item) > cursor,\n    );\n    const page = changed.slice(0, limit);\n    return {\n      items: page,\n      cursor: page.length ? mark(page.at(-1)) : cursor,\n      more: changed.length > page.length,\n    };\n  },\n};\n```\n\n- `cursor` is your own text of at most 2,000 characters, or null on the\n  first poll. Return the cursor for the next poll and `more: true` when a\n  page is left. Avoozl asks for at most 500 items, polls each source at most\n  once per tick, and stores the new cursor only after every item of the\n  reply is handled, so a crash replays the same page. A failed poll keeps\n  the cursor and the items and shows the error on the source.\n- Each item has `id`, `link` (`http` or `https`), `kind` (`issue`, `pr`,\n  `review` or `ticket`), `title`, `state` (`open` or `closed`), and\n  `updatedAt`; and may have `body`, `labels`, `author`, `assignees`,\n  `closeReason`, `closedBy`, `closedAt`, `fields` (text, number or\n  true/false values) and `trigger`. An item that breaks a limit is refused\n  with a reason naming the field; the other items of the reply still count.\n- `trigger` is `{actor, permission, eventId, at}`: who last changed what a\n  rule would match, and that person's standing in your system, mapped to\n  `none`, `read`, `triage`, `write`, `maintain` or `admin`. Avoozl checks it\n  against the source's `allowedActors` and `minimumPermission` (default\n  `write`). Without the `actor` capability nobody counts, so your items only\n  list, pause or quarantine. A close counts as an order only when\n  `closedBy` is the trigger's actor and that actor counts.\n- A plugin that provides `intake` but not `tracker` is never asked to\n  `project`, `read`, `list` or `close`. Avoozl writes nothing back to an\n  intake source.\n\nDeclare the source under `intake.sources`, in `.avoozl.json` or in this\nmachine's `plugins.json` when its name must stay private:\n\n```json\n{\n  \"intake\": {\n    \"sources\": {\n      \"tickets\": {\n        \"via\": \"plugin:fake-tracker\",\n        \"repository\": \"example/app\",\n        \"labelFields\": [\"component\"],\n        \"minimumPermission\": \"write\"\n      }\n    }\n  }\n}\n```\n\n`repository` names a registered repository: its trigger rules apply, and a\ndelivered item's task lands there. A rule matches a source's items only\nwith a `source:` term, such as `label:go source:tickets`; a rule without\none matches GitHub only. `labelFields` adds a `<field>:<value>` label per\nfield and `assigneeField` an assignee before matching. Items no rule takes\nshow in the **Intake** tab with their source.\n\n## Testing your plugin\n\nCopy the fake plugins' approach: keep the remote system in a file or a local\nstand-in, declare the plugin in a temporary `plugins.json`, approve its hash,\nand run ticks. Avoozl's proof P26 does exactly this with the two fakes,\nproof P35 installs, previews, imports and polls the `sdk-team` bundle, and\nproof P37 starts a spec from the `sdk-templates` template.\nProof P32 polls the fake tracker as an intake source.\n";
 // kirocrew-app/ui/src/PluginsSettings.tsx
-function ob({ row: e }) {
+function sb({ row: e }) {
 	let t = Object.entries(e.capabilities ?? {}).map(([e, t]) => `${e}: ${t.length ? t.join(", ") : "none"}`).join("; "), n = [
 		["Version", e.version],
-		[Td, e.contract === void 0 ? void 0 : String(e.contract)],
+		[Ed, e.contract === void 0 ? void 0 : String(e.contract)],
 		["Runs code as", e.kinds?.length ? e.kinds.join(", ") : e.kinds ? "nothing: settings only" : void 0],
 		["Capabilities", t || void 0],
 		["Declared in", e.source === "machine" ? "this machine" : ".avoozl.json"],
@@ -27224,19 +27302,19 @@ function ob({ row: e }) {
 		}, e))
 	});
 }
-function sb({ row: e }) {
-	let t = Md(e);
+function cb({ row: e }) {
+	let t = Nd(e);
 	return t.length ? /* @__PURE__ */ C("ul", {
 		className: "mt-2 flex flex-col gap-1 text-xs",
 		"data-plugin-parts": !0,
 		children: t.map((t) => /* @__PURE__ */ w("li", { children: [
 			/* @__PURE__ */ C("span", {
 				className: "font-semibold",
-				children: jd[t]?.title ?? t
+				children: Md[t]?.title ?? t
 			}),
 			/* @__PURE__ */ w("span", {
 				className: "text-muted",
-				children: [" ", jd[t]?.line]
+				children: [" ", Md[t]?.line]
 			}),
 			t === "pack" && e.pack ? /* @__PURE__ */ C("span", {
 				className: "block text-muted",
@@ -27245,8 +27323,8 @@ function sb({ row: e }) {
 		] }, t))
 	}) : null;
 }
-function cb(e) {
-	let { row: t, busy: n, act: r, client: i, workspaceId: a } = e, o = Ud(t), s = t.id ?? "";
+function lb(e) {
+	let { row: t, busy: n, act: r, client: i, workspaceId: a } = e, o = Wd(t), s = t.id ?? "";
 	return /* @__PURE__ */ w(v, { children: [
 		/* @__PURE__ */ C(X, {
 			title: t.id ?? "Unnamed entry",
@@ -27263,15 +27341,15 @@ function cb(e) {
 			className: "mt-1 text-xs text-muted",
 			children: ["Last tick: ", t.health.reason]
 		}) : null,
+		/* @__PURE__ */ C(cb, { row: t }),
 		/* @__PURE__ */ C(sb, { row: t }),
-		/* @__PURE__ */ C(ob, { row: t }),
 		e.notes.length > 0 && /* @__PURE__ */ w("div", {
 			className: "mt-2 flex flex-col gap-2",
 			"data-plugin-notes": !0,
 			children: [/* @__PURE__ */ C("span", {
 				className: "text-xs font-semibold",
 				children: "Suggested changes from retros. Copy one to the plugin's owner; Avoozl sends nothing."
-			}), e.notes.map((e, t) => /* @__PURE__ */ C(Lc, { note: e }, t))]
+			}), e.notes.map((e, t) => /* @__PURE__ */ C(Gc, { note: e }, t))]
 		}),
 		t.id ? /* @__PURE__ */ w("div", {
 			className: "mt-3 flex flex-wrap gap-2",
@@ -27283,7 +27361,7 @@ function cb(e) {
 					onClick: () => e.onImport(t),
 					children: t.pack.imported && t.pack.offer ? `Preview version ${t.version}` : t.pack.imported ? "Preview pack" : "Preview and import pack"
 				}) : null,
-				Wd(t) ? /* @__PURE__ */ w(Jr, {
+				Gd(t) ? /* @__PURE__ */ w(Jr, {
 					tooltip: "Trust this exact version so it may run",
 					primary: !0,
 					disabled: n,
@@ -27329,16 +27407,16 @@ function cb(e) {
 		}) : null
 	] });
 }
-function lb({ workspaceId: e, onOpenGitHub: t }) {
-	let n = K(), r = l(() => Kd(n), [n]), { value: a, error: s, busy: c, reload: u } = Mo(e, i((e) => r.list(e), [r])), [f, p] = d(!1), [m, h] = d(null), [g, _] = d(null), [b, x] = d(null), [S, T] = d(!1), { openChat: E } = St(), D = () => E({
-		message: rb({
+function ub({ workspaceId: e, onOpenGitHub: t }) {
+	let n = K(), r = l(() => qd(n), [n]), { value: a, error: s, busy: c, reload: u } = Mo(e, i((e) => r.list(e), [r])), [f, p] = d(!1), [m, h] = d(null), [g, _] = d(null), [b, x] = d(null), [S, T] = d(!1), { openChat: E } = St(), D = () => E({
+		message: ib({
 			supported: a?.supportedContracts ?? [],
 			installed: (a?.plugins ?? []).flatMap((e) => e.id ? [e.id] : [])
 		}),
 		autoSend: !1
 	}), O = (e) => {
 		p(!0), h(null), e().then(() => u()).catch((e) => h(G(e))).finally(() => p(!1));
-	}, k = It("(min-width: 1024px)"), A = l(() => nc(n), [n]), [M, N] = d([]);
+	}, k = It("(min-width: 1024px)"), A = l(() => uc(n), [n]), [M, N] = d([]);
 	return o(() => {
 		let t = !0;
 		return A.proposals(e).then((e) => t && N(e.notes), () => t && N([])), () => {
@@ -27352,24 +27430,24 @@ function lb({ workspaceId: e, onOpenGitHub: t }) {
 				"data-plugin-help": !0,
 				children: [/* @__PURE__ */ C(Y, {
 					icon: ke,
-					tooltip: $y,
+					tooltip: eb,
 					onClick: D,
 					children: "Design a plugin"
 				}), /* @__PURE__ */ C(Y, {
 					icon: j,
-					tooltip: eb,
+					tooltip: tb,
 					onClick: () => T(!0),
 					children: "Plugin guide"
 				})]
 			}),
-			S ? /* @__PURE__ */ C(Xy, {
+			S ? /* @__PURE__ */ C(Zy, {
 				workspaceId: e,
 				target: {
-					document: Qy,
+					document: $y,
 					lineStart: null,
 					lineEnd: null
 				},
-				text: ab,
+				text: ob,
 				onClose: () => T(!1)
 			}) : null,
 			s ? /* @__PURE__ */ C("p", {
@@ -27385,7 +27463,7 @@ function lb({ workspaceId: e, onOpenGitHub: t }) {
 				role: "status",
 				children: b
 			}) : null,
-			g ? /* @__PURE__ */ C(cf, {
+			g ? /* @__PURE__ */ C(lf, {
 				row: g,
 				workspaceId: e,
 				client: r,
@@ -27406,7 +27484,7 @@ function lb({ workspaceId: e, onOpenGitHub: t }) {
 					flexDirection: "column",
 					gap: 14
 				},
-				children: [/* @__PURE__ */ C(Oy, {
+				children: [/* @__PURE__ */ C(ky, {
 					workspaceId: e,
 					client: r,
 					supported: a?.supportedContracts ?? [],
@@ -27430,7 +27508,7 @@ function lb({ workspaceId: e, onOpenGitHub: t }) {
 								docs: "docs/plugins.md, and the avoozl-plugin skill"
 							}
 						})
-					}) }) : null, a?.plugins.map((t, n) => /* @__PURE__ */ C(cb, {
+					}) }) : null, a?.plugins.map((t, n) => /* @__PURE__ */ C(lb, {
 						row: t,
 						busy: f || c,
 						act: O,
@@ -27441,7 +27519,7 @@ function lb({ workspaceId: e, onOpenGitHub: t }) {
 					}, `${t.id}-${t.source}-${n}`))]
 				})]
 			}),
-			/* @__PURE__ */ C(Uy, {
+			/* @__PURE__ */ C(Wy, {
 				workspaceId: e,
 				plugins: a?.plugins ?? [],
 				onOpenGitHub: t
@@ -27450,14 +27528,14 @@ function lb({ workspaceId: e, onOpenGitHub: t }) {
 	});
 }
 // kirocrew-app/ui/src/content-api.ts
-var ub = {
+var db = {
 	plan: "Spec files",
 	github: "GitHub text",
 	brief: "Session briefs",
 	diff: "Worker diffs",
 	intake: "Incoming items",
 	notes: "Task links and notes"
-}, db = {
+}, fb = {
 	plan: "Spec files when a spec is saved or approved.",
 	github: "Issue, comment and pull request text Avoozl writes.",
 	brief: "The brief a worker session starts with.",
@@ -27465,15 +27543,15 @@ var ub = {
 	intake: "Items that come in from a plugin source or MCP. Only checked when you tick it.",
 	proposal: "A retro's proposals, their diffs and evidence.",
 	notes: "Each link and note on a task, when it is saved."
-}, fb = Object.keys(ub), pb = fb.filter((e) => e !== "intake");
-function mb(e) {
+}, pb = Object.keys(db), mb = pb.filter((e) => e !== "intake");
+function hb(e) {
 	return e.source === "plugin" ? `Rules plugin ${e.plugin}${e.version ? `, version ${e.version}` : ""}` : e.source === "policy" ? ".avoozl.json" : e.termsFrom === "machine" ? "Terms file named in this machine’s settings" : "Terms file in .avoozl/local/content-rules";
 }
-function hb(e) {
-	let t = e.boundaries ? e.boundaries.map((e) => ub[e] ?? e).join(", ") : "Every boundary but incoming items";
+function gb(e) {
+	let t = e.boundaries ? e.boundaries.map((e) => db[e] ?? e).join(", ") : "Every boundary but incoming items";
 	return e.repositories ? `${t} in ${e.repositories.join(", ")}` : t;
 }
-var gb = {
+var _b = {
 	"builtin:planning-repository": {
 		name: "Plans repo name",
 		protects: "The private planning repository’s name, as owner/name, a GitHub URL or owner/name#12. It is found even when split by spaces or a line break, or hidden by percent or HTML escapes.",
@@ -27495,36 +27573,36 @@ var gb = {
 		example: "Authorization: Bearer made-up-token-123",
 		modes: null
 	}
-}, _b = (e) => gb[e]?.name ?? e, vb = (e, t) => {
-	let n = gb[e]?.modes;
+}, vb = (e) => _b[e]?.name ?? e, yb = (e, t) => {
+	let n = _b[e]?.modes;
 	return !n || n.includes(t ?? "");
-}, yb = () => ({
+}, bb = () => ({
 	id: "",
 	action: "block",
-	boundaries: [...pb],
+	boundaries: [...mb],
 	repositories: [],
 	plugin: ""
-}), bb = (e) => ({
+}), xb = (e) => ({
 	id: e.id,
 	action: e.action,
-	boundaries: e.boundaries ?? [...pb],
+	boundaries: e.boundaries ?? [...mb],
 	repositories: e.repositories ?? [],
 	plugin: e.plugin ?? ""
-}), xb = /^[a-z0-9][a-z0-9._-]{0,63}$/;
-function Sb(e, t) {
+}), Sb = /^[a-z0-9][a-z0-9._-]{0,63}$/;
+function Cb(e, t) {
 	let n = e.id.trim();
-	return n ? n.toLowerCase().startsWith("builtin:") ? { error: "Names starting builtin: are reserved." } : xb.test(n) ? t.includes(n) ? { error: `A set named ${n} already exists.` } : e.boundaries.length ? { entry: {
+	return n ? n.toLowerCase().startsWith("builtin:") ? { error: "Names starting builtin: are reserved." } : Sb.test(n) ? t.includes(n) ? { error: `A set named ${n} already exists.` } : e.boundaries.length ? { entry: {
 		id: n,
 		...e.action === "report" ? { action: "report" } : {},
-		...e.boundaries.length && !(e.boundaries.length === pb.length && pb.every((t) => e.boundaries.includes(t))) ? { boundaries: fb.filter((t) => e.boundaries.includes(t)) } : {},
+		...e.boundaries.length && !(e.boundaries.length === mb.length && mb.every((t) => e.boundaries.includes(t))) ? { boundaries: pb.filter((t) => e.boundaries.includes(t)) } : {},
 		...e.repositories.length ? { repositories: [...e.repositories] } : {},
 		...e.plugin ? { plugin: e.plugin } : {}
 	} } : { error: "Pick at least one place to check." } : { error: "Use lowercase letters, digits, dots, dashes or underscores." } : { error: "Give the set a name." };
 }
-var Cb = (e) => Sb(bb(e), []).entry ?? { id: e.id }, wb = /[.*+?^${}()|[\]\\]/g, Tb = (e) => e.replace(wb, "\\$&"), Eb = (e) => e.replace(/\\([.*+?^${}()|[\]\\])/g, "$1");
-function Db(e) {
-	let t = Eb(e);
-	return Tb(t) === e ? {
+var wb = (e) => Cb(xb(e), []).entry ?? { id: e.id }, Tb = /[.*+?^${}()|[\]\\]/g, Eb = (e) => e.replace(Tb, "\\$&"), Db = (e) => e.replace(/\\([.*+?^${}()|[\]\\])/g, "$1");
+function Ob(e) {
+	let t = Db(e);
+	return Eb(t) === e ? {
 		kind: "word",
 		value: t
 	} : {
@@ -27532,7 +27610,7 @@ function Db(e) {
 		value: e
 	};
 }
-function Ob(e) {
+function kb(e) {
 	let t = e.replace(/\n$/, "").split("\n");
 	return t.length === 1 && t[0] === "" ? [] : t.map((e) => {
 		let t = e.trim();
@@ -27546,7 +27624,7 @@ function Ob(e) {
 			kind: "raw",
 			text: e
 		};
-		let r = t.slice(0, n).trim(), i = Db(t.slice(n + 1).trim()), a = kb.exec(r);
+		let r = t.slice(0, n).trim(), i = Ob(t.slice(n + 1).trim()), a = Ab.exec(r);
 		return a ? {
 			kind: "allow",
 			rule: a[1]?.trim() ?? "",
@@ -27558,19 +27636,19 @@ function Ob(e) {
 		};
 	});
 }
-var kb = /^allow(?:\s+(.*))?$/i, Ab = (e, t) => e === "word" ? Tb(t.trim()) : t.trim();
-function jb(e) {
-	return e.kind === "blank" ? "" : e.kind === "note" ? `# ${e.text}` : e.kind === "raw" ? e.text : e.kind === "allow" ? `allow${e.rule.trim() ? ` ${e.rule.trim()}` : ""}: ${Ab(e.match, e.value)}` : `${e.name.trim()}: ${Ab(e.kind, e.value)}`;
+var Ab = /^allow(?:\s+(.*))?$/i, jb = (e, t) => e === "word" ? Eb(t.trim()) : t.trim();
+function Mb(e) {
+	return e.kind === "blank" ? "" : e.kind === "note" ? `# ${e.text}` : e.kind === "raw" ? e.text : e.kind === "allow" ? `allow${e.rule.trim() ? ` ${e.rule.trim()}` : ""}: ${jb(e.match, e.value)}` : `${e.name.trim()}: ${jb(e.kind, e.value)}`;
 }
-var Mb = (e) => e.length ? e.map(jb).join("\n") + "\n" : "", Nb = (e) => [...new Set(e.flatMap((e) => e.kind === "word" || e.kind === "pattern" ? [e.name.trim()] : []))].filter(Boolean);
-function Pb(e, t = []) {
+var Nb = (e) => e.length ? e.map(Mb).join("\n") + "\n" : "", Pb = (e) => [...new Set(e.flatMap((e) => e.kind === "word" || e.kind === "pattern" ? [e.name.trim()] : []))].filter(Boolean);
+function Fb(e, t = []) {
 	if (e.kind === "raw") return "Needs a name, a colon, then the word or pattern.";
-	if (e.kind === "allow") return e.rule.trim() && !Nb(t).includes(e.rule.trim()) ? "Allows a rule this file does not have." : e.value.trim() ? e.match === "pattern" ? Fb(e.value) : null : "Give a word, phrase or pattern to allow.";
+	if (e.kind === "allow") return e.rule.trim() && !Pb(t).includes(e.rule.trim()) ? "Allows a rule this file does not have." : e.value.trim() ? e.match === "pattern" ? Ib(e.value) : null : "Give a word, phrase or pattern to allow.";
 	if (e.kind !== "word" && e.kind !== "pattern") return null;
 	let n = e.name.trim();
-	return n ? n.includes(":") ? "A name cannot hold a colon." : /^#/.test(n) ? "A name cannot start with #." : kb.test(n) ? "A name cannot start with allow; use an Allow row." : e.value.trim() ? e.kind === "pattern" ? Fb(e.value) : null : "Give a word, phrase or pattern." : "Give the rule a name.";
+	return n ? n.includes(":") ? "A name cannot hold a colon." : /^#/.test(n) ? "A name cannot start with #." : Ab.test(n) ? "A name cannot start with allow; use an Allow row." : e.value.trim() ? e.kind === "pattern" ? Ib(e.value) : null : "Give a word, phrase or pattern." : "Give the rule a name.";
 }
-function Fb(e) {
+function Ib(e) {
 	try {
 		new RegExp(e.trim(), "i");
 	} catch (e) {
@@ -27578,32 +27656,32 @@ function Fb(e) {
 	}
 	return null;
 }
-function Ib(e) {
-	let t = Ob(e);
+function Lb(e) {
+	let t = kb(e);
 	return t.flatMap((e, n) => {
-		let r = Pb(e, t);
+		let r = Fb(e, t);
 		return r ? [{
 			line: n + 1,
 			message: r
 		}] : [];
 	});
 }
-var Lb = (e) => e.filter((e) => e.kind === "word" || e.kind === "pattern").length, Rb = (e) => e.filter((e) => e.kind === "allow").length;
-function zb(e) {
+var Rb = (e) => e.filter((e) => e.kind === "word" || e.kind === "pattern").length, zb = (e) => e.filter((e) => e.kind === "allow").length;
+function Bb(e) {
 	let t = new Set(e.flatMap((e) => e.kind === "word" || e.kind === "pattern" ? [e.name] : [])), n = e.length + 1;
 	for (; t.has(`rule-${n}`);) n += 1;
 	return `rule-${n}`;
 }
-function Bb(e, t) {
-	let n = t.flatMap((e) => e.kind === "allow" && !Pb(e, t) ? [{
+function Vb(e, t) {
+	let n = t.flatMap((e) => e.kind === "allow" && !Fb(e, t) ? [{
 		rule: e.rule.trim(),
-		re: new RegExp(Ab(e.match, e.value), "i")
+		re: new RegExp(jb(e.match, e.value), "i")
 	}] : []), r = t.flatMap((e) => {
-		if (e.kind !== "word" && e.kind !== "pattern" || Pb(e, t)) return [];
+		if (e.kind !== "word" && e.kind !== "pattern" || Fb(e, t)) return [];
 		let r = e.name.trim();
 		return [{
 			name: r,
-			re: new RegExp(Ab(e.kind, e.value), "gi"),
+			re: new RegExp(jb(e.kind, e.value), "gi"),
 			allow: n.filter((e) => !e.rule || e.rule === r).map((e) => e.re)
 		}];
 	}), i = [];
@@ -27622,7 +27700,7 @@ function Bb(e, t) {
 		}
 	}), i;
 }
-function Vb(e, t) {
+function Hb(e, t) {
 	let n = Array(e.length).fill(null);
 	for (let e of t) for (let t = e.start; t < e.end; t++) {
 		let r = n[t] ??= {
@@ -27642,7 +27720,7 @@ function Vb(e, t) {
 	}
 	return r;
 }
-function Hb(e) {
+function Ub(e) {
 	let t = async (t, n, r) => (await e.post(W, {
 		operation: t,
 		input: n,
@@ -27662,19 +27740,19 @@ function Hb(e) {
 	};
 }
 // kirocrew-app/ui/src/ContentRulesSettings.tsx
-var Ub = "avoozl-content-help";
-function Wb() {
-	let e = document.getElementById(Ub);
+var Wb = "avoozl-content-help";
+function Gb() {
+	let e = document.getElementById(Wb);
 	e && (e.open = !0, e.scrollIntoView({
 		behavior: "smooth",
 		block: "start"
 	}));
 }
-function Gb({ children: e = "How rules work" }) {
+function Kb({ children: e = "How rules work" }) {
 	return /* @__PURE__ */ w("button", {
 		type: "button",
 		className: "inline-flex items-center gap-1 text-xs underline",
-		onClick: Wb,
+		onClick: Gb,
 		"data-help-link": !0,
 		children: [/* @__PURE__ */ C(j, {
 			size: 12,
@@ -27682,12 +27760,12 @@ function Gb({ children: e = "How rules work" }) {
 		}), e]
 	});
 }
-var Kb = {
+var qb = {
 	border: "1px solid var(--border)",
 	borderRadius: 10,
 	background: "color-mix(in srgb, var(--text) 4%, var(--card, var(--bg)))"
 };
-function qb(e) {
+function Jb(e) {
 	return /* @__PURE__ */ C("li", { children: /* @__PURE__ */ w("button", {
 		type: "button",
 		onClick: e.onClick,
@@ -27723,7 +27801,7 @@ function qb(e) {
 		})]
 	}) });
 }
-function Jb(e) {
+function Yb(e) {
 	let { value: t, selection: n } = e, r = (e, t) => n?.kind === e && "id" in n && n.id === t, i = /* @__PURE__ */ C(Y, {
 		icon: Le,
 		primary: !0,
@@ -27734,7 +27812,7 @@ function Jb(e) {
 	return /* @__PURE__ */ w("nav", {
 		"aria-label": "Rule sets",
 		className: "flex flex-col gap-3 p-3",
-		style: Kb,
+		style: qb,
 		"data-rule-panel": !0,
 		children: [
 			/* @__PURE__ */ w("div", {
@@ -27754,11 +27832,11 @@ function Jb(e) {
 						children: "Choose Add rule set to block your own words, like a project code name."
 					}),
 					i,
-					/* @__PURE__ */ C("span", { children: /* @__PURE__ */ C(Gb, {}) })
+					/* @__PURE__ */ C("span", { children: /* @__PURE__ */ C(Kb, {}) })
 				]
 			}) : /* @__PURE__ */ C("ul", {
 				className: "flex flex-col gap-0.5",
-				children: t?.sets.map((t) => /* @__PURE__ */ C(qb, {
+				children: t?.sets.map((t) => /* @__PURE__ */ C(Jb, {
 					title: t.id,
 					selected: r("set", t.id),
 					onClick: () => e.onSelect({
@@ -27788,16 +27866,16 @@ function Jb(e) {
 					}),
 					/* @__PURE__ */ C("ul", {
 						className: "mt-1 flex flex-col gap-0.5",
-						children: t?.builtins.map((n) => /* @__PURE__ */ C(qb, {
+						children: t?.builtins.map((n) => /* @__PURE__ */ C(Jb, {
 							locked: !0,
-							title: _b(n.id),
+							title: vb(n.id),
 							raw: n.id,
 							selected: r("builtin", n.id),
 							onClick: () => e.onSelect({
 								kind: "builtin",
 								id: n.id
 							}),
-							note: vb(n.id, t?.mode) ? null : /* @__PURE__ */ C("span", {
+							note: yb(n.id, t?.mode) ? null : /* @__PURE__ */ C("span", {
 								className: "text-[11px] text-muted",
 								children: "not used"
 							})
@@ -27808,7 +27886,7 @@ function Jb(e) {
 		]
 	});
 }
-function Yb({ rows: e }) {
+function Xb({ rows: e }) {
 	return /* @__PURE__ */ C("dl", {
 		className: "grid gap-x-3 gap-y-1.5 text-sm",
 		style: { gridTemplateColumns: "minmax(7rem, auto) 1fr" },
@@ -27821,15 +27899,15 @@ function Yb({ rows: e }) {
 		}, e))
 	});
 }
-function Xb({ id: e, appliesAt: t, mode: n }) {
-	let r = gb[e], i = vb(e, n);
+function Zb({ id: e, appliesAt: t, mode: n }) {
+	let r = _b[e], i = yb(e, n);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3",
 		"data-rule-details": e,
 		children: [
 			/* @__PURE__ */ C(X, {
 				icon: De,
-				title: _b(e),
+				title: vb(e),
 				meta: i ? /* @__PURE__ */ C($, { children: "Always on" }) : /* @__PURE__ */ C($, { children: "Not used" }),
 				blurb: /* @__PURE__ */ C("code", {
 					className: "text-[11px]",
@@ -27840,7 +27918,7 @@ function Xb({ id: e, appliesAt: t, mode: n }) {
 				className: "text-sm text-muted",
 				children: "Not used in this mode: there is no planning repository to keep private. It runs in Plans repository mode."
 			}),
-			/* @__PURE__ */ C(Yb, { rows: [
+			/* @__PURE__ */ C(Xb, { rows: [
 				["What it protects", r?.protects ?? "A check Avoozl runs on its own writes."],
 				["Where it checks", r?.where ?? t],
 				["It blocks", r ? /* @__PURE__ */ w("span", {
@@ -27858,7 +27936,7 @@ function Xb({ id: e, appliesAt: t, mode: n }) {
 		]
 	});
 }
-function Zb(e) {
+function Qb(e) {
 	return /* @__PURE__ */ w("label", {
 		className: "flex items-start gap-2 text-sm",
 		style: { opacity: e.disabled ? .6 : 1 },
@@ -27874,8 +27952,8 @@ function Zb(e) {
 		})] })]
 	});
 }
-var Qb = (e, t, n) => n ? [.../* @__PURE__ */ new Set([...e, t])] : e.filter((e) => e !== t);
-function $b(e) {
+var $b = (e, t, n) => n ? [.../* @__PURE__ */ new Set([...e, t])] : e.filter((e) => e !== t);
+function ex(e) {
 	let { form: t, set: n, choices: r } = e;
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3",
@@ -27926,7 +28004,7 @@ function $b(e) {
 						when: "the words must never leave this machine."
 					}, {
 						key: "report",
-						icon: oe,
+						icon: ae,
 						title: "Report",
 						line: "The write goes through. The match is listed in Delivery with one notice.",
 						when: "you are trying a new set out."
@@ -27944,11 +28022,11 @@ function $b(e) {
 				}), /* @__PURE__ */ C("div", {
 					className: "grid gap-1.5",
 					style: { gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 14rem), 1fr))" },
-					children: fb.map((e) => /* @__PURE__ */ C(Zb, {
-						label: ub[e],
-						hint: db[e],
+					children: pb.map((e) => /* @__PURE__ */ C(Qb, {
+						label: db[e],
+						hint: fb[e],
 						checked: t.boundaries.includes(e),
-						onChange: (r) => n({ boundaries: Qb(t.boundaries, e, r) })
+						onChange: (r) => n({ boundaries: $b(t.boundaries, e, r) })
 					}, e))
 				})]
 			}),
@@ -27972,10 +28050,10 @@ function $b(e) {
 					}),
 					r.repositories.length ? /* @__PURE__ */ C("div", {
 						className: "flex flex-wrap gap-x-4 gap-y-1",
-						children: r.repositories.map((e) => /* @__PURE__ */ C(Zb, {
+						children: r.repositories.map((e) => /* @__PURE__ */ C(Qb, {
 							label: e,
 							checked: t.repositories.includes(e),
-							onChange: (r) => n({ repositories: Qb(t.repositories, e, r) })
+							onChange: (r) => n({ repositories: $b(t.repositories, e, r) })
 						}, e))
 					}) : /* @__PURE__ */ C("p", {
 						className: "text-xs text-muted",
@@ -28025,7 +28103,7 @@ function $b(e) {
 		]
 	});
 }
-var ex = {
+var tx = {
 	border: "1px solid var(--border)",
 	borderRadius: 6,
 	background: "var(--card, var(--bg))",
@@ -28034,19 +28112,19 @@ var ex = {
 	fontSize: 13,
 	minWidth: 0,
 	width: "100%"
-}, tx = { fontFamily: "var(--mono, monospace)" }, nx = {
+}, nx = { fontFamily: "var(--mono, monospace)" }, rx = {
 	display: "grid",
 	gridTemplateColumns: "minmax(6rem, 9rem) minmax(8rem, 10rem) minmax(0, 1fr) auto",
 	gap: 8,
 	alignItems: "center"
-}, rx = {
+}, ix = {
 	display: "grid",
 	gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr) auto",
 	gap: 6,
 	alignItems: "center"
 };
-function ix(e) {
-	let { row: t, index: n } = e, r = Pb(t, e.rows), i = `avoozl-term-error-${n}`, a = e.narrow ? rx : nx;
+function ax(e) {
+	let { row: t, index: n } = e, r = Fb(t, e.rows), i = `avoozl-term-error-${n}`, a = e.narrow ? ix : rx;
 	if (t.kind === "blank") return null;
 	if (t.kind === "note" || t.kind === "raw") return /* @__PURE__ */ w("li", {
 		className: "flex flex-col gap-1",
@@ -28074,8 +28152,8 @@ function ix(e) {
 						text: n.target.value
 					}),
 					style: {
-						...ex,
-						...t.kind === "raw" ? tx : { color: "var(--muted)" }
+						...tx,
+						...t.kind === "raw" ? nx : { color: "var(--muted)" }
 					}
 				}),
 				/* @__PURE__ */ C(Pr, {
@@ -28095,7 +28173,7 @@ function ix(e) {
 			]
 		})]
 	});
-	let o = t.kind === "allow", s = o ? t.match : t.kind, c = o ? `allow-${t.match}` : t.kind, l = (e, t, n) => e === t ? n : t === "pattern" ? Tb(n) : Db(n).kind === "word" ? Db(n).value : n, u = (n) => {
+	let o = t.kind === "allow", s = o ? t.match : t.kind, c = o ? `allow-${t.match}` : t.kind, l = (e, t, n) => e === t ? n : t === "pattern" ? Eb(n) : Ob(n).kind === "word" ? Ob(n).value : n, u = (n) => {
 		if (n === c) return;
 		let r = n.endsWith("pattern") ? "pattern" : "word", i = l(s, r, t.value);
 		n.startsWith("allow") ? e.onChange({
@@ -28105,17 +28183,17 @@ function ix(e) {
 			value: i
 		}) : e.onChange({
 			kind: r,
-			name: o ? zb(e.rows) : t.name,
+			name: o ? Bb(e.rows) : t.name,
 			value: i
 		});
-	}, d = Nb(e.rows), f = o ? /* @__PURE__ */ w("select", {
+	}, d = Pb(e.rows), f = o ? /* @__PURE__ */ w("select", {
 		value: t.rule,
 		"aria-label": `Rule allowed on line ${n + 1}`,
 		onChange: (n) => e.onChange({
 			...t,
 			rule: n.target.value
 		}),
-		style: ex,
+		style: tx,
 		children: [/* @__PURE__ */ C("option", {
 			value: "",
 			children: "Every rule"
@@ -28131,12 +28209,12 @@ function ix(e) {
 			...t,
 			name: n.target.value
 		}),
-		style: ex
+		style: tx
 	}), p = /* @__PURE__ */ w("select", {
 		value: c,
 		"aria-label": `Kind on line ${n + 1}`,
 		onChange: (e) => u(e.target.value),
-		style: ex,
+		style: tx,
 		children: [
 			/* @__PURE__ */ C("option", {
 				value: "word",
@@ -28166,8 +28244,8 @@ function ix(e) {
 			value: n.target.value
 		}),
 		style: {
-			...ex,
-			...s === "pattern" ? tx : {},
+			...tx,
+			...s === "pattern" ? nx : {},
 			...r ? { borderColor: "var(--danger)" } : {},
 			...e.narrow ? { gridColumn: "1 / 3" } : {}
 		}
@@ -28209,8 +28287,8 @@ function ix(e) {
 		})]
 	});
 }
-function ax(e) {
-	let t = u(null), n = l(() => Ib(e.text), [e.text]), r = new Set(n.map((e) => e.line)), i = Math.max(1, e.text.replace(/\n$/, "").split("\n").length), a = {
+function ox(e) {
+	let t = u(null), n = l(() => Lb(e.text), [e.text]), r = new Set(n.map((e) => e.line)), i = Math.max(1, e.text.replace(/\n$/, "").split("\n").length), a = {
 		fontFamily: "var(--mono, monospace)",
 		fontSize: 12,
 		lineHeight: "18px"
@@ -28271,8 +28349,8 @@ function ax(e) {
 		})]
 	});
 }
-function ox({ rows: e }) {
-	let [t, n] = d(""), r = l(() => Bb(t, e), [t, e]), i = t.split("\n"), a = r.filter((e) => !e.allowed), o = r.length - a.length, s = [...new Set(a.map((e) => e.rule))];
+function sx({ rows: e }) {
+	let [t, n] = d(""), r = l(() => Vb(t, e), [t, e]), i = t.split("\n"), a = r.filter((e) => !e.allowed), o = r.length - a.length, s = [...new Set(a.map((e) => e.rule))];
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-1.5 rounded border p-2",
 		style: { borderColor: "var(--border)" },
@@ -28305,7 +28383,7 @@ function ox({ rows: e }) {
 				whiteSpace: "pre-wrap"
 			},
 			"aria-live": "polite",
-			children: i.map((e, t) => /* @__PURE__ */ w("div", { children: [Vb(e, r.filter((e) => e.line === t)).map((e, t) => !e.rules.length && e.allowed ? /* @__PURE__ */ w("span", {
+			children: i.map((e, t) => /* @__PURE__ */ w("div", { children: [Hb(e, r.filter((e) => e.line === t)).map((e, t) => !e.rules.length && e.allowed ? /* @__PURE__ */ w("span", {
 				"data-allowed": e.allowed.join(" "),
 				children: [/* @__PURE__ */ C("del", {
 					style: { color: "var(--muted)" },
@@ -28336,7 +28414,7 @@ function ox({ rows: e }) {
 		})] })]
 	});
 }
-function sx(e) {
+function cx(e) {
 	let { workspaceId: t, client: n, set: r } = e, [i, a] = d(null), [s, c] = d([]), [l, u] = d(""), [f, p] = d(""), [m, h] = Un("content-terms-view", "inner", (e) => e === "file" ? "Back to File view" : "Back to Rule builder", "builder"), [g, v] = d(null), [y, b] = d(null), [S, T] = d(!1), E = It("(max-width: 640px)");
 	o(() => {
 		let e = !0;
@@ -28344,7 +28422,7 @@ function sx(e) {
 			if (!e) return;
 			a(t);
 			let n = t.text ?? "";
-			u(n), p(n), c(Ob(n));
+			u(n), p(n), c(kb(n));
 		}).catch((t) => e && v(G(t))), () => {
 			e = !1;
 		};
@@ -28354,10 +28432,10 @@ function sx(e) {
 		r.id
 	]);
 	let D = (e) => {
-		c(e), u(Mb(e)), b(null);
+		c(e), u(Nb(e)), b(null);
 	}, O = (e) => {
-		u(e), c(Ob(e)), b(null);
-	}, k = Ib(l), A = l !== f, j = async () => {
+		u(e), c(kb(e)), b(null);
+	}, k = Lb(l), A = l !== f, j = async () => {
 		T(!0), v(null);
 		try {
 			let i = await n.saveTerms(t, r.id, l);
@@ -28396,30 +28474,30 @@ function sx(e) {
 					/* @__PURE__ */ w("span", {
 						className: "text-xs text-muted",
 						children: [
-							Lb(s),
+							Rb(s),
 							" rule",
-							Lb(s) === 1 ? "" : "s",
-							Rb(s) ? `, ${Rb(s)} allow` : "",
+							Rb(s) === 1 ? "" : "s",
+							zb(s) ? `, ${zb(s)} allow` : "",
 							!i.exists && !A ? ", no file yet" : ""
 						]
 					}),
 					/* @__PURE__ */ C("span", {
 						className: "ml-auto",
-						children: /* @__PURE__ */ C(Gb, { children: "How a line works" })
+						children: /* @__PURE__ */ C(Kb, { children: "How a line works" })
 					})
 				]
 			}),
 			m === "builder" ? /* @__PURE__ */ w("div", {
 				className: "flex flex-col gap-2",
 				children: [
-					Lb(s) === 0 && /* @__PURE__ */ C("p", {
+					Rb(s) === 0 && /* @__PURE__ */ C("p", {
 						className: "text-xs text-muted",
 						children: "No rules yet. Add one: a name that shows in logs, and the word or pattern to find."
 					}),
 					/* @__PURE__ */ C("ul", {
 						className: "flex flex-col gap-2",
 						"aria-label": "Rules",
-						children: s.map((e, t) => /* @__PURE__ */ C(ix, {
+						children: s.map((e, t) => /* @__PURE__ */ C(ax, {
 							row: e,
 							rows: s,
 							index: t,
@@ -28434,7 +28512,7 @@ function sx(e) {
 							icon: Le,
 							onClick: () => D([...s, {
 								kind: "word",
-								name: zb(s),
+								name: Bb(s),
 								value: ""
 							}]),
 							children: "Add rule"
@@ -28451,11 +28529,11 @@ function sx(e) {
 						})]
 					})
 				]
-			}) : /* @__PURE__ */ C(ax, {
+			}) : /* @__PURE__ */ C(ox, {
 				text: l,
 				onChange: O
 			}),
-			/* @__PURE__ */ C(ox, { rows: s }),
+			/* @__PURE__ */ C(sx, { rows: s }),
 			/* @__PURE__ */ w("p", {
 				className: "flex items-start gap-1.5 text-xs text-muted",
 				children: [/* @__PURE__ */ C(Ge, {
@@ -28521,15 +28599,15 @@ function sx(e) {
 		children: "Reading the terms file…"
 	});
 }
-function cx(e) {
-	let { set: t, value: n } = e, [r, i] = d(() => t ? bb(t) : yb()), [a, s] = d(null), [c, l] = d(!1), u = t ? JSON.stringify(Cb(t)) : null;
+function lx(e) {
+	let { set: t, value: n } = e, [r, i] = d(() => t ? xb(t) : bb()), [a, s] = d(null), [c, l] = d(!1), u = t ? JSON.stringify(wb(t)) : null;
 	o(() => {
-		i(t ? bb(t) : yb()), s(null);
+		i(t ? xb(t) : bb()), s(null);
 	}, [u]);
 	let f = n.sets.filter((e) => e.id !== t?.id), p = n.choices ?? {
 		repositories: [],
 		plugins: []
-	}, m = Sb(r, f.map((e) => e.id)), h = !t || JSON.stringify(m.entry) !== JSON.stringify(Cb(t)), g = async (t, r) => {
+	}, m = Cb(r, f.map((e) => e.id)), h = !t || JSON.stringify(m.entry) !== JSON.stringify(wb(t)), g = async (t, r) => {
 		l(!0), s(null);
 		try {
 			e.onSaved(await e.client.saveSets(e.workspaceId, t, n.configHash), r);
@@ -28540,7 +28618,7 @@ function cx(e) {
 		}
 	}, v = () => {
 		if (!m.entry) return s(m.error ?? "Check the form.");
-		let e = n.sets.map((e) => e.id === t?.id ? m.entry : Cb(e));
+		let e = n.sets.map((e) => e.id === t?.id ? m.entry : wb(e));
 		g(t ? e : [...e, m.entry], String(m.entry.id));
 	};
 	return /* @__PURE__ */ w("div", {
@@ -28562,13 +28640,13 @@ function cx(e) {
 						body: "It is removed from .avoozl.json and stops checking. Its terms file stays on this machine, so a new set with the same name uses it again.",
 						action: "Delete set"
 					},
-					onConfirm: () => void g(f.map(Cb), null),
+					onConfirm: () => void g(f.map(wb), null),
 					children: "Delete set"
 				})
 			}),
-			t && /* @__PURE__ */ C(Yb, { rows: [
-				["Rules from", mb(t)],
-				["Checks", hb(t)],
+			t && /* @__PURE__ */ C(Xb, { rows: [
+				["Rules from", hb(t)],
+				["Checks", gb(t)],
 				...t.available && t.ruleCount !== void 0 ? [["Rules", String(t.ruleCount)]] : []
 			] }),
 			t && !t.available && t.reason && /* @__PURE__ */ w("p", {
@@ -28588,7 +28666,7 @@ function cx(e) {
 						className: "text-sm font-semibold",
 						children: "Settings"
 					}),
-					/* @__PURE__ */ C($b, {
+					/* @__PURE__ */ C(ex, {
 						form: r,
 						set: (e) => i({
 							...r,
@@ -28632,7 +28710,7 @@ function cx(e) {
 						className: "text-xs text-muted",
 						children: "One rule per line. Case doesn’t matter. Only you can see these."
 					}),
-					/* @__PURE__ */ C(sx, {
+					/* @__PURE__ */ C(cx, {
 						workspaceId: e.workspaceId,
 						client: e.client,
 						set: t,
@@ -28651,16 +28729,16 @@ function cx(e) {
 		]
 	});
 }
-var lx = String.raw`# Made-up examples
+var ux = String.raw`# Made-up examples
 project-name: zebra falcon
 staging-host: staging\.example\.test
-ticket: \bacme-\d{4}\b`, ux = String.raw`# zebra falcon app is the public name
+ticket: \bacme-\d{4}\b`, dx = String.raw`# zebra falcon app is the public name
 allow: zebra falcon app
 # ACME-0000 is the sample ticket in the docs
 allow ticket: \bacme-0000\b`;
-function dx() {
+function fx() {
 	return /* @__PURE__ */ w("details", {
-		id: Ub,
+		id: Wb,
 		className: "rounded-lg border p-3",
 		style: { borderColor: "var(--border)" },
 		"data-rules-help": !0,
@@ -28694,7 +28772,7 @@ function dx() {
 					/* @__PURE__ */ C("pre", {
 						className: "mt-1 overflow-auto rounded border p-2 text-xs",
 						style: { borderColor: "var(--border)" },
-						children: lx
+						children: ux
 					})
 				] }),
 				/* @__PURE__ */ w("section", { children: [/* @__PURE__ */ C("h4", {
@@ -28724,7 +28802,7 @@ function dx() {
 					/* @__PURE__ */ C("pre", {
 						className: "mt-1 overflow-auto rounded border p-2 text-xs",
 						style: { borderColor: "var(--border)" },
-						children: ux
+						children: dx
 					})
 				] }),
 				/* @__PURE__ */ w("section", { children: [
@@ -28734,13 +28812,13 @@ function dx() {
 					}),
 					/* @__PURE__ */ C("ul", {
 						className: "text-muted",
-						children: fb.map((e) => /* @__PURE__ */ w("li", { children: [
+						children: pb.map((e) => /* @__PURE__ */ w("li", { children: [
 							/* @__PURE__ */ w("span", {
 								style: { color: "var(--text)" },
-								children: [ub[e], ":"]
+								children: [db[e], ":"]
 							}),
 							" ",
-							db[e]
+							fb[e]
 						] }, e))
 					}),
 					/* @__PURE__ */ C("p", {
@@ -28780,8 +28858,8 @@ function dx() {
 		})]
 	});
 }
-function fx({ workspaceId: e }) {
-	let t = K(), n = l(() => Hb(t), [t]), { value: r, error: a, reload: s } = Mo(e, i((e) => n.list(e), [n])), [c, u] = d(null), f = c ?? r;
+function px({ workspaceId: e }) {
+	let t = K(), n = l(() => Ub(t), [t]), { value: r, error: a, reload: s } = Mo(e, i((e) => n.list(e), [n])), [c, u] = d(null), f = c ?? r;
 	o(() => u(null), [r]);
 	let [p, m] = d(null), h = p && (p.kind === "new" || p.kind !== "set" || f?.sets.some((e) => e.id === p.id)) ? p : f?.sets[0] ? {
 		kind: "set",
@@ -28798,9 +28876,9 @@ function fx({ workspaceId: e }) {
 				"data-rules-design": !0,
 				children: /* @__PURE__ */ C(Y, {
 					icon: ke,
-					tooltip: tb,
+					tooltip: nb,
 					onClick: () => y({
-						message: ib({ sets: (f?.sets ?? []).map((e) => e.id) }),
+						message: ab({ sets: (f?.sets ?? []).map((e) => e.id) }),
 						autoSend: !1
 					}),
 					children: "Design a rule set"
@@ -28826,7 +28904,7 @@ function fx({ workspaceId: e }) {
 					flexDirection: "column",
 					gap: 12
 				},
-				children: [/* @__PURE__ */ C(Jb, {
+				children: [/* @__PURE__ */ C(Yb, {
 					value: f,
 					selection: h,
 					onSelect: m
@@ -28836,11 +28914,11 @@ function fx({ workspaceId: e }) {
 						borderColor: "var(--border)",
 						background: "var(--card, var(--bg))"
 					},
-					children: f ? v ? /* @__PURE__ */ C(Xb, {
+					children: f ? v ? /* @__PURE__ */ C(Zb, {
 						id: v.id,
 						appliesAt: v.appliesAt,
 						mode: f.mode
-					}) : h?.kind === "new" || _ ? /* @__PURE__ */ C(cx, {
+					}) : h?.kind === "new" || _ ? /* @__PURE__ */ C(lx, {
 						workspaceId: e,
 						client: n,
 						value: f,
@@ -28858,17 +28936,17 @@ function fx({ workspaceId: e }) {
 					})
 				})]
 			}),
-			/* @__PURE__ */ C(dx, {})
+			/* @__PURE__ */ C(fx, {})
 		]
 	});
 }
 // kirocrew-app/ui/src/PromptInstructions.tsx
-var px = {
+var mx = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
 	background: "var(--card, transparent)"
 };
-function mx(e) {
+function hx(e) {
 	let [t, n] = d(!1), r = async () => {
 		if (e.builtIn) try {
 			await navigator.clipboard.writeText(e.builtIn), n(!0), setTimeout(() => n(!1), 1500);
@@ -28889,7 +28967,7 @@ function mx(e) {
 					children: [/* @__PURE__ */ C("pre", {
 						className: "rounded border p-2 text-xs",
 						style: {
-							...px,
+							...mx,
 							whiteSpace: "pre-wrap",
 							overflowWrap: "anywhere",
 							maxHeight: "16rem",
@@ -28897,7 +28975,7 @@ function mx(e) {
 						},
 						children: e.builtIn
 					}), /* @__PURE__ */ C("div", { children: /* @__PURE__ */ C(Y, {
-						icon: t ? M : R,
+						icon: t ? M : z,
 						tooltip: "Copy the built-in prompt",
 						onClick: () => void r(),
 						children: t ? "Copied" : "Copy"
@@ -28919,7 +28997,7 @@ function mx(e) {
 				children: [/* @__PURE__ */ C("span", {
 					className: "font-medium",
 					children: "Your instructions"
-				}), /* @__PURE__ */ C(oS, { rule: { required: !1 } })]
+				}), /* @__PURE__ */ C(sS, { rule: { required: !1 } })]
 			}),
 			/* @__PURE__ */ C("span", {
 				className: "text-xs text-muted",
@@ -28932,7 +29010,7 @@ function mx(e) {
 				placeholder: e.placeholder,
 				onChange: (t) => e.onChange(t.target.value),
 				className: "rounded border px-2 py-1 text-sm",
-				style: px
+				style: mx
 			}),
 			e.note && /* @__PURE__ */ C("span", {
 				className: "text-xs text-muted",
@@ -28953,13 +29031,13 @@ function mx(e) {
 	});
 }
 // kirocrew-app/ui/src/FlowSettings.tsx
-var hx = { required: !1 }, gx = {
+var gx = { required: !1 }, _x = {
 	display: "flex",
 	flexWrap: "wrap",
 	alignItems: "baseline",
 	columnGap: 8
-}, _x = "var(--bg-accent, var(--bg-elevated))";
-function vx({ name: e }) {
+}, vx = "var(--bg-accent, var(--bg-elevated))";
+function yx({ name: e }) {
 	return /* @__PURE__ */ C(q, {
 		text: ".avoozl.json key",
 		children: /* @__PURE__ */ C("code", {
@@ -28972,7 +29050,7 @@ function vx({ name: e }) {
 		})
 	});
 }
-function yx(e) {
+function bx(e) {
 	return /* @__PURE__ */ w("div", {
 		className: "min-w-0 text-sm",
 		"data-flow-field": !0,
@@ -28996,7 +29074,7 @@ function yx(e) {
 				children: [/* @__PURE__ */ C("span", {
 					className: "font-medium",
 					children: e.label
-				}), /* @__PURE__ */ C(oS, { rule: hx })]
+				}), /* @__PURE__ */ C(sS, { rule: gx })]
 			}),
 			/* @__PURE__ */ C("div", {
 				style: {
@@ -29009,11 +29087,11 @@ function yx(e) {
 				className: "text-xs text-muted",
 				children: e.note ?? ""
 			}),
-			/* @__PURE__ */ C(vx, { name: e.raw })
+			/* @__PURE__ */ C(yx, { name: e.raw })
 		]
 	});
 }
-function bx({ children: e, group: t }) {
+function xx({ children: e, group: t }) {
 	return /* @__PURE__ */ C("div", {
 		"data-flow-group": t,
 		style: {
@@ -29025,14 +29103,14 @@ function bx({ children: e, group: t }) {
 		children: e
 	});
 }
-function xx({ children: e }) {
+function Sx({ children: e }) {
 	return /* @__PURE__ */ C(v, {
 		className: "flex flex-col gap-4",
 		"data-flow-box": !0,
 		children: e
 	});
 }
-var Sx = [
+var Cx = [
 	{
 		key: "dependents",
 		title: "Tasks that build on it",
@@ -29052,13 +29130,13 @@ var Sx = [
 		when: "repositories depend on each other."
 	}
 ];
-function Cx({ workspaceId: e }) {
-	return /* @__PURE__ */ C(wx, { workspaceId: e }, e);
-}
 function wx({ workspaceId: e }) {
-	let t = K(), n = l(() => nc(t), [t]), { value: r, error: a, reload: s } = Mo(e, i((e) => n.settings(e), [n])), [c, u] = d(Cc()), [f, p] = d(""), [m, h] = d(!1), [g, v] = d(null);
+	return /* @__PURE__ */ C(Tx, { workspaceId: e }, e);
+}
+function Tx({ workspaceId: e }) {
+	let t = K(), n = l(() => uc(t), [t]), { value: r, error: a, reload: s } = Mo(e, i((e) => n.settings(e), [n])), [c, u] = d(jc()), [f, p] = d(""), [m, h] = d(!1), [g, v] = d(null);
 	o(() => {
-		r && (u(Cc(r.flow)), p(r.instructions ?? ""));
+		r && (u(jc(r.flow)), p(r.instructions ?? ""));
 	}, [r]);
 	let y = (e) => u({
 		...c,
@@ -29072,7 +29150,7 @@ function wx({ workspaceId: e }) {
 	}, [n, e]);
 	let E = async () => {
 		if (!r) return;
-		let t = wc(c);
+		let t = Mc(c);
 		if (t.error) return v({ error: t.error });
 		h(!0), v(null);
 		try {
@@ -29095,16 +29173,16 @@ function wx({ workspaceId: e }) {
 		className: "text-sm text-muted",
 		children: "Loading…"
 	});
-	let D = c.scope || Sc.scope, O = c.localChecksFirst ? c.localChecksFirst === "on" : Sc.localChecksFirst, k = r.ciEffective ?? Sc;
+	let D = c.scope || Ac.scope, O = c.localChecksFirst ? c.localChecksFirst === "on" : Ac.localChecksFirst, k = r.ciEffective ?? Ac;
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3",
 		"data-flow-settings": !0,
 		children: [
-			/* @__PURE__ */ C(xx, { children: /* @__PURE__ */ C(dS, {
+			/* @__PURE__ */ C(Sx, { children: /* @__PURE__ */ C(fS, {
 				title: "Timing",
 				blurb: "Always on. Avoozl records where each task's time goes; nothing to set."
 			}) }),
-			/* @__PURE__ */ C(xx, { children: /* @__PURE__ */ C(dS, {
+			/* @__PURE__ */ C(Sx, { children: /* @__PURE__ */ C(fS, {
 				title: "Pause on a broken check",
 				blurb: "When a change breaks a check that passed, pause new work until it's fixed.",
 				icon: Pe,
@@ -29112,30 +29190,30 @@ function wx({ workspaceId: e }) {
 					className: "flex flex-col gap-1 text-sm",
 					children: [
 						/* @__PURE__ */ w("span", {
-							style: gx,
+							style: _x,
 							children: [/* @__PURE__ */ C("span", {
 								className: "font-medium",
 								children: "What to pause"
-							}), /* @__PURE__ */ C(oS, { rule: hx })]
+							}), /* @__PURE__ */ C(sS, { rule: gx })]
 						}),
 						/* @__PURE__ */ C(Hr, {
 							id: "avoozl-flow-scope",
 							label: "What to pause",
 							value: D,
 							onChange: (e) => y({ scope: e }),
-							cards: Sx.map((e) => ({ ...e }))
+							cards: Cx.map((e) => ({ ...e }))
 						}),
-						/* @__PURE__ */ C(vx, { name: "flow.stopTheLine.scope" })
+						/* @__PURE__ */ C(yx, { name: "flow.stopTheLine.scope" })
 					]
 				})
 			}) }),
-			/* @__PURE__ */ C(xx, { children: /* @__PURE__ */ w(dS, {
+			/* @__PURE__ */ C(Sx, { children: /* @__PURE__ */ w(fS, {
 				title: "Local checks first",
 				blurb: "Run the checks here before any push, so CI only confirms. It matters only when sessions push.",
 				children: [/* @__PURE__ */ w("label", {
 					className: "text-sm",
 					style: {
-						...gx,
+						..._x,
 						alignItems: "center"
 					},
 					children: [
@@ -29148,16 +29226,16 @@ function wx({ workspaceId: e }) {
 							className: "font-medium",
 							children: "Require a local pass before push"
 						}),
-						/* @__PURE__ */ C(oS, { rule: hx })
+						/* @__PURE__ */ C(sS, { rule: gx })
 					]
-				}), /* @__PURE__ */ C(vx, { name: "flow.localChecksFirst" })]
+				}), /* @__PURE__ */ C(yx, { name: "flow.localChecksFirst" })]
 			}) }),
-			/* @__PURE__ */ C(xx, { children: /* @__PURE__ */ C(dS, {
+			/* @__PURE__ */ C(Sx, { children: /* @__PURE__ */ C(fS, {
 				title: "Batching",
 				blurb: "Run small related tasks together to pay setup and checks once. 1 turns it off.",
-				children: /* @__PURE__ */ w(bx, {
+				children: /* @__PURE__ */ w(xx, {
 					group: "batch",
-					children: [/* @__PURE__ */ C(yx, {
+					children: [/* @__PURE__ */ C(bx, {
 						id: "avoozl-flow-max",
 						label: "Most tasks per run",
 						raw: "flow.batch.max",
@@ -29165,10 +29243,10 @@ function wx({ workspaceId: e }) {
 							id: "avoozl-flow-max",
 							inputMode: "numeric",
 							value: c.max,
-							placeholder: String(Sc.max),
+							placeholder: String(Ac.max),
 							onChange: (e) => y({ max: e.target.value })
 						})
-					}), /* @__PURE__ */ C(yx, {
+					}), /* @__PURE__ */ C(bx, {
 						id: "avoozl-flow-by",
 						label: "Group by",
 						raw: "flow.batch.by",
@@ -29184,22 +29262,22 @@ function wx({ workspaceId: e }) {
 								key: "files",
 								label: "Same files"
 							}],
-							value: c.by || Sc.by,
+							value: c.by || Ac.by,
 							onChange: (e) => y({ by: e })
 						})
 					})]
 				})
 			}) }),
-			/* @__PURE__ */ C(xx, { children: /* @__PURE__ */ C(dS, {
+			/* @__PURE__ */ C(Sx, { children: /* @__PURE__ */ C(fS, {
 				title: "CI",
 				blurb: "Review steady CI costs across every pull request. These limits trigger a retrospective proposal; you decide what changes.",
 				children: /* @__PURE__ */ w("div", {
 					"data-ci-settings": !0,
 					className: "flex flex-col gap-4",
-					children: [/* @__PURE__ */ w(bx, {
+					children: [/* @__PURE__ */ w(xx, {
 						group: "ci",
 						children: [
-							/* @__PURE__ */ C(yx, {
+							/* @__PURE__ */ C(bx, {
 								id: "avoozl-flow-ci-window",
 								label: "Window (days)",
 								raw: "flow.ci.windowDays",
@@ -29212,7 +29290,7 @@ function wx({ workspaceId: e }) {
 									onChange: (e) => y({ windowDays: e.target.value })
 								})
 							}),
-							/* @__PURE__ */ C(yx, {
+							/* @__PURE__ */ C(bx, {
 								id: "avoozl-flow-ci-docs",
 								label: "Docs-only CI limit (minutes)",
 								raw: "flow.ci.docsOnlyMinutes",
@@ -29225,7 +29303,7 @@ function wx({ workspaceId: e }) {
 									onChange: (e) => y({ docsOnlyMinutes: e.target.value })
 								})
 							}),
-							/* @__PURE__ */ C(yx, {
+							/* @__PURE__ */ C(bx, {
 								id: "avoozl-flow-ci-wait",
 								label: "CI wait share limit",
 								raw: "flow.ci.waitShare",
@@ -29238,7 +29316,7 @@ function wx({ workspaceId: e }) {
 									onChange: (e) => y({ waitShare: e.target.value })
 								})
 							}),
-							/* @__PURE__ */ C(yx, {
+							/* @__PURE__ */ C(bx, {
 								id: "avoozl-flow-ci-min",
 								label: "Closed pull requests before wait check",
 								raw: "flow.ci.minPullRequests",
@@ -29287,12 +29365,12 @@ function wx({ workspaceId: e }) {
 									children: "Anything that does not match a class above."
 								})]
 							}),
-							/* @__PURE__ */ C(vx, { name: "flow.ci.classes" })
+							/* @__PURE__ */ C(yx, { name: "flow.ci.classes" })
 						]
 					})]
 				})
 			}) }),
-			/* @__PURE__ */ C(xx, { children: /* @__PURE__ */ w(dS, {
+			/* @__PURE__ */ C(Sx, { children: /* @__PURE__ */ w(fS, {
 				title: "Retro",
 				blurb: "A review that finds the biggest slowdown and proposes one change. You approve or reject each proposal.",
 				children: [
@@ -29300,9 +29378,9 @@ function wx({ workspaceId: e }) {
 						level: 4,
 						title: "When it runs"
 					}),
-					/* @__PURE__ */ w(bx, {
+					/* @__PURE__ */ w(xx, {
 						group: "when",
-						children: [/* @__PURE__ */ C(yx, {
+						children: [/* @__PURE__ */ C(bx, {
 							id: "avoozl-flow-every",
 							label: "After this many tasks",
 							raw: "flow.retro.everyTasks",
@@ -29310,10 +29388,10 @@ function wx({ workspaceId: e }) {
 								id: "avoozl-flow-every",
 								inputMode: "numeric",
 								value: c.everyTasks,
-								placeholder: String(Sc.everyTasks),
+								placeholder: String(Ac.everyTasks),
 								onChange: (e) => y({ everyTasks: e.target.value })
 							})
-						}), /* @__PURE__ */ C(yx, {
+						}), /* @__PURE__ */ C(bx, {
 							id: "avoozl-flow-slow",
 							label: "Slow when over (× usual)",
 							raw: "flow.retro.slowFactor",
@@ -29321,7 +29399,7 @@ function wx({ workspaceId: e }) {
 								id: "avoozl-flow-slow",
 								inputMode: "decimal",
 								value: c.slowFactor,
-								placeholder: String(Sc.slowFactor),
+								placeholder: String(Ac.slowFactor),
 								onChange: (e) => y({ slowFactor: e.target.value })
 							})
 						})]
@@ -29330,7 +29408,7 @@ function wx({ workspaceId: e }) {
 						level: 4,
 						title: "What it weighs"
 					}),
-					/* @__PURE__ */ C(mx, {
+					/* @__PURE__ */ C(hx, {
 						id: "avoozl-flow-instructions",
 						agent: "retro",
 						builtIn: r.retroPrompt,
@@ -29362,8 +29440,8 @@ function wx({ workspaceId: e }) {
 					alignItems: "center",
 					justifyContent: "flex-end",
 					gap: 12,
-					background: _x,
-					boxShadow: `0 0 0 20px ${_x}, 0 -1px 0 20px var(--border)`,
+					background: vx,
+					boxShadow: `0 0 0 20px ${vx}, 0 -1px 0 20px var(--border)`,
 					clipPath: "inset(-1px -20px -16px -20px)"
 				},
 				children: [
@@ -29394,7 +29472,7 @@ function wx({ workspaceId: e }) {
 	});
 }
 // kirocrew-app/ui/src/models-api.ts
-var Tx = [
+var Ex = [
 	{
 		key: "planner",
 		label: "Planner",
@@ -29421,10 +29499,10 @@ var Tx = [
 		line: "Drafts a pending review on a labeled pull request."
 	}
 ];
-function Ex(e) {
+function Dx(e) {
 	return Object.fromEntries(Object.entries(e).filter(([, e]) => e && e !== "auto"));
 }
-function Dx(e) {
+function Ox(e) {
 	let t = (t, n, r = {}) => e.post(W, {
 		operation: n,
 		input: r,
@@ -29433,15 +29511,15 @@ function Dx(e) {
 	return {
 		get: (e) => t(e, "models.settings.get"),
 		save: (e, n, r) => t(e, "models.settings.update", {
-			models: Ex(n),
+			models: Dx(n),
 			expectedHash: r
 		}),
-		list: () => e.get("/api/models").then(Ys)
+		list: () => e.get("/api/models").then(rc)
 	};
 }
 // kirocrew-app/ui/src/ModelsSettings.tsx
-function Ox({ workspaceId: e }) {
-	let t = K(), n = l(() => Dx(t), [t]), { value: r, error: a, reload: s } = Mo(e, i((e) => n.get(e), [n])), [c, u] = d({}), [f, p] = d([]), [m, h] = d(null), [g, _] = d(!1);
+function kx({ workspaceId: e }) {
+	let t = K(), n = l(() => Ox(t), [t]), { value: r, error: a, reload: s } = Mo(e, i((e) => n.get(e), [n])), [c, u] = d({}), [f, p] = d([]), [m, h] = d(null), [g, _] = d(!1);
 	if (o(() => {
 		r && u(r.models);
 	}, [r]), o(() => {
@@ -29458,10 +29536,10 @@ function Ox({ workspaceId: e }) {
 		className: "text-sm text-muted",
 		children: "Loading…"
 	});
-	let v = (e) => Xs(f, c[e] ?? "").map((t) => e === "planReviewer" && t.value === "auto" ? {
+	let v = (e) => ic(f, c[e] ?? "").map((t) => e === "planReviewer" && t.value === "auto" ? {
 		...t,
 		label: "auto (no reviewer)"
-	} : t), y = JSON.stringify(Ex(c)) !== JSON.stringify(Ex(r.models)), b = async () => {
+	} : t), y = JSON.stringify(Dx(c)) !== JSON.stringify(Dx(r.models)), b = async () => {
 		_(!0), h(null);
 		try {
 			await n.save(e, c, r.hash), await s(), h({ ok: "Saved to .avoozl.json." });
@@ -29477,16 +29555,16 @@ function Ox({ workspaceId: e }) {
 		children: [/* @__PURE__ */ C("div", {
 			className: "grid gap-x-4 gap-y-2",
 			style: { gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 15rem), 1fr))" },
-			children: Tx.map((e) => /* @__PURE__ */ w("div", {
+			children: Ex.map((e) => /* @__PURE__ */ w("div", {
 				className: "flex min-w-0 flex-col gap-0.5",
 				"data-model-role": e.key,
-				children: [/* @__PURE__ */ C(el, {
+				children: [/* @__PURE__ */ C(tl, {
 					id: `avoozl-model-${e.key}`,
 					label: /* @__PURE__ */ C("span", {
 						className: "text-sm font-medium",
 						children: e.label
 					}),
-					items: Qc(v(e.key)),
+					items: $c(v(e.key)),
 					value: c[e.key] || "auto",
 					onPick: (t) => u({
 						...c,
@@ -29528,7 +29606,7 @@ function Ox({ workspaceId: e }) {
 	});
 }
 // kirocrew-app/ui/src/mirror-setup-api.ts
-var kx = [{
+var Ax = [{
 	kind: "adopt",
 	label: "Adopt existing setup",
 	about: "Find the mirror, private specs branch, labels and rules you already have. Shows a dry run first and writes only the lines you keep ticked."
@@ -29536,7 +29614,7 @@ var kx = [{
 	kind: "create",
 	label: "Create setup",
 	about: "Build a private mirror, copy the source into it once, then add the private specs branch, labels, branch rule and auto-merge. Shows a dry run first."
-}], Ax = {
+}], jx = {
 	mirror: "Private mirror",
 	seed: "Copy of the source",
 	"plans-branch": "Private specs branch",
@@ -29545,8 +29623,8 @@ var kx = [{
 	"auto-merge": "Auto-merge",
 	setting: "Mirror setting",
 	"radar-values": "Radar values"
-}, jx = (e) => e.status === "change", Mx = (e, t) => e.filter((e) => jx(e) && !t.has(e.id) && e.ticked !== !1).map((e) => e.id);
-function Nx(e) {
+}, Mx = (e) => e.status === "change", Nx = (e, t) => e.filter((e) => Mx(e) && !t.has(e.id) && e.ticked !== !1).map((e) => e.id);
+function Px(e) {
 	let t = async (t, n, r) => (await e.post(W, {
 		operation: `mirror.${t}`,
 		input: n,
@@ -29563,13 +29641,13 @@ function Nx(e) {
 	};
 }
 // kirocrew-app/ui/src/MirrorSetup.tsx
-var Px = {
+var Fx = {
 	found: "Found",
 	missing: "Missing",
 	differs: "Differs"
 };
-function Fx(e) {
-	let t = K(), n = l(() => Nx(t), [t]), [r, a] = d(""), [s, c] = d(""), [u, f] = d(null), [p, m] = d(/* @__PURE__ */ new Set()), [h, g] = d(!1), [v, y] = d(null), { workspaceId: x } = e;
+function Ix(e) {
+	let t = K(), n = l(() => Px(t), [t]), [r, a] = d(""), [s, c] = d(""), [u, f] = d(null), [p, m] = d(/* @__PURE__ */ new Set()), [h, g] = d(!1), [v, y] = d(null), { workspaceId: x } = e;
 	o(() => {
 		let e = !0;
 		return la(t).get(x).then((t) => {
@@ -29598,12 +29676,12 @@ function Fx(e) {
 		}
 	}, D = (e) => E(async () => T(e, await n.preview(x, e, S))), O = () => E(async () => {
 		if (!u) return;
-		let t = await n.apply(x, u.kind, S, u.result.previewHash, Mx(u.result.lines, p));
+		let t = await n.apply(x, u.kind, S, u.result.previewHash, Nx(u.result.lines, p));
 		T(u.kind, t), e.onApplied();
 	}), k = (e) => m((t) => {
 		let n = new Set(t);
 		return n.delete(e) || n.add(e), n;
-	}), A = u?.result, j = A ? Mx(A.lines, p) : [];
+	}), A = u?.result, j = A ? Nx(A.lines, p) : [];
 	return /* @__PURE__ */ w("div", {
 		"data-mirror-setup": !0,
 		className: "flex flex-col gap-2 rounded-lg border p-3",
@@ -29640,7 +29718,7 @@ function Fx(e) {
 			}),
 			/* @__PURE__ */ C("div", {
 				className: "flex flex-wrap items-center gap-2",
-				children: kx.map((e) => /* @__PURE__ */ w("span", {
+				children: Ax.map((e) => /* @__PURE__ */ w("span", {
 					className: "inline-flex items-center gap-1.5",
 					children: [/* @__PURE__ */ C(_, {
 						type: "button",
@@ -29692,21 +29770,21 @@ function Fx(e) {
 							className: "flex items-start gap-2 text-sm",
 							children: [/* @__PURE__ */ C("input", {
 								type: "checkbox",
-								"aria-label": `Write ${Ax[e.id] ?? e.id}`,
-								disabled: !jx(e) || h || !!A.applied,
-								checked: jx(e) && !p.has(e.id) && e.ticked !== !1,
+								"aria-label": `Write ${jx[e.id] ?? e.id}`,
+								disabled: !Mx(e) || h || !!A.applied,
+								checked: Mx(e) && !p.has(e.id) && e.ticked !== !1,
 								onChange: () => k(e.id)
 							}), /* @__PURE__ */ w("span", {
 								className: "min-w-0 flex-1",
 								children: [
 									/* @__PURE__ */ C("span", {
 										className: "font-medium",
-										children: Ax[e.id] ?? e.id
+										children: jx[e.id] ?? e.id
 									}),
 									" ",
 									/* @__PURE__ */ C("span", {
 										className: "text-xs text-muted",
-										children: Px[e.state] ?? e.state
+										children: Fx[e.state] ?? e.state
 									}),
 									/* @__PURE__ */ w("span", {
 										className: "block text-xs text-muted",
@@ -29720,7 +29798,7 @@ function Fx(e) {
 						"data-mirror-applied": !0,
 						className: "flex flex-col gap-1 text-sm",
 						children: A.applied.map((e) => /* @__PURE__ */ w("li", { children: [
-							Ax[e.id] ?? e.id,
+							jx[e.id] ?? e.id,
 							": ",
 							e.status,
 							". ",
@@ -29762,10 +29840,10 @@ function Fx(e) {
 	});
 }
 // kirocrew-app/ui/src/SettingsSlots.tsx
-function Ix(e) {
+function Lx(e) {
 	let t = K(), n = l(() => la(t), [t]), r = i((e) => n.get(e), [n]), { value: a } = Mo(e.workspaceId, r);
 	if (!a) return null;
-	let o = Pa(a.github), s = u_(o.repositories, oo(o.mode));
+	let o = Pa(a.github), s = d_(o.repositories, oo(o.mode));
 	return s.length ? /* @__PURE__ */ w("div", {
 		role: "status",
 		"data-retired-banner": !0,
@@ -29778,7 +29856,7 @@ function Ix(e) {
 			className: "min-w-0 flex-1",
 			children: [/* @__PURE__ */ C("span", {
 				className: "font-medium",
-				children: l_
+				children: u_
 			}), /* @__PURE__ */ w("span", {
 				className: "block text-xs text-muted",
 				children: [
@@ -29795,15 +29873,15 @@ function Ix(e) {
 	}) : null;
 }
 // kirocrew-app/ui/src/delivery-api.ts
-function Lx(e) {
+function Rx(e) {
 	let t = (e?.statuses ?? []).filter((e) => !e.complete && !["deferred", "blocked"].includes(e.id));
 	return t.find((e) => e.id === "planned")?.id ?? t[0]?.id ?? null;
 }
-function Rx(e) {
+function zx(e) {
 	let t = (e?.statuses ?? []).filter((e) => e.complete);
 	return (t.find((e) => e.id === "done") ?? t.find((e) => e.id === "accepted") ?? t[0])?.id ?? null;
 }
-var zx = {
+var Bx = {
 	agent: "kirocrew-worker",
 	prFeedback: !0,
 	feedbackRounds: 5,
@@ -29811,22 +29889,22 @@ var zx = {
 	investigateMode: "not-small",
 	minConfidence: "high"
 };
-function Bx(e = {}) {
+function Vx(e = {}) {
 	return {
 		agent: e.agent ?? "",
 		model: e.model ?? "",
 		prFeedback: e.prFeedback === void 0 ? "" : e.prFeedback ? "on" : "off",
 		feedbackRounds: e.feedbackRounds === void 0 ? "" : String(e.feedbackRounds),
-		ship: e.ship ?? zx.ship,
-		investigateMode: e.investigate?.mode ?? zx.investigateMode,
-		minConfidence: e.investigate?.minConfidence ?? zx.minConfidence,
+		ship: e.ship ?? Bx.ship,
+		investigateMode: e.investigate?.mode ?? Bx.investigateMode,
+		minConfidence: e.investigate?.minConfidence ?? Bx.minConfidence,
 		investigateRest: {
 			...e.investigate?.agent ? { agent: e.investigate.agent } : {},
 			...e.investigate?.model ? { model: e.investigate.model } : {}
 		}
 	};
 }
-function Vx(e) {
+function Hx(e) {
 	let t = {};
 	if (e.agent.trim()) {
 		if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(e.agent.trim())) return { error: "Agent is an agent name: letters, digits, . _ : or -." };
@@ -29837,15 +29915,15 @@ function Vx(e) {
 		if (!Number.isInteger(n) || n < 1 || n > 20) return { error: "Feedback rounds is a whole number 1–20." };
 		t.feedbackRounds = n;
 	}
-	e.ship && e.ship !== zx.ship && (t.ship = e.ship);
+	e.ship && e.ship !== Bx.ship && (t.ship = e.ship);
 	let n = {
-		...e.investigateMode && e.investigateMode !== zx.investigateMode ? { mode: e.investigateMode } : {},
-		...e.minConfidence && e.minConfidence !== zx.minConfidence ? { minConfidence: e.minConfidence } : {},
+		...e.investigateMode && e.investigateMode !== Bx.investigateMode ? { mode: e.investigateMode } : {},
+		...e.minConfidence && e.minConfidence !== Bx.minConfidence ? { minConfidence: e.minConfidence } : {},
 		...e.investigateRest ?? {}
 	};
 	return Object.keys(n).length && (t.investigate = n), { delivery: t };
 }
-var Hx = [{
+var Ux = [{
 	key: "auto-merge",
 	title: "Auto-merge",
 	line: "The writer turns on GitHub auto-merge; the pull request merges when its checks and reviews pass.",
@@ -29863,12 +29941,12 @@ var Hx = [{
 		"Shows Ready to merge",
 		"Merges on GitHub, or presses Integrate for a local task"
 	]
-}], Ux = { required: !1 }, Wx = "The tick starts no ready task until delivery is on. Its agent, model and pull request settings show here then.", Gx = {
+}], Wx = { required: !1 }, Gx = "The tick starts no ready task until delivery is on. Its agent, model and pull request settings show here then.", Kx = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
 	background: "var(--card, transparent)"
 };
-function Kx({ name: e }) {
+function qx({ name: e }) {
 	return /* @__PURE__ */ C("code", {
 		className: "text-[11px] text-muted",
 		style: {
@@ -29878,7 +29956,7 @@ function Kx({ name: e }) {
 		children: e
 	});
 }
-function qx(e) {
+function Jx(e) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex min-w-0 flex-col gap-1 text-sm",
 		style: {
@@ -29892,37 +29970,37 @@ function qx(e) {
 				children: [/* @__PURE__ */ C("span", {
 					className: "font-medium",
 					children: e.label
-				}), /* @__PURE__ */ C(oS, { rule: Ux })]
+				}), /* @__PURE__ */ C(sS, { rule: Wx })]
 			}),
 			e.children,
 			e.note && /* @__PURE__ */ C("span", {
 				className: "text-xs text-muted",
 				children: e.note
 			}),
-			/* @__PURE__ */ C(Kx, { name: e.raw })
+			/* @__PURE__ */ C(qx, { name: e.raw })
 		]
 	});
 }
-function Jx({ workspaceId: e }) {
+function Yx({ workspaceId: e }) {
 	let t = K(), n = l(() => (n, r = {}) => t.post(W, {
 		operation: n,
 		input: r,
 		workspaceId: e
-	}).then((e) => e.result), [t, e]), { value: r, error: a, reload: s } = Mo(e, i(() => n("delivery.settings.get"), [n])), [c, u] = d(Bx()), [f, p] = d([]), [m, h] = d(null), [g, y] = d(!1), x = Lr();
+	}).then((e) => e.result), [t, e]), { value: r, error: a, reload: s } = Mo(e, i(() => n("delivery.settings.get"), [n])), [c, u] = d(Vx()), [f, p] = d([]), [m, h] = d(null), [g, y] = d(!1), x = Lr();
 	o(() => {
 		let e = !0;
-		return t.get("/api/models").then((t) => e && p(Ys(t)), () => e && p([])), () => {
+		return t.get("/api/models").then((t) => e && p(rc(t)), () => e && p([])), () => {
 			e = !1;
 		};
 	}, [t]), o(() => {
-		r && u(Bx(r.delivery));
+		r && u(Vx(r.delivery));
 	}, [r]);
 	let S = (e) => u({
 		...c,
 		...e
 	}), T = async () => {
 		if (!r) return;
-		let e = Vx(c);
+		let e = Hx(c);
 		if (e.error) return h({ error: e.error });
 		h(null);
 		try {
@@ -29963,9 +30041,9 @@ function Jx({ workspaceId: e }) {
 			}
 		}
 	};
-	if (!r.on) return /* @__PURE__ */ C(v, { children: /* @__PURE__ */ C(dS, {
+	if (!r.on) return /* @__PURE__ */ C(v, { children: /* @__PURE__ */ C(fS, {
 		title: "Delivery is off",
-		blurb: Wx,
+		blurb: Gx,
 		children: /* @__PURE__ */ w("div", {
 			className: "flex flex-wrap items-center gap-3",
 			"data-delivery-off": !0,
@@ -29983,7 +30061,7 @@ function Jx({ workspaceId: e }) {
 					help: {
 						page: "Settings › Delivery",
 						section: "Delivery is off",
-						says: `${Wx} A Turn on delivery button writes a default delivery section.`,
+						says: `${Gx} A Turn on delivery button writes a default delivery section.`,
 						settings: [{
 							key: "delivery",
 							value: "not set (delivery is off)"
@@ -30002,19 +30080,19 @@ function Jx({ workspaceId: e }) {
 			]
 		})
 	}) });
-	let D = c.prFeedback ? c.prFeedback === "on" : zx.prFeedback;
+	let D = c.prFeedback ? c.prFeedback === "on" : Bx.prFeedback;
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3",
 		"data-delivery-settings": !0,
 		children: [/* @__PURE__ */ w(v, {
 			className: "flex flex-col gap-4",
 			children: [
-				/* @__PURE__ */ C(dS, {
+				/* @__PURE__ */ C(fS, {
 					title: "Writer",
 					blurb: "The agent and model worker chats open on, unless a task's manifest picks another.",
 					children: /* @__PURE__ */ w("div", {
 						className: "flex flex-wrap gap-4",
-						children: [/* @__PURE__ */ C(qx, {
+						children: [/* @__PURE__ */ C(Jx, {
 							id: "avoozl-delivery-agent",
 							label: "Agent",
 							raw: "delivery.agent",
@@ -30022,10 +30100,10 @@ function Jx({ workspaceId: e }) {
 							children: /* @__PURE__ */ C(b, {
 								id: "avoozl-delivery-agent",
 								value: c.agent,
-								placeholder: zx.agent,
+								placeholder: Bx.agent,
 								onChange: (e) => S({ agent: e.target.value })
 							})
-						}), /* @__PURE__ */ C(qx, {
+						}), /* @__PURE__ */ C(Jx, {
 							id: "avoozl-delivery-model",
 							label: "Model",
 							raw: "delivery.model",
@@ -30036,8 +30114,8 @@ function Jx({ workspaceId: e }) {
 								value: c.model || "auto",
 								onChange: (e) => S({ model: e.target.value === "auto" ? "" : e.target.value }),
 								className: "rounded border px-2 py-1 text-sm",
-								style: Gx,
-								children: Xs(f, c.model).map((e) => /* @__PURE__ */ C("option", {
+								style: Kx,
+								children: ic(f, c.model).map((e) => /* @__PURE__ */ C("option", {
 									value: e.value,
 									children: e.label
 								}, e.value))
@@ -30045,16 +30123,16 @@ function Jx({ workspaceId: e }) {
 						})]
 					})
 				}),
-				/* @__PURE__ */ w(dS, {
+				/* @__PURE__ */ w(fS, {
 					title: "Who merges",
 					blurb: "Who lands a finished pull request. A repository, spec or task may set its own in .avoozl.json or the manifest; Avoozl never merges one itself.",
 					children: [
-						/* @__PURE__ */ C(wd, {
+						/* @__PURE__ */ C(Td, {
 							name: "avoozl-delivery-ship",
 							label: "Who merges",
-							value: c.ship ?? zx.ship,
+							value: c.ship ?? Bx.ship,
 							onChange: (e) => S({ ship: e }),
-							sections: Hx.map((e) => ({
+							sections: Ux.map((e) => ({
 								key: e.key,
 								title: e.title,
 								line: e.line,
@@ -30076,15 +30154,15 @@ function Jx({ workspaceId: e }) {
 							className: "text-xs text-muted",
 							children: "Briefs tell writers not to turn on auto-merge."
 						}),
-						/* @__PURE__ */ C(Kx, { name: "delivery.ship" })
+						/* @__PURE__ */ C(qx, { name: "delivery.ship" })
 					]
 				}),
-				/* @__PURE__ */ C(dS, {
+				/* @__PURE__ */ C(fS, {
 					title: "Investigate first",
 					blurb: "Before coding, the writer reports what it found and how sure it is; a second chat tries to prove it wrong. Coding starts only when both are sure enough and the findings stand.",
 					children: /* @__PURE__ */ w("div", {
 						className: "flex flex-wrap gap-4",
-						children: [/* @__PURE__ */ C(qx, {
+						children: [/* @__PURE__ */ C(Jx, {
 							id: "avoozl-delivery-investigate",
 							label: "Which tasks",
 							raw: "delivery.investigate.mode",
@@ -30092,10 +30170,10 @@ function Jx({ workspaceId: e }) {
 							note: "A task's manifest can set investigate: true or false.",
 							children: /* @__PURE__ */ w("select", {
 								id: "avoozl-delivery-investigate",
-								value: c.investigateMode ?? zx.investigateMode,
+								value: c.investigateMode ?? Bx.investigateMode,
 								onChange: (e) => S({ investigateMode: e.target.value }),
 								className: "rounded border px-2 py-1 text-sm",
-								style: Gx,
+								style: Kx,
 								children: [
 									/* @__PURE__ */ C("option", {
 										value: "not-small",
@@ -30111,7 +30189,7 @@ function Jx({ workspaceId: e }) {
 									})
 								]
 							})
-						}), /* @__PURE__ */ C(qx, {
+						}), /* @__PURE__ */ C(Jx, {
 							id: "avoozl-delivery-confidence",
 							label: "Sure enough at",
 							raw: "delivery.investigate.minConfidence",
@@ -30119,10 +30197,10 @@ function Jx({ workspaceId: e }) {
 							note: "Less sure waits in Needs you.",
 							children: /* @__PURE__ */ w("select", {
 								id: "avoozl-delivery-confidence",
-								value: c.minConfidence ?? zx.minConfidence,
+								value: c.minConfidence ?? Bx.minConfidence,
 								onChange: (e) => S({ minConfidence: e.target.value }),
 								className: "rounded border px-2 py-1 text-sm",
-								style: Gx,
+								style: Kx,
 								children: [/* @__PURE__ */ C("option", {
 									value: "high",
 									children: "High"
@@ -30134,7 +30212,7 @@ function Jx({ workspaceId: e }) {
 						})]
 					})
 				}),
-				/* @__PURE__ */ w(dS, {
+				/* @__PURE__ */ w(fS, {
 					title: "Pull request feedback",
 					blurb: "Send failed checks and allowed reviewers' comments back to the chat that wrote the pull request. Matters only in a GitHub mode.",
 					children: [
@@ -30150,11 +30228,11 @@ function Jx({ workspaceId: e }) {
 									className: "font-medium",
 									children: "Send pull request feedback to the writer"
 								}),
-								/* @__PURE__ */ C(oS, { rule: Ux })
+								/* @__PURE__ */ C(sS, { rule: Wx })
 							]
 						}),
-						/* @__PURE__ */ C(Kx, { name: "delivery.prFeedback" }),
-						/* @__PURE__ */ C(qx, {
+						/* @__PURE__ */ C(qx, { name: "delivery.prFeedback" }),
+						/* @__PURE__ */ C(Jx, {
 							id: "avoozl-delivery-rounds",
 							label: "Most feedback rounds per task",
 							raw: "delivery.feedbackRounds",
@@ -30164,7 +30242,7 @@ function Jx({ workspaceId: e }) {
 								id: "avoozl-delivery-rounds",
 								inputMode: "numeric",
 								value: c.feedbackRounds,
-								placeholder: String(zx.feedbackRounds),
+								placeholder: String(Bx.feedbackRounds),
 								onChange: (e) => S({ feedbackRounds: e.target.value })
 							})
 						})
@@ -30198,20 +30276,20 @@ function Jx({ workspaceId: e }) {
 	});
 }
 // kirocrew-app/ui/src/SettingsView.tsx
-var Yx = {
+var Xx = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
 	background: "var(--card, transparent)"
-}, Xx = (e = 220) => ({
+}, Zx = (e = 220) => ({
 	display: "grid",
 	gap: 12,
 	gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${e}px), 1fr))`,
 	alignItems: "start"
-}), Zx = {
+}), Qx = {
 	sm: "9rem",
 	md: "18rem",
 	lg: "28rem"
-}, Qx = [
+}, $x = [
 	{
 		key: "driver",
 		label: "Driver session"
@@ -30252,14 +30330,14 @@ var Yx = {
 		key: "delivery",
 		label: "Delivery"
 	}
-], $x = [
+], eS = [
 	"repositories",
 	"github",
 	"plugins",
 	"content",
 	"flow",
 	"delivery"
-], eS = {
+], tS = {
 	instance: "The short name this install shows to people. Hidden markers carry a fixed ID, so a rename changes nothing on GitHub.",
 	driver: "The chat that releases ready work and watches merges: a link to it, or a button to start one.",
 	workspaces: "The Avoozl workspaces on this machine, each a folder with its own task database. Add one for each set of specs you keep apart.",
@@ -30270,7 +30348,7 @@ var Yx = {
 	flow: "How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.",
 	models: "The model each of Avoozl's own chats opens on. Issue Radar crews pick their own.",
 	delivery: "Who merges a finished pull request, and the writer agent and model, investigate-first and pull request feedback for Avoozl worker chats."
-}, tS = [
+}, nS = [
 	{
 		key: "mode",
 		label: "Mode and branch"
@@ -30295,29 +30373,29 @@ var Yx = {
 		key: "map",
 		label: "Workflow map"
 	}
-], nS = {
+], rS = {
 	map: "The path work takes in this repository, drawn from its settings. Nothing here is edited; a value opens its field.",
 	crews: "Issue Radar crews on this repository: the review rules crews read, and the planning and conflict labels. Defaults show in each field.",
 	mode: "Which repository this is, the branch pull requests merge into, and who writes the code.",
 	triggers: "A rule starts its action when an allowed person's label makes an issue match its line. No label name is built in.",
 	checks: "Names of GitHub checks (CI jobs) that must pass on a task's PR before Avoozl counts it as done.",
 	reviews: "Avoozl follows this branch's review rule on GitHub. To change it, change the rule on GitHub."
-}, rS = {
+}, iS = {
 	status: "Status field",
 	release: "Release field",
 	wave: "Wave field",
 	iteration: "Iteration field",
 	avoozlState: "Avoozl state field"
-}, iS = {
+}, aS = {
 	claim: "Claim label",
 	needsHuman: "Needs-human label"
-}, aS = {
+}, oS = {
 	todo: "Ready option",
 	inProgress: "In progress option",
 	done: "Done option",
 	deferred: "Deferred option"
 };
-function oS({ rule: e }) {
+function sS({ rule: e }) {
 	return e ? e.required ? /* @__PURE__ */ w("span", {
 		className: "text-xs text-muted",
 		"data-marker": "required",
@@ -30332,10 +30410,10 @@ function oS({ rule: e }) {
 		children: "(optional)"
 	}) : null;
 }
-function sS(e) {
+function cS(e) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex min-w-0 flex-col gap-1 text-sm",
-		style: e.width ? { maxWidth: Zx[e.width] } : void 0,
+		style: e.width ? { maxWidth: Qx[e.width] } : void 0,
 		children: [
 			/* @__PURE__ */ w("label", {
 				htmlFor: e.id,
@@ -30343,7 +30421,7 @@ function sS(e) {
 				children: [/* @__PURE__ */ C("span", {
 					className: "font-medium",
 					children: e.label
-				}), /* @__PURE__ */ C(oS, { rule: e.rule })]
+				}), /* @__PURE__ */ C(sS, { rule: e.rule })]
 			}),
 			e.children,
 			e.help && /* @__PURE__ */ C("span", {
@@ -30370,8 +30448,8 @@ function sS(e) {
 		]
 	});
 }
-function cS(e) {
-	return /* @__PURE__ */ C(sS, {
+function lS(e) {
+	return /* @__PURE__ */ C(cS, {
 		id: e.id,
 		label: e.label,
 		raw: e.raw,
@@ -30389,8 +30467,8 @@ function cS(e) {
 		})
 	});
 }
-function lS(e) {
-	return /* @__PURE__ */ C(sS, {
+function uS(e) {
+	return /* @__PURE__ */ C(cS, {
 		id: e.id,
 		label: e.label,
 		raw: e.raw,
@@ -30401,7 +30479,7 @@ function lS(e) {
 			value: e.value,
 			onChange: (t) => e.onChange(t.target.value),
 			className: "rounded border px-2 py-1 text-sm",
-			style: Yx,
+			style: Xx,
 			children: [/* @__PURE__ */ C("option", {
 				value: "",
 				children: e.none
@@ -30412,13 +30490,13 @@ function lS(e) {
 		})
 	});
 }
-function uS({ children: e }) {
+function dS({ children: e }) {
 	return /* @__PURE__ */ C("p", {
 		className: "mt-1 text-xs text-muted",
 		children: e
 	});
 }
-function dS(e) {
+function fS(e) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-2.5",
 		"data-section": e.title,
@@ -30431,13 +30509,13 @@ function dS(e) {
 		}), e.children]
 	});
 }
-var fS = {
+var pS = {
 	all: "has all",
 	any: "has any",
 	none: "has none",
 	assignee: "assigned to"
 };
-function pS(e) {
+function mS(e) {
 	let t = K(), n = l(() => ha(t), [t]), [r, i] = d(null), [a, s] = d(null), c = !!e.untriaged, u = e.value.trim() || e.untriaged?.placeholder.trim() || "";
 	o(() => {
 		if (!u) {
@@ -30461,7 +30539,7 @@ function pS(e) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex min-w-0 flex-col gap-1 text-sm",
 		children: [
-			/* @__PURE__ */ w(sS, {
+			/* @__PURE__ */ w(cS, {
 				id: e.id,
 				label: c ? "Untriaged filter" : "Matches issues",
 				raw: c ? "untriaged.filter" : "match",
@@ -30508,21 +30586,21 @@ function pS(e) {
 					className: "flex flex-wrap items-center gap-1",
 					children: [/* @__PURE__ */ C("span", {
 						className: "text-xs text-muted",
-						children: fS[e.kind]
+						children: pS[e.kind]
 					}), e.values.map((t) => /* @__PURE__ */ C($, {
 						variant: e.kind === "none" ? void 0 : "info",
 						children: t
 					}, t))]
 				}, e.kind))
 			}),
-			f?.parsed && /* @__PURE__ */ C(mS, {
+			f?.parsed && /* @__PURE__ */ C(hS, {
 				preview: f,
 				untriaged: c
 			})
 		]
 	});
 }
-function mS({ preview: e, untriaged: t = !1 }) {
+function hS({ preview: e, untriaged: t = !1 }) {
 	let n = t ? ["item", "items"] : ["issue", "issues"];
 	if (!e.repository) return /* @__PURE__ */ w("span", {
 		className: "text-xs text-muted",
@@ -30567,8 +30645,8 @@ function mS({ preview: e, untriaged: t = !1 }) {
 		children: r
 	});
 }
-function hS(e) {
-	let t = K(), n = l(() => ug(t), [t]), [r, i] = d(null), { id: a, value: s, repository: c } = e, u = (t) => e.onChange({
+function gS(e) {
+	let t = K(), n = l(() => dg(t), [t]), [r, i] = d(null), { id: a, value: s, repository: c } = e, u = (t) => e.onChange({
 		...s,
 		...t
 	}), f = /^[\w.-]+\/[\w.-]+$/.test(c);
@@ -30588,13 +30666,13 @@ function hS(e) {
 		e.workspaceId,
 		n
 	]);
-	let p = dg(s.triageLabels, r?.labels ?? null), m = (e, t) => u({ triageLabels: t ? [...s.triageLabels, e] : s.triageLabels.filter((t) => t.toLocaleLowerCase() !== e.toLocaleLowerCase()) });
-	return /* @__PURE__ */ w(dS, {
+	let p = fg(s.triageLabels, r?.labels ?? null), m = (e, t) => u({ triageLabels: t ? [...s.triageLabels, e] : s.triageLabels.filter((t) => t.toLocaleLowerCase() !== e.toLocaleLowerCase()) });
+	return /* @__PURE__ */ w(fS, {
 		level: "sub",
 		title: "Untriaged",
 		blurb: "What the Intake tab's Untriaged filter lists for this repository: open issues and pull requests no rule, triage label or task covers.",
 		children: [
-			/* @__PURE__ */ C(pS, {
+			/* @__PURE__ */ C(mS, {
 				id: `${a}-untriaged-filter`,
 				value: s.filter,
 				repository: c,
@@ -30611,7 +30689,7 @@ function hS(e) {
 						children: [/* @__PURE__ */ C("span", {
 							className: "font-medium",
 							children: "Triage labels"
-						}), /* @__PURE__ */ C(oS, { rule: { required: !1 } })]
+						}), /* @__PURE__ */ C(sS, { rule: { required: !1 } })]
 					}),
 					/* @__PURE__ */ C("span", {
 						className: "text-xs text-muted",
@@ -30666,7 +30744,7 @@ function hS(e) {
 			}),
 			/* @__PURE__ */ w("div", {
 				className: "flex flex-wrap items-end gap-3",
-				children: [/* @__PURE__ */ C(cS, {
+				children: [/* @__PURE__ */ C(lS, {
 					id: `${a}-untriaged-days`,
 					label: "Ignore older than, in days",
 					raw: "untriaged.ignoreOlderThanDays",
@@ -30694,7 +30772,7 @@ function hS(e) {
 									className: "font-medium",
 									children: "Notify me when the count goes up"
 								}),
-								/* @__PURE__ */ C(oS, { rule: { required: !1 } })
+								/* @__PURE__ */ C(sS, { rule: { required: !1 } })
 							]
 						}),
 						/* @__PURE__ */ C("span", {
@@ -30715,7 +30793,7 @@ function hS(e) {
 		]
 	});
 }
-function gS(e) {
+function _S(e) {
 	let { rule: t, id: n } = e, r = (n) => e.onChange({
 		...t,
 		...n
@@ -30725,9 +30803,9 @@ function gS(e) {
 		style: { borderColor: "var(--border)" },
 		children: [
 			/* @__PURE__ */ w("div", {
-				style: Xx(180),
+				style: Zx(180),
 				children: [
-					/* @__PURE__ */ C(cS, {
+					/* @__PURE__ */ C(lS, {
 						id: `${n}-id`,
 						label: "Rule name",
 						raw: "id",
@@ -30736,7 +30814,7 @@ function gS(e) {
 						value: t.id,
 						onChange: (e) => r({ id: e })
 					}),
-					/* @__PURE__ */ C(lS, {
+					/* @__PURE__ */ C(uS, {
 						id: `${n}-action`,
 						label: "Action",
 						raw: "action",
@@ -30746,7 +30824,7 @@ function gS(e) {
 						none: "Choose",
 						onChange: (e) => r({ action: e })
 					}),
-					/* @__PURE__ */ C(cS, {
+					/* @__PURE__ */ C(lS, {
 						id: `${n}-author`,
 						label: "Opened by",
 						raw: "author",
@@ -30756,7 +30834,7 @@ function gS(e) {
 					})
 				]
 			}),
-			/* @__PURE__ */ C(pS, {
+			/* @__PURE__ */ C(mS, {
 				id: `${n}-match`,
 				value: t.match,
 				repository: e.repository,
@@ -30789,7 +30867,7 @@ function gS(e) {
 		]
 	});
 }
-function _S({ roles: e }) {
+function vS({ roles: e }) {
 	return /* @__PURE__ */ C("ul", {
 		className: "mt-1 flex flex-col gap-1 text-sm",
 		children: e.map((e) => /* @__PURE__ */ w("li", { children: [
@@ -30815,10 +30893,10 @@ function _S({ roles: e }) {
 		] }, e.id))
 	});
 }
-function vS({ review: e, repository: t }) {
+function yS({ review: e, repository: t }) {
 	if (!e) return null;
 	let n = e.repositories[t], r = n ?? e.reviewers;
-	return /* @__PURE__ */ C(dS, {
+	return /* @__PURE__ */ C(fS, {
 		level: "sub",
 		title: "Avoozl reviewer chats",
 		blurb: "Fresh chats that review each local delivery's exact commit before it merges. Edit them under delivery.reviewers in .avoozl.json.",
@@ -30828,15 +30906,15 @@ function vS({ review: e, repository: t }) {
 		}) : r.length === 0 ? /* @__PURE__ */ C("p", {
 			className: "text-sm text-muted",
 			children: "No reviewer roles. Checks alone verify a delivery."
-		}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ w(uS, { children: [
+		}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ w(dS, { children: [
 			n ? "Set for this repository." : "The workspace roles.",
 			" Writer model ",
 			e.writerModel ?? "not named",
 			"."
-		] }), /* @__PURE__ */ C(_S, { roles: r })] })
+		] }), /* @__PURE__ */ C(vS, { roles: r })] })
 	});
 }
-function yS(e) {
+function bS(e) {
 	let [t, n] = d(""), r = e.inspect?.checks ?? null, i = Wa(e.value, r), a = /^[\w.-]+\/[\w.-]+$/.test(e.repository), o = () => {
 		let r = t.trim();
 		r && (e.onChange(Ga(e.value, r, !0)), n(""));
@@ -30852,7 +30930,7 @@ function yS(e) {
 				" ",
 				"Names are exact and case-sensitive, separated by commas."
 			]
-		}), /* @__PURE__ */ C(cS, {
+		}), /* @__PURE__ */ C(lS, {
 			id: `${e.id}-checks`,
 			label: "Required checks",
 			raw: "requiredChecks",
@@ -30930,7 +31008,7 @@ function yS(e) {
 			}),
 			/* @__PURE__ */ w("div", {
 				className: "flex flex-wrap items-end gap-2",
-				children: [/* @__PURE__ */ C(cS, {
+				children: [/* @__PURE__ */ C(lS, {
 					id: `${e.id}-check-extra`,
 					label: "Add another name",
 					placeholder: "a check not run yet",
@@ -30947,7 +31025,7 @@ function yS(e) {
 		]
 	});
 }
-function bS(e) {
+function xS(e) {
 	let t = e.inspect?.reviewRule?.url ?? (e.repository ? `https://github.com/${e.repository}/settings/rules` : null);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-2 text-sm",
@@ -30991,7 +31069,7 @@ function bS(e) {
 		]
 	});
 }
-function xS(e) {
+function SS(e) {
 	let { mirror: t, id: n } = e, r = (n) => e.onChange({
 		...t,
 		...n
@@ -31010,9 +31088,9 @@ function xS(e) {
 				children: "Crews work in a private copy. The mirror must be private. Leave both names blank for none."
 			}),
 			/* @__PURE__ */ w("div", {
-				style: Xx(),
+				style: Zx(),
 				children: [
-					/* @__PURE__ */ C(cS, {
+					/* @__PURE__ */ C(lS, {
 						id: `${n}-source`,
 						label: "Public repository",
 						raw: "mirror.source",
@@ -31020,7 +31098,7 @@ function xS(e) {
 						value: t.source,
 						onChange: (e) => r({ source: e })
 					}),
-					/* @__PURE__ */ C(cS, {
+					/* @__PURE__ */ C(lS, {
 						id: `${n}-mirror`,
 						label: "Private mirror",
 						raw: "mirror.mirror",
@@ -31028,7 +31106,7 @@ function xS(e) {
 						value: t.mirror,
 						onChange: (e) => r({ mirror: e })
 					}),
-					/* @__PURE__ */ C(lS, {
+					/* @__PURE__ */ C(uS, {
 						id: `${n}-forward`,
 						label: "Forward mode",
 						raw: "mirror.forward",
@@ -31041,7 +31119,7 @@ function xS(e) {
 						none: "Default (nudge)",
 						onChange: (e) => r({ forward: e })
 					}),
-					/* @__PURE__ */ C(lS, {
+					/* @__PURE__ */ C(uS, {
 						id: `${n}-target`,
 						label: "Forward target",
 						raw: "mirror.forwardTarget",
@@ -31054,7 +31132,7 @@ function xS(e) {
 						none: "Default (each)",
 						onChange: (e) => r({ forwardTarget: e })
 					}),
-					/* @__PURE__ */ C(cS, {
+					/* @__PURE__ */ C(lS, {
 						id: `${n}-public-branch`,
 						label: "Public branch",
 						raw: "mirror.publicBranch",
@@ -31072,9 +31150,9 @@ function xS(e) {
 				id: `${n}-more`,
 				title: "Advanced: mirror",
 				children: [/* @__PURE__ */ w("div", {
-					style: Xx(),
+					style: Zx(),
 					children: [
-						/* @__PURE__ */ C(cS, {
+						/* @__PURE__ */ C(lS, {
 							id: `${n}-forward-to`,
 							label: "Forward to",
 							raw: "mirror.forwardTo",
@@ -31082,7 +31160,7 @@ function xS(e) {
 							value: t.forwardTo,
 							onChange: (e) => r({ forwardTo: e })
 						}),
-						/* @__PURE__ */ C(cS, {
+						/* @__PURE__ */ C(lS, {
 							id: `${n}-prefix`,
 							label: "Branch prefix",
 							raw: "mirror.branchPrefix",
@@ -31090,7 +31168,7 @@ function xS(e) {
 							value: t.branchPrefix,
 							onChange: (e) => r({ branchPrefix: e })
 						}),
-						/* @__PURE__ */ C(cS, {
+						/* @__PURE__ */ C(lS, {
 							id: `${n}-plans-branch`,
 							label: "Private specs branch",
 							raw: "mirror.plansBranch",
@@ -31098,7 +31176,7 @@ function xS(e) {
 							value: t.plansBranch,
 							onChange: (e) => r({ plansBranch: e })
 						}),
-						/* @__PURE__ */ C(cS, {
+						/* @__PURE__ */ C(lS, {
 							id: `${n}-max-bytes`,
 							label: "Largest forwarded file (bytes)",
 							raw: "mirror.forwardMaxFileBytes",
@@ -31106,7 +31184,7 @@ function xS(e) {
 							value: t.forwardMaxFileBytes,
 							onChange: (e) => r({ forwardMaxFileBytes: e })
 						}),
-						/* @__PURE__ */ C(cS, {
+						/* @__PURE__ */ C(lS, {
 							id: `${n}-exclude`,
 							label: "Never forward these paths",
 							raw: "mirror.forwardExclude",
@@ -31114,7 +31192,7 @@ function xS(e) {
 							value: t.forwardExclude,
 							onChange: (e) => r({ forwardExclude: e })
 						}),
-						/* @__PURE__ */ C(cS, {
+						/* @__PURE__ */ C(lS, {
 							id: `${n}-allow`,
 							label: "Forward these paths anyway",
 							raw: "mirror.forwardAllow",
@@ -31122,7 +31200,7 @@ function xS(e) {
 							value: t.forwardAllow,
 							onChange: (e) => r({ forwardAllow: e })
 						}),
-						/* @__PURE__ */ C(cS, {
+						/* @__PURE__ */ C(lS, {
 							id: `${n}-trusted`,
 							label: "Trusted persons",
 							raw: "mirror.trustedPersons",
@@ -31143,10 +31221,10 @@ function xS(e) {
 		]
 	});
 }
-function SS(e) {
-	let { repository: t, choices: n } = e, r = K(), i = l(() => Ka(r), [r]), [a, s] = Un(`settings-repo-tab-${e.index}`, "inner", (e) => `Back to ${tS.find((t) => t.key === e)?.label ?? e}`, "mode", !1), [c, u] = d(null), f = `avoozl-settings-repo-${e.index}`, [p, m] = d(null);
+function CS(e) {
+	let { repository: t, choices: n } = e, r = K(), i = l(() => Ka(r), [r]), [a, s] = Un(`settings-repo-tab-${e.index}`, "inner", (e) => `Back to ${nS.find((t) => t.key === e)?.label ?? e}`, "mode", !1), [c, u] = d(null), f = `avoozl-settings-repo-${e.index}`, [p, m] = d(null);
 	o(() => {
-		p && a === p.tab && (m(null), Vv(f, p));
+		p && a === p.tab && (m(null), Hv(f, p));
 	}, [
 		p,
 		a,
@@ -31182,17 +31260,17 @@ function SS(e) {
 				wrap: "hug",
 				layoutId: "avoozl-repository-tabs",
 				ariaLabel: "Repository settings",
-				segments: tS.map((e) => ({
+				segments: nS.map((e) => ({
 					key: e.key,
 					label: e.label
 				})),
 				value: a,
 				onChange: (e) => s(e)
 			}),
-			a === "mode" && /* @__PURE__ */ w(dS, {
+			a === "mode" && /* @__PURE__ */ w(fS, {
 				level: "sub",
 				title: "Mode and branch",
-				blurb: nS.mode,
+				blurb: rS.mode,
 				children: [
 					/* @__PURE__ */ w("p", {
 						className: "text-xs text-muted",
@@ -31201,15 +31279,15 @@ function SS(e) {
 							/* @__PURE__ */ C("span", {
 								className: "font-medium",
 								style: { color: "var(--text)" },
-								children: CS[Ya(e.mode)]
+								children: wS[Ya(e.mode)]
 							}),
 							". Change it under Where tasks live."
 						]
 					}),
 					/* @__PURE__ */ w("div", {
-						style: Xx(),
+						style: Zx(),
 						children: [
-							/* @__PURE__ */ C(cS, {
+							/* @__PURE__ */ C(lS, {
 								id: `${f}-name`,
 								label: "Repository",
 								raw: "key",
@@ -31218,7 +31296,7 @@ function SS(e) {
 								value: t.name,
 								onChange: (e) => h({ name: e })
 							}),
-							/* @__PURE__ */ C(cS, {
+							/* @__PURE__ */ C(lS, {
 								id: `${f}-base`,
 								label: "Default branch",
 								raw: "baseBranch",
@@ -31228,7 +31306,7 @@ function SS(e) {
 								value: t.baseBranch,
 								onChange: (e) => h({ baseBranch: e })
 							}),
-							/* @__PURE__ */ C(cS, {
+							/* @__PURE__ */ C(lS, {
 								id: `${f}-cache`,
 								label: "Keep GitHub answers (seconds)",
 								raw: "cacheSeconds",
@@ -31241,26 +31319,26 @@ function SS(e) {
 							})
 						]
 					}),
-					/* @__PURE__ */ C(sS, {
+					/* @__PURE__ */ C(cS, {
 						id: `${f}-coder-worker`,
 						label: "Who codes",
 						raw: "coder",
 						rule: Ba.coder,
-						children: /* @__PURE__ */ C(lv, {
+						children: /* @__PURE__ */ C(uv, {
 							id: `${f}-coder`,
 							mode: e.mode,
 							value: t.coder,
 							onChange: (e) => h({ coder: e })
 						})
 					}),
-					/* @__PURE__ */ C(xS, {
+					/* @__PURE__ */ C(SS, {
 						id: `${f}-mirror`,
 						mirror: t.mirror,
 						onChange: (e) => h({ mirror: e })
 					}),
 					/* @__PURE__ */ C("div", {
-						style: Xx(),
-						children: /* @__PURE__ */ C(cS, {
+						style: Zx(),
+						children: /* @__PURE__ */ C(lS, {
 							id: `${f}-release-capacity`,
 							label: "Release N",
 							raw: "release.capacity",
@@ -31273,11 +31351,11 @@ function SS(e) {
 							onChange: (e) => h({ releaseCapacity: e })
 						})
 					}),
-					(t.coder || oo(e.mode)) === "issue-radar" && /* @__PURE__ */ C(S, { children: /* @__PURE__ */ C(sS, {
+					(t.coder || oo(e.mode)) === "issue-radar" && /* @__PURE__ */ C(S, { children: /* @__PURE__ */ C(cS, {
 						id: `${f}-release-mode`,
 						label: "Release mode",
 						raw: "release.mode",
-						children: /* @__PURE__ */ C(uv, {
+						children: /* @__PURE__ */ C(dv, {
 							id: `${f}-release-mode`,
 							mode: t.releaseMode,
 							onMode: (e) => h({ releaseMode: e })
@@ -31288,10 +31366,10 @@ function SS(e) {
 			a === "triggers" && /* @__PURE__ */ w("div", {
 				className: "flex flex-col gap-5",
 				children: [
-					/* @__PURE__ */ w(dS, {
+					/* @__PURE__ */ w(fS, {
 						level: "sub",
 						title: "Label rules",
-						blurb: nS.triggers,
+						blurb: rS.triggers,
 						children: [
 							t.rules.length === 0 && /* @__PURE__ */ w("p", {
 								className: "flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted",
@@ -31312,7 +31390,7 @@ function SS(e) {
 									}
 								})]
 							}),
-							t.rules.map((r, i) => /* @__PURE__ */ C(gS, {
+							t.rules.map((r, i) => /* @__PURE__ */ C(_S, {
 								id: `${f}-rule-${i}`,
 								rule: r,
 								actions: n.actions,
@@ -31327,13 +31405,13 @@ function SS(e) {
 							}) })
 						]
 					}),
-					/* @__PURE__ */ C(dS, {
+					/* @__PURE__ */ C(fS, {
 						level: "sub",
 						title: "Managed labels",
 						blurb: "Labels Avoozl itself adds and removes on issues to show their state. Don't edit them by hand: a hand edit shows as a conflict.",
 						children: /* @__PURE__ */ C("div", {
-							style: Xx(200),
-							children: n.managedLabels.filter((e) => e !== "ready").map((e) => /* @__PURE__ */ C(cS, {
+							style: Zx(200),
+							children: n.managedLabels.filter((e) => e !== "ready").map((e) => /* @__PURE__ */ C(lS, {
 								id: `${f}-label-${e}`,
 								label: Va[e] ?? e,
 								raw: `managedLabels.${e}`,
@@ -31346,22 +31424,22 @@ function SS(e) {
 							}, e))
 						})
 					}),
-					/* @__PURE__ */ C(hS, {
+					/* @__PURE__ */ C(gS, {
 						id: f,
 						value: t.untriaged,
 						repository: y,
 						workspaceId: e.workspaceId,
 						onChange: (e) => h({ untriaged: e })
 					}),
-					/* @__PURE__ */ C(dS, {
+					/* @__PURE__ */ C(fS, {
 						level: "sub",
 						title: "Issue Radar labels",
 						blurb: "Labels Issue Radar puts on issues it claims. Avoozl only reads them.",
 						children: /* @__PURE__ */ C("div", {
-							style: Xx(200),
-							children: n.crewLabels.map((e) => /* @__PURE__ */ C(cS, {
+							style: Zx(200),
+							children: n.crewLabels.map((e) => /* @__PURE__ */ C(lS, {
 								id: `${f}-crew-${e}`,
-								label: iS[e] ?? e,
+								label: aS[e] ?? e,
 								raw: `crewLabels.${e}`,
 								rule: {
 									required: !1,
@@ -31375,13 +31453,13 @@ function SS(e) {
 							}, e))
 						})
 					}),
-					/* @__PURE__ */ C(dS, {
+					/* @__PURE__ */ C(fS, {
 						level: "sub",
 						title: "Who counts",
 						blurb: "GitHub still decides who has access. This sets how much GitHub permission a person needs for a label, a board drag or a close to count.",
 						children: /* @__PURE__ */ w("div", {
 							className: "flex flex-wrap items-end gap-3",
-							children: [/* @__PURE__ */ C(lS, {
+							children: [/* @__PURE__ */ C(uS, {
 								id: `${f}-permission`,
 								label: "Minimum permission",
 								raw: "minimumPermission",
@@ -31391,7 +31469,7 @@ function SS(e) {
 								none: t.allowedActors.trim() ? "None" : "Default: write",
 								width: "md",
 								onChange: (e) => h({ minimumPermission: e })
-							}), /* @__PURE__ */ C(cS, {
+							}), /* @__PURE__ */ C(lS, {
 								id: `${f}-actors`,
 								label: "Or only these people",
 								raw: "allowedActors",
@@ -31403,11 +31481,11 @@ function SS(e) {
 							})]
 						})
 					}),
-					/* @__PURE__ */ C(dS, {
+					/* @__PURE__ */ C(fS, {
 						level: "sub",
 						title: "Priority",
 						blurb: "Ready tasks carrying a higher label here start first.",
-						children: /* @__PURE__ */ C(cS, {
+						children: /* @__PURE__ */ C(lS, {
 							id: `${f}-priority`,
 							label: "Priority labels, highest first",
 							raw: "priority",
@@ -31423,21 +31501,21 @@ function SS(e) {
 					})
 				]
 			}),
-			a === "crews" && /* @__PURE__ */ C(dS, {
+			a === "crews" && /* @__PURE__ */ C(fS, {
 				level: "sub",
 				title: "Crews and rules",
-				blurb: nS.crews,
-				children: /* @__PURE__ */ C(Dv, {
+				blurb: rS.crews,
+				children: /* @__PURE__ */ C(Ov, {
 					id: f,
 					repository: t,
 					set: h
 				})
 			}),
-			a === "map" && /* @__PURE__ */ C(dS, {
+			a === "map" && /* @__PURE__ */ C(fS, {
 				level: "sub",
 				title: "Workflow map",
-				blurb: nS.map,
-				children: /* @__PURE__ */ C(Kv, {
+				blurb: rS.map,
+				children: /* @__PURE__ */ C(qv, {
 					workspaceId: e.workspaceId,
 					mode: e.mode,
 					repository: t,
@@ -31447,11 +31525,11 @@ function SS(e) {
 					}
 				})
 			}),
-			a === "checks" && /* @__PURE__ */ C(dS, {
+			a === "checks" && /* @__PURE__ */ C(fS, {
 				level: "sub",
 				title: "Required checks",
-				blurb: nS.checks,
-				children: /* @__PURE__ */ C(yS, {
+				blurb: rS.checks,
+				children: /* @__PURE__ */ C(bS, {
 					id: f,
 					value: t.requiredChecks,
 					inspect: c,
@@ -31461,11 +31539,11 @@ function SS(e) {
 			}),
 			a === "reviews" && /* @__PURE__ */ w("div", {
 				className: "flex flex-col gap-5",
-				children: [/* @__PURE__ */ C(dS, {
+				children: [/* @__PURE__ */ C(fS, {
 					level: "sub",
 					title: "Pull-request reviews",
-					blurb: nS.reviews,
-					children: /* @__PURE__ */ C(bS, {
+					blurb: rS.reviews,
+					children: /* @__PURE__ */ C(xS, {
 						inspect: c,
 						repository: y,
 						deprecated: t.pullRequestReviews,
@@ -31475,7 +31553,7 @@ function SS(e) {
 							reviewApprovals: ""
 						})
 					})
-				}), /* @__PURE__ */ C(vS, {
+				}), /* @__PURE__ */ C(yS, {
 					review: e.review,
 					repository: y
 				})]
@@ -31483,13 +31561,13 @@ function SS(e) {
 		]
 	}) });
 }
-var CS = {
+var wS = {
 	local: "Local only",
 	"plans-repo": "Plans repository",
 	"single-repo": "Single repository"
 };
-function wS({ crews: e }) {
-	return e.length ? /* @__PURE__ */ C(v, { children: /* @__PURE__ */ C(dS, {
+function TS({ crews: e }) {
+	return e.length ? /* @__PURE__ */ C(v, { children: /* @__PURE__ */ C(fS, {
 		title: "Issue Radar crews",
 		blurb: "Scope each crew to its repository's ready label in Issue Radar, so it codes only what Avoozl marks ready.",
 		children: /* @__PURE__ */ C("ul", {
@@ -31516,8 +31594,8 @@ function wS({ crews: e }) {
 		})
 	}) }) : null;
 }
-function TS(e) {
-	let { form: t, choices: n, set: r } = e, a = K(), o = l(() => Qe(a), [a]), s = rp(), c = i((e) => o.repositories(e), [o]), { value: f, reload: p } = Mo(e.workspaceId, c), m = _u(f ?? [], t.repositories), [h, g] = d(null), [_, y] = d(null), [b, x] = d(null), [S, T] = d(!1), [E, D] = d(null), O = m.find((e) => e.key === h) ?? null, k = u(null), A = async (n) => {
+function ES(e) {
+	let { form: t, choices: n, set: r } = e, a = K(), o = l(() => Qe(a), [a]), s = ip(), c = i((e) => o.repositories(e), [o]), { value: f, reload: p } = Mo(e.workspaceId, c), m = vu(f ?? [], t.repositories), [h, g] = d(null), [_, y] = d(null), [b, x] = d(null), [S, T] = d(!1), [E, D] = d(null), O = m.find((e) => e.key === h) ?? null, k = u(null), A = async (n) => {
 		if (!n.checkout) r({ repositories: t.repositories.filter((e, t) => t !== n.policy) }), g(null), D({
 			ok: !0,
 			text: `${n.name}'s GitHub settings leave .avoozl.json when you save.`
@@ -31542,14 +31620,14 @@ function TS(e) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3.5",
 		children: [
-			/* @__PURE__ */ C(v, { children: /* @__PURE__ */ w(dS, {
+			/* @__PURE__ */ C(v, { children: /* @__PURE__ */ w(fS, {
 				title: `Added repositories (${m.length})`,
-				blurb: np,
+				blurb: rp,
 				children: [
 					f === null ? /* @__PURE__ */ C("p", {
 						className: "text-sm text-muted",
 						children: "Loading…"
-					}) : /* @__PURE__ */ C(ap, {
+					}) : /* @__PURE__ */ C(op, {
 						rows: m,
 						mode: t.mode,
 						busy: S,
@@ -31575,7 +31653,7 @@ function TS(e) {
 					})
 				]
 			}) }),
-			O && _ && /* @__PURE__ */ C(op, {
+			O && _ && /* @__PURE__ */ C(sp, {
 				name: O.name,
 				edited: JSON.stringify(La(t)) !== JSON.stringify(La(_)),
 				missing: Ha(t),
@@ -31598,12 +31676,12 @@ function TS(e) {
 				children: /* @__PURE__ */ C("div", {
 					className: "flex flex-col gap-3.5",
 					"data-repository-dialog-body": !0,
-					children: O && !Xa(t.mode) ? /* @__PURE__ */ C(ES, {
+					children: O && !Xa(t.mode) ? /* @__PURE__ */ C(DS, {
 						row: O,
 						review: e.review,
 						kept: O.policy >= 0,
 						workspaceId: e.workspaceId
-					}) : O && O.policy >= 0 ? /* @__PURE__ */ C(SS, {
+					}) : O && O.policy >= 0 ? /* @__PURE__ */ C(CS, {
 						index: O.policy,
 						repository: t.repositories[O.policy],
 						choices: n,
@@ -31612,7 +31690,7 @@ function TS(e) {
 						workspaceId: e.workspaceId,
 						planningRepository: t.planningRepository,
 						onChange: (e) => r({ repositories: t.repositories.map((t, n) => n === O.policy ? e : t) })
-					}, O.key) : O && O.github ? /* @__PURE__ */ C(v, { children: /* @__PURE__ */ C(dS, {
+					}, O.key) : O && O.github ? /* @__PURE__ */ C(v, { children: /* @__PURE__ */ C(fS, {
 						title: `${O.name} settings`,
 						blurb: `${O.github} has no GitHub settings in .avoozl.json yet, so it uses the defaults.`,
 						children: /* @__PURE__ */ w(Y, {
@@ -31626,7 +31704,7 @@ function TS(e) {
 							},
 							children: ["Add GitHub settings for ", O.github]
 						})
-					}) }) : O ? /* @__PURE__ */ C(v, { children: /* @__PURE__ */ C(dS, {
+					}) }) : O ? /* @__PURE__ */ C(v, { children: /* @__PURE__ */ C(fS, {
 						title: `${O.name} settings`,
 						blurb: "A local-only repository: no GitHub remote, so the GitHub tabs do not apply.",
 						children: /* @__PURE__ */ C("p", {
@@ -31637,7 +31715,7 @@ function TS(e) {
 					}) }) : null
 				})
 			}),
-			/* @__PURE__ */ C(by, {
+			/* @__PURE__ */ C(xy, {
 				workspaceId: e.workspaceId,
 				disabled: e.dirty ? "Save or discard your settings changes first: onboarding writes .avoozl.json." : null,
 				onChanged: () => Promise.all([p(), e.onRegistryChanged()]),
@@ -31645,7 +31723,7 @@ function TS(e) {
 			}),
 			/* @__PURE__ */ C(v, { children: /* @__PURE__ */ C("div", {
 				ref: k,
-				children: /* @__PURE__ */ C(lp, {
+				children: /* @__PURE__ */ C(up, {
 					workspaceId: e.workspaceId,
 					mode: t.mode,
 					disabled: e.dirty ? "Save or discard your settings changes first: adding a repository writes .avoozl.json." : null,
@@ -31660,10 +31738,10 @@ function TS(e) {
 		]
 	});
 }
-function ES(e) {
+function DS(e) {
 	let { row: t } = e;
 	return /* @__PURE__ */ w(v, { children: [
-		/* @__PURE__ */ w(dS, {
+		/* @__PURE__ */ w(fS, {
 			title: `${t.name} settings`,
 			blurb: "Local only: Avoozl codes, checks and merges here on this Mac.",
 			children: [
@@ -31703,15 +31781,15 @@ function ES(e) {
 				})
 			]
 		}),
-		/* @__PURE__ */ C(vS, {
+		/* @__PURE__ */ C(yS, {
 			review: e.review,
 			repository: t.github ?? t.name
 		}),
-		/* @__PURE__ */ C(dS, {
+		/* @__PURE__ */ C(fS, {
 			level: "sub",
 			title: "Workflow map",
-			blurb: nS.map,
-			children: /* @__PURE__ */ C(Kv, {
+			blurb: rS.map,
+			children: /* @__PURE__ */ C(qv, {
 				workspaceId: e.workspaceId,
 				mode: "local",
 				repository: {
@@ -31722,9 +31800,9 @@ function ES(e) {
 		})
 	] });
 }
-function DS(e) {
+function OS(e) {
 	let { form: t, choices: n, set: r } = e, i = Za(t.mode), a = $a(t);
-	return /* @__PURE__ */ C(v, { children: /* @__PURE__ */ C(av, {
+	return /* @__PURE__ */ C(v, { children: /* @__PURE__ */ C(ov, {
 		value: Ya(t.mode),
 		onChange: (e) => r({ mode: e }),
 		idPrefix: "avoozl-settings-mode",
@@ -31752,9 +31830,9 @@ function DS(e) {
 			className: "flex flex-col gap-4",
 			children: [
 				/* @__PURE__ */ w("div", {
-					style: Xx(),
+					style: Zx(),
 					children: [
-						i.has("planningRepository") && /* @__PURE__ */ C(cS, {
+						i.has("planningRepository") && /* @__PURE__ */ C(lS, {
 							id: "avoozl-settings-planning",
 							label: "Planning repository",
 							raw: "planningRepository",
@@ -31766,7 +31844,7 @@ function DS(e) {
 							value: t.planningRepository,
 							onChange: (e) => r({ planningRepository: e })
 						}),
-						/* @__PURE__ */ C(lS, {
+						/* @__PURE__ */ C(uS, {
 							id: "avoozl-settings-authority",
 							label: "New tasks belong to",
 							raw: "defaultAuthority",
@@ -31780,7 +31858,7 @@ function DS(e) {
 							width: "md",
 							onChange: (e) => r({ defaultAuthority: e })
 						}),
-						/* @__PURE__ */ C(cS, {
+						/* @__PURE__ */ C(lS, {
 							id: "avoozl-settings-epic",
 							label: "Epic issue type",
 							raw: "epicIssueType",
@@ -31793,7 +31871,7 @@ function DS(e) {
 							value: t.epicIssueType,
 							onChange: (e) => r({ epicIssueType: e })
 						}),
-						/* @__PURE__ */ C(cS, {
+						/* @__PURE__ */ C(lS, {
 							id: "avoozl-settings-cache",
 							label: "Keep GitHub answers (seconds)",
 							raw: "cacheSeconds",
@@ -31807,7 +31885,7 @@ function DS(e) {
 							value: t.cacheSeconds,
 							onChange: (e) => r({ cacheSeconds: e })
 						}),
-						/* @__PURE__ */ C(cS, {
+						/* @__PURE__ */ C(lS, {
 							id: "avoozl-settings-writes-minute",
 							label: "GitHub writes a minute",
 							raw: "writesPerMinute",
@@ -31821,7 +31899,7 @@ function DS(e) {
 							value: t.writesPerMinute,
 							onChange: (e) => r({ writesPerMinute: e })
 						}),
-						/* @__PURE__ */ C(cS, {
+						/* @__PURE__ */ C(lS, {
 							id: "avoozl-settings-writes-hour",
 							label: "GitHub writes an hour",
 							raw: "writesPerHour",
@@ -31835,7 +31913,7 @@ function DS(e) {
 							value: t.writesPerHour,
 							onChange: (e) => r({ writesPerHour: e })
 						}),
-						i.has("subIssueCap") && /* @__PURE__ */ C(cS, {
+						i.has("subIssueCap") && /* @__PURE__ */ C(lS, {
 							id: "avoozl-settings-sub-issues",
 							label: "Sub-issues per parent",
 							raw: "subIssues.maxPerParent",
@@ -31866,12 +31944,12 @@ function DS(e) {
 						})
 					]
 				}),
-				/* @__PURE__ */ C(OS, {
+				/* @__PURE__ */ C(kS, {
 					form: t,
 					choices: n,
 					set: r
 				}),
-				/* @__PURE__ */ C(dS, {
+				/* @__PURE__ */ C(fS, {
 					level: "sub",
 					title: "Set up GitHub",
 					blurb: "Creates the labels, Project and fields the settings above name. It reads GitHub first and shows every write before making one.",
@@ -31882,15 +31960,15 @@ function DS(e) {
 		}) : null
 	}) });
 }
-function OS({ form: e, choices: t, set: n }) {
-	return /* @__PURE__ */ C("div", { children: /* @__PURE__ */ w(dS, {
+function kS({ form: e, choices: t, set: n }) {
+	return /* @__PURE__ */ C("div", { children: /* @__PURE__ */ w(fS, {
 		level: "sub",
 		title: "Project fields",
 		blurb: "The GitHub Project board Avoozl adds managed issues to and fills with Release, Wave and Avoozl state. People move Status; Avoozl never writes it. Leave every field blank to turn Project sync off.",
 		children: [
 			/* @__PURE__ */ w("div", {
-				style: Xx(180),
-				children: [/* @__PURE__ */ C(cS, {
+				style: Zx(180),
+				children: [/* @__PURE__ */ C(lS, {
 					id: "avoozl-settings-project-owner",
 					label: "Owner",
 					raw: "project.owner",
@@ -31899,7 +31977,7 @@ function OS({ form: e, choices: t, set: n }) {
 					width: "md",
 					value: e.projectOwner,
 					onChange: (e) => n({ projectOwner: e })
-				}), /* @__PURE__ */ C(cS, {
+				}), /* @__PURE__ */ C(lS, {
 					id: "avoozl-settings-project-number",
 					label: "Number",
 					raw: "project.number",
@@ -31916,10 +31994,10 @@ function OS({ form: e, choices: t, set: n }) {
 				children: "Field names"
 			}),
 			/* @__PURE__ */ C("div", {
-				style: Xx(180),
-				children: t.fields.map((t) => /* @__PURE__ */ C(cS, {
+				style: Zx(180),
+				children: t.fields.map((t) => /* @__PURE__ */ C(lS, {
 					id: `avoozl-settings-field-${t}`,
-					label: rS[t] ?? t,
+					label: iS[t] ?? t,
 					raw: `project.fields.${t}`,
 					rule: Ra[t],
 					placeholder: za[t] || "none",
@@ -31935,10 +32013,10 @@ function OS({ form: e, choices: t, set: n }) {
 				children: "Status options"
 			}),
 			/* @__PURE__ */ C("div", {
-				style: Xx(180),
-				children: t.statusValues.map((t) => /* @__PURE__ */ C(cS, {
+				style: Zx(180),
+				children: t.statusValues.map((t) => /* @__PURE__ */ C(lS, {
 					id: `avoozl-settings-status-${t}`,
-					label: aS[t] ?? t,
+					label: oS[t] ?? t,
 					raw: `project.statusValues.${t}`,
 					rule: Ra[t],
 					placeholder: za[t],
@@ -31952,7 +32030,7 @@ function OS({ form: e, choices: t, set: n }) {
 		]
 	}) });
 }
-function kS(e) {
+function AS(e) {
 	return {
 		mode: e.mode,
 		planningRepository: e.planningRepository,
@@ -31961,7 +32039,7 @@ function kS(e) {
 		projectNumber: e.projectNumber
 	};
 }
-function AS(e) {
+function jS(e) {
 	let { workspaceId: t, tab: n } = e, r = K(), a = l(() => la(r), [r]), { value: s, error: c, busy: u, reload: f } = Mo(t, i((e) => a.get(e), [a])), [p, m] = d(null), [h, g] = d(null), [_, v] = d(!1);
 	o(() => {
 		m(s ? Pa(s.github) : null), g(null);
@@ -32023,14 +32101,14 @@ function AS(e) {
 			n === "github" && /* @__PURE__ */ C("p", {
 				className: "text-sm text-muted",
 				"data-blurb": "github",
-				children: Xa(p.mode) ? eS.github : "The mode for this workspace. Save only writes .avoozl.json."
+				children: Xa(p.mode) ? tS.github : "The mode for this workspace. Save only writes .avoozl.json."
 			}),
 			s.error && /* @__PURE__ */ w("p", {
 				role: "alert",
 				className: "text-sm text-danger",
 				children: ["The saved settings are invalid: ", s.error]
 			}),
-			n === "repositories" ? /* @__PURE__ */ C(TS, {
+			n === "repositories" ? /* @__PURE__ */ C(ES, {
 				form: p,
 				choices: T,
 				review: s.review,
@@ -32042,24 +32120,24 @@ function AS(e) {
 				saving: _,
 				onRegistryChanged: f,
 				onOpenPlans: e.onOpenPlans
-			}) : /* @__PURE__ */ C(DS, {
+			}) : /* @__PURE__ */ C(OS, {
 				form: p,
 				choices: T,
 				set: y,
-				setup: /* @__PURE__ */ C(gv, {
+				setup: /* @__PURE__ */ C(_v, {
 					workspaceId: t,
 					client: a,
 					settings: s,
-					shared: kS(p),
+					shared: AS(p),
 					onSaved: f
 				}),
-				crews: Za(p.mode).has("issueRadarCrews") ? /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(wS, { crews: s.crews ?? [] }), /* @__PURE__ */ C(Cv, {
+				crews: Za(p.mode).has("issueRadarCrews") ? /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(TS, { crews: s.crews ?? [] }), /* @__PURE__ */ C(wv, {
 					workspaceId: t,
 					repositories: (s.crews ?? []).map((e) => e.repository)
 				})] }) : null
 			}),
-			n === "github" && /* @__PURE__ */ C(tp, { workspaceId: t }),
-			n === "github" && /* @__PURE__ */ C(NS, { rate: s.rate }),
+			n === "github" && /* @__PURE__ */ C(np, { workspaceId: t }),
+			n === "github" && /* @__PURE__ */ C(PS, { rate: s.rate }),
 			/* @__PURE__ */ w("div", {
 				className: "flex flex-wrap items-center gap-2",
 				children: [
@@ -32111,7 +32189,7 @@ function AS(e) {
 		]
 	});
 }
-var jS = class extends e {
+var MS = class extends e {
 	state = { error: null };
 	static getDerivedStateFromError(e) {
 		return { error: e instanceof Error ? e.message : String(e) };
@@ -32131,24 +32209,24 @@ var jS = class extends e {
 		}) : this.props.children;
 	}
 };
-function MS(e) {
+function NS(e) {
 	let { tab: t, workspaceId: n } = e, [r, i] = d(0);
-	return t === "workspaces" ? /* @__PURE__ */ C(Xv, {
+	return t === "workspaces" ? /* @__PURE__ */ C(Zv, {
 		selected: n,
 		onSelect: e.onSelectWorkspace,
 		onListChange: e.onListChange
-	}) : t === "driver" ? /* @__PURE__ */ C(mu, { workspaceId: n }) : t === "instance" ? n ? /* @__PURE__ */ C(ii, { workspaceId: n }) : /* @__PURE__ */ C("p", {
+	}) : t === "driver" ? /* @__PURE__ */ C(hu, { workspaceId: n }) : t === "instance" ? n ? /* @__PURE__ */ C(ii, { workspaceId: n }) : /* @__PURE__ */ C("p", {
 		className: "text-sm text-muted",
 		children: "Pick a workspace first."
-	}) : n ? t === "plugins" ? /* @__PURE__ */ C(lb, {
+	}) : n ? t === "plugins" ? /* @__PURE__ */ C(ub, {
 		workspaceId: n,
 		onOpenGitHub: () => e.onTab("github")
-	}) : t === "content" ? /* @__PURE__ */ C(fx, { workspaceId: n }) : t === "flow" ? /* @__PURE__ */ C(Cx, { workspaceId: n }) : t === "models" ? /* @__PURE__ */ C(Ox, { workspaceId: n }) : t === "delivery" ? /* @__PURE__ */ C(Jx, { workspaceId: n }) : /* @__PURE__ */ w("div", {
+	}) : t === "content" ? /* @__PURE__ */ C(px, { workspaceId: n }) : t === "flow" ? /* @__PURE__ */ C(wx, { workspaceId: n }) : t === "models" ? /* @__PURE__ */ C(kx, { workspaceId: n }) : t === "delivery" ? /* @__PURE__ */ C(Yx, { workspaceId: n }) : /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3.5",
-		children: [t === "repositories" && /* @__PURE__ */ C(Fx, {
+		children: [t === "repositories" && /* @__PURE__ */ C(Ix, {
 			workspaceId: n,
 			onApplied: () => i((e) => e + 1)
-		}), /* @__PURE__ */ C(AS, {
+		}), /* @__PURE__ */ C(jS, {
 			workspaceId: n,
 			tab: t,
 			onOpenPlans: e.onOpenPlans
@@ -32162,7 +32240,7 @@ function MS(e) {
 		})
 	});
 }
-function NS({ rate: e }) {
+function PS({ rate: e }) {
 	let t = ca(e), n = sa(e);
 	return !t.length && !n.length ? null : /* @__PURE__ */ w("div", {
 		className: "text-xs text-muted",
@@ -32221,23 +32299,23 @@ function NS({ rate: e }) {
 		]
 	});
 }
-function PS(e) {
-	let { workspaceId: t } = e, [n, r] = d(so), i = c_(e.tab ?? n), a = Qx.some((e) => e.key === i) ? i : so, o = (t) => e.onTab ? e.onTab(t) : r(t), [s, c] = d(null), l = Qx.find((e) => e.key === s)?.label ?? "", u = (e) => o(e), f = (n) => /* @__PURE__ */ w("div", {
+function FS(e) {
+	let { workspaceId: t } = e, [n, r] = d(so), i = l_(e.tab ?? n), a = $x.some((e) => e.key === i) ? i : so, o = (t) => e.onTab ? e.onTab(t) : r(t), [s, c] = d(null), l = $x.find((e) => e.key === s)?.label ?? "", u = (e) => o(e), f = (n) => /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3 pb-4",
 		"data-settings-body": n.key,
 		children: [n.key !== "github" && /* @__PURE__ */ C("p", {
 			className: "text-sm text-muted",
 			"data-blurb": n.key,
-			children: eS[n.key]
-		}), $x.includes(n.key) ? /* @__PURE__ */ C("div", { children: /* @__PURE__ */ w(_, {
+			children: tS[n.key]
+		}), eS.includes(n.key) ? /* @__PURE__ */ C("div", { children: /* @__PURE__ */ w(_, {
 			type: "button",
 			onClick: () => c(n.key),
 			"data-open-settings": n.key,
 			"aria-haspopup": "dialog",
 			children: ["Configure ", n.label.toLowerCase()]
-		}) }) : /* @__PURE__ */ C(jS, {
+		}) }) : /* @__PURE__ */ C(MS, {
 			label: n.label,
-			children: /* @__PURE__ */ C(MS, {
+			children: /* @__PURE__ */ C(NS, {
 				tab: n.key,
 				workspaceId: t,
 				onTab: u,
@@ -32246,7 +32324,7 @@ function PS(e) {
 				onOpenPlans: e.onOpenPlans
 			})
 		}, n.key)]
-	}), p = Qx.find((e) => e.key === a) ?? Qx[0];
+	}), p = $x.find((e) => e.key === a) ?? $x[0];
 	return /* @__PURE__ */ w("section", {
 		"aria-labelledby": "avoozl-settings-title",
 		className: "flex flex-col gap-3.5",
@@ -32256,7 +32334,7 @@ function PS(e) {
 				view: "settings",
 				children: "Settings"
 			}),
-			/* @__PURE__ */ C(Ix, {
+			/* @__PURE__ */ C(Lx, {
 				workspaceId: t,
 				onOpen: () => u("repositories")
 			}),
@@ -32279,9 +32357,9 @@ function PS(e) {
 				onDismiss: () => c(null),
 				children: /* @__PURE__ */ C("div", {
 					className: "flex flex-col gap-3",
-					children: /* @__PURE__ */ C(jS, {
+					children: /* @__PURE__ */ C(MS, {
 						label: l,
-						children: /* @__PURE__ */ C(MS, {
+						children: /* @__PURE__ */ C(NS, {
 							tab: s,
 							workspaceId: t,
 							onTab: (e) => (c(null), o(e)),
@@ -32296,7 +32374,7 @@ function PS(e) {
 	});
 }
 // kirocrew-app/ui/src/DeliveryDetails.tsx
-function FS({ text: e }) {
+function IS({ text: e }) {
 	let t = pr(e);
 	return t ? /* @__PURE__ */ C("a", {
 		href: J(t),
@@ -32309,7 +32387,7 @@ function FS({ text: e }) {
 		children: e
 	});
 }
-function IS({ label: e, records: t }) {
+function LS({ label: e, records: t }) {
 	return t.length ? /* @__PURE__ */ w("div", {
 		className: "mt-2 text-xs",
 		children: [/* @__PURE__ */ C("span", {
@@ -32324,7 +32402,7 @@ function IS({ label: e, records: t }) {
 		})]
 	}) : null;
 }
-function LS({ rounds: e }) {
+function RS({ rounds: e }) {
 	return e.length ? /* @__PURE__ */ w("div", {
 		className: "mt-2 text-xs",
 		children: [/* @__PURE__ */ C("span", {
@@ -32374,7 +32452,7 @@ function LS({ rounds: e }) {
 		})]
 	}) : null;
 }
-function RS({ reviews: e }) {
+function zS({ reviews: e }) {
 	let t = pr(e.pullRequest), n = `PR ${e.pullRequestNumber ? `#${e.pullRequestNumber}` : ""}`;
 	return /* @__PURE__ */ w("div", {
 		className: "mt-2 text-xs",
@@ -32416,7 +32494,7 @@ function RS({ reviews: e }) {
 		]
 	});
 }
-function zS({ feedback: e }) {
+function BS({ feedback: e }) {
 	let t = pr(e.pullRequest);
 	return /* @__PURE__ */ w("div", {
 		className: "mt-2 text-xs",
@@ -32463,7 +32541,7 @@ function zS({ feedback: e }) {
 		]
 	});
 }
-function BS({ item: e, onSupersede: t }) {
+function VS({ item: e, onSupersede: t }) {
 	let [n, r] = d(!1), [i, a] = d({
 		id: "",
 		title: e.title
@@ -32542,11 +32620,11 @@ function BS({ item: e, onSupersede: t }) {
 		]
 	});
 }
-function VS(e) {
+function HS(e) {
 	return (e.rounds ?? []).filter((e) => e.current).flatMap((e) => e.verdicts.flatMap((e) => e.findings.filter((e) => e.state === "open")));
 }
-function HS({ item: e, busy: t, onRetry: n }) {
-	let r = VS(e), [i, a] = d(/* @__PURE__ */ new Set()), [o, s] = d("");
+function US({ item: e, busy: t, onRetry: n }) {
+	let r = HS(e), [i, a] = d(/* @__PURE__ */ new Set()), [o, s] = d("");
 	return r.length ? /* @__PURE__ */ w("div", {
 		className: "mt-2 flex flex-col gap-1.5 text-xs",
 		children: [
@@ -32603,7 +32681,7 @@ function HS({ item: e, busy: t, onRetry: n }) {
 		]
 	}) : null;
 }
-function US({ item: e, onSupersede: t }) {
+function WS({ item: e, onSupersede: t }) {
 	return /* @__PURE__ */ w("div", {
 		className: "mt-2 border-t pt-2",
 		style: { borderColor: "var(--border)" },
@@ -32644,8 +32722,8 @@ function US({ item: e, onSupersede: t }) {
 					}) : r }, t);
 				})
 			}),
-			e.githubReviews && /* @__PURE__ */ C(RS, { reviews: e.githubReviews }),
-			e.prFeedback && /* @__PURE__ */ C(zS, { feedback: e.prFeedback }),
+			e.githubReviews && /* @__PURE__ */ C(zS, { reviews: e.githubReviews }),
+			e.prFeedback && /* @__PURE__ */ C(BS, { feedback: e.prFeedback }),
 			e.evidence.length > 0 && /* @__PURE__ */ w("div", {
 				className: "mt-2 text-xs",
 				children: [/* @__PURE__ */ C("span", {
@@ -32654,7 +32732,7 @@ function US({ item: e, onSupersede: t }) {
 				}), /* @__PURE__ */ C("ul", {
 					className: "mt-1 flex flex-col gap-1",
 					children: e.evidence.map((e, t) => /* @__PURE__ */ w("li", { children: [
-						e.text ? /* @__PURE__ */ C(FS, { text: e.text }) : e.kind ?? "record",
+						e.text ? /* @__PURE__ */ C(IS, { text: e.text }) : e.kind ?? "record",
 						e.exitCode !== void 0 && e.exitCode !== null && /* @__PURE__ */ w("span", {
 							className: "text-muted",
 							children: [" · exit ", e.exitCode]
@@ -32684,16 +32762,16 @@ function US({ item: e, onSupersede: t }) {
 					e.project.notes.map((e, t) => /* @__PURE__ */ C("p", { children: e }, t))
 				]
 			}),
-			/* @__PURE__ */ C(LS, { rounds: e.rounds ?? [] }),
-			/* @__PURE__ */ C(IS, {
+			/* @__PURE__ */ C(RS, { rounds: e.rounds ?? [] }),
+			/* @__PURE__ */ C(LS, {
 				label: "Deliveries",
 				records: e.deliveries
 			}),
-			/* @__PURE__ */ C(IS, {
+			/* @__PURE__ */ C(LS, {
 				label: "Worktrees",
 				records: e.worktrees
 			}),
-			br(e) && /* @__PURE__ */ C(BS, {
+			br(e) && /* @__PURE__ */ C(VS, {
 				item: e,
 				onSupersede: t
 			})
@@ -32701,8 +32779,8 @@ function US({ item: e, onSupersede: t }) {
 	});
 }
 // kirocrew-app/ui/src/ReviewState.tsx
-var WS = (e, t) => `asked ${e ?? "agent default"}${t ? `, ran ${t}` : ""}`;
-function GS(e) {
+var GS = (e, t) => `asked ${e ?? "agent default"}${t ? `, ran ${t}` : ""}`;
+function KS(e) {
 	let t = Cr(e.item);
 	return t.length ? /* @__PURE__ */ C("ul", {
 		className: `flex flex-col gap-1 ${e.compact ? "text-xs" : "text-sm"}`,
@@ -32717,7 +32795,7 @@ function GS(e) {
 				/* @__PURE__ */ w("span", { children: ["round ", t.round] }),
 				/* @__PURE__ */ w("span", {
 					className: "text-muted",
-					children: ["· ", WS(t.requested, t.served)]
+					children: ["· ", GS(t.requested, t.served)]
 				}),
 				t.verdict ? /* @__PURE__ */ C($, {
 					variant: t.verdict === "approved" ? "success" : "warning",
@@ -32732,7 +32810,7 @@ function GS(e) {
 						href: J(t.link),
 						className: "inline-flex items-center gap-1 underline",
 						"aria-label": `Session: the ${t.role} chat, round ${t.round}`,
-						children: [/* @__PURE__ */ C(re, {
+						children: [/* @__PURE__ */ C(ne, {
 							size: 12,
 							"aria-hidden": "true"
 						}), "Session"]
@@ -32747,8 +32825,8 @@ function GS(e) {
 		}, t.key))
 	}) : null;
 }
-function KS(e) {
-	let { task: t, workspaceId: n } = e, r = K(), i = l(() => dr(r), [r]), a = Ur(n), [o, s] = d(!1), [c, u] = d(!1), [f, p] = d(null), m = (t.authority ?? "local") === "local", h = Rx(e.graph), g = Lx(e.graph), v = async (r, a) => {
+function qS(e) {
+	let { task: t, workspaceId: n } = e, r = K(), i = l(() => dr(r), [r]), a = Ur(n), [o, s] = d(!1), [c, u] = d(!1), [f, p] = d(null), m = (t.authority ?? "local") === "local", h = zx(e.graph), g = Rx(e.graph), v = async (r, a) => {
 		if (e.revision !== null) {
 			u(!0), p(null);
 			try {
@@ -32847,12 +32925,12 @@ function KS(e) {
 	});
 }
 // kirocrew-app/ui/src/TaskForm.tsx
-var qS = {
+var JS = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
 	background: "var(--card, transparent)"
 };
-function JS({ id: e, label: t, children: n, hint: r }) {
+function YS({ id: e, label: t, children: n, hint: r }) {
 	return /* @__PURE__ */ w("label", {
 		htmlFor: e,
 		className: "flex flex-col gap-1 text-sm",
@@ -32866,7 +32944,7 @@ function JS({ id: e, label: t, children: n, hint: r }) {
 		]
 	});
 }
-function YS(e) {
+function XS(e) {
 	return /* @__PURE__ */ C("textarea", {
 		id: e.id,
 		rows: e.rows ?? 3,
@@ -32874,13 +32952,13 @@ function YS(e) {
 		placeholder: e.placeholder,
 		onChange: (t) => e.onChange(t.target.value),
 		className: "rounded border px-2 py-1 text-sm",
-		style: qS
+		style: JS
 	});
 }
-function XS(e) {
+function ZS(e) {
 	let t = l(() => new Map((e.graph?.tasks ?? []).map((e) => [e.id, e.title])), [e.graph]), n = e.value.map((e) => e.id).join("\n"), r = l(() => {
 		let t = new Set(n.split("\n"));
-		return tl(e.graph?.tasks ?? []).filter((n) => n.id !== e.self && !t.has(n.id));
+		return nl(e.graph?.tasks ?? []).filter((n) => n.id !== e.self && !t.has(n.id));
 	}, [
 		e.graph,
 		e.self,
@@ -32921,7 +32999,7 @@ function XS(e) {
 								condition: ""
 							}),
 							className: "rounded border px-1 py-0.5 text-xs",
-							style: qS,
+							style: JS,
 							children: [/* @__PURE__ */ C("option", {
 								value: "requires",
 								children: "needs it done"
@@ -32935,7 +33013,7 @@ function XS(e) {
 							value: n.condition,
 							onChange: (e) => i(r, { condition: e.target.value }),
 							className: "rounded border px-1 py-0.5 text-xs",
-							style: qS,
+							style: JS,
 							children: [/* @__PURE__ */ C("option", {
 								value: "",
 								children: "its own completion"
@@ -32951,7 +33029,7 @@ function XS(e) {
 					]
 				}, n.id))
 			}),
-			/* @__PURE__ */ C(el, {
+			/* @__PURE__ */ C(tl, {
 				label: "Add a prerequisite",
 				placeholder: "Search tasks by title or ID",
 				items: r,
@@ -32966,7 +33044,7 @@ function XS(e) {
 		]
 	});
 }
-function ZS({ preview: e }) {
+function QS({ preview: e }) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-2 rounded border p-2 text-sm",
 		style: { borderColor: "var(--border)" },
@@ -33016,7 +33094,7 @@ function ZS({ preview: e }) {
 		]
 	});
 }
-function QS(e) {
+function $S(e) {
 	let { workspaceId: t, graph: n, detail: r } = e, i = K(), a = l(() => Ji(i), [i]), o = l(() => r ? ea(r) : null, [r]), [s, c] = d(() => o ?? {
 		...$i(),
 		prerequisites: e.prerequisite ? [{
@@ -33070,7 +33148,7 @@ function QS(e) {
 				className: "text-xs text-muted",
 				children: "A new task starts as a draft. It waits for your review before it can start."
 			}),
-			/* @__PURE__ */ C(JS, {
+			/* @__PURE__ */ C(YS, {
 				id: "avoozl-task-title",
 				label: "Title",
 				children: /* @__PURE__ */ C(b, {
@@ -33080,7 +33158,7 @@ function QS(e) {
 					required: !0
 				})
 			}),
-			!r && /* @__PURE__ */ C(JS, {
+			!r && /* @__PURE__ */ C(YS, {
 				id: "avoozl-task-id",
 				label: "Task ID",
 				hint: "Lower-case letters, digits and dashes. Made from the title unless you change it.",
@@ -33092,10 +33170,10 @@ function QS(e) {
 					}
 				})
 			}),
-			/* @__PURE__ */ C(JS, {
+			/* @__PURE__ */ C(YS, {
 				id: "avoozl-task-summary",
 				label: "Description",
-				children: /* @__PURE__ */ C(YS, {
+				children: /* @__PURE__ */ C(XS, {
 					id: "avoozl-task-summary",
 					rows: 4,
 					value: s.summary,
@@ -33104,7 +33182,7 @@ function QS(e) {
 			}),
 			/* @__PURE__ */ C("div", {
 				className: "grid gap-3 sm:grid-cols-2",
-				children: /* @__PURE__ */ C(JS, {
+				children: /* @__PURE__ */ C(YS, {
 					id: "avoozl-task-repository",
 					label: "Repository",
 					children: /* @__PURE__ */ w("select", {
@@ -33112,7 +33190,7 @@ function QS(e) {
 						value: s.repository,
 						onChange: (e) => E({ repository: e.target.value }),
 						className: "rounded border px-2 py-1 text-sm",
-						style: qS,
+						style: JS,
 						children: [/* @__PURE__ */ C("option", {
 							value: "",
 							children: "None"
@@ -33123,28 +33201,28 @@ function QS(e) {
 					})
 				})
 			}),
-			/* @__PURE__ */ C(JS, {
+			/* @__PURE__ */ C(YS, {
 				id: "avoozl-task-acceptance",
 				label: "Acceptance",
 				hint: "One condition per line.",
-				children: /* @__PURE__ */ C(YS, {
+				children: /* @__PURE__ */ C(XS, {
 					id: "avoozl-task-acceptance",
 					value: s.acceptance,
 					onChange: (e) => E({ acceptance: e })
 				})
 			}),
-			/* @__PURE__ */ C(JS, {
+			/* @__PURE__ */ C(YS, {
 				id: "avoozl-task-checks",
 				label: "Checks",
 				hint: "One command per line, such as npm test.",
-				children: /* @__PURE__ */ C(YS, {
+				children: /* @__PURE__ */ C(XS, {
 					id: "avoozl-task-checks",
 					rows: 2,
 					value: s.checks,
 					onChange: (e) => E({ checks: e })
 				})
 			}),
-			/* @__PURE__ */ C(XS, {
+			/* @__PURE__ */ C(ZS, {
 				graph: n,
 				self: S,
 				value: s.prerequisites,
@@ -33164,7 +33242,7 @@ function QS(e) {
 				className: "text-sm text-danger",
 				children: h
 			}),
-			v && /* @__PURE__ */ C(ZS, { preview: v }),
+			v && /* @__PURE__ */ C(QS, { preview: v }),
 			/* @__PURE__ */ w("div", {
 				className: "flex flex-wrap gap-2",
 				children: [/* @__PURE__ */ C(_, {
@@ -33183,7 +33261,7 @@ function QS(e) {
 	});
 }
 // kirocrew-app/ui/src/evidence-api.ts
-var $S = {
+var eC = {
 	findings: "Findings",
 	falsifier: "Falsifier",
 	decision: "Decision",
@@ -33192,7 +33270,7 @@ var $S = {
 	file: "File",
 	note: "Note"
 };
-function eC(e) {
+function tC(e) {
 	let t = async (t, n) => (await e.post(W, {
 		operation: "task.evidence",
 		input: t,
@@ -33206,17 +33284,17 @@ function eC(e) {
 		}, e)
 	};
 }
-function tC(e, t) {
+function nC(e, t) {
 	return !/^(image\/(png|jpeg|gif|webp)|video\/(mp4|webm|quicktime))$/.test(e.type) || !/^[A-Za-z0-9+/]*={0,2}$/.test(t) ? null : `data:${e.type};base64,${t}`;
 }
-function nC(e) {
+function rC(e) {
 	return e < 1024 ? `${e} B` : e < 1048576 ? `${Math.ceil(e / 1024)} KB` : `${(e / 1048576).toFixed(1)} MB`;
 }
 // kirocrew-app/ui/src/Evidence.tsx
-function rC({ workspaceId: e, taskId: t, entry: n }) {
-	let r = K(), i = l(() => eC(r), [r]), [a, o] = d(null), [s, c] = d(null), u = n.file, f = async () => {
+function iC({ workspaceId: e, taskId: t, entry: n }) {
+	let r = K(), i = l(() => tC(r), [r]), [a, o] = d(null), [s, c] = d(null), u = n.file, f = async () => {
 		try {
-			let n = await i.file(e, t, u.name), r = tC(n.file, n.base64);
+			let n = await i.file(e, t, u.name), r = nC(n.file, n.base64);
 			r || c("This file type is not shown here."), o(r);
 		} catch (e) {
 			c(G(e));
@@ -33238,7 +33316,7 @@ function rC({ workspaceId: e, taskId: t, entry: n }) {
 			/* @__PURE__ */ w("span", { children: [
 				u.type,
 				", ",
-				nC(u.size)
+				rC(u.size)
 			] }),
 			/* @__PURE__ */ w("button", {
 				type: "button",
@@ -33254,8 +33332,8 @@ function rC({ workspaceId: e, taskId: t, entry: n }) {
 		]
 	});
 }
-function iC({ workspaceId: e, taskId: t }) {
-	let n = K(), r = l(() => eC(n), [n]), a = i(() => r.list(e, t), [
+function aC({ workspaceId: e, taskId: t }) {
+	let n = K(), r = l(() => tC(n), [n]), a = i(() => r.list(e, t), [
 		r,
 		e,
 		t
@@ -33274,7 +33352,7 @@ function iC({ workspaceId: e, taskId: t }) {
 				/* @__PURE__ */ w("div", {
 					className: "flex flex-wrap items-center gap-2 text-xs text-muted",
 					children: [
-						/* @__PURE__ */ C($, { children: $S[n.kind] ?? n.kind }),
+						/* @__PURE__ */ C($, { children: eC[n.kind] ?? n.kind }),
 						/* @__PURE__ */ C("span", { children: n.source }),
 						/* @__PURE__ */ C("time", {
 							dateTime: n.at,
@@ -33287,7 +33365,7 @@ function iC({ workspaceId: e, taskId: t }) {
 					className: "mt-1 whitespace-pre-wrap break-words text-sm",
 					children: n.text
 				}),
-				n.file && /* @__PURE__ */ C(rC, {
+				n.file && /* @__PURE__ */ C(iC, {
 					workspaceId: e,
 					taskId: t,
 					entry: n
@@ -33303,13 +33381,13 @@ function iC({ workspaceId: e, taskId: t }) {
 	});
 }
 // kirocrew-app/ui/src/TaskNotes.tsx
-var aC = {
+var oC = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
 	background: "var(--card, transparent)"
 };
-function oC(e) {
-	let t = gf(K()), [n, r] = d(""), [i, a] = d(!1);
+function sC(e) {
+	let t = _f(K()), [n, r] = d(""), [i, a] = d(!1);
 	return /* @__PURE__ */ w("div", {
 		role: "alert",
 		className: "flex flex-col gap-2 rounded border p-2 text-sm",
@@ -33353,8 +33431,8 @@ function oC(e) {
 		})]
 	});
 }
-function sC(e) {
-	let { entry: t } = e, [n, r] = d(!1), [i, a] = d(t.url ?? ""), [o, s] = d(t.label ?? ""), [c, l] = d(t.text ?? ""), u = n ? t.kind === "link" ? df(i, o) : ff(c) : null, f = t.kind === "link" ? pr(t.url ?? null) : null;
+function cC(e) {
+	let { entry: t } = e, [n, r] = d(!1), [i, a] = d(t.url ?? ""), [o, s] = d(t.label ?? ""), [c, l] = d(t.text ?? ""), u = n ? t.kind === "link" ? ff(i, o) : pf(c) : null, f = t.kind === "link" ? pr(t.url ?? null) : null;
 	return /* @__PURE__ */ w("li", {
 		className: "flex flex-col gap-1 border-t py-2 first:border-t-0",
 		style: { borderColor: "var(--border)" },
@@ -33363,7 +33441,7 @@ function sC(e) {
 			/* @__PURE__ */ w("div", {
 				className: "flex flex-wrap items-center gap-1.5 text-xs text-muted",
 				children: [
-					/* @__PURE__ */ C("span", { children: uf(t) }),
+					/* @__PURE__ */ C("span", { children: df(t) }),
 					/* @__PURE__ */ C(q, {
 						text: t.at,
 						children: /* @__PURE__ */ C("span", { children: Z(t.at) })
@@ -33395,7 +33473,7 @@ function sC(e) {
 							value: c,
 							onChange: (e) => l(e.target.value),
 							className: "rounded border px-2 py-1 text-sm",
-							style: aC
+							style: oC
 						})]
 					}),
 					u && /* @__PURE__ */ C("span", {
@@ -33426,7 +33504,7 @@ function sC(e) {
 				rel: "noopener noreferrer",
 				className: "inline-flex items-center gap-1 text-sm underline",
 				style: { overflowWrap: "anywhere" },
-				children: [/* @__PURE__ */ C(ae, {
+				children: [/* @__PURE__ */ C(ie, {
 					size: 14,
 					"aria-hidden": "true"
 				}), t.label]
@@ -33481,8 +33559,8 @@ function sC(e) {
 		]
 	});
 }
-function cC(e) {
-	let t = K(), n = l(() => gf(t), [t]), [r, a] = d(null), [s, c] = d(null), [u, f] = d(null), [p, m] = d(null), [h, g] = d(!1), [v, y] = d(""), [x, S] = d(""), [T, E] = d(""), [D, O] = d(null), k = i(async () => {
+function lC(e) {
+	let t = K(), n = l(() => _f(t), [t]), [r, a] = d(null), [s, c] = d(null), [u, f] = d(null), [p, m] = d(null), [h, g] = d(!1), [v, y] = d(""), [x, S] = d(""), [T, E] = d(""), [D, O] = d(null), k = i(async () => {
 		try {
 			a((await n.list(e.workspaceId, e.taskId)).entries);
 		} catch (e) {
@@ -33504,7 +33582,7 @@ function cC(e) {
 		try {
 			await r(), f(t);
 		} catch (e) {
-			let t = pf(e);
+			let t = mf(e);
 			t.length ? m({
 				message: G(e),
 				decisions: t,
@@ -33513,7 +33591,7 @@ function cC(e) {
 		} finally {
 			g(!1);
 		}
-	}, j = D === "link" ? df(v, x) : null, M = D === "note" ? ff(T) : null;
+	}, j = D === "link" ? ff(v, x) : null, M = D === "note" ? pf(T) : null;
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3",
 		"data-links-and-notes": !0,
@@ -33527,7 +33605,7 @@ function cC(e) {
 				className: "text-sm text-danger",
 				children: s
 			}),
-			p && /* @__PURE__ */ C(oC, {
+			p && /* @__PURE__ */ C(sC, {
 				workspaceId: e.workspaceId,
 				blocked: p,
 				onDone: (e) => {
@@ -33549,7 +33627,7 @@ function cC(e) {
 			}) : /* @__PURE__ */ C("ul", {
 				className: "flex flex-col",
 				"aria-label": "Links and notes, newest first",
-				children: r.map((t) => /* @__PURE__ */ C(sC, {
+				children: r.map((t) => /* @__PURE__ */ C(cC, {
 					entry: t,
 					onGitHub: e.onGitHub,
 					busy: h,
@@ -33563,7 +33641,7 @@ function cC(e) {
 				style: { borderColor: "var(--border)" },
 				"aria-label": "Add link",
 				onSubmit: (t) => {
-					t.preventDefault(), O("link"), df(v, x) || A(() => n.addLink(e.workspaceId, e.taskId, v, x), "Link added.", () => {
+					t.preventDefault(), O("link"), ff(v, x) || A(() => n.addLink(e.workspaceId, e.taskId, v, x), "Link added.", () => {
 						y(""), S(""), O(null);
 					});
 				},
@@ -33616,7 +33694,7 @@ function cC(e) {
 				style: { borderColor: "var(--border)" },
 				"aria-label": "Add note",
 				onSubmit: (t) => {
-					t.preventDefault(), O("note"), ff(T) || A(() => n.addNote(e.workspaceId, e.taskId, T), "Note added.", () => {
+					t.preventDefault(), O("note"), pf(T) || A(() => n.addNote(e.workspaceId, e.taskId, T), "Note added.", () => {
 						E(""), O(null);
 					});
 				},
@@ -33628,7 +33706,7 @@ function cC(e) {
 							value: T,
 							onChange: (e) => E(e.target.value),
 							className: "rounded border px-2 py-1 text-sm font-normal",
-							style: aC
+							style: oC
 						})]
 					}),
 					M && /* @__PURE__ */ C("span", {
@@ -33653,13 +33731,13 @@ function cC(e) {
 		]
 	});
 }
-var lC = {
+var uC = {
 	done: "Marked done. The tasks that wait on it may start.",
 	skipped: "Marked skipped. The tasks that wait on it may start.",
 	refused: "Marked refused. The tasks that wait on it stay held."
 };
-function uC(e) {
-	let t = gf(K()), [n, r] = d("done"), [i, a] = d(""), [o, s] = d([]), [c, l] = d(null), [u, f] = d(null), [p, m] = d(!1), h = o.map((e) => df(e.url, e.label)), g = !!(i.trim() || o.length), v = (e, t) => s(o.map((n, r) => r === e ? {
+function dC(e) {
+	let t = _f(K()), [n, r] = d("done"), [i, a] = d(""), [o, s] = d([]), [c, l] = d(null), [u, f] = d(null), [p, m] = d(!1), h = o.map((e) => ff(e.url, e.label)), g = !!(i.trim() || o.length), v = (e, t) => s(o.map((n, r) => r === e ? {
 		...n,
 		...t
 	} : n)), y = async () => {
@@ -33673,12 +33751,12 @@ function uC(e) {
 					url: e.url.trim(),
 					label: e.label.trim()
 				})) } : {}
-			}), e.onDone(lC[n]);
+			}), e.onDone(uC[n]);
 		};
 		try {
 			await r();
 		} catch (e) {
-			let t = pf(e);
+			let t = mf(e);
 			t.length ? f({
 				message: G(e),
 				decisions: t,
@@ -33702,7 +33780,7 @@ function uC(e) {
 		title: /* @__PURE__ */ w("span", {
 			className: "inline-flex items-center gap-1.5",
 			children: [
-				/* @__PURE__ */ C(ie, {
+				/* @__PURE__ */ C(re, {
 					size: 14,
 					"aria-hidden": "true"
 				}),
@@ -33726,7 +33804,7 @@ function uC(e) {
 				alignItems: "center",
 				gap: 6
 			},
-			children: [/* @__PURE__ */ C(ie, {
+			children: [/* @__PURE__ */ C(re, {
 				size: 14,
 				"aria-hidden": "true"
 			}), n === "done" ? "Mark done" : n === "skipped" ? "Mark skipped" : "Mark refused"]
@@ -33737,7 +33815,7 @@ function uC(e) {
 				className: "text-sm text-muted",
 				children: [e.onIssue ? "This closes its issue as you, on GitHub. " : "", "The tasks that wait on it may start after Done or Skipped. Refused keeps them held."]
 			}) }),
-			/* @__PURE__ */ C(wd, {
+			/* @__PURE__ */ C(Td, {
 				name: "avoozl-mark-done-choice",
 				label: "How it ended",
 				value: n,
@@ -33775,7 +33853,7 @@ function uC(e) {
 						value: i,
 						onChange: (e) => a(e.target.value),
 						className: "rounded border px-2 py-1 text-sm",
-						style: aC,
+						style: oC,
 						"data-outcome-note": !0
 					}),
 					/* @__PURE__ */ C("span", {
@@ -33833,7 +33911,7 @@ function uC(e) {
 					}) })
 				]
 			}),
-			u && /* @__PURE__ */ C(oC, {
+			u && /* @__PURE__ */ C(sC, {
 				workspaceId: e.workspaceId,
 				blocked: u,
 				onDone: () => f(null),
@@ -33847,8 +33925,8 @@ function uC(e) {
 		]
 	});
 }
-function dC(e) {
-	let t = gf(K()), [n, r] = d(!1), [i, a] = d(null), o = e.task.manualDone;
+function fC(e) {
+	let t = _f(K()), [n, r] = d(!1), [i, a] = d(null), o = e.task.manualDone;
 	return /* @__PURE__ */ w("section", {
 		"aria-label": "Manual task",
 		className: "flex flex-col gap-2 rounded border p-3",
@@ -33902,7 +33980,7 @@ function dC(e) {
 					})
 				]
 			}) : /* @__PURE__ */ C("div", { children: /* @__PURE__ */ C(Y, {
-				icon: ie,
+				icon: re,
 				primary: !0,
 				tooltip: "Record that the step happened, with what was decided",
 				onClick: () => r(!0),
@@ -33913,7 +33991,7 @@ function dC(e) {
 				className: "text-sm text-danger",
 				children: i
 			}),
-			n && /* @__PURE__ */ C(uC, {
+			n && /* @__PURE__ */ C(dC, {
 				workspaceId: e.workspaceId,
 				taskId: e.task.id,
 				title: e.task.title,
@@ -33927,7 +34005,7 @@ function dC(e) {
 	});
 }
 // kirocrew-app/ui/src/TaskDrawer.tsx
-function fC({ label: e, children: t }) {
+function pC({ label: e, children: t }) {
 	return /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C("dt", {
 		className: "text-muted",
 		children: e
@@ -33936,7 +34014,7 @@ function fC({ label: e, children: t }) {
 		children: t
 	})] });
 }
-function pC({ title: e, links: t, open: n }) {
+function mC({ title: e, links: t, open: n }) {
 	return /* @__PURE__ */ w("div", { children: [/* @__PURE__ */ C("h4", {
 		className: "text-sm font-semibold",
 		children: e
@@ -33966,7 +34044,7 @@ function pC({ title: e, links: t, open: n }) {
 		}, `${e.id}:${e.kind}`))
 	})] });
 }
-function mC(e) {
+function hC(e) {
 	let { origin: t } = e, n = K(), r = l(() => Ji(n), [n]), [a, s] = d(null), [c, u] = d(null), f = i(() => u(null), []), p = async (t) => {
 		if (a?.source === t) return s(null);
 		s({
@@ -34042,7 +34120,7 @@ function mC(e) {
 							"aria-label": `Open full file ${e.document}`,
 							children: "Open full file"
 						}), /* @__PURE__ */ w(Y, {
-							icon: oe,
+							icon: ae,
 							tooltip: "Show the lines this task was made from here, read from the file now",
 							onClick: () => void p(e),
 							"aria-label": `${a?.source === e ? "Hide" : "Read"} ${Hi(e)}`,
@@ -34087,7 +34165,7 @@ function mC(e) {
 						onClick: () => u(a.source),
 						children: "Open full file"
 					})]
-				}), /* @__PURE__ */ C(Jy, {
+				}), /* @__PURE__ */ C(Yy, {
 					text: a.text,
 					lineStart: a.source.lineStart,
 					lineEnd: a.source.lineEnd,
@@ -34096,7 +34174,7 @@ function mC(e) {
 					label: `Contents of ${a.source.document}`
 				})] })
 			}),
-			c && /* @__PURE__ */ C(Xy, {
+			c && /* @__PURE__ */ C(Zy, {
 				workspaceId: e.workspaceId,
 				target: c,
 				onClose: f
@@ -34104,7 +34182,7 @@ function mC(e) {
 		]
 	});
 }
-function hC(e) {
+function gC(e) {
 	let { workspaceId: t, id: n } = e, r = K(), a = l(() => Ji(r), [r]), s = l(() => dr(r), [r]), [c, u] = d(null), f = Kr(e.id), [p, m] = d(null), [h, g] = d(!1), _ = Ur(t), [v, y] = d(!1), [b, x] = d(null), T = i(async () => {
 		m(null);
 		try {
@@ -34143,7 +34221,7 @@ function hC(e) {
 		className: "text-sm text-muted",
 		children: "Loading…"
 	});
-	let { task: D, delivery: O } = c, k = D.authority === "local", A = (O?.deliveries ?? []).map((e) => e.state).filter((e) => typeof e == "string").at(-1), j = D.status === "deferred", M = Lx(e.graph), N = O?.complete ?? D.state === "done", P = pr(D.issue?.url ?? null);
+	let { task: D, delivery: O } = c, k = D.authority === "local", A = (O?.deliveries ?? []).map((e) => e.state).filter((e) => typeof e == "string").at(-1), j = D.status === "deferred", M = Rx(e.graph), N = O?.complete ?? D.state === "done", P = pr(D.issue?.url ?? null);
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-3",
 		children: [
@@ -34155,7 +34233,7 @@ function hC(e) {
 				className: "mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted",
 				children: [
 					/* @__PURE__ */ C("span", { children: D.id }),
-					/* @__PURE__ */ C(xd, { owner: D }),
+					/* @__PURE__ */ C(Sd, { owner: D }),
 					D.state && /* @__PURE__ */ C($, {
 						variant: D.state === "needs-you" ? "warning" : void 0,
 						children: D.state
@@ -34168,7 +34246,7 @@ function hC(e) {
 				className: "flex flex-wrap gap-2",
 				children: [
 					e.onFocus && /* @__PURE__ */ C(Y, {
-						icon: z,
+						icon: B,
 						tooltip: "Show only this task and the tasks it waits on and that wait on it",
 						onClick: () => {
 							e.onFocus(D.id, D.title), e.onClose();
@@ -34236,7 +34314,7 @@ function hC(e) {
 				className: `text-sm ${b.ok ? "text-muted" : "text-danger"}`,
 				children: b.text
 			}),
-			D.manual && /* @__PURE__ */ C(dC, {
+			D.manual && /* @__PURE__ */ C(fC, {
 				workspaceId: t,
 				task: {
 					id: D.id,
@@ -34252,7 +34330,7 @@ function hC(e) {
 					}), T();
 				}
 			}),
-			D.handSetReview && /* @__PURE__ */ C(KS, {
+			D.handSetReview && /* @__PURE__ */ C(qS, {
 				workspaceId: t,
 				task: D,
 				graph: e.graph,
@@ -34270,12 +34348,12 @@ function hC(e) {
 				children: [/* @__PURE__ */ C("h4", {
 					className: "text-sm font-semibold",
 					children: "Review"
-				}), /* @__PURE__ */ C(GS, { item: O })]
+				}), /* @__PURE__ */ C(KS, { item: O })]
 			}),
 			h && /* @__PURE__ */ C("div", {
 				className: "rounded border p-3",
 				style: { borderColor: "var(--border)" },
-				children: /* @__PURE__ */ C(QS, {
+				children: /* @__PURE__ */ C($S, {
 					workspaceId: t,
 					graph: e.graph,
 					detail: c,
@@ -34302,71 +34380,71 @@ function hC(e) {
 							className: "grid gap-x-3 gap-y-1.5 text-sm",
 							style: { gridTemplateColumns: "max-content 1fr" },
 							children: [
-								/* @__PURE__ */ C(fC, {
+								/* @__PURE__ */ C(pC, {
 									label: "Epic",
 									children: D.epicTitle ?? "none"
 								}),
-								/* @__PURE__ */ C(fC, {
+								/* @__PURE__ */ C(pC, {
 									label: "Phase",
 									children: D.phase?.title ?? "none"
 								}),
-								c.origin && /* @__PURE__ */ C(fC, {
+								c.origin && /* @__PURE__ */ C(pC, {
 									label: "Came from",
-									children: /* @__PURE__ */ C(mC, {
+									children: /* @__PURE__ */ C(hC, {
 										origin: c.origin,
 										issue: P,
 										workspaceId: t
 									})
 								}),
-								/* @__PURE__ */ w(fC, {
+								/* @__PURE__ */ w(pC, {
 									label: "Spec",
 									children: [c.plan ? `${c.plan.title}${c.plan.approved ? " (approved)" : ` (${c.plan.state ?? "draft"})`}` : "none", D.planArchived ? " · archived: its tasks do not start until you unarchive it" : ""]
 								}),
-								/* @__PURE__ */ w(fC, {
+								/* @__PURE__ */ w(pC, {
 									label: "Authority",
 									children: [
-										/* @__PURE__ */ C(xd, { owner: D }),
+										/* @__PURE__ */ C(Sd, { owner: D }),
 										" ",
 										D.authority
 									]
 								}),
-								/* @__PURE__ */ C(fC, {
+								/* @__PURE__ */ C(pC, {
 									label: "Route",
 									children: D.route
 								}),
-								/* @__PURE__ */ C(fC, {
+								/* @__PURE__ */ C(pC, {
 									label: "Status",
 									children: D.status ?? "none"
 								}),
-								/* @__PURE__ */ C(fC, {
+								/* @__PURE__ */ C(pC, {
 									label: "State",
 									children: D.state ?? "unknown"
 								}),
-								/* @__PURE__ */ C(fC, {
+								/* @__PURE__ */ C(pC, {
 									label: "Wave",
 									children: D.wave
 								}),
-								/* @__PURE__ */ C(fC, {
+								/* @__PURE__ */ C(pC, {
 									label: "Done when",
 									children: D.completion
 								}),
-								D.repository && /* @__PURE__ */ C(fC, {
+								D.repository && /* @__PURE__ */ C(pC, {
 									label: "Repository",
 									children: D.repository
 								}),
-								D.owner && /* @__PURE__ */ C(fC, {
+								D.owner && /* @__PURE__ */ C(pC, {
 									label: "Assignee",
 									children: D.owner
 								}),
-								D.decision && /* @__PURE__ */ C(fC, {
+								D.decision && /* @__PURE__ */ C(pC, {
 									label: "Decision",
 									children: D.decision
 								}),
-								D.needsReview && /* @__PURE__ */ C(fC, {
+								D.needsReview && /* @__PURE__ */ C(pC, {
 									label: "Review",
 									children: "Needs your review"
 								}),
-								(O?.pullRequests ?? []).map((e, t) => /* @__PURE__ */ C(fC, {
+								(O?.pullRequests ?? []).map((e, t) => /* @__PURE__ */ C(pC, {
 									label: "Pull request",
 									children: pr(e.url) ? /* @__PURE__ */ w("a", {
 										href: pr(e.url),
@@ -34390,7 +34468,7 @@ function hC(e) {
 						children: /* @__PURE__ */ w("div", {
 							className: "flex flex-col gap-3",
 							children: [
-								D.summary ? /* @__PURE__ */ C(bd, { text: D.summary }) : /* @__PURE__ */ C("p", {
+								D.summary ? /* @__PURE__ */ C(xd, { text: D.summary }) : /* @__PURE__ */ C("p", {
 									className: "text-sm text-muted",
 									children: "No description."
 								}),
@@ -34417,7 +34495,7 @@ function hC(e) {
 								D.context && /* @__PURE__ */ w("div", { children: [/* @__PURE__ */ C("h4", {
 									className: "text-sm font-semibold",
 									children: "From its spec"
-								}), /* @__PURE__ */ C(bd, { text: D.context })] })
+								}), /* @__PURE__ */ C(xd, { text: D.context })] })
 							]
 						})
 					}),
@@ -34427,11 +34505,11 @@ function hC(e) {
 						title: "Edges",
 						children: /* @__PURE__ */ w("div", {
 							className: "flex flex-col gap-3",
-							children: [/* @__PURE__ */ C(pC, {
+							children: [/* @__PURE__ */ C(mC, {
 								title: "Waits on",
 								links: c.waitsOn,
 								open: e.open
-							}), /* @__PURE__ */ C(pC, {
+							}), /* @__PURE__ */ C(mC, {
 								title: "Blocks",
 								links: c.blocks,
 								open: e.open
@@ -34442,7 +34520,7 @@ function hC(e) {
 						id: "notes",
 						group: "task-drawer",
 						title: "Links and notes",
-						children: /* @__PURE__ */ C(cC, {
+						children: /* @__PURE__ */ C(lC, {
 							workspaceId: t,
 							taskId: D.id,
 							onGitHub: !!D.onGitHub,
@@ -34483,7 +34561,7 @@ function hC(e) {
 										})
 									] }, e.slot))
 								}),
-								A === "decision" && /* @__PURE__ */ C(HS, {
+								A === "decision" && /* @__PURE__ */ C(US, {
 									item: O,
 									busy: v,
 									onRetry: (e) => E(async () => (await s.retry(t, D.id, e), {
@@ -34491,7 +34569,7 @@ function hC(e) {
 										text: "Dismissed and retrying."
 									}))
 								}),
-								/* @__PURE__ */ C(US, {
+								/* @__PURE__ */ C(WS, {
 									item: O,
 									onSupersede: async (e, n) => {
 										await s.supersede(t, e, n), await T();
@@ -34507,13 +34585,13 @@ function hC(e) {
 						id: "timing",
 						group: "task-drawer",
 						title: "Timing",
-						children: /* @__PURE__ */ C(Nl, { timing: c.timing ?? null })
+						children: /* @__PURE__ */ C(Pl, { timing: c.timing ?? null })
 					}),
 					/* @__PURE__ */ C(Vr, {
 						id: "evidence",
 						group: "task-drawer",
 						title: "Evidence",
-						children: /* @__PURE__ */ C(iC, {
+						children: /* @__PURE__ */ C(aC, {
 							workspaceId: t,
 							taskId: D.id
 						})
@@ -34531,7 +34609,7 @@ function hC(e) {
 								children: [
 									/* @__PURE__ */ C("div", {
 										className: "text-sm font-medium",
-										children: bh(e)
+										children: xh(e)
 									}),
 									e.changedAt && /* @__PURE__ */ w("div", {
 										className: "text-xs text-muted",
@@ -34548,7 +34626,7 @@ function hC(e) {
 										onClick: () => void _.ask({ items: [Et(e)] }),
 										children: "Ask in a chat"
 									}) }),
-									/* @__PURE__ */ C(Kh, {
+									/* @__PURE__ */ C(qh, {
 										item: e,
 										workspaceId: t,
 										revision: c.revision,
@@ -34586,7 +34664,7 @@ function hC(e) {
 					})
 				]
 			}),
-			O && br(O) && /* @__PURE__ */ C(BS, {
+			O && br(O) && /* @__PURE__ */ C(VS, {
 				item: O,
 				onSupersede: async (e, n) => {
 					await s.supersede(t, e, n), await T();
@@ -34603,7 +34681,7 @@ function hC(e) {
 		]
 	});
 }
-function gC(e) {
+function _C(e) {
 	let t = K(), n = l(() => dr(t), [t]), r = l(() => Ji(t), [t]), [i, a] = d(null), [s, c] = d(!1), [u, f] = d(null);
 	o(() => {
 		n.conflictsPage(e.workspaceId).then((t) => a({
@@ -34619,7 +34697,7 @@ function gC(e) {
 		if (i && p) {
 			c(!0), f(null);
 			try {
-				let t = gh("reviewed", await r.settle(e.workspaceId, "reviewed", fh(p), i.revision));
+				let t = _h("reviewed", await r.settle(e.workspaceId, "reviewed", ph(p), i.revision));
 				t.ok ? e.onReviewed() : f(t.text);
 			} catch (e) {
 				f(G(e));
@@ -34648,7 +34726,7 @@ function gC(e) {
 			i && !p ? /* @__PURE__ */ C("p", {
 				className: "text-sm text-muted",
 				children: "Nothing here needs review now."
-			}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C("div", { children: p && /* @__PURE__ */ C($h, {
+			}) : /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C("div", { children: p && /* @__PURE__ */ C(eg, {
 				item: p,
 				busy: s || !i,
 				onConfirm: () => void m()
@@ -34668,14 +34746,14 @@ function gC(e) {
 							className: "text-xs text-muted",
 							children: [t.id, t.status ? ` · ${t.status}` : ""]
 						}),
-						/* @__PURE__ */ C(xd, { owner: t })
+						/* @__PURE__ */ C(Sd, { owner: t })
 					]
 				}, t.id))
 			})] })
 		]
 	});
 }
-function _C({ workspaceId: e, children: t, onFocus: n }) {
+function vC({ workspaceId: e, children: t, onFocus: n }) {
 	let r = K(), a = l(() => dr(r), [r]), [s, c] = d(null), [f, p] = d([]), [m, h] = d(null), [g, _] = d(!1), v = u(null), y = u(null), b = It("(max-width: 767px)"), x = It("(prefers-reduced-motion: reduce)"), T = u(null);
 	T.current = s;
 	let E = u(() => void 0), D = l(() => ({
@@ -34776,14 +34854,14 @@ function _C({ workspaceId: e, children: t, onFocus: n }) {
 							children: "Close"
 						})
 					]
-				}), s.kind === "task" ? /* @__PURE__ */ C(hC, {
+				}), s.kind === "task" ? /* @__PURE__ */ C(gC, {
 					workspaceId: e,
 					id: s.id,
 					graph: m,
 					open: D.openTask,
 					onClose: k,
 					onFocus: n
-				}) : s.kind === "review" ? /* @__PURE__ */ C(gC, {
+				}) : s.kind === "review" ? /* @__PURE__ */ C(_C, {
 					workspaceId: e,
 					group: s.group,
 					open: D.openTask,
@@ -34795,7 +34873,7 @@ function _C({ workspaceId: e, children: t, onFocus: n }) {
 					id: "avoozl-drawer-title",
 					title: "Add a task",
 					className: "mb-2"
-				}), /* @__PURE__ */ C(QS, {
+				}), /* @__PURE__ */ C($S, {
 					workspaceId: e,
 					graph: m,
 					detail: null,
@@ -34811,14 +34889,14 @@ function _C({ workspaceId: e, children: t, onFocus: n }) {
 	});
 }
 // kirocrew-app/ui/src/App.tsx
-function vC() {
+function yC() {
 	try {
 		return window.localStorage;
 	} catch {
 		return null;
 	}
 }
-function yC(e) {
+function bC(e) {
 	let t = Tt[e.view];
 	return /* @__PURE__ */ w("span", {
 		"data-nav-label-row": !0,
@@ -34859,7 +34937,7 @@ function yC(e) {
 		]
 	});
 }
-function bC(e) {
+function xC(e) {
 	return /* @__PURE__ */ w("section", {
 		"aria-labelledby": `avoozl-${e.view}-title`,
 		className: "flex flex-col gap-3.5",
@@ -34874,81 +34952,81 @@ function bC(e) {
 		})]
 	});
 }
-function xC() {
-	return /* @__PURE__ */ C(Bn, { children: /* @__PURE__ */ C(Wo, { children: /* @__PURE__ */ C(ci, { children: /* @__PURE__ */ C(SC, {}) }) }) });
-}
 function SC() {
-	let e = Rn(), t = Ho(), n = K(), r = l(() => Qe(n), [n]), a = l(() => it(vC()), []), [s, c] = d("dashboard"), [u, f] = d(so), [p, m] = d("overview"), [h, g] = d("decisions"), [v, b] = d(null), [x, T] = d(null), [E, D] = d(0), [O, k] = d({ n: 0 }), [A, j] = d(null), M = l(() => dr(n), [n]), N = l(() => ag(n), [n]), P = E + (A ?? 0), [F, I] = d(a.workspaceId), [L, ee] = d(null), [te, ne] = d(null), re = i((e) => {
+	return /* @__PURE__ */ C(Bn, { children: /* @__PURE__ */ C(Qo, { children: /* @__PURE__ */ C(ci, { children: /* @__PURE__ */ C(CC, {}) }) }) });
+}
+function CC() {
+	let e = Rn(), t = Xo(), n = K(), r = l(() => Qe(n), [n]), a = l(() => it(yC()), []), [s, c] = d("dashboard"), [u, f] = d(so), [p, m] = d("overview"), [h, g] = d("decisions"), [v, b] = d(null), [x, T] = d(null), [E, D] = d(0), [O, k] = d({ n: 0 }), [A, j] = d(null), M = l(() => dr(n), [n]), N = l(() => og(n), [n]), P = E + (A ?? 0), [F, I] = d(a.workspaceId), [L, ee] = d(null), [te, R] = d(null), ne = i((e) => {
 		ee(e), I((t) => nt(e, t));
 	}, []);
 	o(() => {
-		r.list().then(re, (e) => ne(G(e)));
-	}, [r, re]), o(() => {
-		at(vC(), { workspaceId: F });
+		r.list().then(ne, (e) => R(G(e)));
+	}, [r, ne]), o(() => {
+		at(yC(), { workspaceId: F });
 	}, [F]);
-	let ie = {
+	let re = {
 		tab: s,
 		settingsTab: u,
 		flowTab: p,
 		waitingSection: h,
 		focus: v,
 		drill: x
-	}, R = (e) => {
+	}, z = (e) => {
 		e.focus !== void 0 && b(e.focus), e.drill !== void 0 && T(e.drill), e.settingsTab !== void 0 && f(e.settingsTab), e.flowTab !== void 0 && m(e.flowTab), e.waitingSection !== void 0 && g(e.waitingSection), e.tab !== void 0 && c(e.tab);
-	}, z = (t, n) => {
-		let r = t.tab === void 0 ? null : s_(t.tab), i = r?.open?.["waiting-section"], { "waiting-section": a, ...o } = r?.open ?? {}, s = t.settingsTab === void 0 ? {} : { settingsTab: c_(t.settingsTab) };
-		Pn(e, ie, {
+	}, B = (t, n) => {
+		let r = t.tab === void 0 ? null : c_(t.tab), i = r?.open?.["waiting-section"], { "waiting-section": a, ...o } = r?.open ?? {}, s = t.settingsTab === void 0 ? {} : { settingsTab: l_(t.settingsTab) };
+		Pn(e, re, {
 			...t,
 			...s,
 			...r ? { tab: r.tab } : {},
 			...i ? { waitingSection: i } : {}
-		}, R, (e, t) => t ? `Back to ${a_(e.tab)}` : "Back to the previous section", {
+		}, z, (e, t) => t ? `Back to ${o_(e.tab)}` : "Back to the previous section", {
 			...o,
 			...n
 		});
-	}, B = () => z({
+	}, V = () => B({
 		settingsTab: "workspaces",
 		tab: "settings"
-	}), V = t.active ? ct : L ? F : null, ae = s !== "settings" && !V, oe = (e, t) => z({
+	}), H = t.active ? ct : L ? F : null, ie = s !== "settings" && !H, ae = (e, t) => B({
 		focus: t ?? null,
 		drill: null,
 		tab: e
-	}), H = (e, t) => {
-		V && Vm(V, t), z({
+	}), oe = (e, t) => {
+		H && Hm(H, t), B({
 			focus: null,
 			drill: null,
 			tab: e
 		});
-	}, se = (e) => z({
+	}, se = (e) => B({
 		focus: null,
 		drill: e,
 		tab: "graph"
-	}), U = (e) => z({
+	}), U = (e) => B({
 		focus: null,
 		drill: null,
 		tab: "settings",
 		settingsTab: e
 	}), ce = () => {
-		k((e) => ({ n: e.n + 1 })), z({
+		k((e) => ({ n: e.n + 1 })), B({
 			focus: null,
 			drill: null,
 			tab: "plans"
 		});
-	}, le = (e) => z({
+	}, le = (e) => B({
 		focus: null,
 		drill: null,
-		settingsTab: co(s, e, u, Qx.map((e) => e.key)),
+		settingsTab: co(s, e, u, $x.map((e) => e.key)),
 		tab: e
 	});
 	o(() => {
 		let e = Io(window.location.search);
-		e && z({
+		e && B({
 			tab: "trace",
 			focus: null,
 			drill: null
 		}, { [Po]: e });
 	}, []);
-	let ue = (e) => z({
+	let ue = (e) => B({
 		tab: "trace",
 		focus: null,
 		drill: null
@@ -34956,20 +35034,20 @@ function SC() {
 		ue(e), de((e) => e + 1);
 	};
 	o(() => {
-		if (!V) return D(0);
-		let e = !0, t = () => M.conflicts(V).then((t) => e && D(t.length), () => void 0);
+		if (!H) return D(0);
+		let e = !0, t = () => M.conflicts(H).then((t) => e && D(t.length), () => void 0);
 		t();
 		let n = setInterval(t, 6e4);
 		return () => {
 			e = !1, clearInterval(n);
 		};
 	}, [
-		V,
+		H,
 		M,
 		s
 	]), o(() => {
-		if (!V) return j(null);
-		let e = !0, t = () => N.view(V).then((t) => {
+		if (!H) return j(null);
+		let e = !0, t = () => N.view(H).then((t) => {
 			e && j(t.enabled ? t.total : null);
 		}, () => void 0);
 		t();
@@ -34978,39 +35056,39 @@ function SC() {
 			e = !1, clearInterval(n);
 		};
 	}, [
-		V,
+		H,
 		N,
 		s
 	]);
-	let pe = Dr(), me = Oo(), [he, ge] = d(!1), _e = pe && he, ve = (V || me) && /* @__PURE__ */ w(Mi, { children: [V && /* @__PURE__ */ C(H_, {
+	let pe = Dr(), me = Oo(), [he, ge] = d(!1), _e = pe && he, ve = (H || me) && /* @__PURE__ */ w(Mi, { children: [H && /* @__PURE__ */ C(U_, {
 		nav: !0,
-		workspaceId: V
+		workspaceId: H
 	}), /* @__PURE__ */ C(ko, {})] }), ye = {
-		dashboard: t_,
-		waiting: e_.map((e) => ({
+		dashboard: n_,
+		waiting: t_.map((e) => ({
 			key: e.key,
 			label: e.title
 		})),
-		flow: $g,
-		settings: Qx.map((e) => ({
+		flow: e_,
+		settings: $x.map((e) => ({
 			key: e.key,
 			label: e.label
 		}))
-	}, be = Qg.map((e) => ({
+	}, be = $g.map((e) => ({
 		key: e.key,
 		text: e.label,
 		children: ye[e.key],
 		slot: e.key === "plans" || e.key === "activity",
 		aria: e.key === "waiting" && P > 0 ? `Needs you, ${P} items` : void 0,
-		label: /* @__PURE__ */ C(yC, {
+		label: /* @__PURE__ */ C(bC, {
 			view: e.key,
 			text: e.label,
 			count: e.key === "waiting" ? P : 0
 		})
-	})), xe = s === "settings" ? u : s === "flow" ? p : s === "waiting" ? h : r_(s), Se = (e, t) => {
+	})), xe = s === "settings" ? u : s === "flow" ? p : s === "waiting" ? h : i_(s), Se = (e, t) => {
 		if (t === void 0) return le(e);
-		z(e === "dashboard" ? {
-			tab: n_(t),
+		B(e === "dashboard" ? {
+			tab: r_(t),
 			focus: null,
 			drill: null
 		} : e === "settings" ? {
@@ -35029,22 +35107,22 @@ function SC() {
 			focus: null,
 			drill: null
 		});
-	}, Ce = t.active ? /* @__PURE__ */ C(g_, {
+	}, Ce = t.active ? /* @__PURE__ */ C(__, {
 		list: ht,
 		value: ct,
 		onChange: () => void 0,
-		onManage: B
-	}) : /* @__PURE__ */ C(g_, {
+		onManage: V
+	}) : /* @__PURE__ */ C(__, {
 		list: L,
 		value: F,
 		onChange: I,
-		onManage: B
+		onManage: V
 	});
 	return /* @__PURE__ */ C("div", {
 		[Fn]: "",
 		style: { display: "contents" },
-		children: /* @__PURE__ */ C(Rr, { children: /* @__PURE__ */ C(_C, {
-			workspaceId: V,
+		children: /* @__PURE__ */ C(Rr, { children: /* @__PURE__ */ C(vC, {
+			workspaceId: H,
 			onFocus: (e, t) => se({
 				kind: "focus",
 				id: e,
@@ -35058,7 +35136,7 @@ function SC() {
 						"data-phone-header": !0,
 						children: /* @__PURE__ */ C(Pi, {
 							groups: be,
-							value: o_(s),
+							value: s_(s),
 							child: xe,
 							open: he,
 							onOpenChange: ge
@@ -35066,14 +35144,14 @@ function SC() {
 					}),
 					_e && /* @__PURE__ */ C(Fi, {
 						groups: be,
-						value: o_(s),
+						value: s_(s),
 						child: xe,
 						onPick: Se,
 						onOpenChange: ge,
 						top: Ce,
 						footer: /* @__PURE__ */ w(S, { children: [ve, /* @__PURE__ */ C(oi, {
 							boxed: !0,
-							workspaceId: V
+							workspaceId: H
 						})] })
 					}),
 					/* @__PURE__ */ w("div", {
@@ -35082,11 +35160,11 @@ function SC() {
 						"data-shell": !0,
 						children: [!pe && /* @__PURE__ */ C(Ni, {
 							groups: be,
-							value: o_(s),
+							value: s_(s),
 							child: xe,
 							onPick: Se,
 							top: Ce,
-							brand: /* @__PURE__ */ C(oi, { workspaceId: V })
+							brand: /* @__PURE__ */ C(oi, { workspaceId: H })
 						}), /* @__PURE__ */ w("div", {
 							className: "flex min-h-0 min-w-0 flex-1 flex-col",
 							"data-shell-main": !0,
@@ -35104,15 +35182,15 @@ function SC() {
 												onClick: ce,
 												children: "Plan a goal"
 											}),
-											!pe && V && /* @__PURE__ */ C(H_, {
+											!pe && H && /* @__PURE__ */ C(U_, {
 												square: !0,
-												workspaceId: V
+												workspaceId: H
 											}),
 											!pe && /* @__PURE__ */ C(ko, { look: "square" })
 										]
 									})]
 								}),
-								/* @__PURE__ */ C(Yo, {}),
+								/* @__PURE__ */ C(rs, {}),
 								te && /* @__PURE__ */ C("p", {
 									role: "alert",
 									className: `pb-2 text-sm text-danger ${pe ? "px-4" : "px-2"}`,
@@ -35124,7 +35202,7 @@ function SC() {
 									},
 									"data-avoozl-pane": !0,
 									className: `flex-1 min-h-0 overflow-y-auto pb-8 ${pe ? "px-4" : "px-2"}`,
-									children: ae ? /* @__PURE__ */ C(y, {
+									children: ie ? /* @__PURE__ */ C(y, {
 										icon: /* @__PURE__ */ C(Ct, { size: 40 }),
 										title: L ? L.items.length === 0 ? "No workspace yet" : "Pick a workspace" : "Loading workspaces…",
 										subtitle: L?.items.length === 0 ? "Add or initialize a workspace in Settings. Every tab reads from it." : "Choose one with the workspace button at the top of the nav. Every tab reads from it.",
@@ -35132,53 +35210,53 @@ function SC() {
 											className: "flex flex-wrap items-center justify-center gap-2",
 											children: [/* @__PURE__ */ C(_, {
 												type: "button",
-												onClick: B,
+												onClick: V,
 												children: "Open Settings › Workspaces"
-											}), /* @__PURE__ */ C(Ko, {})]
-										}) : /* @__PURE__ */ C(Ko, {})
-									}) : s === "dashboard" ? /* @__PURE__ */ C(Gu, {
-										workspaceId: V,
-										onNavigate: oe,
+											}), /* @__PURE__ */ C(es, {})]
+										}) : /* @__PURE__ */ C(es, {})
+									}) : s === "dashboard" ? /* @__PURE__ */ C(Ku, {
+										workspaceId: H,
+										onNavigate: ae,
 										onDrill: se,
 										onTrace: ue,
 										onOpenSettings: U,
 										onPlanEpic: ce
-									}) : s === "plans" ? /* @__PURE__ */ C(Im, {
-										workspaceId: V,
-										onScope: H,
+									}) : s === "plans" ? /* @__PURE__ */ C(Lm, {
+										workspaceId: H,
+										onScope: oe,
 										onDrill: se,
 										newPlanRequest: O,
 										onOpenSettings: U
-									}) : s === "trace" ? /* @__PURE__ */ C(ss, {
-										workspaceId: V,
+									}) : s === "trace" ? /* @__PURE__ */ C(hs, {
+										workspaceId: H,
 										target: e.memory.get("trace-target") ?? null,
 										onPick: fe,
 										onOpenEpics: () => le("plans")
-									}) : s === "graph" ? /* @__PURE__ */ C($m, {
-										workspaceId: V,
+									}) : s === "graph" ? /* @__PURE__ */ C(eh, {
+										workspaceId: H,
 										focus: v,
 										drill: x,
 										onDrill: T
-									}) : s === "flow" ? /* @__PURE__ */ C(Ml, {
-										workspaceId: V,
+									}) : s === "flow" ? /* @__PURE__ */ C(Nl, {
+										workspaceId: H,
 										tab: p
-									}) : s === "waiting" ? /* @__PURE__ */ C(f_, {
-										workspaceId: V,
+									}) : s === "waiting" ? /* @__PURE__ */ C(p_, {
+										workspaceId: H,
 										section: h,
-										onOpenSources: () => z({
+										onOpenSources: () => B({
 											settingsTab: "plugins",
 											tab: "settings"
 										})
-									}) : s === "lanes" ? /* @__PURE__ */ C(y_, { workspaceId: V }) : s === "ci" ? /* @__PURE__ */ C(bC, {
+									}) : s === "lanes" ? /* @__PURE__ */ C(b_, { workspaceId: H }) : s === "ci" ? /* @__PURE__ */ C(xC, {
 										view: "ci",
 										title: "CI",
 										line: "Coming later: each open pull request's checks and CI wait. Avoozl caches its one batched pull-request read, but no page reads it yet."
-									}) : s === "activity" ? /* @__PURE__ */ C(I_, { workspaceId: V }) : /* @__PURE__ */ C(PS, {
-										workspaceId: V,
+									}) : s === "activity" ? /* @__PURE__ */ C(L_, { workspaceId: H }) : /* @__PURE__ */ C(FS, {
+										workspaceId: H,
 										tab: u,
-										onTab: (e) => z({ settingsTab: e }),
+										onTab: (e) => B({ settingsTab: e }),
 										onSelectWorkspace: (e) => !t.active && e && I(e),
-										onListChange: (e) => !t.active && re(e),
+										onListChange: (e) => !t.active && ne(e),
 										onOpenPlans: () => le("plans")
 									})
 								})
@@ -35190,4 +35268,4 @@ function SC() {
 		}) })
 	});
 }
-export { xC as default };
+export { SC as default };

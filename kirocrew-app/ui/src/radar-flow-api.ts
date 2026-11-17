@@ -15,15 +15,23 @@ export interface GithubFlow {
   bottleneck: string | null
   errors: { repository: string; error: string }[]
   repositories: string[]
-  // Build receipts of merged pull requests (RC32.6, RC32.7); absent on an older backend.
-  receipts?: BuildReceipts
+  // Every build record of merged pull requests (R101.4); absent on an older backend.
+  builds?: BuildView
 }
 
-export interface BuildReceipts {
+export interface BuildPhase {
+  phase: string
+  ms: number
+}
+
+export interface BuildView {
   count: number
+  totalMs: number
+  failedMs: number
   medianMs: number | null
-  byTarget: { target: string; start: string; count: number; medianMs: number | null }[]
+  byPhase: { phase: string; target: string; start: string; count: number; medianMs: number | null }[]
   byInstance: { instance: string | null; name: string | null; count: number; medianMs: number | null; totalMs: number }[]
+  recent: { repository: string | null; pr: number; number?: number; totalMs: number; failedMs: number; phases: BuildPhase[]; costliest: BuildPhase | null }[]
 }
 
 export const STAGE_NAMES = ['Ready to Claim', 'Claim to PR', 'PR to green', 'Green to merge'] as const
@@ -57,10 +65,15 @@ export function summaryLine(view: GithubFlow): string {
   return `${view.count} ${view.count === 1 ? 'issue' : 'issues'} · median lead time ${span(view.medianLead)} · flow efficiency ${Math.round((view.efficiency ?? 0) * 100)}%`
 }
 
-// "12 builds · median 41 s".
-export function buildsLine(receipts: BuildReceipts): string {
-  const sec = (ms: number | null) => (ms == null ? '—' : ms < 90000 ? `${Math.round(ms / 1000)} s` : span(ms))
-  return `${receipts.count} ${receipts.count === 1 ? 'build' : 'builds'} · median ${sec(receipts.medianMs)}`
+// "12 pull requests · median 41 s · 2 min in failed attempts".
+export function buildsLine(builds: BuildView): string {
+  const failed = builds.failedMs > 0 ? ` · ${buildMedian(builds.failedMs)} in failed attempts` : ''
+  return `${builds.count} ${builds.count === 1 ? 'pull request' : 'pull requests'} · median ${buildMedian(builds.medianMs)}${failed}`
+}
+
+// The phase that took the most in one pull request: "test 3 min".
+export function costliestLine(row: BuildView['recent'][number]): string {
+  return row.costliest ? `${row.costliest.phase} ${buildMedian(row.costliest.ms)}` : '—'
 }
 
 export function buildMedian(ms: number | null): string {

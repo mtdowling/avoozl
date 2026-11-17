@@ -6,8 +6,9 @@ import { useAppApi } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { SectionHeading } from './controls.tsx'
+import { Tooltip } from './Tooltip.tsx'
 import { useRead } from './useRead.ts'
-import { buildMedian, buildsLine, flowRows, githubFlowClient, span, summaryLine } from './radar-flow-api.ts'
+import { buildMedian, buildsLine, costliestLine, flowRows, githubFlowClient, span, summaryLine } from './radar-flow-api.ts'
 
 export default function GithubFlow({ workspaceId }: { workspaceId: string | null }) {
   const api = useAppApi()
@@ -52,13 +53,27 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
             </li>
           ))}
         </ul>
-        {view.receipts && view.receipts.count > 0 && (
+        {view.builds && view.builds.count > 0 && (
           <div data-flow-builds className="flex flex-col gap-1">
             <h3 className="m-0 text-sm font-semibold">Builds</h3>
-            <p className="text-xs text-muted">{buildsLine(view.receipts)}. From each merged pull request's build receipt.</p>
+            <p className="text-xs text-muted">{buildsLine(view.builds)}. From every build record of each merged pull request.</p>
+            <ul className="m-0 flex list-none flex-col gap-1 p-0" data-flow-build-prs style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+              {view.builds.recent.map((row) => (
+                <li key={`${row.repository}-${row.pr}`} data-flow-build-pr={row.pr} className="flex flex-wrap items-center gap-x-3 text-sm" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', overflowWrap: 'anywhere' }}>
+                  <span>{row.repository ? `${row.repository} ` : ''}#{row.pr}</span>
+                  <span className="tabular-nums">{buildMedian(row.totalMs)}</span>
+                  <span data-flow-costliest className="text-muted">
+                    costliest {costliestLine(row)}
+                  </span>
+                  {row.failedMs > 0 && <Badge variant="danger">{buildMedian(row.failedMs)} failed</Badge>}
+                </li>
+              ))}
+            </ul>
+            <p className="m-0 text-xs text-muted">Median per phase, target and start, without failed attempts.</p>
             <ul className="m-0 flex list-none flex-col gap-1 p-0" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-              {view.receipts.byTarget.map((row) => (
-                <li key={`${row.target}-${row.start}`} data-flow-build={row.target} className="flex flex-wrap gap-x-3 text-sm" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', overflowWrap: 'anywhere' }}>
+              {view.builds.byPhase.map((row) => (
+                <li key={`${row.phase}-${row.target}-${row.start}`} data-flow-build={row.phase} className="flex flex-wrap gap-x-3 text-sm" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', overflowWrap: 'anywhere' }}>
+                  <span>{row.phase}</span>
                   <span>{row.target}</span>
                   <span className="text-muted">{row.start}</span>
                   <span className="tabular-nums">{buildMedian(row.medianMs)}</span>
@@ -66,13 +81,19 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
                 </li>
               ))}
             </ul>
-            {view.receipts.byInstance.length > 1 && (
+            {view.builds.byInstance.length > 1 && (
               <ul className="m-0 flex list-none flex-col gap-1 p-0" data-flow-instances style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                {view.receipts.byInstance.map((row) => (
+                {view.builds.byInstance.map((row) => (
                   <li key={row.instance ?? 'none'} className="flex flex-wrap gap-x-3 text-sm" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', overflowWrap: 'anywhere' }}>
-                    <span>{row.name ?? row.instance ?? 'No instance'}</span>
+                    {row.instance ? (
+                      <Tooltip text={row.instance}>
+                        <span>{row.name ?? 'Unnamed machine'}</span>
+                      </Tooltip>
+                    ) : (
+                      <span>No instance</span>
+                    )}
                     <span className="tabular-nums">{buildMedian(row.medianMs)}</span>
-                    <span className="text-muted">{row.count} {row.count === 1 ? 'build' : 'builds'}, {span(row.totalMs)} in all</span>
+                    <span className="text-muted">{row.count} {row.count === 1 ? 'pull request' : 'pull requests'}, {span(row.totalMs)} in all</span>
                   </li>
                 ))}
               </ul>
