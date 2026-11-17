@@ -23,9 +23,6 @@ export const ARTIFACT_NAME = "build-receipt";
 export const ARTIFACT_PAGES = 10;
 const ZIP_MAX = 64 * 1024;
 const DAY_MS = 86_400_000;
-// shortcut: one page of 100 artifacts per list; a repository that writes more
-// than 100 between two checks misses the oldest, and its pull request is
-// stored as having none. Read a second page if Flow shows the cap hit.
 const isReceipt = (name) =>
   name === ARTIFACT_NAME || String(name).startsWith(`${ARTIFACT_NAME}-`);
 const lower = (value) => String(value || "").toLowerCase();
