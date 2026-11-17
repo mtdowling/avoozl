@@ -81,7 +81,7 @@ test("the Claude Code definition loads, never skips permissions, and fills", () 
       ["npm", "test"],
       ["git", "diff", "--check"],
     ]),
-    ["--allowedTools", "Bash(npm test)", "Bash(git diff --check)"],
+    ["--allowedTools", "Bash(npm test:*)", "Bash(git diff --check:*)"],
   );
   assert.throws(() => harnessAllow(definition, [["git", "push"]]), /push/);
   const tmp = path.join(os.tmpdir(), "avoozl-claude-tmp");
@@ -94,6 +94,47 @@ test("the Claude Code definition loads, never skips permissions, and fills", () 
   assert.deepEqual(
     harnessPermission(definition, { permissionClass: "read" }).writeRoots,
     [],
+  );
+});
+
+test("tmpEnv names only the CLI's own temp-folder variables", () => {
+  const base = JSON.parse(fs.readFileSync(CLAUDE, "utf8"));
+  assert.deepEqual(parseHarnessDefinition(base).tmpEnv, ["CLAUDE_CODE_TMPDIR"]);
+  for (const name of ["GH_TOKEN", "PATH", "HOME", "lower"])
+    assert.throws(
+      () => parseHarnessDefinition({ ...base, tmpEnv: [name] }),
+      /tmpEnv holds/,
+    );
+});
+
+// Claude Code's Bash tool keeps scratch files in /tmp/claude-<uid> unless
+// CLAUDE_CODE_TMPDIR says otherwise; the sandbox refuses /tmp, so every
+// command failed (P57). The supervisor points each tmpEnv name at the
+// session's own temp folder, a write root.
+test("the supervisor sets each tmpEnv variable to the session's temp folder", async (t) => {
+  const { stateDirectory, worktree, supervisor } = machine(t, {
+    tmpEnv: ["FAKE_CLI_TMP"],
+  });
+  const executor = processExecutor({
+    stateDirectory,
+    projectFor: () => ({ harness: "fake-cli" }),
+  });
+  const id = await executor.start(
+    "worker",
+    "1.1",
+    worktree,
+    "ENV:FAKE_CLI_TMP",
+    null,
+    "write",
+  );
+  await until(async () => {
+    supervisor.pass();
+    return (await executor.status(id)) !== "working";
+  });
+  const tmp = path.join(os.tmpdir(), `avoozl-${id}`);
+  assert.equal(
+    fs.readFileSync(path.join(worktree, "env.txt"), "utf8"),
+    `${tmp}|${tmp}`,
   );
 });
 
@@ -136,6 +177,9 @@ if (result) {
   fs.mkdirSync(".avoozl", { recursive: true });
   fs.writeFileSync(".avoozl/result.json", result[1]);
 }
+// ENV:<name> writes that variable and TMPDIR to env.txt.
+const env = /ENV:(\\S+)/.exec(text);
+if (env) fs.writeFileSync("env.txt", process.env[env[1]] + "|" + process.env.TMPDIR);
 const code = Number(/EXIT:(\\d+)/.exec(text)?.[1] ?? 0);
 if (wait) {
   const timer = setInterval(() => {

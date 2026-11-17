@@ -43,6 +43,7 @@ const KEYS = new Set([
   "model",
   "promptFrom",
   "keepEnv",
+  "tmpEnv",
 ]);
 // Variables a harness may keep to sign in to its own provider. Never a
 // GitHub, git, SSH, Kiro Crew or Avoozl name: those stay out of a child.
@@ -64,9 +65,10 @@ const SHELLS = new Set([
 ]);
 // Text around a placeholder: plain flag and path characters only, so a
 // placeholder can never sit inside a shell operator or substitution.
-// Parentheses are kept for tool patterns such as `Bash({command})`; no shell
-// ever reads an argv, and `$` and backticks stay refused.
-const PLACEHOLDER_NEIGHBOR = /^[A-Za-z0-9_.=:/@+,()-]*$/;
+// Parentheses are kept for tool patterns such as `Bash({command})`, and `*`
+// for a prefix rule such as Claude Code's `Bash({command}:*)`; no shell ever
+// reads an argv, and `$` and backticks stay refused.
+const PLACEHOLDER_NEIGHBOR = /^[A-Za-z0-9_.=:/@+,()*-]*$/;
 // Permission-skipping values. 47.2 adds the per-role permission classes; the
 // refusal itself holds from the first loader so no definition can carry one.
 const SKIP_VALUES = ["bypassPermissions", "danger-full-access"];
@@ -198,6 +200,24 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
         );
     definition.keepEnv = Object.freeze([...value.keepEnv]);
   }
+  // Variables the supervisor sets to the session's own temp folder, besides
+  // TMPDIR: a CLI that keeps its scratch files elsewhere by default (Claude
+  // Code's Bash tool uses /tmp/claude-<uid>) would write outside its roots.
+  if (value.tmpEnv !== undefined) {
+    if (!Array.isArray(value.tmpEnv))
+      fail(`${source}: tmpEnv must be a list of variable names.`);
+    for (const name of value.tmpEnv)
+      if (
+        typeof name !== "string" ||
+        !KEEP_NAME.test(name) ||
+        NEVER_KEPT.test(name) ||
+        /^(PATH|HOME)$/.test(name)
+      )
+        fail(
+          `${source}: tmpEnv holds ${JSON.stringify(name)}; name only the CLI's own temp-folder variables.`,
+        );
+    definition.tmpEnv = Object.freeze([...value.tmpEnv]);
+  }
   if (value.spendCap !== undefined)
     definition.spendCap = argv(value.spendCap, "spendCap", source, {
       command: false,
@@ -290,7 +310,7 @@ export function approveHarnessDefinition({ configDirectory, name, hash }) {
 
 // Fill a validated argv list. Every placeholder used must have a value;
 // a list value (cache dirs, allow commands) expands to one argument per
-// item, keeping the text around it (`Bash({project_allow_commands})`), and
+// item, keeping the text around it (`Bash({project_allow_commands}:*)`), and
 // is refused next to a second placeholder.
 export function fillHarnessArgv(list, values) {
   return list.flatMap((item) => {
