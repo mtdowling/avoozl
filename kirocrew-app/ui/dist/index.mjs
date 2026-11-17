@@ -40326,8 +40326,12 @@ function sD() {
 			tab: "trace",
 			focus: null,
 			drill: null
-		}, { [es]: e }) : Qs(window.location.search) && V({
+		}, { [es]: e }) : Qs(window.location.search) ? V({
 			tab: "graph",
+			focus: null,
+			drill: null
+		}) : wc(window.location.search) && V({
+			tab: "plans",
 			focus: null,
 			drill: null
 		});
