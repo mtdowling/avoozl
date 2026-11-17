@@ -1542,7 +1542,7 @@ the scratch safety proof, with owner minutes, credits and wall-clock per task.
 
 - [ ] 41.4 Conflicts go back to the same chat, bounded; remove the resolver chat, after 41.3 [R87.6] (§4.26)
   - The conflicted file list in the brief; `landing.conflictRounds` default 2; then Needs you; `avoozl-conflict-fix` removed.
-- [ ] 41.5 Prepare from spec working heads and merge landed bases back, after 41.3 [R87.7, R102.6, R102.15] (§4.32)
+- [x] 41.5 Prepare from spec working heads and merge landed bases back, after 41.3 [R87.7, R102.6, R102.15] (§4.32)
   - Generalize RC16 from epic-only integration; Prepare and qualified-ref resolution agree on the exact spec base. Merge the landed target back with a merge commit; preserve verified but unlanded portions and unfinished task refs.
 
 - [ ] 41.6 Restore the Delivery page, Settings › Budgets and the Files and diff view, after 41.3 [R88.7] (§4.26)
