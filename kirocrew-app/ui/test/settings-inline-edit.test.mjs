@@ -75,27 +75,6 @@ for (const width of [1280, 390]) {
     assert.deepEqual(page.errors, [])
   })
 
-  test(`Budgets edits every level in place at ${width} px; one Save writes each changed level`, { skip }, async () => {
-    await openPage('Budgets', width)
-    await page.until(`Boolean(document.getElementById('budget-workspace-usd'))`)
-    assert.equal(await footer(), false)
-    await set('#budget-workspace-usd', '-3')
-    await page.until(`Boolean(document.querySelector('[data-save-problem]'))`)
-    assert.match(await page.evaluate(`document.querySelector('[data-save-problem]').textContent`), /Dollar cap/)
-    await set('#budget-workspace-usd', '9')
-    await set('#budget-recipe-box-usd', '12')
-    await page.until(`Boolean(document.querySelector('[data-save-footer] [data-save]:not([disabled])'))`)
-    await press('Save')
-    await page.until(`window.__writes.length === 2`)
-    const calls = await writes()
-    assert.deepEqual(calls.map((c) => [c.operation, c.input.repository ?? null, c.input.budget.usd, c.input.expectedHash]), [
-      ['budget.settings.update', null, 9, 'h1'],
-      ['budget.settings.update', 'recipe-box', 12, 'h2'],
-    ])
-    await page.until(`!document.querySelector('[data-save-footer] [data-save]')`)
-    assert.deepEqual(page.errors, [])
-  })
-
   test(`Flow edits in place at ${width} px and Save persists`, { skip }, async () => {
     await openPage('Flow', width)
     await page.until(`Boolean(document.getElementById('avoozl-flow-max'))`)

@@ -36,7 +36,6 @@ const example = () => ({
   writeRoots: ["{worktree}", "{tmp}", "{project_cache_dirs}"],
   allow: ["{project_allow_commands}"],
   cost: { from: "output", field: "total_cost_usd" },
-  spendCap: ["--max-cost", "{budget_usd}"],
 });
 
 function machine(t) {
@@ -126,11 +125,14 @@ test("loading refuses unknown placeholders and stray braces", () => {
       () => parseHarnessDefinition({ ...example(), start }),
       pattern,
     );
-  assert.throws(
-    () =>
-      parseHarnessDefinition({ ...example(), spendCap: ["--max", "{cap}"] }),
-    /unknown placeholder \{cap\}/,
-  );
+});
+
+test("an old spendCap key loads and is ignored", () => {
+  const definition = parseHarnessDefinition({
+    ...example(),
+    spendCap: ["--max-cost", "{budget_usd}"],
+  });
+  assert.equal(definition.spendCap, undefined);
 });
 
 test("loading refuses permission-skipping values", () => {
