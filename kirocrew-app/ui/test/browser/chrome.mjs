@@ -126,6 +126,17 @@ export async function launch(chrome) {
       async click(x, y) {
         for (const type of ['mousePressed', 'mouseReleased']) await call('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 })
       },
+      // Press at (x, y), move to (toX, y) in steps, release there.
+      async drag(x, y, toX, steps = 8) {
+        await call('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
+        await call('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 })
+        for (let i = 1; i <= steps; i++) await call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x + ((toX - x) * i) / steps, y, button: 'left', buttons: 1 })
+        await call('Input.dispatchMouseEvent', { type: 'mouseReleased', x: toX, y, button: 'left', buttons: 0, clickCount: 1 })
+      },
+      async doubleClick(x, y) {
+        for (const clickCount of [1, 2])
+          for (const type of ['mousePressed', 'mouseReleased']) await call('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount })
+      },
       // A finger tap: pointer events with pointerType touch.
       async tap(x, y) {
         await call('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
