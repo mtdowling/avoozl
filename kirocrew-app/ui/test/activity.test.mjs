@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { ACTIVITY_FILTER_STORE, filterActive, filterOptions, retentionInput, rowTarget } from '../src/activity-api.ts'
+import { ACTIVITY_FILTER_STORE, filterActive, filterChoices, retentionInput, rowTarget } from '../src/activity-api.ts'
 import { PAGE } from '../src/paging.ts'
 
 const src = new URL('../src/', import.meta.url)
@@ -18,17 +18,19 @@ test('a task row opens the drawer, a GitHub row opens its https link, anything e
   assert.equal(rowTarget(row({ targetId: 'gone' })), null)
 })
 
-test('filter choices come from the log and keep the one in use', () => {
-  const page = { items: [], total: 0, sources: ['github', 'local'], kinds: ['dispatch'], actors: ['owner'], retentionDays: 30 }
-  const options = filterOptions(page, { kind: 'github.close' })
+test('filter choices come from the log with their counts, and keep the one in use', () => {
+  const page = { items: [], total: 0, sources: ['github', 'local'], kinds: ['dispatch'], actors: ['owner'], counts: { source: { github: 2, local: 5 }, kind: { dispatch: 7 } }, retentionDays: 30 }
+  const choices = filterChoices(page, { kind: 'github.close' })
   assert.deepEqual(
-    options.sources.map((o) => o.label),
-    ['All', 'GitHub', 'This workspace'],
+    choices.sources.map((o) => [o.label, o.count]),
+    [['GitHub', 2], ['This workspace', 5]],
   )
   assert.deepEqual(
-    options.kinds.map((o) => o.value),
-    ['', 'dispatch', 'github.close'],
+    choices.kinds.map((o) => [o.value, o.count]),
+    [['dispatch', 7], ['github.close', 0]],
   )
+  // An older app sends no counts: each choice counts 0, and still shows.
+  assert.deepEqual(filterChoices({ ...page, counts: undefined }, {}).actors, [{ value: 'owner', label: 'owner', count: 0 }])
   assert.equal(filterActive({}), false)
   assert.equal(filterActive({ actor: 'owner' }), true)
   const store = new Map()
@@ -54,9 +56,12 @@ test('the tab: its own nav entry and icon, the shared heading, filter panel and 
   // Refresh is on the top line beside pause, as on Home (page-refresh.tsx).
   assert.match(view, /usePublishRefresh\(useRefreshCountdown\(workspaceId,/)
   // The filters and Keep activity sit in the left nav, under Activity.
-  assert.match(view, /<NavSlotFor section="activity">\s*<NavFilters\s+id="avoozl-activity"/)
-  assert.match(view, /extra=\{workspaceId \? <KeepActivity /)
-  for (const key of ['source', 'kind', 'actor']) assert.match(view, new RegExp(`key: '${key}'`), key)
+  // As rows and chips like the Specs rail: no dropdowns.
+  assert.match(view, /<NavSlotFor section="activity">\s*<div role="search" aria-label="Filter activity" data-nav-filters="avoozl-activity"/)
+  assert.doesNotMatch(view, /<select|kind: 'select'|NavFilters/)
+  assert.match(view, /<RailChips id="kinds"[^>]*picked=\{filter\.kind\}/)
+  assert.match(view, /<RailChips id="people"[^>]*picked=\{filter\.actor\}/)
+  assert.match(view, /<RailBlock id="keep" icon=\{Clock\} title="Keep activity">\s*<KeepActivity /)
   assert.match(view, /<ShowMore left=\{page\.total - rows\.length\}/)
   assert.equal(PAGE, 100)
   // GitHub opens in a new tab with no opener; a task opens the drawer.
