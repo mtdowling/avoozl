@@ -3,6 +3,7 @@
 // and the place it keeps in the page address. No JSX, so node tests it.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
+import { urlBase } from './focus-tree.ts'
 
 export type FindingSeverity = 'info' | 'warn' | 'blocker'
 export type FindingState = 'open' | 'fixed' | 'answered' | 'for you' | 'accepted' | 'rejected' | 'deferred' | 'resolved'
@@ -148,6 +149,14 @@ export function reviewLink(place: ReviewPlace): string {
     if (value) query.set(key, value)
   }
   return '?' + query.toString()
+}
+
+// An Approve dialog's Open review: the view at that revision on Kiro Crew's
+// app route, or null off it (a popout or test page), where the dialog opens
+// the view without an address.
+export function reviewHref(pathname: string, plan: string, rev: string): string | null {
+  const base = urlBase(pathname)
+  return base ? base + reviewLink({ plan, rev, file: null, severity: null, state: null }) : null
 }
 
 // The findings the filters show, in line order, and the counts each chip shows: a chip's

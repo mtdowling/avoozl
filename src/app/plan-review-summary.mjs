@@ -24,6 +24,7 @@ export function planReviewSummary(store, planId) {
   if (!latest)
     return {
       state: "not-reviewed",
+      planHash: plan.hash,
       reviewerModel: null,
       revisionHash: null,
       current: false,
@@ -63,6 +64,9 @@ export function planReviewSummary(store, planId) {
   }
   return {
     state: latest.state,
+    // The stored revision now. An open Approve dialog compares it with the
+    // one on screen and updates in place when it moves (R104.13).
+    planHash: plan.hash,
     reviewerModel: latest.reviewerModel,
     writerModel: latest.writerModel ?? null,
     revisionHash: latest.revisionHash,

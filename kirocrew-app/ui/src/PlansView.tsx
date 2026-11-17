@@ -34,9 +34,9 @@ import { ListDetailLayout } from './ListDetailLayout.tsx'
 import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './Modal.tsx'
-import { PlanReviewSummary } from './PlanReviewSummary.tsx'
+import { PlanReviewSummary, REVIEW_POLL_MS, RevisionChanged } from './PlanReviewSummary.tsx'
 import { ReviewView } from './ReviewView.tsx'
-import { parseReviewLink, reviewClient, reviewLink, type ReviewPlace } from './review-view.ts'
+import { parseReviewLink, reviewClient, reviewHref, reviewLink, type ReviewPlace } from './review-view.ts'
 import { urlBase } from './focus-tree.ts'
 import { DiffBlock } from './FlowMemory.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
@@ -76,7 +76,10 @@ import {
   rowChoices,
   shortHash,
   baseRevision,
+  revisionChange,
   revisionDiff,
+  type PlanReviewSummary as ReviewSummary,
+  type RevisionChange,
   writesByRepository,
   type PlanListFilter,
   SORT_FIRST,
@@ -1464,42 +1467,67 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
   )
 }
 
+// While an Approve dialog is open, run `read` now and every REVIEW_POLL_MS.
+// It reads Avoozl's own database only, never GitHub. A read still running
+// skips the next tick.
+function useOpenDialogReads(read: () => Promise<unknown>) {
+  const latest = useRef(read)
+  latest.current = read
+  useEffect(() => {
+    let running = false
+    const tick = () => {
+      if (running) return
+      running = true
+      latest.current().catch(() => undefined).finally(() => { running = false })
+    }
+    tick()
+    const timer = setInterval(tick, REVIEW_POLL_MS)
+    return () => clearInterval(timer)
+  }, [])
+}
+
 // Approve one exact revision after showing its independent review evidence.
-export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; client: PlansClient; onDone: (text: string | null) => void }) {
+export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; client: PlansClient; onDone: (text: string | null) => void; onOpenReview?: (planId: string, rev: string) => void }) {
   const { client, workspaceId } = props
-  // The plan can move while the dialog is open (the planner answers a
-  // review); Approve always targets the revision shown here.
+  // The plan can move while the dialog is open (the planner writes a
+  // revision). The dialog updates in place, and Approve always targets the
+  // revision shown here (R104.13).
   const [plan, setPlan] = useState(props.plan)
-  const [moved, setMoved] = useState(false)
+  const [change, setChange] = useState<RevisionChange | null>(null)
   const [review, setReview] = useState(plan.review)
   const [showDiff, setShowDiff] = useState(false)
   const base = baseRevision(plan)
   const diffs = showDiff && base ? revisionDiff(base.files, plan.files) : []
-  // Re-read Avoozl's stored review (no GitHub call). When it settles, reload
-  // the plan too, so a revision the planner wrote meanwhile is the one shown.
-  const refresh = async () => {
-    const next = await client.reviewSummary(workspaceId, plan.id)
-    if (next) setReview(next)
-    if (next && next.state !== 'running') {
-      const fresh = await client.get(workspaceId, plan.id)
-      if (fresh.hash !== plan.hash) { setPlan(fresh); setMoved(true); setShowDiff(false) }
-    }
-    return next
-  }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<{ repository: string; number: number } | null>(null)
-  useEffect(() => {
-    let live = true
-    client.reviewSummary(workspaceId, plan.id).then((value) => live && setReview(value), () => undefined)
-    return () => { live = false }
-  }, [client, workspaceId, plan.id])
+  const shown = useRef({ plan, review })
+  shown.current = { plan, review }
+  // Swap to the stored revision when it moved from the one on screen. The
+  // Approve button resets, so approving it takes a new click.
+  const update = async () => {
+    const [fresh, next] = await Promise.all([client.get(workspaceId, plan.id), client.reviewSummary(workspaceId, plan.id)])
+    const was = shown.current
+    if (fresh.hash !== was.plan.hash) {
+      setChange(revisionChange({ hash: was.plan.hash, files: was.plan.files, review: was.review }, { hash: fresh.hash, files: fresh.files, review: next }))
+      setPlan(fresh)
+      setShowDiff(false)
+      setError(null)
+    }
+    if (next) setReview(next)
+  }
+  useOpenDialogReads(async () => {
+    const next = await client.reviewSummary(workspaceId, plan.id)
+    if (next?.planHash && next.planHash !== shown.current.plan.hash) await update()
+    else if (next) setReview(next)
+  })
   const run = async () => {
     setBusy(true)
     setError(null)
     try {
       const result = await client.approve(workspaceId, plan.id, plan.hash)
-      if (result.pending && result.approvalPullRequest) setPending(result.approvalPullRequest)
+      if ('changed' in result) await update()
+      else if (result.pending && result.approvalPullRequest) setPending(result.approvalPullRequest)
       else props.onDone(`Approved ${plan.spec || plan.title}.`)
     } catch (caught) { setError(errorMessage(caught)) }
     finally { setBusy(false) }
@@ -1521,7 +1549,7 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
           ) : <Tooltip text={plan.hash}><code>{shortHash(plan.hash)}</code></Tooltip>}
           . Review findings are evidence for your decision; they do not block approval.
         </p>
-        {moved && <p role="status" className="m-0" data-revision-moved>The spec changed while it was reviewed. Approve now targets revision <code>{shortHash(plan.hash)}</code>.</p>}
+        {change && <RevisionChanged change={change} />}
         {showDiff && base && (
           <section data-revision-diff className="flex flex-col gap-2">
             <p className="m-0 text-xs text-muted">Changes since {base.approved ? 'approved' : 'previous'} revision <code>{shortHash(base.hash)}</code></p>
@@ -1533,7 +1561,7 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
             )) : <p className="m-0 text-muted">No file changed.</p>}
           </section>
         )}
-        <PlanReviewSummary key={`${workspaceId}:${plan.id}:${plan.hash}`} review={review} onStart={() => client.reviewAnyway(workspaceId, plan.id, plan.hash)} onRefresh={refresh} onClose={async (id, disposition) => { await client.closeReviewFinding(workspaceId, id, disposition); return client.reviewSummary(workspaceId, plan.id) }} />
+        <PlanReviewSummary key={`${workspaceId}:${plan.id}:${plan.hash}`} review={review} onStart={() => client.reviewAnyway(workspaceId, plan.id, plan.hash)} reviewHref={reviewHref(window.location.pathname, plan.id, plan.hash)} onOpenReview={props.onOpenReview && (() => props.onOpenReview!(plan.id, plan.hash))} />
         {error && <p role="alert" className="m-0 text-danger">{error}</p>}
         {pending && <p role="status" className="m-0">Nothing approved yet. Merge <a className="underline" href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">{pending.repository}#{pending.number}</a>, then approve again.</p>}
       </div>
@@ -1542,14 +1570,21 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
 }
 
 // Approve N specs: the exact revisions listed, together, all or none.
-export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchEntry[]; client: PlansClient; onDone: (text: string | null) => void }) {
-  const { entries } = props
+export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchEntry[]; client: PlansClient; onDone: (text: string | null) => void; onOpenReview?: (planId: string, rev: string) => void }) {
+  // Each spec can move while the dialog is open; that entry updates in place
+  // and Approve sends the revisions on screen (R104.13).
+  const [entries, setEntries] = useState(props.entries)
+  const [reviews, setReviews] = useState<Record<string, ReviewSummary | null>>({})
+  const [changes, setChanges] = useState<Record<string, RevisionChange>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ApproveManyResult | null>(null)
   // Each spec's issue writes, from a scratch approval. Writes nothing.
   const [selection, setSelection] = useState<BatchSelection | null>(null)
   const phone = usePhone()
+  const shown = useRef({ entries, reviews, selection })
+  shown.current = { entries, reviews, selection }
+  const reviewOf = (entry: BatchEntry) => reviews[entry.id] ?? selection?.specs.find((spec) => spec.id === entry.id)?.review ?? entry.review
   useEffect(() => {
     let live = true
     props.client.selection(props.workspaceId, entries.map((entry) => entry.id)).then(
@@ -1559,9 +1594,45 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
     return () => {
       live = false
     }
-    // The entries are fixed while the dialog is open.
+    // Read once on open; a moved spec reads it again in update().
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  // Swap each moved spec to its stored revision, with what changed. The
+  // Approve button resets, so approving takes a new click.
+  const update = async (ids: string[], next: Record<string, ReviewSummary | null>) => {
+    const was = shown.current
+    const [picked, ...fresh] = await Promise.all([
+      props.client.selection(props.workspaceId, was.entries.map((entry) => entry.id)).catch(() => null),
+      ...ids.map((id) => props.client.get(props.workspaceId, id)),
+    ])
+    const moved: Record<string, RevisionChange> = {}
+    const byId = new Map(fresh.map((plan) => [plan.id, plan]))
+    for (const entry of was.entries) {
+      const plan = byId.get(entry.id)
+      if (!plan || plan.hash === entry.hash) continue
+      const before = plan.history?.find((revision) => revision.hash === entry.hash)?.files
+      moved[entry.id] = revisionChange({ hash: entry.hash, files: before, review: was.reviews[entry.id] ?? entry.review }, { hash: plan.hash, files: plan.files, review: next[entry.id] })
+    }
+    if (picked) setSelection(picked)
+    setEntries((list) => list.map((entry) => {
+      const plan = byId.get(entry.id)
+      if (!plan || !moved[entry.id]) return entry
+      const listed = picked?.specs.find((spec) => spec.id === entry.id)
+      return { ...entry, ...(listed ?? {}), hash: plan.hash }
+    }))
+    setChanges((all) => ({ ...all, ...moved }))
+    if (Object.keys(moved).length) { setResult(null); setError(null) }
+  }
+  // Re-read each spec's stored review; returns the specs whose revision moved.
+  const read = async () => {
+    const was = shown.current.entries
+    const next = Object.fromEntries(await Promise.all(was.map(async (entry) => [entry.id, await props.client.reviewSummary(props.workspaceId, entry.id).catch(() => null)] as const)))
+    const ids = was.filter((entry) => next[entry.id]?.planHash && next[entry.id]!.planHash !== entry.hash).map((entry) => entry.id)
+    if (ids.length) await update(ids, next)
+    setReviews((all) => ({ ...all, ...Object.fromEntries(Object.entries(next).filter(([, value]) => value)) }))
+    return ids
+  }
+  useOpenDialogReads(read)
   const missing = missingOwners(entries)
   const tasks = entries.reduce((sum, entry) => sum + entry.tasks, 0)
   const label = `Approve ${entries.length} ${entries.length === 1 ? 'spec' : 'specs'}`
@@ -1574,7 +1645,11 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
         entries.map((entry) => ({ id: entry.id, expectedHash: entry.hash })),
       )
       if (done.ok) props.onDone(`Approved ${entries.length} ${entries.length === 1 ? 'spec' : 'specs'}.`)
-      else setResult(done)
+      // A spec that moved shows its update instead of an error. A move
+      // between that check and the call reads the same way; any other
+      // refusal fails the batch as before.
+      else if (done.changed?.length) await read()
+      else if (done.pending || !(await read()).length) setResult(done)
     } catch (caught) {
       setError(errorMessage(caught))
     } finally {
@@ -1643,7 +1718,8 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
         {entries.map((entry) => (
           <section key={entry.id} data-approve-review={entry.id} className="flex min-w-0 flex-col gap-2 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
             <h3 className="m-0 text-sm font-medium">{entry.spec}</h3>
-            <PlanReviewSummary key={`${props.workspaceId}:${entry.id}:${entry.hash}`} onStart={() => props.client.reviewAnyway(props.workspaceId, entry.id, entry.hash)} onRefresh={() => props.client.reviewSummary(props.workspaceId, entry.id)} review={selection?.specs.find((spec) => spec.id === entry.id)?.review ?? entry.review} onClose={async (id, disposition) => { await props.client.closeReviewFinding(props.workspaceId, id, disposition); return props.client.reviewSummary(props.workspaceId, entry.id) }} />
+            {changes[entry.id] && <RevisionChanged change={changes[entry.id]} />}
+            <PlanReviewSummary key={`${props.workspaceId}:${entry.id}:${entry.hash}`} onStart={() => props.client.reviewAnyway(props.workspaceId, entry.id, entry.hash)} review={reviewOf(entry)} reviewHref={reviewHref(window.location.pathname, entry.id, entry.hash)} onOpenReview={props.onOpenReview && (() => props.onOpenReview!(entry.id, entry.hash))} />
           </section>
         ))}
       </div>
@@ -1805,6 +1881,13 @@ export default function PlansView(props: {
     }
   }
   const reviewing = review && row?.planId === review.plan ? review : null
+  // An Approve dialog's Open review: the spec's Review view at the revision
+  // the dialog showed. The caller closes the dialog.
+  const openReview = (planId: string, rev: string) => {
+    const found = table?.items.find((item) => item.planId === planId)
+    if (found) setSelected(found.key)
+    placeReview({ plan: planId, rev, file: null, severity: null, state: null })
+  }
   // Who drives the open spec (§6.10): the chip, banner and Hand off.
   const driver = useDriver(workspace, row?.planId ?? null)
   const spec: SpecSummary | null = row?.spec ? (table?.specs.find((item) => item.name === row.spec) ?? null) : null
@@ -1915,7 +1998,7 @@ export default function PlansView(props: {
   return (
     <section aria-labelledby="avoozl-plans-title" className="flex flex-col gap-3.5">
       {singleApproval && singleApproval.workspaceId === workspace && (
-        <ApproveSpecDialog workspaceId={singleApproval.workspaceId} plan={singleApproval.plan} client={plans} onDone={(text) => {
+        <ApproveSpecDialog workspaceId={singleApproval.workspaceId} plan={singleApproval.plan} client={plans} onOpenReview={(planId, rev) => { setSingleApproval(null); openReview(planId, rev) }} onDone={(text) => {
           if (shownWorkspace.current !== singleApproval.workspaceId) return
           setSingleApproval(null)
           if (text === null) return
@@ -1957,6 +2040,7 @@ export default function PlansView(props: {
           workspaceId={approving.workspaceId}
           entries={approving.entries}
           client={plans}
+          onOpenReview={(planId, rev) => { setApproving(null); openReview(planId, rev) }}
           onDone={(text) => {
             if (shownWorkspace.current !== approving.workspaceId) return
             setApproving(null)

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { SmallBtn } from './controls.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { Hourglass } from './icons.ts'
 import { errorMessage } from './workspace-api.ts'
-import { shortHash, type PlanReviewSummary as Summary, type ReviewDisposition } from './plans-api.ts'
+import { linkHref } from './views-api.ts'
+import { reviewCounts, shortHash, type PlanReviewSummary as Summary, type RevisionChange } from './plans-api.ts'
 
 export function reviewStateLabel(review?: Summary | null): string {
   if (!review || review.state === 'not-reviewed') return 'Not reviewed'
@@ -55,44 +56,24 @@ function Note(props: { children: ReactNode }) {
   )
 }
 
-// Both approval dialogs use the same evidence. Closing a finding is separate
-// from approving a plan and never controls the Approve button.
+// Both approval dialogs use the same evidence: counts by severity and by
+// state and a link to the Review view, where findings are read and decided
+// (R104.12). Nothing here closes a finding or controls the Approve button.
+// The dialog owns the re-read; this draws what it was given.
 export const REVIEW_POLL_MS = 3000
 
-export function PlanReviewSummary(props: { review?: Summary | null; onStart?: () => Promise<unknown>; onRefresh?: () => Promise<Summary | null>; onClose: (id: string, disposition: ReviewDisposition) => Promise<Summary | null> }) {
-  const [review, setReview] = useState(props.review)
+export function PlanReviewSummary(props: { review?: Summary | null; onStart?: () => Promise<unknown>; reviewHref?: string | null; onOpenReview?: () => void }) {
+  const review = props.review
+  const href = linkHref(props.reviewHref)
   const [queued, setQueued] = useState(false)
   const [starting, setStarting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const start = async () => {
     setStarting(true)
     setError(null)
     try { await props.onStart?.(); setQueued(true) }
     catch (caught) { setError(errorMessage(caught)) }
     finally { setStarting(false) }
-  }
-  const [closing, setClosing] = useState<string | null>(null)
-  const [choices, setChoices] = useState<Record<string, ReviewDisposition>>({})
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => setReview(props.review), [props.review])
-  // A running review settles in Avoozl's own store; re-read it (no GitHub
-  // call) until it leaves running, and swap the findings in place.
-  const running = review?.state === 'running'
-  const refresh = useRef(props.onRefresh)
-  refresh.current = props.onRefresh
-  useEffect(() => {
-    if (!running) return
-    let live = true
-    const timer = setInterval(() => {
-      refresh.current?.().then((next) => { if (live && next) setReview(next) }).catch(() => undefined)
-    }, REVIEW_POLL_MS)
-    return () => { live = false; clearInterval(timer) }
-  }, [running])
-  const close = async (id: string) => {
-    setClosing(id)
-    setError(null)
-    try { setReview(await props.onClose(id, choices[id] ?? 'resolved')) }
-    catch (caught) { setError(errorMessage(caught)) }
-    finally { setClosing(null) }
   }
   return (
     <div data-plan-review className="flex min-w-0 flex-col gap-2 text-sm" style={{ overflowWrap: 'anywhere' }}>
@@ -122,25 +103,33 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
       <section data-review-status className="flex flex-col gap-2 rounded border p-3" style={BOX}>
         {review?.state === 'running' ? <ReviewWorking model={review.reviewerModel} /> : <p className="m-0 font-medium" data-plan-review-state>{reviewStateLabel(review)}</p>}
         {queued && <p role="status" className="m-0">Review queued for this revision.</p>}
-        <p className="m-0" data-review-counts>{review?.found ?? 0} found · {review?.fixed ?? 0} fixed · {review?.forYou ?? 0} for you</p>
+        <p className="m-0" data-review-counts>{reviewCounts(review)}</p>
+        {review?.revisionHash && (href || props.onOpenReview) && (
+          href
+            ? <a href={linkHref(href)} className="self-start underline" data-open-review onClick={(event) => { if (!props.onOpenReview) return; event.preventDefault(); props.onOpenReview() }}>Open review</a>
+            : <button type="button" className="self-start underline" style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }} data-open-review onClick={props.onOpenReview}>Open review</button>
+        )}
       </section>
-      {(review?.open ?? []).map((finding) => (
-        <article key={finding.id} data-review-finding={finding.id} className="flex flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
-          <p className="m-0 text-xs text-muted"><code>{finding.file}:{finding.line}</code> · {finding.kind} · {finding.severity}{!finding.current && ' · older revision'}</p>
-          <p className="m-0 font-medium">{finding.claim}</p>
-          <p className="m-0 whitespace-pre-wrap text-muted">Evidence: {finding.evidence}</p>
-          <p className="m-0 whitespace-pre-wrap">
-            {finding.answer ? <>Planner: {finding.answer.action === 'fixed' ? <>Fixed in <code>{shortHash(finding.answer.revisionHash)}</code>.</> : 'Answered.'} {finding.answer.text}</> : 'Planner has not answered.'}
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <select aria-label={`Close finding ${finding.id} as`} value={choices[finding.id] ?? 'resolved'} onChange={(event) => setChoices({ ...choices, [finding.id]: event.target.value as ReviewDisposition })}>
-              <option value="resolved">Resolved</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option><option value="deferred">Deferred</option>
-            </select>
-            <SmallBtn disabled={closing !== null} onClick={() => void close(finding.id)} attrs={{ 'data-close-review': finding.id }}>Close finding</SmallBtn>
-          </div>
-        </article>
-      ))}
       {error && <p role="alert" className="m-0 text-danger">{error}</p>}
     </div>
+  )
+}
+
+// What moved while the dialog was open: both hashes, each changed file with
+// lines added and removed, and findings the new revision fixed or moved.
+export function RevisionChanged(props: { change: RevisionChange }) {
+  const { change } = props
+  return (
+    <section role="status" data-revision-moved className="flex flex-col gap-1 rounded border p-3 text-sm" style={{ borderColor: 'color-mix(in srgb, var(--info, var(--accent)) 40%, transparent)', background: 'color-mix(in srgb, var(--info, var(--accent)) 8%, transparent)', overflowWrap: 'anywhere' }}>
+      <p className="m-0 font-medium">Changed while open: <Tooltip text={change.from}><code>{shortHash(change.from)}</code></Tooltip> → <Tooltip text={change.to}><code>{shortHash(change.to)}</code></Tooltip></p>
+      {change.files.length > 0 && (
+        <ul className="m-0 flex flex-col pl-5" style={{ listStyle: 'disc' }} data-revision-moved-files>
+          {change.files.map((file) => <li key={file.file}><code>{file.file}</code> <span style={file.added ? { color: 'var(--success, var(--text))' } : undefined}>+{file.added}</span> <span style={file.removed ? { color: 'var(--danger)' } : undefined}>−{file.removed}</span></li>)}
+        </ul>
+      )}
+      {change.fixed.length > 0 && <p className="m-0" data-revision-moved-fixed>Now fixed: {change.fixed.map((finding) => finding.claim).join(' · ')}</p>}
+      {change.moved.length > 0 && <p className="m-0" data-revision-moved-anchors>Moved or removed: {change.moved.map((finding) => finding.claim).join(' · ')}</p>}
+      <p className="m-0 text-muted">Approve now applies to <code>{shortHash(change.to)}</code>. Press it again to approve this revision.</p>
+    </section>
   )
 }
