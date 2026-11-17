@@ -77,9 +77,6 @@ function InstanceModal(props: { workspaceId: string; onClose: () => void }) {
       onDismiss={props.onClose}
       footer={
         <>
-          <Btn type="button" onClick={props.onClose}>
-            Cancel
-          </Btn>
           <Btn type="submit" form="avoozl-instance-form" primary disabled={!ok}>
             Save
           </Btn>

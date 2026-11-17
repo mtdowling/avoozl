@@ -28,7 +28,6 @@ import {
 import { bindSession, recordSessionStatus } from "../session-bindings.mjs";
 import { commitWorkerChanges, git } from "../git.mjs";
 import { sessionStartHold } from "../session-request-eligibility.mjs";
-import { spendCapUsd } from "../budget.mjs";
 import { healthContext, providerOf } from "../provider-health.mjs";
 import { taskRepository } from "../../work-model.mjs";
 
@@ -53,13 +52,11 @@ function withDatabase(stateDirectory, use) {
 
 // `projectFor(task)` names the task's project record, whose `harness` and
 // `sandbox` ({writeRoots, allowCommands, network}) shape the child.
-// `budgetFor(task, role)` gives the dollars left on the task's cap, or null,
-// which fills the harness's spend cap (R94.6). `harnessFor(task, role)` names
-// the harness a request asked for (R98.3, R98.4), or null for the project's.
+// `harnessFor(task, role)` names the harness a request asked for (R98.3,
+// R98.4), or null for the project's.
 export function processExecutor({
   stateDirectory,
   projectFor = () => null,
-  budgetFor = () => null,
   harnessFor = () => null,
 }) {
   return createExecutor({
@@ -68,7 +65,6 @@ export function processExecutor({
       const project = projectFor(task, worktree) ?? {};
       const sandbox = project.sandbox ?? {};
       const sessionId = `process-${randomUUID()}`;
-      const budget = budgetFor(task, role);
       return withDatabase(stateDirectory, (db) =>
         requestChild(db, {
           executor: PROCESS_EXECUTOR,
@@ -85,12 +81,6 @@ export function processExecutor({
             // checkouts and outside the state folder the child cannot reach.
             tmp: path.join(os.tmpdir(), `avoozl-${sessionId}`),
             project_cache_dirs: sandbox.writeRoots ?? [],
-            // shortcut: set once at start; a resume reuses it, so a resumed
-            // round may spend up to it again. Avoozl's own budget stop
-            // (R67) still holds the task at its cap.
-            ...(typeof budget === "number"
-              ? { budget_usd: budget.toFixed(2) }
-              : {}),
           },
           allowCommands: sandbox.allowCommands,
           network: sandbox.network,
@@ -333,12 +323,7 @@ export async function drainProcessRequests(
       request.harness ??
       sessionProject(store, request)?.harness ??
       DEFAULT_HARNESS;
-    return (
-      planQuotaHold(health, { model: request.model, harness }) ??
-      (spendCapUsd(store, request.task, request.role) === 0
-        ? "The task budget is spent."
-        : null)
-    );
+    return planQuotaHold(health, { model: request.model, harness });
   };
   for (const pending of pendingSessionRequests(store, PROCESS_EXECUTOR)) {
     const taken = takeSessionRequest(store, pending, {
@@ -396,7 +381,6 @@ export async function drainProcessRequests(
         sessionId = await processExecutor({
           stateDirectory,
           projectFor: () => project,
-          budgetFor: (taskId, role) => spendCapUsd(store, taskId, role),
           // The harness the request names (R98.3, R98.4), else the project's.
           harnessFor: () => request.harness ?? null,
         }).start(

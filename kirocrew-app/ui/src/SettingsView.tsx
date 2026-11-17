@@ -71,7 +71,6 @@ import MirrorSetup from './MirrorSetup.tsx'
 import { RetiredBanner } from './SettingsSlots.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
-import { BudgetSettings } from './BudgetSettings.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
@@ -109,7 +108,6 @@ export const SETTINGS_TABS = [
   { key: 'models', label: 'Models' },
   // Who merges (delivery.ship) is read for Radar pull requests too.
   { key: 'delivery', label: 'Delivery' },
-  { key: 'budgets', label: 'Budgets' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
@@ -129,8 +127,6 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   models: "The harness each role runs on, and the model of Avoozl's own chats. Issue Radar crews pick their own.",
   delivery:
     'Who merges a finished pull request, and the writer agent and model, investigate-first and pull request feedback for Avoozl worker chats.',
-  budgets:
-    "Each task's spending cap and what happens at it: stop new work, or only warn. Save only writes .avoozl.json.",
 }
 
 const REPOSITORY_TABS = [
@@ -1480,7 +1476,6 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   if (tab === 'flow') return <FlowSettings workspaceId={workspaceId} />
   if (tab === 'models') return <ModelsSettings workspaceId={workspaceId} />
   if (tab === 'delivery') return <DeliverySettings workspaceId={workspaceId} />
-  if (tab === 'budgets') return <BudgetSettings workspaceId={workspaceId} />
   return (
     <div className="flex flex-col gap-3.5">
       {tab === 'repositories' && (

@@ -166,8 +166,7 @@ export async function observeUsage(store, readTurns) {
     if (binding.source !== "tick") continue;
     const done = "flow.usage.done." + binding.slot;
     if (store.getMeta(done)) continue;
-    // Each slot's last read, for a budget's "spend unknown" and its time
-    // (design §4.17).
+    // Each slot's last read time.
     const read = "flow.usage.read." + binding.slot;
     try {
       const turns = await readTurns(binding.slot);
