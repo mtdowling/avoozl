@@ -148,6 +148,7 @@ declare module 'lucide-react' {
   export const Eye: LucideIcon
   export const FileText: LucideIcon
   export const History: LucideIcon
+  export const Hourglass: LucideIcon
   export const Info: LucideIcon
   export const Lightbulb: LucideIcon
   export const LayoutGrid: LucideIcon
