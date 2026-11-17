@@ -587,7 +587,7 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
   }))
   const session = (slot: string, role: string, status: string) => ({ slot, role, status, attempt: 1, link: `/sessions/${slot}`, boundAt: at, statusAt: at, agent: 'kirocrew-worker', model: null })
   const item = (id: string, title: string, extra = {}) => ({
-    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, budget: null, ...extra,
+    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, ...extra,
   })
   answer('delivery.view', () => ({
     revision: 1,
@@ -625,7 +625,7 @@ if (query.get('page') === 'app' && query.get('process') === '1') {
     'Writing .avoozl/result.json',
   ].join('\n')
   const item = (id: string, title: string, sessions: unknown[]) => ({
-    id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', sessions, runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null, budget: null,
+    id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', sessions, runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null,
   })
   answer('delivery.view', () => ({
     revision: 1,
