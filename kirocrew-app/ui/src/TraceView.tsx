@@ -11,6 +11,7 @@ import { useNav } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { afterPrevious, clock, parseTraceLink, traceClient, type Trace, type TraceStep, type TraceTarget } from './trace-api.ts'
 import { linkHref } from './views-api.ts'
+import { buildMedian } from './radar-flow-api.ts'
 import TraceDone from './TraceDone.tsx'
 
 const DOT: Record<TraceStep['state'], { border: string; background: string }> = {
@@ -44,6 +45,20 @@ function Step({ steps, index }: { steps: TraceStep[]; index: number }) {
         <span className="block break-words text-xs text-muted">
           {[step.by && `by ${step.by}`, wait, step.detail].filter(Boolean).join(' · ')}
         </span>
+        {step.builds && (
+          <ul data-trace-builds className="m-0 mt-1 flex list-none flex-col gap-1 p-0 text-xs" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+            {step.builds.map((group) => (
+              <li key={group.phase} data-trace-phase={group.phase}>
+                <span className="font-medium">{group.phase}</span>
+                {group.items.map((item, at) => (
+                  <span key={at} data-trace-build={item.failed ? 'failed' : 'ok'} className="block break-words text-muted" style={item.failed ? { color: 'var(--danger)' } : undefined}>
+                    {[item.target, item.start, item.attempt > 1 && `attempt ${item.attempt}`, buildMedian(item.ms), item.failed && 'failed'].filter(Boolean).join(' · ')}
+                  </span>
+                ))}
+              </li>
+            ))}
+          </ul>
+        )}
         {href && (
           <a href={linkHref(step.link)} target="_blank" rel="noreferrer" className="text-xs underline">
             Open on GitHub
