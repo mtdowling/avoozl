@@ -362,6 +362,24 @@ test("plans_view action activity reads the log; recent keeps the Dashboard timel
   assert.equal(read.retentionDays, DEFAULT_RETENTION_DAYS);
 });
 
+test("activity.list counts each source, kind and actor over the whole log", async (t) => {
+  const { store, ops } = setup(t);
+  recordActivity(store, { source: "local", kind: "dispatch", summary: "a" });
+  recordActivity(store, { source: "local", kind: "dispatch", summary: "b" });
+  recordActivity(store, {
+    source: "github",
+    kind: "github.close",
+    actor: "octo",
+    summary: "c",
+  });
+  // A filter narrows the rows, not the counts: each choice keeps its size.
+  const read = await ops.execute("activity.list", { source: "github" });
+  assert.equal(read.total, 1);
+  assert.deepEqual(read.counts.source, { local: 2, github: 1 });
+  assert.deepEqual(read.counts.kind, { dispatch: 2, "github.close": 1 });
+  assert.deepEqual(read.counts.actor, { octo: 1 });
+});
+
 test("the tick's snapshot diff records each GitHub and plugin change once", (t) => {
   const { store } = setup(t);
   const before = tickSnapshot(store);
