@@ -72,6 +72,11 @@ const PLACEHOLDER_NEIGHBOR = /^[A-Za-z0-9_.=:/@+,()*-]*$/;
 // Permission-skipping values. 47.2 adds the per-role permission classes; the
 // refusal itself holds from the first loader so no definition can carry one.
 const SKIP_VALUES = ["bypassPermissions", "danger-full-access"];
+// The one exception (R94.4d): `permission.write` may be exactly this value,
+// a harness's "no inner sandbox", for a CLI whose own sandbox cannot nest
+// inside Avoozl's (Codex on macOS). confineChild then runs it only inside
+// Avoozl's sandbox, with write roots, and refuses it everywhere else.
+export const INNER_SANDBOX_OFF = "danger-full-access";
 
 export const harnessDefinitionHash = (bytes) =>
   createHash("sha256").update(bytes).digest("hex");
@@ -147,7 +152,22 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
     fail(
       `${source}: name must start with a lowercase letter and use only lowercase letters, numbers and hyphens.`,
     );
-  const permission = words(value.permission, "permission", source);
+  const innerSandboxOff =
+    record(value.permission) && value.permission.write === INNER_SANDBOX_OFF;
+  const permission = innerSandboxOff
+    ? Object.freeze({
+        ...words(
+          { ...value.permission, write: "placeholder" },
+          "permission",
+          source,
+        ),
+        write: INNER_SANDBOX_OFF,
+      })
+    : words(value.permission, "permission", source);
+  if (innerSandboxOff && value.writeRoots === undefined)
+    fail(
+      `${source}: permission.write is ${INNER_SANDBOX_OFF}, so writeRoots must name where Avoozl's sandbox lets it write.`,
+    );
   for (const key of Object.keys(permission))
     if (!PERMISSION_CLASSES.includes(key))
       fail(
