@@ -1016,6 +1016,11 @@
               "default": "plan approved"
             },
             "clearPlanLabel": { "type": "boolean", "default": false },
+            "escalationDraft": {
+              "type": "boolean",
+              "default": false,
+              "description": "Draft a trusted Issue Radar escalation's bounded-fix acceptance locally when the needs-human label appears. Writes nothing to GitHub; a person still starts it."
+            },
             "showPlansRepo": {
               "type": "boolean",
               "description": "Show the plans repository name in issues. Unset: on for a private code repository, off for a public one."
