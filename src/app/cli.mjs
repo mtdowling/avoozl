@@ -22,6 +22,7 @@ import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
 import { contentHook } from "./public-crews.mjs";
 import { runSupervisor } from "./supervisor.mjs";
+import { machineStatus } from "./machine-status.mjs";
 import {
   supervisorUnit,
   unitKindFor,
@@ -232,6 +233,10 @@ try {
     }
   };
   // A required positional or option, refused with its usage when missing.
+  const machineStateDirectory = () =>
+    path.resolve(
+      options["state-directory"] ?? machineAvoozlPaths().stateDirectory,
+    );
   const need = (value, usage) => {
     if (value === undefined || value === true || value === "")
       throw Error("Usage: avoozl " + usage);
@@ -929,7 +934,12 @@ try {
         ),
       });
     else if (action === "status")
-      result = await localOrRequest("remote.status");
+      // A runner reports its remote tasks; any other machine reports the
+      // supervisor and its children (R98.5).
+      result =
+        readRunnerConfig(config.workspaceRoot)?.role === "runner"
+          ? await localOrRequest("remote.status")
+          : machineStatus({ stateDirectory: machineStateDirectory() });
     else if (action === "report") {
       const state = positionals[2] || options.state,
         token = options.token || process.env.AVOOZL_REPORT_TOKEN;
@@ -1418,7 +1428,16 @@ try {
     try {
       let result;
       if (action === "list" || action === "status")
-        result = (await live("/api/workspaces")) || registry.describe();
+        result = {
+          ...((await live("/api/workspaces")) || registry.describe()),
+          ...(command === "status"
+            ? {
+                machine: machineStatus({
+                  stateDirectory: machineStateDirectory(),
+                }),
+              }
+            : {}),
+        };
       else if (action === "add") {
         const provided = input();
         const repositories =
@@ -1950,7 +1969,7 @@ try {
   init PATH [--name NAME] [--port 9428]   Create an empty workspace
   seed --workspace PATH [--example product-launch]
   examples --workspace PATH             List available example packs
-  status                                Show the machine host and workspaces
+  status                                Show the machine host, workspaces, supervisor and its children
   workspace list
   workspace add ID --root PATH [--max-concurrent-runs 2]
   workspace adopt ID --root PATH         Adopt an existing stopped workspace in place
@@ -2056,7 +2075,7 @@ try {
   flow resume STOP_ID                   Resume a pulled stop (a person only)
   checks run --task TASK_ID             Run the declared checks in this worktree and record the pass
   runner accept FILE|-                  Runner mode: take one task envelope (a runner's ssh calls this)
-  runner status --json                  Runner mode: this runner's tasks and workers
+  runner status --json                  This runner's tasks and workers; elsewhere the supervisor and its children
   runner handoff ENVELOPE.json --host H Runner mode: hand a task to host H over ssh
   runner pull --host H                  Runner mode: read host H's status
   driver status [SPEC]                  Which machine drives each spec, and why one reads only here
