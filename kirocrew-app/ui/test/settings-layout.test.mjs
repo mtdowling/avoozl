@@ -178,7 +178,7 @@ test('who counts is one row on the Triggers tab, with write as the default; no s
 })
 
 test('Settings has no Where tasks live tab; Set up GitHub sits in the Workspaces settings', () => {
-  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
+  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'plugins', 'content', 'flow', 'models', 'delivery'])
   assert.doesNotMatch(settings, /Where tasks live' \}|key: 'github'/)
   assert.match(settings, /setup=\{<SetupWizard/)
   assert.match(settings, /if \(tab === 'workspaces'\)\s+return \(\s+<div[^>]*>\s+<WorkspaceView[\s\S]*<PolicyEditor/)
