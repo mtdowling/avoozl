@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { deliveryPolicy } from "../delivery.mjs";
 import { loadLayeredConfig } from "../layered-config.mjs";
 import {
   DEFAULT_LANES,
@@ -48,4 +49,17 @@ test("a saved lanes value is checked when config loads", () => {
   };
   assert.equal(load({ local: 2 }).lanes.local, 2);
   assert.throws(() => load({ local: 99 }), /lanes\.local/);
+});
+
+test("delivery concurrency defaults to the lanes, and an explicit value wins", () => {
+  assert.equal(deliveryPolicy({ delivery: {} }).concurrency, 3);
+  assert.equal(
+    deliveryPolicy({ delivery: {}, lanes: { local: 2 } }).concurrency,
+    2,
+  );
+  assert.equal(
+    deliveryPolicy({ delivery: { concurrency: 1 }, lanes: { local: 2 } })
+      .concurrency,
+    1,
+  );
 });
