@@ -280,7 +280,8 @@ function requestFor(
     brief,
     model,
     permissionClass,
-    title: `avoozl:${round.id} ${role} ${round.spec}`,
+    // A later attempt (a person-started planner turn) needs its own chat.
+    title: `avoozl:${round.id} ${role} ${round.spec}${attempt > 1 ? ` attempt ${attempt}` : ""}`,
     attempt,
     context: {
       planId: round.planId,

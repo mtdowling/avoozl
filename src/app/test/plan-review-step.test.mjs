@@ -768,6 +768,9 @@ test("a person's Accept starts one planner turn outside the rounds cap; Review a
   assert.equal(turn.role, "plan-answer");
   assert.equal(turn.permissionClass, "write");
   assert.equal(turn.attempt, 2);
+  // Kiro Crew names a chat by its title; a reused title reopens the first
+  // answer chat, whose binding refuses attempt 2.
+  assert.notEqual(turn.title, answer.title);
   assert.match(turn.brief, /personAccepted/);
   assert.match(turn.brief, /The manifest already orders these\./);
   assert.equal((await env.step()).requests.length, 1, "one turn per plan");
