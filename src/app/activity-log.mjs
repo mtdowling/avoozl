@@ -310,6 +310,12 @@ function operationRow(name, input, result) {
     name === "session.request"
   )
     return { kind: "dispatch", summary: `Dispatched ${id}`, targetId: id };
+  if (name === "session.send")
+    return {
+      kind: "session.send",
+      summary: `Sent a message to the ${result?.taskId ?? "task"} session`,
+      targetId: result?.taskId ?? null,
+    };
   if (name === "flow.stop") {
     const stop = result?.stop ?? input;
     return {

@@ -637,6 +637,10 @@ function Ve(e) {
 		...i === void 0 ? {} : { expectedRevision: i }
 	})).result;
 	return {
+		sendSession: (e, n, r) => t("session.send", {
+			slot: n,
+			text: r
+		}, e),
 		decidePlanReview: (e, n, r, i) => t("plan.review.decide", {
 			planId: n,
 			revisionHash: r,
