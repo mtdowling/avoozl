@@ -69,7 +69,7 @@ const WORKFLOW_RUNS_PROJECTION = {
 };
 // Only what the receipt reader needs of an artifact list (§4.31).
 const ARTIFACTS_PROJECTION = {
-  version: "artifacts-v1",
+  version: "artifacts-v2",
   project(data) {
     if (!Array.isArray(data?.artifacts) || data.artifacts.length > 100)
       fail("GitHub returned invalid artifact data.", 502);
@@ -81,6 +81,7 @@ const ARTIFACTS_PROJECTION = {
         id: a.id,
         name: a.name.slice(0, 200),
         expired: a.expired === true,
+        created_at: typeof a.created_at === "string" ? a.created_at : null,
         workflow_run: {
           id: Number.isSafeInteger(a.workflow_run?.id)
             ? a.workflow_run.id
@@ -1668,17 +1669,17 @@ export class GitHubClient {
     );
   }
 
-  // The newest 100 artifacts, or those called `name`, each with the run and
-  // commit that made it. One REST read through the HTTP cache, so an
-  // unchanged list is a 304 (§4.31, R101.5).
-  async listArtifacts(value, name) {
+  // One page of 100 artifacts, newest first, or those called `name`, each
+  // with the run and commit that made it. One REST read through the HTTP
+  // cache, so an unchanged page is a 304 (§4.31, R101.5).
+  async listArtifacts(value, name, { page = 1 } = {}) {
     const { owner, repo } =
         typeof value === "string" ? parseRepository(value) : value,
       list = await this.request(
         "GET",
         `/repos/${owner}/${repo}/actions/artifacts`,
         {
-          query: { name, per_page: 100 },
+          query: { name, per_page: 100, ...(page > 1 ? { page } : {}) },
           responseProjection: ARTIFACTS_PROJECTION,
         },
       );
