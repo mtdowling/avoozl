@@ -333,8 +333,8 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
   });
   assert.equal(node("cutover-callers").state, "waiting");
   assert.equal(labels(issueOf("team-review")).includes("avoozl:ready"), false);
-  // GitHub leaves here are Issue Radar's: ready is the graph's state and
-  // the ready label the tick moves.
+  // Ready is the graph's state; no ready label moves while the Radar
+  // hand-over is paused (R103.4).
   const isReady = async (taskId) =>
     (await ops.execute("graph.view", {})).tasks.find(
       (task) => task.id === taskId,
@@ -458,7 +458,11 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
   );
   assert.ok(await isReady("cutover-callers"));
   assert.ok(await isReady("cutover-notes"));
-  assert.ok(labels(issueOf("cutover-callers")).includes("avoozl:ready"));
+  // No ready label for a crew while the hand-over is paused (R103.4).
+  assert.equal(
+    labels(issueOf("cutover-callers")).includes("avoozl:ready"),
+    false,
+  );
 
   // (6) The first cutover task's brief carries the outcome note and link
   // as data.

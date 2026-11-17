@@ -348,6 +348,7 @@ const PROTECT = new Set([
   "github.breakdown.advance",
   "github.authorize",
   "github.project",
+  "github.crewlabel.backfill",
   "github.rebuild",
   "github.conflict.resolve",
   "conflicts.settle",
