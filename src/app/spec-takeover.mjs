@@ -17,6 +17,8 @@ import { replayJournal } from "./spec-journal.mjs";
 import { driverIdOf, journalOf, rememberDriver } from "./spec-scheduler.mjs";
 import { fail } from "./store.mjs";
 
+const LOCAL_OWNERS = "specLocalOwners";
+
 // The spec's writable journal, its replay options and its owner.
 export async function specAuthority(
   store,
@@ -24,6 +26,9 @@ export async function specAuthority(
   planId,
 ) {
   if (!store.get("plans", planId)) fail("Plan not found.", 404);
+  // The tick has no operator name: a local journal acts as the person who
+  // took it over here.
+  actor ||= store.getMeta(LOCAL_OWNERS)?.[planId] ?? "";
   const journal = journalOf(store, { github, workspaceRoot, actor }, planId);
   if (!journal)
     fail("Publish the spec first: it has no journal to take over.", 409);
@@ -83,6 +88,13 @@ export async function takeOverSpec(
       "Another take over wrote at the same time; the journal is held until a person reconciles it.",
       409,
     );
-  store.transaction(() => rememberDriver(store, planId, result.driver));
+  store.transaction(() => {
+    rememberDriver(store, planId, result.driver);
+    if (journal.local)
+      store.setMeta(LOCAL_OWNERS, {
+        ...(store.getMeta(LOCAL_OWNERS) ?? {}),
+        [planId]: login,
+      });
+  });
   return { ...result, existing: false };
 }

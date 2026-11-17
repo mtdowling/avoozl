@@ -174,6 +174,8 @@ import {
 } from "./driver-scope.mjs";
 import { ticksHeld } from "./task-issue-retirement.mjs";
 import { revalidateSpecs, scheduleHolds } from "./spec-scheduler.mjs";
+import { landPullRequests } from "./pr-landing.mjs";
+import { conflictRounds } from "./landing-config.mjs";
 
 // The colon keeps this lock out of every configured project's namespace.
 // GitHub projection takes it too, so one workspace has one writer at a time.
@@ -880,6 +882,14 @@ async function runTick(
               })
             ).notify,
           );
+          // `pr` projects land through pull requests (task 42.6).
+          const landed = await landPullRequests(store, {
+            github,
+            workspaceRoot,
+            rounds: conflictRounds((memory.value || {}).landing),
+          });
+          planned.notify.push(...landed.notify);
+          planned.messages.push(...landed.messages);
         }
         // Stop the line (§4.11): a failure on the task's own base, a worker
         // that names its cause, and the landing branch's checks. Pauses new
