@@ -18,7 +18,6 @@ import {
   reviewDraftStep,
   reviewDraftsView,
 } from "../review-draft.mjs";
-import { buildTrace } from "../trace.mjs";
 import { fixture } from "./fixtures.mjs";
 
 const REPO = "example/code",
@@ -460,27 +459,6 @@ test("the list filters by repository and state and shows the GitHub search", asy
     /label:"my-draft"/,
   );
   void github;
-});
-
-test("Trace shows a Review step after CI only for a drafted pull request", async (t) => {
-  const { store, post } = await bound(t);
-  const issue = {
-      number: 3,
-      title: "Greet",
-      created_at: "2026-11-14T00:00:00Z",
-    },
-    pull = { number: 5, created_at: "2026-11-14T01:00:00Z" };
-  const plain = buildTrace({ issue, pull });
-  assert.ok(!plain.steps.some((s) => s.key === "review"));
-  await post(DRAFT);
-  const drafted = buildTrace({
-    issue,
-    pull,
-    review: draftForPull(store, REPO, 5),
-  });
-  const keys = drafted.steps.map((s) => s.key);
-  assert.deepEqual(keys.slice(5, 8), ["ci", "review", "merged"]);
-  assert.match(drafted.steps[6].detail, /waiting to be submitted/);
 });
 
 test("no code path in the feature sends a review event, submits or dismisses", () => {

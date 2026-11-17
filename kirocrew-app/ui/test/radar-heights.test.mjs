@@ -59,7 +59,7 @@ for (const theme of ['light', 'dark']) {
     await click('[data-nav-group="settings"]')
     await page.until(`Boolean(document.querySelector('[data-nav-children="settings"]'))`)
     let got = await read()
-    assert.equal(got.cards, 8)
+    assert.equal(got.cards, 7)
     assert.deepEqual(got.cardRadius, [RADAR.sectionRadius])
     assert.deepEqual(got.cardBorder, [1])
     assert.deepEqual(got.heads, [RADAR.row])

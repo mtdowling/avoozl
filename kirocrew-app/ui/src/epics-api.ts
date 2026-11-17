@@ -1,5 +1,5 @@
-// Calls and pure helpers for the Epics screen and Trace's Done work. The
-// backend (src/app/epics-view.mjs, src/app/trace-done.mjs) decides every gate,
+// Calls and pure helpers for the Epics screen. The
+// backend (src/app/epics-view.mjs) decides every gate,
 // count and reason; this file reads them and words them. No JSX and no
 // runtime imports, so node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'
@@ -49,23 +49,10 @@ export interface EpicsView {
   radarGraph: { url: string; focus: boolean }
 }
 
-export interface DoneRow {
-  taskId: string
-  title: string
-  repository: string
-  issue: number
-  url: string
-  pr: number | null
-  prUrl: string | null
-  mergedAt: string
-  by: { kind: 'radar-crew'; id: string | null; name: string | null } | null
-}
-
 export function epicsClient(api: AppApi) {
   const run = async <T>(operation: string, workspaceId: string) => (await api.post<{ result: T }>(COMMAND_PATH, { operation, input: {}, workspaceId })).result
   return {
     read: (workspaceId: string) => run<EpicsView>('epics.view', workspaceId),
-    done: (workspaceId: string) => run<{ rows: DoneRow[] }>('trace.done', workspaceId),
   }
 }
 
@@ -101,11 +88,4 @@ export function radarGraphLink(view: Pick<EpicsView, 'radarGraph'>): { href: str
     label: 'Open the Issue Radar graph',
     note: view.radarGraph.focus ? null : 'Choose the Graph view there, then the issue.',
   }
-}
-
-// The Done list's line for who did it.
-export function whoLine(row: Pick<DoneRow, 'by'>, machine?: string | null): string {
-  if (!row.by) return 'No crew found on the issue'
-  const name = row.by.name ?? row.by.id ?? 'a crew'
-  return machine ? `Radar crew ${name} on ${machine}` : `Radar crew ${name}`
 }

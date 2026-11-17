@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { DASHBOARD_PAGES, RETIRED_LINE, RETROS_PAGES, TABS, dashboardPage, dashboardTab, navTab, redirectSettings, redirectTab, retiredCoders, tabLabel } from '../src/nav-api.ts'
 
-test('the nav row is Dashboards, Specs, Needs you, Trace, Flow, Retros, Activity, Settings', () => {
-  assert.deepEqual(TABS.map((t) => t.label), ['Dashboards', 'Specs', 'Needs you', 'Trace', 'Flow', 'Retros', 'Activity', 'Settings'])
+test('the nav row is Dashboards, Specs, Needs you, Flow, Retros, Activity, Settings', () => {
+  assert.deepEqual(TABS.map((t) => t.label), ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Retros', 'Activity', 'Settings'])
 })
 
 test('Retros lists two pages, and an old Flow retros or proposals link opens them', () => {
