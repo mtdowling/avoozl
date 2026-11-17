@@ -7,6 +7,12 @@
 import { inflateRawSync } from "node:zlib";
 import { parseReceipts } from "./build-receipt.mjs";
 import { listOr } from "./flow.mjs";
+import {
+  isReportArtifact,
+  reportsFromArtifact,
+  reportsFromReceipts,
+} from "./build-report.mjs";
+import { insertBreakdowns } from "./build-breakdown.mjs";
 import { withSource } from "./github-rate.mjs";
 
 const META = "buildReceipts";
@@ -110,6 +116,11 @@ export function pruneReceipts(store, cut) {
       .prepare(
         "DELETE FROM build_observations WHERE NOT EXISTS (SELECT 1 FROM receipt_artifacts a WHERE a.repository=build_observations.repository AND a.head_sha=build_observations.head_sha)",
       )
+      .run().changes +
+    store.db
+      .prepare(
+        "DELETE FROM build_breakdowns WHERE NOT EXISTS (SELECT 1 FROM receipt_artifacts a WHERE a.repository=build_breakdowns.repository AND a.head_sha=build_breakdowns.head_sha)",
+      )
       .run().changes
   );
 }
@@ -122,7 +133,7 @@ export async function readReceipts(
   store,
   github,
   repository,
-  { now = Date.now() } = {},
+  { now = Date.now(), report = null } = {},
 ) {
   if (typeof github?.listArtifacts !== "function") return { calls: 0 };
   const repo = lower(repository),
@@ -165,7 +176,9 @@ export async function readReceipts(
       conclusion = new Map(headRuns.map((run) => [run.runId, run.conclusion])),
       mine = listed.filter(
         (a) =>
-          isReceipt(a.name) && !a.expired && a.workflow_run?.head_sha === head,
+          (isReceipt(a.name) || isReportArtifact(a.name, report)) &&
+          !a.expired &&
+          a.workflow_run?.head_sha === head,
       );
     let ok = true;
     for (const artifact of mine) {
@@ -183,7 +196,13 @@ export async function readReceipts(
         continue;
       }
       const run = artifact.workflow_run?.id ?? 0,
-        { records, skipped } = parseReceipts(text ?? ""),
+        isReport = !isReceipt(artifact.name),
+        { records, skipped } = isReport
+          ? { records: [], skipped: 0 }
+          : parseReceipts(text ?? ""),
+        found = isReport
+          ? reportsFromArtifact(text ?? "")
+          : reportsFromReceipts(text ?? "", report),
         seen = new Map();
       store.transaction(() => {
         records.forEach((record) => {
@@ -206,6 +225,15 @@ export async function readReceipts(
             seq,
           );
         });
+        insertBreakdowns(store, {
+          repository: repo,
+          pr: pull.number,
+          head,
+          run,
+          artifact: artifact.id,
+          at,
+          breakdowns: found.breakdowns,
+        });
         store.db
           .prepare(
             "INSERT OR REPLACE INTO receipt_artifacts(repository,artifact_id,head_sha,run_id,name,kind,read_at,lines,skipped) VALUES (?,?,?,?,?,?,?,?,?)",
@@ -216,10 +244,10 @@ export async function readReceipts(
             head,
             run,
             artifact.name,
-            "receipt",
+            isReport ? "report" : "receipt",
             at,
-            records.length,
-            skipped,
+            isReport ? found.breakdowns.length : records.length,
+            isReport ? found.skipped : skipped,
           );
       });
       known.add(artifact.id);
@@ -240,9 +268,9 @@ export async function readReceipts(
     if (!ok || !complete) continue;
     const have = store.db
       .prepare(
-        "SELECT 1 FROM build_observations WHERE repository=? AND head_sha=? LIMIT 1",
+        "SELECT 1 FROM build_observations WHERE repository=? AND head_sha=? UNION ALL SELECT 1 FROM build_breakdowns WHERE repository=? AND head_sha=? LIMIT 1",
       )
-      .get(repo, head);
+      .get(repo, head, repo, head);
     store.db
       .prepare(
         "INSERT OR REPLACE INTO receipt_artifacts(repository,artifact_id,head_sha,run_id,name,kind,read_at,lines,skipped) VALUES (?,?,?,?,?,?,?,?,?)",

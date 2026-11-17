@@ -410,10 +410,6 @@ function AvoozlPage() {
           <LanesView workspaceId={active} />
         ) : tab === 'ci' ? (
           <Placeholder view="ci" title="CI" line="Coming later: each open pull request's checks and CI wait. Avoozl caches its one batched pull-request read, but no page reads it yet." />
-        ) : tab === 'issues' ? (
-          <Placeholder view="issues" title="Issues" line="Coming in Phase 44." />
-        ) : tab === 'pulls' ? (
-          <Placeholder view="pulls" title="Pull requests" line="Coming in Phase 44." />
         ) : tab === 'activity' ? (
           <ActivityView workspaceId={active} />
         ) : (
