@@ -1582,7 +1582,7 @@ required check; 42.4 is an independent owner settings review, not its gate.
   - `avoozl spec publish SPEC` and `avoozl spec takeover SPEC` (operation `spec.takeover`, person-only). Take over on a published spec (local or GitHub journal) appends the next generation with `takeOver` (driver-generations.mjs) and keeps the driver id with `rememberDriver`. Person-only; a held or concurrent journal refuses. Landing reads this driver; no take over means nothing lands.
 - [x] 42.6 The tick lands `pr` portions through the landing queue, after 42.1, 42.3, 42.5, 41.4 [R87.3, R87.4, R87.5, R87.6, R89.3] (§4.26)
   - A verified task in a repository with landing `pr` is pushed to its task branch (`pushHead`, never forced) and queued as one portion. Each tick runs `landNext` with `pullSteps` per base, with intents in the spec's journal. Landed marks the task integrated at the merge commit; failed checks send the task back to its chat; a conflict uses `sendConflictBack`. `direct` and `off` keep today's path. Fake GitHub and git test; no live write.
-- [ ] 42.7 `avoozl setup REPO`: one preview, `--yes` applies, after 42.2, 42.3 [R89.1, R89.2, R89.3] (§4.26)
+- [x] 42.7 `avoozl setup REPO`: one preview, `--yes` applies, after 42.2, 42.3 [R89.1, R89.2, R89.3] (§4.26)
   - CLI over `previewAccess` and `previewLanding`: prints every change, writes only with `--yes`, and a second run prints "Nothing to change" and writes nothing. Writes the project's landing setting and checks. The old Radar `github setup` stays as it is.
 
 - [ ] avoozl-p52 P52 Proof: ten tasks land through pull requests on a repository with a required check, after 42.1, 42.2, 42.3, 42.5, 42.6, 42.7 [R87, R89] (§4.26)
