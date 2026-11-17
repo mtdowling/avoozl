@@ -1547,7 +1547,7 @@ the scratch safety proof, with owner minutes, credits and wall-clock per task.
 - [x] 41.5 Prepare from spec working heads and merge landed bases back, after 41.3 [R87.7, R102.6, R102.15] (§4.32)
   - Generalize RC16 from epic-only integration; Prepare and qualified-ref resolution agree on the exact spec base. Merge the landed target back with a merge commit; preserve verified but unlanded portions and unfinished task refs.
 
-- [ ] 41.6 Restore the Delivery page, Settings › Budgets and the Files and diff view, after 41.3 [R88.7] (§4.26)
+- [x] 41.6 Restore the Delivery page, Settings › Budgets and the Files and diff view, after 41.3 [R88.7] (§4.26)
   - From ba04389 and 70c2236, updated to the new loop; not Routing; screenshots for the owner.
 - [ ] 41.8 Nupp AGENTS.md clause for Avoozl-run work, after 41.3 [R91.5, R94.4a] (§4.26)
   - Nupp's AGENTS.md tells agents to rebase, fast-forward merge, push and delete the worktree. Propose a clause for work Avoozl runs: edit, commit nothing (or only locally, as the project config says), and stop; no merge, push or worktree removal. Check the copy on `core-dev`, not only `main`. Proposed as a Nupp change, not made from Avoozl's repository.

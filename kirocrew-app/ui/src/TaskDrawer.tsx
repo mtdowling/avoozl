@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { BudgetFold, SpendChip } from './Budget.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn } from '@kirocrew/app-sdk/ui'
@@ -23,6 +24,7 @@ import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
 import { itemRef } from './chat-api.ts'
 import { TimingFold } from './FlowView.tsx'
 import { EvidenceFold } from './Evidence.tsx'
+import { TaskFiles } from './TaskFiles.tsx'
 import { Eye, FileText, MessageSquare, Network, Pause, Pencil, Play, Plus, RotateCcw, X } from './icons.ts'
 import { useBackStep } from './NavHistory.tsx'
 import { LAYER } from './layers.ts'
@@ -38,8 +40,10 @@ const SECTIONS = [
   { key: 'links', label: 'Edges' },
   { key: 'notes', label: 'Links and notes' },
   { key: 'delivery', label: 'Delivery' },
+  { key: 'files', label: 'Files' },
   { key: 'timing', label: 'Timing' },
   { key: 'evidence', label: 'Evidence' },
+  { key: 'budget', label: 'Budget' },
   { key: 'conflicts', label: 'Conflicts' },
   { key: 'timeline', label: 'Timeline' },
 ] as const
@@ -533,11 +537,22 @@ function TaskPanel(props: {
             <p className="text-sm text-muted">No delivery yet.</p>
           )}
         </SectionBox>
+        <SectionBox id="files" title="Files">
+          <TaskFiles workspaceId={workspaceId} taskId={task.id} active />
+        </SectionBox>
         <SectionBox id="timing" title="Timing">
           <TimingFold timing={detail.timing ?? null} />
         </SectionBox>
         <SectionBox id="evidence" title="Evidence">
           <EvidenceFold workspaceId={workspaceId} taskId={task.id} />
+        </SectionBox>
+        <SectionBox id="budget" title={
+            <span className="flex items-center gap-2">
+              Budget <SpendChip budget={delivery?.budget} />
+            </span>
+          }
+        >
+          <BudgetFold workspaceId={workspaceId} taskId={task.id} onChange={() => void load()} />
         </SectionBox>
         <SectionBox id="conflicts" title={detail.conflicts.length ? `Conflicts (${detail.conflicts.length})` : 'Conflicts'}>
           {detail.conflicts.length ? (

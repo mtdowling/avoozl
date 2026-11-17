@@ -127,17 +127,29 @@ test("inherited choices say where they come from and what they are", () => {
     inheritText("repository setting", MODE_TITLE.warn),
     "Use the repository setting (Warn)",
   );
+  const page = source("BudgetSettings.tsx");
+  assert.doesNotMatch(page, /Same as above/);
   assert.doesNotMatch(MODE_TEXT.stop + MODE_TEXT.warn, /^(Stop|Warn):/);
+  // Stop and Warn are the shared radio fold-out, inside titled boxes.
+  assert.match(page, /<RadioFold\b/);
+  assert.match(page, /<FieldBox title="When a task reaches its cap">/);
+  assert.match(page, /<FieldBox title="Dollar cap">/);
+  assert.match(page, /inheritText\(fallback\.from, MODE_TITLE\[fallback\.mode\]\)/);
+  assert.match(page, /from: "workspace default"/);
+  // The fallback caps fold away under Advanced.
+  assert.match(page, /<Fold\s+title="Advanced: caps for turns not counted in dollars"/);
 });
 
 test("there is no Prices page, price list or price write on the page", () => {
   const settings = source("SettingsView.tsx"),
+    budgets = source("BudgetSettings.tsx"),
     api = source("budget-api.ts");
   assert.doesNotMatch(settings, /Prices|prices/);
+  assert.doesNotMatch(budgets, /PricesSettings|prices\.(get|save)|Override prices/);
   assert.doesNotMatch(api, /prices\.(get|save)|PricesView|toPricesForm|fromPricesForm|pricesUpdatedText|creditUsd/);
 });
 
-test("the budget help settings list what is set and what is default", () => {
+test("Ask for help on Budgets uses the shared link with the page's settings and the guide", () => {
   // The shared part (controls.tsx AskForHelp) seeds the chat through
   // chat.context purpose "help"; these pages pass their settings and docs.
   assert.deepEqual(
@@ -155,6 +167,15 @@ test("the budget help settings list what is set and what is default", () => {
     ],
   );
   assert.match(COSTS_DOCS, /avoozl-costs skill \(skills\/avoozl-costs\/SKILL\.md/);
+  const budgets = source("BudgetSettings.tsx");
+  assert.match(budgets, /import \{ AskForHelp \} from "\.\/controls\.tsx"/);
+  assert.equal(
+    (budgets.match(/<AskForHelp workspaceId=\{workspaceId\} help=\{help\} \/>/g) || []).length,
+    1,
+    "Budgets",
+  );
+  assert.match(budgets, /docs: COSTS_DOCS/);
+  assert.match(budgets, /page: "Settings › Budgets"/);
   assert.match(
     readFileSync(
       new URL("../../skills/avoozl-costs/SKILL.md", import.meta.url),
@@ -238,13 +259,31 @@ test("the Dashboard counts open over-budget tasks and In flight carries the chip
   );
 });
 
-test("the per-task budget and Files folds, the spend chips and the Budgets page are gone", () => {
+test("each part is wired where the spec puts it", () => {
   const drawer = source("TaskDrawer.tsx");
-  assert.doesNotMatch(drawer, /BudgetFold|TaskFiles|id="budget"|id="files"/);
-  assert.doesNotMatch(source("DashboardView.tsx"), /SpendChip|over budget/);
-  assert.doesNotMatch(source("SettingsView.tsx"), /key: 'budgets'/);
+  assert.ok(
+    drawer.indexOf('id="budget"') > drawer.indexOf('id="timing"'),
+    "Budget fold after Timing",
+  );
+  assert.match(drawer, /<BudgetFold /);
+  assert.match(
+    source("DeliveryView.tsx"),
+    /<SpendChip budget=\{card\.item\?\.budget\} \/>/,
+  );
   assert.match(source("ConflictsView.tsx"), /<BudgetActions/);
   const budget = source("Budget.tsx");
-  for (const label of ["Raise budget", "Stop", "Acknowledge", "Switch to stop"])
-    assert.ok(budget.includes(label), label);
+  for (const label of [
+    "Raise budget",
+    "Stop",
+    "Acknowledge",
+    "Switch to stop",
+    "Export JSON",
+  ])
+    assert.ok(
+      budget.includes(`>\n            ${label}\n`) || budget.includes(label),
+      label,
+    );
+  const settings = source("SettingsView.tsx");
+  assert.match(settings, /key: 'budgets', label: 'Budgets'/);
+  assert.doesNotMatch(settings, /key: 'prices'/);
 });

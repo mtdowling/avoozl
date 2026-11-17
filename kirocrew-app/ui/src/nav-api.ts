@@ -30,21 +30,22 @@ export const WAITING_SECTIONS: { key: WaitingSection; title: string; line: strin
   { key: 'decisions', title: 'Decisions and conflicts', line: 'A crew handed work back, a spec or issue was edited by hand, or a task needs your choice.' },
   { key: 'intake', title: 'Planning and intake', line: 'Issues labeled for planning and new issues. You choose which become work.' },
 ]
-// Dashboards' pages. Home is the 'dashboard' tab itself; Graph, Lanes and CI
+// Dashboards' pages. Home is the 'dashboard' tab itself; Graph, Delivery, Lanes and CI
 // are pages of their own that light Dashboards in the nav.
-export type DashboardPage = 'home' | 'graph' | 'lanes' | 'ci'
+export type DashboardPage = 'home' | 'graph' | 'delivery' | 'lanes' | 'ci'
 export const DASHBOARD_PAGES: { key: DashboardPage; label: string }[] = [
   { key: 'home', label: 'Home' },
   { key: 'graph', label: 'Graph' },
+  { key: 'delivery', label: 'Delivery' },
   { key: 'lanes', label: 'Lanes' },
   { key: 'ci', label: 'CI' },
 ]
-export type Tab = NavTab | 'graph' | 'lanes' | 'ci'
-export const dashboardTab = (page: string): Tab => (page === 'graph' || page === 'lanes' || page === 'ci' ? page : 'dashboard')
+export type Tab = NavTab | 'graph' | 'delivery' | 'lanes' | 'ci'
+export const dashboardTab = (page: string): Tab => (['graph', 'delivery', 'lanes', 'ci'].includes(page) ? (page as Tab) : 'dashboard')
 export const dashboardPage = (tab: Tab): DashboardPage | null =>
-  tab === 'dashboard' ? 'home' : tab === 'graph' || tab === 'lanes' || tab === 'ci' ? tab : null
+  tab === 'dashboard' ? 'home' : tab === 'graph' || tab === 'delivery' || tab === 'lanes' || tab === 'ci' ? tab : null
 
-const PAGE_LABEL: Record<string, string> = { graph: 'Graph', lanes: 'Lanes', ci: 'CI', dashboard: 'Home' }
+const PAGE_LABEL: Record<string, string> = { graph: 'Graph', delivery: 'Delivery', lanes: 'Lanes', ci: 'CI', dashboard: 'Home' }
 export const tabLabel = (key: Tab) => PAGE_LABEL[key] ?? TABS.find((t) => t.key === key)?.label ?? key
 // The nav entry that is lit for a page.
 export const navTab = (key: Tab): NavTab => (dashboardPage(key) ? 'dashboard' : (key as NavTab))
@@ -61,8 +62,6 @@ export interface Place {
 // it into its own place field (waitingSection).
 export function redirectTab(key: string): Place {
   switch (key) {
-    case 'delivery':
-      return { tab: 'dashboard' }
     case 'conflicts':
       return { tab: 'waiting', open: { 'waiting-section': 'decisions' } }
     case 'untriaged':
