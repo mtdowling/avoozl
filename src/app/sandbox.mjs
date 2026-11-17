@@ -18,7 +18,10 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { fail } from "./store.mjs";
-import { HARNESS_UNCONFINED } from "./harness-definitions.mjs";
+import {
+  HARNESS_UNCONFINED,
+  INNER_SANDBOX_OFF,
+} from "./harness-definitions.mjs";
 
 const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
 // Keychain services: gh, git's osxkeychain helper and most CLIs keep tokens
@@ -317,6 +320,21 @@ export function confineChild(
 ) {
   if (!Array.isArray(argv) || !argv.length) fail("No command to confine.");
   const childEnv = sandboxEnv(env, { keep: keepEnv });
+  // R94.4d: a child with its own sandbox off runs only inside Avoozl's,
+  // with write roots; never unconfined, whatever the opt-in says.
+  const innerOff = argv.some(
+    (item) => typeof item === "string" && item.includes(INNER_SANDBOX_OFF),
+  );
+  if (innerOff && !kind)
+    fail(
+      `Harness ${definition.name} turns its own sandbox off (${INNER_SANDBOX_OFF}), so it runs only inside Avoozl's sandbox, and this machine has none. A per-machine opt-in does not change that.`,
+      409,
+    );
+  if (innerOff && !Array.isArray(writeRoots))
+    fail(
+      `Harness ${definition.name} turns its own sandbox off (${INNER_SANDBOX_OFF}), so it needs write roots.`,
+      409,
+    );
   if (!kind) {
     if (!optedIn(configDirectory, definition))
       fail(
