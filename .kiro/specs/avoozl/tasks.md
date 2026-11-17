@@ -1498,7 +1498,7 @@ the coding loop. Exit: a three-task chain survives a gateway restart
 unattended. Runs after the executor seam (Phase 46, `avoozl-p56`). Phase 56
 foundation tasks without that dependency may proceed while the live proof waits.
 
-- [ ] 40.1 Worker brief edits and reports only, after avoozl-p56 [R86.3, R96] (§4.26)
+- [x] 40.1 Worker brief edits and reports only, after avoozl-p56 [R86.3, R96] (§4.26)
   - The brief drops push, PR, auto-merge, merge and comment steps. Avoozl commits sandboxed process results; chats/people may commit locally. Read HEAD from the worktree, never from a report. A prompt test enforces this boundary.
 
 - [ ] 40.2 Report by CLI, matched by worktree and token, after avoozl-p56 [R88.2, R88.3, R96.4] (§4.26)
