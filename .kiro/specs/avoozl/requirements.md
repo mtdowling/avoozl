@@ -5550,3 +5550,137 @@ skip is a rule in the crew's prompt, not code.
     the claimed-issue skip (5); unlabeled export (6); escalation order,
     buttons, person-only start, and an auto-draft with zero GitHub writes
     (8, 9); one label write on take-over and no needs-human removal (10).
+
+### Requirement 104: Review findings the owner can read and decide
+
+Added 2026-11-16 (owner request). Design §4.33. Planning only. Extends
+Requirement 99. Where they conflict it supersedes Requirement 99.5 (the
+four severity values and the single line) and Requirement 99.8 (closing a
+finding from the Approve dialog). Requirement 99.9 holds unchanged: a
+review never approves, never blocks approval, and never writes to GitHub.
+
+The owner's words, in short: each finding has a severity that sets its
+border color (grey, yellow, red) and sits in its own section; clicking a
+finding shows the line it refers to; better, a view of the rendered spec
+with a right-hand rail listing each finding next to its line; buttons per
+finding (resolve, accept, reject, defer); and a link to open the review
+chat itself. He also asked whether this is meant to be the review process,
+and whether it repeats. It is, and it does (criterion 14).
+
+**User story:** As the owner, I want to read each review finding next to
+the spec text it is about, see what the planner did with it, and decide
+the rest with one click each, so that a review round ends with every
+finding either fixed, answered, or decided by me at a known revision.
+
+Facts. Phase 53 is built (53.1–53.5). Spec findings are `review_threads`
+rows with `source: "plan-review"` and `kind`, `severity` (`blocking`,
+`important`, `suggestion`, `question`), `file`, `line`, `claim`,
+`evidence` and `answer` (`src/app/plan-reviews.mjs`,
+`src/app/plan-review-answers.mjs`). `plan.review.dispose` closes a finding
+as resolved, accepted, rejected or deferred; it records no revision, does
+not reach the planner, and is not person-only in `src/app/mcp-policy.mjs`.
+`kirocrew-app/ui/src/PlanReviewSummary.tsx` lists open findings inside
+both Approve dialogs. `plansClient.approve` in
+`kirocrew-app/ui/src/plans-api.ts` throws "This revision changed. Reload
+it before approving." when the hash moves while the dialog is open. Text
+plan threads already anchor on an exact quote (`lineFor` in
+`plan-reviews.mjs`). Spec files render through `Markdown.tsx` in one card
+per file on the spec page.
+
+#### Acceptance criteria
+
+1. Each finding SHALL have a severity of `info`, `warn` or `blocker`,
+   shown as a grey, yellow or red border and as a text label, so color is
+   never the only sign. Stored Requirement 99 values SHALL read as
+   `blocking` → `blocker`, `important` → `warn`, and `suggestion` and
+   `question` → `info`. A `blocker` SHALL NOT block or delay approval.
+2. Each finding SHALL have a category (one of the six kinds of
+   Requirement 99.4), an anchor, a body (its claim and evidence), and the
+   planner's response, if any.
+3. An anchor SHALL be the file of the reviewed revision, a line range,
+   the exact quoted text (at most 500 characters), and a quote hash
+   (SHA-256 of the quote with whitespace runs collapsed to one space).
+   Avoozl SHALL derive the line range from the quote and SHALL refuse a
+   finding whose quote does not occur exactly once in that file at that
+   revision.
+4. WHEN a finding is shown against a later revision THEN Avoozl SHALL look
+   for the same collapsed quote in the same file. Found once, the finding
+   SHALL show at the new lines. Found zero or more than once, it SHALL
+   show **Moved or removed** with its original file, lines and revision.
+   This SHALL be worked out on read and SHALL NOT change the stored
+   anchor.
+5. A finding's state SHALL be one of: `open` (no response yet), `fixed`
+   (the planner named a revision it stored), `answered` (the planner gave
+   a reason), `for you` (no round or planner turn is running, it is not
+   fixed, and no person has decided it), `accepted`, `rejected`,
+   `deferred` or `resolved`. A person's actions SHALL be **Accept** (agree;
+   the planner must fix it in its next revision), **Reject** (dismiss, with
+   a reason), **Defer** (keep as a follow-up) and **Resolve** (mark done),
+   plus **Reopen** to undo the last one. Each action SHALL be appended to
+   the finding with who, when, the revision hash on screen, and the note.
+   An accepted finding SHALL stay open for the planner until it is fixed.
+   Reject, Defer and Resolve SHALL close it.
+6. These actions SHALL be person-only: MCP and agent sessions SHALL be
+   refused, as for `plan.approve`. `plan.review.dispose` SHALL become
+   person-only with the same refusal. Planner answers stay on
+   `plans_answer_review`.
+7. A person's actions SHALL feed the planner's next turn on that spec, as
+   data: every accepted finding (to be answered `fixed` with a revision;
+   an `answered` reply keeps it for you), every rejected finding with its
+   reason (not to be brought back), and deferred ones as follow-ups. WHEN
+   a person accepts a finding and no planner turn is running for that plan
+   THEN the tick SHALL send the planner one answer turn with the accepted
+   findings, at most one per plan per tick. The next reviewer round SHALL
+   get rejected and resolved findings with their reasons, and Avoozl SHALL
+   drop a new finding in the same pass whose category and quote hash match
+   one of them, counting the drop in the round's note.
+8. Defer SHALL store a follow-up (finding, spec, note, who, when,
+   revision) in the workspace database and list it under **Follow-ups** on
+   the spec. It SHALL NOT create a task or an issue. A follow-up becomes a
+   task only through a spec revision a person approves.
+9. The spec SHALL have a **Review** view: the rendered requirements, design
+   and tasks files as tabs, with a right-hand rail of finding cards. Each
+   card SHALL sit level with its anchor's first line; cards that would
+   overlap SHALL stack in line order. Clicking a card SHALL scroll to and
+   highlight the anchored lines; clicking highlighted text SHALL select its
+   card. Moved or removed findings SHALL be listed at the top of the rail.
+   Filters by severity and by state SHALL show counts and be kept in the
+   page address. On a narrow screen each card SHALL sit inline after its
+   anchored block instead of in a rail.
+10. Each card SHALL show the severity label and border, category, file and
+    lines, body, the planner's response with a link to the fixing
+    revision, the history of person actions (who and at which revision),
+    and Accept, Reject, Defer and Resolve, or Reopen once decided. Reject
+    SHALL require a reason; Defer SHALL offer a note.
+11. The view, and each round's header in it, SHALL have **Open review
+    chat** (the round's reviewer session) and **Open planner chat** (the
+    planner session that answered). A session that is gone SHALL show
+    "Chat closed" with no link. These links SHALL only open an existing
+    chat, never start one.
+12. Both Approve dialogs SHALL show, per spec, counts by severity and by
+    state (for example "2 blocker · 3 warn · 1 info · 1 for you") and an
+    **Open review** link to the Review view at that revision, in place of
+    the inline finding list and its close controls.
+13. WHEN the revision changes while an Approve dialog is open THEN the
+    dialog SHALL NOT show "This revision changed. Reload it before
+    approving." It SHALL update in place to the new revision and say what
+    changed: the old and new hash, each file changed with lines added and
+    removed, and findings newly fixed or moved. Approve SHALL apply to the
+    revision on screen, and after an in-place update it SHALL need a fresh
+    click. An approve sent for the old hash SHALL produce this update, not
+    an error. In the batch dialog this SHALL apply per spec. The backend's
+    refusal of a stale hash SHALL stay.
+14. This SHALL be the review loop. A reviewer round reviews one exact
+    revision and finds; the planner fixes or answers each finding; the
+    person decides the rest. `planReview.rounds` SHALL cap automatic
+    reviewer rounds; planner turns started by a person's Accept SHALL NOT
+    count. WHEN the cap is reached a person MAY press **Review anyway** to
+    start exactly one more round at the current revision, still under the
+    different-model rule of Requirement 99.2. Approval SHALL stay the
+    person's click at an exact revision; rounds, findings and actions SHALL
+    NOT approve or hold approval.
+15. This SHALL add no GitHub call. Findings, actions and follow-ups SHALL
+    stay in the workspace database.
+16. Tests SHALL use fake chats, fake model names and a fake GitHub that
+    records zero calls. Source and tests SHALL NOT name a model or
+    provider.

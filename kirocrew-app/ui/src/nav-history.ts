@@ -8,7 +8,7 @@
 
 import { isBackButton, isBackKey } from './graph-layout.ts'
 
-export type StepKind = 'tab' | 'inner' | 'select' | 'graph' | 'drawer' | 'modal' | 'confirm'
+export type StepKind = 'tab' | 'inner' | 'select' | 'graph' | 'tree' | 'drawer' | 'modal' | 'confirm'
 
 export interface Step {
   id: number

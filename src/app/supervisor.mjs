@@ -8,6 +8,7 @@
 // time, and records one it cannot find as `gone` (R88.4 decides what follows).
 // Nothing here listens on a socket.
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
@@ -18,8 +19,14 @@ import { withoutPushCredentials } from "./git.mjs";
 import { machineAvoozlPaths } from "./host-config.mjs";
 import {
   fillHarnessArgv,
+  harnessPermission,
   loadHarnessDefinition,
 } from "./harness-definitions.mjs";
+import {
+  catalogWorkspaceRoots,
+  confineChild,
+  sandboxSecretPaths,
+} from "./sandbox.mjs";
 
 const CHILD_WRAPPER = fileURLToPath(
   new URL("./supervisor-child.mjs", import.meta.url),
@@ -281,6 +288,22 @@ function update(db, sessionId, fields) {
   ).run(...keys.map((k) => fields[k]), stamp(), sessionId);
 }
 
+// The worktree's shared git directory, which no write root may cover
+// (R94.4a), or null outside a repository.
+function gitCommonDir(worktree) {
+  try {
+    const out = execFileSync("git", ["rev-parse", "--git-common-dir"], {
+      cwd: worktree,
+      encoding: "utf8",
+      timeout: 15_000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return out ? path.resolve(worktree, out) : null;
+  } catch {
+    return null;
+  }
+}
+
 function killGroup(pid) {
   if (process.platform === "win32") return;
   try {
@@ -325,25 +348,64 @@ export function startSupervisor({
       fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
       const briefFile = path.join(folder, "brief.md");
       fs.writeFileSync(briefFile, row.brief, { mode: 0o600 });
+      const values = JSON.parse(row.placeholder_values);
       const argv = fillHarnessArgv(definition.start, {
-        ...JSON.parse(row.placeholder_values),
+        ...values,
         worktree: row.worktree,
         brief_file: briefFile,
         model: row.model,
         session: row.session_id,
         permission: definition.permission[row.permission_class],
       });
+      // The sandbox wraps the agent, not the wrapper, which must still write
+      // its exit file in the state folder the child cannot reach (R95.6).
+      // shortcut: the network is always off; a project's sandbox.network
+      // (sandboxNetwork) joins the request once 47.4 builds requests.
+      const access = harnessPermission(definition, {
+        permissionClass: row.permission_class,
+        worktree: row.worktree,
+        tmp: values.tmp,
+        cacheDirs: values.project_cache_dirs ?? [],
+        gitCommonDir: gitCommonDir(row.worktree),
+        configDirectory,
+      });
+      if (row.permission_class === "write" && values.tmp)
+        fs.mkdirSync(values.tmp, { recursive: true, mode: 0o700 });
+      const confined = confineChild(argv, {
+        definition,
+        configDirectory,
+        writeRoots: access.writeRoots,
+        secrets: sandboxSecretPaths({
+          home: env.HOME || os.homedir(),
+          env,
+          configDirectory,
+          stateDirectory,
+          workspaceRoots: catalogWorkspaceRoots(
+            path.join(path.resolve(stateDirectory), "catalog.sqlite"),
+          ),
+        }),
+        readable: [briefFile],
+        writable: [log],
+        // Avoozl pushes; an agent gets no push credentials (R102.6). The
+        // sandbox then sets git's own empty credential helper.
+        env: withoutPushCredentials(
+          values.tmp ? { ...env, TMPDIR: values.tmp } : env,
+        ),
+      });
       const out = fs.openSync(log, "a", 0o600);
       let child;
       try {
-        child = spawn(process.execPath, [CHILD_WRAPPER, exitFile, ...argv], {
-          cwd: row.worktree,
-          detached: true,
-          stdio: ["ignore", out, out],
-          // Avoozl pushes; an agent gets no push credentials (R102.6).
-          env: withoutPushCredentials(env),
-          windowsHide: true,
-        });
+        child = spawn(
+          process.execPath,
+          [CHILD_WRAPPER, exitFile, ...confined.argv],
+          {
+            cwd: row.worktree,
+            detached: true,
+            stdio: ["ignore", out, out],
+            env: confined.env,
+            windowsHide: true,
+          },
+        );
       } finally {
         fs.closeSync(out);
       }
