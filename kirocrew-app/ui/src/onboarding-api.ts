@@ -51,7 +51,7 @@ export type StepKey = 'folder' | 'mode' | 'check' | 'setup' | 'import' | 'scan' 
 
 export const ONBOARD_STEPS: { key: StepKey; title: string; line: string }[] = [
   { key: 'folder', title: 'Pick folder', line: 'Point at a Git checkout. Avoozl reads its remote, branch, settings file and specs. Nothing is changed.' },
-  { key: 'mode', title: 'Pick mode', line: 'Where tasks live. Nothing is saved until Set up.' },
+  { key: 'mode', title: 'Pick mode', line: 'Where its tasks live. Nothing is saved until Set up.' },
   { key: 'check', title: 'Check GitHub', line: 'Avoozl reads GitHub and lists what Set up would create, change or keep. It writes nothing.' },
   { key: 'setup', title: 'Set up', line: 'The writes, in order. Each GitHub write asks first.' },
   { key: 'import', title: 'Import specs', line: 'Spec folders and their lint results. Import makes drafts; nothing is approved.' },

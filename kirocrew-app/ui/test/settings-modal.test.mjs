@@ -23,7 +23,7 @@ test('a repository edits in place: no Edit button, no dialog, one footer', () =>
   assert.doesNotMatch(settings, /RepositoryDialog|Use Edit to change/)
   assert.match(settings, /data-repository-editor=\{row\.key\}/)
   assert.match(settings, /<SaveFooter\s+dirty=\{dirty\}/)
-  assert.match(settings, /const DIALOG_SECTIONS: readonly SettingsTab\[\] = \['github'\]/)
+  assert.doesNotMatch(settings, /DIALOG_SECTIONS|data-open-settings/)
 })
 
 test('the shared Modal still asks before it discards edits', () => {
