@@ -422,10 +422,13 @@ test("a task held by its plan's release policy is not a readiness change", async
   // b is the first task of its chain; the graph allows it, but its plan's
   // release policy gave it no ready label.
   store.mutate("Hold b by release policy", (data) => {
-    Object.assign(data.tasks.find((x) => x.id === "b"), {
-      planId: "held-plan",
-      dispatch: { ready: false, graphReady: true, state: "blocked" },
-    });
+    Object.assign(
+      data.tasks.find((x) => x.id === "b"),
+      {
+        planId: "held-plan",
+        dispatch: { ready: false, graphReady: true, state: "blocked" },
+      },
+    );
   });
   const policy = (release) =>
     store.setMeta("releaseFingerprint", {
