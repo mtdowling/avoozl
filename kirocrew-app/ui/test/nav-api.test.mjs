@@ -3,8 +3,16 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { DASHBOARD_PAGES, RETIRED_LINE, TABS, dashboardPage, dashboardTab, navTab, redirectSettings, redirectTab, retiredCoders, tabLabel } from '../src/nav-api.ts'
 
-test('the nav row is Dashboards, Specs, Issues, Pull requests, Needs you, Trace, Flow, Activity, Settings', () => {
-  assert.deepEqual(TABS.map((t) => t.label), ['Dashboards', 'Specs', 'Issues', 'Pull requests', 'Needs you', 'Trace', 'Flow', 'Activity', 'Settings'])
+test('the nav row is Dashboards, Specs, Needs you, Trace, Flow, Activity, Settings', () => {
+  assert.deepEqual(TABS.map((t) => t.label), ['Dashboards', 'Specs', 'Needs you', 'Trace', 'Flow', 'Activity', 'Settings'])
+})
+
+test('the nav has no Issues or Pull requests pill, and old links open Dashboards > Home', () => {
+  for (const key of ['issues', 'pulls']) {
+    assert.ok(!TABS.some((t) => t.key === key))
+    assert.deepEqual(redirectTab(key), { tab: 'dashboard' })
+  }
+  assert.ok(!TABS.some((t) => /^(Issues|Pull requests)$/.test(t.label)))
 })
 
 test('removed pages go to the page that took over, never nowhere', () => {

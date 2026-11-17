@@ -488,10 +488,10 @@ export function diffLines(diff: string | undefined): { kind: 'add' | 'del' | 'hu
 export function pdcaText(p: Proposal): string | null {
   if (p.status !== 'approved' || !p.pdca) return null
   if (!p.pdca.result && p.pdca.pendingReason) return `PDCA: ${p.pdca.pendingReason}`
-  if (!p.pdca.result) return `PDCA: measuring over the next ${p.pdca.window} ${p.metric === 'CI minutes per pull request' ? 'closed pull requests' : 'tasks'}.`
+  if (!p.pdca.result) return `PDCA: measuring over the next ${p.pdca.window} ${p.metric === 'CI minutes per pull request' || p.metric === 'Build minutes per pull request' ? 'closed pull requests' : 'tasks'}.`
   const verdict = p.pdca.result === 'helped' ? 'helped' : p.pdca.result === 'worse' ? 'worse' : 'did not help'
   const fmt = (v: number | null | undefined) =>
-    v === null || v === undefined ? '–' : p.metric === 'CI minutes per pull request' ? `${v.toLocaleString(undefined, { maximumFractionDigits: 1 })} min` : /rate|efficiency/.test(p.metric) ? percent(v) : duration(v)
+    v === null || v === undefined ? '–' : p.metric === 'CI minutes per pull request' || p.metric === 'Build minutes per pull request' ? `${v.toLocaleString(undefined, { maximumFractionDigits: 1 })} min` : /rate|efficiency/.test(p.metric) ? percent(v) : duration(v)
   return `PDCA: ${p.metric} ${fmt(p.pdca.before)} → ${fmt(p.pdca.after)}, ${verdict}.`
 }
 
