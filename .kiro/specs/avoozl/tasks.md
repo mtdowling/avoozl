@@ -1942,7 +1942,7 @@ proof or run a real workspace to get past that wait.
   - Make this the sole code path that creates task issues. Preserve visibility rules, person outcomes and journal access after offboarding.
   - Export never sets crew:avoozl (owner decision 2026-11-16), so Issue Radar and people may take exported issues. It is the only crew:avoozl opt-out. A test checks that no export create request carries crew:avoozl.
 
-- [ ] 56.10 Mirror import PRs and forward ancestry, after 42.1, 56.3 [R102.21] (§4.32)
+- [x] 56.10 Mirror import PRs and forward ancestry, after 42.1, 56.3 [R102.21] (§4.32)
   - After private divergence, import upstream into a public-tracking branch and a reviewed mirror PR. Forward recognition excludes upstream/import ancestry, including an import merge whose second parent is on the public-tracking branch.
   - Test divergent mirror updates and a second import; forwarding proposes nothing for imported upstream changes and still screens genuine private changes.
 
