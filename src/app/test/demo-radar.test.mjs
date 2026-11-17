@@ -99,7 +99,7 @@ test("the epic reads epic, plan, phase with a gate, release count and held reaso
   });
 });
 
-test("a drafted review, recent merges, a trace and a mirror are present", async () => {
+test("a drafted review, recent merges and a mirror are present", async () => {
   await withDemo(async (demo) => {
     const f = await demoFixtures(demo);
     assert.equal(f.reviewDraft.state, "ready-to-post");
@@ -109,10 +109,7 @@ test("a drafted review, recent merges, a trace and a mirror are present", async 
     const flow = await demo.execute("flow.view", {});
     assert.ok(flow.tasks.filter((task) => task.finishedAt).length >= 2);
     assert.ok(f.recentMerges.every((merge) => merge.mergedAt && merge.url));
-    assert.ok(f.traces.length >= 2);
-    assert.ok(
-      f.traces.some((trace) => trace.steps.some((s) => s.state === "now")),
-    );
+    assert.equal(f.traces, undefined);
     assert.equal(f.mirror.sample, true);
     assert.ok(f.mirror.items.length >= 3);
     assert.ok(f.mirror.items.some((item) => item.state === "to_forward"));
