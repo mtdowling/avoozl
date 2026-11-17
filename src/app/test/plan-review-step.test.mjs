@@ -24,6 +24,7 @@ import {
   removePlanReviewWorktrees,
 } from "../plan-review-worktrees.mjs";
 import { bindContentRules } from "../content-rules.mjs";
+import { recordFindingDecision } from "../review-findings.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -36,6 +37,7 @@ const finding = (extra = {}) => ({
   severity: "important",
   file: "design.md",
   line: 3,
+  quote: "Use src/missing.mjs.",
   claim: "The named helper is absent.",
   evidence: "Searched src/ for missing.mjs; no matching file was found.",
   ...extra,
@@ -301,7 +303,11 @@ test("planner answers are revision-bound, preserve open findings, and stop at th
   await env.bind(second, "reviewer2", "fake-reviewer");
   const again = await env.ops.execute(
     "plan.review.submit",
-    { planId: env.plan.id, revisionHash: saved.hash, findings: [finding()] },
+    {
+      planId: env.plan.id,
+      revisionHash: saved.hash,
+      findings: [finding({ quote: "Use a real file." })],
+    },
     undefined,
     as("reviewer2"),
   );
@@ -688,4 +694,144 @@ test("a folder reload credits the one New spec planner that ran since the last r
   assert.notEqual(second.hash, first.hash);
   const writer = planReviewWriter(env.store, second.id, second.hash);
   assert.equal(writer.slot, "np");
+});
+
+test("a person's Accept starts one planner turn outside the rounds cap; Review anyway adds one round that drops a rejected repeat", async (t) => {
+  const env = setup(t, { rounds: 1 });
+  await env.step();
+  const [review] = (await env.step()).requests;
+  assert.match(review.brief, /blocker/);
+  assert.match(review.brief, /exact text the finding is about/);
+  await env.bind(review, "reviewer", "fake-reviewer");
+  const submitted = await env.ops.execute(
+    "plan.review.submit",
+    {
+      planId: env.plan.id,
+      revisionHash: env.plan.hash,
+      findings: [
+        finding({ severity: "blocker", line: undefined }),
+        finding({
+          kind: "hidden-order",
+          severity: "warn",
+          claim: "An ordering edge is missing.",
+        }),
+      ],
+    },
+    undefined,
+    as("reviewer"),
+  );
+  const [accepted, rejected] = submitted.threads;
+  assert.deepEqual(
+    [accepted.severity, accepted.line, accepted.anchor.lineStart],
+    ["blocker", 3, 3],
+  );
+  const [answer] = (await env.step()).requests;
+  await env.bind(answer, "answerer", "fake-writer");
+  await env.ops.execute(
+    "plan.review.answer",
+    {
+      planId: env.plan.id,
+      roundId: review.task,
+      answers: [accepted, rejected].map((thread) => ({
+        id: thread.id,
+        action: "answered",
+        text: "The helper is created by the first task.",
+      })),
+    },
+    undefined,
+    as("answerer"),
+  );
+  assert.deepEqual((await env.step()).requests, []);
+
+  recordFindingDecision(env.store, {
+    id: accepted.id,
+    action: "accept",
+    revisionHash: env.plan.hash,
+    by: "Owner",
+  });
+  recordFindingDecision(env.store, {
+    id: rejected.id,
+    action: "reject",
+    revisionHash: env.plan.hash,
+    note: "The manifest already orders these.",
+    by: "Owner",
+  });
+  const [turn] = (await env.step()).requests;
+  assert.equal(turn.role, "plan-answer");
+  assert.equal(turn.permissionClass, "write");
+  assert.equal(turn.attempt, 2);
+  assert.match(turn.brief, /personAccepted/);
+  assert.match(turn.brief, /The manifest already orders these\./);
+  assert.equal((await env.step()).requests.length, 1, "one turn per plan");
+  assert.equal(env.store.list("review_rounds").length, 1);
+
+  await env.bind(turn, "answerer2", "fake-writer");
+  env.edit(
+    "# Design\n\nUse src/missing.mjs.\n\nsrc/missing.mjs is added by task 1.1.\n",
+  );
+  const saved = await env.ops.execute(
+    "plan.save",
+    { id: env.plan.id, expectedHash: env.plan.hash },
+    undefined,
+    as("answerer2"),
+  );
+  const done = await env.ops.execute(
+    "plan.review.answer",
+    {
+      planId: env.plan.id,
+      roundId: review.task,
+      answers: [
+        {
+          id: accepted.id,
+          action: "fixed",
+          revisionHash: saved.hash,
+          text: "",
+        },
+      ],
+    },
+    undefined,
+    as("answerer2"),
+  );
+  assert.equal(done.complete, true);
+  const fixed = env.store.get("review_threads", accepted.id);
+  assert.equal(fixed.answer.action, "fixed");
+  assert.equal(fixed.answers[0].action, "answered", "the old answer is kept");
+
+  // The cap holds: no reviewer round for the fix revision until Review anyway.
+  await env.step();
+  assert.deepEqual((await env.step()).requests, []);
+  assert.equal(env.store.list("review_rounds").length, 1);
+  decidePlanReview(env.store, {
+    planId: env.plan.id,
+    revisionHash: saved.hash,
+    action: "review",
+  });
+  const [extra] = (await env.step()).requests;
+  assert.equal(extra.role, "plan-review");
+  assert.equal(extra.attempt, 2);
+  assert.match(extra.brief, /personRejected/);
+  await env.bind(extra, "reviewer2", "fake-reviewer");
+  const again = await env.ops.execute(
+    "plan.review.submit",
+    {
+      planId: env.plan.id,
+      revisionHash: saved.hash,
+      findings: [
+        finding({ kind: "hidden-order", severity: "warn" }),
+        finding({
+          kind: "gap",
+          severity: "info",
+          quote: "src/missing.mjs is added by task 1.1.",
+        }),
+      ],
+    },
+    undefined,
+    as("reviewer2"),
+  );
+  assert.deepEqual(
+    again.threads.map((thread) => [thread.kind, thread.anchor.lineStart]),
+    [["gap", 5]],
+  );
+  assert.match(again.round.note, /Dropped 1 finding/);
+  assert.equal(env.store.list("approvals").length, 0);
 });

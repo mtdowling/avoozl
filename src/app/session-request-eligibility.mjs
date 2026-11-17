@@ -4,6 +4,7 @@ import { budgetHeldTaskIds } from "./budget.mjs";
 import { linePausedTaskIds } from "./flow.mjs";
 import { driverHeldTaskIds, readOnlyPlanIds } from "./driver-scope.mjs";
 import { hasRemoteTask, runnerSessionHold } from "./remote-runner.mjs";
+import { needsAnswer } from "./review-findings.mjs";
 
 export function sessionStartHold(
   store,
@@ -52,7 +53,7 @@ export function sessionStartHold(
             (thread) =>
               thread.source === "plan-review" &&
               thread.roundId === round.id &&
-              !thread.answer,
+              needsAnswer(thread),
           )
       )
         return "No review findings still need an answer.";
