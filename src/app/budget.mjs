@@ -459,6 +459,22 @@ export function budgetStatuses(store, data = store.read(), options = {}) {
   return out;
 }
 
+// The dollars left on a task's cap, for a harness's own spend cap (R94.6):
+// null when the role has no cap, the task sets no dollar cap, or the cap is
+// in warn mode (which never stops work); else the rest, rounded down to the
+// cent, never below 0.
+export function spendCapUsd(store, taskId, role, options = {}) {
+  if (UNCAPPED.has(role)) return null;
+  const data = options.data ?? store.read(),
+    status = budgetStatuses(store, data, { ...options, only: [taskId] }).get(
+      taskId,
+    );
+  if (!status || !status.cap.usd || status.cap.mode !== "stop") return null;
+  const cap = status.batch?.cap.usd ?? status.cap.usd,
+    spent = status.batch?.total.usd ?? status.spend.total.usd;
+  return Math.max(0, Math.floor((cap - spent) * 100 + 1e-9) / 100);
+}
+
 // ---------------------------------------------------------------------------
 // Holds: the stop, the pause, the warn-mode over-budget item.
 

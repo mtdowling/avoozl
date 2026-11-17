@@ -970,7 +970,13 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
 
 // A task's own worktree and local branch go once its head has landed (R88.6).
 // The work is already on the target, so a failure here only leaves them kept.
-async function removeLandedTaskWorktree(store, project, entry, target, head) {
+export async function removeLandedTaskWorktree(
+  store,
+  project,
+  entry,
+  target,
+  head,
+) {
   const records = store
     .list("task_worktrees")
     .filter((r) => r.path === entry.worktree && r.repository === project.id);

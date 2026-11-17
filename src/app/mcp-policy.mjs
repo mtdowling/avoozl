@@ -21,6 +21,8 @@ export const PERSON_ONLY = new Map([
       Boolean(input?.confirm),
     ),
   ],
+  ["spec.journal.reanchor", person("Only a person reanchors a spec journal.")],
+  ["spec.journal.resume", person("Only a person resumes a spec journal.")],
   ["spec.exportIssues", person("Only a person exports a spec's task issues.")],
   [
     "github.retireTaskIssues",
@@ -100,6 +102,10 @@ export const PERSON_ONLY = new Map([
     person("Only a person reviews a change before it is forwarded."),
   ],
   ["radar.signoff", person("Only a person signs off a public repository.")],
+  [
+    "publiccrews.signoff",
+    person("Only a person signs off a public repository."),
+  ],
   ["radar.retro.apply", person("Only a person applies a retro rule.")],
   ["github.setup.cancel", person("Only a person cancels a GitHub setup.")],
   ["github.configure", person("Only a person changes GitHub setup.")],
@@ -299,6 +305,8 @@ export const NOT_ON_MCP = new Map([
   ["onboarding.inspect", page],
   ["onboarding.scan", page],
   ["plan.issues.preview", page],
+  // The spec page's Review view; plans_plan_review reads the same findings.
+  ["plan.review.view", page],
   ["spec.changed.preview", page],
   ...[
     "run.model",

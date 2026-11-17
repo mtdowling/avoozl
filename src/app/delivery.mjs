@@ -2,6 +2,7 @@ import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { projectExecutor } from "./executors/process.mjs";
 import {
   kirocrewSession,
+  kirocrewDetachedSession,
   kirocrewRemoteSession,
 } from "./executors/kirocrew.mjs";
 import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
@@ -47,6 +48,7 @@ import {
   stillQueued,
   syncBase,
 } from "./pr-landing.mjs";
+import { isDirectLanding, queueDirect } from "./direct-landing.mjs";
 import { integrationBranchOf } from "./integration-branch.mjs";
 import { specBase } from "./spec-base.mjs";
 import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
@@ -1803,6 +1805,16 @@ export function localSteps(
       ];
 }
 
+// The steps of a `process` child (R96.1, R94.4a): it runs in its task
+// worktree, only edits, and finishes with the result file as its last step.
+export function processSteps(task) {
+  return [
+    `1. Work only in the current folder, the worktree of task ${task.id} on branch avoozl/${task.id}.`,
+    "2. Edit and run the checks. Do not commit, push, open or edit a pull request, merge, label, or comment. Avoozl commits your changes after you exit, runs the checks and lands them.",
+    `3. Last, write .avoozl/result.json in this folder, at most 8 KB: {"state": "done", "text": "<what you changed>"} when the work is finished, or {"state": "blocked", "text": "<why>"} when you cannot finish. Then exit. No result file, or done with a failing exit, is retried.`,
+  ];
+}
+
 // Phase markers (§4.11, R43.5): asked for only where Avoozl cannot read the
 // session's tool calls, which is a Crew Mode worker; a tick-opened session's
 // tool rows say the same thing. shortcut: a tick-opened session on a Kiro
@@ -2251,6 +2263,13 @@ function composeLeafBrief(
       }),
     });
   const token = issueReportToken(store, { taskId: task.id, attempt });
+  // A supervisor child (R96.1): no database, no commit, no CLI report; its
+  // brief ends with the result file.
+  if (!relay && projectExecutor(project) === "process")
+    return workerBrief(task, project, {
+      ...options,
+      steps: processSteps(task),
+    });
   return workerBrief(task, project, {
     ...options,
     ...(relay
@@ -2438,7 +2457,11 @@ export function planReadyDispatches(store, policy, options = {}) {
         // A project on `process` runs its worker as a supervisor child
         // (R93.5); other roles move in Phase 49.
         executor: remote ? "kirocrew" : projectExecutor(leaf.project),
-        ...kirocrewSession(leaf.project.id),
+        // A local worker opens with `project: false` (R88.2, §4.26 Work): its
+        // brief names the worktree, so the sidebar folder needs no project
+        // directory. shortcut: with the routing prompt on, routing.mjs still
+        // holds the leaf on that folder; upgrade with the routing readiness.
+        ...kirocrewDetachedSession(leaf.project.id),
         agent,
         ...(model ? { model } : {}),
         ...(where
@@ -3419,12 +3442,17 @@ export async function integrateVerified(
           "projects",
           worktree.repository || taskRepository(task),
         ),
-        viaPullRequest = isPullRequestLanding(project);
-      // A `pr` project lands on GitHub (task 42.6): bring the remote base
-      // here first; a queued task waits unless its base moved.
-      if (viaPullRequest) {
+        viaPullRequest = isPullRequestLanding(project),
+        viaDirect = isDirectLanding(project);
+      // A `pr` project lands on GitHub (task 42.6) and a `direct` one on its
+      // remote (41.9): bring the remote base here first; a queued task
+      // waits unless its base moved.
+      if (viaPullRequest || viaDirect) {
         if (delivery.batch)
-          fail("A batch does not land by pull request yet.", 409);
+          fail(
+            `A batch does not land ${viaDirect ? "directly" : "by pull request"} yet.`,
+            409,
+          );
         await syncBase(project).catch(() => null);
         if (await stillQueued(store, { delivery, project })) continue;
       }
@@ -3485,6 +3513,11 @@ export async function integrateVerified(
           task,
           at,
         });
+        store.transaction(() => store.put("task_deliveries", next));
+        continue;
+      }
+      if (viaDirect) {
+        next = queueDirect(store, { delivery, project, task, at });
         store.transaction(() => store.put("task_deliveries", next));
         continue;
       }

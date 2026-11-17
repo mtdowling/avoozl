@@ -3,6 +3,7 @@
 // marker hash (RC5.2, RC5.8, design D7). Fake GitHub only: nothing is armed on
 // a real pull request.
 import assert from "node:assert/strict";
+import { signedOff } from "./public-signoff-fixture.mjs";
 import test from "node:test";
 import { renderProvenance } from "../github-provenance.mjs";
 import { Operations } from "../operations.mjs";
@@ -209,7 +210,7 @@ test("a public repository is not armed until its sign-off is complete", async (t
   github.closes.set(6, [16]);
   await tick();
   assert.deepEqual(github.armed, []);
-  store.setMeta("publicSignoff", { [REPO]: { complete: true } });
+  signedOff(store, REPO);
   await tick();
   assert.deepEqual(github.armed, [["PR_16", "SQUASH"]]);
 });

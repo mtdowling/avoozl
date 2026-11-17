@@ -53,6 +53,7 @@ import WorkflowMap, { focusField } from '../../src/WorkflowMap.tsx'
 import { toForm } from '../../src/settings-api.ts'
 import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
+import { reviewFixture } from './review-fixture.ts'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
 import AvoozlPanel from '../../src/Panel.tsx'
@@ -516,6 +517,44 @@ if (query.get('page') === 'app' && query.get('escalations')) {
   }
   answer('conflicts.view', () => ({ revision: 1, items: [crewRow] }))
 }
+// &publiccrews=after: Intake with the Public crews card (task 39.3): one
+// repository ready to sign off, one signed off, and one with no rule set
+// (the banner) whose sign-off lapsed. &publiccrews=before: the same Intake
+// as main's backend sends it, with no card.
+if (query.get('page') === 'app' && query.get('publiccrews')) {
+  const after = query.get('publiccrews') === 'after'
+  const link = { url: '/issue-radar', exact: false, tooltip: 'Opens Issue Radar.' }
+  const items = [44, 45].map((number) => ({
+    kind: 'issue', number, title: number === 44 ? 'Recipe photos load slowly on the list' : 'Add a print view for one recipe', url: `https://github.com/acme/recipe-box/issues/${number}`, repository: 'acme/recipe-box', author: 'mira', createdAt: '2026-11-15T09:00:00Z', labels: ['bug'], comments: 1,
+    source: 'github', id: `acme/recipe-box#${number}`, links: { github: `https://github.com/acme/recipe-box/issues/${number}`, issueRadar: link, review: null },
+  }))
+  const check = (key: string, label: string, ok: boolean, line: string) => ({ key, label, ok, line })
+  const ok = [
+    check('home', 'Crew home', true, 'No steering, memory or notes. Injected context only.'),
+    check('hook', 'Content hook', true, 'avoozl-crew runs the hook (3f9a1c27d0b4).'),
+    check('rules', 'Content rule sets', true, 'company-terms cover it.'),
+    check('audit', 'Audit on the tick', true, 'The tick audits this repository.'),
+  ]
+  const publicCrews = [
+    { repository: 'acme/recipe-box', visibility: 'public', home: '/srv/crew-homes/recipe-box', agent: 'avoozl-crew', signedOff: null, lapsed: false, banner: null, items: ok, ready: true },
+    { repository: 'acme/docs', visibility: 'public', home: '/srv/crew-homes/docs', agent: 'avoozl-crew', signedOff: { by: 'mira', at: '2026-11-17T09:12:00.000Z' }, lapsed: false, banner: null, items: ok, ready: true },
+    {
+      repository: 'acme/web', visibility: 'unknown', home: '/srv/crew-homes/web', agent: 'avoozl-crew', signedOff: null, lapsed: true,
+      banner: 'No content rule set covers this public repository, so sign-off stays closed. Add one in Settings › Content rules.',
+      items: [ok[0], check('hook', 'Content hook', false, 'avoozl-crew has no preToolUse hook that runs `avoozl content hook` on shell calls.'), check('rules', 'Content rule sets', false, 'No rule set covers this repository.'), ok[3]],
+      ready: false,
+    },
+  ]
+  answer('untriaged.view', () => ({
+    enabled: true,
+    mode: 'plans-repo',
+    total: items.length,
+    repositories: [{ repository: 'acme/recipe-box', checkedAt: '2026-11-17T09:00:00Z', error: null, searched: 2, read: 2, truncated: false, count: 2, query: null, filter: null, defaultFilter: '', notify: false }],
+    items,
+    withRadar: [],
+    ...(after ? { publicCrews } : {}),
+  }))
+}
 // ?page=app&radar=1: the Dashboard has one live Issue Radar claim, and a
 // Trace of it. The marker's own `updated=` (09:46) is ahead of GitHub's time
 // for the claim comment (09:21); the Trace shows GitHub's.
@@ -727,18 +766,21 @@ function ReleaseModes() {
   )
 }
 // ?page=github-flow: Flow from GitHub data on two finished issues.
+// &receipt=only: builds from a repository with receipts and no Radar crew,
+// so no finished issues.
+const buildsOnly = query.get('receipt') === 'only'
 if (query.get('page') === 'github-flow' || (query.get('page') === 'app' && query.get('receipt')))
   answer('radar.flow', () => ({
     readAt: new Date(Date.now() - 4 * 60000).toISOString(),
-    count: 2,
+    count: buildsOnly ? 0 : 2,
     issues: [],
-    skipped: [{ number: 61 }],
-    median: [15 * 60000, 45 * 60000, 35 * 60000, 10 * 60000],
-    medianLead: 105 * 60000,
-    efficiency: 90 / 210,
-    bottleneck: 'Claim to PR',
+    skipped: buildsOnly ? [] : [{ number: 61 }],
+    median: buildsOnly ? null : [15 * 60000, 45 * 60000, 35 * 60000, 10 * 60000],
+    medianLead: buildsOnly ? null : 105 * 60000,
+    efficiency: buildsOnly ? null : 90 / 210,
+    bottleneck: buildsOnly ? null : 'Claim to PR',
     errors: [],
-    repositories: ['acme/recipe-box'],
+    repositories: buildsOnly ? [] : ['acme/recipe-box'],
     ...(query.get('receipt')
       ? {
           builds: {
@@ -961,6 +1003,29 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
     { batch: 3, specs: [entry('allocator', 3, 7, '4fb54994', { needs: ['byte-types'] })] },
   ]
   answer('plan.table', () => ({ root: '/repo', problem: null, specs: [], revision: 7, items }))
+  // &review=1: byte-types is stored and reviewed, so its page has Open
+  // review (ReviewView.tsx) on fake findings (review-fixture.ts).
+  if (query.get('review') === '1') {
+    const fixture = reviewFixture()
+    const hash = fixture.data.revisionHash
+    const files = fixture.data.files
+    const summary = { name: 'byte-types', folder: '.kiro/specs/byte-types/', type: 'feature', hash, files: Object.keys(files), counts: { error: 0, warning: 0, info: 0 }, taskCount: 2, critique: null, plan: { id: 'byte-types', state: 'draft', hash, revision: 3, changed: false, approved: false } }
+    answer('plan.table', () => ({ root: '/repo', problem: null, specs: [summary], revision: 7, items }))
+    answer('plan.get', () => ({
+      id: 'byte-types', spec: 'byte-types', title: 'Byte types', hash, revision: 3, state: 'draft', files, approvals: [],
+      quality: { canApprove: true, counts: { error: 0, warning: 0, info: 0 }, diagnostics: [] },
+      disk: { folder: '.kiro/specs/byte-types/', exists: true, hash, changed: false, critique: null },
+      review: { state: 'done', reviewerModel: 'fake-reviewer', revisionHash: hash, current: true, found: fixture.data.findings.length, fixed: 1, forYou: 2, note: null, open: [] },
+    }))
+    answer('plan.preview', () => ({ reviewedHash: hash, expectedRevision: 3, tasks: [], dependencies: [] }))
+    answer('plan.spec.read', () => ({ name: 'byte-types', folder: '.kiro/specs/byte-types/', hash, documents: files }))
+    answer('plan.review.view', () => structuredClone(fixture.data))
+    answer('plan.review.finding.decide', (body) => {
+      state.calls.push(body as never)
+      fixture.decide(body.input as Parameters<typeof fixture.decide>[0])
+      return {}
+    })
+  }
   const writes: Record<string, number> = { 'byte-types': 14, compression: 21, 'nupp-native-runtime-winddown-2026-11-11': 268 }
   answer('plan.approvalBatches', (body) => {
     const ids = (body.input as { ids?: string[] } | undefined)?.ids

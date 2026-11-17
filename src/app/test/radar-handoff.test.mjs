@@ -16,6 +16,7 @@ import {
   readCrews,
 } from "../radar-handoff.mjs";
 import { fixture } from "./fixtures.mjs";
+import { signedOff } from "./public-signoff-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
@@ -141,6 +142,8 @@ function workspace(
     owner: "o",
     repo: "app",
     projectId: "code",
+    // Private: a public repository needs a sign-off first (public-signoff.test.mjs).
+    private: true,
     activeMachine: machineIdentity(store).id,
   });
   const ops = new Operations(store, {
@@ -549,5 +552,48 @@ test("Send to Issue Radar refuses an issue carrying crew:avoozl (R103.7)", async
       }),
       /#8 carries crew:avoozl: it is Avoozl's own issue/,
     );
+  assert.deepEqual(github.labelWrites, []);
+});
+
+// R85.8: a public repository, or one whose visibility was not read, goes to
+// a crew only with a current sign-off; a lapsed one holds it again.
+test("Send to Issue Radar refuses a public repository until its sign-off is current", async (t) => {
+  const { store, ops, send, github } = workspace(t);
+  await ops.execute("untriaged.view", { refresh: true });
+  const input = {
+    items: [{ repository: REPO, number: 1 }],
+    crew: { id: "c1" },
+    preview: true,
+  };
+  for (const visibility of [false, undefined]) {
+    store.put("github_repositories", {
+      ...store.get("github_repositories", REPO),
+      private: visibility,
+    });
+    await assert.rejects(send(input), {
+      status: 409,
+      message: /public crew sign-off is not current/,
+    });
+  }
+  const home = signedOff(store, REPO);
+  assert.equal((await send(input)).label, "radar");
+  // The page lists the repository as signed off.
+  const card = (await ops.execute("untriaged.view", {})).publicCrews;
+  assert.equal(card.length, 1);
+  assert.equal(card[0].repository, REPO);
+  assert.equal(card[0].signedOff.by, "tester");
+  // A changed hook lapses it.
+  fs.writeFileSync(
+    path.join(home, "agents", "avoozl-crew.json"),
+    JSON.stringify({
+      hooks: {
+        preToolUse: [{ matcher: "*", command: "avoozl content hook --other" }],
+      },
+    }),
+  );
+  await assert.rejects(send(input), { status: 409 });
+  const lapsed = (await ops.execute("untriaged.view", {})).publicCrews[0];
+  assert.equal(lapsed.signedOff, null);
+  assert.equal(lapsed.lapsed, true);
   assert.deepEqual(github.labelWrites, []);
 });

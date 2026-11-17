@@ -807,6 +807,10 @@ try {
         2,
       ),
     );
+  else if (command === "public-crews" && positionals[0] === "stop")
+    console.log(
+      JSON.stringify(await localOrRequest("publiccrews.stop", {}), null, 2),
+    );
   else if (command === "flow" && positionals[0] === "resume")
     console.log(
       JSON.stringify(
@@ -1206,6 +1210,41 @@ try {
       );
     console.log(
       JSON.stringify(await localOrRequest(operation, value), null, 2),
+    );
+  } else if (command === "spec" && positionals[0] === "journal") {
+    // Reanchor a held journal (R102.26): preview, or --yes to write it and
+    // hold the spec; then resume it. Each a person's own act.
+    const action = positionals[1];
+    if (!["reanchor", "resume"].includes(action))
+      throw Error("Choose spec journal reanchor or spec journal resume.");
+    const planId = need(
+        options.plan || positionals[2],
+        action === "reanchor"
+          ? "spec journal reanchor SPEC --held ID,... --tail ID [--yes]"
+          : "spec journal resume SPEC --tail ID",
+      ),
+      tail = Number(
+        need(options.tail, `spec journal ${action} SPEC --tail ID`),
+      );
+    console.log(
+      JSON.stringify(
+        await localOrRequest(
+          `spec.journal.${action}`,
+          action === "reanchor"
+            ? {
+                planId,
+                tail,
+                held: String(need(options.held, "--held ID,..."))
+                  .split(",")
+                  .map((id) => Number(id.trim()))
+                  .filter(Boolean),
+                apply: options.yes === true,
+              }
+            : { planId, tail },
+        ),
+        null,
+        2,
+      ),
     );
   } else if (command === "spec") {
     const action = positionals[0];
@@ -1878,6 +1917,9 @@ try {
   spec publish SPEC [--repository OWNER/REPO]
                                          Publish the spec issue, or its local journal without GitHub
   spec takeover SPEC                     Take over a published spec: write the next driver generation
+  spec journal reanchor SPEC --held ID,... --tail ID [--yes]
+                                         Preview, then with --yes restore a held journal; the spec stays held
+  spec journal resume SPEC --tail ID     Resume a spec after its journal was reanchored
   spec export-issues SPEC [--repository OWNER/REPO] [--confirm]
                                          Preview, then with --confirm create the spec's unfinished task issues and stop driving it
   workspace-repo configure PATH [--branch avoozl-workspace] [--directory .avoozl]
@@ -1947,6 +1989,7 @@ try {
   flow stop --scope all|repo|spec|task [--repository ID] [--spec ID] [--task ID] --reason TEXT
                                         Pull the Andon cord: stop new work in a scope
   flow stop --full --reason TEXT        Stop all agents: also stop every running chat Avoozl opened (needs the app backend)
+  public-crews stop                     Stop public crews: pull the cord on every public repository and list the crews to pause
   gap-report preview|accept SPEC (--path FILE | --issue OWNER/REPO#N)  Turn a gap report into proposed tasks in the sub-specs of a parent spec
   gate list [--json]                    Tracker gates: state, last and next check, and what each holds
   gate clear TASK --reason TEXT         Clear a tracker gate as an order (the GitHub login of this machine must be allowed)
