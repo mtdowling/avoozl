@@ -18,6 +18,7 @@ import {
   openSupervisorDatabase,
   requestChild,
   runningSupervisor,
+  sendChild,
   startSupervisor,
   supervisorPaths,
 } from "../supervisor.mjs";
@@ -185,6 +186,43 @@ test("supervisor starts the approved harness and records pid, log and exit code"
     fs.readFileSync(path.join(worktree, "edited.txt"), "utf8"),
     "edited",
   );
+});
+
+// A reader between "message delivered" and "child running" saw the old
+// run's exit with no queued message, so the backend took it for the
+// resumed run's end and reported done before the resumed run had edited.
+test("a resumed child never reads as exited while its message starts it", async (t) => {
+  const { stateDirectory, configDirectory, worktree, defer } = scratch(t);
+  const db = openSupervisorDatabase(stateDirectory);
+  const reader = openSupervisorDatabase(stateDirectory);
+  defer(() => {
+    db.close();
+    reader.close();
+  });
+  const id = requestChild(db, request(worktree));
+  const seen = [];
+  const supervisor = startSupervisor({
+    stateDirectory,
+    configDirectory,
+    intervalMs: 60_000,
+    // Read by the backend's own connection while the supervisor starts a run.
+    startTime: () => {
+      if (childRecord(reader, id)) seen.push(childStatus(reader, id));
+      return null;
+    },
+  });
+  defer(() => supervisor.close());
+  await until(() => {
+    supervisor.pass();
+    return childStatus(db, id) !== "working";
+  });
+  assert.equal(childStatus(db, id), "exited 0", childLog(db, id));
+  assert.equal(sendChild(db, id, "again"), "accepted");
+  seen.length = 0;
+  supervisor.pass();
+  assert.equal(childRecord(db, id).runs, 2);
+  assert.ok(seen.length > 0);
+  assert.deepEqual([...new Set(seen)], ["working"]);
 });
 
 test("a supervised agent gets no push credentials but the child marker (R102.6, R95.5)", async (t) => {
