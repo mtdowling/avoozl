@@ -15,8 +15,13 @@
 //   is guarded too (`guardedFastForward`, driver-generations.mjs), so a move
 //   between the re-read and the push also refuses.
 //
-// The git and check steps are passed in, so direct trains (41.3) and pull
-// request landing reuse the same queue.
+// - A train (41.3) takes the head and the portions right behind it that the
+//   same driver schedules, up to four tasks. A failed train is halved and the
+//   first half checked again, down to one portion; a passing first half
+//   lands and the rest stay queued, so the culprit is found one step later.
+//
+// The git and check steps are passed in, so direct trains (landing-trains.mjs)
+// and pull request landing reuse the same queue.
 import { withWorkLock } from "./git.mjs";
 import { openStops } from "./flow.mjs";
 import { fail } from "./store.mjs";
@@ -50,7 +55,7 @@ export function landingQueue(store, { projectId, base }) {
 // failed, conflict) comes back at the end with its new commit.
 export function enqueueLanding(
   store,
-  { projectId, base, key, commit, tasks = [], spec = null },
+  { projectId, base, key, commit, tasks = [], spec = null, driver = null },
   { now = Date.now() } = {},
 ) {
   requireQueue(projectId, base);
@@ -70,11 +75,36 @@ export function enqueueLanding(
       commit,
       tasks: [...tasks],
       spec,
+      driver,
       seq,
       state: "queued",
       queuedAt: new Date(now).toISOString(),
     });
   });
+}
+
+// A task is its ID, or {task, definition} when it lands with an intent.
+export const taskIds = (entry) =>
+  entry.tasks.map((t) => (typeof t === "string" ? t : t.task));
+
+// The portions that land together from the head: the head, then each next
+// portion with the same driver while the train stays within `maxTasks`
+// tasks and none is paused. Without a driver the head lands alone.
+export function trainOf(store, queue, { maxTasks = 1 } = {}) {
+  const [head] = queue,
+    out = [];
+  if (!head) return out;
+  let count = 0;
+  for (const entry of queue) {
+    const size = Math.max(1, entry.tasks.length);
+    if (out.length) {
+      if (!head.driver || entry.driver !== head.driver) break;
+      if (count + size > maxTasks || pausedBy(store, entry)) break;
+    }
+    out.push(entry);
+    count += size;
+  }
+  return out;
 }
 
 // The open stop that pauses this portion, if any: a task stop names one of
@@ -83,7 +113,7 @@ export function enqueueLanding(
 export function pausedBy(store, entry) {
   return (
     openStops(store).find((stop) => {
-      if (stop.scope === "task") return entry.tasks.includes(stop.taskId);
+      if (stop.scope === "task") return taskIds(entry).includes(stop.taskId);
       if (stop.scope === "spec")
         return Boolean(entry.spec) && entry.spec === (stop.spec ?? stop.planId);
       if (stop.projectId) return stop.projectId === entry.projectId;
@@ -103,57 +133,90 @@ function finish(store, entry, state, extra = {}) {
 
 const running = new Map();
 
-// Takes the head of one base's queue one step toward landing.
+// Takes the head of one base's queue, alone or as a train, one step toward
+// landing.
 //
 // steps:
-//   readBase()                    -> the base's current commit
-//   prepare(entry, baseHead)      -> {candidate} or {conflict: [files]}
-//   check(candidate, entry)       -> {ok, checks}
-//   land({entry, candidate, baseHead}) -> true when the guarded move pushed
+//   readBase()                          -> the base's current commit
+//   prepare(entries, baseHead)          -> {candidate}, or {conflict: [files],
+//                                          key} naming the conflicted portion
+//   check(candidate, entries, baseHead) -> {ok, checks}
+//   land({entries, entry, candidate, baseHead}) -> true when the guarded
+//                                          move pushed
 //
-// Returns {state} with one of: empty, paused, running, conflict, failed,
-// base-moved, busy, not-landed, landed. Only conflict, failed and landed
-// take the head out of the queue; every other state keeps the order.
-export async function landNext(store, { projectId, base }, steps) {
+// options.maxTasks (default 1) bounds a train; direct landing passes 4.
+//
+// Returns {state, entry, entries} with state one of: empty, paused,
+// running, conflict, failed, base-moved, busy, not-landed, landed. Only
+// conflict and failed take a portion out of the queue, and only the one
+// that conflicted or failed alone; landed takes out what landed. Every
+// other state keeps the order.
+export async function landNext(
+  store,
+  { projectId, base },
+  steps,
+  options = {},
+) {
   requireQueue(projectId, base);
   const key = queueId(projectId, base);
   // One step per base at a time in this process; across processes the
   // integration lock and the base re-read keep it safe.
   if (running.has(key)) return { state: "running" };
   const step = (async () => {
-    const [entry] = landingQueue(store, { projectId, base });
-    if (!entry) return { state: "empty" };
-    const stop = pausedBy(store, entry);
-    if (stop) return { state: "paused", entry, stop: stop.id };
+    const queue = landingQueue(store, { projectId, base });
+    if (!queue.length) return { state: "empty" };
+    const stop = pausedBy(store, queue[0]);
+    if (stop) return { state: "paused", entry: queue[0], stop: stop.id };
+    let entries = trainOf(store, queue, options);
     const baseHead = await steps.readBase();
     if (!SHA.test(baseHead ?? ""))
       fail(`The base ${base} has no exact head to land on.`, 409);
-    // Outside the lock: merge with the base and run the checks.
-    const prepared = await steps.prepare(entry, baseHead);
-    if (prepared?.conflict)
-      return {
-        state: "conflict",
-        entry: finish(store, entry, "conflict", {
-          baseHead,
-          files: prepared.conflict,
-        }),
-      };
-    const candidate = prepared?.candidate;
-    if (!SHA.test(candidate ?? ""))
-      fail("Preparing a landing gives an exact candidate commit.", 500);
-    const verdict = await steps.check(candidate, entry);
-    if (!verdict?.ok)
+    // Outside the lock: merge with the base and run the checks. A conflict
+    // or a failure narrows the train until one portion is left.
+    let candidate, verdict;
+    for (;;) {
+      const prepared = await steps.prepare(entries, baseHead);
+      if (prepared?.conflict) {
+        const at = Math.max(
+          0,
+          entries.findIndex((e) => e.key === prepared.key),
+        );
+        if (at > 0) {
+          entries = entries.slice(0, at);
+          continue;
+        }
+        return {
+          state: "conflict",
+          entries: [entries[0]],
+          entry: finish(store, entries[0], "conflict", {
+            baseHead,
+            files: prepared.conflict,
+          }),
+        };
+      }
+      candidate = prepared?.candidate;
+      if (!SHA.test(candidate ?? ""))
+        fail("Preparing a landing gives an exact candidate commit.", 500);
+      verdict = await steps.check(candidate, entries, baseHead);
+      if (verdict?.ok) break;
+      if (entries.length > 1) {
+        entries = entries.slice(0, Math.floor(entries.length / 2));
+        continue;
+      }
       return {
         state: "failed",
-        entry: finish(store, entry, "failed", {
+        entries,
+        entry: finish(store, entries[0], "failed", {
           baseHead,
           candidate,
           checks: verdict?.checks ?? [],
         }),
       };
+    }
     // A stop pulled while the checks ran still pauses the queue.
-    const late = pausedBy(store, entry);
-    if (late) return { state: "paused", entry, stop: late.id };
+    const late = entries.map((e) => pausedBy(store, e)).find(Boolean);
+    if (late)
+      return { state: "paused", entry: entries[0], entries, stop: late.id };
     // Inside the lock: re-read the base, move the ref, push. Nothing else.
     let outcome;
     try {
@@ -163,24 +226,30 @@ export async function landNext(store, { projectId, base }, steps) {
         async () => {
           const now = await steps.readBase();
           if (now !== baseHead) return { state: "base-moved", baseHead: now };
-          const pushed = await steps.land({ entry, candidate, baseHead });
+          const pushed = await steps.land({
+            entries,
+            entry: entries[0],
+            candidate,
+            baseHead,
+          });
           return { state: pushed ? "landed" : "not-landed" };
         },
       );
     } catch (error) {
-      if (error.contention) return { state: "busy", entry };
+      if (error.contention)
+        return { state: "busy", entry: entries[0], entries };
       throw error;
     }
-    if (outcome.state !== "landed") return { ...outcome, entry, candidate };
-    return {
-      state: "landed",
-      candidate,
-      entry: finish(store, entry, "landed", {
+    if (outcome.state !== "landed")
+      return { ...outcome, entry: entries[0], entries, candidate };
+    const landed = entries.map((e) =>
+      finish(store, e, "landed", {
         baseHead,
         candidate,
         checks: verdict.checks ?? [],
       }),
-    };
+    );
+    return { state: "landed", candidate, entry: landed[0], entries: landed };
   })();
   running.set(key, step);
   try {
