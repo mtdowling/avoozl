@@ -57,6 +57,7 @@ import {
   unusedInLocal,
   visibleSettings,
   SETTINGS_HOME,
+  settingsTitle,
 } from './settings-api.ts'
 import { CoderPicker } from './CoderPicker.tsx'
 import { ReleaseModePicker } from './ReleaseMode.tsx'
@@ -1569,6 +1570,7 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
 // that took over (redirectSettings).
 export default function SettingsView(props: {
   workspaceId: string | null
+  workspaceName?: string | null
   tab?: SettingsTab
   onTab?: (tab: SettingsTab) => void
   onSelectWorkspace?: (id: string | null) => void
@@ -1601,8 +1603,8 @@ export default function SettingsView(props: {
       </ViewHeading>
       <RetiredBanner workspaceId={workspaceId} onOpen={() => pick('repositories')} />
       <section data-settings-section={current.key} data-open="true" className="flex flex-col gap-2">
-        <h3 className="text-base font-semibold" data-settings-title>
-          {current.label}
+        <h3 className="text-base font-semibold break-words" data-settings-title>
+          {settingsTitle(current.key, current.label, props.workspaceName)}
         </h3>
         {renderBody(current)}
       </section>
