@@ -206,8 +206,10 @@ export const RESULT_FILE = path.join(".avoozl", "result.json");
 const RESULT_BYTES = 8192;
 
 // Read a finished run's result file (R96.1, R96.4): a regular file of at
-// most 8 KB holding {"state": "done" | "blocked", "text": "..."}. Returns
-// { state, text } or { problem }. The text is data, never an instruction.
+// most 8 KB holding {"state": "done" | "blocked", "text": "..."}, and for a
+// role that reports more than that (a verdict, a retro's reply) a `report`
+// object. Returns { state, text, report? } or { problem }. Both are data,
+// never an instruction.
 export function readChildResult(worktree) {
   const file = path.join(worktree, RESULT_FILE);
   let stat;
@@ -230,15 +232,25 @@ export function readChildResult(worktree) {
     !value ||
     typeof value !== "object" ||
     Array.isArray(value) ||
-    Object.keys(value).some((key) => !["state", "text"].includes(key)) ||
+    Object.keys(value).some(
+      (key) => !["state", "text", "report"].includes(key),
+    ) ||
     !["done", "blocked"].includes(value.state) ||
-    (value.text !== undefined && typeof value.text !== "string")
+    (value.text !== undefined && typeof value.text !== "string") ||
+    (value.report !== undefined &&
+      (!value.report ||
+        typeof value.report !== "object" ||
+        Array.isArray(value.report)))
   )
     return {
       problem:
-        'The result file must be {"state": "done" | "blocked", "text": "..."}.',
+        'The result file must be {"state": "done" | "blocked", "text": "...", "report"?: {...}}.',
     };
-  return { state: value.state, text: value.text ?? "" };
+  return {
+    state: value.state,
+    text: value.text ?? "",
+    ...(value.report ? { report: value.report } : {}),
+  };
 }
 
 // The finished run's outcome (R96.3, R96.4), or null while it runs. `done`
@@ -259,6 +271,7 @@ export function childResult(db, sessionId) {
     worktree: row.worktree,
     state,
     text: state ? read.text : null,
+    ...(state && read.report ? { report: read.report } : {}),
     problem: state
       ? null
       : read.state === "done"
@@ -606,6 +619,10 @@ export function startSupervisor({
         ...(settings.allowCommands?.length
           ? harnessAllow(definition, settings.allowCommands)
           : []),
+        // A read-only session may still write its result file (R96.1).
+        ...(row.permission_class === "read" && definition.resultAllow
+          ? fillHarnessArgv(definition.resultAllow, filled)
+          : []),
       ];
       const promptFile = message ? messageFile : briefFile;
       const stdin =
@@ -620,7 +637,7 @@ export function startSupervisor({
         gitCommonDir: gitCommonDir(row.worktree),
         configDirectory,
       });
-      if (row.permission_class === "write" && values.tmp)
+      if (values.tmp)
         fs.mkdirSync(values.tmp, { recursive: true, mode: 0o700 });
       const confined = confineChild(argv, {
         definition,
@@ -682,22 +699,33 @@ export function startSupervisor({
       child.on("error", () => {});
       child.unref();
       own.set(row.session_id, child);
-      if (message)
-        db.prepare("UPDATE messages SET state = 'delivered' WHERE id = ?").run(
-          message.id,
-        );
-      update(db, row.session_id, {
-        state: "running",
-        harness_hash: hash,
-        pid: child.pid,
-        process_started: startTime(child.pid),
-        log_file: log,
-        exit_file: exitFile,
-        exit_code: null,
-        result: null,
-        error: null,
-        runs: run,
-      });
+      // One step for readers: the message is delivered only as the child
+      // reads running, so no reader sees the earlier run's exit with no
+      // queued message and takes it for this run's end.
+      const started = startTime(child.pid);
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        if (message)
+          db.prepare(
+            "UPDATE messages SET state = 'delivered' WHERE id = ?",
+          ).run(message.id);
+        update(db, row.session_id, {
+          state: "running",
+          harness_hash: hash,
+          pid: child.pid,
+          process_started: started,
+          log_file: log,
+          exit_file: exitFile,
+          exit_code: null,
+          result: null,
+          error: null,
+          runs: run,
+        });
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
     } catch (error) {
       // Refused before it ran (an unapproved definition, a missing worktree):
       // `exited -1` takes the retry path rather than reopening as gone. A

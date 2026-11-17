@@ -10,6 +10,7 @@ import { AVOOZL_CREW_LABEL, parseRepository } from "./github.mjs";
 import { parseMatch } from "./issue-match.mjs";
 import { mirrorInput } from "./mirror-policy.mjs";
 import { rankingFor } from "./release-ranking.mjs";
+import { ROLES, deriveGitHubKeys, resolveRoles } from "./repository-roles.mjs";
 
 // The rule keys `match` replaces (§4.4); still read when `match` is absent.
 const LEGACY_MATCH_KEYS = ["labelsAll", "labelsAny", "labelsNone", "assignee"];
@@ -56,6 +57,7 @@ export const PERMISSIONS = Object.freeze([
   "maintain",
   "admin",
 ]);
+export { ROLES };
 export const MODES = Object.freeze(["plans-repo", "single-repo"]);
 // `local` names Local only on purpose: no GitHub mode, every task stays in
 // the workspace database. It normalizes to a null mode, and the GitHub
@@ -441,6 +443,7 @@ function repositoryInput(value, id, mode) {
       "checkout",
       "folder",
       "baseBranch",
+      "role",
       "coder",
       "allowedActors",
       "minimumPermission",
@@ -909,6 +912,13 @@ export function issueRadarCrews(policy) {
 export function normalizeGitHubPolicy(value) {
   if (value === undefined || value === null) value = {};
   onlyKeys(value, [...LEGACY_KEYS, ...POLICY_KEYS], "github");
+  // Roles decide the mode (R105.2); a block with none is read as written.
+  try {
+    resolveRoles(value);
+  } catch (error) {
+    fail(error.message);
+  }
+  value = deriveGitHubKeys(value);
   const named = value.mode ?? null;
   if (named !== null && !MODE_CHOICES.includes(named))
     fail("github.mode must be local, plans-repo or single-repo.");

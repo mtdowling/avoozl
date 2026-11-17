@@ -37,9 +37,10 @@ test('every destructive button asks first through a red confirm', () => {
   // Routing's Remove choice drops a row from the rule form before Save, and
   // Providers' limit Remove drops a row from the Thresholds form before Save.
   // The quick goal's Discard drops a proposal nobody has approved; nothing was written.
+  // SaveFooter's Discard puts the form back to what is saved; nothing is written.
   // Workspaces' Remove opens its own confirm, whose red Remove from list is
   // the confirm itself (it names the folder and says nothing is deleted).
-  const forms = new Set(['DeliveryDetails.tsx: Supersede', 'TaskForm.tsx: Remove', 'PlansView.tsx: )}', 'PlansView.tsx: ', 'PlansView.tsx: Delete spec', 'RoutingView.tsx: ', 'QuickGoalModal.tsx: Discard', 'WorkspaceView.tsx: Remove from list'])
+  const forms = new Set(['DeliveryDetails.tsx: Supersede', 'TaskForm.tsx: Remove', 'PlansView.tsx: )}', 'PlansView.tsx: ', 'PlansView.tsx: Delete spec', 'RoutingView.tsx: ', 'QuickGoalModal.tsx: Discard', 'WorkspaceView.tsx: Remove from list', 'SaveFooter.tsx: Discard'])
   assert.deepEqual(plain.filter((entry) => !forms.has(entry)), [])
   // The ones the owner named, each a DangerBtn with its own copy.
   const settings = source('SettingsView.tsx')
