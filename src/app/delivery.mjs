@@ -10,6 +10,7 @@ import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { blockerNotes } from "./github-close.mjs";
+import { issueReportToken } from "./report-match.mjs";
 import { fail } from "./store.mjs";
 import { fileURLToPath } from "node:url";
 import {
@@ -1698,8 +1699,16 @@ export const EDIT_ONLY_STEP =
 // it claims the task, and relays a result the worker cannot report itself.
 // Task 4.7 passes its own plans-repo steps (push avoozl/<task-id>, open one
 // pull request, enable auto-merge) to workerBrief instead.
-export function localSteps(task, project, { relay = false } = {}) {
+export function localSteps(
+  task,
+  project,
+  { relay = false, cliReport = null } = {},
+) {
   const report = `{"input": {"taskId": "${task.id}", "kind": "done"}}`,
+    // R88.2: report by command line from the worktree, no MCP sharing needed.
+    cli = cliReport
+      ? `Run it from inside ${cliReport.worktree}. The token matches your report to this task and this attempt; keep it to yourself.`
+      : "",
     commit = `2. Edit, run what you like, and commit every change on that branch. ${EDIT_ONLY_STEP}`;
   return relay
     ? [
@@ -1711,7 +1720,9 @@ export function localSteps(task, project, { relay = false } = {}) {
     : [
         `1. Call plans_prepare_worktree with {"input": {"taskId": "${task.id}"}} and work only in the worktree it returns, on branch avoozl/${task.id}.`,
         commit,
-        `3. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
+        cliReport
+          ? `3. When the work is committed, run exactly: avoozl runner report ${task.id} done --token ${cliReport.token}\n   If you cannot finish, run: avoozl runner report ${task.id} blocked --token ${cliReport.token} --text "<why>"\n   ${cli}`
+          : `3. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
       ];
 }
 
@@ -2162,9 +2173,21 @@ function composeLeafBrief(
         attempt,
       }),
     });
+  const token = issueReportToken(store, { taskId: task.id, attempt });
   return workerBrief(task, project, {
     ...options,
-    ...(relay ? { steps: localSteps(task, project, { relay: true }) } : {}),
+    ...(relay
+      ? { steps: localSteps(task, project, { relay: true }) }
+      : token
+        ? {
+            steps: localSteps(task, project, {
+              cliReport: {
+                worktree: options.worktree?.path || worktreePath(task, project),
+                token,
+              },
+            }),
+          }
+        : {}),
   });
 }
 
