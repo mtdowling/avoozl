@@ -3,11 +3,45 @@
 // opens a wider detail column on the right, and the list narrows to its
 // remembered width; drag its edge to change that, though it never closes.
 // A phone shows one pane: the list, or the detail with Back in its sticky row.
-import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { LIST_FOLDED_WIDTH, clampWidth, listSpec, pageStorage, readWidth, writeWidth } from './columns.ts'
 import { DetailPane } from './ListDetail.tsx'
 import { usePhone } from './list-detail.ts'
 import { ResizeHandle } from './ResizeHandle.tsx'
+import { scrollParent } from './sticky-column.ts'
+
+// The height left on screen under the node in whatever scrolls the page
+// (in Kiro Crew, the app's content pane), measured again when it resizes;
+// null while off.
+function useFillHeight(on: boolean) {
+  const [height, setHeight] = useState<number | null>(null)
+  const stop = useRef<(() => void) | null>(null)
+  const ref = useCallback(
+    (node: HTMLElement | null) => {
+      stop.current?.()
+      stop.current = null
+      if (!node || !on) return setHeight(null)
+      const parent = scrollParent(node)
+      const measure = () => {
+        const top = parent ? parent.getBoundingClientRect().top : 0
+        const visible = parent ? parent.clientHeight - parseFloat(getComputedStyle(parent).paddingBottom || '0') : window.innerHeight
+        const offset = node.getBoundingClientRect().top - top + (parent?.scrollTop ?? 0)
+        setHeight(Math.max(320, Math.floor(visible - offset)))
+      }
+      measure()
+      const observer = parent && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+      if (parent) observer?.observe(parent)
+      window.addEventListener('resize', measure)
+      stop.current = () => {
+        observer?.disconnect()
+        window.removeEventListener('resize', measure)
+      }
+    },
+    [on],
+  )
+  useEffect(() => () => stop.current?.(), [])
+  return [ref, height] as const
+}
 
 export function ListDetailLayout(props: {
   // Names the list's remembered width.
@@ -22,11 +56,15 @@ export function ListDetailLayout(props: {
   detailActions?: ReactNode
   // The detail draws its own big title (useDetailTitleRef).
   detailOwnTitle?: boolean
-  // Desktop: the list is a thin bar for now (a wide spec rail needs its
+  // Desktop: the list is a thin bar for now (a spec's review needs its
   // room); clicking the bar brings it back.
   listFolded?: { label: string; onUnfold: () => void }
+  // Desktop: the list and detail fill the height on screen and scroll on
+  // their own, so the detail can keep a panel at its bottom.
+  fill?: boolean
 }) {
   const phone = usePhone()
+  const [fillRef, fillHeight] = useFillHeight(Boolean(props.fill) && !phone && props.detail !== null)
   const spec = listSpec(props.id)
   const [width, setWidth] = useState(() => readWidth(pageStorage(), spec))
   const column = useRef<HTMLDivElement>(null)
@@ -54,12 +92,12 @@ export function ListDetailLayout(props: {
         {props.list}
       </div>
     )
-  // One tree whether the list is folded or not, so the detail (and a drag
-  // in progress on its spec rail) stays mounted when the list folds. A
-  // folded list is hidden, not unmounted: it fills the nav's filters.
+  // One tree whether the list is folded or not, so the detail stays
+  // mounted when the list folds. A folded list is hidden, not unmounted:
+  // it fills the nav's filters.
   const folded = props.listFolded
   return (
-    <div data-list-detail={props.id} data-list-folded={folded ? '' : undefined} style={{ display: 'flex', alignItems: 'stretch', height: '100%', minHeight: 0 }}>
+    <div ref={fillRef} data-list-detail={props.id} data-list-folded={folded ? '' : undefined} data-list-fill={fillHeight !== null ? '' : undefined} style={{ display: 'flex', alignItems: 'stretch', height: fillHeight ?? '100%', minHeight: 0 }}>
       <div ref={column} data-list-pane={props.id} hidden={Boolean(folded)} style={{ flex: `0 0 ${width}px`, width, minWidth: 0, minHeight: 0, overflowY: 'auto', paddingRight: 4, display: folded ? 'none' : undefined }}>
         {props.list}
       </div>
