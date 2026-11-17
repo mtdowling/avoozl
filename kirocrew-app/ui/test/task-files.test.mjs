@@ -135,11 +135,11 @@ test('the editor choice is kept in the page storage, Kiro by default', () => {
   assert.equal(readEditor({ getItem: () => 'evil' }), 'kiro')
 })
 
-test('the drawer has a Files fold that reads only once opened, with no write', () => {
+test('the drawer has a Files box with no write', () => {
   const drawer = source('TaskDrawer.tsx')
   assert.match(drawer, /label: 'Files'/)
-  assert.match(drawer, /<SectionBox id="files" title="Files" open=\{false\} onToggle=\{\(on\) => on && setFilesOpened\(true\)\}>/)
-  assert.match(drawer, /<TaskFiles workspaceId=\{workspaceId\} taskId=\{task\.id\} active=\{filesOpened\} \/>/)
+  assert.match(drawer, /<SectionBox id="files" title="Files">/)
+  assert.match(drawer, /<TaskFiles workspaceId=\{workspaceId\} taskId=\{task\.id\} active \/>/)
   const files = source('TaskFiles.tsx')
   assert.match(files, /if \(!props\.active\) return/)
   // Unified by default, Split on a toggle; Show all files; the editor

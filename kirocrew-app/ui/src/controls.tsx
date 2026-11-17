@@ -280,7 +280,7 @@ export function Fold(props: { title: ReactNode; open?: boolean; children: ReactN
 // A bordered, titled box (the host Card, as Settings uses) that folds. The
 // header is a real button with aria-expanded, so Enter and Space work; the
 // box starts open. Boxes are independent: opening one leaves the rest.
-export function SectionBox(props: { id: string; title: ReactNode; open?: boolean; children: ReactNode; onToggle?: (open: boolean) => void }) {
+export function SectionBox(props: { id: string; title: ReactNode; open?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(props.open ?? true)
   const body = `avoozl-box-${props.id}`
   return (
@@ -291,10 +291,7 @@ export function SectionBox(props: { id: string; title: ReactNode; open?: boolean
           type="button"
           aria-expanded={open}
           aria-controls={body}
-          onClick={() => {
-            setOpen(!open)
-            props.onToggle?.(!open)
-          }}
+          onClick={() => setOpen(!open)}
           className="flex w-full items-center gap-2 text-left"
           style={{ background: 'none', border: 0, padding: 0, color: 'inherit', font: 'inherit', cursor: 'pointer' }}
           data-section-toggle={props.id}

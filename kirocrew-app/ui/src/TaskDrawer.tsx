@@ -228,13 +228,6 @@ function TaskPanel(props: {
   const [editing, setEditing] = useState(false)
   const chat = useAskChat(workspaceId)
   const [busy, setBusy] = useState(false)
-  // The Files and Budget boxes start closed and read only once opened.
-  const [filesOpened, setFilesOpened] = useState(false)
-  const [budgetOpened, setBudgetOpened] = useState(false)
-  useEffect(() => {
-    setFilesOpened(false)
-    setBudgetOpened(false)
-  }, [id])
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const load = useCallback(async () => {
     setError(null)
@@ -544,8 +537,8 @@ function TaskPanel(props: {
             <p className="text-sm text-muted">No delivery yet.</p>
           )}
         </SectionBox>
-        <SectionBox id="files" title="Files" open={false} onToggle={(on) => on && setFilesOpened(true)}>
-          <TaskFiles workspaceId={workspaceId} taskId={task.id} active={filesOpened} />
+        <SectionBox id="files" title="Files">
+          <TaskFiles workspaceId={workspaceId} taskId={task.id} active />
         </SectionBox>
         <SectionBox id="timing" title="Timing">
           <TimingFold timing={detail.timing ?? null} />
@@ -553,17 +546,13 @@ function TaskPanel(props: {
         <SectionBox id="evidence" title="Evidence">
           <EvidenceFold workspaceId={workspaceId} taskId={task.id} />
         </SectionBox>
-        <SectionBox
-          id="budget"
-          open={false}
-          onToggle={(on) => on && setBudgetOpened(true)}
-          title={
+        <SectionBox id="budget" title={
             <span className="flex items-center gap-2">
               Budget <SpendChip budget={delivery?.budget} />
             </span>
           }
         >
-          {budgetOpened && <BudgetFold workspaceId={workspaceId} taskId={task.id} onChange={() => void load()} />}
+          <BudgetFold workspaceId={workspaceId} taskId={task.id} onChange={() => void load()} />
         </SectionBox>
         <SectionBox id="conflicts" title={detail.conflicts.length ? `Conflicts (${detail.conflicts.length})` : 'Conflicts'}>
           {detail.conflicts.length ? (
