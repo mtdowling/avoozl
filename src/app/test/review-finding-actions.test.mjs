@@ -207,7 +207,8 @@ test("plans_plan_review returns severity, state and anchor read-only", async (t)
   const [finding] = JSON.parse(result.content[0].text).findings;
   assert.equal(finding.severity, "blocker");
   assert.equal(finding.category, "gap");
-  assert.equal(finding.state, "for you");
+  assert.equal(finding.findingState, "for you");
+  assert.equal(finding.state, "open", "the stored state is kept");
   // Anchored at the current revision's lines, from the quote.
   assert.deepEqual(finding.anchor, {
     file: "design.md",
