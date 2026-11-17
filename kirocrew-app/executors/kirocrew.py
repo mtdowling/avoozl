@@ -140,6 +140,22 @@ def folder_projects(ctx):
     return out
 
 
+# Requirement 88.1: an unattended worker chat stalls on tool approval unless
+# the chat is trusted, and a gateway restart drops the mode. Avoozl sets it
+# when the chat opens and again on every tick. A runner-mode worker (remote)
+# keeps its own opt-in mode, as before.
+WORKER_MODE = "trust"
+MODES = ("trust", "trust_reads")
+
+
+def _mode(request):
+    if request.get("mode") in MODES:
+        return request["mode"]
+    if (request.get("role") or "worker") == "worker" and not request.get("remote"):
+        return WORKER_MODE
+    return None
+
+
 def _text(value, name, nullable=False, empty=False):
     if nullable and value is None:
         return
@@ -153,6 +169,28 @@ class KiroCrewExecutor:
         self._bind = bind
         self._requests = {}
         self._active_claims = {}
+        self._trusted = set()  # Chats whose mode this run already set.
+
+    def _set_mode(self, slot, mode):
+        self._trusted.add(slot)
+        try:
+            self._ctx.set_session_mode(slot, mode)
+        except Exception:  # an older gateway, or a chat that just went away
+            pass
+
+    def keep_trust(self, observed):
+        """Set each observed worker chat's trust mode again, once per chat."""
+        for row in observed or []:
+            if not isinstance(row, dict):
+                continue
+            slot = row.get("slot")
+            if (
+                isinstance(slot, str)
+                and slot
+                and slot not in self._trusted
+                and (row.get("role") or "worker") == "worker"
+            ):
+                self._set_mode(slot, WORKER_MODE)
 
     def observations(self):
         out = {}
@@ -247,11 +285,9 @@ class KiroCrewExecutor:
             for key in ("worktree", "context"):
                 if d.get(key): binding[key] = d[key]
         self._bind(binding)
-        if d.get("mode") in ("trust", "trust_reads"):
-            try:
-                self._ctx.set_session_mode(slot, d["mode"])
-            except Exception:
-                pass
+        mode = _mode({**d, "role": role})
+        if mode:
+            self._set_mode(slot, mode)
         if self.send(slot, brief) == "refused":
             raise RuntimeError("The first session message was refused.")
         return slot
