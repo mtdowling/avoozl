@@ -43,7 +43,8 @@ import { Tooltip } from './Tooltip.tsx'
 import { ForwardScreen } from './ForwardScreen.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
-import { Check, CirclePlus, DetailsIcon, ExternalLink, Eye, History, MessageSquare, RefreshCw, RotateCcw, X } from './icons.ts'
+import { Check, CirclePlus, DetailsIcon, ExternalLink, Eye, FileText, History, MessageSquare, Play, RefreshCw, RotateCcw, X } from './icons.ts'
+import { escalationAsk, untriagedClient } from './untriaged-api.ts'
 import { itemRef } from './chat-api.ts'
 import { linkHref } from './views-api.ts'
 import { optionItems } from './picker.ts'
@@ -132,6 +133,12 @@ export function ConflictActions(props: {
         await views.decideInvestigation(workspaceId, item.taskId!, action)
         return { ok: true, text }
       })} />}
+      {item.kind === 'needs-human' && item.reason === 'crew' && item.item && item.escalation && item.start && (
+        <EscalationStart item={item} busy={busy} onStart={(action) => run(async () => {
+          const made = await untriagedClient(api).start(workspaceId, item.item!, action, { confirmClaim: item.escalation!.claimed })
+          return { ok: true, text: `${item.item!.id} is now task ${made.taskId}.` }
+        })} />
+      )}
       {item.kind === 'needs-human' && item.reason === 'conflict-fix' && item.conflictFix && (
         <ConflictFixActions fix={item.conflictFix} busy={busy} onDecide={(action, text) => run(async () => {
           await views.decideConflictFix(workspaceId, item.conflictFix!.repository, item.conflictFix!.pullRequest, action)
@@ -423,6 +430,29 @@ export function ReadyToMerge(props: { item: ConflictItem; busy: boolean; onInteg
         >
           Integrate
         </DangerBtn>
+      )}
+    </div>
+  )
+}
+
+// Plan this and Deliver this on an Issue Radar escalation's Needs you row
+// (R103.8), each asked first with what Avoozl writes on GitHub.
+function EscalationStart({ item, busy, onStart }: { item: ConflictItem; busy: boolean; onStart: (action: 'deliver' | 'plan') => void }) {
+  const ask = useConfirm()
+  const name = item.item!.id.replace('#', ' #')
+  const title = item.title.replace(/^.*? needs a person: /, '')
+  const press = (action: 'deliver' | 'plan') => void ask(escalationAsk(name, title, item.escalation!, action)).then((yes) => yes && onStart(action))
+  return (
+    <div className="flex flex-wrap items-center gap-2" data-escalation-start>
+      {item.start?.plan && (
+        <IconLabel icon={FileText} tooltip="A planner drafts a fix spec from this issue. Avoozl adds crew:avoozl so crews skip it." disabled={busy} onClick={() => press('plan')}>
+          Plan this
+        </IconLabel>
+      )}
+      {item.start?.deliver && (
+        <IconLabel icon={Play} tooltip="One bounded-fix task pinned to this text. Avoozl adds crew:avoozl so crews skip it." disabled={busy} onClick={() => press('deliver')}>
+          Deliver this
+        </IconLabel>
       )}
     </div>
   )

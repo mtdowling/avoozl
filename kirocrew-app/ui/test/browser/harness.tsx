@@ -467,6 +467,45 @@ if (query.get('page') === 'app') {
     choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
   }))
 }
+// &escalations=after: one Issue Radar escalation in Intake (listed first,
+// with Plan this and Deliver this) and one in Needs you with the same two
+// buttons. &escalations=before: the same issues as main's backend sends
+// them, with no escalation fields (task 56.14's before/after shots).
+if (query.get('page') === 'app' && query.get('escalations')) {
+  const after = query.get('escalations') === 'after'
+  const link = { url: '/issue-radar', exact: false, tooltip: 'Opens Issue Radar.' }
+  const row = (number: number, title: string, createdAt: string, labels: string[]) => ({
+    kind: 'issue', number, title, url: `https://github.com/acme/recipe-box/issues/${number}`, repository: 'acme/recipe-box', author: 'mira', createdAt, labels, comments: 2,
+    source: 'github', id: `acme/recipe-box#${number}`, links: { github: `https://github.com/acme/recipe-box/issues/${number}`, issueRadar: link, review: null },
+  })
+  const escalation = { ...row(41, 'Add a shopping list export', '2026-11-12T09:00:00Z', ['crew: needs human']), start: { plan: true, deliver: after } }
+  const items = [
+    ...(after ? [{ ...escalation, escalation: { label: 'crew: needs human', scope: 'new-feature', claimed: false, draft: null } }] : []),
+    { ...row(44, 'Recipe photos load slowly on the list', '2026-11-15T09:00:00Z', ['bug']), start: { plan: true, deliver: false } },
+    ...(after ? [] : [escalation]),
+  ]
+  answer('untriaged.view', () => ({
+    enabled: true,
+    mode: 'plans-repo',
+    total: items.length,
+    repositories: [{ repository: 'acme/recipe-box', checkedAt: '2026-11-16T09:00:00Z', error: null, searched: 2, read: 2, truncated: false, count: 2, query: null, filter: null, defaultFilter: '', notify: false }],
+    items,
+    withRadar: [],
+  }))
+  const crewRow = {
+    kind: 'needs-human', reason: 'crew', id: 'radar:acme/recipe-box#38', taskId: null, authority: 'github', since: '2026-11-15T12:00:00Z',
+    issue: { number: 38, url: 'https://github.com/acme/recipe-box/issues/38', repository: 'acme/recipe-box' },
+    link: 'https://github.com/acme/recipe-box/issues/38',
+    title: 'acme/recipe-box #38 needs a person: Should servings round up or down?',
+    detail: after
+      ? 'An Issue Radar crew added "crew: needs human". Plan this or Deliver this takes it into Avoozl and adds crew:avoozl, so crews skip it; the needs-human label stays. Or answer it on GitHub; the crew picks the issue up again when the label comes off.'
+      : 'An Issue Radar crew added "crew: needs human". Answer it on GitHub; the crew picks the issue up again when the label comes off.',
+    ...(after
+      ? { item: { source: 'github', id: 'acme/recipe-box#38' }, escalation: { label: 'crew: needs human', scope: 'needs-decision', claimed: false, draft: null }, start: { plan: true, deliver: true } }
+      : {}),
+  }
+  answer('conflicts.view', () => ({ revision: 1, items: [crewRow] }))
+}
 // ?page=app&radar=1: the Dashboard has one live Issue Radar claim, and a
 // Trace of it. The marker's own `updated=` (09:46) is ahead of GitHub's time
 // for the claim comment (09:21); the Trace shows GitHub's.
