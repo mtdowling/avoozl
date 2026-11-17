@@ -1,10 +1,11 @@
 // The spec's details (Epic, Category, Repositories, Phases, Progress,
-// Dates, Open decisions...) in a panel under the spec, like an IDE's bottom
-// panel. On a desktop its top bar is a divider: drag it, or focus it and
-// press Up or Down, to change the height; double-click puts the default
-// back. The chevron hides the panel so the spec takes the full height.
-// Height and hidden are kept in this browser. A phone stacks the panel
-// under the spec, with the same chevron and no divider.
+// Dates, Open decisions...) in a panel at the bottom of the specs list
+// column, like an IDE's bottom panel. On a desktop its top bar is a
+// divider: drag it, or focus it and press Up or Down, to change the height;
+// double-click puts the default back. The chevron hides the panel so the
+// list takes the full height. Height and hidden are kept in this browser.
+// A phone shows the list or the spec, not both, so the panel stacks under
+// the spec there, with the same chevron and no divider.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { SPEC_PANEL, SPEC_PANEL_HIDDEN_KEY, clampWidth, pageStorage, panelMax, readFlag, readWidth, stepHeight, writeFlag, writeWidth } from './columns.ts'
 import { ChevronDown } from './icons.ts'
@@ -25,12 +26,16 @@ export const PANEL_ID = 'avoozl-spec-details'
 export function SpecDetailsPanel(props: {
   // A phone: stacked under the spec, no divider.
   phone: boolean
-  // The spec above the panel; on a desktop it shrinks to fit.
+  // What sits above the panel: on a desktop the specs list, which shrinks
+  // to fit; on a phone the spec.
   content: ReactNode
-  children: ReactNode
+  // The details; with none (no spec open, or a review) only the content
+  // shows, in the same tree so the list is not remounted.
+  children?: ReactNode
 }) {
   const [hidden, setHidden] = useState(() => readFlag(pageStorage(), SPEC_PANEL_HIDDEN_KEY))
   const [stored, setStored] = useState(() => readWidth(pageStorage(), SPEC_PANEL))
+  const shown = props.children != null && props.children !== false
   // The height the content and the panel body share, as laid out.
   const [room, setRoom] = useState<number | null>(null)
   const stop = useRef<(() => void) | null>(null)
@@ -107,10 +112,11 @@ export function SpecDetailsPanel(props: {
       </>
     )
   return (
-    <div ref={ref} data-spec-split style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      <div data-spec-scroll style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'auto' }}>
+    <div ref={ref} data-spec-split style={shown ? { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } : undefined}>
+      <div data-spec-scroll style={shown ? { flex: '1 1 0%', minHeight: 0, overflowY: 'auto' } : undefined}>
         {props.content}
       </div>
+      {shown && (
       <section data-spec-panel="docked" data-hidden={hidden ? '' : undefined} aria-label="Spec details panel" style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <style>{PANEL_CSS}</style>
         <div
@@ -148,6 +154,7 @@ export function SpecDetailsPanel(props: {
           {props.children}
         </aside>
       </section>
+      )}
     </div>
   )
 }

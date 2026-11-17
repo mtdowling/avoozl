@@ -3,7 +3,7 @@
 // time. A task row opens the drawer; a GitHub row opens GitHub in a new tab.
 // Rows hold only IDs and Avoozl's own summaries; a row the content rules
 // caught says it was redacted.
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useAppApi } from './host.ts'
 import { EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
@@ -11,7 +11,7 @@ import { Tooltip } from './Tooltip.tsx'
 import { useStoredFilter } from './FilterPanel.tsx'
 import { NavSlotFor } from './nav-slot.tsx'
 import { RailBlock, RailChips, RailRow, RailStyle } from './NavRail.tsx'
-import { COMPACT_BTN, ShowMore, TipBtn, ViewHeading } from './controls.tsx'
+import { ShowMore, ViewHeading } from './controls.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
 import { relativeTime } from './task-api.ts'
@@ -26,12 +26,12 @@ import {
   activityClient,
   filterActive,
   filterChoices,
+  retentionAutosave,
   retentionInput,
   rowTarget,
   type ActivityFilter,
   type ActivityPage,
   type ActivityRow,
-  type ActivitySettings,
 } from './activity-api.ts'
 
 const HEAD: CSSProperties = { textAlign: 'left', fontWeight: 500, fontSize: 12, color: 'var(--muted)', padding: '4px 8px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
@@ -131,46 +131,67 @@ function Stack({ rows, now }: { rows: ActivityRow[]; now: number }) {
   )
 }
 
-// Keep activity: how many days rows stay. A person saves it; the tick
-// deletes older rows.
+// Keep activity: how many days rows stay. It saves by itself after a pause
+// and at once on blur or Enter; the tick deletes older rows.
 function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: () => void }) {
   const api = useAppApi()
   const client = useMemo(() => activityClient(api), [api])
-  const [settings, setSettings] = useState<ActivitySettings | null>(null)
+  const [defaultDays, setDefaultDays] = useState(30)
+  const [loaded, setLoaded] = useState(false)
   const [text, setText] = useState('')
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null)
-  const [saving, setSaving] = useState(false)
+  const hash = useRef<string | null>(null)
+  const savedText = useRef('')
+  const onSavedRef = useRef(onSaved)
+  onSavedRef.current = onSaved
+  const shown = (read: { retentionDays: number; default: number }) => (read.retentionDays === read.default ? '' : String(read.retentionDays))
+  const auto = useRef<ReturnType<typeof retentionAutosave> | null>(null)
   const load = useCallback(async () => {
     try {
       const read = await client.settings(workspaceId)
-      setSettings(read)
-      setText(read.retentionDays === read.default ? '' : String(read.retentionDays))
+      hash.current = read.hash
+      setDefaultDays(read.default)
+      const value = shown(read)
+      savedText.current = value
+      auto.current?.reset(value)
+      setText(value)
+      setLoaded(true)
+      return true
     } catch (caught) {
       setNote({ ok: false, text: errorMessage(caught) })
+      return false
     }
   }, [client, workspaceId])
+  if (!auto.current) {
+    auto.current = retentionAutosave({
+      save: (days) => {
+        const sent = days === null ? '' : String(days)
+        setNote({ ok: true, text: 'Saving…' })
+        client
+          .saveSettings(workspaceId, days, hash.current)
+          .then((saved) => {
+            hash.current = saved.hash
+            savedText.current = sent
+            setNote({ ok: true, text: 'Saved' })
+            onSavedRef.current()
+          })
+          .catch(async (caught) => {
+            auto.current?.reset(savedText.current)
+            if ((caught as { status?: unknown })?.status === 409 && (await load())) setNote({ ok: false, text: 'Changed elsewhere. Showing the saved value.' })
+            else setNote({ ok: false, text: errorMessage(caught) })
+          })
+      },
+    })
+  }
   useEffect(() => {
+    setLoaded(false)
     void load()
+    return () => auto.current?.cancel()
   }, [load])
   const parsed = retentionInput(text)
-  const save = async () => {
-    if (!settings || parsed.error) return
-    setSaving(true)
-    setNote(null)
-    try {
-      const saved = await client.saveSettings(workspaceId, parsed.days, settings.hash)
-      setSettings(saved)
-      setNote({ ok: true, text: `Saved. Activity is kept ${saved.retentionDays} days.` })
-      onSaved()
-    } catch (caught) {
-      setNote({ ok: false, text: errorMessage(caught) })
-    } finally {
-      setSaving(false)
-    }
-  }
   return (
     // One row under the Keep activity header, lined up with the rail's
-    // search box: the days, the word, and Save; a note under it.
+    // search box: the days, the word, and a quiet status; errors under it.
     <div data-activity-keep data-section="Keep activity" className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
         <label htmlFor="avoozl-activity-keep" className="sr-only">
@@ -183,28 +204,32 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
             min={1}
             max={365}
             value={text}
-            placeholder={String(settings?.default ?? 30)}
-            onChange={(event) => setText(event.target.value)}
+            disabled={!loaded}
+            placeholder={String(defaultDays)}
+            onChange={(event) => {
+              setText(event.target.value)
+              setNote(null)
+              auto.current?.change(event.target.value)
+            }}
+            onBlur={() => auto.current?.flush(text)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') auto.current?.flush(text)
+            }}
             aria-invalid={parsed.error ? true : undefined}
             aria-describedby={parsed.error ? 'avoozl-activity-keep-error' : undefined}
             style={{ width: '4.5rem', boxSizing: 'border-box', fontSize: 13, padding: '4px 8px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
           />
         </Tooltip>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>days</span>
-        <span style={{ marginLeft: 'auto', display: 'inline-flex' }}>
-          <TipBtn primary tooltip="Save how many days activity is kept" onClick={() => void save()} disabled={!settings || saving || Boolean(parsed.error)} style={COMPACT_BTN}>
-            Save
-          </TipBtn>
-        </span>
+        {note && !parsed.error && (
+          <span role={note.ok ? 'status' : 'alert'} className={`ml-auto text-xs ${note.ok ? 'text-muted' : 'text-danger'}`}>
+            {note.text}
+          </span>
+        )}
       </div>
       {parsed.error && (
         <p id="avoozl-activity-keep-error" role="alert" className="text-xs text-danger">
           {parsed.error}
-        </p>
-      )}
-      {note && (
-        <p role={note.ok ? 'status' : 'alert'} className={`text-xs ${note.ok ? 'text-muted' : 'text-danger'}`}>
-          {note.text}
         </p>
       )}
     </div>

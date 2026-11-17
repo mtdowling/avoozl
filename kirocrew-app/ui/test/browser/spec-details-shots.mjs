@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// The spec view's details panel under the spec, in the full app on demo
-// data, light and dark: at 1280 px shown at its default height, hidden, and
-// dragged 200 px taller; at 390 px stacked under the spec, shown and hidden.
+// The spec view's details panel, in the full app on demo data, light and
+// dark: at 1280 px under the specs list, shown at its default height,
+// hidden, and dragged 200 px taller; at 390 px stacked under the spec,
+// shown and hidden.
 //
 //   AVOOZL_HOST_CSS=<host css> node test/browser/spec-details-shots.mjs <out dir>
 import fs from 'node:fs'
