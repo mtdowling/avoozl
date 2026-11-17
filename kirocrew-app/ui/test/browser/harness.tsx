@@ -461,6 +461,25 @@ function DeepLinkPage() {
   )
 }
 
+// &triage=1: two untriaged items and two held by an Issue Radar crew, so the
+// Needs you nav shows a count on each page (the Triage and Issue Radar shots).
+if (query.get('page') === 'app' && query.get('triage') === '1') {
+  const link = { url: '/issue-radar', exact: false, tooltip: 'Opens Issue Radar.' }
+  const row = (number: number, title: string) => ({
+    kind: 'issue', number, title, url: `https://github.com/acme/recipe-box/issues/${number}`, repository: 'acme/recipe-box', author: 'mira', createdAt: '2026-11-15T09:00:00Z', labels: ['bug'], comments: 1,
+    source: 'github', id: `acme/recipe-box#${number}`, links: { github: `https://github.com/acme/recipe-box/issues/${number}`, issueRadar: link, review: null }, start: { plan: true, deliver: false },
+  })
+  const held = (number: number, title: string) => ({ ...row(number, title), claimed: number % 2 === 0, needsHuman: false, needsHumanLabel: 'crew: needs human', handoff: null })
+  answer('untriaged.view', () => ({
+    enabled: true,
+    mode: 'plans-repo',
+    total: 2,
+    repositories: [{ repository: 'acme/recipe-box', checkedAt: '2026-11-16T09:00:00Z', error: null, searched: 4, read: 4, truncated: false, count: 4, query: null, filter: null, defaultFilter: '', notify: false }],
+    items: [row(44, 'Recipe photos load slowly on the list'), row(45, 'Add a shopping list export')],
+    withRadar: [held(51, 'Search ignores accents'), held(52, 'Print view cuts off steps')],
+  }))
+}
+
 // ?page=home: the Dashboard alone with nothing in flight (?page=demo uses
 // the same answers for the real workspace, before the sample opens). &ran=1 gives the
 // workspace one finished task (it has run before); without it, none has.
