@@ -8,6 +8,8 @@ import { useAppApi } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
+import { selectStyle } from './FilterSelect.tsx'
+import { ROLE_OPTIONS, roleFromMode, roleLabel } from './settings-api.ts'
 import { DangerBtn, IconBtn, IconLabel, TipBtn, useConfirm } from './controls.tsx'
 import { ExternalLink, FolderOpen, Pencil, Plus } from './icons.ts'
 import { errorMessage, workspaceClient, type DetectedCheckout, type Repository } from './workspace-api.ts'
@@ -43,16 +45,41 @@ export function useReveal() {
   )
 }
 
-function modeLabel(row: RepositoryRow, mode: string) {
-  if (!row.github) return 'Local only'
-  if (mode === 'local') return 'Local only mode'
-  if (!mode) return 'GitHub, no mode yet'
-  return mode === 'plans-repo' ? 'Plans repository mode' : 'Single repository mode'
+// The role of one repository, saved in place when it changes (R105.4). A
+// repository with no GitHub remote can only be local; the planning repository
+// with no checkout here is named by the workspace, not picked.
+function RolePicker(props: { row: RepositoryRow; role: string; disabled: string | null; onRole: (role: string) => void }) {
+  const { row } = props
+  const fixed = !row.github ? 'No GitHub remote, so its tasks stay local.' : row.githubOnly ? 'GitHub only: it has no checkout here. Add its checkout to change its role.' : null
+  const id = `avoozl-role-${row.key}`
+  return (
+    <label htmlFor={id} className="flex items-center gap-1.5 text-sm" data-role-picker={row.key} title={fixed ?? props.disabled ?? undefined}>
+      <span className="text-muted">Role</span>
+      <select
+        id={id}
+        value={props.role}
+        disabled={Boolean(fixed || props.disabled)}
+        onChange={(event) => props.onRole(event.target.value)}
+        aria-label={`Role of ${row.name}`}
+        className="rounded border px-2 py-1 text-sm"
+        style={selectStyle}
+      >
+        {ROLE_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
 }
 
 export function RepositoryList(props: {
   rows: RepositoryRow[]
-  mode: string
+  roleOf: (row: RepositoryRow) => string
+  // Why a role cannot change now, else null.
+  roleLocked: string | null
+  onRole: (row: RepositoryRow, role: string) => void
   busy: boolean
   dirty: boolean
   onEdit: (key: string) => void
@@ -88,13 +115,17 @@ export function RepositoryList(props: {
                 {row.github ? ` · ${row.github}` : ''}
               </span>
             </div>
-            <Badge>{modeLabel(row, props.mode)}</Badge>
+            <RolePicker row={row} role={props.roleOf(row)} disabled={props.roleLocked} onRole={(role) => props.onRole(row, role)} />
+            {row.githubOnly && <Badge>GitHub only</Badge>}
             <span className="flex items-center gap-1.5">
-              <IconLabel icon={Pencil} tooltip={`Change ${row.name}'s settings in a dialog`} aria-label={`Edit ${row.name}`} onClick={() => props.onEdit(row.key)}>
-                Edit
-              </IconLabel>
+              {!row.githubOnly && (
+                <IconLabel icon={Pencil} tooltip={`Change ${row.name}'s settings in a dialog`} aria-label={`Edit ${row.name}`} onClick={() => props.onEdit(row.key)}>
+                  Edit
+                </IconLabel>
+              )}
               {row.folder && <IconBtn icon={FolderOpen} label={`Open ${row.name} in Finder`} onClick={() => props.onReveal(row.folder!)} />}
               {href && <GitHubLink href={linkHref(href)} name={row.name} />}
+              {!row.githubOnly && (
               <DangerBtn
                 label={`Remove ${row.name}`}
                 tooltip={
@@ -122,6 +153,7 @@ export function RepositoryList(props: {
               >
                 Remove
               </DangerBtn>
+              )}
             </span>
           </li>
         )
@@ -285,8 +317,8 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
               </dd>
               <dt className="text-muted">GitHub remote</dt>
               <dd>{found.github ?? (found.remote ? `${found.remote} is not on GitHub` : 'None: a local-only repository')}</dd>
-              <dt className="text-muted">Mode</dt>
-              <dd>{found.github ? (props.mode && props.mode !== 'local' ? `This workspace's ${props.mode} mode` : 'No GitHub mode set yet (Settings › Where tasks live)') : 'Local only'}</dd>
+              <dt className="text-muted">Role</dt>
+              <dd>{roleLabel(roleFromMode(props.mode, found.github, ""))}. Change it in the list after adding.</dd>
             </dl>
             <span className="flex flex-wrap items-end gap-3">
               <label htmlFor="avoozl-repo-id" className="flex flex-col gap-1 text-sm">

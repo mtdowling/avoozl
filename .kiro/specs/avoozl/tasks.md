@@ -2036,5 +2036,5 @@ It touches `github-policy.mjs`, `settings-api.ts`, `SettingsView.tsx`,
 Settings pages edit in place, so merge main often and keep to the role
 picker. The owner waived screenshot review for this task.
 
-- [ ] 58.1 Repository roles replace Where tasks live, after 3.14, 20.2 [R105.1, R105.2, R105.3, R105.4, R105.5, R105.6, R105.7, R105.8, R105.9, R105.10, R28.1] (§4.34)
+- [x] 58.1 Repository roles replace Where tasks live, after 3.14, 20.2 [R105.1, R105.2, R105.3, R105.4, R105.5, R105.6, R105.7, R105.8, R105.9, R105.10, R28.1] (§4.34)
   - One resolver in `github-policy.mjs` maps roles to mode and `planningRepository` and back, refuses mixed roles, and runs in the config loader; the schema gains `role` and keeps `mode` and `planningRepository`. Repository setup shows an in-place role picker per repository, the "Tasks live in" line and a synthesized "GitHub only" planning row; the Where tasks live page and tab are removed, the workspace-wide settings move to Settings › Workspaces, and the old link opens Repository setup. Tests for the mapping, migration, refused mixes and screens; screenshots (phone and desktop, light and dark, in the full app shell) under `docs/evidence/repo-roles/`.

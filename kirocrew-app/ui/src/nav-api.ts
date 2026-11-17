@@ -74,9 +74,10 @@ export function redirectTab(key: string): Place {
 }
 
 // A Settings section that no longer exists lands on the section that took
-// over: Routing's job (crews and placement) is gone with local workers.
+// over: Routing's job (crews and placement) is gone with local workers, and
+// Where tasks live is a role per repository in Repository setup (R105.6).
 export function redirectSettings(key: string): string {
-  return key === 'routing' ? 'repositories' : key
+  return key === 'routing' || key === 'github' ? 'repositories' : key
 }
 
 // A repository still set to the retired Avoozl worker. In a mode that has a

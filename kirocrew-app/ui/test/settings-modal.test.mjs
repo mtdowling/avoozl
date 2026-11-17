@@ -22,7 +22,7 @@ test('a repository row has Edit and no longer expands on a click', () => {
   assert.match(repos, /<IconLabel icon=\{Pencil\} tooltip=\{`Change \$\{row\.name\}'s settings in a dialog`\} aria-label=\{`Edit \$\{row\.name\}`\}/)
   assert.doesNotMatch(repos, /aria-pressed=\{on\}|onSelect/)
   assert.doesNotMatch(settings, /Pick a repository to change its settings\./)
-  assert.match(settings, /Use Edit to change a repository&apos;s settings\./)
+  assert.match(settings, /Use Edit to change a repository&apos;s other settings\./)
   // The row's settings live only in the dialog.
   assert.match(settings, /\{row && start && \(\s*<RepositoryDialog/)
 })

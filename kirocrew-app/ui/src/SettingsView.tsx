@@ -4,7 +4,7 @@ import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import { Modal } from './Modal.tsx'
 import Badge from './Badge.tsx'
-import { ModePicker } from './ModePicker.tsx'
+import { RoleHelp } from './RoleHelp.tsx'
 import {
   type CrewScope,
   MANAGED_LABEL_TEXT,
@@ -47,6 +47,9 @@ import {
   type RateView,
   defaultCoder,
   modeKey,
+  roleOfRow,
+  tasksLiveLine,
+  withRole,
   unusedInLocal,
   visibleSettings,
   SETTINGS_HOME,
@@ -100,7 +103,6 @@ export const SETTINGS_TABS = [
   { key: 'workspaces', label: 'Workspaces' },
   // Coder, Labels, Crews and rules and the Workflow map are tabs of each repository's Edit dialog.
   { key: 'repositories', label: 'Repository setup' },
-  { key: 'github', label: 'Where tasks live' },
   { key: 'plugins', label: 'Plugins' },
   { key: 'content', label: 'Content rules' },
   { key: 'flow', label: 'Flow' },
@@ -114,22 +116,17 @@ export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
 // Sections whose editors are large open in a modal from a Configure button;
 // the small ones (the instance name, the workspace list) stay inline.
-const DIALOG_SECTIONS: readonly SettingsTab[] = ['repositories', 'github', 'plugins', 'content', 'flow', 'delivery', 'budgets']
+const DIALOG_SECTIONS: readonly SettingsTab[] = ['repositories', 'plugins', 'content', 'flow', 'delivery', 'budgets']
 
 // One short line under each Settings heading: what it controls and when
 // you would change it. Each is checked against what the code does.
-// The Where tasks live note in Local only, with no GitHub clause.
-export const LOCAL_TAB_BLURB = 'The mode for this workspace. Save only writes .avoozl.json.'
-
 export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   instance:
     'The short name this install shows to people. Hidden markers carry a fixed ID, so a rename changes nothing on GitHub.',
   workspaces:
-    'The Avoozl workspaces on this machine, each a folder with its own task database. Add one for each set of specs you keep apart.',
+    "The Avoozl workspaces on this machine, each a folder with its own task database. Below them, the GitHub settings that belong to the whole workspace: new-task authority, the Project board and Set up GitHub, which creates what's missing after showing each change.",
   repositories:
-    "Each repository's coder, labels, Crews and rules, Workflow map, checks and reviews are tabs in its Edit dialog. Save only writes .avoozl.json.",
-  github:
-    "The mode, planning repository and Project board. Save only writes .avoozl.json; Set up GitHub creates what's missing, after showing each change.",
+    "Each repository's role says where its tasks live. Its coder, labels, Crews and rules, Workflow map, checks and reviews are tabs in its Edit dialog. Save only writes .avoozl.json.",
   plugins:
     'A plugin can bring a team’s settings pack, content rules, a tracker, an intake source or a delivery route. Each one runs or imports only after you approve it on this machine.',
   content:
@@ -841,7 +838,7 @@ export function RepositoryEditor(props: {
         {tab === 'mode' && (
           <Section level="sub" title="Mode and branch" blurb={REPOSITORY_BLURBS.mode}>
             <p className="text-xs text-muted">
-              Workspace mode: <span className="font-medium" style={{ color: 'var(--text)' }}>{MODE_TITLES[modeKey(props.mode)]}</span>. Change it under Where tasks live.
+              Workspace mode: <span className="font-medium" style={{ color: 'var(--text)' }}>{MODE_TITLES[modeKey(props.mode)]}</span>. It follows from each repository&apos;s role in Repository setup.
             </p>
             <div style={grid()}>
               <Text id={`${id}-name`} label="Repository" raw="key" rule={REPOSITORY_FIELD_RULES.name} placeholder="owner/name" value={repository.name} onChange={(value) => set({ name: value })} />
@@ -1020,6 +1017,7 @@ export function RepositoryEditor(props: {
   )
 }
 
+const ROLE_NAME: Record<string, string> = { local: 'local only', code: 'a code repository', planning: 'the planning repository', both: 'code and planning' }
 const MODE_TITLES: Record<string, string> = { local: 'Local only', 'plans-repo': 'Plans repository', 'single-repo': 'Single repository' }
 
 // The label each Issue Radar crew must scope to, from the saved policy, and
@@ -1056,20 +1054,23 @@ function RepositoriesTab(props: {
   set: (change: Partial<SettingsForm>) => void
   // Put the whole form back (Cancel in the Edit dialog).
   replace: (form: SettingsForm) => void
-  // Save through the shared Save: null when written, else why not.
-  onSave: () => Promise<string | null>
+  // Save through the shared Save: null when written, else why not. A form
+  // given here is saved as it is (a role change saves in place).
+  onSave: (next?: SettingsForm) => Promise<string | null>
   saving: boolean
   // The registry change rewrote .avoozl.json; read the form again.
   onRegistryChanged: () => Promise<unknown>
   onOpenPlans?: () => void
+  // The file's own mode when the roles disagree (R105.8).
+  rolesNote?: string | null
 }) {
-  const { form, choices, set } = props
+  const { form, choices, set, rolesNote } = props
   const api = useAppApi()
   const workspaces = useMemo(() => workspaceClient(api), [api])
   const reveal = useReveal()
   const loadCheckouts = useCallback((id: string) => workspaces.repositories(id), [workspaces])
   const { value: checkouts, reload } = useRead<Repository[]>(props.workspaceId, loadCheckouts)
-  const rows = repositoryRows(checkouts ?? [], form.repositories)
+  const rows = repositoryRows(checkouts ?? [], form.repositories, form.mode === 'plans-repo' ? form.planningRepository : '')
   const [selected, setSelected] = useState<string | null>(null)
   // The form as it was when Edit opened, so Cancel can put it back.
   const [start, setStart] = useState<SettingsForm | null>(null)
@@ -1078,6 +1079,18 @@ function RepositoriesTab(props: {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const row = rows.find((r) => r.key === selected) ?? null
   const addBox = useRef<HTMLDivElement>(null)
+  // A role saves in place (R105.4). The backend refuses a mix of roles with
+  // one line; the list then shows the saved roles again.
+  const changeRole = async (target: RepositoryRow, role: string) => {
+    const next = withRole(form, target, role)
+    set(next)
+    setMessage(null)
+    const problem = await props.onSave(next)
+    if (problem) {
+      setMessage({ ok: false, text: problem })
+      await props.onRegistryChanged()
+    } else setMessage({ ok: true, text: `${target.name} is now ${ROLE_NAME[role] ?? role}.` })
+  }
   const removeRow = async (target: RepositoryRow) => {
     if (!target.checkout) {
       set({ repositories: form.repositories.filter((_, index) => index !== target.policy) })
@@ -1107,7 +1120,9 @@ function RepositoriesTab(props: {
           ) : (
             <RepositoryList
               rows={rows}
-              mode={form.mode}
+              roleOf={(row) => roleOfRow(form, row)}
+              roleLocked={props.dirty ? 'Save or discard your settings changes first: a role change saves .avoozl.json.' : props.saving ? 'Saving…' : null}
+              onRole={(row, role) => void changeRole(row, role)}
               busy={busy}
               dirty={props.dirty}
               onEdit={(key) => {
@@ -1125,7 +1140,20 @@ function RepositoriesTab(props: {
               {message.text}
             </p>
           )}
-          {rows.length > 0 && <p className="mt-2 text-xs text-muted">Use Edit to change a repository&apos;s settings.</p>}
+          {rows.length > 0 && (
+            <p className="mt-2 text-sm" data-tasks-live>
+              {tasksLiveLine(form.mode, form.planningRepository)}
+            </p>
+          )}
+          {rows.length > 0 && <p className="mt-1 text-xs text-muted">Use Edit to change a repository&apos;s other settings.</p>}
+          {rolesNote && (
+            <p className="mt-1 text-xs text-muted" data-roles-note>
+              {rolesNote}
+            </p>
+          )}
+          <div className="mt-2">
+            <RoleHelp />
+          </div>
         </Section>
       </Card>
       {row && start && (
@@ -1203,7 +1231,7 @@ function RepositoriesTab(props: {
         <div ref={addBox}>
           <AddRepository
             workspaceId={props.workspaceId}
-            mode={form.mode}
+            mode={modeKey(form.mode)}
             disabled={props.dirty ? 'Save or discard your settings changes first: adding a repository writes .avoozl.json.' : null}
             onAdded={(id) => {
               void Promise.all([reload(), props.onRegistryChanged()])
@@ -1237,7 +1265,7 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
         <p className="text-sm" data-local-checks>
           Avoozl runs each task&apos;s own checks from the spec manifest, or this repository&apos;s checks when a task names none.
         </p>
-        {props.kept && <p className="text-xs text-muted">Its GitHub settings are kept, not used. They apply again if you pick a GitHub mode.</p>}
+        {props.kept && <p className="text-xs text-muted">Its GitHub settings are kept, not used. They apply again if a repository gets a GitHub role.</p>}
       </Section>
       <ReviewRoles review={props.review} repository={row.github ?? row.name} />
       <Section level="sub" title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
@@ -1247,9 +1275,10 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
   )
 }
 
-// Where tasks live: one fold-out section per mode, and inside the selected
-// one every option that mode reads. Switching never deletes a stored setting.
-function GeneralTab(props: {
+// The GitHub settings that belong to the whole workspace, under Workspaces:
+// what no single repository's role can say. Switching a role never deletes a
+// stored setting.
+function WorkspaceGitHub(props: {
   form: SettingsForm
   choices: SettingsChoices
   set: (change: Partial<SettingsForm>) => void
@@ -1259,61 +1288,55 @@ function GeneralTab(props: {
   const { form, choices, set } = props
   const shown = visibleSettings(form.mode)
   const kept = unusedInLocal(form)
+  if (!isGitHubMode(form.mode))
+    return (
+      <Card>
+        <Section title="GitHub settings" blurb="They apply once a repository has a GitHub role in Repository setup.">
+          <div className="flex flex-col gap-1.5 text-sm" data-local-note>
+            <p>{LOCAL_HIDDEN_LINE}</p>
+            <p className="text-xs text-muted">
+              Folders, landing branches and checks are under Repository setup. Worker and reviewer chats come from delivery in .avoozl.json.
+            </p>
+            {kept.length > 0 && <p className="text-xs text-muted" data-kept>Kept, not used: {kept.join(', ')}. Give a repository a GitHub role to use them again.</p>}
+          </div>
+        </Section>
+      </Card>
+    )
   return (
     <Card>
-      <ModePicker
-        value={modeKey(form.mode)}
-        onChange={(mode) => set({ mode })}
-        idPrefix="avoozl-settings-mode"
-        note={
-          !isGitHubMode(form.mode) ? (
-            <div className="flex flex-col gap-1.5 text-sm" data-local-note>
-              <p>{LOCAL_HIDDEN_LINE}</p>
-              <p className="text-xs text-muted">
-                Folders, landing branches and checks are under Repositories. Worker and reviewer chats come from delivery in .avoozl.json.
-              </p>
-              {kept.length > 0 && <p className="text-xs text-muted" data-kept>Kept, not used: {kept.join(', ')}. Pick a GitHub mode to use them again.</p>}
-            </div>
-          ) : null
-        }
-      >
-        {isGitHubMode(form.mode) ? (
-          <div className="flex flex-col gap-4">
-            <div style={grid()}>
-              {shown.has('planningRepository') && (
-                <Text id="avoozl-settings-planning" label="Planning repository" raw="planningRepository" rule={{ required: true, when: 'in plans-repo mode' }} placeholder="owner/plans" value={form.planningRepository} onChange={(value) => set({ planningRepository: value })} />
-              )}
-              <Choice
-                id="avoozl-settings-authority"
-                label="New tasks belong to"
-                raw="defaultAuthority"
-                rule={{ required: false, blank: form.mode ? 'blank: github' : 'blank: local' }}
-                value={form.defaultAuthority}
-                options={choices.authorities}
-                none={`Default: ${form.mode ? 'github' : 'local'}`}
-                width="md"
-                onChange={(value) => set({ defaultAuthority: value })}
-              />
-              <Text id="avoozl-settings-epic" label="Epic issue type" raw="epicIssueType" rule={{ required: false, blank: 'blank: epics get no issue type' }} placeholder="Epic" width="md" value={form.epicIssueType} onChange={(value) => set({ epicIssueType: value })} />
-              <Text id="avoozl-settings-cache" label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={{ required: false, blank: 'blank: 60. 0 turns the cache off' }} placeholder="60" type="number" width="sm" value={form.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
-              <Text id="avoozl-settings-writes-minute" label="GitHub writes a minute" raw="writesPerMinute" rule={{ required: false, blank: 'blank: 60. At most 80' }} placeholder="60" type="number" width="sm" value={form.writesPerMinute} onChange={(value) => set({ writesPerMinute: value })} />
-              <Text id="avoozl-settings-writes-hour" label="GitHub writes an hour" raw="writesPerHour" rule={{ required: false, blank: 'blank: 400. At most 500' }} placeholder="400" type="number" width="sm" value={form.writesPerHour} onChange={(value) => set({ writesPerHour: value })} />
-              {shown.has('subIssueCap') && (
-                <Text id="avoozl-settings-sub-issues" label="Sub-issues per parent" raw="subIssues.maxPerParent" rule={{ required: false, blank: SUB_ISSUE_LINE }} placeholder="100" type="number" width="sm" value={form.maxPerParent} onChange={(value) => set({ maxPerParent: value })} />
-              )}
-            </div>
-            <label className="flex items-center gap-1.5 text-sm">
-              <input type="checkbox" checked={form.includeDone} onChange={(event) => set({ includeDone: event.target.checked })} />
-              Make issues for tasks already done when a spec is approved <span className="text-xs text-muted">issues.includeDone</span>
-            </label>
-            <ProjectFields form={form} choices={choices} set={set} />
-            <Section level="sub" title="Set up GitHub" blurb="Creates the labels, Project and fields the settings above name. It reads GitHub first and shows every write before making one.">
-              {props.setup}
-            </Section>
-            {props.crews}
+      <Section title="GitHub settings" blurb="For every repository in this workspace. Save only writes .avoozl.json.">
+        <div className="flex flex-col gap-4">
+          <div style={grid()}>
+            <Choice
+              id="avoozl-settings-authority"
+              label="New tasks belong to"
+              raw="defaultAuthority"
+              rule={{ required: false, blank: form.mode ? 'blank: github' : 'blank: local' }}
+              value={form.defaultAuthority}
+              options={choices.authorities}
+              none={`Default: ${form.mode ? 'github' : 'local'}`}
+              width="md"
+              onChange={(value) => set({ defaultAuthority: value })}
+            />
+            <Text id="avoozl-settings-epic" label="Epic issue type" raw="epicIssueType" rule={{ required: false, blank: 'blank: epics get no issue type' }} placeholder="Epic" width="md" value={form.epicIssueType} onChange={(value) => set({ epicIssueType: value })} />
+            <Text id="avoozl-settings-cache" label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={{ required: false, blank: 'blank: 60. 0 turns the cache off' }} placeholder="60" type="number" width="sm" value={form.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
+            <Text id="avoozl-settings-writes-minute" label="GitHub writes a minute" raw="writesPerMinute" rule={{ required: false, blank: 'blank: 60. At most 80' }} placeholder="60" type="number" width="sm" value={form.writesPerMinute} onChange={(value) => set({ writesPerMinute: value })} />
+            <Text id="avoozl-settings-writes-hour" label="GitHub writes an hour" raw="writesPerHour" rule={{ required: false, blank: 'blank: 400. At most 500' }} placeholder="400" type="number" width="sm" value={form.writesPerHour} onChange={(value) => set({ writesPerHour: value })} />
+            {shown.has('subIssueCap') && (
+              <Text id="avoozl-settings-sub-issues" label="Sub-issues per parent" raw="subIssues.maxPerParent" rule={{ required: false, blank: SUB_ISSUE_LINE }} placeholder="100" type="number" width="sm" value={form.maxPerParent} onChange={(value) => set({ maxPerParent: value })} />
+            )}
           </div>
-        ) : null}
-      </ModePicker>
+          <label className="flex items-center gap-1.5 text-sm">
+            <input type="checkbox" checked={form.includeDone} onChange={(event) => set({ includeDone: event.target.checked })} />
+            Make issues for tasks already done when a spec is approved <span className="text-xs text-muted">issues.includeDone</span>
+          </label>
+          <ProjectFields form={form} choices={choices} set={set} />
+          <Section level="sub" title="Set up GitHub" blurb="Creates the labels, Project and fields the settings above name. It reads GitHub first and shows every write before making one.">
+            {props.setup}
+          </Section>
+          {props.crews}
+        </div>
+      </Section>
     </Card>
   )
 }
@@ -1405,16 +1428,17 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
       setMessage({ ok: false, text: errorMessage(caught) })
     }
   }
-  const save = async (): Promise<string | null> => {
-    if (!form || !settings) return 'Settings are not loaded.'
-    const missing = missingRequired(form)
+  const save = async (override?: SettingsForm): Promise<string | null> => {
+    const saved = override ?? form
+    if (!saved || !settings) return 'Settings are not loaded.'
+    const missing = missingRequired(saved)
     if (missing) {
       setMessage({ ok: false, text: `Not saved. ${missing}` })
       return `Not saved. ${missing}`
     }
     setSaving(true)
     try {
-      await client.save(workspaceId, toPolicy(form), settings.hash)
+      await client.save(workspaceId, toPolicy(saved), settings.hash)
       await reload()
       setMessage({ ok: true, text: 'Saved to .avoozl.json.' })
       return null
@@ -1438,11 +1462,6 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
   const missing = missingRequired(form)
   return (
     <div className="flex flex-col gap-3.5">
-      {tab === 'github' && (
-        <p className="text-sm text-muted" data-blurb="github">
-          {isGitHubMode(form.mode) ? SETTINGS_BLURBS.github : LOCAL_TAB_BLURB}
-        </p>
-      )}
       {settings.error && (
         <p role="alert" className="text-sm text-danger">
           The saved settings are invalid: {settings.error}
@@ -1461,9 +1480,10 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
           saving={saving}
           onRegistryChanged={reload}
           onOpenPlans={props.onOpenPlans}
+          rolesNote={settings.rolesNote}
         />
       ) : (
-        <GeneralTab
+        <WorkspaceGitHub
           form={form}
           choices={choices}
           set={set}
@@ -1478,8 +1498,8 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
           }
         />
       )}
-      {tab === 'github' && <ThisComputer workspaceId={workspaceId} />}
-      {tab === 'github' && <RateBlock rate={settings.rate} />}
+      {tab === 'workspaces' && <ThisComputer workspaceId={workspaceId} />}
+      {tab === 'workspaces' && <RateBlock rate={settings.rate} />}
       <div className="flex flex-wrap items-center gap-2">
         <TipBtn tooltip="Check these settings without saving them" onClick={() => void check()} disabled={saving}>
           Check
@@ -1540,7 +1560,13 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   const { tab, workspaceId } = props
   // Bumped after a mirror setup applies, so the form and raw file reload.
   const [version, setVersion] = useState(0)
-  if (tab === 'workspaces') return <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
+  if (tab === 'workspaces')
+    return (
+      <div className="flex flex-col gap-3.5">
+        <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
+        {workspaceId && <PolicyEditor key={`${workspaceId}-${version}`} workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />}
+      </div>
+    )
   if (tab === 'instance') return workspaceId ? <InstanceRename workspaceId={workspaceId} /> : <p className="text-sm text-muted">Pick a workspace first.</p>
   if (!workspaceId)
     return (
@@ -1550,7 +1576,7 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
         action={<Btn onClick={() => props.onTab('workspaces')}>Open Workspaces</Btn>}
       />
     )
-  if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => props.onTab('github')} />
+  if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => props.onTab('workspaces')} />
   if (tab === 'content') return <ContentRulesSettings workspaceId={workspaceId} />
   if (tab === 'flow') return <FlowSettings workspaceId={workspaceId} />
   if (tab === 'models') return <ModelsSettings workspaceId={workspaceId} />
@@ -1628,11 +1654,9 @@ export default function SettingsView(props: {
   const pick = (next: SettingsTab) => choose(next)
   const renderBody = (section: (typeof SETTINGS_TABS)[number]) => (
     <div className="flex flex-col gap-3 pb-4" data-settings-body={section.key}>
-      {section.key !== 'github' && (
-        <p className="text-sm text-muted" data-blurb={section.key}>
-          {SETTINGS_BLURBS[section.key]}
-        </p>
-      )}
+      <p className="text-sm text-muted" data-blurb={section.key}>
+        {SETTINGS_BLURBS[section.key]}
+      </p>
       {DIALOG_SECTIONS.includes(section.key) ? (
         <div>
           <Btn type="button" onClick={() => setDialog(section.key)} data-open-settings={section.key} aria-haspopup="dialog">
