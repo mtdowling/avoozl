@@ -67,6 +67,17 @@ try {
       await shot('needs-you')
       await open('Specs')
       await shot('specs')
+      // The rest of the Specs rail, scrolled inside its pill: the filter
+      // rows and the Epics chips, with Last update and one epic picked.
+      if (await page.evaluate(`Boolean(document.querySelector('${scope(width)} [data-rail-chip]'))`)) {
+        await page.evaluate(`document.querySelector('${scope(width)} [data-rail-sort="updated"]').click()`)
+        await page.evaluate(`document.querySelector('${scope(width)} [data-rail-chip="runtime"]').click()`)
+        await wait(page, 200)
+        await page.evaluate(`(() => { const chip = document.querySelector('${scope(width)} [data-rail-chip]'); let el = chip.parentElement; while (el && !(el.scrollHeight > el.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(el).overflowY))) el = el.parentElement; if (el) el.scrollTop = el.scrollHeight })()`)
+        await shot('specs-rail')
+        await page.evaluate(`document.querySelector('${scope(width)} [data-rail-chip="runtime"]').click()`)
+        await page.evaluate(`document.querySelector('${scope(width)} [data-rail-sort="name"]').click()`)
+      }
       if (width < 768) {
         await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await shot('specs-page')

@@ -54,10 +54,44 @@ const projected = (task) =>
       task.github.origin !== "issue",
   );
 
-const readySet = (data) =>
+// `held` are tasks the release policy keeps back (policyHeld).
+const readySet = (data, held = new Set()) =>
   queryTasks(data, { scope: "all", q: "ready:true" })
     .map((task) => task.id)
+    .filter((id) => !held.has(id))
     .sort();
+
+// Whether a plan's release policy, as its last projection recorded it
+// (radar-coder-queue.mjs), releases nothing: mode Hold, capacity 0, or a
+// public hold.
+function releasesNothing(fingerprint) {
+  try {
+    const { release, publicHold } = JSON.parse(fingerprint);
+    return release?.mode === "hold" || release?.capacity === 0 || publicHold;
+  } catch {
+    return false;
+  }
+}
+
+// Projected tasks whose `dispatch.ready: false` is the release policy's
+// verdict, not their binding's: stripping the flag does not release them
+// (with no issue they are not dispatch candidates), so the ready check
+// applies the same policy before and after.
+// shortcut: Step mode and capacity N > 0 still count as changes; read the
+// live release policy here if a workspace on those modes needs to migrate.
+function policyHeld(store, data) {
+  const prints = store.getMeta("releaseFingerprint") || {};
+  return data.tasks
+    .filter(
+      (task) =>
+        projected(task) &&
+        task.dispatch?.ready === false &&
+        task.dispatch.state === "blocked" &&
+        releasesNothing(prints[task.planId]),
+    )
+    .map((task) => task.id)
+    .sort();
+}
 
 const statusesOf = (data) =>
   Object.fromEntries(data.tasks.map((task) => [task.id, task.status ?? null]));
@@ -106,13 +140,14 @@ function plan(store) {
     orders = store
       .list("receipts")
       .filter((row) => String(row.id).startsWith("github-order:")),
+    held = policyHeld(store, data),
     before = readySet(data),
-    later = readySet(after),
+    later = readySet(after, new Set(held)),
     changed = [
       ...before.filter((id) => !later.includes(id)),
       ...later.filter((id) => !before.includes(id)),
     ].sort();
-  return { data, after, bindings, records, orders, before, changed };
+  return { data, after, bindings, records, orders, before, held, changed };
 }
 
 // The issues kept: spec, plan and epic issues stay as journals.
@@ -176,7 +211,7 @@ export function applyRetirement(store, { at } = {}) {
       409,
     );
   if (current.state !== "held") return current;
-  const { data, after, bindings, records, orders, before, changed } =
+  const { data, after, bindings, records, orders, before, held, changed } =
     plan(store);
   if (changed.length)
     fail(
@@ -189,6 +224,8 @@ export function applyRetirement(store, { at } = {}) {
     retiredAt: at || new Date().toISOString(),
     // The ready set the verifying tick must leave unchanged.
     ready: before,
+    // Held by release policy, not counted as ready by the verifying tick.
+    policyHeld: held,
     bindings,
     records,
     orders,
@@ -276,7 +313,7 @@ export async function verifyRetirement(store, { github, runTick, at } = {}) {
     verifying = false;
   }
   const data = store.read(),
-    ready = readySet(data),
+    ready = readySet(data, new Set(current.policyHeld || [])),
     statuses = statusesOf(data),
     readyChanged = [
       ...current.ready.filter((id) => !ready.includes(id)),

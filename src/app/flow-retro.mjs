@@ -101,6 +101,7 @@ const REFUSED = [
   /allowedActors|minimumPermission|minPermission/,
   /trust/i,
   /token|secret|credential/i,
+  /protectedPaths/,
 ];
 // Settings a proposal may change: the Flow group and delivery's own limits
 // and review roles, all of which the Settings page edits.

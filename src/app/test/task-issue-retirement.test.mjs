@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { queryTasks } from "../../model.mjs";
+import { readyCandidates } from "../delivery.mjs";
 import { Operations } from "../operations.mjs";
 import { linePausedTaskIds } from "../flow.mjs";
 import { renderMarker } from "../github-marker.mjs";
@@ -414,6 +415,45 @@ test("a migration that would change readiness, or stops part way, stays held", a
   const passed = await verifyRetirement(store, { github, runTick: tickWith });
   assert.equal(passed.state, "verified");
   assert.equal(passed.failure, undefined);
+});
+
+test("a task held by its plan's release policy is not a readiness change", async (t) => {
+  const { store, github, tickWith, ready } = workspace(t);
+  // b is the first task of its chain; the graph allows it, but its plan's
+  // release policy gave it no ready label.
+  store.mutate("Hold b by release policy", (data) => {
+    Object.assign(
+      data.tasks.find((x) => x.id === "b"),
+      {
+        planId: "held-plan",
+        dispatch: { ready: false, graphReady: true, state: "blocked" },
+      },
+    );
+  });
+  const policy = (release) =>
+    store.setMeta("releaseFingerprint", {
+      "held-plan": JSON.stringify({ release, publicHold: false, steps: [] }),
+    });
+  // A policy that would release b: retiring the flag truly changes it.
+  policy({ capacity: 2, mode: "automatic" });
+  assert.deepEqual(previewRetirement(store).changed, ["b"]);
+
+  policy({ capacity: 0, mode: "hold" });
+  const readyBefore = ready();
+  assert.equal(readyBefore.includes("b"), false);
+  assert.deepEqual(previewRetirement(store).changed, []);
+  holdRetirement(store);
+  assert.equal(applyRetirement(store).state, "retired");
+  const verified = await verifyRetirement(store, {
+    github,
+    runTick: tickWith,
+  });
+  assert.equal(verified.state, "verified", JSON.stringify(verified.failure));
+  // Released from the hold, nothing starts b.
+  assert.equal(
+    readyCandidates(store).some((task) => task.id === "b"),
+    false,
+  );
 });
 
 test("ticks stop from the hold until the verifying tick, which runs once", async (t) => {

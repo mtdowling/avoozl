@@ -685,6 +685,7 @@ IDs never move.
 - [ ] 11.1 Crew registry [R41.1, R41.3, R41.6] (§4.10, F77–F82)
   - New `src/app/crews.mjs` lists crews from Kiro Crew's `GET /api/instances` plus `local`; tags (`os`, `arch`, `tools`, `trust`), `gitHosts`, and `chatLimit` from machine-local settings only (`crews.<id>`), `chatLimit` per crew with 3 for `local` and 2 for a remote crew when unset; a crew without settings is `trust:remote` with no git hosts; readings for `local` from `os.freemem`, `os.loadavg`, and `fs.statfs`, for a remote from its headroom snapshot (F80), each with source and `measured_at`; stale after `crewStaleSeconds` (machine-local, 120 when unset); minimum memory and disk read from Kiro Crew's `remote_dispatch_memory_gb` and `_disk_gb`, never stored in Avoozl. First, call `session_create` with `crew` from the tick script cron and from the app backend against one connected crew and record the refusal codes in the receipt, settling F78.
   - Built (registry only): `src/app/crews.mjs` (`listCrews`, `localReading`, `recordCrewSnapshot`, machine-local `crews.<id>` and `crewStaleSeconds`), `3068954`. Not checked off: the live `session_create` call with `crew` waits on MC-10, so F78 stays Inferred, and the app backend is not granted `GET /api/instances` or headroom yet; only `local` shows on a real install.
+  - 2026-11-17: F78 settled from Kiro Crew source and docs (cron and app refused `owner_only`). `src/app/crew-reader.mjs` reads `GET /api/instances` and each crew's headroom through the proxy route and records the snapshot or the refusal; Kiro Crew refuses both to an app token (MC-12), so 11.1 stays unticked until that changes. Wiring `readCrews` into the tick or app backend is a one-line call in a file other tasks own.
 - [x] 11.2 Routing rules (superseded 2026-11-13 by 11.14–11.17) [R41.2–R41.5, R41.8, R41.12, R22.5] (§4.10)
   - `routing.rules`, `routing.pick`, and `routing.router` in `.avoozl.json` (workspace and repository) and machine-local settings; validation per §4.4 and §4.10 (refuse a crew id or router instructions in a tracked file, an unknown tag key, a missing plugin route, a rule without `id`); `evaluatePlacement(task, role, crews, readings)` per §4.10 steps 1–4, returning the allowed set, the removed crews each with the rule or check that removed it, and the route; route precedence manifest task, first matching rule, repository, workspace; categories from front-matter only.
   - Built: `src/app/placement.mjs` (`validateRouting`, `validateTrackedRouting`, `evaluatePlacement`, `routingConfig`), `3068954`. Repository rules live under `projects.<id>.routing`. `kinds` match the manifest `type`. A rule's `route` shows in Preview and on the page; the tick still delivers by each task's own route. Plugin routes are checked when saved through the page or CLI.
@@ -1473,7 +1474,7 @@ Owner request 2026-11-14 (Requirement 84, design §6.13). Prototype, off by defa
 Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
 38 because task IDs never move.
 
-- [ ] 39.1 Hook command: scan a crew's writes before they run [R85.3, R85.4] (§6.14)
+- [x] 39.1 Hook command: scan a crew's writes before they run [R85.3, R85.4] (§6.14)
   - `avoozl content hook`, `src/app/public-crews.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
 - [ ] 39.2 Audit on the tick: delete a hit, pull the cord, alert, after 39.1 [R85.6, R85.7] (§6.14)
   - `publicCrewAudit`, cursor per repository, fake GitHub; a comment is deleted, a pull request closed, one notice and one Needs you item.
@@ -1501,14 +1502,16 @@ foundation tasks without that dependency may proceed while the live proof waits.
 - [x] 40.1 Worker brief edits and reports only, after avoozl-p56 [R86.3, R96] (§4.26)
   - The brief drops push, PR, auto-merge, merge and comment steps. Avoozl commits sandboxed process results; chats/people may commit locally. Read HEAD from the worktree, never from a report. A prompt test enforces this boundary.
 
-- [ ] 40.2 Report by CLI, matched by worktree and token, after avoozl-p56 [R88.2, R88.3, R96.4] (§4.26)
+- [x] 40.2 Report by CLI, matched by worktree and token, after avoozl-p56 [R88.2, R88.3, R96.4] (§4.26)
   - Use `avoozl runner report TASK done|blocked` for chats and people. Carry the worktree path and token in the brief; local chats use project: false. Test wrong tokens/worktrees and reporting without MCP sharing.
+  - Built: `src/app/report-match.mjs` (token is an HMAC of task and attempt; worktree match resolves symlinks), the worktree path and `avoozl runner report TASK done|blocked --token T` in the local worker brief (`localSteps`), and the CLI branch in `src/app/cli.mjs` (`--token` or `AVOOZL_REPORT_TOKEN`; the old `--state` forms still run). Tests: `src/app/test/report-match.test.mjs`, `report-cli.test.mjs`; 52.1 tests unchanged. The brief carries the CLI report for a tick-opened local worker; a Crew Mode relay brief is unchanged.
+
 
 - [x] 40.3 Trust mode set at open and again every tick, after avoozl-p56 [R88.1] (§4.26)
   - A fake Kiro Crew that drops trust on restart; the next tick sets it again, once per chat.
 - [x] 40.4 Prepare with the worktree helper and clean up after landing, after avoozl-p56 [R88.6] (§4.26)
   - First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise.
-- [ ] 40.5 Verify: warm checks off the tick, per-check timeouts, declared and protected paths, after 40.1 [R86.6, R86.7] (§4.26)
+- [x] 40.5 Verify: warm checks off the tick, per-check timeouts, declared and protected paths, after 40.1 [R86.6, R86.7] (§4.26)
   - Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you.
 - [ ] 40.6 One automatic resume for a vanished chat, after 40.2 [R88.4] (§4.26)
   - Only Kiro Crew's "gone" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you.
@@ -1706,18 +1709,21 @@ recovers, and a backend restart mid-run.
 - [x] 47.1 Harness definition files: argv lists, placeholders, hash approval, after avoozl-p56 [R94.1, R94.2, R94.3] (§4.28)
   - Loading refuses a shell string, an unknown placeholder and an unapproved hash.
   - Built: `src/app/harness-definitions.mjs` (machine config `harnesses/<name>.json`, approvals in `harness-approvals.json`); tests in `src/app/test/harness-definitions.test.mjs`.
-- [ ] 47.2 Permission classes, write roots and the skip-flag refusal, after 47.1 [R94.4, R94.4b, R94.5] (§4.28)
+- [x] 47.2 Permission classes, write roots and the skip-flag refusal, after 47.1 [R94.4, R94.4b, R94.5] (§4.28)
   - Write roots: task folder, temp, project cache dirs; read-only roles read-only; a test loads definitions with `bypassPermissions`, `danger-full-access` and a `--dangerously-*` flag and sees each refused; the per-machine opt-in is person-only.
+  - Built: `harnessPermission`, `sandboxWriteRoots` and `allowUnconfinedWrites` in `src/app/harness-definitions.mjs`; tests in `src/app/test/harness-permissions.test.mjs`.
 - [ ] 47.7 Avoozl commits after the child exits, after 47.4 [R94.4a] (§4.28)
   - The child only edits; Avoozl commits in the worktree from the changed files and checks the diff.
 - [x] 47.11 Avoozl's worker commit never stages a path under `.avoozl/`, and landing refuses a worker commit that holds one [R94.4a, R96.1, R96.3] (§4.28)
   - Whatever the repository's .gitignore says. 47.7 commits through `commitWorkerChanges` (`src/app/git.mjs`); `integrateRun` refuses a branch whose commits touch `.avoozl/` with the paths named; tests in `src/app/test/worker-commit.test.mjs`.
-- [ ] 47.8 Per-project command allow-list; `git push` never allowed, after 47.2 [R94.4c] (§4.28)
+- [x] 47.8 Per-project command allow-list; `git push` never allowed, after 47.2 [R94.4c] (§4.28)
+  - Built: `src/app/harness-allow.mjs` (`sandboxAllowCommands`, `harnessAllow`); tests in `src/app/test/harness-allow.test.mjs`.
 - [ ] 47.9 Spend cap from the task budget and the plan-quota stop, after 47.4 [R94.6, R94.6a] (§4.28)
 - [ ] 47.10 Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted, after 47.2 [R95.6, R95.7] (§4.28)
   - Kiro Crew chats: the docs and Settings say the person-only refusal is a speed bump.
 - [ ] 47.3 `avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend, after 47.1 [R95.1, R95.2, R95.3, R95.4] (§4.28)
   - Finds its children again after a restart; a missing one is `gone`.
+  - Built: `src/app/supervisor.mjs` (state in the machine state folder's `supervisor/supervisor.sqlite`, lock `supervisor.lock`), entry `src/app/supervisor-main.mjs`, wrapper `src/app/supervisor-child.mjs` that writes each exit code; the app backend launches it under Kiro Crew's gateway; tests in `src/app/test/supervisor.test.mjs`.
 - [ ] 47.4 The `process` executor and the Claude Code definition, after 47.2, 47.3 [R93.2, R93.5] (§4.28)
   - Default for the Nupp compiler repository.
 - [ ] 47.5 Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
@@ -1905,11 +1911,11 @@ proof or run a real workspace to get past that wait.
   - Implement explicit per-spec publication, one issue per spec/epic and local-file parity. Approval alone makes no GitHub write. Keep epic links and existing issue ownership. Spec, epic and sub-issues carry crew:avoozl in their create call.
   - Schema/parser/writer/replay: allowlisted event fields, authenticated actor/permission, revision/digest/generation, previous links, complete pagination, operation-id deduplication and conflicting-duplicate hold. Mutation/missing linked records hold; document the undetectable-tail limit. Count no poll snapshots and reject prohibited public fields.
 
-- [ ] 56.3 Qualified working heads, fork checkpoints and verified integration, after 56.2, 56.11, 40.5 [R102.6, R102.7, R102.8, R102.15] (§4.32)
+- [x] 56.3 Qualified working heads, fork checkpoints and verified integration, after 56.2, 56.11, 40.5 [R102.6, R102.7, R102.8, R102.15] (§4.32)
   - Generalize spec homes and integration branches to source repository/ref/SHA and target/base. Discover PR fork heads; accept trusted owner-published pre-PR refs. Fetch only registered sources, validate relationships and exact commits; no arbitrary issue URLs or commands.
   - Driver creates one spec working branch per affected repository, integrates checked task refs serially, and keeps unfinished checkpoints separate. A fork needs no upstream branch copy. Content checks apply to all checkpoints; acceptance gates apply to verified integrations. Test recovery after database loss, fork deletion/rewrites, two identical branch names and absent upstream push access; sandboxed agents never receive push credentials.
 
-- [ ] 56.4 Driver generations, guarded intents and landing reconciliation, after 56.2, 56.3 [R102.5, R102.13, R102.14] (§4.32)
+- [x] 56.4 Driver generations, guarded intents and landing reconciliation, after 56.2, 56.3 [R102.5, R102.13, R102.14] (§4.32)
   - Retain assignee/fallback authority and private handoff. Person-only takeover writes a generation; ambiguous concurrent takeovers hold. Revalidate controls/authority before dispatch and landing.
   - Write/read back exact candidate/base/task/evidence intent before guarded push or head-guarded merge. A displaced driver stops recording. Outstanding intents hold until actual landing reconciliation or safe void; deduplicate effective outcomes. A copied/stale trailer yields landed-unverified. Test the pause-before-push takeover race without claiming exactly-once execution.
 
@@ -1925,7 +1931,7 @@ proof or run a real workspace to get past that wait.
   - Extend epic entries with step, default implement. Allow one row per (plan, step), forbid task fields/dispatch, derive design/review/implement from current member state; never hand-tick lifecycle rows.
   - Keep current merge-commit re-hash; persist actual approving reviewers separately from requester/merger/time after merge. Local approval is explicit. Request configured spec reviewers or honor CODEOWNERS/policy; add no universal second-person rule. Public PRs link only public spec issues.
 
-- [ ] 56.8 GitHub intake with proportionate plans and private-safe status, after 56.2, 56.7, 56.12 [R102.19, R103.1, R103.10] (§4.32)
+- [x] 56.8 GitHub intake with proportionate plans and private-safe status, after 56.2, 56.7, 56.12 [R102.19, R103.1, R103.10] (§4.32)
   - Accept GitHub starts in plan/deliver. Bounded fixes use a compact versioned acceptance definition and the existing issue journal, without a full spec; coordinated design uses a proportionate spec. Reuse an issue only when home/visibility match.
   - Initial intake makes at most two idempotent writes: ownership label and safe status comment; never name a private spec on a public input. Only same-repository Deliver this uses Fixes; closure is withdrawal. Validate the ownership label excludes independent issue crews in a scratch proof before unattended rollout. The ownership label is crew:avoozl; intake-created issues carry it at create, and the status comment carries no Radar claim marker.
 

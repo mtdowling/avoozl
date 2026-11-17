@@ -68,7 +68,7 @@ async function setup(t) {
 
 test("a token matches its task from the worktree or a folder below it", async (t) => {
   const { store, paths } = await setup(t),
-    token = issueReportToken(store, { taskId: "a", slot: "slot-a" });
+    token = issueReportToken(store, { taskId: "a", attempt: 1 });
   fs.mkdirSync(path.join(paths.a, "sub"));
   for (const cwd of [paths.a, path.join(paths.a, "sub")])
     assert.equal(
@@ -78,9 +78,9 @@ test("a token matches its task from the worktree or a folder below it", async (t
 });
 
 test("wrong, malformed, other-task and replaced tokens get 403 and never echo the token", async (t) => {
-  const { store, paths } = await setup(t),
-    token = issueReportToken(store, { taskId: "a", slot: "slot-a" }),
-    tokenB = issueReportToken(store, { taskId: "b", slot: "slot-b" }),
+  const { store, ops, paths } = await setup(t),
+    token = issueReportToken(store, { taskId: "a", attempt: 1 }),
+    tokenB = issueReportToken(store, { taskId: "b", attempt: 1 }),
     refuse = (input, pattern) =>
       assert.throws(
         () => matchCliReport(store, { cwd: paths.a, ...input }),
@@ -93,13 +93,28 @@ test("wrong, malformed, other-task and replaced tokens get 403 and never echo th
   refuse({ taskId: "a", token: "nope" }, /malformed/);
   refuse({ taskId: "a" }, /malformed/);
   refuse({ taskId: "a", token: tokenB }, /does not match/);
-  issueReportToken(store, { taskId: "a", slot: "slot-a" });
+  // A new attempt replaces the token.
+  await ops.execute("session.bind", {
+    taskId: "a",
+    slot: "slot-a2",
+    attempt: 2,
+    source: "tick",
+    title: "avoozl:a Task a",
+  });
   refuse({ taskId: "a", token }, /does not match/);
+  assert.equal(
+    matchCliReport(store, {
+      taskId: "a",
+      token: issueReportToken(store, { taskId: "a", attempt: 2 }),
+      cwd: paths.a,
+    }).slot,
+    "slot-a2",
+  );
 });
 
 test("a report from another task's worktree, a symlink out, or a missing folder gets 403", async (t) => {
   const { store, paths } = await setup(t),
-    token = issueReportToken(store, { taskId: "a", slot: "slot-a" }),
+    token = issueReportToken(store, { taskId: "a", attempt: 1 }),
     link = path.join(paths.a, "escape");
   fs.symlinkSync(paths.b, link);
   for (const cwd of [paths.b, link, path.join(paths.a, "missing")])
@@ -111,7 +126,7 @@ test("a report from another task's worktree, a symlink out, or a missing folder 
 
 test("a matched report is accepted without MCP identity, an unmatched one is not", async (t) => {
   const { store, ops, paths } = await setup(t),
-    token = issueReportToken(store, { taskId: "a", slot: "slot-a" }),
+    token = issueReportToken(store, { taskId: "a", attempt: 1 }),
     progress = { taskId: "a", kind: "progress", text: "Halfway." };
   await assert.rejects(
     ops.execute("session.report", progress, undefined, {}),
@@ -130,7 +145,7 @@ test("a matched report is accepted without MCP identity, an unmatched one is not
 
 test("reportByToken reads the commit from HEAD and refuses a wrong token or worktree", async (t) => {
   const { store, ops, paths } = await setup(t),
-    token = issueReportToken(store, { taskId: "a", slot: "slot-a" });
+    token = issueReportToken(store, { taskId: "a", attempt: 1 });
   await assert.rejects(
     reportByToken(store, ops, {
       taskId: "a",
