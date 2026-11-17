@@ -2,7 +2,7 @@
 // Screenshots of task 41.6's restored parts in the full app shell (harness
 // ?page=app&delivery=1), at 390 and 1280 px, light and dark:
 // <out>/<part>-<width>-<theme>.png for Dashboards › Delivery with its nav
-// filters, Settings › Budgets, and the task drawer's Files and Budget folds.
+// filters and the task drawer's Files fold.
 //
 //   node test/browser/restore-shots.mjs <out dir>
 //
@@ -70,7 +70,7 @@ try {
         await menu(false)
       }
       await shot('delivery')
-      // The drawer from a card's Details, with Files and then Budget open.
+      // The drawer from a card's Details, with Files open.
       await page.evaluate(`${button('Details', "document.querySelector('[data-shell-main]')")}?.click()`)
       await page.until(`Boolean(document.querySelector('[data-section-toggle="files"]'))`)
       await page.evaluate(`(() => { document.querySelector('[data-section-box="files"]').scrollIntoView(); return true })()`)
@@ -79,15 +79,6 @@ try {
       await wait(page, 600)
       await page.evaluate(`document.querySelector('[data-section-box="files"]').scrollIntoView()`)
       await shot('drawer-files')
-      await page.evaluate(`(() => { document.querySelector('[data-section-box="budget"]').scrollIntoView(); return true })()`)
-      await wait(page, 600)
-      await shot('drawer-budget')
-      await open()
-      await nav('settings', 'budgets')
-      await menu(false)
-      await page.evaluate(`document.querySelector('[data-open-settings="budgets"]')?.click()`)
-      await page.until(`Boolean(document.querySelector('[data-budget-settings]'))`)
-      await shot('settings-budgets')
     }
   if (page.errors.length) console.error(page.errors.join('\n'))
 } finally {

@@ -1188,10 +1188,6 @@ export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; cl
   const { row, client, workspaceId } = props
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const cancel = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    cancel.current?.focus()
-  }, [])
   const run = async () => {
     setBusy(true)
     setError(null)
@@ -1213,14 +1209,12 @@ export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; cl
       role="alertdialog"
       width="32rem"
       backLabel="Cancel"
+      focusClose
       attrs={{ 'data-archive-plan': true }}
       title={`Archive the spec ${row.name}?`}
       onDismiss={() => props.onDone(null)}
       footer={
         <>
-          <Btn ref={cancel} type="button" style={COMPACT_BTN} onClick={() => props.onDone(null)}>
-            Cancel
-          </Btn>
           <Btn type="button" primary data-archive-confirm style={COMPACT_BTN} disabled={busy} onClick={() => void run()}>
             Archive spec
           </Btn>
@@ -1272,13 +1266,9 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
   const [folder, setFolder] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const cancel = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     client.deletePreview(workspaceId, row.planId!).then(setPreview, (caught) => setError(errorMessage(caught)))
   }, [client, workspaceId, row.planId])
-  useEffect(() => {
-    cancel.current?.focus()
-  }, [])
   const run = async () => {
     if (!preview) return
     setBusy(true)
@@ -1304,14 +1294,12 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
       role="alertdialog"
       width="32rem"
       backLabel="Cancel"
+      focusClose
       attrs={{ 'data-delete-plan': preview?.retire ? 'retire' : 'draft' }}
       title={`Delete the spec ${preview?.title ?? row.name}?`}
       onDismiss={() => props.onDone(null)}
       footer={
         <>
-          <Btn ref={cancel} type="button" style={COMPACT_BTN} onClick={() => props.onDone(null)}>
-            Cancel
-          </Btn>
           <Btn type="button" data-danger disabled={!preview || busy || blocked} onClick={() => void run()} style={{ ...COMPACT_BTN, background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
             Delete spec
           </Btn>
@@ -1463,11 +1451,10 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
     finally { setBusy(false) }
   }
   return (
-    <Modal id="avoozl-approve-spec" title={`Approve ${plan.spec || plan.title}?`} width="36rem" height="34rem" backLabel="Cancel" attrs={{ 'data-approve-spec': true }} onDismiss={() => props.onDone(null)} footer={
-      <div className="flex flex-wrap justify-end gap-2">
-        <SmallBtn attrs={{ 'data-autofocus': true }} onClick={() => props.onDone(null)}>{pending ? 'Close' : 'Cancel'}</SmallBtn>
+    <Modal id="avoozl-approve-spec" title={`Approve ${plan.spec || plan.title}?`} width="36rem" height="34rem" backLabel="Cancel" focusClose attrs={{ 'data-approve-spec': true }} onDismiss={() => props.onDone(null)} footer={
+      <>
         {!pending && <SmallBtn primary disabled={busy} onClick={() => void run()} attrs={{ 'data-approve-spec-go': true }}>Approve spec</SmallBtn>}
-      </div>
+      </>
     }>
       <div className="flex flex-col gap-3 text-sm">
         <p className="m-0 text-muted">
@@ -1594,17 +1581,17 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
       height="34rem"
       title={label}
       backLabel="Cancel"
+      focusClose
       attrs={{ 'data-approve-specs': result ? (result.pending ? 'pending' : 'failed') : 'confirm' }}
-      onDismiss={() => props.onDone(null)}
+      onDismiss={() => props.onDone(finished ? 'Nothing approved yet. Merge the approval pull request, then approve again.' : null)}
       footer={
-        <div className="flex flex-wrap justify-end gap-2">
-          <SmallBtn attrs={{ 'data-autofocus': true }} onClick={() => props.onDone(finished ? 'Nothing approved yet. Merge the approval pull request, then approve again.' : null)}>{finished ? 'Close' : 'Cancel'}</SmallBtn>
+        <>
           {!finished && (
             <SmallBtn primary disabled={busy || entries.length === 0} onClick={() => void run()} attrs={{ 'data-approve-specs-go': true }}>
               {label}
             </SmallBtn>
           )}
-        </div>
+        </>
       }
     >
       <div className="flex flex-col gap-3 text-sm">

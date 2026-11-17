@@ -101,7 +101,7 @@ test('nothing is written before the confirm; each create button writes once', { 
   await page.until(`!document.querySelector('[data-confirm]')`)
   assert.equal((await calls()).includes('github.project'), false)
   // Cancel writes nothing.
-  await page.evaluate(`${button('Cancel')}.click()`)
+  await page.evaluate(`${button('Close')}.click()`)
   await page.until(`!document.querySelector('dialog')`)
   assert.equal((await calls()).includes('github.project'), false)
 
@@ -143,7 +143,7 @@ test('Spec changed writes nothing until applied, and apply is off until approved
   const text = await page.evaluate(`document.querySelector('[data-change-rows]').textContent`)
   assert.match(text, /S5.*claimed · Comment only/s)
   assert.match(text, /S12.*Close as not planned/s)
-  await page.evaluate(`${button('Later')}.click()`)
+  await page.evaluate(`${button('Close')}.click()`)
   await page.until(`!document.querySelector('dialog')`)
   assert.equal((await calls()).includes('spec.changed.apply'), false)
 

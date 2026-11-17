@@ -109,10 +109,9 @@ try {
         !(key === "confirm" && command === "driver")
       )
         options[key] = true;
-      // `avoozl budget receipt TASK --json` prints the receipt object.
       else if (
         key === "json" &&
-        ["budget", "runner", "verify-issue", "review", "gate", "plan"].includes(
+        ["runner", "verify-issue", "review", "gate", "plan"].includes(
           args[0],
         ) &&
         (args[i + 1] === undefined || args[i + 1].startsWith("--"))
@@ -739,52 +738,6 @@ try {
           taskId: options.task,
           cwd: process.cwd(),
         }),
-        null,
-        2,
-      ),
-    );
-  // Budgets and receipts (§4.17).
-  else if (command === "budget" && positionals[0] === "receipt") {
-    const receipt = await localOrRequest("budget.receipt", {
-      taskId: positionals[1],
-    });
-    if (options.json) console.log(JSON.stringify(receipt, null, 2));
-    else console.log(receiptText(receipt));
-  } else if (command === "budget" && positionals[0] === "view")
-    console.log(
-      JSON.stringify(await localOrRequest("budget.view", {}), null, 2),
-    );
-  else if (command === "budget" && positionals[0] === "raise")
-    console.log(
-      JSON.stringify(
-        await localOrRequest("budget.raise", {
-          taskId: positionals[1],
-          ...(options.usd !== undefined ? { usd: Number(options.usd) } : {}),
-          ...(options.tokens !== undefined
-            ? { tokens: Number(options.tokens) }
-            : {}),
-          ...(options.credits !== undefined
-            ? { credits: Number(options.credits) }
-            : {}),
-        }),
-        null,
-        2,
-      ),
-    );
-  else if (
-    command === "budget" &&
-    ["stop", "acknowledge", "switch-to-stop"].includes(positionals[0])
-  )
-    console.log(
-      JSON.stringify(
-        await localOrRequest(
-          {
-            stop: "budget.stop",
-            acknowledge: "budget.acknowledge",
-            "switch-to-stop": "budget.switchToStop",
-          }[positionals[0]],
-          { taskId: positionals[1] },
-        ),
         null,
         2,
       ),
@@ -2058,12 +2011,6 @@ try {
   epics                                 Epics across plans, each with member plans and computed progress
   epic ID                               One epic: goal, what done means, member plans, open decisions
   flow run-anyway STOP_ID --confirm     Resume dispatch while a line stop stays open (a person only)
-  budget receipt TASK [--json]          A task's usage receipt: spend by stage, model and attempt (§4.17)
-  budget view                           Every task's spend against its cap
-  budget raise TASK [--usd N] [--tokens N] [--credits N]
-                                        Raise a task's cap (a person only)
-  budget stop|acknowledge|switch-to-stop TASK
-                                        Act on a budget stop or an over-budget task (a person only)
   flow stop --scope all|repo|spec|task [--repository ID] [--spec ID] [--task ID] --reason TEXT
                                         Pull the Andon cord: stop new work in a scope
   flow stop --full --reason TEXT        Stop all agents: also stop every running chat Avoozl opened (needs the app backend)
@@ -2145,27 +2092,6 @@ session needs --as-person. UI, CLI and MCP share application operations.`);
   console.error(error.message);
   process.exitCode =
     command === "session-hook" || (command === "next" && options.hook) ? 0 : 1;
-}
-
-// A receipt as a few lines of text, for the terminal.
-function receiptText(r) {
-  const usd = (n) => (n == null ? "no cap" : `$${Number(n).toFixed(2)}`);
-  // Each cap names the level that set it; tokens and credits always have one.
-  const capOf = (key) => `${r.cap[key]} (${r.cap.levels?.[key] || "default"})`;
-  const lines = [
-    `${r.taskId}: ${usd(r.totals.usd)} of ${usd(r.cap.usd)}${r.cap.usd == null ? "" : ` (${r.cap.level})`}, ${r.cap.mode} mode`,
-    `Tokens ${Math.round(r.totals.input + r.totals.output)} of ${capOf("tokens")}, credits ${r.totals.credits} of ${capOf("credits")}, unpriced turns ${r.totals.unpricedTurns}`,
-    `Prices: built-in list of ${r.price.updated}${r.readAt ? `; last usage read ${r.readAt}` : ""}`,
-  ];
-  if (!r.complete)
-    lines.push(
-      `Incomplete: ${[...new Set(r.missing.map((m) => m.reason))].join(", ")}`,
-    );
-  for (const row of r.byStage)
-    lines.push(
-      `  ${row.stage}: ${usd(row.usd)}${row.priced ? "" : " (some unpriced)"}`,
-    );
-  return lines.join("\n");
 }
 
 // One spec in `plan batches` and the approve preview.
