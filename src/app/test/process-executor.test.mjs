@@ -13,7 +13,7 @@ import {
   parseHarnessDefinition,
 } from "../harness-definitions.mjs";
 import { harnessAllow } from "../harness-allow.mjs";
-import { startSupervisor } from "../supervisor.mjs";
+import { startSupervisor, supervisorPaths } from "../supervisor.mjs";
 import { sandboxKind } from "../sandbox.mjs";
 import {
   bindingStatus,
@@ -116,6 +116,7 @@ test("a project opts into process; everything else stays on kirocrew", () => {
 const AGENT = `
 import fs from "node:fs";
 const text = fs.readFileSync(0, "utf8");
+console.log("argv:", process.argv.slice(2).join(" "), "|", text);
 fs.appendFileSync("seen.txt", process.argv.slice(2).join(" ") + "|" + text + "\\n");
 const wait = /WAIT:(\\S+)/.exec(text);
 if (wait) {
@@ -355,24 +356,26 @@ test("the harness spend cap comes from the task budget", async (t) => {
     prepareWorktree: async () => ({ path: worktree }),
   });
   assert.deepEqual(errors, []);
-  const seen = () =>
-    fs.existsSync(path.join(worktree, "seen.txt"))
-      ? fs.readFileSync(path.join(worktree, "seen.txt"), "utf8")
-      : "";
+  // Each child prints its argv to its own log: a read-only child cannot
+  // write the worktree under a sandbox.
+  const logs = () =>
+    store.list("session_bindings").map((b) => {
+      const file = path.join(
+        supervisorPaths(stateDirectory).children,
+        b.slot,
+        "log",
+      );
+      return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+    });
+  const argvOf = (role) =>
+    logs().find((l) => l.includes(`Run as ${role}.`)) ?? null;
   await until(() => {
     supervisor.pass();
-    return seen().split("\n").filter(Boolean).length === 2;
+    return argvOf("worker") && argvOf("planner");
   });
-  const lines = seen().split("\n");
   // A worker is capped; a planner's spend is no task's (R67.7).
-  assert.match(
-    lines.find((l) => l.includes("as worker")),
-    / --max-budget-usd 5\.00\|/,
-  );
-  assert.doesNotMatch(
-    lines.find((l) => l.includes("as planner")),
-    /max-budget/,
-  );
+  assert.match(argvOf("worker"), / --max-budget-usd 5\.00 \|/);
+  assert.doesNotMatch(argvOf("planner"), /max-budget/);
 
   // Warn mode never stops work, so it sets no cap.
   data.tasks[0].budget = { usd: 5, mode: "warn" };
@@ -381,14 +384,10 @@ test("the harness spend cap comes from the task budget", async (t) => {
   await drainProcessRequests(store, { stateDirectory });
   await until(() => {
     supervisor.pass();
-    return /as verifier/.test(seen());
+    return argvOf("verifier");
   });
-  assert.doesNotMatch(
-    seen()
-      .split("\n")
-      .find((l) => l.includes("as verifier")),
-    /max-budget/,
-  );
+  assert.match(argvOf("verifier"), /^argv:/m);
+  assert.doesNotMatch(argvOf("verifier"), /max-budget/);
 });
 
 // R94.6a: no new session on a harness whose plan quota reads low.
