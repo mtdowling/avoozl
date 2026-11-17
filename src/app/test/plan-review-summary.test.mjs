@@ -112,6 +112,11 @@ test("the latest pass counts stored fixes, leaves answered findings for the pers
   assert.equal(summary.state, "running");
   assert.equal(summary.current, false);
   assert.equal(summary.revisionHash, "older-hash");
+  assert.equal(
+    summary.planHash,
+    env.plan.hash,
+    "names the stored revision now",
+  );
   assert.equal(summary.reviewerModel, "fake-reviewer");
   assert.equal(summary.writerModel, "fake-writer");
   assert.deepEqual([summary.found, summary.fixed, summary.forYou], [4, 1, 2]);

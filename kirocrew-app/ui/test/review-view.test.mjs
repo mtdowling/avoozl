@@ -150,7 +150,12 @@ test('Reject needs a reason, and each action records the revision on screen', { 
 })
 
 // The pure parts, under node's type stripping.
-const { chipCounts, filterFindings, parseReviewLink, reviewLink } = await import('../src/review-view.ts')
+const { chipCounts, filterFindings, parseReviewLink, reviewHref, reviewLink } = await import('../src/review-view.ts')
+
+test('an Approve dialog links to the Review view at its revision on the app route only', () => {
+  assert.equal(reviewHref('/apps/avoozl', 'p1', 'abc123'), '/apps/avoozl?view=review&plan=p1&rev=abc123')
+  assert.equal(reviewHref('/popout/apps/avoozl', 'p1', 'abc123'), null)
+})
 
 test('the address keeps the review place, and a bad value is dropped', () => {
   const place = { plan: 'byte-types', rev: 'abc123', file: 'design.md', severity: 'warn', state: 'for you' }

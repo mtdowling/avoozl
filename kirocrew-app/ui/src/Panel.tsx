@@ -330,8 +330,8 @@ export default function AvoozlPanel() {
   const approve = async () => {
     if (!workspaceId || !spec?.plan || !spec.hash) return
     try {
-      await plans.approve(workspaceId, spec.plan.id, spec.hash)
-      setNote('Approved this revision for Avoozl.')
+      const result = await plans.approve(workspaceId, spec.plan.id, spec.hash)
+      setNote('changed' in result ? 'This spec has a newer revision. Review it, then approve.' : 'Approved this revision for Avoozl.')
       await load()
     } catch (caught) {
       setNote(errorMessage(caught))

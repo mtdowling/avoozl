@@ -5,6 +5,7 @@
 import { unifiedDiff } from '../../../src/app/text-diff.mjs'
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
+import { SEVERITIES, STATES } from './review-view.ts'
 import type { TaskOwner } from './views-api.ts'
 
 export interface Counts {
@@ -76,9 +77,10 @@ export interface SpecPlan {
   review?: PlanReviewSummary | null
 }
 
-export type ReviewDisposition = 'resolved' | 'accepted' | 'rejected' | 'deferred'
 export interface PlanReviewSummary {
   state: 'not-reviewed' | 'running' | 'done' | 'skipped'
+  // The stored revision now, which can move while a dialog shows another.
+  planHash?: string
   reviewerModel: string | null
   writerModel?: string | null
   revisionHash: string | null
@@ -86,6 +88,8 @@ export interface PlanReviewSummary {
   found: number
   fixed: number
   forYou: number
+  bySeverity?: Record<string, number>
+  byState?: Record<string, number>
   note: string | null
   unproven?: boolean
   canReviewAnyway?: boolean
@@ -96,6 +100,9 @@ export interface PlanReviewSummary {
     current: boolean
     kind: string
     severity: string
+    state?: string
+    // Its lines in the current revision, or moved.
+    anchor?: { file: string; lineStart: number; lineEnd: number; moved?: boolean }
     file: string
     line: number
     claim: string
@@ -312,21 +319,36 @@ export function plansClient(api: AppApi) {
     batches: (workspaceId: string) => run<ApprovalBatches>(workspaceId, 'plan.approvalBatches'),
     reviewAnyway: (workspaceId: string, planId: string, revisionHash: string) => run(workspaceId, 'plan.review.decide', { planId, revisionHash, action: 'review', unproven: true }),
     reviewSummary: (workspaceId: string, planId: string) => run<PlanReviewSummary | null>(workspaceId, 'plan.reviewSummary', { planId }),
-    closeReviewFinding: (workspaceId: string, id: string, disposition: ReviewDisposition) => run(workspaceId, 'plan.review.dispose', { id, disposition }),
     // What approving just these would do, with each one's issue writes. Writes nothing.
     selection: (workspaceId: string, ids: string[]) =>
       run<ApprovalBatches & { selection: BatchSelection }>(workspaceId, 'plan.approvalBatches', { ids }).then((value) => value.selection),
     // Approve exactly these revisions together, all or none (plan.approveMany).
-    approveMany: (workspaceId: string, items: { id: string; expectedHash: string }[]) =>
-      run<ApproveManyResult>(workspaceId, 'plan.approveMany', { items }),
-    approve: async (workspaceId: string, id: string, expectedHash: string) => {
-      const { reviewedHash, expectedRevision } = await preview(workspaceId, id)
-      if (reviewedHash !== expectedHash) throw new Error('This revision changed. Reload it before approving.')
-      return run<ApproveOneResult>(workspaceId, 'plan.approve', {
-        id,
-        expectedHash,
-        expectedRevision,
-      })
+    // A spec whose stored revision moved since it was shown comes back in
+    // `changed`, and nothing is sent: the dialog shows that spec's update.
+    approveMany: async (workspaceId: string, items: { id: string; expectedHash: string }[]): Promise<ApproveManyResult> => {
+      const shown = await Promise.all(items.map(async (item) => ({ item, preview: await preview(workspaceId, item.id) })))
+      const changed = shown.filter(({ item, preview }) => preview.reviewedHash !== item.expectedHash).map(({ item, preview }) => ({ id: item.id, preview }))
+      if (changed.length) return { ok: false, failures: [], changed }
+      return run<ApproveManyResult>(workspaceId, 'plan.approveMany', { items })
+    },
+    // A revision that moved since it was shown comes back as `changed`
+    // instead of an error, so the dialog updates in place. plan.approve still
+    // refuses a stale hash; a move between this check and that call reads as
+    // the same change.
+    approve: async (workspaceId: string, id: string, expectedHash: string): Promise<ApproveOneResult | { changed: Preview }> => {
+      const shown = await preview(workspaceId, id)
+      if (shown.reviewedHash !== expectedHash) return { changed: shown }
+      try {
+        return await run<ApproveOneResult>(workspaceId, 'plan.approve', {
+          id,
+          expectedHash,
+          expectedRevision: shown.expectedRevision,
+        })
+      } catch (caught) {
+        const again = await preview(workspaceId, id).catch(() => null)
+        if (again && again.reviewedHash !== expectedHash) return { changed: again }
+        throw caught
+      }
     },
   }
 }
@@ -371,6 +393,49 @@ export interface ApproveManyResult {
   pending?: boolean
   failures: { id: string; spec: string | null; error: string }[]
   approvalPullRequests?: { repository: string; number: number; branch: string; specs: string[] }[]
+  // Specs whose revision moved since the dialog showed them; nothing was sent.
+  changed?: { id: string; preview: Preview }[]
+}
+
+// What changed while an Approve dialog was open (R104.13): the two hashes,
+// each changed file with lines added and removed, and findings that became
+// fixed or moved in the new revision.
+export interface RevisionChange {
+  from: string
+  to: string
+  files: { file: string; added: number; removed: number }[]
+  fixed: PlanReviewSummary['open']
+  moved: PlanReviewSummary['open']
+}
+export function revisionChange(
+  from: { hash: string; files?: Record<string, string> | null; review?: PlanReviewSummary | null },
+  to: { hash: string; files?: Record<string, string> | null; review?: PlanReviewSummary | null },
+): RevisionChange {
+  const files = from.files && to.files
+    ? revisionDiff(from.files, to.files).map(({ file, diff }) => {
+        const lines = diff.split('\n')
+        return { file, added: lines.filter((line) => line.startsWith('+')).length, removed: lines.filter((line) => line.startsWith('-')).length }
+      })
+    : []
+  const before = new Map((from.review?.open ?? []).map((finding) => [finding.id, finding]))
+  const after = to.review?.open ?? []
+  return {
+    from: from.hash,
+    to: to.hash,
+    files,
+    fixed: after.filter((finding) => finding.state === 'fixed' && before.get(finding.id)?.state !== 'fixed'),
+    moved: after.filter((finding) => finding.anchor?.moved && !before.get(finding.id)?.anchor?.moved),
+  }
+}
+
+// "2 blocker · 3 warn · 1 info · 1 for you": severities, then states, each
+// left out at zero.
+export function reviewCounts(review?: PlanReviewSummary | null): string {
+  const parts = [
+    ...SEVERITIES.map((name) => [name, review?.bySeverity?.[name] ?? 0] as const),
+    ...STATES.map((name) => [name, review?.byState?.[name] ?? 0] as const),
+  ].filter(([, count]) => count > 0)
+  return parts.length ? parts.map(([name, count]) => `${count} ${name}`).join(' · ') : 'No findings'
 }
 
 // Each draft plan's batch number, by plan ID. Approved specs have none.
