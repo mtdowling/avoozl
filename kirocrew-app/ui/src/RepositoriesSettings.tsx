@@ -8,7 +8,7 @@ import { useAppApi } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
-import { DangerBtn, IconBtn, IconLabel, TipBtn, useConfirm } from './controls.tsx'
+import { DangerBtn, IconBtn, IconLabel, TipBtn } from './controls.tsx'
 import { ExternalLink, FolderOpen, Pencil, Plus } from './icons.ts'
 import { errorMessage, workspaceClient, type DetectedCheckout, type Repository } from './workspace-api.ts'
 import { githubHref, type RepositoryRow } from './repository-rows.ts'
@@ -143,14 +143,11 @@ export function RepositoryDialog(props: {
   onDiscard: () => void
   children: ReactNode
 }) {
-  const ask = useConfirm()
   const discard = {
     title: `Discard your changes to ${props.name}?`,
     body: 'Every edit in this dialog is lost. .avoozl.json stays as it is.',
     action: 'Discard changes',
   }
-  // Cancel asks too; Esc, Back and a click outside ask through the Modal.
-  const dismiss = () => (props.edited ? void ask(discard).then((yes) => yes && props.onDiscard()) : props.onDiscard())
   return (
     <Modal
       id="avoozl-repo-edit"
@@ -160,20 +157,17 @@ export function RepositoryDialog(props: {
       onDismiss={props.onDiscard}
       footer={
         (
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <>
             {(props.error || (props.edited && props.missing)) && (
               <span role="alert" className="mr-auto text-sm text-danger" data-modal-error>
                 {props.error ?? props.missing}
               </span>
             )}
             {!props.error && !props.missing && props.edited && <span className="mr-auto text-xs text-muted">Unsaved changes</span>}
-            <Btn type="button" onClick={dismiss}>
-              Cancel
-            </Btn>
             <Btn type="button" primary onClick={props.onSave} disabled={props.saving || !props.edited}>
               Save
             </Btn>
-          </div>
+          </>
         )
       }
     >

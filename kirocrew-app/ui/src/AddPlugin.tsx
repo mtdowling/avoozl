@@ -322,9 +322,6 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       onDismiss={cancel}
       footer={
         <>
-          <Btn type="button" onClick={cancel} disabled={busy}>
-            Cancel
-          </Btn>
           {(step === 1 || step === 2) && (
             <Btn type="button" onClick={() => setStep(step - 1)} disabled={busy}>
               Back

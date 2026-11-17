@@ -16,19 +16,20 @@ test('Graph nodes, Home lists and Conflicts items open the drawer', () => {
   assert.match(source('App.tsx'), /<TaskDrawerProvider workspaceId=\{active\} onFocus=/)
 })
 
-test('the drawer closes on Escape, its button and the backdrop, and returns focus', () => {
+test('the task modal is the shared Modal: Esc, the X and Close close it, and focus returns', () => {
   const drawer = source('TaskDrawer.tsx')
-  // Esc closes it through the page's Back history; Back walks its own
-  // linked-task history first.
-  assert.match(drawer, /useBackStep\('drawer', open && Boolean\(workspaceId\), 'Close the drawer', \(\) => \(history\.length \? back\(\) : close\(\)\), close\)/)
-  assert.match(drawer, /data-drawer-backdrop\s+onClick=\{close\}/)
-  assert.match(drawer, /aria-label="Close task details"/)
-  assert.match(drawer, /panel\.current\?\.focus\(\)/)
-  assert.match(drawer, /returnTo\.current\?\.focus\?\.\(\)/)
-  assert.match(drawer, /prefers-reduced-motion: reduce/)
-  assert.match(drawer, /transition: still \? 'none'/)
-  assert.match(drawer, /max-width: 767px/)
-  assert.match(drawer, /role="dialog"/)
+  // The shared Modal owns Esc, the backdrop, the X, the footer Close, the
+  // focus trap and the return of focus; Back walks the linked-task history first.
+  assert.match(drawer, /<Modal\s+id="avoozl-drawer"\s+role="dialog"\s+kind="drawer"/)
+  assert.match(drawer, /onDismiss=\{close\}/)
+  assert.match(drawer, /onBack=\{\(\) => \(history\.length \? back\(\) : close\(\)\)\}/)
+  assert.match(drawer, /Add task after this/)
+  assert.match(drawer, /api_\.addTask\(\{ prerequisite: mode\.id \}\)/)
+  assert.doesNotMatch(drawer, /aria-modal|fixed inset-0|useBackStep/)
+  const modal = source('Modal.tsx')
+  assert.match(modal, /data-modal-footer-close/)
+  assert.match(modal, /max-width: 767px/)
+  assert.match(modal, /before\.focus\(\)/)
 })
 
 test('the drawer shows every section, and a linked task opens in it', () => {

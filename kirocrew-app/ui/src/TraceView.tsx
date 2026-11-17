@@ -142,14 +142,11 @@ export function TraceDrawer(props: { workspaceId: string | null; target: TraceTa
       attrs={{ 'data-trace-drawer': true }}
       onDismiss={props.onClose}
       footer={
-        <div className="flex justify-end gap-2">
-          <Btn type="button" onClick={props.onClose}>
-            Close
-          </Btn>
+        <>
           <Btn type="button" primary onClick={props.onOpenPage}>
             Open page
           </Btn>
-        </div>
+        </>
       }
     >
       <Loaded read={read} />
