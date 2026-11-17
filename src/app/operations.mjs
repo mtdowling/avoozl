@@ -581,6 +581,7 @@ import {
   previewRetirement,
   verifyRetirement,
 } from "./task-issue-retirement.mjs";
+import { applyExport, previewExport } from "./issue-export.mjs";
 import {
   approvalChangedAtMerge,
   approvalEvidence,
@@ -6586,6 +6587,20 @@ export class Operations {
     }
     // Retire task-issue bindings (R102.20, §4.32.13): preview, hold, apply,
     // one verifying tick, then close. Each step is a person's own act.
+    // Export issues (R102.19): preview, or with confirm create the spec's
+    // unfinished task issues and stop driving it. A person's own act.
+    if (name === "spec.exportIssues") {
+      if (context.caller || context.mcp)
+        fail("Only a person exports a spec's task issues.", 403);
+      const options = { planId: input.planId, repository: input.repository };
+      return input.confirm
+        ? applyExport(store, {
+            ...options,
+            github: this.github,
+            actor: this.operator,
+          })
+        : previewExport(store, options);
+    }
     if (name === "github.retireTaskIssues") {
       if (context.caller || context.mcp)
         fail("Only a person retires task-issue bindings.", 403);

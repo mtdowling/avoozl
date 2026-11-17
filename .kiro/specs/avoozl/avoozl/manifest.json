@@ -8279,6 +8279,135 @@
         "56.10"
       ],
       "manual": true
+    },
+    "57.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 57 (Review findings the owner can read and decide). See R104.1, R104.2, R104.3, R104.4, R104.5, R104.8, R104.15; §4.33.",
+      "acceptance": [
+        "Finding schema, anchors and storage, after 53.2, 53.4",
+        "Plan-review findings store severity info, warn or blocker (old values mapped on read), a quote-hash anchor and an append-only decision list; follow-ups have their own table; findingState and anchorAt are tested for moved, removed and duplicated text, and the summary counts by severity and state with zero GitHub calls."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "53.2",
+        "53.4"
+      ]
+    },
+    "57.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 57 (Review findings the owner can read and decide). See R104.3, R104.7, R104.14, R104.16; §4.33.",
+      "acceptance": [
+        "Reviewer and planner briefs, severity and quote parsing, after 57.1",
+        "Submit derives lines from an exact quote and refuses a missing or ambiguous one; a same-pass repeat of a rejected or resolved finding is dropped and counted; the planner brief carries accepted, rejected and deferred findings; an accepted finding opens one planner turn per plan per tick outside planReview.rounds; Review anyway adds one round at the cap. Fake chats only."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "57.1"
+      ]
+    },
+    "57.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 57 (Review findings the owner can read and decide). See R104.5, R104.6, R104.8; §4.33.",
+      "acceptance": [
+        "Person actions: operation, policy, CLI and MCP read, after 57.1",
+        "plan.review.finding.decide records accept, reject (with reason), defer (with a follow-up row), resolve and reopen with who, when and revision; it and plan.review.dispose are person-only and refused over MCP; the CLI decides and prints severity, state and anchor; defer makes no task and no GitHub call."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "57.1"
+      ]
+    },
+    "57.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 57 (Review findings the owner can read and decide). See R104.9, R104.10, R104.11, R104.15; §4.33.",
+      "acceptance": [
+        "Review view with tabs, cards, filters and chat links, after 57.1, 57.3",
+        "The spec page's Review mode shows requirements, design and tasks tabs with severity-bordered finding cards, history and person action buttons, severity and state filters kept in the address, and Open review chat and Open planner chat links (or Chat closed), tested on plan.review.view data. Before and after screenshots (phone and desktop, light and dark) are approved by the owner before merge."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "57.1",
+        "57.3"
+      ]
+    },
+    "57.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 57 (Review findings the owner can read and decide). See R104.4, R104.9; §4.33.",
+      "acceptance": [
+        "Rail alignment, scroll and highlight, and moved findings, after 57.4",
+        "Rendered blocks carry their source line; each rail card sits level with its anchor with overlaps stacked; clicking a card scrolls and highlights its lines and clicking text selects the card; moved or removed findings list first; narrow screens show cards inline. Before and after screenshots (phone and desktop, light and dark) are approved by the owner before merge."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "57.4"
+      ]
+    },
+    "57.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 57 (Review findings the owner can read and decide). See R104.12, R104.13; §4.33.",
+      "acceptance": [
+        "Approve dialogs: counts, Open review link and in-place revision updates, after 57.1, 57.4",
+        "Both Approve dialogs show counts by severity and state with an Open review link and no close controls; a hash change while open updates the dialog in place with changed files and findings and resets Approve, with no thrown changed error; plan.approve still refuses a stale hash. Before and after screenshots (phone and desktop, light and dark) are approved by the owner before merge."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "57.1",
+        "57.4"
+      ]
+    },
+    "avoozl-p68": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 57 (Review findings the owner can read and decide). P68 Proof: a person reads, decides and approves a reviewed spec. See R104; §4.33.",
+      "acceptance": [
+        "P68 Proof: a person reads, decides and approves a reviewed spec",
+        "Setup: an isolated workspace and Kiro Crew home, a scratch planning repository with one draft spec that has a missing file, a hidden order and a vague criterion, and real planner and reviewer chats on two different owner-selected models with planReview.rounds 1.",
+        "Action: run the round and the planner answer; open the Review view, filter and click each finding; accept one, reject one with a reason, defer one; let the planner's person-triggered turn write a new revision while the Approve dialog is open; press Review anyway once; approve from the dialog.",
+        "Expected: severities, categories and quote anchors; grey, yellow and red borders with an aligned rail and highlighted lines; history with owner and revision; a follow-up with no task; the dialog updates in place with no error; the extra round does not repeat the rejected finding; approval at the revision on screen with zero GitHub calls. Screenshots at 390 and 1280 px, light and dark, approved by the owner.",
+        "Write a live docs/evidence/ receipt. Failure means wrong anchor lines, an agent deciding a finding, a blocker changing approval, or a dialog that makes the person reopen it.",
+        "Next decision: search other files for moved quotes, or keep same-file anchoring."
+      ],
+      "completion": "person",
+      "requires": [
+        "57.1",
+        "57.2",
+        "57.3",
+        "57.4",
+        "57.5",
+        "57.6",
+        "avoozl-p63"
+      ],
+      "manual": true
     }
   }
 }

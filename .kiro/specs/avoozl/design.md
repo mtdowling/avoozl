@@ -4596,6 +4596,150 @@ unrelated implementation. See Phase 56's explicit dependency graph. Direct landi
 (which exercises it); the private P51 pilot and real-repository settings
 review do not gate generic PR-landing implementation or scratch proofs.
 
+### 4.33 Review findings the owner can read and decide
+
+Added 2026-11-16 (Requirement 104). Extends §4.29. The reviewer, the
+planner answer and the different-model rule are unchanged. This section
+changes what a finding holds, who closes it, and where a person reads it.
+
+```text
+round (revision H, reviewer model ≠ writer model)
+  ─▶ findings: severity, category, anchor {file, lines, quote, quoteHash}
+  ─▶ planner turn: fixed <H2> | answered <reason>
+  ─▶ person, in the Review view: Accept | Reject | Defer | Resolve
+        Accept ─▶ next planner turn must fix it (no reviewer round counted)
+        Reject/Resolve ─▶ next reviewer round told; same quote+category dropped
+        Defer ─▶ follow-up row (no task, no issue)
+  ─▶ more rounds while planReview.rounds allows; then Review anyway (+1)
+  ─▶ Approve dialog: counts by severity and state, Open review link
+  ─▶ person approves the exact revision on screen
+```
+
+**Is this the review process?** Yes. Each round is bound to one revision
+hash. The reviewer finds, the planner fixes or answers, and the person
+decides what is left. It repeats while `planReview.rounds` allows, and
+Review anyway adds one round at a time. None of it approves or blocks.
+
+**Finding fields.** `review_threads` rows with `source: "plan-review"`
+gain:
+
+| Field        | Value                                                                |
+| ------------ | -------------------------------------------------------------------- |
+| `severity`   | `info`, `warn`, `blocker`; old values mapped on read (R104.1)       |
+| `kind`       | unchanged; shown as **Category**                                     |
+| `anchor`     | `{file, lineStart, lineEnd, quote, quoteHash}` at `revisionHash`     |
+| `decisions`  | append-only `[{action, by, at, revisionHash, note}]`                 |
+| `answer`     | unchanged (`fixed` with `revisionHash`, or `answered`)               |
+
+`file` and `line` stay for rows written before this phase; their anchor
+is `{file, lineStart: line, lineEnd: line}` with no quote, and they show
+at that line only at their own revision. No migration rewrites old rows.
+`quoteHash` is `sha256` of the quote with each whitespace run collapsed to
+one space, from `node:crypto`'s `createHash("sha256")`.
+
+**State.** Derived on read in one function, `findingState(thread, plan,
+running)`: the latest decision wins (`accepted`, `rejected`, `deferred`,
+`resolved`; `reopen` clears it), else the planner answer (`fixed`,
+`answered`), else `open`; `answered`, `open` and accepted-but-not-fixed
+read as `for you` once no round or planner turn runs. A `fixed` answer
+whose hash is not stored stays `for you`, as in §4.29.
+
+**Anchoring.** `anchorAt(thread, revision)` returns `{file, lineStart,
+lineEnd}` or `{moved: true}`. It searches the collapsed quote in the same
+file of the asked revision, mapping back to original line numbers. One
+match moves the anchor; none or several mark it moved. It is pure and run
+on read; the stored anchor never changes. The submit check reuses
+`lineFor` from `plan-reviews.mjs` on the file text.
+
+**Person actions.** One operation, `plan.review.finding.decide {id, action:
+accept | reject | defer | resolve | reopen, revisionHash, note?}`, is added
+to `PERSON_ONLY` in `mcp-policy.mjs`. `reject` needs a note. `defer` also
+writes a `review_followups` row `{id, planId, spec, findingId,
+revisionHash, note, by, at}`. `plan.review.dispose` maps its four
+dispositions onto this operation and becomes person-only too. CLI:
+`avoozl plan finding ID accept|reject|defer|resolve|reopen [--note TEXT]`,
+and `avoozl plan review SPEC` prints severity, state and anchor lines.
+`plans_plan_review` returns the new fields read-only; MCP has no decide.
+
+**Feeding the loop.** The planner answer brief (`plan-review-answers.mjs`)
+adds three data lists: accepted (must fix), rejected with reason, deferred.
+The reviewer brief (`plan-review-step.mjs`) adds rejected and resolved
+findings with reasons. `plan.review.submit` drops a finding whose `kind`
+and `quoteHash` match a rejected or resolved one in the same pass, and the
+round's `note` counts the drops. `planReviewStep` opens one planner answer
+turn for a plan with an accepted, unfixed finding and no running turn; the
+turn row has `trigger: "person"` and does not count against
+`planReview.rounds`. Review anyway (`plan.review.decide`, already
+person-only) starts one more reviewer round when the cap is reached. Its
+writer-model check is unchanged.
+
+**Review view.** A new mode of the spec page, reached from the spec header
+and the Approve dialogs at `?view=review&rev=H&file=F&severity=S&state=X`.
+
+| Part         | Behavior                                                                |
+| ------------ | ----------------------------------------------------------------------- |
+| Tabs         | requirements, design, tasks, each rendered by `Markdown.tsx`            |
+| Rail         | one card per finding, level with its anchor's first rendered block      |
+| Card border  | `info` grey (`--border`), `warn` yellow (`--warning`), `blocker` red (`--danger`) |
+| Card body    | severity label, category, file:lines, claim, evidence, planner, history |
+| Card buttons | Accept, Reject (reason), Defer (note), Resolve; Reopen once decided     |
+| Select       | card click scrolls and highlights the lines; text click selects card    |
+| Moved        | listed first in the rail under **Moved or removed**                     |
+| Filters      | severity and state chips with counts, kept in the address               |
+| Chats        | **Open review chat** and **Open planner chat** per round, or Chat closed |
+| Narrow       | below the desktop breakpoint, cards sit inline after their block        |
+
+`blocks()` in `markdown.ts` already gives each block and list item its
+first source `line`. `Markdown.tsx` writes it as `data-source-line` on the
+rendered element; a block's range runs to the next block's line minus one,
+so the view maps line ranges to blocks without a second parser. The rail aligns cards with
+`offsetTop` of the first block in range and pushes overlapping cards down.
+Chat links use the round's `slot` and the planner answer receipt's `slot`
+through `linkHref`, as Review drafts' Open chat does; a binding that is
+gone shows Chat closed.
+
+`plan.review.view {planId, revisionHash?}` returns the three files at the
+revision and every finding of the plan's latest pass with `state`,
+`anchorAt` for that revision, decisions and chat links. It reads only the
+workspace database and the stored revision.
+
+**Approve dialogs.** `PlanReviewSummary.tsx` shows counts by severity and
+by state and an **Open review** link, and loses its close controls.
+`plan.reviewSummary` adds `bySeverity` and `byState`. While a dialog is
+open it re-reads `plan.reviewSummary` and the plan preview on the page's
+existing refresh. When the hash moves, the dialog swaps to the new
+revision and shows "Changed while open: H1 → H2", each changed file with
+`+added −removed` lines from a line diff of the two stored revisions, and
+findings that became fixed or moved. The Approve button resets and needs a
+new click. `plansClient.approve` returns `{changed: preview}` instead of
+throwing, and the dialog applies it as the same update. The batch dialog
+does this per entry. `plan.approve` still refuses a stale hash.
+
+| Choice                                    | Why                                                                      |
+| ----------------------------------------- | ------------------------------------------------------------------------ |
+| Quote plus hash, not line numbers alone   | Lines move with every edit; an exact quote finds the passage again       |
+| Compute anchors on read                   | One stored truth per revision; nothing to migrate when text moves        |
+| Person-only decisions                     | A finding for the person must not be closed by an agent                  |
+| Accept starts a planner turn, not a round | The person already judged it; a reviewer round would only repeat it      |
+| Defer makes no task                       | Tasks come from approved spec revisions only                             |
+| Dialog updates in place                   | The person keeps their place, and still approves only what is on screen  |
+
+Tests, with fake chats, fake model names and a fake GitHub:
+
+| Test                         | Shows                                                                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------- |
+| Severity mapping             | Old rows read as blocker, warn and info; a blocker approves the same as none                 |
+| Anchor survives edits        | Moved text keeps its finding at the new lines; deleted or duplicated text reads as moved     |
+| Quote refused                | A missing or ambiguous quote is refused at submit                                             |
+| Person-only decide           | MCP and agent sessions are refused for decide and dispose; a person's action records revision |
+| Accept feeds the planner     | One planner turn per plan per tick; it does not use up `planReview.rounds`                   |
+| Rejected is not repeated     | Same kind and quote hash in the same pass is dropped and counted                             |
+| Defer stays local            | A follow-up row, no task, zero GitHub calls                                                   |
+| Dialog updates in place      | A hash change mid-dialog shows the change and resets Approve; no thrown error                |
+
+shortcut: anchors search only the same file, so a passage moved to another
+file reads as moved. Upgrade if reviews of split files show it often.
+
 
 ## 5. Local workflow
 

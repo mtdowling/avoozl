@@ -1,4 +1,5 @@
 import { crossPlanEpics, taskEpic } from "./app/epics.mjs";
+import { readView, viewResources } from "./app/mcp-views.mjs";
 import { resolveTaskId } from "./task-identity.mjs";
 import { applyActivity, activityState } from "./activity.mjs";
 import { randomUUID } from "node:crypto";
@@ -675,6 +676,7 @@ export function dispatchMcp(message, ctx, { versionHeader } = {}) {
   else if (method === "resources/list")
     result = {
       resources: [
+        ...viewResources(),
         {
           uri: "avoozl://status",
           name: "Workspace plan status",
@@ -702,8 +704,9 @@ export function dispatchMcp(message, ctx, { versionHeader } = {}) {
         : resource === "visualizations"
           ? "plans_list_visualizations"
           : null;
-    if (!name) return error(-32602, "Unknown resource");
-    result = {
+    const view = readView(String(args.uri ?? ""));
+    if (!view && !name) return error(-32602, "Unknown resource");
+    result = view ?? {
       contents: [
         {
           uri: args.uri,
