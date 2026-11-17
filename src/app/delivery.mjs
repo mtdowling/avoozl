@@ -1,7 +1,6 @@
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { projectExecutor } from "./executors/process.mjs";
 import {
-  kirocrewSession,
   kirocrewDetachedSession,
   kirocrewRemoteSession,
 } from "./executors/kirocrew.mjs";
@@ -3328,7 +3327,8 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
             attempt,
             role.id === "checks" ? `verify ${sha}` : `review ${role.id} ${sha}`,
           ),
-          ...kirocrewSession(project.id),
+          // Its brief names a detached worktree (R88.2, as for the worker).
+          ...kirocrewDetachedSession(project.id),
           agent: role.agent,
           ...(role.model ? { model: role.model } : {}),
           ...(where
