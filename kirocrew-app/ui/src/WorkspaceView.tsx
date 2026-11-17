@@ -274,9 +274,6 @@ export default function WorkspaceView(
           onDismiss={() => setDialog(null)}
           footer={
             <>
-              <Btn type="button" onClick={() => setDialog(null)}>
-                Cancel
-              </Btn>
               <Btn type="button" disabled={busy} data-add-start-new onClick={() => void submitWorkspace('init')}>
                 Start new
               </Btn>
@@ -342,6 +339,7 @@ export default function WorkspaceView(
           width="40rem"
           title={current.name}
           backLabel="Close"
+          focusClose
           describedBy="avoozl-ws-edit-line"
           attrs={{ 'data-edit-workspace-modal': true }}
           onDismiss={() => setDialog(null)}
@@ -357,9 +355,6 @@ export default function WorkspaceView(
               </Btn>
               <Btn onClick={() => selected && void loadSelected(selected)} disabled={busy}>
                 Refresh health
-              </Btn>
-              <Btn type="button" primary data-autofocus onClick={() => setDialog(null)}>
-                Close
               </Btn>
             </>
           }
@@ -406,14 +401,12 @@ export default function WorkspaceView(
           width="32rem"
           title={`Remove ${removing.name} from Avoozl?`}
           backLabel="Cancel"
+          focusClose
           describedBy="avoozl-ws-remove-lines"
           attrs={{ 'data-remove-workspace-confirm': true }}
           onDismiss={() => setDialog({ edit: removing.id })}
           footer={
             <>
-              <Btn type="button" onClick={() => setDialog({ edit: removing.id })}>
-                Cancel
-              </Btn>
               {isRunning(removing) && (
                 <Tooltip text="Turn it off, then take it off the list">
                   {(describedBy) => (
