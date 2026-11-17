@@ -1,5 +1,6 @@
 // The `process` executor and the Claude Code definition (R93.2, R93.5).
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -318,4 +319,90 @@ test("the drain hands process requests to the supervisor and records status", as
   // A request is consumed once.
   await drainProcessRequests(store, { stateDirectory });
   assert.equal(store.list("session_bindings").length, 1);
+});
+
+// R94.4a: the child only edits; Avoozl commits in the worktree after it exits.
+test("Avoozl commits a write child's changes after it exits, never .avoozl/", async (t) => {
+  const { root, stateDirectory, worktree, supervisor, defer } = machine(t);
+  const run = (cwd, ...args) =>
+    execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  const checkout = path.join(root, "checkout");
+  fs.mkdirSync(checkout);
+  run(checkout, "init", "-q", "-b", "main");
+  run(checkout, "config", "user.name", "Test");
+  run(checkout, "config", "user.email", "test@example.com");
+  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
+  run(checkout, "add", ".");
+  run(checkout, "commit", "-q", "-m", "Start");
+  const task = path.join(root, "task");
+  run(checkout, "worktree", "add", "-q", "-b", "avoozl/sample-task", task);
+  for (const where of [task, checkout])
+    fs.copyFileSync(
+      path.join(worktree, "agent.mjs"),
+      path.join(where, "agent.mjs"),
+    );
+  const store = new Store(path.join(root, "workspace.sqlite"));
+  defer(() => store.close());
+  const data = snapshot();
+  data.tasks[0].repository = "app";
+  store.importSnapshot(data);
+  store.put("projects", {
+    id: "app",
+    root: checkout,
+    executor: "process",
+    harness: "fake-cli",
+  });
+  const start = (where, brief, attempt = 1) =>
+    enqueueSessionRequests(store, {
+      starts: [
+        {
+          executor: "process",
+          role: "worker",
+          task: "sample-task",
+          brief,
+          worktree: where,
+          permissionClass: "write",
+          attempt,
+        },
+      ],
+    });
+  start(task, "Edit only.");
+  await drainProcessRequests(store, {
+    stateDirectory,
+    prepareWorktree: async () => ({ path: task }),
+  });
+  const [binding] = store.list("session_bindings");
+  // What the child leaves behind: an edit and Avoozl's own result file.
+  fs.mkdirSync(path.join(task, ".avoozl"), { recursive: true });
+  fs.writeFileSync(path.join(task, ".avoozl", "result.json"), "{}");
+  fs.writeFileSync(path.join(task, "feature.txt"), "done\n");
+  const before = run(task, "rev-parse", "HEAD");
+  await until(async () => {
+    supervisor.pass();
+    await drainProcessRequests(store, { stateDirectory });
+    return store.get("session_bindings", binding.slot).status === "closed";
+  });
+  const head = run(task, "rev-parse", "HEAD");
+  assert.notEqual(head, before, "Avoozl made the commit");
+  assert.equal(run(task, "rev-parse", "HEAD~1"), before);
+  const files = run(task, "show", "--name-only", "--format=", "HEAD").split(
+    "\n",
+  );
+  assert.ok(files.includes("feature.txt"));
+  assert.ok(!files.some((f) => f.startsWith(".avoozl/")));
+  assert.match(run(task, "log", "-1", "--format=%s"), /sample-task, attempt 1/);
+  // The main checkout is never committed in; the exit is still recorded.
+  fs.writeFileSync(path.join(checkout, "stray.txt"), "x\n");
+  store.remove("session_bindings", binding.slot);
+  start(checkout, "Edit only, again.", 2);
+  await drainProcessRequests(store, { stateDirectory });
+  const [second] = store.list("session_bindings");
+  let errors = [];
+  await until(async () => {
+    supervisor.pass();
+    ({ errors } = await drainProcessRequests(store, { stateDirectory }));
+    return store.get("session_bindings", second.slot).status === "closed";
+  });
+  assert.match(errors[0].error, /not a task worktree/);
+  assert.equal(run(checkout, "rev-list", "--count", "main"), "1");
 });

@@ -7,6 +7,8 @@ import path from "node:path";
 import test from "node:test";
 import {
   EDIT_ONLY_STEP,
+  childSteps,
+  leafBrief,
   localSteps,
   remoteSteps,
   workerBrief,
@@ -160,4 +162,35 @@ test("a local worker's done is HEAD of its worktree, never the reported commit",
     as,
   );
   assert.equal(store.get("session_bindings", "w-1").report.commit, head);
+});
+
+// R94.4a: a `process` child cannot reach its git directory, so it only edits.
+test("a process child's brief says edit and exit, never commit or push", (t) => {
+  const text = workerBrief(TASK, PROJECT, {
+    attempt: 1,
+    steps: childSteps(TASK, "/tmp/app-a"),
+  });
+  assert.match(text, /Work only in \/tmp\/app-a/);
+  assert.match(text, /do not stage or commit: Avoozl commits/);
+  for (const pattern of [...PUBLISH, /commit every change/i])
+    assert.doesNotMatch(text, pattern);
+  // A ready leaf on a `process` project gets these steps from leafBrief.
+  const store = new Store(
+    path.join(temporaryDirectory("avoozl-child-brief-"), "workspace.sqlite"),
+  );
+  t.after(() => store.close());
+  store.importSnapshot(snapshot());
+  const data = store.read(),
+    leaf = (project) =>
+      leafBrief(store, data, {
+        task: data.tasks[0],
+        project,
+        attempt: 1,
+        delivery: null,
+      });
+  assert.match(
+    leaf({ ...PROJECT, executor: "process" }),
+    /do not stage or commit: Avoozl commits/,
+  );
+  assert.doesNotMatch(leaf(PROJECT), /do not stage or commit/);
 });
