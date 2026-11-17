@@ -1033,7 +1033,13 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
     const items = all.filter((row) => (!input.source || row.source === input.source) && (!input.kind || row.kind === input.kind) && (!input.actor || row.actor === input.actor))
     return { items, total: items.length, sources: [...sources].sort(), kinds: [...kinds].sort(), actors: [...actors].sort(), counts: { source: count('source'), kind: count('kind'), actor: count('actor') }, retentionDays: 30 }
   })
-  answer('activity.settings.get', () => ({ hash: 'h', retentionDays: 30, default: 30 }))
+  let keepDays = 30
+  answer('activity.settings.get', () => ({ hash: 'h', retentionDays: keepDays, default: 30 }))
+  answer('activity.settings.update', (body) => {
+    const input = body.input as { retentionDays: number | null }
+    keepDays = input.retentionDays ?? 30
+    return { hash: 'h', retentionDays: keepDays, default: 30 }
+  })
 }
 function ActivityPage() {
   return (
