@@ -8,6 +8,7 @@
 import { allowWrite } from "./content-rules.mjs";
 import { gatewayClient } from "./gateway-client.mjs";
 import { actorAllowed } from "./github-policy.mjs";
+import { AVOOZL_CREW_LABEL, hasAvoozlLabel } from "./github.mjs";
 import { fail } from "./store.mjs";
 import {
   HANDOFF_KIND,
@@ -252,10 +253,25 @@ export async function handOff(store, github, policy, tasks, input, { reader }) {
     const problem = labelProblem(settings, label);
     if (problem) fail(problem);
   }
+  const cache = readCache(store),
+    // Avoozl's own issues never go to a crew (R103.7), even before a read.
+    own = new Set(
+      Object.entries(cache.repositories)
+        .filter(([name]) => lower(name) === lower(id))
+        .flatMap(([, entry]) => entry.items || [])
+        .filter((entry) => hasAvoozlLabel(entry.labels))
+        .map((entry) => entry.number),
+    );
+  for (const item of items)
+    if (own.has(item.number))
+      fail(
+        `#${item.number} carries ${AVOOZL_CREW_LABEL}: it is Avoozl's own issue, so Issue Radar does not take it.`,
+        409,
+      );
   const view = untriagedView(
       policy,
       tasks,
-      readCache(store),
+      cache,
       Date.now(),
       handoffReceipts(store),
     ),

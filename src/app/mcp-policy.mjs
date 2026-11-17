@@ -14,6 +14,10 @@ export const PERSON_ONLY = new Map([
   ["plan.approveMany", person("Only a person approves a plan.")],
   ["plan.delete", person("Only a person deletes a plan.")],
   ["spec.publish", person("Only a person publishes a spec issue.")],
+  [
+    "github.retireTaskIssues",
+    person("Only a person retires task-issue bindings."),
+  ],
   ["plan.new", person("Only a person starts a new plan.")],
   [
     "plan.review.decide",
@@ -34,6 +38,10 @@ export const PERSON_ONLY = new Map([
   ["plugin.remove", person("Only a person changes plugins.")],
   ["plugin.pack.import", person("Only a person changes plugins.")],
   ["content.allow", person("Only a person allows a blocked write once.")],
+  [
+    "verify.allow",
+    person("Only a person lets a commit's protected paths land."),
+  ],
   ["content.show", person("Only a person reads a matched line.")],
   ["content.terms.get", person("Only a person reads content-rule terms.")],
   ["content.terms.update", person("Only a person edits content-rule terms.")],
@@ -184,6 +192,10 @@ export const PERSON_ONLY = new Map([
     person("Only a person stops all agents.", (input) => input?.full === true),
   ],
   ["untriaged.handoff", person("Only a person sends issues to Issue Radar.")],
+  [
+    "github.crewlabel.backfill",
+    person("Only a person adds crew:avoozl to old task issues."),
+  ],
   ["review.chat", person("Only a person starts a code review chat.")],
   ["untriaged.plan", person("Only a person presses Plan this on an issue.")],
   [
