@@ -21,7 +21,7 @@ import { SCOPE_RULE, SCOPE_STATEMENT } from '../../../src/work-split.mjs'
 
 type Client = ReturnType<typeof settingsClient>
 
-// The values the Where tasks live tab's own fields hold; the wizard never asks again.
+// The values the workspace GitHub settings and the repository roles hold; the wizard never asks again.
 export type SharedSetup = Pick<SetupForm, 'mode' | 'planningRepository' | 'repositories' | 'projectOwner' | 'projectNumber'>
 
 const BADGE_STYLE: Record<string, CSSProperties> = {

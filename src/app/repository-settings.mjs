@@ -27,6 +27,7 @@ import {
   validateActivitySettings,
 } from "./activity-log.mjs";
 import { fail } from "./store.mjs";
+import { deriveGitHubKeys, rolesNote, withRoles } from "./repository-roles.mjs";
 
 const MAX_CONFIG_BYTES = 1024 * 1024;
 const APPLY_KEYS = Object.freeze(["projects", "github", "planningRepository"]);
@@ -888,21 +889,25 @@ export class RepositorySettings {
       filename: this.filename,
       exists: file.exists,
       hash: file.hash,
+      // Every entry carries its role, read from the stored mode when the
+      // file has none yet; nothing is written by reading (R105.7).
       github: policySection(
-        Object.fromEntries(
-          POLICY_KEYS.filter((key) => Object.hasOwn(github, key)).map((key) => [
-            key,
-            github[key],
-          ]),
+        withRoles(
+          Object.fromEntries(
+            POLICY_KEYS.filter((key) => Object.hasOwn(github, key)).map(
+              (key) => [key, github[key]],
+            ),
+          ),
         ),
       ),
+      rolesNote: rolesNote(github),
     };
   }
 
   // Replaces the policy keys of `github` and keeps every other key. The
   // whole block is validated before the file is written.
   updateGitHubSettings({ github, expectedHash } = {}) {
-    const section = policySection(github),
+    const section = deriveGitHubKeys(policySection(github)),
       before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
