@@ -166,6 +166,12 @@ test("a wrong token, a wrong worktree, or another task's token is refused", asyn
     assert.ok(!out.stderr.includes(token));
   }
   assert.equal(store.get("session_bindings", "slot-a").report, undefined);
+  // With no token, a tick-opened chat is refused; only a command-line claim
+  // reports by its worktree alone.
+  const bare = run(root, wt.a, ["runner", "report", "a", "done"]);
+  assert.notEqual(bare.status, 0);
+  assert.match(bare.stderr, /--token/);
+  assert.equal(store.get("session_bindings", "slot-a").report, undefined);
 });
 
 test("the tick's dispatched brief carries the token and the worktree path", async (t) => {
