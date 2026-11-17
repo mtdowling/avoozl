@@ -583,6 +583,7 @@ import {
 } from "./spec-plans.mjs";
 import { publishSpec } from "./spec-publication.mjs";
 import { takeOverSpec } from "./spec-takeover.mjs";
+import { repositorySetup } from "./repository-setup.mjs";
 import { reanchorSpec, resumeSpec } from "./spec-reanchor.mjs";
 import {
   applyRetirement,
@@ -6637,6 +6638,20 @@ export class Operations {
     }
     // Take over a published spec's journal (R102.13, task 42.5): a person's
     // own act; it writes the next generation and keeps the driver id here.
+    // Set up a repository for landing (R89, task 42.7): a preview, applied
+    // only with `confirm` (`--yes`) by a person.
+    if (name === "repository.setup") {
+      if (input.confirm && (context.caller || context.mcp))
+        fail("Only a person applies repository setup.", 403);
+      if (!this.github?.available?.())
+        fail("Repository setup needs GitHub; run gh auth login.", 503);
+      return repositorySetup(store, this.github, input, {
+        writeProject: (project) => {
+          this.configuration?.assertWritable();
+          this.configuration?.updateExecutionProject(project);
+        },
+      });
+    }
     if (name === "spec.takeover") {
       if (context.caller || context.mcp)
         fail("Only a person takes over a spec.", 403);

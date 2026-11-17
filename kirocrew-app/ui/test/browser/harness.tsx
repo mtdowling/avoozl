@@ -1084,17 +1084,42 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
     const fixture = reviewFixture()
     const hash = fixture.data.revisionHash
     const files = fixture.data.files
+    let at = hash
     const summary = { name: 'byte-types', folder: '.kiro/specs/byte-types/', type: 'feature', hash, files: Object.keys(files), counts: { error: 0, warning: 0, info: 0 }, taskCount: 2, critique: null, plan: { id: 'byte-types', state: 'draft', hash, revision: 3, changed: false, approved: false } }
     answer('plan.table', () => ({ root: '/repo', problem: null, specs: [summary], revision: 7, items }))
-    answer('plan.get', () => ({
-      id: 'byte-types', spec: 'byte-types', title: 'Byte types', hash, revision: 3, state: 'draft', files, approvals: [],
-      quality: { canApprove: true, counts: { error: 0, warning: 0, info: 0 }, diagnostics: [] },
-      disk: { folder: '.kiro/specs/byte-types/', exists: true, hash, changed: false, critique: null },
-      review: { state: 'done', reviewerModel: 'fake-reviewer', revisionHash: hash, current: true, found: fixture.data.findings.length, fixed: 1, forYou: 2, note: null, open: [] },
-    }))
-    answer('plan.preview', () => ({ reviewedHash: hash, expectedRevision: 3, tasks: [], dependencies: [] }))
+    answer('plan.preview', () => ({ reviewedHash: at, expectedRevision: 3, tasks: [], dependencies: [] }))
     answer('plan.spec.read', () => ({ name: 'byte-types', folder: '.kiro/specs/byte-types/', hash, documents: files }))
     answer('plan.review.view', () => structuredClone(fixture.data))
+    // The Approve dialogs' summary (task 57.6): counts by severity and state.
+    // window.__moveRevision() stands for the planner writing a revision while
+    // a dialog is open: one finding becomes fixed and one moves.
+    for (const batch of batches) for (const spec of batch.specs) if (spec.id === 'byte-types') spec.hash = hash
+    const moved = 'd00dfeed'.repeat(8)
+    const movedFiles = { ...files, 'requirements.md': files['requirements.md'] + '\n3. A test SHALL show 255 + 1 wraps to 0.', 'tasks.md': files['tasks.md'] + '\n- [ ] 1.3 Test overflow wraps' }
+    ;(window as unknown as { __moveRevision: () => void }).__moveRevision = () => { at = moved }
+    const reviewOf = () => {
+      const now = at === moved
+      const open = fixture.data.findings.filter((f) => f.state !== 'rejected').map((f) => ({
+        id: f.id, roundId: f.roundId, revisionHash: f.revisionHash, current: true, kind: f.category, severity: f.severity, file: f.anchor.file, line: f.anchor.lineStart, claim: f.claim, evidence: f.evidence, answer: f.answer,
+        state: now && f.id === 'f-blocker' ? 'fixed' : f.state,
+        anchor: { ...f.anchor, moved: f.id === 'f-moved' ? now : false },
+      }))
+      const byState: Record<string, number> = { rejected: 1 }
+      for (const f of open) byState[f.state] = (byState[f.state] ?? 0) + 1
+      return { state: 'done', planHash: at, reviewerModel: 'fake-reviewer', writerModel: 'fake-writer', revisionHash: hash, current: !now, found: fixture.data.findings.length, fixed: byState.fixed ?? 0, forYou: byState['for you'] ?? 0, bySeverity: fixture.data.bySeverity, byState, note: null, open }
+    }
+    const entryHash = (id: string) => batches.flatMap((b) => b.specs).find((e) => e.id === id)?.hash
+    answer('plan.reviewSummary', (body) => {
+      const id = (body.input as { planId: string }).planId
+      return id === 'byte-types' ? reviewOf() : { state: 'not-reviewed', planHash: entryHash(id), reviewerModel: null, revisionHash: null, current: false, found: 0, fixed: 0, forYou: 0, bySeverity: { blocker: 0, warn: 0, info: 0 }, byState: {}, note: null, open: [] }
+    })
+    answer('plan.get', () => ({
+      id: 'byte-types', spec: 'byte-types', title: 'Byte types', hash: at, revision: at === moved ? 4 : 3, state: 'draft', files: at === moved ? movedFiles : files, approvals: [],
+      history: at === moved ? [{ revision: 3, hash, files }] : [],
+      quality: { canApprove: true, counts: { error: 0, warning: 0, info: 0 }, diagnostics: [] },
+      disk: { folder: '.kiro/specs/byte-types/', exists: true, hash: at, changed: false, critique: null },
+      review: reviewOf(),
+    }))
     answer('plan.review.finding.decide', (body) => {
       state.calls.push(body as never)
       fixture.decide(body.input as Parameters<typeof fixture.decide>[0])
