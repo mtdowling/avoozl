@@ -62,6 +62,8 @@ export interface TaskDetail {
   delivery: DeliveryItem | null
   conflicts: ConflictItem[]
   timeline: { at: string; text: string }[]
+  // The Timeline box's steps from stored records (R106); older backends omit it.
+  steps?: TaskStep[]
   // The Timing fold (§8.4): null until the task's first dispatch.
   timing?: TaskTimingDetail | null
 }
@@ -377,4 +379,44 @@ export function sessionHref(session: Pick<DeliverySession, 'slot' | 'link'>): st
   if (session.link) return session.link
   const key = session.slot.startsWith('dashboard:') ? session.slot.slice('dashboard:'.length) : session.slot
   return `/chat?sid=${encodeURIComponent(key)}`
+}
+
+// One step of a task's Timeline (src/app/task-steps.mjs). `at` is a stored
+// record's time; no step comes from GitHub.
+export interface TaskStep {
+  key: string
+  label: string
+  at: string | null
+  state: 'done' | 'now' | 'later' | 'skipped'
+  by?: string | null
+  detail?: string | null
+  failed?: boolean
+  // Every build record of the task, grouped by phase (R101.4).
+  builds?: { phase: string; items: { target: string; start: string; attempt: number; task: string | null; ms: number; failed: boolean }[] }[]
+}
+
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+// UTC, so the page and the tests read the same time on any machine.
+export function clock(at: string | null | undefined): string {
+  const time = Date.parse(at ?? '')
+  if (Number.isNaN(time)) return '—'
+  const date = new Date(time),
+    two = (n: number) => String(n).padStart(2, '0')
+  return `${DAYS[date.getUTCDay()]} ${two(date.getUTCHours())}:${two(date.getUTCMinutes())} UTC`
+}
+
+// "6 min after Ready": the wait since the last step that has a time.
+export function afterPrevious(steps: Pick<TaskStep, 'label' | 'at'>[], index: number): string | null {
+  const at = Date.parse(steps[index]?.at ?? '')
+  if (Number.isNaN(at)) return null
+  for (let before = index - 1; before >= 0; before--) {
+    const earlier = Date.parse(steps[before].at ?? '')
+    if (Number.isNaN(earlier)) continue
+    // A step recorded before the one above it (builds can finish first) has no wait.
+    if (at < earlier) return null
+    const minutes = Math.round((at - earlier) / 60000)
+    const wait = minutes < 60 ? `${minutes} min` : minutes < 2880 ? `${Math.round(minutes / 60)} h` : `${Math.round(minutes / 1440)} d`
+    return `${wait} after ${steps[before].label}`
+  }
+  return null
 }

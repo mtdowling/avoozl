@@ -8,7 +8,7 @@
 // item and offers a person Plan this and Deliver this, each asked first.
 import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useAppApi, useChatLauncher } from './host.ts'
-import { EmptyState, SegmentedControl } from '@kirocrew/app-sdk/ui'
+import { EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
@@ -20,7 +20,6 @@ import { useMedia } from './use-media.ts'
 import { relativeTime } from './task-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
-import { useSteppedState } from './NavHistory.tsx'
 import {
   AGE_OPTIONS,
   KIND_OPTIONS,
@@ -465,18 +464,12 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
   )
 }
 
-export default function UntriagedView({ workspaceId, onOpenSources, embedded }: { workspaceId: string | null; onOpenSources?: () => void; embedded?: boolean }) {
+export default function UntriagedView({ workspaceId, onOpenSources, embedded, show: chosenShow = 'untriaged' }: { workspaceId: string | null; onOpenSources?: () => void; embedded?: boolean; show?: 'untriaged' | 'radar' }) {
   const api = useAppApi()
   const ask = useConfirm()
   const client = useMemo(() => untriagedClient(api), [api])
   const { openChat } = useChatLauncher()
   const radar = useMemo(() => radarClient(api), [api])
-  const [chosenShow, setShow] = useSteppedState<'untriaged' | 'radar'>(
-    'untriaged-show',
-    'inner',
-    (previous) => (previous === 'radar' ? 'Back to With Issue Radar' : 'Back to Untriaged'),
-    'untriaged',
-  )
   const [sending, setSending] = useState<UntriagedItem[] | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const load = useCallback((id: string) => client.view(id), [client])
@@ -489,8 +482,8 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded }: 
   const narrow = useMedia('(max-width: 767px)')
   const now = Date.now()
   const list = fresh ?? read
-  // With Issue Radar needs a GitHub mode; without one, Untriaged is all there is.
-  const show = list?.mode ? chosenShow : 'untriaged'
+  // Triage and Issue Radar are separate pages of Needs you; WaitingView picks.
+  const show = chosenShow
   const options = useMemo(() => filterOptions(list), [list])
   const shown = useMemo(() => (list?.items ?? []).filter((item) => matchesFilter(item, filter, now)), [list, filter, now])
   const pages = usePages(JSON.stringify(filter))
@@ -596,28 +589,12 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded }: 
           </IconLabel>
         }
       >
-        Intake
+        {show === 'radar' ? 'Issue Radar' : 'Triage'}
       </ViewHeading>
-      <p className="text-sm text-muted">
+      {!embedded && <p className="text-sm text-muted">
         Work that comes in from GitHub and your intake sources. Untriaged shows the items no trigger rule, triage label or Avoozl task covers. Send GitHub issues to an Issue Radar crew or start a code review chat on a pull request; plan or deliver an item from another source.
-      </p>
+      </p>}
       {list?.publicCrews?.length && workspaceId ? <PublicCrews rows={list.publicCrews} workspaceId={workspaceId} onChange={() => void reload()} /> : null}
-      {list?.enabled && list.mode && (
-        <div>
-        <SegmentedControl
-          collapse={false}
-          wrap="hug"
-          layoutId="avoozl-untriaged-show"
-          ariaLabel="Show"
-          segments={[
-            { key: 'untriaged' as const, label: `Untriaged (${list.items.length})` },
-            { key: 'radar' as const, label: `With Issue Radar (${radarItems.length})` },
-          ]}
-          value={show}
-          onChange={(key: 'untriaged' | 'radar') => setShow(key)}
-        />
-        </div>
-      )}
       {note && (
         <p role="status" className="text-sm text-muted" data-radar-note>
           {note}
@@ -632,7 +609,7 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded }: 
         <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
       ) : !list.enabled ? (
         <p className="text-sm text-muted" data-untriaged-off>
-          Untriaged items need a GitHub mode or an intake source. Choose a mode in Settings › GitHub, or add a source in <SourcesLink onOpen={onOpenSources} />.
+          Untriaged items need a GitHub mode or an intake source. Give a repository a GitHub role in Settings › Repository setup, or add a source in <SourcesLink onOpen={onOpenSources} />.
         </p>
       ) : show === 'radar' ? (
         <div className="flex flex-col gap-2" data-radar-view>
@@ -641,7 +618,7 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded }: 
             labels never start Avoozl rules, and a crew’s “needs human” label shows under Needs you.
           </p>
           {radarItems.length === 0 ? (
-            <EmptyState icon={<Radar size={36} aria-hidden="true" />} title="Nothing with Issue Radar" subtitle="Select issues under Untriaged and press Send to Issue Radar." />
+            <EmptyState icon={<Radar size={36} aria-hidden="true" />} title="Nothing with Issue Radar" subtitle="Select issues under Triage and press Send to Issue Radar." />
           ) : (
             <RadarList items={radarItems} now={now} narrow={narrow} />
           )}

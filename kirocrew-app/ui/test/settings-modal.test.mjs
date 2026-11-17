@@ -23,12 +23,12 @@ test('a repository edits in place: no Edit button, no dialog, one footer', () =>
   assert.doesNotMatch(settings, /RepositoryDialog|Use Edit to change/)
   assert.match(settings, /data-repository-editor=\{row\.key\}/)
   assert.match(settings, /<SaveFooter\s+dirty=\{dirty\}/)
-  assert.match(settings, /const DIALOG_SECTIONS: readonly SettingsTab\[\] = \['github'\]/)
+  assert.doesNotMatch(settings, /DIALOG_SECTIONS|data-open-settings/)
 })
 
 test('the shared Modal still asks before it discards edits', () => {
   const modal = source('Modal.tsx')
-  assert.match(modal, /useBackStep\(props\.kind \?\? 'modal', true, props\.backLabel \?\? 'Close the dialog', dismiss\)/)
+  assert.match(modal, /useBackStep\(props\.kind \?\? 'modal', true, props\.backLabel \?\? 'Close the dialog', \(\) => \(latest\.current\.onBack \?\? dismiss\)\(\), dismiss\)/)
   assert.match(modal, /data-modal-backdrop onClick=\{dismiss\}/)
   assert.match(modal, /narrow\s*\? \{ width: '100%', height: '100%'/)
   assert.match(modal, /aria-modal="true"/)

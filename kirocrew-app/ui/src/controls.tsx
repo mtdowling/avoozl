@@ -8,9 +8,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -161,15 +159,11 @@ export const useConfirm = () => useContext(ConfirmContext)
 // Cancel, so Enter alone never confirms.
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState<(ConfirmCopy & { resolve: (yes: boolean) => void }) | null>(null)
-  const cancel = useRef<HTMLButtonElement>(null)
   const ask = useCallback<Ask>((copy) => new Promise((resolve) => setPending({ ...copy, resolve })), [])
   const answer = (yes: boolean) => {
     pending?.resolve(yes)
     setPending(null)
   }
-  useEffect(() => {
-    if (pending) cancel.current?.focus()
-  }, [pending])
   return (
     <ConfirmContext.Provider value={ask}>
       {children}
@@ -179,6 +173,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           id="avoozl-confirm"
           kind="confirm"
           role="alertdialog"
+          focusClose
           backLabel="Cancel"
           width="28rem"
           title={pending.title}
@@ -187,9 +182,6 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           onDismiss={() => answer(false)}
           footer={
             <>
-              <Btn ref={cancel} type="button" onClick={() => answer(false)}>
-                Cancel
-              </Btn>
               <Btn type="button" data-danger onClick={() => answer(true)} style={dangerFill}>
                 {pending.action}
               </Btn>

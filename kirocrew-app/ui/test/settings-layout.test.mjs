@@ -9,7 +9,6 @@ import {
   LOCAL_HIDDEN_LINE,
   MODE_CARDS,
   modeKey,
-  stepMode,
   toPolicy,
   unusedInLocal,
   visibleSettings,
@@ -29,8 +28,6 @@ test('every Settings group and repository tab renders its blurb', () => {
   for (const tab of ['workspaces', 'repositories', 'github', 'plugins', 'content'])
     assert.match(settings, new RegExp(`\\n  ${tab}:\\s*\\n?\\s*['"]`), tab)
   assert.match(settings, /data-blurb=\{section\.key\}>\s*\{SETTINGS_BLURBS\[section\.key\]\}/)
-  // Where tasks live drops its GitHub clause in Local only.
-  assert.match(settings, /isGitHubMode\(form\.mode\) \? SETTINGS_BLURBS\.github : LOCAL_TAB_BLURB/)
   for (const tab of ['mode', 'triggers', 'checks', 'reviews'])
     assert.match(settings, new RegExp(`blurb=\\{REPOSITORY_BLURBS\\.${tab}\\}`), tab)
   // Managed labels say what they are, and that hand edits are conflicts.
@@ -71,13 +68,13 @@ test('Save is blocked with a clear message while a required setting is missing',
   assert.match(missingRequired(form), /o\/app needs its default branch/)
   assert.equal(missingRequired({ ...form, mode: '' }), null)
   assert.match(settings, /const missing = missingRequired\(form\)/)
-  assert.match(settings, /disabled=\{saving \|\| !dirty \|\| Boolean\(missing\)\}/)
+  assert.match(settings, /problem=\{missing\}/)
   assert.equal(REPOSITORY_FIELD_RULES.name.required, true)
   assert.equal(REPOSITORY_FIELD_RULES.minimumPermission.blank, 'blank: write, unless actors are named')
 })
 
-test('one radio fold-out section per mode, in order, real radios, motion off under reduced motion', () => {
-  const picker = source('ModePicker.tsx')
+test('the radio fold-out is real radios with motion off under reduced motion, and the role help keeps the mode cards', () => {
+  const picker = source('RoleHelp.tsx')
   const fold = source('RadioFold.tsx')
   assert.deepEqual(MODE_CARDS.map((card) => card.mode), ['local', 'plans-repo', 'single-repo'])
   for (const card of MODE_CARDS) {
@@ -97,28 +94,20 @@ test('one radio fold-out section per mode, in order, real radios, motion off und
   assert.match(fold, /\{section\.description && section\.fields && <SectionRule \/>\}/)
   assert.match(fold, /prefers-reduced-motion: reduce\) \{ \[data-radio-fold-body\] \{ animation: none/)
   assert.match(fold, /className="flex items-center gap-2 text-base font-semibold"/)
-  assert.doesNotMatch(picker, /data-mode-pane|translateX|flex-grow 250ms/)
   assert.doesNotMatch(picker, /--warn|#[0-9a-f]{6}\b/i)
-  assert.match(picker, /<RadioFold/)
-  assert.match(picker, /fields: card\.mode === current \? props\.children : undefined/)
-  // Local only's note goes with its description, so it gets no rule.
-  assert.match(settings, /note=\{\s*!isGitHubMode\(form\.mode\)/)
-  assert.match(settings, /\{isGitHubMode\(form\.mode\) \? \(\s*<div className="flex flex-col gap-4">/)
-  assert.match(settings, /<ModePicker\s+value=\{modeKey\(form\.mode\)\}\s+onChange=\{\(mode\) => set\(\{ mode \}\)\}/)
+  // The role help shows one card per outcome and picks nothing itself.
+  assert.match(picker, /MODE_CARDS\.map/)
+  assert.doesNotMatch(picker, /onChange|<input/)
+  assert.doesNotMatch(settings, /[^e]ModePicker\.tsx|<ModePicker/)
   const wizard = source('SetupWizard.tsx')
-  assert.doesNotMatch(wizard, /<ModePicker/)
+  assert.doesNotMatch(wizard, /<RoleHelp/)
   assert.doesNotMatch(wizard, /id="avoozl-setup-owner"|id="avoozl-setup-number"|id="avoozl-setup-planning"/)
   assert.match(settings, /shared=\{sharedSetup\(form\)\}/)
 })
 
-test('arrow keys move between modes and wrap; no mode is Local only', () => {
+test('no mode is Local only', () => {
   assert.equal(modeKey(''), 'local')
   assert.equal(modeKey('local'), 'local')
-  assert.equal(stepMode('local', 'ArrowRight'), 'plans-repo')
-  assert.equal(stepMode('single-repo', 'ArrowRight'), 'local')
-  assert.equal(stepMode('', 'ArrowLeft'), 'single-repo')
-  assert.equal(stepMode('plans-repo', 'End'), 'single-repo')
-  assert.equal(stepMode('plans-repo', 'Tab'), null)
 })
 
 test('each mode shows only the settings it reads, and Local only keeps the rest', () => {
@@ -188,10 +177,19 @@ test('who counts is one row on the Triggers tab, with write as the default; no s
   assert.match(triggers, /'Default: write'/)
 })
 
-test('Settings has one Where tasks live tab, with Set up GitHub inside a GitHub pane', () => {
+test('Settings has a GitHub page; Workspaces keeps only workspace things', () => {
   assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
-  assert.match(settings, /\{ key: 'github', label: 'Where tasks live' \}/)
+  assert.doesNotMatch(settings, /Where tasks live' \}/)
   assert.match(settings, /setup=\{<SetupWizard/)
+  const workspaces = settings.slice(settings.indexOf("if (tab === 'workspaces')"), settings.indexOf("if (!workspaceId)"))
+  assert.match(workspaces, /<WorkspaceView[\s\S]*<ThisComputer/)
+  assert.doesNotMatch(workspaces, /PolicyEditor|WorkspaceGitHub|RateBlock|SetupWizard/)
+  // The Plugins link to the GitHub settings opens the GitHub page.
+  assert.match(settings, /onOpenGitHub=\{\(\) => props\.onTab\('github'\)\}/)
+  // Any other tab, GitHub included, is the PolicyEditor with one Save bar.
+  assert.match(settings, /<PolicyEditor key=\{version\} workspaceId=\{workspaceId\} tab=\{tab\}/)
+  assert.match(settings, /\{tab === 'github' && <RateBlock rate=\{settings\.rate\} \/>\}/)
+  assert.match(settings, /<SaveFooter[\s\S]*note="Writes \.avoozl\.json\."/)
 })
 
 test('Plugins puts Add plugin on the left and the installed list on the right, stacked when narrow', () => {

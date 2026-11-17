@@ -1,14 +1,13 @@
 // The page's top-level views and where an old place now goes. Kept free of
 // JSX so node can test it directly.
 
-// The nav row: Dashboards, Specs, Needs you, Trace,
+// The nav row: Dashboards, Specs, Needs you,
 // Flow, Activity, Settings. Dashboards' key stays 'dashboard' (its Home), so
 // an older link or Back step to Home still lands there.
 export const TABS = [
   { key: 'dashboard', label: 'Dashboards' },
   { key: 'plans', label: 'Specs' },
   { key: 'waiting', label: 'Needs you' },
-  { key: 'trace', label: 'Trace' },
   { key: 'flow', label: 'Flow' },
   { key: 'activity', label: 'Activity' },
   { key: 'settings', label: 'Settings' },
@@ -25,10 +24,11 @@ export const FLOW_TABS: { key: FlowTab; label: string }[] = [
   { key: 'retros', label: 'Retros' },
   { key: 'proposals', label: 'Proposals' },
 ]
-export type WaitingSection = 'decisions' | 'intake'
+export type WaitingSection = 'decisions' | 'triage' | 'radar'
 export const WAITING_SECTIONS: { key: WaitingSection; title: string; line: string }[] = [
-  { key: 'decisions', title: 'Decisions and conflicts', line: 'A crew handed work back, a spec or issue was edited by hand, or a task needs your choice.' },
-  { key: 'intake', title: 'Planning and intake', line: 'Issues labeled for planning and new issues. You choose which become work.' },
+  { key: 'decisions', title: 'Decisions', line: 'A crew handed work back, a spec or issue was edited by hand, or a task needs your choice.' },
+  { key: 'triage', title: 'Triage', line: 'New issues and pull requests nothing covers yet. You choose which become work.' },
+  { key: 'radar', title: 'Issue Radar', line: 'Issues you sent to an Issue Radar crew, or that one is holding.' },
 ]
 // Dashboards' pages. Home is the 'dashboard' tab itself; Graph, Delivery, Lanes and CI
 // are pages of their own that light Dashboards in the nav.
@@ -60,14 +60,24 @@ export interface Place {
 
 // `waiting-section` in a Place's `open` is the Needs you section; App turns
 // it into its own place field (waitingSection).
+// A link or saved view that still says the old Needs you place: 'intake' and
+// the untriaged page are Triage; a saved 'radar' view is Issue Radar.
+export function redirectWaiting(section: string | undefined, saved?: unknown): WaitingSection | undefined {
+  if (section === 'intake' || section === 'triage') return saved === 'radar' ? 'radar' : 'triage'
+  return WAITING_SECTIONS.some((x) => x.key === section) ? (section as WaitingSection) : undefined
+}
+
 export function redirectTab(key: string): Place {
   switch (key) {
     case 'conflicts':
       return { tab: 'waiting', open: { 'waiting-section': 'decisions' } }
     case 'untriaged':
-      return { tab: 'waiting', open: { 'waiting-section': 'intake' } }
+      return { tab: 'waiting', open: { 'waiting-section': 'triage' } }
     case 'routing':
       return { tab: 'settings' }
+    // Trace is gone (R106): its steps are the Timeline box in task details.
+    case 'trace':
+      return { tab: 'delivery' }
     default:
       return { tab: TABS.some((t) => t.key === key) || dashboardPage(key as Tab) ? (key as Tab) : 'dashboard' }
   }
@@ -75,7 +85,8 @@ export function redirectTab(key: string): Place {
 
 // A Settings section that no longer exists lands on the section that took
 // over: Routing's job (crews and placement) is gone with local workers, and
-// the instance name is edited from the nav footer.
+// the instance name is edited from the nav footer, and Where tasks live is a
+// role per repository in Repository setup (R105.6).
 export function redirectSettings(key: string): string {
   return key === 'routing' ? 'repositories' : key === 'instance' ? 'workspaces' : key
 }
@@ -87,3 +98,15 @@ export const RETIRED_LINE = 'Local workers are retired. Switch to Issue Radar.'
 export function retiredCoders(repositories: { name: string; coder: string }[], defaultCoder: string): string[] {
   return repositories.filter((r) => (r.coder || defaultCoder) === 'worker').map((r) => r.name)
 }
+
+// An old `?trace=owner/repo#52` link: the issue it names. Anything else is no
+// link. The page opens the details of the task that owns that issue (R106.8).
+export function parseTraceLink(search: string): { repository: string; number: number } | null {
+  const value = new URLSearchParams(search).get('trace'),
+    match = /^([^/\s#]+\/[^/\s#]+)#([1-9]\d*)$/.exec(value ?? '')
+  return match ? { repository: match[1], number: Number(match[2]) } : null
+}
+
+// The task that owns the issue an old trace link names, from the stored graph.
+export const taskForIssue = <T extends { issue: { number: number | null; repository: string | null } | null; repository: string | null }>(graph: { tasks: T[] }, link: { repository: string; number: number }) =>
+  graph.tasks.find((task) => task.issue?.number === link.number && (task.issue.repository ?? task.repository) === link.repository)

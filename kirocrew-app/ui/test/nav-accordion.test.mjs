@@ -43,15 +43,10 @@ test('Settings opens in the nav; the page shows one section; Needs you does the 
   await click('[data-nav-group="waiting"]')
   await page.until(`Boolean(document.querySelector('[data-nav-children="waiting"]'))`)
   assert.equal(await has('[data-nav-children="settings"]'), false, 'Settings shuts')
-  await click('[data-nav-item="waiting/intake"]')
-  await page.until(`document.querySelector('[data-waiting-section][data-open="true"]')?.dataset.waitingSection === 'intake'`)
+  await click('[data-nav-item="waiting/triage"]')
+  await page.until(`document.querySelector('[data-waiting-section][data-open="true"]')?.dataset.waitingSection === 'triage'`)
   assert.equal(await has('[data-waiting-tabs]'), false, 'no section tabs in the page')
-  // A plain page shuts the open section; a header click on an open one shuts it.
-  await click('[data-nav-item="trace"]')
-  await settle()
-  assert.equal(await has('[data-nav-children]'), false, 'Trace has no section, so none is open')
-  await click('[data-nav-group="waiting"]')
-  await page.until(`Boolean(document.querySelector('[data-nav-children="waiting"]'))`)
+  // A header click on an open section shuts it.
   await click('[data-nav-group="waiting"]')
   await settle()
   assert.equal(await has('[data-nav-children]'), false)
@@ -80,10 +75,10 @@ test('a phone: the menu holds the same accordion, and picking a page closes the 
   await page.until(`Boolean(document.querySelector('[data-nav-children="waiting"]'))`)
   assert.deepEqual(await openPills('[data-top-rail-list]'), ['waiting'], 'only Needs you is open')
   assert.equal(await has('[data-top-rail-footer] [data-brand-card]'), true, 'the brand card is at the bottom of the menu')
-  await click('[data-nav-item="waiting/intake"]')
+  await click('[data-nav-item="waiting/triage"]')
   await settle()
   assert.equal(await has('[data-top-rail-list]'), false, 'the menu closes')
-  assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Needs you · Planning and intake/)
+  assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Needs you · Triage/)
 })
 
 // The owner's ask (2026-11-17): moving from page to page leaves only that

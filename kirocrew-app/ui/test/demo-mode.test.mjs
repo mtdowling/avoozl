@@ -142,7 +142,7 @@ test('Start demo opens the made-up workspace with its bar, and Exit demo returns
   await click(`document.querySelector('[data-stop-confirm]')`)
   await page.until(`document.querySelector('[data-demo-notice]')?.textContent.includes('stop the line')`)
   assert.match(await page.evaluate(`document.querySelector('[data-stop-dialog] [role="alert"]')?.textContent ?? ''`), /^Demo mode: in your own workspace this would stop the line/)
-  await click(`[...document.querySelectorAll('[data-stop-dialog] button')].find((b) => b.textContent.trim() === 'Cancel')`)
+  await click(`[...document.querySelectorAll('[data-stop-dialog] button')].find((b) => b.textContent.trim() === 'Close')`)
   // Cancel asks first once a reason was typed.
   await page.until(`Boolean([...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent.trim() === 'Discard')) || !document.querySelector('[data-stop-reason]')`)
   await page.evaluate(`(() => { [...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent.trim() === 'Discard')?.click(); return true })()`)

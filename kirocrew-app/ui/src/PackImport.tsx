@@ -136,9 +136,6 @@ export function PackImportDialog(props: { row: PluginRow; workspaceId: string; c
       onDismiss={cancel}
       footer={
         <>
-          <Btn type="button" onClick={cancel} disabled={busy}>
-            Cancel
-          </Btn>
           <Btn type="button" primary onClick={() => void run()} disabled={busy || Boolean(blocked)}>
             Import settings
           </Btn>
