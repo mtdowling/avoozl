@@ -118,9 +118,26 @@ export function gatewaySlotReader(env = process.env, request = fetch) {
       throw Error(`Kiro Crew refused the session read (${response.status}).`);
     const body = await response.json(),
       status = slotStatus(body),
-      served = slotServed(body);
+      served =
+        slotServed(body) ??
+        (status === "idle" ? await usageServed(client, slot) : null);
     return served ? { status, served } : status;
   };
+}
+
+// Kiro Crew 0.12.2.4's one-slot read names no model; the app's own usage rows
+// do, one per finished turn. The last row is the model that ran last.
+async function usageServed(client, slot) {
+  const response = await client.call(
+    `/api/usage/turns?slot=${encodeURIComponent(slot)}&days=30`,
+    { method: "GET" },
+  );
+  if (!response.ok) return null;
+  const turns = (await response.json())?.turns,
+    model = Array.isArray(turns) ? turns.at(-1)?.model : null;
+  return typeof model === "string" && model.trim()
+    ? { requested: null, model, withheld: false, changed: false }
+    : null;
 }
 
 // Stop one session's turn for Stop all agents (R64.12): Kiro Crew's own
