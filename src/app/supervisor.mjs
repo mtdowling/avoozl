@@ -14,6 +14,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { fail } from "./store.mjs";
+import { machineAvoozlPaths } from "./host-config.mjs";
 import {
   fillHarnessArgv,
   loadHarnessDefinition,
@@ -458,4 +459,28 @@ export function launchSupervisor({
   child.on("error", () => {});
   child.unref();
   return { pid: child.pid, started: true };
+}
+
+// Run as this process's job until a signal, with the machine's folders by
+// default. A second supervisor sets exit code 1 and names the first.
+export function runSupervisor({ stateDirectory, configDirectory } = {}) {
+  const machine = machineAvoozlPaths();
+  let supervisor;
+  try {
+    supervisor = startSupervisor({
+      stateDirectory: stateDirectory ?? machine.stateDirectory,
+      configDirectory: configDirectory ?? machine.configDirectory,
+    });
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+    return null;
+  }
+  console.log(`Avoozl supervisor running as pid ${process.pid}.`);
+  for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"])
+    process.on(signal, () => {
+      supervisor.close();
+      process.exit(0);
+    });
+  return supervisor;
 }
