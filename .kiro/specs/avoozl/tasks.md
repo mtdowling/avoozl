@@ -1923,7 +1923,7 @@ proof or run a real workspace to get past that wait.
   - Preview and apply: hold/stop ticks, disable projection and close reconciliation, retire only issue bindings/verdicts/dispatch flags without status or source changes, then run one tick and verify unchanged readiness with no task-issue reads/writes/recreation. Only after that offer closing obsolete issues; keep spec issues.
   - Tests close retired issues as done and not planned without releasing a successor; retry changes nothing and interrupted migration remains held. Real workspace migration is owner-only and is not run by this task.
 
-- [ ] 56.6 Independent refresh and held reconstruction, after 56.4, 56.5 [R102.12, R102.16, R102.17] (§4.32)
+- [x] 56.6 Independent refresh and held reconstruction, after 56.4, 56.5 [R102.12, R102.16, R102.17] (§4.32)
   - Cache repository hashes separately from journal/assignee/control/review/check reads. Use conditional reads or available webhooks; unchanged definitions are not reparsed. Holds and reassignment are observed with no branch commit.
   - Rebuild from qualified heads, validated journal, actual landings and outstanding intents; restore claims and decisions, then hold until person Resume. Private spend travels only in private export; unknown is never zero. Tests cover missing tail, lost database, unavailable fork and unavailable private controls.
 
