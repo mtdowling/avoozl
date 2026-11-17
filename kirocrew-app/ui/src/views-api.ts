@@ -164,6 +164,23 @@ export interface DeliverySession {
   crewUnreachable?: boolean
   placementReason?: string | null
   sessionReason?: string | null
+  // `kirocrew` (a chat) or `process` (an agent CLI under the supervisor).
+  executor?: string
+  // A live `process` session's details from the supervisor (R98.1).
+  process?: ProcessDetails
+}
+
+export interface ProcessDetails {
+  harness: string
+  // The supervisor's record: requested, running, exited, gone or stopped.
+  state: string
+  exitCode: number | null
+  run: number
+  logTail: string | null
+  // USD, when the harness definition says where to read it.
+  cost: number | null
+  // What a person runs to join the session; copied, never run here.
+  attach: string | null
 }
 
 // One role's verdict on one subject commit (design §5.2).
