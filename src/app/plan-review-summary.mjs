@@ -64,6 +64,7 @@ export function planReviewSummary(store, planId) {
   return {
     state: latest.state,
     reviewerModel: latest.reviewerModel,
+    writerModel: latest.writerModel ?? null,
     revisionHash: latest.revisionHash,
     current: latest.revisionHash === plan.hash,
     found: findings.length,
