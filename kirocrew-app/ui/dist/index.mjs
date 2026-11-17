@@ -2423,9 +2423,9 @@ function ji(e) {
 	let t = (e) => !!(e?.children?.length || e?.slot), n = (n) => t(e.groups.find((e) => e.key === n)), r = wi(), i = u(/* @__PURE__ */ new Map()), a = (e) => {
 		let t = i.current.get(e);
 		return t || i.current.set(e, t = (t) => r?.register(e, t)), t;
-	}, [s, c] = d(n(e.value) ? [e.value] : []);
-	o(() => c((t) => n(e.value) && !t.includes(e.value) ? [...t, e.value] : t), [e.value]);
-	let l = (n) => t(n) && s.includes(n.key) && (e.value === n.key || !n.slot || !!n.children?.length), f = e.groups.reduce((e, t) => e + (l(t) ? Di : 34), 8 * (e.groups.length - 1));
+	}, [s, c] = d(n(e.value) ? e.value : null);
+	o(() => c(n(e.value) ? e.value : null), [e.value]);
+	let l = (n) => t(n) && s === n.key && (e.value === n.key || !n.slot || !!n.children?.length), f = e.groups.reduce((e, t) => e + (l(t) ? Di : 34), 8 * (e.groups.length - 1));
 	return /* @__PURE__ */ w("div", {
 		"data-nav-card": !0,
 		"data-nav-accordion": !0,
@@ -2457,7 +2457,7 @@ function ji(e) {
 					"aria-expanded": r ? o : void 0,
 					"aria-current": !r && i ? "page" : void 0,
 					onClick: () => {
-						r ? o ? c((e) => e.filter((e) => e !== n.key)) : (c((e) => [...e, n.key]), i || e.onPick(n.key)) : (e.onPick(n.key), e.onDone?.());
+						r ? o ? c(null) : (c(n.key), i || e.onPick(n.key)) : (e.onPick(n.key), e.onDone?.());
 					},
 					children: [/* @__PURE__ */ C("span", {
 						"data-nav-label": !0,

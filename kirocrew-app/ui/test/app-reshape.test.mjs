@@ -57,9 +57,9 @@ test('Settings lists its sections in the nav, shows only the picked one, and has
   await page.until(`Boolean(document.querySelector('[data-settings-section]'))`)
   const sections = await page.evaluate(`[...document.querySelectorAll('[data-nav-children="settings"] [data-nav-item]')].map((s) => s.dataset.navItem.replace('settings/', ''))`)
   assert.deepEqual(sections, ['instance', 'workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
-  // Settings opens beside Dashboards, and the page shows one section.
+  // Settings opens alone, and the page shows one section.
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
-  assert.equal(await page.evaluate(`document.querySelectorAll('[data-nav-section][data-open]').length`), 2)
+  assert.equal(await page.evaluate(`document.querySelectorAll('[data-nav-section][data-open]').length`), 1)
   // Opening another section in the nav shows that one alone.
   await click(`document.querySelector('[data-nav-item="settings/repositories"]')`)
   // The large editors open in a modal from Configure.
