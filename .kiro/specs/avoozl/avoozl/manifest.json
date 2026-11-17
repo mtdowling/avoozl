@@ -5136,7 +5136,7 @@
     "27.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 27 (Budgets and receipts). See R67.1–R67.5; §4.17.",
+      "summary": "Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.1–R67.5; §4.17.",
       "acceptance": [
         "Price table and budget levels, after 12.12",
         "A machine-local, versioned price table with no shipped prices, refused in tracked files, packs and manifests; budget usd, tokens and credits at workspace, repository, spec and task, most specific key winning; fallback caps of 2,000,000 tokens and 200 credits; the driver export leaves prices out."
@@ -5153,7 +5153,7 @@
     "27.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 27 (Budgets and receipts). See R67.4, R67.7, R67.11–R67.14; §4.17.",
+      "summary": "Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.4, R67.7, R67.11–R67.14; §4.17.",
       "acceptance": [
         "Spend and receipts, after 27.1 and 12.9",
         "Turns are priced on read from raw counts; budget.receipt gives totals by stage, model and attempt with priced flags, cap and level, raises, stops, price version and hash, and missing reasons; the CLI, plans_view action receipt and the retro payload carry it; no prompt or text is held."
@@ -5171,7 +5171,7 @@
     "27.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 27 (Budgets and receipts). See R67.6–R67.9, R67.14, R67.15; §4.17.",
+      "summary": "Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.6–R67.9, R67.14, R67.15; §4.17.",
       "acceptance": [
         "Stop at the cap, Raise budget and Stop, after 27.2, 12.8 and 15.4",
         "At a cap nothing new is dispatched for the task, each live session gets one stop message and budget_reached on its Avoozl calls, and no session is stopped, interrupted or closed; Raise budget and Stop are person only and cost no attempt; unpriced turns use the token and credit caps; unknown spend warns and never stops; no gate reads the budget."
@@ -5190,7 +5190,7 @@
     "27.4": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 27 (Budgets and receipts). See R67.2, R67.10, R67.11; §4.17.",
+      "summary": "Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.2, R67.10, R67.11; §4.17.",
       "acceptance": [
         "Spend on the page, after 27.3 and 12.11",
         "The drawer Budget fold with Export JSON, the spend chip on the Delivery and In flight cards, and the budget fields work at 375 and 1280 px in light and dark. Settings › Prices was removed 2026-11-14 (owner)."
@@ -5208,7 +5208,7 @@
     "avoozl-p41": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 27 (Budgets and receipts). Proof. See R67; §4.17.",
+      "summary": "Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). Proof. See R67; §4.17.",
       "acceptance": [
         "Proof: budgets and receipts",
         "Expected: caps resolve by level; a capped task gets no new session and a stop message only after its running turn, with no session stopped; retries, verifier and review rounds share one cap; a batch shares the sum of its caps; unpriced turns stop at the token or credit cap; Raise budget and Stop are person only; a price change recomputes the receipt and keeps the stop's old dollars; unknown spend warns without stopping; export, CLI and MCP agree with no text; no budget opens a gate."
@@ -8457,6 +8457,25 @@
         "avoozl-p63"
       ],
       "manual": true
+    },
+    "58.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 58 (A role per repository replaces Where tasks live). See R105; §4.34.",
+      "acceptance": [
+        "Repository roles replace Where tasks live, after 3.14, 20.2",
+        "Repository setup shows an in-place role picker per repository (local, code, planning, both); the mode and planningRepository derive from roles through one resolver that also reads old files without writing; mixed roles are refused; the Where tasks live page is gone with its link opening Repository setup and workspace-wide settings in Settings › Workspaces. Tests cover the mapping, migration and screens, and screenshots (phone and desktop, light and dark, full app shell) are under docs/evidence/repo-roles/."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "npm run test:ui",
+        "git diff --check"
+      ],
+      "requires": [
+        "3.14",
+        "20.2"
+      ]
     }
   }
 }

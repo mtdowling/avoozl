@@ -3566,145 +3566,26 @@ handoff`, `avoozl driver takeover --file <path>` or `--rebuild`, and
     Heartbeat minutes (optional, placeholder 15), and the machine ID shown
     small.
 
-### Requirement 67: Per-task budgets and usage receipts
+### Requirement 67: Per-task budgets and usage receipts (removed)
 
-Added 2026-11-13 (owner decisions). Design §4.17. This builds on the usage
-read of Requirement 43 (design §4.11, owner additions 2026-11-13), which
-already stores each turn's tokens and credits per task, attempt, stage and
-model. It changes nothing in timing: Requirement 43.6 still keeps tokens and
-cost out of `flow_spans`.
-
-**User story:** As the owner, I want each task to have a spending cap in
-dollars and a receipt of what it used, so that a stuck or looping task
-cannot spend without limit and I can see where the money went.
+Removed 2026-11-17 (owner): budgets. A budget only caps Kiro Crew chats; Avoozl cannot see Claude Code or Codex spend.
+Budgets, the built-in price table, budget holds and stops, Raise budget,
+Over budget badges, receipts and Settings › Budgets are gone. Criteria 1 to
+21 of this requirement no longer apply and stay out of the tests. What
+stays: the per-turn usage reads and `flow_usage` of Requirement 43, which
+feed Flow's usage charts (tokens and credits per task, stage and model), and
+the plan-quota rule of Requirement 94.6a, which stops new sessions when plan
+quota runs low. A budget key left in `.avoozl.json`, a repository entry or a
+manifest SHALL be ignored with one warning and never be an error, so an
+existing workspace still loads.
 
 #### Acceptance criteria
 
-1. A budget SHALL be a cap in US dollars per task. Dollars SHALL be the
-   only budget unit except the fallback of criterion 6, because they are
-   the only unit that compares across models.
-2. Dollars SHALL come from a **price table**. Avoozl SHALL ship a built-in,
-   dated table of public list prices for known models, with the source URL
-   and the date in the file (`src/app/default-prices.mjs`), and SHALL use
-   it with no setup. It SHALL be the only price table: there SHALL be no
-   Settings › Prices page, no user price list, no credit price, and no
-   operation that saves prices. A saved `prices` key in machine settings,
-   `.avoozl.json` or a spec SHALL be ignored, not an error
-   (owner decision 2026-11-14, replacing the 2026-11-13 override list).
-3. A receipt SHALL name the price list it used by its date.
-4. Avoozl SHALL store raw counts only: each turn's input tokens, output
-   tokens and credits, as Requirement 43 already does. Dollars SHALL be
-   computed on read from the raw counts and the built-in price table. A turn
-   with credits SHALL count against the credit cap (criterion 6), because
-   Kiro Crew bills it in credits and a token list price is not what it
-   cost. A turn with only tokens SHALL be priced by the built-in price for
-   its model.
-5. A budget SHALL be set at four levels, the most specific winning: the
-   workspace default (`budget` in `.avoozl.json`), the repository
-   (`projects.<id>.budget`), the spec (top-level `budget` in
-   `avoozl/manifest.json`), and the task (a leaf's `budget` in the
-   manifest). Each level SHALL take `usd`, `mode` and, for criterion 6,
-   `tokens` and `credits`. `mode` is `"stop"` (the default) or `"warn"`
-   and resolves like a cap: the most specific level that sets it wins.
-   With no level set, a task SHALL have no cap, and its receipt SHALL
-   still be kept. There SHALL be no spec-wide total cap (owner decision
-   2026-11-13).
-6. WHEN a turn cannot be priced (its model has no known price, or it has
-   credits) THEN the dollar cap SHALL NOT be
-   enforced for that turn. Avoozl SHALL warn once per task and model on the
-   task, saying why in plain words (no known price, or billed in credits),
-   and SHALL count unpriced token turns
-   against the token cap (input plus output) and credit turns against the
-   credit cap instead. Where no level sets
-   them, these caps SHALL default to 2,000,000 tokens and 200 credits per
-   task. The defaults SHALL be settings: the workspace `budget.tokens` and
-   `budget.credits` replace them.
-7. A task's spend SHALL include every session bound to it: each attempt
-   and retry, the verifier, each review round, and pull request feedback
-   rounds (Requirement 54). A fix task (Requirement 44.7) SHALL have its
-   own cap. A batch session (Requirement 46) SHALL have the sum of its
-   tasks' caps, and each task's receipt SHALL show an equal share of the
-   batch's turns, marked shared.
-8. Avoozl SHALL check spend after each usage read and before it dispatches
-   any session for the task. WHEN spend reaches the cap THEN Avoozl SHALL
-   NOT dispatch a new session for the task, and SHALL ask each live session
-   bound to it to stop at its next turn boundary. Avoozl SHALL NOT
-   interrupt a turn, end a tool call, or close or stop a session. Spend is
-   known only after each usage read (about once a minute), so a task CAN
-   pass its cap by the turns that ran between two reads; the receipt SHALL
-   show by how much. This criterion and criterion 9 apply in `stop` mode;
-   criterion 18 covers `warn` mode.
-9. A task stopped by its budget (`stop` mode) SHALL go to **Needs you** with two
-   actions, both a person's only: **Raise budget**, which takes a new cap,
-   records who raised it, from what, to what, and when, and lets the task
-   go on (the same session if it is still live, else the next attempt);
-   and **Stop**, which pauses the task the way Deferred does (Requirement
-   29), leaves its session and worktree alone, and holds its dependents.
-   Agent, MCP, app-token and plugin callers SHALL be refused with 403. A
-   budget stop SHALL NOT cost the task an attempt.
-10. The task drawer, the Delivery card and the In flight card SHALL show
-    spend so far against the cap (for example `$1.20 / $5.00`), the token
-    and credit totals, and the time of the last usage read.
-11. Each task SHALL have a **receipt**: its turns totaled by Flow stage, by
-    model and by attempt, each line with input tokens, output tokens,
-    credits, dollars, and whether it was priced; the cap and its level;
-    every raise; and the price table version and hash used. The drawer
-    SHALL show it and SHALL export it as JSON. The receipt SHALL be read
-    through `budget.receipt` on the page, `avoozl budget receipt TASK
---json` on the CLI, and `plans_view` action `receipt` on MCP. It SHALL
-    hold counts, dollars, model IDs, stage names and times only: no
-    prompts, transcript text or tool output.
-12. A receipt SHALL show dollars from the current price table and, for a
-    budget stop or raise, the dollars and version that applied then. WHEN
-    the price table changes THEN receipts SHALL recompute from the raw
-    counts on the next read.
-13. The retro (Requirement 47) SHALL receive each finished task's receipt
-    totals by stage and model in its payload.
-14. WHERE usage cannot be read THEN spend is unknown, and Avoozl SHALL say
-    so on the task: a Crew Mode worker (Avoozl reads only sessions its tick
-    opened), a remote chat (no usage read reaches another crew), an Issue
-    Radar route (Avoozl opens no session), or a usage read that fails. The
-    receipt SHALL be marked incomplete with the reason. Avoozl SHALL warn
-    once per task, SHALL NOT stop the task for unknown spend, and SHALL keep
-    the last known spend with its time. Known spend SHALL still count
-    against the cap.
-15. A budget SHALL be a cap and never a permission. Raising or having a
-    budget SHALL NOT change who counts, content rules (Requirement 40),
-    checks, reviews, approval, or proofs, and SHALL NOT start, approve or
-    finish any task.
-16. An incoming item (Requirement 50) MAY carry a budget later, from a
-    plugin source with an owner-approved budget capability. This is a hook
-    only: payments, escrow and refunds are out of scope. A grant SHALL
-    only set a dollar cap where no level sets one, and SHALL never raise a
-    cap a person set. A cap set by a grant SHALL always be in `stop` mode,
-    because it is someone else's money.
-17. WHEN spend reaches 80% of any cap THEN the task and its receipt SHALL
-    show a warning, in both modes. Nothing else changes at 80%.
-18. WHERE a task's mode is `warn` THEN reaching the cap SHALL stop and
-    pause nothing and SHALL send no stop message. The task SHALL get an
-    **Over budget** badge (spend / cap) on the drawer, the Delivery card
-    and In flight, and one Needs you item, "Over budget: $X of $Y", with
-    **Acknowledge**, **Raise budget** and **Switch to stop**, a person's
-    only. Acknowledge SHALL clear the item until spend passes the next
-    step, each further 50% of the cap, so it cannot nag every tick. A
-    Kiro Crew notification for it SHALL be optional (workspace
-    `budget.notify`), off by default.
-19. The Dashboard SHALL show a count of open over-budget tasks; the Flow
-    tab and receipts SHALL mark over-budget and budget-stopped runs; the
-    retro payload SHALL say which receipts went over budget.
-20. Settings SHALL show the mode next to each cap with one plain line on
-    what each mode does, in Settings › Budgets (the workspace and each
-    repository). A choice a level
-    inherits SHALL say where it comes from and what it is ("Use the
-    workspace default (Stop)"), never "same as above". Stop and Warn SHALL
-    use the shared radio fold-out. Budgets and Settings ›
-    Routing › Providers SHALL each have an **Ask for help** link that opens a Kiro
-    Crew chat seeded with the page, its current settings and the guide;
-    the chat MAY propose values, and only the page's Save writes them
-    (owner decision 2026-11-13).
-21. A remote chat's spend is unknown (criterion 14) and SHALL warn, never
-    stop. No upstream Kiro Crew ask is filed for remote usage yet (owner
-    decision 2026-11-13).
+1. Avoozl SHALL have no budget, spend cap, budget hold, price table or
+   Settings › Budgets page, and SHALL pass no spend cap to a harness.
+2. WHEN `.avoozl.json`, `projects.<id>`, a manifest or a leaf holds a
+   `budget` or `prices` key THEN Avoozl SHALL ignore it, warn once, and load.
+3. Flow's usage charts and the plan-quota stop SHALL work as before.
 
 ### Requirement 68: Retros propose prompt and skill changes
 
@@ -4159,7 +4040,7 @@ do not build on a wrong reading of the task.
    `off`. `not-small` skips leaves marked `size: "small"`. A manifest task
    MAY set `investigate: false` or `true` to override the mode.
 6. Investigation and the falsifier SHALL be Flow spans of their own and
-   SHALL count toward the task's budget (Requirement 67).
+   SHALL count in Flow's usage (budgets were removed 2026-11-17).
 7. With `mode: off`, dispatch SHALL behave exactly as before.
 
 ### Requirement 76: Evidence bundle per task
@@ -4673,7 +4554,7 @@ instead of a stuck chat.
    (`createWorktree`, `src/app/git.mjs`), which today has no caller.
    Avoozl SHALL remove a task's worktree and its local branch after the
    task lands, and SHALL keep them for a task that did not land.
-7. The Delivery page, Settings › Budgets and the task drawer's Files and diff
+7. The Delivery page, Settings › Budgets (removed again 2026-11-17) and the task drawer's Files and diff
    view SHALL be restored (they were removed in ba04389 and 70c2236). The
    Routing page SHALL NOT be restored.
 
@@ -4939,11 +4820,8 @@ that I approve, so that a new agent CLI needs no code change.
 5. A harness that cannot confine writes to the worktree SHALL be refused for
    write roles, unless the owner opts in for that machine (person-only,
    recorded in Activity).
-6. WHEN a harness offers a spend cap THEN Avoozl SHALL set it from the
-   task's budget (Requirement 67). Such a cap (for example a
-   `--max-budget-usd` flag) caps API spend and may not bind when the harness
-   runs on a plan login. Whether it does SHALL be checked in Phase 47's
-   proof.
+6. Removed 2026-11-17 (owner, with Requirement 67): Avoozl SHALL NOT pass
+   a spend cap to a harness. The plan-quota stop of criterion 6a stays.
 6a. Plan quota: WHEN a harness on a plan login reports its quota as low
     (Requirement 72's `low` or `out`) THEN Avoozl SHALL start no new session
     on it; running sessions SHALL finish.
@@ -5137,7 +5015,7 @@ and a run bound to a review may submit only for its own plan revision.
     reviewer SHALL submit through `plans_submit_review`.
 12. Each reviewer and planner-answer chat SHALL count in Flow under
     **Planning** for its spec: time and usage by role and model. These
-    SHALL NOT count toward any task's flow time or budget.
+    SHALL NOT count toward any task's flow time.
 13. Source and tests SHALL NOT name a model or provider. Tests SHALL use
     fake chats and fake model names.
 
@@ -5245,8 +5123,8 @@ workflow uploads that artifact from the Linux job only, because artifact
 names must be unique within a run. The receipts are kept in one metadata
 value with one receipt per pull request, and they are read from
 `radar-flow.mjs`, only for repositories whose coder is Issue Radar. The
-retrospective brief has no build data; its `receipts` field is the budget
-receipt of Requirement 67.
+retrospective brief has no build data; its `receipts` field is gone with
+budgets (removed 2026-11-17).
 
 #### Acceptance criteria
 
@@ -5705,3 +5583,75 @@ per file on the spec page.
 16. Tests SHALL use fake chats, fake model names and a fake GitHub that
     records zero calls. Source and tests SHALL NOT name a model or
     provider.
+
+### Requirement 105: Where tasks live follows from each repository's role
+
+Added 2026-11-17 (owner request). Design §4.34. Extends Requirement 28.
+Where they conflict it supersedes the part of Requirement 28.1 that says a
+workspace configures the mode: a person now picks a role per repository and
+the mode follows from the roles. Requirements 28.2–28.11 hold unchanged.
+
+The owner's words, in short: "Where tasks live" is not its own Settings
+page. Each repository gets a role on the Repository setup page, and where
+tasks live follows from those roles. Parts that cannot be a per-repository
+role stay in the workspace settings.
+
+**User story:** As the owner, I want to say what each repository is for,
+so that I never choose a workspace mode on a separate page and then match
+my repositories to it.
+
+#### Acceptance criteria
+
+1. Each repository SHALL have one role: `local`, `code`, `planning` or
+   `both`. `local` means no GitHub issues: the repository's tasks live in
+   the workspace database. `code` means a repository whose pull requests
+   land code while its issues live in the planning repository. `planning`
+   means the repository that holds issues, sub-issues, dependencies and spec
+   folders and receives no code pull requests. `both` means a code
+   repository that also holds its own issues and spec folders.
+2. The mode SHALL follow from the roles, and nothing else SHALL set it.
+   All repositories `local` (or none registered) SHALL mean Local only.
+   Exactly one `planning` and every other GitHub repository `code` SHALL
+   mean `plans-repo`, with `planningRepository` the `planning` repository.
+   A planning repository with no checkout has no repository entry, so it is
+   named by the stored `planningRepository` instead of a `planning` role.
+   One or more `both` and no other role SHALL mean `single-repo`. Any other
+   mix SHALL be refused on save with one line naming the repositories and
+   the fix, and nothing SHALL be written.
+3. Only a repository with a GitHub remote MAY take a role other than
+   `local`. A repository with none SHALL show `local` and say why.
+4. Repository setup SHALL show the role of every repository in its list as
+   a picker that edits in place, with no Edit button for the role. Above
+   the list a single line SHALL say where tasks live as a result (for
+   example "Tasks live in acme/plans" or "Tasks live in each repository's
+   own issues"), and the picker SHALL show, for the role chosen, the
+   one-line meaning, the picture and the facts the old mode panes showed.
+5. The planning repository SHALL appear as a row in Repository setup even
+   when it has no checkout on this computer, marked "GitHub only". It SHALL
+   NOT be added as a checkout by this change.
+6. Settings SHALL have no **Where tasks live** page and no `github` tab.
+   The settings that belong to the whole workspace (default authority, epic
+   issue type, GitHub cache and write limits, sub-issue cap, include-done,
+   Project and its field names, the **Set up GitHub** wizard, crews and
+   This computer) SHALL move to Settings › Workspaces. An old link to the
+   Where tasks live page SHALL open Repository setup.
+7. Every existing workspace SHALL keep its behavior. On read, a workspace
+   with no `role` keys SHALL get roles from its stored mode: `local` or
+   absent gives every repository `local`; `plans-repo` gives the repository
+   named by `planningRepository` the role `planning` and every other
+   repository with a GitHub remote `code`; `single-repo` gives every such
+   repository `both`. Reading SHALL write nothing. The first save of
+   Repository setup SHALL write each repository's `role` and the mode and
+   `planningRepository` the roles derive, and running it twice SHALL change
+   nothing more.
+8. The keys `github.mode` and `github.planningRepository` SHALL stay in the
+   schema and stay readable. WHEN any repository has a `role` THEN the
+   roles SHALL win and the loader SHALL derive both keys from them, so
+   every existing reader sees one consistent value. A stored mode that
+   disagrees with the roles SHALL be shown once as "The file says X; the
+   roles say Y" and replaced on the next save. Keys SHALL NOT be deleted.
+9. Switching a role SHALL delete no stored setting, as switching a mode did
+   not. Settings that the new mode does not read SHALL show as "Kept, not
+   used".
+10. The mapping, the migration, the refused mixes and the screens SHALL have
+    tests on fake data and a fake GitHub that records no call for a read.
