@@ -107,13 +107,31 @@ export function anchorAt(thread, files, revisionHash) {
 }
 
 // The decision that stands: the last one after the last reopen.
-function standing(thread) {
+export function standing(thread) {
   const decisions = thread.decisions || [];
   const last = decisions.at(-1);
   if (last && last.action !== "reopen") return last;
   if (!last && thread.state === "closed" && DISPOSED[thread.disposition])
     return { action: thread.disposition, at: thread.disposedAt };
   return null;
+}
+
+// The planner owes this finding an answer: it has none, or a person
+// accepted it after the planner's last answer (R104.7).
+export function needsAnswer(thread) {
+  if (!thread.answer) return true;
+  const decision = standing(thread);
+  return (
+    decision?.action === "accept" &&
+    String(decision.at || "") >= String(thread.answer.at || "")
+  );
+}
+
+// A person rejected or resolved it, so a reviewer must not raise it again.
+export function settledByPerson(thread) {
+  return ["reject", "resolve", "rejected", "resolved"].includes(
+    standing(thread)?.action,
+  );
 }
 
 // One of open, fixed, answered, for you, accepted, rejected, deferred,
