@@ -25,7 +25,6 @@ import {
 } from "../radar-conflict-fix.mjs";
 import { mergeNeedsYou } from "../radar-merge.mjs";
 import { bindSession } from "../session-bindings.mjs";
-import { buildTrace } from "../trace.mjs";
 import { fixture } from "./fixtures.mjs";
 import {
   NAMESPACE,
@@ -354,17 +353,6 @@ test("a fix pushes one merge commit to the same pull request; squash arms with i
   );
   const fixes = conflictFixesOf(w.store, REPO, 12);
   assert.equal(fixes[0].commit, commit);
-  const trace = buildTrace({
-    issue: { number: 7 },
-    pull: { number: 12, created_at: "2026-11-14T00:00:00Z" },
-    fixes,
-  });
-  const keys = trace.steps.map((s) => s.key);
-  assert.equal(keys.indexOf("conflictFixed"), keys.indexOf("pr") + 1);
-  assert.match(
-    trace.steps[keys.indexOf("conflictFixed")].detail,
-    /Merge commit/,
-  );
   // A second report is refused; later ticks write nothing more.
   await assert.rejects(w.report({ ok: false, reason: "again" }), /already/);
   const count = w.github.writes.length;

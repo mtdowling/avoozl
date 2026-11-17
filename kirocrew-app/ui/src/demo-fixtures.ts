@@ -5,7 +5,7 @@
 // For the side panel and the app reshape:
 //  - Read it with `useDemoFixtures()` (Demo.tsx). It is null when the demo is
 //    off, so real screens keep their own reads and show nothing from here.
-//  - The Release queue, claims, conflicts and Trace also work through their
+//  - The Release queue, claims and conflicts also work through their
 //    own operations in the demo (`radar.releasequeue`, `radar.crews`,
 //    `conflicts.view`); the fixtures repeat only what no operation gives yet:
 //    machines, the epic > plan > phase rows, the drafted review, the Mirror
@@ -88,17 +88,6 @@ export interface FixtureMerge {
   machine: string
 }
 
-// The same shape `radar.trace` answers (src/app/trace.mjs buildTrace).
-export interface FixtureTrace {
-  repository: string
-  number: number
-  title: string
-  steps: { key: string; label: string; at: string | null; state: 'done' | 'now' | 'later' | 'skipped'; by?: string | null; link?: string | null; detail?: string | null; rounds?: number }[]
-  crew: { id: string | null; name: string | null } | null
-  links: { issue: string | null; pr: string | null; claim: string | null }
-  problems: string[]
-}
-
 export interface StopState {
   state: 'running' | 'stopped'
   releasing: boolean
@@ -133,7 +122,6 @@ export interface DemoFixtures {
   waitingOnYou: WaitingItem[]
   reviewDraft: ReviewDraft
   recentMerges: FixtureMerge[]
-  traces: FixtureTrace[]
   stopLine: { example: 'running' | 'stopped'; running: StopState; stopped: StopState }
   mirror: FixtureMirror
 }

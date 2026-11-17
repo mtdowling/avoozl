@@ -18,12 +18,10 @@ type Cost = RadarCrewStrip["cost"];
 function Row({
   row,
   now,
-  onTrace,
   cost,
 }: {
   row: RadarClaim;
   now: number;
-  onTrace?: (row: RadarClaim) => void;
   cost?: Cost[string];
 }) {
   return (
@@ -50,16 +48,6 @@ function Row({
           {row.repository} #{row.number}
         </span>{" "}
         {row.stale && <Badge variant="warning">Stale</Badge>}
-        {onTrace && (
-          <button
-            type="button"
-            className="ml-1 text-xs underline"
-            aria-label={`Trace issue ${row.number}`}
-            onClick={() => onTrace(row)}
-          >
-            Trace
-          </button>
-        )}
       </td>
       <td className="py-1 pr-2">
         {row.crewName ?? row.crewId ?? "no crew named"}
@@ -97,7 +85,7 @@ function Row({
 
 // A phone has no room for six columns: each claim is two lines, the issue,
 // then crew, phase, times and PR, wrapping inside the card.
-function PhoneRow({ row, now, onTrace }: { row: RadarClaim; now: number; onTrace?: (row: RadarClaim) => void }) {
+function PhoneRow({ row, now }: { row: RadarClaim; now: number }) {
   return (
     <li
       data-radar-group-row
@@ -116,14 +104,6 @@ function PhoneRow({ row, now, onTrace }: { row: RadarClaim; now: number; onTrace
         {row.repository} #{row.number} · {row.crewName ?? row.crewId ?? "no crew named"} · {row.phase ?? "claim label, no claim comment"} · claimed {relativeTime(row.claimedAt ?? null, now)} · updated{" "}
         {relativeTime(row.updated ?? row.issueUpdatedAt ?? null, now)}
         {row.pr ? ` · PR #${row.pr}` : ""}
-        {onTrace && (
-          <>
-            {" "}
-            <button type="button" className="text-xs underline" aria-label={`Trace issue ${row.number}`} onClick={() => onTrace(row)}>
-              Trace
-            </button>
-          </>
-        )}
       </span>
     </li>
   );
@@ -132,12 +112,10 @@ function PhoneRow({ row, now, onTrace }: { row: RadarClaim; now: number; onTrace
 export default function RadarFlightGroups({
   groups,
   now,
-  onTrace,
   cost,
 }: {
   groups: RadarGroup[];
   now: number;
-  onTrace?: (row: RadarClaim) => void;
   cost?: Cost;
 }) {
   const phone = usePhone();
@@ -159,7 +137,7 @@ export default function RadarFlightGroups({
           {phone ? (
             <ul className="m-0 list-none p-0">
               {group.rows.map((row) => (
-                <PhoneRow key={`${row.repository}#${row.number}`} row={row} now={now} onTrace={onTrace} />
+                <PhoneRow key={`${row.repository}#${row.number}`} row={row} now={now} />
               ))}
             </ul>
           ) : (
@@ -179,7 +157,6 @@ export default function RadarFlightGroups({
                   key={`${row.repository}#${row.number}`}
                   row={row}
                   now={now}
-                  onTrace={onTrace}
                   cost={cost?.[`${row.repository}#${row.number}`]}
                 />
               ))}
