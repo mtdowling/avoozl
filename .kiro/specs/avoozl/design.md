@@ -4280,6 +4280,18 @@ notices.
   grants approval or completion. A missing tail record cannot be detected from the
   journal alone; a `landed` record is recoverable from git by re-verification, and a
   rebuilt spec comes back held (4.32.10).
+- **Reanchor (restore after a hold).** A person reviews the held journal, then writes
+  one `reanchor` record with `held` (the record IDs replay held on) and `prev` set to
+  the reviewed tail (its comment ID and current digest). Replay accepts it only from an
+  authenticated writer with write access, and only when its tail is the last record
+  replay knows with that exact digest, so the person saw the journal as it is now.
+  From there replay ignores the named records' contents, clears their holds, and goes
+  on from the reanchor. A hold on a record it does not name, or any later problem,
+  holds again. Avoozl never edits or deletes a comment. A reanchor grants no approval
+  or completion, keeps the generation, and the spec stays held until Resume
+  (4.32.10). `avoozl spec journal reanchor SPEC --held ID,... --tail ID` previews the
+  record; `--yes` writes it. The CLI, MCP and agent sessions refuse it for anyone but
+  a person (`spec.journal.reanchor`).
 - **Not a lock.** A comment is not compare-and-swap storage. Safety comes from guarded
   branch updates and the takeover protocol (4.32.7).
 - **Publication:** Publish issue is an explicit per-spec action, independent of approval,

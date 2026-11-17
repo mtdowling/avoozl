@@ -25,8 +25,10 @@ import {
 import {
   catalogWorkspaceRoots,
   confineChild,
+  sandboxNetwork,
   sandboxSecretPaths,
 } from "./sandbox.mjs";
+import { harnessAllow, sandboxAllowCommands } from "./harness-allow.mjs";
 
 const CHILD_WRAPPER = fileURLToPath(
   new URL("./supervisor-child.mjs", import.meta.url),
@@ -36,7 +38,16 @@ const SUPERVISOR_MAIN = fileURLToPath(
 );
 const SESSION = /^process-[0-9a-f-]{36}$/;
 // Placeholders the supervisor fills itself; a request cannot set them.
-const OWN_VALUES = ["worktree", "brief_file", "model", "session", "permission"];
+const OWN_VALUES = [
+  "worktree",
+  "brief_file",
+  "message_file",
+  "model",
+  "session",
+  "session_uuid",
+  "permission",
+  "project_allow_commands",
+];
 const stamp = () => new Date().toISOString();
 
 export function supervisorPaths(stateDirectory) {
@@ -80,7 +91,29 @@ export function openSupervisorDatabase(stateDirectory) {
       requested_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id TEXT NOT NULL,
+      text TEXT NOT NULL,
+      state TEXT NOT NULL,
+      queued_at TEXT NOT NULL
+    );
   `);
+  // Columns added after the first release of this file.
+  const columns = new Set(
+    db
+      .prepare("PRAGMA table_info(children)")
+      .all()
+      .map((c) => c.name),
+  );
+  if (!columns.has("settings"))
+    db.exec(
+      "ALTER TABLE children ADD COLUMN settings TEXT NOT NULL DEFAULT '{}'",
+    );
+  if (!columns.has("runs"))
+    db.exec("ALTER TABLE children ADD COLUMN runs INTEGER NOT NULL DEFAULT 0");
+  if (!columns.has("result"))
+    db.exec("ALTER TABLE children ADD COLUMN result TEXT");
   return db;
 }
 
@@ -118,13 +151,22 @@ export function requestChild(db, request) {
     if (!list.every((item) => typeof item === "string"))
       fail(`Value {${key}} must be a string or a list of strings.`);
   }
+  // The project's allow-list and network (R94.4c, R95.6), checked here and
+  // again at start, so a bad request fails where it was made.
+  const settings = {
+    allowCommands: sandboxAllowCommands(request.allowCommands, {
+      source: "allowCommands",
+    }),
+    network: request.network ?? "off",
+  };
+  sandboxNetwork(settings.network === "off" ? undefined : settings.network);
   const now = stamp();
   try {
     db.prepare(
       `INSERT INTO children (session_id, role, task, worktree, harness,
-         permission_class, model, brief, placeholder_values, state,
+         permission_class, model, brief, placeholder_values, settings, state,
          requested_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'requested', ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'requested', ?, ?)`,
     ).run(
       sessionId,
       text(request.role, "a role"),
@@ -135,6 +177,7 @@ export function requestChild(db, request) {
       request.model ?? null,
       request.brief,
       JSON.stringify(values),
+      JSON.stringify(settings),
       now,
       now,
     );
@@ -154,12 +197,143 @@ export function childRecord(db, sessionId) {
 
 // The executor status of one child (R93): a request not yet started counts
 // as working, as the child it becomes will be.
+// How a child finishes (R96.1): `.avoozl/result.json` in its task folder.
+export const RESULT_FILE = path.join(".avoozl", "result.json");
+const RESULT_BYTES = 8192;
+
+// Read a finished run's result file (R96.1, R96.4): a regular file of at
+// most 8 KB holding {"state": "done" | "blocked", "text": "..."}. Returns
+// { state, text } or { problem }. The text is data, never an instruction.
+export function readChildResult(worktree) {
+  const file = path.join(worktree, RESULT_FILE);
+  let stat;
+  try {
+    stat = fs.lstatSync(file);
+  } catch {
+    return { problem: "The child wrote no result file." };
+  }
+  if (!stat.isFile())
+    return { problem: "The result file is not a regular file." };
+  if (stat.size > RESULT_BYTES)
+    return { problem: `The result file is over ${RESULT_BYTES} bytes.` };
+  let value;
+  try {
+    value = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return { problem: "The result file is not valid JSON." };
+  }
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.keys(value).some((key) => !["state", "text"].includes(key)) ||
+    !["done", "blocked"].includes(value.state) ||
+    (value.text !== undefined && typeof value.text !== "string")
+  )
+    return {
+      problem:
+        'The result file must be {"state": "done" | "blocked", "text": "..."}.',
+    };
+  return { state: value.state, text: value.text ?? "" };
+}
+
+// The finished run's outcome (R96.3, R96.4), or null while it runs. `done`
+// needs exit code 0 and a good file; `blocked` needs a good file; anything
+// else has no state and takes the retry path as `exited <code>`.
+export function childResult(db, sessionId) {
+  const row = childRecord(db, sessionId);
+  if (!row) fail(`No supervisor session ${sessionId}.`, 404);
+  if (row.state !== "exited" || queuedMessage(db, sessionId)) return null;
+  const read = row.result ? JSON.parse(row.result) : { problem: row.error };
+  const state =
+    read.state === "blocked" || (read.state === "done" && row.exit_code === 0)
+      ? read.state
+      : null;
+  return {
+    exitCode: row.exit_code,
+    run: row.runs,
+    worktree: row.worktree,
+    state,
+    text: state ? read.text : null,
+    problem: state
+      ? null
+      : read.state === "done"
+        ? `The child said done but exited ${row.exit_code}.`
+        : (read.problem ?? "The child wrote no result file."),
+  };
+}
+
 export function childStatus(db, sessionId) {
   const row = childRecord(db, sessionId);
   if (!row) fail(`No supervisor session ${sessionId}.`, 404);
   if (row.state === "requested" || row.state === "running") return "working";
-  if (row.state === "exited") return `exited ${row.exit_code}`;
+  if (row.state === "exited")
+    return queuedMessage(db, sessionId) ? "working" : `exited ${row.exit_code}`;
   return "gone";
+}
+
+const queuedMessage = (db, sessionId) =>
+  db
+    .prepare(
+      "SELECT * FROM messages WHERE session_id = ? AND state = 'queued' ORDER BY id LIMIT 1",
+    )
+    .get(sessionId);
+
+// Queue a message for a session (R93 send). The supervisor delivers it with
+// the definition's resume argv once the current run exits. A gone or
+// stopped session, or one that never ran, refuses it.
+export function sendChild(db, sessionId, text) {
+  if (typeof text !== "string") fail("A message must be text.");
+  const row = childRecord(db, sessionId);
+  if (!row) fail(`No supervisor session ${sessionId}.`, 404);
+  if (
+    row.state === "gone" ||
+    row.state === "stopped" ||
+    (row.state === "exited" && !row.runs)
+  )
+    return "refused";
+  db.prepare(
+    "INSERT INTO messages (session_id, text, state, queued_at) VALUES (?, ?, 'queued', ?)",
+  ).run(sessionId, text, stamp());
+  return "accepted";
+}
+
+// Stop a session (R93 stop): a request not started never starts, queued
+// messages are dropped, and a running child is asked to end (a stop file
+// its wrapper reads, and SIGTERM to its process group off Windows); its
+// wrapper then records the exit code. The signal checks the pid's start
+// time first, so a reused pid is never signaled.
+export function stopChild(
+  db,
+  sessionId,
+  { startTime = processStartTime } = {},
+) {
+  const row = childRecord(db, sessionId);
+  if (!row) fail(`No supervisor session ${sessionId}.`, 404);
+  db.prepare(
+    "UPDATE messages SET state = 'dropped' WHERE session_id = ? AND state = 'queued'",
+  ).run(sessionId);
+  if (row.state === "requested")
+    update(db, sessionId, {
+      state: "exited",
+      exit_code: -1,
+      error: "Stopped before it started.",
+    });
+  else if (row.state === "running") {
+    // The wrapper polls for this file and ends its program; on Windows it
+    // is the only way, since a signal ends the wrapper before it records.
+    if (row.exit_file) fs.writeFileSync(`${row.exit_file}.stop`, "");
+    if (
+      process.platform !== "win32" &&
+      sameProcess(row.pid, row.process_started, startTime)
+    )
+      try {
+        process.kill(-row.pid, "SIGTERM");
+      } catch {
+        // Already exiting: the wrapper writes the code.
+      }
+  }
+  return "stopped";
 }
 
 // The OS's start time for a pid, as an opaque string, or null when it cannot
@@ -331,10 +505,11 @@ export function startSupervisor({
   let timer = null;
   let closed = false;
 
-  const start = (row) => {
+  const start = (row, message = null) => {
     const folder = path.join(paths.children, row.session_id);
     const log = path.join(folder, "log");
-    const exitFile = path.join(folder, "exit.json");
+    const run = (row.runs ?? 0) + 1;
+    const exitFile = path.join(folder, `exit-${run}.json`);
     let hash = null;
     try {
       const stat = fs.statSync(row.worktree, { throwIfNoEntry: false });
@@ -346,21 +521,54 @@ export function startSupervisor({
       });
       hash = definition.hash;
       fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
+      // Each run writes its own result; one from an earlier run never counts.
+      fs.mkdirSync(path.join(row.worktree, ".avoozl"), { recursive: true });
+      fs.rmSync(path.join(row.worktree, RESULT_FILE), { force: true });
       const briefFile = path.join(folder, "brief.md");
       fs.writeFileSync(briefFile, row.brief, { mode: 0o600 });
+      let messageFile = null;
+      if (message) {
+        messageFile = path.join(folder, `message-${message.id}.md`);
+        fs.writeFileSync(messageFile, message.text, { mode: 0o600 });
+      }
       const values = JSON.parse(row.placeholder_values);
-      const argv = fillHarnessArgv(definition.start, {
+      const settings = JSON.parse(row.settings || "{}");
+      const filled = {
         ...values,
         worktree: row.worktree,
         brief_file: briefFile,
         model: row.model,
         session: row.session_id,
+        session_uuid: row.session_id.slice("process-".length),
         permission: definition.permission[row.permission_class],
-      });
+        ...(messageFile ? { message_file: messageFile } : {}),
+      };
+      // start or resume, then the model when one is named, then the
+      // project's allow-list, checked again here (R94.4c).
+      const argv = [
+        ...fillHarnessArgv(
+          message ? definition.resume : definition.start,
+          filled,
+        ),
+        ...(row.model && definition.model
+          ? fillHarnessArgv(definition.model, filled)
+          : []),
+        // The task budget's dollars left, when the harness offers a spend
+        // cap (R94.6). Before the allow-list, whose flag takes a list.
+        ...(values.budget_usd && definition.spendCap
+          ? fillHarnessArgv(definition.spendCap, filled)
+          : []),
+        // An empty list adds no flag: a bare allow flag would take the
+        // next argument as its value.
+        ...(settings.allowCommands?.length
+          ? harnessAllow(definition, settings.allowCommands)
+          : []),
+      ];
+      const promptFile = message ? messageFile : briefFile;
+      const stdin =
+        definition.promptFrom === "stdin" ? ["--stdin", promptFile] : [];
       // The sandbox wraps the agent, not the wrapper, which must still write
       // its exit file in the state folder the child cannot reach (R95.6).
-      // shortcut: the network is always off; a project's sandbox.network
-      // (sandboxNetwork) joins the request once 47.4 builds requests.
       const access = harnessPermission(definition, {
         permissionClass: row.permission_class,
         worktree: row.worktree,
@@ -384,8 +592,14 @@ export function startSupervisor({
             path.join(path.resolve(stateDirectory), "catalog.sqlite"),
           ),
         }),
-        readable: [briefFile],
+        readable: [promptFile],
         writable: [log],
+        network: sandboxNetwork(
+          !settings.network || settings.network === "off"
+            ? undefined
+            : settings.network,
+        ),
+        keepEnv: definition.keepEnv ?? [],
         // Avoozl pushes; an agent gets no push credentials (R102.6). The
         // sandbox then sets git's own empty credential helper.
         // The child marker makes the CLI refuse person-only commands, even
@@ -402,7 +616,7 @@ export function startSupervisor({
       try {
         child = spawn(
           process.execPath,
-          [CHILD_WRAPPER, exitFile, ...confined.argv],
+          [CHILD_WRAPPER, exitFile, ...stdin, ...confined.argv],
           {
             cwd: row.worktree,
             detached: true,
@@ -418,6 +632,10 @@ export function startSupervisor({
       child.on("error", () => {});
       child.unref();
       own.set(row.session_id, child);
+      if (message)
+        db.prepare("UPDATE messages SET state = 'delivered' WHERE id = ?").run(
+          message.id,
+        );
       update(db, row.session_id, {
         state: "running",
         harness_hash: hash,
@@ -425,10 +643,19 @@ export function startSupervisor({
         process_started: startTime(child.pid),
         log_file: log,
         exit_file: exitFile,
+        exit_code: null,
+        result: null,
+        error: null,
+        runs: run,
       });
     } catch (error) {
       // Refused before it ran (an unapproved definition, a missing worktree):
-      // `exited -1` takes the retry path rather than reopening as gone.
+      // `exited -1` takes the retry path rather than reopening as gone. A
+      // refused resume drops its message and keeps the earlier run count.
+      if (message)
+        db.prepare("UPDATE messages SET state = 'refused' WHERE id = ?").run(
+          message.id,
+        );
       update(db, row.session_id, {
         state: "exited",
         harness_hash: hash,
@@ -442,10 +669,12 @@ export function startSupervisor({
     const exit = row.exit_file && readJson(row.exit_file);
     if (exit && Number.isInteger(exit.code)) {
       own.delete(row.session_id);
+      const read = readChildResult(row.worktree);
       return update(db, row.session_id, {
         state: "exited",
         exit_code: exit.code,
-        error: exit.error ?? null,
+        error: exit.error ?? read.problem ?? null,
+        result: JSON.stringify(read),
       });
     }
     const child = own.get(row.session_id);
@@ -476,6 +705,15 @@ export function startSupervisor({
       )
       .all())
       start(row);
+    // A message for a session whose run has exited resumes it.
+    for (const row of db
+      .prepare(
+        `SELECT c.* FROM children c WHERE c.state = 'exited' AND c.runs > 0
+           AND EXISTS (SELECT 1 FROM messages m
+             WHERE m.session_id = c.session_id AND m.state = 'queued')`,
+      )
+      .all())
+      start(row, queuedMessage(db, row.session_id));
   };
 
   const schedule = () => {

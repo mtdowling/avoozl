@@ -257,6 +257,10 @@ const tools = {
         "flow.stop",
         "pull the Andon cord: {scope: all|repo|spec|task, repository?, spec?, taskId?, reason}; only a person resumes",
       ],
+      stop_public_crews: [
+        "publiccrews.stop",
+        "Stop public crews: pull the cord on every public repository and list the crews to pause in Issue Radar; only a person resumes",
+      ],
       reply: ["reply.post", "post a responder's one reply"],
       review_draft: [
         "reviewdraft.post",
