@@ -13,7 +13,7 @@ expected result was seen, except two:
   or `warn`), so the grey border was never seen live. The red and yellow
   borders were seen.
 - Review anyway (action 5) was not offered at the rounds cap. That is a bug.
-  Its fix is PR #437, still open when this receipt was written. Action 5
+  Its fix is PR #437, merged as `959ff379` after this run. Action 5
   ran only after the backend half of #437 was patched into the test Kiro
   Crew.
 
@@ -93,8 +93,8 @@ The Approve dialog's in-place update was captured at desktop light only.
 |---|---|---|
 | #428 | A review started before the writer chat's model was known, recorded an unknown-writer skip, and was replaced a minute later by a second pass. | merged `4ecbc5e8` |
 | #430 | A person's Accept asked for planner attempt 2 with attempt 1's chat title. Kiro Crew handed back the first chat, binding refused it, and the turn never started. | merged `ada794ce` |
-| #437 | Review anyway was never offered at the rounds cap, because it covered only the unknown-writer skip. | open |
-| #438 | A pasted `?view=review` link opened Home, not the Review view. | open |
+| #437 | Review anyway was never offered at the rounds cap, because it covered only the unknown-writer skip. | merged `959ff379` |
+| #438 | A pasted `?view=review` link opened Home, not the Review view. | merged `56aca705` |
 
 Hand repairs in the test Kiro Crew only, with a `.before` copy of each file
 kept:
