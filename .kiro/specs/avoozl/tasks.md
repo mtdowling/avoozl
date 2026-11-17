@@ -1817,7 +1817,7 @@ Requirement 96.4 (design §4.28).
   - One test per command from a plain shell.
   - Built: `src/app/test/manual-path.test.mjs` runs the CLI with no Kiro Crew, gateway or Avoozl variables: `next` lists ready work, `claim --slot` binds as `cli` with a worktree and `report --kind done` finishes it in crew mode, and `runner report TASK --state done` reports a runner task. The positional `runner report TASK done|blocked` and its use outside runner mode are 40.2's.
 
-- [ ] avoozl-p62 P62 Proof: a person finishes a task by hand, after 52.1 [R96.4] (§4.28)
+- [x] avoozl-p62 P62 Proof: a person finishes a task by hand, after 52.1 [R96.4] (§4.28)
   - Setup: a scratch workspace with one ready task.
   - Action: `avoozl next`, `avoozl claim`, edit and commit, `avoozl runner report TASK done`.
   - Expected: the task lands as if a worker did it.
