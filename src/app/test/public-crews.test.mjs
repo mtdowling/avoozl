@@ -209,7 +209,7 @@ test("git push and gh pr create scan commit messages and added lines", (t) => {
     "git push -u origin HEAD:crew/fix",
     "git push",
     "gh pr create --title t --body b",
-    "cd " + repo + " && git push origin crew/fix",
+    `cd "${repo.replaceAll("\\", "/")}" && git push origin crew/fix`,
   ])
     assert.match(
       refused(store, command, command.startsWith("cd ") ? root : repo),
