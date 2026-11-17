@@ -3,8 +3,6 @@ import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
-import { TraceDrawer } from './TraceView.tsx'
-import type { TraceTarget } from './trace-api.ts'
 import { attentionTarget, processLine, railFor, attentionTip, summarize, type Attention, type InFlight } from './dashboard-api.ts'
 import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
@@ -172,7 +170,7 @@ const roleLabel = (row: InFlight) =>
 // A live Issue Radar claim, read from GitHub: any machine's crew. GitHub
 // does not show whether the crew is paused, which machine it runs on, or
 // its chat, so there is no Session here.
-export function RadarFlightRow({ row, now, onTrace, cost }: { row: RadarClaim; now: number; onTrace?: (row: RadarClaim) => void; cost?: RadarCrewStrip['cost'][string] }) {
+export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: number; cost?: RadarCrewStrip['cost'][string] }) {
   return (
     <li data-radar-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
       <span data-in-flight-role style={{ flex: '0 0 7.5rem' }}>
@@ -205,11 +203,6 @@ export function RadarFlightRow({ row, now, onTrace, cost }: { row: RadarClaim; n
         )}
       </span>
       <span data-in-flight-actions className="flex items-center justify-end gap-3" style={{ flex: '0 0 11rem' }}>
-        {onTrace && (
-          <button type="button" className="text-sm underline" aria-label={`Trace issue ${row.number}`} onClick={() => onTrace(row)}>
-            Trace
-          </button>
-        )}
         {linkHref(row.url) && (
           <a href={linkHref(row.url)} target="_blank" rel="noreferrer" className="text-sm underline" aria-label={`Open issue ${row.number} on GitHub`}>
             Issue
@@ -327,15 +320,12 @@ export default function DashboardView(props: {
   workspaceId: string | null
   onNavigate: (tab: DashboardTarget, taskId?: string) => void
   onDrill?: (drill: Drill) => void
-  // Open one issue's Trace as a page (the drawer's Open page button).
-  onTrace?: (target: TraceTarget) => void
   // Open a Settings section (Repository setup, Crews and rules).
   onOpenSettings?: (section: string) => void
   onPlanEpic?: () => void
 }) {
   const { workspaceId, onNavigate } = props
   const phone = usePhone()
-  const [tracing, setTracing] = useState<TraceTarget | null>(null)
   const api = useAppApi()
   const views = useMemo(() => viewsClient(api), [api])
   const plans = useMemo(() => plansClient(api), [api])
@@ -501,12 +491,12 @@ export default function DashboardView(props: {
                     On the line ({summary.radarFlight.length}): Ready, Claimed, PR, CI, Merge
                   </h4>
                   {summary.radarGroups.length > 0 ? (
-                    <RadarFlightGroups groups={summary.radarGroups} now={now} cost={summary.radarCrewStrip?.cost} onTrace={(claim) => setTracing({ repository: claim.repository, number: claim.number })} />
+                    <RadarFlightGroups groups={summary.radarGroups} now={now} cost={summary.radarCrewStrip?.cost} />
                   ) : (
                     <>
                       <ul className="mt-1">
                         {pages.take('radar', summary.radarFlight).map((row) => (
-                          <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} cost={summary.radarCrewStrip?.cost[`${row.repository}#${row.number}`]} onTrace={(claim) => setTracing({ repository: claim.repository, number: claim.number })} />
+                          <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} cost={summary.radarCrewStrip?.cost[`${row.repository}#${row.number}`]} />
                         ))}
                       </ul>
                       <ShowMore {...pages.more('radar', summary.radarFlight.length)} />
@@ -605,18 +595,6 @@ export default function DashboardView(props: {
           <IntegrationBranches workspaceId={workspaceId} />
           <ReviewDrafts workspaceId={workspaceId} />
       </>
-      {tracing && (
-        <TraceDrawer
-          workspaceId={workspaceId}
-          target={tracing}
-          onClose={() => setTracing(null)}
-          onOpenPage={() => {
-            const target = tracing
-            setTracing(null)
-            props.onTrace?.(target)
-          }}
-        />
-      )}
     </section>
   )
 }

@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { classifyOperation } from "../operation-kinds.mjs";
 import { APP_OPERATIONS } from "../app-backend.mjs";
-import { demoOperations, installDemo, GITHUB_WRITE_METHODS } from "../demo.mjs";
+import { demoOperations, installDemo } from "../demo.mjs";
 import { epicsView } from "../epics-view.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -22,8 +22,8 @@ async function withSample(fn) {
   }
 }
 
-test("both operations are read only and offered to the page", () => {
-  for (const name of ["epics.view", "trace.done"]) {
+test("the Epics read is read only and offered to the page", () => {
+  for (const name of ["epics.view"]) {
     assert.equal(classifyOperation(name), "observe", name);
     assert.ok(APP_OPERATIONS.has(name), name);
   }
@@ -73,27 +73,6 @@ test("Issue Radar's graph is the tab link; its view and focus have no URL", asyn
   });
 });
 
-test("done work lists merges newest first with the crew that did them", async () => {
-  await withSample(async (demo) => {
-    const { rows } = await demo.execute("trace.done", {});
-    assert.deepEqual(
-      rows.map((row) => [row.taskId, row.pr, row.by?.name]),
-      [
-        ["recipe-import.1.2", 21, "Draco"],
-        ["recipe-import.1.1", 20, "Vega"],
-      ],
-    );
-    const [first] = rows;
-    assert.equal(first.repository, "example/recipe-box");
-    assert.equal(first.issue, 3);
-    assert.match(first.prUrl, /\/pull\/21$/);
-    assert.ok(Date.parse(first.mergedAt) > Date.parse(rows[1].mergedAt));
-    assert.ok(
-      demo.github.calls.every((name) => !GITHUB_WRITE_METHODS.includes(name)),
-    );
-  });
-});
-
 test("with no epics and no merges the views are empty, not broken", () => {
   const store = {
     read: () => ({ epics: [], tasks: [] }),
@@ -104,4 +83,11 @@ test("with no epics and no merges the views are empty, not broken", () => {
     unprojected: [],
     radarGraph: { url: "/issue-radar", focus: false },
   });
+});
+
+test("Trace's reads are gone", () => {
+  for (const name of ["radar.trace", "trace.done"]) {
+    assert.ok(!APP_OPERATIONS.has(name), name);
+    assert.equal(classifyOperation(name), null, name);
+  }
 });

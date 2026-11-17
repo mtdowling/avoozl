@@ -1,12 +1,9 @@
-// The Epics screen's and Trace's Done list's helpers, and that the pages call
+// The Epics screen's helpers, and that the pages call
 // the read-only operations and nothing else.
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
-import { GATE_TEXT, epicLine, epicsClient, phaseDrill, planDrill, radarGraphLink, releaseCount, whoLine } from '../src/epics-api.ts'
-
-const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
+import { GATE_TEXT, epicLine, epicsClient, phaseDrill, planDrill, radarGraphLink, releaseCount } from '../src/epics-api.ts'
 
 test('counts read as a person would say them', () => {
   assert.equal(releaseCount({ released: 1, total: 4 }), '1 of 4 released')
@@ -38,22 +35,13 @@ test('the Radar link is its page, and says the view and issue are chosen there',
   assert.equal(radarGraphLink({ radarGraph: { url: '/issue-radar', focus: true } }).note, null)
 })
 
-test('who did it names the crew and, when known, the machine', () => {
-  assert.equal(whoLine({ by: { kind: 'radar-crew', id: 'c1', name: 'Draco' } }, 'desk-linux'), 'Radar crew Draco on desk-linux')
-  assert.equal(whoLine({ by: { kind: 'radar-crew', id: 'c1', name: null } }), 'Radar crew c1')
-  assert.match(whoLine({ by: null }), /No crew found/)
-})
-
-test('the pages read through epics.view and trace.done only', async () => {
+test('the pages read through epics.view only', async () => {
   const seen = []
   const api = {
     post: async (path, body) => (seen.push([path, body.operation, body.workspaceId]), { result: {} }),
   }
   await epicsClient(api).read('w')
-  await epicsClient(api).done('w')
   assert.deepEqual(seen, [
     [COMMAND_PATH, 'epics.view', 'w'],
-    [COMMAND_PATH, 'trace.done', 'w'],
   ])
-  for (const file of ['TraceDone.tsx']) assert.doesNotMatch(source(file), /\.(put|del)\(/, file)
 })
