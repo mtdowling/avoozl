@@ -1,3 +1,4 @@
+import { allowProtectedPaths } from "./verify.mjs";
 import {
   ciSettingsView,
   ciFlowView,
@@ -439,6 +440,7 @@ import {
   submitItems,
   viewItem,
 } from "./intake.mjs";
+import { startGitHubItem } from "./github-intake.mjs";
 import { highlightLanguages } from "./highlight-languages.mjs";
 import { importNewPlans, newPlanStarts, requestNewPlan } from "./new-plan.mjs";
 import { writeSpecManifest } from "./spec-manifest.mjs";
@@ -579,6 +581,7 @@ import {
   previewRetirement,
   verifyRetirement,
 } from "./task-issue-retirement.mjs";
+import { applyExport, previewExport } from "./issue-export.mjs";
 import {
   approvalChangedAtMerge,
   approvalEvidence,
@@ -3384,6 +3387,12 @@ export class Operations {
       this.configuration?.reload();
       return written;
     }
+    if (name === "verify.allow")
+      return allowProtectedPaths(store, input, {
+        caller: context.caller,
+        mcp: context.mcp === true,
+        local: context.local === true,
+      });
     if (name === "delivery.retry")
       return retryDelivery(store, input, {
         caller: context.caller,
@@ -4487,15 +4496,21 @@ export class Operations {
       return withWorkLock(store, WORKSPACE_LOCK, async () =>
         confirmSnapshot(store, input),
       );
-    if (name === "intake.deliver" || name === "intake.plan")
+    if (name === "intake.deliver" || name === "intake.plan") {
+      const action = name === "intake.deliver" ? "deliver" : "plan",
+        policy = readGitHubPolicyOrNull(this.workspaceRoot);
+      // A GitHub item (R102.19): its two writes need the GitHub client.
+      if (input.source === "github")
+        return withWorkLock(store, WORKSPACE_LOCK, async () =>
+          startGitHubItem(store, this.github, policy, { ...input, action }),
+        );
       return withWorkLock(store, WORKSPACE_LOCK, async () =>
-        startByPerson(
-          store,
-          sourceMap(this.pluginOptions, store),
-          readGitHubPolicyOrNull(this.workspaceRoot),
-          { ...input, action: name === "intake.deliver" ? "deliver" : "plan" },
-        ),
+        startByPerson(store, sourceMap(this.pluginOptions, store), policy, {
+          ...input,
+          action,
+        }),
       );
+    }
     if (name === "intake.source.add" || name === "intake.source.remove") {
       if (!this.pluginOptions.workspaceRoot)
         fail("Intake sources need a workspace root.", 409);
@@ -6572,6 +6587,20 @@ export class Operations {
     }
     // Retire task-issue bindings (R102.20, §4.32.13): preview, hold, apply,
     // one verifying tick, then close. Each step is a person's own act.
+    // Export issues (R102.19): preview, or with confirm create the spec's
+    // unfinished task issues and stop driving it. A person's own act.
+    if (name === "spec.exportIssues") {
+      if (context.caller || context.mcp)
+        fail("Only a person exports a spec's task issues.", 403);
+      const options = { planId: input.planId, repository: input.repository };
+      return input.confirm
+        ? applyExport(store, {
+            ...options,
+            github: this.github,
+            actor: this.operator,
+          })
+        : previewExport(store, options);
+    }
     if (name === "github.retireTaskIssues") {
       if (context.caller || context.mcp)
         fail("Only a person retires task-issue bindings.", 403);

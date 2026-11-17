@@ -202,14 +202,16 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
       avoozl_model: [200, { running: false, served_model: "fake-model" }],
       avoozl_gone: [404, {}],
       avoozl_refused: [403, {}],
+      avoozl_expired: [403, { error: "Forbidden", code: "forbidden" }],
       avoozl_usage: [200, { running: false }],
       avoozl_busy: [200, { running: true }],
     },
     usage = {
       avoozl_usage: [{ model: "fake-old" }, { model: "fake-served" }],
     };
-  let tokens = 0;
-  const read = gatewaySlotReader(env, async (url, init) => {
+  let tokens = 0,
+    expiredOnce = 0;
+  const gateway = async (url, init) => {
     calls.push([init.method, url.replace(origin, "")]);
     if (url.endsWith("/api/apps/avoozl/token"))
       return {
@@ -228,9 +230,18 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
     const slot = decodeURIComponent(url.match(/slots\/([^?]+)/)[1]),
       [code, body] = answers[slot];
     // The first read's token has expired; the next one is fresh.
-    const status = code === 401 && url.includes("token=t2") ? 200 : code;
-    return { ok: status === 200, status, json: async () => body };
-  });
+    // An expired token is 401 on older Kiro Crew and 403 on 0.12.2.4.
+    const status =
+        code === 401 && url.includes("token=t2")
+          ? 200
+          : slot === "avoozl_expired" && expiredOnce++
+            ? 200
+            : code,
+      answer = status === 200 && slot === "avoozl_expired" ? {} : body,
+      reply = { ok: status === 200, status, json: async () => answer };
+    return { ...reply, clone: () => reply };
+  };
+  const read = gatewaySlotReader(env, gateway);
   assert.equal(await read("avoozl_live"), "working");
   assert.deepEqual(await read("avoozl_model"), {
     status: "idle",
@@ -256,6 +267,14 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
   assert.ok(!calls.slice(before).some(([, u]) => u.includes("usage")));
   assert.equal(await read("avoozl_gone"), "gone");
   await assert.rejects(read("avoozl_refused"), /403/);
+  const minted = tokens;
+  assert.equal(await read("avoozl_expired"), "idle");
+  assert.equal(tokens, minted + 1, "a 403 mints one new token");
+  // A second client in the same backend reuses that token instead of minting
+  // one that would end the first client's.
+  const other = gatewaySlotReader(env, gateway);
+  assert.equal((await other("avoozl_model")).status, "idle");
+  assert.equal(tokens, minted + 1, "clients share one token");
   assert.deepEqual(calls.slice(0, 4), [
     ["POST", "/api/apps/avoozl/token"],
     ["GET", "/api/chat/slots/avoozl_live?limit=1&token=t1"],

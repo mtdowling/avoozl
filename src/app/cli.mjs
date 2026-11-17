@@ -21,6 +21,7 @@ import { handleMcp } from "./mcp.mjs";
 import { cliRefusal } from "./mcp-policy.mjs";
 import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
+import { reportByToken } from "./report-match.mjs";
 import { hookEvent, runnerHookBrief } from "./runner.mjs";
 import { callerSlot } from "./delivery.mjs";
 import { validate } from "../model.mjs";
@@ -821,14 +822,32 @@ try {
     else if (action === "status")
       result = await localOrRequest("remote.status");
     else if (action === "report") {
+      const state = positionals[2] || options.state,
+        token = options.token || process.env.AVOOZL_REPORT_TOKEN;
       need(
-        positionals[1] && options.state,
-        "runner report TASK --state done|blocked",
+        positionals[1] && state,
+        "runner report TASK done|blocked [--token T]",
       );
-      result = await localOrRequest("remote.report", {
-        taskId: positionals[1],
-        state: options.state,
-      });
+      if (token) {
+        // R88.2: matched by the report token and the worktree it runs in.
+        requireDatabase();
+        const store = new Store(dbPath);
+        try {
+          result = await reportByToken(store, localOperations(store), {
+            taskId: positionals[1],
+            state,
+            token,
+            cwd: process.cwd(),
+            text: typeof options.text === "string" ? options.text : undefined,
+          });
+        } finally {
+          store.close();
+        }
+      } else
+        result = await localOrRequest("remote.report", {
+          taskId: positionals[1],
+          state,
+        });
     } else if (action === "handoff") {
       need(
         positionals[1] && options.host,
@@ -1005,6 +1024,17 @@ try {
     console.log(
       JSON.stringify(
         await localOrRequest("delivery.pickAgain", { taskId: positionals[0] }),
+        null,
+        2,
+      ),
+    );
+  else if (command === "verify" && positionals[0] === "allow")
+    console.log(
+      JSON.stringify(
+        await localOrRequest("verify.allow", {
+          taskId: positionals[1],
+          reason: options.reason,
+        }),
         null,
         2,
       ),
@@ -1856,6 +1886,7 @@ try {
   claim TASK_ID --slot SESSION [--model MODEL] Claim a ready leaf for a Crew Mode worker session
   report TASK_ID --slot SESSION --kind done|blocked|question|progress [--commit SHA] [--text TEXT]
   retry TASK_ID [--dismiss FINDING --reason TEXT] Resume a leaf that stopped for a decision
+  verify allow TASK_ID --reason TEXT  Let one held commit's protected paths land
   pick-again TASK_ID                    The next attempt picks its agent and model afresh
   routing [view|preview]                Crews and checks, the routing prompt, providers; a dry run on ready tasks
   routing set --file ROUTING.json       This machine's routing: {enabled, prompt, model}

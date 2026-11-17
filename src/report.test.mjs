@@ -836,7 +836,10 @@ test("Done first groups complete, partial and remaining tasks without changing f
     { jsonrpc: "2.0", id: 3, method: "resources/list" },
     ctx,
   ).body.result.resources.map((r) => r.uri);
-  assert.deepEqual(listed, ["avoozl://status", "avoozl://visualizations"]);
+  assert.deepEqual(
+    listed.filter((uri) => !uri.startsWith("ui://")),
+    ["avoozl://status", "avoozl://visualizations"],
+  );
   // A client from before the rename still reads with its old scheme.
   assert.equal(
     read("old-scheme://visualizations").result.contents[0].text,

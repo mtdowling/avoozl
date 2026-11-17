@@ -14,13 +14,13 @@ import type { NewPlanForm } from './new-plan-api.ts'
 import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
 import type { DriverSpec } from './driver-api.ts'
 import { COMPACT_BTN, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
-import { Archive, ArchiveRestore, ClipboardCheck, DetailsIcon, Download, ExternalLink, FileText, FolderOpen, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, type LucideIcon } from './icons.ts'
+import { Archive, ArchiveRestore, ArrowUpDown, CaseSensitive, Clock, Layers, ListChecks, ListFilter, Tag, X, ClipboardCheck, DetailsIcon, Download, ExternalLink, FileText, FolderOpen, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, type LucideIcon } from './icons.ts'
 import { MoreMenu } from './MoreMenu.tsx'
 import { useReveal } from './RepositoriesSettings.tsx'
 import { openSpecBuilder } from './spec-builder-api.ts'
 import { settingsClient } from './settings-api.ts'
 import { githubHref } from './repository-rows.ts'
-import { NavFilters, type FilterField } from './FilterPanel.tsx'
+import { RailBlock, RailChips, RailDivider, RailRow, RailSortList, RailStyle, type RailSort } from './NavRail.tsx'
 import { NavSlotFor } from './nav-slot.tsx'
 import { STATES, nodeState, type Drill, type NodeState } from './graph-layout.ts'
 import { rowPlanKey, type TaskFilter } from './filters.ts'
@@ -71,6 +71,9 @@ import {
   shortHash,
   writesByRepository,
   type PlanListFilter,
+  SORT_FIRST,
+  sortRows,
+  type SpecSort,
   type PlanRow,
   type PlanTable,
   type Preview,
@@ -576,73 +579,89 @@ function Now({ now }: { now: PlanRow['now'] }) {
 const cell: CSSProperties = { padding: '8px 10px', borderTop: '1px solid var(--border)', verticalAlign: 'middle' }
 const head: CSSProperties = { padding: '6px 10px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }
 
-// The Specs list's filters: search, category, status, kind, "has", batch
-// and archived. They sit in the left nav under the open Specs section, as
-// Radar's rail holds its filters (nav-slot.tsx); the count stays on the page.
-function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; batches: number; onChange: (filter: PlanListFilter) => void; children?: ReactNode }) {
-  const { filter } = props
+// The Specs list's sort and filters: search, sort, status, what a spec
+// has, kind, batch, archived, epic and category. They sit in the left nav
+// under the open Specs section as Radar's Issues rail draws its own
+// (NavRail.tsx); the count stays on the page.
+const SORTS: RailSort<SpecSort>[] = [
+  { key: 'name', label: 'Name', icon: CaseSensitive },
+  { key: 'updated', label: 'Last update', icon: Clock },
+  { key: 'tasks', label: 'Tasks', icon: ListChecks },
+]
+export interface SpecOrder {
+  sort: SpecSort
+  dir: 'asc' | 'desc'
+}
+// Statuses in the order a spec moves through them; unknown ones last.
+const STATUS_ORDER = ['draft', 'changed', 'approved', 'done', 'not imported']
+const statusRank = (status: string) => (STATUS_ORDER.indexOf(status) + 1 || STATUS_ORDER.length + 1)
+function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; batches: number; order: SpecOrder; onOrder: (order: SpecOrder) => void; onChange: (filter: PlanListFilter) => void; children?: ReactNode }) {
+  const { filter, order } = props
   const choices = rowChoices(props.rows)
   const set = (change: Partial<PlanListFilter>) => {
     const next: Record<string, unknown> = { ...filter, ...change }
     for (const key of Object.keys(next)) if (!next[key]) delete next[key]
     props.onChange(next as PlanListFilter)
   }
-  const fields: FilterField[] = [
-        { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Spec name or folder', onChange: (q) => set({ q }) },
-        {
-          kind: 'select',
-          key: 'category',
-          label: 'Category',
-          value: filter.category ?? '',
-          options: choices.categories.map((value) => ({ value, label: value })),
-          onChange: (category) => set({ category }),
-        },
-        {
-          kind: 'select',
-          key: 'status',
-          label: 'Status',
-          value: filter.status ?? '',
-          options: choices.statuses.map((value) => ({ value, label: STATUS_LABEL[value] ?? value })),
-          onChange: (status) => set({ status }),
-        },
-        {
-          kind: 'select',
-          key: 'kind',
-          label: 'Kind',
-          value: filter.kind ?? '',
-          options: [
-            { value: 'spec', label: 'Spec folder' },
-            { value: 'old-style', label: 'Old-style spec' },
-          ],
-          onChange: (kind) => set({ kind: (kind || undefined) as PlanListFilter['kind'] }),
-        },
-        {
-          kind: 'select',
-          key: 'has',
-          label: 'Has',
-          value: filter.has ?? '',
-          options: [
-            { value: 'ready', label: 'Ready tasks' },
-            { value: 'running', label: 'Running tasks' },
-            { value: 'needs-you', label: 'Tasks that need you' },
-          ],
-          onChange: (has) => set({ has: (has || undefined) as PlanListFilter['has'] }),
-        },
-        {
-          kind: 'select',
-          key: 'batch',
-          label: 'Batch',
-          value: filter.batch ?? '',
-          options: Array.from({ length: props.batches }, (_, at) => ({ value: String(at + 1), label: `Batch ${at + 1}` })),
-          onChange: (batch) => set({ batch }),
-        },
-        { kind: 'check', key: 'archived', label: 'Show archived', checked: Boolean(filter.archived), onChange: (archived) => set({ archived }) },
-  ]
+  // A row in a group of one choice: picking the one that is on clears it.
+  const pick = <K extends keyof PlanListFilter>(key: K, value: PlanListFilter[K]) => set({ [key]: filter[key] === value ? undefined : value } as Partial<PlanListFilter>)
   const active = Object.keys(filter).length > 0
+  const kinds = new Set(props.rows.map((row) => row.kind))
+  const categories = choices.categories.map((value) => ({ value, label: value, count: choices.categoryCounts.get(value) ?? 0 }))
   return (
     <>
       <NavSlotFor section="plans">
-        <NavFilters id="avoozl-plans" label="Filter specs" fields={fields} active={active} onClear={() => props.onChange({})} />
+        <div role="search" aria-label="Filter specs" data-nav-filters="avoozl-plans" data-filter-panel="avoozl-plans" data-rail>
+          <RailStyle />
+          <input
+            type="search"
+            aria-label="Search specs"
+            placeholder="Search specs"
+            value={filter.q ?? ''}
+            onChange={(event) => set({ q: event.target.value })}
+            style={{ width: '100%', boxSizing: 'border-box', marginBottom: 12, fontSize: 13, padding: '6px 12px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
+          />
+          <RailBlock first id="sort" icon={ArrowUpDown} title="Sort">
+            <RailSortList fields={SORTS} sort={order.sort} dir={order.dir} onSort={(sort) => props.onOrder(sort === order.sort ? { sort, dir: order.dir === 'asc' ? 'desc' : 'asc' } : { sort, dir: SORT_FIRST[sort] })} />
+          </RailBlock>
+          <RailBlock
+            id="filters"
+            icon={ListFilter}
+            title="Filters"
+            action={
+              active && (
+                <button type="button" data-rail-icon onClick={() => props.onChange({})} style={{ gap: 2, alignItems: 'center', fontSize: 12 }}>
+                  <X size={11} aria-hidden="true" /> Clear
+                </button>
+              )
+            }
+          >
+            {/* Above each rule a group of one choice; Show archived alone. */}
+            <RailRow label="All" active={!filter.status} onClick={() => set({ status: undefined })} attrs={{ 'data-rail-status': '' }} />
+            {[...choices.statuses].sort((a, b) => statusRank(a) - statusRank(b)).map((value) => (
+              <RailRow key={value} label={STATUS_LABEL[value] ?? value} active={filter.status === value} onClick={() => pick('status', value)} attrs={{ 'data-rail-status': value }} />
+            ))}
+            <RailDivider />
+            <RailRow label="Ready tasks" active={filter.has === 'ready'} onClick={() => pick('has', 'ready')} />
+            <RailRow label="Running tasks" active={filter.has === 'running'} onClick={() => pick('has', 'running')} />
+            <RailRow label="Tasks that need you" active={filter.has === 'needs-you'} onClick={() => pick('has', 'needs-you')} />
+            {kinds.has('old-style') && (
+              <>
+                <RailDivider />
+                <RailRow label="Spec folders" active={filter.kind === 'spec'} onClick={() => pick('kind', 'spec')} />
+                <RailRow label="Old-style specs" active={filter.kind === 'old-style'} onClick={() => pick('kind', 'old-style')} />
+              </>
+            )}
+            {props.batches > 0 && <RailDivider />}
+            {Array.from({ length: props.batches }, (_, at) => String(at + 1)).map((batch) => (
+              <RailRow key={batch} label={`Batch ${batch}`} active={filter.batch === batch} onClick={() => pick('batch', batch)} attrs={{ 'data-rail-batch': batch }} />
+            ))}
+            <RailDivider />
+            <RailRow label="Show archived" active={Boolean(filter.archived)} onClick={() => set({ archived: !filter.archived })} />
+          </RailBlock>
+          <RailChips id="epics" icon={Layers} title="Epics" noun="epic" items={choices.epics} picked={filter.epic} onPick={(epic) => set({ epic })} />
+          {categories.length > 1 && <RailChips id="categories" icon={Tag} title="Categories" noun="category" items={categories} picked={filter.category} onPick={(category) => set({ category })} />}
+        </div>
       </NavSlotFor>
       <div className="flex min-w-0 items-center gap-1.5 px-1" data-filter-status>
         {props.children}
@@ -728,6 +747,7 @@ function HomeBadge(props: { home?: 'main' | 'plansBranch' }) {
 // pick it for Approve N specs.
 export function SpecList(props: {
   rows: PlanRow[]
+  order?: SpecOrder
   selected: string | null
   onOpen: (row: PlanRow) => void
   reset: string
@@ -735,7 +755,7 @@ export function SpecList(props: {
   checked?: Set<string>
   onCheck?: (planId: string, on: boolean) => void
 }) {
-  const sorted = [...props.rows].sort((a, b) => a.name.localeCompare(b.name))
+  const sorted = sortRows(props.rows, props.order?.sort, props.order?.dir)
   const pages = usePages(props.reset)
   const batchOf = props.batchOf ?? new Map<string, number>()
   const picking = Boolean(props.onCheck) && props.rows.some((row) => row.planId && batchOf.has(row.planId))
@@ -1598,6 +1618,7 @@ export default function PlansView(props: {
   )
   const shownWorkspace = useRef(workspace)
   const [filter, setFilter] = useState<PlanListFilter>({})
+  const [order, setOrder] = useState<SpecOrder>({ sort: 'name', dir: 'asc' })
   const [plan, setPlan] = useState<SpecPlan | null>(null)
   const [singleApproval, setSingleApproval] = useState<{ workspaceId: string; plan: SpecPlan } | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
@@ -1853,7 +1874,7 @@ export default function PlansView(props: {
                 Specs
               </ViewHeading>
               {table && table.items.length > 0 && (
-                <PlanFilters filter={filter} rows={table.items} batches={batches?.batches.length ?? 0} onChange={setFilter}>
+                <PlanFilters filter={filter} rows={table.items} batches={batches?.batches.length ?? 0} order={order} onOrder={setOrder} onChange={setFilter}>
                   <span className="text-xs text-muted" role="status">
                     {rows.length} of {table.items.length} specs
                   </span>
@@ -1900,6 +1921,7 @@ export default function PlansView(props: {
                     rows={rows}
                     selected={row?.key ?? null}
                     onOpen={open}
+                    order={order}
                     reset={JSON.stringify(filter)}
                     batchOf={batchOf}
                     checked={checked}

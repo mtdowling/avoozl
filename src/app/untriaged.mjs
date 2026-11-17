@@ -10,6 +10,7 @@
 // the exclusions at read time, so a rule, label, or task change shows at once.
 import path from "node:path";
 import { itemKey, itemRows } from "./intake.mjs";
+import { watchInputs } from "./github-intake.mjs";
 import { attachHandoffs } from "./radar-plan-me.mjs";
 import { SOURCE_KIND } from "./radar-source.mjs";
 import { parseMatch } from "./issue-match.mjs";
@@ -328,6 +329,10 @@ export function linkedItems(tasks = []) {
   const issues = new Set(),
     pulls = new Set();
   for (const task of tasks) {
+    // A person's GitHub intake (github-intake.mjs) owns its input issue.
+    const input = task?.intake?.source === "github" ? task.intake.issue : null;
+    if (input?.repository && Number.isInteger(input.number))
+      issues.add(key(input.repository, input.number));
     const github = task?.github;
     if (!github) continue;
     if (github.repository && Number.isInteger(github.number))
@@ -714,6 +719,13 @@ export async function refreshUntriaged(
   }
   const notify = noticeFor(policy, tasks, next, now, handoffReceipts(store));
   writeCache(store, next);
+  // Closed input issues withdraw their tasks, read at the same pace.
+  if (read > 0)
+    try {
+      await watchInputs(store, github);
+    } catch {
+      // The next read tries again.
+    }
   return { read, notify };
 }
 

@@ -14,6 +14,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { fail } from "./store.mjs";
+import { withoutPushCredentials } from "./git.mjs";
 import { machineAvoozlPaths } from "./host-config.mjs";
 import {
   fillHarnessArgv,
@@ -339,7 +340,8 @@ export function startSupervisor({
           cwd: row.worktree,
           detached: true,
           stdio: ["ignore", out, out],
-          env,
+          // Avoozl pushes; an agent gets no push credentials (R102.6).
+          env: withoutPushCredentials(env),
           windowsHide: true,
         });
       } finally {

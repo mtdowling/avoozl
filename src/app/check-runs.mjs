@@ -1,21 +1,30 @@
 // Checks in code (design §5.2 Checks, R7.1, R38): a reported commit's
 // declared checks are run by Avoozl itself, not by a verifier chat. The tick
 // only queues a run (a `check-run` flow record); the app backend runs the
-// queue off the tick's path, one run at a time per repository, each in a
-// clean detached worktree at the exact commit, every check as argv with its
-// own timeout. The next tick judges the result with the same rules as
+// queue off the tick's path, one run at a time per repository. A run first
+// checks the diff's paths (verify.mjs, R86.6); then its checks run warm in
+// the task worktree when it is at the exact commit, else in a clean detached
+// worktree there, every check as argv with its own timeout (R86.7). The next
+// tick judges the result with the same rules as
 // before (verdictCause). A verifier chat opens only for a bar that needs
 // judgment: `verify: "agent"` on the task, or a prose-only bar.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { PUBLISH_RULES, secretReason } from "./content-rules.mjs";
 import { commandEvidence, git, withWorkLock } from "./git.mjs";
-import { openStops, putSpan } from "./flow.mjs";
+import { openStops, putSpan, readFlowPolicy } from "./flow.mjs";
+import { contentBinding } from "./content-rules.mjs";
+import {
+  checkTimeout,
+  outputTail,
+  runEach,
+  verifyPaths,
+  warmWorktree,
+} from "./verify.mjs";
+
+export { outputTail };
 
 export const CHECK_TIMEOUT_MS = 20 * 60_000;
-const TAIL_LINES = 20;
-const TAIL_CHARS = 2000;
 const KIND = "check-run";
 
 // The declared checks as argv: the leaf's own (split on spaces, as the
@@ -66,42 +75,6 @@ export function queueCheckRun(store, { task, project, commit, attempt, now }) {
 export const queueCheckRuns = (store, runs, now = Date.now()) =>
   runs.map((run) => queueCheckRun(store, { ...run, now }));
 
-// One output line as it may be stored: a secret or a home path never is.
-function redactLine(line, dir) {
-  if (secretReason(line)) return "[redacted]";
-  if (
-    PUBLISH_RULES.some((r) => r.category === "secret" && r.pattern.test(line))
-  )
-    return "[redacted]";
-  return line
-    .split(dir)
-    .join(".")
-    .replace(/\/(?:Users|home)\/[^/\s]+\//g, "~/")
-    .replace(/\b[A-Za-z]:\\+Users\\+[^\\\s]+\\+/g, "~\\");
-}
-
-export function outputTail(text, dir = "\u0000") {
-  const lines = String(text || "")
-    .split(/\r?\n/)
-    .filter((line) => line.trim())
-    .slice(-TAIL_LINES)
-    .map((line) => redactLine(line, dir));
-  const tail = lines.join("\n");
-  return tail.length > TAIL_CHARS ? tail.slice(-TAIL_CHARS) : tail;
-}
-
-// Why a check that ended without an exit code did not run (R38.1).
-function notRunCause(result, elapsed, timeoutMs) {
-  if (result.signal && elapsed >= timeoutMs)
-    return `timed out after ${Math.round(timeoutMs / 1000)} s`;
-  if (result.signal) return `stopped by ${result.signal}`;
-  return (
-    String(result.stderr || "could not start")
-      .split("\n")[0]
-      .slice(0, 200) || "could not start"
-  );
-}
-
 // Run every declared check at `commit` in a clean detached worktree, then
 // remove it. A worktree that cannot be made at the exact commit runs
 // nothing: every check is not run, the checking's failure, not the writer's.
@@ -109,7 +82,7 @@ export async function runChecksAt(
   project,
   commit,
   argvs,
-  { timeoutMs = CHECK_TIMEOUT_MS, run = commandEvidence } = {},
+  { timeoutMs = CHECK_TIMEOUT_MS, timeoutFor, run = commandEvidence } = {},
 ) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-checks-")),
     notRunAll = (why) =>
@@ -138,28 +111,11 @@ export async function runChecksAt(
           `the worktree is at ${head.slice(0, 12)}, not ${commit.slice(0, 12)}`,
         ),
       };
-    const checks = [];
-    for (const argv of argvs) {
-      const started = Date.now(),
-        result = await run(dir, argv, {
-          timeoutMs,
-          env: project.checksEnv,
-        }),
-        elapsed = Date.now() - started,
-        tail = outputTail(
-          (result.stdout || "") + "\n" + (result.stderr || ""),
-          dir,
-        );
-      checks.push({
-        command: argv.join(" "),
-        exitCode: Number.isInteger(result.exitCode) ? result.exitCode : null,
-        ...(Number.isInteger(result.exitCode)
-          ? {}
-          : { notRun: notRunCause(result, elapsed, timeoutMs) }),
-        durationMs: elapsed,
-        ...(tail ? { tail } : {}),
-      });
-    }
+    const checks = await runEach(dir, argvs, {
+      timeoutFor: timeoutFor || (() => timeoutMs),
+      run,
+      env: project.checksEnv,
+    });
     return { head, checks };
   } finally {
     await git(project.root, ["worktree", "remove", "--force", dir]).catch(
@@ -260,10 +216,35 @@ async function runOne(store, project, record, options) {
     }),
   );
   const argvs = task ? declaredArgv(task, project) : [],
-    { head, checks } = await runChecksAt(project, record.commit, argvs, {
-      timeoutMs: options.timeoutMs,
-      run: options.run,
-    }),
+    flow = readFlowPolicy(contentBinding(store)?.workspaceRoot).for(project.id),
+    timeoutFor = (command) => checkTimeout(command, flow, options.timeoutMs),
+    paths = task
+      ? await verifyPaths(store, {
+          task,
+          project,
+          commit: record.commit,
+          flow,
+        }).catch(() => null)
+      : null,
+    held = Boolean(paths?.outside.length || paths?.protected.length),
+    warm = held
+      ? null
+      : await warmWorktree(store, record.taskId, record.commit),
+    { head, checks } = held
+      ? { head: record.commit, checks: [] }
+      : warm
+        ? {
+            head: record.commit,
+            checks: await runEach(warm, argvs, {
+              timeoutFor,
+              run: options.run,
+              env: project.checksEnv,
+            }),
+          }
+        : await runChecksAt(project, record.commit, argvs, {
+            timeoutFor,
+            run: options.run,
+          }),
     endedAt = new Date().toISOString();
   store.transaction(() =>
     store.put("flow_records", {
@@ -272,6 +253,8 @@ async function runOne(store, project, record, options) {
       pid: undefined,
       head,
       checks,
+      ...(paths ? { paths } : {}),
+      ...(warm ? { warm: true } : {}),
       endedAt,
     }),
   );

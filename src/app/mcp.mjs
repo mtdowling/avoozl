@@ -4,6 +4,13 @@ import { workspaceIdentity } from "./identity.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
 import { mcpRefusal, PERSON_ONLY } from "./mcp-policy.mjs";
 import { GROUPED_TOOLS, groupedCall, groupedToolList } from "./mcp-tools.mjs";
+import {
+  VIEW_TOOLS,
+  viewCall,
+  viewResult,
+  viewToolList,
+  withViewLink,
+} from "./mcp-views.mjs";
 // The old one-tool-per-operation names (R24.5). They stay listed because a
 // Kiro Crew session can only call a tool its client listed (R56.3), and each
 // says which grouped tool replaces it. plans_workspace is a grouped tool now;
@@ -491,19 +498,24 @@ export async function handleMcp(
     });
   const tools = [
     ...groupedToolList(classifyOperation),
+    ...viewToolList(),
     ...MCP_TOOLS,
     ...WORKSPACE_TOOLS,
-  ];
+  ].map(withViewLink);
   if (message?.method === "tools/list") return ok({ tools });
   const name = message?.params?.name;
   if (
     message?.method === "tools/call" &&
-    (Object.hasOwn(GROUPED_TOOLS, name) || Object.hasOwn(operations, name))
+    (Object.hasOwn(GROUPED_TOOLS, name) ||
+      Object.hasOwn(VIEW_TOOLS, name) ||
+      Object.hasOwn(operations, name))
   ) {
     const args = message.params.arguments || {},
       route = Object.hasOwn(GROUPED_TOOLS, name)
         ? groupedCall(name, args)
-        : oldCall(name, args);
+        : Object.hasOwn(VIEW_TOOLS, name)
+          ? viewCall(name, args)
+          : oldCall(name, args);
     const refuse = (text) =>
       ok({ isError: true, content: [{ type: "text", text }] });
     if (route.error) return refuse(route.error);
@@ -519,13 +531,15 @@ export async function handleMcp(
           }
         : ops;
     try {
-      const result = await runner.execute(
+      let result = await runner.execute(
         operation,
         route.input,
         args.expectedRevision,
         // `mcp`: a session's transport, never a person's (content.allow).
         { caller: attestedCaller ? kiroCrewCaller(message) : null, mcp: true },
       );
+      if (Object.hasOwn(VIEW_TOOLS, name))
+        result = viewResult(name, result, args.input);
       return ok({
         content: [{ type: "text", text: JSON.stringify(result) }],
         structuredContent:

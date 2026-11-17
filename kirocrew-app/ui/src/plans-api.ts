@@ -519,7 +519,11 @@ export interface PlanListFilter {
   archived?: boolean
   // Draft specs in this approval batch ("1", "2", ...).
   batch?: string
+  // The epic's id; NO_EPIC for specs in none.
+  epic?: string
 }
+
+export const NO_EPIC = 'none'
 
 export function filterRows(rows: PlanRow[], filter: PlanListFilter, batchOf: Map<string, number> = new Map()): PlanRow[] {
   const text = filter.q?.trim().toLowerCase() ?? ''
@@ -533,6 +537,7 @@ export function filterRows(rows: PlanRow[], filter: PlanListFilter, batchOf: Map
       (!filter.category || (row.category ?? UNCATEGORIZED) === filter.category) &&
       (!filter.status || row.status === filter.status) &&
       (!filter.kind || row.kind === filter.kind) &&
+      (!filter.epic || (row.epic ?? NO_EPIC) === filter.epic) &&
       (!filter.batch || (row.planId !== null && batchOf.get(row.planId) === Number(filter.batch))) &&
       (!filter.has ||
         (filter.has === 'ready' ? row.now.ready > 0 : filter.has === 'running' ? row.now.running > 0 : row.now.needsYou > 0)),
@@ -543,10 +548,36 @@ export function filterRows(rows: PlanRow[], filter: PlanListFilter, batchOf: Map
 export function rowChoices(rows: PlanRow[]) {
   const values = (pick: (row: PlanRow) => string) =>
     [...new Set(rows.map(pick))].sort((a, b) => (a === UNCATEGORIZED ? 1 : b === UNCATEGORIZED ? -1 : a.localeCompare(b)))
+  const epics = new Map<string, { value: string; label: string; count: number }>()
+  for (const row of rows) {
+    if (row.kind === 'epic') continue
+    const value = row.epic ?? NO_EPIC
+    epics.set(value, { value, label: row.epic ? (row.epicTitle ?? row.epic) : 'No epic', count: (epics.get(value)?.count ?? 0) + 1 })
+  }
+  const counts = (pick: (row: PlanRow) => string) => {
+    const n = new Map<string, number>()
+    for (const row of rows) n.set(pick(row), (n.get(pick(row)) ?? 0) + 1)
+    return n
+  }
   return {
     categories: values((row) => row.category ?? UNCATEGORIZED),
     statuses: values((row) => row.status),
+    categoryCounts: counts((row) => row.category ?? UNCATEGORIZED),
+    // Epics by name, No epic last, each with how many specs it holds.
+    epics: [...epics.values()].sort((a, b) => (a.value === NO_EPIC ? 1 : b.value === NO_EPIC ? -1 : a.label.localeCompare(b.label))),
   }
+}
+
+// How the Specs list is ordered. Name starts A to Z; Last update and Tasks
+// start with the newest or largest.
+export type SpecSort = 'name' | 'updated' | 'tasks'
+export const SORT_FIRST: Record<SpecSort, 'asc' | 'desc'> = { name: 'asc', updated: 'desc', tasks: 'desc' }
+
+export function sortRows(rows: PlanRow[], sort: SpecSort = 'name', dir: 'asc' | 'desc' = SORT_FIRST[sort]): PlanRow[] {
+  const sign = dir === 'asc' ? 1 : -1
+  const key = (row: PlanRow) => (sort === 'tasks' ? row.tasks.total : (row.lastChange && Date.parse(row.lastChange)) || 0)
+  // Ties fall back to the name, A to Z.
+  return [...rows].sort((a, b) => (sort === 'name' ? sign * a.name.localeCompare(b.name) : sign * (key(a) - key(b)) || a.name.localeCompare(b.name)))
 }
 
 // The chat draft that discusses one plan is built by the backend

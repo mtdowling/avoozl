@@ -563,7 +563,8 @@ test("the backend pushes to the gateway only on a proven origin, with an app tok
     ],
   );
   assert.equal(calls[0][1]["X-App-Secret"], secret);
-  pushes = [403];
+  // A 403 is also exchanged once more (Kiro Crew 0.12.2.4); a second 403 stands.
+  pushes = [403, 403];
   await assert.rejects(push(payload), /refused the notification \(403\)/);
 });
 
