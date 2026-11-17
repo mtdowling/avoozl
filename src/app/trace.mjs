@@ -9,7 +9,7 @@ import {
   readyAt,
   claimOf,
 } from "./radar-events.mjs";
-import { receiptLine } from "./build-receipt-read.mjs";
+import { phaseGroups, receiptLine } from "./build-receipt-read.mjs";
 
 export const TRACE_STEPS = Object.freeze([
   { key: "spec", label: "Spec approved" },
@@ -74,7 +74,9 @@ export function buildTrace({
         at: merged,
         link: merged ? pull.html_url : null,
         // RC32.6: what the merged pull request's build cost.
-        ...(receipt ? { detail: receiptLine(receipt) } : {}),
+        ...(receipt
+          ? { detail: receiptLine(receipt), builds: phaseGroups(receipt) }
+          : {}),
       },
       {
         at: null,
