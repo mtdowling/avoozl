@@ -170,11 +170,17 @@ export function processStartTime(pid) {
               "-Command",
               `(Get-Process -Id ${Number(pid)}).StartTime.ToUniversalTime().ToString('o')`,
             ],
-            { encoding: "utf8", timeout: 15_000, windowsHide: true },
+            {
+              encoding: "utf8",
+              timeout: 15_000,
+              windowsHide: true,
+              stdio: ["ignore", "pipe", "ignore"],
+            },
           )
         : execFileSync("ps", ["-o", "lstart=", "-p", String(Number(pid))], {
             encoding: "utf8",
             timeout: 15_000,
+            stdio: ["ignore", "pipe", "ignore"],
             env: { ...process.env, LC_ALL: "C" },
           });
     return out.trim() || null;
