@@ -212,6 +212,7 @@ const EXECUTE = new Set([
   "workspace.tick",
   "flow.runAnyway",
   "flow.stop",
+  "publiccrews.stop",
   "flow.resume",
   "radar.releasestep",
   "radar.disarm",

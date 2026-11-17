@@ -198,6 +198,7 @@ import {
   normalizeGitHubPolicy,
   PERMISSIONS,
   actorAllowed,
+  ISSUE_RADAR_PATH,
   policySection,
   readGitHubPolicy,
   readGitHubPolicyOrNull,
@@ -223,7 +224,11 @@ import {
   writeRepo,
 } from "./mirror-sync.mjs";
 import { forwardAuditRows } from "./forward-audit.mjs";
-import { publicCrewAuditRows } from "./public-crews.mjs";
+import {
+  publicCrewAuditRows,
+  publicRepositories,
+  stopPublicCrews,
+} from "./public-crews.mjs";
 import { publicBranchRows } from "./mirror-forward-batch.mjs";
 import { mirrorForwardRows, mirrorRecordFor } from "./mirror-forward.mjs";
 import { forwardRecord } from "./mirror-forward-run.mjs";
@@ -3934,6 +3939,42 @@ export class Operations {
       return resumeStop(store, input, {
         by: context.local ? "cli" : "dashboard",
       });
+    }
+    // Stop public crews (R85.9): the cord for every public repository, and
+    // the crews to pause in Kiro Crew. An agent may stop; only a person
+    // resumes (flow.resume).
+    if (name === "publiccrews.stop") {
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        crews = await Promise.all(
+          publicRepositories(store, policy).map((repository) =>
+            readCrews(this.crewReader, repository),
+          ),
+        ),
+        result = stopPublicCrews(
+          store,
+          { policy, crews },
+          {
+            by:
+              context.caller || context.mcp
+                ? {
+                    kind: "agent",
+                    name: `session:${context.caller?.sessionKey || context.caller || "mcp"}`,
+                  }
+                : { kind: "person", name: context.local ? "cli" : "dashboard" },
+            link: ISSUE_RADAR_PATH,
+          },
+        );
+      const changed = result.stops.filter((s) => s.changed);
+      if (changed.length)
+        queueNotifications(store, [
+          {
+            channel: "failure",
+            title: `Public crews stopped on ${changed.length} ${changed.length === 1 ? "repository" : "repositories"}`,
+            text: `${changed.map((s) => s.repository).join(", ")}. ${result.note}`,
+            resume: "Press Resume on the Dashboard banner when it is safe.",
+          },
+        ]);
+      return result;
     }
     // Issue Radar's live claims on every registered repository, read from
     // GitHub only (radar-claims.mjs). `refresh` reads GitHub first.
