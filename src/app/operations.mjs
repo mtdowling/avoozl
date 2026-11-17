@@ -574,6 +574,7 @@ import {
   specEpic,
 } from "./spec-plans.mjs";
 import { publishSpec } from "./spec-publication.mjs";
+import { takeOverSpec } from "./spec-takeover.mjs";
 import {
   applyRetirement,
   closeRetiredIssues,
@@ -6592,6 +6593,21 @@ export class Operations {
         actor: this.operator,
       });
       return published;
+    }
+    // Take over a published spec's journal (R102.13, task 42.5): a person's
+    // own act; it writes the next generation and keeps the driver id here.
+    if (name === "spec.takeover") {
+      if (context.caller || context.mcp)
+        fail("Only a person takes over a spec.", 403);
+      return takeOverSpec(
+        store,
+        {
+          github: this.github,
+          workspaceRoot: this.workspaceRoot,
+          actor: this.operator,
+        },
+        input.planId,
+      );
     }
     // Retire task-issue bindings (R102.20, §4.32.13): preview, hold, apply,
     // one verifying tick, then close. Each step is a person's own act.
