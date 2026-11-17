@@ -331,3 +331,14 @@ export const SHIP_CHOICES: { key: ShipMode; title: string; line: string; who: [s
     who: ['Leaves auto-merge off', 'Shows Ready to merge', 'Merges on GitHub, or presses Integrate for a local task'],
   },
 ]
+
+// One chip per value with its card count, in the order `options` gives.
+export function chipCounts(options: { value: string; label: string }[], cards: LaneCard[], valueOf: (card: LaneCard) => string | null): { value: string; label: string; count: number }[] {
+  const counts = new Map<string, number>()
+  for (const card of cards) {
+    const value = valueOf(card)
+    if (value === null) continue
+    counts.set(value, (counts.get(value) ?? 0) + 1)
+  }
+  return options.map((option) => ({ ...option, count: counts.get(option.value) ?? 0 })).filter((item) => item.count > 0)
+}

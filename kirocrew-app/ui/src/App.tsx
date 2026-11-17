@@ -19,6 +19,7 @@ import { DASHBOARD_PAGES, FLOW_TABS, TABS, WAITING_SECTIONS, dashboardPage, dash
 import { WorkspacePill } from './WorkspacePill.tsx'
 import { NavSlotProvider } from './nav-slot.tsx'
 import LanesView from './LanesView.tsx'
+import DeliveryView from './DeliveryView.tsx'
 import { VIEW_ICONS } from './icons.ts'
 import { TRACE_TARGET, parseTraceLink, type TraceTarget } from './trace-api.ts'
 import ActivityView from './ActivityView.tsx'
@@ -266,8 +267,8 @@ function AvoozlPage() {
     </NavLine>
   )
   // Radar's nav model: Dashboards, Needs you, Flow and Settings open in the
-  // nav to their sub-pages; Specs and Activity open to their filters (a
-  // slot the page fills); the other pages are plain entries.
+  // nav to their sub-pages; Specs, Activity and Dashboards › Delivery open
+  // to their filters (a slot the page fills); the other pages are plain entries.
   const kids: Partial<Record<Tab, { key: string; label: string }[]>> = {
     dashboard: DASHBOARD_PAGES,
     waiting: WAITING_SECTIONS.map((x) => ({ key: x.key, label: x.title })),
@@ -416,6 +417,8 @@ function AvoozlPage() {
             section={waitingSection}
             onOpenSources={() => go({ settingsTab: 'plugins', tab: 'settings' })}
           />
+        ) : tab === 'delivery' ? (
+          <DeliveryView workspaceId={active} />
         ) : tab === 'lanes' ? (
           <LanesView workspaceId={active} />
         ) : tab === 'ci' ? (
