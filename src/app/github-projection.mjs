@@ -14,6 +14,7 @@ import {
 } from "../work-model.mjs";
 import { issueNotesLines, shownNotes } from "./task-notes.mjs";
 import { fail } from "./store.mjs";
+import { taskIssuesRetired } from "./task-issue-retirement.mjs";
 import { parseRepository } from "./github.mjs";
 import { withWorkLock } from "./git.mjs";
 import { WORKSPACE_LOCK } from "./tick.mjs";
@@ -50,7 +51,7 @@ import {
   stepReceiptId,
 } from "./radar-coder-release.mjs";
 import { rankEligible } from "./release-ranking-step.mjs";
-import { adapterFor, coderForTask } from "./coder-adapter.mjs";
+import { adapterFor, coderForTask, RADAR_HANDOVER } from "./coder-adapter.mjs";
 import { plansNameForIssue } from "./github-plans-repo.mjs";
 import {
   assertPlanningLink,
@@ -697,6 +698,23 @@ async function projectPlanParents({
 }
 
 export async function projectPlanIssues(store, github, options) {
+  // Retired task issues (R102.20) are never projected or recreated.
+  if (taskIssuesRetired(store))
+    return {
+      planId: options.planId,
+      planHash: store.get("plans", options.planId)?.hash ?? null,
+      issues: [],
+      conflicts: [],
+      notes: ["Task issues are retired; the spec journal holds this plan."],
+      parents: [],
+      unlinked: [],
+      skippedDone: [],
+      waiting: [],
+      relinked: [],
+      parent: null,
+      comment: null,
+      retired: true,
+    };
   if (options.locked) return pacedProject(store, github, options);
   return withWorkLock(store, WORKSPACE_LOCK, () =>
     pacedProject(store, github, options),
@@ -876,14 +894,15 @@ export async function refreshProjectedReadiness(
   { identity, skipPlans = new Set(), forcePlans = new Set(), now = Date.now() },
 ) {
   const data = store.read(),
-    result = { projected: [], errors: [] },
-    designed = data.tasks.filter(
-      (task) =>
-        task.planId &&
-        task.github?.origin === "design" &&
-        task.github.number &&
-        !task.projectionConflicts?.length,
-    );
+    result = { projected: [], errors: [] };
+  if (taskIssuesRetired(store)) return result;
+  const designed = data.tasks.filter(
+    (task) =>
+      task.planId &&
+      task.github?.origin === "design" &&
+      task.github.number &&
+      !task.projectionConflicts?.length,
+  );
   // A projection a write limit stopped carries on once its wait is over.
   const due = dueRun(store, now);
   // machineIdentity writes on first use; a workspace with no projected
@@ -1850,6 +1869,7 @@ async function project(
       // Only for the coders whose hand-over is that label (no-op if set).
       item.section = buildSection(item);
       const withReady =
+          !RADAR_HANDOVER.paused &&
           ready.has(task.id) &&
           ["issue-radar", "remote"].includes(
             identity.repositories?.[config.id]?.coder ??
@@ -2127,7 +2147,10 @@ async function project(
         ? item.appliedLabels
         : plans.labels.kept
           ? item.currentLabels
-          : [labels.managed, ...(isReady ? [labels.ready] : [])],
+          : [
+              labels.managed,
+              ...(isReady && !RADAR_HANDOVER.paused ? [labels.ready] : []),
+            ],
       blockerBaseline = plans.blockers.conflict
         ? item.arrays.blockers[plans.blockers.baseline]
         : item.blockerNodes,

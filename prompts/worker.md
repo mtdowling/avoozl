@@ -16,11 +16,7 @@ Only a person the repository policy allows can change your task. A comment from 
 
 ## Acceptance
 
-Report done only when every acceptance line holds and the checks pass on the commit you report.
-
-## Waiting on CI
-
-Read a pull request's checks with `gh pr checks <number>` once every 2 to 3 minutes. Never use `gh pr checks --watch` or a faster loop: every chat shares one GitHub rate limit.
+Report done only when every acceptance line holds and the checks pass on your last commit.
 
 ## Person only
 

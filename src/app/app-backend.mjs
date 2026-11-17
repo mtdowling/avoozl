@@ -46,6 +46,7 @@ import {
 } from "./radar-handoff.mjs";
 import { WORKSPACE_LOCK, tickHealth } from "./tick.mjs";
 import { withWorkLock } from "./git.mjs";
+import { launchSupervisor } from "./supervisor.mjs";
 import {
   DEMO_WORKSPACE_ID,
   defaultDemoRoot,
@@ -212,6 +213,7 @@ export const APP_OPERATIONS = new Set([
   "flow.view",
   "untriaged.crews",
   "untriaged.handoff",
+  "github.crewlabel.backfill",
   "review.chat",
   "untriaged.plan",
   "github.repository.labels",
@@ -247,6 +249,7 @@ export const APP_OPERATIONS = new Set([
   "github.conflict.resolve",
   "conflicts.settle",
   "delivery.retry",
+  "verify.allow",
   "task.start",
   "flow.runAnyway",
   "flow.stop",
@@ -436,6 +439,15 @@ async function readBody(req) {
   return Buffer.concat(chunks);
 }
 
+// The supervisor gets no gateway secret, so its children never inherit one.
+function machineSupervisor() {
+  const { stateDirectory, configDirectory } = machineAvoozlPaths();
+  const env = { ...process.env };
+  delete env.KIROCREW_PROXY_SECRET;
+  delete env.KIROCREW_GATEWAY_ORIGIN_PROOF;
+  return launchSupervisor({ stateDirectory, configDirectory, env });
+}
+
 // Start the backend on 127.0.0.1. There is no host option: the gateway is the
 // only intended caller, and it reaches the backend over loopback.
 export function startAppBackend({
@@ -465,6 +477,9 @@ export function startAppBackend({
   sessionStopper = gatewaySessionStopper(process.env),
   // Where Demo mode keeps its sample workspace (demo.mjs).
   demoRoot = defaultDemoRoot(),
+  // Starts this machine's supervisor for process children (R95.3). Only
+  // under Kiro Crew's gateway, so tests and bare runs start none.
+  supervisor = gatewayClient(process.env) ? machineSupervisor : null,
 }) {
   const replay = new ReplayCache();
   // The open sample, or null. Only demo.start opens it; its requests name
@@ -781,6 +796,13 @@ export function startAppBackend({
   };
   server.drainNotifications = () => drain();
   server.once("listening", follow);
+  server.once("listening", () => {
+    try {
+      supervisor?.();
+    } catch (error) {
+      console.error(`The supervisor did not start: ${error.message}`);
+    }
+  });
   server.on("close", () => {
     watcher?.close();
     for (const { store } of opened.values()) store.close();

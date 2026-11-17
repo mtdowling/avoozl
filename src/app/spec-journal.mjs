@@ -28,6 +28,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { digest } from "../model.mjs";
+import { globalAvoozlConfigPath } from "./layered-config.mjs";
+import { privacyHits, privacyRules } from "./privacy.mjs";
 import { fail } from "./store.mjs";
 import { OUTCOME_KINDS } from "./task-outcomes.mjs";
 
@@ -353,10 +355,29 @@ export async function appendRecord(journal, fields, options = {}) {
   const record = {
     v: JOURNAL_VERSION,
     generation: replay.generation,
+    // The acting machine by its public alias only (privacy.mjs).
+    ...(options.alias ? { alias: options.alias } : {}),
     ...fields,
     prev: replay.tail,
   };
   const body = renderRecord(record, options);
+  // The privacy scan before the first write (R102.25): the schema keeps
+  // prose out, and this keeps this machine's names out of what is left.
+  const refused = privacyHits(
+    body.split("\n"),
+    privacyRules({
+      scope: "text",
+      machine: options.machine ?? null,
+      configFile: options.configFile ?? globalAvoozlConfigPath(),
+    }),
+  );
+  if (refused.length)
+    fail(
+      `The privacy scan refused this journal record, nothing was written: rule ${[
+        ...new Set(refused.map((hit) => hit.rule)),
+      ].join(", ")}.`,
+      422,
+    );
   const done = replay.records.find((entry) => entry.record.op === record.op);
   if (done) {
     if (withoutLink(done.record) !== withoutLink(record))

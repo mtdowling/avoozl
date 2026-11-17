@@ -20,15 +20,24 @@ import {
 } from "./flow.mjs";
 import { fail } from "./store.mjs";
 import {
+  BUILD_METRIC,
   CI_METRIC,
   CI_RUNS,
   PR_CI,
   ciBrief,
+  buildMinutesPerPullRequest,
   ciMinutesPerPullRequest,
   ciTriggers,
   lastEffectiveCIConfig,
   seenWorkflows,
 } from "./flow-ci.mjs";
+import {
+  BUILD_PART_METRIC,
+  NOT_ENOUGH_BUILDS,
+  buildBrief,
+  buildPartMinutes,
+  keyAndPartProblem,
+} from "./build-breakdown.mjs";
 import { briefAllowed } from "./delivery.mjs";
 import { taskRepository } from "../work-model.mjs";
 import {
@@ -74,6 +83,9 @@ export const METRICS = Object.freeze([
   "change failure rate",
   // Measured on closed pull requests by class, not on tasks (R100.5).
   CI_METRIC,
+  BUILD_METRIC,
+  // Measured on builds with one comparison key (R101.11).
+  BUILD_PART_METRIC,
 ]);
 const METRIC_KEY = {
   "lead time": "leadTimeMs",
@@ -89,6 +101,7 @@ const REFUSED = [
   /allowedActors|minimumPermission|minPermission/,
   /trust/i,
   /token|secret|credential/i,
+  /protectedPaths/,
 ];
 // Settings a proposal may change: the Flow group and delivery's own limits
 // and review roles, all of which the Settings page edits.
@@ -335,6 +348,7 @@ export function retroBrief(
         (r.proposals || []).map((p) => ({ retro: r.id, ...summary(p) })),
       ),
     instructions = retroInstructions(store),
+    builds = buildBrief(store, ciRepositories ?? ciRows(store), { now }),
     payload = {
       triggers: retro.triggers.map((t) => t.detail),
       metrics: view.metrics,
@@ -392,6 +406,8 @@ export function retroBrief(
       // by class, wait share, repeat runs and workflow files. Other pull
       // requests are a number, author and classes only.
       ci: ciBrief(store, ciConfig, ciRepositories ?? ciRows(store), { now }),
+      // Build breakdowns by comparison key (§4.31); absent with no builds.
+      ...(builds ? { builds } : {}),
       ...(memory?.payload || {}),
     };
   return [
@@ -493,7 +509,7 @@ export function retroStep(
       }
       // CI minutes per pull request (R100.5): as many closed pull requests
       // of the repository and class after approval as before it.
-      if (proposal.metric === CI_METRIC) {
+      if (closedMetric(proposal.metric)) {
         const save = (pdca) => {
           const retro = store.get("flow_retros", listed.id);
           store.put("flow_retros", {
@@ -506,9 +522,7 @@ export function retroStep(
         };
         const before =
           p.before ??
-          ciMinutesPerPullRequest(store, {
-            repository: proposal.repository,
-            cls: proposal.class,
+          measureClosed(store, proposal, {
             n: p.window,
             at: p.approvedAt,
           });
@@ -518,15 +532,61 @@ export function retroStep(
           continue;
         }
         const { pendingReason: _pendingReason, ...baseline } = { ...p, before };
-        const after = ciMinutesPerPullRequest(store, {
-          repository: proposal.repository,
-          cls: proposal.class,
+        const after = measureClosed(store, proposal, {
           n: p.window,
           at: p.approvedAt,
           after: true,
         });
         if (after === null) {
           if (p.before !== before || p.pendingReason) save(baseline);
+          continue;
+        }
+        const retro = store.get("flow_retros", listed.id),
+          result = pdcaResult(before, after, proposal.direction);
+        save({
+          ...baseline,
+          after,
+          result,
+          measuredAt: new Date(now).toISOString(),
+        });
+        if (result !== "helped")
+          s = { ...s, reverts: [...s.reverts, revertOf(retro, proposal)] };
+        changed = true;
+        continue;
+      }
+      // Build part minutes (R101.11): the same key and part, as many builds
+      // after approval as before it. Fewer on either side is no verdict.
+      if (proposal.metric === BUILD_PART_METRIC) {
+        const save = (pdca) => {
+          const retro = store.get("flow_retros", listed.id);
+          store.put("flow_retros", {
+            ...retro,
+            proposals: retro.proposals.map((q) =>
+              q.id === proposal.id ? { ...q, pdca } : q,
+            ),
+          });
+          changed = true;
+        };
+        const measure = (after) =>
+          buildPartMinutes(store, {
+            repository: proposal.repository,
+            key: proposal.key,
+            part: proposal.part,
+            n: p.window,
+            at: p.approvedAt,
+            after,
+          });
+        const before = p.before ?? measure(false);
+        if (before === null) {
+          if (p.pendingReason !== NOT_ENOUGH_BUILDS)
+            save({ ...p, pendingReason: NOT_ENOUGH_BUILDS });
+          continue;
+        }
+        const { pendingReason: _pending, ...baseline } = { ...p, before },
+          after = measure(true);
+        if (after === null) {
+          if (p.before !== before || p.pendingReason !== NOT_ENOUGH_BUILDS)
+            save({ ...baseline, pendingReason: NOT_ENOUGH_BUILDS });
           continue;
         }
         const retro = store.get("flow_retros", listed.id),
@@ -682,6 +742,19 @@ export function pdcaResult(before, after, direction) {
   return "no change";
 }
 
+// The two metrics measured on closed pull requests by class (R100.5, R101.12).
+const closedMetric = (metric) =>
+  metric === CI_METRIC || metric === BUILD_METRIC;
+const measureClosed = (store, proposal, options) =>
+  (proposal.metric === BUILD_METRIC
+    ? buildMinutesPerPullRequest
+    : ciMinutesPerPullRequest)(store, {
+    repository: proposal.repository,
+    cls: proposal.class,
+    ...(proposal.phase ? { phase: proposal.phase } : {}),
+    ...options,
+  });
+
 function ciBaselineReason(proposal, count) {
   const cls = proposal.class === "all" ? "" : `${proposal.class} `;
   return `CI comparison pending: fewer than ${count} closed ${cls}pull requests in ${proposal.repository} were recorded before approval.`;
@@ -783,6 +856,7 @@ function revertOf(retro, proposal) {
         to: proposal.from,
         metric: proposal.metric,
         ...(proposal.class ? { class: proposal.class } : {}),
+        ...(proposal.phase ? { phase: proposal.phase } : {}),
         direction: proposal.direction,
         evidence: `PDCA: ${proposal.key} ${JSON.stringify(proposal.from)} → ${JSON.stringify(proposal.to)} from ${retro.id} did not help (${proposal.metric} ${proposal.pdca?.result ?? "no change"}).`,
         revertOf: `${retro.id}:${proposal.id}`,
@@ -795,6 +869,7 @@ function revertOf(retro, proposal) {
         ...(proposal.workflow ? { workflow: proposal.workflow } : {}),
         metric: proposal.metric,
         ...(proposal.class ? { class: proposal.class } : {}),
+        ...(proposal.phase ? { phase: proposal.phase } : {}),
         direction: proposal.direction,
         evidence: `PDCA: the plan change from ${retro.id} did not help.`,
         revertOf: `${retro.id}:${proposal.id}`,
@@ -810,6 +885,7 @@ const SETTINGS_FIELDS = [
   "to",
   "metric",
   "class",
+  "phase",
   "direction",
   "evidence",
   "revertOf",
@@ -821,8 +897,12 @@ const PLAN_FIELDS = [
   // A CI change names the repository and a workflow file seen (§4.30).
   "repository",
   "workflow",
+  // A Build part minutes change names a comparison key and a part (§4.31).
+  "key",
+  "part",
   "metric",
   "class",
+  "phase",
   "direction",
   "evidence",
   "revertOf",
@@ -911,14 +991,32 @@ export function proposalProblem(p, retro = null, store = null) {
     return `metric must be one of ${METRICS.join(", ")}`;
   if (!["up", "down"].includes(p.direction))
     return "direction must be up or down";
-  if (p.metric === CI_METRIC) {
+  if (closedMetric(p.metric)) {
     if (p.type !== "settings" && p.type !== "plan")
-      return `${CI_METRIC} is measured for settings and plan proposals`;
+      return `${p.metric} is measured for settings and plan proposals`;
     if (!["all", ...CI_CLASSES].includes(p.class))
-      return `a ${CI_METRIC} proposal names a class: all, ${CI_CLASSES.join(", ")}`;
+      return `a ${p.metric} proposal names a class: all, ${CI_CLASSES.join(", ")}`;
     if (!shortText(p.repository, 100))
-      return `a ${CI_METRIC} proposal names the repository`;
-  } else if (p.class !== undefined) return `class is only for ${CI_METRIC}`;
+      return `a ${p.metric} proposal names the repository`;
+  } else if (p.class !== undefined)
+    return `class is only for ${CI_METRIC} and ${BUILD_METRIC}`;
+  if (
+    p.phase !== undefined &&
+    (p.metric !== BUILD_METRIC || !shortText(p.phase, 80))
+  )
+    return `phase is only for ${BUILD_METRIC}, at most 80 characters`;
+  if (p.metric === BUILD_PART_METRIC) {
+    if (p.type !== "plan")
+      return `${BUILD_PART_METRIC} is measured for plan proposals`;
+    if (!shortText(p.repository, 100))
+      return `a ${BUILD_PART_METRIC} proposal names the repository`;
+    if (!shortText(p.key, 1000) || !shortText(p.part, 80))
+      return `a ${BUILD_PART_METRIC} proposal names a key and a part from the brief`;
+    const problem =
+      store && keyAndPartProblem(store, p.repository, p.key, p.part);
+    if (problem || !store) return problem || "the builds are not available";
+  } else if ((p.key !== undefined && p.type === "plan") || p.part !== undefined)
+    return `key and part are only for ${BUILD_PART_METRIC}`;
   if (p.type === "prompt" || p.type === "skill")
     return changeProblem(p, retro, store);
   if (!shortText(p.evidence)) return "evidence is missing";
@@ -1141,18 +1239,20 @@ export async function decideProposal(
       fail("This proposal removes a check. Confirm again to approve it.", 409);
     const data = store.read(),
       every = flowPolicy(
-        (proposal.metric === CI_METRIC ? ciConfig : config) || {},
+        (closedMetric(proposal.metric) ? ciConfig : config) || {},
       ).workspace.retro.everyTasks,
       done = finishedTasks(store, data).length;
     let pdca =
       proposal.type === "rule"
         ? { approvedAt: at, window: every, at: done + every }
         : {
-            before:
-              proposal.metric === CI_METRIC
-                ? ciMinutesPerPullRequest(store, {
+            before: closedMetric(proposal.metric)
+              ? measureClosed(store, proposal, { n: every, at })
+              : proposal.metric === BUILD_PART_METRIC
+                ? buildPartMinutes(store, {
                     repository: proposal.repository,
-                    cls: proposal.class,
+                    key: proposal.key,
+                    part: proposal.part,
                     n: every,
                     at,
                   })
@@ -1161,8 +1261,10 @@ export async function decideProposal(
             at: done + every,
             approvedAt: at,
           };
-    if (proposal.metric === CI_METRIC && pdca.before === null)
+    if (closedMetric(proposal.metric) && pdca.before === null)
       pdca.pendingReason = ciBaselineReason(proposal, every);
+    if (proposal.metric === BUILD_PART_METRIC && pdca.before === null)
+      pdca.pendingReason = NOT_ENOUGH_BUILDS;
     if (proposal.type === "settings") await apply(proposal, input.expectedHash);
     else if (proposal.type === "plan")
       update = { draft: (await draft(proposal)) ?? null };
