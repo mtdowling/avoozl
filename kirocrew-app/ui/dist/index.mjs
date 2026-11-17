@@ -9257,7 +9257,7 @@ var Fd = {
 	"provider-out",
 	"routing-failed"
 ]);
-function Ld({ item: e, attach: t, onAnswer: n, onAsk: r, onTitle: i }) {
+function Ld({ item: e, attach: t, onAnswer: n, onInfo: r, onAsk: i, onTitle: a }) {
 	return /* @__PURE__ */ w("li", {
 		"data-home-need": !0,
 		"data-attention-row": !0,
@@ -9286,9 +9286,9 @@ function Ld({ item: e, attach: t, onAnswer: n, onAsk: r, onTitle: i }) {
 						cursor: "pointer",
 						color: "inherit"
 					},
-					onClick: i,
+					onClick: a,
 					onKeyDown: (e) => {
-						(e.key === "Enter" || e.key === " ") && (e.preventDefault(), i());
+						(e.key === "Enter" || e.key === " ") && (e.preventDefault(), a());
 					},
 					"aria-describedby": t,
 					"data-attention-title": !0,
@@ -9323,11 +9323,17 @@ function Ld({ item: e, attach: t, onAnswer: n, onAsk: r, onTitle: i }) {
 							to: t,
 							label: `Session: the chat for ${e.title}`
 						}),
+						(e.group || e.taskId) && /* @__PURE__ */ C(Gr, {
+							icon: jt,
+							label: `Details for ${e.title}`,
+							tooltip: e.group ? "Why these tasks need review, and the list of them" : "Open the task details",
+							onClick: r
+						}),
 						/* @__PURE__ */ C(Gr, {
 							icon: Ne,
 							label: `Ask in a chat about ${e.title}`,
 							tooltip: "Ask in a chat: a new chat seeded with this item's full context",
-							onClick: r
+							onClick: i
 						})
 					]
 				})]
@@ -9867,6 +9873,7 @@ function Jd(e) {
 						item: e,
 						attach: Xd(E.running, e.taskId),
 						onAnswer: () => P(e),
+						onInfo: () => e.group ? k.openReview(e.group, () => void x()) : e.taskId && k.openTask(e.taskId),
 						onAsk: () => N(e),
 						onTitle: () => {
 							let t = us(e);

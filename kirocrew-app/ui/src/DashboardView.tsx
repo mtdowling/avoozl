@@ -45,7 +45,7 @@ export const NEEDS_SHOWN = 6
 const FAILED_KINDS = new Set(['delivery', 'stale-session', 'budget', 'over-budget', 'provider-out', 'routing-failed'])
 
 // One Needs you card: what waits, and the one answer that unblocks it.
-function NeedCard({ item, attach, onAnswer, onAsk, onTitle }: { item: Attention; attach: string | null; onAnswer: () => void; onAsk: () => void; onTitle: () => void }) {
+function NeedCard({ item, attach, onAnswer, onInfo, onAsk, onTitle }: { item: Attention; attach: string | null; onAnswer: () => void; onInfo: () => void; onAsk: () => void; onTitle: () => void }) {
   return (
     <li data-home-need data-attention-row>
       <span className="flex items-center justify-between gap-2">
@@ -83,6 +83,9 @@ function NeedCard({ item, attach, onAnswer, onAsk, onTitle }: { item: Attention;
         <span className="flex gap-1">
           {item.href && <IconLink icon={ExternalLink} to={item.href} label={`Open the issue for ${item.title}`} external />}
           {attach && <IconLink icon={CirclePlus} to={attach} label={`Session: the chat for ${item.title}`} />}
+          {(item.group || item.taskId) && (
+            <IconBtn icon={DetailsIcon} label={`Details for ${item.title}`} tooltip={item.group ? 'Why these tasks need review, and the list of them' : 'Open the task details'} onClick={onInfo} />
+          )}
           <IconBtn icon={MessageSquare} label={`Ask in a chat about ${item.title}`} tooltip="Ask in a chat: a new chat seeded with this item's full context" onClick={onAsk} />
         </span>
       </span>
@@ -506,6 +509,7 @@ export default function DashboardView(props: {
                   item={item}
                   attach={attachOf(summary.running, item.taskId)}
                   onAnswer={() => answer(item)}
+                  onInfo={() => (item.group ? drawer.openReview(item.group, () => void reload()) : item.taskId && drawer.openTask(item.taskId))}
                   onAsk={() => askAbout(item)}
                   onTitle={() => {
                     const target = attentionTarget(item)
