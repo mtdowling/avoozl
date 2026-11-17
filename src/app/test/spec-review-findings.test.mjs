@@ -7,6 +7,7 @@ import {
   listReviewThreads,
   listSpecReviewRounds,
   reportedPlanModel,
+  settleSpecReviewRounds,
 } from "../plan-reviews.mjs";
 import { writeRevision } from "../plans.mjs";
 import { recordSessionStatus } from "../session-bindings.mjs";
@@ -333,4 +334,41 @@ test("each stored hash gets its own round, and a planner answer cannot escape it
       .length,
     1,
   );
+});
+
+test("findings sent mid-turn wait for the reviewer's model, then record or skip", async (t) => {
+  // Kiro Crew names a chat's model only after its turn ends. Nearby inputs:
+  // still working, then idle on another model; idle on the writer's model.
+  for (const [model, state] of [
+    ["fake-reviewer", "done"],
+    ["fake-writer", "skipped"],
+  ]) {
+    const { store, start, bind } = setup(t),
+      { round } = start(),
+      submit = await bind(round, { reported: false });
+    recordSessionStatus(store, { slot: "reviewer", status: "working" });
+    const waiting = await submit();
+    assert.equal(waiting.pending, true);
+    assert.equal(store.list("review_threads").length, 0);
+    settleSpecReviewRounds(store);
+    assert.equal(store.get("review_rounds", round.id).state, "running");
+    recordSessionStatus(
+      store,
+      { slot: "reviewer", status: "idle" },
+      {
+        served: {
+          model,
+          requested: null,
+          changed: false,
+          withheld: false,
+        },
+      },
+    );
+    settleSpecReviewRounds(store);
+    const settled = store.get("review_rounds", round.id);
+    assert.equal(settled.state, state, model);
+    assert.equal(settled.pendingFindings, undefined);
+    assert.equal(store.list("review_threads").length, state === "done" ? 1 : 0);
+    if (state === "done") assert.equal(settled.reviewerModel, model);
+  }
 });
