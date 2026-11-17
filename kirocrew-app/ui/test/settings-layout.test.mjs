@@ -128,7 +128,7 @@ test('each mode shows only the settings it reads, and Local only keeps the rest'
   assert.deepEqual(unusedInLocal(form), ['planning repository', 'Project board', '1 repository GitHub setting'])
   // Local only needs no base branch or Project number.
   assert.equal(missingRequired({ ...form, projectNumber: '' }), null)
-  assert.match(settings, /row && !isGitHubMode\(form\.mode\) \? \(\s*<LocalRepository/)
+  assert.match(settings, /!isGitHubMode\(form\.mode\) \? \(\s*<LocalRepository/)
   assert.match(settings, /<p>\{LOCAL_HIDDEN_LINE\}<\/p>/)
 })
 

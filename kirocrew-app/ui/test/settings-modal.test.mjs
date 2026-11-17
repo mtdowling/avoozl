@@ -1,4 +1,4 @@
-// Settings: the repository Edit dialog, the shared radio fold-out in Add
+// Settings: in-place repository editing, the shared radio fold-out in Add
 // plugin, the Add rule set main action and the workspace "How to add" label.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -16,28 +16,18 @@ test('Tab stays inside the dialog and wraps both ways', () => {
   assert.equal(trapStep(0, -1, false), -1)
 })
 
-test('a repository row has Edit and no longer expands on a click', () => {
+test('a repository edits in place: no Edit button, no dialog, one footer', () => {
   const repos = source('RepositoriesSettings.tsx')
   const settings = source('SettingsView.tsx')
-  assert.match(repos, /<IconLabel icon=\{Pencil\} tooltip=\{`Change \$\{row\.name\}'s settings in a dialog`\} aria-label=\{`Edit \$\{row\.name\}`\}/)
-  assert.doesNotMatch(repos, /aria-pressed=\{on\}|onSelect/)
-  assert.doesNotMatch(settings, /Pick a repository to change its settings\./)
-  assert.match(settings, /Use Edit to change a repository&apos;s other settings\./)
-  // The row's settings live only in the dialog.
-  assert.match(settings, /\{row && start && \(\s*<RepositoryDialog/)
+  assert.doesNotMatch(repos, /Pencil|RepositoryDialog|avoozl-repo-edit/)
+  assert.doesNotMatch(settings, /RepositoryDialog|Use Edit to change/)
+  assert.match(settings, /data-repository-editor=\{row\.key\}/)
+  assert.match(settings, /<SaveFooter\s+dirty=\{dirty\}/)
+  assert.doesNotMatch(settings, /DIALOG_SECTIONS|data-open-settings/)
 })
 
-test('the Edit dialog saves through the shared Save, blocks on a missing field and asks before discarding', () => {
-  const repos = source('RepositoriesSettings.tsx')
-  const settings = source('SettingsView.tsx')
+test('the shared Modal still asks before it discards edits', () => {
   const modal = source('Modal.tsx')
-  assert.match(repos, /<Modal\s+id="avoozl-repo-edit"\s+width="46rem"\s+title=\{props\.name\}/)
-  assert.match(repos, /action: 'Discard changes'/)
-  assert.match(repos, /props\.edited\s+\? void ask\(/)
-  assert.match(settings, /if \(missing\) return setSaveError\(`Not saved\. \$\{missing\}`\)/)
-  assert.match(settings, /onSave=\{save\}/)
-  assert.match(settings, /replace=\{setForm\}/)
-  // Esc and a click outside both go through dismiss; narrow is full screen.
   assert.match(modal, /useBackStep\(props\.kind \?\? 'modal', true, props\.backLabel \?\? 'Close the dialog', dismiss\)/)
   assert.match(modal, /data-modal-backdrop onClick=\{dismiss\}/)
   assert.match(modal, /narrow\s*\? \{ width: '100%', height: '100%'/)

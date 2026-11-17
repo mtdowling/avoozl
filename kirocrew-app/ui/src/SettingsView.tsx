@@ -2,7 +2,6 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSP
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
-import { Modal } from './Modal.tsx'
 import Badge from './Badge.tsx'
 import { RoleHelp } from './RoleHelp.tsx'
 import {
@@ -63,7 +62,7 @@ import WorkflowMap, { focusField } from './WorkflowMap.tsx'
 import { type Jump } from './workflow-map.ts'
 import WorkspaceView from './WorkspaceView.tsx'
 import Onboard from './Onboard.tsx'
-import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, repositoryRows, useReveal, type RepositoryRow } from './RepositoriesSettings.tsx'
+import { AddRepository, REPOSITORIES_LINE, RepositoryList, repositoryRows, useReveal, type RepositoryRow } from './RepositoriesSettings.tsx'
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
@@ -71,6 +70,7 @@ import ModelsSettings from './ModelsSettings.tsx'
 import MirrorSetup from './MirrorSetup.tsx'
 import { RetiredBanner } from './SettingsSlots.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
+import { SaveFooter } from './SaveFooter.tsx'
 import { BudgetSettings } from './BudgetSettings.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
@@ -99,7 +99,7 @@ export const RELEASE_N_HELP = 'How many issues get the ready label at once. Crew
 
 export const SETTINGS_TABS = [
   { key: 'workspaces', label: 'Workspaces' },
-  // Coder, Labels, Crews and rules and the Workflow map are tabs of each repository's Edit dialog.
+  // Coder, Labels, Crews and rules and the Workflow map are tabs of each repository's editor.
   { key: 'repositories', label: 'Repository setup' },
   { key: 'plugins', label: 'Plugins' },
   { key: 'content', label: 'Content rules' },
@@ -112,17 +112,13 @@ export const SETTINGS_TABS = [
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
-// Sections whose editors are large open in a modal from a Configure button;
-// the small one (the workspace list) stay inline.
-const DIALOG_SECTIONS: readonly SettingsTab[] = ['repositories', 'plugins', 'content', 'flow', 'delivery', 'budgets']
-
 // One short line under each Settings heading: what it controls and when
 // you would change it. Each is checked against what the code does.
 export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   workspaces:
     "The Avoozl workspaces on this machine, each a folder with its own task database. Below them, the GitHub settings that belong to the whole workspace: new-task authority, the Project board and Set up GitHub, which creates what's missing after showing each change.",
   repositories:
-    "Each repository's role says where its tasks live. Its coder, labels, Crews and rules, Workflow map, checks and reviews are tabs in its Edit dialog. Save only writes .avoozl.json.",
+    "Each repository's role says where its tasks live. Its coder, labels, Crews and rules, Workflow map, checks and reviews are tabs under its name. Save only writes .avoozl.json.",
   plugins:
     'A plugin can bring a team’s settings pack, content rules, a tracker, an intake source or a delivery route. Each one runs or imports only after you approve it on this machine.',
   content:
@@ -782,8 +778,7 @@ export function RepositoryEditor(props: {
   const { repository, choices } = props
   const api = useAppApi()
   const inspectRepository = useMemo(() => inspectClient(api), [api])
-  // Each sub-tab is a Back step inside the Edit dialog; a new dialog
-  // starts on Mode.
+  // Each sub-tab is a Back step; a repository starts on Mode.
   const [tab, setTab] = useSteppedState<RepositoryTab>(
     `settings-repo-tab-${props.index}`,
     'inner',
@@ -1013,7 +1008,6 @@ export function RepositoryEditor(props: {
   )
 }
 
-const ROLE_NAME: Record<string, string> = { local: 'local only', code: 'a code repository', planning: 'the planning repository', both: 'code and planning' }
 const MODE_TITLES: Record<string, string> = { local: 'Local only', 'plans-repo': 'Plans repository', 'single-repo': 'Single repository' }
 
 // The label each Issue Radar crew must scope to, from the saved policy, and
@@ -1048,12 +1042,6 @@ function RepositoriesTab(props: {
   workspaceId: string
   dirty: boolean
   set: (change: Partial<SettingsForm>) => void
-  // Put the whole form back (Cancel in the Edit dialog).
-  replace: (form: SettingsForm) => void
-  // Save through the shared Save: null when written, else why not. A form
-  // given here is saved as it is (a role change saves in place).
-  onSave: (next?: SettingsForm) => Promise<string | null>
-  saving: boolean
   // The registry change rewrote .avoozl.json; read the form again.
   onRegistryChanged: () => Promise<unknown>
   onOpenPlans?: () => void
@@ -1067,30 +1055,15 @@ function RepositoriesTab(props: {
   const loadCheckouts = useCallback((id: string) => workspaces.repositories(id), [workspaces])
   const { value: checkouts, reload } = useRead<Repository[]>(props.workspaceId, loadCheckouts)
   const rows = repositoryRows(checkouts ?? [], form.repositories, form.mode === 'plans-repo' ? form.planningRepository : '')
-  const [selected, setSelected] = useState<string | null>(null)
-  // The form as it was when Edit opened, so Cancel can put it back.
-  const [start, setStart] = useState<SettingsForm | null>(null)
-  const [saveError, setSaveError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
-  const row = rows.find((r) => r.key === selected) ?? null
   const addBox = useRef<HTMLDivElement>(null)
-  // A role saves in place (R105.4). The backend refuses a mix of roles with
-  // one line; the list then shows the saved roles again.
-  const changeRole = async (target: RepositoryRow, role: string) => {
-    const next = withRole(form, target, role)
-    set(next)
-    setMessage(null)
-    const problem = await props.onSave(next)
-    if (problem) {
-      setMessage({ ok: false, text: problem })
-      await props.onRegistryChanged()
-    } else setMessage({ ok: true, text: `${target.name} is now ${ROLE_NAME[role] ?? role}.` })
-  }
+  // A role is a form edit, saved by the footer like every other setting
+  // (R105.4). The backend refuses a mix of roles with one line, shown there.
+  const changeRole = (target: RepositoryRow, role: string) => set(withRole(form, target, role))
   const removeRow = async (target: RepositoryRow) => {
     if (!target.checkout) {
       set({ repositories: form.repositories.filter((_, index) => index !== target.policy) })
-      setSelected(null)
       setMessage({ ok: true, text: `${target.name}'s GitHub settings leave .avoozl.json when you save.` })
       return
     }
@@ -1099,7 +1072,6 @@ function RepositoriesTab(props: {
     try {
       await workspaces.removeRepository(props.workspaceId, target.checkout.id)
       await Promise.all([reload(), props.onRegistryChanged()])
-      setSelected(null)
       setMessage({ ok: true, text: `Removed ${target.name}. The folder and GitHub were not touched.` })
     } catch (caught) {
       setMessage({ ok: false, text: errorMessage(caught) })
@@ -1117,15 +1089,9 @@ function RepositoriesTab(props: {
             <RepositoryList
               rows={rows}
               roleOf={(row) => roleOfRow(form, row)}
-              roleLocked={props.dirty ? 'Save or discard your settings changes first: a role change saves .avoozl.json.' : props.saving ? 'Saving…' : null}
-              onRole={(row, role) => void changeRole(row, role)}
+              onRole={changeRole}
               busy={busy}
               dirty={props.dirty}
-              onEdit={(key) => {
-                setStart(form)
-                setSaveError(null)
-                setSelected(key)
-              }}
               onRemove={(target) => void removeRow(target)}
               onReveal={(folder) => void reveal(folder).then((text) => setMessage({ ok: true, text }))}
               onAdd={() => addBox.current?.querySelector('input')?.focus()}
@@ -1141,7 +1107,6 @@ function RepositoriesTab(props: {
               {tasksLiveLine(form.mode, form.planningRepository)}
             </p>
           )}
-          {rows.length > 0 && <p className="mt-1 text-xs text-muted">Use Edit to change a repository&apos;s other settings.</p>}
           {rolesNote && (
             <p className="mt-1 text-xs text-muted" data-roles-note>
               {rolesNote}
@@ -1152,71 +1117,49 @@ function RepositoriesTab(props: {
           </div>
         </Section>
       </Card>
-      {row && start && (
-        <RepositoryDialog
-          name={row.name}
-          edited={JSON.stringify(toPolicy(form)) !== JSON.stringify(toPolicy(start))}
-          missing={missingRequired(form)}
-          saving={props.saving}
-          error={saveError}
-          onDiscard={() => {
-            props.replace(start)
-            setSelected(null)
-            setStart(null)
-          }}
-          onSave={async () => {
-            setSaveError(null)
-            const missing = missingRequired(form)
-            if (missing) return setSaveError(`Not saved. ${missing}`)
-            const problem = await props.onSave()
-            if (problem) return setSaveError(problem)
-            setSelected(null)
-            setStart(null)
-            setMessage({ ok: true, text: `Saved ${row.name}'s settings to .avoozl.json.` })
-          }}
-        >
-          <div className="flex flex-col gap-3.5" data-repository-dialog-body>
-            {row && !isGitHubMode(form.mode) ? (
-        <LocalRepository row={row} review={props.review} kept={row.policy >= 0} workspaceId={props.workspaceId} />
-      ) : row && row.policy >= 0 ? (
-        <RepositoryEditor
-          key={row.key}
-          index={row.policy}
-          repository={form.repositories[row.policy]}
-          choices={choices}
-          review={props.review}
-          mode={form.mode}
-          workspaceId={props.workspaceId}
-          planningRepository={form.planningRepository}
-          onChange={(next) => set({ repositories: form.repositories.map((item, index) => (index === row.policy ? next : item)) })}
-        />
-      ) : row && row.github ? (
-        <Card>
-          <Section title={`${row.name} settings`} blurb={`${row.github} has no GitHub settings in .avoozl.json yet, so it uses the defaults.`}>
-            <IconLabel
-              icon={Plus}
-              tooltip="Add an entry you can change; saved when you press Save"
-              onClick={() => {
-                set({ repositories: [...form.repositories, { ...emptyRepository(row.github!), baseBranch: row.branch }] })
-              }}
-            >
-              Add GitHub settings for {row.github}
-            </IconLabel>
-          </Section>
-        </Card>
-      ) : row ? (
-        <Card>
-          <Section title={`${row.name} settings`} blurb="A local-only repository: no GitHub remote, so the GitHub tabs do not apply.">
-            <p className="text-sm" data-local-checks>
-              Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from the spec manifest, or this
-              repository&apos;s checks when a task names none.
-            </p>
-          </Section>
-        </Card>
-      ) : null}
-          </div>
-        </RepositoryDialog>
-      )}
+      {rows.filter((row) => !row.githubOnly).map((row) => (
+        <section key={row.key} aria-label={`${row.name} settings`} className="flex flex-col gap-3.5" data-repository-editor={row.key}>
+          <h3 className="text-base font-semibold">{row.name}</h3>
+          {!isGitHubMode(form.mode) ? (
+            <LocalRepository row={row} review={props.review} kept={row.policy >= 0} workspaceId={props.workspaceId} />
+          ) : row.policy >= 0 ? (
+            <RepositoryEditor
+              key={row.key}
+              index={row.policy}
+              repository={form.repositories[row.policy]}
+              choices={choices}
+              review={props.review}
+              mode={form.mode}
+              workspaceId={props.workspaceId}
+              planningRepository={form.planningRepository}
+              onChange={(next) => set({ repositories: form.repositories.map((item, index) => (index === row.policy ? next : item)) })}
+            />
+          ) : row.github ? (
+            <Card>
+              <Section title={`${row.name} settings`} blurb={`${row.github} has no GitHub settings in .avoozl.json yet, so it uses the defaults.`}>
+                <IconLabel
+                  icon={Plus}
+                  tooltip="Add an entry you can change; saved when you press Save"
+                  onClick={() => {
+                    set({ repositories: [...form.repositories, { ...emptyRepository(row.github!), baseBranch: row.branch }] })
+                  }}
+                >
+                  Add GitHub settings for {row.github}
+                </IconLabel>
+              </Section>
+            </Card>
+          ) : (
+            <Card>
+              <Section title={`${row.name} settings`} blurb="A local-only repository: no GitHub remote, so the GitHub tabs do not apply.">
+                <p className="text-sm" data-local-checks>
+                  Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from the spec manifest, or this
+                  repository&apos;s checks when a task names none.
+                </p>
+              </Section>
+            </Card>
+          )}
+        </section>
+      ))}
       <Onboard
         workspaceId={props.workspaceId}
         disabled={props.dirty ? 'Save or discard your settings changes first: onboarding writes .avoozl.json.' : null}
@@ -1231,7 +1174,6 @@ function RepositoriesTab(props: {
             disabled={props.dirty ? 'Save or discard your settings changes first: adding a repository writes .avoozl.json.' : null}
             onAdded={(id) => {
               void Promise.all([reload(), props.onRegistryChanged()])
-              setSelected(`checkout:${id}`)
               setMessage({ ok: true, text: `Added ${id}.` })
             }}
           />
@@ -1424,17 +1366,16 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
       setMessage({ ok: false, text: errorMessage(caught) })
     }
   }
-  const save = async (override?: SettingsForm): Promise<string | null> => {
-    const saved = override ?? form
-    if (!saved || !settings) return 'Settings are not loaded.'
-    const missing = missingRequired(saved)
+  const save = async (): Promise<string | null> => {
+    if (!form || !settings) return 'Settings are not loaded.'
+    const missing = missingRequired(form)
     if (missing) {
       setMessage({ ok: false, text: `Not saved. ${missing}` })
       return `Not saved. ${missing}`
     }
     setSaving(true)
     try {
-      await client.save(workspaceId, toPolicy(saved), settings.hash)
+      await client.save(workspaceId, toPolicy(form), settings.hash)
       await reload()
       setMessage({ ok: true, text: 'Saved to .avoozl.json.' })
       return null
@@ -1471,9 +1412,6 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
           workspaceId={workspaceId}
           dirty={dirty}
           set={set}
-          replace={setForm}
-          onSave={save}
-          saving={saving}
           onRegistryChanged={reload}
           onOpenPlans={props.onOpenPlans}
           rolesNote={settings.rolesNote}
@@ -1496,6 +1434,19 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
       )}
       {tab === 'workspaces' && <ThisComputer workspaceId={workspaceId} />}
       {tab === 'workspaces' && <RateBlock rate={settings.rate} />}
+      {tab === 'repositories' ? (
+        <SaveFooter
+          dirty={dirty}
+          saving={saving}
+          problem={missing}
+          error={message && !message.ok ? message.text : null}
+          ok={message?.ok ? message.text : null}
+          note="Writes .avoozl.json."
+          onSave={() => void save()}
+          onDiscard={() => void reload()}
+        />
+      ) : null}
+      {tab !== 'repositories' && (
       <div className="flex flex-wrap items-center gap-2">
         <TipBtn tooltip="Check these settings without saving them" onClick={() => void check()} disabled={saving}>
           Check
@@ -1527,7 +1478,8 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
           </span>
         )}
       </div>
-      {message && (
+      )}
+      {message && tab !== 'repositories' && (
         <p role={message.ok ? 'status' : 'alert'} className={`text-sm ${message.ok ? 'text-muted' : 'text-danger'}`}>
           {message.text}
         </p>
@@ -1644,25 +1596,15 @@ export default function SettingsView(props: {
   // A remembered section that no longer exists falls back to Workspaces.
   const tab: SettingsTab = SETTINGS_TABS.some((t) => t.key === asked) ? (asked as SettingsTab) : SETTINGS_HOME
   const choose = (next: SettingsTab) => (props.onTab ? props.onTab(next) : setOwn(next))
-  const [dialog, setDialog] = useState<SettingsTab | null>(null)
-  const dialogLabel = SETTINGS_TABS.find((t) => t.key === dialog)?.label ?? ''
   const pick = (next: SettingsTab) => choose(next)
   const renderBody = (section: (typeof SETTINGS_TABS)[number]) => (
     <div className="flex flex-col gap-3 pb-4" data-settings-body={section.key}>
       <p className="text-sm text-muted" data-blurb={section.key}>
         {SETTINGS_BLURBS[section.key]}
       </p>
-      {DIALOG_SECTIONS.includes(section.key) ? (
-        <div>
-          <Btn type="button" onClick={() => setDialog(section.key)} data-open-settings={section.key} aria-haspopup="dialog">
-            Configure {section.label.toLowerCase()}
-          </Btn>
-        </div>
-      ) : (
-        <TabBoundary key={section.key} label={section.label}>
-          <SettingsBody tab={section.key} workspaceId={workspaceId} onTab={pick} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
-        </TabBoundary>
-      )}
+      <TabBoundary key={section.key} label={section.label}>
+        <SettingsBody tab={section.key} workspaceId={workspaceId} onTab={pick} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
+      </TabBoundary>
     </div>
   )
   const current = SETTINGS_TABS.find((t) => t.key === tab) ?? SETTINGS_TABS[0]
@@ -1679,15 +1621,6 @@ export default function SettingsView(props: {
         </h3>
         {renderBody(current)}
       </section>
-      {dialog && (
-        <Modal id={`avoozl-settings-${dialog}`} title={dialogLabel} width="46rem" backLabel="Close the settings dialog" attrs={{ 'data-settings-dialog': dialog }} onDismiss={() => setDialog(null)}>
-          <div className="flex flex-col gap-3">
-            <TabBoundary key={dialog} label={dialogLabel}>
-              <SettingsBody tab={dialog} workspaceId={workspaceId} onTab={(next) => (setDialog(null), choose(next))} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
-            </TabBoundary>
-          </div>
-        </Modal>
-      )}
     </section>
   )
 }
