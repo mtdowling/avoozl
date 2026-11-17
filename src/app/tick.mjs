@@ -172,6 +172,7 @@ import {
   readOnlyPlanIds,
 } from "./driver-scope.mjs";
 import { ticksHeld } from "./task-issue-retirement.mjs";
+import { revalidateSpecs, scheduleHolds } from "./spec-scheduler.mjs";
 
 // The colon keeps this lock out of every configured project's namespace.
 // GitHub projection takes it too, so one workspace has one writer at a time.
@@ -1342,21 +1343,29 @@ async function runTick(
       const requested = unobserved.length
           ? []
           : planDispatches(store, bindings).filter((d) => !held.has(d.task)),
-        ready =
+        readySkip = new Set([
+          ...requested.map((d) => d.task),
+          ...(pluginResult?.held || []),
+          ...held,
+        ]),
+        // Ranking, release and repository-wide path holds (spec-scheduler.mjs).
+        schedule =
           unobserved.length || !delivery || delivery.runner !== "tick"
-            ? []
-            : planReadyDispatches(store, delivery, {
-                skip: new Set([
-                  ...requested.map((d) => d.task),
-                  ...(pluginResult?.held || []),
-                  ...held,
-                ]),
+            ? null
+            : scheduleHolds(store, {
                 github: readGitHubPolicyOrNull(workspaceRoot),
-                routing,
-                placementState,
-                waits,
-                fits,
+                skip: readySkip,
               }),
+        ready = !schedule
+          ? []
+          : planReadyDispatches(store, delivery, {
+              skip: new Set([...readySkip, ...schedule.skip]),
+              github: readGitHubPolicyOrNull(workspaceRoot),
+              routing,
+              placementState,
+              waits,
+              fits,
+            }),
         verify =
           unobserved.length || !delivery
             ? []
@@ -1468,11 +1477,32 @@ async function runTick(
                   .filter(Boolean),
               ),
             )
-          : new Set();
+          : new Set(),
+        // Each spec's journal again right before its worker dispatches: a
+        // displaced generation, a stop or a held journal holds the spec's
+        // new work, and an outstanding landing intent holds its tasks
+        // (§4.32.7). Verifiers and messages to running chats go on.
+        generations = await revalidateSpecs(store, {
+          github: live,
+          workspaceRoot,
+          planIds: [...ready, ...pending]
+            .filter((d) => d.role === "worker" && d.operation !== "send")
+            .flatMap((d) => [d.task, ...(d.batch?.tasks || [])])
+            .map((id) => taskPlan.get(id))
+            .filter(Boolean),
+        }),
+        generationHeld = (d) =>
+          d.role === "worker" &&
+          [d.task, ...(d.batch?.tasks || [])].some(
+            (id) =>
+              generations.tasks.has(id) ||
+              generations.plans.has(taskPlan.get(id)),
+          );
       if (lostDispatchPlans.size)
         dispatch = dispatch.filter(
           (d) => !lostDispatchPlans.has(taskPlan.get(d.task)),
         );
+      dispatch = dispatch.filter((d) => !generationHeld(d));
       // No message reaches a session of a read-only spec.
       planned.messages = planned.messages.filter(
         (m) => !readOnly.has(taskPlan.get(m.task)),
@@ -1556,6 +1586,7 @@ async function runTick(
                       request.operation === "start" &&
                       !readOnlyTask(request.task) &&
                       !lostDispatchPlans.has(taskPlan.get(request.task)) &&
+                      !generationHeld(request) &&
                       (request.role === "verifier" ||
                         !heldTask(request.task)) &&
                       open(request) &&

@@ -3,7 +3,7 @@
 // already makes. Pure module, no browser.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PANEL_REFRESH_MS, checkLabel, driverView, panelModel, shortAgo, startRefresh } from '../src/panel-api.ts'
+import { PANEL_REFRESH_MS, checkLabel, panelModel, shortAgo, startRefresh } from '../src/panel-api.ts'
 
 // A document and window that record listeners, and a timer the test fires.
 function env(visible = true) {
@@ -184,17 +184,6 @@ test('a read that failed leaves its section unread, not empty', () => {
   const model = panelModel({ conflicts: null, crews: null, remote: null, queue: null, flow: null })
   assert.deepEqual(model.unread, ['waiting', 'inFlight', 'queue', 'recent'])
   assert.equal(panelModel({ conflicts: [], crews: { rows: [], errors: [], unseen: [], stale: 0, readAt: null }, remote: [], queue: { repositories: [] }, flow: { tasks: [], line: [] } }).unread.length, 0)
-})
-
-test('the driver session: a link when one runs, else a Start button and why', () => {
-  const running = driverView({ state: 'running', slot: 'drv', href: '/chat?sid=drv', openedAt: null, lastSeenAt: null })
-  assert.equal(running.link, '/chat?sid=drv')
-  assert.equal(running.start, false)
-  const none = driverView(null)
-  assert.equal(none.state, 'none')
-  assert.equal(none.link, null)
-  assert.equal(none.start, true)
-  assert.match(none.note, /nothing is released/i)
 })
 
 test('an In flight row carries its Avoozl instance, crew, claim time and pull request checks', () => {

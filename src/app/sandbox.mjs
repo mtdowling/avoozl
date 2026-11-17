@@ -40,7 +40,11 @@ const SECRET_VARIABLES = new Set([
   "GH_CONFIG_DIR",
 ]);
 // Markers the CLI's speed bump reads (R95.5); they hold no secret.
-const KEPT_MARKERS = new Set(["AVOOZL_CHILD", "KIROCREW_SPAWNED"]);
+const KEPT_MARKERS = new Set([
+  "AVOOZL_CHILD",
+  "AVOOZL_CHILD_SESSION",
+  "KIROCREW_SPAWNED",
+]);
 
 // The real path of a file that may not exist yet: the nearest existing
 // parent resolved, the rest joined. macOS profiles match real paths only

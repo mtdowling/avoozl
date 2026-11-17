@@ -3,12 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import {
-  applyDriverModel,
-  chatModel,
-  validateModels,
-  withChatModels,
-} from "../chat-models.mjs";
+import { chatModel, validateModels, withChatModels } from "../chat-models.mjs";
 import { Operations } from "../operations.mjs";
 import { Store } from "../store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -19,10 +14,14 @@ test("models names only Avoozl's own roles, each a model name or auto", () => {
     retro: "auto",
   });
   assert.throws(() => validateModels({ worker: "m1" }), /not a role/);
-  assert.throws(() => validateModels({ driver: "" }), /model name or "auto"/);
+  assert.throws(() => validateModels({ retro: "" }), /model name or "auto"/);
+  // The removed driver chat's role still loads from an old file, and is dropped.
+  assert.deepEqual(validateModels({ driver: "m1", retro: "r" }), {
+    retro: "r",
+  });
   assert.throws(() => validateModels([]), /must be an object/);
-  assert.equal(chatModel({ models: { driver: "auto" } }, "driver"), null);
-  assert.equal(chatModel({}, "driver"), null);
+  assert.equal(chatModel({ models: { retro: "auto" } }, "retro"), null);
+  assert.equal(chatModel({}, "retro"), null);
 });
 
 test("planner, retro and review-draft dispatches ask for the saved model", () => {
@@ -46,22 +45,6 @@ test("planner, retro and review-draft dispatches ask for the saved model", () =>
   ]);
 });
 
-test("the driver chat gets its saved model once per chat and model", async () => {
-  const calls = [],
-    switcher = async (slot, model) => (calls.push([slot, model]), { ok: true }),
-    applied = new Map();
-  const ask = (model) =>
-    applyDriverModel({ slot: "s1", model, switcher, applied });
-  assert.deepEqual(await ask("m1"), { slot: "s1", model: "m1", ok: true });
-  assert.equal(await ask("m1"), null);
-  await ask("m2");
-  assert.equal(await ask(null), null);
-  assert.deepEqual(calls, [
-    ["s1", "m1"],
-    ["s1", "m2"],
-  ]);
-});
-
 test("models.settings saves to .avoozl.json and is a person's", async (t) => {
   const root = temporaryDirectory("avoozl-models-"),
     store = new Store(path.join(root, "workspace.sqlite"));
@@ -76,20 +59,20 @@ test("models.settings saves to .avoozl.json and is a person's", async (t) => {
   await assert.rejects(
     ops.execute(
       "models.settings.update",
-      { models: { driver: "m1" }, expectedHash: before.hash },
+      { models: { retro: "m1" }, expectedHash: before.hash },
       undefined,
       { mcp: true },
     ),
     (e) => e.status === 403,
   );
   const saved = await ops.execute("models.settings.update", {
-    models: { driver: "m1", planner: "auto" },
+    models: { retro: "m1", planner: "auto" },
     expectedHash: before.hash,
   });
-  assert.deepEqual(saved.models, { driver: "m1", planner: "auto" });
+  assert.deepEqual(saved.models, { retro: "m1", planner: "auto" });
   assert.deepEqual(
     JSON.parse(fs.readFileSync(path.join(root, ".avoozl.json"), "utf8")).models,
-    { driver: "m1", planner: "auto" },
+    { retro: "m1", planner: "auto" },
   );
   await assert.rejects(
     ops.execute("models.settings.update", {
