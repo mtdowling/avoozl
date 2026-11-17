@@ -38,6 +38,10 @@ export const PERSON_ONLY = new Map([
   ["plugin.remove", person("Only a person changes plugins.")],
   ["plugin.pack.import", person("Only a person changes plugins.")],
   ["content.allow", person("Only a person allows a blocked write once.")],
+  [
+    "verify.allow",
+    person("Only a person lets a commit's protected paths land."),
+  ],
   ["content.show", person("Only a person reads a matched line.")],
   ["content.terms.get", person("Only a person reads content-rule terms.")],
   ["content.terms.update", person("Only a person edits content-rule terms.")],
