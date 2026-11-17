@@ -3,7 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import {
+  BUILD_METRIC,
   CI_METRIC,
+  buildMinutesPerPullRequest,
   ciFacts,
   ciMinutesPerPullRequest,
   ciSettings,
@@ -13,6 +15,7 @@ import {
 } from "../flow-ci.mjs";
 import {
   decideProposal,
+  proposalProblem,
   pdcaResult,
   retroBrief,
   retroStep,
@@ -392,5 +395,59 @@ test("CI collection, triggers, brief and PDCA share validated layered settings a
       readEffectiveCIConfig(store, { workspaceRoot: root, persist: true }),
     ).workspace.ci.waitShare,
     0.4,
+  );
+});
+
+test("build minutes per pull request count successful observations, by phase", (t) => {
+  const { store } = setup(t),
+    add = (head, phase, ms, failed = 0) =>
+      store.db
+        .prepare(
+          "INSERT INTO build_observations(repository,pr_number,head_sha,run_id,task,attempt,command,target,seq,phase,start,ms,failed) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        )
+        .run(
+          REPO,
+          1,
+          head,
+          1,
+          "",
+          1,
+          phase,
+          "linux",
+          Math.random(),
+          phase,
+          "warm",
+          ms,
+          failed,
+        );
+  closed(store, 1, -1, 0);
+  store.put("pr_ci", { ...store.get("pr_ci", `${REPO}#1`), headSha: "h1" });
+  add("h1", "build", 60_000);
+  add("h1", "test", 120_000);
+  add("h1", "test", 600_000, 1);
+  const args = { repository: REPO, cls: "docs", n: 1, at: iso(0) };
+  assert.equal(buildMinutesPerPullRequest(store, args), 3);
+  assert.equal(
+    buildMinutesPerPullRequest(store, { ...args, phase: "test" }),
+    2,
+  );
+  assert.equal(buildMinutesPerPullRequest(store, { ...args, n: 2 }), null);
+  const proposal = {
+    type: "settings",
+    file: "repository",
+    repository: REPO,
+    key: "flow.retro.everyTasks",
+    from: 5,
+    to: 3,
+    metric: BUILD_METRIC,
+    class: "docs",
+    phase: "test",
+    direction: "down",
+    evidence: "x",
+  };
+  assert.doesNotMatch(String(proposalProblem(proposal)), /metric|class|phase/);
+  assert.match(
+    proposalProblem({ ...proposal, metric: CI_METRIC }),
+    /phase is only for/,
   );
 });

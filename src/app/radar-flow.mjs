@@ -6,7 +6,7 @@
 import { flowFromEvents } from "./flow-github.mjs";
 import { flowTimes, readIssueFacts } from "./radar-events.mjs";
 import { READY_LABEL_DEFAULT } from "./github-policy.mjs";
-import { receiptReader, receiptsView } from "./build-receipt-read.mjs";
+import { receiptReader, buildView } from "./build-receipt-read.mjs";
 import { peekInstance } from "./instance.mjs";
 import { projectedMarker } from "./github-sync.mjs";
 
@@ -37,14 +37,14 @@ async function readRows(github, repository, settings, readReceipt) {
   for (const { number } of issues) {
     const facts = await readIssueFacts(github, repository, number, settings);
     if (facts.pull?.merged_at) {
-      // One build receipt per merged pull request (RC32.5); kept after the
+      // Every build observation of a merged pull request (R101.4); kept after the
       // first read, so a repeat costs no call.
-      const receipt = await readReceipt(facts.pull);
+      const builds = await readReceipt(facts.pull);
       rows.push({
         ...flowTimes(facts),
         pullNumber: facts.pull.number,
         instance: projectedMarker(facts.issue?.body)?.instance ?? null,
-        ...(receipt ? { receipt } : {}),
+        ...(builds ? { builds } : {}),
       });
     }
   }
@@ -99,7 +99,7 @@ export function flowView(store) {
   return {
     readAt: cache.readAt,
     ...flowFromEvents(rows),
-    receipts: receiptsView(rows, {
+    builds: buildView(rows, {
       instanceName: (id) =>
         id && id === peekInstance(store)?.id ? peekInstance(store).name : null,
     }),

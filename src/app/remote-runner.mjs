@@ -18,6 +18,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
+import { enforce, pushLines } from "./content-rules.mjs";
 import { fail } from "./store.mjs";
 import { queueNotifications } from "./notifications.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
@@ -413,6 +414,22 @@ export async function runnerTick(
       } else if (record.state === "reported") {
         update(store, id, { state: "checking" });
         const checks = await runChecks(config, record);
+        // The outgoing range passes content rules and the privacy scan
+        // before the push; a refusal fails the task with nothing pushed.
+        enforce(
+          store,
+          {
+            boundary: "diff",
+            target: `diff:${id}`,
+            added: pushLines(
+              record.worktree,
+              record.envelope.baseCommit,
+              "HEAD",
+              [record.branch],
+            ),
+          },
+          { mode: "refuse", taskId: id },
+        );
         await git(
           record.worktree,
           "push",
