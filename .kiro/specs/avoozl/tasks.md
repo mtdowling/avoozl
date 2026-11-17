@@ -1578,7 +1578,14 @@ required check; 42.4 is an independent owner settings review, not its gate.
 - [ ] 42.4 Review Avoozl repository settings against owner policy, after 42.3 [R87.8] (§4.26)
   - Owner-only: preview and report the current landing/check policy. Preserve the owner's disabled required-CI gate; do not restore three required checks automatically. Apply a real settings change only if explicitly authorized.
 
-- [ ] avoozl-p52 P52 Proof: ten tasks land through pull requests on a repository with a required check, after 42.1, 42.2, 42.3 [R87, R89] (§4.26)
+- [ ] 42.5 Take over writes the spec journal's generation, after 56.4 [R102.13, R102.14] (§4.32)
+  - `avoozl spec publish SPEC` and `avoozl spec takeover SPEC` (operation `spec.takeover`, person-only). Take over on a published spec (local or GitHub journal) appends the next generation with `takeOver` (driver-generations.mjs) and keeps the driver id with `rememberDriver`. Person-only; a held or concurrent journal refuses. Landing reads this driver; no take over means nothing lands.
+- [ ] 42.6 The tick lands `pr` portions through the landing queue, after 42.1, 42.3, 42.5, 41.4 [R87.3, R87.4, R87.5, R87.6, R89.3] (§4.26)
+  - A verified task in a repository with landing `pr` is pushed to its task branch (`pushHead`, never forced) and queued as one portion. Each tick runs `landNext` with `pullSteps` per base, with intents in the spec's journal. Landed marks the task integrated at the merge commit; failed checks send the task back to its chat; a conflict uses `sendConflictBack`. `direct` and `off` keep today's path. Fake GitHub and git test; no live write.
+- [ ] 42.7 `avoozl setup REPO`: one preview, `--yes` applies, after 42.2, 42.3 [R89.1, R89.2, R89.3] (§4.26)
+  - CLI over `previewAccess` and `previewLanding`: prints every change, writes only with `--yes`, and a second run prints "Nothing to change" and writes nothing. Writes the project's landing setting and checks. The old Radar `github setup` stays as it is.
+
+- [ ] avoozl-p52 P52 Proof: ten tasks land through pull requests on a repository with a required check, after 42.1, 42.2, 42.3, 42.5, 42.6, 42.7 [R87, R89] (§4.26)
   - Setup: a scratch GitHub repository set up by `avoozl setup` with one required check.
   - Action: release ten tasks; move the base during one; make one check fail.
   - Expected: ten pull requests merge one at a time after the check passes on each head; the moved base is merged in and checked again; the failed task goes back to its chat; no force push; setup run again changes nothing.
@@ -1944,7 +1951,7 @@ proof or run a real workspace to get past that wait.
   - Make this the sole code path that creates task issues. Preserve visibility rules, person outcomes and journal access after offboarding.
   - Export never sets crew:avoozl (owner decision 2026-11-16), so Issue Radar and people may take exported issues. It is the only crew:avoozl opt-out. A test checks that no export create request carries crew:avoozl.
 
-- [ ] 56.10 Mirror import PRs and forward ancestry, after 42.1, 56.3 [R102.21] (§4.32)
+- [x] 56.10 Mirror import PRs and forward ancestry, after 42.1, 56.3 [R102.21] (§4.32)
   - After private divergence, import upstream into a public-tracking branch and a reviewed mirror PR. Forward recognition excludes upstream/import ancestry, including an import merge whose second parent is on the public-tracking branch.
   - Test divergent mirror updates and a second import; forwarding proposes nothing for imported upstream changes and still screens genuine private changes.
 
