@@ -526,7 +526,6 @@ if (query.get('page') === 'app' && query.get('escalations')) {
   }
   answer('conflicts.view', () => ({ revision: 1, items: [crewRow] }))
 }
-<<<<<<< HEAD
 // &delivery=1: tasks in every Delivery lane across two epics and specs, a
 // spend chip, and Settings › Budgets' sample values (task 41.6 shots).
 if (query.get('page') === 'app' && query.get('delivery') === '1') {
@@ -593,8 +592,6 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
     repositories: { 'recipe-box': { usd: 8, mode: 'warn' }, search: {} },
   }))
 }
-||||||| 0b5225ce
-=======
 // &publiccrews=after: Intake with the Public crews card (task 39.3): one
 // repository ready to sign off, one signed off, and one with no rule set
 // (the banner) whose sign-off lapsed. &publiccrews=before: the same Intake
@@ -633,7 +630,6 @@ if (query.get('page') === 'app' && query.get('publiccrews')) {
     ...(after ? { publicCrews } : {}),
   }))
 }
->>>>>>> origin/main
 // ?page=app&radar=1: the Dashboard has one live Issue Radar claim, and a
 // Trace of it. The marker's own `updated=` (09:46) is ahead of GitHub's time
 // for the claim comment (09:21); the Trace shows GitHub's.
