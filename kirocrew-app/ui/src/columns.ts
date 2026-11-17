@@ -21,6 +21,37 @@ export const NAV_COLLAPSED_KEY = 'avoozl:nav-collapsed'
 export const NAV_COLLAPSED_WIDTH = 36
 export const LIST: Omit<ColumnSpec, 'key'> = { initial: 360, min: 240, max: 640 }
 export const listSpec = (id: string): ColumnSpec => ({ key: `avoozl:list-width:${id}`, ...LIST })
+// A spec's right rail, beside its cards. Its handle sits on its left edge.
+export const SPEC_RAIL: ColumnSpec = { key: 'avoozl:spec-rail-width', initial: 236, min: 200, max: 560 }
+// The cards never get narrower than this (the width they already wrap at);
+// the rail gives way first.
+export const SPEC_CARDS_MIN = 260
+// What sits between the cards and the rail: two 8px gaps and the handle.
+export const SPEC_RAIL_GUTTER = 24
+
+// The widest the rail may be in a spec body this wide (its content box), or
+// null when even the narrowest rail would squeeze the cards: then the rail
+// wraps under them as before and shows no handle.
+export function railMax(bodyWidth: number): number | null {
+  const room = Math.floor(bodyWidth - SPEC_CARDS_MIN - SPEC_RAIL_GUTTER)
+  return room < SPEC_RAIL.min ? null : Math.min(SPEC_RAIL.max, room)
+}
+
+// A folded list is a thin bar, as wide as the collapsed nav.
+export const LIST_FOLDED_WIDTH = 36
+
+// The rail's room when the specs list beside it can fold into a thin bar.
+// `body` is the spec body's content width as laid out now; `gain` what
+// folding gives it (the list and its handle, less the bar). A rail wider
+// than fits beside the open list folds the list; `max` counts that room,
+// and `fits` is the widest rail that keeps the list open (never under the
+// default, which keeps today's layout). Null max: no handle.
+export function railRoom(body: number, folded: boolean, gain: number, rail: number) {
+  const open = folded ? body - gain : body
+  const fits = Math.max(railMax(open) ?? 0, SPEC_RAIL.initial)
+  const max = railMax(open + gain)
+  return { max, fits, fold: max !== null && rail > fits }
+}
 
 export const clampWidth = (spec: ColumnSpec, width: number) =>
   Math.round(Math.min(spec.max, Math.max(spec.min, Number.isFinite(width) ? width : spec.initial)))
@@ -63,8 +94,11 @@ export function writeFlag(storage: Store, key: string, on: boolean): void {
 }
 
 // Left and Right move a focused handle 16 px; anything else is not a step.
-export function stepWidth(width: number, key: string): number | null {
-  return key === 'ArrowRight' ? width + 16 : key === 'ArrowLeft' ? width - 16 : null
+// A handle on a column's left edge widens it to the left, so the keys swap.
+export function stepWidth(width: number, key: string, edge: 'left' | 'right' = 'right'): number | null {
+  const wider = edge === 'right' ? 'ArrowRight' : 'ArrowLeft'
+  const narrower = edge === 'right' ? 'ArrowLeft' : 'ArrowRight'
+  return key === wider ? width + 16 : key === narrower ? width - 16 : null
 }
 
 export function pageStorage(): Storage | null {
