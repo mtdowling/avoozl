@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { PUBLIC_HELD, publicHold } from "../public-signoff.mjs";
+import { signedOff } from "./public-signoff-fixture.mjs";
 import { fixture } from "./fixtures.mjs";
 import { leaf, setup as release } from "./radar-coder-release-fixture.mjs";
 import { setRadarHandoverPaused } from "../coder-adapter.mjs";
@@ -33,7 +34,7 @@ test("a complete sign-off releases the hold, an incomplete one does not", (t) =>
   const store = setup(t, { private: false });
   store.setMeta("publicSignoff", { [REPO]: { complete: false } });
   assert.equal(publicHold(store, REPO), PUBLIC_HELD);
-  store.setMeta("publicSignoff", { [REPO]: { complete: true } });
+  signedOff(store, REPO);
   assert.equal(publicHold(store, REPO), null);
   assert.equal(publicHold(store, "example/other"), PUBLIC_HELD);
 });
@@ -58,7 +59,7 @@ test("a public repository releases nothing and the queue says why, until the sig
     repositories[0].rows.map((row) => row.reason),
     [PUBLIC_HELD, PUBLIC_HELD],
   );
-  w.store.setMeta("publicSignoff", { [REPO]: { complete: true } });
+  signedOff(w.store, REPO);
   await w.tick();
   assert.equal(w.readyIds().length, 2);
 });

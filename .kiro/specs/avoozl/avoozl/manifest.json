@@ -6431,7 +6431,8 @@
         "41.1",
         "41.2",
         "41.3",
-        "41.5"
+        "41.5",
+        "41.9"
       ]
     },
     "41.1": {
@@ -6553,6 +6554,24 @@
       ],
       "requires": [
         "41.3"
+      ]
+    },
+    "41.9": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 41 (Scheduler and direct landing). The tick lands direct portions through the landing queue. See R87.1, R87.2, R88.6; §4.26.",
+      "acceptance": [
+        "The tick lands `direct` portions through the landing queue",
+        "A verified task in a repository with landing `direct` is queued as one portion. Each tick runs `landNext` with `directSteps` per base: checks on the merged candidate, an intent in the spec's journal, a guarded fast-forward push, never forced. Landed marks the task integrated at the candidate, fast-forwards the local base and removes the task worktree and branch; failed checks go back to the chat. Real git test with a bare remote; no live write."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "41.3",
+        "42.6"
       ]
     },
     "avoozl-p51": {
@@ -8287,6 +8306,24 @@
         "56.12"
       ]
     },
+    "56.15": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 56 (Working branches and a spec journal). Reanchor a held journal by a person's record. See R102.26; §4.32.",
+      "acceptance": [
+        "Reanchor a held journal by a person's record",
+        "Schema, writer and replay: a `reanchor` record names held record IDs and the reviewed tail (ID and current digest); replay accepts it only from a write-access author whose tail is the last known record, ignores the named records' contents, clears their holds and continues. Unnamed or later holds stay. No comment is edited or deleted; no approval, completion or generation change.",
+        "Person-only `spec.journal.reanchor` with preview, and `avoozl spec journal reanchor SPEC --held ID,... --tail ID [--yes]`; refused for MCP and agent sessions. Tests: a mutated record and a deleted record each restore; a stale tail digest, an agent caller and an unnamed hold refuse; the spec stays held until Resume."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "56.2"
+      ]
+    },
     "avoozl-p66": {
       "kind": "leaf",
       "repository": "avoozl",
@@ -8294,7 +8331,7 @@
       "acceptance": [
         "P66 Proof: journal, working-head recovery and takeover",
         "Setup: isolated scratch GitHub code and private planning repositories, published epic/spec issues, a three-task in-spec chain and one cross-spec successor, actual executor, direct landing and made-up secret canaries. No real workspace or private pilot.",
-        "Action: push an unfinished checkpoint, verify and integrate the first task, check branch marks; retry a journal write, mutate/delete a linked record; reconstruct after discarding a copied disposable database. Restore journal consistency, review and Resume. Pause the original driver immediately before a guarded push, take over, then resume it. Exercise stale/copied trailers, issue-binding retirement and a hold/reassignment without a commit.",
+        "Action: push an unfinished checkpoint, verify and integrate the first task, check branch marks; retry a journal write, mutate/delete a linked record; reconstruct after discarding a copied disposable database. Restore journal consistency by a person's reanchor (56.15), review and Resume. Pause the original driver immediately before a guarded push, take over, then resume it. Exercise stale/copied trailers, issue-binding retirement and a hold/reassignment without a commit.",
         "Expected: checkpoints survive, unverified work releases nothing, only verified in-spec successors advance, cross-spec waits for accepted landing; mutation holds, replay deduplicates, reconstruction holds, old intents reconcile to one effective outcome and old generations authorize no new work. Migration changes no readiness and no task issues are read/created. All canaries are rejected before publication.",
         "Also record: approved/definition digests, qualified refs and checked/landed SHAs, sanitized record/operation IDs, before/after frontier, intent/generation sequence, pause timing, permission and content-rule verdicts and actual GitHub call counts. Keep sensitive control detail private.",
         "Write a live docs/evidence/ receipt. Failure means an unchecked/stale completion, a takeover double dispatch, lost hold, automatic reset of spend, task-issue side effects or a leak. Tests/fakes never tick this proof; owner-only actions remain explicit.",
@@ -8312,6 +8349,7 @@
         "56.6",
         "56.7",
         "56.8",
+        "56.15",
         "41.3"
       ]
     },

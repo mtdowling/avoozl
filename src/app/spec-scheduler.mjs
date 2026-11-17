@@ -199,9 +199,11 @@ export function journalOf(store, { github, workspaceRoot, actor }, planId) {
   const issue = store.get("receipts", `github-parent:plan:${planId}`);
   if (!issue?.number) return null;
   if (!github) return { unreadable: true };
-  const config = store.get("github_repositories", issue.repository) || {
-    id: issue.repository,
-  };
+  // The client reads owner and repo; a receipt whose repository has no
+  // configuration row names it as owner/name, which the client parses.
+  const row = store.get("github_repositories", issue.repository),
+    config = row?.owner && row?.repo ? row : issue.repository;
+  const id = row?.id ?? issue.repository;
   return {
     ...githubJournal(github, config, issue.number),
     // A public issue's records must be opaque; one whose visibility cannot
@@ -210,8 +212,8 @@ export function journalOf(store, { github, workspaceRoot, actor }, planId) {
       (await github.repository(config).catch(() => null))?.private === true
         ? "private"
         : "public",
-    publicRepositories: [config.id],
-    issue: { repository: config.id, number: issue.number },
+    publicRepositories: [id],
+    issue: { repository: id, number: issue.number },
   };
 }
 
