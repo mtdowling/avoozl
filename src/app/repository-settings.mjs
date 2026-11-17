@@ -1,4 +1,5 @@
 import { validateModels, validatePlanReview } from "./chat-models.mjs";
+import { validateLanes } from "./lanes.mjs";
 import { flowPolicy } from "./flow.mjs";
 import { deliveryPolicy } from "./delivery.mjs";
 import { validateTrackedRouting } from "./placement.mjs";
@@ -778,6 +779,7 @@ export class RepositorySettings {
     validateModels(value.models);
     validateModels({ ...this.baseModels, ...value.models });
     validatePlanReview(value.planReview);
+    validateLanes(value.lanes);
     try {
       validateActivitySettings(value.activity);
       flowPolicy(value);

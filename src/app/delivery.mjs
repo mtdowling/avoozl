@@ -82,6 +82,7 @@ import {
   taskRepository,
   taskRoute,
 } from "../work-model.mjs";
+import { validateLanes } from "./lanes.mjs";
 import { briefNotes } from "./task-notes.mjs";
 
 // `findings` is a worker's first turn when it investigates first (R75.1).
@@ -231,6 +232,8 @@ export function deliveryPolicy(value) {
   return {
     ...DELIVERY_DEFAULTS,
     ...delivery,
+    // The Mac's lanes set the default; delivery.concurrency still wins.
+    concurrency: delivery.concurrency ?? validateLanes(value.lanes).local,
     reviewers,
     repositories: normalized,
   };
