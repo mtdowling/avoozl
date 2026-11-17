@@ -35,6 +35,7 @@ import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './Modal.tsx'
 import { PlanReviewSummary } from './PlanReviewSummary.tsx'
+import { DiffBlock } from './FlowMemory.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
 import { SpecChangedModal } from './SpecChangedModal.tsx'
 import { projectionClient } from './projection-api.ts'
@@ -69,6 +70,8 @@ import {
   rowActions,
   rowChoices,
   shortHash,
+  baseRevision,
+  revisionDiff,
   writesByRepository,
   type PlanListFilter,
   SORT_FIRST,
@@ -1394,8 +1397,26 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
 
 // Approve one exact revision after showing its independent review evidence.
 export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; client: PlansClient; onDone: (text: string | null) => void }) {
-  const { plan, client, workspaceId } = props
+  const { client, workspaceId } = props
+  // The plan can move while the dialog is open (the planner answers a
+  // review); Approve always targets the revision shown here.
+  const [plan, setPlan] = useState(props.plan)
+  const [moved, setMoved] = useState(false)
   const [review, setReview] = useState(plan.review)
+  const [showDiff, setShowDiff] = useState(false)
+  const base = baseRevision(plan)
+  const diffs = showDiff && base ? revisionDiff(base.files, plan.files) : []
+  // Re-read Avoozl's stored review (no GitHub call). When it settles, reload
+  // the plan too, so a revision the planner wrote meanwhile is the one shown.
+  const refresh = async () => {
+    const next = await client.reviewSummary(workspaceId, plan.id)
+    if (next) setReview(next)
+    if (next && next.state !== 'running') {
+      const fresh = await client.get(workspaceId, plan.id)
+      if (fresh.hash !== plan.hash) { setPlan(fresh); setMoved(true); setShowDiff(false) }
+    }
+    return next
+  }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<{ repository: string; number: number } | null>(null)
@@ -1422,8 +1443,28 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
       </div>
     }>
       <div className="flex flex-col gap-3 text-sm">
-        <p className="m-0 text-muted">Approve exactly revision <Tooltip text={plan.hash}><code>{shortHash(plan.hash)}</code></Tooltip>. Review findings are evidence for your decision; they do not block approval.</p>
-        <PlanReviewSummary key={`${workspaceId}:${plan.id}:${plan.hash}`} review={review} onStart={() => client.reviewAnyway(workspaceId, plan.id, plan.hash)} onClose={async (id, disposition) => { await client.closeReviewFinding(workspaceId, id, disposition); return client.reviewSummary(workspaceId, plan.id) }} />
+        <p className="m-0 text-muted">
+          Approve exactly revision{' '}
+          {base ? (
+            <Tooltip text={`Show changes since ${base.approved ? 'the approved' : 'the previous'} revision ${shortHash(base.hash)}`}>
+              <button type="button" className="underline" style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }} aria-expanded={showDiff} onClick={() => setShowDiff(!showDiff)} data-revision-diff-toggle><code>{shortHash(plan.hash)}</code></button>
+            </Tooltip>
+          ) : <Tooltip text={plan.hash}><code>{shortHash(plan.hash)}</code></Tooltip>}
+          . Review findings are evidence for your decision; they do not block approval.
+        </p>
+        {moved && <p role="status" className="m-0" data-revision-moved>The plan changed while it was reviewed. Approve now targets revision <code>{shortHash(plan.hash)}</code>.</p>}
+        {showDiff && base && (
+          <section data-revision-diff className="flex flex-col gap-2">
+            <p className="m-0 text-xs text-muted">Changes since {base.approved ? 'approved' : 'previous'} revision <code>{shortHash(base.hash)}</code></p>
+            {diffs.length ? diffs.map((entry) => (
+              <div key={entry.file} className="flex flex-col gap-1">
+                <p className="m-0 text-xs font-medium"><code>{entry.file}</code></p>
+                <DiffBlock diff={entry.diff} label={`Changes to ${entry.file}`} />
+              </div>
+            )) : <p className="m-0 text-muted">No file changed.</p>}
+          </section>
+        )}
+        <PlanReviewSummary key={`${workspaceId}:${plan.id}:${plan.hash}`} review={review} onStart={() => client.reviewAnyway(workspaceId, plan.id, plan.hash)} onRefresh={refresh} onClose={async (id, disposition) => { await client.closeReviewFinding(workspaceId, id, disposition); return client.reviewSummary(workspaceId, plan.id) }} />
         {error && <p role="alert" className="m-0 text-danger">{error}</p>}
         {pending && <p role="status" className="m-0">Nothing approved yet. Merge <a className="underline" href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">{pending.repository}#{pending.number}</a>, then approve again.</p>}
       </div>
@@ -1533,7 +1574,7 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
         {entries.map((entry) => (
           <section key={entry.id} data-approve-review={entry.id} className="flex min-w-0 flex-col gap-2 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
             <h3 className="m-0 text-sm font-medium">{entry.spec}</h3>
-            <PlanReviewSummary key={`${props.workspaceId}:${entry.id}:${entry.hash}`} onStart={() => props.client.reviewAnyway(props.workspaceId, entry.id, entry.hash)} review={selection?.specs.find((spec) => spec.id === entry.id)?.review ?? entry.review} onClose={async (id, disposition) => { await props.client.closeReviewFinding(props.workspaceId, id, disposition); return props.client.reviewSummary(props.workspaceId, entry.id) }} />
+            <PlanReviewSummary key={`${props.workspaceId}:${entry.id}:${entry.hash}`} onStart={() => props.client.reviewAnyway(props.workspaceId, entry.id, entry.hash)} onRefresh={() => props.client.reviewSummary(props.workspaceId, entry.id)} review={selection?.specs.find((spec) => spec.id === entry.id)?.review ?? entry.review} onClose={async (id, disposition) => { await props.client.closeReviewFinding(props.workspaceId, id, disposition); return props.client.reviewSummary(props.workspaceId, entry.id) }} />
           </section>
         ))}
       </div>
