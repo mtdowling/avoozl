@@ -485,7 +485,13 @@ export function investigationStep(
         task: task.id,
         role: "falsifier",
         attempt,
-        title: `avoozl:${task.id} falsify round ${round.n}`.slice(0, 200),
+        // Kiro Crew keys a chat by its title, so a later worker attempt's
+        // round 1 gets its own name (P50: it reused attempt 1's chat).
+        title:
+          `avoozl:${task.id} ${row.attempt > 1 ? `attempt ${row.attempt} ` : ""}falsify round ${round.n}`.slice(
+            0,
+            200,
+          ),
         // Its brief names the checkout, so no folder project is needed
         // (R88.2, as for the worker).
         ...kirocrewDetachedSession(project.id),
