@@ -24,6 +24,7 @@ import {
 } from "node:worker_threads";
 import { globalAvoozlConfigPath } from "./layered-config.mjs";
 import { queueNotifications } from "./notifications.mjs";
+import { PRIVACY_SET, privacyHits, privacyRules } from "./privacy.mjs";
 import { fail } from "./store.mjs";
 
 // `intake` screens incoming items (design §4.12) and runs only for a set
@@ -550,6 +551,8 @@ export function bindContentRules(
     configFile = globalAvoozlConfigPath(),
     pluginSettingsFile = null,
     timeoutMs = CHECK_TIMEOUT_MS,
+    // {hostname, username} in place of this machine's own (tests only).
+    machine = null,
   } = {},
 ) {
   const previous = bound.get(store);
@@ -558,6 +561,7 @@ export function bindContentRules(
     configFile,
     pluginSettingsFile,
     timeoutMs,
+    machine,
     // Rule sets a `rules` plugin supplied, in memory only (R40.9):
     // plugin id -> {loadedAt, sets: Map(id -> {version, rules}), error}.
     plugins:
@@ -902,6 +906,42 @@ function linesOf({ target, text, added }) {
     .map((line, i) => ({ target, line: i + 1, text: line }));
 }
 
+// builtin:privacy (privacy.mjs, R102.25): always on at the boundaries that
+// leave this machine. GitHub text gets every rule; a pushed diff's commit
+// messages and ref names (targets `commit:` and `ref:`) do too, and its
+// added lines get the code scope.
+const PRIVATE_BOUNDARIES = new Set(["github", "diff"]);
+function privacyFindings(binding, boundary, lines) {
+  if (!PRIVATE_BOUNDARIES.has(boundary) || !lines.length) return [];
+  const options = {
+      machine: binding?.machine ?? null,
+      configFile: binding?.configFile ?? globalAvoozlConfigPath(),
+    },
+    text = privacyRules({ ...options, scope: "text" }),
+    code = privacyRules({ ...options, scope: "code" }),
+    prose = (line) =>
+      boundary === "github" || /^(?:commit|ref):/.test(String(line.target)),
+    findings = [];
+  for (const [rules, picked] of [
+    [text, lines.filter(prose)],
+    [code, lines.filter((line) => !prose(line))],
+  ])
+    for (const hit of privacyHits(
+      picked.map((l) => l.text),
+      rules,
+      decode,
+    ))
+      findings.push({
+        set: PRIVACY_SET,
+        rule: hit.rule,
+        boundary,
+        target: picked[hit.index].target,
+        line: picked[hit.index].line,
+        action: "block",
+      });
+  return findings;
+}
+
 // check({boundary, repository, target, text, added}): findings as {set, rule,
 // boundary, target, line, action, version?}, and the covering sets that are
 // unavailable as {set, reason}. Never the matched text. Writes nothing.
@@ -917,7 +957,7 @@ export function check(store, input) {
       .map((set) => ({ set: set.id, reason: set.reason })),
     ready = applying.filter((set) => set.available),
     lines = linesOf(input),
-    findings = [];
+    findings = privacyFindings(binding, boundary, lines);
   if (!ready.length || !lines.length) return { findings, unavailable };
   const rules = ready.flatMap((set) =>
     set.rules.map((rule) => ({
@@ -1776,11 +1816,70 @@ export function addedLines(root, base, head) {
   return lines;
 }
 
-// Check a task's diff: {ok, findings, unavailable, notify}, or a 422 in
-// "refuse" mode.
-export function enforceDiff(store, { project, head, taskId, mode = "decide" }) {
+// [{target: "commit:<sha>", line, text}] for each line of each commit
+// message `head` adds over `base` (only `head` itself without a base).
+export function commitMessageLines(root, base, head) {
+  revision(head);
+  if (base) revision(base);
+  const out = gitSync(root, [
+    "log",
+    "--format=%H%x00%B%x1e",
+    ...(base ? [`${base}..${head}`] : ["-1", head]),
+  ]);
+  return out
+    .split("\x1e")
+    .map((entry) => entry.replace(/^\n/, ""))
+    .filter(Boolean)
+    .flatMap((entry) => {
+      const [sha, body = ""] = entry.split("\0");
+      return body
+        .replace(/\n+$/, "")
+        .split("\n")
+        .map((text, i) => ({
+          target: `commit:${sha.slice(0, 12)}`,
+          line: i + 1,
+          text,
+        }));
+    });
+}
+
+// The branch checked out at `root`, or null when HEAD is detached.
+function currentBranch(root) {
+  try {
+    return gitSync(root, ["symbolic-ref", "--quiet", "HEAD"]).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+// The lines an outgoing range publishes: added lines, commit messages and
+// ref names (R87.9, R102.12).
+export function pushLines(root, base, head, refs) {
+  return [
+    ...addedLines(root, base, head),
+    ...commitMessageLines(root, base, head),
+    ...[...new Set(refs.filter(Boolean))].map((name, i) => ({
+      target: `ref:${i + 1}`,
+      line: 1,
+      text: String(name).replace(/^refs\/heads\//, ""),
+    })),
+  ];
+}
+
+// Check a task's outgoing range with content rules and the privacy scan.
+// `refs` names the pushed refs; unset, the branch checked out at the root.
+// {ok, findings, unavailable, notify}, or a 422 in "refuse" mode.
+export function enforceDiff(
+  store,
+  { project, head, taskId, mode = "decide", refs },
+) {
   const base = diffBase(project, head),
-    added = addedLines(project.root, base, head);
+    added = pushLines(
+      project.root,
+      base,
+      head,
+      refs ?? [currentBranch(project.root)],
+    );
   const result = enforce(
     store,
     {
@@ -1798,7 +1897,9 @@ export function enforceDiff(store, { project, head, taskId, mode = "decide" }) {
   // A finding's own file goes in the decision's source, for the matched
   // line on demand.
   if (!result.ok && mode === "decide") {
-    const first = result.findings[0];
+    const first = result.findings.find(
+      (f) => !/^(?:commit|ref):/.test(f.target),
+    );
     if (first) {
       const id =
           "content:" + sha256(`${first.set}\0diff:${taskId}`).slice(0, 24),
@@ -1900,7 +2001,11 @@ export function allowWrite(
   input,
   { taskId = null, source = null } = {},
 ) {
-  if (!contentBinding(store)?.workspaceRoot) return true;
+  if (
+    !contentBinding(store)?.workspaceRoot &&
+    !PRIVATE_BOUNDARIES.has(input.boundary)
+  )
+    return true;
   const result = enforce(store, input, { mode: "decide", taskId, source });
   queueNotifications(store, result.notify);
   return result.ok;
@@ -1948,6 +2053,44 @@ const GITHUB_WRITES = {
   createPullRequest: (args) => ({
     number: null,
     text: [args[1]?.title, args[1]?.body],
+    extra: [args[1]?.head, args[1]?.base],
+  }),
+  // Writes whose only text is a ref name, a commit message or a check
+  // summary (R102.12). The target names a hash, never the text.
+  createBranch: (args) => ({
+    text: [],
+    extra: [args[1]],
+    target: `ref:${repositoryOf(args[0])}:${sha256(args[1]).slice(0, 12)}`,
+  }),
+  createLinkedBranch: (args) => ({
+    text: [],
+    extra: [args[0]?.name],
+    target: `ref:linked:${sha256(args[0]?.name).slice(0, 12)}`,
+  }),
+  mergeBranch: (args) => ({
+    text: [],
+    extra: [args[1]?.message, args[1]?.head, args[1]?.base],
+    target: `merge:${repositoryOf(args[0])}:${sha256(args[1]?.message).slice(0, 12)}`,
+  }),
+  armAutoMerge: (args) => ({
+    text: [],
+    extra: [args[3]?.headline, args[3]?.body],
+    target: `merge:${repositoryOf(args[0])}:${args[1]}`,
+  }),
+  createCommitStatus: (args) => ({
+    text: [],
+    extra: [args[2]?.description, args[2]?.context, args[2]?.target_url],
+    target: `status:${repositoryOf(args[0])}:${args[1]}`,
+  }),
+  createPendingReview: (args) => ({
+    text: [],
+    extra: [
+      args[2]?.body,
+      ...(Array.isArray(args[2]?.comments)
+        ? args[2].comments.map((c) => c?.body)
+        : []),
+    ],
+    target: `review:${repositoryOf(args[0])}:${args[1]}`,
   }),
 };
 
@@ -1962,6 +2105,7 @@ export function githubTarget(method, args) {
     repository = repositoryOf(args[0]),
     body = String(shape.text.at(-1) ?? ""),
     task = /"taskId"\s*:\s*"([^"]+)"/.exec(body)?.[1];
+  if (shape.target) return shape.target;
   if (shape.discussion) return `comment:discussion:${shape.discussion}`;
   if (shape.comment)
     return `comment:${repository}:${shape.number ?? args[1] ?? "?"}:${sha256(body.split("\n")[0]).slice(0, 12)}`;
@@ -1980,7 +2124,9 @@ export function guardGitHub(github, store) {
       if (typeof value !== "function" || !GITHUB_WRITES[name]) return value;
       return function guarded(...args) {
         const shape = GITHUB_WRITES[name](args),
-          text = shape.text.filter((t) => typeof t === "string").join("\n"),
+          text = [...shape.text, ...(shape.extra || [])]
+            .filter((t) => typeof t === "string")
+            .join("\n"),
           repository = repositoryOf(args[0]);
         if (
           text &&
