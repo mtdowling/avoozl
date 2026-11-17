@@ -132,3 +132,86 @@ test('batch Review anyway stays pinned to its opening workspace with identical I
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-approve-specs]'))`),false)
   assert.deepEqual(await page.evaluate('window.__reviewCalls'),[])
 })
+
+test('a running review shows the purple working box, announced politely and still under reduced motion', { skip }, async () => {
+  for (const [width, dark] of [[1280, false], [390, true]]) {
+    await open('single', 'running', width, dark)
+    const box = await page.evaluate(`(() => {
+      const el = document.querySelector('[data-review-working]')
+      const before = getComputedStyle(el, '::before')
+      return { role: el.getAttribute('role'), live: el.getAttribute('aria-live'), label: el.getAttribute('aria-label'), text: el.textContent, border: getComputedStyle(el).borderTopColor, radius: getComputedStyle(el).borderTopLeftRadius, sweep: before.animationName, shown: before.display }
+    })()`)
+    assert.deepEqual([box.role, box.live, box.label], ['status', 'polite', 'Reviewing with fake-reviewer…'])
+    assert.match(box.text, /Review running/)
+    assert.notEqual(box.border, 'rgba(0, 0, 0, 0)', 'the box has a tinted border')
+    assert.notEqual(box.radius, '0px', 'the box is rounded')
+    assert.equal(box.sweep, 'none', 'reduced motion stops the sweep')
+    assert.equal(box.shown, 'none')
+    assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
+    assert.equal(await page.evaluate(`document.querySelector('[data-approve-spec-go]').disabled`), false)
+    assert.deepEqual(page.errors, [])
+  }
+  const source = await import('node:fs').then((fs) => fs.readFileSync(new URL('../src/PlanReviewSummary.tsx', import.meta.url), 'utf8'))
+  assert.match(source, /animation: avoozl-review-sweep 2s ease-in-out infinite/, 'motion matches Kiro Crew when motion is allowed')
+})
+
+test('an open dialog re-reads the stored review and swaps the working box for findings when it settles', { skip }, async () => {
+  for (const mode of ['single', 'batch']) {
+    await open(mode, 'running')
+    await page.until(`Boolean(document.querySelector('[data-review-working]'))`)
+    await page.evaluate('window.__settleRunning()')
+    await page.until(`!document.querySelector('[data-review-working]')`, 10000)
+    const text = await page.evaluate(`document.querySelector('[data-approve-spec], [data-approve-specs]').textContent`)
+    assert.match(text, /2 found · 1 fixed · 1 for you/)
+    assert.match(text, /The referenced helper does not exist/)
+    assert.ok((await page.evaluate('window.__summaryReads')).includes('running'), 'reads Avoozl\'s stored summary')
+    assert.deepEqual(page.errors, [])
+  }
+})
+
+test('when the plan moves during the review, the dialog says so and Approve targets the new revision', { skip }, async () => {
+  await open('single', 'running')
+  await page.evaluate('window.__settleRunning(true)')
+  await page.until(`Boolean(document.querySelector('[data-revision-moved]'))`, 10000)
+  assert.match(await page.evaluate(`document.querySelector('[data-revision-moved]').textContent`), /cccccccc/)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-review-working]'))`), false)
+  await click('[data-approve-spec-go]')
+  await page.until(`Boolean(document.querySelector('[data-dialog-closed]'))`)
+  const calls = await page.evaluate('window.__reviewCalls')
+  assert.deepEqual(calls.find((call) => call.operation === 'plan.approve'), { operation: 'plan.approve', id: 'running', expectedHash: 'c'.repeat(64) })
+})
+
+test('the revision opens its diff since the approved revision', { skip }, async () => {
+  for (const [width, dark] of [[1280, false], [390, true]]) {
+    await open('single', 'done', width, dark)
+    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-revision-diff]'))`), false)
+    await click('[data-revision-diff-toggle]')
+    await page.until(`Boolean(document.querySelector('[data-revision-diff]'))`)
+    const text = await page.evaluate(`document.querySelector('[data-revision-diff]').textContent`)
+    assert.match(text, /approved revision bbbbbbbb/)
+    assert.match(text, /requirements\.md/)
+    assert.match(text, /-Old goal\./)
+    assert.match(text, /\+New goal\./)
+    assert.doesNotMatch(text, /tasks\.md/, 'unchanged files are left out')
+    assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
+    assert.deepEqual(page.errors, [])
+  }
+})
+
+test('the reviewer is a bordered table and the status and counts sit in their own box', { skip }, async () => {
+  await open('single', 'skipped', 390)
+  const layout = await page.evaluate(`(() => {
+    const reviewer = document.querySelector('[data-review-reviewer]'), status = document.querySelector('[data-review-status]')
+    const rows = [...reviewer.querySelectorAll('tr')].map((row) => [row.querySelector('th').textContent, row.querySelector('td').textContent])
+    return { rows, notes: [...reviewer.querySelectorAll('[data-review-note]')].map((note) => note.textContent), separate: !reviewer.contains(status) && !status.contains(reviewer), counts: Boolean(status.querySelector('[data-review-counts]')), border: getComputedStyle(reviewer).borderTopStyle + getComputedStyle(status).borderTopStyle }
+  })()`)
+  assert.deepEqual(layout.rows.map(([name, value]) => [name, value.slice(0, 12)]), [['Reviewer', 'fake-reviewe'], ['Revision', 'aaaaaaaaaaaa'], ['Writer', 'unknown']])
+  assert.deepEqual(layout.notes.length, 2)
+  assert.match(layout.notes[0], /The writer model is unknown/)
+  assert.match(layout.notes[1], /Reviewing anyway records/)
+  assert.equal(layout.separate, true)
+  assert.equal(layout.counts, true)
+  assert.equal(layout.border, 'solidsolid')
+  await click('[data-review-anyway]')
+  await page.until(`document.querySelector('[data-review-status]').textContent.includes('Review queued for this revision')`)
+})
