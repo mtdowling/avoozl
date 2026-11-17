@@ -31,3 +31,12 @@ test('the GitHub flow section shows the four stages and what was left out', { sk
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth > document.documentElement.clientWidth`), false, `no sideways scroll at ${width}px`)
   }
 })
+
+test('a repository with receipts and no Radar crew still shows its builds', { skip }, async () => {
+  await page.open(harness.url({ page: 'github-flow', receipt: 'only' }), { width: 1280, height: 800 })
+  await page.until(`Boolean(document.querySelector('[data-flow-builds]'))`)
+  const text = await page.evaluate(`document.querySelector('[data-github-flow]').textContent`)
+  assert.match(text, /12 pull requests/)
+  assert.doesNotMatch(text, /No finished issue yet/)
+  assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-flow-stage]')].filter((e) => e.offsetParent).length`), 0)
+})
