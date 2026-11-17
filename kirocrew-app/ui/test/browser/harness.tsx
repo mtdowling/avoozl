@@ -509,6 +509,8 @@ if (query.get('page') === 'app') {
       calls: 0,
       notModified: 0,
       notModifiedShare: null,
+      hourCalls: 153,
+      bySource: { tick: { calls: 88, notModified: 40, cached: 0 }, crew: { calls: 41, notModified: 0, cached: 0 }, view: { calls: 17, notModified: 21, cached: 132 }, review: { calls: 5, notModified: 0, cached: 3 }, setup: { calls: 2, notModified: 0, cached: 0 } },
       writes: { perMinute: 60, perHour: 400, run: { planId: 'nupp', done: 312, total: 1740, resumeAt: new Date(Date.now() + 38 * 60000).toISOString() } },
     },
     choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
