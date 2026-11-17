@@ -21,8 +21,7 @@ test('no settings text says "same as above"', () => {
 
 test('no field asks for a model price', () => {
   for (const [name, text] of sources) {
-    // Budgets shows Avoozl's built-in price list read only; no label, id,
-    // placeholder or field name asks for one.
+    // No label, id, placeholder or field name asks for one.
     assert.doesNotMatch(text, /(label|placeholder|aria-label|raw|id)=\{?["'`][^"'`]*price/i, name)
     assert.doesNotMatch(text, /<Input[^>]*price/i, name)
   }

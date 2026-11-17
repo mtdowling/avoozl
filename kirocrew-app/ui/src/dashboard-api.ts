@@ -3,7 +3,6 @@
 // Only graph-specific facts: Issue Radar shows issues, pull requests and CI,
 // so those are not repeated here. Kept free
 // of JSX so node can test it directly.
-import type { BudgetChip } from './budget-api.ts'
 import type { StoredPlanPage } from './plans-api.ts'
 import { nodeState, waves, type NodeState } from './graph-layout.ts'
 import { modelLabel, safeHref, type RadarClaim, type RadarGroup, type RadarCrews, type RadarCrewStrip, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask, type ProcessDetails, type RemoteWorker } from './views-api.ts'
@@ -65,8 +64,6 @@ export interface InFlight {
   lastAt: string | null
   status: string | null
   session: DeliverySession
-  // Spend against the cap (§4.17).
-  budget: BudgetChip | null
   // Set for a worker on a runner's crew (R84); Session opens its dashboard.
   remote?: RemoteWorker
 }
@@ -110,8 +107,6 @@ export interface DashboardSummary {
   radarUnseen: string[]
   // Variant A only: Issue Radar's crews, counts and credits per issue.
   radarCrewStrip: RadarCrewStrip | null
-  // Open tasks at or past their cap (§4.17), for the header count.
-  overBudget: number
   // True only when the delivery read worked and no task has ever run, been
   // reviewed, integrated or completed (no session, evidence or integration
   // on any item). Gates the Start demo button; an unread list is false.
@@ -147,7 +142,6 @@ function remoteRow(worker: RemoteWorker): InFlight {
     lastAt: worker.updatedAt || null,
     status: worker.status,
     session: { slot: worker.chatKey, role: 'worker', attempt: 1, title: null, status: worker.status, statusAt: worker.updatedAt || null, boundAt: null, link: worker.attachUrl, crew: worker.crewId, crewUnreachable: worker.stale },
-    budget: null,
     remote: worker,
   }
 }
@@ -217,7 +211,7 @@ export function summarize(input: {
 
   const running = (allDelivery ?? [])
     .filter((item) => !item.complete)
-    .map((item) => ({ id: item.id, title: item.title, budget: item.budget ?? null, sessions: item.sessions.filter((s) => !ENDED.has(s.status ?? '')) }))
+    .map((item) => ({ id: item.id, title: item.title, sessions: item.sessions.filter((s) => !ENDED.has(s.status ?? '')) }))
     .filter((item) => item.sessions.length > 0)
 
   const tasks = new Map((graph?.tasks ?? []).map((t) => [t.id, t]))
@@ -239,7 +233,6 @@ export function summarize(input: {
           lastAt: session.statusAt ?? session.boundAt,
           status: session.status,
           session,
-          budget: item.budget,
         }
       }),
     )
@@ -287,7 +280,6 @@ export function summarize(input: {
     radarUnseen: input.radar?.unseen ?? [],
     radarCrewStrip: input.radar?.crewStrip ?? null,
     neverRan: input.delivery != null && !input.delivery.some((item) => item.complete || item.sessions.length > 0 || item.evidence.length > 0 || item.deliveries.length > 0 || item.integration),
-    overBudget: (input.delivery ?? []).filter((item) => !item.complete && item.budget?.reached).length,
     readyNext,
     progress: [...byEpic.values()],
     plans: {

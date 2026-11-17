@@ -28,7 +28,6 @@
   "allow": ["--allowedTools", "Bash({project_allow_commands}:*)"],
   "resultAllow": ["--allowedTools", "Edit(.avoozl/result.json)"],
   "cost": { "from": "output", "field": "total_cost_usd" },
-  "spendCap": ["--max-budget-usd", "{budget_usd}"],
   "keepEnv": ["ANTHROPIC_API_KEY"],
   "tmpEnv": ["CLAUDE_CODE_TMPDIR"]
 }
