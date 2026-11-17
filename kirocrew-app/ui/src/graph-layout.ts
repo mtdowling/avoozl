@@ -26,7 +26,7 @@
 import type { Graph, GraphTask } from './views-api.ts'
 import { nodeState as sharedNodeState } from '../../../src/delivery-lanes.mjs'
 
-export type NodeState = 'ready' | 'running' | 'waiting' | 'needs-you' | 'done' | 'deferred'
+export type NodeState = 'ready' | 'running' | 'waiting' | 'needs-you' | 'done' | 'deferred' | 'draft'
 
 export const STATES: { id: NodeState; label: string }[] = [
   { id: 'ready', label: 'Ready' },
@@ -35,6 +35,7 @@ export const STATES: { id: NodeState; label: string }[] = [
   { id: 'needs-you', label: 'Needs you' },
   { id: 'done', label: 'Done' },
   { id: 'deferred', label: 'Deferred' },
+  { id: 'draft', label: 'Draft' },
 ]
 
 // Sizes in SVG pixels. The page draws with SPACING; `layoutGraph` takes
@@ -217,7 +218,7 @@ function drawnGraph(graph: Graph, collapsed: ReadonlySet<string>) {
       const states = new Set(tasks.map(nodeState))
       // The most urgent member state colors the whole group.
       const state =
-        (['needs-you', 'running', 'ready', 'waiting', 'deferred', 'done'] as NodeState[]).find((s) =>
+        (['needs-you', 'running', 'ready', 'waiting', 'deferred', 'done', 'draft'] as NodeState[]).find((s) =>
           states.has(s),
         ) ?? 'waiting'
       for (const task of tasks) nodeOf.set(task.id, id)

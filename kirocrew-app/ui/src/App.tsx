@@ -278,7 +278,7 @@ function AvoozlPage() {
     key: t.key,
     text: t.label,
     children: kids[t.key],
-    slot: t.key === 'plans' || t.key === 'activity',
+    slot: t.key === 'plans' || t.key === 'activity' || t.key === 'dashboard',
     aria: t.key === 'waiting' && waitingCount > 0 ? `Needs you, ${waitingCount} items` : undefined,
     label: <NavLabel view={t.key} text={t.label} count={t.key === 'waiting' ? waitingCount : 0} />,
   }))
@@ -406,6 +406,7 @@ function AvoozlPage() {
             focus={focus}
             drill={drill}
             onDrill={setDrill}
+            onOpenSpecs={() => chooseTab('plans')}
           />
         ) : tab === 'flow' ? (
           <FlowView workspaceId={active} tab={flowTab} />
