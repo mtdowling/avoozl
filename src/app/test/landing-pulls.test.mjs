@@ -83,6 +83,9 @@ function fakeGithub({
     branch: async () => ({ protection: { enabled: false } }),
     checkRuns: async () => runs,
     commitStatus: async () => ({ statuses: [] }),
+    createCommitStatus: async (repo, sha, input) => {
+      calls.statuses = [...(calls.statuses ?? []), { repo, sha, ...input }];
+    },
     pullRequestReviews: async () => reviews,
     mergePullRequest: async (repo, number, { sha }) => {
       calls.merged.push({ number, sha });
@@ -166,6 +169,10 @@ test("a fork head opens a pull request, passes checks and review, and merges gua
   assert.equal(result.entry.pr, 7);
   assert.deepEqual(result.entry.approvers, ["r1"]);
   assert.equal(result.entry.mergedBy, "ci-bot");
+  assert.deepEqual(
+    github.calls.statuses.map((s) => [s.repo, s.sha, s.context, s.state]),
+    [["acme/app", COMMIT, "avoozl/verify", "success"]],
+  );
   const st = await x.state();
   assert.deepEqual(
     st.outcomes.map((o) => [o.task, o.kind, o.commit]),
