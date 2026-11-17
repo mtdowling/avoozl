@@ -224,6 +224,8 @@ const EXECUTE = new Set([
   "spec.changed.apply",
   "spec.publish",
   "spec.takeover",
+  "spec.journal.reanchor",
+  "spec.journal.resume",
   "github.retireTaskIssues",
   "spec.exportIssues",
   "budget.raise",

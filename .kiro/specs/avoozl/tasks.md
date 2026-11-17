@@ -1981,7 +1981,7 @@ proof or run a real workspace to get past that wait.
   - Keep plan-me routing. Trusted escalations (the repository's needs-human label) sort first in Untriaged, or Intake for a Radar-coded repository, with Plan this and Deliver this; their Needs you row gains the same buttons. Plan this drafts a fix spec or the compact bounded-fix acceptance.
   - Person-only start. A per-repository escalation rule, off by default, drafts locally with zero GitHub writes; approval and dispatch stay person-only. Take-over writes crew:avoozl and never removes the needs-human label; a live crew claim asks to confirm. No Radar API or grant. Tests cover order, buttons, zero-write draft and one label write.
 
-- [ ] 56.15 Reanchor a held journal by a person's record, after 56.2 [R102.26] (§4.32)
+- [x] 56.15 Reanchor a held journal by a person's record, after 56.2 [R102.26] (§4.32)
   - Schema, writer and replay: a `reanchor` record names held record IDs and the reviewed tail (ID and current digest); replay accepts it only from a write-access author whose tail is the last known record, ignores the named records' contents, clears their holds and continues. Unnamed or later holds stay. No comment is edited or deleted; no approval, completion or generation change.
   - Person-only `spec.journal.reanchor` with preview, and `avoozl spec journal reanchor SPEC --held ID,... --tail ID [--yes]`; refused for MCP and agent sessions. Tests: a mutated record and a deleted record each restore; a stale tail digest, an agent caller and an unnamed hold refuse; the spec stays held until Resume.
 
