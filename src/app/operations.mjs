@@ -1,3 +1,4 @@
+import { allowProtectedPaths } from "./verify.mjs";
 import {
   ciSettingsView,
   ciFlowView,
@@ -3384,6 +3385,12 @@ export class Operations {
       this.configuration?.reload();
       return written;
     }
+    if (name === "verify.allow")
+      return allowProtectedPaths(store, input, {
+        caller: context.caller,
+        mcp: context.mcp === true,
+        local: context.local === true,
+      });
     if (name === "delivery.retry")
       return retryDelivery(store, input, {
         caller: context.caller,

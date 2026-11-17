@@ -325,12 +325,21 @@ test("the tick fails an attempt outside declared paths and holds a protected pat
   assert.match(held.delivery.cause, /touches protected paths/);
   assert.equal(held.delivery.attempts[0].outcome, "done", "no attempt spent");
   assert.equal(held.delivery.verifications.at(-1).outcome, "protected");
-  allowProtectedPaths(
-    store,
+  // Through the operation: a session is refused, the command line is not.
+  await assert.rejects(
+    ops.execute(
+      "verify.allow",
+      { taskId: "a", reason: "CI change" },
+      undefined,
+      { caller: { sessionKey: "dashboard:w-1" } },
+    ),
+    (e) => e.status === 403,
+  );
+  await ops.execute(
+    "verify.allow",
     { taskId: "a", reason: "CI change" },
-    {
-      local: true,
-    },
+    undefined,
+    { local: true },
   );
   assert.equal(store.get("task_deliveries", "a").state, "done");
 });
