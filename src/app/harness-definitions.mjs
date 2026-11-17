@@ -38,8 +38,8 @@ const KEYS = new Set([
   "writeRoots",
   "allow",
   "cost",
-  // Removed 2026-11-17 with budgets: still accepted so an old definition
-  // loads, and ignored.
+  // Removed 2026-11-17 with budgets: skipped silently so an old definition
+  // loads.
   "spendCap",
   "attach",
   "model",

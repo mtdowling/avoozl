@@ -1220,3 +1220,9 @@ export const valueSource = (value: string, fallback: string, unit = '') =>
   value.trim() ? `Set on this repository: ${value.trim()}${unit}.` : `Not set on this repository. Using the default (${fallback}${unit}).`
 
 export const rulesMode = (form: Pick<RepositoryForm, 'reviewRules'>): 'default' | 'custom' => (form.reviewRules.trim() ? 'custom' : 'default')
+
+// Every page but Workspaces reads and writes the selected workspace's own
+// settings, so its title names that workspace. Workspaces lists the machine's.
+export function settingsTitle(tab: string, label: string, workspaceName?: string | null): string {
+  return tab === 'workspaces' || !workspaceName ? label : `${workspaceName}: ${label}`
+}
