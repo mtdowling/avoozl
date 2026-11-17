@@ -145,6 +145,14 @@ function finish(store, entry, state, extra = {}) {
 
 const running = new Map();
 
+// Takes a waiting portion out of its queue, e.g. when its base moved and
+// its commit will be replaced; the key may be queued again later.
+export function withdrawLanding(store, { projectId, base, key }, reason) {
+  const entry = store.get(TABLE, entryId(projectId, base, key));
+  if (entry?.state !== "queued") return null;
+  return store.transaction(() => finish(store, entry, "withdrawn", { reason }));
+}
+
 // Takes the head of one base's queue, alone or as a train, one step toward
 // landing.
 //
