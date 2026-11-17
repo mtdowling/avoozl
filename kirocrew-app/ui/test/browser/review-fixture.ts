@@ -50,6 +50,7 @@ export function reviewFixture(): { data: ReviewViewData; decide: (input: { id: s
       ].join('\n'),
       'design.md': ['# Design', '', 'The loader reads `bytes.toml` once at start.', '', '## Layout', '', 'Bytes pack into words of eight.'].join('\n'),
       'tasks.md': ['# Tasks', '', '- [ ] 1.1 Add the byte type', '- [ ] 1.2 Wrap on overflow'].join('\n'),
+      'avoozl/manifest.json': JSON.stringify({ version: 1, tasks: { '1.1': { kind: 'leaf' }, '1.2': { kind: 'leaf', after: ['1.1'] } } }, null, 2),
     },
     rounds: [
       {

@@ -7,19 +7,22 @@
 // overlap stack in line order. A card click scrolls to and highlights its
 // lines; a click on highlighted text selects its card. Moved or removed
 // findings list first. A narrow view puts each card after its block.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import { Markdown } from './Markdown.tsx'
 import { blocks } from './markdown.ts'
 import { SmallBtn } from './controls.tsx'
 import { Tooltip } from './Tooltip.tsx'
+import { CircleAlert, Info, MessageSquare } from './icons.ts'
 import { usePhone } from './list-detail.ts'
 import { shortHash } from './plans-api.ts'
 import { linkHref } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import {
+  ALL_TAB,
   DECIDED,
   SEVERITIES,
   SEVERITY_COLOR,
+  SEVERITY_INK,
   SEVERITY_LABEL,
   STATES,
   TAB_LABEL,
@@ -29,8 +32,12 @@ import {
   stackCards,
   filterFindings,
   lineText,
+  openCounts,
+  renderText,
+  tabKey,
   type ChatLink,
   type FindingAction,
+  type FindingSeverity,
   type ReviewClient,
   type ReviewFinding,
   type ReviewPlace,
@@ -75,6 +82,33 @@ const ACTION_TEXT: Record<FindingAction, string> = {
   reopen: 'Reopened',
 }
 
+// Kiro Crew's own accent for an action, as on its Needs your input cards.
+const ACCENT = 'color-mix(in srgb, var(--aim) 72%, var(--text-strong, var(--text)))'
+const SEVERITY_ICON: Record<FindingSeverity, typeof Info> = { blocker: CircleAlert, warn: MessageSquare, info: Info }
+const CARD_STYLE = `[data-finding-card] [data-card-btn]{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500;line-height:1;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;max-width:100%}
+[data-finding-card] [data-card-btn]:hover:not(:disabled){background:var(--bg-hover)}
+[data-finding-card] [data-card-btn]:disabled{opacity:.55;cursor:default}
+[data-finding-card] [data-card-btn][data-main]{color:${ACCENT};border-color:color-mix(in srgb,${ACCENT} 45%,var(--border))}
+[data-finding-card] [data-card-btn]:focus-visible{outline:2px solid ${ACCENT};outline-offset:1px}
+[data-finding-card] [data-clamp]{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}`
+
+function CardBtn(props: { main?: boolean; disabled?: boolean; onClick: () => void; attr: Record<string, string>; children: string }) {
+  return (
+    <button type="button" data-card-btn data-main={props.main ? 'true' : undefined} disabled={props.disabled} onClick={props.onClick} {...props.attr}>
+      {props.children}
+    </button>
+  )
+}
+
+// The main action for a finding's state, then the others, and the hint
+// under them.
+function actionsFor(finding: ReviewFinding): { main: FindingAction; rest: FindingAction[]; hint: string } {
+  if (DECIDED.has(finding.state)) return { main: 'reopen', rest: [], hint: 'Reopen undoes the last decision.' }
+  if (finding.state === 'fixed') return { main: 'resolve', rest: ['accept', 'reject', 'defer'], hint: 'The planner fixed it. Resolve closes it.' }
+  return { main: 'accept', rest: ['reject', 'defer', 'resolve'], hint: 'Accept sends it to the planner to fix next. Reject needs a reason.' }
+}
+const ACTION_LABEL: Record<FindingAction, string> = { accept: 'Accept', reject: 'Reject', defer: 'Defer', resolve: 'Resolve', reopen: 'Reopen' }
+
 function FindingCard(props: {
   finding: ReviewFinding
   busy: boolean
@@ -84,16 +118,27 @@ function FindingCard(props: {
   onSelect?: () => void
   cardRef?: (el: HTMLElement | null) => void
   style?: CSSProperties
+  // All findings: the file and lines lead the card.
+  showFile?: boolean
 }) {
   const { finding } = props
   const [asking, setAsking] = useState<'reject' | 'defer' | null>(null)
   const [note, setNote] = useState('')
-  const decided = DECIDED.has(finding.state)
+  const [open, setOpen] = useState(false)
   const send = async (action: FindingAction, text?: string) => {
     if (await props.onDecide(action, text)) {
       setAsking(null)
       setNote('')
     }
+  }
+  const act = (action: FindingAction) => (action === 'reject' || action === 'defer' ? setAsking(action) : void send(action))
+  const actions = actionsFor(finding)
+  const Icon = SEVERITY_ICON[finding.severity]
+  const ink = SEVERITY_INK[finding.severity]
+  // A click on a control does not select the card.
+  const select = (event: { target: EventTarget }) => {
+    if ((event.target as Element).closest?.('button, a, textarea, label, input')) return
+    props.onSelect?.()
   }
   return (
     <article
@@ -102,135 +147,225 @@ function FindingCard(props: {
       data-finding-state={finding.state}
       data-selected={props.selected ? 'true' : undefined}
       ref={props.cardRef}
-      onClick={props.onSelect}
-      className="flex min-w-0 flex-col gap-1.5 text-sm"
+      onClick={select}
+      className="text-sm"
       style={{
         ...props.style,
-        outline: props.selected ? '2px solid var(--accent)' : undefined,
-        outlineOffset: 1,
+        boxShadow: props.selected ? `0 0 0 2px color-mix(in srgb, ${ACCENT} 55%, transparent)` : undefined,
         cursor: props.onSelect ? 'pointer' : undefined,
         display: 'flex',
         flexDirection: 'column',
-        gap: 6,
-        border: '1px solid var(--border)',
-        borderLeft: `4px solid ${SEVERITY_COLOR[finding.severity]}`,
-        borderRadius: 8,
-        padding: '8px 10px',
+        gap: 4,
+        minWidth: 0,
+        border: `1.5px solid ${SEVERITY_COLOR[finding.severity]}`,
+        borderRadius: 12,
+        padding: '10px 12px',
         background: 'var(--card, var(--bg))',
+        color: 'var(--text)',
         overflowWrap: 'anywhere',
+        boxSizing: 'border-box',
       }}
     >
-      <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px 8px' }}>
-        <span
-          data-severity-label
-          className="font-semibold"
-          style={{
-            color: finding.severity === 'info' ? 'var(--muted)' : SEVERITY_COLOR[finding.severity],
-          }}
-        >
-          {SEVERITY_LABEL[finding.severity]}
-        </span>
-        <span className="text-muted">{finding.category}</span>
-        <code className="text-muted">{lineText(finding.anchor)}</code>
-        {finding.anchor.moved && (
-          <span data-moved className="text-muted">
-            Moved or removed (from <code>{shortHash(finding.anchor.revisionHash)}</code>)
-          </span>
-        )}
-        <span data-state-label className="text-muted" style={{ marginLeft: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <Icon size={14} aria-hidden="true" style={{ flex: 'none', color: ink }} />
+        <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+        <Tooltip text={finding.claim} display="block">
+          <h4 data-finding-title className="m-0" style={{ flex: '1 1 auto', minWidth: 0, margin: 0, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {finding.claim}
+          </h4>
+        </Tooltip>
+        </div>
+        <span data-state-label className="text-muted" style={{ flex: 'none', fontSize: 11 }}>
           {finding.state}
         </span>
-      </p>
-      <p className="m-0 font-medium">{finding.claim}</p>
-      <p className="m-0 whitespace-pre-wrap text-muted">{finding.evidence}</p>
-      <p className="m-0 whitespace-pre-wrap" data-planner-response>
-        {finding.answer ? (
-          <>
-            Planner:{' '}
-            {finding.answer.action === 'fixed' && finding.answer.revisionHash ? (
-              <>
-                Fixed in{' '}
-                <button type="button" className="underline" data-fixed-revision onClick={() => props.onRevision(finding.answer!.revisionHash!)}>
-                  <code>{shortHash(finding.answer.revisionHash)}</code>
-                </button>
-                .
-              </>
-            ) : (
-              'Answered.'
-            )}{' '}
-            {finding.answer.text}
-          </>
-        ) : (
-          <span className="text-muted">Planner has not answered.</span>
-        )}
-      </p>
-      {finding.decisions.length > 0 && (
-        <ul className="m-0 flex flex-col gap-0.5 pl-0 text-xs text-muted" data-finding-history style={{ display: 'flex', flexDirection: 'column', gap: 2, listStyle: 'none' }}>
-          {finding.decisions.map((d, i) => (
-            <li key={i}>
-              {ACTION_TEXT[d.action]} by {d.by} at <code>{shortHash(d.revisionHash)}</code>
-              {d.note ? ` · ${d.note}` : ''}
-            </li>
-          ))}
-        </ul>
-      )}
-      {asking ? (
-        <div className="flex flex-col gap-1" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label className="text-xs">
-            {asking === 'reject' ? 'Reason (required)' : 'Note (optional)'}
-            <textarea
-              data-finding-note
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={2}
-              className="mt-0.5 w-full rounded border p-1 text-sm"
-              style={{
-                borderColor: 'var(--border)',
-                background: 'var(--bg)',
-                color: 'var(--text)',
-                boxSizing: 'border-box',
-              }}
-            />
-          </label>
-          <div className="flex flex-wrap gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            <SmallBtn
-              primary
-              disabled={props.busy || (asking === 'reject' && !note.trim())}
-              onClick={() => void send(asking, note.trim())}
-              attrs={{ 'data-finding-confirm': asking }}
-            >
-              {asking === 'reject' ? 'Reject' : 'Defer'}
-            </SmallBtn>
-            <SmallBtn disabled={props.busy} onClick={() => setAsking(null)}>
-              Cancel
-            </SmallBtn>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-wrap gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }} data-finding-actions>
-          {decided ? (
-            <SmallBtn disabled={props.busy} onClick={() => void send('reopen')} attrs={{ 'data-finding-action': 'reopen' }}>
-              Reopen
-            </SmallBtn>
-          ) : (
-            <>
-              <SmallBtn disabled={props.busy} onClick={() => void send('accept')} attrs={{ 'data-finding-action': 'accept' }}>
-                Accept
-              </SmallBtn>
-              <SmallBtn disabled={props.busy} onClick={() => setAsking('reject')} attrs={{ 'data-finding-action': 'reject' }}>
-                Reject
-              </SmallBtn>
-              <SmallBtn disabled={props.busy} onClick={() => setAsking('defer')} attrs={{ 'data-finding-action': 'defer' }}>
-                Defer
-              </SmallBtn>
-              <SmallBtn disabled={props.busy} onClick={() => void send('resolve')} attrs={{ 'data-finding-action': 'resolve' }}>
-                Resolve
-              </SmallBtn>
-            </>
+      </div>
+      <div style={{ paddingLeft: 22, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+        <p className="m-0" style={{ margin: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px 8px', fontSize: 11 }}>
+          <span data-severity-label style={{ fontWeight: 600, color: ink }}>
+            {SEVERITY_LABEL[finding.severity]}
+          </span>
+          <span className="text-muted">{finding.category}</span>
+          <code className="text-muted" data-finding-lines={props.showFile ? 'file' : undefined}>
+            {lineText(finding.anchor)}
+          </code>
+          {finding.anchor.moved && (
+            <span data-moved className="text-muted">
+              Moved or removed (from <code>{shortHash(finding.anchor.revisionHash)}</code>)
+            </span>
           )}
-        </div>
-      )}
+        </p>
+        <p
+          data-finding-body
+          data-clamp={open ? undefined : 'true'}
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+          className="m-0 whitespace-pre-wrap"
+          style={{ margin: 0, fontSize: 12, color: 'color-mix(in srgb, var(--text) 85%, transparent)', cursor: 'pointer', whiteSpace: 'pre-wrap' }}
+        >
+          {finding.evidence}
+        </p>
+        <p className="m-0" data-planner-response style={{ margin: 0, fontSize: 12, whiteSpace: 'pre-wrap' }}>
+          {finding.answer ? (
+            <>
+              Planner:{' '}
+              {finding.answer.action === 'fixed' && finding.answer.revisionHash ? (
+                <>
+                  Fixed in{' '}
+                  <button type="button" className="underline" data-fixed-revision style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer', font: 'inherit' }} onClick={() => props.onRevision(finding.answer!.revisionHash!)}>
+                    <code>{shortHash(finding.answer.revisionHash)}</code>
+                  </button>
+                  .
+                </>
+              ) : (
+                'Answered.'
+              )}{' '}
+              {finding.answer.text}
+            </>
+          ) : (
+            <span className="text-muted">Planner has not answered.</span>
+          )}
+        </p>
+        {finding.decisions.length > 0 && (
+          <ul className="m-0 text-muted" data-finding-history style={{ margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 2, listStyle: 'none', fontSize: 11 }}>
+            {finding.decisions.map((d, i) => (
+              <li key={i}>
+                {ACTION_TEXT[d.action]} by {d.by} at <code>{shortHash(d.revisionHash)}</code>
+                {d.note ? ` · ${d.note}` : ''}
+              </li>
+            ))}
+          </ul>
+        )}
+        {asking ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
+            <label style={{ fontSize: 12 }}>
+              {asking === 'reject' ? 'Reason (required)' : 'Note (optional)'}
+              <textarea
+                data-finding-note
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={2}
+                className="mt-0.5 w-full rounded border p-1 text-sm"
+                style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)', boxSizing: 'border-box', width: '100%', borderRadius: 6, marginTop: 2 }}
+              />
+            </label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <CardBtn main disabled={props.busy || (asking === 'reject' && !note.trim())} onClick={() => void send(asking, note.trim())} attr={{ 'data-finding-confirm': asking }}>
+                {asking === 'reject' ? 'Reject' : 'Defer'}
+              </CardBtn>
+              <CardBtn disabled={props.busy} onClick={() => setAsking(null)} attr={{ 'data-finding-cancel': '' }}>
+                Cancel
+              </CardBtn>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }} data-finding-actions>
+              {[actions.main, ...actions.rest].map((action) => (
+                <CardBtn key={action} main={action === actions.main} disabled={props.busy} onClick={() => act(action)} attr={{ 'data-finding-action': action }}>
+                  {ACTION_LABEL[action]}
+                </CardBtn>
+              ))}
+            </div>
+            <p className="m-0 text-muted" data-finding-hint style={{ margin: 0, fontSize: 11 }}>
+              {actions.hint}
+            </p>
+          </div>
+        )}
+      </div>
     </article>
+  )
+}
+
+// The tab bar: one tab per spec file with its open-finding count, then All
+// findings. Arrow keys, Home and End move between tabs (WAI-ARIA tabs).
+function DocTabs(props: { tabs: string[]; current: string; counts: Record<string, number>; onPick: (tab: string) => void }) {
+  const refs = useRef(new Map<string, HTMLButtonElement>())
+  const bar = useRef<HTMLDivElement>(null)
+  // On a narrow screen the bar scrolls sideways: keep the open tab in view,
+  // moving only the bar, never the page.
+  useEffect(() => {
+    const el = refs.current.get(props.current),
+      box = bar.current
+    if (!el || !box) return
+    if (el.offsetLeft < box.scrollLeft) box.scrollLeft = el.offsetLeft
+    else if (el.offsetLeft + el.offsetWidth > box.scrollLeft + box.clientWidth) box.scrollLeft = el.offsetLeft + el.offsetWidth - box.clientWidth
+  }, [props.current])
+  const key = (event: KeyboardEvent) => {
+    const next = tabKey(event.key, props.tabs, props.current)
+    if (!next) return
+    event.preventDefault()
+    props.onPick(next)
+    refs.current.get(next)?.focus()
+  }
+  return (
+    <div
+      ref={bar}
+      role="tablist"
+      aria-label="Spec files"
+      data-review-tabs
+      onKeyDown={key}
+      style={{ position: 'relative', display: 'flex', gap: 2, borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'thin', minWidth: 0 }}
+    >
+      {props.tabs.map((tab) => {
+        const on = tab === props.current,
+          n = props.counts[tab] ?? 0
+        return (
+          <button
+            key={tab}
+            ref={(el) => {
+              if (el) refs.current.set(tab, el)
+              else refs.current.delete(tab)
+            }}
+            type="button"
+            role="tab"
+            id={`review-tab-${tab.replace(/\W/g, '-')}`}
+            aria-selected={on}
+            aria-controls="review-tab-panel"
+            tabIndex={on ? 0 : -1}
+            data-review-tab={tab}
+            onClick={() => props.onPick(tab)}
+            style={{
+              flex: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 12px',
+              marginBottom: -1,
+              border: 0,
+              borderBottom: `2px solid ${on ? ACCENT : 'transparent'}`,
+              borderRadius: 0,
+              background: 'transparent',
+              color: on ? 'var(--text-strong, var(--text))' : 'var(--muted)',
+              fontSize: 13,
+              fontWeight: on ? 600 : 500,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {TAB_LABEL[tab] ?? tab}
+            <span
+              data-tab-count={n}
+              aria-label={`${n} open`}
+              style={{
+                minWidth: 18,
+                padding: '0 6px',
+                borderRadius: 999,
+                fontSize: 11,
+                lineHeight: '18px',
+                textAlign: 'center',
+                fontFamily: 'inherit',
+                fontVariantNumeric: 'tabular-nums',
+                background: n ? 'var(--bg-hover)' : 'transparent',
+                color: n ? 'var(--text)' : 'var(--muted)',
+                opacity: n ? 1 : 0.6,
+              }}
+            >
+              {n}
+            </span>
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -269,13 +404,17 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
     }
   }
   const files = data ? Object.keys(data.files) : []
-  const file = place.file && files.includes(place.file) ? place.file : (files[0] ?? null)
+  const tabs = data ? [...files, ALL_TAB] : []
+  const tab = place.file && tabs.includes(place.file) ? place.file : (files[0] ?? (data ? ALL_TAB : null))
+  const all = tab === ALL_TAB
+  const file = all ? null : tab
   const counts = chipCounts(data?.findings ?? [], place)
+  const open = openCounts(data?.findings ?? [])
   const shown = filterFindings(data?.findings ?? [], place)
   const inFile = shown.filter((f) => f.anchor.file === file)
   const moved = inFile.filter((f) => f.anchor.moved)
   const placed = inFile.filter((f) => !f.anchor.moved)
-  const text = file && data ? data.files[file] : ''
+  const text = file && data ? renderText(file, data.files[file]) : ''
 
   // The rail beside the text: measure each anchor's block and each card,
   // then stack the cards (stackCards). Narrow: cards go inline instead.
@@ -315,7 +454,19 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
     for (const el of [row.current, doc.current, ...cardEls.current.values()]) if (el) observer.observe(el)
     return () => observer.disconnect()
   }, [layout, wide, data])
-  useEffect(() => setSelected(null), [file])
+  // A new tab clears the selection, unless All findings sent the person
+  // there to see one finding: then that one is selected and scrolled to.
+  const jump = useRef<string | null>(null)
+  useEffect(() => {
+    const id = jump.current
+    jump.current = null
+    scrollTo.current = id ? 'text' : null
+    setSelected(id)
+  }, [tab])
+  const openFinding = (finding: ReviewFinding) => {
+    jump.current = finding.anchor.moved ? null : finding.id
+    set({ file: finding.anchor.file })
+  }
 
   // The selected finding's lines are highlighted; a card click also scrolls
   // to them, and a text click brings its card into view.
@@ -430,37 +581,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               </div>
             ))}
           </div>
-          <div role="tablist" aria-label="Spec files" className="flex flex-wrap gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }} data-review-tabs>
-            {files.map((name) => {
-              const n = shown.filter((f) => f.anchor.file === name).length
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  role="tab"
-                  aria-selected={name === file}
-                  data-review-tab={name}
-                  onClick={() => set({ file: name })}
-                  className="text-sm"
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 8,
-                    border: '1px solid var(--border)',
-                    background: name === file ? 'var(--bg-hover)' : 'transparent',
-                    color: 'var(--text)',
-                    fontWeight: name === file ? 600 : 400,
-                  }}
-                >
-                  {TAB_LABEL[name] ?? name}
-                  {n > 0 && (
-                    <span className="text-xs text-muted" style={{ marginLeft: 6 }}>
-                      {n}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+          {tab && <DocTabs tabs={tabs} current={tab} counts={{ ...open.byFile, [ALL_TAB]: open.total }} onPick={(name) => set({ file: name })} />}
           <div className="flex flex-col gap-1.5" style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-review-filters>
             <div className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-severity-filters>
               <span className="text-xs text-muted" style={{ width: 52 }}>
@@ -495,11 +616,33 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               ))}
             </div>
           </div>
-          <style>{HIT_STYLE}</style>
+          <style>{HIT_STYLE + CARD_STYLE}</style>
+          {all ? (
+            <section role="tabpanel" id="review-tab-panel" aria-labelledby="review-tab-all" data-review-all style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, maxWidth: 760 }}>
+              {shown.length === 0 && (
+                <p className="m-0 text-sm text-muted" data-review-empty>
+                  {data.findings.length === 0 ? 'No findings.' : 'No finding matches these filters.'}
+                </p>
+              )}
+              {shown.map((f) => (
+                <FindingCard
+                  key={f.id}
+                  finding={f}
+                  busy={busy}
+                  showFile
+                  onSelect={() => openFinding(f)}
+                  onDecide={(action, note) => decide(f, action, note)}
+                  onRevision={(hash) => set({ rev: hash })}
+                />
+              ))}
+            </section>
+          ) : (
           <div ref={row} data-review-layout={wide ? 'rail' : 'inline'} style={{ display: 'flex', alignItems: 'flex-start', gap: 20, minWidth: 0 }}>
             <section
               role="tabpanel"
-              aria-label={file ? (TAB_LABEL[file] ?? file) : 'No file'}
+              id="review-tab-panel"
+              aria-labelledby={file ? `review-tab-${file.replace(/\W/g, '-')}` : undefined}
+              aria-label={file ? undefined : 'No file'}
               data-review-doc={file ?? ''}
               className="min-w-0"
               style={{ flex: '1 1 0', minWidth: 0, border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', background: 'var(--card, var(--bg))' }}
@@ -552,6 +695,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               </aside>
             )}
           </div>
+          )}
         </>
       )}
     </div>

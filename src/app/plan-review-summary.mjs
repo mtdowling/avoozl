@@ -10,6 +10,27 @@ import {
 const noSeverities = () =>
   Object.fromEntries(FINDING_SEVERITIES.map((severity) => [severity, 0]));
 
+// States that still need someone: the planner, or the person. Fixed,
+// rejected, deferred and resolved findings are done.
+const OPEN_STATES = new Set(["open", "answered", "for you", "accepted"]);
+
+// The reviewer's summary for this revision, else the latest one from an
+// earlier revision (marked not current), else null. Read from stored rounds
+// only: the page never asks a model for it.
+function specSummary(rounds, plan) {
+  const written = rounds.filter((round) => round.summary);
+  const pick =
+    written.filter((round) => round.revisionHash === plan.hash).at(-1) ||
+    written.at(-1);
+  return pick
+    ? {
+        text: pick.summary,
+        revisionHash: pick.revisionHash,
+        current: pick.revisionHash === plan.hash,
+      }
+    : null;
+}
+
 // Review is evidence for the person. This read never changes approval checks,
 // closes a finding, or performs a GitHub operation.
 export function planReviewSummary(store, planId) {
@@ -32,7 +53,9 @@ export function planReviewSummary(store, planId) {
       fixed: 0,
       forYou: 0,
       bySeverity: noSeverities(),
+      openBySeverity: noSeverities(),
       byState: {},
+      summary: null,
       open: [],
       note: null,
     };
@@ -56,10 +79,13 @@ export function planReviewSummary(store, planId) {
       hashes.has(thread.answer.revisionHash);
   const state = (thread) => findingState(thread, context),
     bySeverity = noSeverities(),
+    openBySeverity = noSeverities(),
     byState = {};
   for (const thread of findings) {
-    bySeverity[findingSeverity(thread.severity)]++;
-    const name = state(thread);
+    const severity = findingSeverity(thread.severity),
+      name = state(thread);
+    bySeverity[severity]++;
+    if (OPEN_STATES.has(name)) openBySeverity[severity]++;
     byState[name] = (byState[name] ?? 0) + 1;
   }
   return {
@@ -77,7 +103,9 @@ export function planReviewSummary(store, planId) {
       (thread) => thread.state !== "closed" && !fixed(thread),
     ).length,
     bySeverity,
+    openBySeverity,
     byState,
+    summary: specSummary(rounds, plan),
     open: findings
       .filter((thread) => thread.state !== "closed")
       .map((thread) => ({

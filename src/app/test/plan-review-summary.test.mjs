@@ -145,6 +145,60 @@ test("the latest pass counts stored fixes, leaves answered findings for the pers
   assert.equal(planReviewSummary(env.store, env.plan.id).fixed, 2);
 });
 
+test("open findings count by severity, and the reviewer's summary is read per revision", (t) => {
+  const env = setup(t);
+  assert.equal(planReviewSummary(env.store, env.plan.id).summary, null);
+  round(env, "older", { revisionHash: "older-hash", summary: "Older text." });
+  assert.deepEqual(planReviewSummary(env.store, env.plan.id).summary, {
+    text: "Older text.",
+    revisionHash: "older-hash",
+    current: false,
+  });
+  round(env, "now", { round: 2, summary: "Reads bytes. 3 tasks." });
+  finding(env, "blocker", "now", { severity: "blocking" });
+  finding(env, "warn-open", "now");
+  finding(env, "warn-fixed", "now", {
+    answer: {
+      action: "fixed",
+      revisionHash: env.plan.hash,
+      text: "Done.",
+      at: "now",
+    },
+  });
+  finding(env, "info-rejected", "now", {
+    severity: "suggestion",
+    decisions: [
+      {
+        action: "reject",
+        by: "Owner",
+        at: "now",
+        revisionHash: env.plan.hash,
+        note: "No.",
+      },
+    ],
+  });
+  finding(env, "info-accepted", "now", {
+    severity: "question",
+    decisions: [
+      {
+        action: "accept",
+        by: "Owner",
+        at: "now",
+        revisionHash: env.plan.hash,
+        note: "",
+      },
+    ],
+  });
+  const summary = planReviewSummary(env.store, env.plan.id);
+  assert.deepEqual(summary.openBySeverity, { info: 1, warn: 1, blocker: 1 });
+  assert.deepEqual(summary.bySeverity, { info: 2, warn: 2, blocker: 1 });
+  assert.deepEqual(summary.summary, {
+    text: "Reads bytes. 3 tasks.",
+    revisionHash: env.plan.hash,
+    current: true,
+  });
+});
+
 test("summary, approval checks and batch entries expose the same evidence without a GitHub write", async (t) => {
   const env = setup(t);
   round(env, "review");

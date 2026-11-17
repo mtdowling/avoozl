@@ -36,7 +36,8 @@ import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './Modal.tsx'
 import { PlanReviewSummary, REVIEW_POLL_MS, RevisionChanged } from './PlanReviewSummary.tsx'
 import { ReviewView } from './ReviewView.tsx'
-import { parseReviewLink, reviewClient, reviewHref, reviewLink, type ReviewPlace } from './review-view.ts'
+import { parseReviewLink, reviewClient, reviewHref, reviewLink, summaryFallback, type ReviewPlace } from './review-view.ts'
+import { SeverityBadges } from './SeverityBadges.tsx'
 import { urlBase } from './focus-tree.ts'
 import { DiffBlock } from './FlowMemory.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
@@ -427,6 +428,26 @@ function SpecDetail(props: {
             'Not imported. Import stores this folder as a draft spec, so you can check and approve it. It approves nothing and starts nothing.'
           )}
         </p>
+        {plan && (
+          <div data-spec-summary className="mt-2 flex flex-col gap-1.5" style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+            {plan.review?.summary ? (
+              <p className="text-sm" data-spec-summary-text style={{ margin: 0, maxWidth: PROSE_MEASURE }}>
+                {plan.review.summary.text}
+                {!plan.review.summary.current && (
+                  <span className="text-xs text-muted" data-spec-summary-older>
+                    {' '}
+                    (written for <code>{shortHash(plan.review.summary.revisionHash)}</code>)
+                  </span>
+                )}
+              </p>
+            ) : (
+              <p className="text-sm text-muted" data-spec-summary-fallback style={{ margin: 0 }}>
+                {summaryFallback(spec.taskCount, spec.files)}
+              </p>
+            )}
+            <SeverityBadges counts={plan.review?.openBySeverity} label="Open review findings" />
+          </div>
+        )}
         <p className="mt-1 text-sm text-muted">
           {spec.folder} · {spec.files.join(', ') || 'no files'}
         </p>
@@ -2181,7 +2202,12 @@ export default function PlansView(props: {
                   actions={specActions(row)}
                 />
                 {reviewing && workspace ? (
-                  <ReviewView key={`${workspace}:${reviewing.plan}`} workspaceId={workspace} client={reviews} place={reviewing} onPlace={placeReview} onClose={() => placeReview(null)} />
+                  <ReviewView key={`${workspace}:${reviewing.plan}`} workspaceId={workspace} client={reviews} place={reviewing} onPlace={placeReview} onClose={() => {
+                      placeReview(null)
+                      // Decisions change the Summary's open counts: re-read the plan in place.
+                      const id = row.planId
+                      if (id) plans.get(workspace, id).then((fresh) => setPlan((shown) => (shown?.id === id ? fresh : shown)), () => undefined)
+                    }} />
                 ) : (
                 <div
                   data-spec-body

@@ -102,16 +102,28 @@ export const SEVERITY_LABEL: Record<FindingSeverity, string> = {
 // Border colors from the theme: info grey, warn yellow, blocker red.
 export const SEVERITY_COLOR: Record<FindingSeverity, string> = {
   info: 'var(--border)',
-  warn: 'var(--warning, #b7791f)',
+  warn: 'var(--warn)',
   blocker: 'var(--danger)',
 }
+// Text and icon colors: the border's, but info reads in muted grey.
+export const SEVERITY_INK: Record<FindingSeverity, string> = {
+  info: 'var(--muted)',
+  warn: 'var(--warn)',
+  blocker: 'var(--danger)',
+}
+// States that still need the planner or the person; the rest are done.
+export const OPEN_STATES = new Set<FindingState>(['open', 'answered', 'for you', 'accepted'])
 export const STATES: FindingState[] = ['for you', 'open', 'answered', 'accepted', 'fixed', 'rejected', 'deferred', 'resolved']
 export const DECIDED = new Set<FindingState>(['accepted', 'rejected', 'deferred', 'resolved'])
+// One tab per spec file, named as the file, then All findings.
+export const ALL_TAB = 'all'
 export const TAB_LABEL: Record<string, string> = {
-  'requirements.md': 'Requirements',
-  'bugfix.md': 'Bugfix',
-  'design.md': 'Design',
-  'tasks.md': 'Tasks',
+  'requirements.md': 'requirements.md',
+  'bugfix.md': 'bugfix.md',
+  'design.md': 'design.md',
+  'tasks.md': 'tasks.md',
+  'avoozl/manifest.json': 'manifest',
+  [ALL_TAB]: 'All findings',
 }
 
 // Where the person is in the view; kept in the address as
@@ -136,7 +148,7 @@ export function parseReviewLink(search: string): ReviewPlace | null {
   return {
     plan,
     rev: rev && /^[\w-]{1,128}$/.test(rev) ? rev : null,
-    file: file && /^[\w.-]{1,64}$/.test(file) ? file : null,
+    file: file && /^[\w./-]{1,64}$/.test(file) && !file.includes('..') ? file : null,
     severity: severity && SEVERITIES.includes(severity) ? severity : null,
     state: state && STATES.includes(state) ? state : null,
   }
@@ -175,6 +187,39 @@ export function chipCounts(findings: ReviewFinding[], place: Pick<ReviewPlace, '
   }
   return { severity, state }
 }
+
+// Open findings per file and per severity, ignoring the filters: what the
+// tabs and the spec Summary's badges count.
+export function openCounts(findings: Pick<ReviewFinding, 'severity' | 'state' | 'anchor'>[]) {
+  const byFile: Record<string, number> = {},
+    bySeverity: Record<FindingSeverity, number> = { blocker: 0, warn: 0, info: 0 }
+  for (const f of findings) {
+    if (!OPEN_STATES.has(f.state)) continue
+    byFile[f.anchor.file] = (byFile[f.anchor.file] ?? 0) + 1
+    bySeverity[f.severity]++
+  }
+  return { byFile, bySeverity, total: bySeverity.blocker + bySeverity.warn + bySeverity.info }
+}
+
+// The tab a key moves to in a tab bar (WAI-ARIA tabs): arrows wrap, Home
+// and End jump. Null for any other key.
+export function tabKey(key: string, tabs: string[], current: string): string | null {
+  const at = Math.max(0, tabs.indexOf(current))
+  if (!tabs.length) return null
+  if (key === 'ArrowRight') return tabs[(at + 1) % tabs.length]
+  if (key === 'ArrowLeft') return tabs[(at - 1 + tabs.length) % tabs.length]
+  if (key === 'Home') return tabs[0]
+  if (key === 'End') return tabs[tabs.length - 1]
+  return null
+}
+
+// A spec file's text as the view renders it: Markdown as is, the manifest
+// as a JSON code block.
+export const renderText = (file: string, text: string) => (file.endsWith('.json') ? '```json\n' + text + '\n```' : text)
+
+// The spec Summary's plain text until a reviewer writes its summary.
+export const summaryFallback = (tasks: number, files: string[]) =>
+  `${tasks} ${tasks === 1 ? 'task' : 'tasks'}${files.length ? ` in ${files.join(', ')}` : ''}. A written summary appears after the next review round.`
 
 export const lineText = (anchor: ReviewFinding['anchor']) =>
   anchor.lineStart === anchor.lineEnd ? `${anchor.file}:${anchor.lineStart}` : `${anchor.file}:${anchor.lineStart}-${anchor.lineEnd}`
