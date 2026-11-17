@@ -14,6 +14,10 @@ export const PERSON_ONLY = new Map([
   ["plan.approveMany", person("Only a person approves a plan.")],
   ["plan.delete", person("Only a person deletes a plan.")],
   ["spec.publish", person("Only a person publishes a spec issue.")],
+  [
+    "github.retireTaskIssues",
+    person("Only a person retires task-issue bindings."),
+  ],
   ["plan.new", person("Only a person starts a new plan.")],
   [
     "plan.review.decide",

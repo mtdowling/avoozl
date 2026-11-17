@@ -171,6 +171,7 @@ import {
   driverHeldTaskIds,
   readOnlyPlanIds,
 } from "./driver-scope.mjs";
+import { ticksHeld } from "./task-issue-retirement.mjs";
 
 // The colon keeps this lock out of every configured project's namespace.
 // GitHub projection takes it too, so one workspace has one writer at a time.
@@ -336,23 +337,28 @@ export function tickLogEntry(run) {
     run.outcome === "unreadable" ||
     run.policy === "invalid"
       ? "error"
-      : run.outcome === "locked" || run.held || run.project?.status === "error"
+      : run.outcome === "locked" ||
+          run.outcome === "held" ||
+          run.held ||
+          run.project?.status === "error"
         ? "warn"
         : "info";
   const text =
     run.outcome === "locked"
       ? "Skipped: another tick held the lock."
-      : run.outcome === "error"
-        ? `Failed: ${run.error || "unknown error"}`
-        : [
-            "Ran",
-            run.policy ? `policy ${run.policy}` : null,
-            run.project?.status ? `Project ${run.project.status}` : null,
-            run.held ? `held: ${run.held.reason}` : null,
-            run.error ? run.error : null,
-          ]
-            .filter(Boolean)
-            .join("; ") + ".";
+      : run.outcome === "held"
+        ? "Skipped: a task-issue retirement holds this workspace."
+        : run.outcome === "error"
+          ? `Failed: ${run.error || "unknown error"}`
+          : [
+              "Ran",
+              run.policy ? `policy ${run.policy}` : null,
+              run.project?.status ? `Project ${run.project.status}` : null,
+              run.held ? `held: ${run.held.reason}` : null,
+              run.error ? run.error : null,
+            ]
+              .filter(Boolean)
+              .join("; ") + ".";
   return { at: run.at ?? null, level, text };
 }
 
@@ -774,8 +780,14 @@ async function runTick(
     issueVerify,
   },
 ) {
-  const at = new Date().toISOString(),
-    roster = sessionList(sessions),
+  const at = new Date().toISOString();
+  // A task-issue retirement stops ticks from its hold until its one
+  // verifying tick (R102.20, §4.32.13).
+  if (ticksHeld(store)) {
+    recordRun(store, { at, outcome: "held" });
+    return { skipped: "retirement" };
+  }
+  const roster = sessionList(sessions),
     // The script cron, which carries out intents, as opposed to the page's
     // plan-only tick. A Kiro Crew with ScriptContext.session_status (MC-2)
     // also hands the cron a roster; a stock one does not, and the app backend

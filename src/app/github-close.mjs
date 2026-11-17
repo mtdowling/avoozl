@@ -6,6 +6,7 @@
 import { recordGitHubTiming } from "./flow-checks.mjs";
 import { digest, statusComplete } from "../model.mjs";
 import { canonical } from "./store.mjs";
+import { taskIssuesRetired } from "./task-issue-retirement.mjs";
 import { readOnlyTask } from "./driver-scope.mjs";
 import {
   allowWrite,
@@ -575,6 +576,8 @@ async function judge(github, store, task, issue, { policy, mode, reviewRule }) {
 // children are all done. Only repositories this machine writes are read. A
 // tick with no GitHub change writes nothing. Returns notices for the cron.
 export async function reconcileGitHubCompletion(store, github, { policy }) {
+  // Retired task issues (R102.20): no close is read as a verdict.
+  if (taskIssuesRetired(store)) return { notify: [], messages: [] };
   const writers = writerRepositories(store, policy),
     mode = policy.mode,
     markerOptions = { planningRepository: policy.planningRepository },
@@ -838,6 +841,7 @@ function writerRepositories(store, policy = null) {
 // A parent issue closes as completed, by Avoozl, once every child is done
 // (R12.6). No pull request closes a parent. Runs after completeParents.
 export async function closeGitHubParents(store, github, { policy } = {}) {
+  if (taskIssuesRetired(store)) return;
   const writers = writerRepositories(store, policy);
   for (const parent of store.read().tasks) {
     if (

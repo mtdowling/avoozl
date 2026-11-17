@@ -7,6 +7,7 @@ import { saveSpecPlan, specHash } from "./spec-plans.mjs";
 import {
   createSpecReviewRound,
   listSpecReviewRounds,
+  settleSpecReviewRounds,
 } from "./plan-reviews.mjs";
 import {
   planReviewWriter,
@@ -336,6 +337,7 @@ export async function planReviewStep(
   const out = { requests: [], messages: [], notify: [] },
     settings = validatePlanReview(config.planReview);
   if (!open) return out;
+  settleSpecReviewRounds(store);
   await cleanFinished(store, remove, out.notify);
   if (settings.mode === "off") {
     stopUnclaimedReviews(store);
