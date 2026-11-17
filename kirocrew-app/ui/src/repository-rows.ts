@@ -12,11 +12,14 @@ export interface RepositoryRow {
   github: string | null
   folder: string | null
   branch: string
+  // The planning repository of the workspace has no checkout here and no entry:
+  // only its name is stored (R105.5).
+  githubOnly?: boolean
 }
 
 // One row per registered checkout, then one per GitHub-only settings entry
 // (a planning repository with no checkout here, say).
-export function repositoryRows(checkouts: Repository[], policies: RepositoryForm[]): RepositoryRow[] {
+export function repositoryRows(checkouts: Repository[], policies: RepositoryForm[], planning = ''): RepositoryRow[] {
   const used = new Set<number>()
   const rows: RepositoryRow[] = checkouts.map((checkout) => {
     const policy = checkout.github ? policies.findIndex((p) => p.name.trim() === checkout.github) : -1
@@ -43,6 +46,9 @@ export function repositoryRows(checkouts: Repository[], policies: RepositoryForm
       branch: policy.baseBranch || 'main',
     })
   })
+  const named = planning.trim()
+  if (named && !rows.some((row) => row.github?.toLowerCase() === named.toLowerCase()))
+    rows.push({ key: `planning:${named}`, name: named, checkout: null, policy: -1, github: named, folder: null, branch: 'main', githubOnly: true })
   return rows
 }
 
