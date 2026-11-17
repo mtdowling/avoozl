@@ -91,6 +91,7 @@ export const RADAR_KEYS = Object.freeze([
   "showPlansRepo",
   "reviewRules",
   "crew",
+  "escalationDraft",
 ]);
 export const RADAR_DEFAULTS = Object.freeze({
   planLabel: "avoozl:plan",
@@ -622,6 +623,13 @@ function repositoryInput(value, id, mode) {
     if (typeof radarInput.clearPlanLabel !== "boolean")
       fail(`${label}.radar.clearPlanLabel must be true or false.`);
     radar.clearPlanLabel = radarInput.clearPlanLabel;
+  }
+  // R103.9: draft an escalation's plan locally when the needs-human label
+  // appears. Off by default; it writes nothing to GitHub and starts nothing.
+  if (radarInput.escalationDraft !== undefined) {
+    if (typeof radarInput.escalationDraft !== "boolean")
+      fail(`${label}.radar.escalationDraft must be true or false.`);
+    radar.escalationDraft = radarInput.escalationDraft;
   }
   // The approval pull request (RC3.8): the decision record is on for Issue
   // Radar repositories until RC12.7 is answered.

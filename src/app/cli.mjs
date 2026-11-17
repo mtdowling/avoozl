@@ -22,6 +22,7 @@ import { cliRefusal } from "./mcp-policy.mjs";
 import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
 import { contentHook } from "./public-crews.mjs";
+import { runSupervisor } from "./supervisor.mjs";
 import { reportByToken } from "./report-match.mjs";
 import { hookEvent, runnerHookBrief } from "./runner.mjs";
 import { callerSlot } from "./delivery.mjs";
@@ -434,6 +435,12 @@ try {
         );
       }
     }
+  } else if (command === "supervisor") {
+    // One per machine (R95.1); a second one exits 1 and names the first.
+    runSupervisor({
+      stateDirectory: options["state-directory"],
+      configDirectory: options["config-directory"],
+    });
   } else if (command === "app-backend") {
     const server = startAppBackend({
       config,
@@ -1910,6 +1917,7 @@ try {
   routing set --file ROUTING.json       This machine's routing: {enabled, prompt, model}
   crews set --file CREWS.json [--stale SECONDS]  This machine's crew tags, limits, and hand-back
   app-backend --workspace PATH          Kiro Crew app backend on 127.0.0.1 ($PORT)
+  supervisor                            This machine's owner of process children (one per machine)
   backup --workspace PATH --output FILE  Local-only; registered IDs are refused
   export --workspace PATH [--output FILE] Local-only; registered IDs are refused
   import SNAPSHOT.json --workspace PATH [--dry-run] Local-only; registered IDs are refused
