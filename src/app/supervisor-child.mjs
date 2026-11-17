@@ -68,3 +68,14 @@ for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"])
       // Already gone: its exit event writes the file.
     }
   });
+// A stop request as a file beside the exit file, because Windows ends a
+// signaled process at once, before it could write its exit code.
+const stopFile = `${exitFile}.stop`;
+setInterval(() => {
+  if (!done && fs.existsSync(stopFile))
+    try {
+      child.kill();
+    } catch {
+      // Already gone.
+    }
+}, 200).unref();

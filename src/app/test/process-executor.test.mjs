@@ -236,7 +236,6 @@ test("start, status, send by resume, and stop through the executor", async (t) =
   });
   assert.equal(await executor.send(id, "never delivered"), "accepted");
   assert.equal(await executor.stop(id), "stopped");
-  if (process.platform === "win32") fs.writeFileSync(release, "");
   assert.match(await settle(id), /^exited /);
   assert.doesNotMatch(seen(), /never delivered/);
 });
