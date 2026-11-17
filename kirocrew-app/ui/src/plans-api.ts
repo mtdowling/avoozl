@@ -98,6 +98,8 @@ export interface PlanReviewSummary {
   note: string | null
   unproven?: boolean
   canReviewAnyway?: boolean
+  // The pass reached planReview.rounds; Review anyway runs one more round.
+  capped?: boolean
   open: {
     id: string
     roundId: string
