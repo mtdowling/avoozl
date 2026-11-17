@@ -338,16 +338,16 @@ function Ne() {
 }
 var Pe = e(null), Fe = () => n(Pe);
 function Ie(e) {
-	let n = Ke(), r = _e("(max-width: 767px)"), i = s(null), o = s(null), [l, u] = c(null), f = s(e);
-	f.current = e;
-	let p = s(!1), m = t(() => {
-		let { unsaved: e, onDismiss: t } = f.current;
+	let n = Ke(), r = _e("(max-width: 767px)"), i = s(null), o = s(null), [l, u] = c(null), d = s(e);
+	d.current = e;
+	let f = s(!1), p = t(() => {
+		let { unsaved: e, onDismiss: t } = d.current;
 		if (!e) return t();
-		p.current || (p.current = !0, n(e).then((e) => {
-			p.current = !1, e && f.current.onDismiss();
+		f.current || (f.current = !0, n(e).then((e) => {
+			f.current = !1, e && d.current.onDismiss();
 		}));
 	}, [n]);
-	Oe(e.kind ?? "modal", !0, e.backLabel ?? "Close the dialog", () => (f.current.onBack ?? m)(), m), a(() => {
+	Oe(e.kind ?? "modal", !0, e.backLabel ?? "Close the dialog", p), a(() => {
 		let e = i.current;
 		if (!e) return;
 		let t = {}, n = document.activeElement;
@@ -361,7 +361,7 @@ function Ie(e) {
 			document.removeEventListener("keydown", r), V.splice(V.indexOf(t), 1), Ne(), e.open && e.close(), n?.isConnected && n.focus();
 		};
 	}, []);
-	let h = r ? {
+	let m = r ? {
 		width: "100%",
 		height: "100%",
 		maxHeight: "none",
@@ -383,7 +383,7 @@ function Ie(e) {
 		[we]: "",
 		...e.attrs,
 		onCancel: (e) => {
-			e.preventDefault(), m();
+			e.preventDefault(), p();
 		},
 		style: {
 			position: "fixed",
@@ -410,7 +410,7 @@ function Ie(e) {
 			children: [/* @__PURE__ */ A("div", {
 				"aria-hidden": "true",
 				"data-modal-backdrop": !0,
-				onClick: m,
+				onClick: p,
 				style: {
 					position: "absolute",
 					inset: 0,
@@ -425,7 +425,7 @@ function Ie(e) {
 				className: "relative flex flex-col overflow-hidden border outline-none",
 				style: {
 					...je,
-					...h,
+					...m,
 					boxSizing: "border-box",
 					overscrollBehavior: "contain"
 				},
@@ -462,7 +462,7 @@ function Ie(e) {
 							type: "button",
 							"data-modal-close": !0,
 							"aria-label": "Close",
-							onClick: m,
+							onClick: p,
 							style: {
 								position: "absolute",
 								top: 12,
@@ -504,7 +504,7 @@ function Ie(e) {
 							},
 							children: e.children
 						}),
-						/* @__PURE__ */ j("div", {
+						e.footer && /* @__PURE__ */ A("div", {
 							"data-modal-footer": !0,
 							style: {
 								display: "flex",
@@ -517,13 +517,7 @@ function Ie(e) {
 								borderTop: B,
 								background: "var(--bg-accent, var(--bg-elevated))"
 							},
-							children: [e.footer, /* @__PURE__ */ A(d, {
-								type: "button",
-								"data-modal-footer-close": !0,
-								"data-autofocus": e.focusClose ? !0 : void 0,
-								onClick: m,
-								children: "Close"
-							})]
+							children: e.footer
 						})
 					]
 				})
@@ -724,32 +718,38 @@ var We = {
 	color: "#fff"
 }, Ge = e(async () => !1), Ke = () => n(Ge);
 function qe({ children: e }) {
-	let [n, r] = c(null), i = t((e) => new Promise((t) => r({
+	let [n, i] = c(null), a = s(null), o = t((e) => new Promise((t) => i({
 		...e,
 		resolve: t
-	})), []), a = (e) => {
-		n?.resolve(e), r(null);
+	})), []), l = (e) => {
+		n?.resolve(e), i(null);
 	};
-	return /* @__PURE__ */ j(Ge.Provider, {
-		value: i,
+	return r(() => {
+		n && a.current?.focus();
+	}, [n]), /* @__PURE__ */ j(Ge.Provider, {
+		value: o,
 		children: [e, n && /* @__PURE__ */ A(Ie, {
 			id: "avoozl-confirm",
 			kind: "confirm",
 			role: "alertdialog",
-			focusClose: !0,
 			backLabel: "Cancel",
 			width: "28rem",
 			title: n.title,
 			describedBy: "avoozl-confirm-body",
 			attrs: { "data-confirm-dialog": !0 },
-			onDismiss: () => a(!1),
-			footer: /* @__PURE__ */ A(k, { children: /* @__PURE__ */ A(d, {
+			onDismiss: () => l(!1),
+			footer: /* @__PURE__ */ j(k, { children: [/* @__PURE__ */ A(d, {
+				ref: a,
+				type: "button",
+				onClick: () => l(!1),
+				children: "Cancel"
+			}), /* @__PURE__ */ A(d, {
 				type: "button",
 				"data-danger": !0,
-				onClick: () => a(!0),
+				onClick: () => l(!0),
 				style: We,
 				children: n.action
-			}) }),
+			})] }),
 			children: /* @__PURE__ */ A("p", {
 				id: "avoozl-confirm-body",
 				className: "text-sm text-muted",
@@ -2241,7 +2241,11 @@ function _n(e) {
 			}), " Stop the line"]
 		}),
 		onDismiss: x,
-		footer: /* @__PURE__ */ A(k, { children: /* @__PURE__ */ j(d, {
+		footer: /* @__PURE__ */ j(k, { children: [/* @__PURE__ */ A(d, {
+			type: "button",
+			onClick: x,
+			children: "Cancel"
+		}), /* @__PURE__ */ j(d, {
 			type: "button",
 			"data-danger": !0,
 			"data-stop-confirm": !0,
@@ -2252,7 +2256,7 @@ function _n(e) {
 				size: 14,
 				"aria-hidden": "true"
 			}), a.kind === "agents" ? "Stop all agents" : "Stop the line"]
-		}) }),
+		})] }),
 		children: [
 			/* @__PURE__ */ A("div", { children: /* @__PURE__ */ A("p", {
 				id: "avoozl-stop-line",
