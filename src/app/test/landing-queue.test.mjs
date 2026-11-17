@@ -67,7 +67,7 @@ function steps(r, { check = async () => ({ ok: true }), land } = {}) {
   return {
     log,
     readBase: r.head,
-    async prepare(entry, baseHead) {
+    async prepare([entry], baseHead) {
       await git(r.landing, ["fetch", "-q", "origin", "main"]);
       let tree;
       try {
@@ -105,7 +105,7 @@ function steps(r, { check = async () => ({ ok: true }), land } = {}) {
       ]);
       return { candidate };
     },
-    async check(candidate, entry) {
+    async check(candidate, [entry]) {
       log.checked.push(candidate);
       return check(candidate, entry);
     },
