@@ -42,6 +42,7 @@ try {
   const shots = [
     ["github-plans", "plans", "GitHub", false],
     ["github-local", "local", "GitHub", false],
+    ["github-calls", "plans", "GitHub", false],
     ["workspaces", "plans", "Workspaces", false],
   ];
   for (const theme of ["light", "dark"])
@@ -57,6 +58,11 @@ try {
             ? [press("Configure repository setup")]
             : []),
           ...(help ? [press("What the roles make")] : []),
+          ...(name === "github-calls"
+            ? [
+                `(() => { const t = document.querySelector('[data-github-usage]'); if (t) t.scrollIntoView({ block: 'center' }); return Boolean(t) })()`,
+              ]
+            : []),
         ];
         await page.open(url, size);
         await page.until(

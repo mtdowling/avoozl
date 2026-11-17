@@ -258,3 +258,10 @@ test('the Reviews tab states the branch rule it found, or that reviewer chats ar
   assert.doesNotMatch(settings, /Require GitHub approvals on the head commit/)
   assert.match(settings, /<Badge>deprecated<\/Badge>/)
 })
+
+test('the GitHub calls breakdown is its own section with a sortable real table', () => {
+  assert.match(settings, /<Section title="GitHub calls in the last hour"/)
+  assert.match(settings, /<th key=\{col\.key\} scope="col" aria-sort=/)
+  assert.match(settings, /<button type="button" data-sort=\{col\.key\}/)
+  assert.match(settings, /textAlign: 'right', fontVariantNumeric: 'tabular-nums'/)
+})
