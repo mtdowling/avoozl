@@ -1480,7 +1480,7 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
   - `publicCrewAudit`, cursor per repository, fake GitHub; a comment is deleted, a pull request closed, one notice and one Needs you item.
 - [x] 39.3 Public crew checklist, sign-off and handoff gate, after 39.1 and 39.2 [R85.1, R85.2, R85.8, R85.10] (§6.14)
   - `publiccrews.signoff`, the Public crews card, the `untriaged.handoff` check; person-only; lapse on a changed hash.
-- [ ] 39.4 Stop public crews, after 39.2 [R85.9] (§6.14)
+- [x] 39.4 Stop public crews, after 39.2 [R85.9] (§6.14)
   - `publiccrews.stop` in the app, the CLI and MCP policy (person only to resume).
 - [ ] 39.5 Public docs and the upstream requests, after 39.3 and 39.4 [R85.2, R85.5] (§6.14)
   - `docs/public-crews.md` in generic terms; limits stated; requests drafted, none filed.
@@ -1513,12 +1513,13 @@ foundation tasks without that dependency may proceed while the live proof waits.
   - First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise.
 - [x] 40.5 Verify: warm checks off the tick, per-check timeouts, declared and protected paths, after 40.1 [R86.6, R86.7] (§4.26)
   - Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you.
-- [ ] 40.6 One automatic resume for a vanished chat, after 40.2 [R88.4] (§4.26)
+- [x] 40.6 One automatic resume for a vanished chat, after 40.2 [R88.4] (§4.26)
   - Only Kiro Crew's "gone" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you.
+  - Built: `reconcileDeliveries` in `src/app/delivery.mjs` ends the first gone attempt since the last person retry as `vanished` (outside the retry count) and marks its binding lost, so the next tick opens attempt 2 in the same worktree with the last report quoted; a second vanish, or a gone batch, opens the decision. Test: `src/app/test/stock-kirocrew.test.mjs`.
 - [x] 40.7 Lanes: 3 on this Mac by default, after avoozl-p56 [R88.5] (§4.26)
   - `lanes.local` default 3; a fourth ready task waits.
 
-- [ ] avoozl-p50 P50 Proof: a three-task chain survives a gateway restart unattended, after 40.1, 40.2, 40.3, 40.4, 40.5, 40.6, 40.7, 41.1, 41.2, 41.3, 41.5 [R86, R87.10, R88] (§4.26)
+- [ ] avoozl-p50 P50 Proof: a three-task chain survives a gateway restart unattended, after 40.1, 40.2, 40.3, 40.4, 40.5, 40.6, 40.7, 41.1, 41.2, 41.3, 41.5, 41.9 [R86, R87.10, R88] (§4.26)
   - Setup: an isolated Kiro Crew home, a scratch repository with a bare remote, a three-task chain, landing `direct`.
   - Action: (1) start the chain and leave it; (2) restart the gateway while task 2 works; (3) let the tick push the base.
   - Expected: (1) each task lands in order with its checks recorded; (2) trust is set again, task 2 goes on in the same worktree, no second chat unless Kiro Crew says it is gone; (3) the tick push goes through Kiro Crew's push policy; worktrees removed after landing.
@@ -1553,6 +1554,10 @@ the scratch safety proof, with owner minutes, credits and wall-clock per task.
 - [ ] 41.7 Nupp setup: `direct` on public `core-dev` with the repository's helper and check, after 41.3 [R91.5] (§4.26)
   - `scripts/worktree` approved by hash, `scripts/test-changed` as the check; plans stay in a private planning workspace; no mirror or forward.
 
+- [x] 41.9 The tick lands `direct` portions through the landing queue, after 41.3, 42.6 [R87.1, R87.2, R88.6] (§4.26)
+  - A verified task in a repository with landing `direct` is queued as one portion; each tick runs `landNext` with `directSteps` per base (checks on the merged candidate, an intent in the spec's journal, a guarded fast-forward push, never forced). Landed marks the task integrated at the candidate, fast-forwards the local base and removes the task worktree and branch; failed checks go back to the chat.
+  - Built: `src/app/direct-landing.mjs` (`queueDirect`, `landDirect`), called from `integrateVerified` and the tick. Test: `src/app/test/direct-landing.test.mjs` (real git, bare remote).
+
 - [ ] avoozl-p51 P51 Proof: the 13 Nupp pilot tasks land direct, after 41.1, 41.2, 41.3, 41.4, 41.5, 41.6, 41.7, 41.8, avoozl-p50, avoozl-p66 [R86, R87, R91.5] (§4.26)
   - Setup: the Nupp compiler checkout, a private planning workspace with the 13 pilot tasks approved, landing `direct` on `core-dev`.
   - Action: release the pilot and leave it running.
@@ -1579,7 +1584,7 @@ required check; 42.4 is an independent owner settings review, not its gate.
 
 - [x] 42.5 Take over writes the spec journal's generation, after 56.4 [R102.13, R102.14] (§4.32)
   - `avoozl spec publish SPEC` and `avoozl spec takeover SPEC` (operation `spec.takeover`, person-only). Take over on a published spec (local or GitHub journal) appends the next generation with `takeOver` (driver-generations.mjs) and keeps the driver id with `rememberDriver`. Person-only; a held or concurrent journal refuses. Landing reads this driver; no take over means nothing lands.
-- [ ] 42.6 The tick lands `pr` portions through the landing queue, after 42.1, 42.3, 42.5, 41.4 [R87.3, R87.4, R87.5, R87.6, R89.3] (§4.26)
+- [x] 42.6 The tick lands `pr` portions through the landing queue, after 42.1, 42.3, 42.5, 41.4 [R87.3, R87.4, R87.5, R87.6, R89.3] (§4.26)
   - A verified task in a repository with landing `pr` is pushed to its task branch (`pushHead`, never forced) and queued as one portion. Each tick runs `landNext` with `pullSteps` per base, with intents in the spec's journal. Landed marks the task integrated at the merge commit; failed checks send the task back to its chat; a conflict uses `sendConflictBack`. `direct` and `off` keep today's path. Fake GitHub and git test; no live write.
 - [ ] 42.7 `avoozl setup REPO`: one preview, `--yes` applies, after 42.2, 42.3 [R89.1, R89.2, R89.3] (§4.26)
   - CLI over `previewAccess` and `previewLanding`: prints every change, writes only with `--yes`, and a second run prints "Nothing to change" and writes nothing. Writes the project's landing setting and checks. The old Radar `github setup` stays as it is.
@@ -1720,26 +1725,30 @@ recovers, and a backend restart mid-run.
 - [x] 47.2 Permission classes, write roots and the skip-flag refusal, after 47.1 [R94.4, R94.4b, R94.5] (§4.28)
   - Write roots: task folder, temp, project cache dirs; read-only roles read-only; a test loads definitions with `bypassPermissions`, `danger-full-access` and a `--dangerously-*` flag and sees each refused; the per-machine opt-in is person-only.
   - Built: `harnessPermission`, `sandboxWriteRoots` and `allowUnconfinedWrites` in `src/app/harness-definitions.mjs`; tests in `src/app/test/harness-permissions.test.mjs`.
-- [ ] 47.7 Avoozl commits after the child exits, after 47.4 [R94.4a] (§4.28)
+- [x] 47.7 Avoozl commits after the child exits, after 47.4 [R94.4a] (§4.28)
   - The child only edits; Avoozl commits in the worktree from the changed files and checks the diff.
+  - Built: `drainProcessRequests` in `src/app/executors/process.mjs` commits a write worker's changes with `commitWorkerChanges` (`.avoozl/` left out) when its child exits, before 47.6 reads the result and HEAD, and only in a linked worktree (`commitChildWork`); the done report's commit then goes through Verify. A failed commit closes the session unreported (retry path). Tests: `src/app/test/process-executor.test.mjs`.
 - [x] 47.11 Avoozl's worker commit never stages a path under `.avoozl/`, and landing refuses a worker commit that holds one [R94.4a, R96.1, R96.3] (§4.28)
   - Whatever the repository's .gitignore says. 47.7 commits through `commitWorkerChanges` (`src/app/git.mjs`); `integrateRun` refuses a branch whose commits touch `.avoozl/` with the paths named; tests in `src/app/test/worker-commit.test.mjs`.
 - [x] 47.8 Per-project command allow-list; `git push` never allowed, after 47.2 [R94.4c] (§4.28)
   - Built: `src/app/harness-allow.mjs` (`sandboxAllowCommands`, `harnessAllow`); tests in `src/app/test/harness-allow.test.mjs`.
-- [ ] 47.9 Spend cap from the task budget and the plan-quota stop, after 47.4 [R94.6, R94.6a] (§4.28)
+- [x] 47.9 Spend cap from the task budget and the plan-quota stop, after 47.4 [R94.6, R94.6a] (§4.28)
+  - Built: `spendCapUsd` in `src/app/budget.mjs` (dollars left on a stop-mode cap, null for warn mode and uncapped roles) fills `{budget_usd}`, and the supervisor appends the definition's `spendCap`; `planQuotaHold` in `src/app/executors/process.mjs` holds a new `process` session when its model or harness provider reads `low` or `out`, and a spent budget holds it too; tests in `src/app/test/process-executor.test.mjs`. Whether `--max-budget-usd` binds on a plan login is checked by `src/app/test/claude-plan-budget.test.mjs`, which runs only with `AVOOZL_LIVE_CLAUDE_PLAN=1` on a plan login and refuses an API or cloud login; it has not been run on one yet.
 - [x] 47.10 Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted, after 47.2 [R95.6, R95.7] (§4.28)
   - Kiro Crew chats: the docs and Settings say the person-only refusal is a speed bump.
   - Built: `src/app/sandbox.mjs` (`sandbox-exec` on macOS, `bwrap` on Linux, else the per-machine opt-in), wrapped around each child in `src/app/supervisor.mjs`; text in `docs/policies.md` and Settings › Models; tests in `src/app/test/sandbox.test.mjs`.
 - [x] 47.3 `avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend, after 47.1 [R95.1, R95.2, R95.3, R95.4] (§4.28)
   - Finds its children again after a restart; a missing one is `gone`.
   - Built: `src/app/supervisor.mjs` (state in the machine state folder's `supervisor/supervisor.sqlite`, lock `supervisor.lock`), entry `src/app/supervisor-main.mjs`, wrapper `src/app/supervisor-child.mjs` that writes each exit code; the app backend launches it under Kiro Crew's gateway; tests in `src/app/test/supervisor.test.mjs`.
-- [ ] 47.4 The `process` executor and the Claude Code definition, after 47.2, 47.3 [R93.2, R93.5] (§4.28)
+- [x] 47.4 The `process` executor and the Claude Code definition, after 47.2, 47.3 [R93.2, R93.5] (§4.28)
   - Default for the Nupp compiler repository.
+  - Built: `src/app/executors/process.mjs` (start, send by resume, status, stop over the supervisor; `drainProcessRequests` takes `process` requests in the app backend, prepares a worker's task worktree and binds the session); a project opts in with `executor: "process"`, `harness` and `sandbox` in its settings, which is how the Nupp compiler repository makes it its default; the definition at `examples/harnesses/claude-code.json` (stdin prompt, `--session-id`/`--resume`, `acceptEdits`/`plan`, `--allowedTools Bash(...)`), copied to the machine config and approved by hash; tests in `src/app/test/process-executor.test.mjs`.
 - [x] 47.5 Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
   - Refused even with `--as-person`.
   - Built: the supervisor sets `AVOOZL_CHILD=1` and `AVOOZL_CHILD_SESSION` on each child (`src/app/supervisor.mjs`); `cliRefusal` in `src/app/mcp-policy.mjs` ignores `--as-person` there; tests in `src/app/test/cli-person-only.test.mjs` and `src/app/test/supervisor.test.mjs`.
-- [ ] 47.6 Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats, after 47.4 [R96.1, R96.2, R96.3, R96.4] (§4.28)
+- [x] 47.6 Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats, after 47.4 [R96.1, R96.2, R96.3, R96.4] (§4.28)
   - A missing or bad result file, or `done` with a non-zero exit, takes the retry path.
+  - Built: the supervisor clears `.avoozl/result.json` before each run and reads it at exit (`readChildResult`, `childResult` in `src/app/supervisor.mjs`: a regular file of at most 8 KB); `drainProcessRequests` records a good result as the session's report through `session.report` (`finishProcessSession` in `src/app/executors/process.mjs`, commit read from the worktree's HEAD, text as data); a `process` worker's brief ends with the result file (`processSteps`, `src/app/delivery.mjs`). Chats and people keep `avoozl runner report TASK done|blocked` and the `--state` form (40.2). Tests in `src/app/test/process-executor.test.mjs`.
 
 - [ ] avoozl-p57 P57 Proof: a Claude Code chain runs under the supervisor and survives faults, after 47.1, 47.2, 47.3, 47.4, 47.5, 47.6, 47.7, 47.8, 47.9, 47.10, 47.11 [R93, R94, R95, R96] (§4.28)
   - Setup: a scratch repository with a bare remote, a 3-task chain, the Claude Code definition approved, the `process` executor.
@@ -1817,7 +1826,7 @@ Requirement 96.4 (design §4.28).
   - One test per command from a plain shell.
   - Built: `src/app/test/manual-path.test.mjs` runs the CLI with no Kiro Crew, gateway or Avoozl variables: `next` lists ready work, `claim --slot` binds as `cli` with a worktree and `report --kind done` finishes it in crew mode, and `runner report TASK --state done` reports a runner task. The positional `runner report TASK done|blocked` and its use outside runner mode are 40.2's.
 
-- [ ] avoozl-p62 P62 Proof: a person finishes a task by hand, after 52.1 [R96.4] (§4.28)
+- [x] avoozl-p62 P62 Proof: a person finishes a task by hand, after 52.1 [R96.4] (§4.28)
   - Setup: a scratch workspace with one ready task.
   - Action: `avoozl next`, `avoozl claim`, edit and commit, `avoozl runner report TASK done`.
   - Expected: the task lands as if a worker did it.
@@ -1897,12 +1906,13 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
   - `build_breakdowns` from the field or report artifacts; `buildBrief` in `retroBrief`; `PLAN_FIELDS` adds `key` and `part`; `METRICS` adds Build part minutes; Not enough comparable builds. Tests: mismatched keys are never compared; a retro brief includes the breakdown; a repository with no reports gives the same brief and call count as before.
   - Built: pass, `src/app/test/build-breakdown.test.mjs`.
 
-- [ ] avoozl-p65 P65 Proof: every receipt kept and a breakdown in a retro on a real repository, after 55.1, 55.2, 55.3, 55.4, 55.5, 55.6 [R101] (§4.31)
+- [x] avoozl-p65 P65 Proof: every receipt kept and a breakdown in a retro on a real repository, after 55.1, 55.2, 55.3, 55.4, 55.5, 55.6 [R101] (§4.31)
   - Setup: an isolated workspace naming one scratch GitHub repository with `buildReceipts` on, CI on 3 platforms running build and test through the wrapper, and `receipts.report` set to a field that a test script fills with made-up workload, engine and target names.
   - Action: (1) open a pull request, fail its test job once, re-run it, and merge; (2) let two checks run; (3) merge 4 more pull requests with the same report key and 1 with a different cache mode; (4) start a retrospective.
   - Expected: (2) 6 or more observations for the first pull request, the failed attempt marked, the costliest phase in Flow, one artifact list per check and one download per artifact, the second check 0 downloads; (4) the brief holds the breakdown, and the pull request with the other cache mode is never compared with the rest.
   - Failure means: records are still dropped, artifacts are read again, or builds with different work are compared.
   - Next decision: read a second page of artifacts, or move reports to their own artifact.
+  - Built: pass, receipt `docs/evidence/p65-build-receipts.md` (#401 reads every page; #402 Flow builds for any repository).
 
 ## Phase 56: Working branches and a spec journal
 
@@ -1971,9 +1981,13 @@ proof or run a real workspace to get past that wait.
   - Keep plan-me routing. Trusted escalations (the repository's needs-human label) sort first in Untriaged, or Intake for a Radar-coded repository, with Plan this and Deliver this; their Needs you row gains the same buttons. Plan this drafts a fix spec or the compact bounded-fix acceptance.
   - Person-only start. A per-repository escalation rule, off by default, drafts locally with zero GitHub writes; approval and dispatch stay person-only. Take-over writes crew:avoozl and never removes the needs-human label; a live crew claim asks to confirm. No Radar API or grant. Tests cover order, buttons, zero-write draft and one label write.
 
-- [ ] avoozl-p66 P66 Proof: journal, working-head recovery and takeover, after 56.3, 56.4, 56.5, 56.6, 56.7, 56.8, 41.3 [R102] (§4.32)
+- [ ] 56.15 Reanchor a held journal by a person's record, after 56.2 [R102.26] (§4.32)
+  - Schema, writer and replay: a `reanchor` record names held record IDs and the reviewed tail (ID and current digest); replay accepts it only from a write-access author whose tail is the last known record, ignores the named records' contents, clears their holds and continues. Unnamed or later holds stay. No comment is edited or deleted; no approval, completion or generation change.
+  - Person-only `spec.journal.reanchor` with preview, and `avoozl spec journal reanchor SPEC --held ID,... --tail ID [--yes]`; refused for MCP and agent sessions. Tests: a mutated record and a deleted record each restore; a stale tail digest, an agent caller and an unnamed hold refuse; the spec stays held until Resume.
+
+- [ ] avoozl-p66 P66 Proof: journal, working-head recovery and takeover, after 56.3, 56.4, 56.5, 56.6, 56.7, 56.8, 56.15, 41.3 [R102] (§4.32)
   - Setup: isolated scratch GitHub code and private planning repositories, published epic/spec issues, a three-task in-spec chain and one cross-spec successor, actual executor, direct landing and made-up secret canaries. No real workspace or private pilot.
-  - Action: push an unfinished checkpoint, verify and integrate the first task, check branch marks; retry a journal write, mutate/delete a linked record; reconstruct after discarding a copied disposable database. Restore journal consistency, review and Resume. Pause the original driver immediately before a guarded push, take over, then resume it. Exercise stale/copied trailers, issue-binding retirement and a hold/reassignment without a commit.
+  - Action: push an unfinished checkpoint, verify and integrate the first task, check branch marks; retry a journal write, mutate/delete a linked record; reconstruct after discarding a copied disposable database. Restore journal consistency by a person's reanchor (56.15), review and Resume. Pause the original driver immediately before a guarded push, take over, then resume it. Exercise stale/copied trailers, issue-binding retirement and a hold/reassignment without a commit.
   - Expected: checkpoints survive, unverified work releases nothing, only verified in-spec successors advance, cross-spec waits for accepted landing; mutation holds, replay deduplicates, reconstruction holds, old intents reconcile to one effective outcome and old generations authorize no new work. Migration changes no readiness and no task issues are read/created. All canaries are rejected before publication.
   - Also record: approved/definition digests, qualified refs and checked/landed SHAs, sanitized record/operation IDs, before/after frontier, intent/generation sequence, pause timing, permission and content-rule verdicts and actual GitHub call counts. Keep sensitive control detail private.
   - Write a live docs/evidence/ receipt. Failure means an unchecked/stale completion, a takeover double dispatch, lost hold, automatic reset of spend, task-issue side effects or a leak. Tests/fakes never tick this proof; owner-only actions remain explicit.
@@ -2004,9 +2018,9 @@ approval before merge.
   - The reviewer brief asks for `info`/`warn`/`blocker` and an exact quote; `plan.review.submit` derives lines from the quote, refuses a missing or ambiguous quote, and drops a same-pass repeat of a rejected or resolved finding with a count in the note. The planner answer brief carries accepted, rejected and deferred lists. `planReviewStep` opens one person-triggered planner turn per plan per tick for an accepted, unfixed finding, outside `planReview.rounds`; Review anyway starts one more round at the cap. Fake chats only.
 - [x] 57.3 Person actions: operation, policy, CLI and MCP read, after 57.1 [R104.5, R104.6, R104.8] (§4.33)
   - `plan.review.finding.decide` (accept, reject with reason, defer with a follow-up row, resolve, reopen) recording who, when and revision; added to `PERSON_ONLY`; `plan.review.dispose` maps onto it and becomes person-only; `avoozl plan finding ID ACTION [--note]`; `avoozl plan review SPEC` and `plans_plan_review` show severity, state and anchor. Tests: MCP and agent refusal for both operations; history order; defer makes no task and no GitHub call.
-- [ ] 57.4 Review view with tabs, cards, filters and chat links, after 57.1, 57.3 [R104.9, R104.10, R104.11, R104.15] (§4.33)
+- [x] 57.4 Review view with tabs, cards, filters and chat links, after 57.1, 57.3 [R104.9, R104.10, R104.11, R104.15] (§4.33)
   - `plan.review.view`; the spec page's Review mode with requirements, design and tasks tabs; severity borders and labels; card body, history and Accept, Reject, Defer, Resolve and Reopen; severity and state filters with counts in the address; Open review chat and Open planner chat, or Chat closed. Tests on the view data. Owner screenshot approval before merge.
-- [ ] 57.5 Rail alignment, scroll and highlight, and moved findings, after 57.4 [R104.4, R104.9] (§4.33)
+- [x] 57.5 Rail alignment, scroll and highlight, and moved findings, after 57.4 [R104.4, R104.9] (§4.33)
   - `data-source-line` on rendered blocks in `Markdown.tsx`; cards level with their anchor, overlaps stacked; card click scrolls and highlights, text click selects the card; Moved or removed group first; inline cards on narrow screens. UI tests for alignment order and selection. Owner screenshot approval before merge.
 - [ ] 57.6 Approve dialogs: counts, Open review link and in-place revision updates, after 57.1, 57.4 [R104.12, R104.13] (§4.33)
   - `PlanReviewSummary.tsx` shows counts by severity and state and Open review, without close controls; both dialogs re-read on the page refresh, update in place on a hash change with the changed files and findings, and reset Approve; `plansClient.approve` returns the change instead of throwing; `plan.approve` still refuses a stale hash. Tests: no thrown "changed" error, batch per entry. Owner screenshot approval before merge.

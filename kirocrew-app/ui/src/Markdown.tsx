@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { blocks, headingId, inline, type Inline } from './markdown.ts'
 import { highlight, tokenStyle, type Token } from './highlight.ts'
 import { linkHref } from './views-api.ts'
@@ -58,6 +58,7 @@ function Code({ text, lang, line }: { text: string; lang: string | null; line?: 
       style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}
       data-lang={lang ?? undefined}
       data-line={line}
+      data-source-line={line}
       data-highlighted={tokens ? 'true' : undefined}
     >
       <code>{tokens ? <Tokens tokens={tokens} /> : text}</code>
@@ -68,13 +69,26 @@ function Code({ text, lang, line }: { text: string; lang: string | null; line?: 
 // `idPrefix` gives each heading an anchor (headingId), for an outline.
 // Every block and list item carries `data-line`, its first source line, so
 // a reader can scroll to a cited line (DocumentReader.tsx).
+// It is also written as `data-source-line`; a block's lines run to the next
+// block's first line minus one (the Review view, ReviewView.tsx).
 // `measure` caps prose at a readable line length; tables and code may use
 // the full width.
-export function Markdown({ text, idPrefix, measure }: { text: string; idPrefix?: string; measure?: string }) {
+// `after` renders something after a top-level block, given its first line
+// and the next block's (null for the last): the Review view's inline cards.
+export function Markdown({ text, idPrefix, measure, after }: { text: string; idPrefix?: string; measure?: string; after?: (line: number, next: number | null) => ReactNode }) {
   const prose = measure ? { maxWidth: measure } : undefined
+  const all = blocks(text)
   return (
     <div className="flex min-w-0 flex-col gap-2 break-words text-sm leading-relaxed" style={{ color: 'var(--text)' }}>
-      {blocks(text).map((block, i) => {
+      {all.map((block, i) => (
+        <Fragment key={i}>
+          {render(block, i)}
+          {after?.(block.line, i + 1 < all.length ? all[i + 1].line : null)}
+        </Fragment>
+      ))}
+    </div>
+  )
+  function render(block: (typeof all)[number], i: number): ReactNode {
         if (block.kind === 'heading') {
           const size = ['text-xl', 'text-lg', 'text-base', 'text-sm', 'text-sm', 'text-sm'][block.level - 1]
           return (
@@ -82,7 +96,7 @@ export function Markdown({ text, idPrefix, measure }: { text: string; idPrefix?:
               key={i}
               role="heading"
               aria-level={block.level}
-              data-line={block.line}
+              data-line={block.line} data-source-line={block.line}
               id={idPrefix ? headingId(idPrefix, block.text, i) : undefined}
               className={`${size} mt-2 font-semibold`}
               style={{ ...prose, scrollMarginTop: 12 }}
@@ -93,21 +107,21 @@ export function Markdown({ text, idPrefix, measure }: { text: string; idPrefix?:
         }
         if (block.kind === 'paragraph')
           return (
-            <p key={i} data-line={block.line} style={prose}>
+            <p key={i} data-line={block.line} data-source-line={block.line} style={prose}>
               <Text text={block.text} />
             </p>
           )
-        if (block.kind === 'rule') return <hr key={i} data-line={block.line} style={{ borderColor: 'var(--border)' }} />
+        if (block.kind === 'rule') return <hr key={i} data-line={block.line} data-source-line={block.line} style={{ borderColor: 'var(--border)' }} />
         if (block.kind === 'quote')
           return (
-            <blockquote key={i} data-line={block.line} className="border-l-2 pl-3 text-muted" style={{ borderColor: 'var(--border)', ...prose }}>
+            <blockquote key={i} data-line={block.line} data-source-line={block.line} className="border-l-2 pl-3 text-muted" style={{ borderColor: 'var(--border)', ...prose }}>
               <Text text={block.text} />
             </blockquote>
           )
         if (block.kind === 'code') return <Code key={i} text={block.text} lang={block.lang} line={block.line} />
         if (block.kind === 'table')
           return (
-            <div key={i} data-line={block.line} className="max-w-full overflow-x-auto">
+            <div key={i} data-line={block.line} data-source-line={block.line} className="max-w-full overflow-x-auto">
               <table className="border-collapse text-[12px]">
                 <thead>
                   <tr>
@@ -143,7 +157,7 @@ export function Markdown({ text, idPrefix, measure }: { text: string; idPrefix?:
             {block.items.map((item, j) => (
               <li
                 key={j}
-                data-line={item.line}
+                data-line={item.line} data-source-line={item.line}
                 style={{ marginLeft: item.depth * 16, listStyleType: item.checked === null ? undefined : 'none' }}
               >
                 {item.checked !== null && (
@@ -156,7 +170,5 @@ export function Markdown({ text, idPrefix, measure }: { text: string; idPrefix?:
             ))}
           </List>
         )
-      })}
-    </div>
-  )
+  }
 }

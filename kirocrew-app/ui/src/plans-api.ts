@@ -2,6 +2,7 @@
 // are Kiro spec folders; approval is of one stored revision, named by the hash
 // of the folder's files. Keep this module free of JSX and runtime imports so
 // node can test it directly.
+import { unifiedDiff } from '../../../src/app/text-diff.mjs'
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import type { TaskOwner } from './views-api.ts'
@@ -70,6 +71,8 @@ export interface SpecPlan {
   quality: { canApprove: boolean; counts: Counts; diagnostics: Diagnostic[] }
   disk: { folder: string; exists: boolean; hash: string | null; changed: boolean; critique: Critique | null }
   approvals: { id: string; hash: string; at: string; approvedBy: string }[]
+  // Earlier revisions, oldest first; a spec revision keeps its files.
+  history?: { revision: number; hash: string; files?: Record<string, string> }[]
   review?: PlanReviewSummary | null
 }
 
@@ -77,6 +80,7 @@ export type ReviewDisposition = 'resolved' | 'accepted' | 'rejected' | 'deferred
 export interface PlanReviewSummary {
   state: 'not-reviewed' | 'running' | 'done' | 'skipped'
   reviewerModel: string | null
+  writerModel?: string | null
   revisionHash: string | null
   current: boolean
   found: number
@@ -613,4 +617,21 @@ export function specChip(row: Pick<PlanRow, 'status' | 'onGitHub'>): SpecChip {
 export function homeBadge(home?: 'main' | 'plansBranch'): { label: string; warn: boolean } | null {
   if (!home) return null
   return home === 'plansBranch' ? { label: 'Private', warn: true } : { label: 'Public', warn: false }
+}
+
+// The revision a person last approved, else the one before this; null when
+// this is the first revision. Its files are what "Show changes" diffs from.
+export function baseRevision(plan: Pick<SpecPlan, 'hash' | 'approvals' | 'history'>) {
+  const history = plan.history ?? []
+  const approved = new Set((plan.approvals ?? []).map((approval) => approval.hash))
+  const base = [...history].reverse().find((entry) => approved.has(entry.hash) && entry.hash !== plan.hash) ?? history.at(-1)
+  return base?.files ? { ...base, files: base.files, approved: approved.has(base.hash) } : null
+}
+
+// One unified diff per changed file, from `before` to `after`, in file order.
+export function revisionDiff(before: Record<string, string>, after: Record<string, string>): { file: string; diff: string }[] {
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .sort()
+    .map((file) => ({ file, diff: unifiedDiff(before[file] ?? '', after[file] ?? '') }))
+    .filter((entry) => entry.diff)
 }

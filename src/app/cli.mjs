@@ -782,6 +782,10 @@ try {
         2,
       ),
     );
+  else if (command === "public-crews" && positionals[0] === "stop")
+    console.log(
+      JSON.stringify(await localOrRequest("publiccrews.stop", {}), null, 2),
+    );
   else if (command === "flow" && positionals[0] === "resume")
     console.log(
       JSON.stringify(
@@ -1919,6 +1923,7 @@ try {
   flow stop --scope all|repo|spec|task [--repository ID] [--spec ID] [--task ID] --reason TEXT
                                         Pull the Andon cord: stop new work in a scope
   flow stop --full --reason TEXT        Stop all agents: also stop every running chat Avoozl opened (needs the app backend)
+  public-crews stop                     Stop public crews: pull the cord on every public repository and list the crews to pause
   gap-report preview|accept SPEC (--path FILE | --issue OWNER/REPO#N)  Turn a gap report into proposed tasks in the sub-specs of a parent spec
   gate list [--json]                    Tracker gates: state, last and next check, and what each holds
   gate clear TASK --reason TEXT         Clear a tracker gate as an order (the GitHub login of this machine must be allowed)
