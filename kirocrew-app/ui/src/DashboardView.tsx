@@ -5,7 +5,7 @@ import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { TraceDrawer } from './TraceView.tsx'
 import type { TraceTarget } from './trace-api.ts'
-import { attentionTarget, railFor, attentionTip, summarize, type Attention, type InFlight } from './dashboard-api.ts'
+import { attentionTarget, processLine, railFor, attentionTip, summarize, type Attention, type InFlight } from './dashboard-api.ts'
 import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
@@ -31,7 +31,7 @@ import { LINE_EVENT, flowClient } from './flow-api.ts'
 import { IconBtn, IconLabel, IconLink, SectionHeading, ShowMore, SmallBtn, TaskTitleLink, useAskChat, usePages } from './controls.tsx'
 import { useRefreshCountdown } from './RefreshButton.tsx'
 import { usePublishRefresh } from './page-refresh.tsx'
-import { Activity, CirclePlus, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
+import { Activity, CirclePlus, Copy, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import type { Drill } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
@@ -225,8 +225,41 @@ export function RadarFlightRow({ row, now, onTrace, cost }: { row: RadarClaim; n
   )
 }
 
+// Copy a `process` session's attach command (R98.1). The command shows in
+// the tooltip, so a person reads what they copy.
+function CopyAttach({ command, title }: { command: string; title: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <Tooltip text={command}>
+      {(describedBy) => (
+        <Btn
+          type="button"
+          aria-label={`Copy the attach command for ${title}`}
+          aria-describedby={describedBy}
+          data-copy-attach
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 6px', minHeight: 0 }}
+          onClick={() =>
+            void navigator.clipboard?.writeText(command).then(
+              () => {
+                setCopied(true)
+                setTimeout(() => setCopied(false), 1500)
+              },
+              () => setCopied(false),
+            )
+          }
+        >
+          {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+          {copied ? 'Copied' : 'Attach'}
+        </Btn>
+      )}
+    </Tooltip>
+  )
+}
+
 export function InFlightRow({ row, now, onInfo }: { row: InFlight; now: number; onInfo: () => void }) {
-  const href = attachHref(row.session),
+  const child = row.session.executor === 'process' ? (row.session.process ?? null) : null,
+    processRow = row.session.executor === 'process',
+    href = processRow ? null : attachHref(row.session),
     remote = row.session.crew && row.session.crew !== 'local'
   return (
     <li data-in-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
@@ -241,16 +274,38 @@ export function InFlightRow({ row, now, onInfo }: { row: InFlight; now: number; 
           {row.epic ? ` · ${row.epic}` : ''} · attempt {row.attempt}
         </span>{' '}
         {row.focus && <span className="block text-xs text-muted">{row.focus}</span>}
-        <span className="block text-xs text-muted">
-          {row.session.agent ? `${row.session.agent} / ` : ''}
-          {row.model ?? 'model not named'}
-          {remote ? ` · on ${row.session.crew}` : ''} · running {duration(row.startedAt, now)} ·{' '}
-          {row.session.crewUnreachable ? 'crew unreachable' : (row.status ?? 'not observed')} {relativeTime(row.lastAt, now)}
-        </span>
+        {processRow ? (
+          <span className="block text-xs text-muted" data-process-status>
+            {child ? processLine(child) : 'process · no supervisor record'} · {row.model ?? 'model not named'} · running {duration(row.startedAt, now)}
+          </span>
+        ) : (
+          <span className="block text-xs text-muted">
+            {row.session.agent ? `${row.session.agent} / ` : ''}
+            {row.model ?? 'model not named'}
+            {remote ? ` · on ${row.session.crew}` : ''} · running {duration(row.startedAt, now)} ·{' '}
+            {row.session.crewUnreachable ? 'crew unreachable' : (row.status ?? 'not observed')} {relativeTime(row.lastAt, now)}
+          </span>
+        )}
+        {processRow && (
+          // column-reverse keeps the newest line in view without a scroll effect.
+          <span
+            data-process-log
+            className="mt-1 block rounded border text-xs"
+            tabIndex={0}
+            aria-label={`Log tail for ${row.title}`}
+            style={{ borderColor: 'var(--border)', maxHeight: '7.5em', overflow: 'auto', display: 'flex', flexDirection: 'column-reverse' }}
+          >
+            <pre className="m-0 p-1.5" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'var(--font-mono, ui-monospace, monospace)' }}>
+              {child?.logTail || 'No output yet.'}
+            </pre>
+          </span>
+        )}
       </span>
       <span data-in-flight-actions className="flex items-center justify-end gap-1.5" style={{ flex: '0 0 11rem' }}>
         <IconBtn icon={DetailsIcon} label={`Details for ${row.title}`} tooltip="Open the task drawer" onClick={onInfo} />
-        {!href ? (
+        {processRow ? (
+          child?.attach ? <CopyAttach command={child.attach} title={row.title} /> : <span className="text-xs text-muted">No attach command</span>
+        ) : !href ? (
           <span className="text-xs text-muted">Session waits on Kiro Crew</span>
         ) : (
         <a
