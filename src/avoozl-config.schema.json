@@ -873,7 +873,7 @@
         },
         "mode": {
           "enum": ["local", "plans-repo", "single-repo"],
-          "description": "Where issues live. local, or absent, means every task is local; GitHub settings stored beside local are kept but not used."
+          "description": "Where issues live. local, or absent, means every task is local; GitHub settings stored beside local are kept but not used. Derived from repository roles when any repository has a role."
         },
         "planningRepository": {
           "type": "string",
@@ -979,6 +979,10 @@
       "type": "object",
       "description": "Who may trigger work in one repository and which labels do what. No label name is built in.",
       "properties": {
+        "role": {
+          "enum": ["local", "code", "planning", "both"],
+          "description": "What this repository is for (design §4.34). local: tasks stay in the workspace database. code: pull requests land here and issues live in the planning repository. planning: holds the issues and specs, no code. both: code and its own issues. The mode and planningRepository derive from the roles."
+        },
         "checkout": {
           "type": "string",
           "minLength": 1

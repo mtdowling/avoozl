@@ -474,11 +474,25 @@ if (query.get('page') === 'app') {
   else if (!replyFor('radar.crews')) answer('radar.crews', () => ({ readAt: null, stale: 0, errors: [], unseen: [], rows: [] }))
   if (!replyFor('radar.releasequeue')) answer('radar.releasequeue', () => ({ repositories: [] }))
   if (!replyFor('remote.view')) answer('remote.view', () => ({ workers: [] }))
+  // &roles=plans|single|local: Repository setup with a role on each row
+  // (R105), the planning repository without a checkout in &roles=plans.
+  const roles = query.get('roles')
+  const rolesGithub = roles === 'single'
+    ? { mode: 'single-repo', defaultAuthority: 'github', repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'both' }, 'acme/recipe-api': { baseBranch: 'main', role: 'both' } } }
+    : roles === 'local'
+      ? { repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'local' }, 'acme/recipe-api': { baseBranch: 'main', role: 'local' } } }
+      : { mode: 'plans-repo', planningRepository: 'acme/plans', defaultAuthority: 'github', epicIssueType: 'Epic', project: { owner: 'acme', number: 7 }, repositories: { 'acme/recipe-box': { baseBranch: 'main', role: 'code' }, 'acme/recipe-api': { baseBranch: 'main', role: 'code' } } }
+  if (roles)
+    answer('repositories.list', () => ({ items: [
+      { id: 'recipe-box', name: 'recipe-box', localCheckout: '/src/recipe-box', github: 'acme/recipe-box', baseBranch: 'main' },
+      { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main' },
+      { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
+    ] }))
   answer('github.settings.get', () => ({
     filename: '.avoozl.json',
     exists: true,
     hash: 'h',
-    github: { mode: 'plans-repo', repositories: { 'acme/recipe-box': worker ? { coder: 'worker' } : { coder: 'issue-radar' } } },
+    github: roles ? rolesGithub : { mode: 'plans-repo', repositories: { 'acme/recipe-box': worker ? { coder: 'worker' } : { coder: 'issue-radar' } } },
     effective: null,
     error: null,
     crews: [],
@@ -600,6 +614,50 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
     hash: 'h1',
     budget: { usd: 5, mode: 'stop' },
     repositories: { 'recipe-box': { usd: 8, mode: 'warn' }, search: {} },
+  }))
+}
+// &process=1: Home's In flight with a `process` worker (Claude Code under
+// the supervisor, resumed once, cost known) beside a Kiro Crew reviewer
+// chat (task 50.1 shots). Paths are made up.
+if (query.get('page') === 'app' && query.get('process') === '1') {
+  const at = new Date(Date.now() - 12 * 60000).toISOString()
+  const t = (id: string, title: string, extra = {}) => ({ ...task(id, 'e1'), title, planId: 'meal-planner', spec: 'meal-planner', repository: 'recipe-box', phase: null, ...extra })
+  answer('graph.view', () => ({
+    revision: 1,
+    epics: [{ id: 'e1', title: 'Meal planner', count: 2 }],
+    plans: [{ id: 'meal-planner', title: 'Meal planner' }],
+    statuses: [{ id: 'planned', label: 'Planned', complete: false }, { id: 'done', label: 'Done', complete: true }],
+    repositories: ['recipe-box'],
+    total: 2,
+    tasks: [t('m3', 'Sync pantry items between devices', { state: 'running', status: 'running' }), t('s1', 'Index recipes by ingredient', { state: 'running', status: 'review' })],
+    edges: [],
+  }))
+  const uuid = '6f1c2b9e-4d7a-4c1e-9b0a-2f5e8d3c7a41'
+  const log = [
+    'Reading src/pantry/sync.ts',
+    'Editing src/pantry/sync.ts: merge by item id, newest edit wins',
+    'Running npm test -- pantry',
+    '  ✓ merges two devices (12 ms)',
+    '  ✓ keeps a deleted item deleted (4 ms)',
+    'Writing .avoozl/result.json',
+  ].join('\n')
+  const item = (id: string, title: string, sessions: unknown[]) => ({
+    id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', sessions, runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null, budget: null,
+  })
+  answer('delivery.view', () => ({
+    revision: 1,
+    items: [
+      item('m3', 'Sync pantry items between devices', [
+        {
+          slot: `process-${uuid}`, role: 'worker', attempt: 1, title: null, status: 'working', statusAt: at, boundAt: at, model: 'claude-sonnet', crew: 'local', executor: 'process', link: null,
+          process: { harness: 'claude-code', state: 'running', exitCode: null, run: 2, logTail: log, cost: 0.83, attach: `cd /work/recipe-box-m3 && claude --resume ${uuid}` },
+        },
+      ]),
+      item('s1', 'Index recipes by ingredient', [
+        { slot: 'chat-s1', role: 'reviewer', attempt: 1, title: null, status: 'reading', statusAt: at, boundAt: at, agent: 'kirocrew-worker', model: null, crew: 'local', executor: 'kirocrew', link: '/chat?sid=chat-s1' },
+      ]),
+    ],
+    contentReports: [],
   }))
 }
 // &publiccrews=after: Intake with the Public crews card (task 39.3): one
