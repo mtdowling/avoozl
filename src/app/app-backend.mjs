@@ -248,6 +248,7 @@ export const APP_OPERATIONS = new Set([
   "task.start",
   "flow.runAnyway",
   "flow.stop",
+  "publiccrews.stop",
   "flow.resume",
   "gate.clear",
   "budget.view",
