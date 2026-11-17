@@ -149,7 +149,7 @@ test('a manual task waiting for a person is tagged Manual in Needs you and on it
 
 test('the drawer has Links and notes and Mark done; New spec has Blank or From template', () => {
   const drawer = source('TaskDrawer.tsx')
-  assert.match(drawer, /<Fold id="notes" group="task-drawer" title="Links and notes">/)
+  assert.match(drawer, /<SectionBox id="notes" title="Links and notes">/)
   assert.match(drawer, /task\.manual && \(\s*<ManualTask/)
   const notes = source('TaskNotes.tsx')
   for (const words of ['Add link', 'Add note', 'Show on the issue', 'Allow once', 'Mark done', 'Outcome note', "title: 'Done'", "title: 'Skipped'", 'Reopen'])
