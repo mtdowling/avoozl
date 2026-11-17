@@ -29552,57 +29552,65 @@ function kx({ workspaceId: e }) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex flex-col gap-2",
 		"data-models-settings": !0,
-		children: [/* @__PURE__ */ C("div", {
-			className: "grid gap-x-4 gap-y-2",
-			style: { gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 15rem), 1fr))" },
-			children: Ex.map((e) => /* @__PURE__ */ w("div", {
-				className: "flex min-w-0 flex-col gap-0.5",
-				"data-model-role": e.key,
-				children: [/* @__PURE__ */ C(tl, {
-					id: `avoozl-model-${e.key}`,
-					label: /* @__PURE__ */ C("span", {
-						className: "text-sm font-medium",
-						children: e.label
+		children: [
+			/* @__PURE__ */ C("div", {
+				className: "grid gap-x-4 gap-y-2",
+				style: { gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 15rem), 1fr))" },
+				children: Ex.map((e) => /* @__PURE__ */ w("div", {
+					className: "flex min-w-0 flex-col gap-0.5",
+					"data-model-role": e.key,
+					children: [/* @__PURE__ */ C(tl, {
+						id: `avoozl-model-${e.key}`,
+						label: /* @__PURE__ */ C("span", {
+							className: "text-sm font-medium",
+							children: e.label
+						}),
+						items: $c(v(e.key)),
+						value: c[e.key] || "auto",
+						onPick: (t) => u({
+							...c,
+							[e.key]: t || "auto"
+						}),
+						placeholder: "Type to find a model, or auto",
+						plain: !0,
+						maxWidth: "20rem"
+					}), /* @__PURE__ */ C("span", {
+						className: "text-xs text-muted",
+						children: e.line
+					})]
+				}, e.key))
+			}),
+			/* @__PURE__ */ C("p", {
+				className: "text-xs text-muted",
+				"data-models-person-only": !0,
+				children: "Kiro Crew chats run as you. Avoozl refuses person-only actions in them, but that only slows an agent down: it is not a lock."
+			}),
+			/* @__PURE__ */ w("div", {
+				className: "flex flex-wrap items-center gap-2",
+				children: [
+					/* @__PURE__ */ C(Mr, {
+						primary: !0,
+						onClick: () => void b(),
+						disabled: g || !y,
+						attrs: { "data-models-save": !0 },
+						children: g ? "Saving…" : "Save"
 					}),
-					items: $c(v(e.key)),
-					value: c[e.key] || "auto",
-					onPick: (t) => u({
-						...c,
-						[e.key]: t || "auto"
+					m?.error && /* @__PURE__ */ C("span", {
+						role: "alert",
+						className: "text-sm text-danger",
+						children: m.error
 					}),
-					placeholder: "Type to find a model, or auto",
-					plain: !0,
-					maxWidth: "20rem"
-				}), /* @__PURE__ */ C("span", {
-					className: "text-xs text-muted",
-					children: e.line
-				})]
-			}, e.key))
-		}), /* @__PURE__ */ w("div", {
-			className: "flex flex-wrap items-center gap-2",
-			children: [
-				/* @__PURE__ */ C(Mr, {
-					primary: !0,
-					onClick: () => void b(),
-					disabled: g || !y,
-					attrs: { "data-models-save": !0 },
-					children: g ? "Saving…" : "Save"
-				}),
-				m?.error && /* @__PURE__ */ C("span", {
-					role: "alert",
-					className: "text-sm text-danger",
-					children: m.error
-				}),
-				m?.ok && /* @__PURE__ */ C("span", {
-					className: "text-xs text-muted",
-					children: m.ok
-				}),
-				/* @__PURE__ */ C("code", {
-					className: "text-[11px] text-muted",
-					children: "models"
-				})
-			]
-		})]
+					m?.ok && /* @__PURE__ */ C("span", {
+						className: "text-xs text-muted",
+						children: m.ok
+					}),
+					/* @__PURE__ */ C("code", {
+						className: "text-[11px] text-muted",
+						children: "models"
+					})
+				]
+			})
+		]
 	});
 }
 // kirocrew-app/ui/src/mirror-setup-api.ts
