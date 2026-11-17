@@ -1782,6 +1782,11 @@ export function localSteps(
 ) {
   const report = `{"input": {"taskId": "${task.id}", "kind": "done"}}`,
     // R88.2: report by command line from the worktree, no MCP sharing needed.
+    // The worktree is outside the workspace, so the command names it (P50:
+    // without it the CLI looked for a workspace in the worktree).
+    where = cliReport?.workspace
+      ? ` --workspace ${JSON.stringify(cliReport.workspace)}`
+      : "",
     cli = cliReport
       ? `Run it from inside ${cliReport.worktree}. The token matches your report to this task and this attempt; keep it to yourself.`
       : "",
@@ -1797,7 +1802,7 @@ export function localSteps(
         `1. Call plans_prepare_worktree with {"input": {"taskId": "${task.id}"}} and work only in the worktree it returns, on branch avoozl/${task.id}.`,
         commit,
         cliReport
-          ? `3. When the work is committed, run exactly: avoozl runner report ${task.id} done --token ${cliReport.token}\n   If you cannot finish, run: avoozl runner report ${task.id} blocked --token ${cliReport.token} --text "<why>"\n   ${cli}`
+          ? `3. When the work is committed, run exactly: avoozl runner report ${task.id} done --token ${cliReport.token}${where}\n   If you cannot finish, run: avoozl runner report ${task.id} blocked --token ${cliReport.token}${where} --text "<why>"\n   ${cli}`
           : `3. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
       ];
 }
@@ -2277,6 +2282,7 @@ function composeLeafBrief(
               cliReport: {
                 worktree: options.worktree?.path || worktreePath(task, project),
                 token,
+                workspace: contentBinding(store)?.workspaceRoot ?? null,
               },
             }),
           }

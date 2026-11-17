@@ -135,7 +135,7 @@ What a person sees and does:
   and the brief of each released task says so. Someone who is not allowed gets
   the label put back and one row.
 - `avoozl gate list` and the MCP read show each gate's state, last and next
-  check, evidence, link and what it holds, as the Release queue and Trace do.
+  check, evidence, link and what it holds, as the Release queue does.
 
 Examples, by role only. Each would be its own package, outside this
 repository: a ticket tracker, a check that a code review shipped to a live

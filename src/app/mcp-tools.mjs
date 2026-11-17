@@ -390,10 +390,6 @@ const tools = {
         "radar.retro",
         "applied retro rules with the check after N issues and an undo offer",
       ],
-      trace: [
-        "radar.trace",
-        "one issue's eight steps with GitHub's times (repository, number)",
-      ],
       radar_setup_preview: [
         "radar.setup",
         "what each Radar set up step (labels, branch rule, auto-merge, review-rules pull request, Project) would write, without writing",
@@ -436,10 +432,6 @@ const tools = {
       epics: [
         "epics.view",
         "epics, specs and phases: gate, release count and held reasons, and specs not on GitHub yet",
-      ],
-      done_work: [
-        "trace.done",
-        "merged pull requests of approved specs, newest first, with the crew that did each",
       ],
       release_queue: [
         "radar.releasequeue",
