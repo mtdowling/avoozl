@@ -50,13 +50,12 @@ export function SpecChangedModal(props: { workspaceId: string; client: Client; p
       attrs={{ 'data-spec-changed-dialog': '' }}
       onDismiss={() => props.onClose('Nothing was written.')}
       footer={
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <>
           {why && <span className="text-sm text-muted">{why}</span>}
-          <Btn onClick={() => props.onClose('Nothing was written.')}>Later</Btn>
           <Btn onClick={() => void apply()} disabled={busy || why !== null}>
             Approve change and apply
           </Btn>
-        </div>
+        </>
       }
     >
       <div className="flex flex-col gap-3 text-sm">
