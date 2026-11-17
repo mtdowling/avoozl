@@ -491,3 +491,18 @@ export function recordSessionStatus(store, input = {}, { served: seen } = {}) {
     return { binding: next, status, changed: true };
   });
 }
+
+// What to do about a session the cron opened that ended its turn without a
+// done or blocked report: "wait", "nudge", or "exhausted" once the nudge bound
+// is spent. Only an observed idle status counts, so a session Avoozl cannot see
+// (disconnected, or a lapsed lease) is never treated as quiet.
+export function quietStep(binding, nudge, policy, now) {
+  if (binding.status !== "idle" || binding.source !== "tick") return "wait";
+  const since = Math.max(
+    ...[binding.boundAt, binding.statusAt, binding.report?.at, nudge?.at]
+      .filter(Boolean)
+      .map((value) => Date.parse(value)),
+  );
+  if (now - since < policy.quietMinutes * 60_000) return "wait";
+  return (nudge?.count || 0) < policy.nudges ? "nudge" : "exhausted";
+}

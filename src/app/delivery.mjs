@@ -50,7 +50,11 @@ import {
 import { isDirectLanding, queueDirect } from "./direct-landing.mjs";
 import { integrationBranchOf } from "./integration-branch.mjs";
 import { specBase } from "./spec-base.mjs";
-import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
+import {
+  FINAL_STATUSES,
+  listSessionBindings,
+  quietStep,
+} from "./session-bindings.mjs";
 import { queryTasks, statusComplete } from "../query.mjs";
 import { unblockCounts } from "./release-ranking.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
@@ -1389,21 +1393,6 @@ const identityRefusedSince = (store, binding) => {
   const at = store.getMeta(IDENTITY_REFUSED);
   return Boolean(at && Date.parse(at) >= Date.parse(binding.boundAt));
 };
-
-// What to do about a session the cron opened that ended its turn without a
-// done or blocked report: "wait", "nudge", or "exhausted" once the nudge bound
-// is spent. Only an observed idle status counts, so a session Avoozl cannot see
-// (disconnected, or a lapsed lease) is never treated as quiet.
-function quietStep(binding, nudge, policy, now) {
-  if (binding.status !== "idle" || binding.source !== "tick") return "wait";
-  const since = Math.max(
-    ...[binding.boundAt, binding.statusAt, binding.report?.at, nudge?.at]
-      .filter(Boolean)
-      .map((value) => Date.parse(value)),
-  );
-  if (now - since < policy.quietMinutes * MINUTE) return "wait";
-  return (nudge?.count || 0) < policy.nudges ? "nudge" : "exhausted";
-}
 
 // Record each attempt's outcome once, and plan nudges and notifications for
 // the script. Writes only on a new outcome or an intent the script will carry
