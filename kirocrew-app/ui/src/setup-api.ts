@@ -5,10 +5,9 @@
 export interface SetupFacts {
   repositories: number
   plans: number
-  driver: 'running' | 'idle' | 'none' | 'unknown'
 }
 
-export type SetupId = 'repository' | 'driver' | 'epics'
+export type SetupId = 'repository' | 'epics'
 
 export interface SetupCardData {
   id: SetupId
@@ -27,13 +26,6 @@ export function setupCards(facts: SetupFacts): SetupCardData[] {
       title: 'No repository yet',
       line: 'Avoozl needs one repository to plan epics for. Add it, then run the checks.',
       action: 'Add a repo',
-    })
-  if (facts.driver === 'none')
-    cards.push({
-      id: 'driver',
-      title: 'No driver session',
-      line: 'Nothing is released and nobody watches merges until a driver session runs.',
-      action: 'Start a driver session',
     })
   // No button: New spec on Specs is the one way to start one.
   if (facts.plans === 0)

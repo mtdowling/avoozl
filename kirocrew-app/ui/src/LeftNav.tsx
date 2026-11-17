@@ -82,13 +82,13 @@ export function LeftNav(props: { groups: NavGroup[]; value: string; child?: stri
         {props.top}
         <NavAccordion groups={props.groups} value={props.value} child={props.child} onPick={props.onPick} />
         {props.line}
-        {props.brand}
-        <button type="button" aria-label="Collapse the nav" data-nav-collapse onClick={() => setCollapsed(true)} style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', background: 'none', border: 0, color: 'var(--muted)', cursor: 'pointer', fontSize: 12 }}>
+        <button type="button" aria-label="Collapse the nav" data-nav-collapse onClick={() => setCollapsed(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', background: 'none', border: 0, color: 'var(--muted)', cursor: 'pointer', fontSize: 12 }}>
           <span aria-hidden="true" style={{ display: 'inline-flex', transform: 'rotate(180deg)' }}>
             <ChevronRight size={14} />
           </span>
           Collapse
         </button>
+        {props.brand}
       </nav>
       <ResizeHandle
         label="Resize the nav"
