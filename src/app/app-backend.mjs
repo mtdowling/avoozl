@@ -249,6 +249,7 @@ export const APP_OPERATIONS = new Set([
   "github.conflict.resolve",
   "conflicts.settle",
   "delivery.retry",
+  "verify.allow",
   "task.start",
   "flow.runAnyway",
   "flow.stop",

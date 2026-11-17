@@ -888,12 +888,19 @@ export class RepositorySettings {
       fail("Avoozl configuration changed; reload before saving.", 409);
     if (!record(flow)) fail("Give the flow settings as an object.");
     const value = this.updateValue(before);
+    // Settings > Flow does not edit `verify` (protected paths, check
+    // timeouts), so a save without it keeps the file's own.
+    const kept = (old) =>
+      flow.verify === undefined && record(old?.verify)
+        ? { ...flow, verify: old.verify }
+        : flow;
     if (repository) {
       if (!record(value.projects?.[repository]))
         fail(`Repository ${repository} is not in .avoozl.json projects.`, 404);
+      flow = kept(value.projects[repository].flow);
       if (Object.keys(flow).length) value.projects[repository].flow = flow;
       else delete value.projects[repository].flow;
-    } else if (Object.keys(flow).length) value.flow = flow;
+    } else if (Object.keys((flow = kept(value.flow))).length) value.flow = flow;
     else delete value.flow;
     this.write(value, { expectedHash: before.hash });
     return this.readFlowSettings();
