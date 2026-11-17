@@ -1475,9 +1475,7 @@ export function reconcileDeliveries(
       open &&
       binding.status === "gone" &&
       !binding.batch &&
-      !delivery.attempts
-        .slice(delivery.retryFrom || 0)
-        .some((a) => a.vanished)
+      !delivery.attempts.slice(delivery.retryFrom || 0).some((a) => a.vanished)
     ) {
       // Kiro Crew says the chat is gone and it never reported (R88.4): the
       // attempt ends once, so the next tick opens one new chat in the same
