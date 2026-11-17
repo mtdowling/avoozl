@@ -1534,7 +1534,7 @@ the scratch safety proof, with owner minutes, credits and wall-clock per task.
 - [ ] 41.1 Schedule spec drivers with repository-wide path holds, after 40.5, 56.4 [R86.2, R86.5, R86.9, R102.4] (§4.32)
   - Use unblock ranking, current spec authority and generation, and repository-wide path holds. A verified-on-branch dependency releases only in-spec work based on that working head; cross-spec work waits for accepted outcomes.
 
-- [ ] 41.2 Per-base landing queue with brief integration locks, after 40.5, 56.4 [R87.5, R102.15] (§4.32)
+- [x] 41.2 Per-base landing queue with brief integration locks, after 40.5, 56.4 [R87.5, R102.15] (§4.32)
   - Preserve order on Stop the line; perform checks outside the integration lock, guard only ref movement and push. Test a concurrent base move cannot land an unchecked candidate.
 
 - [ ] 41.3 Direct portions and bounded landing trains, after 41.2 [R87.1, R87.2, R87.4, R87.9, R102.13, R102.15] (§4.32)

@@ -43,6 +43,7 @@ import { projectionClient } from '../../src/projection-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
+import { chainsGraph } from './graph-chains.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
 import { ForwardScreen } from '../../src/ForwardScreen.tsx'
 import forwardLive from './forward-live-replies.json'
@@ -398,6 +399,9 @@ answer('untriaged.view', () => ({
   items: [],
   withRadar: [],
 }))
+
+// &graph=chains: the Graph on three specs with real chains (graph-chains.ts).
+if (query.get('graph') === 'chains') answer('graph.view', () => chainsGraph)
 
 function DeepLinkPage() {
   return (

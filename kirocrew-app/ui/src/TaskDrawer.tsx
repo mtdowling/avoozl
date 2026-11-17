@@ -23,7 +23,7 @@ import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
 import { itemRef } from './chat-api.ts'
 import { TimingFold } from './FlowView.tsx'
 import { EvidenceFold } from './Evidence.tsx'
-import { Crosshair, Eye, FileText, MessageSquare, Pause, Pencil, Play, Plus, RotateCcw, X } from './icons.ts'
+import { Eye, FileText, MessageSquare, Network, Pause, Pencil, Play, Plus, RotateCcw, X } from './icons.ts'
 import { useBackStep } from './NavHistory.tsx'
 import { LAYER } from './layers.ts'
 import { linkHref } from './views-api.ts'
@@ -284,14 +284,14 @@ function TaskPanel(props: {
       <div className="flex flex-wrap gap-2">
         {props.onFocus && (
           <IconLabel
-            icon={Crosshair}
-            tooltip="Show only this task and the tasks it waits on and that wait on it"
+            icon={Network}
+            tooltip="Show this task's dependency tree in the Graph: what it waits on and what waits on it"
             onClick={() => {
               props.onFocus!(task.id, task.title)
               props.onClose()
             }}
           >
-            Focus
+            Open tree
           </IconLabel>
         )}
         <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat seeded with this task's full context" onClick={() => void chat.ask({ tasks: [task.id] })}>
