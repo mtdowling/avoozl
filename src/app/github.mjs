@@ -1889,6 +1889,42 @@ export class GitHubClient {
     );
   }
 
+  // The repository's own rulesets, each read whole (the list omits rules).
+  async rulesets(value) {
+    const { owner, repo } =
+        typeof value === "string" ? parseRepository(value) : value,
+      list = await this.paginate(`/repos/${owner}/${repo}/rulesets`, {
+        query: { includes_parents: false },
+      });
+    return Promise.all(
+      list.map((item) =>
+        this.request("GET", `/repos/${owner}/${repo}/rulesets/${item.id}`),
+      ),
+    );
+  }
+
+  createRuleset(value, body) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request("POST", `/repos/${owner}/${repo}/rulesets`, { body });
+  }
+
+  updateRuleset(value, id, body) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "PUT",
+      `/repos/${owner}/${repo}/rulesets/${Number(id)}`,
+      { body },
+    );
+  }
+
+  updateRepository(value, body) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request("PATCH", `/repos/${owner}/${repo}`, { body });
+  }
+
   // A branch as anyone who can read the repository sees it: `protected`,
   // and a `protection` summary with classic required status checks.
   // Every entry of a commit's tree: { path, type, sha }. One call. A tree too
