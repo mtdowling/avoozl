@@ -1452,7 +1452,7 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
           ) : <Tooltip text={plan.hash}><code>{shortHash(plan.hash)}</code></Tooltip>}
           . Review findings are evidence for your decision; they do not block approval.
         </p>
-        {moved && <p role="status" className="m-0" data-revision-moved>The plan changed while it was reviewed. Approve now targets revision <code>{shortHash(plan.hash)}</code>.</p>}
+        {moved && <p role="status" className="m-0" data-revision-moved>The spec changed while it was reviewed. Approve now targets revision <code>{shortHash(plan.hash)}</code>.</p>}
         {showDiff && base && (
           <section data-revision-diff className="flex flex-col gap-2">
             <p className="m-0 text-xs text-muted">Changes since {base.approved ? 'approved' : 'previous'} revision <code>{shortHash(base.hash)}</code></p>
