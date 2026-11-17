@@ -849,16 +849,14 @@ export async function reportSession(
   if (!binding || (binding.taskId !== task.id && !member))
     fail("Only the session bound to this task may report on it.", 403);
   // A falsifier's done names no commit: it judges findings, not code
-  // (R75.2). Everyone else's done names the commit.
+  // (R75.2). Everyone else's done stands for one (doneCommit).
   const falsifier = binding.role === "falsifier";
   if (falsifier && input.commit !== undefined)
     fail("A falsifier's done report names no commit.");
-  if (
-    kind === "done" &&
-    !falsifier &&
-    (typeof input.commit !== "string" || !SHA.test(input.commit))
-  )
-    fail("Report done with the full lowercase commit SHA.");
+  const commit =
+    kind === "done" && !falsifier
+      ? await doneCommit(store, task, binding, input.commit)
+      : undefined;
   const findings =
     kind === "findings"
       ? binding.role === "worker" && !binding.batch
@@ -938,9 +936,9 @@ export async function reportSession(
     const project = taskProject(store, task),
       declared = declaredHere,
       pushed = checkDoneList(checks, declared);
-    if (pushed !== input.commit)
+    if (pushed !== commit)
       fail(
-        `Local checks first: the check list is for ${pushed.slice(0, 12)}, but you reported ${input.commit.slice(0, 12)}. Run the checks on the commit you report.`,
+        `Local checks first: the check list is for ${pushed.slice(0, 12)}, but you reported ${commit.slice(0, 12)}. Run the checks on the commit you report.`,
         409,
       );
     const pass = await localPass(project.root, pushed, declared);
@@ -975,18 +973,18 @@ export async function reportSession(
     // A remote worker's commit is fetched first and must be the branch tip
     // it reported (§4.10, R41.13); then it is checked here like any other.
     if (binding.role === "worker" && binding.crew)
-      await fetchBack(store, project, task, binding, input.commit, placement);
+      await fetchBack(store, project, task, binding, commit, placement);
     try {
-      await git(project.root, ["cat-file", "-e", input.commit + "^{commit}"]);
+      await git(project.root, ["cat-file", "-e", commit + "^{commit}"]);
     } catch {
-      fail(`Commit ${input.commit} is not in ${project.id}.`, 409);
+      fail(`Commit ${commit} is not in ${project.id}.`, 409);
     }
     if (review) {
       const delivery = store.get("task_deliveries", task.id),
         subject = binding.commit || delivery?.commit;
-      if (input.commit !== subject)
+      if (commit !== subject)
         fail(
-          `This review judges ${subject}; report on that commit, not ${input.commit}.`,
+          `This review judges ${subject}; report on that commit, not ${commit}.`,
           409,
         );
       await checkReview(project, delivery, roleId, subject, review);
@@ -996,7 +994,7 @@ export async function reportSession(
     if (binding.role === "worker" && contentBinding(store)?.workspaceRoot)
       enforceDiff(store, {
         project,
-        head: input.commit,
+        head: commit,
         taskId: task.id,
         mode: "refuse",
       });
@@ -1008,7 +1006,7 @@ export async function reportSession(
         last &&
         last.kind === kind &&
         last.text === text &&
-        (last.commit ?? null) === (input.commit ?? null) &&
+        (last.commit ?? null) === (commit ?? null) &&
         (last.phase ?? null) === (input.phase ?? null) &&
         JSON.stringify(last.checks) === JSON.stringify(checks) &&
         (last.verdict ?? null) === (judgment ? input.verdict : null) &&
@@ -1022,7 +1020,7 @@ export async function reportSession(
     const report = {
       kind,
       text,
-      ...(kind === "done" ? { commit: input.commit } : {}),
+      ...(kind === "done" ? { commit } : {}),
       ...(input.phase ? { phase: input.phase } : {}),
       ...(checks ? { checks } : {}),
       ...(judgment ? { verdict: input.verdict } : {}),
@@ -1066,6 +1064,34 @@ export async function reportSession(
   if (result.changed)
     reportEvidence(store, task, binding, result.report, attached);
   return result;
+}
+
+// The commit a done report stands for. A local worker's is HEAD of its
+// task worktree, read here and never taken from the report (R86.3); a
+// reported commit must match it. A plans-repo worker's merge commit, a
+// remote worker's fetched tip and a review role's subject are still named.
+async function doneCommit(store, task, binding, reported) {
+  const worktree =
+    binding.role === "worker" && !binding.crew && taskRoute(task) !== "github"
+      ? store.get("task_worktrees", binding.taskId)
+      : null;
+  if (!worktree?.path) {
+    if (typeof reported !== "string" || !SHA.test(reported))
+      fail("Report done with the full lowercase commit SHA.");
+    return reported;
+  }
+  let head;
+  try {
+    head = await git(worktree.path, ["rev-parse", "HEAD"]);
+  } catch {
+    fail(`Avoozl cannot read HEAD of the task worktree ${worktree.path}.`, 409);
+  }
+  if (reported !== undefined && reported !== head)
+    fail(
+      `HEAD of ${worktree.path} is ${head}, not ${reported}. Avoozl reads the commit from the worktree: commit there, then report done.`,
+      409,
+    );
+  return head;
 }
 
 // What a report adds to the task's evidence bundle (§4.22, R76.1).
@@ -1658,23 +1684,29 @@ export function worktreePath(task, project) {
   );
 }
 
+// The worker's boundary (R86.3): it edits, runs what it likes and commits
+// in its worktree; Avoozl reads HEAD there, and checks, pushes and lands.
+export const EDIT_ONLY_STEP =
+  "Do not push, open or edit a pull request, merge, turn on auto-merge, label, or comment. Avoozl reads HEAD of your worktree, runs the checks and lands it.";
+
 // The steps that finish a local leaf: its own worktree, a commit, a report.
 // `relay` is for a Crew Mode worker: its conductor prepares the worktree when
 // it claims the task, and relays a result the worker cannot report itself.
 // Task 4.7 passes its own plans-repo steps (push avoozl/<task-id>, open one
 // pull request, enable auto-merge) to workerBrief instead.
 export function localSteps(task, project, { relay = false } = {}) {
-  const report = `{"input": {"taskId": "${task.id}", "kind": "done", "commit": "<full SHA>"}}`;
+  const report = `{"input": {"taskId": "${task.id}", "kind": "done"}}`,
+    commit = `2. Edit, run what you like, and commit every change on that branch. ${EDIT_ONLY_STEP}`;
   return relay
     ? [
         `1. Work only in ${worktreePath(task, project)}, on branch avoozl/${task.id}. Your conductor creates it when it claims this task; if it is missing, call plans_prepare_worktree with {"input": {"taskId": "${task.id}"}}.`,
-        "2. Commit your change on that branch.",
-        `3. Call plans_report with ${report} if you have that tool. Otherwise end with a done report that names the full commit SHA, and your conductor records it. If you cannot finish, say why: blocked, or a question.`,
+        commit,
+        `3. Call plans_report with ${report} if you have that tool. Otherwise end with a done report, and your conductor records it. If you cannot finish, say why: blocked, or a question.`,
         MARKERS_STEP(4),
       ]
     : [
         `1. Call plans_prepare_worktree with {"input": {"taskId": "${task.id}"}} and work only in the worktree it returns, on branch avoozl/${task.id}.`,
-        "2. Commit your change on that branch.",
+        commit,
         `3. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
       ];
 }
@@ -2150,7 +2182,7 @@ export function remoteSteps(task, remote, { attempt = 1 } = {}) {
     ];
   return [
     `1. Work in ${remote.folder}. If it does not exist, clone ${remote.url} there and check out a new branch ${branch} at commit ${remote.base}. If it exists, keep working on ${branch} there.`,
-    "2. Commit your change on that branch. Do not push, and write nothing to GitHub: this machine fetches the branch from that folder.",
+    `2. Commit your change on that branch. ${EDIT_ONLY_STEP} This machine fetches the branch from that folder.`,
     reportStep(3),
   ];
 }

@@ -469,7 +469,13 @@ if (query.get('radar') === '1') {
   answer('conflicts.view', () => ({ revision: 1, items: [] }))
   answer('plan.list', () => ({ items: [] }))
   answer('remote.view', () => ({ workers: [] }))
-  answer('flow.view', () => ({ line: [], stages: [], tasks: [], retros: [] }))
+  const noMetrics = { tasks: 0, leadTimeMs: null, flowEfficiency: null, firstPassRate: null, changeFailureRate: null, integrationsPerDay: null, timeToFixMs: null }
+  const noUsage = { input: 0, output: 0, credits: 0, turns: 0 }
+  answer('flow.view', () =>
+    query.get('receipt')
+      ? { window: { size: 20, since: null }, metrics: noMetrics, previous: noMetrics, bottleneck: null, tasks: [], stops: [], line: [], flaky: [], ciOnly: [], retros: [], batches: [], stages: [], repositories: ['acme/recipe-box'], epics: [], series: { day: [], week: [] }, usage: { available: false, total: noUsage, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] } }
+      : { line: [], stages: [], tasks: [], retros: [] },
+  )
   answer('radar.releasequeue', () => ({ repositories: [] }))
   answer('radar.crews', () => ({
     readAt: '2026-11-09T10:10:00Z',
@@ -493,7 +499,7 @@ if (query.get('radar') === '1') {
         ? step('ci', 'CI', '2026-11-09T10:02:00Z', 'done', { detail: '6 checks passed', rounds: 1 })
         : step('ci', 'CI', null, 'now', { detail: '4 of 6 checks done', rounds: 2 }),
       query.get('merged')
-        ? step('merged', 'Merged', '2026-11-09T10:12:00Z', 'done', { link: 'https://github.com/acme/recipe-box/pull/57', ...(query.get('receipt') ? { detail: 'Build 41 s, warm · linux-x64/node26 · cacheHits 412 · cacheMisses 9' } : {}) })
+        ? step('merged', 'Merged', '2026-11-09T10:12:00Z', 'done', { link: 'https://github.com/acme/recipe-box/pull/57', ...(query.get('receipt') ? { detail: '4 builds, 5 min in all · costliest test 3 min', builds: [{ phase: 'build', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: null, ms: 38000, failed: false }] }, { phase: 'test', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: null, ms: 120000, failed: true }, { target: 'linux-x64/node26', start: 'warm', attempt: 2, task: null, ms: 96000, failed: false }, { target: 'win32-x64/node26', start: 'cold', attempt: 1, task: null, ms: 174000, failed: false }] }] } : {}) })
         : step('merged', 'Merged', null, 'later'),
       step('retro', 'Retro', null, 'later', { detail: query.get('merged') ? 'Counted in the next retro' : 'After merge' }),
     ],
@@ -619,7 +625,7 @@ function ReleaseModes() {
   )
 }
 // ?page=github-flow: Flow from GitHub data on two finished issues.
-if (query.get('page') === 'github-flow')
+if (query.get('page') === 'github-flow' || (query.get('page') === 'app' && query.get('receipt')))
   answer('radar.flow', () => ({
     readAt: new Date(Date.now() - 4 * 60000).toISOString(),
     count: 2,
@@ -633,17 +639,23 @@ if (query.get('page') === 'github-flow')
     repositories: ['acme/recipe-box'],
     ...(query.get('receipt')
       ? {
-          receipts: {
+          builds: {
             count: 12,
-            medianMs: 41000,
-            byTarget: [
-              { target: 'linux-x64/node26', start: 'warm', count: 8, medianMs: 38000 },
-              { target: 'linux-x64/node26', start: 'cold', count: 2, medianMs: 174000 },
-              { target: 'win32-x64/node26', start: 'warm', count: 2, medianMs: 96000 },
+            totalMs: 2280000,
+            failedMs: 420000,
+            medianMs: 160000,
+            byPhase: [
+              { phase: 'build', target: 'linux-x64/node26', start: 'warm', count: 8, medianMs: 38000 },
+              { phase: 'test', target: 'linux-x64/node26', start: 'warm', count: 8, medianMs: 96000 },
+              { phase: 'test', target: 'win32-x64/node26', start: 'cold', count: 2, medianMs: 174000 },
             ],
             byInstance: [
-              { instance: 'inst-0a1b2c3d4e5f', name: 'Draco', count: 9, medianMs: 40000, totalMs: 612000 },
-              { instance: 'inst-f5e4d3c2b1a0', name: null, count: 3, medianMs: 52000, totalMs: 190000 },
+              { instance: 'inst-0a1b2c3d4e5f', name: 'Draco', count: 9, medianMs: 150000, totalMs: 1700000 },
+              { instance: 'inst-f5e4d3c2b1a0', name: 'Cedar', count: 3, medianMs: 190000, totalMs: 580000 },
+            ],
+            recent: [
+              { repository: 'acme/recipe-box', pr: 57, totalMs: 310000, failedMs: 120000, phases: [], costliest: { phase: 'test', ms: 180000 } },
+              { repository: 'acme/recipe-box', pr: 55, totalMs: 140000, failedMs: 0, phases: [], costliest: { phase: 'build', ms: 80000 } },
             ],
           },
         }

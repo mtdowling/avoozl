@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { buildsLine, flowRows, span, summaryLine } from '../src/radar-flow-api.ts'
+import { buildsLine, costliestLine, flowRows, span, summaryLine } from '../src/radar-flow-api.ts'
 
 const MIN = 60000
 const view = (extra = {}) => ({
@@ -51,7 +51,14 @@ test('the Flow overview shows the section', () => {
   assert.match(readFileSync(new URL('../src/FlowView.tsx', import.meta.url), 'utf8'), /<GithubFlow/)
 })
 
-test('buildsLine words the count and the median', () => {
-  assert.equal(buildsLine({ count: 12, medianMs: 41000, byTarget: [], byInstance: [] }), '12 builds · median 41 s')
-  assert.equal(buildsLine({ count: 1, medianMs: null, byTarget: [], byInstance: [] }), '1 build · median —')
+const builds = (over = {}) => ({ count: 12, totalMs: 0, failedMs: 0, medianMs: 41000, byPhase: [], byInstance: [], recent: [], ...over })
+
+test('buildsLine words the count, the median and failed time', () => {
+  assert.equal(buildsLine(builds()), '12 pull requests · median 41 s')
+  assert.equal(buildsLine(builds({ count: 1, medianMs: null })), '1 pull request · median —')
+  assert.equal(buildsLine(builds({ failedMs: 180000 })), '12 pull requests · median 41 s · 3 min in failed attempts')
+})
+
+test('costliestLine names the phase that took the most', () => {
+  assert.equal(costliestLine({ repository: null, pr: 1, totalMs: 0, failedMs: 0, phases: [], costliest: { phase: 'test', ms: 180000 } }), 'test 3 min')
 })
