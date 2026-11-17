@@ -1,4 +1,7 @@
 import { validateModels, validatePlanReview } from "./chat-models.mjs";
+import { sandboxWriteRoots } from "./harness-definitions.mjs";
+import { sandboxAllowCommands } from "./harness-allow.mjs";
+import { sandboxNetwork } from "./sandbox.mjs";
 import { validateLanes } from "./lanes.mjs";
 import { flowPolicy } from "./flow.mjs";
 import { deliveryPolicy } from "./delivery.mjs";
@@ -102,6 +105,9 @@ function projectInput(value, id, base) {
     "worktreeHelper",
     "planning",
     "editable",
+    "executor",
+    "harness",
+    "sandbox",
   ]);
   for (const key of Object.keys(value))
     if (!allowed.has(key))
@@ -155,8 +161,50 @@ function projectInput(value, id, base) {
       : { worktreeHelper: helperHash(value.worktreeHelper, id) }),
     planning: Boolean(value.planning),
     editable: value.editable !== false,
+    ...executorInput(value, id),
   };
 }
+
+// Which executor runs the project's sessions (R93.5), the harness a
+// `process` session uses, and its sandbox (R94.4, R94.4c, R95.6).
+function executorInput(value, id) {
+  const out = {};
+  if (value.executor !== undefined) {
+    if (!["kirocrew", "process"].includes(value.executor))
+      fail(`Project ${id} executor must be kirocrew or process.`);
+    out.executor = value.executor;
+  }
+  if (value.harness !== undefined) {
+    if (
+      typeof value.harness !== "string" ||
+      !/^[a-z][a-z0-9-]{0,60}$/.test(value.harness)
+    )
+      fail(`Project ${id} harness must name a harness definition.`);
+    out.harness = value.harness;
+  }
+  if (value.sandbox !== undefined) {
+    if (!record(value.sandbox))
+      fail(`Project ${id} sandbox must be an object.`);
+    for (const key of Object.keys(value.sandbox))
+      if (!["writeRoots", "allowCommands", "network"].includes(key))
+        fail(`Unknown project setting projects.${id}.sandbox.${key}.`);
+    const { writeRoots, allowCommands, network } = value.sandbox;
+    sandboxWriteRoots(writeRoots);
+    sandboxAllowCommands(allowCommands, {
+      source: `projects.${id}.sandbox.allowCommands`,
+    });
+    sandboxNetwork(network);
+    out.sandbox = structuredClone(value.sandbox);
+  }
+  return out;
+}
+
+// The executor settings of a stored project, as saved.
+const executorSettings = (project) => ({
+  ...(project.executor ? { executor: project.executor } : {}),
+  ...(project.harness ? { harness: project.harness } : {}),
+  ...(project.sandbox ? { sandbox: structuredClone(project.sandbox) } : {}),
+});
 
 function projectsInput(value, base) {
   if (value === undefined) return {};
@@ -356,6 +404,7 @@ function appliedActions(store) {
             : {}),
           planning: Boolean(project.planning),
           editable: project.editable !== false,
+          ...executorSettings(project),
         },
       ]),
     ),
@@ -1148,6 +1197,7 @@ export class RepositorySettings {
         : {}),
       planning: Boolean(project.planning),
       editable: project.editable !== false,
+      ...executorSettings(project),
     };
     return this.writeApplied(value, before.hash, ["projects"]);
   }
@@ -1219,6 +1269,7 @@ export class RepositorySettings {
           : {}),
         planning: Boolean(project.planning),
         editable: project.editable !== false,
+        ...executorSettings(project),
       };
     }
     value.github = record(value.github) ? value.github : {};

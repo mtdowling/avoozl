@@ -18,6 +18,8 @@ export const HARNESS_PLACEHOLDERS = Object.freeze([
   "brief_file",
   "model",
   "session",
+  // The session ID's UUID alone, for a CLI that takes a session UUID.
+  "session_uuid",
   "message_file",
   "permission",
   "tmp",
@@ -38,7 +40,15 @@ const KEYS = new Set([
   "allow",
   "cost",
   "spendCap",
+  "model",
+  "promptFrom",
+  "keepEnv",
 ]);
+// Variables a harness may keep to sign in to its own provider. Never a
+// GitHub, git, SSH, Kiro Crew or Avoozl name: those stay out of a child.
+const KEEP_NAME = /^[A-Z][A-Z0-9_]{0,63}$/;
+const NEVER_KEPT =
+  /^(GH_|GITHUB_|GIT_|SSH_|KIROCREW_|KIRO_|AVOOZL_|AICOMMANDER_|NUPP_WORKSPACE)/;
 const SHELLS = new Set([
   "sh",
   "bash",
@@ -54,7 +64,9 @@ const SHELLS = new Set([
 ]);
 // Text around a placeholder: plain flag and path characters only, so a
 // placeholder can never sit inside a shell operator or substitution.
-const PLACEHOLDER_NEIGHBOR = /^[A-Za-z0-9_.=:/@+,-]*$/;
+// Parentheses are kept for tool patterns such as `Bash({command})`; no shell
+// ever reads an argv, and `$` and backticks stay refused.
+const PLACEHOLDER_NEIGHBOR = /^[A-Za-z0-9_.=:/@+,()-]*$/;
 // Permission-skipping values. 47.2 adds the per-role permission classes; the
 // refusal itself holds from the first loader so no definition can carry one.
 const SKIP_VALUES = ["bypassPermissions", "danger-full-access"];
@@ -162,6 +174,30 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
     if (!definition.writeRoots.includes("{worktree}"))
       fail(`${source}: writeRoots must include {worktree}.`);
   }
+  // How to pass a model, appended only when a session names one (R94.1).
+  if (value.model !== undefined)
+    definition.model = argv(value.model, "model", source, { command: false });
+  // "stdin": the brief (start) or message (resume) file is the child's
+  // standard input. "file" (the default): argv names the file.
+  if (value.promptFrom !== undefined) {
+    if (!["stdin", "file"].includes(value.promptFrom))
+      fail(`${source}: promptFrom must be "stdin" or "file".`);
+    definition.promptFrom = value.promptFrom;
+  }
+  if (value.keepEnv !== undefined) {
+    if (!Array.isArray(value.keepEnv))
+      fail(`${source}: keepEnv must be a list of variable names.`);
+    for (const name of value.keepEnv)
+      if (
+        typeof name !== "string" ||
+        !KEEP_NAME.test(name) ||
+        NEVER_KEPT.test(name)
+      )
+        fail(
+          `${source}: keepEnv holds ${JSON.stringify(name)}; name only the harness's own sign-in variables.`,
+        );
+    definition.keepEnv = Object.freeze([...value.keepEnv]);
+  }
   if (value.spendCap !== undefined)
     definition.spendCap = argv(value.spendCap, "spendCap", source, {
       command: false,
@@ -253,13 +289,14 @@ export function approveHarnessDefinition({ configDirectory, name, hash }) {
 }
 
 // Fill a validated argv list. Every placeholder used must have a value;
-// list values (cache dirs, allow commands) expand to one argument each when
-// they fill a whole argument, and are refused inside one.
+// a list value (cache dirs, allow commands) expands to one argument per
+// item, keeping the text around it (`Bash({project_allow_commands})`), and
+// is refused next to a second placeholder.
 export function fillHarnessArgv(list, values) {
   return list.flatMap((item) => {
-    const whole = /^\{([a-z_]+)\}$/.exec(item);
-    if (whole && Array.isArray(values[whole[1]]))
-      return values[whole[1]].map(String);
+    const one = /^([^{}]*)\{([a-z_]+)\}([^{}]*)$/.exec(item);
+    if (one && Array.isArray(values[one[2]]))
+      return values[one[2]].map((value) => one[1] + String(value) + one[3]);
     return [
       item.replace(/\{([a-z_]+)\}/g, (_, key) => {
         const value = values[key];
@@ -267,7 +304,7 @@ export function fillHarnessArgv(list, values) {
           fail(`No value for placeholder {${key}}.`);
         if (Array.isArray(value))
           fail(
-            `Placeholder {${key}} holds a list and must fill a whole argument.`,
+            `Placeholder {${key}} holds a list and cannot share an argument with another placeholder.`,
           );
         return String(value);
       }),
