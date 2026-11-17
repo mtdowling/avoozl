@@ -8,8 +8,8 @@
 //  - The Release queue, claims, conflicts and Trace also work through their
 //    own operations in the demo (`radar.releasequeue`, `radar.crews`,
 //    `conflicts.view`); the fixtures repeat only what no operation gives yet:
-//    machines, the epic > plan > phase rows, the drafted review, the driver
-//    session, the Mirror sample and the two Stop the line states.
+//    machines, the epic > plan > phase rows, the drafted review, the Mirror
+//    sample and the two Stop the line states.
 //  - Local workers are retired. There is no worker row, and none will be added.
 //  - The Stop the line example is a page toggle: pick `stopLine[example]`.
 //    The sample's own line never stops.
@@ -134,18 +134,6 @@ export interface DemoFixtures {
   reviewDraft: ReviewDraft
   recentMerges: FixtureMerge[]
   traces: FixtureTrace[]
-  driverSession: {
-    state: 'running' | 'not-started'
-    slot: string
-    // The chat link, the same field the side panel's `DriverSession` reads.
-    // Opening it in the demo shows the chat preview sentence.
-    link: string
-    previewOnly: true
-    startedAt: string
-    lastTurnAt: string
-    turnsToday: number
-    turnLimit: number
-  }
   stopLine: { example: 'running' | 'stopped'; running: StopState; stopped: StopState }
   mirror: FixtureMirror
 }

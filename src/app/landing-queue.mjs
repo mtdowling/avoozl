@@ -161,6 +161,9 @@ const running = new Map();
 //                                          the landed entries
 //   land({entries, entry, candidate, baseHead}) -> true when the guarded
 //                                          move pushed
+//   afterLand({entries, candidate}) (optional) -> merges the landed base
+//                                          back into each working branch,
+//                                          outside the lock (task 41.5)
 //
 // options.maxTasks (default 1) bounds a train; direct landing passes 4.
 //
@@ -290,7 +293,21 @@ export async function landNext(
         ...verdict.record,
       }),
     );
-    return { state: "landed", candidate, entry: landed[0], entries: landed };
+    // Outside the lock: bring the new base back into each working branch.
+    // A failure there never undoes the landing.
+    let mergedBack;
+    try {
+      mergedBack = await steps.afterLand?.({ entries: landed, candidate });
+    } catch (error) {
+      mergedBack = { error: error.message };
+    }
+    return {
+      state: "landed",
+      candidate,
+      entry: landed[0],
+      entries: landed,
+      ...(mergedBack ? { mergedBack } : {}),
+    };
   })();
   running.set(key, step);
   try {

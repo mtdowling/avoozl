@@ -39,7 +39,6 @@ const ops = new Operations(store, { operator: config.operator, workspaceRoot: co
 const HOME = [
   ['instance.view', {}],
   ['flow.view', { window: '10' }],
-  ['driversession.view', {}],
   ['graph.view', {}],
   ['delivery.view', {}],
   ['conflicts.view', {}],
