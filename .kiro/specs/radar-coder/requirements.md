@@ -562,8 +562,7 @@ that other tools call removed by accident.
    removals: Avoozl's own
    worker dispatch, crew routing and placement (Requirements 41, 42), runner
    mode (Requirement 84), the remote relay (Phase 32), per-task budgets for
-   workers (Requirement 67; budgets stay for planner, retro and quick-goal
-   chats), and the workers' Files and diff fold (Requirement 81). The machine
+   workers (Requirement 67, removed entirely 2026-11-17), and the workers' Files and diff fold (Requirement 81). The machine
    foreman (one conductor per machine on a shared queue,
    `machine-conductors-2026-11-13.md`) and a bot heartbeat were research only
    and are not built, so nothing is removed for them. They SHALL stay unbuilt:
