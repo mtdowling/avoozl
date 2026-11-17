@@ -1478,7 +1478,7 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
   - `avoozl content hook`, `src/app/public-crews.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
 - [x] 39.2 Audit on the tick: delete a hit, pull the cord, alert, after 39.1 [R85.6, R85.7] (§6.14)
   - `publicCrewAudit`, cursor per repository, fake GitHub; a comment is deleted, a pull request closed, one notice and one Needs you item.
-- [ ] 39.3 Public crew checklist, sign-off and handoff gate, after 39.1 and 39.2 [R85.1, R85.2, R85.8, R85.10] (§6.14)
+- [x] 39.3 Public crew checklist, sign-off and handoff gate, after 39.1 and 39.2 [R85.1, R85.2, R85.8, R85.10] (§6.14)
   - `publiccrews.signoff`, the Public crews card, the `untriaged.handoff` check; person-only; lapse on a changed hash.
 - [x] 39.4 Stop public crews, after 39.2 [R85.9] (§6.14)
   - `publiccrews.stop` in the app, the CLI and MCP policy (person only to resume).

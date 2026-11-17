@@ -14,6 +14,7 @@ import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { ICON, IconBtn, IconLabel, ShowMore, ViewHeading, useConfirm, usePages } from './controls.tsx'
 import { Check, CircleDot, CirclePlus, FileText, GitPullRequest, GitPullRequestDraft, Inbox, MessageSquare, Play, Radar, RefreshCw, ScanSearch, Users, X, type LucideIcon } from './icons.ts'
+import { PublicCrews } from './PublicCrews.tsx'
 import { SendToRadar } from './SendToRadar.tsx'
 import { useMedia } from './use-media.ts'
 import { relativeTime } from './task-api.ts'
@@ -600,6 +601,7 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded }: 
       <p className="text-sm text-muted">
         Work that comes in from GitHub and your intake sources. Untriaged shows the items no trigger rule, triage label or Avoozl task covers. Send GitHub issues to an Issue Radar crew or start a code review chat on a pull request; plan or deliver an item from another source.
       </p>
+      {list?.publicCrews?.length && workspaceId ? <PublicCrews rows={list.publicCrews} workspaceId={workspaceId} onChange={() => void reload()} /> : null}
       {list?.enabled && list.mode && (
         <div>
         <SegmentedControl
