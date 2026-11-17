@@ -1,0 +1,1120 @@
+{
+  "at": "2026-11-17T15:21:18.615Z",
+  "repository": "mtdowling/avoozl-scratch-p65",
+  "checks": [
+    {
+      "name": "first",
+      "counts": {
+        "graphql": 1,
+        "runs": 1,
+        "list": 2,
+        "download": 38,
+        "signed": 38
+      },
+      "log": [
+        "POST /graphql 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/runs 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14339471601/zip 302",
+        "GET /actions-results/716ef101-061b-8ee1-9966-94230fc6bd51/workflow-job-run-e6a5aebd-6c02-508c-ac9e-65c30a73289f/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14337997590/zip 302",
+        "GET /actions-results/790371db-b675-87db-984f-ad4da28e2d60/workflow-job-run-e7fb9965-bd4c-5e7c-996e-0cff91a8c8b2/artifacts/d16c2b7e1e4bff9af92bec60eedf934f803e8597f09b9713d81d79014bf473c2.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14337556822/zip 302",
+        "GET /actions-results/790371db-b675-87db-984f-ad4da28e2d60/workflow-job-run-e5d108ae-2b87-58d5-8c10-9da28f8b513b/artifacts/6d21a45ac0cfe6e744ea6ba4b4fb316b6f7b3101857d06c10c62152653218735.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14337193309/zip 302",
+        "GET /actions-results/790371db-b675-87db-984f-ad4da28e2d60/workflow-job-run-b4543f4d-8f0c-5a9b-8382-291eafd2ef56/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14339726371/zip 302",
+        "GET /actions-results/05c0d819-6a05-8a29-8a03-81b4fa55ece3/workflow-job-run-15a854ae-e5e9-536c-a1de-f20b69469bb7/artifacts/6d21a45ac0cfe6e744ea6ba4b4fb316b6f7b3101857d06c10c62152653218735.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14338988666/zip 302",
+        "GET /actions-results/05c0d819-6a05-8a29-8a03-81b4fa55ece3/workflow-job-run-453f58c8-106e-5c11-8517-0dcadfadea02/artifacts/d16c2b7e1e4bff9af92bec60eedf934f803e8597f09b9713d81d79014bf473c2.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14338244373/zip 302",
+        "GET /actions-results/05c0d819-6a05-8a29-8a03-81b4fa55ece3/workflow-job-run-03daa32a-3b02-5790-9511-d5df07855c28/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14340200086/zip 302",
+        "GET /actions-results/654f510d-e394-865a-8b1d-ccf51a8e51ae/workflow-job-run-1e7ee64e-0f60-51ad-9758-319bd900ea66/artifacts/d16c2b7e1e4bff9af92bec60eedf934f803e8597f09b9713d81d79014bf473c2.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14339208039/zip 302",
+        "GET /actions-results/654f510d-e394-865a-8b1d-ccf51a8e51ae/workflow-job-run-d1a81e3a-e48b-5bf7-bf86-8ae19745baa3/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14338344196/zip 302",
+        "GET /actions-results/654f510d-e394-865a-8b1d-ccf51a8e51ae/workflow-job-run-1d537e44-96a8-5bab-8609-2669e70c88a0/artifacts/6d21a45ac0cfe6e744ea6ba4b4fb316b6f7b3101857d06c10c62152653218735.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14340010622/zip 302",
+        "GET /actions-results/aeb19980-c7fe-82d5-b804-06617ffd26b6/workflow-job-run-538bcc86-9819-5052-adc6-37d6611b7c9d/artifacts/d16c2b7e1e4bff9af92bec60eedf934f803e8597f09b9713d81d79014bf473c2.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14337919452/zip 302",
+        "GET /actions-results/aeb19980-c7fe-82d5-b804-06617ffd26b6/workflow-job-run-7feea8e8-585e-5361-b96d-1f96f0046653/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14337894467/zip 302",
+        "GET /actions-results/aeb19980-c7fe-82d5-b804-06617ffd26b6/workflow-job-run-05d8c8a1-2d19-59f9-ab2d-2913b5222c80/artifacts/6d21a45ac0cfe6e744ea6ba4b4fb316b6f7b3101857d06c10c62152653218735.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14339184381/zip 302",
+        "GET /actions-results/e9cfa859-8da3-83ba-8eb9-7dd2b2e26648/workflow-job-run-d441de3b-b1da-58b2-856b-9b4f46f31124/artifacts/d16c2b7e1e4bff9af92bec60eedf934f803e8597f09b9713d81d79014bf473c2.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14338624725/zip 302",
+        "GET /actions-results/e9cfa859-8da3-83ba-8eb9-7dd2b2e26648/workflow-job-run-93293625-b095-5e8c-9f79-d488c469c76f/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14338394788/zip 302",
+        "GET /actions-results/e9cfa859-8da3-83ba-8eb9-7dd2b2e26648/workflow-job-run-8434e2df-964c-5a78-891a-dd28740eb5f4/artifacts/6d21a45ac0cfe6e744ea6ba4b4fb316b6f7b3101857d06c10c62152653218735.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14339282619/zip 302",
+        "GET /actions-results/c053c689-ffb4-88f1-b0c6-3421ad0706da/workflow-job-run-6666beef-76b1-58c8-84f6-ade1ac9812c6/artifacts/d16c2b7e1e4bff9af92bec60eedf934f803e8597f09b9713d81d79014bf473c2.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14339113375/zip 302",
+        "GET /actions-results/c053c689-ffb4-88f1-b0c6-3421ad0706da/workflow-job-run-ed8242a1-277e-52ba-84e8-2139e8dae4f8/artifacts/6d21a45ac0cfe6e744ea6ba4b4fb316b6f7b3101857d06c10c62152653218735.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14338454991/zip 302",
+        "GET /actions-results/c053c689-ffb4-88f1-b0c6-3421ad0706da/workflow-job-run-68c78b9d-52f6-5bb3-a864-633b3f73e732/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14341680691/zip 302",
+        "GET /actions-results/affde6b4-0664-87d9-94ae-cc6609f4f235/workflow-job-run-af1b213f-3228-5c3e-9121-020cf481ade8/artifacts/d16c2b7e1e4bff9af92bec60eedf934f803e8597f09b9713d81d79014bf473c2.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14341310279/zip 302",
+        "GET /actions-results/affde6b4-0664-87d9-94ae-cc6609f4f235/workflow-job-run-8cb1b24a-7989-525b-964d-e36305eef296/artifacts/6d21a45ac0cfe6e744ea6ba4b4fb316b6f7b3101857d06c10c62152653218735.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14340346626/zip 302",
+        "GET /actions-results/affde6b4-0664-87d9-94ae-cc6609f4f235/workflow-job-run-f568fedd-8249-5288-afc9-7f7cc048ff5c/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14339863769/zip 302",
+        "GET /actions-results/36c5f0ca-88ee-825f-81ee-ae7fb71fd201/workflow-job-run-afa850b3-e74a-53fc-b372-a494fe425533/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14341112678/zip 302",
+        "GET /actions-results/e74fe8ab-56bc-8c19-8ee8-084413e761d8/workflow-job-run-44396689-ec6a-5eb0-9429-7349917d5240/artifacts/d16c2b7e1e4bff9af92bec60eedf934f803e8597f09b9713d81d79014bf473c2.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14340372800/zip 302",
+        "GET /actions-results/e74fe8ab-56bc-8c19-8ee8-084413e761d8/workflow-job-run-86bcba87-e639-5fbd-81c2-8decc41ad983/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14339654486/zip 302",
+        "GET /actions-results/e74fe8ab-56bc-8c19-8ee8-084413e761d8/workflow-job-run-e1eca140-63c9-52b3-9230-acee52f3ee39/artifacts/6d21a45ac0cfe6e744ea6ba4b4fb316b6f7b3101857d06c10c62152653218735.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14340827452/zip 302",
+        "GET /actions-results/38f0a8ee-8bf7-8c4a-9a87-09819a49f0a9/workflow-job-run-4ba90215-a478-5cb6-a8a8-fd03e305c4ea/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14340113419/zip 302",
+        "GET /actions-results/38f0a8ee-8bf7-8c4a-9a87-09819a49f0a9/workflow-job-run-376075ed-bc33-5339-8958-59ec8128e265/artifacts/6d21a45ac0cfe6e744ea6ba4b4fb316b6f7b3101857d06c10c62152653218735.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14339958994/zip 302",
+        "GET /actions-results/38f0a8ee-8bf7-8c4a-9a87-09819a49f0a9/workflow-job-run-ceaa9524-8f5a-5b7f-980d-9d7c74976e57/artifacts/d16c2b7e1e4bff9af92bec60eedf934f803e8597f09b9713d81d79014bf473c2.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14342155680/zip 302",
+        "GET /actions-results/619eb56e-83ea-80df-8645-33a206984bb2/workflow-job-run-1d381e8c-b536-55b1-a4cd-abb364e6868e/artifacts/d16c2b7e1e4bff9af92bec60eedf934f803e8597f09b9713d81d79014bf473c2.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14341211859/zip 302",
+        "GET /actions-results/619eb56e-83ea-80df-8645-33a206984bb2/workflow-job-run-8a93dd76-32a4-56b3-8b6e-0768895396a5/artifacts/6d21a45ac0cfe6e744ea6ba4b4fb316b6f7b3101857d06c10c62152653218735.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14339694296/zip 302",
+        "GET /actions-results/619eb56e-83ea-80df-8645-33a206984bb2/workflow-job-run-817dc2d6-58a3-50ad-af2f-e2d740267f44/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14341566491/zip 302",
+        "GET /actions-results/f64bb9c0-5ec3-8422-b48d-df443995357c/workflow-job-run-cc4508c1-bac6-544b-bf4b-d31214bfa52b/artifacts/d16c2b7e1e4bff9af92bec60eedf934f803e8597f09b9713d81d79014bf473c2.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14341186875/zip 302",
+        "GET /actions-results/f64bb9c0-5ec3-8422-b48d-df443995357c/workflow-job-run-9cba5309-ff93-51a6-9dd3-e2fad6cb7cac/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14339813868/zip 302",
+        "GET /actions-results/f64bb9c0-5ec3-8422-b48d-df443995357c/workflow-job-run-116b84f9-e6ae-5dd8-b0e7-4c7ac1250d44/artifacts/6d21a45ac0cfe6e744ea6ba4b4fb316b6f7b3101857d06c10c62152653218735.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14341816258/zip 302",
+        "GET /actions-results/239f0ac5-e6bf-8089-994d-4518e1c73cfb/workflow-job-run-c7375c41-c6dd-5e48-93d3-3142b64abcee/artifacts/d16c2b7e1e4bff9af92bec60eedf934f803e8597f09b9713d81d79014bf473c2.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14341546439/zip 302",
+        "GET /actions-results/239f0ac5-e6bf-8089-994d-4518e1c73cfb/workflow-job-run-923b2531-b283-5e11-a7b4-ec088a20140d/artifacts/bf6ad14c8d8781902cca93ca4cd25b064d68a67da643b9fcc4897b5016668e8e.zip 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/artifacts/14339939082/zip 302",
+        "GET /actions-results/239f0ac5-e6bf-8089-994d-4518e1c73cfb/workflow-job-run-00874f73-cdfe-52ab-a820-f4d30314a0bc/artifacts/6d21a45ac0cfe6e744ea6ba4b4fb316b6f7b3101857d06c10c62152653218735.zip 200"
+      ],
+      "errors": [],
+      "artifactsRead": 38
+    },
+    {
+      "name": "second",
+      "counts": {
+        "graphql": 1,
+        "runs": 1
+      },
+      "log": [
+        "POST /graphql 200",
+        "GET /repos/mtdowling/avoozl-scratch-p65/actions/runs 304"
+      ],
+      "errors": [],
+      "artifactsRead": 38
+    }
+  ],
+  "refused": [],
+  "mergedPullRequests": 12,
+  "artifacts": [
+    {
+      "kind": "done",
+      "n": 12,
+      "lines": 0,
+      "skipped": 0
+    },
+    {
+      "kind": "receipt",
+      "n": 38,
+      "lines": 76,
+      "skipped": 0
+    }
+  ],
+  "observations": {
+    "n": 76,
+    "failed": 2
+  },
+  "breakdowns": 19,
+  "perPull": [
+    {
+      "pr": 12,
+      "head": "5366a6ac4b5457543b2ccbf813b0b72b5acb4ae5",
+      "n": 6,
+      "failed": 0,
+      "targets": 3,
+      "runs": 1,
+      "attempts": 1,
+      "phases": "build,test"
+    },
+    {
+      "pr": 11,
+      "head": "4f1536e8f8bc85837a4ecc76fb82748db43781e3",
+      "n": 6,
+      "failed": 0,
+      "targets": 3,
+      "runs": 1,
+      "attempts": 1,
+      "phases": "build,test"
+    },
+    {
+      "pr": 10,
+      "head": "47769e1c1ebf89ffa68d279e8d435a5ac3a25c90",
+      "n": 6,
+      "failed": 0,
+      "targets": 3,
+      "runs": 1,
+      "attempts": 1,
+      "phases": "build,test"
+    },
+    {
+      "pr": 9,
+      "head": "f6ba14399aaaccec89d5018919ccd60d255e139a",
+      "n": 6,
+      "failed": 0,
+      "targets": 3,
+      "runs": 1,
+      "attempts": 1,
+      "phases": "build,test"
+    },
+    {
+      "pr": 8,
+      "head": "6f7c605b89e89836c5d6b90031415ed8ad6403dc",
+      "n": 6,
+      "failed": 0,
+      "targets": 3,
+      "runs": 1,
+      "attempts": 1,
+      "phases": "build,test"
+    },
+    {
+      "pr": 7,
+      "head": "f93c86574a6ebab9611687aab2623a806b909f74",
+      "n": 8,
+      "failed": 1,
+      "targets": 3,
+      "runs": 1,
+      "attempts": 2,
+      "phases": "build,test"
+    },
+    {
+      "pr": 6,
+      "head": "0b7195286b4b1e7be889c72c5044cf336295f778",
+      "n": 6,
+      "failed": 0,
+      "targets": 3,
+      "runs": 1,
+      "attempts": 1,
+      "phases": "build,test"
+    },
+    {
+      "pr": 5,
+      "head": "2bfcd442ad1711bdc1f4c63ee4a24a7f29638432",
+      "n": 6,
+      "failed": 0,
+      "targets": 3,
+      "runs": 1,
+      "attempts": 1,
+      "phases": "build,test"
+    },
+    {
+      "pr": 4,
+      "head": "cfb64242c79044ef283a10b84e141f51f0952a2d",
+      "n": 6,
+      "failed": 0,
+      "targets": 3,
+      "runs": 1,
+      "attempts": 1,
+      "phases": "build,test"
+    },
+    {
+      "pr": 3,
+      "head": "0dd098b6ce9cde2e5a0436cedce24886de6c2cf3",
+      "n": 6,
+      "failed": 0,
+      "targets": 3,
+      "runs": 1,
+      "attempts": 1,
+      "phases": "build,test"
+    },
+    {
+      "pr": 2,
+      "head": "bd7ac97d40601d872e09e410d22defc99f17afc7",
+      "n": 6,
+      "failed": 0,
+      "targets": 3,
+      "runs": 1,
+      "attempts": 1,
+      "phases": "build,test"
+    },
+    {
+      "pr": 1,
+      "head": "c3a42992b1df71b9ea6ac30067f9485f04b33844",
+      "n": 8,
+      "failed": 1,
+      "targets": 3,
+      "runs": 1,
+      "attempts": 2,
+      "phases": "build,test"
+    }
+  ],
+  "failedObservations": [
+    {
+      "pr": 1,
+      "target": "ubuntu-latest",
+      "attempt": 1,
+      "exit": 1,
+      "run": 44104713054,
+      "ms": 1769
+    },
+    {
+      "pr": 7,
+      "target": "ubuntu-latest",
+      "attempt": 1,
+      "exit": 1,
+      "run": 44110202703,
+      "ms": 1630
+    }
+  ],
+  "flow": {
+    "count": 12,
+    "totalMs": 119741,
+    "failedMs": 3399,
+    "medianMs": 9475,
+    "byPhase": [
+      {
+        "phase": "build",
+        "target": "ubuntu-latest",
+        "start": "unknown",
+        "count": 14,
+        "medianMs": 1164
+      },
+      {
+        "phase": "test",
+        "target": "ubuntu-latest",
+        "start": "unknown",
+        "count": 12,
+        "medianMs": 1672.5
+      },
+      {
+        "phase": "build",
+        "target": "macos-latest",
+        "start": "unknown",
+        "count": 12,
+        "medianMs": 1179
+      },
+      {
+        "phase": "test",
+        "target": "macos-latest",
+        "start": "unknown",
+        "count": 12,
+        "medianMs": 1657.5
+      },
+      {
+        "phase": "build",
+        "target": "windows-latest",
+        "start": "unknown",
+        "count": 12,
+        "medianMs": 1760.5
+      },
+      {
+        "phase": "test",
+        "target": "windows-latest",
+        "start": "unknown",
+        "count": 12,
+        "medianMs": 1895
+      }
+    ],
+    "byInstance": [
+      {
+        "instance": null,
+        "name": null,
+        "count": 12,
+        "medianMs": 9475,
+        "totalMs": 119741
+      }
+    ],
+    "recent": [
+      {
+        "repository": "mtdowling/avoozl-scratch-p65",
+        "pr": 12,
+        "totalMs": 9649,
+        "failedMs": 0,
+        "phases": [
+          {
+            "phase": "test",
+            "ms": 5393
+          },
+          {
+            "phase": "build",
+            "ms": 4256
+          }
+        ],
+        "costliest": {
+          "phase": "test",
+          "ms": 5393
+        }
+      },
+      {
+        "repository": "mtdowling/avoozl-scratch-p65",
+        "pr": 11,
+        "totalMs": 9479,
+        "failedMs": 0,
+        "phases": [
+          {
+            "phase": "test",
+            "ms": 5238
+          },
+          {
+            "phase": "build",
+            "ms": 4241
+          }
+        ],
+        "costliest": {
+          "phase": "test",
+          "ms": 5238
+        }
+      },
+      {
+        "repository": "mtdowling/avoozl-scratch-p65",
+        "pr": 10,
+        "totalMs": 9471,
+        "failedMs": 0,
+        "phases": [
+          {
+            "phase": "test",
+            "ms": 5403
+          },
+          {
+            "phase": "build",
+            "ms": 4068
+          }
+        ],
+        "costliest": {
+          "phase": "test",
+          "ms": 5403
+        }
+      },
+      {
+        "repository": "mtdowling/avoozl-scratch-p65",
+        "pr": 9,
+        "totalMs": 9351,
+        "failedMs": 0,
+        "phases": [
+          {
+            "phase": "test",
+            "ms": 5107
+          },
+          {
+            "phase": "build",
+            "ms": 4244
+          }
+        ],
+        "costliest": {
+          "phase": "test",
+          "ms": 5107
+        }
+      },
+      {
+        "repository": "mtdowling/avoozl-scratch-p65",
+        "pr": 8,
+        "totalMs": 10526,
+        "failedMs": 0,
+        "phases": [
+          {
+            "phase": "test",
+            "ms": 6294
+          },
+          {
+            "phase": "build",
+            "ms": 4232
+          }
+        ],
+        "costliest": {
+          "phase": "test",
+          "ms": 6294
+        }
+      },
+      {
+        "repository": "mtdowling/avoozl-scratch-p65",
+        "pr": 7,
+        "totalMs": 12594,
+        "failedMs": 1630,
+        "phases": [
+          {
+            "phase": "build",
+            "ms": 5804
+          },
+          {
+            "phase": "test",
+            "ms": 5160
+          }
+        ],
+        "costliest": {
+          "phase": "build",
+          "ms": 5804
+        }
+      },
+      {
+        "repository": "mtdowling/avoozl-scratch-p65",
+        "pr": 6,
+        "totalMs": 8934,
+        "failedMs": 0,
+        "phases": [
+          {
+            "phase": "test",
+            "ms": 5069
+          },
+          {
+            "phase": "build",
+            "ms": 3865
+          }
+        ],
+        "costliest": {
+          "phase": "test",
+          "ms": 5069
+        }
+      },
+      {
+        "repository": "mtdowling/avoozl-scratch-p65",
+        "pr": 5,
+        "totalMs": 8924,
+        "failedMs": 0,
+        "phases": [
+          {
+            "phase": "test",
+            "ms": 5089
+          },
+          {
+            "phase": "build",
+            "ms": 3835
+          }
+        ],
+        "costliest": {
+          "phase": "test",
+          "ms": 5089
+        }
+      },
+      {
+        "repository": "mtdowling/avoozl-scratch-p65",
+        "pr": 4,
+        "totalMs": 9173,
+        "failedMs": 0,
+        "phases": [
+          {
+            "phase": "test",
+            "ms": 5230
+          },
+          {
+            "phase": "build",
+            "ms": 3943
+          }
+        ],
+        "costliest": {
+          "phase": "test",
+          "ms": 5230
+        }
+      },
+      {
+        "repository": "mtdowling/avoozl-scratch-p65",
+        "pr": 3,
+        "totalMs": 9130,
+        "failedMs": 0,
+        "phases": [
+          {
+            "phase": "test",
+            "ms": 5167
+          },
+          {
+            "phase": "build",
+            "ms": 3963
+          }
+        ],
+        "costliest": {
+          "phase": "test",
+          "ms": 5167
+        }
+      }
+    ]
+  },
+  "brief": [
+    {
+      "repository": "mtdowling/avoozl-scratch-p65",
+      "pullRequests": [
+        {
+          "kind": "other",
+          "number": 12,
+          "costliestPhase": "test",
+          "phaseMinutes": 0.09,
+          "totalMinutes": 0.16
+        },
+        {
+          "kind": "other",
+          "number": 11,
+          "costliestPhase": "test",
+          "phaseMinutes": 0.09,
+          "totalMinutes": 0.16
+        },
+        {
+          "kind": "other",
+          "number": 10,
+          "costliestPhase": "test",
+          "phaseMinutes": 0.09,
+          "totalMinutes": 0.16
+        },
+        {
+          "kind": "other",
+          "number": 9,
+          "costliestPhase": "test",
+          "phaseMinutes": 0.09,
+          "totalMinutes": 0.16
+        },
+        {
+          "kind": "other",
+          "number": 8,
+          "costliestPhase": "test",
+          "phaseMinutes": 0.1,
+          "totalMinutes": 0.18
+        },
+        {
+          "kind": "other",
+          "number": 7,
+          "costliestPhase": "test",
+          "phaseMinutes": 0.11,
+          "totalMinutes": 0.21
+        },
+        {
+          "kind": "other",
+          "number": 6,
+          "costliestPhase": "test",
+          "phaseMinutes": 0.08,
+          "totalMinutes": 0.15
+        },
+        {
+          "kind": "other",
+          "number": 5,
+          "costliestPhase": "test",
+          "phaseMinutes": 0.08,
+          "totalMinutes": 0.15
+        },
+        {
+          "kind": "other",
+          "number": 4,
+          "costliestPhase": "test",
+          "phaseMinutes": 0.09,
+          "totalMinutes": 0.15
+        },
+        {
+          "kind": "other",
+          "number": 3,
+          "costliestPhase": "test",
+          "phaseMinutes": 0.09,
+          "totalMinutes": 0.15
+        },
+        {
+          "kind": "other",
+          "number": 2,
+          "costliestPhase": "test",
+          "phaseMinutes": 0.09,
+          "totalMinutes": 0.17
+        },
+        {
+          "kind": "other",
+          "number": 1,
+          "costliestPhase": "test",
+          "phaseMinutes": 0.12,
+          "totalMinutes": 0.21
+        }
+      ],
+      "breakdowns": [
+        {
+          "key": "[\"recipe-index\",\"quill\",\"ubuntu-latest\",\"node24\",\"warm\"]",
+          "workload": "recipe-index",
+          "engine": "quill",
+          "target": "ubuntu-latest",
+          "toolchain": "node24",
+          "cache": "warm",
+          "count": 6,
+          "costs": {
+            "build": {
+              "latestMinutes": 0.02,
+              "medianMinutes": 0.02
+            },
+            "provisioning": {
+              "latestMinutes": 0,
+              "medianMinutes": 0
+            },
+            "cache": {
+              "latestMinutes": 0,
+              "medianMinutes": 0
+            },
+            "test": {
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            }
+          },
+          "parts": [
+            {
+              "name": "index",
+              "kind": "build",
+              "count": 6,
+              "latestMinutes": 0.02,
+              "medianMinutes": 0.02
+            },
+            {
+              "name": "suite",
+              "kind": "test",
+              "count": 6,
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            }
+          ],
+          "costliestPart": "suite"
+        },
+        {
+          "key": "[\"recipe-index\",\"quill\",\"windows-latest\",\"node24\",\"warm\"]",
+          "workload": "recipe-index",
+          "engine": "quill",
+          "target": "windows-latest",
+          "toolchain": "node24",
+          "cache": "warm",
+          "count": 5,
+          "costs": {
+            "build": {
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            },
+            "provisioning": {
+              "latestMinutes": 0,
+              "medianMinutes": 0
+            },
+            "cache": {
+              "latestMinutes": 0,
+              "medianMinutes": 0
+            },
+            "test": {
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            }
+          },
+          "parts": [
+            {
+              "name": "index",
+              "kind": "build",
+              "count": 5,
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            },
+            {
+              "name": "suite",
+              "kind": "test",
+              "count": 5,
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            }
+          ],
+          "costliestPart": "index"
+        },
+        {
+          "key": "[\"recipe-index\",\"quill\",\"macos-latest\",\"node24\",\"warm\"]",
+          "workload": "recipe-index",
+          "engine": "quill",
+          "target": "macos-latest",
+          "toolchain": "node24",
+          "cache": "warm",
+          "count": 5,
+          "costs": {
+            "build": {
+              "latestMinutes": 0.02,
+              "medianMinutes": 0.02
+            },
+            "provisioning": {
+              "latestMinutes": 0,
+              "medianMinutes": 0
+            },
+            "cache": {
+              "latestMinutes": 0,
+              "medianMinutes": 0
+            },
+            "test": {
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            }
+          },
+          "parts": [
+            {
+              "name": "index",
+              "kind": "build",
+              "count": 5,
+              "latestMinutes": 0.02,
+              "medianMinutes": 0.02
+            },
+            {
+              "name": "suite",
+              "kind": "test",
+              "count": 5,
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            }
+          ],
+          "costliestPart": "suite"
+        },
+        {
+          "key": "[\"recipe-index\",\"quill\",\"ubuntu-latest\",\"node24\",\"cold\"]",
+          "workload": "recipe-index",
+          "engine": "quill",
+          "target": "ubuntu-latest",
+          "toolchain": "node24",
+          "cache": "cold",
+          "count": 1,
+          "costs": {
+            "build": {
+              "latestMinutes": 0.02,
+              "medianMinutes": 0.02
+            },
+            "provisioning": {
+              "latestMinutes": 0,
+              "medianMinutes": 0
+            },
+            "cache": {
+              "latestMinutes": 0,
+              "medianMinutes": 0
+            },
+            "test": {
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            }
+          },
+          "parts": [
+            {
+              "name": "index",
+              "kind": "build",
+              "count": 1,
+              "latestMinutes": 0.02,
+              "medianMinutes": 0.02
+            },
+            {
+              "name": "suite",
+              "kind": "test",
+              "count": 1,
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            }
+          ],
+          "costliestPart": "suite"
+        },
+        {
+          "key": "[\"recipe-index\",\"quill\",\"windows-latest\",\"node24\",\"cold\"]",
+          "workload": "recipe-index",
+          "engine": "quill",
+          "target": "windows-latest",
+          "toolchain": "node24",
+          "cache": "cold",
+          "count": 1,
+          "costs": {
+            "build": {
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            },
+            "provisioning": {
+              "latestMinutes": 0,
+              "medianMinutes": 0
+            },
+            "cache": {
+              "latestMinutes": 0,
+              "medianMinutes": 0
+            },
+            "test": {
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            }
+          },
+          "parts": [
+            {
+              "name": "index",
+              "kind": "build",
+              "count": 1,
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            },
+            {
+              "name": "suite",
+              "kind": "test",
+              "count": 1,
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            }
+          ],
+          "costliestPart": "index"
+        },
+        {
+          "key": "[\"recipe-index\",\"quill\",\"macos-latest\",\"node24\",\"cold\"]",
+          "workload": "recipe-index",
+          "engine": "quill",
+          "target": "macos-latest",
+          "toolchain": "node24",
+          "cache": "cold",
+          "count": 1,
+          "costs": {
+            "build": {
+              "latestMinutes": 0.02,
+              "medianMinutes": 0.02
+            },
+            "provisioning": {
+              "latestMinutes": 0,
+              "medianMinutes": 0
+            },
+            "cache": {
+              "latestMinutes": 0,
+              "medianMinutes": 0
+            },
+            "test": {
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            }
+          },
+          "parts": [
+            {
+              "name": "index",
+              "kind": "build",
+              "count": 1,
+              "latestMinutes": 0.02,
+              "medianMinutes": 0.02
+            },
+            {
+              "name": "suite",
+              "kind": "test",
+              "count": 1,
+              "latestMinutes": 0.03,
+              "medianMinutes": 0.03
+            }
+          ],
+          "costliestPart": "suite"
+        }
+      ],
+      "unmatched": 0
+    }
+  ],
+  "breakdownRows": [
+    {
+      "pr": 7,
+      "target": "ubuntu-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1145,\"provisioning\":0,\"cache\":0,\"test\":1630}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1145},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1630}]"
+    },
+    {
+      "pr": 7,
+      "target": "windows-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":2307,\"provisioning\":0,\"cache\":0,\"test\":1837}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":2307},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1837}]"
+    },
+    {
+      "pr": 7,
+      "target": "macos-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1187,\"provisioning\":0,\"cache\":0,\"test\":1648}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1187},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1648}]"
+    },
+    {
+      "pr": 7,
+      "target": "ubuntu-latest",
+      "attempt": 2,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1165,\"provisioning\":0,\"cache\":0,\"test\":1675}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1165},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1675}]"
+    },
+    {
+      "pr": 8,
+      "target": "ubuntu-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1237,\"provisioning\":0,\"cache\":0,\"test\":1853}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1237},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1853}]"
+    },
+    {
+      "pr": 8,
+      "target": "windows-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1789,\"provisioning\":0,\"cache\":0,\"test\":2799}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1789},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":2799}]"
+    },
+    {
+      "pr": 8,
+      "target": "macos-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1206,\"provisioning\":0,\"cache\":0,\"test\":1642}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1206},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1642}]"
+    },
+    {
+      "pr": 9,
+      "target": "ubuntu-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1127,\"provisioning\":0,\"cache\":0,\"test\":1626}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1127},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1626}]"
+    },
+    {
+      "pr": 9,
+      "target": "windows-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1949,\"provisioning\":0,\"cache\":0,\"test\":1831}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1949},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1831}]"
+    },
+    {
+      "pr": 9,
+      "target": "macos-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1168,\"provisioning\":0,\"cache\":0,\"test\":1650}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1168},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1650}]"
+    },
+    {
+      "pr": 10,
+      "target": "ubuntu-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1179,\"provisioning\":0,\"cache\":0,\"test\":1816}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1179},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1816}]"
+    },
+    {
+      "pr": 10,
+      "target": "windows-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1692,\"provisioning\":0,\"cache\":0,\"test\":1902}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1692},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1902}]"
+    },
+    {
+      "pr": 10,
+      "target": "macos-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1197,\"provisioning\":0,\"cache\":0,\"test\":1685}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1197},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1685}]"
+    },
+    {
+      "pr": 11,
+      "target": "ubuntu-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1136,\"provisioning\":0,\"cache\":0,\"test\":1635}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1136},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1635}]"
+    },
+    {
+      "pr": 11,
+      "target": "windows-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1960,\"provisioning\":0,\"cache\":0,\"test\":1977}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1960},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1977}]"
+    },
+    {
+      "pr": 11,
+      "target": "macos-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "warm",
+      "costs": "{\"build\":1145,\"provisioning\":0,\"cache\":0,\"test\":1626}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1145},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1626}]"
+    },
+    {
+      "pr": 12,
+      "target": "ubuntu-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "cold",
+      "costs": "{\"build\":1202,\"provisioning\":0,\"cache\":0,\"test\":1778}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1202},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1778}]"
+    },
+    {
+      "pr": 12,
+      "target": "windows-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "cold",
+      "costs": "{\"build\":1810,\"provisioning\":0,\"cache\":0,\"test\":1947}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1810},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1947}]"
+    },
+    {
+      "pr": 12,
+      "target": "macos-latest",
+      "attempt": 1,
+      "workload": "recipe-index",
+      "engine": "quill",
+      "toolchain": "node24",
+      "cache": "cold",
+      "costs": "{\"build\":1244,\"provisioning\":0,\"cache\":0,\"test\":1668}",
+      "parts": "[{\"name\":\"index\",\"kind\":\"build\",\"ms\":1244},{\"name\":\"suite\",\"kind\":\"test\",\"ms\":1668}]"
+    }
+  ],
+  "retro": {
+    "started": true,
+    "brief": true
+  },
+  "rate": {
+    "core": {
+      "limit": 5000,
+      "remaining": 4581,
+      "resetAt": "2026-11-17T15:36:48.000Z"
+    },
+    "graphql": {
+      "limit": 5000,
+      "remaining": 4864,
+      "resetAt": "2026-11-17T16:09:59.000Z"
+    }
+  }
+}
