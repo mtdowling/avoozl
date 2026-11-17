@@ -48,11 +48,6 @@ import {
   assertSafeConfig,
 } from "./layered-config.mjs";
 import { flowPolicy, syncSpans } from "./flow.mjs";
-import {
-  budgetHeldTaskIds,
-  budgetStep,
-  validateTrackedBudgets,
-} from "./budget.mjs";
 import { blockedNaming, judgeBaseFailures, watchLine } from "./flow-line.mjs";
 import { retroStep } from "./flow-retro.mjs";
 import { ciRepositories, ciStep, readEffectiveCIConfig } from "./flow-ci.mjs";
@@ -204,7 +199,6 @@ function parsePolicy(text) {
   validateModels(value.models);
   validatePlanReview(value.planReview);
   validateIntake(value.intake);
-  validateTrackedBudgets(value);
   return value;
 }
 
@@ -917,14 +911,6 @@ async function runTick(
         // Dependents are released by readiness below, in this same tick.
         completeParents(store);
       }
-      // Budgets (§4.17): the check before any dispatch for a task. A stop
-      // queues one message per live session; nothing is closed.
-      const budget = budgetStep(store, store.read(), {
-        script,
-        tracked: memory.value || {},
-      });
-      planned.messages.push(...budget.messages);
-      planned.notify.push(...budget.notify);
       // The private mirror follows its source before anything is projected
       // (RC24.4): fast-forward only, one row for a divergence.
       if (script && github)
@@ -1578,26 +1564,8 @@ async function runTick(
           n.title === "GitHub rate limit reached" ||
           !RATE_LIMIT_TEXT.test(n.text || ""),
       );
-      // Nothing new starts for a task at its budget, and its sessions get
-      // only the budget's own messages until a person acts (R67.8).
-      const budgetHeld = budgetHeldTaskIds(store),
-        heldSlots = new Set(
-          bindings
-            .filter((b) =>
-              [b.taskId, ...(b.batch?.tasks || [])].some((id) =>
-                budgetHeld.has(id),
-              ),
-            )
-            .map((b) => b.slot),
-        ),
-        open = (d) =>
-          ![d.task, ...(d.batch?.tasks || [])].some((id) => budgetHeld.has(id)),
-        allDispatches = dispatch.filter(open),
-        sendable = planned.messages.filter(
-          (m) => m.budget || !heldSlots.has(m.slot),
-        );
-      const dispatched = allDispatches,
-        messages = sendable;
+      const dispatched = dispatch,
+        messages = planned.messages;
       notices.push(...kirocrewDispatches(store, dispatched, waits, folders));
       const sends = messages.map((message) => ({
         ...message,
@@ -1630,7 +1598,6 @@ async function runTick(
                       !generationHeld(request) &&
                       (request.role === "verifier" ||
                         !heldTask(request.task)) &&
-                      open(request) &&
                       !asksForcePush(request.brief),
                   ),
               sends: pending.filter(
@@ -1638,8 +1605,7 @@ async function runTick(
                   request.operation === "send" &&
                   !readOnlyTask(request.task) &&
                   !lostDispatchPlans.has(taskPlan.get(request.task)) &&
-                  !asksForcePush(request.text) &&
-                  (request.budget || !heldSlots.has(request.slot)),
+                  !asksForcePush(request.text),
               ),
             };
           })

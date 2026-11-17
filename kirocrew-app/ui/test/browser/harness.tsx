@@ -59,7 +59,6 @@ import { useTaskDrawer } from '../../src/drawer-context.ts'
 import AvoozlPanel from '../../src/Panel.tsx'
 import ModelsSettings from '../../src/ModelsSettings.tsx'
 import { TaskFiles } from '../../src/TaskFiles.tsx'
-import { BudgetSettings } from '../../src/BudgetSettings.tsx'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
@@ -289,7 +288,6 @@ export const SCENARIOS: Record<string, Scenario> = {
       <TaskFiles workspaceId="w" taskId="a1" active />
     </div>
   )),
-  budgets: () => <BudgetSettings workspaceId="w" />,
   projection: shown((close) => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onCreated={() => undefined} />),
   'spec-changed': shown((close) => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onApplied={() => undefined} />),
   'task-drawer': own('Open the dialog', <OpenTask />),
@@ -315,7 +313,6 @@ const flightRow = {
   lastAt: null,
   status: 'busy',
   session: { slot: 's1', role: 'worker', attempt: 1, link: null, crew: null },
-  budget: null,
 }
 // Needs you's filter row in a list column (?modal=filter-row): two fields on
 // the row, five behind the filter icon, the count and Refresh at the right.
@@ -485,7 +482,7 @@ if (query.get('page') === 'app' && query.get('triage') === '1') {
 // workspace one finished task (it has run before); without it, none has.
 if (query.get('page') === 'home' || query.get('page') === 'demo') {
   const ran = query.get('ran') === '1'
-  const item = { id: 'a1', title: 'Task a1', complete: true, deliveries: [], sessions: [], evidence: [], integration: { commit: 'c', branch: 'main', at: '2026-11-13T10:00:00Z' }, pullRequests: [], issue: null, budget: null }
+  const item = { id: 'a1', title: 'Task a1', complete: true, deliveries: [], sessions: [], evidence: [], integration: { commit: 'c', branch: 'main', at: '2026-11-13T10:00:00Z' }, pullRequests: [], issue: null }
   answer('delivery.view', () => ({ revision: 1, items: ran ? [item] : [] }))
   answer('conflicts.view', () => ({ revision: 1, items: [] }))
   answer('plan.list', () => ({ items: [] }))
@@ -588,7 +585,7 @@ if (query.get('page') === 'app' && query.get('home') === '1') {
   answer('plan.list', () => ({ total: 2, items: [{ id: 'meal-planner', title: 'Meal planner', state: 'approved', archivedAt: null }, { id: 'search-v2', title: 'Search v2', state: 'approved', archivedAt: null }] }))
   const session = (slot: string, role: string, status: string, minutes: number) => ({ slot, role, status, attempt: 1, link: `/sessions/${slot}`, boundAt: ago(minutes + 20), statusAt: ago(minutes), agent: 'kirocrew-worker', model: null })
   const item = (id: string, title: string, extra = {}) => ({
-    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, budget: null, ...extra,
+    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, ...extra,
   })
   answer('delivery.view', () => ({
     revision: 1,
@@ -677,8 +674,7 @@ if (query.get('page') === 'app' && query.get('escalations')) {
   }
   answer('conflicts.view', () => ({ revision: 1, items: [crewRow] }))
 }
-// &delivery=1: tasks in every Delivery lane across two epics and specs, a
-// spend chip, and Settings › Budgets' sample values (task 41.6 shots).
+// &delivery=1: tasks in every Delivery lane across two epics and specs.
 if (query.get('page') === 'app' && query.get('delivery') === '1') {
   const at = '2026-11-16T09:00:00Z'
   const t = (id: string, title: string, epic: string, planId: string, repository: string, extra = {}) => ({ ...task(id, epic), title, planId, spec: planId, repository, phase: null, ...extra })
@@ -713,34 +709,16 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
   }))
   const session = (slot: string, role: string, status: string) => ({ slot, role, status, attempt: 1, link: `/sessions/${slot}`, boundAt: at, statusAt: at, agent: 'kirocrew-worker', model: null })
   const item = (id: string, title: string, extra = {}) => ({
-    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, budget: null, ...extra,
+    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, ...extra,
   })
-  const chip = (spent: number, cap: number) => ({ taskId: 'm3', spent, tokens: 0, credits: 0, unpricedTurns: 0, cap: { usd: cap, tokens: null, credits: null, mode: 'stop', level: 'workspace' }, ratio: spent / cap, warning: spent / cap >= 0.8, reached: spent >= cap, state: null, over: null, unknown: [], unpricedModels: [] })
   answer('delivery.view', () => ({
     revision: 1,
     items: [
-      item('m3', 'Sync pantry items between devices', { status: 'running', sessions: [session('chat-m3', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }], budget: chip(4.2, 5) }),
-      item('s1', 'Index recipes by ingredient', { status: 'review', sessions: [session('chat-s1', 'reviewer', 'reading')], deliveries: [{ state: 'done', updatedAt: at }], budget: chip(1.1, 5) }),
+      item('m3', 'Sync pantry items between devices', { status: 'running', sessions: [session('chat-m3', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }),
+      item('s1', 'Index recipes by ingredient', { status: 'review', sessions: [session('chat-s1', 'reviewer', 'reading')], deliveries: [{ state: 'done', updatedAt: at }] }),
       item('s2', 'Rank results by cooking time', { deliveries: [{ state: 'decision', updatedAt: at }] }),
     ],
     contentReports: [],
-  }))
-  const line = (key: string, name: string, usd: number) => ({ [key]: name, input: 120000, output: 18000, credits: 0, usd, turns: 6, priced: true, shared: false })
-  answer('budget.receipt', (body) => ({
-    taskId: (body.input as { taskId?: string }).taskId ?? 'm3', spec: 'meal-planner', repository: 'recipe-box', complete: true, missing: [],
-    cap: { usd: 5, tokens: 2000000, credits: 200, mode: 'stop', level: 'workspace', levels: {} },
-    raises: [], price: { updated: '2026-11-01', sha256: 'p' }, stops: [],
-    warning: { at80: true, ratio: 0.84, since: at }, over: null, state: null,
-    totals: { input: 240000, output: 36000, credits: 0, usd: 4.2, unpricedTurns: 0 }, overrun: null, shared: false,
-    byStage: [line('stage', 'code', 3.1), line('stage', 'review', 1.1)],
-    byModel: [line('model', 'claude-sonnet', 4.2)],
-    byAttempt: [line('attempt', '1', 4.2)],
-    readAt: at,
-  }))
-  answer('budget.settings.get', () => ({
-    hash: 'h1',
-    budget: { usd: 5, mode: 'stop' },
-    repositories: { 'recipe-box': { usd: 8, mode: 'warn' }, search: {} },
   }))
 }
 // &process=1: Home's In flight with a `process` worker (Claude Code under
@@ -769,7 +747,7 @@ if (query.get('page') === 'app' && query.get('process') === '1') {
     'Writing .avoozl/result.json',
   ].join('\n')
   const item = (id: string, title: string, sessions: unknown[]) => ({
-    id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', sessions, runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null, budget: null,
+    id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', sessions, runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null,
   })
   answer('delivery.view', () => ({
     revision: 1,
@@ -847,7 +825,7 @@ if (query.get('radar') === '1') {
     rows: [{ repository: 'acme/recipe-box', number: 52, title: 'Index builder', url: 'https://github.com/acme/recipe-box/issues/52', crewId: 'c_022aea7f', crewName: 'Draco', phase: 'implementing', pr: 57, prUrl: 'https://github.com/acme/recipe-box/pull/57', updated: '2026-11-09T09:46:00Z', commentUrl: null, stale: false, noMarker: false }],
   }))
 }
-// ?page=app&flow=1: Flow with one task at 80% of its budget, and Settings ›
+// ?page=app&flow=1: Flow and Settings ›
 // Flow, for the owner-rule screenshots (flow-rules-shots.mjs).
 if (query.get('page') === 'app' && query.get('flow') === '1') {
   const metrics = { tasks: 1, leadTimeMs: 52 * 60000, flowEfficiency: 0.62, firstPassRate: 1, changeFailureRate: 0, integrationsPerDay: null, timeToFixMs: null }
@@ -874,7 +852,6 @@ if (query.get('page') === 'app' && query.get('flow') === '1') {
     phases: [],
     series: { day: [], week: [] },
     usage,
-    budget: { over: [], warning: ['search.3'], stopped: [], paused: [] },
   }))
   answer('flow.proposals', () => ({ proposals: [], dropped: [], prompts: [], notes: [], available: false }))
   answer('flow.settings.get', () => ({
@@ -968,16 +945,6 @@ function Page() {
   )
 }
 
-// Settings pages with sample data (?page=budgets), for the
-// settings screenshots. Only a settings
-// page answers these, so the modal and app scenarios keep their own replies.
-if (query.get('page') === 'budgets') {
-answer('budget.settings.get', () => ({
-  hash: 'h1',
-  budget: { usd: 5, mode: 'stop' },
-  repositories: { avoozl: { usd: 8, mode: 'warn' }, docs: {} },
-}))
-}
 // ?page=release-queue: the Release queue on fake rows, one of each state.
 if (query.get('page') === 'release-queue') {
   const rows = [
@@ -1446,7 +1413,7 @@ if (page === 'panel') {
       : [],
     crews: full ? [panelClaim(52, 'abc', 'Draco', 'CI', 57), panelClaim(58, 'def', 'Orla', 'working', 59)] : [],
     remote: full ? [{ host: 'box', crewId: 'r1', taskId: 'S5', state: 'running', chatKey: 'k', status: 'working', updatedAt: new Date().toISOString(), attachUrl: 'https://box.test/chat?sid=k', stale: false, lastOkAt: null }] : [],
-    queue: full ? [panelRow('S9', 'next', 'Waits on #52, then it is next.'), panelRow('S10', 'held', 'Held by the budget.')] : [],
+    queue: full ? [panelRow('S9', 'next', 'Waits on #52, then it is next.'), panelRow('S10', 'held', 'Held by the line.')] : [],
     tasks: full ? [{ taskId: 'S4', title: 'Tokenizer', repository: 'acme/recipe-box', finishedAt: new Date(Date.now() - 3600000).toISOString() }] : [],
     line: [],
     specs: [{ name: 'search-v2', folder: '.kiro/specs/search-v2', type: 'feature', hash: 'h', files: ['requirements.md', 'design.md', 'tasks.md'], counts: { error: 0, warning: 1 }, taskCount: 12, critique: null, plan: { id: 'search-v2', state: 'draft', hash: 'h', revision: 1, changed: false, approved: false } }],
