@@ -1531,7 +1531,7 @@ Requirements 86, 87 (design §4.26, §4.32). Direct landing is implemented
 before P50 exercises it; P51 is a separate owner-run private pilot after
 the scratch safety proof, with owner minutes, credits and wall-clock per task.
 
-- [ ] 41.1 Schedule spec drivers with repository-wide path holds, after 40.5, 56.4 [R86.2, R86.5, R86.9, R102.4] (§4.32)
+- [x] 41.1 Schedule spec drivers with repository-wide path holds, after 40.5, 56.4 [R86.2, R86.5, R86.9, R102.4] (§4.32)
   - Use unblock ranking, current spec authority and generation, and repository-wide path holds. A verified-on-branch dependency releases only in-spec work based on that working head; cross-spec work waits for accepted outcomes.
 
 - [x] 41.2 Per-base landing queue with brief integration locks, after 40.5, 56.4 [R87.5, R102.15] (§4.32)
@@ -1728,8 +1728,9 @@ recovers, and a backend restart mid-run.
   - Built: `src/app/supervisor.mjs` (state in the machine state folder's `supervisor/supervisor.sqlite`, lock `supervisor.lock`), entry `src/app/supervisor-main.mjs`, wrapper `src/app/supervisor-child.mjs` that writes each exit code; the app backend launches it under Kiro Crew's gateway; tests in `src/app/test/supervisor.test.mjs`.
 - [ ] 47.4 The `process` executor and the Claude Code definition, after 47.2, 47.3 [R93.2, R93.5] (§4.28)
   - Default for the Nupp compiler repository.
-- [ ] 47.5 Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
+- [x] 47.5 Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
   - Refused even with `--as-person`.
+  - Built: the supervisor sets `AVOOZL_CHILD=1` and `AVOOZL_CHILD_SESSION` on each child (`src/app/supervisor.mjs`); `cliRefusal` in `src/app/mcp-policy.mjs` ignores `--as-person` there; tests in `src/app/test/cli-person-only.test.mjs` and `src/app/test/supervisor.test.mjs`.
 - [ ] 47.6 Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats, after 47.4 [R96.1, R96.2, R96.3, R96.4] (§4.28)
   - A missing or bad result file, or `done` with a non-zero exit, takes the retry path.
 
@@ -1937,7 +1938,7 @@ proof or run a real workspace to get past that wait.
   - Accept GitHub starts in plan/deliver. Bounded fixes use a compact versioned acceptance definition and the existing issue journal, without a full spec; coordinated design uses a proportionate spec. Reuse an issue only when home/visibility match.
   - Initial intake makes at most two idempotent writes: ownership label and safe status comment; never name a private spec on a public input. Only same-repository Deliver this uses Fixes; closure is withdrawal. Validate the ownership label excludes independent issue crews in a scratch proof before unattended rollout. The ownership label is crew:avoozl; intake-created issues carry it at create, and the status comment carries no Radar claim marker.
 
-- [ ] 56.9 Idempotent task-issue offboarding export, after 56.5, 56.7, 56.12 [R102.19, R91.2, R103.6] (§4.32)
+- [x] 56.9 Idempotent task-issue offboarding export, after 56.5, 56.7, 56.12 [R102.19, R91.2, R103.6] (§4.32)
   - Preview export-issues SPEC, create only incomplete task issues and blocked-by links, record stable export bindings, then mark Exported and cease dispatch/landing. A retry creates no duplicate issues or links; a partial failure stays held and resumes safely.
   - Make this the sole code path that creates task issues. Preserve visibility rules, person outcomes and journal access after offboarding.
   - Export never sets crew:avoozl (owner decision 2026-11-16), so Issue Radar and people may take exported issues. It is the only crew:avoozl opt-out. A test checks that no export create request carries crew:avoozl.

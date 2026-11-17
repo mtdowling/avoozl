@@ -8,7 +8,7 @@
 // Everything comes from the one graph.view read the page already makes.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useAppApi, useNavigate } from './host.ts'
-import { viewsClient, type Graph, type GraphTask } from './views-api.ts'
+import { viewsClient, withDrafts, type Graph, type GraphTask } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { useNav, useRemembered } from './NavHistory.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
@@ -16,7 +16,9 @@ import { Modal } from './Modal.tsx'
 import { SmallBtn, ViewHeading } from './controls.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
 import { Tooltip } from './Tooltip.tsx'
-import { ArrowLeft, ArrowRight, ExternalLink } from './icons.ts'
+import { ArrowLeft, ArrowRight, ExternalLink, ListFilter } from './icons.ts'
+import { NavSlotFor } from './nav-slot.tsx'
+import { RailBlock, RailRow, RailStyle } from './NavRail.tsx'
 import { usePhone } from './list-detail.ts'
 import GraphView from './GraphView.tsx'
 import { edgePath, layoutGraph, nodeState, STATES, type Drill, type NodeState, type Spacing } from './graph-layout.ts'
@@ -50,6 +52,7 @@ const COLOR: Record<NodeState, string> = {
   'needs-you': 'var(--danger)',
   done: 'var(--muted-strong, var(--muted))',
   deferred: 'var(--muted)',
+  draft: 'var(--muted)',
 }
 const STATE_WORD = Object.fromEntries(STATES.map((s) => [s.id, s.label])) as Record<NodeState, string>
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace'
@@ -90,13 +93,19 @@ export default function GraphPage(props: {
   focus?: string | null
   drill?: Drill | null
   onDrill?: (drill: Drill | null) => void
+  // Opens Specs, where a draft spec is approved.
+  onOpenSpecs?: () => void
 }) {
   const { workspaceId } = props
   const api = useAppApi()
   const client = useMemo(() => viewsClient(api), [api])
   const load = useCallback((id: string) => client.graph(id), [client])
-  const source = useRead(workspaceId, load)
-  const graph = source.value
+  const read = useRead(workspaceId, load)
+  // Draft spec tasks are drawn too unless the nav's toggle turns them off.
+  const [showDrafts, setShowDrafts] = useRemembered('graph-drafts', true)
+  const graph = useMemo(() => (read.value ? withDrafts(read.value, showDrafts) : null), [read.value, showDrafts])
+  const source = useMemo(() => ({ ...read, value: graph }), [read, graph])
+  const draftCount = read.value?.drafts?.total ?? 0
   const nav = useNav()
   const navigate = useNavigate()
   const [trail, setTrail] = useRemembered('graph-trail', EMPTY_TRAIL)
@@ -191,6 +200,20 @@ export default function GraphPage(props: {
 
   return (
     <section aria-labelledby="avoozl-graph-title" className="flex flex-col gap-3" data-graph-page>
+      <NavSlotFor section="dashboard">
+        <div role="group" aria-label="Graph filters" data-nav-filters="avoozl-graph" data-rail>
+          <RailStyle />
+          <RailBlock first id="graph-filters" icon={ListFilter} title="Graph">
+            <RailRow
+              label="Show draft tasks"
+              active={showDrafts}
+              onClick={() => setShowDrafts(!showDrafts)}
+              attrs={{ 'data-rail-drafts': '' }}
+              trail={draftCount > 0 ? <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', opacity: 0.7 }}>{draftCount}</span> : undefined}
+            />
+          </RailBlock>
+        </div>
+      </NavSlotFor>
       <ViewHeading id="avoozl-graph-title" view="graph">
         Graph
       </ViewHeading>
@@ -301,7 +324,15 @@ export default function GraphPage(props: {
           <span className="flex-none tabular-nums">{lists?.ready.length ?? 0} newly unlocked</span>
         </div>
       )}
-      {modal && graph && <ItemModal graph={graph} item={modal} onClose={() => setModal(null)} onTree={(r) => (setModal(null), openTree(r))} />}
+      {modal && graph && (
+        <ItemModal
+          graph={graph}
+          item={modal}
+          onClose={() => setModal(null)}
+          onTree={(r) => (setModal(null), openTree(r))}
+          onOpenSpecs={props.onOpenSpecs ? () => (setModal(null), props.onOpenSpecs!()) : undefined}
+        />
+      )}
     </section>
   )
 }
@@ -519,9 +550,10 @@ function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: T
                 const task = node.task!
                 const isRoot = tree.roots.has(node.id)
                 const faded = tree.ghosts.has(node.id) || node.state === 'done'
+                const draft = node.state === 'draft'
                 const waits = layout.edges.filter((e) => e.to === node.id)
                 return (
-                  <li key={node.id} data-tree-card={node.id} data-root={isRoot || undefined} style={{ opacity: faded ? 0.5 : 1 }}>
+                  <li key={node.id} data-tree-card={node.id} data-root={isRoot || undefined} data-draft={draft || undefined} style={{ opacity: faded ? 0.5 : draft ? 0.65 : 1 }}>
                     <div
                       role="button"
                       tabIndex={node.id === cursor ? 0 : -1}
@@ -531,7 +563,7 @@ function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: T
                       onKeyDown={(e) => onKey(e, node.id)}
                       onFocus={() => setCursor(node.id)}
                       className="avoozl-tree-row flex cursor-pointer flex-col gap-0.5 rounded-[3px] border px-3 py-2"
-                      style={{ background: 'var(--card)', borderColor: isRoot ? 'var(--accent)' : 'var(--border-strong, var(--border))', borderWidth: isRoot ? 2 : 1 }}
+                      style={{ background: 'var(--card)', borderColor: isRoot ? 'var(--accent)' : 'var(--border-strong, var(--border))', borderWidth: isRoot ? 2 : 1, borderStyle: draft ? 'dashed' : 'solid' }}
                     >
                       <span className="flex items-baseline gap-2">
                         <span className="text-[12px] font-bold" style={{ color: faded ? 'var(--muted-strong, var(--muted))' : COLOR[node.state], textDecoration: faded ? 'line-through' : undefined }}>
@@ -612,9 +644,10 @@ function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: T
             const task = node.task!
             const isRoot = tree.roots.has(node.id)
             const faded = tree.ghosts.has(node.id) || node.state === 'done'
+            const draft = node.state === 'draft'
             const color = COLOR[node.state]
             return (
-              <g key={node.id} transform={`translate(${node.x},${node.y})`} opacity={faded ? 0.5 : 1} data-tree-card={node.id} data-root={isRoot || undefined}>
+              <g key={node.id} transform={`translate(${node.x},${node.y})`} opacity={faded ? 0.5 : draft ? 0.65 : 1} data-tree-card={node.id} data-root={isRoot || undefined} data-draft={draft || undefined}>
                 <g
                   role="button"
                   tabIndex={node.id === cursor ? 0 : -1}
@@ -632,6 +665,7 @@ function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: T
                     height={CARD.h}
                     rx={3}
                     strokeWidth={isRoot ? 2 : 1.2}
+                    strokeDasharray={draft ? '5 3' : undefined}
                     style={{ fill: 'var(--card)', stroke: isRoot ? 'var(--accent)' : 'var(--border-strong, var(--border))' }}
                   />
                   <text x={11} y={20} fontSize={13} fontWeight={700} textDecoration={faded ? 'line-through' : undefined} style={{ fill: faded ? 'var(--muted-strong, var(--muted))' : color }}>
@@ -676,7 +710,7 @@ function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: T
 
 /* The item modal: a task or a spec, opened without leaving the Graph. */
 
-function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => void; onTree: (root: TreeRoot) => void }) {
+function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => void; onTree: (root: TreeRoot) => void; onOpenSpecs?: () => void }) {
   const { graph, item } = props
   const drawer = useTaskDrawer()
   const byId = new Map(graph.tasks.map((t) => [t.id, t]))
@@ -687,7 +721,13 @@ function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => void; o
   }
   const task = item.kind === 'task' ? byId.get(item.id) : undefined
   const plan = graph.plans?.find((p) => p.id === (item.kind === 'spec' ? item.id : task?.planId))
-  const title = item.kind === 'task' ? (task?.title ?? item.id) : (plan?.title ?? item.id)
+  // A draft spec's task, or a spec root that is a draft spec.
+  const draftSpec = task?.draft
+    ? (props.graph.drafts?.specs.find((s) => s.name === task.draft!.spec) ?? { name: task.draft.spec, title: task.draft.spec, status: task.draft.status, count: 0 })
+    : item.kind === 'spec'
+      ? (props.graph.drafts?.specs.find((s) => s.name === item.id) ?? null)
+      : null
+  const title = item.kind === 'task' ? (task?.title ?? item.id) : (plan?.title ?? draftSpec?.title ?? item.id)
   const waitsOn = graph.edges.filter((e) => e.blocking && e.to === item.id && byId.has(e.from))
   const blocks = graph.edges.filter((e) => e.blocking && e.from === item.id && byId.has(e.to))
   const members = item.kind === 'spec' ? graph.tasks.filter((t) => (t.planId ?? null) === item.id || (t.spec ?? null) === item.id) : []
@@ -712,7 +752,12 @@ function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => void; o
       attrs={{ 'data-graph-item': `${item.kind}:${item.id}` }}
       footer={
         <div className="flex flex-wrap justify-end gap-2">
-          {task && (
+          {draftSpec && props.onOpenSpecs && (
+            <SmallBtn attrs={{ 'data-open-specs': draftSpec.name }} onClick={props.onOpenSpecs}>
+              Open Specs
+            </SmallBtn>
+          )}
+          {task && !task.draft && (
             <SmallBtn
               onClick={() => {
                 props.onClose()
@@ -729,11 +774,16 @@ function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => void; o
         </div>
       }
     >
+      {draftSpec && (
+        <p className="m-0 mb-2 rounded border border-dashed px-3 py-2 text-sm" style={{ borderColor: 'var(--border-strong, var(--border))' }} data-draft-note>
+          Spec <code>{draftSpec.name}</code> is a draft ({draftSpec.status}). {task ? 'This task' : 'Its tasks'} cannot start until the spec is approved in Specs.
+        </p>
+      )}
       {task ? (
         <dl className="m-0 grid gap-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr', columnGap: 12 }}>
           {row('Task', <code>{task.id}</code>)}
           {row('State', <Chip task={task} />)}
-          {plan && row('Spec', plan.title)}
+          {plan ? row('Spec', plan.title) : task.draft && row('Spec', draftSpec?.title ?? task.draft.spec)}
           {task.phase && row('Phase', task.phase.title)}
           {task.repository && row('Repository', task.repository)}
           {row('Route', task.route)}

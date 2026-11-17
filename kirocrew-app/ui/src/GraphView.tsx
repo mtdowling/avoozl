@@ -57,6 +57,7 @@ const STATE_COLOR: Record<NodeState, string> = {
   'needs-you': 'var(--danger)',
   done: 'var(--ok)',
   deferred: 'var(--muted)',
+  draft: 'var(--muted)',
 }
 const STATE_LABEL = Object.fromEntries(STATES.map((s) => [s.id, s.label])) as Record<NodeState, string>
 
@@ -104,6 +105,9 @@ function Node(props: {
 }) {
   const { node, selected } = props
   const color = STATE_COLOR[node.state]
+  // A task of a spec not approved yet: faded, dashed, marked Draft.
+  const draft = node.state === 'draft'
+  const badge = node.task?.review || draft
   const sub = node.members
     ? `${node.members.done} of ${node.members.total} done`
     : `${node.id} · ${STATE_LABEL[node.state]}`
@@ -129,23 +133,29 @@ function Node(props: {
       onPointerLeave={() => props.onHover(null)}
       onFocus={() => props.onHover(node.id)}
       onBlur={() => props.onHover(null)}
-      opacity={props.dim ? 0.3 : 1}
+      opacity={props.dim ? 0.3 : draft ? 0.6 : 1}
+      data-draft={draft || undefined}
       style={{ cursor: 'pointer', outline: 'none' }}
     >
-      <title>{node.title}</title>
+      <title>{draft ? `${node.title} (draft spec)` : node.title}</title>
       <rect
         width={NODE_WIDTH}
         height={NODE_HEIGHT}
         rx={6}
         strokeWidth={selected ? 2.5 : 1}
-        strokeDasharray={node.members ? '5 3' : undefined}
+        strokeDasharray={node.members || draft ? '5 3' : undefined}
         style={{ fill: 'var(--card)', stroke: selected ? 'var(--accent)' : color }}
       />
       <rect width={5} height={NODE_HEIGHT} rx={3} style={{ fill: color }} />
       <text x={12} y={15} fontSize={11} fontWeight={600} style={{ fill: 'var(--text)' }}>
-        {clip(node.title, node.task?.review ? 19 : props.onOpen && node.task ? 22 : 25)}
+        {clip(node.title, draft ? 17 : badge ? 19 : props.onOpen && node.task ? 22 : 25)}
       </text>
-      {node.task?.review && (
+      {draft && node.task && (
+        <text x={NODE_WIDTH - (props.onOpen ? 22 : 6)} y={14} textAnchor="end" fontSize={9} fontWeight={600} data-draft-badge style={{ fill: 'var(--muted)' }}>
+          Draft
+        </text>
+      )}
+      {node.task?.review && !draft && (
         <text x={NODE_WIDTH - (props.onOpen ? 22 : 6)} y={14} textAnchor="end" fontSize={9} data-review-badge style={{ fill: 'var(--muted)' }}>
           review
         </text>
