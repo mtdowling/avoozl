@@ -158,7 +158,14 @@ export function listActivity(
   store,
   { source, kind, actor, limit = ACTIVITY_PAGE, offset = 0 } = {},
 ) {
-  const empty = { items: [], total: 0, sources: [], kinds: [], actors: [] };
+  const empty = {
+    items: [],
+    total: 0,
+    sources: [],
+    kinds: [],
+    actors: [],
+    counts: { source: {}, kind: {}, actor: {} },
+  };
   try {
     store.db.prepare("SELECT 1 FROM activity_log LIMIT 1").get();
   } catch {
@@ -184,7 +191,18 @@ export function listActivity(
           `SELECT DISTINCT ${column} AS v FROM activity_log WHERE ${column} IS NOT NULL ORDER BY v`,
         )
         .all()
-        .map((r) => r.v);
+        .map((r) => r.v),
+    // How many rows hold each value, over the whole log, for the nav's
+    // counts beside each choice.
+    counts = (column) =>
+      Object.fromEntries(
+        store.db
+          .prepare(
+            `SELECT ${column} AS v, count(*) AS n FROM activity_log WHERE ${column} IS NOT NULL GROUP BY ${column}`,
+          )
+          .all()
+          .map((r) => [r.v, r.n]),
+      );
   return {
     items: store.db
       .prepare(
@@ -198,6 +216,11 @@ export function listActivity(
     sources: distinct("source"),
     kinds: distinct("kind"),
     actors: distinct("actor"),
+    counts: {
+      source: counts("source"),
+      kind: counts("kind"),
+      actor: counts("actor"),
+    },
   };
 }
 

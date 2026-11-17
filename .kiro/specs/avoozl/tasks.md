@@ -1476,7 +1476,7 @@ Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
 
 - [x] 39.1 Hook command: scan a crew's writes before they run [R85.3, R85.4] (§6.14)
   - `avoozl content hook`, `src/app/public-crews.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
-- [ ] 39.2 Audit on the tick: delete a hit, pull the cord, alert, after 39.1 [R85.6, R85.7] (§6.14)
+- [x] 39.2 Audit on the tick: delete a hit, pull the cord, alert, after 39.1 [R85.6, R85.7] (§6.14)
   - `publicCrewAudit`, cursor per repository, fake GitHub; a comment is deleted, a pull request closed, one notice and one Needs you item.
 - [ ] 39.3 Public crew checklist, sign-off and handoff gate, after 39.1 and 39.2 [R85.1, R85.2, R85.8, R85.10] (§6.14)
   - `publiccrews.signoff`, the Public crews card, the `untriaged.handoff` check; person-only; lapse on a changed hash.
@@ -1513,8 +1513,9 @@ foundation tasks without that dependency may proceed while the live proof waits.
   - First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise.
 - [x] 40.5 Verify: warm checks off the tick, per-check timeouts, declared and protected paths, after 40.1 [R86.6, R86.7] (§4.26)
   - Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you.
-- [ ] 40.6 One automatic resume for a vanished chat, after 40.2 [R88.4] (§4.26)
+- [x] 40.6 One automatic resume for a vanished chat, after 40.2 [R88.4] (§4.26)
   - Only Kiro Crew's "gone" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you.
+  - Built: `reconcileDeliveries` in `src/app/delivery.mjs` ends the first gone attempt since the last person retry as `vanished` (outside the retry count) and marks its binding lost, so the next tick opens attempt 2 in the same worktree with the last report quoted; a second vanish, or a gone batch, opens the decision. Test: `src/app/test/stock-kirocrew.test.mjs`.
 - [x] 40.7 Lanes: 3 on this Mac by default, after avoozl-p56 [R88.5] (§4.26)
   - `lanes.local` default 3; a fourth ready task waits.
 
@@ -1577,7 +1578,7 @@ required check; 42.4 is an independent owner settings review, not its gate.
 - [ ] 42.4 Review Avoozl repository settings against owner policy, after 42.3 [R87.8] (§4.26)
   - Owner-only: preview and report the current landing/check policy. Preserve the owner's disabled required-CI gate; do not restore three required checks automatically. Apply a real settings change only if explicitly authorized.
 
-- [ ] 42.5 Take over writes the spec journal's generation, after 56.4 [R102.13, R102.14] (§4.32)
+- [x] 42.5 Take over writes the spec journal's generation, after 56.4 [R102.13, R102.14] (§4.32)
   - `avoozl spec publish SPEC` and `avoozl spec takeover SPEC` (operation `spec.takeover`, person-only). Take over on a published spec (local or GitHub journal) appends the next generation with `takeOver` (driver-generations.mjs) and keeps the driver id with `rememberDriver`. Person-only; a held or concurrent journal refuses. Landing reads this driver; no take over means nothing lands.
 - [ ] 42.6 The tick lands `pr` portions through the landing queue, after 42.1, 42.3, 42.5, 41.4 [R87.3, R87.4, R87.5, R87.6, R89.3] (§4.26)
   - A verified task in a repository with landing `pr` is pushed to its task branch (`pushHead`, never forced) and queued as one portion. Each tick runs `landNext` with `pullSteps` per base, with intents in the spec's journal. Landed marks the task integrated at the merge commit; failed checks send the task back to its chat; a conflict uses `sendConflictBack`. `direct` and `off` keep today's path. Fake GitHub and git test; no live write.
@@ -1733,8 +1734,9 @@ recovers, and a backend restart mid-run.
 - [x] 47.3 `avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend, after 47.1 [R95.1, R95.2, R95.3, R95.4] (§4.28)
   - Finds its children again after a restart; a missing one is `gone`.
   - Built: `src/app/supervisor.mjs` (state in the machine state folder's `supervisor/supervisor.sqlite`, lock `supervisor.lock`), entry `src/app/supervisor-main.mjs`, wrapper `src/app/supervisor-child.mjs` that writes each exit code; the app backend launches it under Kiro Crew's gateway; tests in `src/app/test/supervisor.test.mjs`.
-- [ ] 47.4 The `process` executor and the Claude Code definition, after 47.2, 47.3 [R93.2, R93.5] (§4.28)
+- [x] 47.4 The `process` executor and the Claude Code definition, after 47.2, 47.3 [R93.2, R93.5] (§4.28)
   - Default for the Nupp compiler repository.
+  - Built: `src/app/executors/process.mjs` (start, send by resume, status, stop over the supervisor; `drainProcessRequests` takes `process` requests in the app backend, prepares a worker's task worktree and binds the session); a project opts in with `executor: "process"`, `harness` and `sandbox` in its settings, which is how the Nupp compiler repository makes it its default; the definition at `examples/harnesses/claude-code.json` (stdin prompt, `--session-id`/`--resume`, `acceptEdits`/`plan`, `--allowedTools Bash(...)`), copied to the machine config and approved by hash; tests in `src/app/test/process-executor.test.mjs`.
 - [x] 47.5 Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
   - Refused even with `--as-person`.
   - Built: the supervisor sets `AVOOZL_CHILD=1` and `AVOOZL_CHILD_SESSION` on each child (`src/app/supervisor.mjs`); `cliRefusal` in `src/app/mcp-policy.mjs` ignores `--as-person` there; tests in `src/app/test/cli-person-only.test.mjs` and `src/app/test/supervisor.test.mjs`.
@@ -1950,7 +1952,7 @@ proof or run a real workspace to get past that wait.
   - Make this the sole code path that creates task issues. Preserve visibility rules, person outcomes and journal access after offboarding.
   - Export never sets crew:avoozl (owner decision 2026-11-16), so Issue Radar and people may take exported issues. It is the only crew:avoozl opt-out. A test checks that no export create request carries crew:avoozl.
 
-- [ ] 56.10 Mirror import PRs and forward ancestry, after 42.1, 56.3 [R102.21] (§4.32)
+- [x] 56.10 Mirror import PRs and forward ancestry, after 42.1, 56.3 [R102.21] (§4.32)
   - After private divergence, import upstream into a public-tracking branch and a reviewed mirror PR. Forward recognition excludes upstream/import ancestry, including an import merge whose second parent is on the public-tracking branch.
   - Test divergent mirror updates and a second import; forwarding proposes nothing for imported upstream changes and still screens genuine private changes.
 

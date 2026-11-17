@@ -3,8 +3,8 @@
 // the source's head. Nothing here resets, rebases or force pushes, and nothing
 // writes to the source.
 //
-// shortcut: a divergence pauses this sync only; the other mirror steps keep
-// running against the mirror. Upgrade when RC24.4's full pause is wanted.
+// Once the mirror has private commits, the source comes in through a
+// tracking branch and a reviewed pull request instead (R102.21, §4.32.13).
 // shortcut: `gitCopy` uses the local git and the `gh` credential helper, and
 // has no live test; the step is tested with an injected copy.
 import { execFile } from "node:child_process";
@@ -86,9 +86,23 @@ export function refuseSourceAsExecution(repositories, repository) {
     );
 }
 
-// Fast-forward `mirror`'s branch to `sha`, which only `source` has. A normal
-// push of one explicit refspec: GitHub refuses it unless it is a fast-forward.
-export async function gitCopy({ source, mirror, branch, sha }) {
+// The mirror branch that holds an exact copy of the source's `branch` once
+// the mirror has private commits (R102.21). It only ever fast-forwards, and a
+// reviewed pull request from it into the mirror's own branch is the import.
+export const trackingBranch = (branch) => `avoozl-upstream/${branch}`;
+export const isTrackingBranch = (ref) =>
+  String(ref ?? "").startsWith("avoozl-upstream/");
+
+// Fast-forward `mirror`'s `target` branch (default `branch`) to `sha`, which
+// `source` has on `branch`. A normal push of one explicit refspec: GitHub
+// refuses it unless it is a fast-forward.
+export async function gitCopy({
+  source,
+  mirror,
+  branch,
+  sha,
+  target = branch,
+}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-mirror-")),
     helper = [
       "-c",
@@ -109,11 +123,103 @@ export async function gitCopy({ source, mirror, branch, sha }) {
       "push",
       "-q",
       `https://github.com/${mirror}.git`,
-      `${sha}:refs/heads/${branch}`,
+      `${sha}:refs/heads/${target}`,
     );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+}
+
+// After the mirror has private commits (R102.21): fast-forward the tracking
+// branch to the source head, then, unless the mirror branch already holds
+// that head, keep one open pull request from the tracking branch for a person
+// to review and merge. Nothing here merges, resets or force pushes.
+async function importUpstream({
+  github,
+  copy,
+  mirror,
+  notify,
+  stop,
+  sourceBranch,
+  mirrorBranch,
+  sourceHead,
+  mirrorHead,
+}) {
+  const tracking = trackingBranch(mirrorBranch),
+    trackingHead = (
+      await github.branch(mirror.mirror, tracking).catch((error) => {
+        if (error.status === 404) return null;
+        throw error;
+      })
+    )?.commit?.sha;
+  if (trackingHead !== sourceHead) {
+    let status = trackingHead ? null : "ahead";
+    if (trackingHead)
+      try {
+        status = (
+          await github.compareCommits(mirror.source, trackingHead, sourceHead)
+        )?.status;
+      } catch (error) {
+        if (error.status !== 404 && error.status !== 422) throw error;
+      }
+    if (status !== "ahead") {
+      if (
+        stop("diverged", `diverged:${sourceHead}:${trackingHead}`, {
+          sourceHead,
+          mirrorHead: trackingHead,
+          branch: tracking,
+        })
+      )
+        notify.push({
+          channel: "decision",
+          title: `${mirror.mirror} ${tracking} has diverged from ${mirror.source}`,
+          text: `The ${tracking} branch of ${mirror.mirror} (${short(trackingHead)}) has commits ${mirror.source} (${short(sourceHead)}) does not. It must only copy ${mirror.source}. Avoozl changed nothing and stopped importing.`,
+        });
+      return;
+    }
+    await copy({
+      source: mirror.source,
+      mirror: mirror.mirror,
+      branch: sourceBranch,
+      target: tracking,
+      sha: sourceHead,
+    });
+  }
+  // The mirror branch already holds the source head: an import merged.
+  const held = (
+    await github.compareCommits(mirror.mirror, mirrorHead, sourceHead)
+  )?.status;
+  if (held === "behind" || held === "identical") {
+    stop("imported", "imported", { sourceHead, mirrorHead });
+    return;
+  }
+  const { owner } = parseRepository(mirror.mirror),
+    open = await github.listPullRequests(mirror.mirror, {
+      state: "open",
+      head: `${owner}:${tracking}`,
+      base: mirrorBranch,
+    });
+  let pull = open.find((p) => p.head?.ref === tracking);
+  if (!pull)
+    pull = await github.createPullRequest(mirror.mirror, {
+      title: `Import ${mirror.source} ${sourceBranch} into ${mirrorBranch}`,
+      head: tracking,
+      base: mirrorBranch,
+      body: `Avoozl copied ${mirror.source} ${sourceBranch} (${short(sourceHead)}) to ${tracking}. Review and merge this pull request to bring it into ${mirrorBranch}. Use a merge commit so the next import starts from here. Forwarding never sends these commits back to ${mirror.source}.`,
+    });
+  if (
+    stop("import", `import:${pull.number}`, {
+      sourceHead,
+      mirrorHead,
+      pr: pull.number,
+      mirror: mirror.mirror,
+    })
+  )
+    notify.push({
+      channel: "decision",
+      title: `Review the import of ${mirror.source} into ${mirror.mirror}`,
+      text: `${mirror.mirror} has private commits, so ${mirror.source} (${short(sourceHead)}) comes in by pull request #${pull.number}. Review and merge it.`,
+    });
 }
 
 // The tick step. Returns {notify, errors}. State is one entry per source
@@ -166,6 +272,15 @@ export async function mirrorSyncStep(
           next.entries[key] = { state: "ok" };
           return;
         }
+        // Nothing moved since the last import check: no more calls.
+        if (
+          ["imported", "import"].includes(before?.state) &&
+          before.sourceHead === sourceHead &&
+          before.mirrorHead === mirrorHead
+        ) {
+          next.entries[key] = before;
+          return;
+        }
         // The mirror head is an ancestor of the source head, or it is not
         // (GitHub answers 404 when the source has no such commit).
         let status = mirrorHead ? null : "ahead";
@@ -178,18 +293,17 @@ export async function mirrorSyncStep(
             if (error.status !== 404 && error.status !== 422) throw error;
           }
         if (status !== "ahead") {
-          if (
-            stop("diverged", `diverged:${sourceHead}:${mirrorHead}`, {
-              sourceHead,
-              mirrorHead,
-              branch: mirrorBranch,
-            })
-          )
-            notify.push({
-              channel: "decision",
-              title: `${mirror.mirror} has diverged from ${mirror.source}`,
-              text: `The ${mirrorBranch} branch of ${mirror.mirror} (${short(mirrorHead)}) has commits ${mirror.source} (${short(sourceHead)}) does not. Avoozl changed nothing and stopped syncing it.`,
-            });
+          await importUpstream({
+            github,
+            copy,
+            mirror,
+            notify,
+            stop,
+            sourceBranch,
+            mirrorBranch,
+            sourceHead,
+            mirrorHead,
+          });
           return;
         }
         await copy({
@@ -247,9 +361,23 @@ export function mirrorNeedsYou(store) {
   for (const [key, entry] of Object.entries(
     store.getMeta(META)?.entries ?? {},
   )) {
-    if (entry.state === "ok") continue;
+    if (entry.state === "ok" || entry.state === "imported") continue;
     const repository = entry.repository ?? key,
-      where = entry.branch ? ` (public branch ${entry.branch})` : "";
+      where = entry.branch ? ` (branch ${entry.branch})` : "";
+    if (entry.state === "import") {
+      items.push({
+        kind: "needs-human",
+        reason: "crew",
+        id: `mirror-sync:${key}`,
+        taskId: null,
+        authority: "github",
+        link: `https://github.com/${entry.mirror}/pull/${entry.pr}`,
+        title: `Review the import of ${repository}${where} into its mirror`,
+        detail: `The mirror has private commits, so ${repository} (${short(entry.sourceHead)}) comes in by pull request #${entry.pr}. Review and merge it; the row clears when the mirror holds that head.`,
+        openedAt: entry.openedAt,
+      });
+      continue;
+    }
     items.push({
       kind: "needs-human",
       reason: "crew",
@@ -263,7 +391,7 @@ export function mirrorNeedsYou(store) {
           : `The mirror of ${repository}${where} could not be synced`,
       detail:
         entry.state === "diverged"
-          ? `The mirror's default branch (${short(entry.mirrorHead)}) and ${repository} (${short(entry.sourceHead)}) have different history. Avoozl does not reset, rebase or force push. Fix the mirror yourself; the row clears when the mirror is behind the source again.`
+          ? `The mirror branch (${short(entry.mirrorHead)}) and ${repository} (${short(entry.sourceHead)}) have different history. Avoozl does not reset, rebase or force push. That branch must only copy ${repository}. Fix it yourself; the row clears when it is behind ${repository} again.`
           : `${entry.error} Avoozl tries again on the next tick and the row clears when it works.`,
       openedAt: entry.openedAt,
     });
