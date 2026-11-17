@@ -260,6 +260,7 @@ export function bindSession(
         consumer,
       });
     store.put("session_bindings", binding);
+    store.ensureReportSecret();
     // A batch (§4.11): one record per batch, for the Flow tab and the views.
     if (binding.batch)
       store.put("flow_batches", {

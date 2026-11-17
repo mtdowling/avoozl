@@ -1502,8 +1502,10 @@ foundation tasks without that dependency may proceed while the live proof waits.
 - [x] 40.1 Worker brief edits and reports only, after avoozl-p56 [R86.3, R96] (§4.26)
   - The brief drops push, PR, auto-merge, merge and comment steps. Avoozl commits sandboxed process results; chats/people may commit locally. Read HEAD from the worktree, never from a report. A prompt test enforces this boundary.
 
-- [ ] 40.2 Report by CLI, matched by worktree and token, after avoozl-p56 [R88.2, R88.3, R96.4] (§4.26)
+- [x] 40.2 Report by CLI, matched by worktree and token, after avoozl-p56 [R88.2, R88.3, R96.4] (§4.26)
   - Use `avoozl runner report TASK done|blocked` for chats and people. Carry the worktree path and token in the brief; local chats use project: false. Test wrong tokens/worktrees and reporting without MCP sharing.
+  - Built: `src/app/report-match.mjs` (token is an HMAC of task and attempt; worktree match resolves symlinks), the worktree path and `avoozl runner report TASK done|blocked --token T` in the local worker brief (`localSteps`), and the CLI branch in `src/app/cli.mjs` (`--token` or `AVOOZL_REPORT_TOKEN`; the old `--state` forms still run). Tests: `src/app/test/report-match.test.mjs`, `report-cli.test.mjs`; 52.1 tests unchanged. The brief carries the CLI report for a tick-opened local worker; a Crew Mode relay brief is unchanged.
+
 
 - [x] 40.3 Trust mode set at open and again every tick, after avoozl-p56 [R88.1] (§4.26)
   - A fake Kiro Crew that drops trust on restart; the next tick sets it again, once per chat.
