@@ -206,8 +206,10 @@ export const RESULT_FILE = path.join(".avoozl", "result.json");
 const RESULT_BYTES = 8192;
 
 // Read a finished run's result file (R96.1, R96.4): a regular file of at
-// most 8 KB holding {"state": "done" | "blocked", "text": "..."}. Returns
-// { state, text } or { problem }. The text is data, never an instruction.
+// most 8 KB holding {"state": "done" | "blocked", "text": "..."}, and for a
+// role that reports more than that (a verdict, a retro's reply) a `report`
+// object. Returns { state, text, report? } or { problem }. Both are data,
+// never an instruction.
 export function readChildResult(worktree) {
   const file = path.join(worktree, RESULT_FILE);
   let stat;
@@ -230,15 +232,25 @@ export function readChildResult(worktree) {
     !value ||
     typeof value !== "object" ||
     Array.isArray(value) ||
-    Object.keys(value).some((key) => !["state", "text"].includes(key)) ||
+    Object.keys(value).some(
+      (key) => !["state", "text", "report"].includes(key),
+    ) ||
     !["done", "blocked"].includes(value.state) ||
-    (value.text !== undefined && typeof value.text !== "string")
+    (value.text !== undefined && typeof value.text !== "string") ||
+    (value.report !== undefined &&
+      (!value.report ||
+        typeof value.report !== "object" ||
+        Array.isArray(value.report)))
   )
     return {
       problem:
-        'The result file must be {"state": "done" | "blocked", "text": "..."}.',
+        'The result file must be {"state": "done" | "blocked", "text": "...", "report"?: {...}}.',
     };
-  return { state: value.state, text: value.text ?? "" };
+  return {
+    state: value.state,
+    text: value.text ?? "",
+    ...(value.report ? { report: value.report } : {}),
+  };
 }
 
 // The finished run's outcome (R96.3, R96.4), or null while it runs. `done`
@@ -259,6 +271,7 @@ export function childResult(db, sessionId) {
     worktree: row.worktree,
     state,
     text: state ? read.text : null,
+    ...(state && read.report ? { report: read.report } : {}),
     problem: state
       ? null
       : read.state === "done"
@@ -606,6 +619,10 @@ export function startSupervisor({
         ...(settings.allowCommands?.length
           ? harnessAllow(definition, settings.allowCommands)
           : []),
+        // A read-only session may still write its result file (R96.1).
+        ...(row.permission_class === "read" && definition.resultAllow
+          ? fillHarnessArgv(definition.resultAllow, filled)
+          : []),
       ];
       const promptFile = message ? messageFile : briefFile;
       const stdin =
@@ -620,7 +637,7 @@ export function startSupervisor({
         gitCommonDir: gitCommonDir(row.worktree),
         configDirectory,
       });
-      if (row.permission_class === "write" && values.tmp)
+      if (values.tmp)
         fs.mkdirSync(values.tmp, { recursive: true, mode: 0o700 });
       const confined = confineChild(argv, {
         definition,
