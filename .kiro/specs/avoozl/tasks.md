@@ -1740,8 +1740,9 @@ recovers, and a backend restart mid-run.
 - [x] 47.5 Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
   - Refused even with `--as-person`.
   - Built: the supervisor sets `AVOOZL_CHILD=1` and `AVOOZL_CHILD_SESSION` on each child (`src/app/supervisor.mjs`); `cliRefusal` in `src/app/mcp-policy.mjs` ignores `--as-person` there; tests in `src/app/test/cli-person-only.test.mjs` and `src/app/test/supervisor.test.mjs`.
-- [ ] 47.6 Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats, after 47.4 [R96.1, R96.2, R96.3, R96.4] (§4.28)
+- [x] 47.6 Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats, after 47.4 [R96.1, R96.2, R96.3, R96.4] (§4.28)
   - A missing or bad result file, or `done` with a non-zero exit, takes the retry path.
+  - Built: the supervisor clears `.avoozl/result.json` before each run and reads it at exit (`readChildResult`, `childResult` in `src/app/supervisor.mjs`: a regular file of at most 8 KB); `drainProcessRequests` records a good result as the session's report through `session.report` (`finishProcessSession` in `src/app/executors/process.mjs`, commit read from the worktree's HEAD, text as data); a `process` worker's brief ends with the result file (`processSteps`, `src/app/delivery.mjs`). Chats and people keep `avoozl runner report TASK done|blocked` and the `--state` form (40.2). Tests in `src/app/test/process-executor.test.mjs`.
 
 - [ ] avoozl-p57 P57 Proof: a Claude Code chain runs under the supervisor and survives faults, after 47.1, 47.2, 47.3, 47.4, 47.5, 47.6, 47.7, 47.8, 47.9, 47.10, 47.11 [R93, R94, R95, R96] (§4.28)
   - Setup: a scratch repository with a bare remote, a 3-task chain, the Claude Code definition approved, the `process` executor.
