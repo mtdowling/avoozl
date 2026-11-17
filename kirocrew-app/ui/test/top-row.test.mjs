@@ -284,6 +284,27 @@ test('Keep activity sits with the Activity filters in the nav, under the open Ac
   }
 })
 
+test('Activity rail: a source row and a kind chip filter the rows, and a second click clears the chip', { skip }, async () => {
+  await page.open(harness.url({ page: 'app', activity: '1' }), { width: 1280, height: 900 })
+  const scope = '[data-left-nav]'
+  await page.until(`Boolean([...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')))`)
+  await page.evaluate(`[...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')).click()`)
+  await page.until(`document.querySelectorAll('[data-activity-row]').length === 24 && Boolean(document.querySelector('${scope} [data-rail-chip="settings"]'))`)
+  await page.evaluate(`document.querySelector('${scope} [data-rail-source="github"]').click()`)
+  await page.until(`document.querySelectorAll('[data-activity-row]').length === 6`)
+  const chip = `document.querySelector('${scope} [data-rail-chip="settings"]')`
+  await page.evaluate(`${chip}.click()`)
+  await page.until(`document.querySelectorAll('[data-activity-row]').length === 2`)
+  assert.equal(await page.evaluate(`${chip}.getAttribute('aria-pressed')`), 'true')
+  assert.equal(await page.evaluate(`${chip}.getAttribute('aria-label')`), 'settings, 3', 'the chip names its count')
+  await page.evaluate(`${chip}.click()`)
+  await page.until(`document.querySelectorAll('[data-activity-row]').length === 6`)
+  // Clear in the Source header drops every filter.
+  await page.evaluate(`[...document.querySelectorAll('${scope} [data-rail-section="source"] [data-rail-icon]')].find((b) => b.textContent.includes('Clear')).click()`)
+  await page.until(`document.querySelectorAll('[data-activity-row]').length === 24`)
+  assert.equal(await page.evaluate(`document.querySelector('${scope} [data-rail-source=""]').getAttribute('aria-pressed')`), 'true')
+})
+
 test("Stop the line from the top line opens its dialog, and a tap or click in the dialog keeps it open", { skip }, async () => {
   await page.open(harness.url({ app: '1' }), { width: 1280, height: 800 })
   await openLine(1280)
