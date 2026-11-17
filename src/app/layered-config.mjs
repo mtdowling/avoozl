@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { validateReportSetting } from "./build-report.mjs";
 import { validateModels, validatePlanReview } from "./chat-models.mjs";
 import { validateLanes } from "./lanes.mjs";
+import { conflictRounds } from "./landing-config.mjs";
 
 export const avoozlConfigSchemaPath = fileURLToPath(
   new URL("../avoozl-config.schema.json", import.meta.url),
@@ -366,6 +367,7 @@ export function loadLayeredConfig({
   validateModels(config.models);
   validatePlanReview(config.planReview);
   validateLanes(config.lanes);
+  conflictRounds(config.landing);
   validateReportSetting(config.receipts?.report);
   return {
     config,
