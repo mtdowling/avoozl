@@ -222,9 +222,6 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       onDismiss={close}
       footer={
         <>
-          <Btn type="button" onClick={close}>
-            Cancel
-          </Btn>
           <Btn type="button" data-danger data-stop-confirm onClick={() => void pull()} disabled={busy} style={FILL}>
             <Pause size={ICON} aria-hidden="true" />
             {form.kind === 'agents' ? 'Stop all agents' : 'Stop the line'}

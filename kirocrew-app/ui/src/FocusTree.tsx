@@ -751,7 +751,7 @@ function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => void; o
       onDismiss={close}
       attrs={{ 'data-graph-item': `${item.kind}:${item.id}` }}
       footer={
-        <div className="flex flex-wrap justify-end gap-2">
+        <>
           {draftSpec && props.onOpenSpecs && (
             <SmallBtn attrs={{ 'data-open-specs': draftSpec.name }} onClick={props.onOpenSpecs}>
               Open Specs
@@ -768,10 +768,7 @@ function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => void; o
             </SmallBtn>
           )}
           <SmallBtn onClick={() => props.onTree(item)}>Open tree</SmallBtn>
-          <SmallBtn primary attrs={{ 'data-autofocus': true }} onClick={close}>
-            Close
-          </SmallBtn>
-        </div>
+        </>
       }
     >
       {draftSpec && (
