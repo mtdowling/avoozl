@@ -103,7 +103,7 @@ test("a hand-back crew's commit is fetched over ssh, checked, and integrated; a 
   );
   const brief = dispatch[0].brief;
   assert.match(brief, new RegExp(`Work in ${crewFolder(remoteRoot)}/app-`));
-  assert.match(brief, /Do not push, and write nothing to GitHub/);
+  assert.match(brief, /Do not push, open or edit a pull request, merge/);
   assert.ok(!brief.includes(env.checkout));
   await crew.play((s) => s.alias === "w1");
   assert.ok(
