@@ -231,9 +231,10 @@ export function sendChild(db, sessionId, text) {
 }
 
 // Stop a session (R93 stop): a request not started never starts, queued
-// messages are dropped, and a running child's process group gets SIGTERM;
-// its wrapper then records the exit code. Checks the pid's start time
-// first, so a reused pid is never signaled.
+// messages are dropped, and a running child is asked to end (a stop file
+// its wrapper reads, and SIGTERM to its process group off Windows); its
+// wrapper then records the exit code. The signal checks the pid's start
+// time first, so a reused pid is never signaled.
 export function stopChild(
   db,
   sessionId,
@@ -250,18 +251,20 @@ export function stopChild(
       exit_code: -1,
       error: "Stopped before it started.",
     });
-  else if (
-    row.state === "running" &&
-    sameProcess(row.pid, row.process_started, startTime)
-  )
-    try {
-      process.kill(
-        process.platform === "win32" ? row.pid : -row.pid,
-        "SIGTERM",
-      );
-    } catch {
-      // Already exiting: the wrapper writes the code.
-    }
+  else if (row.state === "running") {
+    // The wrapper polls for this file and ends its program; on Windows it
+    // is the only way, since a signal ends the wrapper before it records.
+    if (row.exit_file) fs.writeFileSync(`${row.exit_file}.stop`, "");
+    if (
+      process.platform !== "win32" &&
+      sameProcess(row.pid, row.process_started, startTime)
+    )
+      try {
+        process.kill(-row.pid, "SIGTERM");
+      } catch {
+        // Already exiting: the wrapper writes the code.
+      }
+  }
   return "stopped";
 }
 
