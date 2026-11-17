@@ -189,7 +189,7 @@ test('who counts is one row on the Triggers tab, with write as the default; no s
 })
 
 test('Settings has one Where tasks live tab, with Set up GitHub inside a GitHub pane', () => {
-  assert.deepEqual(SETTINGS_TAB_KEYS(), ['driver', 'instance', 'workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
+  assert.deepEqual(SETTINGS_TAB_KEYS(), ['instance', 'workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
   assert.match(settings, /\{ key: 'github', label: 'Where tasks live' \}/)
   assert.match(settings, /setup=\{<SetupWizard/)
 })

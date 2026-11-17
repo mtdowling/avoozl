@@ -1531,7 +1531,7 @@ Requirements 86, 87 (design §4.26, §4.32). Direct landing is implemented
 before P50 exercises it; P51 is a separate owner-run private pilot after
 the scratch safety proof, with owner minutes, credits and wall-clock per task.
 
-- [ ] 41.1 Schedule spec drivers with repository-wide path holds, after 40.5, 56.4 [R86.2, R86.5, R86.9, R102.4] (§4.32)
+- [x] 41.1 Schedule spec drivers with repository-wide path holds, after 40.5, 56.4 [R86.2, R86.5, R86.9, R102.4] (§4.32)
   - Use unblock ranking, current spec authority and generation, and repository-wide path holds. A verified-on-branch dependency releases only in-spec work based on that working head; cross-spec work waits for accepted outcomes.
 
 - [x] 41.2 Per-base landing queue with brief integration locks, after 40.5, 56.4 [R87.5, R102.15] (§4.32)
@@ -1543,7 +1543,7 @@ the scratch safety proof, with owner minutes, credits and wall-clock per task.
 - [x] 41.4 Conflicts go back to the same chat, bounded; remove the resolver chat, after 41.3 [R87.6] (§4.26)
   - The conflicted file list in the brief; `landing.conflictRounds` default 2; then Needs you; `avoozl-conflict-fix` removed.
   - Built: `src/app/landing-conflicts.mjs` (`conflictRounds`, `conflictMessage`, `sendConflictBack`), `landing.conflictRounds` in the config schema and `layered-config.mjs`, tests `src/app/test/landing-conflicts.test.mjs`. Not wired into the tick, which does not call `landNext` yet. `avoozl-conflict-fix` and `radar-conflict-fix.mjs` stay until Phase 45 removes the Radar path, because that code still dispatches the agent.
-- [ ] 41.5 Prepare from spec working heads and merge landed bases back, after 41.3 [R87.7, R102.6, R102.15] (§4.32)
+- [x] 41.5 Prepare from spec working heads and merge landed bases back, after 41.3 [R87.7, R102.6, R102.15] (§4.32)
   - Generalize RC16 from epic-only integration; Prepare and qualified-ref resolution agree on the exact spec base. Merge the landed target back with a merge commit; preserve verified but unlanded portions and unfinished task refs.
 
 - [x] 41.6 Restore the Delivery page, Settings › Budgets and the Files and diff view, after 41.3 [R88.7] (§4.26)
@@ -1569,15 +1569,22 @@ required check; 42.4 is an independent owner settings review, not its gate.
 - [x] 42.1 PR portions from target repositories or forks, after 41.3, 56.7 [R87.3, R87.4, R91.2, R102.8, R102.18] (§4.32)
   - Open/reuse the PR from an exact verified source head without an upstream copy. Update only the queue head and writable source. Enforce that PR head's required checks and standing reviews; record actual approvers and merger. Without target merge permission, observe an authorized maintainer's merge. No protected-review trains.
 
-- [ ] 42.2 Setup target and source access in one preview, after 42.1 [R89.1, R89.2, R89.4] (§4.32)
+- [x] 42.2 Setup target and source access in one preview, after 42.1 [R89.1, R89.2, R89.4] (§4.32)
   - Preview registered code/plan roots, target/base, trusted forks and separate push/merge access. Do not create task labels, Project or issue types. Publish issue is a separate spec action; a no-change retry writes nothing.
 
-- [ ] 42.3 Setup: ruleset update without duplicates, merge methods, CI variable, commit status, after 42.2 [R89.3] (§4.26)
+- [x] 42.3 Setup: ruleset update without duplicates, merge methods, CI variable, commit status, after 42.2 [R89.3] (§4.26)
   - First caller of `createCommitStatus`; a fake GitHub test that a ruleset with the rule gets no second one.
 - [ ] 42.4 Review Avoozl repository settings against owner policy, after 42.3 [R87.8] (§4.26)
   - Owner-only: preview and report the current landing/check policy. Preserve the owner's disabled required-CI gate; do not restore three required checks automatically. Apply a real settings change only if explicitly authorized.
 
-- [ ] avoozl-p52 P52 Proof: ten tasks land through pull requests on a repository with a required check, after 42.1, 42.2, 42.3 [R87, R89] (§4.26)
+- [ ] 42.5 Take over writes the spec journal's generation, after 56.4 [R102.13, R102.14] (§4.32)
+  - `avoozl spec publish SPEC` and `avoozl spec takeover SPEC` (operation `spec.takeover`, person-only). Take over on a published spec (local or GitHub journal) appends the next generation with `takeOver` (driver-generations.mjs) and keeps the driver id with `rememberDriver`. Person-only; a held or concurrent journal refuses. Landing reads this driver; no take over means nothing lands.
+- [ ] 42.6 The tick lands `pr` portions through the landing queue, after 42.1, 42.3, 42.5, 41.4 [R87.3, R87.4, R87.5, R87.6, R89.3] (§4.26)
+  - A verified task in a repository with landing `pr` is pushed to its task branch (`pushHead`, never forced) and queued as one portion. Each tick runs `landNext` with `pullSteps` per base, with intents in the spec's journal. Landed marks the task integrated at the merge commit; failed checks send the task back to its chat; a conflict uses `sendConflictBack`. `direct` and `off` keep today's path. Fake GitHub and git test; no live write.
+- [ ] 42.7 `avoozl setup REPO`: one preview, `--yes` applies, after 42.2, 42.3 [R89.1, R89.2, R89.3] (§4.26)
+  - CLI over `previewAccess` and `previewLanding`: prints every change, writes only with `--yes`, and a second run prints "Nothing to change" and writes nothing. Writes the project's landing setting and checks. The old Radar `github setup` stays as it is.
+
+- [ ] avoozl-p52 P52 Proof: ten tasks land through pull requests on a repository with a required check, after 42.1, 42.2, 42.3, 42.5, 42.6, 42.7 [R87, R89] (§4.26)
   - Setup: a scratch GitHub repository set up by `avoozl setup` with one required check.
   - Action: release ten tasks; move the base during one; make one check fail.
   - Expected: ten pull requests merge one at a time after the check passes on each head; the moved base is merged in and checked again; the failed task goes back to its chat; no force push; setup run again changes nothing.
@@ -1728,8 +1735,9 @@ recovers, and a backend restart mid-run.
   - Built: `src/app/supervisor.mjs` (state in the machine state folder's `supervisor/supervisor.sqlite`, lock `supervisor.lock`), entry `src/app/supervisor-main.mjs`, wrapper `src/app/supervisor-child.mjs` that writes each exit code; the app backend launches it under Kiro Crew's gateway; tests in `src/app/test/supervisor.test.mjs`.
 - [ ] 47.4 The `process` executor and the Claude Code definition, after 47.2, 47.3 [R93.2, R93.5] (§4.28)
   - Default for the Nupp compiler repository.
-- [ ] 47.5 Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
+- [x] 47.5 Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
   - Refused even with `--as-person`.
+  - Built: the supervisor sets `AVOOZL_CHILD=1` and `AVOOZL_CHILD_SESSION` on each child (`src/app/supervisor.mjs`); `cliRefusal` in `src/app/mcp-policy.mjs` ignores `--as-person` there; tests in `src/app/test/cli-person-only.test.mjs` and `src/app/test/supervisor.test.mjs`.
 - [ ] 47.6 Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats, after 47.4 [R96.1, R96.2, R96.3, R96.4] (§4.28)
   - A missing or bad result file, or `done` with a non-zero exit, takes the retry path.
 
@@ -1937,7 +1945,7 @@ proof or run a real workspace to get past that wait.
   - Accept GitHub starts in plan/deliver. Bounded fixes use a compact versioned acceptance definition and the existing issue journal, without a full spec; coordinated design uses a proportionate spec. Reuse an issue only when home/visibility match.
   - Initial intake makes at most two idempotent writes: ownership label and safe status comment; never name a private spec on a public input. Only same-repository Deliver this uses Fixes; closure is withdrawal. Validate the ownership label excludes independent issue crews in a scratch proof before unattended rollout. The ownership label is crew:avoozl; intake-created issues carry it at create, and the status comment carries no Radar claim marker.
 
-- [ ] 56.9 Idempotent task-issue offboarding export, after 56.5, 56.7, 56.12 [R102.19, R91.2, R103.6] (§4.32)
+- [x] 56.9 Idempotent task-issue offboarding export, after 56.5, 56.7, 56.12 [R102.19, R91.2, R103.6] (§4.32)
   - Preview export-issues SPEC, create only incomplete task issues and blocked-by links, record stable export bindings, then mark Exported and cease dispatch/landing. A retry creates no duplicate issues or links; a partial failure stays held and resumes safely.
   - Make this the sole code path that creates task issues. Preserve visibility rules, person outcomes and journal access after offboarding.
   - Export never sets crew:avoozl (owner decision 2026-11-16), so Issue Radar and people may take exported issues. It is the only crew:avoozl opt-out. A test checks that no export create request carries crew:avoozl.
@@ -1994,7 +2002,7 @@ approval before merge.
   - `review_threads` plan-review rows gain `anchor {file, lineStart, lineEnd, quote, quoteHash}` and append-only `decisions`; `review_followups` table; severity `info`/`warn`/`blocker` with the read mapping for old values; pure `findingState` and `anchorAt`; `plan.reviewSummary` adds `bySeverity` and `byState`. Tests: severity mapping, anchor survives edits, moved or removed, old rows without a quote, zero GitHub calls.
 - [x] 57.2 Reviewer and planner briefs, severity and quote parsing, after 57.1 [R104.3, R104.7, R104.14, R104.16] (§4.33)
   - The reviewer brief asks for `info`/`warn`/`blocker` and an exact quote; `plan.review.submit` derives lines from the quote, refuses a missing or ambiguous quote, and drops a same-pass repeat of a rejected or resolved finding with a count in the note. The planner answer brief carries accepted, rejected and deferred lists. `planReviewStep` opens one person-triggered planner turn per plan per tick for an accepted, unfixed finding, outside `planReview.rounds`; Review anyway starts one more round at the cap. Fake chats only.
-- [ ] 57.3 Person actions: operation, policy, CLI and MCP read, after 57.1 [R104.5, R104.6, R104.8] (§4.33)
+- [x] 57.3 Person actions: operation, policy, CLI and MCP read, after 57.1 [R104.5, R104.6, R104.8] (§4.33)
   - `plan.review.finding.decide` (accept, reject with reason, defer with a follow-up row, resolve, reopen) recording who, when and revision; added to `PERSON_ONLY`; `plan.review.dispose` maps onto it and becomes person-only; `avoozl plan finding ID ACTION [--note]`; `avoozl plan review SPEC` and `plans_plan_review` show severity, state and anchor. Tests: MCP and agent refusal for both operations; history order; defer makes no task and no GitHub call.
 - [ ] 57.4 Review view with tabs, cards, filters and chat links, after 57.1, 57.3 [R104.9, R104.10, R104.11, R104.15] (§4.33)
   - `plan.review.view`; the spec page's Review mode with requirements, design and tasks tabs; severity borders and labels; card body, history and Accept, Reject, Defer, Resolve and Reopen; severity and state filters with counts in the address; Open review chat and Open planner chat, or Chat closed. Tests on the view data. Owner screenshot approval before merge.

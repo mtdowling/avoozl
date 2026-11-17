@@ -19,7 +19,7 @@ import TaskForm from './TaskForm.tsx'
 import { Authority } from './Authority.tsx'
 import { useMedia } from './use-media.ts'
 import { errorMessage } from './workspace-api.ts'
-import { Fold, IconLabel, SectionHeading, ShowMore, TipBtn, useAskChat, usePages } from './controls.tsx'
+import { IconLabel, SectionBox, SectionHeading, ShowMore, TipBtn, useAskChat, usePages } from './controls.tsx'
 import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
 import { itemRef } from './chat-api.ts'
 import { TimingFold } from './FlowView.tsx'
@@ -31,9 +31,10 @@ import { LAYER } from './layers.ts'
 import { linkHref } from './views-api.ts'
 import { LinksAndNotes, ManualTask } from './TaskNotes.tsx'
 
-// The drawer's sections, as collapsible <details> (the host has no
-// accordion). Summary starts open; the rest open on a click.
+// The drawer's sections, each a bordered, titled box that folds. All start
+// open, so everything shows at once.
 const SECTIONS = [
+  { key: 'review', label: 'Review' },
   { key: 'summary', label: 'Summary' },
   { key: 'description', label: 'Description' },
   { key: 'links', label: 'Edges' },
@@ -227,9 +228,13 @@ function TaskPanel(props: {
   const [editing, setEditing] = useState(false)
   const chat = useAskChat(workspaceId)
   const [busy, setBusy] = useState(false)
-  // The Files fold reads only once it has been opened for this task.
+  // The Files and Budget boxes start closed and read only once opened.
   const [filesOpened, setFilesOpened] = useState(false)
-  useEffect(() => setFilesOpened(false), [id])
+  const [budgetOpened, setBudgetOpened] = useState(false)
+  useEffect(() => {
+    setFilesOpened(false)
+    setBudgetOpened(false)
+  }, [id])
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const load = useCallback(async () => {
     setError(null)
@@ -391,10 +396,9 @@ function TaskPanel(props: {
         />
       )}
       {reviewRuns(delivery).length > 0 && (
-        <section aria-label="Review" className="flex flex-col gap-1">
-          <h4 className="text-sm font-semibold">Review</h4>
+        <SectionBox id="review" title="Review">
           <ReviewRuns item={delivery} />
-        </section>
+        </SectionBox>
       )}
       {editing && (
         <div className="rounded border p-3" style={{ borderColor: 'var(--border)' }}>
@@ -411,9 +415,8 @@ function TaskPanel(props: {
           />
         </div>
       )}
-      <div className="flex flex-col" role="region" aria-label="Task sections">
-
-        <Fold id="summary" group="task-drawer" title="Summary" open={detail.conflicts.length === 0}>
+      <div className="flex flex-col gap-3" role="region" aria-label="Task sections">
+        <SectionBox id="summary" title="Summary">
           <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
             <Row label="Epic">{task.epicTitle ?? 'none'}</Row>
             <Row label="Phase">{task.phase?.title ?? 'none'}</Row>
@@ -451,8 +454,8 @@ function TaskPanel(props: {
               </Row>
             ))}
           </dl>
-        </Fold>
-        <Fold id="description" group="task-drawer" title="Description">
+        </SectionBox>
+        <SectionBox id="description" title="Description">
           <div className="flex flex-col gap-3">
             {task.summary ? <Markdown text={task.summary} /> : <p className="text-sm text-muted">No description.</p>}
             <div>
@@ -488,17 +491,17 @@ function TaskPanel(props: {
               </div>
             )}
           </div>
-        </Fold>
-        <Fold id="links" group="task-drawer" title="Edges">
+        </SectionBox>
+        <SectionBox id="links" title="Edges">
           <div className="flex flex-col gap-3">
             <Links title="Waits on" links={detail.waitsOn} open={props.open} />
             <Links title="Blocks" links={detail.blocks} open={props.open} />
           </div>
-        </Fold>
-        <Fold id="notes" group="task-drawer" title="Links and notes">
+        </SectionBox>
+        <SectionBox id="notes" title="Links and notes">
           <LinksAndNotes workspaceId={workspaceId} taskId={task.id} onGitHub={Boolean(task.onGitHub)} refresh={detail.revision} />
-        </Fold>
-        <Fold id="delivery" group="task-drawer" title="Delivery">
+        </SectionBox>
+        <SectionBox id="delivery" title="Delivery">
           {delivery ? (
             <div className="flex flex-col gap-2">
               {delivery.sessions.length > 0 && (
@@ -540,28 +543,29 @@ function TaskPanel(props: {
           ) : (
             <p className="text-sm text-muted">No delivery yet.</p>
           )}
-        </Fold>
-        <Fold id="files" group="task-drawer" title="Files" onToggle={(on) => on && setFilesOpened(true)}>
+        </SectionBox>
+        <SectionBox id="files" title="Files" open={false} onToggle={(on) => on && setFilesOpened(true)}>
           <TaskFiles workspaceId={workspaceId} taskId={task.id} active={filesOpened} />
-        </Fold>
-        <Fold id="timing" group="task-drawer" title="Timing">
+        </SectionBox>
+        <SectionBox id="timing" title="Timing">
           <TimingFold timing={detail.timing ?? null} />
-        </Fold>
-        <Fold id="evidence" group="task-drawer" title="Evidence">
+        </SectionBox>
+        <SectionBox id="evidence" title="Evidence">
           <EvidenceFold workspaceId={workspaceId} taskId={task.id} />
-        </Fold>
-        <Fold
+        </SectionBox>
+        <SectionBox
           id="budget"
-          group="task-drawer"
+          open={false}
+          onToggle={(on) => on && setBudgetOpened(true)}
           title={
             <span className="flex items-center gap-2">
               Budget <SpendChip budget={delivery?.budget} />
             </span>
           }
         >
-          <BudgetFold workspaceId={workspaceId} taskId={task.id} onChange={() => void load()} />
-        </Fold>
-        <Fold id="conflicts" group="task-drawer" title={detail.conflicts.length ? `Conflicts (${detail.conflicts.length})` : 'Conflicts'} open={detail.conflicts.length > 0}>
+          {budgetOpened && <BudgetFold workspaceId={workspaceId} taskId={task.id} onChange={() => void load()} />}
+        </SectionBox>
+        <SectionBox id="conflicts" title={detail.conflicts.length ? `Conflicts (${detail.conflicts.length})` : 'Conflicts'}>
           {detail.conflicts.length ? (
             <ul className="flex flex-col gap-3">
               {detail.conflicts.map((item, i) => (
@@ -592,8 +596,8 @@ function TaskPanel(props: {
           ) : (
             <p className="text-sm text-muted">No conflicts or decisions on this task.</p>
           )}
-        </Fold>
-        <Fold id="timeline" group="task-drawer" title="Timeline">
+        </SectionBox>
+        <SectionBox id="timeline" title="Timeline">
           {detail.timeline.length ? (
             <>
             <ol className="flex flex-col gap-1 text-sm">
@@ -611,7 +615,7 @@ function TaskPanel(props: {
           ) : (
             <p className="text-sm text-muted">Nothing recorded yet.</p>
           )}
-        </Fold>
+        </SectionBox>
       </div>
       {delivery && canSupersede(delivery) && (
         <SupersedeForm

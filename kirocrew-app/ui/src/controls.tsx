@@ -16,7 +16,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useAppApi, useChatLauncher } from './host.ts'
-import { Btn } from '@kirocrew/app-sdk/ui'
+import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import { ChevronRight, Info, MessageSquare, VIEW_ICONS, type LucideIcon } from './icons.ts'
 import { chatClient, type ChatSeed, type HelpSeed } from './chat-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
@@ -274,6 +274,42 @@ export function Fold(props: { title: ReactNode; open?: boolean; children: ReactN
       </summary>
       <div className="pb-3">{props.children}</div>
     </details>
+  )
+}
+
+// A bordered, titled box (the host Card, as Settings uses) that folds. The
+// header is a real button with aria-expanded, so Enter and Space work; the
+// box starts open. Boxes are independent: opening one leaves the rest.
+export function SectionBox(props: { id: string; title: ReactNode; open?: boolean; children: ReactNode; onToggle?: (open: boolean) => void }) {
+  const [open, setOpen] = useState(props.open ?? true)
+  const body = `avoozl-box-${props.id}`
+  return (
+    <section data-section-box={props.id} data-open={open ? 'true' : 'false'}>
+    <Card className="flex flex-col gap-2">
+      <h3 className="m-0 text-sm font-semibold">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={body}
+          onClick={() => {
+            setOpen(!open)
+            props.onToggle?.(!open)
+          }}
+          className="flex w-full items-center gap-2 text-left"
+          style={{ background: 'none', border: 0, padding: 0, color: 'inherit', font: 'inherit', cursor: 'pointer' }}
+          data-section-toggle={props.id}
+        >
+          <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms' }}>
+            <ChevronRight size={ICON} />
+          </span>
+          {props.title}
+        </button>
+      </h3>
+      <div id={body} hidden={!open}>
+        {props.children}
+      </div>
+    </Card>
+    </section>
   )
 }
 

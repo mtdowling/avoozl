@@ -73,10 +73,9 @@ for (const size of SIZES) {
     const waiting = await page.evaluate(`document.querySelector('[data-waiting-row="needs-human"]').textContent`)
     assert.match(waiting, /Needs you/)
     assert.match(waiting, /tokenizer A or B/)
-    // The top: Stop the line state, the release queue, recent merges and the driver with its workspace.
+    // The top: Stop the line state, the release queue and recent merges.
     assert.match(await page.evaluate(`document.querySelector('[data-panel-fold="queue"] [data-pp-section-head]').textContent`), /Release queue.*1 next · 1 held/)
     assert.match(await page.evaluate(`document.querySelector('[data-panel-fold="recent"] [data-pp-section-head]').textContent`), /Recent merges.*last 1h/)
-    assert.match(await page.evaluate(`document.querySelector('[data-panel-driver]').textContent`), /Driver: not started/)
     // Refresh is an icon; its name says when it reads again from the shared GitHub cache.
     assert.match(await page.evaluate(`document.querySelector('button[aria-label^="Refresh"]').getAttribute('aria-label')`), /reads again in \d+s$/)
   })
@@ -148,5 +147,5 @@ test('a new section is a few lines: every view is built from the shared parts', 
   assert.doesNotMatch(panel, /<details|<summary|<Badge|<Fold|<Muted/)
   assert.match(panel, /readPanel\(api, id\)/)
   // One read: no per-section client calls for the data the panel shows.
-  assert.doesNotMatch(panel, /views\.(conflicts|radarCrews|remote)\(|flows\.view\(|releases\.queue\(|readDriverSession\(/)
+  assert.doesNotMatch(panel, /views\.(conflicts|radarCrews|remote)\(|flows\.view\(|releases\.queue\(/)
 })

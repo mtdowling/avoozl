@@ -221,7 +221,7 @@ export function laneColumns(width: number, lanes: number, gap = 16): number {
 export function laneForState(state: NodeState | undefined): DrawnLaneId | undefined {
   if (!state) return undefined
   if (state === 'running') return 'in-progress'
-  if (state === 'deferred') return 'waiting'
+  if (state === 'deferred' || state === 'draft') return 'waiting'
   return state
 }
 

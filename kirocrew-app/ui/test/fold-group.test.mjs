@@ -30,11 +30,7 @@ test('Fold uses native <details name>, with the toggle fallback scoped to its ow
   assert.match(controls, /<summary\b/)
 })
 
-test('the drawer folds are one group with one section open at first', () => {
+test('the drawer has no exclusive folds: its sections are open boxes (task-details-sections.test.mjs)', () => {
   const drawer = readFileSync(new URL('../src/TaskDrawer.tsx', import.meta.url), 'utf8')
-  const folds = [...drawer.matchAll(/<Fold id="(\w+)" group="([\w-]+)"/g)]
-  assert.equal(folds.length, 10)
-  assert.deepEqual([...new Set(folds.map((m) => m[2]))], ['task-drawer'])
-  assert.match(drawer, /id="summary"[^>]*open=\{detail\.conflicts\.length === 0\}/)
-  assert.match(drawer, /id="conflicts"[^>]*open=\{detail\.conflicts\.length > 0\}/)
+  assert.doesNotMatch(drawer, /<Fold\b|group="task-drawer"/)
 })

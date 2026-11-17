@@ -1,6 +1,6 @@
 // The models of Avoozl's own chats (Settings › Models): the planner, the
-// driver, the retro, review drafts and plan reviewer. Saved as `models` in
-// .avoozl.json; a role left out, or "auto", runs on its agent's own model, except the plan
+// retro, review drafts and plan reviewer. Saved as `models` in .avoozl.json;
+// a role left out, or "auto", runs on its agent's own model, except the plan
 // reviewer stays unset and skips review. Issue Radar crews pick their own
 // model, and Avoozl moves no running chat to another one.
 import { fail } from "./store.mjs";
@@ -8,7 +8,6 @@ import { fail } from "./store.mjs";
 export const MODEL_ROLES = Object.freeze([
   "planner",
   "planReviewer",
-  "driver",
   "retro",
   "reviewDraft",
 ]);
@@ -21,12 +20,16 @@ export const DISPATCH_ROLE = Object.freeze({
 });
 const MODEL = /^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$/;
 const record = (v) => Boolean(v) && typeof v === "object" && !Array.isArray(v);
+// The removed driver chat's role. Files saved before its removal may still
+// name it; it is accepted and dropped so they keep loading.
+const RETIRED_ROLES = new Set(["driver"]);
 
 // Check a `models` value; throws naming the key.
 export function validateModels(value, where = "models") {
   if (value === undefined) return {};
   if (!record(value)) fail(`${where} must be an object.`);
   for (const [key, model] of Object.entries(value)) {
+    if (RETIRED_ROLES.has(key)) continue;
     if (!MODEL_ROLES.includes(key))
       fail(`${where}.${key} is not a role; use ${MODEL_ROLES.join(", ")}.`);
     if (typeof model !== "string" || !MODEL.test(model))
@@ -38,7 +41,9 @@ export function validateModels(value, where = "models") {
     value.planReviewer === value.planner
   )
     fail(`${where}.planReviewer must differ from the named planner model.`);
-  return structuredClone(value);
+  const checked = structuredClone(value);
+  for (const key of RETIRED_ROLES) delete checked[key];
+  return checked;
 }
 
 // Effective cross-model review settings. Auto without a named reviewer
@@ -74,22 +79,4 @@ export function withChatModels(dispatch, config) {
       model = role ? chatModel(config, role) : null;
     return model && (role === "retro" || !d.model) ? { ...d, model } : d;
   });
-}
-
-// The driver chat opens from the page, and Kiro Crew's chat launcher takes
-// no model, so the saved driver model is set on the chat once it has
-// registered, through the gateway's model call. `applied` (slot -> model)
-// keeps it to once per chat and model in this process; a restart asks once
-// more, which changes nothing. Returns what it asked, or null.
-export async function applyDriverModel({ slot, model, switcher, applied }) {
-  if (!slot || !model || !switcher || applied.get(slot) === model) return null;
-  let answer;
-  try {
-    answer = await switcher(slot, model);
-  } catch (error) {
-    answer = { ok: false, error: error.message };
-  }
-  // A refusal is not asked again until the model changes.
-  applied.set(slot, model);
-  return { slot, model, ok: Boolean(answer?.ok) };
 }

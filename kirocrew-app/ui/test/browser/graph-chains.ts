@@ -73,3 +73,50 @@ export const chainsGraph = {
   })),
   edges: E.map(([from, to, satisfied, kind]) => ({ from, to, kind: kind ?? 'requires', condition: null, blocking: kind !== 'sequence', satisfied })),
 }
+
+// The same graph with one draft spec, Meal plans, whose tasks wait on
+// approved ones (&graph=drafts). M1 waits only on done work, so it would
+// look unlocked if drafts were not kept out of the Frontier's ready list.
+const D: [string, string][] = [
+  ['M1', 'Save a week of meals'],
+  ['M2', 'Shopping list from a plan'],
+  ['M3', 'Charge for meal plans'],
+  ['M4', 'Share a plan with family'],
+]
+const DE: [string, string, string?][] = [
+  ['S1', 'M1'],
+  ['M1', 'M2'],
+  ['S3', 'M2'],
+  ['M2', 'M3'],
+  ['B2', 'M3'],
+  ['M3', 'M4', 'sequence'],
+]
+export const draftsGraph = {
+  ...chainsGraph,
+  drafts: {
+    specs: [{ name: 'meal-plans', title: 'Meal plans', status: 'not stored', count: D.length }],
+    total: D.length,
+    tasks: D.map(([id, title], i) => ({
+      id,
+      title,
+      epic: null,
+      planId: null,
+      spec: 'meal-plans',
+      phase: null,
+      order: T.length + i,
+      kind: 'leaf',
+      authority: 'local',
+      route: 'local',
+      completion: 'integrated',
+      repository: 'example/recipe-box',
+      status: 'draft',
+      complete: false,
+      ready: false,
+      state: 'draft',
+      draft: { spec: 'meal-plans', status: 'not stored' },
+      decision: null,
+      issue: null,
+    })),
+    edges: DE.map(([from, to, kind]) => ({ from, to, kind: kind ?? 'requires', condition: null, blocking: true, satisfied: from === 'S1', draft: true })),
+  },
+}

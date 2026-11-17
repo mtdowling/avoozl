@@ -67,7 +67,8 @@ export interface FrontierItem {
 
 // Newly unlocked: not done, at least one blocker on record, all of them met.
 // Waiting: not done, at least one blocker still open. A task that never had
-// a blocker is in neither list. Both in the graph's own order.
+// a blocker is in neither list, and a draft is never newly unlocked: its
+// spec is not approved. Both in the graph's own order.
 export function frontier(graph: Graph): { ready: FrontierItem[]; waiting: FrontierItem[] } {
   const byId = new Map(graph.tasks.map((t) => [t.id, t]))
   const ready: FrontierItem[] = []
@@ -79,7 +80,8 @@ export function frontier(graph: Graph): { ready: FrontierItem[]; waiting: Fronti
       .map((e) => ({ task: byId.get(e.from)!, met: e.satisfied || done(byId.get(e.from)) }))
     if (!blockers.length) continue
     const waitingOn = blockers.filter((b) => !b.met).map((b) => b.task)
-    ;(waitingOn.length ? waiting : ready).push({ task, blockers, waitingOn })
+    if (waitingOn.length) waiting.push({ task, blockers, waitingOn })
+    else if (nodeState(task) !== 'draft') ready.push({ task, blockers, waitingOn })
   }
   return { ready, waiting }
 }
@@ -232,4 +234,5 @@ export const STATE_CHIP: Record<ReturnType<typeof nodeState>, string> = {
   'needs-you': 'YOU',
   done: 'DONE',
   deferred: 'LATER',
+  draft: 'DRAFT',
 }

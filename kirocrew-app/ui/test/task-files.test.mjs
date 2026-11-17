@@ -138,7 +138,7 @@ test('the editor choice is kept in the page storage, Kiro by default', () => {
 test('the drawer has a Files fold that reads only once opened, with no write', () => {
   const drawer = source('TaskDrawer.tsx')
   assert.match(drawer, /label: 'Files'/)
-  assert.match(drawer, /<Fold id="files" group="task-drawer" title="Files" onToggle=\{\(on\) => on && setFilesOpened\(true\)\}>/)
+  assert.match(drawer, /<SectionBox id="files" title="Files" open=\{false\} onToggle=\{\(on\) => on && setFilesOpened\(true\)\}>/)
   assert.match(drawer, /<TaskFiles workspaceId=\{workspaceId\} taskId=\{task\.id\} active=\{filesOpened\} \/>/)
   const files = source('TaskFiles.tsx')
   assert.match(files, /if \(!props\.active\) return/)
