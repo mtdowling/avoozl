@@ -6,7 +6,11 @@
 import { flowFromEvents } from "./flow-github.mjs";
 import { flowTimes, readIssueFacts } from "./radar-events.mjs";
 import { READY_LABEL_DEFAULT } from "./github-policy.mjs";
-import { receiptReader, buildView } from "./build-receipt-read.mjs";
+import {
+  buildView,
+  observationsFor,
+  receiptReader,
+} from "./build-receipt-read.mjs";
 import { peekInstance } from "./instance.mjs";
 import { projectedMarker } from "./github-sync.mjs";
 
@@ -99,7 +103,7 @@ export function flowView(store) {
   return {
     readAt: cache.readAt,
     ...flowFromEvents(rows),
-    builds: buildView(rows, {
+    builds: buildView([...rows, ...storedBuildRows(store, rows)], {
       instanceName: (id) =>
         id && id === peekInstance(store)?.id ? peekInstance(store).name : null,
     }),
@@ -109,4 +113,31 @@ export function flowView(store) {
     repositories: entries.map(([repository]) => repository),
     interval: FLOW_INTERVAL_MS,
   };
+}
+
+// Every merged pull request with stored build observations (the tick's CI
+// step reads them for any repository with buildReceipts on, §4.31) that no
+// Radar row above already carries. No call.
+function storedBuildRows(store, radarRows) {
+  const seen = new Set(
+      radarRows
+        .filter((row) => row.builds?.length)
+        .map(
+          (row) => `${String(row.repository).toLowerCase()}#${row.pullNumber}`,
+        ),
+    ),
+    heads = store.db
+      .prepare(
+        "SELECT DISTINCT repository, pr_number, head_sha FROM build_observations WHERE pr_number IS NOT NULL",
+      )
+      .all(),
+    out = [];
+  for (const { repository, pr_number: number, head_sha: head } of heads) {
+    if (seen.has(`${repository}#${number}`)) continue;
+    seen.add(`${repository}#${number}`);
+    const builds = observationsFor(store, repository, head, number);
+    if (builds.length)
+      out.push({ repository, pullNumber: number, instance: null, builds });
+  }
+  return out;
 }

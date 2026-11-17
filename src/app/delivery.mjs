@@ -1,4 +1,5 @@
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
+import { projectExecutor } from "./executors/process.mjs";
 import {
   kirocrewSession,
   kirocrewRemoteSession,
@@ -1275,11 +1276,12 @@ function* expandBatches(attempts) {
 }
 
 // Failed attempts since the last time a person chose to retry (retryDelivery).
-// An attempt a budget stop ended costs nothing (R67.9).
+// An attempt a budget stop ended costs nothing (R67.9), nor does the one
+// resume of a vanished chat (R88.4), which has its own bound.
 const failuresSince = (delivery, attempts) =>
   attempts
     .slice(delivery.retryFrom || 0)
-    .filter((a) => a.outcome === "failed" && !a.budget).length;
+    .filter((a) => a.outcome === "failed" && !a.budget && !a.vanished).length;
 
 // plans_retry_delivery: a person resumes a leaf that stopped for a decision.
 // The next attempt resumes on the same worktree with a fresh retry budget.
@@ -1477,11 +1479,50 @@ export function reconcileDeliveries(
         ...(binding.batch ? { batch: binding.batch.id } : {}),
         updatedAt: at,
       };
+    } else if (
+      open &&
+      binding.status === "gone" &&
+      !binding.batch &&
+      !delivery.attempts.slice(delivery.retryFrom || 0).some((a) => a.vanished)
+    ) {
+      // Kiro Crew says the chat is gone and it never reported (R88.4): the
+      // attempt ends once, so the next tick opens one new chat in the same
+      // worktree with the same brief and the last report quoted as data.
+      // Quiet or an expired lease never gets here; only Kiro Crew's answer.
+      // shortcut: a batch keeps the decision below; resume it once batches
+      // carry one vanish count per member.
+      next = {
+        ...delivery,
+        attempts: [
+          ...delivery.attempts,
+          {
+            attempt: binding.attempt,
+            slot: binding.slot,
+            ...(binding.prompts ? { prompts: binding.prompts } : {}),
+            ...(binding.skills ? { skills: binding.skills } : {}),
+            outcome: "failed",
+            vanished: true,
+            cause: `Kiro Crew no longer lists session ${binding.slot}, and it had not reported`,
+            ...(binding.report?.text
+              ? { lastReport: binding.report.text }
+              : {}),
+            at,
+          },
+        ],
+        state: "failed",
+        updatedAt: at,
+      };
+      store.transaction(() =>
+        store.put("session_bindings", {
+          ...binding,
+          status: "lost",
+          statusAt: at,
+        }),
+      );
     } else if (open && binding.status === "gone") {
-      // A stock Kiro Crew no longer holds the session and it never reported.
-      // Avoozl cannot tell finished from lost there, and never replaces a
-      // worker on a guess: a person decides. Retry ends this attempt
-      // (retryDelivery); a session that reads live again resumes below.
+      // A second vanish since the last person retry, or a gone batch: a
+      // person decides. Retry ends this attempt (retryDelivery); a session
+      // that reads live again resumes below.
       if (delivery.state !== "decision")
         next = {
           ...delivery,
@@ -1761,6 +1802,16 @@ export function localSteps(
           ? `3. When the work is committed, run exactly: avoozl runner report ${task.id} done --token ${cliReport.token}\n   If you cannot finish, run: avoozl runner report ${task.id} blocked --token ${cliReport.token} --text "<why>"\n   ${cli}`
           : `3. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
       ];
+}
+
+// The steps of a `process` child (R96.1, R94.4a): it runs in its task
+// worktree, only edits, and finishes with the result file as its last step.
+export function processSteps(task) {
+  return [
+    `1. Work only in the current folder, the worktree of task ${task.id} on branch avoozl/${task.id}.`,
+    "2. Edit and run the checks. Do not commit, push, open or edit a pull request, merge, label, or comment. Avoozl commits your changes after you exit, runs the checks and lands them.",
+    `3. Last, write .avoozl/result.json in this folder, at most 8 KB: {"state": "done", "text": "<what you changed>"} when the work is finished, or {"state": "blocked", "text": "<why>"} when you cannot finish. Then exit. No result file, or done with a failing exit, is retried.`,
+  ];
 }
 
 // Phase markers (§4.11, R43.5): asked for only where Avoozl cannot read the
@@ -2211,6 +2262,13 @@ function composeLeafBrief(
       }),
     });
   const token = issueReportToken(store, { taskId: task.id, attempt });
+  // A supervisor child (R96.1): no database, no commit, no CLI report; its
+  // brief ends with the result file.
+  if (!relay && projectExecutor(project) === "process")
+    return workerBrief(task, project, {
+      ...options,
+      steps: processSteps(task),
+    });
   return workerBrief(task, project, {
     ...options,
     ...(relay
@@ -2395,6 +2453,9 @@ export function planReadyDispatches(store, policy, options = {}) {
         ),
         ...(leaf.batch ? { batch: leaf.batch } : {}),
         ...(investigate ? { investigate: true } : {}),
+        // A project on `process` runs its worker as a supervisor child
+        // (R93.5); other roles move in Phase 49.
+        executor: remote ? "kirocrew" : projectExecutor(leaf.project),
         ...kirocrewSession(leaf.project.id),
         agent,
         ...(model ? { model } : {}),

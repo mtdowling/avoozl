@@ -282,6 +282,9 @@ export async function landNext(
             entry: entries[0],
             candidate,
             baseHead,
+            // The checks that passed at this exact candidate: the intent's
+            // evidence, so the landed outcome completes its tasks.
+            checks: verdict.checks ?? [],
           });
           return { state: pushed ? "landed" : "not-landed" };
         },
