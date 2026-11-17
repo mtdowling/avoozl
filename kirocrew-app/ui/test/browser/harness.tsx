@@ -746,7 +746,8 @@ if (query.get('page') === 'workspaces') {
   answer('workspace.tick.log', () => ({ items: [] }))
 }
 
-if (query.get('page') === 'models') {
+// The app shell answers too, so Settings › Models can be shot in place.
+if (query.get('page') === 'models' || query.get('page') === 'app') {
   let settings = { filename: '.avoozl.json', exists: true, hash: 'models-before', models: { planner: 'fake-writer' } }
   answer('GET /api/models', () => ['fake-writer', 'fake-reviewer'])
   answer('models.settings.get', () => settings)

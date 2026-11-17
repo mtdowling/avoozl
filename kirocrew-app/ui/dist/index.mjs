@@ -29603,10 +29603,6 @@ function kx({ workspaceId: e }) {
 					m?.ok && /* @__PURE__ */ C("span", {
 						className: "text-xs text-muted",
 						children: m.ok
-					}),
-					/* @__PURE__ */ C("code", {
-						className: "text-[11px] text-muted",
-						children: "models"
 					})
 				]
 			})

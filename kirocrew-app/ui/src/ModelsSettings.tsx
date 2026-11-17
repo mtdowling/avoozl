@@ -90,7 +90,6 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
           </span>
         )}
         {message?.ok && <span className="text-xs text-muted">{message.ok}</span>}
-        <code className="text-[11px] text-muted">models</code>
       </div>
     </div>
   )
