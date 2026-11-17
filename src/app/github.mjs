@@ -1653,6 +1653,21 @@ export class GitHubClient {
     return this.request("GET", `/repos/${owner}/${repo}/pulls/${number}`);
   }
 
+  // Merges one pull request only while its head is still `sha`: GitHub
+  // refuses (409) when the head moved, so a landing never takes a commit
+  // nobody checked (R102.13). No admin bypass.
+  mergePullRequest(value, number, { sha, method = "merge" }) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    if (!/^[0-9a-f]{40}$/.test(sha ?? ""))
+      fail("A guarded merge needs the exact head commit.", 400);
+    return this.request(
+      "PUT",
+      `/repos/${owner}/${repo}/pulls/${number}/merge`,
+      { body: { sha, merge_method: method } },
+    );
+  }
+
   // The newest 100 artifacts, or those called `name`, each with the run and
   // commit that made it. One REST read through the HTTP cache, so an
   // unchanged list is a 304 (§4.31, R101.5).
