@@ -583,6 +583,7 @@ import {
 } from "./spec-plans.mjs";
 import { publishSpec } from "./spec-publication.mjs";
 import { takeOverSpec } from "./spec-takeover.mjs";
+import { reanchorSpec, resumeSpec } from "./spec-reanchor.mjs";
 import {
   applyRetirement,
   closeRetiredIssues,
@@ -6648,6 +6649,28 @@ export class Operations {
         },
         input.planId,
       );
+    }
+    // Reanchor a held journal and Resume after it (R102.26, task 56.15):
+    // each a person's own act; reanchor previews unless `apply`.
+    if (name === "spec.journal.reanchor" || name === "spec.journal.resume") {
+      if (context.caller || context.mcp)
+        fail("Only a person reanchors or resumes a spec journal.", 403);
+      const authority = {
+        github: this.github,
+        workspaceRoot: this.workspaceRoot,
+        actor: this.operator,
+      };
+      return name === "spec.journal.reanchor"
+        ? reanchorSpec(store, authority, {
+            planId: input.planId,
+            held: input.held,
+            tail: input.tail,
+            apply: input.apply === true,
+          })
+        : resumeSpec(store, authority, {
+            planId: input.planId,
+            tail: input.tail,
+          });
     }
     // Retire task-issue bindings (R102.20, §4.32.13): preview, hold, apply,
     // one verifying tick, then close. Each step is a person's own act.
