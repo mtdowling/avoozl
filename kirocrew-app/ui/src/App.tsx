@@ -440,6 +440,7 @@ function AvoozlPage() {
         ) : (
           <SettingsView
             workspaceId={active}
+            workspaceName={list?.items.find((w) => w.id === active)?.name}
             tab={settingsTab}
             onTab={(next) => go({ settingsTab: next })}
             // The demo's catalog is the sample alone; it never replaces the

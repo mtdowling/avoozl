@@ -46,12 +46,16 @@ import {
   type RateView,
   defaultCoder,
   modeKey,
+  MIRROR_ROLE,
+  mirrorSourceOf,
+  roleLabel,
   roleOfRow,
   tasksLiveLine,
-  withRole,
+  withRepositoryEdit,
   unusedInLocal,
   visibleSettings,
   SETTINGS_HOME,
+  settingsTitle,
 } from './settings-api.ts'
 import { CoderPicker } from './CoderPicker.tsx'
 import { ReleaseModePicker } from './ReleaseMode.tsx'
@@ -62,16 +66,16 @@ import WorkflowMap, { focusField } from './WorkflowMap.tsx'
 import { type Jump } from './workflow-map.ts'
 import WorkspaceView from './WorkspaceView.tsx'
 import Onboard from './Onboard.tsx'
-import { AddRepository, REPOSITORIES_LINE, RepositoryList, repositoryRows, useReveal, type RepositoryRow } from './RepositoriesSettings.tsx'
+import { AddRepository, REPOSITORIES_LINE, RepositoryList, repositoryRows, useReveal, type AddedRole } from './RepositoriesSettings.tsx'
+import { EditRepository, ViewRepository } from './RepositoryModals.tsx'
+import { githubHref, type RepositoryRow } from './repository-rows.ts'
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
 import ModelsSettings from './ModelsSettings.tsx'
-import MirrorSetup from './MirrorSetup.tsx'
 import { RetiredBanner } from './SettingsSlots.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
-import { BudgetSettings } from './BudgetSettings.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
@@ -109,7 +113,6 @@ export const SETTINGS_TABS = [
   { key: 'models', label: 'Models' },
   // Who merges (delivery.ship) is read for Radar pull requests too.
   { key: 'delivery', label: 'Delivery' },
-  { key: 'budgets', label: 'Budgets' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
@@ -129,8 +132,6 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   models: "The model each of Avoozl's own chats opens on. Issue Radar crews pick their own.",
   delivery:
     'Who merges a finished pull request, and the writer agent and model, investigate-first and pull request feedback for Avoozl worker chats.',
-  budgets:
-    "Each task's spending cap and what happens at it: stop new work, or only warn. Save only writes .avoozl.json.",
 }
 
 const REPOSITORY_TABS = [
@@ -1043,14 +1044,15 @@ function RepositoriesTab(props: {
   review: ReviewSettings | undefined
   workspaceId: string
   dirty: boolean
-  set: (change: Partial<SettingsForm>) => void
+  // Edit one change into .avoozl.json; the reason it failed, or null.
+  onCommit: (edit: (current: SettingsForm) => SettingsForm) => Promise<string | null>
   // The registry change rewrote .avoozl.json; read the form again.
   onRegistryChanged: () => Promise<unknown>
   onOpenPlans?: () => void
   // The file's own mode when the roles disagree (R105.8).
   rolesNote?: string | null
 }) {
-  const { form, choices, set, rolesNote } = props
+  const { form, choices, rolesNote } = props
   const api = useAppApi()
   const workspaces = useMemo(() => workspaceClient(api), [api])
   const reveal = useReveal()
@@ -1060,27 +1062,71 @@ function RepositoriesTab(props: {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const addBox = useRef<HTMLDivElement>(null)
-  // A role is a form edit, saved by the footer like every other setting
-  // (R105.4). The backend refuses a mix of roles with one line, shown there.
-  const changeRole = (target: RepositoryRow, role: string) => set(withRole(form, target, role))
+  const [open, setOpen] = useState<{ kind: 'view' | 'edit'; key: string } | null>(null)
+  const openRow = open ? rows.find((row) => row.key === open.key) : undefined
+  const roleValue = (row: RepositoryRow) => (mirrorSourceOf(form, row.github) ? MIRROR_ROLE : roleOfRow(form, row))
+  const roleText = (row: RepositoryRow) => {
+    const source = mirrorSourceOf(form, row.github)
+    return source ? `Private mirror of ${source}` : roleLabel(roleOfRow(form, row))
+  }
+  // A repository leaves the list: its checkout is unregistered, or, with no
+  // checkout, its GitHub settings leave the file.
   const removeRow = async (target: RepositoryRow) => {
-    if (!target.checkout) {
-      set({ repositories: form.repositories.filter((_, index) => index !== target.policy) })
-      setMessage({ ok: true, text: `${target.name}'s GitHub settings leave .avoozl.json when you save.` })
-      return
-    }
     setBusy(true)
     setMessage(null)
     try {
-      await workspaces.removeRepository(props.workspaceId, target.checkout.id)
-      await Promise.all([reload(), props.onRegistryChanged()])
-      setMessage({ ok: true, text: `Removed ${target.name}. The folder and GitHub were not touched.` })
+      if (target.checkout) {
+        await workspaces.removeRepository(props.workspaceId, target.checkout.id)
+        await Promise.all([reload(), props.onRegistryChanged()])
+        setMessage({ ok: true, text: `Removed ${target.name}. The folder and GitHub were not touched.` })
+      } else {
+        const failure = await props.onCommit((current) => ({ ...current, repositories: current.repositories.filter((entry) => entry.name.trim() !== target.name) }))
+        setMessage(failure ? { ok: false, text: failure } : { ok: true, text: `Removed ${target.name}'s GitHub settings from .avoozl.json.` })
+      }
     } catch (caught) {
       setMessage({ ok: false, text: errorMessage(caught) })
     } finally {
       setBusy(false)
     }
   }
+  const added = async (id: string, role: AddedRole) => {
+    await Promise.all([reload(), props.onRegistryChanged()])
+    if (role.changed && role.github) {
+      const failure = await props.onCommit((current) => withRepositoryEdit(current, { github: role.github, branch: role.branch, policy: -1 }, { entry: null, role: role.role, source: role.source }))
+      if (failure) return setMessage({ ok: false, text: `Added ${id}, but its role was not saved. ${failure}` })
+    }
+    setMessage({ ok: true, text: `Added ${id}.` })
+  }
+  // The repository's own settings, inside its Edit dialog: the editor, or what
+  // a local or settings-less repository has instead.
+  const settingsFor = (row: RepositoryRow, entry: RepositoryForm | null, setEntry: (entry: RepositoryForm) => void) =>
+    !isGitHubMode(form.mode) ? (
+      <LocalRepository row={row} review={props.review} kept={row.policy >= 0} workspaceId={props.workspaceId} />
+    ) : entry || row.policy >= 0 ? (
+      <RepositoryEditor
+        index={row.policy >= 0 ? row.policy : form.repositories.length}
+        repository={entry ?? form.repositories[row.policy]}
+        choices={choices}
+        review={props.review}
+        mode={form.mode}
+        workspaceId={props.workspaceId}
+        planningRepository={form.planningRepository}
+        onChange={setEntry}
+      />
+    ) : row.github ? (
+      <Section title={`${row.name} settings`} blurb={`${row.github} has no GitHub settings in .avoozl.json yet, so it uses the defaults.`}>
+        <IconLabel icon={Plus} tooltip="Add an entry you can change; written when you press Save" onClick={() => setEntry({ ...emptyRepository(row.github!), baseBranch: row.branch })}>
+          Add GitHub settings for {row.github}
+        </IconLabel>
+      </Section>
+    ) : (
+      <Section title={`${row.name} settings`} blurb="A local-only repository: no GitHub remote, so the GitHub tabs do not apply.">
+        <p className="text-sm" data-local-checks>
+          Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from the spec manifest, or this
+          repository&apos;s checks when a task names none.
+        </p>
+      </Section>
+    )
   return (
     <div className="flex flex-col gap-3.5">
       <Card>
@@ -1090,12 +1136,11 @@ function RepositoriesTab(props: {
           ) : (
             <RepositoryList
               rows={rows}
-              roleOf={(row) => roleOfRow(form, row)}
-              onRole={changeRole}
+              roleText={roleText}
               busy={busy}
-              dirty={props.dirty}
+              onView={(row) => setOpen({ kind: 'view', key: row.key })}
+              onEdit={(row) => setOpen({ kind: 'edit', key: row.key })}
               onRemove={(target) => void removeRow(target)}
-              onReveal={(folder) => void reveal(folder).then((text) => setMessage({ ok: true, text }))}
               onAdd={() => addBox.current?.querySelector('input')?.focus()}
             />
           )}
@@ -1119,49 +1164,29 @@ function RepositoriesTab(props: {
           </div>
         </Section>
       </Card>
-      {rows.filter((row) => !row.githubOnly).map((row) => (
-        <section key={row.key} aria-label={`${row.name} settings`} className="flex flex-col gap-3.5" data-repository-editor={row.key}>
-          <h3 className="text-base font-semibold">{row.name}</h3>
-          {!isGitHubMode(form.mode) ? (
-            <LocalRepository row={row} review={props.review} kept={row.policy >= 0} workspaceId={props.workspaceId} />
-          ) : row.policy >= 0 ? (
-            <RepositoryEditor
-              key={row.key}
-              index={row.policy}
-              repository={form.repositories[row.policy]}
-              choices={choices}
-              review={props.review}
-              mode={form.mode}
-              workspaceId={props.workspaceId}
-              planningRepository={form.planningRepository}
-              onChange={(next) => set({ repositories: form.repositories.map((item, index) => (index === row.policy ? next : item)) })}
-            />
-          ) : row.github ? (
-            <Card>
-              <Section title={`${row.name} settings`} blurb={`${row.github} has no GitHub settings in .avoozl.json yet, so it uses the defaults.`}>
-                <IconLabel
-                  icon={Plus}
-                  tooltip="Add an entry you can change; saved when you press Save"
-                  onClick={() => {
-                    set({ repositories: [...form.repositories, { ...emptyRepository(row.github!), baseBranch: row.branch }] })
-                  }}
-                >
-                  Add GitHub settings for {row.github}
-                </IconLabel>
-              </Section>
-            </Card>
-          ) : (
-            <Card>
-              <Section title={`${row.name} settings`} blurb="A local-only repository: no GitHub remote, so the GitHub tabs do not apply.">
-                <p className="text-sm" data-local-checks>
-                  Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from the spec manifest, or this
-                  repository&apos;s checks when a task names none.
-                </p>
-              </Section>
-            </Card>
-          )}
-        </section>
-      ))}
+      {open?.kind === 'view' && openRow && (
+        <ViewRepository
+          row={openRow}
+          roleText={roleText(openRow)}
+          entry={openRow.policy >= 0 ? form.repositories[openRow.policy] : null}
+          githubUrl={githubHref(openRow.github) ?? null}
+          onReveal={(folder) => void reveal(folder).then((text) => setMessage({ ok: true, text }))}
+          onClose={() => setOpen(null)}
+        />
+      )}
+      {open?.kind === 'edit' && openRow && (
+        <EditRepository
+          key={openRow.key}
+          row={openRow}
+          workspaceId={props.workspaceId}
+          role={roleValue(openRow)}
+          source={mirrorSourceOf(form, openRow.github)}
+          settings={(entry, setEntry) => settingsFor(openRow, entry, setEntry)}
+          onSave={(edit) => props.onCommit((current) => withRepositoryEdit(current, openRow, edit))}
+          onApplied={() => void props.onRegistryChanged()}
+          onClose={() => setOpen(null)}
+        />
+      )}
       <Onboard
         workspaceId={props.workspaceId}
         disabled={props.dirty ? 'Save or discard your settings changes first: onboarding writes .avoozl.json.' : null}
@@ -1174,10 +1199,7 @@ function RepositoriesTab(props: {
             workspaceId={props.workspaceId}
             mode={modeKey(form.mode)}
             disabled={props.dirty ? 'Save or discard your settings changes first: adding a repository writes .avoozl.json.' : null}
-            onAdded={(id) => {
-              void Promise.all([reload(), props.onRegistryChanged()])
-              setMessage({ ok: true, text: `Added ${id}.` })
-            }}
+            onAdded={(id, role) => void added(id, role)}
           />
         </div>
       </Card>
@@ -1380,6 +1402,22 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
     }
   }
 
+  // Writes one change to the file as it is now: read again, apply, save. The
+  // Repository setup dialogs use it, so a save never rides on a stale hash.
+  const commit = async (edit: (current: SettingsForm) => SettingsForm): Promise<string | null> => {
+    try {
+      const fresh = await client.get(workspaceId)
+      const next = edit(toForm(fresh.github))
+      const missing = missingRequired(next)
+      if (missing) return `Not saved. ${missing}`
+      await client.save(workspaceId, toPolicy(next), fresh.hash)
+      await reload()
+      return null
+    } catch (caught) {
+      return errorMessage(caught)
+    }
+  }
+
   const choices = settings?.choices
   if (error)
     return (
@@ -1404,7 +1442,7 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
           review={settings.review}
           workspaceId={workspaceId}
           dirty={dirty}
-          set={set}
+          onCommit={commit}
           onRegistryChanged={reload}
           onOpenPlans={props.onOpenPlans}
           rolesNote={settings.rolesNote}
@@ -1458,8 +1496,6 @@ class TabBoundary extends Component<{ label: string; children: ReactNode }, { er
 
 function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onTab: (tab: SettingsTab) => void } & Pick<Parameters<typeof SettingsView>[0], 'onSelectWorkspace' | 'onListChange' | 'onOpenPlans'>) {
   const { tab, workspaceId } = props
-  // Bumped after a mirror setup applies, so the form and raw file reload.
-  const [version, setVersion] = useState(0)
   if (tab === 'workspaces')
     return (
       <div className="flex flex-col gap-3.5">
@@ -1480,13 +1516,9 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   if (tab === 'flow') return <FlowSettings workspaceId={workspaceId} />
   if (tab === 'models') return <ModelsSettings workspaceId={workspaceId} />
   if (tab === 'delivery') return <DeliverySettings workspaceId={workspaceId} />
-  if (tab === 'budgets') return <BudgetSettings workspaceId={workspaceId} />
   return (
     <div className="flex flex-col gap-3.5">
-      {tab === 'repositories' && (
-        <MirrorSetup workspaceId={workspaceId} onApplied={() => setVersion((n) => n + 1)} />
-      )}
-      <PolicyEditor key={version} workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
+      <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
     </div>
   )
 }
@@ -1536,6 +1568,7 @@ export function RateBlock({ rate }: { rate: RateView | undefined }) {
 // that took over (redirectSettings).
 export default function SettingsView(props: {
   workspaceId: string | null
+  workspaceName?: string | null
   tab?: SettingsTab
   onTab?: (tab: SettingsTab) => void
   onSelectWorkspace?: (id: string | null) => void
@@ -1568,8 +1601,8 @@ export default function SettingsView(props: {
       </ViewHeading>
       <RetiredBanner workspaceId={workspaceId} onOpen={() => pick('repositories')} />
       <section data-settings-section={current.key} data-open="true" className="flex flex-col gap-2">
-        <h3 className="text-base font-semibold" data-settings-title>
-          {current.label}
+        <h3 className="text-base font-semibold break-words" data-settings-title>
+          {settingsTitle(current.key, current.label, props.workspaceName)}
         </h3>
         {renderBody(current)}
       </section>
