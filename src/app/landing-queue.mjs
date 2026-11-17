@@ -55,7 +55,17 @@ export function landingQueue(store, { projectId, base }) {
 // failed, conflict) comes back at the end with its new commit.
 export function enqueueLanding(
   store,
-  { projectId, base, key, commit, tasks = [], spec = null, driver = null },
+  {
+    projectId,
+    base,
+    key,
+    commit,
+    tasks = [],
+    spec = null,
+    driver = null,
+    source = null,
+    pr = null,
+  },
   { now = Date.now() } = {},
 ) {
   requireQueue(projectId, base);
@@ -76,6 +86,8 @@ export function enqueueLanding(
       tasks: [...tasks],
       spec,
       driver,
+      ...(source ? { source } : {}),
+      ...(pr ? { pr } : {}),
       seq,
       state: "queued",
       queuedAt: new Date(now).toISOString(),
@@ -137,17 +149,26 @@ const running = new Map();
 // landing.
 //
 // steps:
+//   observe(entry)  (optional)          -> {merged, candidate, ...record} when
+//                                          someone else already landed the
+//                                          head; checked before anything else
 //   readBase()                          -> the base's current commit
 //   prepare(entries, baseHead)          -> {candidate}, or {conflict: [files],
 //                                          key} naming the conflicted portion
-//   check(candidate, entries, baseHead) -> {ok, checks}
+//   check(candidate, entries, baseHead) -> {ok, checks, record?}, or {wait,
+//                                          checks} while checks or reviews
+//                                          are pending; `record` is kept on
+//                                          the landed entries
 //   land({entries, entry, candidate, baseHead}) -> true when the guarded
 //                                          move pushed
+//   afterLand({entries, candidate}) (optional) -> merges the landed base
+//                                          back into each working branch,
+//                                          outside the lock (task 41.5)
 //
 // options.maxTasks (default 1) bounds a train; direct landing passes 4.
 //
 // Returns {state, entry, entries} with state one of: empty, paused,
-// running, conflict, failed, base-moved, busy, not-landed, landed. Only
+// running, conflict, failed, waiting, base-moved, busy, not-landed, landed. Only
 // conflict and failed take a portion out of the queue, and only the one
 // that conflicted or failed alone; landed takes out what landed. Every
 // other state keeps the order.
@@ -165,6 +186,21 @@ export async function landNext(
   const step = (async () => {
     const queue = landingQueue(store, { projectId, base });
     if (!queue.length) return { state: "empty" };
+    const seen = await steps.observe?.(queue[0]);
+    if (seen?.merged) {
+      const { merged, ...record } = seen,
+        entry = finish(store, queue[0], "landed", {
+          observed: true,
+          ...record,
+        });
+      return {
+        state: "landed",
+        observed: true,
+        candidate: seen.candidate,
+        entry,
+        entries: [entry],
+      };
+    }
     const stop = pausedBy(store, queue[0]);
     if (stop) return { state: "paused", entry: queue[0], stop: stop.id };
     let entries = trainOf(store, queue, options);
@@ -199,6 +235,13 @@ export async function landNext(
         fail("Preparing a landing gives an exact candidate commit.", 500);
       verdict = await steps.check(candidate, entries, baseHead);
       if (verdict?.ok) break;
+      if (verdict?.wait)
+        return {
+          state: "waiting",
+          entries,
+          entry: entries[0],
+          checks: verdict.checks ?? [],
+        };
       if (entries.length > 1) {
         entries = entries.slice(0, Math.floor(entries.length / 2));
         continue;
@@ -247,9 +290,24 @@ export async function landNext(
         baseHead,
         candidate,
         checks: verdict.checks ?? [],
+        ...verdict.record,
       }),
     );
-    return { state: "landed", candidate, entry: landed[0], entries: landed };
+    // Outside the lock: bring the new base back into each working branch.
+    // A failure there never undoes the landing.
+    let mergedBack;
+    try {
+      mergedBack = await steps.afterLand?.({ entries: landed, candidate });
+    } catch (error) {
+      mergedBack = { error: error.message };
+    }
+    return {
+      state: "landed",
+      candidate,
+      entry: landed[0],
+      entries: landed,
+      ...(mergedBack ? { mergedBack } : {}),
+    };
   })();
   running.set(key, step);
   try {

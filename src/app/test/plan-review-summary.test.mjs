@@ -206,7 +206,7 @@ for (const batch of [false, true])
     }
   });
 
-test("only a person closes a spec finding, preserving legacy text-plan disposal", async (t) => {
+test("only a person closes a spec finding or a text-plan comment", async (t) => {
   const env = setup(t);
   round(env, "review");
   finding(env, "open", "review");
@@ -260,12 +260,21 @@ test("only a person closes a spec finding, preserving legacy text-plan disposal"
     planId: "legacy-text-plan",
     state: "open",
   });
-  await env.ops.execute(
-    "plan.review.dispose",
-    { id: "legacy", disposition: "resolved" },
-    undefined,
-    { mcp: true },
+  // A text-plan comment is person-only too now (R104.6), and a person
+  // still closes it the old way.
+  await assert.rejects(
+    env.ops.execute(
+      "plan.review.dispose",
+      { id: "legacy", disposition: "resolved" },
+      undefined,
+      { mcp: true },
+    ),
+    /Only a person/,
   );
+  await env.ops.execute("plan.review.dispose", {
+    id: "legacy",
+    disposition: "resolved",
+  });
   assert.equal(env.store.get("review_threads", "legacy").state, "closed");
 });
 

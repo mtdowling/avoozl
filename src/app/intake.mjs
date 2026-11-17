@@ -1412,7 +1412,12 @@ export function intakeTab(view, store, declared) {
       id: `${item.repository}#${item.number}`,
     })),
     ...others,
-  ].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  ].sort(
+    // Issue Radar escalations first (R103.8), then newest.
+    (a, b) =>
+      Number(Boolean(b.escalation)) - Number(Boolean(a.escalation)) ||
+      String(b.createdAt).localeCompare(String(a.createdAt)),
+  );
   return {
     ...view,
     enabled: view.enabled || usable.length > 0,

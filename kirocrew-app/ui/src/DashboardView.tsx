@@ -16,7 +16,6 @@ import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
 import ArmedPulls from './ArmedPulls.tsx'
 import { StartDemoButton } from './Demo.tsx'
-import { DriverCell, useDriverSession } from './DriverSessionBox.tsx'
 import { StatusRow } from './StatusCells.tsx'
 import SetupCard from './SetupCard.tsx'
 import { useInstance } from './InstanceName.tsx'
@@ -318,7 +317,6 @@ export default function DashboardView(props: {
   const flowLoad = useCallback((id: string) => flows.view(id, { window: '10' }), [flows])
   const flow = useRead(workspaceId, flowLoad)
   const summary = value?.summary
-  const driver = useDriverSession(workspaceId)
   const instance = useInstance(workspaceId)
   const facts = useSetupFacts(workspaceId)
   // A stop pulled or resumed anywhere on the page (the top row's Stop the
@@ -352,7 +350,6 @@ export default function DashboardView(props: {
   const openRepositories = () => props.onOpenSettings?.('repositories')
   const cards = setupCards({
     repositories: facts.repositories,
-    driver: driver.read?.state ?? 'unknown',
     plans: summary ? summary.plans.total : 1,
   })
 
@@ -367,15 +364,12 @@ export default function DashboardView(props: {
       {/* Line stopped (R44.9, R48.5): above every other section. */}
       <LineBanner stops={flow.value?.line ?? []} workspaceId={workspaceId} onChanged={() => void flow.reload()} />
       <ArmedPulls workspaceId={workspaceId} stopped={(flow.value?.line ?? []).length > 0} />
-      <StatusRow>
-        <DriverCell workspaceId={workspaceId} />
-      </StatusRow>
       {(error || chat.error) && (
         <p role="alert" className="text-sm text-danger">
           {error ?? chat.error}
         </p>
       )}
-      {cards.filter((card) => card.id !== 'driver').map((card) => (
+      {cards.map((card) => (
         <SetupCard
           key={card.id}
           id={card.id}

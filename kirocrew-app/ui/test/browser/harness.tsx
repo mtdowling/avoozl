@@ -424,7 +424,6 @@ if (query.get('page') === 'home' || query.get('page') === 'demo') {
   // Home reads these too; an unanswered call never settles.
   answer('radar.crews', () => ({ readAt: null, stale: 0, errors: [], unseen: [], rows: [] }))
   answer('radar.releasequeue', () => ({ repositories: [] }))
-  answer('driversession.view', () => ({ state: 'none', slot: null, href: null, openedAt: null, lastSeenAt: null }))
 }
 // ?page=app: Settings reads the GitHub policy. &worker=1 leaves one
 // repository on the retired Avoozl worker, which shows the Settings banner.
@@ -443,7 +442,6 @@ if (query.get('page') === 'app') {
   else if (!replyFor('radar.crews')) answer('radar.crews', () => ({ readAt: null, stale: 0, errors: [], unseen: [], rows: [] }))
   if (!replyFor('radar.releasequeue')) answer('radar.releasequeue', () => ({ repositories: [] }))
   if (!replyFor('remote.view')) answer('remote.view', () => ({ workers: [] }))
-  answer('driversession.view', () => ({ state: 'none', slot: null, href: null, openedAt: null, lastSeenAt: null }))
   answer('github.settings.get', () => ({
     filename: '.avoozl.json',
     exists: true,
@@ -464,6 +462,45 @@ if (query.get('page') === 'app') {
     },
     choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
   }))
+}
+// &escalations=after: one Issue Radar escalation in Intake (listed first,
+// with Plan this and Deliver this) and one in Needs you with the same two
+// buttons. &escalations=before: the same issues as main's backend sends
+// them, with no escalation fields (task 56.14's before/after shots).
+if (query.get('page') === 'app' && query.get('escalations')) {
+  const after = query.get('escalations') === 'after'
+  const link = { url: '/issue-radar', exact: false, tooltip: 'Opens Issue Radar.' }
+  const row = (number: number, title: string, createdAt: string, labels: string[]) => ({
+    kind: 'issue', number, title, url: `https://github.com/acme/recipe-box/issues/${number}`, repository: 'acme/recipe-box', author: 'mira', createdAt, labels, comments: 2,
+    source: 'github', id: `acme/recipe-box#${number}`, links: { github: `https://github.com/acme/recipe-box/issues/${number}`, issueRadar: link, review: null },
+  })
+  const escalation = { ...row(41, 'Add a shopping list export', '2026-11-12T09:00:00Z', ['crew: needs human']), start: { plan: true, deliver: after } }
+  const items = [
+    ...(after ? [{ ...escalation, escalation: { label: 'crew: needs human', scope: 'new-feature', claimed: false, draft: null } }] : []),
+    { ...row(44, 'Recipe photos load slowly on the list', '2026-11-15T09:00:00Z', ['bug']), start: { plan: true, deliver: false } },
+    ...(after ? [] : [escalation]),
+  ]
+  answer('untriaged.view', () => ({
+    enabled: true,
+    mode: 'plans-repo',
+    total: items.length,
+    repositories: [{ repository: 'acme/recipe-box', checkedAt: '2026-11-16T09:00:00Z', error: null, searched: 2, read: 2, truncated: false, count: 2, query: null, filter: null, defaultFilter: '', notify: false }],
+    items,
+    withRadar: [],
+  }))
+  const crewRow = {
+    kind: 'needs-human', reason: 'crew', id: 'radar:acme/recipe-box#38', taskId: null, authority: 'github', since: '2026-11-15T12:00:00Z',
+    issue: { number: 38, url: 'https://github.com/acme/recipe-box/issues/38', repository: 'acme/recipe-box' },
+    link: 'https://github.com/acme/recipe-box/issues/38',
+    title: 'acme/recipe-box #38 needs a person: Should servings round up or down?',
+    detail: after
+      ? 'An Issue Radar crew added "crew: needs human". Plan this or Deliver this takes it into Avoozl and adds crew:avoozl, so crews skip it; the needs-human label stays. Or answer it on GitHub; the crew picks the issue up again when the label comes off.'
+      : 'An Issue Radar crew added "crew: needs human". Answer it on GitHub; the crew picks the issue up again when the label comes off.',
+    ...(after
+      ? { item: { source: 'github', id: 'acme/recipe-box#38' }, escalation: { label: 'crew: needs human', scope: 'needs-decision', claimed: false, draft: null }, start: { plan: true, deliver: true } }
+      : {}),
+  }
+  answer('conflicts.view', () => ({ revision: 1, items: [crewRow] }))
 }
 // ?page=app&radar=1: the Dashboard has one live Issue Radar claim, and a
 // Trace of it. The marker's own `updated=` (09:46) is ahead of GitHub's time
@@ -1035,17 +1072,15 @@ if (intake) answerIntake(query.get('empty') === '1')
 // window.__panel holds what the reads return, so a test can change it and see
 // the panel read again; window.__panelReads counts the reads and
 // window.__panelCalls records writes.
-type PanelData = { driver: unknown; conflicts: unknown[]; crews: unknown[]; remote: unknown[]; queue: unknown[]; tasks: unknown[]; line: unknown[]; specs: unknown[]; fail?: string }
+type PanelData = { conflicts: unknown[]; crews: unknown[]; remote: unknown[]; queue: unknown[]; tasks: unknown[]; line: unknown[]; specs: unknown[]; fail?: string }
 const panelWin = window as unknown as { __panel: PanelData; __panelReads: number; __panelCalls: unknown[] }
 const panelClaim = (number: number, crewId: string, crewName: string, phase: string, pr: number | null) => ({ repository: 'acme/recipe-box', number, title: number === 52 ? 'Index builder' : 'Ranking tests', url: `https://github.test/acme/recipe-box/issues/${number}`, crewId, crewName, phase, pr, prUrl: pr ? `https://github.test/acme/recipe-box/pull/${pr}` : null, updated: new Date(Date.now() - 600000).toISOString(), commentUrl: null, stale: false, noMarker: false, instanceId: 'inst-1', claimedAt: new Date(Date.now() - 1500000).toISOString() })
 const panelRow = (taskId: string, state: string, reason: string) => ({ taskId, title: `Task ${taskId}`, planId: 'search-v2', spec: 'search-v2', phase: 'one', scope: null, label: 'ready', number: null, url: null, manual: false, state, reason, used: 0, capacity: 2 })
-let panelDriver: ((body: { workspaceId?: string }) => unknown) | null = null
 if (page === 'panel') {
   const full = query.get('state') !== 'empty'
   panelWin.__panelReads = 0
   panelWin.__panelCalls = []
   panelWin.__panel = {
-    driver: query.get('driver') === 'running' ? { state: 'running', slot: 'chat-7-1', href: '/chat?sid=chat-7-1', openedAt: new Date(Date.now() - 7200000).toISOString(), lastSeenAt: new Date(Date.now() - 300000).toISOString() } : query.get('driver') === 'idle' ? { state: 'idle', slot: 'chat-7-1', href: '/chat?sid=chat-7-1', openedAt: new Date(Date.now() - 86400000).toISOString(), lastSeenAt: new Date(Date.now() - 7200000).toISOString() } : query.get('driver') === 'unknown' ? null : { state: 'none', slot: null, href: null, openedAt: null, lastSeenAt: null },
     conflicts: full
       ? [
           { kind: 'needs-human', reason: 'crew', taskId: null, title: '#52 asks about the tokenizer', detail: 'Draco: tokenizer A or B? Crew paused with the needs-human label.', link: 'https://github.test/acme/recipe-box/issues/52' },
@@ -1084,7 +1119,7 @@ if (page === 'panel') {
       return null
     }
   }
-  answer('panel.view', (body) => {
+  answer('panel.view', () => {
     panelWin.__panelReads += 1
     const crews = part(() => data().crews as { pr: number | null; repository: string }[])
     return {
@@ -1094,7 +1129,6 @@ if (page === 'panel') {
       remote: part(() => data().remote),
       queue: part(() => ({ repositories: [{ repository: 'acme/recipe-box', ready: 'ready', mode: 'automatic', capacity: 2, scopes: [], steps: [], rows: data().queue }] })),
       flow: part(() => ({ tasks: data().tasks, line: data().line })),
-      driver: part(() => (panelDriver ? panelDriver(body as { workspaceId?: string }) : data().driver)),
       specs: part(() => data().specs),
       instance: { id: 'inst-1', name: 'Kelp' },
       checks: crews && Object.fromEntries(crews.filter((c) => c.pr).map((c, i) => [`${c.repository}#${c.pr}`, i === 0 ? { state: 'passing', total: 3, done: 3, failed: [] } : { state: 'failing', total: 3, done: 3, failed: ['test'] }])),
@@ -1114,24 +1148,6 @@ const realPanel = (window as unknown as { __REAL_PANEL?: Record<string, unknown>
 if (page === 'panel' && query.get('real') === '1' && realPanel) {
   answer('panel.view', () => realPanel['panel.view'])
   answer('GET /api/apps/spec-builder/specs', () => ({ specs: (((realPanel['panel.view'] as { specs?: { name: string }[] }).specs ?? [])).map((item) => ({ name: item.name })) }))
-}
-// &driver=nupp (any page): two workspaces. Harness (w) has no driver; Nupp (n) has
-// one on chat-nupp. Each read answers for the workspace it names.
-if (query.get('driver') === 'nupp') {
-  answer('workspaces.list', () => ({
-    defaultWorkspace: 'w',
-    items: [
-      { id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true },
-      { id: 'n', name: 'Nupp', root: '/n', enabled: true, state: 'ready', served: true },
-    ],
-  }))
-  const nupp = { root: '/n', workspace: 'Nupp', slot: 'chat-nupp', href: '/chat?sid=chat-nupp', lastSeenAt: new Date().toISOString() }
-  const driverFor = (body: { workspaceId?: string }) =>
-    body.workspaceId === 'n'
-      ? { state: 'running', workspace: 'Nupp', slot: 'chat-nupp', href: '/chat?sid=chat-nupp', openedAt: new Date(Date.now() - 3600000).toISOString(), lastSeenAt: new Date().toISOString(), others: [] }
-      : { state: 'none', workspace: 'Harness', slot: null, href: null, openedAt: null, lastSeenAt: null, others: [nupp] }
-  panelDriver = driverFor
-  answer('driversession.view', driverFor)
 }
 class HarnessBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null as string | null }
