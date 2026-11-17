@@ -23,9 +23,17 @@ const summary = (state: string): PlanReviewSummary => ({
 const states = ['done', 'older', 'running', 'skipped', 'not-reviewed']
 const entries: BatchEntry[] = states.map((state) => ({ id: state, spec: `fixture-${state}`, title: `Fixture ${state}`, hash, batch: 1, tasks: 1, errors: 0, loop: false, needs: [], review: summary(state) }))
 const reviews = new Map(entries.map((entry) => [entry.id, entry.review!]))
+;(window as unknown as { __summaryReads: string[] }).__summaryReads = []
+const oldHash = 'b'.repeat(64)
+const movedHash = 'c'.repeat(64)
+const OLD_FILES = { 'requirements.md': '# Fixture\nOld goal.\n', 'tasks.md': '- [ ] 1.1 Task\n' }
+const FILES = { 'requirements.md': '# Fixture\nNew goal.\n', 'tasks.md': '- [ ] 1.1 Task\n' }
+let moved = false
+;(window as unknown as { __settleRunning: (move?: boolean) => void }).__settleRunning = (move = false) => { moved = move; reviews.set('running', { ...summary('done'), found: 2, fixed: 1, forYou: 1 }) }
 const client = {
+  get: async (_workspace: string, id: string) => { calls.push({ operation: 'plan.get', id }); return { id, spec: `fixture-${id}`, title: 'Fixture', hash: moved ? movedHash : hash, files: FILES, approvals: [], history: [], review: reviews.get(id) } },
   reviewAnyway: async (workspaceId: string, planId: string, revisionHash: string) => { calls.push({operation: 'plan.review.decide',workspaceId,planId,revisionHash,action:'review',unproven:true}); return {} },
-  reviewSummary: async (_workspace: string, id: string) => reviews.get(id)!,
+  reviewSummary: async (_workspace: string, id: string) => { (window as unknown as { __summaryReads: string[] }).__summaryReads.push(id); return reviews.get(id)! },
   closeReviewFinding: async (_workspace: string, id: string, disposition: string) => {
     calls.push({ operation: 'plan.review.dispose', id, disposition })
     for (const [planId, review] of reviews) {
@@ -56,7 +64,7 @@ function WorkspaceHarness() {
 function Harness() {
   const [open, setOpen] = useState(true)
   const state = query.get('state') ?? 'done'
-  const plan = { id: state, spec: `fixture-${state}`, title: 'Fixture', hash, review: reviews.get(state) } as SpecPlan
+  const plan = { id: state, spec: `fixture-${state}`, title: 'Fixture', hash, review: reviews.get(state), files: FILES, approvals: [{ id: 'a1', hash: oldHash, at: 'then', approvedBy: 'person' }], history: [{ revision: 1, hash: oldHash, files: OLD_FILES }] } as SpecPlan
   const done = (text: string | null) => { calls.push({ done: text }); setOpen(false) }
   return <div {...{ [APP_ATTR]: '' }} style={{ background: 'var(--bg)', color: 'var(--text)' }}><NavHistoryProvider>{open ? query.get('mode') === 'batch' ? <ApproveSpecsDialog workspaceId="w" entries={entries} client={client} onDone={done} /> : <ApproveSpecDialog workspaceId="w" plan={plan} client={client} onDone={done} /> : <p data-dialog-closed>Closed</p>}</NavHistoryProvider></div>
 }

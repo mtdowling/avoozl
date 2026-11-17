@@ -105,6 +105,7 @@ test("the latest pass counts stored fixes, leaves answered findings for the pers
     round: 2,
     revisionHash: "older-hash",
     state: "running",
+    writerModel: "fake-writer",
   });
   const before = env.store.read().revision,
     summary = planReviewSummary(env.store, env.plan.id);
@@ -112,6 +113,7 @@ test("the latest pass counts stored fixes, leaves answered findings for the pers
   assert.equal(summary.current, false);
   assert.equal(summary.revisionHash, "older-hash");
   assert.equal(summary.reviewerModel, "fake-reviewer");
+  assert.equal(summary.writerModel, "fake-writer");
   assert.deepEqual([summary.found, summary.fixed, summary.forYou], [4, 1, 2]);
   assert.deepEqual(summary.open.map((f) => f.id).sort(), [
     "answered",
