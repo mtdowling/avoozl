@@ -5,12 +5,11 @@ on a Mac, with real Kiro Crew chats in a throwaway Kiro Crew 0.12.2.4
 (own home, port 5697), on Avoozl `main` plus the fixes below. Nothing was
 approved and nothing was written to GitHub.
 
-**Verdict: partial. P63 stays unticked.** P63 actions 1–4 and the two
-Approve dialogs of action 6 passed live on spec `cache-reset-2`. Action 5 (a
-hand edit) and the Approve click of action 6 were not run: approval is the
-owner's click, and the dialogs were captured first. See "Left for the owner".
-A first spec, `cache-reset`, found the bugs listed under "Bugs found first";
-it stays a draft and proves nothing on its own.
+**Verdict: pass. P63 is ticked.** P63 actions 1–4 and the Approve dialogs
+ran live on 2026-11-17 00:39–03:31 UTC; action 5 (a hand edit) and action 6
+(Review anyway, then Approve, both by the owner) ran 04:30–05:11 UTC, all on
+spec `cache-reset-2`. A first spec, `cache-reset`, found the bugs listed
+under "Bugs found first"; it proves nothing on its own.
 
 ## Setup
 
@@ -51,7 +50,7 @@ Two hands-on steps, both in the throwaway Kiro Crew only:
 | The writer answers each finding | The answer chat fixed all 5 round-1 findings and stored revision `2cf46531` with `plans_save_plan`, then answered each one `fixed` with that hash. |
 | A new hash gets a fresh round | Round 2 reviewed `2cf46531` and found 5 more. The second answer chat fixed 4 (revision `13ac6a9b`) and answered 1 (`conflict`, the overlap with the older `cache-reset` draft) with a reason. Then the round limit (2) stopped it. |
 | Both Approve dialogs show the counts | Both say "Reviewed by gpt-5.6-sol at revision 2cf46531354b · 10 found · 9 fixed · 1 for you", with each finding, its evidence and the planner's answer. Shots below. |
-| Approval is unchanged | Both dialogs say findings "do not block approval"; "Approve spec" and "Approve 1 spec" stay enabled. Not pressed: both specs are still `draft`, the `approvals` table is empty. Approval itself is not proven here. |
+| Approval is unchanged | Both dialogs say findings "do not block approval"; "Approve spec" and "Approve 1 spec" stay enabled. The owner's Approve succeeded (below). |
 | No GitHub write | The workspace has no GitHub repository; `github_issues` and `outbox` are empty. The scratch remote is a local folder. |
 
 Round 1 findings (revision `6ad9346e`): wrong-reference `design.md:9`, gap
@@ -90,17 +89,18 @@ Windows passed, and copied into the throwaway Kiro Crew before the
 | #346 | Each backend client minted its own app token and ended the others'; 0.12.2.4 answers that with a bare 403. |
 | #354 | A folder reload stored a planner's edits with no writer, so its own save was refused. |
 
-## Left for the owner
+## Actions 5 and 6
 
-- Action 5: edit a spec file of `cache-reset-2` by hand and let the tick
-  reload it. Expected by the spec: a fresh round on the new hash, old findings
-  marked older. By design §4.29 a hand reload has no writer model, so that
-  round is skipped ("The model that wrote this revision is unknown") unless a
-  person presses Review anyway. The first spec showed exactly that skip
-  (revision `d2f92102`). Whether P63's "fresh round" means this skip or an
-  unproven Review anyway is the owner's call.
-- Action 6: press Approve and check that it succeeds as it would with no
-  review, with no GitHub write.
+| Step | Seen |
+|---|---|
+| 5. Hand edit | One line appended to `requirements.md` of `cache-reset-2` on disk. The tick reloaded it as revision `dbdd36a5a58f` and opened pass 2, skipped: "The model that wrote this revision is unknown." No chat opened. This is the designed result for a hand reload (§4.29: a reload a person edited has no writer model). The dialog offered Review anyway. |
+| 6a. Review anyway (owner) | Pass 3 on `dbdd36a5a58f`, marked unproven, reviewer gpt-5.6-sol: 2 findings (untestable `requirements.md:9`, gap `requirements.md:3`). The 10 earlier findings show as older revision. |
+| 6b. Planner answers | The answer chat stored fix revision `21193c0c7679` and answered both `fixed`. With `rounds: 1`, no further round started (still 4 rounds). |
+| 6c. Approve (owner) | The first Approve press came while the answer chat was storing its fix, so Avoozl refused it: the spec had changed, reopen. After reopening, Approve spec approved exactly `21193c0c7679` (`plan.approved` at 05:10:47 UTC, one `approvals` row). No GitHub write: `github_issues` and `outbox` are empty. |
+
+The answer chat in 6b first stalled: its `plans_answer_review` call waited on
+a tool approval nobody was watching and was declined after 3 minutes. It was
+set to trust mode, like the other answer chats, and asked once to answer.
 
 ## Not shown
 
