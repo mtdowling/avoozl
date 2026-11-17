@@ -15,11 +15,7 @@ const workspaces = [
   // A repository inside another one's checkout: the longer root wins.
   { id: 'nupp-std', root: '/plans/std', roots: ['/src/nupp/std'] },
 ]
-const pick = (input) => pickPanelWorkspace({ driverRoot: null, project: null, workspaces, last: null, fallback: null, ...input })
-
-test('a driver chat reads the workspace it drives, before its folder', () => {
-  assert.deepEqual(pick({ driverRoot: '/plans/nupp/', project: '/src/avoozl', last: 'avoozl', fallback: 'avoozl' }), { id: 'nupp', why: 'driver' })
-})
+const pick = (input) => pickPanelWorkspace({ project: null, workspaces, last: null, fallback: null, ...input })
 
 test("the chat's project folder picks the workspace whose root or repository holds it", () => {
   assert.deepEqual(pick({ project: '/src/avoozl/kirocrew-app', last: 'nupp' }), { id: 'avoozl', why: 'folder' })
@@ -35,10 +31,6 @@ test('a folder in no workspace falls back to the page\u2019s last workspace, the
   assert.deepEqual(pick({ project: '/srv/else', last: 'nupp', fallback: 'avoozl' }), { id: 'nupp', why: 'last' })
   assert.deepEqual(pick({ project: null, last: 'gone', fallback: 'avoozl' }), { id: 'avoozl', why: 'default' }, 'a last workspace no longer listed does not count')
   assert.deepEqual(pick({ last: null, fallback: null }), { id: null, why: 'none' })
-})
-
-test('a driver root that matches no workspace does not count', () => {
-  assert.deepEqual(pick({ driverRoot: '/elsewhere', last: 'nupp' }), { id: 'nupp', why: 'last' })
 })
 
 test('inside a root means the root or a folder under it, not a sibling with the same prefix', () => {
