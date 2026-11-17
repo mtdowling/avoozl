@@ -448,6 +448,7 @@ if (query.get('page') === 'home' || query.get('page') === 'demo') {
   // Home reads these too; an unanswered call never settles.
   answer('radar.crews', () => ({ readAt: null, stale: 0, errors: [], unseen: [], rows: [] }))
   answer('radar.releasequeue', () => ({ repositories: [] }))
+  answer('landing.view', () => ({ queue: [], landed: [], landedThisWeek: 0 }))
 }
 // ?page=app: Settings reads the GitHub policy. &worker=1 leaves one
 // repository on the retired Avoozl worker, which shows the Settings banner.
@@ -466,6 +467,9 @@ if (query.get('page') === 'app') {
   else if (!replyFor('radar.crews')) answer('radar.crews', () => ({ readAt: null, stale: 0, errors: [], unseen: [], rows: [] }))
   if (!replyFor('radar.releasequeue')) answer('radar.releasequeue', () => ({ repositories: [] }))
   if (!replyFor('remote.view')) answer('remote.view', () => ({ workers: [] }))
+  if (!replyFor('landing.view')) answer('landing.view', () => ({ queue: [], landed: [], landedThisWeek: 0 }))
+  // &home=empty: Home's CI read answers with no runs (only Home reads it).
+  if (query.get('home') === 'empty') answer('flow.view', () => ({ line: [], stages: [], tasks: [], retros: [], flaky: [], ciOnly: [], ci: { repositories: [] } }))
   answer('github.settings.get', () => ({
     filename: '.avoozl.json',
     exists: true,
@@ -485,6 +489,91 @@ if (query.get('page') === 'app') {
       writes: { perMinute: 60, perHour: 400, run: { planId: 'nupp', done: 312, total: 1740, resumeAt: new Date(Date.now() + 38 * 60000).toISOString() } },
     },
     choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
+  }))
+}
+// ?page=app&home=1: a busy Home (task home-radar-layout shots): tasks in
+// every state, four Needs you items, two chats (one quiet), a landing
+// queue with a held portion, landings this week and CI facts. Times are
+// relative to now so the quiet chat and this week's landings stay true.
+if (query.get('page') === 'app' && query.get('home') === '1') {
+  const ago = (minutes: number) => new Date(Date.now() - minutes * 60000).toISOString()
+  const t = (id: string, title: string, epic: string, extra = {}) => ({ ...task(id, epic), title, planId: epic === 'e1' ? 'meal-planner' : 'search-v2', repository: 'recipe-box', phase: null, ...extra })
+  const graphTasks = [
+    t('m1', 'Add the shopping list export', 'e1', { state: 'ready', ready: true }),
+    t('m2', 'Scale servings in the recipe card', 'e1', { state: 'ready', ready: true }),
+    t('m4', 'Print one recipe', 'e1', { state: 'ready', ready: true }),
+    t('m3', 'Sync pantry items between devices', 'e1', { state: 'running', status: 'running' }),
+    t('s1', 'Index recipes by ingredient', 'e2', { state: 'running', status: 'review' }),
+    t('s2', 'Rank results by cooking time', 'e2', { state: 'needs-you', decision: 'Pick a ranking rule' }),
+    t('s3', 'Typo-tolerant search', 'e2', { state: 'waiting' }),
+    t('s5', 'Search suggestions', 'e2', { state: 'waiting' }),
+    t('s6', 'Recipe tags', 'e2', { state: 'done', status: 'done', complete: true }),
+    t('m5', 'Meal plan calendar', 'e1', { state: 'done', status: 'done', complete: true }),
+  ]
+  answer('graph.view', () => ({
+    revision: 1,
+    epics: [
+      { id: 'e1', title: 'Meal planner', count: 5 },
+      { id: 'e2', title: 'Search v2', count: 5 },
+    ],
+    statuses: [
+      { id: 'planned', label: 'Planned', complete: false },
+      { id: 'done', label: 'Done', complete: true },
+    ],
+    repositories: ['recipe-box'],
+    total: graphTasks.length,
+    tasks: graphTasks,
+    edges: [],
+  }))
+  answer('plan.list', () => ({ total: 2, items: [{ id: 'meal-planner', title: 'Meal planner', state: 'approved', archivedAt: null }, { id: 'search-v2', title: 'Search v2', state: 'approved', archivedAt: null }] }))
+  const session = (slot: string, role: string, status: string, minutes: number) => ({ slot, role, status, attempt: 1, link: `/sessions/${slot}`, boundAt: ago(minutes + 20), statusAt: ago(minutes), agent: 'kirocrew-worker', model: null })
+  const item = (id: string, title: string, extra = {}) => ({
+    id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, budget: null, ...extra,
+  })
+  answer('delivery.view', () => ({
+    revision: 1,
+    items: [
+      item('m3', 'Sync pantry items between devices', { status: 'running', sessions: [session('chat-m3', 'worker', 'coding', 4)], deliveries: [{ state: 'running', updatedAt: ago(4) }] }),
+      item('s1', 'Index recipes by ingredient', { status: 'review', sessions: [session('chat-s1', 'reviewer', 'reading', 95)], deliveries: [{ state: 'done', updatedAt: ago(95) }] }),
+      item('s6', 'Recipe tags', { status: 'done', complete: true, integration: { commit: 'c1', branch: 'main', at: ago(60 * 26) }, pullRequests: [{ number: 41, url: 'https://github.com/acme/recipe-box/pull/41', merged: true }] }),
+      item('m5', 'Meal plan calendar', { status: 'done', complete: true, integration: { commit: 'c2', branch: 'main', at: ago(60 * 24 * 9) }, pullRequests: [{ number: 33, url: 'https://github.com/acme/recipe-box/pull/33', merged: true }] }),
+    ],
+  }))
+  const need = (key: string, kind: string, taskId: string | null, title: string, detail: string) => ({ key, kind, taskId, title, detail, plan: 'search-v2', epic: null, repository: 'acme/recipe-box', since: ago(50) })
+  answer('conflicts.view', () => ({
+    revision: 1,
+    items: [
+      need('n1', 'decision', 's2', 'Rank results by cooking time', 'Pick a ranking rule: total time, or active time only. Dependents wait on this answer.'),
+      need('n2', 'needs-human', 'm2', 'Scale servings in the recipe card', 'The crew asks whether servings round up or down when scaling.'),
+      need('n3', 'github-conflict', 'm1', 'Add the shopping list export', 'The title changed on GitHub and in Avoozl. Pick the one to keep.'),
+      need('n4', 'branch-landing', null, 'Search v2 integration branch', 'Checks passed on the branch head. Approve it to land on main.'),
+    ],
+  }))
+  answer('landing.view', () => ({
+    queue: [
+      { key: 'q1', base: 'main', repository: 'acme/recipe-box', tasks: [{ id: 's1', title: 'Index recipes by ingredient' }], pr: 47, url: 'https://github.com/acme/recipe-box/pull/47', position: 0, queuedAt: ago(12), held: 'Next to land; checks run on the next tick.' },
+      { key: 'q2', base: 'main', repository: 'acme/recipe-box', tasks: [{ id: 'm3', title: 'Sync pantry items between devices' }], pr: 48, url: 'https://github.com/acme/recipe-box/pull/48', position: 1, queuedAt: ago(6), held: 'Behind 1 portion.' },
+    ],
+    landed: [
+      { key: 'l1', base: 'main', repository: 'acme/recipe-box', tasks: [{ id: 's6', title: 'Recipe tags' }], pr: 41, url: 'https://github.com/acme/recipe-box/pull/41', at: ago(60 * 26) },
+      { key: 'l2', base: 'main', repository: 'acme/recipe-box', tasks: [{ id: 's7', title: 'Ingredient synonyms' }, { id: 's8', title: 'Synonym admin' }], pr: 39, url: 'https://github.com/acme/recipe-box/pull/39', at: ago(60 * 50) },
+      { key: 'l3', base: 'main', repository: 'acme/recipe-box', tasks: [{ id: 'm6', title: 'Pantry barcode scan' }], pr: 36, url: 'https://github.com/acme/recipe-box/pull/36', at: ago(60 * 24 * 4) },
+    ],
+    landedThisWeek: 3,
+  }))
+  const metrics = { tasks: 4, leadTimeMs: 52 * 60000, flowEfficiency: 0.62, firstPassRate: 0.75, changeFailureRate: 0, integrationsPerDay: 1.2, timeToFixMs: null }
+  const byClass = { code: { task: { minutes: 64, pullRequests: 6 }, other: { minutes: 12, pullRequests: 2 } } }
+  answer('flow.view', () => ({
+    window: { size: 10, since: null }, metrics, previous: metrics, bottleneck: null, tasks: [], stops: [], line: [],
+    flaky: [{ id: 'f1', check: 'test (windows)', commit: 'c1', at: ago(300) }], ciOnly: [], retros: [], batches: [], stages: [],
+    repositories: ['acme/recipe-box', 'acme/docs'], epics: [], series: { day: [], week: [] },
+    usage: { available: false, total: { input: 0, output: 0, credits: 0, turns: 0 }, byTask: [], byPlan: [], byStage: [], byModel: [], byDay: [], byWeek: [] },
+    ci: {
+      repositories: [
+        { repository: 'acme/recipe-box', windowDays: 14, byClass, waitShare: 0.18, waitLimit: 0.25, closedPullRequests: 14, repeats: [{ workflow: 'ci', commits: 2, extraRuns: 2, extraMinutes: 9 }] },
+        { repository: 'acme/docs', windowDays: 14, byClass, waitShare: 0.34, waitLimit: 0.25, closedPullRequests: 5, repeats: [] },
+      ],
+    },
   }))
 }
 // &escalations=after: one Issue Radar escalation in Intake (listed first,

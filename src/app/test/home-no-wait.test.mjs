@@ -31,6 +31,7 @@ const HOME = [
   ["gate.list", {}],
   ["radar.releasequeue", {}],
   ["integration.view", {}],
+  ["landing.view", {}],
   ["review.drafts", {}],
 ];
 const REPO = "mtdowling/avoozl-home-test";

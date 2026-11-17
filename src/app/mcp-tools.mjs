@@ -425,6 +425,10 @@ const tools = {
         "gap.preview",
         "read a gap report from an issue: a repository by requirement table and one proposed task per failing cell; accepting is a person's",
       ],
+      landing_queue: [
+        "landing.view",
+        "what waits to land on each base branch, in order and why, and what landed lately",
+      ],
       integration_branches: [
         "integration.view",
         "each integration branch: tasks merged, commits behind the default branch, head checks, acceptance and landing approval",

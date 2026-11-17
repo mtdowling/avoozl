@@ -655,6 +655,7 @@ function Ve(e) {
 			return t("graph.view", r, e);
 		},
 		remote: (e) => t("remote.view", {}, e),
+		landing: (e) => t("landing.view", {}, e),
 		epic: (e, n) => t("epic.get", { id: n }, e),
 		delivery: (e) => t("delivery.view", {}, e).then((e) => e.items),
 		deliveryPage: (e) => t("delivery.view", {}, e),

@@ -90,6 +90,7 @@ const OBSERVE = new Set([
   "trace.done",
   "radar.armed",
   "integration.view",
+  "landing.view",
   "gap.preview",
   "radar.preflight",
   "radar.integrationbranch",
