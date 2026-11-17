@@ -3,7 +3,8 @@
 // fake findings, desktop (1280) and phone (390), light and dark:
 // <out>/<before|after|selected|moved>-<width>-<theme>.png. "before" is the spec page with
 // Open review; "after" is the Review view; "selected" has one card picked;
-// "moved" is the Design tab with its Moved or removed group.
+// "moved" is the Design tab with its Moved or removed group; "all" is the
+// All findings tab.
 //
 //   node test/browser/review-view-shots.mjs <out dir>
 import fs from 'node:fs'
@@ -38,6 +39,8 @@ try {
         ['selected', [click('[data-open-review]'), 'wait', click('[data-finding-card="f-later"]')]],
         // Design: a moved finding lists first under Moved or removed.
         ['moved', [click('[data-open-review]'), 'wait', click('[data-review-tab="design.md"]')]],
+        // All findings: every file's findings in one list.
+        ['all', [click('[data-open-review]'), 'wait', click('[data-review-tab="all"]')]],
       ]) {
         const url = harness.url({ page: 'app', radar: '1', specs: '1', review: '1', theme })
         const run = async (height) => {

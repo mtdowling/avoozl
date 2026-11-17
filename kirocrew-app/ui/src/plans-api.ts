@@ -89,7 +89,12 @@ export interface PlanReviewSummary {
   fixed: number
   forYou: number
   bySeverity?: Record<string, number>
+  // Findings not yet fixed or closed, by severity: the spec Summary's badges.
+  openBySeverity?: Record<string, number>
   byState?: Record<string, number>
+  // The reviewer's plain summary of the spec, stored with its round; not
+  // current when it was written for an earlier revision.
+  summary?: { text: string; revisionHash: string; current: boolean } | null
   note: string | null
   unproven?: boolean
   canReviewAnyway?: boolean

@@ -1106,7 +1106,11 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
       }))
       const byState: Record<string, number> = { rejected: 1 }
       for (const f of open) byState[f.state] = (byState[f.state] ?? 0) + 1
-      return { state: 'done', planHash: at, reviewerModel: 'fake-reviewer', writerModel: 'fake-writer', revisionHash: hash, current: !now, found: fixture.data.findings.length, fixed: byState.fixed ?? 0, forYou: byState['for you'] ?? 0, bySeverity: fixture.data.bySeverity, byState, note: null, open }
+      // Open findings by severity, live as the person decides them.
+      const openBySeverity = { blocker: 0, warn: 0, info: 0 }
+      for (const f of fixture.data.findings) if (['open', 'answered', 'for you', 'accepted'].includes(f.state)) openBySeverity[f.severity]++
+      const summary = query.get('summary') === 'none' ? null : { text: 'Adds fixed-width byte types and byte strings to the runtime, with UTF-8 conversion. It covers three requirements and two tasks.', revisionHash: hash, current: !now }
+      return { state: 'done', planHash: at, reviewerModel: 'fake-reviewer', writerModel: 'fake-writer', revisionHash: hash, current: !now, found: fixture.data.findings.length, fixed: byState.fixed ?? 0, forYou: byState['for you'] ?? 0, bySeverity: fixture.data.bySeverity, openBySeverity, byState, summary, note: null, open }
     }
     const entryHash = (id: string) => batches.flatMap((b) => b.specs).find((e) => e.id === id)?.hash
     answer('plan.reviewSummary', (body) => {

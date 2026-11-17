@@ -374,3 +374,22 @@ test("findings sent mid-turn wait for the reviewer's model, then record or skip"
     if (state === "done") assert.equal(settled.reviewerModel, model);
   }
 });
+
+test("a reviewer's summary is stored on its round for that revision, and a bad one is refused", async (t) => {
+  const { store, start, bind } = setup(t),
+    { round } = start(),
+    submit = await bind(round);
+  await assert.rejects(
+    submit([finding()], { summary: "x".repeat(801) }),
+    /summary must be 1–800/,
+  );
+  assert.equal(store.get("review_rounds", round.id).state, "running");
+  const result = await submit([finding()], {
+    summary: "  Reads one file. One task.  ",
+  });
+  assert.equal(result.round.summary, "Reads one file. One task.");
+  assert.equal(
+    store.get("review_rounds", round.id).summary,
+    "Reads one file. One task.",
+  );
+});

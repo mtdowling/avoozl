@@ -9,6 +9,8 @@
   --border: #ddd;
   --accent: #2563eb;
   --danger: #c62828;
+  --warn: #b7791f;
+  --aim: #7c3aed;
   --ok: #2e7d32;
   --bg-hover: #f0f0f0;
   --bg-accent: #f5f5f5;
@@ -24,6 +26,8 @@
   --border: #333844;
   --accent: #60a5fa;
   --danger: #ef5350;
+  --warn: #e0a73a;
+  --aim: #a78bfa;
   --ok: #66bb6a;
   --bg-hover: #262a35;
   --bg-accent: #171a21;

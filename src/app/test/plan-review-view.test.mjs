@@ -134,6 +134,7 @@ test("the view shows the latest pass at a revision with state, anchors and chat 
     "requirements.md",
     "design.md",
     "tasks.md",
+    "avoozl/manifest.json",
   ]);
   assert.deepEqual(
     view.findings.map((f) => [f.id, f.severity, f.state, f.anchor]),
