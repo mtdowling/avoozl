@@ -43,6 +43,7 @@ import { projectionClient } from '../../src/projection-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
+import { chainsGraph } from './graph-chains.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
 import { ForwardScreen } from '../../src/ForwardScreen.tsx'
 import forwardLive from './forward-live-replies.json'
@@ -399,6 +400,9 @@ answer('untriaged.view', () => ({
   withRadar: [],
 }))
 
+// &graph=chains: the Graph on three specs with real chains (graph-chains.ts).
+if (query.get('graph') === 'chains') answer('graph.view', () => chainsGraph)
+
 function DeepLinkPage() {
   return (
     // As tall as the screen, so the page's content pane scrolls on its own, as it does in the host.
@@ -746,7 +750,8 @@ if (query.get('page') === 'workspaces') {
   answer('workspace.tick.log', () => ({ items: [] }))
 }
 
-if (query.get('page') === 'models') {
+// The app shell answers too, so Settings › Models can be shot in place.
+if (query.get('page') === 'models' || query.get('page') === 'app') {
   let settings = { filename: '.avoozl.json', exists: true, hash: 'models-before', models: { planner: 'fake-writer' } }
   answer('GET /api/models', () => ['fake-writer', 'fake-reviewer'])
   answer('models.settings.get', () => settings)

@@ -617,6 +617,31 @@ the gateway's environment and adds `KIROCREW_TERMINAL=1`, which Avoozl does
 not trust because an agent could set it. This is a speed bump: code that unsets
 those variables gets past it.
 
+For a Kiro Crew chat it stays a speed bump. The chat runs as you, with your
+files, your `gh` login and your network, so nothing stops a determined agent
+from writing the database or calling `gh` itself.
+
+An unattended `process` child (one the supervisor starts) gets
+`AVOOZL_CHILD`, and the same refusal applies. What actually keeps a child from
+a person-only act is the sandbox the supervisor wraps it in:
+
+- It can neither read nor write the workspace databases (each catalog
+  workspace's `.avoozl` folder), Avoozl's machine config and state folders,
+  the Kiro Crew home (`KIROCREW_HOME`, or `~/.kiro/crew`), the `gh` config,
+  `~/.git-credentials`, `~/.config/git/credentials`, `~/.netrc`, `~/.ssh`,
+  `~/.aws` and, on macOS, the keychain.
+- It writes only to its task folder, its own temp folder and the project's
+  cache folders. Read-only roles write nowhere.
+- Its network is off. On macOS a project can name loopback ports instead
+  (`localhost:PORT`, for a proxy).
+- Token, key, secret and password variables, `GH_*`, `GITHUB_*`, `AWS_*`,
+  `KIROCREW_*` and `SSH_AUTH_SOCK` are removed from its environment, and git
+  gets no credential helper.
+
+macOS uses `sandbox-exec`; Linux uses bubblewrap (`bwrap`). A machine with
+neither, such as Windows, runs a harness only after you allow that harness on
+that machine (the same opt-in that lets it write outside the task folder).
+
 ### Files are private to you
 
 The `.avoozl` folder is created `0700` and the database `0600`. Backups and

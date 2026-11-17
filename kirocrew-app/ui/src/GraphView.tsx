@@ -3,7 +3,7 @@ import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
-import { graphSummary, safeHref, viewsClient, type GraphBatch, type GraphTask, noSessionLabel } from './views-api.ts'
+import { graphSummary, safeHref, viewsClient, type Graph, type GraphBatch, type GraphTask, noSessionLabel } from './views-api.ts'
 import {
   backLabel,
   drillCrumbs,
@@ -41,7 +41,7 @@ import { FilterBar, useSharedFilter } from './FilterBar.tsx'
 import { filterChoices, filterGraph } from './filters.ts'
 import { IconLabel, SectionHeading, TipBtn, ViewHeading } from './controls.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
-import { ArrowLeft, Plus } from './icons.ts'
+import { ArrowLeft, ExternalLink, Plus } from './icons.ts'
 import { useNav, useRemembered } from './NavHistory.tsx'
 import { linkHref } from './views-api.ts'
 
@@ -100,6 +100,7 @@ function Node(props: {
   dim: boolean
   onSelect: (node: LaidNode) => void
   onHover: (id: string | null) => void
+  onOpen?: (id: string) => void
 }) {
   const { node, selected } = props
   const color = STATE_COLOR[node.state]
@@ -108,7 +109,7 @@ function Node(props: {
     : `${node.id} · ${STATE_LABEL[node.state]}`
   const label = node.members
     ? `${node.title}, collapsed, ${sub}. Press to open it.`
-    : `${node.title}, ${node.id}, ${STATE_LABEL[node.state]}${node.task?.review ? ', waits for review' : ''}${node.task?.planArchived ? ', archived plan' : ''}${node.task?.handSetReview ? ', review set by hand, none running' : ''}`
+    : `${node.title}, ${node.id}, ${STATE_LABEL[node.state]}${node.task?.review ? ', waits for review' : ''}${node.task?.planArchived ? ', archived plan' : ''}${node.task?.handSetReview ? ', review set by hand, none running' : ''}${props.onOpen ? '. Enter shows its tree; O opens it here' : ''}`
   return (
     <g
       transform={`translate(${node.x},${node.y})`}
@@ -118,7 +119,12 @@ function Node(props: {
       aria-pressed={node.members ? undefined : selected}
       data-node={node.id}
       onClick={() => props.onSelect(node)}
-      onKeyDown={(e) => pressed(e, () => props.onSelect(node))}
+      onKeyDown={(e) => {
+        if (node.task && props.onOpen && (e.key === 'o' || e.key === 'O' || e.key === ' ')) {
+          e.preventDefault()
+          props.onOpen(node.id)
+        } else pressed(e, () => props.onSelect(node))
+      }}
       onPointerEnter={() => props.onHover(node.id)}
       onPointerLeave={() => props.onHover(null)}
       onFocus={() => props.onHover(node.id)}
@@ -137,10 +143,10 @@ function Node(props: {
       />
       <rect width={5} height={NODE_HEIGHT} rx={3} style={{ fill: color }} />
       <text x={12} y={15} fontSize={11} fontWeight={600} style={{ fill: 'var(--text)' }}>
-        {clip(node.title, node.task?.review ? 19 : 25)}
+        {clip(node.title, node.task?.review ? 19 : props.onOpen && node.task ? 22 : 25)}
       </text>
       {node.task?.review && (
-        <text x={NODE_WIDTH - 6} y={14} textAnchor="end" fontSize={9} data-review-badge style={{ fill: 'var(--muted)' }}>
+        <text x={NODE_WIDTH - (props.onOpen ? 22 : 6)} y={14} textAnchor="end" fontSize={9} data-review-badge style={{ fill: 'var(--muted)' }}>
           review
         </text>
       )}
@@ -148,6 +154,25 @@ function Node(props: {
         {clip(sub, node.task ? 20 : 28)}
       </text>
       {node.task && <NodeOwner task={node.task} x={NODE_WIDTH - 6} y={29} />}
+      {node.task && props.onOpen && (
+        <g
+          role="button"
+          tabIndex={-1}
+          aria-label={`Open ${node.id} here`}
+          data-node-open={node.id}
+          transform={`translate(${NODE_WIDTH - 18},2)`}
+          onClick={(e) => {
+            e.stopPropagation()
+            props.onOpen!(node.id)
+          }}
+        >
+          <title>{`Open ${node.id} here`}</title>
+          <rect width={16} height={16} rx={3} style={{ fill: 'var(--card)' }} />
+          <g transform="translate(3,3)" style={{ color: 'var(--muted)' }}>
+            <ExternalLink size={10} aria-hidden="true" />
+          </g>
+        </g>
+      )}
     </g>
   )
 }
@@ -288,18 +313,30 @@ export default function GraphView({
   focus = null,
   drill = null,
   onDrill,
+  source,
+  bare = false,
+  onTree,
+  onOpenItem,
 }: {
   workspaceId: string | null
   focus?: string | null
   drill?: Drill | null
   onDrill?: (drill: Drill | null) => void
+  // The Graph page's own read of graph.view, so this view reads nothing more.
+  source?: ReturnType<typeof useRead<Graph>>
+  // Inside the Graph page: no heading or Refresh of its own.
+  bare?: boolean
+  // A task click drills into its Focus tree; the ↗ on a node opens it in place.
+  onTree?: (id: string) => void
+  onOpenItem?: (id: string) => void
 }) {
   const api = useAppApi()
   const client = useMemo(() => viewsClient(api), [api])
   const drawer = useTaskDrawer()
   const [filter, setFilter] = useSharedFilter(workspaceId)
   const load = useCallback((id: string) => client.graph(id), [client])
-  const { value: full, error, busy, reload } = useRead(workspaceId, load)
+  const own = useRead(source ? null : workspaceId, load)
+  const { value: full, error, busy, reload } = source ?? own
   // The shared filter, then the drill-in, decide what is drawn; the level
   // decides the groups: epics, an epic's plans, or a plan's phases.
   const graph = useMemo(
@@ -459,7 +496,8 @@ export default function GraphView({
     }
     if (action !== 'open') return
     setSelected(node.id)
-    drawer.openTask(node.id)
+    if (onTree) onTree(node.id)
+    else drawer.openTask(node.id)
   }
   const selectId = (id: string) => {
     const node = graph?.tasks.find((t) => t.id === id)
@@ -509,13 +547,16 @@ export default function GraphView({
 
   return (
     <section
-      aria-labelledby="avoozl-graph-title"
+      aria-labelledby={bare ? undefined : 'avoozl-graph-title'}
+      aria-label={bare ? 'All tasks' : undefined}
       className="flex flex-col gap-3.5"
       data-graph-view
     >
-      <ViewHeading id="avoozl-graph-title" view="graph">
-        Graph
-      </ViewHeading>
+      {!bare && (
+        <ViewHeading id="avoozl-graph-title" view="graph">
+          Graph
+        </ViewHeading>
+      )}
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
@@ -525,9 +566,11 @@ export default function GraphView({
         <p className="text-sm text-muted">Choose a workspace in the header.</p>
       ) : (
         <FilterBar id="avoozl-graph" filter={filter} choices={choices} onChange={changeFilter}>
-          <div className="flex flex-wrap gap-2">
-            <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy} />
-          </div>
+          {!bare && (
+            <div className="flex flex-wrap gap-2">
+              <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy} />
+            </div>
+          )}
           <p role="status" className="mt-2 text-sm text-muted">
             {busy
               ? 'Loading…'
@@ -689,6 +732,7 @@ export default function GraphView({
                     dim={!nodeLit(node.id)}
                     onSelect={select}
                     onHover={setHovered}
+                    onOpen={onOpenItem}
                   />
                 ))}
               </g>

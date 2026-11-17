@@ -93,7 +93,8 @@ test('a spec row opens the spec in the detail column', () => {
   assert.doesNotMatch(app, /openChat/)
   assert.match(plans, /if \(props\.newPlanRequest\?\.n\) setCreating\(\{ seed: props\.newPlanRequest\.seed \}\)/)
   assert.match(app, /if \(active\) setSharedFilter\(active, filter\)/)
-  assert.match(app, /<GraphView workspaceId=\{active\} focus=\{focus\} drill=\{drill\} onDrill=\{setDrill\} \/>/)
+  // The Graph page wraps GraphView as its All tasks tab (FocusTree.tsx).
+  assert.match(app, /<GraphPage\s+workspaceId=\{active\}[\s\S]*?focus=\{focus\}\s+drill=\{drill\}\s+onDrill=\{setDrill\}\s+\/>/)
 })
 
 test('the progress bar uses theme variables and is still under reduced motion', () => {
