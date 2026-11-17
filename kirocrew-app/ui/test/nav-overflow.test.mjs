@@ -152,7 +152,7 @@ for (const [width, height] of [
 
 // Home's reads, by name. A new read on Home (or one that calls GitHub) has
 // to be added here on purpose.
-const HOME_READS = new Set(['workspaces.list', 'instance.view', 'flow.view', 'driversession.view', 'graph.view', 'delivery.view', 'conflicts.view', 'plan.list', 'radar.crews', 'repositories.list', 'github.settings.get', 'untriaged.view', 'radar.releasequeue', 'gate.list', 'integration.view', 'review.drafts'])
+const HOME_READS = new Set(['workspaces.list', 'instance.view', 'flow.view', 'graph.view', 'delivery.view', 'conflicts.view', 'plan.list', 'radar.crews', 'repositories.list', 'github.settings.get', 'untriaged.view', 'radar.releasequeue', 'gate.list', 'integration.view', 'review.drafts'])
 
 test('Home sends only its own reads, and shows its cards before the slow Radar read lands', { skip }, async () => {
   await page.open(harness.url({ page: 'app', theme: 'light', needs: '3', slowradar: '1' }), { width: 1280, height: 800 })

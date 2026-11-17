@@ -121,7 +121,7 @@ test('Start demo opens the made-up workspace with its bar, and Exit demo returns
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-tour]'))`), false)
   assert.equal(await page.evaluate(`Boolean(${button('Start the tour')})`), false)
   // The made-up workspace's pages read its sample.
-  await page.until(`document.querySelector('[data-driver-session]')?.dataset.driverSession === 'running'`)
+  await page.until(`Boolean(document.querySelector('[data-radar-flight-row]'))`)
   await click(button('Specs', 'tab'))
   await page.until(`Boolean(document.querySelector('[data-spec-list] [data-plan-row]'))`)
 
@@ -150,21 +150,6 @@ test('Start demo opens the made-up workspace with its bar, and Exit demo returns
   await click(`document.querySelector('[data-demo-exit]')`)
   await page.until(`!document.querySelector('[data-demo-badge]') && document.querySelector('[data-workspace-pill]')?.dataset.workspaceId === 'w'`)
   assert.equal(await page.evaluate(`document.querySelector('[data-workspace-pill]').dataset.workspaceId`), 'w')
-  assert.deepEqual(page.errors, [])
-})
-
-test('in the demo the driver session is the made-up one: it opens nothing and starts nothing', { skip }, async () => {
-  await page.open(harness.url({ page: 'demo' }), { width: 1280, height: 800 })
-  await page.until(`Boolean(${button('Start demo')} && document.querySelector('[data-workspace-pill]'))`)
-  await click(button('Start demo'))
-  await page.until(`document.querySelector('[data-driver-session]')?.dataset.driverSession === 'running'`)
-  assert.match(await page.evaluate(`document.querySelector('[data-driver-session]').dataset.tip`), /11 of 40 turns today/)
-  // Only Open: a running session offers no Start.
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-driver-start]'))`), false)
-  await click(`document.querySelector('[data-driver-open]')`)
-  await page.until(`document.querySelector('[data-demo-notice]')?.textContent.includes('chat')`)
-  await click(`document.querySelector('[data-demo-exit]')`)
-  await page.until(`!document.querySelector('[data-demo-badge]')`)
   assert.deepEqual(page.errors, [])
 })
 
