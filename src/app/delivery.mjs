@@ -40,6 +40,8 @@ import {
   waitingForBatch,
 } from "./flow-batch.mjs";
 import { git, integrateRun, prepareTaskWorktree } from "./git.mjs";
+import { integrationBranchOf } from "./integration-branch.mjs";
+import { specBase } from "./spec-base.mjs";
 import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
 import { queryTasks, statusComplete } from "../query.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
@@ -394,9 +396,22 @@ export async function prepareWorktree(store, input = {}) {
   const project = taskProject(store, task),
     branch = "avoozl/" + task.id;
   await retireBatchWorktree(store, project, task.id, branch);
+  // Prepare and the spec's qualified reference resolve the same base
+  // (spec-base.mjs): the spec's working branch, else a legacy integration
+  // branch, else the project's base branch.
+  const plan = task.planId ? store.get("plans", task.planId) : null,
+    base = await specBase(project.root, {
+      spec: plan?.spec,
+      base: project.baseBranch || "main",
+      legacy: [
+        plan ? integrationBranchOf(store, plan) : null,
+        project.integrationBranch,
+      ],
+    }).catch(() => null);
   const prepared = await prepareTaskWorktree(store, project, {
     branch,
     name: "avoozl-" + task.id,
+    start: base?.branch ?? null,
   });
   const record = {
     id: task.id,
@@ -415,6 +430,9 @@ export async function prepareWorktree(store, input = {}) {
     store.transaction(() =>
       store.put("task_worktrees", {
         ...record,
+        ...(prepared.started
+          ? { base: { ...prepared.started, kind: base?.kind ?? "base" } }
+          : {}),
         preparedAt: new Date().toISOString(),
       }),
     );
