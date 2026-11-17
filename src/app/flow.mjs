@@ -13,6 +13,7 @@ import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
 import { taskRepository } from "../work-model.mjs";
 import { inPlan } from "./page-views.mjs";
 import { fail } from "./store.mjs";
+import { retirementHoldsRelease } from "./task-issue-retirement.mjs";
 
 export const STAGES = Object.freeze([
   "queued",
@@ -1240,8 +1241,11 @@ export function stopScope(store, data, stop) {
 }
 
 // Tasks no new dispatch may start while the line is stopped; Run anyway
-// lifts a stop's pause while the stop stays open (R44.10).
+// lifts a stop's pause while the stop stays open (R44.10). A task-issue
+// retirement holds every release until its verifying tick (R102.20).
 export function linePausedTaskIds(store, data = store.read()) {
+  if (retirementHoldsRelease(store))
+    return new Set(data.tasks.map((t) => t.id));
   const out = new Set();
   for (const stop of openStops(store))
     if (!stop.runAnyway)

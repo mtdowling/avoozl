@@ -573,6 +573,13 @@ import {
 } from "./spec-plans.mjs";
 import { publishSpec } from "./spec-publication.mjs";
 import {
+  applyRetirement,
+  closeRetiredIssues,
+  holdRetirement,
+  previewRetirement,
+  verifyRetirement,
+} from "./task-issue-retirement.mjs";
+import {
   approvalChangedAtMerge,
   approvalEvidence,
   approvalState,
@@ -6562,6 +6569,37 @@ export class Operations {
         actor: this.operator,
       });
       return published;
+    }
+    // Retire task-issue bindings (R102.20, §4.32.13): preview, hold, apply,
+    // one verifying tick, then close. Each step is a person's own act.
+    if (name === "github.retireTaskIssues") {
+      if (context.caller || context.mcp)
+        fail("Only a person retires task-issue bindings.", 403);
+      const step = input.step || "preview";
+      if (step === "preview") return previewRetirement(store);
+      if (step === "hold")
+        return holdRetirement(store, { actor: this.operator });
+      if (step === "apply") return applyRetirement(store);
+      if (step === "verify") {
+        const github = this.github;
+        try {
+          return await verifyRetirement(store, {
+            github,
+            runTick: async (client) => {
+              this.github = client;
+              return this.execute("workspace.tick", { cron: true });
+            },
+          });
+        } finally {
+          this.github = github;
+        }
+      }
+      if (step === "close")
+        return closeRetiredIssues(store, {
+          github: this.github,
+          reason: input.reason,
+        });
+      fail("Choose preview, hold, apply, verify, or close.", 400);
     }
     // Spec changed (RC2.8): what an edited spec would do to each issue, and
     // the write once the spec is approved again. A person applies it.
