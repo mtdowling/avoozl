@@ -180,6 +180,18 @@
         }
       }
     },
+    "landing": {
+      "type": "object",
+      "description": "How Avoozl lands finished work. conflictRounds is how many times a landing conflict goes back to the same worker chat before the task goes to Needs you.",
+      "properties": {
+        "conflictRounds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 2
+        }
+      }
+    },
     "safety": {
       "$ref": "#/$defs/safetyPolicy"
     },
