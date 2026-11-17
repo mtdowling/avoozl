@@ -98,7 +98,6 @@ test("panel.view fills every section from the sample workspace", async () => {
       "remote",
       "queue",
       "flow",
-      "driver",
       "specs",
       "instance",
       "checks",
@@ -123,7 +122,7 @@ test("panel.view fills every section from the sample workspace", async () => {
       ),
       "a claim's pull request has its checks",
     );
-    assert.equal(view.driver.workspace, "demo");
+    assert.equal("driver" in view, false, "no driver session part");
   } finally {
     demo.close();
     fs.rmSync(tmp, { recursive: true, force: true });

@@ -25,8 +25,6 @@ before(async () => {
   try {
     // The panel's one read, from the real operations over the sample workspace.
     replies['panel.view'] = await demo.execute('panel.view', {})
-    // A driver the chat reported itself, as its hook would.
-    replies['panel.view'].driver = { state: 'running', slot: 'chat-7-1', href: '/chat?sid=chat-7-1', openedAt: new Date(Date.now() - 7200000).toISOString(), lastSeenAt: new Date(Date.now() - 300000).toISOString(), source: 'stop', quietAfterMinutes: 30 }
   } finally {
     demo.close()
     fs.rmSync(tmp, { recursive: true, force: true })
@@ -54,14 +52,12 @@ const shot = async (name) => {
 }
 const rows = `Boolean(document.querySelector('[data-waiting-row]')) && Boolean(document.querySelector('[data-flight-row]'))`
 
-test('a normal chat shows real waiting rows, crews and the driver link', { skip }, async () => {
+test('a normal chat shows real waiting rows and crews', { skip }, async () => {
   assert.ok(replies['panel.view'].conflicts.length > 0, 'the sample has something waiting')
   await open('chat-1', rows)
   assert.ok((await count('[data-waiting-row]')) > 0)
   assert.ok((await count('[data-flight-row]')) > 0)
   assert.doesNotMatch(await page.evaluate(`document.body.textContent`), /Recap\s*0 crews/i)
-  await page.until(`document.querySelector('[data-panel-driver]')?.dataset.panelDriver === 'running'`)
-  assert.equal(await page.evaluate(`document.querySelector('[data-panel-driver] a').getAttribute('href')`), '/chat?sid=chat-7-1')
   await shot('normal-chat')
 })
 
@@ -80,9 +76,7 @@ test('a crew chat shows the claim of a real crew', { skip }, async () => {
   await shot('crew-chat')
 })
 
-test('the driver chat and an avoozl_ chat show the driver view with waiting rows', { skip }, async () => {
-  await open('chat-7-1', `document.querySelector('[data-panel-kind]')?.dataset.panelKind === 'avoozl' && Boolean(document.querySelector('[data-waiting-row]'))`)
-  await shot('driver-chat')
+test('an avoozl_ chat shows waiting rows', { skip }, async () => {
   await open('avoozl_live', `document.querySelector('[data-panel-kind]')?.dataset.panelKind === 'avoozl' && Boolean(document.querySelector('[data-waiting-row]'))`)
-  assert.equal(await count('[data-panel-driver]'), 1)
+  await shot('avoozl-chat')
 })

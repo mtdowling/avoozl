@@ -17,7 +17,7 @@ function rows() {
   }))
 }
 
-test('Home has the heading, the driver card, then Needs you beside In flight, the Release queue and epic progress', () => {
+test('Home has the heading, then Needs you beside In flight, the Release queue and epic progress', () => {
   assert.deepEqual(rows(), [{ row: 'flight', titles: ['Needs you', 'In flight'] }])
   // The nav says Home, so the heading is for screen readers only; Refresh
   // is in the header's More menu.
@@ -26,7 +26,7 @@ test('Home has the heading, the driver card, then Needs you beside In flight, th
   assert.doesNotMatch(dashboard, /<ViewHeading/)
   // The state buttons and the Untriaged count went with Delivery and Intake.
   assert.doesNotMatch(dashboard, /StateCounts|UntriagedStat|Show them in Delivery|Up next/)
-  const order = ['<DriverCell', '<Pair', '<ReleaseQueue', 'data-progress-by-epic', '<IntegrationBranches']
+  const order = ['<Pair', '<ReleaseQueue', 'data-progress-by-epic', '<IntegrationBranches']
   const at = order.map((text) => dashboard.indexOf(text))
   assert.deepEqual([...at].sort((a, b) => a - b), at, order.join(' < '))
   assert.ok(at.every((n) => n > 0))
@@ -41,7 +41,7 @@ test('Home has the heading, the driver card, then Needs you beside In flight, th
 test('an empty Home explains what to set up with a button, instead of hiding cards', () => {
   assert.match(dashboard, /<SetupCard/)
   assert.match(dashboard, /setupCards\(/)
-  assert.match(dashboard, /<DriverCell workspaceId=\{workspaceId\} \/>/)
+  assert.doesNotMatch(dashboard, /DriverCell/)
   assert.doesNotMatch(dashboard, /No tasks yet/)
   assert.match(source('ReleaseQueue.tsx'), /data-release-empty/)
   assert.doesNotMatch(source('ReleaseQueue.tsx'), /Nothing to show for a workspace with no Issue Radar plan: no card/)

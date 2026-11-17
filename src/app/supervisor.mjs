@@ -523,9 +523,14 @@ export function startSupervisor({
         keepEnv: definition.keepEnv ?? [],
         // Avoozl pushes; an agent gets no push credentials (R102.6). The
         // sandbox then sets git's own empty credential helper.
-        env: withoutPushCredentials(
-          values.tmp ? { ...env, TMPDIR: values.tmp } : env,
-        ),
+        // The child marker makes the CLI refuse person-only commands, even
+        // with --as-person (R95.5).
+        env: withoutPushCredentials({
+          ...env,
+          ...(values.tmp ? { TMPDIR: values.tmp } : {}),
+          AVOOZL_CHILD: "1",
+          AVOOZL_CHILD_SESSION: row.session_id,
+        }),
       });
       const out = fs.openSync(log, "a", 0o600);
       let child;
