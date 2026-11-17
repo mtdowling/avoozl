@@ -45,6 +45,7 @@ export const JOURNAL_KINDS = [
   "claim",
   "intent",
   "void",
+  "reanchor",
 ];
 const CONTROL_FLAGS = ["hold", "stop", "resume", "release", "budget"];
 const CONCLUSIONS = [
@@ -162,6 +163,11 @@ export function validateRecord(
       // An intent's check evidence; a void names the intent it voids.
       checks,
       voids: matches(OPERATION),
+      // The comment IDs a reanchor drops (R102.26).
+      held: list((id) => {
+        if (!count(id, Number.MAX_SAFE_INTEGER) || id < 1)
+          fail("Journal reanchor has an invalid record ID.", 400);
+      }),
       revision: matches(DIGEST),
       base: matches(COMMIT),
       outcomes: list((entry) =>
@@ -220,6 +226,7 @@ export function validateRecord(
     claim: ["tasks"],
     intent: ["tasks", "refs", "base"],
     void: ["voids"],
+    reanchor: ["held"],
   }[record.kind];
   for (const name of needs || [])
     if (record[name] === undefined)
@@ -298,6 +305,7 @@ export async function replayJournal(
       hold(entry.id, "invalid");
       continue;
     }
+    const before = result.reasons.length;
     if (entry.edited) hold(entry.id, "mutated");
     const own = recordDigest(record),
       payload = withoutLink(record),
@@ -327,6 +335,28 @@ export async function replayJournal(
       result.tail = { id: entry.id, digest: own };
       continue;
     } else if (record.generation > result.generation) hold(entry.id, "invalid");
+    // A person's reanchor (R102.26): its tail is the record replay reached,
+    // with that exact digest, and it has no problem of its own. The named
+    // records' contents are dropped and their holds cleared; every other
+    // hold stays. shortcut: a named record's operation ID and generation
+    // still count, so a named generation record keeps its number; reanchor
+    // a journal like that by a new take over after review.
+    if (record.kind === "reanchor" && result.reasons.length === before) {
+      if (
+        record.prev?.id !== result.tail?.id ||
+        record.prev?.digest !== result.tail?.digest
+      )
+        hold(entry.id, "stale-reanchor");
+      else {
+        // Only records replay held on may be dropped.
+        const named = new Set(
+          record.held.filter((id) => result.reasons.some((r) => r.id === id)),
+        );
+        result.reasons = result.reasons.filter((r) => !named.has(r.id));
+        result.records = result.records.filter((r) => !named.has(r.id));
+        result.held = result.reasons.length > 0;
+      }
+    }
     result.records.push({ id: entry.id, author: login, record });
     result.tail = { id: entry.id, digest: own };
   }
@@ -369,8 +399,20 @@ export async function appendRecord(journal, fields, options = {}) {
     prev: replay.tail,
   };
   const body = renderRecord(record, options);
-  // The privacy scan before the first write (R102.25): the schema keeps
-  // prose out, and this keeps this machine's names out of what is left.
+  scanBody(body, options);
+  const done = replay.records.find((entry) => entry.record.op === record.op);
+  if (done) {
+    if (withoutLink(done.record) !== withoutLink(record))
+      fail("That operation ID was already written with another payload.", 409);
+    return { id: done.id, record: done.record, existing: true };
+  }
+  const written = await journal.create(body);
+  return { id: written.id, record };
+}
+
+// The privacy scan before the first write (R102.25): the schema keeps
+// prose out, and this keeps this machine's names out of what is left.
+function scanBody(body, options) {
   const refused = privacyHits(
     body.split("\n"),
     privacyRules({
@@ -386,14 +428,77 @@ export async function appendRecord(journal, fields, options = {}) {
       ].join(", ")}.`,
       422,
     );
-  const done = replay.records.find((entry) => entry.record.op === record.op);
-  if (done) {
-    if (withoutLink(done.record) !== withoutLink(record))
-      fail("That operation ID was already written with another payload.", 409);
-    return { id: done.id, record: done.record, existing: true };
-  }
-  const written = await journal.create(body);
-  return { id: written.id, record };
+}
+
+// A person's reanchor of a held journal (R102.26, §4.32.4). `held` names
+// the record IDs to drop, each one replay held on; `tail` is the ID of the
+// record the person reviewed, which must still be the journal's last, with
+// its current digest. Without `apply` it previews: the record and what
+// replay would give with it. Nothing is edited or deleted. Returns
+// {record, before, after, written}.
+export async function reanchorJournal(
+  journal,
+  { spec, held, tail, apply = false },
+  options = {},
+) {
+  const entries = await journal.list(),
+    replayOptions = { ...options, permission: journal.permission },
+    replay = await replayJournal(entries, replayOptions);
+  if (!replay.held) fail("This journal is not held; nothing to reanchor.", 409);
+  const reasons = new Set(replay.reasons.map((r) => r.id)),
+    ids = [...new Set((held ?? []).map(Number))];
+  if (!ids.length) fail("Name the held record IDs to drop.", 400);
+  const unheld = ids.filter((id) => !reasons.has(id));
+  if (unheld.length)
+    fail(
+      `Replay did not hold on ${unheld.join(", ")}; name only held records (${[...reasons].join(", ")}).`,
+      400,
+    );
+  if (Number(tail) !== replay.tail?.id)
+    fail(
+      `The journal's last record is ${replay.tail?.id ?? "none"}, not ${tail}. Review it again.`,
+      409,
+    );
+  const record = {
+      v: JOURNAL_VERSION,
+      op: `reanchor.${replay.tail.id}`,
+      kind: "reanchor",
+      spec,
+      generation: replay.generation,
+      held: ids.sort((a, b) => a - b),
+      ...(options.alias ? { alias: options.alias } : {}),
+      prev: replay.tail,
+    },
+    body = renderRecord(record, options);
+  scanBody(body, options);
+  const next = Math.max(0, ...entries.map((e) => e.id)) + 1,
+    preview = await replayJournal(
+      [...entries, { id: next, body, author: options.author ?? null }],
+      {
+        ...replayOptions,
+        permission: async (login) =>
+          login === (options.author ?? null)
+            ? "write"
+            : journal.permission(login),
+      },
+    ),
+    summary = (r) => ({ held: r.held, reasons: r.reasons });
+  if (!apply)
+    return {
+      record,
+      before: summary(replay),
+      after: summary(preview),
+      written: false,
+    };
+  const written = await journal.create(body),
+    after = await replayJournal(await journal.list(), replayOptions);
+  return {
+    record,
+    id: written.id,
+    before: summary(replay),
+    after: summary(after),
+    written: true,
+  };
 }
 
 // The journal on a spec issue. Every comment page is read before replay.
