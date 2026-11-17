@@ -4,7 +4,7 @@ import { Btn as d, Input as f } from "@kirocrew/app-sdk/ui";
 import { Check as p, ChevronDown as m, ChevronRight as h, ChevronsDownUp as g, ChevronsUpDown as _, CircleAlert as v, CircleDot as y, CirclePlus as b, ExternalLink as x, GitBranch as S, GitPullRequest as C, Inbox as w, Pause as T, Play as E, Radar as D, RefreshCw as ee, X as O } from "lucide-react";
 import { createPortal as te } from "react-dom";
 import { Fragment as k, jsx as A, jsxs as j } from "react/jsx-runtime";
-// kirocrew-app/ui/src/workspace-api.ts
+// src/workspace-api.ts
 var M = "/apps/avoozl/api/command";
 function ne(e) {
 	if (e && typeof e == "object" && "body" in e) {
@@ -45,7 +45,7 @@ function ie(e) {
 		return { workspaceId: null };
 	}
 }
-// kirocrew-app/ui/src/demo-api.ts
+// src/demo-api.ts
 var ae = "@demo";
 function oe(e, t) {
 	return e === "post" && t === "/apps/avoozl/api/command" || e === "get";
@@ -174,7 +174,7 @@ function F(e) {
 		hide: o
 	};
 }
-// kirocrew-app/ui/src/layers.ts
+// src/layers.ts
 var I = {
 	raised: 1,
 	sticky: 10,
@@ -182,7 +182,7 @@ var I = {
 	popover: 60,
 	tooltip: 2147483e3
 };
-// kirocrew-app/ui/src/use-media.ts
+// src/use-media.ts
 function _e(e) {
 	let [t, n] = c(() => typeof window < "u" && window.matchMedia ? window.matchMedia(e).matches : !1);
 	return r(() => {
@@ -191,7 +191,7 @@ function _e(e) {
 		return t.addEventListener("change", r), () => t.removeEventListener("change", r);
 	}, [e]), t;
 }
-// kirocrew-app/ui/src/focus-trap.ts
+// src/focus-trap.ts
 function L(e, t, n) {
 	return e === 0 ? -1 : t < 0 ? n ? e - 1 : 0 : n ? (t - 1 + e) % e : (t + 1) % e;
 }
@@ -204,7 +204,7 @@ Object.freeze([
 	["done", "Done"],
 	["deferred", "Deferred"]
 ]);
-// kirocrew-app/ui/src/graph-layout.ts
+// src/graph-layout.ts
 var R = {
 	nodeWidth: 168,
 	nodeHeight: 36,
@@ -215,7 +215,7 @@ var R = {
 	clusterGap: 12
 };
 R.nodeWidth, R.nodeHeight, R.columnGap, R.rowGap, R.margin, R.clusterLabel, R.clusterGap;
-// kirocrew-app/ui/src/nav-history.ts
+// src/nav-history.ts
 var ve = /* @__PURE__ */ new Set([
 	"drawer",
 	"modal",
@@ -291,7 +291,7 @@ function Ce(e = Se) {
 		setters: /* @__PURE__ */ new Map()
 	};
 }
-// kirocrew-app/ui/src/NavHistory.tsx
+// src/NavHistory.tsx
 var we = "data-avoozl-app", Te = e(null), Ee = null, De = () => n(Te) ?? (Ee ??= Ce());
 function Oe(e, t, n, i, a) {
 	let o = De(), c = s({
@@ -320,7 +320,7 @@ function Oe(e, t, n, i, a) {
 		e
 	]);
 }
-// kirocrew-app/ui/src/Modal.tsx
+// src/Modal.tsx
 var ke = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex=\"-1\"])", Ae = "color-mix(in srgb, var(--bg) 60%, transparent)", je = {
 	background: "var(--card, var(--bg))",
 	color: "var(--text)",
@@ -525,7 +525,7 @@ function Ie(e) {
 		})]
 	}), document.body);
 }
-// kirocrew-app/ui/src/Tooltip.tsx
+// src/Tooltip.tsx
 var Le = () => typeof window < "u" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches, Re = "button, a[href], input, select, textarea, summary, [role=\"button\"]", ze = `${Re}, [tabindex]`, Be = (e) => {
 	try {
 		return e.matches(":focus-visible");
@@ -628,7 +628,7 @@ function W(e) {
 		]
 	}) : /* @__PURE__ */ A(k, { children: y });
 }
-// kirocrew-app/ui/src/views-api.ts
+// src/views-api.ts
 function Ve(e) {
 	let t = async (t, n, r, i) => (await e.post(M, {
 		operation: t,
@@ -711,7 +711,7 @@ var Ue = /^\/(?:chat\?sid=|apps\/|issue-radar(?:$|[/?#]))[^\s\\]*$/;
 function G(e) {
 	return typeof e == "string" && Ue.test(e) ? e : He(e) ?? void 0;
 }
-// kirocrew-app/ui/src/controls.tsx
+// src/controls.tsx
 var We = {
 	background: "var(--danger)",
 	borderColor: "var(--danger)",
@@ -758,7 +758,7 @@ function qe({ children: e }) {
 		})]
 	});
 }
-// kirocrew-app/ui/src/dashboard-api.ts
+// src/dashboard-api.ts
 var Je = [
 	"Ready",
 	"Claimed",
@@ -773,7 +773,7 @@ function Ye(e) {
 		state: n < t ? "done" : n === t ? "now" : "later"
 	}));
 }
-// kirocrew-app/ui/src/driver-api.ts
+// src/driver-api.ts
 function Xe(e, t = Date.now()) {
 	let n = e ? Date.parse(e) : NaN;
 	if (!Number.isFinite(n)) return "never";
@@ -797,7 +797,7 @@ function Qe(e, t, n) {
 		needsYou: a
 	};
 }
-// kirocrew-app/ui/src/panel-chat.ts
+// src/panel-chat.ts
 function $e(e) {
 	let t = new URLSearchParams(e.search).get("sid");
 	if (t) return t;
@@ -818,7 +818,7 @@ var tt = (e) => e.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 function nt(e, t) {
 	return e.kind === "spec-builder" && t.files.includes("tasks.md") && !t.approved;
 }
-// kirocrew-app/ui/src/flow-api.ts
+// src/flow-api.ts
 function rt(e) {
 	let t = Array.isArray(e) ? e : Array.isArray(e?.models) ? e.models : [], n = [];
 	for (let e of t) {
@@ -941,7 +941,7 @@ function pt(e) {
 	}
 	return `Line stopped: ${e.check ? `\`${e.check}\` fails on ${e.branch}` : `a worker named ${e.culprit} as the cause`}${e.commit ? ` since ${e.commit.slice(0, 7)}` : ""}${e.culprit ? ` (task ${e.culprit})` : " (culprit unknown)"}.${e.fixTaskId ? ` Fix: ${e.fixTaskId}, ${e.fixState ?? "ready"}.` : ""}${e.runAnyway ? " Dispatch resumed by Run anyway." : ` ${e.paused ?? 0} task${e.paused === 1 ? "" : "s"} paused.`}`;
 }
-// kirocrew-app/ui/src/executors/kirocrew.ts
+// src/executors/kirocrew.ts
 async function mt(e, t) {
 	if (!t) return null;
 	try {
@@ -951,7 +951,7 @@ async function mt(e, t) {
 		return null;
 	}
 }
-// kirocrew-app/ui/src/panel-api.ts
+// src/panel-api.ts
 async function ht(e, t) {
 	return (await e.post(M, {
 		operation: "panel.view",
@@ -1171,7 +1171,7 @@ function Et(e) {
 		why: "none"
 	};
 }
-// kirocrew-app/ui/src/PanelParts.tsx
+// src/PanelParts.tsx
 var Dt = "\n[data-pp]{container-type:inline-size;font-size:12px;line-height:18px;min-width:0;max-width:100%;overflow-x:hidden;box-sizing:border-box;color:var(--text)}\n[data-pp] *{box-sizing:border-box}\n[data-pp-head]{display:flex;align-items:center;flex-wrap:nowrap;gap:6px;padding:6px 12px;border-bottom:1px solid var(--border);min-width:0}\n[data-pp-head-name]{flex:0 1 auto;display:inline-flex;align-items:baseline;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:var(--text-strong,var(--text))}\n[data-pp-head-brand]{display:inline-flex;align-items:baseline;gap:4px;flex:none}\n[data-pp-head-instance]{font-weight:400;color:var(--muted);flex:none}\n[data-pp-head-workspace]{font-weight:400;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n[data-pp-head-link]{padding:0;margin:0;background:none;border:0;font:inherit;color:inherit;cursor:pointer;text-decoration:none}\n[data-pp-head-link]:hover,[data-pp-head-link]:focus-visible{color:var(--accent);text-decoration:underline}\n[data-pp-head-tools]{flex:none;display:inline-flex;align-items:center;gap:2px}\n[data-pp-head-end]{flex:none;display:inline-flex;align-items:center;gap:4px;margin-left:auto}\n[data-pp-section]{border-bottom:1px solid var(--border)}\n[data-pp-section-head]{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:transparent;border:0;border-radius:0;text-align:left;cursor:pointer;color:var(--text);font:inherit;font-size:12px;font-weight:600;transition:background-color .12s}\n[data-pp-section-head]:hover{background:var(--bg-hover)}\n[data-pp-section-head] [data-pp-chevron]{flex:none;color:var(--muted)}\n[data-pp-section-title]{color:var(--text-strong,var(--text))}\n[data-pp-summary]{margin-left:auto;max-width:55%;font-size:11px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}\n[data-pp-list]{list-style:none;margin:0;padding:0 0 8px}\n[data-pp-row]{display:grid;grid-template-columns:14px minmax(0,1fr) auto;align-items:center;column-gap:8px;padding:4px 12px;transition:background-color .12s}\n[data-pp-row]:hover{background:var(--bg-hover)}\n[data-pp-row-icon]{display:inline-flex;color:var(--muted)}\n[data-pp-row-main]{display:flex;flex-direction:column;min-width:0}\n[data-pp-row-line]{display:flex;flex-wrap:nowrap;align-items:center;gap:0 6px;min-width:0;overflow:hidden}\n[data-pp-row-title]{display:block;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}\na[data-pp-row-title]{text-decoration:none}\na[data-pp-row-title]:hover{text-decoration:underline}\n[data-pp-row-line]>[data-tooltip-anchor]{flex:0 0 auto;max-width:100%}\n[data-pp-row-line]>[data-tooltip-anchor]:first-child{flex:0 1 auto;min-width:0}\n[data-pp-row-line]>[data-tooltip-anchor]:has([data-pp-age]){margin-left:auto}\n[data-pp-age]{flex:none;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}\n[data-pp-row-meta]{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}\n[data-pp-actions]{display:inline-flex;align-items:center;gap:4px;flex:none}\n[data-pp-chip]{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto;min-width:0;max-width:10rem;padding:2px 6px;border-radius:4px;font-size:10px;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);background:var(--bg-hover)}\n[data-pp-chip][data-tone=ok]{color:var(--ok);background:color-mix(in srgb,var(--ok) 15%,transparent)}\n[data-pp-chip][data-tone=warn]{color:var(--warning,#b7791f);background:color-mix(in srgb,var(--warning,#b7791f) 15%,transparent)}\n[data-pp-chip][data-tone=danger]{color:var(--danger);background:color-mix(in srgb,var(--danger) 15%,transparent)}\n[data-pp-chip][data-tone=info]{color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent)}\n[data-pp-act],[data-pp-icon]{min-height:22px;background:transparent;display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;font-size:11px;line-height:16px;text-decoration:none;white-space:nowrap;cursor:pointer;transition:background-color .12s,color .12s}\n[data-pp-act]:hover,[data-pp-icon]:hover{background:var(--bg-hover);color:var(--text)}\n[data-pp-act][data-pp-primary]{border-color:var(--accent);color:var(--accent)}\n[data-pp-act]:disabled,[data-pp-icon]:disabled{opacity:.6;cursor:default}\n[data-pp-icon][data-bare]{padding:2px 5px;border-color:transparent}\n[data-pp-cells]{padding:0 12px 8px}\n[data-pp-empty]{margin:0;padding:0 12px 12px;font-size:12px;color:var(--muted)}\n@media (max-width:640px){\n[data-pp-head-name]>[data-pp-head-brand]{display:none}\n[data-pp-head-workspace]>[data-pp-head-dot]{display:none}\n[data-pp-narrow-hide]{display:none}\n[data-pp-act][data-narrow-icon]{padding:2px 6px}\n}\n@container (max-width:520px){\n[data-pp-row-line]:has(>[data-tooltip-anchor]:nth-child(n+4)){flex-wrap:wrap}\n[data-pp-row-line]:has(>[data-tooltip-anchor]:nth-child(n+4))>[data-tooltip-anchor]:first-child{max-width:100%}\n}\n@container (max-width:520px){\n[data-pp-row][data-multi]{grid-template-columns:14px minmax(0,1fr)}\n[data-pp-row][data-multi]>[data-pp-actions]{grid-column:2}\n}\n";
 function Ot() {
 	return /* @__PURE__ */ A("style", { children: Dt });
@@ -1471,7 +1471,7 @@ function zt(e, t, n) {
 	return [`Reads again in ${t}s. GitHub answers are kept ${e?.cacheSeconds ?? 60}s (Settings > GitHub).`, r ? `${r.remaining} of ${r.limit} GitHub calls left this hour.` : ""].filter(Boolean).join(" ");
 }
 var Bt = (e) => e >= 100 ? "var(--danger)" : `color-mix(in srgb, var(--danger) ${Math.round(Math.max(0, e) * .8)}%, var(--muted))`;
-// kirocrew-app/ui/src/task-api.ts
+// src/task-api.ts
 function Q(e, t = Date.now()) {
 	if (!e) return "";
 	let n = Date.parse(e);
@@ -1479,7 +1479,7 @@ function Q(e, t = Date.now()) {
 	let r = Math.round((t - n) / 6e4);
 	return r < 1 ? "just now" : r < 60 ? `${r} min ago` : r < 1440 ? `${Math.round(r / 60)} h ago` : r < 20160 ? `${Math.round(r / 60 / 24)} d ago` : e.slice(0, 10);
 }
-// kirocrew-app/ui/src/settings-api.ts
+// src/settings-api.ts
 function Vt(e) {
 	let t = async (t, n, r) => (await e.post(M, {
 		operation: t,
@@ -1524,7 +1524,7 @@ var Ht = {
 	background: "transparent",
 	cursor: "pointer"
 };
-// kirocrew-app/ui/src/RefreshButton.tsx
+// src/RefreshButton.tsx
 function Wt(e, n, i) {
 	let a = N(), l = o(() => Vt(a), [a]), [u, d] = c(null), [f, p] = c(60), [m, h] = c(() => Date.now()), g = s(n);
 	g.current = n;
@@ -1601,7 +1601,7 @@ function Kt(e) {
 		look: e.bare ? "bare" : "square"
 	});
 }
-// kirocrew-app/ui/src/StatusCells.tsx
+// src/StatusCells.tsx
 var qt = "\n[data-sc-row]{container-type:inline-size}\n[data-sc-grid]{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}\n@container (max-width:420px){[data-sc-grid]{grid-template-columns:minmax(0,1fr)}}\n[data-sc]{display:flex;flex-wrap:nowrap;align-items:center;align-content:flex-start;gap:0 8px;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:18px;color:var(--text)}\n[data-sc-title]{flex:0 1 auto;display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;font-weight:600;color:var(--text-strong,var(--text));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n[data-sc-dot]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted)}\n[data-sc-dot][data-tone=ok]{background:var(--ok)}\n[data-sc-dot][data-tone=warn]{background:var(--warning,#b7791f)}\n[data-sc-dot][data-tone=danger]{background:var(--danger)}\n[data-sc-actions]{flex:none;display:inline-flex;flex-wrap:nowrap;align-items:center;gap:4px;margin-left:auto}\n[data-sc-act]{display:inline-flex;align-items:center;justify-content:center;width:24px;height:22px;padding:0;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--muted);font:inherit;text-decoration:none;cursor:pointer;transition:background-color .12s,color .12s}\n[data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}\n[data-sc-act][data-primary]{color:var(--accent)}\n[data-sc-act]:disabled{opacity:.6;cursor:default}\n";
 function Jt(e) {
 	return /* @__PURE__ */ j("div", {
@@ -1658,7 +1658,7 @@ function Xt(e) {
 		})
 	});
 }
-// kirocrew-app/ui/src/plans-api.ts
+// src/plans-api.ts
 function Zt(e) {
 	let t = async (t, n, r = {}) => (await e.post(M, {
 		operation: n,
@@ -1727,7 +1727,7 @@ function Zt(e) {
 		}
 	};
 }
-// kirocrew-app/ui/src/release-api.ts
+// src/release-api.ts
 function Qt(e) {
 	let t = async (t, n, r) => (await e.post(M, {
 		operation: t,
@@ -1756,7 +1756,7 @@ function Qt(e) {
 		step: (e, n) => t("radar.releasestep", { planId: n }, e)
 	};
 }
-// kirocrew-app/ui/src/spec-builder-api.ts
+// src/spec-builder-api.ts
 var $t = "/api/apps/spec-builder/specs", en = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -1814,7 +1814,7 @@ function rn(e, t, n) {
 	} : { kind: "none" } : t === "Escape" ? e.open ? { kind: "close" } : { kind: "clear" } : { kind: "none" };
 }
 var an = (e) => e.title && e.title !== e.id ? `${e.id}: ${e.title}` : e.id;
-// kirocrew-app/ui/src/Picker.tsx
+// src/Picker.tsx
 function on(e) {
 	let t = i(), n = e.id ?? `avoozl-pick-${t.replace(/:/g, "")}`, a = `${n}-list`, l = o(() => tn(e.items), [e.items]), u = e.keep ?? !0, d = o(() => e.items.find((t) => t.id === e.value) ?? null, [e.items, e.value]), f = (t) => e.plain ? t.title : an(t), p = d && u ? f(d) : "", [m, h] = c(p), [g, _] = c(!1), [v, y] = c(!1), [b, x] = c(0), S = s(null);
 	r(() => {
@@ -2038,7 +2038,7 @@ function un(e) {
 		})]
 	});
 }
-// kirocrew-app/ui/src/StopLine.tsx
+// src/StopLine.tsx
 var dn = {
 	background: "var(--danger)",
 	borderColor: "var(--danger)",
@@ -2318,7 +2318,7 @@ function _n(e) {
 		]
 	});
 }
-// kirocrew-app/ui/src/instance-api.ts
+// src/instance-api.ts
 function vn(e) {
 	let t = async (t, n, r) => (await e.post(M, {
 		operation: t,
@@ -2333,7 +2333,7 @@ function vn(e) {
 function yn(e, t) {
 	return e && (t === "header" || e.shared) ? e.name : null;
 }
-// kirocrew-app/ui/src/InstanceName.tsx
+// src/InstanceName.tsx
 var bn = "avoozl:instance-changed";
 function xn(e) {
 	let n = N(), i = o(() => vn(n), [n]), [a, s] = c(null), l = t(() => {
@@ -2341,7 +2341,7 @@ function xn(e) {
 	}, [i, e]);
 	return r(() => (l(), window.addEventListener(bn, l), () => window.removeEventListener(bn, l)), [l]), a;
 }
-// kirocrew-app/ui/src/Panel.tsx
+// src/Panel.tsx
 var Sn = "/apps/avoozl", Cn = "avoozl.panel.away";
 function wn(e) {
 	try {

@@ -101,6 +101,50 @@ export function retentionInput(text: string): { days: number | null; error?: str
   return { days }
 }
 
+export const KEEP_SAVE_DELAY_MS = 800
+
+// Keep activity saves by itself. `change` runs on each keystroke and saves
+// once after `delay` ms of quiet; `flush` (blur, Enter) saves at once. Only a
+// valid value that differs from the last saved or loaded one is sent.
+export function retentionAutosave(options: {
+  save: (days: number | null) => void
+  delay?: number
+  setTimer?: (run: () => void, ms: number) => unknown
+  clearTimer?: (timer: any) => void
+}) {
+  const { save, delay = KEEP_SAVE_DELAY_MS } = options
+  const setTimer = options.setTimer ?? ((run: () => void, ms: number) => setTimeout(run, ms))
+  const clearTimer = options.clearTimer ?? ((id: unknown) => clearTimeout(id as ReturnType<typeof setTimeout>))
+  let timer: unknown = null
+  let known = ''
+  const cancel = () => {
+    if (timer !== null) clearTimer(timer)
+    timer = null
+  }
+  const send = (text: string) => {
+    cancel()
+    const parsed = retentionInput(text)
+    if (parsed.error || text.trim() === known.trim()) return
+    known = text
+    save(parsed.days)
+  }
+  return {
+    // The text now on the server (after a load or a conflict reload).
+    reset(text: string) {
+      cancel()
+      known = text
+    },
+    change(text: string) {
+      cancel()
+      const parsed = retentionInput(text)
+      if (parsed.error || text.trim() === known.trim()) return
+      timer = setTimer(() => send(text), delay)
+    },
+    flush: send,
+    cancel,
+  }
+}
+
 const KEY = 'avoozl:activity-filter:'
 export const ACTIVITY_FILTER_STORE = {
   event: 'avoozl:activity-filter',
