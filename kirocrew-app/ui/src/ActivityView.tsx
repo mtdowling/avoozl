@@ -8,16 +8,16 @@ import { useAppApi } from './host.ts'
 import { EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
-import { NavFilters, useStoredFilter } from './FilterPanel.tsx'
+import { useStoredFilter } from './FilterPanel.tsx'
 import { NavSlotFor } from './nav-slot.tsx'
-import { ShowMore, TipBtn, ViewHeading } from './controls.tsx'
-import { selectStyle } from './FilterSelect.tsx'
+import { RailBlock, RailChips, RailRow, RailStyle } from './NavRail.tsx'
+import { COMPACT_BTN, ShowMore, TipBtn, ViewHeading } from './controls.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
 import { relativeTime } from './task-api.ts'
 import { useRefreshCountdown } from './RefreshButton.tsx'
 import { usePublishRefresh } from './page-refresh.tsx'
-import { History } from './icons.ts'
+import { Clock, History, ListFilter, Tag, Users, X } from './icons.ts'
 import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
 import {
@@ -25,7 +25,7 @@ import {
   SOURCE_LABELS,
   activityClient,
   filterActive,
-  filterOptions,
+  filterChoices,
   retentionInput,
   rowTarget,
   type ActivityFilter,
@@ -169,13 +169,14 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
     }
   }
   return (
-    // One compact field beside the filters: the days, Save, and a note.
+    // One row under the Keep activity header, lined up with the rail's
+    // search box: the days, the word, and Save; a note under it.
     <div data-activity-keep data-section="Keep activity" className="flex flex-col gap-1">
-      <div className="flex items-end gap-2">
-        <label htmlFor="avoozl-activity-keep" className="flex flex-col gap-1 text-sm">
-          <Tooltip text="Saved to .avoozl.json. Each tick deletes rows older than this. Blank uses the default.">
-            <span>Keep activity (days)</span>
-          </Tooltip>
+      <div className="flex items-center gap-2">
+        <label htmlFor="avoozl-activity-keep" className="sr-only">
+          Keep activity (days)
+        </label>
+        <Tooltip text="Saved to .avoozl.json. Each tick deletes rows older than this. Blank uses the default.">
           <input
             id="avoozl-activity-keep"
             type="number"
@@ -186,13 +187,15 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
             onChange={(event) => setText(event.target.value)}
             aria-invalid={parsed.error ? true : undefined}
             aria-describedby={parsed.error ? 'avoozl-activity-keep-error' : undefined}
-            className="rounded border px-2 py-1 text-sm"
-            style={{ ...selectStyle, width: '6rem' }}
+            style={{ width: '4.5rem', boxSizing: 'border-box', fontSize: 13, padding: '4px 8px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
           />
-        </label>
-        <TipBtn primary tooltip="Save how many days activity is kept" onClick={() => void save()} disabled={!settings || saving || Boolean(parsed.error)}>
-          Save
-        </TipBtn>
+        </Tooltip>
+        <span style={{ fontSize: 13, color: 'var(--muted)' }}>days</span>
+        <span style={{ marginLeft: 'auto', display: 'inline-flex' }}>
+          <TipBtn primary tooltip="Save how many days activity is kept" onClick={() => void save()} disabled={!settings || saving || Boolean(parsed.error)} style={COMPACT_BTN}>
+            Save
+          </TipBtn>
+        </span>
       </div>
       {parsed.error && (
         <p id="avoozl-activity-keep-error" role="alert" className="text-xs text-danger">
@@ -249,7 +252,7 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
     }
   }
   usePublishRefresh(useRefreshCountdown(workspaceId, () => void load(), busy || !workspaceId))
-  const options = filterOptions(page, filter)
+  const choices = filterChoices(page, filter)
   const setField = (change: Partial<ActivityFilter>) => setFilter({ ...filter, ...change })
   const rows = page?.items ?? []
 
@@ -269,21 +272,44 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
         </p>
       )}
       {/* The filters and Keep activity sit in the left nav under the open
-          Activity section (nav-slot.tsx); the count stays here. */}
+          Activity section (nav-slot.tsx), as rows and chips like the Specs
+          rail (NavRail.tsx): no dropdowns. The count stays here. */}
       <NavSlotFor section="activity">
-        <NavFilters
-          id="avoozl-activity"
-          label="Filter activity"
-          inline
-          active={filterActive(filter)}
-          onClear={() => setFilter({})}
-          fields={[
-            { kind: 'select', key: 'source', label: 'Source', value: filter.source ?? '', options: options.sources, onChange: (source) => setField({ source: source || undefined }) },
-            { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: options.kinds, onChange: (kind) => setField({ kind: kind || undefined }) },
-            { kind: 'select', key: 'actor', label: 'Who', value: filter.actor ?? '', options: options.actors, onChange: (actor) => setField({ actor: actor || undefined }) },
-          ]}
-          extra={workspaceId ? <KeepActivity workspaceId={workspaceId} onSaved={() => void load()} /> : undefined}
-        />
+        <div role="search" aria-label="Filter activity" data-nav-filters="avoozl-activity" data-filter-panel="avoozl-activity" data-rail>
+          <RailStyle />
+          <RailBlock
+            first
+            id="source"
+            icon={ListFilter}
+            title="Source"
+            action={
+              filterActive(filter) && (
+                <button type="button" data-rail-icon onClick={() => setFilter({})} style={{ gap: 2, alignItems: 'center', fontSize: 12 }}>
+                  <X size={11} aria-hidden="true" /> Clear
+                </button>
+              )
+            }
+          >
+            <RailRow label="All" active={!filter.source} onClick={() => setField({ source: undefined })} attrs={{ 'data-rail-source': '' }} />
+            {choices.sources.map((item) => (
+              <RailRow
+                key={item.value}
+                label={item.label}
+                active={filter.source === item.value}
+                onClick={() => setField({ source: filter.source === item.value ? undefined : item.value })}
+                attrs={{ 'data-rail-source': item.value }}
+                trail={<span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', opacity: 0.7 }}>{item.count}</span>}
+              />
+            ))}
+          </RailBlock>
+          <RailChips id="kinds" icon={Tag} title="Kinds" noun="kind" items={choices.kinds} picked={filter.kind} onPick={(kind) => setField({ kind })} />
+          <RailChips id="people" icon={Users} title="Who" noun="name" items={choices.actors} picked={filter.actor} onPick={(actor) => setField({ actor })} />
+          {workspaceId && (
+            <RailBlock id="keep" icon={Clock} title="Keep activity">
+              <KeepActivity workspaceId={workspaceId} onSaved={() => void load()} />
+            </RailBlock>
+          )}
+        </div>
       </NavSlotFor>
       <p role="status" className="text-xs text-muted" data-filter-status>
         {page ? `${page.total} ${page.total === 1 ? 'entry' : 'entries'}${filterActive(filter) ? ' match' : ''} · kept ${page.retentionDays} days` : busy ? 'Loading…' : 'Not loaded'}

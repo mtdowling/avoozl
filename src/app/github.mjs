@@ -1563,6 +1563,72 @@ export class GitHubClient {
 
   // A branch at `oid`, then one file written on it. Used by the approval
   // pull request (spec-approval.mjs). `content` is base64.
+  // The public crew audit's reads (R85.6): issue and pull request comments,
+  // issues and pull requests updated since `since`, the most recently
+  // updated pull requests, and the branches under `prefix`.
+  issueCommentsSince(value, since) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.paginate(`/repos/${owner}/${repo}/issues/comments`, {
+      query: { since, sort: "updated", direction: "asc" },
+    });
+  }
+
+  issuesSince(value, since) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.paginate(`/repos/${owner}/${repo}/issues`, {
+      query: { state: "all", since, sort: "updated", direction: "asc" },
+    });
+  }
+
+  // shortcut: one page of 100; enough at one read a minute.
+  recentlyUpdatedPullRequests(value) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request("GET", `/repos/${owner}/${repo}/pulls`, {
+      query: {
+        state: "all",
+        sort: "updated",
+        direction: "desc",
+        per_page: PAGE_SIZE,
+      },
+    });
+  }
+
+  branchesUnder(value, prefix) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.paginate(
+      `/repos/${owner}/${repo}/git/matching-refs/heads/${prefix.split("/").map(encodeURIComponent).join("/")}`,
+    );
+  }
+
+  // Deletes, so no edit history is left (R85.7). A 404 is already gone.
+  deleteIssueComment(value, commentId) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "DELETE",
+      `/repos/${owner}/${repo}/issues/comments/${commentId}`,
+    ).catch((error) => {
+      if (error.status !== 404) throw error;
+      return null;
+    });
+  }
+
+  deleteBranch(value, name) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "DELETE",
+      `/repos/${owner}/${repo}/git/refs/heads/${name.split("/").map(encodeURIComponent).join("/")}`,
+    ).catch((error) => {
+      if (error.status !== 404 && error.status !== 422) throw error;
+      return null;
+    });
+  }
+
   createBranch(value, name, oid) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;

@@ -84,6 +84,23 @@ try {
       }
       await open('Activity')
       await shot('activity')
+      // The rest of the Activity rail, scrolled inside its pill: GitHub and
+      // one kind picked, down to Keep activity.
+      if (await page.evaluate(`Boolean(document.querySelector('${scope(width)} [data-rail-source="github"]'))`)) {
+        await page.evaluate(`document.querySelector('${scope(width)} [data-rail-source="github"]').click()`)
+        await page.evaluate(`document.querySelector('${scope(width)} [data-rail-chip="settings"]').click()`)
+        await wait(page, 300)
+        await page.evaluate(`(() => { const keep = document.querySelector('${scope(width)} #avoozl-activity-keep'); let el = keep.parentElement; while (el && !(el.scrollHeight > el.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(el).overflowY))) el = el.parentElement; if (el) el.scrollTop = el.scrollHeight })()`)
+        await shot('activity-rail')
+        await page.evaluate(`document.querySelector('${scope(width)} [data-rail-source=""]').click()`)
+        await page.evaluate(`document.querySelector('${scope(width)} [data-rail-chip="settings"]').click()`)
+        await wait(page, 300)
+      }
+      if (width < 768) {
+        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+        await shot('activity-page')
+        await menu()
+      }
       await menu()
       await page.evaluate(`document.querySelector('${scope(width)} [data-workspace-pill]')?.click()`)
       await shot('workspace-menu')

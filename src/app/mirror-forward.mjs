@@ -7,8 +7,32 @@
 // shortcut: a merge that happened before this machine first saw the mirror is
 // not recorded; a person forwards that one by hand.
 import { parseRepository } from "./github.mjs";
+import { isTrackingBranch, trackingBranch } from "./mirror-sync.mjs";
 
 const META = "mirrorForwardSince";
+const IMPORTS = "mirrorForwardImports";
+
+// An upstream import (R102.21): the pull request came from a tracking
+// branch, or its merge commit's second parent is on the tracking branch of
+// `base`. Its change is the source's own, so it is never forwarded.
+async function isImport(github, mirror, pull, base) {
+  if (isTrackingBranch(pull.head?.ref)) return true;
+  const second = (await github.commit(mirror.mirror, pull.merge_commit_sha))
+    ?.parents?.[1]?.sha;
+  if (!second) return false;
+  try {
+    const { status } = await github.compareCommits(
+      mirror.mirror,
+      second,
+      trackingBranch(base),
+    );
+    return status === "ahead" || status === "identical";
+  } catch (error) {
+    // No tracking branch, so nothing was imported through it.
+    if (error.status === 404 || error.status === 422) return false;
+    throw error;
+  }
+}
 
 // Records, oldest merge first.
 export function mirrorForwards(store) {
@@ -29,8 +53,12 @@ export async function mirrorForwardStep(
   { policy, now = Date.now(), publicBranches = () => [] } = {},
 ) {
   const errors = [],
-    since = { ...(store.getMeta(META) ?? {}) };
-  let changed = false;
+    since = { ...(store.getMeta(META) ?? {}) },
+    // shortcut: every skipped import's merge SHA is kept so it is read once;
+    // trim by merge time if a mirror imports thousands of times.
+    imports = { ...(store.getMeta(IMPORTS) ?? {}) };
+  let changed = false,
+    imported = false;
   for (const [repository, entry] of Object.entries(
     policy?.repositories || {},
   )) {
@@ -61,9 +89,15 @@ export async function mirrorForwardStep(
             !sha ||
             pull.base?.ref !== base ||
             pull.merged_at < since[mirror.mirror] ||
-            store.get("mirror_forward", sha)
+            store.get("mirror_forward", sha) ||
+            imports[sha]
           )
             continue;
+          if (await isImport(github, mirror, pull, base)) {
+            imports[sha] = true;
+            imported = true;
+            continue;
+          }
           const detail = await github.pullRequest(mirror.mirror, pull.number),
             head = String(pull.head?.ref ?? ""),
             prefix = mirror.branchPrefix ?? "";
@@ -97,6 +131,7 @@ export async function mirrorForwardStep(
     }
   }
   if (changed) store.setMeta(META, since);
+  if (imported) store.setMeta(IMPORTS, imports);
   return { errors };
 }
 
