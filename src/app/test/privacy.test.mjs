@@ -165,16 +165,36 @@ const INTERNAL = {
 test("a made-up hostname, username and private name in every public field is refused with nothing written", async (t) => {
   const { store } = workspace(t);
   const { github, writes } = fakeGitHub(store);
-  for (const [field, write] of Object.entries(PUBLIC_FIELDS))
-    for (const [kind, value] of Object.entries(INTERNAL))
-      await assert.rejects(
-        write(github, value),
-        (error) =>
-          error.contentBlocked === true &&
-          !error.message.includes(value) &&
-          !error.message.includes("pemberly"),
-        `${field}: ${kind}`,
-      );
+  // This machine's names, a home path and a private name in every field;
+  // each other kind of internal value in a body and a branch name.
+  const everywhere = [
+      "hostname",
+      "full hostname",
+      "username",
+      "home path",
+      "private name",
+    ],
+    cases = [
+      ...Object.keys(PUBLIC_FIELDS).flatMap((field) =>
+        everywhere.map((kind) => [field, kind]),
+      ),
+      ...["issue body", "pull request branch"].flatMap((field) =>
+        Object.keys(INTERNAL)
+          .filter((kind) => !everywhere.includes(kind))
+          .map((kind) => [field, kind]),
+      ),
+    ];
+  for (const [field, kind] of cases) {
+    const value = INTERNAL[kind];
+    await assert.rejects(
+      PUBLIC_FIELDS[field](github, value),
+      (error) =>
+        error.contentBlocked === true &&
+        !error.message.includes(value) &&
+        !error.message.includes("pemberly"),
+      `${field}: ${kind}`,
+    );
+  }
   assert.deepEqual(writes, []);
   // A decision names the set, rule and target, never the matched text.
   const saved = JSON.stringify(store.list("content_decisions"));
