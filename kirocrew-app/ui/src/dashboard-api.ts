@@ -5,7 +5,7 @@
 // of JSX so node can test it directly.
 import type { StoredPlanPage } from './plans-api.ts'
 import { nodeState, waves, type NodeState } from './graph-layout.ts'
-import { modelLabel, safeHref, type RadarClaim, type RadarGroup, type RadarCrews, type RadarCrewStrip, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask, type RemoteWorker } from './views-api.ts'
+import { modelLabel, safeHref, type RadarClaim, type RadarGroup, type RadarCrews, type RadarCrewStrip, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask, type ProcessDetails, type RemoteWorker } from './views-api.ts'
 
 // Session statuses after which a session will not move again.
 const ENDED = new Set(['closed', 'lost'])
@@ -66,6 +66,22 @@ export interface InFlight {
   session: DeliverySession
   // Set for a worker on a runner's crew (R84); Session opens its dashboard.
   remote?: RemoteWorker
+}
+
+// A `process` session's status words for In flight (R98.1): the harness,
+// the supervisor's state, the run when it was resumed, and the cost when
+// known.
+export function processLine(details: ProcessDetails): string {
+  const state =
+    details.state === 'requested' ? 'starting' : details.state === 'exited' ? `exited ${details.exitCode ?? '?'}` : details.state
+  return [
+    details.harness,
+    state,
+    details.run > 1 ? `run ${details.run}` : null,
+    details.cost === null ? null : `$${details.cost < 0.01 && details.cost > 0 ? details.cost.toFixed(4) : details.cost.toFixed(2)}`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export interface Progress {

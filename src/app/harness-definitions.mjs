@@ -41,6 +41,7 @@ const KEYS = new Set([
   // Removed 2026-11-17 with budgets: still accepted so an old definition
   // loads, and ignored.
   "spendCap",
+  "attach",
   "model",
   "promptFrom",
   "keepEnv",
@@ -243,6 +244,10 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
         );
     definition.tmpEnv = Object.freeze([...value.tmpEnv]);
   }
+  // What a person runs in the worktree to join the session (R98.1); In
+  // flight shows it to copy. Avoozl never runs it.
+  if (value.attach !== undefined)
+    definition.attach = argv(value.attach, "attach", source);
   if (value.cost !== undefined) {
     const cost = words(value.cost, "cost", source);
     const field = { output: "field", file: "path" }[cost.from];

@@ -27,6 +27,8 @@ import {
   startNowIds,
 } from "./delivery.mjs";
 import { sessionUrl } from "./notifications.mjs";
+import { processSessionDetails } from "./process-view.mjs";
+import { machineAvoozlPaths } from "./host-config.mjs";
 import { projectItemRecords } from "./github-project.mjs";
 import { FEEDBACK, feedbackSummary } from "./github-feedback.mjs";
 import { remoteLeaf, routeNeedsYou } from "./routes.mjs";
@@ -784,7 +786,20 @@ export function deliveryView(store, data) {
       optionalList(store, "route_submissions").map((row) => [row.taskId, row]),
     ),
     health = pluginHealth(store);
-  const bindings = byTask(optionalList(store, "session_bindings")),
+  const bindingRows = optionalList(store, "session_bindings");
+  // Live `process` sessions read their status, log tail, cost and attach
+  // command from this machine's supervisor (R98.1); none, no read.
+  const processDetails = processSessionDetails(
+    bindingRows
+      .filter(
+        (b) =>
+          b?.executor === "process" &&
+          !["closed", "lost", "gone"].includes(b.status),
+      )
+      .map((b) => b.slot),
+    machineAvoozlPaths(),
+  );
+  const bindings = byTask(bindingRows),
     runs = byTask(optionalList(store, "runs")),
     evidence = byTask(optionalList(store, "evidence")),
     deliveries = byTask(optionalList(store, "task_deliveries")),
@@ -869,7 +884,16 @@ export function deliveryView(store, data) {
               }
             : null,
           commit: binding.commit ?? null,
-          link: attachLink(store, binding, sessionUrl(binding.slot)),
+          executor: binding.executor ?? "kirocrew",
+          // A child has no Kiro Crew chat to open; In flight shows its
+          // attach command instead.
+          link:
+            binding.executor === "process"
+              ? null
+              : attachLink(store, binding, sessionUrl(binding.slot)),
+          ...(processDetails.has(binding.slot)
+            ? { process: processDetails.get(binding.slot) }
+            : {}),
         }))
         .sort((a, b) => a.attempt - b.attempt || a.role.localeCompare(b.role)),
       runs: (runs.get(id) || [])

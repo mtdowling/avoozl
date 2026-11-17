@@ -694,22 +694,33 @@ export function startSupervisor({
       child.on("error", () => {});
       child.unref();
       own.set(row.session_id, child);
-      if (message)
-        db.prepare("UPDATE messages SET state = 'delivered' WHERE id = ?").run(
-          message.id,
-        );
-      update(db, row.session_id, {
-        state: "running",
-        harness_hash: hash,
-        pid: child.pid,
-        process_started: startTime(child.pid),
-        log_file: log,
-        exit_file: exitFile,
-        exit_code: null,
-        result: null,
-        error: null,
-        runs: run,
-      });
+      // One step for readers: the message is delivered only as the child
+      // reads running, so no reader sees the earlier run's exit with no
+      // queued message and takes it for this run's end.
+      const started = startTime(child.pid);
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        if (message)
+          db.prepare(
+            "UPDATE messages SET state = 'delivered' WHERE id = ?",
+          ).run(message.id);
+        update(db, row.session_id, {
+          state: "running",
+          harness_hash: hash,
+          pid: child.pid,
+          process_started: started,
+          log_file: log,
+          exit_file: exitFile,
+          exit_code: null,
+          result: null,
+          error: null,
+          runs: run,
+        });
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
     } catch (error) {
       // Refused before it ran (an unapproved definition, a missing worktree):
       // `exited -1` takes the retry path rather than reopening as gone. A
