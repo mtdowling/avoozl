@@ -6,7 +6,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import os from "node:os";
 import { fail } from "./store.mjs";
+import { EXECUTOR_CONTRACT } from "./executors.mjs";
+import { recordActivity } from "./activity-log.mjs";
 
 export const HARNESS_DIRECTORY = "harnesses";
 export const HARNESS_APPROVALS = "harness-approvals.json";
@@ -22,6 +25,9 @@ export const HARNESS_PLACEHOLDERS = Object.freeze([
   "project_allow_commands",
   "budget_usd",
 ]);
+export const PERMISSION_CLASSES = EXECUTOR_CONTRACT.permissionClasses;
+export const HARNESS_UNCONFINED = "harness-unconfined.json";
+const WRITE_ROOTS = ["{worktree}", "{tmp}", "{project_cache_dirs}"];
 const NAME = /^[a-z][a-z0-9-]{0,60}$/;
 const KEYS = new Set([
   "name",
@@ -128,7 +134,12 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
       `${source}: name must start with a lowercase letter and use only lowercase letters, numbers and hyphens.`,
     );
   const permission = words(value.permission, "permission", source);
-  for (const role of ["write", "read"])
+  for (const key of Object.keys(permission))
+    if (!PERMISSION_CLASSES.includes(key))
+      fail(
+        `${source}: permission.${key} is not a permission class (${PERMISSION_CLASSES.join(", ")}).`,
+      );
+  for (const role of PERMISSION_CLASSES)
     if (permission[role] === undefined)
       fail(`${source}: permission.${role} is required.`);
   const definition = {
@@ -140,6 +151,17 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
   for (const key of ["writeRoots", "allow"])
     if (value[key] !== undefined)
       definition[key] = argv(value[key], key, source, { command: false });
+  // A definition names where the CLI may write only by these placeholders,
+  // so it can never widen the roots with a path of its own (R94.4).
+  if (definition.writeRoots) {
+    for (const [index, item] of definition.writeRoots.entries())
+      if (!WRITE_ROOTS.includes(item))
+        fail(
+          `${source}: writeRoots[${index}] must be one of ${WRITE_ROOTS.join(", ")}.`,
+        );
+    if (!definition.writeRoots.includes("{worktree}"))
+      fail(`${source}: writeRoots must include {worktree}.`);
+  }
   if (value.spendCap !== undefined)
     definition.spendCap = argv(value.spendCap, "spendCap", source, {
       command: false,
@@ -251,4 +273,138 @@ export function fillHarnessArgv(list, values) {
       }),
     ];
   });
+}
+
+const overlaps = (a, b) =>
+  a === b || a.startsWith(b + path.sep) || b.startsWith(a + path.sep);
+
+// A project's cache directories (`sandbox.writeRoots`, R94.4): absolute,
+// never the filesystem root, the home folder or one above it, and never
+// over the git directory, which the child must not reach (R94.4a).
+export function sandboxWriteRoots(
+  value,
+  { gitCommonDir, home = os.homedir() } = {},
+) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string"))
+    fail("sandbox.writeRoots must be a list of absolute folder paths.");
+  return value.map((item) => {
+    if (!path.isAbsolute(item))
+      fail(`sandbox.writeRoots holds ${item}; write an absolute path.`);
+    const root = path.resolve(item);
+    if (path.dirname(root) === root)
+      fail(`sandbox.writeRoots holds the filesystem root ${root}.`);
+    if (
+      root === path.resolve(home) ||
+      path.resolve(home).startsWith(root + path.sep)
+    )
+      fail(`sandbox.writeRoots holds ${root}, which holds the home folder.`);
+    if (gitCommonDir && overlaps(root, path.resolve(gitCommonDir)))
+      fail(
+        `sandbox.writeRoots holds ${root}, which overlaps the git directory.`,
+      );
+    return root;
+  });
+}
+
+function readUnconfined(configDirectory) {
+  const file = path.join(path.resolve(configDirectory), HARNESS_UNCONFINED);
+  if (!fs.existsSync(file)) return {};
+  const value = JSON.parse(fs.readFileSync(file, "utf8"));
+  if (!record(value)) fail(`${file} must hold a JSON object.`);
+  return value;
+}
+
+// The per-machine opt-in for a harness that cannot confine writes (R94.5).
+// Person only: refused for any other actor and inside a worker child, and
+// recorded in Activity. It names the approved hash, so a changed file needs
+// a new opt-in. shortcut: callers pass the actor; once an operation exposes
+// this, list it in PERSON_ONLY (mcp-policy.mjs) so MCP can never reach it.
+export function allowUnconfinedWrites({
+  store,
+  configDirectory,
+  name,
+  hash,
+  actor,
+  env = process.env,
+}) {
+  if (actor !== "person" || env.AVOOZL_CHILD)
+    fail(
+      "Only a person lets a harness write outside the task folder on this machine.",
+      403,
+    );
+  if (!store) fail("Recording the opt-in in Activity needs the store.");
+  const definition = loadHarnessDefinition({ configDirectory, name });
+  if (definition.hash !== hash)
+    fail(
+      `Harness ${name} is approved at ${definition.hash}, not ${hash}.`,
+      409,
+    );
+  const allowed = { ...readUnconfined(configDirectory), [name]: hash };
+  const file = path.join(path.resolve(configDirectory), HARNESS_UNCONFINED);
+  const temporary = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify(allowed, null, 2) + "\n");
+  fs.renameSync(temporary, file);
+  recordActivity(store, {
+    source: "local",
+    actor: "person",
+    kind: "harness.unconfined.allow",
+    summary: `Let harness ${name} write outside the task folder on this machine (hash ${hash.slice(0, 12)}).`,
+    targetId: name,
+  });
+  return allowed;
+}
+
+// What one session may do (R94.4, R94.5): the definition's value for the
+// permission class, and the folders a write class may write. A read class
+// writes nowhere. A write class writes the task folder, the temp folder and
+// the project's cache folders; a harness with no way to confine writes runs
+// a write class only with this machine's opt-in at its current hash.
+export function harnessPermission(
+  definition,
+  {
+    permissionClass,
+    worktree,
+    tmp,
+    cacheDirs = [],
+    gitCommonDir,
+    configDirectory,
+  },
+) {
+  if (!PERMISSION_CLASSES.includes(permissionClass))
+    fail(`Permission class must be ${PERMISSION_CLASSES.join(" or ")}.`);
+  const permission = definition.permission[permissionClass];
+  if (permissionClass === "read")
+    return { permissionClass, permission, writeRoots: [] };
+  if (typeof worktree !== "string" || !path.isAbsolute(worktree))
+    fail("A write session needs the task folder as an absolute path.");
+  // The session's own temp folder, never the shared one, which may hold
+  // other checkouts and their git directories.
+  if (typeof tmp !== "string" || !path.isAbsolute(tmp))
+    fail("A write session needs its own temp folder as an absolute path.");
+  if (!definition.writeRoots) {
+    const allowed =
+      configDirectory && readUnconfined(configDirectory)[definition.name];
+    if (!allowed || allowed !== definition.hash)
+      fail(
+        `Harness ${definition.name} cannot keep writes in the task folder, so it runs read-only roles only. A person can allow it for write roles on this machine.`,
+        409,
+      );
+    return { permissionClass, permission, writeRoots: null, unconfined: true };
+  }
+  const roots = [path.resolve(worktree), path.resolve(tmp)];
+  if (gitCommonDir)
+    for (const root of roots)
+      if (overlaps(root, path.resolve(gitCommonDir)))
+        fail(`Write root ${root} overlaps the git directory.`);
+  const values = {
+    worktree: roots[0],
+    tmp: roots[1],
+    project_cache_dirs: sandboxWriteRoots(cacheDirs, { gitCommonDir }),
+  };
+  return {
+    permissionClass,
+    permission,
+    writeRoots: fillHarnessArgv(definition.writeRoots, values),
+  };
 }
