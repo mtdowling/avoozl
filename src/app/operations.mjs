@@ -519,6 +519,7 @@ import {
   listSpecReviewRounds,
   replyToReview,
 } from "./plan-reviews.mjs";
+import { recordFindingDecision } from "./review-findings.mjs";
 import { recordPlanReviewWriter } from "./plan-review-authorship.mjs";
 import {
   assertPlanAnswerWrite,
@@ -6090,15 +6091,43 @@ export class Operations {
         ...input,
         author: input.author || this.operator,
       });
+    // A person's action on a spec review finding (R104.5). Person-only:
+    // perform refuses MCP and agent sessions before this runs.
+    // Without a revision (the CLI) it is the spec's current one.
+    if (name === "plan.review.finding.decide") {
+      const thread = store.get("review_threads", input.id);
+      return recordFindingDecision(store, {
+        id: input.id,
+        action: input.action,
+        revisionHash:
+          input.revisionHash || store.get("plans", thread?.planId)?.hash,
+        note: input.note,
+        by: this.operator,
+      });
+    }
     if (name === "plan.review.dispose") {
-      if (
-        store.get("review_threads", input.id)?.source === "plan-review" &&
-        (context.caller || context.mcp)
-      )
-        fail("Only a person closes a spec review finding.", 403);
-      return disposeReview(store, {
-        ...input,
-        author: input.author || this.operator,
+      const thread = store.get("review_threads", input.id);
+      if (thread?.source !== "plan-review")
+        return disposeReview(store, {
+          ...input,
+          author: input.author || this.operator,
+        });
+      // The four old dispositions, as decisions at the named or current
+      // revision (R104.6).
+      const action = {
+        resolved: "resolve",
+        accepted: "accept",
+        rejected: "reject",
+        deferred: "defer",
+      }[input.disposition];
+      if (!action) fail("Choose resolved, accepted, rejected, or deferred.");
+      return recordFindingDecision(store, {
+        id: input.id,
+        action,
+        revisionHash:
+          input.revisionHash || store.get("plans", thread.planId)?.hash,
+        note: input.note,
+        by: this.operator,
       });
     }
     if (name === "plan.review.apply")

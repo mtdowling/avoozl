@@ -1,8 +1,13 @@
 import { callerSlot } from "./delivery.mjs";
 import { fail } from "./store.mjs";
 import { planReviewWriter } from "./plan-review-authorship.mjs";
+import {
+  answerReceiptId,
+  findingContext,
+  findingFields,
+} from "./review-findings.mjs";
 
-export const answerReceiptId = (roundId) => "plan-answer:" + roundId;
+export { answerReceiptId };
 
 export function assertPlanAnswerWrite(store, { id }, { caller } = {}) {
   const binding = store.get("session_bindings", callerSlot(caller)),
@@ -31,9 +36,11 @@ export function reviewFindings(store, { planId, roundId, revisionHash } = {}) {
     if (!round?.spec || round.planId !== plan.id)
       fail("Review round not found.", 404);
   }
+  const at = revisionHash || plan.hash,
+    context = findingContext(store, plan);
   return {
     planId: plan.id,
-    revisionHash: revisionHash || plan.hash,
+    revisionHash: at,
     findings: store
       .list("review_threads")
       .filter(
@@ -45,6 +52,7 @@ export function reviewFindings(store, { planId, roundId, revisionHash } = {}) {
       )
       .map((thread) => ({
         ...thread,
+        ...findingFields(thread, plan, context, at),
         current: thread.revisionHash === plan.hash,
         stale: thread.revisionHash !== plan.hash,
       })),
