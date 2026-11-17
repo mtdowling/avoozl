@@ -1931,7 +1931,7 @@ proof or run a real workspace to get past that wait.
   - Extend epic entries with step, default implement. Allow one row per (plan, step), forbid task fields/dispatch, derive design/review/implement from current member state; never hand-tick lifecycle rows.
   - Keep current merge-commit re-hash; persist actual approving reviewers separately from requester/merger/time after merge. Local approval is explicit. Request configured spec reviewers or honor CODEOWNERS/policy; add no universal second-person rule. Public PRs link only public spec issues.
 
-- [ ] 56.8 GitHub intake with proportionate plans and private-safe status, after 56.2, 56.7, 56.12 [R102.19, R103.1, R103.10] (§4.32)
+- [x] 56.8 GitHub intake with proportionate plans and private-safe status, after 56.2, 56.7, 56.12 [R102.19, R103.1, R103.10] (§4.32)
   - Accept GitHub starts in plan/deliver. Bounded fixes use a compact versioned acceptance definition and the existing issue journal, without a full spec; coordinated design uses a proportionate spec. Reuse an issue only when home/visibility match.
   - Initial intake makes at most two idempotent writes: ownership label and safe status comment; never name a private spec on a public input. Only same-repository Deliver this uses Fixes; closure is withdrawal. Validate the ownership label excludes independent issue crews in a scratch proof before unattended rollout. The ownership label is crew:avoozl; intake-created issues carry it at create, and the status comment carries no Radar claim marker.
 
