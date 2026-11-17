@@ -106,13 +106,39 @@ test("a cron tick without a roster dispatches, then holds until the backend obse
   assert.equal(tickHealth(store).lastRun.observer, "roster");
 });
 
-test("a gone worker opens one decision and is never replaced on its own", async (t) => {
-  // Nearby inputs: the same session reading live again, and the person's retry.
+test("a gone worker is resumed once, and a second vanish opens one decision", async (t) => {
+  // Nearby inputs: a quiet session, its last report, the same session reading
+  // live again, and the person's retry.
   const { store, ops } = setup(t);
   await bind(ops, "a", "avoozl_a");
+  await status(ops, "avoozl_a", "idle");
+  assert.deepEqual((await cronTick(ops)).dispatch, [], "quiet is not gone");
+  await ops.execute(
+    "session.report",
+    { taskId: "a", kind: "progress", text: "Halfway through the parser." },
+    undefined,
+    { caller: { sessionKey: "dashboard:avoozl_a" } },
+  );
   await status(ops, "avoozl_a", "gone");
+  let resumed = (await cronTick(ops)).dispatch;
+  if (!resumed.length) resumed = (await cronTick(ops)).dispatch;
+  assert.deepEqual(
+    resumed.map((d) => [d.task, d.attempt]),
+    [["a", 2]],
+    "Kiro Crew's gone answer opens one new chat",
+  );
+  assert.match(resumed[0].brief, /This is attempt 2\./);
+  assert.match(resumed[0].brief, /Kiro Crew no longer lists session avoozl_a/);
+  assert.match(resumed[0].brief, /```text\nHalfway through the parser\.\n```/);
+  assert.equal(store.get("session_bindings", "avoozl_a").status, "lost");
+  const one = store.get("task_deliveries", "a");
+  assert.equal(one.state, "failed");
+  assert.equal(one.attempts.at(-1).vanished, true);
+
+  await bind(ops, "a", "avoozl_a2", 2);
+  await status(ops, "avoozl_a2", "gone");
   const first = await cronTick(ops);
-  assert.deepEqual(first.dispatch, [], "no second worker");
+  assert.deepEqual(first.dispatch, [], "no third chat on its own");
   assert.equal(store.get("task_deliveries", "a").state, "decision");
   assert.equal(first.notify.length, 1);
   assert.match(first.notify[0].title, /its session is gone/);
@@ -120,19 +146,19 @@ test("a gone worker opens one decision and is never replaced on its own", async 
   assert.deepEqual(again.notify, [], "one decision, not one per tick");
   assert.deepEqual(again.dispatch, []);
 
-  await status(ops, "avoozl_a", "working");
+  await status(ops, "avoozl_a2", "working");
   await cronTick(ops);
   const back = store.get("task_deliveries", "a");
   assert.equal(back.state, "running", "a session that reads live resumes");
   assert.equal(back.cause, undefined);
 
-  await status(ops, "avoozl_a", "gone");
+  await status(ops, "avoozl_a2", "gone");
   await cronTick(ops);
   assert.equal(store.get("task_deliveries", "a").state, "decision");
   await ops.execute("delivery.retry", { taskId: "a" }, undefined, {
     local: true,
   });
-  assert.equal(store.get("session_bindings", "avoozl_a").status, "lost");
+  assert.equal(store.get("session_bindings", "avoozl_a2").status, "lost");
   const retried = await cronTick(ops);
   assert.equal(
     store.get("task_deliveries", "a").attempts.at(-1).outcome,
@@ -140,7 +166,7 @@ test("a gone worker opens one decision and is never replaced on its own", async 
   );
   assert.deepEqual(
     retried.dispatch.map((d) => [d.task, d.attempt]),
-    [["a", 2]],
+    [["a", 3]],
   );
 });
 
