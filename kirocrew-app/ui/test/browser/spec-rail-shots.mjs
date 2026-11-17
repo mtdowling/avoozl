@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // The spec view's resizable right rail, in the full app on demo data: at
-// 1280 px with the specs list narrowed to its minimum, the rail at its
-// default width and dragged to its widest, light and dark; and at 390 px,
-// where the rail stacks under the cards with no handle.
+// 1280 px, the rail at its default width with its handle focused, and
+// dragged 240 px wider (the specs list folds into a bar), light and dark;
+// and at 390 px, where the rail stacks under the cards with no handle.
 //
 //   AVOOZL_HOST_CSS=<host css> node test/browser/spec-rail-shots.mjs <out dir>
 import fs from 'node:fs'
@@ -52,13 +52,13 @@ try {
   for (const theme of ['light', 'dark']) {
     const dark = theme === 'dark'
     await open(1280, dark)
-    const list = await box('[data-list-detail] > [data-resize-handle]')
-    await page.drag(list.left + 4, list.top + 200, 0)
+    const handle = `document.querySelector('[data-spec-body] > [data-resize-handle]')`
+    await page.evaluate(`${handle}.focus({ preventScroll: true })`)
     await wait()
     await page.screenshot(path.join(out, `spec-1280-${theme}-default.png`))
     const rail = await box('[data-spec-body] > [data-resize-handle]')
-    await page.drag(rail.left + 4, rail.top + 60, 0)
-    await page.hover(rail.left - 200, rail.top + 60)
+    await page.drag(rail.left + 4, rail.top + 60, rail.left + 4 - 240)
+    await page.evaluate(`${handle}.focus({ preventScroll: true })`)
     await wait()
     await page.screenshot(path.join(out, `spec-1280-${theme}-wider.png`))
     await open(390, dark)

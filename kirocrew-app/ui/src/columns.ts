@@ -37,6 +37,22 @@ export function railMax(bodyWidth: number): number | null {
   return room < SPEC_RAIL.min ? null : Math.min(SPEC_RAIL.max, room)
 }
 
+// A folded list is a thin bar, as wide as the collapsed nav.
+export const LIST_FOLDED_WIDTH = 36
+
+// The rail's room when the specs list beside it can fold into a thin bar.
+// `body` is the spec body's content width as laid out now; `gain` what
+// folding gives it (the list and its handle, less the bar). A rail wider
+// than fits beside the open list folds the list; `max` counts that room,
+// and `fits` is the widest rail that keeps the list open (never under the
+// default, which keeps today's layout). Null max: no handle.
+export function railRoom(body: number, folded: boolean, gain: number, rail: number) {
+  const open = folded ? body - gain : body
+  const fits = Math.max(railMax(open) ?? 0, SPEC_RAIL.initial)
+  const max = railMax(open + gain)
+  return { max, fits, fold: max !== null && rail > fits }
+}
+
 export const clampWidth = (spec: ColumnSpec, width: number) =>
   Math.round(Math.min(spec.max, Math.max(spec.min, Number.isFinite(width) ? width : spec.initial)))
 

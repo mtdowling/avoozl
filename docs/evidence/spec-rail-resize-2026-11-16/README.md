@@ -8,18 +8,19 @@ arrows step 16 px, double-click resets to 236 px. The handle is a focusable
 and a `col-resize` cursor, and it draws a thin border at rest. The width is
 kept in this browser (`localStorage` key `avoozl:spec-rail-width`).
 
-Limits: 200 to 560 px, and never so wide the cards get narrower than 260 px
-(the width they already wrapped at). When even a 200 px rail would squeeze
-the cards, the handle is hidden and the rail wraps as before. On a phone the
-rail stacks under the cards with no handle.
+Limits: 200 to 560 px. When the rail is wider than fits beside the specs
+list (cards at least 260 px), the list folds into a thin "Show the specs
+list" bar, so the rail can use the list's room. At 1280 px with the nav and
+list at their defaults the rail goes up to about 530 px, 290+ px past its
+default. Dragging back narrower, double-clicking the handle, or clicking the
+bar brings the list back. The list stays mounted while folded, so the
+Specs filters in the nav keep working. On a phone the rail stacks under the
+cards with no handle.
 
-At 1280 px with the nav and the specs list at their default widths, the
-detail column leaves room for only about 23 px of extra rail. These shots
-narrow the specs list to its minimum first, so the rail can grow to about
-380 px.
-
-- `spec-1280-<theme>-default.png`: the rail at its default width.
-- `spec-1280-<theme>-wider.png`: the rail dragged to its widest.
+- `spec-1280-<theme>-default.png`: the rail at its default width, handle
+  focused (the accent line).
+- `spec-1280-<theme>-wider.png`: the rail dragged 240 px wider, handle
+  focused; the specs list is folded into the bar on the left.
 - `spec-390-<theme>.png`: the phone view, unchanged.
 
 Shots use Kiro Crew's own stylesheet
