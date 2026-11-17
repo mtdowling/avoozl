@@ -2,6 +2,7 @@
 // are read-only operations on the app backend. Keep this module free of JSX and
 // runtime imports so node can test it directly.
 import type { BudgetChip } from './budget-api.ts'
+import type { Escalation } from './untriaged-api.ts'
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 
@@ -308,6 +309,11 @@ export interface ConflictItem extends TaskOwner {
   // status running or review with no live session behind it. 'review-draft':
   // a review draft made from the review label (RC20).
   reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'conflict-fix' | 'merge-method' | 'forward' | 'forward-audit' | 'public-branch' | 'tracker-gate'
+  // A crew's needs-human row for a trusted escalation (R103.8): the GitHub
+  // item, what the crew wrote, and Intake's Plan this and Deliver this.
+  item?: { source: 'github'; id: string }
+  escalation?: Escalation
+  start?: { plan: boolean; deliver: boolean }
   // A source conflict Avoozl asked about (RC28): the pull request and the choices.
   conflictFix?: { repository: string; pullRequest: number; actions: ('resolve' | 'dismiss')[] }
   // A forward item (RC24.9): the mirror change the Forward screen shows.
