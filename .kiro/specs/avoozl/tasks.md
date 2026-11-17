@@ -1750,13 +1750,14 @@ recovers, and a backend restart mid-run.
   - A missing or bad result file, or `done` with a non-zero exit, takes the retry path.
   - Built: the supervisor clears `.avoozl/result.json` before each run and reads it at exit (`readChildResult`, `childResult` in `src/app/supervisor.mjs`: a regular file of at most 8 KB); `drainProcessRequests` records a good result as the session's report through `session.report` (`finishProcessSession` in `src/app/executors/process.mjs`, commit read from the worktree's HEAD, text as data); a `process` worker's brief ends with the result file (`processSteps`, `src/app/delivery.mjs`). Chats and people keep `avoozl runner report TASK done|blocked` and the `--state` form (40.2). Tests in `src/app/test/process-executor.test.mjs`.
 
-- [ ] avoozl-p57 P57 Proof: a Claude Code chain runs under the supervisor and survives faults, after 47.1, 47.2, 47.3, 47.4, 47.5, 47.6, 47.7, 47.8, 47.9, 47.10, 47.11 [R93, R94, R95, R96] (§4.28)
+- [x] avoozl-p57 P57 Proof: a Claude Code chain runs under the supervisor and survives faults, after 47.1, 47.2, 47.3, 47.4, 47.5, 47.6, 47.7, 47.8, 47.9, 47.10, 47.11 [R93, R94, R95, R96] (§4.28)
   - Setup: a scratch repository with a bare remote, a 3-task chain, the Claude Code definition approved, the `process` executor.
   - Action: (1) run the chain; (2) fail one check so the task gets one feedback round by resume; (3) kill one child mid-task; (4) restart the app backend mid-run; (5) run a person-only command from a child with `--as-person`.
   - Expected: (1) all 3 tasks finish with an exit code and a result file, and Avoozl commits each one; (2) the resume argv delivers the feedback and the task passes; (3) the killed child is `exited` or `gone` and its task recovers on the retry path; (4) the supervisor keeps or finds its children and nothing runs twice; (5) refused.
   - Also record (not verified before): the permission and sandbox values Claude Code accepts; that writes outside the write roots, the git directory included, are refused; that the database and credentials cannot be read; whether `--max-budget-usd` binds on a plan login; and whether the app backend may keep a detached long-lived child.
   - Failure means: a child escapes the worktree, a restart loses or doubles a child, or a person-only command runs in a child.
   - Next decision: make `process` the default for Avoozl's own repository, or keep `kirocrew`.
+  - Proved: `docs/evidence/p57-claude-code-supervisor.md` (run 4, 2026-11-17); fixes #423, #427, #434.
 
 ## Phase 48: A second harness by definition file only
 
