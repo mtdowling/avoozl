@@ -520,6 +520,7 @@ import {
   replyToReview,
 } from "./plan-reviews.mjs";
 import { recordFindingDecision } from "./review-findings.mjs";
+import { planReviewView } from "./plan-review-view.mjs";
 import { recordPlanReviewWriter } from "./plan-review-authorship.mjs";
 import {
   assertPlanAnswerWrite,
@@ -6002,6 +6003,7 @@ export class Operations {
     if (name === "plan.reviewSummary")
       return planReviewSummary(store, input.planId || input.id);
     if (name === "plan.review.findings") return reviewFindings(store, input);
+    if (name === "plan.review.view") return planReviewView(store, input);
     if (name === "plan.review.answer")
       return answerReview(store, input, context);
     if (name === "plan.review.decide") {

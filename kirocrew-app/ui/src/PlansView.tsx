@@ -35,6 +35,10 @@ import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './Modal.tsx'
 import { PlanReviewSummary } from './PlanReviewSummary.tsx'
+import { ReviewView } from './ReviewView.tsx'
+import { parseReviewLink, reviewClient, reviewLink, type ReviewPlace } from './review-view.ts'
+import { urlBase } from './focus-tree.ts'
+import { DiffBlock } from './FlowMemory.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
 import { SpecChangedModal } from './SpecChangedModal.tsx'
 import { projectionClient } from './projection-api.ts'
@@ -71,6 +75,8 @@ import {
   rowActions,
   rowChoices,
   shortHash,
+  baseRevision,
+  revisionDiff,
   writesByRepository,
   type PlanListFilter,
   SORT_FIRST,
@@ -391,6 +397,7 @@ function SpecDetail(props: {
   onProject: () => void
   onChanged: () => void
   onOpenTask: (id: string) => void
+  onReview?: () => void
 }) {
   const { spec, plan, preview, busy } = props
   const blocker = approveBlocker(plan)
@@ -398,7 +405,16 @@ function SpecDetail(props: {
   const diagnostics = plan?.quality.diagnostics ?? []
   return (
     <div className="flex min-w-0 flex-col" style={{ gap: 20 }}>
-      <SpecCard title="Summary">
+      <SpecCard
+        title="Summary"
+        actions={
+          plan && props.onReview ? (
+            <TipBtn style={COMPACT_BTN} tooltip="Read each review finding beside the spec text and decide it." onClick={props.onReview} data-open-review="">
+              Open review{plan.review?.found ? ` (${plan.review.found})` : ''}
+            </TipBtn>
+          ) : undefined
+        }
+      >
         <p className="text-sm">
           {plan ? (
             <>
@@ -1450,8 +1466,26 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
 
 // Approve one exact revision after showing its independent review evidence.
 export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; client: PlansClient; onDone: (text: string | null) => void }) {
-  const { plan, client, workspaceId } = props
+  const { client, workspaceId } = props
+  // The plan can move while the dialog is open (the planner answers a
+  // review); Approve always targets the revision shown here.
+  const [plan, setPlan] = useState(props.plan)
+  const [moved, setMoved] = useState(false)
   const [review, setReview] = useState(plan.review)
+  const [showDiff, setShowDiff] = useState(false)
+  const base = baseRevision(plan)
+  const diffs = showDiff && base ? revisionDiff(base.files, plan.files) : []
+  // Re-read Avoozl's stored review (no GitHub call). When it settles, reload
+  // the plan too, so a revision the planner wrote meanwhile is the one shown.
+  const refresh = async () => {
+    const next = await client.reviewSummary(workspaceId, plan.id)
+    if (next) setReview(next)
+    if (next && next.state !== 'running') {
+      const fresh = await client.get(workspaceId, plan.id)
+      if (fresh.hash !== plan.hash) { setPlan(fresh); setMoved(true); setShowDiff(false) }
+    }
+    return next
+  }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<{ repository: string; number: number } | null>(null)
@@ -1478,8 +1512,28 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
       </div>
     }>
       <div className="flex flex-col gap-3 text-sm">
-        <p className="m-0 text-muted">Approve exactly revision <Tooltip text={plan.hash}><code>{shortHash(plan.hash)}</code></Tooltip>. Review findings are evidence for your decision; they do not block approval.</p>
-        <PlanReviewSummary key={`${workspaceId}:${plan.id}:${plan.hash}`} review={review} onStart={() => client.reviewAnyway(workspaceId, plan.id, plan.hash)} onClose={async (id, disposition) => { await client.closeReviewFinding(workspaceId, id, disposition); return client.reviewSummary(workspaceId, plan.id) }} />
+        <p className="m-0 text-muted">
+          Approve exactly revision{' '}
+          {base ? (
+            <Tooltip text={`Show changes since ${base.approved ? 'the approved' : 'the previous'} revision ${shortHash(base.hash)}`}>
+              <button type="button" className="underline" style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }} aria-expanded={showDiff} onClick={() => setShowDiff(!showDiff)} data-revision-diff-toggle><code>{shortHash(plan.hash)}</code></button>
+            </Tooltip>
+          ) : <Tooltip text={plan.hash}><code>{shortHash(plan.hash)}</code></Tooltip>}
+          . Review findings are evidence for your decision; they do not block approval.
+        </p>
+        {moved && <p role="status" className="m-0" data-revision-moved>The spec changed while it was reviewed. Approve now targets revision <code>{shortHash(plan.hash)}</code>.</p>}
+        {showDiff && base && (
+          <section data-revision-diff className="flex flex-col gap-2">
+            <p className="m-0 text-xs text-muted">Changes since {base.approved ? 'approved' : 'previous'} revision <code>{shortHash(base.hash)}</code></p>
+            {diffs.length ? diffs.map((entry) => (
+              <div key={entry.file} className="flex flex-col gap-1">
+                <p className="m-0 text-xs font-medium"><code>{entry.file}</code></p>
+                <DiffBlock diff={entry.diff} label={`Changes to ${entry.file}`} />
+              </div>
+            )) : <p className="m-0 text-muted">No file changed.</p>}
+          </section>
+        )}
+        <PlanReviewSummary key={`${workspaceId}:${plan.id}:${plan.hash}`} review={review} onStart={() => client.reviewAnyway(workspaceId, plan.id, plan.hash)} onRefresh={refresh} onClose={async (id, disposition) => { await client.closeReviewFinding(workspaceId, id, disposition); return client.reviewSummary(workspaceId, plan.id) }} />
         {error && <p role="alert" className="m-0 text-danger">{error}</p>}
         {pending && <p role="status" className="m-0">Nothing approved yet. Merge <a className="underline" href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">{pending.repository}#{pending.number}</a>, then approve again.</p>}
       </div>
@@ -1589,7 +1643,7 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
         {entries.map((entry) => (
           <section key={entry.id} data-approve-review={entry.id} className="flex min-w-0 flex-col gap-2 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
             <h3 className="m-0 text-sm font-medium">{entry.spec}</h3>
-            <PlanReviewSummary key={`${props.workspaceId}:${entry.id}:${entry.hash}`} onStart={() => props.client.reviewAnyway(props.workspaceId, entry.id, entry.hash)} review={selection?.specs.find((spec) => spec.id === entry.id)?.review ?? entry.review} onClose={async (id, disposition) => { await props.client.closeReviewFinding(props.workspaceId, id, disposition); return props.client.reviewSummary(props.workspaceId, entry.id) }} />
+            <PlanReviewSummary key={`${props.workspaceId}:${entry.id}:${entry.hash}`} onStart={() => props.client.reviewAnyway(props.workspaceId, entry.id, entry.hash)} onRefresh={() => props.client.reviewSummary(props.workspaceId, entry.id)} review={selection?.specs.find((spec) => spec.id === entry.id)?.review ?? entry.review} onClose={async (id, disposition) => { await props.client.closeReviewFinding(props.workspaceId, id, disposition); return props.client.reviewSummary(props.workspaceId, entry.id) }} />
           </section>
         ))}
       </div>
@@ -1612,6 +1666,7 @@ export default function PlansView(props: {
   const plans = useMemo(() => plansClient(api), [api])
   const projections = useMemo(() => projectionClient(api), [api])
   const views = useMemo(() => viewsClient(api), [api])
+  const reviews = useMemo(() => reviewClient(api), [api])
   const drawer = useTaskDrawer()
   const chat = useAskChat(workspace)
   const stack = useMedia(STACK)
@@ -1725,6 +1780,31 @@ export default function PlansView(props: {
   }, [workspace, load, plans])
 
   const row = table?.items.find((item) => item.key === selected) ?? null
+  // The open spec's Review view (R104.9), kept in the page address on
+  // Kiro Crew's route. A pasted ?view=review&plan=P link opens it once.
+  const [review, setReview] = useState<ReviewPlace | null>(null)
+  const reviewLinkRead = useRef(false)
+  useEffect(() => {
+    if (!table || reviewLinkRead.current) return
+    reviewLinkRead.current = true
+    const link = parseReviewLink(window.location.search),
+      found = link && table.items.find((item) => item.planId === link.plan)
+    if (!link || !found) return
+    setSelected(found.key)
+    setReview(link)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table])
+  const placeReview = (next: ReviewPlace | null) => {
+    setReview(next)
+    const base = urlBase(window.location.pathname)
+    if (!base) return
+    try {
+      navigate(base + (next ? reviewLink(next) : ''))
+    } catch {
+      // The address is a convenience; the view still changes.
+    }
+  }
+  const reviewing = review && row?.planId === review.plan ? review : null
   // Who drives the open spec (§6.10): the chip, banner and Hand off.
   const driver = useDriver(workspace, row?.planId ?? null)
   const spec: SpecSummary | null = row?.spec ? (table?.specs.find((item) => item.name === row.spec) ?? null) : null
@@ -2011,6 +2091,9 @@ export default function PlansView(props: {
                   handOff={workspace ? <HandOffButton workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} /> : null}
                   actions={specActions(row)}
                 />
+                {reviewing && workspace ? (
+                  <ReviewView key={`${workspace}:${reviewing.plan}`} workspaceId={workspace} client={reviews} place={reviewing} onPlace={placeReview} onClose={() => placeReview(null)} />
+                ) : (
                 <div
                   data-spec-body
                   ref={rail.ref}
@@ -2040,6 +2123,7 @@ export default function PlansView(props: {
                         onProject={() => setDialog('project')}
                         onChanged={() => setDialog('changed')}
                         onOpenTask={(id) => drawer.openTask(id)}
+                        onReview={row.planId ? () => placeReview({ plan: row.planId!, rev: null, file: null, severity: null, state: null }) : undefined}
                       />
                     ) : (
                       <>
@@ -2096,6 +2180,7 @@ export default function PlansView(props: {
                     />
                   </aside>
                 </div>
+                )}
               </div>
             )
           }

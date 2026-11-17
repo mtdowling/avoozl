@@ -1513,8 +1513,9 @@ foundation tasks without that dependency may proceed while the live proof waits.
   - First caller of `createWorktree` in `src/app/git.mjs`; worktree and local branch removed after landing, kept otherwise.
 - [x] 40.5 Verify: warm checks off the tick, per-check timeouts, declared and protected paths, after 40.1 [R86.6, R86.7] (§4.26)
   - Checks run as their own job in the task worktree; a timeout fails with its reason; a file outside declared paths is refused; a protected path goes to Needs you.
-- [ ] 40.6 One automatic resume for a vanished chat, after 40.2 [R88.4] (§4.26)
+- [x] 40.6 One automatic resume for a vanished chat, after 40.2 [R88.4] (§4.26)
   - Only Kiro Crew's "gone" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you.
+  - Built: `reconcileDeliveries` in `src/app/delivery.mjs` ends the first gone attempt since the last person retry as `vanished` (outside the retry count) and marks its binding lost, so the next tick opens attempt 2 in the same worktree with the last report quoted; a second vanish, or a gone batch, opens the decision. Test: `src/app/test/stock-kirocrew.test.mjs`.
 - [x] 40.7 Lanes: 3 on this Mac by default, after avoozl-p56 [R88.5] (§4.26)
   - `lanes.local` default 3; a fourth ready task waits.
 
@@ -1737,13 +1738,15 @@ recovers, and a backend restart mid-run.
 - [x] 47.3 `avoozl supervisor`: one per machine, owns pid, exit code and log; started by the app backend, after 47.1 [R95.1, R95.2, R95.3, R95.4] (§4.28)
   - Finds its children again after a restart; a missing one is `gone`.
   - Built: `src/app/supervisor.mjs` (state in the machine state folder's `supervisor/supervisor.sqlite`, lock `supervisor.lock`), entry `src/app/supervisor-main.mjs`, wrapper `src/app/supervisor-child.mjs` that writes each exit code; the app backend launches it under Kiro Crew's gateway; tests in `src/app/test/supervisor.test.mjs`.
-- [ ] 47.4 The `process` executor and the Claude Code definition, after 47.2, 47.3 [R93.2, R93.5] (§4.28)
+- [x] 47.4 The `process` executor and the Claude Code definition, after 47.2, 47.3 [R93.2, R93.5] (§4.28)
   - Default for the Nupp compiler repository.
+  - Built: `src/app/executors/process.mjs` (start, send by resume, status, stop over the supervisor; `drainProcessRequests` takes `process` requests in the app backend, prepares a worker's task worktree and binds the session); a project opts in with `executor: "process"`, `harness` and `sandbox` in its settings, which is how the Nupp compiler repository makes it its default; the definition at `examples/harnesses/claude-code.json` (stdin prompt, `--session-id`/`--resume`, `acceptEdits`/`plan`, `--allowedTools Bash(...)`), copied to the machine config and approved by hash; tests in `src/app/test/process-executor.test.mjs`.
 - [x] 47.5 Child marker; the CLI refuses person-only commands in a child, after 47.3 [R95.5] (§4.28)
   - Refused even with `--as-person`.
   - Built: the supervisor sets `AVOOZL_CHILD=1` and `AVOOZL_CHILD_SESSION` on each child (`src/app/supervisor.mjs`); `cliRefusal` in `src/app/mcp-policy.mjs` ignores `--as-person` there; tests in `src/app/test/cli-person-only.test.mjs` and `src/app/test/supervisor.test.mjs`.
-- [ ] 47.6 Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats, after 47.4 [R96.1, R96.2, R96.3, R96.4] (§4.28)
+- [x] 47.6 Finish: exit code plus `.avoozl/result.json` read by the supervisor; `runner report` for chats, after 47.4 [R96.1, R96.2, R96.3, R96.4] (§4.28)
   - A missing or bad result file, or `done` with a non-zero exit, takes the retry path.
+  - Built: the supervisor clears `.avoozl/result.json` before each run and reads it at exit (`readChildResult`, `childResult` in `src/app/supervisor.mjs`: a regular file of at most 8 KB); `drainProcessRequests` records a good result as the session's report through `session.report` (`finishProcessSession` in `src/app/executors/process.mjs`, commit read from the worktree's HEAD, text as data); a `process` worker's brief ends with the result file (`processSteps`, `src/app/delivery.mjs`). Chats and people keep `avoozl runner report TASK done|blocked` and the `--state` form (40.2). Tests in `src/app/test/process-executor.test.mjs`.
 
 - [ ] avoozl-p57 P57 Proof: a Claude Code chain runs under the supervisor and survives faults, after 47.1, 47.2, 47.3, 47.4, 47.5, 47.6, 47.7, 47.8, 47.9, 47.10, 47.11 [R93, R94, R95, R96] (§4.28)
   - Setup: a scratch repository with a bare remote, a 3-task chain, the Claude Code definition approved, the `process` executor.
@@ -1821,7 +1824,7 @@ Requirement 96.4 (design §4.28).
   - One test per command from a plain shell.
   - Built: `src/app/test/manual-path.test.mjs` runs the CLI with no Kiro Crew, gateway or Avoozl variables: `next` lists ready work, `claim --slot` binds as `cli` with a worktree and `report --kind done` finishes it in crew mode, and `runner report TASK --state done` reports a runner task. The positional `runner report TASK done|blocked` and its use outside runner mode are 40.2's.
 
-- [ ] avoozl-p62 P62 Proof: a person finishes a task by hand, after 52.1 [R96.4] (§4.28)
+- [x] avoozl-p62 P62 Proof: a person finishes a task by hand, after 52.1 [R96.4] (§4.28)
   - Setup: a scratch workspace with one ready task.
   - Action: `avoozl next`, `avoozl claim`, edit and commit, `avoozl runner report TASK done`.
   - Expected: the task lands as if a worker did it.
@@ -2008,7 +2011,7 @@ approval before merge.
   - The reviewer brief asks for `info`/`warn`/`blocker` and an exact quote; `plan.review.submit` derives lines from the quote, refuses a missing or ambiguous quote, and drops a same-pass repeat of a rejected or resolved finding with a count in the note. The planner answer brief carries accepted, rejected and deferred lists. `planReviewStep` opens one person-triggered planner turn per plan per tick for an accepted, unfixed finding, outside `planReview.rounds`; Review anyway starts one more round at the cap. Fake chats only.
 - [x] 57.3 Person actions: operation, policy, CLI and MCP read, after 57.1 [R104.5, R104.6, R104.8] (§4.33)
   - `plan.review.finding.decide` (accept, reject with reason, defer with a follow-up row, resolve, reopen) recording who, when and revision; added to `PERSON_ONLY`; `plan.review.dispose` maps onto it and becomes person-only; `avoozl plan finding ID ACTION [--note]`; `avoozl plan review SPEC` and `plans_plan_review` show severity, state and anchor. Tests: MCP and agent refusal for both operations; history order; defer makes no task and no GitHub call.
-- [ ] 57.4 Review view with tabs, cards, filters and chat links, after 57.1, 57.3 [R104.9, R104.10, R104.11, R104.15] (§4.33)
+- [x] 57.4 Review view with tabs, cards, filters and chat links, after 57.1, 57.3 [R104.9, R104.10, R104.11, R104.15] (§4.33)
   - `plan.review.view`; the spec page's Review mode with requirements, design and tasks tabs; severity borders and labels; card body, history and Accept, Reject, Defer, Resolve and Reopen; severity and state filters with counts in the address; Open review chat and Open planner chat, or Chat closed. Tests on the view data. Owner screenshot approval before merge.
 - [ ] 57.5 Rail alignment, scroll and highlight, and moved findings, after 57.4 [R104.4, R104.9] (§4.33)
   - `data-source-line` on rendered blocks in `Markdown.tsx`; cards level with their anchor, overlaps stacked; card click scrolls and highlights, text click selects the card; Moved or removed group first; inline cards on narrow screens. UI tests for alignment order and selection. Owner screenshot approval before merge.
