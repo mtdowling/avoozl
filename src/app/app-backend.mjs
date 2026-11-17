@@ -27,7 +27,8 @@ import {
   observeRetroReplies,
   observeToolRows,
 } from "./session-observer.mjs";
-import { declaredChecks } from "./delivery.mjs";
+import { declaredChecks, prepareWorktree } from "./delivery.mjs";
+import { drainProcessRequests } from "./executors/process.mjs";
 import { drainCheckRuns } from "./check-runs.mjs";
 import { observeUsage } from "./flow-usage.mjs";
 import { budgetStep } from "./budget.mjs";
@@ -675,6 +676,15 @@ export function startAppBackend({
           // Checks in code (§5.2 Checks): the runs the tick queued, off the
           // tick's path and not awaited here; the next tick judges them.
           drainCheckRuns(store);
+          // `process` sessions (R93.3): this machine's supervisor runs the
+          // children; the requests the tick queued are handed to it here.
+          if (supervisor) {
+            const { errors } = await drainProcessRequests(store, {
+              stateDirectory: machineAvoozlPaths().stateDirectory,
+              prepareWorktree,
+            });
+            if (errors.length) console.error(errors[0].error);
+          }
           // A stock Kiro Crew hands the cron no roster; the tick's receipt
           // says so, and the backend reads the sessions for the next tick.
           if (slotReader && tickHealth(store).lastRun?.observer === "app") {

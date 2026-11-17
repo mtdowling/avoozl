@@ -1,4 +1,5 @@
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
+import { projectExecutor } from "./executors/process.mjs";
 import {
   kirocrewSession,
   kirocrewRemoteSession,
@@ -2358,6 +2359,9 @@ export function planReadyDispatches(store, policy, options = {}) {
         ),
         ...(leaf.batch ? { batch: leaf.batch } : {}),
         ...(investigate ? { investigate: true } : {}),
+        // A project on `process` runs its worker as a supervisor child
+        // (R93.5); other roles move in Phase 49.
+        executor: remote ? "kirocrew" : projectExecutor(leaf.project),
         ...kirocrewSession(leaf.project.id),
         agent,
         ...(model ? { model } : {}),
