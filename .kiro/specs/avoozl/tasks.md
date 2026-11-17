@@ -563,9 +563,9 @@ receipts are that workspace's.
   - Built: `6339f3b`, the kill criterion applied (receipt `docs/evidence/phase8-crew-mode-mc5.md`, `6339f3b`).
 - [x] 8.4 Review every kill criterion in §14 and remove features that meet one. [R25.6]
   - Built: receipt `docs/evidence/phase8-kill-review.md`, `b712742`.
-- [ ] 8.5 Add MCP App views (`ui://` resources) to `plans_graph`, `plans_preview`, `plans_project_preview`, and `plans_decision`
+- [x] 8.5 Add MCP App views (`ui://` resources) to `plans_graph`, `plans_preview`, `plans_project_preview`, and `plans_decision`
   - Buttons call the same operations with expected revisions. [R20] (§8.1) Optional: only for small focused views; the app page stays the main view. Proof below.
-  - Open: Skipped by the owner; not run.
+  - Built: `src/app/mcp-views.mjs` (four `ui://avoozl/*` views; Refresh, Project with a plan-hash check, and Settle with the expected revision). There is no Approve button: approval is person-only over MCP. Not run live in a Kiro Crew chat (proof P8b).
 - [ ] avoozl-p8b P8b Proof: Avoozl views render and act inside chat [R20] (§8.1)
   - Setup: the Avoozl app installed with its MCP server; the server routed in MCP Management; the P4 draft plan.
   - Action: in an ordinary chat, ask to preview the plan; press Approve in the view; edit the plan in another window and press Approve again.
