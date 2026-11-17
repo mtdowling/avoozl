@@ -112,7 +112,7 @@ export function internalDomains(configFile) {
 // [{rule, pattern}] for one scope, built from this machine's facts.
 export function privacyRules({ scope = "text", machine, configFile } = {}) {
   const word = (value) =>
-      new RegExp(`(?<![A-Za-z0-9_.-])${escape(value)}(?![A-Za-z0-9_-])`, "i"),
+      new RegExp(`(?<![A-Za-z0-9_])${escape(value)}(?![A-Za-z0-9_])`, "i"),
     rules = [
       ...ownNames(machineFacts(machine)).map((name) => [
         "machine-name",
@@ -120,7 +120,10 @@ export function privacyRules({ scope = "text", machine, configFile } = {}) {
       ]),
       ...internalDomains(configFile).map((domain) => [
         "internal-domain",
-        new RegExp(`(?<![A-Za-z0-9-])(?:[A-Za-z0-9-]+\\.)*${escape(domain)}(?![A-Za-z0-9-])`, "i"),
+        new RegExp(
+          `(?<![A-Za-z0-9-])(?:[A-Za-z0-9-]+\\.)*${escape(domain)}(?![A-Za-z0-9-])`,
+          "i",
+        ),
       ]),
       ...(scope === "text" ? [...PATH_RULES, ...SHAPE_RULES] : []),
     ];
@@ -151,20 +154,64 @@ export function aliasProblem(alias, machine) {
   if (typeof alias !== "string" || !ALIAS.test(alias))
     return "An alias is a letter, then up to 39 letters, digits or dashes.";
   const lower = alias.toLowerCase();
-  if (ownNames(machineFacts(machine)).some((n) => lower.includes(n.toLowerCase())))
+  if (
+    ownNames(machineFacts(machine)).some((n) => lower.includes(n.toLowerCase()))
+  )
     return "An alias may not contain this machine's hostname or username.";
   return null;
 }
 
 const ADJECTIVES = [
-  "amber", "brisk", "calm", "clear", "dawn", "deep", "early", "fair",
-  "gentle", "green", "keen", "light", "lucky", "mild", "noble", "quiet",
-  "rapid", "silver", "steady", "swift", "tidy", "warm", "wise", "young",
+  "amber",
+  "brisk",
+  "calm",
+  "clear",
+  "dawn",
+  "deep",
+  "early",
+  "fair",
+  "gentle",
+  "green",
+  "keen",
+  "light",
+  "lucky",
+  "mild",
+  "noble",
+  "quiet",
+  "rapid",
+  "silver",
+  "steady",
+  "swift",
+  "tidy",
+  "warm",
+  "wise",
+  "young",
 ];
 const NOUNS = [
-  "badger", "beacon", "cedar", "comet", "falcon", "fern", "harbor", "heron",
-  "lantern", "maple", "meadow", "otter", "pebble", "pine", "raven", "river",
-  "robin", "sparrow", "summit", "thistle", "willow", "wren", "yarrow", "zephyr",
+  "badger",
+  "beacon",
+  "cedar",
+  "comet",
+  "falcon",
+  "fern",
+  "harbor",
+  "heron",
+  "lantern",
+  "maple",
+  "meadow",
+  "otter",
+  "pebble",
+  "pine",
+  "raven",
+  "river",
+  "robin",
+  "sparrow",
+  "summit",
+  "thistle",
+  "willow",
+  "wren",
+  "yarrow",
+  "zephyr",
 ];
 const pick = (list) => list[randomInt(list.length)];
 const titled = (word) => word[0].toUpperCase() + word.slice(1);
