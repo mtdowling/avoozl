@@ -126,6 +126,18 @@ test("a worker reports done from its worktree without any session identity", asy
   const head = git(wt.a, "rev-parse", "HEAD"),
     out = run(root, wt.a, ["runner", "report", "a", "done", "--token", token]);
   assert.equal(out.status, 0, out.stderr);
+  // As the brief says it: from the worktree, naming the workspace, with no
+  // workspace in the environment (P50).
+  const steps = localSteps(
+      { id: "a" },
+      { id: "app" },
+      {
+        cliReport: { worktree: wt.a, token, workspace: root },
+      },
+    ).join("\n"),
+    named = steps.match(/--workspace ("[^"]+")/);
+  assert.ok(named, steps);
+  assert.equal(JSON.parse(named[1]), root);
   assert.equal(JSON.parse(out.stdout).report.commit, head);
   // The token may come from the environment instead.
   const blocked = run(
