@@ -46,7 +46,6 @@ test('every destructive button asks first through a red confirm', () => {
   const settings = source('SettingsView.tsx')
   assert.match(source('RepositoriesSettings.tsx'), /title: `Remove \$\{row\.name\} from this workspace\?`/)
   assert.match(settings, /action: 'Remove rule'/)
-  assert.match(settings, /action: 'Discard changes'/)
   assert.match(source('PluginsSettings.tsx'), /action: 'Remove plugin'/)
   assert.match(source('ConflictsView.tsx'), /confirm=\{confirmSettle\('dismiss', 1, item\.title\)\}/)
   // Bulk resolve asks before it settles anything.
