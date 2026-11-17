@@ -26,6 +26,7 @@ import { sessionUrl } from "./notifications.mjs";
 import { conductorFeedback } from "./github-feedback.mjs";
 import { bindSession, listSessionBindings } from "./session-bindings.mjs";
 import { readDeliveryPolicy } from "./tick.mjs";
+import { scheduleHolds } from "./spec-scheduler.mjs";
 import { readGitHubPolicyOrNull } from "./github-policy.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { isArchivedTask } from "../browse-model.mjs";
@@ -86,11 +87,11 @@ export function nextView(store, { policy, github = null }) {
     deliveries = new Map(
       store.list("task_deliveries").map((d) => [d.taskId, d]),
     ),
+    schedule = scheduleHolds(store, { github }),
     startable = new Map(
-      readyLeaves(store, delivery, { github }).map((leaf) => [
-        leaf.task.id,
-        leaf,
-      ]),
+      readyLeaves(store, delivery, { github, skip: schedule.skip }).map(
+        (leaf) => [leaf.task.id, leaf],
+      ),
     ),
     byId = new Map(data.tasks.map((task) => [task.id, task])),
     complete = (status) => statusComplete(data, status);
@@ -258,13 +259,15 @@ export function nextView(store, { policy, github = null }) {
         : {
             reason: ["draft", "deferred"].includes(task.status)
               ? task.status
-              : task.planArchived
-                ? "plan archived"
-                : !taskRepository(task)
-                  ? "no repository"
-                  : linked && !linkedBranch(store, task.id)
-                    ? "linked branch"
-                    : "capacity",
+              : schedule.held.has(task.id)
+                ? schedule.held.get(task.id)
+                : task.planArchived
+                  ? "plan archived"
+                  : !taskRepository(task)
+                    ? "no repository"
+                    : linked && !linkedBranch(store, task.id)
+                      ? "linked branch"
+                      : "capacity",
           }),
     });
   }
@@ -312,12 +315,13 @@ export async function claimTask(
         conductor,
         guard: (taskId) => {
           if (
-            !readyLeaves(store, policy.delivery, { github }).some(
-              (leaf) => leaf.task.id === taskId,
-            )
+            !readyLeaves(store, policy.delivery, {
+              github,
+              skip: scheduleHolds(store, { github }).skip,
+            }).some((leaf) => leaf.task.id === taskId)
           )
             fail(
-              `${taskId} is not ready to start: it is claimed, blocked, or over capacity. Run next again.`,
+              `${taskId} is not ready to start: it is claimed, blocked, held by overlapping paths, or over capacity. Run next again.`,
               409,
             );
         },
