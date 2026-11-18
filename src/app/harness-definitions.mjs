@@ -540,6 +540,15 @@ export function harnessPermission(
     return { permissionClass, permission, writeRoots: null, unconfined: true };
   }
   const roots = [path.resolve(worktree), path.resolve(tmp)];
+  // No write root may hold a git directory (NK5.5): a checkout's own, or
+  // one nested at its top, as a scratch folder over a clone would.
+  for (const root of roots)
+    if (
+      fs
+        .statSync(path.join(root, ".git"), { throwIfNoEntry: false })
+        ?.isDirectory()
+    )
+      fail(`Write root ${root} holds a git directory.`);
   if (gitCommonDir)
     for (const root of roots)
       if (overlaps(root, path.resolve(gitCommonDir)))
