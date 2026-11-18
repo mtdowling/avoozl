@@ -455,6 +455,10 @@
                   "type": "boolean",
                   "default": false
                 },
+                "bisectOnRed": {
+                  "type": "boolean",
+                  "default": false
+                },
                 "jobPlatforms": {
                   "type": "object",
                   "additionalProperties": {
@@ -706,6 +710,10 @@
                         "type": "string"
                       },
                       "waitForLastTrain": {
+                        "type": "boolean",
+                        "default": false
+                      },
+                      "bisectOnRed": {
                         "type": "boolean",
                         "default": false
                       },

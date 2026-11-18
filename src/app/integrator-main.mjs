@@ -12,6 +12,7 @@ import { machineAvoozlPaths } from "./host-config.mjs";
 import { cleanupDeadTrain } from "./integrator-cleanup.mjs";
 import { readTrainCi } from "./integrator-ci.mjs";
 import { integratorChat } from "./integrator-resolver.mjs";
+import { bisectRedTrain } from "./integrator-red.mjs";
 import { runTrain } from "./integrator-run.mjs";
 import { processExecutor } from "./executors/process.mjs";
 import { runIntegrator } from "./integrator-trains.mjs";
@@ -84,6 +85,12 @@ const run = {
       target: context.target,
       workflow: context.settings.ci.workflow,
     }).catch(() => []),
+  bisectRed: (store, context) =>
+    bisectRedTrain(store, {
+      ...context,
+      workspaceRoot: target.workspaceRoot,
+      github: githubClient(),
+    }),
   train: async (store, context, { now }) => {
     const needSlots = Object.values(machinePlatforms(context.config)).some(
       (env) => env?.slot,
