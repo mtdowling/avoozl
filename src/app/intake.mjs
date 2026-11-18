@@ -1,5 +1,5 @@
 // Incoming items (design §4.12, Requirement 50): work that comes in from
-// GitHub, a tracker plugin's `poll`, or an MCP caller, kept as one record in
+// GitHub, an intake plugin's `poll`, or an MCP caller, kept as one record in
 // SQLite and run through one pipeline: check, dedup, content rules (the
 // `intake` boundary), trigger match, then the matched action or the Intake
 // list. GitHub keeps its own intake (github-sync.mjs) and Untriaged read
@@ -980,20 +980,16 @@ export async function pollSources(
       saveSourceRow(store, { ...before, error, failedAt: now });
       report.push({ source: source.id, error });
     };
-    const status = await session.use(source.plugin, "tracker");
+    const status = await session.use(source.plugin, "intake");
     if (!status.ok) {
       fail(`Plugin ${source.plugin} is unavailable: ${status.reason}`);
       continue;
     }
     const capabilities =
-      session.describe(source.plugin, "tracker")?.capabilities || [];
-    if (!capabilities.includes("poll")) {
-      fail(`Plugin ${source.plugin} does not declare the poll capability.`);
-      continue;
-    }
+      session.describe(source.plugin, "intake")?.capabilities || [];
     let reply;
     try {
-      reply = await session.call(source.plugin, "tracker", "poll", {
+      reply = await session.call(source.plugin, "intake", "poll", {
         cursor: before.cursor,
         limit: POLL_LIMIT,
       });

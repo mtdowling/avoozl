@@ -13,9 +13,8 @@ export const COMPLETIONS = [
   "released",
   "answered",
   "person",
-  "tracker",
 ];
-const SOURCE = /^(?:local|github|plugin:[a-z][a-z0-9-]{0,60})$/;
+const SOURCE = /^(?:local|github)$/;
 
 export const isSource = (value) =>
   typeof value === "string" && SOURCE.test(value);
@@ -39,26 +38,16 @@ export function taskAuthority(task) {
 // A github task whose first issue does not exist yet (§3.2). It does not
 // dispatch until projection creates the issue.
 export function pendingProjection(task) {
-  const authority = taskAuthority(task);
-  if (authority.startsWith("plugin:")) return !task?.tracker?.id;
   return (
-    authority === "github" &&
+    taskAuthority(task) === "github" &&
     !(task?.github && (task.github.number || task.github.nodeId))
   );
 }
 
-// A tracker plugin owns a task's record, not its delivery: a plugin-authority
-// task with no route of its own is delivered locally (§4.8).
 export function taskRoute(task) {
   if (isSource(task?.route)) return task.route;
   return taskAuthority(task) === "github" ? "github" : "local";
 }
-
-// The plugin id in `plugin:<id>`, or null.
-export const pluginId = (source) =>
-  typeof source === "string" && source.startsWith("plugin:")
-    ? source.slice(7)
-    : null;
 
 // A leaf only a person does (Requirement 61.9): never dispatched, marked
 // done by a person, complete at every level once done.
@@ -69,14 +58,6 @@ export const isManual = (task) =>
 // so its dependents stay held until a person reopens it.
 export const isRefused = (task) =>
   isManual(task) && task.manualDone?.choice === "refused";
-
-// A tracker gate (RC23.1): a leaf that waits on an item outside GitHub. No
-// crew builds it. Its `gate` holds {plugin, item, done}; `gateVerdict` is set
-// when the plugin says done or a trusted person clears it.
-export const isGate = (task) =>
-  task?.completion === "tracker" &&
-  task?.manual !== true &&
-  taskKind(task) === "leaf";
 
 export function taskCompletion(task) {
   if (isManual(task)) return "person";
@@ -116,9 +97,6 @@ export function completionReached(task, level, complete) {
   // no merge or integration to wait for (R61.10). A refusal is never done.
   if (isManual(task))
     return !isRefused(task) && (done || Boolean(task.manualDone));
-  // A gate is met when its plugin said done or a person cleared it, at every
-  // level, and never by any other route (RC23.2).
-  if (isGate(task)) return ["done", "order"].includes(task.gateVerdict?.state);
   if (!level) {
     if (
       task.kind !== "epic" &&
@@ -136,16 +114,9 @@ export function completionReached(task, level, complete) {
   const verdict = task.githubVerdict?.state;
   if (verdict === "order") return true;
   if (verdict === "verified" && level !== "released") return true;
-  // A route plugin's completion is the remote leaf's verdict (R22.8).
-  if (task.routeVerdict?.state === "done" && level !== "released") return true;
-  // A tracker plugin's task: Avoozl's verdict as stored in its record, or an
-  // allowed actor's close (R35.8, R35.9).
-  const tracked = task.trackerVerdict?.state;
-  if (tracked === "order") return true;
   // An allowed actor's close of the task's incoming item (R50.18): an
   // order, never a verified completion.
   if (task.intakeVerdict?.state === "order") return true;
-  if (tracked === "verified" && level !== "released") return true;
   if (!done) return false;
   const own = taskCompletion(task);
   return (

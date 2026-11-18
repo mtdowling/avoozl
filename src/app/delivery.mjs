@@ -81,7 +81,6 @@ import {
   recordFindings,
 } from "./investigate.mjs";
 import { currentPrompts } from "./retro-memory.mjs";
-import { routeResultNotes, submittedTaskIds } from "./routes.mjs";
 import { healthContext, modelsOf } from "./provider-health.mjs";
 import {
   findPlanningLeak,
@@ -1688,7 +1687,7 @@ export function startNow(
         ? `${task.id} is not ready: it waits on a prerequisite, a decision or a review.`
         : !store.get("projects", taskRepository(task) || "")?.root
           ? `${task.id} names no repository with a local checkout, so Avoozl cannot code it.`
-          : `${task.id} is not one Avoozl codes itself (Issue Radar or its route starts it), or it is paused.`,
+          : `${task.id} is not one Avoozl codes itself (Issue Radar starts it), or it is paused.`,
       409,
     );
   }
@@ -2012,8 +2011,6 @@ export function claimedTaskIds(store, bindings = listSessionBindings(store)) {
   }
   for (const delivery of deliveries.values())
     if (delivery.state !== "failed") claimed.add(delivery.taskId);
-  // A leaf a route plugin holds (routes.mjs) is never ready again.
-  for (const taskId of submittedTaskIds(store)) claimed.add(taskId);
   return claimed;
 }
 
@@ -2196,7 +2193,6 @@ function composeLeafBrief(
       previous: delivery?.attempts.at(-1),
       notes: [
         ...blockerNotes(data, task),
-        ...routeResultNotes(data, task),
         // Pull request feedback waiting for this attempt (§4.13), as data.
         ...[feedbackNote(store, task.id)].filter(Boolean),
       ],

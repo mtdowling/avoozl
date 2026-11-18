@@ -36,7 +36,7 @@ async function handle({ id, method, params }) {
     if (!plugin?.[params.kind] || typeof plugin[params.kind] !== "object")
       throw Error(`The entry module exports no ${params.kind}.`);
     return {
-      kinds: ["route", "tracker", "rules", "gate"].filter(
+      kinds: ["intake", "rules"].filter(
         (kind) => plugin[kind],
       ),
     };
