@@ -40,6 +40,7 @@ export async function specAuthority(
   const options = {
       visibility: await journal.visibility(),
       publicRepositories: journal.publicRepositories ?? [],
+      names: journal.names,
     },
     login = journal.local
       ? actor || ""
