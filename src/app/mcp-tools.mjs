@@ -201,6 +201,10 @@ const tools = {
         "delivery.retry",
         "resume a stopped delivery, when the person asks",
       ],
+      landing_submit: [
+        "landing.submit",
+        "queue a batch branch for the integrator: {taskId, branch}; the branch starts with the batch prefix and passes the cheap checks",
+      ],
       validate: ["run.validate", "run acceptance checks at the worktree head"],
       integrate: ["integration.merge", "rebase, revalidate, fast-forward"],
       accept: ["task.accept", "record acceptance evidence"],

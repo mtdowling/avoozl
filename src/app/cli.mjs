@@ -651,7 +651,7 @@ try {
         await localOrRequest("repository.setup", {
           repository: need(
             positionals[0],
-            "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+            "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|train|off] [--yes]",
           ),
           project: options.project,
           base: options.base,
@@ -1261,6 +1261,19 @@ try {
                   confirm: Boolean(options.confirm),
                 },
         ),
+        null,
+        2,
+      ),
+    );
+  } else if (command === "landing") {
+    const action = positionals[0];
+    if (action !== "submit") throw Error("Choose landing submit.");
+    console.log(
+      JSON.stringify(
+        await localOrRequest("landing.submit", {
+          taskId: need(positionals[1], "landing submit TASK --branch NAME"),
+          branch: need(options.branch, "landing submit TASK --branch NAME"),
+        }),
         null,
         2,
       ),
@@ -1908,8 +1921,9 @@ try {
   mirror adopt|create OWNER/MIRROR --source OWNER/REPO [--ticked IDS]
                                          Dry run of the mirror setup; add --confirm --preview-hash HASH to apply
   setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH]
-      [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]
+      [--methods merge,squash,rebase] [--landing pr|direct|train|off] [--yes]
                                          Preview repository setup for landing; --yes applies it
+  landing submit TASK --branch NAME      Queue a pushed batch branch for the integrator (landing: train)
   spec publish SPEC [--repository OWNER/REPO]
                                          Publish the spec issue, or its local journal without GitHub
   spec takeover SPEC                     Take over a published spec: write the next driver generation
