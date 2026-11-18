@@ -60,6 +60,11 @@ const READ = `(() => {
     sections: [...panel.querySelectorAll('[data-section]')].map((s) => s.dataset.section),
     barWidth: bar.getBoundingClientRect().width,
     rowWidth: bar.parentElement.getBoundingClientRect().width,
+    tabWidths: tabs.map((t) => t.getBoundingClientRect().width),
+    tabsSpan: tabs.at(-1).getBoundingClientRect().right - tabs[0].getBoundingClientRect().left,
+    divider: getComputedStyle(bar).borderBottomWidth,
+    filled: getComputedStyle(tabs.find((t) => t.getAttribute('aria-selected') === 'true')).backgroundColor,
+    plain: getComputedStyle(tabs.find((t) => t.getAttribute('aria-selected') !== 'true')).backgroundColor,
     scrolls: getComputedStyle(bar).overflowX,
     barScroll: bar.scrollWidth > bar.clientWidth,
     pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
@@ -92,6 +97,12 @@ test('one full-width tab per group, arrow keys move between them', { skip }, asy
   assert.equal(m.labelledBy, 'issues')
   assert.deepEqual(m.sections, ['New tasks and issues'])
   assert.ok(Math.abs(m.barWidth - m.rowWidth) < 1, `bar ${m.barWidth} of ${m.rowWidth}`)
+  // Kiro Crew's full-width bar: the tabs fill the row in equal shares, the
+  // open one is filled, and no divider line runs under the bar.
+  assert.ok(Math.abs(m.tabsSpan - m.barWidth) < 1, `tabs span ${m.tabsSpan} of ${m.barWidth}`)
+  assert.ok(Math.max(...m.tabWidths) - Math.min(...m.tabWidths) < 1, `equal tabs ${m.tabWidths}`)
+  assert.notEqual(m.filled, m.plain)
+  assert.equal(m.divider, '0px')
   await page.evaluate(`document.querySelector('[data-tab="issues"]').focus()`)
   await page.key('ArrowRight', 'ArrowRight', 39)
   m = await page.evaluate(READ)
