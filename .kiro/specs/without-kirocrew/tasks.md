@@ -32,7 +32,7 @@ of the other specs.
 
 ## Phase 1: The seam
 
-- [ ] nk-1.1 The role table, and every role's executor from settings [NK1] (§D2)
+- [x] nk-1.1 The role table, and every role's executor from settings [NK1] (§D2)
   - Facts:
     - summary: Phase 1 (The seam). The role table, and every role's executor from settings. See NK1; §D2.
     - done:

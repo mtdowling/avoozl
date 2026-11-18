@@ -172,6 +172,16 @@ test("a settled stored revision gets one read-only request and keeps its exact w
   assert.deepEqual((await env.step()).requests, []);
 });
 
+test("a harness saved for the plan reviewer is the one its request names", async (t) => {
+  const env = setup(t);
+  env.options.config.roles = { planReviewer: { harness: "codex" } };
+  await env.step();
+  const [request] = (await env.step()).requests;
+  assert.equal(request.role, "plan-review");
+  assert.equal(request.executor, "process");
+  assert.equal(request.harness, "codex");
+});
+
 test("off changes no plan or review state; unknown writers and same-model pairs create only skips", async (t) => {
   const off = setup(t, { mode: "off" });
   const before = off.store.list("plans");

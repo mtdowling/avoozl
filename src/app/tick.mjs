@@ -468,7 +468,7 @@ function planDispatches(store, bindings) {
         title,
         ...kirocrewSession(repository.id),
         id: request.id,
-        executor: request.executor ?? "kirocrew",
+        executor: request.executor,
         ...kirocrewExplicitSession(store, request),
         ...(request.model ? { model: request.model } : {}),
         ...(request.permissionClass
@@ -1267,6 +1267,7 @@ async function runTick(
           responders = (
             await respondStep(store, github, workspaceRoot, {
               open: !unobserved.length,
+              config: memory.value || {},
             })
           ).dispatch;
         } catch (error) {
@@ -1283,6 +1284,7 @@ async function runTick(
         try {
           const step = plannerStep(store, workspaceRoot, {
             open: !unobserved.length,
+            config: memory.value || {},
           });
           planners = step.dispatch;
           planned.notify.push(...step.notify);
@@ -1324,7 +1326,9 @@ async function runTick(
         verify =
           unobserved.length || !delivery
             ? []
-            : planVerifierDispatches(store, delivery);
+            : planVerifierDispatches(store, delivery, {
+                config: memory.value || {},
+              });
       // Investigate first (§4.21): a falsifier per round of findings, and
       // the Go ahead, Investigate again or Stop each decision owes.
       const investigation =
@@ -1334,6 +1338,7 @@ async function runTick(
               script,
               briefAllowed: (input) => briefAllowed(store, input),
               writerModel: (b) => b.model || delivery.model || null,
+              config: memory.value || {},
             });
       planned.messages.push(...investigation.messages);
       planned.notify.push(...investigation.notify);
@@ -1363,15 +1368,16 @@ async function runTick(
               })
             : { dispatch: [] };
       // Code review chats a person asked for (pr-review.mjs), cron only.
-      const reviews =
-        script && !unobserved.length
-          ? [
-              ...reviewDispatches(store),
-              ...reviewDraftDispatches(store),
-              ...taskSummaryDispatches(store),
-              ...conflictFixDispatches(store),
-            ]
-          : [];
+      const roleConfig = memory.value || {},
+        reviews =
+          script && !unobserved.length
+            ? [
+                ...reviewDispatches(store, { config: roleConfig }),
+                ...reviewDraftDispatches(store, { config: roleConfig }),
+                ...taskSummaryDispatches(store, { config: roleConfig }),
+                ...conflictFixDispatches(store),
+              ]
+            : [];
       // Read each spec's plan issue again right before its dispatches; a
       // spec reassigned since the sync read dispatches nothing (R66.6).
       const taskPlan = new Map(

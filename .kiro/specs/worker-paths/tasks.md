@@ -32,7 +32,7 @@ of the other specs.
 
 ## Phase 1: Every kind of task on both executors
 
-- [ ] wp-1.1 The pair table, and briefs chosen by executor [WP3.1, WP3.4, WP3.5] (§D3)
+- [x] wp-1.1 The pair table, and briefs chosen by executor [WP3.1, WP3.4, WP3.5] (§D3)
   - Facts:
     - summary: Phase 1 (Every kind of task on both executors). The pair table, and briefs chosen by executor. See WP3.1, WP3.4, WP3.5; §D3.
     - done:

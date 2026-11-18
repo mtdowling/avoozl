@@ -15,8 +15,8 @@ import {
   specName,
 } from "./spec-plans.mjs";
 import { PLANNER_AGENT } from "./github-planner.mjs";
-import { projectExecutor, sessionProject } from "./executors/process.mjs";
-import { harnessExecutor } from "./chat-models.mjs";
+import { sessionProject } from "./executors/process.mjs";
+import { roleRun } from "./role-table.mjs";
 import { recordPlanReviewWriter } from "./plan-review-authorship.mjs";
 import { steeringOptions, withSeed } from "./retro-memory.mjs";
 import { checkInputs, templateSeed } from "./templates.mjs";
@@ -362,7 +362,6 @@ export function newPlanStarts(
   store,
   { model = null, executor = null, harness = null },
 ) {
-  const named = harness ? harnessExecutor(harness) : null;
   const bindings = store.list("session_bindings");
   return pendingNewPlans(store)
     .filter(
@@ -380,7 +379,11 @@ export function newPlanStarts(
     )
     .map((entry) => {
       const holder = sessionProject(store, { worktree: entry.root });
-      const chosen = named?.executor ?? executor ?? projectExecutor(holder);
+      const run = roleRun("planner", {
+        config: harness ? { roles: { planner: { harness } } } : {},
+        project: holder,
+      });
+      const chosen = harness ? run.executor : (executor ?? run.executor);
       // A `process` planner's sandbox and network come from the project
       // whose checkout holds the folder, else the plan's first repository,
       // as when a local workspace's own folder holds its specs.
@@ -391,7 +394,7 @@ export function newPlanStarts(
           holder ?? (first ? store.get("projects", first.id ?? first) : null);
       return {
         executor: chosen,
-        ...(named?.harness ? { harness: named.harness } : {}),
+        ...(run.harness ? { harness: run.harness } : {}),
         ...(chosen === "process" && project ? { repository: project.id } : {}),
         role: "planner",
         task: newPlanTask(entry.name),
