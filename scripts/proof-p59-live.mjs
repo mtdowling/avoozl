@@ -310,7 +310,8 @@ async function setup() {
       root: fs.realpathSync.native(P.checkout),
       baseBranch: "main",
       landing: "direct",
-      checks: [[process.execPath, "check.mjs"]],
+      // The check as children may run it: allowCommands match by prefix.
+      checks: [["node", "check.mjs"]],
       worktreeRoot: P.wt,
       ...(EXECUTOR === "process"
         ? {
@@ -318,7 +319,16 @@ async function setup() {
             harness: name,
             sandbox: {
               writeRoots: [P.claudeConfig],
-              allowCommands: [["node", "check.mjs"]],
+              // The check, and the read-only git commands the verifier and
+              // review briefs ask for. A person approves them for a chat.
+              allowCommands: [
+                ["node", "check.mjs"],
+                ["git", "rev-parse"],
+                ["git", "diff"],
+                ["git", "merge-base"],
+                ["git", "status"],
+                ["git", "log"],
+              ],
               network: [`localhost:${PROXY_PORT}`],
             },
           }
@@ -342,7 +352,8 @@ async function setup() {
       home: "local",
     });
     await takeOverSpec(store, { workspaceRoot: P.ws, actor: "Operator" }, PLAN);
-    // The planner and the retro, each asked for as a person asks.
+    // The planner, asked for as a person asks. The retro is asked for once
+    // the task has landed (startRetro), so its window holds a finished task.
     const ops = new Operations(store, { workspaceRoot: P.ws });
     const planned = await ops.execute("plan.new", {
       name: NEW_PLAN,
@@ -350,12 +361,26 @@ async function setup() {
       repositories: ["app"],
     });
     event("setup.plan-new", { name: planned.name, folder: planned.folder });
-    await ops.execute("flow.retro.start", {});
-    event("setup.retro-start");
   } finally {
     store.close();
   }
   event("setup.done");
+}
+
+// A retro started by hand, as the Flow page's Run retro now does.
+async function startRetro() {
+  const { Store } = await import("../src/app/store.mjs");
+  const { Operations } = await import("../src/app/operations.mjs");
+  const store = new Store(DB);
+  try {
+    await new Operations(store, { workspaceRoot: P.ws }).execute(
+      "flow.retro.start",
+      {},
+    );
+  } finally {
+    store.close();
+  }
+  event("retro.start");
 }
 
 function agentEnv() {
@@ -556,7 +581,7 @@ function resultKinds(state) {
   const verifierBinding = of("verifier").find((b) => b.report);
   const review = of("review:docs").find((b) => b.report);
   const reviewed = verifications.find((v) => v.role === "docs");
-  const retro = state.retros[0];
+  const retro = state.retros.at(-1);
   const draft = state.plans.find((p) => p.id === NEW_PLAN);
   return {
     worker: {
@@ -687,6 +712,8 @@ async function proveProcess() {
   const backendProcess = startBackend(90 * 60);
   event("backend.start", { pid: backendProcess.pid });
   try {
+    await until("the task to land", (s) => resultKinds(s).worker.landed);
+    await startRetro();
     await until("every role to finish", finished);
     // A closed planner's folder is imported by a later tick.
     await sleep(30_000);
@@ -795,6 +822,7 @@ async function approver() {
 
 const command = positionals[0] ?? (EXECUTOR === "process" ? "prove" : null);
 if (command === "backend") await backend(Number(values["backend-for"] || 600));
+else if (command === "retro") await startRetro();
 else if (command === "approver" && EXECUTOR === "kirocrew") await approver();
 else if (command === "setup") await setup();
 else if (command === "evaluate")
