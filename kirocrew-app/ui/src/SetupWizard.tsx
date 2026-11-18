@@ -24,6 +24,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
+import { Checkbox } from './ui/Checkbox'
 
 type Client = ReturnType<typeof settingsClient>
 
@@ -187,7 +188,7 @@ export function SetupDialog(props: {
               ] as const
             ).map(([key, label]) => (
               <label key={key} className="flex items-center gap-1.5">
-                <input type="checkbox" checked={form[key]} onChange={(e) => props.set({ [key]: e.target.checked })} />
+                <Checkbox checked={form[key]} onChange={(e) => props.set({ [key]: e.target.checked })} />
                 {label}
               </label>
             ))}

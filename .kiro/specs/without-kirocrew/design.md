@@ -180,7 +180,7 @@ settings writer. Only a person may choose it.
 | nk-7.1, the table      | Nothing; `standalone-web` reads the table when its SW10 is built              |
 | nk-p2, the proof       | `worker-paths` wp-p1; `standalone-web` is not needed, the proof uses the CLI  |
 
-The manifest lists only this spec's own tasks. The waits above are stated
+This spec's facts name only its own tasks. The waits above are stated
 in each task's text, and the proof checks them.
 
 ## D9. Decisions for the owner

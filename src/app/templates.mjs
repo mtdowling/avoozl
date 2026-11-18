@@ -25,7 +25,6 @@ export const STARTER_FILES = Object.freeze([
   "requirements.md",
   "design.md",
   "tasks.md",
-  "avoozl/manifest.json",
 ]);
 const KEYS = [
   "id",
