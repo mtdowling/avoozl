@@ -794,6 +794,7 @@ never move.
   - `flow.localChecksFirst` (default `true`); briefs for pushing sessions say to run the declared checks before each push; `done` for a pushed commit refused without a passing check list for that commit; the 10.4 pre-push hook also refuses a push with no recorded local pass and does not rerun checks; local delivery unchanged.
   - Built: `156ae8e` (flow-checks.mjs, `plans_run_checks`, `avoozl checks run`).
 - [x] 12.8 Batching, after 12.1, 9.2, and 9.6 [R46] (§4.11)
+  - Changed 2026-11-18: the grouping and `flow.batch` settings are replaced by planner groups with no setting (61.1, R108, §4.37).
   - Manifest `size: "small"`; group ready local-authority leaves by `flow.batch.by` (`epic` default, or `files`) up to `flow.batch.max` (default 3, 1 is off), same repository, route, crew, and review roles, no edges; one session and worktree, one commit and `done` per task, checks and review once on the batch head, one rebase; on failure split and retry alone with no attempt cost; Graph and Delivery show the batch.
   - Built: `736fbd6` (flow-batch.mjs); split worktree retired `2f2de0c`.
 - [x] 12.9 Retrospectives, after 12.5 and 10.4 [R47.1–R47.6, R47.8, R47.9] (§4.11)
@@ -2101,3 +2102,12 @@ the spec pull request item through the same list, not a second one.
 
 - [ ] 60.1 Adopt spec-only pull requests into their spec, out of Triage, with a Proposed change box, a PR chip and a Decisions item, after 58.1, 57.6 [R107.1, R107.2, R107.3, R107.4, R107.5, R107.6, R107.7, R107.8, R107.9] (§4.36)
   - `spec-pull-requests.mjs` detects, links and adopts; the Triage read gains changed file paths; Approve records the revision, merges after checks, and Reject and Request changes act on the pull request. Tests and screenshots under `docs/evidence/spec-pr-adoption/`.
+
+## Phase 61: The planner decides batches
+
+Owner decision 2026-11-18 (Requirement 108, design §4.37). One build task.
+Landing trains are being built on `task/lt-*` and touch `delivery.mjs`;
+merge main often and keep to `flow-batch.mjs` and the call sites.
+
+- [ ] 61.1 Planner batch groups replace `size: "small"` and `flow.batch`, after 12.8 [R108.1, R108.2, R108.3, R108.4, R108.5, R108.6, R108.7, R108.8, R108.9, R108.10, R108.11, R108.12] (§4.37)
+  - `parseSpec` reads `batches` and approval stores `batch` on each member; `flow-batch.mjs` dispatches a planner group as one handoff when every open member is ready, checks the rules in code and runs a rule-breaking group alone with its reason; split on failure as before. `flow.batch`, `size`, the Batching box and `BATCH_BY` are removed, and old values are ignored. Delivery shows a batched handoff as one In progress card; task details link to the batch. The planner prompt says when to group. Tests and screenshots under `docs/evidence/agent-batching/`.
