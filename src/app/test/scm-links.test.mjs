@@ -279,3 +279,18 @@ test("link sets add no GitHub call: the count is the same with them on", async (
   await views(true);
   assert.equal(calls.length, off);
 });
+
+test("task.detail carries the task's link set for the Links box", async (t) => {
+  const { root, store } = seed(t),
+    ops = new Operations(store, { workspaceRoot: root });
+  const { links } = await ops.execute("task.detail", { id: "open" });
+  const expected = taskLinks(store, "open");
+  assert.equal(links.pr.url, expected.pr.url);
+  assert.equal(links.branch.url, expected.branch.url);
+  assert.equal(links.checks.dot, "pass");
+  assert.deepEqual(links.worktree, expected.worktree);
+  assert.equal(
+    (await ops.execute("task.detail", { id: "bare" })).links.pr,
+    null,
+  );
+});

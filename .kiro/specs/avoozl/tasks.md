@@ -1650,7 +1650,7 @@ paused. Screenshot approval remains owner work.
 - [ ] 44.2 Links box in the spec details panel, after 44.1 [R92.4, R92.9, R92.10, R92.12] (§4.27)
   - Spec issue, working branch, open PRs with a check dot each, Radar issues it came from. Links open with target=_blank rel="noopener noreferrer"; a private spec issue renders only locally.
 
-- [ ] 44.3 Links box in the task details view and the Graph modal, after 44.1 [R92.5, R92.9, R92.10, R92.12] (§4.27)
+- [x] 44.3 Links box in the task details view and the Graph modal, after 44.1 [R92.5, R92.9, R92.10, R92.12] (§4.27)
   - Branch, PR, checks, landed commit and issue; the Graph modal reuses the same view. A worktree path shows as local text only.
 
 - [ ] 44.4 PR and branch chips on In flight rows, after 44.1 [R92.6, R92.9, R92.12] (§4.27)

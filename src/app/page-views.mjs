@@ -43,6 +43,7 @@ import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import { fail } from "./store.mjs";
 import { driverDecisions } from "./driver.mjs";
 import { epicRows } from "./epic-rows.mjs";
+import { taskLinks } from "./scm-links.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const ACTIVE_RUNS = new Set([
@@ -1385,6 +1386,9 @@ export function taskDetailView(
     steps,
     // The drawer's Timing fold (§8.4): stages, spans and their sources.
     timing: taskFlow(store, detail),
+    // The Links box (R92.5): branch, PR, checks, landed commit and issue,
+    // from stored records only. No GitHub call.
+    links: taskLinks(store, id),
   };
 }
 
