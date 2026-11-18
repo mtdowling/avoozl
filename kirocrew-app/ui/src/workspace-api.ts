@@ -13,6 +13,27 @@ export interface CatalogWorkspace {
   enabled: boolean
   state: string
   served: boolean
+  maxConcurrentRuns?: number
+}
+
+// A person's edit of one workspace (workspaces.update). Fields left out stay.
+export interface WorkspaceEdit {
+  id: string
+  name?: string
+  root?: string
+  maxConcurrentRuns?: number
+  enabled?: boolean
+  default?: boolean
+}
+
+// One folder's subfolders, for the folder picker (workspaces.browse).
+export interface FolderListing {
+  path: string
+  home: string
+  parent: string | null
+  workspace: boolean
+  truncated: boolean
+  folders: { name: string; path: string; workspace: boolean }[]
 }
 
 export interface WorkspaceList {
@@ -93,6 +114,9 @@ export function workspaceClient(api: AppApi) {
     // database and repositories stay. Stop turns it off first.
     remove: (id: string) => run<{ id: string; root: string; removed: boolean; databasePreserved: boolean }>('workspaces.remove', { id }),
     stop: (id: string) => run<CatalogWorkspace>('workspaces.stop', { id }),
+    update: (input: WorkspaceEdit) => run<CatalogWorkspace>('workspaces.update', { ...input }),
+    // Folders under home; `path` may start with ~.
+    browse: (path?: string) => run<FolderListing>('workspaces.browse', path ? { path } : {}),
     repositories: (workspaceId: string) =>
       run<{ items: Repository[] }>('repositories.list', {}, workspaceId).then((r) => r.items),
     // Read only: what adding this folder would register.
@@ -191,3 +215,42 @@ export const WORKSPACE_STATES: Record<string, { label: string; tip: string; vari
 }
 
 export const workspaceState = (state: string) => WORKSPACE_STATES[state] ?? { label: state, tip: `State: ${state}` }
+
+// What Save sends for the edit form: only the fields that changed, or null
+// when nothing did. The error is the first problem with the form.
+export interface EditDraft {
+  name: string
+  root: string
+  maxConcurrentRuns: string
+  enabled: boolean
+  default: boolean
+}
+
+export function editDraft(workspace: CatalogWorkspace, isDefault: boolean): EditDraft {
+  return {
+    name: workspace.name,
+    root: workspace.root,
+    maxConcurrentRuns: String(workspace.maxConcurrentRuns ?? 2),
+    enabled: workspace.enabled,
+    default: isDefault,
+  }
+}
+
+export function editChanges(workspace: CatalogWorkspace, isDefault: boolean, draft: EditDraft): { change: WorkspaceEdit | null; error: string | null } {
+  const name = draft.name.trim(),
+    root = draft.root.trim(),
+    limit = draft.maxConcurrentRuns.trim()
+  if (!name) return { change: null, error: 'Give the workspace a name.' }
+  if (name.length > 160) return { change: null, error: 'Keep the name to 160 characters.' }
+  if (!root) return { change: null, error: 'Choose the workspace folder.' }
+  if (!(root.startsWith('/') || root === '~' || root.startsWith('~/') || /^[A-Za-z]:[\\/]/.test(root) || root.startsWith('\\\\')))
+    return { change: null, error: 'Use a full path, starting with / or ~/.' }
+  if (!/^\d+$/.test(limit) || Number(limit) > 64) return { change: null, error: 'Agents at once is a whole number from 0 to 64.' }
+  const change: WorkspaceEdit = { id: workspace.id }
+  if (name !== workspace.name) change.name = name
+  if (root !== workspace.root) change.root = root
+  if (Number(limit) !== (workspace.maxConcurrentRuns ?? 2)) change.maxConcurrentRuns = Number(limit)
+  if (draft.enabled !== workspace.enabled) change.enabled = draft.enabled
+  if (draft.default && !isDefault) change.default = true
+  return { change: Object.keys(change).length > 1 ? change : null, error: null }
+}
