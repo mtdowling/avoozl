@@ -49,7 +49,7 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = pull_request ]; then
-            node scripts/select-tests.mjs --base HEAD^1 --github-output
+            node scripts/select-tests.mjs --base HEAD~1 --github-output
           else
             node scripts/select-tests.mjs --full --github-output
           fi
@@ -70,7 +70,7 @@ jobs:
           AVOOZL_RECEIPT_FILE: build-receipt.jsonl
         run: |
           if [ "${{ github.event_name }}" = pull_request ]; then
-            node bin/build-receipt --target ${{ matrix.os }} -- npm run test:changed -- --base HEAD^1
+            node bin/build-receipt --target ${{ matrix.os }} -- npm run test:changed -- --base HEAD~1
           else
             node bin/build-receipt --target ${{ matrix.os }} -- npm run test:ci
           fi
