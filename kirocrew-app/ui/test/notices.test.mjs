@@ -55,7 +55,11 @@ test('only a click asks the browser for permission', () => {
 })
 
 test('the standalone page says Needs Kiro Crew on the Kiro Crew chat harness, and the Kiro Crew page does not', () => {
+<<<<<<< HEAD
   const label = (host) => harnessOptions([], '', host).find((o) => o.value === 'kirocrew').label
+=======
+  const label = (host) => harnessOptions([], '', 'write', host).find((o) => o.value === 'kirocrew').label
+>>>>>>> origin/main
   assert.equal(label('standalone'), 'Kiro Crew chat (Needs Kiro Crew)')
   assert.equal(label('kirocrew'), 'Kiro Crew chat')
   assert.equal(label(undefined), 'Kiro Crew chat')

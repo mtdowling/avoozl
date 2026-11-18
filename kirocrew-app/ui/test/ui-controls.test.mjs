@@ -114,3 +114,26 @@ for (const theme of ["light", "dark"])
       );
     },
   );
+
+for (const theme of ["light", "dark"])
+  test(
+    `StatTile shows value, label and sub line, warm only when asked, in ${theme}`,
+    { skip },
+    async () => {
+      await page.open(harness.url({ theme }), {
+        width: 600,
+        height: 700,
+        dark: theme === "dark",
+      });
+      await page.until(`Boolean(document.querySelector('[data-part="tile"]'))`);
+      const read = (part) =>
+        `(() => { const t = document.querySelector('[data-part="${part}"]'); const v = t.querySelector('[data-stat-tile-value]'); return { tag: t.tagName, name: t.getAttribute('aria-label'), text: [...t.children].map((c) => c.textContent), valueColor: getComputedStyle(v).color, labelColor: getComputedStyle(t.querySelector('[data-stat-tile-label]')).color } })()`;
+      const warm = await page.evaluate(read("tile"));
+      const cool = await page.evaluate(read("tile-cool"));
+      assert.deepEqual(
+        [warm.tag, warm.name, warm.text],
+        ["BUTTON", "Needs you: 3", ["3", "Needs you", "2 decisions"]],
+      );
+      assert.notEqual(warm.valueColor, cool.valueColor);
+    },
+  );

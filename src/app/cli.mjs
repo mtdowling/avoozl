@@ -101,6 +101,8 @@ try {
           "skipped",
           "refused",
           "off",
+          "release",
+          "discard",
           // Removed 2026-11-18; still parsed so an old command keeps its
           // other arguments, and ignored.
           "as-person",
@@ -1061,12 +1063,19 @@ try {
         2,
       ),
     );
-  } else if (command === "claim")
+  } else if (command === "claim") {
+    // A manual claim is a person's: not from an agent the supervisor started.
+    if (process.env.AVOOZL_CHILD)
+      throw Error(
+        "A claim is a person's. This command is running inside an agent the supervisor started.",
+      );
     console.log(
       JSON.stringify(
         await localOrRequest("runner.claim", {
           taskId: positionals[0],
           slot: options.slot,
+          ...(options.release ? { release: true } : {}),
+          ...(options.discard ? { discard: true } : {}),
           ...(options.title ? { title: options.title } : {}),
           ...(options.model ? { model: options.model } : {}),
         }),
@@ -1074,7 +1083,7 @@ try {
         2,
       ),
     );
-  else if (command === "report")
+  } else if (command === "report")
     console.log(
       JSON.stringify(
         await localOrRequest("session.report", {

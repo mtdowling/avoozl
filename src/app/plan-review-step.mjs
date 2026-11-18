@@ -1,3 +1,4 @@
+import path from "node:path";
 import { roleRun } from "./role-table.mjs";
 import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
@@ -599,15 +600,20 @@ export async function planReviewStep(
             }
           : {}),
       });
+    // A `process` child gets one write root, the spec folder it answers
+    // for, never the planning checkout with its git directory (NK5.3).
+    const run = roleRun("planAnswer", { config });
     out.requests.push(
       requestFor(
         round,
         "plan-answer",
-        planningRoot,
+        run.executor === "process"
+          ? path.join(planningRoot, ".kiro", "specs", plan.spec)
+          : planningRoot,
         brief,
         chatModel(config, "planner"),
         permissionClass,
-        roleRun("planAnswer", { config }),
+        run,
         plan.hash,
         round.round + turn,
       ),

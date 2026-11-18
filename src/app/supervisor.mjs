@@ -22,6 +22,7 @@ import {
   fillHarnessArgv,
   harnessPermission,
   loadHarnessDefinition,
+  readRoleProblem,
 } from "./harness-definitions.mjs";
 import {
   catalogWorkspaceRoots,
@@ -784,6 +785,9 @@ export function startSupervisor({
         name: row.harness,
       });
       hash = definition.hash;
+      // A read-only child that cannot write its result never starts (NK6.1).
+      if (row.permission_class === "read" && readRoleProblem(definition))
+        fail(readRoleProblem(definition), 409);
       fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
       // Each run writes its own result; one from an earlier run never counts.
       fs.mkdirSync(path.join(row.worktree, ".avoozl"), { recursive: true });
