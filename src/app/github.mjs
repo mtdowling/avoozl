@@ -1751,6 +1751,15 @@ export class GitHubClient {
     return this.request("GET", `/repos/${owner}/${repo}/pulls/${number}`);
   }
 
+  // Closes a pull request without merging it; the head branch is untouched.
+  closePullRequest(value, number) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request("PATCH", `/repos/${owner}/${repo}/pulls/${number}`, {
+      body: { state: "closed" },
+    });
+  }
+
   // Merges one pull request only while its head is still `sha`: GitHub
   // refuses (409) when the head moved, so a landing never takes a commit
   // nobody checked (R102.13). No admin bypass.

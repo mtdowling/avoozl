@@ -2,6 +2,7 @@
 // A queued task has no pull request until a person asks with
 // `avoozl landing review TASK`; this is the only code that opens one, and the
 // tick and the integrator never call it.
+import { guardGitHub, screenReply } from "./content-rules.mjs";
 import { fail } from "./store.mjs";
 import { taskRepository } from "../work-model.mjs";
 
@@ -55,4 +56,56 @@ export async function reviewBranch(store, { github, taskId }) {
   });
   store.put(TABLE, { ...store.get(TABLE, entry.id), reviewPr: pull.number });
   return { number: pull.number, created: true, branch: entry.branch };
+}
+
+const fill = (template, values) =>
+  template.replace(/\{(\w+)\}/g, (all, name) => values[name] ?? all);
+
+// After the trunk push: one comment on each open review pull request of a
+// landed member, then close it (LT9.2, LT9.3, D10.4). The batch branch is
+// never moved for it, so GitHub shows the pull request closed, not merged.
+// A pull request a person closed gets nothing. The text is filled from the
+// train record only and must pass the privacy screen and the content rules
+// (`guardGitHub`) before it is written; a blocked comment is not posted but
+// the pull request is still closed. A GitHub failure is returned as a note,
+// never thrown: landing has already happened.
+// shortcut: {train} is the train's ID as text, not a link to the Landing
+// queue page, which has no per-train URL yet.
+export async function closeReviewPulls(
+  store,
+  { github, repository, entries, trainId, trunkCommit, validated, template },
+) {
+  const notes = [],
+    guarded = guardGitHub(github, store),
+    commitUrl = `https://github.com/${repository}/commit/${trunkCommit}`;
+  for (const [index, entry] of entries.entries()) {
+    const number = store.get(TABLE, entry.id)?.reviewPr;
+    if (!number) continue;
+    try {
+      const pull = await github.pullRequest(repository, number);
+      if (pull?.state !== "open") continue;
+      const text = fill(template, {
+        train: `\`${trainId}\``,
+        position: String(index + 1),
+        count: String(entries.length),
+        trunkCommit: `[${trunkCommit.slice(0, 12)}](${commitUrl})`,
+        checks: validated
+          ? "the cheap checks and full validation passed"
+          : "the cheap checks passed; full validation is still to finish",
+      });
+      if (screenReply(text).length)
+        notes.push(`#${number}: comment held by the privacy screen`);
+      else
+        await guarded
+          .createIssueComment(repository, number, text)
+          .catch((error) => {
+            if (!error.contentBlocked) throw error;
+            notes.push(`#${number}: comment blocked by the content rules`);
+          });
+      await github.closePullRequest(repository, number);
+    } catch (error) {
+      notes.push(`#${number}: ${error.message}`);
+    }
+  }
+  return notes;
 }

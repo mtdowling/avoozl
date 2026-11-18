@@ -286,7 +286,7 @@ person.
     - after: lt-p3
   - `avoozl landing review TASK` and the Links box action open a pull request for the batch branch and store its number; nothing else opens one; `pullRequests.mode` and `pullRequests.commentTemplate` join the schema and `validateTrains`.
   - Done when: A fake-GitHub test shows no pull request for a queued task until `review` runs, one after it, the same one on a second run, and the number on the queue entry; a test over the tick path counts zero pull request creations.
-- [ ] lt-8.2 Comment on and close review pull requests after landing, after lt-8.1 [LT9.2, LT9.3] (§D10.4)
+- [x] lt-8.2 Comment on and close review pull requests after landing, after lt-8.1 [LT9.2, LT9.3] (§D10.4)
   - Facts:
     - summary: Phase 8 (Review pull requests). Comment on and close review pull requests after landing. See LT9.2, LT9.3; §D10.4.
     - done:
