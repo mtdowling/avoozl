@@ -86,9 +86,26 @@ export function reviewChats(store) {
       status: bound ? (binding.status ?? null) : null,
       link: bound ? sessionUrl(binding.slot) : null,
       requestedAt: receipt.requestedAt,
+      // A `process` child's review, kept with its request (NK4.4).
+      ...(receipt.review ? { review: receipt.review } : {}),
     });
   }
   return chats;
+}
+
+// `review.chat.show`: one review request and its stored review, for
+// `avoozl show pr-review:<repository>#<number>`. Reads only.
+export function showReviewChat(store, id) {
+  const receipt = store.get("receipts", id);
+  if (receipt?.kind !== REVIEW_KIND) fail(`No pull request review ${id}.`, 404);
+  return {
+    id: receipt.id,
+    repository: receipt.repository,
+    number: receipt.number,
+    headSha: receipt.headSha ?? null,
+    state: receipt.state,
+    review: receipt.review ?? null,
+  };
 }
 
 // `review.chat`: queue one review chat for a pull request in the Untriaged
