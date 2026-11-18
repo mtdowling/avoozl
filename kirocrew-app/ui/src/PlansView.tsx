@@ -33,9 +33,10 @@ import { ListDetailLayout } from './ListDetailLayout.tsx'
 import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './Modal.tsx'
-import { PlanReviewSummary, REVIEW_POLL_MS, RevisionChanged } from './PlanReviewSummary.tsx'
+import { PlanReviewSummary, REVIEW_POLL_MS, ReviewWorking, RevisionChanged } from './PlanReviewSummary.tsx'
+import { SpecGraph } from './SpecGraph.tsx'
 import { ReviewView } from './ReviewView.tsx'
-import { parseReviewLink, reviewClient, reviewHref, reviewLink, summaryFallback, type ReviewPlace } from './review-view.ts'
+import { parseReviewLink, reviewClient, reviewHref, reviewLink, type ReviewPlace } from './review-view.ts'
 import { SeverityBadges } from './SeverityBadges.tsx'
 import { urlBase } from './focus-tree.ts'
 import { DiffBlock } from './FlowMemory.tsx'
@@ -300,6 +301,53 @@ function GitHubPreview(props: { projection: ProjectionPreview | null; busy: bool
   )
 }
 
+// The spec Summary. A reviewer writes the plain summary once per revision and
+// the page reads it from Avoozl's own store (never a model call on open, no
+// GitHub call). While the review runs the shared AI working box shows; if
+// there is no summary and no review running, the line says so and Retry reads
+// the plan again (and runs a review when one may).
+function SpecAiSummary(props: { plan: SpecPlan; spec: SpecSummary; onRetry?: () => void }) {
+  const { plan, spec } = props
+  const review = plan.review
+  const written = review?.summary ?? null
+  const pending = review?.state === 'running' && !written?.current
+  return (
+    <div data-spec-summary className="flex flex-col gap-2">
+      {pending ? (
+        <ReviewWorking model={review?.reviewerModel ?? null} title="AI working" label="Writing a short summary of this spec…" />
+      ) : written ? (
+        <p className="text-sm" data-spec-summary-text style={{ margin: 0, maxWidth: PROSE_MEASURE }}>
+          {written.text}
+          {!written.current && (
+            <span className="text-xs text-muted" data-spec-summary-older>
+              {' '}
+              (written for <code>{shortHash(written.revisionHash)}</code>)
+            </span>
+          )}
+        </p>
+      ) : (
+        <p className="m-0 text-sm text-muted" data-spec-summary-fallback>
+          Summary unavailable{' '}
+          {props.onRetry && (
+            <button type="button" className="underline underline-offset-2" style={{ background: 'none', border: 0, padding: 0, color: 'var(--accent)', cursor: 'pointer' }} data-spec-summary-retry onClick={props.onRetry}>
+              Retry
+            </button>
+          )}
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted" data-spec-summary-data>
+        <span>
+          Revision {plan.revision} · <code>{shortHash(plan.hash)}</code> · {plan.state}
+        </span>
+        <span>
+          {spec.folder} · {spec.files.join(', ') || 'no files'}
+        </span>
+        <SeverityBadges counts={review?.openBySeverity} label="Open review findings" />
+      </div>
+    </div>
+  )
+}
+
 function SpecDetail(props: {
   docs: SpecDocuments | null
   docsError: string | null
@@ -314,6 +362,9 @@ function SpecDetail(props: {
   onChanged: () => void
   onOpenTask: (id: string) => void
   onReview?: () => void
+  // Retry for a summary that is not there: the page reads the plan again, and
+  // runs a review when one can run.
+  onRetrySummary?: () => void
 }) {
   const { spec, plan, preview, busy } = props
   const blocker = approveBlocker(plan)
@@ -331,38 +382,16 @@ function SpecDetail(props: {
           ) : undefined
         }
       >
-        <p className="text-sm">
-          {plan ? (
-            <>
-              Revision {plan.revision} · <code>{shortHash(plan.hash)}</code> · {plan.state}
-            </>
-          ) : (
-            'Not imported. Import stores this folder as a draft spec, so you can check and approve it. It approves nothing and starts nothing.'
-          )}
-        </p>
-        {plan && (
-          <div data-spec-summary className="mt-2 flex flex-col gap-1.5" style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-            {plan.review?.summary ? (
-              <p className="text-sm" data-spec-summary-text style={{ margin: 0, maxWidth: PROSE_MEASURE }}>
-                {plan.review.summary.text}
-                {!plan.review.summary.current && (
-                  <span className="text-xs text-muted" data-spec-summary-older>
-                    {' '}
-                    (written for <code>{shortHash(plan.review.summary.revisionHash)}</code>)
-                  </span>
-                )}
-              </p>
-            ) : (
-              <p className="text-sm text-muted" data-spec-summary-fallback style={{ margin: 0 }}>
-                {summaryFallback(spec.taskCount, spec.files)}
-              </p>
-            )}
-            <SeverityBadges counts={plan.review?.openBySeverity} label="Open review findings" />
-          </div>
+        {plan ? (
+          <SpecAiSummary plan={plan} spec={spec} onRetry={props.onRetrySummary} />
+        ) : (
+          <>
+            <p className="text-sm">Not imported. Import stores this folder as a draft spec, so you can check and approve it. It approves nothing and starts nothing.</p>
+            <p className="mt-1 text-sm text-muted">
+              {spec.folder} · {spec.files.join(', ') || 'no files'}
+            </p>
+          </>
         )}
-        <p className="mt-1 text-sm text-muted">
-          {spec.folder} · {spec.files.join(', ') || 'no files'}
-        </p>
         {plan?.disk.changed && <p className="mt-1 text-sm">The files on disk changed since this revision. Reload from disk stores them as a new revision to approve.</p>}
         {plan && blocker && <p className="mt-1 text-sm text-muted">{blocker}</p>}
         <p className="mt-2 text-xs text-muted">
@@ -370,9 +399,15 @@ function SpecDetail(props: {
         </p>
       </SpecCard>
 
+      {plan && (
+        <SpecCard title="Task graph">
+          <SpecGraph key={plan.id} graph={props.graph} planId={plan.id} />
+        </SpecCard>
+      )}
+
       <Documents key={spec.name} docs={props.docs} error={props.docsError} />
 
-      <PhaseTasks graph={props.graph} onOpenTask={props.onOpenTask} />
+      <PhaseTasks graph={props.graph} onOpenTask={props.onOpenTask} fold={Boolean(plan)} />
 
       <SpecCard title="Diagnostics">
         {!plan ? (
@@ -454,7 +489,7 @@ function SpecDetail(props: {
 
 // The spec's tasks by phase, in task order, No phase last; a title opens
 // the task drawer.
-function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => void }) {
+function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => void; fold?: boolean }) {
   const leaves = (props.graph?.tasks ?? []).filter((t) => t.kind === 'leaf')
   const groups = new Map<string | null, { title: string; tasks: typeof leaves }>()
   for (const task of leaves) {
@@ -464,8 +499,19 @@ function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => vo
     groups.set(id, entry)
   }
   const list = [...groups].sort(([a], [b]) => Number(a === null) - Number(b === null))
+  // Under the task graph the list is folded: the same tasks, one click away.
+  const fold = (children: ReactNode) =>
+    props.fold ? (
+      <details data-phase-tasks-fold>
+        <summary className="cursor-pointer text-sm text-muted">Show the task list ({leaves.length})</summary>
+        <div className="mt-2">{children}</div>
+      </details>
+    ) : (
+      <>{children}</>
+    )
   return (
     <SpecCard title="Tasks by phase">
+      {fold(<>
       {!props.graph ? (
         <p className="text-sm text-muted">Loading…</p>
       ) : list.length === 0 ? (
@@ -491,6 +537,7 @@ function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => vo
           ))}
         </div>
       )}
+      </>)}
     </SpecCard>
   )
 }
@@ -1911,6 +1958,28 @@ export default function PlansView(props: {
     },
     [plans],
   )
+  // While the reviewer writes the summary, read the plan again until it lands.
+  const summaryPending = plan?.review?.state === 'running' && !plan.review.summary?.current
+  const pendingId = plan?.id
+  useEffect(() => {
+    if (!summaryPending || !workspace || !pendingId) return
+    let live = true
+    const timer = setInterval(() => {
+      plans.get(workspace, pendingId).then((stored) => live && setPlan((now) => (now?.id === stored.id ? stored : now)), () => undefined)
+    }, REVIEW_POLL_MS)
+    return () => {
+      live = false
+      clearInterval(timer)
+    }
+  }, [summaryPending, workspace, pendingId, plans])
+  const retrySummary = () => {
+    if (!workspace || !row) return
+    const review = plan?.review
+    void attempt(async () => {
+      if (plan && review?.canReviewAnyway) await plans.reviewAnyway(workspace, plan.id, plan.hash)
+      await loadPlan(workspace, row.planId)
+    })
+  }
   useEffect(() => {
     setDocs(null)
     setDocsError(null)
@@ -2121,6 +2190,7 @@ export default function PlansView(props: {
               onProject={() => setDialog('project')}
               onChanged={() => setDialog('changed')}
               onOpenTask={(id) => drawer.openTask(id)}
+              onRetrySummary={retrySummary}
               onReview={row.planId ? () => placeReview({ plan: row.planId!, rev: null, file: null, severity: null, state: null }) : undefined}
             />
           ) : (

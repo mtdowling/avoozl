@@ -27,15 +27,17 @@ const WORKING = `
 
 // The in-progress review, announced once politely and drawn as Kiro Crew's
 // working box.
-export function ReviewWorking(props: { model: string | null }) {
-  const label = `Reviewing with ${props.model ?? 'the reviewer model'}…`
+// The spec Summary reuses it with its own title and label while the reviewer
+// writes the summary.
+export function ReviewWorking(props: { model: string | null; title?: string; label?: string }) {
+  const label = props.label ?? `Reviewing with ${props.model ?? 'the reviewer model'}…`
   return (
     <div data-review-working role="status" aria-live="polite" aria-label={label} className="rounded-lg px-4 py-3">
       <style>{WORKING}</style>
       <div className="relative flex items-center gap-3">
         <Hourglass size={18} aria-hidden className="shrink-0" style={{ color: 'var(--aim, #7c3aed)' }} />
         <div className="min-w-0 flex-1">
-          <p className="m-0 font-semibold" style={{ color: 'var(--aim, #7c3aed)' }} data-plan-review-state>Review running</p>
+          <p className="m-0 font-semibold" style={{ color: 'var(--aim, #7c3aed)' }} data-plan-review-state>{props.title ?? 'Review running'}</p>
           <p className="m-0 text-xs text-muted">{label}</p>
         </div>
       </div>
