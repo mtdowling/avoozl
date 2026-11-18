@@ -5,7 +5,7 @@ checks: npm test, git diff --check
 ---
 # Tasks: everything runs without Kiro Crew
 
-Status: Draft
+Status: Approved
 
 Explicit `after` lists and the manifest's `requires` govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in

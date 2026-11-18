@@ -1,5 +1,6 @@
-// Settings > Delivery (R53.3, R54.8): the writer's default agent and model,
-// and pull request feedback (merging is on each repository's Landing tab). Saves write `delivery` in
+// Settings > Delivery (R54.8): investigate first and pull request feedback.
+// Merging is on each repository's Landing tab, and the worker's agent and
+// model are in Settings › Models (R98.7). Saves write `delivery` in
 // .avoozl.json through delivery.settings.update with the file's hash.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
@@ -8,13 +9,12 @@ import { SaveFooter } from './SaveFooter.tsx'
 import { Section } from './SettingsView.tsx'
 import { CheckRow, FieldRow } from './FieldRow.tsx'
 import { AskForHelp, useConfirm } from './controls.tsx'
-import { modelOptions, parseModels } from './flow-api.ts'
 import { useRead } from './useRead.ts'
 import { COMMAND_PATH, errorMessage } from './workspace-api.ts'
 import { DELIVERY_DEFAULTS, toDeliveryForm, toDeliverySection, type DeliveryForm, type DeliverySettings as Settings } from './delivery-api.ts'
 
 const OPTIONAL = { required: false } as const
-const OFF_BLURB = 'The tick starts no ready task until delivery is on. Its agent, model and pull request settings show here then.'
+const OFF_BLURB = 'The tick starts no ready task until delivery is on. Its investigate and pull request settings show here then.'
 const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
 // A field: the shared FieldRow, every Delivery value optional.
@@ -39,20 +39,9 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
   const load = useCallback(() => run<Settings>('delivery.settings.get'), [run])
   const { value, error, reload } = useRead<Settings>(workspaceId, load)
   const [form, setForm] = useState<DeliveryForm>(toDeliveryForm())
-  const [models, setModels] = useState<{ value: string; label: string }[]>([])
   const [message, setMessage] = useState<{ ok?: string; error?: string } | null>(null)
   const [turning, setTurning] = useState(false)
   const confirm = useConfirm()
-  useEffect(() => {
-    let live = true
-    api.get<unknown>('/api/models').then(
-      (body) => live && setModels(parseModels(body)),
-      () => live && setModels([]),
-    )
-    return () => {
-      live = false
-    }
-  }, [api])
   useEffect(() => {
     if (value) setForm(toDeliveryForm(value.delivery))
   }, [value])
@@ -85,7 +74,7 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
   const turnOn = async () => {
     const yes = await confirm({
       title: 'Turn on delivery?',
-      body: 'The tick starts ready tasks in Kiro Crew chats, about once a minute, with the default agent and model. Stop the line or Defer pauses them.',
+      body: 'The tick starts ready tasks in Kiro Crew chats, about once a minute, with the agents and models set in Settings › Models. Stop the line or Defer pauses them.',
       action: 'Turn on delivery',
     })
     if (!yes) return
@@ -136,22 +125,6 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
   return (
     <div className="flex flex-col gap-3" data-delivery-settings>
       <Card className="flex flex-col gap-4">
-        <Section title="Writer" blurb="The agent and model worker chats open on, unless a task's facts in tasks.md pick another.">
-          <div className="flex flex-wrap gap-4">
-            <Labeled id="avoozl-delivery-agent" label="Agent" raw="delivery.agent" width="16rem" byDefault={DELIVERY_DEFAULTS.agent} reset={form.agent.trim() && form.agent.trim() !== DELIVERY_DEFAULTS.agent ? () => set({ agent: '' }) : undefined}>
-              <Input id="avoozl-delivery-agent" value={form.agent} placeholder={DELIVERY_DEFAULTS.agent} onChange={(e) => set({ agent: e.target.value })} />
-            </Labeled>
-            <Labeled id="avoozl-delivery-model" label="Model" raw="delivery.model" width="18rem" note="Review roles that must differ from the writer need a named model." byDefault="auto" reset={form.model ? () => set({ model: '' }) : undefined}>
-              <select id="avoozl-delivery-model" value={form.model || 'auto'} onChange={(e) => set({ model: e.target.value === 'auto' ? '' : e.target.value })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
-                {modelOptions(models, form.model).map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </Labeled>
-          </div>
-        </Section>
         <Section title="Investigate first" blurb="Before coding, the writer reports what it found and how sure it is; a second chat tries to prove it wrong. Coding starts only when both are sure enough and the findings stand.">
           <div className="flex flex-wrap gap-4">
             <Labeled id="avoozl-delivery-investigate" label="Which tasks" raw="delivery.investigate.mode" width="16rem" note="A task's facts in tasks.md can set investigate: true or false." byDefault="All but small tasks" reset={form.investigateMode && form.investigateMode !== DELIVERY_DEFAULTS.investigateMode ? () => set({ investigateMode: DELIVERY_DEFAULTS.investigateMode }) : undefined}>

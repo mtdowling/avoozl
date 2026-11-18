@@ -1,6 +1,10 @@
 import {
   validateHarnesses,
+  dropOlderRoleKeys,
+  mergeRoles,
+  resolveRoles,
   validateModels,
+  validateRoles,
   validatePlanReview,
 } from "./chat-models.mjs";
 import { sandboxWriteRoots } from "./harness-definitions.mjs";
@@ -10,7 +14,7 @@ import { validateLanes } from "./lanes.mjs";
 import { applyLandingModes } from "./landing-config.mjs";
 import { flowPolicy } from "./flow.mjs";
 import { deliveryPolicy } from "./delivery.mjs";
-import { validateTrackedRouting } from "./placement.mjs";
+import { refuseTrackedProviders } from "./provider-health.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -551,6 +555,7 @@ function parse(text, filename, { portable = false } = {}) {
     fail("Unsupported workspace Avoozl configuration version.");
   validateModels(value.models);
   validateHarnesses(value.harnesses);
+  validateRoles(value);
   validatePlanReview(value.planReview);
   assertSafeConfig(value, `workspace Avoozl configuration at ${filename}`);
   if (portable)
@@ -561,22 +566,14 @@ function parse(text, filename, { portable = false } = {}) {
   return value;
 }
 
-// `.avoozl.json` `conversations`. Only autoArchiveCompleted still acts: an
-// accepted task's finished runs leave the conversation list. `driver` and
-// `routing` configured the removed agent host; files that set them still
-// load, and the values are ignored.
-export const CONVERSATION_KEYS = new Set([
-  "autoArchiveCompleted",
-  "driver",
-  "routing",
-]);
+// `.avoozl.json` `conversations`. Only autoArchiveCompleted acts: an
+// accepted task's finished runs leave the conversation list. Other keys are
+// dropped.
+export const CONVERSATION_KEYS = new Set(["autoArchiveCompleted"]);
 function conversationInput(value) {
   if (value === undefined) return null;
   if (!record(value))
     fail("Conversation configuration must contain a JSON object.");
-  for (const key of Object.keys(value))
-    if (!CONVERSATION_KEYS.has(key))
-      fail(`Unknown conversation configuration setting ${key}.`);
   if (
     "autoArchiveCompleted" in value &&
     typeof value.autoArchiveCompleted !== "boolean"
@@ -594,9 +591,9 @@ export function conversationSettings(store) {
   };
 }
 
+// The worker's agent and model are in the roles table (Settings › Models,
+// R98.7); a save here keeps any older `delivery.agent` and `model`.
 const DELIVERY_FORM_KEYS = [
-  "agent",
-  "model",
   "prFeedback",
   "feedbackRounds",
   // Investigate first and ship mode (§4.21, §4.25).
@@ -628,8 +625,10 @@ export class RepositorySettings {
       repository: this.filename,
     };
     this.sources = sources;
-    this.baseModels = validateModels(baseConfig.models);
-    this.baseHarnesses = validateHarnesses(baseConfig.harnesses);
+    validateModels(baseConfig.models);
+    validateHarnesses(baseConfig.harnesses);
+    validateRoles(baseConfig);
+    this.baseRoles = resolveRoles(baseConfig);
     this.baseConversationConfigured = baseConfig.conversations !== undefined;
     this.baseConversationSettings = {
       autoArchiveCompleted: true,
@@ -865,14 +864,15 @@ export class RepositorySettings {
     );
     validateContentRules(value.contentRules);
     validateModels(value.models);
-    validateModels({ ...this.baseModels, ...value.models });
+    validateRoles(value);
+    validateRoles({ roles: mergeRoles(this.baseRoles, resolveRoles(value)) });
     validatePlanReview(value.planReview);
     validateLanes(value.lanes);
     try {
       validateActivitySettings(value.activity);
       flowPolicy(value);
       deliveryPolicy(value);
-      validateTrackedRouting(value);
+      refuseTrackedProviders(value);
     } catch (error) {
       fail(error.message);
     }
@@ -997,47 +997,30 @@ export class RepositorySettings {
     return this.readFlowSettings();
   }
 
-  // Settings > Models: the model of each of Avoozl's own chats, and the
-  // harness each role runs on.
+  // Settings > Models: the roles table (R98.6), each role's harness,
+  // agent and model, with the older keys read in (R98.8).
   readModelSettings() {
     const file = this.readFile();
     return {
       filename: this.filename,
       exists: file.exists,
       hash: file.hash,
-      models: {
-        ...this.baseModels,
-        // The older `flow.retro.model` shows as the retro's until saved here.
-        ...(typeof file.value.flow?.retro?.model === "string" &&
-        file.value.flow.retro.model !== "auto"
-          ? { retro: file.value.flow.retro.model }
-          : {}),
-        ...(record(file.value.models)
-          ? structuredClone(file.value.models)
-          : {}),
-      },
-      harnesses: {
-        ...this.baseHarnesses,
-        ...(record(file.value.harnesses)
-          ? structuredClone(file.value.harnesses)
-          : {}),
-      },
+      roles: mergeRoles(this.baseRoles, resolveRoles(file.value)),
     };
   }
 
-  // Replace `models` and `harnesses` whole; an empty object removes one.
-  // A save without `harnesses` keeps the file's.
-  updateModelSettings({ models, harnesses, expectedHash } = {}) {
+  // Replace the table whole and drop the older keys it replaces (R98.9).
+  // An empty table removes `roles`.
+  updateModelSettings({ roles = {}, expectedHash } = {}) {
     const before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
-    const checked = validateModels(models),
-      roles = harnesses === undefined ? null : validateHarnesses(harnesses);
-    const value = this.updateValue(before);
-    if (Object.keys(checked).length) value.models = checked;
-    else delete value.models;
-    if (roles && Object.keys(roles).length) value.harnesses = roles;
-    else if (roles) delete value.harnesses;
+    const checked = validateRoles({ roles });
+    for (const role of Object.keys(checked))
+      if (!Object.keys(checked[role]).length) delete checked[role];
+    const value = dropOlderRoleKeys(this.updateValue(before));
+    if (Object.keys(checked).length) value.roles = checked;
+    else delete value.roles;
     this.write(value, { expectedHash: before.hash });
     return this.readModelSettings();
   }
@@ -1072,8 +1055,8 @@ export class RepositorySettings {
     return this.readActivitySettings();
   }
 
-  // Settings > Delivery: the writer's agent and model and pull request
-  // feedback (R53.3, R54.8). Other delivery keys are kept as they are.
+  // Settings > Delivery: who merges, investigate first and pull request
+  // feedback (R54.8). Other delivery keys are kept as they are.
   readDeliverySettings() {
     const file = this.readFile(),
       delivery = record(file.value.delivery) ? file.value.delivery : {};
@@ -1113,9 +1096,19 @@ export class RepositorySettings {
       if (delivery[key] === undefined || delivery[key] === null)
         delete next[key];
       else next[key] = delivery[key];
+    // An older falsifier agent and model stay until a Models save moves
+    // them into `roles` (R98.9).
+    const older = value.delivery.investigate;
+    if (record(older)) {
+      const rest = Object.fromEntries(
+        ["agent", "model"].filter((k) => k in older).map((k) => [k, older[k]]),
+      );
+      if (Object.keys(rest).length)
+        next.investigate = { ...rest, ...(next.investigate || {}) };
+    }
     // The tick's own check, so a save never leaves a policy it refuses.
     try {
-      deliveryPolicy({ delivery: next });
+      deliveryPolicy({ ...value, delivery: next });
     } catch (error) {
       fail(error.message);
     }

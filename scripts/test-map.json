@@ -1196,7 +1196,6 @@
    "src/app/test/manual-tasks.test.mjs",
    "src/app/test/mcp-tools.test.mjs",
    "src/app/test/mcp-views.test.mjs",
-   "src/app/test/migrate-routing.test.mjs",
    "src/app/test/mirror-forward-off-completion.test.mjs",
    "src/app/test/mirror-forward-poll.test.mjs",
    "src/app/test/mirror-forward-protections.test.mjs",
@@ -2957,7 +2956,6 @@
    "src/app/test/manual-tasks.test.mjs",
    "src/app/test/mcp-tools.test.mjs",
    "src/app/test/mcp-views.test.mjs",
-   "src/app/test/migrate-routing.test.mjs",
    "src/app/test/mirror-forward-off-completion.test.mjs",
    "src/app/test/mirror-forward-poll.test.mjs",
    "src/app/test/mirror-forward-protections.test.mjs",
@@ -4226,7 +4224,6 @@
    "src/app/test/manual-tasks.test.mjs",
    "src/app/test/mcp-tools.test.mjs",
    "src/app/test/mcp-views.test.mjs",
-   "src/app/test/migrate-routing.test.mjs",
    "src/app/test/mirror-forward-off-completion.test.mjs",
    "src/app/test/mirror-forward-poll.test.mjs",
    "src/app/test/mirror-forward-protections.test.mjs",
@@ -8326,7 +8323,7 @@
    "src/app/test/demo.test.mjs",
    "src/app/test/panel-view.test.mjs"
   ],
-  "src/app/placement.mjs": [
+  "src/app/session-pins.mjs": [
    "src/app/test/activity-log.test.mjs",
    "src/app/test/app-mcp.test.mjs",
    "src/app/test/chat-models.test.mjs",
@@ -8357,7 +8354,6 @@
    "src/app/test/manual-path.test.mjs",
    "src/app/test/manual-tasks.test.mjs",
    "src/app/test/mcp-tools.test.mjs",
-   "src/app/test/migrate-routing.test.mjs",
    "src/app/test/mirror-forward-poll.test.mjs",
    "src/app/test/mirror-plans-branch.test.mjs",
    "src/app/test/mirror-policy.test.mjs",
@@ -9709,7 +9705,6 @@
    "src/app/test/manual-path.test.mjs",
    "src/app/test/mcp-tools.test.mjs",
    "src/app/test/mcp-views.test.mjs",
-   "src/app/test/migrate-routing.test.mjs",
    "src/app/test/mirror-forward-poll.test.mjs",
    "src/app/test/mirror-plans-branch.test.mjs",
    "src/app/test/mirror-policy.test.mjs",

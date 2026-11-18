@@ -1055,7 +1055,6 @@ const MOVED_TABLES = [
   "flow_stops",
   "flow_retros",
   "flow_batches",
-  "placement_decisions",
   "content_decisions",
   "github_issues",
   "github_linked_branches",

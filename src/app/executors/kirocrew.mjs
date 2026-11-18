@@ -6,7 +6,7 @@ import {
   completeSessionRequest,
 } from "../session-requests.mjs";
 import { gatewayClient } from "../gateway-client.mjs";
-// Sidebar placement and project inheritance belong to this executor alone.
+// Sidebar position and project inheritance belong to this executor alone.
 
 const sidebarPath = (repository) => (repository ? `Avoozl/${repository}` : "");
 

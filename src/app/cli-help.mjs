@@ -373,18 +373,6 @@ export const HELP_GROUPS = Object.freeze([
         "andon",
         "Where the old andon gate went (rule actions and flow stop)",
       ),
-      entry(
-        "routing",
-        "Retired with crew placement: every session runs on this machine",
-      ),
-      entry(
-        "crews",
-        "Retired with crew placement: every session runs on this machine",
-      ),
-      entry(
-        "pick-again",
-        "Retired with crew placement: every session runs on this machine",
-      ),
       entry("health [--url URL]", "Ask a running app backend whether it is up"),
     ],
   },
@@ -505,7 +493,7 @@ export const HELP_GROUPS = Object.freeze([
       ),
       entry("generate --workspace PATH", "Reindex Markdown"),
       entry(
-        "OPERATION --json JSON [--revision N] [--as-person] --workspace PATH",
+        "OPERATION --json JSON [--revision N] --workspace PATH",
         "Run any application operation by name",
       ),
       entry("OPERATION --input FILE --workspace PATH"),
@@ -516,7 +504,8 @@ export const HELP_GROUPS = Object.freeze([
 const OPTIONS = `Use --workspace PATH or AVOOZL_WORKSPACE to choose data independently
 of the application checkout. --db, --documents, --port, --operator and --url
 override workspace configuration. A person-only operation run inside an agent
-session needs --as-person. UI, CLI and MCP share application operations.`;
+session runs and is recorded as run there. UI, CLI and MCP share application
+operations.`;
 
 // The command words a usage line starts with: `plugins disable|enable ID`
 // names plugins. An OPERATION line names no command.

@@ -1,6 +1,6 @@
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { projectExecutor } from "./executors/process.mjs";
-import { harnessExecutor, roleHarness } from "./chat-models.mjs";
+import { harnessExecutor, resolveRoles, roleHarness } from "./chat-models.mjs";
 import { PERSON_MESSAGE_HEAD } from "./session-send.mjs";
 import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
@@ -206,11 +206,11 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
     throw Error("delivery.repositories must be an object.");
   if (delivery.model !== undefined && !MODEL.test(delivery.model))
     throw Error("delivery.model must be a model name.");
-  const reviewers = reviewerList(
-      delivery.reviewers,
-      "delivery",
-      delivery.model,
-    ),
+  // The worker's and falsifier's agent and model come from the roles
+  // table (R98.6), which reads the older delivery keys in.
+  const { worker = {}, falsifier = {} } = resolveRoles(value),
+    writer = worker.model;
+  const reviewers = reviewerList(delivery.reviewers, "delivery", writer),
     normalized = {};
   for (const [id, entry] of Object.entries(repositories)) {
     if (
@@ -245,13 +245,24 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
             reviewers: reviewerList(
               entry.reviewers,
               `delivery.repositories.${id}`,
-              delivery.model,
+              writer,
             ),
           };
   }
   return {
     ...DELIVERY_DEFAULTS,
     ...delivery,
+    agent: worker.agent ?? DELIVERY_DEFAULTS.agent,
+    model: writer,
+    ...(falsifier.agent || falsifier.model || delivery.investigate
+      ? {
+          investigate: {
+            ...(delivery.investigate || {}),
+            ...(falsifier.agent ? { agent: falsifier.agent } : {}),
+            ...(falsifier.model ? { model: falsifier.model } : {}),
+          },
+        }
+      : {}),
     concurrency:
       machineLanes ?? delivery.concurrency ?? validateLanes(value.lanes).local,
     reviewers,
@@ -338,7 +349,7 @@ function reviewerList(value, where, writer) {
         );
       if (unknownModel(writer))
         throw Error(
-          `delivery.model must name the writer's model, not auto, because ${at} has distinctFrom model.`,
+          `roles.worker.model (Settings › Models) must name the writer's model, not auto, because ${at} has distinctFrom model.`,
         );
       if (role.model === writer)
         throw Error(
@@ -2022,15 +2033,7 @@ function stackedBlockers(store, github, extra) {
 export function readyLeaves(
   store,
   policy,
-  {
-    skip = new Set(),
-    github = null,
-    unbranched = false,
-    stack = null,
-    // Placement (§4.10): returns false when the leaf waits this tick, so it
-    // takes no slot and the next candidate is tried.
-    place = null,
-  } = {},
+  { skip = new Set(), github = null, unbranched = false, stack = null } = {},
 ) {
   const data = store.read(),
     projects = new Map(store.list("projects").map((p) => [p.id, p])),
@@ -2060,7 +2063,6 @@ export function readyLeaves(
       attempt: Math.max(0, ...own.map((b) => b.attempt)) + 1,
       delivery: store.get("task_deliveries", task.id),
     };
-    if (place && !place(leaf)) continue;
     leaves.push(leaf);
     free -= 1;
   }
@@ -2155,8 +2157,8 @@ export function leafBrief(store, data, leaf, options = {}) {
 // The executor a worker runs on: its task's `session.harness` pin (R98.4),
 // else the worker harness saved in Settings › Models (R98.3), else its
 // project's executor (R93.5). Returns {executor, harness?}.
-export function workerExecutor(task, project, harnesses) {
-  const named = task.session?.harness ?? roleHarness({ harnesses }, "worker");
+export function workerExecutor(task, project, config) {
+  const named = task.session?.harness ?? roleHarness(config, "worker");
   return named
     ? harnessExecutor(named)
     : { executor: projectExecutor(project) };
@@ -2282,7 +2284,7 @@ export function planReadyDispatches(store, policy, options = {}) {
     );
   let health = null;
   return leaves.flatMap((leaf) => {
-    const run = workerExecutor(leaf.task, leaf.project, options.harnesses),
+    const run = workerExecutor(leaf.task, leaf.project, options.config),
       pin = leaf.task.session || {};
     // Investigate first (R75.5): never for a batch, whose brief is one
     // stretch of small tasks.
@@ -2858,7 +2860,7 @@ export function holdUnprovenReviews(
         slot: next.attempts.at(-1)?.slot,
         title: `Avoozl will not review ${task.id}`,
         text: `Commit ${next.commit.slice(0, 12)}: ${blocked}.`,
-        resume: `Name distinct models in .avoozl.json (delivery.model and the review role's model), or open the writer on a named model, then ask Avoozl to retry ${task.id} (plans_retry_delivery).`,
+        resume: `Name distinct models (the worker's in Settings › Models and the review role's), or open the writer on a named model, then ask Avoozl to retry ${task.id} (plans_retry_delivery).`,
       });
     store.transaction(() => store.put("task_deliveries", next));
   }

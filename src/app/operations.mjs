@@ -1029,8 +1029,6 @@ export class Operations {
       reviewOptions = {},
       // Tests can delay isolated review-view preparation without opening chats.
       planReviewOptions = {},
-      // {now} for the provider operations; tests fix the clock.
-      placement = {},
       pluginSettingsFile = pluginSettingsPath(),
       // The spec driver lock (§6.10): {settingsFile, now?, sleep?}. The
       // CLI, app backend and app MCP server pass this machine's settings
@@ -1070,7 +1068,6 @@ export class Operations {
     this.sessionsReader = sessionsReader;
     this.sessionStopper = sessionStopper;
     this.reviewOptions = reviewOptions;
-    this.placement = placement;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
     // Every GitHub text write passes content rules first (§4.9).
@@ -1152,7 +1149,6 @@ export class Operations {
     const policy = readDeliveryPolicy(this.workspaceRoot).delivery,
       tasks = new Map(this.read().tasks.map((t) => [t.id, t]));
     return {
-      ...(this.placement.now ? { now: this.placement.now() } : {}),
       tasks,
       reviewRoles: (binding) =>
         policy
@@ -3250,16 +3246,6 @@ export class Operations {
           policy: readDeliveryPolicy(this.workspaceRoot),
           github: readGitHubPolicyOrNull(this.workspaceRoot),
         }),
-      );
-    // Crew placement was retired (§4.10); old clients get one clear answer.
-    if (
-      name.startsWith("routing.") ||
-      name === "crews.update" ||
-      name === "delivery.pickAgain"
-    )
-      fail(
-        "Crew placement was retired: every session runs on this machine. Pin a task's agent, model or harness in its session fact in tasks.md.",
-        410,
       );
     // Retired tool names remain resolvable for existing clients.
     if (name === "relay.call" || name === "relay.forget")

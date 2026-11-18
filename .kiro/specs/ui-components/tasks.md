@@ -5,7 +5,7 @@ checks: npm test, npm run test:ui, git diff --check
 ---
 # Tasks: the page draws with components, not class strings
 
-Status: Draft
+Status: Approved
 
 Explicit `after` lists and the manifest's `requires` govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
@@ -26,7 +26,7 @@ of the other specs.
 
 ## Phase 1: Stop the growth
 
-- [ ] uc-1.1 The raw-style test with today's counts [UC3.1, UC3.2, UC3.3] (§D4)
+- [x] uc-1.1 The raw-style test with today's counts [UC3.1, UC3.2, UC3.3] (§D4)
   - Facts:
     - summary: Phase 1 (Stop the growth). The raw-style test with today's counts. See UC3.1, UC3.2, UC3.3; §D4.
     - done:
@@ -34,6 +34,7 @@ of the other specs.
     - checks: npm test, git diff --check
   - `kirocrew-app/ui/test/raw-style.test.mjs` and `raw-style-allow.json`, counting `className`, `style`, `<style>` and `var(--` per view outside `src/ui/`.
   - Done when: The test passes on today's views; it fails on a planted extra `className` in a listed view, on any raw style in a new view, and on a listed file whose count is zero.
+  - Built: PR #614.
 - [ ] uc-1.2 The class check runs in CI against Kiro Crew's own stylesheet [UC4] (§D5)
   - Facts:
     - summary: Phase 1 (Stop the growth). The class check runs in CI against Kiro Crew's own stylesheet. See UC4; §D5.

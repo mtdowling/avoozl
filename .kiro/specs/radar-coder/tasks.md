@@ -59,11 +59,11 @@ Requirement RC1. The Radar path starts with one setting and four label names. No
   - Facts:
     - summary: Plan only the planning label, Untriaged off for Radar-coded repositories. See RC1.2, RC1.5, RC1.8; §D3.
     - done:
-      - No list call for plain open issues is made for a Radar-coded repository (checked with a fake GitHub that records calls); a planning label added by a disallowed account does nothing; the plan-me routing tests of PR 67 still pass unchanged.
+      - No list call for plain open issues is made for a Radar-coded repository (checked with a fake GitHub that records calls); a planning label added by a disallowed account does nothing; the plan-me tests of PR 67 still pass unchanged.
     - checks: npm test, git diff --check
     - after: rc-1.1
-  - The Untriaged read lists no plain open issue for a `coder: issue-radar` repository; an issue with the planning label and an allowed labeler goes to Intake; the plan-me routing of PR 67 is untouched; Intake row action **Plan this** starts a planner chat; `src/app/test/radar-coder-intake.test.mjs`.
-  - Done when: No list call for plain open issues is made for a Radar-coded repository (checked with a fake GitHub that records calls); a planning label added by a disallowed account does nothing; the plan-me routing tests of PR 67 still pass unchanged.
+  - The Untriaged read lists no plain open issue for a `coder: issue-radar` repository; an issue with the planning label and an allowed labeler goes to Intake; the plan-me path of PR 67 is untouched; Intake row action **Plan this** starts a planner chat; `src/app/test/radar-coder-intake.test.mjs`.
+  - Done when: No list call for plain open issues is made for a Radar-coded repository (checked with a fake GitHub that records calls); a planning label added by a disallowed account does nothing; the plan-me tests of PR 67 still pass unchanged.
 - [x] rc-1.3 Source issue becomes the parent, planning label cleared only by setting, after rc-1.2 [RC1.4, RC1.6, RC1.7] (§D3)
   - Facts:
     - summary: Source issue becomes the parent, planning label cleared only by setting. See RC1.4, RC1.6, RC1.7; §D3.
@@ -714,15 +714,13 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
     - after: rc-12.1
   - The tick opens no Avoozl worker for any repository; `worker` is refused as a `coder` value with the retired banner of RC1.1; tests removed with the code.
   - Done when: No repository opens a worker; a repository set to `worker` shows the banner.
-- [ ] rc-12.3 Retire crew routing and placement for Radar-coded repositories, after rc-12.2 [RC11.2] (§D13)
+- [x] rc-12.3 Retired 2026-11-18
   - Facts:
-    - summary: Cancelled 2026-11-15 (avoozl R86, §4.26). Retire crew routing and placement for Radar-coded repositories. See RC11.2; §D13.
+    - summary: Retired 2026-11-18.
     - done:
-      - No routing call is made for a Radar-coded repository; the Routing section is hidden only when no repository needs it.
+      - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
     - after: rc-12.2
-  - Routing, placement and the router prompt are removed. The Routing nav entry is already gone (RC8.1); the code is removed here, with `coder: worker`.
-  - Done when: No routing call is made for a Radar-coded repository; the Routing section is hidden only when no repository needs it.
 - [ ] rc-12.4 Retire runner mode, after rc-12.1 [RC11.2] (§D13)
   - Facts:
     - summary: Cancelled 2026-11-15 (avoozl R86, §4.26). Retire runner mode. See RC11.2; §D13.
@@ -739,7 +737,7 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
       - `npm test` passes; the relay agent is not in the built app.
     - checks: npm test, git diff --check
     - after: rc-12.1
-  - Remove the relay queue, `plans_relay`, the `avoozl-relay` agent and the Routing relay block, and their tests.
+  - Remove the relay queue, `plans_relay`, the `avoozl-relay` agent and their tests.
   - Done when: `npm test` passes; the relay agent is not in the built app.
 - [ ] rc-12.6 Retire per-task worker budgets and the worker Files and diff fold, after rc-12.2 [RC11.2] (§D13)
   - Facts:

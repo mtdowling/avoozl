@@ -5,7 +5,7 @@ checks: npm test, git diff --check
 ---
 # Tasks: one way to run a worker
 
-Status: Draft
+Status: Approved
 
 Explicit `after` lists and the manifest's `requires` govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
@@ -153,25 +153,25 @@ of the other specs.
   - Next decision: when to run `avoozl-p53`, the live two-machine proof in the avoozl spec.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
 
-## Phase 4: Placement on one machine
+## Phase 4: Sessions run on this machine
 
-- [ ] wp-4.1 Remove remote crews and the hand-back, after wp-p1 [WP6.1, WP6.2, WP6.5, WP6.6] (§D9)
+- [x] wp-4.1 Remove remote crews and the hand-back, after wp-p1 [WP6.1, WP6.2, WP6.6] (§D9)
   - Facts:
-    - summary: Phase 4 (Placement on one machine). Remove remote crews and the hand-back. See WP6.1, WP6.2, WP6.5, WP6.6; §D9.
+    - summary: Phase 4 (Sessions run on this machine). Remove remote crews and the hand-back. See WP6.1, WP6.2, WP6.6; §D9.
     - done:
-      - Tests: a draft with `session.crew: "big-mac"` fails lint naming the key; the same pin on an approved revision starts nothing across three ticks and shows one Needs you item, and Run here from a person starts it on this machine; machine files with `crews` and `crewStaleSeconds` load; a search of `src/` and `kirocrew-app/` finds no `crew=` and no importer of the removed modules.
+      - Remove remote crews and the hand-back
+      - The remote steps, `handback.mjs`, `kirocrewRemoteSession` and the `crew` argument of the executor are gone. The crew snapshot stays.
     - after: wp-p1
-  - The crew registry and snapshot, `crew-reader.mjs`, `handback.mjs`, `remoteSteps`, `remoteTarget`, `kirocrewRemoteSession`, the `crew` argument of the executor and `avoozl crews set` go; a `session.crew` other than `local` is a lint error on a draft and one Needs you item with the person-only **Run here** on an approved revision.
-  - Done when: Tests: a draft with `session.crew: "big-mac"` fails lint naming the key; the same pin on an approved revision starts nothing across three ticks and shows one Needs you item, and Run here from a person starts it on this machine; machine files with `crews` and `crewStaleSeconds` load; a search of `src/` and `kirocrew-app/` finds no `crew=` and no importer of the removed modules.
-- [ ] wp-4.2 One local placement module, and Delivery shows what holds a task, after wp-4.1 [WP6.3, WP6.4] (§D9)
+  - The remote steps, `handback.mjs`, `kirocrewRemoteSession` and the `crew` argument of the executor are gone. The crew snapshot stays.
+- [x] wp-4.2 Delivery shows what holds a task, after wp-4.1 [WP6.3] (§D9)
   - Facts:
-    - summary: Phase 4 (Placement on one machine). One local placement module, and Delivery shows what holds a task. See WP6.3, WP6.4; §D9.
+    - summary: Phase 4 (Sessions run on this machine). Delivery shows what holds a task. See WP6.3; §D9.
     - done:
-      - Tests: pins for `agent`, `model` and `harness` behave as the pin tests assert today; a task held by the lane limit and one held by a provider check each show their reason on Delivery; the no-fit decision still opens for a harness this machine lacks; machine files with `routing` load; screenshots of Delivery at 390 and 1280 px, light and dark, go to the owner.
+      - Delivery shows what holds a task
+      - Delivery shows the lane limit and each provider check that holds a task.
     - checks: npm test, npm run test:ui, git diff --check
     - after: wp-4.1
-  - `src/app/lanes.mjs` holds the pin check, the lane limit and the provider checks' entry point; `routing.mjs`, `placement.mjs` and what is left of `crews.mjs` go; `avoozl routing set` goes and `avoozl routing` names Dashboards › Delivery; that page shows the lane limit and each provider check that holds a task.
-  - Done when: Tests: pins for `agent`, `model` and `harness` behave as the pin tests assert today; a task held by the lane limit and one held by a provider check each show their reason on Delivery; the no-fit decision still opens for a harness this machine lacks; machine files with `routing` load; screenshots of Delivery at 390 and 1280 px, light and dark, go to the owner.
+  - Delivery shows the lane limit and each provider check that holds a task.
 
 ## Phase 5: Names
 

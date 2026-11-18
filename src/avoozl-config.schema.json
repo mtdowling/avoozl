@@ -142,9 +142,22 @@
     "github": {
       "$ref": "#/$defs/github"
     },
+    "roles": {
+      "type": "object",
+      "description": "One row per role: its harness, model and, for the worker and falsifier, agent. Settings > Models edits it. A missing key or auto keeps the role's default; a task's session pin wins. Older models, harnesses, delivery agent and model keys still load into it.",
+      "additionalProperties": false,
+      "properties": {
+        "worker": { "$ref": "#/$defs/agentRole" },
+        "falsifier": { "$ref": "#/$defs/agentRole" },
+        "planner": { "$ref": "#/$defs/chatRole" },
+        "planReviewer": { "$ref": "#/$defs/chatRole" },
+        "retro": { "$ref": "#/$defs/chatRole" },
+        "reviewDraft": { "$ref": "#/$defs/chatRole" }
+      }
+    },
     "models": {
       "type": "object",
-      "description": "Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
+      "description": "Older key, read into roles.<role>.model. Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
       "additionalProperties": false,
       "properties": {
         "planner": {
@@ -167,7 +180,7 @@
     },
     "harnesses": {
       "type": "object",
-      "description": "The harness each role's chat runs on: kirocrew for a Kiro Crew chat, or a harness definition's name for a supervisor child. A role left out, or auto, runs on its project's executor. A task's session.harness pin wins.",
+      "description": "Older key, read into roles.<role>.harness. The harness each role's chat runs on: kirocrew for a Kiro Crew chat, or a harness definition's name for a supervisor child. A role left out, or auto, runs on its project's executor. A task's session.harness pin wins.",
       "additionalProperties": false,
       "properties": {
         "worker": {
@@ -226,7 +239,6 @@
           "minimum": 0,
           "maximum": 10,
           "default": 2,
-          "deprecated": true,
           "description": "Older key of each repository's conflicts.maxAttempts, read for a repository that sets none. Still loads; Avoozl does not write it."
         },
         "trains": {
@@ -789,7 +801,6 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 32,
-          "deprecated": true,
           "description": "Old input: this machine's lanes when the machine file sets no lanes.local. Use lanes.local in the machine file."
         },
         "retries": {
@@ -848,7 +859,6 @@
         },
         "ship": {
           "description": "Older key of each GitHub repository's landing.autoMerge (design 4.25), read for a repository that sets none. manual means false. Still loads; Avoozl does not write it.",
-          "deprecated": true,
           "enum": ["auto-merge", "manual"],
           "default": "auto-merge"
         },
@@ -859,7 +869,6 @@
             "additionalProperties": false,
             "properties": {
               "concurrency": {
-                "deprecated": true,
                 "description": "Ignored. lanes.local in the machine file is the one limit for chats."
               },
               "reviewers": {
@@ -881,7 +890,6 @@
                 "$ref": "#/$defs/deliveryInvestigate"
               },
               "ship": {
-                "deprecated": true,
                 "description": "Older key of the repository's landing.autoMerge. Still loads; Avoozl does not write it.",
                 "enum": ["auto-merge", "manual"]
               }
@@ -1099,6 +1107,26 @@
     "harnessName": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]{0,60}$"
+    },
+    "chatRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "harness": { "$ref": "#/$defs/harnessName" },
+        "model": { "$ref": "#/$defs/chatModel" }
+      }
+    },
+    "agentRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "harness": { "$ref": "#/$defs/harnessName" },
+        "agent": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "model": { "$ref": "#/$defs/chatModel" }
+      }
     },
     "runner": {
       "type": "object",
@@ -1438,14 +1466,6 @@
           "type": "boolean",
           "default": true,
           "description": "Archive completed child and task conversations while retaining their task and transcript links."
-        },
-        "driver": {
-          "deprecated": true,
-          "description": "Ignored. It configured the removed agent host's driver conversation. Files that still set it load as before."
-        },
-        "routing": {
-          "deprecated": true,
-          "description": "Ignored. It configured the removed agent host's routing. Files that still set it load as before."
         }
       },
       "additionalProperties": false
@@ -1937,7 +1957,6 @@
         },
         "merge": {
           "type": "object",
-          "deprecated": true,
           "description": "Older key of landing.method. Still loads; Avoozl does not write it.",
           "additionalProperties": false,
           "properties": {

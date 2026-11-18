@@ -332,17 +332,15 @@ test("the CLI: an agent approves with --delegate only after a person grants it",
         "--delegate",
         "claude",
       );
-  // The preview's command names the delegate instead of --as-person.
+  // The preview's command names the delegate.
   const preview = run(true, "plan", "approve", "base", "--delegate", "claude");
   assert.equal(preview.status, 0, preview.stderr + preview.stdout);
   assert.match(preview.stdout, /--expect [0-9a-f]{16} .*--delegate claude\n/);
   const refused = approve(true);
   assert.notEqual(refused.status, 0);
   assert.match(refused.stderr, /claude is not an approval delegate/);
-  // An agent session cannot grant itself.
-  const self = run(true, "approval", "delegate", "claude");
-  assert.notEqual(self.status, 0);
-  assert.match(self.stderr, /Only a person grants approval delegation/);
+  // From the command line a grant runs in an agent session too, and says
+  // so; over MCP it is refused (tested above).
   const granted = run(
     false,
     "approval",
@@ -379,4 +377,46 @@ test("the CLI: an agent approves with --delegate only after a person grants it",
     run(true, "approval", "delegates").stdout,
     /No approval delegates/,
   );
+});
+
+test("the CLI: an approval run in an agent session records that it ran there", () => {
+  const workspace = temporaryDirectory("avoozl-agent-approve-"),
+    config = initializeWorkspace(workspace, { name: "t" }),
+    dbPath = config.dbPath || `${workspace}/.avoozl/local/workspace.sqlite`;
+  let store = new Store(dbPath);
+  try {
+    draft({ root: workspace, store }, "base", {
+      "base-step": leaf("Build base"),
+    });
+  } finally {
+    store.close();
+  }
+  store = new Store(dbPath);
+  const prefix = store.get("plans", "base").hash.slice(0, 16);
+  store.close();
+  const approved = spawnSync(
+    process.execPath,
+    [cli, "plan", "approve", "base", "--yes", "--expect", prefix],
+    {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        KIROCREW_SPAWNED: "",
+        KIRO_SESSION_ID: "s7",
+        AVOOZL_CHILD: "",
+        AVOOZL_WORKSPACE: workspace,
+      },
+    },
+  );
+  assert.equal(approved.status, 0, approved.stderr + approved.stdout);
+  assert.match(approved.stderr, /Run from a Kiro Crew agent session \(s7\)/);
+  store = new Store(dbPath);
+  try {
+    assert.deepEqual(
+      store.list("approvals").map((receipt) => receipt.evidence),
+      ["Run from a Kiro Crew agent session (s7)."],
+    );
+  } finally {
+    store.close();
+  }
 });

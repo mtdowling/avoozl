@@ -22,7 +22,7 @@ import { kirocrewSession, kirocrewDispatches } from "./executors/kirocrew.mjs";
 import { notesReprojectIds, notesReprojected } from "./task-notes.mjs";
 import { recordActivity, recordTickActivity } from "./activity-log.mjs";
 import fs from "node:fs";
-import { validateTrackedRouting } from "./placement.mjs";
+import { refuseTrackedProviders } from "./provider-health.mjs";
 import { crewSnapshot, machineFile } from "./crews.mjs";
 import { validateLanes } from "./lanes.mjs";
 import path from "node:path";
@@ -101,6 +101,7 @@ import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { taskSummaryDispatches } from "./task-summary.mjs";
 import {
   validateModels,
+  validateRoles,
   validatePlanReview,
   withChatModels,
 } from "./chat-models.mjs";
@@ -182,9 +183,10 @@ function parsePolicy(text) {
   deliveryPolicy(value);
   flowPolicy(value);
   repositoryPlugins(value);
-  validateTrackedRouting(value);
+  refuseTrackedProviders(value);
   validateContentRules(value.contentRules);
   validateModels(value.models);
+  validateRoles(value);
   validatePlanReview(value.planReview);
   validateIntake(value.intake);
   return value;
@@ -1315,8 +1317,8 @@ async function runTick(
           ? []
           : planReadyDispatches(store, delivery, {
               skip: new Set([...readySkip, ...schedule.skip]),
-              // Settings › Models' worker harness (R98.3).
-              harnesses: (memory.value || {}).harnesses,
+              // Settings › Models' worker harness (R98.3, R98.6).
+              config: memory.value || {},
               github: readGitHubPolicyOrNull(workspaceRoot),
             }),
         verify =

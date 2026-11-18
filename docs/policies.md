@@ -609,20 +609,21 @@ terms) are refused for MCP calls and for app tokens. They do not stop code
 that runs as your user. Such code can read the gateway's signing secret from
 another process, or call the CLI.
 
-The CLI refuses a person-only operation when it runs inside a Kiro Crew agent
-session, unless you add `--as-person`. It tells a session by `KIROCREW_SPAWNED=1`
-(set on every process Kiro Crew starts for an agent) or `KIRO_SESSION_ID` (set
-in an agent's shell). The Kiro Crew dashboard terminal sets neither: it copies
-the gateway's environment and adds `KIROCREW_TERMINAL=1`, which Avoozl does
-not trust because an agent could set it. This is a speed bump: code that unsets
-those variables gets past it.
+The command line is a person's tool, so the CLI runs a person-only operation
+wherever it is typed, inside a Kiro Crew agent session too. There it prints
+that it ran in an agent session, and an approval made without a delegate
+records it in its receipt. It tells a session by `KIROCREW_SPAWNED=1` (set on
+every process Kiro Crew starts for an agent) or `KIRO_SESSION_ID` (set in an
+agent's shell). The one place the CLI refuses is a process the supervisor
+started (`AVOOZL_CHILD`), where nobody is typing. The `--as-person` flag
+that used to get past an agent-session refusal was removed on 2026-11-18; an
+old command that still passes it runs as before.
 
-Approval has one sanctioned way past it that needs no claim to be the
-person: approval delegation. A person runs `approval delegate NAME`; then
+Approval delegation is the way to let an agent approve in its own name. A person runs `approval delegate NAME`; then
 `plan approve ... --delegate NAME` and `plan.approve` with `delegate` work
 from an agent session and over MCP, approving as that person, and each
 receipt records the delegate and the grant. With no active grant the delegate
-is refused. Granting and revoking are themselves person-only.
+is refused. Over MCP, granting and revoking are person-only.
 
 For a Kiro Crew chat it stays a speed bump. The chat runs as you, with your
 files, your `gh` login and your network, so nothing stops a determined agent

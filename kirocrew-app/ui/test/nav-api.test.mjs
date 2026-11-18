@@ -1,53 +1,29 @@
-// The nav row, and where removed pages go.
+// The nav row and its pages.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { DASHBOARD_PAGES, RETROS_PAGES, TABS, dashboardPage, dashboardTab, navTab, redirectSettings, redirectTab, redirectWaiting, WAITING_SECTIONS, tabLabel } from '../src/nav-api.ts'
+import { DASHBOARD_PAGES, RETROS_PAGES, TABS, dashboardPage, dashboardTab, navTab, WAITING_SECTIONS, tabLabel } from '../src/nav-api.ts'
 
 test('the nav row is Dashboards, Specs, Needs you, Flow, Retros, Activity, Settings', () => {
   assert.deepEqual(TABS.map((t) => t.label), ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Retros', 'Activity', 'Settings'])
 })
 
-test('Retros lists two pages, and an old Flow retros or proposals link opens them', () => {
+test('Retros lists two pages', () => {
   assert.deepEqual(RETROS_PAGES.map((p) => p.label), ['Retros', 'Proposals'])
-  assert.deepEqual(redirectTab('flow:retros'), { tab: 'retros', open: { 'retros-page': 'retros' } })
-  assert.deepEqual(redirectTab('flow:proposals'), { tab: 'retros', open: { 'retros-page': 'proposals' } })
   assert.equal(tabLabel('retros'), 'Retros')
 })
 
-test('the nav has no Issues or Pull requests pill, and old links open Dashboards > Home', () => {
-  for (const key of ['issues', 'pulls']) {
-    assert.ok(!TABS.some((t) => t.key === key))
-    assert.deepEqual(redirectTab(key), { tab: 'dashboard' })
-  }
-  assert.ok(!TABS.some((t) => /^(Issues|Pull requests)$/.test(t.label)))
+test('the nav has no Issues or Pull requests pill', () => {
+  assert.ok(!TABS.some((t) => ['issues', 'pulls'].includes(t.key) || /^(Issues|Pull requests)$/.test(t.label)))
 })
 
-test('removed pages go to the page that took over, never nowhere', () => {
-  assert.deepEqual(redirectTab('delivery'), { tab: 'delivery' })
-  assert.equal(redirectTab('conflicts').tab, 'waiting')
-  assert.equal(redirectTab('untriaged').tab, 'waiting')
-  assert.equal(redirectTab('untriaged').open['waiting-section'], 'triage')
-  assert.deepEqual(redirectTab('routing'), { tab: 'settings' })
-  assert.deepEqual(redirectTab('nonsense'), { tab: 'dashboard' })
-  for (const t of TABS) assert.deepEqual(redirectTab(t.key), { tab: t.key })
-})
-
-test('Dashboards holds Home, Graph, Delivery and Landing queue; an old Home link lands on Dashboards > Home', () => {
+test('Dashboards holds Home, Graph, Delivery and Landing queue', () => {
   assert.deepEqual(DASHBOARD_PAGES.map((p) => p.label), ['Home', 'Graph', 'Delivery', 'Landing queue'])
-  assert.deepEqual(redirectTab('dashboard'), { tab: 'dashboard' })
   assert.equal(dashboardPage('dashboard'), 'home')
   for (const page of ['graph', 'delivery', 'landing']) {
-    assert.equal(redirectTab(page).tab, page)
     assert.equal(navTab(page), 'dashboard')
     assert.equal(dashboardPage(page), page)
     assert.equal(dashboardTab(page), page)
   }
-  // CI is hidden until it is built; an old link opens Flow.
-  assert.deepEqual(redirectTab('ci'), { tab: 'flow' })
-  assert.equal(dashboardPage('ci'), null)
-  // Lanes is gone; an old link opens Delivery.
-  assert.deepEqual(redirectTab('lanes'), { tab: 'delivery' })
-  assert.equal(dashboardPage('lanes'), null)
   assert.equal(dashboardTab('home'), 'dashboard')
   assert.equal(tabLabel('graph'), 'Graph')
   assert.equal(tabLabel('landing'), 'Landing queue')
@@ -56,20 +32,9 @@ test('Dashboards holds Home, Graph, Delivery and Landing queue; an old Home link
   assert.equal(tabLabel('dashboard'), 'Home')
 })
 
-test('a Settings section that is gone lands on Repository setup', () => {
-  assert.equal(redirectSettings('routing'), 'repositories')
-  assert.equal(redirectSettings('flow'), 'flow')
-})
-
-
-test('Needs you has three pages; old intake and untriaged links go to Triage, a saved radar view to Issue Radar', () => {
+test('Needs you has three pages', () => {
   assert.deepEqual(WAITING_SECTIONS.map((x) => [x.key, x.title]), [['decisions', 'Decisions'], ['triage', 'Triage'], ['radar', 'Issue Radar']])
   for (const x of WAITING_SECTIONS) assert.ok(x.line.length > 0 && !x.line.includes('\n'))
-  assert.equal(redirectWaiting('intake'), 'triage')
-  assert.equal(redirectWaiting('triage'), 'triage')
-  assert.equal(redirectWaiting('intake', 'radar'), 'radar')
-  assert.equal(redirectWaiting('decisions'), 'decisions')
-  assert.equal(redirectWaiting(undefined), undefined)
 })
 
 test('the Needs you nav rows show their own counts, and the badge keeps its sum', async () => {

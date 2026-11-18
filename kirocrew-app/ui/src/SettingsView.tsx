@@ -87,7 +87,6 @@ import type { DeliverySettings as DeliveryRead } from './delivery-api.ts'
 import { Fold } from './controls.tsx'
 import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
 import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
-import { redirectSettings } from './nav-api.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
 
@@ -135,9 +134,9 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   content:
     'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
-  models: "The harness each role runs on, and the model of Avoozl's own chats. Issue Radar crews pick their own.",
+  models: "Each role's harness, agent and model, in one place. Issue Radar crews pick their own.",
   delivery:
-    'The writer agent and model, investigate-first and pull request feedback for Avoozl worker chats.',
+    'Investigate-first and pull request feedback for Avoozl worker chats. Agents and models are in Models.',
 }
 
 // Section blurbs of a repository's Edit dialog (repo-edit-tabs.ts has its tabs).
@@ -1720,8 +1719,7 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
 }
 
 // Settings is one accordion: one section open at a time, each change of
-// section a Back step. A section name from an older link lands on the section
-// that took over (redirectSettings).
+// section a Back step.
 export default function SettingsView(props: {
   workspaceId: string | null
   workspaceName?: string | null
@@ -1733,7 +1731,7 @@ export default function SettingsView(props: {
 }) {
   const { workspaceId } = props
   const [own, setOwn] = useState<SettingsTab>(SETTINGS_HOME)
-  const asked = redirectSettings(props.tab ?? own)
+  const asked = props.tab ?? own
   // A remembered section that no longer exists falls back to Workspaces.
   const tab: SettingsTab = SETTINGS_TABS.some((t) => t.key === asked) ? (asked as SettingsTab) : SETTINGS_HOME
   const choose = (next: SettingsTab) => (props.onTab ? props.onTab(next) : setOwn(next))
