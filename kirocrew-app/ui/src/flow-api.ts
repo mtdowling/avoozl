@@ -179,6 +179,16 @@ export interface ProposalsModel {
   lessonsExport?: { written?: number; file?: string | null; error?: string } | null
 }
 
+export interface RetroChat {
+  slot: string
+  executor: string
+  harness: string | null
+  status: string | null
+  // The Kiro Crew chat; null for a `process` session.
+  link: string | null
+  process?: { state: string; logTail: string | null; attach: string | null }
+}
+
 export interface Retro {
   id: string
   n: number
@@ -189,6 +199,12 @@ export interface Retro {
   error?: string
   // The model the retro ran on; retros from before it was recorded omit it.
   model?: string
+  // Why it failed, by kind: it never started, was lost, never replied, or
+  // timed out; and how long it waited.
+  failure?: 'never-started' | 'lost' | 'no-reply' | 'timeout'
+  waitedMs?: number
+  // The chat the retro ran in; null when none was recorded (older retros).
+  chat?: RetroChat | null
   bottleneck: { stage: string; repository: string | null; evidence: string } | null
   proposals: Proposal[]
   dropped: { index: number; key: string | null; reason: string }[]
@@ -382,6 +398,7 @@ export function flowClient(api: AppApi) {
     stop: (workspaceId: string, input: PullInput) => run<{ stop: LineStop }>(workspaceId, 'flow.stop', { ...input }),
     resume: (workspaceId: string, stopId: string) => run<{ stop: LineStop }>(workspaceId, 'flow.resume', { stopId }),
     startRetro: (workspaceId: string) => run(workspaceId, 'flow.retro.start'),
+    runRetroAgain: (workspaceId: string, id: string) => run(workspaceId, 'flow.retro.again', { id }),
     decide: (workspaceId: string, input: Record<string, unknown>) => run(workspaceId, 'flow.retro.decide', input),
     settings: (workspaceId: string) => run<FlowSettings>(workspaceId, 'flow.settings.get'),
     saveSettings: (workspaceId: string, input: { flow: FlowSection; repository?: string | null; expectedHash: string }) =>
