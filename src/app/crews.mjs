@@ -1,8 +1,6 @@
-// Crews (design §4.10, retired 2026-11-18): `local` plus the Kiro Crew
-// instances the app backend last read, kept so a binding on a crew that
-// stopped answering is not waited on. Crew placement is gone: the machine
-// file's `crews`, `crewStaleSeconds` and `routing` keys are ignored. The
-// machine file helpers stay for provider settings (provider-health.mjs).
+// The crew snapshot: `local` plus the Kiro Crew instances the app backend last
+// read, so a binding on a crew that stopped answering is not waited on. The
+// machine file helpers serve provider settings (provider-health.mjs).
 import { randomUUID, createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";

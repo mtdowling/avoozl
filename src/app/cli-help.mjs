@@ -373,18 +373,6 @@ export const HELP_GROUPS = Object.freeze([
         "andon",
         "Where the old andon gate went (rule actions and flow stop)",
       ),
-      entry(
-        "routing",
-        "Retired with crew placement: every session runs on this machine",
-      ),
-      entry(
-        "crews",
-        "Retired with crew placement: every session runs on this machine",
-      ),
-      entry(
-        "pick-again",
-        "Retired with crew placement: every session runs on this machine",
-      ),
       entry("health [--url URL]", "Ask a running app backend whether it is up"),
     ],
   },

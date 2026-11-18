@@ -127,10 +127,8 @@ function sign(body, kind = "owner-session") {
   return `${encoded}.${signature}`;
 }
 
-// The old Routing page and Settings > Delivery showed the caller error because
-// the installed backend was built before routing.view and delivery.settings.*
-// existed, while the page was new. An operation this backend does not offer
-// says so and names the rebuild, instead of blaming the caller.
+// A page can be newer than the installed backend. An operation this backend
+// does not offer says so and names the rebuild, instead of blaming the caller.
 test("an operation the backend does not offer names the stale build", async (t) => {
   const root = temporaryDirectory();
   initializeWorkspace(root);
@@ -155,12 +153,12 @@ test("an operation the backend does not offer names the stale build", async (t) 
     );
     return { status: reply.status, ...(await reply.json()) };
   };
-  const unknown = await post("routing.someNewView");
+  const unknown = await post("page.someNewView");
   assert.equal(unknown.status, 403);
-  assert.match(unknown.error, /does not offer routing\.someNewView/);
+  assert.match(unknown.error, /does not offer page\.someNewView/);
   assert.match(unknown.error, /npm run build:kirocrew-app/);
   assert.match(unknown.error, /kirocrew app update avoozl/);
-  const write = await post("routing.update", "app-token");
+  const write = await post("flow.settings.update", "app-token");
   assert.equal(write.status, 403);
   assert.equal(write.error, "This caller may not run that operation.");
 });

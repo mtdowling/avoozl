@@ -155,11 +155,10 @@ export interface DeliverySession {
   served?: { model: string | null; withheld: boolean; changed: boolean } | null
   commit?: string | null
   link?: string | null
-  // Placement (§4.10, R41.9, R53.10).
+  // The crew, agent, and why (R41.9, R53.10).
   agent?: string | null
   crew?: string
   crewUnreachable?: boolean
-  placementReason?: string | null
   sessionReason?: string | null
   // `kirocrew` (a chat) or `process` (an agent CLI under the supervisor).
   executor?: string

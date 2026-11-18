@@ -10,7 +10,7 @@ import { validateLanes } from "./lanes.mjs";
 import { applyLandingModes } from "./landing-config.mjs";
 import { flowPolicy } from "./flow.mjs";
 import { deliveryPolicy } from "./delivery.mjs";
-import { validateTrackedRouting } from "./placement.mjs";
+import { refuseTrackedProviders } from "./provider-health.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -561,22 +561,14 @@ function parse(text, filename, { portable = false } = {}) {
   return value;
 }
 
-// `.avoozl.json` `conversations`. Only autoArchiveCompleted still acts: an
-// accepted task's finished runs leave the conversation list. `driver` and
-// `routing` configured the removed agent host; files that set them still
-// load, and the values are ignored.
-export const CONVERSATION_KEYS = new Set([
-  "autoArchiveCompleted",
-  "driver",
-  "routing",
-]);
+// `.avoozl.json` `conversations`. Only autoArchiveCompleted acts: an
+// accepted task's finished runs leave the conversation list. Other keys are
+// dropped.
+export const CONVERSATION_KEYS = new Set(["autoArchiveCompleted"]);
 function conversationInput(value) {
   if (value === undefined) return null;
   if (!record(value))
     fail("Conversation configuration must contain a JSON object.");
-  for (const key of Object.keys(value))
-    if (!CONVERSATION_KEYS.has(key))
-      fail(`Unknown conversation configuration setting ${key}.`);
   if (
     "autoArchiveCompleted" in value &&
     typeof value.autoArchiveCompleted !== "boolean"
@@ -872,7 +864,7 @@ export class RepositorySettings {
       validateActivitySettings(value.activity);
       flowPolicy(value);
       deliveryPolicy(value);
-      validateTrackedRouting(value);
+      refuseTrackedProviders(value);
     } catch (error) {
       fail(error.message);
     }

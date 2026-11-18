@@ -22,7 +22,7 @@ import { kirocrewSession, kirocrewDispatches } from "./executors/kirocrew.mjs";
 import { notesReprojectIds, notesReprojected } from "./task-notes.mjs";
 import { recordActivity, recordTickActivity } from "./activity-log.mjs";
 import fs from "node:fs";
-import { validateTrackedRouting } from "./placement.mjs";
+import { refuseTrackedProviders } from "./provider-health.mjs";
 import { crewSnapshot, machineFile } from "./crews.mjs";
 import { validateLanes } from "./lanes.mjs";
 import path from "node:path";
@@ -182,7 +182,7 @@ function parsePolicy(text) {
   deliveryPolicy(value);
   flowPolicy(value);
   repositoryPlugins(value);
-  validateTrackedRouting(value);
+  refuseTrackedProviders(value);
   validateContentRules(value.contentRules);
   validateModels(value.models);
   validatePlanReview(value.planReview);
