@@ -74,7 +74,7 @@ test('the page wires the Flow tab, its icon, the banner, the Timing fold and Set
   assert.match(flow, /<ViewHeading id="avoozl-flow-title" view="flow">/)
   // The banner sits above every other Dashboard section.
   const banner = dashboard.indexOf('<LineBanner'),
-    firstSection = dashboard.indexOf('<Pair')
+    firstSection = dashboard.indexOf('<Tiles')
   assert.ok(banner > 0 && banner < firstSection)
   assert.ok(drawer.indexOf('<SectionBox id="timing"') > drawer.indexOf('<SectionBox id="delivery"'))
   for (const key of ['flow.stopTheLine.scope', 'flow.localChecksFirst', 'flow.batch.max', 'flow.batch.by', 'flow.retro.everyTasks', 'flow.retro.slowFactor', 'flow.retro.instructions'])

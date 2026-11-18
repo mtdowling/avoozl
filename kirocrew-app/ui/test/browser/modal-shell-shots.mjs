@@ -73,14 +73,15 @@ try {
       await page.until(`Boolean(document.querySelector('[data-approve-spec]'))`, 30000)
     },
     graph: async (width, theme) => {
-      await start({ graph: 'chains' }, width, theme)
+      // A draft spec's task: a task card opens the full task details instead.
+      await start({ graph: 'drafts' }, width, theme)
       if (phone(width)) await goTo(width, 'Graph')
       else await page.evaluate(`document.querySelector('[data-nav-item="dashboard/graph"]').click()`)
       await page.until(`Boolean(document.querySelector('[data-frontier]'))`, 30000)
       await page.evaluate(`document.querySelector('[data-frontier-row="S3"] button').click()`)
       await page.evaluate(`[...document.querySelectorAll('[data-frontier-why] button')].find((b) => b.textContent.startsWith('open tree')).click()`)
       await page.until(`document.querySelector('[data-focus-tree]')?.dataset.focusTree === 'task:S3'`, 30000)
-      await page.evaluate(`document.querySelector('[data-tree-open="S6"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })) ?? true`)
+      await page.evaluate(`document.querySelector('[data-tree-open="M2"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })) ?? true`)
       await page.until(`Boolean(${TOP})`, 30000)
     },
     instance: async (width, theme) => {

@@ -1,4 +1,4 @@
-// Links and notes on a task, Mark done for a manual task, and workflow
+// Links on a task, Mark done for a manual task, and workflow
 // templates for New spec (design §4.16, Requirement 61). Kept free of JSX
 // so node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'
@@ -7,10 +7,9 @@ import { COMMAND_PATH } from './workspace-api.ts'
 export interface NoteEntry {
   id: string
   taskId: string
-  kind: 'link' | 'note'
-  url?: string
-  label?: string
-  text?: string
+  kind: 'link'
+  url: string
+  label: string
   outcome: boolean
   // 'person' or 'session:<id>'.
   author: string
@@ -50,7 +49,7 @@ export interface TemplateSummary {
 }
 
 // The limits the backend applies (task-notes.mjs NOTE_LIMITS).
-export const NOTE_LIMITS = { url: 2000, label: 200, text: 10_000 }
+export const NOTE_LIMITS = { url: 2000, label: 200 }
 // A file input is read here, at most this much text (templates.mjs).
 export const FILE_INPUT_BYTES = 200 * 1024
 
@@ -76,13 +75,6 @@ export function linkProblem(url: string, label: string): string | null {
   const name = label.trim()
   if (!name) return 'Give the link a label.'
   if (name.length > NOTE_LIMITS.label) return `The label is longer than ${NOTE_LIMITS.label} characters.`
-  return null
-}
-
-export function noteProblem(text: string): string | null {
-  const value = text.trim()
-  if (!value) return 'Write the note.'
-  if (value.length > NOTE_LIMITS.text) return `The note is longer than ${NOTE_LIMITS.text} characters.`
   return null
 }
 
@@ -135,13 +127,7 @@ export function notesClient(api: AppApi) {
         url: url.trim(),
         label: label.trim(),
       }),
-    addNote: (workspaceId: string, taskId: string, text: string) =>
-      run<NoteEntry>('task.notes.add', workspaceId, {
-        taskId,
-        kind: 'note',
-        text,
-      }),
-    edit: (workspaceId: string, taskId: string, entry: NoteEntry, change: { url?: string; label?: string; text?: string }) =>
+    edit: (workspaceId: string, taskId: string, entry: NoteEntry, change: { url: string; label: string }) =>
       run<NoteEntry>('task.notes.edit', workspaceId, {
         taskId,
         id: entry.id,
@@ -155,7 +141,6 @@ export function notesClient(api: AppApi) {
       taskId: string,
       input: {
         choice: 'done' | 'skipped' | 'refused'
-        note?: string
         links?: { url: string; label: string }[]
       },
     ) => run<{ taskId: string; manualDone: ManualDone }>('task.manual.complete', workspaceId, { taskId, ...input }),

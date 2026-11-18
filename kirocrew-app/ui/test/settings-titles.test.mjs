@@ -8,6 +8,7 @@ import { settingsTitle } from "../src/settings-api.ts";
 const PAGES = {
   repositories: "Repository setup",
   github: "GitHub",
+  radar: "Issue Radar",
   plugins: "Plugins",
   content: "Content rules",
   flow: "Flow",

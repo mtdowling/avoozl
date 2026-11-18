@@ -14,7 +14,7 @@ import GraphPage from './FocusTree.tsx'
 import { parseGraphLink } from './focus-tree.ts'
 import { parseReviewLink } from './review-view.ts'
 import WaitingView from './WaitingView.tsx'
-import FlowView from './FlowView.tsx'
+import FlowView, { LineBanner } from './FlowView.tsx'
 import { RetrosView, type RetroTarget } from './RetrosView.tsx'
 import OldTraceLink from './OldTraceLink.tsx'
 import { DASHBOARD_PAGES, RETROS_PAGES, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, parseTraceLink, redirectSettings, redirectTab, redirectWaiting, tabLabel, type RetrosPage, type Tab, type WaitingSection } from './nav-api.ts'
@@ -24,7 +24,7 @@ import LanesView from './LanesView.tsx'
 import DeliveryView from './DeliveryView.tsx'
 import { VIEW_ICONS } from './icons.ts'
 import ActivityView from './ActivityView.tsx'
-import { StopLineButton } from './StopLine.tsx'
+import { useOpenStops } from './StopLine.tsx'
 import { untriagedClient } from './untriaged-api.ts'
 import type { NewPlanForm } from './new-plan-api.ts'
 import SettingsView, { SETTINGS_TABS, type SettingsTab } from './SettingsView'
@@ -271,14 +271,18 @@ function AvoozlPage() {
   // The phone's top rail takes the whole page while it is open.
   const [railOpen, setRailOpen] = useState(false)
   const showRail = phone && railOpen
-  // Stop the line and Refresh on a phone: icons only, in their own small
-  // section at the bottom of the menu. A desktop has them on the top line.
-  const lineControls = (active || hasRefresh) && (
+  // Refresh on a phone: an icon in its own small section at the bottom of
+  // the menu. A desktop has it on the top line. Stop the line is on
+  // Dashboards › Delivery.
+  const lineControls = hasRefresh && (
     <NavLine>
-      {active && <StopLineButton nav workspaceId={active} />}
       <PageRefreshIcon />
     </NavLine>
   )
+  // A stopped line shows its banner on every page: Home and Flow draw their
+  // own, the shell draws it everywhere else.
+  const stops = useOpenStops(active)
+  const ownBanner = tab === 'dashboard' || tab === 'flow'
   // Radar's nav model: Dashboards, Needs you, Flow and Settings open in the
   // nav to their sub-pages; Specs, Activity and Dashboards › Delivery open
   // to their filters (a slot the page fills); the other pages are plain entries.
@@ -357,17 +361,17 @@ function AvoozlPage() {
       <div className={`flex flex-wrap items-center gap-3 pb-2 ${phone ? 'px-4' : 'px-2'}`} data-main-top>
         {/* The workspace is the pill at the top of the nav (Radar's switcher). */}
         <span className="flex-1" />
-        {/* Plan a goal, then on a desktop Stop the line and Refresh as small
-            icons as tall as it. A phone keeps them in its menu. */}
+        {/* On a desktop, Refresh as a small icon. A phone keeps it in its menu. */}
         <span className="flex items-stretch gap-1.5" data-main-actions>
-          <Btn type="button" primary onClick={planEpic}>
-            Plan a goal
-          </Btn>
-          {!phone && active && <StopLineButton square workspaceId={active} />}
-          {!phone && <PageRefreshIcon look="square" />}
+          {!phone && <PageRefreshIcon />}
         </span>
       </div>
       <DemoBar />
+      {!ownBanner && !needsWorkspace && stops.length > 0 && (
+        <div className={`pb-2 ${phone ? 'px-4' : 'px-2'}`} data-shell-line-banner>
+          <LineBanner stops={stops} workspaceId={active} />
+        </div>
+      )}
       {error && (
         <p role="alert" className={`pb-2 text-sm text-danger ${phone ? 'px-4' : 'px-2'}`}>
           {error}

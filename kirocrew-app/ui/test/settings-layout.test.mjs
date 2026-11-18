@@ -20,6 +20,7 @@ import {
   toForm,
   toggleCheck,
 } from '../src/settings-api.ts'
+import { redirectSettings } from '../src/nav-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const settings = source('SettingsView.tsx')
@@ -179,7 +180,7 @@ test('who counts is one row on the Triggers tab, with write as the default; no s
 })
 
 test('Settings has a GitHub page; Workspaces keeps only workspace things', () => {
-  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery'])
+  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'radar', 'plugins', 'content', 'flow', 'models', 'delivery'])
   assert.doesNotMatch(settings, /Where tasks live' \}/)
   assert.match(settings, /setup=\{<SetupWizard/)
   const workspaces = settings.slice(settings.indexOf("if (tab === 'workspaces')"), settings.indexOf("if (!workspaceId)"))
@@ -191,6 +192,25 @@ test('Settings has a GitHub page; Workspaces keeps only workspace things', () =>
   assert.match(settings, /<PolicyEditor workspaceId=\{workspaceId\} tab=\{tab\}/)
   assert.match(settings, /\{tab === 'github' && <RateBlock rate=\{settings\.rate\} \/>\}/)
   assert.match(settings, /<SaveFooter[\s\S]*note="Writes \.avoozl\.json\."/)
+})
+
+test('GitHub: every group is its own bordered section, and Radar settings live on their own page', () => {
+  const github = settings.slice(settings.indexOf('function WorkspaceGitHub('), settings.indexOf('function RadarSettings('))
+  const shown = github.slice(github.indexOf('return (\n    <>'))
+  for (const title of ['New tasks and issues', 'Sync pace', 'Set up GitHub']) assert.match(shown, new RegExp(`<Card>\\s*<Section title="${title}"`), title)
+  assert.match(shown, /<Card>\s*<ProjectFields/)
+  assert.doesNotMatch(github, /CrewScopes|RadarValuesScreen|level="sub"/)
+  // GitHub calls is a bordered section of its own.
+  assert.match(settings, /<Card>\s*<Section title="GitHub calls"/)
+  const radar = settings.slice(settings.indexOf('function RadarSettings('), settings.indexOf('export function ProjectFields'))
+  assert.match(radar, /<CrewScopes crews=\{crews\} \/>/)
+  assert.match(radar, /<RadarValuesScreen/)
+  assert.match(settings, /tab === 'radar' \? \(\s*<RadarSettings/)
+  assert.match(settings, /\n  radar:\s*\n?\s*['"]/)
+  assert.doesNotMatch(source('RadarValues.tsx'), /FieldBox/)
+  assert.equal(redirectSettings('issue-radar'), 'radar')
+  assert.equal(redirectSettings('radar-values'), 'radar')
+  assert.equal(redirectSettings('github'), 'github')
 })
 
 test('Plugins puts Add plugin on the left and the installed list on the right, stacked when narrow', () => {
@@ -258,4 +278,11 @@ test('the Reviews tab states the branch rule it found, or that reviewer chats ar
   // The old checkbox and count are gone; an old key shows as deprecated.
   assert.doesNotMatch(settings, /Require GitHub approvals on the head commit/)
   assert.match(settings, /<Badge>deprecated<\/Badge>/)
+})
+
+test('the GitHub calls breakdown is its own section with a sortable real table', () => {
+  assert.match(settings, /<Section title="GitHub calls"/)
+  assert.match(settings, /<th key=\{col\.key\} scope="col" aria-sort=/)
+  assert.match(settings, /<button type="button" data-sort=\{col\.key\}/)
+  assert.match(settings, /textAlign: 'right', fontVariantNumeric: 'tabular-nums'/)
 })

@@ -2468,7 +2468,8 @@ because the starter and prompt mark small tasks `size: "small"` (§4.11).
   the Avoozl state option that exists on the board (§6.7), so setup
   changes nothing.
 - **Mark done.** The task drawer shows the acceptance and **Mark done**. The
-  dialog takes an optional outcome note and links, and **Done** or
+  dialog takes optional outcome links ~~an optional outcome note and
+  links~~, and **Done** or
   **Skipped**. `task.manual.complete` and `task.manual.reopen` are person
   only (page and CLI); MCP refuses them (Requirement 56.2). Either choice
   releases dependents; Skipped stays visible on the task and in Flow.
@@ -2489,11 +2490,21 @@ because the starter and prompt mark small tasks `size: "small"` (§4.11).
 
 #### Links and notes
 
+Removed 2026-11-17 (owner): task notes. Tasks keep links only, and the
+struck note text in this section no longer applies. `task_notes` rows with
+`kind: "note"` are ignored on every read, with no migration and no
+warning; `task.notes.add` and Mark done refuse a note. The drawer box is
+**Links**: the list, or "No links yet", and an **Add link** button that
+opens the URL and label fields for one link with Add and Cancel. The
+operation names, the `plans_task` `notes` and `add_note` actions and the
+`notes` content-rule boundary keep their names for compatibility; the CLI
+is `avoozl task links`, and `task notes` still works.
+
 | Field                         | Rule                                                                                         |
 | ----------------------------- | -------------------------------------------------------------------------------------------- |
-| `kind`                        | `link` or `note`                                                                             |
+| `kind`                        | `link` ~~or `note`~~                                                                         |
 | `url`, `label`                | Link only: `https` or `http`, at most 2,000 characters, no user info; label 1–200 characters |
-| `text`                        | Note only: 1–10,000 characters                                                               |
+| ~~`text`~~                    | ~~Note only: 1–10,000 characters~~                                                           |
 | `outcome`                     | True when saved from a manual leaf's Mark done dialog                                        |
 | `author`                      | `person` (with the `gh` login when known) or `session:<id>`                                  |
 | `at`, `editedAt`, `removedAt` | Times; a removed entry leaves the list and stays in activity history                         |
@@ -2526,7 +2537,7 @@ session's call with the rule's names (§4.9) and refuses a person's save
 inline with Allow once. Entries are checked again at `brief` when they go
 into a brief and at `github` when shown on an issue.
 
-**Briefs.** A worker's brief gets a "Links and notes" section: the newest
+**Briefs.** A worker's brief gets a "Links" ~~"Links and notes"~~ section: the newest
 20 entries, at most 8,000 characters, each with author and time, introduced
 as data from people and agents, not instructions. A dependent's brief also
 carries each blocker's outcome entries, so the cutover worker reads what
@@ -2534,8 +2545,8 @@ the review decided.
 
 **GitHub.** Nothing is written by default, because notes may hold meeting
 notes not meant for a shared repository. An entry a person ticks **Show on
-the issue** is listed in the managed body section under "Links and
-notes". Edits there by others are conflicts, as for the rest of the
+the issue** is listed in the managed body section under "Links" (a
+rebuild still reads the older "Links and notes" heading). Edits there by others are conflicts, as for the rest of the
 managed section. The rebuild test (§3.3) rebuilds shown entries from the
 body; entries not shown live only in SQLite and its backups, and may be
 missing after a rebuild, like session bindings.
