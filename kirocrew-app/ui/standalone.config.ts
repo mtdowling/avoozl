@@ -11,7 +11,9 @@ import tailwindcss from "@tailwindcss/vite";
 import type { Plugin, UserConfig } from "vite";
 import { listStyleTexts } from "../../scripts/standalone-styles.mjs";
 
-const ui = path.dirname(fileURLToPath(import.meta.url));
+// Vite names modules with forward slashes on every platform.
+const posix = (file: string) => file.split(path.sep).join("/");
+const ui = posix(path.dirname(fileURLToPath(import.meta.url)));
 
 // The script may grow to this many bytes and no further (SW2.6). Set from the
 // first real build; raise it only in a change that says why.
@@ -51,8 +53,8 @@ const EMPTY_ID = "\0avoozl-left-out";
 // added to this list, after checking the build stays within its budget.
 const UI_ID = "\0avoozl-kirocrew-ui";
 const UI_PARTS = (site: string) => `
-export { Card, CardTitle, Btn, Input, Badge, EmptyState, PageHeader } from '${path.join(site, "components", "ui")}'
-export { default as SegmentedControl } from '${path.join(site, "components", "SegmentedControl")}'
+export { Card, CardTitle, Btn, Input, Badge, EmptyState, PageHeader } from ${JSON.stringify(posix(path.join(site, "components", "ui")))}
+export { default as SegmentedControl } from ${JSON.stringify(posix(path.join(site, "components", "SegmentedControl")))}
 `;
 
 function leaveOut(site: string): Plugin {
@@ -88,7 +90,7 @@ function resolveFromUi(source: string): Plugin {
     async resolveId(specifier, importer, options) {
       if (
         !importer ||
-        !importer.startsWith(source) ||
+        !importer.startsWith(posix(source)) ||
         specifier.startsWith(".") ||
         specifier.startsWith("/") ||
         specifier.startsWith("\0")
@@ -147,8 +149,8 @@ function report(source: string): Plugin {
       }
       const site = path.join(source, "website");
       const kirocrewModules = [...modules]
-        .filter((id) => id.startsWith(site + path.sep))
-        .map((id) => path.relative(source, id).split(path.sep).join("/"))
+        .filter((id) => id.startsWith(posix(site) + "/"))
+        .map((id) => id.slice(posix(source).length + 1))
         .sort();
       const styles = listStyleTexts(path.join(ui, "src")).map(
         (entry) => entry.text,
