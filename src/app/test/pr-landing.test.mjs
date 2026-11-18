@@ -285,6 +285,16 @@ test("a failed check sends the task back to its chat", async (t) => {
   assert.match(result.messages[0].text, /build: failure/);
   assert.equal(w.store.get("task_deliveries", "t1").state, "running");
   assert.deepEqual(github.calls.merged, []);
+  // The failed portion keeps its pull request, so its Links box shows it.
+  const failed = w.store
+    .list("landing_queue")
+    .find((entry) => entry.key === "t1");
+  assert.equal(failed.state, "failed");
+  assert.equal(failed.pr, 1);
+  assert.equal(
+    taskLinks(w.store, "t1").pr?.url,
+    "https://github.com/acme/app/pull/1",
+  );
   // The same chat reports done again on its fix, and that is recorded.
   const wt = w.store.get("task_worktrees", "t1").path;
   fs.writeFileSync(path.join(wt, "fix.txt"), "fix\n");
