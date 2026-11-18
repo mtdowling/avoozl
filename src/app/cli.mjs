@@ -196,6 +196,12 @@ try {
         `No Avoozl server answered at ${endpoint}. Drop --url and AVOOZL_URL to act on the workspace database directly.`,
       );
     }
+    // `avoozl serve` answers /api/command only to a signed-in browser's
+    // session cookie, so a CLI pointed at it is refused (spec standalone-web SW5.4).
+    if (response.status === 401)
+      throw Error(
+        `${endpoint} refused the request: avoozl serve accepts /api/command only with a valid browser session cookie, never from the CLI. Drop --url and AVOOZL_URL: the CLI works on the workspace database directly.`,
+      );
     const result = await response.json();
     if (!response.ok) throw Error(result.error);
     return result.result;

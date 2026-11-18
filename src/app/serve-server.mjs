@@ -14,7 +14,6 @@ import {
   LinkStore,
   ServeAuth,
   SIGN_IN_PAGE,
-  ensureApiKey,
 } from "./serve-auth.mjs";
 
 export const HOST = "127.0.0.1";
@@ -122,7 +121,6 @@ export async function startServe({
   port = 0,
   uiDir,
   stateDirectory = machineAvoozlPaths().stateDirectory,
-  configDirectory = machineAvoozlPaths().configDirectory,
   home = os.homedir(),
   registryOptions = {},
   demoRoot,
@@ -148,10 +146,8 @@ export async function startServe({
       config,
       home,
       registryOptions,
-      configDirectory,
       ...(demoRoot ? { demoRoot } : {}),
     });
-  ensureApiKey(configDirectory);
   let auth = null;
 
   const headers = (extra = {}) => ({
@@ -225,8 +221,6 @@ export async function startServe({
         return json(res, 403, { error: "Not allowed." });
       }
       if (url.pathname === "/logout") {
-        if (who.kind !== "session")
-          return json(res, 403, { error: "Not allowed." });
         return reply(
           res,
           200,
@@ -239,7 +233,7 @@ export async function startServe({
         );
       }
       const crew = KIROCREW_ROUTES.get(`POST ${url.pathname}`);
-      if (crew && who.kind === "session") return json(res, ...crew);
+      if (crew) return json(res, ...crew);
       if (url.pathname !== COMMAND_PATH)
         return json(res, 404, { error: "Not found." });
       const chunks = [];
@@ -265,8 +259,6 @@ export async function startServe({
     }
 
     // Pages and files come only to a signed-in browser.
-    if (who.kind !== "session")
-      return json(res, 403, { error: "Not allowed." });
     if (req.method !== "GET" && req.method !== "HEAD")
       return json(res, 405, { error: "Use GET." });
     if (url.pathname === "/")
@@ -344,7 +336,7 @@ export async function startServe({
     // The only listen call: the loopback address, with no way to change it.
     server.listen(port, HOST, () => {
       const actual = server.address().port;
-      auth = new ServeAuth({ port: actual, links, configDirectory, now });
+      auth = new ServeAuth({ port: actual, links, now });
       server.origin = `http://${HOST}:${actual}`;
       // Origin, port and pid only: never the link or any token (SW3.5).
       server.stateFile = path.join(stateDirectory, "serve.json");
