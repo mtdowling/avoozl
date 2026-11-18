@@ -59,7 +59,7 @@ function Summary({ row }: { row: ActivityRow }) {
     return (
       <span style={{ overflowWrap: 'anywhere' }}>
         {item.before}
-        <a href={item.href} target="_blank" rel="noopener noreferrer" className="underline" data-activity-item>
+        <a href={linkHref(item.href)} target="_blank" rel="noopener noreferrer" className="underline" data-activity-item>
           {item.text}
         </a>
         {item.after}

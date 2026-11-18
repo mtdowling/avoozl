@@ -152,7 +152,7 @@ test('Retros show why a retro failed, link its chat, and offer Run again; an old
 })
 
 test('Activity links owner/repo#N of a GitHub item to GitHub in a new tab', { skip }, async () => {
-  await page.open(harness.url({ page: 'app', radar: '1', activity: '1' }), { width: 1280, height: 900, dark: false })
+  await page.open(harness.url({ page: 'app', radar: '1', activity: '1', ghitems: '1' }), { width: 1280, height: 900, dark: false })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
   await wait(1200)
   await page.evaluate(`[...document.querySelectorAll('[data-left-nav] [data-nav-head]')].find((x) => x.textContent.includes('Activity')).click()`)

@@ -1361,9 +1361,11 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
     return { seq, at: new Date(Date.parse('2026-11-13T10:00:00Z') - at * 3600e3).toISOString(), source: sources[at % 4], actor: actors[(at * 3) % 4], kind: kinds[at % kinds.length], summary: `${kinds[at % kinds.length]} entry ${seq}`, targetId: null, link: null, redacted: false }
   })
   // New items from GitHub: the owner/repo#N text links to the item.
-  all[1] = { ...all[1], source: 'github', kind: 'intake.item', summary: 'New pr nupp-lang/foo#12 from github', link: null }
-  all[4] = { ...all[4], source: 'github', kind: 'intake.item', summary: 'New issue nupp-lang/bar#7 from github', link: 'https://github.com/nupp-lang/bar/issues/7' }
-  kinds.push('intake.item')
+  if (query.get('ghitems') === '1') {
+    all[1] = { ...all[1], source: 'github', kind: 'intake.item', summary: 'New pr nupp-lang/foo#12 from github', link: null }
+    all[5] = { ...all[5], source: 'github', kind: 'intake.item', summary: 'New issue nupp-lang/bar#7 from github', link: 'https://github.com/nupp-lang/bar/issues/7' }
+    kinds.push('intake.item')
+  }
   const count = (key: 'source' | 'kind' | 'actor') => {
     const out: Record<string, number> = {}
     for (const row of all) out[row[key]] = (out[row[key]] ?? 0) + 1

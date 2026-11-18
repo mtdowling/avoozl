@@ -34,7 +34,7 @@ try {
       if (phone) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
       await wait(page, 600)
       await shot('retros')
-      await page.open(harness.url({ page: 'app', radar: '1', activity: '1', theme }), { width, height, dark: theme === 'dark' })
+      await page.open(harness.url({ page: 'app', radar: '1', activity: '1', ghitems: '1', theme }), { width, height, dark: theme === 'dark' })
       await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
       await wait(page, 1200)
       await menu()
