@@ -137,6 +137,39 @@ test("details: status, run, log tail, summed cost and the attach command", (t) =
   );
 });
 
+// P60: Claude Code's total_cost_usd on a resume is the session's total so
+// far, so `per: "session"` takes the last value instead of summing.
+test("a per-session cost is the last value, not the sum", (t) => {
+  const paths = machine(t, {
+    cost: { from: "output", field: "total_cost_usd", per: "session" },
+  });
+  const { sessionId } = child(
+    paths,
+    [
+      '{"type":"result","total_cost_usd":0.134}',
+      '{"type":"result","total_cost_usd":0.16}',
+    ].join("\n") + "\n",
+  );
+  const one = processSessionDetails([sessionId], paths).get(sessionId);
+  assert.equal(one.cost, 0.16);
+  assert.throws(
+    () =>
+      parseHarnessDefinition(
+        definition({
+          cost: { from: "output", field: "total_cost_usd", per: "turn" },
+        }),
+      ),
+    /cost must be/,
+  );
+  assert.throws(
+    () =>
+      parseHarnessDefinition(
+        definition({ cost: { from: "file", path: "{tmp}/c", per: "session" } }),
+      ),
+    /cost must be/,
+  );
+});
+
 test("no attach in the definition follows the log; no cost field is unknown", (t) => {
   const paths = machine(t, { cost: undefined });
   const { sessionId, file } = child(paths, "hello\n");
