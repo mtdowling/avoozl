@@ -311,7 +311,8 @@ test('a hovered nav item changes color, the selected one stays different, and ke
     const selected = await read('settings/workspaces')
     const box = await page.evaluate(`(() => { document.querySelector('[data-nav-item="settings/models"]').scrollIntoView({ block: 'center' }); const r = document.querySelector('[data-nav-item="settings/models"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`)
     await page.hover(box[0], box[1])
-    await settle()
+    // The colors fade in over 120 ms.
+    await page.evaluate('new Promise((r) => setTimeout(r, 200))')
     const hover = await read('settings/models')
     assert.notEqual(hover.bg, before.bg, 'hover changes the background')
     assert.notEqual(hover.color, before.color, 'hover changes the text color')
@@ -324,7 +325,7 @@ test('a hovered nav item changes color, the selected one stays different, and ke
     const head = await page.evaluate(`(() => { const r = document.querySelector('[data-nav-group="flow"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`)
     const headBefore = await page.evaluate(`getComputedStyle(document.querySelector('[data-nav-group="flow"]')).color`)
     await page.hover(head[0], head[1])
-    await settle()
+    await page.evaluate('new Promise((r) => setTimeout(r, 200))')
     assert.notEqual(await page.evaluate(`getComputedStyle(document.querySelector('[data-nav-group="flow"]')).color`), headBefore, 'a header changes color on hover')
   }
 })

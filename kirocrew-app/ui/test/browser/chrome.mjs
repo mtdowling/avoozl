@@ -163,6 +163,16 @@ export async function launch(chrome) {
         await loaded
       },
       evaluate,
+      // What makes the page scroll sideways: the deepest elements outside a
+      // scroll box that run past the window, or whose text spills out, as
+      // "tag.class right text" lines. Empty when the page fits.
+      overflow: () =>
+        evaluate(`(() => {
+          const clipped = (el) => { for (let up = el.parentElement; up && up !== document.body; up = up.parentElement) if (getComputedStyle(up).overflowX !== 'visible') return true; return false }
+          const past = (el) => !clipped(el) && (el.getBoundingClientRect().right > innerWidth + 0.5 || (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX === 'visible' && el.getBoundingClientRect().left + el.scrollWidth > innerWidth + 0.5))
+          const name = (el) => el.tagName.toLowerCase() + (typeof el.className === 'string' && el.className ? '.' + el.className.split(' ').slice(0, 3).join('.') : '')
+          return [...document.querySelectorAll('body *')].filter((el) => past(el) && ![...el.children].some(past)).slice(0, 5).map((el) => name(el) + ' ' + Math.round(el.getBoundingClientRect().left + el.scrollWidth) + 'px ' + JSON.stringify((el.textContent || '').slice(0, 60)))
+        })()`),
       // Waits until `expression` is truthy, up to `ms`.
       async until(expression, ms = 5000) {
         const end = Date.now() + ms

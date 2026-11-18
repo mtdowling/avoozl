@@ -45,6 +45,6 @@ test('the page shows the field with its default at 320 px', { skip }, async () =
   })()`)
   assert.ok(shown, 'no tracker label input')
   assert.match(shown.placeholder, /avoozl:waiting-on-tracker/)
-  assert.equal(shown.wide, true)
+  assert.equal(shown.wide, true, `no sideways scroll: ${(await page.overflow()).join('; ')}`)
   assert.deepEqual(page.errors, [])
 })

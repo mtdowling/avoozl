@@ -126,6 +126,8 @@ test('page: the Links box shows branch, PR, checks, landed and issue from the st
   await page.until(`Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog'))`)
   await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
   await page.until(`Boolean(document.querySelector('[data-section-box="task-links"] [data-scm-links]'))`)
+  // The added links arrive in a read of their own, after the stored set.
+  await page.until(`document.querySelectorAll('[data-section-box="task-links"] a').length >= 6`)
   const read = await page.evaluate(`(() => {
     const box = document.querySelector('[data-section-box="task-links"]')
     const scm = box.querySelector('[data-scm-links]')

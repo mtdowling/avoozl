@@ -483,14 +483,18 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   useEffect(() => {
     const els = blockEls(),
       lines = els.map(lineOf)
-    for (const el of els) {
-      for (const name of ['data-review-hit', 'data-review-anchor', 'data-review-sev', 'tabindex', 'aria-label']) el.removeAttribute(name)
+    const byBlock = new Map<number, ReviewFinding[]>()
+    for (const f of placed) for (const at of blocksIn(lines, f.anchor.lineStart, f.anchor.lineEnd)) byBlock.set(at, [...(byBlock.get(at) ?? []), f])
+    // Only blocks that lose their tint lose tabindex: taking it from a
+    // focused block, even for a moment, drops the focus.
+    els.forEach((el, at) => {
+      el.removeAttribute('data-review-hit')
+      if (byBlock.has(at)) return
+      for (const name of ['data-review-anchor', 'data-review-sev', 'tabindex', 'aria-label']) el.removeAttribute(name)
       // A heading keeps its own role; any other block is a button while tinted.
       if (el.hasAttribute('data-review-role')) el.removeAttribute('role')
       el.removeAttribute('data-review-role')
-    }
-    const byBlock = new Map<number, ReviewFinding[]>()
-    for (const f of placed) for (const at of blocksIn(lines, f.anchor.lineStart, f.anchor.lineEnd)) byBlock.set(at, [...(byBlock.get(at) ?? []), f])
+    })
     for (const [at, list] of byBlock) {
       const worst = [...list].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])[0]
       els[at].setAttribute('data-review-anchor', worst.id)
