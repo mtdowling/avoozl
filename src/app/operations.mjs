@@ -484,10 +484,12 @@ import {
   pullStatus,
   pullWork,
   remoteView,
+  readRunnerConfig,
   reportDone,
   runnerStatus,
   runnerTick,
 } from "./remote-runner.mjs";
+import { previewWorker } from "./worker-setup.mjs";
 import { supersedeTask } from "./supersede.mjs";
 
 // Claimed leaves for a readiness query. A read-only database from before the
@@ -3147,6 +3149,12 @@ export class Operations {
       return handoff(store, this.workspaceRoot, input);
     if (name === "remote.pull")
       return pullStatus(store, this.workspaceRoot, input);
+    if (name === "worker.setup") {
+      const config = readRunnerConfig(this.workspaceRoot);
+      if (config?.role !== "worker")
+        fail('This workspace is not a worker (runner.role "worker").');
+      return previewWorker({ config, github: this.github });
+    }
     if (name === "worker.pull")
       return pullWork(store, this.workspaceRoot, this.github);
     if (name === "remote.view") return remoteView(store, this.workspaceRoot);
