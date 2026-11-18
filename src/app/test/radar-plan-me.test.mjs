@@ -146,7 +146,7 @@ function workspace(t, github, { policy = POLICY() } = {}) {
   };
 }
 
-test("routing: only a trusted skip is planned, and only for a planning scope", () => {
+test("only a trusted skip is planned, and only for a planning scope", () => {
   assert.deepEqual([...INTAKE_SCOPES].sort(), [
     "architecture",
     "needs-design",

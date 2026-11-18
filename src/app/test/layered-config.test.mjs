@@ -231,7 +231,6 @@ test("the shipped JSON Schema describes versioned non-secret config", () => {
   // Settings nothing reads are not described (simplification audit D1-D6).
   for (const key of ["review", "safety", "repository", "planning"])
     assert.equal(Object.hasOwn(schema.properties, key), false, key);
-  assert.equal(schema.$defs.conversations.properties.routing.deprecated, true);
   assert(schema.$defs.safePropertyName);
   assert(schema.$defs.safeValue);
 });
@@ -245,7 +244,7 @@ test("a file that still sets removed or ignored settings loads", () => {
     safety: { coordinator: { mode: "optional" } },
     repository: { id: "code", roles: ["code"] },
     planning: { documents: ["plans"] },
-    conversations: { routing: { enabled: false }, driver: { model: "x" } },
+    conversations: { driver: { model: "x" } },
     models: { driver: "auto" },
   });
   const loaded = loadLayeredConfig({

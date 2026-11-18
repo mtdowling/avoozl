@@ -226,7 +226,6 @@
           "minimum": 0,
           "maximum": 10,
           "default": 2,
-          "deprecated": true,
           "description": "Older key of each repository's conflicts.maxAttempts, read for a repository that sets none. Still loads; Avoozl does not write it."
         },
         "trains": {
@@ -819,7 +818,6 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 32,
-          "deprecated": true,
           "description": "Old input: this machine's lanes when the machine file sets no lanes.local. Use lanes.local in the machine file."
         },
         "retries": {
@@ -878,7 +876,6 @@
         },
         "ship": {
           "description": "Older key of each GitHub repository's landing.autoMerge (design 4.25), read for a repository that sets none. manual means false. Still loads; Avoozl does not write it.",
-          "deprecated": true,
           "enum": ["auto-merge", "manual"],
           "default": "auto-merge"
         },
@@ -889,7 +886,6 @@
             "additionalProperties": false,
             "properties": {
               "concurrency": {
-                "deprecated": true,
                 "description": "Ignored. lanes.local in the machine file is the one limit for chats."
               },
               "reviewers": {
@@ -911,7 +907,6 @@
                 "$ref": "#/$defs/deliveryInvestigate"
               },
               "ship": {
-                "deprecated": true,
                 "description": "Older key of the repository's landing.autoMerge. Still loads; Avoozl does not write it.",
                 "enum": ["auto-merge", "manual"]
               }
@@ -1468,14 +1463,6 @@
           "type": "boolean",
           "default": true,
           "description": "Archive completed child and task conversations while retaining their task and transcript links."
-        },
-        "driver": {
-          "deprecated": true,
-          "description": "Ignored. It configured the removed agent host's driver conversation. Files that still set it load as before."
-        },
-        "routing": {
-          "deprecated": true,
-          "description": "Ignored. It configured the removed agent host's routing. Files that still set it load as before."
         }
       },
       "additionalProperties": false
@@ -1967,7 +1954,6 @@
         },
         "merge": {
           "type": "object",
-          "deprecated": true,
           "description": "Older key of landing.method. Still loads; Avoozl does not write it.",
           "additionalProperties": false,
           "properties": {

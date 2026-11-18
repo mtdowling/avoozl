@@ -248,9 +248,9 @@ test("the CLI decides a finding and prints severity, state and anchor", () => {
     [cli, "plan", "finding", "f1", "reopen", "--workspace", root],
     {
       encoding: "utf8",
-      env: { ...process.env, KIROCREW_SPAWNED: "1" },
+      env: { ...process.env, AVOOZL_CHILD: "1" },
     },
   );
   assert.notEqual(agent.status, 0);
-  assert.match(agent.stderr, /agent session/);
+  assert.match(agent.stderr, /supervisor started/);
 });

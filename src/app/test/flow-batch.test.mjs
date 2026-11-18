@@ -37,7 +37,7 @@ const leaf = (id, extra = {}) => ({
 const grouped = (ids, extra = {}) =>
   ids.map((id) => leaf(id, { batch: group("g1", ids), ...extra }));
 
-function setup(t, tasks, { flow, routing, placement, edges = [] } = {}) {
+function setup(t, tasks, { flow, edges = [] } = {}) {
   const root = temporaryDirectory("avoozl-batch-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout);
@@ -64,16 +64,12 @@ function setup(t, tasks, { flow, routing, placement, edges = [] } = {}) {
       version: 1,
       delivery: { concurrency: 1, retries: 1 },
       ...(flow ? { flow } : {}),
-      ...(routing ? { routing } : {}),
     }),
   );
   return {
     root,
     store,
-    ops: new Operations(store, {
-      workspaceRoot: root,
-      ...(placement ? { placement } : {}),
-    }),
+    ops: new Operations(store, { workspaceRoot: root }),
   };
 }
 

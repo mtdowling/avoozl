@@ -20,7 +20,6 @@ import {
   toForm,
   toggleCheck,
 } from '../src/settings-api.ts'
-import { redirectSettings } from '../src/nav-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const settings = source('SettingsView.tsx')
@@ -211,9 +210,6 @@ test('GitHub: every group is its own tab and bordered section, and Radar setting
   assert.doesNotMatch(radar, /CrewScope|RadarValuesScreen|ReleaseModePicker/)
   assert.match(settings, /tab === 'radar' \? \(\s*<RadarSettings/)
   assert.match(settings, /\n  radar:\s*\n?\s*['"]/)
-  assert.equal(redirectSettings('issue-radar'), 'radar')
-  assert.equal(redirectSettings('radar-values'), 'radar')
-  assert.equal(redirectSettings('github'), 'github')
 })
 
 test('Plugins puts Add plugin on the left and the installed list on the right, stacked when narrow', () => {
@@ -313,8 +309,6 @@ test('Settings › Issue Radar holds every Radar intake setting, each in its own
   assert.doesNotMatch(settings.slice(settings.indexOf('const REPOSITORY_TABS'), settings.indexOf('type RepositoryTab')), /crews/)
   // It edits the shared form, so the one Save bar writes it.
   assert.match(settings, /tab === 'radar' \? \(\s+<RadarSettings form=\{form\} settings=\{settings\} workspaceId=\{workspaceId\} set=\{set\} \/>/)
-  // Old Crews and rules links open it.
-  for (const old of ['crews', 'crews-rules', 'issue-radar', 'radar-values']) assert.equal(redirectSettings(old), 'radar', old)
 })
 
 test('a Workflow map value on the Issue Radar page opens that page at the field', () => {

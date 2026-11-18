@@ -79,10 +79,9 @@ export function fakeCrew(
           title: d.title,
           ...(d.model ? { model: d.model } : {}),
           ...(d.commit ? { commit: d.commit } : {}),
-          // Placement (§4.10), as tick.py binds it.
+          // As tick.py binds it.
           ...(d.agent ? { agent: d.agent } : {}),
           ...(d.crew ? { crew: d.crew } : {}),
-          ...(d.placement ? { placement: d.placement } : {}),
           ...(d.sessionReason ? { sessionReason: d.sessionReason } : {}),
         });
         roster.push(slot);

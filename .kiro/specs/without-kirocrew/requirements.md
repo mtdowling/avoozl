@@ -4,7 +4,7 @@ category: Planning
 
 # Requirements: everything runs without Kiro Crew
 
-Status: Draft
+Status: Approved
 
 ## Introduction
 

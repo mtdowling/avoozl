@@ -12,7 +12,7 @@ import { initializeWorkspace } from "./workspace.mjs";
 import { Operations } from "./operations.mjs";
 import { driverSettingsPath } from "./driver.mjs";
 import { handleMcp } from "./mcp.mjs";
-import { cliRefusal } from "./mcp-policy.mjs";
+import { agentSessionNote, cliRefusal } from "./mcp-policy.mjs";
 import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
 import { contentHook } from "./public-crews.mjs";
@@ -98,6 +98,8 @@ try {
           "skipped",
           "refused",
           "off",
+          // Removed 2026-11-18; still parsed so an old command keeps its
+          // other arguments, and ignored.
           "as-person",
           "writes",
           "retire",
@@ -220,12 +222,21 @@ try {
   // Without a server, every CLI write goes through Operations in process.
   // `local` marks the caller as the person at this machine's command line.
   const localOrRequest = async (operation, input = {}, expectedRevision) => {
-    // Person-only operations are refused from an agent session (R83.1).
-    const refusal = cliRefusal(operation, input, {
-      env: process.env,
-      asPerson: options["as-person"],
-    });
+    // Person-only operations are refused only in a supervisor child (R95.5).
+    const refusal = cliRefusal(operation, input, { env: process.env });
     if (refusal) throw Error(refusal);
+    // From an agent session they run and say so; an approval records it.
+    const note = agentSessionNote(operation, input, process.env);
+    if (note) {
+      console.error(note);
+      if (
+        ["plan.approve", "plan.approveMany"].includes(operation) &&
+        input.evidence === undefined &&
+        // A delegated approval already records who approved, and for whom.
+        input.delegate === undefined
+      )
+        input = { ...input, evidence: note };
+    }
     if (useServer()) return request(operation, input, expectedRevision);
     requireDatabase();
     const store = new Store(dbPath);
@@ -1006,14 +1017,6 @@ try {
         2,
       ),
     );
-  else if (
-    command === "routing" ||
-    command === "pick-again" ||
-    command === "crews"
-  )
-    throw Error(
-      "Crew placement was retired: every session runs on this machine. Pin a task's agent, model or harness in its manifest `session`.",
-    );
   else if (command === "verify" && positionals[0] === "allow")
     console.log(
       JSON.stringify(
@@ -1637,7 +1640,7 @@ try {
     }
   } else if (command === "plan" && positionals[0] === "approve") {
     const usage =
-        "plan approve PLAN... [--batch N] [--yes --expect HASHES] [--delegate NAME] --as-person",
+        "plan approve PLAN... [--batch N] [--yes --expect HASHES] [--delegate NAME]",
       names = positionals.slice(1);
     if (!names.length && options.batch === undefined) need(undefined, usage);
     const listed = await localOrRequest("plan.approvalBatches", {}),
@@ -1686,7 +1689,7 @@ try {
       const delegate =
         typeof options.delegate === "string"
           ? ` --delegate ${options.delegate}`
-          : " --as-person";
+          : "";
       console.log("To approve exactly these revisions, run:");
       console.log(
         `  avoozl plan approve ${options.batch !== undefined ? `--batch ${options.batch} ` : ""}${names.join(" ")}${names.length ? " " : ""}--yes --expect ${chosen.map(short).join(",")}${workspace}${delegate}`,

@@ -284,12 +284,21 @@ const IGNORED = new Map([
     `#/properties/models/properties/${role}`,
     "chat-models.mjs drops retired roles",
   ]),
-  ["#/$defs/conversations/properties/driver", "repository-settings.mjs"],
-  ["#/$defs/conversations/properties/routing", "repository-settings.mjs"],
   [`${REPOSITORY}/coder`, "Who codes was removed (R91.6)"],
   [`${REPOSITORY}/concurrency`, "github-policy.mjs releaseInput"],
   ["#/$defs/flow/properties/lessons", "flowSection drops it"],
   ["#/$defs/flow/properties/batch", "flowSection drops it"],
+]);
+
+// Deprecated keys a reader still reads as an older spelling of a new key.
+// They are marked deprecated, but they are not ignored.
+const OLDER = new Set([
+  "#/properties/landing/properties/conflictRounds",
+  "#/properties/delivery/properties/concurrency",
+  "#/properties/delivery/properties/ship",
+  "#/properties/delivery/properties/repositories/additionalProperties/properties/concurrency",
+  "#/properties/delivery/properties/repositories/additionalProperties/properties/ship",
+  `${REPOSITORY}/merge`,
 ]);
 
 // Every closed object in the schema, by pointer.
@@ -363,7 +372,9 @@ test("the schema marks ignored exactly the keys accepted only for old files", ()
       `${pointer} must be deprecated`,
     );
   assert.deepEqual(
-    deprecatedKeys().filter((pointer) => !IGNORED.has(pointer)),
+    deprecatedKeys().filter(
+      (pointer) => !IGNORED.has(pointer) && !OLDER.has(pointer),
+    ),
     [],
     "a deprecated key no validator ignores",
   );

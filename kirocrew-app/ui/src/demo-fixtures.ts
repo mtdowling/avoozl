@@ -10,7 +10,6 @@
 //    `conflicts.view`); the fixtures repeat only what no operation gives yet:
 //    machines, the epic > plan > phase rows, the drafted review, the Mirror
 //    sample and the two Stop the line states.
-//  - Local workers are retired. There is no worker row, and none will be added.
 //  - The Stop the line example is a page toggle: pick `stopLine[example]`.
 //    The sample's own line never stops.
 // Kept free of JSX and runtime imports so node can test it directly.

@@ -1,6 +1,6 @@
 ---
 name: avoozl-costs
-description: Help a person choose Avoozl's Settings > Routing > Providers values. Explains each field and its default, then proposes values with reasons. Never saves; the person saves on the page. Use when a chat opens from an Ask for help link on that page.
+description: Help a person choose the `providers` values in Avoozl's settings. Explains each field and its default, then proposes values with reasons. Never saves; the person saves on the page. Use when a chat opens from an Ask for help link on that page.
 ---
 
 # Avoozl provider limits
@@ -13,7 +13,7 @@ leave blank: a blank field uses the default shown on the page.
 Never write a settings file and never call an Avoozl tool that saves. The
 person types your values into the page and presses its Save button.
 
-## Settings > Routing > Providers
+## Providers
 
 This table decides when a provider counts as low or out, so new tasks skip
 it. Each row shows a provider's health and its usage in the last 5 hours.

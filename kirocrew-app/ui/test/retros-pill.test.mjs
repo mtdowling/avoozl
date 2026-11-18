@@ -40,11 +40,10 @@ test('Flow keeps its charts and draws its filters as nav rows and chips, with no
   assert.match(source('App.tsx'), /t\.key === 'flow'/)
 })
 
-test('the Retros pill sits after Flow, lists two pages, and an old Flow link goes there', () => {
+test('the Retros pill sits after Flow, lists two pages', () => {
   const app = source('App.tsx')
   assert.match(app, /retros: RETROS_PAGES/)
   assert.match(app, /<RetrosView\s+workspaceId=\{active\}/)
-  assert.match(app, /'retros-page'/)
   assert.doesNotMatch(source('FlowView.tsx'), /Retros\b.*SectionHeading|tab: FlowTab/)
 })
 

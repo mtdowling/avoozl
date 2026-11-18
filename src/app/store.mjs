@@ -185,7 +185,6 @@ export class Store {
    CREATE INDEX IF NOT EXISTS build_breakdowns_repo ON build_breakdowns(repository,at);
    CREATE TABLE IF NOT EXISTS incoming_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS intake_sources(id TEXT PRIMARY KEY,body TEXT NOT NULL);
-   CREATE TABLE IF NOT EXISTS placement_decisions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS provider_health(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS provider_switches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS drivers(id TEXT PRIMARY KEY,body TEXT NOT NULL);
@@ -565,7 +564,6 @@ export class Store {
         "ci_runs",
         "incoming_items",
         "intake_sources",
-        "placement_decisions",
         "provider_health",
         "provider_switches",
         "drivers",
@@ -636,7 +634,6 @@ export class Store {
         "ci_runs",
         "incoming_items",
         "intake_sources",
-        "placement_decisions",
         "provider_health",
         "provider_switches",
         "drivers",
@@ -703,7 +700,6 @@ export class Store {
         "ci_runs",
         "incoming_items",
         "intake_sources",
-        "placement_decisions",
         "provider_health",
         "provider_switches",
         "drivers",
@@ -789,7 +785,6 @@ export class Store {
         "ci_runs",
         "incoming_items",
         "intake_sources",
-        "placement_decisions",
         "provider_health",
         "provider_switches",
         "drivers",
