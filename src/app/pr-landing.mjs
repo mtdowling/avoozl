@@ -129,7 +129,7 @@ export async function queuePullRequest(
     project.root,
     { ...source, commit: delivery.commit },
     registry,
-    { since, env, machine, configFile },
+    { since, env, machine, configFile, store },
   );
   enqueueLanding(store, {
     projectId: project.id,
@@ -291,6 +291,7 @@ export async function landPullRequests(
           env,
           machine,
           configFile,
+          store,
           intent: () => ({
             journal: authority.journal,
             options: { ...authority.options, machine, configFile },

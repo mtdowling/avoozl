@@ -82,6 +82,7 @@ async function requiredChecks(github, target, base, declared) {
 //   checks      check names required in addition to the repository's rules
 //   method      merge method (default "merge")
 //   intent(spec, entries) -> {journal, input, options} as in directSteps
+//   store       the workspace, whose content rules check every push
 export function pullSteps({
   github,
   registry,
@@ -95,6 +96,7 @@ export function pullSteps({
   env,
   machine,
   configFile,
+  store,
 }) {
   if (typeof intent !== "function")
     fail("Pull request landing writes an intent before every merge.", 400);
@@ -179,6 +181,7 @@ export function pullSteps({
           env,
           machine,
           configFile,
+          store,
         });
         pull = await github.pullRequest(target, pull.number);
       }
