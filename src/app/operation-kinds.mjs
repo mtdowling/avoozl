@@ -88,6 +88,7 @@ const OBSERVE = new Set([
   "epics.view",
   "radar.armed",
   "integration.view",
+  "landing.view",
   "gap.preview",
   "radar.preflight",
   "radar.integrationbranch",
