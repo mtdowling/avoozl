@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import { Btn } from './ui/Btn'
 import Badge from './ui/Badge.tsx'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { ACTION_LABEL, ISSUE_STATE_LABEL, projectionClient, writing, type SpecChange } from './projection-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Hint } from './ui/Hint'

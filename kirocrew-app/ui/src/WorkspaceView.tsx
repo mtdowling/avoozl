@@ -22,7 +22,7 @@ import {
 import { SectionHeading } from './ui/controls.tsx'
 import { Button } from './ui/Button.tsx'
 import { FormSection } from './FormSection.tsx'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { Pencil, Plus, Trash2 } from './icons.ts'
 import { FolderField } from './FolderPicker.tsx'
 import ListItem from './ListItem.tsx'
