@@ -8,7 +8,7 @@ import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
 
-const { chainsGraph } = await import('./browser/graph-chains.ts')
+const { draftsGraph } = await import('./browser/graph-chains.ts')
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the modal shell tests'
 let harness, browser, page
@@ -181,8 +181,10 @@ test('the Approve dialog keeps its buttons in the footer beside Close', { skip }
   await page.until(CLOSED)
 })
 
+// A task card opens the full task details; the summary modal is for a
+// draft spec's task, which has none yet.
 test('the Graph node modal: the node is the title, Close in the footer', { skip }, async () => {
-  await page.open(harness.url({ page: 'app', graph: 'chains' }), { width: 1280, height: 900 })
+  await page.open(harness.url({ page: 'app', graph: 'drafts' }), { width: 1280, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-shell]'))`, 30000)
   await page.until(`Boolean(document.querySelector('[data-nav-item="dashboard/graph"]'))`, 30000)
   await page.evaluate(`document.querySelector('[data-nav-item="dashboard/graph"]').click()`)
@@ -190,11 +192,11 @@ test('the Graph node modal: the node is the title, Close in the footer', { skip 
   await page.evaluate(`document.querySelector('[data-frontier-row="S3"] button').click()`)
   await page.evaluate(`[...document.querySelectorAll('[data-frontier-why] button')].find((b) => b.textContent.startsWith('open tree')).click()`)
   await page.until(`document.querySelector('[data-focus-tree]')?.dataset.focusTree === 'task:S3'`)
-  await page.evaluate(`document.querySelector('[data-tree-node="S3"]').focus()`)
+  await page.evaluate(`document.querySelector('[data-tree-node="M2"]').focus()`)
   await page.key('o', 'KeyO', 79)
   await page.until(OPEN)
   await settle()
-  await assertShell('Graph node modal', chainsGraph.tasks.find((t) => t.id === 'S3').title)
+  await assertShell('Graph node modal', draftsGraph.drafts.tasks.find((t) => t.id === 'M2').title)
   assert.ok((await footerButtons()).includes('Open tree'))
   await page.key('Escape', 'Escape', 27)
   await page.until(CLOSED)
