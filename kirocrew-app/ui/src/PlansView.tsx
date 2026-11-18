@@ -30,6 +30,7 @@ import { linkHref, safeHref, viewsClient, type Graph } from './views-api.ts'
 import { useSteppedState } from './NavHistory.tsx'
 import { usePhone } from './list-detail.ts'
 import { ListDetailLayout } from './ListDetailLayout.tsx'
+import { usePaneKeys } from './pane-keys.ts'
 import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './Modal.tsx'
@@ -1982,6 +1983,9 @@ export default function PlansView(props: {
   // Bumped once the workspace's extra grammars load, so code redraws.
   const [, setGrammars] = useState(0)
   const detailTop = useRef<HTMLDivElement>(null)
+  // Home, End and the page keys scroll the pane under the mouse.
+  const pageRef = useRef<HTMLElement>(null)
+  usePaneKeys(pageRef, !phone)
 
   const attempt = useCallback(async (call: () => Promise<void>) => {
     setBusy(true)
@@ -2397,7 +2401,7 @@ export default function PlansView(props: {
     </>
   ) : null
   return (
-    <section aria-labelledby="avoozl-plans-title" className="flex flex-col gap-3.5">
+    <section ref={pageRef} aria-labelledby="avoozl-plans-title" className="flex flex-col gap-3.5">
       {singleApproval && singleApproval.workspaceId === workspace && (
         <ApproveSpecDialog workspaceId={singleApproval.workspaceId} plan={singleApproval.plan} client={plans} onOpenReview={(planId, rev) => { setSingleApproval(null); openReview(planId, rev) }} onDone={(text) => {
           if (shownWorkspace.current !== singleApproval.workspaceId) return
