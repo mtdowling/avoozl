@@ -354,7 +354,7 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
     },
   );
   assert.match(intent.brief, /plans_prepare_worktree/);
-  assert.match(intent.brief, /plans_report/);
+  assert.match(intent.brief, /runner report urgent findings --file/);
 
   // A per-repository concurrency is old input: accepted and ignored (R6.3).
   fs.writeFileSync(
