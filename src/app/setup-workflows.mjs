@@ -10,6 +10,7 @@
 // if a workflow's trigger is written another way and is missed.
 import fs from "node:fs";
 import path from "node:path";
+import { globMatch } from "./path-glob.mjs";
 
 const indent = (line) => line.match(/^ */)[0].length;
 const strip = (line) => line.replace(/\s+#.*$/, "").replace(/\s+$/, "");
@@ -79,18 +80,7 @@ export function pushTrigger(text) {
   return trigger;
 }
 
-// GitHub's branch pattern: `*` matches within a path part, `**` across
-// parts, `?` one character.
-function globToRegExp(glob) {
-  const parts = glob.split(/(\*\*|\*|\?)/).map((part) => {
-    if (part === "**") return ".*";
-    if (part === "*") return "[^/]*";
-    if (part === "?") return "[^/]";
-    return part.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-  });
-  return new RegExp(`^${parts.join("")}$`);
-}
-const matches = (glob, name) => globToRegExp(glob).test(name);
+const matches = globMatch;
 
 // Would this push trigger run on a push to `branch`?
 export function runsOnBranch(trigger, branch) {

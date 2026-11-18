@@ -217,6 +217,9 @@ test("a semantic conflict drops that member and stacking goes on", async (t) => 
     ],
   );
   assert.deepEqual(result.members[1].files, ["shared.txt"]);
-  assert.equal(result.members[1].against, result.members[0].boundary);
+  assert.deepEqual(result.members[1].against, {
+    commit: result.members[0].boundary,
+    key: "a",
+  });
   assert.deepEqual(result.log.reverse(), ["Writer|A edits", "Writer|C adds"]);
 });
