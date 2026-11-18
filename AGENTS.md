@@ -1,8 +1,10 @@
 # Working on Avoozl
 
 Avoozl is a local planning application with a Kiro Crew app page, CLI, and MCP
-interface; Kiro Crew runs its agent sessions. UI, CLI, and MCP share operations in
-`src/app/operations.mjs`.
+interface. Its agent sessions run in Kiro Crew chats or as process harnesses
+under its supervisor. It pushes and merges by each repository's `landing`
+setting, after checks pass on the exact head. UI, CLI, and MCP share operations
+in `src/app/operations.mjs`.
 SQLite owns execution state; Markdown owns design prose.
 
 Keep application source independent of workspace paths and data. Tests use
@@ -10,7 +12,9 @@ isolated temporary workspaces. Do not add real workspace databases, machine
 configuration, provider credentials, transcripts, or personal plans to this repo.
 
 Use a task worktree for changes. Preserve other work and active agent sessions.
-Run `npm test` and `git diff --check` before landing. Do not add commit attribution
+Run `npm test` and `git diff --check` before landing. `npm run test:changed`
+runs only the tests a change reaches, as CI does. The built page
+(`kirocrew-app/ui/dist`) is not in git; `npm run build` makes it. Do not add commit attribution
 or co-authors. Use short imperative commit messages.
 
 Initialization creates an empty workspace. Example data is explicitly requested,
