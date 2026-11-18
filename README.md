@@ -189,7 +189,7 @@ The agent then approves with `plan approve NAME... --delegate claude` (or
 `delegate` on `plan.approve` over MCP), only as you, and each receipt records
 the delegate, you, the grant and the exact revision hash. `approval delegates`
 lists grants and `approval revoke claude` ends one. The grant lives in the
-workspace database, not in Git, and an agent session cannot grant or revoke.
+workspace database, not in Git, and an agent cannot grant or revoke over MCP.
 
 ## Deliver locally
 

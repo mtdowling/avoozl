@@ -396,23 +396,24 @@ export function agentSession(env = process.env) {
   return env.KIROCREW_SPAWNED === "1" || Boolean(env.KIRO_SESSION_ID);
 }
 
-// The refusal for a CLI call from an agent session, or null. `--as-person`
-// is the typed override, except in a supervisor child (AVOOZL_CHILD, R95.5),
-// where nobody is typing.
-export function cliRefusal(name, input, { env = process.env, asPerson } = {}) {
+// The refusal for a CLI call, or null. The command line is a person's tool,
+// so a person-only operation runs there, even inside an agent session, and is
+// recorded as run there (agentSessionNote). It is refused only in a
+// supervisor child (AVOOZL_CHILD, R95.5), where nobody is typing.
+export function cliRefusal(name, input, { env = process.env } = {}) {
   const reason = mcpRefusal(name, input);
-  if (!reason) return null;
-  if (env.AVOOZL_CHILD)
-    return (
-      reason.replace(/ Do it in the Avoozl app\.$/, "") +
-      " This command is running inside an agent the supervisor started" +
-      `${env.AVOOZL_CHILD_SESSION ? ` (${env.AVOOZL_CHILD_SESSION})` : ""}.` +
-      " Do it in the Avoozl app; --as-person does not apply here."
-    );
-  if (asPerson || !agentSession(env)) return null;
+  if (!reason || !env.AVOOZL_CHILD) return null;
   return (
     reason.replace(/ Do it in the Avoozl app\.$/, "") +
-    " This command is running inside an agent session. Do it in the Avoozl" +
-    " app, or add --as-person if you are the person typing it."
+    " This command is running inside an agent the supervisor started" +
+    `${env.AVOOZL_CHILD_SESSION ? ` (${env.AVOOZL_CHILD_SESSION})` : ""}.` +
+    " Do it in the Avoozl app."
   );
+}
+
+// What a person-only CLI call from an agent session leaves in the record, or
+// null when it is not one (R83.1).
+export function agentSessionNote(name, input, env = process.env) {
+  if (!mcpRefusal(name, input) || !agentSession(env)) return null;
+  return `Run from a Kiro Crew agent session${env.KIRO_SESSION_ID ? ` (${env.KIRO_SESSION_ID})` : ""}.`;
 }

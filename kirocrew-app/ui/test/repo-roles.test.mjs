@@ -14,7 +14,6 @@ import {
   ROLE_OPTIONS,
 } from "../src/settings-api.ts";
 import { repositoryRows } from "../src/repository-rows.ts";
-import { redirectSettings } from "../src/nav-api.ts";
 
 const source = (name) =>
   readFileSync(new URL(`../src/${name}`, import.meta.url), "utf8");
@@ -151,11 +150,6 @@ test("the planning repository with no checkout is a GitHub-only row", () => {
     1,
   );
   assert.equal(repositoryRows([checkout], [], "").length, 1);
-});
-
-test("GitHub and Workspaces are their own Settings pages", () => {
-  assert.equal(redirectSettings("github"), "github");
-  assert.equal(redirectSettings("workspaces"), "workspaces");
 });
 
 test("Repository setup shows a role badge per row; Edit changes it and writes the file", () => {

@@ -261,9 +261,8 @@ test('the state icons are labelled, theme-colored, and still under reduced motio
 // Task 41.6: Delivery is a Dashboards page again, with its filters in the
 // left nav as rail rows and chips, no native dropdown.
 test('Delivery is a Dashboards page with nav rail filters', async () => {
-  const { DASHBOARD_PAGES, redirectTab } = await import('../src/nav-api.ts')
+  const { DASHBOARD_PAGES } = await import('../src/nav-api.ts')
   assert.ok(DASHBOARD_PAGES.some((page) => page.key === 'delivery'))
-  assert.deepEqual(redirectTab('delivery'), { tab: 'delivery' })
   const view = readFileSync(new URL('../src/DeliveryView.tsx', import.meta.url), 'utf8')
   assert.match(view, /<NavSlotFor section="dashboard">/)
   assert.match(view, /<RailChips id="epics"/)

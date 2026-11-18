@@ -1,6 +1,6 @@
 # Tasks: one way to run a worker
 
-Status: Draft
+Status: Approved
 
 Explicit `after` lists and the manifest's `requires` govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in

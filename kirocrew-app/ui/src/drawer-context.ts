@@ -7,7 +7,7 @@ import type { ConflictItem } from './views-api.ts'
 import type { TaskTab } from './task-api.ts'
 
 export interface TaskDrawerApi {
-  // `tab` opens a tab other than Overview (an old Trace link opens Timeline).
+  // `tab` opens a tab other than Overview.
   openTask(id: string, tab?: TaskTab): void
   addTask(prefill?: { prerequisite?: string }): void
   // `onReviewed` runs after Mark reviewed, so the caller can reload.

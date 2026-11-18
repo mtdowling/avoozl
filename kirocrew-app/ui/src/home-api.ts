@@ -53,8 +53,6 @@ const ANSWERS: Record<string, string> = {
   'github-conflict': 'Pick a version',
   'tracker-conflict': 'Pick a version',
   'stale-session': 'Restart or close',
-  budget: 'Raise or stop',
-  'over-budget': 'Raise or stop',
   'ready-to-merge': 'Merge',
   'branch-landing': 'Approve the landing',
   'content-match': 'Allow or edit',

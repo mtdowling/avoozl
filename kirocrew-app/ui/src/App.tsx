@@ -19,8 +19,7 @@ import { parseReviewLink, parseSpecTab } from './review-view.ts'
 import WaitingView from './WaitingView.tsx'
 import FlowView, { LineBanner } from './FlowView.tsx'
 import { RetrosView, type RetroTarget } from './RetrosView.tsx'
-import OldTraceLink from './OldTraceLink.tsx'
-import { DASHBOARD_PAGES, RETROS_PAGES, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, parseTraceLink, redirectSettings, redirectTab, redirectWaiting, tabLabel, type RetrosPage, type Tab, type WaitingSection } from './nav-api.ts'
+import { DASHBOARD_PAGES, RETROS_PAGES, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, tabLabel, type RetrosPage, type Tab, type WaitingSection } from './nav-api.ts'
 import { WorkspacePill } from './WorkspacePill.tsx'
 import { NavSlotProvider } from './nav-slot.tsx'
 import LandingQueueView from './LandingQueueView.tsx'
@@ -152,27 +151,15 @@ function AvoozlPage() {
     if (place.tab !== undefined) setTab(place.tab)
   }
   // `open` deep-links into the new place's inner views (changePage).
-  // A removed page (Delivery, Conflicts, Intake) goes to the page
-  // that took over its job (redirectTab).
-  const go = (next: Partial<typeof here>, open?: Record<string, unknown>) => {
-    const place = next.tab === undefined ? null : redirectTab(next.tab)
-    // A removed page's Needs you section is now a field of the place.
-    // A saved 'radar' view of the old Triage page is Issue Radar.
-    const retros = place?.open?.['retros-page'] as RetrosPage | undefined
-    const { 'waiting-section': oldSection, 'retros-page': _retros, ...inner } = place?.open ?? {}
-    const section = redirectWaiting(oldSection as string | undefined, open?.['untriaged-show'])
-    const { 'untriaged-show': _show, ...rest } = open ?? {}
-    const deep = section ? rest : open
-    const settings = next.settingsTab === undefined ? {} : { settingsTab: redirectSettings(next.settingsTab) as SettingsTab }
+  const go = (next: Partial<typeof here>, open?: Record<string, unknown>) =>
     changePage(
       nav,
       here,
-      { ...next, ...settings, ...(place ? { tab: place.tab } : {}), ...(section ? { waitingSection: section } : {}), ...(retros ? { retrosPage: retros } : {}) },
+      next,
       apply,
       (before, newTab) => (newTab ? `Back to ${tabLabel(before.tab)}` : 'Back to the previous section'),
-      { ...inner, ...deep },
+      open,
     )
-  }
   const openWorkspaces = () => go({ settingsTab: 'workspaces', tab: 'settings' })
   // A saved workspace counts only once the catalog confirms it still exists.
   // The demo reads its own sample; the saved choice waits for Exit demo.
@@ -216,18 +203,10 @@ function AvoozlPage() {
       tab: key,
     })
 
-  // An old link with ?trace=owner/repo#52 opens Delivery, and OldTraceLink opens
-  // the details of the task that owns that issue (R106.8). Read once, when the
-  // page opens. A ?trace with no issue just opens Delivery.
-  const [traceLink, setTraceLink] = useState<{ repository: string; number: number } | null>(null)
+  // Read once, when the page opens.
   useEffect(() => {
-    const link = parseTraceLink(window.location.search)
-    if (link || new URLSearchParams(window.location.search).has('trace')) {
-      go({ tab: 'delivery', focus: null, drill: null })
-      setTraceLink(link)
-    }
     // ?tree=task:<id> or ?graph=frontier opens the Graph there (FocusTree.tsx).
-    else if (parseGraphLink(window.location.search)) go({ tab: 'graph', focus: null, drill: null })
+    if (parseGraphLink(window.location.search)) go({ tab: 'graph', focus: null, drill: null })
     // ?view=review&plan=P and ?plan=P&tab=T open the Specs page on that spec's tab.
     else if (parseReviewLink(window.location.search) || parseSpecTab(window.location.search)) go({ tab: 'plans', focus: null, drill: null })
     // ?github=<tab> opens Settings › GitHub, which opens that tab.
@@ -329,7 +308,6 @@ function AvoozlPage() {
     <ConfirmProvider>
     <SpecLinkContext.Provider value={openSpec}>
     <TaskDrawerProvider workspaceId={active} onFocus={(id, title) => openDrill({ kind: 'focus', id, title })}>
-    <OldTraceLink workspaceId={active} link={traceLink} />
     <div className="flex h-full min-h-0 flex-col">
       {phone && (
         // A phone keeps one thin row: the menu button. The brand card and the

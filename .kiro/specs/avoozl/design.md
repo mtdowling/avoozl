@@ -3091,7 +3091,7 @@ sandbox values are not verified yet; they are proof items of Phase 47
 | Allow-list     | Per project, the build and test commands an unattended child may run without a prompt. `git push` is never on it |
 | Spend          | A spend cap flag caps API spend and may not bind on a plan login (proof item). Plan quota: no new session once the quota reads low |
 | Kiro Crew repo | Avoozl's own repository on `kirocrew` chats has trust mode set again each tick, or ordinary workers stall unattended |
-| Person-only    | Children get `AVOOZL_CHILD=1`, and the CLI refuses person-only commands there even with `--as-person`. That is a speed bump: the child runs as the owner. "Never" holds only through the sandbox: database, credentials and the Kiro Crew home outside its reach, network off or restricted. For `kirocrew` chats it stays a speed bump |
+| Person-only    | Children get `AVOOZL_CHILD=1`, and the CLI refuses person-only commands there. That is a speed bump: the child runs as the owner. "Never" holds only through the sandbox: database, credentials and the Kiro Crew home outside its reach, network off or restricted. For `kirocrew` chats it stays a speed bump |
 
 **Supervisor.** `avoozl supervisor` owns children: pid, start time, exit
 code and log file, in SQLite. It takes only `process` requests. On a Kiro
@@ -4557,7 +4557,8 @@ Added 2026-11-18 (Requirement 109).
 **Why.** The owner delegated plan approval to his agents. Avoozl had no way
 to record that: approval was person-only (`PERSON_ONLY` in
 `mcp-policy.mjs`), and the only way past the CLI's agent-session refusal was
-`--as-person`, a claim to be the person. An agent also read the preview's
+`--as-person`, a claim to be the person (removed 2026-11-18; see
+Requirement 83.1). An agent also read the preview's
 "needs specs left out of the selection" as a requirement and concluded that
 approving 9 specs meant approving about two dozen.
 
@@ -4590,10 +4591,10 @@ pull requests; merging one stays the merger's act on GitHub.
 | Surface | Grant, revoke              | Approve with `delegate`      | Approve without            |
 | ------- | -------------------------- | ---------------------------- | -------------------------- |
 | App     | person                     | not offered                  | person                     |
-| CLI     | person (agent: refused)    | allowed with an active grant | person (agent: refused)    |
+| CLI     | runs; an agent session is noted | allowed with an active grant | runs; an agent session is noted |
 | MCP     | refused                    | allowed with an active grant | refused                    |
 
-**Limits.** The delegate's identity is what it names. Like `--as-person` it
+**Limits.** The delegate's identity is what it names. It
 is a speed bump against code running as the owner, not a wall; what it adds
 is a grant to check, a record of who acted, and a revocation.
 
@@ -6098,7 +6099,9 @@ Requirement 83. Audit findings S4 to S8 from the PR 29 comment.
 session is `KIROCREW_SPAWNED=1` or `KIRO_SESSION_ID` (found in Kiro Crew's
 `launch.py` and `hook_runtime/script_hooks.py`; the dashboard terminal, in
 `handlers/terminal_shell.py`, copies the gateway environment and adds
-`KIROCREW_TERMINAL=1`, so it has neither). `--as-person` overrides. The
+`KIROCREW_TERMINAL=1`, so it has neither). Changed 2026-11-18: in such a
+session the CLI runs the operation and notes it (`agentSessionNote`); it
+refuses only in a supervisor child. The
 request for a descriptor or 0600 file is `docs/kirocrew-requests/`.
 
 **S5, file modes.** `Store` creates `.avoozl` and `.avoozl/local` 0700 and the

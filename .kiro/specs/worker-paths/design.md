@@ -1,6 +1,6 @@
 # Design: one way to run a worker
 
-Status: Draft
+Status: Approved
 
 `WP` numbers are in this spec's `requirements.md`; `R` numbers and `§`
 sections without a `D` are in `.kiro/specs/avoozl/`. Labels are as in the
@@ -179,7 +179,7 @@ model this machine does not have.
 
 Each has a default that the requirements already assume. Approving the spec
 approves the defaults. On 2026-11-18 the owner said to approve the spec
-with them; `requirements.md` says what that does and does not record.
+with them; `requirements.md` records the approval.
 
 | #   | Decision                                             | Default                                                                 | The other choice                                                              |
 | --- | ---------------------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- |

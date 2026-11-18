@@ -1,9 +1,7 @@
-// The page's top-level views and where an old place now goes. Kept free of
-// JSX so node can test it directly.
+// The page's top-level views. Kept free of JSX so node can test it directly.
 
-// The nav row: Dashboards, Specs, Needs you,
-// Flow, Retros, Activity, Settings. Dashboards' key stays 'dashboard' (its Home), so
-// an older link or Back step to Home still lands there.
+// The nav row: Dashboards, Specs, Needs you, Flow, Retros, Activity,
+// Settings. Dashboards' key is 'dashboard' (its Home).
 export const TABS = [
   { key: 'dashboard', label: 'Dashboards' },
   { key: 'plans', label: 'Specs' },
@@ -48,66 +46,3 @@ const PAGE_LABEL: Record<string, string> = { graph: 'Graph', delivery: 'Delivery
 export const tabLabel = (key: Tab) => PAGE_LABEL[key] ?? TABS.find((t) => t.key === key)?.label ?? key
 // The nav entry that is lit for a page.
 export const navTab = (key: Tab): NavTab => (dashboardPage(key) ? 'dashboard' : (key as NavTab))
-
-// Where a page name from an older link, or a saved Back step
-// goes now. Removed pages land on the page that took over their job.
-export interface Place {
-  tab: Tab
-  // An inner view to open there (a Needs you section).
-  open?: Record<string, unknown>
-}
-
-// `waiting-section` in a Place's `open` is the Needs you section; App turns
-// it into its own place field (waitingSection).
-// A link or saved view that still says the old Needs you place: 'intake' and
-// the untriaged page are Triage; a saved 'radar' view is Issue Radar.
-export function redirectWaiting(section: string | undefined, saved?: unknown): WaitingSection | undefined {
-  if (section === 'intake' || section === 'triage') return saved === 'radar' ? 'radar' : 'triage'
-  return WAITING_SECTIONS.some((x) => x.key === section) ? (section as WaitingSection) : undefined
-}
-
-export function redirectTab(key: string): Place {
-  switch (key) {
-    case 'conflicts':
-      return { tab: 'waiting', open: { 'waiting-section': 'decisions' } }
-    case 'untriaged':
-      return { tab: 'waiting', open: { 'waiting-section': 'triage' } }
-    // Flow's own Retros and Proposals tabs moved to the Retros pill (owner
-    // note 2026-11-17); an older link or Back step that names one lands there.
-    case 'flow:retros':
-    case 'flow:proposals':
-      return { tab: 'retros', open: { 'retros-page': key.slice(5) } }
-    // Trace is gone (R106): its steps are the Timeline box in task details.
-    case 'trace':
-    // Lanes is gone: Delivery's In progress cards name their machine.
-    case 'lanes':
-      return { tab: 'delivery' }
-    // The CI page is deleted; an old link or saved view to it opens Flow,
-    // which shows CI.
-    case 'ci':
-      return { tab: 'flow' }
-    default:
-      return { tab: TABS.some((t) => t.key === key) || dashboardPage(key as Tab) ? (key as Tab) : 'dashboard' }
-  }
-}
-
-// A Settings section that no longer exists lands on the section that took
-// over: the instance name is edited in Settings > Workspaces > This computer.
-// Older names for the Radar values screen open Settings › Issue Radar.
-export function redirectSettings(key: string): string {
-  // Crews and rules, a tab of each repository, moved there too.
-  if (key === 'issue-radar' || key === 'radar-values' || key === 'crews' || key === 'crews-rules') return 'radar'
-  return key === 'instance' ? 'workspaces' : key
-}
-
-// An old `?trace=owner/repo#52` link: the issue it names. Anything else is no
-// link. The page opens the details of the task that owns that issue (R106.8).
-export function parseTraceLink(search: string): { repository: string; number: number } | null {
-  const value = new URLSearchParams(search).get('trace'),
-    match = /^([^/\s#]+\/[^/\s#]+)#([1-9]\d*)$/.exec(value ?? '')
-  return match ? { repository: match[1], number: Number(match[2]) } : null
-}
-
-// The task that owns the issue an old trace link names, from the stored graph.
-export const taskForIssue = <T extends { issue: { number: number | null; repository: string | null } | null; repository: string | null }>(graph: { tasks: T[] }, link: { repository: string; number: number }) =>
-  graph.tasks.find((task) => task.issue?.number === link.number && (task.issue.repository ?? task.repository) === link.repository)

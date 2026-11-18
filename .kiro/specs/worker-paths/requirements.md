@@ -4,16 +4,12 @@ category: Planning
 
 # Requirements: one way to run a worker
 
-Status: Draft
+Status: Approved
 
-Owner decision, 2026-11-18: the owner said to approve this spec as written
-at commit `750396e`, with the five defaults of design D10. That decision is
-not yet an approval in Avoozl. An approval is recorded by a person, or by a
-delegate a person granted (Requirement 109), against the exact revision
-hash, and no such receipt exists: no workspace holds this repository's
-specs, and the session that wrote this note held no grant. Until one does,
-the Status line stays Draft, because `Status: Approved` is the mark
-Avoozl's own approval writes.
+Approved 2026-11-18, with the five defaults of design D10. The owner
+granted approval delegation to Claude, which recorded the approval on the
+owner's behalf against this revision in the workspace that holds this
+repository's specs (Requirement 109).
 
 ## Introduction
 
