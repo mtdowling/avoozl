@@ -18,6 +18,19 @@ export const AVOOZL_STATES = Object.freeze([
   ["deferred", "Deferred"],
 ]);
 
+// A task's state on the Graph, with the word the page shows for it. The page
+// (kirocrew-app/ui/src/graph-layout.ts) and the `query` and `task.get`
+// operations read this one list, so the CLI says what the page says.
+export const NODE_STATES = Object.freeze([
+  ["ready", "Ready"],
+  ["running", "Running"],
+  ["waiting", "Waiting"],
+  ["needs-you", "Needs you"],
+  ["done", "Done"],
+  ["deferred", "Deferred"],
+  ["draft", "Draft"],
+]);
+
 // Older backends send no `state`; derive the same order from the fields
 // they do send.
 export function nodeState(task) {

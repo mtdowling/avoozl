@@ -463,6 +463,24 @@ test("application, plans, state, and working repository can use independent dire
   assert.equal(rows.length, 8);
   assert(fs.existsSync(path.join(plans, "examples/product-launch.md")));
   assert(!fs.existsSync(path.join(applicationRoot, "state")));
+  // Each row says the page's state beside its stored status, and `show` too.
+  const words = new Set([
+    "Ready",
+    "Running",
+    "Waiting",
+    "Needs you",
+    "Done",
+    "Deferred",
+  ]);
+  for (const row of rows) {
+    assert.equal(typeof row.status, "string");
+    assert(words.has(row.stateLabel), row.id);
+    assert.equal(row.stateLabel.toLowerCase().replace(" ", "-"), row.state);
+  }
+  const shown = await cli(["show", rows[0].id]);
+  assert.equal(shown.status, rows[0].status);
+  assert.equal(shown.state, rows[0].state);
+  assert.equal(shown.stateLabel, rows[0].stateLabel);
 });
 
 test("seed with no name installs draft spec folders the CLI then lists", async (t) => {
