@@ -287,8 +287,12 @@ export function pullSteps({
       });
       current = { pull, ref: { ...ref, pr: pull.number } };
       if (pull.mergeable === false)
-        return { conflict: ["(conflicts with the base)"], key: entry.key };
-      return { candidate: entry.commit };
+        return {
+          conflict: ["(conflicts with the base)"],
+          key: entry.key,
+          pr: pull.number,
+        };
+      return { candidate: entry.commit, pr: pull.number };
     },
     async check(candidate, [entry]) {
       const { pull } = current,

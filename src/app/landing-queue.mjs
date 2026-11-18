@@ -177,6 +177,18 @@ function noteWait(store, entry, candidate, verdict) {
   });
 }
 
+// Keeps the pull request a portion's step opened or found on its queued
+// entry, so a held or failed portion still links to it (Requirement 92.1).
+// Same rule as noteWait: only onto the same entry still queued.
+function notePull(store, entry, pr) {
+  if (!Number.isSafeInteger(pr) || pr < 1 || entry.pr === pr) return entry;
+  return store.transaction(() => {
+    const now = store.get(TABLE, entry.id);
+    if (now?.state !== "queued" || now.commit !== entry.commit) return entry;
+    return store.put(TABLE, { ...now, pr });
+  });
+}
+
 const running = new Map();
 
 // Takes a waiting portion out of its queue, e.g. when its base moved and
@@ -254,6 +266,9 @@ export async function landNext(
     let candidate, verdict;
     for (;;) {
       const prepared = await steps.prepare(entries, baseHead);
+      // One pull request is one portion (pr landing never makes a train).
+      if (entries.length === 1 && prepared?.pr)
+        entries = [notePull(store, entries[0], prepared.pr)];
       if (prepared?.conflict) {
         const at = Math.max(
           0,
