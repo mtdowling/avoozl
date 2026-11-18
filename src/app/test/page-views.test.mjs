@@ -181,6 +181,26 @@ test("conflicts view lists decisions, blocked tasks and ended sessions", async (
   );
 });
 
+// P60: a process worker's binding closes when its task lands; that ended
+// session is no item.
+test("conflicts view leaves out the ended session of a landed task", async (t) => {
+  const { store, ops } = graphFixture(t);
+  await ops.execute("session.bind", { taskId: "c", slot: "slot-c-1" });
+  await ops.execute("session.status", { slot: "slot-c-1", status: "closed" });
+  const kinds = async () =>
+    (await ops.execute("conflicts.view", {})).items
+      .filter((item) => item.kind === "stale-session")
+      .map((item) => item.taskId);
+  assert.deepEqual(await kinds(), ["c"]);
+  store.put("task_deliveries", {
+    id: "c",
+    taskId: "c",
+    state: "integrated",
+    attempts: [],
+  });
+  assert.deepEqual(await kinds(), []);
+});
+
 // R28.5: every view that lists a task says who owns it.
 test("delivery and conflicts views show local or the issue link", async (t) => {
   const { store, ops } = graphFixture(t);
