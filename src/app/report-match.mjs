@@ -52,18 +52,27 @@ export function matchCliReport(store, { taskId, token, cwd }) {
   if (typeof taskId !== "string" || !taskId) fail("Name the task.");
   if (typeof token !== "string" || !/^[0-9a-f]{48}$/.test(token))
     fail("The report token is missing or malformed.", 403);
+  // A batch's session is bound to its leader and reports for each member
+  // with the leader's token (WP4.1).
   const binding = listSessionBindings(store)
-    .filter((b) => b.taskId === taskId && b.role === "worker")
+    .filter(
+      (b) =>
+        b.role === "worker" &&
+        (b.taskId === taskId || b.batch?.tasks?.includes(taskId)),
+    )
     .sort((x, y) => (y.attempt || 0) - (x.attempt || 0))[0];
   if (!binding || !store.getMeta(SECRET))
     fail("The report token does not match this task.", 403);
   const want = Buffer.from(
-      issueReportToken(store, { taskId, attempt: binding.attempt }),
+      issueReportToken(store, {
+        taskId: binding.taskId,
+        attempt: binding.attempt,
+      }),
     ),
     got = Buffer.from(token);
   if (want.length !== got.length || !crypto.timingSafeEqual(want, got))
     fail("The report token does not match this task.", 403);
-  const worktree = store.get("task_worktrees", taskId)?.path;
+  const worktree = store.get("task_worktrees", binding.taskId)?.path;
   if (!worktree || !inside(worktree, cwd))
     fail("Run the report from this task's worktree.", 403);
   return binding;

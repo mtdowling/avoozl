@@ -47,8 +47,12 @@ const verdictFinish = (allowCommands) => [
 //            detached (a worktree at the commit), scratch (an empty folder),
 //            spec (the spec folder the request names)
 //   hands    how the result is recorded: report (session.report), reply (the
-//            retro's reply), folder (the stored folder; nothing to record)
+//            retro's reply), folder (the stored folder; nothing to record),
+//            post-reply (reply.post, as the session), summary
+//            (tasksummary.submit, as the session)
 //   finish   the lines that replace the Avoozl tools in a child's brief
+//   offline  true when the child gets no network, whatever its project
+//            allows: it reads only its folder and brief
 export const ROLE_TABLE = Object.freeze({
   worker: {
     setting: "worker",
@@ -113,17 +117,37 @@ export const ROLE_TABLE = Object.freeze({
     process: false,
     access: "read",
   },
+  // The responder reads the repository at its base branch and hands back
+  // the reply; Avoozl posts it after the checks a chat's reply gets (NK2.2).
   responder: {
     setting: "responder",
     roles: ["responder"],
-    process: false,
+    prompt: "responder",
+    process: true,
     access: "read",
+    folder: "detached",
+    offline: true,
+    hands: "post-reply",
+    finish: () => [
+      'You run without Avoozl\'s tools. Instead of calling plans_post_reply, write .avoozl/result.json in the current folder: {"state": "done", "report": {"body": "<your reply>"}}, or {"state": "blocked", "text": "<why>"} if you cannot draft one. Avoozl checks the reply and posts it.',
+      RESULT_LIMIT,
+    ],
   },
+  // The summary reads only its brief; Avoozl stores it on the task (NK2.3).
   taskSummary: {
     setting: "taskSummary",
     roles: ["task-summary"],
-    process: false,
+    prompt: "task-summary",
+    process: true,
     access: "read",
+    folder: "scratch",
+    scratch: "avoozl-summary-",
+    offline: true,
+    hands: "summary",
+    finish: () => [
+      'You run without Avoozl\'s tools. Instead of calling plans_submit_task_summary, write .avoozl/result.json in the current folder: {"state": "done", "report": {"summary": "<your summary>"}}.',
+      RESULT_LIMIT,
+    ],
   },
   // The issue planner's sessions are `planner` sessions, so a child runs by
   // the planner row. Its critique runs as a child in the spec folder's

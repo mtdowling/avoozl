@@ -21,6 +21,10 @@ import {
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
+// The worker's machine config is written under this folder, never the real one.
+delete process.env.KIROCREW_HOME;
+process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-claim-home-");
+
 const SPEC = "demo",
   DRIVER = "d".repeat(16),
   DEF = "b".repeat(64),
@@ -246,7 +250,7 @@ test("a displaced or stopped driver reserves nothing", async () => {
   assert.equal(w.branches.size, 0);
 });
 
-function workerWorkspace(t, origin, repo) {
+function workerWorkspace(t, origin, repo, { lanes } = {}) {
   const root = temporaryDirectory("avoozl-claim-worker-");
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
@@ -254,6 +258,7 @@ function workerWorkspace(t, origin, repo) {
       version: 1,
       runner: {
         role: "worker",
+        ...(lanes ? { lanes } : {}),
         checks: { pass: { argv: ["node", "-e", "process.exit(0)"] } },
         pools: [
           {
@@ -359,4 +364,114 @@ test("a worker starts only on its own acknowledgment", async (t) => {
   assert.deepEqual(second.started, [{ spec: SPEC, task: "t1" }]);
   assert.equal(Object.keys(ws.store.getMeta("runner.tasks")).length, 1);
   assert.equal(ws.store.getMeta("runner.tasks").t1.envelope.baseCommit, commit);
+});
+
+// Worker-paths WP5.2: the worker machine's tick pulls, asks and starts on its
+// own, with the functions the hand-run commands call.
+function codeRepo() {
+  const dir = temporaryDirectory("avoozl-claim-repo-"),
+    origin = path.join(dir, "origin.git"),
+    repo = path.join(dir, "app");
+  fs.mkdirSync(repo);
+  git(dir, "init", "--bare", "-b", "main", origin);
+  git(repo, "init", "-b", "main");
+  git(repo, "config", "user.name", "Test");
+  git(repo, "config", "user.email", "test@example.com");
+  fs.writeFileSync(path.join(repo, "a.txt"), "a\n");
+  git(repo, "add", ".");
+  git(repo, "commit", "-m", "Start");
+  git(repo, "remote", "add", "origin", origin);
+  git(repo, "push", "origin", "main");
+  git(repo, "push", "origin", "main:avoozl/demo/work");
+  return { origin, repo, commit: git(repo, "rev-parse", "HEAD") };
+}
+
+async function offers(journal, commit, tasks) {
+  for (const task of tasks)
+    await publishOffer(
+      journal,
+      {
+        driver: DRIVER,
+        owner: OWNER,
+        login: "owner",
+        spec: SPEC,
+        task,
+        definition: DEF,
+        worker: "worker-a",
+        ref: { repository: "fork-a/code", branch: "avoozl/demo/work", commit },
+        base: commit,
+      },
+      OPTIONS,
+    );
+}
+
+const workerTickOf = (ops) =>
+  ops.execute("workspace.tick", { cron: true }, local);
+const accepted = (ws) => Object.keys(ws.store.getMeta("runner.tasks") ?? {});
+
+test("a worker tick with two free lanes and three offers asks for two and starts two, with nothing run by hand", async (t) => {
+  const code = codeRepo(),
+    w = world(),
+    { journal } = await started(w),
+    ws = workerWorkspace(t, code.origin, code.repo, { lanes: 2 }),
+    worker = new Operations(ws.store, {
+      workspaceRoot: ws.root,
+      github: w.as("worker-a"),
+    });
+  await offers(journal, code.commit, ["t1", "t2", "t3"]);
+  // Tick 1 pulls and asks; no acknowledgment, so nothing starts.
+  await workerTickOf(worker);
+  assert.equal(Object.keys(ws.store.getMeta("worker.requested")).length, 2);
+  assert.deepEqual(accepted(ws), []);
+  // The driver acknowledges what was asked.
+  const reserved = await reserveClaims({ ...driving(w, journal), cap: 3 });
+  assert.equal(reserved.acknowledged.length, 2);
+  // Tick 2 starts the two; tick 3 has no free lane for the third.
+  await workerTickOf(worker);
+  assert.deepEqual(accepted(ws).sort(), ["t1", "t2"]);
+  await workerTickOf(worker);
+  assert.deepEqual(accepted(ws).sort(), ["t1", "t2"]);
+});
+
+test("the hand-run commands give what one tick gives", async (t) => {
+  const code = codeRepo(),
+    w = world(),
+    { journal } = await started(w),
+    byTick = workerWorkspace(t, code.origin, code.repo, { lanes: 2 }),
+    byHand = workerWorkspace(t, code.origin, code.repo, { lanes: 2 }),
+    ops = (ws) =>
+      new Operations(ws.store, {
+        workspaceRoot: ws.root,
+        github: w.as("worker-a"),
+      });
+  await offers(journal, code.commit, ["t1", "t2"]);
+  // Both workers ask for the same two tasks; the driver acknowledges them.
+  await workerTickOf(ops(byTick));
+  await ops(byHand).execute("worker.pull", {}, local);
+  await ops(byHand).execute("worker.claim", {}, local);
+  assert.equal(
+    (await reserveClaims({ ...driving(w, journal), cap: 2 })).acknowledged
+      .length >= 1,
+    true,
+  );
+  await workerTickOf(ops(byTick));
+  await ops(byHand).execute("worker.claim", {}, local);
+  assert.deepEqual(accepted(byTick).sort(), accepted(byHand).sort());
+  assert.ok(accepted(byTick).length >= 1);
+});
+
+test("a worker tick with no GitHub records one line and starts nothing", async (t) => {
+  const code = codeRepo(),
+    ws = workerWorkspace(t, code.origin, code.repo),
+    ops = new Operations(ws.store, {
+      workspaceRoot: ws.root,
+      github: { available: () => false },
+    });
+  await workerTickOf(ops);
+  const lines = ws.store
+    .events({ latest: true })
+    .filter((e) => e.kind === "worker.tick");
+  assert.equal(lines.length, 1);
+  assert.match(lines[0].skipped, /no GitHub/);
+  assert.deepEqual(accepted(ws), []);
 });
