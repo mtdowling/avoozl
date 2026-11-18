@@ -102,10 +102,10 @@ person.
 
 ## Phase 5: Landing
 
-- [ ] lt-5.1 Gated and optimistic policies, the guarded push, a moved trunk, and no force push anywhere, after lt-3.3, lt-4.2 [LT8.1, LT8.2, LT8.3, LT8.4, LT8.5, LT3.8, LT3.10, LT16.2, LT16.3, LT16.4, LT16.6, LT16.7] (§D10.1, §D10.2, §D10.3, §D10.4)
+- [x] lt-5.1 Gated and optimistic policies, the guarded push, a moved trunk, and no force push anywhere, after lt-3.3, lt-4.2 [LT8.1, LT8.2, LT8.3, LT8.4, LT8.5, LT3.8, LT3.10, LT16.2, LT16.3, LT16.4, LT16.6, LT16.7] (§D10.1, §D10.2, §D10.3, §D10.4)
   - Each policy's step order; intents for every spec through its driver's journal before the push; `guardedFastForward` inside `withWorkLock`; on a moved trunk, rebase with the cut rule and recheck, up to `failure.maxRebases`; after landing: integrated at each boundary, `mergeBaseBack`, each batch branch deleted only if the remote still shows its recorded head, worktree removed.
   - Done when: Real-git tests: gated pushes only after full validation passes and never on a failure; optimistic pushes after cheap checks and then runs full validation on the pushed head; a train with tasks of two drivers writes two intents, both read back before the push; a trunk moved during the train is rebased onto and pushed after rechecks, and after `maxRebases` moves the train fails with "trunk kept moving" and members requeue; a batch branch pushed to during the train is kept and its new head queued; no push in any test is forced; a test scanning every `git push` argv in `src/` finds no `--force`, `-f`, `--force-with-lease` or `+` refspec.
-- [ ] lt-5.2 Watch the train's one CI run, after lt-5.1, lt-4.4 [LT8.6, LT8.7, LT4.6] (§D10, §D9.3)
+- [x] lt-5.2 Watch the train's one CI run, after lt-5.1, lt-4.4 [LT8.6, LT8.7, LT4.6] (§D10, §D9.3)
   - Read `ci.workflow`'s run for the pushed head through the pacer and record it on the train; validated only when every needed platform passed; `ci.waitForLastTrain` holds the next train until that conclusion.
   - Done when: Fake-GitHub tests: the run ID and conclusion land on the train record; a train with a CI-only platform is validated only after the run passes; with `waitForLastTrain` false the next train starts before the conclusion and with true it waits; Stop the line counts only validated trains' heads.
 - [ ] lt-p2 Proof: ten branches land in one train, after lt-p1, lt-1.2, lt-3.2, lt-3.3, lt-4.2, lt-5.1, lt-5.2 [LT1, LT4, LT5, LT6, LT8] (§D7, §D10)

@@ -13,6 +13,7 @@ import {
 } from "./content-rules.mjs";
 import { queueNotifications } from "./notifications.mjs";
 import { commandEvidence, git } from "./git.mjs";
+import { unvalidatedTrainHead } from "./train-heads.mjs";
 import {
   dependentsOf,
   flowPolicy,
@@ -346,6 +347,9 @@ export async function watchLine(
         green: {},
       };
     if (state.head === head) continue;
+    // A head an integrator train pushed counts only once the train is
+    // validated (landing-trains LT8.7).
+    if (unvalidatedTrainHead(store, project.id, head)) continue;
     const known = Object.keys(state.green).length > 0;
     // Nothing known green and a head Avoozl did not integrate: nothing to
     // compare against, so nothing is written.
