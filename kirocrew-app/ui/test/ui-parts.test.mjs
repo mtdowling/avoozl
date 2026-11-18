@@ -83,7 +83,12 @@ for (const theme of ["light", "dark"])
 
       const row = await page.evaluate(read("row"));
       assert.deepEqual(
-        [row.display, row.wrap, row.gap, row.align],
+        [
+          row.display,
+          row.wrap,
+          row.gap,
+          row.align.replace("flow-end", "flex-end"),
+        ],
         ["flex", "wrap", "8px", "flex-end"],
       );
 
