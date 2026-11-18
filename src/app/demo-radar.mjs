@@ -9,8 +9,7 @@
 //     demo only: operation `demo.fixtures` (observe). Types and the
 //     consumers' notes are in kirocrew-app/ui/src/demo-fixtures.ts.
 //
-// Local workers are retired: the sample has no worker rows. Crews are Issue
-// Radar crews on three made-up machines.
+// Crews are Issue Radar crews on three made-up machines.
 import { epicsView } from "./epics-view.mjs";
 
 export const DEMO_FIXTURES_VERSION = 1;

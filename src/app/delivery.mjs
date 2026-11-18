@@ -1272,12 +1272,11 @@ function* expandBatches(attempts) {
 }
 
 // Failed attempts since the last time a person chose to retry (retryDelivery).
-// An attempt a removed budget stop ended (`budget`) costs nothing, nor does the one
-// resume of a vanished chat (R88.4), which has its own bound.
+// A resume of a vanished chat (R88.4) costs nothing: it has its own bound.
 const failuresSince = (delivery, attempts) =>
   attempts
     .slice(delivery.retryFrom || 0)
-    .filter((a) => a.outcome === "failed" && !a.budget && !a.vanished).length;
+    .filter((a) => a.outcome === "failed" && !a.vanished).length;
 
 // plans_retry_delivery: a person resumes a leaf that stopped for a decision.
 // The next attempt resumes on the same worktree with a fresh retry budget.

@@ -1557,11 +1557,6 @@ try {
     } finally {
       registry.close();
     }
-  } else if (command === "andon") {
-    // The andon gate became repository rule actions; this answers with how.
-    console.log(
-      JSON.stringify(await localOrRequest("safety.status", {}), null, 2),
-    );
   } else if (command === "workspace-repo") {
     const action = positionals[0] || "status";
     let operation, value;
@@ -1875,11 +1870,7 @@ try {
         2,
       ),
     );
-  else if (
-    command === "task" &&
-    // `task notes` is the name before task notes were removed.
-    ["links", "notes"].includes(positionals[0])
-  ) {
+  else if (command === "task" && positionals[0] === "links") {
     // Task links (R61.22): list and add for anyone; edit, remove and
     // show on the issue are a person's, as the command line is.
     const taskId = need(

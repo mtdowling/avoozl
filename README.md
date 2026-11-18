@@ -524,8 +524,6 @@ Avoozl was first released as AICommander. These names keep working:
   to spec folders.
 - An `.avoozl.json` with no `role` keys, which gets its roles from its
   stored `github.mode`.
-- `.avoozl.json` keys of settings that no longer exist (`coder`,
-  `flow.batch`), which load and are ignored.
 
 ## Develop
 

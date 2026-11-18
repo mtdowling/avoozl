@@ -29,6 +29,12 @@ import { PluginUnavailable } from "./plugin-session.mjs";
 import { declaredPlugins, readPluginSettings } from "./plugins.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { canonical, fail } from "./store.mjs";
+import {
+  GITHUB_VIA,
+  githubSources,
+  validateGitHubSource,
+  writeGitHubSources,
+} from "./github-sources.mjs";
 
 // `retro` holds the skill changes a person approved from a retrospective
 // (design §4.18).
@@ -62,7 +68,9 @@ export const intakeTaskId = (source, id) =>
 
 // ---------------------------------------------------------------------------
 // Sources (R50.6): declared under `intake.sources` in `.avoozl.json` or in
-// this machine's plugins.json, like `plugins` entries.
+// this machine's plugins.json, like `plugins` entries. A `via: "github"`
+// source (R110, github-sources.mjs) is a GitHub repository whose issues may
+// start work; its items still come in as source `github`.
 
 function names(value, where) {
   if (value === undefined) return [];
@@ -81,6 +89,17 @@ export function validateSource(id, value, where = `intake.sources.${id}`) {
   if (RESERVED_SOURCES.includes(id))
     fail(`${where}: ${id} is built in and cannot be declared.`);
   if (!record(value)) fail(`${where} must be an object.`);
+  if (value.via === GITHUB_VIA) {
+    const { repository, settings } = validateGitHubSource(value, where);
+    return {
+      id,
+      via: GITHUB_VIA,
+      plugin: null,
+      repository,
+      github: repository,
+      ...settings,
+    };
+  }
   for (const key of Object.keys(value))
     if (!SOURCE_KEYS.includes(key))
       fail(`${where}.${key} is not an intake source setting.`);
@@ -92,7 +111,7 @@ export function validateSource(id, value, where = `intake.sources.${id}`) {
       (via.startsWith("plugin:") && PLUGIN_ID.test(via.slice(7)))
     )
   )
-    fail(`${where}.via must be plugin:<id> or mcp.`);
+    fail(`${where}.via must be plugin:<id>, mcp or github.`);
   if (typeof value.repository !== "string" || !value.repository.trim())
     fail(`${where}.repository must name a registered repository.`);
   const labelFields = names(value.labelFields, `${where}.labelFields`);
@@ -218,11 +237,24 @@ export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
     }
   };
   try {
-    if (workspaceRoot)
-      add(
-        readJson(path.join(workspaceRoot, ".avoozl.json")).intake,
-        "repository",
-      );
+    if (workspaceRoot) {
+      const file = readJson(path.join(workspaceRoot, ".avoozl.json"));
+      add(file.intake, "repository");
+      // Old `github.issueIntake` entries, read as the sources they describe.
+      try {
+        for (const source of githubSources(file))
+          if (source.legacy)
+            found.push({
+              id: source.id,
+              scope: "repository",
+              entry: source.entry,
+              source: validateSource(source.id, source.entry),
+              error: null,
+            });
+      } catch {
+        // The settings loader reports an invalid GitHub block.
+      }
+    }
   } catch (error) {
     found.push({
       id: null,
@@ -242,14 +274,22 @@ export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
         .filter((p) => !p.error)
         .map((p) => p.entry.id),
     ));
-  const repositories = store ? workspaceRepositories(store) : null;
+  const repositories = store ? workspaceRepositories(store) : null,
+    githubSeen = new Map();
   for (const row of found) {
     if (row.error || !row.source) continue;
     if (counts.get(row.id) > 1)
       row.error = `Intake source ${row.id} is declared more than once across .avoozl.json and this machine's settings.`;
-    else if (row.source.plugin && !pluginIds().has(row.source.plugin))
+    else if (row.source.via === GITHUB_VIA) {
+      const key = lower(row.source.repository);
+      if (row.scope !== "repository")
+        row.error = `Intake source ${row.id} is a GitHub source; those are set in Repository setup and saved in .avoozl.json.`;
+      else if (githubSeen.has(key))
+        row.error = `Intake source ${row.id} names GitHub repository ${row.source.repository}, which source ${githubSeen.get(key)} already reads.`;
+      else githubSeen.set(key, row.id);
+    } else if (row.source.plugin && !pluginIds().has(row.source.plugin))
       row.error = `Intake source ${row.id} names plugin ${row.source.plugin}, which no plugins entry declares.`;
-    else if (repositories) {
+    else if (repositories && row.source.via !== GITHUB_VIA) {
       const repository = repositories.find(
         (entry) =>
           entry.id === row.source.repository ||
@@ -269,11 +309,14 @@ export function declaredSources({ workspaceRoot, settingsFile }, store = null) {
   return found;
 }
 
-// Usable sources by id.
+// Usable plugin and MCP sources by id. GitHub sources are read by
+// `github sync`, not by poll or submit.
 export function sourceMap(options, store) {
   return new Map(
     declaredSources(options, store)
-      .filter((row) => !row.error && row.source)
+      .filter(
+        (row) => !row.error && row.source && row.source.via !== GITHUB_VIA,
+      )
       .map((row) => [row.id, row.source]),
   );
 }
@@ -295,6 +338,15 @@ export function editSource(
     fail('Choose scope "machine" or "repository".');
   if (!remove) validateSource(id, entry);
   else if (typeof id !== "string" || !id) fail("Name the source to remove.");
+  const github = remove
+    ? declaredSources(options).some(
+        (row) => row.id === id && row.source?.via === GITHUB_VIA,
+      )
+    : entry?.via === GITHUB_VIA;
+  if (github)
+    fail(
+      "A GitHub source is set in Repository setup, where its labels are made.",
+    );
   if (scope === "repository" && !remove && !confirmPublic) {
     const error = Error(
       "Avoozl cannot tell whether this repository is private. Its .avoozl.json may publish this source's id and plugin. Declare it on this machine instead, or confirm.",
@@ -309,6 +361,8 @@ export function editSource(
   if (remove && !existing.some((row) => row.scope === scope))
     fail(`Intake source ${id} is not declared there.`, 404);
   const edit = (value) => {
+    // Old GitHub intake keys move into `intake.sources` on this write.
+    if (scope === "repository") writeGitHubSources(value);
     const intake = record(value.intake) ? value.intake : {},
       sources = { ...(record(intake.sources) ? intake.sources : {}) };
     if (remove) delete sources[id];

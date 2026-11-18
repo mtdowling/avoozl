@@ -28,6 +28,15 @@ export const PLUGINS = [
 
 export const SOURCES = [
   {
+    id: 'github-example-web',
+    scope: 'repository',
+    entry: { via: 'github', repository: 'example/web', project: 'web', label: 'avoozl:ready', assignee: 'example-bot', autoStart: false, provider: null, model: null, allowedActors: [], minimumPermission: 'write' },
+    error: null,
+    state: { cursor: null, readAt: ago(4), error: null },
+    items: null,
+    escalationLabel: 'plan me',
+  },
+  {
     id: 'tickets',
     scope: 'machine',
     entry: { via: 'plugin:ticket-tracker', repository: 'example/web', labelFields: ['component', 'priority'], assigneeField: 'owner', minimumPermission: 'triage' },
