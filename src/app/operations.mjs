@@ -424,6 +424,7 @@ import {
   conflictsView,
   deliveryView,
   graphView,
+  withGraphState,
   ownership,
   plansTableView,
   epicView,
@@ -1706,6 +1707,41 @@ export class Operations {
       ...(homeErrors.length ? { homeErrors } : {}),
     };
   }
+  // Store a spec folder as a draft plan: `plan.create` with a spec, and
+  // each folder of a spec-folder example. It approves nothing.
+  createSpecDraft(input, context = {}) {
+    const store = this.store,
+      spec = this.readSpec(input.spec);
+    if (spec.exists && (context.caller || context.mcp))
+      enforceSpec(store, spec, { mode: "refuse" });
+    const previousHash = store.get("plans", input.id || input.spec)?.hash;
+    const created = createSpecPlan(
+      store,
+      { ...input, ...(spec.home ? { home: spec.home } : {}) },
+      spec,
+    );
+    recordPlanReviewWriter(store, created, {
+      previousHash,
+      caller: context.caller,
+    });
+    return created;
+  }
+  // Where a spec-folder example is written: the workspace's own folder, and
+  // only when that is where this workspace reads its specs. An example never
+  // writes into a code repository or a separate planning checkout.
+  exampleSpecRoot() {
+    const roots = this.specRoots();
+    if (
+      !this.workspaceRoot ||
+      roots.length !== 1 ||
+      path.resolve(roots[0]) !== path.resolve(this.workspaceRoot)
+    )
+      fail(
+        "This example installs spec folders in the workspace's own .kiro/specs/, and this workspace reads its specs from a repository. Nothing was installed.",
+        409,
+      );
+    return roots[0];
+  }
   // A folder on disk, or else a private spec read from the plans branch
   // (RC25.2). A private spec has no `root`, so nothing writes it to disk.
   // shortcut: spec edits that write files (manifest, status) refuse a private
@@ -2934,7 +2970,10 @@ export class Operations {
     if (name === "client.describe") return describeWorkspace(store);
     if (name === "workspace.examples") return listExamples();
     if (name === "workspace.seed")
-      return seedExample(store, input, expectedRevision);
+      return seedExample(store, input, expectedRevision, {
+        specRoot: () => this.exampleSpecRoot(),
+        createDraft: (spec) => this.createSpecDraft({ spec }, context),
+      });
     if (
       [
         "task.update",
@@ -4683,12 +4722,15 @@ export class Operations {
             return settings;
           });
     if (name === "publication.retry") return { retryRequested: true };
-    if (name === "query")
-      return queryTasks(this.read(), {
+    if (name === "query") {
+      // Each row says the state the page shows for it, beside its status.
+      const data = this.read();
+      return queryTasks(data, {
         scope: "all",
         ...input,
         claimed: claimedOrNone(store),
-      });
+      }).map(withGraphState(store, data));
+    }
     if (name === "search.result") {
       const run = store.get("runs", input.id);
       if (!run || !run.prompt?.startsWith("NUPP_PROMPT_SEARCH"))
@@ -4767,7 +4809,8 @@ export class Operations {
       });
       return { view, explanation: view.caption };
     }
-    if (name === "task.get") return this.detail(input.id);
+    if (name === "task.get")
+      return withGraphState(store, this.read())(this.detail(input.id));
     if (name === "report.save")
       return store.mutate(
         "Save report " + (input.title || ""),
@@ -5730,19 +5773,7 @@ export class Operations {
     if (name === "plan.create") {
       assertPlanAnswerWrite(store, { id: input.id || input.spec }, context);
       if (input.spec === undefined) return createPlan(store, input);
-      const spec = this.readSpec(input.spec);
-      if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
-      const previousHash = store.get("plans", input.id || input.spec)?.hash;
-      const created = createSpecPlan(
-        store,
-        { ...input, ...(spec.home ? { home: spec.home } : {}) },
-        spec,
-      );
-      recordPlanReviewWriter(store, created, {
-        previousHash,
-        caller: context.caller,
-      });
-      return created;
+      return this.createSpecDraft(input, context);
     }
     if (name === "plan.save") {
       assertPlanAnswerWrite(store, { id: input.id }, context);

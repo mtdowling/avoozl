@@ -12,6 +12,7 @@ import { demoClient } from './demo-api.ts'
 import { Pause, Play } from './icons.ts'
 import { fixturesClient, type DemoFixtures } from './demo-fixtures.ts'
 import { errorMessage } from './workspace-api.ts'
+import { TAGLINE } from '../../../src/work-split.mjs'
 
 interface Demo {
   active: boolean
@@ -154,7 +155,7 @@ export function DemoControls() {
 
 // What Avoozl is, and what the demo is. This is the one place the page says it.
 const DEMO_INTRO =
-  'Avoozl turns your specs and epics into a graph of tasks, then Avoozl’s workers code the ready ones. This is a made-up sample so you can look around. Nothing you do here changes your work, GitHub or agents.'
+  TAGLINE + ' This is a made-up sample so you can look around. Nothing you do here changes your work, GitHub or agents.'
 
 export function DemoBar() {
   const demo = useDemo()

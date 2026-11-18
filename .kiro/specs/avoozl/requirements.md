@@ -30,6 +30,10 @@ and "never merges" text is history. The built page is no longer in git
 (2026-11-18, Requirement 91.6): the Avoozl worker is the only coder, and
 Issue Radar is an intake source only, so older text about a repository's
 `coder`, a Radar-coded repository or Radar's release queue is history.
+Scope (2026-11-18, owner decision): Avoozl takes specs of any size, and a
+light spec with one task becomes one pull request. The epics-only scope
+statement and its one-pull-request rule of thumb (`radar-coder` RC13.1,
+RC13.2) are history; `src/work-split.mjs` holds the statement in use.
 
 ## Introduction
 
