@@ -47,12 +47,13 @@ export function SpecChangedModal(props: { workspaceId: string; client: Client; p
       width="52rem"
       title={`Spec changed: ${props.title}`}
       backLabel="Later"
+      dismissLabel="Cancel"
       attrs={{ 'data-spec-changed-dialog': '' }}
       onDismiss={() => props.onClose('Nothing was written.')}
       footer={
         <>
           {why && <span className="text-sm text-muted">{why}</span>}
-          <Btn onClick={() => void apply()} disabled={busy || why !== null}>
+          <Btn primary onClick={() => void apply()} disabled={busy || why !== null}>
             Approve change and apply
           </Btn>
         </>

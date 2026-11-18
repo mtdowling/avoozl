@@ -74,6 +74,7 @@ function InstanceModal(props: { workspaceId: string; onClose: () => void }) {
       title="Instance name"
       width="26rem"
       backLabel="Cancel"
+      dismissLabel="Cancel"
       onDismiss={props.onClose}
       footer={
         <>

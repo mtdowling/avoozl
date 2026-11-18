@@ -33,6 +33,7 @@ import { ListDetailLayout } from './ListDetailLayout.tsx'
 import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './Modal.tsx'
+import { Button } from './Button.tsx'
 import { PlanReviewSummary, REVIEW_POLL_MS, ReviewWorking, RevisionChanged } from './PlanReviewSummary.tsx'
 import { SpecGraph } from './SpecGraph.tsx'
 import { DocTabs, ReviewView } from './ReviewView.tsx'
@@ -1425,6 +1426,7 @@ export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; cl
       role="alertdialog"
       width="32rem"
       backLabel="Cancel"
+      dismissLabel="Cancel"
       focusClose
       attrs={{ 'data-archive-plan': true }}
       title={`Archive the spec ${row.name}?`}
@@ -1510,15 +1512,16 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
       role="alertdialog"
       width="32rem"
       backLabel="Cancel"
+      dismissLabel="Cancel"
       focusClose
       attrs={{ 'data-delete-plan': preview?.retire ? 'retire' : 'draft' }}
       title={`Delete the spec ${preview?.title ?? row.name}?`}
       onDismiss={() => props.onDone(null)}
       footer={
         <>
-          <Btn type="button" data-danger disabled={!preview || busy || blocked} onClick={() => void run()} style={{ ...COMPACT_BTN, background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
+          <Button type="button" variant="danger" disabled={!preview || busy || blocked} onClick={() => void run()} style={COMPACT_BTN}>
             Delete spec
-          </Btn>
+          </Button>
         </>
       }
     >
@@ -1667,7 +1670,7 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
     finally { setBusy(false) }
   }
   return (
-    <Modal id="avoozl-approve-spec" title={`Approve ${plan.spec || plan.title}?`} width="36rem" height="34rem" backLabel="Cancel" focusClose attrs={{ 'data-approve-spec': true }} onDismiss={() => props.onDone(null)} footer={
+    <Modal id="avoozl-approve-spec" title={`Approve ${plan.spec || plan.title}?`} width="36rem" height="34rem" backLabel="Cancel" dismissLabel={pending ? 'Close' : 'Cancel'} focusClose attrs={{ 'data-approve-spec': true }} onDismiss={() => props.onDone(null)} footer={
       <>
         {!pending && <SmallBtn primary disabled={busy} onClick={() => void run()} attrs={{ 'data-approve-spec-go': true }}>Approve spec</SmallBtn>}
       </>
@@ -1797,6 +1800,7 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
       height="34rem"
       title={label}
       backLabel="Cancel"
+      dismissLabel={finished ? 'Close' : 'Cancel'}
       focusClose
       attrs={{ 'data-approve-specs': result ? (result.pending ? 'pending' : 'failed') : 'confirm' }}
       onDismiss={() => props.onDone(finished ? 'Nothing approved yet. Merge the approval pull request, then approve again.' : null)}

@@ -58,10 +58,10 @@ for (const [width, dark] of [[1280, false], [1280, true], [390, false], [390, tr
     const footer = await page.evaluate(`(() => {
       const foot = document.querySelector('[data-edit-workspace-modal] [data-modal-footer]')
       const remove = foot.querySelector('[data-remove-workspace]'), buttons = [...foot.querySelectorAll('button')].filter((b) => b.getBoundingClientRect().width > 0)
-      return { first: buttons[0] === remove, left: Math.round(remove.getBoundingClientRect().left - foot.getBoundingClientRect().left), color: getComputedStyle(remove).color, danger: getComputedStyle(document.documentElement).getPropertyValue('--danger').trim(), text: remove.textContent.trim() }
+      return { first: buttons.every((b) => b === remove || b.getBoundingClientRect().left >= remove.getBoundingClientRect().right - 1), left: Math.round(remove.getBoundingClientRect().left - foot.getBoundingClientRect().left), color: getComputedStyle(remove).color, danger: getComputedStyle(document.documentElement).getPropertyValue('--danger').trim(), text: remove.textContent.trim() }
     })()`)
     assert.equal(footer.first, true, 'the first footer button')
-    assert.equal(await page.evaluate(`document.activeElement?.textContent.trim()`), 'Close', 'focus starts on Close, not Remove')
+    assert.equal(await page.evaluate(`document.activeElement?.textContent.trim()`), 'Cancel', 'focus starts on Cancel, not Remove')
     assert.ok(footer.left <= 21, `at the footer's left (${footer.left})`)
     assert.equal(footer.text, 'Remove')
     assert.notEqual(footer.color, 'rgb(0, 0, 0)', 'red text')
@@ -79,10 +79,10 @@ for (const [width, dark] of [[1280, false], [1280, true], [390, false], [390, tr
     assert.equal(confirm.title, 'Remove Product launch from Avoozl?')
     assert.match(confirm.lines, /\/plans\/launch/)
     assert.match(confirm.lines, /Nothing is deleted/)
-    assert.deepEqual(confirm.buttons, ['Stop it first', 'Remove from list', 'Close'])
+    assert.deepEqual(confirm.buttons, ['Cancel', 'Stop it first', 'Remove from list'])
     if (shots) await page.screenshot(path.join(shots, `confirm-${width}-${dark ? 'dark' : 'light'}.png`))
     // Cancel goes back to the edit dialog and removes nothing.
-    await page.evaluate(`[...document.querySelectorAll('[data-remove-workspace-confirm] button')].find((b) => b.textContent.trim() === 'Close').click()`)
+    await page.evaluate(`[...document.querySelectorAll('[data-remove-workspace-confirm] button')].find((b) => b.textContent.trim() === 'Cancel').click()`)
     await page.until(`!document.querySelector('[data-remove-workspace-confirm]') && Boolean(document.querySelector('[data-edit-workspace-modal]'))`)
     assert.deepEqual(await page.evaluate('window.__wsCalls'), [])
     assert.deepEqual(page.errors, [])
@@ -109,5 +109,5 @@ test('a workspace that is already off has no Stop it first', { skip }, async () 
   await openRemove(1280, false, { stopped: '1' })
   await click('[data-remove-workspace]')
   await page.until(`Boolean(document.querySelector('[data-remove-workspace-confirm]'))`)
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-remove-workspace-confirm] [data-modal-footer] button')].map((b) => b.textContent.trim())`), ['Remove from list', 'Close'])
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-remove-workspace-confirm] [data-modal-footer] button')].map((b) => b.textContent.trim())`), ['Cancel', 'Remove from list'])
 })

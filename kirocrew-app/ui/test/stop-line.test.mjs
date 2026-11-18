@@ -67,7 +67,7 @@ test('the Delivery heading has the Stop the line icon with a stopped state, and 
   assert.match(dialog, /lineChanged\(\)/)
   assert.match(banner, /onChanged\?\.\(\)\n\s*lineChanged\(\)/)
   assert.match(dialog, /<RadioFold/, 'scope is a radio fold-out group')
-  assert.match(dialog, /background: 'var\(--danger\)'/)
+  assert.match(dialog, /variant="danger"/)
   assert.match(dialog, /Reason <span className="text-xs text-muted">\(required\)<\/span>/)
   assert.match(dialog, /<Modal\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{close\}/)
   // Resume runs only after the confirm says yes.

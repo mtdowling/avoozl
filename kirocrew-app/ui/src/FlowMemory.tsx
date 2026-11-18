@@ -8,7 +8,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
-import { AskForHelp, SectionHeading, dangerStyle, useConfirm } from './controls.tsx'
+import { AskForHelp, SectionHeading, useConfirm } from './controls.tsx'
+import { Button } from './Button.tsx'
 import { relativeTime } from './task-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -131,9 +132,9 @@ function PromptVersions({ prompts, busy, onRevert, onRebase }: { prompts: Prompt
               {p.versions.length > 0 && <span className="text-xs text-muted">last change {relativeTime(p.versions.at(-1)!.at, Date.now())}</span>}
               {p.drift.length > 0 && <Badge variant="warning">built-in changed</Badge>}
               {p.versions.length > 0 && (
-                <Btn type="button" disabled={busy} onClick={() => onRevert(p)} style={dangerStyle}>
+                <Button type="button" variant="danger" disabled={busy} onClick={() => onRevert(p)}>
                   Revert
-                </Btn>
+                </Button>
               )}
             </span>
             {p.drift.map((d) => (
