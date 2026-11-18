@@ -18,7 +18,11 @@ import {
 import { startSupervisor, supervisorPaths } from "../supervisor.mjs";
 import { sandboxKind } from "../sandbox.mjs";
 import { planVerifierDispatches } from "../delivery.mjs";
-import { drainProcessRequests, processBrief } from "../executors/process.mjs";
+import {
+  drainProcessRequests,
+  processBrief,
+  sessionProject,
+} from "../executors/process.mjs";
 import { enqueueSessionRequests } from "../session-requests.mjs";
 import { newPlanStarts, newPlanTask } from "../new-plan.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -310,4 +314,44 @@ test("a process project's verifier and new-plan planner requests name process", 
   store.put("projects", { id: "app", root: checkout });
   assert.equal(newPlanStarts(store, {})[0].executor, "kirocrew");
   assert.equal(newPlanStarts(store, {})[0].worktree, checkout);
+});
+
+test("a process planner whose spec folder is in no checkout runs with its repository's sandbox", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-roles-plan-"));
+  const store = new Store(path.join(root, "workspace.sqlite"));
+  t.after(() => {
+    store.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  store.importSnapshot(snapshot());
+  const sandbox = { network: ["localhost:1"] };
+  store.put("projects", {
+    id: "app",
+    root: path.join(root, "app"),
+    executor: "process",
+    sandbox,
+  });
+  // A local workspace's own folder holds its specs, outside the checkout.
+  const specRoot = path.join(root, "workspace");
+  store.setMeta("newPlans", [
+    {
+      name: "cache",
+      goal: "x",
+      repositories: ["app"],
+      brief: "Mode: draft.",
+      root: specRoot,
+      attempt: 1,
+    },
+  ]);
+  const [planner] = newPlanStarts(store, { harness: "claude-code" });
+  assert.equal(planner.executor, "process");
+  assert.equal(planner.repository, "app");
+  assert.equal(
+    planner.worktree,
+    path.join(specRoot, ".kiro", "specs", "cache"),
+  );
+  assert.deepEqual(sessionProject(store, planner)?.sandbox, sandbox);
+  const [chat] = newPlanStarts(store, { harness: "kirocrew" });
+  assert.equal(chat.executor, "kirocrew");
+  assert.equal(chat.repository, undefined, "a chat keeps its Specs folder");
 });
