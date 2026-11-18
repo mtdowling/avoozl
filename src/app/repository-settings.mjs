@@ -31,6 +31,7 @@ import {
   validateActivitySettings,
 } from "./activity-log.mjs";
 import { fail } from "./store.mjs";
+import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.mjs";
 import { deriveGitHubKeys, rolesNote, withRoles } from "./repository-roles.mjs";
 
 const MAX_CONFIG_BYTES = 1024 * 1024;
@@ -102,26 +103,63 @@ function landingOf(value, id) {
   return value;
 }
 
+// Every key one `projects` entry, its sandbox, a legacy issue intake entry
+// and a legacy Queue entry accept. A test holds
+// src/avoozl-config.schema.json to these lists.
+export const PROJECT_KEYS = Object.freeze([
+  "name",
+  "root",
+  "baseBranch",
+  "integrationBranch",
+  "worktreeRoot",
+  "checks",
+  "checksEnv",
+  "worktreeHelper",
+  "landing",
+  "planning",
+  "editable",
+  "executor",
+  "harness",
+  "sandbox",
+]);
+export const SANDBOX_KEYS = Object.freeze([
+  "writeRoots",
+  "allowCommands",
+  "network",
+]);
+export const ISSUE_INTAKE_KEYS = Object.freeze([
+  "projectId",
+  "workspaceRepositoryId",
+  "assignee",
+  "label",
+  "managedLabel",
+  "enabled",
+  "autoStart",
+  "provider",
+  "model",
+  "allowedActors",
+  "minimumPermission",
+]);
+export const PLANNING_REPOSITORY_KEYS = Object.freeze([
+  "root",
+  "remote",
+  "branch",
+  "directory",
+]);
+export const QUEUE_KEYS = Object.freeze([
+  "projectId",
+  "workspaceRepositoryId",
+  "enabled",
+  "includeIssues",
+  "includePullRequests",
+  "visibility",
+  "labelBehaviors",
+]);
+
 function projectInput(value, id, base) {
   if (!record(value)) fail(`Project ${id} must contain a JSON object.`);
-  const allowed = new Set([
-    "name",
-    "root",
-    "baseBranch",
-    "integrationBranch",
-    "worktreeRoot",
-    "checks",
-    "checksEnv",
-    "worktreeHelper",
-    "landing",
-    "planning",
-    "editable",
-    "executor",
-    "harness",
-    "sandbox",
-  ]);
   for (const key of Object.keys(value))
-    if (!allowed.has(key))
+    if (!PROJECT_KEYS.includes(key))
       fail(`Unknown project setting projects.${id}.${key}.`);
   const checks = value.checks ?? [];
   if (
@@ -200,7 +238,7 @@ function executorInput(value, id) {
     if (!record(value.sandbox))
       fail(`Project ${id} sandbox must be an object.`);
     for (const key of Object.keys(value.sandbox))
-      if (!["writeRoots", "allowCommands", "network"].includes(key))
+      if (!SANDBOX_KEYS.includes(key))
         fail(`Unknown project setting projects.${id}.sandbox.${key}.`);
     const { writeRoots, allowCommands, network } = value.sandbox;
     sandboxWriteRoots(writeRoots);
@@ -244,21 +282,8 @@ function repositoryId(value, label) {
 function githubIssueInput(value, repository) {
   if (!record(value))
     fail(`GitHub issue intake ${repository} must contain a JSON object.`);
-  const allowed = new Set([
-    "projectId",
-    "workspaceRepositoryId",
-    "assignee",
-    "label",
-    "managedLabel",
-    "enabled",
-    "autoStart",
-    "provider",
-    "model",
-    "allowedActors",
-    "minimumPermission",
-  ]);
   for (const key of Object.keys(value))
-    if (!allowed.has(key))
+    if (!ISSUE_INTAKE_KEYS.includes(key))
       fail(`Unknown GitHub issue intake setting ${repository}.${key}.`);
   const allowedActors = value.allowedActors ?? [];
   if (
@@ -308,17 +333,8 @@ function githubIssueInput(value, repository) {
 function githubQueueInput(value, repository) {
   if (!record(value))
     fail(`GitHub Queue ${repository} must contain a JSON object.`);
-  const allowed = new Set([
-    "projectId",
-    "workspaceRepositoryId",
-    "enabled",
-    "includeIssues",
-    "includePullRequests",
-    "visibility",
-    "labelBehaviors",
-  ]);
   for (const key of Object.keys(value))
-    if (!allowed.has(key))
+    if (!QUEUE_KEYS.includes(key))
       fail(`Unknown GitHub Queue setting ${repository}.${key}.`);
   const visibility = value.visibility || "private";
   if (!["private", "public"].includes(visibility))
@@ -375,7 +391,7 @@ function planningRepositoryInput(value, base) {
   if (!record(value))
     fail("Planning repository configuration must contain a JSON object.");
   for (const key of Object.keys(value))
-    if (!["root", "remote", "branch", "directory"].includes(key))
+    if (!PLANNING_REPOSITORY_KEYS.includes(key))
       fail(`Unknown planning repository setting ${key}.`);
   const root = text(value.root, "Planning repository root");
   return {
@@ -545,7 +561,7 @@ function parse(text, filename, { portable = false } = {}) {
 // accepted task's finished runs leave the conversation list. `driver` and
 // `routing` configured the removed agent host; files that set them still
 // load, and the values are ignored.
-const CONVERSATION_KEYS = new Set([
+export const CONVERSATION_KEYS = new Set([
   "autoArchiveCompleted",
   "driver",
   "routing",
@@ -1375,7 +1391,7 @@ export class RepositorySettings {
   updateValue(before) {
     const value = structuredClone(before.value);
     value.version = 1;
-    value.$schema = "https://avoozl.dev/schema/repository-config-v1.json";
+    value.$schema = REPOSITORY_CONFIG_SCHEMA_URL;
     if (before.exists) return value;
     const applied = appliedActions(this.store);
     if (Object.keys(applied.projects).length)

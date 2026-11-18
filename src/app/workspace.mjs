@@ -5,6 +5,7 @@ import { workspaceConfig } from "./config.mjs";
 import { Operations } from "./operations.mjs";
 import { generateNamespace } from "./github-marker.mjs";
 import { SUPERSEDED_STATUS } from "./supersede.mjs";
+import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.mjs";
 
 const portable = (relative) => relative.split(path.sep).join("/");
 
@@ -73,7 +74,7 @@ export function initializeWorkspace(
   }
   fs.mkdirSync(config.workspaceRoot, { recursive: true });
   const saved = {
-    $schema: "https://avoozl.dev/schema/repository-config-v1.json",
+    $schema: REPOSITORY_CONFIG_SCHEMA_URL,
     version: 1,
     name,
     // Owns this workspace's GitHub task IDs (design §3.4); never changes.
