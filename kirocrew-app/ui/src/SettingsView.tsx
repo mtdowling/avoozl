@@ -1,5 +1,7 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { Tooltip } from './Tooltip.tsx'
+import { CheckRow, FieldRow, Marker, RawKey, fieldDescribedBy, type FieldWidth } from './FieldRow.tsx'
+import { Tabs, TabPanel, useTabParam } from './Tabs.tsx'
+import { dirtyTabs } from './tabs.ts'
 import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
@@ -101,7 +103,6 @@ const grid = (min = 220): CSSProperties => ({
   gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${min}px), 1fr))`,
   alignItems: 'start',
 })
-const WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 
 // Release N (release.capacity) is the one concurrency knob: Radar crews set
 // their own, and Avoozl's local workers (the old `concurrency`) are retired.
@@ -129,7 +130,7 @@ export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   workspaces: 'The Avoozl workspaces on this machine, each a folder with its own task database, and the settings that stay on this computer.',
   github:
-    "The GitHub settings of the selected workspace, for every repository in it: new tasks and issues, sync pace, the Project board, Set up GitHub, which creates what's missing after showing each change, and the GitHub calls Avoozl made.",
+    'The GitHub settings of the selected workspace, for every repository in it. Each tab is one group; one Save writes them all to .avoozl.json.',
   radar:
     'How Avoozl hands work to Issue Radar crews and reads their labels, one repository at a time. Who codes is set per repository in Repository setup. Save only writes .avoozl.json.',
   repositories:
@@ -181,56 +182,14 @@ const STATUS_LABELS: Record<string, string> = {
   deferred: 'Deferred option',
 }
 
-// "(required)" or "(optional)" in plain muted text, with the condition a
-// requirement holds under. Never red or bold: a missing value says so when
-// you save, not before.
-export function Marker({ rule }: { rule?: FieldRule }) {
-  if (!rule) return null
-  return rule.required ? (
-    <span className="text-xs text-muted" data-marker="required">
-      (required{rule.when ? ` ${rule.when}` : ''})
-    </span>
-  ) : (
-    <span className="text-xs text-muted" data-marker="optional">
-      (optional)
-    </span>
-  )
-}
+// Every field here is the shared FieldRow (FieldRow.tsx).
+export { Marker }
 
-// A label with its marker, the raw `.avoozl.json` key as small secondary
-// text, and what a blank field means.
-function Field(props: {
-  id: string
-  label: string
-  raw?: string
-  rule?: FieldRule
-  width?: keyof typeof WIDTH
-  // One line under the field that says what it does, always shown (it works
-  // on touch, unlike a hover tooltip). The input names it in aria-describedby.
-  help?: string
-  children: ReactNode
-}) {
+function Field(props: { id: string; label: string; raw?: string; rule?: FieldRule; width?: FieldWidth; help?: string; children: ReactNode }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 text-sm" style={props.width ? { maxWidth: WIDTH[props.width] } : undefined}>
-      <label htmlFor={props.id} className="flex flex-wrap items-baseline gap-x-2">
-        <span className="font-medium">{props.label}</span>
-        <Marker rule={props.rule} />
-      </label>
+    <FieldRow id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width} help={props.help}>
       {props.children}
-      {props.help && (
-        <span id={`${props.id}-help`} className="text-xs text-muted" data-field-help>
-          {props.help}
-        </span>
-      )}
-      {props.rule?.blank && <span className="text-xs text-muted">{props.rule.blank}</span>}
-      {props.raw && (
-        <Tooltip text=".avoozl.json key">
-          <code className="text-[11px] text-muted" style={{ overflowWrap: 'anywhere', opacity: 0.8 }}>
-            {props.raw}
-          </code>
-        </Tooltip>
-      )}
-    </div>
+    </FieldRow>
   )
 }
 
@@ -242,7 +201,7 @@ function Text(props: {
   placeholder?: string
   raw?: string
   rule?: FieldRule
-  width?: keyof typeof WIDTH
+  width?: FieldWidth
   type?: string
   help?: string
 }) {
@@ -251,7 +210,7 @@ function Text(props: {
       <Input
         id={props.id}
         type={props.type}
-        aria-describedby={props.help ? `${props.id}-help` : undefined}
+        aria-describedby={fieldDescribedBy(props.id, props)}
         value={props.value}
         placeholder={props.placeholder}
         aria-required={props.rule?.required || undefined}
@@ -270,13 +229,14 @@ function Choice(props: {
   onChange: (value: string) => void
   raw?: string
   rule?: FieldRule
-  width?: keyof typeof WIDTH
+  width?: FieldWidth
 }) {
   return (
     <Field id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width}>
       <select
         id={props.id}
         value={props.value}
+        aria-describedby={fieldDescribedBy(props.id, props)}
         onChange={(event) => props.onChange(event.target.value)}
         className="rounded border px-2 py-1 text-sm"
         style={selectStyle}
@@ -296,10 +256,13 @@ function Hint({ children }: { children: ReactNode }) {
   return <p className="mt-1 text-xs text-muted">{children}</p>
 }
 
-// A heading with its one-line blurb, then the fields.
+// A heading with its one-line blurb, then the fields. A `sub` section is a
+// group inside a card: it starts with a top border and padding, so the
+// groups of one card read apart.
 export function Section(props: { title: string; blurb?: string; actions?: ReactNode; children?: ReactNode; level?: 'card' | 'sub'; icon?: LucideIcon }) {
+  const sub = props.level === 'sub'
   return (
-    <div className="flex flex-col gap-2.5" data-section={props.title}>
+    <div className="flex flex-col gap-2.5" data-section={props.title} data-sub-section={sub ? '' : undefined} style={sub ? { borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 } : undefined}>
       <SectionHeading level={props.level === 'sub' ? 4 : 3} title={props.title} blurb={props.blurb} actions={props.actions} icon={props.icon} />
       {props.children}
     </div>
@@ -500,11 +463,7 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
           </ul>
         )}
         {labels?.labels && rows.length === 0 && <span className="text-xs text-muted">{repository} has no labels yet.</span>}
-        <Tooltip text=".avoozl.json key">
-          <code className="self-start text-[11px] text-muted" style={{ opacity: 0.8 }}>
-            untriaged.triageLabels
-          </code>
-        </Tooltip>
+        <RawKey name="untriaged.triageLabels" />
       </fieldset>
       <div className="flex flex-wrap items-end gap-3">
         <Text
@@ -518,19 +477,13 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
           value={value.ignoreOlderThanDays}
           onChange={(ignoreOlderThanDays) => set({ ignoreOlderThanDays })}
         />
-        <div className="flex flex-col gap-1 text-sm">
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={value.notify} onChange={(event) => set({ notify: event.target.checked })} />
-            <span className="font-medium">Notify me when the count goes up</span>
-            <Marker rule={{ required: false }} />
-          </label>
-          <span className="text-xs text-muted">At most one Kiro Crew notice an hour, with the counts. Off by default.</span>
-          <Tooltip text=".avoozl.json key">
-            <code className="self-start text-[11px] text-muted" style={{ opacity: 0.8 }}>
-              untriaged.notify
-            </code>
-          </Tooltip>
-        </div>
+        <CheckRow
+          label="Notify me when the count goes up"
+          help="At most one Kiro Crew notice an hour, with the counts. Off by default."
+          raw="untriaged.notify"
+          checked={value.notify}
+          onChange={(notify) => set({ notify })}
+        />
       </div>
     </Section>
   )
@@ -556,10 +509,7 @@ function RuleEditor(props: {
       </div>
       <MatchField id={`${id}-match`} value={rule.match} repository={props.repository} workspaceId={props.workspaceId} onChange={(value) => set({ match: value })} />
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-1.5 text-sm">
-          <input type="checkbox" checked={rule.autoPublishChildren} onChange={(event) => set({ autoPublishChildren: event.target.checked })} />
-          Publish a clean breakdown's sub-issues without a re-label
-        </label>
+        <CheckRow label="Publish a clean breakdown's sub-issues without a re-label" raw="autoPublishChildren" checked={rule.autoPublishChildren} onChange={(autoPublishChildren) => set({ autoPublishChildren })} />
         <span className="ml-auto">
           <DangerBtn
             icon={Trash2}
@@ -767,10 +717,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
           <Text id={`${id}-allow`} label="Forward these paths anyway" raw="mirror.forwardAllow" placeholder={MIRROR_DEFAULT_TEXT.forwardAllow} value={mirror.forwardAllow} onChange={(value) => set({ forwardAllow: value })} />
           <Text id={`${id}-trusted`} label="Trusted persons" raw="mirror.trustedPersons" placeholder="login, login" value={mirror.trustedPersons} onChange={(value) => set({ trustedPersons: value })} />
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={mirror.squash} onChange={(event) => set({ squash: event.target.checked })} />
-          Squash into one commit (mirror.squash, default on)
-        </label>
+        <CheckRow label="Squash into one commit" help="On by default." raw="mirror.squash" checked={mirror.squash} onChange={(squash) => set({ squash })} />
       </Fold>
     </div>
   )
@@ -1221,76 +1168,123 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
 }
 
 // The GitHub settings that belong to the whole workspace, on the GitHub page:
-// what no single repository's role can say. Switching a role never deletes a
-// stored setting.
+// what no single repository's role can say. One tab per group, the open one
+// in the address (?github=<tab>); the page's one Save bar writes them all,
+// and a tab with unsaved changes shows a dot. Switching a role never
+// deletes a stored setting.
+export const GITHUB_TABS = [
+  { key: 'issues', label: 'New tasks' },
+  { key: 'sync', label: 'Sync pace' },
+  { key: 'project', label: 'Project' },
+  { key: 'setup', label: 'Set up GitHub' },
+  { key: 'calls', label: 'GitHub calls' },
+] as const
+export type GitHubTab = (typeof GITHUB_TABS)[number]['key']
+const GITHUB_TAB_KEYS = GITHUB_TABS.map((tab) => tab.key)
+// The form keys each tab edits; Set up and GitHub calls edit none.
+export const GITHUB_TAB_FIELDS: Record<GitHubTab, readonly (keyof SettingsForm)[]> = {
+  issues: ['defaultAuthority', 'epicIssueType', 'maxPerParent', 'includeDone'],
+  sync: ['cacheSeconds', 'writesPerMinute', 'writesPerHour'],
+  project: ['projectOwner', 'projectNumber', 'fields', 'statusValues'],
+  setup: [],
+  calls: [],
+}
+
 function WorkspaceGitHub(props: {
   form: SettingsForm
+  saved: SettingsForm
   choices: SettingsChoices
   set: (change: Partial<SettingsForm>) => void
   setup: ReactNode
+  rate: RateView | undefined
 }) {
   const { form, choices, set } = props
+  const [tab, pick] = useTabParam<GitHubTab>('github', GITHUB_TAB_KEYS, 'issues', 'Back to the last GitHub tab')
   const shown = visibleSettings(form.mode)
   const kept = unusedInLocal(form)
   if (!isGitHubMode(form.mode))
     return (
-      <Card>
-        <Section title="GitHub settings" blurb="They apply once a repository has a GitHub role in Repository setup.">
-          <div className="flex flex-col gap-1.5 text-sm" data-local-note>
-            <p>{LOCAL_HIDDEN_LINE}</p>
-            <p className="text-xs text-muted">
-              Folders, landing branches and checks are under Repository setup. Worker and reviewer chats come from delivery in .avoozl.json.
-            </p>
-            {kept.length > 0 && <p className="text-xs text-muted" data-kept>Kept, not used: {kept.join(', ')}. Give a repository a GitHub role to use them again.</p>}
-          </div>
-        </Section>
-      </Card>
+      <>
+        <Card>
+          <Section title="GitHub settings" blurb="They apply once a repository has a GitHub role in Repository setup.">
+            <div className="flex flex-col gap-1.5 text-sm" data-local-note>
+              <p>{LOCAL_HIDDEN_LINE}</p>
+              <p className="text-xs text-muted">
+                Folders, landing branches and checks are under Repository setup. Worker and reviewer chats come from delivery in .avoozl.json.
+              </p>
+              {kept.length > 0 && <p className="text-xs text-muted" data-kept>Kept, not used: {kept.join(', ')}. Give a repository a GitHub role to use them again.</p>}
+            </div>
+          </Section>
+        </Card>
+        <RateBlock rate={props.rate} />
+      </>
     )
+  const dirty = dirtyTabs(form, props.saved, GITHUB_TAB_FIELDS)
   return (
-    <>
-      <Card>
-        <Section title="New tasks and issues" blurb="Who owns a new task, and how its GitHub issue is made. For every repository in this workspace.">
-          <div style={grid()}>
-            <Choice
-              id="avoozl-settings-authority"
-              label="New tasks belong to"
-              raw="defaultAuthority"
-              rule={{ required: false, blank: form.mode ? 'blank: github' : 'blank: local' }}
-              value={form.defaultAuthority}
-              options={choices.authorities}
-              none={`Default: ${form.mode ? 'github' : 'local'}`}
-              width="md"
-              onChange={(value) => set({ defaultAuthority: value })}
-            />
-            <Text id="avoozl-settings-epic" label="Epic issue type" raw="epicIssueType" rule={{ required: false, blank: 'blank: epics get no issue type' }} placeholder="Epic" width="md" value={form.epicIssueType} onChange={(value) => set({ epicIssueType: value })} />
-            {shown.has('subIssueCap') && (
-              <Text id="avoozl-settings-sub-issues" label="Sub-issues per parent" raw="subIssues.maxPerParent" rule={{ required: false, blank: SUB_ISSUE_LINE }} placeholder="100" type="number" width="sm" value={form.maxPerParent} onChange={(value) => set({ maxPerParent: value })} />
-            )}
-          </div>
-          <label className="flex items-center gap-1.5 text-sm">
-            <input type="checkbox" checked={form.includeDone} onChange={(event) => set({ includeDone: event.target.checked })} />
-            Make issues for tasks already done when a spec is approved <span className="text-xs text-muted">issues.includeDone</span>
-          </label>
-        </Section>
-      </Card>
-      <Card>
-        <Section title="Sync pace" blurb="How long Avoozl keeps GitHub's answers, and how fast it writes. Every write from the app, CLI and tick shares these limits.">
-          <div style={grid()}>
-            <Text id="avoozl-settings-cache" label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={{ required: false, blank: 'blank: 60. 0 turns the cache off' }} placeholder="60" type="number" width="sm" value={form.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
-            <Text id="avoozl-settings-writes-minute" label="GitHub writes a minute" raw="writesPerMinute" rule={{ required: false, blank: 'blank: 60. At most 80' }} placeholder="60" type="number" width="sm" value={form.writesPerMinute} onChange={(value) => set({ writesPerMinute: value })} />
-            <Text id="avoozl-settings-writes-hour" label="GitHub writes an hour" raw="writesPerHour" rule={{ required: false, blank: 'blank: 400. At most 500' }} placeholder="400" type="number" width="sm" value={form.writesPerHour} onChange={(value) => set({ writesPerHour: value })} />
-          </div>
-        </Section>
-      </Card>
-      <Card>
-        <ProjectFields form={form} choices={choices} set={set} />
-      </Card>
-      <Card>
-        <Section title="Set up GitHub" blurb="Creates the labels, Project and fields the settings above name. It reads GitHub first and shows every write before making one.">
-          {props.setup}
-        </Section>
-      </Card>
-    </>
+    <div className="flex min-w-0 flex-col gap-3.5" data-github-tabs>
+      <Tabs id="avoozl-github" label="GitHub settings" tabs={GITHUB_TABS.map((item) => ({ ...item, dirty: dirty.has(item.key) }))} current={tab} onPick={pick} />
+      <TabPanel id="avoozl-github" current={tab}>
+        {tab === 'issues' && (
+          <Card>
+            <Section title="New tasks and issues" blurb="Who owns a new task, and how its GitHub issue is made. For every repository in this workspace.">
+              <div style={grid()}>
+                <Choice
+                  id="avoozl-settings-authority"
+                  label="New tasks belong to"
+                  raw="defaultAuthority"
+                  rule={{ required: false, blank: form.mode ? 'blank: github' : 'blank: local' }}
+                  value={form.defaultAuthority}
+                  options={choices.authorities}
+                  none={`Default: ${form.mode ? 'github' : 'local'}`}
+                  width="md"
+                  onChange={(value) => set({ defaultAuthority: value })}
+                />
+                <Text id="avoozl-settings-epic" label="Epic issue type" raw="epicIssueType" rule={{ required: false, blank: 'blank: epics get no issue type' }} placeholder="Epic" width="md" value={form.epicIssueType} onChange={(value) => set({ epicIssueType: value })} />
+                {shown.has('subIssueCap') && (
+                  <Text id="avoozl-settings-sub-issues" label="Sub-issues per parent" raw="subIssues.maxPerParent" rule={{ required: false, blank: SUB_ISSUE_LINE }} placeholder="100" type="number" width="sm" value={form.maxPerParent} onChange={(value) => set({ maxPerParent: value })} />
+                )}
+              </div>
+              <CheckRow label="Make issues for tasks already done when a spec is approved" help="Off: only open tasks get issues." raw="issues.includeDone" checked={form.includeDone} onChange={(includeDone) => set({ includeDone })} />
+            </Section>
+          </Card>
+        )}
+        {tab === 'sync' && (
+          <Card>
+            <Section title="Sync pace" blurb="How long Avoozl keeps GitHub's answers, and how fast it writes. Every write from the app, CLI and tick shares these limits.">
+              <div style={grid()}>
+                <Text id="avoozl-settings-cache" label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={{ required: false, blank: 'blank: 60. 0 turns the cache off' }} placeholder="60" type="number" width="sm" value={form.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
+                <Text id="avoozl-settings-writes-minute" label="GitHub writes a minute" raw="writesPerMinute" rule={{ required: false, blank: 'blank: 60. At most 80' }} placeholder="60" type="number" width="sm" value={form.writesPerMinute} onChange={(value) => set({ writesPerMinute: value })} />
+                <Text id="avoozl-settings-writes-hour" label="GitHub writes an hour" raw="writesPerHour" rule={{ required: false, blank: 'blank: 400. At most 500' }} placeholder="400" type="number" width="sm" value={form.writesPerHour} onChange={(value) => set({ writesPerHour: value })} />
+              </div>
+            </Section>
+          </Card>
+        )}
+        {tab === 'project' && (
+          <Card>
+            <ProjectFields form={form} choices={choices} set={set} />
+          </Card>
+        )}
+        {tab === 'setup' && (
+          <Card>
+            <Section title="Set up GitHub" blurb="Creates the labels, Project and fields the other tabs name. It reads GitHub first and shows every write before making one.">
+              {props.setup}
+            </Section>
+          </Card>
+        )}
+        {tab === 'calls' &&
+          (rateLines(props.rate).length || usageRows(props.rate).length ? (
+            <RateBlock rate={props.rate} />
+          ) : (
+            <Card>
+              <Section title="GitHub calls" blurb="The last rate-limit numbers GitHub sent, and the calls of the last hour by source.">
+                <p className="text-sm text-muted" data-empty="github-calls">
+                  No GitHub calls recorded yet. They show here after the next sync.
+                </p>
+              </Section>
+            </Card>
+          ))}
+      </TabPanel>
+    </div>
   )
 }
 
@@ -1421,7 +1415,8 @@ export function ProjectFields({ form, choices, set }: { form: SettingsForm; choi
           <Text id="avoozl-settings-project-owner" label="Owner" raw="project.owner" rule={PROJECT_FIELD_RULES.owner} placeholder="org or user" width="md" value={form.projectOwner} onChange={(value) => set({ projectOwner: value })} />
           <Text id="avoozl-settings-project-number" label="Number" raw="project.number" rule={PROJECT_FIELD_RULES.number} placeholder="2" type="number" width="md" value={form.projectNumber} onChange={(value) => set({ projectNumber: value })} />
         </div>
-        <h5 className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted">Field names</h5>
+        {choices.fields.length > 0 && (
+        <Section level="sub" title="Field names" blurb="The names of the Project's fields Avoozl fills. Blank uses the name shown.">
         <div style={grid(180)}>
           {choices.fields.map((key) => (
             <Text
@@ -1436,7 +1431,10 @@ export function ProjectFields({ form, choices, set }: { form: SettingsForm; choi
             />
           ))}
         </div>
-        <h5 className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted">Status options</h5>
+        </Section>
+        )}
+        {choices.statusValues.length > 0 && (
+        <Section level="sub" title="Status options" blurb="The Status options Avoozl reads. Blank uses the name shown.">
         <div style={grid(180)}>
           {choices.statusValues.map((key) => (
             <Text
@@ -1451,6 +1449,8 @@ export function ProjectFields({ form, choices, set }: { form: SettingsForm; choi
             />
           ))}
         </div>
+        </Section>
+        )}
       </Section>
     </div>
   )
@@ -1560,12 +1560,13 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
       ) : (
         <WorkspaceGitHub
           form={form}
+          saved={toForm(settings.github)}
           choices={choices}
           set={set}
+          rate={settings.rate}
           setup={<SetupWizard workspaceId={workspaceId} client={client} settings={settings} shared={sharedSetup(form)} onSaved={reload} />}
         />
       )}
-      {tab === 'github' && <RateBlock rate={settings.rate} />}
       <SaveFooter
         dirty={dirty}
         saving={saving}

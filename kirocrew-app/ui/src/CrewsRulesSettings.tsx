@@ -7,25 +7,16 @@
 import { Input } from '@kirocrew/app-sdk/ui'
 import { Fold } from './controls.tsx'
 import { FieldBox } from './FieldBox.tsx'
+import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
 import { RadioFold } from './RadioFold.tsx'
 import { AVOOZL_LABELS, CONFLICT_ACTIONS, CONFLICT_ACTION_TEXT, CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, rulesMode, valueSource, type RepositoryForm } from './settings-api.ts'
 
 function Line(props: { id: string; label: string; value: string; fallback: string; raw: string; onChange: (value: string) => void; type?: string; unit?: string; help?: string }) {
+  const note = valueSource(props.value, props.fallback, props.unit)
   return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <label htmlFor={props.id} className="text-sm font-medium">
-        {props.label} <span className="text-xs text-muted">{props.raw}</span>
-      </label>
-      {props.help && (
-        <span id={`${props.id}-help`} className="text-xs text-muted">
-          {props.help}
-        </span>
-      )}
-      <Input id={props.id} type={props.type} value={props.value} placeholder={props.fallback} aria-describedby={`${props.id}-source${props.help ? ` ${props.id}-help` : ''}`} onChange={(event) => props.onChange(event.target.value)} />
-      <span id={`${props.id}-source`} className="text-xs text-muted" data-source>
-        {valueSource(props.value, props.fallback, props.unit)}
-      </span>
-    </div>
+    <FieldRow id={props.id} label={props.label} raw={props.raw} help={props.help} note={<span data-source>{note}</span>}>
+      <Input id={props.id} type={props.type} value={props.value} placeholder={props.fallback} aria-describedby={fieldDescribedBy(props.id, { help: props.help, note })} onChange={(event) => props.onChange(event.target.value)} />
+    </FieldRow>
   )
 }
 

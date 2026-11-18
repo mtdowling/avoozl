@@ -51,8 +51,9 @@ test('Project fields: owner and number are required, every field name is optiona
   assert.match(project, /rule=\{PROJECT_FIELD_RULES\.owner\}/)
   assert.match(project, /rule=\{PROJECT_FIELD_RULES\.number\}/)
   assert.equal((project.match(/rule=\{PROJECT_FIELD_RULES\[key\]\}/g) ?? []).length, 2)
-  assert.match(settings, /data-marker="required"/)
-  assert.match(settings, /data-marker="optional"/)
+  // The marker is the shared field row's.
+  assert.match(source('FieldRow.tsx'), /data-marker="required"/)
+  assert.match(source('FieldRow.tsx'), /data-marker="optional"/)
 })
 
 test('Save is blocked with a clear message while a required setting is missing', () => {
@@ -164,7 +165,8 @@ test('Repositories: one compact list with View, Edit and a trash Remove behind A
 })
 
 test('markers read (required) or (optional) in plain muted text, never red or bold', () => {
-  const marker = settings.slice(settings.indexOf('export function Marker'), settings.indexOf('// A label with its marker'))
+  const row = source('FieldRow.tsx')
+  const marker = row.slice(row.indexOf('export function Marker'), row.indexOf('// A `.avoozl.json` key'))
   assert.match(marker, /\(required\{rule\.when \? ` \$\{rule\.when\}` : ''\}\)/)
   assert.match(marker, /\(optional\)/)
   assert.doesNotMatch(marker, /--danger|font-medium|font-semibold|font-bold/)
@@ -190,15 +192,17 @@ test('Settings has a GitHub page; Workspaces keeps only workspace things', () =>
   assert.match(settings, /onOpenGitHub=\{\(\) => props\.onTab\('github'\)\}/)
   // Any other tab, GitHub included, is the PolicyEditor with one Save bar.
   assert.match(settings, /<PolicyEditor workspaceId=\{workspaceId\} tab=\{tab\}/)
-  assert.match(settings, /\{tab === 'github' && <RateBlock rate=\{settings\.rate\} \/>\}/)
+  // GitHub calls is a tab of the GitHub page.
+  assert.match(settings, /rate=\{settings\.rate\}/)
+  assert.match(settings, /\{tab === 'calls' &&[\s\S]*<RateBlock rate=\{props\.rate\} \/>/)
   assert.match(settings, /<SaveFooter[\s\S]*note="Writes \.avoozl\.json\."/)
 })
 
-test('GitHub: every group is its own bordered section, and Radar settings live on their own page', () => {
+test('GitHub: every group is its own tab and bordered section, and Radar settings live on their own page', () => {
   const github = settings.slice(settings.indexOf('function WorkspaceGitHub('), settings.indexOf('function RadarSettings('))
-  const shown = github.slice(github.indexOf('return (\n    <>'))
-  for (const title of ['New tasks and issues', 'Sync pace', 'Set up GitHub']) assert.match(shown, new RegExp(`<Card>\\s*<Section title="${title}"`), title)
-  assert.match(shown, /<Card>\s*<ProjectFields/)
+  const shown = github.slice(github.indexOf('<Tabs id="avoozl-github"'))
+  for (const [tab, title] of [['issues', 'New tasks and issues'], ['sync', 'Sync pace'], ['setup', 'Set up GitHub']]) assert.match(shown, new RegExp(`\\{tab === '${tab}' && \\(\\s*<Card>\\s*<Section title="${title}"`), title)
+  assert.match(shown, /\{tab === 'project' && \(\s*<Card>\s*<ProjectFields/)
   assert.doesNotMatch(github, /CrewScopes|RadarValuesScreen|level="sub"/)
   // GitHub calls is a bordered section of its own.
   assert.match(settings, /<Card>\s*<Section title="GitHub calls"/)
