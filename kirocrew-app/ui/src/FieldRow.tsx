@@ -78,6 +78,10 @@ export function FieldRow(props: {
   // labels, controls and lines of fields side by side start on one line.
   align?: boolean
   attrs?: Record<string, string | boolean>
+  // Set when the value differs from the default: shows a small button that
+  // puts the default back. `defaultText` names it, for example "5".
+  onReset?: () => void
+  defaultText?: string
   children: ReactNode
 }) {
   const note = props.note ?? props.rule?.blank
@@ -108,6 +112,11 @@ export function FieldRow(props: {
       {label}
       {control}
       {lines}
+      {props.onReset && (
+        <button type="button" className="self-start text-xs underline" style={{ color: 'var(--accent)' }} onClick={props.onReset} data-field-reset={props.id}>
+          Reset to default{props.defaultText ? ` (${props.defaultText})` : ''}
+        </button>
+      )}
       {props.raw ? <RawKey name={props.raw} /> : props.align ? <span /> : null}
     </div>
   )
