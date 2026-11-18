@@ -9,6 +9,7 @@ import { Fold } from './controls.tsx'
 import { FieldBox } from './FieldBox.tsx'
 import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
 import { RadioFold } from './RadioFold.tsx'
+import { SHIP_CHOICES } from './delivery-api.ts'
 import { AVOOZL_LABELS, CONFLICT_ACTIONS, CONFLICT_ACTION_TEXT, CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, rulesMode, valueSource, type RepositoryForm } from './settings-api.ts'
 
 function Line(props: { id: string; label: string; value: string; fallback: string; raw: string; onChange: (value: string) => void; type?: string; unit?: string; help?: string }) {
@@ -31,18 +32,66 @@ function labelChange(repository: RepositoryForm, key: (typeof AVOOZL_LABELS)[num
 
 type Part = { id: string; repository: RepositoryForm; set: (change: Partial<RepositoryForm>) => void }
 
-// What each part does, said once: here and on Settings › Issue Radar.
+// What each part does, said once. Conflicts and who merges are on the
+// repository's Landing tab (design §4.25); review rules on Settings › Issue Radar.
 export const CREW_PART_TEXT = {
   rules: { title: 'Review rules', blurb: 'Text Set up adds to AGENTS.md in a pull request, so crews read it for every issue.' },
   conflicts: {
-    title: "When a crew's pull request conflicts in source code",
-    blurb: 'Crews never resolve source conflicts. Avoozl can start one resolver chat that merges the base into the branch, keeps both sides and pushes one merge commit.',
+    title: 'Conflicts',
+    blurb: "How Avoozl handles a merge conflict, and how many tries it makes before it asks you. A landing conflict goes back to the task's worker chat; a crew pull request gets one resolver chat that merges the base in.",
   },
   merge: {
-    title: 'How crew pull requests land',
-    blurb: 'The merge method Avoozl uses when it arms auto-merge. A conflict fix still merges the base into the branch; with squash that merge commit never reaches the base.',
+    title: 'Who merges',
+    blurb: 'How verified work lands here, who merges its pull request, and the merge method. A conflict fix still merges the base into the branch; with squash that merge commit never reaches the base.',
   },
 } as const
+
+// The landing block's mode values (landing.mode).
+export const LANDING_MODES = ['direct', 'pr', 'train', 'off'] as const
+
+// Who merges (landing.autoMerge): one radio fold-out, the writer, Avoozl
+// and the person for each. Blank follows `inherited`, the older workspace
+// delivery.ship, then on. A value Avoozl does not accept says so.
+export function AutoMergeFields({ id, repository, set, inherited = null }: Part & { inherited?: string | null }) {
+  const own = repository.autoMerge === 'off' ? 'manual' : repository.autoMerge === 'on' ? 'auto-merge' : null
+  const value = own ?? (inherited === 'manual' ? 'manual' : 'auto-merge')
+  const unknown = repository.autoMerge && !own ? repository.autoMerge : null
+  return (
+    <div id={`${id}-auto-merge`} className="flex flex-col gap-1">
+      <RadioFold
+        name={`${id}-auto-merge`}
+        label="Who merges"
+        value={value}
+        onChange={(ship) => set({ autoMerge: ship === 'manual' ? 'off' : 'on' })}
+        sections={SHIP_CHOICES.map((choice) => ({
+          key: choice.key,
+          title: `${choice.title} (landing.autoMerge: ${choice.key === 'manual' ? 'false' : 'true'})`,
+          line: `${choice.line}${!repository.autoMerge && choice.key === value ? ' Not set on this repository; this is the default.' : ''}`,
+          description: (
+            <table className="text-sm">
+              <tbody>
+                {['Writer', 'Avoozl', 'You'].map((who, i) => (
+                  <tr key={who}>
+                    <th scope="row" className="pr-3 text-left font-medium">
+                      {who}
+                    </th>
+                    <td>{choice.who[i]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ),
+        }))}
+      />
+      {value === 'manual' && <p className="text-xs text-muted">Briefs tell writers not to turn on auto-merge.</p>}
+      {unknown && (
+        <p role="alert" className="text-xs text-danger" data-ship-unknown>
+          .avoozl.json has landing.autoMerge "{unknown}", which Avoozl does not accept. Pick one above and save.
+        </p>
+      )}
+    </div>
+  )
+}
 
 export function ReviewRulesFields({ id, repository, set }: Part) {
   return (
@@ -88,7 +137,7 @@ export function ConflictFields({ id, repository, set }: Part) {
           }))}
         />
       </div>
-      <Line id={`${id}-max-attempts`} label="Attempts per conflict" raw="conflicts.maxAttempts" type="number" help="After this many, the conflict waits for you." value={repository.maxAttempts} fallback={CONFLICT_DEFAULTS.maxAttempts} onChange={(value) => set({ maxAttempts: value })} />
+      <Line id={`${id}-max-attempts`} label="Attempts per conflict" raw="conflicts.maxAttempts" type="number" help="After this many, the conflict waits for you. 0 asks you at once." value={repository.maxAttempts} fallback={CONFLICT_DEFAULTS.maxAttempts} onChange={(value) => set({ maxAttempts: value })} />
     </div>
   )
 }
@@ -103,7 +152,7 @@ export function MergeMethodFields({ id, repository, set }: Part) {
         onChange={(value) => set({ mergeMethod: value })}
         sections={MERGE_METHODS.map((method) => ({
           key: method,
-          title: `${MERGE_METHOD_TEXT[method].title} (merge.method: ${method})`,
+          title: `${MERGE_METHOD_TEXT[method].title} (landing.method: ${method})`,
           line: `${MERGE_METHOD_TEXT[method].line}${!repository.mergeMethod && method === 'squash' ? ' Not set on this repository; this is the default.' : ''}`,
         }))}
       />

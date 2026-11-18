@@ -149,6 +149,7 @@ const PAIRS = [
   [`${REPOSITORY}/untriaged`, GITHUB_BLOCK_KEYS.untriaged],
   [`${REPOSITORY}/conflicts`, GITHUB_BLOCK_KEYS.conflicts],
   [`${REPOSITORY}/merge`, GITHUB_BLOCK_KEYS.merge],
+  [`${REPOSITORY}/landing`, GITHUB_BLOCK_KEYS.landing],
   [`${REPOSITORY}/release`, GITHUB_BLOCK_KEYS.release],
   [`${REPOSITORY}/release/properties/ranking`, GITHUB_BLOCK_KEYS.ranking],
   [`${REPOSITORY}/release/properties/scopes/items`, GITHUB_BLOCK_KEYS.scope],

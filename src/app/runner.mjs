@@ -224,7 +224,7 @@ export function nextView(store, { policy, github = null }) {
       brief = leaf
         ? leafBrief(store, data, leaf, {
             relay: true,
-            ship: shipMode(delivery, task),
+            ship: shipMode(delivery, task, store),
           })
         : null;
     // A brief a content rule blocks is not offered (§4.9); its decision

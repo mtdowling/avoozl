@@ -4177,10 +4177,15 @@ export class Operations {
             const file = this.settingsFile(),
               current = file.readGitHubSettings(),
               github = structuredClone(current.github),
-              entry = github.repositories?.[key] ?? {};
+              { merge: _old, ...entry } = github.repositories?.[key] ?? {};
+            // The landing block holds the method (§4.25); the older
+            // `merge.method` is dropped when it is written.
             github.repositories = {
               ...github.repositories,
-              [key]: { ...entry, merge: { ...(entry.merge ?? {}), method } },
+              [key]: {
+                ...entry,
+                landing: { ...(entry.landing ?? {}), method },
+              },
             };
             file.updateGitHubSettings({ github, expectedHash: current.hash });
             this.configuration?.reload();
@@ -6674,6 +6679,22 @@ export class Operations {
           writeProject: (project) => {
             this.configuration?.assertWritable();
             this.configuration?.updateExecutionProject(project);
+          },
+          // The repository's landing block holds the mode (§4.25).
+          writeLanding: (repository, mode) => {
+            const file = this.settingsFile(),
+              current = file.readGitHubSettings(),
+              github = structuredClone(current.github),
+              entry = github.repositories?.[repository] ?? {};
+            github.repositories = {
+              ...github.repositories,
+              [repository]: {
+                ...entry,
+                landing: { ...(entry.landing ?? {}), mode },
+              },
+            };
+            file.updateGitHubSettings({ github, expectedHash: current.hash });
+            this.configuration?.reload();
           },
         },
       );

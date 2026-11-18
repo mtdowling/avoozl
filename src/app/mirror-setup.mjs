@@ -325,13 +325,13 @@ async function inspect(kind, deps, target) {
               id: "merge-method",
               state: "found",
               status: "ok",
-              detail: `merge.method is ${wanted}, which ${mirror} allows.`,
+              detail: `landing.method is ${wanted}, which ${mirror} allows.`,
             }
           : {
               id: "merge-method",
               state: "differs",
               status: "change",
-              detail: `Set merge.method to ${wanted} to match ${mirror}.`,
+              detail: `Set landing.method to ${wanted} to match ${mirror}.`,
               write: { method: wanted },
             },
       );

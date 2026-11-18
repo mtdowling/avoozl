@@ -7,7 +7,7 @@
 // failed one leaves the file unstaged and the conflict semantic. Any other
 // conflict is semantic: that member is dropped, the rest of the train goes on,
 // and the member's worker chat gets the files and the earlier boundary
-// through `sendConflictBack`, counted against `landing.conflictRounds`.
+// through `sendConflictBack`, counted against the repository's `conflicts.maxAttempts`.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";

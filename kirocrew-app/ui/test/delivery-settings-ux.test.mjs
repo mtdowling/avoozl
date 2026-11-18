@@ -60,14 +60,15 @@ for (const width of [1280, 390]) {
     await set('#avoozl-delivery-investigate', 'off')
     await page.until(`document.getElementById('avoozl-delivery-confidence').disabled`)
     assert.match((await text('[data-field-row="avoozl-delivery-confidence"] [data-field-help]')) ?? '', /Off while Which tasks is Off/)
-    // The fixture's ship mode is picked.
-    assert.equal(await page.evaluate(`document.querySelector('[data-radio-fold="avoozl-delivery-ship"] input:checked')?.value ?? null`), 'manual')
     assert.equal(await page.evaluate('document.documentElement.scrollWidth <= innerWidth'), true, 'no sideways scroll')
   })
 }
 
-test('an unknown delivery.ship says so instead of showing no choice', () => {
-  const page = readFileSync(new URL('../src/DeliverySettings.tsx', import.meta.url), 'utf8')
+// Who merges moved to the repository's Landing tab (§4.25), and its note
+// for a value Avoozl does not accept moved with it.
+test('an unknown landing.autoMerge says so instead of showing no choice', () => {
+  const page = readFileSync(new URL('../src/CrewsRulesSettings.tsx', import.meta.url), 'utf8')
   assert.match(page, /data-ship-unknown/)
-  assert.match(page, /SHIP_CHOICES\.some\(\(choice\) => choice\.key === form\.ship\)/)
+  assert.match(page, /landing\.autoMerge "\{unknown\}"/)
+  assert.doesNotMatch(readFileSync(new URL('../src/DeliverySettings.tsx', import.meta.url), 'utf8'), /data-radio-fold="avoozl-delivery-ship"|avoozl-delivery-ship/)
 })

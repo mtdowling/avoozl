@@ -154,7 +154,11 @@ import { ticksHeld } from "./task-issue-retirement.mjs";
 import { revalidateSpecs, scheduleHolds } from "./spec-scheduler.mjs";
 import { landPullRequests } from "./pr-landing.mjs";
 import { landDirect } from "./direct-landing.mjs";
-import { conflictRounds } from "./landing-config.mjs";
+import { applyLandingModes, landingSettings } from "./landing-config.mjs";
+
+// Each repository's `conflicts.maxAttempts`, older keys folded in (R87.6).
+const attemptsFor = (config) => (project) =>
+  landingSettings(config || {}, project.repository, project).maxAttempts;
 import { noteTickRun } from "./tick-activity.mjs";
 
 // The colon keeps this lock out of every configured project's namespace.
@@ -828,6 +832,9 @@ async function runTick(
         delivery = ["loaded", "invalid"].includes(policy.status)
           ? deliveryPolicy(memory.value, { machineLanes: machineLanes() })
           : null;
+      // Each repository's `landing.mode` onto its checkouts' project rows,
+      // which the landing code reads (§4.25).
+      if (memory.value) applyLandingModes(store, memory.value);
       const planned = { messages: [], notify: [] };
       if (delivery) {
         // Verdicts first, so a rejection is retried or decided below.
@@ -878,7 +885,7 @@ async function runTick(
           const landed = await landPullRequests(store, {
             github,
             workspaceRoot,
-            rounds: conflictRounds((memory.value || {}).landing),
+            rounds: attemptsFor(memory.value),
           });
           planned.notify.push(...landed.notify);
           planned.messages.push(...landed.messages);
@@ -886,7 +893,7 @@ async function runTick(
           const pushed = await landDirect(store, {
             github,
             workspaceRoot,
-            rounds: conflictRounds((memory.value || {}).landing),
+            rounds: attemptsFor(memory.value),
           });
           planned.notify.push(...pushed.notify);
           planned.messages.push(...pushed.messages);

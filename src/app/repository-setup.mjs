@@ -6,8 +6,8 @@
 // It joins the access preview (setup-access.mjs: roots, target, base,
 // sources and who may push or merge) and, under `pr`, the GitHub steps
 // (setup-landing.mjs: ruleset, merge methods, CI variable, commit status),
-// and writes the project's landing setting. The old Radar `github setup`
-// is separate and unchanged.
+// and writes the repository's `landing.mode` (design §4.25). The old Radar
+// `github setup` is separate and unchanged.
 //
 // shortcut: the access settings are kept in workspace metadata, not in
 // .avoozl.json; upgrade when the project file carries the target and sources.
@@ -24,7 +24,7 @@ export async function repositorySetup(
   store,
   github,
   input = {},
-  { writeProject } = {},
+  { writeProject, writeLanding } = {},
 ) {
   const project = store.get("projects", input.project);
   if (!project) fail(`Project ${input.project ?? ""} not found.`, 404);
@@ -96,7 +96,8 @@ export async function repositorySetup(
   if (projectChanges.length) {
     const next = { ...project, landing, baseBranch: base };
     store.put("projects", next);
-    writeProject?.(next);
+    if (project.landing !== landing) writeLanding?.(input.repository, landing);
+    if (project.baseBranch !== base) writeProject?.(next);
   }
   return {
     ...preview,
