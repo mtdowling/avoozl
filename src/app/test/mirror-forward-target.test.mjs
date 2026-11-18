@@ -4,7 +4,7 @@ import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { forwardTargetOf } from "../mirror-policy.mjs";
 import { lintSpec, readSpecFolder } from "../spec-plans.mjs";
 import { fixture } from "./fixtures.mjs";
-import { specFiles, writeSpec } from "./spec-fixture.mjs";
+import { legacySpecFiles, specFiles, writeSpec } from "./spec-fixture.mjs";
 
 // rc-25.1: forward target and per-epic override (RC26.1, RC26.2, D31.1).
 const mirrorOf = (extra) =>
@@ -81,14 +81,14 @@ test("a repository with no mirror still reads the epic's own values", () => {
 
 function lintWith(t, extra) {
   const { root } = fixture(t),
-    manifest = JSON.parse(specFiles()["avoozl/manifest.json"]);
+    manifest = JSON.parse(legacySpecFiles()["avoozl/manifest.json"]);
   writeSpec(root, "config", {
     "avoozl/manifest.json": JSON.stringify({ ...manifest, ...extra }),
   });
   return lintSpec({
     spec: readSpecFolder(root, "config"),
     plan: { id: "config" },
-  }).diagnostics.filter((d) => d.code === "manifest.schema");
+  }).diagnostics.filter((d) => d.code === "facts.schema");
 }
 
 test("the manifest lint accepts good epic values and refuses bad ones", (t) => {

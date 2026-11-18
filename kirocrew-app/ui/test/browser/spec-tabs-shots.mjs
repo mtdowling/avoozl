@@ -27,7 +27,7 @@ try {
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
   for (const width of [1280, 390])
     for (const theme of ['light', 'dark'])
-      for (const name of ['overview-working', 'overview', 'tasks', 'requirements', 'design', 'tasks-md', 'manifest', 'review', 'review-toggles']) {
+      for (const name of ['overview-working', 'overview', 'tasks', 'requirements', 'design', 'tasks-md', 'review', 'review-toggles']) {
         const url = harness.url({ page: 'app', radar: '1', specs: '1', review: '1', theme, ...(name === 'overview-working' ? { summary: 'running' } : {}) })
         await page.open(url, { width, height: width > 400 ? 1300 : 2200, dark: theme === 'dark' })
         await page.until(`Boolean(document.querySelector('[data-top-row], [data-top-rail-bar]'))`, 30000)
@@ -42,7 +42,7 @@ try {
         await page.evaluate(click('[data-plan-row="spec:byte-types"]'))
         await page.until(`Boolean(document.querySelector('[data-spec-summary]'))`, 30000)
         await page.until(`Boolean(document.querySelector('[data-spec-graph] [data-frontier]'))`, 30000)
-        const tab = { tasks: 'tasks', requirements: 'requirements.md', design: 'design.md', 'tasks-md': 'tasks.md', manifest: 'avoozl/manifest.json', review: 'review', 'review-toggles': 'review' }[name]
+        const tab = { tasks: 'tasks', requirements: 'requirements.md', design: 'design.md', 'tasks-md': 'tasks.md', review: 'review', 'review-toggles': 'review' }[name]
         if (tab) {
           await page.evaluate(click(`[data-spec-tab="${tab}"]`))
           await settle()

@@ -12,7 +12,7 @@ import { readDeliveryPolicy } from "../tick.mjs";
 import { lintSpec, readSpecFolder } from "../spec-plans.mjs";
 import { queryTasks } from "../../model.mjs";
 import { snapshot } from "./fixtures.mjs";
-import { specFiles, writeSpec } from "./spec-fixture.mjs";
+import { legacySpecFiles, specFiles, writeSpec } from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
@@ -103,10 +103,13 @@ test("supersede moves dependents to the new task, and re-approval leaves the cha
   );
 
   // Re-approve after an unrelated change: the chain and status stay.
-  const manifest = path.join(directory, "avoozl/manifest.json"),
-    value = JSON.parse(fs.readFileSync(manifest, "utf8"));
-  value.tasks["1"].summary = "The whole goal.";
-  fs.writeFileSync(manifest, JSON.stringify(value, null, 2) + "\n");
+  const tasksFile = path.join(directory, "tasks.md");
+  fs.writeFileSync(
+    tasksFile,
+    fs
+      .readFileSync(tasksFile, "utf8")
+      .replace("summary: The goal.", "summary: The whole goal."),
+  );
   await ops.execute("plan.save", { id: "config", expectedHash: plan.hash });
   await approve(ops);
   assert.equal(task(ops, "config.1.1").status, "superseded");
@@ -233,7 +236,7 @@ test("a superseded task gets no new verifier or check run; its running session i
 
 test("acceptFrom is a manifest field on local integrated leaves only", async (t) => {
   const root = temporaryDirectory(),
-    manifest = JSON.parse(specFiles()["avoozl/manifest.json"]);
+    manifest = JSON.parse(legacySpecFiles()["avoozl/manifest.json"]);
   manifest.tasks["1.1"].acceptFrom = "validation";
   writeSpec(root, "config", {
     "avoozl/manifest.json": JSON.stringify(manifest, null, 2),
@@ -250,7 +253,7 @@ test("acceptFrom is a manifest field on local integrated leaves only", async (t)
   });
   const found = lint("bad").map((d) => `${d.code} ${d.taskId}`);
   assert.ok(found.includes("leaf.accept-from bad.1"), found.join(", "));
-  assert.ok(found.includes("manifest.schema bad.1.2"), found.join(", "));
+  assert.ok(found.includes("facts.schema bad.1.2"), found.join(", "));
   const { ops } = workspace(t);
   writeSpec(ops.workspaceRoot, "config", {
     "avoozl/manifest.json": JSON.stringify(manifest, null, 2),

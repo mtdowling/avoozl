@@ -1,4 +1,5 @@
 import { Tooltip } from './ui/Tooltip.tsx'
+import { SelectField } from './ui/SelectField'
 
 // One labelled filter dropdown with an "All" choice, shared by the Graph and
 // Delivery filters so both look and behave the same.
@@ -22,16 +23,14 @@ export function FilterSelect(props: {
   inline?: boolean
 }) {
   const select = (describedBy?: string) => (
-    <select
+    <SelectField
       id={props.id}
       value={props.value}
       disabled={props.disabled}
       aria-describedby={describedBy}
-      onChange={(event) => props.onChange(event.target.value)}
-      className="rounded border px-2 py-1 text-sm"
+      onChange={(event) => props.onChange(event.target.value)} look="field" fill={props.inline} dim={props.disabled}
       // A disabled control takes no pointer events, so the tooltip's anchor
       // around it still hears the hover.
-      style={{ ...selectStyle, ...(props.inline ? { width: '100%', minWidth: 0 } : {}), ...(props.disabled ? { opacity: 0.5, pointerEvents: 'none' as const } : {}) }}
       {...(props.inline ? { 'data-filter-select': '' } : {})}
     >
       <option value="">All</option>
@@ -40,7 +39,7 @@ export function FilterSelect(props: {
           {option.label}
         </option>
       ))}
-    </select>
+    </SelectField>
   )
   if (props.inline)
     return (
