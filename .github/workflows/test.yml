@@ -8,7 +8,16 @@ on:
   pull_request:
   schedule:
     - cron: "23 5 * * *"
+  # A landing train validates platforms this machine lacks with one dispatch
+  # run on a candidate ref (landing-trains LT7.7). `platforms` names the legs
+  # to run: linux-x64, windows-x64, macos-arm64, comma separated. Empty runs
+  # all three, as a plain dispatch always did.
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: "Platforms to run, comma separated (empty runs all)"
+        required: false
+        default: ""
 jobs:
   test:
     strategy:
@@ -41,11 +50,31 @@ jobs:
         with:
           node-version: 26
           cache: npm
+      # A dispatch that names platforms runs only those legs: the other legs
+      # still report success, doing nothing, like a pull request that needs no
+      # tests.
+      - name: Platform filter
+        id: leg
+        shell: bash
+        run: |
+          case "${{ matrix.os }}" in
+            ubuntu-latest) platform=linux-x64 ;;
+            windows-latest) platform=windows-x64 ;;
+            macos-latest) platform=macos-arm64 ;;
+          esac
+          wanted="${{ inputs.platforms }}"
+          if [ -n "$wanted" ] && ! printf ',%s,' "${wanted// /}" | grep -q ",$platform,"; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "$platform is not in the requested platforms; this leg does nothing."
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
       # Prints what runs and what is skipped. Only a pull request selects;
       # every other event runs everything. A job always runs, so the three
       # check names report success even when nothing needs to run.
       - name: Select tests
         id: select
+        if: steps.leg.outputs.run == 'true'
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = pull_request ]; then
@@ -54,13 +83,13 @@ jobs:
             node scripts/select-tests.mjs --full --github-output
           fi
       - run: npm ci --ignore-scripts
-        if: steps.select.outputs.any == 'true' || matrix.os == 'ubuntu-latest'
+        if: steps.select.outputs.any == 'true' || (matrix.os == 'ubuntu-latest' && steps.leg.outputs.run == 'true')
       # Formatting and spec lint do not depend on the platform, so one runner
       # checks them, on every change.
       - run: npm run format:check
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && steps.leg.outputs.run == 'true'
       - run: node scripts/spec-lint.mjs
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && steps.leg.outputs.run == 'true'
       # The build receipt: one JSON line for this run (RC32.4). The node tests
       # and the page tests run together, in the same job, after one build.
       - name: Run tests
