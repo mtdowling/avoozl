@@ -2312,7 +2312,7 @@ export default function PlansView(props: {
     <>
       {specHeader}
       {specTabs}
-      <div data-spec-body style={{ padding: phone ? '20px 0' : '20px 12px 20px 12px' }}>
+      <div data-spec-body style={{ padding: phone ? '20px 0' : '20px 12px 20px 12px', ...(phone ? {} : { flex: '1 1 0%', minHeight: 0, overflowY: 'auto', position: 'relative' }) }}>
         <div id="avoozl-plan-main" className="flex min-w-0 flex-col" style={{ gap: 20, scrollMarginTop: 48 }}>
           <RadarGraphLink />
           <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
@@ -2453,7 +2453,7 @@ export default function PlansView(props: {
         <ListDetailLayout
           id="specs"
           listFolded={listFolded}
-          fill={Boolean(row) && !reviewing}
+          fill
           backLabel="All specs"
           detailTitle={row?.name ?? ''}
           detailOwnTitle
@@ -2463,12 +2463,12 @@ export default function PlansView(props: {
           }
           detail={
             !row ? null : (
-              <div className="flex flex-col" data-spec-detail={row.key} ref={detailTop}>
+              <div className="flex flex-col" data-spec-detail={row.key} ref={detailTop} style={phone ? undefined : { flex: '1 1 0%', minHeight: 0 }}>
                 {reviewing && workspace ? (
                   <>
                     {specHeader}
                     {specTabs}
-                    <ReviewView key={`${workspace}:${reviewing.plan}`} workspaceId={workspace} client={reviews} place={reviewing} onPlace={placeReview} />
+                    <ReviewView key={`${workspace}:${reviewing.plan}`} workspaceId={workspace} client={reviews} place={reviewing} onPlace={placeReview} fill={!phone} />
                   </>
                 ) : (
                   specContent
