@@ -548,6 +548,10 @@ Defaults and bounds:
 | `lease.heartbeatSeconds`     | 60               | 10–600 (machine only)               |
 | `lease.missedHeartbeats`     | 3                | 2–10 (machine only)                 |
 
+`trigger.maxBranches` is a batch size, the most branches one train carries.
+It is not a concurrency setting; those are lanes and Release N (Avoozl
+Requirement 6.3).
+
 Validation (`validateTrains` in `src/app/landing-config.mjs`, called from
 `loadLayeredConfig` beside `conflictRounds`) refuses: an unknown key; a value
 out of bounds; `minBranches > maxBranches`; a target without `policy`; a

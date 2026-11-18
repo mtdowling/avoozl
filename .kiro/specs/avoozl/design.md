@@ -433,7 +433,6 @@ Since 2026-11-17 `mode` and `planningRepository` are derived from each repositor
         "allowedActors": ["maintainer-login"],
         "minimumPermission": "maintain",
         "requiredChecks": ["build", "test"],
-        "concurrency": 2,
         "dependencyText": false,
         "priority": ["critical", "high"],
         "managedLabels": {
@@ -3260,7 +3259,7 @@ runner tick). This section makes that the only shape.
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Avoozl pushes and merges. Per repository: `landing: direct \| pr \| off`. It lands only after checks pass on the updated head. Never force push. Avoozl's own repository honors the owner-selected policy; do not restore its disabled required-check gate (R87.8) |
 | 2   | A vanished worker chat is resumed once, automatically, in the same worktree, only when Kiro Crew reports the chat gone. Never because it went quiet or its lease expired. A second vanish goes to Needs you       |
-| 3   | More lanes come from remote hosts. Changed 2026-11-18: the 50% CPU rule and the fixed three lanes are dropped as rules; `lanes.local` (default 3) still seeds `delivery.concurrency` as a setting                                                                                                                            |
+| 3   | More lanes come from remote hosts. Changed 2026-11-18: the 50% CPU rule and the fixed three lanes are dropped as rules; `lanes.local` (default 3) is a setting in the machine file (§4.26 Lanes)                                                                     |
 | 4   | Only runner mode skipped Kiro Crew's project folder and MCP sharing. A local worker used `leaf.project`, and `plans_report` needed MCP sharing. Phase 40 adds the CLI report and `project: false` with the worktree path in the brief |
 | 5   | Kiro Crew's push-to-main policy checks chat shell commands. The tick is not a chat. Phase 40's proof shows a tick push goes through                                                                               |
 | 6   | Nupp lands `direct` on public `core-dev` from the start, with `scripts/worktree` and `scripts/test-changed`. Plans stay in a private planning workspace. No private mirror, forwarding or leak scan for this setup; the pre-push content rule is the one leak guard. The freeze on public `core-dev` is lifted |
@@ -3326,7 +3325,24 @@ the same brief and the last report quoted as data. A quiet chat or an
 expired lease changes nothing (AGENTS.md). A second vanish for the same
 task opens a Needs you item.
 
-**Lanes, workers and ownership.** `lanes.local` (default 3) seeds `delivery.concurrency`; it is a setting, not a rule (2026-11-18).
+**Lanes, workers and ownership.** Two settings decide how much runs at once
+(Requirement 6.3, changed 2026-11-18). `lanes.local` (default 3, 0–32) in
+the machine file (`~/.config/avoozl/config.json`) is how many worker chats
+this machine runs; it describes the machine, so it is not shared through
+the repository. Release N (`github.repositories.*.release.capacity`) is how
+many issues a repository releases at once. `deliveryPolicy` sets
+`concurrency` from, in order: the machine file's `lanes.local`, the old
+`delivery.concurrency`, the old `.avoozl.json` `lanes.local`, then 3. The
+per-repository `delivery.repositories.*.concurrency` and
+`github.repositories.*.concurrency`, and the host and workspace
+`maxConcurrentRuns`, are accepted and ignored; nothing writes them, and an
+old file loads with no warning. The Workspaces "Agents at once" field and
+`avoozl workspace concurrency` are removed: a per-workspace field cannot hold
+one machine number, and nothing enforced them. Train `maxBranches` and the
+Radar crew `count` are batch sizes, not concurrency settings.
+shortcut: each workspace counts only its own live chats against the lanes,
+so two workspaces on one machine can run up to twice the lanes; count across
+the catalog once a machine serves several busy workspaces.
 Each spec has an issue-assigned driver, with an epic-assignee fallback only
 when unambiguous. Plan-less worker machines pull minimal offers, wait for a
 canonical claim reservation and generation acknowledgment, then publish task
@@ -5032,7 +5048,6 @@ entry may replace the workspace's list.
 ```json
 {
   "delivery": {
-    "concurrency": 1,
     "model": "model-a",
     "reviewers": [
       {
@@ -5049,7 +5064,7 @@ entry may replace the workspace's list.
       }
     ],
     "repositories": {
-      "example-rewrite": { "concurrency": 1 }
+      "example-rewrite": { "feedbackRounds": 3 }
     }
   }
 }
@@ -5210,7 +5225,7 @@ the head moves. It is not part of the first cut (Requirement 36.13).
 | Typed integration refused where reviews or `acceptFrom` apply      | `task.update` can set `integration` or `accepted` directly (F60), which would skip every gate this section adds                                                                                                                                                                                                                         |
 | Supersede resolves on read                                         | Plan approval rebuilds plan edges (F64), so a rewritten edge would snap back on the next approval                                                                                                                                                                                                                                       |
 | Supersede only for local authority                                 | GitHub and plugin rows are caches of their tracker (Requirement 19.3)                                                                                                                                                                                                                                                                   |
-| One writer per repository is concurrency 1                         | It already exists per repository and caps both the tick and a Crew Mode conductor (F59). A second mechanism would only drift from it                                                                                                                                                                                                    |
+| No separate writer limit (changed 2026-11-18)                      | Each task writes in its own worktree and landing merges one head at a time, so the machine's lanes are the only cap (Requirement 6.3). A second mechanism would only drift from it                                                                                                                                                        |
 | GitHub pull-request reviews later                                  | GitHub already gates GitHub-route merges with required reviews; reading them into Avoozl is useful only for display and the Delivery view                                                                                                                                                                                               |
 
 ## 6. GitHub workflows
@@ -5335,7 +5350,7 @@ plans-repo leaves use §6.6.
   equal to Avoozl's `ready` label. The Settings view shows the exact value and a
   link to Issue Radar.
 - Avoozl limits how many leaves carry `ready` at once to the repository's
-  `concurrency`, so Issue Radar's random pick only ever sees allowed work, in
+  Release N (`release.capacity`), so Issue Radar's random pick only ever sees allowed work, in
   priority order.
 - Avoozl never writes Issue Radar's claim label or its needs-human label. It
   reads them as GitHub labels.
@@ -5538,7 +5553,7 @@ P18 checks them (F39).
     Projection uses the same function, so projection and the tick agree, and
     a second pass writes nothing.
   - Wave is order, not time: the earliest round a task could run. Capacity
-    (`concurrency`) may start it later. Avoozl never turns a wave into a date.
+    (lanes and Release N) may start it later. Avoozl never turns a wave into a date.
   - Validation already refuses cycles (§5), so every task has a wave.
   - Wave versus Epic:
 
@@ -7261,7 +7276,7 @@ and adds an `Epic` issue type if an organization admin runs it.
    approves it, and the next tick projects the issues, sub-issues,
    dependencies, and Project items, with Release set from milestones. The
    graph is read through the migration read path (§6.8) until step 11.
-9. **Turn on Autopilot.** Enable the tick for one epic with concurrency 1. Avoozl
+9. **Turn on Autopilot.** Enable the tick for one epic with one lane. Avoozl
    worker sessions code its leaves in the code repositories (§6.6), against
    each code repository's default branch, so GitHub closes each issue
    (§6.5). (Changed 2026-11-12: a recorded integration branch that is not a
