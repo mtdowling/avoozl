@@ -253,6 +253,24 @@ test("approving in Avoozl writes the label and one marker comment back, once", a
   assert.equal(w.github.comments.length, comments);
 });
 
+test("on a public repository the write-back names no instance", async (t) => {
+  const w = workspace(t),
+    repository = w.github.repository.bind(w.github);
+  w.github.repository = async (value) => ({
+    ...(await repository(value)),
+    private: false,
+  });
+  const plan = await w.draft();
+  await w.approve(plan);
+  assert.equal(w.markers().length, 1);
+  const body = w.markers()[0].body;
+  assert.match(
+    body,
+    /<!-- avoozl-approval v=1 approver=worker spec=\.kiro\/specs\/loader commit=none at=\S+ -->/,
+  );
+  assert.doesNotMatch(body, /instance=|inst-[0-9a-f]{12}/);
+});
+
 test("a failed write-back leaves the approval and raises one row", async (t) => {
   const w = workspace(t),
     plan = await w.draft();
