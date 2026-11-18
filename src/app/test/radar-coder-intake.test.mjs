@@ -111,7 +111,7 @@ const labeled = (login, label = "avoozl:plan") => [
 ];
 const PERMISSIONS = { owner: "admin", stranger: "read" };
 
-function workspace(t, github, extra = {}) {
+function workspace(t, github, extra = {}, { projectId = REPO } = {}) {
   const { store } = fixture(t),
     root = temporaryDirectory();
   fs.writeFileSync(
@@ -137,11 +137,11 @@ function workspace(t, github, extra = {}) {
     id: REPO,
     owner: "example",
     repo: "app",
-    projectId: "code",
+    projectId: projectId === REPO ? "code" : projectId,
     activeMachine: machineIdentity(store).id,
   });
   store.put("projects", {
-    id: REPO,
+    id: projectId,
     name: "app",
     root: temporaryDirectory("avoozl-repo-"),
   });
@@ -337,6 +337,22 @@ test("Plan this starts a planner chat and records the issue as the source", asyn
     /repository and number/,
   );
   assert.deepEqual(github.calls.writes, []);
+});
+
+test("Plan this names the workspace repository when its id is not owner/name", async (t) => {
+  const github = fakeGitHub([issue(7, { labels: ["avoozl:plan"] })], {
+    events: { 7: labeled("owner") },
+    permissions: PERMISSIONS,
+  });
+  const { ops, store, intake } = workspace(t, github, {}, { projectId: "app" });
+  await intake();
+  await ops.execute("untriaged.plan", { repository: REPO, number: 7 });
+  const request = pendingNewPlans(store).at(-1);
+  assert.deepEqual(
+    request.repositories.map((repo) => repo.id ?? repo),
+    ["app"],
+  );
+  assert.deepEqual(request.source, { repository: REPO, number: 7 });
 });
 
 test("Plan this is a person's: an agent or MCP caller is refused", async (t) => {
