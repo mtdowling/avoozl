@@ -19,9 +19,6 @@ import {
   reviewRuleText,
   toForm,
   toggleCheck,
-  sortUsageRows,
-  nextUsageSort,
-  USAGE_SORT,
 } from '../src/settings-api.ts'
 import { redirectSettings } from '../src/nav-api.ts'
 
@@ -216,28 +213,6 @@ test('GitHub: every group is its own bordered section, and Radar settings live o
   assert.equal(redirectSettings('github'), 'github')
 })
 
-test('GitHub calls sort by any column either way, most calls first by default', () => {
-  const rows = [
-    { source: 'view', calls: 17, notModified: 21, cached: 132 },
-    { source: 'tick', calls: 88, notModified: 40, cached: 0 },
-    { source: 'crew', calls: 41, notModified: 0, cached: 0 },
-    { source: 'setup', calls: 41, notModified: 0, cached: 0 },
-  ]
-  const order = (sort) => sortUsageRows(rows, sort).map((row) => row.source)
-  assert.deepEqual(USAGE_SORT, { key: 'calls', dir: 'desc' })
-  assert.deepEqual(order(USAGE_SORT), ['tick', 'crew', 'setup', 'view'])
-  assert.deepEqual(order({ key: 'calls', dir: 'asc' }), ['view', 'crew', 'setup', 'tick'])
-  assert.deepEqual(order({ key: 'cached', dir: 'desc' }), ['view', 'crew', 'setup', 'tick'])
-  assert.deepEqual(order({ key: 'source', dir: 'asc' }), ['crew', 'setup', 'tick', 'view'])
-  assert.deepEqual(order({ key: 'source', dir: 'desc' }), ['view', 'tick', 'setup', 'crew'])
-  // A new number column starts largest first, Source A to Z; a second click flips.
-  assert.deepEqual(nextUsageSort(USAGE_SORT, 'calls'), { key: 'calls', dir: 'asc' })
-  assert.deepEqual(nextUsageSort(USAGE_SORT, 'notModified'), { key: 'notModified', dir: 'desc' })
-  assert.deepEqual(nextUsageSort(USAGE_SORT, 'source'), { key: 'source', dir: 'asc' })
-  assert.deepEqual(rows.map((row) => row.source), ['view', 'tick', 'crew', 'setup'], 'the input is not reordered')
-  assert.match(settings, /aria-sort=\{on \? \(sort\.dir === 'asc' \? 'ascending' : 'descending'\) : 'none'\}/)
-})
-
 test('Plugins puts Add plugin on the left and the installed list on the right, stacked when narrow', () => {
   const plugins = source('PluginsSettings.tsx')
   const layout = plugins.slice(plugins.indexOf('data-plugins-layout'))
@@ -303,4 +278,11 @@ test('the Reviews tab states the branch rule it found, or that reviewer chats ar
   // The old checkbox and count are gone; an old key shows as deprecated.
   assert.doesNotMatch(settings, /Require GitHub approvals on the head commit/)
   assert.match(settings, /<Badge>deprecated<\/Badge>/)
+})
+
+test('the GitHub calls breakdown is its own section with a sortable real table', () => {
+  assert.match(settings, /<Section title="GitHub calls"/)
+  assert.match(settings, /<th key=\{col\.key\} scope="col" aria-sort=/)
+  assert.match(settings, /<button type="button" data-sort=\{col\.key\}/)
+  assert.match(settings, /textAlign: 'right', fontVariantNumeric: 'tabular-nums'/)
 })

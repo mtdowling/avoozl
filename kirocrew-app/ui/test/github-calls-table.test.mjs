@@ -26,11 +26,11 @@ const READ = `(() => {
   const table = document.querySelector('table[data-github-usage]')
   return {
     order: [...table.querySelectorAll('tbody tr')].map((tr) => tr.dataset.usageSource),
-    sort: Object.fromEntries([...table.querySelectorAll('th')].map((th) => [th.dataset.usageCol, th.getAttribute('aria-sort')])),
+    sort: Object.fromEntries([...table.querySelectorAll('th')].map((th) => [th.querySelector('[data-sort]').dataset.sort, th.getAttribute('aria-sort')])),
     align: [...table.querySelector('tbody tr').children].map((td) => getComputedStyle(td).textAlign),
   }
 })()`
-const click = (key) => page.evaluate(`document.querySelector('[data-usage-sort="${key}"]').click()`)
+const click = (key) => page.evaluate(`document.querySelector('[data-sort="${key}"]').click()`)
 
 test('the table starts most calls first, and a header click sorts both ways', { skip }, async () => {
   await page.open(harness.url({ page: 'github-usage' }), { width: 1280, height: 800 })
@@ -38,7 +38,7 @@ test('the table starts most calls first, and a header click sorts both ways', { 
   let m = await page.evaluate(READ)
   assert.deepEqual(m.order, ['tick', 'crew', 'view', 'review', 'setup'])
   assert.deepEqual(m.sort, { source: 'none', calls: 'descending', notModified: 'none', cached: 'none' })
-  assert.deepEqual(m.align, ['left', 'right', 'right', 'right'])
+  assert.deepEqual(m.align.map((a) => (a === 'start' ? 'left' : a)), ['left', 'right', 'right', 'right'])
   await click('calls')
   m = await page.evaluate(READ)
   assert.deepEqual(m.order, ['setup', 'review', 'view', 'crew', 'tick'])
@@ -52,7 +52,7 @@ test('the table starts most calls first, and a header click sorts both ways', { 
 test('Enter and Space on a focused header sort it', { skip }, async () => {
   await page.open(harness.url({ page: 'github-usage' }), { width: 1280, height: 800 })
   await page.until(`Boolean(document.querySelector('table[data-github-usage] tbody tr'))`)
-  await page.evaluate(`document.querySelector('[data-usage-sort="cached"]').focus()`)
+  await page.evaluate(`document.querySelector('[data-sort="cached"]').focus()`)
   await page.key('Enter', 'Enter', 13, '\r')
   let m = await page.evaluate(READ)
   assert.equal(m.sort.cached, 'descending')

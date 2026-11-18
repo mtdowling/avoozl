@@ -8,9 +8,10 @@ light and dark, with Kiro Crew's own stylesheet.
   the Issue Radar crews and Set up Issue Radar boxes inside it, and the GitHub
   calls lines and table loose below it.
 - `after/github-*`: one bordered section per group: New tasks and issues,
-  Sync pace, Project fields, Set up GitHub and GitHub calls. GitHub calls is a
-  real table; each header sorts both ways (click or Enter/Space, `aria-sort`),
-  most calls first, numbers right-aligned.
+  Sync pace, Project fields, Set up GitHub and GitHub calls. GitHub calls
+  holds the rate lines and the sortable table from #482 in one section; each
+  header sorts both ways (click or Enter/Space, `aria-sort`), most calls
+  first, numbers right-aligned.
 - `after/radar-single-*`: the new Settings › Issue Radar page with the crews
   and Set up Issue Radar, each in its own bordered section. Nothing moved
   writes anything; no new GitHub calls.

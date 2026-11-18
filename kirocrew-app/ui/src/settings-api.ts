@@ -83,24 +83,21 @@ export function usageRows(rate: RateView | undefined | null) {
     .sort((a, b) => b.calls - a.calls || a.source.localeCompare(b.source))
 }
 
-// The GitHub calls table's sort: one column, either way. A number column
-// starts with the largest first, Source starts A to Z; a second click flips.
-export type UsageRow = ReturnType<typeof usageRows>[number]
 export type UsageKey = 'source' | 'calls' | 'notModified' | 'cached'
-export interface UsageSort {
-  key: UsageKey
-  dir: 'asc' | 'desc'
-}
+export type UsageSort = { key: UsageKey; dir: 'asc' | 'desc' }
+// The default order: most calls first.
 export const USAGE_SORT: UsageSort = { key: 'calls', dir: 'desc' }
-export const nextUsageSort = (sort: UsageSort, key: UsageKey): UsageSort =>
-  sort.key === key ? { key, dir: sort.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'source' ? 'asc' : 'desc' }
-export function sortUsageRows(rows: UsageRow[], sort: UsageSort): UsageRow[] {
+// Sort the rows by one column. Ties fall back to the source name, so the
+// order is stable. A new column starts descending for numbers, ascending for names.
+export function sortUsage<T extends { source: string; calls: number; notModified: number; cached: number }>(rows: T[], sort: UsageSort): T[] {
   const sign = sort.dir === 'asc' ? 1 : -1
   return [...rows].sort((a, b) => {
-    const by = sort.key === 'source' ? a.source.localeCompare(b.source) : a[sort.key] - b[sort.key]
-    return sign * by || a.source.localeCompare(b.source)
+    const order = sort.key === 'source' ? a.source.localeCompare(b.source) : a[sort.key] - b[sort.key]
+    return sign * order || a.source.localeCompare(b.source)
   })
 }
+export const nextUsageSort = (current: UsageSort, key: UsageKey): UsageSort =>
+  current.key === key ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'source' ? 'asc' : 'desc' }
 
 // One short line per resource, then the share of calls GitHub answered with
 // a free 304. Empty before Avoozl has made a call.

@@ -43,7 +43,7 @@ import {
   isGitHubMode,
   rateLines,
   usageRows,
-  sortUsageRows,
+  sortUsage,
   nextUsageSort,
   USAGE_SORT,
   type UsageKey,
@@ -87,7 +87,7 @@ import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api
 import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
 import { Fold } from './controls.tsx'
 import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Trash2, type LucideIcon } from './icons.ts'
+import { Plus, Trash2, type LucideIcon } from './icons.ts'
 import { redirectSettings } from './nav-api.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
@@ -1556,70 +1556,78 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   )
 }
 
-// The last GitHub rate-limit numbers and the calls of the last hour by source,
-// in a table sorted by any column (most calls first).
-const NUMBER: CSSProperties = { textAlign: 'right', paddingLeft: 16, fontVariantNumeric: 'tabular-nums' }
+// The last GitHub rate-limit numbers, then the calls of the last hour by
+// source, all in one bordered section.
 export function RateBlock({ rate }: { rate: RateView | undefined }) {
   const lines = rateLines(rate),
     rows = usageRows(rate)
-  const [sort, setSort] = useState<UsageSort>(USAGE_SORT)
   if (!lines.length && !rows.length) return null
-  const sorted = sortUsageRows(rows, sort)
-  const header = (key: UsageKey, label: string, numeric: boolean) => {
-    const on = sort.key === key
-    const Icon = !on ? ArrowUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown
-    return (
-      <th scope="col" aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} className="py-1 font-medium" style={numeric ? NUMBER : { textAlign: 'left' }} data-usage-col={key}>
-        <button
-          type="button"
-          onClick={() => setSort(nextUsageSort(sort, key))}
-          className="inline-flex items-center gap-1"
-          style={{ background: 'none', border: 0, padding: 0, color: 'inherit', font: 'inherit', cursor: 'pointer', flexDirection: numeric ? 'row-reverse' : 'row' }}
-          data-usage-sort={key}
-        >
-          {label}
-          <Icon size={12} aria-hidden="true" style={{ opacity: on ? 1 : 0.5 }} />
-        </button>
-      </th>
-    )
-  }
   return (
     <Card>
-      <Section title="GitHub calls" blurb="The last rate-limit numbers GitHub sent, and the calls of the last hour by source. 304s and cached answers are free.">
-        <div className="flex flex-col gap-2 text-sm" data-github-rate>
-          {lines.map((line) => (
-            <p key={line} className="text-xs text-muted">
-              {line}
-            </p>
-          ))}
-          {rows.length > 0 && (
-            <div className="overflow-x-auto">
-              <table data-github-usage className="text-sm" style={{ borderCollapse: 'collapse', minWidth: '100%' }}>
-                <caption className="pb-1 text-left text-xs text-muted">Calls in the last hour: {rate?.hourCalls ?? 0}</caption>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {header('source', 'Source', false)}
-                    {header('calls', 'Calls', true)}
-                    {header('notModified', '304 (free)', true)}
-                    {header('cached', 'Cached (free)', true)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sorted.map((row) => (
-                    <tr key={row.source} data-usage-source={row.source} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td className="py-1" style={{ textAlign: 'left' }}>{row.source}</td>
-                      <td className="py-1" style={NUMBER}>{row.calls}</td>
-                      <td className="py-1" style={NUMBER}>{row.notModified}</td>
-                      <td className="py-1" style={NUMBER}>{row.cached}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+      <Section title="GitHub calls" blurb="The last rate-limit numbers GitHub sent, and the calls of the last hour by source. Calls count against the limit; 304s and cached answers do not.">
+        {lines.length > 0 && (
+          <div className="flex flex-col gap-1 text-xs text-muted" data-github-rate>
+            {lines.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+        )}
+        {rows.length > 0 && (
+          <>
+            <p className="text-xs text-muted">{rate?.hourCalls ?? 0} calls in the last hour. Click a heading to sort.</p>
+            <UsageTable rows={rows} />
+          </>
+        )}
       </Section>
     </Card>
+  )
+}
+
+const CELL: CSSProperties = { padding: '4px 8px' }
+const NUM: CSSProperties = { ...CELL, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
+const USAGE_COLUMNS: { key: UsageKey; label: string }[] = [
+  { key: 'source', label: 'Source' },
+  { key: 'calls', label: 'Calls' },
+  { key: 'notModified', label: '304 (free)' },
+  { key: 'cached', label: 'Cached (free)' },
+]
+
+// A real table: each heading is a button that sorts by it, and the th says
+// which way (aria-sort). Numbers sit right-aligned.
+export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
+  const [sort, setSort] = useState<UsageSort>(USAGE_SORT)
+  const sorted = sortUsage(rows, sort)
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table data-github-usage style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+        <thead>
+          <tr>
+            {USAGE_COLUMNS.map((col) => {
+              const on = sort.key === col.key
+              const right = col.key !== 'source'
+              return (
+                <th key={col.key} scope="col" aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ textAlign: right ? 'right' : 'left', padding: '4px 8px', fontWeight: 500, borderBottom: '1px solid var(--border)' }}>
+                  <button type="button" data-sort={col.key} className="inline-flex items-center gap-1 font-medium" style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', padding: 0 }} onClick={() => setSort(nextUsageSort(sort, col.key))}>
+                    {col.label}
+                    <span aria-hidden="true" className="text-xs text-muted">{on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}</span>
+                  </button>
+                </th>
+              )
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((row) => (
+            <tr key={row.source} data-usage-source={row.source}>
+              <td style={CELL}>{row.source}</td>
+              <td style={NUM}>{row.calls}</td>
+              <td style={NUM}>{row.notModified}</td>
+              <td style={NUM}>{row.cached}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
