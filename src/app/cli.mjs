@@ -890,7 +890,7 @@ try {
         token = options.token || process.env.AVOOZL_REPORT_TOKEN;
       need(
         positionals[1] && state,
-        "runner report TASK done|blocked [--token T]",
+        "runner report TASK done|blocked|findings [--token T] [--file PATH]",
       );
       if (token || !HOLDS_TASKS(readRunnerConfig(config.workspaceRoot))) {
         // R88.2: matched by the report token and the worktree it runs in;
@@ -904,6 +904,7 @@ try {
             token: token || undefined,
             cwd: process.cwd(),
             text: typeof options.text === "string" ? options.text : undefined,
+            file: typeof options.file === "string" ? options.file : undefined,
           });
         } finally {
           store.close();
@@ -1545,11 +1546,6 @@ try {
     } finally {
       registry.close();
     }
-  } else if (command === "andon") {
-    // The andon gate became repository rule actions; this answers with how.
-    console.log(
-      JSON.stringify(await localOrRequest("safety.status", {}), null, 2),
-    );
   } else if (command === "workspace-repo") {
     const action = positionals[0] || "status";
     let operation, value;
@@ -1863,11 +1859,7 @@ try {
         2,
       ),
     );
-  else if (
-    command === "task" &&
-    // `task notes` is the name before task notes were removed.
-    ["links", "notes"].includes(positionals[0])
-  ) {
+  else if (command === "task" && positionals[0] === "links") {
     // Task links (R61.22): list and add for anyone; edit, remove and
     // show on the issue are a person's, as the command line is.
     const taskId = need(

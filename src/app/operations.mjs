@@ -4385,10 +4385,6 @@ export class Operations {
         queueNotifications(store, notify);
         return result;
       });
-    // Ideas were removed (RC30.3). The public MCP actions capture_idea and
-    // add_idea_note stay so callers get a clear error, and nothing changes.
-    if (name === "idea.capture" || name === "idea.append")
-      fail("Ideas were removed from Avoozl.", 410);
     if (name === "intake.list") return listItems(store, input);
     // Manual tasks and task links (§4.16, R61.12–R61.22).
     if (name === "task.manual.complete" || name === "task.manual.reopen") {

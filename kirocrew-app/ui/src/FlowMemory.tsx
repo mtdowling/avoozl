@@ -199,11 +199,6 @@ export function ProposalsView({ workspaceId, target, onOpenRetro, onSeen }: { wo
           {message}
         </ErrorText>
       )}
-      {value.lessonsExport?.error && (
-        <ErrorText role="alert" size="sm" data-lessons-export>
-          {value.lessonsExport.error}
-        </ErrorText>
-      )}
       {!value.available && (
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
           <span>This Avoozl process has no settings folder, so prompt overrides are off.</span>
