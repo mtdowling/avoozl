@@ -54,6 +54,7 @@ body {
 .items-center { align-items: center; }
 .justify-end { justify-content: flex-end; }
 .min-h-0 { min-height: 0; }
+.min-w-0 { min-width: 0; }
 .h-full { height: 100%; }
 .overflow-hidden { overflow: hidden; }
 .overflow-y-auto { overflow-y: auto; }

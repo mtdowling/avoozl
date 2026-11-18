@@ -105,9 +105,9 @@ function issueLink(links, record, resolve) {
   return repository && number ? links.issue(repository, number) : null;
 }
 
-// Stored rows the link sets read, read once per call.
-function records(store) {
-  const data = store.read();
+// Stored rows the link sets read, read once per call. A caller that has
+// already read the workspace passes it as `data`.
+function records(store, data = store.read()) {
   return {
     data,
     resolve: resolver(store),
@@ -361,12 +361,13 @@ function specSet(rows, links, plan, tasks) {
 }
 
 // Every spec's and every task's link set: {specs: {planId: set}, tasks:
-// {taskId: set}}. `host` is the registered web host; `now` sets check ages.
+// {taskId: set}}. `host` is the registered web host; `now` sets check ages;
+// `data` is an already-read workspace, so the caller's read is reused.
 export function linkSets(
   store,
-  { host = DEFAULT_HOST, now = Date.now() } = {},
+  { host = DEFAULT_HOST, now = Date.now(), data } = {},
 ) {
-  const rows = records(store),
+  const rows = records(store, data),
     links = linker(host),
     tasks = {};
   for (const task of rows.data.tasks)
