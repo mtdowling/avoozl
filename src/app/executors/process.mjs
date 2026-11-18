@@ -407,6 +407,41 @@ export async function finishProcessSession(ops, binding, result, store = null) {
     );
   }
   if (hands === "folder") return null;
+  // Plan review (NK3.3): the findings go through plans_submit_review's own
+  // checks, as this session, after its served model (if any) is recorded.
+  if (hands === "plan-review") {
+    if (result.state !== "done") return null;
+    if (store)
+      recordSessionStatus(
+        store,
+        { slot: binding.slot, status: "closed" },
+        result.served
+          ? {
+              served: {
+                model: result.served,
+                requested: binding.model ?? null,
+                changed: false,
+                withheld: false,
+              },
+            }
+          : undefined,
+      );
+    const context = binding.context ?? {};
+    return ops.execute(
+      "plan.review.submit",
+      {
+        planId: context.planId,
+        revisionHash: context.revisionHash,
+        roundId: context.roundId,
+        findings: result.outputValue.findings,
+        ...(result.outputValue.summary !== undefined
+          ? { summary: result.outputValue.summary }
+          : {}),
+      },
+      undefined,
+      { caller: cliReportCaller(binding) },
+    );
+  }
   if (hands === "plan-answer")
     return result.state === "done"
       ? finishPlanAnswer(ops, binding, result, store)
@@ -415,49 +450,6 @@ export async function finishProcessSession(ops, binding, result, store = null) {
   // this session (NK5.1), so it gets the same checks. A blocked result
   // records nothing: no reply is posted and no summary stored.
   const asSession = () => ({ caller: cliReportCaller(binding) });
-  // A plan review's findings go through plans_submit_review as this session
-  // (NK5.1), which binds them to its round and checks its served model. A
-  // blocked child, or findings that submit refuses, ends the round with
-  // the reason, so it does not wait for a chat that will never come.
-  if (hands === "plan-review") {
-    const { endSpecReviewRound } = await import("../plan-reviews.mjs");
-    const bound = store?.get("session_bindings", binding.slot)?.review;
-    if (result.state !== "done" || !bound) {
-      if (store)
-        endSpecReviewRound(
-          store,
-          binding.slot,
-          `The review child reported blocked: ${result.text || "no reason"}`.slice(
-            0,
-            500,
-          ),
-        );
-      return null;
-    }
-    try {
-      return await ops.execute(
-        "plan.review.submit",
-        {
-          planId: bound.planId,
-          revisionHash: bound.revisionHash,
-          findings: result.outputValue.findings,
-          summary: result.outputValue.summary,
-        },
-        undefined,
-        asSession(),
-      );
-    } catch (error) {
-      endSpecReviewRound(
-        store,
-        binding.slot,
-        `The review child's findings were refused: ${error.message}`.slice(
-          0,
-          500,
-        ),
-      );
-      throw error;
-    }
-  }
   if (hands === "post-reply")
     return result.state === "done"
       ? ops.execute(
@@ -550,34 +542,18 @@ export async function finishProcessSession(ops, binding, result, store = null) {
   });
 }
 
-// Record the served model a child's harness output names on its binding,
-// in the shape servedModel (delivery.mjs) reads for a chat. A definition
-// that says nothing, or output that names no single model, records
-// nothing, so the round is skipped with today's reason.
-function recordServedModel(store, binding, stateDirectory, ops) {
-  const row = withDatabase(stateDirectory, (db) =>
-    childRecord(db, binding.slot),
-  );
-  let definition = null;
+// The served model a finished child's harness output names, or null.
+function servedModelOf(stateDirectory, slot, configDirectory) {
   try {
-    definition = loadHarnessDefinition({
-      configDirectory: ops?.configDirectory,
-      name: row?.harness,
+    const row = withDatabase(stateDirectory, (db) => childRecord(db, slot));
+    const definition = loadHarnessDefinition({
+      configDirectory,
+      name: row.harness,
     });
+    return sessionServedModel(row, definition);
   } catch {
-    return;
+    return null;
   }
-  const model = sessionServedModel(row, definition);
-  if (!model) return;
-  store.put("session_bindings", {
-    ...store.get("session_bindings", binding.slot),
-    served: {
-      model,
-      requested: binding.model ?? null,
-      changed: false,
-      withheld: false,
-    },
-  });
 }
 
 // Consume this workspace's `process` requests (R93.3: the tick only writes
@@ -720,11 +696,6 @@ export async function drainProcessRequests(
         },
         { consumer: CONSUMER },
       );
-      // A plan review is bound to its round as session.bind binds a chat's.
-      if (request.role === "plan-review") {
-        const { bindSpecReviewRound } = await import("../plan-reviews.mjs");
-        bindSpecReviewRound(store, { roundId: request.task, slot: sessionId });
-      }
       if (request.investigateSkipped)
         addEvidence(store, request.task, {
           kind: "note",
@@ -732,6 +703,11 @@ export async function drainProcessRequests(
           text: `Investigate first was skipped: ${request.investigateSkipped}.`,
           key: `investigate-skipped:${request.task}`,
         });
+      // A spec review child binds its round, as session.bind does for a chat.
+      if (request.role === "plan-review") {
+        const { bindSpecReviewRound } = await import("../plan-reviews.mjs");
+        bindSpecReviewRound(store, { roundId: request.task, slot: sessionId });
+      }
       // A plan answer child binds its round, as session.bind does for a chat.
       if (request.role === "plan-answer") {
         const { bindPlanAnswerSession } = await import(
@@ -782,13 +758,14 @@ export async function drainProcessRequests(
           const result = withDatabase(stateDirectory, (db) =>
             childResult(db, binding.slot),
           );
-          // The model the harness output names, for a role whose rule is
-          // about the model (NK5.2). None leaves the session unreported.
-          if (
-            result?.state &&
-            processRow(binding.role)?.hands === "plan-review"
-          )
-            recordServedModel(store, binding, stateDirectory, ops);
+          // A role whose rule is about which model ran reads the served
+          // model from the harness output (NK5.2).
+          if (result?.state && processRow(binding.role)?.served)
+            result.served = servedModelOf(
+              stateDirectory,
+              binding.slot,
+              ops.configDirectory,
+            );
           // A retro that wrote no good result still ends its retro, as
           // failed, so the next one can start.
           if (

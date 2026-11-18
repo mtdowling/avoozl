@@ -24,8 +24,6 @@ import {
 } from "../work-model.mjs";
 import { statusComplete } from "../query.mjs";
 
-// The most tasks one handoff takes, whatever the manifest says.
-export const MAX_BATCH = 5;
 const BLOCKING = new Set(["requires", "sequence"]);
 
 export const batchFinal = (binding) =>
@@ -53,7 +51,6 @@ function groupProblem(store, data, task, members, approved, config) {
     return "the group is not from the approved spec revision";
   if (all.some((t) => taskRepository(t) !== taskRepository(task)))
     return "its tasks are in different repositories";
-  if (group.tasks.length > MAX_BATCH) return `more than ${MAX_BATCH} tasks`;
   const inside = new Set(group.tasks);
   const edge = data.edges.find(
     (e) => BLOCKING.has(e.kind) && inside.has(e.from) && inside.has(e.to),

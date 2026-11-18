@@ -315,16 +315,16 @@ export default function WorkspaceView(
             <Box as="h4" mt="2" size="xs" weight="semibold" uppercase trackingWide tone="muted" data-add-how>
               How to add:
             </Box>
-            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 15rem), 1fr))' }}>
-              <div className="flex flex-col gap-1.5 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-choice="add">
+            <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-15rem-1fr" grid gap="2">
+              <Box css-border-color="border" flex flexCol gap="1.5" rounded="base" border="all" p="3" data-choice="add">
                 <Box as="span" size="sm" weight="medium">Add existing</Box>
                 <Hint as="p" size="xs">The folder already has Avoozl specs (an .avoozl.json and its database). Avoozl lists it; nothing in it changes.</Hint>
-              </div>
-              <div className="flex flex-col gap-1.5 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-choice="init">
+              </Box>
+              <Box css-border-color="border" flex flexCol gap="1.5" rounded="base" border="all" p="3" data-choice="init">
                 <Box as="span" size="sm" weight="medium">Start new</Box>
                 <Hint as="p" size="xs">Creates an empty workspace in the folder: an .avoozl.json and a new database. Refused if one is already there.</Hint>
-              </div>
-            </div>
+              </Box>
+            </Box>
           </Stack>
         </Modal>
       )}
@@ -421,13 +421,13 @@ export default function WorkspaceView(
             </>
           }
         >
-          <ul id="avoozl-ws-remove-lines" className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }} data-remove-lines>
+          <Box id="avoozl-ws-remove-lines" as="ul" css-list-style="disc" flex flexCol gap="1" pl="5" size="sm" data-remove-lines>
             {removeLines(removing).map((line) => (
-              <li key={line} style={{ overflowWrap: 'anywhere' }}>
+              <Box key={line} as="li" css-overflow-wrap="anywhere">
                 {line}
-              </li>
+              </Box>
             ))}
-          </ul>
+          </Box>
           {error && (
             <ErrorText role="alert" size="sm">
               {error}

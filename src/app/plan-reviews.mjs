@@ -238,22 +238,6 @@ export function bindSpecReviewRound(store, { roundId, runId, slot }) {
   });
 }
 
-// A review child that ended without findings Avoozl could record: its
-// running round is skipped with `note`, so the next revision may be
-// reviewed. Returns whether a round was skipped; never throws.
-export function endSpecReviewRound(store, slot, note) {
-  const round = store
-    .list("review_rounds")
-    .find((row) => row.slot === slot && row.state === "running");
-  if (!round) return false;
-  try {
-    skipSpecReviewRound(store, round, note);
-  } catch {
-    // skipSpecReviewRound records the skip, then refuses.
-  }
-  return true;
-}
-
 function skipSpecReviewRound(store, round, note) {
   store.transaction(() => {
     const current = store.get("review_rounds", round.id);
@@ -415,11 +399,9 @@ function reviewSummaryText(value) {
 }
 
 // A running or queued turn has not reported its model yet; a chat whose
-// status was never read is treated the same. A `process` child reports
-// only once it has exited, with its served model already read (NK5.2).
+// status was never read is treated the same.
 const turnOpen = (binding) =>
-  binding?.executor !== "process" &&
-  !["idle", "gone"].includes(binding?.status);
+  !["idle", "gone", "closed", "lost"].includes(binding?.status);
 
 // Findings that waited for the reviewer's model: record them once the chat
 // is idle and Kiro Crew names a model that differs from the writer's.

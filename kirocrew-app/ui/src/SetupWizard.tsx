@@ -256,9 +256,9 @@ export function SetupDialog(props: {
           {result.settings.changed ? (
             <>
               {result.settings.error && <ErrorText role="alert">{result.settings.error}</ErrorText>}
-              <pre className="overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
+              <Box as="pre" css-border-color="border" overflow="auto" rounded="base" border="all" p="2" size="xs">
                 {result.settings.diff}
-              </pre>
+              </Box>
             </>
           ) : (
             <Hint as="p">.avoozl.json already matches.</Hint>

@@ -98,7 +98,7 @@ export function ForwardScreen(props: { workspaceId: string; forwardId: string; t
             </section>
             <section>
               <Box as="h3" size="sm" weight="medium">Diff</Box>
-              <pre className="max-h-96 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }} data-forward-diff>{review.diff}</pre>
+              <Box as="pre" css-border-color="border" maxH96 overflow="auto" rounded="base" border="all" p="2" size="xs" data-forward-diff>{review.diff}</Box>
             </section>
           </>
         )}

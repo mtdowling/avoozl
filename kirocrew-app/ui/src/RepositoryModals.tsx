@@ -78,16 +78,16 @@ export function RoleChoice(props: {
 
 function Facts({ facts }: { facts: [string, ReactNode][] }) {
   return (
-    <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+    <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1.5" size="sm">
       {facts.map(([label, value]) => (
-        <div key={label} style={{ display: 'contents' }}>
+        <Box key={label} css-display="contents">
           <Hint as="dt">{label}</Hint>
-          <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
+          <Box as="dd" css-overflow-wrap="anywhere" minW0>
             {value}
-          </dd>
-        </div>
+          </Box>
+        </Box>
       ))}
-    </dl>
+    </Box>
   )
 }
 
@@ -227,12 +227,12 @@ export function EditRepository(props: {
                 </button>
               </Box>
             )}
-            <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }} data-repository-folder>
+            <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1" size="sm" data-repository-folder>
               <Hint as="dt">Folder</Hint>
-              <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
+              <Box as="dd" css-overflow-wrap="anywhere" minW0>
                 {row.folder ? <code>{row.folder}</code> : 'No folder on this computer'}
-              </dd>
-            </dl>
+              </Box>
+            </Box>
           </FormSection>
         )}
         {tab === 'mirror' &&

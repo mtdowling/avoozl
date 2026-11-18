@@ -99,6 +99,7 @@ export const TRAIN_DEFAULTS = Object.freeze({
     flakyReruns: 1,
   }),
   ci: Object.freeze({ waitForLastTrain: false }),
+  scheduling: Object.freeze({ overlap: "same-train" }),
   pullRequests: Object.freeze({
     mode: "review-only",
     commentTemplate: PR_COMMENT_TEMPLATE,
@@ -131,6 +132,7 @@ export const TRAIN_KEYS = {
     workflow: leaf({ string: true }),
     waitForLastTrain: leaf({ bool: true }),
   },
+  scheduling: { overlap: leaf({ oneOf: ["same-train", "serialize"] }) },
   pullRequests: {
     mode: leaf({ oneOf: ["review-only"] }),
     commentTemplate: leaf({ template: true }),
@@ -278,7 +280,7 @@ export function trainSettings(config, target) {
         ? { ...base[key], ...value }
         : value;
   out.branchPrefix ??= TRAIN_DEFAULTS.branchPrefix;
-  for (const key of ["trigger", "failure", "ci", "pullRequests"])
+  for (const key of ["trigger", "failure", "ci", "scheduling", "pullRequests"])
     out[key] = { ...TRAIN_DEFAULTS[key], ...(out[key] ?? {}) };
   out.conflicts = { mechanical: [], ...(out.conflicts ?? {}) };
   out.validation = { cheap: [], full: {}, ...(out.validation ?? {}) };

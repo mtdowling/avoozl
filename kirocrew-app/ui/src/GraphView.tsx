@@ -249,7 +249,7 @@ function Details(props: {
             {noSessionLabel(task.noSession)}.{task.nextAction ? ` Next: ${task.nextAction}` : ''} All details has Discuss, Mark done and Back to planned.
           </Box>
         )}
-        <dl className="mt-2 grid gap-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr', columnGap: 12 }}>
+        <Box as="dl" css-grid-template-columns="max-content-1fr" css-column-gap="12" mt="2" grid gap="1" size="sm">
           {task.repository && (
             <>
               <Hint as="dt">Repository</Hint>
@@ -302,7 +302,7 @@ function Details(props: {
               </dd>
             </>
           )}
-        </dl>
+        </Box>
       </div>
     </Card>
   )
@@ -619,9 +619,9 @@ export default function GraphView({
                       </Hint>
                     </Box>
                   ))}
-                  <span className="truncate font-medium" aria-current="page" style={{ maxWidth: 'min(28rem, 60vw)' }}>
+                  <Box as="span" css-max-width="min-28rem-60vw" truncate weight="medium" aria-current="page">
                     {drillLabel(drill)}
-                  </span>
+                  </Box>
                 </Box>
               </>
             )}

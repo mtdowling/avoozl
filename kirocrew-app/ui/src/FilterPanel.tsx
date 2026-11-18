@@ -155,7 +155,7 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
     // One line at every width: the main fields, a filter icon with the rest,
     // Clear while a filter is set, then the status text at the right end.
     return (
-      <div role="search" aria-label={props.label} data-filter-panel={props.id} data-filter-row className="flex min-w-0 items-center gap-1.5" style={{ flexWrap: 'nowrap' }}>
+      <Box role="search" aria-label={props.label} data-filter-panel={props.id} data-filter-row css-flex-wrap="nowrap" flex minW0 items="center" gap="1.5">
         {onRow.map((field) => (
           <InlineField key={field.key} id={props.id} field={field} />
         ))}
@@ -170,11 +170,11 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
         )}
         {props.active && <IconBtn icon={X} label="Clear every filter" tooltip="Clear every filter on this tab" onClick={props.onClear} />}
         {props.children && (
-          <div className="ml-auto flex items-center gap-1.5" style={{ flexShrink: 0, whiteSpace: 'nowrap' }} data-filter-status>
+          <Box css-flex-shrink="0" css-white-space="nowrap" ml="auto" flex items="center" gap="1.5" data-filter-status>
             {props.children}
-          </div>
+          </Box>
         )}
-      </div>
+      </Box>
     )
   }
   return (

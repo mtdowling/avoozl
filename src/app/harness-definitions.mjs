@@ -38,7 +38,6 @@ const KEYS = new Set([
   "writeRoots",
   "allow",
   "cost",
-  "servedModel",
   // Removed 2026-11-17 with budgets: skipped silently so an old definition
   // loads.
   "spendCap",
@@ -48,6 +47,9 @@ const KEYS = new Set([
   "keepEnv",
   "tmpEnv",
   "resultAllow",
+  // Where the harness output names the model that served the session
+  // (NK5.2): {"from": "output", "field": ...}.
+  "servedModel",
   // The role classes a live proof ran this definition in (NK6.2), for the
   // list in Settings › Models; nothing else reads it.
   "proved",
@@ -262,6 +264,20 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
   // flight shows it to copy. Avoozl never runs it.
   if (value.attach !== undefined)
     definition.attach = argv(value.attach, "attach", source);
+  if (value.servedModel !== undefined) {
+    const served = value.servedModel;
+    if (
+      !served ||
+      typeof served !== "object" ||
+      Array.isArray(served) ||
+      Object.keys(served).sort().join() !== "field,from" ||
+      served.from !== "output" ||
+      typeof served.field !== "string" ||
+      !/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(served.field)
+    )
+      fail(`${source}: servedModel must be {"from": "output", "field": ...}.`);
+    definition.servedModel = { from: "output", field: served.field };
+  }
   if (value.cost !== undefined) {
     const cost = words(value.cost, "cost", source);
     const field = { output: "field", file: "path" }[cost.from];
@@ -279,22 +295,6 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
         `${source}: cost must be {"from": "output", "field": ..., "per"?: "run" | "session"} or {"from": "file", "path": ...}.`,
       );
     definition.cost = cost;
-  }
-  // Where the harness output names the model that served the session
-  // (NK5.2, design D5): `field`, a JSON line's text value, or `keyOf`, the
-  // one key of a JSON line's object (Claude Code's `modelUsage`). Plan
-  // review counts a child's round only with it.
-  if (value.servedModel !== undefined) {
-    const served = words(value.servedModel, "servedModel", source);
-    const keys = Object.keys(served).sort().join();
-    if (
-      served.from !== "output" ||
-      !["field,from", "from,keyOf"].includes(keys)
-    )
-      fail(
-        `${source}: servedModel must be {"from": "output", "field": ...} or {"from": "output", "keyOf": ...}.`,
-      );
-    definition.servedModel = served;
   }
   return Object.freeze(definition);
 }

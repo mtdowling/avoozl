@@ -269,17 +269,12 @@ const OPEN = new Map([
       "checkTimeoutSeconds",
       "checks",
       "repos",
-      "hosts",
       "pools",
       "sources",
       "lanes",
     ],
   ],
   ["#/$defs/runner/properties/checks/additionalProperties", ["argv"]],
-  [
-    "#/$defs/runner/properties/hosts/additionalProperties",
-    ["via", "argv", "ssh", "command", "dashboardUrl"],
-  ],
   [
     "#/$defs/runner/properties/pools/items",
     ["spec", "repository", "target", "claims", "issue", "base", "visibility"],

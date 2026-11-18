@@ -1,7 +1,7 @@
-// Compatibility surfaces kept through the rename (R24.5, AGENTS.md): the
-// `plans_*` MCP names, the AVOOZL_*, AICOMMANDER_* and NUPP_WORKSPACE_*
-// variables, and the `aicommander` command. Each is exercised the way a
-// caller uses it: a child process with only that name set.
+// Compatibility surfaces kept through the rename (AGENTS.md): the AVOOZL_*,
+// AICOMMANDER_* and NUPP_WORKSPACE_* variables, and the `aicommander`
+// command. Each is exercised the way a caller uses it: a child process with
+// only that name set.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -15,26 +15,14 @@ import { temporaryDirectory } from "./temporary.mjs";
 const root = fileURLToPath(new URL("../../../", import.meta.url)),
   cli = path.join(root, "cli.mjs");
 
-// Every `plans_*` tool the stdio server listed at the Phase 0 baseline
-// (0747a53). Names may be added; none may disappear.
-const BASELINE_TOOLS = `plans_activate_visualization plans_activity
-plans_andon_note plans_andon_propose_remediation plans_andon_raise
-plans_andon_review plans_andon_status plans_answer_request plans_approve_plan
-plans_archive_run plans_archive_task plans_audit plans_capture
-plans_checkpoint_publish plans_checkpoints plans_control_batch
-plans_create_plan plans_dispose_fact plans_documents plans_duplicates
-plans_examples plans_extract plans_extraction plans_get_document
-plans_get_plan plans_get_run plans_get_task plans_handoff plans_integrate
-plans_accept_task plans_interrupt_run plans_jobs plans_list_runs
-plans_list_visualizations plans_merge_receipt plans_merge_tasks
-plans_metrics plans_models plans_present plans_primary_state
-plans_prompt_search plans_prompt_search_result plans_propose_work
-plans_query plans_ready_queue plans_resume_run plans_review_queue
-plans_run_context plans_save_plan plans_seed_example plans_send_message
-plans_set_run_approvals plans_start_batch plans_start_run plans_status
-plans_submit_extraction plans_submit_review plans_target_status
-plans_targets plans_triage_design plans_unarchive_run plans_update_task
-plans_usage plans_validate_run plans_visualize plans_workspace`.split(/\s+/);
+// The `plans_*` tools from the Phase 0 baseline (0747a53) that stay. The
+// deprecated one-tool-per-operation names were removed on 2026-11-18 (R56.3).
+const KEPT_TOOLS = `plans_activate_visualization plans_activity
+plans_approve_plan plans_audit plans_documents plans_get_document
+plans_get_task plans_list_visualizations plans_present plans_query
+plans_status plans_visualize plans_workspace`.split(/\s+/);
+const REMOVED_TOOLS = `plans_update_task plans_bind_session plans_tick
+plans_send_message plans_andon_raise plans_relay`.split(/\s+/);
 
 // A child environment with no Avoozl-family variable from this machine.
 function cleanEnv(dir, extra = {}) {
@@ -64,7 +52,7 @@ function run(dir, args, extra) {
   });
 }
 
-test("the stdio MCP server still lists every baseline plans_* tool", () => {
+test("the stdio MCP server lists the kept plans_* tools and no removed one", () => {
   const { dir, workspace } = setup("Compat MCP");
   const messages = [
     {
@@ -96,7 +84,11 @@ test("the stdio MCP server still lists every baseline plans_* tool", () => {
     .find((message) => message.id === 2);
   const names = new Set(listed.result.tools.map((tool) => tool.name));
   assert.deepEqual(
-    BASELINE_TOOLS.filter((name) => !names.has(name)),
+    KEPT_TOOLS.filter((name) => !names.has(name)),
+    [],
+  );
+  assert.deepEqual(
+    REMOVED_TOOLS.filter((name) => names.has(name)),
     [],
   );
 });

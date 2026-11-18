@@ -308,7 +308,7 @@ export function RetryForm({ item, busy, onRetry }: { item: DeliveryItem; busy: b
 
 export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSupersede: Supersede }) {
   return (
-    <div className="mt-2 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+    <Box css-border-color="border" mt="2" border="t" pt="2">
       <Box flex flexWrap gap="1.5">
         <Badge variant={item.complete ? 'success' : 'info'}>{item.status ?? 'no status'}</Badge>
         {item.repository && <Badge>{item.repository}</Badge>}
@@ -386,6 +386,6 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
       <Records label="Deliveries" records={item.deliveries} />
       <Records label="Worktrees" records={item.worktrees} />
       {canSupersede(item) && <SupersedeForm item={item} onSupersede={onSupersede} />}
-    </div>
+    </Box>
   )
 }

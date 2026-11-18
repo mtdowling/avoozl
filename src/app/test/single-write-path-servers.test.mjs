@@ -1,5 +1,5 @@
 // One SQLite write path, servers' half: the app backend, the stdio MCP server,
-// and the tick cron (which calls plans_tick on that MCP server) change the
+// and the tick cron (which calls plans_maintain tick on that MCP server) change the
 // workspace database only inside an Operations call.
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -21,12 +21,12 @@ test("the stdio MCP server and the tick it serves write only inside Operations",
     result = avoozl(
       ["mcp", "--workspace", workspace],
       [
-        mcpLine(1, "plans_update_task", {
+        mcpLine(1, "plans_task.update", {
           id: "sample-task",
           title: "Via MCP",
         }),
-        mcpLine(2, "plans_tick", {}),
-        mcpLine(3, "plans_bind_session", {
+        mcpLine(2, "plans_maintain.tick", {}),
+        mcpLine(3, "plans_session.bind", {
           taskId: "sample-task",
           slot: "chat-1",
           title: "avoozl:sample-task Implement fixture",
@@ -43,9 +43,9 @@ test("the stdio MCP server and the tick it serves write only inside Operations",
     snapshotBefore = dump(dbPath(workspace)),
     refused = denied.avoozl(
       ["mcp", "--workspace", workspace],
-      mcpLine(1, "plans_update_task", { id: "sample-task", title: "Bypass" }) +
+      mcpLine(1, "plans_task.update", { id: "sample-task", title: "Bypass" }) +
         "\n" +
-        mcpLine(2, "plans_tick", {}) +
+        mcpLine(2, "plans_maintain.tick", {}) +
         "\n",
     );
   for (const line of refused.stdout.trim().split("\n")) {

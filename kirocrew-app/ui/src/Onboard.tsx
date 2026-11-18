@@ -62,16 +62,16 @@ function Pill({ kind }: { kind: string }) {
 
 function Facts({ rows }: { rows: [string, ReactNode][] }) {
   return (
-    <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content minmax(0, 1fr)' }}>
+    <Box as="dl" css-grid-template-columns="max-content-minmax-0-1fr" grid gapX="3" gapY="1" size="sm">
       {rows.map(([label, value]) => (
         <Box key={label} contents>
           <Hint as="dt">{label}</Hint>
-          <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
+          <Box as="dd" css-overflow-wrap="anywhere" minW0>
             {value}
-          </dd>
+          </Box>
         </Box>
       ))}
-    </dl>
+    </Box>
   )
 }
 
@@ -127,19 +127,19 @@ function ModeStep(props: { form: OnboardForm; set: (patch: Partial<OnboardForm>)
                   ))}
                 </Box>
                 {!form.isPlanning && (
-                  <label className="flex flex-col gap-1" style={{ maxWidth: '22rem' }}>
+                  <Box as="label" css-max-width="22rem" flex flexCol gap="1">
                     <span>
                       Planning repository <Hint size="xs">(required)</Hint>
                     </span>
                     <Input value={form.planningRepository} placeholder="acme/plans" onChange={(e: Change) => set({ planningRepository: e.target.value })} />
                     <Box as="code" size="11" tone="muted">github.planningRepository</Box>
-                  </label>
+                  </Box>
                 )}
               </Stack>
             ) : undefined,
         }))}
       />
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(12rem, 15rem))' }}>
+      <Box css-grid-template-columns="repeat-auto-fill-minmax-12rem-15rem" grid gap="2">
         <Box as="label" flex flexCol gap="1">
           <span>
             Short ID <Hint size="xs">(required)</Hint>
@@ -152,7 +152,7 @@ function ModeStep(props: { form: OnboardForm; set: (patch: Partial<OnboardForm>)
           </span>
           <Input value={form.baseBranch} placeholder={found.baseBranch} disabled={Boolean(found.registered)} onChange={(e: Change) => set({ baseBranch: e.target.value })} />
         </Box>
-      </div>
+      </Box>
       {props.problem && (
         <ErrorText role="alert" size="sm">
           {props.problem}
@@ -215,9 +215,9 @@ function CheckStep({ result }: { result: SetupResult | null }) {
       {result.settings.changed && (
         <details>
           <Box as="summary" cursorPointer size="xs" tone="muted">The .avoozl.json change Set up would save</Box>
-          <pre className="mt-1 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
+          <Box as="pre" css-border-color="border" mt="1" overflow="auto" rounded="base" border="all" p="2" size="xs">
             {result.settings.diff}
-          </pre>
+          </Box>
         </details>
       )}
     </Box>

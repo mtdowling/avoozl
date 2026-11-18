@@ -62,7 +62,7 @@ export function TaskScmLinks({ links }: { links: TaskScmLinks | null | undefined
   const set = links ?? null
   if (!set || !(set.branch || set.worktree || set.pr || set.checks || set.landed || set.issue || set.source)) return null
   return (
-    <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }} data-scm-links>
+    <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1.5" size="sm" data-scm-links>
       {set.branch && (
         <Row label="Branch">
           <Item link={set.branch} />
@@ -70,9 +70,9 @@ export function TaskScmLinks({ links }: { links: TaskScmLinks | null | undefined
       )}
       {set.worktree && (
         <Row label="Worktree">
-          <code className="text-xs" style={{ overflowWrap: 'anywhere' }} data-worktree-path>
+          <Box as="code" css-overflow-wrap="anywhere" size="xs" data-worktree-path>
             {set.worktree.path}
-          </code>{' '}
+          </Box>{' '}
           <Hint size="xs">on this machine</Hint>
         </Row>
       )}
@@ -104,6 +104,6 @@ export function TaskScmLinks({ links }: { links: TaskScmLinks | null | undefined
           <Item link={set.source} />
         </Row>
       )}
-    </dl>
+    </Box>
   )
 }

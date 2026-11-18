@@ -173,12 +173,11 @@ export function validateMarker(marker, { planningRepository } = {}) {
     "instance",
   );
   check(marker.parent === undefined || TASK_ID.test(marker.parent), "parent");
-  // A batch issue (radar-coder D4.2): two to five task IDs, the lead first.
+  // A batch issue (radar-coder D4.2): two or more task IDs, the lead first.
   check(
     marker.members === undefined ||
       (Array.isArray(marker.members) &&
         marker.members.length >= 2 &&
-        marker.members.length <= 5 &&
         new Set(marker.members).size === marker.members.length &&
         marker.members[0] === marker.taskId &&
         marker.members.every((id) => TASK_ID.test(id))),

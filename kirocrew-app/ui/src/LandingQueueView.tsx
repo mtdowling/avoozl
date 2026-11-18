@@ -38,7 +38,7 @@ function Row(props: { item: LandingItem; now: number }) {
   const links = itemLinks(item)
   const first = item.tasks[0]
   return (
-    <li data-landing-row={item.key} data-hold={item.hold.kind} className="flex w-full min-w-0 flex-col gap-1 border-t py-2 text-sm first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+    <Box data-landing-row={item.key} data-hold={item.hold.kind} as="li" css-border-color="border" flex wFull minW0 flexCol gap="1" border="t" py="2" size="sm" firstBorderT0>
       <Box flex minW0 items="center" gap="2">
         <Box as="span" w6 shrink0 size="xs" tabularNums tone="muted" data-landing-position>
           {item.position ?? '—'}
@@ -62,15 +62,15 @@ function Row(props: { item: LandingItem; now: number }) {
         {links.map((link) => (
           <a key={link.key} href={safeHref(link.href) ?? undefined} target="_blank" rel="noopener noreferrer" className="inline-flex min-w-0 items-center gap-1 underline" data-landing-link={link.key}>
             {link.key === 'pr' && <CheckDot checks={item.checks} />}
-            <span className="truncate" style={{ maxWidth: '16rem' }}>
+            <Box as="span" css-max-width="16rem" truncate>
               {link.label}
-            </span>
+            </Box>
           </a>
         ))}
         {!item.pr && item.checks && <CheckDot checks={item.checks} />}
         {item.since && <Box as="span" tabularNums>{duration(item.since, props.now)}</Box>}
       </Box>
-    </li>
+    </Box>
   )
 }
 
@@ -92,9 +92,9 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
       </ViewHeading>
       <Hint as="p" size="xs">What waits to land on each base, in landing order, and why. Read from Avoozl's own records; Refresh does not call GitHub.</Hint>
       {error && (
-        <p role="alert" className="text-sm" style={{ color: 'var(--danger)' }}>
+        <Box role="alert" as="p" css-color="danger" size="sm">
           {error}
-        </p>
+        </Box>
       )}
       {!value ? (
         <Hint as="p" size="sm">Loading…</Hint>

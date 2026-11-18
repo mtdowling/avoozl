@@ -19,9 +19,9 @@ test('Needs you shows its count once, at the right end of the filter row', () =>
   assert.match(view, /key: 'kind'[^\n]*primary: true/)
   assert.match(source('PlansView.tsx'), /<PlanFilters[^>]*>\s*<Hint size="xs" role="status">/)
   const panel = source('FilterPanel.tsx')
-  assert.match(panel, /data-filter-row className="flex min-w-0 items-center gap-1\.5" style=\{\{ flexWrap: 'nowrap' \}\}/)
+  assert.match(panel, /data-filter-row css-flex-wrap="nowrap" flex minW0 items="center" gap="1\.5"/)
   assert.match(panel, /<MoreMenu label=\{`More filters/)
-  assert.match(panel, /className="ml-auto flex items-center gap-1\.5" style=\{\{ flexShrink: 0, whiteSpace: 'nowrap' \}\} data-filter-status/)
+  assert.match(panel, /<Box css-flex-shrink="0" css-white-space="nowrap" ml="auto" flex items="center" gap="1\.5" data-filter-status>/)
 })
 
 const chrome = findChrome()

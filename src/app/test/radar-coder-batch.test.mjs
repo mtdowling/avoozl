@@ -2,7 +2,10 @@
 // planner's batch groups whose tasks are open and unblocked (RC2.5, D4.2).
 import assert from "node:assert/strict";
 import test from "node:test";
-import { planProjectionBatches } from "../radar-coder-batch.mjs";
+import {
+  planProjectionBatches,
+  resolveBatchGroups,
+} from "../radar-coder-batch.mjs";
 
 const t = (id, extra = {}) => ({
   id,
@@ -43,7 +46,7 @@ test("blocked tasks never batch", () => {
   assert.deepEqual(ids(unknown), []);
 });
 
-test("the planner's groups are the batches, with their reason, at most 5", () => {
+test("the planner's groups are the batches, with their reason, with no size cap", () => {
   const plan = planProjectionBatches({
     tasks: [
       t("a", { batch: { id: "g1", tasks: [], reason: "Docs" } }),
@@ -59,11 +62,14 @@ test("the planner's groups are the batches, with their reason, at most 5", () =>
       ["g2", "Tests", ["b", "d"]],
     ],
   );
-  const seven = planProjectionBatches({ tasks: many(7) });
-  assert.deepEqual(ids(seven), [
-    ["t1", "t2", "t3", "t4", "t5"],
-    ["t6", "t7"],
+  const twelve = planProjectionBatches({ tasks: many(12) });
+  assert.deepEqual(ids(twelve), [
+    Array.from({ length: 12 }, (_, i) => `t${i + 1}`),
   ]);
+  assert.deepEqual(
+    resolveBatchGroups({ tasks: many(12), requested: [ids(twelve)[0]] }),
+    ids(twelve),
+  );
 });
 
 test("an edge between two tasks splits them", () => {

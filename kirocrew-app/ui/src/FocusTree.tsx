@@ -225,7 +225,7 @@ export default function GraphPage(props: {
               active={showDrafts}
               onClick={() => setShowDrafts(!showDrafts)}
               attrs={{ 'data-rail-drafts': '' }}
-              trail={draftCount > 0 ? <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', opacity: 0.7 }}>{draftCount}</span> : undefined}
+              trail={draftCount > 0 ? <Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-opacity="0.7">{draftCount}</Box> : undefined}
             />
           </RailBlock>
         </div>
@@ -233,13 +233,12 @@ export default function GraphPage(props: {
       <ViewHeading id="avoozl-graph-title" view="graph">
         Graph
       </ViewHeading>
-      <div
-        className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b pb-2 text-[11px] text-muted"
-        style={{ borderColor: 'var(--border)', fontFamily: MONO, letterSpacing: '.08em' }}
+      <Box
+        css-border-color="border" css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" css-letter-spacing=".08em" flex flexWrap items="center" gapX="3" gapY="2" border="b" pb="2" size="11" tone="muted"
         data-graph-header
       >
         <Box as="span" whitespace="nowrap">
-          DEPENDENCIES · <span className="font-semibold" style={{ color: 'var(--text-strong, var(--text))' }}>{props.workspaceName ?? workspaceId ?? ''}</span>
+          DEPENDENCIES · <Box as="span" css-color="text-strong-text" weight="semibold">{props.workspaceName ?? workspaceId ?? ''}</Box>
         </Box>
         <Row role="tablist" aria-label="Dependency views" gap={1} wrap={false}>
           {TABS.map((t) => (
@@ -296,7 +295,7 @@ export default function GraphPage(props: {
           </datalist>
           {workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void source.reload()} busy={source.busy} />}
         </Box>
-      </div>
+      </Box>
       {jumpError && (
         <ErrorText id="avoozl-graph-jump-error" role="alert" size="xs" flush>
           {jumpError}
@@ -331,14 +330,14 @@ export default function GraphPage(props: {
         />
       )}
       {place.tab !== 'all' && graph && graph.total > 0 && (
-        <div id={HINT_ID} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t pt-2 text-[11px] text-muted" style={{ borderColor: 'var(--border)', fontFamily: MONO }} data-graph-hint>
+        <Box id={HINT_ID} css-border-color="border" css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" flex flexWrap items="baseline" justify="between" gapX="4" gapY="1" border="t" pt="2" size="11" tone="muted" data-graph-hint>
           <Box as="span" minW0 flex1>
             {place.tab === 'frontier'
               ? 'Newly unlocked tasks have every blocker on record done. Open a row to see why, or open its tree.'
               : 'The live dependency tree of the selected task or spec. Click a card or press Enter to drill into its tree; O, Space or ↗ opens its details. Arrow keys move between cards. Dashed = sequence only, struck = done.'}
           </Box>
           <Box as="span" flexNone tabularNums>{lists?.ready.length ?? 0} newly unlocked</Box>
-        </div>
+        </Box>
       )}
       {modal && graph && (
         <ItemModal
@@ -380,26 +379,26 @@ function NavArrow(props: { label: string; icon: 'back' | 'forward'; disabled: bo
 export function Frontier(props: { ready: FrontierItem[]; waiting: FrontierItem[]; onOpenTree: (id: string) => void; onOpen: (id: string) => void }) {
   const { ready, waiting } = props
   return (
-    <div className="flex flex-col" style={{ fontFamily: MONO }} data-frontier>
-      <h3 className="m-0 text-[11px] font-semibold" style={{ letterSpacing: '.26em', color: 'var(--text-strong, var(--text))' }}>
+    <Box css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" flex flexCol data-frontier>
+      <Box as="h3" css-letter-spacing=".26em" css-color="text-strong-text" m0 size="11" weight="semibold">
         FRONTIER
-      </h3>
-      <p className="mb-3.5 mt-0.5 text-[10px]" style={{ color: 'var(--muted-strong, var(--muted))' }} data-frontier-sub>
+      </Box>
+      <Box as="p" css-color="muted-strong-muted" mb="3.5" mt="0.5" size="10" data-frontier-sub>
         {ready.length} newly unlocked · {waiting.length} still waiting
-      </p>
+      </Box>
       {ready.length === 0 && waiting.length === 0 && <Box as="p" size="11" tone="muted">No task has a blocker on record.</Box>}
       {ready.map((item) => (
         <FrontierRow key={item.task.id} item={item} unlocked {...props} />
       ))}
       {waiting.length > 0 && (
-        <div className="mb-2.5 mt-5 border-t pt-2.5 text-[9px]" style={{ maxWidth: 820, borderColor: 'var(--border)', letterSpacing: '.24em', color: 'var(--muted-strong, var(--muted))' }}>
+        <Box css-max-width="820" css-border-color="border" css-letter-spacing=".24em" css-color="muted-strong-muted" mb="2.5" mt="5" border="t" pt="2.5" size="9">
           WAITING ({waiting.length})
-        </div>
+        </Box>
       )}
       {waiting.map((item) => (
         <FrontierRow key={item.task.id} item={item} unlocked={false} {...props} />
       ))}
-    </div>
+    </Box>
   )
 }
 
@@ -441,7 +440,7 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
   const met = blockers.filter((b) => b.met)
   const why = `avoozl-frontier-why-${task.id}`
   return (
-    <div className="mb-2 rounded-[3px] border" style={{ maxWidth: 820, borderColor: 'var(--border)', background: 'var(--card)' }} data-frontier-row={task.id}>
+    <Box css-max-width="820" css-border-color="border" css-background="card" mb="2" rounded="[3px]" border="all" data-frontier-row={task.id}>
       <button
         type="button"
         aria-expanded={open}
@@ -450,16 +449,16 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
         className="flex w-full cursor-pointer items-baseline gap-2.5 px-3.5 py-2.5 text-left"
         style={{ background: 'transparent' }}
       >
-        <span className="flex-none text-[12px] font-bold" style={{ color: props.unlocked ? 'var(--accent)' : 'var(--warn, var(--muted))' }}>
+        <Box as="span" css-color={props.unlocked ? 'accent' : 'warn-muted'} flexNone size="12" weight="bold">
           {task.id}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-[12px]" style={{ color: 'var(--text)' }}>
+        </Box>
+        <Box as="span" css-color="text" minW0 flex1 truncate size="12">
           {task.title}
-        </span>
+        </Box>
         <Chip task={task} />
       </button>
       {open && (
-        <div id={why} className="px-3.5 pb-3 text-[10.5px] text-muted" style={{ paddingLeft: 30, lineHeight: 1.6 }} data-frontier-why>
+        <Box id={why} css-padding-left="30" css-line-height="1.6" px="3.5" pb="3" text105px tone="muted" data-frontier-why>
           {props.unlocked ? (
             <>
               All blockers satisfied: <Refs tasks={met} struck />
@@ -483,9 +482,9 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
           <button type="button" className="cursor-pointer underline underline-offset-2" style={{ color: 'var(--accent)', background: 'transparent' }} onClick={() => props.onOpen(task.id)}>
             details
           </button>
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -544,19 +543,19 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
   const height = layout.height + 8
   return (
     <Stack gap={2} data-focus-tree={`${root.kind}:${root.id}`}>
-      <div className="flex flex-wrap items-baseline gap-x-3 text-[11px]" style={{ fontFamily: MONO, letterSpacing: '.1em', color: 'var(--muted-strong, var(--muted))' }}>
+      <Box css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" css-letter-spacing=".1em" css-color="muted-strong-muted" flex flexWrap items="baseline" gapX="3" size="11">
         <span data-tree-stat>
           tree of {label}: {tree.graph.tasks.length} {tree.graph.tasks.length === 1 ? 'node' : 'nodes'} · {tree.live} live {tree.live === 1 ? 'edge' : 'edges'}
         </span>
-        <span className="truncate" style={{ letterSpacing: 0, color: 'var(--text)' }}>
+        <Box as="span" css-letter-spacing="0" css-color="text" truncate>
           {rootTitle(graph, root)}
-        </span>
+        </Box>
         {root.kind === 'task' && (
           <button type="button" className="cursor-pointer underline underline-offset-2" style={{ color: 'var(--accent)', background: 'transparent', letterSpacing: 0 }} onClick={() => props.onOpen(root)}>
             details
           </button>
         )}
-      </div>
+      </Box>
       <div
         ref={box}
         className="overflow-auto rounded border"
@@ -568,7 +567,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
       >
         {phone ? (
           // A phone: one column of cards, upstream first, the page scrolls.
-          <ol role="group" aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`} aria-describedby={HINT_ID} className="m-0 flex flex-col gap-2 p-2" style={{ listStyle: 'none', fontFamily: MONO }} data-tree-list>
+          <Box role="group" aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`} aria-describedby={HINT_ID} as="ol" css-list-style="none" css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" m0 flex flexCol gap="2" p="2" data-tree-list>
             {[...nodes]
               .sort((a, b) => a.x - b.x || a.y - b.y)
               .map((node) => {
@@ -613,9 +612,9 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                           <ExternalLink size={13} aria-hidden="true" />
                         </button>
                       </Box>
-                      <span className="text-[11px]" style={{ color: 'var(--text)' }}>
+                      <Box as="span" css-color="text" size="11">
                         {task.title}
-                      </span>
+                      </Box>
                       {waits.length > 0 && (
                         <Box as="span" size="10" tone="muted">
                           waits on{' '}
@@ -632,7 +631,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                   </li>
                 )
               })}
-          </ol>
+          </Box>
         ) : (
         <svg
           role="group"
@@ -787,12 +786,12 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
       }
     >
       {draftSpec && (
-        <p className="m-0 mb-2 rounded border border-dashed px-3 py-2 text-sm" style={{ borderColor: 'var(--border-strong, var(--border))' }} data-draft-note>
+        <Box as="p" css-border-color="border-strong-border" m0 mb="2" rounded="base" border="all" borderDashed px="3" py="2" size="sm" data-draft-note>
           Spec <code>{draftSpec.name}</code> is a draft ({draftSpec.status}). {task ? 'This task' : 'Its tasks'} cannot start until the spec is approved in Specs.
-        </p>
+        </Box>
       )}
       {task ? (
-        <dl className="m-0 grid gap-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr', columnGap: 12 }}>
+        <Box as="dl" css-grid-template-columns="max-content-1fr" css-column-gap="12" m0 grid gap="1" size="sm">
           {row('Task', <code>{task.id}</code>)}
           {row('State', <Chip task={task} />)}
           {plan ? row('Spec', plan.title) : task.draft && row('Spec', draftSpec?.title ?? task.draft.spec)}
@@ -803,13 +802,13 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
           {task.decision && row('Decision', task.decision)}
           {waitsOn.length > 0 && row('Waits on', <EdgeList label="Waits on" items={waitsOn.map((e) => ({ id: e.from, text: e.from, met: e.satisfied }))} onOpen={openTree} />)}
           {blocks.length > 0 && row('Blocks', <EdgeList label="Blocks" items={blocks.map((e) => ({ id: e.to, text: e.to }))} onOpen={openTree} />)}
-        </dl>
+        </Box>
       ) : item.kind === 'spec' ? (
         <Box flex flexCol gap="2" size="sm">
           <Hint as="p" flush>
             Spec <code>{item.id}</code> · {members.length} tasks · {members.filter((t) => nodeState(t) === 'done').length} done
           </Hint>
-          <ul className="m-0 flex flex-col gap-1 p-0" style={{ listStyle: 'none' }}>
+          <Box as="ul" css-list-style="none" m0 flex flexCol gap="1" p="0">
             {members.map((t) => (
               <Box key={t.id} as="li" flex items="baseline" gap="2">
                 {link(t.id)}
@@ -817,7 +816,7 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
                 <Chip task={t} />
               </Box>
             ))}
-          </ul>
+          </Box>
         </Box>
       ) : (
         <Hint as="p" size="sm" flush>{item.id} is not in this workspace’s graph.</Hint>

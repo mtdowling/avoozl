@@ -15,7 +15,6 @@ import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
 
-const BOX = { borderColor: 'var(--border)' }
 const linkButton = { background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer', textAlign: 'left' as const }
 
 // The spec's title; it opens Specs on that spec when a stored plan exists.
@@ -54,7 +53,7 @@ export function TaskText(props: { title: string; context: ItemContext | undefine
           {sourceLine(source)}
         </Box>
       )}
-      <pre className="m-0 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded border p-2 text-xs" style={BOX} data-task-text-body={evidence.kind}>
+      <Box as="pre" css-border-color="border" m0 maxH56 overflow="auto" whitespace="pre-wrap" breakWords rounded="base" border="all" p="2" size="xs" data-task-text-body={evidence.kind}>
         {evidence.kind === 'diff'
           ? evidence.lines.map((line, i) => (
               <span key={i} data-diff={line.kind} style={{ display: 'block', color: DIFF_INK[line.kind] }}>
@@ -62,7 +61,7 @@ export function TaskText(props: { title: string; context: ItemContext | undefine
               </span>
             ))
           : evidence.lines.join('\n')}
-      </pre>
+      </Box>
       {evidence.kind === 'text' && props.note && <Hint as="p" size="xs" flush>{evidence.note}</Hint>}
     </Stack>
   )
@@ -72,7 +71,7 @@ export function TaskText(props: { title: string; context: ItemContext | undefine
 export function ReviewTaskContext({ task }: { task: ReviewTask }) {
   const drawer = useTaskDrawer()
   return (
-    <li className="flex flex-col gap-1 border-t py-2 first:border-t-0" style={BOX} data-review-task={task.id}>
+    <Box as="li" css-border-color="border" flex flexCol gap="1" border="t" py="2" firstBorderT0 data-review-task={task.id}>
       <Box as="span" flex flexWrap items="baseline" gap="2" size="sm">
         <button type="button" className="font-medium underline" style={linkButton} data-task-link={task.id} onClick={() => drawer.openTask(task.id)}>
           {task.id}: {task.title}
@@ -84,7 +83,7 @@ export function ReviewTaskContext({ task }: { task: ReviewTask }) {
         )}
       </Box>
       <TaskText title={task.title} context={task.context} note />
-    </li>
+    </Box>
   )
 }
 
@@ -105,16 +104,16 @@ export function Values({ item }: { item: ConflictItem }) {
   const block = (label: string, value: ConflictItem['expected']) => (
     <Box minW0>
       <Hint as="div" size="xs">{label}</Hint>
-      <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded border p-2 text-xs" style={BOX}>
+      <Box as="pre" css-border-color="border" mt="1" maxH40 overflow="auto" whitespace="pre-wrap" breakWords rounded="base" border="all" p="2" size="xs">
         {shownValue(value)}
-      </pre>
+      </Box>
     </Box>
   )
   return (
-    <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 16rem), 1fr))' }}>
+    <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-16rem-1fr" grid gap="2">
       {block('Avoozl expected', item.expected)}
       {block(item.changedBy ? `GitHub has (changed by ${item.changedBy})` : 'GitHub has', item.actual)}
-    </div>
+    </Box>
   )
 }
 
@@ -132,21 +131,21 @@ export function InvestigationEvidence({ item }: { item: ConflictItem }) {
   return (
     <Stack gap={2}>
       {f && (
-        <dl className="m-0 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 16rem), 1fr))' }}>
+        <Box as="dl" css-grid-template-columns="repeat-auto-fit-minmax-min-100%-16rem-1fr" m0 grid gap="2">
           {row('Read', f.read)}
           {row('Cause or approach', f.cause)}
           {row('Planned change', f.plan)}
           {row('How it is checked', f.check)}
           {row('Worker is sure', CONFIDENCE[f.confidence])}
-        </dl>
+        </Box>
       )}
       {item.reply && (
-        <div className="rounded border p-2 text-sm" style={BOX}>
+        <Box css-border-color="border" rounded="base" border="all" p="2" size="sm">
           <Hint as="div" size="xs">
             Falsifier: {item.reply.verdict === 'refuted' ? 'refuted' : 'stands'}, {CONFIDENCE[item.reply.confidence].toLowerCase()} confidence
           </Hint>
           <Box as="p" mt="1" whitespace="pre-wrap" breakWords>{item.reply.evidence}</Box>
-        </div>
+        </Box>
       )}
     </Stack>
   )
@@ -228,11 +227,11 @@ function Evidence({ item }: { item: ConflictItem }) {
         <Box flex flexCol gap="1" size="sm" data-escalation-evidence>
           <Box as="p" m0>An Issue Radar crew added “{item.escalation.label}”{item.escalation.scope ? ` (${item.escalation.scope})` : ''}.</Box>
           {item.escalation.draft && (
-            <ul className="m-0 pl-5" style={{ listStyle: 'disc' }}>
+            <Box as="ul" css-list-style="disc" m0 pl="5">
               {item.escalation.draft.acceptance.map((line) => (
                 <li key={line}>{line}</li>
               ))}
-            </ul>
+            </Box>
           )}
         </Box>
       )}
@@ -265,19 +264,19 @@ export function ItemContextBlock({ item, plan }: { item: ConflictItem; plan?: st
   const spec = specOfItem(item) ?? (plan ? { planId: null, name: plan, title: plan } : null)
   const unblock = unblockLine(item)
   return (
-    <div className="flex flex-col gap-3 rounded border p-3" style={BOX} data-needs-context={item.kind}>
+    <Box css-border-color="border" flex flexCol gap="3" rounded="base" border="all" p="3" data-needs-context={item.kind}>
       <style>{'[data-needs-context] :is(dl,dd,h4,p,ul){margin:0}[data-needs-context] dd{margin-left:0}'}</style>
-      <dl className="m-0 grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'auto 1fr' }} data-context-where>
+      <Box as="dl" css-grid-template-columns="auto-1fr" m0 grid gapX="3" gapY="1" size="sm" data-context-where>
         <Hint as="dt" size="xs">Spec</Hint>
-        <dd className="m-0 min-w-0" style={{ overflowWrap: 'anywhere' }}>
+        <Box as="dd" css-overflow-wrap="anywhere" m0 minW0>
           {spec ? <SpecLink spec={spec} /> : <Hint>Not part of a spec</Hint>}
-        </dd>
+        </Box>
         {task && (
           <>
             <Hint as="dt" size="xs">Task</Hint>
-            <dd className="m-0 min-w-0" style={{ overflowWrap: 'anywhere' }}>
+            <Box as="dd" css-overflow-wrap="anywhere" m0 minW0>
               <TaskLink task={task} />
-            </dd>
+            </Box>
           </>
         )}
         {context?.source && item.kind !== 'review' && (
@@ -290,7 +289,7 @@ export function ItemContextBlock({ item, plan }: { item: ConflictItem; plan?: st
             </Box>
           </>
         )}
-      </dl>
+      </Box>
       <Section name="asked" title="What is asked, and why">
         <Box as="p" m0 size="sm" weight="medium">{askLine(item)}</Box>
         <Hint as="p" size="sm" flush data-context-why>
@@ -305,6 +304,6 @@ export function ItemContextBlock({ item, plan }: { item: ConflictItem; plan?: st
       <Section name="evidence" title="Evidence">
         <Evidence item={item} />
       </Section>
-    </div>
+    </Box>
   )
 }

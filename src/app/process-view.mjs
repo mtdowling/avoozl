@@ -94,37 +94,35 @@ export function sessionCost(row, definition) {
   return total;
 }
 
-// The model that served the session, as its definition's `servedModel`
-// says the harness output names it (NK5.2), or null: the newest JSON line
-// of the log that names one. A `keyOf` object with more than one key names
-// no single model, so it gives null. The log is the harness's output, data
-// only; a requested model is never read as the served one.
+// The model that served the session, from its definition's `servedModel`
+// (NK5.2), or null. The last JSON line of the log that holds the field: a
+// model name, or an object with exactly one model as its key (Claude Code's
+// `modelUsage`). Two models, or none, prove nothing.
 export function sessionServedModel(row, definition) {
-  const served = definition?.servedModel;
-  const name = served?.field ?? served?.keyOf;
+  const field = definition?.servedModel?.field;
   const text =
-    name && row?.log_file ? readTail(row.log_file, COST_BYTES) : null;
+    field && row.log_file ? readTail(row.log_file, COST_BYTES) : null;
   if (!text) return null;
   let model = null;
   for (const line of text.split("\n")) {
     const start = line.indexOf("{");
-    if (start < 0 || !line.includes(name)) continue;
+    if (start < 0 || !line.includes(field)) continue;
     let value;
     try {
-      value = JSON.parse(line.slice(start))?.[name];
+      value = JSON.parse(line.slice(start))?.[field];
     } catch {
       continue;
     }
-    const found = served.keyOf
-      ? value && typeof value === "object" && !Array.isArray(value)
-        ? Object.keys(value).length === 1
-          ? Object.keys(value)[0]
-          : null
-        : undefined
-      : typeof value === "string" && value.trim()
-        ? value.trim()
-        : undefined;
-    if (found !== undefined) model = found;
+    const keys =
+      value && typeof value === "object" && !Array.isArray(value)
+        ? Object.keys(value)
+        : null;
+    const named =
+      typeof value === "string" ? value : keys?.length === 1 ? keys[0] : null;
+    model =
+      named && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(named)
+        ? named
+        : null;
   }
   return model;
 }

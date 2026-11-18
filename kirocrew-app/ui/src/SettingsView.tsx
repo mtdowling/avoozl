@@ -500,7 +500,7 @@ function RuleEditor(props: {
   const { rule, id } = props
   const set = (change: Partial<RuleForm>) => props.onChange({ ...rule, ...change })
   return (
-    <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+    <Box css-border-color="border" flex flexCol gap="2" border="t" pt="3">
       <div style={grid(180)}>
         <Text id={`${id}-id`} label="Rule name" raw="id" rule={{ required: true }} placeholder="deliver-ready" value={rule.id} onChange={(value) => set({ id: value })} />
         <Choice id={`${id}-action`} label="Action" raw="action" rule={{ required: true }} value={rule.action} options={props.actions} none="Choose" onChange={(value) => set({ action: value })} />
@@ -523,7 +523,7 @@ function RuleEditor(props: {
           </DangerBtn>
         </Box>
       </Row>
-    </div>
+    </Box>
   )
 }
 
@@ -665,7 +665,7 @@ function ReviewRule(props: { inspect: RepositoryInspect | null; repository: stri
         </a>
       )}
       {props.deprecated && (
-        <div className="flex flex-wrap items-center gap-2 rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
+        <Box css-border-color="border" flex flexWrap items="center" gap="2" rounded="base" border="all" p="2" size="xs">
           <Badge>deprecated</Badge>
           <Box as="span" tone="muted">
             .avoozl.json still sets <code>pullRequestReviews</code>
@@ -684,7 +684,7 @@ function ReviewRule(props: { inspect: RepositoryInspect | null; repository: stri
               Remove the old setting
             </DangerBtn>
           </Box>
-        </div>
+        </Box>
       )}
     </Box>
   )
@@ -789,7 +789,7 @@ export function RepositoryEditor(props: {
       {tab === 'general' && (
         <FormSection title="GitHub repository" blurb={REPOSITORY_BLURBS.general}>
           <Box as="p" size="xs" tone="muted">
-            Workspace mode: <span className="font-medium" style={{ color: 'var(--text)' }}>{MODE_TITLES[modeKey(props.mode)]}</span>. It follows from each repository&apos;s role in Repository setup.
+            Workspace mode: <Box as="span" css-color="text" weight="medium">{MODE_TITLES[modeKey(props.mode)]}</Box>. It follows from each repository&apos;s role in Repository setup.
           </Box>
           <div style={grid()}>
             <Text id={`${id}-name`} label="Repository" raw="key" rule={REPOSITORY_FIELD_RULES.name} placeholder="owner/name" value={repository.name} onChange={(value) => set({ name: value })} />
@@ -1197,12 +1197,12 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
     return (
       <>
         <FormSection title="Where tasks land">
-          <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+          <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1" size="sm">
             <Box as="dt" tone="muted">Landing branch</Box>
             <dd>
               <code>{row.branch}</code>
             </dd>
-          </dl>
+          </Box>
           <Box as="p" size="sm" data-local-checks>
             Avoozl runs each task&apos;s own checks from its facts in tasks.md, or this repository&apos;s checks when a task names none.
           </Box>
@@ -1680,7 +1680,6 @@ export function RateBlock({ rate }: { rate: RateView | undefined }) {
 }
 
 const CELL: CSSProperties = { padding: '4px 8px' }
-const NUM: CSSProperties = { ...CELL, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
 const USAGE_COLUMNS: { key: UsageKey; label: string }[] = [
   { key: 'source', label: 'Source' },
   { key: 'calls', label: 'Calls' },
@@ -1694,20 +1693,20 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
   const [sort, setSort] = useState<UsageSort>(USAGE_SORT)
   const sorted = sortUsage(rows, sort)
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table data-github-usage style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+    <Box css-overflow-x="auto">
+      <Box data-github-usage as="table" css-width="100%" css-border-collapse="collapse" css-font-size="14">
         <thead>
           <tr>
             {USAGE_COLUMNS.map((col) => {
               const on = sort.key === col.key
               const right = col.key !== 'source'
               return (
-                <th key={col.key} scope="col" aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ textAlign: right ? 'right' : 'left', padding: '4px 8px', fontWeight: 500, borderBottom: '1px solid var(--border)' }}>
+                <Box key={col.key} scope="col" aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} as="th" css-text-align={right ? 'right' : 'left'} css-padding="4px-8px" css-font-weight="500" css-border-bottom="1px-solid-border">
                   <button type="button" data-sort={col.key} className="inline-flex items-center gap-1 font-medium" style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', padding: 0 }} onClick={() => setSort(nextUsageSort(sort, col.key))}>
                     {col.label}
                     <Box aria-hidden="true" as="span" size="xs" tone="muted">{on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}</Box>
                   </button>
-                </th>
+                </Box>
               )
             })}
           </tr>
@@ -1715,15 +1714,15 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
         <tbody>
           {sorted.map((row) => (
             <tr key={row.source} data-usage-source={row.source}>
-              <td style={CELL}>{row.source}</td>
-              <td style={NUM}>{row.calls}</td>
-              <td style={NUM}>{row.notModified}</td>
-              <td style={NUM}>{row.cached}</td>
+              <Box as="td" css-padding="4px-8px">{row.source}</Box>
+              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">{row.calls}</Box>
+              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">{row.notModified}</Box>
+              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">{row.cached}</Box>
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
