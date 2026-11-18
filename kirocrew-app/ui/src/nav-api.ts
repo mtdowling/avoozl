@@ -94,7 +94,8 @@ export function redirectTab(key: string): Place {
 // role per repository in Repository setup (R105.6). Older names for the
 // Radar values screen open Settings › Issue Radar.
 export function redirectSettings(key: string): string {
-  if (key === 'issue-radar' || key === 'radar-values') return 'radar'
+  // Crews and rules, a tab of each repository, moved there too.
+  if (key === 'issue-radar' || key === 'radar-values' || key === 'crews' || key === 'crews-rules') return 'radar'
   return key === 'routing' ? 'repositories' : key === 'instance' ? 'workspaces' : key
 }
 

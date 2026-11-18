@@ -75,6 +75,56 @@ export interface SpecPlan {
   // Earlier revisions, oldest first; a spec revision keeps its files.
   history?: { revision: number; hash: string; files?: Record<string, string> }[]
   review?: PlanReviewSummary | null
+  // The spec's Links box (R92.4), from stored records only.
+  links?: SpecLinks | null
+}
+
+// A GitHub link built from validated fields (src/app/scm-links.mjs).
+export interface ScmLink {
+  kind: 'issue' | 'pull' | 'branch' | 'commit'
+  repository: string
+  number?: number
+  ref?: string
+  sha?: string
+  url: string
+}
+
+export interface CheckState {
+  state: 'pass' | 'fail' | 'pending'
+  // The state only for the task's current head; else stale.
+  dot: 'pass' | 'fail' | 'pending' | 'stale'
+  head: string
+  readAt: string | null
+  ageMs: number | null
+  current: boolean
+  url: string | null
+}
+
+export interface SpecLinks {
+  issue: ScmLink | null
+  journal: { kind: 'journal'; home: 'github' | 'local' } | null
+  workingBranches: ScmLink[]
+  pulls: (ScmLink & { task: string; state: string; checks: CheckState | null })[]
+  sources: ScmLink[]
+}
+
+// A link's short text: owner/name#N, a branch name, or a short SHA.
+export function scmLinkText(link: ScmLink): string {
+  if (link.kind === 'branch') return link.ref ?? ''
+  if (link.kind === 'commit') return (link.sha ?? '').slice(0, 7)
+  return `${link.repository}#${link.number}`
+}
+
+// A check dot's words and color. A dot for an older head is grey and says
+// so, never its old state (R92.3).
+export function checkDot(checks: CheckState | null, relative: (at: string | null) => string): { label: string; color: string } {
+  if (!checks) return { label: 'No checks recorded', color: 'var(--muted)' }
+  const when = relative(checks.readAt)
+  const age = when ? `, read ${when}` : ''
+  if (checks.dot === 'stale') return { label: `Checks are for an older commit${age}`, color: 'var(--muted)' }
+  if (checks.dot === 'pass') return { label: `Checks passed${age}`, color: 'var(--ok)' }
+  if (checks.dot === 'fail') return { label: `Checks failed${age}`, color: 'var(--danger)' }
+  return { label: `Checks running${age}`, color: 'var(--warn, #d29922)' }
 }
 
 export interface PlanReviewSummary {

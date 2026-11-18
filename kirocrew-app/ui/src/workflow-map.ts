@@ -48,22 +48,24 @@ export type JumpField =
   | 'needsHuman'
   | 'actors'
   | 'permission'
+// `radar` is Settings › Issue Radar, a page of its own; the other two are
+// tabs of the repository's editor.
 export interface Jump {
-  tab: 'mode' | 'triggers' | 'crews'
+  tab: 'mode' | 'triggers' | 'radar'
   field: JumpField
 }
 const TAB: Record<JumpField, Jump['tab']> = {
   coder: 'mode',
   capacity: 'mode',
-  releaseMode: 'mode',
-  plan: 'crews',
-  conflict: 'crews',
-  onSourceConflict: 'crews',
-  mergeMethod: 'crews',
-  approval: 'triggers',
-  ready: 'triggers',
-  claim: 'triggers',
-  needsHuman: 'triggers',
+  releaseMode: 'radar',
+  plan: 'radar',
+  conflict: 'radar',
+  onSourceConflict: 'radar',
+  mergeMethod: 'radar',
+  approval: 'radar',
+  ready: 'radar',
+  claim: 'radar',
+  needsHuman: 'radar',
   actors: 'triggers',
   permission: 'triggers',
 }
@@ -341,10 +343,10 @@ export const fieldSelector = (id: string, field: JumpField): string =>
     capacity: `#${id}-release-capacity`,
     releaseMode: '[data-release-mode] input:checked, [data-release-mode] input',
     plan: '#' + id + '-label-planLabel',
-    conflict: `#${id}-conflict-label`,
+    conflict: `#${id}-label-conflictLabel`,
     onSourceConflict: `#${id}-on-source-conflict input:checked, #${id}-on-source-conflict`,
     mergeMethod: `#${id}-merge-method input:checked, #${id}-merge-method`,
-    approval: `#${id}-approval-label`,
+    approval: `#${id}-label-approvalLabel`,
     ready: `#${id}-label-ready`,
     claim: `#${id}-crew-claim`,
     needsHuman: `#${id}-crew-needsHuman`,

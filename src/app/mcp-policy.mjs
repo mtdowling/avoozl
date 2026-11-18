@@ -39,6 +39,10 @@ export const PERSON_ONLY = new Map([
   ],
   ["plan.review.dispose", person("Only a person closes a review comment.")],
   ["task.manual.complete", person("Only a person marks a manual task done.")],
+  [
+    "session.send",
+    person("Only a person sends a message to a process session."),
+  ],
   ["task.manual.reopen", person("Only a person reopens a manual task.")],
   ["task.notes.edit", person("Only a person edits a link.")],
   ["task.notes.remove", person("Only a person removes a link.")],

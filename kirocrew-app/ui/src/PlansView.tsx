@@ -46,6 +46,9 @@ import { SpecDetailsPanel } from './SpecDetailsPanel.tsx'
 import {
   UNCATEGORIZED,
   approveBlocker,
+  checkDot,
+  scmLinkText,
+  type SpecLinks,
   changeMessage,
   describeWrite,
   discussSeed,
@@ -983,6 +986,88 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
   )
 }
 
+// One GitHub link: opens a new tab with no opener (R92.9).
+function GithubLink(props: { link: { url: string }; children: ReactNode }) {
+  if (!safeHref(props.link.url)) return <>{props.children}</>
+  return (
+    <a href={safeHref(props.link.url)!} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2" style={{ overflowWrap: 'anywhere' }} data-spec-link>
+      {props.children}
+    </a>
+  )
+}
+
+// The spec's Links box (R92.4): its issue, working branch, open pull
+// requests with a check dot each, and the Radar issues it came from. Built
+// from stored records only; a missing one shows as none. This page is
+// local, so a private spec issue shows here and nowhere public.
+function LinksSection(props: { links: SpecLinks | null | undefined; loading: boolean }) {
+  const links = props.links
+  const muted = 'var(--muted)'
+  const none = <span style={{ color: muted }}>{props.loading ? '…' : 'None'}</span>
+  const row = (label: string, body: ReactNode) => (
+    <div data-spec-links-row={label}>
+      <dt style={{ color: muted }}>{label}</dt>
+      <dd style={{ margin: 0 }}>{body}</dd>
+    </div>
+  )
+  const list = (items: ReactNode[]) => (items.length ? <ul className="flex flex-col gap-0.5">{items}</ul> : none)
+  return (
+    <RailSection title="Links" attrs={{ 'data-spec-links': '' }}>
+      <dl className="flex flex-col gap-2" style={{ margin: 0 }}>
+        {row(
+          'Spec issue',
+          links?.issue ? (
+            <GithubLink link={links.issue}>{scmLinkText(links.issue)}</GithubLink>
+          ) : links?.journal?.home === 'local' ? (
+            <span style={{ color: muted }}>None; the journal is kept locally</span>
+          ) : (
+            none
+          ),
+        )}
+        {row(
+          'Working branch',
+          list((links?.workingBranches ?? []).map((branch) => (
+            <li key={branch.url}>
+              <GithubLink link={branch}>{scmLinkText(branch)}</GithubLink>
+            </li>
+          ))),
+        )}
+        {row(
+          'Open pull requests',
+          list((links?.pulls ?? []).map((pull) => {
+            const dot = checkDot(pull.checks, relativeTime)
+            return (
+              <li key={pull.url} className="flex items-center gap-1.5" data-spec-pull={pull.number}>
+                <Tooltip text={dot.label}>
+                  {(describedBy) =>
+                    pull.checks?.url && safeHref(pull.checks.url) ? (
+                      <a href={safeHref(pull.checks.url)!} target="_blank" rel="noopener noreferrer" aria-label={dot.label} aria-describedby={describedBy} data-check-dot={pull.checks.dot} className="inline-flex shrink-0">
+                        <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: dot.color }} />
+                      </a>
+                    ) : (
+                      <span role="img" aria-label={dot.label} aria-describedby={describedBy} data-check-dot={pull.checks?.dot ?? 'none'} className="inline-flex shrink-0" style={{ width: 8, height: 8, borderRadius: '50%', background: dot.color }} />
+                    )
+                  }
+                </Tooltip>
+                <GithubLink link={pull}>#{pull.number}</GithubLink>
+                <span className="truncate" style={{ color: muted }}>{pull.task}</span>
+              </li>
+            )
+          })),
+        )}
+        {row(
+          'Radar issues',
+          list((links?.sources ?? []).map((source) => (
+            <li key={source.url}>
+              <GithubLink link={source}>{scmLinkText(source)}</GithubLink>
+            </li>
+          ))),
+        )}
+      </dl>
+    </RailSection>
+  )
+}
+
 // The spec's right rail: small labeled sections split by dividers, each
 // with Edit where a planner chat or a setting changes it.
 function SpecRail(props: {
@@ -1062,6 +1147,7 @@ function SpecRail(props: {
           <span style={{ color: muted }}>{graph ? 'No repository yet' : '…'}</span>
         )}
       </RailSection>
+      {row.planId && <LinksSection links={plan?.links} loading={!plan} />}
       <RailSection title="Phases" edit={edit('phases')}>
         {phaseList.length === 0 ? (
           <span style={{ color: muted }}>{graph ? 'No phase yet' : '…'}</span>

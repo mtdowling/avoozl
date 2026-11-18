@@ -294,3 +294,36 @@ test("task.detail carries the task's link set for the Links box", async (t) => {
     null,
   );
 });
+
+test("plan.get carries the spec's link set and makes no GitHub call", async (t) => {
+  const { root, store } = seed(t),
+    calls = [],
+    github = new Proxy(
+      {},
+      {
+        get: (_, method) =>
+          method === "then"
+            ? undefined
+            : (...args) => {
+                calls.push(String(method));
+                return method === "available" ? true : null;
+              },
+      },
+    ),
+    ops = new Operations(store, { workspaceRoot: root, github });
+  const plan = await ops.execute("plan.get", { id: "s" });
+  assert.deepEqual(
+    { ...plan.links, pulls: undefined },
+    { ...specLinks(store, "s"), pulls: undefined },
+  );
+  // Check ages move with the clock; the pull requests themselves match.
+  assert.deepEqual(
+    plan.links.pulls.map((p) => p.url),
+    specLinks(store, "s").pulls.map((p) => p.url),
+  );
+  assert.equal(
+    plan.links.issue.url,
+    "https://github.com/example/specs/issues/40",
+  );
+  assert.deepEqual(calls, []);
+});

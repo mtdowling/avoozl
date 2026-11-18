@@ -34,9 +34,9 @@ test('Crews and rules modes are radio fold-outs, not selects', () => {
   assert.doesNotMatch(text, /<select|type="checkbox"/)
   assert.match(text, /<FieldBox title="Review rules"/)
   assert.match(text, /<Fold title="Avoozl labels"/)
-  // It is a tab of the repository dialog, which is the shared Modal.
+  // Its parts are sections of Settings › Issue Radar.
   const view = readFileSync(new URL('../src/SettingsView.tsx', import.meta.url), 'utf8')
-  assert.match(view, /tab === 'crews'[\s\S]*<CrewsRulesSettings/)
+  for (const part of ['ReviewRulesFields', 'ConflictFields', 'MergeMethodFields', 'AvoozlLabelFields']) assert.match(view, new RegExp(`<${part} \\{\\.\\.\\.part\\}`), part)
 })
 
 test('the seven Avoozl labels show with their job, writer and avoozl: default (RC21.4)', () => {

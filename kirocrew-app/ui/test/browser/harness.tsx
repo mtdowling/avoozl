@@ -573,6 +573,7 @@ if (query.get('page') === 'app') {
     const base = replyFor('github.settings.get')!({}) as Record<string, unknown>
     answer('github.settings.get', () => ({
       ...base,
+      choices: { ...(base.choices as object), crewLabels: ['claim', 'needsHuman'] },
       crews: [
         { repository: 'acme/recipe-box', label: 'ready', link: '/issue-radar' },
         { repository: 'acme/recipe-api', label: null, link: '/issue-radar' },
@@ -828,6 +829,12 @@ if (query.get('page') === 'app' && query.get('process') === '1') {
     ],
     contentReports: [],
   }))
+  // Send message (task 50.2): kept on window.__sent for the test.
+  answer('session.send', (body) => {
+    const input = body.input as { slot: string; text: string }
+    ;(window as unknown as { __sent: unknown[] }).__sent = [...((window as unknown as { __sent?: unknown[] }).__sent ?? []), input]
+    return { id: 'send:1', state: 'queued', slot: input.slot, taskId: 'm3' }
+  })
 }
 // &publiccrews=after: Intake with the Public crews card (task 39.3): one
 // repository ready to sign off, one signed off, and one with no rule set

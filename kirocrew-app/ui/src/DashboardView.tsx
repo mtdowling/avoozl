@@ -31,6 +31,7 @@ import { Activity, CirclePlus, Copy, DetailsIcon, ExternalLink, MessageSquare, C
 import { itemRef } from './chat-api.ts'
 import type { Drill } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
+import { errorMessage } from './workspace-api.ts'
 import { Empty, HomeBox, HomePair, HomeSection, HomeStyle, PrLink, Tiles } from './HomeParts.tsx'
 
 export type DashboardTarget = 'plans' | 'graph' | 'waiting' | 'lanes' | 'delivery' | 'flow'
@@ -283,7 +284,53 @@ function CopyAttach({ command, title }: { command: string; title: string }) {
   )
 }
 
-export function InFlightRow({ row, now, onInfo }: { row: InFlight; now: number; onInfo: () => void }) {
+// Send message on a `process` session (R98.2): the text is queued as a
+// `send`; the supervisor resumes the child with it when its run ends.
+function SendMessage({ title, onSend, onClose }: { title: string; onSend: (text: string) => Promise<void>; onClose: () => void }) {
+  const [text, setText] = useState('')
+  const [state, setState] = useState<{ kind: 'idle' | 'sending' | 'queued' } | { kind: 'error'; message: string }>({ kind: 'idle' })
+  const send = async () => {
+    setState({ kind: 'sending' })
+    try {
+      await onSend(text)
+      setText('')
+      setState({ kind: 'queued' })
+    } catch (error) {
+      setState({ kind: 'error', message: errorMessage(error) })
+    }
+  }
+  return (
+    <form
+      data-send-message
+      className="mt-1 flex flex-col gap-1"
+      onSubmit={(event) => {
+        event.preventDefault()
+        void send()
+      }}
+    >
+      <textarea
+        aria-label={`Message for ${title}`}
+        className="rounded border p-1.5 text-sm"
+        style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)', minHeight: '3.5em' }}
+        maxLength={8000}
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+      />
+      <span className="flex flex-wrap items-center gap-1.5">
+        <SmallBtn primary disabled={!text.trim() || state.kind === 'sending'} attrs={{ type: 'submit', 'data-send-submit': true }}>
+          {state.kind === 'sending' ? 'Sending…' : 'Send'}
+        </SmallBtn>
+        <SmallBtn onClick={onClose}>Close</SmallBtn>
+        <span role="status" className="text-xs text-muted" data-send-state={state.kind}>
+          {state.kind === 'queued' ? 'Queued; it goes in when the run ends.' : state.kind === 'error' ? state.message : ''}
+        </span>
+      </span>
+    </form>
+  )
+}
+
+export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: number; onInfo: () => void; onSend?: (text: string) => Promise<void> }) {
+  const [writing, setWriting] = useState(false)
   const child = row.session.executor === 'process' ? (row.session.process ?? null) : null,
     processRow = row.session.executor === 'process',
     href = processRow ? null : attachHref(row.session),
@@ -327,9 +374,13 @@ export function InFlightRow({ row, now, onInfo }: { row: InFlight; now: number; 
             </pre>
           </span>
         )}
+        {processRow && writing && onSend && <SendMessage title={row.title} onSend={onSend} onClose={() => setWriting(false)} />}
       </span>
       <span data-in-flight-actions className="flex items-center justify-end gap-1.5" style={{ flex: '0 0 11rem' }}>
         <IconBtn icon={DetailsIcon} label={`Details for ${row.title}`} tooltip="Open the task drawer" onClick={onInfo} />
+        {processRow && onSend && (
+          <IconBtn icon={MessageSquare} label={`Send message to the ${row.role} for ${row.title}`} tooltip="Send message" onClick={() => setWriting((open) => !open)} />
+        )}
         {processRow ? (
           child?.attach ? <CopyAttach command={child.attach} title={row.title} /> : <span className="text-xs text-muted">No attach command</span>
         ) : !href ? (
@@ -571,7 +622,19 @@ export default function DashboardView(props: {
               <>
                 <ul className="m-0 list-none p-0">
                   {pages.take('flight', summary.inFlight).map((row) => (
-                    <InFlightRow key={row.slot} row={row} now={now} onInfo={() => drawer.openTask(row.taskId)} />
+                    <InFlightRow
+                      key={row.slot}
+                      row={row}
+                      now={now}
+                      onInfo={() => drawer.openTask(row.taskId)}
+                      onSend={
+                        workspaceId && row.session.executor === 'process'
+                          ? async (text) => {
+                              await views.sendSession(workspaceId, row.slot, text)
+                            }
+                          : undefined
+                      }
+                    />
                   ))}
                 </ul>
                 <ShowMore {...pages.more('flight', summary.inFlight.length)} />
