@@ -1042,6 +1042,71 @@ export function withRole(form: SettingsForm, row: RoleRow & { branch: string }, 
   return { ...form, repositories, mode: modeFromRoles(repositories.map((entry) => entry.role)), planningRepository: planning }
 }
 
+// A private mirror is a role a repository can have besides the four above: it
+// is the private copy crews work in, of a public repository. It is stored as
+// the public repository's `mirror` setting (source = the public one, mirror =
+// this one), the same config the old Mirror box wrote.
+export const MIRROR_ROLE = 'mirror'
+export const MIRROR_ROLE_LABEL = 'Private mirror of a public repository'
+export const MIRROR_ROLE_LINE = 'Crews work in this private copy of a public repository. It must be private.'
+const REPOSITORY_NAME = /^[\w.-]+\/[\w.-]+$/
+
+// The public repository this one mirrors, or '' when it mirrors none.
+export function mirrorSourceOf(form: Pick<SettingsForm, 'repositories'>, github: string | null): string {
+  if (!github) return ''
+  return form.repositories.find((entry) => entry.mirror.source && entry.mirror.mirror && sameRepository(entry.mirror.mirror, github))?.mirror.source ?? ''
+}
+
+// What is wrong with the public repository's name, or null.
+export function mirrorSourceProblem(source: string, github: string | null): string | null {
+  if (!REPOSITORY_NAME.test(source.trim())) return 'Name the public repository as owner/name.'
+  if (github && sameRepository(source, github)) return 'The public repository must be a different repository.'
+  return null
+}
+
+function withoutMirror(form: SettingsForm, github: string): SettingsForm {
+  return {
+    ...form,
+    repositories: form.repositories.map((entry) => (entry.mirror.mirror && sameRepository(entry.mirror.mirror, github) ? { ...entry, mirror: emptyMirror() } : entry)),
+  }
+}
+
+// Make `github` the private mirror of `source`: the public repository's entry
+// (added when it has none) names both.
+function withMirror(form: SettingsForm, github: string, source: string): SettingsForm {
+  const cleared = withoutMirror(form, github)
+  const name = source.trim()
+  const at = cleared.repositories.findIndex((entry) => sameRepository(entry.name, name))
+  const repositories = cleared.repositories.slice()
+  if (at < 0) repositories.push({ ...emptyRepository(name), mirror: { ...emptyMirror(), source: name, mirror: github } })
+  else repositories[at] = { ...repositories[at], mirror: { ...repositories[at].mirror, source: name, mirror: github } }
+  return { ...cleared, repositories }
+}
+
+export interface RepositoryEdit {
+  // New settings for the repository's own entry, if the person changed any.
+  entry: RepositoryForm | null
+  // A role value, or MIRROR_ROLE with its public repository in `source`.
+  role: string
+  source: string
+}
+
+// The form after one repository's Edit is saved. The row is found by its name,
+// so the edit applies to a form read after the dialog opened.
+export function withRepositoryEdit(form: SettingsForm, row: { github: string | null; branch: string; policy: number }, edit: RepositoryEdit): SettingsForm {
+  const find = (next: SettingsForm) => (row.github ? next.repositories.findIndex((entry) => sameRepository(entry.name, row.github!)) : row.policy)
+  let next = form
+  if (edit.entry) {
+    const at = find(next)
+    next = { ...next, repositories: at >= 0 ? next.repositories.map((entry, index) => (index === at ? edit.entry! : entry)) : [...next.repositories, edit.entry] }
+  }
+  if (!row.github) return next
+  const target = { github: row.github, branch: row.branch, policy: find(next) }
+  if (edit.role === MIRROR_ROLE) return sameRepository(mirrorSourceOf(next, row.github), edit.source) ? next : withMirror(next, row.github, edit.source)
+  if (mirrorSourceOf(next, row.github)) next = withoutMirror(next, row.github)
+  return edit.role === roleOfRow(next, target) ? next : withRole(next, target, edit.role)
+}
+
 // The one line above the repository list: where tasks live as a result.
 export function tasksLiveLine(mode: string, planningRepository: string): string {
   if (mode === 'plans-repo') return `Tasks live in ${planningRepository || 'the planning repository'}, a planning repository for the code repositories.`
