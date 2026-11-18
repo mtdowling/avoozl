@@ -186,6 +186,8 @@ export const APP_OPERATIONS = new Set([
   "plan.unarchive",
   // Send message on a `process` session (R98.2).
   "session.send",
+  "session.open",
+  "session.view",
   // Manual tasks, task links, and workflow templates (§4.16).
   "task.manual.complete",
   "task.manual.reopen",
@@ -410,6 +412,7 @@ export function commandContext({
           crewReader: readers.crewReader ?? null,
           sessionsReader: readers.sessionsReader ?? null,
           sessionStopper: readers.sessionStopper ?? null,
+          kirocrewAbsent: host === "standalone",
           driver: { settingsFile: driverSettingsPath() },
           // No page request waits on GitHub or Kiro Crew.
           backgroundReads: true,

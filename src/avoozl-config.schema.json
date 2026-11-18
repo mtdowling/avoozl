@@ -157,6 +157,7 @@
         "reviewer": { "$ref": "#/$defs/harnessRole" },
         "responder": { "$ref": "#/$defs/harnessRole" },
         "taskSummary": { "$ref": "#/$defs/harnessRole" },
+        "assist": { "$ref": "#/$defs/harnessRole" },
         "issuePlanner": { "$ref": "#/$defs/harnessRole" },
         "planAnswer": { "$ref": "#/$defs/harnessRole" },
         "prReview": { "$ref": "#/$defs/harnessRole" }

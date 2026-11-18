@@ -45,7 +45,8 @@ const verdictFinish = (allowCommands) => [
 //   access   what the child may do to files
 //   folder   how the drain makes the child's folder: worktree (the task's),
 //            detached (a worktree at the commit), scratch (an empty folder),
-//            spec (the spec folder the request names)
+//            spec (the spec folder the request names), given (the folder the
+//            request names, used as it is: the workspace root)
 //   hands    how the result is recorded: report (session.report), reply (the
 //            retro's reply), folder (the stored folder; nothing to record),
 //            post-reply (reply.post, as the session), summary
@@ -180,6 +181,20 @@ export const ROLE_TABLE = Object.freeze({
     roles: ["pr-review"],
     process: false,
     access: "read",
+  },
+  // The page's Open chat on a machine with no Kiro Crew (standalone-web SW7):
+  // a read-only child in the workspace root that answers and proposes.
+  assist: {
+    setting: "assist",
+    roles: ["assist"],
+    prompt: "assist",
+    process: true,
+    access: "read",
+    folder: "given",
+    hands: "folder",
+    finish: () => [
+      "You run without Avoozl's tools. Answer in your reply, then exit. Write no file.",
+    ],
   },
 });
 

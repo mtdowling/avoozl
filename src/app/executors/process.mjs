@@ -428,10 +428,12 @@ export async function drainProcessRequests(
             : // A scratch role reads only its brief: a folder of its own.
               row?.folder === "scratch" && !request.worktree
               ? fs.mkdtempSync(path.join(os.tmpdir(), row.scratch))
-              : row?.folder === "spec" && request.worktree
-                ? (fs.mkdirSync(request.worktree, { recursive: true }),
-                  request.worktree)
-                : request.worktree;
+              : row?.folder === "given" && request.worktree
+                ? request.worktree
+                : row?.folder === "spec" && request.worktree
+                  ? (fs.mkdirSync(request.worktree, { recursive: true }),
+                    request.worktree)
+                  : request.worktree;
       let sessionId;
       try {
         sessionId = await processExecutor({

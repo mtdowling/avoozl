@@ -63,6 +63,10 @@ export const PERSON_ONLY = new Map([
     "session.send",
     person("Only a person sends a message to a process session."),
   ],
+  [
+    "session.open",
+    person("Only a person opens a session, in the Avoozl page."),
+  ],
   ["task.summary.request", person("Only a person asks for a task summary.")],
   ["task.manual.reopen", person("Only a person reopens a manual task.")],
   ["task.notes.edit", person("Only a person edits a link.")],
