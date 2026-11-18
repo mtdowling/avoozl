@@ -27,6 +27,7 @@ import { TaskFiles } from './TaskFiles.tsx'
 import { Eye, FileText, MessageSquare, Network, Pause, Pencil, Play, Plus, RotateCcw } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ManualTask, TaskLinks } from './TaskNotes.tsx'
+import { ReviewTaskContext } from './NeedsYouContext.tsx'
 import { TaskScmLinks } from './TaskScmLinks.tsx'
 import { TaskSteps } from './TaskSteps.tsx'
 
@@ -670,21 +671,12 @@ function ReviewPanel(props: { workspaceId: string; group: ConflictItem; open: (i
         <p className="text-sm text-muted">Nothing here needs review now.</p>
       ) : (
         <>
-          <div>{group && <ReviewButton item={group} busy={busy || !page} onConfirm={() => void markReviewed()} />}</div>
-          <ul className="flex flex-col text-sm">
+          <ul className="m-0 flex list-none flex-col p-0" data-review-tasks>
             {(group?.tasks ?? []).map((task) => (
-              <li key={task.id} className="flex flex-wrap items-baseline gap-2 border-t py-1.5 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
-                <button type="button" className="text-left underline" onClick={() => props.open(task.id)}>
-                  {task.title}
-                </button>
-                <span className="text-xs text-muted">
-                  {task.id}
-                  {task.status ? ` · ${task.status}` : ''}
-                </span>
-                <Authority owner={task} />
-              </li>
+              <ReviewTaskContext key={task.id} task={task} />
             ))}
           </ul>
+          <div>{group && <ReviewButton item={group} busy={busy || !page} onConfirm={() => void markReviewed()} />}</div>
         </>
       )}
     </div>
