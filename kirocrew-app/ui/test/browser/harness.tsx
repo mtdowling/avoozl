@@ -638,6 +638,24 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
     ],
     contentReports: [],
   }))
+  // The line, for the Delivery heading's Stop the line: a stop opens one,
+  // Resume closes it. window.__lineCalls records both. &stopped=1 starts stopped.
+  const lineWin = window as unknown as { __lineCalls: unknown[] }
+  lineWin.__lineCalls = []
+  const open = (reason: string) => ({ id: 'l1', manual: true, by: { kind: 'person', name: 'you' }, reason, scope: 'all', closedAt: null, branch: 'main', check: null, openedAt: at })
+  let stops = query.get('stopped') ? [open('bad base')] : []
+  answer('flow.view', () => ({ line: stops, stages: [], tasks: [], retros: [] }))
+  answer('flow.stop', (body) => {
+    const input = body.input as { reason: string }
+    lineWin.__lineCalls.push({ stop: input })
+    stops = [open(input.reason)]
+    return { stop: stops[0] }
+  })
+  answer('flow.resume', (body) => {
+    lineWin.__lineCalls.push({ resume: (body.input as { stopId?: string }).stopId })
+    stops = []
+    return { stop: { id: 'l1', closedAt: new Date().toISOString() } }
+  })
 }
 // &process=1: Home's In flight with a `process` worker (Claude Code under
 // the supervisor, resumed once, cost known) beside a Kiro Crew reviewer
