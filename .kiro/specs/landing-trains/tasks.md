@@ -329,7 +329,7 @@ person.
 
 ## Phase 10: Scheduling and CI capacity
 
-- [ ] lt-10.1 Conflict-aware train composition by footprint, after lt-p3 [LT12] (§D13)
+- [x] lt-10.1 Conflict-aware train composition by footprint, after lt-p3 [LT12] (§D13)
   - Facts:
     - summary: Phase 10 (Scheduling and CI capacity). Conflict-aware train composition by footprint. See LT12; §D13.
     - done:

@@ -253,3 +253,19 @@ test("a gated target with a CI-only platform loads with the extra-run warning", 
   assert.equal(warnings.length, 1);
   assert.match(warnings[0], /windows-x64.*one extra CI run/);
 });
+
+test("scheduling.overlap defaults to same-train and refuses other values", () => {
+  const ok = setup({ repo: trains(), global: { machine: macNative } }).load();
+  assert.equal(
+    trainSettings(ok.config, "main").scheduling.overlap,
+    "same-train",
+  );
+  assert.throws(
+    () =>
+      setup({
+        repo: trains({ scheduling: { overlap: "never" } }),
+        global: { machine: macNative },
+      }).load(),
+    /scheduling\.overlap must be one of same-train, serialize/,
+  );
+});

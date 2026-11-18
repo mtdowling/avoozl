@@ -88,6 +88,7 @@ export const TRAIN_DEFAULTS = Object.freeze({
     flakyReruns: 1,
   }),
   ci: Object.freeze({ waitForLastTrain: false }),
+  scheduling: Object.freeze({ overlap: "same-train" }),
 });
 
 export const TRAIN_KEYS = {
@@ -116,6 +117,7 @@ export const TRAIN_KEYS = {
     workflow: leaf({ string: true }),
     waitForLastTrain: leaf({ bool: true }),
   },
+  scheduling: { overlap: leaf({ oneOf: ["same-train", "serialize"] }) },
 };
 export const TARGET_KEYS = { policy: leaf({ oneOf: ["optimistic", "gated"] }) };
 const MACHINE_KEYS = ["platforms", "slots"];
@@ -252,7 +254,7 @@ export function trainSettings(config, target) {
         ? { ...base[key], ...value }
         : value;
   out.branchPrefix ??= TRAIN_DEFAULTS.branchPrefix;
-  for (const key of ["trigger", "failure", "ci"])
+  for (const key of ["trigger", "failure", "ci", "scheduling"])
     out[key] = { ...TRAIN_DEFAULTS[key], ...(out[key] ?? {}) };
   out.conflicts = { mechanical: [], ...(out.conflicts ?? {}) };
   out.validation = { cheap: [], full: {}, ...(out.validation ?? {}) };
