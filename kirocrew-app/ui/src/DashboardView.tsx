@@ -3,7 +3,7 @@ import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
-import { attentionTarget, processLine, railFor, attentionTip, summarize, type Attention, type InFlight } from './dashboard-api.ts'
+import { attentionTarget, checkDot, processLine, railFor, attentionTip, summarize, type Attention, type InFlight } from './dashboard-api.ts'
 import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
@@ -29,10 +29,10 @@ import { LINE_EVENT, flowClient } from './flow-api.ts'
 import { IconBtn, IconLabel, IconLink, SectionHeading, ShowMore, SmallBtn, TaskTitleLink, useAskChat, usePages } from './controls.tsx'
 import { useRefreshCountdown } from './RefreshButton.tsx'
 import { usePublishRefresh } from './page-refresh.tsx'
-import { Activity, CirclePlus, Copy, DetailsIcon, ExternalLink, MessageSquare, Check } from './icons.ts'
+import { Activity, CirclePlus, Copy, DetailsIcon, ExternalLink, GitBranch, MessageSquare, Check } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import type { Drill } from './graph-layout.ts'
-import { linkHref } from './views-api.ts'
+import { linkHref, type TaskLinks } from './views-api.ts'
 
 export type DashboardTarget = 'plans' | 'graph' | 'waiting'
 
@@ -249,6 +249,65 @@ function CopyAttach({ command, title }: { command: string; title: string }) {
   )
 }
 
+// One small link chip; the label shrinks with an ellipsis, so a long branch
+// name never widens a 390 px row.
+const CHIP: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  maxWidth: '100%',
+  minWidth: 0,
+  padding: '0 6px',
+  border: '1px solid var(--border)',
+  borderRadius: 999,
+  color: 'var(--text)',
+  lineHeight: '18px',
+  textDecoration: 'none',
+}
+const CHIP_TEXT: CSSProperties = { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+
+// In flight's `PR #N` chip with its check dot, and the branch chip (R92.6).
+// Both open GitHub in a new tab (R92.9).
+export function FlightChips({ links, title }: { links: TaskLinks; title: string }) {
+  const pr = links.pr && linkHref(links.pr.url),
+    branch = links.branch && linkHref(links.branch.url)
+  if (!pr && !branch) return null
+  const dot = checkDot(links.checks)
+  return (
+    // contain: inline-size keeps the chips out of the row's min-content, so a
+    // long branch name shrinks instead of widening the card on a phone.
+    <span data-in-flight-links className="mt-1 flex items-center gap-1 text-xs" style={{ minWidth: 0, contain: 'inline-size' }}>
+      {pr && links.pr && (
+        // The PR chip never shrinks; the branch chip gives way.
+        <span style={{ display: 'inline-flex', flex: '0 0 auto' }}>
+          <Tooltip text={dot.label}>
+            <a
+              data-pr-chip
+              href={linkHref(links.pr.url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={CHIP}
+              aria-label={`Pull request ${links.pr.number} for ${title}${links.pr.state === 'open' || links.pr.state === 'unknown' ? '' : `, ${links.pr.state}`}. ${dot.label}`}
+            >
+              <i data-check-dot={dot.dot} aria-hidden="true" style={{ display: 'block', flex: '0 0 auto', width: 8, height: 8, borderRadius: 999, background: dot.color }} />
+              PR #{links.pr.number}
+              {links.pr.state === 'merged' || links.pr.state === 'closed' ? <span className="text-muted">{links.pr.state}</span> : null}
+            </a>
+          </Tooltip>
+        </span>
+      )}
+      {branch && links.branch && (
+        <Tooltip text={links.branch.ref}>
+          <a data-branch-chip href={linkHref(links.branch.url)} target="_blank" rel="noopener noreferrer" style={CHIP} aria-label={`Branch ${links.branch.ref} for ${title}`}>
+            <GitBranch size={12} aria-hidden="true" style={{ flex: '0 0 auto' }} />
+            <span style={CHIP_TEXT}>{links.branch.ref}</span>
+          </a>
+        </Tooltip>
+      )}
+    </span>
+  )
+}
+
 export function InFlightRow({ row, now, onInfo }: { row: InFlight; now: number; onInfo: () => void }) {
   const child = row.session.executor === 'process' ? (row.session.process ?? null) : null,
     processRow = row.session.executor === 'process',
@@ -279,6 +338,7 @@ export function InFlightRow({ row, now, onInfo }: { row: InFlight; now: number; 
             {row.session.crewUnreachable ? 'crew unreachable' : (row.status ?? 'not observed')} {relativeTime(row.lastAt, now)}
           </span>
         )}
+        {row.links && <FlightChips links={row.links} title={row.title} />}
         {processRow && (
           // column-reverse keeps the newest line in view without a scroll effect.
           <span

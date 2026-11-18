@@ -41,6 +41,7 @@ import { avoozlState } from "../delivery-lanes.mjs";
 import { attachLink } from "./routing.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import { fail } from "./store.mjs";
+import { linkSets } from "./scm-links.mjs";
 import { driverDecisions } from "./driver.mjs";
 import { epicRows } from "./epic-rows.mjs";
 
@@ -818,7 +819,10 @@ export function deliveryView(store, data) {
       (store.getMeta("crews.snapshot")?.instances || [])
         .filter((i) => i.reachable === false)
         .map((i) => i.id),
-    );
+    ),
+    // Branch, pull request, checks and landed commit from stored records
+    // only (R92.1-R92.3); In flight draws its chips from these (R92.6).
+    taskLinkSets = linkSets(store, { data }).tasks;
   const items = [];
   for (const task of data.tasks) {
     if (taskKind(task) !== "leaf") continue;
@@ -936,6 +940,7 @@ export function deliveryView(store, data) {
       deliveries: deliveries.get(id) || [],
       rounds: (deliveries.get(id) || []).flatMap(reviewRounds),
       worktrees: worktrees.get(id) || [],
+      links: taskLinkSets[id] ?? null,
       project: projectNotes(board.get(id)),
       route: routeDelivery(submissions.get(id)),
       needsYou: needsYou(task, submissions, health),
