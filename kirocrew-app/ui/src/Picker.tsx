@@ -21,6 +21,8 @@ export function Picker(props: {
   maxWidth?: string
   // Show each item's title only, with no ID beside it (a list of names).
   plain?: boolean
+  // The label beside the box on one row (a page heading), not above it.
+  inline?: boolean
 }) {
   const own = useId(),
     id = props.id ?? `avoozl-pick-${own.replace(/:/g, '')}`,
@@ -66,8 +68,10 @@ export function Picker(props: {
   }
   const expanded = open && (shown.length > 0 || editing)
   return (
-    <div className="flex min-w-0 flex-col gap-1 text-sm" style={{ maxWidth: props.maxWidth ?? '100%', position: 'relative' }}>
-      <label htmlFor={id}>{props.label}</label>
+    <div className={`flex min-w-0 text-sm ${props.inline ? 'flex-row items-center gap-2' : 'flex-col gap-1'}`} data-picker-inline={props.inline ? '' : undefined} style={{ maxWidth: props.maxWidth ?? '100%', position: 'relative' }}>
+      <label htmlFor={id} className={props.inline ? 'whitespace-nowrap' : undefined}>
+        {props.label}
+      </label>
       <input
         id={id}
         type="text"
