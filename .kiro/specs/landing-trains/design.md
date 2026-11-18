@@ -1,9 +1,9 @@
-# Design: landing trains
+# Design: integrator trains
 
 Status: Draft
 
 Requirements are in `requirements.md` (LT1 to LT16). Section numbers here
-(D1 to D20) are this file's; `§` numbers refer to
+(D1 to D21) are this file's; `§` numbers refer to
 `.kiro/specs/avoozl/design.md`.
 
 ## D1. Shape
@@ -16,10 +16,11 @@ landing queue (repository, target)  ──── reaper between trains (LT11)
    │  integrator holds the landing lease                  (LT3)
    │  trigger: min / max wait / max / cooldown           (LT4)
    ▼
-train:  stack ─> resolve mechanical ─> cheap checks ─┬─ optimistic: move PR branches, push, full validation
-        (LT5)    conflicts (LT6)        (LT7)        └─ gated:      full validation, move PR branches, push
+train:  stack ─> resolve mechanical ─> cheap checks ─┬─ optimistic: push, full validation
+        (LT5)    conflicts (LT6)        (LT7)        └─ gated:      full validation, push
    │
-   ├─ pass:  mark integrated, merge base back, delete batch branches, comment (LT8, LT9)
+   ├─ pass:  mark integrated, merge base back, delete batch branches,
+   │         comment on and close review PRs                      (LT8, LT9)
    └─ fail:  rerun failing suites, bisect boundaries, land the rest,
              return or eject the culprit, revert or fix forward          (LT10)
    ▼
@@ -65,6 +66,7 @@ the store uses for export and repair (the lists that already name
 | `train`         | Train ID while `in-train` (new)                                            |
 | `state`         | `queued`, `in-train`, `landed`, `returned`, `ejected`, `closed`; `withdrawn`, `conflict`, `failed` stay for `direct` |
 | `reason`        | Why it left the queue or why it is held (new)                              |
+| `refreshed`     | Last reaper refresh: `{onto, from, head, at}`, the rebased range kept under a local ref only (new, D12) |
 | `pr`            | Review pull request number, if a person asked (exists)                     |
 
 **`landing_trains`** (new). One row per train.
@@ -109,6 +111,9 @@ Machine-wide because two workspaces on one Mac share the one Windows VM.
 - `avoozl landing review TASK` opens a pull request for the batch branch,
   titled from the task, body from the task's acceptance, and stores its
   number on the entry. It is the only way a pull request appears.
+- A requeue whose head does not descend from the pushed batch branch is
+  refused before any push (LT1.5). The tick pushes a batch branch only as a
+  plain push: it creates the branch or fast-forwards it.
 
 ## D4. The integrator
 
@@ -228,8 +233,11 @@ for member in train order:
 `builtOn` is computed at queue time from recorded heads, so the cut never
 depends on patch matching after a rebase changed the commits. Landed entries
 keep `originalHead`, so a branch built on yesterday's landed branch still cuts
-correctly. Each stacked commit gets the `Avoozl-Task` trailer (`trailers` in
-`src/app/landing-trains.mjs`).
+correctly. Each stacked commit gets the `Avoozl-Task` trailer (`trailers`,
+exported from `src/app/landing-trains.mjs` for this, D21). When the reaper
+refreshed the member (D12) and `refreshed.onto` is an ancestor of the stack,
+the train rebases the refreshed range instead, so conflicts already settled
+by that refresh are not met again.
 
 The stack is linear (rebased), not the `--no-ff` merges `mergeTrain` makes for
 `direct`. A linear stack makes each boundary a commit the bisect can check
@@ -325,9 +333,8 @@ copying its rules. Neither set: every platform named in `validation.full`.
 ```
 stack, conflicts, cheap checks
 write intents (landWithIntents)
-move PR branches to boundaries (D10.4)
 withWorkLock(integration): re-read trunk, guardedFastForward(baseHead -> stack head)
-mark tasks integrated, merge base back, delete batch branches, comment
+mark tasks integrated, merge base back, delete batch branches, close review PRs (D10.4)
 full validation on the pushed head (+ CI fallback platforms from the push's run)
 failure -> D11
 ```
@@ -338,8 +345,8 @@ failure -> D11
 stack, conflicts, cheap checks
 full validation on the stack head (+ CI fallback by workflow_dispatch)
 failure -> D11 (drop culprit, restack, recheck), then continue
-write intents, move PR branches, withWorkLock: guarded push
-mark integrated, merge base back, delete batch branches, comment
+write intents, withWorkLock: guarded push
+mark integrated, merge base back, delete batch branches, close review PRs (D10.4)
 ```
 
 ### D10.3 Trunk moved
@@ -353,28 +360,32 @@ reason "trunk kept moving", and its members go back to `queued`. Something
 else writing the trunk is itself a Needs you item, since the integrator is
 supposed to be the only writer.
 
-### D10.4 Merged ordering
+### D10.4 Review pull requests after landing
 
-For each member with an open pull request, before the trunk push:
-
-```
-git push --force-with-lease=refs/heads/<branch>:<entry.commit> <remote> <boundary>:refs/heads/<branch>
-```
-
-This is the only non-fast-forward write Avoozl makes, and only on a batch
-branch, on the exact head it recorded (LT16.4). When the lease fails, the
-member leaves the train before the push (a person or tool updated the branch)
-and returns to `queued` with the new head. Then the trunk push makes each
-boundary reachable from the trunk, and GitHub marks those pull requests
-merged. After the push, the comment from `pullRequests.commentTemplate`:
+No branch moves for a pull request. After the trunk push, for each landed
+member with an open review pull request, the integrator posts one comment
+from `pullRequests.commentTemplate` and then closes the pull request:
 
 ```
 Landed in train {train} as {position} of {count}, trunk {trunkCommit}.
 Checks: {checks}.
 ```
 
-Placeholders are filled only from the train record; the text passes the
-privacy rule (Requirement 102.12) before it is written.
+`{train}` and `{trunkCommit}` render as links (the train's Landing queue
+entry and the commit on the forge). Placeholders are filled only from the
+train record; the text passes the privacy rule (Requirement 102.12) before it
+is written. A pull request a person already closed gets nothing.
+
+GitHub then shows the pull request as closed, not merged. Showing it merged
+would need the batch branch moved to its rebased boundary, which is not a
+fast-forward, so a force push. The comment carries the same facts.
+
+Batch branches are deleted only after the train lands, with a plain delete,
+and only when `ls-remote` still shows the head the train recorded. A branch
+that moved keeps its new commits and its new head is queued (LT1.5). Known
+limit: the check and the delete are two calls, so a push landing between them
+is lost from the remote (the pusher still has it). Close the gap if a receipt
+ever shows it.
 
 ## D11. Failure
 
@@ -421,7 +432,7 @@ Between trains, in the integrator loop:
 | Condition                                   | Action                                                                 |
 | ------------------------------------------- | ---------------------------------------------------------------------- |
 | Ready and not taken for `reap.idleHours`    | One Needs you item with the hold reason                                |
-| More than `reap.behindCommits` behind trunk | Rebase with D7 in a scratch worktree, cheap checks, lease-guarded move of its batch branch; conflict goes back as D8 |
+| More than `reap.behindCommits` behind trunk | Refresh: re-stack with D7 in the integrator's own landing worktree (LT5.1), cheap checks, record `refreshed` on the entry and keep the range under a local ref `refs/avoozl/refresh/<task>` that is never pushed; the batch branch is not touched; conflict goes back as D8 |
 | All commits already in the trunk            | `closed`, reason with the trunk commit, delete batch branch           |
 | Rounds or retries used up                   | `returned` or `ejected`, one Needs you item, keep the branch           |
 | Remote batch branch with no entry           | One Needs you item; never deleted by Avoozl                            |
@@ -495,7 +506,7 @@ Repository file, `.avoozl.json`:
       "conflicts": { "resolver": "rules", "mechanical": [ { "paths": ["CHANGELOG.md"], "strategy": "union" } ] },
       "scheduling": { "overlap": "same-train" },
       "reap": { "idleHours": 24, "behindCommits": 50 },
-      "pullRequests": { "mode": "review-only", "mergedOrdering": true, "commentTemplate": "Landed in train {train} as {position} of {count}, trunk {trunkCommit}." },
+      "pullRequests": { "mode": "review-only", "commentTemplate": "Landed in train {train} as {position} of {count}, trunk {trunkCommit}." },
       "ci": { "workflow": "ci.yml", "waitForLastTrain": false, "bisectOnRed": false, "jobPlatforms": { "test (macos)": "macos-arm64" } },
       "capacity": { "ci": { "macos-arm64": 2 } },
       "alerts": { "waitMinutes": 60 },
@@ -531,7 +542,6 @@ Defaults and bounds:
 | `scheduling.overlap`         | `same-train`     | `same-train`, `serialize`           |
 | `reap.idleHours`             | 24               | 1–720                               |
 | `reap.behindCommits`         | 50               | 1–10000                             |
-| `pullRequests.mergedOrdering`| true             | boolean                             |
 | `ci.waitForLastTrain`        | false            | boolean                             |
 | `ci.bisectOnRed`             | false            | boolean                             |
 | `alerts.waitMinutes`         | 60               | 1–10080                             |
@@ -548,9 +558,46 @@ repository file (already refused by `assertSafeConfig`). Each message names
 the key path and the file it came from. A gated target with a CI-only
 platform loads with a warning that each such train costs one extra CI run.
 
+### D16.1 Avoozl's own repository
+
+Avoozl's own repository lands with `landing: pr` today, and trains do not
+change that: R87.3 forbids combining unrelated pull requests under protected
+review, and this spec keeps that rule. Its CI does not gate merges, so it can
+instead take the setup LT8.8 supports: the repository's landing setting set
+to `train`, with this in its `.avoozl.json`:
+
+```json
+{
+  "landing": {
+    "trains": {
+      "validation": {
+        "cheap": [["git", "diff", "--check"], ["node", "scripts/spec-lint.mjs"]],
+        "full": {
+          "macos-arm64": { "command": ["npm", "test"] },
+          "linux-x64": { "command": ["npm", "test"] },
+          "windows-x64": { "command": ["npm", "test"] }
+        }
+      },
+      "ci": { "workflow": "test.yml" },
+      "targets": { "main": { "policy": "gated" } }
+    }
+  }
+}
+```
+
+This Mac declares only `macos-arm64`, as `native`. Linux and Windows have
+no environment here, so each train makes one `workflow_dispatch` run of
+`test.yml` on `avoozl-validate/<train>` with
+`platforms=linux-x64,windows-x64` (LT7.7). The train lands only when that
+run and the local macOS run both pass. Settings load with the one-extra-run
+warning. `test.yml` needs a `workflow_dispatch` trigger with that input,
+which task lt-4.5 adds. Its `push` stays on `main` only, so batch and
+validate refs start no push run, and its job and matrix names stay the same.
+Turning the setup on is an owner step (D20).
+
 ## D17. CI guidance for repositories
 
-`docs/landing-trains.md` says, with these snippets:
+`docs/integrator-trains.md` says, with these snippets:
 
 ```yaml
 # A push workflow with no branch filter: ignore batch branches.
@@ -569,8 +616,8 @@ on:
 
 ```yaml
 # Review pull requests from batch branches: keep required checks reporting,
-# skip the work. Moving a branch for merged ordering would otherwise start
-# one pull_request run per moved branch.
+# skip the work. The train validates the change; a run per review pull
+# request spends runners on a head that is not what lands.
 jobs:
   test:
     if: ${{ !startsWith(github.head_ref, 'avoozl-batch/') }}
@@ -581,7 +628,7 @@ stacked commits keep their messages, so the tag would ride into the trunk and
 skip the trunk push's run, which is the one run the train wants. And it
 describes the `workflow_dispatch` input a gated repository with a CI-only
 platform needs (D9.3). Avoozl's own `test.yml` already runs `push` only on
-`main`, so it needs only the pull request job condition.
+`main`, so it needs no push exclusion (D16.1).
 
 ## D18. Changes to the `avoozl` spec
 
@@ -590,11 +637,13 @@ platform needs (D9.3). Avoozl's own `test.yml` already runs `push` only on
 | R87.1 landing values                | Adds `train`                                                        |
 | R87.2 train bound (4 tasks, 1 driver) | Not under `train`; LT4.3 bounds it; intents still per driver      |
 | R87.4 checks before landing         | Optimistic: cheap checks before, full after                        |
-| R87.4 never force push              | Kept for trunks and every non-batch branch; batch branches move only by a lease on the recorded head |
+| R87.4 never force push              | Kept for every branch, batch branches included; a test scans push calls (LT16.7) |
 | R87.5 one queue, `withWorkLock`     | Kept; the landing lease scopes the whole train around it            |
 | §4.32.5 `direct` merges with `--no-ff` | `train` stacks linearly (D7); `direct` unchanged                 |
 | `landNext` halving                  | Kept for `direct`; `train` bisects boundaries (D11)                 |
-| R77.3 writers merge, never rebase   | Not for batch branches; the reaper rebases them (D12)               |
+| R77.3 writers merge, never rebase   | Kept for batch branches; the reaper re-stacks only in its own worktree (D12) |
+| R87.3 no combined PRs under `pr`    | Kept; Avoozl's own repository may use `train` with `gated` instead (D16.1) |
+| 41.3 bounded trains (`landing-trains.mjs`) | Kept for `direct`; integrator trains get their own module (D21) |
 
 ## D19. Failure modes
 
@@ -609,17 +658,52 @@ platform needs (D9.3). Avoozl's own `test.yml` already runs `push` only on
 | Flaky suite                                      | Fails, passes on rerun: recorded `flaky`, train continues                      |
 | Culprit cannot be placed                         | Last member treated as culprit (D11.1)                                         |
 | CI-only platform red after an optimistic push    | One CI run says so; revert or fix forward per `failure.trunk`                  |
-| Batch branch updated by someone during a train   | Merged-ordering lease fails; member leaves the train, re-queues               |
+| Batch branch updated by someone during a train   | The train lands the recorded head; the branch is kept and its new head is queued (D10.4) |
+| A requeue that rewrote history                   | Refused before any push; the batch branch stays (LT1.5)                       |
 | Branch built on an ejected branch                | Held, reason names it; reaper's idle alert if it stays held                    |
 | VM left dirty by a dead train                    | Its `cleanup` argv runs before the next train takes the slot                   |
 
 ## D20. Owner steps
 
-Steps 1 and 2 are not tasks. Step 3 is `lt-p5`, marked manual in the manifest.
+Steps 1, 2 and 4 are not tasks. Step 3 is `lt-p4`, marked manual in the
+manifest.
 
 1. Approve this spec.
 2. For Nupp: add the batch-branch CI exclusions from D17 to its workflows,
    change its AGENTS.md so agents stop pushing to the trunk and submit
    instead, and write the machine settings for this Mac's Colima container and
    UTM Windows VM wrappers.
-3. Run `lt-p5`, the live train on Nupp.
+3. Run `lt-p4`, the live train on Nupp.
+4. For Avoozl's own repository, if wanted: after lt-4.5 lands, set its
+   landing setting to `train` and add the D16.1 block. Undo: set it back to
+   `pr`.
+
+## D21. Name and module
+
+The existing `src/app/landing-trains.mjs` holds task 41.3's bounded
+`direct` trains: `TRAIN_TASKS = 4`, `mergeTrain` (`--no-ff` merges into a
+landing worktree), and `directSteps`, the step set `landNext` drives with its
+halving search. This feature is called **integrator trains** and gets its own
+module, `src/app/integrator-trains.mjs`. It does not replace 41.3's bound.
+
+Why this reuses the most code:
+
+1. The parts both kinds of train need are already small exported helpers:
+   `landWithIntents` and `journalChecks` (`landing-trains.mjs`),
+   `guardedFastForward` and `landIntent` (`driver-generations.mjs`),
+   `privacyScan` (`working-heads.mjs`), `mergeBaseBack` (`spec-base.mjs`)
+   and `enqueueLanding` (`landing-queue.mjs`). The new module imports them.
+   The only change to `landing-trains.mjs` is exporting `trailers` and
+   `unionMerge`, which are private today.
+2. The parts that differ share no code. Integrator trains stack linearly by
+   rebase (D7), not with `mergeTrain`'s merges. They bisect boundaries
+   (D11), not `landNext`'s halving. They run under a lease in their own
+   process (D4, D5), not inside the tick's queue drive.
+3. `direct` keeps its bound and its halving (LT16.2, LT16.5). Putting
+   integrator trains into `landing-trains.mjs` would branch each function on
+   the landing value, and 41.3's tests would have to cover both.
+
+The spec folder stays `.kiro/specs/landing-trains/` and the landing value
+stays `train`, so task IDs and the open pull request keep their names. New
+files use the new name: `docs/integrator-trains.md` and
+`src/app/test/integrator-trains-config.test.mjs`.

@@ -2,13 +2,13 @@
 category: Planning
 ---
 
-# Requirements: landing trains
+# Requirements: integrator trains
 
 Status: Draft
 
 ## Introduction
 
-This spec adds landing trains to Avoozl: finished work waits in a queue
+This spec adds integrator trains to Avoozl: finished work waits in a queue
 instead of as pull requests, and one integrator lands everything ready in a
 single stacked batch, validates the integrated trunk once, bisects at branch
 boundaries when that fails, and fixes forward.
@@ -47,14 +47,31 @@ it extends is `src/app/landing-queue.mjs` (per-base queue, `landNext`),
 `src/app/store.mjs`. Where a criterion here changes a rule there, it says which
 one (LT16).
 
+The feature is called integrator trains, and its code lives in its own module,
+`src/app/integrator-trains.mjs`. The bounded `direct` trains of task 41.3 in
+`src/app/landing-trains.mjs` keep their name, their four-task bound and their
+halving search (design D21). The spec folder keeps the name `landing-trains`.
+
+### Scope
+
+- Nothing in this spec force pushes, under any setting, to any branch
+  (LT16.4, LT16.7).
+- Avoozl's own repository uses `landing: pr` today, and nothing here changes
+  that while it stays `pr`. It may switch to `landing: train` with
+  `policy: gated`, the setup LT8.8 supports for a repository whose CI does not
+  gate merges.
+
 ### Out of scope
 
 - One integrator across several machines. The design records the agreed
   direction (a shared lock ref or a server lease, design D5.4); no task builds it.
 - Trains under `landing: pr` with protected review. Requirement 87.3 still
-  forbids combining unrelated pull requests there.
+  forbids combining unrelated pull requests there. This holds for Avoozl's own
+  repository too: its trains option is `landing: train` (LT8.8), not `pr`.
 - Editing another repository's CI workflow or AGENTS.md. Avoozl ships the
   guidance and a setup check (LT1.7, LT1.8); a person makes the change.
+- Automatic pickup of stale pull requests opened by people or other agents is
+  not in this spec; `landing submit` (LT1.4) covers foreign branches by hand.
 
 ### Words
 
@@ -100,13 +117,15 @@ merge.
    cheap checks. Each refusal SHALL name the missing step.
 5. Queuing the same task again while its entry waits SHALL replace the head
    and keep its place in line only when the new head descends from the old
-   one; otherwise the entry SHALL move to the end, as `enqueueLanding` does
-   today for a key that left the queue.
+   one. A new head that does not descend from the pushed batch branch SHALL be
+   refused with the reason (writers merge and never rebase, Requirement
+   77.3), and the batch branch and entry SHALL stay as they were. Avoozl SHALL
+   NOT replace a batch branch by deleting and pushing it again.
 6. Avoozl SHALL open a pull request for a batch branch only when a person
    asks for a review of it (`avoozl landing review TASK`, or the task's Links
    box). A review pull request SHALL NOT be a landing path: the train still
    lands the branch (LT9).
-7. Avoozl SHALL ship `docs/landing-trains.md`, which tells a repository how to
+7. Avoozl SHALL ship `docs/integrator-trains.md`, which tells a repository how to
    keep CI off batch branches with `branches-ignore: ['avoozl-batch/**']` (or a
    `!avoozl-batch/**` entry where the workflow already lists `branches`), and
    why a commit-message skip tag SHALL NOT be used: the tag would land in the
@@ -248,8 +267,8 @@ twice.
 5. Every stacked commit SHALL keep its author and message and SHALL gain the
    trailer `Avoozl-Task: <task>@<definition>` that intents read today.
 6. The train record SHALL keep, for each member, its original head and its
-   boundary commit, so later trains can cut at it and merged ordering (LT9)
-   can move its branch.
+   boundary commit, so later trains can cut at it and the landing comment
+   (LT9.2) can name it.
 
 ### Requirement LT6: Conflicts
 
@@ -346,31 +365,32 @@ one never goes red.
 7. A train SHALL be validated when every needed platform passed locally or by
    its one CI run (LT7.7), and only then SHALL its tasks count toward Stop the
    line's accepted heads.
+8. A repository whose CI does not gate merges (its trunk requires no checks)
+   MAY use `landing: train` with `policy: gated`, with full validation on this
+   machine's own platform (`native`, such as macOS) and one
+   `workflow_dispatch` run (LT7.7) covering the needed platforms that have no
+   environment on this machine. This SHALL be a supported setup, and it is the
+   one offered for Avoozl's own repository (design D16.1). `landing: pr` with
+   protected review SHALL stay out of scope (Requirement 87.3).
 
-### Requirement LT9: Pull requests: review only, merged in order
+### Requirement LT9: Pull requests: review only, closed when the change lands
 
-**User story:** As a reviewer, I want a pull request I asked for to show as
-merged when its change lands, with a note saying which train landed it, so
-that GitHub's history stays readable.
+**User story:** As a reviewer, I want a pull request I asked for to be closed
+with a note when its change lands, saying where it landed, so that GitHub's
+history stays readable without moving anyone's branch.
 
 #### Acceptance criteria
 
 1. `pullRequests.mode` SHALL be `review-only` (the only value in this spec):
    pull requests exist only when a person asks (LT1.6).
-2. WHEN a member has an open pull request and `pullRequests.mergedOrdering`
-   is on (default on) THEN, before the trunk push, the integrator SHALL move
-   that member's batch branch to its boundary commit, so GitHub marks the pull
-   request merged when the trunk push lands. If the trunk were pushed first,
-   GitHub would show the pull request as closed.
-3. That move SHALL be a lease-guarded update of the batch branch only
-   (`--force-with-lease=<branch>:<recorded head>`). WHEN the lease fails
-   (someone pushed to the branch) THEN the member SHALL leave the train and
-   return to `queued` with its new head.
-4. After the trunk push, the integrator SHALL post one comment on each such
-   pull request from `pullRequests.commentTemplate`, with the train ID, the
-   member's position, the trunk commit and the check results, screened by
-   the privacy rule (Requirement 102.12) before it is written.
-5. A member whose pull request a person closed SHALL still land; the comment
+2. After the trunk push that lands a member with an open pull request, the
+   integrator SHALL post one comment on that pull request from
+   `pullRequests.commentTemplate`, with links to the trunk commit and the
+   train, the member's position and the check results, screened by the
+   privacy rule (Requirement 102.12) before it is written, and SHALL then
+   close the pull request. It SHALL NOT move the batch branch: GitHub shows the
+   pull request as closed, not merged.
+3. A member whose pull request a person closed SHALL still land; the comment
    SHALL NOT be posted on a closed pull request.
 
 ### Requirement LT10: Failure: bisect, land the good branches, return the culprit
@@ -417,10 +437,12 @@ and go back to someone, so that the queue never fills with stale work.
 1. An entry ready for longer than `reap.idleHours` (default 24) without
    being taken by a train SHALL get one Needs you item naming why it waits.
 2. An entry more than `reap.behindCommits` (default 50) commits behind the
-   trunk SHALL be rebased onto the trunk by the integrator, between trains,
-   with the cut rule, and re-checked with the cheap checks. A clean result
-   SHALL replace the entry's head with a lease-guarded update of its batch
-   branch; a conflict SHALL go back to the task as LT6.5 says.
+   trunk SHALL be refreshed by the integrator, between trains: it SHALL
+   re-stack the entry onto the trunk in its own landing worktree (LT5.1) with
+   the cut rule and re-check it with the cheap checks. The refresh SHALL NOT
+   move, push or delete the batch branch. A clean result SHALL record only the
+   new boundary and the rebased range on the queue entry, and a later train
+   MAY stack from it; a conflict SHALL go back to the task as LT6.5 says.
 3. An entry whose commits are already all in the trunk SHALL be set `closed`
    with the reason "already in the trunk at <commit>", and its batch branch
    deleted.
@@ -502,7 +524,7 @@ time and not in the middle of a train.
    `landing.trains.targets.<branch>`: branch prefix, policy, trigger limits,
    cheap and full validation per platform, platform rules or classifier,
    failure action and retries, trunk repair, conflict rules and resolver,
-   reaping thresholds, pull request behavior and comment template, the CI
+   reaping thresholds, pull request mode and comment template, the CI
    workflow to watch, `ci.waitForLastTrain`, `ci.bisectOnRed`, capacity and
    alerts.
 2. Machine settings SHALL live in the global configuration
@@ -534,18 +556,18 @@ so that the two specs never disagree silently.
 3. Under `train` with `policy: optimistic`, the "checks" of Requirement 87.4
    that must pass before landing SHALL be the cheap checks; full validation
    follows the push. Under `gated`, Requirement 87.4 SHALL hold unchanged.
-4. Requirement 87.4's "never force push" SHALL hold for every trunk and every
-   branch other than batch branches. A batch branch MAY move non-fast-forward
-   only by a lease-guarded update on its recorded head (LT9.3, LT11.2), made
-   by one function in the integrator's own process. A test SHALL scan
-   Avoozl's push calls and find `--force-with-lease` only there, and only for
-   a ref under the batch prefix. The brief rule of Requirement 77.3
+4. Requirement 87.4's "never force push" SHALL hold for every branch,
+   including the trunk, batch branches and `avoozl-validate/` refs. No
+   setting turns it off. The brief rule of Requirement 77.3
    (`asksForcePush` in `src/app/delivery.mjs`: a brief that asks for a force
    push is never sent) SHALL stay unchanged.
 5. The halving search in `landNext` SHALL stay for `direct`; `train` SHALL use
    the boundary bisect of LT10.
 6. Requirement 77.3 (a writer merges, never rebases a pushed branch, never
-   force pushes) SHALL NOT apply to batch branches, which only the integrator
-   moves (LT9.3, LT11.2). A batch branch with a review pull request SHALL be
-   kept current by the reaper (LT11.2), not by a writer chat. Requirement 77
-   SHALL hold unchanged for every other branch.
+   force pushes) SHALL hold unchanged for batch branches, as for every other
+   branch. Nothing moves a pushed batch branch except a fast-forward push of a
+   descendant head (LT1.5); the reaper's refresh leaves it where it is
+   (LT11.2).
+7. A test SHALL scan Avoozl's push calls (every `git push` argv the source
+   builds) and find no `--force`, `-f`, `--force-with-lease` or `+` refspec
+   anywhere.
