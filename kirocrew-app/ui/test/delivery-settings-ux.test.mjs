@@ -45,11 +45,10 @@ for (const width of [1280, 390]) {
   test(`Delivery fields name their default, reset and disable with a reason at ${width} px`, { skip }, async () => {
     await openDelivery(width)
     // Every field row says what a blank value uses.
-    for (const id of ['agent', 'model', 'investigate', 'confidence', 'rounds'])
+    for (const id of ['investigate', 'confidence', 'rounds'])
       assert.match((await text(`[data-field-row="avoozl-delivery-${id}"] [data-field-default]`)) ?? '', /^Default: /, id)
     // The fixture saves 3 rounds: an override, so Reset shows and clears it.
     assert.equal(await text('[data-field-reset="avoozl-delivery-rounds"]'), 'Reset to default (5)')
-    assert.equal(await text('[data-field-reset="avoozl-delivery-agent"]'), null, 'agent at its default has no Reset')
     await page.evaluate(`document.querySelector('[data-field-reset="avoozl-delivery-rounds"]').click()`)
     await page.until(`document.getElementById('avoozl-delivery-rounds').value === '' && !document.querySelector('[data-field-reset="avoozl-delivery-rounds"]')`)
     // Feedback off disables the rounds box and says why.

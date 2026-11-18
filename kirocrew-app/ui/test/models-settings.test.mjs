@@ -29,7 +29,7 @@ test('Settings has a Models section with a themed picker per role; Flow and Deli
   assert.match(models, /ROLES\.map\(\(role\) =>/)
   assert.match(models, /<Picker\s+id=\{`avoozl-model-\$\{role\.key\}`\}/)
   assert.match(models, /<Picker\s+id=\{`avoozl-harness-\$\{role\.key\}`\}/)
-  assert.match(models, /role\.agent && \(/)
+  assert.match(models, /role\.agent \? \(/)
   assert.match(source('models-api.ts'), /'models\.settings\.update', \{ roles: toRoles\(roles\), expectedHash \}/)
   assert.doesNotMatch(source('FlowSettings.tsx'), /avoozl-flow-model|modelOptions/)
   assert.doesNotMatch(source('DeliverySettings.tsx'), /avoozl-delivery-(agent|model)|modelOptions|delivery\.model/)

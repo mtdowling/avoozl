@@ -61,7 +61,7 @@ for (const width of [1280, 390]) {
     assert.equal(await page.evaluate(`document.querySelector('[data-save-footer] [data-save]').disabled`), true, 'Save waits for a valid value')
     await press('Discard')
     await page.until(`!document.querySelector('[data-save-footer]')`)
-    assert.equal(await page.evaluate(`document.getElementById('avoozl-delivery-rounds').value`), '')
+    assert.equal(await page.evaluate(`document.getElementById('avoozl-delivery-rounds').value`), '3')
     await set('#avoozl-delivery-rounds', '4')
     await page.until(`Boolean(document.querySelector('[data-save-footer] [data-save]:not([disabled])'))`)
     await press('Save')

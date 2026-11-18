@@ -1,6 +1,6 @@
 // Settings > Models: the harnesses on this machine once at the top, then one
-// row per role (role | harness | model | source). A role shows "default"
-// until a harness or model is set here, and Reset puts it back. A model a
+// row per role (role | harness | agent | model | source). A role shows
+// "default" until a harness, agent or model is set here, and Reset puts it back. A model a
 // harness cannot take is dropped on pick and blocks Save if loaded (R98.3).
 // It is the one roles table (R98.6, R98.7): the worker and falsifier also
 // pick their agent here, and no other page picks a role's agent or model.
@@ -155,21 +155,21 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                   </span>
                 )}
                 <FieldRow id={`avoozl-model-${role.key}`} label="Model">
-                    {modelFree ? (
-                      <span className="text-xs text-muted" data-no-model>
-                        {harness} takes no model.
-                      </span>
-                    ) : (
-                      <Picker
-                        id={`avoozl-model-${role.key}`}
-                        label={<span style={HIDDEN}>{role.label} model</span>}
-                        items={optionItems(choices(role.key))}
-                        value={row.model || 'auto'}
-                        onPick={(model) => set(role.key, { model: model || 'auto' })}
-                        placeholder="Type to find a model, or auto"
-                        plain
-                      />
-                    )}
+                  {modelFree ? (
+                    <span className="text-xs text-muted" data-no-model>
+                      {harness} takes no model.
+                    </span>
+                  ) : (
+                    <Picker
+                      id={`avoozl-model-${role.key}`}
+                      label={<span style={HIDDEN}>{role.label} model</span>}
+                      items={optionItems(choices(role.key))}
+                      value={row.model || 'auto'}
+                      onPick={(model) => set(role.key, { model: model || 'auto' })}
+                      placeholder="Type to find a model, or auto"
+                      plain
+                    />
+                  )}
                 </FieldRow>
                 <div className="flex flex-wrap items-center gap-2" style={{ alignSelf: 'end' }}>
                   <Badge variant={isSet ? 'info' : undefined}>{isSet ? 'set here' : 'default'}</Badge>
