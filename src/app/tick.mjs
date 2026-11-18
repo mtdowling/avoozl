@@ -112,6 +112,7 @@ import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { taskSummaryDispatches } from "./task-summary.mjs";
 import {
   validateModels,
+  validateRoles,
   validatePlanReview,
   withChatModels,
 } from "./chat-models.mjs";
@@ -192,6 +193,7 @@ function parsePolicy(text) {
   validateTrackedRouting(value);
   validateContentRules(value.contentRules);
   validateModels(value.models);
+  validateRoles(value);
   validatePlanReview(value.planReview);
   validateIntake(value.intake);
   return value;
@@ -1332,8 +1334,8 @@ async function runTick(
           ? []
           : planReadyDispatches(store, delivery, {
               skip: new Set([...readySkip, ...schedule.skip]),
-              // Settings › Models' worker harness (R98.3).
-              harnesses: (memory.value || {}).harnesses,
+              // Settings › Models' worker harness (R98.3, R98.6).
+              config: memory.value || {},
               github: readGitHubPolicyOrNull(workspaceRoot),
               routing,
               placementState,

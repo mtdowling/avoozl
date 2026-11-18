@@ -136,9 +136,22 @@
     "github": {
       "$ref": "#/$defs/github"
     },
+    "roles": {
+      "type": "object",
+      "description": "One row per role: its harness, model and, for the worker and falsifier, agent. Settings > Models edits it. A missing key or auto keeps the role's default; a task's session pin wins. Older models, harnesses, delivery agent and model keys still load into it.",
+      "additionalProperties": false,
+      "properties": {
+        "worker": { "$ref": "#/$defs/agentRole" },
+        "falsifier": { "$ref": "#/$defs/agentRole" },
+        "planner": { "$ref": "#/$defs/chatRole" },
+        "planReviewer": { "$ref": "#/$defs/chatRole" },
+        "retro": { "$ref": "#/$defs/chatRole" },
+        "reviewDraft": { "$ref": "#/$defs/chatRole" }
+      }
+    },
     "models": {
       "type": "object",
-      "description": "Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
+      "description": "Older key, read into roles.<role>.model. Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
       "additionalProperties": false,
       "properties": {
         "planner": {
@@ -938,6 +951,31 @@
     "chatModel": {
       "type": "string",
       "pattern": "^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$"
+    },
+    "roleHarness": {
+      "type": "string",
+      "description": "kirocrew for a Kiro Crew chat, a harness definition's name, or auto for the project's executor.",
+      "pattern": "^[a-z][a-z0-9-]{0,60}$"
+    },
+    "chatRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "harness": { "$ref": "#/$defs/roleHarness" },
+        "model": { "$ref": "#/$defs/chatModel" }
+      }
+    },
+    "agentRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "harness": { "$ref": "#/$defs/roleHarness" },
+        "agent": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "model": { "$ref": "#/$defs/chatModel" }
+      }
     },
     "runner": {
       "type": "object",

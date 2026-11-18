@@ -1327,8 +1327,7 @@ if (query.get('page') === 'models' || query.get('page') === 'app') {
     filename: '.avoozl.json',
     exists: true,
     hash: 'models-before',
-    models: { planner: 'fake-writer' },
-    harnesses: {},
+    roles: { planner: { model: 'fake-writer' } } as Record<string, Record<string, string>>,
     harnessDefinitions: [
       { name: 'claude-code', approved: true },
       { name: 'codex', approved: false },
@@ -1338,8 +1337,8 @@ if (query.get('page') === 'models' || query.get('page') === 'app') {
   answer('models.settings.get', () => settings)
   answer('models.settings.update', (body) => {
     state.calls.push(body)
-    const input = body.input as { models: typeof settings.models; harnesses?: typeof settings.harnesses }
-    settings = { ...settings, hash: 'models-after', models: input.models, harnesses: input.harnesses ?? settings.harnesses }
+    const input = body.input as { roles: typeof settings.roles }
+    settings = { ...settings, hash: 'models-after', roles: input.roles }
     return settings
   })
 }

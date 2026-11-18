@@ -65,7 +65,7 @@ export function validatePlanReview(value, where = "planReview") {
 
 // The model a role's chat opens on, or null for the agent's own.
 export function chatModel(config, role) {
-  const model = record(config?.models) ? config.models[role] : undefined;
+  const model = resolveRoles(config)[role]?.model;
   return typeof model === "string" && model !== "auto" && MODEL.test(model)
     ? model
     : null;
@@ -99,9 +99,7 @@ export function validateHarnesses(value, where = "harnesses") {
 
 // The harness a role's saved setting names, or null for its project's.
 export function roleHarness(config, role) {
-  const harness = record(config?.harnesses)
-    ? config.harnesses[role]
-    : undefined;
+  const harness = resolveRoles(config)[role]?.harness;
   return isHarnessName(harness) && harness !== "auto" ? harness : null;
 }
 
@@ -111,6 +109,117 @@ export function harnessExecutor(harness) {
   return harness === KIROCREW_HARNESS
     ? { executor: KIROCREW_HARNESS }
     : { executor: "process", harness };
+}
+
+// One `roles` table (R98.6): each role's harness, model and, for the
+// worker and the falsifier, agent. Settings › Models edits it. The older
+// keys still load into it with no warning (R98.8): `models`, `harnesses`,
+// `delivery.agent/model`, `delivery.investigate.agent/model` and
+// `flow.retro.model`. A `roles` field wins over an older key.
+export const ROLES = Object.freeze(["worker", "falsifier", ...MODEL_ROLES]);
+const AGENT_ROLES = new Set(["worker", "falsifier"]);
+const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+
+// The table with the older keys read in: older keys first, then `roles`
+// over them, field by field. Values are as saved, `auto` included.
+export function resolveRoles(config) {
+  const table = {},
+    put = (role, field, value) => {
+      if (typeof value === "string" && value)
+        (table[role] ??= {})[field] = value;
+    },
+    delivery = record(config?.delivery) ? config.delivery : {},
+    investigate = record(delivery.investigate) ? delivery.investigate : {};
+  put("retro", "model", config?.flow?.retro?.model);
+  put("worker", "agent", delivery.agent);
+  put("worker", "model", delivery.model);
+  put("falsifier", "agent", investigate.agent);
+  put("falsifier", "model", investigate.model);
+  if (record(config?.models))
+    for (const role of MODEL_ROLES) put(role, "model", config.models[role]);
+  if (record(config?.harnesses))
+    for (const role of HARNESS_ROLES)
+      put(role, "harness", config.harnesses[role]);
+  if (record(config?.roles))
+    for (const role of ROLES)
+      if (record(config.roles[role]))
+        for (const field of ["harness", "agent", "model"])
+          put(role, field, config.roles[role][field]);
+  return table;
+}
+
+// Tables merged field by field, later over earlier.
+export function mergeRoles(...tables) {
+  const merged = {};
+  for (const table of tables)
+    for (const [role, row] of Object.entries(table || {}))
+      merged[role] = { ...merged[role], ...row };
+  return merged;
+}
+
+// Remove the older keys the table replaces (R98.9). `delivery` itself
+// stays, even empty, because its presence turns delivery on.
+export function dropOlderRoleKeys(value) {
+  delete value.models;
+  delete value.harnesses;
+  if (record(value.delivery)) {
+    delete value.delivery.agent;
+    delete value.delivery.model;
+    const investigate = value.delivery.investigate;
+    if (record(investigate)) {
+      delete investigate.agent;
+      delete investigate.model;
+      if (!Object.keys(investigate).length) delete value.delivery.investigate;
+    }
+  }
+  const retro = value.flow?.retro;
+  if (record(retro) && "model" in retro) {
+    delete retro.model;
+    if (!Object.keys(retro).length) delete value.flow.retro;
+    if (!Object.keys(value.flow).length) delete value.flow;
+  }
+  return value;
+}
+
+// Check a config's `roles` value and the table it makes with the older
+// keys; throws naming the key. Returns the checked `roles`.
+export function validateRoles(config, where = "roles") {
+  const value = config?.roles;
+  if (value === undefined) return {};
+  if (!record(value)) fail(`${where} must be an object.`);
+  for (const [role, row] of Object.entries(value)) {
+    const at = `${where}.${role}`;
+    if (!ROLES.includes(role))
+      fail(`${at} is not a role; use ${ROLES.join(", ")}.`);
+    if (!record(row)) fail(`${at} must be an object.`);
+    for (const [field, v] of Object.entries(row)) {
+      if (field === "harness") {
+        if (!isHarnessName(v))
+          fail(
+            `${at}.harness must be ${KIROCREW_HARNESS}, a harness name or "auto".`,
+          );
+      } else if (field === "model") {
+        if (typeof v !== "string" || !MODEL.test(v))
+          fail(`${at}.model must be a model name or "auto".`);
+      } else if (field === "agent" && AGENT_ROLES.has(role)) {
+        if (typeof v !== "string" || !AGENT.test(v))
+          fail(`${at}.agent must be an agent name.`);
+      } else
+        fail(
+          `${at}.${field} is not a role setting; use harness, model${AGENT_ROLES.has(role) ? " or agent" : ""}.`,
+        );
+    }
+  }
+  const { planner, planReviewer } = resolveRoles(config);
+  if (
+    planner?.model &&
+    planner.model !== "auto" &&
+    planReviewer?.model === planner.model
+  )
+    fail(
+      `${where}.planReviewer.model must differ from the named planner model.`,
+    );
+  return structuredClone(value);
 }
 
 // Each dispatch of a role with a saved model asks for it. The retro's saved

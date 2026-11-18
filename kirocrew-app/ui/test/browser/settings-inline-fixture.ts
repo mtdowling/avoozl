@@ -22,7 +22,7 @@ export function installInlineFixture() {
   }
 
   // Delivery
-  let delivery: Record<string, unknown> = { agent: 'kirocrew-worker', ship: 'avoozl' }
+  let delivery: Record<string, unknown> = { ship: 'avoozl' }
   answer('delivery.settings.get', () => ({ hash: hash(), on: true, delivery }))
   answer('delivery.settings.update', (body) => {
     stale(body)
