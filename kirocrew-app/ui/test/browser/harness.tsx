@@ -561,6 +561,7 @@ if (query.get('page') === 'app') {
     const base = replyFor('github.settings.get')!({}) as Record<string, unknown>
     answer('github.settings.get', () => ({
       ...base,
+      choices: { ...(base.choices as object), crewLabels: ['claim', 'needsHuman'] },
       crews: [
         { repository: 'acme/recipe-box', label: 'ready', link: '/issue-radar' },
         { repository: 'acme/recipe-api', label: null, link: '/issue-radar' },

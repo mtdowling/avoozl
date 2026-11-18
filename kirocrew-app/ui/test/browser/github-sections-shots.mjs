@@ -41,6 +41,7 @@ try {
     ["github-plans", "plans", "GitHub"],
     ["github-single", "single", "GitHub"],
     ["radar-single", "single", "Issue Radar"],
+    ["radar-plans", "plans", "Issue Radar"],
   ];
   for (const theme of ["light", "dark"])
     for (const width of [1280, 375])
