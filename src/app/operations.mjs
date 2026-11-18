@@ -19,6 +19,7 @@ import {
 import { approvedSpecDependency } from "../spec-dependencies.mjs";
 import { approvalBatches, approveMany } from "./approval-batches.mjs";
 import { planReviewSummary } from "./plan-review-summary.mjs";
+import { addItemContext } from "./needs-you-context.mjs";
 import {
   requestTaskSummary,
   submitTaskSummary,
@@ -3572,6 +3573,7 @@ export class Operations {
           ),
         ),
       );
+      addItemContext(store, data, view.items);
       return view;
     }
     // The chat side panel in one read: every part it shows, each null when its

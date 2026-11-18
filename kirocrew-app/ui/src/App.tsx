@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAppApi } from './host.ts'
+import { useAppApi, useNavigate } from './host.ts'
+import { SpecLinkContext } from './spec-link.ts'
+import { specTabLink } from './review-view.ts'
+import { urlBase } from './focus-tree.ts'
 import { Btn, EmptyState, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Logo from './Logo'
 import { BrandCard } from './BrandCard.tsx'
@@ -188,6 +191,20 @@ function AvoozlPage() {
   const active = demo.active ? DEMO_WORKSPACE_ID : list ? workspaceId : null
   const needsWorkspace = tab !== 'settings' && !active
 
+  // A Needs you item's spec link: put the spec in the address, then open Specs,
+  // which reads it as it opens (PlansView readAddress).
+  const hostNavigate = useNavigate()
+  const openSpec = (planId: string) => {
+    const base = urlBase(window.location.pathname)
+    if (base) {
+      try {
+        hostNavigate(base + specTabLink(planId, 'overview'))
+      } catch {
+        // The address is a convenience; Specs still opens.
+      }
+    }
+    go({ focus: null, drill: null, tab: 'plans' })
+  }
   const navigate = (target: DashboardTarget, taskId?: string) => go({ focus: taskId ?? null, drill: null, tab: target })
   // A Plans row's Graph button: set the shared filter, then open the plan
   // graph. The filter bar shows it, and Clear undoes it.
@@ -322,6 +339,7 @@ function AvoozlPage() {
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ display: 'contents' }}>
     <ConfirmProvider>
+    <SpecLinkContext.Provider value={openSpec}>
     <TaskDrawerProvider workspaceId={active} onFocus={(id, title) => openDrill({ kind: 'focus', id, title })}>
     <OldTraceLink workspaceId={active} link={traceLink} />
     <div className="flex h-full min-h-0 flex-col">
@@ -472,6 +490,7 @@ function AvoozlPage() {
       </div>
     </div>
     </TaskDrawerProvider>
+    </SpecLinkContext.Provider>
     </ConfirmProvider>
     </div>
   )

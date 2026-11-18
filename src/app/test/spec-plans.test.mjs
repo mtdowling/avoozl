@@ -489,6 +489,15 @@ test("re-approval marks only the changed entry for review", async (t) => {
     "config.1.2": true,
   });
   assert.ok(ready().includes("config.1.1"));
+  // Needs you can show what changed: the task text as last reviewed is kept.
+  const tasks = ops.read().tasks;
+  const prior = tasks.find((task) => task.id === "config.1.2").reviewPrior;
+  assert.notEqual(prior.summary, "Report unknown keys and bad types.");
+  assert.ok(prior.title);
+  assert.equal(
+    tasks.find((task) => task.id === "config.1.1").reviewPrior,
+    undefined,
+  );
 });
 
 test("Kiro's checkbox marks do not change the revision", async (t) => {
