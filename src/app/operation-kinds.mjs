@@ -243,6 +243,7 @@ const EXECUTE = new Set([
   "remote.handoff",
   "remote.pull",
   "worker.pull",
+  "worker.setup",
   "notifications.deliver",
   "batch.start",
   "batch.control",
