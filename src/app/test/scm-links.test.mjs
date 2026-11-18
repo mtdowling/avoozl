@@ -279,3 +279,51 @@ test("link sets add no GitHub call: the count is the same with them on", async (
   await views(true);
   assert.equal(calls.length, off);
 });
+
+test("task.detail carries the task's link set for the Links box", async (t) => {
+  const { root, store } = seed(t),
+    ops = new Operations(store, { workspaceRoot: root });
+  const { links } = await ops.execute("task.detail", { id: "open" });
+  const expected = taskLinks(store, "open");
+  assert.equal(links.pr.url, expected.pr.url);
+  assert.equal(links.branch.url, expected.branch.url);
+  assert.equal(links.checks.dot, "pass");
+  assert.deepEqual(links.worktree, expected.worktree);
+  assert.equal(
+    (await ops.execute("task.detail", { id: "bare" })).links.pr,
+    null,
+  );
+});
+
+test("plan.get carries the spec's link set and makes no GitHub call", async (t) => {
+  const { root, store } = seed(t),
+    calls = [],
+    github = new Proxy(
+      {},
+      {
+        get: (_, method) =>
+          method === "then"
+            ? undefined
+            : (...args) => {
+                calls.push(String(method));
+                return method === "available" ? true : null;
+              },
+      },
+    ),
+    ops = new Operations(store, { workspaceRoot: root, github });
+  const plan = await ops.execute("plan.get", { id: "s" });
+  assert.deepEqual(
+    { ...plan.links, pulls: undefined },
+    { ...specLinks(store, "s"), pulls: undefined },
+  );
+  // Check ages move with the clock; the pull requests themselves match.
+  assert.deepEqual(
+    plan.links.pulls.map((p) => p.url),
+    specLinks(store, "s").pulls.map((p) => p.url),
+  );
+  assert.equal(
+    plan.links.issue.url,
+    "https://github.com/example/specs/issues/40",
+  );
+  assert.deepEqual(calls, []);
+});

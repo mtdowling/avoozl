@@ -90,6 +90,9 @@ export class Store {
     }
     this.db = new DatabaseSync(filename, { readOnly: this.readOnly });
     try {
+      // Before the first statement, so opening beside a writer waits for
+      // its lock instead of failing "database is locked".
+      this.db.exec("PRAGMA busy_timeout=5000;");
       if (this.readOnly) return;
       // An existing database gaining the activity log takes its current state
       // as the tick's first snapshot, so old changes are not logged as new.

@@ -27,6 +27,7 @@ import { TaskFiles } from './TaskFiles.tsx'
 import { Eye, FileText, MessageSquare, Network, Pause, Pencil, Play, Plus, RotateCcw } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ManualTask, TaskLinks } from './TaskNotes.tsx'
+import { TaskScmLinks } from './TaskScmLinks.tsx'
 import { TaskSteps } from './TaskSteps.tsx'
 
 // The drawer's sections, each a bordered, titled box that folds. All start
@@ -351,7 +352,7 @@ function TaskPanel(props: {
           Edit
         </IconLabel>
         {!done && !local && issue && (
-          <a href={linkHref(issue)} target="_blank" rel="noreferrer" className="self-center text-xs underline">
+          <a href={linkHref(issue)} target="_blank" rel="noopener noreferrer" className="self-center text-xs underline">
             Defer on the board
           </a>
         )}
@@ -437,7 +438,7 @@ function TaskPanel(props: {
             {(delivery?.pullRequests ?? []).map((pull, i) => (
               <Row key={i} label="Pull request">
                 {safeHref(pull.url) ? (
-                  <a href={safeHref(pull.url)!} target="_blank" rel="noreferrer" className="underline">
+                  <a href={safeHref(pull.url)!} target="_blank" rel="noopener noreferrer" className="underline">
                     #{pull.number}
                     {pull.merged ? ' (merged)' : ''}
                   </a>
@@ -492,7 +493,13 @@ function TaskPanel(props: {
           </div>
         </SectionBox>
         <SectionBox id="task-links" title="Links">
-          <TaskLinks workspaceId={workspaceId} taskId={task.id} onGitHub={Boolean(task.onGitHub)} refresh={detail.revision} />
+          <div className="flex flex-col gap-3">
+            <TaskScmLinks links={detail.links} />
+            <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }} data-added-links>
+              <h4 className="text-sm font-semibold">Added links</h4>
+              <TaskLinks workspaceId={workspaceId} taskId={task.id} onGitHub={Boolean(task.onGitHub)} refresh={detail.revision} />
+            </div>
+          </div>
         </SectionBox>
         <SectionBox id="delivery" title="Delivery">
           {delivery ? (

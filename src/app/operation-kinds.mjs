@@ -74,6 +74,7 @@ const OBSERVE = new Set([
   "chat.context",
   "graph.view",
   "delivery.view",
+  "landing.queue",
   "conflicts.view",
   "panel.view",
   "untriaged.view",
