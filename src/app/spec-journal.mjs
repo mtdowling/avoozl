@@ -204,6 +204,20 @@ export function validateRecord(
           ["repository", "commit"],
         ),
       ),
+      // The Radar issues the spec came from (radar-backlinks.mjs); shown as
+      // owner/repo#N so GitHub cross-references them.
+      sources: list((entry) =>
+        shape(
+          "source",
+          entry,
+          {
+            repository,
+            number: (value) =>
+              count(value, Number.MAX_SAFE_INTEGER) && value > 0,
+          },
+          ["repository", "number"],
+        ),
+      ),
       controls: list((entry) =>
         shape(
           "control",
@@ -240,7 +254,12 @@ export function validateRecord(
 
 export function renderRecord(record, options) {
   validateRecord(record, options);
-  return `Avoozl journal: ${record.kind}\n\n<!-- avoozl-journal:v1 ${key(record)} -->`;
+  // GitHub renders nothing inside the hidden marker, so each source is
+  // also a visible line, which GitHub turns into its cross-reference.
+  const sources = (record.sources ?? []).map(
+    (s) => `Source: ${s.repository}#${s.number}\n\n`,
+  );
+  return `Avoozl journal: ${record.kind}\n\n${sources.join("")}<!-- avoozl-journal:v1 ${key(record)} -->`;
 }
 
 // The record in a comment body, or null when the body has no journal marker.
