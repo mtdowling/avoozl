@@ -68,29 +68,6 @@ The nav has seven entries (`kirocrew-app/ui/src/nav-api.ts`):
 | Activity   | One page                                                       |
 | Settings   | Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery |
 
-Old links to a removed page open the page that took over its job
-(`redirectTab`, `redirectSettings`).
-
-## 5. What was removed
-
-| Item                                                    | Replaced by                                                         | PR            |
-| ------------------------------------------------------- | ------------------------------------------------------------------- | ------------- |
-| Routing page, routing agent, remote relay               | Nothing; pins and hard checks stay                                  | #153, #282    |
-| Ideas, Quick goal, the lessons store, Switch model      | New spec From a goal; steering rules file; Settings › Models        | #228          |
-| Demo tour                                               | The demo itself stays                                               | #311          |
-| Driver chat                                             | The spec driver lock stays                                          | #382          |
-| Budgets and Settings › Prices                           | Nothing                                                             | #461, #487    |
-| Trace page                                              | Timeline box in task details                                        | #469          |
-| Lanes page                                              | Machine badges and counts on Delivery                               | #508          |
-| Where tasks live page                                   | A role per repository in Repository setup                           | #459, #484    |
-| Onboard button                                          | Add repository                                                      | #515          |
-| Instance name page                                      | Nickname field in Settings > Workspaces > This computer            | #453          |
-| Conflicts and Intake tabs                               | Needs you › Decisions and Triage                                    | #464          |
-| `verify-issue`, the provenance marker, `avoozl-crew`     | PR landing                                                          | #509          |
-
-Not removed: the `plans_*` MCP names, the environment aliases, the
-`aicommander` command and the `aicommander.*` editor settings.
-
 ## CLI
 
 ### Delete and restore a plan
@@ -109,7 +86,7 @@ refuses and lists their ids.
 `avoozl plan restore PLAN_ID` brings a deleted plan back. Both are for a person: MCP and chat callers
 are still refused. The CLI runs it anywhere but a supervisor child, and says so when it runs inside an agent session.
 
-## 6. Links
+## Links
 
 | What                | Where                                                                   |
 | ------------------- | ----------------------------------------------------------------------- |
