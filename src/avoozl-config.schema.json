@@ -142,9 +142,22 @@
     "github": {
       "$ref": "#/$defs/github"
     },
+    "roles": {
+      "type": "object",
+      "description": "One row per role: its harness, model and, for the worker and falsifier, agent. Settings > Models edits it. A missing key or auto keeps the role's default; a task's session pin wins. Older models, harnesses, delivery agent and model keys still load into it.",
+      "additionalProperties": false,
+      "properties": {
+        "worker": { "$ref": "#/$defs/agentRole" },
+        "falsifier": { "$ref": "#/$defs/agentRole" },
+        "planner": { "$ref": "#/$defs/chatRole" },
+        "planReviewer": { "$ref": "#/$defs/chatRole" },
+        "retro": { "$ref": "#/$defs/chatRole" },
+        "reviewDraft": { "$ref": "#/$defs/chatRole" }
+      }
+    },
     "models": {
       "type": "object",
-      "description": "Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
+      "description": "Older key, read into roles.<role>.model. Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
       "additionalProperties": false,
       "properties": {
         "planner": {
@@ -167,7 +180,7 @@
     },
     "harnesses": {
       "type": "object",
-      "description": "The harness each role's chat runs on: kirocrew for a Kiro Crew chat, or a harness definition's name for a supervisor child. A role left out, or auto, runs on its project's executor. A task's session.harness pin wins.",
+      "description": "Older key, read into roles.<role>.harness. The harness each role's chat runs on: kirocrew for a Kiro Crew chat, or a harness definition's name for a supervisor child. A role left out, or auto, runs on its project's executor. A task's session.harness pin wins.",
       "additionalProperties": false,
       "properties": {
         "worker": {
@@ -1124,6 +1137,26 @@
     "harnessName": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]{0,60}$"
+    },
+    "chatRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "harness": { "$ref": "#/$defs/harnessName" },
+        "model": { "$ref": "#/$defs/chatModel" }
+      }
+    },
+    "agentRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "harness": { "$ref": "#/$defs/harnessName" },
+        "agent": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "model": { "$ref": "#/$defs/chatModel" }
+      }
     },
     "runner": {
       "type": "object",
