@@ -174,6 +174,23 @@ draft does not erase its last real approval. Retiring an owner restores the
 hold; if a dependent is already projected, revise its links before invalidating
 the owner so an old ready label cannot authorize work.
 
+`plan approve NAME...` approves exactly the specs it names. A draft spec one of
+their tasks waits on is not pulled in: the preview counts the tasks that wait,
+and they start once that spec is approved too. Only a `[x]` task, which starts
+as done, needs its owners approved in the same batch.
+
+To let an agent approve for you, name it once from your own terminal:
+
+```sh
+node cli.mjs approval delegate claude --workspace ~/plans
+```
+
+The agent then approves with `plan approve NAME... --delegate claude` (or
+`delegate` on `plan.approve` over MCP), only as you, and each receipt records
+the delegate, you, the grant and the exact revision hash. `approval delegates`
+lists grants and `approval revoke claude` ends one. The grant lives in the
+workspace database, not in Git, and an agent session cannot grant or revoke.
+
 ## Deliver locally
 
 Register the Git checkout the work changes, with its base branch, a worktree

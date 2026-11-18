@@ -4915,6 +4915,55 @@ screenshots under `docs/evidence/agent-batching/`.
 shortcut: a group holds tasks of one spec only; upgrade if the planner
 needs to batch across specs.
 
+### 4.38 Approval delegation and exact-set approval
+
+Added 2026-11-18 (Requirement 109).
+
+**Why.** The owner delegated plan approval to his agents. Avoozl had no way
+to record that: approval was person-only (`PERSON_ONLY` in
+`mcp-policy.mjs`), and the only way past the CLI's agent-session refusal was
+`--as-person`, a claim to be the person. An agent also read the preview's
+"needs specs left out of the selection" as a requirement and concluded that
+approving 9 specs meant approving about two dozen.
+
+**What was already true.** `plan approve NAME...` sends exactly the named
+specs to `plan.approveMany`. A dependency on a draft spec's task becomes a
+`pendingSpecDependencies` entry (`spec-dependencies.mjs`): the task is
+approved, never ready, and projection holds until the owner is approved.
+The one deliberate closure is the `[x]` baseline: a task created as done
+must not depend on a task that does not exist yet, so its owners must be
+approved in the same set (`plans.mjs`, `approval-batches.mjs` approveSet).
+
+**Preview.** `plan.approvalBatches {ids}` adds `selection.waiting`, the
+tasks the selection creates that wait on a draft spec it leaves out. The CLI
+prints that count, the specs, and that approval does not need them.
+
+**Delegation.** `approval-delegation.mjs` keeps grants under the workspace
+meta key `approvalDelegates`: `{identity, onBehalfOf, grantedAt, note?,
+revokedAt?, revokedBy?}`. The database, not `.avoozl.json`, so a commit
+cannot grant one. The policy entries for `plan.approve` and
+`plan.approveMany` refuse only an input with no `delegate`; the operation
+then calls `approvalDelegation`, which refuses an identity with no active
+grant (403) and an `approvedBy` other than the grant's person. The approval
+runs as that person (`approvedBy = onBehalfOf`), so a gated spec's approval
+pull request still names a GitHub login. `approvePlan` writes
+`delegation` on the receipt; `openApproval` and `openBatchApproval` keep it
+on the pull request state and add one line to the body, and the merged
+state carries it to the receipt. Revoking lists the delegate's open approval
+pull requests; merging one stays the merger's act on GitHub.
+
+| Surface | Grant, revoke              | Approve with `delegate`      | Approve without            |
+| ------- | -------------------------- | ---------------------------- | -------------------------- |
+| App     | person                     | not offered                  | person                     |
+| CLI     | person (agent: refused)    | allowed with an active grant | person (agent: refused)    |
+| MCP     | refused                    | allowed with an active grant | refused                    |
+
+**Limits.** The delegate's identity is what it names. Like `--as-person` it
+is a speed bump against code running as the owner, not a wall; what it adds
+is a grant to check, a record of who acted, and a revocation.
+
+**Tests.** `src/app/test/approval-delegation.test.mjs`.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.
