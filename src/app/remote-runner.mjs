@@ -24,6 +24,12 @@ import { queueNotifications } from "./notifications.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
 import { checkpointBranch, sourceRegistry } from "./working-heads.mjs";
 import { lanesOf, poolsOf, pullOffers } from "./worker-offers.mjs";
+import {
+  acknowledged,
+  envelopeFor,
+  forgetRequest,
+  requestClaims,
+} from "./worker-claims.mjs";
 
 const run = promisify(execFile);
 const TASKS = "runner.tasks";
@@ -280,6 +286,55 @@ export async function pullWork(store, workspaceRoot, github) {
       free: config.lanes - running,
     });
   store.setMeta("worker.offers", { at: now(), ...result });
+  return result;
+}
+
+// `avoozl worker claim`: ask for each pulled offer, and start only those the
+// driver acknowledged for this worker, within the free lanes (R90.4). A task
+// no acknowledgment names starts nothing.
+export async function claimWork(store, workspaceRoot, github) {
+  const config = readRunnerConfig(workspaceRoot);
+  if (config?.role !== "worker")
+    fail('This workspace is not a worker (.avoozl.json runner.role "worker").');
+  if (!github?.available?.()) fail("A worker needs GitHub to claim.", 409);
+  const login = (await github.currentUser())?.login;
+  if (!login) fail("GitHub did not name this worker's login.", 409);
+  const requested = await requestClaims(store, {
+      pools: config.pools,
+      github,
+    }),
+    { ready, waiting } = await acknowledged(store, {
+      pools: config.pools,
+      github,
+      login,
+    }),
+    result = {
+      requested,
+      started: [],
+      held: [],
+      waiting: waiting.map(({ spec, task }) => ({ spec, task })),
+    };
+  let free =
+    config.lanes -
+    Object.values(tasksOf(store)).filter((r) => !TERMINAL.has(r.state)).length;
+  for (const offer of ready) {
+    if (hasRemoteTask(store, offer.task)) {
+      forgetRequest(store, offer);
+      continue;
+    }
+    if (free < 1) break;
+    const { envelope, held } = await envelopeFor(offer, { config });
+    if (held) {
+      result.held.push({ spec: offer.spec, task: offer.task, reason: held });
+      continue;
+    }
+    acceptEnvelope(store, workspaceRoot, JSON.stringify(envelope), {
+      pulled: true,
+    });
+    forgetRequest(store, offer);
+    free -= 1;
+    result.started.push({ spec: offer.spec, task: offer.task });
+  }
   return result;
 }
 

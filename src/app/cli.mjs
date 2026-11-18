@@ -901,8 +901,11 @@ try {
     console.log(JSON.stringify(result, null, 2));
   } else if (command === "worker") {
     // Worker mode (R90): this machine pulls offers from spec journals.
-    if (positionals[0] !== "pull") throw Error("Use worker pull.");
-    console.log(JSON.stringify(await localOrRequest("worker.pull"), null, 2));
+    if (!["pull", "claim"].includes(positionals[0]))
+      throw Error("Use worker pull|claim.");
+    console.log(
+      JSON.stringify(await localOrRequest(`worker.${positionals[0]}`), null, 2),
+    );
   } else if (command === "driver") {
     // The spec driver (§6.10). Hand off, take over and force take over are
     // a person's: the CLI is the person at this machine's command line.
@@ -1231,6 +1234,44 @@ try {
                 apply: options.yes === true,
               }
             : { planId, tail },
+        ),
+        null,
+        2,
+      ),
+    );
+  } else if (
+    command === "spec" &&
+    ["offer", "claims"].includes(positionals[0])
+  ) {
+    // The driver offers a task to a worker login and reserves the claims its
+    // workers ask for (R90.4): each a person's own act at this machine.
+    const planId = need(positionals[1], `spec ${positionals[0]} SPEC ...`);
+    console.log(
+      JSON.stringify(
+        await localOrRequest(
+          `spec.${positionals[0]}`,
+          positionals[0] === "offer"
+            ? {
+                planId,
+                task: need(
+                  positionals[2],
+                  "spec offer SPEC TASK --worker LOGIN --repository OWNER/REPO --branch B --commit SHA --base SHA",
+                ),
+                worker: need(options.worker, "--worker LOGIN"),
+                repository: need(options.repository, "--repository OWNER/REPO"),
+                branch: need(options.branch, "--branch B"),
+                commit: need(options.commit, "--commit SHA"),
+                base: need(options.base, "--base SHA"),
+              }
+            : {
+                planId,
+                claims: need(
+                  options.claims,
+                  "spec claims SPEC --claims OWNER/REPO --base BRANCH [--cap N]",
+                ),
+                base: need(options.base, "--base BRANCH"),
+                ...(options.cap ? { cap: Number(options.cap) } : {}),
+              },
         ),
         null,
         2,
@@ -2007,6 +2048,7 @@ try {
   runner handoff ENVELOPE.json --host H Runner mode: hand a task to host H over ssh
   runner pull --host H                  Runner mode: read host H's status
   worker pull                           Worker mode: read this worker's offers from spec journals
+  worker claim                          Worker mode: ask for pulled offers, start the acknowledged ones
   driver status [SPEC]                  Which machine drives each spec, and why one reads only here
   driver handoff SPEC [--folder DIR [--unfinished]] [--cancel]
                                         Stop new work for SPEC; with --folder write the export (a person only)
