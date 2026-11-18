@@ -1101,9 +1101,14 @@ export function conflictsView(store, data) {
   items.push(...reviewGroups(store, data));
   for (const binding of optionalList(store, "session_bindings")) {
     const task = byId.get(binding.taskId);
+    // A landed task's ended session needs no one (P60: every finished
+    // `process` worker closes its binding, and a spec task's own status is
+    // not moved when it lands).
+    const delivery = task && optionalGet(store, "task_deliveries", task.id);
     if (
       !task ||
       complete(task.status) ||
+      delivery?.state === "integrated" ||
       !(FINAL_STATUSES.has(binding.status) || binding.status === "gone") ||
       binding.dismissedAt
     )
@@ -1118,9 +1123,8 @@ export function conflictsView(store, data) {
       link: sessionUrl(binding.slot),
       // Retry applies only to a delivery stopped for a decision; any other
       // ended attempt is retried by the tick on its own.
-      deliveryState:
-        optionalGet(store, "task_deliveries", task.id)?.state ?? null,
-      batch: optionalGet(store, "task_deliveries", task.id)?.batch ?? null,
+      deliveryState: delivery?.state ?? null,
+      batch: delivery?.batch ?? null,
     });
   }
   // Content rules (§4.9): a blocked write or an unavailable rule set. The
