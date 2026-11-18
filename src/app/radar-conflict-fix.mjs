@@ -249,6 +249,8 @@ export function conflictFixDispatches(store) {
       kirocrewRequest(store, {
         task: receipt.id,
         role: FIX_ROLE,
+        // The chat Requirement 91.6 removes: it stays on Kiro Crew.
+        executor: "kirocrew",
         attempt: receipt.attempt,
         title: `avoozl:conflict-fix ${receipt.repository}#${receipt.pr}`,
         ...kirocrewSession(null, receipt),

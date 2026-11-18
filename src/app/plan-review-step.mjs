@@ -1,3 +1,4 @@
+import { roleRun } from "./role-table.mjs";
 import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
 import { chatModel, validatePlanReview } from "./chat-models.mjs";
@@ -270,12 +271,12 @@ function requestFor(
   brief,
   model,
   permissionClass,
-  executor,
+  run,
   contextHash = round.revisionHash,
   attempt = round.round,
 ) {
   return {
-    executor,
+    ...run,
     role,
     task: round.id,
     worktree,
@@ -433,7 +434,6 @@ export async function planReviewStep(
     readSpec,
     otherSpecs = () => [],
     open = true,
-    executor = "kirocrew",
     prepare = preparePlanReviewWorktrees,
     remove = removePlanReviewWorktrees,
   } = {},
@@ -607,7 +607,7 @@ export async function planReviewStep(
         brief,
         chatModel(config, "planner"),
         permissionClass,
-        executor,
+        roleRun("planAnswer", { config }),
         plan.hash,
         round.round + turn,
       ),
@@ -833,7 +833,7 @@ export async function planReviewStep(
           job.brief,
           round.reviewerModel,
           "read",
-          executor,
+          roleRun("planReviewer", { config }),
         ),
       );
   }

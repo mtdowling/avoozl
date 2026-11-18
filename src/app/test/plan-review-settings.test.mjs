@@ -72,25 +72,32 @@ test("Settings saves the reviewer, preserves review settings and refuses equal m
   const configuration = new RepositorySettings(store, { workspaceRoot: root }),
     ops = new Operations(store, { workspaceRoot: root, configuration }),
     before = await ops.execute("models.settings.get"),
-    models = { planner: "fake-writer", planReviewer: "fake-reviewer" };
+    models = { planner: "fake-writer", planReviewer: "fake-reviewer" },
+    roles = {
+      planner: { model: "fake-writer" },
+      planReviewer: { model: "fake-reviewer" },
+    };
   const saved = await ops.execute("models.settings.update", {
-    models,
+    roles,
     expectedHash: before.hash,
   });
-  assert.deepEqual(saved.models, models);
+  assert.deepEqual(saved.roles, roles);
   assert.deepEqual(JSON.parse(fs.readFileSync(filename, "utf8")), {
     version: 1,
     $schema: REPOSITORY_CONFIG_SCHEMA_URL,
-    models,
     planReview: { mode: "ask", rounds: 2 },
+    roles,
   });
   const text = fs.readFileSync(filename, "utf8");
   await assert.rejects(
     ops.execute("models.settings.update", {
-      models: { planner: "fake-writer", planReviewer: "fake-writer" },
+      roles: {
+        planner: { model: "fake-writer" },
+        planReviewer: { model: "fake-writer" },
+      },
       expectedHash: saved.hash,
     }),
-    /planReviewer must differ/,
+    /planReviewer.model must differ/,
   );
   assert.equal(fs.readFileSync(filename, "utf8"), text);
 
@@ -164,22 +171,22 @@ test("saving repository models refuses a collision with an inherited planner bef
     }),
     before = configuration.readModelSettings(),
     text = fs.readFileSync(filename, "utf8");
-  assert.equal(before.models.planner, "fake-writer");
+  assert.equal(before.roles.planner.model, "fake-writer");
   assert.throws(
     () =>
       configuration.updateModelSettings({
-        models: { planReviewer: "fake-writer" },
+        roles: { planReviewer: { model: "fake-writer" } },
         expectedHash: before.hash,
       }),
-    /planReviewer must differ/,
+    /planReviewer.model must differ/,
   );
   assert.equal(fs.readFileSync(filename, "utf8"), text);
   const saved = configuration.updateModelSettings({
-    models: { planReviewer: "fake-reviewer" },
+    roles: { planReviewer: { model: "fake-reviewer" } },
     expectedHash: before.hash,
   });
-  assert.deepEqual(saved.models, {
-    planner: "fake-writer",
-    planReviewer: "fake-reviewer",
+  assert.deepEqual(saved.roles, {
+    planner: { model: "fake-writer" },
+    planReviewer: { model: "fake-reviewer" },
   });
 });

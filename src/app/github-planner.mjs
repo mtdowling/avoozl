@@ -1,3 +1,4 @@
+import { roleRun } from "./role-table.mjs";
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewSession } from "./executors/kirocrew.mjs";
 // Planner sessions for issues a deliver rule matched (§6.2; the gap proof
@@ -88,7 +89,11 @@ function critiqueBrief(row, planner, checkout, repositories) {
 // a start's dispatch until its session is bound, and marks it ended once
 // the session closes. `open: false` holds new starts and dispatch.
 // Returns {dispatch, notify}. A tick with no change writes nothing.
-export function plannerStep(store, workspaceRoot, { open = true } = {}) {
+export function plannerStep(
+  store,
+  workspaceRoot,
+  { open = true, config = {} } = {},
+) {
   const policy = readGitHubPolicy(workspaceRoot),
     bindings = listSessionBindings(store),
     repositories = workspaceRepositories(store),
@@ -202,6 +207,7 @@ export function plannerStep(store, workspaceRoot, { open = true } = {}) {
         kirocrewRequest(store, {
           task: row.taskId,
           role: "planner",
+          ...roleRun("issuePlanner", { config }),
           attempt: planner.attempt,
           title: sessionTitle(row.taskId, planner.attempt, label),
           ...kirocrewSession(checkout.id, rules),
