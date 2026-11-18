@@ -122,7 +122,7 @@ test('the Labels table lists each label, its writer and a setting to open', () =
   assert.equal(rows.plan.name, 'shape-it')
   assert.equal(rows.plan.writer, 'you')
   assert.equal(rows.ready.writer, 'avoozl')
-  assert.deepEqual(rows.plan.jump, { tab: 'crews', field: 'plan' })
+  assert.deepEqual(rows.plan.jump, { tab: 'radar', field: 'plan' })
   assert.equal(rows.review.jump, undefined)
 })
 
@@ -144,7 +144,7 @@ test('the merge method shows on the auto-merge card and round-trips (RC28.7)', (
   const policy = structuredClone(SINGLE)
   policy.repositories['example/code'].merge = { method: 'merge' }
   assert.equal(merge(map(policy)).text, 'merge')
-  assert.deepEqual(merge(map(policy)).jump, { tab: 'crews', field: 'mergeMethod' })
+  assert.deepEqual(merge(map(policy)).jump, { tab: 'radar', field: 'mergeMethod' })
   assert.deepEqual(toPolicy(toForm(policy)).repositories['example/code'].merge, { method: 'merge' })
   assert.equal(toPolicy(toForm(SINGLE)).repositories['example/code'].merge, undefined)
   assert.equal(merge(map(SINGLE, 'manual')), undefined)
