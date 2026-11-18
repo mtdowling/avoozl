@@ -107,7 +107,8 @@ export async function writeBackApproval({
         spec: plan.spec,
         commit,
         at: now,
-        instance: instanceIdentity(store).id,
+        // An instance ID never goes on a public repository (R102.23).
+        instance: config.private === true ? instanceIdentity(store).id : null,
       })}`,
     );
     store.put("receipts", { id: receipt, planId: plan.id, at: now });
