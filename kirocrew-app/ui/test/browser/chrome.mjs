@@ -27,13 +27,19 @@ const windows = process.platform === 'win32'
 
 // Runs beside the test process. When that process dies, even by SIGKILL or
 // a test timeout, it kills the browser and its helpers and removes the
-// profile. It exits on its own once the browser is gone.
+// profile. It exits on its own once the browser is gone while the test
+// process lives.
 const WATCHDOG = `
 const [parent, browser, profile] = process.argv.slice(1)
 const alive = (pid) => { try { process.kill(Number(pid), 0); return true } catch (error) { return error.code === 'EPERM' } }
-setInterval(() => {
-  if (!alive(browser)) process.exit()
-  if (alive(parent)) return
+const timer = setInterval(() => {
+  const parentAlive = alive(parent)
+  if (parentAlive && alive(browser)) return
+  clearInterval(timer)
+  // The test process is still there and removes the profile when it closes.
+  if (parentAlive) process.exit()
+  // The browser may already have quit when its pipe closed; its helpers and
+  // the profile can still be left.
   try {
     if (process.platform === 'win32') require('node:child_process').spawnSync('taskkill', ['/pid', browser, '/T', '/F'], { stdio: 'ignore' })
     else process.kill(-Number(browser), 'SIGKILL')

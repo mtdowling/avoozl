@@ -277,11 +277,12 @@ test('Keep activity sits with the Activity filters in the nav, under the open Ac
 })
 
 test('Activity rail: a source row and a kind chip filter the rows, and a second click clears the chip', { skip }, async () => {
+  // 24 sample rows and the three tick health rows.
   await page.open(harness.url({ page: 'app', activity: '1' }), { width: 1280, height: 900 })
   const scope = '[data-left-nav]'
   await page.until(`Boolean([...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')))`)
   await page.evaluate(`[...document.querySelectorAll('${scope} [data-nav-head]')].find((b) => b.textContent.includes('Activity')).click()`)
-  await page.until(`document.querySelectorAll('[data-activity-row]').length === 24 && Boolean(document.querySelector('${scope} [data-rail-chip="settings"]'))`)
+  await page.until(`document.querySelectorAll('[data-activity-row]').length === 27 && Boolean(document.querySelector('${scope} [data-rail-chip="settings"]'))`)
   await page.evaluate(`document.querySelector('${scope} [data-rail-source="github"]').click()`)
   await page.until(`document.querySelectorAll('[data-activity-row]').length === 6`)
   const chip = `document.querySelector('${scope} [data-rail-chip="settings"]')`
@@ -293,7 +294,7 @@ test('Activity rail: a source row and a kind chip filter the rows, and a second 
   await page.until(`document.querySelectorAll('[data-activity-row]').length === 6`)
   // Clear in the Source header drops every filter.
   await page.evaluate(`[...document.querySelectorAll('${scope} [data-rail-section="source"] [data-rail-icon]')].find((b) => b.textContent.includes('Clear')).click()`)
-  await page.until(`document.querySelectorAll('[data-activity-row]').length === 24`)
+  await page.until(`document.querySelectorAll('[data-activity-row]').length === 27`)
   assert.equal(await page.evaluate(`document.querySelector('${scope} [data-rail-source=""]').getAttribute('aria-pressed')`), 'true')
 })
 

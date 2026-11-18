@@ -480,6 +480,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   // The document's headings, in order, and the one the reader is in.
   const [toc, setToc] = useState<{ id: number; level: number; text: string }[]>([])
   const [current, setCurrent] = useState<number | null>(null)
+  const chosen = useRef<number | null>(null)
   const headingEls = () => [...(doc.current?.querySelectorAll('[role="heading"]') ?? [])] as HTMLElement[]
   useEffect(() => {
     const found = headingEls().map((el, id) => ({ id, level: Number(el.getAttribute('aria-level')) || 1, text: el.textContent?.trim() ?? '' }))
@@ -488,8 +489,20 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   }, [text, data])
   useEffect(() => {
     // The page's pane scrolls, not the window: listen in the capture phase.
-    const onScroll = () => {
+    const onScroll = (event?: Event) => {
       const els = headingEls()
+      // A heading picked in Contents stays marked while it is on screen and
+      // the pane could not scroll it any higher (the last headings of a
+      // short tail never reach the top).
+      const picked = chosen.current
+      const top = picked === null ? null : els[picked]?.getBoundingClientRect().top
+      const pane = event?.target instanceof Element ? event.target : document.scrollingElement
+      const atEnd = Boolean(pane && pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 1)
+      if (picked !== null && top != null && top >= 0 && top < innerHeight && (top <= 96 || atEnd)) {
+        setCurrent(picked)
+        return
+      }
+      chosen.current = null
       let at: number | null = null
       for (let i = 0; i < els.length; i++) if (els[i].getBoundingClientRect().top <= 96) at = i
       setCurrent(at ?? (els.length ? 0 : null))
@@ -500,6 +513,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toc])
   const goHeading = (id: number) => {
+    chosen.current = id
     headingEls()[id]?.scrollIntoView({ block: 'start', behavior: motion() })
     setCurrent(id)
   }
