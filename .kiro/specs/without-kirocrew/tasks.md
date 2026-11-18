@@ -59,7 +59,7 @@ of the other specs.
     - after: nk-1.1
   - The falsifier's row: a detached copy at the commit, read class, `report` with verdict, evidence and confidence, recorded with no commit. This needs wp-1.2 of `worker-paths`, so that a `process` worker's findings exist for it to judge.
   - Done when: Tests on both executors: a falsifier's verdict opens or holds the same gate; a `process` falsifier's report with a commit field is refused; it writes no file but its result; with every role on `process`, a task with investigate first reaches Go ahead and lands.
-- [ ] nk-2.2 The responder and the task summary as children, after nk-1.1 [NK2.2, NK2.3, NK2.5] (§D2)
+- [x] nk-2.2 The responder and the task summary as children, after nk-1.1 [NK2.2, NK2.3, NK2.5] (§D2)
   - Facts:
     - summary: Phase 2 (Roles with a small answer). The responder and the task summary as children. See NK2.2, NK2.3, NK2.5; §D2.
     - done:
@@ -159,7 +159,7 @@ of the other specs.
 
 ## Phase 6: Notifications
 
-- [ ] nk-6.1 Send notifications from the headless tick [NK7.1, NK7.6, NK7.7, NK7.8, NK7.9] (§D6)
+- [x] nk-6.1 Send notifications from the headless tick [NK7.1, NK7.6, NK7.7, NK7.8, NK7.9] (§D6)
   - Facts:
     - summary: Phase 6 (Notifications). Send notifications from the headless tick. See NK7.1, NK7.6, NK7.7, NK7.8, NK7.9; §D6.
     - done:

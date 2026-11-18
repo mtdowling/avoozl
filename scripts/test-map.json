@@ -14040,9 +14040,6 @@
    "src/report.test.mjs",
    "src/workbench.test.mjs"
   ],
-  "src/web-notifications.mjs": [
-   "src/web-notifications.test.mjs"
-  ],
   "src/work-model.mjs": [
    "src/app/test/activity-log.test.mjs",
    "src/app/test/agent-instructions.test.mjs",
@@ -14290,7 +14287,6 @@
   "src/app/test/scaling.test.mjs",
   "src/app/test/text-diff.test.mjs",
   "src/pan-momentum.test.mjs",
-  "src/web-notifications.test.mjs",
   "src/workbench.test.mjs",
   "kirocrew-app/ui/test/conflicts-api.test.mjs",
   "kirocrew-app/ui/test/content-api.test.mjs",

@@ -55,7 +55,7 @@ of the other specs.
     - after: wp-1.1
   - The batch rules gain "the worker's executor makes commits"; a group that fails it runs as single tasks with the stated reason, where a group that breaks a rule is shown today.
   - Done when: Tests: a three-task group on `process` starts three sessions and lands three commits, and the page and `avoozl show` give the reason; the same group on `kirocrew` still runs in one chat with one commit per task.
-- [ ] wp-1.4 A report command that needs no `PATH`, and no MCP tool in a worker's brief, after wp-1.1, wp-1.2 [WP4.1, WP4.3, WP4.5] (§D5)
+- [x] wp-1.4 A report command that needs no `PATH`, and no MCP tool in a worker's brief, after wp-1.1, wp-1.2 [WP4.1, WP4.3, WP4.5] (§D5)
   - Facts:
     - summary: Phase 1 (Every kind of task on both executors). A report command that needs no `PATH`, and no MCP tool in a worker's brief. See WP4.1, WP4.3, WP4.5; §D5.
     - done:
@@ -114,7 +114,7 @@ of the other specs.
 
 ## Phase 3: One remote route
 
-- [ ] wp-3.1 A worker machine pulls and claims on its own tick, after wp-1.1 [WP5.2] (§D8)
+- [x] wp-3.1 A worker machine pulls and claims on its own tick, after wp-1.1 [WP5.2] (§D8)
   - Facts:
     - summary: Phase 3 (One remote route). A worker machine pulls and claims on its own tick. See WP5.2; §D8.
     - done:
