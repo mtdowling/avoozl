@@ -136,7 +136,9 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
   );
   const harnesses = path.join(configDirectory, "harnesses");
   fs.mkdirSync(harnesses);
-  const bytes = Buffer.from('{"name": "fake-cli", "model": ["--model", "{model}"]}\n');
+  const bytes = Buffer.from(
+    '{"name": "fake-cli", "model": ["--model", "{model}"]}\n',
+  );
   fs.writeFileSync(path.join(harnesses, "fake-cli.json"), bytes);
   fs.writeFileSync(path.join(harnesses, "other-cli.json"), "{}\n");
   fs.writeFileSync(path.join(harnesses, "notes.txt"), "not a definition\n");
