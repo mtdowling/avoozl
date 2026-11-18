@@ -168,12 +168,14 @@ export const ROLE_TABLE = Object.freeze({
       RESULT_LIMIT,
     ],
   },
-  // shortcut: the issue planner's role name is `planner`, as the spec
-  // planner's is; nk-2.3 and nk-3.3 tell them apart by their task key.
+  // The issue planner's sessions are `planner` sessions, so a child runs by
+  // the planner row. Its critique runs as a child in the spec folder's
+  // `avoozl/` folder, its one write root (NK2.4); its breakdown stays a
+  // chat unless a harness is saved for it, until nk-3.3.
   issuePlanner: {
     setting: "issuePlanner",
     roles: [],
-    process: false,
+    process: true,
     access: "write",
   },
   planReviewer: {

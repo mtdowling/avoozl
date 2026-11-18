@@ -67,7 +67,7 @@ of the other specs.
     - after: nk-1.1
   - Their rows: the responder's reply is posted by Avoozl after today's checks; the summary is stored on the task; both read-only.
   - Done when: Tests on both executors with a fake GitHub: one reply is posted for one request and none for a blocked result; a reply that matches a content rule is held as it is for a chat; the summary is stored and shown; neither child has a credential or a network path.
-- [ ] nk-2.3 The issue planner's critique as a child, after nk-1.1 [NK2.4] (§D2)
+- [x] nk-2.3 The issue planner's critique as a child, after nk-1.1 [NK2.4] (§D2)
   - Facts:
     - summary: Phase 2 (Roles with a small answer). The issue planner's critique as a child. See NK2.4; §D2.
     - done:
