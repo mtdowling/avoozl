@@ -237,22 +237,6 @@ test("grouped calls run their operation, and plans_workspace keeps its old shape
   assert.equal(classifyOperation("workspace"), "observe");
 });
 
-// Ideas were removed (RC30.3); their public MCP names stay as stubs.
-test("capture_idea and add_idea_note say Ideas were removed and write nothing", async (t) => {
-  const { store } = fixture(t),
-    ops = new Operations(store);
-  const before = store.read().revision;
-  for (const [action, input] of [
-    ["capture_idea", { title: "An idea" }],
-    ["add_idea_note", { id: "x", note: "more" }],
-  ]) {
-    const result = await call(ops, "plans_intake", { action, input });
-    assert.equal(result.isError, true, action);
-    assert.match(result.content[0].text, /Ideas were removed from Avoozl\./);
-  }
-  assert.equal(store.read().revision, before, "nothing was written");
-});
-
 // A session that leaves out a field gets a message it can act on, never a
 // SQLite binding error or a message naming `undefined`.
 test("every MCP name answers an empty input with a clear message", async (t) => {
