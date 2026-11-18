@@ -6,6 +6,7 @@ import { validateReportSetting } from "./build-report.mjs";
 import {
   validateHarnesses,
   validateModels,
+  validateRoles,
   validatePlanReview,
 } from "./chat-models.mjs";
 import { validateLanes } from "./lanes.mjs";
@@ -383,6 +384,7 @@ export function loadLayeredConfig({
   if (config.github) config.github = deriveGitHubKeys(config.github);
   validateModels(config.models);
   validateHarnesses(config.harnesses);
+  validateRoles(config);
   validatePlanReview(config.planReview);
   validateLanes(config.lanes);
   conflictRounds(config.landing);

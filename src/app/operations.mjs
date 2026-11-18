@@ -1028,8 +1028,6 @@ export class Operations {
       reviewOptions = {},
       // Tests can delay isolated review-view preparation without opening chats.
       planReviewOptions = {},
-      // {now} for the provider operations; tests fix the clock.
-      placement = {},
       pluginSettingsFile = pluginSettingsPath(),
       // The spec driver lock (§6.10): {settingsFile, now?, sleep?}. The
       // CLI, app backend and app MCP server pass this machine's settings
@@ -1069,7 +1067,6 @@ export class Operations {
     this.sessionsReader = sessionsReader;
     this.sessionStopper = sessionStopper;
     this.reviewOptions = reviewOptions;
-    this.placement = placement;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
     // Every GitHub text write passes content rules first (§4.9).
@@ -1151,7 +1148,6 @@ export class Operations {
     const policy = readDeliveryPolicy(this.workspaceRoot).delivery,
       tasks = new Map(this.read().tasks.map((t) => [t.id, t]));
     return {
-      ...(this.placement.now ? { now: this.placement.now() } : {}),
       tasks,
       reviewRoles: (binding) =>
         policy
@@ -3212,16 +3208,6 @@ export class Operations {
           github: readGitHubPolicyOrNull(this.workspaceRoot),
         }),
       );
-    // Crew placement was retired (§4.10); old clients get one clear answer.
-    if (
-      name.startsWith("routing.") ||
-      name === "crews.update" ||
-      name === "delivery.pickAgain"
-    )
-      fail(
-        "Crew placement was retired: every session runs on this machine. Pin a task's agent, model or harness in its manifest session.",
-        410,
-      );
     // Retired tool names remain resolvable for existing clients.
     if (name === "relay.call" || name === "relay.forget")
       fail(
@@ -4399,10 +4385,6 @@ export class Operations {
         queueNotifications(store, notify);
         return result;
       });
-    // Ideas were removed (RC30.3). The public MCP actions capture_idea and
-    // add_idea_note stay so callers get a clear error, and nothing changes.
-    if (name === "idea.capture" || name === "idea.append")
-      fail("Ideas were removed from Avoozl.", 410);
     if (name === "intake.list") return listItems(store, input);
     // Manual tasks and task links (§4.16, R61.12–R61.22).
     if (name === "task.manual.complete" || name === "task.manual.reopen") {
@@ -4446,21 +4428,47 @@ export class Operations {
     if (name === "intake.view") return viewItem(store, input);
     if (name === "intake.sources") {
       const counts = sourceCounts(store),
-        none = { total: 0, untriaged: 0, lastAt: null };
+        none = { total: 0, untriaged: 0, lastAt: null },
+        policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        reads = githubReads(store),
+        same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
       return {
         sources: declaredSources(this.pluginOptions, store).map(
-          ({ id, scope, entry, error }) => ({
-            id,
-            scope,
-            entry,
-            error,
-            state: id ? sourceRowOf(store, `source:${id}`) : null,
-            items: (id && counts.get(id)) || none,
-          }),
+          ({ id, scope, entry, error, source }) => {
+            // A GitHub source (§4.39): its repository's read, and the Issue
+            // Radar escalation label its Triage rows open first with.
+            if (source?.via === "github") {
+              const read = reads.find((r) =>
+                  same(r.repository, source.repository),
+                ),
+                configured = Object.entries(policy?.repositories || {}).find(
+                  ([repository]) => same(repository, source.repository),
+                )?.[1];
+              return {
+                id,
+                scope,
+                entry,
+                error,
+                state: read
+                  ? { cursor: null, readAt: read.checkedAt, error: read.error }
+                  : null,
+                items: null,
+                escalationLabel: configured?.crewLabels?.needsHuman ?? null,
+              };
+            }
+            return {
+              id,
+              scope,
+              entry,
+              error,
+              state: id ? sourceRowOf(store, `source:${id}`) : null,
+              items: (id && counts.get(id)) || none,
+            };
+          },
         ),
         github: {
-          mode: readGitHubPolicyOrNull(this.workspaceRoot)?.mode ?? null,
-          repositories: githubReads(store),
+          mode: policy?.mode ?? null,
+          repositories: reads,
           items: counts.get("github") || none,
         },
       };

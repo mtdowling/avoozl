@@ -181,11 +181,11 @@ test("policy validation refuses a reviewer that cannot be shown distinct from th
   );
   assert.throws(
     () => policy({ reviewers: [role()] }),
-    /delivery.model must name the writer's model/,
+    /roles.worker.model \(Settings › Models\) must name the writer's model/,
   );
   assert.throws(
     () => policy({ model: "auto", reviewers: [role()] }),
-    /delivery.model must name the writer's model/,
+    /roles.worker.model \(Settings › Models\) must name the writer's model/,
   );
   assert.throws(
     () => policy({ model: "fake-a", reviewers: [role(), role()] }),

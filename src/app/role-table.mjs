@@ -1,0 +1,191 @@
+// One row per role Avoozl starts (without-kirocrew D2, NK1). The `process`
+// executor's brief, its folder rule and the way a finished child's result is
+// recorded read these rows, so a role is described once. `setting` is the
+// role's key in the `roles` table (Settings › Models); `roleRun` resolves the
+// executor every dispatch uses: the task's `session.harness` pin, then the
+// role's saved harness, then the project's executor.
+import { harnessExecutor, roleHarness } from "./chat-models.mjs";
+
+// The executor a project's sessions run on: its `executor` setting, else
+// `kirocrew` (R93.5; a repository opts in, as the Nupp compiler's does).
+export const projectExecutor = (project) =>
+  project?.executor === "process" ? "process" : "kirocrew";
+
+// What a child does instead of the Avoozl tools it cannot reach (R96.1): a
+// sandboxed child has no database, so its report is the result file.
+const RESULT_LIMIT =
+  "Write no other file, keep the result file under 8 KB, then exit.";
+
+// A verdict child runs unattended, so only the project's allow-list runs in
+// its shell, and a command line runs only when every part of it is listed
+// (P59: a verifier that chained `od` and `cat` onto the check was refused
+// and reported blocked).
+function allowedShell(allowCommands) {
+  if (!allowCommands?.length)
+    return "Your shell runs no command here: read files with your file tools.";
+  return `Your shell runs only these commands, one per call, with no ; && | or $(...): ${allowCommands
+    .map((command) => `\`${command.join(" ")}\``)
+    .join(", ")}. Read files with your file tools.`;
+}
+
+const verdictFinish = (allowCommands) => [
+  "You run without Avoozl's tools, so these steps replace the worktree and plans_report steps above.",
+  "1. Avoozl already added the detached worktree at the commit: it is the current folder. Do not run git worktree add, and read only there.",
+  allowedShell(allowCommands),
+  '2. Instead of calling plans_report, write .avoozl/result.json in the current folder: {"state": "done", "report": {<every field of the plans_report input except taskId and commit>}}, or {"state": "blocked", "text": "<why>"} if you cannot judge the commit. Avoozl reads the commit from the folder itself.',
+  RESULT_LIMIT,
+];
+
+// Fields of Rows:
+//   setting  the role's key in the `roles` table
+//   roles    the dispatch role names the row covers
+//   prompt   the role's prompt file, put at the top of a child's brief
+//   process  true once the role can run as a child; until then a project's
+//            `process` executor does not move it (a saved harness does)
+//   access   what the child may do to files
+//   folder   how the drain makes the child's folder: worktree (the task's),
+//            detached (a worktree at the commit), scratch (an empty folder),
+//            spec (the spec folder the request names)
+//   hands    how the result is recorded: report (session.report), reply (the
+//            retro's reply), folder (the stored folder; nothing to record)
+//   finish   the lines that replace the Avoozl tools in a child's brief
+export const ROLE_TABLE = Object.freeze({
+  worker: {
+    setting: "worker",
+    roles: ["worker"],
+    process: true,
+    access: "write",
+    folder: "worktree",
+    hands: "report",
+  },
+  verifier: {
+    setting: "verifier",
+    roles: ["verifier"],
+    prompt: "verifier",
+    process: true,
+    access: "read",
+    folder: "detached",
+    hands: "report",
+    verdict: true,
+    finish: verdictFinish,
+  },
+  reviewer: {
+    setting: "reviewer",
+    roles: [/^review:/],
+    prompt: "reviewer",
+    process: true,
+    access: "read",
+    folder: "detached",
+    hands: "report",
+    verdict: true,
+    finish: verdictFinish,
+  },
+  planner: {
+    setting: "planner",
+    roles: ["planner"],
+    prompt: "planner",
+    process: true,
+    access: "write",
+    folder: "spec",
+    hands: "folder",
+    finish: () => [
+      "You run without Avoozl's tools. Write the spec folder's files as above, but skip plans_create_plan, plans_save_plan and every other plans_* call: Avoozl stores the folder once it lints clean. Then exit.",
+    ],
+  },
+  retro: {
+    setting: "retro",
+    roles: ["retro"],
+    prompt: "retro",
+    process: true,
+    access: "read",
+    folder: "scratch",
+    scratch: "avoozl-retro-",
+    hands: "reply",
+    finish: () => [
+      'You run without Avoozl\'s tools. Instead of answering in chat, write your one JSON reply to .avoozl/result.json in the current folder as {"state": "done", "report": <the reply object>}.',
+      RESULT_LIMIT,
+    ],
+  },
+  // The rows below run as Kiro Crew chats until their tasks land.
+  falsifier: {
+    setting: "falsifier",
+    roles: ["falsifier"],
+    process: false,
+    access: "read",
+  },
+  responder: {
+    setting: "responder",
+    roles: ["responder"],
+    process: false,
+    access: "read",
+  },
+  taskSummary: {
+    setting: "taskSummary",
+    roles: ["task-summary"],
+    process: false,
+    access: "read",
+  },
+  // shortcut: the issue planner's role name is `planner`, as the spec
+  // planner's is; nk-2.3 and nk-3.3 tell them apart by their task key.
+  issuePlanner: {
+    setting: "issuePlanner",
+    roles: [],
+    process: false,
+    access: "write",
+  },
+  planReviewer: {
+    setting: "planReviewer",
+    roles: ["plan-review"],
+    process: false,
+    access: "read",
+  },
+  planAnswer: {
+    setting: "planAnswer",
+    roles: ["plan-answer"],
+    process: false,
+    access: "write",
+  },
+  reviewDraft: {
+    setting: "reviewDraft",
+    roles: ["review-draft"],
+    process: false,
+    access: "read",
+  },
+  prReview: {
+    setting: "prReview",
+    roles: ["pr-review"],
+    process: false,
+    access: "read",
+  },
+});
+
+export const ROLE_SETTINGS = Object.freeze(
+  Object.values(ROLE_TABLE).map((row) => row.setting),
+);
+
+const matches = (row, role) =>
+  row.roles.some((r) => (r instanceof RegExp ? r.test(role) : r === role));
+
+// The row a dispatch role runs by, or null.
+export const rowFor = (role) =>
+  Object.values(ROLE_TABLE).find((row) => matches(row, role)) ?? null;
+
+// The row a `process` child of this role follows, or null for a role that
+// does not run as a child yet.
+export const processRow = (role) => {
+  const row = rowFor(role);
+  return row?.process ? row : null;
+};
+
+// The executor a role's request names: the task's `session.harness` pin
+// (where the role has a task), else the role's harness saved in Settings ›
+// Models, else the project's executor; a row that cannot run as a child yet
+// keeps `kirocrew` there, so a project's setting never breaks it.
+// Returns {executor, harness?}.
+export function roleRun(setting, { config, task, project } = {}) {
+  const row = ROLE_TABLE[setting];
+  if (!row) throw Error(`${setting} is not a role in the role table.`);
+  const named = task?.session?.harness ?? roleHarness(config, setting);
+  if (named) return harnessExecutor(named);
+  return { executor: row.process ? projectExecutor(project) : "kirocrew" };
+}

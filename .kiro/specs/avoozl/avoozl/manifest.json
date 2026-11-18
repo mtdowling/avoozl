@@ -1666,7 +1666,7 @@
       "repository": "avoozl",
       "summary": "Phase 5 (Removal). See R1.1, R26.1; §9.",
       "acceptance": [
-        "Delete the agent host, scheduler, providers, routing, approvals, run capabilities, external sessions, and telemetry; keep old tables read-only."
+        "Delete the agent host, scheduler, providers, approvals, run capabilities, external sessions, and telemetry; keep old tables read-only."
       ],
       "completion": "integrated",
       "checks": [
@@ -3062,12 +3062,11 @@
     "11.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). See R41.1, R41.3, R41.6; §4.10, F77–F82.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Crew registry",
-        "New `src/app/crews.mjs` lists crews from Kiro Crew's `GET /api/instances` plus `local`; tags (`os`, `arch`, `tools`, `trust`), `gitHosts`, and `chatLimit` from machine-local settings only (`crews.<id>`), `chatLimit` per crew with 3 for `local` and 2 for a remote crew when unset; a crew without settings is `trust:remote` with no git hosts; readings for `local` from `os.freemem`, `os.loadavg`, and `fs.statfs`, for a remote from its headroom snapshot (F80), each with source and `measured_at`; stale after `crewStaleSeconds` (machine-local, 120 when unset); minimum memory and disk read from Kiro Crew's `remote_dispatch_memory_gb` and `_disk_gb`, never stored in Avoozl. First, call `session_create` with `crew` from the tick script cron and from the app backend against one connected crew and record the refusal codes in the receipt, settling F78."
+        "Retired 2026-11-18. Nothing to do."
       ],
-      "completion": "person",
+      "completion": "integrated",
       "requires": [
         "avoozl-p4",
         "avoozl-p5",
@@ -3075,15 +3074,17 @@
         "avoozl-p2b",
         "10.4"
       ],
-      "manual": true
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
     },
     "11.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). See R41.2–R41.5, R41.8, R41.12, R22.5; §4.10.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Routing rules",
-        "`routing.rules`, `routing.pick`, and `routing.router` in `.avoozl.json` (workspace and repository) and machine-local settings; validation per §4.4 and §4.10 (refuse a crew id or router instructions in a tracked file, an unknown tag key, a missing plugin route, a rule without `id`); `evaluatePlacement(task, role, crews, readings)` per §4.10 steps 1–4, returning the allowed set, the removed crews each with the rule or check that removed it, and the route; route precedence manifest task, first matching rule, repository, workspace; categories from front-matter only."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -3101,10 +3102,9 @@
     "11.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). See R41.6; §4.10.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Scorer and presets",
-        "The §4.10 formula with `balanced` (default), `keep local`, and `spread out`, editable weights shown as Custom; per-tick slot reservation so one batch spreads; ties to `local`, then crew id; unavailable crews per §4.10; all allowed crews unavailable means the task waits with no decision."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -3122,10 +3122,9 @@
     "11.4": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). See R41.7; §4.10.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Model router, off by default",
-        "The tool-less `avoozl-router` agent in `kirocrew-app/agents/`, one local session per tick batch on the owner's model, brief checked at the `brief` boundary, instructions from machine-local settings only (`routing.router.instructions`), never a tracked file; reply `[{session, crew, reason}]` schema-checked; a crew outside the allowed set ignored; timeout (default 90 seconds), malformed reply, or refused model falls back to the scorer and records why; the tick never waits on the router."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -3143,10 +3142,9 @@
     "11.5": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). See R41.5, R41.11, R41.13, R40.3; §4.10, §4.9, F83.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Dispatch and fetch-back",
-        "`plans_tick` intents carry `crew`; `tick.py` opens on `local` as today and, only when MC-10 exists, on the chosen remote crew; fetchability check (repository remote host in the crew's `gitHosts`, base commit on that remote, earlier attempt branch for a retry); remote briefs carry clone URL, base commit, and task branch instead of a checkout path, pass content rules and the leak screen, and tell the worker to push its task branch before `done`, on public and private repositories alike (visibility plays no part; repository policy and content rules still apply); Avoozl fetches the branch, checks the reported commit, then verifies, reviews, and integrates as for a local worker; content-rule sets gain `remote` (`forbid` by default for sets covering `diff`, else `allow`; built-in sets `allow`)."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -3164,10 +3162,9 @@
     "11.6": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). See R41.9, R41.10, R41.14, R8; §4.10, F79, F81.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Recording and recovery",
-        "Bindings store `crew`, remote slot key, applied rules, readings or router reason, and time; the Delivery view shows the crew; an unreachable crew's sessions show \"crew unreachable\" and stay bound; no timer re-places them; the tick reconciles with the crew's session state when it answers again before new dispatch there; Retry and the bounded retry policy place afresh; no use of Kiro Crew's own `work_item` placement; the In flight card's Attach opens every Avoozl chat, local (`/chat?sid=<slot>`) or remote (through MC-10, from the binding's crew and slot key)."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -3185,10 +3182,9 @@
     "11.7": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). See R41.8; §4.10, §8.3.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "No-fit decisions",
-        "One decision per task naming each crew and the rule or check that removed it, in yellow on the Routing page and in Conflicts; it closes by itself when a rule or crew change makes the task fit; never run the session elsewhere."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -3206,10 +3202,9 @@
     "11.8": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). See R42, R20.4, R41.14; §8.3.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Routing page per §8.3",
-        "Sections Crews, Rules, Smart pick, Model router, Preview, each with a heading and one short line and an empty-state line; rule rows \"When <match> -> <route> on <crews>\" with drag to reorder and a side form with Required and Optional markers and placeholders; checkbox pickers for labels, roles, routes, and tags; per-crew Chat limit (placeholder 3 for `local`, 2 remote) and one Stale after field (placeholder 120 s), both saved on this machine; the router instructions box marked as saved on this machine only; until MC-10 ships, one neutral line saying remote placement waits on Kiro Crew; red, confirmed delete and remove on the right; Preview read-only with route, crew, reason, and \"why not\"; Settings links here and stops listing delivery routes; every edit through the shared operations with expected revisions (CLI `avoozl routing …` and MCP `plans_routing_*`); yellow only for no fit and unavailable content-rule sets. Check the page by drawing it and looking at it."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -3227,10 +3222,9 @@
     "11.9": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). See R41.13, R24.2; §4.10.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Fake crew driver and docs",
-        "A test-only driver under `test/fixtures/crews/` playing the instance list, headroom snapshots, remote sessions, and an unreachable crew; public docs use only fake crew names and \"a private git host\"; extend the 7.4 scan to the crew fixtures."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -3248,13 +3242,11 @@
     "11.10": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). Files an upstream request with Kiro Crew; changes no code here. See R41.14; §4.10, §7.1, F77–F79.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "MC-10 upstream ask",
-        "File the standalone request with Kiro Crew (an owner grant letting the Avoozl app and its tick cron open, message, read, and close remote sessions it opened, with a binding that survives a hub restart, and attach to each from the In flight card); change no Kiro Crew code; when it ships, record its contract in §7.1, switch 11.5's remote path on, and run P29 case 13 against one real crew.",
-        "The report names what was done and where the result is."
+        "Retired 2026-11-18. Nothing to do."
       ],
-      "completion": "person",
+      "completion": "integrated",
       "requires": [
         "avoozl-p4",
         "avoozl-p5",
@@ -3262,17 +3254,19 @@
         "avoozl-p2b",
         "10.4"
       ],
-      "manual": true
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
     },
     "avoozl-p29": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). Proof. See R41, R42; §4.10, §8.3.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Expected: (1) every session opens on `local`, at most 2 at once, and nothing else changes; (2) Preview opens nothing and shows each task's route, crew, reason, and why-not; `c1` runs on `local` though its rule is last; `t1` runs on `fake-windows`; `w1`–`w4` spread across `local` and `fake-linux` by reservation, never past a chat limit, and the rest wait; `u1` waits with one yellow no-fit decision naming every crew and the rule that removed it; (3) `fake-windows` is unavailable and `t1`'s retry waits without a decision; (4) the router's `fake-windows` pick for `w1` is ignored when the rules do not allow it, and recorded with its reason when they do; the silent model falls back to the scorer after about 90 seconds and the malformed one at once, each recorded; (5) `w5` stays local with \"work not fetchable\"; (6) validation refuses the file; (7) `w2` keeps its binding and shows \"crew unreachable\"; nothing re-places it; when `fake-linux` returns the tick reconciles first; `w3`'s retry is placed afresh; a remote leaf's pushed branch is fetched, its commit checked, and it integrates like a local one; (8) no new session in that repository goes remote; (9) every new session runs on `local`; (10) `fake-linux` takes at most 1 session and a 70-second reading counts as stale, and after clearing both the limit is 2 and the stale limit 120 s again, each shown as a placeholder; (11) validation refuses the file and names the key; (12) placement is the same as for a private remote, the worker pushes its branch, and the `diff` boundary checks it at `done` and at integration; (13) each chat opens and takes the typed message; (14) every session runs on `local`, Preview still shows remote picks, and the Routing page shows the waits-on-Kiro-Crew line. The live check in 11.1 records whether a real tick may open a remote session.",
-        "A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict."
+        "Retired 2026-11-18. Nothing to do."
       ],
-      "completion": "person",
+      "completion": "integrated",
       "requires": [
         "11.1",
         "11.2",
@@ -3285,7 +3279,10 @@
         "11.9",
         "11.10"
       ],
-      "manual": true
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
     },
     "12.1": {
       "kind": "leaf",
@@ -4089,10 +4086,9 @@
     "11.11": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). See R53; §4.10.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Agent and model per session",
-        "`session` (`{agent, model}` or `choices` of 1–10 `{agent, model, weight}`) on routing rules and manifest tasks, validated per R53.8; `chooseSession(task, role, rules, policy, running)` with the R53.3 order and the R53.4 weighted pick reserved per tick; the router may rank choices with fallback; crews without the agent ruled out as \"agent not installed\"; `distinctFrom: model` skips colliding writer choices, else one decision; retries keep the last agent and model, **Pick again** clears it; `tick.py` passes `agent` and `model` to `open_session`; bindings gain `agent`, `model`, `modelUsed`, `sessionReason`; Issue Radar and plugin routes ignore `session`; no `session` anywhere means no change."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -4112,10 +4108,9 @@
     "11.12": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). See R53.11; §4.10, §8.3.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Session fields on the Routing page",
-        "Rule rows read \"... as <agent / model>\" or \"as <N> choices\"; a **Session** group in the side form with Optional markers, default placeholders, and an add-choice row with weight; Preview shows each task's agent, model, and how they were chosen; the Delivery view and In flight card show agent and model and offer **Pick again**; a note on Issue Radar and plugin route rules that `session` does not apply. Check the page by drawing it and looking at it."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -4135,10 +4130,9 @@
     "11.13": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). See R41.15; §4.10 Hand-back over SSH.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Hand-back over SSH",
-        "A remote crew's commit comes back over SSH from its folder with the host key pinned on first use and checked on every fetch, then runs content rules, checks, verify, review, and integration here; tests use a fake ssh command only."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -4157,10 +4151,9 @@
     "avoozl-p33": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 11 (Crew placement). Proof. See R53; §4.10.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Proof: agent and model per task with fake crews and fake agents",
-        "Expected: (1) every session opens as before with Kiro Crew's default agent and `auto`; (2) `h1` runs on `model-a`, `m1` on `model-m` though `routine` matches it, `r1`–`r6` split 4 to 2 between `model-b` and `model-c`, `q1` opens no session and its rule shows the does-not-apply note, and Preview shows each reason; (3) `r1`'s retry keeps its model and `r2` is picked afresh; (4) no writer runs on `model-r`; (5) `h1` waits with one no-fit decision naming \"agent not installed\"; (6) validation refuses the file and names each key. Every binding records agent, model, and reason."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -4428,10 +4421,9 @@
     "16.7": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 16 (Plugin bundles). See R55.4; §4.10, §4.14.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Crew placement defaults in packs, after 11.2 and 16.3",
-        "Add the §4.10 routing rules as a pack key once they exist, with the same whitelist, validator, and preview."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -5523,7 +5515,7 @@
       "repository": "avoozl",
       "summary": "Phase 30 (Provider health and switching models). See R72.5–R72.7; §4.20.",
       "acceptance": [
-        "Routing skips low and out, after 30.1 and 11.11",
+        "New work skips out models, after 30.1 and 11.11",
         "New tasks drop out and then low choices, fall back to the replacement or providers.fallback, never take a review role's model, and wait with a reason when nothing is healthy; retries keep a model until it is out; the path without rules does the same; Preview shows it; with no settings nothing changes."
       ],
       "completion": "integrated",
@@ -5663,10 +5655,9 @@
     "32.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 32 (Remote relay). See R41.16–R41.20, R41.22–R41.24; §4.10.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Relay setting, queue, and tool, after 11.11 and 11.13",
-        "routing.remoteRelay is validated in the workspace file only and ignored with MC-10; a worker's remote pick queues for the relay chat and never runs on local; one registered relay opens workers with crew= and hands back replies, whose last report line alone runs the normal report path; refusals wait for the person or drop; only a person forgets the relay."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -5681,10 +5672,9 @@
     "32.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 32 (Remote relay). See R41.20, R41.21, R42.3; §4.10, §8.3.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Routing page and Needs you, after 32.1 and 11.12",
-        "The Crews section shows the relay setting, its stopgap line and both catches, status with turns today, Open relay chat, Go to relay chat and a confirmed Forget; Needs you lists each queued remote task with its reason."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -5699,10 +5689,9 @@
     "avoozl-p47": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 32 (Remote relay). Proof. See R41.16–R41.24; §4.10.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Proof: Remote relay with a fake relay and a fake crew",
-        "Expected: remote picks queue and never run on local; a turn the owner did not send waits with a Needs you item; one relay only; the owner's turn opens each worker on its crew with the brief unchanged; only a reply's report line counts and verification follows; the setting off or MC-10 present drops the queue; only a person forgets the relay."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [
@@ -5865,10 +5854,9 @@
         "npm test",
         "git diff --check"
       ],
-      "summary": "Phase 11 (Crew placement). See R41.2–R41.4, R41.7, R41.8; §4.10 One routing prompt.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "One routing prompt, off by default",
-        "A machine-local routing prompt, off by default, picks crew, agent and model among the options the hard checks leave; the old rule, pick and router keys are refused."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "requires": [
         "11.1"
@@ -5882,10 +5870,9 @@
         "npm test",
         "git diff --check"
       ],
-      "summary": "Phase 11 (Crew placement). See R53; §4.10 Agent and model per session.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Pins win and retries keep their model",
-        "A manifest pin wins, then the routing pick, then delivery, then Kiro Crew's default; a retry keeps its model unless it is out."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "requires": [
         "11.14"
@@ -5899,10 +5886,9 @@
         "npm test",
         "git diff --check"
       ],
-      "summary": "Phase 11 (Crew placement). See R42, R72.17; §8.3.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "Settings › Routing",
-        "Routing lives in Settings with the routing prompt, Providers, Crews and Preview sections."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "requires": [
         "11.14"
@@ -5916,10 +5902,9 @@
         "npm test",
         "git diff --check"
       ],
-      "summary": "Phase 11 (Crew placement). See §4.10 One routing prompt.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "One-time migration of the old keys",
-        "scripts/migrate-routing.mjs turns old routing keys into prompt lines, keeps a copy of each changed file, and is idempotent."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "requires": [
         "11.14"
@@ -6037,10 +6022,9 @@
         "npm test",
         "git diff --check"
       ],
-      "summary": "Phase 11 (Crew placement). See R41.7, R41.7a, R42.3; §4.10 Routing failures, §8.3.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "No fallback when routing is on",
-        "A failed router holds the task Ready and marked, backs off 1, 2, 4, 8, then 15 minutes, and after 3 failures in a row opens one Needs you item with person-only Retry now and Turn routing off."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "requires": [
         "11.14"
@@ -6528,7 +6512,7 @@
       "summary": "Phase 41 (Scheduler and direct landing). See R88.7; §4.26.",
       "acceptance": [
         "Restore the Delivery page, Settings › Budgets and the Files and diff view",
-        "From ba04389 and 70c2236, updated to the new loop; not Routing; screenshots for the owner."
+        "From ba04389 and 70c2236, updated to the new loop; screenshots for the owner."
       ],
       "completion": "integrated",
       "checks": [
@@ -8297,7 +8281,7 @@
       "summary": "Phase 56 (Working branches and a spec journal). Issue Radar escalations open first in intake. See R103.8, R103.9, R103.10, R103.11; §4.32.",
       "acceptance": [
         "Issue Radar escalations open first in intake",
-        "Keep plan-me routing. Trusted escalations (the repository's needs-human label) sort first in Untriaged, or Intake for a Radar-coded repository, with Plan this and Deliver this; their Needs you row gains the same buttons. Plan this drafts a fix spec or the compact bounded-fix acceptance.",
+        "Keep the plan-me path. Trusted escalations (the repository's needs-human label) sort first in Untriaged, or Intake for a Radar-coded repository, with Plan this and Deliver this; their Needs you row gains the same buttons. Plan this drafts a fix spec or the compact bounded-fix acceptance.",
         "Person-only start. A per-repository escalation rule, off by default, drafts locally with zero GitHub writes; approval and dispatch stay person-only. Take-over writes crew:avoozl and never removes the needs-human label; a live crew claim asks to confirm. No Radar API or grant. Tests cover order, buttons, zero-write draft and one label write."
       ],
       "completion": "integrated",

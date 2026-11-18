@@ -968,11 +968,10 @@ export function deliveryView(store, data) {
           statusAt: binding.statusAt ?? null,
           boundAt: binding.boundAt ?? null,
           model: binding.model ?? null,
-          // Placement (§4.10, R41.9, R53.10): the crew, agent, and why.
+          // The crew, agent, and why (R41.9, R53.10).
           agent: binding.agent ?? null,
           crew: binding.crew ?? "local",
           crewUnreachable: unreachableCrews.has(binding.crew),
-          placementReason: binding.placement?.reason ?? null,
           sessionReason: binding.sessionReason ?? null,
           // What Kiro Crew said the session ran on; null from a Kiro Crew
           // that does not report it, whose requested model is trusted.

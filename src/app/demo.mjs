@@ -455,8 +455,6 @@ const SAYS = [
   ["flow.retro", "open a retro chat to learn from this run"],
   ["flow.", "change Flow settings"],
   ["route.", "change where this task runs"],
-  ["routing.", "change where tasks run"],
-  ["crews.", "change your crews"],
   ["provider", "switch a running chat to another model"],
   ["delivery.", "change delivery"],
   ["driver.", "hand this workspace to another machine"],
@@ -697,8 +695,7 @@ function seedState(store, now) {
       };
     }
   });
-  // Local workers are retired: crews on GitHub do the coding, so the sample
-  // holds no worker session and no running local delivery.
+  // The sample holds no worker session and no running local delivery.
   const running = "meal-planner.1.1",
     review = "recipe-import.2.1";
   store.transaction(() => {

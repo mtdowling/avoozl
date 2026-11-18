@@ -45,3 +45,9 @@ test("the test map names only test files that exist", () => {
   for (const tests of Object.values(map))
     for (const t of tests) assert.ok(fs.existsSync(t), t);
 });
+
+test("a page source change runs the class check against Kiro Crew's stylesheet", () => {
+  const s = select(["kirocrew-app/ui/src/Badge.tsx"]);
+  assert.equal(s.ui, true);
+  assert.ok(s.uiFiles.includes("kirocrew-app/ui/test/host-classes.test.mjs"));
+});

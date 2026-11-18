@@ -47,8 +47,7 @@ export function parseManagedSection(body) {
     heading = (name) => lines.indexOf("## " + name),
     acceptanceAt = heading("Acceptance criteria"),
     dependenciesAt = heading("Dependencies"),
-    // "Links and notes" is the heading before task notes were removed.
-    notesAt = Math.max(heading("Links"), heading("Links and notes")),
+    notesAt = heading("Links"),
     rulesAt = heading("Agent rules"),
     end = (from) => {
       const next = lines.findIndex(

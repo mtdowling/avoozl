@@ -363,18 +363,23 @@ Proposals are pages of the **Retros** entry in the nav.
   proposes up to three changes. You approve or reject each, and an approved
   change is measured afterward.
 
-**Settings > Models** picks the model of each of Avoozl's own chats: the
-planner, the retro and review drafts. It is saved as `models` in
-`.avoozl.json`, for example `{"models": {"retro": "<model>"}}`; a role left
-out, or `auto`, runs on its agent's own model. Avoozl moves no running chat to another model.
+**Settings > Models** is the one place that picks each role's harness,
+agent and model: the worker, the falsifier (investigate first), the
+planner, the plan reviewer, the retro and review drafts. It is saved as
+one `roles` table in `.avoozl.json`, for example
+`{"roles": {"worker": {"harness": "claude-code", "model": "<model>"}, "retro": {"model": "<model>"}}}`.
+A row's `harness` is `kirocrew` for a Kiro Crew chat, or the name of a
+harness definition in this machine's config; only the worker and the
+falsifier take an `agent`. A field left out, or `auto`, keeps the role's
+default: its agent's own model and its project's executor. A task's
+`session` pin wins over its role's row. The worker, planner and retro
+follow the harness; the falsifier, plan reviewer and review drafts still
+run as Kiro Crew chats. Avoozl moves no running chat to another model.
 
-The same page picks the **harness** each role runs on, saved as `harnesses`,
-for example `{"harnesses": {"worker": "claude-code"}}`: `kirocrew` is a Kiro
-Crew chat, and any other value names a harness definition in this machine's
-config. A role left out, or `auto`, runs on its project's executor. A
-task's `session.harness` pin wins over both. The worker, planner and retro
-follow it; the plan reviewer and review drafts still run as Kiro Crew
-chats.
+Older files still load: `models`, `harnesses`, `delivery.agent`,
+`delivery.model`, `delivery.investigate.agent` and `.model`, and
+`flow.retro.model` are read into the table, and a `roles` value wins. The
+next save on Settings > Models writes `roles` and removes them.
 
 The red **Stop the line** pause icon, in the heading of **Dashboards >
 Delivery**, is the Andon cord: a
@@ -417,7 +422,7 @@ Avoozl never asks for a force push, and drops any brief or message that does.
   **Integrate** for a local task. A repository, spec manifest (`ship`) or
   task may set its own. Landing (above) is how Avoozl itself merges.
 - **Rules from corrections**: changes requested, work sent back with a
-  reason, a revert of an agent's commit, and Pick again with a reason are
+  reason, and a revert of an agent's commit are
   recorded. When the retro sees the same correction on two tasks it may
   propose a rule; once you approve it, it lands as one task that edits
   `.kiro/steering/avoozl-rules.md` in that repository and makes `AGENTS.md`
@@ -466,7 +471,7 @@ Some actions belong to a person and are refused over MCP under any tool name,
 old or new: approving or starting a spec, deletes, plugin changes, Allow
 once and content-rule terms, choosing a conflict winner, GitHub setup writes
 and settings (including Who counts), adding or removing repositories or
-intake sources, workspace, flow, delivery, and routing settings, Pick again,
+intake sources, workspace, flow, and delivery settings,
 Run anyway, resuming a pulled stop, starting or deciding a retro, Deliver
 this and Plan this on an incoming item, sending issues to Issue Radar, and
 opening a code review chat. Do these in the Avoozl app. An agent may pull
@@ -518,9 +523,6 @@ Avoozl was first released as AICommander. These names keep working:
   to spec folders.
 - An `.avoozl.json` with no `role` keys, which gets its roles from its
   stored `github.mode`.
-- `.avoozl.json` keys of settings that no longer exist (`coder`,
-  `routing.remoteRelay`, `flow.batch`), which load and are ignored.
-  `node scripts/migrate-routing.mjs <file>` reads old routing keys.
 
 ## Develop
 

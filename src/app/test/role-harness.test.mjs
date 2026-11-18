@@ -16,7 +16,7 @@ import {
 } from "../harness-definitions.mjs";
 import { Operations } from "../operations.mjs";
 import { newPlanStarts } from "../new-plan.mjs";
-import { validateSession } from "../placement.mjs";
+import { validateSession } from "../session-pins.mjs";
 import { Store } from "../store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -102,16 +102,26 @@ test("a worker runs on its pin's harness, else the saved one, else its project's
     chat: ["kirocrew", null],
     plain: ["kirocrew", null],
   });
-  assert.deepEqual(run({ harnesses: { worker: "claude-code" } }), {
+  assert.deepEqual(run({ config: { harnesses: { worker: "claude-code" } } }), {
     pinned: ["process", "codex"],
     chat: ["kirocrew", null],
     plain: ["process", "claude-code"],
   });
+  // The roles table wins over the older key (R98.8).
+  assert.deepEqual(
+    run({
+      config: {
+        harnesses: { worker: "codex" },
+        roles: { worker: { harness: "claude-code" } },
+      },
+    }).plain,
+    ["process", "claude-code"],
+  );
   // A process worker's brief ends with the result file, as a project on
   // process does; a chat's keeps the runner report.
   const briefs = Object.fromEntries(
     planReadyDispatches(store, policy, {
-      harnesses: { worker: "claude-code" },
+      config: { roles: { worker: { harness: "claude-code" } } },
     }).map((d) => [d.task, d.brief]),
   );
   assert.match(briefs.plain, /result\.json/);
@@ -149,7 +159,8 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
   });
   const ops = new Operations(store, { workspaceRoot: root, configDirectory });
   const before = await ops.execute("models.settings.get", {});
-  assert.deepEqual(before.harnesses, {});
+  // The older `models` key reads into the table (R98.8).
+  assert.deepEqual(before.roles, { retro: { model: "m1" } });
   assert.deepEqual(before.harnessDefinitions, [
     { name: "fake-cli", approved: true, model: true },
     { name: "other-cli", approved: false, model: false },
@@ -158,8 +169,7 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
     ops.execute(
       "models.settings.update",
       {
-        models: {},
-        harnesses: { worker: "fake-cli" },
+        roles: { worker: { harness: "fake-cli" } },
         expectedHash: before.hash,
       },
       undefined,
@@ -167,42 +177,34 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
     ),
     (e) => e.status === 403,
   );
+  const table = {
+    retro: { model: "m1" },
+    worker: { harness: "fake-cli" },
+    planner: { harness: "kirocrew" },
+  };
   const saved = await ops.execute("models.settings.update", {
-    models: { retro: "m1" },
-    harnesses: { worker: "fake-cli", planner: "kirocrew" },
+    roles: table,
     expectedHash: before.hash,
   });
-  assert.deepEqual(saved.harnesses, {
-    worker: "fake-cli",
-    planner: "kirocrew",
-  });
+  assert.deepEqual(saved.roles, table);
   const file = () =>
     JSON.parse(fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"));
-  assert.deepEqual(file().harnesses, {
-    worker: "fake-cli",
-    planner: "kirocrew",
-  });
+  // The save writes `roles` and drops the older `models` (R98.9).
+  assert.deepEqual(file().roles, table);
+  assert.equal(file().models, undefined);
   await assert.rejects(
     ops.execute("models.settings.update", {
-      models: {},
-      harnesses: { worker: "Bad Name" },
+      roles: { worker: { harness: "Bad Name" } },
       expectedHash: saved.hash,
     }),
     /harness name/,
   );
-  // A save without harnesses keeps them; an empty object removes them.
-  const kept = await ops.execute("models.settings.update", {
-    models: {},
+  const cleared = await ops.execute("models.settings.update", {
+    roles: {},
     expectedHash: saved.hash,
   });
-  assert.deepEqual(kept.harnesses, { worker: "fake-cli", planner: "kirocrew" });
-  const cleared = await ops.execute("models.settings.update", {
-    models: {},
-    harnesses: {},
-    expectedHash: kept.hash,
-  });
-  assert.deepEqual(cleared.harnesses, {});
-  assert.equal(file().harnesses, undefined);
+  assert.deepEqual(cleared.roles, {});
+  assert.equal(file().roles, undefined);
   // Without a machine config folder there is nothing to list.
   const bare = new Operations(store, { workspaceRoot: root });
   assert.deepEqual(
