@@ -75,7 +75,9 @@ export function processExecutor({
           harness: harnessFor(task, role) ?? project.harness ?? DEFAULT_HARNESS,
           permissionClass,
           model,
-          brief: processBrief(role, brief),
+          brief: processBrief(role, brief, {
+            allowCommands: sandbox.allowCommands,
+          }),
           values: {
             // The session's own temp folder, outside the shared one's other
             // checkouts and outside the state folder the child cannot reach.
@@ -120,11 +122,23 @@ function rolePromptName(role) {
 // sandboxed child has no database, so its report is the result file.
 const RESULT_LIMIT =
   "Write no other file, keep the result file under 8 KB, then exit.";
-function processFinish(role) {
+// A verdict child runs unattended, so only the project's allow-list runs in
+// its shell, and a command line runs only when every part of it is listed
+// (P59: a verifier that chained `od` and `cat` onto the check was refused
+// and reported blocked).
+function allowedShell(allowCommands) {
+  if (!allowCommands?.length)
+    return "Your shell runs no command here: read files with your file tools.";
+  return `Your shell runs only these commands, one per call, with no ; && | or $(...): ${allowCommands
+    .map((command) => `\`${command.join(" ")}\``)
+    .join(", ")}. Read files with your file tools.`;
+}
+function processFinish(role, allowCommands) {
   if (reportsVerdict(role))
     return [
       "You run without Avoozl's tools, so these steps replace the worktree and plans_report steps above.",
       "1. Avoozl already added the detached worktree at the commit: it is the current folder. Do not run git worktree add, and read only there.",
+      allowedShell(allowCommands),
       '2. Instead of calling plans_report, write .avoozl/result.json in the current folder: {"state": "done", "report": {<every field of the plans_report input except taskId and commit>}}, or {"state": "blocked", "text": "<why>"} if you cannot judge the commit. Avoozl reads the commit from the folder itself.',
       RESULT_LIMIT,
     ];
@@ -141,11 +155,18 @@ function processFinish(role) {
 }
 
 // The brief a `process` child reads: its role's prompt, the brief, then how
-// it finishes. A worker's brief is passed as it is.
-export function processBrief(role, brief) {
+// it finishes. A worker's brief is passed as it is. `allowCommands` is the
+// project's allow-list, which a verdict child is told.
+export function processBrief(role, brief, { allowCommands } = {}) {
   const prompt = rolePromptName(role);
   if (!prompt) return brief;
-  return [rolePrompt(prompt).trim(), "", brief, "", ...processFinish(role)]
+  return [
+    rolePrompt(prompt).trim(),
+    "",
+    brief,
+    "",
+    ...processFinish(role, allowCommands),
+  ]
     .join("\n")
     .trim();
 }
