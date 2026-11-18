@@ -259,14 +259,18 @@ export async function commitChildWork(binding, worktree) {
 }
 
 // A role's snapshot (NK4.1): a scratch folder of its own that the row's
-// `snapshot(store, request)` fills, as {relative path: text}. Its files are
-// left read-only, and a read-only child's only write root in it is
-// `.avoozl/` (harnessPermission), so the child cannot change what it reads.
-async function fillSnapshot(store, row, request) {
+// `snapshot(store, request, {github})` fills. It returns {files: {relative
+// path: text}, head?}, where `head` is the commit it was read at, kept on
+// the session. Its files are left read-only, and a read-only child's only
+// write root in it is `.avoozl/` (harnessPermission), so the child cannot
+// change what it reads. Avoozl reads with its own GitHub client; the child
+// makes no call.
+async function fillSnapshot(store, row, request, github) {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), row.scratch));
   try {
-    writeSnapshot(folder, await row.snapshot(store, request));
-    return folder;
+    const filled = await row.snapshot(store, request, { github });
+    writeSnapshot(folder, filled.files);
+    return { folder, head: filled.head ?? null };
   } catch (error) {
     fs.rmSync(folder, { recursive: true, force: true });
     throw error;
@@ -612,17 +616,19 @@ export async function drainProcessRequests(
       // A snapshot role reads a folder Avoozl fills before it starts (NK4.1).
       const snapshot =
         row?.folder === "snapshot" && !request.worktree
-          ? await fillSnapshot(store, row, request).catch((error) => {
-              releaseSessionRequest(
-                store,
-                { id: request.id, claimToken, reason: "before-open" },
-                owner,
-              );
-              throw error;
-            })
+          ? await fillSnapshot(store, row, request, ops?.github).catch(
+              (error) => {
+                releaseSessionRequest(
+                  store,
+                  { id: request.id, claimToken, reason: "before-open" },
+                  owner,
+                );
+                throw error;
+              },
+            )
           : null;
       const worktree = snapshot
-        ? snapshot
+        ? snapshot.folder
         : row?.folder === "worktree" &&
             request.permissionClass === "write" &&
             prepareWorktree &&
@@ -702,6 +708,12 @@ export async function drainProcessRequests(
           source: "avoozl",
           text: `Investigate first was skipped: ${request.investigateSkipped}.`,
           key: `investigate-skipped:${request.task}`,
+        });
+      // The head a snapshot was read at, kept on the session (NK4.1).
+      if (snapshot?.head)
+        store.put("session_bindings", {
+          ...store.get("session_bindings", sessionId),
+          snapshotHead: snapshot.head,
         });
       // A spec review child binds its round, as session.bind does for a chat.
       if (request.role === "plan-review") {
