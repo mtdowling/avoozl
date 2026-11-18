@@ -199,8 +199,6 @@ above are not file settings: `flow.batch` is now ignored, and
 | P3 | page that could merge | Settings › Issue Radar and the per-repository Triggers and labels tab | `SettingsView.tsx:117`, `:150` | Both edit labels per repository. The blurb says Radar settings "have their own page". | Put each repository's Radar labels in its Triggers and labels tab; keep the Radar page for the copy-into-Radar values only. | Low. |
 | P4 | page that could merge | Activity page and task Timeline | `App.tsx:456`; design §4.35 | Trace moved into task details; Activity is the same events across tasks. | Keep both, but make Activity a filter of the same timeline component so the two do not drift. | Low. |
 
-### 2.5 Crew placement
-
 ### 2.6 CLI and UI mismatches
 
 | # | What | Evidence | Proposal |
