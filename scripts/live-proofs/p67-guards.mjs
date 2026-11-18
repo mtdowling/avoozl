@@ -288,3 +288,29 @@ export function assertClean(text, options) {
     throw Error(`P67 guard: refused output with ${problems.join(", ")}.`);
   return text;
 }
+
+// After the script itself crashed: clears the crash, takes `stage` off the
+// done list so the next continue reruns it, and records what happened,
+// keeping the stage's earlier result and the guard stops it caused. Only a
+// stage that already ran may be rerun, and only once per crash.
+export function recoverRun(state, stage, at) {
+  if (!state.failure)
+    throw Error("This run did not crash; nothing to recover.");
+  if (!state.done.includes(stage))
+    throw Error(`Stage ${stage} has not run; only a stage that ran is rerun.`);
+  const report = state.report,
+    earlier = report.steps.find((s) => s.name === stage) ?? null;
+  (state.recoveries ??= []).push({
+    at,
+    crash: state.failure,
+    rerun: stage,
+    earlier,
+    stopped: report.stopped,
+  });
+  report.stopped = [];
+  report.steps = report.steps.filter((s) => s.name !== stage);
+  state.done = state.done.filter((name) => name !== stage);
+  delete state.failure;
+  delete state.finished;
+  return state;
+}
