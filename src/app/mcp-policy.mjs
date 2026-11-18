@@ -312,6 +312,8 @@ export const NOT_ON_MCP = new Map([
   // The spec page's Review view; plans_plan_review reads the same findings.
   ["plan.review.view", page],
   ["spec.changed.preview", page],
+  // The spec page's Proposed change box; plans_view shows the same spec.
+  ["specpr.view", page],
   ...[
     "run.model",
     "run.unsend",

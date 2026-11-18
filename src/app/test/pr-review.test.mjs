@@ -128,7 +128,7 @@ const githubWrites = (github) =>
   github.calls.filter(
     (call) =>
       !(call[0] === "graphql" && call[1] === "read") &&
-      !["listPullRequests", "openPullRequests"].includes(call[0]),
+      !["listPullRequests", "openPullRequests", "currentUser"].includes(call[0]),
   );
 
 test("Code review queues one seeded chat, the tick opens it, and the row shows Session", async (t) => {
