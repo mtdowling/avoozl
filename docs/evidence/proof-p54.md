@@ -143,10 +143,24 @@ shows only in the local app (R92.10), and these files are public.
 | Graph modal (same task) | `graph-1280-light.png`, `graph-1280-dark.png`, `graph-390-light.png`, `graph-390-dark.png` |
 | Fork task's details › Links | `task-fork-1280-light.png` |
 
-Owner screenshot approval: **pending**.
+Owner screenshot approval: **approved** (relayed by the conductor, 2026-11-18).
+
+Follow-up, 2026-11-18: the first `graph-390-*.png` were byte copies of
+`task-held-390-*.png`. At 390 px the earlier task drawer was still open when
+O was pressed, so no Graph modal opened. They were reshot from a fresh page:
+the spec's Focus tree by its deep link, O on the `…-1.1.2` card, then the
+Links tab. The Graph page was behind the drawer, and no drawer was open
+before O. At 390 px the Graph opens the same task view as task details.
 
 ## Noted, not fixed
 
+- **Task Files box.** In the `task-held-*` and earlier Graph shots, the
+  task drawer's Files box still says "Reading the task's branch…". The shot
+  was taken about 2 seconds after the Links tab opened, before that read
+  came back. In the 390 Graph reshoot, taken later, the same box shows
+  "2 files changed · +2 −0". No wrong state, but the box gives no sign of
+  progress while it reads. Follow-up: show its age or a spinner, or have
+  shots wait for it.
 - **Spec panel layout.** In the spec panel's Links column at 1280, a
   two-digit PR number wraps one character per line (`#1` / `2`).
 - **Driver label.** The spec header says "Driver: nobody" for both specs,
