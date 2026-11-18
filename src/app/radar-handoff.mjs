@@ -123,7 +123,7 @@ export async function readCrews(reader, repository) {
       repository,
       available: false,
       reason:
-        "Avoozl can read Issue Radar's crews only inside Kiro Crew. Type the label the crew watches.",
+        "Needs Kiro Crew: Avoozl can read Issue Radar's crews only inside Kiro Crew. Type the label the crew watches.",
       crews: [],
       needsHumanLabel: null,
     };
