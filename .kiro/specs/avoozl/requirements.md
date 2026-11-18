@@ -4085,7 +4085,9 @@ pressing merge.
 1. Each repository SHALL have one landing block,
    `github.repositories.<owner/name>.landing`, edited in one place,
    Settings › Repository setup › Edit › Landing: `mode` (`direct`, `pr`,
-   `train` or `off`), `autoMerge` (Requirement 80, default `true`) and
+   `train` or `off`; `train` is to be retired into `direct` by the
+   `merge-batches` spec, which replaced the deleted `landing-trains` spec on
+   2026-11-18), `autoMerge` (Requirement 80, default `true`) and
    `method` (`squash` or `merge`, default `squash`, RC28.7). The default
    mode SHALL be `off` until Set up (Requirement 89) writes another. Under
    `off` Avoozl SHALL push nothing and SHALL list the verified commit in
@@ -5527,8 +5529,8 @@ handoff without my tuning a batch size.
    checks and review once on the last commit, and on failure a split in
    which each task retries alone at no attempt cost and is not batched
    again in that delivery.
-7. Batching SHALL add no landing step. Landing trains (the
-   `landing-trains` spec) test once on landing and find a culprit there;
+7. Batching SHALL add no landing step. Merge batches (the
+   `merge-batches` spec) test once on landing and find a culprit there;
    a batch's commits land through the repository's landing like any other.
 8. Batching SHALL have no setting. `flow.batch` SHALL NOT be a Flow key,
    Settings > Flow SHALL have no Batching section, the Flow settings
