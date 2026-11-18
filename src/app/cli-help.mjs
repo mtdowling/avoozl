@@ -6,6 +6,16 @@
 
 import { TAGLINE } from "../work-split.mjs";
 
+// The tagline as the help's heading, wrapped to a terminal's 80 columns.
+const WIDTH = 80;
+const HEADING = TAGLINE.split(" ").reduce((lines, word) => {
+  const last = lines.at(-1);
+  if (last && (last + " " + word).length <= WIDTH)
+    lines[lines.length - 1] = last + " " + word;
+  else lines.push(word);
+  return lines;
+}, []);
+
 // The one name the help and error text use for the program.
 export const PROGRAM = "avoozl";
 
@@ -546,7 +556,7 @@ function overview() {
     width = Math.max(...first.map((e) => e.usage.length)) + 2,
     pad = Math.max(...HELP_GROUPS.map((group) => group.id.length)) + 2;
   return [
-    TAGLINE,
+    ...HEADING,
     "",
     `Usage: ${PROGRAM} COMMAND [ARGUMENTS] [--workspace PATH]`,
     "",
@@ -581,7 +591,7 @@ export function helpText(topic) {
   if (topic === undefined || topic === null || topic === "") return overview();
   if (topic === "all")
     return [
-      TAGLINE,
+      ...HEADING,
       "",
       ...HELP_GROUPS.flatMap((group) => [groupPage(group), ""]),
       OPTIONS,
