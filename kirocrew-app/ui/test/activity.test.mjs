@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { ACTIVITY_FILTER_STORE, filterActive, filterChoices, retentionAutosave, retentionInput, rowTarget } from '../src/activity-api.ts'
+import { ACTIVITY_FILTER_STORE, filterActive, filterChoices, githubItem, retentionAutosave, retentionInput, rowTarget } from '../src/activity-api.ts'
 import { PAGE } from '../src/paging.ts'
 
 const src = new URL('../src/', import.meta.url)
@@ -145,4 +145,16 @@ test('Keep activity has no Save button and saves on blur and Enter', () => {
   assert.match(keep, /event\.key === 'Enter'/)
   assert.match(keep, /'Saving…'/)
   assert.match(keep, /'Saved'/)
+})
+
+test('a GitHub intake row links owner/repo#N to the item, from stored data', () => {
+  const github = (extra = {}) => row({ source: 'github', kind: 'intake.item', summary: 'New pr nupp-lang/foo#12 from github', ...extra })
+  assert.deepEqual(githubItem(github()), { before: 'New pr ', text: 'nupp-lang/foo#12', after: ' from github', href: 'https://github.com/nupp-lang/foo/pull/12' })
+  assert.equal(githubItem(github({ summary: 'New issue nupp-lang/foo#3 from github' })).href, 'https://github.com/nupp-lang/foo/issues/3')
+  // The stored link wins; an unsafe one is ignored.
+  assert.equal(githubItem(github({ link: 'https://ghe.example/nupp-lang/foo/pull/12' })).href, 'https://ghe.example/nupp-lang/foo/pull/12')
+  assert.equal(githubItem(github({ link: 'javascript:alert(1)' })).href, 'https://github.com/nupp-lang/foo/pull/12')
+  assert.equal(githubItem(github({ source: 'plugin' })), null)
+  assert.equal(githubItem(github({ redacted: true })), null)
+  assert.match(source('ActivityView.tsx'), /<a href=\{item\.href\} target="_blank" rel="noopener noreferrer"/)
 })

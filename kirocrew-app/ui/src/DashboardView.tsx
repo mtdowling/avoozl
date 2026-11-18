@@ -255,7 +255,7 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
 
 // Copy a `process` session's attach command (R98.1). The command shows in
 // the tooltip, so a person reads what they copy.
-function CopyAttach({ command, title }: { command: string; title: string }) {
+export function CopyAttach({ command, title }: { command: string; title: string }) {
   const [copied, setCopied] = useState(false)
   return (
     <Tooltip text={command}>

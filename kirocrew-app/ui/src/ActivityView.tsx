@@ -26,6 +26,7 @@ import {
   activityClient,
   filterActive,
   filterChoices,
+  githubItem,
   retentionAutosave,
   retentionInput,
   rowTarget,
@@ -51,6 +52,17 @@ function Summary({ row }: { row: ActivityRow }) {
       <span className="inline-flex flex-wrap items-center gap-1.5" data-activity-redacted>
         <Badge variant="warning">Redacted</Badge>
         <span className="text-muted">{row.summary}</span>
+      </span>
+    )
+  const item = githubItem(row)
+  if (item)
+    return (
+      <span style={{ overflowWrap: 'anywhere' }}>
+        {item.before}
+        <a href={item.href} target="_blank" rel="noopener noreferrer" className="underline" data-activity-item>
+          {item.text}
+        </a>
+        {item.after}
       </span>
     )
   return <span style={{ overflowWrap: 'anywhere' }}>{row.summary}</span>

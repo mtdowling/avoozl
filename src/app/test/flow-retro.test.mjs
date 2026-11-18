@@ -232,8 +232,12 @@ test("a retro that times out or answers nothing valid is recorded failed", async
   s.finish(s.ids);
   const now = Date.parse("2026-11-12T16:00:00Z");
   retroStep(s.store, {}, { now, repository: "app" });
-  retroStep(s.store, {}, { now: now + 11 * 60_000 });
-  assert.match(s.store.get("flow_retros", "retro-1").error, /timed out/);
+  for (const minutes of [4, 8, 12])
+    retroStep(s.store, {}, { now: now + minutes * 60_000 });
+  assert.match(
+    s.store.get("flow_retros", "retro-1").error,
+    /never started.*12 minutes/,
+  );
   s.store.put("flow_retros", {
     id: "retro-9",
     state: "running",
