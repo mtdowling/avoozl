@@ -3,7 +3,7 @@
 Status: Draft
 
 The work happens on a long-lived integration branch named in
-`avoozl/manifest.json` (`integrationBranch`, `rewrite/my-epic` here; rename it). Avoozl creates no branch: create
+the `tasks.md` front-matter (`integrationBranch: rewrite/my-epic` here; rename it). Avoozl creates no branch: create
 it on GitHub and protect it first. Every task opens its pull request against
 that branch. The default branch is merged into it on the schedule in
 `integrationSync` (weekly, daily or off) as a merge commit, never a rebase.

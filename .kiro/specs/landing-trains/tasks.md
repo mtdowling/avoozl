@@ -8,7 +8,7 @@ checks: npm test, git diff --check
 Status: Draft
 
 Grouped into a first cut (Phases 1 to 7) and later phases (Phases 8 to 11).
-Explicit `after` lists and the manifest's `requires` govern execution; phase
+Explicit `after` lists and each task's `after` fact govern execution; phase
 numbers alone do not impose a dependency. Each phase that can be shown end to
 end ends with a proof. Requirement numbers are in brackets (`LT1` to `LT16`,
 in `requirements.md`); `D` sections refer to this spec's `design.md`, `R`
@@ -35,7 +35,7 @@ schema and to `validateTrains`. The new code lives in
 
 This spec is a draft. Approving it, creating issues and starting agents are
 separate acts. Task IDs start with `lt-` so they never collide with the IDs of
-the other specs. The entry marked `"manual": true` in the manifest waits for a
+the other specs. The task whose facts say `manual: true` waits for a
 person.
 
 ## First cut

@@ -19,7 +19,7 @@ counter (RC29), release ranking (RC31) and build receipts (RC32). This file
 is kept as the record; it is not deleted.
 
 Ordered by phase. Each phase ends with a proof; a phase starts after the
-proofs it depends on pass (the edges in `avoozl/manifest.json` say which).
+proofs it depends on pass (each task's `after` fact says which).
 Requirement numbers are in brackets (`RC1` to `RC12`, in `requirements.md`);
 section numbers (`D1` to `D17`) refer to `design.md`.
 
@@ -31,8 +31,9 @@ repository (AGENTS.md); no force push; land by task branch, pull request and
 
 This spec is a draft. Approving it, creating issues and starting agents are
 separate acts. Task IDs start with `rc-` so they never collide with the IDs of
-`.kiro/specs/avoozl/`. Entries marked `"manual": true` in the manifest wait for
-a person.
+`.kiro/specs/avoozl/`. Tasks whose facts say `manual: true` wait for
+a person. Completed tasks name `avoozl/manifest.json` as built then; task
+facts live in `tasks.md` since avoozl Requirement 111.
 
 Phases 13 to 19 add the work split, the coder plug, the remote coder,
 integration branches, epic types, approval on the issue and the claim at
@@ -1184,6 +1185,66 @@ Requirement RC22. A display in Settings of how work flows for each repository, r
   - Draws the model with theme variables, wrapping at 320 px; a value jumps to its field, opening the sub-tab and any fold; a page test renders three configs and checks the label names shown match the config.
   - Done when: The page test passes for issue-radar single repository, plans-repository mode and Local only; a jump focuses its field; `npm run test:ui` passes.
 
+## Phase 22: Tracker gates
+
+Requirement RC23. A task that waits on an outside tracker item, with a label and a plugin that reads the item.
+
+- [x] rc-22.1 The gate node: `completion: "tracker"`, the tracker reference, lint and approval checks, after rc-1.1, rc-4.1 [RC23.1, RC23.2, RC23.3] (§D28)
+  - Facts:
+    - summary: The gate node: `completion: "tracker"`, tracker reference, lint and approval checks. See RC23.1, RC23.2, RC23.3; §D28.
+    - done:
+      - A good gate lints; each bad gate is refused naming the task; a dependent is not released while the gate is open; a gate is never handed to a coder or batched; `npm test` passes.
+    - checks: npm test, git diff --check
+    - after: rc-1.1, rc-4.1
+  - The manifest and plan-quality accept `tracker: { plugin, item, done }` and refuse a missing part, an empty `done` or an unknown plugin id naming the task; release treats an open, failed or unknown gate as an unmet blocker and a done or cleared one as met at merged and integrated levels; the coder adapter and batching skip gates; the issue is projected with no ready label; `src/app/test/tracker-gate-node.test.mjs`.
+  - Done when: Unit tests: a good gate lints; each bad gate is refused naming the task; a dependent is not released while the gate is open; a gate is never handed to a coder or put in a batch; `npm test` passes.
+- [x] rc-22.2 The `gate` plugin part and the tick step with backoff, after rc-22.1 [RC23.6, RC23.7, RC23.8, RC23.13] (§D28)
+  - Facts:
+    - summary: The `gate` plugin part and the tick step with backoff. See RC23.6, RC23.7, RC23.8, RC23.13; §D28.
+    - done:
+      - A fake plugin shows the backoff and reset; a throwing plugin gives unknown; done releases on the same pass and is never reversed; no token field in the settings schema.
+    - checks: npm test, git diff --check
+    - after: rc-22.1
+  - `gate` joins docs/plugins.md and the plugin loader with one read-only `status`; `gateStep` calls it under a timeout, stores state, evidence and link after content rules, and sets the next check (1, 2, 5, 15, then 30 minutes); a throw, timeout or bad shape is `unknown`; `done` is recorded once and never reversed; no credential is read from or written to `.avoozl.json`; `src/app/test/tracker-gate-step.test.mjs`.
+  - Done when: A fake plugin test shows the backoff gaps and the reset on a change; a throwing plugin gives `unknown`; a `done` releases the dependent on the same pass and a later `open` read leaves it released with one Trace note; a screen hit stores the withheld text; a grep test finds no token field in the settings schema.
+- [x] rc-22.3 The waiting label setting and its writes, after rc-22.1, rc-20.1 [RC23.4, RC23.5, RC23.13] (§D28)
+  - Facts:
+    - summary: The waiting label setting and its writes. See RC23.4, RC23.5, RC23.13; §D28.
+    - done:
+      - The label is on the gate and gate-only dependents, kept on failed and unknown, removed on done or cleared, written once across three ticks; a clash is refused naming both; the UI test shows the field.
+    - checks: npm test, git diff --check
+    - after: rc-22.1, rc-20.1
+  - `radar.trackerLabel` with default `avoozl:waiting-on-tracker` joins the label table, the clash check, Settings and Set up's label step; the tick adds the label to the gate issue and to dependents held only by gates, and removes it on done, cleared or removal from the plan; `src/app/test/tracker-gate-label.test.mjs`, `kirocrew-app/ui/test/tracker-label.test.mjs`.
+  - Done when: Fake-GitHub tests: the label is on the gate and its gate-only dependents, off a dependent that has another unmet blocker, kept on failed and unknown, removed on done, and written once across three ticks; a label equal to another managed label is refused naming both; the UI test shows the field with its default.
+- [x] rc-22.4 Needs you row and the person's clear as an order, after rc-22.2, rc-22.3, rc-4.2 [RC23.9, RC23.10, RC23.13] (§D28)
+  - Facts:
+    - summary: Needs you row and the person's clear as an order. See RC23.9, RC23.10, RC23.13; §D28.
+    - done:
+      - A failed gate gives one row across three ticks and releases nothing; an allowed clear is an order, not verified completion; a stranger's clear is reverted; a later done adds evidence only.
+    - checks: npm test, git diff --check
+    - after: rc-22.2, rc-22.3, rc-4.2
+  - One row for a failed gate or two unknown reads, never cleared by Avoozl; a clear by label removal, command, MCP call or control passes the trigger-label check and is recorded as an order with who, how, time, reason and last known state; the brief of each released dependent says the gate was cleared by a person; a stranger's removal is reverted with one row; `src/app/test/tracker-gate-clear.test.mjs`.
+  - Done when: Fake tests: a failed gate gives one row across three ticks and releases nothing; an allowed clear releases the dependent and is not counted as verified completion; a stranger's clear is reverted; a later `done` adds evidence only; a second clear records nothing new.
+- [x] rc-22.5 Gate rows in Release queue, Trace and Waiting on you, plus the CLI and MCP reads, after rc-22.4, rc-8.2 [RC23.11, RC23.12] (§D28)
+  - Facts:
+    - summary: Gate rows in Release queue, Trace and Waiting on you, plus CLI and MCP reads. See RC23.11, RC23.12; §D28.
+    - done:
+      - The UI test renders open, failed and cleared gates at 320 px and checks the Waiting on you filter; the CLI read matches; the release scan is clean.
+    - checks: npm test, npm run test:ui, git diff --check
+    - after: rc-22.4, rc-8.2
+  - Release queue and Trace show tracker, state word, last and next check, evidence, link and Clear; Waiting on you lists only failed or twice-unknown gates; `avoozl gate list` and the MCP read return the same rows; docs describe the three example roles by role only; the release scan stays clean; `kirocrew-app/ui/test/tracker-gates.test.mjs`.
+  - Done when: The UI test renders an open, a failed and a cleared gate and checks the fields and the Waiting on you filter at 320 px; the CLI read matches the page; `node scripts/release-scan.mjs` is clean.
+- [x] rc-p22 Proof 22: a gate with a fake plugin, after rc-22.1, rc-22.2, rc-22.3, rc-22.4, rc-22.5 [RC23] (§D28)
+  - Facts:
+    - summary: Proof 22: a gate with a fake plugin. See RC23; §D28.
+    - done:
+      - Expected result observed with the fake plugin; receipt under `docs/evidence/`.
+    - checks: npm test, git diff --check
+    - after: rc-22.1, rc-22.2, rc-22.3, rc-22.4, rc-22.5
+  - Setup: a scratch repository, an approved spec with a gate and one dependent, and a fake `gate` plugin whose answer the test sets. Action: let the plugin say `open`, then `unknown` twice, then `failed`, then `done`; in a second run clear the gate as an allowed person and as a stranger. Expected: the label sits on the gate and the dependent; nothing is released until `done`; one Needs you row appears for the failed state and closes on `done`; the dependent is then released and the labels removed; an allowed clear releases the dependent as an order and a stranger's clear is reverted. Failure means: a dependent can run while its outside item is not done, or a failed gate can clear itself. Next decision: make every gate a manual task.
+  - Done when: Expected result observed with the fake plugin; receipt under `docs/evidence/`.
+  - Live run passed 2026-11-15 on a private scratch repository; receipt `docs/evidence/rc-proof-22-live.md`. It found a Release queue view bug, fixed in PR #230.
+
 ## Phase 23: Mirror repositories
 
 Requirement RC24. Crews work a private mirror of a public repository; Avoozl syncs it, tracks merged crew PRs, and forwards them to the public repository under a person's name.
@@ -1252,66 +1313,6 @@ Requirement RC24. Crews work a private mirror of a public repository; Avoozl syn
   - Setup: two scratch repositories under `mtdowling`, created only for the proof: a public-visibility stand-in as source and a private mirror seeded as a full copy. Action: sync, merge a crew PR in the mirror, forward in nudge mode, merge the public PR; then plant a private term and try again. Expected: the public merge completes the task; the planted term blocks the push with one row. Failure means: private text can reach the public repository. Next decision: keep `forward` at `nudge` and add a second scan layer. List both scratch repositories in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
   - Live run passed on 2026-11-15 after the fixes of #218; receipt `docs/evidence/rc-proof-23-live.md`.
-## Phase 22: Tracker gates
-
-Requirement RC23. A task that waits on an outside tracker item, with a label and a plugin that reads the item.
-
-- [x] rc-22.1 The gate node: `completion: "tracker"`, the tracker reference, lint and approval checks, after rc-1.1, rc-4.1 [RC23.1, RC23.2, RC23.3] (§D28)
-  - Facts:
-    - summary: The gate node: `completion: "tracker"`, tracker reference, lint and approval checks. See RC23.1, RC23.2, RC23.3; §D28.
-    - done:
-      - A good gate lints; each bad gate is refused naming the task; a dependent is not released while the gate is open; a gate is never handed to a coder or batched; `npm test` passes.
-    - checks: npm test, git diff --check
-    - after: rc-1.1, rc-4.1
-  - The manifest and plan-quality accept `tracker: { plugin, item, done }` and refuse a missing part, an empty `done` or an unknown plugin id naming the task; release treats an open, failed or unknown gate as an unmet blocker and a done or cleared one as met at merged and integrated levels; the coder adapter and batching skip gates; the issue is projected with no ready label; `src/app/test/tracker-gate-node.test.mjs`.
-  - Done when: Unit tests: a good gate lints; each bad gate is refused naming the task; a dependent is not released while the gate is open; a gate is never handed to a coder or put in a batch; `npm test` passes.
-- [x] rc-22.2 The `gate` plugin part and the tick step with backoff, after rc-22.1 [RC23.6, RC23.7, RC23.8, RC23.13] (§D28)
-  - Facts:
-    - summary: The `gate` plugin part and the tick step with backoff. See RC23.6, RC23.7, RC23.8, RC23.13; §D28.
-    - done:
-      - A fake plugin shows the backoff and reset; a throwing plugin gives unknown; done releases on the same pass and is never reversed; no token field in the settings schema.
-    - checks: npm test, git diff --check
-    - after: rc-22.1
-  - `gate` joins docs/plugins.md and the plugin loader with one read-only `status`; `gateStep` calls it under a timeout, stores state, evidence and link after content rules, and sets the next check (1, 2, 5, 15, then 30 minutes); a throw, timeout or bad shape is `unknown`; `done` is recorded once and never reversed; no credential is read from or written to `.avoozl.json`; `src/app/test/tracker-gate-step.test.mjs`.
-  - Done when: A fake plugin test shows the backoff gaps and the reset on a change; a throwing plugin gives `unknown`; a `done` releases the dependent on the same pass and a later `open` read leaves it released with one Trace note; a screen hit stores the withheld text; a grep test finds no token field in the settings schema.
-- [x] rc-22.3 The waiting label setting and its writes, after rc-22.1, rc-20.1 [RC23.4, RC23.5, RC23.13] (§D28)
-  - Facts:
-    - summary: The waiting label setting and its writes. See RC23.4, RC23.5, RC23.13; §D28.
-    - done:
-      - The label is on the gate and gate-only dependents, kept on failed and unknown, removed on done or cleared, written once across three ticks; a clash is refused naming both; the UI test shows the field.
-    - checks: npm test, git diff --check
-    - after: rc-22.1, rc-20.1
-  - `radar.trackerLabel` with default `avoozl:waiting-on-tracker` joins the label table, the clash check, Settings and Set up's label step; the tick adds the label to the gate issue and to dependents held only by gates, and removes it on done, cleared or removal from the plan; `src/app/test/tracker-gate-label.test.mjs`, `kirocrew-app/ui/test/tracker-label.test.mjs`.
-  - Done when: Fake-GitHub tests: the label is on the gate and its gate-only dependents, off a dependent that has another unmet blocker, kept on failed and unknown, removed on done, and written once across three ticks; a label equal to another managed label is refused naming both; the UI test shows the field with its default.
-- [x] rc-22.4 Needs you row and the person's clear as an order, after rc-22.2, rc-22.3, rc-4.2 [RC23.9, RC23.10, RC23.13] (§D28)
-  - Facts:
-    - summary: Needs you row and the person's clear as an order. See RC23.9, RC23.10, RC23.13; §D28.
-    - done:
-      - A failed gate gives one row across three ticks and releases nothing; an allowed clear is an order, not verified completion; a stranger's clear is reverted; a later done adds evidence only.
-    - checks: npm test, git diff --check
-    - after: rc-22.2, rc-22.3, rc-4.2
-  - One row for a failed gate or two unknown reads, never cleared by Avoozl; a clear by label removal, command, MCP call or control passes the trigger-label check and is recorded as an order with who, how, time, reason and last known state; the brief of each released dependent says the gate was cleared by a person; a stranger's removal is reverted with one row; `src/app/test/tracker-gate-clear.test.mjs`.
-  - Done when: Fake tests: a failed gate gives one row across three ticks and releases nothing; an allowed clear releases the dependent and is not counted as verified completion; a stranger's clear is reverted; a later `done` adds evidence only; a second clear records nothing new.
-- [x] rc-22.5 Gate rows in Release queue, Trace and Waiting on you, plus the CLI and MCP reads, after rc-22.4, rc-8.2 [RC23.11, RC23.12] (§D28)
-  - Facts:
-    - summary: Gate rows in Release queue, Trace and Waiting on you, plus CLI and MCP reads. See RC23.11, RC23.12; §D28.
-    - done:
-      - The UI test renders open, failed and cleared gates at 320 px and checks the Waiting on you filter; the CLI read matches; the release scan is clean.
-    - checks: npm test, npm run test:ui, git diff --check
-    - after: rc-22.4, rc-8.2
-  - Release queue and Trace show tracker, state word, last and next check, evidence, link and Clear; Waiting on you lists only failed or twice-unknown gates; `avoozl gate list` and the MCP read return the same rows; docs describe the three example roles by role only; the release scan stays clean; `kirocrew-app/ui/test/tracker-gates.test.mjs`.
-  - Done when: The UI test renders an open, a failed and a cleared gate and checks the fields and the Waiting on you filter at 320 px; the CLI read matches the page; `node scripts/release-scan.mjs` is clean.
-- [x] rc-p22 Proof 22: a gate with a fake plugin, after rc-22.1, rc-22.2, rc-22.3, rc-22.4, rc-22.5 [RC23] (§D28)
-  - Facts:
-    - summary: Proof 22: a gate with a fake plugin. See RC23; §D28.
-    - done:
-      - Expected result observed with the fake plugin; receipt under `docs/evidence/`.
-    - checks: npm test, git diff --check
-    - after: rc-22.1, rc-22.2, rc-22.3, rc-22.4, rc-22.5
-  - Setup: a scratch repository, an approved spec with a gate and one dependent, and a fake `gate` plugin whose answer the test sets. Action: let the plugin say `open`, then `unknown` twice, then `failed`, then `done`; in a second run clear the gate as an allowed person and as a stranger. Expected: the label sits on the gate and the dependent; nothing is released until `done`; one Needs you row appears for the failed state and closes on `done`; the dependent is then released and the labels removed; an allowed clear releases the dependent as an order and a stranger's clear is reverted. Failure means: a dependent can run while its outside item is not done, or a failed gate can clear itself. Next decision: make every gate a manual task.
-  - Done when: Expected result observed with the fake plugin; receipt under `docs/evidence/`.
-  - Live run passed 2026-11-15 on a private scratch repository; receipt `docs/evidence/rc-proof-22-live.md`. It found a Release queue view bug, fixed in PR #230.
-
 ## Phase 24: Private plans on an orphan branch
 
 Requirement RC25. Private plans live on an orphan branch of the mirror and never leave it; public plans stay on the default branch.
