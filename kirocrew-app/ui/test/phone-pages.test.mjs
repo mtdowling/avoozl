@@ -89,8 +89,8 @@ for (const dark of [false, true]) {
     assert.equal(await has('[data-detail-bar]'), true)
     await back()
     assert.equal(await has('[data-conflict-list]'), true, 'Back returns to the list')
-    await pickPage('[data-nav-item="waiting/intake"]', 390)
-    assert.equal(await has('[data-waiting-section="intake"][data-open="true"]'), true)
+    await pickPage('[data-nav-item="waiting/triage"]', 390)
+    assert.equal(await has('[data-waiting-section="triage"][data-open="true"]'), true)
   })
 
   test(`Specs on a phone: the list, then one spec whose Back shares a row with the compact title (${theme})`, { skip }, async () => {
