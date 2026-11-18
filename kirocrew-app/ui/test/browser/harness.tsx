@@ -275,7 +275,7 @@ const shown = (dialog: (close: () => void) => ReactNode): Scenario => ({
 // A dialog that asks before it discards edits (Modal's `unsaved`).
 const repoEdit = (edited: boolean) =>
   shown((close) => (
-    <Modal id="avoozl-repo-edit" width="46rem" title="avoozl" unsaved={edited && { title: 'Discard your changes to avoozl?', body: 'Every edit in this dialog is lost.', action: 'Discard changes' }} onDismiss={close}>
+    <Modal id="avoozl-repo-edit" dismissLabel="Cancel" width="46rem" title="avoozl" unsaved={edited && { title: 'Discard your changes to avoozl?', body: 'Every edit in this dialog is lost.', action: 'Discard changes' }} onDismiss={close}>
       <label className="flex flex-col gap-1 text-sm">
         Base branch
         <input defaultValue="main" className="rounded border px-2 py-1" />
@@ -1039,14 +1039,18 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
     mk('pantry.1', 'Shelf list', 'acme/pantry', 'pantry', '14', { queued: 6 * min, coding: 20 * min, review: 15 * min }),
   ]
   const retros = [
-    { id: 'retro-2', n: 2, state: 'done', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-16T12:00:00Z', finishedAt: '2026-11-16T12:09:00Z', model: 'claude-sonnet', bottleneck: { stage: 'ci-wait', repository: 'acme/recipe-box', evidence: 'CI wait was 58% of lead time over 8 tasks.' }, dropped: [], proposals: [
+    { id: 'retro-2', n: 2, state: 'done', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-16T12:00:00Z', finishedAt: '2026-11-16T12:09:00Z', model: 'claude-sonnet', chat: { slot: 'avoozl_retro_2', executor: 'kirocrew', harness: null, status: 'idle', link: '/chat?sid=avoozl_retro_2' }, bottleneck: { stage: 'ci-wait', repository: 'acme/recipe-box', evidence: 'CI wait was 58% of lead time over 8 tasks.' }, dropped: [], proposals: [
       { id: 'p1', type: 'settings', file: 'workspace', key: 'flow.batch.max', from: 3, to: 5, metric: 'lead time', direction: 'down', evidence: 'Batches of 3 waited on CI 6 times.', status: 'open' },
       { id: 'p2', type: 'prompt', target: 'worker', section: 'Checks', diff: '@@ -1,2 +1,2 @@\n Run the checks.\n-Run all tests.\n+Run the tests you touched first.', metric: 'first-pass rate', direction: 'up', evidence: 'Two reviews asked for narrower runs.', status: 'open' },
     ] },
+    { id: 'retro-4', n: 4, state: 'failed', failure: 'no-reply', waitedMs: 11 * min, error: 'the chat started but never replied (waited 11 minutes)', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-17T09:00:00Z', finishedAt: '2026-11-17T09:11:00Z', bottleneck: null, dropped: [], proposals: [],
+      chat: { slot: 'avoozl_retro_4', executor: 'process', harness: 'claude-code', status: 'closed', link: null, process: { state: 'exited', logTail: 'reading the window\nwriting the reply\nerror: the model call was cut off', attach: 'tail -n 20 -f /tmp/avoozl/retro-4.log' } } },
+    { id: 'retro-3', n: 3, state: 'failed', failure: 'lost', waitedMs: 11 * min, error: 'the chat was lost: Kiro Crew no longer lists it (waited 11 minutes)', triggers: [{ kind: 'manual', detail: 'started by hand' }], startedAt: '2026-11-16T20:00:00Z', finishedAt: '2026-11-16T20:11:00Z', bottleneck: null, dropped: [], proposals: [],
+      chat: { slot: 'avoozl_retro_3', executor: 'kirocrew', harness: null, status: 'gone', link: '/chat?sid=avoozl_retro_3' } },
     { id: 'retro-1', n: 1, state: 'done', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-12T12:00:00Z', finishedAt: '2026-11-12T12:08:00Z', bottleneck: null, dropped: [], proposals: [
       { id: 'p1', type: 'rule', text: 'Name the spec in every commit message.', metric: 'corrections', direction: 'down', evidence: { runs: ['search.1', 'search.2'], value: 2, effect: 'corrections' }, status: 'approved' },
     ] },
-  ]
+  ].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))
   answer('radar.flow', () => ({ readAt: null, count: 0, issues: [], skipped: [], median: null, medianLead: null, efficiency: null, bottleneck: null, errors: [], repositories: [] }))
   answer('flow.view', (body) => {
     const input = ((body as { input?: Record<string, string> }).input ?? {}) as Record<string, string>
@@ -1067,6 +1071,7 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
   }))
   answer('flow.settings.get', () => ({ filename: '.avoozl.json', exists: true, hash: 'h', flow: {}, repositories: {}, instructions: '', retroPrompt: null, ciClassGlobs: {} }))
   answer('flow.retro.decide', () => ({ ok: true }))
+  answer('flow.retro.again', () => ({ queued: true }))
 }
 // ?page=demo: the whole page, where Start demo opens the sample. Calls
 // for the sample answer from window.__DEMO (demo-replies.mjs, built from
@@ -1374,6 +1379,12 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
     const seq = 24 - at
     return { seq, at: new Date(Date.parse('2026-11-13T10:00:00Z') - at * 3600e3).toISOString(), source: sources[at % 4], actor: actors[(at * 3) % 4], kind: kinds[at % kinds.length], summary: `${kinds[at % kinds.length]} entry ${seq}`, targetId: null, link: null, redacted: false }
   })
+  // New items from GitHub: the owner/repo#N text links to the item.
+  if (query.get('ghitems') === '1') {
+    base[1] = { ...base[1], source: 'github', kind: 'intake.item', summary: 'New pr nupp-lang/foo#12 from github', link: null }
+    base[5] = { ...base[5], source: 'github', kind: 'intake.item', summary: 'New issue nupp-lang/bar#7 from github', link: 'https://github.com/nupp-lang/bar/issues/7' }
+    kinds.push('intake.item')
+  }
   // The tick's own rows: a failure with a count, a stall and a recovery.
   const tickRow = (seq: number, hours: number, kind: string, summary: string) => ({ seq, at: new Date(Date.parse('2026-11-13T10:00:00Z') + hours * 3600e3).toISOString(), source: 'tick', actor: 'avoozl', kind, summary, targetId: null, link: null, redacted: false })
   const all = [

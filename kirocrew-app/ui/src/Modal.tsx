@@ -9,7 +9,8 @@
 // Every dialog has Issue Radar's Add crew layout: a fixed header with the
 // title and a Close button over a divider, a body that scrolls on its own,
 // and a fixed footer (a darker surface, a divider above it) whose buttons sit
-// at the right, Close always last. There are no side panels: every modal
+// at the right: the dismiss button (Cancel or Close), then the main action.
+// There are no side panels: every modal
 // is centered, and full screen on a phone.
 import { createContext, useCallback, useContext, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
@@ -18,7 +19,7 @@ import { trapStep } from './focus-trap.ts'
 import { APP_ATTR, useBackStep } from './NavHistory.tsx'
 import { useConfirm, type ConfirmCopy } from './controls.tsx'
 import { X } from './icons.ts'
-import { Btn } from '@kirocrew/app-sdk/ui'
+import { Button } from './Button.tsx'
 import type { StepKind } from './nav-history.ts'
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
@@ -65,8 +66,12 @@ export function Modal(props: {
   // The header's title, and the footer's buttons (Cancel, then the primary
   // one at the far right).
   title: ReactNode
-  // The footer's own actions; Close is always added at the far right.
+  // The footer's own actions; the dismiss button is always added after them.
   footer?: ReactNode
+  // The dismiss button's label: 'Cancel' in a modal that edits or confirms,
+  // 'Close' in one that only shows. The footer's main action is a
+  // variant="primary" (or "danger") Button and sits at the far right.
+  dismissLabel?: 'Close' | 'Cancel'
   // Focus starts on Close (a safe button beside a red one).
   focusClose?: boolean
   // The box's largest width, and a fixed height when the content wants one;
@@ -187,10 +192,10 @@ export function Modal(props: {
               {props.children}
             </div>
             <div data-modal-footer style={{ display: 'flex', flexShrink: 0, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '12px 20px', borderTop: DIVIDER, background: 'var(--bg-accent, var(--bg-elevated))' }}>
+              <Button type="button" data-modal-footer-close data-autofocus={props.focusClose ? true : undefined} onClick={dismiss}>
+                {props.dismissLabel ?? 'Close'}
+              </Button>
               {props.footer}
-              <Btn type="button" data-modal-footer-close data-autofocus={props.focusClose ? true : undefined} onClick={dismiss}>
-                Close
-              </Btn>
             </div>
           </PortalTarget.Provider>
         </div>

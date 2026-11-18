@@ -37,10 +37,9 @@ test('every spec is in one list: name, status chip, task count, epic and where i
   assert.doesNotMatch(plans, /data-plan-group|EpicsView/)
 })
 
-test('the plan view keeps its details in a panel under the specs list', () => {
-  // A desktop docks it in the list column; a phone stacks it under the spec.
-  assert.match(plans, /<SpecDetailsPanel phone=\{false\} content=\{specList\}>/)
-  assert.match(plans, /<SpecDetailsPanel phone content=\{specContent\}>/)
+test('the plan view has no details panel in the list column; its details are a box on the Overview tab', () => {
+  assert.doesNotMatch(plans, /SpecDetailsPanel/)
+  assert.match(plans, /<SpecDetailsBox>\{specRail\}<\/SpecDetailsBox>/)
   assert.match(plans, /fill=\{Boolean\(row\) && !reviewing\}/)
   assert.doesNotMatch(plans, /useStickyHeight|useRailWidth|SPEC_RAIL/)
 })

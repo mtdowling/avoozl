@@ -17,7 +17,8 @@ import {
   type Repository,
   type WorkspaceList,
 } from './workspace-api'
-import { SectionHeading, dangerStyle } from './controls.tsx'
+import { SectionHeading } from './controls.tsx'
+import { Button } from './Button.tsx'
 import { FormSection } from './FormSection.tsx'
 import { Modal } from './Modal.tsx'
 import { Pencil, Plus, Trash2 } from './icons.ts'
@@ -252,6 +253,7 @@ export default function WorkspaceView(
           width="36rem"
           title="Add a workspace"
           backLabel="Cancel"
+          dismissLabel="Cancel"
           describedBy="avoozl-ws-add-line"
           attrs={{ 'data-add-workspace-modal': true }}
           unsaved={Boolean(draft.id || draft.root || draft.name) && { title: 'Discard this workspace?', body: 'What you entered is lost.', action: 'Discard' }}
@@ -324,6 +326,7 @@ export default function WorkspaceView(
           width="40rem"
           title={`Edit ${current.name}`}
           backLabel="Close"
+          dismissLabel="Cancel"
           focusClose
           describedBy="avoozl-ws-edit-line"
           attrs={{ 'data-edit-workspace-modal': true }}
@@ -332,10 +335,10 @@ export default function WorkspaceView(
           footer={
             <>
               {/* Remove sits at the footer's left, red; it asks first. */}
-              <Btn type="button" data-remove-workspace onClick={() => setDialog({ remove: current.id })} disabled={busy} style={{ ...dangerStyle, marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Button type="button" variant="danger" data-remove-workspace onClick={() => setDialog({ remove: current.id })} disabled={busy} style={{ order: -1, marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <Trash2 size={14} aria-hidden="true" />
                 Remove
-              </Btn>
+              </Button>
               <Btn type="submit" form="avoozl-ws-edit-form" primary data-edit-save disabled={busy || !editCheck.change || Boolean(editCheck.error)}>
                 Save
               </Btn>
@@ -394,6 +397,7 @@ export default function WorkspaceView(
           width="32rem"
           title={`Remove ${removing.name} from Avoozl?`}
           backLabel="Cancel"
+          dismissLabel="Cancel"
           focusClose
           describedBy="avoozl-ws-remove-lines"
           attrs={{ 'data-remove-workspace-confirm': true }}
@@ -409,9 +413,9 @@ export default function WorkspaceView(
                   )}
                 </Tooltip>
               )}
-              <Btn type="button" data-danger data-remove-confirm disabled={busy} onClick={() => void removeWorkspace(removing, false)} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
+              <Button type="button" variant="danger" data-remove-confirm disabled={busy} onClick={() => void removeWorkspace(removing, false)}>
                 Remove from list
-              </Btn>
+              </Button>
             </>
           }
         >

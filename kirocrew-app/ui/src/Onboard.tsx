@@ -373,6 +373,7 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
       id="avoozl-onboard"
       width="44rem"
       backLabel="Cancel"
+      dismissLabel="Cancel"
       describedBy="avoozl-onboard-line"
       boxRef={box}
       attrs={{ 'data-onboard-dialog': step }}

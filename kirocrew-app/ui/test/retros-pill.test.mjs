@@ -77,8 +77,8 @@ test('Retros is a nav pill after Flow with Retros and Proposals pages, linked bo
   await page.until(`Boolean(document.querySelector('[data-nav-item="retros/proposals"]'))`)
   assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-nav-children="retros"] [data-nav-item]')].map((b) => b.textContent)`), ['Retros', 'Proposals'])
   // Retros: newest first, each with its scope, time and model and its proposals.
-  await page.until(`document.querySelectorAll('[data-retro]').length === 2`)
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-retro]')].map((r) => r.dataset.retro)`), ['retro-2', 'retro-1'])
+  await page.until(`document.querySelectorAll('[data-retro]').length === 4`)
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-retro]')].map((r) => r.dataset.retro)`), ['retro-4', 'retro-3', 'retro-2', 'retro-1'])
   const facts = await text('[data-retro="retro-2"] [data-retro-facts]')
   assert.match(facts, /Scope\s*acme\/recipe-box/)
   assert.match(facts, /Model\s*claude-sonnet/)
@@ -134,4 +134,32 @@ test('Flow nav filters change the charts, and By week still works', { skip }, as
   assert.deepEqual(await bars(), ['search.4', 'search.3'])
   await click(`[role="radio"]:not([aria-checked="true"])`)
   assert.equal(await page.evaluate(`document.querySelector('[role="radiogroup"] [aria-checked="true"]').textContent`), 'By week')
+})
+
+test('Retros show why a retro failed, link its chat, and offer Run again; an old retro says none was recorded', { skip }, async () => {
+  await open()
+  await click('[data-left-nav] [data-nav-group="retros"]')
+  await page.until(`document.querySelectorAll('[data-retro]').length === 4`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-retro="retro-3"] [data-retro-failed]').dataset.retroFailed`), 'lost')
+  assert.match(await text('[data-retro="retro-3"] [data-retro-failed]'), /the chat was lost: Kiro Crew no longer lists it \(waited 11 minutes\)[\s\S]*Run again/)
+  assert.equal(await page.evaluate(`document.querySelector('[data-retro="retro-3"] [data-retro-chat] a').getAttribute('href')`), '/chat?sid=avoozl_retro_3')
+  assert.match(await text('[data-retro="retro-2"] [data-retro-chat]'), /Open chat/)
+  // A process retro shows its log tail and the attach command.
+  assert.match(await text('[data-retro="retro-4"] [data-retro-log]'), /the model call was cut off/)
+  assert.ok(await count('[data-retro="retro-4"] [data-copy-attach]'))
+  assert.equal((await text('[data-retro="retro-1"] [data-retro-chat]')).trim(), 'No chat was recorded for this retro.')
+  assert.equal(await count('[data-retro="retro-2"] [data-retro-failed]'), 0)
+})
+
+test('Activity links owner/repo#N of a GitHub item to GitHub in a new tab', { skip }, async () => {
+  await page.open(harness.url({ page: 'app', radar: '1', activity: '1', ghitems: '1' }), { width: 1280, height: 900, dark: false })
+  await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
+  await wait(1200)
+  await page.evaluate(`[...document.querySelectorAll('[data-left-nav] [data-nav-head]')].find((x) => x.textContent.includes('Activity')).click()`)
+  await page.until(`document.querySelectorAll('[data-activity-item]').length >= 2`)
+  const links = await page.evaluate(`[...document.querySelectorAll('[data-activity-item]')].slice(0, 2).map((a) => [a.textContent, a.href, a.target, a.rel])`)
+  assert.deepEqual(links.sort(), [
+    ['nupp-lang/bar#7', 'https://github.com/nupp-lang/bar/issues/7', '_blank', 'noopener noreferrer'],
+    ['nupp-lang/foo#12', 'https://github.com/nupp-lang/foo/pull/12', '_blank', 'noopener noreferrer'],
+  ])
 })

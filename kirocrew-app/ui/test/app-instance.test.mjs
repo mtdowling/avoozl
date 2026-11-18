@@ -68,12 +68,12 @@ test('the footer pencil opens the modal; Save persists and the footer shows it',
   assert.equal(await page.evaluate(`document.body.innerText.includes('inst-')`), false)
 })
 
-test('an invalid name shows the rule and cannot be saved; Close and Esc change nothing', { skip }, async () => {
+test('an invalid name shows the rule and cannot be saved; Cancel and Esc change nothing', { skip }, async () => {
   await openModal()
   await page.evaluate(type('bad/name'))
   await page.until(`${MODAL}.innerText.includes('1 to 24 letters')`)
   assert.equal(await page.evaluate(`${MODAL}.querySelector('button[type=submit]').disabled`), true)
-  await page.evaluate(`[...${MODAL}.querySelectorAll('[data-modal-footer] button')].find((b) => b.textContent.trim() === 'Close').click()`)
+  await page.evaluate(`[...${MODAL}.querySelectorAll('[data-modal-footer] button')].find((b) => b.textContent.trim() === 'Cancel').click()`)
   await page.until(`!${MODAL}`)
   assert.equal(await page.evaluate(NAME), 'Mira')
   await page.evaluate(`document.querySelector('[data-left-nav] [data-instance-edit]').click()`)
