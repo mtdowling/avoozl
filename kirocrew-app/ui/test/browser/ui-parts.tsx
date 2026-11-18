@@ -2,7 +2,9 @@
 import { createRoot } from 'react-dom/client'
 import { ErrorText } from '../../src/ui/ErrorText.tsx'
 import { Hint } from '../../src/ui/Hint.tsx'
+import { Checkbox } from '../../src/ui/Checkbox.tsx'
 import { Row } from '../../src/ui/Row.tsx'
+import { SelectField } from '../../src/ui/SelectField.tsx'
 import { Stack } from '../../src/ui/Stack.tsx'
 import { TextLink } from '../../src/ui/TextLink.tsx'
 
@@ -27,6 +29,17 @@ createRoot(document.getElementById('root')!).render(
       <span>one</span>
       <span>two</span>
     </Row>
+    <label htmlFor="part-select">
+      Mode
+      <SelectField id="part-select" data-part="select" aria-describedby="part-help" defaultValue="b">
+        <option value="a">A</option>
+        <option value="b">B</option>
+      </SelectField>
+    </label>
+    <span id="part-help">Pick one</span>
+    <label>
+      <Checkbox data-part="checkbox" aria-describedby="part-help" defaultChecked={false} /> Confirm
+    </label>
     <TextLink data-part="link" href="#x">
       A link
     </TextLink>

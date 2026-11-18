@@ -12,13 +12,13 @@ import { Input } from './ui/Input'
 import { Modal } from './Modal.tsx'
 import { FormSection } from './FormSection.tsx'
 import MirrorSetup from './MirrorSetup.tsx'
-import { selectStyle } from './FilterSelect.tsx'
 import { MIRROR_ROLE, MIRROR_ROLE_LABEL, MIRROR_ROLE_LINE, ROLE_OPTIONS, mirrorSourceProblem, type RepositoryEdit, type RepositoryForm } from './settings-api.ts'
 import type { RepositoryRow } from './repository-rows.ts'
 import { linkHref } from './views-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
+import { SelectField } from './ui/SelectField'
 
 // The role select, with the public repository's field under it for a mirror.
 export function RoleChoice(props: {
@@ -42,14 +42,12 @@ export function RoleChoice(props: {
     <div className="flex flex-col gap-1.5" data-role-choice>
       <label htmlFor={`${props.id}-role`} className="flex flex-col gap-1 text-sm">
         <span className={props.titled ? 'sr-only' : 'font-medium'}>Role</span>
-        <select
+        <SelectField
           id={`${props.id}-role`}
           value={role}
           disabled={Boolean(props.fixed)}
           onChange={(event) => props.onChange(event.target.value, source)}
-          aria-label={`Role of ${props.name}`}
-          className="rounded border px-2 py-1 text-sm"
-          style={{ ...selectStyle, maxWidth: '24rem' }}
+          aria-label={`Role of ${props.name}`} look="field" maxWidth="24rem"
         >
           {ROLE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -59,7 +57,7 @@ export function RoleChoice(props: {
           <option value={MIRROR_ROLE} disabled={!props.github}>
             {MIRROR_ROLE_LABEL}
           </option>
-        </select>
+        </SelectField>
       </label>
       {(props.fixed || line) && <Hint size="xs">{props.fixed || line}</Hint>}
       {role === MIRROR_ROLE && props.withSource !== false && (

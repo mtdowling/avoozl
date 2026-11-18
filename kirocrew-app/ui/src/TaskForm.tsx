@@ -26,6 +26,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
+import { SelectField } from './ui/SelectField'
 
 const fieldStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
@@ -73,23 +74,19 @@ function Prerequisites(props: { graph: Graph | null; self: string; value: Prereq
             <span className="min-w-0 flex-1 truncate">
               {titles.get(p.id) ?? p.id} <Hint size="xs">{p.id}</Hint>
             </span>
-            <select
+            <SelectField
               aria-label={`Link kind for ${p.id}`}
               value={p.kind}
-              onChange={(event) => update(i, { kind: event.target.value as Prerequisite['kind'], condition: '' })}
-              className="rounded border px-1 py-0.5 text-xs"
-              style={fieldStyle}
+              onChange={(event) => update(i, { kind: event.target.value as Prerequisite['kind'], condition: '' })} look="tight"
             >
               <option value="requires">needs it done</option>
               <option value="sequence">runs after it</option>
-            </select>
+            </SelectField>
             {p.kind === 'requires' && (
-              <select
+              <SelectField
                 aria-label={`Level for ${p.id}`}
                 value={p.condition}
-                onChange={(event) => update(i, { condition: event.target.value })}
-                className="rounded border px-1 py-0.5 text-xs"
-                style={fieldStyle}
+                onChange={(event) => update(i, { condition: event.target.value })} look="tight"
               >
                 <option value="">its own completion</option>
                 {COMPLETION_LEVELS.map((level) => (
@@ -97,7 +94,7 @@ function Prerequisites(props: { graph: Graph | null; self: string; value: Prereq
                     {level}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             )}
             <Btn onClick={() => props.onChange(props.value.filter((_, at) => at !== i))}>Remove</Btn>
           </li>
@@ -234,12 +231,10 @@ export default function TaskForm(props: {
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field id="avoozl-task-repository" label="Repository">
-          <select
+          <SelectField
             id="avoozl-task-repository"
             value={form.repository}
-            onChange={(event) => set({ repository: event.target.value })}
-            className="rounded border px-2 py-1 text-sm"
-            style={fieldStyle}
+            onChange={(event) => set({ repository: event.target.value })} look="field"
           >
             <option value="">None</option>
             {(graph?.repositories ?? []).map((repository) => (
@@ -247,7 +242,7 @@ export default function TaskForm(props: {
                 {repository}
               </option>
             ))}
-          </select>
+          </SelectField>
         </Field>
       </div>
       <Field id="avoozl-task-acceptance" label="Acceptance" hint="One condition per line.">
