@@ -66,6 +66,65 @@ export interface TaskDetail {
   steps?: TaskStep[]
   // The Timing fold (§8.4): null until the task's first dispatch.
   timing?: TaskTimingDetail | null
+  // The Links box (R92.5, scm-links.mjs): from stored records only; older
+  // backends omit it.
+  links?: TaskScmLinks | null
+}
+
+// One GitHub item a task links to. The backend builds `url` from validated
+// fields only.
+export interface ScmLink {
+  kind: 'issue' | 'pull' | 'branch' | 'commit'
+  repository: string
+  number?: number
+  ref?: string
+  sha?: string
+  url: string
+}
+
+// Check state as last read: `dot` is the state only when `head` is the
+// task's current commit, else 'stale'.
+export interface ScmChecks {
+  state: 'pass' | 'fail' | 'pending'
+  head: string
+  readAt: string | null
+  ageMs: number | null
+  current: boolean
+  dot: 'pass' | 'fail' | 'pending' | 'stale'
+  source: string
+  url: string | null
+}
+
+export interface TaskScmLinks {
+  task: string
+  repository: string | null
+  branch: ScmLink | null
+  // Local only: shown as text, never a link.
+  worktree: { kind: 'worktree'; path: string; local: true } | null
+  head: string | null
+  pr: (ScmLink & { state: 'open' | 'closed' | 'merged' | 'unknown' }) | null
+  checks: ScmChecks | null
+  landed: ScmLink | null
+  issue: ScmLink | null
+  source: ScmLink | null
+}
+
+const CHECK_WORD: Record<ScmChecks['state'], string> = { pass: 'Passed', fail: 'Failed', pending: 'Running' }
+
+// "Passed on 0123456 · 5 min ago". A read for another head says so, so an
+// old head's state never reads as the current one's.
+export function checksLine(checks: ScmChecks, now = Date.now()): string {
+  const age = checks.readAt ? relativeTime(checks.readAt, now) : ''
+  const on = `${CHECK_WORD[checks.state]} on ${checks.head.slice(0, 7)}`
+  const stale = checks.current ? '' : ', not the current head'
+  return [on + stale, age].filter(Boolean).join(' · ')
+}
+
+// What a link shows: owner/name#N, a branch name, or a short SHA.
+export function scmLabel(link: ScmLink): string {
+  if (link.kind === 'branch') return link.ref ?? link.url
+  if (link.kind === 'commit') return (link.sha ?? '').slice(0, 7) || link.url
+  return `${link.repository}#${link.number}`
 }
 
 export interface OriginSource {
