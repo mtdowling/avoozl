@@ -2,6 +2,8 @@
 
 Status: Draft
 
+Status 2026-11-18: see `tasks.md`. Most of the plan is built.
+
 Requirements are in `requirements.md` (AN1 to AN4). This spec adds no design
 of its own. Behavior is defined in `.kiro/specs/radar-coder/design.md`
 (D28 gates, D30 private plans) and `.kiro/specs/avoozl/design.md` (§6.14 public

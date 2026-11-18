@@ -21,26 +21,21 @@ test("push stays on main only, so batch and validate refs start no push run", ()
   assert.doesNotMatch(text, /branches:.*(avoozl-batch|avoozl-validate|\*\*)/);
 });
 
-test("the job name and matrix are unchanged", () => {
-  assert.match(text, /\njobs:\n  test:\n/);
-  assert.match(
-    text,
-    /matrix:\n        os: \[ubuntu-latest, macos-latest, windows-latest\]\n/,
-  );
+test("the required checks keep their names", () => {
+  for (const os of ["ubuntu", "macos", "windows"])
+    assert.match(text, new RegExp(`name: test \\(${os}-latest\\)`));
+  assert.match(text, /\n  plan:\n/);
 });
 
-test("each platform name maps to its runner, and the legs follow the filter", () => {
-  assert.match(text, /ubuntu-latest\) platform=linux-x64 ;;/);
-  assert.match(text, /windows-latest\) platform=windows-x64 ;;/);
-  assert.match(text, /macos-latest\) platform=macos-arm64 ;;/);
-  assert.match(text, /id: leg/);
-  // Everything after the filter is gated on it, through select or directly.
+test("each platform name limits its own system's shards", () => {
+  assert.match(text, /id: legs/);
+  assert.match(text, /if wanted linux-x64; then echo "linux=\$PLAN_LINUX"/);
+  assert.match(text, /if wanted macos-arm64; then echo "macos=\$PLAN_MACOS"/);
   assert.match(
     text,
-    /id: select\n        if: steps\.leg\.outputs\.run == 'true'/,
+    /if wanted windows-x64; then echo "windows=\$PLAN_WINDOWS"/,
   );
-  assert.match(
-    text,
-    /matrix\.os == 'ubuntu-latest' && steps\.leg\.outputs\.run == 'true'/,
-  );
+  assert.match(text, /linux: \$\{\{ steps\.legs\.outputs\.linux \}\}/);
+  assert.match(text, /macos: \$\{\{ steps\.legs\.outputs\.macos \}\}/);
+  assert.match(text, /windows: \$\{\{ steps\.legs\.outputs\.windows \}\}/);
 });

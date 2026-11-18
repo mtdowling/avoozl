@@ -14,6 +14,7 @@
     "workspace": "node cli.mjs",
     "test": "node scripts/run-tests.mjs",
     "test:map": "node scripts/build-test-map.mjs",
+    "test:times": "node scripts/build-test-times.mjs",
     "pretest:ci": "npm run check:agents && npm run build",
     "test:ci": "node scripts/run-tests.mjs --ui",
     "test:changed": "node scripts/run-tests.mjs --changed",

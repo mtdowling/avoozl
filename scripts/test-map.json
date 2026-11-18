@@ -16604,5 +16604,39 @@
    "src/app/test/workflow.test.mjs",
    "src/workbench.test.mjs"
   ]
- }
+ },
+ "osNeutral": [
+  "src/agent-pins.test.mjs",
+  "src/app/test/browser-identity.test.mjs",
+  "src/app/test/coder-adapter.test.mjs",
+  "src/app/test/flow-github.test.mjs",
+  "src/app/test/github-label-behaviors.test.mjs",
+  "src/app/test/release-ranking.test.mjs",
+  "src/app/test/scaling.test.mjs",
+  "src/app/test/text-diff.test.mjs",
+  "src/pan-momentum.test.mjs",
+  "src/web-notifications.test.mjs",
+  "src/workbench.test.mjs",
+  "kirocrew-app/ui/test/conflicts-api.test.mjs",
+  "kirocrew-app/ui/test/content-api.test.mjs",
+  "kirocrew-app/ui/test/dashboard-api.test.mjs",
+  "kirocrew-app/ui/test/epics-api.test.mjs",
+  "kirocrew-app/ui/test/epics.test.mjs",
+  "kirocrew-app/ui/test/github-rate.test.mjs",
+  "kirocrew-app/ui/test/graph-layout.test.mjs",
+  "kirocrew-app/ui/test/home-api.test.mjs",
+  "kirocrew-app/ui/test/home-setup.test.mjs",
+  "kirocrew-app/ui/test/landing-queue-api.test.mjs",
+  "kirocrew-app/ui/test/list-detail.test.mjs",
+  "kirocrew-app/ui/test/markdown.test.mjs",
+  "kirocrew-app/ui/test/mirror-form.test.mjs",
+  "kirocrew-app/ui/test/new-plan.test.mjs",
+  "kirocrew-app/ui/test/panel-live.test.mjs",
+  "kirocrew-app/ui/test/plans-api.test.mjs",
+  "kirocrew-app/ui/test/recap.test.mjs",
+  "kirocrew-app/ui/test/spec-home-badge.test.mjs",
+  "kirocrew-app/ui/test/sticky-column.test.mjs",
+  "kirocrew-app/ui/test/task-api.test.mjs",
+  "kirocrew-app/ui/test/workspace-api.test.mjs"
+ ]
 }

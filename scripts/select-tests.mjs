@@ -59,7 +59,7 @@ const list = (cmd, args) =>
   execFileSync(cmd, args, { cwd: root, encoding: "utf8" })
     .split("\n")
     .filter(Boolean);
-const nodeTestFiles = () =>
+export const nodeTestFiles = () =>
   [
     ...list("git", [
       "ls-files",
@@ -69,7 +69,7 @@ const nodeTestFiles = () =>
       `${T}*.test.mjs`,
     ]),
   ].sort();
-const uiTestFiles = () =>
+export const uiTestFiles = () =>
   list("git", [
     "ls-files",
     "-co",
