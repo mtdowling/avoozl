@@ -37,9 +37,9 @@ export default function PromptInstructions(props: {
       <Fold id={`${props.id}-builtin`} title={`Built-in ${props.agent} prompt (read-only)`}>
         {props.builtIn ? (
           <Box flex flexCol gap="2" pb="2">
-            <pre className="rounded border p-2 text-xs" style={{ ...boxStyle, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: '16rem', overflowY: 'auto' }}>
+            <Box as="pre" css-border-color="border" css-color="text" css-background="card-transparent" css-white-space="pre-wrap" css-overflow-wrap="anywhere" css-max-height="16rem" css-overflow-y="auto" rounded="base" border="all" p="2" size="xs">
               {props.builtIn}
-            </pre>
+            </Box>
             <div>
               <IconLabel icon={copied ? Check : Copy} tooltip="Copy the built-in prompt" onClick={() => void copy()}>
                 {copied ? 'Copied' : 'Copy'}

@@ -230,7 +230,7 @@ export default function TaskForm(props: {
       <Field id="avoozl-task-summary" label="Description">
         <Area id="avoozl-task-summary" rows={4} value={form.summary} onChange={(summary) => set({ summary })} />
       </Field>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <Box grid gap="3" smGridCols2>
         <Field id="avoozl-task-repository" label="Repository">
           <SelectField
             id="avoozl-task-repository"
@@ -245,7 +245,7 @@ export default function TaskForm(props: {
             ))}
           </SelectField>
         </Field>
-      </div>
+      </Box>
       <Field id="avoozl-task-acceptance" label="Acceptance" hint="One condition per line.">
         <Area id="avoozl-task-acceptance" value={form.acceptance} onChange={(acceptance) => set({ acceptance })} />
       </Field>

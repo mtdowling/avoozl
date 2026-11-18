@@ -32,7 +32,6 @@ const PILL = {
   fontSize: 14,
 } as const
 const ROW = { display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0, boxSizing: 'border-box', height: 28, padding: '0 8px', border: 0, borderRadius: 6, background: 'none', color: 'var(--text)', fontSize: 13, textAlign: 'left', cursor: 'pointer' } as const
-const TEXT = { minWidth: 0, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const
 
 export function WorkspacePill(props: {
   list: WorkspaceList | null
@@ -79,7 +78,7 @@ export function WorkspacePill(props: {
         style={PILL}
       >
         <Folder size={16} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--muted)' }} />
-        <span style={{ ...TEXT, fontWeight: 600, lineHeight: '20px' }}>{name}</span>
+        <Box as="span" css-min-width="0" css-flex="1-1-auto" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap" css-font-weight="600" css-line-height="20px">{name}</Box>
         <ChevronDown size={15} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--muted)' }} />
       </button>
       {open && (
@@ -96,7 +95,7 @@ export function WorkspacePill(props: {
             return (
               <button key={item.id} type="button" role="menuitemradio" aria-checked={here} data-workspace-option={item.id} onClick={() => pick(item.id)} style={{ ...ROW, fontWeight: here ? 500 : 400 }}>
                 <Folder size={13} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--muted)' }} />
-                <span style={TEXT}>{item.name}</span>
+                <Box as="span" css-min-width="0" css-flex="1-1-auto" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">{item.name}</Box>
                 {here && <Check size={13} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--accent)' }} />}
               </button>
             )
@@ -113,7 +112,7 @@ export function WorkspacePill(props: {
             style={{ ...ROW, color: 'var(--muted)' }}
           >
             <Settings size={13} aria-hidden="true" style={{ flexShrink: 0 }} />
-            <span style={TEXT}>Manage workspaces</span>
+            <Box as="span" css-min-width="0" css-flex="1-1-auto" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">Manage workspaces</Box>
           </button>
         </div>
       )}

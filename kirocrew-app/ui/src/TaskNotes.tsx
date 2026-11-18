@@ -96,7 +96,7 @@ function EntryView(props: {
   const problem = editing ? linkProblem(url, label) : null
   const href = safeHref(entry.url)
   return (
-    <li className="flex flex-col gap-1 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-link-entry>
+    <Box as="li" css-border-color="border" flex flexCol gap="1" border="t" py="2" firstBorderT0 data-link-entry>
       <Box flex flexWrap items="center" gap="1.5" size="xs" tone="muted">
         <span>{authorLabel(entry)}</span>
         <Tooltip text={entry.at}>
@@ -174,7 +174,7 @@ function EntryView(props: {
           )}
         </Row>
       )}
-    </li>
+    </Box>
   )
 }
 

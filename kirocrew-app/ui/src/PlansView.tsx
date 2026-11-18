@@ -304,9 +304,9 @@ function SpecTabs(props: { tabs: string[]; current: string; plan: SpecPlan | nul
   // spans the page's content edge to edge.
   const phone = usePhone()
   return (
-    <div data-spec-tabs-wrap style={{ padding: phone ? 0 : '0 12px', minWidth: 0 }}>
+    <Box data-spec-tabs-wrap css-padding={phone ? '0' : '0-12px'} css-min-width="0">
       <DocTabs tabs={props.tabs} current={props.current} counts={shown} onPick={props.onPick} bar={{ label: 'Spec views', attr: 'data-spec-tab', prefix: 'spec-tab', labels: TAB_NAME }} />
-    </div>
+    </Box>
   )
 }
 
@@ -390,7 +390,7 @@ function SpecAiSummary(props: { plan: SpecPlan; spec: SpecSummary; onRetry?: () 
       {pending ? (
         <ReviewWorking model={review?.reviewerModel ?? null} title="AI working" label="Writing a short summary of this spec…" />
       ) : written ? (
-        <p className="text-sm" data-spec-summary-text style={{ margin: 0, maxWidth: PROSE_MEASURE }}>
+        <Box as="p" css-margin="0" css-max-width="80ch" size="sm" data-spec-summary-text>
           {written.text}
           {!written.current && (
             <Hint size="xs" data-spec-summary-older>
@@ -398,7 +398,7 @@ function SpecAiSummary(props: { plan: SpecPlan; spec: SpecSummary; onRetry?: () 
               (written for <code>{shortHash(written.revisionHash)}</code>)
             </Hint>
           )}
-        </p>
+        </Box>
       ) : (
         <Hint as="p" size="sm" flush data-spec-summary-fallback>
           Summary unavailable{' '}
@@ -979,7 +979,7 @@ export function SpecList(props: {
           </button>
         )
         return (
-          <li key={row.key} className="flex items-center gap-1 border-t first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+          <Box key={row.key} as="li" css-border-color="border" flex items="center" gap="1" border="t" firstBorderT0>
             {picking && (
               <Box as="span" flex w6 shrink0 justify="center">
                 {batch !== undefined && row.planId && (
@@ -1001,7 +1001,7 @@ export function SpecList(props: {
             ) : (
               button
             )}
-          </li>
+          </Box>
         )
       })}
     </Box>
@@ -1604,12 +1604,6 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
   )
 }
 
-// The approve dialog's specs: a bordered box that scrolls sideways on its
-// own, fixed columns, the name truncating with the full name in its tooltip.
-// A phone shows the name and writes; the other counts are in the row tooltip.
-const TH: CSSProperties = { padding: '6px 10px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--text-muted, var(--muted))', background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }
-const TD: CSSProperties = { padding: '6px 10px', borderTop: '1px solid var(--border)', whiteSpace: 'nowrap' }
-const NUM: CSSProperties = { textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
 function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection | null; phone: boolean }) {
   const writesOf = (id: string) => {
     const found = props.selection?.specs.find((entry) => entry.id === id)
@@ -1619,7 +1613,7 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
   const columns = props.phone ? ['auto', '5rem'] : ['auto', '8.5rem', '5rem', '5rem']
   return (
     <Box data-approve-list css-border-color="border" overflow="x-auto" rounded="base" border="all">
-      <table className="w-full text-sm" style={{ tableLayout: 'fixed', borderCollapse: 'collapse', minWidth: props.phone ? undefined : '30rem' }}>
+      <Box as="table" css-table-layout="fixed" css-border-collapse="collapse" css-min-width={props.phone ? undefined : '30rem'} wFull size="sm">
         <colgroup>
           {columns.map((width, at) => (
             <col key={at} style={{ width }} />
@@ -1627,10 +1621,10 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
         </colgroup>
         <thead>
           <tr>
-            <th style={{ ...TH, textAlign: 'left' }}>Spec</th>
-            {!props.phone && <th style={{ ...TH, textAlign: 'left' }}>Revision</th>}
-            {!props.phone && <th style={{ ...TH, ...NUM }}>Tasks</th>}
-            <th style={{ ...TH, ...NUM }}>Writes</th>
+            <Box as="th" css-padding="6px-10px" css-font-weight="600" css-white-space="nowrap" css-color="text-muted-muted" css-background="bg-elevated" css-border-bottom="1px-solid-border" css-text-align="left">Spec</Box>
+            {!props.phone && <Box as="th" css-padding="6px-10px" css-font-weight="600" css-white-space="nowrap" css-color="text-muted-muted" css-background="bg-elevated" css-border-bottom="1px-solid-border" css-text-align="left">Revision</Box>}
+            {!props.phone && <Box as="th" css-padding="6px-10px" css-font-weight="600" css-white-space="nowrap" css-color="text-muted-muted" css-background="bg-elevated" css-border-bottom="1px-solid-border" css-text-align="right" css-font-variant-numeric="tabular-nums">Tasks</Box>}
+            <Box as="th" css-padding="6px-10px" css-font-weight="600" css-white-space="nowrap" css-color="text-muted-muted" css-background="bg-elevated" css-border-bottom="1px-solid-border" css-text-align="right" css-font-variant-numeric="tabular-nums">Writes</Box>
           </tr>
         </thead>
         <tbody>
@@ -1638,23 +1632,23 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
             const tip = props.phone ? `${entry.spec} · revision ${shortHash(entry.hash)} · ${entry.tasks} ${entry.tasks === 1 ? 'task' : 'tasks'} · ${writesOf(entry.id)} writes` : entry.spec
             return (
               <tr key={entry.id} data-approve-row={entry.id}>
-                <td style={{ ...TD, overflow: 'hidden' }}>
+                <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap" css-overflow="hidden">
                   <Tooltip text={tip} display="block">
                     <Box as="span" block truncate weight="medium">{entry.spec}</Box>
                   </Tooltip>
-                </td>
+                </Box>
                 {!props.phone && (
-                  <td style={TD}>
+                  <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap">
                     <Box as="code" size="xs" tone="muted">{shortHash(entry.hash)}</Box>
-                  </td>
+                  </Box>
                 )}
-                {!props.phone && <td style={{ ...TD, ...NUM }}>{entry.tasks}</td>}
-                <td style={{ ...TD, ...NUM }}>{writesOf(entry.id)}</td>
+                {!props.phone && <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap" css-text-align="right" css-font-variant-numeric="tabular-nums">{entry.tasks}</Box>}
+                <Box as="td" css-padding="6px-10px" css-border-top="1px-solid-border" css-white-space="nowrap" css-text-align="right" css-font-variant-numeric="tabular-nums">{writesOf(entry.id)}</Box>
               </tr>
             )
           })}
         </tbody>
-      </table>
+      </Box>
     </Box>
   )
 }

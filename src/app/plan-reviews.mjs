@@ -400,7 +400,8 @@ function reviewSummaryText(value) {
 
 // A running or queued turn has not reported its model yet; a chat whose
 // status was never read is treated the same.
-const turnOpen = (binding) => !["idle", "gone"].includes(binding?.status);
+const turnOpen = (binding) =>
+  !["idle", "gone", "closed", "lost"].includes(binding?.status);
 
 // Findings that waited for the reviewer's model: record them once the chat
 // is idle and Kiro Crew names a model that differs from the writer's.

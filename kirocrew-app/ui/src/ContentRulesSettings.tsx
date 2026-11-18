@@ -435,9 +435,9 @@ function FileView(props: { text: string; onChange: (text: string) => void }) {
       <Box css-border-color="border" css-height="220" flex overflow="hidden" rounded="base" border="all">
         <div ref={gutter} aria-hidden="true" className="select-none overflow-hidden px-2 py-1.5 text-right" style={{ ...lineStyle, background: 'color-mix(in srgb, var(--text) 5%, var(--card, var(--bg)))', minWidth: '2.5rem' }}>
           {Array.from({ length: count + 20 }, (_, i) => (
-            <div key={i} style={{ color: bad.has(i + 1) ? 'var(--danger)' : 'var(--muted)', fontWeight: bad.has(i + 1) ? 700 : 400, visibility: i < count ? 'visible' : 'hidden' }}>
+            <Box key={i} css-color={bad.has(i + 1) ? 'danger' : 'muted'} css-font-weight={bad.has(i + 1) ? '700' : '400'} css-visibility={i < count ? 'visible' : 'hidden'}>
               {i + 1}
-            </div>
+            </Box>
           ))}
         </div>
         <textarea

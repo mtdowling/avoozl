@@ -1678,7 +1678,6 @@ export function RateBlock({ rate }: { rate: RateView | undefined }) {
 }
 
 const CELL: CSSProperties = { padding: '4px 8px' }
-const NUM: CSSProperties = { ...CELL, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
 const USAGE_COLUMNS: { key: UsageKey; label: string }[] = [
   { key: 'source', label: 'Source' },
   { key: 'calls', label: 'Calls' },
@@ -1700,12 +1699,12 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
               const on = sort.key === col.key
               const right = col.key !== 'source'
               return (
-                <th key={col.key} scope="col" aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} style={{ textAlign: right ? 'right' : 'left', padding: '4px 8px', fontWeight: 500, borderBottom: '1px solid var(--border)' }}>
+                <Box key={col.key} scope="col" aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} as="th" css-text-align={right ? 'right' : 'left'} css-padding="4px-8px" css-font-weight="500" css-border-bottom="1px-solid-border">
                   <button type="button" data-sort={col.key} className="inline-flex items-center gap-1 font-medium" style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', padding: 0 }} onClick={() => setSort(nextUsageSort(sort, col.key))}>
                     {col.label}
                     <Box aria-hidden="true" as="span" size="xs" tone="muted">{on ? (sort.dir === 'asc' ? '▲' : '▼') : ''}</Box>
                   </button>
-                </th>
+                </Box>
               )
             })}
           </tr>
@@ -1713,10 +1712,10 @@ export function UsageTable({ rows }: { rows: ReturnType<typeof usageRows> }) {
         <tbody>
           {sorted.map((row) => (
             <tr key={row.source} data-usage-source={row.source}>
-              <td style={CELL}>{row.source}</td>
-              <td style={NUM}>{row.calls}</td>
-              <td style={NUM}>{row.notModified}</td>
-              <td style={NUM}>{row.cached}</td>
+              <Box as="td" css-padding="4px-8px">{row.source}</Box>
+              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">{row.calls}</Box>
+              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">{row.notModified}</Box>
+              <Box as="td" css-padding="4px-8px" css-text-align="right" css-font-variant-numeric="tabular-nums">{row.cached}</Box>
             </tr>
           ))}
         </tbody>
