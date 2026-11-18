@@ -27,17 +27,20 @@ test('the open tab is kept in the address, and arrow keys move between the tabs'
   assert.match(source('OldTraceLink.tsx'), /openTask\(task\.id, 'timeline'\)/)
 })
 
-test('one rule for an empty tab: it shows, and says so; Overview, Links and Details always have content', () => {
+test('a tab with nothing to show is not rendered; Overview, Links and Details always have content', () => {
   const detail = (extra = {}) => ({ steps: [], timeline: [], delivery: null, task: {}, ...extra })
   assert.equal(tabHasData('timeline', detail(), 0), false)
   assert.equal(tabHasData('timeline', detail({ timeline: [{ at: 'x', text: 'y' }] }), 0), true)
+  assert.equal(tabHasData('timeline', detail({ timing: { spans: [] } }), 0), true)
   assert.equal(tabHasData('work', detail(), 0), false)
   assert.equal(tabHasData('work', detail({ delivery: { sessions: [] } }), 0), true)
   assert.equal(tabHasData('review', detail(), 0), false)
   assert.equal(tabHasData('review', detail(), 2), true)
   assert.equal(tabHasData('review', detail({ task: { handSetReview: true } }), 0), true)
   for (const tab of ['overview', 'links', 'details']) assert.equal(tabHasData(tab, detail(), 0), true, tab)
-  assert.match(source('TaskDrawer.tsx'), /data-tab-empty=\{tab\}/)
+  const drawer = source('TaskDrawer.tsx')
+  assert.match(drawer, /TASK_TABS\.filter\(\(t\) => tabHasData\(t\.key, detail, runs\)\)/)
+  assert.doesNotMatch(drawer, /data-tab-empty|const EMPTY/)
 })
 
 const chrome = findChrome()
@@ -62,20 +65,27 @@ const open = async (summary, width = 1280) => {
 }
 const asks = () => page.evaluate(`window.__harness.calls.filter((c) => c.operation === 'task.summary.request').map((c) => c.input)`)
 
-test('page: tabs switch by click and arrow keys, and an empty tab shows a muted line', { skip }, async () => {
+test('page: tabs switch by click and arrow keys, and a tab with no data is not rendered', { skip }, async () => {
   await open('ready')
   assert.equal(await page.evaluate(`document.querySelector('[data-tab-panel]').dataset.tabPanel`), 'overview')
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-tabs="task-tabs"] [role=tab]')].map((t) => t.textContent.trim())`), ['Overview', 'Timeline', 'Links', 'Work', 'Review', 'Details'])
+  // The harness task has no delivery and no review: Work and Review are gone.
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-tabs="task-tabs"] [role=tab]')].map((t) => t.textContent.trim())`), ['Overview', 'Timeline', 'Links', 'Details'])
   await page.evaluate(`document.querySelector('[data-tab="overview"]').focus()`)
   await page.key('ArrowRight', 'ArrowRight', 39)
   await page.until(`document.querySelector('[data-tab-panel]').dataset.tabPanel === 'timeline'`)
   assert.equal(await page.evaluate(`document.querySelector('[data-tab="timeline"]').getAttribute('aria-selected')`), 'true')
-  await page.evaluate(`document.querySelector('[data-tab="work"]').click()`)
-  await page.until(`document.querySelector('[data-tab-panel]').dataset.tabPanel === 'work'`)
-  assert.match(await page.evaluate(`document.querySelector('[data-tab-empty="work"]').textContent`), /No delivery yet/)
-  await page.evaluate(`document.querySelector('[data-tab="review"]').click()`)
-  await page.until(`Boolean(document.querySelector('[data-tab-empty="review"]'))`)
-  assert.equal(await page.evaluate(`document.querySelector('[data-tab-empty="timeline"]')`), null)
+  assert.equal(await page.evaluate(`document.querySelector('[data-tab-empty]')`), null)
+  assert.deepEqual(page.errors, [])
+})
+
+test('page: an address naming a hidden tab opens Overview', { skip }, async () => {
+  await page.open(harness.url({ modal: 'task-drawer', theme: 'light', summary: 'ready' }) + '&task-tab=work', { width: 1280, height: 900 })
+  await page.until(`Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog'))`)
+  await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
+  await page.until(`Boolean(document.querySelector('[data-tab-panel]'))`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-tab-panel]').dataset.tabPanel`), 'overview')
+  assert.equal(await page.evaluate(`document.querySelector('[data-tab="work"]')`), null)
+  assert.equal(await page.evaluate(`document.querySelector('[data-tab="overview"]').getAttribute('aria-selected')`), 'true')
   assert.deepEqual(page.errors, [])
 })
 

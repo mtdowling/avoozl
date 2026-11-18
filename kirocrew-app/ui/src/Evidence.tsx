@@ -7,6 +7,7 @@ import Badge from './Badge.tsx'
 import { relativeTime } from './task-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
+import { SectionBox } from './controls.tsx'
 import { EVIDENCE_LABELS, evidenceClient, mediaUrl, sizeText, type EvidenceEntry } from './evidence-api.ts'
 
 function Attachment({ workspaceId, taskId, entry }: { workspaceId: string; taskId: string; entry: EvidenceEntry }) {
@@ -48,33 +49,36 @@ function Attachment({ workspaceId, taskId, entry }: { workspaceId: string; taskI
   )
 }
 
+// The Evidence section box. It is not rendered while it reads or when the
+// task has no evidence.
 export function EvidenceFold({ workspaceId, taskId }: { workspaceId: string; taskId: string }) {
   const api = useAppApi()
   const client = useMemo(() => evidenceClient(api), [api])
   const load = useCallback(() => client.list(workspaceId, taskId), [client, workspaceId, taskId])
   const { value, error } = useRead<EvidenceEntry[]>(`${workspaceId}:${taskId}`, load)
-  if (error)
-    return (
-      <p role="alert" className="text-sm text-danger">
-        {error}
-      </p>
-    )
-  if (!value) return <p className="text-sm text-muted">Loading…</p>
-  if (!value.length) return <p className="text-sm text-muted">No evidence yet.</p>
+  if (!error && !value?.length) return null
   return (
-    <ol className="flex flex-col gap-2" data-evidence={taskId}>
-      {value.map((entry) => (
-        <li key={entry.id} className="rounded border p-2" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-            <Badge>{EVIDENCE_LABELS[entry.kind] ?? entry.kind}</Badge>
-            <span>{entry.source}</span>
-            <time dateTime={entry.at}>{relativeTime(entry.at)}</time>
-            {entry.redacted && <span>Redacted by content rules</span>}
-          </div>
-          <p className="mt-1 whitespace-pre-wrap break-words text-sm">{entry.text}</p>
-          {entry.file && <Attachment workspaceId={workspaceId} taskId={taskId} entry={entry} />}
-        </li>
-      ))}
-    </ol>
+    <SectionBox id="evidence" title="Evidence">
+      {error ? (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      ) : (
+        <ol className="flex flex-col gap-2" data-evidence={taskId}>
+          {value!.map((entry) => (
+            <li key={entry.id} className="rounded border p-2" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                <Badge>{EVIDENCE_LABELS[entry.kind] ?? entry.kind}</Badge>
+                <span>{entry.source}</span>
+                <time dateTime={entry.at}>{relativeTime(entry.at)}</time>
+                {entry.redacted && <span>Redacted by content rules</span>}
+              </div>
+              <p className="mt-1 whitespace-pre-wrap break-words text-sm">{entry.text}</p>
+              {entry.file && <Attachment workspaceId={workspaceId} taskId={taskId} entry={entry} />}
+            </li>
+          ))}
+        </ol>
+      )}
+    </SectionBox>
   )
 }

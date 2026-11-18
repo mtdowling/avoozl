@@ -93,12 +93,14 @@ test('the full-file reader is a trapped, closable modal over the page', () => {
   assert.match(reader, /markCited\(root, target\.lineStart, target\.lineEnd, still\)/)
   assert.doesNotMatch(reader, /FLASH_MS|el\.animate/)
   assert.match(readFileSync(new URL('../src/Modal.tsx', import.meta.url), 'utf8'), /narrow\s*\? \{ width: '100%', height: '100%'/)
-  // The drawer opens it from the path link, Open full file and the excerpt.
+  // The drawer opens it from the path link and the snippet's Open full file.
   assert.match(drawer, /data-origin-path/)
-  assert.equal((drawer.match(/setFull\(/g) ?? []).length >= 4, true)
-  // Came from shows the whole file with the cited lines marked.
-  assert.match(drawer, /<CitedFile\s+text=\{reading\.text\}/)
-  assert.doesNotMatch(drawer, /sourceExcerpt\(/)
+  assert.match(drawer, /onClick=\{\(\) => setFull\(first\)\}/)
+  assert.match(drawer, /label="Open full file"[^>]*onClick=\{\(\) => props\.onFull\(source\)\}/)
+  // Came from shows a snippet: the task's lines and 3 lines either side.
+  assert.match(drawer, /const SNIPPET_CONTEXT = 3/)
+  assert.match(drawer, /sourceExcerpt\(read\.text!, source, SNIPPET_CONTEXT\)/)
+  assert.doesNotMatch(drawer, /CitedFile|'Hide'/)
 })
 
 test('a citation marks a range, a task block, or a heading through its section', async () => {
@@ -127,13 +129,12 @@ test('a citation marks a range, a task block, or a heading through its section',
   assert.deepEqual(citedNodes(nodes, null, null), [])
 })
 
-test('the cited file renders the whole text, marks with a class, and skips animation under reduced motion', () => {
+test('the cited mark uses a class, and skips animation under reduced motion', () => {
   const cited = readFileSync(new URL('../src/CitedFile.tsx', import.meta.url), 'utf8')
-  assert.match(cited, /<Markdown text=\{text\}/)
+  const reader = readFileSync(new URL('../src/DocumentReader.tsx', import.meta.url), 'utf8')
   assert.match(cited, /node\.classList\.add\(CITED_CLASS\)/)
   assert.match(cited, /export const CITED_CLASS = 'avoozl-cited'/)
   assert.match(cited, /box-shadow: inset 3px 0 0 var\(--accent\)/)
   assert.match(cited, /behavior: still \? 'auto' : 'smooth'/)
-  assert.match(cited, /prefers-reduced-motion: reduce/)
-  assert.match(cited, /maxHeight: props\.maxHeight \?\? 420, overflowY: 'auto'/)
+  assert.match(reader, /prefers-reduced-motion: reduce/)
 })

@@ -12,8 +12,12 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 
 test('every drawer section is a SectionBox, open at first, inside the shared tab bar', () => {
   const drawer = source('TaskDrawer.tsx')
-  for (const key of ['summary', 'description', 'links', 'task-links', 'files', 'delivery', 'timing', 'evidence', 'conflicts', 'timeline', 'review', 'fields'])
+  for (const key of ['summary', 'description', 'links', 'task-links', 'delivery', 'timing', 'conflicts', 'timeline', 'review', 'fields'])
     assert.match(drawer, new RegExp(`<SectionBox id="${key}" title=`), key)
+  // Files and Evidence read on their own, so they draw their own box, and
+  // none when they have nothing.
+  assert.match(drawer, /<TaskFiles [^>]*box=\{\{ id: 'files', title: 'Files' \}\}/)
+  assert.match(source('Evidence.tsx'), /<SectionBox id="evidence" title="Evidence">/)
   // The shared tab bar (Tabs.tsx), not a pattern of its own.
   assert.match(drawer, /<Tabs id="task-tabs"/)
   assert.doesNotMatch(drawer, /<Fold\b|<details\b|SegmentedControl|role="tab/)
@@ -60,7 +64,7 @@ test('page: every tab shows its sections, each header folds by click and by keyb
   await page.until(`Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog'))`)
   await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
   await page.until(`document.querySelectorAll('[data-section-box]').length >= 2`)
-  const want = { overview: ['summary', 'links'], timeline: ['timeline', 'timing'], links: ['task-links', 'files'], details: ['fields', 'description', 'evidence'] }
+  const want = { overview: ['summary', 'links'], timeline: ['timeline'], links: ['task-links', 'files'], details: ['fields', 'description', 'evidence'] }
   for (const [tab, ids] of Object.entries(want)) {
     await page.evaluate(`document.querySelector('[data-tab="${tab}"]').click()`)
     await page.until(`document.querySelector('[data-tab-panel]').dataset.tabPanel === '${tab}'`)

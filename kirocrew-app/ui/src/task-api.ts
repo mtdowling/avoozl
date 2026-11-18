@@ -80,8 +80,9 @@ export interface TaskSummary {
   hash: string
 }
 
-// The task details tabs. One rule for all: every tab shows; a tab with
-// nothing to show says so in a muted line (tabHasData).
+// The task details tabs. A tab with nothing to show is not rendered at all
+// (tabHasData), and neither is an empty section inside a tab. Overview
+// always shows.
 export const TASK_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'timeline', label: 'Timeline' },
@@ -97,7 +98,7 @@ export const TASK_TAB_PARAM = 'task-tab'
 // Whether a tab has anything to show. Overview, Links (Add link) and Details
 // always do.
 export function tabHasData(tab: TaskTab, detail: TaskDetail, reviewRunCount: number): boolean {
-  if (tab === 'timeline') return Boolean(detail.steps?.length || detail.timeline.length)
+  if (tab === 'timeline') return Boolean(detail.steps?.length || detail.timeline.length || detail.timing)
   if (tab === 'work') return Boolean(detail.delivery)
   if (tab === 'review') return reviewRunCount > 0 || Boolean(detail.task.handSetReview)
   return true

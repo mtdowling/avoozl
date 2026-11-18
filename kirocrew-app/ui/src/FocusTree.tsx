@@ -14,6 +14,7 @@ import { useNav, useRemembered } from './NavHistory.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { Modal } from './Modal.tsx'
 import { SmallBtn, ViewHeading } from './controls.tsx'
+import { TaskLinkList } from './TaskLinkList.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { ArrowLeft, ArrowRight, ExternalLink, ListFilter } from './icons.ts'
@@ -794,18 +795,16 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
           {row('Route', task.route)}
           {row('Done when', task.completion)}
           {task.decision && row('Decision', task.decision)}
-          {row(
-            'Waits on',
-            waitsOn.length
-              ? waitsOn.map((e, i) => (
-                  <span key={e.from} style={e.satisfied ? { textDecoration: 'line-through', color: 'var(--muted)' } : undefined}>
-                    {i > 0 && ', '}
-                    {link(e.from)}
-                  </span>
-                ))
-              : 'nothing',
-          )}
-          {row('Blocks', blocks.length ? blocks.map((e, i) => <span key={e.to}>{i > 0 && ', '}{link(e.to)}</span>) : 'nothing')}
+          {waitsOn.length > 0 &&
+            row(
+              'Waits on',
+              <TaskLinkList
+                attr="Waits on"
+                onOpen={(id) => props.onTree({ kind: 'task', id })}
+                items={waitsOn.map((e) => ({ id: e.from, label: e.from, style: e.satisfied ? { textDecoration: 'line-through', color: 'var(--muted)' } : undefined }))}
+              />,
+            )}
+          {blocks.length > 0 && row('Blocks', <TaskLinkList attr="Blocks" onOpen={(id) => props.onTree({ kind: 'task', id })} items={blocks.map((e) => ({ id: e.to, label: e.to }))} />)}
         </dl>
       ) : item.kind === 'spec' ? (
         <div className="flex flex-col gap-2 text-sm">

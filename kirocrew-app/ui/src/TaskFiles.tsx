@@ -1,13 +1,13 @@
 // The task drawer's Files fold (design §8.10): a read-only tree of what the
 // task's branch changed, one file's diff, and Open in editor. Nothing here
 // writes: the reads are task.files and task.diff.
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useAppApi } from './host.ts'
 import Badge from './Badge.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'
 import { ExternalLink, Folder, GitBranch, RefreshCw } from './icons.ts'
-import { IconBtn } from './controls.tsx'
+import { IconBtn, SectionBox } from './controls.tsx'
 import {
   EDITORS,
   STATUS_LETTER,
@@ -213,8 +213,10 @@ function Diff(props: { diff: DiffView; layout: 'unified' | 'split' }) {
 }
 
 // The Files fold's body. `active` is false until the fold first opens, so a
-// closed fold reads nothing.
-export function TaskFiles(props: { workspaceId: string; taskId: string; active: boolean }) {
+// closed fold reads nothing. With `box`, it draws its own section box, and
+// draws nothing while it reads or when the task has no files on this
+// machine and no branch.
+export function TaskFiles(props: { workspaceId: string; taskId: string; active: boolean; box?: { id: string; title: string } }) {
   const api = useAppApi()
   const client = useMemo(() => filesClient(api), [api])
   const [view, setView] = useState<FilesView | null>(null)
@@ -256,13 +258,21 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
   }
 
   const tree = useMemo(() => (view ? fileTree(showAll && view.all ? view.all.paths : [], view.files) : []), [view, showAll])
+  const shell = (node: ReactNode) =>
+    props.box ? (
+      <SectionBox id={props.box.id} title={props.box.title}>
+        {node}
+      </SectionBox>
+    ) : (
+      node
+    )
   if (error)
-    return (
+    return shell(
       <p role="alert" className="text-sm text-danger">
         {error}
-      </p>
+      </p>,
     )
-  if (!view) return <p className="text-sm text-muted">Reading the task&apos;s branch…</p>
+  if (!view) return props.box ? null : <p className="text-sm text-muted">Reading the task&apos;s branch…</p>
 
   const github = safeHref(view.github) && view.github
   // Open in editor needs the files on this machine: the task's own worktree.
@@ -273,19 +283,21 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
       {view.branch} on GitHub
     </a>
   )
-  if (view.mode === 'none')
-    return (
+  if (view.mode === 'none') {
+    if (props.box && !view.remote && !branchLink) return null
+    return shell(
       <div className="flex flex-col gap-2 text-sm">
         <p className="text-muted">{view.remote ? 'This task runs on another machine. Its files are not here.' : 'No worktree or branch for this task on this machine yet.'}</p>
         {branchLink}
-      </div>
+      </div>,
     )
+  }
   const pickedChange = view.files.find((f) => f.path === picked) ?? null
   const diffLines = diff?.view ? parseDiff(diff.view.diff) : []
   // The shown file on disk, at its first changed line; a deleted file has none.
   const fileTarget = local && picked && pickedChange?.status !== 'deleted' ? { path: joinPath(view.worktree!, picked), line: firstChangedLine(diffLines) } : null
   const fileHref = fileTarget && editorHref(editor, fileTarget.path, fileTarget.line)
-  return (
+  return shell(
     <div className="flex flex-col gap-3" data-task-files>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span data-files-totals>
@@ -378,6 +390,6 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
           )}
         </section>
       )}
-    </div>
+    </div>,
   )
 }

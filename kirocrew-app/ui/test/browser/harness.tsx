@@ -160,6 +160,11 @@ const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', 
 const SUMMARY_TEXT = 'Team review is the last gate before cutover. It is waiting on you: the protocol tests passed, and nothing else blocks it. Cutover starts once you mark it done.'
 const summaryAt = (name: string) => ({ state: name, text: name === 'ready' ? SUMMARY_TEXT : null, hash: 'h1' })
 let summaryAsks = 0
+// The task's source file: 40 numbered lines, the task on 20 and 21.
+const SOURCE_DOC = '.kiro/specs/sdk-rewrite/tasks.md'
+const SOURCE_TEXT = Array.from({ length: 40 }, (_, i) =>
+  i + 1 === 20 ? '- [ ] 5.2 Review with team' : i + 1 === 21 ? '  - The team agrees the results are good enough to cut over' : `- [x] ${i + 1}. Earlier task ${i + 1}`,
+).join('\n') + '\n'
 answer('task.summary.request', (body) => {
   state.calls.push(body)
   summaryAsks++
@@ -178,8 +183,15 @@ answer('task.detail', () => ({
     manual: true, manualDone: null, onGitHub: true,
   },
   plan: null, locked: null,
-  waitsOn: [{ id: 'protocol-tests', title: 'Protocol tests', kind: 'requires', condition: null, satisfied: true }],
-  blocks: [{ id: 'cutover', title: 'Cutover', kind: 'requires', condition: null, satisfied: false }],
+  // Its source: lines 20–21 of a 40-line tasks file (document.get below).
+  origin: {
+    kind: 'spec', label: 'From a spec', text: `Approving sdk-rewrite made this task, from ${SOURCE_DOC}, lines 20–21.`,
+    sources: [{ document: SOURCE_DOC, title: null, lineStart: 20, lineEnd: 21, checked: false, readable: true }],
+    spec: null, plan: null,
+  },
+  // &edges=none: a task that waits on nothing and blocks nothing.
+  waitsOn: query.get('edges') === 'none' ? [] : [{ id: 'protocol-tests', title: 'Protocol tests', kind: 'requires', condition: null, satisfied: true }],
+  blocks: query.get('edges') === 'none' ? [] : [{ id: 'cutover', title: 'Cutover', kind: 'requires', condition: null, satisfied: false }],
   delivery: null, conflicts: [],
   timeline: [
     { at: '2026-11-13T10:05:00Z', text: 'Waiting for a person: Review with team' },
@@ -210,6 +222,10 @@ answer('task.detail', () => ({
     { key: 'integrated', label: 'Integrated', at: null, state: 'now' },
   ],
 }))
+answer('document.get', (body) => {
+  state.calls.push(body)
+  return { id: SOURCE_DOC, title: 'Tasks', text: SOURCE_TEXT }
+})
 answer('task.evidence', () => ({
   taskId: 'team-review',
   entries: [{ id: 'ev-1', kind: 'check', at: '2026-11-13T09:00:00Z', source: 'session:chat-1', text: 'npm run test:protocol passed' }],

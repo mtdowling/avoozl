@@ -137,8 +137,7 @@ test('the editor choice is kept in the page storage, Kiro by default', () => {
 
 test('the drawer has a Files box with no write', () => {
   const drawer = source('TaskDrawer.tsx')
-  assert.match(drawer, /<SectionBox id="files" title="Files">/)
-  assert.match(drawer, /<TaskFiles workspaceId=\{workspaceId\} taskId=\{task\.id\} active \/>/)
+  assert.match(drawer, /<TaskFiles workspaceId=\{workspaceId\} taskId=\{task\.id\} active box=\{\{ id: 'files', title: 'Files' \}\} \/>/)
   const files = source('TaskFiles.tsx')
   assert.match(files, /if \(!props\.active\) return/)
   // Unified by default, Split on a toggle; Show all files; the editor

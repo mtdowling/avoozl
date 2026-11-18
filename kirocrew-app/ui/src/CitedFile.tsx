@@ -1,11 +1,7 @@
-// A whole source file with the lines a task cites marked for good: a tinted
-// band and an accent bar on the left, not a flash. The drawer's Came from
-// section and the full-file reader both use it, so they mark the same
-// blocks. It scrolls the cited blocks into view, with no animation under
-// prefers-reduced-motion.
-import { useEffect, useRef } from 'react'
-import { Markdown } from './Markdown.tsx'
-import { useMedia } from './use-media.ts'
+// The mark for the lines a task cites in a rendered file: a tinted band and
+// an accent bar on the left, not a flash. The full-file reader
+// (DocumentReader) uses it and scrolls the cited blocks into view, with no
+// animation under prefers-reduced-motion.
 import { citedNodes } from './task-api.ts'
 
 export const CITED_CLASS = 'avoozl-cited'
@@ -44,22 +40,4 @@ export function markCited(root: HTMLElement, lineStart: number | null, lineEnd: 
     scroller.scrollTo?.({ top: Math.max(0, top), behavior: still ? 'auto' : 'smooth' })
   }
   return first
-}
-
-export function CitedFile(props: { text: string; lineStart: number | null; lineEnd: number | null; maxHeight?: number | string; idPrefix?: string; label: string }) {
-  const box = useRef<HTMLDivElement>(null)
-  const still = useMedia('(prefers-reduced-motion: reduce)')
-  const { text, lineStart, lineEnd } = props
-  useEffect(() => {
-    const root = box.current
-    if (!root) return
-    const frame = requestAnimationFrame(() => markCited(root, lineStart, lineEnd, still))
-    return () => cancelAnimationFrame(frame)
-  }, [text, lineStart, lineEnd, still])
-  return (
-    <div ref={box} data-cited-file aria-label={props.label} className="px-3 py-2" style={{ maxHeight: props.maxHeight ?? 420, overflowY: 'auto', overscrollBehavior: 'contain' }}>
-      <style>{CITED_STYLE}</style>
-      <Markdown text={text} idPrefix={props.idPrefix} />
-    </div>
-  )
 }
