@@ -257,9 +257,7 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
       )}
       {entries === null ? (
         <p className="text-sm text-muted">Loading…</p>
-      ) : entries.length === 0 ? (
-        <p className="text-sm text-muted">No links yet.</p>
-      ) : (
+      ) : entries.length === 0 ? null : (
         <ul className="flex flex-col" aria-label="Links, newest first">
           {entries.map((entry) => (
             <EntryView

@@ -221,8 +221,8 @@ test('every details button uses the one details icon; Eye stays for show-on-page
   assert.match(source('icons.ts'), /export const DetailsIcon = Info/)
   for (const name of views) assert.doesNotMatch(source(name), /icon=\{Info\}/, name)
   const eyes = views.flatMap((name) => [...source(name).matchAll(/icon=\{Eye\}[\s\S]{0,1500}?<\/IconLabel>/g)].map((m) => m[0]))
-  assert.equal(eyes.length, 2)
-  for (const eye of eyes) assert.match(eye, /Show the (matched line|lines this task was made from here)/)
+  assert.equal(eyes.length, 1)
+  for (const eye of eyes) assert.match(eye, /Show the matched line/)
 })
 
 test('each view heading and its nav tab show the same icon, hidden from readers', () => {
