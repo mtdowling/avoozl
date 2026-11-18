@@ -386,10 +386,9 @@ test("the CLI lists, adds, edits and removes links as the person at the command 
     "From the CLI",
   );
   assert.equal(added.author, "person");
-  // `task notes` is still read as the old name.
   const link = run(
     "task",
-    "notes",
+    "links",
     "cli-task",
     "add",
     "--link",

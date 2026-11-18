@@ -175,8 +175,6 @@ export interface ProposalsModel {
   prompts: PromptRow[]
   notes: (SkillNote & { retro: string; proposal: string; target: string })[]
   available: boolean
-  // The removed lessons store's one-time export (RC30.5).
-  lessonsExport?: { written?: number; file?: string | null; error?: string } | null
 }
 
 export interface RetroChat {

@@ -45,12 +45,6 @@ local or GitHub work.
 
 Use `avoozl help` to inspect the installed CLI surface before choosing commands.
 
-## Ideas
-
-Ideas were removed. `plans_intake` actions `capture_idea` and
-`add_idea_note` return an error and change nothing. To keep a thought that
-may become work, start a spec with the user in **New spec**.
-
 ## Templates, manual tasks and task links
 
 - A workflow template is a folder in an approved plugin. List them with
