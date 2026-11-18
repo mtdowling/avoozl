@@ -11,7 +11,7 @@
 // - Landed: the task is integrated at the merge commit, and the local base
 //   is fast-forwarded from the remote. Failed checks: the task goes back to
 //   its worker chat with the failed names, as a conflict does
-//   (`sendConflictBack`), each for `landing.conflictRounds` rounds.
+//   (`sendConflictBack`), each for the repository's `conflicts.maxAttempts` rounds.
 // - A queued task whose base moved is withdrawn; integrateVerified then
 //   merges the base into it and it is verified again before it re-queues.
 //
@@ -298,7 +298,9 @@ export async function landPullRequests(
     at = new Date(now).toISOString();
   if (!github) return { notify, messages };
   for (const project of store.list("projects").filter(isPullRequestLanding)) {
-    const base = project.baseBranch || "main",
+    // `rounds` is a count or, per repository, a function of the project.
+    const tries = typeof rounds === "function" ? rounds(project) : rounds,
+      base = project.baseBranch || "main",
       queue = landingQueue(store, { projectId: project.id, base });
     if (!queue.length) continue;
     const head = queue[0];
@@ -355,11 +357,11 @@ export async function landPullRequests(
         });
         await syncBase(project, { env }).catch(() => null);
       } else if (result.state === "failed") {
-        const sent = sendFailureBack(store, result, { rounds, now });
+        const sent = sendFailureBack(store, result, { rounds: tries, now });
         messages.push(...sent.messages);
         notify.push(...sent.notify);
       } else if (result.state === "conflict") {
-        const sent = sendConflictBack(store, result, { rounds, now });
+        const sent = sendConflictBack(store, result, { rounds: tries, now });
         messages.push(...sent.messages);
         notify.push(...sent.notify);
       }

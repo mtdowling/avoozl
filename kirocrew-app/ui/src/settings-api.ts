@@ -336,7 +336,11 @@ export interface RepositoryForm {
   // conflicts.onSourceConflict (fix or ask) and conflicts.maxAttempts; blank is the default.
   onSourceConflict: string
   maxAttempts: string
-  // merge.method (squash or merge); blank is squash (RC28.7).
+  // The landing block (design §4.25): landing.mode (direct, pr, train,
+  // off), landing.autoMerge ('on', 'off') and landing.method (squash or
+  // merge, older key merge.method). Blank reads the older key or default.
+  landingMode: string
+  autoMerge: string
   mergeMethod: string
   // Review drafts by label (RC20): radar.reviewLabel, radar.draftedLabel.
   reviewLabel: string
@@ -506,6 +510,7 @@ const SHOWN = new Set([
   'mirror',
   'conflicts',
   'merge',
+  'landing',
 ])
 
 export function emptyRule(): RuleForm {
@@ -539,6 +544,8 @@ export function emptyRepository(name = ''): RepositoryForm {
     conflictLabel: '',
     onSourceConflict: '',
     maxAttempts: '',
+    landingMode: '',
+    autoMerge: '',
     mergeMethod: '',
     reviewLabel: '',
     draftedLabel: '',
@@ -594,7 +601,9 @@ export function toForm(github: Policy): SettingsForm {
         conflictLabel: str(record(entry.radar).conflictLabel),
         onSourceConflict: str(record(entry.conflicts).onSourceConflict),
         maxAttempts: str(record(entry.conflicts).maxAttempts),
-        mergeMethod: str(record(entry.merge).method),
+        landingMode: str(record(entry.landing).mode),
+        autoMerge: typeof record(entry.landing).autoMerge === 'boolean' ? (record(entry.landing).autoMerge ? 'on' : 'off') : '',
+        mergeMethod: str(record(entry.landing).method ?? record(entry.merge).method),
         reviewLabel: str(record(entry.radar).reviewLabel),
         draftedLabel: str(record(entry.radar).draftedLabel),
         trackerLabel: str(record(entry.radar).trackerLabel),
@@ -717,9 +726,15 @@ export function toPolicy(form: SettingsForm): Policy {
                 const conflicts = compact({ ...record(repository.rest.conflicts), onSourceConflict: blank(repository.onSourceConflict), maxAttempts: count(repository.maxAttempts) })
                 return Object.keys(conflicts).length ? conflicts : undefined
               })(),
-              merge: (() => {
-                const merge = compact({ ...record(repository.rest.merge), method: blank(repository.mergeMethod) })
-                return Object.keys(merge).length ? merge : undefined
+              // One landing block; the older merge.method moves into it.
+              landing: (() => {
+                const landing = compact({
+                  ...record(repository.rest.landing),
+                  mode: blank(repository.landingMode),
+                  autoMerge: repository.autoMerge === 'on' ? true : repository.autoMerge === 'off' ? false : undefined,
+                  method: blank(repository.mergeMethod),
+                })
+                return Object.keys(landing).length ? landing : undefined
               })(),
               rules: repository.rules.map((rule) =>
                 compact({
@@ -1218,7 +1233,7 @@ export const AVOOZL_LABELS = [
 
 // What Avoozl does with a crew's pull request that conflicts in source code (RC28.5).
 export const CONFLICT_ACTIONS = ['fix', 'ask'] as const
-export const CONFLICT_DEFAULTS = { onSourceConflict: 'fix', maxAttempts: '1' } as const
+export const CONFLICT_DEFAULTS = { onSourceConflict: 'fix', maxAttempts: '2' } as const
 export const CONFLICT_ACTION_TEXT: Record<(typeof CONFLICT_ACTIONS)[number], string> = {
   fix: 'A resolver chat merges the base into the branch and keeps both sides',
   ask: 'Only ask me; write nothing',

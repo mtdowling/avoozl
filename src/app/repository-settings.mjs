@@ -7,6 +7,7 @@ import { sandboxWriteRoots } from "./harness-definitions.mjs";
 import { sandboxAllowCommands } from "./harness-allow.mjs";
 import { sandboxNetwork } from "./sandbox.mjs";
 import { validateLanes } from "./lanes.mjs";
+import { applyLandingModes } from "./landing-config.mjs";
 import { flowPolicy } from "./flow.mjs";
 import { deliveryPolicy } from "./delivery.mjs";
 import { validateTrackedRouting } from "./placement.mjs";
@@ -781,6 +782,8 @@ export class RepositorySettings {
         desired = desiredActions(file.value, this.realWorkspaceRoot),
         applied = appliedActions(this.store),
         restartDesired = withoutKeys(privileged, APPLY_KEYS);
+      // Each repository's `landing.mode` onto its checkouts (§4.25).
+      applyLandingModes(this.store, file.value);
       if (this.restartBaseline === null)
         this.restartBaseline = structuredClone(restartDesired);
       this.applyRequired = changedTopLevelKeys(applied, desired);
@@ -1170,6 +1173,9 @@ export class RepositorySettings {
       value = this.updateValue(before);
     value.version = 1;
     value.projects = record(value.projects) ? value.projects : {};
+    // `landing` here is the older key of the repository's `landing.mode`
+    // (§4.25): kept as the file has it, never written from the row.
+    const old = value.projects[project.id]?.landing;
     value.projects[project.id] = {
       ...(project.name ? { name: project.name } : {}),
       root: this.portablePath(project.root),
@@ -1185,7 +1191,7 @@ export class RepositorySettings {
       ...(project.worktreeHelper
         ? { worktreeHelper: project.worktreeHelper }
         : {}),
-      ...(project.landing ? { landing: project.landing } : {}),
+      ...(old === undefined ? {} : { landing: old }),
       planning: Boolean(project.planning),
       editable: project.editable !== false,
       ...executorSettings(project),

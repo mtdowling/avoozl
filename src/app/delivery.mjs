@@ -255,24 +255,36 @@ export function deliveryPolicy(value) {
     concurrency: delivery.concurrency ?? validateLanes(value.lanes).local,
     reviewers,
     repositories: normalized,
+    // Who merges, from each GitHub repository's landing block (§4.25).
+    autoMerge: Object.fromEntries(
+      Object.entries(value.github?.repositories ?? {})
+        .filter(([, entry]) => typeof entry?.landing?.autoMerge === "boolean")
+        .map(([name, entry]) => [name, entry.landing.autoMerge]),
+    ),
   };
 }
 
 // Ship mode (R80): who merges a finished pull request. `auto-merge` (the
 // default) has the writer turn on GitHub auto-merge; `manual` leaves it off
-// and waits for a person.
+// and waits for a person. The setting is `landing.autoMerge` in the GitHub
+// repository's landing block; `delivery.ship` is its older key.
 export const SHIP_MODES = Object.freeze(["auto-merge", "manual"]);
 function shipSetting(value, where) {
   if (value !== undefined && !SHIP_MODES.includes(value))
     throw Error(`${where} must be "auto-merge" or "manual".`);
 }
 
-// The ship mode for one task (R80.1): the task's manifest value, then its
-// spec's, then the repository's, then the workspace's.
-export function shipMode(policy, task) {
+// The ship mode for one task (R80.1): the task's manifest pin, then its
+// spec's, then its GitHub repository's `landing.autoMerge`, then the older
+// `delivery.ship` of the repository and of the workspace. `store` finds the
+// task's GitHub repository from its project row.
+export function shipMode(policy, task, store = null) {
+  const github = store?.get("projects", taskRepository(task) || "")?.repository,
+    on = github ? policy?.autoMerge?.[github] : undefined;
   return (
     task?.ship ??
     task?.specShip ??
+    (typeof on === "boolean" ? (on ? "auto-merge" : "manual") : undefined) ??
     policy?.repositories?.[taskRepository(task)]?.ship ??
     policy?.ship ??
     "auto-merge"
@@ -2415,7 +2427,7 @@ export function planReadyDispatches(store, policy, options = {}) {
     // Investigate first (R75.5): never for a batch, whose brief is one
     // stretch of small tasks.
     const investigate = !leaf.batch && investigates(policy, leaf.task),
-      ship = shipMode(policy, leaf.task),
+      ship = shipMode(policy, leaf.task, store),
       brief = leaf.batch
         ? batchBrief(
             store,
@@ -3431,7 +3443,7 @@ export async function integrateVerified(
       if (
         task &&
         taskRoute(task) !== "github" &&
-        shipMode(policy, task) === "manual" &&
+        shipMode(policy, task, store) === "manual" &&
         delivery.integrateApproved?.commit !== delivery.commit
       ) {
         if (delivery.awaitingIntegrate !== delivery.commit) {

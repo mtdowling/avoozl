@@ -6,13 +6,12 @@ import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import { SaveFooter } from './SaveFooter.tsx'
 import { Section } from './SettingsView.tsx'
-import { CheckRow, FieldRow, RawKey } from './FieldRow.tsx'
+import { CheckRow, FieldRow } from './FieldRow.tsx'
 import { AskForHelp, useConfirm } from './controls.tsx'
 import { modelOptions, parseModels } from './flow-api.ts'
 import { useRead } from './useRead.ts'
 import { COMMAND_PATH, errorMessage } from './workspace-api.ts'
-import { DELIVERY_DEFAULTS, SHIP_CHOICES, toDeliveryForm, toDeliverySection, type DeliveryForm, type DeliverySettings as Settings, type ShipMode } from './delivery-api.ts'
-import { RadioFold } from './RadioFold.tsx'
+import { DELIVERY_DEFAULTS, toDeliveryForm, toDeliverySection, type DeliveryForm, type DeliverySettings as Settings } from './delivery-api.ts'
 
 const OPTIONAL = { required: false } as const
 const OFF_BLURB = 'The tick starts no ready task until delivery is on. Its agent, model and pull request settings show here then.'
@@ -148,35 +147,6 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
               </select>
             </Labeled>
           </div>
-        </Section>
-        <Section title="Who merges" blurb="Who lands a finished pull request. A repository, spec or task may set its own in .avoozl.json or the manifest; Avoozl never merges one itself.">
-          <RadioFold<ShipMode>
-            name="avoozl-delivery-ship"
-            label="Who merges"
-            value={form.ship ?? DELIVERY_DEFAULTS.ship}
-            onChange={(ship) => set({ ship })}
-            sections={SHIP_CHOICES.map((choice) => ({
-              key: choice.key,
-              title: choice.title,
-              line: choice.line,
-              description: (
-                <table className="text-sm">
-                  <tbody>
-                    {['Writer', 'Avoozl', 'You'].map((who, i) => (
-                      <tr key={who}>
-                        <th scope="row" className="pr-3 text-left font-medium">
-                          {who}
-                        </th>
-                        <td>{choice.who[i]}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ),
-            }))}
-          />
-          {form.ship === 'manual' && <p className="text-xs text-muted">Briefs tell writers not to turn on auto-merge.</p>}
-          <RawKey name="delivery.ship" />
         </Section>
         <Section title="Investigate first" blurb="Before coding, the writer reports what it found and how sure it is; a second chat tries to prove it wrong. Coding starts only when both are sure enough and the findings stand.">
           <div className="flex flex-wrap gap-4">

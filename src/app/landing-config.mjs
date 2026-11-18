@@ -2,8 +2,53 @@
 // landing-conflicts.mjs so the config loader pulls in no delivery code.
 export const DEFAULT_CONFLICT_ROUNDS = 2;
 const MAX_ROUNDS = 10;
+export const LANDING_MODES = Object.freeze(["direct", "pr", "train", "off"]);
+
+// The one landing block of a GitHub repository (design §4.25, R87.1), with
+// the older keys folded in: a key in the block wins, then the older key at
+// the repository, then the workspace's, then the default. `project` is the
+// checkout's project row, for its `landing` and its `delivery` id.
+// {mode, autoMerge, method, maxAttempts}; `mode` is null when nothing sets it.
+export function landingSettings(config, repository, project = null) {
+  const entry = config?.github?.repositories?.[repository],
+    block = isRecord(entry?.landing) ? entry.landing : {},
+    delivery = isRecord(config?.delivery) ? config.delivery : {},
+    ship = (value) => (value === undefined ? undefined : value !== "manual");
+  return {
+    mode: block.mode ?? project?.landing ?? null,
+    autoMerge:
+      block.autoMerge ??
+      ship(project && delivery.repositories?.[project.id]?.ship) ??
+      ship(repository && delivery.repositories?.[repository]?.ship) ??
+      ship(delivery.ship) ??
+      true,
+    method: block.method ?? entry?.merge?.method ?? "squash",
+    maxAttempts:
+      entry?.conflicts?.maxAttempts ??
+      (isRecord(config?.landing) ? config.landing.conflictRounds : undefined) ??
+      DEFAULT_CONFLICT_ROUNDS,
+  };
+}
+
+// The tick and the settings loader copy each repository's `landing.mode`
+// onto the project rows of its checkouts, because the landing code reads the
+// mode from the project (design §4.25). Returns the projects it changed.
+export function applyLandingModes(store, config) {
+  const changed = [];
+  for (const project of store.list("projects")) {
+    const mode =
+      project.repository &&
+      config?.github?.repositories?.[project.repository]?.landing?.mode;
+    if (!LANDING_MODES.includes(mode) || project.landing === mode) continue;
+    const next = { ...project, landing: mode };
+    store.put("projects", next);
+    changed.push(next);
+  }
+  return changed;
+}
 
 // `landing.conflictRounds` from .avoozl.json, validated; the default when unset.
+// It is the older key of each repository's `conflicts.maxAttempts`.
 export function conflictRounds(landing, where = "landing") {
   if (landing === undefined) return DEFAULT_CONFLICT_ROUNDS;
   if (!landing || typeof landing !== "object" || Array.isArray(landing))

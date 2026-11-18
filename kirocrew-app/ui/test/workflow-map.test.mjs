@@ -140,9 +140,16 @@ test('the merge method shows on the auto-merge card and round-trips (RC28.7)', (
   const policy = structuredClone(SINGLE)
   policy.repositories['example/code'].merge = { method: 'merge' }
   assert.equal(merge(map(policy)).text, 'merge')
-  assert.deepEqual(merge(map(policy)).jump, { tab: 'radar', field: 'mergeMethod' })
-  assert.deepEqual(toPolicy(toForm(policy)).repositories['example/code'].merge, { method: 'merge' })
-  assert.equal(toPolicy(toForm(SINGLE)).repositories['example/code'].merge, undefined)
+  assert.deepEqual(merge(map(policy)).jump, { tab: 'landing', field: 'mergeMethod' })
+  // The older merge.method is saved as landing.method (§4.25).
+  assert.equal(toPolicy(toForm(policy)).repositories['example/code'].merge, undefined)
+  assert.deepEqual(toPolicy(toForm(policy)).repositories['example/code'].landing, { method: 'merge' })
+  assert.equal(toPolicy(toForm(SINGLE)).repositories['example/code'].landing, undefined)
+  // The landing block's autoMerge wins over delivery.ship.
+  const off = structuredClone(SINGLE)
+  off.repositories['example/code'].landing = { autoMerge: false }
+  assert.equal(merge(map(off, 'auto-merge')), undefined)
+  assert.deepEqual(toPolicy(toForm(off)).repositories['example/code'].landing, { autoMerge: false })
   assert.equal(merge(map(SINGLE, 'manual')), undefined)
 })
 

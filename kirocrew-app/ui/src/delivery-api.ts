@@ -370,7 +370,7 @@ export function toDeliverySection(form: DeliveryForm): { delivery?: DeliverySett
   return { delivery }
 }
 
-// Settings > Delivery's ship fold-out (§4.25): one line each, and what the
+// The Landing tab's Who merges fold-out (§4.25): one line each, and what the
 // writer, Avoozl and the person do.
 export const SHIP_CHOICES: { key: ShipMode; title: string; line: string; who: [string, string, string] }[] = [
   {

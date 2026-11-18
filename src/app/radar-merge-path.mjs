@@ -1,7 +1,8 @@
 // The merge path check (RC5.1, design D7): can a pull request from an Issue
 // Radar crew merge by itself on this repository? Three items, each ok or not:
 // the repository allows auto-merge; the default branch has a rule that
-// requires the named CI check; `delivery.ship` is set. Read only.
+// requires the named CI check; who merges is set (`landing.autoMerge`, or
+// its older key `delivery.ship`). Read only.
 import { ruleBranch, seenCheckNames } from "./github-branch-rules.mjs";
 import { parseRepository } from "./github.mjs";
 import { fail } from "./store.mjs";
@@ -10,10 +11,18 @@ import {
   MERGE_METHOD_SETTING,
 } from "./github-policy.mjs";
 
-// The ship mode in force for a repository (R80.1): the repository's own value,
-// then the workspace's, then the built-in `auto-merge`.
-export const effectiveShip = (delivery, repository) =>
-  delivery?.repositories?.[repository]?.ship ?? delivery?.ship ?? "auto-merge";
+// The ship mode in force for a repository (R80.1): its `landing.autoMerge`,
+// then the older `delivery.ship` of the repository and of the workspace, then
+// the built-in `auto-merge`.
+export const effectiveShip = (delivery, repository, settings) =>
+  shipOf(settings) ??
+  delivery?.repositories?.[repository]?.ship ??
+  delivery?.ship ??
+  "auto-merge";
+const shipOf = (settings) => {
+  const on = settings?.landing?.autoMerge;
+  return typeof on === "boolean" ? (on ? "auto-merge" : "manual") : null;
+};
 
 const LABELS = {
   "auto-merge": "Auto-merge allowed",
@@ -29,7 +38,7 @@ export function methodAllowed(remote, method) {
 }
 // The words that name the GitHub setting to change.
 export const methodFix = (repository, method) =>
-  `Turn on "${MERGE_METHOD_SETTING[method].name}" in ${repository}'s settings, or set merge.method to ${method === "squash" ? "merge" : "squash"}.`;
+  `Turn on "${MERGE_METHOD_SETTING[method].name}" in ${repository}'s settings, or set landing.method to ${method === "squash" ? "merge" : "squash"}.`;
 
 // { repository, branch, ship, ready, missing: [id], items: [{id, label, ok,
 // detail}], error }. A GitHub read that fails leaves its items not ok and
@@ -42,7 +51,10 @@ export async function mergePath(
 ) {
   const named = settings?.requiredChecks || [],
     value =
-      delivery?.repositories?.[repository]?.ship ?? delivery?.ship ?? null;
+      shipOf(settings) ??
+      delivery?.repositories?.[repository]?.ship ??
+      delivery?.ship ??
+      null;
   const method = settings?.merge?.method ?? MERGE_METHOD_DEFAULT;
   let allowed = false,
     methodOk = false,
@@ -81,8 +93,8 @@ export async function mergePath(
           ? error
           : methodFix(repository, method),
       ship: value
-        ? `delivery.ship is ${value}.`
-        : "Set delivery.ship to auto-merge or manual.",
+        ? `Auto-merge is ${value === "manual" ? "off" : "on"}.`
+        : `Set Auto-merge on ${repository}'s Landing tab (landing.autoMerge).`,
     },
     ok = {
       "auto-merge": allowed,
@@ -99,7 +111,7 @@ export async function mergePath(
   return {
     repository,
     branch,
-    ship: effectiveShip(delivery, repository),
+    ship: effectiveShip(delivery, repository, settings),
     method,
     ready: items.every((item) => item.ok),
     missing: items.filter((item) => !item.ok).map((item) => item.id),

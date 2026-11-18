@@ -37,6 +37,7 @@ export type JumpField =
   | 'conflict'
   | 'onSourceConflict'
   | 'mergeMethod'
+  | 'autoMerge'
   | 'approval'
   | 'ready'
   | 'claim'
@@ -52,8 +53,9 @@ export interface Jump {
 const TAB: Record<JumpField, Jump['tab']> = {
   plan: 'radar',
   conflict: 'radar',
-  onSourceConflict: 'radar',
-  mergeMethod: 'radar',
+  onSourceConflict: 'landing',
+  mergeMethod: 'landing',
+  autoMerge: 'landing',
   approval: 'radar',
   ready: 'radar',
   claim: 'radar',
@@ -174,11 +176,13 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
         source: repository.minimumPermission.trim() ? 'set' : 'default',
         jump: jump('permission'),
       }
+  // Who merges: the landing block's autoMerge, then the older delivery.ship.
+  const shipMode = repository.autoMerge === 'off' ? 'manual' : repository.autoMerge === 'on' ? 'auto-merge' : input.ship
   const ship: Value = {
     label: 'Merge',
-    text: input.ship === 'manual' ? 'you merge' : 'auto-merge',
-    source: input.ship ? 'set' : 'default',
-    elsewhere: 'Settings › Delivery › delivery.ship',
+    text: shipMode === 'manual' ? 'you merge' : 'auto-merge',
+    source: repository.autoMerge || input.ship ? 'set' : 'default',
+    jump: jump('autoMerge'),
   }
   const landing: Value = { label: 'Landing branch', text: repository.baseBranch.trim() || 'main', source: repository.baseBranch.trim() ? 'set' : 'default' }
 
@@ -242,10 +246,10 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
   }
   const mergeCard: Card = {
     key: 'epic-merge',
-    who: input.ship === 'manual' ? 'you' : 'avoozl',
-    title: input.ship === 'manual' ? 'You merge' : 'Auto-merge',
-    text: input.ship === 'manual' ? 'Avoozl shows a Ready to merge row once the checks pass.' : 'Avoozl arms auto-merge; GitHub merges when its rules pass.',
-    values: input.ship === 'manual' ? [ship] : [ship, mergeMethod],
+    who: shipMode === 'manual' ? 'you' : 'avoozl',
+    title: shipMode === 'manual' ? 'You merge' : 'Auto-merge',
+    text: shipMode === 'manual' ? 'Avoozl shows a Ready to merge row once the checks pass.' : 'Avoozl arms auto-merge; GitHub merges when its rules pass.',
+    values: shipMode === 'manual' ? [ship] : [ship, mergeMethod],
     ...tag('epic-merge'),
   }
   const epic: Lane = {
@@ -289,6 +293,7 @@ export const fieldSelector = (id: string, field: JumpField): string =>
     conflict: `#${id}-label-conflictLabel`,
     onSourceConflict: `#${id}-on-source-conflict input:checked, #${id}-on-source-conflict`,
     mergeMethod: `#${id}-merge-method input:checked, #${id}-merge-method`,
+    autoMerge: `#${id}-auto-merge input:checked, #${id}-auto-merge`,
     approval: `#${id}-label-approvalLabel`,
     ready: `#${id}-label-ready`,
     claim: `#${id}-crew-claim`,

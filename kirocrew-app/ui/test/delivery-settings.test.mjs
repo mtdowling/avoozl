@@ -24,7 +24,10 @@ test('Settings > Delivery holds PR feedback, who merges and the writer model, wi
   assert.equal(form.ship, 'manual')
   assert.deepEqual(toDeliverySection(form), { delivery: { ship: 'manual', investigate: { mode: 'off', agent: 'alt' } } })
   assert.deepEqual(toDeliverySection({ ...form, ship: 'auto-merge', investigateMode: 'not-small' }), { delivery: { investigate: { agent: 'alt' } } })
-  for (const raw of ['delivery.ship', 'delivery.investigate.mode', 'RadioFold']) assert.ok(page.includes(raw), raw)
+  // Who merges moved to the repository's Landing tab (§4.25); the older
+  // delivery.ship still round-trips above but is not shown here.
+  assert.ok(page.includes('delivery.investigate.mode'))
+  assert.doesNotMatch(page, /delivery\.ship|Who merges/)
 })
 
 test('sessions show crew, agent, and an unreachable crew; a remote chat attaches only through MC-10', () => {

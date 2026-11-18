@@ -29,14 +29,17 @@ test('no field asks for a model price', () => {
 
 test('Crews and rules modes are radio fold-outs, not selects', () => {
   const text = readFileSync(new URL('../src/CrewsRulesSettings.tsx', import.meta.url), 'utf8')
-  // Review rules, the source-conflict action and the merge method (RC28).
-  assert.equal((text.match(/<RadioFold\b/g) ?? []).length, 3)
+  // Review rules, the source-conflict action, the merge method (RC28) and
+  // who merges (landing.autoMerge, design §4.25).
+  assert.equal((text.match(/<RadioFold\b/g) ?? []).length, 4)
   assert.doesNotMatch(text, /<select|type="checkbox"/)
   assert.match(text, /<FieldBox title="Review rules"/)
   assert.match(text, /<Fold title="Avoozl labels"/)
-  // Its parts are sections of Settings › Issue Radar.
+  // Review rules and labels are sections of Settings › Issue Radar; who
+  // merges and conflicts are on the repository's Landing tab, once each.
   const view = readFileSync(new URL('../src/SettingsView.tsx', import.meta.url), 'utf8')
-  for (const part of ['ReviewRulesFields', 'ConflictFields', 'MergeMethodFields', 'AvoozlLabelFields']) assert.match(view, new RegExp(`<${part} \\{\\.\\.\\.part\\}`), part)
+  for (const part of ['ReviewRulesFields', 'AvoozlLabelFields']) assert.match(view, new RegExp(`<${part} \\{\\.\\.\\.part\\}`), part)
+  for (const part of ['AutoMergeFields', 'ConflictFields', 'MergeMethodFields']) assert.equal((view.match(new RegExp(`<${part} id=\\{id\\} repository=\\{repository\\} set=\\{set\\} />`, 'g')) ?? []).length, 1, part)
 })
 
 test('the seven Avoozl labels show with their job, writer and avoozl: default (RC21.4)', () => {
