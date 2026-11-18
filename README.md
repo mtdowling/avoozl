@@ -559,7 +559,12 @@ page inside Kiro Crew match when the installed Kiro Crew is the pinned release.
 or bind option; `--host`, `--bind` and `AVOOZL_HOST` refuse to start) and prints a
 one-time owner link that signs one browser in; `avoozl serve link` prints another
 for the running server. The page works with the Kiro Crew parts it was built on;
-Open chat, the "Needs Kiro Crew" states and supervisor hosting are not built yet.
+Without Kiro Crew, a button that opens a chat opens a Start a session dialog instead: Start runs the
+message as a read-only `assist` session on a harness approved on this machine, and the dialog then shows
+its log, cost, a Send message box and an attach command. Features that need Kiro Crew say "Needs Kiro Crew".
+Supervisor hosting is not built yet.
+Settings › Workspaces has a Notifications box (browser notices for new Needs you items, off until you turn
+them on).
 Scripts can use the server's API key instead of a browser: send it in the
 `X-Api-Key` header to `POST /apps/avoozl/api/command`, never in the address. The key
 is in Settings › Workspaces on the standalone page, where Regenerate replaces it and
