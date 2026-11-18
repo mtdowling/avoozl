@@ -9,6 +9,7 @@ import { ICON } from './ui/controls.tsx'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 export interface WalkStep {
   title: string
@@ -47,8 +48,8 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
           <Hint as="p" size="xs">
             Step {at + 1} of {props.steps.length}
           </Hint>
-          <h4 className="text-lg font-semibold">{step.title}</h4>
-          <p className="text-base">{step.text}</p>
+          <Box as="h4" size="lg" weight="semibold">{step.title}</Box>
+          <Box as="p" size="base">{step.text}</Box>
           {step.points && (
             <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
               {step.points.map((point) => (
@@ -63,7 +64,7 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
           <ArrowLeft size={ICON} aria-hidden="true" />
           Back
         </Btn>
-        <div className="flex items-center gap-1.5" role="group" aria-label="Steps">
+        <Box flex items="center" gap="1.5" role="group" aria-label="Steps">
           {props.steps.map((s, i) => (
             <button
               key={s.title}
@@ -75,7 +76,7 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
               style={{ width: 9, height: 9, background: i === at ? 'var(--accent)' : 'var(--border)' }}
             />
           ))}
-        </div>
+        </Box>
         {at < last ? (
           <Btn type="button" primary onClick={() => go(at + 1)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             Next
@@ -98,9 +99,9 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
 export function Flow(props: { boxes: string[]; on?: number; note?: string }) {
   return (
     <Stack gap={2}>
-      <div className="flex flex-wrap items-center gap-1.5">
+      <Box flex flexWrap items="center" gap="1.5">
         {props.boxes.map((box, i) => (
-          <span key={box} className="inline-flex items-center gap-1.5">
+          <Box key={box} as="span" inlineFlex items="center" gap="1.5">
             {i > 0 && <ArrowRight size={14} style={{ color: 'var(--muted)' }} />}
             <span
               className="rounded-md px-2 py-1 text-xs font-medium"
@@ -112,10 +113,10 @@ export function Flow(props: { boxes: string[]; on?: number; note?: string }) {
             >
               {box}
             </span>
-          </span>
+          </Box>
         ))}
-      </div>
-      {props.note && <span className="text-[11px] text-muted">{props.note}</span>}
+      </Box>
+      {props.note && <Box as="span" size="11" tone="muted">{props.note}</Box>}
     </Stack>
   )
 }

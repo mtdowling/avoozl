@@ -17,6 +17,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 export type FilterField = (
   | { kind: 'search'; key: string; label: string; value: string; placeholder: string; onChange: (value: string) => void }
@@ -50,7 +51,7 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
   const fieldId = `${id}-${field.key}`
   if (field.kind === 'search')
     return (
-      <label htmlFor={fieldId} className="flex flex-col gap-1 text-sm">
+      <Box htmlFor={fieldId} as="label" flex flexCol gap="1" size="sm">
         <span>{field.label}</span>
         <input
           id={fieldId}
@@ -61,7 +62,7 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
           className="rounded border px-2 py-1 text-sm"
           style={selectStyle}
         />
-      </label>
+      </Box>
     )
   if (field.kind === 'select')
     return <FilterSelect id={fieldId} label={field.label} value={field.value} options={field.options} onChange={field.onChange} disabled={field.disabled} hint={field.hint} inline={inline} />
@@ -74,8 +75,8 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
       </Switch>
     )
   return (
-    <fieldset className="flex flex-col gap-1 text-sm">
-      <legend className="mb-1">{field.label}</legend>
+    <Box as="fieldset" flex flexCol gap="1" size="sm">
+      <Box as="legend" mb="1">{field.label}</Box>
       <Row as="span" gap={1} wrap={false}>
         <input
           aria-label={`${field.label} from`}
@@ -101,7 +102,7 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
           style={numberStyle}
         />
       </Row>
-    </fieldset>
+    </Box>
   )
 }
 
@@ -187,18 +188,18 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
             {open && fields}
           </Stack>
         ) : props.aside ? (
-          <div className="flex flex-wrap items-end justify-between gap-3">
+          <Box flex flexWrap items="end" justify="between" gap="3">
             {fields}
-            <div className="ml-auto" data-filter-aside>
+            <Box ml="auto" data-filter-aside>
               {props.aside}
-            </div>
-          </div>
+            </Box>
+          </Box>
         ) : (
           fields
         )}
-        {narrow && props.aside && <div className="mt-2" data-filter-aside>{props.aside}</div>}
+        {narrow && props.aside && <Box mt="2" data-filter-aside>{props.aside}</Box>}
       </div>
-      {props.children && <div className="mt-3">{props.children}</div>}
+      {props.children && <Box mt="3">{props.children}</Box>}
     </Card>
   )
 }

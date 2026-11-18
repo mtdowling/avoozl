@@ -42,6 +42,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 const BADGE: Record<string, CSSProperties> = {
   create: { color: 'var(--ok)', borderColor: 'var(--ok)' },
@@ -63,12 +64,12 @@ function Facts({ rows }: { rows: [string, ReactNode][] }) {
   return (
     <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content minmax(0, 1fr)' }}>
       {rows.map(([label, value]) => (
-        <div key={label} className="contents">
+        <Box key={label} contents>
           <Hint as="dt">{label}</Hint>
           <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
             {value}
           </dd>
-        </div>
+        </Box>
       ))}
     </dl>
   )
@@ -76,10 +77,10 @@ function Facts({ rows }: { rows: [string, ReactNode][] }) {
 
 function Done({ children }: { children: ReactNode }) {
   return (
-    <p className="flex items-center gap-1.5 text-sm" data-step-done>
+    <Box as="p" flex items="center" gap="1.5" size="sm" data-step-done>
       <Check size={14} aria-hidden="true" style={{ color: 'var(--ok)' }} />
       {children}
-    </p>
+    </Box>
   )
 }
 
@@ -87,7 +88,7 @@ function ModeStep(props: { form: OnboardForm; set: (patch: Partial<OnboardForm>)
   const { form, found, set } = props
   const noGitHub = found.github ? null : found.remote ? `${found.remote} is not a GitHub remote.` : 'This folder has no GitHub remote.'
   return (
-    <div className="flex flex-col gap-3 text-sm" data-onboard-mode>
+    <Box flex flexCol gap="3" size="sm" data-onboard-mode>
       <RadioFold<OnboardMode>
         name="avoozl-onboard-mode"
         label="Mode"
@@ -100,38 +101,38 @@ function ModeStep(props: { form: OnboardForm; set: (patch: Partial<OnboardForm>)
           icon: MODE_ICONS[card.mode],
           disabled: card.mode === 'local' ? null : noGitHub,
           description: (
-            <div className="flex flex-col gap-1 text-sm">
+            <Box flex flexCol gap="1" size="sm">
               <Hint as="p" size="xs">Use it when: {card.useWhen.join('; ')}.</Hint>
               <Facts rows={card.facts.map(([k, v]) => [k, v] as [string, ReactNode])} />
-            </div>
+            </Box>
           ),
           fields:
             card.mode === 'plans-repo' ? (
               <Stack gap={2}>
-                <fieldset className="flex flex-col gap-1">
-                  <legend className="text-sm">This folder is</legend>
+                <Box as="fieldset" flex flexCol gap="1">
+                  <Box as="legend" size="sm">This folder is</Box>
                   {(
                     [
                       [true, 'The planning repository', 'Specs and issues live here. It must be private.'],
                       [false, 'A code repository', 'Code and pull requests live here; specs live in the planning repository.'],
                     ] as const
                   ).map(([value, label, hint]) => (
-                    <label key={label} className="flex items-start gap-2">
+                    <Box key={label} as="label" flex items="start" gap="2">
                       <input type="radio" name="avoozl-onboard-role" className="mt-1" checked={form.isPlanning === value} onChange={() => set({ isPlanning: value })} />
                       <span>
                         {label}
                         <Hint size="xs" block>{hint}</Hint>
                       </span>
-                    </label>
+                    </Box>
                   ))}
-                </fieldset>
+                </Box>
                 {!form.isPlanning && (
                   <label className="flex flex-col gap-1" style={{ maxWidth: '22rem' }}>
                     <span>
                       Planning repository <Hint size="xs">(required)</Hint>
                     </span>
                     <Input value={form.planningRepository} placeholder="acme/plans" onChange={(e: Change) => set({ planningRepository: e.target.value })} />
-                    <code className="text-[11px] text-muted">github.planningRepository</code>
+                    <Box as="code" size="11" tone="muted">github.planningRepository</Box>
                   </label>
                 )}
               </Stack>
@@ -139,25 +140,25 @@ function ModeStep(props: { form: OnboardForm; set: (patch: Partial<OnboardForm>)
         }))}
       />
       <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(12rem, 15rem))' }}>
-        <label className="flex flex-col gap-1">
+        <Box as="label" flex flexCol gap="1">
           <span>
             Short ID <Hint size="xs">(required)</Hint>
           </span>
           <Input value={form.id} placeholder="my-service" disabled={Boolean(found.registered)} onChange={(e: Change) => set({ id: e.target.value })} />
-        </label>
-        <label className="flex flex-col gap-1">
+        </Box>
+        <Box as="label" flex flexCol gap="1">
           <span>
             Branch tasks land on <Hint size="xs">(required)</Hint>
           </span>
           <Input value={form.baseBranch} placeholder={found.baseBranch} disabled={Boolean(found.registered)} onChange={(e: Change) => set({ baseBranch: e.target.value })} />
-        </label>
+        </Box>
       </div>
       {props.problem && (
         <ErrorText role="alert" size="sm">
           {props.problem}
         </ErrorText>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -167,37 +168,37 @@ function CheckStep({ result }: { result: SetupResult | null }) {
   const kept = result.steps.filter((s) => !result.writes.some((w) => w.step === s.id) && s.status !== 'failed')
   const failed = result.steps.filter((s) => s.status === 'failed')
   return (
-    <div className="flex flex-col gap-3 text-sm" data-onboard-check>
+    <Box flex flexCol gap="3" size="sm" data-onboard-check>
       {result.writes.length === 0 && <Done>Nothing to create or change on GitHub.</Done>}
       {groups.map((group) => (
         <section key={group.key}>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">{group.title}</h4>
-          <ul className="mt-1 flex flex-col gap-1">
+          <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">{group.title}</Box>
+          <Box as="ul" mt="1" flex flexCol gap="1">
             {group.writes.map((write, i) => (
-              <li key={i} className="flex flex-wrap items-baseline gap-2">
+              <Box key={i} as="li" flex flexWrap items="baseline" gap="2">
                 <Pill kind={writeBadge(write)} />
                 <span>
                   {write.object} <code>{write.name}</code>
                   {write.visibility ? ` (${write.visibility})` : ''} in {write.owner}
                 </span>
-                <span className="w-full pl-12 text-xs text-muted">{write.detail}</span>
-              </li>
+                <Box as="span" wFull pl="12" size="xs" tone="muted">{write.detail}</Box>
+              </Box>
             ))}
-          </ul>
+          </Box>
         </section>
       ))}
       {kept.length > 0 && (
         <section>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Already there</h4>
-          <ul className="mt-1 flex flex-col gap-1">
+          <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Already there</Box>
+          <Box as="ul" mt="1" flex flexCol gap="1">
             {kept.map((step) => (
-              <li key={step.id} className="flex flex-wrap items-baseline gap-2">
+              <Box key={step.id} as="li" flex flexWrap items="baseline" gap="2">
                 <Pill kind="keep" />
                 <span>{step.title}</span>
-                {step.notes[0] && <span className="w-full pl-12 text-xs text-muted">{step.notes[0]}</span>}
-              </li>
+                {step.notes[0] && <Box as="span" wFull pl="12" size="xs" tone="muted">{step.notes[0]}</Box>}
+              </Box>
             ))}
-          </ul>
+          </Box>
         </section>
       )}
       {failed.map((step) => (
@@ -213,13 +214,13 @@ function CheckStep({ result }: { result: SetupResult | null }) {
       ))}
       {result.settings.changed && (
         <details>
-          <summary className="cursor-pointer text-xs text-muted">The .avoozl.json change Set up would save</summary>
+          <Box as="summary" cursorPointer size="xs" tone="muted">The .avoozl.json change Set up would save</Box>
           <pre className="mt-1 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
             {result.settings.diff}
           </pre>
         </details>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -458,14 +459,14 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
         </>
       }
     >
-      <ol className="flex flex-wrap gap-x-3 gap-y-1 text-xs" aria-label="Steps">
+      <Box as="ol" flex flexWrap gapX="3" gapY="1" size="xs" aria-label="Steps">
         {steps.map((key, i) => (
           <li key={key} aria-current={key === step ? 'step' : undefined} className={`inline-flex items-center gap-1 ${key === step ? 'font-semibold' : 'text-muted'}`}>
             {isDone(key) && <Check size={11} aria-label="done" style={{ color: 'var(--ok)' }} />}
             {i + 1}. {ONBOARD_STEPS.find((s) => s.key === key)!.title}
           </li>
         ))}
-      </ol>
+      </Box>
       <div>
         <Hint id="avoozl-onboard-line" as="p" size="sm">
           {text.line}
@@ -475,29 +476,29 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
       {step === 'mode' && form && found && <ModeStep form={form} set={set} found={found} problem={problem} />}
       {step === 'check' && <CheckStep result={check} />}
       {step === 'setup' && (
-        <ol className="flex flex-col gap-2 text-sm" data-onboard-setup>
+        <Box as="ol" flex flexCol gap="2" size="sm" data-onboard-setup>
           {planned.map((write, i) => (
-            <li key={write.key} className="flex items-start gap-2">
-              <span className="w-5 flex-none text-right text-muted">{i + 1}.</span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1.5">
+            <Box key={write.key} as="li" flex items="start" gap="2">
+              <Box as="span" w5 flexNone align="right" tone="muted">{i + 1}.</Box>
+              <Box as="span" minW0 flex1>
+                <Box as="span" flex items="center" gap="1.5">
                   {write.done || setupDone ? <Check size={13} aria-label="done" style={{ color: 'var(--ok)' }} /> : null}
                   {write.title}
                   {write.confirm && !write.done && !setupDone && <Badge variant="warning">asks first</Badge>}
-                </span>
+                </Box>
                 <Hint size="xs" block>{write.detail}</Hint>
-              </span>
-            </li>
+              </Box>
+            </Box>
           ))}
-        </ol>
+        </Box>
       )}
       {step === 'import' && (
-        <div className="flex flex-col gap-2 text-sm" data-onboard-import>
+        <Box flex flexCol gap="2" size="sm" data-onboard-import>
           {shown.length === 0 && <Hint as="p">No spec folders here for this mode. Write one with Plan a goal, or add one under .kiro/specs/ and come back.</Hint>}
           {shown.length > 0 && shown.every(imported) && <Done>Every spec here is imported.</Done>}
-          <ul className="flex flex-col gap-1.5">
+          <Box as="ul" flex flexCol gap="1.5">
             {shown.map((spec) => (
-              <li key={spec.name} className="flex flex-wrap items-center gap-2" data-onboard-spec={spec.name}>
+              <Box key={spec.name} as="li" flex flexWrap items="center" gap="2" data-onboard-spec={spec.name}>
                 <Switch
                   label={`Import ${spec.name}`}
                   disabled={imported(spec)}
@@ -519,14 +520,14 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
                   <Badge>lint clean{spec.counts.warning ? `, ${spec.counts.warning} warnings` : ''}</Badge>
                 )}
                 {spec.plan && <Badge>{spec.plan.approved ? 'approved' : 'draft'}</Badge>}
-              </li>
+              </Box>
             ))}
-          </ul>
+          </Box>
           {shown.some((s) => s.counts.error > 0) && <Hint as="p" size="xs">A draft with lint errors imports, but Specs won&apos;t approve it until they are fixed.</Hint>}
-        </div>
+        </Box>
       )}
       {step === 'scan' && (
-        <div className="flex flex-col gap-2 text-sm" data-onboard-scan>
+        <Box flex flexCol gap="2" size="sm" data-onboard-scan>
           {!scan && <Hint as="p">Scanning…</Hint>}
           {scan && findings.length === 0 && <Done>No secrets, local paths or content-rule matches in {scan.items.length} spec{scan.items.length === 1 ? '' : 's'}.</Done>}
           {findings.length > 0 && (
@@ -536,23 +537,23 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
               </ErrorText>
               <Stack as="ul" gap={1}>
                 {findings.map((f, i) => (
-                  <li key={i} className="text-xs">
+                  <Box key={i} as="li" size="xs">
                     <code>
                       {f.spec}/{f.file}:{f.line}
                     </code>{' '}
                     <Hint>
                       {f.set} {f.rule ?? ''}
                     </Hint>
-                    <span className="block">{f.message}</span>
-                  </li>
+                    <Box as="span" block>{f.message}</Box>
+                  </Box>
                 ))}
               </Stack>
             </>
           )}
-        </div>
+        </Box>
       )}
       {step === 'issues' && (
-        <div className="flex flex-col gap-3 text-sm" data-onboard-issues>
+        <Box flex flexCol gap="3" size="sm" data-onboard-issues>
           {shown.filter((s) => s.plan && !s.plan.approved).length === 0 && <Hint as="p">No draft specs to preview. Import a spec first.</Hint>}
           {Object.entries(previews).map(([name, preview]) => {
             if ('error' in preview)
@@ -564,9 +565,9 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
             const sum = issueSummary(preview)
             return (
               <section key={name} data-onboard-preview={name}>
-                <h4 className="font-semibold">
+                <Box as="h4" weight="semibold">
                   <code>{name}</code>
-                </h4>
+                </Box>
                 {preview.blocked?.length ? (
                   <Hint as="p" size="xs">Not previewed until lint passes: {preview.blocked[0].message}</Hint>
                 ) : (
@@ -576,34 +577,34 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
                       {sum.update.length ? `, update ${sum.update.length}` : ''}
                       {sum.other ? `, and make ${sum.other} label, link or board changes` : ''}.
                     </Hint>
-                    <ul className="mt-1 flex flex-col gap-0.5 text-xs">
+                    <Box as="ul" mt="1" flex flexCol gap="0.5" size="xs">
                       {sum.create.slice(0, 8).map((w, i) => (
                         <li key={i}>
                           <Pill kind="create" /> {w.title} <Hint>in {w.repository}</Hint>
                         </li>
                       ))}
                       {sum.create.length > 8 && <Hint as="li">and {sum.create.length - 8} more</Hint>}
-                    </ul>
+                    </Box>
                   </>
                 )}
               </section>
             )
           })}
-        </div>
+        </Box>
       )}
       {step === 'finish' && (
-        <div className="flex flex-col gap-2 text-sm" data-onboard-finish>
+        <Box flex flexCol gap="2" size="sm" data-onboard-finish>
           {written.length ? (
-            <ul className="list-disc pl-5">
+            <Box as="ul" listDisc pl="5">
               {written.map((line, i) => (
                 <li key={i}>{line}</li>
               ))}
-            </ul>
+            </Box>
           ) : (
             <Hint as="p">Nothing needed changing.</Hint>
           )}
           <Hint as="p" size="xs">Nothing was approved, no agent was started and nothing was pushed. Approve each draft in Specs when you are ready.</Hint>
-        </div>
+        </Box>
       )}
       {error && (
         <ErrorText role="alert" size="sm">

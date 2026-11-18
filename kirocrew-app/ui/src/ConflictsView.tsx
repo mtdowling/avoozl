@@ -57,6 +57,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter, write: writeConflictFilter, empty: {} as ConflictFilter }
 
@@ -483,16 +484,16 @@ function ItemHistory({ item, workspaceId }: { item: ConflictItem; workspaceId: s
             {detail.task.epicTitle ? ` · Epic: ${detail.task.epicTitle}` : ''} · State: {detail.task.state ?? 'unknown'}
           </Hint>
           {detail.timeline.length ? (
-            <ol className="flex flex-col gap-0.5 text-xs">
+            <Box as="ol" flex flexCol gap="0.5" size="xs">
               {detail.timeline.slice(0, 12).map((entry, i) => (
-                <li key={i} className="flex gap-2">
+                <Box key={i} as="li" flex gap="2">
                   <Tooltip text={entry.at}>
-                    <span className="w-20 shrink-0 text-muted">{relativeTime(entry.at)}</span>
+                    <Box as="span" w20 shrink0 tone="muted">{relativeTime(entry.at)}</Box>
                   </Tooltip>
                   <span>{entry.text}</span>
-                </li>
+                </Box>
               ))}
-            </ol>
+            </Box>
           ) : (
             <Hint as="p" size="xs">Nothing recorded yet.</Hint>
           )}
@@ -515,7 +516,7 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
     <li className="border-t first:border-t-0" style={{ borderColor: 'var(--border)' }} data-conflict-row>
       <div className="flex items-start gap-2 px-1 py-1.5" style={{ background: props.focused ? 'var(--accent-subtle, var(--bg-elevated))' : undefined, borderRadius: 6 }}>
         <Switch label={`Select ${item.title}`} checked={props.selected} disabled={!props.selectable} onChange={props.onSelect} />
-        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-0.5">
+        <Box flex minW0 flex1 flexCol items="stretch" gap="0.5">
           <button
             type="button"
             data-conflict-pick={itemKey(item)}
@@ -524,19 +525,19 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
             className="flex min-w-0 flex-col items-stretch gap-0.5 text-left"
             style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }}
           >
-            <span className="flex min-w-0 items-center gap-2">
+            <Box as="span" flex minW0 items="center" gap="2">
               <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable', 'spec-pull'].includes(item.kind) ? 'warning' : 'danger'}>
                 {LABELS[item.kind] ?? item.kind}
               </Badge>
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.title}</span>
-              {time && <span className="shrink-0 text-xs text-muted">{relativeTime(time)}</span>}
-            </span>
-            <span className="truncate text-xs text-muted" data-row-reason>
+              <Box as="span" minW0 flex1 truncate size="sm" weight="medium">{item.title}</Box>
+              {time && <Box as="span" shrink0 size="xs" tone="muted">{relativeTime(time)}</Box>}
+            </Box>
+            <Box as="span" truncate size="xs" tone="muted" data-row-reason>
               {whyLine(item)}
-            </span>
+            </Box>
           </button>
           {(spec || task) && (
-            <span className="truncate text-xs text-muted" data-row-where>
+            <Box as="span" truncate size="xs" tone="muted" data-row-where>
               {spec && (
                 <>
                   Spec: <SpecLink spec={spec} />
@@ -544,9 +545,9 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
               )}
               {spec && task && ' · '}
               {task && <span data-row-task>Task {task.id}</span>}
-            </span>
+            </Box>
           )}
-        </div>
+        </Box>
       </div>
     </li>
   )
@@ -575,7 +576,7 @@ function ConflictDetail(props: {
   const time = itemTime(item as ConflictItem & { openedAt?: string | null })
   return (
     <Stack gap={3} data-conflict-detail={itemKey(item)}>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <Box flex flexWrap items="center" gapX="2" gapY="1">
         <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable'].includes(item.kind) ? 'warning' : 'danger'}>
           {LABELS[item.kind] ?? item.kind}
         </Badge>
@@ -587,14 +588,14 @@ function ConflictDetail(props: {
             <Hint size="xs">· {relativeTime(time)}</Hint>
           </Tooltip>
         )}
-      </div>
+      </Box>
       {!phone && (
         <h3 className="m-0 text-lg font-semibold" style={{ overflowWrap: 'anywhere' }}>
           {item.title}
         </h3>
       )}
       <ItemContextBlock item={item} plan={props.plan} />
-      <div className="flex flex-wrap items-center gap-1.5" data-conflict-actions>
+      <Box flex flexWrap items="center" gap="1.5" data-conflict-actions>
         {item.taskId && (
           <IconLabel icon={DetailsIcon} tooltip="Open this task's details" onClick={() => drawer.openTask(item.taskId!)}>
             Task details
@@ -618,9 +619,9 @@ function ConflictDetail(props: {
             {history ? 'Hide history' : 'History'}
           </IconLabel>
         )}
-      </div>
+      </Box>
       <Card data-conflict-resolve>
-        <h4 className="m-0 mb-2 text-sm font-semibold">Resolve</h4>
+        <Box as="h4" m0 mb="2" size="sm" weight="semibold">Resolve</Box>
         <ConflictActions item={item} workspaceId={props.workspaceId} revision={props.revision} busy={props.busy} run={props.run} onSettled={props.onSettled} onReload={props.onReload} />
       </Card>
       {history && <ItemHistory item={item} workspaceId={props.workspaceId} />}
@@ -729,7 +730,7 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
   }
 
   return (
-    <section aria-labelledby={embedded ? undefined : 'avoozl-conflicts-title'} aria-label={embedded ? 'Decisions and conflicts' : undefined} className="flex h-full min-h-0 flex-col gap-2">
+    <Box aria-labelledby={embedded ? undefined : 'avoozl-conflicts-title'} aria-label={embedded ? 'Decisions and conflicts' : undefined} as="section" flex hFull minH0 flexCol gap="2">
       {!embedded && (
         <ViewHeading
           id="avoozl-conflicts-title"
@@ -798,9 +799,9 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                   <Hint role="status" size="xs" data-conflict-count>
                     {matching.length} of {items.length}
                   </Hint>
-                  <span className="ml-auto">{workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy || acting} />}</span>
+                  <Box as="span" ml="auto">{workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy || acting} />}</Box>
                 </FilterPanel>
-                <div className="flex flex-wrap items-center gap-2 text-sm" data-bulk-bar>
+                <Box flex flexWrap items="center" gap="2" size="sm" data-bulk-bar>
                   <Switch
                     label={`Select the ${shown.length} shown`}
                     size="xs"
@@ -844,8 +845,8 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                       </Btn>
                     </>
                   )}
-                </div>
-                <ul className="m-0 flex list-none flex-col p-0" data-conflict-list>
+                </Box>
+                <Box as="ul" m0 flex listNone flexCol p="0" data-conflict-list>
                   {shown.map((item) => (
                     <ConflictListRow
                       key={itemKey(item)}
@@ -857,7 +858,7 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                       onFocus={() => setFocus(itemKey(item))}
                     />
                   ))}
-                </ul>
+                </Box>
                 <ShowMore {...pages.more('conflicts', matching.length)} />
                 {matching.length === 0 && <Hint as="p" size="sm">No item matches these filters.</Hint>}
             </Stack>
@@ -881,6 +882,6 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
           }
         />
       )}
-    </section>
+    </Box>
   )
 }

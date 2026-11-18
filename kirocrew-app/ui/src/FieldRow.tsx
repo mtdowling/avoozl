@@ -10,6 +10,7 @@ import { Tooltip } from './ui/Tooltip.tsx'
 import type { FieldRule } from './settings-api.ts'
 import { Hint } from './ui/Hint'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 export const FIELD_WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 export type FieldWidth = keyof typeof FIELD_WIDTH
@@ -90,7 +91,7 @@ export function FieldRow(props: {
   const control = <div style={{ display: 'flex', minWidth: 0, maxWidth: props.width ? (FIELD_WIDTH[props.width as FieldWidth] ?? props.width) : undefined, flexDirection: 'column' }}>{props.children}</div>
   const label = (
     <label htmlFor={props.id} className="flex flex-wrap items-baseline" style={{ columnGap: 8, rowGap: 2, alignContent: 'flex-start', alignSelf: 'start' }} data-field-label>
-      <span className="font-medium">{props.label}</span>
+      <Box as="span" weight="medium">{props.label}</Box>
       <Marker rule={props.rule} />
     </label>
   )
