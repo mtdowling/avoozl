@@ -68,6 +68,8 @@ function fixture(files = { "b.txt": "b\n" }, message = "Add b") {
   const head = git(seed, "rev-parse", "HEAD");
   fs.mkdirSync(root);
   git(root, "init", "-q", "-b", "main");
+  git(root, "config", "user.name", "Driver");
+  git(root, "config", "user.email", "driver@example.com");
   const registry = sourceRegistry({
     "example/code": { url: target },
     "fork/code": { url: fork, parent: "example/code" },
