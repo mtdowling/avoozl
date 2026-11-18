@@ -38,6 +38,7 @@ const KEYS = new Set([
   "writeRoots",
   "allow",
   "cost",
+  "servedModel",
   // Removed 2026-11-17 with budgets: skipped silently so an old definition
   // loads.
   "spendCap",
@@ -278,6 +279,22 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
         `${source}: cost must be {"from": "output", "field": ..., "per"?: "run" | "session"} or {"from": "file", "path": ...}.`,
       );
     definition.cost = cost;
+  }
+  // Where the harness output names the model that served the session
+  // (NK5.2, design D5): `field`, a JSON line's text value, or `keyOf`, the
+  // one key of a JSON line's object (Claude Code's `modelUsage`). Plan
+  // review counts a child's round only with it.
+  if (value.servedModel !== undefined) {
+    const served = words(value.servedModel, "servedModel", source);
+    const keys = Object.keys(served).sort().join();
+    if (
+      served.from !== "output" ||
+      !["field,from", "from,keyOf"].includes(keys)
+    )
+      fail(
+        `${source}: servedModel must be {"from": "output", "field": ...} or {"from": "output", "keyOf": ...}.`,
+      );
+    definition.servedModel = served;
   }
   return Object.freeze(definition);
 }

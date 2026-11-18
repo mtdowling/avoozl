@@ -28,6 +28,20 @@ function allowedShell(allowCommands) {
     .join(", ")}. Read files with your file tools.`;
 }
 
+// A plan review child's output file (NK3.3): its findings and summary as
+// plans_submit_review takes them. Only the shape is checked here; the
+// submit's own checks judge each finding and the count, as for a chat.
+function planReviewOutput(text) {
+  const value = JSON.parse(text);
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw Error("it must be a JSON object");
+  if (!Array.isArray(value.findings))
+    throw Error("it must hold a findings list");
+  if (value.summary !== undefined && typeof value.summary !== "string")
+    throw Error("its summary must be text");
+  return { findings: value.findings, summary: value.summary ?? null };
+}
+
 const verdictFinish = (allowCommands) => [
   "You run without Avoozl's tools, so these steps replace the worktree and plans_report steps above.",
   "1. Avoozl already added the detached worktree at the commit: it is the current folder. Do not run git worktree add, and read only there.",
@@ -46,7 +60,8 @@ const verdictFinish = (allowCommands) => [
 //   folder   how the drain makes the child's folder: worktree (the task's),
 //            detached (a worktree at the commit), scratch (an empty folder),
 //            spec (the spec folder the request names), snapshot (a scratch
-//            folder `snapshot(store, request)` fills with {path: text})
+//            folder `snapshot(store, request)` fills with {path: text}),
+//            prepared (the folder the request names, which the tick made)
 //   scratch  the name prefix of a scratch or snapshot folder in the temp
 //            folder, which the drain removes once the child exits
 //   output   {limit, validate}: the one output file under .avoozl/output/ a
@@ -56,7 +71,8 @@ const verdictFinish = (allowCommands) => [
 //            retro's reply), folder (the stored folder; nothing to record),
 //            post-reply (reply.post, as the session), summary
 //            (tasksummary.submit, as the session), falsifier
-//            (session.report with the verdict and no commit)
+//            (session.report with the verdict and no commit), plan-review
+//            (plan.review.submit as the session, with its served model)
 //   finish   the lines that replace the Avoozl tools in a child's brief
 //   offline  true when the child gets no network, whatever its project
 //            allows: it reads only its folder and brief
@@ -178,11 +194,30 @@ export const ROLE_TABLE = Object.freeze({
     process: true,
     access: "write",
   },
+  // Plan review as a child (NK3.3, NK5.2): it reads the snapshot folder the
+  // tick prepared for its round and writes its findings and summary to one
+  // output file, which plans_submit_review's own checks then judge as this
+  // session. The round counts only with a served model the harness output
+  // names (servedModel), as a chat's does with the model Kiro Crew names.
   planReviewer: {
     setting: "planReviewer",
     roles: ["plan-review"],
-    process: false,
+    prompt: "plan-review",
+    process: true,
     access: "read",
+    folder: "prepared",
+    offline: true,
+    hands: "plan-review",
+    // 50 findings, each at most a 500-character quote, a 10,000-character
+    // claim and 20,000 characters of evidence, and an 800-character summary
+    // (plan-reviews.mjs), with room for JSON escapes.
+    output: { limit: 4 * 1024 * 1024, validate: planReviewOutput },
+    finish: () => [
+      "You run without Avoozl's tools, so this replaces the plans_submit_review step above.",
+      "The current folder is the review snapshot the data names. Read only there. Your shell runs no command here: read files with your file tools.",
+      'Instead of calling plans_submit_review, write .avoozl/output/review.json in the current folder as {"findings": [<each finding as the submit input shows>], "summary": "<your summary>"}, then write .avoozl/result.json as {"state": "done", "output": "review.json"}. If you cannot review, write only .avoozl/result.json as {"state": "blocked", "text": "<why>"}.',
+      "Write no file but these two, keep the result file under 8 KB, then exit.",
+    ],
   },
   planAnswer: {
     setting: "planAnswer",

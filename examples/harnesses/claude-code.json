@@ -33,6 +33,7 @@
     "Edit(.avoozl/output/*)"
   ],
   "cost": { "from": "output", "field": "total_cost_usd", "per": "session" },
+  "servedModel": { "from": "output", "keyOf": "modelUsage" },
   "keepEnv": ["ANTHROPIC_API_KEY"],
   "tmpEnv": ["CLAUDE_CODE_TMPDIR"],
   "proved": ["read", "write"]

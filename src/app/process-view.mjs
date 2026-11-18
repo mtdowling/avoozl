@@ -94,6 +94,41 @@ export function sessionCost(row, definition) {
   return total;
 }
 
+// The model that served the session, as its definition's `servedModel`
+// says the harness output names it (NK5.2), or null: the newest JSON line
+// of the log that names one. A `keyOf` object with more than one key names
+// no single model, so it gives null. The log is the harness's output, data
+// only; a requested model is never read as the served one.
+export function sessionServedModel(row, definition) {
+  const served = definition?.servedModel;
+  const name = served?.field ?? served?.keyOf;
+  const text =
+    name && row?.log_file ? readTail(row.log_file, COST_BYTES) : null;
+  if (!text) return null;
+  let model = null;
+  for (const line of text.split("\n")) {
+    const start = line.indexOf("{");
+    if (start < 0 || !line.includes(name)) continue;
+    let value;
+    try {
+      value = JSON.parse(line.slice(start))?.[name];
+    } catch {
+      continue;
+    }
+    const found = served.keyOf
+      ? value && typeof value === "object" && !Array.isArray(value)
+        ? Object.keys(value).length === 1
+          ? Object.keys(value)[0]
+          : null
+        : undefined
+      : typeof value === "string" && value.trim()
+        ? value.trim()
+        : undefined;
+    if (found !== undefined) model = found;
+  }
+  return model;
+}
+
 const placeholderValues = (row) => ({
   ...JSON.parse(row.placeholder_values || "{}"),
   worktree: row.worktree,
