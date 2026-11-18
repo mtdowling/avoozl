@@ -8583,6 +8583,27 @@
       "requires": [
         "61.1"
       ]
+    },
+    "63.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 63 (One intake list). See R110, R50.6; §4.39.",
+      "acceptance": [
+        "GitHub sources in `intake.sources` replace `github.issueIntake` and `github.queue`, after 14.2, 56.8, 56.14, 44.6",
+        "`intake.sources` takes `via: github` with the old issue intake keys and refuses the wrong keys per kind; an old `github.issueIntake` loads as a source and an old `github.queue` is ignored, with no warning and no apply flag; Avoozl's next write moves old entries into `intake.sources` once; `github configure` and Repository setup write a source; Radar intake, escalations and back-links still work on a migrated repository; Intake sources lists each GitHub source in the shared box with a link to Repository setup; tests cover each case, and screenshots are checked outside git, not kept in it."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "npm run test:ui",
+        "git diff --check"
+      ],
+      "requires": [
+        "14.2",
+        "56.8",
+        "56.14",
+        "44.6"
+      ]
     }
   }
 }

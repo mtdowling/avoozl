@@ -2393,6 +2393,9 @@ and the Untriaged reader onto the record without changing what they do.
    its work lands in, and optional `labelFields`, `assigneeField`,
    `allowedActors`, and `minimumPermission`. Settings SHALL warn before
    saving a source into a `.avoozl.json` in a public repository.
+   (Changed 2026-11-18, Requirement 110: GitHub repositories are declared
+   here too, as `via: "github"`, and `github.issueIntake` and
+   `github.queue` are retired into this list.)
 7. A tracker plugin MAY declare the `poll` capability and implement
    `poll({cursor, limit})`, returning `{items, cursor, more}`. The tick
    cron SHALL call it at most once per source per tick with the stored
@@ -6046,3 +6049,73 @@ approval does not wait on me or drag in specs nobody asked about.
    delegation; a mismatched `approvedBy` refused; revocation refusing the
    next approval and keeping history; an approval pull request carrying the
    delegation through its merge; and the CLI flow from an agent session.
+
+### Requirement 110: One intake list
+
+Added 2026-11-18 (owner decision on `docs/simplification-audit.md` item 6
+and F5). Design §4.39. Changes Requirement 50.6 and the issue intake part
+of Requirement 10; keeps Requirements 49, 52 and 103.8 to 103.11.
+
+The owner's words, in short: one intake list. Five paths turn an issue into
+work today. Retire `github.issueIntake` and `github.queue` into
+`intake.sources`, so every source is one entry there.
+
+**User story:** As the owner, I want every place work comes in from listed
+once under `intake.sources`, so that I read and change intake in one place.
+
+#### Acceptance criteria
+
+1. `intake.sources` SHALL accept `via: "github"` beside `plugin:<id>` and
+   `mcp`. A GitHub source names the GitHub `repository` (owner/name) and
+   SHALL carry the keys `github.issueIntake` held: `project` (the execution
+   project), optional `workspaceRepository` when it differs from `project`,
+   `label` (default `avoozl:ready`), optional `managedLabel`, `assignee`,
+   `autoStart`, `provider`, `model`, `allowedActors` and
+   `minimumPermission` (default `write`). `labelFields` and
+   `assigneeField` SHALL be refused on a GitHub source, and the GitHub
+   keys SHALL be refused on a plugin or MCP source.
+2. A GitHub source SHALL live in `.avoozl.json`, as `github.issueIntake`
+   did. One declared in this machine's settings SHALL be listed with the
+   reason it is not used. At most one GitHub source SHALL name a GitHub
+   repository.
+3. `github configure`, `github.project.connect` and Repository setup's
+   "issues here" SHALL write a GitHub source and SHALL NOT write
+   `github.issueIntake` or `github.queue`. Removing a repository or
+   turning its issues off SHALL remove its GitHub source.
+4. An old `github.issueIntake` entry SHALL load as the GitHub source it
+   describes, with an id `github-<owner>-<name>` (lowercase; other
+   characters as `-`; a number added on a clash), and an entry with
+   `enabled: false` SHALL load as no source. An old `github.queue` SHALL be
+   accepted and ignored: it never let anyone start work, so it SHALL NOT
+   become a source that does. Neither SHALL warn, fail a load or a save, or
+   mark settings as needing apply.
+5. The first time Avoozl's settings writer (Repository setup, Settings and
+   Intake sources) writes `.avoozl.json` after loading old keys, it
+   SHALL move every `github.issueIntake` entry into `intake.sources` and
+   drop `github.issueIntake` and `github.queue`, in the same write. A
+   file Avoozl does not write SHALL keep loading as in criterion 4.
+6. A GitHub source SHALL be applied as `github.issueIntake` was: the
+   `github_repositories` record and `github sync` keep their behavior,
+   and the repository's `github.repositories` rules still replace its
+   single label (Requirements 10 to 12). GitHub items SHALL keep source
+   `github`; a rule's `source:` term SHALL still name only plugin and MCP
+   sources (Requirement 50.11).
+7. Settings › Plugins › Intake sources SHALL list each GitHub source as one
+   entry in the same box as every other source, with its repository,
+   label, assignee, who counts and whether it starts on its own, and SHALL
+   name the repository's Issue Radar escalation label when it has one. A
+   GitHub source is changed in Repository setup, so its entry SHALL link
+   there instead of offering Remove. The Add dialog SHALL stay for plugin
+   and MCP sources. The built-in GitHub box SHALL stay as the reader of
+   Triage: what no source covers.
+8. Issue Radar intake (56.8), Radar escalations in Triage (56.14) and Radar
+   back-links (44.6) SHALL keep working for a repository whose GitHub
+   source came from an old `github.issueIntake` entry and for one written
+   as a source.
+9. Tests SHALL cover: each kind's keys and refusals; an old
+   `github.issueIntake` loaded as a source with no warning and no apply
+   flag; an old `github.queue` ignored; the one-time move on the next
+   write; `github configure` and Repository setup writing a source; and
+   Radar intake, escalations and back-links on a migrated repository.
+   Screenshots of Intake sources (phone and desktop, light and dark),
+   before and after, SHALL be checked outside git; no image is committed.

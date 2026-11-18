@@ -2123,3 +2123,13 @@ Owner request 2026-11-18 (Requirement 109, design §4.38). One build task.
 
 - [x] 62.1 Approval delegation and an exact-set preview, after 61.1 [R109.1, R109.2, R109.3, R109.4, R109.5, R109.6, R109.7, R109.8, R109.9] (§4.38)
   - `approval-delegation.mjs` stores grants in the workspace database; `plan.approve` and `plan.approveMany` take `delegate`, approve as the granting person and record `delegation` on the receipt and on approval pull requests. `approval delegates|delegate|revoke` in the CLI, `plans_plan.delegates` over MCP. The preview counts tasks that wait on draft specs left out. Tests in `approval-delegation.test.mjs`.
+
+## Phase 63: One intake list
+
+Owner decision 2026-11-18 (Requirement 110, design §4.39;
+`docs/simplification-audit.md` item 6). One build task. Other
+simplification items run in parallel and touch settings files; merge main
+often and keep theirs on a clash.
+
+- [ ] 63.1 GitHub sources in `intake.sources` replace `github.issueIntake` and `github.queue`, after 14.2, 56.8, 56.14, 44.6 [R110.1, R110.2, R110.3, R110.4, R110.5, R110.6, R110.7, R110.8, R110.9, R50.6] (§4.39)
+  - `github-sources.mjs` reads `via: github` entries and old `github.issueIntake` entries as one list and writes sources, moving old keys once on the first write; `validateSource` takes the GitHub kind; `sourceMap` leaves it out; `github configure` and Repository setup write a source. `github.queue` is ignored. Intake sources lists each GitHub source in the shared box with a link to Repository setup. Tests; before and after screenshots checked outside git, not kept in it.
