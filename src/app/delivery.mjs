@@ -2287,14 +2287,14 @@ export function planReadyDispatches(store, policy, options = {}) {
     waiting = waitingForBatch(store, candidates, {
       workspaceRoot,
       data,
-      harnesses: options.harnesses,
+      config: options.config,
     }),
     skip = new Set([...(options.skip || []), ...waiting]),
     leaves = planBatches(
       store,
       readyLeaves(store, policy, { ...options, skip }),
       candidates.filter((task) => !skip.has(task.id)),
-      { workspaceRoot, data, policy, fits: null, harnesses: options.harnesses },
+      { workspaceRoot, data, policy, fits: null, config: options.config },
     );
   let health = null;
   return leaves.flatMap((leaf) => {

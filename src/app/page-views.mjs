@@ -818,9 +818,9 @@ function routeDelivery(row) {
   };
 }
 
-// `harnesses` is the workspace's role harnesses, which say the executor a
+// `config` is the workspace's saved config, which says the executor a
 // batch would run on (batchRules).
-export function deliveryView(store, data, { harnesses } = {}) {
+export function deliveryView(store, data, { config } = {}) {
   const byTask = (rows) => {
     const map = new Map();
     for (const row of rows) {
@@ -900,7 +900,7 @@ export function deliveryView(store, data, { harnesses } = {}) {
       };
     if (!task.batch) return { batchGroup: null, alone: null };
     whole ??= store.read();
-    const rules = batchRules(store, whole, task, approved, { harnesses });
+    const rules = batchRules(store, whole, task, approved, { config });
     if (!rules) return { batchGroup: null, alone: null };
     return {
       batchGroup: {
@@ -1340,7 +1340,7 @@ export function taskDetailView(
   store,
   data,
   detail,
-  { plan = null, approved = false, harnesses } = {},
+  { plan = null, approved = false, config } = {},
 ) {
   const id = detail.id,
     graph = graphView(store, data, {}),
@@ -1370,7 +1370,7 @@ export function taskDetailView(
           ...data,
           tasks: data.tasks.filter((task) => task.id === id),
         },
-        { harnesses },
+        { config },
       ).items[0] || null,
     conflicts = conflictsView(store, data).items.filter(
       (item) => item.taskId === id,

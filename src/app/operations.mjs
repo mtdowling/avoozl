@@ -2189,13 +2189,12 @@ export class Operations {
       review: planReviewSummary(this.store, plan.id),
     };
   }
-  // The role harnesses saved in this workspace's file (Settings › Models).
-  // None when there is no workspace file or it does not load.
-  harnesses() {
+  // This workspace's saved config, which names each role's executor
+  // (Settings › Models); none when there is no file or it does not load.
+  savedConfig() {
     if (!this.workspaceRoot) return undefined;
     try {
-      return loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config
-        .harnesses;
+      return loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config;
     } catch {
       return undefined;
     }
@@ -3612,7 +3611,7 @@ export class Operations {
     }
     if (name === "delivery.view")
       return {
-        ...deliveryView(store, this.read(), { harnesses: this.harnesses() }),
+        ...deliveryView(store, this.read(), { config: this.savedConfig() }),
         // How many chats this Mac runs at once (R88.5); null when delivery is off.
         laneLimit:
           readDeliveryPolicy(this.workspaceRoot).delivery?.concurrency ?? null,
@@ -4640,7 +4639,7 @@ export class Operations {
       const view = taskDetailView(store, data, detail, {
         plan: plan && !plan.deletedAt ? plan : null,
         approved: Boolean(plan && this.planApproved(plan)),
-        harnesses: this.harnesses(),
+        config: this.savedConfig(),
       });
       return {
         ...view,
