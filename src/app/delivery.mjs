@@ -2283,13 +2283,17 @@ export function planReadyDispatches(store, policy, options = {}) {
       github: options.github,
       data,
     }),
-    waiting = waitingForBatch(store, candidates, { workspaceRoot, data }),
+    waiting = waitingForBatch(store, candidates, {
+      workspaceRoot,
+      data,
+      config: options.config,
+    }),
     skip = new Set([...(options.skip || []), ...waiting]),
     leaves = planBatches(
       store,
       readyLeaves(store, policy, { ...options, skip }),
       candidates.filter((task) => !skip.has(task.id)),
-      { workspaceRoot, data, policy, fits: null },
+      { workspaceRoot, data, policy, fits: null, config: options.config },
     );
   let health = null;
   return leaves.flatMap((leaf) => {
@@ -2309,10 +2313,9 @@ export function planReadyDispatches(store, policy, options = {}) {
       ship = shipMode(policy, leaf.task, store);
     let brief;
     if (leaf.batch) {
-      const batch = briefCell(run.executor, "batch");
-      // A declined batch starts nothing; the planner runs it as single tasks.
-      if (batch.declined) return [];
-      brief = batch.cell.brief(
+      // planBatches keeps a group whose executor makes no commits alone, so
+      // the batch cell here is never a declined one.
+      brief = briefCell(run.executor, "batch").cell.brief(
         store,
         data,
         leaf,

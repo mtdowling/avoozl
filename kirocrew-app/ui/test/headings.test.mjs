@@ -70,7 +70,7 @@ test('Flow shows Tokens and credits once, with one message when there is nothing
   assert.match(usageMessage(undefined), /^Not available:/)
   assert.equal(usageMessage({ available: true, total: { turns: 0 } }), 'No turns recorded for these tasks yet.')
   assert.equal(usageMessage({ available: true, total: { turns: 3 } }), null)
-  assert.match(charts, /\{message \|\| !usage \? \(\s*<p className="text-sm text-muted">\{message\}<\/p>/)
+  assert.match(charts, /\{message \|\| !usage \? \(\s*<Hint as="p" size="sm">\{message\}<\/Hint>/)
 })
 
 test('a Needs you title opens what it is about', () => {

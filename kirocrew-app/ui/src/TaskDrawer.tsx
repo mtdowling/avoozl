@@ -33,6 +33,10 @@ import { ManualTask, TaskLinks } from './TaskNotes.tsx'
 import { ReviewTaskContext } from './NeedsYouContext.tsx'
 import { TaskScmLinks } from './TaskScmLinks.tsx'
 import { TaskSteps } from './TaskSteps.tsx'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
+import { TextLink } from './ui/TextLink'
 
 // Lines shown either side of a task's own lines.
 const SNIPPET_CONTEXT = 3
@@ -46,7 +50,7 @@ type Mode =
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
-      <dt className="text-muted">{label}</dt>
+      <Hint as="dt">{label}</Hint>
       <dd className="min-w-0 break-words">{children}</dd>
     </>
   )
@@ -148,7 +152,7 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
   return (
     <div className="flex flex-col gap-1.5" data-origin={origin.kind}>
       <span className="font-medium">{origin.label}</span>
-      <span className="text-xs text-muted">
+      <Hint size="xs">
         {first?.readable
           ? linkParts(origin.text, first.document).map((part, i) =>
               part.link ? (
@@ -160,7 +164,7 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
               ),
             )
           : origin.text}
-      </span>
+      </Hint>
       <div className="flex flex-wrap items-center gap-2">
         {origin.kind === 'github-issue' && props.issue && (
           <a href={linkHref(props.issue)} target="_blank" rel="noopener noreferrer" className="text-xs underline">
@@ -175,9 +179,9 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
         {origin.sources
           .filter((source) => !source.readable)
           .map((source) => (
-            <span key={source.document} className="text-xs text-muted">
+            <Hint key={source.document} size="xs">
               {sourceLine(source)} (no longer in this workspace)
-            </span>
+            </Hint>
           ))}
       </div>
       {origin.prompt && <blockquote className="border-l-2 pl-2 text-xs text-muted" style={{ borderColor: 'var(--border)' }}>{origin.prompt}</blockquote>}
@@ -204,17 +208,17 @@ function BatchBox(props: { batch: NonNullable<DeliveryItem['batchGroup']>; alone
         <p className="m-0">
           {batch.id ? 'Ran in batch ' : 'Planned batch '}
           {batch.leader === props.self ? <span className="font-medium">{batch.group ?? batch.id}</span> : <button type="button" className="underline" onClick={() => drawer.openTask(batch.leader)} data-batch-link={batch.leader}>{batch.group ?? batch.id}</button>}
-          {batch.reason ? <span className="text-muted"> · {batch.reason}</span> : null}
+          {batch.reason ? <Hint> · {batch.reason}</Hint> : null}
         </p>
         <ul className="m-0 flex flex-col gap-0.5 pl-4 text-xs">
           {batch.tasks.map((id) => (
             <li key={id}>
               {id === props.self ? <span>{id} (this task)</span> : <button type="button" className="underline" onClick={() => drawer.openTask(id)}>{id}</button>}
-              {id === batch.leader ? <span className="text-muted"> · leads</span> : null}
+              {id === batch.leader ? <Hint> · leads</Hint> : null}
             </li>
           ))}
         </ul>
-        {props.alone && <p className="m-0 text-xs text-muted" data-runs-alone>Runs alone: {props.alone}</p>}
+        {props.alone && <Hint as="p" size="xs" flush data-runs-alone>Runs alone: {props.alone}</Hint>}
       </div>
     </SectionBox>
   )
@@ -290,11 +294,11 @@ function TaskPanel(props: {
 
   if (error)
     return (
-      <p role="alert" className="text-sm text-danger">
+      <ErrorText role="alert" size="sm">
         {error}
-      </p>
+      </ErrorText>
     )
-  if (!detail) return <p className="text-sm text-muted">Loading…</p>
+  if (!detail) return <Hint as="p" size="sm">Loading…</Hint>
   const { task, delivery } = detail
   const local = task.authority === 'local'
   const deliveryState = (delivery?.deliveries ?? []).map((d) => d.state).filter((s): s is string => typeof s === 'string').at(-1)
@@ -308,7 +312,7 @@ function TaskPanel(props: {
   const tab: TaskTab = shown.some((t) => t.key === picked) ? picked : 'overview'
 
   return (
-    <div className="flex flex-col gap-3">
+    <Stack gap={3}>
       <div>
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
           <Authority owner={task} />
@@ -388,9 +392,9 @@ function TaskPanel(props: {
         )}
       </div>
       {chat.error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {chat.error}
-        </p>
+        </ErrorText>
       )}
       {message && (
         <p role={message.ok ? 'status' : 'alert'} className={`text-sm ${message.ok ? 'text-muted' : 'text-danger'}`}>
@@ -444,10 +448,10 @@ function TaskPanel(props: {
                 {(delivery?.pullRequests ?? []).map((pull, i) => (
                   <Row key={i} label="Pull request">
                     {safeHref(pull.url) ? (
-                      <a href={safeHref(pull.url)!} target="_blank" rel="noopener noreferrer" className="underline">
+                      <TextLink href={safeHref(pull.url)!} target="_blank" rel="noopener noreferrer">
                         #{pull.number}
                         {pull.merged ? ' (merged)' : ''}
-                      </a>
+                      </TextLink>
                     ) : (
                       `#${pull.number}`
                     )}
@@ -457,23 +461,23 @@ function TaskPanel(props: {
             </SectionBox>
             {(detail.waitsOn.length > 0 || detail.blocks.length > 0) && (
               <SectionBox id="links" title="Edges">
-                <div className="flex flex-col gap-3">
+                <Stack gap={3}>
                   <Links title="Waits on" links={detail.waitsOn} open={props.open} />
                   <Links title="Blocks" links={detail.blocks} open={props.open} />
-                </div>
+                </Stack>
               </SectionBox>
             )}
             {detail.conflicts.length > 0 && (
               <SectionBox id="conflicts" title={`Conflicts (${detail.conflicts.length})`}>
-                <ul className="flex flex-col gap-3">
+                <Stack as="ul" gap={3}>
                   {detail.conflicts.map((item, i) => (
                     <li key={i} className="flex flex-col gap-2 rounded border p-2" style={{ borderColor: 'var(--border)' }}>
                       <div className="text-sm font-medium">{whyLine(item)}</div>
                       {item.changedAt && (
-                        <div className="text-xs text-muted">
+                        <Hint as="div" size="xs">
                           Changed {relativeTime(item.changedAt)}
                           {item.changedBy ? ` by ${item.changedBy}` : ''}. See the Timeline tab for this task&apos;s history.
-                        </div>
+                        </Hint>
                       )}
                       <span>
                         <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat seeded with this item" onClick={() => void chat.ask({ items: [itemRef(item)] })}>
@@ -483,7 +487,7 @@ function TaskPanel(props: {
                       <ConflictActions item={item} workspaceId={workspaceId} revision={detail.revision} busy={busy} run={run} onSettled={() => undefined} />
                     </li>
                   ))}
-                </ul>
+                </Stack>
               </SectionBox>
             )}
           </>
@@ -519,13 +523,13 @@ function TaskPanel(props: {
         {tab === 'links' && (
           <>
             <SectionBox id="task-links" title="Links">
-              <div className="flex flex-col gap-3">
+              <Stack gap={3}>
                 <TaskScmLinks links={detail.links} />
                 <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }} data-added-links>
                   <h4 className="text-sm font-semibold">Added links</h4>
                   <TaskLinks workspaceId={workspaceId} taskId={task.id} onGitHub={Boolean(task.onGitHub)} refresh={detail.revision} />
                 </div>
-              </div>
+              </Stack>
             </SectionBox>
             <TaskFiles workspaceId={workspaceId} taskId={task.id} active box={{ id: 'files', title: 'Files' }} />
           </>
@@ -534,18 +538,18 @@ function TaskPanel(props: {
         {tab === 'work' && delivery && (
           <>
             <SectionBox id="delivery" title="Delivery">
-              <div className="flex flex-col gap-2">
+              <Stack gap={2}>
                 {delivery.sessions.length > 0 && (
                   <ul className="flex flex-col gap-1 text-sm">
                     {delivery.sessions.map((session) => (
                       <li key={session.slot}>
-                        <a href={linkHref(sessionHref(session))} className="underline">
+                        <TextLink href={linkHref(sessionHref(session))}>
                           {session.role} attempt {session.attempt}
-                        </a>{' '}
-                        <span className="text-xs text-muted">
+                        </TextLink>{' '}
+                        <Hint size="xs">
                           {session.status ?? 'not observed'} · {modelLabel(session) ?? 'model not named'} · started {relativeTime(session.boundAt)}
                           {session.statusAt ? ` · last activity ${relativeTime(session.statusAt)}` : ''}
-                        </span>
+                        </Hint>
                       </li>
                     ))}
                   </ul>
@@ -569,7 +573,7 @@ function TaskPanel(props: {
                     await load()
                   }}
                 />
-              </div>
+              </Stack>
             </SectionBox>
             {canSupersede(delivery) && (
               <SupersedeForm
@@ -580,7 +584,7 @@ function TaskPanel(props: {
                 }}
               />
             )}
-            {delivery.sessions.length ? <p className="text-xs text-muted">Running for {duration(delivery.sessions.at(-1)!.boundAt)} in its latest attempt.</p> : null}
+            {delivery.sessions.length ? <Hint as="p" size="xs">Running for {duration(delivery.sessions.at(-1)!.boundAt)} in its latest attempt.</Hint> : null}
           </>
         )}
         {tab === 'review' && (
@@ -625,7 +629,7 @@ function TaskPanel(props: {
             </SectionBox>
             {(task.summary || task.acceptance.length > 0 || task.checks.length > 0 || task.context) && (
               <SectionBox id="description" title="Description">
-                <div className="flex flex-col gap-3">
+                <Stack gap={3}>
                   {task.summary && <Markdown text={task.summary} />}
                   {task.acceptance.length > 0 && (
                     <div>
@@ -655,14 +659,14 @@ function TaskPanel(props: {
                       <Markdown text={task.context} />
                     </div>
                   )}
-                </div>
+                </Stack>
               </SectionBox>
             )}
             <EvidenceFold workspaceId={workspaceId} taskId={task.id} box={{ id: 'evidence', title: 'Evidence' }} />
           </>
         )}
       </TabPanel>
-    </div>
+    </Stack>
   )
 }
 
@@ -699,18 +703,18 @@ function ReviewPanel(props: { workspaceId: string; group: ConflictItem; open: (i
     }
   }
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted">
+    <Stack gap={3}>
+      <Hint as="p" size="sm">
         Avoozl re-reads a spec when its file changes. A task waits here when its own section changed, or when it is new. Moving a
         spec or fixing its links does not count. Read each task, then mark them reviewed so they may start.
-      </p>
+      </Hint>
       {message && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {message}
-        </p>
+        </ErrorText>
       )}
       {page && !group ? (
-        <p className="text-sm text-muted">Nothing here needs review now.</p>
+        <Hint as="p" size="sm">Nothing here needs review now.</Hint>
       ) : (
         <>
           <ul className="m-0 flex list-none flex-col p-0" data-review-tasks>
@@ -721,7 +725,7 @@ function ReviewPanel(props: { workspaceId: string; group: ConflictItem; open: (i
           <div>{group && <ReviewButton item={group} busy={busy || !page} onConfirm={() => void markReviewed()} />}</div>
         </>
       )}
-    </div>
+    </Stack>
   )
 }
 

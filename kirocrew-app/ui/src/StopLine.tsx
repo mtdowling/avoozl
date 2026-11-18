@@ -20,6 +20,8 @@ import { FULL_STOP_WARNING, LINE_EVENT, MAX_REASON, PULL_KINDS, PULL_SCOPES, emp
 import { plansClient } from './plans-api.ts'
 import { viewsClient } from './views-api.ts'
 import { workspaceClient, errorMessage } from './workspace-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
 
 const FILL = { display: 'inline-flex', alignItems: 'center', gap: 6 }
 // Stopped: a red frame on a red tint, the text in the theme's own color.
@@ -177,10 +179,10 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       setBusy(false)
     }
   }
-  const empty = (text: string) => <p className="text-sm text-muted">{choices ? text : 'Reading…'}</p>
+  const empty = (text: string) => <Hint as="p" size="sm">{choices ? text : 'Reading…'}</Hint>
   const required = (label: string) => (
     <span>
-      {label} <span className="text-xs text-muted">(required)</span>
+      {label} <Hint size="xs">(required)</Hint>
     </span>
   )
   const pick = (label: string, value: string, items: PickItem[], onPick: (id: string) => void, none: string) =>
@@ -233,9 +235,9 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       }
     >
       <div>
-        <p id="avoozl-stop-line" className="text-sm text-muted">
+        <Hint id="avoozl-stop-line" as="p" size="sm">
           Only a person can resume it.
-        </p>
+        </Hint>
       </div>
       <RadioFold
         name="avoozl-stop-kind"
@@ -247,7 +249,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
           title: k.label,
           line: k.line,
           ...(k.value === 'agents'
-            ? { description: <p className="text-sm text-muted" data-full-warning>{FULL_STOP_WARNING}</p> }
+            ? { description: <Hint as="p" size="sm" data-full-warning>{FULL_STOP_WARNING}</Hint> }
             : {
                 fields: (
                   <RadioFold
@@ -263,7 +265,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       />
       <label className="flex flex-col gap-1 text-sm">
         <span>
-          Reason <span className="text-xs text-muted">(required)</span>
+          Reason <Hint size="xs">(required)</Hint>
         </span>
         <Input
           value={form.reason}
@@ -272,12 +274,12 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
           onChange={(e: { target: { value: string } }) => set({ reason: e.target.value })}
           data-stop-reason
         />
-        <span className="text-xs text-muted">One line. It shows on the banner and in Flow.</span>
+        <Hint size="xs">One line. It shows on the banner and in Flow.</Hint>
       </label>
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
     </Modal>
   )
