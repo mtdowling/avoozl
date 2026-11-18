@@ -676,6 +676,10 @@ test("P45 (5) local: a task branch behind the integration branch is merged forwa
   fs.writeFileSync(path.join(w.checkout, "other.txt"), "main moved\n");
   git(w.checkout, "add", ".");
   git(w.checkout, "commit", "-m", "Main moves");
+  // A `process` child's result folder is Avoozl's own, not a change that
+  // holds the merge forward (nk-p1 preflight).
+  fs.mkdirSync(path.join(tree.path, ".avoozl"), { recursive: true });
+  fs.writeFileSync(path.join(tree.path, ".avoozl", "result.json"), "{}");
   const moved = await rebaseForIntegration(
     w.store.get("projects", "app"),
     w.store.get("task_worktrees", "a1"),

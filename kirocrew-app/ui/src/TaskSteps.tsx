@@ -34,7 +34,7 @@ function Step({ steps, index }: { steps: TaskStep[]; index: number }) {
         </Box>
         <Box as="span" block breakWords size="xs" tone="muted">{[step.by && `by ${step.by}`, wait, step.detail].filter(Boolean).join(' · ')}</Box>
         {step.builds && (
-          <ul data-step-builds className="m-0 mt-1 flex list-none flex-col gap-1 p-0 text-xs" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+          <Box data-step-builds as="ul" css-margin="0" css-padding="0" css-list-style="none" m0 mt="1" flex listNone flexCol gap="1" p="0" size="xs">
             {step.builds.map((group) => (
               <li key={group.phase} data-step-phase={group.phase}>
                 <Box as="span" weight="medium">{group.phase}</Box>
@@ -45,7 +45,7 @@ function Step({ steps, index }: { steps: TaskStep[]; index: number }) {
                 ))}
               </li>
             ))}
-          </ul>
+          </Box>
         )}
       </Box>
     </Box>
@@ -54,10 +54,10 @@ function Step({ steps, index }: { steps: TaskStep[]; index: number }) {
 
 export function TaskSteps({ steps }: { steps: TaskStep[] }) {
   return (
-    <ol data-task-steps className="m-0 list-none p-0" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+    <Box data-task-steps as="ol" css-margin="0" css-padding="0" css-list-style="none" m0 listNone p="0">
       {steps.map((step, index) => (
         <Step key={step.key} steps={steps} index={index} />
       ))}
-    </ol>
+    </Box>
   )
 }

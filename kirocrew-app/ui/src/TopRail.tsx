@@ -7,6 +7,7 @@ import type { ReactNode } from 'react'
 import { PanelLeftOpen, X } from './icons.ts'
 import { TOP_CARD } from './LeftNav.tsx'
 import { NavAccordion, type NavGroup } from './NavAccordion.tsx'
+import { Box } from './ui/Box'
 
 // The current page's name and the open-the-list icon, for the phone's header row.
 export function RailButton(props: { groups: NavGroup[]; value: string; child?: string | null; open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -39,13 +40,13 @@ export function RailButton(props: { groups: NavGroup[]; value: string; child?: s
       style={{ ...TOP_CARD, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: '1 1 auto', height: 28, boxSizing: 'border-box', padding: '0 10px', color: 'inherit', cursor: 'pointer', fontSize: 14, fontWeight: 600, textAlign: 'left' }}
     >
       {/* One line: the page's label, then its sub-page, each cut short. */}
-      <span style={{ minWidth: 0, flex: '1 1 auto', display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden', whiteSpace: 'nowrap' }}>
-        <span style={{ minWidth: 0, flex: '0 1 auto', display: 'flex', overflow: 'hidden' }}>{current?.label}</span>
-        {sub && <span style={{ minWidth: 0, flex: '0 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 400, color: 'var(--muted)' }}>{` · ${sub.label}`}</span>}
-      </span>
-      <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, color: 'var(--muted)' }}>
+      <Box as="span" css-min-width="0" css-flex="1-1-auto" css-display="flex" css-align-items="center" css-gap="4" css-overflow="hidden" css-white-space="nowrap">
+        <Box as="span" css-min-width="0" css-flex="0-1-auto" css-display="flex" css-overflow="hidden">{current?.label}</Box>
+        {sub && <Box as="span" css-min-width="0" css-flex="0-1-auto" css-overflow="hidden" css-text-overflow="ellipsis" css-font-weight="400" css-color="muted">{` · ${sub.label}`}</Box>}
+      </Box>
+      <Box aria-hidden="true" as="span" css-display="inline-flex" css-flex-shrink="0" css-color="muted">
         <PanelLeftOpen size={16} />
-      </span>
+      </Box>
     </button>
   )
 }
@@ -55,14 +56,14 @@ export function RailButton(props: { groups: NavGroup[]; value: string; child?: s
 // `top` is the workspace pill, above the sections as on a desktop.
 export function RailList(props: { groups: NavGroup[]; value: string; child?: string | null; onPick: (key: string, child?: string) => void; onOpenChange: (open: boolean) => void; footer?: ReactNode; top?: ReactNode }) {
   return (
-    <div id="avoozl-top-rail-list" data-top-rail-list data-top-row style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 8px 0' }}>
+    <Box id="avoozl-top-rail-list" data-top-rail-list data-top-row css-flex="1-1-0%" css-min-height="0" css-overflow-y="auto" css-display="flex" css-flex-direction="column" css-gap="8" css-padding="8px-8px-0">
       {props.top}
       <NavAccordion groups={props.groups} value={props.value} child={props.child} onPick={props.onPick} onDone={() => props.onOpenChange(false)} />
       {props.footer && (
-        <div data-top-rail-footer style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 0' }}>
+        <Box data-top-rail-footer css-margin-top="auto" css-display="flex" css-flex-direction="column" css-gap="8" css-padding="12px-0">
           {props.footer}
-        </div>
+        </Box>
       )}
-    </div>
+    </Box>
   )
 }

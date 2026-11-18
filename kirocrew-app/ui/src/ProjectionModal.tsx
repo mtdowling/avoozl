@@ -96,9 +96,9 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
     >
       <Box flex flexCol gap="3" size="sm">
         {error && (
-          <p role="alert" style={{ color: 'var(--danger)' }}>
+          <Box role="alert" as="p" css-color="danger">
             {error}
-          </p>
+          </Box>
         )}
         {!preview && !error && <Hint as="p">Reading what the projection would write…</Hint>}
         {preview && !confirm && (

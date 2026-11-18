@@ -5,6 +5,7 @@
 import { useCallback, useState } from 'react'
 import { stepWidth } from './columns.ts'
 import { LAYER } from './layers.ts'
+import { Box } from './ui/Box'
 
 export function ResizeHandle(props: {
   label: string
@@ -60,7 +61,7 @@ export function ResizeHandle(props: {
       onMouseLeave={() => setHover(false)}
       style={{ flex: '0 0 8px', alignSelf: 'stretch', cursor: 'col-resize', position: 'relative', zIndex: LAYER.raised, display: 'flex', justifyContent: 'center', outline: 'none' }}
     >
-      <span aria-hidden="true" style={{ width: 2, height: '100%', background: hover ? 'var(--accent)' : 'transparent', transition: 'background 120ms' }} />
+      <Box aria-hidden="true" as="span" css-width="2" css-height="100%" css-background={hover ? 'accent' : 'transparent'} css-transition="background-120ms" />
     </div>
   )
 }

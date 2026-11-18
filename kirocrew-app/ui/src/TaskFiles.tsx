@@ -50,7 +50,6 @@ function pageStorage(): Storage | null {
   }
 }
 
-const mono: CSSProperties = { fontFamily: 'var(--mono, ui-monospace, monospace)', fontSize: 12, lineHeight: '18px' }
 const LINE_BG = {
   add: 'color-mix(in srgb, var(--ok) 16%, transparent)',
   del: 'color-mix(in srgb, var(--danger) 16%, transparent)',
@@ -72,9 +71,9 @@ function Counts({ change }: { change: FileChange }) {
   if (change.binary) return <Hint size="xs">binary</Hint>
   if (change.additions === null) return null
   return (
-    <span className="shrink-0 text-xs" style={mono}>
-      <span style={{ color: 'var(--ok)' }}>+{change.additions}</span> <span style={{ color: 'var(--danger)' }}>−{change.deletions}</span>
-    </span>
+    <Box as="span" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px" shrink0 size="xs">
+      <Box as="span" css-color="ok">+{change.additions}</Box> <Box as="span" css-color="danger">−{change.deletions}</Box>
+    </Box>
   )
 }
 
@@ -92,7 +91,7 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
               style={{ paddingLeft: 4 + props.depth * 14, background: props.selected === node.path ? 'var(--bg-elevated)' : undefined, color: node.change ? 'var(--text)' : 'var(--muted)' }}
               data-file={node.path}
             >
-              {node.change ? <StatusBadge change={node.change} /> : <span style={{ width: 18 }} aria-hidden="true" />}
+              {node.change ? <StatusBadge change={node.change} /> : <Box as="span" css-width="18" aria-hidden="true" />}
               <Box as="span" minW0 flex1 truncate>
                 {node.name}
                 {node.change?.from && <Hint size="xs"> ← {node.change.from}</Hint>}
@@ -116,14 +115,14 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
 }
 
 const num = (n: number | null) => (
-  <span className="select-none pr-2 text-right text-muted" style={{ display: 'inline-block', minWidth: 36 }}>
+  <Box as="span" css-display="inline-block" css-min-width="36" selectNone pr="2" align="right" tone="muted">
     {n ?? ''}
-  </span>
+  </Box>
 )
 
 function UnifiedDiff({ lines }: { lines: DiffLine[] }) {
   return (
-    <div role="group" aria-label="Unified diff" style={mono}>
+    <Box role="group" aria-label="Unified diff" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px">
       {lines.map((line, i) =>
         !isText(line) ? (
           <div key={i} className="text-muted" style={{ whiteSpace: 'pre', background: line.kind === 'hunk' ? LINE_BG.hunk : undefined }}>
@@ -138,7 +137,7 @@ function UnifiedDiff({ lines }: { lines: DiffLine[] }) {
           </div>
         ),
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -157,26 +156,26 @@ function SplitDiff({ lines }: { lines: DiffLine[] }) {
     </div>
   )
   return (
-    <div role="group" aria-label="Side-by-side diff" style={mono}>
+    <Box role="group" aria-label="Side-by-side diff" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px">
       {rows.map((row, i) =>
         row.kind === 'pair' ? (
-          <div key={i} data-split-row style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 1 }}>
+          <Box key={i} data-split-row css-display="grid" css-grid-template-columns="minmax-0-1fr-minmax-0-1fr" css-gap="1">
             {side(row.left, 'left')}
             {side(row.right, 'right')}
-          </div>
+          </Box>
         ) : (
           <div key={i} className="text-muted" style={{ whiteSpace: 'pre', background: row.kind === 'hunk' ? LINE_BG.hunk : undefined }}>
             {row.text}
           </div>
         ),
       )}
-    </div>
+    </Box>
   )
 }
 
 function Toggle(props: { label: string; options: { key: string; label: string }[]; value: string; onChange: (key: string) => void }) {
   return (
-    <span role="group" aria-label={props.label} className="inline-flex gap-0.5 rounded-full border p-0.5" style={{ borderColor: 'var(--border)' }}>
+    <Box role="group" aria-label={props.label} as="span" css-border-color="border" inlineFlex gap="0.5" rounded="full" border="all" p="0.5">
       {props.options.map((option) => (
         <button
           key={option.key}
@@ -189,7 +188,7 @@ function Toggle(props: { label: string; options: { key: string; label: string }[
           {option.label}
         </button>
       ))}
-    </span>
+    </Box>
   )
 }
 
@@ -206,9 +205,9 @@ function Diff(props: { diff: DiffView; layout: 'unified' | 'split' }) {
   const shown = full ? lines : lines.slice(0, DIFF_LINES)
   return (
     <Stack data-diff gap={1}>
-      <div className="overflow-x-auto rounded border" style={{ borderColor: 'var(--border)', background: 'var(--card, var(--bg))' }}>
+      <Box css-border-color="border" css-background="card-bg" overflow="x-auto" rounded="base" border="all">
         {props.layout === 'split' ? <SplitDiff lines={shown} /> : <UnifiedDiff lines={shown} />}
-      </div>
+      </Box>
       {shown.length < lines.length && (
         <button type="button" className="self-start text-xs underline" onClick={() => setFull(true)}>
           Show the other {lines.length - shown.length} lines
@@ -304,7 +303,7 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
               {view.totals.files > 0 && (
                 <>
                   {' '}
-                  · <span style={{ color: 'var(--ok)' }}>+{view.totals.additions}</span> <span style={{ color: 'var(--danger)' }}>−{view.totals.deletions}</span>
+                  · <Box as="span" css-color="ok">+{view.totals.additions}</Box> <Box as="span" css-color="danger">−{view.totals.deletions}</Box>
                 </>
               )}
             </>
@@ -348,17 +347,17 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
       {tree.length === 0 ? (
         <Hint as="p" size="sm">This task has not changed any files yet.</Hint>
       ) : (
-        <div className="max-h-80 overflow-auto rounded border p-1" style={{ borderColor: 'var(--border)' }}>
+        <Box css-border-color="border" maxH80 overflow="auto" rounded="base" border="all" p="1">
           <Tree nodes={tree} depth={0} selected={picked} onPick={pick} />
-        </div>
+        </Box>
       )}
       {(view.truncated || view.all?.truncated) && <Hint as="p" size="xs">Only the first files are listed.</Hint>}
       {diff && (
         <Stack aria-label={`Diff of ${diff.path}`} as="section" gap={2}>
           <Row gap={2}>
-            <h4 className="min-w-0 flex-1 text-sm font-semibold" style={{ ...mono, overflowWrap: 'anywhere' }}>
+            <Box as="h4" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px" css-overflow-wrap="anywhere" minW0 flex1 size="sm" weight="semibold">
               {diff.path}
-            </h4>
+            </Box>
             <Toggle
               label="Diff layout"
               options={[

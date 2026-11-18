@@ -65,15 +65,14 @@ function RetroChat({ retro }: { retro: Retro }) {
         </Hint>
       </Row>
       {chat.executor === 'process' && (
-        <pre
+        <Box
           data-retro-log
-          className="m-0 rounded border p-1.5"
+          as="pre" css-border-color="border" css-max-height="7.5em" css-overflow="auto" css-white-space="pre-wrap" css-overflow-wrap="anywhere" css-font-family="font-mono-ui-monospace-monospace" m0 rounded="base" border="all" p="1.5"
           tabIndex={0}
           aria-label={`Log tail for ${name}`}
-          style={{ borderColor: 'var(--border)', maxHeight: '7.5em', overflow: 'auto', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'var(--font-mono, ui-monospace, monospace)' }}
         >
           {chat.process?.logTail || 'No output yet.'}
-        </pre>
+        </Box>
       )}
     </Box>
   )
@@ -93,22 +92,22 @@ function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boo
         {retro.state !== 'done' && <Badge variant={STATE_BADGE[retro.state]}>{retro.state}</Badge>}
         {bottleneck && <Box as="span" weight="normal" tone="muted">bottleneck {bottleneck}</Box>}
       </Box>
-      <dl className="m-0 text-xs text-muted" style={{ display: 'flex', flexWrap: 'wrap', columnGap: 16, rowGap: 2 }} data-retro-facts>
-        <div style={{ display: 'flex', gap: 4 }}>
+      <Box as="dl" css-display="flex" css-flex-wrap="wrap" css-column-gap="16" css-row-gap="2" m0 size="xs" tone="muted" data-retro-facts>
+        <Box css-display="flex" css-gap="4">
           <dt>Scope</dt>
-          <dd style={{ margin: 0, color: 'var(--text)' }}>{retroScope(retro)}</dd>
-        </div>
-        <div style={{ display: 'flex', gap: 4 }}>
+          <Box as="dd" css-margin="0" css-color="text">{retroScope(retro)}</Box>
+        </Box>
+        <Box css-display="flex" css-gap="4">
           <dt>Time</dt>
-          <dd style={{ margin: 0, color: 'var(--text)' }} title={retro.startedAt}>
+          <Box as="dd" css-margin="0" css-color="text" title={retro.startedAt}>
             {relativeTime(retro.startedAt, Date.now())}
-          </dd>
-        </div>
-        <div style={{ display: 'flex', gap: 4 }}>
+          </Box>
+        </Box>
+        <Box css-display="flex" css-gap="4">
           <dt>Model</dt>
-          <dd style={{ margin: 0, color: 'var(--text)' }}>{retro.model ?? 'not recorded'}</dd>
-        </div>
-      </dl>
+          <Box as="dd" css-margin="0" css-color="text">{retro.model ?? 'not recorded'}</Box>
+        </Box>
+      </Box>
       {retro.triggers.length > 0 && <Hint size="xs">Started by {retro.triggers.map((t) => t.detail).join('; ')}.</Hint>}
       {retro.state === 'running' && <Hint size="sm">Running since {relativeTime(retro.startedAt, Date.now())}.</Hint>}
       {retro.state === 'failed' && (

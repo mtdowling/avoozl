@@ -81,11 +81,10 @@ export function DriverBanner(props: { workspaceId: string; spec: DriverSpec | nu
   const action = bannerAction(spec)
   const issueUrl = safeHref(spec.issue?.url ?? null)
   return (
-    <div
+    <Box
       role="status"
       data-driver-banner
-      className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm"
-      style={{ borderColor: 'var(--warning, var(--border))', background: 'color-mix(in srgb, var(--warning, var(--muted)) 10%, var(--card, transparent))' }}
+      css-border-color="warning-border" css-background="mix-warning-muted-10%-card-transparent" mb="3" flex flexWrap items="center" gap="3" rounded="lg" border="all" p="3" size="sm"
     >
       <Lock size={18} aria-hidden="true" style={{ color: 'var(--muted)' }} />
       <Box as="span" minW0 flex1>
@@ -129,7 +128,7 @@ export function DriverBanner(props: { workspaceId: string; spec: DriverSpec | nu
           }}
         />
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -138,7 +137,7 @@ export function SetupList(props: { spec: DriverSpec | null }) {
   const items = props.spec?.you ? props.spec.setup : []
   if (!items.length) return null
   return (
-    <div data-driver-setup className="mb-3 rounded-lg border p-3 text-sm" style={{ borderColor: 'var(--border)' }}>
+    <Box data-driver-setup css-border-color="border" mb="3" rounded="lg" border="all" p="3" size="sm">
       <Box as="p" weight="medium">Set these up on this machine</Box>
       <Hint as="p" size="xs">They stay on each machine. Until they are back, their tasks wait and their checks block writes.</Hint>
       <Box as="ul" mt="1" listDisc pl="5">
@@ -146,7 +145,7 @@ export function SetupList(props: { spec: DriverSpec | null }) {
           <li key={item.kind + (item.id ?? '')}>{setupText(item)}</li>
         ))}
       </Box>
-    </div>
+    </Box>
   )
 }
 
@@ -293,7 +292,7 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
       }
     >
       <Box flex flexCol gap="3" size="sm" data-driver-force>
-        <dl className="grid gap-x-3 gap-y-1" style={{ gridTemplateColumns: 'auto 1fr' }}>
+        <Box as="dl" css-grid-template-columns="auto-1fr" grid gapX="3" gapY="1">
           <Hint as="dt">Assigned to</Hint>
           <dd>{(preview?.current.assignees ?? spec.assignees ?? []).join(', ') || 'nobody'}</dd>
           <Hint as="dt">Driving machine</Hint>
@@ -302,7 +301,7 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
           </dd>
           <Hint as="dt">Last heartbeat</Hint>
           <dd>{spec.seenAt ? `${spec.seenAt} (${ago(spec.seenAt)})` : 'never'}</dd>
-        </dl>
+        </Box>
         <p>
           That machine may still be running chats for this spec. Their local results will not come here; what they push to GitHub does. Avoozl sets the plan
           issue&apos;s assignee to you, the one assignee change it ever makes.

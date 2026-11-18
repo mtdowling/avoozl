@@ -400,7 +400,7 @@ async function retireBatchWorktree(store, project, taskId, branch) {
     current = store.get("task_worktrees", taskId);
   if (!delivery?.batchSplit || delivery.batchWorktreeRetired || !current?.path)
     return;
-  if (await git(current.path, ["status", "--porcelain"]).catch(() => ""))
+  if (await worktreeChanges(current.path).catch(() => ""))
     fail(
       `${taskId}'s batch worktree has uncommitted changes; commit or clear them before it retries alone.`,
       409,
@@ -3189,7 +3189,8 @@ export async function rebaseForIntegration(project, worktree, commit) {
     await git(project.root, ["merge-base", "--is-ancestor", target, commit]);
     return null;
   } catch {}
-  if (await git(worktree.path, ["status", "--porcelain"]))
+  // Avoozl's own files (a child's .avoozl/ result folder) are not changes.
+  if (await worktreeChanges(worktree.path))
     fail(
       "The task's worktree has uncommitted changes; it was not rebased.",
       409,

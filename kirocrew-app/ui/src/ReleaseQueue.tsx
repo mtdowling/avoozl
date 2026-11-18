@@ -20,53 +20,53 @@ const VARIANT: Record<RowState, BadgeVariant> = { released: 'success', claimed: 
 // `held` is a held-reason line the queue itself lacks: a sub-issue link the cap or GitHub left out.
 function Row({ row, held }: { row: QueueRow; held?: string }) {
   return (
-    <li data-release-row={row.state} style={{ flexDirection: 'row', borderTop: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', gap: '4px 12px', alignItems: 'baseline', padding: '8px 0', listStyle: 'none' }}>
+    <Box data-release-row={row.state} as="li" css-flex-direction="row" css-border-top="1px-solid-border" css-display="flex" css-flex-wrap="wrap" css-gap="4px-12px" css-align-items="baseline" css-padding="8px-0" css-list-style="none">
       <span className="flex flex-none items-center gap-2 sm:w-28" style={{ flex: '0 0 88px' }}>
         <Badge variant={VARIANT[row.state]}>{STATE_LABEL[row.state]}</Badge>
       </span>
       <span className="min-w-0 text-sm sm:w-1/3" style={{ overflowWrap: 'anywhere', flex: '1 1 220px' }}>
         <Box as="span" weight="medium">{row.title}</Box> <Hint size="xs">{row.taskId}</Hint>
-        <span className="text-xs text-muted" style={{ display: 'block' }}>{row.phase}</span>
+        <Box as="span" css-display="block" size="xs" tone="muted">{row.phase}</Box>
       </span>
-      <span className="min-w-0 flex-1 text-sm text-muted" data-release-reason style={{ overflowWrap: 'anywhere', flex: '2 1 240px' }}>
+      <Box as="span" css-overflow-wrap="anywhere" css-flex="2-1-240px" minW0 flex1 size="sm" tone="muted" data-release-reason>
         {row.reason}
         {held && (
           <Box as="span" block size="xs" data-sub-issue>
             {held}
           </Box>
         )}
-      </span>
-    </li>
+      </Box>
+    </Box>
   )
 }
 
 function Repository({ repository, onStep, busy, held }: { repository: QueueRepository; onStep: (planId: string) => void; busy: boolean; held: Map<string, string> }) {
   const steps = repository.mode === 'step' ? nextSteps(repository) : []
   return (
-    <section data-release-repository={repository.repository} className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 12px' }}>
-        <h4 className="m-0 text-sm font-semibold" style={{ overflowWrap: 'anywhere' }}>
+    <Box data-release-repository={repository.repository} as="section" css-display="flex" css-flex-direction="column" css-gap="8" flex flexCol gap="2">
+      <Box css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="4px-12px" flex flexWrap items="center" gapX="3" gapY="1">
+        <Box as="h4" css-overflow-wrap="anywhere" m0 size="sm" weight="semibold">
           {repository.repository}
-        </h4>
+        </Box>
         <Badge variant="info">{MODE_TEXT[repository.mode].title}</Badge>
         <Hint size="xs">{capacityText(repository.capacity)}</Hint>
-      </div>
+      </Box>
       {steps.map((step) => (
-        <div key={step.planId} data-release-step className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: 8 }}>
-          <span className="min-w-0 flex-1" style={{ overflowWrap: 'anywhere' }}>
+        <Box key={step.planId} data-release-step css-border-color="border" css-border="1px-solid-border" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" css-padding="8" flex flexWrap items="center" gap="2" rounded="md" border="all" p="2" size="sm">
+          <Box as="span" css-overflow-wrap="anywhere" minW0 flex1>
             Step is waiting for {step.spec ?? step.planId}, phase <Box as="span" weight="medium">{step.title}</Box>.
-          </span>
+          </Box>
           <Btn type="button" primary disabled={busy} onClick={() => onStep(step.planId)}>
             Release {step.title}
           </Btn>
-        </div>
+        </Box>
       ))}
-      <ul className="m-0 list-none p-0" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+      <Box as="ul" css-margin="0" css-padding="0" css-list-style="none" m0 listNone p="0">
         {repository.rows.map((row) => (
           <Row key={row.taskId} row={row} held={held.get(row.taskId)} />
         ))}
-      </ul>
-    </section>
+      </Box>
+    </Box>
   )
 }
 
@@ -126,9 +126,9 @@ export default function ReleaseQueue(props: { workspaceId: string | null; onOpen
       <Hint as="p" size="xs">In the order the tick releases them. Each held task says why.</Hint>
       {error && <Hint as="p" size="sm">The queue could not be read: {error}</Hint>}
       {failure && (
-        <p role="alert" className="text-sm" style={{ color: 'var(--danger)' }}>
+        <Box role="alert" as="p" css-color="danger" size="sm">
           {failure}
-        </p>
+        </Box>
       )}
       {value?.repositories.map((repository) => (
         <Repository key={repository.repository} repository={repository} onStep={(planId) => void step(planId)} busy={busy} held={value.held} />

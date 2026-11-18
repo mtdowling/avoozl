@@ -7,6 +7,7 @@ import { ArrowLeft } from './icons.ts'
 import { LAYER } from './layers.ts'
 import { usePhone } from './list-detail.ts'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
+import { Box } from './ui/Box'
 
 export function ListDetailBack(props: { label: string; onBack: () => void }) {
   return (
@@ -28,13 +29,13 @@ export function DetailBar(props: { backLabel: string; onBack: () => void; title:
   return (
     <div data-detail-bar style={{ position: 'sticky', top: 0, zIndex: LAYER.sticky, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg)' }}>
       <ListDetailBack label={props.backLabel} onBack={props.onBack} />
-      <span
+      <Box
         aria-hidden="true"
         data-detail-echo
-        style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14, fontWeight: 600, opacity: props.scrolledOut ? 1 : 0, transition: 'opacity 150ms' }}
+        as="span" css-min-width="0" css-flex="1" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap" css-font-size="14" css-font-weight="600" css-opacity={props.scrolledOut ? '1' : '0'} css-transition="opacity-150ms"
       >
         {props.title}
-      </span>
+      </Box>
       {props.actions}
     </div>
   )
