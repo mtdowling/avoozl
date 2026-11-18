@@ -34,6 +34,7 @@ test('every item kind says what is asked, and a task item says what it unblocks'
   assert.deepEqual(evidenceOf(needsContextItems.at(-1)), [], 'the bare item has no evidence')
   assert.ok(evidenceOf(needsContextItems.find((i) => i.kind === 'plan-review')).includes('summary'))
   assert.ok(evidenceOf(needsContextItems.find((i) => i.kind === 'ready-to-merge')).includes('links'))
+  assert.deepEqual(evidenceOf(needsContextItems.find((i) => i.kind === 'stale-session')), ['checks'], 'a stop on failed checks shows them')
 })
 
 test('Resolve comes after the context block, and the review drawer lists text before Mark reviewed', () => {
@@ -79,5 +80,10 @@ test('each kind draws its spec link, evidence and context before Resolve', { ski
     if (kind === 'plan-review') assert.match(await page.evaluate(`document.querySelector('[data-ai-summary]').textContent`), /shopping list/)
     if (kind === 'ready-to-merge') assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-pr-chip]') && document.querySelector('[data-branch-chip]'))`), true)
     if (kind === 'needs-human') assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-no-evidence]'))`), true)
+    if (kind === 'stale-session') {
+      const shown = await page.evaluate(`document.querySelector('[data-conflict-detail] [data-failed-checks]')?.textContent ?? ''`)
+      assert.match(shown, /test \(ubuntu-latest\)/)
+      assert.match(shown, /expected 3 saved searches, got 2/)
+    }
   }
 })

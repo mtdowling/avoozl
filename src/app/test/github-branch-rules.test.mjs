@@ -59,7 +59,10 @@ test("a ruleset and classic protection both count; the stricter count wins", asy
       rules: [
         {
           type: "pull_request",
-          parameters: { required_approving_review_count: 1 },
+          parameters: {
+            required_approving_review_count: 1,
+            require_last_push_approval: true,
+          },
         },
         { type: "deletion" },
       ],
@@ -77,6 +80,7 @@ test("a ruleset and classic protection both count; the stricter count wins", asy
     branch: "main",
     approvals: 2,
     dismissStale: true,
+    lastPushApproval: true,
     sources: ["ruleset", "branch protection"],
     hidden: false,
     hiddenReason: null,

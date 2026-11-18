@@ -200,6 +200,20 @@ function Evidence({ item }: { item: ConflictItem }) {
           {context.links.checks && <Hint>{checkDot(context.links.checks).label}</Hint>}
         </Box>
       )}
+      {kinds.includes('checks') && context?.failedChecks && (
+        <Stack gap={1} data-failed-checks>
+          {context.failedChecks.checks.map((check) => (
+            <Stack key={check.name}>
+              <span>
+                Failed check <strong>{check.name}</strong>
+                {check.conclusion ? ` (${check.conclusion})` : ''}
+                {context.failedChecks!.commit ? ` on ${context.failedChecks!.commit.slice(0, 7)}` : ''}
+              </span>
+              {check.firstError ? <code data-first-error>{check.firstError}</code> : <Hint size="xs">The check gave no error line.</Hint>}
+            </Stack>
+          ))}
+        </Stack>
+      )}
       {kinds.includes('content') && (
         <Box as="p" m0 size="sm" data-content-evidence>
           Rule set {item.set ?? 'unknown'}
