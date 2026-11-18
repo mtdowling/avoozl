@@ -482,6 +482,7 @@ import {
   driverTick,
   handoff,
   pullStatus,
+  pullWork,
   remoteView,
   reportDone,
   runnerStatus,
@@ -3146,6 +3147,8 @@ export class Operations {
       return handoff(store, this.workspaceRoot, input);
     if (name === "remote.pull")
       return pullStatus(store, this.workspaceRoot, input);
+    if (name === "worker.pull")
+      return pullWork(store, this.workspaceRoot, this.github);
     if (name === "remote.view") return remoteView(store, this.workspaceRoot);
     if (name === "instance.view") return instanceView(store);
     if (name === "instance.rename") {

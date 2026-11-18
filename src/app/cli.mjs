@@ -899,6 +899,10 @@ try {
       result = await localOrRequest("remote.pull", { host: options.host });
     } else throw Error("Use runner accept|status|report|handoff|pull.");
     console.log(JSON.stringify(result, null, 2));
+  } else if (command === "worker") {
+    // Worker mode (R90): this machine pulls offers from spec journals.
+    if (positionals[0] !== "pull") throw Error("Use worker pull.");
+    console.log(JSON.stringify(await localOrRequest("worker.pull"), null, 2));
   } else if (command === "driver") {
     // The spec driver (§6.10). Hand off, take over and force take over are
     // a person's: the CLI is the person at this machine's command line.
@@ -1988,6 +1992,7 @@ try {
   runner status --json                  This runner's tasks and workers; elsewhere the supervisor and its children
   runner handoff ENVELOPE.json --host H Runner mode: hand a task to host H over ssh
   runner pull --host H                  Runner mode: read host H's status
+  worker pull                           Worker mode: read this worker's offers from spec journals
   driver status [SPEC]                  Which machine drives each spec, and why one reads only here
   driver handoff SPEC [--folder DIR [--unfinished]] [--cancel]
                                         Stop new work for SPEC; with --folder write the export (a person only)

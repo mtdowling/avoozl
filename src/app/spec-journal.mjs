@@ -43,6 +43,7 @@ export const JOURNAL_KINDS = [
   "control",
   "generation",
   "claim",
+  "offer",
   "intent",
   "void",
   "reanchor",
@@ -160,6 +161,9 @@ export function validateRecord(
       // The opaque driver a generation names, and the driver that wrote a
       // record (driver-generations.mjs).
       driver: matches(OPAQUE),
+      // The worker an offer or a claim acknowledgment names, by the opaque
+      // id of its login (worker-offers.mjs); never the login itself.
+      worker: matches(OPAQUE),
       // An intent's check evidence; a void names the intent it voids.
       checks,
       voids: matches(OPERATION),
@@ -238,6 +242,7 @@ export function validateRecord(
     approval: ["revision"],
     control: ["controls"],
     claim: ["tasks"],
+    offer: ["tasks", "refs", "base", "worker", "driver"],
     intent: ["tasks", "refs", "base"],
     void: ["voids"],
     reanchor: ["held"],

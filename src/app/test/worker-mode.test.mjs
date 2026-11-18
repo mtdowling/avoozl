@@ -184,3 +184,57 @@ test("a worker refuses an SSH envelope, then runs a pulled one to a checkpoint p
   assert.equal(row.branch, "avoozl/demo/task/T1");
   assert.equal(git(code.origin, "rev-parse", row.branch), row.commit);
 });
+
+test("worker pull reads offers through the operation and starts nothing", async (t) => {
+  const code = checkout(),
+    root = temporaryDirectory("avoozl-worker-pull-");
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({
+      version: 1,
+      runner: {
+        role: "worker",
+        lanes: 2,
+        pools: [
+          {
+            spec: "demo",
+            repository: "example/code",
+            issue: 7,
+            target: "example/code",
+            base: "main",
+            visibility: "private",
+          },
+        ],
+      },
+    }),
+  );
+  const file = globalAvoozlConfigPath();
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      version: 1,
+      runner: {
+        repos: { app: { path: code.repo } },
+        sources: { "example/code": { url: code.origin } },
+      },
+    }),
+  );
+  const { dbPath } = workspaceConfig({ workspace: root, env: {} });
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  const store = new Store(dbPath);
+  t.after(() => store.close());
+  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  const github = {
+    available: () => true,
+    currentUser: async () => ({ login: "worker-a" }),
+    listIssueComments: async () => [],
+    permission: async () => ({ permission: "read" }),
+  };
+  const ops = new Operations(store, { workspaceRoot: root, github });
+  const result = await ops.execute("worker.pull", {}, local);
+  assert.deepEqual(result.offers, []);
+  assert.equal(result.login, "worker-a");
+  assert.equal(store.getMeta("worker.offers").login, "worker-a");
+  assert.equal(store.getMeta("runner.tasks") ?? null, null);
+});
