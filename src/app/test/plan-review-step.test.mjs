@@ -28,6 +28,8 @@ import { planReviewSummary } from "../plan-review-summary.mjs";
 import { listSpecReviewRounds } from "../plan-reviews.mjs";
 import { recordFindingDecision } from "../review-findings.mjs";
 import { finishProcessSession } from "../executors/process.mjs";
+import { parseHarnessDefinition } from "../harness-definitions.mjs";
+import { sessionServedModel } from "../process-view.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -861,6 +863,114 @@ test("a person's Accept starts one planner turn outside the rounds cap; Review a
   assert.equal(env.store.list("approvals").length, 0);
 });
 
+// nk-3.1 (NK3.3, NK5.1, NK5.2): plan review as a `process` child. Its
+// findings come from its output file, are recorded as this session through
+// plans_submit_review's own checks, and count only with a served model the
+// harness output names.
+async function childReview(t, served, findings = [finding()]) {
+  const env = setup(t);
+  await env.step();
+  const [request] = (await env.step()).requests;
+  const slot = "process-review-" + Math.random().toString(36).slice(2);
+  await env.ops.execute("session.bind", {
+    slot,
+    taskId: request.task,
+    role: request.role,
+    attempt: request.attempt,
+    context: request.context,
+  });
+  const folder = temporaryDirectory("avoozl-review-child-");
+  fs.mkdirSync(path.join(folder, ".avoozl", "output"), { recursive: true });
+  fs.writeFileSync(
+    path.join(folder, ".avoozl", "output", "review.json"),
+    JSON.stringify({ findings, summary: "The plan reads a file." }),
+  );
+  const binding = env.store.get("session_bindings", slot),
+    result = {
+      state: "done",
+      text: "",
+      output: "review.json",
+      worktree: folder,
+      ...(served ? { served } : {}),
+    };
+  const run = () => finishProcessSession(env.ops, binding, result, env.store);
+  return {
+    env,
+    request,
+    run,
+    round: () => env.store.get("review_rounds", request.task),
+  };
+}
+
+test("a child's review with a served model records the round as a chat's does", async (t) => {
+  const { run, round, env } = await childReview(t, "fake-reviewer");
+  await run();
+  assert.equal(round().state, "done");
+  assert.equal(round().reviewerModel, "fake-reviewer");
+  const threads = env.store
+    .list("review_threads")
+    .filter((thread) => thread.roundId === round().id);
+  assert.equal(threads.length, 1);
+  assert.equal(threads[0].claim, "The named helper is absent.");
+});
+
+test("with no served model the round is skipped with today's reason", async (t) => {
+  const { run, round } = await childReview(t, null);
+  await assert.rejects(run(), /no proven reported model/);
+  assert.equal(round().state, "skipped");
+  assert.match(
+    round().note ?? round().reason ?? JSON.stringify(round()),
+    /no proven reported model/,
+  );
+});
+
+test("a child review by the model that wrote the plan is refused", async (t) => {
+  const { run, round } = await childReview(t, "fake-writer");
+  await assert.rejects(run(), /model that wrote this revision/);
+  assert.equal(round().state, "skipped");
+});
+
+test("findings over the tool's limit are refused", async (t) => {
+  const many = Array.from({ length: 51 }, () => finding());
+  const { run, round } = await childReview(t, "fake-reviewer", many);
+  await assert.rejects(run(), /at most 50/);
+  assert.equal(round().state, "running");
+});
+
+test("servedModel reads a model name, or one model key, from the harness output", (t) => {
+  const definition = parseHarnessDefinition({
+    name: "x",
+    start: ["x"],
+    resume: ["x"],
+    promptFrom: "stdin",
+    permission: { write: "w", read: "r" },
+    servedModel: { from: "output", field: "modelUsage" },
+  });
+  const log = path.join(temporaryDirectory("avoozl-served-"), "log");
+  const read = (lines) => {
+    fs.writeFileSync(log, lines.join("\n") + "\n");
+    return sessionServedModel({ log_file: log }, definition);
+  };
+  assert.equal(
+    read(['{"modelUsage": {"model-a": {"inputTokens": 1}}}']),
+    "model-a",
+  );
+  assert.equal(read(['{"modelUsage": {"model-a": {}, "model-b": {}}}']), null);
+  assert.equal(read(["no json here"]), null);
+  assert.equal(sessionServedModel({ log_file: log }, { name: "y" }), null);
+  assert.throws(
+    () =>
+      parseHarnessDefinition({
+        name: "x",
+        start: ["x"],
+        resume: ["x"],
+        promptFrom: "stdin",
+        permission: { write: "w", read: "r" },
+        servedModel: { from: "file", path: "/x" },
+      }),
+    /servedModel must be/,
+  );
+});
 // nk-3.2 (NK5.1, NK5.3): the plan answer as a `process` child. It edits only
 // its spec folder; on exit Avoozl stores the revision as this session's and
 // records each answer from its report.
