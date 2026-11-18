@@ -83,3 +83,18 @@ test('a projection waiting on the write limits shows its progress and the pace',
   // No waiting run, no line.
   assert.deepEqual(rateLines({ resources: {}, limitedUntil: null, limitedResource: null, calls: 0, notModified: 0, notModifiedShare: null, writes: { perMinute: 60, perHour: 400, run: null } }), [])
 })
+
+test('the calls table sorts by any column, calls descending first', async () => {
+  const { sortUsage, nextUsageSort, USAGE_SORT } = await import('../src/settings-api.ts')
+  const rows = usageRows({ resources: {}, limitedUntil: null, limitedResource: null, calls: 0, notModified: 0, notModifiedShare: null, bySource: { tick: { calls: 5, notModified: 1, cached: 9 }, radar: { calls: 20, notModified: 7, cached: 0 }, intake: { calls: 5, notModified: 3, cached: 2 } } })
+  const names = (sort) => sortUsage(rows, sort).map((r) => r.source)
+  assert.deepEqual(USAGE_SORT, { key: 'calls', dir: 'desc' })
+  assert.deepEqual(names(USAGE_SORT), ['radar', 'intake', 'tick'])
+  assert.deepEqual(names({ key: 'calls', dir: 'asc' }), ['intake', 'tick', 'radar'])
+  assert.deepEqual(names({ key: 'cached', dir: 'desc' }), ['tick', 'intake', 'radar'])
+  assert.deepEqual(names({ key: 'source', dir: 'asc' }), ['intake', 'radar', 'tick'])
+  // A click flips the same column and starts a new one in its natural order.
+  assert.deepEqual(nextUsageSort(USAGE_SORT, 'calls'), { key: 'calls', dir: 'asc' })
+  assert.deepEqual(nextUsageSort(USAGE_SORT, 'source'), { key: 'source', dir: 'asc' })
+  assert.deepEqual(nextUsageSort(USAGE_SORT, 'cached'), { key: 'cached', dir: 'desc' })
+})
