@@ -1,7 +1,14 @@
 name: Test
 # Pushes run only on main; a pull request runs once, from pull_request.
-# Main and the nightly run always run every test on all three systems. A pull
-# request runs the tests that scripts/select-tests.mjs picks for its changes.
+# Main, the nightly run and a manual run test everything on all three
+# systems. A pull request runs the tests that scripts/select-tests.mjs picks
+# for its changes: all of them on Linux, and on macOS and Windows only the
+# OS-sensitive ones (scripts/test-plan.mjs).
+#
+# The plan job splits each system's tests into up to three shards
+# (.github/workflows/test-shards.yml). The three "test (<os>)" jobs at the
+# end are the required checks: each passes only when its system's shards
+# and the plan passed, and a skipped shard means nothing needed to run.
 on:
   push:
     branches: [main]
@@ -10,84 +17,117 @@ on:
     - cron: "23 5 * * *"
   workflow_dispatch:
 jobs:
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    # Windows spawns git and node more slowly; its full suite takes about 5
-    # minutes there with temp on the work drive, against 2 to 4 elsewhere.
-    timeout-minutes: ${{ matrix.os == 'windows-latest' && 20 || 10 }}
-    env:
-      # The browser page tests need Chrome and skip without it.
-      AVOOZL_CHROME: skip
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      linux: ${{ steps.plan.outputs.linux }}
+      linux-chrome: ${{ steps.plan.outputs.linux-chrome }}
+      macos: ${{ steps.plan.outputs.macos }}
+      windows: ${{ steps.plan.outputs.windows }}
     steps:
       # A pull request checks out the merge of its head into its base, so
       # the first parent is the base and the diff against it is the change.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      # The tests make thousands of temporary folders, git repositories and
-      # SQLite files. The runner's C: drive is slow; its D: work drive cut the
-      # Windows suite from about 11 minutes to about 4.
-      - name: Temp on the work drive
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          "TEMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
-          "TMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
       - uses: actions/setup-node@v4
         with:
           node-version: 26
-          cache: npm
-      # Prints what runs and what is skipped. Only a pull request selects;
-      # every other event runs everything. A job always runs, so the three
-      # check names report success even when nothing needs to run.
-      - name: Select tests
-        id: select
+      # Prints what runs where. Needs only node and git.
+      - name: Plan the shards
+        id: plan
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = pull_request ]; then
-            node scripts/select-tests.mjs --base HEAD~1 --github-output
+            node scripts/test-plan.mjs --base HEAD~1 --github-output
           else
-            node scripts/select-tests.mjs --full --github-output
+            node scripts/test-plan.mjs --full --github-output
           fi
-      - run: npm ci --ignore-scripts
-        if: steps.select.outputs.any == 'true' || matrix.os == 'ubuntu-latest'
-      # Formatting and spec lint do not depend on the platform, so one runner
-      # checks them, on every change.
-      - run: npm run format:check
-        if: matrix.os == 'ubuntu-latest'
-      - run: node scripts/spec-lint.mjs
-        if: matrix.os == 'ubuntu-latest'
-      # The build receipt: one JSON line for this run (RC32.4). The node tests
-      # and the page tests run together, in the same job, after one build.
-      - name: Run tests
-        if: steps.select.outputs.any == 'true'
-        shell: bash
-        env:
-          AVOOZL_RECEIPT_FILE: build-receipt.jsonl
-        run: |
-          if [ "${{ github.event_name }}" = pull_request ]; then
-            node bin/build-receipt --target ${{ matrix.os }} -- npm run test:changed -- --base HEAD~1
-          else
-            node bin/build-receipt --target ${{ matrix.os }} -- npm run test:ci
-          fi
-      # Every platform keeps its receipt, and the summary prints every line (R101.3).
-      - name: Receipt to the job summary
-        if: always() && hashFiles('build-receipt.jsonl') != ''
-        shell: bash
-        run: |
-          echo '### Build receipt (${{ matrix.os }})' >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          cat build-receipt.jsonl >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
-        if: always() && hashFiles('build-receipt.jsonl') != ''
+
+  # Formatting and spec lint do not depend on the platform, so one runner
+  # checks them, on every change.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        id: node
         with:
-          name: build-receipt-${{ matrix.os }}
-          path: build-receipt.jsonl
-          retention-days: 30
-      - run: npm pack --dry-run
-        if: steps.select.outputs.any == 'true'
+          node-version: 26
+          cache: npm
+      - uses: actions/cache@v4
+        id: modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node${{ steps.node.outputs.node-version }}-${{ hashFiles('package-lock.json') }}
+      - run: npm ci --ignore-scripts
+        if: steps.modules.outputs.cache-hit != 'true'
+      - run: npm run format:check
+      - run: node scripts/spec-lint.mjs
+
+  linux:
+    needs: plan
+    if: needs.plan.outputs.linux != '[]' || needs.plan.outputs.linux-chrome == 'true'
+    uses: ./.github/workflows/test-shards.yml
+    with:
+      os: ubuntu-latest
+      system: linux
+      shards: ${{ needs.plan.outputs.linux }}
+      chrome: ${{ needs.plan.outputs.linux-chrome == 'true' }}
+  macos:
+    needs: plan
+    if: needs.plan.outputs.macos != '[]'
+    uses: ./.github/workflows/test-shards.yml
+    with:
+      os: macos-latest
+      system: macos
+      shards: ${{ needs.plan.outputs.macos }}
+  windows:
+    needs: plan
+    if: needs.plan.outputs.windows != '[]'
+    uses: ./.github/workflows/test-shards.yml
+    with:
+      os: windows-latest
+      system: windows
+      shards: ${{ needs.plan.outputs.windows }}
+
+  # The required checks keep their old names. Each reads only the jobs it
+  # needs: the plan must pass, and every other job must pass or be skipped.
+  test-ubuntu:
+    name: test (ubuntu-latest)
+    needs: [plan, lint, linux]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every Linux shard passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          node -e 'const n = JSON.parse(process.env.NEEDS); const bad = Object.entries(n).filter(([job, { result }]) => !(result === "success" || (job !== "plan" && result === "skipped"))); for (const [job, { result }] of bad) console.log(`${job}: ${result}`); process.exit(bad.length ? 1 : 0)'
+  test-macos:
+    name: test (macos-latest)
+    needs: [plan, macos]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every macOS shard passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          node -e 'const n = JSON.parse(process.env.NEEDS); const bad = Object.entries(n).filter(([job, { result }]) => !(result === "success" || (job !== "plan" && result === "skipped"))); for (const [job, { result }] of bad) console.log(`${job}: ${result}`); process.exit(bad.length ? 1 : 0)'
+  test-windows:
+    name: test (windows-latest)
+    needs: [plan, windows]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every Windows shard passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          node -e 'const n = JSON.parse(process.env.NEEDS); const bad = Object.entries(n).filter(([job, { result }]) => !(result === "success" || (job !== "plan" && result === "skipped"))); for (const [job, { result }] of bad) console.log(`${job}: ${result}`); process.exit(bad.length ? 1 : 0)'

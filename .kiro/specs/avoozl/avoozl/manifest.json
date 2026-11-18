@@ -1029,7 +1029,7 @@
     "avoozl-p8": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 3 (GitHub core). Proof. See R13.",
+      "summary": "Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 3 (GitHub core). Proof. See R13.",
       "acceptance": [
         "Expected: one parent issue of type Epic with three sub-issues, issue dependencies matching the `requires` and `sequence` edges, a `supports` edge present only in the marker, the ready label only on the unblocked leaf; the second apply changes nothing.",
         "A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict."
@@ -1094,7 +1094,7 @@
     "avoozl-p10": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 3 (GitHub core). Proof. See R15.",
+      "summary": "Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 3 (GitHub core). Proof. See R15.",
       "acceptance": [
         "Expected: each human-edited issue field is reported as a conflict and left unchanged; untouched fields update; resolving in Conflicts applies the chosen value; no Project edit opens a conflict; the Done drag closes its issue through Auto-close issue and is judged as an order (P11 proves its effects), not a conflict; Deferred and Release are handled per §6.7 (P16 proves their effects). Changed 2026-11-12.",
         "A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict."
@@ -1126,7 +1126,7 @@
     "avoozl-p11": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 3 (GitHub core). Proof. See R16, R33.",
+      "summary": "Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 3 (GitHub core). Proof. See R16, R33.",
       "acceptance": [
         "Expected: A's closed issue is a decision, not done; B completes and releases D in the same tick; in plans-repo mode GitHub closes B's planning issue with the pull request as closer, and the fork pull request closes nothing and counts for nothing; Avoozl closes no leaf issue in either mode; C and F are done by order, not verified: their dependents E and G are released in the next tick (both levels count; E shows as ready but paused), G's brief says the blocker closed without merged code (closer, reason, time) and to check for the missing code first, with the issue link in single-repo mode and task ID and title only in plans-repo mode, and the receipt and marker hold the order; F's close event names the person who dragged (record which source named the closer); H's dependent J stays held with a decision while GitHub shows it unblocked, and H stays closed; after the reopens, E is waiting again and gets no session, G's running session is left alone, and both orders are gone from the markers; the non-default-base merge leaves its issue open and opens a decision.",
         "A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict."
@@ -1157,7 +1157,7 @@
     "avoozl-p16": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 3 (GitHub core). Proof. See R29, R31.3, R33.",
+      "summary": "Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 3 (GitHub core). Proof. See R29, R31.3, R33.",
       "acceptance": [
         "Expected: every managed issue from both repositories is on the Project, at Todo from the Item added workflow; Avoozl makes no Status write at any point (no Status change by the token's account in any item's history); the running leaf moves to In progress when its pull request opens and to Done when GitHub closes the issue, by `@github-project-automation`; blocked leaves show GitHub's Blocked icon; Release matches each issue's milestone and parents take their children's latest; Iteration is set only where the manifest names one; the second sync writes nothing. Board drags: the Deferred leaf gets no new session, no linked branch, and no ready label over both ticks, and the owner gets one Kiro Crew notification; dragged back, it resumes and dispatches, and its card stays at Todo; the drag to Done closes the issue through Auto-close issue and the task becomes done by order (P11 proves the release and brief note), with no GitHub comment; the running session under a Deferred card keeps running; the Release change is kept on later ticks, the parent's Release follows it, a manifest change moving that task is drafted for review, and nothing is committed; the disallowed account's Deferred drag is not reverted, does not pause dispatch, and shows in Delivery; no board edit opens a conflict. The report says which writer source (timeline, item change record, or value only) was readable. Wave reads a1 1, b1 1, a2 2, b2 3, b3 4 (the `supports` edge adds nothing); a1 stays 1 after it is done and no other wave moves; b3's hand-set 9 is reverted to 4 in the next tick with a Kiro Crew notification; after the edge removal the next tick writes a2 1, b2 2, b3 3 and nothing else, and the tick after it writes nothing; without the scope, Settings reports Project sync unavailable and issue projection still works.",
         "A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict."
@@ -1256,7 +1256,7 @@
     "avoozl-p24": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 3 (GitHub core). Proof. See R32, R33.6.",
+      "summary": "Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 3 (GitHub core). Proof. See R32, R33.6.",
       "acceptance": [
         "Expected: the preview lists every write before any is made. Run 1 creates a private planning repository with issues on, a private org Project with Status options Todo, In progress, Done, and Deferred, Release with the named release, a Wave number field, a Board view with Status columns and the `Table by wave` view the person asked for, no Roadmap view, the `Epic` type, and the managed labels, and the `.avoozl.json` change validates. Run 2 shows \"Nothing to change\" and writes nothing (no object's `updated_at` moves). The T2 run turns on issues and adds the missing labels, leaves the existing label's color as it was, reports the missing `project` scope with `gh auth refresh -s project`, and makes no Project call that writes. The run after the fix creates a private user Project with Release holding both milestones, and reports the `Epic` step as not available on a user account. The template-Project run adds only Deferred, keeps Todo, In progress, and Done with their option `id`s, leaves the item at In progress, and its `.avoozl.json` diff maps `todo`, `inProgress`, `done`, and `deferred` to those four options. Every run reads the built-in workflows and writes none: its checklist lists each workflow whose `enabled` differs from the recommendation (a Project with Auto-close issue off gets \"turn on Auto-close issue\"; `nupp-lang` Project #2, already on, gets no Auto-close item) and the column and filter lines it cannot read. No run deletes or renames anything. Each run ends with the checklist and its links, and the checklist has no date-field item. The report records whether REST views worked on each account (settling L7b): if REST grouped the views, they are grouped by Release and by Wave and the checklist has no grouping item; if it fell back to GraphQL, the checklist says \"Group by Release, then Save\" (and the same for Wave) and following it gives the grouped views.",
         "A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict."
@@ -1287,7 +1287,7 @@
     "avoozl-p25": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 3 (GitHub core). Proof. See R31.5, R33.4; §6.6, F51, F52.",
+      "summary": "Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 3 (GitHub core). Proof. See R31.5, R33.4; §6.6, F51, F52.",
       "acceptance": [
         "Expected: both planning issues close as `COMPLETED` with the pull request as closer within one tick; the Project item moves to Done by `@github-project-automation`; no logged-out fetch and no notification to a code-repository-only watcher names the planning repository; the result for the merger without planning access is recorded either way. Write the receipt under `docs/evidence/` in the Avoozl repository.",
         "A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict."
@@ -1571,7 +1571,7 @@
     "avoozl-p13": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 4 (Delivery loops). Proof. See R18.",
+      "summary": "Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 4 (Delivery loops). Proof. See R18.",
       "acceptance": [
         "Expected: each merges through Issue Radar or GitHub auto-merge under required checks; Avoozl's completion check accepts it; the parent closes after the last child.",
         "A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict."
@@ -1595,7 +1595,7 @@
     "avoozl-p17": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 4 (Delivery loops). Proof. See R28.6–R28.11, R31.2.",
+      "summary": "Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 4 (Delivery loops). Proof. See R28.6–R28.11, R31.2.",
       "acceptance": [
         "Expected: issues, sub-issues, and the dependency exist only in the planning repository; Avoozl creates the first leaf's linked branch `avoozl/<task-id>` before its brief, and the worker opens a pull request from it with no closing keyword; after merge with passing checks, GitHub closes the planning issue as completed with the pull request as closer, the Item closed workflow sets Status to Done, Avoozl closes nothing and writes no Status, and the second leaf is released in the same tick; neither public pull request, its commits, nor its branch names the planning repository, and the public repository shows no Project event or link into it to a logged-out viewer; the third leaf's leak opens a decision and does not complete until the text is fixed. Changed 2026-11-12.",
         "A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict."
@@ -1617,7 +1617,7 @@
     "avoozl-p18": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 4 (Delivery loops). Proof. See R28.10, R31.1.",
+      "summary": "Superseded 2026-11-17 (Phase 56 retires per-task issues; see docs/proofs/github-scratch-runbook.md). Phase 4 (Delivery loops). Proof. See R28.10, R31.1.",
       "acceptance": [
         "Expected: the P17 results hold across organizations, including GitHub closing the A planning issue through a linked branch in B (changed 2026-11-12); the pull request lookup in B works with read access; the cross-organization sub-issue is accepted (F38); the cross-organization dependency is accepted or refused, and the result is recorded in design F39.",
         "A receipt under docs/evidence/ records the setup, the action, what was observed, and the verdict."
