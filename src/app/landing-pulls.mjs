@@ -39,16 +39,24 @@ const lower = (value) => String(value).toLowerCase();
 const PASS = new Set(["success", "neutral", "skipped"]);
 
 // The pull request for an entry: by number, else the open one for its head
-// branch and base. A fork's head is `owner:branch`.
+// branch and base. A fork's head is `owner:branch`; a fork in the target's
+// own organization shares that owner, so only a pull request whose head
+// repository is the source counts.
 async function findPull(github, target, entry, base) {
   if (entry.pr) return github.pullRequest(target, entry.pr);
   const { repository, branch } = entry.source,
     head = `${repository.split("/")[0]}:${branch}`,
-    found = await github.listPullRequests(target, {
-      state: "all",
-      head,
-      base,
-    });
+    found = (
+      await github.listPullRequests(target, {
+        state: "all",
+        head,
+        base,
+      })
+    ).filter(
+      (pull) =>
+        !pull.head?.repo?.full_name ||
+        lower(pull.head.repo.full_name) === lower(repository),
+    );
   // Newest first: an open one wins, else the newest merged one.
   const open = found.find((pull) => pull.state === "open");
   return open ?? found.find((pull) => pull.merged_at) ?? null;
@@ -183,12 +191,18 @@ export function pullSteps({
         pull = await github.pullRequest(target, pull.number);
       }
       if (!pull) {
-        const fork = lower(ref.source.repository) !== lower(target);
+        const fork = lower(ref.source.repository) !== lower(target),
+          [sourceOwner, sourceName] = ref.source.repository.split("/"),
+          // GitHub needs head_repo when the fork and the target have the
+          // same owner (a fork inside the target's organization).
+          sameOwner =
+            fork && lower(sourceOwner) === lower(target.split("/")[0]);
         pull = await github.createPullRequest(target, {
           title: `Land ${entry.key}`,
           head: fork
-            ? `${ref.source.repository.split("/")[0]}:${ref.source.branch}`
+            ? `${sourceOwner}:${ref.source.branch}`
             : ref.source.branch,
+          ...(sameOwner ? { head_repo: sourceName } : {}),
           base: entry.base,
           body: entry.tasks
             .map((t) => `Avoozl-Task: ${t.task}@${t.definition}`)
