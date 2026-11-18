@@ -490,11 +490,7 @@ test("the run ID and conclusion land on the train record; one read serves every 
     github = fakeCi(w, "success");
   await queued(w, "t1");
   const result = await train(w);
-  assert.equal(
-    result.train.ci,
-    null,
-    "no CI-only platform: nothing read yet",
-  );
+  assert.equal(result.train.ci, null, "no CI-only platform: nothing read yet");
   const read = await readTrainCi(w.store, {
     github,
     repository: "acme/app",
