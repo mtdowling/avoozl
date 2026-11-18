@@ -5,7 +5,8 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import prettier from "prettier";
+// Vite's bundler, rolldown, ships an ESTree parser for JS, TS and JSX.
+import { parseAst } from "rolldown/parseAst";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const nativeCalls = new Set([
@@ -27,20 +28,21 @@ const pathProblem = (value) =>
     /(?:^|\/)agents\/.*\.json$/.test(value));
 
 async function jsLeaks(source, name) {
-  const { ast } = await prettier.__debug.parse(source, {
-      parser: /\.tsx?$/.test(name) ? "babel-ts" : "babel",
+  const ast = parseAst(source, {
+      lang: name.endsWith(".tsx") ? "tsx" : /\.m?ts$/.test(name) ? "ts" : "jsx",
     }),
     found = [];
+  const isString = (node) =>
+    node?.type === "Literal" && typeof node.value === "string";
   function visit(node) {
     if (!node || typeof node !== "object") return;
     if (
-      (node.type === "MemberExpression" ||
-        node.type === "OptionalMemberExpression") &&
+      node.type === "MemberExpression" &&
       nativeCalls.has(node.property?.name ?? node.property?.value)
     )
       found.push("native session API");
     if (
-      ["ObjectProperty", "MemberExpression"].includes(node.type) &&
+      ["Property", "MemberExpression"].includes(node.type) &&
       ["folder_id", "project_dir"].includes(
         node.key?.name ??
           node.key?.value ??
@@ -49,7 +51,7 @@ async function jsLeaks(source, name) {
       )
     )
       found.push("native project field");
-    if (node.type === "StringLiteral" && pathProblem(node.value))
+    if (isString(node) && pathProblem(node.value))
       found.push("native asset/sidebar path");
     if (
       node.type === "TemplateLiteral" &&
@@ -60,7 +62,7 @@ async function jsLeaks(source, name) {
       const fragments = [];
       function literals(value) {
         if (!value || typeof value !== "object") return;
-        if (value.type === "StringLiteral") fragments.push(value.value);
+        if (isString(value)) fragments.push(value.value);
         for (const [key, child] of Object.entries(value)) {
           if (["loc", "comments", "tokens"].includes(key)) continue;
           if (Array.isArray(child)) child.forEach(literals);
@@ -80,7 +82,7 @@ async function jsLeaks(source, name) {
       else if (value && typeof value === "object") visit(value);
     }
   }
-  visit(ast.program);
+  visit(ast);
   return found;
 }
 

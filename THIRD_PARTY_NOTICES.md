@@ -61,7 +61,7 @@ the SIL Open Font License 1.1; their license files are in the bundle's `fonts/` 
 ## Installed, not bundled
 
 `npm install avoozl` also installs `react` (MIT) as a dependency. Development
-tools (`vite`, `@vitejs/plugin-react`, `typescript`, `prettier`, and their
+tools (`vite`, `@vitejs/plugin-react`, `typescript`, `@biomejs/biome`, and their
 dependencies) are used only to build and check this repository; none of
 their code is copied into either package. `prismjs` is a development
 dependency too; only the parts named above reach the page bundle.
