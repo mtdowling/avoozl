@@ -84,7 +84,7 @@ const FIELDS = ["title", "body", "labels", "blockers"];
 // `applied.body` can hash the section without hashing itself.
 // `notes` tell an Issue Radar leaf, which gets no Avoozl brief, that a
 // blocker closed without merged code (R33.9). A manual leaf says a person
-// closes it (R61.14); `shown` are the links and notes a person ticked Show
+// closes it (R61.14); `shown` are the links a person ticked Show
 // on the issue (R61.23).
 export const MANUAL_LINE =
   "Manual task: a person closes this issue or marks it done in Avoozl. No agent works on it.";
@@ -133,7 +133,7 @@ ${task.summary || task.nextAction || ""}
 ## Acceptance criteria
 
 ${(task.acceptance || []).map((item) => `- [ ] ${item}`).join("\n")}
-${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((note) => `> ${note}`).join("\n")}\n` : ""}${isManual(task) ? `\n> ${MANUAL_LINE}\n` : ""}${isGate(task) ? `\n> ${gateLine(task)}\n` : ""}${entries ? `\n## Links and notes\n\n${entries}\n` : ""}${ruleLines ? `\n## Agent rules\n\n${AGENT_RULES_LINE}\n\n${ruleLines}\n` : ""}
+${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((note) => `> ${note}`).join("\n")}\n` : ""}${isManual(task) ? `\n> ${MANUAL_LINE}\n` : ""}${isGate(task) ? `\n> ${gateLine(task)}\n` : ""}${entries ? `\n## Links\n\n${entries}\n` : ""}${ruleLines ? `\n## Agent rules\n\n${AGENT_RULES_LINE}\n\n${ruleLines}\n` : ""}
 <!-- avoozl:managed:end -->`;
 }
 
