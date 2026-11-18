@@ -110,7 +110,7 @@ of the other specs.
     - after: nk-1.2
   - Its row: write root the one spec folder; on exit Avoozl lints, stores the revision as that session's, and records each answer from `report`.
   - Done when: Tests: an answer of "fixed" is recorded only against the revision the child wrote; a child that changed nothing may answer with reasons only; a folder that fails lint stores nothing and opens the same decision a chat's would; an answer for a spec approved meanwhile changes no file.
-- [ ] nk-3.3 The issue planner's breakdown as a child, after nk-1.2 [NK5.4] (§D2)
+- [x] nk-3.3 The issue planner's breakdown as a child, after nk-1.2 [NK5.4] (§D2)
   - Facts:
     - summary: Phase 3 (Roles with rules about who wrote what). The issue planner's breakdown as a child. See NK5.4; §D2.
     - done:
