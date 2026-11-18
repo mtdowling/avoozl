@@ -182,10 +182,19 @@ test("only a person marks a manual leaf done or reopens it; either choice releas
   );
   const ready = () => ours(readyCandidates(store));
   assert.deepEqual(ready(), []);
+  // Tasks keep no notes: an outcome note is refused, and nothing is marked.
+  await assert.rejects(
+    ops.execute("task.manual.complete", {
+      taskId: "sdk.2",
+      choice: "skipped",
+      note: "Agreed in the review meeting",
+    }),
+    /Tasks keep no notes/,
+  );
+  assert.deepEqual(ready(), []);
   const done = await ops.execute("task.manual.complete", {
     taskId: "sdk.2",
     choice: "skipped",
-    note: "Agreed in the review meeting",
     links: [{ url: "https://docs.example.test/review", label: "Notes" }],
   });
   assert.equal(done.manualDone.choice, "skipped");
@@ -193,11 +202,7 @@ test("only a person marks a manual leaf done or reopens it; either choice releas
   const notes = await ops.execute("task.notes.list", { taskId: "sdk.2" });
   assert.deepEqual(
     notes.entries.map((e) => [e.kind, e.outcome, e.author]),
-    // Newest first: the note was saved first, then the link.
-    [
-      ["link", true, "person"],
-      ["note", true, "person"],
-    ],
+    [["link", true, "person"]],
   );
   // Skipped shows on the task.
   const graph = await ops.execute("graph.view", {});
@@ -239,7 +244,6 @@ test("a refused manual leaf holds its dependents until a person reopens it", asy
   const refused = await ops.execute("task.manual.complete", {
     taskId: "sdk.2",
     choice: "refused",
-    note: "No-go: the results are not good enough",
   });
   assert.equal(refused.manualDone.choice, "refused");
   assert.deepEqual(ready(), []);
