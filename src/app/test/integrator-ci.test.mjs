@@ -173,3 +173,74 @@ test("a run that never completes times out", async () => {
   assert.equal(out.state, "timeout");
   assert.equal(out.run.id, 7);
 });
+
+// CI capacity (lt-10.2): macOS jobs are counted by job name, one read per poll.
+const jobPlatforms = {
+  "test (macos)": "macos-arm64",
+  "test (linux)": "linux-x64",
+};
+const capacityRun = async (queuedJobs, { releaseAfter = Infinity } = {}) => {
+  const r = repo(),
+    github = fakeGitHub();
+  github.setRun(r.head, "workflow_dispatch");
+  let reads = 0;
+  github.activeJobs = async () => {
+    reads += 1;
+    return reads > releaseAfter
+      ? []
+      : queuedJobs.map((name) => ({ name, status: "queued" }));
+  };
+  const steps = [];
+  const out = await validateByCi({
+    github,
+    repository: "acme/app",
+    workflow: "test.yml",
+    train: "train-cap",
+    platforms: ["macos-arm64"],
+    capacity: { "macos-arm64": 2 },
+    jobPlatforms,
+    policy: "gated",
+    candidate: r.head,
+    baseHead: r.base,
+    root: r.work,
+    url: r.origin,
+    machine: {},
+    capacityTimeoutMs: 3,
+    intervalMs: 1,
+    sleep: async () => steps.push("sleep"),
+    now: (() => {
+      let n = 0;
+      return () => (n += 1);
+    })(),
+  });
+  return { out, github, reads: () => reads, sleeps: steps.length };
+};
+
+test("at the CI capacity of a platform the train waits and says so, and dispatches nothing", async () => {
+  const { out, github, sleeps } = await capacityRun([
+    "test (macos)",
+    "test (macos)",
+    "test (linux)",
+  ]);
+  assert.equal(out.state, "timeout");
+  assert.equal(out.mode, "capacity");
+  assert.match(out.waited, /macos-arm64 has 2 of 2 jobs/);
+  assert.equal(github.calls.dispatch.length, 0);
+  assert.ok(sleeps >= 1);
+});
+
+test("below the capacity the train dispatches after one read", async () => {
+  const { out, github, reads } = await capacityRun(["test (macos)"]);
+  assert.equal(out.state, "passed");
+  assert.equal(github.calls.dispatch.length, 1);
+  assert.equal(reads(), 1);
+});
+
+test("a train that waited dispatches once the jobs clear, and its step carries the wait", async () => {
+  const { out, github } = await capacityRun(["test (macos)", "test (macos)"], {
+    releaseAfter: 1,
+  });
+  assert.equal(out.state, "passed");
+  assert.match(out.waited, /2 of 2/);
+  assert.equal(github.calls.dispatch.length, 1);
+});
