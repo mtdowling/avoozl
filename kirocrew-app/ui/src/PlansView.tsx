@@ -900,11 +900,53 @@ export function SpecList(props: {
   const picking = Boolean(props.onCheck) && props.rows.some((row) => row.planId && batchOf.has(row.planId))
   return (
     <>
+    {sorted.some((row) => specChip(row) === 'draft') && (
+      <p data-spec-legend className="m-0 px-2 pb-1 text-xs text-muted">
+        Grey titles are drafts.
+      </p>
+    )}
     <ul className="m-0 flex list-none flex-col p-0" data-spec-list>
       {pages.take('specs', sorted).map((row) => {
         const chip = specChip(row)
         const selected = row.key === props.selected
         const batch = row.planId ? batchOf.get(row.planId) : undefined
+        const button = (
+          <button
+            type="button"
+            data-plan-row={row.key}
+            data-spec-chip={chip}
+            aria-current={selected ? 'true' : undefined}
+            onClick={() => props.onOpen(row)}
+            className="flex w-full min-w-0 flex-col items-stretch gap-0.5 px-2 py-1.5 text-left"
+            style={{ background: selected ? 'var(--accent-subtle, var(--bg-elevated))' : 'none', border: 0, borderRadius: 6, color: 'inherit', cursor: 'pointer' }}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              {chip === 'draft' ? (
+                // A draft has no badge: its title is in the muted theme color, the
+                // word stays for screen readers, and the row has a Draft tooltip.
+                <span className="min-w-0 flex-1 truncate text-sm font-medium" data-spec-name="draft" style={{ color: 'var(--muted)' }}>
+                  {row.name}
+                  <span className="sr-only"> ({SPEC_CHIP_LABEL.draft})</span>
+                </span>
+              ) : (
+                <>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium" data-spec-name="">{row.name}</span>
+                  <Badge variant={SPEC_CHIP_VARIANT[chip]}>{SPEC_CHIP_LABEL[chip]}</Badge>
+                </>
+              )}
+            </span>
+            <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
+              <span className="tabular-nums">
+                {row.tasks.total} {row.tasks.total === 1 ? 'task' : 'tasks'}
+              </span>
+              <span>·</span>
+              <span className="truncate">{row.kind === 'epic' ? 'Epic' : (row.epicTitle ?? 'No epic')}</span>
+              <HomeBadge home={row.home} />
+              {batch !== undefined && <Badge>Batch {batch}</Badge>}
+              {row.archived && <Badge>Archived</Badge>}
+            </span>
+          </button>
+        )
         return (
           <li key={row.key} className="flex items-center gap-1 border-t first:border-t-0" style={{ borderColor: 'var(--border)' }}>
             {picking && (
@@ -920,30 +962,15 @@ export function SpecList(props: {
                 )}
               </span>
             )}
-            <button
-              type="button"
-              data-plan-row={row.key}
-              data-spec-chip={chip}
-              aria-current={selected ? 'true' : undefined}
-              onClick={() => props.onOpen(row)}
-              className="flex w-full min-w-0 flex-col items-stretch gap-0.5 px-2 py-1.5 text-left"
-              style={{ background: selected ? 'var(--accent-subtle, var(--bg-elevated))' : 'none', border: 0, borderRadius: 6, color: 'inherit', cursor: 'pointer' }}
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.name}</span>
-                <Badge variant={SPEC_CHIP_VARIANT[chip]}>{SPEC_CHIP_LABEL[chip]}</Badge>
-              </span>
-              <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
-                <span className="tabular-nums">
-                  {row.tasks.total} {row.tasks.total === 1 ? 'task' : 'tasks'}
-                </span>
-                <span>·</span>
-                <span className="truncate">{row.kind === 'epic' ? 'Epic' : (row.epicTitle ?? 'No epic')}</span>
-                <HomeBadge home={row.home} />
-                {batch !== undefined && <Badge>Batch {batch}</Badge>}
-                {row.archived && <Badge>Archived</Badge>}
-              </span>
-            </button>
+            {chip === 'draft' ? (
+              <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+                <Tooltip text={SPEC_CHIP_LABEL.draft} display="block">
+                  {button}
+                </Tooltip>
+              </div>
+            ) : (
+              button
+            )}
           </li>
         )
       })}
@@ -953,7 +980,7 @@ export function SpecList(props: {
   )
 }
 
-const SPEC_CHIP_VARIANT: Record<SpecChip, 'success' | 'warning' | 'info' | undefined> = { draft: 'warning', approved: 'info', github: undefined, done: 'success' }
+const SPEC_CHIP_VARIANT: Record<Exclude<SpecChip, 'draft'>, 'success' | 'info' | undefined> = { approved: 'info', github: undefined, done: 'success' }
 
 // Where a spec's issues and their graph are: Issue Radar's Graph.
 function RadarGraphLink() {
@@ -2312,7 +2339,7 @@ export default function PlansView(props: {
     <>
       {specHeader}
       {specTabs}
-      <div data-spec-body style={{ padding: phone ? '20px 0' : '20px 12px 20px 12px' }}>
+      <div data-spec-body style={{ padding: phone ? '20px 0' : '20px 12px 20px 12px', ...(phone ? {} : { flex: '1 1 0%', minHeight: 0, overflowY: 'auto', position: 'relative' }) }}>
         <div id="avoozl-plan-main" className="flex min-w-0 flex-col" style={{ gap: 20, scrollMarginTop: 48 }}>
           <RadarGraphLink />
           <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
@@ -2453,7 +2480,7 @@ export default function PlansView(props: {
         <ListDetailLayout
           id="specs"
           listFolded={listFolded}
-          fill={Boolean(row) && !reviewing}
+          fill
           backLabel="All specs"
           detailTitle={row?.name ?? ''}
           detailOwnTitle
@@ -2463,12 +2490,12 @@ export default function PlansView(props: {
           }
           detail={
             !row ? null : (
-              <div className="flex flex-col" data-spec-detail={row.key} ref={detailTop}>
+              <div className="flex flex-col" data-spec-detail={row.key} ref={detailTop} style={phone ? undefined : { flex: '1 1 0%', minHeight: 0 }}>
                 {reviewing && workspace ? (
                   <>
                     {specHeader}
                     {specTabs}
-                    <ReviewView key={`${workspace}:${reviewing.plan}`} workspaceId={workspace} client={reviews} place={reviewing} onPlace={placeReview} />
+                    <ReviewView key={`${workspace}:${reviewing.plan}`} workspaceId={workspace} client={reviews} place={reviewing} onPlace={placeReview} fill={!phone} />
                   </>
                 ) : (
                   specContent

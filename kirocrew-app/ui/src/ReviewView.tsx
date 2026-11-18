@@ -13,6 +13,8 @@ import { SmallBtn } from './controls.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { CircleAlert, Info, MessageSquare } from './icons.ts'
 import { usePhone } from './list-detail.ts'
+import { ResizeHandle } from './ResizeHandle.tsx'
+import { SIDE, clampWidth, pageStorage, readWidth, writeWidth } from './columns.ts'
 import { shortHash } from './plans-api.ts'
 import { linkHref } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -44,6 +46,8 @@ import {
 const PROSE = '72ch'
 // Below this width the text and the rail do not fit side by side.
 const WIDE = 720
+// The text never gets narrower than this when the side column is dragged wider.
+const MIN_TEXT = 320
 // Every block a finding is anchored to is tinted by its severity and can be
 // focused; the open finding's block is stronger.
 const HIT_STYLE = `[data-review-doc] [data-review-anchor]{cursor:pointer;border-radius:4px;box-shadow:-3px 0 0 var(--hit,var(--accent));background:color-mix(in srgb,var(--hit,var(--accent)) 10%,transparent)}
@@ -392,7 +396,7 @@ export function DocTabs(props: {
   )
 }
 
-export function ReviewView(props: { workspaceId: string; client: ReviewClient; place: ReviewPlace; onPlace: (place: ReviewPlace) => void }) {
+export function ReviewView(props: { workspaceId: string; client: ReviewClient; place: ReviewPlace; onPlace: (place: ReviewPlace) => void; fill?: boolean }) {
   const { place } = props
   const phone = usePhone()
   const [data, setData] = useState<ReviewViewData | null>(null)
@@ -446,6 +450,18 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   const cardEls = useRef(new Map<string, HTMLElement>())
   const [wide, setWide] = useState(!phone)
   const [side, setSide] = useState<'contents' | 'comments'>('comments')
+  // The side column's width, kept in this browser; the text keeps at least
+  // MIN_TEXT of the row.
+  const [sideWidth, setSideWidth] = useState(() => readWidth(pageStorage(), SIDE))
+  const [rowWidth, setRowWidth] = useState(0)
+  const sideMax = Math.max(SIDE.min, Math.min(SIDE.max, rowWidth ? rowWidth - MIN_TEXT : SIDE.max))
+  const shownSide = Math.min(sideWidth, sideMax)
+  const resizeSide = useCallback((next: number) => {
+    const value = clampWidth({ ...SIDE, max: sideMax }, next)
+    setSideWidth(value)
+    writeWidth(pageStorage(), SIDE, value)
+  }, [sideMax])
+  const sideEl = useRef<HTMLElement>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const scrollTo = useRef<'text' | 'card' | null>(null)
   const blockEls = () => [...(doc.current?.querySelectorAll('[data-source-line]') ?? [])].sort((a, b) => lineOf(a) - lineOf(b)) as HTMLElement[]
@@ -453,6 +469,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   useEffect(() => {
     const measure = () => {
       const width = row.current?.clientWidth ?? 0
+      setRowWidth(width)
       if (width) setWide(width >= WIDE)
     }
     measure()
@@ -578,7 +595,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
     <div
       data-review-view={place.plan}
       className="flex min-w-0 flex-col"
-      style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 16, padding: phone ? '16px 0' : '16px 12px' }}
+      style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 16, padding: phone ? '16px 0' : '16px 12px', ...(props.fill ? { flex: '1 1 0%', minHeight: 0 } : {}) }}
     >
       <div className="flex flex-wrap items-center gap-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
         <h3 className="m-0 text-base font-semibold" style={{ flex: '1 1 auto' }}>
@@ -660,7 +677,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
           </div>
           <style>{HIT_STYLE + CARD_STYLE}</style>
           {all ? (
-            <section role="tabpanel" id="review-tab-panel" aria-labelledby="review-tab-all" data-review-all style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, maxWidth: 760 }}>
+            <section role="tabpanel" id="review-tab-panel" aria-labelledby="review-tab-all" data-review-all style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, maxWidth: 760, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: 'auto' } : {}) }}>
               {shown.length === 0 && (
                 <p className="m-0 text-sm text-muted" data-review-empty>
                   {data.findings.length === 0 ? 'No findings.' : 'No finding matches these filters.'}
@@ -679,7 +696,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               ))}
             </section>
           ) : (
-          <div ref={row} data-review-layout={wide ? 'rail' : 'inline'} style={{ display: 'flex', flexDirection: wide ? 'row' : 'column', alignItems: wide ? 'flex-start' : 'stretch', gap: 20, minWidth: 0 }}>
+          <div ref={row} data-review-layout={wide ? 'rail' : 'inline'} style={{ display: 'flex', flexDirection: wide ? 'row' : 'column', alignItems: props.fill && wide ? 'stretch' : wide ? 'flex-start' : 'stretch', gap: wide ? 6 : 20, minWidth: 0, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: wide ? 'hidden' : 'auto' } : {}) }}>
             <section
               role="tabpanel"
               id="review-tab-panel"
@@ -687,7 +704,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               aria-label={file ? undefined : 'No file'}
               data-review-doc={file ?? ''}
               className="min-w-0"
-              style={{ flex: '1 1 0', minWidth: 0, width: wide ? undefined : '100%', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', background: 'var(--card, var(--bg))' }}
+              style={{ flex: '1 1 0', minWidth: 0, width: wide ? undefined : '100%', boxSizing: 'border-box', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', background: 'var(--card, var(--bg))', ...(props.fill && wide ? { minHeight: 0, overflowY: 'auto' } : {}) }}
             >
               <div
                 ref={doc}
@@ -700,11 +717,24 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                 {file ? <Markdown text={text} measure={PROSE} /> : <p className="m-0 text-sm text-muted">This revision has no spec files.</p>}
               </div>
             </section>
+            {wide && (
+              <ResizeHandle
+                label="Resize the side column"
+                width={shownSide}
+                min={SIDE.min}
+                max={sideMax}
+                left={() => sideEl.current?.getBoundingClientRect().right ?? 0}
+                growsLeft
+                onResize={resizeSide}
+                onReset={() => resizeSide(SIDE.initial)}
+              />
+            )}
             <aside
+              ref={sideEl}
               aria-label="Side column"
               data-review-rail
               className="flex min-w-0 flex-col gap-2"
-              style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, ...(wide ? { flex: '0 0 340px', width: 340, position: 'sticky', top: 8, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' } : { width: '100%' }) }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, ...(wide ? (props.fill ? { flex: `0 0 ${shownSide}px`, width: shownSide, minHeight: 0, overflowY: 'auto' } : { flex: `0 0 ${shownSide}px`, width: shownSide, position: 'sticky', top: 8, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }) : { width: '100%', flex: 'none' }) }}
             >
               <DocTabs
                 tabs={['contents', 'comments']}

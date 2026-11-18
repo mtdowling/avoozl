@@ -21,6 +21,8 @@ export const NAV_COLLAPSED_KEY = 'avoozl:nav-collapsed'
 export const NAV_COLLAPSED_WIDTH = 36
 export const LIST: Omit<ColumnSpec, 'key'> = { initial: 360, min: 240, max: 640 }
 export const listSpec = (id: string): ColumnSpec => ({ key: `avoozl:list-width:${id}`, ...LIST })
+// The Review tab's side column (Contents, Comments), dragged by its left edge.
+export const SIDE: ColumnSpec = { key: 'avoozl:review-side-width', initial: 340, min: 240, max: 640 }
 // A folded list is a thin bar, as wide as the collapsed nav.
 export const LIST_FOLDED_WIDTH = 36
 
