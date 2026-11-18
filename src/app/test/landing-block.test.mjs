@@ -172,4 +172,9 @@ test("the block is validated, and 0 tries asks at once", () => {
     0,
   );
   assert.equal(conflictSettings({}).maxAttempts, 2);
+  // A normalized policy normalizes to itself.
+  const once = normalizeGitHubPolicy(
+    entry({ landing: { method: "merge", autoMerge: false } }),
+  );
+  assert.deepEqual(normalizeGitHubPolicy(once).repositories, once.repositories);
 });

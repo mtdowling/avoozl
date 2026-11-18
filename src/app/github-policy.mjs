@@ -819,7 +819,8 @@ export const MERGE_METHOD_SETTING = Object.freeze({
   merge: { key: "allow_merge_commit", name: "Allow merge commits" },
 });
 // `landing` {mode, autoMerge, method} and the older `merge` {method}:
-// {landing: {mode, autoMerge}, merge: {method}}, unset values null.
+// {landing: {mode, autoMerge}, merge: {method}}, unset values null. Null
+// reads as unset, so a normalized policy normalizes to itself.
 function landingInput(value, merge, label) {
   const block = onlyKeys(
       value ?? {},
@@ -827,15 +828,15 @@ function landingInput(value, merge, label) {
       `${label}.landing`,
     ),
     old = onlyKeys(merge ?? {}, GITHUB_BLOCK_KEYS.merge, `${label}.merge`);
-  if (block.mode !== undefined && !LANDING_MODES.includes(block.mode))
+  if (block.mode != null && !LANDING_MODES.includes(block.mode))
     fail(`${label}.landing.mode must be direct, pr, train or off.`);
-  if (block.autoMerge !== undefined && typeof block.autoMerge !== "boolean")
+  if (block.autoMerge != null && typeof block.autoMerge !== "boolean")
     fail(`${label}.landing.autoMerge must be true or false.`);
   for (const [at, method] of [
     ["landing.method", block.method],
     ["merge.method", old.method],
   ])
-    if (method !== undefined && !MERGE_METHODS.includes(method))
+    if (method != null && !MERGE_METHODS.includes(method))
       fail(`${label}.${at} must be squash or merge.`);
   return {
     landing: { mode: block.mode ?? null, autoMerge: block.autoMerge ?? null },
