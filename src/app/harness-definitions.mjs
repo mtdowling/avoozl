@@ -251,9 +251,18 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
   if (value.cost !== undefined) {
     const cost = words(value.cost, "cost", source);
     const field = { output: "field", file: "path" }[cost.from];
-    if (!field || Object.keys(cost).join() !== `from,${field}`)
+    // `per`: "run" (the default) when each run reports its own cost, so runs
+    // are summed; "session" when it reports the session's running total, as
+    // Claude Code does on a resume (P60), so the last value is the cost.
+    const keys = Object.keys(cost).filter((key) => key !== "per");
+    if (
+      !field ||
+      keys.join() !== `from,${field}` ||
+      (cost.per !== undefined && !["run", "session"].includes(cost.per)) ||
+      (cost.per !== undefined && cost.from !== "output")
+    )
       fail(
-        `${source}: cost must be {"from": "output", "field": ...} or {"from": "file", "path": ...}.`,
+        `${source}: cost must be {"from": "output", "field": ..., "per"?: "run" | "session"} or {"from": "file", "path": ...}.`,
       );
     definition.cost = cost;
   }
@@ -481,9 +490,20 @@ export function harnessPermission(
   if (!PERMISSION_CLASSES.includes(permissionClass))
     fail(`Permission class must be ${PERMISSION_CLASSES.join(" or ")}.`);
   const permission = definition.permission[permissionClass];
-  // A read class writes only its own temp folder and its result folder
-  // (R96.1), never the task folder itself.
-  if (permissionClass === "read")
+  // A read class writes only its own temp folder, its result folder
+  // (R96.1) and the harness's own cache folders named in project config
+  // (Claude Code's config folder, P59), never the task folder itself.
+  if (permissionClass === "read") {
+    const task =
+      typeof worktree === "string" && path.isAbsolute(worktree)
+        ? path.resolve(worktree)
+        : null;
+    const caches = sandboxWriteRoots(cacheDirs, { gitCommonDir });
+    for (const root of caches)
+      if (task && overlaps(root, task))
+        fail(
+          `Cache folder ${root} overlaps the task folder, so a read-only session cannot have it.`,
+        );
     return {
       permissionClass,
       permission,
@@ -491,11 +511,11 @@ export function harnessPermission(
         ...(typeof tmp === "string" && path.isAbsolute(tmp)
           ? [path.resolve(tmp)]
           : []),
-        ...(typeof worktree === "string" && path.isAbsolute(worktree)
-          ? [path.join(path.resolve(worktree), ".avoozl")]
-          : []),
+        ...(task ? [path.join(task, ".avoozl")] : []),
+        ...caches,
       ],
     };
+  }
   if (typeof worktree !== "string" || !path.isAbsolute(worktree))
     fail("A write session needs the task folder as an absolute path.");
   // The session's own temp folder, never the shared one, which may hold
