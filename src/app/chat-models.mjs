@@ -22,7 +22,7 @@ const MODEL = /^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$/;
 const record = (v) => Boolean(v) && typeof v === "object" && !Array.isArray(v);
 // The removed driver chat's role. Files saved before its removal may still
 // name it; it is accepted and dropped so they keep loading.
-const RETIRED_ROLES = new Set(["driver"]);
+export const RETIRED_ROLES = new Set(["driver"]);
 
 // Check a `models` value; throws naming the key.
 export function validateModels(value, where = "models") {
@@ -46,13 +46,15 @@ export function validateModels(value, where = "models") {
   return checked;
 }
 
+export const PLAN_REVIEW_KEYS = Object.freeze(["mode", "rounds"]);
+
 // Effective cross-model review settings. Auto without a named reviewer
 // skips the review; it never falls back to the writer's model.
 export function validatePlanReview(value, where = "planReview") {
   if (value === undefined) return { mode: "auto", rounds: 1 };
   if (!record(value)) fail(`${where} must be an object.`);
   for (const key of Object.keys(value))
-    if (!["mode", "rounds"].includes(key))
+    if (!PLAN_REVIEW_KEYS.includes(key))
       fail(`${where}.${key} is not a setting; use mode or rounds.`);
   const mode = value.mode === undefined ? "auto" : value.mode,
     rounds = value.rounds === undefined ? 1 : value.rounds;

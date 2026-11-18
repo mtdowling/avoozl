@@ -159,9 +159,14 @@ const FIELD_LABELS: Record<string, string> = {
   iteration: 'Iteration field',
   avoozlState: 'Avoozl state field',
 }
+// The escalation label is Issue Radar's "needs-human label" setting. A crew
+// adds it when it gives an issue up, and Avoozl takes such an issue in, so
+// the name Avoozl recommends does not say a person is needed.
+export const RECOMMENDED_ESCALATION_LABEL = 'crew: needs avoozl'
+const RADAR_LABELS_BLURB = `Labels Issue Radar puts on issues it claims or gives up. Avoozl only reads them. Recommended escalation label: ${RECOMMENDED_ESCALATION_LABEL}. Give Issue Radar's needs-human label for this repository the same name, and keep the crew: prefix so other crews skip the issue.`
 const CREW_LABELS: Record<string, string> = {
   claim: 'Claim label',
-  needsHuman: 'Needs-human label',
+  needsHuman: 'Escalation label',
 }
 const STATUS_LABELS: Record<string, string> = {
   todo: 'Ready option',
@@ -1352,7 +1357,7 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
         </Section>
       </Card>
       <Card>
-        <Section title="Labels Radar uses" blurb="Labels Issue Radar puts on issues it claims. Avoozl only reads them.">
+        <Section title="Labels Radar uses" blurb={RADAR_LABELS_BLURB}>
           <div style={grid(200)}>
             {settings.choices.crewLabels.map((key) => (
               <Text

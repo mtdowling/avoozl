@@ -1,5 +1,7 @@
 # Radar-coder Proof 8, live: observe, and a retro rule a crew follows
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 Receipt for task `rc-p8`.
 
 The first live attempt (2026-11-15, crew `p6-crew` on

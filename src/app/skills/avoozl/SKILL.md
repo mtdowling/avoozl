@@ -209,6 +209,8 @@ Do not change your own approval policy or answer a pending request on the user's
 behalf. Automatic review retains the provider's access restrictions; do not
 replace a denied action with bypass permissions.
 
-Load examples only when the user requests them. `workspace.examples` lists packs;
-`workspace.seed` with `{"example":"product-launch"}` installs one once, preserving
-later edits. Managed worker connections cannot seed examples.
+Load examples only when the user requests them. `workspace.examples` lists packs
+and names the default; `workspace.seed` installs one once, preserving later
+edits. With no `example` it writes the Recipe Box spec folders to `.kiro/specs/`
+and stores them as drafts; it approves nothing. Managed worker connections
+cannot seed examples.

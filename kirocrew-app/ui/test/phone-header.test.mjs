@@ -48,7 +48,7 @@ for (const dark of [false, true]) {
   test(`a phone at 390 px: one menu row, a demo bar with the intro, Specs buttons in More (${theme})`, { skip }, async () => {
     await start(390, dark)
     assert.ok((await height('[data-phone-header]')) <= 56, 'one header row')
-    assert.match(await page.evaluate(`document.querySelector('[data-demo-intro]').textContent`), /Avoozl turns your specs and epics into a graph/, 'the demo bar says what Avoozl is')
+    assert.match(await page.evaluate(`document.querySelector('[data-demo-intro]').textContent`), /Approve a spec; Avoozl runs it with coding agents/, 'the demo bar says what Avoozl is')
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-bar] [data-demo-badge]'))`), true, 'the bar has the Demo badge')
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-bar] [data-demo-exit]'))`), true, 'Exit demo is one tap')
     // The demo's own controls are in the bar, since there is no header menu.

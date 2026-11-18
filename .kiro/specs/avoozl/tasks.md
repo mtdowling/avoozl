@@ -2108,7 +2108,7 @@ Owner decision 2026-11-18 (Requirement 107, design §4.36). One build task.
 Another change adds context to the Needs you items; merge main often and put
 the spec pull request item through the same list, not a second one.
 
-- [ ] 60.1 Adopt spec-only pull requests into their spec, out of Triage, with a Proposed change box, a PR chip and a Decisions item, after 58.1, 57.6 [R107.1, R107.2, R107.3, R107.4, R107.5, R107.6, R107.7, R107.8, R107.9] (§4.36)
+- [x] 60.1 Adopt spec-only pull requests into their spec, out of Triage, with a Proposed change box, a PR chip and a Decisions item, after 58.1, 57.6 [R107.1, R107.2, R107.3, R107.4, R107.5, R107.6, R107.7, R107.8, R107.9] (§4.36)
   - `spec-pull-requests.mjs` detects, links and adopts; the Triage read gains changed file paths; Approve records the revision, merges after checks, and Reject and Request changes act on the pull request. Tests and screenshots under `docs/evidence/spec-pr-adoption/`.
 
 ## Phase 61: The planner decides batches
@@ -2119,3 +2119,10 @@ merge main often and keep to `flow-batch.mjs` and the call sites.
 
 - [x] 61.1 Planner batch groups replace `size: "small"` and `flow.batch`, after 12.8 [R108.1, R108.2, R108.3, R108.4, R108.5, R108.6, R108.7, R108.8, R108.9, R108.10, R108.11, R108.12] (§4.37)
   - `parseSpec` reads `batches` and approval stores `batch` on each member; `flow-batch.mjs` dispatches a planner group as one handoff when every open member is ready, checks the rules in code and runs a rule-breaking group alone with its reason; split on failure as before. `flow.batch`, `size`, the Batching box and `BATCH_BY` are removed, and old values are ignored. Delivery shows a batched handoff as one In progress card; task details link to the batch. The planner prompt says when to group. Tests and screenshots under `docs/evidence/agent-batching/`.
+
+## Phase 62: Approval delegation and exact-set approval
+
+Owner request 2026-11-18 (Requirement 109, design §4.38). One build task.
+
+- [x] 62.1 Approval delegation and an exact-set preview, after 61.1 [R109.1, R109.2, R109.3, R109.4, R109.5, R109.6, R109.7, R109.8, R109.9] (§4.38)
+  - `approval-delegation.mjs` stores grants in the workspace database; `plan.approve` and `plan.approveMany` take `delegate`, approve as the granting person and record `delegation` on the receipt and on approval pull requests. `approval delegates|delegate|revoke` in the CLI, `plans_plan.delegates` over MCP. The preview counts tasks that wait on draft specs left out. Tests in `approval-delegation.test.mjs`.

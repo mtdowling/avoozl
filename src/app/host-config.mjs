@@ -12,6 +12,11 @@ import {
 import { workspaceConfig } from "./config.mjs";
 import { CatalogStore } from "./catalog-store.mjs";
 import { Store } from "./store.mjs";
+import {
+  HOST_CONFIG_SCHEMA_URL,
+  REPOSITORY_CONFIG_SCHEMA_URL,
+  savedSchemaUrl,
+} from "./config-schema.mjs";
 
 export const hostConfigSchemaPath = fileURLToPath(
   new URL("../host-config.schema.json", import.meta.url),
@@ -256,7 +261,7 @@ export function normalizeHostConfig(
   }
   return {
     ...value,
-    $schema: value.$schema || "https://avoozl.dev/schema/host-config-v1.json",
+    $schema: savedSchemaUrl(value.$schema, HOST_CONFIG_SCHEMA_URL),
     version: 1,
     host: value.host || "127.0.0.1",
     port,
@@ -341,11 +346,11 @@ function validateWorkspaceFiles(
   if (writeIdentity && (!saved || !saved.workspaceId)) {
     const next = {
       ...(saved || {
-        $schema: "https://avoozl.dev/schema/repository-config-v1.json",
+        $schema: REPOSITORY_CONFIG_SCHEMA_URL,
         version: 1,
         name: path.basename(root),
       }),
-      $schema: "https://avoozl.dev/schema/repository-config-v1.json",
+      $schema: REPOSITORY_CONFIG_SCHEMA_URL,
       workspaceId: id,
     };
     assertSafeConfig(next, `workspace configuration at ${filename}`);
@@ -388,13 +393,13 @@ function atomicWrite(filename, value) {
 
 function writePortableWorkspaceIdentity(files, id) {
   const current = files.config || {
-      $schema: "https://avoozl.dev/schema/repository-config-v1.json",
+      $schema: REPOSITORY_CONFIG_SCHEMA_URL,
       version: 1,
       name: path.basename(files.root),
     },
     next = {
       ...current,
-      $schema: "https://avoozl.dev/schema/repository-config-v1.json",
+      $schema: REPOSITORY_CONFIG_SCHEMA_URL,
       workspaceId: id,
     };
   assertSafeConfig(next, `workspace configuration at ${files.filename}`);

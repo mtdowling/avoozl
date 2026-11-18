@@ -8,6 +8,16 @@ workspace.local.json
 *.log
 .DS_Store
 
+# Images are never committed (scripts/check-no-images.mjs). Screenshots go
+# to .avoozl-shots/ or the temp folder and are shown in chat.
+.avoozl-shots/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+!/kirocrew-app/assets/icon.png
+
 # Packaged extension artifacts are built on demand.
 build/
 build-receipt.jsonl

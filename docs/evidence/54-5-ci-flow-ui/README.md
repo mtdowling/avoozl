@@ -1,5 +1,7 @@
 # Flow CI and settings screenshots
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 Owner screenshot approval is pending. Task 54.5 remains unchecked and must not
 merge before that approval (Requirement 100.7, design §4.30).
 
@@ -19,14 +21,14 @@ browser error checks. The new controls were visually inspected for legibility.
 
 | Screen | Viewport and theme | Before | After | New controls |
 | --- | --- | --- | --- | --- |
-| Flow | Phone, light | [Before](before/flow-390-light.png) | [After](after/flow-390-light.png) | [CI card](after/flow-390-light-detail.png) |
-| Flow | Phone, dark | [Before](before/flow-390-dark.png) | [After](after/flow-390-dark.png) | [CI card](after/flow-390-dark-detail.png) |
-| Flow | Desktop, light | [Before](before/flow-1280-light.png) | [After](after/flow-1280-light.png) | [CI card](after/flow-1280-light-detail.png) |
-| Flow | Desktop, dark | [Before](before/flow-1280-dark.png) | [After](after/flow-1280-dark.png) | [CI card](after/flow-1280-dark-detail.png) |
-| Settings › Flow | Phone, light | [Before](before/settings-390-light.png) | [After](after/settings-390-light.png) | [CI settings](after/settings-390-light-detail.png) |
-| Settings › Flow | Phone, dark | [Before](before/settings-390-dark.png) | [After](after/settings-390-dark.png) | [CI settings](after/settings-390-dark-detail.png) |
-| Settings › Flow | Desktop, light | [Before](before/settings-1280-light.png) | [After](after/settings-1280-light.png) | [CI settings](after/settings-1280-light-detail.png) |
-| Settings › Flow | Desktop, dark | [Before](before/settings-1280-dark.png) | [After](after/settings-1280-dark.png) | [CI settings](after/settings-1280-dark-detail.png) |
+| Flow | Phone, light | Before (checked, not kept in git) | After (checked, not kept in git) | CI card (checked, not kept in git) |
+| Flow | Phone, dark | Before (checked, not kept in git) | After (checked, not kept in git) | CI card (checked, not kept in git) |
+| Flow | Desktop, light | Before (checked, not kept in git) | After (checked, not kept in git) | CI card (checked, not kept in git) |
+| Flow | Desktop, dark | Before (checked, not kept in git) | After (checked, not kept in git) | CI card (checked, not kept in git) |
+| Settings › Flow | Phone, light | Before (checked, not kept in git) | After (checked, not kept in git) | CI settings (checked, not kept in git) |
+| Settings › Flow | Phone, dark | Before (checked, not kept in git) | After (checked, not kept in git) | CI settings (checked, not kept in git) |
+| Settings › Flow | Desktop, light | Before (checked, not kept in git) | After (checked, not kept in git) | CI settings (checked, not kept in git) |
+| Settings › Flow | Desktop, dark | Before (checked, not kept in git) | After (checked, not kept in git) | CI settings (checked, not kept in git) |
 
 The fixture and capture script are
 `kirocrew-app/ui/test/browser/ci-flow.tsx` and `ci-flow-captures.mjs`. To reproduce

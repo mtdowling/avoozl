@@ -24,6 +24,9 @@ export interface RoleRow {
   model?: string
 }
 export type RoleTable = Partial<Record<Role, RoleRow>>
+// What each role may do to files: the worker writes code and the planner
+// writes spec files; the others only read.
+export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = { worker: 'write', falsifier: 'read', planner: 'write', planReviewer: 'read', retro: 'read', reviewDraft: 'read' }
 // The Kiro Crew chat; any other harness is a supervisor child.
 export const KIROCREW_HARNESS = 'kirocrew'
 // The agent each agent role opens on when none is picked.
@@ -33,6 +36,8 @@ const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
 export interface HarnessDefinition {
   name: string
   approved: boolean
+  // The file sets `model`, so a session can name one.
+  model?: boolean
 }
 
 export interface ModelSettings {
@@ -49,19 +54,14 @@ export interface ModelSettings {
 export function toRoles(form: RoleTable): RoleTable {
   const table: RoleTable = {}
   for (const [role, row] of Object.entries(form) as [Role, RoleRow][]) {
-    const kept = Object.fromEntries(Object.entries(row ?? {}).map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v]).filter(([, v]) => v && v !== 'auto')) as RoleRow
+    const kept = Object.fromEntries(
+      Object.entries(row ?? {})
+        .map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v])
+        .filter(([, v]) => v && v !== 'auto'),
+    ) as RoleRow
     if (Object.keys(kept).length) table[role] = kept
   }
   return table
-}
-
-// The first agent name the server would refuse, as a sentence, or null.
-export function rolesProblem(form: RoleTable): string | null {
-  for (const role of ROLES) {
-    const agent = form[role.key]?.agent?.trim()
-    if (agent && !AGENT.test(agent)) return `${role.label} agent is an agent name: letters, digits, . _ : or -.`
-  }
-  return null
 }
 
 // The harness choices: the project's default, the Kiro Crew chat, then this
@@ -87,4 +87,30 @@ export function modelsClient(api: AppApi) {
       run<ModelSettings>(workspaceId, 'models.settings.update', { roles: toRoles(roles), expectedHash }),
     list: () => api.get<unknown>('/api/models').then(parseModels),
   }
+}
+
+const isSet = (value?: string) => Boolean(value?.trim()) && value !== 'auto'
+
+// A role runs on the default until a harness, agent or model is set for it here.
+export function roleIsSet(role: Role, form: RoleTable): boolean {
+  const row = form[role] ?? {}
+  return isSet(row.harness) || isSet(row.agent) || isSet(row.model)
+}
+
+// Whether a harness can take a model: auto, the Kiro Crew chat and any
+// harness that is not on this machine are given the benefit of the doubt.
+export function harnessTakesModel(harness: string | undefined, definitions: HarnessDefinition[]): boolean {
+  if (!isSet(harness) || harness === KIROCREW_HARNESS) return true
+  const found = definitions.find((d) => d.name === harness)
+  return found ? Boolean(found.model) : true
+}
+
+// Why a role's choice cannot be saved, or null.
+export function roleProblem(role: Role, form: RoleTable, definitions: HarnessDefinition[]): string | null {
+  const row = form[role] ?? {}
+  const agent = row.agent?.trim()
+  if (agent && !AGENT.test(agent)) return 'The agent is an agent name: letters, digits, . _ : or -.'
+  if (isSet(row.model) && !harnessTakesModel(row.harness, definitions)) return `${row.harness} takes no model. Set the model to auto.`
+  if (role === 'planReviewer' && isSet(row.model) && row.model === form.planner?.model) return 'The reviewer must use a different model than the planner.'
+  return null
 }

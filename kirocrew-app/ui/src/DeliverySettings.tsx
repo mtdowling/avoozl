@@ -19,9 +19,11 @@ const OFF_BLURB = 'The tick starts no ready task until delivery is on. Its merge
 const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
 // A field: the shared FieldRow, every Delivery value optional.
-function Labeled(props: { id: string; label: string; raw: string; width: string; note?: string; children: React.ReactNode }) {
+// `byDefault` is the value a blank field uses; `reset` shows when the field
+// holds another value and puts the default back.
+function Labeled(props: { id: string; label: string; raw: string; width: string; note?: string; byDefault?: string; reset?: () => void; children: React.ReactNode }) {
   return (
-    <FieldRow id={props.id} label={props.label} raw={props.raw} rule={OPTIONAL} width={props.width} help={props.note}>
+    <FieldRow id={props.id} label={props.label} raw={props.raw} rule={OPTIONAL} width={props.width} help={props.note} note={props.byDefault ? `Default: ${props.byDefault}.` : undefined} onReset={props.reset} defaultText={props.byDefault}>
       {props.children}
     </FieldRow>
   )
@@ -119,6 +121,8 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
       </Card>
     )
   const feedback = form.prFeedback ? form.prFeedback === 'on' : DELIVERY_DEFAULTS.prFeedback
+  // A field that does nothing under another's value is disabled with why.
+  const offInvestigate = form.investigateMode === 'off' ? 'Off while Which tasks is Off.' : null
   return (
     <div className="flex flex-col gap-3" data-delivery-settings>
       <Card className="flex flex-col gap-4">
@@ -149,19 +153,24 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
             }))}
           />
           {form.ship === 'manual' && <p className="text-xs text-muted">Briefs tell writers not to turn on auto-merge.</p>}
+          {form.ship && !SHIP_CHOICES.some((choice) => choice.key === form.ship) && (
+            <p role="alert" className="text-xs text-danger" data-ship-unknown>
+              .avoozl.json has delivery.ship "{String(form.ship)}", which Avoozl does not accept. Pick one above and save.
+            </p>
+          )}
           <RawKey name="delivery.ship" />
         </Section>
         <Section title="Investigate first" blurb="Before coding, the writer reports what it found and how sure it is; a second chat tries to prove it wrong. Coding starts only when both are sure enough and the findings stand.">
           <div className="flex flex-wrap gap-4">
-            <Labeled id="avoozl-delivery-investigate" label="Which tasks" raw="delivery.investigate.mode" width="16rem" note="A task's manifest can set investigate: true or false.">
+            <Labeled id="avoozl-delivery-investigate" label="Which tasks" raw="delivery.investigate.mode" width="16rem" note="A task's manifest can set investigate: true or false." byDefault="All but small tasks" reset={form.investigateMode && form.investigateMode !== DELIVERY_DEFAULTS.investigateMode ? () => set({ investigateMode: DELIVERY_DEFAULTS.investigateMode }) : undefined}>
               <select id="avoozl-delivery-investigate" value={form.investigateMode ?? DELIVERY_DEFAULTS.investigateMode} onChange={(e) => set({ investigateMode: e.target.value as DeliveryForm['investigateMode'] })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
                 <option value="not-small">All but small tasks</option>
                 <option value="all">All tasks</option>
                 <option value="off">Off</option>
               </select>
             </Labeled>
-            <Labeled id="avoozl-delivery-confidence" label="Sure enough at" raw="delivery.investigate.minConfidence" width="16rem" note="Less sure waits in Needs you.">
-              <select id="avoozl-delivery-confidence" value={form.minConfidence ?? DELIVERY_DEFAULTS.minConfidence} onChange={(e) => set({ minConfidence: e.target.value as DeliveryForm['minConfidence'] })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
+            <Labeled id="avoozl-delivery-confidence" label="Sure enough at" raw="delivery.investigate.minConfidence" width="16rem" note={offInvestigate ?? 'Less sure waits in Needs you.'} byDefault="High" reset={form.minConfidence && form.minConfidence !== DELIVERY_DEFAULTS.minConfidence ? () => set({ minConfidence: DELIVERY_DEFAULTS.minConfidence }) : undefined}>
+              <select id="avoozl-delivery-confidence" disabled={Boolean(offInvestigate)} value={form.minConfidence ?? DELIVERY_DEFAULTS.minConfidence} onChange={(e) => set({ minConfidence: e.target.value as DeliveryForm['minConfidence'] })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
               </select>
@@ -170,8 +179,8 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
         </Section>
         <Section title="Pull request feedback" blurb="Send failed checks and allowed reviewers' comments back to the chat that wrote the pull request. Matters only in a GitHub mode.">
           <CheckRow label="Send pull request feedback to the writer" help="On by default." raw="delivery.prFeedback" checked={feedback} onChange={(on) => set({ prFeedback: on ? 'on' : 'off' })} />
-          <Labeled id="avoozl-delivery-rounds" label="Most feedback rounds per task" raw="delivery.feedbackRounds" width="16rem" note="Then Avoozl stops and asks you.">
-            <Input id="avoozl-delivery-rounds" inputMode="numeric" value={form.feedbackRounds} placeholder={String(DELIVERY_DEFAULTS.feedbackRounds)} onChange={(e) => set({ feedbackRounds: e.target.value })} />
+          <Labeled id="avoozl-delivery-rounds" label="Most feedback rounds per task" raw="delivery.feedbackRounds" width="9rem" note={feedback ? 'Whole number, 1–20. Then Avoozl stops and asks you.' : 'Off while pull request feedback is off.'} byDefault={String(DELIVERY_DEFAULTS.feedbackRounds)} reset={form.feedbackRounds.trim() && form.feedbackRounds.trim() !== String(DELIVERY_DEFAULTS.feedbackRounds) ? () => set({ feedbackRounds: '' }) : undefined}>
+            <Input id="avoozl-delivery-rounds" inputMode="numeric" disabled={!feedback} value={form.feedbackRounds} placeholder={String(DELIVERY_DEFAULTS.feedbackRounds)} onChange={(e) => set({ feedbackRounds: e.target.value })} />
           </Labeled>
         </Section>
       </Card>

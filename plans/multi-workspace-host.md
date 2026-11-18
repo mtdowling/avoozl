@@ -174,7 +174,7 @@ The host resolves its configuration directory using platform conventions:
 
 ```json
 {
-  "$schema": "https://avoozl.dev/schema/host-config-v1.json",
+  "$schema": "https://raw.githubusercontent.com/mtdowling/avoozl/main/src/host-config.schema.json",
   "version": 1,
   "host": "127.0.0.1",
   "port": 9428,
@@ -226,7 +226,7 @@ Each planning root may contain a committed `.avoozl.json`:
 
 ```json
 {
-  "$schema": "https://avoozl.dev/schema/repository-config-v1.json",
+  "$schema": "https://raw.githubusercontent.com/mtdowling/avoozl/main/src/avoozl-config.schema.json",
   "version": 1,
   "repository": {
     "id": "language-plans",

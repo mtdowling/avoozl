@@ -30,6 +30,17 @@ and "never merges" text is history. The built page is no longer in git
 (2026-11-18, Requirement 91.6): the Avoozl worker is the only coder, and
 Issue Radar is an intake source only, so older text about a repository's
 `coder`, a Radar-coded repository or Radar's release queue is history.
+Scope (2026-11-18, owner decision): Avoozl takes specs of any size, and a
+light spec with one task becomes one pull request. The epics-only scope
+statement and its one-pull-request rule of thumb (`radar-coder` RC13.1,
+RC13.2) are history; `src/work-split.mjs` holds the statement in use.
+One way to run a worker (2026-11-18, owner decision; the spec
+`.kiro/specs/worker-paths/` is still a draft until its approval is
+recorded): Crew Mode dispatch, runner mode over SSH (Requirement 84,
+Requirement 90.7) and placement on another Kiro Crew (Requirement 41) are
+to be removed, and Requirement 96.5's manual path stays without Crew Mode.
+That spec's task wp-5.2 marks each of these here; until its tasks land, the
+code still has them.
 
 ## Introduction
 
@@ -6000,3 +6011,63 @@ handoff without my tuning a batch size.
     `flow.batch` and an old `size` ignored on load. Screenshots of the
     batched card (phone and desktop, light and dark) SHALL be under
     `docs/evidence/agent-batching/`.
+
+### Requirement 109: Approval delegation and exact-set approval
+
+Added 2026-11-18 (owner request). Design §4.38. Keeps Requirement 4.8:
+approval stays of an exact revision, and only a person, or a delegate a
+person named, gives it.
+
+The owner's words, in short: you approve it for me; Avoozl is not really
+operational yet. An agent could not record that, and read the approval
+preview as needing every draft spec the named ones depend on.
+
+**User story:** As the owner, I want to let a named agent approve spec
+revisions on my behalf, and to approve only the specs I name, so that
+approval does not wait on me or drag in specs nobody asked about.
+
+#### Acceptance criteria
+
+1. Approving a set of specs SHALL approve exactly the specs named. A task
+   whose dependency belongs to a draft spec outside the set SHALL be created
+   with that dependency pending and SHALL NOT be ready, projected or
+   dispatched until that spec is approved. Only a task that approval
+   creates as done from a `[x]` mark SHALL need its owners approved in the
+   same set.
+2. The approval preview SHALL name the draft specs the set waits on and
+   count the tasks that wait, and SHALL say that approval does not need
+   them.
+3. A person SHALL be able to grant approval delegation to a named identity
+   (`approval.delegate.grant {identity, onBehalfOf?, note?}`), on behalf
+   of themselves: their GitHub login when GitHub is in play, else the
+   operator. The grant SHALL be stored in the workspace database, not in
+   Git. Granting and revoking (`approval.delegate.revoke {identity}`)
+   SHALL be person-only: refused over MCP and from an agent session's CLI
+   without `--as-person`. `approval.delegates` SHALL list active grants
+   and the history of grants and revocations, and MAY be read by anyone.
+4. `plan.approve` and `plan.approveMany` SHALL accept `delegate`. A call
+   that names a delegate SHALL pass the person-only refusal and SHALL then
+   be refused (403) unless that identity holds an active grant. A call that
+   names no delegate SHALL stay person-only.
+5. A delegated approval SHALL approve as the person who granted it, and
+   SHALL be refused when `approvedBy` names anyone else. Its receipt SHALL
+   record `delegation: {delegate, onBehalfOf, grantedAt}` beside the exact
+   revision hash, and its evidence SHALL name the delegate when none is
+   given.
+6. An approval pull request a delegate opens SHALL say so in its body and
+   keep the delegation on its stored state, and the receipt recorded when
+   it merges SHALL carry it.
+7. Revoking SHALL refuse every later delegated approval and approval pull
+   request, and SHALL list the delegate's approval pull requests still
+   open so the person can close them. It SHALL NOT undo an approval
+   already recorded.
+8. The CLI SHALL offer `approval delegates`, `approval delegate NAME
+   [--on-behalf-of LOGIN] [--note TEXT]`, `approval revoke NAME`, and
+   `plan approve ... --delegate NAME`, whose preview prints the approve
+   command with `--delegate NAME` instead of `--as-person`.
+9. Tests SHALL cover: a delegate refused with no grant, over MCP and in
+   process; grant and revoke refused from an agent; a granted delegate
+   approving exactly one spec whose owner stays a draft, with the receipt's
+   delegation; a mismatched `approvedBy` refused; revocation refusing the
+   next approval and keeping history; an approval pull request carrying the
+   delegation through its merge; and the CLI flow from an agent session.

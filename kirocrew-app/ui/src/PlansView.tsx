@@ -44,6 +44,8 @@ import { urlBase } from './focus-tree.ts'
 import { DiffBlock } from './FlowMemory.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
 import { SpecChangedModal } from './SpecChangedModal.tsx'
+import { SpecPullBox } from './SpecPullBox.tsx'
+import { specPullClient, type SpecPull } from './spec-pr-api.ts'
 import { projectionClient } from './projection-api.ts'
 import {
   UNCATEGORIZED,
@@ -425,6 +427,11 @@ function SpecDetail(props: {
   onChanged: () => void
   onOpenTask: (id: string) => void
   onReview?: () => void
+  // The spec's open pull request, adopted into it (R107.4).
+  pull?: SpecPull | null
+  workspaceId?: string | null
+  onApprovePull?: () => void
+  onPullChanged?: () => void
   // Retry for a summary that is not there: the page reads the plan again, and
   // runs a review when one can run.
   onRetrySummary?: () => void
@@ -441,6 +448,11 @@ function SpecDetail(props: {
   return (
     <div className="flex min-w-0 flex-col" style={{ gap: 20 }} role="tabpanel" id="spec-tab-panel">
       {overview && (<>
+      {props.pull && props.workspaceId && (
+        <SpecCard title="Proposed change" id="avoozl-spec-pull">
+          <SpecPullBox pull={props.pull} workspaceId={props.workspaceId} onApprove={() => props.onApprovePull?.()} onChanged={() => props.onPullChanged?.()} />
+        </SpecCard>
+      )}
       <SpecCard
         title="Summary"
         actions={
@@ -946,6 +958,13 @@ export function SpecList(props: {
               <span>·</span>
               <span className="truncate">{row.kind === 'epic' ? 'Epic' : (row.epicTitle ?? 'No epic')}</span>
               <HomeBadge home={row.home} />
+              {row.pull && (
+                <Tooltip text={`A pull request proposes a change to this spec: #${row.pull.number}${row.pull.draft ? ' (draft)' : ''}`}>
+                  <span data-spec-pr-chip="">
+                    <Badge variant="info">PR</Badge>
+                  </span>
+                </Tooltip>
+              )}
               {batch !== undefined && <Badge>Batch {batch}</Badge>}
               {row.archived && <Badge>Archived</Badge>}
             </span>
@@ -1668,7 +1687,7 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
   const diffs = showDiff && base ? revisionDiff(base.files, plan.files) : []
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState<{ repository: string; number: number } | null>(null)
+  const [pending, setPending] = useState<{ repository: string; number: number; adopted?: boolean } | null>(null)
   const shown = useRef({ plan, review })
   shown.current = { plan, review }
   // Swap to the stored revision when it moved from the one on screen. The
@@ -1730,7 +1749,8 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
         )}
         <PlanReviewSummary key={`${workspaceId}:${plan.id}:${plan.hash}`} review={review} onStart={() => client.reviewAnyway(workspaceId, plan.id, plan.hash)} reviewHref={reviewHref(window.location.pathname, plan.id, plan.hash)} onOpenReview={props.onOpenReview && (() => props.onOpenReview!(plan.id, plan.hash))} />
         {error && <p role="alert" className="m-0 text-danger">{error}</p>}
-        {pending && <p role="status" className="m-0">Nothing approved yet. Merge <a className="underline" href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">{pending.repository}#{pending.number}</a>, then approve again.</p>}
+        {pending?.adopted && <p role="status" className="m-0" data-spec-pull-approved>Approved for merge. Avoozl merges <a className="underline" href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">{pending.repository}#{pending.number}</a> when its checks pass, then records the approval.</p>}
+        {pending && !pending.adopted && <p role="status" className="m-0">Nothing approved yet. Merge <a className="underline" href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">{pending.repository}#{pending.number}</a>, then approve again.</p>}
       </div>
     </Modal>
   )
@@ -1945,6 +1965,19 @@ export default function PlansView(props: {
   const [batches, setBatches] = useState<ApprovalBatches | null>(null)
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const [approving, setApproving] = useState<{workspaceId: string; entries: BatchEntry[]} | null>(null)
+  // Adopted spec pull requests, read again whenever the table loads (R107.4).
+  const [pulls, setPulls] = useState<SpecPull[]>([])
+  useEffect(() => {
+    if (!workspace || !table) return
+    let live = true
+    specPullClient(api).view(workspace).then(
+      (items) => live && setPulls(items),
+      () => live && setPulls([]),
+    )
+    return () => {
+      live = false
+    }
+  }, [workspace, table, api])
   useEffect(() => {
     if (!workspace || !table) return
     let live = true
@@ -2373,6 +2406,10 @@ export default function PlansView(props: {
               onOpenTask={(id) => drawer.openTask(id)}
               onRetrySummary={retrySummary}
               onReview={row.planId ? () => pickTab('review') : undefined}
+              pull={pulls.find((pull) => pull.spec === row.spec) ?? null}
+              workspaceId={workspace}
+              onApprovePull={() => workspace && plan && setSingleApproval({ workspaceId: workspace, plan })}
+              onPullChanged={() => workspace && void load(workspace)}
               tab={specTab}
               details={<SpecDetailsBox>{specRail}</SpecDetailsBox>}
               onTasks={() => pickTab('tasks')}

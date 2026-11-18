@@ -208,6 +208,8 @@ export async function openApproval(
     reviewers = [],
     // `owner/repo#N` of the spec issue, only when visibility permits.
     specIssue = null,
+    // The delegation a delegate opens it under (R109), kept on the state.
+    delegation = null,
   },
 ) {
   const part = approvalPart(store, {
@@ -247,7 +249,8 @@ export async function openApproval(
       base,
       body:
         `Sets Status: Approved on spec ${spec}. Merge to make the approval a commit.` +
-        (specIssue ? `\n\nSpec issue: ${specIssue}` : ""),
+        (specIssue ? `\n\nSpec issue: ${specIssue}` : "") +
+        delegationLine(delegation),
     }),
     requested = await askReviewers(github, repository, pull.number, reviewers),
     state = {
@@ -261,10 +264,17 @@ export async function openApproval(
       ...(ref !== undefined ? { ref } : {}),
       requestedBy: approvedBy,
       ...(requested.length ? { reviewersRequested: requested } : {}),
+      ...(delegation ? { delegation } : {}),
     };
   store.setMeta(key(planId, hash), state);
   return state;
 }
+
+// The pull request names a delegate that opened it on a person's behalf.
+const delegationLine = (delegation) =>
+  delegation
+    ? `\n\nOpened by approval delegate ${delegation.delegate} on behalf of @${delegation.onBehalfOf}.`
+    : "";
 
 // Requests the configured reviewers, best effort: the pull request stands
 // whatever GitHub answers. Returns the logins asked.
@@ -301,7 +311,15 @@ const encoded = (changes) =>
 // or merged approval keeps it. Returns each spec's state by plan ID.
 export async function openBatchApproval(
   store,
-  { github, repository, ref, approvedBy, specs, reviewers = [] },
+  {
+    github,
+    repository,
+    ref,
+    approvedBy,
+    specs,
+    reviewers = [],
+    delegation = null,
+  },
 ) {
   const parts = specs.map((entry) => ({
       entry,
@@ -339,7 +357,9 @@ export async function openBatchApproval(
     title: `Approve ${names.length} specs`,
     head: branch.name,
     base,
-    body: `Sets Status: Approved on these specs. Merge to make their approval one commit.\n\n${names.map((name) => `- ${name}`).join("\n")}`,
+    body:
+      `Sets Status: Approved on these specs. Merge to make their approval one commit.\n\n${names.map((name) => `- ${name}`).join("\n")}` +
+      delegationLine(delegation),
   });
   const requested = await askReviewers(
     github,
@@ -359,6 +379,7 @@ export async function openBatchApproval(
       ...(ref !== undefined ? { ref } : {}),
       requestedBy: approvedBy,
       ...(requested.length ? { reviewersRequested: requested } : {}),
+      ...(delegation ? { delegation } : {}),
       batch: names,
     };
     store.setMeta(key(part.entry.planId, part.entry.hash), state);

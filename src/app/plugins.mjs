@@ -174,11 +174,20 @@ function checkConfig(value, where) {
 
 // One `plugins` entry (§4.4): id, one of package, path or git (with ref and
 // an optional subdir), contract, config.
+export const ENTRY_KEYS = Object.freeze([
+  "id",
+  "package",
+  "path",
+  "git",
+  "ref",
+  "subdir",
+  "contract",
+  "config",
+]);
 export function validateEntry(entry, where = "plugins entry") {
   if (!record(entry)) fail(`${where} must be an object.`);
-  const keys = ["id", "package", "path", "git", "ref", "subdir"];
   for (const key of Object.keys(entry))
-    if (![...keys, "contract", "config"].includes(key))
+    if (!ENTRY_KEYS.includes(key))
       fail(`${where}.${key} is not a plugin setting.`);
   if (typeof entry.id !== "string" || !ID.test(entry.id))
     fail(`${where}.id must be a lowercase plugin id.`);

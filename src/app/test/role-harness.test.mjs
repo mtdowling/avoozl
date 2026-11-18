@@ -146,7 +146,9 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
   );
   const harnesses = path.join(configDirectory, "harnesses");
   fs.mkdirSync(harnesses);
-  const bytes = Buffer.from('{"name": "fake-cli"}\n');
+  const bytes = Buffer.from(
+    '{"name": "fake-cli", "model": ["--model", "{model}"]}\n',
+  );
   fs.writeFileSync(path.join(harnesses, "fake-cli.json"), bytes);
   fs.writeFileSync(path.join(harnesses, "other-cli.json"), "{}\n");
   fs.writeFileSync(path.join(harnesses, "notes.txt"), "not a definition\n");
@@ -160,8 +162,8 @@ test("models.settings saves harnesses and lists this machine's definitions", asy
   // The older `models` key reads into the table (R98.8).
   assert.deepEqual(before.roles, { retro: { model: "m1" } });
   assert.deepEqual(before.harnessDefinitions, [
-    { name: "fake-cli", approved: true },
-    { name: "other-cli", approved: false },
+    { name: "fake-cli", approved: true, model: true },
+    { name: "other-cli", approved: false, model: false },
   ]);
   await assert.rejects(
     ops.execute(
