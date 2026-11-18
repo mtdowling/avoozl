@@ -37,7 +37,7 @@ person.
 
 ## Phase 1: Settings and the queue
 
-- [ ] lt-1.1 Settings for `landing.trains` and the machine keys, with validation [LT15, LT7.3] (§D16)
+- [x] lt-1.1 Settings for `landing.trains` and the machine keys, with validation [LT15, LT7.3] (§D16)
   - `landing.trains` and `landing.trains.targets.<branch>` in `src/avoozl-config.schema.json`; `machine.platforms`, `machine.slots` and `lease.*` in the global configuration; `validateTrains` in `src/app/landing-config.mjs`, called from `loadLayeredConfig`; defaults and bounds as in the D16 table for the keys the first cut reads; `landing: train` with an invalid block lands nothing and opens one Needs you item.
   - Done when: Tests in `src/app/test/integrator-trains-config.test.mjs` load a valid file and get every default; refuse an unknown key, each out-of-range value, `minBranches` above `maxBranches`, a target without `policy`, a `regenerate` rule without `command`, a needed platform with neither an environment nor `ci.workflow`, and `machine.*` or `lease.*` in `.avoozl.json`, each message naming the key and file; a gated target with a CI-only platform loads with the extra-run warning; a target override replaces the `trains`-level key.
 - [ ] lt-1.2 Batch branches and queue registration, after lt-1.1 [LT1.1, LT1.2, LT1.3, LT1.4, LT1.5, LT16.1] (§D2, §D3)
