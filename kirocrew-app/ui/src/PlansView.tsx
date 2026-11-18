@@ -107,6 +107,7 @@ import { TextLink } from './ui/TextLink'
 import { Checkbox } from './ui/Checkbox'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { DetailsStyle, SpecRailStyle } from './ui/PageStyles'
 
 // Where a row's Graph button goes; the filter is the tabs'
 // shared one, set to this plan.
@@ -137,14 +138,6 @@ export function SpecCard(props: { title: string; id?: string; actions?: ReactNod
   )
 }
 
-const RAIL_CSS = `[data-spec-rail]>[data-rail-section]:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
-[data-rail-edit]{font-size:11.5px;color:var(--accent);background:none;border:0;padding:0;cursor:pointer}
-[data-rail-edit]:hover{text-decoration:underline}
-[data-rail-edit]:focus-visible,[data-spec-menu-item]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-[data-spec-menu-item]{display:flex;align-items:center;gap:8px;width:100%;height:28px;padding:0 8px;border:0;border-radius:6px;background:none;color:var(--text);font-size:13px;text-align:left;cursor:pointer;text-decoration:none;white-space:nowrap}
-[data-spec-menu-item]:hover{background:var(--bg-hover)}
-[data-spec-menu-item][aria-disabled=true]{color:var(--muted);cursor:default;background:none}
-[data-spec-menu-item][data-danger]{color:var(--danger)}`
 
 function RailSection(props: { title: string; edit?: { label: string; onClick: () => void }; children: ReactNode; attrs?: Record<string, string> }) {
   return (
@@ -250,14 +243,10 @@ function Documents({ docs, error }: { docs: SpecDocuments | null; error: string 
   )
 }
 
-// The spec's details in one compact bordered box on the Overview: the rail's
-// small labeled sections as a label/value grid, scrolling inside the box.
-const DETAILS_CSS = `[data-spec-details-box] [data-spec-rail]{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));column-gap:20px;row-gap:14px;align-items:start}
-[data-spec-details-box] [data-rail-section]{border-bottom:0!important;margin-bottom:0!important;padding-bottom:0!important;min-width:0}`
 function SpecDetailsBox({ children }: { children: ReactNode }) {
   return (
     <SpecCard title="Spec details" id="avoozl-spec-details">
-      <style>{DETAILS_CSS}</style>
+      <DetailsStyle />
       <Box data-spec-details-box tabIndex={0} css-max-height="260" css-overflow-y="auto" css-overscroll-behavior="contain" css-font-size="12.5">
         {children}
       </Box>
@@ -1143,7 +1132,7 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
             )}
           </Tooltip>
           <MoreMenu label="More spec actions" attrs={{ 'data-spec-more': '' }}>
-            <style>{RAIL_CSS}</style>
+            <SpecRailStyle />
             <Box css-gap="2" flex flexCol>
               {primary !== 'edit' && <MenuItem icon={Pencil} label="Edit spec" tooltip="Start a planner chat that drafts a change to the spec files" onClick={actions.onEdit} />}
               <MenuItem icon={MessagesSquare} label="Discuss spec" tooltip="Start a chat about this spec. It makes no edits." onClick={actions.onDiscuss} />
@@ -1301,7 +1290,7 @@ function SpecRail(props: {
   const edit = (what: string) => ({ label: `Edit the ${what} of ${row.name}`, onClick: props.onEdit })
   return (
     <Box data-spec-rail data-plan-aside css-font-size="12.5" css-line-height="19.4px">
-      <style>{RAIL_CSS}</style>
+      <SpecRailStyle />
       {row.kind !== 'epic' && (
         <RailSection title="Epic" edit={edit('epic')}>
           {row.epic ? (

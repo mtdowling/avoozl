@@ -16,7 +16,8 @@ import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
 import { plansClient } from './plans-api.ts'
 import { insideWorkspace, lineText, taskClient } from './task-api.ts'
-import { CITED_STYLE, markCited } from './CitedFile.tsx'
+import { markCited } from './CitedFile.tsx'
+import { CitedStyle } from './ui/PageStyles'
 import { useReveal } from './RepositoriesSettings.tsx'
 import { errorMessage, workspaceClient } from './workspace-api.ts'
 import { Modal } from './ui/Modal.tsx'
@@ -182,7 +183,7 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
             <Hint as="p" size="sm">Reading…</Hint>
           ) : (
             <>
-              <style>{CITED_STYLE}</style>
+              <CitedStyle />
               <Markdown text={doc.text} idPrefix={PREFIX} measure={PROSE_MEASURE} />
             </>
           )}

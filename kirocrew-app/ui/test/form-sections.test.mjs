@@ -32,7 +32,7 @@ test('the repository, workspace and plugin dialogs group fields with FormSection
   assert.match(workspace, /<FormSection title="Workspace">[\s\S]*<FormSection title="Running">/)
   assert.match(slice(source('AddPlugin.tsx'), 'data-plugin-review'), /<FormSection title="Settings pack"/)
   // One shared part, with the border in the theme's color.
-  const part = source('FormSection.tsx')
+  const part = source('FormSection.tsx') + source('ui/PageStyles.tsx')
   assert.match(part, /\[data-form-section\] ~ \[data-form-section\] \{ border-top: 1px solid var\(--border\); padding-top: 16px; \}/)
 })
 
