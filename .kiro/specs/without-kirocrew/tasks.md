@@ -51,7 +51,7 @@ of the other specs.
 
 ## Phase 2: Roles with a small answer
 
-- [ ] nk-2.1 The falsifier as a child, after nk-1.1 [NK2.1, NK2.5] (§D2)
+- [x] nk-2.1 The falsifier as a child, after nk-1.1 [NK2.1, NK2.5] (§D2)
   - Facts:
     - summary: Phase 2 (Roles with a small answer). The falsifier as a child. See NK2.1, NK2.5; §D2.
     - done:

@@ -55,7 +55,8 @@ const verdictFinish = (allowCommands) => [
 //   hands    how the result is recorded: report (session.report), reply (the
 //            retro's reply), folder (the stored folder; nothing to record),
 //            post-reply (reply.post, as the session), summary
-//            (tasksummary.submit, as the session)
+//            (tasksummary.submit, as the session), falsifier
+//            (session.report with the verdict and no commit)
 //   finish   the lines that replace the Avoozl tools in a child's brief
 //   offline  true when the child gets no network, whatever its project
 //            allows: it reads only its folder and brief
@@ -117,11 +118,23 @@ export const ROLE_TABLE = Object.freeze({
     ],
   },
   // The rows below run as Kiro Crew chats until their tasks land.
+  // The falsifier judges a worker's findings in a detached copy of the
+  // task's code; its verdict is recorded with no commit (NK2.1).
   falsifier: {
     setting: "falsifier",
     roles: ["falsifier"],
-    process: false,
+    prompt: "falsifier",
+    process: true,
     access: "read",
+    folder: "detached",
+    hands: "falsifier",
+    finish: (allowCommands) => [
+      "You run without Avoozl's tools, so this replaces the plans_report step above.",
+      "Avoozl already added a detached copy of the task's code: it is the current folder. Read only there, not in the checkout the brief names.",
+      allowedShell(allowCommands),
+      'Instead of calling plans_report, write .avoozl/result.json in the current folder: {"state": "done", "report": {"verdict": "stands" | "refuted", "evidence": "<what you found, with paths>", "confidence": "low" | "medium" | "high"}}, or {"state": "blocked", "text": "<why>"} if you cannot judge the findings. Name no commit.',
+      RESULT_LIMIT,
+    ],
   },
   // The responder reads the repository at its base branch and hands back
   // the reply; Avoozl posts it after the checks a chat's reply gets (NK2.2).

@@ -115,7 +115,7 @@ test("a pin wins over the saved harness, which wins over the project", () => {
     { executor: "process", harness: "codex" },
   );
   // A role that cannot run as a child yet ignores the project's executor.
-  assert.deepEqual(roleRun("falsifier", { project }), {
+  assert.deepEqual(roleRun("prReview", { project }), {
     executor: "kirocrew",
   });
 });
@@ -124,12 +124,12 @@ test("the four roles already on process keep their briefs and rows", () => {
   for (const role of ["verifier", "review:security", "retro", "planner"])
     assert.ok(processRow(role), role);
   assert.equal(rowFor("review:x"), ROLE_TABLE.reviewer);
-  assert.equal(processRow("falsifier"), null);
+  assert.equal(processRow("pr-review"), null);
   assert.equal(processRow("worker").folder, "worktree");
   assert.match(
     processBrief("verifier", "BRIEF", { allowCommands: [["npm", "test"]] }),
     /`npm test`[\s\S]*result\.json/,
   );
   assert.equal(processBrief("worker", "BRIEF"), "BRIEF");
-  assert.equal(processBrief("falsifier", "BRIEF"), "BRIEF");
+  assert.equal(processBrief("pr-review", "BRIEF"), "BRIEF");
 });
