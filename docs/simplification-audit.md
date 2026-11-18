@@ -226,7 +226,7 @@ Settings › Delivery so a person can see why a task waits. Risk: medium.
 |---|------|----------|----------|
 | C1 | `workspace concurrency ID LIMIT` claims "Zero pauses new dispatch". | Nothing enforces it (F2). | Remove with F2, or wire it. |
 | C2 | `routing` and `crews set` have no page. | §2.5. | F20. |
-| C3 | `register-session` and `session-hook` run but are not in `help`. The help is one flat list of 58 commands. | `rg "^  register-session\|^  session-hook" src/app/cli.mjs` finds nothing. | Add the two hook commands under an "Agent hooks" heading. Group help by job (setup, plan, deliver, land, inspect). |
+| C3 | `register-session` and `session-hook` run but are not in `help`. The help is one flat list of 58 commands. | `rg "^  register-session\|^  session-hook" src/app/cli.mjs` finds nothing. | **Done.** `avoozl help` is a one-screen overview by job; `avoozl help GROUP`, `help COMMAND` and `help all` give the usage lines, from one table (`src/app/cli-help.mjs`). The two hook commands are under "Agent hooks". |
 | C4 | `andon` prints where the old gate went. | `cli.mjs:1568-1572`. | Remove after one more release; `flow stop` is the command. |
 | C5 | Settings › Flow edits batching; the planner is about to decide it. | In flight (#576). | — |
 | C6 | Settings › Workspaces edits a limit that the CLI's `--max-concurrent-runs` also sets, and neither is read. | F2. | F2. |
