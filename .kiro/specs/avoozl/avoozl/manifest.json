@@ -8566,6 +8566,23 @@
       "requires": [
         "12.8"
       ]
+    },
+    "62.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 62 (Approval delegation and exact-set approval). See R109; §4.38.",
+      "acceptance": [
+        "Approval delegation and an exact-set preview, after 61.1",
+        "A person grants or revokes approval delegation to a named identity, stored in the workspace database; plan.approve and plan.approveMany with delegate are refused without an active grant and otherwise approve as the granting person, recording delegation {delegate, onBehalfOf, grantedAt} on the receipt and on approval pull requests; grant and revoke are person-only; the approval preview counts tasks waiting on draft specs left out and says approval does not need them; tests cover each case."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "61.1"
+      ]
     }
   }
 }

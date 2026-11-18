@@ -1,5 +1,7 @@
 # Proof P54: links and the landing queue on real GitHub
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 Date: 2026-11-18, 04:40 to 08:30 UTC, on a Mac. Requirements R92, R102.7
 and R102.12 (design §4.27). Tasks 44.1 to 44.6 (PRs #492 to #496).
 

@@ -1,5 +1,7 @@
 # P60 live: a process session is watched and steered from the Avoozl page
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 Proof P60 (Requirement 98, design §4.28), run on 2026-11-18 between 02:42
 and 03:02 UTC on a Mac. It used a throwaway Kiro Crew 0.12.2.4 with its own
 home on port 5700, a scratch Avoozl workspace in that home's catalog, and a

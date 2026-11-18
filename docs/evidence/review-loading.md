@@ -1,5 +1,7 @@
 # Plan review in progress: Kiro Crew's working box
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 Captured 2026-11-17 in a throwaway Kiro Crew 0.12.2.4 (own home, port
 5697), with this branch's UI bundle installed, on spec `cache-reset-2` (first pass) and the draft `cache-reset` (second pass, after `cache-reset-2` was approved).
 Approve was never pressed and nothing was written to GitHub.
