@@ -46,7 +46,7 @@ test('six tiles link to their views, and only Needs you turns warm, only when so
     tiles.map((t) => [t.label, t.value, t.target]),
     [
       ['Ready', 3, 'graph'],
-      ['Running', 1, 'lanes'],
+      ['Running', 1, 'delivery'],
       ['Needs you', 1, 'waiting'],
       ['Waiting', 2, 'graph'],
       ['Landing queue', 1, 'landing'],

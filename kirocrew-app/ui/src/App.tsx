@@ -20,7 +20,6 @@ import OldTraceLink from './OldTraceLink.tsx'
 import { DASHBOARD_PAGES, RETROS_PAGES, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, parseTraceLink, redirectSettings, redirectTab, redirectWaiting, tabLabel, type RetrosPage, type Tab, type WaitingSection } from './nav-api.ts'
 import { WorkspacePill } from './WorkspacePill.tsx'
 import { NavSlotProvider } from './nav-slot.tsx'
-import LanesView from './LanesView.tsx'
 import LandingQueueView from './LandingQueueView.tsx'
 import DeliveryView from './DeliveryView.tsx'
 import { VIEW_ICONS } from './icons.ts'
@@ -446,8 +445,6 @@ function AvoozlPage() {
           />
         ) : tab === 'delivery' ? (
           <DeliveryView workspaceId={active} />
-        ) : tab === 'lanes' ? (
-          <LanesView workspaceId={active} />
         ) : tab === 'ci' ? (
           <Placeholder view="ci" title="CI" line="Coming later: each open pull request's checks and CI wait. Avoozl caches its one batched pull-request read, but no page reads it yet." />
         ) : tab === 'landing' ? (
