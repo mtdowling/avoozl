@@ -56,6 +56,19 @@ async function assertShell(name, title, label = 'Close') {
   })()`)
   assert.equal(box.inside, true, `${name}: the dismiss button is on the screen`)
   assert.equal(box.first, true, `${name}: the dismiss button sits left of the footer's other buttons`)
+  // With a main action (primary or danger), it is the last footer button by
+  // position and the dismiss button is not. Alone, the dismiss button is last.
+  const order = await page.evaluate(`(() => {
+    const buttons = [...${TOP}.querySelectorAll('[data-modal-footer] button')].filter((b) => b.getBoundingClientRect().width > 0 && b.style.order !== '-1')
+    const right = buttons.map((b, i) => ({ i, right: b.getBoundingClientRect().right, main: b.hasAttribute('data-primary') || ['primary', 'danger'].includes(b.dataset.variant), close: b.hasAttribute('data-modal-footer-close') }))
+    const last = right.reduce((a, b) => (b.right >= a.right ? b : a))
+    return { count: right.length, hasMain: right.some((b) => b.main), lastMain: last.main, lastClose: last.close }
+  })()`)
+  if (order.count === 1) assert.equal(order.lastClose, true, `${name}: a lone dismiss button is last`)
+  else if (order.hasMain) {
+    assert.equal(order.lastMain, true, `${name}: the main action is the rightmost footer button`)
+    assert.equal(order.lastClose, false, `${name}: the dismiss button is not rightmost`)
+  }
   // The header X is there too.
   assert.equal(await page.evaluate(`Boolean(${TOP}.querySelector('[data-modal-close]'))`), true, `${name}: the X`)
   // Tab stays inside the modal.
