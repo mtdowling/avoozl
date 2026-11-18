@@ -1542,7 +1542,7 @@ foundation tasks without that dependency may proceed while the live proof waits.
   - Only Kiro Crew's "gone" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you.
   - Built: `reconcileDeliveries` in `src/app/delivery.mjs` ends the first gone attempt since the last person retry as `vanished` (outside the retry count) and marks its binding lost, so the next tick opens attempt 2 in the same worktree with the last report quoted; a second vanish, or a gone batch, opens the decision. Test: `src/app/test/stock-kirocrew.test.mjs`.
 - [x] 40.7 Lanes: 3 on this Mac by default, after avoozl-p56 [R88.5] (§4.26)
-  - Changed 2026-11-17 (#508): there is no Lanes page. Delivery shows a machine badge and counts. In code, `lanes.local` (default 3) still seeds `delivery.concurrency` (`delivery.mjs`); the owner dropped the 3-lane and 50% CPU rules as requirements, so this default is a setting, not a rule.
+  - Changed 2026-11-17 (#508): there is no Lanes page. Delivery shows a machine badge and counts. In code, `lanes.local` (default 3) sets `delivery.concurrency` (`delivery.mjs`) and lives in the machine file since 2026-11-18 (Requirement 6.3); the owner dropped the 3-lane and 50% CPU rules as requirements, so this default is a setting, not a rule.
   - `lanes.local` default 3; a fourth ready task waits.
 
 - [x] avoozl-p50 P50 Proof: a three-task chain survives a gateway restart unattended, after 40.1, 40.2, 40.3, 40.4, 40.5, 40.6, 40.7, 41.1, 41.2, 41.3, 41.5, 41.9 [R86, R87.10, R88] (§4.26)
@@ -2040,7 +2040,7 @@ proof or run a real workspace to get past that wait.
   - Next decision: use validated journal recovery for the private pilot, or repair the failed invariant before authorizing that rollout.
 
 
-- [ ] avoozl-p67 P67 Proof: fork source and upstream permissions, after avoozl-p66, 42.1, 42.2, 56.9, 56.10 [R102.7, R102.8, R102.12, R102.19, R102.21] (§4.32)
+- [x] avoozl-p67 P67 Proof: fork source and upstream permissions, after avoozl-p66, 42.1, 42.2, 56.9, 56.10 [R102.7, R102.8, R102.12, R102.19, R102.21] (§4.32)
   - Setup: isolated scratch upstream and authorized fork, a contributor login without upstream push/merge rights and an authorized maintainer login, plus public and private scratch spec homes. Owner supplies needed accounts; use no real project settings.
   - Action: register a pre-PR fork head, checkpoint there, then discover a fork PR head. Rebuild from both while keeping the source branch out of upstream. Move the base and require a refreshed check/review; let the maintainer merge. Try an unregistered source and a private-plan reference on every public surface. Export twice; exercise a divergent mirror import.
   - Expected: fork branches work without upstream copies, source push rights never permit target merge, the exact checked/approved head is accepted from the maintainer merge, public/private homes remain separate, untrusted fetches and leaks are refused. Retry export creates nothing new; import is not forwarded upstream.
@@ -2126,3 +2126,13 @@ Owner request 2026-11-18 (Requirement 109, design §4.38). One build task.
 
 - [x] 62.1 Approval delegation and an exact-set preview, after 61.1 [R109.1, R109.2, R109.3, R109.4, R109.5, R109.6, R109.7, R109.8, R109.9] (§4.38)
   - `approval-delegation.mjs` stores grants in the workspace database; `plan.approve` and `plan.approveMany` take `delegate`, approve as the granting person and record `delegation` on the receipt and on approval pull requests. `approval delegates|delegate|revoke` in the CLI, `plans_plan.delegates` over MCP. The preview counts tasks that wait on draft specs left out. Tests in `approval-delegation.test.mjs`.
+
+## Phase 63: One intake list
+
+Owner decision 2026-11-18 (Requirement 110, design §4.39;
+`docs/simplification-audit.md` item 6). One build task. Other
+simplification items run in parallel and touch settings files; merge main
+often and keep theirs on a clash.
+
+- [ ] 63.1 GitHub sources in `intake.sources` replace `github.issueIntake` and `github.queue`, after 14.2, 56.8, 56.14, 44.6 [R110.1, R110.2, R110.3, R110.4, R110.5, R110.6, R110.7, R110.8, R110.9, R50.6] (§4.39)
+  - `github-sources.mjs` reads `via: github` entries and old `github.issueIntake` entries as one list and writes sources, moving old keys once on the first write; `validateSource` takes the GitHub kind; `sourceMap` leaves it out; `github configure` and Repository setup write a source. `github.queue` is ignored. Intake sources lists each GitHub source in the shared box with a link to Repository setup. Tests; before and after screenshots checked outside git, not kept in it.

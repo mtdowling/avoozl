@@ -27,7 +27,8 @@ import { notesReprojectIds, notesReprojected } from "./task-notes.mjs";
 import { recordActivity, recordTickActivity } from "./activity-log.mjs";
 import fs from "node:fs";
 import { validateTrackedRouting } from "./placement.mjs";
-import { crewSnapshot } from "./crews.mjs";
+import { crewSnapshot, machineFile } from "./crews.mjs";
+import { validateLanes } from "./lanes.mjs";
 import {
   closeNoFit,
   fetchAll,
@@ -199,6 +200,17 @@ function parsePolicy(text) {
   return value;
 }
 
+// This machine's lanes (R6.3): lanes.local in the machine file, or undefined
+// when it sets none or cannot be read (loading the config reports a bad file).
+export function machineLanes(file) {
+  try {
+    const lanes = machineFile(file).value.lanes;
+    return lanes?.local === undefined ? undefined : validateLanes(lanes).local;
+  } catch {
+    return undefined;
+  }
+}
+
 // The delivery settings in .avoozl.json for a read that must not touch the
 // tick's memory: {status: absent|loaded|invalid|unavailable, delivery}.
 export function readDeliveryPolicy(workspaceRoot) {
@@ -211,7 +223,12 @@ export function readDeliveryPolicy(workspaceRoot) {
     return { status: "absent", delivery: null };
   }
   try {
-    return { status: "loaded", delivery: deliveryPolicy(parsePolicy(text)) };
+    return {
+      status: "loaded",
+      delivery: deliveryPolicy(parsePolicy(text), {
+        machineLanes: machineLanes(),
+      }),
+    };
   } catch (error) {
     return { status: "invalid", delivery: null, error: error.message };
   }
@@ -824,7 +841,7 @@ async function runTick(
       // An invalid file keeps the last valid policy's delivery settings.
       const bindings = listSessionBindings(store),
         delivery = ["loaded", "invalid"].includes(policy.status)
-          ? deliveryPolicy(memory.value)
+          ? deliveryPolicy(memory.value, { machineLanes: machineLanes() })
           : null;
       const planned = { messages: [], notify: [] };
       if (delivery) {

@@ -213,7 +213,7 @@
     },
     "lanes": {
       "type": "object",
-      "description": "Worker chats this Mac runs at once. A ready task beyond the free lanes waits. More lanes come from remote hosts.",
+      "description": "Worker chats this machine runs at once. Set it in the machine file (~/.config/avoozl/config.json); a value in .avoozl.json is read only when the machine file and delivery.concurrency set none. A ready task beyond the free lanes waits. More lanes come from remote hosts.",
       "additionalProperties": false,
       "properties": {
         "local": {
@@ -263,7 +263,8 @@
                   "type": "integer",
                   "minimum": 1,
                   "maximum": 32,
-                  "default": 10
+                  "default": 10,
+                  "description": "Batch size: the most branches one train carries. Not a concurrency setting."
                 },
                 "cooldownSeconds": {
                   "type": "integer",
@@ -793,7 +794,8 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 32,
-          "default": 1
+          "deprecated": true,
+          "description": "Old input: this machine's lanes when the machine file sets no lanes.local. Use lanes.local in the machine file."
         },
         "retries": {
           "type": "integer",
@@ -861,9 +863,8 @@
             "additionalProperties": false,
             "properties": {
               "concurrency": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 32
+                "deprecated": true,
+                "description": "Ignored. lanes.local in the machine file is the one limit for chats."
               },
               "reviewers": {
                 "type": "array",
@@ -1773,7 +1774,8 @@
                 "count": {
                   "type": "integer",
                   "minimum": 1,
-                  "maximum": 8
+                  "maximum": 8,
+                  "description": "Batch size: how many crews Set up shows. Not a concurrency setting."
                 },
                 "models": {
                   "type": "array",
@@ -1868,7 +1870,7 @@
           "description": "Ignored. It set the retired local workers; release.capacity sets how many issues are ready at once. Files that still set it load as before."
         },
         "release": {
-          "description": "Ready-label capacity: N at once per repository, and per crew label scope. N defaults to 2 for Issue Radar, else to concurrency; 0 releases nothing.",
+          "description": "Ready-label capacity: N at once per repository, and per crew label scope. N defaults to 1; 0 releases nothing. With lanes, the only concurrency setting.",
           "type": "object",
           "additionalProperties": false,
           "properties": {

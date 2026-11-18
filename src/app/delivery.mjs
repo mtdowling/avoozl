@@ -181,7 +181,12 @@ export const REVIEWER_KEYS = Object.freeze([
 
 // `.avoozl.json` `delivery`: present turns on readiness dispatch. Throws on an
 // invalid value so the tick keeps the last valid policy (§4.5 step 2).
-export function deliveryPolicy(value) {
+//
+// `concurrency` is this machine's lanes (R6.3): `machineLanes` (the machine
+// file's lanes.local, read by the caller), else the old delivery.concurrency,
+// else the old .avoozl.json lanes.local, else 3. Per-repository
+// `concurrency` is old input: accepted and ignored.
+export function deliveryPolicy(value, { machineLanes } = {}) {
   const delivery = value?.delivery;
   if (delivery === undefined) return null;
   if (!delivery || typeof delivery !== "object" || Array.isArray(delivery))
@@ -222,13 +227,10 @@ export function deliveryPolicy(value) {
     if (
       !entry ||
       typeof entry !== "object" ||
-      Object.keys(entry).some(
-        (key) => !DELIVERY_REPOSITORY_KEYS.includes(key),
-      ) ||
-      (entry.concurrency !== undefined && !bounded(entry.concurrency, 0, 32))
+      Object.keys(entry).some((key) => !DELIVERY_REPOSITORY_KEYS.includes(key))
     )
       throw Error(
-        `delivery.repositories.${id} may set only concurrency, a whole number 0–32, reviewers, prFeedback, feedbackRounds, investigate, and ship.`,
+        `delivery.repositories.${id} may set only reviewers, prFeedback, feedbackRounds, investigate, and ship.`,
       );
     investigateSettings(
       entry.investigate,
@@ -272,8 +274,8 @@ export function deliveryPolicy(value) {
           },
         }
       : {}),
-    // The Mac's lanes set the default; delivery.concurrency still wins.
-    concurrency: delivery.concurrency ?? validateLanes(value.lanes).local,
+    concurrency:
+      machineLanes ?? delivery.concurrency ?? validateLanes(value.lanes).local,
     reviewers,
     repositories: normalized,
   };
@@ -1690,7 +1692,7 @@ export function startNowIds(store) {
 // task.start: a person asks for one ready leaf to go first. It does not
 // dispatch here; it moves the task to the head of the dispatch order, so the
 // next tick (or a Crew Mode conductor's next claim) starts it, still within
-// the workspace's and the repository's concurrency. A full workspace says so
+// this machine's lanes. A full machine says so
 // and the task stays first in line.
 export function startNow(
   store,
@@ -1758,7 +1760,7 @@ export function startNow(
     limit: delivery.concurrency,
     message: starting
       ? `${task.id} starts on ${by}.`
-      : `All slots are busy (${live} running, limit ${delivery.concurrency} for the workspace or its repository). ${task.id} is first in line and starts when one frees.`,
+      : `All slots are busy (${live} running, ${delivery.concurrency} lanes on this machine). ${task.id} is first in line and starts when one frees.`,
   };
 }
 
@@ -2096,12 +2098,6 @@ export function readyLeaves(
     bindings = listSessionBindings(store),
     workers = bindings.filter((b) => b.role === "worker"),
     live = [...runnerAttempts(bindings).values()].filter(liveAttempt);
-  const active = new Map();
-  for (const binding of live) {
-    const task = data.tasks.find((t) => t.id === binding.taskId),
-      repository = taskRepository(task);
-    active.set(repository, (active.get(repository) || 0) + 1);
-  }
   let free = policy.concurrency - live.length;
   if (free <= 0) return [];
   const ready = readyCandidates(store, {
@@ -2118,9 +2114,6 @@ export function readyLeaves(
     if (free <= 0) break;
     const project = projects.get(taskRepository(task));
     if (!project?.root) continue;
-    const limit =
-      policy.repositories[project.id]?.concurrency ?? policy.concurrency;
-    if ((active.get(project.id) || 0) >= limit) continue;
     const own = workers.filter((b) => b.taskId === task.id);
     const leaf = {
       task,
@@ -2130,7 +2123,6 @@ export function readyLeaves(
     };
     if (place && !place(leaf)) continue;
     leaves.push(leaf);
-    active.set(project.id, (active.get(project.id) || 0) + 1);
     free -= 1;
   }
   return leaves;

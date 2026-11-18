@@ -110,11 +110,8 @@ const REFUSED = [
 ];
 // Settings a proposal may change: the Flow group and delivery's own limits
 // and review roles, all of which the Settings page edits.
-const DELIVERY_KEYS = new Set([
-  "delivery.concurrency",
-  "delivery.retries",
-  "delivery.reviewers",
-]);
+// Lanes are a machine setting (R6.3), so no proposal writes concurrency.
+const DELIVERY_KEYS = new Set(["delivery.retries", "delivery.reviewers"]);
 const META = {
   state: "flow.retro.state",
   instructions: "flow.retro.instructions",
