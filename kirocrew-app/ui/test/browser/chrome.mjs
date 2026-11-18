@@ -1,7 +1,7 @@
 // A headless Chrome driven over the DevTools protocol on a pipe (fds 3 and
 // 4), so no debugging port is opened. Used by the modal tests and the
 // screenshot script; no browser package is a dependency.
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -15,11 +15,44 @@ const CANDIDATES = [
   '/Applications/Chromium.app/Contents/MacOS/Chromium',
 ]
 
-// AVOOZL_CHROME names the browser; else the usual install places.
+// AVOOZL_CHROME names the browser (a Chrome for Testing or
+// chrome-headless-shell build works too); else the usual install places.
 export function findChrome() {
   const named = process.env.AVOOZL_CHROME
   if (named) return fs.existsSync(named) ? named : null
   return CANDIDATES.find((file) => fs.existsSync(file)) ?? null
+}
+
+const windows = process.platform === 'win32'
+
+// Runs beside the test process. When that process dies, even by SIGKILL or
+// a test timeout, it kills the browser and its helpers and removes the
+// profile. It exits on its own once the browser is gone.
+const WATCHDOG = `
+const [parent, browser, profile] = process.argv.slice(1)
+const alive = (pid) => { try { process.kill(Number(pid), 0); return true } catch (error) { return error.code === 'EPERM' } }
+setInterval(() => {
+  if (!alive(browser)) process.exit()
+  if (alive(parent)) return
+  try {
+    if (process.platform === 'win32') require('node:child_process').spawnSync('taskkill', ['/pid', browser, '/T', '/F'], { stdio: 'ignore' })
+    else process.kill(-Number(browser), 'SIGKILL')
+  } catch {}
+  setTimeout(() => {
+    try { require('node:fs').rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }) } catch {}
+    process.exit()
+  }, 500)
+}, 500)
+`
+
+// The browser and its helpers: a process group off Windows, a tree on it.
+function killTree(pid) {
+  try {
+    if (windows) spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore' })
+    else process.kill(-pid, 'SIGKILL')
+  } catch {
+    // Already gone.
+  }
 }
 
 export async function launch(chrome) {
@@ -27,11 +60,29 @@ export async function launch(chrome) {
   // AVOOZL_CHROME_NO_SANDBOX=1 for a host without a usable sandbox (no
   // unprivileged user namespaces). The page only loads the local harness.
   const noSandbox = process.getuid?.() === 0 || process.env.AVOOZL_CHROME_NO_SANDBOX === '1'
+  // No extensions at all. Managed browser policy can force-install
+  // extensions even into a fresh profile, and one that starts a native
+  // helper app crashes that helper under a sandboxed test run.
   const child = spawn(
     chrome,
-    ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--remote-debugging-pipe', `--user-data-dir=${profile}`, ...(noSandbox ? ['--no-sandbox'] : [])],
-    { stdio: ['ignore', 'ignore', 'pipe', 'pipe', 'pipe'] },
+    [
+      '--headless=new',
+      '--disable-gpu',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--hide-scrollbars',
+      '--disable-extensions',
+      '--disable-component-extensions-with-background-pages',
+      '--remote-debugging-pipe',
+      `--user-data-dir=${profile}`,
+      ...(noSandbox ? ['--no-sandbox'] : []),
+    ],
+    // Its own process group, so one signal reaches every helper.
+    { stdio: ['ignore', 'ignore', 'pipe', 'pipe', 'pipe'], detached: !windows },
   )
+  spawn(process.execPath, ['-e', WATCHDOG, String(process.pid), String(child.pid), profile], { stdio: 'ignore', detached: true, windowsHide: true }).unref()
+  const onExit = () => killTree(child.pid)
+  process.on('exit', onExit)
   let stderr = ''
   child.stderr.on('data', (chunk) => {
     stderr = (stderr + chunk).slice(-4000)
@@ -168,9 +219,10 @@ export async function launch(chrome) {
       // Already gone.
     }
     const exited = child.exitCode === null ? new Promise((resolve) => child.once('exit', resolve)) : Promise.resolve()
-    child.kill()
+    killTree(child.pid)
     await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 3000))])
+    process.off('exit', onExit)
     fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   }
-  return { page, close }
+  return { page, close, pid: child.pid, profile }
 }
