@@ -403,6 +403,13 @@ export async function integratorPass(
         });
     }
     const result = { ...where, project, state: "holding", lease, settings };
+    // Red CI on a landed head is bisected before the next train (LT10.6).
+    if (run?.bisectRed) {
+      if (run?.ci) await run.ci(store, { ...result, config });
+      const red = await run.bisectRed(store, { ...result, config }, { now });
+      notify.push(...(red.notify ?? []));
+      if (red.messages?.length) sendToChats(store, red.messages);
+    }
     if (run?.train) {
       const trained = await run.train(store, { ...result, config }, { now });
       notify.push(...(trained.notify ?? []));

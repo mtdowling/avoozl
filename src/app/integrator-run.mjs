@@ -209,71 +209,14 @@ const trunkRedNotice = (target) => ({
   text: `The suites that failed also fail on the trunk before this train, so no task was blamed. Fix ${target} or the validation machine.`,
 });
 
-// Runs one train when the trigger says so. Returns {state, train?, ...}.
-//   ctx: {project, target, settings, config, lease, workspaceRoot, github,
-//         env, machine, configFile, now, run, slots: {db, counts, workspace},
-//         ciOptions}
-export async function runTrain(store, ctx) {
-  const { project, target, settings, lease } = ctx,
-    now = ctx.now ?? Date.now(),
+// The red-validation tools of one train: confirm and bisect a failure, send the
+// culprit's task back, repair a pushed trunk. They work on a train record `id`
+// and read `ctx` like runTrain, so a train that already ended can use them
+// (integrator-red.mjs).
+export function failureTools(store, ctx, id) {
+  const { project, target, settings } = ctx,
     root = project.root,
-    plan = planTrain(store, { projectId: project.id, target, settings, now });
-  if (plan.state !== "start") return { state: plan.state, plan };
-  const url = await git(root, ["remote", "get-url", "origin"]),
-    env = { ...(ctx.env ?? process.env), ...NO_PROMPT },
     platforms = machinePlatforms(ctx.config);
-  let baseHead = await fetchTrunk(root, url, target, env);
-  const train = startTrain(store, {
-    projectId: project.id,
-    target,
-    policy: settings.policy,
-    members: plan.members,
-    baseHead,
-    leaseId: lease?.leaseId ?? null,
-    now,
-  });
-  const id = train.id,
-    worktrees = new Set();
-  let held = [],
-    outcome;
-  try {
-    outcome = await execute();
-  } catch (error) {
-    patch(store, id, (t) => ({
-      steps: [
-        ...t.steps,
-        {
-          name: "train",
-          startedAt: new Date().toISOString(),
-          endedAt: new Date().toISOString(),
-          result: "failed",
-          detail: error.message,
-        },
-      ],
-    }));
-    endTrain(store, id, "failed");
-    outcome = { state: "failed", error: error.message };
-  } finally {
-    for (const dir of worktrees) await removeLandingWorktree(root, dir);
-    patch(store, id, { worktrees: [], slots: [] });
-    if (ctx.slots?.db) releaseSlots(ctx.slots.db, { train: id });
-  }
-  return { ...outcome, train: store.get(TRAINS, id) };
-
-  // The validating CI run goes on the train. Under optimistic it is the trunk
-  // push's own run, so it is also the run `readTrainCi` would find (LT8.6).
-  function recordCi(ci) {
-    const run = ci.run
-      ? { run: ci.run.id, status: ci.run.status, conclusion: ci.run.conclusion }
-      : {};
-    patch(store, id, (t) => ({
-      ciValidation: { state: ci.state, mode: ci.mode, ...run },
-      ...(ci.mode === "push-run"
-        ? { ci: { ...(t.ci ?? {}), ...run, readAt: new Date().toISOString() } }
-        : {}),
-    }));
-  }
-
   // A red full validation (LT10.1, LT10.2): rerun the failing suites, then
   // bisect the member boundaries to the culprit. {culprit: null} when only
   // flaky suites failed.
@@ -481,6 +424,75 @@ export async function runTrain(store, ctx) {
         `The trunk moved while ${task} was reverted, so nothing was pushed.`,
       );
     return { validated: true, head: revert.commit };
+  }
+
+  return { handleRed, dealWithCulprit, repairTrunk };
+}
+
+// Runs one train when the trigger says so. Returns {state, train?, ...}.
+//   ctx: {project, target, settings, config, lease, workspaceRoot, github,
+//         env, machine, configFile, now, run, slots: {db, counts, workspace},
+//         ciOptions}
+export async function runTrain(store, ctx) {
+  const { project, target, settings, lease } = ctx,
+    now = ctx.now ?? Date.now(),
+    root = project.root,
+    plan = planTrain(store, { projectId: project.id, target, settings, now });
+  if (plan.state !== "start") return { state: plan.state, plan };
+  const url = await git(root, ["remote", "get-url", "origin"]),
+    env = { ...(ctx.env ?? process.env), ...NO_PROMPT },
+    platforms = machinePlatforms(ctx.config);
+  let baseHead = await fetchTrunk(root, url, target, env);
+  const train = startTrain(store, {
+    projectId: project.id,
+    target,
+    policy: settings.policy,
+    members: plan.members,
+    baseHead,
+    leaseId: lease?.leaseId ?? null,
+    now,
+  });
+  const id = train.id,
+    worktrees = new Set(),
+    { handleRed, dealWithCulprit, repairTrunk } = failureTools(store, ctx, id);
+  let held = [],
+    outcome;
+  try {
+    outcome = await execute();
+  } catch (error) {
+    patch(store, id, (t) => ({
+      steps: [
+        ...t.steps,
+        {
+          name: "train",
+          startedAt: new Date().toISOString(),
+          endedAt: new Date().toISOString(),
+          result: "failed",
+          detail: error.message,
+        },
+      ],
+    }));
+    endTrain(store, id, "failed");
+    outcome = { state: "failed", error: error.message };
+  } finally {
+    for (const dir of worktrees) await removeLandingWorktree(root, dir);
+    patch(store, id, { worktrees: [], slots: [] });
+    if (ctx.slots?.db) releaseSlots(ctx.slots.db, { train: id });
+  }
+  return { ...outcome, train: store.get(TRAINS, id) };
+
+  // The validating CI run goes on the train. Under optimistic it is the trunk
+  // push's own run, so it is also the run `readTrainCi` would find (LT8.6).
+  function recordCi(ci) {
+    const run = ci.run
+      ? { run: ci.run.id, status: ci.run.status, conclusion: ci.run.conclusion }
+      : {};
+    patch(store, id, (t) => ({
+      ciValidation: { state: ci.state, mode: ci.mode, ...run },
+      ...(ci.mode === "push-run"
+        ? { ci: { ...(t.ci ?? {}), ...run, readAt: new Date().toISOString() } }
+        : {}),
+    }));
   }
 
   async function execute() {

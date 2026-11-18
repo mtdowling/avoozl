@@ -356,7 +356,7 @@ person.
     - after: lt-p3
   - `prompts/integrator.md` with the role prompt; under `conflicts.resolver: "chat"`, a file whose mechanical rule failed goes to an integrator chat through the executor seam with the landing worktree as its only folder; its edit must pass `verify`; `conflicts.resolver` joins the schema and `validateTrains`.
   - Done when: A fake-executor test: the chat is opened only for a covered file whose rule failed, never for an uncovered one; its brief holds no push, pull request or comment instruction and passes `briefAllowed`; a resolution that fails `verify` is not staged and the conflict returns to the later task.
-- [ ] lt-11.2 Bisect when CI goes red on a landed trunk, after lt-p3 [LT10.6] (§D11.3)
+- [x] lt-11.2 Bisect when CI goes red on a landed trunk, after lt-p3 [LT10.6] (§D11.3)
   - Facts:
     - summary: Phase 11 (The resolver chat and the red-CI bisect). Bisect when CI goes red on a landed trunk. See LT10.6; §D11.3.
     - done:

@@ -1367,6 +1367,24 @@ export class GitHubClient {
     );
   }
 
+  // The jobs of one workflow run: [{id, name, status, conclusion}].
+  // shortcut: first page of 100 jobs.
+  async runJobs(value, runId) {
+    const { owner, repo } =
+        typeof value === "string" ? parseRepository(value) : value,
+      page = await this.request(
+        "GET",
+        `/repos/${owner}/${repo}/actions/runs/${Number(runId)}/jobs`,
+        { query: { filter: "latest", per_page: 100 } },
+      );
+    return (page?.jobs ?? []).map((job) => ({
+      id: job.id,
+      name: job.name,
+      status: job.status,
+      conclusion: job.conclusion,
+    }));
+  }
+
   // The queued, waiting and running jobs of `workflow`: [{id, name, status}].
   // The runs with those statuses first, then each run's jobs. Every request
   // goes through the client's pacer.

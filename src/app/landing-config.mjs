@@ -116,6 +116,7 @@ export const TRAIN_KEYS = {
     workflow: leaf({ string: true }),
     waitForLastTrain: leaf({ bool: true }),
     jobPlatforms: leaf({ stringMap: true }),
+    bisectOnRed: leaf({ bool: true }),
   },
   capacity: { ci: leaf({ intMap: [1, 32] }) },
 };

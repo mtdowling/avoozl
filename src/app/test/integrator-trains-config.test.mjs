@@ -257,7 +257,10 @@ test("a gated target with a CI-only platform loads with the extra-run warning", 
 test("capacity.ci and ci.jobPlatforms load, and bad counts are refused", () => {
   const ok = setup({
     repo: trains({
-      ci: { jobPlatforms: { "test (macos)": "macos-arm64" } },
+      ci: {
+        jobPlatforms: { "test (macos)": "macos-arm64" },
+        bisectOnRed: true,
+      },
       capacity: { ci: { "macos-arm64": 2 } },
     }),
     global: { machine: macNative },
@@ -265,6 +268,7 @@ test("capacity.ci and ci.jobPlatforms load, and bad counts are refused", () => {
   const s = trainSettings(ok.config, "main");
   assert.deepEqual(s.capacity.ci, { "macos-arm64": 2 });
   assert.equal(s.ci.jobPlatforms["test (macos)"], "macos-arm64");
+  assert.equal(s.ci.bisectOnRed, true);
   assert.deepEqual(
     trainSettings(
       setup({ repo: trains(), global: { machine: macNative } }).load().config,
