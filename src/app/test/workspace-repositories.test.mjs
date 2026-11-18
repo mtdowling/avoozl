@@ -98,13 +98,23 @@ test("unified repositories preserve legacy execution and GitHub records", async 
     fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"),
   );
   assert.equal(saved.projects.compiler.planning, true);
-  assert.equal(saved.github.queue, undefined);
+  // Repository setup's "issues here" writes a GitHub source (R110.3).
+  assert.equal(saved.github, undefined);
   assert.equal(
-    saved.github.issueIntake["example/compiler"].workspaceRepositoryId,
+    saved.intake.sources["github-example-compiler"].project,
     "compiler",
+  );
+  assert.equal(
+    saved.intake.sources["github-example-compiler"].managedLabel,
+    "team:managed",
   );
 
   await operations.execute("repositories.remove", { id: "compiler" });
+  // Removing the repository removes its GitHub source.
+  assert.equal(
+    JSON.parse(fs.readFileSync(path.join(root, ".avoozl.json"), "utf8")).intake,
+    undefined,
+  );
   assert.equal(store.get("projects", "compiler"), null);
   assert.equal(
     store.get("github_queue_repositories", "example/compiler"),

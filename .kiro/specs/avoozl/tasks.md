@@ -5557,7 +5557,7 @@ Owner decision 2026-11-18 (Requirement 110, design §4.39;
 simplification items run in parallel and touch settings files; merge main
 often and keep theirs on a clash.
 
-- [ ] 63.1 GitHub sources in `intake.sources` replace `github.issueIntake` and `github.queue`, after 14.2, 56.8, 56.14, 44.6 [R110.1, R110.2, R110.3, R110.4, R110.5, R110.6, R110.7, R110.8, R110.9, R50.6] (§4.39)
+- [x] 63.1 GitHub sources in `intake.sources` replace `github.issueIntake` and `github.queue`, after 14.2, 56.8, 56.14, 44.6 [R110.1, R110.2, R110.3, R110.4, R110.5, R110.6, R110.7, R110.8, R110.9, R50.6] (§4.39)
   - Facts:
     - summary: Phase 63 (One intake list). See R110, R50.6; §4.39.
     - done:

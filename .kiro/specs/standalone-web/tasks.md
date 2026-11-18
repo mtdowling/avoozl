@@ -28,7 +28,7 @@ SW11.2 is a spec edit made when the owner approves it.
 
 ## Phase 1: The page without Kiro Crew
 
-- [ ] sw-1.1 One command dispatch for both servers [SW5.1, SW5.2, SW10.2, SW10.3] (§D4, §D9)
+- [x] sw-1.1 One command dispatch for both servers [SW5.1, SW5.2, SW10.2, SW10.3] (§D4, §D9)
   - Facts:
     - summary: Phase 1 (The page without Kiro Crew). One command dispatch for both servers. See SW5.1, SW5.2, SW10.2, SW10.3; §D4, §D9.
     - done:
