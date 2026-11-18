@@ -28,10 +28,13 @@ for (const width of [1280, 390])
     const field = await page.evaluate(`(() => {
       const input = document.querySelector('input[id$="-release-capacity"]')
       const label = document.querySelector('label[for="' + input.id + '"]').textContent
-      const help = document.getElementById(input.getAttribute('aria-describedby'))
-      return { label, help: help?.textContent.trim(), shown: Boolean(help && help.getBoundingClientRect().height > 0) }
+      // aria-describedby names the help line and, after it, the default line.
+      const help = document.getElementById(input.id + '-help')
+      const named = input.getAttribute('aria-describedby').split(' ').includes(input.id + '-help')
+      return { label, named, help: help?.textContent.trim(), shown: Boolean(help && help.getBoundingClientRect().height > 0) }
     })()`)
     assert.match(field.label, /^Release N/)
+    assert.equal(field.named, true, 'the input names its help line')
     assert.equal(field.help, 'How many issues get the ready label at once. Crews pick from these.')
     assert.equal(field.shown, true)
     const text = await page.evaluate(`document.body.innerText`)

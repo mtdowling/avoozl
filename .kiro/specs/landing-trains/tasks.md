@@ -55,7 +55,7 @@ person.
 - [x] lt-2.2 The landing lease: compare-and-set, heartbeat, expiry and the hung holder, after lt-2.1, lt-1.1 [LT3.1, LT3.3, LT3.4, LT3.5, LT3.9] (§D2, §D5.2)
   - `landing_leases` table (added to the store's table lists); take inside one transaction; renew every `heartbeatSeconds`; expire after `missedHeartbeats`; a stale lease whose holder pid is alive on this machine with the same start time is not taken and opens one Needs you item.
   - Done when: Tests in `src/app/test/landing-lease.test.mjs`: two stores on one database file race to take the lease and exactly one wins, the other gets `busy` and writes nothing; a lease renewed on time stays; one not renewed for three heartbeats goes stale; a stale lease with a live pid is refused with one Needs you item across three loops; a stale lease with a dead pid is taken.
-- [ ] lt-2.3 The integrator process and role, after lt-2.2, lt-1.2 [LT2.1, LT2.2, LT2.3, LT2.5] (§D4, §D21)
+- [x] lt-2.3 The integrator process and role, after lt-2.2, lt-1.2 [LT2.1, LT2.2, LT2.3, LT2.5] (§D4, §D21)
   - `avoozl integrator run` as a supervisor child serving every `train` target in its workspace, in `src/app/integrator-trains.mjs`; `landDirect` skips `train` targets; `avoozl integrator status [--json]`.
   - Done when: Tests: with a `train` target, a tick that verifies a task pushes only the batch branch and never the trunk; the integrator process is the only caller that pushes the trunk (a test wraps git and records pushes by process); the supervisor restarts a killed integrator; `status --json` shows holder, train and trigger state.
 - [ ] lt-2.4 A taker cleans up a dead train, after lt-2.3, lt-3.1 [LT3.6, LT3.7] (§D5.3)
@@ -71,10 +71,10 @@ person.
 
 ## Phase 3: The train engine
 
-- [ ] lt-3.1 Train records and the back-to-back trigger, after lt-2.3 [LT4] (§D2, §D6)
+- [x] lt-3.1 Train records and the back-to-back trigger, after lt-2.3 [LT4] (§D2, §D6)
   - `landing_trains` table; readiness (cheap checks passed, not paused, `builtOn` satisfied); the trigger with `minBranches`, `maxWaitMinutes`, `maxBranches` and `cooldownSeconds`; trains never overlap; entries in queue order.
   - Done when: Tests with a fake clock: two ready entries with `minBranches` 3 wait until `maxWaitMinutes` and then go as a train of two; twelve ready entries make a train of ten and leave two; a train finishing starts the next only after the cooldown; a paused entry and an entry whose `builtOn` is queued outside the train are not ready, each with its hold reason; no two trains exist for one target at any step.
-- [ ] lt-3.2 Stacking with the cut rule, after lt-3.1 [LT5] (§D7, §D21)
+- [x] lt-3.2 Stacking with the cut rule, after lt-3.1 [LT5] (§D7, §D21)
   - A detached landing worktree with `rerere.enabled=false`; each member's range from its fork point or the newest `builtOn` head, rebased in order; contained members closed; each commit keeps author and message and gains the `Avoozl-Task` trailer (`trailers`, now exported from `src/app/landing-trains.mjs`); boundaries and original heads on the train record.
   - Done when: Real-git tests: B built on A, both queued, stack A then B with each of A's commits exactly once; B built on A where A landed yesterday, B's commits only; B built on A where A is queued outside the train, B held naming A; a branch whose commits are all in the trunk is closed as contained; every stacked commit has its trailer and original author; `src/app/test/landing-trains.test.mjs` passes unchanged.
 - [ ] lt-3.3 Mechanical conflicts with per-file verification; semantic ones go to the later task, after lt-3.2 [LT6.1, LT6.2, LT6.3, LT6.5, LT6.6] (§D8)

@@ -85,7 +85,8 @@ for (const name of MODALS)
       if (got.footer) {
         assert.equal(got.footer.divider, '1px', 'a divider above the footer')
         assert.notEqual(got.footer.bg, got.footer.boxBg, 'the footer is a different surface')
-        assert.equal(got.footer.justify, 'flex-end')
+        // Newer Chrome computes flex-end as flow-end; both pack the buttons at the end.
+        assert.ok(['flex-end', 'flow-end'].includes(got.footer.justify), `buttons packed at the end (${got.footer.justify})`)
         assert.ok(got.footer.bottomFlush, 'the footer is at the bottom')
         assert.ok(got.footer.lastRight >= 19 && got.footer.lastRight <= 21, `the last button is 20px from the right (${got.footer.lastRight})`)
       }

@@ -1643,7 +1643,7 @@ GitHub, and a race between two workers shows exactly one claim wins.
 - [ ] 43.5 Verify fetched worker results before integration, after 43.2 [R90.2, R102.6, R102.7] (§4.32)
   - Fetch the exact qualified checkpoint commit; independently check paths, protected paths and checks before integrating. Wrong repository/head, inaccessible fork or private metadata holds the result rather than completing it.
 
-- [ ] 43.6 Executor-aware worker setup with access preview, after 43.1 [R90.7, R90.8, R90.9] (§4.32)
+- [x] 43.6 Executor-aware worker setup with access preview, after 43.1 [R90.7, R90.8, R90.9] (§4.32)
   - Preview login, readable targets, writable source/forks and canonical claim access. Process workers may be headless; require Kiro Crew only for that executor. SSH envelopes stay only without GitHub access.
 
 - [ ] avoozl-p53 P53 Proof: two machines claim across fork locations, after 43.1, 43.2, 43.3, 43.4, 43.5, 43.6 [R90, R102.14] (§4.32)
