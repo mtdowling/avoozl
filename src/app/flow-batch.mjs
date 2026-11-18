@@ -8,7 +8,8 @@
 // report per task, in order; checks and review run once on the batch head;
 // the batch integrates as one rebase. A failing batch splits, and each task
 // retries alone at no attempt cost.
-import { EDIT_ONLY_STEP } from "./delivery.mjs";
+import { EDIT_ONLY_STEP, workerExecutor } from "./delivery.mjs";
+import { briefCell } from "./worker-briefs.mjs";
 import {
   isGate,
   isManual,
@@ -32,7 +33,7 @@ export const batchFinal = (binding) =>
 // Why the group `task` belongs to may not run as one handoff, or null when
 // it may. `members` are the group's tasks still open. Pure over the store's
 // records; the tick and the views read the same answer.
-function groupProblem(store, data, task, members, approved) {
+function groupProblem(store, data, task, members, approved, harnesses) {
   const group = task.batch,
     same = (t) =>
       t?.batch?.id === group.id &&
@@ -65,6 +66,16 @@ function groupProblem(store, data, task, members, approved) {
       taskAuthority(t) !== "local",
   );
   if (odd) return `${odd.id} is not a local automatic leaf`;
+  // One session makes one commit per task; an executor whose worker makes no
+  // commits (a `process` child) runs the group's tasks singly (WP3.3).
+  for (const t of members) {
+    const { declined } = briefCell(
+      workerExecutor(t, store.get("projects", taskRepository(t)), harnesses)
+        .executor,
+      "batch",
+    );
+    if (declined) return declined;
+  }
   for (const t of members) {
     const delivery = store.get("task_deliveries", t.id);
     if (delivery?.batchSplit) return "the batch was split after it failed";
@@ -88,7 +99,13 @@ export function approvals(store) {
 // problem}`, where `members` are the open tasks in the group's order and
 // `problem` is the rule it breaks (it then runs alone), or null for a task
 // in no group. A group with one open task left has nothing to batch.
-export function batchRules(store, data, task, approved = approvals(store)) {
+export function batchRules(
+  store,
+  data,
+  task,
+  approved = approvals(store),
+  { harnesses } = {},
+) {
   if (!task?.batch?.id || !Array.isArray(task.batch.tasks)) return null;
   const byId = new Map(data.tasks.map((t) => [t.id, t])),
     members = task.batch.tasks
@@ -99,7 +116,7 @@ export function batchRules(store, data, task, approved = approvals(store)) {
     members,
     problem:
       members.length > 1
-        ? groupProblem(store, data, task, members, approved)
+        ? groupProblem(store, data, task, members, approved, harnesses)
         : null,
   };
 }
@@ -115,7 +132,7 @@ export function planBatches(
   store,
   leaves,
   candidates,
-  { data = store.read(), fits = null } = {},
+  { data = store.read(), fits = null, harnesses } = {},
 ) {
   const ready = new Set(candidates.map((t) => t.id)),
     approved = approvals(store),
@@ -123,7 +140,7 @@ export function planBatches(
     out = [];
   for (const leaf of leaves) {
     if (taken.has(leaf.task.id)) continue;
-    const rules = batchRules(store, data, leaf.task, approved);
+    const rules = batchRules(store, data, leaf.task, approved, { harnesses });
     if (!rules || rules.members.length < 2 || leaf.attempt > 1) {
       taken.add(leaf.task.id);
       out.push(leaf);
@@ -175,13 +192,13 @@ export function planBatches(
 export function waitingForBatch(
   store,
   candidates,
-  { data = store.read() } = {},
+  { data = store.read(), harnesses } = {},
 ) {
   const ready = new Set(candidates.map((t) => t.id)),
     approved = approvals(store),
     out = new Set();
   for (const task of candidates) {
-    const rules = batchRules(store, data, task, approved);
+    const rules = batchRules(store, data, task, approved, { harnesses });
     if (!rules || rules.problem || rules.members.length < 2) continue;
     if (!rules.members.every((t) => ready.has(t.id))) out.add(task.id);
   }
