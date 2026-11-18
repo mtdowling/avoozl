@@ -176,7 +176,7 @@ export default function MirrorSetup(props: {
           )}
           {result.next === "radar-values" && (
             <p className="text-sm">
-              Next: enter the Radar values on the Radar values screen.
+              Next: enter the Radar values on Settings › Issue Radar.
             </p>
           )}
           {!result.applied && (

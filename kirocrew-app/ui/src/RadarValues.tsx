@@ -2,9 +2,9 @@
 // with Copy and what it controls (radar-coder RC7.2, RC7.3). With the grant,
 // a re-read ticks what Radar shows. Without it, each item is a checkbox the
 // person ticks, marked "Cannot verify". Avoozl writes nothing here.
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { Btn } from '@kirocrew/app-sdk/ui'
-import { FieldBox } from './FieldBox.tsx'
+import { useCallback, useEffect, useState } from 'react'
+import { Btn, Card } from '@kirocrew/app-sdk/ui'
+import { SectionHeading } from './controls.tsx'
 import { Check, Copy } from './icons.ts'
 import { useAppApi } from './host.ts'
 import { progressLine, radarValuesClient, rowState, type RadarItem, type RadarValues } from './radar-values-api.ts'
@@ -57,18 +57,7 @@ function Row({ item, ticked, onTick }: { item: RadarItem; ticked: boolean; onTic
   )
 }
 
-// `plain` drops the titled box, for a page that gives it a section of its own.
-function Frame({ plain, children }: { plain?: boolean; children: ReactNode }) {
-  if (plain) return <div className="flex min-w-0 flex-col gap-2">{children}</div>
-  return (
-    <FieldBox title="Set up Issue Radar" blurb={RADAR_VALUES_LINE}>
-      {children}
-    </FieldBox>
-  )
-}
-
-export const RADAR_VALUES_LINE = 'Only you can enter these in Issue Radar. Copy each one there. Avoozl writes none of them.'
-export default function RadarValuesScreen(props: { workspaceId: string; repositories: string[]; plain?: boolean }) {
+export default function RadarValuesScreen(props: { workspaceId: string; repositories: string[] }) {
   const api = useAppApi()
   const [repository, setRepository] = useState(props.repositories[0] ?? '')
   const [view, setView] = useState<RadarValues | null>(null)
@@ -93,7 +82,9 @@ export default function RadarValuesScreen(props: { workspaceId: string; reposito
   }, [read])
   if (!props.repositories.length) return null
   return (
-    <Frame plain={props.plain}>
+    <Card>
+      <div className="flex min-w-0 flex-col gap-2.5" data-section="Set up Issue Radar">
+      <SectionHeading level={3} title="Set up Issue Radar" blurb="Only you can enter these in Issue Radar. Copy each one there. Avoozl writes none of them." />
       {props.repositories.length > 1 && (
         <label className="flex flex-wrap items-center gap-2 text-sm">
           Repository
@@ -150,6 +141,7 @@ export default function RadarValuesScreen(props: { workspaceId: string; reposito
           </div>
         </>
       )}
-    </Frame>
+      </div>
+    </Card>
   )
 }

@@ -86,10 +86,11 @@ export function redirectTab(key: string): Place {
 // A Settings section that no longer exists lands on the section that took
 // over: Routing's job (crews and placement) is gone with local workers, and
 // the instance name is edited from the nav footer, and Where tasks live is a
-// role per repository in Repository setup (R105.6).
-// Crews and rules, a tab of each repository, is now Settings › Issue Radar.
+// role per repository in Repository setup (R105.6). Older names for the
+// Radar values screen open Settings › Issue Radar.
 export function redirectSettings(key: string): string {
-  if (key === 'crews' || key === 'issue-radar' || key === 'crews-rules') return 'radar'
+  // Crews and rules, a tab of each repository, moved there too.
+  if (key === 'issue-radar' || key === 'radar-values' || key === 'crews' || key === 'crews-rules') return 'radar'
   return key === 'routing' ? 'repositories' : key === 'instance' ? 'workspaces' : key
 }
 

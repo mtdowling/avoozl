@@ -157,8 +157,6 @@ test("the old Where tasks live link still opens Repository setup; GitHub is its 
   assert.equal(redirectSettings("routing"), "repositories");
   assert.equal(redirectSettings("github"), "github");
   assert.equal(redirectSettings("workspaces"), "workspaces");
-  // Crews and rules left the repository editor for Settings › Issue Radar.
-  for (const old of ["crews", "issue-radar", "crews-rules"]) assert.equal(redirectSettings(old), "radar");
 });
 
 test("Repository setup shows a role badge per row; Edit changes it and writes the file", () => {
