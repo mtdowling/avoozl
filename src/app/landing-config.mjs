@@ -111,7 +111,10 @@ export const TRAIN_KEYS = {
     maxRebases: int(0, 10),
     flakyReruns: int(0, 3),
   },
-  conflicts: { mechanical: leaf({ mechanical: true }) },
+  conflicts: {
+    mechanical: leaf({ mechanical: true }),
+    resolver: leaf({ oneOf: ["rules", "chat"] }),
+  },
   ci: {
     workflow: leaf({ string: true }),
     waitForLastTrain: leaf({ bool: true }),
@@ -254,7 +257,11 @@ export function trainSettings(config, target) {
   out.branchPrefix ??= TRAIN_DEFAULTS.branchPrefix;
   for (const key of ["trigger", "failure", "ci"])
     out[key] = { ...TRAIN_DEFAULTS[key], ...(out[key] ?? {}) };
-  out.conflicts = { mechanical: [], ...(out.conflicts ?? {}) };
+  out.conflicts = {
+    mechanical: [],
+    resolver: "rules",
+    ...(out.conflicts ?? {}),
+  };
   out.validation = { cheap: [], full: {}, ...(out.validation ?? {}) };
   return out;
 }

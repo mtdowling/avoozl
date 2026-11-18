@@ -523,6 +523,12 @@ export async function runTrain(store, ctx) {
             rules,
             cheap: cheapArgv,
             timeoutMs: undefined,
+            // The resolver chat is offered only when the repository turns it
+            // on and the process can start one (D4).
+            chat:
+              settings.conflicts?.resolver === "chat"
+                ? (ctx.resolverChat?.() ?? null)
+                : null,
           }),
         })),
       }));

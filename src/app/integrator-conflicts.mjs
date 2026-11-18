@@ -96,17 +96,28 @@ async function apply(rule, { dir, file, run, timeoutMs }) {
   return true;
 }
 
+const hasMarkers = (dir, file) =>
+  /^(<<<<<<<|>>>>>>>)( |$)/m.test(
+    fs.readFileSync(path.join(dir, file), "utf8"),
+  );
+
 // The resolver `stackMembers` calls on a conflicted replay. `cheap` is the
 // target's cheap checks, the default `verify`. Returns true when every file
 // was resolved by a rule and verified; the files are then staged. On any
 // failure nothing is staged.
+//
+// With `chat` (the integrator resolver chat, integrator-resolver.mjs), a file
+// whose rule failed is put back in conflict and offered to the chat; the file
+// still has to pass its `verify` and hold no conflict markers. A file no rule
+// covers is never offered: the whole conflict is semantic.
 export function mechanicalResolver({
   rules,
   cheap = [],
   timeoutMs,
   run = commandEvidence,
+  chat = null,
 }) {
-  return async ({ dir, files }) => {
+  return async ({ dir, files, member }) => {
     if (!rules.length) return false;
     const picked = [];
     for (const file of files) {
@@ -114,19 +125,33 @@ export function mechanicalResolver({
       if (!rule) return false;
       picked.push({ file, rule });
     }
-    for (const { file, rule } of picked)
-      if (!(await apply(rule, { dir, file, run, timeoutMs }))) return false;
-    // Each rule's own verify first, on its file; then the cheap checks once
-    // for the files whose rule names none.
-    let needCheap = false;
-    for (const { file, rule } of picked) {
-      if (!rule.verify) {
-        needCheap = true;
-        continue;
-      }
-      const result = await run(dir, fill(rule.verify, file), { timeoutMs });
-      if (result.exitCode !== 0) return false;
+    // Each rule's own verify runs on its file; the cheap checks run once for
+    // the files whose rule names none.
+    const verifies = async ({ file, rule }) =>
+      !rule.verify ||
+      (await run(dir, fill(rule.verify, file), { timeoutMs })).exitCode === 0;
+    const failed = [];
+    for (const one of picked)
+      if (
+        !(await apply(one.rule, { dir, file: one.file, run, timeoutMs })) ||
+        !(await verifies(one))
+      )
+        failed.push(one);
+    if (failed.length) {
+      if (!chat) return false;
+      for (const { file } of failed)
+        await landGit(dir, ["checkout", "--merge", "--", file]);
+      const finished = await chat({
+        dir,
+        files: failed.map((f) => f.file),
+        rules: Object.fromEntries(failed.map((f) => [f.file, f.rule])),
+        member,
+      });
+      if (!finished) return false;
+      for (const one of failed)
+        if (hasMarkers(dir, one.file) || !(await verifies(one))) return false;
     }
+    const needCheap = picked.some(({ rule }) => !rule.verify);
     if (needCheap)
       for (const argv of cheap) {
         const result = await run(dir, argv, { timeoutMs });

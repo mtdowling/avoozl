@@ -348,7 +348,7 @@ person.
 
 ## Phase 11: The resolver chat and the red-CI bisect
 
-- [ ] lt-11.1 The integrator resolver chat, off by default, after lt-p3 [LT2.4, LT6.4] (§D4, §D8)
+- [x] lt-11.1 The integrator resolver chat, off by default, after lt-p3 [LT2.4, LT6.4] (§D4, §D8)
   - Facts:
     - summary: Phase 11 (The resolver chat and the red-CI bisect). The integrator resolver chat, off by default. See LT2.4, LT6.4; §D4, §D8.
     - done:
