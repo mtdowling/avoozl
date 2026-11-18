@@ -149,6 +149,10 @@ POST?    ──yes─> Origin, Sec-Fetch-Site, Content-Type, X-Avoozl-CSRF ─�
 dispatch (D4) or static file (fixed list)
 ```
 
+A request with no cookie may instead carry `X-Api-Key` (below). It is checked
+right after the Host check, refused if the key is in the query string, and
+may reach the command address only.
+
 **Link records.** A link is 32 bytes from `crypto.randomBytes`, base64url.
 Its SHA-256, creation time and used time go in a `serve_links` table in a
 `serve.sqlite` file in the machine state folder (folder `0700`, file
@@ -162,6 +166,24 @@ expired rows are deleted on each login. Comparison uses
 value, the CSRF token, start time and last-request time. A restart ends
 them (SW4.4). Holding them in memory keeps cookie hashes off disk and makes
 "stop the server" a complete sign-out.
+
+**The API key** (SW4.12 to SW4.14). Scripts need a way in that is not a
+browser's cookie. One key, `serve-api-key.json` in the machine configuration
+folder (mode `0600`, folder `0700`), made on first use from 32 bytes of
+`crypto.randomBytes`. The server reads the file on each request and compares
+SHA-256 hashes of the two values with `timingSafeEqual`, so a key replaced by
+`serve.key.regenerate` (Settings, from any process) stops the old one on the
+next request, with no restart and nothing cached. It travels only in the
+`X-Api-Key` header; a query string that names a key is refused, so no address
+in a log or a history ever holds one. It is owner-level, like the signed-in
+person, because the person who holds the machine's configuration folder can
+read it anyway. It skips the CSRF check only because a request that carries it
+carries no cookie: CSRF is a defense for a browser that adds the cookie on its
+own. A request with a cookie takes the browser path whatever else it sends.
+A cross-site page cannot send the header without a CORS preflight, which is
+refused. Like the owner link, the key is a secret Avoozl makes itself and is
+acceptable only because the listener is loopback-only; a later spec that
+widens the bind replaces both with an identity provider.
 
 **Why both a cookie and a CSRF header.** Browsers scope cookies by host, not
 port (RFC 6265 §8.5), so any other server the owner opens on `127.0.0.1`
@@ -294,6 +316,13 @@ loopback-only and serves one person. Any later spec that widens the bind
 SHALL replace it with an identity provider native to the place Avoozl is
 deployed, and SHALL NOT reuse the owner link for remote callers. The owner
 confirms this choice when approving this spec.
+
+**The API key** is a second way in for programs on the same machine. Anyone
+who can read the machine configuration folder can read it, as they can read
+the state folder; the sandbox keeps both out of a `process` child's roots
+(SW5.5), and `serve.key.view` is person-only. The owner chose it on
+2026-11-18 (a key like Sonarr's). It never reaches a log, a query string or
+`serve.json`.
 
 **Data on screen.** The page shows what the Kiro Crew page shows today,
 including local paths (Requirement 92.10 allows paths in the local app).
