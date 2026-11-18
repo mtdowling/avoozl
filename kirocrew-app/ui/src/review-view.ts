@@ -224,17 +224,8 @@ export function openCounts(findings: Pick<ReviewFinding, 'severity' | 'state' | 
   return { byFile, bySeverity, total: bySeverity.blocker + bySeverity.warn + bySeverity.info }
 }
 
-// The tab a key moves to in a tab bar (WAI-ARIA tabs): arrows wrap, Home
-// and End jump. Null for any other key.
-export function tabKey(key: string, tabs: string[], current: string): string | null {
-  const at = Math.max(0, tabs.indexOf(current))
-  if (!tabs.length) return null
-  if (key === 'ArrowRight') return tabs[(at + 1) % tabs.length]
-  if (key === 'ArrowLeft') return tabs[(at - 1 + tabs.length) % tabs.length]
-  if (key === 'Home') return tabs[0]
-  if (key === 'End') return tabs[tabs.length - 1]
-  return null
-}
+// The tab bar's keys live with the shared tab bar.
+export { tabKey } from './tabs.ts'
 
 // A spec file's text as the view renders it: Markdown as is, the manifest
 // as a JSON code block.

@@ -30,8 +30,8 @@ for (const width of [390, 1280]) {
       const option = [...document.querySelectorAll('#avoozl-model-planReviewer-list [role="option"]')].find((item) => item.textContent.trim() === 'fake-reviewer')
       option.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
     })()`)
-    await page.until(`!document.querySelector('[data-models-save]').disabled`)
-    await page.evaluate(`document.querySelector('[data-models-save]').click()`)
+    await page.until(`document.querySelector('[data-save-footer] [data-save]')?.disabled === false`)
+    await page.evaluate(`document.querySelector('[data-save-footer] [data-save]').click()`)
     await page.until(`document.querySelector('[data-models-settings]').textContent.includes('Saved to .avoozl.json.')`)
     assert.deepEqual(await page.evaluate(`window.__harness.calls.filter((call) => call.operation === 'models.settings.update').map((call) => call.input)`), [{
       models: { planner: 'fake-writer', planReviewer: 'fake-reviewer' }, harnesses: {}, expectedHash: 'models-before',

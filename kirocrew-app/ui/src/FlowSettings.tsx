@@ -5,9 +5,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Card, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
-import { Tooltip } from './Tooltip.tsx'
 import { ChoiceCards, SectionHeading } from './controls.tsx'
-import { Marker, Section } from './SettingsView.tsx'
+import { Section } from './SettingsView.tsx'
+import { CheckRow, FieldGrid as SharedGrid, FieldRow, Marker, RawKey } from './FieldRow.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Pause } from './icons.ts'
@@ -20,40 +20,21 @@ const OPTIONAL = { required: false } as const
 // run them together.
 const LABEL_ROW = { display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 } as const
 
-function Raw({ name }: { name: string }) {
-  return (
-    <Tooltip text=".avoozl.json key">
-      <code className="text-[11px] text-muted" style={{ overflowWrap: 'anywhere', opacity: 0.8 }}>
-        {name}
-      </code>
-    </Tooltip>
-  )
-}
-
-// One field in a FieldGrid: label, "(optional)", input, hint, then the
-// .avoozl.json key. Its rows join the grid's rows (subgrid), so in each row
-// of fields the labels start on one line and the inputs on one line, even
-// when one label wraps.
+// One field in a FieldGrid: the shared FieldRow, lined up with the fields
+// beside it (align), every Flow value optional.
 function Labeled(props: { id: string; label: string; raw: string; children: React.ReactNode; note?: string }) {
   return (
-    <div className="min-w-0 text-sm" data-flow-field style={{ display: 'grid', gridRow: 'span 4', gridTemplateRows: 'subgrid', rowGap: 4, alignContent: 'start' }}>
-      <label htmlFor={props.id} data-flow-label style={{ display: 'flex', flexDirection: 'column', alignSelf: 'start', rowGap: 2 }}>
-        <span className="font-medium">{props.label}</span>
-        <Marker rule={OPTIONAL} />
-      </label>
-      <div style={{ display: 'flex', minWidth: 0 }}>{props.children}</div>
-      <span className="text-xs text-muted">{props.note ?? ''}</span>
-      <Raw name={props.raw} />
-    </div>
+    <FieldRow id={props.id} label={props.label} raw={props.raw} rule={OPTIONAL} help={props.note} align attrs={{ 'data-flow-field': true }}>
+      {props.children}
+    </FieldRow>
   )
 }
 
-// Fields on a grid: as many columns as fit, each at least 13rem.
 function FieldGrid({ children, group }: { children: React.ReactNode; group?: string }) {
   return (
-    <div data-flow-group={group} style={{ display: 'grid', columnGap: 16, rowGap: 4, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 13rem), 1fr))' }}>
+    <SharedGrid align group={group}>
       {children}
-    </div>
+    </SharedGrid>
   )
 }
 
@@ -148,18 +129,13 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
               <Marker rule={OPTIONAL} />
             </span>
             <ChoiceCards id="avoozl-flow-scope" label="What to pause" value={scope} onChange={(key) => set({ scope: key })} cards={FLOW_SCOPE_CARDS.map((c) => ({ ...c }))} />
-            <Raw name="flow.stopTheLine.scope" />
+            <RawKey name="flow.stopTheLine.scope" />
           </div>
         </Section>
       </Box>
       <Box>
         <Section title="Local checks first" blurb="Run the checks here before any push, so CI only confirms. It matters only when sessions push.">
-          <label className="text-sm" style={{ ...LABEL_ROW, alignItems: 'center' }}>
-            <input type="checkbox" checked={local} onChange={(event) => set({ localChecksFirst: event.target.checked ? 'on' : 'off' })} />
-            <span className="font-medium">Require a local pass before push</span>
-            <Marker rule={OPTIONAL} />
-          </label>
-          <Raw name="flow.localChecksFirst" />
+          <CheckRow label="Require a local pass before push" raw="flow.localChecksFirst" checked={local} onChange={(on) => set({ localChecksFirst: on ? 'on' : 'off' })} />
         </Section>
       </Box>
       <Box>
@@ -206,7 +182,7 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
               <p className="m-0 text-xs text-muted">First matching class wins in the order below. A repository can override these lists in its configuration.</p>
               {Object.entries(value.ciClassGlobs ?? {}).map(([name, globs]) => <div key={name} className="flex min-w-0 flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}><span className="text-sm font-medium">{name}</span><code className="text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{globs.join(', ') || 'No matching paths'}</code></div>)}
               <div className="flex flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}><span className="text-sm font-medium">code</span><span className="text-xs text-muted">Anything that does not match a class above.</span></div>
-              <Raw name="flow.ci.classes" />
+              <RawKey name="flow.ci.classes" />
             </div>
           </div>
         </Section>
