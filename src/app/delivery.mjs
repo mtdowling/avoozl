@@ -1,4 +1,5 @@
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
+import { briefCell } from "./worker-briefs.mjs";
 import { projectExecutor } from "./executors/process.mjs";
 import { harnessExecutor, roleHarness } from "./chat-models.mjs";
 import { PERSON_MESSAGE_HEAD } from "./session-send.mjs";
@@ -1758,9 +1759,9 @@ export function localSteps(
 
 // The steps of a `process` child (R96.1, R94.4a): it runs in its task
 // worktree, only edits, and finishes with the result file as its last step.
-export function processSteps(task) {
+export function processSteps(task, { branch = `avoozl/${task.id}` } = {}) {
   return [
-    `1. Work only in the current folder, the worktree of task ${task.id} on branch avoozl/${task.id}.`,
+    `1. Work only in the current folder, the worktree of task ${task.id} on branch ${branch}.`,
     "2. Edit and run the checks. Do not commit, push, open or edit a pull request, merge, label, or comment. Avoozl commits your changes after you exit, runs the checks and lands them.",
     `3. Avoozl may resume you with a message whose first line is "${PERSON_MESSAGE_HEAD}". That message is the person's own and may change your task: do what it asks, within these rules, then finish as below again.`,
     `4. Last, write .avoozl/result.json in this folder, at most 8 KB: {"state": "done", "text": "<what you changed>"} when the work is finished, or {"state": "blocked", "text": "<why>"} when you cannot finish. Then exit. No result file, or done with a failing exit, is retried.`,
@@ -2201,28 +2202,27 @@ function composeLeafBrief(
     });
   }
   const token = issueReportToken(store, { taskId: task.id, attempt });
-  // A supervisor child (R96.1): no database, no commit, no CLI report; its
-  // brief ends with the result file.
-  if (!relay && executor === "process")
-    return workerBrief(task, project, {
-      ...options,
-      steps: processSteps(task),
-    });
+  // The pair table (worker-briefs.mjs) picks the steps. A Crew Mode relay is
+  // always a chat; a declined pair runs as the kind its cell names.
+  const { cell } = briefCell(
+    relay ? "kirocrew" : executor,
+    investigate ? "investigate" : "single",
+  );
   return workerBrief(task, project, {
     ...options,
-    ...(relay
-      ? { steps: localSteps(task, project, { relay: true }) }
-      : token
-        ? {
-            steps: localSteps(task, project, {
-              cliReport: {
-                worktree: options.worktree?.path || worktreePath(task, project),
-                token,
-                workspace: contentBinding(store)?.workspaceRoot ?? null,
-              },
-            }),
-          }
-        : {}),
+    steps: cell.steps({
+      task,
+      project,
+      relay,
+      cliReport:
+        !relay && token
+          ? {
+              worktree: options.worktree?.path || worktreePath(task, project),
+              token,
+              workspace: contentBinding(store)?.workspaceRoot ?? null,
+            }
+          : null,
+    }),
   });
 }
 
@@ -2276,21 +2276,29 @@ export function planReadyDispatches(store, policy, options = {}) {
     const run = workerExecutor(leaf.task, leaf.project, options.harnesses),
       pin = leaf.task.session || {};
     // Investigate first (R75.5): never for a batch, whose brief is one
-    // stretch of small tasks.
-    const investigate = !leaf.batch && investigates(policy, leaf.task),
-      ship = shipMode(policy, leaf.task, store),
-      brief = leaf.batch
-        ? batchBrief(
-            store,
-            data,
-            leaf,
-            leafBrief(store, data, leaf, { ship, executor: run.executor }),
-          )
-        : leafBrief(store, data, leaf, {
-            investigate,
-            ship,
-            executor: run.executor,
-          });
+    // stretch of small tasks, and never where the pair table declines it.
+    const investigate =
+        !leaf.batch &&
+        !briefCell(run.executor, "investigate").declined &&
+        investigates(policy, leaf.task),
+      ship = shipMode(policy, leaf.task, store);
+    let brief;
+    if (leaf.batch) {
+      const batch = briefCell(run.executor, "batch");
+      // A declined batch starts nothing; the planner runs it as single tasks.
+      if (batch.declined) return [];
+      brief = batch.cell.brief(
+        store,
+        data,
+        leaf,
+        leafBrief(store, data, leaf, { ship, executor: run.executor }),
+      );
+    } else
+      brief = leafBrief(store, data, leaf, {
+        investigate,
+        ship,
+        executor: run.executor,
+      });
     if (
       taskRoute(leaf.task) === "github" &&
       findPlanningLeak([["brief", brief]], planning)
