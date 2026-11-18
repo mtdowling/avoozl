@@ -1,11 +1,10 @@
-// The install's name on the page: the header badge, and the edit button
-// that opens the rename modal. The name is display only; renaming never changes the ID.
+// The install's name on the page: the read-only header badge, and the nickname
+// field in Settings > This computer. Renaming never changes the ID.
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
+import { Input } from '@kirocrew/app-sdk/ui'
 import { useAppApi } from './host.ts'
-import { InfoTip } from './controls.tsx'
-import { Modal } from './Modal.tsx'
-import { Pencil } from './icons.ts'
+import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
+import { SaveFooter } from './SaveFooter.tsx'
 import { NAME_RULE, instanceClient, nameFor, validName, type InstanceView } from './instance-api.ts'
 import { errorMessage } from './workspace-api.ts'
 
@@ -37,77 +36,68 @@ export function InstanceBadge(props: { workspaceId: string | null; className?: s
   )
 }
 
-export function InstanceEdit(props: { workspaceId: string }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <>
-      <button type="button" data-instance-edit aria-label="Edit instance name" onClick={() => setOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, padding: 0, border: 0, borderRadius: 4, background: 'transparent', color: 'var(--muted)', cursor: 'pointer', flexShrink: 0 }}>
-        <Pencil size={12} aria-hidden="true" />
-      </button>
-      {open && <InstanceModal workspaceId={props.workspaceId} onClose={() => setOpen(false)} />}
-    </>
-  )
-}
-
-function InstanceModal(props: { workspaceId: string; onClose: () => void }) {
+// Settings > Workspaces > This computer: the one place the name is changed.
+// An in-place field with the shared field row and Save bar.
+export function InstanceNickname(props: { workspaceId: string }) {
   const api = useAppApi()
   const client = useMemo(() => instanceClient(api), [api])
   const view = useInstance(props.workspaceId)
   const [text, setText] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const value = text ?? view?.name ?? ''
-  const ok = validName(value)
+  const [ok, setOk] = useState<string | null>(null)
+  const saved = view?.name ?? ''
+  const value = text ?? saved
+  const dirty = text !== null && text.trim() !== saved
+  const valid = validName(value)
   const save = async () => {
-    if (!ok) return
+    if (!valid) return
+    setSaving(true)
     setError(null)
     try {
       await client.rename(props.workspaceId, value.trim())
       window.dispatchEvent(new Event(CHANGED))
-      props.onClose()
+      setText(null)
+      setOk('Saved.')
     } catch (caught) {
       setError(errorMessage(caught))
+    } finally {
+      setSaving(false)
     }
   }
   return (
-    <Modal
-      id="avoozl-instance-name"
-      title="Instance name"
-      width="26rem"
-      backLabel="Cancel"
-      dismissLabel="Cancel"
-      onDismiss={props.onClose}
-      footer={
-        <>
-          <Btn type="submit" form="avoozl-instance-form" primary disabled={!ok}>
-            Save
-          </Btn>
-        </>
-      }
-    >
-      <form
-        id="avoozl-instance-form"
-        data-instance-form
-        className="flex flex-col gap-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void save()
-        }}
+    <div data-instance-nickname className="flex flex-col gap-2">
+      <FieldRow
+        id="avoozl-instance-nickname"
+        label="Nickname"
+        width="md"
+        help="The name people read for this computer. It never goes to GitHub."
+        note={!valid && value ? NAME_RULE : undefined}
       >
-        <label className="flex flex-col gap-1 text-sm">
-          <span>Name</span>
-          <Input value={value} maxLength={24} aria-invalid={!ok} onChange={(event) => setText(event.target.value)} />
-        </label>
-        {!ok && value && <span className="text-xs text-danger">{NAME_RULE}</span>}
-        <p className="flex items-center gap-2 text-xs text-muted">
-          The name is for people to read. It never goes to GitHub.
-          <InfoTip text="Markers on GitHub carry a fixed ID instead, so renaming changes nothing there. It never goes to a public repository." label="About the instance name" />
-        </p>
-        {error && (
-          <p role="alert" className="text-sm text-danger">
-            {error}
-          </p>
-        )}
-      </form>
-    </Modal>
+        <Input
+          id="avoozl-instance-nickname"
+          value={value}
+          maxLength={24}
+          aria-invalid={!valid}
+          aria-describedby={fieldDescribedBy('avoozl-instance-nickname', { help: true, note: !valid && value })}
+          onChange={(event) => {
+            setText(event.target.value)
+            setOk(null)
+          }}
+        />
+      </FieldRow>
+      <SaveFooter
+        dirty={dirty}
+        saving={saving}
+        problem={valid ? null : NAME_RULE}
+        error={error}
+        ok={ok}
+        onSave={() => void save()}
+        onDiscard={() => {
+          setText(null)
+          setError(null)
+        }}
+      />
+    </div>
   )
 }

@@ -39,7 +39,8 @@ test('the client reads and renames through the command route', async () => {
 test('the brand card, Home and the side panel use the shared helper', () => {
   assert.match(source('BrandCard.tsx'), /<InstanceBadge workspaceId=\{props\.workspaceId\}/)
   assert.match(source('App.tsx'), /<BrandCard workspaceId=\{active\} \/>/)
-  assert.match(source('BrandCard.tsx'), /<InstanceEdit workspaceId=\{props\.workspaceId\} \/>/)
+  assert.doesNotMatch(source('BrandCard.tsx'), /InstanceEdit/)
+  assert.match(source('Driver.tsx'), /<InstanceNickname workspaceId=/)
   assert.match(source('DashboardView.tsx'), /nameFor\(instance, 'other'\)/)
   assert.match(source('Panel.tsx'), /nameFor\(instance, 'header'\)/)
   assert.match(source('Driver.tsx'), /handoffLine\(/)
