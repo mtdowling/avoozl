@@ -24,7 +24,7 @@ import {
   writeSupervisorUnit,
 } from "./supervisor-unit.mjs";
 import { reportByToken } from "./report-match.mjs";
-import { readRunnerConfig } from "./remote-runner.mjs";
+import { HOLDS_TASKS, readRunnerConfig } from "./remote-runner.mjs";
 import { hookEvent, runnerHookBrief } from "./runner.mjs";
 import { validate } from "../model.mjs";
 import { planFiles } from "../catalog.mjs";
@@ -854,10 +854,9 @@ try {
     else if (action === "status")
       // A runner reports its remote tasks; any other machine reports the
       // supervisor and its children (R98.5).
-      result =
-        readRunnerConfig(config.workspaceRoot)?.role === "runner"
-          ? await localOrRequest("remote.status")
-          : machineStatus({ stateDirectory: machineStateDirectory() });
+      result = HOLDS_TASKS(readRunnerConfig(config.workspaceRoot))
+        ? await localOrRequest("remote.status")
+        : machineStatus({ stateDirectory: machineStateDirectory() });
     else if (action === "report") {
       const state = positionals[2] || options.state,
         token = options.token || process.env.AVOOZL_REPORT_TOKEN;
@@ -865,7 +864,7 @@ try {
         positionals[1] && state,
         "runner report TASK done|blocked [--token T]",
       );
-      if (token || readRunnerConfig(config.workspaceRoot)?.role !== "runner") {
+      if (token || !HOLDS_TASKS(readRunnerConfig(config.workspaceRoot))) {
         // R88.2: matched by the report token and the worktree it runs in;
         // with no token, by the worktree of this command line's claim.
         requireDatabase();
