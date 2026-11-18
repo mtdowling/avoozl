@@ -56,7 +56,7 @@ test('Settings lists its sections in the nav, shows only the picked one, and lis
   await click(tab('Settings'))
   await page.until(`Boolean(document.querySelector('[data-settings-section]'))`)
   const sections = await page.evaluate(`[...document.querySelectorAll('[data-nav-children="settings"] [data-nav-item]')].map((s) => s.dataset.navItem.replace('settings/', ''))`)
-  assert.deepEqual(sections, ['workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery'])
+  assert.deepEqual(sections, ['workspaces', 'repositories', 'github', 'radar', 'plugins', 'content', 'flow', 'models', 'delivery'])
   // Settings opens alone, and the page shows one section.
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section]').length`), 1)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-nav-section][data-open]').length`), 1)
