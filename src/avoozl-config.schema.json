@@ -604,6 +604,14 @@
               }
             }
           }
+        },
+        "unionPaths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Append-only files merged with union semantics when a landing conflict touches only them. Read as union rules by integrator trains."
         }
       }
     },

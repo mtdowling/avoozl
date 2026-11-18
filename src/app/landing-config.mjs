@@ -207,6 +207,12 @@ export function validateTrains(config, files = {}) {
   const repo = files.repository ?? "the repository configuration",
     glob = files.global ?? "the global configuration",
     warnings = [];
+  const union = config?.landing?.unionPaths;
+  if (
+    union !== undefined &&
+    (!Array.isArray(union) || union.some((p) => typeof p !== "string" || !p))
+  )
+    throw Error(`landing.unionPaths must be a list of file paths (${repo})`);
   const trains = config?.landing?.trains;
   if (trains !== undefined) {
     const fail = (message) => {

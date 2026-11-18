@@ -144,7 +144,8 @@ export async function stackMembers({
 }) {
   const inTrain = new Set(members.map((m) => m.key)),
     out = [];
-  let stack = baseHead;
+  let stack = baseHead,
+    lastKey = null;
   for (const member of members) {
     const { from, via } = await cutPoint(root, member, others);
     if (via && via.state === "queued" && !inTrain.has(via.key)) {
@@ -197,7 +198,7 @@ export async function stackMembers({
         files: lost.files,
         commit: lost.commit,
         // The earlier member this one conflicts with: the stack so far.
-        against: stack,
+        against: { commit: stack, key: lastKey },
       });
       continue;
     }
@@ -206,6 +207,7 @@ export async function stackMembers({
       continue;
     }
     stack = await git(dir, ["rev-parse", "HEAD"]);
+    lastKey = member.key;
     out.push({ key: member.key, from, boundary: stack, state: "stacked" });
   }
   return { stack, members: out };
