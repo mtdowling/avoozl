@@ -233,7 +233,7 @@ test('Start demo shows in the empty In flight box only while nothing has ever ru
   await page.open(harness.url({ page: 'home' }), { width: 1280, height: 800 })
   await page.until(`document.body.textContent.includes('No crew or chat is working right now.')`)
   assert.equal(await page.evaluate(startDemo), true, 'empty and never run: shown')
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-start]')?.closest('[data-scroll]'))`), true, 'inside the In flight card')
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-start]')?.closest('[data-home-section="in-flight"] [data-home-box]'))`), true, 'inside the In flight card')
   await page.open(harness.url({ page: 'home', ran: '1' }), { width: 1280, height: 800 })
   await page.until(`document.body.textContent.includes('No crew or chat is working right now.')`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-demo-start]').length`), 0, 'empty but has run: hidden')
