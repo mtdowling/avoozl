@@ -107,7 +107,11 @@ export function addItemContext(store, data, items) {
       }
       item.context = {
         spec: plan
-          ? { planId: plan.id, name: plan.spec ?? null, title: plan.title ?? plan.spec ?? plan.id }
+          ? {
+              planId: plan.id,
+              name: plan.spec ?? null,
+              title: plan.title ?? plan.spec ?? plan.id,
+            }
           : null,
         review: review && {
           state: review.state,
