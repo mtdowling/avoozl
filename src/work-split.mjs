@@ -1,6 +1,9 @@
+// What Avoozl is, in one line: the package, the app and AGENTS.md say this.
+export const TAGLINE =
+  "Approve a spec; Avoozl runs it with coding agents, checks each commit itself, and lands it.";
 // The scope statement shown in the README and Set up.
 // Guidance only: nothing reads it to refuse a goal or a plan.
 export const SCOPE_STATEMENT =
-  "Avoozl is for epics: approved goals that need many changes in a set order. Maintenance, triage and one-off pull request handling belong to Issue Radar crews or to your team's coder. Avoozl can hand each task of an epic to any coder.";
+  "Specs can be any size. A light spec with one task becomes one pull request. A large one becomes ordered tasks across repositories, each checked on its exact commit before it lands.";
 export const SCOPE_RULE =
-  "If the work fits in one pull request, it is not an Avoozl job. If it needs a plan with an order, it is.";
+  "Every change starts from a spec you approved, so no agent's work lands without a plan a person agreed to.";

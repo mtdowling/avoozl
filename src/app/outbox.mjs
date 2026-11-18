@@ -5,9 +5,9 @@ import { digest } from "../model.mjs";
 
 // Publish pending Markdown projections from the outbox under root, and mark
 // each published row in SQLite. Operations calls this after every operation it
-// executes when it is given a plans root.
+// executes when it is given a plans root. The root is made with the first
+// document published to it, so a workspace with none has no such folder.
 export function flushOutbox(store, root) {
-  fs.mkdirSync(root, { recursive: true });
   const report = [];
   for (const row of store.db
     .prepare("SELECT * FROM outbox WHERE state='pending' ORDER BY rowid")

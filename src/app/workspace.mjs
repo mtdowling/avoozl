@@ -5,6 +5,8 @@ import { workspaceConfig } from "./config.mjs";
 import { Operations } from "./operations.mjs";
 import { generateNamespace } from "./github-marker.mjs";
 import { SUPERSEDED_STATUS } from "./supersede.mjs";
+import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.mjs";
+import { SPECS_DIRECTORY } from "./spec-plans.mjs";
 
 const portable = (relative) => relative.split(path.sep).join("/");
 
@@ -34,13 +36,21 @@ export function emptySnapshot(name = "My workspace") {
     changelog: [],
   };
 }
+// What a workspace gets with no flag. `.avoozl.json` is shared policy, so
+// init leaves these out of it: the loader supplies the same values, and a
+// machine's own layers (its config file, the environment, a flag) can still
+// set them.
+const DEFAULT_PORT = 9428,
+  DEFAULT_DOCUMENTS = "plans",
+  DEFAULT_DB = ".avoozl/local/workspace.sqlite";
+
 export function initializeWorkspace(
   root,
   {
     name = "My workspace",
-    port = 9428,
-    documents = "plans",
-    db = ".avoozl/local/workspace.sqlite",
+    port = DEFAULT_PORT,
+    documents = DEFAULT_DOCUMENTS,
+    db = DEFAULT_DB,
   } = {},
 ) {
   if (typeof name !== "string" || !name.trim() || name.length > 160)
@@ -62,7 +72,6 @@ export function initializeWorkspace(
     } finally {
       store.close();
     }
-    fs.mkdirSync(current.plansRoot, { recursive: true });
     return {
       workspace: current.workspaceRoot,
       dbPath: current.dbPath,
@@ -72,21 +81,24 @@ export function initializeWorkspace(
     };
   }
   fs.mkdirSync(config.workspaceRoot, { recursive: true });
+  // Forward slashes: .avoozl.json is shared, and every platform reads them.
+  const relative = (target) =>
+      portable(path.relative(path.dirname(config.filename), target)),
+    dbPath = relative(config.dbPath),
+    documentsRoot = relative(config.plansRoot);
   const saved = {
-    $schema: "https://avoozl.dev/schema/repository-config-v1.json",
+    $schema: REPOSITORY_CONFIG_SCHEMA_URL,
     version: 1,
     name,
     // Owns this workspace's GitHub task IDs (design §3.4); never changes.
     namespace: generateNamespace(),
-    // Forward slashes: .avoozl.json is shared, and every platform reads them.
-    dbPath: portable(
-      path.relative(path.dirname(config.filename), config.dbPath),
-    ),
-    documents: portable(
-      path.relative(path.dirname(config.filename), config.plansRoot),
-    ),
-    port: config.port,
-    host: "127.0.0.1",
+    // Only a layout the person chose is written. It has to be: no other
+    // layer is per workspace, so a later command could not find it again.
+    ...(dbPath !== DEFAULT_DB ? { dbPath } : {}),
+    ...(documentsRoot !== DEFAULT_DOCUMENTS
+      ? { documents: documentsRoot }
+      : {}),
+    ...(config.port !== DEFAULT_PORT ? { port: config.port } : {}),
   };
   // Reserve the configuration before creating state, so concurrent initializers cannot overwrite it.
   fs.mkdirSync(path.dirname(config.filename), { recursive: true });
@@ -99,7 +111,11 @@ export function initializeWorkspace(
   } finally {
     store.close();
   }
-  fs.mkdirSync(config.plansRoot, { recursive: true });
+  // Specs are Kiro spec folders here. The Markdown documents root is made
+  // when a document is first published to it (outbox.mjs), not before.
+  fs.mkdirSync(path.join(config.workspaceRoot, SPECS_DIRECTORY), {
+    recursive: true,
+  });
   return {
     workspace: config.workspaceRoot,
     dbPath: config.dbPath,

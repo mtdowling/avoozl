@@ -127,6 +127,16 @@ function verifyProblem(inner, value) {
   return "an object of check commands to whole seconds 1–86400";
 }
 const VERIFY_LISTS = new Set(["protectedPaths", "checkTimeouts"]);
+// Every `flow` setting by dotted path: the checked values above, the lists
+// checked on their own, and the two retired groups an old file may still
+// carry. A test holds src/avoozl-config.schema.json to this list.
+export const FLOW_PATHS = Object.freeze([
+  ...Object.keys(FLOW_KEYS),
+  "ci.classes",
+  ...[...VERIFY_LISTS].map((key) => `verify.${key}`),
+  "lessons",
+  "batch",
+]);
 
 // `ci.classes`: a class name to at most 50 globs (§4.30).
 function classesProblem(value) {

@@ -38,7 +38,7 @@ import { taskSourceRefs } from "../task-identity.mjs";
 import { listSpans, taskFlow } from "./flow.mjs";
 import { taskSteps } from "./task-steps.mjs";
 import { observationsForTask } from "./build-receipt-read.mjs";
-import { avoozlState } from "../delivery-lanes.mjs";
+import { NODE_STATES, avoozlState } from "../delivery-lanes.mjs";
 import { attachLink } from "./routing.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import { fail } from "./store.mjs";
@@ -257,41 +257,26 @@ export function reviewGroups(store, data) {
     }));
 }
 
-// Tasks and blocking edges, filtered by epic (across plans), phase (inside
-// a plan), repository and status. Edges are kept only when both ends are
-// shown. `ready` uses the same rule as `queue`. Each task carries its epic,
-// plan and phase, read from records, never from a file path (R59.6).
-//
-// `folders` are the spec folders on disk ([{name, spec}]). Tasks of the ones
-// not approved come back apart, in `drafts`, with state "draft": never
-// ready, never in `tasks`, so no reader of `tasks` counts or releases them.
-export function graphView(store, data, input = {}, folders = []) {
-  const epics = list(input.epic),
-    phases = list(input.phase),
-    repositories = list(input.repository),
-    statuses = list(input.status),
-    registered = workspaceRepositories(store).map((entry) => entry.id),
+// What a task's Graph state is judged from, read once, and the rule itself.
+function graphStates(store, data) {
+  const registered = workspaceRepositories(store).map((entry) => entry.id),
+    claimed = claimedLeaves(store),
     ready = new Set(
       queryTasks(data, {
         scope: "all",
         repositories: registered,
-        claimed: claimedLeaves(store),
+        claimed,
         q: "ready:true",
       }).map((task) => task.id),
     ),
     complete = (status) => statusComplete(data, status),
-    byId = new Map(data.tasks.map((task) => [task.id, task])),
-    claimed = claimedLeaves(store),
     board = projectBoard(store),
     submissions = new Map(
       optionalList(store, "route_submissions").map((row) => [row.taskId, row]),
     ),
     health = pluginHealth(store),
     live = liveSessions(store),
-    archivedOf = archivedPlanOf(store),
-    manual = manualWaitingIds(data, registered),
-    routingMarks = routingHealth(store).marks,
-    counts = new Map();
+    manual = manualWaitingIds(data, registered);
   // One state per node for the Graph drawing. Needs-you comes first among
   // open tasks so a person sees it even on a running or deferred task.
   const state = (task) => {
@@ -314,6 +299,66 @@ export function graphView(store, data, input = {}, folders = []) {
     if (live.has(task.id)) return "running";
     return ready.has(task.id) ? "ready" : "waiting";
   };
+  return {
+    registered,
+    claimed,
+    ready,
+    complete,
+    submissions,
+    health,
+    live,
+    manual,
+    state,
+  };
+}
+
+const STATE_LABELS = new Map(NODE_STATES);
+
+// A stored task with the state the Graph draws it in and the page's word for
+// it, for `query` and `task.get`. The rule is graph.view's own, so the two
+// never disagree. The stored status stays; the state sits beside it.
+export function withGraphState(store, data) {
+  const { state } = graphStates(store, data);
+  return (task) => {
+    const id = state(task),
+      word = { state: id, stateLabel: STATE_LABELS.get(id) },
+      out = {};
+    for (const [key, value] of Object.entries(task)) {
+      out[key] = value;
+      if (key === "status") Object.assign(out, word);
+    }
+    return "state" in out ? out : { ...out, ...word };
+  };
+}
+
+// Tasks and blocking edges, filtered by epic (across plans), phase (inside
+// a plan), repository and status. Edges are kept only when both ends are
+// shown. `ready` uses the same rule as `queue`. Each task carries its epic,
+// plan and phase, read from records, never from a file path (R59.6).
+//
+// `folders` are the spec folders on disk ([{name, spec}]). Tasks of the ones
+// not approved come back apart, in `drafts`, with state "draft": never
+// ready, never in `tasks`, so no reader of `tasks` counts or releases them.
+export function graphView(store, data, input = {}, folders = []) {
+  const epics = list(input.epic),
+    phases = list(input.phase),
+    repositories = list(input.repository),
+    statuses = list(input.status),
+    {
+      registered,
+      claimed,
+      ready,
+      complete,
+      submissions,
+      health,
+      live,
+      manual,
+      state,
+    } = graphStates(store, data),
+    byId = new Map(data.tasks.map((task) => [task.id, task])),
+    archivedOf = archivedPlanOf(store),
+    routingMarks = routingHealth(store).marks,
+    counts = new Map();
   const epicOf = new Map(
     data.tasks.map((task) => [task.id, taskEpic(data, task)]),
   );
@@ -1717,6 +1762,9 @@ export function plansTableView(
       spec: spec.name,
       folder: spec.folder,
       ...(spec.home ? { home: spec.home } : {}),
+      ...(spec.pull
+        ? { pull: { number: spec.pull.number, draft: spec.pull.draft } }
+        : {}),
       planId: spec.plan?.id ?? null,
       type: spec.type,
       category: spec.category ?? null,

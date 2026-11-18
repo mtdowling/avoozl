@@ -181,6 +181,15 @@ key lists, or add one test that walks every `onlyKeys` list and the schema and
 fails on a difference. Payoff: high, because it is the only full list of what a
 user can set. Risk: low.
 
+**Done (F19).** The schema now lists the keys above, and
+`src/app/test/config-schema-parity.test.mjs` fails when a validator's key
+list and the schema differ, or when a closed schema object has no list to be
+held to. The test found three keys this list missed: a rule's `match`,
+`github.project.fields.phase`, and a train platform's `suiteArgs`. Two entries
+above are not file settings: `flow.batch` is now ignored, and
+`flow.retro.instructions` is saved on each machine and refused in
+`.avoozl.json`. The dead keys of §2.2 are unchanged.
+
 ### 2.4 Pages that could merge or go
 
 | # | Kind | What | Where | Evidence | Proposal | Risk |
@@ -217,7 +226,7 @@ Settings › Delivery so a person can see why a task waits. Risk: medium.
 |---|------|----------|----------|
 | C1 | `workspace concurrency ID LIMIT` claims "Zero pauses new dispatch". | Nothing enforces it (F2). | Remove with F2, or wire it. |
 | C2 | `routing` and `crews set` have no page. | §2.5. | F20. |
-| C3 | `register-session` and `session-hook` run but are not in `help`. The help is one flat list of 58 commands. | `rg "^  register-session\|^  session-hook" src/app/cli.mjs` finds nothing. | Add the two hook commands under an "Agent hooks" heading. Group help by job (setup, plan, deliver, land, inspect). |
+| C3 | `register-session` and `session-hook` run but are not in `help`. The help is one flat list of 58 commands. | `rg "^  register-session\|^  session-hook" src/app/cli.mjs` finds nothing. | **Done.** `avoozl help` is a one-screen overview by job; `avoozl help GROUP`, `help COMMAND` and `help all` give the usage lines, from one table (`src/app/cli-help.mjs`). The two hook commands are under "Agent hooks". |
 | C4 | `andon` prints where the old gate went. | `cli.mjs:1568-1572`. | Remove after one more release; `flow stop` is the command. |
 | C5 | Settings › Flow edits batching; the planner is about to decide it. | In flight (#576). | — |
 | C6 | Settings › Workspaces edits a limit that the CLI's `--max-concurrent-runs` also sets, and neither is read. | F2. | F2. |

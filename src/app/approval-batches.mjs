@@ -2,6 +2,10 @@
 // be approved in (plan.approvalBatches). A batch runs plan.approve's checks
 // on every spec, then approves all of them in one transaction or none.
 import { approvedSpecDependency } from "../spec-dependencies.mjs";
+import {
+  approvalDelegation,
+  delegationEvidence,
+} from "./approval-delegation.mjs";
 import { claimedTaskIds } from "./delivery.mjs";
 import { planningIdentity } from "./github-marker.mjs";
 import { previewProjection } from "./github-preview.mjs";
@@ -162,6 +166,7 @@ function approveSet(store, prepared, { githubPolicy, operator }) {
               coApproved: inSet,
               approvedBy: entry.approver,
               evidence: entry.evidence,
+              delegation: entry.delegation || null,
               operator,
             }),
           );
@@ -221,7 +226,13 @@ function readItems(items) {
 // in one transaction. Specs in the set may satisfy each other's owners.
 export async function approveMany(ops, input = {}) {
   const store = ops.store,
-    items = readItems(input.items);
+    items = readItems(input.items),
+    // A named delegate approves as the person who granted it (R109).
+    delegated = approvalDelegation(store, {
+      delegate: input.delegate,
+      approvedBy: input.approvedBy,
+    }),
+    approvedBy = delegated?.onBehalfOf ?? input.approvedBy;
   if (
     input.expectedRevision !== undefined &&
     input.expectedRevision !== ops.read().revision
@@ -245,8 +256,9 @@ export async function approveMany(ops, input = {}) {
       });
       if (!checked.plan.spec)
         fail("Batch approval takes spec plans. Approve this plan on its own.");
-      let approver = await ops.specApprover(checked.plan, input.approvedBy),
-        evidence = input.evidence;
+      let approver = await ops.specApprover(checked.plan, approvedBy),
+        evidence = input.evidence,
+        delegation = delegated;
       // A spec whose approval is a pull request is approved once that pull
       // request has merged, as plan.approve does.
       const target = ops.approvalGateTarget(checked.plan);
@@ -262,6 +274,7 @@ export async function approveMany(ops, input = {}) {
         if (state?.state === "merged") {
           approver = state.approvedBy;
           evidence = evidence || approvalEvidence(state);
+          delegation ??= approvalDelegation(store, { state });
         }
         approvalChangedAtMerge(state);
       }
@@ -270,7 +283,9 @@ export async function approveMany(ops, input = {}) {
         quality: checked.specQuality,
         expectedHash: item.expectedHash,
         approver,
-        evidence,
+        evidence:
+          evidence || (delegation ? delegationEvidence(delegation) : evidence),
+        delegation,
       };
       prepared.push(entry);
       if (target && state?.state !== "merged")
@@ -331,6 +346,7 @@ async function openGatePullRequests(ops, gated) {
         ...(target.ref ? { ref: target.ref } : {}),
         // A gated spec's approver is a GitHub login (ops.specApprover).
         approvedBy: group[0].entry.approver,
+        delegation: group[0].entry.delegation,
         reviewers: [
           ...new Set(
             group.flatMap(({ entry }) => ops.specReviewers(entry.plan)),
@@ -480,6 +496,18 @@ export async function approvalBatches(ops, input = {}) {
     const scratch = ops.store.scratch();
     try {
       const approved = simulate(scratch, input.ids),
+        inSelection = new Set(input.ids),
+        // Tasks the selection creates that wait on a draft spec it leaves
+        // out: approved, but held until that spec is approved too.
+        waiting = approved.ok
+          ? scratch
+              .read()
+              .tasks.filter(
+                (task) =>
+                  inSelection.has(task.planId) &&
+                  task.pendingSpecDependencies?.length,
+              ).length
+          : 0,
         writes = approved.ok
           ? await projectionWrites(ops, scratch, input.ids)
           : new Map(),
@@ -508,7 +536,10 @@ export async function approvalBatches(ops, input = {}) {
             })),
           ...approved.failures,
         ],
-        // Earlier-batch specs this selection needs that it leaves out.
+        waiting,
+        // Draft specs some task of the selection waits on that it leaves
+        // out. Approval does not need them: those tasks stay held until
+        // they are approved (a checked task is the exception, a failure).
         missing: [
           ...new Set(
             input.ids.flatMap((id) =>

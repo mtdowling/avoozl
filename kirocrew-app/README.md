@@ -37,7 +37,7 @@ backend pushes them to the gateway when it starts and after each tick.
 
 The tick needs the status of each session it opened. When Kiro Crew's script
 cron offers `ScriptContext.session_status`, the cron hands the tick that roster.
-Installed Kiro Crew (0.12.2.3) does not, so after each tick the app backend
+Kiro Crew 0.12.2 does not, so after each tick the app backend
 reads each live session with `GET /api/chat/slots/<slot>` on its app token and
 records `working`, `queued`, `idle`, or `gone`. Kiro Crew answers the same way
 for a closed session and a lost one, so a worker session that is `gone`
