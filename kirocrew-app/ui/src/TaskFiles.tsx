@@ -7,7 +7,7 @@ import Badge from './Badge.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'
 import { ExternalLink, Folder, GitBranch, RefreshCw } from './icons.ts'
-import { IconBtn } from './controls.tsx'
+import { IconBtn, SectionBox } from './controls.tsx'
 import {
   EDITORS,
   STATUS_LETTER,
@@ -214,7 +214,9 @@ function Diff(props: { diff: DiffView; layout: 'unified' | 'split' }) {
 
 // The Files fold's body. `active` is false until the fold first opens, so a
 // closed fold reads nothing.
-export function TaskFiles(props: { workspaceId: string; taskId: string; active: boolean }) {
+// With `box`, the section draws only when the task has a branch to show: nothing
+// while it loads and nothing when there is none.
+export function TaskFiles(props: { workspaceId: string; taskId: string; active: boolean; box?: { id: string; title: string } }) {
   const api = useAppApi()
   const client = useMemo(() => filesClient(api), [api])
   const [view, setView] = useState<FilesView | null>(null)
@@ -262,7 +264,8 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
         {error}
       </p>
     )
-  if (!view) return <p className="text-sm text-muted">Reading the task&apos;s branch…</p>
+  if (!view) return props.box ? null : <p className="text-sm text-muted">Reading the task&apos;s branch…</p>
+  if (props.box && view.mode === 'none') return null
 
   const github = safeHref(view.github) && view.github
   // Open in editor needs the files on this machine: the task's own worktree.
@@ -285,7 +288,7 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
   // The shown file on disk, at its first changed line; a deleted file has none.
   const fileTarget = local && picked && pickedChange?.status !== 'deleted' ? { path: joinPath(view.worktree!, picked), line: firstChangedLine(diffLines) } : null
   const fileHref = fileTarget && editorHref(editor, fileTarget.path, fileTarget.line)
-  return (
+  const body = (
     <div className="flex flex-col gap-3" data-task-files>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span data-files-totals>
@@ -380,4 +383,5 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
       )}
     </div>
   )
+  return props.box ? <SectionBox id={props.box.id} title={props.box.title}>{body}</SectionBox> : body
 }

@@ -166,7 +166,14 @@ answer('task.summary.request', (body) => {
   if ((body.input as { retry?: boolean }).retry) return summaryAt('working')
   return summaryAt(query.get('summary') === 'failed' || summaryAsks < 2 ? 'working' : 'ready')
 })
+// The spec file the task came from: 40 lines, the task's own at 20–21.
+const SPEC_LINES = Array.from({ length: 40 }, (_, i) => `Spec line ${i + 1}`)
+answer('document.get', () => ({ id: '.kiro/specs/team/tasks.md', title: 'tasks.md', text: SPEC_LINES.join('\n') }))
 answer('task.detail', () => ({
+  origin: {
+    kind: 'spec', label: 'Spec task', text: 'From .kiro/specs/team/tasks.md, lines 20–21.', spec: null, plan: null,
+    sources: [{ document: '.kiro/specs/team/tasks.md', title: null, lineStart: 20, lineEnd: 21, checked: null, readable: true }],
+  },
   summary: summaryAt(query.get('summary') ?? 'none'),
   revision: 1,
   task: {
@@ -212,7 +219,7 @@ answer('task.detail', () => ({
 }))
 answer('task.evidence', () => ({
   taskId: 'team-review',
-  entries: [{ id: 'ev-1', kind: 'check', at: '2026-11-13T09:00:00Z', source: 'session:chat-1', text: 'npm run test:protocol passed' }],
+  entries: query.get('evidence') === 'none' ? [] : [{ id: 'ev-1', kind: 'check', at: '2026-11-13T09:00:00Z', source: 'session:chat-1', text: 'npm run test:protocol passed' }],
 }))
 answer('task.notes.list', () => ({
   taskId: 'team-review',
