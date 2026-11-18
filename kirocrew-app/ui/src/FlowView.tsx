@@ -1,18 +1,17 @@
 import { PlanningFlow } from './PlanningFlow.tsx'
 import CiFlow from './CiFlow.tsx'
-// The Flow tab (design §8.4, R48): where delivery time goes and what the
-// last retro proposed. Read-only except Approve, Reject, Run a retro now,
-// and Run anyway on a stopped line. Pull requests and CI runs stay in Issue
-// Radar and GitHub; this tab shows graph and delivery timing only.
+// The Flow tab (design §8.4, R48): where delivery time goes. Retros and
+// Proposals are the Retros pill's pages (owner note 2026-11-17). Read-only
+// except Run anyway and Resume on a stopped line. Pull requests and CI runs
+// stay in Issue Radar and GitHub; this tab shows graph and delivery timing only.
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, Card, EmptyState } from '@kirocrew/app-sdk/ui'
-import { ProposalsView } from './FlowMemory.tsx'
-import type { FlowTab } from './nav-api.ts'
+import { Card, EmptyState } from '@kirocrew/app-sdk/ui'
 import GithubFlow from './GithubFlow.tsx'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
-import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
+import { useStoredFilter } from './FilterPanel.tsx'
+import { FlowRail } from './FlowRail.tsx'
 import { ICON, IconLabel, SectionHeading, ShowMore, ViewHeading, dangerStyle, useConfirm, usePages } from './controls.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
@@ -27,25 +26,20 @@ import {
   STAGES,
   STAGE_COLORS,
   STAGE_LABELS,
-  WINDOW_OPTIONS,
+  FLOW_ORDER,
   bannerText,
   barSegments,
-  directionText,
   duration,
-  evidenceText,
-  filterActive,
+  flowChoices,
+  sortTasks,
   LINE_EVENT,
   flowClient,
   lineChanged,
   metricCards,
-  pdcaText,
-  proposalText,
   scopeText,
   type FlowFilter,
   type FlowViewModel,
   type LineStop,
-  type Proposal,
-  type Retro,
   type TaskTiming,
 } from './flow-api.ts'
 
@@ -267,134 +261,6 @@ function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
   )
 }
 
-function ProposalRow({ proposal, retro, onDecide, busy }: { proposal: Proposal; retro: Retro; onDecide: (r: Retro, p: Proposal, decision: 'approve' | 'reject') => void; busy: boolean }) {
-  const pdca = pdcaText(proposal)
-  return (
-    <li className="flex flex-wrap items-start gap-3 border-t pt-2 first:border-t-0 first:pt-0" style={{ borderColor: 'var(--border)' }} data-proposal={`${retro.id}:${proposal.id}`}>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-sm" style={{ minWidth: '14rem' }}>
-        <span style={{ overflowWrap: 'anywhere' }}>
-          <code className="text-xs">{proposalText(proposal)}</code> <span className="text-muted">{directionText(proposal)}</span>
-          {proposal.removesCheck && (
-            <>
-              {' '}
-              <Badge variant="warning">removes a check</Badge>
-            </>
-          )}
-          {proposal.revertOf && (
-            <>
-              {' '}
-              <Badge>revert</Badge>
-            </>
-          )}
-        </span>
-        <span className="text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
-          Evidence: {evidenceText(proposal)}
-        </span>
-        {proposal.status !== 'open' && (
-          <span className="text-xs">
-            {proposal.status === 'approved' ? 'Approved' : `Rejected${proposal.reason ? `: ${proposal.reason}` : ''}`}
-            {pdca ? ` · ${pdca}` : ''}
-          </span>
-        )}
-      </div>
-      {proposal.status === 'open' && (
-        <div className="flex gap-2">
-          <Btn type="button" disabled={busy} onClick={() => onDecide(retro, proposal, 'reject')}>
-            Reject
-          </Btn>
-          <Btn type="button" primary disabled={busy} onClick={() => onDecide(retro, proposal, 'approve')}>
-            Approve
-          </Btn>
-        </div>
-      )}
-    </li>
-  )
-}
-
-function Retros({ view, workspaceId, onChanged }: { view: FlowViewModel; workspaceId: string | null; onChanged: () => void }) {
-  const api = useAppApi()
-  const client = useMemo(() => flowClient(api), [api])
-  const confirm = useConfirm()
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [queued, setQueued] = useState(false)
-  const decide = async (retro: Retro, proposal: Proposal, decision: 'approve' | 'reject') => {
-    if (!workspaceId) return
-    let confirmRemoval = false
-    if (decision === 'approve' && proposal.removesCheck) {
-      confirmRemoval = await confirm({ title: 'Approve removing a check?', body: `${proposalText(proposal)} removes a review role or a declared check, so fewer things are checked before work lands.`, action: 'Remove the check' })
-      if (!confirmRemoval) return
-    }
-    setBusy(true)
-    setError(null)
-    try {
-      const { hash } = await client.settings(workspaceId)
-      await client.decide(workspaceId, { retroId: retro.id, proposalId: proposal.id, decision, expectedHash: hash, ...(confirmRemoval ? { confirmRemoval: true } : {}) })
-      onChanged()
-    } catch (caught) {
-      setError(errorMessage(caught))
-    } finally {
-      setBusy(false)
-    }
-  }
-  const start = async () => {
-    if (!workspaceId) return
-    try {
-      await client.startRetro(workspaceId)
-      setQueued(true)
-    } catch (caught) {
-      setError(errorMessage(caught))
-    }
-  }
-  const running = view.retros.some((r) => r.state === 'running')
-  return (
-    <Card className="flex flex-col gap-3">
-      <SectionHeading
-        title="Retros"
-        actions={
-          <IconLabel icon={Play} disabled={running || queued} tooltip="Start a retro at the next tick instead of waiting for its trigger" onClick={() => void start()}>
-            {queued ? 'Starts at the next tick' : 'Run a retro now'}
-          </IconLabel>
-        }
-      />
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
-      {!view.retros.length ? (
-        <p className="text-sm text-muted">A retro runs after 10 finished tasks.</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {view.retros.map((retro) => (
-            <li key={retro.id} className="flex flex-col gap-2" data-retro={retro.id}>
-              <span className="text-sm font-semibold">
-                Retro {retro.n} · {retro.triggers.map((t) => t.detail).join('; ') || 'started'}
-                {retro.bottleneck ? ` · bottleneck ${STAGE_LABELS[retro.bottleneck.stage as keyof typeof STAGE_LABELS] ?? retro.bottleneck.stage}` : ''}
-              </span>
-              {retro.state === 'running' && <span className="text-sm text-muted">Running since {relativeTime(retro.startedAt, Date.now())}.</span>}
-              {retro.state === 'failed' && <span className="text-sm text-danger">Failed: {retro.error}</span>}
-              {retro.bottleneck && <span className="text-xs text-muted">{retro.bottleneck.evidence}</span>}
-              {retro.proposals.length > 0 && (
-                <ul className="flex flex-col gap-2">
-                  {retro.proposals.map((p) => (
-                    <ProposalRow key={p.id} proposal={p} retro={retro} onDecide={(r, q, d) => void decide(r, q, d)} busy={busy} />
-                  ))}
-                </ul>
-              )}
-              {retro.dropped?.length > 0 && (
-                <span className="text-xs text-muted">
-                  Dropped: {retro.dropped.map((d) => `${d.key ?? `proposal ${d.index + 1}`} (${d.reason})`).join('; ')}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
-  )
-}
-
 function Records({ view }: { view: FlowViewModel }) {
   if (!view.flaky.length && !view.ciOnly.length) return null
   return (
@@ -414,56 +280,48 @@ function Records({ view }: { view: FlowViewModel }) {
   )
 }
 
-// `tab` is picked in the left nav; this page shows only that one.
-export default function FlowView({ workspaceId, tab }: { workspaceId: string | null; tab: FlowTab }) {
+export default function FlowView({ workspaceId }: { workspaceId: string | null }) {
   const api = useAppApi()
   const client = useMemo(() => flowClient(api), [api])
   const [filter, setFilter] = useStoredFilter<FlowFilter>(workspaceId, FLOW_FILTER_STORE)
   const key = JSON.stringify(filter)
   const load = useCallback((id: string) => client.view(id, JSON.parse(key)), [client, key])
   const { value: view, error, busy, reload } = useRead(workspaceId, load)
+  // The nav's chips and their counts come from a read with no filter, so a
+  // pick does not hide the other values.
+  const loadAll = useCallback((id: string) => client.view(id, {}), [client])
+  const { value: all, reload: reloadAll } = useRead(workspaceId, loadAll)
   // The top row's Stop the line reads the banner again here too.
   useEffect(() => {
-    const again = () => void reload()
+    const again = () => {
+      void reload()
+      void reloadAll()
+    }
     window.addEventListener(LINE_EVENT, again)
     return () => window.removeEventListener(LINE_EVENT, again)
-  }, [reload])
-  const setField = (change: Partial<FlowFilter>) => setFilter({ ...filter, ...change })
+  }, [reload, reloadAll])
   const [unit, setUnit] = useState<Unit>('day')
+  const [order, setOrder] = useState(FLOW_ORDER)
+  const choices = useMemo(() => (all ? flowChoices(all, view?.phases) : null), [all, view?.phases])
   return (
     <section aria-labelledby="avoozl-flow-title" className="flex flex-col gap-3.5">
       <ViewHeading id="avoozl-flow-title" view="flow">
         Flow
       </ViewHeading>
-      <p className="text-sm text-muted">Where delivery time goes, and what the last retro proposed.</p>
-      {tab === 'proposals' && <ProposalsView workspaceId={workspaceId} />}
-      {(tab === 'overview' || tab === 'retros') && error && (
+      <p className="text-sm text-muted">Where delivery time goes. Retros and their proposals are under Retros.</p>
+      {/* The sort and filters sit in the left nav under the open Flow section (nav-slot.tsx). */}
+      {choices && <FlowRail filter={filter} onFilter={setFilter} order={order} onOrder={setOrder} choices={choices} />}
+      {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
-      {tab === 'retros' ? (
-        view ? <Retros view={view} workspaceId={workspaceId} onChanged={() => void reload()} /> : <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
-      ) : tab !== 'overview' ? null : !view ? (
+      {!view ? (
         <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
       ) : (
         <>
           <LineBanner stops={view.line} workspaceId={workspaceId} onChanged={() => void reload()} />
           <GithubFlow workspaceId={workspaceId} />
-          <FilterPanel
-            id="avoozl-flow"
-            label="Filter flow timing"
-            active={filterActive(filter)}
-            onClear={() => setFilter({})}
-            fields={[
-              { kind: 'select', key: 'repository', label: 'Repository', value: filter.repository ?? '', options: [...view.repositories.map((r) => ({ value: r, label: r }))], onChange: (repository) => setField({ repository: repository || undefined }) },
-              { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: [...view.epics.map((e) => ({ value: e.id, label: e.title }))], onChange: (epic) => setField({ epic: epic || undefined }) },
-              { kind: 'select', key: 'plan', label: 'Plan', value: filter.plan ?? '', options: (view.plans ?? []).map((p) => ({ value: p.id, label: p.title })), onChange: (plan) => setField({ plan: plan || undefined, phase: undefined }) },
-              { kind: 'select', key: 'phase', label: 'Phase', value: filter.phase ?? '', options: (view.phases ?? []).map((p) => ({ value: p.id, label: p.title })), disabled: !filter.plan, hint: filter.plan ? undefined : 'Pick a plan to filter by its phases', onChange: (phase) => setField({ phase: phase || undefined }) },
-              { kind: 'select', key: 'window', label: 'Window', value: filter.window ?? '20', options: WINDOW_OPTIONS, onChange: (window) => setField({ window: window || undefined }) },
-              { kind: 'select', key: 'stage', label: 'Stage', value: filter.stage ?? '', options: [...STAGES.map((s) => ({ value: s, label: STAGE_LABELS[s] }))], onChange: (stage) => setField({ stage: stage || undefined }) },
-            ]}
-          />
           <MetricCards view={view} />
           {view.bottleneck && (
             <Card className="flex items-start gap-2 text-sm">
@@ -475,7 +333,7 @@ export default function FlowView({ workspaceId, tab }: { workspaceId: string | n
             </Card>
           )}
           {view.tasks.length ? (
-            <TaskBars tasks={view.tasks} />
+            <TaskBars tasks={sortTasks(view.tasks, order)} />
           ) : (
             <Card data-no-timing>
               <EmptyState icon={<Gauge size={36} aria-hidden="true" />} title="No timing yet" subtitle="Avoozl records where each task's time goes as soon as a task is dispatched." />

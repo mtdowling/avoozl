@@ -1,10 +1,17 @@
 // The nav row, and where removed pages go.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { DASHBOARD_PAGES, RETIRED_LINE, TABS, dashboardPage, dashboardTab, navTab, redirectSettings, redirectTab, redirectWaiting, WAITING_SECTIONS, retiredCoders, tabLabel } from '../src/nav-api.ts'
+import { DASHBOARD_PAGES, RETIRED_LINE, RETROS_PAGES, TABS, dashboardPage, dashboardTab, navTab, redirectSettings, redirectTab, redirectWaiting, WAITING_SECTIONS, retiredCoders, tabLabel } from '../src/nav-api.ts'
 
-test('the nav row is Dashboards, Specs, Needs you, Flow, Activity, Settings', () => {
-  assert.deepEqual(TABS.map((t) => t.label), ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Activity', 'Settings'])
+test('the nav row is Dashboards, Specs, Needs you, Flow, Retros, Activity, Settings', () => {
+  assert.deepEqual(TABS.map((t) => t.label), ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Retros', 'Activity', 'Settings'])
+})
+
+test('Retros lists two pages, and an old Flow retros or proposals link opens them', () => {
+  assert.deepEqual(RETROS_PAGES.map((p) => p.label), ['Retros', 'Proposals'])
+  assert.deepEqual(redirectTab('flow:retros'), { tab: 'retros', open: { 'retros-page': 'retros' } })
+  assert.deepEqual(redirectTab('flow:proposals'), { tab: 'retros', open: { 'retros-page': 'proposals' } })
+  assert.equal(tabLabel('retros'), 'Retros')
 })
 
 test('the nav has no Issues or Pull requests pill, and old links open Dashboards > Home', () => {

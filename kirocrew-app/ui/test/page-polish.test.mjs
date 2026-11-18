@@ -6,11 +6,10 @@ import test from 'node:test'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
-test('Flow: Retros is its own tab, and Overview no longer lists retros', () => {
+test('Retros is its own nav pill, and Flow no longer lists retros', () => {
   const flow = source('FlowView.tsx')
   assert.match(source('nav-api.ts'), /\{ key: 'retros', label: 'Retros' \}/)
-  assert.match(flow, /tab === 'retros' \? \(\s*view \? <Retros /)
-  assert.equal(flow.match(/<Retros /g).length, 1)
+  assert.doesNotMatch(flow, /<Retros |ProposalRow/)
   assert.match(flow, /<Card data-no-timing>\s*<EmptyState[\s\S]{0,120}title="No timing yet"/)
 })
 

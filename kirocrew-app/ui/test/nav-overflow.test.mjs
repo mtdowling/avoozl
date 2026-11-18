@@ -72,7 +72,7 @@ for (const [width, height] of [
       })()`)
       assert.deepEqual(pill, { first: true, cut: true, inMain: false })
       const lefts = {}
-      for (const section of ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Activity', 'Settings']) {
+      for (const section of ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Retros', 'Activity', 'Settings']) {
         if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
         await open(width, section)
         assert.deepEqual(await page.evaluate(OVERFLOWS(width)), [], `${section} open`)

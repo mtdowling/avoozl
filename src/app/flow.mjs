@@ -893,6 +893,7 @@ export function taskTiming(
     repository: taskRepository(task) || null,
     epic: taskEpic(store.read(), task),
     phase: task.phase?.id ?? null,
+    plan: task.planId ?? null,
     startedAt: first,
     finishedAt: end,
     leadMs: lead,
