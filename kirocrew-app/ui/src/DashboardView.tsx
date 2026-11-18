@@ -34,7 +34,7 @@ import { linkHref, type TaskLinks } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Empty, HomeBox, HomePair, HomeSection, HomeStyle, PrLink, Tiles } from './HomeParts.tsx'
 
-export type DashboardTarget = 'plans' | 'graph' | 'waiting' | 'lanes' | 'delivery' | 'landing' | 'flow'
+export type DashboardTarget = 'plans' | 'graph' | 'waiting' | 'delivery' | 'landing' | 'flow'
 
 const KIND_LABEL: Record<string, string> = { ...CONFLICT_LABELS, delivery: 'Delivery', 'github-conflict': 'GitHub edit', manual: 'Manual' }
 

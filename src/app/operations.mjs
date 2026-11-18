@@ -3582,7 +3582,13 @@ export class Operations {
       }
       return graphView(store, this.read(), input, folders);
     }
-    if (name === "delivery.view") return deliveryView(store, this.read());
+    if (name === "delivery.view")
+      return {
+        ...deliveryView(store, this.read()),
+        // How many chats this Mac runs at once (R88.5); null when delivery is off.
+        laneLimit:
+          readDeliveryPolicy(this.workspaceRoot).delivery?.concurrency ?? null,
+      };
     // Dashboards › Landing queue: per base, in order, with hold reasons;
     // from the store only, so Refresh never calls GitHub (44.5).
     if (name === "landing.queue") return landingQueueView(store, this.read());

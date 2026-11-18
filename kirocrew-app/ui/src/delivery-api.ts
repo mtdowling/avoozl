@@ -2,7 +2,8 @@
 // delivery and graph reads. Kept free of JSX so node can test it directly.
 import { nodeState, waves, type NodeState } from './graph-layout.ts'
 import { matches, type TaskFilter } from './filters.ts'
-import type { DeliveryItem, DeliverySession, Graph, GraphTask } from './views-api.ts'
+import type { DeliveryItem, DeliverySession, Graph, GraphTask, RemoteWorker } from './views-api.ts'
+import { summarize } from './dashboard-api.ts'
 import { laneOf as sharedLaneOf } from '../../../src/delivery-lanes.mjs'
 
 export type LaneId = 'ready' | 'running' | 'reviewing' | 'needs-you' | 'waiting' | 'done'
@@ -342,3 +343,35 @@ export function chipCounts(options: { value: string; label: string }[], cards: L
   }
   return options.map((option) => ({ ...option, count: counts.get(option.value) ?? 0 })).filter((item) => item.count > 0)
 }
+
+export const THIS_MAC = 'This Mac'
+
+export interface MachineLoad {
+  host: string
+  running: number
+  // Chats this machine runs at once; null when Avoozl does not know it.
+  limit: number | null
+}
+
+// What runs on each machine now, from the reads Delivery already makes
+// (delivery.view, remote.view): the live chats per host, this Mac first. A
+// remote host's limit is not recorded, so it shows its count alone.
+export function machineLoads(items: DeliveryItem[], workers: RemoteWorker[], laneLimit: number | null) {
+  const rows = summarize({ graph: null, delivery: items, conflicts: null, plans: null, remote: workers, limit: Infinity }).inFlight
+  const hostsOf = new Map<string, string[]>()
+  const running = new Map<string, number>()
+  for (const row of rows) {
+    const host = row.remote?.host ?? THIS_MAC
+    running.set(host, (running.get(host) ?? 0) + 1)
+    const hosts = hostsOf.get(row.taskId) ?? []
+    if (!hosts.includes(host)) hosts.push(host)
+    hostsOf.set(row.taskId, hosts)
+  }
+  if (laneLimit !== null && !running.has(THIS_MAC)) running.set(THIS_MAC, 0)
+  const loads: MachineLoad[] = [...running]
+    .map(([host, count]) => ({ host, running: count, limit: host === THIS_MAC ? laneLimit : null }))
+    .sort((a, b) => Number(b.host === THIS_MAC) - Number(a.host === THIS_MAC) || a.host.localeCompare(b.host))
+  return { loads, hostsOf }
+}
+
+export const loadLabel = (load: MachineLoad) => `${load.host} ${load.running}${load.limit === null ? '' : `/${load.limit}`}`

@@ -470,7 +470,7 @@ export function viewsClient(api: AppApi) {
         (r) => r.items,
       ),
     deliveryPage: (workspaceId: string) =>
-      run<{ revision: number; items: DeliveryItem[]; contentReports?: ContentReport[] }>('delivery.view', {}, workspaceId),
+      run<{ revision: number; items: DeliveryItem[]; contentReports?: ContentReport[]; laneLimit?: number | null }>('delivery.view', {}, workspaceId),
     // Replace a local task with a new one; dependents then wait on the new one.
     supersede: (workspaceId: string, id: string, create: { id?: string; title?: string }) =>
       run<{ superseded: { id: string }; task: { id: string } }>('task.supersede', { id, create }, workspaceId),

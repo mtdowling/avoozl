@@ -12,6 +12,8 @@ import {
   laneForState,
   laneColumns,
   laneOf,
+  loadLabel,
+  machineLoads,
   progressGroups,
   resumeStatus,
 } from '../src/delivery-api.ts'
@@ -268,4 +270,34 @@ test('chip counts keep only values a card has, in the choices order', async () =
     chipCounts([{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }, { value: '(none)', label: 'No epic' }], cards, (card) => card.epicId ?? '(none)'),
     [{ value: 'b', label: 'B', count: 2 }, { value: '(none)', label: 'No epic', count: 1 }],
   )
+})
+
+test('each machine counts its running chats against its lane limit; a card names its host', () => {
+  const live = (id, n) => item(id, { sessions: Array.from({ length: n }, (_, i) => session('worker', 'working', i + 1)) })
+  const items = [live('a', 2), live('b', 1), item('c', { sessions: [session('worker', 'closed')] })]
+  const worker = (host, taskId, n) => ({ host, crewId: 'c', taskId, state: 'running', chatKey: `${host}-${taskId}-${n}`, status: 'working', updatedAt: '', attachUrl: null, stale: false, lastOkAt: null })
+  const workers = [worker('dev desktop', 'd', 1), worker('dev desktop', 'e', 1), worker('build box', 'f', 1)]
+  const { loads, hostsOf } = machineLoads(items, workers, 3)
+  // Expected: live local sessions are 3 (the closed one is not running).
+  const localRunning = items.flatMap((i) => i.sessions).filter((s) => s.status !== 'closed').length
+  assert.deepEqual(loads.map((l) => [l.host, l.running, l.limit]), [
+    ['This Mac', localRunning, 3],
+    ['build box', workers.filter((w) => w.host === 'build box').length, null],
+    ['dev desktop', workers.filter((w) => w.host === 'dev desktop').length, null],
+  ])
+  assert.equal(loads.map(loadLabel).join(' · '), `This Mac ${localRunning}/3 · build box 1 · dev desktop 2`)
+  assert.deepEqual(hostsOf.get('d'), ['dev desktop'])
+  assert.deepEqual(hostsOf.get('a'), ['This Mac'])
+  assert.equal(hostsOf.get('c'), undefined)
+  // No limit known: the count alone. This Mac with nothing running and a limit still shows.
+  assert.equal(machineLoads([], [], null).loads.length, 0)
+  assert.equal(loadLabel(machineLoads([], [], 3).loads[0]), 'This Mac 0/3')
+})
+
+test('an In progress card shows its machine badge and the lane shows the counts line', () => {
+  const view = readFileSync(new URL('../src/DeliveryView.tsx', import.meta.url), 'utf8')
+  assert.match(view, /props\.phase && \(\s*<span data-machine-badge>\s*<Badge>\{props\.machines\.join\(', '\)\}<\/Badge>/)
+  assert.match(view, /data-machine-counts>\s*\{props\.machines\.map\(loadLabel\)\.join\(' · '\)\}/)
+  // Theme variables only.
+  assert.doesNotMatch(view.slice(view.indexOf('data-machine-counts') - 80, view.indexOf('data-machine-counts') + 200), /#[0-9a-f]{3,6}\b/i)
 })
