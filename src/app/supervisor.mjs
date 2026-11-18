@@ -128,6 +128,18 @@ export function openSupervisorDatabase(stateDirectory) {
       requested_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    -- Machine-wide resource slots held by integrator trains (landing-trains
+    -- D14): two workspaces on one machine share one Windows VM.
+    CREATE TABLE IF NOT EXISTS resource_slots (
+      slot TEXT NOT NULL,
+      n INTEGER NOT NULL,
+      workspace TEXT NOT NULL,
+      train TEXT NOT NULL,
+      pid INTEGER NOT NULL,
+      process_started TEXT,
+      taken_at TEXT NOT NULL,
+      PRIMARY KEY (slot, n)
+    );
     CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       session_id TEXT NOT NULL,

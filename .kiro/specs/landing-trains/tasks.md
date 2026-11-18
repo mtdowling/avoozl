@@ -83,13 +83,13 @@ person.
 
 ## Phase 4: Validation and local capacity
 
-- [ ] lt-4.1 Machine platform environments and the platforms a train needs, after lt-1.1 [LT7.3, LT7.4] (§D9.1, §D9.2)
+- [x] lt-4.1 Machine platform environments and the platforms a train needs, after lt-1.1 [LT7.3, LT7.4] (§D9.1, §D9.2)
   - Read `machine.platforms` from the global file only; `platforms.rules` globs or the `platforms.classifier` argv (changed paths on stdin, JSON list out); all platforms when neither is set.
   - Done when: Tests: a classifier fixture script gets the changed paths and its JSON output decides the platforms; rules map `src/win/**` to `windows-x64` only; a classifier that exits nonzero or prints bad JSON fails the train's step with the reason; a platform environment set in `.avoozl.json` is refused.
-- [ ] lt-4.2 Cheap and full validation runners with suite results, after lt-4.1, lt-3.2 [LT7.1, LT7.2, LT7.5, LT7.6] (§D9.3)
+- [x] lt-4.2 Cheap and full validation runners with suite results, after lt-4.1, lt-3.2 [LT7.1, LT7.2, LT7.5, LT7.6] (§D9.3)
   - Cheap checks on the stack head before any push, with per-check timeouts; full validation per needed platform through its wrapper, in parallel up to free slots; the results file read into the train record.
   - Done when: Tests with fake wrapper scripts: the wrapper receives the command and runs in the landing worktree; a cheap check failure stops before any push; a timeout fails with "timed out after N s"; a results file's suites appear per platform on the train; a missing or malformed results file means whole-command reruns, recorded once.
-- [ ] lt-4.3 Local resource slots shared across workspaces, after lt-4.1 [LT13.1, LT13.2, LT13.3] (§D14)
+- [x] lt-4.3 Local resource slots shared across workspaces, after lt-4.1 [LT13.1, LT13.2, LT13.3] (§D14)
   - `resource_slots` in the supervisor's machine database; a train takes every slot its platforms use before full validation and releases them at its end; a worker check needing a held slot waits with the train named.
   - Done when: Tests: two workspaces on one machine database, one `windows-vm` slot: the second train waits until the first ends; a worker check waits with "waiting for windows-vm (train-…)"; a crashed holder's slot is freed by the taker (with lt-2.4).
 - [ ] lt-4.4 CI fallback for platforms without a local environment, after lt-4.2 [LT7.7] (§D9.3)
