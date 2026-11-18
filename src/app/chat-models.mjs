@@ -71,6 +71,48 @@ export function chatModel(config, role) {
     : null;
 }
 
+// Settings › Models also picks the harness each role runs on (R98.3),
+// saved as `harnesses` in .avoozl.json: `kirocrew` for a Kiro Crew chat, or
+// a harness definition's name for a supervisor child. A role left out, or
+// "auto", runs on its project's executor. A task's `session.harness` pin
+// wins over both (R98.4).
+export const KIROCREW_HARNESS = "kirocrew";
+export const HARNESS_ROLES = Object.freeze(["worker", ...MODEL_ROLES]);
+const HARNESS = /^[a-z][a-z0-9-]{0,60}$/;
+export const isHarnessName = (value) =>
+  typeof value === "string" && HARNESS.test(value);
+
+// Check a `harnesses` value; throws naming the key.
+export function validateHarnesses(value, where = "harnesses") {
+  if (value === undefined) return {};
+  if (!record(value)) fail(`${where} must be an object.`);
+  for (const [key, harness] of Object.entries(value)) {
+    if (!HARNESS_ROLES.includes(key))
+      fail(`${where}.${key} is not a role; use ${HARNESS_ROLES.join(", ")}.`);
+    if (!isHarnessName(harness))
+      fail(
+        `${where}.${key} must be ${KIROCREW_HARNESS}, a harness name or "auto".`,
+      );
+  }
+  return structuredClone(value);
+}
+
+// The harness a role's saved setting names, or null for its project's.
+export function roleHarness(config, role) {
+  const harness = record(config?.harnesses)
+    ? config.harnesses[role]
+    : undefined;
+  return isHarnessName(harness) && harness !== "auto" ? harness : null;
+}
+
+// The executor a named harness runs on: `kirocrew` is the Kiro Crew chat,
+// any other name is a `process` child of that definition.
+export function harnessExecutor(harness) {
+  return harness === KIROCREW_HARNESS
+    ? { executor: KIROCREW_HARNESS }
+    : { executor: "process", harness };
+}
+
 // Each dispatch of a role with a saved model asks for it. The retro's saved
 // model wins over the older `flow.retro.model`.
 export function withChatModels(dispatch, config) {
