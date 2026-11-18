@@ -18,6 +18,7 @@ import {
   type WorkspaceList,
 } from './workspace-api'
 import { SectionHeading, dangerStyle } from './controls.tsx'
+import { FormSection } from './FormSection.tsx'
 import { Modal } from './Modal.tsx'
 import { Pencil, Plus, Trash2 } from './icons.ts'
 import { FolderField } from './FolderPicker.tsx'
@@ -347,28 +348,32 @@ export default function WorkspaceView(
           <form
             id="avoozl-ws-edit-form"
             data-edit-form
-            className="flex flex-col gap-2"
+            className="flex flex-col gap-3"
             onSubmit={(event) => {
               event.preventDefault()
               saveEdit()
             }}
           >
-            <Field id="avoozl-ws-edit-name" label="Name" value={edit.name} required onChange={(name) => setEdit({ ...edit, name })} />
-            <FolderField id="avoozl-ws-edit-root" label="Folder" value={edit.root} required client={client} onChange={(root) => setEdit({ ...edit, root })} />
-            <p className="text-xs text-muted">Change it after you move the folder. The new folder must hold this workspace.</p>
-            <label htmlFor="avoozl-ws-edit-limit" className="flex flex-col gap-1 text-sm">
-              <span>Agents at once</span>
-              <Input id="avoozl-ws-edit-limit" type="number" min={0} max={64} step={1} value={edit.maxConcurrentRuns} onChange={(event) => setEdit({ ...edit, maxConcurrentRuns: event.target.value })} style={{ maxWidth: '8rem' }} />
-              <span className="text-xs text-muted">How many tasks run here at the same time. 0 holds new work.</span>
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" data-edit-enabled checked={edit.enabled} onChange={(event) => setEdit({ ...edit, enabled: event.target.checked })} />
-              On (ticks run and pages read it)
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" data-edit-default checked={edit.default} disabled={isDefault} onChange={(event) => setEdit({ ...edit, default: event.target.checked })} />
-              {isDefault ? 'The default workspace' : 'Make it the default workspace'}
-            </label>
+            <FormSection title="Workspace">
+              <Field id="avoozl-ws-edit-name" label="Name" value={edit.name} required onChange={(name) => setEdit({ ...edit, name })} />
+              <FolderField id="avoozl-ws-edit-root" label="Folder" value={edit.root} required client={client} onChange={(root) => setEdit({ ...edit, root })} />
+              <p className="text-xs text-muted">Change it after you move the folder. The new folder must hold this workspace.</p>
+            </FormSection>
+            <FormSection title="Running">
+              <label htmlFor="avoozl-ws-edit-limit" className="flex flex-col gap-1 text-sm">
+                <span>Agents at once</span>
+                <Input id="avoozl-ws-edit-limit" type="number" min={0} max={64} step={1} value={edit.maxConcurrentRuns} onChange={(event) => setEdit({ ...edit, maxConcurrentRuns: event.target.value })} style={{ maxWidth: '8rem' }} />
+                <span className="text-xs text-muted">How many tasks run here at the same time. 0 holds new work.</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" data-edit-enabled checked={edit.enabled} onChange={(event) => setEdit({ ...edit, enabled: event.target.checked })} />
+                On (ticks run and pages read it)
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" data-edit-default checked={edit.default} disabled={isDefault} onChange={(event) => setEdit({ ...edit, default: event.target.checked })} />
+                {isDefault ? 'The default workspace' : 'Make it the default workspace'}
+              </label>
+            </FormSection>
             {editCheck.error && (
               <p className="text-sm text-danger" data-edit-error>
                 {editCheck.error}
