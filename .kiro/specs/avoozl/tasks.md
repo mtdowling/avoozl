@@ -210,6 +210,7 @@ new `plans_intake_*` tools. No earlier task changes.
 - [x] 2.12 Decisions and notifications through the app's channels with a link to the session. [R9, R26.10] (§4.2)
   - Built: `819db47` (receipt `docs/evidence/phase2-runner-notices.md`, `7ace224`).
 - [x] 2.13 Build the Graph, Delivery, and Conflicts views for local tasks. [R20, R21] (§8)
+  - Changed 2026-11-17: Conflicts is Needs you › Decisions (#464); Home was redesigned (#472); Graph, Delivery, CI and Landing queue are pages of Dashboards (#508 removed Lanes).
   - Built: `92edf4e` (receipt `docs/evidence/phase2-views.md`, `1a2d120`).
 - [x] 2.14 Crew Mode runner support [R6.5, R26, R27.14] (§5.1, §6.6)
   - Exclude claimed tasks from readiness (or add a claim operation), add a structured session binding the conductor reports, add one `avoozl next` command (and `plans_next` tool) that returns `ready`, `running`, `waiting` (with the blockers each waits on), `needsYou` (blocked, review, open decisions), and `done`, and ship a steering file and `AgentSpawn` hook that drive rounds from it through one writer. Rule: start `ready`; wait while `running` is not empty; ask the user for `needsYou`; stop only when all are `done`. Keep the worker brief builder route-neutral: task 4.7 reuses this runner for plans-repo leaves.
@@ -705,6 +706,7 @@ IDs never move.
   - One decision per task naming each crew and the rule or check that removed it, in yellow on the Routing page and in Conflicts; it closes by itself when a rule or crew change makes the task fit; never run the session elsewhere.
   - Built: `placement_decisions`, `openNoFit`/`closeNoFit` in `src/app/routing.mjs`, `no-fit` items in Conflicts, `3068954`.
 - [x] 11.8 Routing page per §8.3 (superseded 2026-11-13 by 11.14–11.17) [R42, R20.4, R41.14] (§8.3)
+  - Removed 2026-11-14 (#153): there is no Routing page and Settings has no Routing section. `redirectSettings` sends an old Routing link to Repository setup.
   - Sections Crews, Rules, Smart pick, Model router, Preview, each with a heading and one short line and an empty-state line; rule rows "When <match> -> <route> on <crews>" with drag to reorder and a side form with Required and Optional markers and placeholders; checkbox pickers for labels, roles, routes, and tags; per-crew Chat limit (placeholder 3 for `local`, 2 remote) and one Stale after field (placeholder 120 s), both saved on this machine; the router instructions box marked as saved on this machine only; until MC-10 ships, one neutral line saying remote placement waits on Kiro Crew; red, confirmed delete and remove on the right; Preview read-only with route, crew, reason, and "why not"; Settings links here and stops listing delivery routes; every edit through the shared operations with expected revisions (CLI `avoozl routing …` and MCP `plans_routing_*`); yellow only for no fit and unavailable content-rule sets. Check the page by drawing it and looking at it.
   - Built: `kirocrew-app/ui/src/RoutingView.tsx`, `routing-api.ts`, operations `routing.view`, `routing.preview`, `routing.update`, `crews.update`, CLI `avoozl routing` and `avoozl crews set`, MCP `plans_view` actions `routing` and `routing_preview` (edits are person-only), `6a9cf83`. Drawn at three widths in light and dark.
 - [x] 11.9 Fake crew driver and docs [R41.13, R24.2] (§4.10)
@@ -714,18 +716,21 @@ IDs never move.
   - Per-crew machine-local `delivery: handback | push` (default `handback`), `sshHost`, and `worktreeRoot`; the hand-back brief names the folder and forbids a push or GitHub write; at `done` fetch the task branch over SSH with Avoozl's own `known_hosts` (accept-new on first use, yes after), check the reported commit, fast-forward the local task branch, then the `diff` boundary, checks, review, and integration run here; a crew missing either setting is "work not fetchable"; tests use a fake ssh command and a local repository, never a real host.
   - Built: `src/app/handback.mjs`, crew `delivery`/`sshHost`/`worktreeRoot`, `src/app/test/handback.test.mjs` with a fake ssh command, `3068954`, `13c365c`. A pull-request leaf on a hand-back crew needs a local chat that pushes; that chat is not built.
 - [x] 11.14 One routing prompt, off by default, after 11.1 [R41.2–R41.4, R41.7, R41.8] (§4.10 One routing prompt, Hard checks, The routing agent)
+  - Removed 2026-11-15 (#282, task 45.3): the routing agent and its chat are gone. `src/app/routing.mjs` keeps manifest pins, capacity and provider hard checks; the one-time key migration (11.17) stays.
   - Machine-local `routing` `{enabled, prompt, model}`, refused in `.avoozl.json` with the old `rules`, `pick`, `router` and `projects.<id>.routing` keys; manifest `needs` (crew tags) and `session` pins `{agent, model, crew}`, `choices` refused; hard checks per §4.10 (pin, where the commit is, needs, agent, online, ready, reach, out, review model) that only remove; options = crews with room × models that passed; one tool-less `avoozl-router` session per tick for every task with more than one option, its brief holding the prompt, this tick's facts and each task's options with task text fenced as untrusted data; reply `[{task, crew, model, reason}]` validated against each task's options; an answer used in one tick after the checks run again, then spent; a bad, missing or late reply, or a pick outside its options, falls back to local and writes one `routing.fallback` Activity row; the routing session does not count toward local's chat limit; crews' `ready` from the crew snapshot; Kiro Crew's model list read on every backend pass; the agent ID and MCP names kept.
   - Built: `src/app/placement.mjs` (`validateRouting`, `validateSession`, `validateNeeds`, `crewChecks`, `modelChecks`), `src/app/router.mjs` (`PROMPT_EXAMPLES`, `routerBrief`, `openRouter`, `recordRouterReply`, `spendRouter`, `logFallback`), `src/app/routing.mjs` (`hardChecks`, `placeOne`, `routingFacts`, `recordModelList`), tests `src/app/test/placement.test.mjs`.
 - [x] 11.15 Pins win and retries keep their model, after 11.14 [R53] (§4.10 Agent and model per session)
   - The writer's session from the manifest pin, then the routing agent's pick, then `delivery`, then Kiro Crew's default; a retry keeps its model unless it is out; Pick again clears it; checks and review roles keep their own agent and model on `local`; the binding records how each was chosen.
   - Built: `src/app/routing.mjs` `hardChecks`, `placeOne`; `src/app/delivery.mjs` `planReadyDispatches`, `planVerifierDispatches`.
 - [x] 11.16 Settings › Routing, after 11.14 [R42, R72.17] (§8.3)
+  - Removed 2026-11-14 (#153): no Settings › Routing section. See 11.8.
   - Routing moves from a top-level page into Settings; sections Routing prompt (switch, prompt with canned examples, the routing agent's model, the last call's outcome), Providers (health, usage, a credits limit per provider, one Low at), Crews (with each check's result, the crew side form, Stale after), and Preview (a dry run with options, ruled-out reasons and the brief); the Rules, Smart pick and Model router sections and the Providers tab are removed; the Switch model button and dialog stay. Check the page by drawing it and looking at it.
   - Built: `kirocrew-app/ui/src/RoutingView.tsx`, `routing-api.ts`, `SettingsView.tsx` tab `routing`, tests `kirocrew-app/ui/test/routing.test.mjs`. Not drawn: this machine has no browser for the screenshot harness.
 - [x] 11.17 One-time migration of the old keys, after 11.14 (§4.10 One routing prompt)
   - `scripts/migrate-routing.mjs <file>` turns old rules, presets and router instructions into prompt lines (into a machine file's `routing.prompt`; printed for a tracked file), drops the removed provider keys, keeps a copy beside each changed file, and is idempotent; delete it once the owner's machines are migrated.
   - Built: `scripts/migrate-routing.mjs`, `src/app/test/migrate-routing.test.mjs`. Run on this machine's `~/.config/avoozl/config.json` and workspace files: nothing to migrate.
 - [x] 11.18 No fallback when routing is on, after 11.14 [R41.7, R41.7a, R42.3] (§4.10 Routing failures, §8.3)
+  - Removed 2026-11-15 (#282): there is no routing agent to fall back from. See 11.14.
   - A failed router (error, timeout, bad reply, pick outside the options or none, content rule on the brief, router model out, no folder) holds the task Ready and marked; backoff 1, 2, 4, 8, then 15 minutes; 3 failures in a row open one Needs you item with person-only Retry now (`routing.retry`) and Turn routing off (`routing.turnOff`); Activity `routing.failed` and `routing.recovered`; `routing.view` `health` {failures, lastSuccessAt, lastError, retryAt}; the Graph shows the mark.
   - Settings › Routing: an older backend's reply (captured from the code before PR #33, and none at all) shows the out-of-date line; each Settings tab has an error boundary.
   - Built: `src/app/routing-health.mjs`, `src/app/router.mjs`, `src/app/routing.mjs` `placeOne`, `turnRoutingOff`; tests `src/app/test/placement.test.mjs` (one per failure case, each asserting no crew and no placement), P29 action 4; `kirocrew-app/ui/test/routing-page.test.mjs` draws the page in Chrome for an empty and a blank `.avoozl.json`, old keys, routing on, failures, and two older backends, failing on any thrown error or boundary. Router chats have no budget cap (§4.17), so "router over budget" cannot happen; a dropped router dispatch fails at the 90-second limit.
@@ -834,6 +839,7 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
   - Observe operation that applies the exclusions at read time (triage and managed labels, rule matches without the actor check, task issues, recorded pull requests, pull requests that close a task's issue); `refresh: true` reads first; per-item GitHub, Issue Radar, and Code review links with the fallback and its tooltip; the bulk selection link.
   - Built: `c551205`.
 - [x] 13.4 Untriaged tab and Dashboard count, after 13.3 and 2.13 [R49.9–R49.13] (§8.5)
+  - Moved 2026-11-17 (#464): there is no Untriaged or Intake tab. The list is Needs you › Triage, with its count in the nav; Needs you also holds Decisions and Issue Radar. Old `untriaged` and `intake` links open Triage.
   - Top-level tab with the `Inbox` icon and an accent count badge; shared filter panel (repository, kind, age, author, label); 100-row pages; rows with kind icon, number and title, repository, author, age, labels, comments, draft and checks; icon buttons with the shared tooltip; keyboard multi-select and the bulk button; checked time and Check now; the empty state; hidden in Local only; the Dashboard count. Check the page by drawing it at three widths in light and dark and looking at it.
   - Built: `58ac891`, page `43f2744`.
 - [x] 13.5 Untriaged notice, after 13.2 [R49.14] (§8.5)
@@ -898,6 +904,7 @@ never move.
   - Title and labels follow to the tied task and rules run again, with withdrawal when no allowed match is left; a body change after the snapshot quarantines; closes follow the allowed-close rule (order, brief note, never verified; otherwise hold and a decision; never reopen); a reopen withdraws the order and leaves running sessions alone; untied closed items deleted after 30 days.
   - Built: `3040bef`: title, labels and rules follow to the tied task with withdrawal; body change after the snapshot quarantines; `judgeClose` with `intakeVerdict` (order) or `intakeHold` (decision), reopen lifts both; `purgeClosed` after 30 days. `completionReached` and `blockerNotes` read `intakeVerdict`.
 - [x] 14.10 Untriaged for every source, after 14.8, 14.5, and 13.4 [R50.15, R50.16, R50.19] (§8.5)
+  - Moved 2026-11-17 (#464): the Intake tab is Needs you › Triage. See 13.4.
   - Source filter and source on each row; non-GitHub rows link to the item, show no Issue Radar button, show **Code review** for reviews, and offer person-only **Plan this** and **Deliver this** (403 from a session caller or MCP, with a confirm dialog naming the item); the tab in Local only mode when a non-GitHub source is declared; **Check now** polls a plugin source once. Check the page by drawing it at three widths in light and dark and looking at it.
   - Built: `3040bef`, `dbcf1b9`, `2c932c0`: `intakeTab` adds every source's items with `source`; the Intake tab (renamed, R50.23) has a Source column and filter, item links, no Issue Radar on other sources, Code review for reviews, Plan this and Deliver this behind a confirm (403 for sessions and MCP), shows in Local only with a source, and Check now polls. Drawn at 1440, 1000 and 600 in light and dark with a harness and looked at.
 - [x] 14.11 MC-15 upstream ask [R50.19] (§4.12, §7.1, F99)
@@ -1020,6 +1027,7 @@ move.
   - `onboarding.inspect`, `onboarding.scan` and `plan.issues.preview`, all `observe`; the public secret and path rules move beside the content-rules matcher so the release scan and the leak scan share them.
   - Built: see the commit that adds `src/app/onboarding.mjs`.
 - [x] 20.2 Onboard dialog, after 20.1 and 16.5 [R58] (§4.15, §8)
+  - Merged 2026-11-17 (#515): there is no separate Onboard dialog. Settings › Repository setup has one **Add repository** entry that runs the same steps as follow-up setup. `Onboard.tsx` remains the step list behind it.
   - Eight steps with Cancel on each; steps that do not apply are left out and satisfied ones show done; one confirm per GitHub write; nothing written before Set up; never approves, starts or pushes.
   - Built: see the commit that adds `kirocrew-app/ui/src/Onboard.tsx`.
 
@@ -1115,9 +1123,11 @@ people read, and it builds on the incoming-item record of Phase 14.
   - Every user-facing plan word becomes spec; Plan a change becomes Change spec; `plans_*`, `plan.*`, CLI, `.avoozl.json` keys, SQLite, the Plans repo mode and `avoozl-planner` are unchanged; a page-source test fails on any `plan` or `plans` word outside its allowlist.
   - Built: `e179407`, `46ed4da` (page-source test `kirocrew-app/ui/test/specs-name.test.mjs`); the Specs tab, Change spec in `PlansView.tsx`.
 - [x] 23.2 Idea record and operations, after 14.10 and 17.1 [R63.1, R63.3–R63.6, R63.10] (§8.8, §4.12)
+  - Removed 2026-11-15 (#228): Ideas. `src/app/ideas.mjs`, the `idea.*` operations and the Ideas page are deleted; the `plans_intake` idea actions stay as removed-error stubs.
   - `local` items of kind `idea` with notes and links and their limits; `idea.capture`, `idea.append`, `idea.archive`, `idea.restore`; the `intake` boundary refuses blocked text; no trigger match, no task, no Untriaged count, no purge; `plans_intake` actions `capture_idea` and `add_idea_note`; CLI `avoozl intake idea`.
   - Built: `f254b8f` (`src/app/ideas.mjs`, `idea.capture`, `idea.append`, `idea.archive`, `idea.restore`, `plans_intake` actions `capture_idea` and `add_idea_note`, CLI `avoozl intake idea`; `src/app/test/ideas.test.mjs`).
 - [x] 23.3 Ideas on the page, after 23.1 and 23.2 [R63.2, R63.7, R63.10] (§8.8)
+  - Removed 2026-11-15 (#228): Ideas. See 23.2.
   - - New idea on Specs and Intake; Ideas (N) on Specs; the Idea kind filter; the idea drawer with notes, links, Add note, Add link, Archive and Restore; checked by drawing the page at 375 and 1280 px in light and dark.
   - Built: `f254b8f` (`Ideas.tsx`, + New idea, Ideas (N), the idea drawer; `kirocrew-app/ui/test/ideas.test.mjs`).
 - [x] 23.4 Riff on this and Make it a spec, after 23.3 [R63.8, R63.9] (§8.8, §8.6)
@@ -1142,6 +1152,7 @@ automatic stops of 12.6.
   - `flow.stop` {scope, repository?, spec?, taskId?, reason} records a `manual` row in `flow_stops` after the `brief` content rules; `flow.resume` {stopId} is person only and records who resumed; dispatch skips every task in scope, fix tasks included; the line watch never closes a pulled stop; Resume refuses an automatic stop and Run anyway a pulled one; `plans_session` action `stop_line`; `avoozl flow stop` and `avoozl flow resume`; Flow and the retro carry the pull.
   - Built: `79e5fa7` (`flow.stop`, `flow.resume`, `plans_session` action `stop_line`, `avoozl flow stop|resume`; `src/app/test/flow-andon.test.mjs`).
 - [x] 24.2 Stop the line on the Dashboard, after 24.1 [R64.1, R64.6, R64.7] (§4.11)
+  - Moved 2026-11-17 (#488): Stop the line is an icon button in the Dashboards › Delivery heading, not in the top bar. The dialog and the Line stopped banner are unchanged.
   - A red Stop the line button in the Dashboard header opens a dialog with a scope, its target and a required reason; the Line stopped banner shows who, when, scope, reason and the paused count, with a Resume button that asks first; checked by drawing the page at 375 and 1280 px in light and dark.
   - Built: `79e5fa7` (`StopLine.tsx`, the Line stopped banner in `DashboardView.tsx`; `kirocrew-app/ui/test/stop-line.test.mjs`).
 
@@ -1244,6 +1255,7 @@ retro model.
   - Attempts record `prompts` and `skills` (tool calls first, then the report's optional `skills`); receipt and Timing fold show them; PDCA per version with the "mixed" mark; revert proposals for prompt and skill changes.
   - Built: `a0a0771` (prompt version stamped at bind, skills from `plans_report` `skills`; Timing fold `versions`). Skills from tool-call reads are not wired: only report-listed skills are recorded.
 - [x] 28.5 Lessons store, write and read, after 28.2 and 12.10 [R69.1–R69.6, R69.9, R70.1] (§4.18)
+  - Removed 2026-11-15 (#228): the lessons store. `src/app/lessons.mjs` and `lessons-share.mjs` are deleted. `src/app/lessons-export.mjs` appends a workspace's stored lessons once to its steering rules file and drops the tables. The lessons parts of 28.6–28.9 (packs, healing, the Lessons view, sharing) went with it; the `lessons` plugin part now does nothing; Proposals stay.
   - `~/.config/avoozl/lessons.sqlite` with the fields and `context`; written on approve as `untested`, updated by PDCA; summary-only validation and the `lesson` boundary on write and use; fixed trait list; the brief's 10 ranked lessons and the "did not work" list; cited IDs checked; `flow.lessons.share` and `read` per workspace; untested expiry; the raw store never in a repository or GitHub.
   - Built: `a0a0771` (`src/app/lessons.mjs`, `~/.config/avoozl/lessons.sqlite`).
 - [x] 28.6 Lessons packs and export, after 28.5 and 16.3 [R69.7, R69.8, R70.6] (§4.18, §4.14)
@@ -1253,6 +1265,7 @@ retro model.
   - Drift checks at each retro and on read; confidence steps; `stale` and `needs re-check` marks that clear on confirmation, all in `history`; marked lessons left out of the citable list; the lessons review every `reviewEvery` retros with `lessonEdits` for a person; no delete; override drift at backend start with the three-way diff, a merged rebase proposal, the override kept with a warning, and locked sections always from the new text.
   - Built: `a0a0771` (`healLessons`, `confirmLesson`, lessons review, override drift computed on read with `merge3`). The model list comes from the `kirocrew.models` cache, which nothing fills yet, so the model trigger is tested against fakes only.
 - [x] 28.8 Proposals and Lessons views and Settings, after 28.7, 28.6, 12.11 and 12.12 [R68.14, R69.10, R70.7] (§4.18, §8.4)
+  - Moved 2026-11-17 (#468): Retros and Proposals are pages of the Retros nav pill, no longer tabs of Flow. The Lessons view is removed (28.5).
   - Flow views Overview, Proposals (diffs, evidence, cited lessons, Approve and Reject, prompt versions with Revert, the three-way diff) and Lessons (filters for pattern, outcome, source and state; confidence, last confirmed, stale reason, History); Settings › Flow › Lessons with the two switches and three numbers; checked by drawing the page at 375 and 1280 px in light and dark.
   - Built: `b6ea704`, `a66ce80` (`FlowMemory.tsx`, Settings › Flow › Lessons, plugin card pack and notes); drawn at 375 and 1280 px, light and dark, in a harness with fake data.
 
@@ -1317,9 +1330,11 @@ per-chat model change (F126); everything proves with fakes for Kiro Crew.
   - The backend's pass over live tick sessions on an `out` model; target choice; `POST /api/chat/slots/<slot>/model`; `deferred` read as switching at the next turn; binding `model` and `switches`; `provider_switches` records and the `onSwitchRecorded` activity hook writing one `model.switch` row per record; a refusal not retried; the served-model gate across switches.
   - Built: `bd54c3e`, PR #13 (the backend pass, `provider_switches`, `onSwitchRecorded`).
 - [x] 30.4 Manual Switch model, after 30.3 [R72.12–R72.15] (§4.20)
+  - Removed 2026-11-15 (#228): manual Switch model. Settings › Models sets the model of Avoozl's own chats.
   - `provider.switch.preview` with its hash; person-only `provider.switch` with `alsoNewTasks` marks and the replacement; MCP refusal and app-backend owner-only; pending switches applied by the backend pass.
   - Built: `bd54c3e`, PR #13 (`provider.switch.preview`, `provider.switch`).
 - [x] 30.5 Switch model dialog, Needs you, and Settings › Providers, after 30.4 [R72.12, R72.13, R72.16, R72.17] (§4.20, §8)
+  - Removed 2026-11-15 (#228): the Switch model dialog. Settings › Providers went earlier (#33, #153). Provider health reads stay in the backend (`provider-health.mjs`).
   - The Switch model button in the Dashboard header and on In flight; the dialog with From, To from `GET /api/models`, Also new tasks, the preview and marks with Undo; `conflicts.view` kind `provider-out` in Needs you; the Providers settings tab.
   - Built: `9a92b96`, PR #13 (`ProvidersSettings.tsx`, the Switch model dialog, `provider-out` in Needs you). Follow-ups in flight: PR #26 and PR #27.
   - Changed 2026-11-13 (11.16): the Providers tab is removed; Settings › Routing's Providers section shows health and usage and edits Low at and a credits limit per provider. A running chat's switch target is the person's replacement, the task's pinned model, then Kiro Crew's models.
@@ -1357,6 +1372,7 @@ the tick only queues remote worker picks, and the relay opens them with
 task IDs never move.
 
 - [x] 32.1 Relay setting, queue, and tool, after 11.11 and 11.13 [R41.16–R41.20, R41.22–R41.24] (§4.10 Remote relay, F129–F131)
+  - Removed 2026-11-15 (#282, task 45.3): the remote relay. `plans_relay` actions answer "Remote relay was removed" and change nothing.
   - `routing.remoteRelay` validated in the workspace file only; `relayActive` off with MC-10; `placeOne` keeps a worker's remote picks while it is on; the tick moves `relay: true` dispatches and messages for relayed workers to the `routing.relay` queue, skips queued tasks, counts them against crew limits, and drops the queue when off or with MC-10; the relayed brief's `AVOOZL-REPORT` step; `relay.call` (`plans_relay` register, pending, brief, opened, refused, reply) with one relay only; relayed bindings skipped by the roster and session reads; `reportSession` for the relay that opened a worker; refusal codes read from Kiro Crew's text; person-only `relay.forget`; the `avoozl-relay` agent with four tools.
 - [x] 32.2 Routing page and Needs you, after 32.1 and 11.12 [R41.20, R41.21, R42.3] (§4.10 Remote relay, §8.3)
   - The Remote relay block in Crews: the setting, the stopgap line, both catches, status lines with turns today and the last refusal, Open relay chat through the app SDK's `openChat` on `avoozl-relay`, Go to relay chat, and a confirmed Forget; Preview's line for relayed picks; `conflicts.view` `needs-human` items with reason `relay`.
@@ -1437,6 +1453,7 @@ Owner request 2026-11-13 (Requirement 82, design §6.11).
 - [x] 36.1 Demo sample, fake GitHub and preview gate, after 3.7 [R82.1–R82.4, R82.7] (§6.11)
   - `src/app/demo.mjs` staged once-only install, the fake GitHub and the gate; `demo.start`, `demo.exit`, `demo.status` and `@demo` in the app backend; `src/app/test/demo.test.mjs`.
 - [x] 36.2 Demo badge, bar, tour and exit, after 36.1 and 31.3 [R82.3, R82.5–R82.7] (§6.11)
+  - Changed 2026-11-17 (#311): the demo tour is removed. The Demo badge, the bar, the Stop the line example and Exit demo stay; the Start demo button is in the empty In flight box on Home.
   - `host.ts`, `demo-api.ts`, `Demo.tsx` and the App wiring; `kirocrew-app/ui/test/demo-tour.test.mjs` with tour, keys, preview, exit and layout at 320, 768 and 1280 px, light and dark.
 - [x] 36.3 README and screenshots, after 36.2 [R82] (§6.11)
   - README says how to start it; `docs/evidence/demo/`.
@@ -1524,6 +1541,7 @@ foundation tasks without that dependency may proceed while the live proof waits.
   - Only Kiro Crew's "gone" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you.
   - Built: `reconcileDeliveries` in `src/app/delivery.mjs` ends the first gone attempt since the last person retry as `vanished` (outside the retry count) and marks its binding lost, so the next tick opens attempt 2 in the same worktree with the last report quoted; a second vanish, or a gone batch, opens the decision. Test: `src/app/test/stock-kirocrew.test.mjs`.
 - [x] 40.7 Lanes: 3 on this Mac by default, after avoozl-p56 [R88.5] (§4.26)
+  - Changed 2026-11-17 (#508): there is no Lanes page. Delivery shows a machine badge and counts. In code, `lanes.local` (default 3) still seeds `delivery.concurrency` (`delivery.mjs`); the owner dropped the 3-lane and 50% CPU rules as requirements, so this default is a setting, not a rule.
   - `lanes.local` default 3; a fourth ready task waits.
 
 - [x] avoozl-p50 P50 Proof: a three-task chain survives a gateway restart unattended, after 40.1, 40.2, 40.3, 40.4, 40.5, 40.6, 40.7, 41.1, 41.2, 41.3, 41.5, 41.9 [R86, R87.10, R88] (§4.26)
@@ -1640,8 +1658,9 @@ GitHub, and a race between two workers shows exactly one claim wins.
 
 Requirement 92 (design §4.27). Owner decision 2026-11-17: no Issues or Pull
 requests pages; specs and in-flight work link to their GitHub items instead.
-No dedicated SCM links page. Phase 44 is no longer paused; Phase 45 stays
-paused. Screenshot approval remains owner work.
+No dedicated SCM links page. Phase 44 is no longer paused and Phase 45 is no
+longer paused (45.2 merged in #509; 45.4 waits on P53, P54 and P66).
+Screenshot approval remains owner work.
 
 - [x] 44.1 One link set per spec and task from stored records, after 40.4, 41.2, 42.6, 56.2, 56.3, 56.8, 56.14 [R92.1, R92.2, R92.3] (§4.27)
   - Pure read model over the spec issue and journal, spec working branch, task branch and worktree, task PR and check state from landing, landed commit from delivery records, and intake/escalation issues. URLs come from validated repository, number, ref and SHA fields only.
@@ -1913,6 +1932,7 @@ Phase 45; 55.3 moves the reader out of the Radar path first.
   - Unfiltered artifact list through the HTTP cache from `ciStep`; `receipt_artifacts` and `build_observations`; `pr_ci` gains `head_sha` and `merged_at`; the old metadata value moves once. Tests: several phases on 3 platforms keep every record; a failed attempt is kept and marked; one list per check, a 304 reads nothing, one download per new artifact, the next check costs 0; complete runs with no artifact store none.
   - Built: pass, `src/app/test/build-receipt-read.test.mjs`.
 - [x] 55.4 Flow and Trace show every record; PDCA on build minutes, after 55.3 [R101.4, R101.12] (§4.31)
+  - Changed 2026-11-17 (#469): there is no Trace page; build phases show in the Timeline box of task details (R106).
   - `buildView` replaces `receiptsView`: totals, phases, costliest phase, failed apart, medians per phase, target and start; Trace groups every observation by phase. `METRICS` adds Build minutes per pull request. Tests: the costliest phase shows in Flow; failed attempts stay out of medians. Ships before and after screenshots (phone and desktop, light and dark) and waits for the owner's approval before merge.
 - [x] 55.5 Build report format, `receipts.report` and the adapter, after 55.1 [R101.7, R101.8, R101.9] (§4.31)
   - `docs/build-report.md` for version 1; `src/app/build-report.mjs` with `parseBuildReport` and `comparisonKey`; `receipts.report` checked as a field or an artifact prefix. Tests: both forms; an unknown version and a missing field are skipped and counted; fixtures use made-up names only.
@@ -1989,7 +2009,7 @@ proof or run a real workspace to get past that wait.
   - Treat crew:avoozl as Avoozl's own: Untriaged and the plan-me hand-off skip it; Settings refuses it as any other label's name. A source test fails on any other createIssue opt-out; fake-GitHub tests check each path's request carries the label.
 
 - [x] 56.13 Stop handing Avoozl task issues to Issue Radar, after 56.12 [R103.4, R103.5, R103.7] (§4.32)
-  - Until 56.5 runs, issueRadarAdapter.handOver adds no ready label and the claim at approval writes no claim label or marker; the executor runs those tasks. Keep Radar code and settings (Phase 45 paused).
+  - Until 56.5 runs, issueRadarAdapter.handOver adds no ready label and the claim at approval writes no claim label or marker; the executor runs those tasks. Keep Radar code and settings (written while Phase 45 was paused; it is unpaused and 45.2 landed in #509).
   - One previewed, paced, idempotent backfill adds crew:avoozl to open projected task issues with no crew: label; claimed issues are left alone with one Needs you row. Send to Issue Radar refuses crew:avoozl issues. Tests cover no hand-over write, backfill retry and the claimed skip.
 
 - [x] 56.14 Issue Radar escalations open first in intake, after 56.8, 56.12 [R103.8, R103.9, R103.10, R103.11] (§4.32)
@@ -2066,5 +2086,6 @@ pivot retired. Other changes touch the nav, modals, Needs you and Settings;
 merge main often. If the Trace pill conflicts with another change, it goes.
 The owner waived screenshot review.
 
-- [ ] 59.1 Remove Trace; task details get a Timeline of Avoozl's task steps, after 55.4 [R106.1, R106.2, R106.3, R106.4, R106.5, R106.6, R106.7, R106.8, R106.9] (§4.35)
+- [x] 59.1 Remove Trace; task details get a Timeline of Avoozl's task steps, after 55.4 [R106.1, R106.2, R106.3, R106.4, R106.5, R106.6, R106.7, R106.8, R106.9] (§4.35)
+  - Built: PR #469 (`ba0d7963`). Merged 2026-11-17; `src/app/task-steps.mjs`, the Timeline box in `TaskDrawer.tsx` and `OldTraceLink.tsx` for old `?trace=` links.
   - `task-steps.mjs` builds the steps from stored records and `taskDetailView` returns them; the Timeline box shows them above the history list, with builds by phase. The Trace nav entry, page, drawer, Done work list, `radar.trace`, `trace.done` and the Trace buttons are removed; old links open Delivery or the task's details. Tests for the steps, redirects, nav and zero GitHub calls; screenshots (phone and desktop, light and dark, full app shell) under `docs/evidence/trace-into-task/`.
