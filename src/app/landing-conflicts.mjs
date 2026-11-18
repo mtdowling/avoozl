@@ -9,6 +9,7 @@
 // task's delivery record, so a restart or a re-queued portion keeps the count.
 import { listSessionBindings } from "./session-bindings.mjs";
 import { fail } from "./store.mjs";
+import { briefCell } from "./worker-briefs.mjs";
 import { taskIds } from "./landing-queue.mjs";
 import { DEFAULT_CONFLICT_ROUNDS, conflictRounds } from "./landing-config.mjs";
 
@@ -46,9 +47,7 @@ export function reopenAttempt(store, delivery, binding, at) {
 // edits and ends with its result file; Avoozl commits after it exits
 // (R94.4a, R96.1). A chat commits and reports done again.
 export const roundFinish = (binding) =>
-  binding?.executor === "process"
-    ? 'Do not commit, push, rebase or force push. When it is fixed, write .avoozl/result.json in this folder ({"state": "done", "text": "<what you changed>"}, or {"state": "blocked", "text": "<why>"}) and exit; Avoozl commits your changes.'
-    : "Commit, and report done again with the new commit SHA. Do not push, rebase or force push.";
+  briefCell(binding?.executor ?? "kirocrew", "round").cell.finish;
 
 // The message for the worker chat. File names are repository data, so they
 // sit in a fenced block the chat is told to read as data.

@@ -11,6 +11,7 @@ import { ruleKeys, whenKeys } from "../agent-instructions.mjs";
 import { CONTENT_RULES_KEYS, RULE_SET_KEYS } from "../content-rules.mjs";
 import {
   AGENT_ROLE_FIELDS,
+  HARNESS_ROLE_FIELDS,
   HARNESS_ROLES,
   MODEL_ROLES,
   PLAN_REVIEW_KEYS,
@@ -36,6 +37,7 @@ import {
   STATUS_VALUE_KEYS,
 } from "../github-policy.mjs";
 import { SOURCE_KEYS } from "../intake.mjs";
+import { GITHUB_SOURCE_KEYS } from "../github-sources.mjs";
 import { INVESTIGATE_KEYS } from "../investigate.mjs";
 import {
   LEASE_KEYS,
@@ -98,6 +100,7 @@ const PAIRS = [
   ["#/properties/roles", ROLES],
   ["#/$defs/chatRole", ROLE_FIELDS],
   ["#/$defs/agentRole", AGENT_ROLE_FIELDS],
+  ["#/$defs/harnessRole", HARNESS_ROLE_FIELDS],
   ["#/properties/planReview", PLAN_REVIEW_KEYS],
   ["#/properties/lanes", Object.keys(DEFAULT_LANES)],
   ["#/properties/lease", Object.keys(LEASE_KEYS)],
@@ -111,7 +114,11 @@ const PAIRS = [
   ["#/properties/plugins/items", ENTRY_KEYS],
   ["#/properties/contentRules", CONTENT_RULES_KEYS],
   ["#/properties/contentRules/properties/sets/items", RULE_SET_KEYS],
-  ["#/properties/intake/properties/sources/additionalProperties", SOURCE_KEYS],
+  // Plugin and MCP keys plus the GitHub kind's (§4.39).
+  [
+    "#/properties/intake/properties/sources/additionalProperties",
+    [...new Set([...SOURCE_KEYS, ...GITHUB_SOURCE_KEYS])],
+  ],
   ["#/properties/delivery", DELIVERY_KEYS],
   ["#/$defs/deliveryInvestigate", INVESTIGATE_KEYS],
   ["#/$defs/deliveryReviewer", REVIEWER_KEYS],
