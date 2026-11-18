@@ -28,7 +28,7 @@ export const AGENT_INSTRUCTION_CATEGORIES = Object.freeze([
 ]);
 
 const categories = new Set(AGENT_INSTRUCTION_CATEGORIES);
-const whenKeys = new Set([
+export const whenKeys = new Set([
   "scopes",
   "epics",
   "tracks",
@@ -41,6 +41,15 @@ const whenKeys = new Set([
 function record(value) {
   return value && typeof value === "object" && !Array.isArray(value);
 }
+
+export const ruleKeys = new Set([
+  "id",
+  "title",
+  "appliesTo",
+  "when",
+  "instruction",
+  "enabled",
+]);
 
 function allowedKeys(value, allowed, label) {
   for (const key of Object.keys(value))
@@ -82,11 +91,7 @@ function normalizeWhen(value, id) {
 function normalizeRule(input, source, index) {
   if (!record(input))
     fail(`Avoozl instruction ${index + 1} must contain an object.`);
-  allowedKeys(
-    input,
-    new Set(["id", "title", "appliesTo", "when", "instruction", "enabled"]),
-    `Avoozl instruction ${index + 1}`,
-  );
+  allowedKeys(input, ruleKeys, `Avoozl instruction ${index + 1}`);
   const id = String(input.id || "").trim();
   if (!/^[a-z][a-z0-9-]{2,79}$/.test(id))
     fail(

@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { RepositorySettings } from "../repository-settings.mjs";
+import { REPOSITORY_CONFIG_SCHEMA_URL } from "../config-schema.mjs";
 import { fixture, waitFor } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -145,10 +146,7 @@ test("repository settings ignore .avoozl/config.json", (t) => {
   configuration.updateConversationSettings({ autoArchiveCompleted: false });
 
   const saved = JSON.parse(fs.readFileSync(current, "utf8"));
-  assert.equal(
-    saved.$schema,
-    "https://avoozl.dev/schema/repository-config-v1.json",
-  );
+  assert.equal(saved.$schema, REPOSITORY_CONFIG_SCHEMA_URL);
   assert.equal(saved.dbPath, undefined);
   assert.equal(saved.documents, undefined);
   assert.equal(saved.projects, undefined);
@@ -474,7 +472,7 @@ test("explicit Settings operations persist typed desired state without changing 
   assert.equal(saved.projects.code.root, "code");
   assert.equal(saved.projects.code.worktreeRoot, ".avoozl-worktrees");
   assert.deepEqual(saved.projects.code.checks, [["npm", "run", "test"]]);
-  // github.configure writes a GitHub source, never the old key (R109.3).
+  // github.configure writes a GitHub source, never the old key (R110.3).
   assert.deepEqual(saved.intake.sources["github-example-code"], {
     via: "github",
     repository: "Example/Code",
@@ -594,7 +592,7 @@ test("creating repository JSON materializes already-applied non-secret settings"
     saved.intake.sources["github-example-code"].assignee,
     "operator",
   );
-  // The retired queue is not written (R109.4).
+  // The retired queue is not written (R110.4).
   assert.equal(saved.github, undefined);
   assert.equal(saved.planningRepository.root, "planning");
   assert.equal(saved.conversations.autoArchiveCompleted, false);
@@ -683,4 +681,32 @@ test("project removal refuses active work, locks, and GitHub connections", async
 
   for (const id of ["active", "locked", "authorized", "monitored"])
     assert.ok(store.get("projects", id));
+});
+
+test("a repository's Flow override saves and the settings still load", (t) => {
+  const { root, store } = fixture(t),
+    filename = path.join(root, ".avoozl.json");
+  writeJson(filename, {
+    version: 1,
+    projects: { code: { root: "../code", checks: [["npm", "test"]] } },
+  });
+  const configuration = new RepositorySettings(store, {
+    workspaceRoot: root,
+    files: { repository: filename },
+    sources: [],
+  });
+  configuration.reload();
+  assert.equal(configuration.state.error, null);
+  const saved = configuration.updateFlowSettings({
+    flow: { stopTheLine: { scope: "repo" } },
+    repository: "code",
+    expectedHash: configuration.readFlowSettings().hash,
+  });
+  assert.deepEqual(saved.repositories, {
+    code: { stopTheLine: { scope: "repo" } },
+  });
+  // The save's own key was refused as unknown, leaving every setting in an
+  // error state until the file was edited by hand.
+  configuration.reload();
+  assert.equal(configuration.state.error, null);
 });

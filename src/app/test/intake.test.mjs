@@ -95,7 +95,7 @@ test("an intake source is checked like a plugins entry", () => {
       minimumPermission: "write",
     },
   );
-  // A GitHub source (R109.1) carries the old issue intake keys.
+  // A GitHub source (R110.1) carries the old issue intake keys.
   assert.deepEqual(validateSource("github-o-app", GITHUB_ENTRY), {
     id: "github-o-app",
     via: "github",

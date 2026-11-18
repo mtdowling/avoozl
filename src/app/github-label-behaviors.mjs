@@ -1,4 +1,4 @@
-const BEHAVIOR_NAMES = ["ready", "blocked", "review", "quarantined"];
+export const BEHAVIOR_NAMES = ["ready", "blocked", "review", "quarantined"];
 
 export const DEFAULT_GITHUB_LABEL_BEHAVIORS = Object.freeze({
   ready: Object.freeze(["avoozl:ready"]),

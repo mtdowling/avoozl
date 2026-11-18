@@ -10,8 +10,24 @@ const APP = " Do it in the Avoozl app.";
 const person = (reason, when) => ({ reason: reason + APP, when });
 
 export const PERSON_ONLY = new Map([
-  ["plan.approve", person("Only a person approves a plan.")],
-  ["plan.approveMany", person("Only a person approves a plan.")],
+  // A call that names a delegate goes on to the operation, which refuses it
+  // unless a person granted that delegate (approval-delegation.mjs, R109).
+  [
+    "plan.approve",
+    person("Only a person approves a plan.", (input) => !input?.delegate),
+  ],
+  [
+    "plan.approveMany",
+    person("Only a person approves a plan.", (input) => !input?.delegate),
+  ],
+  [
+    "approval.delegate.grant",
+    person("Only a person grants approval delegation."),
+  ],
+  [
+    "approval.delegate.revoke",
+    person("Only a person revokes approval delegation."),
+  ],
   ["plan.delete", person("Only a person deletes a plan.")],
   ["spec.publish", person("Only a person publishes a spec issue.")],
   ["spec.takeover", person("Only a person takes over a spec.")],
@@ -210,6 +226,12 @@ export const PERSON_ONLY = new Map([
     person("Only a person stops all agents.", (input) => input?.full === true),
   ],
   ["untriaged.handoff", person("Only a person sends issues to Issue Radar.")],
+  ["specpr.adopt", person("Only a person presses Review as spec.")],
+  ["specpr.reject", person("Only a person rejects a spec pull request.")],
+  [
+    "specpr.requestChanges",
+    person("Only a person requests changes on a spec pull request."),
+  ],
   [
     "github.crewlabel.backfill",
     person("Only a person adds crew:avoozl to old task issues."),
@@ -306,6 +328,8 @@ export const NOT_ON_MCP = new Map([
   // The spec page's Review view; plans_plan_review reads the same findings.
   ["plan.review.view", page],
   ["spec.changed.preview", page],
+  // The spec page's Proposed change box; plans_view shows the same spec.
+  ["specpr.view", page],
   ...[
     "run.model",
     "run.unsend",

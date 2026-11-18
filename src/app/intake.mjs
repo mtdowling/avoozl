@@ -45,7 +45,7 @@ export const KEEP_CLOSED_MS = 30 * 24 * 60 * 60 * 1000;
 export const WAITING_REASON = "Waiting on the author";
 const SOURCE_ID = /^[a-z][a-z0-9-]{0,60}$/;
 const PLUGIN_ID = /^[a-z][a-z0-9-]{0,60}$/;
-const SOURCE_KEYS = [
+export const SOURCE_KEYS = [
   "via",
   "repository",
   "labelFields",
@@ -69,7 +69,7 @@ export const intakeTaskId = (source, id) =>
 // ---------------------------------------------------------------------------
 // Sources (R50.6): declared under `intake.sources` in `.avoozl.json` or in
 // this machine's plugins.json, like `plugins` entries. A `via: "github"`
-// source (R109, github-sources.mjs) is a GitHub repository whose issues may
+// source (R110, github-sources.mjs) is a GitHub repository whose issues may
 // start work; its items still come in as source `github`.
 
 function names(value, where) {

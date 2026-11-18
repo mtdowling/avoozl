@@ -1,4 +1,4 @@
-// GitHub sources (design §4.38, Requirement 109): a GitHub repository whose
+// GitHub sources (design §4.39, Requirement 110): a GitHub repository whose
 // issues may start work is one `intake.sources` entry with `via: "github"`,
 // beside plugin and MCP sources. It holds what `github.issueIntake` held.
 //
@@ -25,7 +25,7 @@ export const GITHUB_SOURCE_KEYS = Object.freeze([
 ]);
 const PERMISSIONS = ["write", "maintain", "admin"];
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const LEGACY_KEYS = new Set([
+export const ISSUE_INTAKE_KEYS = Object.freeze([
   "projectId",
   "workspaceRepositoryId",
   "assignee",
@@ -121,7 +121,7 @@ function legacySettings(value, repository) {
   const where = `GitHub issue intake ${repository}`;
   if (!record(value)) fail(`${where} must contain a JSON object.`);
   for (const key of Object.keys(value))
-    if (!LEGACY_KEYS.has(key))
+    if (!ISSUE_INTAKE_KEYS.includes(key))
       fail(`Unknown GitHub issue intake setting ${repository}.${key}.`);
   const checked = settings(value, where);
   return value.enabled === false ? null : checked;

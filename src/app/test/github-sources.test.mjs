@@ -1,4 +1,4 @@
-// One intake list (Requirement 109, design §4.38): GitHub sources in
+// One intake list (Requirement 110, design §4.39): GitHub sources in
 // `intake.sources`, old `github.issueIntake` and `github.queue` read and
 // moved silently. Temporary workspaces only.
 import assert from "node:assert/strict";

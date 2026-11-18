@@ -1,4 +1,4 @@
-// Settings > Plugins > Intake sources (design §4.12, §4.38, R50.6, R109):
+// Settings > Plugins > Intake sources (design §4.12, §4.39, R50.6, R110):
 // where work comes in from, one list. A GitHub source is a repository whose
 // issues may start work; it is set in Repository setup and shows here with
 // a link there. The GitHub box is the Triage reader: what no source covers.

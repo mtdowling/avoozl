@@ -31,7 +31,7 @@ test('a source is on, off, in error or waiting, with its poll and items', () => 
   assert.equal(sourceStatus(row('mcp', { items }), PLUGINS, NOW).tone, 'ok')
   const bad = sourceStatus(row('plugin:gone', { error: 'names plugin gone' }), PLUGINS, NOW)
   assert.deepEqual([bad.tone, bad.label], ['error', 'Not used'])
-  // A GitHub source (R109) shows its repository's read, never item counts.
+  // A GitHub source (R110) shows its repository's read, never item counts.
   const read = sourceStatus(row('github', { state: { readAt: at(4), cursor: null, error: null }, items: null }), PLUGINS, NOW)
   assert.deepEqual([read.tone, read.facts], ['ok', ['Read 4 min ago']])
   assert.equal(sourceStatus(row('github', { items: null }), PLUGINS, NOW).tone, 'waiting')

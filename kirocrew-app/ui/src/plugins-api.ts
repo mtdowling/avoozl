@@ -352,7 +352,7 @@ export interface IntakeSourceRow {
   escalationLabel?: string | null
 }
 
-// A GitHub source (design §4.38): set in Repository setup.
+// A GitHub source (design §4.39): set in Repository setup.
 export const isGitHubSource = (row: IntakeSourceRow) => row.entry?.via === 'github'
 
 // GitHub's own intake: set in Settings > GitHub, shown here read-only.

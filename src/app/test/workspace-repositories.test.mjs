@@ -98,7 +98,7 @@ test("unified repositories preserve legacy execution and GitHub records", async 
     fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"),
   );
   assert.equal(saved.projects.compiler.planning, true);
-  // Repository setup's "issues here" writes a GitHub source (R109.3).
+  // Repository setup's "issues here" writes a GitHub source (R110.3).
   assert.equal(saved.github, undefined);
   assert.equal(saved.intake.sources["github-example-compiler"].project, "compiler");
   assert.equal(

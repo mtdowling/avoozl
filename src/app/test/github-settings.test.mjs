@@ -147,7 +147,7 @@ for (const server of [false, true])
     const file = readJson(filename);
     assert.equal(file.namespace, "avz_0123456789abcdef");
     assert.deepEqual(file.conversations, { autoArchiveCompleted: false });
-    // The old (empty) issue intake key is dropped on the first write (R109.5).
+    // The old (empty) issue intake key is dropped on the first write (R110.5).
     assert.equal(file.github.issueIntake, undefined);
     assert.equal(readGitHubPolicy(root).planningRepository, "example/plans");
     const again = await ops.execute("github.settings.get");

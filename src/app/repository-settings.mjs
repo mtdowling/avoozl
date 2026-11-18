@@ -31,6 +31,7 @@ import {
   validateActivitySettings,
 } from "./activity-log.mjs";
 import { fail } from "./store.mjs";
+import { REPOSITORY_CONFIG_SCHEMA_URL } from "./config-schema.mjs";
 import { deriveGitHubKeys, rolesNote, withRoles } from "./repository-roles.mjs";
 
 const MAX_CONFIG_BYTES = 1024 * 1024;
@@ -102,26 +103,56 @@ function landingOf(value, id) {
   return value;
 }
 
+// Every key one `projects` entry, its sandbox, a legacy issue intake entry
+// and a legacy Queue entry accept. A test holds
+// src/avoozl-config.schema.json to these lists.
+export const PROJECT_KEYS = Object.freeze([
+  "name",
+  "root",
+  "baseBranch",
+  "integrationBranch",
+  "worktreeRoot",
+  "checks",
+  "checksEnv",
+  "worktreeHelper",
+  "landing",
+  "planning",
+  "editable",
+  "executor",
+  "harness",
+  "sandbox",
+  // Settings > Flow writes a repository's override here; flow.mjs reads and
+  // validates it (flowSection), so this list only has to let it through.
+  "flow",
+]);
+export const SANDBOX_KEYS = Object.freeze([
+  "writeRoots",
+  "allowCommands",
+  "network",
+]);
+// Old `github.issueIntake` keys, read by github-sources.mjs (§4.39).
+export { ISSUE_INTAKE_KEYS } from "./github-sources.mjs";
+export const PLANNING_REPOSITORY_KEYS = Object.freeze([
+  "root",
+  "remote",
+  "branch",
+  "directory",
+]);
+// Old `github.queue` keys: accepted and ignored (§4.39).
+export const QUEUE_KEYS = Object.freeze([
+  "projectId",
+  "workspaceRepositoryId",
+  "enabled",
+  "includeIssues",
+  "includePullRequests",
+  "visibility",
+  "labelBehaviors",
+]);
+
 function projectInput(value, id, base) {
   if (!record(value)) fail(`Project ${id} must contain a JSON object.`);
-  const allowed = new Set([
-    "name",
-    "root",
-    "baseBranch",
-    "integrationBranch",
-    "worktreeRoot",
-    "checks",
-    "checksEnv",
-    "worktreeHelper",
-    "landing",
-    "planning",
-    "editable",
-    "executor",
-    "harness",
-    "sandbox",
-  ]);
   for (const key of Object.keys(value))
-    if (!allowed.has(key))
+    if (!PROJECT_KEYS.includes(key))
       fail(`Unknown project setting projects.${id}.${key}.`);
   const checks = value.checks ?? [];
   if (
@@ -200,7 +231,7 @@ function executorInput(value, id) {
     if (!record(value.sandbox))
       fail(`Project ${id} sandbox must be an object.`);
     for (const key of Object.keys(value.sandbox))
-      if (!["writeRoots", "allowCommands", "network"].includes(key))
+      if (!SANDBOX_KEYS.includes(key))
         fail(`Unknown project setting projects.${id}.sandbox.${key}.`);
     const { writeRoots, allowCommands, network } = value.sandbox;
     sandboxWriteRoots(writeRoots);
@@ -233,7 +264,7 @@ function projectsInput(value, base) {
 }
 
 // The `github` block's policy, checked, and the GitHub sources of the
-// whole file (`intake.sources` plus old `github.issueIntake`, §4.38) by
+// whole file (`intake.sources` plus old `github.issueIntake`, §4.39) by
 // repository. `github.queue` is ignored.
 function githubInput(github, whole = { github }) {
   if (github !== undefined) {
@@ -259,7 +290,7 @@ function planningRepositoryInput(value, base) {
   if (!record(value))
     fail("Planning repository configuration must contain a JSON object.");
   for (const key of Object.keys(value))
-    if (!["root", "remote", "branch", "directory"].includes(key))
+    if (!PLANNING_REPOSITORY_KEYS.includes(key))
       fail(`Unknown planning repository setting ${key}.`);
   const root = text(value.root, "Planning repository root");
   return {
@@ -409,7 +440,7 @@ function parse(text, filename, { portable = false } = {}) {
 // accepted task's finished runs leave the conversation list. `driver` and
 // `routing` configured the removed agent host; files that set them still
 // load, and the values are ignored.
-const CONVERSATION_KEYS = new Set([
+export const CONVERSATION_KEYS = new Set([
   "autoArchiveCompleted",
   "driver",
   "routing",
@@ -703,7 +734,7 @@ export class RepositorySettings {
       value,
       `workspace Avoozl configuration at ${this.filename}`,
     );
-    // Old GitHub intake keys move into `intake.sources` on this write (§4.38).
+    // Old GitHub intake keys move into `intake.sources` on this write (§4.39).
     if (
       record(value.github) &&
       (Object.hasOwn(value.github, "issueIntake") ||
@@ -1077,7 +1108,7 @@ export class RepositorySettings {
     return this.writeApplied(value, before.hash, ["projects"]);
   }
 
-  // A GitHub source for `entry`, a github_repositories record (§4.38).
+  // A GitHub source for `entry`, a github_repositories record (§4.39).
   updateGitHubIssueIntake(entry) {
     const before = this.readFile(),
       value = this.updateValue(before);
@@ -1195,7 +1226,7 @@ export class RepositorySettings {
   updateValue(before) {
     const value = structuredClone(before.value);
     value.version = 1;
-    value.$schema = "https://avoozl.dev/schema/repository-config-v1.json";
+    value.$schema = REPOSITORY_CONFIG_SCHEMA_URL;
     if (before.exists) return value;
     const applied = appliedActions(this.store);
     if (Object.keys(applied.projects).length)

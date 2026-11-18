@@ -10,14 +10,11 @@ import { integrationOf } from "../integration-branch.mjs";
 import { lintSpec, readSpecFolder } from "../spec-plans.mjs";
 import { RULES, scanText } from "../../../scripts/release-scan.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+// The statement in use, from its one source; the templates repeat it.
+import { SCOPE_STATEMENT as SCOPE } from "../../work-split.mjs";
 
 const TEMPLATES = path.join(applicationRoot, "examples", "epic-templates");
 const names = fs.readdirSync(TEMPLATES).sort();
-const SCOPE = fs
-  .readFileSync(path.join(applicationRoot, "README.md"), "utf8")
-  .split("\n")
-  .find((line) => line.startsWith("Avoozl is for epics:"))
-  .split(" If the work fits")[0];
 
 function load(name) {
   const root = temporaryDirectory("avoozl-template-");

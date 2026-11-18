@@ -162,7 +162,7 @@ function workspace(t, github, policy = POLICY(), extra = {}) {
   };
 }
 
-// R109.8: a repository whose GitHub source is an old `github.issueIntake`
+// R110.8: a repository whose GitHub source is an old `github.issueIntake`
 // entry, one written as a source, and one moved by Avoozl's next write all
 // keep Radar intake, Radar asks in Triage and back-links.
 test("Radar intake, asks and back-links survive the move to one intake list", async (t) => {
