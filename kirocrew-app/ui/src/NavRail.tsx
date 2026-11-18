@@ -8,6 +8,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { ArrowDown, ArrowUp, Search, X, type LucideIcon } from './icons.ts'
 import { Box } from './ui/Box'
 import { RailCss } from './ui/PageStyles'
+import { PlainButton, PlainInput } from './ui/Plain'
 
 
 export function RailStyle() {
@@ -121,7 +122,7 @@ export function RailChips(props: { id: string; icon: LucideIcon; title: string; 
     >
       {open && (
         <Box css-position="relative" css-margin-bottom="8">
-          <input
+          <PlainInput
             autoFocus
             type="text"
             value={query}
@@ -129,11 +130,11 @@ export function RailChips(props: { id: string; icon: LucideIcon; title: string; 
             placeholder={`Search ${props.noun}s…`}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => event.key === 'Escape' && close()}
-            style={{ width: '100%', boxSizing: 'border-box', fontSize: 13, padding: '6px 28px 6px 12px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
+            css-width="100%" css-box-sizing="border-box" css-font-size="13" css-padding="6px-28px-6px-12px" css-border-radius="6" css-background="bg" css-color="text" css-border="1px-solid-border"
           />
-          <button type="button" data-rail-icon aria-label={`Close ${props.noun} search`} onClick={close} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)' }}>
+          <PlainButton type="button" data-rail-icon aria-label={`Close ${props.noun} search`} onClick={close} css-position="absolute" css-right="6" css-top="50%" css-transform="translateY-50%">
             <X size={13} aria-hidden="true" />
-          </button>
+          </PlainButton>
         </Box>
       )}
       <Box css-display="flex" css-flex-direction="column" css-align-items="flex-start" css-gap="6">

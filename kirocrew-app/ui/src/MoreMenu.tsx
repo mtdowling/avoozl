@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Ellipsis, type LucideIcon } from './icons.ts'
 import { LAYER } from './layers.ts'
+import { PlainButton } from './ui/Plain'
 
 // `icon` replaces the ellipsis (a filter menu uses a filter icon); `on`
 // marks the button as holding something set.
@@ -36,7 +37,7 @@ export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Re
   }, [open])
   return (
     <div ref={root} style={{ position: 'relative', flexShrink: 0 }} {...props.attrs}>
-      <button
+      <PlainButton
         type="button"
         aria-label={props.label}
         aria-expanded={open}
@@ -46,10 +47,10 @@ export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Re
           setFromLeft(event.currentTarget.getBoundingClientRect().right < 240)
           setOpen(!open)
         }}
-        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: props.icon ? 24 : 28, height: props.icon ? 24 : 28, borderRadius: 6, border: '1px solid var(--border)', background: open ? 'var(--bg-hover, var(--bg-elevated))' : 'transparent', color: 'var(--text)', cursor: 'pointer' }}
+        css-display="inline-flex" css-align-items="center" css-justify-content="center" css-width={props.icon ? '24' : '28'} css-height={props.icon ? '24' : '28'} css-border-radius="6" css-border="1px-solid-border" css-background={open ? 'bg-hover-bg-elevated' : 'transparent'} css-color="text" css-cursor="pointer"
       >
         <Icon size={props.icon ? 14 : 18} aria-hidden="true" style={props.on ? { color: 'var(--accent)' } : undefined} />
-      </button>
+      </PlainButton>
       {open && (
         <div
           data-more-panel
