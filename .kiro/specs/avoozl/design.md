@@ -3223,20 +3223,61 @@ the usual review and checks. PDCA watches the group after the rule lands.
 
 ### 4.25 Ship mode
 
-Added 2026-11-13 (Requirement 80).
+Added 2026-11-13 (Requirement 80). Changed 2026-11-18 (simplification audit
+F3 and F4): who merges is `autoMerge` in the repository's one landing block.
 
-| `delivery.ship`        | Writer                     | Avoozl                                                  | Person                                               |
-| ---------------------- | -------------------------- | ------------------------------------------------------- | ---------------------------------------------------- |
-| `auto-merge` (default) | enables auto-merge         | waits for the merge                                     | nothing                                              |
-| `manual`               | does not enable auto-merge | Needs you: Ready to merge, when checks and reviews pass | merges on GitHub, or presses Integrate in Local only |
+| `landing.autoMerge` | Writer                     | Avoozl                                                  | Person                                               |
+| ------------------- | -------------------------- | ------------------------------------------------------- | ---------------------------------------------------- |
+| `true` (default)    | enables auto-merge         | waits for the merge                                     | nothing                                              |
+| `false`             | does not enable auto-merge | Needs you: Ready to merge, when checks and reviews pass | merges on GitHub, or presses Integrate in Local only |
 
-The task's manifest `ship` wins, then the spec manifest's top-level `ship`,
-then `delivery.repositories.<id>.ship`, then `delivery.ship`. Under
-`manual`, a writer that turned auto-merge on is asked to turn it off, and a
-pull request closed without merging goes back to its writer once as one
-feedback round. A local task's Integrate approves one commit; a new commit
-needs a new press. Settings > Delivery shows the mode as one radio
-fold-out.
+The task's manifest `ship` (`auto-merge` or `manual`) wins, then the spec
+manifest's top-level `ship`, then the repository's `landing.autoMerge`.
+With auto-merge off, a writer that turned auto-merge on is asked to turn it
+off, and a pull request closed without merging goes back to its writer once
+as one feedback round. A local task's Integrate approves one commit; a new
+commit needs a new press.
+
+**One landing block per repository.** Each GitHub repository entry holds
+who merges and how, and how many times a conflict is fixed:
+
+```json
+"github": { "repositories": { "owner/name": {
+  "landing": { "mode": "pr", "autoMerge": true, "method": "squash" },
+  "conflicts": { "onSourceConflict": "fix", "maxAttempts": 2 }
+} } }
+```
+
+| Key                    | Values                       | Default | Older key, still read, never written                           |
+| ---------------------- | ---------------------------- | ------- | -------------------------------------------------------------- |
+| `landing.mode`         | `direct`, `pr`, `train`, `off` | `off`   | `projects.<id>.landing` of the checkout of that repository    |
+| `landing.autoMerge`    | `true`, `false`              | `true`  | `delivery.repositories.<id>.ship`, then `delivery.ship`        |
+| `landing.method`       | `squash`, `merge`            | `squash`| `merge.method`                                                 |
+| `conflicts.maxAttempts`| 0–10                         | 2       | `landing.conflictRounds` (top level)                           |
+
+A key in the block wins over its older key; an older key at the repository
+wins over one for the whole workspace. Old keys load with no warning.
+`landingSettings` in `src/app/landing-config.mjs` is the one reader of the
+block and its older keys. The landing code reads the mode from the project
+row, so the tick (and the app on each load of `.avoozl.json`) copies
+`landing.mode` onto the project row of each checkout whose GitHub
+repository sets it. `conflicts.maxAttempts` bounds both the rounds a landing
+conflict goes back to its worker chat (Requirement 87.6) and the resolver
+attempts on a crew pull request (RC28.4). `avoozl setup REPO` writes
+`landing.mode` and leaves `projects.<id>.landing` as it was.
+
+Settings › Repository setup › Edit › Landing has one **Who merges** section
+(mode, auto-merge, merge method) and one **Conflicts** section (fix or ask,
+tries per conflict). Settings › Delivery has no Who merges, and Settings ›
+Issue Radar has no conflicts or merge method. A Local only workspace has no
+GitHub entries; it keeps reading `delivery.ship` and each project's
+`landing`.
+
+Today's two workspaces keep their behavior. Avoozl's own repository sets
+none of these keys: it keeps `pr` from its project, auto-merge, squash and 2
+landing rounds. Nupp sets `delivery.ship: auto-merge` for the workspace,
+which loads as `autoMerge: true` for `nupp-lang/nupp-planning`. Crew pull
+requests that set no `maxAttempts` get 2 tries instead of 1.
 
 ### 4.26 Avoozl owns the coding loop
 
@@ -3308,7 +3349,8 @@ only and pushes nothing. No force pushes or bypasses. See Requirement 87 and
 §4.32.5; a checkpoint is not a landing or acceptance receipt.
 
 A merge conflict goes back to the same worker chat with the file list, for
-`landing.conflictRounds` rounds (default 2), then to Needs you. The
+the repository's `conflicts.maxAttempts` rounds (default 2; older key
+`landing.conflictRounds`, §4.25), then to Needs you. The
 resolver chat (`avoozl-conflict-fix`, RC28) is removed. The arming and
 merge code (`radar-arm.mjs`, `radar-merge*.mjs`) is renamed and becomes the
 `pr` mode. A pause from Stop the line keeps the queue's order.
