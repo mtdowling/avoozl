@@ -991,6 +991,17 @@ try {
     console.log(
       typeof result === "string" ? result : JSON.stringify(result, null, 2),
     );
+  } else if (command === "worktree") {
+    // A chat prepares its task's worktree without MCP (worker-paths WP4.1).
+    if (positionals[0] !== "prepare" || !positionals[1])
+      throw Error("Use worktree prepare TASK_ID.");
+    console.log(
+      JSON.stringify(
+        await localOrRequest("worktree.prepare", { taskId: positionals[1] }),
+        null,
+        2,
+      ),
+    );
   } else if (command === "claim")
     console.log(
       JSON.stringify(

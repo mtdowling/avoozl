@@ -1,5 +1,6 @@
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { briefCell } from "./worker-briefs.mjs";
+import { cliCommand } from "./report-command.mjs";
 import { projectExecutor } from "./executors/process.mjs";
 import { harnessExecutor, roleHarness } from "./chat-models.mjs";
 import { PERSON_MESSAGE_HEAD } from "./session-send.mjs";
@@ -1753,13 +1754,19 @@ export function localSteps(
         `3. Call plans_report with ${report} if you have that tool. Otherwise end with a done report, and your conductor records it. If you cannot finish, say why: blocked, or a question.`,
         MARKERS_STEP(4),
       ]
-    : [
-        `1. Call plans_prepare_worktree with {"input": {"taskId": "${task.id}"}} and work only in the worktree it returns, on branch avoozl/${task.id}.`,
-        commit,
-        cliReport
-          ? `3. When the work is committed, run exactly: avoozl runner report ${task.id} done --token ${cliReport.token}${where}\n   If you cannot finish, run: avoozl runner report ${task.id} blocked --token ${cliReport.token}${where} --text "<why>"\n   ${cli}`
-          : `3. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
-      ];
+    : cliReport
+      ? [
+          `1. Run \`${cliCommand()} worktree prepare ${task.id}${where}\` and work only in the worktree it prints, on branch avoozl/${task.id}.`,
+          commit,
+          `3. When the work is committed, run exactly: ${cliCommand()} runner report ${task.id} done --token ${cliReport.token}${where}\n   If you cannot finish, run: ${cliCommand()} runner report ${task.id} blocked --token ${cliReport.token}${where} --text "<why>"\n   ${cli}`,
+        ]
+      : [
+          // shortcut: a store with no report secret (every import makes
+          // one) falls back to the MCP tools; drop it when none can lack one.
+          `1. Call plans_prepare_worktree with {"input": {"taskId": "${task.id}"}} and work only in the worktree it returns, on branch avoozl/${task.id}.`,
+          commit,
+          `3. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
+        ];
 }
 
 // The steps of a `process` child (R96.1, R94.4a): it runs in its task

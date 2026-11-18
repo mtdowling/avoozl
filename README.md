@@ -216,9 +216,10 @@ How many worker chats run at once is this machine's `lanes.local` (default
 { "version": 1, "lanes": { "local": 1 } }
 ```
 
-A local worker needs nothing more: it works in the worktree its brief names
-and reports from the command line. Two Kiro Crew steps, each done once, are
-for the other chats:
+A local worker needs nothing more: it prepares its worktree and reports with
+the command in its brief, which names this Avoozl's Node binary and CLI file
+and needs neither `avoozl` on its `PATH` nor MCP sharing. Two Kiro Crew steps,
+each done once, are for the other chats:
 
 1. Let Kiro Crew tell Avoozl which chat is calling. A worker that opens a
    pull request, and every verifier, reviewer and investigation chat, reports
