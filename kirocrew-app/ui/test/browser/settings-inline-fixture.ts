@@ -1,5 +1,5 @@
 // ?page=app&inline=1: a small stateful backend for the Settings pages that
-// edit in place (Delivery, Budgets, Content rules, Plugins, Repository setup
+// edit in place (Delivery, Content rules, Plugins, Repository setup
 // and Flow). Each update changes what the next get returns and moves the
 // hash on, so a test can edit a field, Save and read the page back. Every
 // write is recorded in window.__writes as { operation, input, workspaceId }.
@@ -31,19 +31,6 @@ export function installInlineFixture() {
     return { hash: hash(), on: true, delivery }
   })
   answer('GET /api/models', () => ({ models: [] }))
-
-  // Budgets
-  let budget: Record<string, unknown> = { usd: 5, mode: 'stop' }
-  const projects: Record<string, Record<string, unknown>> = { 'recipe-box': { usd: 8, mode: 'warn' } }
-  answer('budget.settings.get', () => ({ hash: hash(), budget, repositories: projects }))
-  answer('budget.settings.update', (body) => {
-    stale(body)
-    const input = body.input as { budget: Record<string, unknown>; repository?: string }
-    if (input.repository) projects[input.repository] = input.budget
-    else budget = input.budget
-    write(body)
-    return { hash: hash(), budget, repositories: projects }
-  })
 
   // Flow
   let flow: Record<string, unknown> = {}
