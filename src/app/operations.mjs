@@ -162,6 +162,7 @@ import {
   landingNeedsYou,
 } from "./integration-head.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
+import { landingView } from "./landing-view.mjs";
 import { epicsView } from "./epics-view.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
@@ -4035,6 +4036,8 @@ export class Operations {
     // default branch, head checks, acceptance. Landing is a person's approval
     // of one head; Avoozl never merges the branch.
     if (name === "integration.view") return integrationView(store);
+    // The landing queues and recent landings, from the store only (Home).
+    if (name === "landing.view") return landingView(store, this.read());
     if (name === "integration.land") {
       if (context.caller || context.mcp)
         fail(

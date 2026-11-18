@@ -131,14 +131,15 @@ for (const [width, height] of [
       assert.deepEqual(heights, { heads: [32], rows: heights.rows.length ? [32] : [], workspace: 32 })
     })
 
-// Activity's Refresh sits on the top line right beside the pause icon, as on
-// Home, not on a row of its own under it. A phone has it in the menu.
+// Activity's Refresh sits on the top line, as on Home, not on a row of its
+// own under it; no pause icon is there (it is on Delivery). A phone has it in
+// the menu.
 for (const [width, height] of [
   [390, 844],
   [1280, 800],
 ])
   for (const dark of [false, true])
-    test(`at ${width} px ${dark ? 'dark' : 'light'}: Activity's Refresh is beside pause, as on Home`, { skip }, async () => {
+    test(`at ${width} px ${dark ? 'dark' : 'light'}: Activity's Refresh is on the top line, as on Home`, { skip }, async () => {
       await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light', needs: '3', activity: '1' }), { width, height, dark })
       await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
       if (width < 768) {
@@ -156,17 +157,18 @@ for (const [width, height] of [
         return
       }
       const got = await page.evaluate(`(() => {
-        const pause = document.querySelector('[data-main-actions] [data-stop-line]'), refresh = document.querySelectorAll('[data-refresh]')
-        const a = pause.getBoundingClientRect(), b = refresh[0].getBoundingClientRect()
-        return { count: refresh.length, inLine: Boolean(refresh[0].closest('[data-main-actions]')), sameRow: Math.abs(a.top - b.top) < 2, gap: Math.round(b.left - a.right) }
+        const refresh = document.querySelectorAll('[data-refresh]')
+        return { count: refresh.length, inLine: Boolean(refresh[0].closest('[data-main-actions]')), pause: document.querySelectorAll('[data-main-top] [data-stop-line]').length }
       })()`)
       assert.equal(got.count, 1, JSON.stringify(got))
-      assert.ok(got.inLine && got.sameRow && got.gap >= 0 && got.gap <= 12, `beside pause: ${JSON.stringify(got)}`)
+      assert.ok(got.inLine, `on the top line: ${JSON.stringify(got)}`)
+      assert.equal(got.pause, 0, 'no pause on the top line')
     })
 
 // Home's reads, by name. A new read on Home (or one that calls GitHub) has
-// to be added here on purpose.
-const HOME_READS = new Set(['workspaces.list', 'instance.view', 'flow.view', 'graph.view', 'delivery.view', 'conflicts.view', 'plan.list', 'radar.crews', 'repositories.list', 'github.settings.get', 'untriaged.view', 'radar.releasequeue', 'gate.list', 'integration.view', 'review.drafts'])
+// to be added here on purpose. landing.view reads Avoozl's own store only
+// (landing-view.test.mjs checks it makes no GitHub call).
+const HOME_READS = new Set(['workspaces.list', 'instance.view', 'flow.view', 'graph.view', 'delivery.view', 'conflicts.view', 'plan.list', 'radar.crews', 'repositories.list', 'github.settings.get', 'untriaged.view', 'radar.releasequeue', 'gate.list', 'integration.view', 'review.drafts', 'landing.view'])
 
 test('Home sends only its own reads, and shows its cards before the slow Radar read lands', { skip }, async () => {
   await page.open(harness.url({ page: 'app', theme: 'light', needs: '3', slowradar: '1' }), { width: 1280, height: 800 })
@@ -176,8 +178,8 @@ test('Home sends only its own reads, and shows its cards before the slow Radar r
   const ops = await page.evaluate('window.__ops || []')
   assert.deepEqual(ops.filter((op) => !HOME_READS.has(op)), [])
   assert.ok(ops.includes('radar.crews'), 'Radar was asked')
-  // The release queue row is there too, not held back behind Radar.
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-dashboard-row="queue-progress"]'))`), true)
+  // The landing and CI row is there too, not held back behind Radar.
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-home-pair="landing-ci"]'))`), true)
 })
 
 // Every icon on the page draws a glyph: the host's lucide-react icon, never

@@ -71,9 +71,9 @@ for (const dark of [false, true])
     await start(dark)
     await page.until(`Boolean(document.querySelector('[data-attention-row]'))`, 15000)
     assert.deepEqual(await page.evaluate(OVERFLOWS), [], 'Home')
-    // Needs you rows: the tag is inline with the title, on its line.
-    const lines = await page.evaluate(`[...document.querySelectorAll('[data-attention-row]')].map((row) => { const title = row.querySelector('[data-attention-title]'); const tag = row.querySelector('[data-attention-tag]'); const a = tag.getBoundingClientRect(), b = title.getBoundingClientRect(); return { ok: a.bottom > b.top && a.top < b.bottom, a: [a.top, a.bottom], b: [b.top, b.bottom] } })`)
-    assert.ok(lines.length > 0 && lines.every((l) => l.ok), `each Needs you tag sits on its title line: ${JSON.stringify(lines)}`)
+    // Needs you cards: the tag sits above the title, inside the card.
+    const lines = await page.evaluate(`[...document.querySelectorAll('[data-attention-row]')].map((row) => { const title = row.querySelector('[data-attention-title]'); const tag = row.querySelector('[data-attention-tag]'); const a = tag.getBoundingClientRect(), b = title.getBoundingClientRect(), c = row.getBoundingClientRect(); return { ok: a.bottom <= b.top + 1 && a.left >= c.left && b.right <= c.right + 1, a: [a.top, a.bottom], b: [b.top, b.bottom] } })`)
+    assert.ok(lines.length > 0 && lines.every((l) => l.ok), `each Needs you tag sits above its title: ${JSON.stringify(lines)}`)
     await goto('Needs you')
     assert.deepEqual(await page.evaluate(OVERFLOWS), [], 'Needs you')
     await page.evaluate(`document.querySelector('[data-conflict-pick]').click()`)

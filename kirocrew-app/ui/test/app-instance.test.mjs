@@ -28,14 +28,14 @@ test('one instance: the name is in the header and on no other surface', { skip }
   await open()
   await page.until(`Boolean(document.querySelector('[data-instance-name]'))`)
   assert.equal(await page.evaluate(`document.querySelector('[data-instance-name]').textContent`), 'Mira')
-  await page.until(`document.body.innerText.includes('In flight (')`)
-  assert.equal(await page.evaluate(`document.body.innerText.includes('· Mira')`), false)
+  await page.until(`document.body.textContent.includes('In flight (')`)
+  assert.equal(await page.evaluate(`document.body.textContent.includes('· Mira')`), false)
   assert.deepEqual(page.errors, [])
 })
 
 test('two instances: In flight carries the name', { skip }, async () => {
   await open({ shared: '1' })
-  await page.until(`document.body.innerText.includes(') · Mira')`)
+  await page.until(`document.body.textContent.includes(') · Mira')`)
   assert.deepEqual(page.errors, [])
 })
 
