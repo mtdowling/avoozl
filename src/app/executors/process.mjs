@@ -30,6 +30,7 @@ import { commitWorkerChanges, git } from "../git.mjs";
 import { sessionStartHold } from "../session-request-eligibility.mjs";
 import { healthContext, providerOf } from "../provider-health.mjs";
 import { taskRepository } from "../../work-model.mjs";
+import { hasRemoteTask } from "../remote-runner.mjs";
 
 export const PROCESS_EXECUTOR = "process";
 // The harness a `process` project runs when it names none.
@@ -288,6 +289,17 @@ export async function finishProcessSession(ops, binding, result, store = null) {
     );
   }
   if (binding.role === "planner") return null;
+  // A plan-less worker's task is not in a plan: its own runner reads HEAD,
+  // runs the checks and pushes (R90.2).
+  if (store && hasRemoteTask(store, binding.taskId))
+    return ops.execute(
+      "remote.report",
+      {
+        taskId: binding.taskId,
+        state: result.state === "done" ? "done" : "blocked",
+      },
+      { local: true },
+    );
   const head = () =>
     new Promise((resolve, reject) =>
       execFile(
@@ -375,7 +387,8 @@ export async function drainProcessRequests(
       const worktree =
         request.role === "worker" &&
         request.permissionClass === "write" &&
-        prepareWorktree
+        prepareWorktree &&
+        !hasRemoteTask(store, request.task)
           ? (await prepareWorktree(store, { taskId: request.task })).path
           : verdictSession(request, project?.root)
             ? await prepareDetached(

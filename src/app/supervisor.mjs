@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { fail } from "./store.mjs";
 import { withoutPushCredentials } from "./git.mjs";
-import { machineAvoozlPaths } from "./host-config.mjs";
+import { WorkspaceRegistry, machineAvoozlPaths } from "./host-config.mjs";
 import {
   fillHarnessArgv,
   harnessPermission,
@@ -39,6 +39,10 @@ const SUPERVISOR_MAIN = fileURLToPath(
 const TICK_MAIN = fileURLToPath(
   new URL("./headless-tick-main.mjs", import.meta.url),
 );
+const INTEGRATOR_MAIN = fileURLToPath(
+  new URL("./integrator-main.mjs", import.meta.url),
+);
+const INTEGRATOR_SCAN_MS = 30_000;
 const SESSION = /^process-[0-9a-f-]{36}$/;
 // Placeholders the supervisor fills itself; a request cannot set them.
 const OWN_VALUES = [
@@ -63,8 +67,37 @@ export function supervisorPaths(stateDirectory) {
     lock: path.join(root, "supervisor.lock"),
     log: path.join(root, "supervisor.log"),
     tickLog: path.join(root, "tick.log"),
+    integratorLog: path.join(root, "integrator.log"),
     children: path.join(root, "children"),
   };
+}
+
+// The enabled workspaces in the machine catalog whose `.avoozl.json` sets
+// `landing.trains`: each gets one integrator process (landing-trains D4).
+export function trainWorkspaceRoots({ stateDirectory, configDirectory }) {
+  let registry;
+  const configPath = path.join(path.resolve(configDirectory), "config.json");
+  // A machine with no workspace configuration has nothing to integrate, and
+  // opening the registry would create its catalog.
+  if (!fs.existsSync(configPath)) return [];
+  try {
+    registry = new WorkspaceRegistry({
+      configPath,
+      catalogPath: path.join(path.resolve(stateDirectory), "catalog.sqlite"),
+    });
+    return registry
+      .list()
+      .filter((workspace) => workspace.enabled)
+      .map((workspace) => workspace.root)
+      .filter((root) => {
+        const value = readJson(path.join(root, ".avoozl.json"));
+        return Boolean(value?.landing?.trains);
+      });
+  } catch {
+    return [];
+  } finally {
+    registry?.close();
+  }
 }
 
 export function openSupervisorDatabase(stateDirectory) {
@@ -516,6 +549,10 @@ export function startSupervisor({
   tickIntervalMs = null,
   startTime = processStartTime,
   env = process.env,
+  // Workspaces that get an integrator; tests pass their own.
+  integratorRetryMs = 5000,
+  integratorRoots = () =>
+    trainWorkspaceRoots({ stateDirectory, configDirectory }),
 }) {
   if (
     tickIntervalMs !== null &&
@@ -559,6 +596,57 @@ export function startSupervisor({
     };
     ticking.once("exit", ended);
     ticking.once("error", ended);
+  };
+
+  // One integrator per train workspace, restarted when it dies. Unlike an
+  // agent child it ends with the supervisor, so a restart never doubles it.
+  const integrators = new Map();
+  let nextScan = 0,
+    roots = [];
+  const integrate = () => {
+    const now = Date.now();
+    if (now >= nextScan) {
+      roots = integratorRoots();
+      nextScan = now + INTEGRATOR_SCAN_MS;
+    }
+    for (const [root, record] of integrators)
+      if (!roots.includes(root) && record.child.exitCode === null) {
+        record.child.kill("SIGTERM");
+        integrators.delete(root);
+      }
+    for (const root of roots) {
+      const record = integrators.get(root);
+      if (
+        record &&
+        ((record.child.exitCode === null && record.child.signalCode === null) ||
+          now < record.retryAt)
+      )
+        continue;
+      const out = fs.openSync(paths.integratorLog, "a", 0o600);
+      let child;
+      try {
+        child = spawn(
+          process.execPath,
+          [INTEGRATOR_MAIN, "--workspace", root],
+          {
+            stdio: ["ignore", out, out],
+            // The integrator pushes: it keeps the supervisor's environment,
+            // like the tick; only agent children are confined.
+            env,
+            windowsHide: true,
+          },
+        );
+      } finally {
+        fs.closeSync(out);
+      }
+      const entry = { child, retryAt: 0 };
+      integrators.set(root, entry);
+      const ended = () => {
+        entry.retryAt = Date.now() + integratorRetryMs;
+      };
+      child.once("exit", ended);
+      child.once("error", ended);
+    }
   };
 
   const start = (row, message = null) => {
@@ -788,6 +876,7 @@ export function startSupervisor({
       .all())
       start(row, queuedMessage(db, row.session_id));
     if (tickIntervalMs) tick();
+    integrate();
   };
 
   const schedule = () => {
@@ -805,6 +894,7 @@ export function startSupervisor({
     if (closed) return;
     closed = true;
     clearTimeout(timer);
+    for (const { child } of integrators.values()) child.kill("SIGTERM");
     db.close();
     lock.release();
   };
@@ -817,6 +907,13 @@ export function startSupervisor({
     holder: lock.holder,
     database: paths.database,
     ticking: () => Boolean(ticking),
+    // Running integrators by workspace root, with their pids.
+    integrators: () =>
+      [...integrators]
+        .filter(
+          ([, r]) => r.child.exitCode === null && r.child.signalCode === null,
+        )
+        .map(([root, r]) => ({ root, pid: r.child.pid })),
   };
 }
 

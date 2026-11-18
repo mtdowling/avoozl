@@ -425,6 +425,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   // The document's headings, in order, and the one the reader is in.
   const [toc, setToc] = useState<{ id: number; level: number; text: string }[]>([])
   const [current, setCurrent] = useState<number | null>(null)
+  const chosen = useRef<number | null>(null)
   const headingEls = () => [...(doc.current?.querySelectorAll('[role="heading"]') ?? [])] as HTMLElement[]
   useEffect(() => {
     const found = headingEls().map((el, id) => ({ id, level: Number(el.getAttribute('aria-level')) || 1, text: el.textContent?.trim() ?? '' }))
@@ -433,8 +434,20 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   }, [text, data])
   useEffect(() => {
     // The page's pane scrolls, not the window: listen in the capture phase.
-    const onScroll = () => {
+    const onScroll = (event?: Event) => {
       const els = headingEls()
+      // A heading picked in Contents stays marked while it is on screen and
+      // the pane could not scroll it any higher (the last headings of a
+      // short tail never reach the top).
+      const picked = chosen.current
+      const top = picked === null ? null : els[picked]?.getBoundingClientRect().top
+      const pane = event?.target instanceof Element ? event.target : document.scrollingElement
+      const atEnd = Boolean(pane && pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 1)
+      if (picked !== null && top != null && top >= 0 && top < innerHeight && (top <= 96 || atEnd)) {
+        setCurrent(picked)
+        return
+      }
+      chosen.current = null
       let at: number | null = null
       for (let i = 0; i < els.length; i++) if (els[i].getBoundingClientRect().top <= 96) at = i
       setCurrent(at ?? (els.length ? 0 : null))
@@ -445,6 +458,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toc])
   const goHeading = (id: number) => {
+    chosen.current = id
     headingEls()[id]?.scrollIntoView({ block: 'start', behavior: motion() })
     setCurrent(id)
   }
@@ -469,14 +483,18 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   useEffect(() => {
     const els = blockEls(),
       lines = els.map(lineOf)
-    for (const el of els) {
-      for (const name of ['data-review-hit', 'data-review-anchor', 'data-review-sev', 'tabindex', 'aria-label']) el.removeAttribute(name)
+    const byBlock = new Map<number, ReviewFinding[]>()
+    for (const f of placed) for (const at of blocksIn(lines, f.anchor.lineStart, f.anchor.lineEnd)) byBlock.set(at, [...(byBlock.get(at) ?? []), f])
+    // Only blocks that lose their tint lose tabindex: taking it from a
+    // focused block, even for a moment, drops the focus.
+    els.forEach((el, at) => {
+      el.removeAttribute('data-review-hit')
+      if (byBlock.has(at)) return
+      for (const name of ['data-review-anchor', 'data-review-sev', 'tabindex', 'aria-label']) el.removeAttribute(name)
       // A heading keeps its own role; any other block is a button while tinted.
       if (el.hasAttribute('data-review-role')) el.removeAttribute('role')
       el.removeAttribute('data-review-role')
-    }
-    const byBlock = new Map<number, ReviewFinding[]>()
-    for (const f of placed) for (const at of blocksIn(lines, f.anchor.lineStart, f.anchor.lineEnd)) byBlock.set(at, [...(byBlock.get(at) ?? []), f])
+    })
     for (const [at, list] of byBlock) {
       const worst = [...list].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])[0]
       els[at].setAttribute('data-review-anchor', worst.id)

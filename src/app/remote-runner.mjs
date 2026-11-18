@@ -54,6 +54,12 @@ export const HOLDS_TASKS = (config) =>
 const TERMINAL = new Set(["pushed", "failed"]);
 export const REMOTE_AGENTS = ["kirocrew-worker"];
 
+const executorOf = (value) => {
+  if (value === undefined || value === "kirocrew") return "kirocrew";
+  if (value === "process") return "process";
+  return fail('runner.executor is "kirocrew" or "process".');
+};
+
 const parse = (text, what) => {
   try {
     return JSON.parse(text);
@@ -101,6 +107,9 @@ export function readRunnerConfig(workspaceRoot, env = process.env) {
       repos,
       checks,
       agents: block.agents || REMOTE_AGENTS,
+      // Which executor runs the worker's session (R90.8). Only `kirocrew`
+      // needs Kiro Crew; `process` runs headless under the supervisor.
+      executor: executorOf(block.executor),
       remote: block.remote || "origin",
       checkTimeoutSeconds: block.checkTimeoutSeconds || 600,
       // Off unless the owner names it: an unattended worker's tool calls
@@ -464,6 +473,7 @@ export async function runnerTick(
             task: id,
             role: "worker",
             title: `avoozl:${id} remote task`,
+            ...(config.executor === "process" ? { executor: "process" } : {}),
             ...kirocrewDetachedSession("remote"),
             agent: record.envelope.agent,
             ...(record.envelope.model ? { model: record.envelope.model } : {}),
