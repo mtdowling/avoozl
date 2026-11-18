@@ -33,7 +33,7 @@ function fakeUi(root) {
   fs.mkdirSync(path.join(dist, "fonts"), { recursive: true });
   fs.writeFileSync(
     path.join(dist, "index.html"),
-    '<!doctype html><meta name="avoozl-csrf" content=""><script type="module" src="/apps/avoozl/assets/a.js"></script>',
+    '<!doctype html><meta name="avoozl-csrf" content="" /><script type="module" src="/apps/avoozl/assets/a.js"></script>',
   );
   fs.writeFileSync(path.join(dist, "assets", "a.js"), "console.log(1)");
   fs.writeFileSync(path.join(dist, "NOTICE"), "not served");
@@ -742,4 +742,17 @@ test("avoozl serve link prints a new link for the running server, and refuses wi
   assert.equal(url.pathname, "/login");
   const res = await s.call(`${url.pathname}${url.search}`);
   assert.equal(res.status, 303);
+});
+
+test("the placeholder in the real built page is the one the server fills (SW4.6)", () => {
+  const built = path.join(
+    fileURLToPath(
+      new URL(
+        "../../../kirocrew-app/ui/dist/standalone/index.html",
+        import.meta.url,
+      ),
+    ),
+  );
+  const html = fs.readFileSync(built, "utf8");
+  assert.match(html, /<meta name="avoozl-csrf" content=""\s*\/?>/);
 });

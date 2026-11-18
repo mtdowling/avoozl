@@ -18,6 +18,8 @@ import {
 } from "./serve-auth.mjs";
 
 export const HOST = "127.0.0.1";
+// The placeholder the built page carries for the CSRF token (either tag form).
+const CSRF_META = /<meta name="avoozl-csrf" content=""\s*\/?>/;
 const MAX_BODY_BYTES = 1024 * 1024;
 const APP_PATH = "/apps/avoozl";
 const COMMAND_PATH = `${APP_PATH}/api/command`;
@@ -71,6 +73,10 @@ export function builtFiles(folder) {
   walk("");
   if (!files.has(""))
     throw Error("The standalone page is not built. Run npm run build.");
+  if (!CSRF_META.test(fs.readFileSync(files.get("").file, "utf8")))
+    throw Error(
+      "The standalone page has no CSRF placeholder. Run npm run build.",
+    );
   return files;
 }
 
@@ -188,7 +194,11 @@ export async function startServe({
 
     if (req.method === "POST") {
       const problem = auth.writeProblem(req, who);
-      if (problem) return json(res, 403, { error: "Not allowed." });
+      if (problem) {
+        // The name of the check, never a value (SW4.10).
+        log(`refused ${req.method} ${url.pathname}: ${problem}`);
+        return json(res, 403, { error: "Not allowed." });
+      }
       if (url.pathname === "/logout") {
         if (who.kind !== "session")
           return json(res, 403, { error: "Not allowed." });
@@ -247,7 +257,7 @@ export async function startServe({
       body = body
         .toString("utf8")
         .replace(
-          '<meta name="avoozl-csrf" content="">',
+          CSRF_META,
           `<meta name="avoozl-csrf" content="${who.session.csrf}">`,
         );
       extra["Cache-Control"] = "no-store";
