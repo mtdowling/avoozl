@@ -29,6 +29,24 @@
       "deprecated": true,
       "description": "Ignored and dropped on the next save. lanes.local in the machine Avoozl configuration sets how many chats this machine runs."
     },
+    "serve": {
+      "type": "object",
+      "description": "Run the standalone page under this machine's supervisor. Machine file only: a repository's .avoozl.json may not set it.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Start avoozl serve as a supervised child, and restart it when it exits. It prints no owner link: run avoozl serve link at this machine's shell."
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "description": "A fixed port, so the address stays the same across restarts. Omit for a random free port."
+        }
+      }
+    },
     "workspaces": {
       "type": "object",
       "propertyNames": {
