@@ -164,6 +164,7 @@ export function landingQueueView(store, data, { now = Date.now() } = {}) {
       tasks: ids.map((id) => ({ id, title: tasks.get(id)?.title ?? id })),
       commit: entry.commit ?? null,
       pr: first?.pr ?? null,
+      reviewPr: entry.reviewPr ?? null,
       branch: first?.branch ?? null,
       checks: first?.checks ?? null,
       ...extra,

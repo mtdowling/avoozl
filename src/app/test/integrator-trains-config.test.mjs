@@ -254,6 +254,39 @@ test("a gated target with a CI-only platform loads with the extra-run warning", 
   assert.match(warnings[0], /windows-x64.*one extra CI run/);
 });
 
+test("pullRequests keys load with defaults, and a template placeholder must be known", () => {
+  const ok = setup({
+    repo: trains({
+      pullRequests: { commentTemplate: "Landed as {position}." },
+    }),
+    global: { machine: macNative },
+  }).load();
+  const s = trainSettings(ok.config, "main");
+  assert.equal(s.pullRequests.mode, "review-only");
+  assert.equal(s.pullRequests.commentTemplate, "Landed as {position}.");
+  const dflt = setup({ repo: trains(), global: { machine: macNative } }).load();
+  assert.match(
+    trainSettings(dflt.config, "main").pullRequests.commentTemplate,
+    /\{train\}/,
+  );
+  assert.throws(
+    () =>
+      setup({
+        repo: trains({ pullRequests: { commentTemplate: "Hi {name}" } }),
+        global: { machine: macNative },
+      }).load(),
+    /\{name\}.*not a placeholder/,
+  );
+  assert.throws(
+    () =>
+      setup({
+        repo: trains({ pullRequests: { mode: "always" } }),
+        global: { machine: macNative },
+      }).load(),
+    /pullRequests\.mode must be one of review-only/,
+  );
+});
+
 test("scheduling.overlap defaults to same-train and refuses other values", () => {
   const ok = setup({ repo: trains(), global: { machine: macNative } }).load();
   assert.equal(
