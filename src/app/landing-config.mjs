@@ -389,6 +389,9 @@ export function assertNoMachineKeys(value, file, globalFile) {
     throw Error(`serve is set in ${file}. Put it in ${globalFile}.`);
   if (value?.lease !== undefined)
     throw Error(`lease is set in ${file}. Put it in ${globalFile}.`);
+  // A sink's URL may hold a secret, so sinks live only on the machine.
+  if (value?.notifications !== undefined)
+    throw Error(`notifications is set in ${file}. Put it in ${globalFile}.`);
 }
 
 export const leaseSettings = (config) => ({

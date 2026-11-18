@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { enqueueLanding } from "../landing-queue.mjs";
 import { landingQueueView } from "../landing-queue-view.mjs";
 import { reviewBranch } from "../integrator-review.mjs";
 import { fixture } from "./fixtures.mjs";
 
-const here = path.dirname(new URL(import.meta.url).pathname);
+const here = path.dirname(fileURLToPath(import.meta.url));
 
 function seed(t) {
   const { store } = fixture(t);

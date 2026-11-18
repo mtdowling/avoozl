@@ -93,6 +93,7 @@ import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
 import { ApiKeySettings } from './ApiKeySettings.tsx'
+import { NoticesSettings } from './NoticesSettings.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
@@ -1626,6 +1627,7 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
       <div className="flex flex-col gap-3.5">
         <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
         <ThisComputer workspaceId={workspaceId} />
+        <NoticesSettings workspaceId={workspaceId} />
         <ApiKeySettings workspaceId={workspaceId} />
       </div>
     )
