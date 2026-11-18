@@ -42,6 +42,7 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -49,14 +50,14 @@ const SOURCE_ICONS = { path: Folder, package: Package, git: GitBranch } as const
 
 function Field(props: { label: string; marker?: 'required' | 'optional'; raw?: string; hint?: string; children: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1 text-sm">
+    <Box as="label" flex flexCol gap="1" size="sm">
       <span>
         {props.label} {props.marker && <Hint size="xs">({props.marker})</Hint>}
       </span>
       {props.children}
       {props.hint && <Hint size="xs">{props.hint}</Hint>}
-      {props.raw && <code className="text-[11px] text-muted">{props.raw}</code>}
-    </label>
+      {props.raw && <Box as="code" size="11" tone="muted">{props.raw}</Box>}
+    </Box>
   )
 }
 
@@ -134,17 +135,17 @@ function WhatStep(props: { form: PluginForm; preview: PluginPreview; supported: 
     ['Capabilities', capabilities],
   ]
   return (
-    <div className="flex flex-col gap-3 text-sm" data-plugin-what>
+    <Box flex flexCol gap="3" size="sm" data-plugin-what>
       <dl className="grid gap-x-3 gap-y-1 text-xs" style={{ gridTemplateColumns: 'auto 1fr' }}>
         {facts
           .filter(([, v]) => v)
           .map(([label, v]) => (
-            <div key={label} className="contents">
+            <Box key={label} contents>
               <Hint as="dt">{label}</Hint>
-              <dd className="break-all">
+              <Box as="dd" breakAll>
                 <code>{v}</code>
-              </dd>
-            </div>
+              </Box>
+            </Box>
           ))}
       </dl>
       <Field label="Id" marker="required" raw="id" hint={preview.id ? 'From the plugin’s own avoozl-plugin.json.' : 'It must match the id in the plugin’s avoozl-plugin.json. Add checks it.'}>
@@ -173,7 +174,7 @@ function WhatStep(props: { form: PluginForm; preview: PluginPreview; supported: 
           {props.problem}
         </ErrorText>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -187,14 +188,14 @@ function ScopeStep(props: { form: PluginForm; set: (patch: Partial<PluginForm>) 
         ? 'Written to .avoozl.json. Each computer installs the package, then approves it.'
         : 'Written to .avoozl.json. Each computer approves it for itself.'
   const detail = (line: string, when: string, limits: string) => (
-    <div className="flex flex-col gap-1 text-sm">
+    <Box flex flexCol gap="1" size="sm">
       <p>{line}</p>
       <Hint as="p" size="xs">Use it when {when}</Hint>
       <Hint as="p" size="xs">{limits}</Hint>
-    </div>
+    </Box>
   )
   return (
-    <div className="flex flex-col gap-3 text-sm" data-plugin-scope>
+    <Box flex flexCol gap="3" size="sm" data-plugin-scope>
       <RadioFold
         name="avoozl-plugin-scope"
         label="Applies to"
@@ -237,7 +238,7 @@ function ScopeStep(props: { form: PluginForm; set: (patch: Partial<PluginForm>) 
           },
         ]}
       />
-    </div>
+    </Box>
   )
 }
 
@@ -372,13 +373,13 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
         </>
       }
     >
-      <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
+      <Box as="ol" flex flexWrap gap="2" size="xs" aria-label="Steps">
         {PLUGIN_STEPS.map(([title], i) => (
           <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
             {i + 1}. {title}
           </li>
         ))}
-      </ol>
+      </Box>
       <div>
         <Hint id="avoozl-plugin-line" as="p" size="sm">
           {PLUGIN_STEPS[step][1]}
@@ -388,7 +389,7 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       {step === 1 && preview && <WhatStep form={form} preview={preview} supported={supported} set={set} problem={problem} />}
       {step === 2 && <ScopeStep form={form} set={set} confirmPublic={confirmPublic} setConfirmPublic={setConfirmPublic} />}
       {step === 3 && added && (
-        <div className="flex flex-col gap-3 text-sm" data-plugin-review>
+        <Box flex flexCol gap="3" size="sm" data-plugin-review>
           <FormSection title={added.id} meta={<Badge variant={stateLabel(added).attention ? 'warning' : undefined}>{stateLabel(added).label}</Badge>}>
             {added.reason && <Hint as="p" size="xs">{added.reason}</Hint>}
             <Parts row={added} />
@@ -400,7 +401,7 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
             </FormSection>
           )}
           <Hint as="p" size="xs">Cancel removes the entry just added. Nothing has run.</Hint>
-        </div>
+        </Box>
       )}
       {error && (
         <ErrorText role="alert" size="sm">
@@ -422,18 +423,18 @@ export default function AddPlugin(props: { workspaceId: string; client: Client; 
   return (
     <PairedCard title="Add plugin" label="Add plugin" grow={2} minWidth="18rem">
       <Hint as="p" size="xs">Four steps. Nothing runs or imports until you approve its exact version.</Hint>
-      <ol className="mt-2 flex flex-col gap-1 text-xs">
+      <Box as="ol" mt="2" flex flexCol gap="1" size="xs">
         {PLUGIN_STEPS.map(([title, line], i) => (
-          <li key={title} className="flex gap-2">
-            <span className="font-semibold">{i + 1}.</span>
+          <Box key={title} as="li" flex gap="2">
+            <Box as="span" weight="semibold">{i + 1}.</Box>
             <span>
               {title}
               <Hint block>{line}</Hint>
             </span>
-          </li>
+          </Box>
         ))}
-      </ol>
-      <div className="mt-3">
+      </Box>
+      <Box mt="3">
         <IconLabel
           icon={Plus}
           primary
@@ -444,11 +445,11 @@ export default function AddPlugin(props: { workspaceId: string; client: Client; 
         >
           Add plugin
         </IconLabel>
-      </div>
+      </Box>
       {note && (
-        <p className="mt-2 text-xs text-muted" role="status">
+        <Box as="p" mt="2" size="xs" tone="muted" role="status">
           {note}
-        </p>
+        </Box>
       )}
       {open && <AddPluginDialog workspaceId={props.workspaceId} client={props.client} supported={props.supported} onChanged={props.onChanged} onClose={close} />}
     </PairedCard>

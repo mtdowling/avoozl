@@ -36,6 +36,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 // Spec Builder resolves symlinks (/tmp is /private/tmp on macOS).
 const samePath = (left: string, right: string) => {
@@ -47,10 +48,10 @@ const fieldStyle = { borderColor: 'var(--border)', color: 'var(--text)', backgro
 
 function Field(props: { id: string; label: string; need: 'required' | 'optional'; hint?: string; problem?: string | null; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-1 text-sm">
-      <label htmlFor={props.id} className="font-medium">
-        {props.label} <span className="font-normal text-muted">({props.need})</span>
-      </label>
+    <Box flex flexCol gap="1" size="sm">
+      <Box htmlFor={props.id} as="label" weight="medium">
+        {props.label} <Box as="span" weight="normal" tone="muted">({props.need})</Box>
+      </Box>
       {props.children}
       {props.problem ? (
         <ErrorText id={`${props.id}-problem`} as="span" size="xs">
@@ -59,7 +60,7 @@ function Field(props: { id: string; label: string; need: 'required' | 'optional'
       ) : (
         props.hint && <Hint size="xs">{props.hint}</Hint>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -246,10 +247,10 @@ export default function NewPlanDrawer(props: {
   // Repositories, what you want, and links: Blank and From a goal share them.
   const sharedFields = (
     <>
-          <fieldset className="flex flex-col gap-1 text-sm">
-            <legend className="font-medium">
-              Repositories <span className="font-normal text-muted">(required)</span>
-            </legend>
+          <Box as="fieldset" flex flexCol gap="1" size="sm">
+            <Box as="legend" weight="medium">
+              Repositories <Box as="span" weight="normal" tone="muted">(required)</Box>
+            </Box>
             {repositories === null ? (
               <Hint size="xs">Loading…</Hint>
             ) : repositories.length === 0 ? (
@@ -270,7 +271,7 @@ export default function NewPlanDrawer(props: {
             {tried && repositories && repositories.length > 0 && !form.repositories.length && (
               <ErrorText as="span" size="xs">Pick at least one repository.</ErrorText>
             )}
-          </fieldset>
+          </Box>
           <Field id="avoozl-new-plan-goal" need="required" label="What you want" hint="The planner's first prompt: the goal, who it is for, and what done looks like." problem={tried && !form.goal.trim() ? 'Say what you want.' : null}>
             <textarea
               id="avoozl-new-plan-goal"
@@ -354,7 +355,7 @@ export default function NewPlanDrawer(props: {
           <Field id="avoozl-new-plan-category" need="optional" label="Category" hint="Pick one, or New category to name one. Left blank, the spec is Uncategorized.">
             <Picker
               id="avoozl-new-plan-category"
-              label={<span className="sr-only">Category</span>}
+              label={<Box as="span" srOnly>Category</Box>}
               items={[...props.categories.map((c) => ({ id: c, title: c })), { id: NEW_CHOICE, title: 'New category…' }]}
               value={newCategory ? NEW_CHOICE : form.category}
               emptyLabel="Uncategorized"
@@ -378,7 +379,7 @@ export default function NewPlanDrawer(props: {
           >
             <Picker
               id="avoozl-new-plan-epic"
-              label={<span className="sr-only">Epic</span>}
+              label={<Box as="span" srOnly>Epic</Box>}
               items={[...(props.epics ?? []).map((epic) => ({ id: epic.id, title: epic.title })), { id: NEW_CHOICE, title: 'New epic…' }]}
               value={newEpic ? NEW_CHOICE : form.epic}
               emptyLabel="No epic"
@@ -461,9 +462,9 @@ export default function NewPlanDrawer(props: {
           />
           {steering && (
             <section aria-labelledby="avoozl-new-plan-steering" className="flex flex-col gap-2 rounded border p-3 text-sm" style={{ borderColor: 'var(--border)' }}>
-              <h4 id="avoozl-new-plan-steering" className="font-medium">
+              <Box id="avoozl-new-plan-steering" as="h4" weight="medium">
                 Add Avoozl&apos;s spec rules to this repository?
-              </h4>
+              </Box>
               <Hint as="p" size="xs">
                 Spec Builder&apos;s chat reads steering files from the repository. This writes <code>{steering.path}</code>, which you commit. Skip it, and the rules go with this one spec instead.
               </Hint>

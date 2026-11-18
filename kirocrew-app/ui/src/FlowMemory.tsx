@@ -30,6 +30,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 const LINE = { add: 'var(--success, #1a7f37)', del: 'var(--danger)', hunk: 'var(--muted)', same: 'var(--text)' } as const
 
@@ -58,7 +59,7 @@ function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { propo
     <li className="flex flex-col gap-1.5 border-t pt-2 first:border-t-0 first:pt-0 text-sm" data-proposal={`${proposal.retro}:${proposal.id}`} data-linked={linked || undefined} style={{ borderColor: 'var(--border)', ...(linked ? { boxShadow: 'inset 0 0 0 2px var(--accent)', borderRadius: 6, padding: 8 } : {}) }}>
       <span className="flex flex-wrap items-center gap-2" style={{ overflowWrap: 'anywhere' }}>
         <Badge>{proposal.type}</Badge>
-        <code className="text-xs">{proposalText(proposal)}</code>
+        <Box as="code" size="xs">{proposalText(proposal)}</Box>
         <Hint>{directionText(proposal)}</Hint>
         <button type="button" className="text-xs underline" data-proposal-retro={proposal.retro} onClick={onOpenRetro}>
           From {proposal.retro}
@@ -72,13 +73,13 @@ function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { propo
       <span className="text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
         Evidence: {evidenceText(proposal)}
       </span>
-      {proposal.leaf && <span className="text-xs">Delivered as task {proposal.leaf}.</span>}
-      {proposal.note && <span className="text-xs">A suggested change waits on {proposal.note.plugin ? `plugin ${proposal.note.plugin}'s card` : 'this page'}; nothing was sent.</span>}
+      {proposal.leaf && <Box as="span" size="xs">Delivered as task {proposal.leaf}.</Box>}
+      {proposal.note && <Box as="span" size="xs">A suggested change waits on {proposal.note.plugin ? `plugin ${proposal.note.plugin}'s card` : 'this page'}; nothing was sent.</Box>}
       {proposal.status !== 'open' ? (
-        <span className="text-xs">
+        <Box as="span" size="xs">
           {proposal.status === 'approved' ? 'Approved' : `Rejected${proposal.reason ? `: ${proposal.reason}` : ''}`}
           {pdca ? ` · ${pdca}` : ''}
-        </span>
+        </Box>
       ) : (
         <Row gap={2} align="start">
           <Btn type="button" disabled={busy} onClick={() => onDecide(proposal, 'reject')}>
@@ -96,19 +97,19 @@ function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { propo
 function DriftBlock({ drift, target, busy, onRebase }: { drift: PromptDrift; target: string; busy: boolean; onRebase: () => void }) {
   return (
     <div className="flex flex-col gap-1.5 rounded border p-2 text-sm" style={{ borderColor: 'var(--warning, var(--border))' }} data-prompt-drift={`${target}:${drift.section}`}>
-      <span className="font-medium">
+      <Box as="span" weight="medium">
         The built-in {target} § {drift.section} changed under your override.
-      </span>
+      </Box>
       <Hint size="xs">Sessions keep your override until you approve the rebase.</Hint>
-      <span className="text-xs font-medium">Built-in: old to new</span>
+      <Box as="span" size="xs" weight="medium">Built-in: old to new</Box>
       <DiffBlock diff={drift.diffs.builtIn} label="Built-in change" />
-      <span className="text-xs font-medium">Your override against the old built-in</span>
+      <Box as="span" size="xs" weight="medium">Your override against the old built-in</Box>
       <DiffBlock diff={drift.diffs.override} label="Override" />
       {drift.conflict ? (
         <ErrorText as="span" size="xs">The override does not merge onto the new text. Revert it, or approve a new proposal later.</ErrorText>
       ) : (
         <>
-          <span className="text-xs font-medium">Rebased override</span>
+          <Box as="span" size="xs" weight="medium">Rebased override</Box>
           <pre className="max-h-48 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)', whiteSpace: 'pre-wrap', margin: 0 }}>
             {drift.rebased}
           </pre>
@@ -130,9 +131,9 @@ function PromptVersions({ prompts, busy, onRevert, onRebase }: { prompts: Prompt
       <Hint as="p" size="xs">Overrides live on this computer, for this workspace only. Locked sections always use the built-in text.</Hint>
       <Stack as="ul" gap={2}>
         {prompts.map((p) => (
-          <li key={p.target} className="flex flex-col gap-1.5 text-sm">
+          <Box key={p.target} as="li" flex flexCol gap="1.5" size="sm">
             <Row as="span" gap={2}>
-              <code className="text-xs">{p.target}</code>
+              <Box as="code" size="xs">{p.target}</Box>
               <Hint>{p.active ? `override ${p.version.split('+')[1] ?? ''}` : 'built-in'}</Hint>
               {p.versions.length > 0 && <Hint size="xs">last change {relativeTime(p.versions.at(-1)!.at, Date.now())}</Hint>}
               {p.drift.length > 0 && <Badge variant="warning">built-in changed</Badge>}
@@ -145,7 +146,7 @@ function PromptVersions({ prompts, busy, onRevert, onRebase }: { prompts: Prompt
             {p.drift.map((d) => (
               <DriftBlock key={d.section} drift={d} target={p.target} busy={busy} onRebase={() => onRebase(p, d)} />
             ))}
-          </li>
+          </Box>
         ))}
       </Stack>
     </Card>
@@ -201,7 +202,7 @@ export function ProposalsView({ workspaceId, target, onOpenRetro, onSeen }: { wo
         </ErrorText>
       )}
       {!value.available && (
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+        <Box as="p" flex flexWrap items="center" gapX="3" gapY="1" size="sm" tone="muted">
           <span>This Avoozl process has no settings folder, so prompt overrides are off.</span>
           <AskForHelp
             workspaceId={workspaceId}
@@ -213,7 +214,7 @@ export function ProposalsView({ workspaceId, target, onOpenRetro, onSeen }: { wo
               docs: 'README.md, sections Flow and Configuration and secrets',
             }}
           />
-        </p>
+        </Box>
       )}
       <Card className="flex flex-col gap-2">
         <SectionHeading title="Proposals" />
@@ -270,10 +271,10 @@ export function SkillNoteCard({ note }: { note: { file: string; diff: string; su
   const [copied, setCopied] = useState(false)
   const text = `Suggested change to ${note.file}\n\n${note.summary}\n\n${note.diff}\n`
   return (
-    <div className="flex flex-col gap-1 text-sm" data-skill-note={note.file}>
-      <span className="font-medium">
-        Suggested change to <code className="text-xs">{note.file}</code>
-      </span>
+    <Box flex flexCol gap="1" size="sm" data-skill-note={note.file}>
+      <Box as="span" weight="medium">
+        Suggested change to <Box as="code" size="xs">{note.file}</Box>
+      </Box>
       <Hint size="xs">{note.summary}</Hint>
       <DiffBlock diff={note.diff} label={`Suggested change to ${note.file}`} />
       <div>
@@ -289,7 +290,7 @@ export function SkillNoteCard({ note }: { note: { file: string; diff: string; su
           {copied ? 'Copied' : 'Copy'}
         </Btn>
       </div>
-    </div>
+    </Box>
   )
 }
 

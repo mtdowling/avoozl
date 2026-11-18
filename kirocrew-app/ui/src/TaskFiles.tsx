@@ -37,6 +37,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 // A diff longer than this many lines shows its start, then a button.
 export const DIFF_LINES = 1500
@@ -62,7 +63,7 @@ function StatusBadge({ change }: { change: FileChange }) {
       <span aria-hidden="true">
         <Badge variant={STATUS_VARIANT[change.status]}>{STATUS_LETTER[change.status]}</Badge>
       </span>
-      <span className="sr-only">{change.status}</span>
+      <Box as="span" srOnly>{change.status}</Box>
     </span>
   )
 }
@@ -92,11 +93,11 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
               data-file={node.path}
             >
               {node.change ? <StatusBadge change={node.change} /> : <span style={{ width: 18 }} aria-hidden="true" />}
-              <span className="min-w-0 flex-1 truncate">
+              <Box as="span" minW0 flex1 truncate>
                 {node.name}
                 {node.change?.from && <Hint size="xs"> ← {node.change.from}</Hint>}
                 {node.change?.untracked && <Hint size="xs"> (not committed)</Hint>}
-              </span>
+              </Box>
               {node.change && <Counts change={node.change} />}
             </button>
           </li>
@@ -104,7 +105,7 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
           <li key={node.path}>
             <div className="flex items-center gap-1 px-1 py-0.5 text-sm text-muted" style={{ paddingLeft: 4 + props.depth * 14 }}>
               <Folder size={14} aria-hidden="true" />
-              <span className="truncate">{node.name}</span>
+              <Box as="span" truncate>{node.name}</Box>
             </div>
             <Tree nodes={node.children} depth={props.depth + 1} selected={props.selected} onPick={props.onPick} />
           </li>
@@ -283,10 +284,10 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
   )
   if (view.mode === 'none')
     return (
-      <div className="flex flex-col gap-2 text-sm">
+      <Box flex flexCol gap="2" size="sm">
         <Hint as="p">{view.remote ? 'This task runs on another machine. Its files are not here.' : 'No worktree or branch for this task on this machine yet.'}</Hint>
         {branchLink}
-      </div>
+      </Box>
     )
   const pickedChange = view.files.find((f) => f.path === picked) ?? null
   const diffLines = diff?.view ? parseDiff(diff.view.diff) : []
@@ -295,7 +296,7 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
   const fileHref = fileTarget && editorHref(editor, fileTarget.path, fileTarget.line)
   const body = (
     <Stack gap={3} data-task-files>
-      <div className="flex flex-wrap items-center gap-2 text-sm">
+      <Box flex flexWrap items="center" gap="2" size="sm">
         <span data-files-totals>
           {view.totals ? (
             <>
@@ -312,10 +313,10 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
           )}
         </span>
         {view.files.length > 0 && <Hint size="xs">{statusCounts(view.files)}</Hint>}
-        <span className="flex-1" />
+        <Box as="span" flex1 />
         <IconBtn icon={RefreshCw} label="Read the files again" onClick={() => setReload((n) => n + 1)} />
-      </div>
-      <div className="flex flex-wrap items-center gap-2 text-xs">
+      </Box>
+      <Box flex flexWrap items="center" gap="2" size="xs">
         <Hint>{view.mode === 'worktree' ? 'Its worktree' : `Its branch ${view.branch}`} against where it left its base.</Hint>
         {local ? (
           <a href={editorHref(editor, view.worktree!)!} className="inline-flex items-center gap-1 underline" data-open-worktree>
@@ -326,7 +327,7 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
           branchLink
         )}
         {local && (
-          <span className="inline-flex items-center gap-1" data-editor-pick>
+          <Box as="span" inlineFlex items="center" gap="1" data-editor-pick>
             Editor
             <Toggle
               label="Editor"
@@ -338,12 +339,12 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
                 writeEditor(pageStorage(), next)
               }}
             />
-          </span>
+          </Box>
         )}
         <Switch label="Show all files" inline gap={1} checked={showAll} onChange={setShowAll}>
           Show all files
         </Switch>
-      </div>
+      </Box>
       {tree.length === 0 ? (
         <Hint as="p" size="sm">This task has not changed any files yet.</Hint>
       ) : (

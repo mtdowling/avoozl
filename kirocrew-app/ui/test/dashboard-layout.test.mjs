@@ -26,7 +26,7 @@ test('Home: the tiles, Needs you full width, then Landing queue beside CI health
   ])
   // The nav says Home, so the heading is for screen readers only; Refresh
   // is in the nav.
-  assert.match(dashboard, /<h2 id="avoozl-dashboard-title" className="sr-only">\s*Home\s*<\/h2>/)
+  assert.match(dashboard, /<Box id="avoozl-dashboard-title" as="h2" srOnly>\s*Home\s*<\/Box>/)
   assert.match(dashboard, /usePublishRefresh\(useRefreshCountdown\(workspaceId, refreshHome, busy\)\)/)
   assert.doesNotMatch(dashboard, /<ViewHeading/)
   assert.doesNotMatch(dashboard, /StateCounts|UntriagedStat|Show them in Delivery|Up next/)

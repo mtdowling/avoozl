@@ -49,6 +49,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 // Theme variables only (Radar's rule): go is the accent, a hold is warn.
 const COLOR: Record<NodeState, string> = {
@@ -237,9 +238,9 @@ export default function GraphPage(props: {
         style={{ borderColor: 'var(--border)', fontFamily: MONO, letterSpacing: '.08em' }}
         data-graph-header
       >
-        <span className="whitespace-nowrap">
+        <Box as="span" whitespace="nowrap">
           DEPENDENCIES · <span className="font-semibold" style={{ color: 'var(--text-strong, var(--text))' }}>{props.workspaceName ?? workspaceId ?? ''}</span>
-        </span>
+        </Box>
         <Row role="tablist" aria-label="Dependency views" gap={1} wrap={false}>
           {TABS.map((t) => (
             <button
@@ -260,7 +261,7 @@ export default function GraphPage(props: {
             </button>
           ))}
         </Row>
-        <div className="ml-auto flex items-center gap-1.5">
+        <Box ml="auto" flex items="center" gap="1.5">
           <NavArrow label="Back" icon="back" disabled={trail.at <= 0} onClick={back} />
           <NavArrow label="Forward" icon="forward" disabled={trail.at >= trail.list.length - 1} onClick={forward} />
           <form
@@ -294,7 +295,7 @@ export default function GraphPage(props: {
             ))}
           </datalist>
           {workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void source.reload()} busy={source.busy} />}
-        </div>
+        </Box>
       </div>
       {jumpError && (
         <ErrorText id="avoozl-graph-jump-error" role="alert" size="xs" flush>
@@ -331,12 +332,12 @@ export default function GraphPage(props: {
       )}
       {place.tab !== 'all' && graph && graph.total > 0 && (
         <div id={HINT_ID} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t pt-2 text-[11px] text-muted" style={{ borderColor: 'var(--border)', fontFamily: MONO }} data-graph-hint>
-          <span className="min-w-0 flex-1">
+          <Box as="span" minW0 flex1>
             {place.tab === 'frontier'
               ? 'Newly unlocked tasks have every blocker on record done. Open a row to see why, or open its tree.'
               : 'The live dependency tree of the selected task or spec. Click a card or press Enter to drill into its tree; O, Space or ↗ opens its details. Arrow keys move between cards. Dashed = sequence only, struck = done.'}
-          </span>
-          <span className="flex-none tabular-nums">{lists?.ready.length ?? 0} newly unlocked</span>
+          </Box>
+          <Box as="span" flexNone tabularNums>{lists?.ready.length ?? 0} newly unlocked</Box>
         </div>
       )}
       {modal && graph && (
@@ -386,7 +387,7 @@ export function Frontier(props: { ready: FrontierItem[]; waiting: FrontierItem[]
       <p className="mb-3.5 mt-0.5 text-[10px]" style={{ color: 'var(--muted-strong, var(--muted))' }} data-frontier-sub>
         {ready.length} newly unlocked · {waiting.length} still waiting
       </p>
-      {ready.length === 0 && waiting.length === 0 && <p className="text-[11px] text-muted">No task has a blocker on record.</p>}
+      {ready.length === 0 && waiting.length === 0 && <Box as="p" size="11" tone="muted">No task has a blocker on record.</Box>}
       {ready.map((item) => (
         <FrontierRow key={item.task.id} item={item} unlocked {...props} />
       ))}
@@ -406,7 +407,7 @@ function Chip({ task }: { task: GraphTask }) {
   const state = nodeState(task)
   const go = state === 'ready' || state === 'running'
   return (
-    <span className="inline-flex flex-none items-center gap-1.5" data-state-chip={state}>
+    <Box as="span" inlineFlex flexNone items="center" gap="1.5" data-state-chip={state}>
       <span
         aria-hidden="true"
         className="inline-block h-[7px] w-[7px] rounded-full"
@@ -414,9 +415,9 @@ function Chip({ task }: { task: GraphTask }) {
       />
       <span className="text-[9px]" style={{ color: COLOR[state], letterSpacing: '.12em' }}>
         {STATE_CHIP[state]}
-        <span className="sr-only"> ({STATE_WORD[state]})</span>
+        <Box as="span" srOnly> ({STATE_WORD[state]})</Box>
       </span>
-    </span>
+    </Box>
   )
 }
 
@@ -589,7 +590,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                       className="avoozl-tree-row flex cursor-pointer flex-col gap-0.5 rounded-[3px] border px-3 py-2"
                       style={{ background: 'var(--card)', borderColor: isRoot ? 'var(--accent)' : 'var(--border-strong, var(--border))', borderWidth: isRoot ? 2 : 1, borderStyle: draft ? 'dashed' : 'solid' }}
                     >
-                      <span className="flex items-baseline gap-2">
+                      <Box as="span" flex items="baseline" gap="2">
                         <span className="text-[12px] font-bold" style={{ color: faded ? 'var(--muted-strong, var(--muted))' : COLOR[node.state], textDecoration: faded ? 'line-through' : undefined }}>
                           {node.id}
                         </span>
@@ -611,12 +612,12 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                         >
                           <ExternalLink size={13} aria-hidden="true" />
                         </button>
-                      </span>
+                      </Box>
                       <span className="text-[11px]" style={{ color: 'var(--text)' }}>
                         {task.title}
                       </span>
                       {waits.length > 0 && (
-                        <span className="text-[10px] text-muted">
+                        <Box as="span" size="10" tone="muted">
                           waits on{' '}
                           {waits.map((e, i) => (
                             <span key={e.from} style={e.satisfied ? { textDecoration: 'line-through' } : undefined}>
@@ -625,7 +626,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                               {e.kind === 'sequence' ? ' (sequence)' : ''}
                             </span>
                           ))}
-                        </span>
+                        </Box>
                       )}
                     </div>
                   </li>
@@ -757,7 +758,7 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
   const row = (label: string, value: ReactNode) => (
     <>
       <Hint as="dt">{label}</Hint>
-      <dd className="m-0">{value}</dd>
+      <Box as="dd" m0>{value}</Box>
     </>
   )
   const openTree = (id: string) => props.onTree({ kind: 'task', id })
@@ -804,20 +805,20 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
           {blocks.length > 0 && row('Blocks', <EdgeList label="Blocks" items={blocks.map((e) => ({ id: e.to, text: e.to }))} onOpen={openTree} />)}
         </dl>
       ) : item.kind === 'spec' ? (
-        <div className="flex flex-col gap-2 text-sm">
+        <Box flex flexCol gap="2" size="sm">
           <Hint as="p" flush>
             Spec <code>{item.id}</code> · {members.length} tasks · {members.filter((t) => nodeState(t) === 'done').length} done
           </Hint>
           <ul className="m-0 flex flex-col gap-1 p-0" style={{ listStyle: 'none' }}>
             {members.map((t) => (
-              <li key={t.id} className="flex items-baseline gap-2">
+              <Box key={t.id} as="li" flex items="baseline" gap="2">
                 {link(t.id)}
-                <span className="min-w-0 flex-1 truncate">{t.title}</span>
+                <Box as="span" minW0 flex1 truncate>{t.title}</Box>
                 <Chip task={t} />
-              </li>
+              </Box>
             ))}
           </ul>
-        </div>
+        </Box>
       ) : (
         <Hint as="p" size="sm" flush>{item.id} is not in this workspace’s graph.</Hint>
       )}
