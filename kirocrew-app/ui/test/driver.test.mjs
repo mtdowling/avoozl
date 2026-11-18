@@ -90,7 +90,7 @@ test('the pieces are wired: spec page, Hand off, dialogs and Settings', () => {
   assert.match(driver, /may still be running chats for this spec/)
   assert.match(driver, /Type <code>\{spec\.spec\}<\/code> to confirm/)
   // This computer shows the machine ID small and says the values stay here.
-  assert.match(driver, /Machine ID <code>\{status\.machine\.id\}<\/code>/)
+  assert.match(driver, /Machine ID <code>\{machine\.id\}<\/code>/)
   assert.match(driver, /These stay on this machine/)
   assert.match(driver, /placeholder=\{String\(HEARTBEAT_PLACEHOLDER\)\}/)
 })
