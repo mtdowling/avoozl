@@ -9,6 +9,7 @@ import { leaseSettings } from "./landing-config.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
 import { defaultGitHubClient } from "./github.mjs";
 import { machineAvoozlPaths } from "./host-config.mjs";
+import { cleanupDeadTrain } from "./integrator-cleanup.mjs";
 import { readTrainCi } from "./integrator-ci.mjs";
 import { runTrain } from "./integrator-run.mjs";
 import { runIntegrator } from "./integrator-trains.mjs";
@@ -56,6 +57,23 @@ const githubClient = () => {
   }
 };
 const run = {
+  cleanup: async (store, context) => {
+    let db;
+    try {
+      if (Object.values(machinePlatforms(context.config)).some((e) => e?.slot))
+        db = openSupervisorDatabase(machineAvoozlPaths().stateDirectory);
+      await cleanupDeadTrain(store, {
+        project: context.project,
+        target: context.target,
+        settings: context.settings,
+        config: context.config,
+        slots: db && { db },
+        by: `integrator ${process.pid}`,
+      });
+    } finally {
+      db?.close();
+    }
+  },
   ci: (store, context) =>
     readTrainCi(store, {
       github: githubClient(),
