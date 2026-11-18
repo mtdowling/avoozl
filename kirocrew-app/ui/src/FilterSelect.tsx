@@ -1,4 +1,4 @@
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 
 // One labelled filter dropdown with an "All" choice, shared by the Graph and
 // Delivery filters so both look and behave the same.

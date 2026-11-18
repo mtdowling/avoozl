@@ -3,8 +3,8 @@
 // Import dialog itself. Nothing is written until Import, and Import sends the
 // exact preview the person saw.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Btn } from '@kirocrew/app-sdk/ui'
-import Badge, { type BadgeVariant } from './Badge.tsx'
+import { Btn } from './ui/Btn'
+import Badge, { type BadgeVariant } from './ui/Badge.tsx'
 import {
   importBlocked,
   importInput,

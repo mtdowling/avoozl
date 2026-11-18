@@ -3,10 +3,11 @@
 // (workspaces.browse): the page runs in Kiro Crew's iframe, which has no
 // native folder dialog. The typed path stays; a pick fills it in.
 import { useState } from 'react'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
 import { errorMessage, type FolderListing, type WorkspaceClient } from './workspace-api'
 import { ArrowUp, Folder, FolderOpen } from './icons.ts'
-import Badge from './Badge.tsx'
+import Badge from './ui/Badge.tsx'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 

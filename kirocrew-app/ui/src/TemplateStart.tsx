@@ -5,7 +5,7 @@
 // reads a path typed into a field. The parent owns the values.
 import { useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Input } from '@kirocrew/app-sdk/ui'
+import { Input } from './ui/Input'
 import { PackChanges } from './PackImport.tsx'
 import { pluginsClient, type PackPreview } from './plugins-api.ts'
 import { errorMessage, type Repository } from './workspace-api.ts'

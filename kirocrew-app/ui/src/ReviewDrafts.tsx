@@ -3,9 +3,10 @@
 // that finds the pull requests whose drafts wait on people. Read only: the
 // person edits and submits each draft on GitHub. Nothing shows without a draft.
 import { useCallback, useMemo, useState } from 'react'
-import { Btn, Card } from '@kirocrew/app-sdk/ui'
-import Badge, { type BadgeVariant } from './Badge.tsx'
-import { SectionHeading } from './controls.tsx'
+import { Btn } from './ui/Btn'
+import { Card } from './ui/Card'
+import Badge, { type BadgeVariant } from './ui/Badge.tsx'
+import { SectionHeading } from './ui/controls.tsx'
 import { FilterSelect } from './FilterSelect.tsx'
 import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'

@@ -4,7 +4,7 @@
 import type { ReactNode } from 'react'
 import { SeverityBadges } from './SeverityBadges.tsx'
 import { checkDot } from './dashboard-api.ts'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useOpenSpec } from './spec-link.ts'
 import { askLine, evidenceOf, specOfItem, reviewEvidence, sourceLine, unblockLine, type DiffLine } from './needs-you-context.ts'

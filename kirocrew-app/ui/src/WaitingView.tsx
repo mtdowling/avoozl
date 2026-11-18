@@ -7,7 +7,7 @@
 // middle column, one item's details and actions on the right.
 import ConflictsView from './ConflictsView.tsx'
 import UntriagedView from './UntriagedView.tsx'
-import { ViewHeading } from './controls.tsx'
+import { ViewHeading } from './ui/controls.tsx'
 import { WAITING_SECTIONS, type WaitingSection } from './nav-api.ts'
 import { Hint } from './ui/Hint'
 

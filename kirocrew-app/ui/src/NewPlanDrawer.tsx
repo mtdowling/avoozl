@@ -8,14 +8,15 @@
 // delivery or pushes.
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useAppApi, useNavigate } from './host.ts'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
 import { Crosshair, ExternalLink, FileText, MessageSquare, Package } from './icons.ts'
-import { RadioFold } from './RadioFold.tsx'
+import { RadioFold } from './ui/RadioFold.tsx'
 import { Picker } from './Picker.tsx'
 import { TemplateStart, templateKey, type InputValues } from './TemplateStart.tsx'
 import { missingInputs, notesClient, type TemplateSummary } from './notes-api.ts'
 import { importInput, pluginsClient, type PackPreview } from './plugins-api.ts'
-import { ICON } from './controls.tsx'
+import { ICON } from './ui/controls.tsx'
 import { Modal } from './Modal.tsx'
 import { errorMessage, workspaceClient, type Repository } from './workspace-api.ts'
 import {
