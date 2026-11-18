@@ -117,3 +117,37 @@ test('page: Add link shows one set of fields and closes after adding', { skip },
   assert.equal(await page.evaluate(`${box}.textContent.includes('Link added.')`), true)
   assert.deepEqual(page.errors, [])
 })
+
+// The Links box (R92.5, R92.9, R92.10): the stored GitHub links open in a
+// new tab, the worktree path is text, an old head's checks show stale, and
+// the added links keep their Add link button below.
+test('page: the Links box shows branch, PR, checks, landed and issue from the stored set', { skip }, async () => {
+  await page.open(harness.url({ modal: 'task-drawer', theme: 'light' }), { width: 1280, height: 900 })
+  await page.until(`Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog'))`)
+  await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
+  await page.until(`Boolean(document.querySelector('[data-section-box="task-links"] [data-scm-links]'))`)
+  const read = await page.evaluate(`(() => {
+    const box = document.querySelector('[data-section-box="task-links"]')
+    const scm = box.querySelector('[data-scm-links]')
+    const rows = Object.fromEntries([...scm.querySelectorAll('dt')].map((dt) => [dt.textContent.trim(), dt.nextElementSibling.textContent.trim()]))
+    return {
+      rows,
+      anchors: [...box.querySelectorAll('a')].map((a) => [a.target, a.rel]),
+      worktreeLinked: Boolean(scm.querySelector('[data-worktree-path]').closest('a')),
+      dot: scm.querySelector('[data-checks-dot]').dataset.checksDot,
+      addedAfter: Boolean(box.querySelector('[data-scm-links] ~ [data-added-links] [data-add-link]')),
+    }
+  })()`)
+  assert.equal(read.rows.Branch, 'avoozl/team-review')
+  assert.match(read.rows.Worktree, /^\/w\/avoozl-worktrees\/team-review/)
+  assert.equal(read.rows['Pull request'], 'o/sdk#52 · open')
+  assert.match(read.rows.Checks, /^Passed on aaaaaaa, not the current head/)
+  assert.equal(read.rows.Landed, 'none')
+  assert.equal(read.rows.Issue, 'o/sdk#47')
+  assert.equal(read.dot, 'stale')
+  assert.equal(read.worktreeLinked, false)
+  assert.equal(read.addedAfter, true)
+  assert.ok(read.anchors.length >= 6)
+  for (const [target, rel] of read.anchors) assert.deepEqual([target, rel], ['_blank', 'noopener noreferrer'])
+  assert.deepEqual(page.errors, [])
+})

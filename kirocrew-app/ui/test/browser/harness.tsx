@@ -172,6 +172,18 @@ answer('task.detail', () => ({
     { at: '2026-11-13T09:00:00Z', text: 'Protocol tests finished' },
   ],
   timing: null,
+  // Its stored link set (R92.5): checks read for an older head show stale.
+  links: {
+    task: 'team-review', repository: 'o/sdk',
+    branch: { kind: 'branch', repository: 'o/sdk', ref: 'avoozl/team-review', url: 'https://github.com/o/sdk/tree/avoozl/team-review' },
+    worktree: { kind: 'worktree', path: '/w/avoozl-worktrees/team-review', local: true },
+    head: 'b'.repeat(40),
+    pr: { kind: 'pull', repository: 'o/sdk', number: 52, url: 'https://github.com/o/sdk/pull/52', state: 'open' },
+    checks: { state: 'pass', head: 'a'.repeat(40), readAt: '2026-11-13T09:30:00Z', ageMs: 1800000, current: false, dot: 'stale', source: 'pull-request', url: 'https://github.com/o/sdk/pull/52/checks' },
+    landed: null,
+    issue: { kind: 'issue', repository: 'o/sdk', number: 47, url: 'https://github.com/o/sdk/issues/47' },
+    source: null,
+  },
   steps: [
     { key: 'spec', label: 'Spec approved', at: '2026-11-13T08:00:00Z', state: 'done', by: 'owner' },
     { key: 'ready', label: 'Ready', at: null, state: 'skipped' },
