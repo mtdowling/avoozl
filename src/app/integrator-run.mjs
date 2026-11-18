@@ -38,6 +38,7 @@ import {
   removeLandingWorktree,
   stackMembers,
 } from "./integrator-stack.mjs";
+import { closeReviewPulls } from "./integrator-review.mjs";
 import { endTrain, planTrain, startTrain } from "./integrator-trains.mjs";
 import {
   machinePlatforms,
@@ -47,7 +48,7 @@ import {
   runCheap,
   runPlatforms,
 } from "./integrator-validation.mjs";
-import { landingSettings } from "./landing-config.mjs";
+import { PR_COMMENT_TEMPLATE, landingSettings } from "./landing-config.mjs";
 import { journalChecks, landWithIntents } from "./landing-trains.mjs";
 import { markLanded, sendFailureBack, syncBase } from "./pr-landing.mjs";
 import { releaseSlots, takeSlots } from "./resource-slots.mjs";
@@ -906,6 +907,32 @@ export async function runTrain(store, ctx) {
         landed: candidate,
         base: target,
       }).catch(() => null);
+    // Review pull requests are commented on and closed before their branch
+    // goes: deleting a head branch would close them without a note.
+    if (project.repository && ctx.github) {
+      const notes = await closeReviewPulls(store, {
+        github: ctx.github,
+        repository: project.repository,
+        entries: stackedEntries,
+        trainId: id,
+        trunkCommit: candidate,
+        validated,
+        template: settings.pullRequests?.commentTemplate ?? PR_COMMENT_TEMPLATE,
+      });
+      if (notes.length)
+        patch(store, id, (t) => ({
+          steps: [
+            ...t.steps,
+            {
+              name: "review pull requests",
+              startedAt: at,
+              endedAt: new Date().toISOString(),
+              result: "failed",
+              detail: notes.join("; "),
+            },
+          ],
+        }));
+    }
     for (const entry of stackedEntries) {
       const { head } = await deleteBatchBranch(
         root,
