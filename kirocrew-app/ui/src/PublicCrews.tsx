@@ -71,9 +71,9 @@ function Row(props: { row: PublicCrew; workspaceId: string; onChange: () => void
       <Box as="ul" m0 flex listNone flexCol gap="1" p="0" aria-label={`Checklist for ${row.repository}`}>
         {row.items.map((item) => (
           <Box key={item.key} as="li" flex minW0 items="start" gap="2" size="sm" data-check={item.key} data-ok={item.ok ? 'true' : 'false'}>
-            <span aria-hidden="true" style={{ display: 'inline-flex', paddingTop: 2, color: item.ok ? 'var(--ok)' : 'var(--danger)' }}>
+            <Box aria-hidden="true" as="span" css-display="inline-flex" css-padding-top="2" css-color={item.ok ? 'ok' : 'danger'}>
               {item.ok ? <CircleCheck size={ICON} /> : <CircleAlert size={ICON} />}
-            </span>
+            </Box>
             <Box as="span" minW0>
               <Box as="span" weight="medium">{item.label}</Box>
               <Box as="span" srOnly>{item.ok ? ': met' : ': not met'}</Box>

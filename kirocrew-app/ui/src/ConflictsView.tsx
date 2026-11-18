@@ -513,8 +513,8 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
   const spec = specOfItem(item)
   const task = item.context?.task ?? (item.taskId ? { id: item.taskId, title: item.title } : null)
   return (
-    <li className="border-t first:border-t-0" style={{ borderColor: 'var(--border)' }} data-conflict-row>
-      <div className="flex items-start gap-2 px-1 py-1.5" style={{ background: props.focused ? 'var(--accent-subtle, var(--bg-elevated))' : undefined, borderRadius: 6 }}>
+    <Box as="li" css-border-color="border" border="t" firstBorderT0 data-conflict-row>
+      <Box css-background={props.focused ? 'accent-subtle-bg-elevated' : undefined} css-border-radius="6" flex items="start" gap="2" px="1" py="1.5">
         <Switch label={`Select ${item.title}`} checked={props.selected} disabled={!props.selectable} onChange={props.onSelect} />
         <Box flex minW0 flex1 flexCol items="stretch" gap="0.5">
           <button
@@ -548,8 +548,8 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
             </Box>
           )}
         </Box>
-      </div>
-    </li>
+      </Box>
+    </Box>
   )
 }
 

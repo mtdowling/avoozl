@@ -50,7 +50,6 @@ function pageStorage(): Storage | null {
   }
 }
 
-const mono: CSSProperties = { fontFamily: 'var(--mono, ui-monospace, monospace)', fontSize: 12, lineHeight: '18px' }
 const LINE_BG = {
   add: 'color-mix(in srgb, var(--ok) 16%, transparent)',
   del: 'color-mix(in srgb, var(--danger) 16%, transparent)',
@@ -72,9 +71,9 @@ function Counts({ change }: { change: FileChange }) {
   if (change.binary) return <Hint size="xs">binary</Hint>
   if (change.additions === null) return null
   return (
-    <span className="shrink-0 text-xs" style={mono}>
+    <Box as="span" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px" shrink0 size="xs">
       <Box as="span" css-color="ok">+{change.additions}</Box> <Box as="span" css-color="danger">−{change.deletions}</Box>
-    </span>
+    </Box>
   )
 }
 
@@ -123,7 +122,7 @@ const num = (n: number | null) => (
 
 function UnifiedDiff({ lines }: { lines: DiffLine[] }) {
   return (
-    <div role="group" aria-label="Unified diff" style={mono}>
+    <Box role="group" aria-label="Unified diff" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px">
       {lines.map((line, i) =>
         !isText(line) ? (
           <div key={i} className="text-muted" style={{ whiteSpace: 'pre', background: line.kind === 'hunk' ? LINE_BG.hunk : undefined }}>
@@ -138,7 +137,7 @@ function UnifiedDiff({ lines }: { lines: DiffLine[] }) {
           </div>
         ),
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -157,7 +156,7 @@ function SplitDiff({ lines }: { lines: DiffLine[] }) {
     </div>
   )
   return (
-    <div role="group" aria-label="Side-by-side diff" style={mono}>
+    <Box role="group" aria-label="Side-by-side diff" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px">
       {rows.map((row, i) =>
         row.kind === 'pair' ? (
           <Box key={i} data-split-row css-display="grid" css-grid-template-columns="minmax-0-1fr-minmax-0-1fr" css-gap="1">
@@ -170,7 +169,7 @@ function SplitDiff({ lines }: { lines: DiffLine[] }) {
           </div>
         ),
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -356,9 +355,9 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
       {diff && (
         <Stack aria-label={`Diff of ${diff.path}`} as="section" gap={2}>
           <Row gap={2}>
-            <h4 className="min-w-0 flex-1 text-sm font-semibold" style={{ ...mono, overflowWrap: 'anywhere' }}>
+            <Box as="h4" css-font-family="mono-ui-monospace-monospace" css-font-size="12" css-line-height="18px" css-overflow-wrap="anywhere" minW0 flex1 size="sm" weight="semibold">
               {diff.path}
-            </h4>
+            </Box>
             <Toggle
               label="Diff layout"
               options={[

@@ -33,14 +33,14 @@ export function RailStyle() {
 export function RailBlock(props: { icon: LucideIcon; title: string; first?: boolean; action?: ReactNode; children: ReactNode; id?: string }) {
   const Icon = props.icon
   return (
-    <div data-rail-section={props.id} style={{ paddingTop: props.first ? 0 : 20 }}>
+    <Box data-rail-section={props.id} css-padding-top={props.first ? '0' : '20'}>
       <div data-rail-head>
         <Icon size={12} aria-hidden="true" />
         <span>{props.title}</span>
         {props.action && <Box as="span" css-margin-left="auto" css-display="inline-flex" css-text-transform="none" css-letter-spacing="0" css-font-weight="400">{props.action}</Box>}
       </div>
       <Box css-display="flex" css-flex-direction="column" css-gap="2">{props.children}</Box>
-    </div>
+    </Box>
   )
 }
 
@@ -164,7 +164,7 @@ export function RailChips(props: { id: string; icon: LucideIcon; title: string; 
               onClick={() => props.onPick(picked ? undefined : item.value)}
               style={{ background: tint(at, picked) }}
             >
-              <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', flexShrink: 0, opacity: picked ? 0.9 : 0.6 }}>{item.count}</span>
+              <Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-flex-shrink="0" css-opacity={picked ? '0.9' : '0.6'}>{item.count}</Box>
               <Box as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">{item.label}</Box>
             </button>
           )

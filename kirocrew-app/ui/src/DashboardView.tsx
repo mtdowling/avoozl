@@ -211,7 +211,7 @@ const roleLabel = (row: InFlight) =>
 // its chat, so there is no Session here.
 export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: number; cost?: RadarCrewStrip['cost'][string] }) {
   return (
-    <li data-radar-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+    <Box data-radar-flight-row as="li" css-border-color="border" flex flexWrap items="start" gap="2" border="t" py="2" firstBorderT0>
       <Box data-in-flight-role as="span" css-flex="0-0-7.5rem">
         <Badge>Issue Radar</Badge>
       </Box>
@@ -253,7 +253,7 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
           </a>
         )}
       </Box>
-    </li>
+    </Box>
   )
 }
 
@@ -303,7 +303,6 @@ const CHIP: CSSProperties = {
   lineHeight: '18px',
   textDecoration: 'none',
 }
-const CHIP_TEXT: CSSProperties = { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
 
 // In flight's `PR #N` chip with its check dot, and the branch chip (R92.6).
 // Both open GitHub in a new tab (R92.9).
@@ -339,7 +338,7 @@ export function FlightChips({ links, title }: { links: TaskLinks; title: string 
         <Tooltip text={links.branch.ref}>
           <a data-branch-chip href={linkHref(links.branch.url)} target="_blank" rel="noopener noreferrer" style={CHIP} aria-label={`Branch ${links.branch.ref} for ${title}`}>
             <GitBranch size={12} aria-hidden="true" style={{ flex: '0 0 auto' }} />
-            <span style={CHIP_TEXT}>{links.branch.ref}</span>
+            <Box as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">{links.branch.ref}</Box>
           </a>
         </Tooltip>
       )}
@@ -399,7 +398,7 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
     href = processRow ? null : attachHref(row.session),
     remote = row.session.crew && row.session.crew !== 'local'
   return (
-    <li data-in-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+    <Box data-in-flight-row as="li" css-border-color="border" flex flexWrap items="start" gap="2" border="t" py="2" firstBorderT0>
       {/* Fixed columns, so every row's title and actions start at the same x. */}
       <Box data-in-flight-role as="span" css-flex="0-0-7.5rem">
         <Badge>{roleLabel(row)}</Badge>
@@ -460,7 +459,7 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
         </a>
         )}
       </Box>
-    </li>
+    </Box>
   )
 }
 

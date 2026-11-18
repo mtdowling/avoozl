@@ -38,7 +38,7 @@ function Row(props: { item: LandingItem; now: number }) {
   const links = itemLinks(item)
   const first = item.tasks[0]
   return (
-    <li data-landing-row={item.key} data-hold={item.hold.kind} className="flex w-full min-w-0 flex-col gap-1 border-t py-2 text-sm first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+    <Box data-landing-row={item.key} data-hold={item.hold.kind} as="li" css-border-color="border" flex wFull minW0 flexCol gap="1" border="t" py="2" size="sm" firstBorderT0>
       <Box flex minW0 items="center" gap="2">
         <Box as="span" w6 shrink0 size="xs" tabularNums tone="muted" data-landing-position>
           {item.position ?? '—'}
@@ -70,7 +70,7 @@ function Row(props: { item: LandingItem; now: number }) {
         {!item.pr && item.checks && <CheckDot checks={item.checks} />}
         {item.since && <Box as="span" tabularNums>{duration(item.since, props.now)}</Box>}
       </Box>
-    </li>
+    </Box>
   )
 }
 

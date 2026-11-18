@@ -233,9 +233,8 @@ export default function GraphPage(props: {
       <ViewHeading id="avoozl-graph-title" view="graph">
         Graph
       </ViewHeading>
-      <div
-        className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b pb-2 text-[11px] text-muted"
-        style={{ borderColor: 'var(--border)', fontFamily: MONO, letterSpacing: '.08em' }}
+      <Box
+        css-border-color="border" css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" css-letter-spacing=".08em" flex flexWrap items="center" gapX="3" gapY="2" border="b" pb="2" size="11" tone="muted"
         data-graph-header
       >
         <Box as="span" whitespace="nowrap">
@@ -296,7 +295,7 @@ export default function GraphPage(props: {
           </datalist>
           {workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void source.reload()} busy={source.busy} />}
         </Box>
-      </div>
+      </Box>
       {jumpError && (
         <ErrorText id="avoozl-graph-jump-error" role="alert" size="xs" flush>
           {jumpError}
@@ -331,14 +330,14 @@ export default function GraphPage(props: {
         />
       )}
       {place.tab !== 'all' && graph && graph.total > 0 && (
-        <div id={HINT_ID} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t pt-2 text-[11px] text-muted" style={{ borderColor: 'var(--border)', fontFamily: MONO }} data-graph-hint>
+        <Box id={HINT_ID} css-border-color="border" css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" flex flexWrap items="baseline" justify="between" gapX="4" gapY="1" border="t" pt="2" size="11" tone="muted" data-graph-hint>
           <Box as="span" minW0 flex1>
             {place.tab === 'frontier'
               ? 'Newly unlocked tasks have every blocker on record done. Open a row to see why, or open its tree.'
               : 'The live dependency tree of the selected task or spec. Click a card or press Enter to drill into its tree; O, Space or ↗ opens its details. Arrow keys move between cards. Dashed = sequence only, struck = done.'}
           </Box>
           <Box as="span" flexNone tabularNums>{lists?.ready.length ?? 0} newly unlocked</Box>
-        </div>
+        </Box>
       )}
       {modal && graph && (
         <ItemModal
@@ -380,7 +379,7 @@ function NavArrow(props: { label: string; icon: 'back' | 'forward'; disabled: bo
 export function Frontier(props: { ready: FrontierItem[]; waiting: FrontierItem[]; onOpenTree: (id: string) => void; onOpen: (id: string) => void }) {
   const { ready, waiting } = props
   return (
-    <div className="flex flex-col" style={{ fontFamily: MONO }} data-frontier>
+    <Box css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" flex flexCol data-frontier>
       <Box as="h3" css-letter-spacing=".26em" css-color="text-strong-text" m0 size="11" weight="semibold">
         FRONTIER
       </Box>
@@ -399,7 +398,7 @@ export function Frontier(props: { ready: FrontierItem[]; waiting: FrontierItem[]
       {waiting.map((item) => (
         <FrontierRow key={item.task.id} item={item} unlocked={false} {...props} />
       ))}
-    </div>
+    </Box>
   )
 }
 
@@ -450,9 +449,9 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
         className="flex w-full cursor-pointer items-baseline gap-2.5 px-3.5 py-2.5 text-left"
         style={{ background: 'transparent' }}
       >
-        <span className="flex-none text-[12px] font-bold" style={{ color: props.unlocked ? 'var(--accent)' : 'var(--warn, var(--muted))' }}>
+        <Box as="span" css-color={props.unlocked ? 'accent' : 'warn-muted'} flexNone size="12" weight="bold">
           {task.id}
-        </span>
+        </Box>
         <Box as="span" css-color="text" minW0 flex1 truncate size="12">
           {task.title}
         </Box>
@@ -544,7 +543,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
   const height = layout.height + 8
   return (
     <Stack gap={2} data-focus-tree={`${root.kind}:${root.id}`}>
-      <div className="flex flex-wrap items-baseline gap-x-3 text-[11px]" style={{ fontFamily: MONO, letterSpacing: '.1em', color: 'var(--muted-strong, var(--muted))' }}>
+      <Box css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" css-letter-spacing=".1em" css-color="muted-strong-muted" flex flexWrap items="baseline" gapX="3" size="11">
         <span data-tree-stat>
           tree of {label}: {tree.graph.tasks.length} {tree.graph.tasks.length === 1 ? 'node' : 'nodes'} · {tree.live} live {tree.live === 1 ? 'edge' : 'edges'}
         </span>
@@ -556,7 +555,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
             details
           </button>
         )}
-      </div>
+      </Box>
       <div
         ref={box}
         className="overflow-auto rounded border"
@@ -568,7 +567,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
       >
         {phone ? (
           // A phone: one column of cards, upstream first, the page scrolls.
-          <ol role="group" aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`} aria-describedby={HINT_ID} className="m-0 flex flex-col gap-2 p-2" style={{ listStyle: 'none', fontFamily: MONO }} data-tree-list>
+          <Box role="group" aria-label={`Dependency tree of ${label}: ${tree.graph.tasks.length} tasks, ${tree.live} live edges`} aria-describedby={HINT_ID} as="ol" css-list-style="none" css-font-family="ui-monospace-SFMono-Regular-Menlo-monospace" m0 flex flexCol gap="2" p="2" data-tree-list>
             {[...nodes]
               .sort((a, b) => a.x - b.x || a.y - b.y)
               .map((node) => {
@@ -632,7 +631,7 @@ export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (
                   </li>
                 )
               })}
-          </ol>
+          </Box>
         ) : (
         <svg
           role="group"
