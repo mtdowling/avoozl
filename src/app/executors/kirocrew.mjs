@@ -215,10 +215,11 @@ const ROLE_AGENTS = {
 
 export function kirocrewRequest(store, legacy) {
   const { folder, project, agent, mode, ...portable } = legacy;
-  const request = startRequest({
-    ...portable,
-    executor: portable.executor ?? "kirocrew",
-  });
+  // The caller names the executor (NK1.2: a role's settings choose it, so
+  // nothing here may default a request to `kirocrew`).
+  if (!portable.executor)
+    fail(`The ${portable.role ?? "worker"} request names no executor.`, 500);
+  const request = startRequest(portable);
   if (request.executor === "kirocrew")
     selections(store).set(request.id, {
       folder: folder ?? "",

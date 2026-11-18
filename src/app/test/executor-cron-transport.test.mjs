@@ -106,6 +106,7 @@ function setup(t, project = false) {
   const { root, store } = fixture(t),
     ops = new Operations(store, { workspaceRoot: root });
   const request = kirocrewRequest(store, {
+    executor: "kirocrew",
     task: "sample-task",
     role: "worker",
     title: "avoozl:sample-task",

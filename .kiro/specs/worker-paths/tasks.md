@@ -27,7 +27,7 @@ of the other specs.
 
 ## Phase 1: Every kind of task on both executors
 
-- [ ] wp-1.1 The pair table, and briefs chosen by executor [WP3.1, WP3.4, WP3.5] (§D3)
+- [x] wp-1.1 The pair table, and briefs chosen by executor [WP3.1, WP3.4, WP3.5] (§D3)
   - `src/app/worker-briefs.mjs` holds one frozen table from executor and task kind to a brief builder or a stated reason; delivery, `flow-batch.mjs` and `remote-runner.mjs` ask it; a `process` child on a worker machine gets `processSteps`.
   - Done when: A test fails when a pair of executor and kind is missing from the table; every cell's brief runs through a fake executor of its kind to a recorded result; no `process` brief holds "commit", "push" or "runner report"; the existing delivery, batch and worker-mode tests pass with their assertions unchanged.
 - [ ] wp-1.2 Findings by the command line and by the result file, after wp-1.1 [WP3.2, WP4.2] (§D4)

@@ -1,32 +1,43 @@
-// Settings > Models: one themed picker per Avoozl chat role, saved as
-// `models` in .avoozl.json. Switch model is gone from the page.
+// Settings > Models: the one roles table (R98.6, R98.7), a themed picker
+// per role, saved as `roles` in .avoozl.json. Switch model is gone.
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
-import { HARNESS_ROLES, MODEL_ROLES, harnessOptions, harnessTakesModel, roleIsSet, roleProblem, toHarnesses, toModels } from '../src/models-api.ts'
+import { ROLES, harnessOptions, harnessTakesModel, roleIsSet, roleProblem, toRoles } from '../src/models-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
-test('the roles are Avoozl’s own chats, and auto or blank leaves a role out', () => {
+test('every role is one row, and auto or blank fields leave a row out', () => {
   assert.deepEqual(
-    MODEL_ROLES.map((r) => r.key),
-    ['planner', 'planReviewer', 'retro', 'reviewDraft'],
+    ROLES.map((r) => r.key),
+    ['worker', 'falsifier', 'planner', 'planReviewer', 'retro', 'reviewDraft', 'verifier', 'reviewer', 'responder', 'taskSummary', 'issuePlanner', 'planAnswer', 'prReview'],
   )
-  assert.deepEqual(toModels({ planner: 'm1', reviewDraft: 'auto', retro: '' }), { planner: 'm1' })
-  assert.deepEqual(toModels({ planner: 'fake-writer', planReviewer: 'fake-reviewer' }), { planner: 'fake-writer', planReviewer: 'fake-reviewer' })
-  assert.deepEqual(toModels({ planReviewer: 'auto' }), {})
+  // The roles added for harnesses pick no model.
+  assert.deepEqual(
+    ROLES.filter((r) => !r.model).map((r) => r.key),
+    ['verifier', 'reviewer', 'responder', 'taskSummary', 'issuePlanner', 'planAnswer', 'prReview'],
+  )
+  assert.deepEqual(
+    ROLES.filter((r) => r.agent).map((r) => r.key),
+    ['worker', 'falsifier'],
+  )
+  assert.deepEqual(toRoles({ planner: { model: 'm1' }, reviewDraft: { model: 'auto' }, retro: { model: '', harness: 'auto' } }), { planner: { model: 'm1' } })
+  assert.deepEqual(toRoles({ worker: { agent: ' alt ', model: 'm1', harness: 'claude-code' } }), { worker: { agent: 'alt', model: 'm1', harness: 'claude-code' } })
+  assert.deepEqual(toRoles({ planReviewer: { model: 'auto' } }), {})
 })
 
-test('Settings has a Models section with a themed picker per role; Flow has no model picker', () => {
+test('Settings has a Models section with a themed picker per role; Flow and Delivery pick no model', () => {
   const settings = source('SettingsView.tsx')
   assert.match(settings, /\{ key: 'models', label: 'Models' \}/)
   assert.match(settings, /if \(tab === 'models'\) return <ModelsSettings workspaceId=\{workspaceId\} \/>/)
   const models = source('ModelsSettings.tsx')
-  assert.match(models, /HARNESS_ROLES\.map\(\(role\) =>/)
+  assert.match(models, /ROLES\.map\(\(role\) =>/)
   assert.match(models, /<Picker\s+id=\{`avoozl-model-\$\{role\.key\}`\}/)
   assert.match(models, /<Picker\s+id=\{`avoozl-harness-\$\{role\.key\}`\}/)
-  assert.match(source('models-api.ts'), /'models\.settings\.update', \{ models: toModels\(models\), harnesses: toHarnesses\(harnesses\), expectedHash \}/)
+  assert.match(models, /role\.agent \? \(/)
+  assert.match(source('models-api.ts'), /'models\.settings\.update', \{ roles: toRoles\(roles\), expectedHash \}/)
   assert.doesNotMatch(source('FlowSettings.tsx'), /avoozl-flow-model|modelOptions/)
+  assert.doesNotMatch(source('DeliverySettings.tsx'), /avoozl-delivery-(agent|model)|modelOptions|delivery\.model/)
 })
 
 test('Settings > Models says person-only refusal in a Kiro Crew chat is only a speed bump (R95.7)', () => {
@@ -39,12 +50,8 @@ test('Switch model, its dialog and the bulk switch calls are gone from the page'
     assert.doesNotMatch(source(name), /SwitchModel|provider\.switch/, name)
 })
 
-// R98.3: a harness per role, the worker included; its model stays in Delivery.
+// R98.3: a harness per role: auto, the Kiro Crew chat, or this machine's files.
 test('every role picks a harness: auto, the Kiro Crew chat, or this machine\u2019s files', () => {
-  assert.deepEqual(
-    HARNESS_ROLES.map((r) => r.key),
-    ['worker', 'planner', 'planReviewer', 'retro', 'reviewDraft'],
-  )
   assert.deepEqual(
     harnessOptions(
       [
@@ -61,25 +68,27 @@ test('every role picks a harness: auto, the Kiro Crew chat, or this machine\u201
       { value: 'gone-cli', label: 'gone-cli (not on this machine)' },
     ],
   )
-  assert.deepEqual(toHarnesses({ worker: 'claude-code', planner: 'auto', retro: '' }), { worker: 'claude-code' })
 })
 
-test('a role is default until a harness or model is set, and an unusable combo is a problem', () => {
+test('a role is default until a harness, agent or model is set, and an unusable combo is a problem', () => {
   const defs = [
     { name: 'claude-code', approved: true, model: true },
     { name: 'plain-cli', approved: true, model: false },
   ]
-  assert.equal(roleIsSet('retro', {}, {}), false)
-  assert.equal(roleIsSet('retro', { retro: 'auto' }, { retro: 'auto' }), false)
-  assert.equal(roleIsSet('retro', { retro: 'm1' }, {}), true)
-  assert.equal(roleIsSet('worker', { retro: 'm1' }, { worker: 'claude-code' }), true)
+  assert.equal(roleIsSet('retro', {}), false)
+  assert.equal(roleIsSet('retro', { retro: { model: 'auto', harness: 'auto' } }), false)
+  assert.equal(roleIsSet('retro', { retro: { model: 'm1' } }), true)
+  assert.equal(roleIsSet('worker', { worker: { harness: 'claude-code' } }), true)
+  assert.equal(roleIsSet('worker', { worker: { agent: 'alt' } }), true)
   assert.equal(harnessTakesModel('plain-cli', defs), false)
   assert.equal(harnessTakesModel('claude-code', defs), true)
   assert.equal(harnessTakesModel('kirocrew', defs), true)
   assert.equal(harnessTakesModel('auto', defs), true)
-  assert.match(roleProblem('retro', { retro: 'm1' }, { retro: 'plain-cli' }, defs), /plain-cli takes no model/)
-  assert.equal(roleProblem('retro', { retro: 'm1' }, { retro: 'claude-code' }, defs), null)
-  assert.equal(roleProblem('retro', { retro: 'auto' }, { retro: 'plain-cli' }, defs), null)
-  assert.match(roleProblem('planReviewer', { planner: 'm1', planReviewer: 'm1' }, {}, defs), /different model/)
-  assert.equal(roleProblem('planReviewer', { planner: 'm1', planReviewer: 'm2' }, {}, defs), null)
+  assert.match(roleProblem('retro', { retro: { model: 'm1', harness: 'plain-cli' } }, defs), /plain-cli takes no model/)
+  assert.equal(roleProblem('retro', { retro: { model: 'm1', harness: 'claude-code' } }, defs), null)
+  assert.equal(roleProblem('retro', { retro: { model: 'auto', harness: 'plain-cli' } }, defs), null)
+  assert.match(roleProblem('planReviewer', { planner: { model: 'm1' }, planReviewer: { model: 'm1' } }, defs), /different model/)
+  assert.equal(roleProblem('planReviewer', { planner: { model: 'm1' }, planReviewer: { model: 'm2' } }, defs), null)
+  assert.equal(roleProblem('worker', { worker: { agent: 'ok-agent' } }, defs), null)
+  assert.match(roleProblem('falsifier', { falsifier: { agent: 'bad agent!' } }, defs), /agent name/)
 })

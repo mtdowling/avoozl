@@ -101,6 +101,7 @@ import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { taskSummaryDispatches } from "./task-summary.mjs";
 import {
   validateModels,
+  validateRoles,
   validatePlanReview,
   withChatModels,
 } from "./chat-models.mjs";
@@ -185,6 +186,7 @@ function parsePolicy(text) {
   refuseTrackedProviders(value);
   validateContentRules(value.contentRules);
   validateModels(value.models);
+  validateRoles(value);
   validatePlanReview(value.planReview);
   validateIntake(value.intake);
   return value;
@@ -466,7 +468,7 @@ function planDispatches(store, bindings) {
         title,
         ...kirocrewSession(repository.id),
         id: request.id,
-        executor: request.executor ?? "kirocrew",
+        executor: request.executor,
         ...kirocrewExplicitSession(store, request),
         ...(request.model ? { model: request.model } : {}),
         ...(request.permissionClass
@@ -1265,6 +1267,7 @@ async function runTick(
           responders = (
             await respondStep(store, github, workspaceRoot, {
               open: !unobserved.length,
+              config: memory.value || {},
             })
           ).dispatch;
         } catch (error) {
@@ -1281,6 +1284,7 @@ async function runTick(
         try {
           const step = plannerStep(store, workspaceRoot, {
             open: !unobserved.length,
+            config: memory.value || {},
           });
           planners = step.dispatch;
           planned.notify.push(...step.notify);
@@ -1315,14 +1319,16 @@ async function runTick(
           ? []
           : planReadyDispatches(store, delivery, {
               skip: new Set([...readySkip, ...schedule.skip]),
-              // Settings › Models' worker harness (R98.3).
-              harnesses: (memory.value || {}).harnesses,
+              // Settings › Models' worker harness (R98.3, R98.6).
+              config: memory.value || {},
               github: readGitHubPolicyOrNull(workspaceRoot),
             }),
         verify =
           unobserved.length || !delivery
             ? []
-            : planVerifierDispatches(store, delivery);
+            : planVerifierDispatches(store, delivery, {
+                config: memory.value || {},
+              });
       // Investigate first (§4.21): a falsifier per round of findings, and
       // the Go ahead, Investigate again or Stop each decision owes.
       const investigation =
@@ -1332,6 +1338,7 @@ async function runTick(
               script,
               briefAllowed: (input) => briefAllowed(store, input),
               writerModel: (b) => b.model || delivery.model || null,
+              config: memory.value || {},
             });
       planned.messages.push(...investigation.messages);
       planned.notify.push(...investigation.notify);
@@ -1361,15 +1368,16 @@ async function runTick(
               })
             : { dispatch: [] };
       // Code review chats a person asked for (pr-review.mjs), cron only.
-      const reviews =
-        script && !unobserved.length
-          ? [
-              ...reviewDispatches(store),
-              ...reviewDraftDispatches(store),
-              ...taskSummaryDispatches(store),
-              ...conflictFixDispatches(store),
-            ]
-          : [];
+      const roleConfig = memory.value || {},
+        reviews =
+          script && !unobserved.length
+            ? [
+                ...reviewDispatches(store, { config: roleConfig }),
+                ...reviewDraftDispatches(store, { config: roleConfig }),
+                ...taskSummaryDispatches(store, { config: roleConfig }),
+                ...conflictFixDispatches(store),
+              ]
+            : [];
       // Read each spec's plan issue again right before its dispatches; a
       // spec reassigned since the sync read dispatches nothing (R66.6).
       const taskPlan = new Map(
