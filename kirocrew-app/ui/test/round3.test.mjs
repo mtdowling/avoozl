@@ -131,9 +131,10 @@ test('headings get anchors for the plan outline, and prose has a readable measur
   assert.match(source('Markdown.tsx'), /id=\{idPrefix \? headingId\(idPrefix, block\.text, i\) : undefined\}/)
 })
 
-test('the spec view keeps its details in a panel under the specs list, with Edit and Discuss', () => {
+test('the spec view keeps its details in a box on the Overview tab, with Edit and Discuss', () => {
   const plans = source('PlansView.tsx')
-  assert.match(plans, /<SpecDetailsPanel/)
+  assert.match(plans, /<SpecDetailsBox>/)
+  assert.doesNotMatch(plans, /SpecDetailsPanel/)
   assert.match(plans, /Edit spec/)
   assert.match(plans, /Discuss spec/)
   assert.match(plans, /chat\.ask\(discussSeed\(row\)\)/)
