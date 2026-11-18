@@ -702,7 +702,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
         <Choice id={`${id}-target`} label="Forward target" raw="mirror.forwardTarget" rule={{ required: false, blank: MIRROR_DEFAULT_TEXT.forwardTarget }} value={mirror.forwardTarget} options={[...MIRROR_FORWARD_TARGETS]} none="Default (each)" onChange={(value) => set({ forwardTarget: value })} />
         <Text id={`${id}-public-branch`} label="Public branch" raw="mirror.publicBranch" placeholder="needed for the branch target" value={mirror.publicBranch} onChange={(value) => set({ publicBranch: value })} />
       </div>
-      <p className="text-xs text-muted">each: one public pull request per merged change. branch: the same, into the public branch. batch: one public pull request when the epic is done. An epic's manifest can set its own forwardTarget and publicBranch.</p>
+      <p className="text-xs text-muted">each: one public pull request per merged change. branch: the same, into the public branch. batch: one public pull request when the epic is done. An epic's tasks.md front-matter can set its own forwardTarget and publicBranch.</p>
       <Fold id={`${id}-more`} title="Advanced: mirror">
         <div style={grid()}>
           <Text id={`${id}-forward-to`} label="Forward to" raw="mirror.forwardTo" placeholder="source or fork:owner/name" value={mirror.forwardTo} onChange={(value) => set({ forwardTo: value })} />
@@ -1074,7 +1074,7 @@ function RepositoriesTab(props: {
       body: tab === 'landing' && (
         <FormSection title="Checks" blurb="A local-only repository: no GitHub remote, so the GitHub settings do not apply.">
           <p className="text-sm" data-local-checks>
-            Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from the spec manifest, or this
+            Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from its facts in tasks.md, or this
             repository&apos;s checks when a task names none.
           </p>
         </FormSection>
@@ -1203,7 +1203,7 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
             </dd>
           </dl>
           <p className="text-sm" data-local-checks>
-            Avoozl runs each task&apos;s own checks from the spec manifest, or this repository&apos;s checks when a task names none.
+            Avoozl runs each task&apos;s own checks from its facts in tasks.md, or this repository&apos;s checks when a task names none.
           </p>
         </FormSection>
         <ReviewRoles review={props.review} repository={row.github ?? row.name} />

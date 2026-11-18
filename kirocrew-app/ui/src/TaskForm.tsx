@@ -134,13 +134,13 @@ function PreviewBlock({ preview }: { preview: ChangePreview }) {
           </pre>
         </div>
       )}
-      {preview.manifest && (
+      {preview.facts && (
         <div className="text-xs">
           <div className="font-medium">
-            {preview.folder}avoozl/manifest.json, task {preview.manifest.key}
+            {preview.folder}tasks.md, Facts of task {preview.facts.key}
           </div>
           <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded border p-1" style={{ borderColor: 'var(--border)' }}>
-            {JSON.stringify(preview.manifest.after, null, 2)}
+            {JSON.stringify(preview.facts.after, null, 2)}
           </pre>
         </div>
       )}

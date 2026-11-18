@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { digest } from "../model.mjs";
 import { git, withWorkLock } from "./git.mjs";
-import { REVISION_FILES, specName } from "./spec-plans.mjs";
+import { REVISION_FILES, specFacts, specName } from "./spec-plans.mjs";
 import { fail } from "./store.mjs";
 
 const SHA = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
@@ -18,12 +18,9 @@ export async function preparePlanReviewWorktrees(
   if (!workspaceRoot || !planningRoot)
     fail("The planning checkout is unavailable.", 409);
   specName(plan.spec);
-  let manifest;
-  try {
-    manifest = JSON.parse(plan.files["avoozl/manifest.json"]);
-  } catch {
-    fail("The reviewed revision has no readable task manifest.", 409);
-  }
+  if (plan.files?.["tasks.md"] === undefined)
+    fail("The reviewed revision has no tasks.md.", 409);
+  const manifest = specFacts(plan.files);
   const repositories = [
     ...new Set(
       Object.values(manifest.tasks || {})
@@ -32,7 +29,7 @@ export async function preparePlanReviewWorktrees(
     ),
   ];
   if (repositories.some((id) => typeof id !== "string"))
-    fail("Manifest repositories must be names.");
+    fail("Task repositories must be names.");
   const ownedRoot = path.join(
       workspaceRoot,
       ".avoozl",

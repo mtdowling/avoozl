@@ -345,26 +345,22 @@ without setting them now reads the new names. Set the old name to keep it.
 ## Manual tasks and task links
 
 Some steps are a person's, such as a team review before a cutover. Mark one
-manual in the spec's manifest, or with `_Manual_` under it in `tasks.md`:
+manual in its facts in `tasks.md`:
 
-```json
-{
-  "tasks": {
-    "team-review": {
-      "kind": "leaf",
-      "manual": true,
-      "repository": "sdk",
-      "acceptance": ["The team agreed the results are good enough to cut over"],
-      "completion": "person",
-      "requires": ["protocol-tests-proof"]
-    }
-  }
-}
+```markdown
+- [ ] team-review Review with the team
+  - Facts:
+    - manual: true
+    - repo: sdk
+    - completion: person
+    - after: protocol-tests-proof
+    - done:
+      - The team agreed the results are good enough to cut over
 ```
 
-A manual task needs `acceptance`, a `repository` (where its issue lives)
-and completion `person`. Lint refuses `checks`, `session`, `agent`,
-`model`, `size`, `paths` and `route` on it, by name, and refuses `person`
+A manual task needs `done`, a `repo` (where its issue lives) and completion
+`person`. Lint refuses `checks`, `session`, `batch`, `paths` and `route` on
+it, by name, and refuses `person`
 on any other task. No agent ever runs it: it is never ready, batched,
 checked, reviewed or merged. Until its blockers finish it is in **Blocked
 or waiting**; then it is in **Needs you**, tagged **Manual**, with "Waiting

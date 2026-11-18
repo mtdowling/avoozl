@@ -1,6 +1,11 @@
 // The made-up Recipe Box specs: three specs under one epic, and one draft.
 // Demo mode (demo.mjs) builds its sample from them, and the recipe-box
 // example (examples.mjs) installs them as draft spec folders.
+import { factsLines } from "./spec-facts.mjs";
+
+// A task item and its Facts bullet (Requirement 111).
+const item = (id, title, entry) =>
+  [`- [ ] ${id} ${title}`, ...factsLines(entry)].join("\n");
 
 const leaf = (summary, extra = {}) => ({
   kind: "leaf",
@@ -101,49 +106,39 @@ export function sampleSpecs({ word = "demo" } = {}) {
     const lines = ["# Tasks", ""];
     for (const [phase, items] of spec.phases) {
       lines.push(`## ${phase}`, "");
-      for (const [id, title] of items) lines.push(`- [ ] ${id} ${title}`);
+      for (const [id, title] of items)
+        lines.push(item(id, title, spec.manifest[id]));
       lines.push("");
     }
     files[name] = {
       "requirements.md": `---\nepic: recipe-box\n---\n# ${spec.title}\n\nMade-up ${word} spec. ${spec.goal}\n\n## Requirement 1\n\nWHEN a person uses ${spec.title.toLowerCase()} THEN it SHALL work as the tasks say.\n`,
       "design.md": `# ${spec.title} design\n\nMade-up ${word} design. ${spec.goal}\n`,
       "tasks.md": lines.join("\n"),
-      "avoozl/manifest.json":
-        JSON.stringify({ tasks: spec.manifest }, null, 2) + "\n",
     };
   }
   const members = Object.keys(specs);
   files["recipe-box"] = {
     "requirements.md": `# Recipe Box\n\nMade-up ${word} epic: a small app to import recipes, plan meals and shop.\n\n## What done means\n\nEvery member spec is done.\n`,
     "design.md": "# Design\n\nImport first, then the planner, then the list.\n",
-    "tasks.md": `# Plans\n\n${members.map((m, i) => `- [ ] ${i + 1} ${specs[m].title}\n`).join("")}`,
-    "avoozl/manifest.json":
-      JSON.stringify(
-        {
-          kind: "epic",
-          tasks: Object.fromEntries(
-            members.map((m, i) => [
-              String(i + 1),
-              { plan: m, summary: specs[m].title + "." },
-            ]),
-          ),
-        },
-        null,
-        2,
-      ) + "\n",
+    "tasks.md": `---\nkind: epic\n---\n# Plans\n\n${members
+      .map(
+        (m, i) =>
+          item(i + 1, specs[m].title, {
+            plan: m,
+            summary: specs[m].title + ".",
+          }) + "\n",
+      )
+      .join("")}`,
   };
   // A draft spec the demo never approves.
   files["pantry-photos"] = {
     "requirements.md": `# Pantry photos\n\nMade-up ${word} draft. Take a photo of the pantry and list what is in it.\n`,
     "design.md": "# Design\n\nNot written yet.\n",
-    "tasks.md":
-      "# Tasks\n\n## Try it\n\n- [ ] 1.1 Read one photo into a list\n",
-    "avoozl/manifest.json":
-      JSON.stringify(
-        { tasks: { 1.1: leaf("A photo of three jars lists three items.") } },
-        null,
-        2,
-      ) + "\n",
+    "tasks.md": `# Tasks\n\n## Try it\n\n${item(
+      "1.1",
+      "Read one photo into a list",
+      leaf("A photo of three jars lists three items."),
+    )}\n`,
   };
   return { files, members };
 }

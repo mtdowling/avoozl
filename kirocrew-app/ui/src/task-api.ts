@@ -276,7 +276,7 @@ export interface ChangePreview {
   spec?: string
   folder?: string
   tasks?: { line: number; before: string; after: string } | null
-  manifest?: { key: string; before: Record<string, unknown>; after: Record<string, unknown> } | null
+  facts?: { key: string; before: Record<string, unknown>; after: Record<string, unknown> } | null
 }
 
 export interface SettleResult {
