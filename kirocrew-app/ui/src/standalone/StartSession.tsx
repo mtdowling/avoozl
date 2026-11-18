@@ -147,7 +147,8 @@ export function StartSession() {
       data-start-session
       aria-labelledby="avoozl-start-session"
       onClose={() => setLaunch(null)}
-      className="m-auto w-[min(40rem,calc(100vw-2rem))] rounded-2xl border border-border bg-card p-0 text-text shadow-xl"
+      style={{ width: 'min(40rem, calc(100vw - 2rem))' }}
+      className="m-auto rounded-2xl border border-border bg-card p-0 text-text shadow-xl"
     >
       {launch && (
         <div className="flex max-h-[85vh] flex-col">

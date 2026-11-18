@@ -301,6 +301,10 @@ export const NOT_ON_MCP = new Map([
     "The app page shows and renames this install's display name; a chat has no use for it.",
   ]),
   [
+    "session.view",
+    "The standalone page's process view of a session it opened; agents have the worker tools.",
+  ],
+  [
     "panel.view",
     "The chat side panel's one read; its parts are each on MCP already.",
   ],

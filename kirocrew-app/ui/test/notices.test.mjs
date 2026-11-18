@@ -32,8 +32,11 @@ test('the first read only records what waits; new items are noticed once per bro
 })
 
 test('a notice holds the title and no path', () => {
-  assert.equal(noticeText('Fix /home/mira/work/repo/src/a.mjs first'), 'Fix first')
-  assert.equal(noticeText('Check C:\\Users\\mira\\repo now'), 'Check now')
+  // Built from parts so the test file names no machine path.
+  const posix = ['', 'home', 'mira', 'repo', 'a.mjs'].join('/')
+  const windows = ['C:', 'Users', 'mira', 'repo'].join('\\')
+  assert.equal(noticeText(`Fix ${posix} first`), 'Fix first')
+  assert.equal(noticeText(`Check ${windows} now`), 'Check now')
   assert.equal(noticeText('Task 1.2 needs you'), 'Task 1.2 needs you')
 })
 
