@@ -248,7 +248,7 @@ export function childRecord(db, sessionId) {
 // as working, as the child it becomes will be.
 // How a child finishes (R96.1): `.avoozl/result.json` in its task folder.
 export const RESULT_FILE = path.join(".avoozl", "result.json");
-const RESULT_BYTES = 8192;
+export const RESULT_BYTES = 8192;
 
 // Read a finished run's result file (R96.1, R96.4): a regular file of at
 // most 8 KB holding {"state": "done" | "blocked", "text": "..."}, and for a
@@ -280,7 +280,9 @@ export function readChildResult(worktree) {
     Object.keys(value).some(
       (key) => !["state", "text", "report"].includes(key),
     ) ||
-    !["done", "blocked"].includes(value.state) ||
+    !["done", "blocked", "findings"].includes(value.state) ||
+    // Findings (R75.1) are the report; Avoozl's findings check reads them.
+    (value.state === "findings" && !value.report) ||
     (value.text !== undefined && typeof value.text !== "string") ||
     (value.report !== undefined &&
       (!value.report ||
@@ -289,7 +291,7 @@ export function readChildResult(worktree) {
   )
     return {
       problem:
-        'The result file must be {"state": "done" | "blocked", "text": "...", "report"?: {...}}.',
+        'The result file must be {"state": "done" | "blocked", "text": "...", "report"?: {...}}, or {"state": "findings", "report": {...}}.',
     };
   return {
     state: value.state,
@@ -307,7 +309,9 @@ export function childResult(db, sessionId) {
   if (row.state !== "exited" || queuedMessage(db, sessionId)) return null;
   const read = row.result ? JSON.parse(row.result) : { problem: row.error };
   const state =
-    read.state === "blocked" || (read.state === "done" && row.exit_code === 0)
+    read.state === "blocked" ||
+    ((read.state === "done" || read.state === "findings") &&
+      row.exit_code === 0)
       ? read.state
       : null;
   return {
@@ -319,8 +323,8 @@ export function childResult(db, sessionId) {
     ...(state && read.report ? { report: read.report } : {}),
     problem: state
       ? null
-      : read.state === "done"
-        ? `The child said done but exited ${row.exit_code}.`
+      : read.state === "done" || read.state === "findings"
+        ? `The child said ${read.state} but exited ${row.exit_code}.`
         : (read.problem ?? "The child wrote no result file."),
   };
 }
