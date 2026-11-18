@@ -1043,7 +1043,7 @@ allow host: \bbuild0\.corp\.example\b
 
 ### 4.10 Crew placement
 
-**Status 2026-11-18.** The routing prompt, the routing agent chat and the remote relay were removed (#282, task 45.3). `src/app/routing.mjs` keeps manifest pins, capacity and provider hard checks. Crew reads (`crews.mjs`, `crew-reader.mjs`) stay. Text below about the prompt, Pick again and the relay is history.
+**Status 2026-11-18.** Retired. The routing prompt, the routing agent chat and the remote relay were removed first (#282, task 45.3); crew placement followed (owner, 2026-11-18, simplification audit item 9). The tick no longer reads the machine file's `crews`, `crewStaleSeconds` or `routing` keys, and `src/app/routing.mjs` and `routing-health.mjs` are gone. Every session runs on this machine, on its harness's executor (§4.28). `src/app/placement.mjs` keeps only the manifest checks: a `session` pin of agent, model or harness, and a refusal of `session.crew` and `needs`. The worker's model passes the provider check in `delivery.mjs` (§4.20). The crew snapshot (`crews.mjs`, `crew-reader.mjs`) stays for the In flight view's unreachable-crew flag. The text below is history.
 
 **Proposed**, owner request 2026-11-12 (Requirement 41). The owner runs
 several Kiro Crew instances: this machine and remote crews on other
@@ -6431,13 +6431,17 @@ operations as CLI and MCP (Requirement 20.4).
 
 | Nav entry     | Pages                                                              | Holds                                                                                                         |
 | ------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| **Dashboards** | Home, Graph, Delivery, CI, Landing queue                           | Counts and In flight; the task graph; running and recent tasks with machine badges and Stop the line; CI waste; the landing queue |
+| **Dashboards** | Home, Graph, Delivery, Landing queue                                | Counts and In flight; the task graph; running and recent tasks with machine badges and Stop the line; the landing queue |
 | **Specs**     | one list with status chips; spec details with tabs                 | Kiro spec folders, manifest, review, graph, links; **New spec**                                               |
 | **Needs you** | Decisions, Triage, Issue Radar                                     | Open decisions; GitHub items nothing covers yet; issues sent to Issue Radar                                   |
 | **Flow**      | one page                                                           | Lead time, flow efficiency, first-pass rate, time to fix, stacked time bars, bottlenecks                      |
 | **Retros**    | Retros, Proposals                                                  | Retrospectives, their proposals and PDCA results                                                              |
 | **Activity**  | one page                                                           | The activity log and tick health                                                                              |
 | **Settings**  | Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery | `.avoozl.json` and machine settings; the repository role, labels, checks and reviews are tabs of each repository |
+
+The Dashboards › CI page is hidden until it is built (owner, 2026-11-18,
+simplification audit item 10). It was a "Coming later" placeholder; Flow
+already shows CI minutes. An old `ci` link or saved view opens Flow.
 
 **Choosing a repository and workspace.** A workspace is a directory with
 `.avoozl.json` and its SQLite file (existing layout). The machine catalog lists
@@ -6610,7 +6614,7 @@ P24 proves the wizard.
 
 ### 8.3 Routing page
 
-**Status 2026-11-18.** Removed. There is no Routing page or Settings › Routing section (#153, #282). Old links open Repository setup.
+**Status 2026-11-18.** Removed. There is no Routing page or Settings › Routing section (#153, #282). Old links open Repository setup. Its CLI (`avoozl routing`, `avoozl crews set`) and operations answer that routing was retired (§4.10 status).
 
 **Proposed**, owner request 2026-11-12 (Requirement 42). Changed
 2026-11-13 (owner decision): Routing is a Settings tab, and holds one

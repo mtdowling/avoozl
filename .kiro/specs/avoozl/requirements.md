@@ -666,7 +666,7 @@ so that two stores never disagree.
 
 ### Requirement 20: The Avoozl app
 
-**Status 2026-11-18.** The page has seven nav entries, not six views: Dashboards (Home, Graph, Delivery, CI, Landing queue), Specs, Needs you (Decisions, Triage, Issue Radar), Flow, Retros (Retros, Proposals), Activity and Settings (Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery). Criterion 1 is read that way.
+**Status 2026-11-18.** The page has seven nav entries, not six views: Dashboards (Home, Graph, Delivery, Landing queue), Specs, Needs you (Decisions, Triage, Issue Radar), Flow, Retros (Retros, Proposals), Activity and Settings (Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery). Criterion 1 is read that way. The Dashboards › CI page is hidden until it is built (owner, 2026-11-18, simplification audit item 10); Flow shows CI, and an old CI link opens Flow.
 
 **User story:** As a developer, I want one Avoozl page in Kiro Crew with clear
 views, so that I see my graph and its delivery without leaving Kiro Crew.
@@ -1661,7 +1661,7 @@ public or shared repositories cannot leak what the company keeps private.
 
 ### Requirement 41: Crew placement
 
-**Status 2026-11-18.** The routing prompt, the routing agent chat and the remote relay (41.16–41.24) were removed (#282, task 45.3). Placement keeps manifest pins, capacity and provider hard checks (`src/app/routing.mjs`). `plans_relay` answers "Remote relay was removed". Treat the criteria about the prompt and the relay as history.
+**Status 2026-11-18.** Retired. The routing prompt, the routing agent chat and the remote relay (41.16–41.24) were removed first (#282, task 45.3). Crew placement itself was then retired (owner, 2026-11-18, simplification audit item 9, F20): every session Avoozl opens runs on this machine, on the executor its harness names (Requirement 98). The `avoozl routing` and `avoozl crews set` commands and the `routing.view`, `routing.preview`, `routing.update`, `routing.retry`, `routing.turnOff` and `crews.update` operations answer that routing was retired. The machine file's `crews`, `crewStaleSeconds` and `routing` keys are ignored silently. No-fit decisions, routing marks and the routing-failed Needs you item are gone. What stays: a manifest `session` pin for agent, model and harness (Requirement 53), the provider check that holds a worker whose model is out (Requirement 72), and the spec driver lock (Requirement 66). Lanes is the only cap on how many chats this machine runs. `plans_relay` answers "Remote relay was removed". Treat every criterion below as history.
 
 Added 2026-11-12 (owner request). Design §4.10. Written against the Avoozl
 branch `kirocrew-native` at `0a7ef2d` and Kiro Crew 0.12.2 (design F75–F84).
@@ -1889,7 +1889,7 @@ user-facing work never leaves this machine.
 
 ### Requirement 42: Routing page
 
-**Status 2026-11-18.** Removed. There is no Routing page and no Settings › Routing section (#153); `redirectSettings` sends an old link to Repository setup. Criterion 88.7 says the same.
+**Status 2026-11-18.** Removed. There is no Routing page and no Settings › Routing section (#153); `redirectSettings` sends an old link to Repository setup. Criterion 88.7 says the same. The CLI and operations behind it were retired with crew placement (Requirement 41 status).
 
 Added 2026-11-12 (owner request). Design §8.3. Changed 2026-11-13 (owner
 decision): Routing moves into Settings, and the rule builder, presets,
@@ -2609,6 +2609,8 @@ crew's label or close is the owner. An app token reaches Issue Radar's `GET /cre
     writes, that crews act with the owner's login, and rules 7–10.
 
 ### Requirement 53: Agent and model per task
+
+**Status 2026-11-18.** Crew placement is retired (Requirement 41 status). The writer's agent and model come from the manifest task's `session` pin, then the repository's and the workspace's `delivery` settings, then Kiro Crew's default agent and `auto` (criterion 3 without the routing agent). A pinned model that is `out` is replaced by a person's Switch model replacement, else the task waits (Requirement 72.5). `session.crew` and `needs` are refused when a plan is written, because only this machine runs work. A retry keeps its last model only for a feedback round or an interrupted attempt, as it did with routing off. Criteria 4, 5, 8, 9's crew names, 11 and Pick again in 6 are history. The reviewer side of criterion 7 stays: a review never runs on the writer's model under `distinctFrom: model`.
 
 Added 2026-11-13 (owner request). Design §4.10 "Agent and model per
 session". Extends Requirements 41 and 42.
