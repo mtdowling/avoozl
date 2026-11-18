@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// Full-app screenshots of the modal footer buttons: a form (Instance name:
-// Cancel, Save), a view (the Graph node: Close) and a destructive confirm
+// Full-app screenshots of the modal footer buttons: a view (the Graph node: Close) and a destructive confirm
 // (Stop the line: Cancel, danger button), at 1280 and 390, light and dark:
 // <out>/<modal>-<width>-<theme>.png
 //
@@ -53,18 +52,6 @@ try {
     console.log(file)
   }
   const flows = {
-    form: async (width, theme) => {
-      await start({ radar: '1' }, width, theme)
-      if (phone(width)) {
-        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-        await page.until(`Boolean(document.querySelector('[data-top-rail-footer] [data-instance-edit]'))`, 30000)
-        await page.evaluate(`document.querySelector('[data-top-rail-footer] [data-instance-edit]').click()`)
-      } else {
-        await page.until(`Boolean(document.querySelector('[data-left-nav] [data-instance-edit]'))`, 30000)
-        await page.evaluate(`document.querySelector('[data-left-nav] [data-instance-edit]').click()`)
-      }
-      await page.until(`Boolean(${TOP})`, 30000)
-    },
     view: async (width, theme) => {
       // A draft spec's task: a task card opens the full task details instead.
       await start({ graph: 'drafts' }, width, theme)
