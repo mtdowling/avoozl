@@ -98,9 +98,8 @@ export const VIEW_ICONS = {
   plans: FileText,
   graph: Network,
   delivery: LayoutGrid,
-  // Dashboards' Lanes and CI, and the Issues and Pull requests pages; all
+  // Dashboards' CI, and the Issues and Pull requests pages; all
   // in the host's lucide-react export list (kirocrew-app-sdk.d.ts).
-  lanes: LayoutGrid,
   ci: CircleCheck,
   // GitPullRequest is in the host's lucide-react export list (checked 2026-11-17).
   landing: GitPullRequest,

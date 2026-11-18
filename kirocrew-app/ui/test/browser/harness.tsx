@@ -782,15 +782,28 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
   const item = (id: string, title: string, extra = {}) => ({
     id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, ...extra,
   })
+  const deliveryItems = [
+    item('m3', 'Sync pantry items between devices', { status: 'running', sessions: [session('chat-m3', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }),
+    item('s1', 'Index recipes by ingredient', { status: 'review', sessions: [session('chat-s1', 'reviewer', 'reading')], deliveries: [{ state: 'done', updatedAt: at }] }),
+    item('s2', 'Rank results by cooking time', { deliveries: [{ state: 'decision', updatedAt: at }] }),
+  ]
   answer('delivery.view', () => ({
     revision: 1,
-    items: [
-      item('m3', 'Sync pantry items between devices', { status: 'running', sessions: [session('chat-m3', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }),
-      item('s1', 'Index recipes by ingredient', { status: 'review', sessions: [session('chat-s1', 'reviewer', 'reading')], deliveries: [{ state: 'done', updatedAt: at }] }),
-      item('s2', 'Rank results by cooking time', { deliveries: [{ state: 'decision', updatedAt: at }] }),
-    ],
+    items: deliveryItems,
     contentReports: [],
+    // &machines=1: this Mac runs 3 chats of 3 lanes; a remote host runs 2.
+    laneLimit: query.get('machines') ? 3 : null,
   }))
+  if (query.get('machines')) {
+    for (const [id, title] of [['r1', 'Cache the pantry index'], ['r2', 'Batch the sync uploads']]) {
+      graphTasks.push(t(id, title, 'e1', 'meal-planner', 'recipe-box', { state: 'running', status: 'running' }))
+      deliveryItems.push(item(id, title, { status: 'running', deliveries: [{ state: 'running', updatedAt: at }] }))
+    }
+    deliveryItems.push(item('m4', 'Export meal plans as PDF', { status: 'running', sessions: [session('chat-m4', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }))
+    graphTasks.push(t('m4', 'Export meal plans as PDF', 'e1', 'meal-planner', 'recipe-box', { state: 'running', status: 'running' }))
+    const worker = (taskId: string, n: number) => ({ host: 'dev desktop', crewId: 'crew-dev', taskId, state: 'running', chatKey: `chat-${n}`, status: 'coding', updatedAt: at, attachUrl: null, stale: false, lastOkAt: at })
+    answer('remote.view', () => ({ workers: [worker('r1', 1), worker('r2', 2)] }))
+  }
   // The line, for the Delivery heading's Stop the line: a stop opens one,
   // Resume closes it. window.__lineCalls records both. &stopped=1 starts stopped.
   const lineWin = window as unknown as { __lineCalls: unknown[] }
