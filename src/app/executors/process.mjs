@@ -398,6 +398,77 @@ async function finishBreakdown(ops, binding, result, store) {
   ]);
   return draft;
 }
+// A plan answer child (NK5.3): Avoozl stores the folder it edited as this
+// session's revision, with plans_save_plan's own lint and checks, then
+// records each answer from its report; a fixed answer names that revision,
+// so it counts only when this child wrote one. A spec approved meanwhile
+// gets its stored files back and no revision.
+async function finishPlanAnswer(ops, binding, result, store) {
+  const scope = store?.get("session_bindings", binding.slot)?.planAnswer;
+  if (!scope) throw Error("The plan answer session has no bound round.");
+  const caller = { caller: cliReportCaller(binding) },
+    plan = store.get("plans", scope.planId);
+  let stored = null;
+  if (binding.permissionClass === "write" && binding.worktree) {
+    if (plan?.state !== "draft") {
+      for (const [name, text] of Object.entries(plan?.files ?? {})) {
+        const file = path.join(binding.worktree, name);
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, text);
+      }
+    } else {
+      // The result folder must not be read as part of the spec.
+      fs.rmSync(path.join(binding.worktree, ".avoozl"), {
+        recursive: true,
+        force: true,
+      });
+      // Lint the folder first: one with more lint errors than the stored
+      // revision stores nothing, and the person gets one decision for it.
+      const spec = ops.readSpec?.(plan.spec);
+      const quality = spec?.exists
+        ? ops.lintSpecPlan({ ...plan, files: spec.files })
+        : null;
+      if (
+        quality &&
+        quality.counts.error > ops.lintSpecPlan(plan).counts.error
+      ) {
+        const { queueNotifications } = await import("../notifications.mjs");
+        queueNotifications(store, [
+          {
+            channel: "decision",
+            task: scope.planId,
+            title: `The answer for ${plan.spec} left lint errors`,
+            text: `The planner's edited folder has ${quality.counts.error} lint error(s), so Avoozl stored no revision and recorded no answer.`,
+            resume: `Fix .kiro/specs/${plan.spec}/ and save it, or ask the planner again.`,
+          },
+        ]);
+        throw Error(
+          `The answer's folder has ${quality.counts.error} lint error(s); no revision was stored.`,
+        );
+      }
+      const saved = await ops.execute(
+        "plan.save",
+        { id: scope.planId, expectedHash: plan.hash },
+        undefined,
+        caller,
+      );
+      if (saved?.hash && saved.hash !== plan.hash) stored = saved.hash;
+    }
+  }
+  const answers = (result.report?.answers ?? []).map((answer) => {
+    const { revisionHash, ...rest } = answer ?? {};
+    return rest.action === "fixed"
+      ? { ...rest, ...(stored ? { revisionHash: stored } : {}) }
+      : rest;
+  });
+  if (!answers.length) return { stored };
+  return ops.execute(
+    "plan.review.answer",
+    { planId: scope.planId, roundId: scope.roundId, answers },
+    undefined,
+    caller,
+  );
+}
 
 // Record a child's result as its session's report, as `runner report` does
 // for a chat (R96.2, R96.3): matched by the supervisor's record, the text
@@ -427,6 +498,10 @@ export async function finishProcessSession(ops, binding, result, store = null) {
   if (hands === "folder")
     return binding.context?.breakdown && result.state === "done"
       ? finishBreakdown(ops, binding, result, store)
+      : null;
+  if (hands === "plan-answer")
+    return result.state === "done"
+      ? finishPlanAnswer(ops, binding, result, store)
       : null;
   // The same operation a chat's tool call runs, as the supervisor's record of
   // this session (NK5.1), so it gets the same checks. A blocked result
@@ -612,10 +687,12 @@ export async function drainProcessRequests(
             : // A scratch role reads only its brief: a folder of its own.
               row?.folder === "scratch" && !request.worktree
               ? fs.mkdtempSync(path.join(os.tmpdir(), row.scratch))
-              : row?.folder === "spec" && request.worktree
-                ? (fs.mkdirSync(request.worktree, { recursive: true }),
-                  request.worktree)
-                : request.worktree;
+              : row?.folder === "given" && request.worktree
+                ? request.worktree
+                : row?.folder === "spec" && request.worktree
+                  ? (fs.mkdirSync(request.worktree, { recursive: true }),
+                    request.worktree)
+                  : request.worktree;
       let sessionId;
       try {
         sessionId = await processExecutor({
@@ -669,6 +746,16 @@ export async function drainProcessRequests(
           text: `Investigate first was skipped: ${request.investigateSkipped}.`,
           key: `investigate-skipped:${request.task}`,
         });
+      // A plan answer child binds its round, as session.bind does for a chat.
+      if (request.role === "plan-answer") {
+        const { bindPlanAnswerSession } = await import(
+          "../plan-review-answers.mjs"
+        );
+        bindPlanAnswerSession(store, {
+          roundId: request.task,
+          slot: sessionId,
+        });
+      }
     } catch (error) {
       errors.push({ id: request.id, error: error.message });
     }

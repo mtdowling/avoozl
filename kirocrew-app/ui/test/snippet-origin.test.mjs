@@ -19,7 +19,7 @@ test('the header is the shared SnippetBox: one toggle button, the action beside 
   const box = readFileSync(new URL('../src/SnippetBox.tsx', import.meta.url), 'utf8')
   assert.match(box, /aria-expanded=\{open\}/)
   assert.match(box, /aria-controls=\{body\}/)
-  assert.match(box, /ml-auto/)
+  assert.match(box, /ml="auto"/)
 })
 
 const chrome = findChrome()

@@ -19,6 +19,7 @@ import {
 import { StageLegend } from './FlowView.tsx'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 const W = 300,
   H = 90,
@@ -42,7 +43,7 @@ function Line({ points, value, format, color }: { points: SeriesPoint[]; value: 
   const last = known.at(-1)
   return (
     <Stack gap={1}>
-      <span className="text-lg font-semibold tabular-nums">{last === undefined ? '–' : format(last)}</span>
+      <Box as="span" size="lg" weight="semibold" tabularNums>{last === undefined ? '–' : format(last)}</Box>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={points.map((p, i) => `${p.key}: ${values[i] === null ? 'none' : format(values[i]!)}`).join(', ')} preserveAspectRatio="none">
         <line x1={0} x2={W} y1={H - PAD} y2={H - PAD} stroke="var(--border)" strokeWidth={1} />
         {path.map((run, i) => (
@@ -150,17 +151,17 @@ export function FlowCharts({ view, unit, onUnit }: { view: FlowViewModel; unit: 
 
 function UsageTable({ title, rows }: { title: string; rows: UsageRow[] }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <Box flex minW0 flexCol gap="1">
       <Hint size="xs">{title}</Hint>
-      <ul className="flex flex-col gap-0.5 text-sm">
+      <Box as="ul" flex flexCol gap="0.5" size="sm">
         {rows.slice(0, 8).map((r) => (
-          <li key={r.key} className="flex flex-wrap justify-between gap-x-3">
-            <span className="min-w-0 truncate">{STAGE_LABELS[r.key as keyof typeof STAGE_LABELS] ?? r.key}</span>
-            <span className="tabular-nums text-muted">{usageText(r)}</span>
-          </li>
+          <Box key={r.key} as="li" flex flexWrap justify="between" gapX="3">
+            <Box as="span" minW0 truncate>{STAGE_LABELS[r.key as keyof typeof STAGE_LABELS] ?? r.key}</Box>
+            <Box as="span" tabularNums tone="muted">{usageText(r)}</Box>
+          </Box>
         ))}
-      </ul>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
@@ -178,14 +179,14 @@ export function UsagePanel({ view, unit }: { view: FlowViewModel; unit: Unit }) 
         <Hint as="p" size="sm">{message}</Hint>
       ) : (
         <>
-          <p className="text-sm">
-            Total: <span className="tabular-nums">{usageText(usage.total)}</span> over {usage.total.turns} turns.
-          </p>
+          <Box as="p" size="sm">
+            Total: <Box as="span" tabularNums>{usageText(usage.total)}</Box> over {usage.total.turns} turns.
+          </Box>
           {rows.length > 0 && (
-            <div className="flex min-w-0 flex-col gap-1">
+            <Box flex minW0 flexCol gap="1">
               <Hint size="xs">{unit === 'day' ? 'By day' : 'By week'}</Hint>
               <Bars rows={rows} />
-            </div>
+            </Box>
           )}
           <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 16rem), 1fr))' }}>
             <UsageTable title="By stage" rows={usage.byStage} />

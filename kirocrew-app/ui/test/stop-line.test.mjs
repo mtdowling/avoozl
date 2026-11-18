@@ -62,7 +62,7 @@ test('the Delivery heading has the Stop the line icon with a stopped state, and 
   // tells the page at once.
   assert.match(dialog, /\{stopped \? 'Line stopped' : 'Stop the line'\}/)
   assert.match(dialog, /style=\{\{ \.\.\.\(stopped \? STOPPED : FILL\), padding: '4px 6px' \}\}/)
-  assert.match(dialog, /<span className="sr-only">\{stopped \? 'Line stopped' : 'Stop the line'\}<\/span>/)
+  assert.match(dialog, /<Box as="span" srOnly>\{stopped \? 'Line stopped' : 'Stop the line'\}<\/Box>/)
   assert.match(dialog, /filter\(\(stop\) => !stop\.closedAt\)/)
   assert.match(dialog, /lineChanged\(\)/)
   assert.match(banner, /onChanged\?\.\(\)\n\s*lineChanged\(\)/)

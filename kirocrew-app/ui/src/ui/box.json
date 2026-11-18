@@ -1,0 +1,243 @@
+{
+  "flags": {
+    "alignMiddle": "align-middle",
+    "alignTop": "align-top",
+    "block": "block",
+    "borderDashed": "border-dashed",
+    "borderL2": "border-l-2",
+    "borderR": "border-r",
+    "breakAll": "break-all",
+    "breakWords": "break-words",
+    "contents": "contents",
+    "cursorPointer": "cursor-pointer",
+    "flex": "flex",
+    "flex1": "flex-1",
+    "flexCol": "flex-col",
+    "flexColReverse": "flex-col-reverse",
+    "flexNone": "flex-none",
+    "flexWrap": "flex-wrap",
+    "fontMono": "font-mono",
+    "grid": "grid",
+    "grow": "grow",
+    "h1": "h-1",
+    "h15": "h-1.5",
+    "h2": "h-2",
+    "h6": "h-6",
+    "h7": "h-7",
+    "h7px": "h-[7px]",
+    "hFull": "h-full",
+    "inlineBlock": "inline-block",
+    "inlineFlex": "inline-flex",
+    "leading4": "leading-4",
+    "listDisc": "list-disc",
+    "listNone": "list-none",
+    "maxH40": "max-h-40",
+    "maxH48": "max-h-48",
+    "maxH56": "max-h-56",
+    "maxH64": "max-h-64",
+    "maxH80": "max-h-80",
+    "maxH96": "max-h-96",
+    "maxWFull": "max-w-full",
+    "minH0": "min-h-0",
+    "minW0": "min-w-0",
+    "relative": "relative",
+    "resizeNone": "resize-none",
+    "selectNone": "select-none",
+    "shadow": "shadow",
+    "shrink0": "shrink-0",
+    "srOnly": "sr-only",
+    "tabularNums": "tabular-nums",
+    "text105px": "text-[10.5px]",
+    "textXl": "text-xl",
+    "trackingWide": "tracking-wide",
+    "truncate": "truncate",
+    "underline": "underline",
+    "underlineOffset2": "underline-offset-2",
+    "uppercase": "uppercase",
+    "w2": "w-2",
+    "w20": "w-20",
+    "w28": "w-28",
+    "w40": "w-40",
+    "w5": "w-5",
+    "w6": "w-6",
+    "w7": "w-7",
+    "w8": "w-8",
+    "w7px": "w-[7px]",
+    "wFit": "w-fit",
+    "wFull": "w-full",
+    "m0": "m-0",
+    "mrAuto": "mr-auto"
+  },
+  "scales": {
+    "border": {
+      "0": "border-0",
+      "all": "border",
+      "b": "border-b",
+      "t": "border-t"
+    },
+    "weight": {
+      "bold": "font-bold",
+      "medium": "font-medium",
+      "normal": "font-normal",
+      "semibold": "font-semibold"
+    },
+    "gap": {
+      "1": "gap-1",
+      "2": "gap-2",
+      "3": "gap-3",
+      "4": "gap-4",
+      "5": "gap-5",
+      "0.5": "gap-0.5",
+      "1.5": "gap-1.5",
+      "2.5": "gap-2.5",
+      "3.5": "gap-3.5"
+    },
+    "gapX": {
+      "2": "gap-x-2",
+      "3": "gap-x-3",
+      "4": "gap-x-4"
+    },
+    "gapY": {
+      "1": "gap-y-1",
+      "2": "gap-y-2",
+      "0.5": "gap-y-0.5",
+      "1.5": "gap-y-1.5"
+    },
+    "items": {
+      "baseline": "items-baseline",
+      "center": "items-center",
+      "end": "items-end",
+      "start": "items-start",
+      "stretch": "items-stretch"
+    },
+    "justify": {
+      "between": "justify-between",
+      "center": "justify-center",
+      "end": "justify-end"
+    },
+    "mb": {
+      "0": "mb-0",
+      "1": "mb-1",
+      "2": "mb-2",
+      "3": "mb-3",
+      "2.5": "mb-2.5",
+      "3.5": "mb-3.5"
+    },
+    "ml": {
+      "1": "ml-1",
+      "3": "ml-3",
+      "auto": "ml-auto"
+    },
+    "mt": {
+      "1": "mt-1",
+      "2": "mt-2",
+      "3": "mt-3",
+      "5": "mt-5",
+      "0.5": "mt-0.5",
+      "1.5": "mt-1.5"
+    },
+    "mx": {
+      "2": "mx-2",
+      "4": "mx-4"
+    },
+    "my": {
+      "1": "my-1",
+      "2": "my-2"
+    },
+    "overflow": {
+      "auto": "overflow-auto",
+      "hidden": "overflow-hidden",
+      "x-auto": "overflow-x-auto",
+      "y-auto": "overflow-y-auto"
+    },
+    "p": {
+      "0": "p-0",
+      "1": "p-1",
+      "2": "p-2",
+      "3": "p-3",
+      "4": "p-4",
+      "0.5": "p-0.5",
+      "1.5": "p-1.5",
+      "2.5": "p-2.5"
+    },
+    "pb": {
+      "1": "pb-1",
+      "2": "pb-2",
+      "3": "pb-3",
+      "4": "pb-4"
+    },
+    "pl": {
+      "2": "pl-2",
+      "3": "pl-3",
+      "4": "pl-4",
+      "5": "pl-5",
+      "6": "pl-6",
+      "8": "pl-8",
+      "12": "pl-12"
+    },
+    "pr": {
+      "2": "pr-2",
+      "3": "pr-3"
+    },
+    "pt": {
+      "2": "pt-2",
+      "3": "pt-3",
+      "2.5": "pt-2.5"
+    },
+    "px": {
+      "1": "px-1",
+      "2": "px-2",
+      "3": "px-3",
+      "4": "px-4",
+      "5": "px-5",
+      "6": "px-6",
+      "1.5": "px-1.5",
+      "2.5": "px-2.5",
+      "3.5": "px-3.5"
+    },
+    "py": {
+      "1": "py-1",
+      "2": "py-2",
+      "3": "py-3",
+      "4": "py-4",
+      "0.5": "py-0.5",
+      "1.5": "py-1.5",
+      "2.5": "py-2.5",
+      "px": "py-px"
+    },
+    "rounded": {
+      "base": "rounded",
+      "[3px]": "rounded-[3px]",
+      "full": "rounded-full",
+      "lg": "rounded-lg",
+      "md": "rounded-md",
+      "sm": "rounded-sm"
+    },
+    "self": {
+      "center": "self-center",
+      "start": "self-start"
+    },
+    "size": {
+      "9": "text-[9px]",
+      "10": "text-[10px]",
+      "11": "text-[11px]",
+      "12": "text-[12px]",
+      "base": "text-base",
+      "lg": "text-lg",
+      "sm": "text-sm",
+      "xs": "text-xs"
+    },
+    "tone": {
+      "danger": "text-danger",
+      "muted": "text-muted"
+    },
+    "align": {
+      "left": "text-left",
+      "right": "text-right"
+    },
+    "whitespace": {
+      "nowrap": "whitespace-nowrap",
+      "pre-wrap": "whitespace-pre-wrap"
+    }
+  }
+}

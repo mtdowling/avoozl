@@ -22,6 +22,7 @@ import { errorMessage, workspaceClient } from './workspace-api.ts'
 import { Modal } from './ui/Modal.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
 
 export interface ReaderTarget {
   document: string
@@ -158,12 +159,12 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
         {headings.length > 0 &&
           (narrow ? (
             <details className="border-b px-4 py-2 text-sm" style={{ borderColor: 'var(--border)' }}>
-              <summary className="cursor-pointer font-medium">Outline</summary>
+              <Box as="summary" cursorPointer weight="medium">Outline</Box>
               <Outline headings={headings} onJump={jump} />
             </details>
           ) : (
             <nav aria-label="File outline" className="overflow-y-auto border-r px-3 py-3 text-sm" style={{ borderColor: 'var(--border)' }}>
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Outline</h4>
+              <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Outline</Box>
               <Outline headings={headings} onJump={jump} />
             </nav>
           ))}
@@ -193,7 +194,7 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
 
 function Outline(props: { headings: { level: number; text: string; id: string }[]; onJump: (id: string) => void }) {
   return (
-    <ul className="mt-1 flex flex-col gap-0.5">
+    <Box as="ul" mt="1" flex flexCol gap="0.5">
       {props.headings.map((h) => (
         <li key={h.id} className="truncate" style={{ paddingLeft: (h.level - 1) * 12 }}>
           <button type="button" className={`text-left hover:underline ${h.level === 1 ? 'font-medium' : 'text-xs text-muted'}`} onClick={() => props.onJump(h.id)}>
@@ -201,6 +202,6 @@ function Outline(props: { headings: { level: number; text: string; id: string }[
           </button>
         </li>
       ))}
-    </ul>
+    </Box>
   )
 }

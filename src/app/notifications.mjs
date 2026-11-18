@@ -181,12 +181,12 @@ export async function deliverToSinks(store, sinks, now = Date.now()) {
       error = null;
     try {
       if ((!state || state.failures > 0) && pending.length > BACKLOG) {
-        await sink.push(backlogPayload(pending));
+        await sink.push(backlogPayload(pending), { row: null, store });
         mark(pending);
         sent = 1;
       } else
         for (const row of pending) {
-          await sink.push(row.payload);
+          await sink.push(row.payload, { row, store });
           mark([row]);
           sent += 1;
         }

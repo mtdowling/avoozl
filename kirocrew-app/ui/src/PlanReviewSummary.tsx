@@ -7,6 +7,7 @@ import { linkHref } from './views-api.ts'
 import { reviewCounts, shortHash, type PlanReviewSummary as Summary, type RevisionChange } from './plans-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
 
 export function reviewStateLabel(review?: Summary | null): string {
   if (!review || review.state === 'not-reviewed') return 'Not reviewed'
@@ -34,16 +35,16 @@ const WORKING = `
 export function ReviewWorking(props: { model: string | null; title?: string; label?: string }) {
   const label = props.label ?? `Reviewing with ${props.model ?? 'the reviewer model'}…`
   return (
-    <div data-review-working role="status" aria-live="polite" aria-label={label} className="rounded-lg px-4 py-3">
+    <Box data-review-working role="status" aria-live="polite" aria-label={label} rounded="lg" px="4" py="3">
       <style>{WORKING}</style>
-      <div className="relative flex items-center gap-3">
+      <Box relative flex items="center" gap="3">
         <Hourglass size={18} aria-hidden className="shrink-0" style={{ color: 'var(--aim, #7c3aed)' }} />
-        <div className="min-w-0 flex-1">
+        <Box minW0 flex1>
           <p className="m-0 font-semibold" style={{ color: 'var(--aim, #7c3aed)' }} data-plan-review-state>{props.title ?? 'Review running'}</p>
           <Hint as="p" size="xs" flush>{label}</Hint>
-        </div>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   )
 }
 
@@ -96,18 +97,18 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
           {review?.note && <Note>{review.note}</Note>}
           {review?.canReviewAnyway && props.onStart && (
             <Note>
-              <span className="flex flex-col items-start gap-1">
+              <Box as="span" flex flexCol items="start" gap="1">
                 {review.capped ? 'The round limit is reached for this revision. Review anyway runs one more round.' : 'Reviewing anyway records that the models were not proven different.'}
                 <SmallBtn disabled={starting || queued} onClick={() => void start()} attrs={{ 'data-review-anyway': true }}>Review anyway</SmallBtn>
-              </span>
+              </Box>
             </Note>
           )}
         </section>
       )}
       <section data-review-status className="flex flex-col gap-2 rounded border p-3" style={BOX}>
-        {review?.state === 'running' ? <ReviewWorking model={review.reviewerModel} /> : <p className="m-0 font-medium" data-plan-review-state>{reviewStateLabel(review)}</p>}
-        {queued && <p role="status" className="m-0">Review queued for this revision.</p>}
-        <p className="m-0" data-review-counts>{reviewCounts(review)}</p>
+        {review?.state === 'running' ? <ReviewWorking model={review.reviewerModel} /> : <Box as="p" m0 weight="medium" data-plan-review-state>{reviewStateLabel(review)}</Box>}
+        {queued && <Box role="status" as="p" m0>Review queued for this revision.</Box>}
+        <Box as="p" m0 data-review-counts>{reviewCounts(review)}</Box>
         {review?.revisionHash && (href || props.onOpenReview) && (
           href
             ? <a href={linkHref(href)} className="self-start underline" data-open-review onClick={(event) => { if (!props.onOpenReview) return; event.preventDefault(); props.onOpenReview() }}>Open review</a>
@@ -125,14 +126,14 @@ export function RevisionChanged(props: { change: RevisionChange }) {
   const { change } = props
   return (
     <section role="status" data-revision-moved className="flex flex-col gap-1 rounded border p-3 text-sm" style={{ borderColor: 'color-mix(in srgb, var(--info, var(--accent)) 40%, transparent)', background: 'color-mix(in srgb, var(--info, var(--accent)) 8%, transparent)', overflowWrap: 'anywhere' }}>
-      <p className="m-0 font-medium">Changed while open: <Tooltip text={change.from}><code>{shortHash(change.from)}</code></Tooltip> → <Tooltip text={change.to}><code>{shortHash(change.to)}</code></Tooltip></p>
+      <Box as="p" m0 weight="medium">Changed while open: <Tooltip text={change.from}><code>{shortHash(change.from)}</code></Tooltip> → <Tooltip text={change.to}><code>{shortHash(change.to)}</code></Tooltip></Box>
       {change.files.length > 0 && (
         <ul className="m-0 flex flex-col pl-5" style={{ listStyle: 'disc' }} data-revision-moved-files>
           {change.files.map((file) => <li key={file.file}><code>{file.file}</code> <span style={file.added ? { color: 'var(--success, var(--text))' } : undefined}>+{file.added}</span> <span style={file.removed ? { color: 'var(--danger)' } : undefined}>−{file.removed}</span></li>)}
         </ul>
       )}
-      {change.fixed.length > 0 && <p className="m-0" data-revision-moved-fixed>Now fixed: {change.fixed.map((finding) => finding.claim).join(' · ')}</p>}
-      {change.moved.length > 0 && <p className="m-0" data-revision-moved-anchors>Moved or removed: {change.moved.map((finding) => finding.claim).join(' · ')}</p>}
+      {change.fixed.length > 0 && <Box as="p" m0 data-revision-moved-fixed>Now fixed: {change.fixed.map((finding) => finding.claim).join(' · ')}</Box>}
+      {change.moved.length > 0 && <Box as="p" m0 data-revision-moved-anchors>Moved or removed: {change.moved.map((finding) => finding.claim).join(' · ')}</Box>}
       <Hint as="p" flush>Approve now applies to <code>{shortHash(change.to)}</code>. Press it again to approve this revision.</Hint>
     </section>
   )

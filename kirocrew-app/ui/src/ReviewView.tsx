@@ -44,6 +44,7 @@ import {
 } from './review-view.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
 
 const PROSE = '72ch'
 // Below this width the text and the rail do not fit side by side.
@@ -200,9 +201,9 @@ function FindingCard(props: {
             {SEVERITY_LABEL[finding.severity]}
           </span>
           <Hint>{finding.category}</Hint>
-          <code className="text-muted" data-finding-lines={props.showFile ? 'file' : undefined}>
+          <Box as="code" tone="muted" data-finding-lines={props.showFile ? 'file' : undefined}>
             {lineText(finding.anchor)}
-          </code>
+          </Box>
           {finding.anchor.moved && (
             <Hint data-moved>
               Moved or removed (from <code>{shortHash(finding.anchor.revisionHash)}</code>)
@@ -599,10 +600,10 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                 className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm"
                 style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 12px' }}
               >
-                <span className="font-medium">
+                <Box as="span" weight="medium">
                   Round {round.round}
                   {data.rounds.some((r) => r.pass !== round.pass) ? ` of pass ${round.pass}` : ''}
-                </span>
+                </Box>
                 <Hint>
                   {round.state} · {round.reviewerModel ?? 'reviewer not set'} at <code>{shortHash(round.revisionHash)}</code>
                 </Hint>
