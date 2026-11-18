@@ -266,6 +266,7 @@ const tools = {
         "Stop public crews: pull the cord on every public repository and list the crews to pause in Issue Radar; only a person resumes",
       ],
       reply: ["reply.post", "post a responder's one reply"],
+      task_summary: ["tasksummary.submit", "a task summary chat's one summary"],
       review_draft: [
         "reviewdraft.post",
         "post a review draft chat's one pending review",

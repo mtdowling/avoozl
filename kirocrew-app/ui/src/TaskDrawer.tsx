@@ -5,7 +5,9 @@ import { Btn } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { TaskDrawerContext, type TaskDrawerApi } from './drawer-context.ts'
 import { modelLabel, safeHref, viewsClient, canSupersede, type ConflictItem, type Graph } from './views-api.ts'
-import { duration, lineText, linkParts, relativeTime, sessionHref, sourceLine, taskClient, type OriginSource, type TaskDetail, type TaskLink, type TaskOrigin } from './task-api.ts'
+import { duration, lineText, linkParts, relativeTime, sessionHref, sourceLine, taskClient, tabHasData, TASK_TABS, TASK_TAB_KEYS, TASK_TAB_PARAM, type OriginSource, type TaskDetail, type TaskLink, type TaskOrigin, type TaskTab } from './task-api.ts'
+import { Tabs, TabPanel, useTabParam } from './Tabs.tsx'
+import { TaskSummaryBox } from './TaskSummaryBox.tsx'
 import { DEFER_TIP, RESUME_TIP, RETRY_TIP, resumeStatus } from './delivery-api.ts'
 import { ItemDetails, RetryForm, SupersedeForm } from './DeliveryDetails.tsx'
 import { ConflictActions, ReviewButton } from './ConflictsView.tsx'
@@ -31,24 +33,18 @@ import { ReviewTaskContext } from './NeedsYouContext.tsx'
 import { TaskScmLinks } from './TaskScmLinks.tsx'
 import { TaskSteps } from './TaskSteps.tsx'
 
-// The drawer's sections, each a bordered, titled box that folds. All start
-// open, so everything shows at once.
-const SECTIONS = [
-  { key: 'review', label: 'Review' },
-  { key: 'summary', label: 'Summary' },
-  { key: 'description', label: 'Description' },
-  { key: 'links', label: 'Edges' },
-  { key: 'task-links', label: 'Links' },
-  { key: 'delivery', label: 'Delivery' },
-  { key: 'files', label: 'Files' },
-  { key: 'timing', label: 'Timing' },
-  { key: 'evidence', label: 'Evidence' },
-  { key: 'conflicts', label: 'Conflicts' },
-  { key: 'timeline', label: 'Timeline' },
-] as const
+// What an empty tab says (the one rule: every tab shows, an empty one is muted).
+const EMPTY: Record<TaskTab, string> = {
+  overview: '',
+  timeline: 'Nothing recorded yet.',
+  links: '',
+  work: 'No delivery yet. No worker session has started.',
+  review: 'No review has run on this task.',
+  details: '',
+}
 
 type Mode =
-  | { kind: 'task'; id: string }
+  | { kind: 'task'; id: string; tab?: TaskTab }
   | { kind: 'add'; prerequisite?: string }
   | { kind: 'review'; group: ConflictItem; onReviewed?: () => void }
   | null
@@ -217,6 +213,7 @@ function TaskPanel(props: {
   onClose: () => void
   onFocus?: (id: string, title: string) => void
   onTitle: (id: string, title: string) => void
+  tab?: TaskTab
 }) {
   const { workspaceId, id } = props
   const api = useAppApi()
@@ -229,6 +226,19 @@ function TaskPanel(props: {
   const chat = useAskChat(workspaceId)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+  // The open tab lives in the page address, so Back and a pasted link land on
+  // it. A task opens on Overview unless the caller names a tab (an old
+  // Timeline link).
+  const [tab, pick] = useTabParam<TaskTab>(TASK_TAB_PARAM, TASK_TAB_KEYS, 'overview', 'Back to the last task tab')
+  const first = useRef(true)
+  useEffect(() => {
+    if (!first.current) return
+    first.current = false
+    const want = props.tab ?? 'overview'
+    if (want !== tab) pick(want)
+    // Once, when the task opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const load = useCallback(async () => {
     setError(null)
     try {
@@ -277,6 +287,7 @@ function TaskPanel(props: {
   const resume = resumeStatus(props.graph)
   const done = delivery?.complete ?? task.state === 'done'
   const issue = safeHref(task.issue?.url ?? null)
+  const runs = reviewRuns(delivery).length
 
   return (
     <div className="flex flex-col gap-3">
@@ -378,23 +389,6 @@ function TaskPanel(props: {
           }}
         />
       )}
-      {task.handSetReview && (
-        <HandSetReview
-          workspaceId={workspaceId}
-          task={task}
-          graph={props.graph}
-          revision={detail.revision}
-          onChanged={(text) => {
-            setMessage({ ok: true, text })
-            void load()
-          }}
-        />
-      )}
-      {reviewRuns(delivery).length > 0 && (
-        <SectionBox id="review" title="Review">
-          <ReviewRuns item={delivery} />
-        </SectionBox>
-      )}
       {editing && (
         <div className="rounded border p-3" style={{ borderColor: 'var(--border)' }}>
           <TaskForm
@@ -410,216 +404,246 @@ function TaskPanel(props: {
           />
         </div>
       )}
-      <div className="flex flex-col gap-3" role="region" aria-label="Task sections">
-        <SectionBox id="summary" title="Summary">
-          <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
-            <Row label="Epic">{task.epicTitle ?? 'none'}</Row>
-            <Row label="Phase">{task.phase?.title ?? 'none'}</Row>
-            {detail.origin && (
-              <Row label="Came from">
-                <Origin origin={detail.origin} issue={issue} workspaceId={workspaceId} />
-              </Row>
-            )}
-            <Row label="Spec">
-              {detail.plan ? `${detail.plan.title}${detail.plan.approved ? ' (approved)' : ` (${detail.plan.state ?? 'draft'})`}` : 'none'}
-              {task.planArchived ? ' · archived: its tasks do not start until you unarchive it' : ''}
-            </Row>
-            <Row label="Authority">
-              <Authority owner={task} /> {task.authority}
-            </Row>
-            <Row label="Route">{task.route}</Row>
-            <Row label="Status">{task.status ?? 'none'}</Row>
-            <Row label="State">{task.state ?? 'unknown'}</Row>
-            <Row label="Wave">{task.wave}</Row>
-            <Row label="Done when">{task.completion}</Row>
-            {task.repository && <Row label="Repository">{task.repository}</Row>}
-            {task.owner && <Row label="Assignee">{task.owner}</Row>}
-            {task.decision && <Row label="Decision">{task.decision}</Row>}
-            {task.needsReview && <Row label="Review">Needs your review</Row>}
-            {(delivery?.pullRequests ?? []).map((pull, i) => (
-              <Row key={i} label="Pull request">
-                {safeHref(pull.url) ? (
-                  <a href={safeHref(pull.url)!} target="_blank" rel="noopener noreferrer" className="underline">
-                    #{pull.number}
-                    {pull.merged ? ' (merged)' : ''}
-                  </a>
-                ) : (
-                  `#${pull.number}`
-                )}
-              </Row>
-            ))}
-          </dl>
-        </SectionBox>
-        <SectionBox id="description" title="Description">
-          <div className="flex flex-col gap-3">
-            {task.summary ? <Markdown text={task.summary} /> : <p className="text-sm text-muted">No description.</p>}
-            <div>
-              <h4 className="text-sm font-semibold">Acceptance</h4>
-              {task.acceptance.length ? (
-                <ul className="mt-1 list-disc pl-5 text-sm">
-                  {task.acceptance.map((line, i) => (
-                    <li key={i}>{line}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted">None.</p>
-              )}
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold">Checks</h4>
-              {task.checks.length ? (
-                <ul className="mt-1 flex flex-col gap-1 text-sm">
-                  {task.checks.map((line, i) => (
-                    <li key={i}>
-                      <code>{line}</code>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted">None.</p>
-              )}
-            </div>
-            {task.context && (
-              <div>
-                <h4 className="text-sm font-semibold">From its spec</h4>
-                <Markdown text={task.context} />
+      <Tabs id="task-tabs" label="Task details" tabs={TASK_TABS} current={tab} onPick={pick} />
+      <TabPanel id="task-tabs" current={tab}>
+        {tab !== 'overview' && !tabHasData(tab, detail, runs) && <p className="text-sm text-muted" data-tab-empty={tab}>{EMPTY[tab]}</p>}
+        {tab === 'overview' && (
+          <>
+            <TaskSummaryBox workspaceId={workspaceId} id={task.id} summary={detail.summary} />
+            <SectionBox id="summary" title="Status">
+              <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+                <Row label="State">{task.state ?? 'unknown'}</Row>
+                <Row label="Spec">
+                  {detail.plan ? `${detail.plan.title}${detail.plan.approved ? ' (approved)' : ` (${detail.plan.state ?? 'draft'})`}` : 'none'}
+                  {task.planArchived ? ' · archived: its tasks do not start until you unarchive it' : ''}
+                </Row>
+                <Row label="Phase">{task.phase?.title ?? 'none'}</Row>
+                <Row label="Wave">{task.wave}</Row>
+                <Row label="Done when">{task.completion}</Row>
+                {task.decision && <Row label="Decision">{task.decision}</Row>}
+                {task.needsReview && <Row label="Review">Needs your review</Row>}
+                {(delivery?.pullRequests ?? []).map((pull, i) => (
+                  <Row key={i} label="Pull request">
+                    {safeHref(pull.url) ? (
+                      <a href={safeHref(pull.url)!} target="_blank" rel="noopener noreferrer" className="underline">
+                        #{pull.number}
+                        {pull.merged ? ' (merged)' : ''}
+                      </a>
+                    ) : (
+                      `#${pull.number}`
+                    )}
+                  </Row>
+                ))}
+              </dl>
+            </SectionBox>
+            <SectionBox id="links" title="Edges">
+              <div className="flex flex-col gap-3">
+                <Links title="Waits on" links={detail.waitsOn} open={props.open} />
+                <Links title="Blocks" links={detail.blocks} open={props.open} />
               </div>
-            )}
-          </div>
-        </SectionBox>
-        <SectionBox id="links" title="Edges">
-          <div className="flex flex-col gap-3">
-            <Links title="Waits on" links={detail.waitsOn} open={props.open} />
-            <Links title="Blocks" links={detail.blocks} open={props.open} />
-          </div>
-        </SectionBox>
-        <SectionBox id="task-links" title="Links">
-          <div className="flex flex-col gap-3">
-            <TaskScmLinks links={detail.links} />
-            <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }} data-added-links>
-              <h4 className="text-sm font-semibold">Added links</h4>
-              <TaskLinks workspaceId={workspaceId} taskId={task.id} onGitHub={Boolean(task.onGitHub)} refresh={detail.revision} />
-            </div>
-          </div>
-        </SectionBox>
-        <SectionBox id="delivery" title="Delivery">
-          {delivery ? (
-            <div className="flex flex-col gap-2">
-              {delivery.sessions.length > 0 && (
-                <ul className="flex flex-col gap-1 text-sm">
-                  {delivery.sessions.map((session) => (
-                    <li key={session.slot}>
-                      <a href={linkHref(sessionHref(session))} className="underline">
-                        {session.role} attempt {session.attempt}
-                      </a>{' '}
-                      <span className="text-xs text-muted">
-                        {session.status ?? 'not observed'} · {modelLabel(session) ?? 'model not named'} · started{' '}
-                        {relativeTime(session.boundAt)}
-                        {session.statusAt ? ` · last activity ${relativeTime(session.statusAt)}` : ''}
+            </SectionBox>
+            {detail.conflicts.length > 0 && (
+              <SectionBox id="conflicts" title={`Conflicts (${detail.conflicts.length})`}>
+                <ul className="flex flex-col gap-3">
+                  {detail.conflicts.map((item, i) => (
+                    <li key={i} className="flex flex-col gap-2 rounded border p-2" style={{ borderColor: 'var(--border)' }}>
+                      <div className="text-sm font-medium">{whyLine(item)}</div>
+                      {item.changedAt && (
+                        <div className="text-xs text-muted">
+                          Changed {relativeTime(item.changedAt)}
+                          {item.changedBy ? ` by ${item.changedBy}` : ''}. See the Timeline tab for this task&apos;s history.
+                        </div>
+                      )}
+                      <span>
+                        <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat seeded with this item" onClick={() => void chat.ask({ items: [itemRef(item)] })}>
+                          Ask in a chat
+                        </IconLabel>
                       </span>
+                      <ConflictActions item={item} workspaceId={workspaceId} revision={detail.revision} busy={busy} run={run} onSettled={() => undefined} />
                     </li>
                   ))}
                 </ul>
-              )}
-              {deliveryState === 'decision' && (
-                <RetryForm
+              </SectionBox>
+            )}
+          </>
+        )}
+        {tab === 'timeline' && tabHasData('timeline', detail, runs) && (
+          <>
+            <SectionBox id="timeline" title="Timeline">
+              {detail.steps?.length ? <TaskSteps steps={detail.steps} /> : null}
+              {detail.timeline.length ? (
+                <>
+                  {detail.steps?.length ? <h4 className="mt-2 text-sm font-semibold">All records</h4> : null}
+                  <ol className="flex flex-col gap-1 text-sm">
+                    {pages.take('timeline', detail.timeline).map((entry, i) => (
+                      <li key={i} className="flex gap-2">
+                        <Tooltip text={entry.at}>
+                          <span className="w-28 shrink-0 text-xs text-muted">{relativeTime(entry.at)}</span>
+                        </Tooltip>
+                        <span>{entry.text}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <ShowMore {...pages.more('timeline', detail.timeline.length)} />
+                </>
+              ) : null}
+            </SectionBox>
+            <SectionBox id="timing" title="Timing">
+              <TimingFold timing={detail.timing ?? null} />
+            </SectionBox>
+          </>
+        )}
+        {tab === 'links' && (
+          <>
+            <SectionBox id="task-links" title="Links">
+              <div className="flex flex-col gap-3">
+                <TaskScmLinks links={detail.links} />
+                <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }} data-added-links>
+                  <h4 className="text-sm font-semibold">Added links</h4>
+                  <TaskLinks workspaceId={workspaceId} taskId={task.id} onGitHub={Boolean(task.onGitHub)} refresh={detail.revision} />
+                </div>
+              </div>
+            </SectionBox>
+            <SectionBox id="files" title="Files">
+              <TaskFiles workspaceId={workspaceId} taskId={task.id} active />
+            </SectionBox>
+          </>
+        )}
+        {tab === 'work' && delivery && (
+          <>
+            <SectionBox id="delivery" title="Delivery">
+              <div className="flex flex-col gap-2">
+                {delivery.sessions.length > 0 && (
+                  <ul className="flex flex-col gap-1 text-sm">
+                    {delivery.sessions.map((session) => (
+                      <li key={session.slot}>
+                        <a href={linkHref(sessionHref(session))} className="underline">
+                          {session.role} attempt {session.attempt}
+                        </a>{' '}
+                        <span className="text-xs text-muted">
+                          {session.status ?? 'not observed'} · {modelLabel(session) ?? 'model not named'} · started {relativeTime(session.boundAt)}
+                          {session.statusAt ? ` · last activity ${relativeTime(session.statusAt)}` : ''}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {deliveryState === 'decision' && (
+                  <RetryForm
+                    item={delivery}
+                    busy={busy}
+                    onRetry={(dismiss) =>
+                      run(async () => {
+                        await views.retry(workspaceId, task.id, dismiss)
+                        return { ok: true, text: 'Dismissed and retrying.' }
+                      })
+                    }
+                  />
+                )}
+                <ItemDetails
                   item={delivery}
-                  busy={busy}
-                  onRetry={(dismiss) =>
-                    run(async () => {
-                      await views.retry(workspaceId, task.id, dismiss)
-                      return { ok: true, text: 'Dismissed and retrying.' }
-                    })
-                  }
+                  onSupersede={async (from, create) => {
+                    await views.supersede(workspaceId, from, create)
+                    await load()
+                  }}
                 />
-              )}
-              <ItemDetails
+              </div>
+            </SectionBox>
+            {canSupersede(delivery) && (
+              <SupersedeForm
                 item={delivery}
                 onSupersede={async (from, create) => {
                   await views.supersede(workspaceId, from, create)
                   await load()
                 }}
               />
-            </div>
-          ) : (
-            <p className="text-sm text-muted">No delivery yet.</p>
-          )}
-        </SectionBox>
-        <SectionBox id="files" title="Files">
-          <TaskFiles workspaceId={workspaceId} taskId={task.id} active />
-        </SectionBox>
-        <SectionBox id="timing" title="Timing">
-          <TimingFold timing={detail.timing ?? null} />
-        </SectionBox>
-        <SectionBox id="evidence" title="Evidence">
-          <EvidenceFold workspaceId={workspaceId} taskId={task.id} />
-        </SectionBox>
-        <SectionBox id="conflicts" title={detail.conflicts.length ? `Conflicts (${detail.conflicts.length})` : 'Conflicts'}>
-          {detail.conflicts.length ? (
-            <ul className="flex flex-col gap-3">
-              {detail.conflicts.map((item, i) => (
-                <li key={i} className="flex flex-col gap-2 rounded border p-2" style={{ borderColor: 'var(--border)' }}>
-                  <div className="text-sm font-medium">{whyLine(item)}</div>
-                  {item.changedAt && (
-                    <div className="text-xs text-muted">
-                      Changed {relativeTime(item.changedAt)}
-                      {item.changedBy ? ` by ${item.changedBy}` : ''}. See Timeline for this task&apos;s history.
-                    </div>
+            )}
+            {delivery.sessions.length ? <p className="text-xs text-muted">Running for {duration(delivery.sessions.at(-1)!.boundAt)} in its latest attempt.</p> : null}
+          </>
+        )}
+        {tab === 'review' && tabHasData('review', detail, runs) && (
+          <>
+            {task.handSetReview && (
+              <HandSetReview
+                workspaceId={workspaceId}
+                task={task}
+                graph={props.graph}
+                revision={detail.revision}
+                onChanged={(text) => {
+                  setMessage({ ok: true, text })
+                  void load()
+                }}
+              />
+            )}
+            {runs > 0 && (
+              <SectionBox id="review" title="Review">
+                <ReviewRuns item={delivery} />
+              </SectionBox>
+            )}
+          </>
+        )}
+        {tab === 'details' && (
+          <>
+            <SectionBox id="fields" title="Fields">
+              <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+                <Row label="Epic">{task.epicTitle ?? 'none'}</Row>
+                {detail.origin && (
+                  <Row label="Came from">
+                    <Origin origin={detail.origin} issue={issue} workspaceId={workspaceId} />
+                  </Row>
+                )}
+                <Row label="Authority">
+                  <Authority owner={task} /> {task.authority}
+                </Row>
+                <Row label="Route">{task.route}</Row>
+                <Row label="Status">{task.status ?? 'none'}</Row>
+                {task.repository && <Row label="Repository">{task.repository}</Row>}
+                {task.owner && <Row label="Assignee">{task.owner}</Row>}
+              </dl>
+            </SectionBox>
+            <SectionBox id="description" title="Description">
+              <div className="flex flex-col gap-3">
+                {task.summary ? <Markdown text={task.summary} /> : <p className="text-sm text-muted">No description.</p>}
+                <div>
+                  <h4 className="text-sm font-semibold">Acceptance</h4>
+                  {task.acceptance.length ? (
+                    <ul className="mt-1 list-disc pl-5 text-sm">
+                      {task.acceptance.map((line, i) => (
+                        <li key={i}>{line}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted">None.</p>
                   )}
-                  <span>
-                    <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat seeded with this item" onClick={() => void chat.ask({ items: [itemRef(item)] })}>
-                      Ask in a chat
-                    </IconLabel>
-                  </span>
-                  <ConflictActions
-                    item={item}
-                    workspaceId={workspaceId}
-                    revision={detail.revision}
-                    busy={busy}
-                    run={run}
-                    onSettled={() => undefined}
-                  />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted">No conflicts or decisions on this task.</p>
-          )}
-        </SectionBox>
-        <SectionBox id="timeline" title="Timeline">
-          {detail.steps?.length ? <TaskSteps steps={detail.steps} /> : null}
-          {detail.timeline.length ? (
-            <>
-            {detail.steps?.length ? <h4 className="mt-2 text-sm font-semibold">All records</h4> : null}
-            <ol className="flex flex-col gap-1 text-sm">
-              {pages.take('timeline', detail.timeline).map((entry, i) => (
-                <li key={i} className="flex gap-2">
-                  <Tooltip text={entry.at}>
-                    <span className="w-28 shrink-0 text-xs text-muted">{relativeTime(entry.at)}</span>
-                  </Tooltip>
-                  <span>{entry.text}</span>
-                </li>
-              ))}
-            </ol>
-            <ShowMore {...pages.more('timeline', detail.timeline.length)} />
-            </>
-          ) : detail.steps?.length ? null : (
-            <p className="text-sm text-muted">Nothing recorded yet.</p>
-          )}
-        </SectionBox>
-      </div>
-      {delivery && canSupersede(delivery) && (
-        <SupersedeForm
-          item={delivery}
-          onSupersede={async (from, create) => {
-            await views.supersede(workspaceId, from, create)
-            await load()
-          }}
-        />
-      )}
-      {delivery?.sessions.length ? (
-        <p className="text-xs text-muted">Running for {duration(delivery.sessions.at(-1)!.boundAt)} in its latest attempt.</p>
-      ) : null}
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold">Checks</h4>
+                  {task.checks.length ? (
+                    <ul className="mt-1 flex flex-col gap-1 text-sm">
+                      {task.checks.map((line, i) => (
+                        <li key={i}>
+                          <code>{line}</code>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted">None.</p>
+                  )}
+                </div>
+                {task.context && (
+                  <div>
+                    <h4 className="text-sm font-semibold">From its spec</h4>
+                    <Markdown text={task.context} />
+                  </div>
+                )}
+              </div>
+            </SectionBox>
+            <SectionBox id="evidence" title="Evidence">
+              <EvidenceFold workspaceId={workspaceId} taskId={task.id} />
+            </SectionBox>
+          </>
+        )}
+      </TabPanel>
     </div>
   )
 }
@@ -709,10 +733,10 @@ export function TaskDrawerProvider({
   const closing = useRef<() => void>(() => undefined)
   const api_: TaskDrawerApi = useMemo(
     () => ({
-      openTask: (id) => {
+      openTask: (id, tab) => {
         const now = current.current
         if (now && (now.kind === 'review' || (now.kind === 'task' && now.id !== id))) setHistory((h) => [...h, now])
-        setMode({ kind: 'task', id })
+        setMode({ kind: 'task', id, tab })
       },
       addTask: (prefill) => {
         setMode({ kind: 'add', prerequisite: prefill?.prerequisite })
@@ -795,7 +819,7 @@ export function TaskDrawerProvider({
           }
         >
           {mode.kind === 'task' ? (
-            <TaskPanel workspaceId={workspaceId} id={mode.id} graph={graph} open={api_.openTask} onClose={close} onFocus={onFocus} onTitle={showTitle} />
+            <TaskPanel key={mode.id} workspaceId={workspaceId} id={mode.id} tab={mode.tab} graph={graph} open={api_.openTask} onClose={close} onFocus={onFocus} onTitle={showTitle} />
           ) : mode.kind === 'review' ? (
             <ReviewPanel
               workspaceId={workspaceId}

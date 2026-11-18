@@ -23,6 +23,7 @@ import { FormSection } from './FormSection.tsx'
 import { Modal } from './Modal.tsx'
 import { Pencil, Plus, Trash2 } from './icons.ts'
 import { FolderField } from './FolderPicker.tsx'
+import ListItem from './ListItem.tsx'
 
 function Field(props: {
   id: string
@@ -54,38 +55,38 @@ function WorkspaceRow(props: {
 }) {
   const { workspace, selected } = props
   return (
-    <li className="flex items-start gap-1">
-      <button
-        type="button"
-        aria-pressed={selected}
-        onClick={props.onSelect}
-        className={`min-w-0 flex-1 rounded px-3 py-2 text-left ${selected ? 'bg-accent/10' : ''}`}
-      >
-        <span className="font-medium">{workspace.name}</span>{' '}
-        <span className="text-xs text-muted">{workspace.id}</span>
-        <span className="ml-2 inline-flex gap-1">
-          {workspace.served && <Badge variant="info">This backend</Badge>}
-          <Tooltip text={workspaceState(workspace.state).tip}>
-            <span data-workspace-state={workspace.state}>
-              <Badge variant={workspaceState(workspace.state).variant}>{workspaceState(workspace.state).label}</Badge>
-            </span>
-          </Tooltip>
-        </span>
-        <span className="block truncate text-xs text-muted">{workspace.root}</span>
-      </button>
-      <Tooltip text={`Edit ${workspace.name}`}>
-        <button
-          type="button"
-          data-edit-workspace={workspace.id}
-          aria-label={`Edit ${workspace.name}`}
-          onClick={props.onEdit}
-          className="rounded border"
-          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, marginTop: 6, background: 'transparent', borderColor: 'var(--border)', color: 'var(--text)', cursor: 'pointer' }}
-        >
-          <Pencil size={14} aria-hidden="true" />
+    <ListItem
+      className={selected ? 'bg-accent/10' : ''}
+      title={
+        <button type="button" aria-pressed={selected} onClick={props.onSelect} className="flex min-w-0 flex-wrap items-center gap-x-2 text-left">
+          <span className="font-medium">{workspace.name}</span>
+          <span className="text-xs text-muted">{workspace.id}</span>
+          <span className="inline-flex gap-1">
+            {workspace.served && <Badge variant="info">This backend</Badge>}
+            <Tooltip text={workspaceState(workspace.state).tip}>
+              <span data-workspace-state={workspace.state}>
+                <Badge variant={workspaceState(workspace.state).variant}>{workspaceState(workspace.state).label}</Badge>
+              </span>
+            </Tooltip>
+          </span>
         </button>
-      </Tooltip>
-    </li>
+      }
+      facts={[{ label: 'Folder', value: workspace.root, mono: true, truncate: true }]}
+      actions={
+        <Tooltip text={`Edit ${workspace.name}`}>
+          <button
+            type="button"
+            data-edit-workspace={workspace.id}
+            aria-label={`Edit ${workspace.name}`}
+            onClick={props.onEdit}
+            className="rounded border"
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, background: 'transparent', borderColor: 'var(--border)', color: 'var(--text)', cursor: 'pointer' }}
+          >
+            <Pencil size={14} aria-hidden="true" />
+          </button>
+        </Tooltip>
+      }
+    />
   )
 }
 
@@ -228,7 +229,7 @@ export default function WorkspaceView(
         ) : list.items.length === 0 ? (
           <p className="mt-2 text-sm text-muted">No workspaces yet. Add one.</p>
         ) : (
-          <ul className="mt-2 flex flex-col gap-1">
+          <ul className="mt-2 flex flex-col">
             {list.items.map((workspace) => (
               <WorkspaceRow
                 key={workspace.id}

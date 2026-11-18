@@ -260,3 +260,84 @@ test("landNext keeps why the head waits, once per change, never on a withdrawn e
   });
   assert.equal(store.get("landing_queue", "p\0main\0k").state, "withdrawn");
 });
+
+// ---- integrator train targets (lt-7.1) ----
+
+test("a train target shows queue depth, each entry's time in queue and hold, and the running train's step, from the store alone", async (t) => {
+  const { store } = fixture(t),
+    now = Date.parse("2026-01-01T01:00:00.000Z"),
+    at = (minutes) => new Date(now - minutes * 60000).toISOString();
+  store.put("projects", {
+    id: "app",
+    root: "/x",
+    baseBranch: "core-dev",
+    landing: "train",
+    repository: "acme/app",
+  });
+  const sha = (n) => String(n).padStart(40, "0"),
+    entry = (key, seq, extra) =>
+      store.put("landing_queue", {
+        id: `app\0core-dev\0${key}`,
+        projectId: "app",
+        base: "core-dev",
+        key,
+        commit: sha(seq),
+        tasks: [{ task: key, definition: "d" }],
+        spec: "s",
+        seq,
+        state: "queued",
+        queuedAt: at(30 - seq * 5),
+        branch: `avoozl-batch/${key}`,
+        builtOn: [],
+        cheap: { commit: sha(seq) },
+        ...extra,
+      });
+  entry("a", 1, { state: "in-train", train: "train-1" });
+  entry("b", 2, { state: "in-train", train: "train-1" });
+  entry("c", 3);
+  entry("d", 4, { builtOn: ["e"] });
+  entry("e", 5, { cheap: null });
+  store.put("landing_trains", {
+    id: "train-1",
+    projectId: "app",
+    target: "core-dev",
+    policy: "gated",
+    startedAt: at(8),
+    members: [{ key: "a" }, { key: "b" }],
+    steps: [{ name: "stack" }, { name: "cheap" }],
+    current: "full on the stack",
+    outcome: null,
+  });
+  const view = landingQueueView(store, { tasks: [] }, { now }),
+    [base] = view.bases;
+  assert.equal(base.landing, "train");
+  assert.deepEqual(base.queue, {
+    depth: 5,
+    train: {
+      id: "train-1",
+      policy: "gated",
+      step: "full on the stack",
+      members: 2,
+      startedAt: at(8),
+    },
+  });
+  const byKey = Object.fromEntries(base.items.map((i) => [i.key, i]));
+  assert.equal(byKey.a.hold.kind, "train");
+  assert.match(byKey.a.hold.text, /In train-1, step full on the stack/);
+  assert.equal(byKey.c.hold.kind, "waiting");
+  assert.match(byKey.c.hold.text, /train-1 is running/);
+  assert.equal(byKey.d.hold.kind, "held");
+  assert.match(byKey.d.hold.text, /built on e/);
+  assert.equal(byKey.e.hold.kind, "held");
+  assert.match(byKey.e.hold.text, /cheap checks/);
+  // Time in queue: since each entry's queuedAt.
+  assert.equal(byKey.a.since, at(25));
+  assert.equal(byKey.c.since, at(15));
+  // With the train over, the step and the waiting reason change.
+  store.put("landing_trains", {
+    ...store.get("landing_trains", "train-1"),
+    outcome: "landed",
+  });
+  const after = landingQueueView(store, { tasks: [] }, { now }).bases[0];
+  assert.equal(after.queue.train, null);
+});

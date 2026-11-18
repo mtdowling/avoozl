@@ -213,7 +213,7 @@ test('the Graph node modal: the node is the title, Close in the footer', { skip 
   await page.until(CLOSED)
 })
 
-test('the workspace and instance modals', { skip }, async () => {
+test('the workspace modals', { skip }, async () => {
   await page.open(harness.url({ page: 'workspaces' }), { width: 1280, height: 800 })
   await page.until(`Boolean(document.querySelector('[data-edit-workspace="launch"]'))`)
   await page.evaluate(`document.querySelector('[data-add-workspace]').click()`)
@@ -232,11 +232,4 @@ test('the workspace and instance modals', { skip }, async () => {
   await assertShell('Remove workspace', /^Remove .+ from Avoozl\?$/, 'Cancel')
   await page.key('Escape', 'Escape', 27)
   await page.until(`!document.querySelector('[data-remove-workspace-confirm]')`)
-
-  await page.open(harness.url({ page: 'app', radar: '1' }), { width: 1280, height: 800 })
-  await page.until(`Boolean(document.querySelector('[data-left-nav] [data-instance-edit]'))`, 30000)
-  await page.evaluate(`document.querySelector('[data-left-nav] [data-instance-edit]').click()`)
-  await page.until(OPEN)
-  await settle()
-  await assertShell('Instance name', 'Instance name', 'Cancel')
 })

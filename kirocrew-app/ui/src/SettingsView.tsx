@@ -1074,6 +1074,8 @@ function RepositoriesTab(props: {
             <RepositoryList
               rows={rows}
               roleText={roleText}
+              entryOf={(row) => (row.policy >= 0 ? form.repositories[row.policy] : null)}
+              mirrorOf={(row) => mirrorSourceOf(form, row.github)}
               busy={busy}
               onView={(row) => setOpen({ kind: 'view', key: row.key })}
               onEdit={(row) => setOpen({ kind: 'edit', key: row.key })}

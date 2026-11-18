@@ -233,5 +233,13 @@
       "@avoozl:avoozl/plans_answer_review"
     ],
     "includeMcpJson": false
+  },
+  {
+    "name": "avoozl-task-summary",
+    "model": "auto",
+    "description": "Avoozl Task summary: writes a short plain summary of one task for its details page.",
+    "tools": ["@avoozl:avoozl/plans_submit_task_summary"],
+    "allowedTools": ["@avoozl:avoozl/plans_submit_task_summary"],
+    "includeMcpJson": false
   }
 ]

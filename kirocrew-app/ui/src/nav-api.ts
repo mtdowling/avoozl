@@ -92,7 +92,7 @@ export function redirectTab(key: string): Place {
 
 // A Settings section that no longer exists lands on the section that took
 // over: Routing's job (crews and placement) is gone with local workers, and
-// the instance name is edited from the nav footer, and Where tasks live is a
+// the instance name is edited in Settings > Workspaces > This computer, and Where tasks live is a
 // role per repository in Repository setup (R105.6). Older names for the
 // Radar values screen open Settings › Issue Radar.
 export function redirectSettings(key: string): string {

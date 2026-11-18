@@ -84,7 +84,7 @@ Old links to a removed page open the page that took over its job
 | Lanes page                                              | Machine badges and counts on Delivery                               | #508          |
 | Where tasks live page                                   | A role per repository in Repository setup                           | #459, #484    |
 | Onboard button                                          | Add repository                                                      | #515          |
-| Instance name page                                      | Pencil button in the nav footer                                     | #453          |
+| Instance name page                                      | Nickname field in Settings > Workspaces > This computer            | #453          |
 | Conflicts and Intake tabs                               | Needs you › Decisions and Triage                                    | #464          |
 | `verify-issue`, the provenance marker, `avoozl-crew`     | PR landing                                                          | #509          |
 

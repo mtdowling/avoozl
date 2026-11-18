@@ -204,6 +204,8 @@ const EXECUTE = new Set([
   "relay.call",
   "reply.post",
   "reviewdraft.post",
+  "task.summary.request",
+  "tasksummary.submit",
   "gate.clear",
   "worktree.prepare",
   "content.check",

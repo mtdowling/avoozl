@@ -1,6 +1,6 @@
 // An old `?trace=owner/repo#52` link (Requirement 106.8): the page that held
 // it is gone, so open the details of the task that owns that issue, which
-// show the Timeline box open. A link no task owns stays on Delivery, where App
+// open on the Timeline tab. A link no task owns stays on Delivery, where App
 // sent it. Reads the stored graph only. Renders nothing.
 import { useEffect, useMemo } from 'react'
 import { useAppApi } from './host.ts'
@@ -19,7 +19,7 @@ export default function OldTraceLink(props: { workspaceId: string | null; link: 
     void views.graph(workspaceId).then(
       (graph) => {
         const task = taskForIssue(graph, link)
-        if (live && task) drawer.openTask(task.id)
+        if (live && task) drawer.openTask(task.id, 'timeline')
       },
       () => undefined,
     )
