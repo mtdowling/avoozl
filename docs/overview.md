@@ -7,26 +7,26 @@ and shows now; it is not a list of verdicts.
 
 ## 1. What Avoozl is
 
-Avoozl plans epics and delivers them. It turns an approved spec into a task
-graph, runs each ready task in its own working branch with an executor (a
-Kiro Crew chat or a process harness), checks the exact commit, and lands it
-by the repository's `landing` setting. GitHub is optional.
+Approve a spec; Avoozl runs it with coding agents, checks each commit itself,
+and lands it. It turns an approved spec into a task graph, runs each ready
+task in its own working branch with an executor (a Kiro Crew chat or a
+process harness), checks the exact commit, and lands it by the repository's
+`landing` setting. A spec can be one task that becomes one pull request, or
+an epic across specs and repositories. GitHub is optional.
 
 | Is                                                                                          | Is not                                                                     |
 | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Plans epics: spec, tasks, order                                                             | A triage tool (Issue Radar does that)                                      |
-| Runs, checks and lands each task, and releases what waited on it                            | A maintenance tool                                                         |
+| Plans specs of any size: spec, tasks, order                                                             | A triage tool (Issue Radar does that)                                      |
+| Runs, checks and lands each task, and releases what waited on it                            | A coder for unplanned work: every change starts from an approved spec      |
 | Local only mode: tasks in SQLite, no GitHub                                                 | A pull request reviewer (one exception: review drafts by label)            |
 | Shows Needs you, In flight, Landing queue, Delivery, Flow and Retros                        | A second issue or pull request list (Issue Radar and GitHub already have them) |
-
-Where a spec is for one small change, Avoozl says so and offers "Plan it
-anyway".
 
 ## 2. Workflows
 
 | Workflow                   | Path                                                                                                                                                                                                                    |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Maintenance, by Radar      | Radar crews take issues and open pull requests. Avoozl does not triage or plan these. Needs you › Issue Radar lists what you sent to a crew.                                                                            |
+| Light spec, one pull request | New spec, Blank or From a goal, with one task. Approve records the revision. With `landing: pr` Avoozl opens the pull request, waits for its checks and reviews, and merges it. |
 | Epic from an approved spec | Spec Builder writes requirements, design and tasks. Approve records the revision. The tick releases ready tasks by capacity, phase and Stop the line. Avoozl runs, checks and lands each one (R86, R87). Retro follows. |
 | Tag-based review drafts    | A person adds the review label to a pull request. One read-only chat drafts a pending review with line comments. The person edits and submits it. Avoozl never submits.                                                 |
 

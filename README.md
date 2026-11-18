@@ -1,12 +1,14 @@
 # Avoozl
 
-Avoozl turns a goal into a reviewed task graph and delivers it through
-[Kiro Crew](kirocrew-app/README.md) sessions. It runs as a Kiro Crew app: a
-page, a loopback backend, an MCP server, and a one-minute tick. Its work is
-described in Kiro spec folders, called specs on the page. Execution state lives in a local SQLite workspace. GitHub is
-optional.
+Approve a spec; Avoozl lands it. It turns the approved revision into ordered
+tasks, runs each one with a coding agent in its own worktree, runs the checks
+itself on the exact commit, and merges it.
 
-Avoozl is for epics: approved goals that need many changes in a set order. Maintenance, triage and one-off pull request handling belong to Issue Radar crews or to your team's coder. Avoozl can hand each task of an epic to any coder. If the work fits in one pull request, it is not an Avoozl job. If it needs a plan with an order, it is.
+Specs can be any size. A light spec with one task becomes one pull request. A large one becomes ordered tasks across repositories, each checked on its exact commit before it lands. Every change starts from a spec you approved, so no agent's work lands without a plan a person agreed to.
+
+Avoozl runs as a [Kiro Crew](kirocrew-app/README.md) app: a page, a loopback
+backend, an MCP server, and a one-minute tick. A spec is a Kiro spec folder.
+Execution state lives in a local SQLite workspace. GitHub is optional.
 
 ## Install
 
@@ -87,8 +89,7 @@ While the demo is on, a **Demo** badge shows in the header. Reads work.
 Every change only says what it would do, no agent or chat starts, and GitHub
 is a fake that writes nothing. **Exit demo** returns to your own workspace,
 which the demo never opens. The sample is built once in a folder under your
-system temp folder and kept, with any edits, for the next demo. Screenshots
-are in [docs/evidence/demo/](docs/evidence/demo/).
+system temp folder and kept, with any edits, for the next demo.
 
 ## Where tasks live
 
@@ -105,7 +106,7 @@ derived):
 | `both`     | The repository itself   | The repository        | Yes                   |
 
 **Edit** and **Add repository** also offer **Private mirror of a public
-repository**, a private copy that crews work in.
+repository**, a private copy that the work happens in.
 
 That gives three modes:
 
@@ -119,8 +120,7 @@ Local only is the default. Only a repository with a GitHub remote can take a
 role other than `local`. Switching to Local only keeps your GitHub settings
 in the file, unused, so switching back restores them. In plans-repo mode a
 leak screen keeps the planning repository's name out of branches, pull
-requests, and comments in the code repositories. A file with no `role` keys
-gets roles from its stored mode.
+requests, and comments in the code repositories.
 
 ## Specs
 
@@ -141,19 +141,28 @@ each ID its kind, summary, acceptance, dependencies (`requires`), checks, and
 completion level. Avoozl refuses a folder that is missing a file, or a
 `tasks.md` with a missing or repeated ID.
 
-On the Specs page, choose **New spec** in the Specs heading.
-Fill in the name, the repositories in scope and what you want, then choose
-**Open in Spec Builder**. Avoozl offers to add `.kiro/steering/avoozl-specs.md`
-to the repository first, showing its text; it holds Avoozl's spec rules, and it
-is never written over a changed copy. Kiro Crew's Spec Builder then drafts
-requirements, design and tasks, one phase at a time for you to review. Once
-`tasks.md` holds still, Avoozl writes `avoozl/manifest.json` from it and stores
-the folder as a draft spec. Nothing is approved or started. Spec Builder must
-be turned on in Kiro Crew's Apps; when it is off, the drawer says so and offers
-an `avoozl-planner` chat instead.
-Select the spec, review the lint results and the graph, then choose
-**Approve revision**. Approval records the exact revision hash, so a later
-edit reads as unapproved until you approve again.
+On the Specs page, choose **New spec** in the Specs heading. Name it, pick
+the repositories in scope, and pick how to start:
+
+- **Blank**: Kiro Crew's Spec Builder writes the spec with you, requirements,
+  then design, then tasks, each for you to review. Avoozl offers to add
+  `.kiro/steering/avoozl-specs.md` to the repository first, showing its text;
+  it holds Avoozl's spec rules, and it is never written over a changed copy.
+  Spec Builder must be turned on in Kiro Crew's Apps; when it is off, the
+  drawer says so and offers an `avoozl-planner` chat instead.
+- **From a goal**: type the goal, and an Avoozl planner chat writes the draft
+  spec.
+- **From template**: start from a workflow template in an approved plugin.
+
+Once `tasks.md` holds still, Avoozl writes `avoozl/manifest.json` from it and
+stores the folder as a draft spec. Nothing is approved or started. Select the
+spec, review the lint results and the graph, then choose **Approve
+revision**. Approval records the exact revision hash, so a later edit reads
+as unapproved until you approve again.
+
+A spec can be as small as one task. With the repository's `landing` set to
+`pr` (see [Landing](#landing)), approving a one-task spec sends one pull
+request, checked and merged like any other task.
 
 For dependencies across specs, load each referenced spec as a stored draft
 first. Preview distinguishes a declared task from an existing approved task.
@@ -196,8 +205,11 @@ Two Kiro Crew steps only you can do, once:
    in the sidebar and set its project directory to the checkout. Only a
    person can set it, and the tick opens no session there until it is set.
 
-Each minute the tick starts a Kiro Crew session for each ready leaf, in its
-own worktree. When a session reports done, Avoozl runs the checks itself on
+The Avoozl worker codes every task. It runs as a Kiro Crew chat or as a
+process harness such as Claude Code or Codex, chosen per role in **Settings >
+Models**. Each minute the tick starts a worker session for each ready leaf,
+in its own worktree. Every session runs on this machine unless a worker
+machine pulls the work (`avoozl worker setup`). When a session reports done, Avoozl runs the checks itself on
 the exact commit in a clean worktree, with no model call, then integrates
 it and releases the leaf's dependents. A verifier session opens only when a
 task's bar needs judgment: prose acceptance with no checks, or
@@ -218,11 +230,17 @@ check or review. Each repository has a `landing` setting:
 - `pr`: Avoozl pushes the task branch, opens or reuses one pull request,
   waits for its required checks and reviews on that exact head, and merges.
   Without merge permission it waits for an authorized person to merge.
+- `train`: Avoozl pushes each verified task as a batch branch and queues it.
+  One integrator stacks the ready branches on the base, validates the stack
+  once, and lands it. When the stack fails, it bisects at branch boundaries,
+  lands the good branches, and sends the rest back. Use it when one
+  validation run is expensive. See
+  [integrator trains](docs/integrator-trains.md).
 
 When the base moves and a merge conflicts, or the checks fail, the task goes
 back to its worker chat, for at most `landing.conflictRounds` rounds (default
 2); after that it goes to Needs you. Stop the line pauses the queue.
-`avoozl setup OWNER/REPO --project ID --checks NAME --landing pr|direct|off`
+`avoozl setup OWNER/REPO --project ID --checks NAME --landing pr|direct|train|off`
 previews the repository setup and `--yes` applies it.
 
 To let a Crew Mode conductor claim leaves instead, set
@@ -310,8 +328,7 @@ Proposals are pages of the **Retros** entry in the nav.
   session and one worktree, one commit per task, once every task in it is
   ready. Avoozl checks the rules in code (one plan and repository, no edge
   between members, at most 5, an approved revision); a group that breaks one
-  runs as single tasks and says why. A failing batch splits. An old
-  `batch` key here is ignored.
+  runs as single tasks and says why. A failing batch splits.
 - **Retro** (`retro.everyTasks`, default `10`; `retro.slowFactor`, default
   `3`): a tool-less `avoozl-retro` session names the biggest slowdown and
   proposes up to three changes. You approve or reject each, and an approved
@@ -320,8 +337,7 @@ Proposals are pages of the **Retros** entry in the nav.
 **Settings > Models** picks the model of each of Avoozl's own chats: the
 planner, the retro and review drafts. It is saved as `models` in
 `.avoozl.json`, for example `{"models": {"retro": "<model>"}}`; a role left
-out, or `auto`, runs on its agent's own model. Issue Radar crews pick their
-own model, and Avoozl moves no running chat to another one.
+out, or `auto`, runs on its agent's own model. Avoozl moves no running chat to another model.
 
 The same page picks the **harness** each role runs on, saved as `harnesses`,
 for example `{"harnesses": {"worker": "claude-code"}}`: `kirocrew` is a Kiro
@@ -337,24 +353,6 @@ person, or an agent through MCP, stops new work for everything, one
 repository, one spec, or one task, with a one-line reason. Running sessions
 keep going. Only a person presses **Resume**.
 
-## Routing and the remote relay (removed)
-
-There is no Routing page, no routing agent and no remote relay (removed
-2026-11-15). Every session runs on this machine unless a worker machine
-pulls the work (Requirement 90 of the avoozl spec). A pin in a manifest task's
-`session` (`agent`, `model`, `harness`) still wins. A workspace file that
-holds `routing.remoteRelay: "on"` still loads, the relay does not run, and a
-request to turn it on is refused. `node scripts/migrate-routing.mjs <file>`
-still reads the old `routing.rules`, `routing.pick` and `routing.router` keys.
-
-## Coders
-
-The Avoozl worker is the only coder. A task's executor is a Kiro Crew chat or
-a process harness, chosen per role in **Settings > Models**. Issue Radar is an
-intake source only: its escalations show first in Triage, and it stays off
-Avoozl's own issues. An old `coder` key in `.avoozl.json` still loads and is
-ignored.
-
 ## Pull request feedback
 
 For each leaf an Avoozl worker codes on a linked branch, the tick reads its
@@ -363,21 +361,14 @@ checks, changes requested, comments by people Who counts allows, merge
 conflicts, and auto-merge turned off. One message per pull request per tick.
 Avoozl writes nothing to GitHub here. It is on by default, for at most 5
 rounds per leaf; set `delivery.prFeedback` and `delivery.feedbackRounds`, or
-use **Settings > Delivery**. Issue Radar's leaves are skipped.
+use **Settings > Delivery**.
 
 When a pull request's base branch moves and the pull request then conflicts
 with it, or falls behind a base that requires branches to be up to date, the
 writer gets one message to merge the base branch in with a merge commit.
 Avoozl never asks for a force push, and drops any brief or message that does.
 
-The separate conflict-fix chat was removed. A landing conflict goes back to
-the task's own worker chat (see Landing above). The code that finishes a fix
-already queued for an Issue Radar crew's pull request stays until task 45.4;
-it starts no new fix.
-
 ## Investigate first, evidence, and who merges
-
-These are built and tested with fakes only; no live run has used them yet.
 
 - **Investigate first** (`delivery.investigate`): before it changes a file,
   a worker reports what it read, the cause it believes, the change it plans,
@@ -401,10 +392,8 @@ These are built and tested with fakes only; no live run has used them yet.
   recorded. When the retro sees the same correction on two tasks it may
   propose a rule; once you approve it, it lands as one task that edits
   `.kiro/steering/avoozl-rules.md` in that repository and makes `AGENTS.md`
-  point to it, so every chat and Issue Radar crew reads the rules. Avoozl
-  keeps no lessons store of its own. Lessons an older version stored on this
-  computer are appended once to the workspace's
-  `.kiro/steering/avoozl-rules.md` under a dated heading, and then deleted.
+  point to it, so every chat reads the rules. Avoozl keeps no lessons store of
+  its own.
 - Flow shows the share of finished tasks that were bug fixes, and
   corrections per week.
 
@@ -452,11 +441,6 @@ this and Plan this on an incoming item, sending issues to Issue Radar, and
 opening a code review chat. Do these in the Avoozl app. An agent may pull
 the Andon cord (`plans_session`, action `stop_line`), but not resume it.
 
-The older one-tool-per-operation `plans_*` names stay listed and keep
-working. Each description starts with `Deprecated:` and names its
-replacement. They stay listed because a Kiro Crew session can call only the
-tools its client was shown.
-
 ```sh
 node cli.mjs query --workspace ~/plans --q 'ready:true'
 node cli.mjs show TASK_ID --workspace ~/plans
@@ -464,28 +448,6 @@ node cli.mjs tick --workspace ~/plans
 ```
 
 Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`.
-
-## What is tested
-
-Receipts are in [docs/evidence/](docs/evidence/). "Fakes" means automated
-tests with a fake GitHub, fake sessions, or fake crews, run by `npm test`.
-
-| Feature                                              | Tested                                               |
-| ---------------------------------------------------- | ---------------------------------------------------- |
-| Local delivery with real Kiro Crew sessions          | Live (P4, P5, P6)                                    |
-| Single-repo mode end to end                          | Live, in a test repository (P19, P20)                |
-| Cross-repository edges and rebuild from GitHub       | Live, in test repositories (P9)                      |
-| Plans-repo mode and its leak screen                  | Fakes, plus read-only live queries                   |
-| Intake list                                          | Fakes, plus a read-only live count (P31)             |
-| Plugins, packs, plugin and MCP intake sources        | Fakes only (P26, P32, P35)                           |
-| Flow: timing, stop the line, batching, retros        | Fakes only (P30)                                     |
-| Andon cord                                           | Fakes only                                           |
-| Provider health reads                                | Fakes only (P44)                                     |
-| One driver per spec, hand off and take over          | Fakes only (P40)                                     |
-| Pull request feedback                                | Fakes only (P34)                                     |
-| Spec Builder hand-off                                | Fakes only                                           |
-| Stacked pull requests, comment steering, Discussions | Fakes only                                           |
-| Demo mode                                            | Fakes only, plus headless Chrome on the harness page |
 
 ## Configuration and secrets
 
@@ -511,12 +473,19 @@ rather than copying the database file: SQLite also keeps a WAL file.
 
 Avoozl was first released as AICommander. These names keep working:
 
-- MCP tool names that start with `plans_`.
+- MCP tool names that start with `plans_`, including the older
+  one-tool-per-operation names. Each of those says `Deprecated:` and names
+  its replacement.
 - `AVOOZL_*` variables, and the older `AICOMMANDER_*` and `NUPP_WORKSPACE_*`
   names, including `NUPP_WORKSPACE` for the workspace.
 - The `aicommander` command, the same CLI as `avoozl`.
 - Older fenced-`task` plan files, which stay readable so their work can move
   to spec folders.
+- An `.avoozl.json` with no `role` keys, which gets its roles from its
+  stored `github.mode`.
+- `.avoozl.json` keys of settings that no longer exist (`coder`,
+  `routing.remoteRelay`, `flow.batch`), which load and are ignored.
+  `node scripts/migrate-routing.mjs <file>` reads old routing keys.
 
 ## Develop
 
