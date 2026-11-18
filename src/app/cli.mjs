@@ -890,7 +890,7 @@ try {
         token = options.token || process.env.AVOOZL_REPORT_TOKEN;
       need(
         positionals[1] && state,
-        "runner report TASK done|blocked [--token T]",
+        "runner report TASK done|blocked|findings [--token T] [--file PATH]",
       );
       if (token || !HOLDS_TASKS(readRunnerConfig(config.workspaceRoot))) {
         // R88.2: matched by the report token and the worktree it runs in;
@@ -904,6 +904,7 @@ try {
             token: token || undefined,
             cwd: process.cwd(),
             text: typeof options.text === "string" ? options.text : undefined,
+            file: typeof options.file === "string" ? options.file : undefined,
           });
         } finally {
           store.close();

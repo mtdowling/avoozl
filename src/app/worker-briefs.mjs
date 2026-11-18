@@ -68,11 +68,8 @@ export const WORKER_BRIEFS = Object.freeze({
   }),
   process: Object.freeze({
     single: cell({ steps: childSteps }),
-    // wp-1.2 gives a child findings by the result file.
-    investigate: declined(
-      "a process child cannot report findings yet",
-      "single",
-    ),
+    // Findings go in the result file; Go ahead resumes the child.
+    investigate: cell({ steps: childSteps }),
     batch: declined(BATCH_ON_PROCESS, "single"),
     round: cell({
       finish:
@@ -95,13 +92,12 @@ export const WORKER_BRIEFS = Object.freeze({
 // The cell an executor and kind get. A declined cell comes back with its
 // reason; `kind` is the kind that actually runs, `cell` its builder.
 export function briefCell(executor, kind) {
-  const row = WORKER_BRIEFS[executor] ?? WORKER_BRIEFS.kirocrew,
-    found = row[kind];
+  const found = WORKER_BRIEFS[executor]?.[kind];
   if (!found) throw Error(`No brief for ${executor} and ${kind}.`);
   if (!found.declined) return { kind, cell: found, declined: null };
   return {
     kind: found.fallback,
-    cell: row[found.fallback],
+    cell: WORKER_BRIEFS[executor][found.fallback],
     declined: found.declined,
     asked: kind,
   };

@@ -47,7 +47,8 @@ export function reopenAttempt(store, delivery, binding, at) {
 // edits and ends with its result file; Avoozl commits after it exits
 // (R94.4a, R96.1). A chat commits and reports done again.
 export const roundFinish = (binding) =>
-  briefCell(binding?.executor ?? "kirocrew", "round").cell.finish;
+  briefCell(binding?.executor === "process" ? "process" : "kirocrew", "round")
+    .cell.finish;
 
 // The message for the worker chat. File names are repository data, so they
 // sit in a fenced block the chat is told to read as data.
