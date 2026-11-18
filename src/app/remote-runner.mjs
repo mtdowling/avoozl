@@ -22,7 +22,8 @@ import { enforce, pushLines } from "./content-rules.mjs";
 import { fail } from "./store.mjs";
 import { queueNotifications } from "./notifications.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
-import { checkpointBranch } from "./working-heads.mjs";
+import { checkpointBranch, sourceRegistry } from "./working-heads.mjs";
+import { lanesOf, poolsOf, pullOffers } from "./worker-offers.mjs";
 
 const run = promisify(execFile);
 const TASKS = "runner.tasks";
@@ -52,6 +53,12 @@ export const HOLDS_TASKS = (config) =>
   config?.role === "runner" || config?.role === "worker";
 const TERMINAL = new Set(["pushed", "failed"]);
 export const REMOTE_AGENTS = ["kirocrew-worker"];
+
+const executorOf = (value) => {
+  if (value === undefined || value === "kirocrew") return "kirocrew";
+  if (value === "process") return "process";
+  return fail('runner.executor is "kirocrew" or "process".');
+};
 
 const parse = (text, what) => {
   try {
@@ -100,6 +107,9 @@ export function readRunnerConfig(workspaceRoot, env = process.env) {
       repos,
       checks,
       agents: block.agents || REMOTE_AGENTS,
+      // Which executor runs the worker's session (R90.8). Only `kirocrew`
+      // needs Kiro Crew; `process` runs headless under the supervisor.
+      executor: executorOf(block.executor),
       remote: block.remote || "origin",
       checkTimeoutSeconds: block.checkTimeoutSeconds || 600,
       // Off unless the owner names it: an unattended worker's tool calls
@@ -107,6 +117,15 @@ export function readRunnerConfig(workspaceRoot, env = process.env) {
       workerMode: ["trust", "trust_reads"].includes(block.workerMode)
         ? block.workerMode
         : null,
+      // A worker's own pull: where the journals are, which source
+      // repositories it may fetch, and how many tasks it runs at once.
+      ...(block.role === "worker"
+        ? {
+            pools: poolsOf(block.pools),
+            sources: (sourceRegistry(block.sources), block.sources ?? {}),
+            lanes: lanesOf(block.lanes),
+          }
+        : {}),
     };
   }
   if (block.role === "driver") {
@@ -246,6 +265,31 @@ export function acceptEnvelope(store, workspaceRoot, text, { pulled } = {}) {
     store.setMeta(TASKS, all);
     return { taskId: envelope.taskId, state: "accepted", duplicate: false };
   });
+}
+
+// `avoozl worker pull`: read this worker's offers from the spec journals,
+// at most one per free lane. It starts nothing; the offers wait for the
+// driver's acknowledgment (R90.4). The last pull is kept for the next steps.
+export async function pullWork(store, workspaceRoot, github) {
+  const config = readRunnerConfig(workspaceRoot);
+  if (config?.role !== "worker")
+    fail('This workspace is not a worker (.avoozl.json runner.role "worker").');
+  if (!github?.available?.())
+    fail("A worker needs GitHub to pull offers.", 409);
+  const login = (await github.currentUser())?.login;
+  if (!login) fail("GitHub did not name this worker's login.", 409);
+  const running = Object.values(tasksOf(store)).filter(
+      (record) => !TERMINAL.has(record.state),
+    ).length,
+    result = await pullOffers({
+      github,
+      pools: config.pools,
+      sources: config.sources,
+      login,
+      free: config.lanes - running,
+    });
+  store.setMeta("worker.offers", { at: now(), ...result });
+  return result;
 }
 
 const chatKey = (slot) =>
@@ -429,6 +473,7 @@ export async function runnerTick(
             task: id,
             role: "worker",
             title: `avoozl:${id} remote task`,
+            ...(config.executor === "process" ? { executor: "process" } : {}),
             ...kirocrewDetachedSession("remote"),
             agent: record.envelope.agent,
             ...(record.envelope.model ? { model: record.envelope.model } : {}),

@@ -651,7 +651,7 @@ try {
         await localOrRequest("repository.setup", {
           repository: need(
             positionals[0],
-            "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]",
+            "setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH] [--methods merge,squash,rebase] [--landing pr|direct|train|off] [--yes]",
           ),
           project: options.project,
           base: options.base,
@@ -899,6 +899,13 @@ try {
       result = await localOrRequest("remote.pull", { host: options.host });
     } else throw Error("Use runner accept|status|report|handoff|pull.");
     console.log(JSON.stringify(result, null, 2));
+  } else if (command === "worker") {
+    // Worker mode (R90): this machine pulls offers from spec journals.
+    if (!["pull", "setup"].includes(positionals[0]))
+      throw Error("Use worker pull|setup.");
+    console.log(
+      JSON.stringify(await localOrRequest(`worker.${positionals[0]}`), null, 2),
+    );
   } else if (command === "driver") {
     // The spec driver (§6.10). Hand off, take over and force take over are
     // a person's: the CLI is the person at this machine's command line.
@@ -1260,6 +1267,44 @@ try {
                   confirm: Boolean(options.confirm),
                 },
         ),
+        null,
+        2,
+      ),
+    );
+  } else if (command === "integrator") {
+    const action = positionals[0];
+    if (action === "status") {
+      const status = await localOrRequest("integrator.status");
+      console.log(
+        options.json
+          ? JSON.stringify(status, null, 2)
+          : status.targets.length
+            ? status.targets
+                .map(
+                  (t) =>
+                    `${t.repository} ${t.target}: ${t.policy ?? "no policy"}, lease ${t.lease.state}${t.lease.holder ? ` (pid ${t.lease.holder.pid})` : ""}, train ${t.train ?? "none"}`,
+                )
+                .join("\n")
+            : "No repository lands in trains.",
+      );
+    } else if (action === "run") {
+      // The supervisor starts this; it is the only process that pushes a
+      // train trunk, never a chat shell (LT2.2).
+      if (process.env.AVOOZL_CHILD)
+        throw Error(
+          "A supervisor child may not run the integrator. Start it at this machine's command line or let the supervisor do it.",
+        );
+      await import("./integrator-main.mjs");
+    } else throw Error("Choose integrator run or status.");
+  } else if (command === "landing") {
+    const action = positionals[0];
+    if (action !== "submit") throw Error("Choose landing submit.");
+    console.log(
+      JSON.stringify(
+        await localOrRequest("landing.submit", {
+          taskId: need(positionals[1], "landing submit TASK --branch NAME"),
+          branch: need(options.branch, "landing submit TASK --branch NAME"),
+        }),
         null,
         2,
       ),
@@ -1907,8 +1952,11 @@ try {
   mirror adopt|create OWNER/MIRROR --source OWNER/REPO [--ticked IDS]
                                          Dry run of the mirror setup; add --confirm --preview-hash HASH to apply
   setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH]
-      [--methods merge,squash,rebase] [--landing pr|direct|off] [--yes]
+      [--methods merge,squash,rebase] [--landing pr|direct|train|off] [--yes]
                                          Preview repository setup for landing; --yes applies it
+  integrator run                         Run this workspace's integrator for landing: train (the supervisor starts it)
+  integrator status [--json]             Per train target: lease holder, running train and its step
+  landing submit TASK --branch NAME      Queue a pushed batch branch for the integrator (landing: train)
   spec publish SPEC [--repository OWNER/REPO]
                                          Publish the spec issue, or its local journal without GitHub
   spec takeover SPEC                     Take over a published spec: write the next driver generation
@@ -1988,6 +2036,8 @@ try {
   runner status --json                  This runner's tasks and workers; elsewhere the supervisor and its children
   runner handoff ENVELOPE.json --host H Runner mode: hand a task to host H over ssh
   runner pull --host H                  Runner mode: read host H's status
+  worker pull                           Worker mode: read this worker's offers from spec journals
+  worker setup                          Worker mode: preview login, access, claims and executor
   driver status [SPEC]                  Which machine drives each spec, and why one reads only here
   driver handoff SPEC [--folder DIR [--unfinished]] [--cancel]
                                         Stop new work for SPEC; with --folder write the export (a person only)

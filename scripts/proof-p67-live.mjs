@@ -17,16 +17,17 @@
 //   node scripts/proof-p67-live.mjs --root DIR continue
 //
 // preflight reads only and prints PREFLIGHT OK, or each missing item as an
-// owner step. run creates only avoozl-scratch/p67-upstream (public), its
-// fork avoozl-scratch/p67-upstream-fork, the spec homes
-// avoozl-scratch/p67-plans-public and avoozl-scratch/p67-plans-private and
-// the private mirror avoozl-scratch/p67-mirror, then performs P67's Action
-// steps, stage by stage, through Avoozl's own modules and CLI in isolated
-// scratch workspaces under --root. Results are read back from GitHub.
+// owner step. Each run has its own repositories, named for the --root
+// folder: /tmp/p67-run2 gives avoozl-scratch/p67-run2-upstream (public),
+// its fork p67-run2-upstream-fork, the spec homes p67-run2-plans-public and
+// p67-run2-plans-private, and the private mirror p67-run2-mirror. run
+// creates them, then performs P67's Action steps, stage by stage, through
+// Avoozl's own modules and CLI in isolated scratch workspaces under --root.
+// Results are read back from GitHub.
 //
-// Person stages (take over, the maintainer's reviews and merges, resume
-// after a rebuild, export issues) run inline in a person's terminal. In an
-// agent session the run stops before each one and prints the owner's exact
+// Person stages (the maintainer's merge, and each `avoozl spec
+// export-issues --confirm`) run inline in a person's terminal. In an agent
+// session the run stops before each one and prints the owner's exact
 // command (`owner STAGE`, which refuses an agent session); `continue` then
 // goes on. run happens once per --root (p67-run.json); progress is in
 // p67-state.json. The last stage writes a receipt draft to <root>/evidence/
@@ -109,11 +110,27 @@ const TOKEN_VARS = [
   "GITHUB_ENTERPRISE_TOKEN",
 ];
 
-const UP = `${ORG}/p67-upstream`,
-  FORK = `${ORG}/p67-upstream-fork`,
-  PUB = `${ORG}/p67-plans-public`,
-  PRIV = `${ORG}/p67-plans-private`,
-  MIRROR = `${ORG}/p67-mirror`,
+// Each run has its own repositories, named for the root's last folder
+// (`/tmp/p67-run2` gives avoozl-scratch/p67-run2-upstream and so on), so a
+// later run never reuses or deletes an earlier run's repositories.
+const TAG = path
+  .basename(ROOT)
+  .toLowerCase()
+  .replace(/^p67-?/, "")
+  .replace(/[^a-z0-9-]/g, "-")
+  .replace(/^-+|-+$/g, "")
+  .slice(0, 30);
+if (!TAG) {
+  console.error(
+    "Name the --root folder for the run, for example /tmp/p67-run2.",
+  );
+  process.exit(64);
+}
+const UP = `${ORG}/p67-${TAG}-upstream`,
+  FORK = `${ORG}/p67-${TAG}-upstream-fork`,
+  PUB = `${ORG}/p67-${TAG}-plans-public`,
+  PRIV = `${ORG}/p67-${TAG}-plans-private`,
+  MIRROR = `${ORG}/p67-${TAG}-mirror`,
   CHECK = "p67-check";
 
 // --- Processes -----------------------------------------------------------
@@ -755,14 +772,7 @@ async function waitFor(label, done, limitMs = 3 * 60 * 60 * 1000) {
   for (;;) {
     const state = await pollPull(S.pr);
     if (done(state)) return state;
-    if (state.waitingRuns.length) {
-      if (AGENT)
-        throw Object.assign(
-          Error(`A fork run waits for the maintainer's approval (${label}).`),
-          { ownerStage: "approve-runs" },
-        );
-      await approveRuns(state.waitingRuns);
-    }
+    if (state.waitingRuns.length) await approveRuns(state.waitingRuns);
     if (Date.now() - started > limitMs)
       throw Error(`Timed out waiting for ${label}.`);
     say(`  waiting for ${label}; next poll in 10 minutes`);
@@ -1103,7 +1113,7 @@ const STAGES = [
   // Take over: the spec owner's (the contributor's) own act.
   [
     "takeover",
-    true,
+    false,
     async () => {
       const ownerOf = async (repository, number) =>
         effectiveOwner({
@@ -1384,8 +1394,8 @@ const STAGES = [
         manual = await cRaw.request("POST", `/repos/${UP}/pulls`, {
           body: {
             title: `Land ${key}`,
-            head: `${ORG}:${source.branch}`,
-            head_repo: FORK.split("/")[1],
+            head: source.branch,
+            head_repo: FORK,
             base: "main",
             body: TASKS1.map(
               (t) => `Avoozl-Task: ${t.task}@${t.definition}`,
@@ -1474,7 +1484,7 @@ const STAGES = [
   // Resume after the rebuild: the spec owner's act.
   [
     "resume",
-    true,
+    false,
     async () => {
       const refused = await outcomeOf(
         (async () => resumeRebuild(S.rebuilt, { by: person }))(),
@@ -1509,7 +1519,7 @@ const STAGES = [
   // The maintainer's review of the first head.
   [
     "approve-first",
-    true,
+    false,
     async () => {
       await approve(S.W1);
       step("approve-first", { approvedHead: S.W1 });
@@ -1632,7 +1642,7 @@ const STAGES = [
 
   [
     "approve-refreshed",
-    true,
+    false,
     async () => {
       await approve(S.H2);
       step("approve-refreshed", { approvedHead: S.H2 });
@@ -1791,8 +1801,8 @@ const STAGES = [
       probes.pullRequestCreate = await outcomeOf(
         gh.createPullRequest(UP, {
           title: `Land ${PRIV_SPEC}`,
-          head: `${ORG}:${source.branch}`,
-          head_repo: FORK.split("/")[1],
+          head: source.branch,
+          head_repo: FORK,
           base: "main",
           body: "P67 probe.",
         }),
@@ -1954,41 +1964,9 @@ const STAGES = [
     },
   ],
 
-  // Export issues, twice: a person's act through the CLI.
-  [
-    "export",
-    true,
-    async () => {
-      const first = cli(
-        "spec",
-        "export-issues",
-        PUBLIC_SPEC,
-        "--repository",
-        PUB,
-        "--confirm",
-      );
-      const retry = cli(
-        "spec",
-        "export-issues",
-        PUBLIC_SPEC,
-        "--repository",
-        PUB,
-        "--confirm",
-      );
-      step("export", {
-        first: {
-          created: first.created,
-          linked: first.linked,
-          state: first.state,
-        },
-        retry: {
-          created: retry.created,
-          linked: retry.linked,
-          state: retry.state,
-        },
-      });
-    },
-  ],
+  // Export issues, then the retry: each a person's act through the CLI.
+  ["export-first", true, async () => exportOnce("first")],
+  ["export-retry", true, async () => exportOnce("retry")],
 
   [
     "export-check",
@@ -2067,7 +2045,7 @@ const STAGES = [
   // The maintainer reviews and merges the import with a merge commit.
   [
     "import-merge",
-    true,
+    false,
     async () => {
       const pull = await mRaw.pullRequest(MIRROR, S.importPr);
       const merged = await headGuardedMerge(
@@ -2128,6 +2106,22 @@ const guardedCopy = async (args) => {
   assertWritable(args.mirror);
   return gitCopy(args);
 };
+// One `avoozl spec export-issues --confirm`, as the contributor.
+function exportOnce(which) {
+  const result = cli(
+    "spec",
+    "export-issues",
+    PUBLIC_SPEC,
+    "--repository",
+    PUB,
+    "--confirm",
+  );
+  step(`export-${which}`, {
+    created: result.created,
+    linked: result.linked,
+    state: result.state,
+  });
+}
 // The CLI as the contributor, in the contributor's scratch workspace.
 const cli = (...args) =>
   JSON.parse(
@@ -2149,7 +2143,8 @@ function expectations() {
     cannot = get("contributor-cannot-merge"),
     observe = get("observe"),
     priv = get("private-references"),
-    exp = get("export"),
+    expFirst = get("export-first"),
+    expRetry = get("export-retry"),
     expCheck = get("export-check"),
     fwd = get("mirror-forward"),
     div = get("mirror-diverge");
@@ -2186,13 +2181,18 @@ function expectations() {
     [
       "base move requires a refreshed review",
       refreshed.afterStaleApproval?.state === "waiting" &&
-        refreshed.afterStaleApproval?.waiting?.reason === "review",
+        refreshed.afterStaleApproval?.waiting?.reason === "review" &&
+        (refreshed.reviews ?? []).some(
+          (r) => r.commit === pre.verifiedHead && r.state === "DISMISSED",
+        ),
     ],
     [
       "source push rights never permit target merge",
       cannot.rights?.contributor?.checkpoint === true &&
         cannot.rights?.contributor?.land === "observe" &&
-        cannot.contributorLanding?.state === "not-landed" &&
+        // Without merge rights the driver waits (it cannot read the
+        // maintainer's role, so it never counts the review) or declines.
+        ["not-landed", "waiting"].includes(cannot.contributorLanding?.state) &&
         cannot.contributorDirectMerge?.refused === true,
     ],
     [
@@ -2234,10 +2234,10 @@ function expectations() {
     ],
     [
       "export retry creates nothing new",
-      exp.first?.created > 0 &&
-        exp.retry?.created === 0 &&
-        exp.retry?.linked === 0 &&
-        expCheck.issues === exp.first?.created &&
+      expFirst.created > 0 &&
+        expRetry.created === 0 &&
+        expRetry.linked === 0 &&
+        expCheck.issues === expFirst.created &&
         expCheck.withCrewLabel === 0 &&
         expCheck.exportedStatusComments === 1,
     ],
@@ -2369,7 +2369,7 @@ async function drive() {
     if (personal && AGENT)
       return ownerStep(
         name,
-        "a person's act (take over, review, merge, resume or export).",
+        "a person's act: the maintainer's merge, or avoozl spec export-issues --confirm.",
       );
     say(`stage ${name}`);
     try {

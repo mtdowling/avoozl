@@ -11,6 +11,23 @@ completed tasks remain history, not instructions to recreate the retired path.
 
 # Requirements: Avoozl as a Kiro Crew-native, GitHub-native product
 
+Status 2026-11-18 (spec audit against `origin/main`). Owner decisions
+since 2026-11-16 replaced these, wherever a requirement below still
+describes them: budgets are gone (R67; #454, #461, #487); the Trace page is
+task details' Timeline (R106; #469); Where tasks live is a role per
+repository (R105; #452, #459, #484); Planning and intake became Needs you ›
+Triage and Issue Radar (#464); Onboard is the Add repository entry (#515);
+the instance name is edited from the nav footer (#453); Settings pages edit
+in place (#456) and GitHub and Issue Radar have their own pages (#475,
+#489, #532); Retros are a nav entry (#468); Home was redesigned (#472);
+Plan a goal and Stop the line left the top bar (#488); the Lanes page is
+gone and Delivery shows machines (#508); the driver chat is gone (#382) and
+the spec driver lock stays; Ideas, the lessons store, Switch model, Quick
+goal, the Routing page, the relay and the demo tour were removed (#228,
+#282, #311). Avoozl itself pushes and merges (R87), so older "never pushes"
+and "never merges" text is history. The built page is no longer in git
+(#490), and CI selects tests by changed files (#521).
+
 ## Introduction
 
 This spec assesses Avoozl's future and defines the smallest useful product that
@@ -646,13 +663,17 @@ so that two stores never disagree.
 
 ### Requirement 20: The Avoozl app
 
+**Status 2026-11-18.** The page has seven nav entries, not six views: Dashboards (Home, Graph, Delivery, CI, Landing queue), Specs, Needs you (Decisions, Triage, Issue Radar), Flow, Retros (Retros, Proposals), Activity and Settings (Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery). Criterion 1 is read that way.
+
 **User story:** As a developer, I want one Avoozl page in Kiro Crew with clear
 views, so that I see my graph and its delivery without leaving Kiro Crew.
 
 #### Acceptance criteria
 
-1. The app SHALL provide Workspace, Plans, Graph, Delivery, Conflicts, and
-   Settings views.
+1. The app SHALL provide Dashboards, Specs, Needs you, Flow, Retros, Activity,
+   and Settings views. (Changed 2026-11-18: this replaces Workspace, Plans,
+   Graph, Delivery, Conflicts and Settings; those are now pages of these
+   entries, and Workspaces is a Settings page.)
 2. For each view the design SHALL name its data, primary actions, canonical
    source, links to existing Kiro Crew surfaces, and what it must not duplicate.
 3. The app SHALL NOT duplicate Issue Radar triage, pipeline, or crew views; it
@@ -836,9 +857,9 @@ assignees alone, so that tagging an issue gets it answered, broken into
 sub-issues, fanned out, and delivered in dependency order without me filing or
 starting anything.
 
-The idea is similar to the public glorp project (watch issues, dispatch agents,
-track to merge). Avoozl reuses none of its code, skills, or text; it builds the
-idea on Kiro Crew and Issue Radar. (**Proposed**)
+The idea is to watch issues, dispatch agents and track to merge. Avoozl builds
+it on Kiro Crew and Issue Radar and reuses no outside code, skills, or text.
+(**Proposed**)
 
 #### Acceptance criteria
 
@@ -1637,6 +1658,8 @@ public or shared repositories cannot leak what the company keeps private.
 
 ### Requirement 41: Crew placement
 
+**Status 2026-11-18.** The routing prompt, the routing agent chat and the remote relay (41.16–41.24) were removed (#282, task 45.3). Placement keeps manifest pins, capacity and provider hard checks (`src/app/routing.mjs`). `plans_relay` answers "Remote relay was removed". Treat the criteria about the prompt and the relay as history.
+
 Added 2026-11-12 (owner request). Design §4.10. Written against the Avoozl
 branch `kirocrew-native` at `0a7ef2d` and Kiro Crew 0.12.2 (design F75–F84).
 "Placement" is the choice of which crew runs a session. It is separate from
@@ -1863,6 +1886,8 @@ user-facing work never leaves this machine.
 
 ### Requirement 42: Routing page
 
+**Status 2026-11-18.** Removed. There is no Routing page and no Settings › Routing section (#153); `redirectSettings` sends an old link to Repository setup. Criterion 88.7 says the same.
+
 Added 2026-11-12 (owner request). Design §8.3. Changed 2026-11-13 (owner
 decision): Routing moves into Settings, and the rule builder, presets,
 scorer, smart pick, the separate Providers page and its thresholds form are
@@ -1968,6 +1993,8 @@ reconstruct it.
    not at the restart.
 
 ### Requirement 44: Stop the line
+
+**Status 2026-11-18.** Stop the line is an icon button in the Dashboards › Delivery heading, not in the top bar or the Dashboard header (#488). The dialog, banner and Resume are unchanged.
 
 Added 2026-11-12 (owner request). Design §4.11.
 
@@ -2149,6 +2176,8 @@ process improves without my asking and without changing on its own.
 
 ### Requirement 48: Flow tab and Flow settings
 
+**Status 2026-11-18.** Retrospectives and Proposals are pages of the Retros nav entry (#468), not tabs of Flow. Flow keeps the metrics and its settings group.
+
 Added 2026-11-12 (owner request). Design §4.11, §8.4.
 
 **User story:** As the owner, I want one tab that shows how delivery flows
@@ -2186,6 +2215,8 @@ and what to change, and one settings group for the flow rules.
 
 ### Requirement 49: Untriaged list
 
+**Status 2026-11-18.** There is no Untriaged or Intake tab. The list is Needs you › Triage (#464), with its count in the nav. Old `untriaged` and `intake` links open Triage. The per-repository **Untriaged** group is under Settings › Repository setup › Triggers and labels.
+
 Added 2026-11-12 (owner request). Design §8.5.
 
 **User story:** As the owner, I want one list of the open issues and pull
@@ -2213,7 +2244,7 @@ pick up. The list is a triage list, not a second issue browser
    no trigger rule's labels, assignee, and author. A pull request is tied to
    a task when a task records it or it closes a task's issue; an issue is
    tied when it is a task's issue. Labels SHALL compare without case.
-3. Settings › Repositories › Triggers and labels SHALL have an **Untriaged**
+3. Settings › Repository setup › Triggers and labels SHALL have an **Untriaged**
    group with **Untriaged filter** (optional, `untriaged.filter`): one line
    in the trigger rules' search grammar and parser (§4.4), shown with its
    parsed terms as chips and a count of what it matches now. Unlike a rule's
@@ -2839,6 +2870,8 @@ nothing a person must decide can be done from a chat.
 
 ### Requirement 57: New plan from the Plans page
 
+**Status 2026-11-18.** The button is **New spec** in the Specs heading and opens a centered modal (#228), not a right drawer. Quick goal was removed (#228); New spec starts From a goal. **Plan a goal** is no longer in the top bar (#488), so criterion 5 no longer applies.
+
 Added 2026-11-13 (owner request).
 
 **User story:** As the owner, I want to start a plan from a few fields on
@@ -2872,6 +2905,8 @@ without my writing a prompt.
 
 ### Requirement 58: Onboard a repository
 
+**Status 2026-11-18.** There is no separate **Onboard** button. Settings › Repository setup has one **Add repository** entry that runs the same steps as follow-up setup (#515).
+
 Added 2026-11-13 (owner request).
 
 **User story:** As the owner, I want adding a repository to offer a guided
@@ -2880,7 +2915,7 @@ approve without my running setup steps by hand.
 
 #### Acceptance criteria
 
-1. Settings > Repositories SHALL offer **Onboard**, a stepped dialog with
+1. Settings › Repository setup SHALL offer **Onboard** (now the **Add repository** entry, #515), a stepped dialog with
    Cancel on every step: pick folder, pick mode, check GitHub, set up,
    import specs, leak scan, preview issues, finish. A step that does not
    apply SHALL be left out; a step already satisfied SHALL show as done and
@@ -3253,6 +3288,8 @@ so that the name matches the `.kiro/specs/<name>/` folders I write.
 
 ### Requirement 63: Ideas
 
+**Status 2026-11-18.** Removed (#228). `src/app/ideas.mjs`, the `idea.*` operations and the Ideas page are deleted. The `plans_intake` idea actions stay as removed-error stubs. Treat this requirement as history.
+
 Added 2026-11-13 (owner approval). Design §8.8. This adds the kind `idea`
 to the incoming item of Requirement 50.1 and the reserved built-in source
 `local` of Requirement 50.6.
@@ -3570,7 +3607,7 @@ handoff`, `avoozl driver takeover --file <path>` or `--rebuild`, and
     that is not a spec's driver SHALL show a read-only banner on that
     spec's pages saying why (assigned to someone else, another machine of
     yours, no assignee or several), with **Take over** when this login is
-    the assignee and **Force take over** otherwise. Settings › General
+    the assignee and **Force take over** otherwise. Settings › Workspaces
     SHALL have a **This computer** group with Machine label (optional) and
     Heartbeat minutes (optional, placeholder 15), and the machine ID shown
     small.
@@ -3677,6 +3714,8 @@ when I say so.
 
 ### Requirement 69: Retro memory across workspaces
 
+**Status 2026-11-18.** The lessons store was removed (#228). `src/app/lessons-export.mjs` appends a workspace's stored lessons once to its steering rules file and drops the tables. The `lessons` plugin part does nothing. Criteria about storing, packs, healing and sharing lessons are history; Requirement 68 (proposals) stays.
+
 Added 2026-11-13 (owner approval). Design §4.18.
 
 **User story:** As the owner, I want what one workspace's retrospectives
@@ -3757,6 +3796,8 @@ failed is not tried again.
     only) for the driver handoff export to include (Requirement 66.12).
 
 ### Requirement 70: Lessons and overrides heal as things change
+
+**Status 2026-11-18.** Removed with the lessons store (#228). See Requirement 69.
 
 Added 2026-11-13 (owner steer). Design §4.18.
 
@@ -3853,6 +3894,8 @@ what and when without reading chats, the tick log or GitHub.
    `activity.settings.update` SHALL be a person's only.
 
 ### Requirement 72: Provider health and switching models
+
+**Status 2026-11-18.** Manual **Switch model**, its dialog and Settings › Providers were removed (#228, #153). Settings › Models sets the model of Avoozl's own chats. Provider health reads stay in the backend (`provider-health.mjs`).
 
 Added 2026-11-13 (owner request). Design §4.20. It builds on the usage read
 of Requirement 43 (`flow_usage`), the session tool-row read (design §4.11),
@@ -4213,6 +4256,8 @@ task drawer, so that I can review a task without leaving Avoozl.
 
 ### Requirement 82: Demo mode
 
+**Status 2026-11-18.** The demo tour was removed (#311). The Demo badge, the bar, the Stop the line example and Exit demo stay. **Start demo** is in the empty In flight box on Home.
+
 Added 2026-11-13 (owner request). Design §6.11.
 
 **User story:** As the owner, I want a demo I can show anyone, so that they
@@ -4557,14 +4602,16 @@ instead of a stuck chat.
    quoted as data. A second vanish of the same task SHALL go to Needs you.
    Avoozl SHALL NOT replace a chat because it went quiet or its activity
    lease expired.
-5. This Mac SHALL run at most 3 worker lanes by default (the owner's 50%
-   CPU rule). More lanes SHALL come from worker machines (Requirement 90).
+5. More lanes SHALL come from worker machines (Requirement 90). (Changed
+   2026-11-18: the owner dropped the 50% CPU rule and the fixed three lanes
+   as requirements. In code, `lanes.local`, default 3, still seeds
+   `delivery.concurrency`; it is a setting.)
 6. Prepare SHALL use the approved `scripts/worktree` helper
    (`createWorktree`, `src/app/git.mjs`), which today has no caller.
    Avoozl SHALL remove a task's worktree and its local branch after the
    task lands, and SHALL keep them for a task that did not land.
 7. The Delivery page, Settings › Budgets (removed again 2026-11-17) and the task drawer's Files and diff
-   view SHALL be restored (they were removed in ba04389 and 70c2236). The
+   view SHALL be restored (the Delivery page and Files and diff exist; Budgets and the Routing page do not) (they were removed in ba04389 and 70c2236). The
    Routing page SHALL NOT be restored.
 
 ### Requirement 89: One setup command
@@ -4671,9 +4718,10 @@ removed, so that the app has one way to deliver work.
    explicit offboarding path allowed to create task issues.
 3. Leaf modules MAY be audited and already unreferenced ones deleted at any
    time. Task 45.2 SHALL wait for P52 to prove replacement PR landing.
-   Tasks 45.2 and 45.3 MAY edit their shared callers when no other lane is
-   editing the same files. Remaining shared-module edits SHALL be made
-   last, after Phases 40–44 have landed.
+   Tasks 45.2 and 45.3 MAY edit their shared callers. Remaining
+   shared-module edits SHALL be made last, after Phases 40–44 have landed.
+   (Changed 2026-11-18: the rule to wait for no other lane editing the same
+   files is dropped.)
 4. Every compatibility name that RC11.4 tests (the `plans_*` MCP
    names, `AVOOZL_*`, `AICOMMANDER_*` and `NUPP_WORKSPACE*` variables, the
    `aicommander` command and the `aicommander.*` settings) SHALL still
@@ -5388,7 +5436,7 @@ GitHub issue per task or exposing private planning information.
 Added 2026-11-16 (owner decision). Design §4.32.11. Planning only. Extends
 Requirement 102. Where they conflict it supersedes Requirement 52.7 and,
 in `radar-coder`, the hand-over of projected issues (RC1.6, RC2) and the
-claim at approval (RC19). Removing Radar code stays paused (Phase 45).
+claim at approval (RC19). Phase 45 is no longer paused: 45.2 landed in #509; 45.4 waits on P53, P54 and P66.
 
 The owner's words: Issue Radar should not take on Avoozl-created issues.
 It can take on maintenance and triage, and can punt an issue to Avoozl to
@@ -5605,6 +5653,8 @@ per file on the spec page.
     provider.
 
 ### Requirement 105: Where tasks live follows from each repository's role
+
+**Status 2026-11-18.** Criterion 4 changed (#484): Repository setup is a compact list with a read-only role badge and View, Edit and Remove icon buttons, not an in-place picker. The role is chosen in Edit and in Add repository. A fifth choice, `mirror` ("Private mirror of a public repository", a private copy that crews work in), is part of that choice and replaces the separate Mirror box. Criterion 5 and the one "Tasks live in" line are unchanged.
 
 Added 2026-11-17 (owner request). Design §4.34. Extends Requirement 28.
 Where they conflict it supersedes the part of Requirement 28.1 that says a

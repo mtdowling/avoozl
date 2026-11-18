@@ -164,7 +164,9 @@ import {
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
 import { landingView } from "./landing-view.mjs";
 import { epicsView } from "./epics-view.mjs";
+import { integratorNeedsYou } from "./landing-lease.mjs";
 import { landingQueueView } from "./landing-queue-view.mjs";
+import { integratorStatus, submitBranch } from "./integrator-trains.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
   checkIntegrationBranch,
@@ -482,11 +484,14 @@ import {
   driverTick,
   handoff,
   pullStatus,
+  pullWork,
   remoteView,
+  readRunnerConfig,
   reportDone,
   runnerStatus,
   runnerTick,
 } from "./remote-runner.mjs";
+import { previewWorker } from "./worker-setup.mjs";
 import { supersedeTask } from "./supersede.mjs";
 
 // Claimed leaves for a readiness query. A read-only database from before the
@@ -3146,6 +3151,14 @@ export class Operations {
       return handoff(store, this.workspaceRoot, input);
     if (name === "remote.pull")
       return pullStatus(store, this.workspaceRoot, input);
+    if (name === "worker.setup") {
+      const config = readRunnerConfig(this.workspaceRoot);
+      if (config?.role !== "worker")
+        fail('This workspace is not a worker (runner.role "worker").');
+      return previewWorker({ config, github: this.github });
+    }
+    if (name === "worker.pull")
+      return pullWork(store, this.workspaceRoot, this.github);
     if (name === "remote.view") return remoteView(store, this.workspaceRoot);
     if (name === "instance.view") return instanceView(store);
     if (name === "instance.rename") {
@@ -3311,6 +3324,9 @@ export class Operations {
         mcp: context.mcp === true,
         local: context.local === true,
       });
+    // Queue a branch Avoozl did not start (landing-trains, LT1.4).
+    if (name === "landing.submit")
+      return submitBranch(store, this.workspaceRoot, input);
     if (name === "delivery.retry")
       return retryDelivery(store, input, {
         caller: context.caller,
@@ -3453,6 +3469,11 @@ export class Operations {
         contentBinding(store)?.plugins.clear();
       return result;
     }
+    // The integrator's leases and running trains, from the store (LT2.5).
+    if (name === "integrator.status")
+      return integratorStatus(store, {
+        config: loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config,
+      });
     if (name === "workspace.tick.health") return tickHealth(store);
     if (name === "workspace.tick.log") return tickLog(store, input);
     if (name === "highlight.languages")
@@ -3604,6 +3625,7 @@ export class Operations {
       view.items.push(...planReviewNeedsYou(store));
       view.items.push(...gateNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
+      view.items.push(...integratorNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
       view.items.push(...rateNeedsYou(store));
       view.items.push(...paceNeedsYou(store));
@@ -6583,12 +6605,21 @@ export class Operations {
         fail("Only a person applies repository setup.", 403);
       if (!this.github?.available?.())
         fail("Repository setup needs GitHub; run gh auth login.", 503);
-      return repositorySetup(store, this.github, input, {
-        writeProject: (project) => {
-          this.configuration?.assertWritable();
-          this.configuration?.updateExecutionProject(project);
+      return repositorySetup(
+        store,
+        this.github,
+        {
+          branchPrefix: loadLayeredConfig({ workspaceRoot: this.workspaceRoot })
+            .config.landing?.trains?.branchPrefix,
+          ...input,
         },
-      });
+        {
+          writeProject: (project) => {
+            this.configuration?.assertWritable();
+            this.configuration?.updateExecutionProject(project);
+          },
+        },
+      );
     }
     if (name === "spec.takeover") {
       if (context.caller || context.mcp)

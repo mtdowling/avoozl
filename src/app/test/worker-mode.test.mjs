@@ -14,7 +14,12 @@ import { snapshot } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
 import { bindSession } from "../session-bindings.mjs";
 import { Store } from "../store.mjs";
-import { acceptEnvelope, validateEnvelope } from "../remote-runner.mjs";
+import {
+  acceptEnvelope,
+  readRunnerConfig,
+  validateEnvelope,
+} from "../remote-runner.mjs";
+import { finishProcessSession } from "../executors/process.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const git = (cwd, ...args) =>
@@ -29,7 +34,7 @@ const home = temporaryDirectory("avoozl-worker-home-");
 delete process.env.KIROCREW_HOME;
 process.env.XDG_CONFIG_HOME = home;
 
-function setup(t, repoPath) {
+function setup(t, repoPath, extra = {}) {
   const root = temporaryDirectory("avoozl-worker-");
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
@@ -38,6 +43,7 @@ function setup(t, repoPath) {
       runner: {
         role: "worker",
         checks: { pass: { argv: ["node", "-e", "process.exit(0)"] } },
+        ...extra,
       },
     }),
   );
@@ -183,4 +189,99 @@ test("a worker refuses an SSH envelope, then runs a pulled one to a checkpoint p
   assert.equal(row.ok, true);
   assert.equal(row.branch, "avoozl/demo/task/T1");
   assert.equal(git(code.origin, "rev-parse", row.branch), row.commit);
+});
+
+test("worker pull reads offers through the operation and starts nothing", async (t) => {
+  const code = checkout(),
+    root = temporaryDirectory("avoozl-worker-pull-");
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({
+      version: 1,
+      runner: {
+        role: "worker",
+        lanes: 2,
+        pools: [
+          {
+            spec: "demo",
+            repository: "example/code",
+            issue: 7,
+            target: "example/code",
+            base: "main",
+            visibility: "private",
+          },
+        ],
+      },
+    }),
+  );
+  const file = globalAvoozlConfigPath();
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      version: 1,
+      runner: {
+        repos: { app: { path: code.repo } },
+        sources: { "example/code": { url: code.origin } },
+      },
+    }),
+  );
+  const { dbPath } = workspaceConfig({ workspace: root, env: {} });
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  const store = new Store(dbPath);
+  t.after(() => store.close());
+  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
+  const github = {
+    available: () => true,
+    currentUser: async () => ({ login: "worker-a" }),
+    listIssueComments: async () => [],
+    permission: async () => ({ permission: "read" }),
+  };
+  const ops = new Operations(store, { workspaceRoot: root, github });
+  const result = await ops.execute("worker.pull", {}, local);
+  assert.deepEqual(result.offers, []);
+  assert.equal(result.login, "worker-a");
+  assert.equal(store.getMeta("worker.offers").login, "worker-a");
+  assert.equal(store.getMeta("runner.tasks") ?? null, null);
+});
+
+test("a process worker dispatches a process request and reports through its runner", async (t) => {
+  const code = checkout(),
+    ws = setup(t, code.repo, { executor: "process" });
+  acceptEnvelope(
+    ws.store,
+    ws.root,
+    JSON.stringify({
+      version: 1,
+      taskId: "T1",
+      repo: "app",
+      baseCommit: code.base,
+      checks: ["pass"],
+      spec: "demo",
+    }),
+    { pulled: true },
+  );
+  const [d] = (await tick(ws)).dispatch;
+  assert.equal(d.executor, "process");
+  assert.equal(d.role, "worker");
+  // The finished session reports to the runner, not to a plan's task.
+  const calls = [];
+  await finishProcessSession(
+    { execute: async (...args) => calls.push(args) },
+    { taskId: "T1", role: "worker" },
+    { state: "done" },
+    ws.store,
+  );
+  assert.deepEqual(calls, [
+    ["remote.report", { taskId: "T1", state: "done" }, { local: true }],
+  ]);
+});
+
+test("the runner executor must be kirocrew or process", () => {
+  const root = temporaryDirectory("avoozl-worker-executor-");
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({ version: 1, runner: { role: "worker", executor: "x" } }),
+  );
+  assert.throws(() => readRunnerConfig(root), /kirocrew" or "process/);
 });
