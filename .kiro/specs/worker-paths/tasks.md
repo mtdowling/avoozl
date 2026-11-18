@@ -70,7 +70,7 @@ of the other specs.
 - [x] wp-3.1 A worker machine pulls and claims on its own tick, after wp-1.1 [WP5.2] (§D8)
   - On `runner.role: "worker"` the tick pulls offers, requests claims for its free lanes and starts acknowledged tasks, before `runnerTick`; `avoozl worker pull` and `avoozl worker claim` call the same functions.
   - Done when: Tests with a fake GitHub and a fake driver: a worker with two free lanes and three offers claims two and starts two with no command run by hand; a request with no acknowledgment starts nothing; a tick with no GitHub records one line and starts nothing; the hand-run commands give the same result as one tick.
-- [ ] wp-3.2 The driver checks a pulled result on its tick, after wp-3.1 [WP5.3] (§D8)
+- [x] wp-3.2 The driver checks a pulled result on its tick, after wp-3.1 [WP5.3] (§D8)
   - The tick calls `worker-results.mjs` for each acknowledged claim: fetch the ref, check the diff against declared and protected paths, run the checks on that head, queue it to land.
   - Done when: Tests: a pushed result lands with no command run by hand; a result that touches a protected path, and one whose checks fail on the driver, each become a failed attempt on the driver with the reason; a result for a claim the driver did not acknowledge is ignored; `worker-results.mjs` has an importer that is not a test.
 - [ ] wp-3.3 Remove runner mode over SSH, after wp-3.2 [WP5.1, WP5.4, WP5.5] (§D8)

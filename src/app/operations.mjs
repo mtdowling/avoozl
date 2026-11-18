@@ -591,6 +591,7 @@ import { publishSpec } from "./spec-publication.mjs";
 import { specLinks } from "./scm-links.mjs";
 import { specAuthority, takeOverSpec } from "./spec-takeover.mjs";
 import { publishOffer, reserveClaims } from "./worker-claims.mjs";
+import { workerResultsStep } from "./worker-result-step.mjs";
 import {
   checkStaleClaims,
   claimStaleMs,
@@ -2190,6 +2191,24 @@ export class Operations {
       review: planReviewSummary(this.store, plan.id),
     };
   }
+  // The driver's step for worker machines' pushed results (WP5.3).
+  async workerResults(store, driving, journalFor) {
+    const config = loadLayeredConfig({
+        workspaceRoot: this.workspaceRoot,
+      }).config,
+      result = await workerResultsStep(store, {
+        driving,
+        journalFor,
+        github: this.github,
+        sources: config.runner?.sources ?? {},
+        protectedPaths:
+          readFlowPolicy(this.workspaceRoot).workspace.verify?.protectedPaths ??
+          [],
+      });
+    queueNotifications(store, result.notify);
+    return result;
+  }
+
   planApproved(plan) {
     return this.store
       .list("approvals")
@@ -3324,12 +3343,9 @@ export class Operations {
       if (remote) return remote;
       await this.refreshPrivateSpecs();
       if (input.cron === true) await driverTick(store, this.workspaceRoot);
-      // Stale worker claims reach Needs you; nothing releases them (R90.6).
-      if (input.cron === true)
-        await checkStaleClaims(store, {
-          workspaceRoot: this.workspaceRoot,
-          driving: Object.keys(store.getMeta("specDrivers") ?? {}),
-          journalFor: async (planId) => {
+      if (input.cron === true) {
+        const driving = Object.keys(store.getMeta("specDrivers") ?? {}),
+          journalFor = async (planId) => {
             const journal = journalOf(
               store,
               { github: this.github, workspaceRoot: this.workspaceRoot },
@@ -3345,8 +3361,20 @@ export class Operations {
                   },
                 }
               : null;
-          },
+          };
+        // Stale worker claims reach Needs you; nothing releases them (R90.6).
+        await checkStaleClaims(store, {
+          workspaceRoot: this.workspaceRoot,
+          driving,
+          journalFor,
         }).catch(() => 0);
+        // What worker machines pushed is fetched, checked and landed here
+        // (R90.2, worker-paths WP5.3); a result that fails is a failed attempt.
+        if (driving.length)
+          await this.workerResults(store, driving, journalFor).catch(
+            () => null,
+          );
+      }
       const result = await tick(store, {
         workspaceRoot: this.workspaceRoot,
         memory: this.tickPolicy,
