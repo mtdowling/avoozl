@@ -2084,7 +2084,7 @@ references hold; nothing in them exists.
 
 - [x] 11.1 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
+    - summary: Retired 2026-11-18. Superseded by the worker-paths spec; not run.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4
@@ -2189,14 +2189,14 @@ references hold; nothing in them exists.
     - after: 11.14
 - [x] 11.10 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
+    - summary: Retired 2026-11-18. Superseded by the worker-paths spec; not run.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - after: avoozl-p4, avoozl-p5, avoozl-p6, avoozl-p2b, 10.4
     - checks: npm test, git diff --check
 - [x] avoozl-p29 P29 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
+    - summary: Retired 2026-11-18. Superseded by the worker-paths spec; not run.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - after: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 11.10
@@ -2795,7 +2795,7 @@ task IDs never move.
   - Built: `837497b` (docs and skill `a675b9a`).
 - [x] 16.7 Retired 2026-11-18
   - Facts:
-    - summary: Retired 2026-11-18.
+    - summary: Retired 2026-11-18. Superseded by the worker-paths spec; not run.
     - done:
       - Retired 2026-11-18. Nothing to do.
     - checks: npm test, git diff --check
@@ -5517,7 +5517,7 @@ Owner request 2026-11-18 (Requirement 109, design §4.38). One build task.
 ## Phase 63: One intake list
 
 Owner decision 2026-11-18 (Requirement 110, design §4.39;
-`docs/simplification-audit.md` item 6). One build task. Other
+`docs/research/simplification-audit.md` item 6). One build task. Other
 simplification items run in parallel and touch settings files; merge main
 often and keep theirs on a clash.
 

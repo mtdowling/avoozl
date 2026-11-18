@@ -1671,8 +1671,8 @@ public or shared repositories cannot leak what the company keeps private.
 
 ### Requirement 41: Retired
 
-Retired 2026-11-18 (owner decision). Nothing here exists. Every session
-Avoozl opens runs on this machine, on the executor its harness names
+Retired 2026-11-18 by the worker-paths spec (WP6). Nothing here exists.
+Every session Avoozl opens runs on this machine, on the executor its harness names
 (Requirement 98). The number stays so that other requirements keep their
 references.
 
@@ -3881,6 +3881,10 @@ chatty agent cannot reach my secrets or my approvals.
 
 ### Requirement 84: Runner mode over SSH
 
+Retired 2026-11-18 by the worker-paths spec (WP5): worker pull (Requirement
+90) is the one way a task runs on another machine. The text below is the
+record and is not built.
+
 Added 2026-11-14 (owner request). Design §6.13. Prototype, off by default.
 
 **User story:** As the owner, I want one Avoozl to hand a task to an Avoozl on
@@ -4251,8 +4255,10 @@ plan and without trusting those machines.
    through the driver. Quiet, expired leases, lost connectivity and vanished
    chats SHALL NOT release a claim automatically. After `workers.claimStaleAfter`
    (default 24 h), Needs you SHALL offer person-only Release claim.
-7. SSH push of an envelope (the runner mode of Requirement 84) SHALL stay
-   only for a machine with no GitHub access.
+7. Retired 2026-11-18 by the worker-paths spec (WP5.5): a machine with no
+   GitHub access is not a worker machine. The record: "SSH push of an
+   envelope (the runner mode of Requirement 84) SHALL stay only for a
+   machine with no GitHub access."
 8. `avoozl worker setup` SHALL preview the worker configuration, check
    login, allowed source/fork pushes and readable target repositories, and
    check the configured executor. Kiro Crew SHALL be required only for the
@@ -4542,8 +4548,9 @@ in a way Avoozl reads the same, so that Avoozl reads one kind of result.
 4. A child that exits with no result file, an unreadable one, or a non-zero
    exit code with `done` SHALL be treated as `exited <code>`, and its task
    SHALL follow the retry path (Requirement 8).
-5. `avoozl next`, `avoozl claim` and the report SHALL stay as the manual
-   path for a person or a harness Avoozl does not start.
+5. `avoozl claim`, `avoozl next` and `avoozl runner report` SHALL stay as
+   the manual path for a person. (Changed 2026-11-18 by the worker-paths
+   spec, WP9.1.)
 
 ### Requirement 97: Role prompts as files
 
@@ -4584,7 +4591,7 @@ Avoozl page, whatever harness runs it, so that I never need another UI.
    `avoozl runner status --json`. Avoozl SHALL host no other UI.
 
 Added 2026-11-18 (owner approval of the simplification audit, item 8 and
-F7 in `docs/simplification-audit.md`): one roles table. Today a role's
+F7 in `docs/research/simplification-audit.md`): one roles table. Today a role's
 model is picked in seven places, and the worker's is on Settings ›
 Delivery while the others are on Settings › Models.
 
@@ -5615,7 +5622,7 @@ approval does not wait on me or drag in specs nobody asked about.
 
 ### Requirement 110: One intake list
 
-Added 2026-11-18 (owner decision on `docs/simplification-audit.md` item 6
+Added 2026-11-18 (owner decision on `docs/research/simplification-audit.md` item 6
 and F5). Design §4.39. Changes Requirement 50.6 and the issue intake part
 of Requirement 10; keeps Requirements 49, 52 and 103.8 to 103.11.
 

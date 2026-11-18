@@ -381,7 +381,7 @@ export const HELP_GROUPS = Object.freeze([
       ),
       entry(
         "content hook",
-        "A PreToolUse hook: refuse a crew write that matches a rule",
+        "A PreToolUse hook: refuse a session's write that matches a rule",
       ),
       entry(
         "content check --push --task TASK_ID",

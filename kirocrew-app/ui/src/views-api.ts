@@ -242,7 +242,6 @@ const FEEDBACK_KINDS: Record<string, string> = {
 }
 const FEEDBACK_TO: Record<string, string> = {
   session: 'sent to the worker',
-  conductor: 'queued for the conductor',
   'new attempt': 'carried to a new attempt',
 }
 const FEEDBACK_STOPS: Record<string, string> = {

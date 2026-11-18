@@ -380,7 +380,7 @@ What a pack may set, and where each lands in `.avoozl.json`:
 | `settings.project`           | `github.project.fields` and `statusValues`, when a GitHub Project is set                                                                                                                                                |
 | `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                                                  |
 | `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                                               |
-| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`.                                                                                                                            |
+| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`.                                                                                                                                      |
 | `settings.flow`              | Flow settings, such as `retro.everyTasks`                                                                                                                                                |
 
 - Every key is checked with the same rules Settings uses. Any other key is

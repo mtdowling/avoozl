@@ -3716,9 +3716,9 @@ export class Operations {
           reason: "crew-mode",
           id: "crew-mode",
           taskId: null,
-          title: "Crew Mode dispatch is gone",
+          title: "The tick does not start this workspace yet",
           detail:
-            'This workspace\'s .avoozl.json says "runner": "crew-mode", so a conductor used to start its tasks. Avoozl starts nothing here until you let the tick run it.',
+            'This workspace\'s .avoozl.json still says "runner": "crew-mode", from before the tick started every task. Avoozl starts nothing here until you let the tick run it.',
           hash: this.settingsFile().readFile().hash,
         });
       view.items.push(...conflictFixNeedsYou(store));
