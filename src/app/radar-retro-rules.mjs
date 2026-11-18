@@ -1,7 +1,6 @@
 // Retro rule targets (RC8.6, design D10). A retro proposal names where a rule
 // goes: `AGENTS.md` or a steering file (a pull request a person merges;
-// plans_verify_issue returns the rule blocks in each issue's brief, because a
-// crew's long-lived chat reads AGENTS.md only once), or the crew's Additional prompt (shown as full
+// a crew's long-lived chat reads AGENTS.md only once), or the crew's Additional prompt (shown as full
 // text with Copy and a link, because that edit is owner-only and Avoozl writes
 // nothing to Radar). Each applied rule is recorded, and after N finished
 // issues a check reports how many came since, with an undo offer.
@@ -27,8 +26,7 @@ const blockFor = (id, text) => {
 export const withRetroBlock = (file, id, text) =>
   `${file ? file.replace(/\n*$/, "\n\n") : ""}${blockFor(id, text)}`;
 
-// Every retro rule block's text in a file, in file order. A crew's chat reads
-// AGENTS.md once, so plans_verify_issue hands these to it for each issue.
+// Every retro rule block's text in a file, in file order.
 export function retroBlocks(file) {
   const found = [];
   for (const match of String(file ?? "").matchAll(

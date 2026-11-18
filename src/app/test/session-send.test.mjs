@@ -15,7 +15,13 @@ import {
   pendingSessionRequests,
   takeSessionRequest,
 } from "../session-requests.mjs";
-import { queueSessionSend, SEND_MAX_CHARS } from "../session-send.mjs";
+import {
+  PERSON_MESSAGE_HEAD,
+  personMessage,
+  queueSessionSend,
+  SEND_MAX_CHARS,
+} from "../session-send.mjs";
+import { processSteps } from "../delivery.mjs";
 import { openSupervisorDatabase, requestChild } from "../supervisor.mjs";
 import { drainProcessRequests } from "../executors/process.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -83,7 +89,8 @@ test("a person's message is queued as a process send", (t) => {
   );
   assert.equal(sends.length, 1);
   assert.equal(sends[0].slot, slot);
-  assert.equal(sends[0].text, "Add a test.");
+  // P60: framed, so the child knows the person sent it.
+  assert.equal(sends[0].text, `${PERSON_MESSAGE_HEAD}\n\nAdd a test.`);
   assert.equal(sends[0].id, queued.id);
   // Two messages are two sends, in order.
   queueSessionSend(store, { slot, text: "And a second." });
@@ -191,5 +198,14 @@ test("the drain hands a queued message to the supervisor", async (t) => {
     .all(slot)
     .map((row) => ({ ...row }));
   check.close();
-  assert.deepEqual(messages, [{ text: "One more thing.", state: "queued" }]);
+  assert.deepEqual(messages, [
+    { text: personMessage("One more thing."), state: "queued" },
+  ]);
+});
+
+// P60: an unframed message read as relayed text, and the child refused it.
+test("the process brief names the person's message line", () => {
+  const steps = processSteps({ id: "7.1" }).join("\n");
+  assert.ok(steps.includes(`"${PERSON_MESSAGE_HEAD}"`));
+  assert.match(steps, /person's own and may change your task/);
 });

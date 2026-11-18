@@ -14,7 +14,6 @@ import { callerSlot } from "./delivery.mjs";
 import { allowWrite, enforce, screenReply } from "./content-rules.mjs";
 import { fail } from "./store.mjs";
 import { parseMarkers, crewName } from "./radar-claims.mjs";
-import { parseProvenance } from "./github-provenance.mjs";
 import { fence } from "./github-respond.mjs";
 import { sessionUrl } from "./notifications.mjs";
 import { recordActivity } from "./activity-log.mjs";
@@ -93,9 +92,9 @@ const quote = (text) => {
 };
 
 // What the chat reads first: the pull request, the issues it closes with the
-// Radar crew's claim and comments on each, and the spec tasks a provenance
-// marker names. Everything quoted is GitHub's text, so it is fenced as data.
-export async function draftBrief(github, { repository, pull, tasks = [] }) {
+// Radar crew's claim and comments on each. Everything quoted is GitHub's
+// text, so it is fenced as data.
+export async function draftBrief(github, { repository, pull }) {
   const lines = [
     `Draft a review of one pull request: ${pull.html_url}`,
     "",
@@ -142,27 +141,13 @@ export async function draftBrief(github, { repository, pull, tasks = [] }) {
       );
       for (const comment of crew) lines.push(...quote(comment.body));
     } else lines.push("No Issue Radar crew claim on this issue.");
-    const { marker } = parseProvenance(body);
-    if (marker) {
-      lines.push(
-        `Avoozl spec: ${marker.spec}, tasks ${marker.tasks.join(", ")}, approved at commit ${marker.commit} by ${marker.approvedBy}.`,
-      );
-      for (const id of marker.tasks) {
-        const task = tasks.find((entry) => entry.id === id);
-        if (!task) continue;
-        lines.push(`Task ${id}:`, ...quote(task.title));
-        const acceptance = [task.acceptance].flat().filter(Boolean);
-        if (acceptance.length)
-          lines.push("Acceptance:", ...quote(acceptance.join("\n")));
-      }
-    }
   }
   if (!closing.length)
     lines.push("", "The pull request closes no issue that GitHub knows of.");
   lines.push(
     "",
     `Read the pull request with read-only gh commands: gh pr view ${pull.number} --repo ${repository} --comments, gh pr diff ${pull.number} --repo ${repository}, gh pr checks, and gh issue view for the issues above.`,
-    "Check correctness, tests, error handling, security and fit with the code around it, and whether the change meets the tasks and the crew's findings above.",
+    "Check correctness, tests, error handling, security and fit with the code around it, and whether the change meets the issues and the crew's findings above.",
     `Post the draft once: call plans_post_review_draft with {"input": {"body": "<summary>", "comments": [{"path": "<file>", "line": <line in the new file>, "body": "<comment>"}]}}. Use "side": "LEFT" for a removed line and "start_line" for a range. Lines must be inside the diff; if GitHub refuses a line, fix it and call again.`,
     "The draft stays pending: only the person who asked can see it, and they edit and submit it. You cannot submit, approve or request changes, and you have no other way to GitHub. Do not edit files, push, label or comment.",
   );
@@ -193,12 +178,11 @@ async function allowed(github, repository, settings, login) {
 
 // One pass: new review labels become queued drafts (or a row), and drafts
 // waiting on a person are read until they are submitted or discarded.
-// `tasks` are the workspace's tasks, for the brief. Returns {notify, errors}.
+// Returns {notify, errors}.
 export async function reviewDraftStep({
   store,
   github,
   policy,
-  tasks = [],
   now = Date.now(),
 }) {
   const notify = [],
@@ -284,7 +268,7 @@ export async function reviewDraftStep({
         }
         const pull = await github.pullRequest(repository, number);
         if (!pull || pull.state !== "open") continue;
-        const seed = await draftBrief(github, { repository, pull, tasks }),
+        const seed = await draftBrief(github, { repository, pull }),
           receipt = {
             id,
             kind: DRAFT_KIND,

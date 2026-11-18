@@ -3,7 +3,6 @@
 // runs ahead of GitHub's own clock. Pure helpers plus one read; the read
 // writes nothing.
 import { parseMarkers, crewName } from "./radar-claims.mjs";
-import { parseProvenance } from "./github-provenance.mjs";
 import { READY_LABEL_DEFAULT } from "./github-policy.mjs";
 
 const lower = (value) => String(value ?? "").toLocaleLowerCase();
@@ -84,8 +83,6 @@ export function checkState(runs) {
         : null,
   };
 }
-
-export const provenanceOf = (body) => parseProvenance(body).marker;
 
 // One attempt per read, so a failed one leaves its own times empty and is
 // named, and the rest still show.

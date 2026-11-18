@@ -7,11 +7,6 @@ import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { Store, fail, privateFile } from "./store.mjs";
 import { workflowSkill } from "./skill.mjs";
-import {
-  formatVerification,
-  parseIssueReference,
-  verifyIssue,
-} from "./verify-issue.mjs";
 import { workspaceConfig, applicationRoot } from "./config.mjs";
 import { initializeWorkspace } from "./workspace.mjs";
 import { Operations } from "./operations.mjs";
@@ -111,9 +106,7 @@ try {
         options[key] = true;
       else if (
         key === "json" &&
-        ["runner", "verify-issue", "review", "gate", "plan"].includes(
-          args[0],
-        ) &&
+        ["runner", "review", "gate", "plan"].includes(args[0]) &&
         (args[i + 1] === undefined || args[i + 1].startsWith("--"))
       )
         options.json = true;
@@ -258,34 +251,6 @@ try {
     );
   } else if (command === "skill") {
     process.stdout.write(workflowSkill(config));
-  } else if (command === "verify-issue") {
-    // Needs no workspace: reads GitHub with the caller's gh login. Exit 0 all
-    // checks ok, 1 a check failed, 2 it could not run, 64 a wrong argument.
-    let reference;
-    try {
-      if (positionals.length !== 1)
-        throw Error("Name the issue as owner/repo#number.");
-      reference = parseIssueReference(positionals[0]);
-      if (options.pr !== undefined && !/^[1-9][0-9]{0,9}$/.test(options.pr))
-        throw Error("Name the pull request as a number.");
-    } catch (error) {
-      console.error(
-        error.message +
-          " Usage: avoozl verify-issue owner/repo#number [--pr N] [--json]",
-      );
-      process.exitCode = 64;
-    }
-    if (reference) {
-      const result = await verifyIssue(positionals[0], {
-        ...(options.pr !== undefined ? { pull: Number(options.pr) } : {}),
-      });
-      console.log(
-        options.json
-          ? JSON.stringify(result, null, 2)
-          : formatVerification(result),
-      );
-      process.exitCode = result.exitCode;
-    }
   } else if (command === "import") {
     requireLocalMaintenancePath("Import");
     const snapshot = JSON.parse(
@@ -1974,7 +1939,6 @@ try {
                                          Replace a local task; its dependents wait on the new one
   activity TASK_ID --action start|heartbeat|pause|finish ...
   skill --workspace PATH                Print the portable workflow skill
-  verify-issue OWNER/REPO#N [--pr N] [--json]  Check an issue came from an approved spec; with --pr, that its pull request targets the right branch (exit 0, 1, 2, 64)
   mcp --workspace PATH                  Stdio MCP server for the workspace database
   mcp --url URL                         Stdio bridge to a running server
   mcp --kirocrew                        Kiro Crew app server: workspace per caller

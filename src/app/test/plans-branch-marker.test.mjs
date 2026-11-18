@@ -1,15 +1,11 @@
-// rc-24.3: the marker `ref`, approval on the plans branch, and `verify-issue`
-// for a private spec (RC25.3 to RC25.5, design D30.3 and D30.4). Fake GitHub
+// rc-24.3: approval on the plans branch (RC25.3, design D30.3). Fake GitHub
 // only; no network, no real repository.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { parseProvenance, renderProvenance } from "../github-provenance.mjs";
 import { Operations } from "../operations.mjs";
-import { CREW_PROMPT } from "../radar-crew-prompt.mjs";
 import { Store } from "../store.mjs";
-import { verifyIssue } from "../verify-issue.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { specFiles } from "./spec-fixture.mjs";
@@ -20,22 +16,6 @@ process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const MIRROR = "example/code-private";
 const PLANS = "avoozl-plans";
-
-test("the marker writes and reads `ref`, and omits it for a public spec", () => {
-  const input = {
-    spec: "pay-fix",
-    tasks: ["pf-1.1"],
-    commit: SHA,
-    approvedBy: "octocat",
-  };
-  const line = renderProvenance({ ...input, ref: PLANS });
-  assert.match(line, / approved-by=octocat ref=avoozl-plans -->$/);
-  assert.equal(parseProvenance(line).marker.ref, PLANS);
-  assert.equal(parseProvenance(renderProvenance(input)).marker.ref, undefined);
-  assert.throws(() => renderProvenance({ ...input, ref: "a b" }), /ref/);
-  const bad = line.replace("ref=avoozl-plans", "ref=a..b");
-  assert.equal(parseProvenance(bad).problem.code, "bad-value");
-});
 
 // ---- approval on the plans branch ----
 
@@ -153,162 +133,4 @@ test("approving a private spec opens its pull request against the plans branch",
   );
   assert.equal(state.commit, SHA);
   assert.equal(state.ref, PLANS);
-});
-
-// ---- verify-issue with a ref ----
-
-const CODE = "example/code-private";
-const base = `repos/${CODE}/contents/.kiro/specs/pay-fix`;
-const prose = "# Title\n\nStatus: Approved\n\nText\n";
-const marker = (extra = {}) =>
-  renderProvenance({
-    spec: "pay-fix",
-    tasks: ["pf-1"],
-    commit: SHA,
-    approvedBy: "octocat",
-    ref: PLANS,
-    ...extra,
-  });
-
-function fake(over = {}, line = marker()) {
-  const table = new Map([
-    [
-      `repos/${CODE}/issues/7`,
-      {
-        status: 200,
-        body: { body: line, user: { login: "owner1" } },
-      },
-    ],
-    [
-      `repos/${CODE}/collaborators/octocat/permission`,
-      { status: 200, body: { permission: "write" } },
-    ],
-    [
-      `repos/${CODE}/collaborators/owner1/permission`,
-      { status: 200, body: { permission: "admin" } },
-    ],
-    [`repos/${CODE}`, { status: 200, body: { default_branch: "main" } }],
-    [`repos/${CODE}/branches/${PLANS}`, { status: 200, body: {} }],
-    // Only the explicit no-common-ancestor response proves orphan history.
-    [
-      `repos/${CODE}/compare/main...${PLANS}`,
-      {
-        status: 404,
-        body: { message: `No common ancestor between main and ${PLANS}.` },
-      },
-    ],
-    [
-      `repos/${CODE}/compare/${PLANS}...${SHA}`,
-      { status: 200, body: { status: "behind" } },
-    ],
-    [`${base}/requirements.md?ref=${SHA}`, { status: 200, text: prose }],
-    [`${base}/design.md?ref=${SHA}`, { status: 200, text: prose }],
-    [
-      `${base}/tasks.md?ref=${SHA}`,
-      {
-        status: 200,
-        text: "# Tasks\n\nStatus: Approved\n\n- [ ] pf-1 First\n",
-      },
-    ],
-    [`${base}/avoozl/manifest.json?ref=${SHA}`, { status: 200, text: "{}" }],
-  ]);
-  for (const [key, value] of Object.entries(over)) table.set(key, value);
-  const calls = [];
-  const read = async (apiPath) => {
-    calls.push(apiPath);
-    const hit = table.get(apiPath);
-    if (!hit) return { status: 404, headers: {}, text: "{}" };
-    return {
-      status: hit.status,
-      headers: {},
-      text: hit.text ?? JSON.stringify(hit.body ?? {}),
-    };
-  };
-  return { read, calls };
-}
-const verify = (f) => verifyIssue(`${CODE}#7`, { read: f.read });
-const commitCheck = (result) =>
-  result.checks.find((check) => check.name === "commit");
-
-test("a private spec's issue passes and prints the fetch and show commands", async () => {
-  const f = fake();
-  const result = await verify(f);
-  assert.equal(result.exitCode, 0, JSON.stringify(result.checks));
-  assert.equal(result.ref, PLANS);
-  assert.equal(
-    result.fetch,
-    `git fetch https://github.com/${CODE}.git refs/heads/${PLANS}`,
-  );
-  assert.deepEqual(result.show, [
-    `git show ${SHA}:.kiro/specs/pay-fix/requirements.md`,
-    `git show ${SHA}:.kiro/specs/pay-fix/design.md`,
-    `git show ${SHA}:.kiro/specs/pay-fix/tasks.md`,
-    `git show ${SHA}:.kiro/specs/pay-fix/avoozl/manifest.json`,
-  ]);
-  assert.ok(f.calls.includes(`repos/${CODE}/compare/${PLANS}...${SHA}`));
-  assert.ok(!f.calls.includes(`repos/${CODE}/compare/main...${SHA}`));
-});
-
-test("a public marker has no fetch or show commands", async () => {
-  const f = fake(
-    {
-      [`repos/${CODE}/compare/main...${SHA}`]: {
-        status: 200,
-        body: { status: "identical" },
-      },
-    },
-    marker({ ref: undefined }),
-  );
-  const result = await verify(f);
-  assert.equal(result.exitCode, 0);
-  assert.equal(result.fetch, undefined);
-  assert.equal(result.show, undefined);
-});
-
-test("a ref that is the default branch, missing, or shares history fails with the reason", async () => {
-  const main = await verify(fake({}, marker({ ref: "main" })));
-  assert.equal(main.exitCode, 1);
-  assert.match(commitCheck(main).reason, /main is the default branch/);
-
-  const missing = await verify(
-    fake({ [`repos/${CODE}/branches/${PLANS}`]: { status: 404 } }),
-  );
-  assert.equal(missing.exitCode, 1);
-  assert.match(commitCheck(missing).reason, /avoozl-plans is not a branch/);
-
-  const shared = await verify(
-    fake({
-      [`repos/${CODE}/compare/main...${PLANS}`]: {
-        status: 200,
-        body: { status: "ahead" },
-      },
-    }),
-  );
-  assert.equal(shared.exitCode, 1);
-  assert.match(commitCheck(shared).reason, /shares history.*not an orphan/);
-  assert.equal(shared.fetch, undefined);
-
-  const ahead = await verify(
-    fake({
-      [`repos/${CODE}/compare/${PLANS}...${SHA}`]: {
-        status: 200,
-        body: { status: "ahead" },
-      },
-    }),
-  );
-  assert.equal(ahead.exitCode, 1);
-  assert.match(commitCheck(ahead).reason, /not behind avoozl-plans/);
-});
-
-test("a read that fails is could-not-run, not a verdict", async () => {
-  const result = await verify(
-    fake({ [`repos/${CODE}/branches/${PLANS}`]: { status: 500 } }),
-  );
-  assert.equal(result.exitCode, 2);
-});
-
-test("the crew's one-line prompt is unchanged and does not name the ref", () => {
-  assert.equal(CREW_PROMPT.includes("\n"), false);
-  assert.match(CREW_PROMPT, /verify-issue/);
-  assert.doesNotMatch(CREW_PROMPT, /\bref\b|fetch|git show/);
 });

@@ -19,7 +19,7 @@ const NAMESPACE = "avz_testtesttesttest";
 const markerOf = (issue) =>
   JSON.parse(issue.body.match(/<!-- avoozl-task\n(.*)\n-->/)[1]);
 
-async function workspace(t, { mode, coder, radar, blockTerm }) {
+async function workspace(t, { mode, coder, radar }) {
   const { store } = fixture(t),
     github = new FakeGitHub(),
     root = temporaryDirectory(),
@@ -35,7 +35,6 @@ async function workspace(t, { mode, coder, radar, blockTerm }) {
     JSON.stringify({
       version: 1,
       namespace: NAMESPACE,
-      ...(blockTerm ? { contentRules: { sets: [{ id: "names" }] } } : {}),
       github: {
         mode,
         ...(mode === "plans-repo"
@@ -45,11 +44,6 @@ async function workspace(t, { mode, coder, radar, blockTerm }) {
       },
     }),
   );
-  if (blockTerm) {
-    const dir = path.join(root, ".avoozl", "local", "content-rules");
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, "names.txt"), `name: ${blockTerm}\n`);
-  }
   const ops = new Operations(store, {
     github,
     operator: "Operator",
@@ -279,15 +273,15 @@ const publicRepository = (github) => {
     });
 };
 
-for (const [visibility, radar, refused] of [
-  ["public", undefined, true],
-  ["public", { showPlansRepo: false }, true],
-  ["public", { showPlansRepo: true }, false],
-  ["private", undefined, false],
-  ["private", { showPlansRepo: false }, false],
-  ["private", { showPlansRepo: true }, false],
+// No marker names the plans repository any more, so no setting or visibility
+// refuses a projection for it.
+for (const [visibility, radar] of [
+  ["public", undefined],
+  ["public", { showPlansRepo: false }],
+  ["public", { showPlansRepo: true }],
+  ["private", undefined],
 ])
-  test(`plans-repo, ${visibility} code repository, showPlansRepo ${radar ? radar.showPlansRepo : "unset"}: ${refused ? "refused" : "projected"}`, async (t) => {
+  test(`plans-repo, ${visibility} code repository, showPlansRepo ${radar ? radar.showPlansRepo : "unset"}: projected`, async (t) => {
     const { store, github, ops } = await workspace(t, {
       mode: "plans-repo",
       coder: "issue-radar",
@@ -297,16 +291,11 @@ for (const [visibility, radar, refused] of [
     const { plan } = await approve(ops, store, "name", [
       leaf("name-leaf", "code"),
     ]);
-    if (refused) {
-      await assert.rejects(
-        ops.execute("github.project", { planId: plan.id }),
-        /Show the plans repository name in issues/,
-      );
-      assert.equal(github.created.length, 0);
-    } else {
-      await ops.execute("github.project", { planId: plan.id });
-      assert.deepEqual(repositoriesOf(github), ["example/code"]);
-    }
+    await ops.execute("github.project", { planId: plan.id });
+    assert.deepEqual(repositoriesOf(github), ["example/code"]);
+    assert.ok(
+      github.created.every((issue) => !issue.body.includes("example/planning")),
+    );
   });
 
 test("single-repo and coder worker never need the switch", async (t) => {
@@ -322,22 +311,6 @@ test("single-repo and coder worker never need the switch", async (t) => {
     await ops.execute("github.project", { planId: plan.id });
     assert.equal(github.created.length, 1);
   }
-});
-
-test("a content rule that blocks the plans repository name stops the projection before any write", async (t) => {
-  const { store, github, ops } = await workspace(t, {
-    mode: "plans-repo",
-    coder: "issue-radar",
-    blockTerm: "example/planning",
-  });
-  const { plan } = await approve(ops, store, "blocked-name", [
-    leaf("blocked-leaf", "code"),
-  ]);
-  await assert.rejects(
-    ops.execute("github.project", { planId: plan.id }),
-    /content rule blocks the plans repository name/,
-  );
-  assert.equal(github.created.length, 0);
 });
 
 test("a coder change leaves a handed-over task with its coder and shows the split once", async (t) => {
