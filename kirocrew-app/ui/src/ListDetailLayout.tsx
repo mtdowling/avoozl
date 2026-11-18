@@ -59,12 +59,13 @@ export function ListDetailLayout(props: {
   // Desktop: the list is a thin bar for now (a spec's review needs its
   // room); clicking the bar brings it back.
   listFolded?: { label: string; onUnfold: () => void }
-  // Desktop: the list and detail fill the height on screen and scroll on
-  // their own, so the detail can keep a panel at its bottom.
+  // Desktop: the list and detail fill the height on screen and each scroll
+  // on their own, so the page itself does not scroll. The detail then lays
+  // out its own fixed top and scrolling body (a column of height 100%).
   fill?: boolean
 }) {
   const phone = usePhone()
-  const [fillRef, fillHeight] = useFillHeight(Boolean(props.fill) && !phone && props.detail !== null)
+  const [fillRef, fillHeight] = useFillHeight(Boolean(props.fill) && !phone)
   const spec = listSpec(props.id)
   const [width, setWidth] = useState(() => readWidth(pageStorage(), spec))
   const column = useRef<HTMLDivElement>(null)
@@ -88,7 +89,7 @@ export function ListDetailLayout(props: {
     )
   if (props.detail === null)
     return (
-      <div data-list-pane={props.id} data-list-only>
+      <div ref={fillRef} data-list-pane={props.id} data-list-only data-list-fill={fillHeight !== null ? '' : undefined} style={fillHeight !== null ? { height: fillHeight, minHeight: 0, overflowY: 'auto', position: 'relative' } : undefined}>
         {props.list}
       </div>
     )
@@ -98,7 +99,7 @@ export function ListDetailLayout(props: {
   const folded = props.listFolded
   return (
     <div ref={fillRef} data-list-detail={props.id} data-list-folded={folded ? '' : undefined} data-list-fill={fillHeight !== null ? '' : undefined} style={{ display: 'flex', alignItems: 'stretch', height: fillHeight ?? '100%', minHeight: 0 }}>
-      <div ref={column} data-list-pane={props.id} hidden={Boolean(folded)} style={{ flex: `0 0 ${width}px`, width, minWidth: 0, minHeight: 0, overflowY: 'auto', paddingRight: 4, display: folded ? 'none' : undefined }}>
+      <div ref={column} data-list-pane={props.id} hidden={Boolean(folded)} style={{ flex: `0 0 ${width}px`, width, minWidth: 0, minHeight: 0, overflowY: 'auto', position: 'relative', paddingRight: 4, display: folded ? 'none' : undefined }}>
         {props.list}
       </div>
       {!folded && (
@@ -123,7 +124,10 @@ export function ListDetailLayout(props: {
           <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', whiteSpace: 'nowrap' }}>{folded.label}</span>
         </button>
       )}
-      <div data-detail-column={props.id} style={{ flex: '1 1 0%', minWidth: 0, minHeight: 0, overflowY: 'auto', paddingLeft: 12, borderLeft: '1px solid var(--border)' }}>
+      <div
+        data-detail-column={props.id}
+        style={{ flex: '1 1 0%', minWidth: 0, minHeight: 0, paddingLeft: 12, borderLeft: '1px solid var(--border)', ...(fillHeight !== null ? { display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' } : { overflowY: 'auto' }) }}
+      >
         {props.detail}
       </div>
     </div>
