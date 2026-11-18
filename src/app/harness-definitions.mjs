@@ -47,7 +47,11 @@ const KEYS = new Set([
   "keepEnv",
   "tmpEnv",
   "resultAllow",
+  // The role classes a live proof ran this definition in (NK6.2), for the
+  // list in Settings › Models; nothing else reads it.
+  "proved",
 ]);
+export const ROLE_CLASSES = Object.freeze(["read", "write"]);
 // Variables a harness may keep to sign in to its own provider. Never a
 // GitHub, git, SSH, Kiro Crew or Avoozl name: those stay out of a child.
 const KEEP_NAME = /^[A-Z][A-Z0-9_]{0,63}$/;
@@ -191,6 +195,15 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
   for (const key of ["writeRoots", "allow", "resultAllow"])
     if (value[key] !== undefined)
       definition[key] = argv(value[key], key, source, { command: false });
+  if (value.proved !== undefined) {
+    if (
+      !Array.isArray(value.proved) ||
+      value.proved.some((item) => !ROLE_CLASSES.includes(item)) ||
+      new Set(value.proved).size !== value.proved.length
+    )
+      fail(`${source}: proved lists role classes, read or write, once each.`);
+    definition.proved = [...value.proved];
+  }
   // A definition names where the CLI may write only by these placeholders,
   // so it can never widen the roots with a path of its own (R94.4).
   if (definition.writeRoots) {
@@ -332,6 +345,16 @@ export function loadHarnessDefinition({ configDirectory, name }) {
 // file's name, whether its exact bytes are approved, and whether it can take
 // a model (`model` is set). Reads only; a bad file still lists, and is
 // refused when a session loads it.
+// Why a definition cannot run a read-only role, or null (NK6.1). A read-only
+// child writes its result file, and an output file, only where the
+// definition's `resultAllow` lets its harness; one with none would fail on
+// its first run.
+export function readRoleProblem(definition) {
+  return definition?.resultAllow
+    ? null
+    : `${definition?.name ?? "This harness"} names no resultAllow, so a read-only session cannot write its result file.`;
+}
+
 export function listHarnessDefinitions(configDirectory) {
   if (typeof configDirectory !== "string" || !configDirectory) return [];
   const directory = path.join(path.resolve(configDirectory), HARNESS_DIRECTORY);
@@ -345,16 +368,20 @@ export function listHarnessDefinitions(configDirectory) {
     .sort()
     .map((name) => {
       const bytes = fs.readFileSync(path.join(directory, `${name}.json`));
-      let model = false;
+      let value = null;
       try {
-        model = JSON.parse(bytes.toString("utf8"))?.model !== undefined;
+        value = JSON.parse(bytes.toString("utf8"));
       } catch {
         // A bad file lists without a model; a session refuses it.
       }
       return {
         name,
         approved: approvals[name] === harnessDefinitionHash(bytes),
-        model,
+        model: value?.model !== undefined,
+        readRoles: readRoleProblem({ name, resultAllow: value?.resultAllow }),
+        proved: Array.isArray(value?.proved)
+          ? value.proved.filter((item) => ROLE_CLASSES.includes(item))
+          : [],
       };
     });
 }
