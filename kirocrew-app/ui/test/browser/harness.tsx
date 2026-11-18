@@ -1388,7 +1388,7 @@ function IntakePage() {
       <NavHistoryProvider>
         <ConfirmProvider>
           <div data-intake-page style={{ padding: 16 }}>
-            <PluginsSettings workspaceId="w" />
+            <PluginsSettings workspaceId="w" onOpenGitHub={() => {}} onOpenRepositories={() => {}} />
           </div>
         </ConfirmProvider>
       </NavHistoryProvider>

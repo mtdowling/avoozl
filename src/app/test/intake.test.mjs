@@ -73,6 +73,12 @@ test("a rule takes one source: term; none means GitHub; a filter refuses it", ()
 });
 
 test("an intake source is checked like a plugins entry", () => {
+  const GITHUB_ENTRY = {
+    via: "github",
+    repository: "o/app",
+    project: "app",
+    assignee: "bot",
+  };
   assert.deepEqual(
     validateSource("tickets", {
       via: "plugin:fake-tracker",
@@ -89,15 +95,50 @@ test("an intake source is checked like a plugins entry", () => {
       minimumPermission: "write",
     },
   );
+  // A GitHub source (R109.1) carries the old issue intake keys.
+  assert.deepEqual(validateSource("github-o-app", GITHUB_ENTRY), {
+    id: "github-o-app",
+    via: "github",
+    plugin: null,
+    repository: "o/app",
+    github: "o/app",
+    projectId: "app",
+    assignee: "bot",
+    label: "avoozl:ready",
+    managedLabel: "avoozl:managed",
+    enabled: true,
+    autoStart: false,
+    provider: null,
+    model: null,
+    allowedActors: [],
+    minimumPermission: "write",
+  });
   for (const [id, entry, pattern] of [
     ["github", { via: "mcp", repository: "o/app" }, /built in/],
     ["local", { via: "mcp", repository: "o/app" }, /built in/],
     [
       "x",
       { via: "http", repository: "o/app" },
-      /via must be plugin:<id> or mcp/,
+      /via must be plugin:<id>, mcp or github/,
     ],
     ["x", { via: "mcp" }, /repository must name/],
+    [
+      "x",
+      { via: "mcp", repository: "o/app", label: "ready" },
+      /label is not an intake source setting/,
+    ],
+    [
+      "x",
+      { ...GITHUB_ENTRY, labelFields: ["kind"] },
+      /labelFields is not a GitHub source setting/,
+    ],
+    ["x", { ...GITHUB_ENTRY, repository: "app" }, /owner\/name/],
+    ["x", { ...GITHUB_ENTRY, assignee: "" }, /assignee is required/],
+    [
+      "x",
+      { ...GITHUB_ENTRY, minimumPermission: "read" },
+      /write, maintain or admin/,
+    ],
     [
       "x",
       { via: "mcp", repository: "o/app", token: "a" },

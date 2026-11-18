@@ -13,7 +13,7 @@ import { validateTrackedRouting } from "./placement.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { normalizeGitHubLabelBehaviors } from "./github-label-behaviors.mjs";
+import { githubSources, writeGitHubSources } from "./github-sources.mjs";
 import {
   normalizeGitHubPolicy,
   POLICY_KEYS,
@@ -232,141 +232,25 @@ function projectsInput(value, base) {
   return sortedRecord(result);
 }
 
-function repositoryId(value, label) {
-  if (
-    typeof value !== "string" ||
-    !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value)
-  )
-    fail(`${label} must be an owner/repository name.`);
-  return value;
-}
-
-function githubIssueInput(value, repository) {
-  if (!record(value))
-    fail(`GitHub issue intake ${repository} must contain a JSON object.`);
-  const allowed = new Set([
-    "projectId",
-    "workspaceRepositoryId",
-    "assignee",
-    "label",
-    "managedLabel",
-    "enabled",
-    "autoStart",
-    "provider",
-    "model",
-    "allowedActors",
-    "minimumPermission",
-  ]);
-  for (const key of Object.keys(value))
-    if (!allowed.has(key))
-      fail(`Unknown GitHub issue intake setting ${repository}.${key}.`);
-  const allowedActors = value.allowedActors ?? [];
-  if (
-    !Array.isArray(allowedActors) ||
-    allowedActors.some((actor) => typeof actor !== "string" || !actor.trim())
-  )
-    fail(`GitHub issue intake ${repository} allowedActors must be names.`);
-  const minimumPermission = value.minimumPermission || "write";
-  if (!["write", "maintain", "admin"].includes(minimumPermission))
-    fail(`GitHub issue intake ${repository} has an invalid permission.`);
+// The `github` block's policy, checked, and the GitHub sources of the
+// whole file (`intake.sources` plus old `github.issueIntake`, §4.38) by
+// repository. `github.queue` is ignored.
+function githubInput(github, whole = { github }) {
+  if (github !== undefined) {
+    if (!record(github))
+      fail("GitHub configuration must contain a JSON object.");
+    // Mode, Project and repository rules (§4.4); applied when read, not here.
+    normalizeGitHubPolicy(github);
+  }
   return {
-    projectId: text(
-      value.projectId,
-      `GitHub issue intake ${repository} project`,
-    ),
-    ...(value.workspaceRepositoryId === undefined
-      ? {}
-      : {
-          workspaceRepositoryId: text(
-            value.workspaceRepositoryId,
-            `GitHub issue intake ${repository} workspace repository`,
-          ),
-        }),
-    assignee: text(
-      value.assignee,
-      `GitHub issue intake ${repository} assignee`,
-    ),
-    label: text(
-      value.label || "avoozl:ready",
-      `GitHub issue intake ${repository} label`,
-    ),
-    managedLabel: text(
-      value.managedLabel || "avoozl:managed",
-      `GitHub issue intake ${repository} managed label`,
-    ),
-    enabled: value.enabled !== false,
-    autoStart: Boolean(value.autoStart),
-    provider: text(value.provider, "GitHub issue provider", { nullable: true }),
-    model: text(value.model, "GitHub issue model", { nullable: true }),
-    allowedActors: [
-      ...new Set(allowedActors.map((actor) => actor.trim())),
-    ].sort(),
-    minimumPermission,
-  };
-}
-
-function githubQueueInput(value, repository) {
-  if (!record(value))
-    fail(`GitHub Queue ${repository} must contain a JSON object.`);
-  const allowed = new Set([
-    "projectId",
-    "workspaceRepositoryId",
-    "enabled",
-    "includeIssues",
-    "includePullRequests",
-    "visibility",
-    "labelBehaviors",
-  ]);
-  for (const key of Object.keys(value))
-    if (!allowed.has(key))
-      fail(`Unknown GitHub Queue setting ${repository}.${key}.`);
-  const visibility = value.visibility || "private";
-  if (!["private", "public"].includes(visibility))
-    fail(`GitHub Queue ${repository} visibility must be private or public.`);
-  return {
-    projectId: text(value.projectId, `GitHub Queue ${repository} project`, {
-      nullable: true,
-    }),
-    ...(value.workspaceRepositoryId === undefined
-      ? {}
-      : {
-          workspaceRepositoryId: text(
-            value.workspaceRepositoryId,
-            `GitHub Queue ${repository} workspace repository`,
-          ),
-        }),
-    enabled: value.enabled !== false,
-    includeIssues: value.includeIssues !== false,
-    includePullRequests: value.includePullRequests !== false,
-    labelBehaviors: normalizeGitHubLabelBehaviors(value.labelBehaviors),
-    visibility,
-  };
-}
-
-function githubInput(value) {
-  if (value === undefined) return { issueIntake: {}, queue: {} };
-  if (!record(value)) fail("GitHub configuration must contain a JSON object.");
-  // Mode, Project and repository rules (§4.4); applied when read, not here.
-  normalizeGitHubPolicy(value);
-  const map = (items, normalize, label) => {
-    if (items === undefined) return {};
-    if (!record(items)) fail(`${label} must contain a JSON object.`);
-    return sortedRecord(
+    issueIntake: sortedRecord(
       Object.fromEntries(
-        Object.entries(items).map(([name, entry]) => {
-          const id = repositoryId(name, label);
-          return [id, normalize(entry, id)];
-        }),
+        githubSources(whole).map((source) => [
+          source.repository,
+          source.settings,
+        ]),
       ),
-    );
-  };
-  return {
-    issueIntake: map(
-      value.issueIntake,
-      githubIssueInput,
-      "GitHub issue intake",
     ),
-    queue: map(value.queue, githubQueueInput, "GitHub Queue"),
   };
 }
 
@@ -392,7 +276,7 @@ function planningRepositoryInput(value, base) {
 function desiredActions(value, base) {
   return {
     projects: projectsInput(value.projects, base),
-    github: githubInput(value.github),
+    github: githubInput(value.github, value),
     planningRepository: planningRepositoryInput(value.planningRepository, base),
   };
 }
@@ -428,7 +312,8 @@ function appliedActions(store) {
         entry.id,
         {
           projectId: entry.projectId,
-          ...(entry.workspaceRepositoryId
+          ...(entry.workspaceRepositoryId &&
+          entry.workspaceRepositoryId !== entry.projectId
             ? { workspaceRepositoryId: entry.workspaceRepositoryId }
             : {}),
           assignee: entry.assignee,
@@ -443,31 +328,10 @@ function appliedActions(store) {
         },
       ]),
     ),
-    queue = Object.fromEntries(
-      store.list("github_queue_repositories").map((entry) => [
-        entry.id,
-        {
-          projectId: entry.projectId || null,
-          ...(entry.workspaceRepositoryId
-            ? { workspaceRepositoryId: entry.workspaceRepositoryId }
-            : {}),
-          enabled: entry.enabled !== false,
-          includeIssues: entry.includeIssues !== false,
-          includePullRequests: entry.includePullRequests !== false,
-          labelBehaviors: normalizeGitHubLabelBehaviors(entry.labelBehaviors),
-          visibility:
-            entry.visibility ||
-            (entry.private === false ? "public" : "private"),
-        },
-      ]),
-    ),
     planning = store.getMeta("workspaceRepository");
   return {
     projects: sortedRecord(projects),
-    github: {
-      issueIntake: sortedRecord(issueIntake),
-      queue: sortedRecord(queue),
-    },
+    github: { issueIntake: sortedRecord(issueIntake) },
     planningRepository: planning
       ? {
           root: planning.root,
@@ -706,7 +570,7 @@ export class RepositorySettings {
     });
     if (scope === "repository") {
       // Refuse an invalid GitHub policy before it reaches the file.
-      githubInput(value.github);
+      githubInput(value.github, value);
       this.write(value, { expectedHash });
       this.reload();
       return {
@@ -780,7 +644,9 @@ export class RepositorySettings {
         privileged = privilegedConfiguration(file.value),
         desired = desiredActions(file.value, this.realWorkspaceRoot),
         applied = appliedActions(this.store),
-        restartDesired = withoutKeys(privileged, APPLY_KEYS);
+        // `intake` is read on each use (intake.mjs declaredSources), and
+        // its GitHub sources are compared under `github` above.
+        restartDesired = withoutKeys(privileged, [...APPLY_KEYS, "intake"]);
       if (this.restartBaseline === null)
         this.restartBaseline = structuredClone(restartDesired);
       this.applyRequired = changedTopLevelKeys(applied, desired);
@@ -837,6 +703,13 @@ export class RepositorySettings {
       value,
       `workspace Avoozl configuration at ${this.filename}`,
     );
+    // Old GitHub intake keys move into `intake.sources` on this write (§4.38).
+    if (
+      record(value.github) &&
+      (Object.hasOwn(value.github, "issueIntake") ||
+        Object.hasOwn(value.github, "queue"))
+    )
+      value = writeGitHubSources(structuredClone(value));
     assertPortableRepositoryConfig(
       value,
       `repository Avoozl configuration at ${this.filename}`,
@@ -924,7 +797,7 @@ export class RepositorySettings {
         ),
       );
     Object.assign(next, section);
-    githubInput(next);
+    githubInput(next, { ...value, github: next });
     if (Object.keys(next).length) value.github = next;
     else delete value.github;
     this.write(value, { expectedHash: before.hash });
@@ -1204,29 +1077,14 @@ export class RepositorySettings {
     return this.writeApplied(value, before.hash, ["projects"]);
   }
 
+  // A GitHub source for `entry`, a github_repositories record (§4.38).
   updateGitHubIssueIntake(entry) {
     const before = this.readFile(),
       value = this.updateValue(before);
     value.version = 1;
-    value.github = record(value.github) ? value.github : {};
-    value.github.issueIntake = record(value.github.issueIntake)
-      ? value.github.issueIntake
-      : {};
-    value.github.issueIntake[entry.id] = {
-      projectId: entry.projectId,
-      ...(entry.workspaceRepositoryId
-        ? { workspaceRepositoryId: entry.workspaceRepositoryId }
-        : {}),
-      assignee: entry.assignee,
-      label: entry.label || "avoozl:ready",
-      managedLabel: entry.managedLabel || "avoozl:managed",
-      enabled: true,
-      autoStart: Boolean(entry.autoStart),
-      provider: entry.provider || null,
-      model: entry.model || null,
-      allowedActors: [...new Set(entry.allowedActors || [])].sort(),
-      minimumPermission: entry.minimumPermission || "write",
-    };
+    writeGitHubSources(value, {
+      upsert: { repository: entry.id, settings: entry },
+    });
     return this.writeApplied(value, before.hash, ["github"]);
   }
 
@@ -1234,7 +1092,6 @@ export class RepositorySettings {
     id,
     previousRepository,
     project,
-    queue,
     issueIntake,
   }) {
     const before = this.readFile(),
@@ -1263,49 +1120,13 @@ export class RepositorySettings {
         ...executorSettings(project),
       };
     }
-    value.github = record(value.github) ? value.github : {};
-    value.github.queue = record(value.github.queue) ? value.github.queue : {};
-    value.github.issueIntake = record(value.github.issueIntake)
-      ? value.github.issueIntake
-      : {};
-    for (const repository of [previousRepository, queue?.id, issueIntake?.id])
-      if (repository) {
-        delete value.github.queue[repository];
-        delete value.github.issueIntake[repository];
-      }
-    if (queue)
-      value.github.queue[queue.id] = {
-        projectId: queue.projectId || null,
-        ...(queue.workspaceRepositoryId
-          ? { workspaceRepositoryId: queue.workspaceRepositoryId }
-          : {}),
-        enabled: queue.enabled !== false,
-        includeIssues: queue.includeIssues !== false,
-        includePullRequests: queue.includePullRequests !== false,
-        labelBehaviors: normalizeGitHubLabelBehaviors(queue.labelBehaviors),
-        visibility:
-          queue.visibility || (queue.private === false ? "public" : "private"),
-      };
-    if (issueIntake)
-      value.github.issueIntake[issueIntake.id] = {
-        projectId: issueIntake.projectId,
-        ...(issueIntake.workspaceRepositoryId
-          ? { workspaceRepositoryId: issueIntake.workspaceRepositoryId }
-          : {}),
-        assignee: issueIntake.assignee,
-        label: issueIntake.label || "avoozl:ready",
-        enabled: true,
-        autoStart: Boolean(issueIntake.autoStart),
-        provider: issueIntake.provider || null,
-        model: issueIntake.model || null,
-        allowedActors: [...new Set(issueIntake.allowedActors || [])].sort(),
-        minimumPermission: issueIntake.minimumPermission || "write",
-      };
+    writeGitHubSources(value, {
+      upsert: issueIntake
+        ? { repository: issueIntake.id, settings: issueIntake }
+        : null,
+      remove: [previousRepository],
+    });
     if (!Object.keys(value.projects || {}).length) delete value.projects;
-    if (!Object.keys(value.github.queue).length) delete value.github.queue;
-    if (!Object.keys(value.github.issueIntake).length)
-      delete value.github.issueIntake;
-    if (!Object.keys(value.github).length) delete value.github;
     return this.writeApplied(value, before.hash, ["projects", "github"]);
   }
 
@@ -1314,7 +1135,6 @@ export class RepositorySettings {
       id: repository.id,
       previousRepository: repository.github,
       project: null,
-      queue: null,
       issueIntake: null,
     });
   }
@@ -1391,11 +1211,10 @@ export class RepositorySettings {
           },
         ]),
       );
-    if (
-      Object.keys(applied.github.issueIntake).length ||
-      Object.keys(applied.github.queue).length
-    )
-      value.github = structuredClone(applied.github);
+    for (const [repository, settings] of Object.entries(
+      applied.github.issueIntake,
+    ))
+      writeGitHubSources(value, { upsert: { repository, settings } });
     if (applied.planningRepository)
       value.planningRepository = {
         ...applied.planningRepository,

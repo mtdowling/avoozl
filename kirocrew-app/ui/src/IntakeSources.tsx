@@ -1,7 +1,9 @@
-// Settings > Plugins > Intake sources (design §4.12, R50.6): where work
-// comes in from. GitHub is built in and set in Settings > GitHub; it shows
-// here read-only. Any other source is a tracker plugin with poll, or `mcp`
-// for a script or cron job that sends items. Each source is one box with
+// Settings > Plugins > Intake sources (design §4.12, §4.38, R50.6, R109):
+// where work comes in from, one list. A GitHub source is a repository whose
+// issues may start work; it is set in Repository setup and shows here with
+// a link there. The GitHub box is the Triage reader: what no source covers.
+// Any other source is a tracker plugin with poll, or `mcp` for a script or
+// cron job that sends items. Each source is one box with
 // its status (on or off, last poll, items, last error), what it can set
 // off, and who counts. A source is declared on this computer by default;
 // sharing it in `.avoozl.json` asks you to confirm, because its id and
@@ -21,6 +23,7 @@ import {
   PERMISSIONS,
   emptySourceForm,
   intakeClient,
+  isGitHubSource,
   listText,
   sourceEntry,
   sourceStatus,
@@ -153,11 +156,12 @@ function GitHubBox({ github, onOpen }: { github: IntakeGitHub; onOpen?: () => vo
   )
 }
 
-function SourceRow({ row, plugins, busy, onRemove }: { row: IntakeSourceRow; plugins: PluginRow[]; busy: boolean; onRemove: () => void }) {
+function SourceRow({ row, plugins, busy, onRemove, onOpenRepositories }: { row: IntakeSourceRow; plugins: PluginRow[]; busy: boolean; onRemove: () => void; onOpenRepositories?: () => void }) {
   const entry = row.entry ?? {}
   const status = sourceStatus(row, plugins)
   const triggers = sourceTriggers(row, plugins)
   const id = row.id ?? 'unreadable'
+  const github = isGitHubSource(row)
   return (
     <SourceBox
       id={`source-${id}`}
@@ -172,7 +176,13 @@ function SourceRow({ row, plugins, busy, onRemove }: { row: IntakeSourceRow; plu
       problem={status.problem ? { kind: status.tone === 'off' ? 'Off' : row.error ? 'Not used' : 'Last error', text: status.problem } : null}
       attrs={{ 'data-intake-source-row': row.id ?? '', 'data-tone': status.tone }}
       actions={
-        row.id ? (
+        github ? (
+          onOpenRepositories ? (
+            <IconLabel icon={Settings} onClick={onOpenRepositories} tooltip="Its label, assignee and who counts are set there">
+              Open Repository setup
+            </IconLabel>
+          ) : undefined
+        ) : row.id ? (
           <DangerBtn
             icon={Trash2}
             label={`Remove intake source ${row.id}`}
@@ -193,9 +203,25 @@ function SourceRow({ row, plugins, busy, onRemove }: { row: IntakeSourceRow; plu
         <Fact label="Comes from" raw="via">
           {viaLabel(entry.via)}
         </Fact>
-        <Fact label="Work lands in" raw="repository">
+        <Fact label={github ? 'Repository' : 'Work lands in'} raw="repository">
           {String(entry.repository ?? '')}
         </Fact>
+        {github && (
+          <>
+            <Fact label="Work runs in" raw="project">
+              {String(entry.project ?? '')}
+            </Fact>
+            <Fact label="Ready label" raw="label">
+              {String(entry.label ?? 'avoozl:ready')}
+            </Fact>
+            <Fact label="Assigned to" raw="assignee">
+              {String(entry.assignee ?? '')}
+            </Fact>
+            <Fact label="Starts on its own" raw="autoStart">
+              {entry.autoStart ? 'Yes' : 'No'}
+            </Fact>
+          </>
+        )}
         <Fact label="Can trigger">
           <span className="font-semibold">{triggers.level}.</span> {triggers.line}
         </Fact>
@@ -210,6 +236,11 @@ function SourceRow({ row, plugins, busy, onRemove }: { row: IntakeSourceRow; plu
         {typeof entry.assigneeField === 'string' && (
           <Fact label="Assignee field" raw="assigneeField">
             {entry.assigneeField}
+          </Fact>
+        )}
+        {github && row.escalationLabel && (
+          <Fact label="Issue Radar asks">
+            Issues with <code>{row.escalationLabel}</code> open first in Triage
           </Fact>
         )}
         {row.state?.cursor && (
@@ -434,7 +465,7 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
   )
 }
 
-export default function IntakeSources({ workspaceId, plugins, onOpenGitHub }: { workspaceId: string; plugins: PluginRow[]; onOpenGitHub?: () => void }) {
+export default function IntakeSources({ workspaceId, plugins, onOpenGitHub, onOpenRepositories }: { workspaceId: string; plugins: PluginRow[]; onOpenGitHub?: () => void; onOpenRepositories?: () => void }) {
   const api = useAppApi()
   const client = useMemo(() => intakeClient(api), [api])
   const load = useCallback((id: string) => client.list(id), [client])
@@ -446,6 +477,9 @@ export default function IntakeSources({ workspaceId, plugins, onOpenGitHub }: { 
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   const rows = value?.sources ?? []
+  // The empty state and the Add button count plugin and MCP sources only:
+  // GitHub sources are added in Repository setup.
+  const others = rows.filter((row) => !isGitHubSource(row))
   const remove = (row: IntakeSourceRow) => {
     setBusy(true)
     setProblem(null)
@@ -456,7 +490,7 @@ export default function IntakeSources({ workspaceId, plugins, onOpenGitHub }: { 
       .finally(() => setBusy(false))
   }
   const addButton = (
-    <IconLabel icon={Plus} primary={!rows.length} onClick={() => setAdding(true)} disabled={busy}>
+    <IconLabel icon={Plus} primary={!others.length} onClick={() => setAdding(true)} disabled={busy}>
       Add a source
     </IconLabel>
   )
@@ -466,7 +500,7 @@ export default function IntakeSources({ workspaceId, plugins, onOpenGitHub }: { 
         <SectionHeading
           id="avoozl-intake-title"
           title="Intake sources"
-          actions={rows.length ? addButton : undefined}
+          actions={others.length ? addButton : undefined}
           blurb="Where work comes in. Items show in the Intake tab. Avoozl writes nothing back to a source."
           className="mb-3"
         />
@@ -478,10 +512,10 @@ export default function IntakeSources({ workspaceId, plugins, onOpenGitHub }: { 
         <ul className="m-0 flex list-none flex-col gap-3 p-0" aria-label="Intake sources">
           {value?.github && <GitHubBox github={value.github} onOpen={onOpenGitHub} />}
           {rows.map((row, i) => (
-            <SourceRow key={`${row.id}-${row.scope}-${i}`} row={row} plugins={plugins} busy={busy} onRemove={() => remove(row)} />
+            <SourceRow key={`${row.id}-${row.scope}-${i}`} row={row} plugins={plugins} busy={busy} onRemove={() => remove(row)} onOpenRepositories={onOpenRepositories} />
           ))}
         </ul>
-        {value && !rows.length && (
+        {value && !others.length && (
           <div className="mt-3 rounded-lg border p-3" style={{ ...BOX, borderStyle: 'dashed' }} data-intake-empty>
             <EmptyState
               title="No other source yet"

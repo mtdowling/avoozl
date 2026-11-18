@@ -876,7 +876,8 @@ export function priorityRank(priority, labels) {
 }
 
 // The `github` block of `.avoozl.json`. `issueIntake` and `queue` are the
-// older settings; repository-settings.mjs validates them.
+// older settings: github-sources.mjs reads `issueIntake` as intake sources
+// and ignores `queue` (§4.38).
 export function normalizeGitHubPolicy(value) {
   if (value === undefined || value === null) value = {};
   onlyKeys(value, [...LEGACY_KEYS, ...POLICY_KEYS], "github");

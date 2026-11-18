@@ -345,9 +345,15 @@ export interface IntakeSourceRow {
   entry: Record<string, unknown> | null
   error: string | null
   state?: { cursor: string | null; readAt: string | null; error: string | null; more?: boolean; refused?: unknown[] } | null
-  // What it holds (absent from older backends).
-  items?: SourceItems
+  // What it holds (absent from older backends; null for a GitHub source,
+  // whose items are counted under GitHub).
+  items?: SourceItems | null
+  // A GitHub source: its repository's Issue Radar escalation label.
+  escalationLabel?: string | null
 }
+
+// A GitHub source (design §4.38): set in Repository setup.
+export const isGitHubSource = (row: IntakeSourceRow) => row.entry?.via === 'github'
 
 // GitHub's own intake: set in Settings > GitHub, shown here read-only.
 export interface IntakeGitHub {
@@ -410,7 +416,7 @@ export function sourceEntry(form: SourceForm, taken: string[]): { id?: string; e
 // "Plugin ticket-tracker" or "MCP", from a source's `via`.
 export function viaLabel(via: unknown): string {
   const text = String(via ?? '')
-  return text.startsWith('plugin:') ? `Plugin ${text.slice(7)}` : text === 'mcp' ? 'MCP (a script or cron job sends items)' : text || 'Unknown'
+  return text.startsWith('plugin:') ? `Plugin ${text.slice(7)}` : text === 'mcp' ? 'MCP (a script or cron job sends items)' : text === 'github' ? 'GitHub (issues in this repository)' : text || 'Unknown'
 }
 
 const strings = (value: unknown) => (Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [])
@@ -431,6 +437,11 @@ export function sourceStatus(row: IntakeSourceRow, plugins: PluginRow[], now = D
   const refused = row.state?.refused?.length ?? 0
   if (refused) facts.push(`${refused} refused`)
   if (row.error) return { tone: 'error', label: 'Not used', facts, problem: row.error }
+  if (via === 'github') {
+    facts.push(row.state?.readAt ? `Read ${relativeTime(row.state.readAt, now)}` : 'Not read yet')
+    if (row.state?.error) return { tone: 'error', label: 'Error', facts, problem: row.state.error }
+    return row.state?.readAt ? { tone: 'ok', label: 'On', facts, problem: null } : { tone: 'waiting', label: 'Waiting', facts, problem: null }
+  }
   if (plugin && plugin.state !== 'approved')
     return { tone: 'off', label: 'Off', facts, problem: `Plugin ${pluginId} is ${stateLabel(plugin).label.toLowerCase()}. Turn it on in its plugin card above.` }
   if (row.state?.error) return { tone: 'error', label: 'Error', facts, problem: row.state.error }
@@ -443,6 +454,7 @@ export function sourceStatus(row: IntakeSourceRow, plugins: PluginRow[], now = D
 // meet only pause and quarantine rules.
 export function sourceTriggers(row: IntakeSourceRow, plugins: PluginRow[]): { level: string; line: string } {
   const via = String(row.entry?.via ?? '')
+  if (via === 'github') return { level: 'Full rules', line: "Its ready label, or the repository's trigger rules, can start work when the person who acted counts." }
   if (!via.startsWith('plugin:'))
     return { level: 'Untriaged only', line: 'Rules can only pause or quarantine its items. You start work with Plan this or Deliver this.' }
   const id = via.slice(7)

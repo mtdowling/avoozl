@@ -474,19 +474,21 @@ test("explicit Settings operations persist typed desired state without changing 
   assert.equal(saved.projects.code.root, "code");
   assert.equal(saved.projects.code.worktreeRoot, ".avoozl-worktrees");
   assert.deepEqual(saved.projects.code.checks, [["npm", "run", "test"]]);
-  assert.deepEqual(saved.github.issueIntake["Example/Code"], {
-    projectId: "code",
-    assignee: "operator",
+  // github.configure writes a GitHub source, never the old key (R109.3).
+  assert.deepEqual(saved.intake.sources["github-example-code"], {
+    via: "github",
+    repository: "Example/Code",
+    project: "code",
     label: "ready",
     managedLabel: "projected",
-    enabled: true,
+    assignee: "operator",
     autoStart: false,
     provider: null,
     model: null,
     allowedActors: ["maintainer"],
     minimumPermission: "write",
   });
-  assert.equal(saved.github.queue, undefined);
+  assert.equal(saved.github, undefined);
   assert.equal(saved.planningRepository.root, "planning");
   assert.deepEqual(configuration.metadata().pending, []);
   assert.deepEqual(configuration.metadata().applyRequired, []);
@@ -503,11 +505,14 @@ test("explicit Settings operations persist typed desired state without changing 
   assert.equal(connected.execution.id, "Example/Code");
   assert.equal(connected.queue, undefined);
   const afterConnect = JSON.parse(fs.readFileSync(filename, "utf8"));
+  assert.deepEqual(Object.keys(afterConnect.intake.sources), [
+    "github-example-code",
+  ]);
   assert.equal(
-    afterConnect.github.issueIntake["Example/Code"].projectId,
+    afterConnect.intake.sources["github-example-code"].project,
     "code",
   );
-  assert.equal(afterConnect.github.queue, undefined);
+  assert.equal(afterConnect.github, undefined);
   const reopened = new RepositorySettings(store, { workspaceRoot: root });
   assert.equal(
     reopened.metadata().lastApplied.hash,
@@ -585,8 +590,12 @@ test("creating repository JSON materializes already-applied non-secret settings"
     fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"),
   );
   assert.equal(saved.projects.code.root, "code");
-  assert.equal(saved.github.issueIntake["example/code"].assignee, "operator");
-  assert.equal(saved.github.queue["example/code"].projectId, "code");
+  assert.equal(
+    saved.intake.sources["github-example-code"].assignee,
+    "operator",
+  );
+  // The retired queue is not written (R109.4).
+  assert.equal(saved.github, undefined);
   assert.equal(saved.planningRepository.root, "planning");
   assert.equal(saved.conversations.autoArchiveCompleted, false);
   assert.deepEqual(configuration.metadata().pending, []);

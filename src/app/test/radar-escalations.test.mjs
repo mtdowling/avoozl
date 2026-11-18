@@ -9,6 +9,9 @@ import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { machineIdentity } from "../github-sync.mjs";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
+import { githubSourceId } from "../github-sources.mjs";
+import { intakeSpecIssue } from "../radar-backlinks.mjs";
+import { RepositorySettings } from "../repository-settings.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -22,7 +25,8 @@ const RECORDED = JSON.parse(
 );
 const REPO = RECORDED.repository,
   NEEDS_HUMAN = "plan me",
-  CLAIM = "crew: in progress";
+  CLAIM = "crew: in progress",
+  sourceId = githubSourceId(REPO);
 
 // A recorded issue, with another author, extra labels or a creation time.
 const recorded = (number, { author, labels = [], createdAt } = {}) => {
@@ -122,7 +126,7 @@ const POLICY = (extra = {}) => ({
   },
 });
 
-function workspace(t, github, policy = POLICY()) {
+function workspace(t, github, policy = POLICY(), extra = {}) {
   const { store } = fixture(t),
     root = temporaryDirectory();
   fs.writeFileSync(
@@ -131,6 +135,7 @@ function workspace(t, github, policy = POLICY()) {
       version: 1,
       namespace: "avz_0123456789abcdef",
       github: policy,
+      ...extra,
     }),
   );
   store.put("github_repositories", {
@@ -144,6 +149,7 @@ function workspace(t, github, policy = POLICY()) {
   return {
     store,
     ops,
+    root,
     async read() {
       await ops.execute("untriaged.view", { refresh: true });
       return {
@@ -155,6 +161,102 @@ function workspace(t, github, policy = POLICY()) {
     },
   };
 }
+
+// R109.8: a repository whose GitHub source is an old `github.issueIntake`
+// entry, one written as a source, and one moved by Avoozl's next write all
+// keep Radar intake, Radar asks in Triage and back-links.
+test("Radar intake, asks and back-links survive the move to one intake list", async (t) => {
+  const OLD = {
+      issueIntake: { [REPO]: { projectId: "code", assignee: "operator" } },
+      queue: { [REPO]: { projectId: "code", labelBehaviors: {} } },
+    },
+    SOURCE = {
+      intake: {
+        sources: {
+          "github-radar": {
+            via: "github",
+            repository: REPO,
+            project: "code",
+            assignee: "operator",
+          },
+        },
+      },
+    };
+  for (const form of ["old", "source", "moved"]) {
+    const github = fakeGitHub([
+        recorded(2, { createdAt: "2026-11-15T05:00:00Z" }),
+        recorded(12),
+        recorded(14),
+      ]),
+      { store, ops, root, read } = workspace(
+        t,
+        github,
+        form === "source" ? POLICY() : { ...POLICY(), ...OLD },
+        form === "source" ? SOURCE : {},
+      );
+    if (form === "moved") {
+      new RepositorySettings(store, {
+        workspaceRoot: root,
+      }).updateConversationSettings({ autoArchiveCompleted: false });
+      const file = JSON.parse(
+        fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"),
+      );
+      assert.equal(file.github.issueIntake, undefined, form);
+      assert.equal(file.github.queue, undefined, form);
+      assert.equal(file.intake.sources[sourceId].repository, REPO, form);
+    }
+    const listed = (await ops.execute("intake.sources", {})).sources.filter(
+      (row) => row.entry?.via === "github",
+    );
+    assert.deepEqual(
+      listed.map((row) => [row.entry.repository, row.error]),
+      [[REPO, null]],
+      form,
+    );
+    const { intake, needsYou } = await read();
+    assert.deepEqual(
+      intake.items.map((item) => item.number),
+      [12, 2],
+      form,
+    );
+    assert.deepEqual(intake.items[0].start, { plan: true, deliver: true });
+    assert.deepEqual(
+      needsYou.map((row) => row.issue.number),
+      [14],
+      form,
+    );
+    assert.deepEqual(github.writes, [], "reading writes nothing");
+    // Back-links read the stored repository rows, which the move leaves.
+    store.put("github_repositories", {
+      ...store.get("github_repositories", REPO),
+      private: false,
+    });
+    store.put("github_repositories", {
+      id: "o/plans",
+      owner: "o",
+      repo: "plans",
+      private: false,
+    });
+    store.put("plans", {
+      id: "s",
+      spec: "s",
+      context: { newPlan: { source: { repository: REPO, number: 12 } } },
+    });
+    store.put("receipts", {
+      id: "github-parent:plan:s",
+      kind: "github-parent",
+      level: "plan",
+      parentId: "s",
+      repository: "o/plans",
+      number: 40,
+    });
+    assert.deepEqual(
+      intakeSpecIssue(store, { repository: REPO, number: 12 }),
+      { repository: "o/plans", number: 40 },
+      form,
+    );
+  }
+});
 
 test("a trusted escalation lists first in Untriaged with Plan this and Deliver this", async (t) => {
   // #2 is a plain issue, newer than the escalation #12 (new-feature skip).
