@@ -17,7 +17,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const PIN_FILE = path.join(root, "kirocrew-app", "ui", "kirocrew-pin.json");
+export const PIN_FILE = path.join(
+  root,
+  "kirocrew-app",
+  "ui",
+  "kirocrew-pin.json",
+);
 
 // What the build reads from Kiro Crew. Each entry is a file or a folder; the
 // digest covers exactly these.
@@ -54,7 +59,9 @@ export function treeDigest(folder) {
     sum = createHash("sha256");
   for (const file of all)
     sum.update(
-      `${createHash("sha256").update(fs.readFileSync(path.join(folder, file))).digest("hex")}  ${file}\n`,
+      `${createHash("sha256")
+        .update(fs.readFileSync(path.join(folder, file)))
+        .digest("hex")}  ${file}\n`,
     );
   return `sha256:${sum.digest("hex")}`;
 }
@@ -91,11 +98,16 @@ function download(pin, into) {
   git(["config", "core.sparseCheckout", "true"], into);
   // Hash the bytes git stores, whatever the platform's line-ending setting.
   git(["config", "core.autocrlf", "false"], into);
+  git(["config", "core.eol", "lf"], into);
+  git(["config", "core.longpaths", "true"], into);
   fs.writeFileSync(
     path.join(into, ".git", "info", "sparse-checkout"),
     KEEP.map((entry) => `/${entry}`).join("\n") + "\n",
   );
-  git(["fetch", "-q", "--depth", "1", "--filter=blob:none", "origin", pin.commit], into);
+  git(
+    ["fetch", "-q", "--depth", "1", "--filter=blob:none", "origin", pin.commit],
+    into,
+  );
   git(["checkout", "-q", "FETCH_HEAD"], into);
   if (git(["rev-parse", "HEAD"], into) !== pin.commit)
     throw new Error(`The fetched commit is not the pinned ${pin.commit}.`);
@@ -125,7 +137,13 @@ export function fetchKiroCrewUi({
   try {
     download(pin, staging);
     checkDigest(staging, pin);
-    fs.renameSync(staging, folder);
+    try {
+      fs.renameSync(staging, folder);
+    } catch (error) {
+      // Another build put the same verified tree there first.
+      checkDigest(folder, pin);
+      fs.rmSync(staging, { recursive: true, force: true });
+    }
   } catch (error) {
     fs.rmSync(staging, { recursive: true, force: true });
     throw new Error(
@@ -135,7 +153,10 @@ export function fetchKiroCrewUi({
   return folder;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   try {
     if (process.argv.includes("--digest"))
       console.log(treeDigest(fetchFolder()));
@@ -148,6 +169,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
 
 function fetchFolder() {
   const given = process.env.AVOOZL_KIROCREW_SOURCE;
-  if (!given) throw new Error("Set AVOOZL_KIROCREW_SOURCE to a folder to digest.");
+  if (!given)
+    throw new Error("Set AVOOZL_KIROCREW_SOURCE to a folder to digest.");
   return given;
 }

@@ -15,7 +15,7 @@ const entries: Record<string, [string, string]> = {
 }
 
 export default defineConfig(({ mode }) => {
-  if (mode === 'standalone') return standaloneConfig(fetchKiroCrewUi())
+  if (mode === 'standalone' || mode === 'standalone-css') return standaloneConfig(fetchKiroCrewUi(), mode)
   const entry = entries[mode] ?? entries.page
   return {
     plugins: [react()],
