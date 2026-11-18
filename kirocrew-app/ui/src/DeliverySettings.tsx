@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import { SaveFooter } from './SaveFooter.tsx'
-import { Marker, Section } from './SettingsView.tsx'
+import { Section } from './SettingsView.tsx'
+import { CheckRow, FieldRow, RawKey } from './FieldRow.tsx'
 import { AskForHelp, useConfirm } from './controls.tsx'
 import { modelOptions, parseModels } from './flow-api.ts'
 import { useRead } from './useRead.ts'
@@ -17,25 +18,12 @@ const OPTIONAL = { required: false } as const
 const OFF_BLURB = 'The tick starts no ready task until delivery is on. Its agent, model and pull request settings show here then.'
 const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
-function Raw({ name }: { name: string }) {
-  return (
-    <code className="text-[11px] text-muted" style={{ overflowWrap: 'anywhere', opacity: 0.8 }}>
-      {name}
-    </code>
-  )
-}
-
+// A field: the shared FieldRow, every Delivery value optional.
 function Labeled(props: { id: string; label: string; raw: string; width: string; note?: string; children: React.ReactNode }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 text-sm" style={{ maxWidth: props.width, width: '100%' }}>
-      <label htmlFor={props.id} className="flex flex-wrap items-baseline gap-x-2">
-        <span className="font-medium">{props.label}</span>
-        <Marker rule={OPTIONAL} />
-      </label>
+    <FieldRow id={props.id} label={props.label} raw={props.raw} rule={OPTIONAL} width={props.width} help={props.note}>
       {props.children}
-      {props.note && <span className="text-xs text-muted">{props.note}</span>}
-      <Raw name={props.raw} />
-    </div>
+    </FieldRow>
   )
 }
 
@@ -188,7 +176,7 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
             }))}
           />
           {form.ship === 'manual' && <p className="text-xs text-muted">Briefs tell writers not to turn on auto-merge.</p>}
-          <Raw name="delivery.ship" />
+          <RawKey name="delivery.ship" />
         </Section>
         <Section title="Investigate first" blurb="Before coding, the writer reports what it found and how sure it is; a second chat tries to prove it wrong. Coding starts only when both are sure enough and the findings stand.">
           <div className="flex flex-wrap gap-4">
@@ -208,12 +196,7 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
           </div>
         </Section>
         <Section title="Pull request feedback" blurb="Send failed checks and allowed reviewers' comments back to the chat that wrote the pull request. Matters only in a GitHub mode.">
-          <label className="flex flex-wrap items-center gap-2 text-sm">
-            <input type="checkbox" checked={feedback} onChange={(e) => set({ prFeedback: e.target.checked ? 'on' : 'off' })} />
-            <span className="font-medium">Send pull request feedback to the writer</span>
-            <Marker rule={OPTIONAL} />
-          </label>
-          <Raw name="delivery.prFeedback" />
+          <CheckRow label="Send pull request feedback to the writer" help="On by default." raw="delivery.prFeedback" checked={feedback} onChange={(on) => set({ prFeedback: on ? 'on' : 'off' })} />
           <Labeled id="avoozl-delivery-rounds" label="Most feedback rounds per task" raw="delivery.feedbackRounds" width="16rem" note="Then Avoozl stops and asks you.">
             <Input id="avoozl-delivery-rounds" inputMode="numeric" value={form.feedbackRounds} placeholder={String(DELIVERY_DEFAULTS.feedbackRounds)} onChange={(e) => set({ feedbackRounds: e.target.value })} />
           </Labeled>

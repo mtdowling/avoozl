@@ -4522,14 +4522,23 @@ export class Operations {
           ),
           input,
         );
+      const repositories = workspaceRepositories(store).filter(
+          (repo) => !repo.planning,
+        ),
+        // The issue names its GitHub repository; the plan names the
+        // workspace repository that holds it, whose id is its own.
+        workspaceId = (github) =>
+          repositories.find(
+            (repo) =>
+              repo.id === github ||
+              String(repo.github ?? "").toLowerCase() === github.toLowerCase(),
+          )?.id ?? github;
       return requestNewPlan(
         store,
-        fields,
+        { ...fields, repositories: fields.repositories.map(workspaceId) },
         {
           readSpec: (spec) => this.readSpec(spec),
-          repositories: workspaceRepositories(store).filter(
-            (repo) => !repo.planning,
-          ),
+          repositories,
           specRoot: this.specRoots()[0] || null,
           template: (ref) => pickTemplate(this.pluginOptions, ref),
         },
