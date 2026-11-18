@@ -442,7 +442,7 @@ nothing.
 
 ## D13. Scheduling by footprint
 
-`footprint` = declared `paths` of the task (the manifest field Pick already
+`footprint` = declared `paths` of the task (the task fact Pick already
 reads) ∪ `git diff --name-only forkPoint..head`. Two entries overlap when any
 path or glob matches. Under `same-train`, `take` pulls each overlapping later
 entry forward to sit right after the earliest entry it overlaps, as long as
@@ -669,8 +669,8 @@ platform needs (D9.3). Avoozl's own `test.yml` already runs `push` only on
 
 ## D20. Owner steps
 
-Steps 1, 2 and 4 are not tasks. Step 3 is `lt-p4`, marked manual in the
-manifest.
+Steps 1, 2 and 4 are not tasks. Step 3 is `lt-p4`, marked `manual: true` in
+its facts.
 
 1. Approve this spec.
 2. For Nupp: add the batch-branch CI exclusions from D17 to its workflows,

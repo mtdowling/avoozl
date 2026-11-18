@@ -7,6 +7,7 @@ import test from "node:test";
 import { GitHubClient } from "../github.mjs";
 import { syncNeedsYou, syncStep, syncTargets } from "../integration-sync.mjs";
 import { fixture } from "./fixtures.mjs";
+import { factsFiles } from "./spec-fixture.mjs";
 
 const REPO = "example/code";
 const BRANCH = "rewrite/x";
@@ -201,7 +202,7 @@ function plan(store, spec, manifest, extra = {}) {
     id: `approval-${spec}`,
     planId: spec,
     hash: "h",
-    files: { "avoozl/manifest.json": JSON.stringify(manifest) },
+    files: factsFiles(manifest),
   });
   store.put("plans", {
     id: spec,

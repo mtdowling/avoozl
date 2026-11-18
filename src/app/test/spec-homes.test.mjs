@@ -327,19 +327,16 @@ test("a public spec that requires a private task is named, one that does not pas
   const github = new FakeGitHub();
   putPrivate(github, "hidden");
   const privateSpecs = await readPrivateSpecs(github, mirror),
-    files = specFiles(),
-    edge = (id) =>
-      JSON.stringify({
-        tasks: {
-          1.1: {
-            ...JSON.parse(files["avoozl/manifest.json"]).tasks[1.1],
-            requires: [id],
-          },
-        },
-      });
+    files = specFiles();
   const withEdge = {
     name: "open",
-    files: { ...files, "avoozl/manifest.json": edge("hidden.1.1") },
+    files: {
+      ...files,
+      "tasks.md": files["tasks.md"].replace(
+        "      - after: 1.1",
+        "      - after: hidden.1.1",
+      ),
+    },
   };
   assert.deepEqual(privateDependencies(withEdge, privateSpecs), ["hidden.1.1"]);
   assert.deepEqual(

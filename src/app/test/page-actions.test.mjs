@@ -160,7 +160,7 @@ test("a GitHub task's edit routes to a change preview that writes nothing", asyn
   assert.equal(store.read().revision, before);
 });
 
-test("an approved spec task's edit previews the tasks.md line and manifest entry", async (t) => {
+test("an approved spec task's edit previews the tasks.md line and its facts", async (t) => {
   const { root, store, ops } = workspace(t);
   writeSpec(root, "config");
   const plan = await ops.execute("plan.create", { spec: "config" }),
@@ -183,13 +183,12 @@ test("an approved spec task's edit previews the tasks.md line and manifest entry
   });
   assert.equal(change.route, "spec");
   assert.deepEqual(change.tasks, {
-    line: 5,
+    line:
+      tasksBefore.split("\n").indexOf("  - [ ] 1.2 Validate loaded config") + 1,
     before: "  - [ ] 1.2 Validate loaded config",
     after: "  - [ ] 1.2 Validate and report config",
   });
-  assert.deepEqual(change.manifest.after.acceptance, [
-    "Unknown keys are listed.",
-  ]);
+  assert.deepEqual(change.facts.after.acceptance, ["Unknown keys are listed."]);
   assert.equal(
     fs.readFileSync(path.join(root, ".kiro/specs/config/tasks.md"), "utf8"),
     tasksBefore,

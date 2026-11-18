@@ -10,6 +10,7 @@ import {
   openApproval,
   reconcileApproval,
   statusOf,
+  withStatus,
 } from "../spec-approval.mjs";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
@@ -17,7 +18,6 @@ const files = () => ({
   "requirements.md": "# Requirements\n\nStatus: Draft\n\nBody.\n",
   "design.md": "# Design\n\nStatus: Draft\n\nBody.\n",
   "tasks.md": "# Tasks\n\nStatus: Draft\n\n- [ ] 1 Do it\n",
-  "avoozl/manifest.json": "{}",
 });
 
 // An in-memory store and GitHub. No network, no real repository.
@@ -320,10 +320,10 @@ test("private approval branches from the orphan ref and records its ref only on 
   assert.equal(source, "private-plans");
   assert.equal(github.pulls[0].base, "private-plans");
   assert.equal(
-    github.written.find((file) => file.path.endsWith("avoozl/manifest.json"))
-      .text,
-    args.files["avoozl/manifest.json"],
+    github.written.find((file) => file.path.endsWith("/tasks.md")).text,
+    withStatus(args.files["tasks.md"], "Approved"),
   );
+  assert.ok(!github.written.some((file) => file.path.endsWith(".json")));
   github.merge(1);
   github.pulls[0].base = { ref: "main" };
   await assert.rejects(

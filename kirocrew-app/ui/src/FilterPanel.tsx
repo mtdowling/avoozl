@@ -15,6 +15,8 @@ import type { Option } from './filters.ts'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { SelectField } from './ui/SelectField'
+import { Checkbox } from './ui/Checkbox'
 
 export type FilterField = (
   | { kind: 'search'; key: string; label: string; value: string; placeholder: string; onChange: (value: string) => void }
@@ -68,7 +70,7 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
   if (field.kind === 'check')
     return (
       <label className="flex items-center gap-1.5 pb-1 text-sm">
-        <input type="checkbox" checked={field.checked} onChange={(event) => field.onChange(event.target.checked)} />
+        <Checkbox checked={field.checked} onChange={(event) => field.onChange(event.target.checked)} />
         {field.label}
       </label>
     )
@@ -113,14 +115,14 @@ function InlineField({ id, field }: { id: string; field: FilterField }) {
     return <input id={fieldId} type="search" aria-label={field.label} value={field.value} placeholder={field.placeholder} onChange={(event) => field.onChange(event.target.value)} className="border" style={{ ...INLINE, flex: '1 1 8rem', width: '8rem', maxWidth: '16rem' }} />
   if (field.kind === 'select')
     return (
-      <select id={fieldId} aria-label={field.label} value={field.value} disabled={field.disabled} onChange={(event) => field.onChange(event.target.value)} className="border" style={{ ...INLINE, flex: '0 1 7rem', width: '7rem', maxWidth: '9rem' }}>
+      <SelectField id={fieldId} aria-label={field.label} value={field.value} disabled={field.disabled} onChange={(event) => field.onChange(event.target.value)} look="compact" flex="0 1 7rem" width="7rem" maxWidth="9rem">
         <option value="">{field.label}: all</option>
         {field.options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
-      </select>
+      </SelectField>
     )
   return <Field id={id} field={field} />
 }

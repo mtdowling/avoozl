@@ -40,7 +40,7 @@ for (const [width, height] of [
 ])
   test(`the tab bar has Overview, Tasks, each spec file and Review at ${width}`, { skip }, async () => {
     await openSpec({ width, height })
-    assert.deepEqual(await tabs(), ['overview', 'tasks', 'requirements.md', 'design.md', 'tasks.md', 'avoozl/manifest.json', 'review'])
+    assert.deepEqual(await tabs(), ['overview', 'tasks', 'requirements.md', 'design.md', 'tasks.md', 'review'])
     assert.deepEqual(await selected(), ['overview'])
     // A file's tab carries its open-finding count, as the Review view's does.
     assert.equal(await page.evaluate(`document.querySelector('[data-spec-tab="requirements.md"] [data-tab-count]').textContent`), '2')
@@ -73,8 +73,8 @@ test('a document tab shows the rendered file, and Review shows the findings in t
   await page.until(`Boolean(document.querySelector('[data-spec-card="design.md"]'))`)
   assert.match(await text('[data-spec-card="design.md"]'), /The loader reads/)
   assert.equal(await exists('[data-spec-card="requirements.md"]'), false)
-  await click('[data-spec-tab="avoozl/manifest.json"]')
-  await page.until(`Boolean(document.querySelector('[data-spec-card="avoozl/manifest.json"]'))`)
+  await click('[data-spec-tab="tasks.md"]')
+  await page.until(`/Facts:/.test(document.querySelector('[data-spec-card="tasks.md"]')?.textContent ?? '')`)
   await click('[data-spec-tab="review"]')
   await page.until(`Boolean(document.querySelector('[data-finding-card]'))`)
   assert.deepEqual(await selected(), ['review'])

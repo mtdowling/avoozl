@@ -134,13 +134,28 @@ plan, so those names stay.
   requirements.md (or bugfix.md)
   design.md
   tasks.md
-  avoozl/manifest.json
 ```
 
-Each checkbox in `tasks.md` has a task ID, and `avoozl/manifest.json` gives
-each ID its kind, summary, acceptance, dependencies (`requires`), checks, and
-completion level. Avoozl refuses a folder that is missing a file, or a
-`tasks.md` with a missing or repeated ID.
+Each checkbox in `tasks.md` has a task ID, and a `Facts:` bullet as its first
+child gives the task its kind, summary, acceptance (`done`), dependencies
+(`after`), checks and completion level. Front-matter at the top of `tasks.md`
+holds defaults for every task, such as `repo` and `checks`:
+
+```markdown
+---
+repo: app
+checks: npm test
+---
+
+- [ ] 1.2 Validate config
+  - Facts:
+    - after: 1.1
+    - done:
+      - An unknown key is reported with its path
+```
+
+Avoozl refuses a folder that is missing a file, a `tasks.md` with a missing
+or repeated ID, an unknown fact, or a leftover `avoozl/manifest.json`.
 
 On the Specs page, choose **New spec** in the Specs heading. Name it, pick
 the repositories in scope, and pick how to start:
@@ -155,8 +170,7 @@ the repositories in scope, and pick how to start:
   spec.
 - **From template**: start from a workflow template in an approved plugin.
 
-Once `tasks.md` holds still, Avoozl writes `avoozl/manifest.json` from it and
-stores the folder as a draft spec. Nothing is approved or started. Select the
+Once the folder lints clean, Avoozl stores it as a draft spec. Nothing is approved or started. Select the
 spec, review the lint results and the graph, then choose **Approve
 revision**. Approval records the exact revision hash, so a later edit reads
 as unapproved until you approve again.
@@ -354,7 +368,8 @@ Proposals are pages of the **Retros** entry in the nav.
 - **Local checks first** (`localChecksFirst`, default `true`): a session that
   pushes runs the declared checks in its worktree before each push.
 - **Batching** has no setting. The planner groups small related leaves in
-  the manifest's `batches`, each with a one-line reason. A group runs in one
+  `tasks.md`: each member's facts say `batch: <group>`, and the front-matter
+  gives the group's one-line reason as `batch-<group>: <reason>`. A group runs in one
   session and one worktree, one commit per task, once every task in it is
   ready. Avoozl checks the rules in code (one plan and repository, no edge
   between members, at most 5, an approved revision); a group that breaks one
@@ -411,7 +426,7 @@ Avoozl never asks for a force push, and drops any brief or message that does.
   to prove that wrong. Coding starts only when both are sure enough
   (`minConfidence`, default `high`) and the findings stand; otherwise the
   task waits in Needs you with **Go ahead**, **Investigate again** and
-  **Stop**. `mode` is `not-small` (default), `all` or `off`; a manifest task
+  **Stop**. `mode` is `not-small` (default), `all` or `off`; a task's facts
   may set `investigate: true` or `false`.
 - **Evidence**: each task keeps one bundle under `.avoozl/local/evidence/`
   with its findings, decisions, review verdicts, check results and the
@@ -420,8 +435,8 @@ Avoozl never asks for a force push, and drops any brief or message that does.
 - **Who merges** (`delivery.ship`): `auto-merge` (default) has the writer turn
   on GitHub auto-merge. `manual` keeps it off and shows **Ready to merge** in
   Needs you when checks and reviews pass; you merge on GitHub, or press
-  **Integrate** for a local task. A repository, spec manifest (`ship`) or
-  task may set its own. Landing (above) is how Avoozl itself merges.
+  **Integrate** for a local task. A repository, spec (`ship` in `tasks.md`
+  front-matter) or task may set its own. Landing (above) is how Avoozl itself merges.
 - **Rules from corrections**: changes requested, work sent back with a
   reason, and a revert of an agent's commit are
   recorded. When the retro sees the same correction on two tasks it may
@@ -540,7 +555,15 @@ release: v0.12.2 (`kirocrew-app/ui/kirocrew-pin.json`), the same release as the
 Kiro Crew version this app asks for. The build fetches that source into a cache
 outside git, checks its digest, and edits none of it. The standalone page and the
 page inside Kiro Crew match when the installed Kiro Crew is the pinned release.
-Nothing serves the standalone page yet.
+`avoozl serve [--workspace PATH] [--port N]` serves it on `127.0.0.1` only (no host
+or bind option; `--host`, `--bind` and `AVOOZL_HOST` refuse to start) and prints a
+one-time owner link that signs one browser in; `avoozl serve link` prints another
+for the running server. The page works with the Kiro Crew parts it was built on;
+Open chat, the "Needs Kiro Crew" states and supervisor hosting are not built yet.
+Scripts can use the server's API key instead of a browser: send it in the
+`X-Api-Key` header to `POST /apps/avoozl/api/command`, never in the address. The key
+is in Settings › Workspaces on the standalone page, where Regenerate replaces it and
+stops the old one at once.
 
 ## License
 

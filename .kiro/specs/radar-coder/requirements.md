@@ -176,11 +176,11 @@ GitHub issues that crews can build, with nothing written before I see it.
    SHALL be refused with the reason. Content rules (Requirement 40) SHALL
    screen the name before it is written.
 5. (Changed 2026-11-18, avoozl Requirement 108.11: the suggested batches
-   are the planner's manifest groups whose tasks are open and unblocked;
+   are the planner's batch groups whose tasks are open and unblocked;
    there is no `size: "small"` and no `flow.batch`.) **Batching.**
    Projection SHALL combine small ready tasks into one issue
    with a checklist when ALL hold: each task has `size: "small"` in its
-   manifest entry; the tasks share a phase and a repository; they share a
+   facts; the tasks share a phase and a repository; they share a
    file overlap when `flow.batch.by` is `files`; none has an open blocker
    at projection time; there is no edge between them; they have no
    `human` or `person` completion. The cap SHALL be `flow.batch.max`
@@ -241,7 +241,7 @@ label or a line of text from a stranger is never enough.
       SHALL fail here. (This check goes beyond the three the live test
       used. Proposed.)
    4. `spec`: the spec at `commit` has `requirements.md` or `bugfix.md`,
-      `design.md`, `tasks.md` and `avoozl/manifest.json`; `tasks.md` lists
+      `design.md` and `tasks.md` (avoozl Requirement 111); `tasks.md` lists
       every ID in `tasks=`; each of the three prose files has a line
       `Status: Approved`. The spec is read from the code repository, or from
       `plans=` when present.
@@ -295,7 +295,7 @@ because crews pick at random among what is eligible.
    (criterion 4) holds.
 2. At most **N** issues SHALL carry the ready label at once per repository, or
    per crew label scope when `release.scopes` names several (each entry a
-   label and its own N). A task MAY name its scope in its manifest entry.
+   label and its own N). A task MAY name its scope in its facts.
    Open issues with the ready label count, claimed or not, until their pull
    request merges or the issue closes. N SHALL default to 2 and be set by one
    number on Set up ("crews working this repository").
@@ -517,8 +517,8 @@ small set of issues I approve once, without writing a spec first.
    SHALL be written to GitHub before Approve. The confirm SHALL list every
    issue to be written.
 3. On Approve, Avoozl SHALL write a **mini-spec** in the spec layout
-   (`.kiro/specs/goal-<slug>/` with requirements, design, tasks and
-   `avoozl/manifest.json`; Requirement 30), with the goal quoted verbatim
+   (`.kiro/specs/goal-<slug>/` with requirements, design and tasks with
+   `Facts:` bullets; Requirement 30), with the goal quoted verbatim
    and the evidence, and SHALL carry it through the same approval pull
    request as any spec (RC3.6). The marker is therefore the same, and
    `verify-issue` needs no second path. This differs from the experience
@@ -754,7 +754,7 @@ branch in main, so that a rewrite never half-lands in main.
 #### Acceptance criteria
 
 1. An epic MAY name an **integration branch** (`integrationBranch` in its
-   manifest). Avoozl SHALL create no branch on its own. It SHALL check that
+   `tasks.md` front-matter). Avoozl SHALL create no branch on its own. It SHALL check that
    the branch exists, is not the default branch and is protected, and say what
    is missing.
 2. WHILE an epic names an integration branch, every projected task SHALL
@@ -815,11 +815,11 @@ changes, so that each one starts from the right shape.
    compares the output.
 4. A **cross-repository proposal** SHALL be one parent spec with one **sub-spec
    per repository**. Each sub-spec SHALL have its own requirements, design,
-   tasks and manifest, and SHALL be approved and released on its own. The
+   and tasks, and SHALL be approved and released on its own. The
    parent SHALL hold the shared requirements and the list of sub-specs, and
    SHALL NOT hold repository tasks.
 5. A cross-repository edge (a task in one repository that needs a task in
-   another) SHALL be named in the sub-spec as a `requires` on the other
+   another) SHALL be named in the sub-spec as an `after` fact on the other
    repository's task ID, and SHALL be refused when the other sub-spec is not
    approved or does not hold that ID.
 6. A proposal MAY take an **external gap report**: a document that lists, per
@@ -1206,7 +1206,7 @@ item through a plugin and releases the dependents when it is done.
 
 #### Acceptance criteria
 
-1. A task whose manifest entry has `completion: "tracker"` SHALL be a **gate**,
+1. A task whose facts say `completion: tracker` SHALL be a **gate**,
    alongside `person` (or `human`) and `integrated`. It SHALL hold a
    `tracker` reference with three parts: the tracker plugin's id, an item
    (an id or a URL), and `done`, the plain-words condition that counts as done
@@ -1257,7 +1257,7 @@ item through a plugin and releases the dependents when it is done.
    SHALL add one note to Trace and change nothing else.
 8. Credentials SHALL stay in the plugin's own sign-in, or in an environment
    variable the plugin's `config` names (docs/plugins.md). `.avoozl.json`, the
-   manifest, the issue, evidence and logs SHALL NOT hold a token, cookie or
+   spec's task facts, the issue, evidence and logs SHALL NOT hold a token, cookie or
    password. A plugin that reports an expired sign-in SHALL give `unknown`
    with evidence "sign-in expired", and Avoozl SHALL NOT retry faster than the
    backoff.
@@ -1421,7 +1421,7 @@ nothing private can reach the public repository by a setting I forgot.
    `publicBranch`.
    The default SHALL be `each`. Settings SHALL edit it in the form and in the
    raw `.avoozl.json`, kept in sync (RC24.1).
-2. **Override per epic.** An epic's manifest MAY set `forwardTarget` and
+2. **Override per epic.** An epic's `tasks.md` front-matter MAY set `forwardTarget` and
    `publicBranch`. The epic's value SHALL win over the repository's, and the
    repository's over the default. Settings and Trace SHALL show which value is
    in force and where it comes from.
