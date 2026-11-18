@@ -86,7 +86,7 @@ of the other specs.
 
 ## Phase 6: Notifications
 
-- [ ] nk-6.1 Send notifications from the headless tick [NK7.1, NK7.6, NK7.7, NK7.8, NK7.9] (§D6)
+- [x] nk-6.1 Send notifications from the headless tick [NK7.1, NK7.6, NK7.7, NK7.8, NK7.9] (§D6)
   - The headless tick calls `notifications.deliver`; a per-sink record of what was sent; `avoozl status` shows what waits; a backlog becomes one notification; a failing sink backs off; `src/web-notifications.mjs` and its test go.
   - Done when: Tests: a headless tick with a fake sink sends a queued decision once; with no sink, `status` shows the count and the oldest age; forty waiting items and a new sink give one notification; a sink that throws does not stop the tick or a second sink, and is tried again later; the Kiro Crew push is unchanged.
 - [ ] nk-6.2 Command and webhook sinks, after nk-6.1 [NK7.2, NK7.3, NK7.4, NK7.5] (§D6)
