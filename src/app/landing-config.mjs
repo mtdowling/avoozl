@@ -115,7 +115,9 @@ export const TRAIN_KEYS = {
   ci: {
     workflow: leaf({ string: true }),
     waitForLastTrain: leaf({ bool: true }),
+    jobPlatforms: leaf({ stringMap: true }),
   },
+  capacity: { ci: leaf({ intMap: [1, 32] }) },
 };
 export const TARGET_KEYS = { policy: leaf({ oneOf: ["optimistic", "gated"] }) };
 const MACHINE_KEYS = ["platforms", "slots"];
@@ -149,6 +151,17 @@ function checkValue(spec, value, at, fail) {
     if (typeof value !== "boolean") fail(`${at} must be true or false.`);
   } else if (spec.string) {
     if (typeof value !== "string" || !value) fail(`${at} must be text.`);
+  } else if (spec.stringMap) {
+    if (!isRecord(value)) fail(`${at} must map job names to platform names.`);
+    for (const [name, platform] of Object.entries(value))
+      if (typeof platform !== "string" || !platform)
+        fail(`${at}.${name} must be a platform name.`);
+  } else if (spec.intMap) {
+    const [lo, hi] = spec.intMap;
+    if (!isRecord(value)) fail(`${at} must map platform names to counts.`);
+    for (const [name, n] of Object.entries(value))
+      if (!Number.isInteger(n) || n < lo || n > hi)
+        fail(`${at}.${name} must be a whole number ${lo}–${hi}.`);
   } else if (spec.prefix) {
     if (
       typeof value !== "string" ||
@@ -254,6 +267,7 @@ export function trainSettings(config, target) {
   out.branchPrefix ??= TRAIN_DEFAULTS.branchPrefix;
   for (const key of ["trigger", "failure", "ci"])
     out[key] = { ...TRAIN_DEFAULTS[key], ...(out[key] ?? {}) };
+  out.capacity = { ci: {}, ...(out.capacity ?? {}) };
   out.conflicts = { mechanical: [], ...(out.conflicts ?? {}) };
   out.validation = { cheap: [], full: {}, ...(out.validation ?? {}) };
   return out;

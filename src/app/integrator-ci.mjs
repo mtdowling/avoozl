@@ -63,6 +63,50 @@ export async function watchRun(
   }
 }
 
+// How many queued or running jobs of `workflow` each platform has, from one
+// paced read (`github.activeJobs`), mapped by `jobPlatforms` (job name to
+// platform). A job whose name is not mapped counts for no platform.
+export async function ciLoad(github, { repository, workflow, jobPlatforms }) {
+  const load = {};
+  for (const job of await github.activeJobs(repository, workflow)) {
+    const platform = jobPlatforms?.[job.name];
+    if (platform) load[platform] = (load[platform] ?? 0) + 1;
+  }
+  return load;
+}
+
+// Waits while any of `platforms` is at its `capacity` of CI jobs (LT13.4):
+// one read per poll. Returns {state: "ready", waited} or {state: "timeout"};
+// `waited` says what held the train, for its step.
+export async function waitForCiCapacity(
+  github,
+  {
+    repository,
+    workflow,
+    platforms,
+    capacity,
+    jobPlatforms,
+    intervalMs = 30_000,
+    capacityTimeoutMs = 60 * 60_000,
+    sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    now = Date.now,
+  },
+) {
+  const limits = platforms.filter((p) => Number.isInteger(capacity?.[p]));
+  if (!limits.length) return { state: "ready" };
+  const started = now();
+  let waited;
+  for (;;) {
+    const load = await ciLoad(github, { repository, workflow, jobPlatforms }),
+      full = limits.filter((p) => (load[p] ?? 0) >= capacity[p]);
+    if (!full.length) return { state: "ready", ...(waited ? { waited } : {}) };
+    waited = `waited for CI capacity: ${full.map((p) => `${p} has ${load[p]} of ${capacity[p]} jobs`).join(", ")}`;
+    if (now() - started >= capacityTimeoutMs)
+      return { state: "timeout", waited };
+    await sleep(intervalMs);
+  }
+}
+
 // Validates `platforms` (those with no local environment) for one train.
 //
 //   policy "optimistic"  needs `pushed` (the trunk commit); dispatches nothing
@@ -83,6 +127,8 @@ export async function validateByCi({
   baseHead,
   root,
   url,
+  capacity,
+  jobPlatforms,
   since = new Date(Date.now() - 60_000).toISOString(),
   env,
   machine,
@@ -109,6 +155,21 @@ export async function validateByCi({
   }
   if (!candidate)
     fail("A dispatched validation needs the candidate commit.", 400);
+  const room = await waitForCiCapacity(github, {
+    repository,
+    workflow,
+    platforms,
+    capacity,
+    jobPlatforms,
+    ...watch,
+  });
+  if (room.state !== "ready")
+    return {
+      state: "timeout",
+      mode: "capacity",
+      run: null,
+      waited: room.waited,
+    };
   const ref = validateBranch(train);
   await pushHead(
     root,
@@ -123,6 +184,7 @@ export async function validateByCi({
     return {
       mode: "dispatch",
       ref,
+      ...(room.waited ? { waited: room.waited } : {}),
       ...(await watchRun(github, {
         repository,
         workflow,

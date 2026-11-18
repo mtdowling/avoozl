@@ -337,7 +337,7 @@ person.
     - after: lt-p3
   - Footprint from declared `paths` and the branch diff; `same-train` pulls an overlapping later entry forward within `maxBranches`; `serialize` leaves it for the next train; `scheduling.*` joins the schema and `validateTrains`.
   - Done when: Tests: with entries A, C, D, B where A and B overlap, `same-train` makes the order A, B, C, D; with `maxBranches` 2 it makes A, B; `serialize` makes A, C, D and leaves B; an entry whose real diff exceeds its declared paths is matched on the real files.
-- [ ] lt-10.2 CI capacity for fallback runs, after lt-p3 [LT13.4] (§D14)
+- [x] lt-10.2 CI capacity for fallback runs, after lt-p3 [LT13.4] (§D14)
   - Facts:
     - summary: Phase 10 (Scheduling and CI capacity). CI capacity for fallback runs. See LT13.4; §D14.
     - done:
