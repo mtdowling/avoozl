@@ -10,7 +10,16 @@ import { branchNameProblem } from "./integration-branch.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
 import { runCheckAt } from "./flow-line.mjs";
 import { enqueueLanding } from "./landing-queue.mjs";
-import { trainSettings } from "./landing-config.mjs";
+import { leaseSettings, trainSettings } from "./landing-config.mjs";
+import {
+  endLandingLease,
+  landingLease,
+  renewLandingLease,
+  takeLandingLease,
+} from "./landing-lease.mjs";
+import { leaseState } from "../lease.mjs";
+import { queueNotifications } from "./notifications.mjs";
+import { randomUUID } from "node:crypto";
 import { driverIdOf } from "./spec-scheduler.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
 import { fail } from "./store.mjs";
@@ -293,4 +302,200 @@ export async function submitBranch(store, workspaceRoot, input = {}) {
     config,
   });
   return { queued: entry.key, branch: entry.branch, commit: entry.commit };
+}
+
+// ---- The integrator process (lt-2.3, design D4) ----
+
+// Each repository target under `landing: train`: {project, target}.
+export const trainTargets = (store) =>
+  store
+    .list("projects")
+    .filter(isTrainLanding)
+    .map((project) => ({ project, target: project.baseBranch || "main" }));
+
+const noteOnce = (store, key, text) => {
+  const seen = store.getMeta("integratorErrors") ?? {};
+  if (seen[key] === text) return false;
+  store.setMeta("integratorErrors", { ...seen, [key]: text });
+  return true;
+};
+
+// One loop of the integrator for every train target in this workspace: take
+// or renew the target's lease, and (in later tasks) run a train when its
+// trigger fires. The lease is renewed on every loop, so a loop must be shorter
+// than the heartbeat. Returns {targets: [{project, target, state, ...}],
+// notify}; the caller queues the notices.
+//
+//   state "invalid"  the train settings are missing or wrong: nothing lands
+//   state "busy"     another integrator holds the target's lease
+//   state "hung"     its holder stopped renewing but is still a live process
+//   state "holding"  this integrator holds the lease
+export async function integratorPass(
+  store,
+  { config, sessionId, now = Date.now(), probe, holder, run } = {},
+) {
+  const out = [],
+    notify = [],
+    { heartbeatSeconds, missedHeartbeats } = leaseSettings(config),
+    seconds = heartbeatSeconds * missedHeartbeats;
+  for (const { project, target } of trainTargets(store)) {
+    const where = { projectId: project.id, target };
+    let settings;
+    try {
+      settings = requireTrainSettings(config, target);
+    } catch (error) {
+      // One notice per cause, not one per loop (LT15.4).
+      if (noteOnce(store, `${project.id}:${target}`, error.message))
+        notify.push({
+          channel: "failure",
+          title: `Landing on ${target} is off: the train settings are not valid`,
+          text: error.message,
+        });
+      out.push({ ...where, state: "invalid", reason: error.message });
+      continue;
+    }
+    const held = landingLease(store, project.id, target);
+    let lease;
+    if (
+      held &&
+      leaseState(held, now) === "active" &&
+      held.sessionId === sessionId
+    ) {
+      const renewed = renewLandingLease(store, {
+        ...where,
+        leaseId: held.leaseId,
+        seconds,
+        now,
+      });
+      if (renewed.changed) {
+        out.push({
+          ...where,
+          state: "busy",
+          lease: landingLease(store, project.id, target),
+        });
+        continue;
+      }
+      lease = renewed.lease;
+    } else {
+      const taken = takeLandingLease(store, {
+        ...where,
+        sessionId,
+        seconds,
+        now,
+        ...(probe ? { probe } : {}),
+        ...(holder ? { holder } : {}),
+      });
+      notify.push(...(taken.notify ?? []));
+      if (taken.state !== "taken") {
+        out.push({ ...where, state: taken.state, lease: taken.lease });
+        continue;
+      }
+      lease = taken.lease;
+      if (taken.dead)
+        await run?.cleanup?.(store, { ...where, dead: taken.dead, project });
+    }
+    const result = { ...where, state: "holding", lease, settings };
+    if (run?.train)
+      Object.assign(result, await run.train(store, result, { now }));
+    out.push(result);
+  }
+  return { targets: out, notify };
+}
+
+// What `avoozl integrator status` shows: per target, the lease holder, the
+// running train and its step, and the trigger state. From the store only.
+export function integratorStatus(store, { config, now = Date.now() } = {}) {
+  return {
+    targets: trainTargets(store).map(({ project, target }) => {
+      const lease = landingLease(store, project.id, target),
+        settings = (() => {
+          try {
+            return requireTrainSettings(config, target);
+          } catch (error) {
+            return { error: error.message };
+          }
+        })();
+      return {
+        repository: project.id,
+        target,
+        policy: settings.policy ?? null,
+        settings: settings.error ? { error: settings.error } : "valid",
+        lease: lease
+          ? {
+              state: leaseState(lease, now),
+              holder: lease.holder,
+              sessionId: lease.sessionId,
+              heartbeatAt: lease.heartbeatAt,
+              expiresAt: lease.expiresAt,
+              hung: lease.hung ?? null,
+            }
+          : { state: "none" },
+        train: lease?.train ?? null,
+        trigger: null,
+      };
+    }),
+  };
+}
+
+// Runs until `signal` aborts: one pass per `intervalMs`, then ends its lease
+// so the next integrator takes over at once. The caller owns the store.
+export async function runIntegrator(
+  store,
+  {
+    loadConfig,
+    intervalMs,
+    signal,
+    sessionId = `integrator-${process.pid}-${randomUUID().slice(0, 8)}`,
+    run,
+    onPass,
+  },
+) {
+  const finish = () => {
+    for (const { project, target } of trainTargets(store)) {
+      const held = landingLease(store, project.id, target);
+      if (held?.sessionId === sessionId && leaseState(held) === "active")
+        endLandingLease(store, {
+          projectId: project.id,
+          target,
+          leaseId: held.leaseId,
+        });
+    }
+  };
+  try {
+    while (!signal?.aborted) {
+      let pass;
+      try {
+        pass = await integratorPass(store, {
+          config: loadConfig(),
+          sessionId,
+          run,
+        });
+        queueNotifications(store, pass.notify);
+      } catch (error) {
+        // An unreadable or invalid configuration lands nothing; say so once.
+        if (noteOnce(store, "config", error.message))
+          queueNotifications(store, [
+            {
+              channel: "failure",
+              title: "The integrator cannot run",
+              text: error.message,
+            },
+          ]);
+      }
+      onPass?.(pass);
+      await new Promise((resolve) => {
+        const timer = setTimeout(resolve, intervalMs);
+        signal?.addEventListener(
+          "abort",
+          () => {
+            clearTimeout(timer);
+            resolve();
+          },
+          { once: true },
+        );
+      });
+    }
+  } finally {
+    finish();
+  }
 }

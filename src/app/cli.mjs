@@ -1264,6 +1264,31 @@ try {
         2,
       ),
     );
+  } else if (command === "integrator") {
+    const action = positionals[0];
+    if (action === "status") {
+      const status = await localOrRequest("integrator.status");
+      console.log(
+        options.json
+          ? JSON.stringify(status, null, 2)
+          : status.targets.length
+            ? status.targets
+                .map(
+                  (t) =>
+                    `${t.repository} ${t.target}: ${t.policy ?? "no policy"}, lease ${t.lease.state}${t.lease.holder ? ` (pid ${t.lease.holder.pid})` : ""}, train ${t.train ?? "none"}`,
+                )
+                .join("\n")
+            : "No repository lands in trains.",
+      );
+    } else if (action === "run") {
+      // The supervisor starts this; it is the only process that pushes a
+      // train trunk, never a chat shell (LT2.2).
+      if (process.env.AVOOZL_CHILD)
+        throw Error(
+          "A supervisor child may not run the integrator. Start it at this machine's command line or let the supervisor do it.",
+        );
+      await import("./integrator-main.mjs");
+    } else throw Error("Choose integrator run or integrator status [--json].");
   } else if (command === "landing") {
     const action = positionals[0];
     if (action !== "submit") throw Error("Choose landing submit.");
@@ -1922,6 +1947,8 @@ try {
   setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH]
       [--methods merge,squash,rebase] [--landing pr|direct|train|off] [--yes]
                                          Preview repository setup for landing; --yes applies it
+  integrator run                         Run this workspace's integrator for landing: train (the supervisor starts it)
+  integrator status [--json]             Per train target: lease holder, running train and its step
   landing submit TASK --branch NAME      Queue a pushed batch branch for the integrator (landing: train)
   spec publish SPEC [--repository OWNER/REPO]
                                          Publish the spec issue, or its local journal without GitHub
