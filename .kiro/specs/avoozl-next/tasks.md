@@ -14,7 +14,7 @@ were removed) and `an-4.2` and `an-4.4` are still open. Nothing here is
 approved or projected.
 
 Ordered by phase. Each phase ends with a proof; a phase starts after the
-proofs it depends on pass (the edges in `avoozl/manifest.json` say which).
+proofs it depends on pass (each task's `after` fact says which).
 Requirement numbers are in brackets (`AN1` to `AN4` here; `RC` and `R`
 numbers refer to the other two specs); `D` sections refer to
 `.kiro/specs/radar-coder/design.md`, `§` sections to

@@ -118,8 +118,8 @@ export const gate = {
   `done` is recorded once and is never undone. If the outside item later
   reads differently, Avoozl adds one note and changes nothing else.
 - Credentials stay in the plugin's own sign-in or in an environment variable
-  its `config` names with an `Env` key. They never go in `.avoozl.json`, the
-  manifest, an issue or the evidence.
+  its `config` names with an `Env` key. They never go in `.avoozl.json`, a
+  spec's task facts, an issue or the evidence.
 
 What a person sees and does:
 

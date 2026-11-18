@@ -7,7 +7,7 @@ checks: npm test, git diff --check
 
 Status: Approved
 
-Explicit `after` lists and the manifest's `requires` govern execution; phase
+Explicit `after` lists and each task's `after` fact govern execution; phase
 numbers alone do not impose a dependency. Requirement numbers are in
 brackets (`SW1` to `SW12`, in `requirements.md`); `D` sections refer to this
 spec's `design.md`, `R` numbers to `.kiro/specs/avoozl/requirements.md`.
