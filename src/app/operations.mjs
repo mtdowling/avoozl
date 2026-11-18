@@ -2189,6 +2189,17 @@ export class Operations {
       review: planReviewSummary(this.store, plan.id),
     };
   }
+  // This workspace's saved config, which names each role's executor
+  // (Settings › Models); none when there is no file or it does not load.
+  savedConfig() {
+    if (!this.workspaceRoot) return undefined;
+    try {
+      return loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config;
+    } catch {
+      return undefined;
+    }
+  }
+
   planApproved(plan) {
     return this.store
       .list("approvals")
@@ -3600,7 +3611,7 @@ export class Operations {
     }
     if (name === "delivery.view")
       return {
-        ...deliveryView(store, this.read()),
+        ...deliveryView(store, this.read(), { config: this.savedConfig() }),
         // How many chats this Mac runs at once (R88.5); null when delivery is off.
         laneLimit:
           readDeliveryPolicy(this.workspaceRoot).delivery?.concurrency ?? null,
@@ -4385,10 +4396,6 @@ export class Operations {
         queueNotifications(store, notify);
         return result;
       });
-    // Ideas were removed (RC30.3). The public MCP actions capture_idea and
-    // add_idea_note stay so callers get a clear error, and nothing changes.
-    if (name === "idea.capture" || name === "idea.append")
-      fail("Ideas were removed from Avoozl.", 410);
     if (name === "intake.list") return listItems(store, input);
     // Manual tasks and task links (§4.16, R61.12–R61.22).
     if (name === "task.manual.complete" || name === "task.manual.reopen") {
@@ -4654,6 +4661,7 @@ export class Operations {
       const view = taskDetailView(store, data, detail, {
         plan: plan && !plan.deletedAt ? plan : null,
         approved: Boolean(plan && this.planApproved(plan)),
+        config: this.savedConfig(),
       });
       return {
         ...view,

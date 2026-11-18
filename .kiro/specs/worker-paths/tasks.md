@@ -30,10 +30,10 @@ of the other specs.
 - [x] wp-1.1 The pair table, and briefs chosen by executor [WP3.1, WP3.4, WP3.5] (§D3)
   - `src/app/worker-briefs.mjs` holds one frozen table from executor and task kind to a brief builder or a stated reason; delivery, `flow-batch.mjs` and `remote-runner.mjs` ask it; a `process` child on a worker machine gets `processSteps`.
   - Done when: A test fails when a pair of executor and kind is missing from the table; every cell's brief runs through a fake executor of its kind to a recorded result; no `process` brief holds "commit", "push" or "runner report"; the existing delivery, batch and worker-mode tests pass with their assertions unchanged.
-- [ ] wp-1.2 Findings by the command line and by the result file, after wp-1.1 [WP3.2, WP4.2] (§D4)
+- [x] wp-1.2 Findings by the command line and by the result file, after wp-1.1 [WP3.2, WP4.2] (§D4)
   - `avoozl runner report TASK findings --file PATH --token T` checked by the validator the MCP tool uses; `investigateLines` takes the executor; the result file's `findings` state; Go ahead, Investigate again and Stop reach a child through `resume`; investigate first is declined, with the reason on the task, for a definition with no `resume`.
   - Done when: Tests with fake executors: a chat's findings by the command line and a child's findings by the result file open the same falsifier request and the same gate; Go ahead resumes the same child session and its done result lands; a findings file over the size limit is refused; a done result before Go ahead is still refused; a definition with no `resume` codes the task without the step and shows why.
-- [ ] wp-1.3 A batch on `process` runs as single tasks, after wp-1.1 [WP3.3] (§D3)
+- [x] wp-1.3 A batch on `process` runs as single tasks, after wp-1.1 [WP3.3] (§D3)
   - The batch rules gain "the worker's executor makes commits"; a group that fails it runs as single tasks with the stated reason, where a group that breaks a rule is shown today.
   - Done when: Tests: a three-task group on `process` starts three sessions and lands three commits, and the page and `avoozl show` give the reason; the same group on `kirocrew` still runs in one chat with one commit per task.
 - [ ] wp-1.4 A report command that needs no `PATH`, and no MCP tool in a worker's brief, after wp-1.1, wp-1.2 [WP4.1, WP4.3, WP4.5] (§D5)
