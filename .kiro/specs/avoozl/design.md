@@ -2153,18 +2153,9 @@ Each new SDK plan made this way can join one epic, such as an SDK target
 architecture epic, through the drawer's Epic field. The review's outcome
 note and links reach the cutover workers' briefs.
 
-### 4.17 Budgets and usage receipts (removed)
+### 4.17 Budgets and usage receipts (retired)
 
-Removed 2026-11-17 (owner): budgets. A budget only caps Kiro Crew chats; Avoozl cannot see Claude Code or Codex spend.
-Removed: caps at four levels, the price table (`default-prices.mjs`),
-`budget.mjs`, `budget_holds`, the stop message and `budget_reached`, Raise
-budget, Over budget, receipts, the drawer's Budget fold, Settings › Budgets
-and the spend cap in harness definitions. Kept: the per-turn usage reads and
-`flow_usage` (§4.11) for Flow's usage charts, and the plan-quota stop (§4.28).
-A `budget` or `prices` key in `.avoozl.json`, a repository entry or a manifest
-is skipped silently, never an error.
-
----
+Retired.
 
 ### 4.18 Retro prompt and skill proposals, and lessons
 
@@ -3089,7 +3080,7 @@ sandbox values are not verified yet; they are proof items of Phase 47
 | Write roots    | Task folder, temp, and the cache directories in project config. The worktree's git directory is in the main checkout (`git rev-parse --git-common-dir`), so the child only edits and Avoozl commits after it exits |
 | No skip flag   | Enforced in code: a definition with `bypassPermissions`, `danger-full-access` or any `--dangerously-*` flag is refused at load, with a test. One exception (2026-11-17, R94.4d): `permission.write` may be exactly `danger-full-access` for a harness whose own sandbox cannot nest inside Avoozl's (Codex on macOS); such a child starts only inside Avoozl's sandbox with the task write roots, and with no Avoozl sandbox it is refused, opt-in or not |
 | Allow-list     | Per project, the build and test commands an unattended child may run without a prompt. `git push` is never on it |
-| Spend          | A spend cap flag caps API spend and may not bind on a plan login (proof item). Plan quota: no new session once the quota reads low |
+| Quota          | Plan quota: no new session once the quota reads low |
 | Kiro Crew repo | Avoozl's own repository on `kirocrew` chats has trust mode set again each tick, or ordinary workers stall unattended |
 | Person-only    | Children get `AVOOZL_CHILD=1`, and the CLI refuses person-only commands there. That is a speed bump: the child runs as the owner. "Never" holds only through the sandbox: database, credentials and the Kiro Crew home outside its reach, network off or restricted. For `kirocrew` chats it stays a speed bump |
 
@@ -4473,7 +4464,7 @@ characters or more than one line. Each member proposal gets
 `batch: {id, tasks, reason}` with full task IDs. `approvePlan` copies
 `batch` onto the task with `planHash`, as it copies the other fields, so a
 stored group always comes from an approved revision. The old `size` field
-is dropped on read with no diagnostic, like `budget`.
+is dropped on read with no diagnostic.
 
 **Dispatch (`flow-batch.mjs`, pure).** `planBatches` keeps its signature for
 `planReadyDispatches`. For each ready leaf with a `batch`:
@@ -6812,91 +6803,9 @@ matches `\bplans?\b` case-blind, and fails on any match not in its
 allowlist. Each allowlist entry is one exact string with the reason it
 stays, so a new string fails until someone decides.
 
-### 8.8 Ideas
+### 8.8 Ideas (retired)
 
-**Status 2026-11-18.** Removed (#228). See Requirement 63.
-
-**Proposed**, owner approval 2026-11-13 (Requirement 63). An idea is a
-rough thing to riff on before it is worth a spec. It rides the incoming
-item record (§4.12) so it lists, filters and stores like any intake item,
-but it is the one kind that never meets the pipeline's trigger match.
-
-#### The record
-
-```json
-{
-  "source": "local",
-  "id": "idea-7f3a2c",
-  "kind": "idea",
-  "title": "Graph minimap for big plans",
-  "state": "open",
-  "notes": [
-    {
-      "text": "Maybe only past 200 nodes.",
-      "author": "person",
-      "at": "2026-11-13T16:02:00Z"
-    }
-  ],
-  "links": [{ "url": "https://example.com/minimap", "label": "Prior art" }],
-  "updatedAt": "2026-11-13T16:02:00Z"
-}
-```
-
-`local` is already reserved (R50.6) and is never declared. A graduated
-idea adds `graduated: { spec, at }`. `body` is the notes joined, so search
-and content rules read one text. Ideas are stored in `incoming_items`
-like other items, keyed `local\0<id>`.
-
-#### Operations
-
-| Operation                                        | Kind    | Who                                     | MCP action      | CLI                                     |
-| ------------------------------------------------ | ------- | --------------------------------------- | --------------- | --------------------------------------- |
-| `idea.capture`                                   | act     | anyone; a session is recorded as author | `capture_idea`  | `avoozl intake idea add`                |
-| `idea.append`                                    | act     | anyone on an open idea; append only     | `add_idea_note` | `avoozl intake idea note`               |
-| `idea.archive`, `idea.restore`                   | act     | person only (403 for a session or MCP)  | none            | `avoozl intake idea archive`, `restore` |
-| `intake.list` with `kind: "idea"`, `intake.view` | observe | anyone                                  | `items`, `item` | `avoozl intake list --kind idea`        |
-
-Capture and append run the `intake` content boundary (§4.9) on the new
-text. A block refuses the write; it does not quarantine, because an idea
-has no work to hold. No new MCP tool name: the actions join the grouped
-`plans_intake` tool (R56).
-
-#### Never runs work
-
-`takeItem` returns before trigger match for kind `idea`. `intake.deliver`
-and `intake.plan` refuse an idea with 409. The Untriaged count, badge and
-notice skip ideas, and no tick step writes them anywhere. The 30-day purge
-skips them.
-
-#### Page
-
-**+ New idea** sits in the Specs page header and the Intake header, and
-opens one small modal: Title (required), Notes, Links (one per line). The
-Intake tab's **Kind** filter gains **Idea**; the Specs page header also
-shows **Ideas (N)**, which opens Intake with that filter. Opening an idea
-shows a drawer with its notes and links, **Add note**, **Add link**,
-**Riff on this**, **Make it a spec** and **Archive** (or **Restore**).
-
-**Riff on this** asks `chat.context` with purpose `riff-idea`. The seed
-gives the idea as data and says: make no file, Git or GitHub change; you
-may add notes and links to this idea with `plans_intake` `add_idea_note`.
-The page opens the chat with the app SDK, like **Discuss spec**.
-
-**Make it a spec** opens the New spec flow through its one entry point
-(§8.6), prefilled: Name from the title as a spec folder name, What you
-want from the title and notes, Links and context from the links, and the
-idea key. The request operation marks the idea graduated when it records
-the request. Avoozl adds no second path to Spec Builder.
-
-#### Why each choice
-
-| Choice                                    | Why                                                                        |
-| ----------------------------------------- | -------------------------------------------------------------------------- |
-| An incoming item kind                     | One list, one store, one filter panel; the owner asked for it              |
-| Source `local`                            | Already reserved; an idea comes from this workspace, not an outside system |
-| Agents may capture and append             | Writing a note starts nothing; limits cap it; content rules screen it      |
-| Archive, restore, graduate are a person's | They change what the owner sees and decides                                |
-| Reuse the New spec entry point            | One place owns spec rules and the Spec Builder hand-off                    |
+Retired.
 
 ### 8.9 Searchable pickers
 
@@ -7130,7 +7039,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P37   | Workflow templates, manual leaves, and links and notes, in a temporary single-repo workspace with a fake GitHub and the sample SDK rewrite template: the template makes a draft that joins an epic and imports no setting unless ticked, the manual review leaf is never dispatched and gates cutover, only a person or an allowed GitHub closer completes it, and links and notes pass content rules, reach briefs, and reach the issue only when shown (Phase 22)                                                                                                                                                                                     |
 | P38   | The Specs name and ideas, in a temporary workspace with a fake chat and a fake New spec entry point: no user-facing plan word outside the allowlist, the compat names unchanged, an idea captured by a person, by MCP and by a session, refused fields and blocked text, an idea that never matches a rule or counts as untriaged, a riff that only appends, Make it a spec that prefills New spec and graduates the idea, and archive kept past the purge (Phase 23)                                                                                                                                                                                   |
 | P40   | Driver handoff with temporary workspaces on one fake GitHub: the plan issue's single assignee and the machine claim pick one driver, the epic's assignee stands in, zero or several assignees read only with one decision, one login on two machines, the check before dispatch, age never moves the role, drain then export then reassign and take over, a tampered file refused, rebuild and forced take-over with the loss list, a silently ignored reassignment, the old driver going read-only on return, away tasks never restarted by lease, the re-approve list, person-only 403s, and the Local only row (Phase 26)                            |
-| P41   | Removed 2026-11-17. Budgets and receipts in a temporary workspace with fake workers and fake usage rows: priced and unpriced turns, caps by level, retries and review rounds on one cap, a batch's shared cap, the stop message at the next turn with no session stopped, `budget_reached` on MCP, Raise budget and Stop as a person only, a price change recomputing a receipt with both versions shown, unknown spend for Crew Mode and a failed read, JSON export, the retro payload, and no budget changing a gate (Phase 27)                                                                                                                                           |
+| P41   | Retired. |
 | P42   | Prompt and skill proposals and lessons with fake workers and a fake retro model in two temporary workspaces: locked sections, stale bases and blocked text dropped, person-only approve and revert, overrides outside shipped files, a repository skill change as a leaf and an external one as a note, PDCA per version with mixed windows, lessons shared with no source text, opt-out, refused lesson text, drift marks that clear on confirmation, the lessons review, override drift with a three-way diff, pack versions, and person-only export (Phase 28)                                                                                       |
 | P43   | The activity log in a temporary workspace with a fake GitHub and a fake plugin: every listed local action and tick event makes one row, a change seen twice makes one, a secret-shaped or rule-matched value is saved redacted, rows past retention go on the tick, and the tab and `plans_view` read the same rows (Phase 29)                                                                                                                                                                                                                                                                                                                          |
 | P45   | Investigate first, evidence bundles, staying current, rules from corrections, fix-work share and ship mode with fake workers, a fake falsifier and a fake GitHub (Phase 34)                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -7184,7 +7093,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 22. Templates, manual tasks, links and notes                                  | The `template` plugin part and From template in New plan; `manual` leaves in Needs you and on GitHub; Links and notes on every task (§4.16)                                                                                                                                                                                                                         | Starts after 21.1, 16.3, 17.1 and P28; P37 runs after P36                                                           |
 | 23. Specs and ideas                                                           | The page says spec (§8.7); ideas as `local` incoming items with notes and links, Riff on this, Make it a spec through the New spec entry point, and archive (§8.8)                                                                                                                                                                                                  | Starts after 14.10, 17.1 and 19.1; P38                                                                              |
 | 26. Driver handoff                                                            | One driver per spec: the plan issue's assignee plus a machine claim, read-only ticks elsewhere, the check before dispatch, hand off with drain, export and reassign, take over from the file or a rebuild, force take over, what never moves, the header and banner (§6.10)                                                                                         | Starts after 3.8, 3.10 and 21.4; P40                                                                                |
-| 27. Budgets and receipts (removed 2026-11-17)                                                      | A machine-local, versioned price table; dollar caps per task from workspace, repository, spec and task, with token and credit fallbacks; the stop at the next turn and Raise budget or Stop in Needs you; receipts by stage, model and attempt with JSON export; spend on the drawer, Delivery and In flight (§4.17)                                                | Starts after 12.12 and 12.9; P41                                                                                    |
+| 27. Retired (budgets and receipts) | Retired. |
 | 28. Retro prompt and skill proposals, and lessons                             | Prompt and skill diffs with evidence from the retro, local per-workspace prompt overrides with revert, repository skill changes as leaves and external ones as notes, PDCA per version, a lessons store on this Mac shared across workspaces, lessons packs, and healing of lessons and overrides (§4.18)                                                           | Starts after 12.9 and 12.10; P42                                                                                    |
 | 29. Activity log                                                              | One SQLite activity table, one `recordActivity` helper, local actions and the tick's GitHub and plugin events, screening and redaction, retention on the tick, the Activity tab and `plans_view` action `activity` (§4.19)                                                                                                                                          | Starts after 10.4, 12.11 and 14.10; P43                                                                             |
 | 30. Provider health and switching                                             | Health levels from usage reads and error rows, keeping new work off out models, running chats moved with Kiro Crew's model change, the manual Switch model dialog, Needs you, and Settings › Providers (§4.20)                                                                                                                                                       | Starts after 11.11 and 12.12; P44                                                                                   |
