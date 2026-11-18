@@ -251,9 +251,18 @@ export function parseHarnessDefinition(value, { source = "harness" } = {}) {
   if (value.cost !== undefined) {
     const cost = words(value.cost, "cost", source);
     const field = { output: "field", file: "path" }[cost.from];
-    if (!field || Object.keys(cost).join() !== `from,${field}`)
+    // `per`: "run" (the default) when each run reports its own cost, so runs
+    // are summed; "session" when it reports the session's running total, as
+    // Claude Code does on a resume (P60), so the last value is the cost.
+    const keys = Object.keys(cost).filter((key) => key !== "per");
+    if (
+      !field ||
+      keys.join() !== `from,${field}` ||
+      (cost.per !== undefined && !["run", "session"].includes(cost.per)) ||
+      (cost.per !== undefined && cost.from !== "output")
+    )
       fail(
-        `${source}: cost must be {"from": "output", "field": ...} or {"from": "file", "path": ...}.`,
+        `${source}: cost must be {"from": "output", "field": ..., "per"?: "run" | "session"} or {"from": "file", "path": ...}.`,
       );
     definition.cost = cost;
   }

@@ -13,13 +13,10 @@ import {
   landingNeedsYou,
 } from "../integration-head.mjs";
 import { syncNeedsYou, syncStep } from "../integration-sync.mjs";
-import { renderProvenance } from "../github-provenance.mjs";
-import { verifyIssue } from "../verify-issue.mjs";
 import { fixture } from "./fixtures.mjs";
 
 const REPO = "example/code";
 const BRANCH = "rewrite/x";
-const COMMIT = "0123456789abcdef0123456789abcdef01234567";
 const T0 = Date.parse("2026-11-14T00:00:00Z");
 const sha = (n) => String(n).repeat(40).slice(0, 40);
 const policy = {
@@ -88,50 +85,6 @@ function fakeGitHub(state = {}) {
   return github;
 }
 
-// verify-issue reads: a task issue whose marker names the branch as base.
-function reader(pullBase) {
-  const spec = `repos/${REPO}/contents/.kiro/specs/s`,
-    prose = "# T\n\nStatus: Approved\n",
-    tasks = "# Tasks\n\nStatus: Approved\n\n- [ ] rc-1 First\n",
-    body = renderProvenance({
-      spec: "s",
-      tasks: ["rc-1"],
-      commit: COMMIT,
-      approvedBy: "octocat",
-      base: BRANCH,
-    }),
-    table = new Map([
-      [`repos/${REPO}/issues/7`, { body: { body, user: { login: "owner1" } } }],
-      [
-        `repos/${REPO}/collaborators/octocat/permission`,
-        { body: { permission: "write" } },
-      ],
-      [
-        `repos/${REPO}/collaborators/owner1/permission`,
-        { body: { permission: "admin" } },
-      ],
-      [`repos/${REPO}`, { body: { default_branch: "main" } }],
-      [
-        `repos/${REPO}/compare/main...${COMMIT}`,
-        { body: { status: "behind" } },
-      ],
-      [`${spec}/requirements.md?ref=${COMMIT}`, { text: prose }],
-      [`${spec}/design.md?ref=${COMMIT}`, { text: prose }],
-      [`${spec}/tasks.md?ref=${COMMIT}`, { text: tasks }],
-      [
-        `${spec}/avoozl/manifest.json?ref=${COMMIT}`,
-        { text: JSON.stringify({ integrationBranch: BRANCH }) },
-      ],
-      [`repos/${REPO}/pulls/11`, { body: { base: { ref: pullBase } } }],
-    ]);
-  return async (apiPath) => {
-    const hit = table.get(apiPath);
-    return hit
-      ? { status: 200, headers: {}, text: hit.text ?? JSON.stringify(hit.body) }
-      : { status: 404, headers: {}, text: "{}" };
-  };
-}
-
 test("Proof 16: a four-task rewrite on a protected branch lands only with one person's approval on the current head", async (t) => {
   const { store } = fixture(t),
     github = fakeGitHub({ fresh: 2, own: 3 });
@@ -159,21 +112,6 @@ test("Proof 16: a four-task rewrite on a protected branch lands only with one pe
     baseBranch: "main",
   });
   assert.equal(good.ready, true);
-
-  // Small merges go into the branch, not main.
-  assert.equal(
-    (await verifyIssue(`${REPO}#7`, { read: reader(BRANCH), pull: 11 })).ok,
-    true,
-  );
-  const wrong = await verifyIssue(`${REPO}#7`, {
-    read: reader("main"),
-    pull: 11,
-  });
-  assert.equal(
-    wrong.ok,
-    false,
-    "a pull request into main fails for a branch epic",
-  );
 
   // Three of four tasks merge into the branch. The head is green, so it is accepted, behind main.
   store.mutate("epic tasks", (data) => {

@@ -591,7 +591,7 @@ function repositoryInput(value, id, mode) {
   if (radarInput.crew !== undefined) {
     const crew = onlyKeys(
         radarInput.crew,
-        ["count", "agent", "models", "template"],
+        ["count", "models", "template"],
         `${label}.radar.crew`,
       ),
       { models, count } = crew;
@@ -600,8 +600,6 @@ function repositoryInput(value, id, mode) {
       !(Number.isSafeInteger(count) && count >= 1 && count <= 8)
     )
       fail(`${label}.radar.crew.count must be a whole number from 1 to 8.`);
-    if (crew.agent !== undefined && crew.agent !== "avoozl-crew")
-      fail(`${label}.radar.crew.agent must be avoozl-crew.`);
     if (
       models !== undefined &&
       !(

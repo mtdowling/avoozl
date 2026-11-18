@@ -32,7 +32,7 @@ export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => vo
           ) : (
             <span className="text-muted">· {run.live ? 'reviewing' : (run.status ?? 'no verdict')}</span>
           )}
-          <span className="ml-auto flex items-center gap-1.5">
+          <span className="ml-auto flex flex-wrap items-center gap-1.5">
             {run.link && (
               <a
                 href={linkHref(run.link)}

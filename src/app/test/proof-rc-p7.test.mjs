@@ -238,9 +238,7 @@ test("Set up end to end: pack preview and import, Radar steps by confirm, owner 
           id: "c1",
           name: item(empty, "crew-name").value,
           labels: [item(empty, "scope").value],
-          agent: item(empty, "agent").value,
           model: item(empty, "model").value,
-          extra_prompt: item(empty, "prompt").value,
         },
       ],
     },
@@ -249,7 +247,7 @@ test("Set up end to end: pack preview and import, Radar steps by confirm, owner 
     item(empty, "claim-limit").value,
   );
   const ticked = await ops.execute("radar.values", { repository: REPO });
-  // All eight tick when Radar's read returns them (RC7.3).
-  assert.equal(ticked.items.length, 8);
+  // All six tick when Radar's read returns them (RC7.3).
+  assert.equal(ticked.items.length, 6);
   assert.ok(ticked.items.every((i) => i.status === "ok"));
 });

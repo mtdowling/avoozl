@@ -23,7 +23,7 @@ import {
   specDeclarations,
   declaredDependencies,
 } from "./cross-spec-dependencies.mjs";
-import { parseIssueReference, verifyIssue } from "./verify-issue.mjs";
+import { parseIssueReference } from "./issue-reference.mjs";
 import { RepoFiles } from "./repo-files.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
@@ -1020,8 +1020,6 @@ export class Operations {
       configDirectory = null,
       // Tests replace the shipped prompts to model an Avoozl update.
       shippedPrompts = null,
-      // (issue) => the issue.verify result; tests pass a fake.
-      issueVerifier = undefined,
       // The app backend's reads that go to GitHub or Kiro Crew (radar.crews,
       // radar.armed) answer from the last read and refresh after replying,
       // so no page request waits on the network. The CLI and MCP keep
@@ -1050,7 +1048,6 @@ export class Operations {
     this.placement = placement;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
-    this.issueVerifier = issueVerifier;
     // Every GitHub text write passes content rules first (§4.9).
     const client = github || defaultGitHubClient();
     // Conditional reads and the rate-limit pause live in this workspace.
@@ -3341,7 +3338,6 @@ export class Operations {
         breakdownHooks: () => this.breakdownHooks({ locked: true }),
         plugins: this.plugins,
         placement: this.placement,
-        issueVerify: this.issueVerifier,
       });
       if (result.skipped) return result;
       if (Array.isArray(input.sessions) || input.cron === true)
@@ -5733,13 +5729,6 @@ export class Operations {
           .map((extraction) => getExtraction(store, extraction.id)),
       };
     }
-    // Read-only and workspace-free: reads GitHub with the caller's gh login.
-    if (name === "issue.verify")
-      return verifyIssue(input.issue, {
-        brief: true,
-        ...(this.workspaceRoot ? { files: this.repoFiles() } : {}),
-        ...(input.pullRequest !== undefined ? { pull: input.pullRequest } : {}),
-      });
     if (name === "plan.lint") {
       const plan = store.get("plans", input.id);
       if (!plan) fail("Plan not found.", 404);
