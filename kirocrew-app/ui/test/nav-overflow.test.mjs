@@ -131,14 +131,15 @@ for (const [width, height] of [
       assert.deepEqual(heights, { heads: [32], rows: heights.rows.length ? [32] : [], workspace: 32 })
     })
 
-// Activity's Refresh sits on the top line right beside the pause icon, as on
-// Home, not on a row of its own under it. A phone has it in the menu.
+// Activity's Refresh sits on the top line, as on Home, not on a row of its
+// own under it; no pause icon is there (it is on Delivery). A phone has it in
+// the menu.
 for (const [width, height] of [
   [390, 844],
   [1280, 800],
 ])
   for (const dark of [false, true])
-    test(`at ${width} px ${dark ? 'dark' : 'light'}: Activity's Refresh is beside pause, as on Home`, { skip }, async () => {
+    test(`at ${width} px ${dark ? 'dark' : 'light'}: Activity's Refresh is on the top line, as on Home`, { skip }, async () => {
       await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light', needs: '3', activity: '1' }), { width, height, dark })
       await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
       if (width < 768) {
@@ -156,12 +157,12 @@ for (const [width, height] of [
         return
       }
       const got = await page.evaluate(`(() => {
-        const pause = document.querySelector('[data-main-actions] [data-stop-line]'), refresh = document.querySelectorAll('[data-refresh]')
-        const a = pause.getBoundingClientRect(), b = refresh[0].getBoundingClientRect()
-        return { count: refresh.length, inLine: Boolean(refresh[0].closest('[data-main-actions]')), sameRow: Math.abs(a.top - b.top) < 2, gap: Math.round(b.left - a.right) }
+        const refresh = document.querySelectorAll('[data-refresh]')
+        return { count: refresh.length, inLine: Boolean(refresh[0].closest('[data-main-actions]')), pause: document.querySelectorAll('[data-main-top] [data-stop-line]').length }
       })()`)
       assert.equal(got.count, 1, JSON.stringify(got))
-      assert.ok(got.inLine && got.sameRow && got.gap >= 0 && got.gap <= 12, `beside pause: ${JSON.stringify(got)}`)
+      assert.ok(got.inLine, `on the top line: ${JSON.stringify(got)}`)
+      assert.equal(got.pause, 0, 'no pause on the top line')
     })
 
 // Home's reads, by name. A new read on Home (or one that calls GitHub) has
