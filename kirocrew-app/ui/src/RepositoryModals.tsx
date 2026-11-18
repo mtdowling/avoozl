@@ -149,6 +149,7 @@ export function EditRepository(props: {
       id="avoozl-repo-edit"
       title={row.name}
       width="52rem"
+      dismissLabel="Cancel"
       onDismiss={props.onClose}
       unsaved={changed && { title: 'Discard your changes?', body: `${row.name} keeps its saved settings.`, action: 'Discard' }}
       attrs={{ 'data-repository-edit': row.key }}
@@ -156,7 +157,7 @@ export function EditRepository(props: {
       footer={
         <>
           {error && (
-            <span role="alert" className="mr-auto text-sm text-danger">
+            <span role="alert" className="mr-auto text-sm text-danger" style={{ order: -1 }}>
               {error}
             </span>
           )}

@@ -781,6 +781,7 @@ export function TaskDrawerProvider({
           width="56rem"
           height="52rem"
           backLabel="Close the drawer"
+          dismissLabel={mode.kind === 'add' ? 'Cancel' : 'Close'}
           attrs={{ 'data-task-modal': true }}
           title={title}
           onDismiss={close}
@@ -820,7 +821,6 @@ export function TaskDrawerProvider({
               detail={null}
               prerequisite={mode.prerequisite}
               onSaved={(id) => setMode({ kind: 'task', id })}
-              onCancel={close}
             />
           )}
         </Modal>
