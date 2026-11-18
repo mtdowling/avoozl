@@ -18,6 +18,7 @@ import { startAppBackend } from "./app-backend.mjs";
 import { contentHook } from "./public-crews.mjs";
 import { runSupervisor } from "./supervisor.mjs";
 import { machineStatus } from "./machine-status.mjs";
+import { workspaceStatus } from "./workspace-status.mjs";
 import {
   supervisorUnit,
   unitKindFor,
@@ -132,6 +133,12 @@ try {
     env.AVOOZL_WORKSPACE ||
     env.AICOMMANDER_WORKSPACE ||
     env.NUPP_WORKSPACE;
+  // Where the workspace was named, for `status` to say so.
+  const requestedFrom = options.workspace
+    ? "--workspace"
+    : ["AVOOZL_WORKSPACE", "AICOMMANDER_WORKSPACE", "NUPP_WORKSPACE"].find(
+        (name) => env[name],
+      );
   let registeredWorkspaceId = null,
     configOptions = options;
   if (
@@ -1463,18 +1470,40 @@ try {
     };
     try {
       let result;
-      if (action === "list" || action === "status")
-        result = {
-          ...((await live("/api/workspaces")) || registry.describe()),
-          ...(command === "status"
-            ? {
-                machine: machineStatus({
-                  stateDirectory: machineStateDirectory(),
-                }),
-              }
-            : {}),
-        };
-      else if (action === "add") {
+      if (action === "list" || action === "status") {
+        result = (await live("/api/workspaces")) || registry.describe();
+        if (command === "status") {
+          // A workspace named on the command line or in the environment is
+          // reported first, whether or not this machine's catalog lists it.
+          // A registered ID names its root in the catalog this command reads.
+          const named =
+              typeof requestedWorkspace === "string"
+                ? requestedWorkspace
+                : null,
+            registered = named ? registry.config.workspaces[named] : null;
+          result = {
+            ...(named
+              ? {
+                  workspace: workspaceStatus({
+                    named,
+                    from: requestedFrom,
+                    config: registered
+                      ? workspaceConfig({
+                          ...options,
+                          workspace: registered.root,
+                        })
+                      : config,
+                    catalog: result,
+                  }),
+                }
+              : {}),
+            ...result,
+            machine: machineStatus({
+              stateDirectory: machineStateDirectory(),
+            }),
+          };
+        }
+      } else if (action === "add") {
         const provided = input();
         const repositories =
           provided.repositories ||
