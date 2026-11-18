@@ -210,6 +210,12 @@ export const PERSON_ONLY = new Map([
     person("Only a person stops all agents.", (input) => input?.full === true),
   ],
   ["untriaged.handoff", person("Only a person sends issues to Issue Radar.")],
+  ["specpr.adopt", person("Only a person presses Review as spec.")],
+  ["specpr.reject", person("Only a person rejects a spec pull request.")],
+  [
+    "specpr.requestChanges",
+    person("Only a person requests changes on a spec pull request."),
+  ],
   [
     "github.crewlabel.backfill",
     person("Only a person adds crew:avoozl to old task issues."),
@@ -306,6 +312,8 @@ export const NOT_ON_MCP = new Map([
   // The spec page's Review view; plans_plan_review reads the same findings.
   ["plan.review.view", page],
   ["spec.changed.preview", page],
+  // The spec page's Proposed change box; plans_view shows the same spec.
+  ["specpr.view", page],
   ...[
     "run.model",
     "run.unsend",
