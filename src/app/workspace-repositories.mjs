@@ -24,6 +24,8 @@ export function workspaceRepositories(store) {
       planning: Boolean(project.planning),
       editable: project.editable !== false,
       baseBranch: project.baseBranch || "main",
+      landing: project.landing || null,
+      harness: project.harness || null,
       checks: structuredClone(project.checks || []),
       queue: {
         enabled: false,
