@@ -40,6 +40,6 @@ test('every spec is in one list: name, status chip, task count, epic and where i
 test('the plan view has no details panel in the list column; its details are a box on the Overview tab', () => {
   assert.doesNotMatch(plans, /SpecDetailsPanel/)
   assert.match(plans, /<SpecDetailsBox>\{specRail\}<\/SpecDetailsBox>/)
-  assert.match(plans, /fill=\{Boolean\(row\) && !reviewing\}/)
+  assert.match(plans, /\n\s+fill\n/)
   assert.doesNotMatch(plans, /useStickyHeight|useRailWidth|SPEC_RAIL/)
 })
