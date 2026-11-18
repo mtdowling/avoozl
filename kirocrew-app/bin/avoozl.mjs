@@ -6,6 +6,8 @@
 // runs `next --hook`. No command served from the installed package opens a
 // listener beyond the loopback, signed-principal app backend.
 // `npm run build:kirocrew-app` writes ./lib.
+import { fileURLToPath } from "node:url";
+
 const COMMANDS = new Set([
   "app-backend",
   "mcp",
@@ -40,6 +42,11 @@ if (
     workspace = config.workspaces[config.defaultWorkspace];
   if (workspace) rest.push("--workspace", workspace.root);
 }
+
+// The backend refuses the page's requests when ui/dist was not built from the
+// ui/src installed beside it (src/app/ui-bundle.mjs).
+if (command === "app-backend" && !rest.includes("--ui-dir"))
+  rest.push("--ui-dir", fileURLToPath(new URL("../ui", import.meta.url)));
 
 // The CLI reads process.argv when it loads.
 process.argv = [process.argv[0], process.argv[1], command, ...rest];

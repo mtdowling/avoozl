@@ -147,7 +147,10 @@ export function pullSteps({
             spec: entry.spec,
             candidate,
             base,
-            tasks: entry.tasks,
+            tasks: entry.tasks.map(({ task, definition }) => ({
+              task,
+              definition,
+            })),
           },
         },
       ];
@@ -260,7 +263,7 @@ export function pullSteps({
           sameOwner =
             fork && lower(sourceOwner) === lower(target.split("/")[0]);
         pull = await github.createPullRequest(target, {
-          title: `Land ${entry.key}`,
+          title: `Land ${entry.tasks.length === 1 && entry.tasks[0].public ? entry.tasks[0].public : entry.key}`,
           head:
             fork && !sameOwner
               ? `${sourceOwner}:${ref.source.branch}`
@@ -268,7 +271,7 @@ export function pullSteps({
           ...(sameOwner ? { head_repo: `${sourceOwner}/${sourceName}` } : {}),
           base: entry.base,
           body: entry.tasks
-            .map((t) => `Avoozl-Task: ${t.task}@${t.definition}`)
+            .map((t) => `Avoozl-Task: ${t.public ?? t.task}@${t.definition}`)
             .join("\n"),
         });
       }
@@ -284,8 +287,12 @@ export function pullSteps({
       });
       current = { pull, ref: { ...ref, pr: pull.number } };
       if (pull.mergeable === false)
-        return { conflict: ["(conflicts with the base)"], key: entry.key };
-      return { candidate: entry.commit };
+        return {
+          conflict: ["(conflicts with the base)"],
+          key: entry.key,
+          pr: pull.number,
+        };
+      return { candidate: entry.commit, pr: pull.number };
     },
     async check(candidate, [entry]) {
       const { pull } = current,

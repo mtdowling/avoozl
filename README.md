@@ -40,8 +40,16 @@ The trust request asks for these API grants:
 An update that adds a grant waits until you approve it. The **Avoozl** page
 appears in the sidebar.
 
-To update, pull, rebuild, and run `kirocrew app update avoozl`. A second
-`kirocrew app install` is refused once the app is installed.
+To update, pull, then run this in the checkout:
+
+```sh
+npm run build && kirocrew app update avoozl
+```
+
+`kirocrew app update` copies `kirocrew-app` as it is and does not build. A
+page left from an older build makes the installed app refuse every request
+and say to run that command. A second `kirocrew app install` is refused once
+the app is installed.
 
 ## Create a workspace
 
