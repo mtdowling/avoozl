@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { COMMIT, workspace } from "./radar-fixture.mjs";
-import { specFiles, writeSpec } from "./spec-fixture.mjs";
+import { specFiles, withFacts, writeSpec } from "./spec-fixture.mjs";
 
 const MIRROR = "example/code-private";
 const PLANS = "avoozl-plans";
@@ -31,11 +31,12 @@ const manifest = (requires, unblocks) =>
       },
     },
   });
-const files = (title, requires, unblocks) => ({
-  ...specFiles(),
-  "tasks.md": `# Tasks\n\n- [ ] 1 Goal\n  - [ ] 1.1 ${title}\n`,
-  "avoozl/manifest.json": manifest(requires, unblocks),
-});
+const files = (title, requires, unblocks) =>
+  withFacts({
+    ...specFiles(),
+    "tasks.md": `# Tasks\n\n- [ ] 1 Goal\n  - [ ] 1.1 ${title}\n`,
+    "avoozl/manifest.json": manifest(requires, unblocks),
+  });
 
 async function setup(t) {
   const context = await workspace(t, {

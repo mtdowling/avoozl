@@ -9,13 +9,7 @@ import {
 } from "./review-findings.mjs";
 
 // The spec files a Review view shows as tabs, in this order (R104.9).
-const TABS = [
-  "requirements.md",
-  "bugfix.md",
-  "design.md",
-  "tasks.md",
-  "avoozl/manifest.json",
-];
+const TABS = ["requirements.md", "bugfix.md", "design.md", "tasks.md"];
 
 // A link to a chat that exists, `closed` when its session is gone, or null
 // when no chat was opened. It never starts a chat (R104.11).

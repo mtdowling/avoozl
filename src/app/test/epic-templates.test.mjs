@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { applicationRoot } from "../config.mjs";
 import { integrationOf } from "../integration-branch.mjs";
-import { lintSpec, readSpecFolder } from "../spec-plans.mjs";
+import { lintSpec, readSpecFolder, specFacts } from "../spec-plans.mjs";
 import { RULES, scanText } from "../../../scripts/release-scan.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 // The statement in use, from its one source; the templates repeat it.
@@ -49,14 +49,12 @@ test("each template lints with 0 errors and carries the scope statement", () => 
 });
 
 test("the rewrite template names a usable integration branch", () => {
-  const manifest = JSON.parse(load("rewrite").files["avoozl/manifest.json"]);
+  const manifest = specFacts(load("rewrite").files);
   assert.equal(integrationOf(manifest).branch, "rewrite/my-epic");
 });
 
 test("migration: every repository task needs stage one and removal needs every repository", () => {
-  const tasks = JSON.parse(
-      load("migration").files["avoozl/manifest.json"],
-    ).tasks,
+  const tasks = specFacts(load("migration").files).tasks,
     repos = Object.keys(tasks).filter((id) => id.startsWith("migrate-repo-"));
   assert.ok(repos.length >= 2);
   for (const id of repos)
@@ -68,9 +66,7 @@ test("migration: every repository task needs stage one and removal needs every r
 });
 
 test("codegen: each regeneration task names its command and its compare check", () => {
-  const tasks = JSON.parse(
-    load("codegen-change").files["avoozl/manifest.json"],
-  ).tasks;
+  const tasks = specFacts(load("codegen-change").files).tasks;
   for (const [id, entry] of Object.entries(tasks))
     if (id.startsWith("regenerate-"))
       assert.match(entry.summary, /<generate command>.*<compare command>/, id);
@@ -78,12 +74,7 @@ test("codegen: each regeneration task names its command and its compare check", 
 
 test("the wording is generic: the release scan finds nothing in any template file", () => {
   for (const name of names)
-    for (const file of [
-      "requirements.md",
-      "design.md",
-      "tasks.md",
-      "avoozl/manifest.json",
-    ])
+    for (const file of ["requirements.md", "design.md", "tasks.md"])
       assert.deepEqual(
         scanText(
           fs.readFileSync(path.join(TEMPLATES, name, file), "utf8"),

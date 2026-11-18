@@ -56,6 +56,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Checkbox } from './ui/Checkbox'
 
 const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter, write: writeConflictFilter, empty: {} as ConflictFilter }
 
@@ -513,13 +514,11 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
   return (
     <li className="border-t first:border-t-0" style={{ borderColor: 'var(--border)' }} data-conflict-row>
       <div className="flex items-start gap-2 px-1 py-1.5" style={{ background: props.focused ? 'var(--accent-subtle, var(--bg-elevated))' : undefined, borderRadius: 6 }}>
-        <input
-          type="checkbox"
+        <Checkbox
           aria-label={`Select ${item.title}`}
           checked={props.selected}
           disabled={!props.selectable}
-          onChange={(event) => props.onSelect(event.target.checked)}
-          style={{ marginTop: 3 }}
+          onChange={(event) => props.onSelect(event.target.checked)} drop={3}
         />
         <div className="flex min-w-0 flex-1 flex-col items-stretch gap-0.5">
           <button
@@ -808,8 +807,7 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                 </FilterPanel>
                 <div className="flex flex-wrap items-center gap-2 text-sm" data-bulk-bar>
                   <label className="flex items-center gap-1.5 text-xs">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       aria-label={`Select the ${shown.length} shown`}
                       checked={allShown}
                       onChange={(event) => {

@@ -12,35 +12,36 @@ import { linkedBranchName } from "../github-plans-repo.mjs";
 import { refreshProjectedReadiness } from "../github-projection.mjs";
 import { queryTasks } from "../../query.mjs";
 import { COMMIT, workspace } from "./radar-fixture.mjs";
-import { specFiles } from "./spec-fixture.mjs";
+import { specFiles, withFacts } from "./spec-fixture.mjs";
 
 const REPO = "example/code";
 const PLANS = "avoozl-plans";
 
-const files = (title, requires) => ({
-  ...specFiles(),
-  "tasks.md": `# Tasks\n\n- [ ] 1 Goal\n  - [ ] 1.1 ${title}\n`,
-  "avoozl/manifest.json": JSON.stringify({
-    tasks: {
-      1: {
-        kind: "package",
-        summary: "Goal.",
-        requires: ["1.1"],
-        acceptance: ["Done."],
+const files = (title, requires) =>
+  withFacts({
+    ...specFiles(),
+    "tasks.md": `# Tasks\n\n- [ ] 1 Goal\n  - [ ] 1.1 ${title}\n`,
+    "avoozl/manifest.json": JSON.stringify({
+      tasks: {
+        1: {
+          kind: "package",
+          summary: "Goal.",
+          requires: ["1.1"],
+          acceptance: ["Done."],
+        },
+        1.1: {
+          kind: "leaf",
+          repository: "code",
+          route: "github",
+          summary: title,
+          ...(requires ? { requires: [requires] } : {}),
+          acceptance: ["It works."],
+          checks: ["npm test"],
+          completion: "merged-pr",
+        },
       },
-      1.1: {
-        kind: "leaf",
-        repository: "code",
-        route: "github",
-        summary: title,
-        ...(requires ? { requires: [requires] } : {}),
-        acceptance: ["It works."],
-        checks: ["npm test"],
-        completion: "merged-pr",
-      },
-    },
-  }),
-});
+    }),
+  });
 
 // The policy key is the mirror itself: issues and pull requests live there.
 async function setup(t, forward) {

@@ -41,6 +41,7 @@ import {
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Checkbox } from './ui/Checkbox'
 
 const BADGE: Record<string, CSSProperties> = {
   create: { color: 'var(--ok)', borderColor: 'var(--ok)' },
@@ -497,8 +498,7 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
           <ul className="flex flex-col gap-1.5">
             {shown.map((spec) => (
               <li key={spec.name} className="flex flex-wrap items-center gap-2" data-onboard-spec={spec.name}>
-                <input
-                  type="checkbox"
+                <Checkbox
                   aria-label={`Import ${spec.name}`}
                   disabled={imported(spec)}
                   checked={imported(spec) || picked.has(spec.name)}

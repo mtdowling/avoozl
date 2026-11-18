@@ -29,6 +29,7 @@ import { epicOfPlan } from "./epics.mjs";
 import { fail } from "./store.mjs";
 import { mirrorConfig, refusePrivateToSource } from "./mirror-sync.mjs";
 import { exportEvidence, importEvidence } from "./evidence.mjs";
+import { issueHash } from "./plans.mjs";
 
 const TABLE = "drivers";
 const BASE32 = "abcdefghijklmnopqrstuvwxyz234567";
@@ -324,7 +325,9 @@ function planMarker(plan, namespace, claim, label) {
     kind: "plan",
     source: {
       commit: null,
-      manifest: SHA256.test(plan.hash) ? plan.hash : digest(String(plan.hash)),
+      manifest: SHA256.test(issueHash(plan))
+        ? issueHash(plan)
+        : digest(String(issueHash(plan))),
     },
     applied: {
       title: digest(planTitle(plan)),

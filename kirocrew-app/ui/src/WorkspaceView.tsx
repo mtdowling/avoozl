@@ -30,6 +30,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Checkbox } from './ui/Checkbox'
 
 function Field(props: {
   id: string
@@ -371,11 +372,11 @@ export default function WorkspaceView(
             </FormSection>
             <FormSection title="Running">
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" data-edit-enabled checked={edit.enabled} onChange={(event) => setEdit({ ...edit, enabled: event.target.checked })} />
+                <Checkbox data-edit-enabled checked={edit.enabled} onChange={(event) => setEdit({ ...edit, enabled: event.target.checked })} />
                 On (ticks run and pages read it)
               </label>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" data-edit-default checked={edit.default} disabled={isDefault} onChange={(event) => setEdit({ ...edit, default: event.target.checked })} />
+                <Checkbox data-edit-default checked={edit.default} disabled={isDefault} onChange={(event) => setEdit({ ...edit, default: event.target.checked })} />
                 {isDefault ? 'The default workspace' : 'Make it the default workspace'}
               </label>
             </FormSection>

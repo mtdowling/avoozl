@@ -12,7 +12,12 @@ import {
   specItems,
 } from "../spec-plans.mjs";
 import { fixture } from "./fixtures.mjs";
-import { specFiles, writeSpec } from "./spec-fixture.mjs";
+import {
+  legacySpecFiles,
+  specFiles,
+  tasksWithFacts,
+  writeSpec,
+} from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const lint = (root, name = "config") =>
@@ -70,7 +75,10 @@ test("a valid feature spec yields its leaves and manifest edges", () => {
   assert.equal(result.type, "feature");
   const validator = result.proposals.find((p) => p.id === "config.1.2");
   assert.deepEqual(validator.requires, ["config.1.1"]);
-  assert.equal(validator.lineStart, 5);
+  assert.equal(
+    validator.lineStart,
+    lineOf(specFiles()["tasks.md"], "1.2 Validate"),
+  );
 });
 
 test("a missing folder is refused", () => {
@@ -88,12 +96,22 @@ test("each missing file is named", () => {
   assert.ok(
     codes(lint(root, "tasks")).includes("spec.missing-file tasks.md:1"),
   );
-  writeSpec(root, "manifest", { "avoozl/manifest.json": null });
-  assert.ok(
-    codes(lint(root, "manifest")).includes(
-      "spec.missing-file avoozl/manifest.json:1",
-    ),
-  );
+});
+
+test("a leftover avoozl/manifest.json is an error that says to delete it", () => {
+  const root = temporaryDirectory(),
+    directory = writeSpec(root, "config");
+  fs.writeFileSync(path.join(directory, "avoozl/manifest.json"), "{}\n");
+  const before = readSpecFolder(root, "config");
+  const result = lint(root);
+  assert.deepEqual(codes(result), [
+    "spec.manifest-left avoozl/manifest.json:1",
+  ]);
+  assert.match(result.diagnostics[0].message, /Delete .*manifest\.json/);
+  assert.equal(result.canApprove, false);
+  // Nothing reads it: it is not part of the revision hash.
+  fs.writeFileSync(path.join(directory, "avoozl/manifest.json"), "[]\n");
+  assert.equal(readSpecFolder(root, "config").hash, before.hash);
 });
 
 test("a spec has exactly one of requirements.md and bugfix.md", () => {
@@ -180,60 +198,50 @@ test("a missing file names its folder", () => {
 
 test("an item with no ID is refused at its line", () => {
   const root = temporaryDirectory();
-  writeSpec(root, "config", {
-    "tasks.md": specFiles()["tasks.md"] + "- [ ] Write the docs\n",
-  });
-  assert.deepEqual(codes(lint(root)), ["task.missing-id tasks.md:6"]);
+  const text = specFiles()["tasks.md"] + "- [ ] Write the docs\n";
+  writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
+  assert.deepEqual(codes(lint(root)), [
+    `task.missing-id tasks.md:${lineOf(text, "Write the docs")}`,
+  ]);
 });
 
 test("a repeated ID is refused at its second line", () => {
   const root = temporaryDirectory();
-  writeSpec(root, "config", {
-    "tasks.md": specFiles()["tasks.md"] + "- [ ] 1.1 Read it again\n",
-  });
+  const text = specFiles()["tasks.md"] + "- [ ] 1.1 Read it again\n";
+  writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
   const result = lint(root);
-  assert.deepEqual(codes(result), ["task.duplicate-id tasks.md:6"]);
-  assert.match(result.diagnostics[0].message, /line 4/);
+  assert.deepEqual(codes(result), [
+    `task.duplicate-id tasks.md:${lineOf(text, "Read it again")}`,
+  ]);
+  assert.match(
+    result.diagnostics[0].message,
+    new RegExp(`line ${lineOf(text, "1.1 Read the")}`),
+  );
 });
 
-test("manifest entries and tasks.md items cover each other", () => {
+test("a task with no Facts bullet is refused at its line", () => {
   const root = temporaryDirectory(),
-    manifest = JSON.parse(specFiles()["avoozl/manifest.json"]);
-  manifest.tasks["2.1"] = manifest.tasks["1.1"];
-  delete manifest.tasks["1.2"];
-  manifest.tasks["1"].requires = ["1.1"];
-  const text = JSON.stringify(manifest, null, 2);
-  writeSpec(root, "config", { "avoozl/manifest.json": text });
-  assert.deepEqual(codes(lint(root)).sort(), [
-    "manifest.missing-entry tasks.md:5",
-    `manifest.unknown-task avoozl/manifest.json:${lineOf(text, '"2.1":')}`,
+    text = specFiles()["tasks.md"] + "- [ ] 2.1 Document it\n";
+  writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
+  assert.deepEqual(codes(lint(root)), [
+    `facts.missing tasks.md:${lineOf(text, "2.1 Document")}`,
   ]);
 });
 
-test("invalid manifest JSON is refused in the manifest", () => {
-  const root = temporaryDirectory();
-  writeSpec(root, "config", {
-    "avoozl/manifest.json": '{\n  "tasks": {\n    "1": ,\n  }\n}\n',
-  });
+test("a fact breaking the task schema is refused at its Facts line", () => {
+  const root = temporaryDirectory(),
+    text = [
+      "- [ ] 1.1 Read the config file",
+      "  - Facts:",
+      "    - checks: npm test",
+      "",
+    ].join("\n");
+  writeSpec(root, "config", { "tasks.md": text, "avoozl/manifest.json": null });
   const found = lint(root).diagnostics;
   assert.deepEqual(
-    found.map((d) => [d.code, d.file]),
-    [["manifest.json", "avoozl/manifest.json"]],
+    found.map((d) => `${d.code} ${d.file}:${d.lineStart}`),
+    ["facts.schema tasks.md:2"],
   );
-});
-
-test("a manifest entry breaking the task schema is refused at its line", () => {
-  const root = temporaryDirectory(),
-    manifest = JSON.parse(specFiles()["avoozl/manifest.json"]);
-  manifest.tasks["1.2"].acceptance = [];
-  const text = JSON.stringify(manifest, null, 2);
-  writeSpec(root, "config", { "avoozl/manifest.json": text });
-  const found = lint(root).diagnostics.filter(
-    (d) => d.code === "manifest.schema",
-  );
-  assert.equal(found.length, 1);
-  assert.equal(found[0].file, "avoozl/manifest.json");
-  assert.equal(found[0].lineStart, lineOf(text, '"1.2":'));
   assert.match(found[0].message, /observable acceptance/);
 });
 
@@ -247,7 +255,9 @@ test("an ID owned by another plan is refused", () => {
       tasks: [{ id: "config.1.1", title: "Other", planId: "other-plan" }],
     },
   });
-  assert.deepEqual(codes(result), ["task.duplicate-id tasks.md:4"]);
+  assert.deepEqual(codes(result), [
+    `task.duplicate-id tasks.md:${lineOf(specFiles()["tasks.md"], "1.1 Read")}`,
+  ]);
 });
 
 test("the revision hash covers the spec files but not the critique", () => {
@@ -360,7 +370,10 @@ test("a spec plan is created, reloaded, and approved by its folder hash", async 
   const data = store.read(),
     leaf = data.tasks.find((task) => task.id === "config.1.2");
   assert.equal(leaf.source.document, "spec:config");
-  assert.equal(leaf.source.lineStart, 5);
+  assert.equal(
+    leaf.source.lineStart,
+    lineOf(specFiles()["tasks.md"], "1.2 Validate"),
+  );
   assert.equal(leaf.approvedSource.text, "  - [ ] 1.2 Validate loaded config");
   assert.ok(
     data.edges.some(
@@ -458,7 +471,7 @@ test("re-approval marks only the changed entry for review", async (t) => {
   const { root, ops } = workspace(t),
     directory = writeSpec(root, "config"),
     plan = await ops.execute("plan.create", { spec: "config" }),
-    manifest = path.join(directory, "avoozl/manifest.json");
+    tasksFile = path.join(directory, "tasks.md");
   await approve(ops);
   const ready = () =>
     queryTasks(ops.read(), { scope: "all", q: "ready:true" }).map(
@@ -472,9 +485,15 @@ test("re-approval marks only the changed entry for review", async (t) => {
         .map((task) => [task.id, Boolean(task.needsReview)]),
     );
   assert.ok(ready().includes("config.1.1"));
-  const value = JSON.parse(fs.readFileSync(manifest, "utf8"));
-  value.tasks["1.2"].summary = "Report unknown keys and bad types.";
-  fs.writeFileSync(manifest, JSON.stringify(value, null, 2) + "\n");
+  fs.writeFileSync(
+    tasksFile,
+    fs
+      .readFileSync(tasksFile, "utf8")
+      .replace(
+        "summary: Report unknown keys.",
+        "summary: Report unknown keys and bad types.",
+      ),
+  );
   await ops.execute("plan.save", { id: "config", expectedHash: plan.hash });
   // The draft holds every task until it is approved.
   assert.deepEqual(review(), {
@@ -558,23 +577,25 @@ test("an item nested under an epic is its child; flat items have no parent", () 
   assert.deepEqual(Object.values(parents(lint(flat))), [null, null, null]);
 });
 
-test("nesting under a leaf, or a manifest parent, is refused at its line", () => {
+test("nesting under a leaf, or a parent fact, is refused at its line", () => {
   const root = temporaryDirectory(),
-    manifest = JSON.parse(specFiles()["avoozl/manifest.json"]);
-  writeSpec(root, "config", {
-    "tasks.md":
+    text = tasksWithFacts(
       "- [ ] 1 Load and validate configuration\n  - [ ] 1.1 Read the config file\n    - [ ] 1.2 Validate loaded config\n",
-  });
-  assert.deepEqual(codes(lint(root)), ["task.parent-kind tasks.md:3"]);
-  manifest.tasks["1.1"].parent = "1";
-  const named = temporaryDirectory();
-  writeSpec(named, "config", {
-    "avoozl/manifest.json": JSON.stringify(manifest, null, 2),
-  });
+    );
+  writeSpec(root, "config", { "tasks.md": text });
+  assert.deepEqual(codes(lint(root)), [
+    `task.parent-kind tasks.md:${lineOf(text, "1.2 Validate")}`,
+  ]);
+  const named = temporaryDirectory(),
+    parented = specFiles()["tasks.md"].replace(
+      "      - summary: Parse",
+      "      - parent: 1\n      - summary: Parse",
+    );
+  writeSpec(named, "config", { "tasks.md": parented });
   const result = lint(named);
   assert.deepEqual(
-    result.diagnostics.map((d) => [d.code, d.file, d.taskId]),
-    [["manifest.schema", "avoozl/manifest.json", "config.1.1"]],
+    result.diagnostics.map((d) => [d.code, d.file, d.lineStart]),
+    [["facts.unknown-key", "tasks.md", lineOf(parented, "- parent: 1")]],
   );
 });
 
@@ -598,7 +619,9 @@ test("approval sets each nested task's parent and re-approval moves it", async (
   // 1.2 moves out from under the epic.
   fs.writeFileSync(
     path.join(directory, "tasks.md"),
-    "- [ ] 1 Load and validate configuration\n  - [ ] 1.1 Read the config file\n- [ ] 1.2 Validate loaded config\n",
+    tasksWithFacts(
+      "- [ ] 1 Load and validate configuration\n  - [ ] 1.1 Read the config file\n- [ ] 1.2 Validate loaded config\n",
+    ),
   );
   await ops.execute("plan.save", { id: "config", expectedHash: plan.hash });
   await approve(ops);
@@ -624,7 +647,9 @@ test("an approved ID whose item text changed is refused until approved", async (
   );
   await ops.execute("plan.save", { id: "config", expectedHash: plan.hash });
   const quality = await ops.execute("plan.lint", { id: "config" });
-  assert.deepEqual(codes(quality), ["task.changed-text tasks.md:5"]);
+  assert.deepEqual(codes(quality), [
+    `task.changed-text tasks.md:${lineOf(specFiles()["tasks.md"], "1.2 Validate")}`,
+  ]);
   assert.equal(quality.diagnostics[0].taskId, "config.1.2");
   await assert.rejects(approve(ops), /task\.changed-text/);
   await approve(ops, "config", { retitled: ["1.2"] });
@@ -680,7 +705,7 @@ test("single-repo mode reads spec folders from code repositories only", async (t
 test("plan preview shows each task's authority and issue link", async (t) => {
   const { root, store, ops } = workspace(t),
     app = temporaryDirectory(),
-    files = JSON.parse(specFiles()["avoozl/manifest.json"]);
+    files = JSON.parse(legacySpecFiles()["avoozl/manifest.json"]);
   files.tasks["1.2"].authority = "local";
   writeSpec(app, "config", {
     "avoozl/manifest.json": JSON.stringify(files),
@@ -1004,13 +1029,14 @@ test("approval starts checked items as accepted from the approved tasks.md", asy
   const row = (id) => store.read().tasks.find((task) => task.id === id),
     leaf = row("config.1.1");
   assert.equal(leaf.status, "accepted");
+  const line = lineOf(marked, "1.1 Read");
   assert.equal(
     leaf.acceptanceEvidence.evidence,
-    `tasks.md line 4 marks 1.1 [x] at approved revision ${plan.hash}. Built: \`abc1234\`, receipt \`docs/evidence/x.md\`.`,
+    `tasks.md line ${line} marks 1.1 [x] at approved revision ${plan.hash}. Built: \`abc1234\`, receipt \`docs/evidence/x.md\`.`,
   );
   assert.deepEqual(leaf.acceptanceEvidence.baseline, {
     file: "tasks.md",
-    line: 4,
+    line,
     mark: "[x]",
     hash: plan.hash,
   });
@@ -1039,7 +1065,7 @@ test("approval starts checked items as accepted from the approved tasks.md", asy
 
 test("a checked item gated on validation, and a breakdown approval, start planned", async (t) => {
   const { root, store, ops } = workspace(t),
-    files = specFiles(),
+    files = legacySpecFiles(),
     manifest = JSON.parse(files["avoozl/manifest.json"]);
   manifest.tasks["1.1"].acceptFrom = "validation";
   writeSpec(root, "config", {
@@ -1096,7 +1122,7 @@ test("lettered IDs such as P1 and P2b are namespaced like numbers", async (t) =>
     ["config.P1", "config.P2b", "avoozl-p3", null, null, null],
   );
   const { root, store, ops } = workspace(t),
-    files = specFiles(),
+    files = legacySpecFiles(),
     manifest = JSON.parse(files["avoozl/manifest.json"]);
   manifest.tasks.P1 = {
     kind: "leaf",
@@ -1146,26 +1172,25 @@ test("an item over the title limit keeps its first clause as the title", () => {
   assert.ok(plain.title.length <= 240 && plain.title.endsWith("word…"));
 });
 
-// The planner's batch groups (R108.1–R108.3, §4.37).
-const withBatches = (batches, edit = (tasks) => tasks) => {
-  const manifest = JSON.parse(specFiles()["avoozl/manifest.json"]);
-  return {
-    "avoozl/manifest.json": JSON.stringify({
-      tasks: edit(manifest.tasks),
-      ...(batches === undefined ? {} : { batches }),
-    }),
-  };
+// The planner's batch groups (R108.1–R108.3, §4.37): members name the group
+// in a `batch` fact; front-matter holds its reason.
+const withBatch = (front, members) => {
+  let text = specFiles()["tasks.md"];
+  for (const [key, group] of Object.entries(members))
+    text = text.replace(
+      new RegExp(`(- \\[ \\] ${key.replace(".", "\\.")} .*\\n\\s*- Facts:\\n)`),
+      (head) =>
+        `${head}${" ".repeat(key.includes(".") ? 6 : 4)}- batch: ${group}\n`,
+    );
+  return { "tasks.md": front ? `---\n${front}\n---\n${text}` : text };
 };
 
-test("a manifest batch group lands on each member; an old size is ignored", () => {
+test("a batch group lands on each member", () => {
   const root = temporaryDirectory();
   writeSpec(
     root,
     "config",
-    withBatches(
-      { pair: { tasks: ["1.1", "1.2"], reason: "Both edit config.mjs" } },
-      (tasks) => ({ ...tasks, 1.1: { ...tasks["1.1"], size: "small" } }),
-    ),
+    withBatch("batch-pair: Both edit config.mjs", { 1.1: "pair", 1.2: "pair" }),
   );
   const result = lint(root);
   assert.deepEqual(codes(result), []);
@@ -1176,42 +1201,30 @@ test("a manifest batch group lands on each member; an old size is ignored", () =
       tasks: ["config.1.1", "config.1.2"],
       reason: "Both edit config.mjs",
     });
-    assert.equal("size" in proposal, false);
   }
 });
 
-test("a malformed batch group is a manifest error", () => {
+test("a malformed batch group is an error in tasks.md", () => {
   const cases = [
-    [["1.1", "1.2"], /"batches" is an object keyed by group ID/],
-    [{ "bad id": { tasks: ["1.1", "1.2"], reason: "x" } }, /needs an ID/],
-    [{ g: { tasks: ["1.1"], reason: "x" } }, /lists 2 to 5 different/],
-    [{ g: { tasks: ["1.1", "9.9"], reason: "x" } }, /names "9\.9"/],
     [
-      { g: { tasks: ["1", "1.1"], reason: "x" } },
-      /names "1", which is not a leaf/,
+      "batch-bad id: x",
+      { 1.1: "bad id", 1.2: "bad id" },
+      /needs an ID|front-matter/,
     ],
-    [{ g: { tasks: ["1.1", "1.2"], reason: "two\nlines" } }, /one line/],
-    [
-      { g: { tasks: ["1.1", "1.2"], reason: "x", max: 3 } },
-      /only "tasks" and "reason"/,
-    ],
-    [
-      {
-        g: { tasks: ["1.1", "1.2"], reason: "x" },
-        h: { tasks: ["1.2", "1.1"], reason: "y" },
-      },
-      /is in batch "g" and batch "h"/,
-    ],
+    ["batch-g: x", { 1.1: "g" }, /lists 2 to 5 different/],
+    ["batch-g: x", { 1: "g", 1.1: "g" }, /names "1", which is not a leaf/],
+    [null, { 1.1: "g", 1.2: "g" }, /Batch "g" has no reason/],
+    ["batch-g: x", {}, /lists 2 to 5 different/],
   ];
-  for (const [batches, message] of cases) {
+  for (const [front, members, message] of cases) {
     const root = temporaryDirectory();
-    writeSpec(root, "config", withBatches(batches));
+    writeSpec(root, "config", withBatch(front, members));
     const errors = lint(root).diagnostics.filter(
-      (d) => d.code === "manifest.schema",
+      (d) => d.severity === "error" && d.file === "tasks.md",
     );
     assert.ok(
       errors.some((d) => message.test(d.message)),
-      `${JSON.stringify(batches)}: ${errors.map((d) => d.message).join("; ")}`,
+      `${front} ${JSON.stringify(members)}: ${errors.map((d) => d.message).join("; ")}`,
     );
   }
 });
@@ -1221,7 +1234,7 @@ test("approval stores the group with the approved hash; dropping it clears it", 
     directory = writeSpec(
       root,
       "config",
-      withBatches({ pair: { tasks: ["1.1", "1.2"], reason: "Same file" } }),
+      withBatch("batch-pair: Same file", { 1.1: "pair", 1.2: "pair" }),
     );
   const plan = await ops.execute("plan.create", { spec: "config" });
   await approve(ops);
@@ -1232,10 +1245,7 @@ test("approval stores the group with the approved hash; dropping it clears it", 
     reason: "Same file",
   });
   assert.ok(task("config.1.2").planHash);
-  fs.writeFileSync(
-    path.join(directory, "avoozl/manifest.json"),
-    withBatches(undefined)["avoozl/manifest.json"],
-  );
+  fs.writeFileSync(path.join(directory, "tasks.md"), specFiles()["tasks.md"]);
   await ops.execute("plan.save", { id: "config", expectedHash: plan.hash });
   await approve(ops);
   assert.equal(task("config.1.1").batch, undefined);

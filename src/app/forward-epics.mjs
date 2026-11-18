@@ -9,16 +9,12 @@
 // `publicBranch`.
 import { syncTargets } from "./integration-sync.mjs";
 import { forwardTargetOf } from "./mirror-policy.mjs";
+import { specFacts } from "./spec-plans.mjs";
 
+// The facts of the spec a plan was approved from, or null.
 export function planManifest(store, plan) {
-  try {
-    const text = store.get("approvals", plan?.approvalId)?.files?.[
-      "avoozl/manifest.json"
-    ];
-    return text ? JSON.parse(text) : null;
-  } catch {
-    return null;
-  }
+  const files = store.get("approvals", plan?.approvalId)?.files;
+  return files?.["tasks.md"] === undefined ? null : specFacts(files);
 }
 
 // The target in force for one record: {forwardTarget, publicBranch, from,

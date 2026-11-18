@@ -9,6 +9,7 @@ import type { ReactNode } from 'react'
 import { Tooltip } from './ui/Tooltip.tsx'
 import type { FieldRule } from './settings-api.ts'
 import { Hint } from './ui/Hint'
+import { Checkbox } from './ui/Checkbox'
 
 export const FIELD_WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 export type FieldWidth = keyof typeof FIELD_WIDTH
@@ -128,7 +129,7 @@ export function FieldRow(props: {
 export function CheckRow(props: { id?: string; label: ReactNode; checked: boolean; onChange: (checked: boolean) => void; raw?: string; help?: ReactNode; disabled?: boolean }) {
   return (
     <label className="flex items-start gap-2 text-sm" style={{ opacity: props.disabled ? 0.6 : 1 }} data-check-row={props.raw ?? ''}>
-      <input id={props.id} type="checkbox" className="mt-1" checked={props.checked} disabled={props.disabled} onChange={(event) => props.onChange(event.target.checked)} />
+      <Checkbox id={props.id} drop={4} checked={props.checked} disabled={props.disabled} onChange={(event) => props.onChange(event.target.checked)} />
       <span className="flex min-w-0 flex-col" style={{ gap: 2 }}>
         <span>{props.label}</span>
         {props.help && <FieldHelp>{props.help}</FieldHelp>}

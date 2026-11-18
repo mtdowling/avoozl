@@ -424,6 +424,11 @@ export const HELP_GROUPS = Object.freeze([
         "Kiro Crew app backend on 127.0.0.1 ($PORT)",
       ),
       entry(
+        "serve [--workspace PATH] [--port N]",
+        "The standalone page on 127.0.0.1 only; prints a one-time owner link",
+      ),
+      entry("serve link", "A new owner link for the running standalone page"),
+      entry(
         "supervisor [--tick-seconds N]",
         "This machine's owner of process children (one per machine); --tick-seconds runs the tick too (headless)",
       ),
