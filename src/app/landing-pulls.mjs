@@ -12,8 +12,11 @@
 // - The head must pass every required check and meet the repository's review
 //   rule on that exact head. Pending checks or reviews keep the portion
 //   queued ("waiting", with reason "checks" or "review"); a failed check
-//   fails it. Stale approvals after an
-//   update count for nothing (`reviewVerdict`).
+//   fails it. An approval counts while GitHub still shows it: GitHub
+//   dismisses stale ones itself when the rule says so, and keeps them
+//   across a base merge or when the rule does not (`reviewVerdict`
+//   `standing`). A rule that requires the last push to be approved needs
+//   an approval on the exact head.
 // - Source push rights are not merge rights. With merge rights the merge is
 //   guarded by the head (`headGuardedMerge`). Without them Avoozl keeps the
 //   portion queued and observes an authorized maintainer's merge.
@@ -332,6 +335,7 @@ export function pullSteps({
             { number: pull.number, url: pull.html_url, headRefOid: candidate },
             reviews,
             async (who) => (await github.permission(target, who))?.permission,
+            { standing: !rule.lastPushApproval },
           );
         if (verdict.state !== "approved")
           return { wait: true, reason: "review", checks: shown };

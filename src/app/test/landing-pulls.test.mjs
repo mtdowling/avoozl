@@ -42,6 +42,7 @@ function fakeGithub({
   runs = [{ name: "build", status: "completed", conclusion: "success" }],
   reviews = [],
   approvals = 1,
+  lastPush = false,
   roles = { "acme/app": "write", "me/app": "write" },
 } = {}) {
   const calls = { created: [], merged: [] };
@@ -76,7 +77,10 @@ function fakeGithub({
       },
       {
         type: "pull_request",
-        parameters: { required_approving_review_count: approvals },
+        parameters: {
+          required_approving_review_count: approvals,
+          require_last_push_approval: lastPush,
+        },
       },
     ],
     branchProtection: async () => null,
@@ -225,7 +229,9 @@ test("pending checks and missing approvals keep the portion queued; a failed che
   );
   assert.equal(landingQueue(pending.store, Q).length, 1);
 
-  const stale = fakeGithub({ reviews: [approval("r1", "d".repeat(40))] }),
+  const stale = fakeGithub({
+      reviews: [{ ...approval("r1", "d".repeat(40)), state: "DISMISSED" }],
+    }),
     unreviewed = await setup(t, stale);
   assert.equal(
     (await landNext(unreviewed.store, Q, unreviewed.steps)).state,
@@ -241,6 +247,26 @@ test("pending checks and missing approvals keep the portion queued; a failed che
     }),
   );
   assert.equal((await landNext(bad.store, Q, bad.steps)).state, "failed");
+});
+
+// P67: after a base merge into the pull request, GitHub kept the approval
+// on the older head; Avoozl must not wait for a review GitHub does not need.
+test("an approval GitHub still shows on an older head counts, unless the last push must be approved", async (t) => {
+  const older = "d".repeat(40),
+    kept = fakeGithub({ reviews: [approval("r1", older)] }),
+    x = await setup(t, kept),
+    result = await landNext(x.store, Q, x.steps);
+  assert.equal(result.state, "landed");
+  assert.deepEqual(result.entry.approvers, ["r1"]);
+  assert.deepEqual(kept.calls.merged, [{ number: 7, sha: COMMIT }]);
+
+  const strict = fakeGithub({
+      reviews: [approval("r1", older)],
+      lastPush: true,
+    }),
+    y = await setup(t, strict);
+  assert.equal((await landNext(y.store, Q, y.steps)).state, "waiting");
+  assert.equal(strict.calls.merged.length, 0);
 });
 
 test("a pull request at another head is not updated without source write rights", async (t) => {
