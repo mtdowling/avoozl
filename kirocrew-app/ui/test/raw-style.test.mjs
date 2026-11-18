@@ -16,13 +16,15 @@ import { parseSync } from "rolldown/utils";
 const src = new URL("../src/", import.meta.url);
 const srcDir = fileURLToPath(src);
 const uiDir = path.join(srcDir, "ui");
+// The standalone host shim and its header are not views (SW1).
+const standaloneDir = path.join(srcDir, "standalone");
 const allowUrl = new URL("./raw-style-allow.json", import.meta.url);
 
 function walk(dir, found = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (full !== uiDir) walk(full, found);
+      if (full !== uiDir && full !== standaloneDir) walk(full, found);
     } else if (/\.tsx?$/.test(entry.name) && !entry.name.endsWith(".d.ts"))
       found.push(full);
   }
