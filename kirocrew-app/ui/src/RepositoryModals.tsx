@@ -86,10 +86,10 @@ export function ViewRepository(props: { row: RepositoryRow; roleText: string; en
   return (
     <Modal
       id="avoozl-repo-view"
-      focusClose
       title={row.name}
       onDismiss={props.onClose}
       attrs={{ 'data-repository-view': row.key }}
+      focusClose
     >
       <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
         {facts.map(([label, value]) => (
@@ -153,6 +153,7 @@ export function EditRepository(props: {
       onDismiss={props.onClose}
       unsaved={changed && { title: 'Discard your changes?', body: `${row.name} keeps its saved settings.`, action: 'Discard' }}
       attrs={{ 'data-repository-edit': row.key }}
+      focusClose
       footer={
         <>
           {error && (

@@ -171,6 +171,7 @@ import { revalidateSpecs, scheduleHolds } from "./spec-scheduler.mjs";
 import { landPullRequests } from "./pr-landing.mjs";
 import { landDirect } from "./direct-landing.mjs";
 import { conflictRounds } from "./landing-config.mjs";
+import { noteTickRun } from "./tick-activity.mjs";
 
 // The colon keeps this lock out of every configured project's namespace.
 // GitHub projection takes it too, so one workspace has one writer at a time.
@@ -287,6 +288,12 @@ export function tickHealthPath(store) {
 
 function recordRun(store, run) {
   const filename = tickHealthPath(store);
+  let previousAt = null;
+  try {
+    if (filename)
+      previousAt = JSON.parse(fs.readFileSync(filename, "utf8")).at ?? null;
+  } catch {}
+  noteTickRun(store, run, previousAt);
   if (!filename) return;
   const temporary = `${filename}.${process.pid}.tmp`;
   try {

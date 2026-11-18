@@ -30,7 +30,6 @@ const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the mod
 const MODALS = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'mark-done', 'projection', 'spec-changed']
 const OPENERS = {
   'add-plugin': 'Add plugin',
-  onboard: 'Onboard',
   confirm: 'Remove',
   'stop-line': 'Stop the line',
 }

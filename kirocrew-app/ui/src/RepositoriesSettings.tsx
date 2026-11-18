@@ -9,7 +9,7 @@ import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { MIRROR_ROLE, mirrorSourceProblem, roleFromMode } from './settings-api.ts'
 import { DangerBtn, IconBtn, IconLabel, TipBtn, type ConfirmCopy } from './controls.tsx'
-import { Eye, Pencil, Plus, Trash2 } from './icons.ts'
+import { Eye, Pencil, Plus, Trash2, Workflow } from './icons.ts'
 import { RoleChoice } from './RepositoryModals.tsx'
 import { errorMessage, workspaceClient, type DetectedCheckout } from './workspace-api.ts'
 import { type RepositoryRow } from './repository-rows.ts'
@@ -50,6 +50,9 @@ export function RepositoryList(props: {
   onView: (row: RepositoryRow) => void
   onEdit: (row: RepositoryRow) => void
   onRemove: (row: RepositoryRow) => void
+  onSetup: (row: RepositoryRow) => void
+  // Why Set up GitHub and import specs cannot start now, or null.
+  setupBlocked: string | null
   onAdd: () => void
 }) {
   if (!props.rows.length)
@@ -78,6 +81,9 @@ export function RepositoryList(props: {
             <Badge>{props.roleText(row)}</Badge>
           </span>
           <span className="flex items-center gap-1.5">
+            {row.checkout && (
+              <IconBtn icon={Workflow} label={`Set up GitHub and import specs for ${row.name}`} tooltip={props.setupBlocked ?? 'Set up GitHub and import specs'} disabled={Boolean(props.setupBlocked)} onClick={() => props.onSetup(row)} />
+            )}
             <IconBtn icon={Eye} label={`View ${row.name}`} tooltip="View details" onClick={() => props.onView(row)} />
             <IconBtn icon={Pencil} label={`Edit ${row.name}`} tooltip={row.githubOnly ? 'GitHub only: add its checkout to edit it' : 'Edit'} disabled={row.githubOnly} onClick={() => props.onEdit(row)} />
             {!row.githubOnly && (
@@ -110,6 +116,8 @@ export function removeCopy(row: RepositoryRow): ConfirmCopy {
 // Add repository: pick the folder, then confirm what Avoozl found in it.
 // What the person chose for the new repository's role, handed to the page to save.
 export interface AddedRole {
+  // The added checkout's folder, for the set-up that follows.
+  folder: string
   github: string | null
   branch: string
   role: string
@@ -158,7 +166,7 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
       const given = roleFromMode(props.mode, found.github, '')
       setFolder('')
       setFound(null)
-      props.onAdded(saved.id, { github: found.github, branch: branch.trim() || found.baseBranch, role, source: source.trim(), changed: Boolean(found.github) && (role !== given || role === MIRROR_ROLE) })
+      props.onAdded(saved.id, { folder: found.root, github: found.github, branch: branch.trim() || found.baseBranch, role, source: source.trim(), changed: Boolean(found.github) && (role !== given || role === MIRROR_ROLE) })
     } catch (caught) {
       setError(errorMessage(caught))
     } finally {
