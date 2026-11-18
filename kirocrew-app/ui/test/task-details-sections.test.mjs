@@ -12,8 +12,10 @@ const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url)
 
 test('every drawer section is a SectionBox, open at first, inside the shared tab bar', () => {
   const drawer = source('TaskDrawer.tsx')
-  for (const key of ['summary', 'description', 'links', 'task-links', 'files', 'delivery', 'timing', 'evidence', 'conflicts', 'timeline', 'review', 'fields'])
+  for (const key of ['summary', 'description', 'links', 'task-links', 'delivery', 'timing', 'conflicts', 'timeline', 'review', 'fields'])
     assert.match(drawer, new RegExp(`<SectionBox id="${key}" title=`), key)
+  // Files and Evidence draw their own box, and nothing when they have no data.
+  for (const key of ['files', 'evidence']) assert.match(drawer, new RegExp(`box=\\{\\{ id: '${key}'`), key)
   // The shared tab bar (Tabs.tsx), not a pattern of its own.
   assert.match(drawer, /<Tabs id="task-tabs"/)
   assert.doesNotMatch(drawer, /<Fold\b|<details\b|SegmentedControl|role="tab/)
@@ -60,7 +62,7 @@ test('page: every tab shows its sections, each header folds by click and by keyb
   await page.until(`Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog'))`)
   await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
   await page.until(`document.querySelectorAll('[data-section-box]').length >= 2`)
-  const want = { overview: ['summary', 'links'], timeline: ['timeline', 'timing'], links: ['task-links', 'files'], details: ['fields', 'description', 'evidence'] }
+  const want = { overview: ['summary', 'links'], timeline: ['timeline'], links: ['task-links', 'files'], details: ['fields', 'description', 'evidence'] }
   for (const [tab, ids] of Object.entries(want)) {
     await page.evaluate(`document.querySelector('[data-tab="${tab}"]').click()`)
     await page.until(`document.querySelector('[data-tab-panel]').dataset.tabPanel === '${tab}'`)
@@ -152,7 +154,7 @@ test('page: the Links box shows branch, PR, checks, landed and issue from the st
   assert.match(read.rows.Worktree, /^\/w\/avoozl-worktrees\/team-review/)
   assert.equal(read.rows['Pull request'], 'o/sdk#52 · open')
   assert.match(read.rows.Checks, /^Passed on aaaaaaa, not the current head/)
-  assert.equal(read.rows.Landed, 'none')
+  assert.equal(read.rows.Landed, undefined, 'a row with no data is not drawn')
   assert.equal(read.rows.Issue, 'o/sdk#47')
   assert.equal(read.dot, 'stale')
   assert.equal(read.worktreeLinked, false)
