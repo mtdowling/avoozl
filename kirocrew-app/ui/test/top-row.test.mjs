@@ -1,7 +1,7 @@
 // In a real Chrome (AVOOZL_CHROME, or an installed Chrome or Chromium), on
 // the harness page (test/browser/harness.tsx): the app shell (no top bars; the
-// workspace pill first in the nav; Plan a goal first in the main column; Stop the line an
-// icon in the nav) has no Switch model, no
+// workspace pill first in the nav; no Plan a goal and no Stop the line on the
+// top line or in the phone menu) has no Switch model, no
 // visible "Stop the line" text and no sideways scroll at 375, 768 and 1280 px,
 // light and dark, running and stopped; an In flight title opens the task
 // drawer as a Back step. Skipped when no Chrome is found.
@@ -34,14 +34,13 @@ after(async () => {
 
 const settle = () => page.evaluate('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))')
 
-// The line controls: on a desktop in their own small section of the left nav,
-// on a phone at the bottom of the menu. Open it when the page is a phone.
-// Where Stop the line is: on a desktop the page's top line, right after Plan
-// a goal; on a phone the bottom of the menu (open it first).
-const LINE = (width) => (width < 768 ? '[data-nav-line]' : '[data-main-actions]')
-const openLine = async (width) => {
-  if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-  await page.until(`Boolean(document.querySelector('${LINE(width)} [data-stop-line]'))`)
+// The shell's own controls: the top line on a desktop, the menu on a phone
+// (open it first). Neither has Plan a goal or Stop the line.
+const SHELL = '[data-main-top], [data-left-nav], [data-top-rail-list], [data-phone-header]'
+const openMenu = async (width) => {
+  if (width >= 768) return
+  await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
+  await page.until(`Boolean(document.querySelector('[data-top-rail-list]'))`)
   await settle()
 }
 
@@ -51,7 +50,7 @@ for (const [width, height] of [
   [1280, 800],
 ])
   for (const dark of [false, true])
-    test(`the shell at ${width} px ${dark ? 'dark' : 'light'}: no top bars, Stop the line an icon (top line on a desktop, menu on a phone), no visible Stop the line text; no sideways scroll`, { skip }, async () => {
+    test(`the shell at ${width} px ${dark ? 'dark' : 'light'}: no top bars, no Plan a goal and no Stop the line on the top line or in the menu, no visible Stop the line text; no sideways scroll`, { skip }, async () => {
       for (const stopped of [false, true]) {
         await page.open(harness.url({ app: '1', theme: dark ? 'dark' : 'light', ...(stopped ? { stopped: '1' } : {}) }), { width, height, dark })
         await page.until(`Boolean(document.querySelector('[data-main-top]') && document.querySelector('[data-workspace-pill]:not([disabled])') || (${width} < 768 && document.querySelector('[data-top-rail-bar]')))`)
@@ -77,12 +76,9 @@ for (const [width, height] of [
           const header = await page.evaluate(`document.querySelector('[data-phone-header]').getBoundingClientRect().height`)
           assert.ok(header <= 56, `the phone header is one row (${header})`)
         }
-        await openLine(width)
-        if (stopped) await page.until(`Boolean(document.querySelector('${LINE(width)} [data-stop-line][data-stopped]'))`)
-        const open = await page.evaluate(`(() => {
-          const stop = document.querySelector('${LINE(width)} [data-stop-line]')
-          const plan = [...document.querySelectorAll('[data-main-actions] button')].find((b) => b.textContent.trim() === 'Plan a goal')
-          const r = stop.getBoundingClientRect()
+        await openMenu(width)
+        const top = await page.evaluate(`(() => {
+          const shell = [...document.querySelectorAll('${SHELL}')]
           const visible = []
           const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
           for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -90,19 +86,15 @@ for (const [width, height] of [
             const box = el.getBoundingClientRect(), style = getComputedStyle(el)
             if (box.width > 1 && box.height > 1 && style.visibility !== 'hidden' && !el.closest('.sr-only')) visible.push(n.nodeValue.trim())
           }
-          const p = plan ? plan.getBoundingClientRect() : null
-          return { label: stop.getAttribute('aria-label'), text: stop.textContent.trim(), size: [Math.round(r.width), Math.round(r.height)], matchesPlan: p ? Math.abs(p.height - r.height) < 1 && r.left >= p.right && Math.abs(p.top - r.top) < 1 : null, inNav: Boolean(stop.closest('[data-left-nav]')), onScreen: r.left >= 0 && r.right <= innerWidth, texts: visible.filter((t) => /stop the line|resume the line/i.test(t)) }
+          return {
+            stop: shell.some((el) => el.querySelector('[data-stop-line]')),
+            plan: shell.some((el) => [...el.querySelectorAll('button')].some((b) => /Plan a goal/.test(b.textContent))),
+            texts: visible.filter((t) => /stop the line|resume the line/i.test(t)),
+          }
         })()`)
-        assert.match(open.label, stopped ? /Resume the line/ : /Stop the line/)
-        assert.equal(open.text, '', 'the icon has no words')
-        if (width < 768) assert.deepEqual(open.size, [28, 28], 'a compact 28 px icon')
-        else {
-          assert.equal(open.matchesPlan, true, 'as tall as Plan a goal, right after it')
-          assert.equal(open.size[0], open.size[1], 'square')
-          assert.equal(open.inNav, false, 'not in the left nav')
-        }
-        assert.equal(open.onScreen, true, 'it is on screen')
-        assert.deepEqual(open.texts, [], 'no visible text reads Stop the line')
+        assert.equal(top.stop, false, 'no Stop the line on the top line or in the menu')
+        assert.equal(top.plan, false, 'no Plan a goal on the top line or in the menu')
+        assert.deepEqual(top.texts, [], 'no visible text reads Stop the line')
         if (shots) {
           fs.mkdirSync(shots, { recursive: true })
           await page.screenshot(path.join(shots, `top-row-${width}-${dark ? 'dark' : 'light'}${stopped ? '-stopped' : ''}.png`))
@@ -303,20 +295,6 @@ test('Activity rail: a source row and a kind chip filter the rows, and a second 
   await page.evaluate(`[...document.querySelectorAll('${scope} [data-rail-section="source"] [data-rail-icon]')].find((b) => b.textContent.includes('Clear')).click()`)
   await page.until(`document.querySelectorAll('[data-activity-row]').length === 24`)
   assert.equal(await page.evaluate(`document.querySelector('${scope} [data-rail-source=""]').getAttribute('aria-pressed')`), 'true')
-})
-
-test("Stop the line from the top line opens its dialog, and a tap or click in the dialog keeps it open", { skip }, async () => {
-  await page.open(harness.url({ app: '1' }), { width: 1280, height: 800 })
-  await openLine(1280)
-  await page.evaluate(`document.querySelector('[data-main-actions] [data-stop-line]').click()`)
-  await page.until(`Boolean(document.querySelector('[data-stop-reason]'))`)
-  await page.evaluate(`(() => {
-    const input = document.querySelector('[data-stop-reason]')
-    input.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
-    input.click()
-  })()`)
-  await settle()
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-stop-reason]'))`), true, 'the dialog stays open')
 })
 
 test('a hovered nav item changes color, the selected one stays different, and keyboard focus shows a ring', { skip }, async () => {
