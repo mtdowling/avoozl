@@ -1,4 +1,8 @@
-import { validateModels, validatePlanReview } from "./chat-models.mjs";
+import {
+  validateHarnesses,
+  validateModels,
+  validatePlanReview,
+} from "./chat-models.mjs";
 import { sandboxWriteRoots } from "./harness-definitions.mjs";
 import { sandboxAllowCommands } from "./harness-allow.mjs";
 import { sandboxNetwork } from "./sandbox.mjs";
@@ -526,6 +530,7 @@ function parse(text, filename, { portable = false } = {}) {
   if (value.version !== 1)
     fail("Unsupported workspace Avoozl configuration version.");
   validateModels(value.models);
+  validateHarnesses(value.harnesses);
   validatePlanReview(value.planReview);
   assertSafeConfig(value, `workspace Avoozl configuration at ${filename}`);
   if (portable)
@@ -604,6 +609,7 @@ export class RepositorySettings {
     };
     this.sources = sources;
     this.baseModels = validateModels(baseConfig.models);
+    this.baseHarnesses = validateHarnesses(baseConfig.harnesses);
     this.baseConversationConfigured = baseConfig.conversations !== undefined;
     this.baseConversationSettings = {
       autoArchiveCompleted: true,
@@ -969,7 +975,8 @@ export class RepositorySettings {
     return this.readFlowSettings();
   }
 
-  // Settings > Models: the model of each of Avoozl's own chats.
+  // Settings > Models: the model of each of Avoozl's own chats, and the
+  // harness each role runs on.
   readModelSettings() {
     const file = this.readFile();
     return {
@@ -987,18 +994,28 @@ export class RepositorySettings {
           ? structuredClone(file.value.models)
           : {}),
       },
+      harnesses: {
+        ...this.baseHarnesses,
+        ...(record(file.value.harnesses)
+          ? structuredClone(file.value.harnesses)
+          : {}),
+      },
     };
   }
 
-  // Replace `models` whole; an empty object removes it.
-  updateModelSettings({ models, expectedHash } = {}) {
+  // Replace `models` and `harnesses` whole; an empty object removes one.
+  // A save without `harnesses` keeps the file's.
+  updateModelSettings({ models, harnesses, expectedHash } = {}) {
     const before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
-    const checked = validateModels(models);
+    const checked = validateModels(models),
+      roles = harnesses === undefined ? null : validateHarnesses(harnesses);
     const value = this.updateValue(before);
     if (Object.keys(checked).length) value.models = checked;
     else delete value.models;
+    if (roles && Object.keys(roles).length) value.harnesses = roles;
+    else if (roles) delete value.harnesses;
     this.write(value, { expectedHash: before.hash });
     return this.readModelSettings();
   }
