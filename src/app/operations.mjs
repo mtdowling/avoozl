@@ -179,12 +179,6 @@ import {
   requireIntegrationBranch,
 } from "./integration-branch.mjs";
 import {
-  checkConflictFix,
-  conflictFixNeedsYou,
-  decideConflictFix,
-  reportConflictFix,
-} from "./radar-conflict-fix.mjs";
-import {
   countFilePath,
   rateNeedsYou,
   rateView,
@@ -3737,7 +3731,6 @@ export class Operations {
         view = conflictsView(store, data),
         policy = readGitHubPolicyOrNull(this.workspaceRoot);
       // Crews that asked for a person on issues no task owns (R52.10).
-      view.items.push(...conflictFixNeedsYou(store));
       view.items.push(...mergeMethodNeedsYou(store));
       view.items.push(...approvalNeedsYou(store));
       view.items.push(...crewLabelNeedsYou(store));
@@ -4148,29 +4141,6 @@ export class Operations {
       this.armedRead = null;
       return disarmPullRequest(store, this.github, input);
     }
-    // A person's choice on a source conflict Avoozl asked about (RC28.3).
-    if (name === "conflictfix.decide") {
-      if (context.caller || context.mcp)
-        fail(
-          "Only a person decides a source conflict, in the Avoozl page.",
-          403,
-        );
-      return decideConflictFix(store, input);
-    }
-    // The bound resolver chat's drop check and its one report (RC28.2, RC28.3).
-    if (name === "conflictfix.check")
-      return checkConflictFix(store, input, context.caller);
-    if (name === "conflictfix.report")
-      return reportConflictFix(
-        store,
-        this.github,
-        {
-          policy: readGitHubPolicyOrNull(this.workspaceRoot),
-          delivery: readDeliveryPolicy(this.workspaceRoot).delivery || {},
-        },
-        input,
-        context.caller,
-      );
     // The Create and release preflight (RC2.9) was Issue Radar's; no
     // repository is Radar-coded any more (R91.6).
     if (name === "radar.preflight") {

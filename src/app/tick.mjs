@@ -87,10 +87,6 @@ import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
 import {
-  conflictFixDispatches,
-  conflictFixStep,
-} from "./radar-conflict-fix.mjs";
-import {
   RATE_LIMIT_TEXT,
   githubGate,
   markGithubRun,
@@ -1027,27 +1023,6 @@ async function runTick(
             text: error.message,
           });
         }
-      // A resolver chat that is already running is finished (RC28).
-      if (script && github)
-        try {
-          const step = await conflictFixStep(store, github, {
-            policy: readGitHubPolicyOrNull(workspaceRoot),
-            delivery: delivery || {},
-          });
-          planned.notify.push(...step.notify);
-          for (const text of step.errors)
-            planned.notify.push({
-              channel: "failure",
-              title: "Avoozl could not fix a source conflict",
-              text,
-            });
-        } catch (error) {
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl could not fix a source conflict",
-            text: error.message,
-          });
-        }
       // Review drafts by label (RC20): new labels, and drafts waiting on a
       // person. Dispatch of the chats waits for the roster check below. A
       // read that fails keeps the last state and is tried next tick (design
@@ -1375,7 +1350,6 @@ async function runTick(
                 ...reviewDispatches(store, { config: roleConfig }),
                 ...reviewDraftDispatches(store, { config: roleConfig }),
                 ...taskSummaryDispatches(store, { config: roleConfig }),
-                ...conflictFixDispatches(store),
               ]
             : [];
       // Read each spec's plan issue again right before its dispatches; a

@@ -858,7 +858,6 @@ export function isFixWork(task) {
       (task.specType === "bugfix" ||
         task.type === "fix" ||
         task.flowFix ||
-        task.conflictFixes?.length > 0 ||
         String(task.github?.issueType || "").toLowerCase() === "bug"),
   );
 }
