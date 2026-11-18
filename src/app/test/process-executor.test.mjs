@@ -812,13 +812,15 @@ test("a fake child's output file is read once with the role's limit and validato
     projectFor: () => ({ harness: "fake-cli" }),
   });
   const run = async (brief) => {
+    // The fake CLI writes beside its result, so it runs in the write class;
+    // the output rules are the same for either.
     const id = await executor.start(
-      "verifier",
+      "worker",
       "1.1",
       worktree,
       brief,
       null,
-      "read",
+      "write",
     );
     await until(async () => {
       supervisor.pass();
@@ -833,7 +835,7 @@ test("a fake child's output file is read once with the role's limit and validato
   };
   const done = 'RESULT:{"state": "done", "output": "review.json"}';
   const good = await run(`OUTPUT:review.json={"findings": []}\n${done}`);
-  assert.equal(good.state, "done", good.text);
+  assert.equal(good.state, "done", String(good.text ?? good.problem));
   assert.deepEqual(good.outputValue, { findings: [] });
   // An earlier run's output never counts for the next one.
   const none = await run(done);
