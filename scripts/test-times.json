@@ -477,7 +477,6 @@
     "src/pan-momentum.test.mjs": 268,
     "src/report.test.mjs": 394,
     "src/tick-watchdog.test.mjs": 284,
-    "src/web-notifications.test.mjs": 288,
     "src/workbench.test.mjs": 327
   }
 }

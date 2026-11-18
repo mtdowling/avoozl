@@ -51,9 +51,26 @@ function contents(database) {
       byStatus[status] = (byStatus[status] ?? 0) + 1;
     }
     const count = (sql) => rows(sql)[0]?.n ?? 0;
+    // Notifications sent nowhere yet (NK7.6), as notifications.mjs counts.
+    const waiting = rows("SELECT body FROM app_notifications")
+      .map(({ body }) => JSON.parse(body))
+      .filter((row) => !row.sentAt && !Object.keys(row.sentTo ?? {}).length)
+      .map((row) => row.queuedAt)
+      .filter(Boolean)
+      .sort();
     return {
       revision,
       updatedAt,
+      notifications: {
+        waiting: waiting.length,
+        oldestAt: waiting[0] ?? null,
+        oldestAgeSeconds: waiting.length
+          ? Math.max(
+              0,
+              Math.round((Date.now() - Date.parse(waiting[0])) / 1000),
+            )
+          : null,
+      },
       counts: {
         tasks: Object.values(byStatus).reduce((sum, n) => sum + n, 0),
         tasksByStatus: byStatus,

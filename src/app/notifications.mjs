@@ -79,7 +79,10 @@ export function queueNotifications(store, notices, now = Date.now()) {
 
 // notifications.deliver: push every queued notice with `push(payload)` and
 // mark each one sent. A failed push leaves its row queued for the next drain.
+// `push` may instead be a list of sinks, [{id, push}], as the headless tick
+// gives (deliverToSinks); the app backend's one Kiro Crew push is unchanged.
 export async function deliverNotifications(store, push, now = Date.now()) {
+  if (Array.isArray(push)) return deliverToSinks(store, push, now);
   if (!push) return { sent: 0, queued: queued(store).length, dormant: true };
   let sent = 0;
   const failures = [];
@@ -106,6 +109,124 @@ const queued = (store) =>
     .list("app_notifications")
     .filter((row) => !row.sentAt)
     .reverse();
+
+// Sent nowhere yet: not pushed to Kiro Crew and to no sink.
+const unsent = (row) => !row.sentAt && !Object.keys(row.sentTo ?? {}).length;
+
+// More than this many waiting at a sink's first send, or after an outage,
+// go as one notice that counts them (NK7.7).
+export const BACKLOG = 5;
+// A failing sink waits 1, 2, 4 ... minutes before its next try, at most an
+// hour (NK7.8).
+const RETRY_BASE = 60_000;
+const RETRY_MAX = 3_600_000;
+const sinkKey = (id) => "notifications.sink." + id;
+
+// One sink's record: when it was first seen, its failures in a row, and
+// when it may be tried again.
+function sinkState(store, id) {
+  const saved = store.getMeta(sinkKey(id));
+  return saved && typeof saved === "object" ? saved : null;
+}
+
+// The notice a backlog becomes: a count, on the most urgent channel.
+function backlogPayload(rows) {
+  const channel = rows.some((row) => row.payload.channel === "decision")
+    ? "decision"
+    : rows.some((row) => row.payload.channel === "failure")
+      ? "failure"
+      : "untriaged";
+  return {
+    channel,
+    title: `${rows.length} Avoozl notifications waited`,
+    body: "",
+    url: sessionUrl(null),
+    group_key: "avoozl:backlog",
+  };
+}
+
+// Deliver to each sink on its own: each row records the sinks it reached in
+// `sentTo`, so a sink that fails resends to none of the others, and never
+// holds up the tick or another sink. A sink sees the rows queued since it
+// first appeared and any row sent nowhere yet.
+export async function deliverToSinks(store, sinks, now = Date.now()) {
+  const at = new Date(now).toISOString(),
+    results = [];
+  for (const sink of sinks) {
+    const state = sinkState(store, sink.id),
+      since = state?.since ?? at;
+    if (state?.retryAt && Date.parse(state.retryAt) > now) {
+      results.push({ sink: sink.id, waiting: true, retryAt: state.retryAt });
+      continue;
+    }
+    const pending = store
+      .list("app_notifications")
+      .reverse()
+      .filter(
+        (row) =>
+          !row.sentTo?.[sink.id] &&
+          (unsent(row) || (row.queuedAt ?? "") >= since),
+      );
+    const mark = (rows) =>
+      store.transaction(() => {
+        for (const row of rows) {
+          const current = store.get("app_notifications", row.id) ?? row;
+          store.put("app_notifications", {
+            ...current,
+            sentTo: { ...current.sentTo, [sink.id]: at },
+          });
+        }
+      });
+    let sent = 0,
+      error = null;
+    try {
+      if ((!state || state.failures > 0) && pending.length > BACKLOG) {
+        await sink.push(backlogPayload(pending));
+        mark(pending);
+        sent = 1;
+      } else
+        for (const row of pending) {
+          await sink.push(row.payload);
+          mark([row]);
+          sent += 1;
+        }
+    } catch (caught) {
+      error = caught?.message ?? String(caught);
+    }
+    const failures = error ? (state?.failures ?? 0) + 1 : 0;
+    store.setMeta(sinkKey(sink.id), {
+      since,
+      failures,
+      ...(error
+        ? {
+            error,
+            retryAt: new Date(
+              now + Math.min(RETRY_BASE * 2 ** (failures - 1), RETRY_MAX),
+            ).toISOString(),
+          }
+        : {}),
+    });
+    results.push({ sink: sink.id, sent, ...(error ? { error } : {}) });
+  }
+  return { sinks: results, waiting: waitingNotifications(store, now) };
+}
+
+// What waits with no sink to take it: how many rows were sent nowhere, and
+// the oldest one's age in seconds (NK7.6).
+export function waitingNotifications(store, now = Date.now()) {
+  const rows = store.list("app_notifications").filter(unsent);
+  const oldest = rows
+    .map((row) => row.queuedAt)
+    .filter(Boolean)
+    .sort()[0];
+  return {
+    count: rows.length,
+    oldestAt: oldest ?? null,
+    oldestAgeSeconds: oldest
+      ? Math.max(0, Math.round((now - Date.parse(oldest)) / 1000))
+      : null,
+  };
+}
 
 // A push function for the app backend, or null when the gateway gave it no
 // trusted callback origin (gateway-client.mjs).
