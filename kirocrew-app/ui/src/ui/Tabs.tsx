@@ -10,10 +10,10 @@
 // land on it, and each change is also a step in the page's own Back history
 // (NavHistory.tsx), so Alt+Left and the mouse back button walk it too.
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { useNavigate } from './host.ts'
-import { useNav } from './NavHistory.tsx'
-import { urlBase } from './focus-tree.ts'
-import { readTab, tabKey, tabLink } from './tabs.ts'
+import { useNavigate } from '../host.ts'
+import { useNav } from '../NavHistory.tsx'
+import { urlBase } from '../focus-tree.ts'
+import { readTab, tabKey, tabLink } from '../tabs.ts'
 
 // Kiro Crew's own full-width tab bar (its Task Runner modes): the tabs
 // share the row equally, the open one filled with the theme's accent, the

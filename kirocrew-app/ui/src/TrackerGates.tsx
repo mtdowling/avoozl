@@ -2,9 +2,10 @@
 // last and next check, evidence and link, the tasks it holds, and Clear. The
 // list is the same one `avoozl gate list` prints. Nothing shows without a gate.
 import { useCallback, useMemo, useState } from 'react'
-import { Btn, Card } from '@kirocrew/app-sdk/ui'
-import Badge, { type BadgeVariant } from './Badge.tsx'
-import { SectionHeading } from './controls.tsx'
+import { Btn } from './ui/Btn'
+import { Card } from './ui/Card'
+import Badge, { type BadgeVariant } from './ui/Badge.tsx'
+import { SectionHeading } from './ui/controls.tsx'
 import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'
 import { clearable, releaseClient, type GateRow, type GateState } from './release-api.ts'

@@ -1,4 +1,4 @@
-import { Card } from '@kirocrew/app-sdk/ui'
+import { Card } from './ui/Card'
 import { duration, type PlanningTiming } from './flow-api.ts'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'

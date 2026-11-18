@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Btn } from "@kirocrew/app-sdk/ui";
+import { Btn } from "./ui/Btn";
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 

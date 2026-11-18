@@ -21,7 +21,7 @@ test('every drawer section is a SectionBox, open at first, inside the shared tab
   assert.doesNotMatch(drawer, /<Fold\b|<details\b|SegmentedControl|role="tab/)
   // Opening one never closes another, and none starts closed.
   assert.doesNotMatch(drawer, /<SectionBox[^>]*open=\{/)
-  const controls = source('controls.tsx')
+  const controls = source('ui/controls.tsx')
   const box = controls.slice(controls.indexOf('export function SectionBox'), controls.indexOf('// A row of picture-less radio cards'))
   assert.match(box, /useState\(props\.open \?\? true\)/)
   assert.match(box, /<Card className=/)

@@ -1,7 +1,7 @@
 // The install's name on the page: the read-only header badge, and the nickname
 // field in Settings > This computer. Renaming never changes the ID.
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Input } from '@kirocrew/app-sdk/ui'
+import { Input } from './ui/Input'
 import { useAppApi } from './host.ts'
 import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
 import { SaveFooter } from './SaveFooter.tsx'

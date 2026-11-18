@@ -4,9 +4,10 @@
 // person signs off here; the backend checks every item again, records who
 // and when, and lapses the sign-off when any item changes.
 import { useMemo, useState } from 'react'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
-import { ICON, SectionBox, useConfirm } from './controls.tsx'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
+import { ICON, SectionBox, useConfirm } from './ui/controls.tsx'
 import { useAppApi } from './host.ts'
 import { CircleAlert, CircleCheck } from './icons.ts'
 import { publicCrewsClient, signoffBadge, signoffLine, type PublicCrew } from './untriaged-api.ts'

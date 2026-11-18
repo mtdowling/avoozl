@@ -3,9 +3,9 @@
 // with its status and computed progress, and open decisions. Edit and
 // Discuss live on the epic folder's row in Plans, like any plan.
 import { useCallback } from 'react'
-import { Card } from '@kirocrew/app-sdk/ui'
-import { SectionHeading } from './controls.tsx'
-import Badge from './Badge.tsx'
+import { Card } from './ui/Card'
+import { SectionHeading } from './ui/controls.tsx'
+import Badge from './ui/Badge.tsx'
 import { useRead } from './useRead.ts'
 import type { Drill } from './graph-layout.ts'
 import type { EpicView, viewsClient } from './views-api.ts'

@@ -5,7 +5,7 @@
 // repository View and Edit, workspace Edit and the Add plugin review. A
 // group inside a group takes level 4.
 import type { ReactNode } from 'react'
-import { SectionHeading } from './controls.tsx'
+import { SectionHeading } from './ui/controls.tsx'
 
 // One rule for every group; React keeps a single copy in the document.
 const RULE = '[data-form-section] ~ [data-form-section] { border-top: 1px solid var(--border); padding-top: 16px; }'

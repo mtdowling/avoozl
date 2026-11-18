@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import { SmallBtn } from './controls.tsx'
-import { Tooltip } from './Tooltip.tsx'
+import { SmallBtn } from './ui/controls.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { Hourglass } from './icons.ts'
 import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'

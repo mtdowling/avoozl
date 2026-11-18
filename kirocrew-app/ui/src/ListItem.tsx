@@ -4,7 +4,7 @@
 // by a top border only, no boxes. A fact with no value is not rendered.
 // Used by Repository setup and Settings > Workspaces.
 import type { ReactNode } from 'react'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 
 export interface ListFact {
   label: string

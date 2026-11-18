@@ -3,10 +3,10 @@
 // backend answers every change with a preview; this file shows it.
 import { usePhone } from './list-detail.ts'
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
-import { Btn } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
 import { useAppApi as useHostApi } from '@kirocrew/app-sdk'
-import Badge from './Badge.tsx'
-import { Tooltip } from './Tooltip.tsx'
+import Badge from './ui/Badge.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { DemoGuardProvider } from './host.ts'
 import { demoClient } from './demo-api.ts'
 import { Pause, Play } from './icons.ts'
