@@ -322,6 +322,7 @@ const PROTECT = new Set([
   "task.supersede",
   "delivery.retry",
   "landing.submit",
+  "landing.review",
   "verify.allow",
   "task.start",
   "route.cancel",
