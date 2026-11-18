@@ -120,7 +120,7 @@ Expected: one crew, on the mirror only. Do not connect a crew to
   login is refused (Proof 24). There is no field for it in the app.
   If the approval comment shows your computer's user name, stop and tell the
   agent.
-- A public spec names no private task in its manifest or branch names. Proof 24
+- A public spec names no private task in its task facts or branch names. Proof 24
   found that a private spec's bare name and task ID can still reach a forward.
   Keep the first plan public-only.
 - Merge the source's `main` into the mirror before the first crew task is

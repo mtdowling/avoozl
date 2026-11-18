@@ -14,7 +14,7 @@ import {
 import { Operations } from "../operations.mjs";
 import { lintSpec, readSpecFolder } from "../spec-plans.mjs";
 import { fixture } from "./fixtures.mjs";
-import { specFiles, writeSpec } from "./spec-fixture.mjs";
+import { legacySpecFiles, specFiles, writeSpec } from "./spec-fixture.mjs";
 
 const REPO = "example/code";
 
@@ -161,7 +161,7 @@ test("the manifest fields: absent changes nothing, present is checked", () => {
 
 function lintWith(t, extra) {
   const { root } = fixture(t),
-    manifest = JSON.parse(specFiles()["avoozl/manifest.json"]);
+    manifest = JSON.parse(legacySpecFiles()["avoozl/manifest.json"]);
   writeSpec(root, "config", {
     "avoozl/manifest.json": JSON.stringify({ ...manifest, ...extra }),
   });
@@ -184,7 +184,7 @@ test("spec lint: an old manifest stays valid, a bad field is one error", (t) => 
     { integrationSync: "off" },
   ]) {
     const found = lintWith(t, extra).diagnostics.filter(
-      (d) => d.code === "manifest.schema",
+      (d) => d.code === "facts.schema",
     );
     assert.equal(found.length, 1, JSON.stringify(extra));
     assert.match(found[0].message, /integration/i);

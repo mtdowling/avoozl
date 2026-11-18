@@ -827,14 +827,9 @@ test("github.setup runs through Operations and its proposal saves through Settin
   fs.mkdirSync(path.join(specs, "avoozl"), { recursive: true });
   fs.writeFileSync(path.join(specs, "requirements.md"), "# Requirements\n");
   fs.writeFileSync(path.join(specs, "design.md"), "# Design\n");
-  fs.writeFileSync(path.join(specs, "tasks.md"), "- [ ] 1 First task\n");
   fs.writeFileSync(
-    path.join(specs, "avoozl", "manifest.json"),
-    JSON.stringify({
-      tasks: {
-        1: { kind: "leaf", acceptance: ["Works."], milestone: "alpha" },
-      },
-    }),
+    path.join(specs, "tasks.md"),
+    "- [ ] 1 First task\n  - Facts:\n    - done: Works.\n    - milestone: alpha\n",
   );
   const preview = await ops
     .execute("github.setup", {

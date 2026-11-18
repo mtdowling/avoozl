@@ -40,6 +40,8 @@ import { Modal } from './Modal.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { SelectField } from './ui/SelectField'
+import { Checkbox } from './ui/Checkbox'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -58,7 +60,6 @@ function Field(props: { label: string; marker?: 'required' | 'optional'; raw?: s
   )
 }
 
-const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 type Change = { target: { value: string } }
 
 // Step 1: one radio fold-out section per source. Opening one picks it;
@@ -155,13 +156,13 @@ function WhatStep(props: { form: PluginForm; preview: PluginPreview; supported: 
             <Input value={form.contract} disabled data-contract-from-manifest />
           </div>
         ) : (
-          <select value={form.contract} onChange={(e) => set({ contract: e.target.value })} className="rounded border px-2 py-1 text-sm" style={{ ...selectStyle, maxWidth: '8rem' }}>
+          <SelectField value={form.contract} onChange={(e) => set({ contract: e.target.value })} look="field" maxWidth="8rem">
             {props.supported.map((value) => (
               <option key={value} value={String(value)}>
                 {value}
               </option>
             ))}
-          </select>
+          </SelectField>
         )}
       </Field>
       <Field label="Config (JSON)" marker="optional" raw="config" hint="Credentials never go here: name an environment variable with a key ending in Env.">
@@ -227,7 +228,7 @@ function ScopeStep(props: { form: PluginForm; set: (patch: Partial<PluginForm>) 
             ),
             fields: (
               <label className="flex items-start gap-2 text-sm">
-                <input type="checkbox" className="mt-1" checked={props.confirmPublic} onChange={(e) => props.setConfirmPublic(e.target.checked)} />
+                <Checkbox drop={4} checked={props.confirmPublic} onChange={(e) => props.setConfirmPublic(e.target.checked)} />
                 <span>
                   Publish it in .avoozl.json
                   <Hint size="xs" block>Anyone who can read the repository sees this plugin’s id, source and config.</Hint>

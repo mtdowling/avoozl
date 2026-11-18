@@ -104,6 +104,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
+import { Checkbox } from './ui/Checkbox'
 
 // Where a row's Graph button goes; the filter is the tabs'
 // shared one, set to this plan.
@@ -583,6 +584,12 @@ function SpecDetail(props: {
               <li key={approval.id}>
                 <code>{shortHash(approval.hash)}</code> · {approval.at}
                 {approval.approvedBy ? ` · ${approval.approvedBy}` : ''}
+                {approval.carriedFrom && (
+                  <span data-approval-carried>
+                    {' '}
+                    · carried from <code>{shortHash(approval.carriedFrom)}</code>, same content
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -981,8 +988,7 @@ export function SpecList(props: {
             {picking && (
               <span className="flex w-6 shrink-0 justify-center">
                 {batch !== undefined && row.planId && (
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     data-spec-check={row.planId}
                     aria-label={`Select ${row.name} to approve`}
                     checked={props.checked?.has(row.planId) ?? false}
@@ -1592,7 +1598,7 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
       {preview?.folder?.exists && (
         <label className="flex flex-col gap-1 text-sm">
           <Row as="span" gap={2} wrap={false}>
-            <input type="checkbox" checked={folder} onChange={(event) => setFolder(event.target.checked)} />
+            <Checkbox checked={folder} onChange={(event) => setFolder(event.target.checked)} />
             Also delete the spec folder (.kiro/specs/{preview.spec}/) from the repo.
           </Row>
           <code className="pl-6 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{preview.folder.path}</code>
@@ -2311,8 +2317,7 @@ export default function PlansView(props: {
       {pickable.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 px-1" data-approve-bar>
           <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+            <Checkbox
               data-select-shown
               checked={allPicked}
               ref={(el) => {

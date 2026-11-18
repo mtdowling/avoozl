@@ -141,8 +141,8 @@ names the planning repository". Content rules screen the name either way.
 
 ### D4.2 Batching
 
-Changed 2026-11-18 (avoozl §4.37): candidates are the planner's manifest
-groups, open and unblocked, with no `size` tag and no `flow.batch` cap.
+Changed 2026-11-18 (avoozl §4.37): candidates are the planner's batch
+groups (`batch` facts, avoozl §4.40), open and unblocked, with no `size` tag and no `flow.batch` cap.
 
 ```text
 for each phase, in graph order:
@@ -304,7 +304,7 @@ every tick, per repository:
 - **Order inside a scope:** graph order, then wave, then task ID. Crews pick
   at random among the labeled ones, so order holds only because N is small.
 - **Per crew label scope:** `release.scopes: [{label, capacity}]`. A task's
-  manifest entry may set `scope`. This lets a docs crew and a code crew share a
+  facts may set `scope`. This lets a docs crew and a code crew share a
   repository.
 - **Phases:** a phase is released only when every task of the previous phase
   of the same spec has a merged closing pull request. "Closed" by a person's
@@ -710,7 +710,7 @@ Default chosen here: the sync runs weekly, and it is off when the epic says so.
 
 ```text
 parent spec (shared requirements, list of sub-specs)
-   +-- sub-spec, repo A (requirements, design, tasks, manifest): approved and released alone
+   +-- sub-spec, repo A (requirements, design, tasks):           approved and released alone
    +-- sub-spec, repo B
    +-- sub-spec, repo C
 gap report (repository x requirement) -> proposed tasks per sub-spec -> a person accepts
@@ -1002,8 +1002,8 @@ Proof added to D17:
 
 ### D28.1 The node
 
-A gate is a manifest leaf with `completion: "tracker"` and
-`tracker: { plugin, item, done }`. `spec-manifest.mjs` and plan-quality accept
+A gate is a leaf whose facts say `completion: tracker` and
+`tracker: { plugin, item, done }`. The spec reader and plan-quality accept
 it and refuse a missing part or an unknown plugin id. It is a manual-style
 leaf: it projects to an issue, never gets the ready label, and the coder
 adapter (D19) and batching (D4.2) skip it, the way they skip `human` tasks.
@@ -1227,7 +1227,7 @@ Proof added to D17:
 publicBranch --> default branch: a person approves and merges; Avoozl never does (RC16.4)
 ```
 
-Precedence: epic manifest (`forwardTarget`, `publicBranch`) over the
+Precedence: the epic's `tasks.md` front-matter (`forwardTarget`, `publicBranch`) over the
 repository's `mirror` setting over the default `each`. Settings and Trace name
 the source of the value in force ("Use the repository setting (each)").
 For (b), `mirrorSyncStep` (D29.2) also fast-forwards the mirror's copy of
@@ -1450,7 +1450,7 @@ New spec has three starts, none picked at first, and Submit waits for one:
 | --- | --- |
 | Blank | Spec Builder writes the spec with the person, phase by phase. |
 | From template | A planner chat fills a plugin's workflow template. |
-| From a goal | The person types a goal; a planner chat writes `requirements.md`, `design.md`, `tasks.md` and the manifest into the spec folder. |
+| From a goal | The person types a goal; a planner chat writes `requirements.md`, `design.md` and `tasks.md` with its `Facts:` bullets into the spec folder. |
 
 From a goal reuses the template path's planner chat and handoff
 (`newplan.fromTemplate`'s chat seed, with the goal as the brief and no

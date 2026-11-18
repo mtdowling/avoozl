@@ -37,7 +37,7 @@ async function specPlan(t) {
   return { root, store, ops, directory, plan };
 }
 
-test("a discovery on a spec plan adds a tasks.md item and a manifest entry", async (t) => {
+test("a discovery on a spec plan adds a tasks.md item with its Facts", async (t) => {
   const { root, store, ops, directory, plan } = await specPlan(t);
   const receipt = await approve(ops, plan);
   const before = store.read().tasks.length;
@@ -61,19 +61,33 @@ test("a discovery on a spec plan adds a tasks.md item and a manifest entry", asy
       .length,
     receipt.taskIds.length,
   );
-  // The item and its entry are on disk; no fenced block is written anywhere.
-  const tasks = fs.readFileSync(path.join(directory, "tasks.md"), "utf8"),
-    manifest = JSON.parse(
-      fs.readFileSync(path.join(directory, "avoozl/manifest.json"), "utf8"),
-    );
+  // The item and its facts are on disk; no fenced block or manifest is
+  // written anywhere.
+  const tasks = fs.readFileSync(path.join(directory, "tasks.md"), "utf8");
   assert.ok(
     tasks.endsWith(
-      "- [ ] cache-invalidation Invalidate the stale cache entry\n",
+      [
+        "- [ ] cache-invalidation Invalidate the stale cache entry",
+        "  - Facts:",
+        "    - summary: Found while implementing the delivery task.",
+        "    - done:",
+        "      - A changed record invalidates its cache entry.",
+        "    - checks: npm test",
+        "    - completion: integrated",
+        "    - after: 1.2",
+        "    - tags: discovered",
+        "",
+      ].join("\n"),
     ),
+    tasks,
   );
   assert.doesNotMatch(tasks, /```task/);
-  assert.deepEqual(manifest.tasks["cache-invalidation"].requires, ["1.2"]);
-  assert.equal(manifest.tasks["cache-invalidation"].title, undefined);
+  assert.equal(
+    fs.existsSync(path.join(directory, "avoozl/manifest.json")),
+    false,
+  );
+  const added = readSpecFolder(root, "config");
+  assert.equal(added.hash, amended.hash);
   await assert.rejects(
     ops.execute("plan.approve", {
       id: plan.id,
@@ -119,7 +133,7 @@ test("approving the amended spec converts the proposal in one mapping", async (t
 test("spec proposals are rejected by the task rules with no partial write", async (t) => {
   const { ops, store, directory, plan } = await specPlan(t);
   const files = () =>
-    ["tasks.md", "avoozl/manifest.json"].map((file) =>
+    ["tasks.md"].map((file) =>
       fs.readFileSync(path.join(directory, file), "utf8"),
     );
   const rejects = async (value, message) => {
@@ -139,6 +153,7 @@ test("spec proposals are rejected by the task rules with no partial write", asyn
   await rejects(proposal({ summary: 7 }), /summary must be text/);
   await rejects(proposal({ id: "1.2" }), /Repeated local task ID 1\.2/);
   await rejects("cache", /one proposed task as a JSON object/);
+  await rejects(proposal({ budget: 3 }), /"budget" is not a task fact/);
   await assert.rejects(
     ops.execute("plan.propose", { id: "plan-missing", proposal: proposal() }),
     /Plan not found/,
