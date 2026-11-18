@@ -95,7 +95,8 @@ async function allowedLogin(store, github, policy, task) {
   return login;
 }
 
-// task.manual.complete: {taskId, choice, note?, links?: [{url, label}]}.
+// task.manual.complete: {taskId, choice, links?: [{url, label}]}. Tasks keep
+// no notes (owner, 2026-11-17), so a `note` is refused rather than dropped.
 // `by` is the person's name for the record; `github` and `policy` close the
 // issue in a GitHub mode.
 export async function completeManual(
@@ -112,22 +113,16 @@ export async function completeManual(
       `${task.id} is already ${task.manualDone?.choice === "refused" ? "refused" : "done"}. Reopen it first.`,
       409,
     );
-  // Every outcome entry is checked before anything is written.
-  const entries = [
-    ...(input.note == null || input.note === ""
-      ? []
-      : [entryFields({ kind: "note", text: input.note })]),
-    ...(Array.isArray(input.links) ? input.links : []).map((link) =>
-      entryFields({ kind: "link", ...link }),
-    ),
-  ];
+  if (input.note != null && input.note !== "")
+    fail("Tasks keep no notes: add the outcome as a link instead.");
+  // Every outcome link is checked before anything is written.
+  const entries = (Array.isArray(input.links) ? input.links : []).map((link) =>
+    entryFields({ kind: "link", ...link }),
+  );
   if (input.links !== undefined && !Array.isArray(input.links))
     fail("links must be a list of {url, label}.");
   if (taskNotes(store, task.id).length + entries.length > NOTE_LIMITS.entries)
-    fail(
-      `entries: a task holds at most ${NOTE_LIMITS.entries} links and notes.`,
-      409,
-    );
+    fail(`entries: a task holds at most ${NOTE_LIMITS.entries} links.`, 409);
   const login = await allowedLogin(store, github, policy || {}, task);
   screenEntries(store, task.id, entries, true);
   if (login)

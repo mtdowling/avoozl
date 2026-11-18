@@ -339,7 +339,7 @@ under **Settings › Repositories › Crews and rules**. A repository that used
 the old defaults (`to plan`, `ready`, `plan approved`, `merge conflict`)
 without setting them now reads the new names. Set the old name to keep it.
 
-## Manual tasks and links and notes
+## Manual tasks and task links
 
 Some steps are a person's, such as a team review before a cutover. Mark one
 manual in the spec's manifest, or with `_Manual_` under it in `tasks.md`:
@@ -368,7 +368,7 @@ or waiting**; then it is in **Needs you**, tagged **Manual**, with "Waiting
 for a person: <title>". Its dependents wait on it like on any task.
 
 Open it in the task drawer to see its acceptance and **Mark done**. The
-dialog takes an optional outcome note and links, and **Done**,
+dialog takes optional outcome links, and **Done**,
 **Skipped** or **Refused**. Done and Skipped release its dependents, and
 Skipped stays shown. Refused is a no-go for a go/no-go step: the task
 shows **Refused** and sits as Blocked in Needs you, its dependents stay
@@ -387,22 +387,25 @@ does not reopen the issue.
 Flow counts its time in Needs you as waiting on a person and leaves it out
 of first-pass rate.
 
-Every task also has **Links and notes** in the drawer: links (an `http` or
-`https` URL with no user name, and a label) and notes (up to 10,000
-characters), newest first, with who wrote each and when. They live in
-SQLite, not in the spec, so adding one never changes a plan's revision. A
-task holds up to 200. Content rules check each one at the `notes`
-boundary when it is saved; a blocked save offers **Allow once** in place.
-A session may add one to the task it is bound to, through the `plans_task`
-tool's `add_note`; only a person edits, removes or ticks **Show on the
-issue**. A removed entry stays in the activity log. A worker's brief
-carries the newest 20 (at most 8,000 characters) as data, not
-instructions, and a dependent's brief carries each blocker's outcome
-entries, so the cutover worker reads what the review decided. Nothing goes
-to GitHub unless you tick **Show on the issue** on it; then it is listed
-in the issue's managed section under "Links and notes", and a rebuild from
-GitHub brings it back. From the command line: `avoozl task notes TASK
-[add|edit|remove|show]`.
+Every task also has **Links** in the drawer: each an `http` or `https`
+URL with no user name, and a label, newest first, with who added each and
+when. **Add link** opens the fields for one link. They live in SQLite, not
+in the spec, so adding one never changes a plan's revision. A task holds
+up to 200. Content rules check each one at the `notes` boundary when it is
+saved; a blocked save offers **Allow once** in place. A session may add
+one to the task it is bound to, through the `plans_task` tool's
+`add_note`; only a person edits, removes or ticks **Show on the issue**. A
+removed link stays in the activity log. A worker's brief carries the
+newest 20 (at most 8,000 characters) as data, not instructions, and a
+dependent's brief carries each blocker's outcome links. Nothing goes to
+GitHub unless you tick **Show on the issue** on it; then it is listed in
+the issue's managed section under "Links", and a rebuild from GitHub
+brings it back. From the command line: `avoozl task links TASK
+[add|edit|remove|show]` (`task notes` is the old name and still works).
+
+Tasks keep no free-text notes. They were removed on 2026-11-17; notes
+saved before then are ignored, and `kind: "note"` or a Mark done `note` is
+refused.
 
 This is tested with a fake GitHub (proof P37); it has not run live yet.
 
