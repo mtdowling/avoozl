@@ -275,7 +275,7 @@ const shown = (dialog: (close: () => void) => ReactNode): Scenario => ({
 // A dialog that asks before it discards edits (Modal's `unsaved`).
 const repoEdit = (edited: boolean) =>
   shown((close) => (
-    <Modal id="avoozl-repo-edit" width="46rem" title="avoozl" unsaved={edited && { title: 'Discard your changes to avoozl?', body: 'Every edit in this dialog is lost.', action: 'Discard changes' }} onDismiss={close}>
+    <Modal id="avoozl-repo-edit" dismissLabel="Cancel" width="46rem" title="avoozl" unsaved={edited && { title: 'Discard your changes to avoozl?', body: 'Every edit in this dialog is lost.', action: 'Discard changes' }} onDismiss={close}>
       <label className="flex flex-col gap-1 text-sm">
         Base branch
         <input defaultValue="main" className="rounded border px-2 py-1" />

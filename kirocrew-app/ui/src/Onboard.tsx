@@ -401,6 +401,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
       id="avoozl-onboard"
       width="44rem"
       backLabel="Cancel"
+      dismissLabel="Cancel"
       describedBy="avoozl-onboard-line"
       boxRef={box}
       attrs={{ 'data-onboard-dialog': step }}

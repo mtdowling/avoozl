@@ -1,5 +1,7 @@
 // Every modal has one shell: the item itself is the title, the footer is
-// always there with Close at the right, and Esc, the X and Close all close it
+// always there with one dismiss button (Cancel in a modal that edits or
+// confirms, Close in one that only shows) at its left, and Esc, the X and the
+// dismiss button all close it
 // with focus back on the opener. The task modal's footer also has "Add task
 // after this", which opens the add form with the task as its prerequisite.
 // Runs in a real Chrome (AVOOZL_CHROME); skipped without one.
@@ -30,24 +32,30 @@ const CLOSED = `!${TOP}`
 const titleOf = () => page.evaluate(`${TOP}.querySelector('[data-modal-header] h2').textContent.replace(/\\s+/g, ' ').trim()`)
 const footerButtons = () => page.evaluate(`[...${TOP}.querySelectorAll('[data-modal-footer] button')].map((b) => b.textContent.trim())`)
 
-// The title is the item's, the footer is there, and Close is its last button.
-async function assertShell(name, title) {
+// The title is the item's, the footer is there, and its first button is the
+// one dismiss button, labeled `label`.
+async function assertShell(name, title, label = 'Close') {
   const shown = await titleOf()
   if (title instanceof RegExp) assert.match(shown, title, `${name}: the title`)
   else if (title) assert.equal(shown, title, `${name}: the title`)
   else assert.ok(shown.length > 0, `${name}: the title is empty`)
   assert.notEqual(shown, 'Task', `${name}: a generic title`)
   const buttons = await footerButtons()
-  assert.equal(buttons.at(-1), 'Close', `${name}: Close is the footer's last button (${buttons.join(' | ')})`)
-  // At the right edge of the footer, and inside the screen.
+  assert.equal(buttons[0], label, `${name}: the footer's first button is ${label} (${buttons.join(' | ')})`)
+  // One dismiss button: no other Close or Cancel in the box (the header X has
+  // no text).
+  const dismissals = await page.evaluate(`[...${TOP}.querySelectorAll('button')].map((b) => b.textContent.trim()).filter((t) => t === 'Close' || t === 'Cancel')`)
+  assert.deepEqual(dismissals, [label], `${name}: exactly one dismiss button`)
+  // Inside the screen, left of the footer's other buttons (Edit workspace's
+  // Remove sits at the far left, apart from the rest).
   const box = await page.evaluate(`(() => {
     const dialog = ${TOP}
-    const foot = dialog.querySelector('[data-modal-footer]').getBoundingClientRect()
     const close = dialog.querySelector('[data-modal-footer-close]').getBoundingClientRect()
-    return { right: Math.round(foot.right - close.right), inside: close.bottom <= innerHeight && close.right <= innerWidth }
+    const others = [...dialog.querySelectorAll('[data-modal-footer] button:not([data-modal-footer-close]):not([data-remove-workspace])')].map((b) => b.getBoundingClientRect())
+    return { inside: close.bottom <= innerHeight && close.right <= innerWidth, first: others.every((o) => o.top > close.bottom - 2 || o.left >= close.right - 1) }
   })()`)
-  assert.equal(box.inside, true, `${name}: Close is on the screen`)
-  assert.ok(box.right <= 24, `${name}: Close sits at the footer's right edge (${box.right}px)`)
+  assert.equal(box.inside, true, `${name}: the dismiss button is on the screen`)
+  assert.equal(box.first, true, `${name}: the dismiss button sits left of the footer's other buttons`)
   // The header X is there too.
   assert.equal(await page.evaluate(`Boolean(${TOP}.querySelector('[data-modal-close]'))`), true, `${name}: the X`)
   // Tab stays inside the modal.
@@ -79,37 +87,38 @@ async function assertCloses(name, opener) {
   assert.deepEqual(page.errors, [], `${name}: page errors`)
 }
 
+// [opener, title, dismiss label]: Cancel where the modal edits or confirms.
 const SCENARIOS = {
-  'add-plugin': ['Add plugin', null],
-  onboard: ['Onboard', null],
-  'repo-edit': ['Open the dialog', 'avoozl'],
-  'setup-github': ['Open the dialog', null],
-  'archive-plan': ['Open the dialog', 'Archive the spec Modal plan?'],
-  'delete-plan': ['Open the dialog', /^Delete the spec /],
-  confirm: ['Remove', 'Remove avoozl?'],
-  'file-viewer': ['Open the dialog', 'docs/guide.md'],
-  'stop-line': ['Stop the line', 'Stop the line'],
-  'pack-import': ['Open the dialog', 'Import pack-1 version 1.0.0'],
-  'send-to-radar': ['Open the dialog', null],
-  'mark-done': ['Open the dialog', 'Mark done: Review with team'],
-  projection: ['Open the dialog', 'Project “Search v2” to GitHub'],
-  'spec-changed': ['Open the dialog', 'Spec changed: Search v2'],
-  'new-spec': ['Open the dialog', 'New spec'],
-  'review-info': ['Open the dialog', 'Meal planner: sections changed'],
+  'add-plugin': ['Add plugin', null, 'Cancel'],
+  onboard: ['Onboard', null, 'Cancel'],
+  'repo-edit': ['Open the dialog', 'avoozl', 'Cancel'],
+  'setup-github': ['Open the dialog', null, 'Cancel'],
+  'archive-plan': ['Open the dialog', 'Archive the spec Modal plan?', 'Cancel'],
+  'delete-plan': ['Open the dialog', /^Delete the spec /, 'Cancel'],
+  confirm: ['Remove', 'Remove avoozl?', 'Cancel'],
+  'file-viewer': ['Open the dialog', 'docs/guide.md', 'Close'],
+  'stop-line': ['Stop the line', 'Stop the line', 'Cancel'],
+  'pack-import': ['Open the dialog', 'Import pack-1 version 1.0.0', 'Cancel'],
+  'send-to-radar': ['Open the dialog', null, 'Cancel'],
+  'mark-done': ['Open the dialog', 'Mark done: Review with team', 'Cancel'],
+  projection: ['Open the dialog', 'Project “Search v2” to GitHub', 'Cancel'],
+  'spec-changed': ['Open the dialog', 'Spec changed: Search v2', 'Cancel'],
+  'new-spec': ['Open the dialog', 'New spec', 'Cancel'],
+  'review-info': ['Open the dialog', 'Meal planner: sections changed', 'Close'],
 }
 
 const press = (text) => `(() => { const b = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(text)}); b.focus(); b.click(); return true })()`
 const hasButton = (text) => `Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(text)}))`
 
-for (const [name, [openerText, title]] of Object.entries(SCENARIOS))
-  test(`${name}: the title is the item, the footer has Close, Esc, the X and Close close it`, { skip }, async () => {
+for (const [name, [openerText, title, label]] of Object.entries(SCENARIOS))
+  test(`${name}: the title is the item, one ${label} button, Esc, the X and ${label} close it`, { skip }, async () => {
     await page.open(harness.url({ modal: name }), { width: 1280, height: 800 })
     await page.until(hasButton(openerText))
     const opener = () => page.evaluate(press(openerText))
     await opener()
     await page.until(OPEN)
     await settle()
-    await assertShell(name, title)
+    await assertShell(name, title, label)
     await assertCloses(name, opener)
     // Focus is back on the opener.
     assert.equal(await page.evaluate(`document.activeElement?.textContent.trim()`), openerText, `${name}: focus did not return to the opener`)
@@ -117,17 +126,17 @@ for (const [name, [openerText, title]] of Object.entries(SCENARIOS))
 
 test('the shell holds on a phone in the dark theme', { skip }, async () => {
   for (const name of ['confirm', 'mark-done', 'file-viewer', 'review-info', 'new-spec']) {
-    const [openerText, title] = SCENARIOS[name]
+    const [openerText, title, label] = SCENARIOS[name]
     await page.open(harness.url({ modal: name, theme: 'dark' }), { width: 390, height: 800, dark: true })
     await page.until(hasButton(openerText))
     await page.evaluate(press(openerText))
     await page.until(OPEN)
     await settle()
-    await assertShell(`${name} (phone)`, title)
+    await assertShell(`${name} (phone)`, title, label)
   }
 })
 
-test('the task modal: the task title with its id, Add task after this, Close', { skip }, async () => {
+test('the task modal: the task title with its id, Close, Add task after this', { skip }, async () => {
   await page.open(harness.url({ modal: 'task-drawer' }), { width: 1280, height: 800 })
   await page.until(hasButton('Open the dialog'))
   const opener = () => page.evaluate(press('Open the dialog'))
@@ -138,13 +147,15 @@ test('the task modal: the task title with its id, Add task after this, Close', {
   assert.equal(await page.evaluate(`${TOP}.querySelector('[data-modal-title-id]').textContent`), 'team-review', 'the id is small beside the title')
   // The body does not repeat the title.
   assert.equal(await page.evaluate(`[...${TOP}.querySelectorAll('[data-modal-body] h2')].some((h) => h.textContent.trim() === 'Review with team')`), false, 'the title repeats in the body')
-  assert.deepEqual(await footerButtons(), ['Add task after this', 'Close'])
+  assert.deepEqual(await footerButtons(), ['Close', 'Add task after this'])
   // Add task after this: the add form, with this task as its prerequisite.
   await page.evaluate(`[...${TOP}.querySelectorAll('[data-modal-footer] button')].find((b) => b.textContent.trim() === 'Add task after this').click()`)
   await page.until(`${TOP}.querySelector('[data-modal-header] h2').textContent.trim() === 'Add a task'`)
   const body = await page.evaluate(`${TOP}.querySelector('[data-modal-body]').innerText`)
   assert.match(body, /team-review/, 'the prerequisite is set to the task')
-  assert.equal((await footerButtons()).at(-1), 'Close')
+  // The add form is a form: its footer says Cancel, and the form has no Cancel of its own.
+  assert.equal((await footerButtons())[0], 'Cancel')
+  assert.deepEqual(await page.evaluate(`[...${TOP}.querySelectorAll('button')].map((b) => b.textContent.trim()).filter((t) => t === 'Cancel' || t === 'Close')`), ['Cancel'])
   await assertCloses('task modal', opener)
 })
 
@@ -157,14 +168,14 @@ test('the task modal from Needs you in the full app', { skip }, async () => {
     await page.until(`Boolean(${TOP}) && ${TOP}.querySelector('[data-modal-header] h2').textContent.includes('Review with team')`, 30000)
     await settle()
     await assertShell(`Needs you task modal at ${width}`, /^Review with team\s*t1$/)
-    assert.deepEqual(await footerButtons(), ['Add task after this', 'Close'])
+    assert.deepEqual(await footerButtons(), ['Close', 'Add task after this'])
     await page.key('Escape', 'Escape', 27)
     await page.until(CLOSED)
     assert.equal(await page.evaluate(`document.activeElement?.getAttribute('aria-label')`), 'Details for Item 1', 'focus returns to the opener')
   }
 })
 
-test('the Approve dialog keeps its buttons in the footer beside Close', { skip }, async () => {
+test('the Approve dialog keeps its buttons in the footer beside Cancel', { skip }, async () => {
   await page.open(harness.url({ page: 'app', specs: '1', review: '1' }), { width: 1280, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-top-row] [data-nav-head]'))`, 30000)
   await page.evaluate(`[...document.querySelectorAll('[data-top-row] [data-nav-head]')].find((t) => t.textContent.includes('Specs')).click()`)
@@ -174,9 +185,9 @@ test('the Approve dialog keeps its buttons in the footer beside Close', { skip }
   await page.evaluate(`document.querySelector('[data-spec-primary="approve"]').click()`)
   await page.until(`Boolean(document.querySelector('[data-approve-spec]'))`, 30000)
   await settle()
-  assert.equal(await page.evaluate(`document.activeElement?.textContent.trim()`), 'Close', 'focus starts on the safe button')
-  await assertShell('Approve dialog', /^Approve .+\?$/)
-  assert.deepEqual(await footerButtons(), ['Approve spec', 'Close'])
+  assert.equal(await page.evaluate(`document.activeElement?.textContent.trim()`), 'Cancel', 'focus starts on the safe button')
+  await assertShell('Approve dialog', /^Approve .+\?$/, 'Cancel')
+  assert.deepEqual(await footerButtons(), ['Cancel', 'Approve spec'])
   await page.key('Escape', 'Escape', 27)
   await page.until(CLOSED)
 })
@@ -208,17 +219,17 @@ test('the workspace and instance modals', { skip }, async () => {
   await page.evaluate(`document.querySelector('[data-add-workspace]').click()`)
   await page.until(OPEN)
   await settle()
-  await assertShell('Add a workspace', 'Add a workspace')
+  await assertShell('Add a workspace', 'Add a workspace', 'Cancel')
   await page.key('Escape', 'Escape', 27)
   await page.until(CLOSED)
   await page.evaluate(`document.querySelector('[data-edit-workspace="launch"]').click()`)
   await page.until(`Boolean(document.querySelector('[data-edit-workspace-modal]'))`)
   await settle()
-  await assertShell('Edit workspace', /\S/)
+  await assertShell('Edit workspace', /\S/, 'Cancel')
   await page.evaluate(`document.querySelector('[data-remove-workspace]').click()`)
   await page.until(`Boolean(document.querySelector('[data-remove-workspace-confirm]'))`)
   await settle()
-  await assertShell('Remove workspace', /^Remove .+ from Avoozl\?$/)
+  await assertShell('Remove workspace', /^Remove .+ from Avoozl\?$/, 'Cancel')
   await page.key('Escape', 'Escape', 27)
   await page.until(`!document.querySelector('[data-remove-workspace-confirm]')`)
 
@@ -227,5 +238,5 @@ test('the workspace and instance modals', { skip }, async () => {
   await page.evaluate(`document.querySelector('[data-left-nav] [data-instance-edit]').click()`)
   await page.until(OPEN)
   await settle()
-  await assertShell('Instance name', 'Instance name')
+  await assertShell('Instance name', 'Instance name', 'Cancel')
 })
