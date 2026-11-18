@@ -4,7 +4,7 @@ import { useAppApi, useChatLauncher, useNavigate } from './host.ts'
 import { Btn } from './ui/Btn'
 import { Card } from './ui/Card'
 import Badge from './ui/Badge.tsx'
-import { Markdown } from './Markdown.tsx'
+import { Markdown } from './ui/Markdown.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
 import { errorMessage } from './workspace-api'
@@ -34,7 +34,7 @@ import { ListDetailLayout } from './ListDetailLayout.tsx'
 import { usePaneKeys } from './pane-keys.ts'
 import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { Button } from './ui/Button.tsx'
 import { PlanReviewSummary, REVIEW_POLL_MS, ReviewWorking, RevisionChanged } from './PlanReviewSummary.tsx'
 import { SpecGraph } from './SpecGraph.tsx'
@@ -105,6 +105,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 // Where a row's Graph button goes; the filter is the tabs'
 // shared one, set to this plan.
@@ -988,11 +989,11 @@ export function SpecList(props: {
             {picking && (
               <span className="flex w-6 shrink-0 justify-center">
                 {batch !== undefined && row.planId && (
-                  <Checkbox
+                  <Switch
                     data-spec-check={row.planId}
-                    aria-label={`Select ${row.name} to approve`}
+                    label={`Select ${row.name} to approve`}
                     checked={props.checked?.has(row.planId) ?? false}
-                    onChange={(event) => props.onCheck?.(row.planId!, event.target.checked)}
+                    onChange={(on) => props.onCheck?.(row.planId!, on)}
                   />
                 )}
               </span>
@@ -1597,10 +1598,9 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
       )}
       {preview?.folder?.exists && (
         <label className="flex flex-col gap-1 text-sm">
-          <Row as="span" gap={2} wrap={false}>
-            <Checkbox checked={folder} onChange={(event) => setFolder(event.target.checked)} />
+          <Switch label="Also delete the spec folder from the repo" checked={folder} onChange={setFolder}>
             Also delete the spec folder (.kiro/specs/{preview.spec}/) from the repo.
-          </Row>
+          </Switch>
           <code className="pl-6 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{preview.folder.path}</code>
           <span className="pl-6 text-xs text-muted">Only the working tree. Avoozl never commits or pushes this.</span>
           {folder && preview.folder.dirty && <span role="alert" className="pl-6 text-xs text-danger">{preview.folder.reason}</span>}

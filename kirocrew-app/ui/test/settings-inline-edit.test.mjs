@@ -96,7 +96,7 @@ for (const width of [1280, 390]) {
     await openPage('Content rules', width)
     await page.until(`Boolean(document.querySelector('[data-rule-details="codenames"]'))`)
     assert.equal(await footer(), false)
-    assert.ok(await page.evaluate(`(() => { const l = [...document.querySelectorAll('[data-rule-details] label')].find((x) => x.textContent.includes('Incoming items')); if (l) l.querySelector('input').click(); return Boolean(l) })()`), 'Incoming items checkbox')
+    assert.ok(await page.evaluate(`(() => { const l = [...document.querySelectorAll('[data-rule-details] [data-check-row]')].find((x) => x.textContent.includes('Incoming items')); if (l) l.querySelector('[role="switch"]').click(); return Boolean(l) })()`), 'Incoming items checkbox')
     await page.until(`Boolean(document.querySelector('[data-save-footer]'))`)
     assert.ok(await page.evaluate(click('[data-terms-editor] button, [data-terms-editor] [role="tab"]', 'File view')), 'File view')
     await page.until(`Boolean(document.querySelector('[data-terms-editor] textarea'))`)

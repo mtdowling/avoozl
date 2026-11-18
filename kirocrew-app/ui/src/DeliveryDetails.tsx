@@ -22,7 +22,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { TextLink } from './ui/TextLink'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 // A delivery's record, shared by the Delivery cards and the task drawer:
 // runs, integration, pull requests, reviews, evidence, Project notes, and
@@ -266,20 +266,23 @@ export function RetryForm({ item, busy, onRetry }: { item: DeliveryItem; busy: b
     <div className="mt-2 flex flex-col gap-1.5 text-xs">
       <span className="font-medium">Dismiss findings, then retry</span>
       {findings.map((finding) => (
-        <label key={finding.ref} className="flex items-start gap-1.5">
-          <Checkbox
-            checked={picked.has(finding.ref)}
-            onChange={(event) => {
-              const next = new Set(picked)
-              if (event.target.checked) next.add(finding.ref)
-              else next.delete(finding.ref)
-              setPicked(next)
-            }}
-          />
+        <Switch
+          key={finding.ref}
+          label={`Dismiss ${finding.ref}`}
+          align="start"
+          gap={1.5}
+          checked={picked.has(finding.ref)}
+          onChange={(on) => {
+            const next = new Set(picked)
+            if (on) next.add(finding.ref)
+            else next.delete(finding.ref)
+            setPicked(next)
+          }}
+        >
           <span>
             <code>{finding.ref}</code> {finding.kind}: <Hint>{finding.text}</Hint>
           </span>
-        </label>
+        </Switch>
       ))}
       <label htmlFor={`dismiss-${item.id}`} className="flex flex-col gap-1">
         <span>Why they do not apply</span>

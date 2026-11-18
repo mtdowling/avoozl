@@ -12,7 +12,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type Reac
 import { createPortal } from 'react-dom'
 import { placeTooltip, tooltipController } from '../tooltip.ts'
 import { LAYER } from '../layers.ts'
-import { usePortalTarget } from '../Modal.tsx'
+import { usePortalTarget } from './Modal.tsx'
 
 const reducedMotion = () => typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
 

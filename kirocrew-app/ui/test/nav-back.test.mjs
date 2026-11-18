@@ -191,7 +191,7 @@ test('a dialog with unsaved changes asks first, the same way Cancel does', async
   assert.equal(nav.history.steps().length, 0)
   // The wiring: Back and Esc go through the shared Modal, which asks first
   // when `unsaved` is set, then through the dialog's own Cancel.
-  const shared = source('Modal.tsx')
+  const shared = source('ui/Modal.tsx')
   assert.match(shared, /useBackStep\(props\.kind \?\? 'modal', true, props\.backLabel \?\? 'Close the dialog', \(\) => \(latest\.current\.onBack \?\? dismiss\)\(\), dismiss\)/)
   assert.match(shared, /if \(!unsaved\) return onDismiss\(\)[\s\S]*?void ask\(unsaved\)\.then\(\(yes\) => \{[\s\S]*?if \(yes\) latest\.current\.onDismiss\(\)/)
   for (const name of ['AddPlugin.tsx', 'PackImport.tsx', 'SendToRadar.tsx', 'SetupWizard.tsx'])
@@ -221,7 +221,7 @@ test('the keys and the mouse back button: ours only with a step and from the pag
   assert.match(wiring, /event\.stopImmediatePropagation\(\)/)
   assert.doesNotMatch(wiring, /pushState/)
   // Every modal is portaled to <body>, so it carries the page mark.
-  assert.match(source('Modal.tsx'), /data-modal=\{props\.id\}[\s\S]*?\{\.\.\.\{ \[APP_ATTR\]: '' \}\}/)
+  assert.match(source('ui/Modal.tsx'), /data-modal=\{props\.id\}[\s\S]*?\{\.\.\.\{ \[APP_ATTR\]: '' \}\}/)
   assert.match(source('DocumentReader.tsx'), /<Modal\b[\s\S]*?attrs=\{\{ 'data-document-reader': true \}\}/)
   assert.match(source('App.tsx'), /<div \{\.\.\.\{ \[APP_ATTR\]: '' \}\} style=\{\{ display: 'contents' \}\}>/)
 })
@@ -264,6 +264,6 @@ test('the views use the shared history: inner tabs, the plan, the Graph, the dra
   assert.match(source('NewPlanDrawer.tsx'), /<Modal\s+id="avoozl-new-plan"[\s\S]*?kind="drawer"[\s\S]*?unsaved=\{dirty/)
   assert.match(source('Onboard.tsx'), /<(Modal|Shelf)\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/)
   // No view keeps its own Esc listener any more.
-  for (const name of ['Modal.tsx', 'TaskDrawer.tsx', 'AddPlugin.tsx', 'PackImport.tsx', 'SendToRadar.tsx', 'SetupWizard.tsx', 'DocumentReader.tsx', 'ui/controls.tsx', 'PlansView.tsx', 'NewPlanDrawer.tsx', 'Onboard.tsx'])
+  for (const name of ['ui/Modal.tsx', 'TaskDrawer.tsx', 'AddPlugin.tsx', 'PackImport.tsx', 'SendToRadar.tsx', 'SetupWizard.tsx', 'DocumentReader.tsx', 'ui/controls.tsx', 'PlansView.tsx', 'NewPlanDrawer.tsx', 'Onboard.tsx'])
     assert.doesNotMatch(source(name), /key === 'Escape'|key !== 'Escape'/, name)
 })

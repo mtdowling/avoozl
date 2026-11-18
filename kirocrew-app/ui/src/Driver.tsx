@@ -9,7 +9,7 @@ import { Btn } from './ui/Btn'
 import { Card } from './ui/Card'
 import { Input } from './ui/Input'
 import Badge from './ui/Badge.tsx'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { IconLabel } from './ui/controls.tsx'
 import { Button } from './ui/Button.tsx'
 import { ExternalLink, KeyRound, Laptop, Lock, Send } from './icons.ts'
@@ -37,7 +37,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 const FIELD = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)', maxWidth: '100%' }
 
@@ -310,10 +310,9 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
         {!file.trim() && (
           <>
             <Loss preview={preview} />
-            <label className="flex items-center gap-2">
-              <Checkbox checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
+            <Switch label="I understand what a rebuild from GitHub loses" checked={acknowledged} onChange={setAcknowledged}>
               I understand what a rebuild from GitHub loses
-            </label>
+            </Switch>
           </>
         )}
         <label className="flex flex-col gap-1" htmlFor="avoozl-driver-force-name">
