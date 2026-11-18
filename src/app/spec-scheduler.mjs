@@ -230,18 +230,48 @@ export function journalOf(store, { github, workspaceRoot, actor }, planId) {
     issue: { repository: id, number: issue.number },
     // A public journal names this spec and its tasks by opaque IDs, salted
     // with the workspace namespace, else the spec issue itself.
-    names: journalNames({
-      salt:
-        (workspaceRoot && planningIdentity(workspaceRoot).namespace) ||
-        `${id}#${issue.number}`,
-      spec: planId,
-      tasks: () =>
-        store
-          .read()
-          .tasks.filter((task) => task.planId === planId)
-          .map((task) => task.id),
-    }),
+    names: specNames(store, workspaceRoot, planId, `${id}#${issue.number}`),
   };
+}
+
+// A spec's opaque names (journalNames), salted with the workspace
+// namespace, else `fallback`, else the spec ID itself.
+export function specNames(store, workspaceRoot, planId, fallback = null) {
+  return journalNames({
+    salt:
+      (workspaceRoot && planningIdentity(workspaceRoot).namespace) ||
+      fallback ||
+      planId,
+    spec: planId,
+    tasks: () =>
+      store
+        .read()
+        .tasks.filter((task) => task.planId === planId)
+        .map((task) => task.id),
+  });
+}
+
+// The name a private plan's task goes by on a public repository (design
+// §4.32.4: public branches, titles and bodies use opaque identifiers), or
+// null when the readable ID may show. A plan is private when its spec issue
+// is not stored as public; a target is public unless stored as private.
+// shortcut: a plan with only a local journal keeps its readable names;
+// decide whether it counts as private before changing that.
+export function publicTaskName(
+  store,
+  { workspaceRoot, planId, taskId, repository },
+) {
+  const stored = (name) =>
+      store
+        .list("github_repositories")
+        .find(
+          (row) => String(row.id).toLowerCase() === String(name).toLowerCase(),
+        )?.private,
+    issue = store.get("receipts", `github-parent:plan:${planId}`),
+    planPrivate =
+      Boolean(issue?.repository) && stored(issue.repository) !== false;
+  if (!planId || !planPrivate || stored(repository) === true) return null;
+  return `t-${specNames(store, workspaceRoot, planId, `${issue.repository}#${issue.number}`).task(taskId)}`;
 }
 
 // Specs that lost authority, and tasks an outstanding intent holds, for the

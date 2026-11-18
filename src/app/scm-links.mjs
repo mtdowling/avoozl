@@ -273,7 +273,11 @@ function taskSet(rows, links, task, now) {
     planId: task.planId ?? null,
     repository,
     branch:
-      repository && branchRef ? links.branch(repository, branchRef) : null,
+      repositoryOf(entry?.source?.repository) && refOf(entry?.source?.branch)
+        ? links.branch(entry.source.repository, entry.source.branch)
+        : repository && branchRef
+          ? links.branch(repository, branchRef)
+          : null,
     // Local only: shown as text in the app, never a link or a GitHub write.
     worktree:
       typeof worktree?.path === "string" && worktree.path

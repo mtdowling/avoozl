@@ -3543,6 +3543,7 @@ export async function integrateVerified(
           worktree,
           task,
           at,
+          workspaceRoot: contentBinding(store)?.workspaceRoot ?? null,
         });
         store.transaction(() => store.put("task_deliveries", next));
         continue;
