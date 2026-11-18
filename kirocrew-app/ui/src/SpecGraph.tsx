@@ -9,6 +9,7 @@ import { useTaskDrawer } from './drawer-context.ts'
 import { linkHref, type Graph } from './views-api.ts'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
+import { Box } from './ui/Box'
 
 type Mode = 'frontier' | 'tree'
 
@@ -48,7 +49,7 @@ export function SpecGraph(props: { graph: Graph | null; planId: string; only?: M
     </button>
   )
   return (
-    <div className="flex min-w-0 flex-col gap-2" data-spec-graph>
+    <Box flex minW0 flexCol gap="2" data-spec-graph>
       {!graph ? (
         <Hint as="p" size="sm" role="status">
           Loading…
@@ -70,16 +71,16 @@ export function SpecGraph(props: { graph: Graph | null; planId: string; only?: M
               </a>
             )}
           </Row>
-          <div className="min-w-0 overflow-x-auto" data-spec-graph-body>
+          <Box minW0 overflow="x-auto" data-spec-graph-body>
             {mode === 'frontier' ? (
               <Frontier ready={lists!.ready} waiting={lists!.waiting} onOpenTree={(id) => drill({ kind: 'task', id })} onOpen={(id) => openItem({ kind: 'task', id })} />
             ) : (
               <FocusTreeView graph={graph} root={root} onReRoot={drill} onOpen={openItem} />
             )}
-          </div>
+          </Box>
         </>
       )}
       {modal && graph && <ItemModal graph={graph} item={modal} onClose={() => setModal(null)} onTree={(next) => (setModal(null), drill(next))} />}
-    </div>
+    </Box>
   )
 }

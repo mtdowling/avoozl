@@ -20,6 +20,7 @@ import { Modal } from './ui/Modal.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -35,7 +36,7 @@ const ACTION: Record<PackChange['action'], { label: string; variant?: BadgeVaria
 export function PackChanges({ preview }: { preview: PackPreview }) {
   const counts = packCounts(preview.changes)
   return (
-    <div className="flex flex-col gap-2 text-sm" data-pack-preview>
+    <Box flex flexCol gap="2" size="sm" data-pack-preview>
       {preview.description && <Hint as="p" size="xs">{preview.description}</Hint>}
       <Hint as="p" size="xs">
         {counts.create} to create, {counts.change} to change, {counts.keep} already the same
@@ -48,24 +49,24 @@ export function PackChanges({ preview }: { preview: PackPreview }) {
         </ErrorText>
       ))}
       <div style={{ overflowX: 'auto' }}>
-        <table className="w-full text-xs">
+        <Box as="table" wFull size="xs">
           <thead>
-            <tr className="text-left text-muted">
-              <th className="py-1 pr-2 font-normal">Setting</th>
-              <th className="py-1 pr-2 font-normal">Action</th>
-              <th className="py-1 font-normal">Value</th>
-            </tr>
+            <Box as="tr" align="left" tone="muted">
+              <Box as="th" py="1" pr="2" weight="normal">Setting</Box>
+              <Box as="th" py="1" pr="2" weight="normal">Action</Box>
+              <Box as="th" py="1" weight="normal">Value</Box>
+            </Box>
           </thead>
           <tbody>
             {preview.changes.map((change) => (
               <tr key={change.setting} className="align-top" style={{ borderTop: '1px solid var(--border)' }}>
-                <td className="py-1 pr-2 break-all">
+                <Box as="td" py="1" pr="2" breakAll>
                   <code>{change.setting}</code>
-                </td>
-                <td className="py-1 pr-2">
+                </Box>
+                <Box as="td" py="1" pr="2">
                   <Badge variant={change.warning ? 'warning' : ACTION[change.action].variant}>{ACTION[change.action].label}</Badge>
-                </td>
-                <td className="py-1 break-all">
+                </Box>
+                <Box as="td" py="1" breakAll>
                   {change.action === 'skip' ? (
                     <Hint>{change.reason}</Hint>
                   ) : (
@@ -76,16 +77,16 @@ export function PackChanges({ preview }: { preview: PackPreview }) {
                         </Hint>
                       )}
                       <code>{shortValue(change.to)}</code>
-                      {change.warning && <span className="block text-danger">Lowers who counts, as said above.</span>}
+                      {change.warning && <Box as="span" block tone="danger">Lowers who counts, as said above.</Box>}
                     </>
                   )}
-                </td>
+                </Box>
               </tr>
             ))}
           </tbody>
-        </table>
+        </Box>
       </div>
-    </div>
+    </Box>
   )
 }
 

@@ -23,6 +23,7 @@ import { workspaceClient, errorMessage } from './workspace-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { SelectField } from './ui/SelectField'
+import { Box } from './ui/Box'
 
 const FILL = { display: 'inline-flex', alignItems: 'center', gap: 6 }
 // Stopped: a red frame on a red tint, the text in the theme's own color.
@@ -126,7 +127,7 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
             style={{ ...(stopped ? STOPPED : FILL), padding: '4px 6px' }}
           >
             <Pause size={ICON} aria-hidden="true" style={stopped ? { color: 'var(--danger)' } : undefined} />
-            <span className="sr-only">{stopped ? 'Line stopped' : 'Stop the line'}</span>
+            <Box as="span" srOnly>{stopped ? 'Line stopped' : 'Stop the line'}</Box>
           </Button>
         )}
       </Tooltip>
@@ -190,7 +191,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
   const fields = {
     all: null,
     repo: choices?.repositories.length ? (
-      <label className="flex min-w-0 flex-col gap-1 text-sm">
+      <Box as="label" flex minW0 flexCol gap="1" size="sm">
         {required('Repository')}
         <SelectField value={form.repository} onChange={(e) => set({ repository: e.target.value })} look="field" maxWidth="100%" data-stop-target>
           <option value="">Choose…</option>
@@ -200,7 +201,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
             </option>
           ))}
         </SelectField>
-      </label>
+      </Box>
     ) : (
       empty('No repository is registered.')
     ),
@@ -220,9 +221,9 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       attrs={{ 'data-stop-dialog': true }}
       unsaved={JSON.stringify(form) !== JSON.stringify(emptyPull()) && { title: 'Discard this stop?', body: 'The line keeps running. What you entered is lost.', action: 'Discard' }}
       title={
-        <span className="inline-flex items-center gap-1.5">
+        <Box as="span" inlineFlex items="center" gap="1.5">
           <Pause size={ICON} aria-hidden="true" style={{ color: 'var(--danger)' }} /> Stop the line
-        </span>
+        </Box>
       }
       onDismiss={close}
       footer={
@@ -263,7 +264,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
               }),
         }))}
       />
-      <label className="flex flex-col gap-1 text-sm">
+      <Box as="label" flex flexCol gap="1" size="sm">
         <span>
           Reason <Hint size="xs">(required)</Hint>
         </span>
@@ -275,7 +276,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
           data-stop-reason
         />
         <Hint size="xs">One line. It shows on the banner and in Flow.</Hint>
-      </label>
+      </Box>
       {error && (
         <ErrorText role="alert" size="sm">
           {error}

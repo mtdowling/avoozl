@@ -36,6 +36,7 @@ import { Empty, HomeBox, HomePair, HomeSection, HomeStyle, PrLink, Tiles } from 
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
+import { Box } from './ui/Box'
 
 export type DashboardTarget = 'plans' | 'graph' | 'waiting' | 'delivery' | 'landing' | 'flow'
 
@@ -52,12 +53,12 @@ const FAILED_KINDS = new Set(['delivery', 'stale-session', 'provider-out', 'tick
 function NeedCard({ item, attach, onAnswer, onInfo, onAsk, onTitle }: { item: Attention; attach: string | null; onAnswer: () => void; onInfo: () => void; onAsk: () => void; onTitle: () => void }) {
   return (
     <li data-home-need data-attention-row>
-      <span className="flex items-center justify-between gap-2">
+      <Box as="span" flex items="center" justify="between" gap="2">
         <span data-attention-tag>
           <Badge variant={FAILED_KINDS.has(item.kind) ? 'danger' : 'warning'}>{KIND_LABEL[item.kind] ?? item.kind}</Badge>
         </span>
-        {item.taskId && <span className="truncate text-xs text-muted">{item.taskId}</span>}
-      </span>
+        {item.taskId && <Box as="span" truncate size="xs" tone="muted">{item.taskId}</Box>}
+      </Box>
       <Tooltip text={attentionTip(item)} display="inline">
         {(describedBy) => (
           <a
@@ -215,12 +216,12 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
         <Badge>Issue Radar</Badge>
       </span>
       <span className="min-w-0 flex-1" style={{ flexBasis: '12rem' }}>
-        <span className="font-medium">{row.title}</span>{' '}
+        <Box as="span" weight="medium">{row.title}</Box>{' '}
         <Hint size="xs">
           {row.repository} #{row.number}
         </Hint>{' '}
         {row.stale && <Badge variant="warning">Stale</Badge>}
-        <span data-rail className="ml-1 inline-flex items-center gap-0.5 align-middle" role="img" aria-label={railFor(row).map((step) => `${step.label} ${step.state === 'done' ? 'done' : step.state === 'now' ? 'now' : 'next'}`).join(', ')}>
+        <Box data-rail as="span" ml="1" inlineFlex items="center" gap="0.5" alignMiddle role="img" aria-label={railFor(row).map((step) => `${step.label} ${step.state === 'done' ? 'done' : step.state === 'now' ? 'now' : 'next'}`).join(', ')}>
           {railFor(row).map((step) => (
             <i
               key={step.label}
@@ -229,7 +230,7 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
               style={{ display: 'block', width: 16, height: 8, borderRadius: 3, background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)' }}
             />
           ))}
-        </span>
+        </Box>
         <Hint size="xs" block>
           {row.crewName ?? row.crewId ?? 'no crew named'} · {row.phase ?? 'claim label, no claim comment'}
           {row.updated ? ` · updated ${relativeTime(row.updated, now)}` : ''}
@@ -378,7 +379,7 @@ function SendMessage({ title, onSend, onClose }: { title: string; onSend: (text:
         value={text}
         onChange={(event) => setText(event.target.value)}
       />
-      <span className="flex flex-wrap items-center gap-1.5">
+      <Box as="span" flex flexWrap items="center" gap="1.5">
         <SmallBtn primary disabled={!text.trim() || state.kind === 'sending'} attrs={{ type: 'submit', 'data-send-submit': true }}>
           {state.kind === 'sending' ? 'Sending…' : 'Send'}
         </SmallBtn>
@@ -386,7 +387,7 @@ function SendMessage({ title, onSend, onClose }: { title: string; onSend: (text:
         <Hint role="status" size="xs" data-send-state={state.kind}>
           {state.kind === 'queued' ? 'Queued; it goes in when the run ends.' : state.kind === 'error' ? state.message : ''}
         </Hint>
-      </span>
+      </Box>
     </form>
   )
 }
@@ -563,9 +564,9 @@ export default function DashboardView(props: {
   return (
     <section aria-labelledby="avoozl-dashboard-title" data-home>
       <HomeStyle />
-      <h2 id="avoozl-dashboard-title" className="sr-only">
+      <Box id="avoozl-dashboard-title" as="h2" srOnly>
         Home
-      </h2>
+      </Box>
       <span role="status" className={busy || value?.failed ? 'text-xs text-muted' : 'sr-only'}>
         {busy ? 'Loading…' : value?.failed ? `${value.failed} of 4 reads failed; those sections are empty.` : ''}
       </span>
@@ -676,14 +677,14 @@ export default function DashboardView(props: {
                 <Empty>No crew or chat is working right now. Released issues show here once a crew claims them.</Empty>
                 {/* Only while nothing has ever run. */}
                 {summary.neverRan && (
-                  <div className="mb-2">
+                  <Box mb="2">
                     <StartDemoButton label="Start demo" />
-                  </div>
+                  </Box>
                 )}
               </>
             ) : (
               <>
-                <ul className="m-0 list-none p-0">
+                <Box as="ul" m0 listNone p="0">
                   {pages.take('flight', summary.inFlight).map((row) => (
                     <InFlightRow
                       key={row.slot}
@@ -699,33 +700,33 @@ export default function DashboardView(props: {
                       }
                     />
                   ))}
-                </ul>
+                </Box>
                 <ShowMore {...pages.more('flight', summary.inFlight.length)} />
                 {summary.radarFlight.length > 0 && (
                   <>
-                    <h4 data-on-the-line className="mt-2 text-xs font-semibold text-muted">
+                    <Box data-on-the-line as="h4" mt="2" size="xs" weight="semibold" tone="muted">
                       On the line ({summary.radarFlight.length}): Ready, Claimed, PR, CI, Merge
-                    </h4>
+                    </Box>
                     {summary.radarGroups.length > 0 ? (
                       <RadarFlightGroups groups={summary.radarGroups} now={now} cost={summary.radarCrewStrip?.cost} />
                     ) : (
                       <>
-                        <ul className="m-0 list-none p-0">
+                        <Box as="ul" m0 listNone p="0">
                           {pages.take('radar', summary.radarFlight).map((row) => (
                             <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} cost={summary.radarCrewStrip?.cost[`${row.repository}#${row.number}`]} />
                           ))}
-                        </ul>
+                        </Box>
                         <ShowMore {...pages.more('radar', summary.radarFlight.length)} />
                       </>
                     )}
-                    <p className="my-2 text-xs text-muted">Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat.</p>
+                    <Box as="p" my="2" size="xs" tone="muted">Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat.</Box>
                   </>
                 )}
                 {summary.radarCrewStrip && summary.radarCrewStrip.crews.length > 0 && (
-                  <p data-crews-strip className="my-2 text-xs text-muted">
-                    <span className="font-semibold">Crews:</span> {summary.radarCrewStrip.counts.onDuty} on duty, {summary.radarCrewStrip.counts.working} working, {summary.radarCrewStrip.counts.paused} paused.{' '}
+                  <Box data-crews-strip as="p" my="2" size="xs" tone="muted">
+                    <Box as="span" weight="semibold">Crews:</Box> {summary.radarCrewStrip.counts.onDuty} on duty, {summary.radarCrewStrip.counts.working} working, {summary.radarCrewStrip.counts.paused} paused.{' '}
                     {summary.radarCrewStrip.crews.map((crew) => `${crew.name} (${crew.status ?? 'unknown'})`).join(', ')}
-                  </p>
+                  </Box>
                 )}
               </>
             )}
@@ -751,14 +752,14 @@ export default function DashboardView(props: {
             ) : summary.progress.length === 0 ? (
               <>
                 <Empty>No epics yet. {summary.plans.approved} approved and {summary.plans.draft} draft specs.</Empty>
-                <div className="mb-2">
+                <Box mb="2">
                   <Btn type="button" onClick={() => onNavigate('plans')}>
                     Open Specs
                   </Btn>
-                </div>
+                </Box>
               </>
             ) : (
-              <ul data-progress-by-epic className="my-1 flex list-none flex-col gap-1 p-0 text-sm">
+              <Box data-progress-by-epic as="ul" my="1" flex listNone flexCol gap="1" p="0" size="sm">
                 {summary.progress.map((entry) => {
                   const percent = entry.total ? Math.round((entry.done / entry.total) * 100) : 0
                   const title = entry.title
@@ -766,9 +767,9 @@ export default function DashboardView(props: {
                     <li key={entry.epic ?? '(none)'}>
                       <Tooltip text={`Show only ${title} in its spec graph${entry.running > 0 ? `. ${entry.running} Avoozl chats running now.` : ''}`} display="block">
                         <button type="button" className="w-full rounded px-1 py-1 text-left hover:bg-accent/10" onClick={() => props.onDrill?.({ kind: 'epic', id: entry.epic, title })}>
-                          <span className="flex items-center justify-between gap-2">
-                            <span className="truncate">{title}</span>
-                            <span className="flex shrink-0 items-center gap-2 text-xs text-muted">
+                          <Box as="span" flex items="center" justify="between" gap="2">
+                            <Box as="span" truncate>{title}</Box>
+                            <Box as="span" flex shrink0 items="center" gap="2" size="xs" tone="muted">
                               {entry.running > 0 && (
                                 <span className="inline-flex items-center gap-1" style={{ color: 'var(--tile-purple, var(--aim))' }} aria-label={`${entry.running} Avoozl chats running`}>
                                   <Activity size={12} aria-hidden="true" />
@@ -776,8 +777,8 @@ export default function DashboardView(props: {
                                 </span>
                               )}
                               {entry.done} of {entry.total}
-                            </span>
-                          </span>
+                            </Box>
+                          </Box>
                           <span role="progressbar" aria-label={`${title} progress`} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} className="mt-1 block h-1.5 overflow-hidden rounded" style={{ background: 'var(--border)' }}>
                             <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
                           </span>
@@ -786,7 +787,7 @@ export default function DashboardView(props: {
                     </li>
                   )
                 })}
-              </ul>
+              </Box>
             )}
           </HomeBox>
         </HomeSection>

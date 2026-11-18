@@ -46,6 +46,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { SelectField } from './ui/SelectField'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 const BOX = { borderColor: 'var(--border)' }
 const TONE: Record<SourceTone, BadgeVariant | undefined> = { ok: 'success', off: undefined, error: 'danger', waiting: 'info' }
@@ -59,15 +60,15 @@ type Change = { target: { value: string } }
 // One fact: a plain label, its raw setting name small, and its value.
 function Fact({ label, raw, children }: { label: string; raw?: string; children: ReactNode }) {
   return (
-    <div className="contents">
+    <Box contents>
       <Hint as="dt">
         {label}
-        {raw && <code className="ml-1 text-[11px]">{raw}</code>}
+        {raw && <Box as="code" ml="1" size="11">{raw}</Box>}
       </Hint>
       <dd className="m-0 min-w-0" style={{ overflowWrap: 'anywhere' }}>
         {children}
       </dd>
-    </div>
+    </Box>
   )
 }
 
@@ -95,19 +96,19 @@ function SourceBox(props: { id: string; title: string; badges: ReactNode; status
           </h4>
           {props.badges}
         </Row>
-        <p className="mt-1 text-xs text-muted" data-intake-status>
+        <Box as="p" mt="1" size="xs" tone="muted" data-intake-status>
           {props.status}
-        </p>
+        </Box>
         {props.problem && (
-          <p className="mt-1 flex items-start gap-1.5 text-xs text-danger" data-intake-problem>
+          <Box as="p" mt="1" flex items="start" gap="1.5" size="xs" tone="danger" data-intake-problem>
             <CircleAlert size={14} aria-hidden="true" style={{ flex: 'none', marginTop: 1 }} />
             <span>
-              <span className="font-semibold">{props.problem.kind}:</span> {props.problem.text}
+              <Box as="span" weight="semibold">{props.problem.kind}:</Box> {props.problem.text}
             </span>
-          </p>
+          </Box>
         )}
         {props.children}
-        {props.actions && <div className="mt-3 flex flex-wrap justify-end gap-2">{props.actions}</div>}
+        {props.actions && <Box mt="3" flex flexWrap justify="end" gap="2">{props.actions}</Box>}
       </article>
     </li>
   )
@@ -116,9 +117,9 @@ function SourceBox(props: { id: string; title: string; badges: ReactNode; status
 function ScopeBadge({ scope }: { scope: 'machine' | 'repository' }) {
   return (
     <Tooltip text={SCOPE_TIP[scope]}>
-      <span tabIndex={0} className="inline-flex">
+      <Box tabIndex={0} as="span" inlineFlex>
         <Badge>{SCOPE[scope]}</Badge>
-      </span>
+      </Box>
     </Tooltip>
   )
 }
@@ -228,7 +229,7 @@ function SourceRow({ row, plugins, busy, onRemove, onOpenRepositories }: { row: 
           </>
         )}
         <Fact label="Can trigger">
-          <span className="font-semibold">{triggers.level}.</span> {triggers.line}
+          <Box as="span" weight="semibold">{triggers.level}.</Box> {triggers.line}
         </Fact>
         <Fact label="Who counts" raw={entry.via === 'mcp' ? undefined : entry.allowedActors ? 'allowedActors' : 'minimumPermission'}>
           {whoCounts(row.entry)}
@@ -264,31 +265,31 @@ function SourceRow({ row, plugins, busy, onRemove, onOpenRepositories }: { row: 
 function Field(props: { id: string; label: string; marker: 'required' | 'optional'; raw: string; hint?: string; children: (describedBy: string) => ReactNode }) {
   const described = [props.hint ? `${props.id}-hint` : '', `${props.id}-raw`].filter(Boolean).join(' ')
   return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <div className="flex flex-wrap items-baseline gap-x-2">
-        <label htmlFor={props.id} className="text-sm font-medium">
-          {props.label} <span className="text-xs font-normal text-muted">({props.marker})</span>
-        </label>
-        <code id={`${props.id}-raw`} className="text-[11px] text-muted">
+    <Box flex minW0 flexCol gap="1">
+      <Box flex flexWrap items="baseline" gapX="2">
+        <Box htmlFor={props.id} as="label" size="sm" weight="medium">
+          {props.label} <Box as="span" size="xs" weight="normal" tone="muted">({props.marker})</Box>
+        </Box>
+        <Box id={`${props.id}-raw`} as="code" size="11" tone="muted">
           {props.raw}
-        </code>
-      </div>
+        </Box>
+      </Box>
       {props.children(described)}
       {props.hint && (
         <Hint id={`${props.id}-hint`} size="xs">
           {props.hint}
         </Hint>
       )}
-    </div>
+    </Box>
   )
 }
 
 function Group({ legend, children }: { legend: string; children: ReactNode }) {
   return (
-    <fieldset className="m-0 flex min-w-0 flex-col gap-3 border-0 p-0">
-      <legend className="mb-1 p-0 text-sm font-semibold">{legend}</legend>
+    <Box as="fieldset" m0 flex minW0 flexCol gap="3" border="0" p="0">
+      <Box as="legend" mb="1" p="0" size="sm" weight="semibold">{legend}</Box>
       {children}
-    </fieldset>
+    </Box>
   )
 }
 
@@ -330,9 +331,9 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
         title: `Plugin ${row.id}`,
         line: `Avoozl polls it on each tick.${row.state === 'approved' ? '' : ' The plugin is off until you approve or enable it.'}`,
         description: (
-          <p className="text-xs">
-            <span className="font-semibold">{t.level}.</span> {t.line}
-          </p>
+          <Box as="p" size="xs">
+            <Box as="span" weight="semibold">{t.level}.</Box> {t.line}
+          </Box>
         ),
       }
     }),
@@ -341,9 +342,9 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
       title: 'MCP',
       line: "A script or cron job sends items through Avoozl's MCP tools.",
       description: (
-        <p className="text-xs">
-          <span className="font-semibold">Untriaged only.</span> Rules can only pause or quarantine its items. You start work with Plan this or Deliver this.
-        </p>
+        <Box as="p" size="xs">
+          <Box as="span" weight="semibold">Untriaged only.</Box> Rules can only pause or quarantine its items. You start work with Plan this or Deliver this.
+        </Box>
       ),
     },
   ]
@@ -370,7 +371,7 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
         </>
       }
     >
-      <div className="flex flex-col gap-5">
+      <Box flex flexCol gap="5">
         <Group legend="Source">
           <Field id="intake-id" label="Name" marker="required" raw="intake.sources.<id>" hint="Lowercase letters, digits and dashes. Rules match it with source:<name>.">
             {(described) => (
@@ -464,7 +465,7 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
             ]}
           />
         </Group>
-      </div>
+      </Box>
     </Modal>
   )
 }
@@ -509,16 +510,16 @@ export default function IntakeSources({ workspaceId, plugins, onOpenGitHub, onOp
           className="mb-3"
         />
         {error || problem ? (
-          <p role="alert" className="mb-2 text-xs text-danger">
+          <Box role="alert" as="p" mb="2" size="xs" tone="danger">
             {error ?? problem}
-          </p>
+          </Box>
         ) : null}
-        <ul className="m-0 flex list-none flex-col gap-3 p-0" aria-label="Intake sources">
+        <Box as="ul" m0 flex listNone flexCol gap="3" p="0" aria-label="Intake sources">
           {value?.github && <GitHubBox github={value.github} onOpen={onOpenGitHub} />}
           {rows.map((row, i) => (
             <SourceRow key={`${row.id}-${row.scope}-${i}`} row={row} plugins={plugins} busy={busy} onRemove={() => remove(row)} onOpenRepositories={onOpenRepositories} />
           ))}
-        </ul>
+        </Box>
         {value && !others.length && (
           <div className="mt-3 rounded-lg border p-3" style={{ ...BOX, borderStyle: 'dashed' }} data-intake-empty>
             <EmptyState

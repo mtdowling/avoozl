@@ -59,9 +59,9 @@ const verdictFinish = (allowCommands) => [
 //   access   what the child may do to files
 //   folder   how the drain makes the child's folder: worktree (the task's),
 //            detached (a worktree at the commit), scratch (an empty folder),
-//            spec (the spec folder the request names), snapshot (a scratch
-//            folder `snapshot(store, request)` fills with {path: text}),
-//            prepared (the folder the request names, which the tick made)
+//            spec (the spec folder the request names), given (the folder the
+//            request names, used as it is: the workspace root), snapshot (a
+//            scratch folder `snapshot(store, request)` fills with {path: text})
 //   scratch  the name prefix of a scratch or snapshot folder in the temp
 //            folder, which the drain removes once the child exits
 //   output   {limit, validate}: the one output file under .avoozl/output/ a
@@ -205,7 +205,7 @@ export const ROLE_TABLE = Object.freeze({
     prompt: "plan-review",
     process: true,
     access: "read",
-    folder: "prepared",
+    folder: "given",
     offline: true,
     hands: "plan-review",
     // 50 findings, each at most a 500-character quote, a 10,000-character
@@ -219,11 +219,21 @@ export const ROLE_TABLE = Object.freeze({
       "Write no file but these two, keep the result file under 8 KB, then exit.",
     ],
   },
+  // The plan answer edits only its spec folder; on exit Avoozl stores the
+  // revision as this session's and records each answer (NK5.3).
   planAnswer: {
     setting: "planAnswer",
     roles: ["plan-answer"],
-    process: false,
+    prompt: "planner",
+    process: true,
     access: "write",
+    folder: "spec",
+    hands: "plan-answer",
+    finish: () => [
+      "You run without Avoozl's tools, so skip plans_plan_review, plans_save_plan and plans_answer_review: the findings are in your brief, and the current folder is your spec folder.",
+      'Edit the spec files here for each finding you fix. Then write .avoozl/result.json as {"state": "done", "report": {"answers": [{"id": "<finding id>", "action": "fixed" | "answered", "text": "<what you changed, or why not>"}]}}. Avoozl stores your edited folder as the new revision and names it on each fixed answer. If you changed no file, answer every finding "answered".',
+      RESULT_LIMIT,
+    ],
   },
   reviewDraft: {
     setting: "reviewDraft",
@@ -236,6 +246,20 @@ export const ROLE_TABLE = Object.freeze({
     roles: ["pr-review"],
     process: false,
     access: "read",
+  },
+  // The page's Open chat on a machine with no Kiro Crew (standalone-web SW7):
+  // a read-only child in the workspace root that answers and proposes.
+  assist: {
+    setting: "assist",
+    roles: ["assist"],
+    prompt: "assist",
+    process: true,
+    access: "read",
+    folder: "given",
+    hands: "folder",
+    finish: () => [
+      "You run without Avoozl's tools. Answer in your reply, then exit. Write no file.",
+    ],
   },
 });
 

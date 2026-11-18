@@ -14,6 +14,7 @@ import { AVOOZL_LABELS, CONFLICT_ACTIONS, CONFLICT_ACTION_TEXT, CONFLICT_DEFAULT
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 function Line(props: { id: string; label: string; value: string; fallback: string; raw: string; onChange: (value: string) => void; type?: string; unit?: string; help?: string }) {
   const note = valueSource(props.value, props.fallback, props.unit)
@@ -71,18 +72,18 @@ export function AutoMergeFields({ id, repository, set, inherited = null }: Part 
           title: `${choice.title} (landing.autoMerge: ${choice.key === 'manual' ? 'false' : 'true'})`,
           line: `${choice.line}${!repository.autoMerge && choice.key === value ? ' Not set on this repository; this is the default.' : ''}`,
           description: (
-            <table className="text-sm">
+            <Box as="table" size="sm">
               <tbody>
                 {['Writer', 'Avoozl', 'You'].map((who, i) => (
                   <tr key={who}>
-                    <th scope="row" className="pr-3 text-left font-medium">
+                    <Box scope="row" as="th" pr="3" align="left" weight="medium">
                       {who}
-                    </th>
+                    </Box>
                     <td>{choice.who[i]}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </Box>
           ),
         }))}
       />
@@ -110,13 +111,13 @@ export function ReviewRulesFields({ id, repository, set }: Part) {
           title: 'Write your own',
           line: 'Your text replaces the built-in rules. The one-line crew prompt is always added.',
           fields: (
-            <div className="flex min-w-0 flex-col gap-1">
-              <label htmlFor={`${id}-rules`} className="text-sm font-medium">
+            <Box flex minW0 flexCol gap="1">
+              <Box htmlFor={`${id}-rules`} as="label" size="sm" weight="medium">
                 Review rules <Hint size="xs">radar.reviewRules</Hint>
-              </label>
+              </Box>
               <textarea id={`${id}-rules`} rows={6} value={repository.reviewRules} onChange={(event) => set({ reviewRules: event.target.value })} className="min-w-0 rounded border px-2 py-1 text-sm" style={{ borderColor: 'var(--border)', background: 'transparent', color: 'inherit' }} />
               <Hint size="xs">{valueSource(repository.reviewRules ? 'your text' : '', "Avoozl's built-in rules")}</Hint>
-            </div>
+            </Box>
           ),
         },
       ]}
