@@ -348,11 +348,27 @@ export async function respondStep(
       continue;
     }
     if (binding || !open || response.state !== "open") continue;
+    const checkout = repositories.find(
+        (entry) =>
+          entry.id ===
+            store.get("github_repositories", response.repository)?.projectId ||
+          entry.github === response.repository,
+      ),
+      project = checkout ? store.get("projects", checkout.id) : null,
+      run = roleRun("responder", { config, project });
+    // A `process` responder reads a detached copy of the base branch, which
+    // Avoozl adds before it starts (NK2.2); a chat opens in the checkout.
+    const child =
+      run.executor === "process" && checkout?.localCheckout
+        ? await baseCopy(checkout, response).catch(() => null)
+        : null;
+    if (run.executor === "process" && !child) continue;
     dispatch.push(
       kirocrewRequest(store, {
         task: response.id,
         role: "responder",
-        ...roleRun("responder", { config }),
+        ...run,
+        ...(child ?? {}),
         attempt: 1,
         title:
           `avoozl:${response.id} respond ${response.repository}#${response.number}`.slice(
@@ -369,6 +385,30 @@ export async function respondStep(
     );
   }
   return { dispatch };
+}
+
+// The detached copy a `process` responder reads: the checkout's base branch
+// head, at a folder of its own beside the checkout's other task worktrees.
+async function baseCopy(checkout, response) {
+  const commit = (
+    await exec(
+      "git",
+      ["rev-parse", `${checkout.baseBranch || "main"}^{commit}`],
+      {
+        cwd: checkout.localCheckout,
+      },
+    )
+  ).stdout.trim();
+  return {
+    repository: checkout.id,
+    commit,
+    checkout: checkout.localCheckout,
+    worktree: path.join(
+      checkout.worktreeRoot ||
+        path.join(path.dirname(checkout.localCheckout), ".avoozl-worktrees"),
+      `avoozl-${response.id.replace(/[^A-Za-z0-9._-]/g, "-")}-respond`,
+    ),
+  };
 }
 
 // Discussions answering (task 8.2, R27.13), only for repositories whose
