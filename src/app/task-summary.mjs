@@ -4,6 +4,7 @@ import {
   kirocrewRequest,
 } from "./executors/kirocrew.mjs";
 import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
+import { roleRun } from "./role-table.mjs";
 import { callerSlot } from "./delivery.mjs";
 import { fail } from "./store.mjs";
 
@@ -115,7 +116,7 @@ export function requestTaskSummary(
 
 // The tick's dispatch entries: one per queued summary with no chat yet. The
 // chat needs no checkout, so it opens without a project folder.
-export function taskSummaryDispatches(store) {
+export function taskSummaryDispatches(store, { config } = {}) {
   const bound = new Set(
     listSessionBindings(store)
       .filter((b) => b.role === SUMMARY_ROLE)
@@ -133,6 +134,7 @@ export function taskSummaryDispatches(store) {
       kirocrewRequest(store, {
         task: r.id,
         role: SUMMARY_ROLE,
+        ...roleRun("taskSummary", { config }),
         attempt: r.attempt,
         title: `avoozl:task-summary ${r.taskId} (attempt ${r.attempt})`,
         ...kirocrewDetachedSession(),

@@ -144,7 +144,7 @@
     },
     "roles": {
       "type": "object",
-      "description": "One row per role: its harness, model and, for the worker and falsifier, agent. Settings > Models edits it. A missing key or auto keeps the role's default; a task's session pin wins. Older models, harnesses, delivery agent and model keys still load into it.",
+      "description": "One row per role: its harness, its model where it has one and, for the worker and falsifier, agent. Settings > Models edits it. A missing key or auto keeps the role's default; a task's session pin wins. Older models, harnesses, delivery agent and model keys still load into it.",
       "additionalProperties": false,
       "properties": {
         "worker": { "$ref": "#/$defs/agentRole" },
@@ -152,7 +152,14 @@
         "planner": { "$ref": "#/$defs/chatRole" },
         "planReviewer": { "$ref": "#/$defs/chatRole" },
         "retro": { "$ref": "#/$defs/chatRole" },
-        "reviewDraft": { "$ref": "#/$defs/chatRole" }
+        "reviewDraft": { "$ref": "#/$defs/chatRole" },
+        "verifier": { "$ref": "#/$defs/harnessRole" },
+        "reviewer": { "$ref": "#/$defs/harnessRole" },
+        "responder": { "$ref": "#/$defs/harnessRole" },
+        "taskSummary": { "$ref": "#/$defs/harnessRole" },
+        "issuePlanner": { "$ref": "#/$defs/harnessRole" },
+        "planAnswer": { "$ref": "#/$defs/harnessRole" },
+        "prReview": { "$ref": "#/$defs/harnessRole" }
       }
     },
     "models": {
@@ -1114,6 +1121,13 @@
       "properties": {
         "harness": { "$ref": "#/$defs/harnessName" },
         "model": { "$ref": "#/$defs/chatModel" }
+      }
+    },
+    "harnessRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "harness": { "$ref": "#/$defs/harnessName" }
       }
     },
     "agentRole": {

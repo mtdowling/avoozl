@@ -118,11 +118,30 @@ export function harnessExecutor(harness) {
 // keys still load into it with no warning (R98.8): `models`, `harnesses`,
 // `delivery.agent/model`, `delivery.investigate.agent/model` and
 // `flow.retro.model`. A `roles` field wins over an older key.
-export const ROLES = Object.freeze(["worker", "falsifier", ...MODEL_ROLES]);
+// The roles after the chat roles pick only a harness: each runs on its
+// agent's own model (without-kirocrew NK1.3). One entry per row of the role
+// table (role-table.mjs); a test keeps them equal.
+export const HARNESS_ONLY_ROLES = Object.freeze([
+  "verifier",
+  "reviewer",
+  "responder",
+  "taskSummary",
+  "issuePlanner",
+  "planAnswer",
+  "prReview",
+]);
+export const ROLES = Object.freeze([
+  "worker",
+  "falsifier",
+  ...MODEL_ROLES,
+  ...HARNESS_ONLY_ROLES,
+]);
 const AGENT_ROLES = new Set(["worker", "falsifier"]);
+const HARNESS_ONLY = new Set(HARNESS_ONLY_ROLES);
 // The fields a row may set: every role's, and the agent roles'.
 export const ROLE_FIELDS = Object.freeze(["harness", "model"]);
 export const AGENT_ROLE_FIELDS = Object.freeze(["harness", "agent", "model"]);
+export const HARNESS_ROLE_FIELDS = Object.freeze(["harness"]);
 const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 // The table with the older keys read in: older keys first, then `roles`
@@ -197,7 +216,11 @@ export function validateRoles(config, where = "roles") {
     if (!ROLES.includes(role))
       fail(`${at} is not a role; use ${ROLES.join(", ")}.`);
     if (!record(row)) fail(`${at} must be an object.`);
-    const fields = AGENT_ROLES.has(role) ? AGENT_ROLE_FIELDS : ROLE_FIELDS;
+    const fields = AGENT_ROLES.has(role)
+      ? AGENT_ROLE_FIELDS
+      : HARNESS_ONLY.has(role)
+        ? HARNESS_ROLE_FIELDS
+        : ROLE_FIELDS;
     for (const [field, v] of Object.entries(row)) {
       if (!fields.includes(field))
         fail(`${at}.${field} is not a role setting; use ${fields.join(", ")}.`);
