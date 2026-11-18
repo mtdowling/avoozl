@@ -182,12 +182,12 @@ test('Frontier, drill two levels, Back, Forward, the modal and Esc', { skip }, a
   await rooted('task:S3')
   // O opens the full task details, the view Specs opens, not the summary
   // modal; Esc closes them and focus returns to the card.
-  const details = `Boolean(document.querySelector('[data-task-modal] [data-section-box="task-links"]'))`
+  const details = `Boolean(document.querySelector('[data-task-modal] [data-tab-panel="overview"] [data-section-box="summary"]'))`
   await page.evaluate(`document.querySelector('[data-tree-node="S3"]').focus()`)
   await page.key('o', 'KeyO', 79)
   await page.until(details)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-graph-item]'))`), false, 'no summary modal')
-  assert.ok(await page.evaluate(`document.querySelectorAll('[data-task-modal] [data-section-box]').length >= 9`), 'every section')
+  assert.ok(await page.evaluate(`document.querySelectorAll('[data-task-modal] [data-tabs="task-tabs"] [role=tab]').length >= 3`), 'the tabs')
   assert.equal(await page.evaluate(`document.querySelector('[data-focus-tree]').dataset.focusTree`), 'task:S3', 'the graph stays')
   await page.key('Escape', 'Escape', 27)
   await page.until(`!document.querySelector('[data-task-modal]')`)
@@ -212,7 +212,7 @@ test('Frontier, drill two levels, Back, Forward, the modal and Esc', { skip }, a
   const detailReads = ['task.detail', 'task.notes.list', 'task.files', 'task.evidence', 'budget.receipt']
   assert.equal(ops.filter((op) => op === 'graph.view').length, 1 + 2, ops.join(','))
   assert.equal(ops.filter((op) => op === 'task.detail').length, 2, ops.join(','))
-  assert.deepEqual([...new Set(ops)].filter((op) => !['graph.view', 'github.settings.get', 'conflicts.view', 'untriaged.view', ...detailReads].includes(op)), [], ops.join(','))
+  assert.deepEqual([...new Set(ops)].filter((op) => !['graph.view', 'github.settings.get', 'conflicts.view', 'untriaged.view', 'task.summary.request', ...detailReads].includes(op)), [], ops.join(','))
 })
 
 test('the jump box roots the tree on a spec; a phone shows one column', { skip }, async () => {

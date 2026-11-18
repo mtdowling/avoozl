@@ -3,7 +3,7 @@ import { CheckRow, FieldRow, Marker, RawKey, fieldDescribedBy, type FieldWidth }
 import { Tabs, TabPanel, useTabParam } from './Tabs.tsx'
 import { dirtyTabs } from './tabs.ts'
 import { useAppApi } from './host.ts'
-import { Btn, Card, EmptyState, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
+import { Btn, Card, EmptyState, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { RoleHelp } from './RoleHelp.tsx'
 import {
@@ -75,7 +75,8 @@ import { type Jump, type JumpField } from './workflow-map.ts'
 import WorkspaceView from './WorkspaceView.tsx'
 import SetupRepository from './Onboard.tsx'
 import { AddRepository, REPOSITORIES_LINE, RepositoryList, repositoryRows, useReveal, type AddedRole } from './RepositoriesSettings.tsx'
-import { EditRepository, ViewRepository } from './RepositoryModals.tsx'
+import { EditRepository, ViewRepository, type EditSettings } from './RepositoryModals.tsx'
+import type { EditTab } from './repo-edit-tabs.ts'
 import { FormSection } from './FormSection.tsx'
 import { githubHref, type RepositoryRow } from './repository-rows.ts'
 import PluginsSettings from './PluginsSettings.tsx'
@@ -84,7 +85,6 @@ import FlowSettings from './FlowSettings.tsx'
 import ModelsSettings from './ModelsSettings.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
-import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
 import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
@@ -145,24 +145,17 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
     'Who merges a finished pull request, and the writer agent and model, investigate-first and pull request feedback for Avoozl worker chats.',
 }
 
-const REPOSITORY_TABS = [
-  { key: 'mode', label: 'Mode and branch' },
-  { key: 'triggers', label: 'Triggers and labels' },
-  { key: 'checks', label: 'Checks' },
-  { key: 'reviews', label: 'Reviews' },
-  { key: 'map', label: 'Workflow map' },
-] as const
-type RepositoryTab = (typeof REPOSITORY_TABS)[number]['key']
-
-export const REPOSITORY_BLURBS: Record<RepositoryTab, string> = {
+// Section blurbs of a repository's Edit dialog (repo-edit-tabs.ts has its tabs).
+export const REPOSITORY_BLURBS = {
   map: 'The path work takes in this repository, drawn from its settings. Nothing here is edited; a value opens its field.',
-  mode: 'Which repository this is, the branch pull requests merge into, and who writes the code.',
-  triggers: "A rule starts its action when an allowed person's label makes an issue match its line. No label name is built in.",
+  general: 'Which GitHub repository this is, and who writes the code.',
+  landing: 'The branch pull requests merge into, and how many tasks are ready at once.',
+  github: "A rule starts its action when an allowed person's label makes an issue match its line. No label name is built in.",
   checks:
     "Names of GitHub checks (CI jobs) that must pass on a task's PR before Avoozl counts it as done.",
   reviews:
     "Avoozl follows this branch's review rule on GitHub. To change it, change the rule on GitHub.",
-}
+} as const
 
 const FIELD_LABELS: Record<string, string> = {
   status: 'Status field',
@@ -696,7 +689,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
   const { mirror, id } = props
   const set = (change: Partial<MirrorForm>) => props.onChange({ ...mirror, ...change })
   return (
-    <FormSection level={4} title="Private mirror" blurb="Crews work in a private copy. The mirror must be private. Leave both names blank for none.">
+    <FormSection title="Private mirror" blurb="Crews work in a private copy. The mirror must be private. Leave both names blank for none.">
       <div style={grid()}>
         <Text id={`${id}-source`} label="Public repository" raw="mirror.source" placeholder="owner/name" value={mirror.source} onChange={(value) => set({ source: value })} />
         <Text id={`${id}-mirror`} label="Private mirror" raw="mirror.mirror" placeholder="owner/name-private" value={mirror.mirror} onChange={(value) => set({ mirror: value })} />
@@ -729,26 +722,19 @@ export function RepositoryEditor(props: {
   mode: string
   workspaceId: string
   planningRepository: string
+  // The Edit dialog's open tab, and how a Workflow map value opens another.
+  tab: EditTab
+  onTab: (tab: EditTab) => void
   onChange: (repository: RepositoryForm) => void
   // A Workflow map value that lives on Settings › Issue Radar.
   onOpenRadar?: (jump: RadarJump) => void
 }) {
-  const { repository, choices } = props
+  const { repository, choices, tab } = props
   const api = useAppApi()
   const inspectRepository = useMemo(() => inspectClient(api), [api])
-  // Each sub-tab is a Back step; a repository starts on Mode.
-  const [asked, setTab] = useSteppedState<RepositoryTab>(
-    `settings-repo-tab-${props.index}`,
-    'inner',
-    (previous) => `Back to ${REPOSITORY_TABS.find((t) => t.key === previous)?.label ?? previous}`,
-    'mode',
-    false,
-  )
-  // A remembered tab that left (Crews and rules) starts on Mode.
-  const tab: RepositoryTab = REPOSITORY_TABS.some((t) => t.key === asked) ? asked : 'mode'
   const [inspect, setInspect] = useState<RepositoryInspect | null>(null)
   const id = `avoozl-settings-repo-${props.index}`
-  // A jump from the Workflow map: open the sub-tab, then any closed fold
+  // A jump from the Workflow map: open the tab, then any closed fold
   // around the field, then focus it.
   const [pending, setPending] = useState<Jump | null>(null)
   useEffect(() => {
@@ -760,10 +746,10 @@ export function RepositoryEditor(props: {
   const setRule = (at: number, rule: RuleForm) =>
     set({ rules: repository.rules.map((item, index) => (index === at ? rule : item)) })
   const name = repository.name.trim()
-  // GitHub's rules and checks, read only when a tab needs them.
+  // GitHub's rules and checks, read only when the Landing tab needs them.
   useEffect(() => {
     setInspect(null)
-    if ((tab !== 'checks' && tab !== 'reviews') || !/^[\w.-]+\/[\w.-]+$/.test(name)) return
+    if (tab !== 'landing' || !/^[\w.-]+\/[\w.-]+$/.test(name)) return
     let live = true
     inspectRepository(props.workspaceId, name, repository.baseBranch).then(
       (value) => live && setInspect(value),
@@ -774,175 +760,169 @@ export function RepositoryEditor(props: {
       live = false
     }
   }, [tab, name, repository.baseBranch, props.workspaceId, inspectRepository])
+  // Fragments: its sections are siblings of the dialog's own, so the shared
+  // FormSection rule draws the line between them.
   return (
-    <FormSection title="Settings">
-      <div className="flex flex-col gap-3" data-repository-settings>
-        <SegmentedControl
-          collapse={false}
-          wrap="hug"
-          layoutId="avoozl-repository-tabs"
-          ariaLabel="Repository settings"
-          segments={REPOSITORY_TABS.map((t) => ({ key: t.key, label: t.label }))}
-          value={tab}
-          onChange={(key) => setTab(key as RepositoryTab)}
-        />
-        {tab === 'mode' && (
-          <div className="flex flex-col gap-5">
-            <FormSection level={4} title="Mode and branch" blurb={REPOSITORY_BLURBS.mode}>
-              <p className="text-xs text-muted">
-                Workspace mode: <span className="font-medium" style={{ color: 'var(--text)' }}>{MODE_TITLES[modeKey(props.mode)]}</span>. It follows from each repository&apos;s role in Repository setup.
-              </p>
-              <div style={grid()}>
-                <Text id={`${id}-name`} label="Repository" raw="key" rule={REPOSITORY_FIELD_RULES.name} placeholder="owner/name" value={repository.name} onChange={(value) => set({ name: value })} />
-                <Text id={`${id}-base`} label="Default branch" raw="baseBranch" rule={REPOSITORY_FIELD_RULES.baseBranch} placeholder="main" width="md" value={repository.baseBranch} onChange={(value) => set({ baseBranch: value })} />
-                <Text id={`${id}-cache`} label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={REPOSITORY_FIELD_RULES.cacheSeconds} placeholder="workspace value" type="number" width="sm" value={repository.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
-              </div>
-              <Field id={`${id}-coder-worker`} label="Who codes" raw="coder" rule={REPOSITORY_FIELD_RULES.coder}>
-                <CoderPicker id={`${id}-coder`} mode={props.mode} value={repository.coder} onChange={(value) => set({ coder: value })} />
-              </Field>
-              <div style={grid()}>
-                <Text id={`${id}-release-capacity`} label="Release N" raw="release.capacity" rule={REPOSITORY_FIELD_RULES.releaseCapacity} help={RELEASE_N_HELP} placeholder="2" type="number" width="sm" value={repository.releaseCapacity} onChange={(value) => set({ releaseCapacity: value })} />
-              </div>
-            </FormSection>
-            <MirrorBox id={`${id}-mirror`} mirror={repository.mirror} onChange={(mirror) => set({ mirror })} />
+    <>
+      {tab === 'general' && (
+        <FormSection title="GitHub repository" blurb={REPOSITORY_BLURBS.general}>
+          <p className="text-xs text-muted">
+            Workspace mode: <span className="font-medium" style={{ color: 'var(--text)' }}>{MODE_TITLES[modeKey(props.mode)]}</span>. It follows from each repository&apos;s role in Repository setup.
+          </p>
+          <div style={grid()}>
+            <Text id={`${id}-name`} label="Repository" raw="key" rule={REPOSITORY_FIELD_RULES.name} placeholder="owner/name" value={repository.name} onChange={(value) => set({ name: value })} />
           </div>
-        )}
-        {tab === 'triggers' && (
-          <div className="flex flex-col gap-5">
-            <FormSection level={4} title="Label rules" blurb={REPOSITORY_BLURBS.triggers}>
-              {repository.rules.length === 0 && (
-                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
-                  <span>No rules yet, so labels start nothing. Add one to let a label start work.</span>
-                  <AskForHelp
-                    workspaceId={props.workspaceId}
-                    help={{
-                      page: 'Settings › Repositories › Edit › Triggers',
-                      section: 'Label rules',
-                      says: 'No rules yet, so labels start nothing. Add one to let a label start work.',
-                      settings: [
-                        { key: 'mode', value: props.mode },
-                        { key: 'rules', value: 'none' },
-                      ],
-                      docs: 'README.md, section Deliver through GitHub',
-                    }}
-                  />
-                </p>
-              )}
-              {repository.rules.map((rule, index) => (
-                <RuleEditor
-                  key={index}
-                  id={`${id}-rule-${index}`}
-                  rule={rule}
-                  actions={choices.actions}
-                  repository={name}
-                  workspaceId={props.workspaceId}
-                  onChange={(next) => setRule(index, next)}
-                  onRemove={() => set({ rules: repository.rules.filter((_, at) => at !== index) })}
-                />
-              ))}
-              <div>
-                <Btn onClick={() => set({ rules: [...repository.rules, emptyRule()] })}>Add rule</Btn>
-              </div>
-            </FormSection>
-            <FormSection
-              level={4}
-              title="Managed labels"
-              blurb="Labels Avoozl itself adds and removes on issues to show their state. Don't edit them by hand: a hand edit shows as a conflict."
-            >
-              <div style={grid(200)}>
-                {/* Ready is edited with Avoozl's other labels in Crews and rules. */}
-                {choices.managedLabels.filter((key) => key !== 'ready').map((key) => (
-                  <Text
-                    key={key}
-                    id={`${id}-label-${key}`}
-                    label={MANAGED_LABEL_TEXT[key] ?? key}
-                    raw={`managedLabels.${key}`}
-                    rule={REPOSITORY_FIELD_RULES[key]}
-                    value={repository.managedLabels[key] ?? ''}
-                    onChange={(value) => set({ managedLabels: { ...repository.managedLabels, [key]: value } })}
-                  />
-                ))}
-              </div>
-            </FormSection>
-            <UntriagedSettings
-              id={id}
-              value={repository.untriaged}
-              repository={name}
-              workspaceId={props.workspaceId}
-              onChange={(untriaged) => set({ untriaged })}
-            />
-            <FormSection
-              level={4}
-              title="Who counts"
-              blurb="GitHub still decides who has access. This sets how much GitHub permission a person needs for a label, a board drag or a close to count."
-            >
-              <div className="flex flex-wrap items-end gap-3">
-                <Choice
-                  id={`${id}-permission`}
-                  label="Minimum permission"
-                  raw="minimumPermission"
-                  rule={REPOSITORY_FIELD_RULES.minimumPermission}
-                  value={repository.minimumPermission}
-                  options={choices.permissions}
-                  none={repository.allowedActors.trim() ? 'None' : 'Default: write'}
-                  width="md"
-                  onChange={(value) => set({ minimumPermission: value })}
-                />
-                <Text
-                  id={`${id}-actors`}
-                  label="Or only these people"
-                  raw="allowedActors"
-                  rule={REPOSITORY_FIELD_RULES.allowedActors}
-                  placeholder="login, login"
-                  width="md"
-                  value={repository.allowedActors}
-                  onChange={(value) => set({ allowedActors: value })}
-                />
-              </div>
-            </FormSection>
-            <FormSection level={4} title="Priority" blurb="Ready tasks carrying a higher label here start first.">
-              <Text id={`${id}-priority`} label="Priority labels, highest first" raw="priority" rule={{ required: false, blank: 'blank: graph order only' }} placeholder="p0, p1, p2" width="lg" value={repository.priority} onChange={(value) => set({ priority: value })} />
-            </FormSection>
-          </div>
-        )}
-        {tab === 'map' && (
-          <FormSection level={4} title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
-            <WorkflowMap
-              workspaceId={props.workspaceId}
-              mode={props.mode}
-              repository={repository}
-              planningRepository={props.planningRepository}
-              onJump={(jump) => {
-                if (jump.tab === 'radar') return props.onOpenRadar?.({ repository: name, field: jump.field })
-                setTab(jump.tab)
-                setPending(jump)
-              }}
-            />
+          <Field id={`${id}-coder-worker`} label="Who codes" raw="coder" rule={REPOSITORY_FIELD_RULES.coder}>
+            <CoderPicker id={`${id}-coder`} mode={props.mode} value={repository.coder} onChange={(value) => set({ coder: value })} />
+          </Field>
+        </FormSection>
+      )}
+      {tab === 'landing' && (
+        <>
+          <FormSection title="Where tasks land" blurb={REPOSITORY_BLURBS.landing}>
+            <div style={grid()}>
+              <Text id={`${id}-base`} label="Default branch" raw="baseBranch" rule={REPOSITORY_FIELD_RULES.baseBranch} placeholder="main" width="md" value={repository.baseBranch} onChange={(value) => set({ baseBranch: value })} />
+              <Text id={`${id}-release-capacity`} label="Release N" raw="release.capacity" rule={REPOSITORY_FIELD_RULES.releaseCapacity} help={RELEASE_N_HELP} placeholder="2" type="number" width="sm" value={repository.releaseCapacity} onChange={(value) => set({ releaseCapacity: value })} />
+            </div>
           </FormSection>
-        )}
-        {tab === 'checks' && (
-          <FormSection level={4} title="Required checks" blurb={REPOSITORY_BLURBS.checks}>
+          <FormSection title="Required checks" blurb={REPOSITORY_BLURBS.checks}>
             <ChecksEditor id={id} value={repository.requiredChecks} inspect={inspect} repository={name} onChange={(value) => set({ requiredChecks: value })} />
           </FormSection>
-        )}
-        {tab === 'reviews' && (
-          <div className="flex flex-col gap-5">
-            <FormSection level={4} title="Pull-request reviews" blurb={REPOSITORY_BLURBS.reviews}>
-              <ReviewRule
-                inspect={inspect}
+          <FormSection title="Pull-request reviews" blurb={REPOSITORY_BLURBS.reviews}>
+            <ReviewRule
+              inspect={inspect}
+              repository={name}
+              deprecated={repository.pullRequestReviews}
+              approvals={repository.reviewApprovals}
+              onDropDeprecated={() => set({ pullRequestReviews: false, reviewApprovals: '' })}
+            />
+          </FormSection>
+          <ReviewRoles review={props.review} repository={name} />
+        </>
+      )}
+      {tab === 'github' && (
+        <>
+          <FormSection title="Sync" blurb="How long Avoozl keeps GitHub's answers about this repository before it asks again.">
+            <div style={grid()}>
+              <Text id={`${id}-cache`} label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={REPOSITORY_FIELD_RULES.cacheSeconds} placeholder="workspace value" type="number" width="sm" value={repository.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
+            </div>
+          </FormSection>
+          <FormSection title="Label rules" blurb={REPOSITORY_BLURBS.github}>
+            {repository.rules.length === 0 && (
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                <span>No rules yet, so labels start nothing. Add one to let a label start work.</span>
+                <AskForHelp
+                  workspaceId={props.workspaceId}
+                  help={{
+                    page: 'Settings › Repository setup › Edit › GitHub',
+                    section: 'Label rules',
+                    says: 'No rules yet, so labels start nothing. Add one to let a label start work.',
+                    settings: [
+                      { key: 'mode', value: props.mode },
+                      { key: 'rules', value: 'none' },
+                    ],
+                    docs: 'README.md, section Deliver through GitHub',
+                  }}
+                />
+              </p>
+            )}
+            {repository.rules.map((rule, index) => (
+              <RuleEditor
+                key={index}
+                id={`${id}-rule-${index}`}
+                rule={rule}
+                actions={choices.actions}
                 repository={name}
-                deprecated={repository.pullRequestReviews}
-                approvals={repository.reviewApprovals}
-                onDropDeprecated={() => set({ pullRequestReviews: false, reviewApprovals: '' })}
+                workspaceId={props.workspaceId}
+                onChange={(next) => setRule(index, next)}
+                onRemove={() => set({ rules: repository.rules.filter((_, at) => at !== index) })}
               />
-            </FormSection>
-            <ReviewRoles review={props.review} repository={name} />
-          </div>
-        )}
-      </div>
-    </FormSection>
+            ))}
+            <div>
+              <Btn onClick={() => set({ rules: [...repository.rules, emptyRule()] })}>Add rule</Btn>
+            </div>
+          </FormSection>
+          <FormSection
+            title="Managed labels"
+            blurb="Labels Avoozl itself adds and removes on issues to show their state. Don't edit them by hand: a hand edit shows as a conflict."
+          >
+            <div style={grid(200)}>
+              {/* Ready is edited with Avoozl's other labels in Crews and rules. */}
+              {choices.managedLabels.filter((key) => key !== 'ready').map((key) => (
+                <Text
+                  key={key}
+                  id={`${id}-label-${key}`}
+                  label={MANAGED_LABEL_TEXT[key] ?? key}
+                  raw={`managedLabels.${key}`}
+                  rule={REPOSITORY_FIELD_RULES[key]}
+                  value={repository.managedLabels[key] ?? ''}
+                  onChange={(value) => set({ managedLabels: { ...repository.managedLabels, [key]: value } })}
+                />
+              ))}
+            </div>
+          </FormSection>
+          <UntriagedSettings
+            id={id}
+            value={repository.untriaged}
+            repository={name}
+            workspaceId={props.workspaceId}
+            onChange={(untriaged) => set({ untriaged })}
+          />
+          <FormSection
+            title="Who counts"
+            blurb="GitHub still decides who has access. This sets how much GitHub permission a person needs for a label, a board drag or a close to count."
+          >
+            <div className="flex flex-wrap items-end gap-3">
+              <Choice
+                id={`${id}-permission`}
+                label="Minimum permission"
+                raw="minimumPermission"
+                rule={REPOSITORY_FIELD_RULES.minimumPermission}
+                value={repository.minimumPermission}
+                options={choices.permissions}
+                none={repository.allowedActors.trim() ? 'None' : 'Default: write'}
+                width="md"
+                onChange={(value) => set({ minimumPermission: value })}
+              />
+              <Text
+                id={`${id}-actors`}
+                label="Or only these people"
+                raw="allowedActors"
+                rule={REPOSITORY_FIELD_RULES.allowedActors}
+                placeholder="login, login"
+                width="md"
+                value={repository.allowedActors}
+                onChange={(value) => set({ allowedActors: value })}
+              />
+            </div>
+          </FormSection>
+          <FormSection title="Priority" blurb="Ready tasks carrying a higher label here start first.">
+            <Text id={`${id}-priority`} label="Priority labels, highest first" raw="priority" rule={{ required: false, blank: 'blank: graph order only' }} placeholder="p0, p1, p2" width="lg" value={repository.priority} onChange={(value) => set({ priority: value })} />
+          </FormSection>
+        </>
+      )}
+      {tab === 'mirror' && <MirrorBox id={`${id}-mirror`} mirror={repository.mirror} onChange={(mirror) => set({ mirror })} />}
+      {tab === 'map' && (
+        <FormSection title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
+          <WorkflowMap
+            workspaceId={props.workspaceId}
+            mode={props.mode}
+            repository={repository}
+            planningRepository={props.planningRepository}
+            onJump={(jump) => {
+              if (jump.tab === 'radar') return props.onOpenRadar?.({ repository: name, field: jump.field })
+              props.onTab(jump.tab)
+              setPending(jump)
+            }}
+          />
+        </FormSection>
+      )}
+    </>
   )
 }
+
+// The tabs the repository editor fills.
+export const EDITOR_TABS: readonly EditTab[] = ['general', 'landing', 'github', 'mirror', 'map']
 
 const MODE_TITLES: Record<string, string> = { local: 'Local only', 'plans-repo': 'Plans repository', 'single-repo': 'Single repository' }
 
@@ -1033,37 +1013,54 @@ function RepositoriesTab(props: {
     }
     setMessage({ ok: true, text: `Added ${id}.` })
   }
-  // The repository's own settings, inside its Edit dialog: the editor, or what
-  // a local or settings-less repository has instead.
-  const settingsFor = (row: RepositoryRow, entry: RepositoryForm | null, setEntry: (entry: RepositoryForm) => void) =>
-    !isGitHubMode(form.mode) ? (
-      <LocalRepository row={row} review={props.review} kept={row.policy >= 0} workspaceId={props.workspaceId} />
-    ) : entry || row.policy >= 0 ? (
-      <RepositoryEditor
-        index={row.policy >= 0 ? row.policy : form.repositories.length}
-        repository={entry ?? form.repositories[row.policy]}
-        choices={choices}
-        review={props.review}
-        mode={form.mode}
-        workspaceId={props.workspaceId}
-        planningRepository={form.planningRepository}
-        onChange={setEntry}
-        onOpenRadar={props.onOpenRadar}
-      />
-    ) : row.github ? (
-      <FormSection title="Settings" blurb={`${row.github} has no GitHub settings in .avoozl.json yet, so it uses the defaults.`}>
-        <IconLabel icon={Plus} tooltip="Add an entry you can change; written when you press Save" onClick={() => setEntry({ ...emptyRepository(row.github!), baseBranch: row.branch })}>
-          Add GitHub settings for {row.github}
-        </IconLabel>
-      </FormSection>
-    ) : (
-      <FormSection title="Settings" blurb="A local-only repository: no GitHub remote, so the GitHub tabs do not apply.">
-        <p className="text-sm" data-local-checks>
-          Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from the spec manifest, or this
-          repository&apos;s checks when a task names none.
-        </p>
-      </FormSection>
-    )
+  // The repository's own settings, inside its Edit dialog, on its open tab:
+  // the editor, or what a local or settings-less repository has instead.
+  const settingsFor = (row: RepositoryRow, view: { entry: RepositoryForm | null; setEntry: (entry: RepositoryForm) => void; tab: EditTab; setTab: (tab: EditTab) => void }): EditSettings => {
+    const { entry, setEntry, tab } = view
+    if (!isGitHubMode(form.mode))
+      return { tabs: LOCAL_TABS, body: <LocalRepository row={row} review={props.review} kept={row.policy >= 0} workspaceId={props.workspaceId} tab={tab} /> }
+    if (entry || row.policy >= 0)
+      return {
+        tabs: EDITOR_TABS,
+        body: (
+          <RepositoryEditor
+            index={row.policy >= 0 ? row.policy : form.repositories.length}
+            repository={entry ?? form.repositories[row.policy]}
+            choices={choices}
+            review={props.review}
+            mode={form.mode}
+            workspaceId={props.workspaceId}
+            planningRepository={form.planningRepository}
+            tab={tab}
+            onTab={view.setTab}
+            onChange={setEntry}
+            onOpenRadar={props.onOpenRadar}
+          />
+        ),
+      }
+    if (row.github)
+      return {
+        tabs: [],
+        body: tab === 'general' && (
+          <FormSection title="Settings" blurb={`${row.github} has no GitHub settings in .avoozl.json yet, so it uses the defaults.`}>
+            <IconLabel icon={Plus} tooltip="Add an entry you can change; written when you press Save" onClick={() => setEntry({ ...emptyRepository(row.github!), baseBranch: row.branch })}>
+              Add GitHub settings for {row.github}
+            </IconLabel>
+          </FormSection>
+        ),
+      }
+    return {
+      tabs: ['landing'],
+      body: tab === 'landing' && (
+        <FormSection title="Checks" blurb="A local-only repository: no GitHub remote, so the GitHub settings do not apply.">
+          <p className="text-sm" data-local-checks>
+            Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from the spec manifest, or this
+            repository&apos;s checks when a task names none.
+          </p>
+        </FormSection>
+      ),
+    }
+  }
   return (
     <div className="flex flex-col gap-3.5">
       <Card>
@@ -1074,6 +1071,8 @@ function RepositoriesTab(props: {
             <RepositoryList
               rows={rows}
               roleText={roleText}
+              entryOf={(row) => (row.policy >= 0 ? form.repositories[row.policy] : null)}
+              mirrorOf={(row) => mirrorSourceOf(form, row.github)}
               busy={busy}
               onView={(row) => setOpen({ kind: 'view', key: row.key })}
               onEdit={(row) => setOpen({ kind: 'edit', key: row.key })}
@@ -1127,7 +1126,8 @@ function RepositoriesTab(props: {
           workspaceId={props.workspaceId}
           role={roleValue(openRow)}
           source={mirrorSourceOf(form, openRow.github)}
-          settings={(entry, setEntry) => settingsFor(openRow, entry, setEntry)}
+          saved={openRow.policy >= 0 ? form.repositories[openRow.policy] : null}
+          settings={(view) => settingsFor(openRow, view)}
           onSave={(edit) => props.onCommit((current) => withRepositoryEdit(current, openRow, edit))}
           onApplied={() => void props.onRegistryChanged()}
           onClose={() => setOpen(null)}
@@ -1160,36 +1160,46 @@ function RepositoriesTab(props: {
   )
 }
 
-// Local only: what a repository uses here (folder, landing branch, its
-// checks, reviewer chats). Its GitHub settings, if any, are kept unused.
-function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | undefined; kept: boolean; workspaceId: string }) {
-  const { row } = props
-  return (
-    <FormSection title="Settings" blurb="Local only: Avoozl codes, checks and merges here on this Mac.">
-      <div className="flex flex-col gap-5">
-        <FormSection level={4} title="Where it runs">
-          <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }} data-local-repository>
-            <dt className="text-muted">Folder</dt>
-            <dd style={{ overflowWrap: 'anywhere' }}>{row.folder ?? 'not on this Mac'}</dd>
+// Local only: what a repository uses here (landing branch, its checks,
+// reviewer chats), one Edit tab at a time. Its GitHub settings, if any, are
+// kept unused.
+const LOCAL_TABS: readonly EditTab[] = ['general', 'landing', 'map']
+function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | undefined; kept: boolean; workspaceId: string; tab: EditTab }) {
+  const { row, tab } = props
+  if (tab === 'general')
+    return (
+      <FormSection title="Local only" blurb="Avoozl codes, checks and merges here on this Mac.">
+        <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }} data-local-repository>
+          <dt className="text-muted">Who codes</dt>
+          <dd>Avoozl worker chats</dd>
+        </dl>
+        {props.kept && <p className="text-xs text-muted">Its GitHub settings are kept, not used. They apply again if a repository gets a GitHub role.</p>}
+      </FormSection>
+    )
+  if (tab === 'landing')
+    return (
+      <>
+        <FormSection title="Where tasks land">
+          <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
             <dt className="text-muted">Landing branch</dt>
             <dd>
               <code>{row.branch}</code>
             </dd>
-            <dt className="text-muted">Who codes</dt>
-            <dd>Avoozl worker chats</dd>
           </dl>
           <p className="text-sm" data-local-checks>
             Avoozl runs each task&apos;s own checks from the spec manifest, or this repository&apos;s checks when a task names none.
           </p>
-          {props.kept && <p className="text-xs text-muted">Its GitHub settings are kept, not used. They apply again if a repository gets a GitHub role.</p>}
         </FormSection>
         <ReviewRoles review={props.review} repository={row.github ?? row.name} />
-        <FormSection level={4} title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
-          <WorkflowMap workspaceId={props.workspaceId} mode="local" repository={{ ...emptyRepository(row.name), baseBranch: row.branch }} />
-        </FormSection>
-      </div>
-    </FormSection>
-  )
+      </>
+    )
+  if (tab === 'map')
+    return (
+      <FormSection title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
+        <WorkflowMap workspaceId={props.workspaceId} mode="local" repository={{ ...emptyRepository(row.name), baseBranch: row.branch }} />
+      </FormSection>
+    )
+  return null
 }
 
 // The GitHub settings that belong to the whole workspace, on the GitHub page:

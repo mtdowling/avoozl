@@ -7,12 +7,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
-import { MIRROR_ROLE, mirrorSourceProblem, roleFromMode } from './settings-api.ts'
+import { MIRROR_ROLE, mirrorSourceProblem, roleFromMode, type RepositoryForm } from './settings-api.ts'
 import { DangerBtn, IconBtn, IconLabel, TipBtn, type ConfirmCopy } from './controls.tsx'
 import { Eye, Pencil, Plus, Trash2, Workflow } from './icons.ts'
 import { RoleChoice } from './RepositoryModals.tsx'
 import { errorMessage, workspaceClient, type DetectedCheckout } from './workspace-api.ts'
-import { type RepositoryRow } from './repository-rows.ts'
+import { linkHref } from './views-api.ts'
+import ListItem from './ListItem.tsx'
+import { githubHref, repositoryFacts, type RepositoryRow } from './repository-rows.ts'
 export { repositoryRows, type RepositoryRow } from './repository-rows.ts'
 
 export const REPOSITORIES_LINE =
@@ -46,6 +48,9 @@ export function RepositoryList(props: {
   rows: RepositoryRow[]
   // The role badge's text; a role is changed in Edit, never in the list.
   roleText: (row: RepositoryRow) => string
+  // The saved settings of a row, and the public repository a private mirror copies.
+  entryOf: (row: RepositoryRow) => RepositoryForm | null
+  mirrorOf: (row: RepositoryRow) => string
   busy: boolean
   onView: (row: RepositoryRow) => void
   onEdit: (row: RepositoryRow) => void
@@ -68,31 +73,42 @@ export function RepositoryList(props: {
   return (
     <ul className="flex flex-col" aria-label="Added repositories" data-repository-list>
       {props.rows.map((row) => (
-        <li
+        <ListItem
           key={row.key}
-          className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t py-2 first:border-t-0"
-          style={{ borderColor: 'var(--border)' }}
-          data-repository-row={row.key}
-        >
-          <span className="min-w-0 truncate font-medium" style={{ flex: '1 1 12rem' }}>
-            {row.name}
-          </span>
-          <span data-role-badge>
-            <Badge>{props.roleText(row)}</Badge>
-          </span>
-          <span className="flex items-center gap-1.5">
-            {row.checkout && (
-              <IconBtn icon={Workflow} label={`Set up GitHub and import specs for ${row.name}`} tooltip={props.setupBlocked ?? 'Set up GitHub and import specs'} disabled={Boolean(props.setupBlocked)} onClick={() => props.onSetup(row)} />
-            )}
-            <IconBtn icon={Eye} label={`View ${row.name}`} tooltip="View details" onClick={() => props.onView(row)} />
-            <IconBtn icon={Pencil} label={`Edit ${row.name}`} tooltip={row.githubOnly ? 'GitHub only: add its checkout to edit it' : 'Edit'} disabled={row.githubOnly} onClick={() => props.onEdit(row)} />
-            {!row.githubOnly && (
-              <DangerBtn icon={Trash2} label={`Remove ${row.name}`} tooltip="Remove" disabled={props.busy} confirm={removeCopy(row)} onConfirm={() => props.onRemove(row)}>
-                {null}
-              </DangerBtn>
-            )}
-          </span>
-        </li>
+          attrs={{ 'data-repository-row': row.key }}
+          title={
+            <>
+              <span className="min-w-0 truncate font-medium">{row.name}</span>
+              <span data-role-badge>
+                <Badge>{props.roleText(row)}</Badge>
+              </span>
+              {githubHref(row.github) ? (
+                <a href={linkHref(githubHref(row.github)!)} target="_blank" rel="noopener noreferrer" className="min-w-0 truncate text-xs underline" data-github-link>
+                  {row.github}
+                </a>
+              ) : (
+                <span className="text-xs text-muted" data-github-link>
+                  {row.github ?? 'Local only'}
+                </span>
+              )}
+            </>
+          }
+          facts={repositoryFacts(row, props.entryOf(row), props.mirrorOf(row))}
+          actions={
+            <>
+              {row.checkout && (
+                <IconBtn icon={Workflow} label={`Set up GitHub and import specs for ${row.name}`} tooltip={props.setupBlocked ?? 'Set up GitHub and import specs'} disabled={Boolean(props.setupBlocked)} onClick={() => props.onSetup(row)} />
+              )}
+              <IconBtn icon={Eye} label={`View ${row.name}`} tooltip="View details" onClick={() => props.onView(row)} />
+              <IconBtn icon={Pencil} label={`Edit ${row.name}`} tooltip={row.githubOnly ? 'GitHub only: add its checkout to edit it' : 'Edit'} disabled={row.githubOnly} onClick={() => props.onEdit(row)} />
+              {!row.githubOnly && (
+                <DangerBtn icon={Trash2} label={`Remove ${row.name}`} tooltip="Remove" disabled={props.busy} confirm={removeCopy(row)} onConfirm={() => props.onRemove(row)}>
+                  {null}
+                </DangerBtn>
+              )}
+            </>
+          }
+        />
       ))}
     </ul>
   )

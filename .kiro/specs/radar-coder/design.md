@@ -141,6 +141,9 @@ names the planning repository". Content rules screen the name either way.
 
 ### D4.2 Batching
 
+Changed 2026-11-18 (avoozl §4.37): candidates are the planner's manifest
+groups, open and unblocked, with no `size` tag and no `flow.batch` cap.
+
 ```text
 for each phase, in graph order:
   candidates = tasks with size "small", no open blocker, no human completion

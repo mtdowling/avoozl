@@ -216,6 +216,7 @@ export const APP_OPERATIONS = new Set([
   "untriaged.plan",
   "github.repository.labels",
   "task.detail",
+  "task.summary.request",
   "task.files",
   "task.diff",
   "plan.spec.read",

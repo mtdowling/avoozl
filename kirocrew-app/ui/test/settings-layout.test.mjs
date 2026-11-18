@@ -29,7 +29,7 @@ test('every Settings group and repository tab renders its blurb', () => {
   for (const tab of ['workspaces', 'repositories', 'github', 'plugins', 'content'])
     assert.match(settings, new RegExp(`\\n  ${tab}:\\s*\\n?\\s*['"]`), tab)
   assert.match(settings, /data-blurb=\{section\.key\}>\s*\{SETTINGS_BLURBS\[section\.key\]\}/)
-  for (const tab of ['mode', 'triggers', 'checks', 'reviews'])
+  for (const tab of ['general', 'landing', 'github', 'checks', 'reviews', 'map'])
     assert.match(settings, new RegExp(`blurb=\\{REPOSITORY_BLURBS\\.${tab}\\}`), tab)
   // Managed labels say what they are, and that hand edits are conflicts.
   assert.match(settings, /Labels Avoozl itself adds and removes on issues to show their state\. Don't edit them by hand: a hand edit shows as a conflict\./)
@@ -130,7 +130,7 @@ test('each mode shows only the settings it reads, and Local only keeps the rest'
   assert.deepEqual(unusedInLocal(form), ['planning repository', 'Project board', '1 repository GitHub setting'])
   // Local only needs no base branch or Project number.
   assert.equal(missingRequired({ ...form, projectNumber: '' }), null)
-  assert.match(settings, /!isGitHubMode\(form\.mode\) \? \(\s*<LocalRepository/)
+  assert.match(settings, /if \(!isGitHubMode\(form\.mode\)\)\s*return \{ tabs: LOCAL_TABS, body: <LocalRepository/)
   assert.match(settings, /<p>\{LOCAL_HIDDEN_LINE\}<\/p>/)
 })
 
@@ -172,9 +172,9 @@ test('markers read (required) or (optional) in plain muted text, never red or bo
   assert.doesNotMatch(marker, /--danger|font-medium|font-semibold|font-bold/)
 })
 
-test('who counts is one row on the Triggers tab, with write as the default; no separate tab', () => {
+test('who counts is one row on the GitHub tab, with write as the default; no separate tab', () => {
   assert.doesNotMatch(settings, /key: 'people'/)
-  const triggers = settings.slice(settings.indexOf("{tab === 'triggers' && ("), settings.indexOf("{tab === 'checks' && ("))
+  const triggers = settings.slice(settings.indexOf("{tab === 'github' && ("), settings.indexOf("{tab === 'mirror' && <MirrorBox"))
   assert.match(triggers, /title="Who counts"/)
   assert.match(triggers, /raw="minimumPermission"/)
   assert.match(triggers, /raw="allowedActors"/)
@@ -220,9 +220,9 @@ test('GitHub: every group is its own tab and bordered section, and Radar setting
 test('Plugins puts Add plugin on the left and the installed list on the right, stacked when narrow', () => {
   const plugins = source('PluginsSettings.tsx')
   const layout = plugins.slice(plugins.indexOf('data-plugins-layout'))
-  assert.ok(layout.indexOf('<AddPlugin') < layout.indexOf('aria-label="Installed plugins"'))
+  assert.ok(layout.indexOf('<AddPlugin') < layout.indexOf('title="Installed plugins"'))
   assert.match(plugins, /useMedia\('\(min-width: 1024px\)'\)/)
-  assert.match(plugins, /flexDirection: 'column'/)
+  assert.match(source('PairedCards.tsx'), /flexDirection: 'column'/)
 })
 
 const SETTINGS_TAB_KEYS = () => [...settings.slice(settings.indexOf('export const SETTINGS_TABS'), settings.indexOf('] as const')).matchAll(/key: '(\w+)'/g)].map((m) => m[1])

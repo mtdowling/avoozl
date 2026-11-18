@@ -230,15 +230,29 @@ test("the shipped JSON Schema describes versioned non-secret config", () => {
     "instruction",
   ]);
   assert.equal(schema.$defs.agentInstructionRule.additionalProperties, false);
-  assert.equal(schema.properties.safety.$ref, "#/$defs/safetyPolicy");
-  assert.deepEqual(
-    schema.$defs.safetyAuthorityRule.properties.activities.items.enum,
-    ["raise", "diagnose", "remediate", "review", "resolve", "resume"],
-  );
-  assert.deepEqual(
-    schema.$defs.safetyPolicy.properties.coordinator.properties.mode.enum,
-    ["local", "optional", "strict"],
-  );
+  // Settings nothing reads are not described (simplification audit D1-D6).
+  for (const key of ["review", "safety", "repository", "planning"])
+    assert.equal(Object.hasOwn(schema.properties, key), false, key);
+  assert.equal(schema.$defs.conversations.properties.routing.deprecated, true);
   assert(schema.$defs.safePropertyName);
   assert(schema.$defs.safeValue);
+});
+
+test("a file that still sets removed or ignored settings loads", () => {
+  const workspaceRoot = temporaryDirectory("avoozl-config-dead-keys-");
+  writeJson(path.join(workspaceRoot, ".avoozl.json"), {
+    version: 1,
+    name: "Old file",
+    review: { defaultClass: "normal" },
+    safety: { coordinator: { mode: "optional" } },
+    repository: { id: "code", roles: ["code"] },
+    planning: { documents: ["plans"] },
+    conversations: { routing: { enabled: false }, driver: { model: "x" } },
+    models: { driver: "auto" },
+  });
+  const loaded = loadLayeredConfig({
+    workspaceRoot,
+    env: { XDG_CONFIG_HOME: temporaryDirectory("avoozl-empty-xdg-") },
+  });
+  assert.equal(loaded.config.name, "Old file");
 });
