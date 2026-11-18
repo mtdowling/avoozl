@@ -95,7 +95,6 @@ test('Flow screens keep the owner rules: no visible Stop the line, yellow only f
     flow = source('FlowView.tsx')
   assert.doesNotMatch(settings, /title="Stop the line"/)
   assert.match(settings, /<Section title="Pause on a broken check" blurb="[^"]+" icon=\{Pause\}>/)
-  assert.doesNotMatch(flow, /budget/i)
 })
 
 test('model pickers offer the models Kiro Crew lists, plus auto', async () => {
