@@ -402,6 +402,10 @@
               "type": "object",
               "additionalProperties": false,
               "properties": {
+                "resolver": {
+                  "enum": ["rules", "chat"],
+                  "default": "rules"
+                },
                 "mechanical": {
                   "type": "array",
                   "items": {
@@ -652,6 +656,10 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                      "resolver": {
+                        "enum": ["rules", "chat"],
+                        "default": "rules"
+                      },
                       "mechanical": {
                         "type": "array",
                         "items": {

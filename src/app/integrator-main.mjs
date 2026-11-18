@@ -11,7 +11,9 @@ import { defaultGitHubClient } from "./github.mjs";
 import { machineAvoozlPaths } from "./host-config.mjs";
 import { cleanupDeadTrain } from "./integrator-cleanup.mjs";
 import { readTrainCi } from "./integrator-ci.mjs";
+import { integratorChat } from "./integrator-resolver.mjs";
 import { runTrain } from "./integrator-run.mjs";
+import { processExecutor } from "./executors/process.mjs";
 import { runIntegrator } from "./integrator-trains.mjs";
 import { machinePlatforms } from "./integrator-validation.mjs";
 import { openSupervisorDatabase } from "./supervisor.mjs";
@@ -95,6 +97,16 @@ const run = {
         workspaceRoot: target.workspaceRoot,
         github: githubClient(),
         now,
+        // Only asked for under `conflicts.resolver: "chat"`.
+        resolverChat: () =>
+          integratorChat({
+            executor: processExecutor({
+              stateDirectory: machineAvoozlPaths().stateDirectory,
+              projectFor: () => context.project,
+            }),
+            store,
+            repository: context.project.repository || context.project.id,
+          }),
         slots: db && {
           db,
           counts: context.config.machine?.slots,
