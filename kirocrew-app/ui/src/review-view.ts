@@ -217,10 +217,6 @@ export function tabKey(key: string, tabs: string[], current: string): string | n
 // as a JSON code block.
 export const renderText = (file: string, text: string) => (file.endsWith('.json') ? '```json\n' + text + '\n```' : text)
 
-// The spec Summary's plain text until a reviewer writes its summary.
-export const summaryFallback = (tasks: number, files: string[]) =>
-  `${tasks} ${tasks === 1 ? 'task' : 'tasks'}${files.length ? ` in ${files.join(', ')}` : ''}. A written summary appears after the next review round.`
-
 export const lineText = (anchor: ReviewFinding['anchor']) =>
   anchor.lineStart === anchor.lineEnd ? `${anchor.file}:${anchor.lineStart}` : `${anchor.file}:${anchor.lineStart}-${anchor.lineEnd}`
 
