@@ -245,7 +245,7 @@ export const OLD_TOOLS = {
   ],
   plans_next: [
     "runner.next",
-    "What a Crew Mode conductor does next, with every local leaf in one bucket: ready (start each, with its brief and session title), running (claimed; wait), waiting (with the blockers each waits on), needsYou (blocked, review, questions, and stopped deliveries; ask the user), and done. Rule: start ready; wait while running is not empty; ask the user about needsYou; stop only when every leaf is done. Reads only.",
+    "Every local leaf in one list: ready, running, waiting (with the blockers each waits on), needsYou (blocked, review, questions, and stopped deliveries), and done. The tick starts ready work. Reads only.",
   ],
   plans_flow: [
     "flow.view",
@@ -261,7 +261,7 @@ export const OLD_TOOLS = {
   ],
   plans_claim_task: [
     "runner.claim",
-    "Claim one ready leaf for the worker session a Crew Mode conductor just started: {taskId, slot, title?, model?}. Name the model you opened the worker on; review roles that must differ from the writer's model wait for a person without it. Records the structured session binding (role worker, attempt, conductor) and prepares the leaf's worktree. Refused unless the task is ready now and .avoozl.json sets delivery.runner to crew-mode; a claimed task is never ready again.",
+    "Refused over MCP: a manual claim is a person's, with avoozl claim TASK at the command line. The tick starts every other task.",
   ],
   plans_retry_delivery: [
     "delivery.retry",

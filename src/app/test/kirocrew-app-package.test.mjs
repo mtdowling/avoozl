@@ -150,41 +150,26 @@ test("the built package carries no path of the machine that built it", () => {
   }
 });
 
-test("packaged launcher serves only the backend, MCP and runner commands", () => {
+test("packaged launcher serves only the backend and MCP", () => {
   const dir = temporaryDirectory();
-  assert.throws(
-    () =>
-      execFileSync(process.execPath, [launcher, "serve"], {
-        cwd: dir,
-        env: isolatedEnv(dir),
-        stdio: "pipe",
-      }),
-    (error) =>
-      error.status === 2 &&
-      /use app-backend, mcp, next, claim, report, retry\./.test(error.stderr),
-  );
+  for (const command of ["serve", "next", "claim", "report", "retry"])
+    assert.throws(
+      () =>
+        execFileSync(process.execPath, [launcher, command], {
+          cwd: dir,
+          env: isolatedEnv(dir),
+          stdio: "pipe",
+        }),
+      (error) =>
+        error.status === 2 && /use app-backend, mcp\./.test(error.stderr),
+      command,
+    );
 });
 
-test("packaged launcher serves the Crew Mode runner and lists its tools", () => {
+test("the packaged MCP server lists the plans tools and ships no runner hook", () => {
   const dir = temporaryDirectory(),
     workspace = path.join(dir, "workspace");
   initializeWorkspace(workspace);
-  const view = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [launcher, "next", "--workspace", workspace],
-      {
-        cwd: dir,
-        encoding: "utf8",
-        env: isolatedEnv(dir),
-      },
-    ),
-  );
-  assert.match(view.rule, /Stop only when every leaf is done/);
-  assert.deepEqual(
-    [view.ready, view.running, view.waiting, view.needsYou, view.done],
-    [[], [], [], [], []],
-  );
   const listed = execFileSync(
     "python3",
     [path.join(app, "bin", "avoozl_mcp.py"), "--workspace", workspace],
@@ -207,11 +192,13 @@ test("packaged launcher serves the Crew Mode runner and lists its tools", () => 
     "plans_post_reply",
   ])
     assert.ok(names.includes(name), name);
-  assert.ok(
-    fs.existsSync(
-      path.join(app, "bin", "lib", "src", "app", "runner", "avoozl-runner.md"),
-    ),
-    "the runner steering ships in the package",
+  assert.equal(
+    fs.existsSync(path.join(app, "hooks", "avoozl-runner.json")),
+    false,
+  );
+  assert.equal(
+    fs.existsSync(path.join(app, "bin", "lib", "src", "app", "runner")),
+    false,
   );
 });
 

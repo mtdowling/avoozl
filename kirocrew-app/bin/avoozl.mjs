@@ -1,21 +1,13 @@
 #!/usr/bin/env node
 // The Kiro Crew app's entry point. Kiro Crew starts the backend as
 // `node bin/avoozl.mjs` with no arguments, so the default command is
-// `app-backend`; the MCP server runs `mcp`. A Crew Mode conductor runs the
-// runner commands (`next`, `claim`, `report`, `retry`) and its AgentSpawn hook
-// runs `next --hook`. No command served from the installed package opens a
-// listener beyond the loopback, signed-principal app backend.
+// `app-backend`; the MCP server runs `mcp`. Those are the only commands the
+// app runs. No command served from the installed package opens a listener
+// beyond the loopback, signed-principal app backend.
 // `npm run build:kirocrew-app` writes ./lib.
 import { fileURLToPath } from "node:url";
 
-const COMMANDS = new Set([
-  "app-backend",
-  "mcp",
-  "next",
-  "claim",
-  "report",
-  "retry",
-]);
+const COMMANDS = new Set(["app-backend", "mcp"]);
 
 const given = process.argv.slice(2),
   named = given[0] !== undefined && !given[0].startsWith("--"),

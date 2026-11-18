@@ -10,6 +10,11 @@ const APP = " Do it in the Avoozl app.";
 const person = (reason, when) => ({ reason: reason + APP, when });
 
 export const PERSON_ONLY = new Map([
+  ["runner.claim", person("Only a person claims a task by hand.")],
+  [
+    "delivery.runner.release",
+    person("Only a person lets the tick run this workspace."),
+  ],
   // A call that names a delegate goes on to the operation, which refuses it
   // unless a person granted that delegate (approval-delegation.mjs, R109).
   [

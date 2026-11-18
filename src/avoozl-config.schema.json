@@ -869,9 +869,9 @@
           "description": "The worker's model. Review roles with distinctFrom model must differ from it."
         },
         "runner": {
-          "description": "Who starts worker sessions for ready leaves: the tick's script cron, or a Crew Mode conductor that claims them through avoozl next and claim. The tick verifies and integrates either way.",
-          "enum": ["tick", "crew-mode"],
-          "default": "tick"
+          "deprecated": true,
+          "description": "Removed: the tick starts every task. \"tick\" is ignored; \"crew-mode\" holds the workspace until a person chooses Let the tick run it.",
+          "enum": ["tick", "crew-mode"]
         },
         "prFeedback": {
           "type": "boolean",

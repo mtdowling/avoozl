@@ -275,15 +275,6 @@ export function pendingFeedback(store, taskId) {
   return row?.pending ? row.pending.text : null;
 }
 
-// Feedback for a Crew Mode conductor to relay (R54.7): {round, text, at}
-// for the worker in `slot`, or null.
-export function conductorFeedback(store, taskId, slot) {
-  const row = store.get(FEEDBACK, taskId);
-  return row?.next && row.next.slot === slot
-    ? { round: row.next.round, text: row.next.text, at: row.next.at }
-    : null;
-}
-
 // The Delivery view's line for a covered leaf (R54.4, R54.13), from its
 // stored feedback row, or null.
 export function feedbackSummary(row) {
@@ -647,10 +638,12 @@ export async function feedbackStep(
       // is never messaged or replaced here; a person decides (R8).
       const live = liveAttempt(worker) && worker.status !== "gone",
         state = store.get("task_deliveries", task.id)?.state,
+        // A person's manual claim gets no message: they read the pull
+        // request themselves.
         to = live
           ? worker.source === "tick"
             ? "session"
-            : "conductor"
+            : null
           : state === "failed" && !worker.batch
             ? "new attempt"
             : null;
@@ -724,8 +717,6 @@ export async function feedbackStep(
       };
       if (to === "session")
         messages.push({ slot: worker.slot, task: task.id, text });
-      else if (to === "conductor")
-        row.next = { round, text, at, slot: worker.slot };
       else
         row.pending = {
           round,

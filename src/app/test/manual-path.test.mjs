@@ -108,12 +108,9 @@ function workspace(t, avoozl, machine) {
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
 
-function crewMode(t) {
-  const ws = workspace(
-    t,
-    { delivery: { runner: "crew-mode", concurrency: 2 } },
-    {},
-  );
+// The tick runs this workspace; a person takes tasks by hand beside it.
+function onTheTick(t) {
+  const ws = workspace(t, { delivery: { concurrency: 2 } }, {});
   ws.store.importSnapshot({
     ...snapshot(),
     tasks: [leaf("a"), leaf("b")],
@@ -129,21 +126,21 @@ function crewMode(t) {
 
 const ids = (rows) => rows.map((row) => row.id);
 
-test("avoozl next lists ready work with its brief from a plain shell", (t) => {
-  const { root } = crewMode(t);
+test("avoozl next lists ready work from a plain shell", (t) => {
+  const { root } = onTheTick(t);
   const view = avoozl(root, "next");
   assert.deepEqual(ids(view.ready), ["a", "b"]);
-  assert.match(view.ready[0].brief, /Task a/);
+  assert.equal(view.ready[0].repository, "app");
   assert.deepEqual(view.running, []);
   assert.equal(view.finished, false);
 });
 
 test("avoozl claim gives a person the task and its worktree from a plain shell", (t) => {
-  const { root, store } = crewMode(t);
-  const claim = avoozl(root, "claim", "a", "--slot", "me");
+  const { root, store } = onTheTick(t);
+  const claim = avoozl(root, "claim", "a");
   assert.deepEqual(
     [claim.binding.taskId, claim.binding.slot, claim.binding.conductor],
-    ["a", "me", "cli"],
+    ["a", "manual-a-1", "cli"],
   );
   assert.equal(claim.worktree.branch, "avoozl/a");
   assert.ok(fs.existsSync(claim.worktree.path));
@@ -153,35 +150,22 @@ test("avoozl claim gives a person the task and its worktree from a plain shell",
   assert.deepEqual(ids(view.ready), ["b"]);
   assert.deepEqual(
     view.running.map((row) => [row.id, row.slot]),
-    [["a", "me"]],
+    [["a", "manual-a-1"]],
   );
   const again = spawnSync(
     process.execPath,
-    [cli, "claim", "a", "--slot", "other", "--workspace", root],
+    [cli, "claim", "a", "--workspace", root],
     { encoding: "utf8", env: plainEnv(), cwd: root },
   );
   assert.notEqual(again.status, 0);
   assert.match(again.stderr, /not ready to start/);
-  // The person finishes in crew mode with the plain report.
-  const head = commit(claim.worktree.path, "a.txt");
-  const done = avoozl(
-    root,
-    "report",
-    "a",
-    "--slot",
-    "me",
-    "--kind",
-    "done",
-    "--commit",
-    head,
-  );
-  assert.equal(done.binding.taskId, "a");
-  assert.equal(store.get("session_bindings", "me").report.kind, "done");
+  assert.match(claim.report, /runner report a done/);
+  assert.equal(store.get("session_bindings", "manual-a-1").report, undefined);
 });
 
 test("avoozl runner report finishes a person's claim from its worktree with no token", (t) => {
-  const { root, store } = crewMode(t);
-  const claim = avoozl(root, "claim", "a", "--slot", "me");
+  const { root, store } = onTheTick(t);
+  const claim = avoozl(root, "claim", "a");
   const head = commit(claim.worktree.path, "a.txt");
   const report = (cwd, id) =>
     spawnSync(
@@ -198,7 +182,7 @@ test("avoozl runner report finishes a person's claim from its worktree with no t
   const done = report(claim.worktree.path, "a");
   assert.equal(done.status, 0, done.stderr);
   assert.equal(JSON.parse(done.stdout).report.commit, head);
-  assert.equal(store.get("session_bindings", "me").report.kind, "done");
+  assert.equal(store.get("session_bindings", "manual-a-1").report.kind, "done");
 });
 
 test("avoozl runner report finishes a runner task from a plain shell", async (t) => {

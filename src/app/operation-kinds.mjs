@@ -281,6 +281,7 @@ const PROTECT = new Set([
   "investigation.decide",
   "delivery.integrate",
   "delivery.settings.update",
+  "delivery.runner.release",
   "activity.settings.update",
   "workspace.seed",
   "configuration.update",

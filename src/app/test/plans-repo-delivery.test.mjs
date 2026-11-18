@@ -235,7 +235,7 @@ class FakeGitHub {
 // Leaves a (issue 1) and b (issue 2) in the planning repository, coded in
 // example/code; a-next (issue 3) requires a. Each summary names the plan,
 // which a plans-repo brief must leave out.
-function workspace(t, { runner = "tick", tasks = {} } = {}) {
+function workspace(t, { tasks = {} } = {}) {
   const { store } = fixture(t),
     root = temporaryDirectory(),
     checkout = temporaryDirectory(),
@@ -245,7 +245,7 @@ function workspace(t, { runner = "tick", tasks = {} } = {}) {
     JSON.stringify({
       version: 1,
       namespace: NAMESPACE,
-      delivery: { concurrency: 4, runner },
+      delivery: { concurrency: 4 },
       github: {
         mode: "plans-repo",
         planningRepository: PLANS,
@@ -577,8 +577,8 @@ test("a plans-repo worker's done report starts no verifier", async (t) => {
   assert.equal(result.dispatch.filter((d) => d.role === "verifier").length, 0);
 });
 
-test("a Crew Mode conductor sees a plans-repo leaf ready only once its branch exists, and claims it without a worktree", async (t) => {
-  const { ops, run, checkout } = workspace(t, { runner: "crew-mode" });
+test("next shows a plans-repo leaf waiting for its branch, and a person's claim of it makes no worktree", async (t) => {
+  const { ops, run, checkout } = workspace(t);
   let view = await ops.execute("runner.next", {});
   assert.deepEqual(
     view.waiting
@@ -586,24 +586,19 @@ test("a Crew Mode conductor sees a plans-repo leaf ready only once its branch ex
       .map((row) => row.reason),
     ["linked branch", "linked branch"],
   );
-  const result = await run();
-  assert.equal(
-    result.dispatch.length,
-    0,
-    "the conductor opens sessions, not the tick",
+  // The tick creates the linked branches; its brief fetches the branch and
+  // leaks no planning name.
+  await run();
+  const a = (await run()).dispatch.find(
+    (d) => d.task === "a" && d.role === "worker",
   );
-  view = await ops.execute("runner.next", {});
-  const a = view.ready.find((row) => row.id === "a");
   assert.match(a.brief, /fetch origin avoozl\/a/);
   assert.equal(leaked(a.brief), null);
-  const claim = await ops.execute(
-    "runner.claim",
-    { taskId: "a", slot: "worker-a" },
-    undefined,
-    { caller: { sessionKey: "dashboard:conductor" } },
-  );
+  const claim = await ops.execute("runner.claim", { taskId: "b" }, undefined, {
+    local: true,
+  });
   assert.deepEqual(claim.linkedBranch, {
-    name: "avoozl/a",
+    name: "avoozl/b",
     baseBranch: "main",
   });
   assert.equal(claim.worktree, undefined);

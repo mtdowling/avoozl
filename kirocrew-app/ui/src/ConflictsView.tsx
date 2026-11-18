@@ -129,6 +129,23 @@ export function ConflictActions(props: {
           return { ok: true, text }
         })} />
       )}
+      {item.kind === 'needs-human' && item.reason === 'crew-mode' && (
+        <Row gap={2}>
+          <DangerBtn
+            icon={Check}
+            tooltip="Remove delivery.runner from .avoozl.json; the tick starts this workspace's ready tasks"
+            disabled={busy}
+            confirm={{ title: 'Let the tick run this workspace?', body: 'Avoozl removes "runner": "crew-mode" from .avoozl.json. The next tick starts ready tasks, up to this machine\'s lanes.', action: 'Let the tick run it' }}
+            onConfirm={() => run(async () => {
+              await views.letTickRun(workspaceId, item.hash ?? undefined)
+              props.onReload?.()
+              return { ok: true, text: 'The tick runs this workspace from the next tick.' }
+            })}
+          >
+            Let the tick run it
+          </DangerBtn>
+        </Row>
+      )}
       {item.kind === 'ready-to-merge' && <ReadyToMerge item={item} busy={busy} onIntegrate={() => run(async () => {
         await views.integrate(workspaceId, item.taskId!, item.commit)
         return { ok: true, text: `${item.taskId} lands on the next tick.` }

@@ -385,12 +385,14 @@ export interface ConflictItem extends TaskOwner {
   changedBy?: string | null
   changedAt?: string | null
   choices?: ('desired' | 'github')[]
+  // A crew-mode item: the .avoozl.json hash Let the tick run it saves against.
+  hash?: string
   resolution?: 'desired' | 'github' | null
   // A needs-human item: why it waits on a person. 'crew': an Issue Radar
   // crew asked for one on an issue no task owns (R52.10). 'hand-set-review':
   // status running or review with no live session behind it. 'review-draft':
   // a review draft made from the review label (RC20).
-  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'conflict-fix' | 'merge-method' | 'forward' | 'forward-audit' | 'public-branch' | 'tracker-gate'
+  reason?: 'review' | 'blocked' | 'crew' | 'crew-mode' | 'hand-set-review' | 'approval' | 'review-draft' | 'conflict-fix' | 'merge-method' | 'forward' | 'forward-audit' | 'public-branch' | 'tracker-gate'
   // A crew's needs-human row for a trusted escalation (R103.8): the GitHub
   // item, what the crew wrote, and Intake's Plan this and Deliver this.
   item?: { source: 'github'; id: string }
@@ -535,6 +537,9 @@ export function viewsClient(api: AppApi) {
     decideInvestigation: (workspaceId: string, taskId: string, action: 'go' | 'again' | 'stop') =>
       run<unknown>('investigation.decide', { taskId, action }, workspaceId),
     // Land a verified local task under manual ship (§4.25).
+    // Let the tick run a workspace a Crew Mode conductor drove (WP1.3).
+    letTickRun: (workspaceId: string, expectedHash?: string) =>
+      run<unknown>('delivery.runner.release', expectedHash ? { expectedHash } : {}, workspaceId),
     integrate: (workspaceId: string, taskId: string, commit?: string) =>
       run<unknown>('delivery.integrate', { taskId, ...(commit ? { commit } : {}) }, workspaceId),
     // Retry a delivery waiting on a decision, dismissing the named findings.

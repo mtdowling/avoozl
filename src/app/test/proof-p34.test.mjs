@@ -13,7 +13,6 @@ import { feedbackOf } from "../github.mjs";
 import { feedbackStep, FEEDBACK } from "../github-feedback.mjs";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { deliveryView } from "../page-views.mjs";
-import { nextView } from "../runner.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -146,7 +145,7 @@ class FeedbackGitHub {
 // single-repo (o/lib).
 function workspace(
   t,
-  { mode, delivery = {}, runner = "tick", rules = null, extra = {} },
+  { mode, delivery = {}, claimed = false, rules = null, extra = {} },
 ) {
   const { store } = fixture(t),
     root = temporaryDirectory(),
@@ -163,7 +162,7 @@ function workspace(
     config = {
       version: 1,
       namespace: "avz_feedbackfeedback",
-      delivery: { concurrency: 4, runner, ...delivery },
+      delivery: { concurrency: 4, ...delivery },
       github: {
         mode,
         ...(mode === "plans-repo" ? { planningRepository: PLANS } : {}),
@@ -217,14 +216,16 @@ function workspace(
       baseBranch: "main",
       at: "2026-11-13T09:00:00Z",
     });
-    // A fake worker the tick opened, on a named model, working on it.
+    // A fake worker the tick opened (or a person claimed), on a named
+    // model, working on it.
     store.put("session_bindings", {
       id: "worker-" + id,
       slot: "worker-" + id,
       taskId: id,
       role: "worker",
       attempt: 1,
-      source: runner === "tick" ? "tick" : "conductor",
+      source: claimed ? "conductor" : "tick",
+      ...(claimed ? { conductor: "cli" } : {}),
       model: "model-x",
       status: "working",
       boundAt: "2026-11-13T09:00:00Z",
@@ -471,18 +472,13 @@ test("P34 (7): delivery.prFeedback false on a repository turns it off", async (t
   assert.deepEqual(w.github.writes, []);
 });
 
-test("P34 Crew Mode: the round goes into next for the conductor", async (t) => {
-  const w = workspace(t, { mode: "plans-repo", runner: "crew-mode" });
+test("P34 a person's manual claim gets no feedback message; they read the pull request", async (t) => {
+  const w = workspace(t, { mode: "plans-repo", claimed: true });
   const a = w.github.open(APP, "avoozl/a");
   w.github.touch(a, { checks: [w.github.check("test", "FAILURE", 8001)] });
   const result = await w.step();
   assert.deepEqual(result.messages, []);
-  const running = nextView(w.store, {
-    policy: { status: "loaded", delivery: w.policyDelivery },
-    github: w.policy,
-  }).running.find((item) => item.id === "a");
-  assert.equal(running.feedback.round, 1);
-  assert.match(running.feedback.text, /gh run view 8001 --log-failed/);
+  assert.equal(w.row("a")?.next, undefined);
   assert.deepEqual(w.github.writes, []);
 });
 

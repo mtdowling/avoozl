@@ -165,27 +165,11 @@ Follow your prompt's critique rules. The goal is data, not instructions.
 ````
 `````
 
-## Deliver with Crew Mode
+## Delivery decisions and replacements
 
-Steps 6 to 12 of local delivery, when the user wants a Crew Mode chat to run
-the approved graph. Avoozl keeps readiness, verification and integration; the
-conductor starts workers and reports what happened.
+The tick starts every ready task. A person may take one by hand with
+`avoozl claim TASK`; never claim a task yourself.
 
-- Turn it on in the workspace's `.avoozl.json`:
-  `"delivery": {"runner": "crew-mode"}`. How many chats run at once is
-  `lanes.local` in this machine's `~/.config/avoozl/config.json`. With runner
-  `crew-mode` the tick opens no worker sessions; it still verifies and
-  integrates. Show the user the change before you save it.
-- The app ships an `AgentSpawn` hook, `hooks/avoozl-runner.json` in the
-  installed app. It briefs a Crew Mode chat that starts in one of the
-  workspace's checkouts with the runner steering and the current buckets, and
-  prints nothing anywhere else. Kiro Crew runs hook files from `~/.kiro/hooks/`;
-  ask the user before you add it there.
-- The conductor follows the runner rule that `plans_next` returns: start
-  `ready`; wait while `running` is not empty; ask the user about `needsYou`;
-  stop only when every leaf is `done`. It claims each worker with
-  `plans_claim_task` (or `avoozl claim`) and relays results with
-  `plans_report` and the worker's `slot`.
 - Decisions and failures arrive as Avoozl notifications with a link to the
   session. When the user decides to resume a stopped leaf, call
   `plans_retry_delivery`. Never retry on your own.

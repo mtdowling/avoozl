@@ -12,9 +12,8 @@ import {
   workspace as plansWorkspace,
 } from "./plans-repo-github.mjs";
 
-const workspace = (t, { stacked, runner } = {}) =>
+const workspace = (t, { stacked } = {}) =>
   plansWorkspace(t, {
-    runner,
     repository: stacked === undefined ? {} : { stackedPullRequests: stacked },
   });
 
@@ -114,19 +113,4 @@ test("P-stack 2: on, a dependent stacks only on one blocker's open pull request,
   assert.equal(task("a-next").githubVerdict.state, "verified");
   // Only branches were written to GitHub.
   assert.deepEqual(github.updates, []);
-});
-
-test("P-stack 3: a Crew Mode conductor sees the stacked leaf ready with the stacked brief", async (t) => {
-  const { github, ops, run } = workspace(t, {
-    stacked: true,
-    runner: "crew-mode",
-  });
-  await run();
-  github.pull("a");
-  await run();
-  const view = await ops.execute("runner.next", {}),
-    row = view.ready.find((item) => item.id === "a-next");
-  assert.ok(row, "a-next is ready");
-  assert.match(row.brief, /gh pr create --base avoozl\/a/);
-  assert.ok(!view.ready.some((item) => item.id === "both"));
 });

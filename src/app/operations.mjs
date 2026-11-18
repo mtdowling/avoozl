@@ -485,7 +485,7 @@ import {
   switchPreview,
   updateProviders,
 } from "./provider-health.mjs";
-import { claimTask, nextView } from "./runner.mjs";
+import { nextView } from "./runner.mjs";
 import { manualClaim } from "./manual-claim.mjs";
 import {
   acceptEnvelope,
@@ -3251,35 +3251,33 @@ export class Operations {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
       });
+    // A manual claim is the person's at this machine's command line
+    // (worker-paths WP2.7): never over MCP or from an agent session.
     if (name === "runner.claim") {
-      const policy = readDeliveryPolicy(this.workspaceRoot),
-        github = readGitHubPolicyOrNull(this.workspaceRoot);
-      // A manual claim is the person's at this machine's command line.
-      if (context.local === true)
-        return stampPrompts(
-          store,
-          await manualClaim(
-            store,
-            { ...input, workspaceRoot: this.workspaceRoot },
-            { github },
-          ),
-        );
-      // shortcut: a Crew Mode conductor's claim stays until wp-2.2 removes
-      // Crew Mode; nothing else may claim.
-      if (policy.delivery?.runner !== "crew-mode")
+      if (context.local !== true || context.caller || context.mcp)
         fail(
           "A claim is a person's: run avoozl claim TASK from the command line.",
           403,
         );
       return stampPrompts(
         store,
-        await claimTask(store, input, {
-          caller: context.caller,
-          local: false,
-          policy,
-          github,
-        }),
+        await manualClaim(
+          store,
+          { ...input, workspaceRoot: this.workspaceRoot },
+          { github: readGitHubPolicyOrNull(this.workspaceRoot) },
+        ),
       );
+    }
+    // Let the tick run it (WP1.3): a person's, from the page or the CLI.
+    if (name === "delivery.runner.release") {
+      if (context.caller || context.mcp)
+        fail("Only a person lets the tick run this workspace.", 403);
+      const file = this.settingsFile();
+      file.removeDeliveryRunner({
+        expectedHash: input.expectedHash ?? file.readFile().hash,
+      });
+      this.configuration?.reload();
+      return { released: true };
     }
     // Retired tool names remain resolvable for existing clients.
     if (name === "relay.call" || name === "relay.forget")
@@ -3686,6 +3684,18 @@ export class Operations {
         view = conflictsView(store, data),
         policy = readGitHubPolicyOrNull(this.workspaceRoot);
       // Crews that asked for a person on issues no task owns (R52.10).
+      // A workspace a conductor drove waits for a person (WP1.3).
+      if (readDeliveryPolicy(this.workspaceRoot).delivery?.crewModeHeld)
+        view.items.push({
+          kind: "needs-human",
+          reason: "crew-mode",
+          id: "crew-mode",
+          taskId: null,
+          title: "Crew Mode dispatch is gone",
+          detail:
+            'This workspace\'s .avoozl.json says "runner": "crew-mode", so a conductor used to start its tasks. Avoozl starts nothing here until you let the tick run it.',
+          hash: this.settingsFile().readFile().hash,
+        });
       view.items.push(...conflictFixNeedsYou(store));
       view.items.push(...mergeMethodNeedsYou(store));
       view.items.push(...approvalNeedsYou(store));

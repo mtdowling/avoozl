@@ -2,8 +2,7 @@
 
 This package adds Avoozl to Kiro Crew: the Avoozl page, a loopback app
 backend, the `avoozl` stdio MCP server, the `avoozl-tick` script cron, the
-planner, verifier, and responder agents, the `avoozl` skill, and the Crew Mode
-runner hook `hooks/avoozl-runner.json`.
+planner, verifier, and responder agents, and the `avoozl` skill.
 
 Build the package before a local install. The build writes the page bundle and
 copies the Avoozl CLI with its dependencies into `bin/lib`, so the installed
@@ -26,8 +25,7 @@ installed page was not built from the `ui/src` installed with it, or there is
 no page, the app backend answers every page request with that command.
 
 Enable the installed app from Kiro Crew's App Store after reviewing its trust
-request. `bin/avoozl.mjs` runs only `app-backend` (the default), `mcp`, and
-the Crew Mode runner commands `next`, `claim`, `report`, and `retry`. Each
+request. `bin/avoozl.mjs` runs only `app-backend` (the default) and `mcp`. Each
 serves the workspace named by `--workspace` or `AVOOZL_WORKSPACE`, or else the
 default workspace of the machine catalog.
 
@@ -44,11 +42,6 @@ for a closed session and a lost one, so a worker session that is `gone`
 without a report opens a decision instead of a new attempt; **Retry** in
 Conflicts ends it and starts the next attempt. A gone verifier or reviewer is
 replaced on its own, since it changes no code. Statuses are up to one tick old.
-
-A Crew Mode chat can run local delivery when `.avoozl.json` sets
-`"delivery": {"runner": "crew-mode"}`. Copy `hooks/avoozl-runner.json` into
-`~/.kiro/hooks/` so a conductor that starts in one of the workspace's checkouts
-gets the runner steering and the current `next` buckets.
 
 ## Tick watchdog
 

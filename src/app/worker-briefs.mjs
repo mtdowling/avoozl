@@ -26,9 +26,9 @@ export const BATCH_ON_PROCESS =
 const cell = (fields) => Object.freeze(fields);
 const declined = (reason, fallback) => cell({ declined: reason, fallback });
 
-// `ctx` is { task, project, relay, cliReport }.
-const chatSteps = ({ task, project, relay, cliReport }) =>
-  localSteps(task, project, { relay, cliReport });
+// `ctx` is { task, project, cliReport }.
+const chatSteps = ({ task, project, cliReport }) =>
+  localSteps(task, project, { cliReport });
 const childSteps = ({ task }) => processSteps(task);
 
 // A task a worker machine pulled (R90): its worktree and branch, then the

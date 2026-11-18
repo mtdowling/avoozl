@@ -125,16 +125,11 @@ export const DELIVERY_DEFAULTS = Object.freeze({
   quietMinutes: 15,
   nudges: 3,
   agent: "kirocrew-worker",
-  // Who opens worker sessions for ready leaves: the tick's script cron, or a
-  // Crew Mode conductor that claims them (§5.1). Verification and integration
-  // stay with the tick either way.
-  runner: "tick",
   // Pull request feedback (§4.13, R54.8, R54.14): on by default, at most
   // this many rounds per leaf.
   prFeedback: true,
   feedbackRounds: 5,
 });
-const RUNNERS = new Set(["tick", "crew-mode"]);
 
 const bounded = (value, min, max) =>
   Number.isInteger(value) && value >= min && value <= max;
@@ -203,8 +198,16 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
     throw Error("delivery.prFeedback must be true or false.");
   if (delivery.agent !== undefined && !AGENT.test(delivery.agent))
     throw Error("delivery.agent must be an agent name.");
-  if (delivery.runner !== undefined && !RUNNERS.has(delivery.runner))
-    throw Error('delivery.runner must be "tick" or "crew-mode".');
+  // `delivery.runner` was removed (worker-paths WP1.2): the tick is the only
+  // dispatcher. "tick" is ignored; "crew-mode" holds the workspace until a
+  // person lets the tick run it (crewModeHeld, WP1.3).
+  if (
+    delivery.runner !== undefined &&
+    !["tick", "crew-mode"].includes(delivery.runner)
+  )
+    throw Error(
+      "delivery.runner was removed: the tick starts every task. Remove the key.",
+    );
   const repositories = delivery.repositories ?? {};
   if (
     !repositories ||
@@ -257,9 +260,11 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
             ),
           };
   }
+  const { runner, ...settings } = delivery;
   return {
     ...DELIVERY_DEFAULTS,
-    ...delivery,
+    ...settings,
+    ...(runner === "crew-mode" ? { crewModeHeld: true } : {}),
     agent: worker.agent ?? DELIVERY_DEFAULTS.agent,
     model: writer,
     ...(falsifier.agent || falsifier.model || delivery.investigate
@@ -874,22 +879,15 @@ async function checkReview(project, delivery, roleId, commit, payload) {
 }
 
 // plans_report: progress, done (with its commit), blocked, or question, from
-// the session bound to the task's newest attempt and from no one else. A Crew
-// Mode conductor relays its worker's result for a binding it claimed: over MCP
-// it names the worker's `slot` and must be the session that claimed it; the
-// local command line (`local`) acts as the person and may relay for any claim.
+// the session bound to the task's newest attempt and from no one else.
 export async function reportSession(
   store,
   input = {},
   caller = null,
-  { local = false, flow = null, policy = null } = {},
+  { flow = null, policy = null } = {},
 ) {
-  const own = callerSlot(caller),
-    relay =
-      typeof input.slot === "string" && input.slot && input.slot !== own
-        ? slotKey(input.slot)
-        : null;
-  if (!own && !(local && relay)) {
+  const own = callerSlot(caller);
+  if (!own) {
     // Kept so the quiet notice can name the cause: a worker that reports
     // without an identity reads as quiet to the tick.
     store.setMeta(IDENTITY_REFUSED, new Date().toISOString());
@@ -913,7 +911,7 @@ export async function reportSession(
     fail(`A progress report may mark phase ${PHASES.join(", ")}.`);
   const task = findTask(store, input.taskId),
     bindings = listSessionBindings(store),
-    binding = bindings.find((b) => slotKey(b.slot) === (relay || own));
+    binding = bindings.find((b) => slotKey(b.slot) === own);
   const member =
     binding?.batch?.tasks.includes(task.id) && binding.taskId !== task.id;
   if (!binding || (binding.taskId !== task.id && !member))
@@ -958,15 +956,6 @@ export async function reportSession(
     fail(
       'Investigate first: report kind "findings" and wait for Avoozl\'s Go ahead before you report done.',
       409,
-    );
-  if (
-    relay &&
-    (binding.source !== "conductor" ||
-      !(local || slotKey(binding.conductor) === own))
-  )
-    fail(
-      "Only the conductor that claimed this task may report for its worker.",
-      403,
     );
   // A verifier's done report carries the exit code of every check it ran;
   // a review role's carries its verdict, findings and closures.
@@ -1203,8 +1192,8 @@ function reportEvidence(store, task, binding, report, attached) {
 }
 
 // Worker bindings the delivery pipeline follows, newest attempt per task: the
-// sessions the tick's script cron opened and the ones a Crew Mode conductor
-// claimed. A plain plans_bind_session binding is not a delivery attempt.
+// sessions the tick's script cron opened and the ones a person claimed by
+// hand (source "conductor", conductor "cli"). A plain plans_bind_session binding is not a delivery attempt.
 const RUNNER_SOURCES = new Set(["tick", "conductor"]);
 function runnerAttempts(bindings) {
   const newest = new Map();
@@ -1543,8 +1532,8 @@ export function reconcileDeliveries(
         binding.status === "idle" &&
         binding.source === "tick"
       ) {
-        // Only the cron can message a session it opened; a Crew Mode
-        // conductor watches its own workers.
+        // Only the cron messages a session it opened; a manual claim is a
+        // person's and is never nudged.
         // Quiet: the session ended its turn without a done or blocked report.
         // It is nudged, never replaced; past the nudge bound a person decides.
         const nudge = next.nudge?.slot === binding.slot ? next.nudge : null,
@@ -1553,7 +1542,7 @@ export function reconcileDeliveries(
           messages.push({
             slot: binding.slot,
             task: taskId,
-            text: `Avoozl task ${taskId}: you have not reported a result. Continue the task in its worktree, then call plans_report with kind "done" and the commit SHA, or "blocked" or "question" with the reason.`,
+            text: `Avoozl task ${taskId}: you have not reported a result. Continue the task in its worktree, then report done, or blocked with the reason, with the report command in your brief.`,
           });
           next = {
             ...next,
@@ -1648,7 +1637,7 @@ export function startNowIds(store) {
 
 // task.start: a person asks for one ready leaf to go first. It does not
 // dispatch here; it moves the task to the head of the dispatch order, so the
-// next tick (or a Crew Mode conductor's next claim) starts it, still within
+// next tick starts it, still within
 // this machine's lanes. A full machine says so
 // and the task stays first in line.
 export function startNow(
@@ -1706,10 +1695,7 @@ export function startNow(
     live = [...runnerAttempts(listSessionBindings(store)).values()].filter(
       liveAttempt,
     ).length,
-    by =
-      delivery.runner === "crew-mode"
-        ? "the conductor's next claim"
-        : "the next tick, within a minute";
+    by = "the next tick, within a minute";
   return {
     taskId: task.id,
     full: !starting,
@@ -1738,15 +1724,9 @@ export const EDIT_ONLY_STEP =
   "Do not push, open or edit a pull request, merge, turn on auto-merge, label, or comment. Avoozl reads HEAD of your worktree, runs the checks and lands it.";
 
 // The steps that finish a local leaf: its own worktree, a commit, a report.
-// `relay` is for a Crew Mode worker: its conductor prepares the worktree when
-// it claims the task, and relays a result the worker cannot report itself.
 // Task 4.7 passes its own plans-repo steps (push avoozl/<task-id>, open one
 // pull request, enable auto-merge) to workerBrief instead.
-export function localSteps(
-  task,
-  project,
-  { relay = false, cliReport = null } = {},
-) {
+export function localSteps(task, project, { cliReport = null } = {}) {
   const report = `{"input": {"taskId": "${task.id}", "kind": "done"}}`,
     // R88.2: report by command line from the worktree, no MCP sharing needed.
     // The worktree is outside the workspace, so the command names it (P50:
@@ -1758,26 +1738,19 @@ export function localSteps(
       ? `Run it from inside ${cliReport.worktree}. The token matches your report to this task and this attempt; keep it to yourself.`
       : "",
     commit = `2. Edit, run what you like, and commit every change on that branch. ${EDIT_ONLY_STEP}`;
-  return relay
+  return cliReport
     ? [
-        `1. Work only in ${worktreePath(task, project)}, on branch avoozl/${task.id}. Your conductor creates it when it claims this task; if it is missing, call plans_prepare_worktree with {"input": {"taskId": "${task.id}"}}.`,
+        `1. Run \`${cliCommand()} worktree prepare ${task.id}${where}\` and work only in the worktree it prints, on branch avoozl/${task.id}.`,
         commit,
-        `3. Call plans_report with ${report} if you have that tool. Otherwise end with a done report, and your conductor records it. If you cannot finish, say why: blocked, or a question.`,
-        MARKERS_STEP(4),
+        `3. When the work is committed, run exactly: ${cliCommand()} runner report ${task.id} done --token ${cliReport.token}${where}\n   If you cannot finish, run: ${cliCommand()} runner report ${task.id} blocked --token ${cliReport.token}${where} --text "<why>"\n   ${cli}`,
       ]
-    : cliReport
-      ? [
-          `1. Run \`${cliCommand()} worktree prepare ${task.id}${where}\` and work only in the worktree it prints, on branch avoozl/${task.id}.`,
-          commit,
-          `3. When the work is committed, run exactly: ${cliCommand()} runner report ${task.id} done --token ${cliReport.token}${where}\n   If you cannot finish, run: ${cliCommand()} runner report ${task.id} blocked --token ${cliReport.token}${where} --text "<why>"\n   ${cli}`,
-        ]
-      : [
-          // shortcut: a store with no report secret (every import makes
-          // one) falls back to the MCP tools; drop it when none can lack one.
-          `1. Call plans_prepare_worktree with {"input": {"taskId": "${task.id}"}} and work only in the worktree it returns, on branch avoozl/${task.id}.`,
-          commit,
-          `3. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
-        ];
+    : [
+        // shortcut: a store with no report secret (every import makes
+        // one) falls back to the MCP tools; drop it when none can lack one.
+        `1. Call plans_prepare_worktree with {"input": {"taskId": "${task.id}"}} and work only in the worktree it returns, on branch avoozl/${task.id}.`,
+        commit,
+        `3. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
+      ];
 }
 
 // The steps of a `process` child (R96.1, R94.4a): it runs in its task
@@ -1791,13 +1764,6 @@ export function processSteps(task, { branch = `avoozl/${task.id}` } = {}) {
   ];
 }
 
-// Phase markers (§4.11, R43.5): asked for only where Avoozl cannot read the
-// session's tool calls, which is a Crew Mode worker; a tick-opened session's
-// tool rows say the same thing. shortcut: a tick-opened session on a Kiro
-// Crew without the app's slot read is not asked; MC-13 settles it.
-const MARKERS_STEP = (n) =>
-  `${n}. For timing, mark each switch between coding, running the checks, running other commands, and waiting on CI with a progress report whose phase is coding, tests, commands, or ci-wait (for example {"kind": "progress", "phase": "tests"}); your conductor relays it.`;
-
 // A plans-repo leaf's steps (§6.6): the tick already created its linked
 // branch in the code repository. The worker pushes there, opens one pull
 // request with no closing keyword, turns on auto-merge, and stays with it
@@ -1805,13 +1771,7 @@ const MARKERS_STEP = (n) =>
 export function plansRepoSteps(
   task,
   project,
-  {
-    baseBranch,
-    relay = false,
-    stack = null,
-    localChecks = false,
-    ship = "auto-merge",
-  },
+  { baseBranch, stack = null, localChecks = false, ship = "auto-merge" },
 ) {
   const branch = `avoozl/${task.id}`,
     base = baseBranch || project.baseBranch || "main",
@@ -1851,10 +1811,7 @@ export function plansRepoSteps(
     ...middle,
     "5. Fix failing checks and answer review on that pull request until it merges. To wait on checks, read them with `gh pr checks <number>` once every 2 to 3 minutes; never use `gh pr checks --watch` or a loop that polls faster, because every chat shares one GitHub rate limit. Do not merge it by hand around required checks or reviews. When its base branch moves, merge the base branch into your branch and push; never rebase a pushed branch and never force push.",
     `6. When it has merged, fetch ${base} (\`git -C ${project.root} fetch origin ${base}\`) so its merge commit is in the checkout.`,
-    relay
-      ? `7. Then call plans_report with ${report}${localChecks ? " and the checks list" : ""} if you have that tool. Otherwise end with a done report that names the merge commit SHA, and your conductor records it. If you cannot finish, say why: blocked, or a question.`
-      : `7. Then call plans_report with ${report}${localChecks ? " and the checks list" : ""}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
-    ...(relay ? [MARKERS_STEP(8)] : []),
+    `7. Then call plans_report with ${report}${localChecks ? " and the checks list" : ""}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
   ];
 }
 
@@ -1864,7 +1821,7 @@ export function plansRepoSteps(
 export function plansRepoBrief(
   task,
   project,
-  { baseBranch, relay, stack, localChecks = true, ship, ...options },
+  { baseBranch, stack, localChecks = true, ship, ...options },
 ) {
   const own = {
     id: task.id,
@@ -1880,7 +1837,6 @@ export function plansRepoBrief(
       ...options,
       steps: plansRepoSteps(own, project, {
         baseBranch,
-        relay,
         stack,
         localChecks,
         ship,
@@ -2182,7 +2138,6 @@ function composeLeafBrief(
   data,
   leaf,
   {
-    relay = false,
     investigate = false,
     ship = null,
     executor = projectExecutor(leaf.project),
@@ -2210,7 +2165,6 @@ function composeLeafBrief(
         project.id,
       ).localChecksFirst,
       ...options,
-      relay,
       ship,
       ...(branch?.stackedOn
         ? {
@@ -2225,22 +2179,21 @@ function composeLeafBrief(
     });
   }
   const token = issueReportToken(store, { taskId: task.id, attempt });
-  // The pair table (worker-briefs.mjs) picks the steps. A Crew Mode relay is
-  // always a chat; a declined pair runs as the kind its cell names.
-  const via = relay ? "kirocrew" : executor,
+  // The pair table (worker-briefs.mjs) picks the steps; a declined pair runs
+  // as the kind its cell names.
+  const via = executor,
     { cell } = briefCell(via, investigate ? "investigate" : "single"),
-    cliReport =
-      !relay && token
-        ? {
-            worktree: options.worktree?.path || worktreePath(task, project),
-            token,
-            workspace: contentBinding(store)?.workspaceRoot ?? null,
-          }
-        : null;
+    cliReport = token
+      ? {
+          worktree: options.worktree?.path || worktreePath(task, project),
+          token,
+          workspace: contentBinding(store)?.workspaceRoot ?? null,
+        }
+      : null;
   return workerBrief(task, project, {
     ...options,
     findingsVia: { executor: via, cliReport },
-    steps: cell.steps({ task, project, relay, cliReport }),
+    steps: cell.steps({ task, project, cliReport }),
   });
 }
 

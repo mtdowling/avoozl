@@ -287,9 +287,12 @@ back to its worker chat, for at most `landing.conflictRounds` rounds (default
 `avoozl setup OWNER/REPO --project ID --checks NAME --landing pr|direct|train|off`
 previews the repository setup and `--yes` applies it.
 
-To let a Crew Mode conductor claim leaves instead, set
-`"delivery": {"runner": "crew-mode"}` and follow
-[the app package notes](kirocrew-app/README.md).
+To take one task by hand while the tick runs the rest, run
+`avoozl claim TASK`. It prints the task's worktree and the report command;
+commit there and run `avoozl runner report TASK done`, and Avoozl runs the
+checks. `avoozl claim TASK --release` gives it back. A workspace whose
+`.avoozl.json` still says `"runner": "crew-mode"` starts nothing until a
+person chooses **Let the tick run it** in Needs you.
 
 Avoozl never replaces a worker only because its activity went quiet. It
 checks durable session and delivery records first.

@@ -297,6 +297,10 @@ const IGNORED = new Map([
   [`${REPOSITORY}/concurrency`, "github-policy.mjs releaseInput"],
   ["#/$defs/flow/properties/lessons", "flowSection drops it"],
   ["#/$defs/flow/properties/batch", "flowSection drops it"],
+  [
+    "#/properties/delivery/properties/runner",
+    "deliveryPolicy: tick is ignored, crew-mode holds (worker-paths WP1)",
+  ],
 ]);
 
 // Deprecated keys a reader still reads as an older spelling of a new key.
