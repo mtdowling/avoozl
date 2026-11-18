@@ -46,6 +46,10 @@ export interface HarnessDefinition {
   approved: boolean
   // The file sets `model`, so a session can name one.
   model?: boolean
+  // Why it cannot run a read-only role (it names no resultAllow), or null.
+  readRoles?: string | null
+  // The role classes a live proof ran it in.
+  proved?: ('read' | 'write')[]
 }
 
 export interface ModelSettings {
@@ -74,12 +78,14 @@ export function toRoles(form: RoleTable): RoleTable {
 
 // The harness choices: the project's default, the Kiro Crew chat, then this
 // machine's definitions. A saved name with no file here still shows.
-export function harnessOptions(definitions: HarnessDefinition[], current: string) {
+// A definition that cannot run a read-only role is not offered for one.
+export function harnessOptions(definitions: HarnessDefinition[], current: string, access: 'read' | 'write' = 'write') {
   const options = [
     { value: 'auto', label: 'auto (project default)' },
     { value: KIROCREW_HARNESS, label: 'Kiro Crew chat' },
     ...definitions
       .filter((d) => d.name !== KIROCREW_HARNESS && d.name !== 'auto')
+      .filter((d) => access === 'write' || !d.readRoles || d.name === current)
       .map((d) => ({ value: d.name, label: d.approved ? d.name : `${d.name} (not approved)` })),
   ]
   if (current && !options.some((o) => o.value === current)) options.push({ value: current, label: `${current} (not on this machine)` })
@@ -120,5 +126,13 @@ export function roleProblem(role: Role, form: RoleTable, definitions: HarnessDef
   if (agent && !AGENT.test(agent)) return 'The agent is an agent name: letters, digits, . _ : or -.'
   if (isSet(row.model) && !harnessTakesModel(row.harness, definitions)) return `${row.harness} takes no model. Set the model to auto.`
   if (role === 'planReviewer' && isSet(row.model) && row.model === form.planner?.model) return 'The reviewer must use a different model than the planner.'
+  const picked = definitions.find((d) => d.name === row.harness)
+  if (ROLE_ACCESS[role] === 'read' && picked?.readRoles) return picked.readRoles
   return null
+}
+
+// What a definition's list entry says about its proofs, per role class.
+export function provedLine(d: HarnessDefinition): string {
+  const proved = d.proved ?? []
+  return (['read', 'write'] as const).map((c) => `${c}: ${proved.includes(c) ? 'proved' : 'not proved'}`).join(', ')
 }

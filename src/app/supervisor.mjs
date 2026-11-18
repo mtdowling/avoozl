@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto";
 import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
+import { readServeConfig } from "./serve-config.mjs";
 import { fail } from "./store.mjs";
 import { withoutPushCredentials } from "./git.mjs";
 import { WorkspaceRegistry, machineAvoozlPaths } from "./host-config.mjs";
@@ -21,6 +22,7 @@ import {
   fillHarnessArgv,
   harnessPermission,
   loadHarnessDefinition,
+  readRoleProblem,
 } from "./harness-definitions.mjs";
 import {
   catalogWorkspaceRoots,
@@ -42,7 +44,9 @@ const TICK_MAIN = fileURLToPath(
 const INTEGRATOR_MAIN = fileURLToPath(
   new URL("./integrator-main.mjs", import.meta.url),
 );
+const SERVE_MAIN = fileURLToPath(new URL("./serve-main.mjs", import.meta.url));
 const INTEGRATOR_SCAN_MS = 30_000;
+const SERVE_SCAN_MS = 5_000;
 const SESSION = /^process-[0-9a-f-]{36}$/;
 // Placeholders the supervisor fills itself; a request cannot set them.
 const OWN_VALUES = [
@@ -68,6 +72,7 @@ export function supervisorPaths(stateDirectory) {
     log: path.join(root, "supervisor.log"),
     tickLog: path.join(root, "tick.log"),
     integratorLog: path.join(root, "integrator.log"),
+    serveLog: path.join(root, "serve.log"),
     children: path.join(root, "children"),
   };
 }
@@ -278,8 +283,9 @@ export function readChildResult(worktree) {
     typeof value !== "object" ||
     Array.isArray(value) ||
     Object.keys(value).some(
-      (key) => !["state", "text", "report"].includes(key),
+      (key) => !["state", "text", "report", "output"].includes(key),
     ) ||
+    (value.output !== undefined && !OUTPUT_NAME.test(value.output)) ||
     !["done", "blocked", "findings"].includes(value.state) ||
     // Findings (R75.1) are the report; Avoozl's findings check reads them.
     (value.state === "findings" && !value.report) ||
@@ -291,13 +297,56 @@ export function readChildResult(worktree) {
   )
     return {
       problem:
-        'The result file must be {"state": "done" | "blocked", "text": "...", "report"?: {...}}, or {"state": "findings", "report": {...}}.',
+        'The result file must be {"state": "done" | "blocked", "text": "...", "report"?: {...}, "output"?: "<file name>"}, or {"state": "findings", "report": {...}}.',
     };
   return {
     state: value.state,
     text: value.text ?? "",
     ...(value.report ? { report: value.report } : {}),
+    ...(value.output ? { output: value.output } : {}),
   };
+}
+
+// The one output file a child may write beside its result file, for an
+// answer too large for it (NK3): a plain name, read from `.avoozl/output/`.
+export const OUTPUT_DIRECTORY = path.join(".avoozl", "output");
+const OUTPUT_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+
+// Read a finished child's output file once (NK3.2, NK3.4): exactly one
+// regular file in `.avoozl/output/`, the one the result names, at most
+// `limit` bytes, and valid by `validate(text)`, which throws its reason.
+// Returns { text, value } or { problem }. The text is data, never an
+// instruction.
+export function readChildOutput(worktree, name, { limit, validate }) {
+  if (typeof name !== "string" || !OUTPUT_NAME.test(name) || name === "..")
+    return { problem: "The output must be a plain file name." };
+  const folder = path.join(worktree, OUTPUT_DIRECTORY);
+  let names;
+  try {
+    if (!fs.lstatSync(folder).isDirectory())
+      return { problem: "The output folder is not a folder." };
+    names = fs.readdirSync(folder);
+  } catch {
+    return { problem: "The child wrote no output file." };
+  }
+  if (names.length > 1)
+    return { problem: "The child wrote more than one output file." };
+  if (names[0] !== name)
+    return {
+      problem: `The result names ${name}, which is not in the output folder.`,
+    };
+  const file = path.join(folder, name),
+    stat = fs.lstatSync(file);
+  if (!stat.isFile())
+    return { problem: "The output file is not a regular file." };
+  if (stat.size > limit)
+    return { problem: `The output file is over ${limit} bytes.` };
+  const text = fs.readFileSync(file, "utf8");
+  try {
+    return { text, value: validate ? validate(text) : text };
+  } catch (error) {
+    return { problem: `The output file is not valid: ${error.message}` };
+  }
 }
 
 // The finished run's outcome (R96.3, R96.4), or null while it runs. `done`
@@ -321,6 +370,7 @@ export function childResult(db, sessionId) {
     state,
     text: state ? read.text : null,
     ...(state && read.report ? { report: read.report } : {}),
+    ...(state && read.output ? { output: read.output } : {}),
     problem: state
       ? null
       : read.state === "done" || read.state === "findings"
@@ -567,6 +617,8 @@ export function startSupervisor({
   env = process.env,
   // Workspaces that get an integrator; tests pass their own.
   integratorRetryMs = 5000,
+  // The standalone page's server child (SW9): restarted this long after it exits.
+  serveRetryMs = 2000,
   integratorRoots = () =>
     trainWorkspaceRoots({ stateDirectory, configDirectory }),
 }) {
@@ -665,6 +717,59 @@ export function startSupervisor({
     }
   };
 
+  // The standalone page's server (SW9), when the machine file has
+  // `serve.enabled`. It ends with the supervisor, which restarts it on the same
+  // fixed port. This process itself never listens.
+  let serveChild = null,
+    serveRetryAt = 0,
+    serveRead = 0,
+    serveConfig = { enabled: false, port: 0 };
+  const hostServe = () => {
+    const now = Date.now();
+    if (now >= serveRead) {
+      serveConfig = readServeConfig(configDirectory);
+      serveRead = now + SERVE_SCAN_MS;
+    }
+    const alive =
+      Boolean(serveChild) &&
+      serveChild.exitCode === null &&
+      serveChild.signalCode === null;
+    if (
+      alive &&
+      (!serveConfig.enabled || serveChild.wantedPort !== serveConfig.port)
+    ) {
+      serveChild.kill("SIGTERM");
+      return;
+    }
+    if (!serveConfig.enabled || alive || now < serveRetryAt) return;
+    const out = fs.openSync(paths.serveLog, "a", 0o600);
+    let child;
+    try {
+      child = spawn(
+        process.execPath,
+        [
+          SERVE_MAIN,
+          "--state-directory",
+          path.resolve(stateDirectory),
+          "--config-directory",
+          path.resolve(configDirectory),
+          "--port",
+          String(serveConfig.port),
+        ],
+        { stdio: ["ignore", out, out], env, windowsHide: true },
+      );
+    } finally {
+      fs.closeSync(out);
+    }
+    serveChild = child;
+    child.wantedPort = serveConfig.port;
+    const ended = () => {
+      serveRetryAt = Date.now() + serveRetryMs;
+    };
+    child.once("exit", ended);
+    child.once("error", ended);
+  };
+
   const start = (row, message = null) => {
     const folder = path.join(paths.children, row.session_id);
     const log = path.join(folder, "log");
@@ -680,10 +785,17 @@ export function startSupervisor({
         name: row.harness,
       });
       hash = definition.hash;
+      // A read-only child that cannot write its result never starts (NK6.1).
+      if (row.permission_class === "read" && readRoleProblem(definition))
+        fail(readRoleProblem(definition), 409);
       fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
       // Each run writes its own result; one from an earlier run never counts.
       fs.mkdirSync(path.join(row.worktree, ".avoozl"), { recursive: true });
       fs.rmSync(path.join(row.worktree, RESULT_FILE), { force: true });
+      fs.rmSync(path.join(row.worktree, OUTPUT_DIRECTORY), {
+        recursive: true,
+        force: true,
+      });
       const briefFile = path.join(folder, "brief.md");
       fs.writeFileSync(briefFile, row.brief, { mode: 0o600 });
       let messageFile = null;
@@ -893,6 +1005,7 @@ export function startSupervisor({
       start(row, queuedMessage(db, row.session_id));
     if (tickIntervalMs) tick();
     integrate();
+    hostServe();
   };
 
   const schedule = () => {
@@ -911,6 +1024,7 @@ export function startSupervisor({
     closed = true;
     clearTimeout(timer);
     for (const { child } of integrators.values()) child.kill("SIGTERM");
+    serveChild?.kill("SIGTERM");
     db.close();
     lock.release();
   };
@@ -923,6 +1037,13 @@ export function startSupervisor({
     holder: lock.holder,
     database: paths.database,
     ticking: () => Boolean(ticking),
+    // The standalone page's server child, or null: its pid.
+    serve: () =>
+      serveChild &&
+      serveChild.exitCode === null &&
+      serveChild.signalCode === null
+        ? { pid: serveChild.pid }
+        : null,
     // Running integrators by workspace root, with their pids.
     integrators: () =>
       [...integrators]

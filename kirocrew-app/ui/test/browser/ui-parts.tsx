@@ -1,4 +1,5 @@
 // The Avoozl parts of src/ui/, one of each, for ui-parts.test.mjs.
+import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ErrorText } from '../../src/ui/ErrorText.tsx'
 import { Hint } from '../../src/ui/Hint.tsx'
@@ -6,10 +7,20 @@ import { Checkbox } from '../../src/ui/Checkbox.tsx'
 import { Row } from '../../src/ui/Row.tsx'
 import { SelectField } from '../../src/ui/SelectField.tsx'
 import { Stack } from '../../src/ui/Stack.tsx'
+import { Switch } from '../../src/ui/Switch.tsx'
 import { TextLink } from '../../src/ui/TextLink.tsx'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
+
+function SwitchDemo() {
+  const [on, setOn] = useState(false)
+  return (
+    <Switch data-part="switch" label="Send feedback" describedBy="part-help" checked={on} onChange={setOn}>
+      Send feedback
+    </Switch>
+  )
+}
 
 createRoot(document.getElementById('root')!).render(
   <div style={{ padding: 16, width: 400 }}>
@@ -40,6 +51,7 @@ createRoot(document.getElementById('root')!).render(
     <label>
       <Checkbox data-part="checkbox" aria-describedby="part-help" defaultChecked={false} /> Confirm
     </label>
+    <SwitchDemo />
     <TextLink data-part="link" href="#x">
       A link
     </TextLink>

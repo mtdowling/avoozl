@@ -1,3 +1,4 @@
+import path from "node:path";
 import { roleRun } from "./role-table.mjs";
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewSession } from "./executors/kirocrew.mjs";
@@ -202,12 +203,31 @@ export function plannerStep(
           : breakdown?.state === "awaiting-critique" &&
             breakdown.spec?.hash === planner.specHash;
       if (binding || !open || !needed) continue;
-      const label = `${planner.mode === "critique" ? "critique" : "plan"} ${row.repository}#${row.number}`;
+      const label = `${planner.mode === "critique" ? "critique" : "plan"} ${row.repository}#${row.number}`,
+        critique = planner.mode === "critique",
+        // Only the critique follows its project's executor; see role-table.
+        run = roleRun("issuePlanner", {
+          config,
+          project: critique ? store.get("projects", checkout.id) : null,
+        });
       dispatch.push(
         kirocrewRequest(store, {
           task: row.taskId,
           role: "planner",
-          ...roleRun("issuePlanner", { config }),
+          ...run,
+          // A child critique writes only the spec folder's avoozl/ folder:
+          // its folder, and its one write root besides its temp folder.
+          ...(critique && run.executor === "process"
+            ? {
+                worktree: path.join(
+                  checkout.localCheckout,
+                  ".kiro",
+                  "specs",
+                  planner.spec,
+                  "avoozl",
+                ),
+              }
+            : {}),
           attempt: planner.attempt,
           title: sessionTitle(row.taskId, planner.attempt, label),
           ...kirocrewSession(checkout.id, rules),

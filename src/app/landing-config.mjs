@@ -357,6 +357,10 @@ export function assertNoMachineKeys(value, file, globalFile) {
   for (const key of ["platforms", "slots"])
     if (value?.machine?.[key] !== undefined)
       throw Error(`machine.${key} is set in ${file}. Put it in ${globalFile}.`);
+  for (const key of Object.keys(value?.serve ?? {}))
+    throw Error(`serve.${key} is set in ${file}. Put it in ${globalFile}.`);
+  if (value?.serve !== undefined && typeof value.serve !== "object")
+    throw Error(`serve is set in ${file}. Put it in ${globalFile}.`);
   if (value?.lease !== undefined)
     throw Error(`lease is set in ${file}. Put it in ${globalFile}.`);
   // A sink's URL may hold a secret, so sinks live only on the machine.

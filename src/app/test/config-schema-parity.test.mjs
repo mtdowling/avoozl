@@ -42,6 +42,7 @@ import {
   STATUS_VALUE_KEYS,
 } from "../github-policy.mjs";
 import { SOURCE_KEYS } from "../intake.mjs";
+import { SERVE_KEYS } from "../serve-config.mjs";
 import { GITHUB_SOURCE_KEYS } from "../github-sources.mjs";
 import { INVESTIGATE_KEYS } from "../investigate.mjs";
 import {
@@ -112,6 +113,7 @@ const PAIRS = [
   ["#/properties/notifications", NOTIFICATIONS_KEYS],
   ["#/$defs/commandSink", COMMAND_SINK_KEYS],
   ["#/$defs/webhookSink", WEBHOOK_SINK_KEYS],
+  ["#/properties/serve", SERVE_KEYS],
   [
     "#/properties/machine/properties/platforms/additionalProperties",
     MACHINE_PLATFORM_KEYS,
@@ -234,6 +236,7 @@ const OPEN = new Map([
       "machine",
       "lease",
       "notifications",
+      "serve",
       // Still parsed by layered-config.mjs so old files load (audit D8).
       "ahp",
       "ahpPort",

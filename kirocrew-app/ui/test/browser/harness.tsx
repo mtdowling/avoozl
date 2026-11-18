@@ -18,7 +18,7 @@ import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
 import GraphView from '../../src/GraphView.tsx'
 import AddPlugin from '../../src/AddPlugin.tsx'
 import SetupRepository from '../../src/Onboard.tsx'
-import { Modal } from '../../src/Modal.tsx'
+import { Modal } from '../../src/ui/Modal.tsx'
 import { specGraph } from './spec-graph-fixture.ts'
 import { installInlineFixture } from './settings-inline-fixture.ts'
 import { SetupDialog } from '../../src/SetupWizard.tsx'
@@ -1329,8 +1329,8 @@ if (query.get('page') === 'models' || query.get('page') === 'app') {
     hash: 'models-before',
     roles: { planner: { model: 'fake-writer' } } as Record<string, Record<string, string>>,
     harnessDefinitions: [
-      { name: 'claude-code', approved: true, model: true },
-      { name: 'codex', approved: false, model: false },
+      { name: 'claude-code', approved: true, model: true, readRoles: null, proved: ['read', 'write'] },
+      { name: 'codex', approved: false, model: false, readRoles: 'codex names no resultAllow, so a read-only session cannot write its result file.', proved: ['write'] },
     ],
   }
   answer('GET /api/models', () => ['fake-writer', 'fake-reviewer'])
