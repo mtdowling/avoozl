@@ -71,6 +71,10 @@ import {
 
 export const RETRO_AGENT = "avoozl-retro";
 export const RETRO_TIMEOUT_MS = 10 * 60_000;
+// The most one tick adds to a retro's wait. A tick that comes back after the
+// laptop slept or the app was closed counts this much, not the whole gap, so
+// the session gets its time to answer before the retro is failed.
+export const RETRO_TICK_CAP_MS = 5 * 60_000;
 // shortcut: fixed one-hour gap between a spike-triggered retro and the last
 // one; make it a setting if retrospectives run too often.
 export const SPIKE_GAP_MS = 60 * 60_000;
@@ -437,6 +441,67 @@ const summary = (p) => ({
   ...(p.pdca?.result ? { pdca: p.pdca.result } : {}),
 });
 
+// Why a retro that waited too long failed: what became of its chat.
+export function retroFailure(store, retro, waitedMs) {
+  const waited = `${Math.round(waitedMs / 60_000)} minutes`,
+    binding = store
+      .list("session_bindings")
+      .filter((b) => b.taskId === retro.id && b.role === "retro")
+      .at(-1);
+  if (!binding)
+    return {
+      kind: "never-started",
+      error: `the chat never started: no session was opened for this retro in ${waited}`,
+    };
+  if (["gone", "lost"].includes(binding.status))
+    return {
+      kind: "lost",
+      error:
+        binding.executor === "process"
+          ? `the process session was lost before it replied (waited ${waited})`
+          : `the chat was lost: Kiro Crew no longer lists it (waited ${waited})`,
+    };
+  if (["working", "queued"].includes(binding.status))
+    return {
+      kind: "timeout",
+      error: `timed out: the chat was still working after ${waited}`,
+    };
+  return {
+    kind: "no-reply",
+    error: `the chat started but never replied (waited ${waited})`,
+  };
+}
+
+// Run again (a failed retro's button): queue the same triggers, which the
+// next tick turns into a new retro. Nothing else is written.
+export function runRetroAgain(store, id) {
+  const retro = store.get("flow_retros", id);
+  if (retro?.state !== "failed")
+    fail("Only a failed retro can run again.", 409);
+  const s = store.getMeta("flow.retro.state") || {
+      seen: [],
+      pending: [],
+      reverts: [],
+    },
+    have = new Set(s.pending.map((t) => t.key));
+  store.setMeta("flow.retro.state", {
+    ...s,
+    pending: [
+      ...s.pending,
+      ...(retro.triggers?.length
+        ? retro.triggers
+        : [{ kind: "manual", detail: "started by hand" }]
+      )
+        .filter((t) => !have.has(t.key))
+        .map(({ waitsForCount: _waits, ...t }) => ({
+          ...t,
+          at: new Date().toISOString(),
+        })),
+    ],
+  });
+  return { queued: true };
+}
+
 // The tick's retro step (script cron only): close a timed-out retro, check
 // PDCA results, and start one retro when a trigger is due. Returns the
 // dispatch for the cron. Writes only when something changes.
@@ -457,14 +522,30 @@ export function retroStep(
     changed = false;
   const retros = listOr(store, "flow_retros"),
     running = retros.find((r) => r.state === "running");
-  if (running && now - Date.parse(running.startedAt) > RETRO_TIMEOUT_MS) {
-    store.put("flow_retros", {
-      ...running,
-      state: "failed",
-      error: "timed out after 10 minutes",
-      finishedAt: new Date(now).toISOString(),
-    });
-    changed = true;
+  if (running) {
+    const since = now - Date.parse(running.checkedAt ?? running.startedAt),
+      waitedMs =
+        (running.waitedMs ?? 0) +
+        Math.min(Math.max(0, since), RETRO_TICK_CAP_MS),
+      failure =
+        waitedMs > RETRO_TIMEOUT_MS && retroFailure(store, running, waitedMs);
+    // Counted at most once a minute, so a quiet tick writes nothing.
+    if (failure || since >= 60_000) {
+      store.put(
+        "flow_retros",
+        failure
+          ? {
+              ...running,
+              state: "failed",
+              error: failure.error,
+              failure: failure.kind,
+              waitedMs,
+              finishedAt: new Date(now).toISOString(),
+            }
+          : { ...running, waitedMs, checkedAt: new Date(now).toISOString() },
+      );
+      changed = true;
+    }
   }
   // PDCA (R47.7): measure each approved change after `everyTasks` more. A
   // prompt or skill change compares tasks that ran on its old and new

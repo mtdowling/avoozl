@@ -173,6 +173,7 @@ export const PERSON_ONLY = new Map([
   ],
   ["flow.instructions.update", person("Only a person changes flow settings.")],
   ["flow.retro.start", person("Only a person starts a retro.")],
+  ["flow.retro.again", person("Only a person runs a retro again.")],
   ["flow.retro.decide", person("Only a person decides retro proposals.")],
   ["prompt.override.revert", person("Only a person changes prompt overrides.")],
   ["prompt.override.rebase", person("Only a person changes prompt overrides.")],

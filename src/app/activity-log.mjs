@@ -741,7 +741,7 @@ export function recordTickChanges(store, before, after) {
         kind: "intake.item",
         summary: `New ${item.record?.kind ?? "item"} ${item.itemId ?? item.id} from ${item.source}`,
         targetId: item.taskId ?? null,
-        link: item.source === "github" ? item.record?.url : null,
+        link: item.source === "github" ? item.record?.link : null,
         key: `intake:${item.id}`,
       });
     }
