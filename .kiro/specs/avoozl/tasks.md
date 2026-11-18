@@ -1704,11 +1704,16 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
 - [x] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
 - [ ] 45.4 Retire shared task projection and synchronization callers, after 45.1, 45.2, 45.3, avoozl-p53, avoozl-p54, 56.5, 56.9, avoozl-p66 [R86.1, R91.2, R91.3, R102.20] (§4.32)
   - Remove per-task projection, Project sync, issue close/completion/rebuild and old driver markers after binding retirement and replacement proofs. Keep spec issue publication, epic links, journals, explicit export, ranking, setup, receipts and the executor seam. No task-issue reconciliation remains.
+  - The `coder` setting and every coder route are removed by 45.6; this task removes what is left of the shared callers, including the Radar-only operations 45.6 left answering empty (`radar.releasequeue` rows, `radar.flow` reads, `radar.mergepath` without a repository, `radar.preflight`, `untriaged.plan`) and the Release queue card that shows them.
 
-- [ ] 45.5 Compatibility names still resolve; docs say one path, after 45.4 [R91.4] (§4.26)
+- [ ] 45.6 Remove Who codes; the Avoozl worker is the only coder [R86.1, R91.6] (§4.26)
+  - Delete `CODERS`, the coder default by mode, the schema's `coder` property and every `coder === "issue-radar"` branch (operations, plans-repo coverage, marker, projection hand-over and coder split, integration sync, coder adapter, Radar release queue, merge path, conflict fixes, crew claim reconcile, Radar source, Radar flow); delete modules left with no caller. The UI loses `CoderPicker.tsx` and its coding tour, `CODER_CARDS`, `coderSource`, `defaultCoder`, the Who codes field and summary, the Radar crew card and the Workflow map's Who codes step.
+  - A stored `coder` loads and is ignored with no warning (one test). Keep Radar intake (56.8), Radar escalations in Triage (56.14), back-links (44.6) and Settings › Issue Radar; one test shows a `coder: issue-radar` repository still feeds Triage and its Radar escalations. Screenshots of Repository setup and Settings › Issue Radar under `docs/evidence/remove-who-codes/`.
+
+- [ ] 45.5 Compatibility names still resolve; docs say one path, after 45.4, 45.6 [R91.4] (§4.26)
   - `docs/research/` and `docs/evidence/` untouched except new receipts.
 
-- [ ] avoozl-p55 P55 Proof: after removal there is one delivery path, after 45.1, 45.2, 45.3, 45.4, 45.5 [R91] (§4.26)
+- [ ] avoozl-p55 P55 Proof: after removal there is one delivery path, after 45.1, 45.2, 45.3, 45.4, 45.5, 45.6 [R91] (§4.26)
   - Setup: a temporary workspace on the built app.
   - Action: run one task through the loop; list the app's agents and modules; resolve each compatibility name.
   - Expected: the task lands; no Radar, relay, router or crew agent or module remains; every compatibility name resolves.
@@ -2016,7 +2021,7 @@ proof or run a real workspace to get past that wait.
   - One previewed, paced, idempotent backfill adds crew:avoozl to open projected task issues with no crew: label; claimed issues are left alone with one Needs you row. Send to Issue Radar refuses crew:avoozl issues. Tests cover no hand-over write, backfill retry and the claimed skip.
 
 - [x] 56.14 Issue Radar escalations open first in intake, after 56.8, 56.12 [R103.8, R103.9, R103.10, R103.11] (§4.32)
-  - Keep plan-me routing. Trusted escalations (the repository's needs-human label) sort first in Untriaged, or Intake for a Radar-coded repository, with Plan this and Deliver this; their Needs you row gains the same buttons. Plan this drafts a fix spec or the compact bounded-fix acceptance.
+  - Keep plan-me routing. Trusted escalations (the repository's needs-human label) sort first in Untriaged (Intake for a Radar-coded repository until 45.6) with Plan this and Deliver this; their Needs you row gains the same buttons. Plan this drafts a fix spec or the compact bounded-fix acceptance.
   - Person-only start. A per-repository escalation rule, off by default, drafts locally with zero GitHub writes; approval and dispatch stay person-only. Take-over writes crew:avoozl and never removes the needs-human label; a live crew claim asks to confirm. No Radar API or grant. Tests cover order, buttons, zero-write draft and one label write.
 
 - [x] 56.15 Reanchor a held journal by a person's record, after 56.2 [R102.26] (§4.32)

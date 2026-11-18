@@ -7060,6 +7060,21 @@
         "avoozl-p66"
       ]
     },
+    "45.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). Remove Who codes; the Avoozl worker is the only coder. See R86.1, R91.6; §4.26.",
+      "acceptance": [
+        "Remove Who codes; the Avoozl worker is the only coder",
+        "A stored `coder` loads and is ignored with no warning; a `coder: issue-radar` repository still feeds Triage and its Radar escalations; Radar intake (56.8), Triage escalations (56.14), back-links (44.6) and Settings › Issue Radar stay."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "npm run test:ui",
+        "git diff --check"
+      ]
+    },
     "45.5": {
       "kind": "leaf",
       "repository": "avoozl",
@@ -7074,7 +7089,8 @@
         "git diff --check"
       ],
       "requires": [
-        "45.4"
+        "45.4",
+        "45.6"
       ]
     },
     "avoozl-p55": {
@@ -7095,7 +7111,8 @@
         "45.2",
         "45.3",
         "45.4",
-        "45.5"
+        "45.5",
+        "45.6"
       ]
     },
     "44.6": {

@@ -430,7 +430,6 @@ Since 2026-11-17 `mode` and `planningRepository` are derived from each repositor
         "checkout": "../app",
         "folder": "Avoozl/example-app",
         "baseBranch": "main",
-        "coder": "worker",
         "allowedActors": ["maintainer-login"],
         "minimumPermission": "maintain",
         "requiredChecks": ["build", "test"],
@@ -470,9 +469,8 @@ Validation (deterministic, in `repository-settings.mjs`):
 
 - `mode` is `plans-repo`, `single-repo`, or absent; `plans-repo` needs
   `planningRepository`, `single-repo` forbids it (Requirement 28.1);
-- `coder` is `worker` or `issue-radar`; `issue-radar` is refused in
-  plans-repo mode, because a crew opens pull requests only in its own
-  repository (Requirement 27.14);
+- `coder` is accepted and ignored (removed 2026-11-18, §4.26,
+  Requirement 91.6): the Avoozl worker is the only coder;
 - a repository with github tasks names a `baseBranch` equal to its default
   branch, because GitHub closes issues only from merges into the default
   branch (F43, F52; Requirement 16.5, changed 2026-11-12);
@@ -3352,6 +3350,23 @@ request (RC3.6) stays only for a spec whose home branch is protected.
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------- |
 | Radar-only modules (about 5,900 backend, 1,300 UI, 12,000 test lines), `verify-issue`, the provenance marker, the `avoozl-crew` agent and Issue Radar grant, the remote coder, the relay, the router chat and their agents | Arming and merge code (now PR landing), release ranking, GitHub setup, build receipts | The Delivery page, Settings › Budgets, the task Files and diff view (removed in ba04389 and 70c2236). Not Routing |
 
+**Who codes is removed (owner decision, 2026-11-18; Requirement 91.6).**
+The Avoozl worker is the only coder. Settings › Models picks the harness per
+role (§4.28), so a per-repository coder has nothing left to choose.
+
+| Removed | Kept (Issue Radar as intake) |
+| ------- | ---------------------------- |
+| `CODERS` and the `coder` default by mode (`github-policy.mjs`), the schema's `coder` property, `choices.coders` | A stored `coder` key: accepted and dropped by the loader, with no warning and no migration |
+| The Who codes picker (`CoderPicker.tsx`) and its "How does this work?" coding tour, `CODER_CARDS`, `coderSource` and `defaultCoder` (`settings-api.ts`), the Who codes field and summary (`SettingsView.tsx`, `RepositoryModals.tsx`), the Workflow map's Who codes step | Settings › Issue Radar: Labels Radar uses, Handoff to Avoozl, crew review rules, conflicts, merge method |
+| Settings › Issue Radar's Radar crew card (crew scope to the ready label, release mode) and `issueRadarCrews` | GitHub intake (56.8) and its ownership label |
+| Every `coder === "issue-radar"` branch: the Radar-coded Untriaged read and its Intake rows, the planning label read, the coder adapter and coder split, ready-label release and the Release queue, the crew merge path and conflict fixes, the crew claim reconcile, the Radar source issue and its approval label, Radar flow rows, the approval pull request for a spec in a Radar repository (it stays only for a protected plans-branch home, Requirement 86.8), the plans-repo marker for a Radar repository | Radar escalations (needs-human, the plan-me trust and routing) sorted first in Untriaged with Plan this and Deliver this (56.14), their Needs you row, With Issue Radar, Send to Issue Radar |
+| | Radar back-links through intake and the journal (44.6) |
+
+Every repository reads Untriaged the same way (§4.32.11 escalations still
+sort first). Modules that only served Radar coding go with their last
+caller. The shared projection and Project sync callers stay for 45.4, less
+their coder routing.
+
 **A public repository with private plans.** For the Nupp compiler, plans
 stay in a private planning workspace and code lands `direct` on the public
 `core-dev`. Nothing private is pushed: the brief carries no plan text into
@@ -4344,8 +4359,9 @@ and Settings refuses it as any other label's name.
 **Old task issues.** Until retirement (56.5) runs, nothing hands a projected task
 to a crew. `issueRadarAdapter.handOver` (`src/app/coder-adapter.mjs`) adds no ready
 label, and the claim at approval (`src/app/approval-label.mjs`) writes no claim
-label or marker; Avoozl's executor runs those tasks. The code and the `coder`
-setting stay until 45.4 (Phase 45 is no longer paused; 45.2 landed in #509). A ready label is not enough to keep crews
+label or marker; Avoozl's executor runs those tasks. The `coder` setting and
+the hand-over code are gone (45.6, §4.26); the shared projection code stays
+until 45.4. A ready label is not enough to keep crews
 off, because an empty-scope crew takes any open issue without a `crew:` label. So
 one previewed, paced, idempotent backfill adds `crew:avoozl` to each open projected
 task issue that has no `crew:` label. An issue a crew already claimed is left
@@ -4361,7 +4377,7 @@ scopes to Intake, other scopes to Needs you, untrusted left alone. Changes:
 
 | Where | What changes |
 |---|---|
-| Untriaged, or Intake for a Radar-coded repository | Trusted escalations sort first, marked "Radar asked", with Plan this and Deliver this |
+| Untriaged | Trusted escalations sort first, marked "Radar asked", with Plan this and Deliver this |
 | The escalation's Needs you row | Gains Plan this and Deliver this |
 | Plan this | Drafts a proportionate fix spec, or the compact bounded-fix acceptance above |
 | Per-repository escalation rule | Off by default. Drafts the plan when the label appears; local only, no GitHub write |
@@ -4621,7 +4637,6 @@ planning repository has no `github.repositories` entry, so no `role` key can
 sit on it: `planningRepository` stays stored and names it, and the `code`
 roles are valid because it exists. With a `planning` role on an entry,
 `planningRepository` is set from that entry.
-`coder` is a repository setting and stays beside the role.
 
 **Storage and migration.** The canonical key is
 `github.repositories["owner/name"].role`. `github.mode` and
@@ -4639,9 +4654,7 @@ The resolver runs inside the config loader, so readers of the raw
 approval batches) see the derived value and need no change. Reading writes
 nothing. The first save of Repository setup writes `role` on every row with
 a GitHub remote and the derived keys, which equal the old values for an
-untouched workspace. A second save writes nothing new. The default coder
-(`worker` in plans-repo, `issue-radar` in single-repo, §4.4) follows the
-derived mode as before.
+untouched workspace. A second save writes nothing new.
 
 **Screens.** Repository setup lists each repository with a role picker that
 saves in place (no Edit button for it; another change makes the other
@@ -5427,7 +5440,7 @@ GitHub closes every leaf issue (Requirement 33):
 | Pull requests                       | Code repositories named by each leaf                                                | The same repository                                |
 | Link from PR to issue               | Linked branch `avoozl/<task-id>`, created by Avoozl at dispatch; no closing keyword | `Closes #N` (a linked branch is also allowed)      |
 | Who closes the leaf issue           | GitHub on merge into the default branch; Avoozl verifies                            | GitHub on merge; Avoozl verifies                   |
-| Who codes leaves                    | Avoozl worker sessions in the code repository                                       | Issue Radar (default) or worker sessions (`coder`) |
+| Who codes leaves                    | Avoozl worker sessions in the code repository                                       | Avoozl worker sessions (changed 2026-11-18, §4.26) |
 | Planning repository named in public | Never                                                                               | Not applicable                                     |
 
 **Plans-repo delivery.** The Phase 2 runner does the work: the Crew Mode
@@ -6424,7 +6437,7 @@ operations as CLI and MCP (Requirement 20.4).
 | **Flow**      | one page                                                           | Lead time, flow efficiency, first-pass rate, time to fix, stacked time bars, bottlenecks                      |
 | **Retros**    | Retros, Proposals                                                  | Retrospectives, their proposals and PDCA results                                                              |
 | **Activity**  | one page                                                           | The activity log and tick health                                                                              |
-| **Settings**  | Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery | `.avoozl.json` and machine settings; the repository role, coder, labels, checks and reviews are tabs of each repository |
+| **Settings**  | Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery | `.avoozl.json` and machine settings; the repository role, labels, checks and reviews are tabs of each repository |
 
 **Choosing a repository and workspace.** A workspace is a directory with
 `.avoozl.json` and its SQLite file (existing layout). The machine catalog lists

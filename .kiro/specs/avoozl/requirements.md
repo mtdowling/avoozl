@@ -26,7 +26,10 @@ the spec driver lock stays; Ideas, the lessons store, Switch model, Quick
 goal, the Routing page, the relay and the demo tour were removed (#228,
 #282, #311). Avoozl itself pushes and merges (R87), so older "never pushes"
 and "never merges" text is history. The built page is no longer in git
-(#490), and CI selects tests by changed files (#521).
+(#490), and CI selects tests by changed files (#521). Who codes is gone
+(2026-11-18, Requirement 91.6): the Avoozl worker is the only coder, and
+Issue Radar is an intake source only, so older text about a repository's
+`coder`, a Radar-coded repository or Radar's release queue is history.
 
 ## Introduction
 
@@ -4483,7 +4486,7 @@ second system deciding what to claim, push or merge.
 
 1. Avoozl SHALL have one coder: its own worker chat. The `coder` setting,
    `issue-radar`, the remote coder, the remote relay and the router chat
-   SHALL be removed (Requirement 91).
+   SHALL be removed (Requirement 91; the `coder` setting by 91.6).
 2. Avoozl SHALL run one loop per task, in this order, and each step SHALL
    have one owner:
 
@@ -4741,6 +4744,29 @@ removed, so that the app has one way to deliver work.
    RC24–RC26 SHALL NOT be used for this setup; the pre-push content rule
    (Requirement 87.9) SHALL be its one leak guard. The freeze on public
    `core-dev` is lifted.
+6. Who codes SHALL be removed (owner decision, 2026-11-18). The Avoozl
+   worker SHALL be the only coder; the harness each role runs on (a Kiro
+   Crew chat, Claude Code or Codex) is chosen in Settings › Models
+   (Requirement 97). The repository `coder` setting, its default by mode,
+   the Who codes picker and summary, the Radar coding tour, the Workflow
+   map's Who codes step and every path that routes a task to an Issue
+   Radar crew (the ready-label release and its queue, the crew's merge
+   path and conflict fixes, the crew claim reconcile, the Radar source
+   issue and its approval label, Radar flow rows) SHALL be removed.
+   - A stored `coder` key SHALL be ignored silently: no warning, no
+     migration, and the file SHALL still load. A test SHALL load a file
+     that sets `coder: issue-radar`.
+   - Every repository SHALL use the same Untriaged read; there SHALL be
+     no Radar-coded read that lists only Radar labels.
+   - Issue Radar SHALL stay an intake source only: GitHub intake (56.8),
+     Radar escalations in Triage with Plan this and Deliver this (56.14),
+     Radar back-links (44.6), With Issue Radar and Send to Issue Radar
+     (Requirement 52), and Settings › Issue Radar with the labels Avoozl
+     reads, the handoff labels, crew review rules, conflicts and merge
+     method. A test SHALL show that a repository whose file still says
+     `coder: issue-radar` feeds Triage and its Radar escalations.
+   - The shared task projection and synchronization callers SHALL stay
+     for 45.4 (criterion 2), less their coder routing.
 
 ### Requirement 92: Links to related GitHub items, and the landing queue
 
@@ -5242,7 +5268,7 @@ budgets (removed 2026-11-17).
    SHALL be remembered as having none. Each call SHALL count under `receipt`
    in the GitHub usage counter.
 6. **Not tied to Issue Radar.** Receipts SHALL be read in the tick's CI step
-   for every repository with `buildReceipts` on, whatever its coder, so the
+   for every repository with `buildReceipts` on, so the
    reader survives the removal of Phase 45.
 7. **Report format.** Avoozl SHALL define a documented, versioned build
    report, `avoozl.build-report` version 1, with: `workload`, `engine`,
@@ -5487,9 +5513,9 @@ skip is a rule in the crew's prompt, not code.
    claim, needs-human, a trigger rule's label or a Send to Issue Radar label.
 4. Until issue-binding retirement (56.5) has run, Avoozl SHALL add no Radar
    ready or scope label to any task issue it projected, and SHALL write no
-   Radar claim label or claim marker at approval, in any repository,
-   including one whose coder is `issue-radar`. Avoozl's executor SHALL run
-   those tasks as it does elsewhere. Radar code and settings SHALL stay.
+   Radar claim label or claim marker at approval, in any repository.
+   Avoozl's executor SHALL run those tasks as it does elsewhere. Radar
+   intake code and settings SHALL stay (Requirement 91.6).
 5. Because an empty-scope crew takes any open issue without a `crew:`
    label, Avoozl SHALL add `crew:avoozl` once to each open task issue it
    projected that carries no `crew:` label, after a preview a person
@@ -5507,8 +5533,8 @@ skip is a rule in the crew's prompt, not code.
    (`crewLabels.needsHuman`), the only escalation it can write. Avoozl
    SHALL keep the plan-me routing: the trust check, scope-gate skips to
    Intake, other scopes to Needs you, untrusted issues left alone. It SHALL
-   list trusted escalations first in Untriaged (for a Radar-coded
-   repository, its Intake rows) with **Plan this** and **Deliver this**,
+   list trusted escalations first in Untriaged with **Plan this** and
+   **Deliver this**,
    and the Needs you row for one SHALL offer the same two buttons. Plan this
    SHALL draft a proportionate fix spec or the compact bounded-fix
    acceptance of Requirement 102.19.
