@@ -389,7 +389,6 @@
     "src/app/test/release-ranking.test.mjs": 274,
     "src/app/test/release-scan.test.mjs": 4154,
     "src/app/test/remote-runner.test.mjs": 5802,
-    "src/app/test/removed-verify-issue.test.mjs": 682,
     "src/app/test/repo-files.test.mjs": 3695,
     "src/app/test/report-cli.test.mjs": 5286,
     "src/app/test/report-match.test.mjs": 2280,

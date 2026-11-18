@@ -11,25 +11,8 @@ completed tasks remain history, not instructions to recreate the retired path.
 
 # Requirements: Avoozl as a Kiro Crew-native, GitHub-native product
 
-Status 2026-11-18 (spec audit against `origin/main`). Owner decisions
-since 2026-11-16 replaced these, wherever a requirement below still
-describes them: budgets are gone (R67; #454, #461, #487); the Trace page is
-task details' Timeline (R106; #469); Where tasks live is a role per
-repository (R105; #452, #459, #484); Planning and intake became Needs you ›
-Triage and Issue Radar (#464); Onboard is the Add repository entry (#515);
-the instance name is edited from the nav footer (#453); Settings pages edit
-in place (#456) and GitHub and Issue Radar have their own pages (#475,
-#489, #532); Retros are a nav entry (#468); Home was redesigned (#472);
-Plan a goal and Stop the line left the top bar (#488); the Lanes page is
-gone and Delivery shows machines (#508); the driver chat is gone (#382) and
-the spec driver lock stays; Ideas, the lessons store, Switch model, Quick
-goal, the Routing page, the relay and the demo tour were removed (#228,
-#282, #311). Avoozl itself pushes and merges (R87), so older "never pushes"
-and "never merges" text is history. The built page is no longer in git
-(#490), and CI selects tests by changed files (#521). Who codes is gone
-(2026-11-18, Requirement 91.6): the Avoozl worker is the only coder, and
-Issue Radar is an intake source only, so older text about a repository's
-`coder`, a Radar-coded repository or Radar's release queue is history.
+Status 2026-11-18 (spec audit against `origin/main`). The built page is no
+longer in git (#490), and CI selects tests by changed files (#521).
 Scope (2026-11-18, owner decision): Avoozl takes specs of any size, and a
 light spec with one task becomes one pull request. The epics-only scope
 statement and its one-pull-request rule of thumb (`radar-coder` RC13.1,
@@ -3326,61 +3309,9 @@ so that the name matches the `.kiro/specs/<name>/` folders I write.
    each kept name of criterion 2 and each use of plan as a verb (for
    example **Plan this**), one entry per string.
 
-### Requirement 63: Ideas
+### Requirement 63: Ideas (retired)
 
-**Status 2026-11-18.** Removed (#228). `src/app/ideas.mjs`, the `idea.*` operations and the Ideas page are deleted. The `plans_intake` idea actions stay as removed-error stubs. Treat this requirement as history.
-
-Added 2026-11-13 (owner approval). Design §8.8. This adds the kind `idea`
-to the incoming item of Requirement 50.1 and the reserved built-in source
-`local` of Requirement 50.6.
-
-**User story:** As the owner, I want to jot a rough idea down, riff on it,
-and later turn it into a spec, so that half-formed thoughts have a home
-that never starts work.
-
-#### Acceptance criteria
-
-1. An **idea** SHALL be an incoming item with `source: "local"` and
-   `kind: "idea"`: an `id` Avoozl makes, a `title` (1–240 characters),
-   `notes` (at most 100 entries of 1–4,000 characters, each with its
-   author and time), `links` (at most 50, http or https only, each at most
-   2,000 characters with an optional label of at most 200), `state`
-   (`open`, `archived`, or `graduated`) and, when graduated, the spec it
-   became. A bad field SHALL be refused by name and SHALL record nothing.
-2. A person SHALL create an idea from **+ New idea** on the Specs page
-   and on the Intake tab: Title (required), Notes (optional) and Links
-   (optional, one per line).
-3. An idea SHALL also be captured over MCP (`plans_intake` action
-   `capture_idea`) and the CLI (`avoozl intake idea add`). Agent sessions
-   MAY capture ideas; the idea SHALL name the session as its author.
-4. Notes and links SHALL be added through `idea.append` (MCP action
-   `add_idea_note`, CLI `avoozl intake idea note`). A session MAY append to
-   an open idea and the entry SHALL name it; a session SHALL NOT edit or
-   remove an entry, archive, restore, or graduate an idea.
-5. Captured and appended text SHALL pass the `intake` content-rule
-   boundary (Requirement 50.10). A `block` finding SHALL refuse the write
-   and name the set and rule, never the matched text.
-6. An idea SHALL never run work: the pipeline SHALL skip trigger match for
-   it, no rule SHALL match it, it SHALL never be tied to a task, and
-   **Plan this** and **Deliver this** SHALL refuse it. Ideas SHALL NOT
-   count toward the Untriaged count, its badge or its notice, and SHALL
-   never be written to GitHub or a plugin.
-7. The Intake tab SHALL list ideas under its **Kind** filter value
-   **Idea**, newest first, with title, note and link counts, age and
-   state. Opening one SHALL show its notes and links and the actions of
-   criteria 8–10.
-8. **Riff on this** SHALL open a Kiro Crew chat seeded with the idea's
-   title, notes and links, marked as data, and told to make no edits
-   except appending notes and links to this idea through `add_idea_note`.
-9. **Make it a spec** (person only) SHALL open the New spec flow of
-   Requirement 57 through its one entry point, prefilled with a name from
-   the title, the title and notes as What you want, and the links as Links
-   and context, and SHALL pass the idea's key. When that request is
-   recorded the idea SHALL become `graduated`, naming the spec. A
-   cancelled or refused request SHALL leave the idea unchanged.
-10. **Archive** and **Restore** SHALL be person only. Archived and
-    graduated ideas SHALL leave the default list, show under the state
-    filter, and never be deleted by the 30-day purge of Requirement 50.21.
+Retired.
 
 ### Requirement 64: Pull the Andon cord
 
@@ -3652,26 +3583,9 @@ handoff`, `avoozl driver takeover --file <path>` or `--rebuild`, and
     Heartbeat minutes (optional, placeholder 15), and the machine ID shown
     small.
 
-### Requirement 67: Per-task budgets and usage receipts (removed)
+### Requirement 67: Per-task budgets and usage receipts (retired)
 
-Removed 2026-11-17 (owner): budgets. A budget only caps Kiro Crew chats; Avoozl cannot see Claude Code or Codex spend.
-Budgets, the built-in price table, budget holds and stops, Raise budget,
-Over budget badges, receipts and Settings › Budgets are gone. Criteria 1 to
-21 of this requirement no longer apply and stay out of the tests. What
-stays: the per-turn usage reads and `flow_usage` of Requirement 43, which
-feed Flow's usage charts (tokens and credits per task, stage and model), and
-the plan-quota rule of Requirement 94.6a, which stops new sessions when plan
-quota runs low. No compatibility work (owner, 2026-11-17): the config schema
-has no budget key, and a leftover one is skipped silently so a workspace still
-loads.
-
-#### Acceptance criteria
-
-1. Avoozl SHALL have no budget, spend cap, budget hold, price table or
-   Settings › Budgets page, and SHALL pass no spend cap to a harness.
-2. WHEN `.avoozl.json`, `projects.<id>`, a manifest or a leaf holds a
-   `budget` or `prices` key THEN Avoozl SHALL skip it silently and load.
-3. Flow's usage charts and the plan-quota stop SHALL work as before.
+Retired.
 
 ### Requirement 68: Retros propose prompt and skill changes
 
@@ -3752,132 +3666,13 @@ when I say so.
     (Requirement 69), **Approve** and **Reject**, and per prompt the
     versions in use with **Revert**.
 
-### Requirement 69: Retro memory across workspaces
+### Requirement 69: Retro memory across workspaces (retired)
 
-**Status 2026-11-18.** The lessons store was removed (#228). `src/app/lessons-export.mjs` appends a workspace's stored lessons once to its steering rules file and drops the tables. The `lessons` plugin part does nothing. Criteria about storing, packs, healing and sharing lessons are history; Requirement 68 (proposals) stays.
+Retired.
 
-Added 2026-11-13 (owner approval). Design §4.18.
+### Requirement 70: Lessons and overrides heal as things change (retired)
 
-**User story:** As the owner, I want what one workspace's retrospectives
-learned to inform retrospectives in my other workspaces on this Mac, so
-that a fix proven once is suggested again where it fits, and a change that
-failed is not tried again.
-
-#### Acceptance criteria
-
-1. Avoozl SHALL keep one lessons store on this Mac, under the Avoozl
-   config directory. The raw store (contexts, histories, source
-   workspace IDs) SHALL stay local: Avoozl SHALL NOT write it to any
-   repository, tracked file or GitHub. The only ways lessons leave this
-   Mac SHALL be a person's **Share** of chosen proven lessons (criteria
-   11–15), a person's export to a pack file (criterion 8), and the driver
-   handoff export (Requirement 66.12). (Changed 2026-11-13, owner
-   decision: share chosen proven lessons.)
-2. A lesson SHALL hold: a pattern (stage, check kind, tool, and
-   repository traits such as languages and build files), a finding, the
-   change made (type, target, and a summary), the PDCA outcome (`kept`,
-   `undone`, or `untested`), evidence counts (tasks and runs, metric before
-   and after), the source workspace's random ID, and the date.
-3. Approving a proposal SHALL write a lesson with outcome `untested`. The
-   PDCA result SHALL set it to `kept` (helped) or `undone` (a revert was
-   approved after it did not help).
-4. A lesson SHALL hold summaries only. Validation SHALL refuse a lesson
-   whose text holds a task ID, file path, issue or pull request number,
-   repository name, URL, or more than 300 characters per field, and the
-   content rules SHALL run at a new `lesson` boundary when a lesson is
-   written and again, with the reading workspace's rules, when it is used.
-5. A retrospective's brief SHALL hold up to 10 lessons whose pattern
-   matches its workspace's traits and stage, ranked `kept` first, then by
-   confidence (Requirement 70), then by evidence count, then by date, and
-   SHALL list `undone` and retired lessons as "did not work" so they are
-   not proposed again. A proposal MAY cite lesson IDs, and Avoozl SHALL
-   drop a cited ID that was not in the brief.
-6. Each workspace SHALL have `flow.lessons.share` (write its lessons to the
-   store) and `flow.lessons.read` (use other workspaces' lessons), both
-   default `true`. A workspace always reads its own lessons.
-7. A plugin bundle MAY ship a lessons pack. Import SHALL show a preview
-   first and SHALL be a person's act with the preview hash, like a
-   settings pack (Requirement 55). Imported lessons SHALL be read-only and
-   name the plugin and its version as their source.
-8. Exporting lessons to a pack file SHALL be person-only; other callers
-   SHALL get 403. The export SHALL pass the content rules.
-9. An `untested` lesson SHALL expire after `flow.lessons.untestedDays`
-   (default 90) and no longer be used. An `undone` lesson SHALL be kept as
-   "did not work" with no expiry.
-10. The Flow tab SHALL have a **Lessons** view with filters for pattern,
-    outcome, source, and state, and Settings › Flow SHALL have a
-    **Lessons** sub-group with the two sharing switches and the ages.
-11. The Lessons view SHALL rank **share candidates**: this workspace's own
-    lessons that are `kept` after the PDCA check, not marked and not
-    read-only, ordered by evidence count, then by fit (how many other
-    workspaces on this Mac share at least one of the lesson's traits),
-    then by confidence. Each candidate SHALL show why it ranks there.
-12. **Share** SHALL be a person's act on lessons the person picks. It
-    SHALL first show a preview: the target repository, the file, the exact
-    text and its hash; sharing SHALL name that hash. Agent sessions, MCP,
-    the app token and plugins SHALL get 403 on preview-to-share and share.
-    Only candidates (criterion 11) MAY be shared.
-13. A shared file SHALL hold summaries only, in the lessons pack shape
-    (criterion 7): pattern, finding, change summary, outcome and evidence
-    counts, with no context, history, source workspace ID, task ID, path,
-    repository name or URL. The content rules SHALL run on it at the
-    `lesson` and `github` boundaries before anything is written; a block
-    SHALL write nothing and name the rule without the matched text.
-14. WHERE the mode is plans-repo THEN Share SHALL write
-    `.avoozl/lessons.json` in the planning repository on a new branch and
-    open a pull request to its base branch (a commit on that branch when
-    GitHub cannot be reached, shown with the branch name). WHERE the mode
-    is single-repo THEN Share SHALL do the same in the code repository.
-    WHERE the mode is Local only THEN Share SHALL be off and the view SHALL
-    say lessons share nowhere in this mode. Share SHALL merge with the
-    file already there by lesson ID and SHALL never push to a protected
-    branch directly.
-15. `lessons.export` SHALL also offer the raw store (`raw: true`, person
-    only) for the driver handoff export to include (Requirement 66.12).
-
-### Requirement 70: Lessons and overrides heal as things change
-
-**Status 2026-11-18.** Removed with the lessons store (#228). See Requirement 69.
-
-Added 2026-11-13 (owner steer). Design §4.18.
-
-**User story:** As the owner, I want stored lessons and local prompt
-overrides to notice when the things they were learned on change, so that
-stale advice stops being used without my clearing it by hand.
-
-#### Acceptance criteria
-
-1. Each lesson SHALL record the context it was learned in: Avoozl version,
-   model IDs, the prompt and skill versions in use, check and tool names,
-   repository traits, and the metric's baseline.
-2. Avoozl SHALL re-check a lesson WHEN a model it names is retired (no
-   longer listed by Kiro Crew) or replaced in that stage, a prompt or skill
-   version it relies on changed, a check or tool it names was renamed or
-   removed, the matching repositories' traits changed, a newer PDCA result
-   for the same pattern and change contradicts it, or it was not confirmed
-   within `flow.lessons.confirmDays` (default 180).
-3. Without approval, Avoozl SHALL re-score a lesson's confidence from fresh
-   runs, mark it `stale` or `needs re-check` with the reason, and stop
-   offering it in briefs for proposals until fresh runs confirm it. Each of
-   these marks SHALL be undone by itself when its cause clears, and SHALL
-   be recorded in the lesson's history.
-4. Rewriting a lesson's text, merging duplicates, and retiring a lesson
-   SHALL need a person. A lessons review SHALL run inside every
-   `flow.lessons.reviewEvery` retrospectives (default 5) and propose these
-   as diffs with evidence in the Proposals view. Avoozl SHALL NOT delete a
-   lesson; a retired one SHALL stay as history and count as "did not work".
-5. WHEN an Avoozl update changes a built-in prompt section under a local
-   override THEN Avoozl SHALL flag the override, show a three-way diff (old
-   built-in, new built-in, override), and propose a rebased override. Until
-   a person approves it, sessions SHALL keep using the override and the
-   Flow tab and Settings SHALL warn. A locked section SHALL always use the
-   new built-in text.
-6. WHEN a plugin's lessons pack changes version THEN Avoozl SHALL re-check
-   its imported lessons: changed ones become `needs re-check` until the new
-   pack is imported, and removed ones are retired with that reason. Rules
-   1–4 SHALL apply to pack lessons as to local ones.
-7. The Lessons view SHALL show each lesson's confidence, last confirmed
-   date, state and stale reason, and its history.
+Retired.
 
 ### Requirement 71: Activity log and Activity tab
 
@@ -4133,7 +3928,7 @@ do not build on a wrong reading of the task.
    108.10; it skipped `size: "small"` before 2026-11-18). A manifest task
    MAY set `investigate: false` or `true` to override the mode.
 6. Investigation and the falsifier SHALL be Flow spans of their own and
-   SHALL count in Flow's usage (budgets were removed 2026-11-17).
+   SHALL count in Flow's usage.
 7. With `mode: off`, dispatch SHALL behave exactly as before.
 
 ### Requirement 76: Evidence bundle per task
@@ -4677,9 +4472,8 @@ instead of a stuck chat.
    (`createWorktree`, `src/app/git.mjs`), which today has no caller.
    Avoozl SHALL remove a task's worktree and its local branch after the
    task lands, and SHALL keep them for a task that did not land.
-7. The Delivery page, Settings › Budgets (removed again 2026-11-17) and the task drawer's Files and diff
-   view SHALL be restored (the Delivery page and Files and diff exist; Budgets and the Routing page do not) (they were removed in ba04389 and 70c2236). The
-   Routing page SHALL NOT be restored.
+7. The Delivery page and the task drawer's Files and diff view SHALL be
+   restored (they were removed in ba04389 and 70c2236).
 
 ### Requirement 89: One setup command
 
@@ -4978,8 +4772,7 @@ that I approve, so that a new agent CLI needs no code change.
 5. A harness that cannot confine writes to the worktree SHALL be refused for
    write roles, unless the owner opts in for that machine (person-only,
    recorded in Activity).
-6. Removed 2026-11-17 (owner, with Requirement 67): Avoozl SHALL NOT pass
-   a spend cap to a harness. The plan-quota stop of criterion 6a stays.
+6. Retired.
 6a. Plan quota: WHEN a harness on a plan login reports its quota as low
     (Requirement 72's `low` or `out`) THEN Avoozl SHALL start no new session
     on it; running sessions SHALL finish.
@@ -5312,8 +5105,7 @@ workflow uploads that artifact from the Linux job only, because artifact
 names must be unique within a run. The receipts are kept in one metadata
 value with one receipt per pull request, and they are read from
 `radar-flow.mjs`, only for repositories whose coder is Issue Radar. The
-retrospective brief has no build data; its `receipts` field is gone with
-budgets (removed 2026-11-17).
+retrospective brief has no build data.
 
 #### Acceptance criteria
 

@@ -1202,39 +1202,15 @@ machine claim in its marker.
   - Next decision: put the claim in a comment instead of the marker, or drop the epic default.
   - Passed against fakes only: src/app/test/proof-p40.test.mjs, one fake GitHub, three temporary workspaces, fake time and rosters. Actions 5 and 6 need A1 to drive, so A1 takes the role back with Take over after action 4. Not run against real GitHub.
 
-## Phase 27: Budgets and receipts
+## Phase 27: Retired (budgets and receipts)
 
-Removed 2026-11-17 (owner): budgets. A budget only caps Kiro Crew chats; Avoozl cannot see Claude Code or Codex spend. Ticked tasks stay ticked as history; their code is removed by task/remove-budgets.
+Task IDs stay so they are never reused.
 
-Owner decisions 2026-11-13 (Requirement 67, design §4.17). Numbered after
-Phase 26 because task IDs never move. It prices the turns `flow_usage`
-already holds (12.11) and caps each task in dollars.
-
-- [x] 27.1 Price table and budget levels, after 12.12 [R67.1–R67.5] (§4.17)
-  - Machine-local `prices` with `version`, `creditUsd` and per-model `inputPerMTokUsd` and `outputPerMTokUsd`, empty by default; person-only `prices.save` bumps the version, hashes the canonical JSON and writes `price_versions`; validation refuses `prices` in `.avoozl.json`, packs and manifests; `budget {usd, tokens, credits}` at workspace, `projects.<id>`, manifest top level and leaf, most specific key wins; fallback defaults 2,000,000 tokens and 200 credits; the driver export leaves prices out.
-  - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (`src/app/budget.mjs`; caps in Settings › Budgets, not the repository Edit modal; the driver export is not built yet, so it is not wired).
-  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
-- [x] 27.2 Spend and receipts, after 27.1 and 12.9 [R67.4, R67.7, R67.11–R67.14] (§4.17)
-  - Price each `flow_usage` turn on read (credits first, then tokens); `budget.view` and `budget.receipt` with totals by stage, model and attempt, priced flags, cap and level, raises, stops, price version and hash, `complete` and `missing` reasons for Crew Mode, remote, Issue Radar and failed reads; batch turns shared evenly and marked; `avoozl budget receipt TASK [--json]`; `plans_view` action `receipt`; the retro payload's `receipts`; no prompts or text.
-  - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (`budget.view`, `budget.receipt`, `avoozl budget receipt TASK --json`, `plans_view` action `receipt`, retro `receipts`).
-  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
-- [x] 27.3 Stop at the cap, Raise budget and Stop, after 27.2, 12.8 and 15.4 [R67.6–R67.9, R67.14–R67.18, R67.21] (§4.17)
-  - Check after each usage read and before each dispatch for the task (attempts, verifier, review roles, responders, batch); at a cap record a `budget` stop, dispatch nothing for the task, queue one stop message per live bound session, and answer its Avoozl MCP calls except `plans_report` with `budget_reached`; never stop, interrupt or close a session; one Needs you decision with person-only `budget.raise` (writes `budget_raises`, messages a live session) and `budget.stop` (the Deferred pause); 403 for other callers; no attempt cost; unpriced turns warn once per task and model; unknown spend warns once and never stops; no gate reads the budget.
-  - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (stop and warn modes, 80% warning, `budget_holds`, `budget.raise|stop|acknowledge|switchToStop`); 1112e0e Name the task when a budget call has none.
-  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
-- [x] 27.4 Spend on the page, after 27.3 and 12.11 [R67.2, R67.10, R67.11, R67.19, R67.20] (§4.17)
-  - The drawer's Budget fold after Timing with spend against cap, receipt tables and Export JSON; the `$spent / $cap` chip on the Delivery and In flight cards (muted, red at the cap, "spend unknown"); Settings › Prices marked this computer only, with models from `GET /api/models` and `flow_usage`, the credit price, the version and the unpriced-model notes; budget fields in Settings › General and the repository Edit modal; checked by drawing the page at 375 and 1280 px in light and dark.
-  - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (Budget fold, spend chip, Dashboard over-budget count, Flow marks, Settings › Budgets and › Prices; drawn at 375 and 1280 px, light and dark, in a screenshot harness).
-  - Removed 2026-11-14 (owner): Settings › Prices, the user price list, the credit price, `prices.get`, `prices.save` and the version table's writes. Cost estimates use only the built-in dated list; a saved `prices` key is ignored, not an error. Receipts show the list's date.
-
-- [x] avoozl-p41 P41 Proof: budgets and receipts [R67] (§4.17)
-  - Setup: an isolated temporary workspace with repositories `r1` and `r2`; `.avoozl.json` `budget.usd` 10 and `projects.r2.budget.usd` 4; an approved spec `s1` with manifest `budget.usd` 6, leaves `a1` (leaf `budget.usd` 2), `a2`, `a3`, `a4` and `a5` in `r1`, `b1` in `r2`, `c1` and `c2` (`size: "small"`, leaf `budget.usd` 4 each, one batch), and `d1` (requires `a1`); a machine-local price table version 1 pricing `model-a` at $1 and $2 per million input and output tokens and credits at $0.01; fake workers and a fake usage feed that serves scripted turn rows per slot; a fake Kiro Crew that queues a message sent to a busy session until its turn ends.
-  - Action: (1) tick; read the caps of `a1`, `a2` and `b1`; (2) feed `a1` turns on `model-a` worth $1.50, then a turn worth $0.80 while a tool call is running; tick; (3) from the `a1` session call `plans_run_checks` and `plans_report`; (4) call Raise budget and Stop from an agent session, MCP and the app token; then as the owner press Raise budget to $4; (5) fail `a2` twice so it retries, run its verifier and two review rounds, all on one $6 cap that the second review round crosses; (6) feed `a3` turns from `model-z`, which has no price, past 2,000,000 tokens; feed `a4` credit turns past 200 credits; (7) run `c1` and `c2` as one batch whose turns total $9; (8) bind `a5` to a Crew Mode session and make one usage read for `b1` fail; tick; (9) read the receipt of `a1`, which names the built-in price list's date; (10) export `a1`'s receipt as JSON and from the CLI, and read `plans_view` action `receipt`; run a retro; (11) on `a2` press Stop; (12) put an old `prices` key in `.avoozl.json` (ignored); give `b1` a $100 budget with a content-rule block on its brief and an unpassed proof; (13) give `w1` a $2 cap in `warn` mode and feed $2.50.
-  - Expected: (1) caps are $2, $6 and $4 with their levels; (2) after the read `a1` gets no new session, its session gets one stop message delivered only after the running turn, no stop, interrupt or close call is made, and the receipt shows $2.30 and an overrun of $0.30; (3) `plans_run_checks` answers `budget_reached` and `plans_report` is accepted; `a1` is in Needs you with Raise budget and Stop and has not lost an attempt; (4) the three callers get 403; the owner's raise is recorded with who, from, to and the price version, `a1`'s live session gets one go-on message, and `d1` waits for `a1` as before; (5) the retries, verifier and reviews add up on one receipt, and no third review round is dispatched; (6) `a3` and `a4` each warn once, stop at their token or credit cap, and show unpriced lines; (7) the batch stops at its $8 sum cap and each task's receipt shows half of the shared turns; (8) `a5` and `b1` show spend unknown with their reasons, keep running, and `b1` keeps its last known spend with its time; (9) the receipt shows dollars from the newest version and names it, and the stop and raise keep their version-1 dollars; (10) the export, CLI and MCP give the same object, it holds no prompt or transcript text, and the retro payload has `a1`'s totals by stage and model; (11) `a2` pauses like Deferred, its session and worktree are untouched, and its dependents wait; (12) validation refuses the file and names the key, and `b1`'s budget does not open its content gate or skip its proof; (13) `w1` is never stopped or messaged, shows Over budget $2.50 of $2.00 on its card and one Needs you item, appears on Flow as over budget, and counts on the Dashboard.
-  - Failure means: a task can spend past its cap without a person, a stop ends a running turn, or a budget opens a gate.
-  - Next decision: stop by closing the session instead of by message, or cap by tokens instead of dollars.
-  - Built: dbdad6c `src/app/test/proof-p41.test.mjs` passes (steps 1-12 plus 13, warn mode).
-  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
+- [x] 27.1 Retired
+- [x] 27.2 Retired
+- [x] 27.3 Retired
+- [x] 27.4 Retired
+- [x] avoozl-p41 Retired
 
 ## Phase 28: Retro prompt and skill proposals, and lessons
 
@@ -1255,26 +1231,14 @@ retro model.
 - [x] 28.4 Prompt and skill versions on attempts and PDCA, after 28.3 and 12.10 [R68.12, R68.13] (§4.18)
   - Attempts record `prompts` and `skills` (tool calls first, then the report's optional `skills`); receipt and Timing fold show them; PDCA per version with the "mixed" mark; revert proposals for prompt and skill changes.
   - Built: `a0a0771` (prompt version stamped at bind, skills from `plans_report` `skills`; Timing fold `versions`). Skills from tool-call reads are not wired: only report-listed skills are recorded.
-- [x] 28.5 Lessons store, write and read, after 28.2 and 12.10 [R69.1–R69.6, R69.9, R70.1] (§4.18)
-  - Removed 2026-11-15 (#228): the lessons store. `src/app/lessons.mjs` and `lessons-share.mjs` are deleted. `src/app/lessons-export.mjs` appends a workspace's stored lessons once to its steering rules file and drops the tables. The lessons parts of 28.6–28.9 (packs, healing, the Lessons view, sharing) went with it; the `lessons` plugin part now does nothing; Proposals stay.
-  - `~/.config/avoozl/lessons.sqlite` with the fields and `context`; written on approve as `untested`, updated by PDCA; summary-only validation and the `lesson` boundary on write and use; fixed trait list; the brief's 10 ranked lessons and the "did not work" list; cited IDs checked; `flow.lessons.share` and `read` per workspace; untested expiry; the raw store never in a repository or GitHub.
-  - Built: `a0a0771` (`src/app/lessons.mjs`, `~/.config/avoozl/lessons.sqlite`).
-- [x] 28.6 Lessons packs and export, after 28.5 and 16.3 [R69.7, R69.8, R70.6] (§4.18, §4.14)
-  - Bundle part `lessons` with `avoozl-lessons.json`; `plugin.lessons.preview` and person-only `plugin.lessons.import {previewHash}`; read-only imported lessons named by plugin and version; a new pack version marks changed lessons and retires removed ones; person-only `lessons.export` through the content rules.
-  - Built: `a0a0771` (bundle part `lessons`, `plugin.lessons.preview`, `plugin.lessons.import`, `lessons.export`).
-- [x] 28.7 Healing, after 28.5 and 28.4 [R70.2–R70.5] (§4.18)
-  - Drift checks at each retro and on read; confidence steps; `stale` and `needs re-check` marks that clear on confirmation, all in `history`; marked lessons left out of the citable list; the lessons review every `reviewEvery` retros with `lessonEdits` for a person; no delete; override drift at backend start with the three-way diff, a merged rebase proposal, the override kept with a warning, and locked sections always from the new text.
-  - Built: `a0a0771` (`healLessons`, `confirmLesson`, lessons review, override drift computed on read with `merge3`). The model list comes from the `kirocrew.models` cache, which nothing fills yet, so the model trigger is tested against fakes only.
-- [x] 28.8 Proposals and Lessons views and Settings, after 28.7, 28.6, 12.11 and 12.12 [R68.14, R69.10, R70.7] (§4.18, §8.4)
-  - Moved 2026-11-17 (#468): Retros and Proposals are pages of the Retros nav pill, no longer tabs of Flow. The Lessons view is removed (28.5).
-  - Flow views Overview, Proposals (diffs, evidence, cited lessons, Approve and Reject, prompt versions with Revert, the three-way diff) and Lessons (filters for pattern, outcome, source and state; confidence, last confirmed, stale reason, History); Settings › Flow › Lessons with the two switches and three numbers; checked by drawing the page at 375 and 1280 px in light and dark.
-  - Built: `b6ea704`, `a66ce80` (`FlowMemory.tsx`, Settings › Flow › Lessons, plugin card pack and notes); drawn at 375 and 1280 px, light and dark, in a harness with fake data.
+- [x] 28.5 Retired (lessons store)
+- [x] 28.6 Retired (lessons store)
+- [x] 28.7 Retired (lessons store)
+- [x] 28.8 Retired (lessons store)
 
-- [x] 28.9 Share chosen lessons, after 28.8 [R69.1, R69.11–R69.15] (§4.18)
-  - Share candidates in the Lessons view (kept, unmarked, own; evidence, fit, confidence) with why; person-only `lessons.share.preview` and `lessons.share {ids, previewHash}`; summaries-only pack file `.avoozl/lessons.json` merged by ID, content rules at `lesson` and `github`; a branch, commit and pull request to the plans repository (plans-repo) or code repository (single-repo), a commit only when GitHub cannot be reached; Local only shares nowhere; `lessons.export {raw: true}` for the driver export of 26.2.
-  - Built: `fefae29`, PR #17 (`src/app/lessons-share.mjs`, `lessons.share.preview`, `lessons.share`; `src/app/test/lessons-share.test.mjs`).
+- [x] 28.9 Retired (lessons store)
 
-- [ ] avoozl-p42 P42 Proof: prompt and skill proposals, and lessons [R68, R69, R70] (§4.18)
+- [ ] avoozl-p42 P42 Proof: prompt and skill proposals [R68] (§4.18)
   - Setup: isolated temporary workspaces `W1` and `W2` with a fake config directory, each with one repository (`W1`'s with `.kiro/skills/tests/SKILL.md`), declared check `npm test`, and an approved spec with leaves `a1`–`a12`; a fake plugin `p1` whose folder has a skill file and a lessons pack version 1; a fake terms file banning `secretword`; fake workers whose reports name the skills they loaded; the fake retro model and a fake model list.
   - Action: (1) finish 10 tasks in `W1` with a scripted low first-pass rate; let the retro propose a `brief.worker` diff, a diff to the `untrusted-data` section, a repository skill diff, a `p1` skill diff, a diff with a stale base, and one with `secretword`; (2) approve all that stand from an agent session, then as the owner; (3) finish 10 more tasks with first-pass rate up; then 10 in which a second override also takes effect; (4) press Revert on `brief.worker`; (5) set `W2`'s traits to match and finish 10 tasks; read `W2`'s retro brief; (6) set `flow.lessons.read` false in `W2` and run its retro; (7) give a lesson's finding a path and an issue number; (8) drop `npm test` from `W1`'s checks, remove a model from the list, and age a kept lesson past 180 days; then confirm it with fresh runs; (9) run the fifth retro and approve a merge of two lessons; (10) change the shipped `brief.worker` steps section under the override, then a locked section; restart the backend; (11) import `p1`'s pack, then pin version 2 with one lesson changed and one removed; (12) export lessons as the owner and from MCP.
   - Expected: (1) the locked, stale and blocked proposals are dropped with their reasons and no matched text; (2) the agent gets 403; the owner's approval writes override version 1 outside the app's files, makes one leaf in `W1`'s repository that integrates the skill change, and puts a note on `p1`'s card with nothing sent; sessions after approval show the override's version, running ones keep theirs; (3) PDCA marks the prompt change helped and its lesson `kept`, and the second window "mixed"; (4) the shipped text returns and the revert is recorded; (5) `W2`'s brief holds `W1`'s kept lesson first with no task ID, path or repository name from `W1`, and the undone one under "did not work"; (6) `W2`'s brief has only its own lessons; (7) the lesson is refused and the proposal still stands; (8) the lesson goes `stale` or `needs re-check` with each reason, leaves the citable list, and clears when confirmed, each step in its history; (9) the merge appears as a diff for a person and the merged-away lesson stays as history; (10) the override is flagged with a three-way diff and a rebase proposal while sessions keep it with a warning, and the locked section's new text is used at once; (11) import shows a preview first and needs the owner; version 2 marks the changed lesson and retires the removed one; (12) the owner's export passes the content rules and MCP gets 403.
@@ -1574,9 +1538,8 @@ the scratch safety proof, with owner minutes, credits and wall-clock per task.
 - [x] 41.5 Prepare from spec working heads and merge landed bases back, after 41.3 [R87.7, R102.6, R102.15] (§4.32)
   - Generalize RC16 from epic-only integration; Prepare and qualified-ref resolution agree on the exact spec base. Merge the landed target back with a merge commit; preserve verified but unlanded portions and unfinished task refs.
 
-- [x] 41.6 Restore the Delivery page, Settings › Budgets and the Files and diff view, after 41.3 [R88.7] (§4.26)
+- [x] 41.6 Restore the Delivery page and the Files and diff view, after 41.3 [R88.7] (§4.26)
   - From ba04389 and 70c2236, updated to the new loop; not Routing; screenshots for the owner.
-  - Removed 2026-11-17 (owner): Settings › Budgets.
 - [ ] 41.8 Nupp AGENTS.md clause for Avoozl-run work, after 41.3 [R91.5, R94.4a] (§4.26)
   - Nupp's AGENTS.md tells agents to rebase, fast-forward merge, push and delete the worktree. Propose a clause for work Avoozl runs: edit, commit nothing (or only locally, as the project config says), and stop; no merge, push or worktree removal. Check the copy on `core-dev`, not only `main`. Proposed as a Nupp change, not made from Avoozl's repository.
 - [ ] 41.7 Nupp setup: `direct` on public `core-dev` with the repository's helper and check, after 41.3 [R91.5] (§4.26)
@@ -1761,9 +1724,8 @@ recovers, and a backend restart mid-run.
   - Whatever the repository's .gitignore says. 47.7 commits through `commitWorkerChanges` (`src/app/git.mjs`); `integrateRun` refuses a branch whose commits touch `.avoozl/` with the paths named; tests in `src/app/test/worker-commit.test.mjs`.
 - [x] 47.8 Per-project command allow-list; `git push` never allowed, after 47.2 [R94.4c] (§4.28)
   - Built: `src/app/harness-allow.mjs` (`sandboxAllowCommands`, `harnessAllow`); tests in `src/app/test/harness-allow.test.mjs`.
-- [x] 47.9 Spend cap from the task budget and the plan-quota stop, after 47.4 [R94.6, R94.6a] (§4.28)
-  - Built: `spendCapUsd` in `src/app/budget.mjs` (dollars left on a stop-mode cap, null for warn mode and uncapped roles) fills `{budget_usd}`, and the supervisor appends the definition's `spendCap`; `planQuotaHold` in `src/app/executors/process.mjs` holds a new `process` session when its model or harness provider reads `low` or `out`, and a spent budget holds it too; tests in `src/app/test/process-executor.test.mjs`. Whether `--max-budget-usd` binds on a plan login is checked by `src/app/test/claude-plan-budget.test.mjs`, which runs only with `AVOOZL_LIVE_CLAUDE_PLAN=1` on a plan login and refuses an API or cloud login; it has not been run on one yet.
-  - Removed 2026-11-17 (owner): `spendCapUsd`, `{budget_usd}`, `spendCap` and the spent-budget hold. The plan-quota stop (`planQuotaHold`) stays; it moves out of the budget code.
+- [x] 47.9 Plan-quota stop, after 47.4 [R94.6a] (§4.28)
+  - Built: `planQuotaHold` stops new sessions when plan quota runs low.
 - [x] 47.10 Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted, after 47.2 [R95.6, R95.7] (§4.28)
   - Kiro Crew chats: the docs and Settings say the person-only refusal is a speed bump.
   - Built: `src/app/sandbox.mjs` (`sandbox-exec` on macOS, `bwrap` on Linux, else the per-machine opt-in), wrapped around each child in `src/app/supervisor.mjs`; text in `docs/policies.md` and Settings › Models; tests in `src/app/test/sandbox.test.mjs`.
