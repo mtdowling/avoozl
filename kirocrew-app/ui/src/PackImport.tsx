@@ -16,7 +16,7 @@ import {
   type PluginRow,
 } from './plugins-api.ts'
 import { errorMessage } from './workspace-api.ts'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Checkbox } from './ui/Checkbox'

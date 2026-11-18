@@ -93,7 +93,7 @@ test('the full-file reader is a trapped, closable modal over the page', () => {
   // The cited lines stay marked; no flash.
   assert.match(reader, /markCited\(root, target\.lineStart, target\.lineEnd, still\)/)
   assert.doesNotMatch(reader, /FLASH_MS|el\.animate/)
-  assert.match(readFileSync(new URL('../src/Modal.tsx', import.meta.url), 'utf8'), /narrow\s*\? \{ width: '100%', height: '100%'/)
+  assert.match(readFileSync(new URL('../src/ui/Modal.tsx', import.meta.url), 'utf8'), /narrow\s*\? \{ width: '100%', height: '100%'/)
   // The drawer opens it from the path link, Open full file and the excerpt.
   assert.match(drawer, /data-origin-path/)
   assert.equal((drawer.match(/setFull\(/g) ?? []).length >= 2, true)
