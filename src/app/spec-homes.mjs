@@ -64,8 +64,10 @@ export async function readPrivateSpecs(source, mirror, head = null) {
       const base = `${specsRoot}${name}`,
         read = {};
       for (const file of FILES)
-        if (texts.has(file)) read[file] = texts.get(file);
+        if (file !== MANIFEST && texts.has(file)) read[file] = texts.get(file);
       return {
+        // Not read and not hashed: lint says to delete it.
+        ...(texts.has(MANIFEST) ? { leftover: true } : {}),
         name,
         home: "plansBranch",
         repository: mirror.mirror,

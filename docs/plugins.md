@@ -88,8 +88,8 @@ export const route = {
 
 ## The `gate` part
 
-A tracker gate is a task whose manifest entry has `completion: "tracker"` and
-a `tracker` reference: `{ "plugin": "<id>", "item": "<id or URL>", "done":
+A tracker gate is a task whose facts have `completion: tracker` and a
+`tracker` reference, one line of JSON: `{ "plugin": "<id>", "item": "<id or URL>", "done":
 "<what counts as done, in plain words>" }`. No crew builds it. Avoozl reads
 the outside item through the plugin and releases the tasks that require the
 gate when the plugin says `done`.
@@ -251,7 +251,7 @@ computer, its `config` holds no machine path: name an environment variable
 
 ## Route kind
 
-A task whose manifest entry says `"route": "plugin:<id>"` is delivered by
+A task whose facts say `route: plugin:<id>` is delivered by
 that route instead of a local worker session. One graph can mix routes, for
 example a local leaf, then a remote one, then a local one.
 
@@ -430,7 +430,6 @@ templates/sdk-rewrite/
   starter/requirements.md
   starter/design.md
   starter/tasks.md
-  starter/avoozl/manifest.json
 ```
 
 `avoozl-template.json` holds:
@@ -454,7 +453,7 @@ typed. The plugin shows as invalid, naming the key or file, when:
 - a key or input setting is unknown, or an input ID is used twice;
 - a file uses a placeholder that is no input ID;
 - the starter, with sample values put in, does not lint clean;
-- `phases` does not match the starter's headings or manifest `phase` values;
+- `phases` does not match the starter's headings or `phase` facts;
 - `pack` or `flow` fails its own check.
 
 A template is offered only while its plugin is approved on this computer.
