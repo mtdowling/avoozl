@@ -31,8 +31,8 @@ import { fail } from "./store.mjs";
 
 export const FIX_KIND = "conflict-fix";
 export const FIX_ROLE = "conflict-fix";
-// Files, git and the repository's checks, plus plans_conflict_check and
-// plans_conflict_report (kirocrew-app/agents/avoozl-conflict-fix.json).
+// Files, git and the repository's checks, plus plans_session (action: conflict_check) and
+// plans_session (action: conflict_report) (kirocrew-app/agents/avoozl-conflict-fix.json).
 export const FIX_AGENT = "avoozl-conflict-fix";
 const KEY = "radarConflictFix";
 const MERGE = "radarMerge";
@@ -357,13 +357,13 @@ export async function dropCheck({ cwd, head, explained = [] }) {
   return { ok: missing.length === 0, commit, files: both, missing };
 }
 
-// `conflictfix.check` (plans_conflict_check): the bound chat's drop check.
+// `conflictfix.check` (plans_session (action: conflict_check)): the bound chat's drop check.
 export async function checkConflictFix(store, input = {}, caller) {
-  const receipt = ownReceipt(store, caller, "plans_conflict_check");
+  const receipt = ownReceipt(store, caller, "plans_session (action: conflict_check)");
   for (const key of Object.keys(input || {}))
     if (!["cwd", "explained"].includes(key))
       fail(
-        `plans_conflict_check takes only cwd and explained; ${key} is not allowed.`,
+        `plans_session (action: conflict_check) takes only cwd and explained; ${key} is not allowed.`,
       );
   if (
     typeof input.cwd !== "string" ||
@@ -392,12 +392,12 @@ export async function checkConflictFix(store, input = {}, caller) {
     files: result.files,
     missing: result.missing.slice(0, 200),
     next: result.ok
-      ? `Push with git push origin HEAD:refs/heads/${receipt.branch}, then call plans_conflict_report.`
+      ? `Push with git push origin HEAD:refs/heads/${receipt.branch}, then call plans_session (action: conflict_report).`
       : "Put each missing line back, or explain why it goes, and check again. Do not push.",
   };
 }
 
-// `conflictfix.report` (plans_conflict_report): the bound chat's one result.
+// `conflictfix.report` (plans_session (action: conflict_report)): the bound chat's one result.
 export async function reportConflictFix(
   store,
   github,
@@ -405,7 +405,7 @@ export async function reportConflictFix(
   input = {},
   caller,
 ) {
-  const receipt = ownReceipt(store, caller, "plans_conflict_report"),
+  const receipt = ownReceipt(store, caller, "plans_session (action: conflict_report)"),
     state = readState(store),
     at = new Date().toISOString(),
     key = `${receipt.repository}#${receipt.pr}`,
@@ -418,7 +418,7 @@ export async function reportConflictFix(
   for (const name of Object.keys(input || {}))
     if (!["ok", "commit", "files", "reason"].includes(name))
       fail(
-        `plans_conflict_report takes only ok, commit, files and reason; ${name} is not allowed.`,
+        `plans_session (action: conflict_report) takes only ok, commit, files and reason; ${name} is not allowed.`,
       );
   if (input.ok !== true) {
     const reason = shortText(input.reason, "the reason");

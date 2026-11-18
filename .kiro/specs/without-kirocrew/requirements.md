@@ -160,7 +160,7 @@ without raising the result file's limit, so that a small file stays small.
    Avoozl SHALL refuse a larger one, a second file, a path outside
    `.avoozl/output/`, and a file that is not valid for the role.
 3. Plan review SHALL write its findings and summary this way, with the
-   limits `plans_submit_review` applies to a chat today.
+   limits `plans_review {action: "submit"}` applies to a chat today.
 4. Avoozl SHALL read an output file once, when the child has exited, and
    SHALL treat its text as data.
 

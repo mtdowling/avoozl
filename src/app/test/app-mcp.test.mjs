@@ -51,13 +51,16 @@ async function workspace(dir, name, task, slots) {
   return workspaceRoot;
 }
 
+// name is a tool, or "tool.action" for a grouped tool.
 const call = (id, name, input, sessionKey) => ({
   jsonrpc: "2.0",
   id,
   method: "tools/call",
   params: {
-    name,
-    arguments: { input },
+    name: name.split(".")[0],
+    arguments: name.includes(".")
+      ? { action: name.split(".")[1], input }
+      : { input },
     ...(sessionKey
       ? {
           _meta: {
@@ -117,16 +120,46 @@ test("one pooled MCP process serves two workspaces without mixing them", async (
         clientInfo: { name: "test", version: "1" },
       },
     },
-    call(2, "plans_report", progress("task-a", "A one."), "dashboard:slot-a"),
-    call(3, "plans_report", progress("task-b", "B one."), "dashboard:slot-b"),
-    call(4, "plans_report", progress("task-a", "A two."), "dashboard:slot-a"),
-    call(5, "plans_report", progress("task-b", "Cross."), "dashboard:slot-a"),
-    call(6, "plans_report", progress("task-a", "Anon.")),
-    call(7, "plans_report", progress("task-c", "Cwd."), "dashboard:slot-c"),
-    call(8, "plans_report", progress("task-a-1", "Both."), "dashboard:slot-x"),
-    call(9, "plans_task_sessions", { id: "task-b" }, "dashboard:slot-b"),
-    call(10, "plans_task_sessions", { id: "task-b" }, "dashboard:slot-a"),
-    call(11, "plans_task_sessions", { id: "task-a" }, "cron:job-1"),
+    call(
+      2,
+      "plans_session.report",
+      progress("task-a", "A one."),
+      "dashboard:slot-a",
+    ),
+    call(
+      3,
+      "plans_session.report",
+      progress("task-b", "B one."),
+      "dashboard:slot-b",
+    ),
+    call(
+      4,
+      "plans_session.report",
+      progress("task-a", "A two."),
+      "dashboard:slot-a",
+    ),
+    call(
+      5,
+      "plans_session.report",
+      progress("task-b", "Cross."),
+      "dashboard:slot-a",
+    ),
+    call(6, "plans_session.report", progress("task-a", "Anon.")),
+    call(
+      7,
+      "plans_session.report",
+      progress("task-c", "Cwd."),
+      "dashboard:slot-c",
+    ),
+    call(
+      8,
+      "plans_session.report",
+      progress("task-a-1", "Both."),
+      "dashboard:slot-x",
+    ),
+    call(9, "plans_task.sessions", { id: "task-b" }, "dashboard:slot-b"),
+    call(10, "plans_task.sessions", { id: "task-b" }, "dashboard:slot-a"),
+    call(11, "plans_task.sessions", { id: "task-a" }, "cron:job-1"),
   ]);
 
   assert.deepEqual(
@@ -181,7 +214,7 @@ test("without a launch workspace, an unbound caller is refused, not served from 
   const dir = temporaryDirectory("avoozl-pooled-"),
     cwd = await workspace(dir, "cwd", "task-c", []);
   const replies = serve(dir, cwd, [
-    call(1, "plans_task_sessions", { id: "task-c" }, "dashboard:slot-z"),
+    call(1, "plans_task.sessions", { id: "task-c" }, "dashboard:slot-z"),
   ]);
   assert.equal(replies.get(1).result.isError, true);
   assert.match(text(replies.get(1)), /no workspace for this session/);

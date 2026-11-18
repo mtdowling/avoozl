@@ -13,7 +13,7 @@ import {
   cancelSetup,
   githubSetup,
 } from "../github-setup.mjs";
-import { WORKSPACE_TOOLS } from "../mcp.mjs";
+import { groupedCall } from "../mcp-tools.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
 
@@ -865,7 +865,10 @@ test("github.setup runs through Operations and its proposal saves through Settin
   const again = await ops.execute("github.setup", PLANS);
   assert.equal(again.nothingToChange, true);
   assert.equal(again.settings.changed, false);
-  assert.ok(WORKSPACE_TOOLS.some((tool) => tool.name === "plans_github_setup"));
+  assert.equal(
+    groupedCall("plans_github", { action: "setup_preview" }).operation,
+    "github.setup",
+  );
 });
 
 test("Cancel during apply stops before the next write and reports the rest", async () => {

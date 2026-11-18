@@ -13,7 +13,7 @@
 // unbound session cannot pick a workspace of its own. A request without a caller
 // block (a script cron spawns its own copy of this server) still runs. It takes
 // the cron's key from KIROCREW_SESSION_KEY (withCronCaller); with neither, it
-// has no caller, so tools that need an identity, such as plans_report, refuse it.
+// has no caller, so tools that need an identity, such as plans_session report, refuse it.
 import fs from "node:fs";
 import { workspaceConfig } from "./config.mjs";
 import { loadHostConfig, machineAvoozlPaths } from "./host-config.mjs";
@@ -41,15 +41,15 @@ const rpcError = (id, message, code = -32603) => ({
   error: { code, message },
 });
 
-// The avoozl-tick cron's call: plans_tick (or plans_maintain tick) marked cron.
+// The avoozl-tick cron's call: plans_maintain tick marked cron.
 function cronTick(message) {
   if (message.method !== "tools/call") return false;
   const { name, arguments: args } = message.params || {};
   const input = args?.input;
   return (
     input?.cron === true &&
-    (name === "plans_tick" ||
-      (name === "plans_maintain" && args.action === "tick"))
+    name === "plans_maintain" &&
+    args.action === "tick"
   );
 }
 

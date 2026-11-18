@@ -162,7 +162,7 @@ else if (/^You are an Avoozl Reviewer/.test(text)) {
   const tries = [["P59-RO-PROBE", "here"], [${JSON.stringify(P.outside)}, "outside"]].map(([f, w]) => { try { fs.writeFileSync(f, "x"); return w + " ALLOWED"; } catch (e) { return w + " REFUSED " + e.code; } });
   done({ verdict: "approved", findings: [{ id: "F1", kind: "observation", paths: ["notes/one.txt"], text: tries.join("; ") }], closures: [] });
 } else if (/"report": <the reply object>/.test(text)) done({ bottleneck: { stage: "code", evidence: "fake retro" }, proposals: [] });
-else if (/skip plans_create_plan/.test(text)) { /* the planner writes no spec in plumbing runs */ }
+else if (/skip plans_plan (action: create)/.test(text)) { /* the planner writes no spec in plumbing runs */ }
 else { fs.mkdirSync("notes", { recursive: true }); fs.writeFileSync("notes/one.txt", "alpha\\n"); done(); }
 `;
 

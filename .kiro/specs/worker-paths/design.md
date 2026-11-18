@@ -193,7 +193,7 @@ with them; `requirements.md` records the approval.
 
 - The executor interface of R93.1 and the two executors.
 - Avoozl running the checks on the exact commit, and landing (R86, R87).
-- `plans_report` for the roles that are not the worker.
+- `plans_session {action: "report"}` for the roles that are not the worker.
 - Issue Radar intake and its views. A search of every `radar-*`, intake,
   public-crews, review-draft and mirror module finds no import of `runner`,
   `remote-runner`, `crews` or `handback` (A: from one search, not rerun for

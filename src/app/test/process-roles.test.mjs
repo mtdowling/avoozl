@@ -99,7 +99,10 @@ test("a role child's brief holds its prompt, the brief, and how it finishes", ()
     /^You are an Avoozl Reviewer/,
   );
   assert.match(processBrief("retro", "x"), /"report": <the reply object>/);
-  assert.match(processBrief("planner", "x"), /skip plans_create_plan/);
+  assert.match(
+    processBrief("planner", "x"),
+    /skip plans_plan \(action: create\)/,
+  );
   assert.equal(processBrief("pr-review", "x"), "x", "no prompt for it here");
 });
 

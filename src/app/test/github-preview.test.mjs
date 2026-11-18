@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { WORKSPACE_TOOLS } from "../mcp.mjs";
+import { VIEW_TOOLS, viewToolList } from "../mcp-views.mjs";
 import { ownedIssueInput } from "../github.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
@@ -445,9 +445,13 @@ test("a repository another machine writes is preview-only", async (t) => {
 });
 
 test("plans_project_preview is a read-only MCP tool", () => {
-  const tool = WORKSPACE_TOOLS.find(
+  const tool = viewToolList().find(
     (entry) => entry.name === "plans_project_preview",
   );
   assert.ok(tool);
   assert.equal(tool.annotations.readOnlyHint, true);
+  assert.equal(
+    VIEW_TOOLS.plans_project_preview.operation,
+    "github.project.preview",
+  );
 });

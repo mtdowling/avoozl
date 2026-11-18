@@ -427,7 +427,7 @@ async function retireBatchWorktree(store, project, taskId, branch) {
   });
 }
 
-// plans_prepare_worktree: the task's own worktree on branch avoozl/<task-id>.
+// plans_session (action: worktree): the task's own worktree on branch avoozl/<task-id>.
 // A retry returns the same worktree and writes nothing.
 export async function prepareWorktree(store, input = {}) {
   const task = findTask(store, input.taskId);
@@ -872,7 +872,7 @@ async function checkReview(project, delivery, roleId, commit, payload) {
     fail("A changes-requested verdict needs at least one defect.", 409);
 }
 
-// plans_report: progress, done (with its commit), blocked, or question, from
+// plans_session (action: report): progress, done (with its commit), blocked, or question, from
 // the session bound to the task's newest attempt and from no one else. A Crew
 // Mode conductor relays its worker's result for a binding it claimed: over MCP
 // it names the worker's `slot` and must be the session that claimed it; the
@@ -893,7 +893,7 @@ export async function reportSession(
     // without an identity reads as quiet to the tick.
     store.setMeta(IDENTITY_REFUSED, new Date().toISOString());
     fail(
-      "plans_report needs the calling session's identity from the Kiro Crew gateway, and none came. Kiro Crew sends it only to MCP servers it brokers: the owner turns on sharing for avoozl:avoozl in MCP Management (mcp_gateway.stub_servers), approves it and restarts the gateway. Then report again from this session; do not report from a shell.",
+      "plans_session (action: report) needs the calling session's identity from the Kiro Crew gateway, and none came. Kiro Crew sends it only to MCP servers it brokers: the owner turns on sharing for avoozl:avoozl in MCP Management (mcp_gateway.stub_servers), approves it and restarts the gateway. Then report again from this session; do not report from a shell.",
       403,
     );
   }
@@ -1203,7 +1203,7 @@ function reportEvidence(store, task, binding, report, attached) {
 
 // Worker bindings the delivery pipeline follows, newest attempt per task: the
 // sessions the tick's script cron opened and the ones a Crew Mode conductor
-// claimed. A plain plans_bind_session binding is not a delivery attempt.
+// claimed. A plain plans_session (action: bind) binding is not a delivery attempt.
 const RUNNER_SOURCES = new Set(["tick", "conductor"]);
 function runnerAttempts(bindings) {
   const newest = new Map();
@@ -1277,7 +1277,7 @@ const failuresSince = (delivery, attempts) =>
     .slice(delivery.retryFrom || 0)
     .filter((a) => a.outcome === "failed" && !a.vanished).length;
 
-// plans_retry_delivery: a person resumes a leaf that stopped for a decision.
+// plans_task (action: retry): a person resumes a leaf that stopped for a decision.
 // The next attempt resumes on the same worktree with a fresh retry budget.
 // `dismiss: [{finding, reason}]` closes open review findings by reference;
 // only a person may (R37.6), so a session caller is refused.
@@ -1373,7 +1373,7 @@ export function retryDelivery(
 const quote = (text) =>
   "```text\n" + String(text).replaceAll("```", "'''") + "\n```";
 
-// The last plans_report refused for want of a caller identity. Kiro Crew sends
+// The last plans_session (action: report) refused for want of a caller identity. Kiro Crew sends
 // no identity, so the refusal names no session: any refusal since this
 // binding began is the likely cause of its silence.
 // shortcut: workspace-wide, not per session; per session once Kiro Crew
@@ -1507,7 +1507,7 @@ export function reconcileDeliveries(
           slot: binding.slot,
           title: `${taskId}: its session is gone`,
           text: `${next.cause}. Avoozl cannot tell whether it finished or was lost, so it has not started another.`,
-          resume: `Open the session to check its worktree. To start a new attempt, retry ${taskId} from Conflicts (plans_retry_delivery).`,
+          resume: `Open the session to check its worktree. To start a new attempt, retry ${taskId} from Conflicts (plans_task (action: retry)).`,
         });
         next = { ...next, decisionNotifiedAt: at };
       }
@@ -1519,7 +1519,7 @@ export function reconcileDeliveries(
           slot: last.slot,
           title: `Avoozl stopped on ${taskId}`,
           text: `${taskId} failed ${next.attempts.filter((a) => a.outcome === "failed").length} times. Last cause: ${next.cause || last.cause}.`,
-          resume: `Open the last session to see why. Fix the cause, then ask Avoozl to retry ${taskId} (plans_retry_delivery).`,
+          resume: `Open the last session to see why. Fix the cause, then ask Avoozl to retry ${taskId} (plans_task (action: retry)).`,
         });
         next = { ...next, decisionNotifiedAt: at };
       }
@@ -1552,7 +1552,7 @@ export function reconcileDeliveries(
           messages.push({
             slot: binding.slot,
             task: taskId,
-            text: `Avoozl task ${taskId}: you have not reported a result. Continue the task in its worktree, then call plans_report with kind "done" and the commit SHA, or "blocked" or "question" with the reason.`,
+            text: `Avoozl task ${taskId}: you have not reported a result. Continue the task in its worktree, then call plans_session (action: report) with kind "done" and the commit SHA, or "blocked" or "question" with the reason.`,
           });
           next = {
             ...next,
@@ -1564,7 +1564,7 @@ export function reconcileDeliveries(
             task: taskId,
             slot: binding.slot,
             title: `${taskId} is quiet`,
-            text: `The worker has not reported after ${nudge?.count || 0} nudges. Avoozl will not replace its session.${identityRefusedSince(store, binding) ? " A plans_report was refused because no caller identity came from Kiro Crew: turn on sharing for avoozl:avoozl in MCP Management, approve it and restart the gateway." : ""}`,
+            text: `The worker has not reported after ${nudge?.count || 0} nudges. Avoozl will not replace its session.${identityRefusedSince(store, binding) ? " A plans_session (action: report) was refused because no caller identity came from Kiro Crew: turn on sharing for avoozl:avoozl in MCP Management, approve it and restart the gateway." : ""}`,
             resume:
               "Open the session and tell the worker to continue, or close it to retry.",
           });
@@ -1746,7 +1746,7 @@ export function localSteps(
   project,
   { relay = false, cliReport = null } = {},
 ) {
-  const report = `{"input": {"taskId": "${task.id}", "kind": "done"}}`,
+  const report = `{"action": "report", "input": {"taskId": "${task.id}", "kind": "done"}}`,
     // R88.2: report by command line from the worktree, no MCP sharing needed.
     // The worktree is outside the workspace, so the command names it (P50:
     // without it the CLI looked for a workspace in the worktree).
@@ -1759,17 +1759,17 @@ export function localSteps(
     commit = `2. Edit, run what you like, and commit every change on that branch. ${EDIT_ONLY_STEP}`;
   return relay
     ? [
-        `1. Work only in ${worktreePath(task, project)}, on branch avoozl/${task.id}. Your conductor creates it when it claims this task; if it is missing, call plans_prepare_worktree with {"input": {"taskId": "${task.id}"}}.`,
+        `1. Work only in ${worktreePath(task, project)}, on branch avoozl/${task.id}. Your conductor creates it when it claims this task; if it is missing, call plans_session with {"action": "worktree", "input": {"taskId": "${task.id}"}}.`,
         commit,
-        `3. Call plans_report with ${report} if you have that tool. Otherwise end with a done report, and your conductor records it. If you cannot finish, say why: blocked, or a question.`,
+        `3. Call plans_session with ${report} if you have that tool. Otherwise end with a done report, and your conductor records it. If you cannot finish, say why: blocked, or a question.`,
         MARKERS_STEP(4),
       ]
     : [
-        `1. Call plans_prepare_worktree with {"input": {"taskId": "${task.id}"}} and work only in the worktree it returns, on branch avoozl/${task.id}.`,
+        `1. Call plans_session with {"action": "worktree", "input": {"taskId": "${task.id}"}} and work only in the worktree it returns, on branch avoozl/${task.id}.`,
         commit,
         cliReport
           ? `3. When the work is committed, run exactly: avoozl runner report ${task.id} done --token ${cliReport.token}${where}\n   If you cannot finish, run: avoozl runner report ${task.id} blocked --token ${cliReport.token}${where} --text "<why>"\n   ${cli}`
-          : `3. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
+          : `3. Call plans_session with ${report}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
       ];
 }
 
@@ -1814,7 +1814,7 @@ export function plansRepoSteps(
       ship === "manual"
         ? "Do not turn on auto-merge and do not merge it: a person merges it on GitHub when its checks and reviews pass."
         : "Then turn on auto-merge with a merge method the repository allows: `gh pr merge --auto --squash` (or --merge, --rebase).",
-    report = `{"input": {"taskId": "${task.id}", "kind": "done", "commit": "<full SHA of the merge commit>"}}`;
+    report = `{"action": "report", "input": {"taskId": "${task.id}", "kind": "done", "commit": "<full SHA of the merge commit>"}}`;
   // Stacked on a blocker's open pull request (task 8.2): the pull request
   // starts against the blocker's branch and moves to `base` only after the
   // blocker merged, so it can never merge first. `stack.at` is the blocker
@@ -1834,7 +1834,7 @@ export function plansRepoSteps(
       ];
   const checks = localChecks
     ? [
-        `Local checks first: before each push, commit, then call plans_run_checks with {"input": {"taskId": "${task.id}", "cwd": "<your worktree>"}} (or run \`avoozl checks run --task ${task.id}\` there). Push only when every check passed; the pre-push hook refuses a commit without a recorded pass. Put the returned checks list in your done report.`,
+        `Local checks first: before each push, commit, then call plans_session with {"action": "checks", "input": {"taskId": "${task.id}", "cwd": "<your worktree>"}} (or run \`avoozl checks run --task ${task.id}\` there). Push only when every check passed; the pre-push hook refuses a commit without a recorded pass. Put the returned checks list in your done report.`,
       ]
     : [];
   return [
@@ -1845,8 +1845,8 @@ export function plansRepoSteps(
     "5. Fix failing checks and answer review on that pull request until it merges. To wait on checks, read them with `gh pr checks <number>` once every 2 to 3 minutes; never use `gh pr checks --watch` or a loop that polls faster, because every chat shares one GitHub rate limit. Do not merge it by hand around required checks or reviews. When its base branch moves, merge the base branch into your branch and push; never rebase a pushed branch and never force push.",
     `6. When it has merged, fetch ${base} (\`git -C ${project.root} fetch origin ${base}\`) so its merge commit is in the checkout.`,
     relay
-      ? `7. Then call plans_report with ${report}${localChecks ? " and the checks list" : ""} if you have that tool. Otherwise end with a done report that names the merge commit SHA, and your conductor records it. If you cannot finish, say why: blocked, or a question.`
-      : `7. Then call plans_report with ${report}${localChecks ? " and the checks list" : ""}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
+      ? `7. Then call plans_session with ${report}${localChecks ? " and the checks list" : ""} if you have that tool. Otherwise end with a done report that names the merge commit SHA, and your conductor records it. If you cannot finish, say why: blocked, or a question.`
+      : `7. Then call plans_session with ${report}${localChecks ? " and the checks list" : ""}. If you cannot finish, report kind "blocked" or "question" with text. Report "progress" at milestones.`,
     ...(relay ? [MARKERS_STEP(8)] : []),
   ];
 }
@@ -2743,8 +2743,8 @@ export function reconcileVerifications(
             task: task.id,
             text:
               roleId === "checks"
-                ? `Avoozl verification for ${task.id}: you have not reported a verdict. Run the declared checks on commit ${subject}, then call plans_report with kind "done", the commit and every check's exit code, or "blocked" with the reason.`
-                : `Avoozl review ${roleId} for ${task.id}: you have not reported a verdict. Review commit ${subject}, then call plans_report with kind "done", the commit, your verdict, findings and closures, or "blocked" with the reason.`,
+                ? `Avoozl verification for ${task.id}: you have not reported a verdict. Run the declared checks on commit ${subject}, then call plans_session (action: report) with kind "done", the commit and every check's exit code, or "blocked" with the reason.`
+                : `Avoozl review ${roleId} for ${task.id}: you have not reported a verdict. Review commit ${subject}, then call plans_session (action: report) with kind "done", the commit, your verdict, findings and closures, or "blocked" with the reason.`,
           });
           next = {
             ...withNudge(next, roleId, {
@@ -2793,7 +2793,7 @@ export function reconcileVerifications(
             slot: binding.slot,
             title: `Avoozl refused review ${roleId} on ${task.id}`,
             text: `Commit ${subject.slice(0, 12)}: ${record.cause}.`,
-            resume: `Give review ${roleId} a model Kiro Crew offers that differs from the writer's (.avoozl.json), then ask Avoozl to retry ${task.id} (plans_retry_delivery).`,
+            resume: `Give review ${roleId} a model Kiro Crew offers that differs from the writer's (.avoozl.json), then ask Avoozl to retry ${task.id} (plans_task (action: retry)).`,
           });
       } else if (record.outcome === "protected") {
         // A protected path waits for a person; no writer attempt is spent
@@ -2886,7 +2886,7 @@ export function holdUnprovenReviews(
         slot: next.attempts.at(-1)?.slot,
         title: `Avoozl will not review ${task.id}`,
         text: `Commit ${next.commit.slice(0, 12)}: ${blocked}.`,
-        resume: `Name distinct models (the worker's in Settings › Models and the review role's), or open the writer on a named model, then ask Avoozl to retry ${task.id} (plans_retry_delivery).`,
+        resume: `Name distinct models (the worker's in Settings › Models and the review role's), or open the writer on a named model, then ask Avoozl to retry ${task.id} (plans_task (action: retry)).`,
       });
     store.transaction(() => store.put("task_deliveries", next));
   }
@@ -2929,7 +2929,7 @@ export function verifierBrief(task, project, commit, attempt) {
     checks.length
       ? `2. Confirm \`git rev-parse HEAD\` prints ${commit}. Run each declared check from the worktree root and note its exit code. Then judge whether the commit meets each acceptance line above.`
       : `2. Confirm \`git rev-parse HEAD\` prints ${commit}. Judge whether the commit meets each acceptance line above; read and run what you need.`,
-    `3. Call plans_report with {"input": {"taskId": "${task.id}", "kind": "done", "commit": "<HEAD you checked>", ${checkList}"verdict": "approved" | "changes-requested", "text": "<why, one short paragraph>"}}.${checks.length ? ' List one entry per check, passing or not. A check you could not run (a missing tool, a timeout) is {"command": "<check>", "exitCode": null, "notRun": "<why>"}.' : ""} If you cannot judge it at all, report kind "blocked" with the reason.`,
+    `3. Call plans_session with {"action": "report", "input": {"taskId": "${task.id}", "kind": "done", "commit": "<HEAD you checked>", ${checkList}"verdict": "approved" | "changes-requested", "text": "<why, one short paragraph>"}}.${checks.length ? ' List one entry per check, passing or not. A check you could not run (a missing tool, a timeout) is {"command": "<check>", "exitCode": null, "notRun": "<why>"}.' : ""} If you cannot judge it at all, report kind "blocked" with the reason.`,
     "Do not edit, commit, merge, or push.",
   ]
     .filter((line) => line !== null)
@@ -2946,7 +2946,7 @@ export function reviewBrief(task, project, commit, attempt, role, open) {
       attempt,
     ),
     base = project.baseBranch || "main",
-    report = `{"input": {"taskId": "${task.id}", "kind": "done", "commit": "${commit}", "verdict": "approved" | "changes-requested", "findings": [{"id": "F1", "kind": "defect" | "observation", "paths": ["<repository path>"], "text": "<what and why>"}], "closures": [{"finding": "<reference>", "state": "fixed" | "unchanged", "note": "<why>"}]}}`;
+    report = `{"action": "report", "input": {"taskId": "${task.id}", "kind": "done", "commit": "${commit}", "verdict": "approved" | "changes-requested", "findings": [{"id": "F1", "kind": "defect" | "observation", "paths": ["<repository path>"], "text": "<what and why>"}], "closures": [{"finding": "<reference>", "state": "fixed" | "unchanged", "note": "<why>"}]}}`;
   const own = taskLines(
     task,
     `Avoozl review ${role.id} for task ${task.id}`,
@@ -2966,8 +2966,8 @@ export function reviewBrief(task, project, commit, attempt, role, open) {
     "",
     `1. Run \`git -C ${project.root} worktree add --detach ${worktree} ${commit}\`, and work only there. Confirm \`git rev-parse HEAD\` prints ${commit}.`,
     `2. Review the task's change (\`git diff $(git merge-base ${base} HEAD) HEAD\`) for your focus. Read and run what you need; edit, commit, merge, and push nothing.`,
-    `3. Call plans_report with ${report}.`,
-    'Every finding names at least one path. "approved" lists no defect and leaves none open; "changes-requested" lists at least one defect. Close every open finding below: fixed when the change touched its paths, unchanged when it did not. A defect closed unchanged stays open. If plans_report refuses your verdict, correct it and report again. If you cannot judge the commit, report kind "blocked" with the reason.',
+    `3. Call plans_session with ${report}.`,
+    'Every finding names at least one path. "approved" lists no defect and leaves none open; "changes-requested" lists at least one defect. Close every open finding below: fixed when the change touched its paths, unchanged when it did not. A defect closed unchanged stays open. If plans_session (action: report) refuses your verdict, correct it and report again. If you cannot judge the commit, report kind "blocked" with the reason.',
     ...(open.length
       ? [
           "",
@@ -3401,7 +3401,7 @@ export async function integrateVerified(
         slot: delivery.attempts?.at(-1)?.slot,
         title: `Avoozl could not integrate ${delivery.taskId}`,
         text: `Commit ${delivery.commit.slice(0, 12)}: ${error.message}`,
-        resume: `The work stays on branch avoozl/${delivery.taskId}. Resolve the cause, then ask Avoozl to retry ${delivery.taskId} (plans_retry_delivery).`,
+        resume: `The work stays on branch avoozl/${delivery.taskId}. Resolve the cause, then ask Avoozl to retry ${delivery.taskId} (plans_task (action: retry)).`,
       });
     }
     store.transaction(() => store.put("task_deliveries", next));

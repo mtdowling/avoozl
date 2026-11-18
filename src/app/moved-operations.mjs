@@ -10,9 +10,9 @@ import { sessionUrl } from "./notifications.mjs";
 const SESSIONS =
   "Agent sessions run in Kiro Crew. Steer, answer, interrupt, or resume the task's Kiro Crew session itself.";
 const DISPATCH =
-  "Avoozl no longer starts agents. The tick opens Kiro Crew sessions for ready leaves; ask for one with plans_request_session {taskId, repository, agent}, or run Crew Mode rounds with plans_next and plans_claim_task.";
+  "Avoozl no longer starts agents. The tick opens Kiro Crew sessions for ready leaves; ask for one with plans_session (action: request) {taskId, repository, agent}, or run Crew Mode rounds with plans_view (action: next) and plans_session (action: claim).";
 const BINDINGS =
-  "Kiro Crew sessions are bound to tasks with plans_bind_session; rebuild lost bindings from session titles with plans_rediscover_sessions.";
+  "Kiro Crew sessions are bound to tasks with plans_session (action: bind); rebuild lost bindings from session titles with plans_session (action: rediscover).";
 const RUNTIME = "Kiro Crew owns models, usage, and concurrency.";
 const SAFETY =
   "The andon gate was replaced by repository rule actions: a pause rule label or a move to the Deferred column pauses a GitHub task, and a resume rule or a move out of Deferred resumes it. Kiro Crew stops a running session. To stop new work in a scope by hand, pull the Andon cord with avoozl flow stop.";

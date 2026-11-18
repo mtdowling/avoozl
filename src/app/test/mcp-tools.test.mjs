@@ -107,12 +107,13 @@ test("each grouped tool lists its actions as an enum", async (t) => {
       tool.inputSchema.properties.action.enum,
       Object.keys(GROUPED_TOOLS[tool.name].actions),
     );
-  // Old names stay listed (R24.5) and point at their replacement.
-  const old = tools.find((tool) => tool.name === "plans_update_task");
-  assert.match(
-    old.description,
-    /^Deprecated: use plans_task \{action: "update"\}\./,
+  // The deprecated one-tool-per-operation names are gone (R56.3).
+  assert.deepEqual(
+    tools.filter((tool) => /^Deprecated/.test(tool.description)),
+    [],
   );
+  for (const name of ["plans_update_task", "plans_report", "plans_relay"])
+    assert.ok(!tools.some((tool) => tool.name === name), name);
   assert.match(
     tools.find((tool) => tool.name === "plans_approve_plan").description,
     /^Person only: refused over MCP/,
@@ -269,12 +270,12 @@ test("every MCP name answers an empty input with a clear message", async (t) => 
   assert.equal(settings.structuredContent.scope, "repository");
 });
 
-test("an old plans_* name refuses an input that is not an object", async (t) => {
+test("a single-operation tool refuses an input that is not an object", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store),
     before = store.read().revision;
   for (const input of ["x", [1], 0])
-    for (const name of ["plans_update_task", "plans_capture"]) {
+    for (const name of ["plans_answer_review", "plans_plan_review"]) {
       const result = await call(ops, name, { input });
       assert.equal(result.isError, true, `${name} ${JSON.stringify(input)}`);
       assert.equal(result.content[0].text, "input must be an object.");
@@ -295,16 +296,14 @@ test("the cron's tick with no workspace is a skip, not an error", async () => {
       params: { name, arguments: args },
     });
   try {
-    for (const [name, args] of [
-      ["plans_tick", { input: { cron: true } }],
-      ["plans_maintain", { action: "tick", input: { cron: true } }],
-    ]) {
-      const result = (await call(name, args)).result;
-      assert.equal(result.isError, undefined, name);
-      assert.equal(JSON.parse(result.content[0].text).skipped, true, name);
-    }
+    const result = (
+      await call("plans_maintain", { action: "tick", input: { cron: true } })
+    ).result;
+    assert.equal(result.isError, undefined);
+    assert.equal(JSON.parse(result.content[0].text).skipped, true);
     // Anyone else still hears why nothing ran.
-    const plain = (await call("plans_tick", { input: {} })).result;
+    const plain = (await call("plans_maintain", { action: "tick", input: {} }))
+      .result;
     assert.equal(plain.isError, true);
     assert.match(plain.content[0].text, /has no workspace/);
   } finally {

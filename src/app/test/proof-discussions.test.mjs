@@ -2,7 +2,7 @@ import { nativeDispatch } from "./executor-fixture.mjs";
 // Proof for task 8.2, Discussions answering (R27.13), against a fake GitHub.
 // Off by default: only a repository whose policy names
 // `discussions.categories` is read. One responder per discussion snapshot,
-// one screened reply through plans_post_reply, authors checked like
+// one screened reply through plans_session reply, authors checked like
 // trigger actors.
 import assert from "node:assert/strict";
 import fs from "node:fs";

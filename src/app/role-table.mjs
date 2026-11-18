@@ -29,10 +29,10 @@ function allowedShell(allowCommands) {
 }
 
 const verdictFinish = (allowCommands) => [
-  "You run without Avoozl's tools, so these steps replace the worktree and plans_report steps above.",
+  "You run without Avoozl's tools, so these steps replace the worktree and plans_session (action: report) steps above.",
   "1. Avoozl already added the detached worktree at the commit: it is the current folder. Do not run git worktree add, and read only there.",
   allowedShell(allowCommands),
-  '2. Instead of calling plans_report, write .avoozl/result.json in the current folder: {"state": "done", "report": {<every field of the plans_report input except taskId and commit>}}, or {"state": "blocked", "text": "<why>"} if you cannot judge the commit. Avoozl reads the commit from the folder itself.',
+  '2. Instead of calling plans_session (action: report), write .avoozl/result.json in the current folder: {"state": "done", "report": {<every field of the plans_session (action: report) input except taskId and commit>}}, or {"state": "blocked", "text": "<why>"} if you cannot judge the commit. Avoozl reads the commit from the folder itself.',
   RESULT_LIMIT,
 ];
 
@@ -89,7 +89,7 @@ export const ROLE_TABLE = Object.freeze({
     folder: "spec",
     hands: "folder",
     finish: () => [
-      "You run without Avoozl's tools. Write the spec folder's files as above, but skip plans_create_plan, plans_save_plan and every other plans_* call: Avoozl stores the folder once it lints clean. Then exit.",
+      "You run without Avoozl's tools. Write the spec folder's files as above, but skip plans_plan (action: create), plans_plan (action: save) and every other plans_* call: Avoozl stores the folder once it lints clean. Then exit.",
     ],
   },
   retro: {

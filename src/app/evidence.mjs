@@ -8,7 +8,7 @@
 // saved; a blocked entry is saved redacted, never with the matched text.
 //
 // Avoozl adds to it as the task runs; the worker attaches screenshots or
-// video through plans_report `evidence`. The drawer reads it through
+// video through plans_session (action: report) `evidence`. The drawer reads it through
 // `task.evidence`, and on GitHub one comment per pull request, found again
 // by its marker, holds the text summary and is updated in place.
 import { createHash } from "node:crypto";

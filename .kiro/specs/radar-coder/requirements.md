@@ -936,14 +936,14 @@ refusal; checked live in proof rc-p20).
    chat (Avoozl's reviewer role for pull requests, agent `avoozl-review-draft`)
    per label add, on the head commit at that time. The chat SHALL read the pull request, its
    files and the linked issues with read-only `gh` commands, and SHALL have one
-   way to GitHub: `plans_post_review_draft`. It SHALL NOT edit files, push,
+   way to GitHub: `plans_session {action: "review_draft"}`. It SHALL NOT edit files, push,
    label, comment, approve, request changes or submit.
-4. `plans_post_review_draft` SHALL take the calling chat's binding, never an
+4. `plans_session {action: "review_draft"}` SHALL take the calling chat's binding, never an
    input, to pick the pull request. It SHALL create a GitHub review with no
    `event` (a pending review) on the head commit the brief named, with a body
    and line comments (`path`, `line`, optional `start_line` and `side`). It
    SHALL screen the body and every comment with the reply screen and content
-   rules (as `plans_post_reply` does) and post nothing when a screen refuses.
+   rules (as `plans_session {action: "reply"}` does) and post nothing when a screen refuses.
    A GitHub refusal (for example a line outside the diff) SHALL be returned to
    the chat with nothing posted, so it can fix and call again. It SHALL post
    at most one draft per request.

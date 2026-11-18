@@ -607,6 +607,6 @@ Round: ${round}
 
 Return only material facts. Give every task a stable taskLocalId and use that value in acceptance relatesTo fields and dependency endpoints. Every stated or inferred fact must quote one exact, unique passage from the supplied design. Never invent missing acceptance criteria: report them as absent facts. Inferred facts require reasoning. Do not approve, edit, or publish the design.
 
-Use plans_submit_extraction once with:
+Use plans_review (action: submit_extraction) once with:
 {"input":{"extractionId":"${extraction.id}","revisionHash":"${plan.hash}","facts":[{"kind":"task|acceptance|dependency|constraint|resource|decision|non-goal|risk|rollout|validation","taskLocalId":"stable ID on task facts","text":"derived statement","quote":"exact unique passage, omitted only for absent","derivation":"stated|inferred|absent","reasoning":"required for inferred","relatesTo":"taskLocalId or relationship object using taskLocalIds","dependencyKind":"requires|sequence|supports"}],"complete":false}}`;
 }

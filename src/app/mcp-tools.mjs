@@ -137,7 +137,10 @@ const tools = {
         "plan.save",
         "reload a spec folder as the next draft: {id, expectedHash}",
       ],
-      propose: ["plan.propose", "propose adjacent work as a draft"],
+      propose: [
+        "plan.propose",
+        "propose adjacent work as a draft, not executable until approved",
+      ],
       classify: ["plan.classify", "set plan metadata"],
       archive: ["plan.archive", "archive a plan: holds its open tasks"],
       unarchive: ["plan.unarchive", "undo archive"],
@@ -277,42 +280,6 @@ const tools = {
       ],
     },
   },
-  plans_relay: {
-    summary:
-      "Retired compatibility tool. Every action refuses with an explanation that the Remote relay was removed; use Avoozl worker sessions instead.",
-    actions: {
-      register: [
-        "relay.call",
-        "retired: the Remote relay was removed",
-        (input) => ({ ...input, step: "register" }),
-      ],
-      pending: [
-        "relay.call",
-        "retired: the Remote relay was removed",
-        (input) => ({ ...input, step: "pending" }),
-      ],
-      brief: [
-        "relay.call",
-        "retired: the Remote relay was removed",
-        (input) => ({ ...input, step: "brief" }),
-      ],
-      opened: [
-        "relay.call",
-        "retired: the Remote relay was removed",
-        (input) => ({ ...input, step: "opened" }),
-      ],
-      refused: [
-        "relay.call",
-        "retired: the Remote relay was removed",
-        (input) => ({ ...input, step: "refused" }),
-      ],
-      reply: [
-        "relay.call",
-        "retired: the Remote relay was removed",
-        (input) => ({ ...input, step: "reply" }),
-      ],
-    },
-  },
   plans_conflicts: {
     summary:
       "Conflicts and open decisions. Choosing a GitHub conflict winner is a person's, in the app.",
@@ -332,7 +299,10 @@ const tools = {
     summary:
       "A person's requests, saved searches, and incoming items from intake sources. Items submitted here are listed and may meet only pause and quarantine rules; Plan this and Deliver this are a person's, in the app.",
     actions: {
-      capture: ["task.capture", "record a person's own request as untriaged"],
+      capture: [
+        "task.capture",
+        "record a person's own request as untriaged. Not a channel for work an agent discovered: use plans_plan propose",
+      ],
       submit: ["intent.submit", "submit an intent"],
       get: ["intent.get", "read an intent"],
       search_result: ["search.result", "keep a search result as a saved view"],

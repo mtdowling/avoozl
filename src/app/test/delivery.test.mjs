@@ -93,7 +93,7 @@ function age(store, slot, minutes) {
   store.put("session_bindings", { ...binding, boundAt: at, statusAt: at });
 }
 
-test("plans_prepare_worktree gives a leaf one worktree on avoozl/<task-id>, again on retry", async (t) => {
+test("plans_session worktree gives a leaf one worktree on avoozl/<task-id>, again on retry", async (t) => {
   // Nearby inputs: retry with the worktree present (no write), retry after the
   // worktree was removed (same branch, commits kept), an unknown task, an epic,
   // a leaf with no checkout, a foreign directory at the path, and the branch
@@ -263,8 +263,11 @@ test("the caller identity is read only on the app's stdio MCP transport", async 
     id: 1,
     method: "tools/call",
     params: {
-      name: "plans_report",
-      arguments: { input: { taskId: "a", kind: "progress", text: "Hi." } },
+      name: "plans_session",
+      arguments: {
+        action: "report",
+        input: { taskId: "a", kind: "progress", text: "Hi." },
+      },
       _meta: { "kirocrew.caller": meta },
     },
   });
@@ -353,7 +356,7 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
       brief: undefined,
     },
   );
-  assert.match(intent.brief, /plans_prepare_worktree/);
+  assert.match(intent.brief, /"action": "worktree"/);
   assert.match(intent.brief, /runner report urgent findings --file/);
 
   // A per-repository concurrency is old input: accepted and ignored (R6.3).

@@ -1700,7 +1700,7 @@ reconstruct it.
    span SHALL record its stage, start, end, task, attempt, session role, and
    the source it came from.
 3. Spans SHALL come from events Avoozl already sees: readiness, dispatch,
-   session status, `plans_report` reports, verifier and review results,
+   session status, `plans_session {action: "report"}` reports, verifier and review results,
    GitHub check-run and review times, retries, and integration or merge.
    Avoozl SHALL NOT add a poller, webhook, or listener for timing
    (Requirement 26).
@@ -1711,7 +1711,7 @@ reconstruct it.
    `commands`, and the rest as `coding`.
 5. WHERE tool calls cannot be read (a Crew Mode worker, a remote session, or
    a Kiro Crew without that read) THEN Avoozl SHALL use the phase markers a
-   worker sends with `plans_report` `progress` (`phase`: `coding`, `tests`,
+   worker sends with `plans_session {action: "report"}` `progress` (`phase`: `coding`, `tests`,
    `commands`, or `ci-wait`), and SHALL count unmarked worker time as
    `coding`. Every span SHALL name which of the three sources (tool calls,
    phase markers, or events) it came from, so a coarse number never reads
@@ -2588,10 +2588,11 @@ nothing a person must decide can be done from a chat.
    (Changed 2026-11-13: marking a manual task done or reopening it, and
    editing, removing or showing a task's links and notes on its issue, are
    person only too, Requirement 61.13 and 61.22.)
-3. The older `plans_*` names SHALL stay listed and working, each
-   description starting with `Deprecated:` and naming its replacement.
-   They stay listed because a session's client calls only the tools it was
-   shown, although the gateway forwards a call to an unlisted name.
+3. (Changed 2026-11-18, owner decision.) The older one-tool-per-operation
+   `plans_*` names, the moved-operation stubs, `plans_relay` and
+   `plans_andon_*` SHALL NOT be listed or answered. Agents, prompts and
+   briefs SHALL name only registered tools, and a test SHALL fail when one
+   names a tool that is not registered.
 4. A session MAY archive and unarchive a plan, and the record SHALL name
    the session. This replaces Requirement 51.1.
 5. A grouped tool that keeps an old read-only name SHALL stay read only, so
@@ -3606,7 +3607,7 @@ do not build on a wrong reading of the task.
 #### Acceptance criteria
 
 1. WHEN a leaf is dispatched and investigation applies THEN its worker SHALL
-   first report findings through `plans_report` kind `findings`: what it
+   first report findings through `plans_session {action: "report"}` kind `findings`: what it
    read, the cause or approach it believes, the change it plans, how it will
    check it, and a confidence of `low`, `medium` or `high`. It SHALL NOT
    change files in this step.
@@ -3644,7 +3645,7 @@ reading the chat.
    runs: findings and the falsifier's reply (Requirement 75), decisions and
    who answered them, review verdicts, check results with the tail of each
    failing log, and files the worker attaches (screenshots or video) through
-   `plans_report` field `evidence`.
+   `plans_session {action: "report"}` field `evidence`.
 2. The bundle SHALL be stored locally under the workspace's `.avoozl/local/`
    folder, never in a tracked file, and SHALL pass the content rules and the
    secret screen before it is saved. An attached file SHALL be at most 20 MB
@@ -4157,7 +4158,7 @@ instead of a stuck chat.
    in its brief, as runner mode does. The earlier claim that an ordinary
    local worker already skips Kiro Crew's project folder and MCP sharing was
    wrong: only runner mode did (`src/app/remote-runner.mjs`); a local worker
-   used `leaf.project` and `plans_report` needed MCP sharing.
+   used `leaf.project` and `plans_session {action: "report"}` needed MCP sharing.
 4. WHEN Kiro Crew reports a worker chat gone THEN Avoozl SHALL open one new
    chat in the same worktree with the same brief and the last report
    quoted as data. A second vanish of the same task SHALL go to Needs you.
@@ -4622,7 +4623,7 @@ per role (`planner`, `driver`, `retro`, `reviewDraft`) in
 `src/app/chat-models.mjs`; a role left out or `auto` runs on its agent's own
 model. The only check on another model today is the falsifier
 (Requirement 75), which runs only for Avoozl's own workers. Plan review
-threads (`review_threads`, `plan.review.submit`, `plans_submit_review` in
+threads (`review_threads`, `plan.review.submit`, `plans_review {action: "submit"}` in
 `src/app/plan-reviews.mjs`) are already keyed by plan and revision hash,
 and a run bound to a review may submit only for its own plan revision.
 
@@ -4693,7 +4694,7 @@ and a run bound to a review may submit only for its own plan revision.
     revision; `--start` SHALL start one (a person only, as Review anyway
     does), and `--json` SHALL print it as JSON. The planner SHALL read
     findings through an MCP tool and answer them through another; the
-    reviewer SHALL submit through `plans_submit_review`.
+    reviewer SHALL submit through `plans_review {action: "submit"}`.
 12. Each reviewer and planner-answer chat SHALL count in Flow under
     **Planning** for its spec: time and usage by role and model. These
     SHALL NOT count toward any task's flow time.

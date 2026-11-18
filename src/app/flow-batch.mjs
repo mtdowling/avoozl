@@ -223,8 +223,8 @@ export function batchBrief(store, data, leaf, brief) {
         task.summary ? `   Summary: ${task.summary}` : null,
       ]),
       "",
-      `Work only in the worktree of ${leaf.task.id} (call plans_prepare_worktree with {"input": {"taskId": "${leaf.task.id}"}}), on its branch.`,
-      'Do the tasks in this order. Make exactly one commit per task, and after each commit call plans_report for that task with kind "done"; Avoozl reads the commit from HEAD. If one task cannot be done, report it blocked with the reason and stop.',
+      `Work only in the worktree of ${leaf.task.id} (call plans_session with {"action": "worktree", "input": {"taskId": "${leaf.task.id}"}}), on its branch.`,
+      'Do the tasks in this order. Make exactly one commit per task, and after each commit call plans_session (action: report) for that task with kind "done"; Avoozl reads the commit from HEAD. If one task cannot be done, report it blocked with the reason and stop.',
       EDIT_ONLY_STEP,
       "Avoozl runs the checks and review once, on the last commit.",
     ].filter((line) => line !== null);

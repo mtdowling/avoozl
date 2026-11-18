@@ -198,7 +198,6 @@ const EXECUTE = new Set([
   "session.status",
   "session.report",
   "session.send",
-  "relay.call",
   "reply.post",
   "reviewdraft.post",
   "task.summary.request",

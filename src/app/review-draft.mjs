@@ -4,7 +4,7 @@ import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 // Review drafts by label (radar-coder RC20, design D25). A trusted person adds
 // the review label to a pull request; the tick checks that person and that the
 // machine's GitHub login is theirs, then opens one read-only review chat. The
-// chat's only way to GitHub is plans_post_review_draft, which creates a
+// chat's only way to GitHub is plans_session (action: review_draft), which creates a
 // PENDING review (no `event`) the person edits and submits. Avoozl swaps the
 // review label for the drafted label, watches until the draft is submitted or
 // discarded, and removes the drafted label then. Avoozl never submits,
@@ -21,7 +21,7 @@ import { recordActivity } from "./activity-log.mjs";
 
 export const DRAFT_KIND = "review-draft";
 export const DRAFT_ROLE = "review-draft";
-// Read-only files and `gh` reads, plus plans_post_review_draft
+// Read-only files and `gh` reads, plus plans_session (action: review_draft)
 // (kirocrew-app/agents/avoozl-review-draft.json).
 export const DRAFT_AGENT = "avoozl-review-draft";
 const ROWS = "reviewDraftRows";
@@ -149,7 +149,7 @@ export async function draftBrief(github, { repository, pull }) {
     "",
     `Read the pull request with read-only gh commands: gh pr view ${pull.number} --repo ${repository} --comments, gh pr diff ${pull.number} --repo ${repository}, gh pr checks, and gh issue view for the issues above.`,
     "Check correctness, tests, error handling, security and fit with the code around it, and whether the change meets the issues and the crew's findings above.",
-    `Post the draft once: call plans_post_review_draft with {"input": {"body": "<summary>", "comments": [{"path": "<file>", "line": <line in the new file>, "body": "<comment>"}]}}. Use "side": "LEFT" for a removed line and "start_line" for a range. Lines must be inside the diff; if GitHub refuses a line, fix it and call again.`,
+    `Post the draft once: call plans_session with {"action": "review_draft", "input": {"body": "<summary>", "comments": [{"path": "<file>", "line": <line in the new file>, "body": "<comment>"}]}}. Use "side": "LEFT" for a removed line and "start_line" for a range. Lines must be inside the diff; if GitHub refuses a line, fix it and call again.`,
     "The draft stays pending: only the person who asked can see it, and they edit and submit it. You cannot submit, approve or request changes, and you have no other way to GitHub. Do not edit files, push, label or comment.",
   );
   return lines.join("\n");
@@ -457,7 +457,7 @@ export function reviewDraftDispatches(store, { config } = {}) {
     );
 }
 
-// ---- plans_post_review_draft ------------------------------------------------
+// ---- plans_session (action: review_draft) ------------------------------------------------
 
 const PRINTABLE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 function text(value, what) {
@@ -528,7 +528,7 @@ export async function postReviewDraft(
   const own = callerSlot(caller);
   if (!own)
     fail(
-      "plans_post_review_draft needs the calling session's identity from the Kiro Crew gateway.",
+      "plans_session (action: review_draft) needs the calling session's identity from the Kiro Crew gateway.",
       403,
     );
   const binding = listSessionBindings(store).find(
@@ -542,12 +542,12 @@ export async function postReviewDraft(
   for (const key of Object.keys(input || {}))
     if (!["body", "comments"].includes(key))
       fail(
-        `plans_post_review_draft takes only body and comments; ${key} is not allowed. A draft is never submitted by Avoozl.`,
+        `plans_session (action: review_draft) takes only body and comments; ${key} is not allowed. A draft is never submitted by Avoozl.`,
       );
   const body = text(input.body, "a review summary"),
     comments = commentsInput(input.comments),
     { review, drafted } = labelsOf(policy?.repositories?.[receipt.repository]);
-  // The reply screen and content rules, as plans_post_reply: nothing posts
+  // The reply screen and content rules, as plans_session (action: reply): nothing posts
   // while any text is refused.
   const findings = [
     ...screenReply(body, options),

@@ -35,8 +35,8 @@ def _json(text):
         return text
 
 
-def plans(ctx, tool, args=None):
-    return _json(ctx.call_tool(AVOOZL, tool, {"input": args or {}}))
+def plans(ctx, tool, action, args=None):
+    return _json(ctx.call_tool(AVOOZL, tool, {"action": action, "input": args or {}}))
 
 
 # The provider adapter is app-local; no system Python package is required.
@@ -50,10 +50,10 @@ _spec.loader.exec_module(_executor)
 
 def run(ctx):
     executor = _executor.KiroCrewExecutor(
-        ctx, lambda binding: plans(ctx, "plans_bind_session", binding)
+        ctx, lambda binding: plans(ctx, "plans_session", "bind", binding)
     )
     args = {"cron": True, **executor.observations()}
-    intents = plans(ctx, "plans_tick", args)
+    intents = plans(ctx, "plans_maintain", "tick", args)
     if not isinstance(intents, dict) or intents.get("skipped"):
         raise Skip()
 

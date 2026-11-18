@@ -741,7 +741,7 @@ test("a process worker's brief ends with the result file", () => {
   assert.match(steps.at(-1), /\.avoozl\/result\.json/);
   assert.match(steps.at(-1), /"state": "done"/);
   assert.match(steps.at(-1), /"state": "blocked"/);
-  assert.doesNotMatch(steps.join("\n"), /runner report|plans_report/);
+  assert.doesNotMatch(steps.join("\n"), /runner report|plans_session/);
   assert.match(steps.join("\n"), /Do not commit/);
 });
 

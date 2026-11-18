@@ -222,11 +222,11 @@ for the other chats:
 
 1. Let Kiro Crew tell Avoozl which chat is calling. A worker that opens a
    pull request, and every verifier, reviewer and investigation chat, reports
-   with `plans_report`, and Kiro Crew names the caller only to MCP servers
+   with `plans_session {action: "report"}`, and Kiro Crew names the caller only to MCP servers
    it shares. Open **MCP Management**, find `avoozl:avoozl`, turn on
    sharing, and press **Approve sharing**. Then restart the gateway
    (**Settings › About › Restart gateway**). Without this, such a chat can do
-   its work but `plans_report` refuses it. A shared server runs outside the
+   its work but `plans_session {action: "report"}` refuses it. A shared server runs outside the
    chat sandbox, with your access.
 
 2. After the first tick, open the chat folder **Avoozl** › _repository ID_
@@ -467,8 +467,8 @@ operation: `plans_workspace` (read only), `plans_maintain`, `plans_view`,
 `plans_run`. Each tool's description lists its actions. A call looks like
 `{"action": "get", "input": {"id": "TASK_ID"}}`.
 
-Some actions belong to a person and are refused over MCP under any tool name,
-old or new: approving or starting a spec, deletes, plugin changes, Allow
+Some actions belong to a person and are refused over MCP under any tool
+name: approving or starting a spec, deletes, plugin changes, Allow
 once and content-rule terms, choosing a conflict winner, GitHub setup writes
 and settings (including Who counts), adding or removing repositories or
 intake sources, workspace, flow, and delivery settings,
@@ -513,9 +513,6 @@ rather than copying the database file: SQLite also keeps a WAL file.
 
 Avoozl was first released as AICommander. These names keep working:
 
-- MCP tool names that start with `plans_`, including the older
-  one-tool-per-operation names. Each of those says `Deprecated:` and names
-  its replacement.
 - `AVOOZL_*` variables, and the older `AICOMMANDER_*` and `NUPP_WORKSPACE_*`
   names, including `NUPP_WORKSPACE` for the workspace.
 - The `aicommander` command, the same CLI as `avoozl`.
