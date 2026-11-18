@@ -27,6 +27,7 @@ import { bindContentRules } from "../content-rules.mjs";
 import { planReviewSummary } from "../plan-review-summary.mjs";
 import { listSpecReviewRounds } from "../plan-reviews.mjs";
 import { recordFindingDecision } from "../review-findings.mjs";
+import { finishProcessSession } from "../executors/process.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -858,4 +859,128 @@ test("a person's Accept starts one planner turn outside the rounds cap; Review a
   );
   assert.match(again.round.note, /Dropped 1 finding/);
   assert.equal(env.store.list("approvals").length, 0);
+});
+
+// nk-3.2 (NK5.1, NK5.3): the plan answer as a `process` child. It edits only
+// its spec folder; on exit Avoozl stores the revision as this session's and
+// records each answer from its report.
+async function childAnswer(t) {
+  const env = setup(t);
+  env.options.config.roles = { planAnswer: { harness: "fake-cli" } };
+  await env.step();
+  const [review] = (await env.step()).requests;
+  await env.bind(review, "reviewer", "fake-reviewer");
+  const submitted = await env.ops.execute(
+    "plan.review.submit",
+    {
+      planId: env.plan.id,
+      revisionHash: env.plan.hash,
+      findings: [finding()],
+    },
+    undefined,
+    as("reviewer"),
+  );
+  const [answer] = (await env.step()).requests;
+  assert.equal(answer.role, "plan-answer");
+  assert.equal(answer.executor, "process");
+  assert.equal(answer.permissionClass, "write");
+  // Its folder, and so its one write root, is the spec folder alone.
+  assert.equal(
+    answer.worktree,
+    path.join(env.root, ".kiro", "specs", "reader"),
+  );
+  const slot = "process-answer-" + Math.random().toString(36).slice(2);
+  await env.ops.execute("session.bind", {
+    slot,
+    taskId: answer.task,
+    role: answer.role,
+    attempt: answer.attempt,
+    permissionClass: answer.permissionClass,
+    worktree: answer.worktree,
+  });
+  const binding = env.store.get("session_bindings", slot);
+  const finish = (answers) =>
+    finishProcessSession(
+      env.ops,
+      binding,
+      { state: "done", text: "", report: { answers } },
+      env.store,
+    );
+  return { env, review, answer, thread: submitted.threads[0], finish, binding };
+}
+
+test("a child's fixed answer is recorded against the revision it wrote", async (t) => {
+  const { env, thread, finish } = await childAnswer(t);
+  const before = env.store.get("plans", env.plan.id).hash;
+  env.edit("# Design\n\nUse a real file.\n");
+  await finish([
+    { id: thread.id, action: "fixed", text: "Named a real file." },
+  ]);
+  const plan = env.store.get("plans", env.plan.id),
+    answered = env.store.get("review_threads", thread.id).answer;
+  assert.notEqual(plan.hash, before);
+  assert.equal(answered.action, "fixed");
+  assert.equal(answered.revisionHash, plan.hash);
+});
+
+test("a child that changed nothing may answer with reasons only", async (t) => {
+  const { env, thread, finish } = await childAnswer(t);
+  await assert.rejects(
+    finish([{ id: thread.id, action: "fixed", text: "Fixed it." }]),
+    /stored revision this planner wrote/,
+  );
+  await finish([
+    {
+      id: thread.id,
+      action: "answered",
+      text: "The file is created by task 1.1.",
+    },
+  ]);
+  assert.equal(
+    env.store.get("review_threads", thread.id).answer.action,
+    "answered",
+  );
+});
+
+test("an answer for a spec approved meanwhile changes no file", async (t) => {
+  const { env, thread, finish, binding } = await childAnswer(t);
+  const stored = env.store.get("plans", env.plan.id);
+  fs.mkdirSync(binding.worktree, { recursive: true });
+  fs.writeFileSync(
+    path.join(binding.worktree, "design.md"),
+    "# Design\n\nChanged.\n",
+  );
+  env.store.put("plans", { ...stored, state: "approved" });
+  await finish([
+    { id: thread.id, action: "answered", text: "Left for the person." },
+  ]);
+  assert.equal(
+    fs.readFileSync(path.join(binding.worktree, "design.md"), "utf8"),
+    stored.files["design.md"],
+  );
+  assert.equal(env.store.get("plans", env.plan.id).hash, stored.hash);
+});
+
+test("a child's folder with new lint errors stores nothing and opens one decision", async (t) => {
+  const { env, thread, finish } = await childAnswer(t);
+  const before = env.store.get("plans", env.plan.id).hash,
+    good = env.getFolder(),
+    files = {
+      ...good.files,
+      "tasks.md":
+        "# Tasks\n\n- [ ] 1.1 Read the file\n- [ ] 1.1 Read it again\n",
+    };
+  env.ops.readSpec = () => ({ ...good, files, hash: specHash(files) });
+  await assert.rejects(
+    finish([{ id: thread.id, action: "fixed", text: "Split the task." }]),
+    /lint error/,
+  );
+  assert.equal(env.store.get("plans", env.plan.id).hash, before);
+  assert.equal(env.store.get("review_threads", thread.id).answer, undefined);
+  const decisions = env.store
+    .list("app_notifications")
+    .filter(
+      (row) => row.payload.title === "The answer for reader left lint errors",
+    );
+  assert.equal(decisions.length, 1);
 });
