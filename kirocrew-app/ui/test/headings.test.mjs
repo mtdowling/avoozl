@@ -83,7 +83,7 @@ test('a Needs you title opens what it is about', () => {
   const dashboard = source('DashboardView.tsx')
   // A button role on an inline link, so a long title wraps beside its tag:
   // Tab reaches it, Enter and Space press it, and its name is the title.
-  assert.match(dashboard, /<a\s+role="button"\s+tabIndex=\{0\}[\s\S]{0,200}onClick=\{onTitle\}[\s\S]{0,300}event\.key === 'Enter' \|\| event\.key === ' '[\s\S]{0,200}data-attention-title\s*>\s*\{item\.title\}/)
+  assert.match(dashboard, /<(?:a|PlainLink)\s+role="button"\s+tabIndex=\{0\}[\s\S]{0,200}onClick=\{onTitle\}[\s\S]{0,300}event\.key === 'Enter' \|\| event\.key === ' '[\s\S]{0,200}data-attention-title\s*>\s*\{item\.title\}/)
   assert.match(dashboard, /onTitle=\{\(\) => \{\s*const target = attentionTarget\(item\)/)
   assert.match(dashboard, /target\.kind === 'review' && item\.group\) drawer\.openReview/)
   assert.match(dashboard, /target\.kind === 'task'\) drawer\.openTask\(target\.id\)/)

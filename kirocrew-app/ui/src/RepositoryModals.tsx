@@ -20,6 +20,7 @@ import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
 import { SelectField } from './ui/SelectField'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 // The role select, with the public repository's field under it for a mirror.
 export function RoleChoice(props: {
@@ -222,9 +223,9 @@ export function EditRepository(props: {
             <RoleChoice id={id} name={row.name} github={row.github} role={role} source={source} fixed={fixed} titled withSource={false} onChange={(nextRole) => setRole(nextRole)} />
             {mirror && (
               <Box as="p" size="xs">
-                <button type="button" className="underline" onClick={() => setTab('mirror')}>
+                <PlainButton type="button" underline onClick={() => setTab('mirror')}>
                   Name its public repository on the Mirror tab
-                </button>
+                </PlainButton>
               </Box>
             )}
             <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1" size="sm" data-repository-folder>

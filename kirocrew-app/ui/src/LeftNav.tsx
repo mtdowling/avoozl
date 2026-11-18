@@ -11,6 +11,7 @@ import { NAV, NAV_COLLAPSE_AT, NAV_COLLAPSED_KEY, NAV_COLLAPSED_WIDTH, clampWidt
 import { ChevronRight } from './icons.ts'
 import { ResizeHandle } from './ResizeHandle.tsx'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 // Issue Radar's sidebar cards, measured on the host: 12px corners, the
 // elevated surface, a hairline border and a small shadow. The top card's
@@ -62,16 +63,16 @@ export function LeftNav(props: { groups: NavGroup[]; value: string; child?: stri
   if (collapsed)
     return (
       <nav ref={root} aria-label="Avoozl pages" data-left-nav="collapsed" data-top-row style={{ flex: `0 0 ${NAV_COLLAPSED_WIDTH}px`, width: NAV_COLLAPSED_WIDTH, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 4, padding: '4px 2px', borderRight: '1px solid var(--border)', minHeight: 0, overflowY: 'auto' }}>
-        <button type="button" aria-label="Expand the nav" data-nav-expand onClick={() => setCollapsed(false)} style={{ display: 'flex', justifyContent: 'center', padding: '6px 0', background: 'none', border: 0, color: 'var(--muted)', cursor: 'pointer' }}>
+        <PlainButton type="button" aria-label="Expand the nav" data-nav-expand onClick={() => setCollapsed(false)} css-display="flex" css-justify-content="center" css-padding="6px-0" css-background="none" css-border="0" css-color="muted" css-cursor="pointer">
           <ChevronRight size={16} aria-hidden="true" />
-        </button>
+        </PlainButton>
         <Box role="group" aria-label="Avoozl views" css-display="flex" css-flex-direction="column" css-gap="4">
           {props.groups.map((group) => {
             const selected = group.key === props.value
             return (
-              <button key={group.key} type="button" data-nav-collapsed-item={group.key} aria-current={selected ? 'page' : undefined} aria-label={group.aria ?? group.text} onClick={() => props.onPick(group.key)} style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', padding: '10px 0', width: '100%', background: selected ? 'var(--accent-subtle, var(--bg-hover, var(--bg-elevated)))' : 'none', border: 0, borderRadius: 6, color: selected ? 'var(--accent)' : 'var(--muted)', cursor: 'pointer', fontSize: 12.5, fontWeight: selected ? 600 : 500, whiteSpace: 'nowrap' }}>
+              <PlainButton key={group.key} type="button" data-nav-collapsed-item={group.key} aria-current={selected ? 'page' : undefined} aria-label={group.aria ?? group.text} onClick={() => props.onPick(group.key)} css-writing-mode="vertical-rl" css-transform="rotate-180deg" css-padding="10px-0" css-width="100%" css-background={selected ? 'accent-subtle-bg-hover-bg-elevated' : 'none'} css-border="0" css-border-radius="6" css-color={selected ? 'accent' : 'muted'} css-cursor="pointer" css-font-size="12.5" css-font-weight={selected ? '600' : '500'} css-white-space="nowrap">
                 {group.text}
-              </button>
+              </PlainButton>
             )
           })}
         </Box>
@@ -83,12 +84,12 @@ export function LeftNav(props: { groups: NavGroup[]; value: string; child?: stri
         {props.top}
         <NavAccordion groups={props.groups} value={props.value} child={props.child} onPick={props.onPick} />
         {props.line}
-        <button type="button" aria-label="Collapse the nav" data-nav-collapse onClick={() => setCollapsed(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', background: 'none', border: 0, color: 'var(--muted)', cursor: 'pointer', fontSize: 12 }}>
+        <PlainButton type="button" aria-label="Collapse the nav" data-nav-collapse onClick={() => setCollapsed(true)} css-display="flex" css-align-items="center" css-gap="6" css-height="28" css-padding="0-10px" css-background="none" css-border="0" css-color="muted" css-cursor="pointer" css-font-size="12">
           <Box aria-hidden="true" as="span" css-display="inline-flex" css-transform="rotate-180deg">
             <ChevronRight size={14} />
           </Box>
           Collapse
-        </button>
+        </PlainButton>
         {props.brand}
       </nav>
       <ResizeHandle
