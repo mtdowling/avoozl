@@ -568,6 +568,7 @@ import {
   specEpic,
 } from "./spec-plans.mjs";
 import { publishSpec } from "./spec-publication.mjs";
+import { specLinks } from "./scm-links.mjs";
 import { takeOverSpec } from "./spec-takeover.mjs";
 import { repositorySetup } from "./repository-setup.mjs";
 import { reanchorSpec, resumeSpec } from "./spec-reanchor.mjs";
@@ -5699,6 +5700,9 @@ export class Operations {
               },
             }),
         ...(plan.spec ? { disk: this.specOnDisk(plan) } : {}),
+        // The spec's Links box (R92.4): stored records only, no GitHub
+        // call. A local read, so a private spec issue shows only here.
+        ...(plan.spec ? { links: specLinks(store, plan.id) } : {}),
         approvals: store.list("approvals").filter((a) => a.planId === plan.id),
         reviews: listReviewThreads(store, { planId: plan.id }).items,
         review: planReviewSummary(store, plan.id),
