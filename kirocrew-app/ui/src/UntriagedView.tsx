@@ -52,6 +52,7 @@ import { linkHref } from './views-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
+import { Checkbox } from './ui/Checkbox'
 
 const HEAD: CSSProperties = { textAlign: 'left', fontWeight: 500, fontSize: 12, color: 'var(--muted)', padding: '4px 8px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
 const CELL: CSSProperties = { padding: '6px 8px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }
@@ -243,8 +244,7 @@ function Title({ item }: { item: UntriagedItem }) {
 
 function Select(props: { item: UntriagedItem; checked: boolean; onChange: (on: boolean) => void }) {
   return (
-    <input
-      type="checkbox"
+    <Checkbox
       checked={props.checked}
       aria-label={`Select ${itemName(props.item)}`}
       onChange={(event) => props.onChange(event.target.checked)}
@@ -261,7 +261,7 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
         <thead>
           <tr>
             <th style={{ ...HEAD, width: 28 }}>
-              <input type="checkbox" checked={all} aria-label="Select every row shown" onChange={(event) => props.onSelect(keys, event.target.checked)} />
+              <Checkbox checked={all} aria-label="Select every row shown" onChange={(event) => props.onSelect(keys, event.target.checked)} />
             </th>
             <th style={{ ...HEAD, width: 28 }}>
               <span className="sr-only">Kind</span>

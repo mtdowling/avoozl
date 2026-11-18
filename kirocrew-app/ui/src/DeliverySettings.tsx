@@ -18,10 +18,10 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { SelectField } from './ui/SelectField'
 
 const OPTIONAL = { required: false } as const
 const OFF_BLURB = 'The tick starts no ready task until delivery is on. Its investigate and pull request settings show here then.'
-const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
 // A field: the shared FieldRow, every Delivery value optional.
 // `byDefault` is the value a blank field uses; `reset` shows when the field
@@ -134,17 +134,17 @@ export default function DeliverySettings({ workspaceId }: { workspaceId: string 
         <Section title="Investigate first" blurb="Before coding, the writer reports what it found and how sure it is; a second chat tries to prove it wrong. Coding starts only when both are sure enough and the findings stand.">
           <Row gap={4} align="start">
             <Labeled id="avoozl-delivery-investigate" label="Which tasks" raw="delivery.investigate.mode" width="16rem" note="A task's manifest can set investigate: true or false." byDefault="All but small tasks" reset={form.investigateMode && form.investigateMode !== DELIVERY_DEFAULTS.investigateMode ? () => set({ investigateMode: DELIVERY_DEFAULTS.investigateMode }) : undefined}>
-              <select id="avoozl-delivery-investigate" value={form.investigateMode ?? DELIVERY_DEFAULTS.investigateMode} onChange={(e) => set({ investigateMode: e.target.value as DeliveryForm['investigateMode'] })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
+              <SelectField id="avoozl-delivery-investigate" value={form.investigateMode ?? DELIVERY_DEFAULTS.investigateMode} onChange={(e) => set({ investigateMode: e.target.value as DeliveryForm['investigateMode'] })} look="field">
                 <option value="not-small">All but small tasks</option>
                 <option value="all">All tasks</option>
                 <option value="off">Off</option>
-              </select>
+              </SelectField>
             </Labeled>
             <Labeled id="avoozl-delivery-confidence" label="Sure enough at" raw="delivery.investigate.minConfidence" width="16rem" note={offInvestigate ?? 'Less sure waits in Needs you.'} byDefault="High" reset={form.minConfidence && form.minConfidence !== DELIVERY_DEFAULTS.minConfidence ? () => set({ minConfidence: DELIVERY_DEFAULTS.minConfidence }) : undefined}>
-              <select id="avoozl-delivery-confidence" disabled={Boolean(offInvestigate)} value={form.minConfidence ?? DELIVERY_DEFAULTS.minConfidence} onChange={(e) => set({ minConfidence: e.target.value as DeliveryForm['minConfidence'] })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
+              <SelectField id="avoozl-delivery-confidence" disabled={Boolean(offInvestigate)} value={form.minConfidence ?? DELIVERY_DEFAULTS.minConfidence} onChange={(e) => set({ minConfidence: e.target.value as DeliveryForm['minConfidence'] })} look="field">
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
-              </select>
+              </SelectField>
             </Labeled>
           </Row>
         </Section>

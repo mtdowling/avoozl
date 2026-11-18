@@ -23,6 +23,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Checkbox } from './ui/Checkbox'
 
 // A save a content rule blocked: the decisions to allow, and the save to
 // run again once allowed.
@@ -165,7 +166,7 @@ function EntryView(props: {
             <Tooltip text="List it in the issue's managed section on GitHub. Off by default: a link may point at things not meant for the repository.">
               {(describedBy) => (
                 <label className="inline-flex items-center gap-1.5 text-xs" aria-describedby={describedBy}>
-                  <input type="checkbox" checked={entry.onIssue} disabled={props.busy} onChange={(event) => props.onShow(entry, event.target.checked)} />
+                  <Checkbox checked={entry.onIssue} disabled={props.busy} onChange={(event) => props.onShow(entry, event.target.checked)} />
                   Show on the issue
                 </label>
               )}

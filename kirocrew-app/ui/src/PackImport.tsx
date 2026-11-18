@@ -19,6 +19,7 @@ import { errorMessage } from './workspace-api.ts'
 import { Modal } from './ui/Modal.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
+import { Checkbox } from './ui/Checkbox'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -151,13 +152,13 @@ export function PackImportDialog(props: { row: PluginRow; workspaceId: string; c
       {preview ? <PackChanges preview={preview} /> : !error && <Hint as="p" size="sm">Reading the pack...</Hint>}
       {preview && preview.warnings.length > 0 && (
         <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" className="mt-1" checked={acceptLowered} onChange={(e) => setAcceptLowered(e.target.checked)} />
+          <Checkbox drop={4} checked={acceptLowered} onChange={(e) => setAcceptLowered(e.target.checked)} />
           <span>Import the who-counts change above</span>
         </label>
       )}
       {row.source === 'machine' && (
         <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" className="mt-1" checked={confirmPublic} onChange={(e) => setConfirmPublic(e.target.checked)} />
+          <Checkbox drop={4} checked={confirmPublic} onChange={(e) => setConfirmPublic(e.target.checked)} />
           <span>
             Write the plugin id into .avoozl.json
             <Hint size="xs" block>This plugin is declared on this computer only. Anyone who can read the repository sees its id and these settings.</Hint>
