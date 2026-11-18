@@ -75,6 +75,7 @@ const patch = (store, id, change) =>
 // Runs one named step and records its start, end and result on the train.
 async function step(store, id, name, fn) {
   const startedAt = new Date().toISOString();
+  patch(store, id, { current: name });
   let result = "ok",
     detail;
   try {
@@ -87,6 +88,7 @@ async function step(store, id, name, fn) {
     throw error;
   } finally {
     patch(store, id, (t) => ({
+      current: null,
       steps: [
         ...t.steps,
         {

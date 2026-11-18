@@ -84,18 +84,6 @@ try {
       await page.evaluate(`document.querySelector('[data-tree-open="M2"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })) ?? true`)
       await page.until(`Boolean(${TOP})`, 30000)
     },
-    instance: async (width, theme) => {
-      await start({ radar: '1' }, width, theme)
-      if (phone(width)) {
-        await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-        await page.until(`Boolean(document.querySelector('[data-top-rail-footer] [data-instance-edit]'))`, 30000)
-        await page.evaluate(`document.querySelector('[data-top-rail-footer] [data-instance-edit]').click()`)
-      } else {
-        await page.until(`Boolean(document.querySelector('[data-left-nav] [data-instance-edit]'))`, 30000)
-        await page.evaluate(`document.querySelector('[data-left-nav] [data-instance-edit]').click()`)
-      }
-      await page.until(`Boolean(${TOP})`, 30000)
-    },
   }
   for (const width of [1280, 390])
     for (const theme of ['light', 'dark'])
