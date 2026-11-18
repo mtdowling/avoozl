@@ -233,7 +233,7 @@ Listed so nobody redoes them:
 
 ## What was removed
 
-A separate PR removes only D1-D7. Old `.avoozl.json` files that still set
+PR #579 removes only D1-D7. Old `.avoozl.json` files that still set
 these keys load as before: the loader never read D1, D2 and D6, and keeps
 accepting and ignoring D3-D5. The schema marks D3-D5 as ignored instead of
 dropping them, so an editor does not flag an old file.
