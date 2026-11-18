@@ -454,6 +454,24 @@ export async function finishProcessSession(ops, binding, result, store = null) {
           : "",
     );
   }
+  // A pull request review is kept with its request and shown with the
+  // session; nothing goes to GitHub (NK4.4).
+  if (hands === "pr-review") {
+    if (result.state !== "done" || !store) return null;
+    const receipt = store.get("receipts", binding.taskId);
+    if (!receipt) return null;
+    const review = {
+      text: result.outputValue,
+      slot: binding.slot,
+      head:
+        store.get("session_bindings", binding.slot)?.snapshotHead ??
+        receipt.headSha ??
+        null,
+      at: new Date().toISOString(),
+    };
+    store.put("receipts", { ...receipt, review });
+    return { stored: true };
+  }
   if (hands === "review-draft")
     return result.state === "done"
       ? finishReviewDraft(ops, binding, result, store)
