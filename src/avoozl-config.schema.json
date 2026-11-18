@@ -1060,6 +1060,15 @@
         }
       }
     },
+    "serve": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Run the standalone page under this machine's supervisor. Global configuration only; the repository file may not set it.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "port": { "type": "integer", "minimum": 1024, "maximum": 65535 }
+      }
+    },
     "machine": {
       "type": "object",
       "description": "This machine's validation environments. Global configuration only; the repository file may not set platforms or slots.",

@@ -12,7 +12,7 @@ import { viewsClient, withDrafts, type Graph, type GraphTask } from './views-api
 import { useRead } from './useRead.ts'
 import { useNav, useRemembered } from './NavHistory.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { SmallBtn, ViewHeading } from './ui/controls.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
 import { Tooltip } from './ui/Tooltip.tsx'

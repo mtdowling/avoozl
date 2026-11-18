@@ -486,6 +486,7 @@ import {
   updateProviders,
 } from "./provider-health.mjs";
 import { claimTask, nextView } from "./runner.mjs";
+import { manualClaim } from "./manual-claim.mjs";
 import {
   acceptEnvelope,
   driverTick,
@@ -513,6 +514,11 @@ function claimedOrNone(store) {
   }
 }
 import { deliverNotifications } from "./notifications.mjs";
+import {
+  markKirocrewSeen,
+  needsKirocrewItems,
+  runOn,
+} from "./needs-kirocrew.mjs";
 import { flushOutbox } from "./outbox.mjs";
 import {
   configureWorkspaceRepository,
@@ -3093,6 +3099,7 @@ export class Operations {
         }
         return stampPrompts(store, result);
       });
+    if (name === "executor.kirocrew.take") markKirocrewSeen(store);
     if (name === "executor.kirocrew.take")
       return takeKirocrewRequest(store, input, context, (request, queued) =>
         sessionStartHold(store, request, queued, {
@@ -3250,16 +3257,36 @@ export class Operations {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
       });
-    if (name === "runner.claim")
+    if (name === "runner.claim") {
+      const policy = readDeliveryPolicy(this.workspaceRoot),
+        github = readGitHubPolicyOrNull(this.workspaceRoot);
+      // A manual claim is the person's at this machine's command line.
+      if (context.local === true)
+        return stampPrompts(
+          store,
+          await manualClaim(
+            store,
+            { ...input, workspaceRoot: this.workspaceRoot },
+            { github },
+          ),
+        );
+      // shortcut: a Crew Mode conductor's claim stays until wp-2.2 removes
+      // Crew Mode; nothing else may claim.
+      if (policy.delivery?.runner !== "crew-mode")
+        fail(
+          "A claim is a person's: run avoozl claim TASK from the command line.",
+          403,
+        );
       return stampPrompts(
         store,
         await claimTask(store, input, {
           caller: context.caller,
-          local: context.local === true,
-          policy: readDeliveryPolicy(this.workspaceRoot),
-          github: readGitHubPolicyOrNull(this.workspaceRoot),
+          local: false,
+          policy,
+          github,
         }),
       );
+    }
     // Retired tool names remain resolvable for existing clients.
     if (name === "relay.call" || name === "relay.forget")
       fail(
@@ -3683,6 +3710,16 @@ export class Operations {
       view.items.push(...forwardAuditRows(store));
       view.items.push(...publicCrewAuditRows(store));
       view.items.push(...publicBranchRows(store));
+      // A role waiting on Kiro Crew on a machine with none, with this
+      // machine's approved harnesses for Run on (NK8.2).
+      view.items.push(
+        ...needsKirocrewItems(
+          store,
+          listHarnessDefinitions(this.configDirectory)
+            .filter((d) => d.approved)
+            .map((d) => d.name),
+        ),
+      );
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
@@ -3753,6 +3790,21 @@ export class Operations {
         // This machine's harness definitions a role may pick (R98.3).
         harnessDefinitions: listHarnessDefinitions(this.configDirectory),
       };
+    // Run on (NK8.2): a person moves a role that waits on Kiro Crew to one
+    // of this machine's approved harnesses.
+    if (name === "needskirocrew.runon") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person chooses where a role runs, in the Avoozl app.",
+          403,
+        );
+      return runOn(store, input, {
+        settings: this.settingsFile(),
+        approved: listHarnessDefinitions(this.configDirectory)
+          .filter((d) => d.approved)
+          .map((d) => d.name),
+      });
+    }
     if (name === "models.settings.update") {
       if (context.caller || context.mcp)
         fail("Only a person changes chat models, in Settings.", 403);

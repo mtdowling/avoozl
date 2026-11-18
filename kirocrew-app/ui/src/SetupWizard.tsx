@@ -16,7 +16,7 @@ import { CircleCheck, RefreshCw, Workflow, X } from './icons.ts'
 import { groupWrites, setupForm, setupInput, setupState, writeBadge, type GitHubSettings, type SetupForm, type SetupResult, settingsClient } from './settings-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { relativeTime } from './task-api.ts'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { linkHref } from './views-api.ts'
 import { SCOPE_RULE, SCOPE_STATEMENT } from '../../../src/work-split.mjs'
 import { ErrorText } from './ui/ErrorText'
@@ -24,7 +24,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 type Client = ReturnType<typeof settingsClient>
 
@@ -187,10 +187,9 @@ export function SetupDialog(props: {
                 ['epic', 'Epic issue type'],
               ] as const
             ).map(([key, label]) => (
-              <label key={key} className="flex items-center gap-1.5">
-                <Checkbox checked={form[key]} onChange={(e) => props.set({ [key]: e.target.checked })} />
+              <Switch key={key} label={label} gap={1.5} checked={form[key]} onChange={(on) => props.set({ [key]: on })}>
                 {label}
-              </label>
+              </Switch>
             ))}
           </Row>
         </div>

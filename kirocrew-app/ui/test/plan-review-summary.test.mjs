@@ -169,8 +169,8 @@ test('Planning groups show spec, role, model, time and usage on a phone', { skip
 
 test('batch Review anyway stays pinned to its opening workspace with identical IDs and hashes', {skip}, async () => {
   await page.open(harness.url({mode:'workspace-batch'}),{width:1280,height:900})
-  await page.until(`Boolean(document.querySelector('[data-plans-list] input[type="checkbox"]'))`)
-  await click('[data-plans-list] input[type="checkbox"]')
+  await page.until(`Boolean(document.querySelector('[data-plans-list] [data-spec-check] [role="switch"]'))`)
+  await click('[data-plans-list] [data-spec-check] [role="switch"]')
   await page.until(`!document.querySelector('[data-approve-specs-open]').disabled`)
   await click('[data-approve-specs-open]')
   await page.until(`Boolean(document.querySelector('[data-review-anyway]'))`)

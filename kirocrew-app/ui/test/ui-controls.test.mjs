@@ -77,3 +77,40 @@ for (const theme of ["light", "dark"])
       );
     },
   );
+
+for (const theme of ["light", "dark"])
+  test(
+    `Switch keeps its visible label, aria-checked and keyboard in ${theme}`,
+    { skip },
+    async () => {
+      await page.open(harness.url({ theme }), {
+        width: 600,
+        height: 500,
+        dark: theme === "dark",
+      });
+      await page.until(
+        `Boolean(document.querySelector('[data-part="switch"]'))`,
+      );
+      const read = `(() => { const s = document.querySelector('[data-part="switch"] [role="switch"]'); return { checked: s.getAttribute('aria-checked'), name: s.getAttribute('aria-label'), described: s.getAttribute('aria-describedby'), text: document.querySelector('[data-part="switch"]').textContent.trim() } })()`;
+      const first = await page.evaluate(read);
+      assert.deepEqual(first, {
+        checked: "false",
+        name: "Send feedback",
+        described: "part-help",
+        text: "Send feedback",
+      });
+      // A click on the text flips it, as a checkbox's label does.
+      await page.evaluate(
+        `document.querySelector('[data-part="switch"] > span, [data-part="switch"]').click()`,
+      );
+      assert.equal((await page.evaluate(read)).checked, "true");
+      // Space on the focused switch flips it back.
+      await page.evaluate(
+        `document.querySelector('[data-part="switch"] [role="switch"]').focus()`,
+      );
+      await page.key(" ", "Space", 32);
+      await page.until(
+        `document.querySelector('[data-part="switch"] [role="switch"]').getAttribute('aria-checked') === 'false'`,
+      );
+    },
+  );

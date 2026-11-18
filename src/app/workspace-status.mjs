@@ -51,6 +51,10 @@ function contents(database) {
       byStatus[status] = (byStatus[status] ?? 0) + 1;
     }
     const count = (sql) => rows(sql)[0]?.n ?? 0;
+    const meta = (key) => {
+      const row = rows(`SELECT value FROM meta WHERE key = '${key}'`)[0];
+      return row ? JSON.parse(row.value) : null;
+    };
     // Notifications sent nowhere yet (NK7.6), as notifications.mjs counts.
     const waiting = rows("SELECT body FROM app_notifications")
       .map(({ body }) => JSON.parse(body))
@@ -58,9 +62,25 @@ function contents(database) {
       .map((row) => row.queuedAt)
       .filter(Boolean)
       .sort();
+    const seenAt = meta("kirocrew.seenAt");
     return {
       revision,
       updatedAt,
+      // Kiro Crew is reachable when its executor cron took a request in
+      // the last ten minutes (needs-kirocrew.mjs), and what waits on it.
+      kirocrew: {
+        reachable:
+          typeof seenAt === "string" &&
+          Date.now() - Date.parse(seenAt) < 600_000,
+        seenAt: typeof seenAt === "string" ? seenAt : null,
+        waiting: Object.values(meta("needs-kirocrew.items") ?? {}).map(
+          (item) => ({
+            role: item.role,
+            since: item.since,
+            sessions: item.requests.length,
+          }),
+        ),
+      },
       notifications: {
         waiting: waiting.length,
         oldestAt: waiting[0] ?? null,

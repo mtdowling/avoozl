@@ -52,7 +52,7 @@ for (const width of [1280, 390]) {
     await page.evaluate(`document.querySelector('[data-field-reset="avoozl-delivery-rounds"]').click()`)
     await page.until(`document.getElementById('avoozl-delivery-rounds').value === '' && !document.querySelector('[data-field-reset="avoozl-delivery-rounds"]')`)
     // Feedback off disables the rounds box and says why.
-    await page.evaluate(`document.querySelector('[data-check-row="delivery.prFeedback"] input').click()`)
+    await page.evaluate(`document.querySelector('[data-check-row="delivery.prFeedback"] [role="switch"]').click()`)
     await page.until(`document.getElementById('avoozl-delivery-rounds').disabled`)
     assert.match((await text('[data-field-row="avoozl-delivery-rounds"] [data-field-help]')) ?? '', /Off while pull request feedback is off/)
     // Investigate Off disables Sure enough at and says why.

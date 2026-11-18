@@ -19,7 +19,7 @@ import { insideWorkspace, lineText, taskClient } from './task-api.ts'
 import { CITED_STYLE, markCited } from './CitedFile.tsx'
 import { useReveal } from './RepositoriesSettings.tsx'
 import { errorMessage, workspaceClient } from './workspace-api.ts'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 

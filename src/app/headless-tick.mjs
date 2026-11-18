@@ -4,8 +4,8 @@
 // for every enabled workspace in the machine catalog: the tick, then the
 // hand-off of `process` session requests, the queued checks, then the
 // queued notifications to this machine's sinks (NK7.1).
-// shortcut: intents for the `kirocrew` executor stay queued here, since no
-// Kiro Crew runs; a headless machine's projects use `process`.
+// A start for the `kirocrew` executor is not left queued with no word: with
+// no Kiro Crew seen lately, it opens one Needs you item per role (NK8.2).
 import fs from "node:fs";
 import path from "node:path";
 import { Store } from "./store.mjs";
@@ -16,6 +16,7 @@ import { WorkspaceRegistry } from "./host-config.mjs";
 import { prepareWorktree } from "./delivery.mjs";
 import { drainProcessRequests } from "./executors/process.mjs";
 import { drainCheckRuns } from "./check-runs.mjs";
+import { needsKirocrewStep } from "./needs-kirocrew.mjs";
 
 // The enabled workspace roots in the machine catalog, synced from the
 // machine config first so a hand edit counts.
@@ -67,6 +68,7 @@ export async function tickWorkspace(
     });
     // Awaited, unlike the app backend's, since the store closes after.
     await drainCheckRuns(store);
+    needsKirocrewStep(store);
     // The same delivery the app backend runs. A sink's failure is recorded
     // on the sink and never fails the tick.
     let notifications;
