@@ -4841,13 +4841,14 @@ approved.
       - Settings › Models picks harness and model per role; a `session` pin may name a harness
     - checks: npm test, git diff --check
     - after: avoozl-p57
-- [ ] 50.4 One `roles` table for harness, agent and model; Settings › Models is the only place to pick them, after 50.3 [R98.6, R98.7, R98.8, R98.9, R98.10] (§4.28)
+- [x] 50.4 One `roles` table for harness, agent and model; Settings › Models is the only place to pick them, after 50.3 [R98.6, R98.7, R98.8, R98.9, R98.10] (§4.28)
   - Facts:
     - summary: Phase 50 (Kiro Crew stays the only UI). See R98.6–R98.10; §4.28.
     - done:
       - One `roles` table for harness, agent and model; Settings › Models is the only place to pick them
     - checks: npm test, git diff --check
     - after: 50.3
+  - Built: PR #610 (`7e504bc4`). Merged 2026-11-18.
   - Added 2026-11-18 (audit item 8, F7). Another change is reworking Settings › Models; merge main often and fit the table into its layout.
   - `resolveRoles` in `chat-models.mjs` maps the older keys silently; `chatModel`, `roleHarness` and the delivery policy read through it; `roles` in the config schema; Settings › Models gains the worker's and falsifier's rows; Settings › Delivery loses Writer; screenshots in `docs/evidence/simplify-roles/`.
 
