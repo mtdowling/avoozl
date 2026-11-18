@@ -21,6 +21,8 @@ export interface TabItem<T extends string = string> {
   label: string
   // Unsaved changes on this tab: a dot after the label.
   dirty?: boolean
+  // A problem on this tab: a red dot, before any unsaved-changes dot.
+  error?: boolean
   // Anything else after the label, such as a count.
   badge?: ReactNode
 }
@@ -87,6 +89,7 @@ export function Tabs<T extends string>(props: {
             data-tab={tab.key}
             {...(props.tabAttr ? { [props.tabAttr]: tab.key } : {})}
             data-dirty={tab.dirty ? 'true' : undefined}
+            data-error={tab.error ? 'true' : undefined}
             onClick={() => props.onPick(tab.key)}
             style={{
               flex: 'none',
@@ -107,7 +110,10 @@ export function Tabs<T extends string>(props: {
             }}
           >
             {tab.label}
-            {tab.dirty && (
+            {tab.error && (
+              <span data-tab-error aria-label="has a problem" role="img" style={{ width: 7, height: 7, borderRadius: 999, background: 'var(--danger)', flexShrink: 0 }} />
+            )}
+            {tab.dirty && !tab.error && (
               <span data-tab-dot aria-label="unsaved changes" role="img" style={{ width: 7, height: 7, borderRadius: 999, background: ACCENT, flexShrink: 0 }} />
             )}
             {tab.badge}

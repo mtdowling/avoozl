@@ -43,6 +43,7 @@ import { SpecChangedModal } from '../../src/SpecChangedModal.tsx'
 import { projectionClient } from '../../src/projection-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
+import type { EditTab } from '../../src/repo-edit-tabs.ts'
 import { answerIntake } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
@@ -565,6 +566,12 @@ if (query.get('page') === 'app') {
     ] }))
   // Add repository and Set up GitHub and import specs read a folder the same way.
   if (roles) {
+    // Save writes are recorded in __harness.calls.
+    if (!replyFor('github.settings.update'))
+      answer('github.settings.update', (body) => {
+        state.calls.push(body)
+        return replyFor('github.settings.get')!({})
+      })
     answer('repositories.detect', (body) => ({ root: (body.input as { folder: string }).folder, id: 'new-service', baseBranch: 'main', remote: 'git@github.com:acme/new-service.git', github: 'acme/new-service' }))
     answer('repositories.configure', (body) => ({ id: (body.input as { id: string }).id, name: (body.input as { id: string }).id, localCheckout: (body.input as { localCheckout: string }).localCheckout, github: 'acme/new-service', baseBranch: 'main' }))
     answer('onboarding.inspect', (body) => ({
@@ -1231,13 +1238,14 @@ if (query.get('page') === 'github-flow' || (query.get('page') === 'app' && query
         }
       : {}),
   }))
-// ?page=repo-mode: one repository's Edit body on its Mode and branch tab.
+// ?page=repo-mode: one repository's Edit body on its Landing tab.
 function RepoModePage() {
   const [repository, setRepository] = useState<RepositoryForm>(emptyRepository('acme/recipe-box'))
+  const [tab, setTab] = useState<EditTab>('landing')
   const choices = { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] }
   return (
     <NavHistoryProvider>
-      <RepositoryEditor index={0} repository={repository} choices={choices as never} review={undefined} mode="single-repo" workspaceId="w" planningRepository="" onChange={setRepository} />
+      <RepositoryEditor index={0} repository={repository} choices={choices as never} review={undefined} mode="single-repo" workspaceId="w" planningRepository="" tab={tab} onTab={setTab} onChange={setRepository} />
     </NavHistoryProvider>
   )
 }
