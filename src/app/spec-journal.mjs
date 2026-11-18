@@ -276,14 +276,72 @@ export function parseRecord(body) {
 
 const withoutLink = ({ prev: _prev, ...rest }) => key(rest);
 
+// ---- Opaque names on a public journal ------------------------------------
+// A public record names its spec and tasks only by opaque IDs (design
+// §4.32.4). Writers keep readable IDs: appendRecord encodes them on the way
+// out, and replayJournal decodes them for the spec and tasks it was given.
+// `salt` keeps the IDs from being a plain hash of the name; the workspace
+// namespace is the usual salt, so another machine of the same workspace
+// maps them back.
+
+export const opaqueId = (salt, kind, id) =>
+  digest(`${salt}\0${kind}\0${id}`).slice(0, 24);
+
+// {salt, spec, tasks}: `tasks` is a list of task IDs or a function that
+// returns one, read when a record is decoded.
+export function journalNames({ salt, spec, tasks = [] }) {
+  if (!salt || !spec) fail("Opaque journal names need a salt and a spec.", 400);
+  const taskIds = () => (typeof tasks === "function" ? tasks() : tasks) ?? [];
+  return {
+    spec: (id) => opaqueId(salt, "spec", id),
+    task: (id) => opaqueId(salt, "task", id),
+    readable() {
+      const map = new Map([[opaqueId(salt, "spec", spec), spec]]);
+      for (const id of taskIds()) map.set(opaqueId(salt, "task", id), id);
+      return map;
+    },
+  };
+}
+
+const isPublic = (options) => options?.visibility !== "private";
+
+function mapIds(record, spec, task) {
+  const next = { ...record };
+  if (typeof next.spec === "string") next.spec = spec(next.spec);
+  for (const name of ["tasks", "outcomes"])
+    if (Array.isArray(next[name]))
+      next[name] = next[name].map((entry) =>
+        entry && typeof entry.task === "string"
+          ? { ...entry, task: task(entry.task) }
+          : entry,
+      );
+  return next;
+}
+
+// The record as a public journal stores it; a private one is unchanged.
+export function encodeRecord(record, options = {}) {
+  const names = options.names;
+  if (!isPublic(options) || !names) return record;
+  return mapIds(record, names.spec, names.task);
+}
+
+// The stored record with the opaque IDs it knows mapped back. An unknown
+// opaque ID stays as it is, so it matches no task.
+function decodeRecord(record, options, readable) {
+  if (!isPublic(options) || !readable) return record;
+  const back = (id) => readable.get(id) ?? id;
+  return mapIds(record, back, back);
+}
+
 // Replays journal entries: [{id, body, author, edited}] in any order.
 // `permission(login)` answers that login's repository permission.
 // Returns {held, reasons, records, rejected, generation, tail}.
 export async function replayJournal(
   entries,
-  { permission, visibility, publicRepositories, writers = WRITERS } = {},
+  { permission, visibility, publicRepositories, writers = WRITERS, names } = {},
 ) {
   const sorted = [...(entries ?? [])].sort((a, b) => a.id - b.id),
+    readable = names?.readable() ?? null,
     granted = new Map(),
     known = new Map(),
     children = new Map(),
@@ -376,7 +434,13 @@ export async function replayJournal(
         result.held = result.reasons.length > 0;
       }
     }
-    result.records.push({ id: entry.id, author: login, record });
+    result.records.push({
+      id: entry.id,
+      author: login,
+      record: decodeRecord(record, { visibility }, readable),
+      // As written, for comparing a retried write.
+      stored: record,
+    });
     result.tail = { id: entry.id, digest: own };
   }
   return result;
@@ -417,11 +481,13 @@ export async function appendRecord(journal, fields, options = {}) {
     ...fields,
     prev: replay.tail,
   };
-  const body = renderRecord(record, options);
+  // A public journal stores opaque spec and task IDs (encodeRecord).
+  const stored = encodeRecord(record, options);
+  const body = renderRecord(stored, options);
   scanBody(body, options);
   const done = replay.records.find((entry) => entry.record.op === record.op);
   if (done) {
-    if (withoutLink(done.record) !== withoutLink(record))
+    if (withoutLink(done.stored ?? done.record) !== withoutLink(stored))
       fail("That operation ID was already written with another payload.", 409);
     return { id: done.id, record: done.record, existing: true };
   }
