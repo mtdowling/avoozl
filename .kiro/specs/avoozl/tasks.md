@@ -1836,6 +1836,9 @@ approved.
 - [x] 50.1 In flight for `process` sessions: status, log tail, cost, copyable attach command, after avoozl-p57 [R98.1] (§4.28)
 - [x] 50.2 Send message queues a `send`, after 50.1 [R98.2] (§4.28)
 - [x] 50.3 Settings › Models picks harness and model per role; a `session` pin may name a harness, after avoozl-p57 [R98.3, R98.4] (§4.28)
+- [ ] 50.4 One `roles` table for harness, agent and model; Settings › Models is the only place to pick them, after 50.3 [R98.6, R98.7, R98.8, R98.9, R98.10] (§4.28)
+  - Added 2026-11-18 (audit item 8, F7). Another change is reworking Settings › Models; merge main often and fit the table into its layout.
+  - `resolveRoles` in `chat-models.mjs` maps the older keys silently; `chatModel`, `roleHarness` and the delivery policy read through it; `roles` in the config schema; Settings › Models gains the worker's and falsifier's rows; Settings › Delivery loses Writer; screenshots in `docs/evidence/simplify-roles/`.
 
 - [x] avoozl-p60 P60 Proof: a process session is watched and steered from the Avoozl page, after 50.1, 50.2, 50.3 [R98] (§4.28)
   - Setup: one `process` session on a scratch repository.

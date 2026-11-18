@@ -3529,6 +3529,48 @@ message queues a `send`; Settings › Models picks a harness and model per
 role; a task's `session` pin may name a harness. Headless machines have
 `avoozl status` and `avoozl runner status --json` only.
 
+**Roles table** (added 2026-11-18, R98.6 to R98.10). One `roles` object
+in `.avoozl.json` holds each role's harness, agent and model:
+
+```json
+{
+  "roles": {
+    "worker": { "harness": "claude-code", "agent": "avoozl-worker", "model": "<model>" },
+    "falsifier": { "model": "<other model>" },
+    "planner": { "model": "<model>" },
+    "planReviewer": { "model": "<other model>" },
+    "retro": { "harness": "kirocrew" },
+    "reviewDraft": {}
+  }
+}
+```
+
+| Older key                          | Row and field          |
+| ---------------------------------- | ---------------------- |
+| `models.<role>`                    | `roles.<role>.model`   |
+| `harnesses.<role>`                 | `roles.<role>.harness` |
+| `delivery.agent`, `delivery.model` | `roles.worker`         |
+| `delivery.investigate.agent/model` | `roles.falsifier`      |
+| `flow.retro.model`                 | `roles.retro.model`, below `models.retro` |
+
+`resolveRoles(config)` in `chat-models.mjs` builds the table: older keys
+first, then `roles` over them, per field. Every reader goes through it:
+`chatModel` and `roleHarness` for the chats, and the delivery policy's
+worker agent and model and its falsifier agent and model. The loader
+accepts the older keys with no warning, so old files keep working.
+Settings › Models reads and writes the table (`models.settings.get` and
+`models.settings.update`); a save writes `roles` and drops the older keys
+from that file. Settings › Delivery loses its Writer section, and its save
+keeps any older `delivery.agent` and `delivery.model` it finds, so nothing
+is lost before the first Models save.
+
+Not in the table: `delivery.reviewers[]` keep their own `agent` and
+`model`, because each review role is a list entry with its own id and
+focus, per repository. Issue Radar crews pick their own models
+(`radar.crew.models`). `github.issueIntake.*.model` is saved but never
+read, and item 6 of the audit retires that block. A task's `session`
+pin wins over every row.
+
 Proposed change, 2026-11-18 (draft, not approved): the
 `standalone-web` spec would add a second host for the same page,
 `avoozl serve`, bound to `127.0.0.1` only and signed in by a one-time owner
