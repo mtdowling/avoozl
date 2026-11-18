@@ -12,7 +12,7 @@ import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
 // messages sessions. Nothing here opens a session or replaces one.
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { blockerNotes } from "./github-close.mjs";
+import { blockerNotes } from "./gate-clear.mjs";
 import { issueReportToken } from "./report-match.mjs";
 import { fail } from "./store.mjs";
 import { fileURLToPath } from "node:url";

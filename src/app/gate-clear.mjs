@@ -165,3 +165,26 @@ export function gateClearNotes(data, task) {
   }
   return notes;
 }
+
+// Notes for a dependent whose blocker closed without merged code, or whose
+// gate a person cleared (R33.9): which blocker, who ordered it, and when.
+export function blockerNotes(data, task) {
+  const notes = [];
+  for (const edge of data.edges) {
+    if (edge.to !== task.id || !["requires", "sequence"].includes(edge.kind))
+      continue;
+    const blocker = data.tasks.find((candidate) => candidate.id === edge.from),
+      order =
+        (blocker?.trackerVerdict?.state === "order" &&
+          blocker.trackerVerdict) ||
+        (blocker?.intakeVerdict?.state === "order" && blocker.intakeVerdict);
+    if (!order) continue;
+    const name = order.issue
+      ? `${blocker.id} (${order.issue})`
+      : `${blocker.id} "${blocker.title || blocker.id}"`;
+    notes.push(
+      `Blocker ${name} closed without merged code: ${order.order.actor} closed it as ${order.order.reason.toLowerCase()} at ${order.order.closedAt}. Check whether its code exists before relying on it.`,
+    );
+  }
+  return [...notes, ...gateClearNotes(data, task)];
+}

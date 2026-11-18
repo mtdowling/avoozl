@@ -4544,14 +4544,10 @@ export class Operations {
           403,
         );
       const taskId = resolveTaskId(this.read(), input.taskId),
-        by = context.local ? "cli" : this.operator || "person",
-        github = this.github,
-        policy = this.workspaceRoot
-          ? readGitHubPolicyOrNull(this.workspaceRoot)
-          : null;
+        by = context.local ? "cli" : this.operator || "person";
       return name === "task.manual.complete"
-        ? completeManual(store, { ...input, taskId }, { by, github, policy })
-        : reopenManual(store, { taskId }, { by, github });
+        ? completeManual(store, { ...input, taskId }, { by })
+        : reopenManual(store, { taskId }, { by });
     }
     if (name.startsWith("task.notes.")) {
       if (typeof input.taskId !== "string" || !input.taskId)

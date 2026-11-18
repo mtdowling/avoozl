@@ -131,11 +131,6 @@ export function completionReached(task, level, complete) {
   // Packages complete from their children (the tick records it).
   if (task.childrenComplete && taskKind(task) === "package") return true;
   if (level === "integrated" && task.integration?.commit) return true;
-  // A GitHub leaf's verdict (§6.5): verified by its one merged, passing
-  // closer, or done by an allowed actor's order, which satisfies every level.
-  const verdict = task.githubVerdict?.state;
-  if (verdict === "order") return true;
-  if (verdict === "verified" && level !== "released") return true;
   // A route plugin's completion is the remote leaf's verdict (R22.8).
   if (task.routeVerdict?.state === "done" && level !== "released") return true;
   // A tracker plugin's task: Avoozl's verdict as stored in its record, or an
