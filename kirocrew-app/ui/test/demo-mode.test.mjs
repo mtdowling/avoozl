@@ -127,8 +127,10 @@ test('Start demo opens the made-up workspace with its bar, and Exit demo returns
 
   // A change shows what it would do; nothing else happens.
   await click(button('Dashboards', 'tab'))
-  // Stop the line is an icon on the top line, after Plan a goal.
-  await page.until(`Boolean(document.querySelector('[data-main-actions] [data-stop-line]'))`)
+  // Stop the line is an icon in the Dashboards › Delivery heading.
+  await page.until(`Boolean(document.querySelector('[data-nav-item="dashboard/delivery"]'))`)
+  await click(`document.querySelector('[data-nav-item="dashboard/delivery"]')`)
+  await page.until(`Boolean(document.querySelector('[data-heading-actions] [data-stop-line]'))`)
   await click(`document.querySelector('[data-stop-line]')`)
   await page.until(`Boolean(document.querySelector('[data-stop-reason]'))`)
   await page.evaluate(`(() => {

@@ -663,6 +663,7 @@ function Ve(e) {
 			return t("graph.view", r, e);
 		},
 		remote: (e) => t("remote.view", {}, e),
+		landing: (e) => t("landing.view", {}, e),
 		epic: (e, n) => t("epic.get", { id: n }, e),
 		delivery: (e) => t("delivery.view", {}, e).then((e) => e.items),
 		deliveryPage: (e) => t("delivery.view", {}, e),
@@ -1840,7 +1841,8 @@ function on(e) {
 		n.kind !== "none" && (t.preventDefault(), n.kind === "move" ? (y(!0), x(n.state.active)) : n.kind === "pick" ? T(C[n.index]) : n.kind === "close" ? y(!1) : (h(""), _(!1), e.emptyLabel !== void 0 && e.value && e.onPick("")));
 	}, D = v && (C.length > 0 || g);
 	return /* @__PURE__ */ j("div", {
-		className: "flex min-w-0 flex-col gap-1 text-sm",
+		className: `flex min-w-0 text-sm ${e.inline ? "flex-row items-center gap-2" : "flex-col gap-1"}`,
+		"data-picker-inline": e.inline ? "" : void 0,
 		style: {
 			maxWidth: e.maxWidth ?? "100%",
 			position: "relative"
@@ -1848,6 +1850,7 @@ function on(e) {
 		children: [
 			/* @__PURE__ */ A("label", {
 				htmlFor: n,
+				className: e.inline ? "whitespace-nowrap" : void 0,
 				children: e.label
 			}),
 			/* @__PURE__ */ A("input", {
