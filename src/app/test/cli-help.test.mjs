@@ -51,9 +51,10 @@ test("the help holds every command the CLI runs, and no other", () => {
     [],
     "HELP_GROUPS names commands the CLI does not run",
   );
-  // The two session hooks were missing from the help before it was grouped.
-  for (const command of ["register-session", "session-hook"])
-    assert.match(helpText("hooks"), new RegExp(`^  avoozl ${command} `, "m"));
+  // Removed commands answer with their replacement and are not listed
+  // (worker-paths WP7.1).
+  for (const command of ["register-session", "session-hook", "report"])
+    assert.ok(!held.includes(command), command);
 });
 
 test("the overview fits one screen and names every group and command", () => {

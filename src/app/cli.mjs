@@ -145,10 +145,11 @@ try {
   }
   // A removed command form answers with one line naming its replacement
   // and changes nothing (moved-operations.mjs, worker-paths WP7).
-  const moved = movedCommand(command, options);
+  const moved = movedCommand(command, options, positionals);
   if (moved) {
     console.log(moved);
-    process.exit(1);
+    // A session-start hook never fails the session it runs in.
+    process.exit(["session-hook"].includes(command) ? 0 : 1);
   }
   const env = options.env || process.env;
   const requestedWorkspace =
@@ -922,9 +923,7 @@ try {
     // replacement.
     const action = positionals[0];
     let result;
-    if (["accept", "handoff", "pull"].includes(action))
-      result = await localOrRequest(`remote.${action}`, {});
-    else if (action === "status")
+    if (action === "status")
       // A runner reports its remote tasks; any other machine reports the
       // supervisor and its children (R98.5).
       result = HOLDS_TASKS(readRunnerConfig(config.workspaceRoot))
@@ -959,7 +958,7 @@ try {
           taskId: positionals[1],
           state,
         });
-    } else throw Error("Use runner accept|status|report|handoff|pull.");
+    } else throw Error("Use runner status|report.");
     console.log(JSON.stringify(result, null, 2));
   } else if (command === "worker") {
     // Worker mode (R90): this machine pulls offers from spec journals.
@@ -2024,34 +2023,7 @@ try {
         2,
       ),
     );
-  else if (command === "register-session" || command === "session-hook") {
-    let hook = {};
-    if (command === "session-hook") {
-      let text = "";
-      for await (const chunk of process.stdin) {
-        text += chunk;
-        if (text.length > 1000000) throw Error("Hook input is too large.");
-      }
-      hook = JSON.parse(text || "{}");
-    }
-    const result = await localOrRequest("session.register", {
-      taskId:
-        options.task ||
-        process.env.AVOOZL_TASK ||
-        process.env.AICOMMANDER_TASK ||
-        process.env.NUPP_WORKSPACE_TASK,
-      leaseId:
-        options.lease ||
-        process.env.AVOOZL_LEASE ||
-        process.env.AICOMMANDER_LEASE ||
-        process.env.NUPP_WORKSPACE_LEASE,
-      provider: options.provider || "claude",
-      providerSessionId: options.session || hook.session_id,
-      agentId: options.agent || hook.agent_id,
-    });
-    if (command !== "session-hook")
-      console.log(JSON.stringify(result, null, 2));
-  } else if (command === "help") {
+  else if (command === "help") {
     // `avoozl help`, `avoozl help GROUP`, `avoozl help COMMAND` and
     // `avoozl help all`, all rendered from the one table in cli-help.mjs.
     // `avoozl OPERATION --help` has no page of its own and gets the overview.
@@ -2101,7 +2073,7 @@ try {
     helpCommands().includes(command)
   )
     console.error(helpPointer(command));
-  process.exitCode = command === "session-hook" ? 0 : 1;
+  process.exitCode = 1;
 }
 
 // One spec in `plan batches` and the approve preview.

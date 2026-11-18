@@ -372,14 +372,6 @@ export const HELP_GROUPS = Object.freeze([
     summary: "What an agent session or a git hook runs for itself",
     entries: [
       entry(
-        "register-session [--task TASK_ID] [--lease LEASE_ID] [--provider claude] [--session SESSION_ID] [--agent AGENT_ID]",
-        "Link this agent session's transcript to its task; AVOOZL_TASK and AVOOZL_LEASE can name the task and lease",
-      ),
-      entry(
-        "session-hook [--task TASK_ID] [--lease LEASE_ID]",
-        "The same as a session-start hook: reads the hook's JSON on stdin and never fails the session",
-      ),
-      entry(
         "worktree prepare TASK_ID",
         "Create or return the task's worktree and print it",
       ),
@@ -427,18 +419,9 @@ export const HELP_GROUPS = Object.freeze([
         "Print or write the unit that runs the supervisor and tick at login",
       ),
       entry(
-        "runner accept FILE|-",
-        "Runner mode: take one task envelope (a runner's ssh calls this)",
-      ),
-      entry(
         "runner status --json",
-        "This runner's tasks and workers; elsewhere the supervisor and its children",
+        "A worker machine's pulled tasks; elsewhere the supervisor and its children",
       ),
-      entry(
-        "runner handoff ENVELOPE.json --host H",
-        "Runner mode: hand a task to host H over ssh",
-      ),
-      entry("runner pull --host H", "Runner mode: read host H's status"),
       entry(
         "worker pull",
         "Worker mode: read this worker's offers from spec journals",

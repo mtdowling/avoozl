@@ -10,7 +10,7 @@ import { sessionUrl } from "./notifications.mjs";
 const SESSIONS =
   "Agent sessions run in Kiro Crew. Steer, answer, interrupt, or resume the task's Kiro Crew session itself.";
 const DISPATCH =
-  "Avoozl no longer starts agents. The tick opens Kiro Crew sessions for ready leaves; ask for one with plans_request_session {taskId, repository, agent}, or run Crew Mode rounds with plans_next and plans_claim_task.";
+  "Avoozl no longer starts agents on request. The tick opens a session for each ready leaf; ask for one with plans_request_session {taskId, repository, agent}, or take a task by hand with avoozl claim TASK.";
 const BINDINGS =
   "Kiro Crew sessions are bound to tasks with plans_bind_session; rebuild lost bindings from session titles with plans_rediscover_sessions.";
 const RUNTIME = "Kiro Crew owns models, usage, and concurrency.";
@@ -132,13 +132,24 @@ export function movedOperation(store, name, input = {}) {
   };
 }
 
-// Command forms removed with Crew Mode (worker-paths WP2.6): each answers
-// with one line naming the manual path. Returns that line, or null.
+// Command forms this machine no longer runs (worker-paths WP7): each answers
+// with one line naming its replacement and changes nothing. Returns that
+// line, or null for a command that still runs.
 const MANUAL_PATH =
   "Crew Mode was removed. Take a task by hand with avoozl claim TASK, and finish it from its worktree with avoozl runner report TASK done.";
-export function movedCommand(command, options = {}) {
+const SESSION_LINK =
+  "Session registration was removed. The tick binds the sessions it opens; rebuild lost bindings from session titles with plans_rediscover_sessions.";
+const SSH_COMMAND = `${SSH_RUNNER.split(". ")[0]}. Use avoozl worker pull and avoozl worker claim on the worker machine.`;
+export function movedCommand(command, options = {}, positionals = []) {
   if (command === "report") return MANUAL_PATH;
   if (command === "claim" && options.slot !== undefined) return MANUAL_PATH;
   if (command === "next" && options.hook) return MANUAL_PATH;
+  if (command === "register-session" || command === "session-hook")
+    return SESSION_LINK;
+  if (
+    command === "runner" &&
+    ["accept", "handoff", "pull"].includes(positionals[0])
+  )
+    return SSH_COMMAND;
   return null;
 }
