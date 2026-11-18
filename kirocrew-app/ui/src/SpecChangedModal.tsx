@@ -64,9 +64,9 @@ export function SpecChangedModal(props: { workspaceId: string; client: Client; p
     >
       <Box flex flexCol gap="3" size="sm">
         {error && (
-          <p role="alert" style={{ color: 'var(--danger)' }}>
+          <Box role="alert" as="p" css-color="danger">
             {error}
-          </p>
+          </Box>
         )}
         {change && (
           <>
@@ -76,7 +76,7 @@ export function SpecChangedModal(props: { workspaceId: string; client: Client; p
             ) : (
               <Stack as="ul" gap={2} data-change-rows>
                 {change.rows.map((row) => (
-                  <li key={row.taskId} className="flex flex-col gap-0.5 border-b pb-2" style={{ borderColor: 'var(--border)' }}>
+                  <Box key={row.taskId} as="li" css-border-color="border" flex flexCol gap="0.5" border="b" pb="2">
                     <Box as="span" breakWords>
                       <code>{row.taskId}</code> {row.title} <Badge>{row.change}</Badge>
                     </Box>
@@ -84,7 +84,7 @@ export function SpecChangedModal(props: { workspaceId: string; client: Client; p
                       {row.number ? `#${row.number} ` : ''}
                       {ISSUE_STATE_LABEL[row.issueState]} · {ACTION_LABEL[row.action]}. {row.text}
                     </Hint>
-                  </li>
+                  </Box>
                 ))}
               </Stack>
             )}

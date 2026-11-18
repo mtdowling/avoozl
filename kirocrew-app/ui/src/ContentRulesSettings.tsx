@@ -152,7 +152,7 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
           ))}
         </Box>
       )}
-      <div className="border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+      <Box css-border-color="border" border="t" pt="2">
         <Box as="h3" size="sm" weight="semibold">Built in</Box>
         <Hint as="p" size="xs">Always on. Settings can’t change them.</Hint>
         <Box as="ul" mt="1" flex flexCol gap="0.5">
@@ -168,7 +168,7 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
             />
           ))}
         </Box>
-      </div>
+      </Box>
       </Stack>
     </PairedCard>
   )
@@ -179,14 +179,14 @@ function SetList(props: { value: ContentRules | null; selection: Selection | nul
 
 function Facts({ rows }: { rows: [string, ReactNode][] }) {
   return (
-    <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'minmax(7rem, auto) 1fr' }}>
+    <Box as="dl" css-grid-template-columns="minmax-7rem-auto-1fr" grid gapX="3" gapY="1.5" size="sm">
       {rows.map(([label, value]) => (
         <Box key={label} contents>
           <Hint as="dt">{label}</Hint>
           <dd>{value}</dd>
         </Box>
       ))}
-    </dl>
+    </Box>
   )
 }
 
@@ -205,9 +205,9 @@ function BuiltinDetails({ id, appliesAt, mode }: { id: string; appliesAt: string
             'It blocks',
             info ? (
               <Stack as="span" gap={1}>
-                <code className="w-fit rounded border px-1.5 py-0.5 text-xs" style={{ borderColor: 'var(--border)' }}>
+                <Box as="code" css-border-color="border" wFit rounded="base" border="all" px="1.5" py="0.5" size="xs">
                   {info.example}
-                </code>
+                </Box>
                 <Hint size="xs">A made-up example.</Hint>
               </Stack>
             ) : (
@@ -259,11 +259,11 @@ function SetFormView(props: {
         <Box as="legend" mb="1" flex flexWrap items="baseline" gapX="2" size="sm">
           <Box as="span" weight="medium">Where it checks</Box> <RawKey name="boundaries" />
         </Box>
-        <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 14rem), 1fr))' }}>
+        <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-14rem-1fr" grid gap="1.5">
           {BOUNDARIES.map((b) => (
             <Check key={b} label={BOUNDARY_LABELS[b]} hint={BOUNDARY_HINTS[b]} checked={form.boundaries.includes(b)} onChange={(on) => set({ boundaries: toggle(form.boundaries, b, on) })} />
           ))}
-        </div>
+        </Box>
       </Box>
       <Box as="fieldset" flex flexCol gap="1">
         <Box as="legend" mb="1" flex flexWrap items="baseline" gapX="2" size="sm">
@@ -330,10 +330,10 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
   if (row.kind === 'note' || row.kind === 'raw')
     return (
       <Box as="li" flex flexCol gap="1" data-term-row={index + 1}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', gap: 8, alignItems: 'center' }}>
-          <span className="text-xs text-muted" style={{ width: '4.5rem' }}>
+        <Box css-display="grid" css-grid-template-columns="auto-minmax-0-1fr-auto" css-gap="8" css-align-items="center">
+          <Box as="span" css-width="4.5rem" size="xs" tone="muted">
             {row.kind === 'note' ? 'Note' : `Line ${index + 1}`}
-          </span>
+          </Box>
           <input
             value={row.text}
             aria-label={row.kind === 'note' ? `Note on line ${index + 1}` : `Line ${index + 1}`}
@@ -343,7 +343,7 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
             style={{ ...fieldStyle, ...(row.kind === 'raw' ? mono : { color: 'var(--muted)' }) }}
           />
           <IconBtn icon={X} label={`Drop line ${index + 1}`} onClick={props.onRemove} />
-        </div>
+        </Box>
         {error && (
           <ErrorText id={errorId} as="span" size="xs">
             Line {index + 1}: {error}
@@ -432,7 +432,7 @@ function FileView(props: { text: string; onChange: (text: string) => void }) {
   const lineStyle = { fontFamily: 'var(--mono, monospace)', fontSize: 12, lineHeight: '18px' }
   return (
     <Stack gap={1}>
-      <div className="flex overflow-hidden rounded border" style={{ borderColor: 'var(--border)', height: 220 }}>
+      <Box css-border-color="border" css-height="220" flex overflow="hidden" rounded="base" border="all">
         <div ref={gutter} aria-hidden="true" className="select-none overflow-hidden px-2 py-1.5 text-right" style={{ ...lineStyle, background: 'color-mix(in srgb, var(--text) 5%, var(--card, var(--bg)))', minWidth: '2.5rem' }}>
           {Array.from({ length: count + 20 }, (_, i) => (
             <div key={i} style={{ color: bad.has(i + 1) ? 'var(--danger)' : 'var(--muted)', fontWeight: bad.has(i + 1) ? 700 : 400, visibility: i < count ? 'visible' : 'hidden' }}>
@@ -451,7 +451,7 @@ function FileView(props: { text: string; onChange: (text: string) => void }) {
           className="flex-1 resize-none px-2 py-1.5"
           style={{ ...lineStyle, background: 'var(--card, var(--bg))', color: 'var(--text)', border: 0, outline: 'none', whiteSpace: 'pre', overflow: 'auto' }}
         />
-      </div>
+      </Box>
       {errors.length > 0 && (
         <Box as="ul" size="xs" tone="danger" role="alert">
           {errors.map((e) => (
@@ -473,7 +473,7 @@ function TryIt({ rows }: { rows: TermRow[] }) {
   const allowed = hits.length - blocking.length
   const named = [...new Set(blocking.map((h) => h.rule))]
   return (
-    <div className="flex flex-col gap-1.5 rounded border p-2" style={{ borderColor: 'var(--border)' }} data-try-it>
+    <Box css-border-color="border" flex flexCol gap="1.5" rounded="base" border="all" p="2" data-try-it>
       <Box as="label" flex flexCol gap="1" size="sm">
         Try it
         <Hint size="xs">Paste some text. Matches light up. Nothing here is saved or sent.</Hint>
@@ -488,7 +488,7 @@ function TryIt({ rows }: { rows: TermRow[] }) {
       </Box>
       {sample && (
         <>
-          <div className="rounded px-2 py-1 text-sm" style={{ background: 'color-mix(in srgb, var(--text) 4%, var(--card, var(--bg)))', whiteSpace: 'pre-wrap' }} aria-live="polite">
+          <Box css-background="mix-text-4%-card-bg" css-white-space="pre-wrap" rounded="base" px="2" py="1" size="sm" aria-live="polite">
             {lines.map((text, line) => (
               <div key={line}>
                 {highlightPieces(
@@ -498,10 +498,10 @@ function TryIt({ rows }: { rows: TermRow[] }) {
                   !piece.rules.length && piece.allowed ? (
                     <span key={i} data-allowed={piece.allowed.join(' ')}>
                       <del style={{ color: 'var(--muted)' }}>{piece.text}</del>
-                      <span className="text-xs text-muted" style={{ marginLeft: 2 }}>
+                      <Box as="span" css-margin-left="2" size="xs" tone="muted">
                         {' '}
                         (allowed)
-                      </span>
+                      </Box>
                     </span>
                   ) : piece.rules.length ? (
                     <mark key={i} title={undefined} data-match={piece.rules.join(' ')} style={{ background: 'color-mix(in srgb, var(--danger) 25%, transparent)', color: 'inherit', borderRadius: 3 }}>
@@ -514,14 +514,14 @@ function TryIt({ rows }: { rows: TermRow[] }) {
                 {!text && '\u00a0'}
               </div>
             ))}
-          </div>
+          </Box>
           <Hint as="p" size="xs" role="status">
             {blocking.length ? `${blocking.length} match${blocking.length === 1 ? '' : 'es'}: ${named.join(', ')}.` : 'No matches.'}
             {allowed ? ` ${allowed} allowed.` : ''} Avoozl also reads through percent and HTML escapes; this preview does not.
           </Hint>
         </>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -785,20 +785,20 @@ function SetDetails(props: {
         />
       )}
       {set && !set.available && set.reason && (
-        <p className="text-sm" style={{ color: 'var(--danger)' }} role="alert">
+        <Box as="p" css-color="danger" size="sm" role="alert">
           Nothing it checks is written until this is fixed: {set.reason}.
-        </p>
+        </Box>
       )}
       <Stack as="section" gap={2}>
         <Box as="h4" size="sm" weight="semibold">Settings</Box>
         <SetFormView form={form} set={(patch) => setForm({ ...form, ...patch })} isNew={!set} choices={choices} />
       </Stack>
       {set && set.source === 'file' && (
-        <section className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+        <Box as="section" css-border-color="border" flex flexCol gap="2" border="t" pt="3">
           <Box as="h4" size="sm" weight="semibold">Words and patterns</Box>
           <Hint as="p" size="xs">One rule per line. Case doesn’t matter. Only you can see these.</Hint>
           <TermsEditor workspaceId={props.workspaceId} client={props.client} set={set} onSaved={props.reload} control={termsControl} onState={setTerms} />
-        </section>
+        </Box>
       )}
       {set && set.source === 'plugin' && <Hint as="p" size="sm">The plugin {set.plugin} supplies this set’s rules, so there is no terms file to edit.</Hint>}
       <SaveFooter dirty={setsDirty || terms.dirty} saving={busy} problem={problem} error={error} note="Settings go to .avoozl.json, words to a file on this machine." onSave={() => void save()} onDiscard={discard} />
@@ -821,12 +821,12 @@ allow ticket: \bacme-0000\b`
 
 function HowRulesWork() {
   return (
-    <details id={HELP_ID} className="rounded-lg border p-3" style={{ borderColor: 'var(--border)' }} data-rules-help>
-      <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold" style={{ listStyle: 'none' }}>
+    <Box id={HELP_ID} as="details" css-border-color="border" rounded="lg" border="all" p="3" data-rules-help>
+      <Box as="summary" css-list-style="none" flex cursorPointer items="center" gap="2" size="sm" weight="semibold">
         <BookOpen size={ICON} aria-hidden="true" />
         How rules work
-      </summary>
-      <div className="mt-3 grid gap-4 text-sm" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 20rem), 1fr))' }}>
+      </Box>
+      <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-20rem-1fr" mt="3" grid gap="4" size="sm">
         <section>
           <Box as="h4" weight="semibold">Rule sets</Box>
           <Hint as="p">
@@ -837,9 +837,9 @@ function HowRulesWork() {
         <section>
           <Box as="h4" weight="semibold">One rule per line</Box>
           <Hint as="p">A name, a colon, then what to find. Lines starting with # are notes. Case never matters.</Hint>
-          <pre className="mt-1 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
+          <Box as="pre" css-border-color="border" mt="1" overflow="auto" rounded="base" border="all" p="2" size="xs">
             {EXAMPLE_LINES}
-          </pre>
+          </Box>
         </section>
         <section>
           <Box as="h4" weight="semibold">Word or pattern</Box>
@@ -855,16 +855,16 @@ function HowRulesWork() {
             file; <code>allow ticket:</code> works for the ticket rule only. It counts only when it matches the same line the rule matched.
             Allow lines are as private as rules, and the built-in sets don’t use them.
           </Hint>
-          <pre className="mt-1 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
+          <Box as="pre" css-border-color="border" mt="1" overflow="auto" rounded="base" border="all" p="2" size="xs">
             {ALLOW_LINES}
-          </pre>
+          </Box>
         </section>
         <section>
           <Box as="h4" weight="semibold">Where it checks</Box>
           <Box as="ul" tone="muted">
             {BOUNDARIES.map((b) => (
               <li key={b}>
-                <span style={{ color: 'var(--text)' }}>{BOUNDARY_LABELS[b]}:</span> {BOUNDARY_HINTS[b]}
+                <Box as="span" css-color="text">{BOUNDARY_LABELS[b]}:</Box> {BOUNDARY_HINTS[b]}
               </li>
             ))}
           </Box>
@@ -899,8 +899,8 @@ function HowRulesWork() {
             pick it as the set’s rules plugin. Its rules stay in memory only.
           </Hint>
         </section>
-      </div>
-    </details>
+      </Box>
+    </Box>
   )
 }
 

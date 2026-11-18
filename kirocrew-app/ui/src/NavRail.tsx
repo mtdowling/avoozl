@@ -37,9 +37,9 @@ export function RailBlock(props: { icon: LucideIcon; title: string; first?: bool
       <div data-rail-head>
         <Icon size={12} aria-hidden="true" />
         <span>{props.title}</span>
-        {props.action && <span style={{ marginLeft: 'auto', display: 'inline-flex', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>{props.action}</span>}
+        {props.action && <Box as="span" css-margin-left="auto" css-display="inline-flex" css-text-transform="none" css-letter-spacing="0" css-font-weight="400">{props.action}</Box>}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{props.children}</div>
+      <Box css-display="flex" css-flex-direction="column" css-gap="2">{props.children}</Box>
     </div>
   )
 }
@@ -57,7 +57,7 @@ export function RailRow(props: { label: string; active: boolean; onClick: () => 
 }
 
 export function RailDivider() {
-  return <div role="separator" style={{ margin: '4px 0', borderTop: '1px solid var(--border)' }} />
+  return <Box role="separator" css-margin="4px-0" css-border-top="1px-solid-border" />
 }
 
 export interface RailSort<K extends string> {
@@ -134,7 +134,7 @@ export function RailChips(props: { id: string; icon: LucideIcon; title: string; 
       }
     >
       {open && (
-        <div style={{ position: 'relative', marginBottom: 8 }}>
+        <Box css-position="relative" css-margin-bottom="8">
           <input
             autoFocus
             type="text"
@@ -148,9 +148,9 @@ export function RailChips(props: { id: string; icon: LucideIcon; title: string; 
           <button type="button" data-rail-icon aria-label={`Close ${props.noun} search`} onClick={close} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)' }}>
             <X size={13} aria-hidden="true" />
           </button>
-        </div>
+        </Box>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+      <Box css-display="flex" css-flex-direction="column" css-align-items="flex-start" css-gap="6">
         {shown.map((item) => {
           const at = props.items.indexOf(item)
           const picked = props.picked === item.value
@@ -165,12 +165,12 @@ export function RailChips(props: { id: string; icon: LucideIcon; title: string; 
               style={{ background: tint(at, picked) }}
             >
               <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', flexShrink: 0, opacity: picked ? 0.9 : 0.6 }}>{item.count}</span>
-              <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+              <Box as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">{item.label}</Box>
             </button>
           )
         })}
-      </div>
-      {open && shown.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)' }}>No {props.noun} matches “{query}”.</div>}
+      </Box>
+      {open && shown.length === 0 && <Box css-font-size="12" css-color="muted">No {props.noun} matches “{query}”.</Box>}
     </RailBlock>
   )
 }

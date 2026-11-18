@@ -137,9 +137,9 @@ export function Picker(props: {
               )}
               {item.spec && <Box as="span" shrink0 size="xs" tone="muted">{item.spec}</Box>}
               {item.state && (
-                <span className="shrink-0 rounded border px-1 text-xs" style={{ borderColor: 'var(--border)' }}>
+                <Box as="span" css-border-color="border" shrink0 rounded="base" border="all" px="1" size="xs">
                   {item.state}
-                </span>
+                </Box>
               )}
             </li>
           ))}

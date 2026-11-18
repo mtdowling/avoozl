@@ -91,10 +91,9 @@ export default function MirrorSetup(props: {
   const chosen = result ? tickedIds(result.lines, unticked) : [];
 
   return (
-    <div
+    <Box
       data-mirror-setup
-      className="flex flex-col gap-2 rounded-lg border p-3"
-      style={{ borderColor: "var(--border)" }}
+      css-border-color="border" flex flexCol gap="2" rounded="lg" border="all" p="3"
     >
       <SectionHeading level={4} title="Set up the mirror" className="mb-0" />
       <Hint as="p" size="sm">
@@ -118,13 +117,12 @@ export default function MirrorSetup(props: {
         ))}
       </Row>
       {error && (
-        <p
+        <Box
           role="alert"
-          className="text-sm"
-          style={{ color: "var(--danger, #c0392b)" }}
+          as="p" css-color="danger-c0392b" size="sm"
         >
           {error}
-        </p>
+        </Box>
       )}
       {result && (
         <Stack data-mirror-run={run?.kind} gap={2}>
@@ -208,6 +206,6 @@ export default function MirrorSetup(props: {
           )}
         </Stack>
       )}
-    </div>
+    </Box>
   );
 }

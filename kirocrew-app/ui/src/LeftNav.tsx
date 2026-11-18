@@ -10,6 +10,7 @@ import { NAV_ROW } from './nav-style.ts'
 import { NAV, NAV_COLLAPSE_AT, NAV_COLLAPSED_KEY, NAV_COLLAPSED_WIDTH, clampWidth, pageStorage, readFlag, readWidth, writeFlag, writeWidth } from './columns.ts'
 import { ChevronRight } from './icons.ts'
 import { ResizeHandle } from './ResizeHandle.tsx'
+import { Box } from './ui/Box'
 
 // Issue Radar's sidebar cards, measured on the host: 12px corners, the
 // elevated surface, a hairline border and a small shadow. The top card's
@@ -64,7 +65,7 @@ export function LeftNav(props: { groups: NavGroup[]; value: string; child?: stri
         <button type="button" aria-label="Expand the nav" data-nav-expand onClick={() => setCollapsed(false)} style={{ display: 'flex', justifyContent: 'center', padding: '6px 0', background: 'none', border: 0, color: 'var(--muted)', cursor: 'pointer' }}>
           <ChevronRight size={16} aria-hidden="true" />
         </button>
-        <div role="group" aria-label="Avoozl views" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <Box role="group" aria-label="Avoozl views" css-display="flex" css-flex-direction="column" css-gap="4">
           {props.groups.map((group) => {
             const selected = group.key === props.value
             return (
@@ -73,7 +74,7 @@ export function LeftNav(props: { groups: NavGroup[]; value: string; child?: stri
               </button>
             )
           })}
-        </div>
+        </Box>
       </nav>
     )
   return (
@@ -83,9 +84,9 @@ export function LeftNav(props: { groups: NavGroup[]; value: string; child?: stri
         <NavAccordion groups={props.groups} value={props.value} child={props.child} onPick={props.onPick} />
         {props.line}
         <button type="button" aria-label="Collapse the nav" data-nav-collapse onClick={() => setCollapsed(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', background: 'none', border: 0, color: 'var(--muted)', cursor: 'pointer', fontSize: 12 }}>
-          <span aria-hidden="true" style={{ display: 'inline-flex', transform: 'rotate(180deg)' }}>
+          <Box aria-hidden="true" as="span" css-display="inline-flex" css-transform="rotate-180deg">
             <ChevronRight size={14} />
-          </span>
+          </Box>
           Collapse
         </button>
         {props.brand}

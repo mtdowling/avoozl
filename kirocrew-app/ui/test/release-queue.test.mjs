@@ -101,7 +101,7 @@ test('the Dashboard shows the queue, Settings has no release mode, Step has one 
   assert.match(queue, /repository\.mode === 'step' \? nextSteps\(repository\) : \[\]/)
   assert.match(queue, /onClick=\{\(\) => onStep\(step\.planId\)\}/)
   // Rows wrap: columns on a wide page, stacked on a narrow one.
-  assert.match(queue, /flexDirection: 'row'[^}]*flexWrap: 'wrap'/)
+  assert.match(queue, /css-flex-direction="row"[^>]*css-flex-wrap="wrap"/)
 })
 
 test('the Dashboard lists armed pull requests under a stop, with a Disarm that calls the person-only operation', async () => {

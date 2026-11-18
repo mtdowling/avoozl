@@ -184,10 +184,10 @@ export function ConflictActions(props: {
       )}
       {action === 'settle' && (
         <Row gap={2} align="end">
-          <label htmlFor={`answer-${itemKey(item)}`} className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '16rem' }}>
+          <Box htmlFor={`answer-${itemKey(item)}`} as="label" css-min-width="16rem" flex flex1 flexCol gap="1" size="xs">
             <span>Your answer to “{item.detail}”</span>
             <Input id={`answer-${itemKey(item)}`} value={answer} onChange={(event) => setAnswer(event.target.value)} />
-          </label>
+          </Box>
           <DangerBtn
             icon={Check}
             tooltip={ACTION_TIPS.settle}
@@ -431,15 +431,15 @@ function ContentActions(props: {
         </Row>
       )}
       {line !== null && (
-        <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
+        <Box as="pre" css-border-color="border" maxH40 overflow="auto" whitespace="pre-wrap" breakWords rounded="base" border="all" p="2" size="xs">
           {line}
-        </pre>
+        </Box>
       )}
       <Row gap={2} align="end">
-        <label htmlFor={`allow-${id}`} className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '16rem' }}>
+        <Box htmlFor={`allow-${id}`} as="label" css-min-width="16rem" flex flex1 flexCol gap="1" size="xs">
           <span>Why this exact content may go out once (required)</span>
           <Input id={`allow-${id}`} value={reason} onChange={(event) => setReason(event.target.value)} />
-        </label>
+        </Box>
         <DangerBtn
           icon={Check}
           tooltip="Let this exact content out once. It can't be taken back."
@@ -475,7 +475,7 @@ function ItemHistory({ item, workspaceId }: { item: ConflictItem; workspaceId: s
     tasks.detail(workspaceId, item.taskId).then(setDetail, (caught: unknown) => setError(errorMessage(caught)))
   }, [tasks, workspaceId, item.taskId])
   return (
-    <div className="mt-2 flex flex-col gap-2 rounded border p-2 text-sm" style={{ borderColor: 'var(--border)' }} data-history>
+    <Box css-border-color="border" mt="2" flex flexCol gap="2" rounded="base" border="all" p="2" size="sm" data-history>
       {error && <ErrorText size="xs">{error}</ErrorText>}
       {detail && (
         <>
@@ -500,7 +500,7 @@ function ItemHistory({ item, workspaceId }: { item: ConflictItem; workspaceId: s
         </>
       )}
       {!item.taskId && <Hint as="p" size="xs">This item belongs to the workspace, not one task.</Hint>}
-    </div>
+    </Box>
   )
 }
 
@@ -590,9 +590,9 @@ function ConflictDetail(props: {
         )}
       </Box>
       {!phone && (
-        <h3 className="m-0 text-lg font-semibold" style={{ overflowWrap: 'anywhere' }}>
+        <Box as="h3" css-overflow-wrap="anywhere" m0 size="lg" weight="semibold">
           {item.title}
-        </h3>
+        </Box>
       )}
       <ItemContextBlock item={item} plan={props.plan} />
       <Box flex flexWrap items="center" gap="1.5" data-conflict-actions>

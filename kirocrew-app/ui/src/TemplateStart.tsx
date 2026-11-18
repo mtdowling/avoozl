@@ -217,9 +217,8 @@ export function TemplateStart(props: {
           />
         ))}
       {template?.settings && (
-        <section
-          className="flex flex-col gap-2 rounded border p-3 text-sm"
-          style={{ borderColor: 'var(--border)' }}
+        <Box
+          as="section" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="3" size="sm"
           aria-label="Template settings"
           data-template-settings
         >
@@ -235,7 +234,7 @@ export function TemplateStart(props: {
           <Switch label="Import these settings" align="start" checked={props.importSettings} disabled={!preview} onChange={props.onImportSettings} data-import-settings>
             <span>Import these settings</span>
           </Switch>
-        </section>
+        </Box>
       )}
     </Stack>
   )

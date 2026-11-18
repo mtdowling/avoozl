@@ -125,15 +125,15 @@ const jump = (id: string) => document.getElementById(id)?.scrollIntoView?.({ blo
 // dividers, 12.5px text, 236px wide.
 export function SpecCard(props: { title: string; id?: string; actions?: ReactNode; children: ReactNode }) {
   return (
-    <section aria-label={props.title} id={props.id} data-spec-card={props.title} style={{ border: '1px solid var(--border)', borderRadius: 12, background: 'var(--card, var(--bg))', overflow: 'hidden', scrollMarginTop: 12, minWidth: 0 }}>
-      <div data-spec-card-head style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, minHeight: 34, boxSizing: 'border-box', padding: '6px 14px', borderBottom: '1px solid var(--border)', background: 'color-mix(in srgb, var(--bg-elevated) 60%, transparent)' }}>
-        <h3 style={{ margin: 0, flex: '1 1 auto', fontSize: 11, fontWeight: 500, lineHeight: '17px', letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--muted)' }}>{props.title}</h3>
+    <Box aria-label={props.title} id={props.id} data-spec-card={props.title} as="section" css-border="1px-solid-border" css-border-radius="12" css-background="card-bg" css-overflow="hidden" css-scroll-margin-top="12" css-min-width="0">
+      <Box data-spec-card-head css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="6" css-min-height="34" css-box-sizing="border-box" css-padding="6px-14px" css-border-bottom="1px-solid-border" css-background="mix-bg-elevated-60%-transparent">
+        <Box as="h3" css-margin="0" css-flex="1-1-auto" css-font-size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase" css-color="muted">{props.title}</Box>
         {props.actions}
-      </div>
-      <div data-spec-card-body style={{ padding: '12px 14px', minWidth: 0 }}>
+      </Box>
+      <Box data-spec-card-body css-padding="12px-14px" css-min-width="0">
         {props.children}
-      </div>
-    </section>
+      </Box>
+    </Box>
   )
 }
 
@@ -149,8 +149,8 @@ const RAIL_CSS = `[data-spec-rail]>[data-rail-section]:last-child{border-bottom:
 function RailSection(props: { title: string; edit?: { label: string; onClick: () => void }; children: ReactNode; attrs?: Record<string, string> }) {
   return (
     <section data-rail-section={props.title} {...props.attrs} style={{ paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid var(--border)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-        <h4 style={{ margin: 0, fontSize: 11, fontWeight: 500, lineHeight: '17px', letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--muted)' }}>{props.title}</h4>
+      <Box css-display="flex" css-align-items="center" css-justify-content="space-between" css-gap="8" css-margin-bottom="8">
+        <Box as="h4" css-margin="0" css-font-size="11" css-font-weight="500" css-line-height="17px" css-letter-spacing="0.05em" css-text-transform="uppercase" css-color="muted">{props.title}</Box>
         {props.edit && (
           <Tooltip text="Edit">
             <button type="button" data-rail-edit aria-label={props.edit.label} onClick={props.edit.onClick} style={{ display: 'inline-flex', padding: 2 }}>
@@ -158,7 +158,7 @@ function RailSection(props: { title: string; edit?: { label: string; onClick: ()
             </button>
           </Tooltip>
         )}
-      </div>
+      </Box>
       {props.children}
     </section>
   )
@@ -237,10 +237,10 @@ function Documents({ docs, error }: { docs: SpecDocuments | null; error: string 
           title={tab.label}
           id={`avoozl-doc-${tab.file}`}
           actions={
-            <span className="min-w-0 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
+            <Box as="span" css-overflow-wrap="anywhere" minW0 size="xs" tone="muted">
               {docs.folder}
               {tab.file}
-            </span>
+            </Box>
           }
         >
           <Markdown text={tab.text} idPrefix={docPrefix(tab.file)} measure={PROSE_MEASURE} />
@@ -258,9 +258,9 @@ function SpecDetailsBox({ children }: { children: ReactNode }) {
   return (
     <SpecCard title="Spec details" id="avoozl-spec-details">
       <style>{DETAILS_CSS}</style>
-      <div data-spec-details-box tabIndex={0} style={{ maxHeight: 260, overflowY: 'auto', overscrollBehavior: 'contain', fontSize: 12.5 }}>
+      <Box data-spec-details-box tabIndex={0} css-max-height="260" css-overflow-y="auto" css-overscroll-behavior="contain" css-font-size="12.5">
         {children}
-      </div>
+      </Box>
     </SpecCard>
   )
 }
@@ -269,7 +269,7 @@ function SpecDetailsBox({ children }: { children: ReactNode }) {
 function DocumentTab({ docs, error, file }: { docs: SpecDocuments | null; error: string | null; file: string }) {
   const text = docs?.documents?.[file]
   return (
-    <SpecCard title={file} id={`avoozl-doc-${file}`} actions={docs ? <span className="min-w-0 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{docs.folder}{file}</span> : undefined}>
+    <SpecCard title={file} id={`avoozl-doc-${file}`} actions={docs ? <Box as="span" css-overflow-wrap="anywhere" minW0 size="xs" tone="muted">{docs.folder}{file}</Box> : undefined}>
       {error ? (
         <ErrorText size="sm">{error}</ErrorText>
       ) : !docs ? (
@@ -455,7 +455,7 @@ function SpecDetail(props: {
   const critique = plan?.disk.critique ?? spec.critique
   const diagnostics = plan?.quality.diagnostics ?? []
   return (
-    <div className="flex min-w-0 flex-col" style={{ gap: 20 }} role="tabpanel" id="spec-tab-panel">
+    <Box css-gap="20" flex minW0 flexCol role="tabpanel" id="spec-tab-panel">
       {overview && (<>
       {props.pull && props.workspaceId && (
         <SpecCard title="Proposed change" id="avoozl-spec-pull">
@@ -598,7 +598,7 @@ function SpecDetail(props: {
         </SpecCard>
       )}
       </>)}
-    </div>
+    </Box>
   )
 }
 
@@ -682,33 +682,26 @@ export function ProgressBar({ tasks }: { tasks: { total: number; done: number } 
     transition: still ? 'none' : 'width 700ms cubic-bezier(0.2, 0.8, 0.2, 1)',
   }
   return (
-    <div style={{ minWidth: 112 }}>
+    <Box css-min-width="112">
       <Box flex items="baseline" justify="between" gap="2" size="xs">
-        <span className="font-semibold tabular-nums" style={{ color: 'var(--ok-text, var(--ok))' }}>
+        <Box as="span" css-color="ok-text-ok" weight="semibold" tabularNums>
           {percent}%
-        </span>
+        </Box>
         <Box as="span" tabularNums tone="muted">
           {tasks.done}/{tasks.total}
         </Box>
       </Box>
-      <div
+      <Box
         role="progressbar"
         aria-label={`${percent}% of tasks done`}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent}
-        className="mt-1"
-        style={{
-          height: 8,
-          borderRadius: 999,
-          overflow: 'hidden',
-          background: 'color-mix(in srgb, var(--border) 75%, transparent)',
-          boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--border) 60%, transparent)',
-        }}
+        css-height="8" css-border-radius="999" css-overflow="hidden" css-background="mix-border-75%-transparent" css-box-shadow="inset-0-0-0-1px-mix-border-60%-transparent" mt="1"
       >
         <div style={fill} />
-      </div>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
@@ -955,10 +948,10 @@ export function SpecList(props: {
               {chip === 'draft' ? (
                 // A draft has no badge: its title is in the muted theme color, the
                 // word stays for screen readers, and the row has a Draft tooltip.
-                <span className="min-w-0 flex-1 truncate text-sm font-medium" data-spec-name="draft" style={{ color: 'var(--muted)' }}>
+                <Box as="span" css-color="muted" minW0 flex1 truncate size="sm" weight="medium" data-spec-name="draft">
                   {row.name}
                   <Box as="span" srOnly> ({SPEC_CHIP_LABEL.draft})</Box>
-                </span>
+                </Box>
               ) : (
                 <>
                   <Box as="span" minW0 flex1 truncate size="sm" weight="medium" data-spec-name="">{row.name}</Box>
@@ -1000,11 +993,11 @@ export function SpecList(props: {
               </Box>
             )}
             {chip === 'draft' ? (
-              <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+              <Box css-flex="1-1-0%" css-min-width="0">
                 <Tooltip text={SPEC_CHIP_LABEL.draft} display="block">
                   {button}
                 </Tooltip>
-              </div>
+              </Box>
             ) : (
               button
             )}
@@ -1117,22 +1110,22 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
         <h1 id="avoozl-plan-title" ref={titleRef ?? undefined} style={{ margin: 0, fontSize: 27, fontWeight: 700, lineHeight: 1.25, color: 'var(--text-strong, var(--text))', overflowWrap: 'anywhere' }}>
           {row.name}
         </h1>
-        <p data-spec-meta style={{ margin: '12px 0 0', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 12.5, lineHeight: '19.4px', color: 'var(--muted)' }}>
+        <Box data-spec-meta as="p" css-margin="12px-0-0" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" css-font-size="12.5" css-line-height="19.4px" css-color="muted">
           {specMeta(row, plan).map((part, i) => (
-            <span key={i} style={{ display: 'contents' }}>
+            <Box key={i} as="span" css-display="contents">
               {i > 0 && <span aria-hidden="true">·</span>}
               {part}
-            </span>
+            </Box>
           ))}
           {props.driver}
-        </p>
+        </Box>
       </div>
       <div data-spec-actions style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: `16px ${pad}px 16px`, ...divider }}>
         <StatePill status={row.status} archived={Boolean(row.archived)} />
-        <span data-spec-id style={{ fontSize: 12.5, color: 'var(--muted)', fontFamily: 'var(--font-mono, ui-monospace, monospace)', overflowWrap: 'anywhere' }}>
+        <Box data-spec-id as="span" css-font-size="12.5" css-color="muted" css-font-family="font-mono-ui-monospace-monospace" css-overflow-wrap="anywhere">
           {id}
-        </span>
-        <span style={{ display: 'inline-flex', alignItems: 'stretch', gap: 6 }}>
+        </Box>
+        <Box as="span" css-display="inline-flex" css-align-items="stretch" css-gap="6">
           <Tooltip text={primaryButton.tooltip}>
             {(describedBy) => (
               <Btn
@@ -1151,7 +1144,7 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
           </Tooltip>
           <MoreMenu label="More spec actions" attrs={{ 'data-spec-more': '' }}>
             <style>{RAIL_CSS}</style>
-            <div className="flex flex-col" style={{ gap: 2 }}>
+            <Box css-gap="2" flex flexCol>
               {primary !== 'edit' && <MenuItem icon={Pencil} label="Edit spec" tooltip="Start a planner chat that drafts a change to the spec files" onClick={actions.onEdit} />}
               <MenuItem icon={MessagesSquare} label="Discuss spec" tooltip="Start a chat about this spec. It makes no edits." onClick={actions.onDiscuss} />
               <Box data-new-task as="span" contents>
@@ -1173,9 +1166,9 @@ function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecA
               {actions.onArchive && <MenuItem icon={Archive} label="Archive" tooltip={ARCHIVE_TIP} onClick={actions.onArchive} />}
               {actions.onUnarchive && <MenuItem icon={ArchiveRestore} label="Unarchive" tooltip={UNARCHIVE_TIP} onClick={actions.onUnarchive} />}
               {actions.onDelete && <MenuItem icon={Trash2} label="Delete" danger tooltip="Delete this spec. You confirm first; it stays in history." onClick={actions.onDelete} />}
-            </div>
+            </Box>
           </MoreMenu>
-        </span>
+        </Box>
       </div>
     </header>
   )
@@ -1202,13 +1195,13 @@ function LinksSection(props: { links: SpecLinks | null | undefined; loading: boo
   const row = (label: string, body: ReactNode) => (
     <div data-spec-links-row={label}>
       <dt style={{ color: muted }}>{label}</dt>
-      <dd style={{ margin: 0 }}>{body}</dd>
+      <Box as="dd" css-margin="0">{body}</Box>
     </div>
   )
   const list = (items: ReactNode[]) => (items.length ? <Box as="ul" flex flexCol gap="0.5">{items}</Box> : none)
   return (
     <RailSection title="Links" attrs={{ 'data-spec-links': '' }}>
-      <dl className="flex flex-col gap-2" style={{ margin: 0 }}>
+      <Box as="dl" css-margin="0" flex flexCol gap="2">
         {row(
           'Spec issue',
           links?.issue ? (
@@ -1258,7 +1251,7 @@ function LinksSection(props: { links: SpecLinks | null | undefined; loading: boo
             </li>
           ))),
         )}
-      </dl>
+      </Box>
     </RailSection>
   )
 }
@@ -1307,7 +1300,7 @@ function SpecRail(props: {
   )
   const edit = (what: string) => ({ label: `Edit the ${what} of ${row.name}`, onClick: props.onEdit })
   return (
-    <div data-spec-rail data-plan-aside style={{ fontSize: 12.5, lineHeight: '19.4px' }}>
+    <Box data-spec-rail data-plan-aside css-font-size="12.5" css-line-height="19.4px">
       <style>{RAIL_CSS}</style>
       {row.kind !== 'epic' && (
         <RailSection title="Epic" edit={edit('epic')}>
@@ -1333,9 +1326,9 @@ function SpecRail(props: {
         {repositories.length ? (
           <Box as="ul" flex flexCol gap="0.5">
             {repositories.map((name) => (
-              <li key={name} style={{ overflowWrap: 'anywhere' }}>
+              <Box key={name} as="li" css-overflow-wrap="anywhere">
                 {name}
-              </li>
+              </Box>
             ))}
           </Box>
         ) : (
@@ -1360,9 +1353,9 @@ function SpecRail(props: {
                           {phase.done}/{phase.total}
                         </span>
                       </Box>
-                      <span className="mt-0.5 block h-1 overflow-hidden rounded" style={{ background: 'var(--border)' }}>
+                      <Box as="span" css-background="border" mt="0.5" block h1 overflow="hidden" rounded="base">
                         <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
-                      </span>
+                      </Box>
                     </button>
                   </Tooltip>
                 </li>
@@ -1374,14 +1367,14 @@ function SpecRail(props: {
       <RailSection title="Progress">
         <ProgressBar tasks={row.tasks} />
         {/* One row per state: the label, then its count on the same line. */}
-        <dl className="mt-2 flex flex-col gap-0.5" style={{ margin: 0 }}>
+        <Box as="dl" css-margin="0" mt="2" flex flexCol gap="0.5">
           {STATES.map((state) => (
             <Box key={state.id} flex items="baseline" justify="between" gap="3" data-state-count={state.id}>
               <dt style={{ color: muted }}>{state.label}</dt>
-              <dd className="tabular-nums" style={{ margin: 0 }}>{graph ? counts[state.id] : '…'}</dd>
+              <Box as="dd" css-margin="0" tabularNums>{graph ? counts[state.id] : '…'}</Box>
             </Box>
           ))}
-        </dl>
+        </Box>
         {row.planId && leaves.length > 0 && (
           <Tooltip text="Show this spec's live dependency tree in the Graph" display="block">
             <button
@@ -1459,7 +1452,7 @@ function SpecRail(props: {
           </Box>
         </RailSection>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -1503,11 +1496,11 @@ export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; cl
         </>
       }
     >
-      <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
+      <Box as="ul" css-list-style="disc" flex flexCol gap="1" pl="5" size="sm">
         {ARCHIVE_LINES.map((line) => (
           <li key={line}>{line}</li>
         ))}
-      </ul>
+      </Box>
       {error && <ErrorText role="alert" size="sm">{error}</ErrorText>}
     </Modal>
   )
@@ -1518,11 +1511,10 @@ function ArchivedBanner(props: { row: PlanRow; busy: boolean; onUnarchive: () =>
   const { archived } = props.row
   if (!archived) return null
   return (
-    <div
+    <Box
       role="status"
       data-archived-banner
-      className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm"
-      style={{ borderColor: 'var(--border)', background: 'color-mix(in srgb, var(--muted) 10%, var(--card, transparent))' }}
+      css-border-color="border" css-background="mix-muted-10%-card-transparent" mb="3" flex flexWrap items="center" gap="3" rounded="lg" border="all" p="3" size="sm"
     >
       <Archive size={18} aria-hidden="true" style={{ color: 'var(--muted)' }} />
       <Box as="span" minW0 flex1>
@@ -1535,7 +1527,7 @@ function ArchivedBanner(props: { row: PlanRow; busy: boolean; onUnarchive: () =>
       <IconLabel style={COMPACT_BTN} icon={ArchiveRestore} primary disabled={props.busy} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive}>
         Unarchive
       </IconLabel>
-    </div>
+    </Box>
   )
 }
 
@@ -1591,18 +1583,18 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
     >
       {!preview && !error && <Hint as="p" size="sm">Counting its tasks…</Hint>}
       {preview && (
-        <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
+        <Box as="ul" css-list-style="disc" flex flexCol gap="1" pl="5" size="sm">
           {deleteLines(preview).map((line) => (
             <li key={line}>{line}</li>
           ))}
-        </ul>
+        </Box>
       )}
       {preview?.folder?.exists && (
         <Box as="label" flex flexCol gap="1" size="sm">
           <Switch label="Also delete the spec folder from the repo" checked={folder} onChange={setFolder}>
             Also delete the spec folder (.kiro/specs/{preview.spec}/) from the repo.
           </Switch>
-          <code className="pl-6 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{preview.folder.path}</code>
+          <Box as="code" css-overflow-wrap="anywhere" pl="6" size="xs" tone="muted">{preview.folder.path}</Box>
           <Box as="span" pl="6" size="xs" tone="muted">Only the working tree. Avoozl never commits or pushes this.</Box>
           {folder && preview.folder.dirty && <Box role="alert" as="span" pl="6" size="xs" tone="danger">{preview.folder.reason}</Box>}
         </Box>
@@ -1626,7 +1618,7 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
   }
   const columns = props.phone ? ['auto', '5rem'] : ['auto', '8.5rem', '5rem', '5rem']
   return (
-    <div data-approve-list className="overflow-x-auto rounded border" style={{ borderColor: 'var(--border)' }}>
+    <Box data-approve-list css-border-color="border" overflow="x-auto" rounded="base" border="all">
       <table className="w-full text-sm" style={{ tableLayout: 'fixed', borderCollapse: 'collapse', minWidth: props.phone ? undefined : '30rem' }}>
         <colgroup>
           {columns.map((width, at) => (
@@ -1663,7 +1655,7 @@ function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection 
           })}
         </tbody>
       </table>
-    </div>
+    </Box>
   )
 }
 
@@ -1883,9 +1875,9 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
           {entries.length} {entries.length === 1 ? 'spec' : 'specs'}, {tasks} {tasks === 1 ? 'task' : 'tasks'}. Each revision below is approved exactly as shown, or none are.
         </Hint>
         {missing.length > 0 && (
-          <p role="note" data-approve-missing className="m-0" style={{ color: 'var(--warning, var(--text))' }}>
+          <Box role="note" data-approve-missing as="p" css-color="warning-text" m0>
             These need specs from an earlier batch that are still drafts: {missing.join(', ')}.
-          </p>
+          </Box>
         )}
         {error && (
           <ErrorText role="alert" flush>
@@ -1905,23 +1897,23 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
         {result && !result.pending && (
           <Stack role="alert" gap={1}>
             <ErrorText flush>Nothing approved. These specs failed:</ErrorText>
-            <ul className="m-0 flex flex-col gap-1 pl-5" style={{ listStyle: 'disc' }}>
+            <Box as="ul" css-list-style="disc" m0 flex flexCol gap="1" pl="5">
               {result.failures.map((failure) => (
                 <li key={failure.id}>
                   <Box as="span" weight="medium">{failure.spec ?? failure.id}</Box>: {failure.error}
                 </li>
               ))}
-            </ul>
+            </Box>
           </Stack>
         )}
         <ApproveTable entries={entries} selection={selection} phone={phone} />
         <Hint as="p" flush>Review findings are evidence for your decision; they do not block approval.</Hint>
         {entries.map((entry) => (
-          <section key={entry.id} data-approve-review={entry.id} className="flex min-w-0 flex-col gap-2 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+          <Box key={entry.id} data-approve-review={entry.id} as="section" css-border-color="border" flex minW0 flexCol gap="2" border="t" pt="2">
             <Box as="h3" m0 size="sm" weight="medium">{entry.spec}</Box>
             {changes[entry.id] && <RevisionChanged change={changes[entry.id]} />}
             <PlanReviewSummary key={`${props.workspaceId}:${entry.id}:${entry.hash}`} onStart={() => props.client.reviewAnyway(props.workspaceId, entry.id, entry.hash)} review={reviewOf(entry)} reviewHref={reviewHref(window.location.pathname, entry.id, entry.hash)} onOpenReview={props.onOpenReview && (() => props.onOpenReview!(entry.id, entry.hash))} />
-          </section>
+          </Box>
         ))}
       </Box>
     </Modal>
@@ -2392,7 +2384,7 @@ export default function PlansView(props: {
       {specHeader}
       {specTabs}
       <div data-spec-body style={{ padding: phone ? '20px 0' : '20px 12px 20px 12px', ...(phone ? {} : { flex: '1 1 0%', minHeight: 0, overflowY: 'auto', position: 'relative' }) }}>
-        <div id="avoozl-plan-main" className="flex min-w-0 flex-col" style={{ gap: 20, scrollMarginTop: 48 }}>
+        <Box id="avoozl-plan-main" css-gap="20" css-scroll-margin-top="48" flex minW0 flexCol>
           <RadarGraphLink />
           <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
           {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
@@ -2448,7 +2440,7 @@ export default function PlansView(props: {
               <PhaseTasks graph={planGraph} onOpenTask={(id) => drawer.openTask(id)} />
             </>
           )}
-        </div>
+        </Box>
       </div>
     </>
   ) : null

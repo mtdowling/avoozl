@@ -38,10 +38,9 @@ export function DiffBlock({ diff, label }: { diff: string | undefined; label: st
   const lines = diffLines(diff)
   if (!lines.length) return null
   return (
-    <pre
+    <Box
       aria-label={label}
-      className="max-h-64 overflow-auto rounded border p-2 text-xs"
-      style={{ borderColor: 'var(--border)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: 0 }}
+      as="pre" css-border-color="border" css-white-space="pre-wrap" css-overflow-wrap="anywhere" css-margin="0" maxH64 overflow="auto" rounded="base" border="all" p="2" size="xs"
       data-diff
     >
       {lines.map((line, i) => (
@@ -49,7 +48,7 @@ export function DiffBlock({ diff, label }: { diff: string | undefined; label: st
           {line.text || ' '}
         </span>
       ))}
-    </pre>
+    </Box>
   )
 }
 
@@ -57,7 +56,7 @@ function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { propo
   const pdca = pdcaText(proposal)
   return (
     <li className="flex flex-col gap-1.5 border-t pt-2 first:border-t-0 first:pt-0 text-sm" data-proposal={`${proposal.retro}:${proposal.id}`} data-linked={linked || undefined} style={{ borderColor: 'var(--border)', ...(linked ? { boxShadow: 'inset 0 0 0 2px var(--accent)', borderRadius: 6, padding: 8 } : {}) }}>
-      <span className="flex flex-wrap items-center gap-2" style={{ overflowWrap: 'anywhere' }}>
+      <Box as="span" css-overflow-wrap="anywhere" flex flexWrap items="center" gap="2">
         <Badge>{proposal.type}</Badge>
         <Box as="code" size="xs">{proposalText(proposal)}</Box>
         <Hint>{directionText(proposal)}</Hint>
@@ -67,12 +66,12 @@ function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { propo
         {proposal.removesCheck && <Badge variant="warning">removes a check</Badge>}
         {proposal.revertOf && <Badge>revert</Badge>}
         {proposal.pdca?.mixed && <Badge variant="warning">mixed window</Badge>}
-      </span>
+      </Box>
       {proposal.base && <Hint size="xs">Base {proposal.base.slice(0, 12)}</Hint>}
       <DiffBlock diff={proposal.diff} label={`Diff of ${proposalText(proposal)}`} />
-      <span className="text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
+      <Box as="span" css-overflow-wrap="anywhere" size="xs" tone="muted">
         Evidence: {evidenceText(proposal)}
-      </span>
+      </Box>
       {proposal.leaf && <Box as="span" size="xs">Delivered as task {proposal.leaf}.</Box>}
       {proposal.note && <Box as="span" size="xs">A suggested change waits on {proposal.note.plugin ? `plugin ${proposal.note.plugin}'s card` : 'this page'}; nothing was sent.</Box>}
       {proposal.status !== 'open' ? (
@@ -96,7 +95,7 @@ function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { propo
 
 function DriftBlock({ drift, target, busy, onRebase }: { drift: PromptDrift; target: string; busy: boolean; onRebase: () => void }) {
   return (
-    <div className="flex flex-col gap-1.5 rounded border p-2 text-sm" style={{ borderColor: 'var(--warning, var(--border))' }} data-prompt-drift={`${target}:${drift.section}`}>
+    <Box css-border-color="warning-border" flex flexCol gap="1.5" rounded="base" border="all" p="2" size="sm" data-prompt-drift={`${target}:${drift.section}`}>
       <Box as="span" weight="medium">
         The built-in {target} § {drift.section} changed under your override.
       </Box>
@@ -110,9 +109,9 @@ function DriftBlock({ drift, target, busy, onRebase }: { drift: PromptDrift; tar
       ) : (
         <>
           <Box as="span" size="xs" weight="medium">Rebased override</Box>
-          <pre className="max-h-48 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)', whiteSpace: 'pre-wrap', margin: 0 }}>
+          <Box as="pre" css-border-color="border" css-white-space="pre-wrap" css-margin="0" maxH48 overflow="auto" rounded="base" border="all" p="2" size="xs">
             {drift.rebased}
-          </pre>
+          </Box>
           <div>
             <Btn type="button" primary disabled={busy} onClick={onRebase}>
               Approve rebase
@@ -120,7 +119,7 @@ function DriftBlock({ drift, target, busy, onRebase }: { drift: PromptDrift; tar
           </div>
         </>
       )}
-    </div>
+    </Box>
   )
 }
 

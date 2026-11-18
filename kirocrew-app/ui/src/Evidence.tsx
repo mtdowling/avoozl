@@ -72,7 +72,7 @@ export function EvidenceFold({ workspaceId, taskId, box }: { workspaceId: string
   const list = (
     <Stack as="ol" gap={2} data-evidence={taskId}>
       {value.map((entry) => (
-        <li key={entry.id} className="rounded border p-2" style={{ borderColor: 'var(--border)' }}>
+        <Box key={entry.id} as="li" css-border-color="border" rounded="base" border="all" p="2">
           <Box flex flexWrap items="center" gap="2" size="xs" tone="muted">
             <Badge>{EVIDENCE_LABELS[entry.kind] ?? entry.kind}</Badge>
             <span>{entry.source}</span>
@@ -81,7 +81,7 @@ export function EvidenceFold({ workspaceId, taskId, box }: { workspaceId: string
           </Box>
           <Box as="p" mt="1" whitespace="pre-wrap" breakWords size="sm">{entry.text}</Box>
           {entry.file && <Attachment workspaceId={workspaceId} taskId={taskId} entry={entry} />}
-        </li>
+        </Box>
       ))}
     </Stack>
   )

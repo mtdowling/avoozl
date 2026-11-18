@@ -7,6 +7,7 @@ import { Check, ChevronDown, Folder, Settings } from './icons.ts'
 import { LAYER } from './layers.ts'
 import { NAV_PILL } from './nav-style.ts'
 import type { WorkspaceList } from './workspace-api.ts'
+import { Box } from './ui/Box'
 
 // Radar's switcher, measured: 12px corners, the strong border, a small
 // shadow, 14px semibold name. Kept at Kiro Crew's compact 28px button
@@ -89,7 +90,7 @@ export function WorkspacePill(props: {
           data-workspace-menu
           style={{ position: 'fixed', top: open.bottom + 6, left: open.left, width: Math.max(open.width, 240), maxWidth: 'calc(100vw - 16px)', maxHeight: `calc(100vh - ${Math.round(open.bottom) + 16}px)`, overflowY: 'auto', zIndex: LAYER.popover, boxSizing: 'border-box', padding: 6, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card, var(--bg-elevated))', boxShadow: '0 8px 24px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', gap: 2 }}
         >
-          <div style={{ padding: '4px 8px', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--muted)' }}>Workspaces</div>
+          <Box css-padding="4px-8px" css-font-size="12" css-font-weight="600" css-letter-spacing=".04em" css-text-transform="uppercase" css-color="muted">Workspaces</Box>
           {(list?.items ?? []).map((item) => {
             const here = item.id === props.value
             return (
@@ -100,7 +101,7 @@ export function WorkspacePill(props: {
               </button>
             )
           })}
-          <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0' }} />
+          <Box css-border-top="1px-solid-border" css-margin="4px-0" />
           <button
             type="button"
             role="menuitem"

@@ -10,6 +10,7 @@ import { useNavSlotHost } from './nav-slot.tsx'
 import { ChevronDown } from './icons.ts'
 import { NAV_PILL } from './nav-style.ts'
 import Badge from './ui/Badge.tsx'
+import { Box } from './ui/Box'
 
 export interface NavChild {
   key: string
@@ -125,7 +126,7 @@ export function NavAccordion(props: {
                 }
               }}
             >
-              <span data-nav-label style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>{group.label}</span>
+              <Box data-nav-label as="span" css-flex="1" css-min-width="0" css-display="flex" css-align-items="center" css-overflow="hidden">{group.label}</Box>
               {kids && (
                 <span aria-hidden="true" data-nav-chevron style={{ transform: expanded ? 'none' : 'rotate(-90deg)' }}>
                   <ChevronDown size={14} />
@@ -149,7 +150,7 @@ export function NavAccordion(props: {
                       }}
                     >
                       <span data-nav-text>{item.label}</span>
-                      {item.count ? <span data-nav-count style={{ flexShrink: 0, display: 'inline-flex' }}><Badge variant="warning">{item.count}</Badge></span> : null}
+                      {item.count ? <Box data-nav-count as="span" css-flex-shrink="0" css-display="inline-flex"><Badge variant="warning">{item.count}</Badge></Box> : null}
                     </button>
                   )
                 })}

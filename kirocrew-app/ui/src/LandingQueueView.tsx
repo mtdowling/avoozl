@@ -62,9 +62,9 @@ function Row(props: { item: LandingItem; now: number }) {
         {links.map((link) => (
           <a key={link.key} href={safeHref(link.href) ?? undefined} target="_blank" rel="noopener noreferrer" className="inline-flex min-w-0 items-center gap-1 underline" data-landing-link={link.key}>
             {link.key === 'pr' && <CheckDot checks={item.checks} />}
-            <span className="truncate" style={{ maxWidth: '16rem' }}>
+            <Box as="span" css-max-width="16rem" truncate>
               {link.label}
-            </span>
+            </Box>
           </a>
         ))}
         {!item.pr && item.checks && <CheckDot checks={item.checks} />}
@@ -92,9 +92,9 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
       </ViewHeading>
       <Hint as="p" size="xs">What waits to land on each base, in landing order, and why. Read from Avoozl's own records; Refresh does not call GitHub.</Hint>
       {error && (
-        <p role="alert" className="text-sm" style={{ color: 'var(--danger)' }}>
+        <Box role="alert" as="p" css-color="danger" size="sm">
           {error}
-        </p>
+        </Box>
       )}
       {!value ? (
         <Hint as="p" size="sm">Loading…</Hint>

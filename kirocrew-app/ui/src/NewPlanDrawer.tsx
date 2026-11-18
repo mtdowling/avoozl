@@ -461,16 +461,16 @@ export default function NewPlanDrawer(props: {
             ]}
           />
           {steering && (
-            <section aria-labelledby="avoozl-new-plan-steering" className="flex flex-col gap-2 rounded border p-3 text-sm" style={{ borderColor: 'var(--border)' }}>
+            <Box aria-labelledby="avoozl-new-plan-steering" as="section" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="3" size="sm">
               <Box id="avoozl-new-plan-steering" as="h4" weight="medium">
                 Add Avoozl&apos;s spec rules to this repository?
               </Box>
               <Hint as="p" size="xs">
                 Spec Builder&apos;s chat reads steering files from the repository. This writes <code>{steering.path}</code>, which you commit. Skip it, and the rules go with this one spec instead.
               </Hint>
-              <pre className="max-h-64 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)', whiteSpace: 'pre-wrap' }} data-steering-text>
+              <Box as="pre" css-border-color="border" css-white-space="pre-wrap" maxH64 overflow="auto" rounded="base" border="all" p="2" size="xs" data-steering-text>
                 {steering.text}
-              </pre>
+              </Box>
               <Row gap={2} align="start">
                 <Btn type="button" primary disabled={busy} onClick={() => void handOff(true)}>
                   Add the file and open Spec Builder
@@ -479,7 +479,7 @@ export default function NewPlanDrawer(props: {
                   Skip the file
                 </Btn>
               </Row>
-            </section>
+            </Box>
           )}
           {error && (
             <ErrorText role="alert" size="sm">

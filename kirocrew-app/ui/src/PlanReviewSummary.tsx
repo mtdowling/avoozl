@@ -40,7 +40,7 @@ export function ReviewWorking(props: { model: string | null; title?: string; lab
       <Box relative flex items="center" gap="3">
         <Hourglass size={18} aria-hidden className="shrink-0" style={{ color: 'var(--aim, #7c3aed)' }} />
         <Box minW0 flex1>
-          <p className="m-0 font-semibold" style={{ color: 'var(--aim, #7c3aed)' }} data-plan-review-state>{props.title ?? 'Review running'}</p>
+          <Box as="p" css-color="aim-7c3aed" m0 weight="semibold" data-plan-review-state>{props.title ?? 'Review running'}</Box>
           <Hint as="p" size="xs" flush>{label}</Hint>
         </Box>
       </Box>
@@ -55,9 +55,9 @@ const ROW_TH = { textAlign: 'left' as const, fontWeight: 600, padding: '2px 12px
 const ROW_TD = { padding: '2px 0' }
 function Note(props: { children: ReactNode }) {
   return (
-    <p role="note" data-review-note className="m-0 rounded border px-3 py-2" style={{ borderColor: 'color-mix(in srgb, var(--info, var(--accent)) 40%, transparent)', background: 'color-mix(in srgb, var(--info, var(--accent)) 8%, transparent)' }}>
+    <Box role="note" data-review-note as="p" css-border-color="mix-info-accent-40%-transparent" css-background="mix-info-accent-8%-transparent" m0 rounded="base" border="all" px="3" py="2">
       {props.children}
-    </p>
+    </Box>
   )
 }
 
@@ -81,17 +81,17 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
     finally { setStarting(false) }
   }
   return (
-    <div data-plan-review className="flex min-w-0 flex-col gap-2 text-sm" style={{ overflowWrap: 'anywhere' }}>
+    <Box data-plan-review css-overflow-wrap="anywhere" flex minW0 flexCol gap="2" size="sm">
       {(review?.revisionHash || review?.note || review?.unproven || (review?.canReviewAnyway && props.onStart)) && (
         <section data-review-reviewer className="flex flex-col gap-2 rounded border p-3" style={BOX}>
           {review?.revisionHash && (
-            <table className="text-sm" style={{ borderCollapse: 'collapse' }}>
+            <Box as="table" css-border-collapse="collapse" size="sm">
               <tbody>
                 <tr><th scope="row" style={ROW_TH}>Reviewer</th><td style={ROW_TD}>{review.reviewerModel ?? 'not set'}</td></tr>
                 <tr><th scope="row" style={ROW_TH}>Revision</th><td style={ROW_TD}><Tooltip text={review.revisionHash}><code>{shortHash(review.revisionHash)}</code></Tooltip>{!review.current && <Hint> · older revision</Hint>}</td></tr>
                 <tr><th scope="row" style={ROW_TH}>Writer</th><td style={ROW_TD}>{review.writerModel ?? 'unknown'}</td></tr>
               </tbody>
-            </table>
+            </Box>
           )}
           {review?.unproven && <Note>The reviewer and writer were not proven to use different models.</Note>}
           {review?.note && <Note>{review.note}</Note>}
@@ -116,7 +116,7 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
         )}
       </section>
       {error && <ErrorText role="alert" flush>{error}</ErrorText>}
-    </div>
+    </Box>
   )
 }
 
@@ -125,16 +125,16 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
 export function RevisionChanged(props: { change: RevisionChange }) {
   const { change } = props
   return (
-    <section role="status" data-revision-moved className="flex flex-col gap-1 rounded border p-3 text-sm" style={{ borderColor: 'color-mix(in srgb, var(--info, var(--accent)) 40%, transparent)', background: 'color-mix(in srgb, var(--info, var(--accent)) 8%, transparent)', overflowWrap: 'anywhere' }}>
+    <Box role="status" data-revision-moved as="section" css-border-color="mix-info-accent-40%-transparent" css-background="mix-info-accent-8%-transparent" css-overflow-wrap="anywhere" flex flexCol gap="1" rounded="base" border="all" p="3" size="sm">
       <Box as="p" m0 weight="medium">Changed while open: <Tooltip text={change.from}><code>{shortHash(change.from)}</code></Tooltip> → <Tooltip text={change.to}><code>{shortHash(change.to)}</code></Tooltip></Box>
       {change.files.length > 0 && (
-        <ul className="m-0 flex flex-col pl-5" style={{ listStyle: 'disc' }} data-revision-moved-files>
+        <Box as="ul" css-list-style="disc" m0 flex flexCol pl="5" data-revision-moved-files>
           {change.files.map((file) => <li key={file.file}><code>{file.file}</code> <span style={file.added ? { color: 'var(--success, var(--text))' } : undefined}>+{file.added}</span> <span style={file.removed ? { color: 'var(--danger)' } : undefined}>−{file.removed}</span></li>)}
-        </ul>
+        </Box>
       )}
       {change.fixed.length > 0 && <Box as="p" m0 data-revision-moved-fixed>Now fixed: {change.fixed.map((finding) => finding.claim).join(' · ')}</Box>}
       {change.moved.length > 0 && <Box as="p" m0 data-revision-moved-anchors>Moved or removed: {change.moved.map((finding) => finding.claim).join(' · ')}</Box>}
       <Hint as="p" flush>Approve now applies to <code>{shortHash(change.to)}</code>. Press it again to approve this revision.</Hint>
-    </section>
+    </Box>
   )
 }

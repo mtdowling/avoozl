@@ -52,11 +52,11 @@ function Row(props: { row: PublicCrew; workspaceId: string; onChange: () => void
     if (yes) await run(() => client.signOff(workspaceId, row.repository, home.trim(), agent.trim()))
   }
   return (
-    <div className="flex min-w-0 flex-col gap-2" data-public-crew={row.repository} style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+    <Box css-border-top="1px-solid-border" css-padding-top="8" flex minW0 flexCol gap="2" data-public-crew={row.repository}>
       <Box flex flexWrap items="center" gap="2">
-        <span className="text-sm font-medium" style={{ overflowWrap: 'anywhere' }}>
+        <Box as="span" css-overflow-wrap="anywhere" size="sm" weight="medium">
           {row.repository}
-        </span>
+        </Box>
         <Badge variant={badge.variant}>{badge.text}</Badge>
         {row.visibility === 'unknown' && <Hint size="xs">Visibility not read, so it counts as public.</Hint>}
       </Box>
@@ -83,18 +83,18 @@ function Row(props: { row: PublicCrew; workspaceId: string; onChange: () => void
         ))}
       </Box>
       <Box flex flexWrap items="end" gap="2">
-        <div className="flex min-w-0 flex-col gap-1" style={{ flex: '2 1 16rem' }}>
+        <Box css-flex="2-1-16rem" flex minW0 flexCol gap="1">
           <Box htmlFor={`${id}-home`} as="label" size="xs" weight="medium">
             Crew home (its own KIRO_HOME)
           </Box>
           <Input id={`${id}-home`} value={home} placeholder="/path/to/crew-home" onChange={(event) => setHome(event.target.value)} />
-        </div>
-        <div className="flex min-w-0 flex-col gap-1" style={{ flex: '1 1 9rem' }}>
+        </Box>
+        <Box css-flex="1-1-9rem" flex minW0 flexCol gap="1">
           <Box htmlFor={`${id}-agent`} as="label" size="xs" weight="medium">
             Crew agent
           </Box>
           <Input id={`${id}-agent`} value={agent} onChange={(event) => setAgent(event.target.value)} />
-        </div>
+        </Box>
         <Box flex gap="2">
           <Btn type="button" primary disabled={busy || Boolean(row.banner)} onClick={() => void signOff()} data-sign-off={row.repository}>
             {row.signedOff ? 'Sign off again' : 'Sign off'}
@@ -111,7 +111,7 @@ function Row(props: { row: PublicCrew; workspaceId: string; onChange: () => void
           {error}
         </ErrorText>
       )}
-    </div>
+    </Box>
   )
 }
 

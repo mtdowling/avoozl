@@ -64,13 +64,12 @@ const box: CSSProperties = {
 function Repo({ name, locked, children }: { name: string; locked?: boolean; children: ReactNode }) {
   return (
     <div style={box} className="flex-1 text-[11px] leading-4">
-      <div
-        className="flex items-center gap-1 px-2 py-1 font-semibold"
-        style={{ background: 'var(--bg-elevated, transparent)', borderBottom: '1px solid var(--border)', color: 'var(--text)' }}
+      <Box
+        css-background="bg-elevated-transparent" css-border-bottom="1px-solid-border" css-color="text" flex items="center" gap="1" px="2" py="1" weight="semibold"
       >
         {locked && <Lock />}
         <Box as="span" truncate>{name}</Box>
-      </div>
+      </Box>
       <Stack>{children}</Stack>
     </div>
   )
@@ -78,16 +77,16 @@ function Repo({ name, locked, children }: { name: string; locked?: boolean; chil
 
 function Row({ icon, title, pill, sub }: { icon: ReactNode; title: string; pill: ReactNode; sub?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 px-2 py-1" style={{ borderTop: '1px solid var(--border)' }}>
+    <Box css-border-top="1px-solid-border" flex flexCol gap="0.5" px="2" py="1">
       <Box flex items="center" gap="1">
         {icon}
-        <span className="min-w-0 flex-1 truncate" style={{ color: 'var(--text)' }}>
+        <Box as="span" css-color="text" minW0 flex1 truncate>
           {title}
-        </span>
+        </Box>
         {pill}
       </Box>
       {sub && <Box truncate tone="muted">{sub}</Box>}
-    </div>
+    </Box>
   )
 }
 
@@ -108,13 +107,13 @@ function PlansRepoPicture() {
       </Repo>
     </Box>
       {/* The linked branch: merging its pull request closes the planning issue. */}
-      <div className="mt-1.5 flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--accent)' }}>
+      <Box css-color="accent" mt="1.5" flex items="center" gap="1.5" size="11">
         <svg width={64} height={10} viewBox="0 0 64 10" style={{ flex: 'none' }}>
           <path d="M62 5H4" fill="none" stroke="currentColor" strokeWidth={1.4} strokeDasharray="3 2" />
           <path d="M6 1 1 5l5 4" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         <span>linked branch avoozl/1.2 closes #12 on merge</span>
-      </div>
+      </Box>
     </div>
   )
 }
@@ -182,30 +181,30 @@ export function RoleHelp() {
                 <Box as="span" weight="semibold">{card.title}</Box>
                 <Hint as="p" size="xs">{MAKES[card.mode]}</Hint>
               </div>
-              <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' }}>
-                <div className="rounded-md p-2.5" style={{ background: 'var(--bg-elevated, transparent)' }}>
+              <Box css-grid-template-columns="repeat-auto-fit-minmax-min-100%-280px-1fr" grid gap="3">
+                <Box css-background="bg-elevated-transparent" rounded="md" p="2.5">
                   <Picture />
                   <Box as="p" mt="2" size="11" tone="muted">{CAPTION[card.mode]}</Box>
-                </div>
+                </Box>
                 <Box flex flexCol gap="2" size="xs">
                   <div>
                     <Box as="span" weight="semibold">Use it when</Box>
-                    <ul className="mt-1 flex flex-col gap-0.5 pl-4" style={{ listStyle: 'disc' }}>
+                    <Box as="ul" css-list-style="disc" mt="1" flex flexCol gap="0.5" pl="4">
                       {card.useWhen.map((item) => (
                         <li key={item}>{item}</li>
                       ))}
-                    </ul>
+                    </Box>
                   </div>
-                  <dl className="grid gap-x-3 gap-y-1" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+                  <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1">
                     {card.facts.map(([label, text]) => (
                       <Box key={label} contents>
                         <Hint as="dt">{label}</Hint>
                         <dd>{text}</dd>
                       </Box>
                     ))}
-                  </dl>
+                  </Box>
                 </Box>
-              </div>
+              </Box>
             </Box>
           )
         })}

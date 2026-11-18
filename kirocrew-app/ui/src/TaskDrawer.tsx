@@ -111,15 +111,15 @@ function SourceSnippet(props: { source: OriginSource; workspaceId: string; open:
       }
     >
       {read.error ? (
-        <p role="alert" className="border-t p-2 text-danger" style={{ borderColor: 'var(--border)' }}>
+        <Box role="alert" as="p" css-border-color="border" border="t" p="2" tone="danger">
           {read.error}
-        </p>
+        </Box>
       ) : read.text === null ? (
-        <p className="border-t p-2 text-muted" style={{ borderColor: 'var(--border)' }}>
+        <Box as="p" css-border-color="border" border="t" p="2" tone="muted">
           Reading…
-        </p>
+        </Box>
       ) : (
-        <ol className="m-0 list-none overflow-x-auto border-t p-0 font-mono" style={{ borderColor: 'var(--border)' }} aria-label={`Lines from ${source.document}`} data-snippet-lines>
+        <Box as="ol" css-border-color="border" m0 listNone overflow="x-auto" border="t" p="0" fontMono aria-label={`Lines from ${source.document}`} data-snippet-lines>
           {rows.map((row) => (
             <li
               key={row.number}
@@ -129,12 +129,12 @@ function SourceSnippet(props: { source: OriginSource; workspaceId: string; open:
               style={row.hit ? { background: 'color-mix(in srgb, var(--accent) 12%, transparent)', boxShadow: 'inset 3px 0 0 var(--accent)' } : undefined}
             >
               <Box as="span" w8 shrink0 selectNone align="right" tone="muted">{row.number}</Box>
-              <span className="whitespace-pre-wrap" style={{ overflowWrap: 'anywhere' }}>
+              <Box as="span" css-overflow-wrap="anywhere" whitespace="pre-wrap">
                 {row.text || ' '}
-              </span>
+              </Box>
             </li>
           ))}
-        </ol>
+        </Box>
       )}
     </SnippetBox>
   )
@@ -413,7 +413,7 @@ function TaskPanel(props: {
         />
       )}
       {editing && (
-        <div className="rounded border p-3" style={{ borderColor: 'var(--border)' }}>
+        <Box css-border-color="border" rounded="base" border="all" p="3">
           <TaskForm
             workspaceId={workspaceId}
             graph={props.graph}
@@ -425,7 +425,7 @@ function TaskPanel(props: {
             }}
             onCancel={() => setEditing(false)}
           />
-        </div>
+        </Box>
       )}
       <Tabs id="task-tabs" label="Task details" tabs={shown} current={tab} onPick={pick} />
       <TabPanel id="task-tabs" current={tab}>
@@ -433,7 +433,7 @@ function TaskPanel(props: {
           <>
             <TaskSummaryBox workspaceId={workspaceId} id={task.id} summary={detail.summary} />
             <SectionBox id="summary" title="Status">
-              <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+              <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1.5" size="sm">
                 <Row label="State">{task.state ?? 'unknown'}</Row>
                 {detail.plan && (
                   <Row label="Spec">
@@ -458,7 +458,7 @@ function TaskPanel(props: {
                     )}
                   </Row>
                 ))}
-              </dl>
+              </Box>
             </SectionBox>
             {(detail.waitsOn.length > 0 || detail.blocks.length > 0) && (
               <SectionBox id="links" title="Edges">
@@ -472,7 +472,7 @@ function TaskPanel(props: {
               <SectionBox id="conflicts" title={`Conflicts (${detail.conflicts.length})`}>
                 <Stack as="ul" gap={3}>
                   {detail.conflicts.map((item, i) => (
-                    <li key={i} className="flex flex-col gap-2 rounded border p-2" style={{ borderColor: 'var(--border)' }}>
+                    <Box key={i} as="li" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="2">
                       <Box size="sm" weight="medium">{whyLine(item)}</Box>
                       {item.changedAt && (
                         <Hint as="div" size="xs">
@@ -486,7 +486,7 @@ function TaskPanel(props: {
                         </IconLabel>
                       </span>
                       <ConflictActions item={item} workspaceId={workspaceId} revision={detail.revision} busy={busy} run={run} onSettled={() => undefined} />
-                    </li>
+                    </Box>
                   ))}
                 </Stack>
               </SectionBox>
@@ -526,10 +526,10 @@ function TaskPanel(props: {
             <SectionBox id="task-links" title="Links">
               <Stack gap={3}>
                 <TaskScmLinks links={detail.links} />
-                <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }} data-added-links>
+                <Box css-border-color="border" flex flexCol gap="2" border="t" pt="3" data-added-links>
                   <Box as="h4" size="sm" weight="semibold">Added links</Box>
                   <TaskLinks workspaceId={workspaceId} taskId={task.id} onGitHub={Boolean(task.onGitHub)} refresh={detail.revision} />
-                </div>
+                </Box>
               </Stack>
             </SectionBox>
             <TaskFiles workspaceId={workspaceId} taskId={task.id} active box={{ id: 'files', title: 'Files' }} />
@@ -612,7 +612,7 @@ function TaskPanel(props: {
         {tab === 'details' && (
           <>
             <SectionBox id="fields" title="Fields">
-              <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+              <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1.5" size="sm">
                 {task.epicTitle && <Row label="Epic">{task.epicTitle}</Row>}
                 {detail.origin && (
                   <Row label="Came from">
@@ -626,7 +626,7 @@ function TaskPanel(props: {
                 {task.status && <Row label="Status">{task.status}</Row>}
                 {task.repository && <Row label="Repository">{task.repository}</Row>}
                 {task.owner && <Row label="Assignee">{task.owner}</Row>}
-              </dl>
+              </Box>
             </SectionBox>
             {(task.summary || task.acceptance.length > 0 || task.checks.length > 0 || task.context) && (
               <SectionBox id="description" title="Description">
