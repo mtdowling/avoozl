@@ -10,8 +10,8 @@ import { temporaryDirectory } from "./temporary.mjs";
 const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url)),
   source = fs.readFileSync(new URL("../cli.mjs", import.meta.url), "utf8");
 
-// Commands the help leaves out on purpose: hooks a session runs for itself.
-const UNLISTED = new Set(["help", "register-session", "session-hook"]);
+// The one command the help's table does not hold: help itself.
+const UNLISTED = new Set(["help"]);
 // Processes that never exit; their own tests start and drive them.
 const LONG_RUNNING = new Set(["app-backend", "supervisor"]);
 // Command paths of the same kind: the integrator loops until stopped.
@@ -43,13 +43,13 @@ function machineEnvironment(machine) {
   return env;
 }
 
-// Command paths the help names: leading lowercase words of each entry, with
-// `a|b` alternatives and ` | `-joined entries split apart.
+// Command paths `avoozl help all` names: the leading lowercase words of each
+// `avoozl ...` usage line, with `a|b` alternatives split apart.
 function helpPaths(help) {
   const paths = [];
   for (const line of help.split("\n").slice(1)) {
-    if (!/^ {2}[a-z]/.test(line)) continue;
-    for (const entry of line.trim().split(" | ")) {
+    if (!/^ {2}avoozl [a-z]/.test(line)) continue;
+    for (const entry of line.trim().slice("avoozl ".length).split(" | ")) {
       const words = [];
       for (const token of entry.split(/\s+/)) {
         if (!/^[a-z][a-z|-]*$/.test(token)) break;
@@ -116,7 +116,7 @@ test(
       env,
     });
 
-    const help = (await run(["help"], env)).stdout,
+    const help = (await run(["help", "all"], env)).stdout,
       paths = helpPaths(help),
       listed = new Set(paths.map(([command]) => command));
 
