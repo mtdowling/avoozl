@@ -121,6 +121,6 @@ for (const width of [320, 768, 1280])
     await page.until(`document.querySelector('[data-form]').textContent.includes('"rules":""')`)
     // Advanced labels are folded until opened.
     assert.equal(await page.evaluate(`document.querySelector('[data-fold] ').open`), false)
-    assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
+    assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, `no sideways scroll: ${(await page.overflow()).join('; ')}`)
     assert.deepEqual(page.errors, [])
   })

@@ -81,10 +81,11 @@ for (const f of tracked(/^(src\/.*\.mjs|cli\.mjs)$/).filter(
   (f) => !/\.test\.mjs$/.test(f) && !f.startsWith("src/app/test/"),
 ))
   files[f] = [...(exercised.get(f) ?? [])].sort();
-fs.writeFileSync(
-  path.join(root, "scripts/test-map.json"),
-  JSON.stringify({ files }, null, 1) + "\n",
-);
+// osNeutral is a reviewed list kept by hand (scripts/test-plan.mjs); a new
+// map keeps it as it is.
+const mapFile = path.join(root, "scripts/test-map.json"),
+  { osNeutral } = JSON.parse(fs.readFileSync(mapFile, "utf8"));
+fs.writeFileSync(mapFile, JSON.stringify({ files, osNeutral }, null, 1) + "\n");
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(
   `Mapped ${Object.keys(files).length} source files over ${tests.length} test files.`,

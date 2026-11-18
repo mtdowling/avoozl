@@ -267,6 +267,7 @@ export const NOT_ON_MCP = new Map([
     "remote.pull",
     "remote.view",
     "worker.pull",
+    "worker.setup",
   ].map((name) => [name, remote]),
   ...["instance.view", "instance.rename"].map((name) => [
     name,

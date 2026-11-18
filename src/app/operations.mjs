@@ -166,7 +166,7 @@ import { landingView } from "./landing-view.mjs";
 import { epicsView } from "./epics-view.mjs";
 import { integratorNeedsYou } from "./landing-lease.mjs";
 import { landingQueueView } from "./landing-queue-view.mjs";
-import { submitBranch } from "./integrator-trains.mjs";
+import { integratorStatus, submitBranch } from "./integrator-trains.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
   checkIntegrationBranch,
@@ -486,10 +486,12 @@ import {
   pullStatus,
   pullWork,
   remoteView,
+  readRunnerConfig,
   reportDone,
   runnerStatus,
   runnerTick,
 } from "./remote-runner.mjs";
+import { previewWorker } from "./worker-setup.mjs";
 import { supersedeTask } from "./supersede.mjs";
 
 // Claimed leaves for a readiness query. A read-only database from before the
@@ -3149,6 +3151,12 @@ export class Operations {
       return handoff(store, this.workspaceRoot, input);
     if (name === "remote.pull")
       return pullStatus(store, this.workspaceRoot, input);
+    if (name === "worker.setup") {
+      const config = readRunnerConfig(this.workspaceRoot);
+      if (config?.role !== "worker")
+        fail('This workspace is not a worker (runner.role "worker").');
+      return previewWorker({ config, github: this.github });
+    }
     if (name === "worker.pull")
       return pullWork(store, this.workspaceRoot, this.github);
     if (name === "remote.view") return remoteView(store, this.workspaceRoot);
@@ -3461,6 +3469,11 @@ export class Operations {
         contentBinding(store)?.plugins.clear();
       return result;
     }
+    // The integrator's leases and running trains, from the store (LT2.5).
+    if (name === "integrator.status")
+      return integratorStatus(store, {
+        config: loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config,
+      });
     if (name === "workspace.tick.health") return tickHealth(store);
     if (name === "workspace.tick.log") return tickLog(store, input);
     if (name === "highlight.languages")
