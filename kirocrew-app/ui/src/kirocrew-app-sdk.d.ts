@@ -78,6 +78,16 @@ declare module '@kirocrew/app-sdk/ui' {
     collapse?: boolean
     wrap?: boolean | 'hug'
   }): ReactNode
+  // A switch: a div with role "switch". `label` is its accessible name,
+  // `describedBy` an element id; it draws no text of its own.
+  export const Toggle: ComponentType<{
+    checked: boolean
+    onChange(checked: boolean): void
+    disabled?: boolean
+    label?: string
+    describedBy?: string
+    tone?: 'accent' | 'muted'
+  }>
   export const Card: ComponentType<{ children?: ReactNode; className?: string; style?: CSSProperties }>
   export const CardTitle: ComponentType<{ children?: ReactNode; className?: string }>
   export const Btn: ForwardRefExoticComponent<

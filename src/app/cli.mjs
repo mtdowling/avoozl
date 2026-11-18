@@ -15,9 +15,12 @@ import { handleMcp } from "./mcp.mjs";
 import { agentSessionNote, cliRefusal } from "./mcp-policy.mjs";
 import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
+import { startServe } from "./serve-server.mjs";
+import { LinkStore } from "./serve-auth.mjs";
+import { standaloneUiDirectory } from "./ui-bundle.mjs";
 import { contentHook } from "./public-crews.mjs";
 import { runSupervisor } from "./supervisor.mjs";
-import { machineStatus } from "./machine-status.mjs";
+import { machineStatus, serveStatus } from "./machine-status.mjs";
 import { workspaceStatus } from "./workspace-status.mjs";
 import { PROGRAM, helpCommands, helpPointer, helpText } from "./cli-help.mjs";
 import {
@@ -98,6 +101,8 @@ try {
           "skipped",
           "refused",
           "off",
+          "release",
+          "discard",
           // Removed 2026-11-18; still parsed so an old command keeps its
           // other arguments, and ignored.
           "as-person",
@@ -493,6 +498,62 @@ try {
       configDirectory: options["config-directory"],
       tickSeconds,
     });
+  } else if (command === "serve") {
+    // The standalone page, on 127.0.0.1 only (spec standalone-web, SW3).
+    if (process.env.AVOOZL_CHILD)
+      throw Error(
+        "A supervisor child may not run avoozl serve. Do it at this machine's command line.",
+      );
+    for (const name of ["host", "bind"])
+      if (options[name] !== undefined)
+        throw Error(
+          `avoozl serve has no --${name} option: it listens on 127.0.0.1 only.`,
+        );
+    if (process.env.AVOOZL_HOST !== undefined)
+      throw Error(
+        "avoozl serve does not read AVOOZL_HOST: it listens on 127.0.0.1 only.",
+      );
+    const machine = machineAvoozlPaths();
+    if (positionals[0] === "link") {
+      // A new owner link for the server already running on this machine.
+      const running = serveStatus(machine.stateDirectory);
+      if (!running.running || !running.origin)
+        throw Error(
+          "No avoozl serve is running on this machine. Start it with: avoozl serve",
+        );
+      const origin = running.origin;
+      const links = new LinkStore(machine.stateDirectory);
+      try {
+        console.log(`${origin}/login?token=${links.make()}`);
+      } finally {
+        links.close();
+      }
+    } else {
+      if (positionals.length)
+        throw Error(
+          "Usage: avoozl serve [--workspace PATH] [--port N] | avoozl serve link",
+        );
+      const port = options.port === undefined ? 0 : Number(options.port);
+      let server = null;
+      try {
+        server = await startServe({
+          config,
+          port,
+          uiDir: standaloneUiDirectory(),
+        });
+      } catch (error) {
+        console.error(error.message);
+        process.exitCode = 1;
+      }
+      if (server) {
+        console.log(`Avoozl is at ${server.origin}`);
+        console.log(
+          `Open this link once, within 10 minutes: ${server.ownerLink}`,
+        );
+        for (const signal of ["SIGINT", "SIGTERM"])
+          process.once(signal, () => server.close(() => process.exit(0)));
+      }
+    }
   } else if (command === "app-backend") {
     const server = startAppBackend({
       config,
@@ -1002,12 +1063,19 @@ try {
         2,
       ),
     );
-  } else if (command === "claim")
+  } else if (command === "claim") {
+    // A manual claim is a person's: not from an agent the supervisor started.
+    if (process.env.AVOOZL_CHILD)
+      throw Error(
+        "A claim is a person's. This command is running inside an agent the supervisor started.",
+      );
     console.log(
       JSON.stringify(
         await localOrRequest("runner.claim", {
           taskId: positionals[0],
           slot: options.slot,
+          ...(options.release ? { release: true } : {}),
+          ...(options.discard ? { discard: true } : {}),
           ...(options.title ? { title: options.title } : {}),
           ...(options.model ? { model: options.model } : {}),
         }),
@@ -1015,7 +1083,7 @@ try {
         2,
       ),
     );
-  else if (command === "report")
+  } else if (command === "report")
     console.log(
       JSON.stringify(
         await localOrRequest("session.report", {

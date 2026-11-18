@@ -28,8 +28,22 @@ export function checkDigest(bytes, expected = pin.sha256) {
   return bytes.toString("utf8");
 }
 
+// A request that stalls is cut after 15 seconds and tried again, three times
+// in all, so one slow connection does not hold a CI job to its test timeout.
+async function retried(url, init) {
+  let last;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await fetch(url, { ...init, signal: AbortSignal.timeout(15000) });
+    } catch (error) {
+      last = error;
+    }
+  }
+  throw last;
+}
+
 async function range(url, start, end) {
-  const response = await fetch(url, {
+  const response = await retried(url, {
     headers: { Range: `bytes=${start}-${end}` },
   });
   if (response.status !== 206)
@@ -41,7 +55,7 @@ async function range(url, start, end) {
 // the local header, then the member's bytes. Zip64 is not handled; a wheel
 // of a few hundred megabytes does not need it.
 export async function readZipMember(url, matches) {
-  const head = await fetch(url, { method: "HEAD" });
+  const head = await retried(url, { method: "HEAD" });
   const size = Number(head.headers.get("content-length"));
   if (!size) throw new Error(`${url}: no content-length`);
   const tail = await range(url, Math.max(0, size - 65557), size - 1);

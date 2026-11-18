@@ -3,6 +3,7 @@
 // --json`. Read-only: it never creates the supervisor directory, takes the
 // lock or changes a child. No brief, token or log text, only ids and states.
 import fs from "node:fs";
+import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { runningSupervisor, supervisorPaths } from "./supervisor.mjs";
 
@@ -16,6 +17,22 @@ const statusOf = (row) =>
     : row.state === "exited"
       ? `exited ${row.exit_code}`
       : "gone";
+
+// The standalone page's server, from the file it writes at start (serve.json):
+// its origin and pid, when that process is alive.
+export function serveStatus(stateDirectory) {
+  try {
+    const found = JSON.parse(
+      fs.readFileSync(path.join(stateDirectory, "serve.json"), "utf8"),
+    );
+    process.kill(found.pid, 0);
+    return { running: true, origin: found.origin, pid: found.pid };
+  } catch (error) {
+    // EPERM: the process exists, owned by another user.
+    if (error?.code === "EPERM") return { running: true };
+    return { running: false };
+  }
+}
 
 export function machineStatus({ stateDirectory }) {
   const paths = supervisorPaths(stateDirectory),
@@ -51,6 +68,7 @@ export function machineStatus({ stateDirectory }) {
     supervisor: holder
       ? { running: true, pid: holder.pid }
       : { running: false },
+    serve: serveStatus(stateDirectory),
     children,
   };
 }

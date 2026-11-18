@@ -81,6 +81,33 @@ export function Card(props: { children?: ReactNode; className?: string; style?: 
     </div>
   )
 }
+// A switch as the host draws one: a div with role "switch", named by `label`,
+// toggled by a click or Space or Enter, out of the tab order when disabled.
+export function Toggle(props: { checked: boolean; onChange(checked: boolean): void; disabled?: boolean; label?: string; describedBy?: string; tone?: 'accent' | 'muted' }) {
+  const flip = () => {
+    if (!props.disabled) props.onChange(!props.checked)
+  }
+  return (
+    <div
+      role="switch"
+      aria-checked={props.checked}
+      aria-disabled={props.disabled || undefined}
+      aria-label={props.label}
+      aria-describedby={props.describedBy}
+      tabIndex={props.disabled ? -1 : 0}
+      onClick={flip}
+      onKeyDown={(event) => {
+        if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault()
+          flip()
+        }
+      }}
+      className={`w-9 h-5 rounded-full relative shrink-0 cursor-pointer ${props.disabled ? 'opacity-40' : ''} ${props.checked ? 'bg-accent' : 'bg-border'}`}
+    >
+      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white ${props.checked ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+    </div>
+  )
+}
 export const CardTitle = (props: { children?: ReactNode }) => <h3 className="font-semibold">{props.children}</h3>
 export const PageHeader = (props: { title: ReactNode; subtitle?: string; actions?: ReactNode }) => (
   <header className="flex items-center gap-2">

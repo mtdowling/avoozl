@@ -211,8 +211,8 @@ export const HELP_GROUPS = Object.freeze([
         "Crew Mode buckets: ready, running, waiting, needsYou, done",
       ),
       entry(
-        "claim TASK_ID --slot SESSION [--model MODEL]",
-        "Claim a ready leaf for a Crew Mode worker session",
+        "claim TASK_ID [--release [--discard]]",
+        "Take a ready task by hand: prints its worktree and the report command; --release gives it back",
       ),
       entry(
         "report TASK_ID --slot SESSION --kind done|blocked|question|progress [--commit SHA] [--text TEXT]",
@@ -423,6 +423,11 @@ export const HELP_GROUPS = Object.freeze([
         "app-backend --workspace PATH",
         "Kiro Crew app backend on 127.0.0.1 ($PORT)",
       ),
+      entry(
+        "serve [--workspace PATH] [--port N]",
+        "The standalone page on 127.0.0.1 only; prints a one-time owner link",
+      ),
+      entry("serve link", "A new owner link for the running standalone page"),
       entry(
         "supervisor [--tick-seconds N]",
         "This machine's owner of process children (one per machine); --tick-seconds runs the tick too (headless)",

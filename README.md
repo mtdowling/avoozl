@@ -552,7 +552,19 @@ release: v0.12.2 (`kirocrew-app/ui/kirocrew-pin.json`), the same release as the
 Kiro Crew version this app asks for. The build fetches that source into a cache
 outside git, checks its digest, and edits none of it. The standalone page and the
 page inside Kiro Crew match when the installed Kiro Crew is the pinned release.
-Nothing serves the standalone page yet.
+`avoozl serve [--workspace PATH] [--port N]` serves it on `127.0.0.1` only (no host
+or bind option; `--host`, `--bind` and `AVOOZL_HOST` refuse to start) and prints a
+one-time owner link that signs one browser in; `avoozl serve link` prints another
+for the running server. The page works with the Kiro Crew parts it was built on;
+Open chat and the "Needs Kiro Crew" states are not built yet.
+On a headless machine, set `serve.enabled` (and optionally a fixed `serve.port`) in the
+machine file `config.json`: the supervisor then runs the server as a child, restarts it
+on the same port, and prints no link (run `avoozl serve link` at that machine's shell).
+`avoozl status` shows the server's origin. A repository's `.avoozl.json` may not set `serve`.
+Scripts can use the server's API key instead of a browser: send it in the
+`X-Api-Key` header to `POST /apps/avoozl/api/command`, never in the address. The key
+is in Settings › Workspaces on the standalone page, where Regenerate replaces it and
+stops the old one at once.
 
 ## License
 

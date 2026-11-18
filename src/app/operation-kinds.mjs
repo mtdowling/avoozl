@@ -228,6 +228,7 @@ const EXECUTE = new Set([
   "flow.checks.run",
   "flow.settings.update",
   "models.settings.update",
+  "needskirocrew.runon",
   "flow.instructions.update",
   "flow.retro.decide",
   "flow.retro.start",
