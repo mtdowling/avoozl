@@ -5494,12 +5494,19 @@ handoff without my tuning a batch size.
    facts say `batch: <group ID>`, and `tasks.md` front-matter gives the
    group's one-line reason as `batch-<group ID>: <reason>` (Requirement
    111.4). The
-   planner prompt (`prompts/planner.md`) SHALL say when to group (small
-   edits that share files or context, where one chat is cheaper than
-   several) and when not to (anything that needs its own review, any
-   ordering between the tasks, more than one repository).
+   planner prompt (`prompts/planner.md`) SHALL make grouping the default
+   for related leaves in the same repository and area, with no limit on
+   the number of tasks, because one medium-sized pull request of related
+   work beats many small ones (changed 2026-11-18, owner decision). It
+   SHALL split only where the parts can truly run at the same time
+   (different files or areas two workers can do without stepping on each
+   other), or for a hard reason: one task must land before another, a
+   different repository, a manual step, or a task that needs its own
+   review or investigation. It SHALL never split just to land tasks one at
+   a time. The retro prompt (`prompts/retro.md`) SHALL ask the retro to
+   flag a spec whose related tasks landed as many small pull requests.
 2. Spec lint SHALL refuse a `batches` value that is not an object of
-   entries with a group ID of letters, digits, `.`, `_` or `-`, 2 to 5
+   entries with a group ID of letters, digits, `.`, `_` or `-`, 2 or more
    task IDs that name leaves in this spec, and a reason of 1 to 200
    characters on one line, and a task listed in two groups. These SHALL be
    `facts.schema` errors in `tasks.md`, like any other facts error.
@@ -5515,7 +5522,7 @@ handoff without my tuning a batch size.
 5. Avoozl SHALL check these rules in code, never in a setting, each time it
    would dispatch a group: every member is in the same plan and the same
    repository (so the same base branch); no `requires` or `sequence` edge
-   joins two members; the group has at most 5 members; every member
+   joins two members; every member
    carries the same group from the same approved plan hash, and the plan is
    approved at that hash; every member is an automatic leaf with local
    route and authority; no member has an earlier attempt or was split from
@@ -5547,7 +5554,8 @@ handoff without my tuning a batch size.
     groups instead of grouping `size: "small"` tasks up to `flow.batch.max`.
 12. Tests SHALL cover: a planner group dispatched as one handoff; a group
     that breaks each rule of criterion 5 dispatched as single tasks with its
-    reason; a failing batch split with each task retried alone; no batch key
+    reason; a related group of 12 tasks dispatched as one handoff; a failing
+    batch split with each task retried alone; no batch key
     in the Flow settings validator or in Settings > Flow; and an old
     `flow.batch` and an old `size` ignored on load. Screenshots of the
     batched card (phone and desktop, light and dark) SHALL be under

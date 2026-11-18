@@ -277,11 +277,6 @@ const RULES = [
     reason: "the group changed; it runs alone until the spec is approved again",
   },
   {
-    name: "more than the fixed bound",
-    tasks: grouped(["a1", "a2", "a3", "a4", "a5", "a6"]),
-    reason: "more than 5 tasks",
-  },
-  {
     name: "a member is a manual step",
     tasks: [
       leaf("a1", { batch: group("g1", ["a1", "a2"]) }),
@@ -305,6 +300,16 @@ for (const rule of RULES)
     const view = await ops.execute("delivery.view", {});
     assert.equal(view.items.find((i) => i.id === "a1").alone, rule.reason);
   });
+
+test("a related group of 12 tasks stays one handoff; there is no size cap", async (t) => {
+  const ids = Array.from({ length: 12 }, (_, i) => `a${i + 1}`);
+  const { ops } = setup(t, grouped(ids));
+  const workers = workersOf(await tick(ops));
+  assert.equal(workers.length, 1);
+  assert.deepEqual(workers[0].batch.tasks, ids);
+  const view = await ops.execute("delivery.view", {});
+  assert.equal(view.items.find((i) => i.id === "a12").alone, null);
+});
 
 test("a member that already ran alone keeps the rest of its group alone", async (t) => {
   const { store, ops } = setup(t, grouped(["a1", "a2"]));
