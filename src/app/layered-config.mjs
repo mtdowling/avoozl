@@ -3,7 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateReportSetting } from "./build-report.mjs";
-import { validateModels, validatePlanReview } from "./chat-models.mjs";
+import {
+  validateHarnesses,
+  validateModels,
+  validatePlanReview,
+} from "./chat-models.mjs";
 import { validateLanes } from "./lanes.mjs";
 import { conflictRounds } from "./landing-config.mjs";
 import { deriveGitHubKeys } from "./repository-roles.mjs";
@@ -374,6 +378,7 @@ export function loadLayeredConfig({
   // the derived value (R105.8).
   if (config.github) config.github = deriveGitHubKeys(config.github);
   validateModels(config.models);
+  validateHarnesses(config.harnesses);
   validatePlanReview(config.planReview);
   validateLanes(config.lanes);
   conflictRounds(config.landing);
