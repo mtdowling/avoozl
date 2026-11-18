@@ -49,6 +49,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { SelectField } from './ui/SelectField'
 
 type Client = ReturnType<typeof contentClient>
 type Selection = { kind: 'set' | 'builtin'; id: string } | { kind: 'new' }
@@ -279,13 +280,11 @@ function SetFormView(props: {
         <Hint size="xs">None checked: every repository.</Hint>
       </fieldset>
       <FieldRow id="avoozl-set-plugin" label="Rules plugin" raw="plugin" rule={{ required: false }} width="22rem" help="A plugin of kind rules, approved under Plugins, can supply this set instead.">
-        <select
+        <SelectField
           id="avoozl-set-plugin"
           aria-describedby="avoozl-set-plugin-help"
           value={form.plugin}
-          onChange={(e) => set({ plugin: e.target.value })}
-          className="rounded border px-2 py-1 text-sm"
-          style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }}
+          onChange={(e) => set({ plugin: e.target.value })} look="field"
         >
           <option value="">None: use a terms file on this machine</option>
           {choices.plugins.map((p) => (
@@ -293,7 +292,7 @@ function SetFormView(props: {
               {p}
             </option>
           ))}
-        </select>
+        </SelectField>
       </FieldRow>
     </Stack>
   )
@@ -366,24 +365,24 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
   }
   const names = ruleNames(props.rows)
   const name = allow ? (
-    <select value={row.rule} aria-label={`Rule allowed on line ${index + 1}`} onChange={(e) => props.onChange({ ...row, rule: e.target.value })} style={fieldStyle}>
+    <SelectField value={row.rule} aria-label={`Rule allowed on line ${index + 1}`} onChange={(e) => props.onChange({ ...row, rule: e.target.value })} look="row">
       <option value="">Every rule</option>
       {[...new Set([...names, ...(row.rule ? [row.rule] : [])])].map((n) => (
         <option key={n} value={n}>
           {n}
         </option>
       ))}
-    </select>
+    </SelectField>
   ) : (
     <input value={row.name} aria-label={`Rule name on line ${index + 1}`} placeholder="rule-name" onChange={(e) => props.onChange({ ...row, name: e.target.value })} style={fieldStyle} />
   )
   const kind = (
-    <select value={current} aria-label={`Kind on line ${index + 1}`} onChange={(e) => switchKind(e.target.value as RowKind)} style={fieldStyle}>
+    <SelectField value={current} aria-label={`Kind on line ${index + 1}`} onChange={(e) => switchKind(e.target.value as RowKind)} look="row">
       <option value="word">Word or phrase</option>
       <option value="pattern">Pattern</option>
       <option value="allow-word">Allow word</option>
       <option value="allow-pattern">Allow pattern</option>
-    </select>
+    </SelectField>
   )
   const value = (
     <input

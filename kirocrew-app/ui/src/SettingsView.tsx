@@ -96,8 +96,9 @@ import { ErrorText } from './ui/ErrorText'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
+import { SelectField } from './ui/SelectField'
+import { Checkbox } from './ui/Checkbox'
 
-const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 // Fields share a row and wrap; each keeps a readable width.
 const grid = (min = 220): CSSProperties => ({
   display: 'grid',
@@ -231,13 +232,11 @@ function Choice(props: {
 }) {
   return (
     <Field id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width}>
-      <select
+      <SelectField
         id={props.id}
         value={props.value}
         aria-describedby={fieldDescribedBy(props.id, props)}
-        onChange={(event) => props.onChange(event.target.value)}
-        className="rounded border px-2 py-1 text-sm"
-        style={selectStyle}
+        onChange={(event) => props.onChange(event.target.value)} look="field"
       >
         <option value="">{props.none}</option>
         {props.options.map((option) => (
@@ -245,7 +244,7 @@ function Choice(props: {
             {option}
           </option>
         ))}
-      </select>
+      </SelectField>
     </Field>
   )
 }
@@ -452,7 +451,7 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
             {rows.map((row) => (
               <li key={row.name}>
                 <label className="flex items-center gap-1.5">
-                  <input type="checkbox" checked={row.checked} onChange={(event) => toggle(row.name, event.target.checked)} />
+                  <Checkbox checked={row.checked} onChange={(event) => toggle(row.name, event.target.checked)} />
                   <code>{row.name}</code>
                   {row.missing && <span className="text-xs text-muted">(not on GitHub)</span>}
                 </label>
@@ -626,8 +625,7 @@ function ChecksEditor(props: {
           {rows.map((row) => (
             <li key={row.name} className="flex flex-col text-sm" data-check-row={row.name}>
               <label className="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={row.checked}
                   disabled={row.branchRule}
                   aria-describedby={`${props.id}-check-${row.name}`}
@@ -1383,13 +1381,13 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
           <Section title="Repository" blurb="Each repository has its own Issue Radar settings. Pick the one to edit.">
             <label className="flex flex-wrap items-center gap-2 text-sm" htmlFor="avoozl-radar-repository">
               Repository
-              <select id="avoozl-radar-repository" value={names[index]} onChange={(event) => setPicked(event.target.value)} className="min-w-0 rounded border px-2 py-1" style={selectStyle}>
+              <SelectField id="avoozl-radar-repository" value={names[index]} onChange={(event) => setPicked(event.target.value)} look="plain">
                 {names.map((name, at) => (
                   <option key={`${name}-${at}`} value={name}>
                     {name || '(no name yet)'}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </label>
           </Section>
         </Card>

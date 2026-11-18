@@ -19,6 +19,7 @@ import { errorMessage } from "./workspace-api.ts";
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Checkbox } from './ui/Checkbox'
 
 const STATE_TEXT: Record<string, string> = {
   found: "Found",
@@ -140,8 +141,7 @@ export default function MirrorSetup(props: {
                 data-status={line.status}
                 className="flex items-start gap-2 text-sm"
               >
-                <input
-                  type="checkbox"
+                <Checkbox
                   aria-label={`Write ${LINE_NAMES[line.id] ?? line.id}`}
                   disabled={!canTick(line) || busy || Boolean(result.applied)}
                   checked={

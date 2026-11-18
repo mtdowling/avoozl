@@ -36,6 +36,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Checkbox } from './ui/Checkbox'
 
 // A diff longer than this many lines shows its start, then a button.
 export const DIFF_LINES = 1500
@@ -340,7 +341,7 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
           </span>
         )}
         <label className="inline-flex items-center gap-1">
-          <input type="checkbox" checked={showAll} onChange={(event) => setShowAll(event.target.checked)} />
+          <Checkbox checked={showAll} onChange={(event) => setShowAll(event.target.checked)} />
           Show all files
         </label>
       </div>
