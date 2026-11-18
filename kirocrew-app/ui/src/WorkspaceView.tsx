@@ -30,7 +30,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 function Field(props: {
   id: string
@@ -371,14 +371,12 @@ export default function WorkspaceView(
               <Hint as="p" size="xs">Change it after you move the folder. The new folder must hold this workspace.</Hint>
             </FormSection>
             <FormSection title="Running">
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox data-edit-enabled checked={edit.enabled} onChange={(event) => setEdit({ ...edit, enabled: event.target.checked })} />
+              <Switch data-edit-enabled label="On" size="sm" checked={edit.enabled} onChange={(on) => setEdit({ ...edit, enabled: on })}>
                 On (ticks run and pages read it)
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox data-edit-default checked={edit.default} disabled={isDefault} onChange={(event) => setEdit({ ...edit, default: event.target.checked })} />
+              </Switch>
+              <Switch data-edit-default label="Default workspace" size="sm" checked={edit.default} disabled={isDefault} onChange={(on) => setEdit({ ...edit, default: on })}>
                 {isDefault ? 'The default workspace' : 'Make it the default workspace'}
-              </label>
+              </Switch>
             </FormSection>
             {editCheck.error && (
               <ErrorText size="sm" data-edit-error>

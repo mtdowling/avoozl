@@ -45,7 +45,7 @@ import { errorMessage, workspaceClient } from './workspace-api.ts'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { SelectField } from './ui/SelectField'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 const BOX = { borderColor: 'var(--border)' }
 const TONE: Record<SourceTone, BadgeVariant | undefined> = { ok: 'success', off: undefined, error: 'danger', waiting: 'info' }
@@ -456,10 +456,9 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
                 title: SCOPE.repository,
                 line: SCOPE_TIP.repository,
                 fields: (
-                  <label className="inline-flex items-start gap-2 text-xs" data-intake-public-warning>
-                    <Checkbox id="intake-confirm-public" checked={confirmPublic} onChange={(event) => setConfirmPublic(event.target.checked)} aria-invalid={invalid('scope')} drop={2} />
+                  <Switch id="intake-confirm-public" label="I understand .avoozl.json may be public" inline align="start" size="xs" checked={confirmPublic} onChange={setConfirmPublic} data-intake-public-warning>
                     <span>.avoozl.json may be public. Saving there publishes this source's name and plugin. I understand.</span>
-                  </label>
+                  </Switch>
                 ),
               },
             ]}

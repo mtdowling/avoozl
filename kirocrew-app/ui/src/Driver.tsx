@@ -37,7 +37,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
-import { Checkbox } from './ui/Checkbox'
+import { Switch } from './ui/Switch'
 
 const FIELD = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)', maxWidth: '100%' }
 
@@ -310,10 +310,9 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
         {!file.trim() && (
           <>
             <Loss preview={preview} />
-            <label className="flex items-center gap-2">
-              <Checkbox checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
+            <Switch label="I understand what a rebuild from GitHub loses" checked={acknowledged} onChange={setAcknowledged}>
               I understand what a rebuild from GitHub loses
-            </label>
+            </Switch>
           </>
         )}
         <label className="flex flex-col gap-1" htmlFor="avoozl-driver-force-name">

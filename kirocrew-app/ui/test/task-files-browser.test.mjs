@@ -57,7 +57,7 @@ test('the Files fold shows the tree, a diff, split view, all files and editor li
   await page.evaluate(`(() => { ${button('VS Code')}.click(); return true })()`)
   await page.until(`document.querySelector('[data-open-file]').getAttribute('href').startsWith('vscode://')`)
 
-  await page.evaluate(`(() => { [...document.querySelectorAll('label')].find((l) => l.textContent.includes('Show all files')).querySelector('input').click(); return true })()`)
+  await page.evaluate(`(() => { [...document.querySelectorAll('[role="switch"]')].find((l) => l.getAttribute('aria-label') === 'Show all files').click(); return true })()`)
   await page.until(`Boolean(document.querySelector('[data-file="package.json"]'))`)
   assert.equal(await page.evaluate(`document.querySelector('[data-file="package.json"] [data-status]')`), null)
 })
