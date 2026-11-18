@@ -1,12 +1,13 @@
-// A person-only operation from the CLI is refused inside an agent session
-// unless the person types --as-person (R83.1).
+// A person-only operation runs from the CLI, inside an agent session too,
+// and says so in the record; only a supervisor child is refused (R83.1,
+// R95.5). The --as-person flag was removed and is ignored.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { agentSession, cliRefusal } from "../mcp-policy.mjs";
+import { agentSession, agentSessionNote, cliRefusal } from "../mcp-policy.mjs";
 import { initializeWorkspace } from "../workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -20,30 +21,26 @@ test("agent sessions are told apart by the variables Kiro Crew sets", () => {
   assert.equal(agentSession({}), false);
 });
 
-test("cliRefusal gates only person-only operations in an agent session", () => {
-  const agent = { KIROCREW_SPAWNED: "1" };
-  assert.match(cliRefusal("plan.approve", {}, { env: agent }), /--as-person/);
-  assert.equal(cliRefusal("plan.approve", {}, { env: {} }), null);
+test("an agent session runs a person-only operation and is noted", () => {
+  const agent = { KIROCREW_SPAWNED: "1", KIRO_SESSION_ID: "s1" };
+  assert.equal(cliRefusal("plan.approve", {}, { env: agent }), null);
   assert.equal(
-    cliRefusal("plan.approve", {}, { env: agent, asPerson: true }),
-    null,
+    agentSessionNote("plan.approve", {}, agent),
+    "Run from a Kiro Crew agent session (s1).",
   );
-  assert.equal(cliRefusal("session.report", {}, { env: agent }), null);
+  // Nothing to note outside an agent session or for an ordinary operation.
+  assert.equal(agentSessionNote("plan.approve", {}, {}), null);
+  assert.equal(agentSessionNote("session.report", {}, agent), null);
 });
 
-test("a supervisor child is refused even with --as-person (R95.5)", () => {
+test("a supervisor child is refused (R95.5)", () => {
   const child = { AVOOZL_CHILD: "1", AVOOZL_CHILD_SESSION: "process-1" };
-  const refused = cliRefusal(
-    "plan.approve",
-    {},
-    { env: child, asPerson: true },
-  );
+  const refused = cliRefusal("plan.approve", {}, { env: child });
   assert.match(refused, /supervisor started \(process-1\)/);
-  assert.doesNotMatch(refused, /add --as-person/);
   assert.equal(cliRefusal("session.report", {}, { env: child }), null);
 });
 
-test("the CLI refuses plan.delete in an agent session until --as-person", () => {
+test("the CLI runs plan.delete in an agent session and refuses it in a child", () => {
   const workspace = temporaryDirectory("avoozl-person-only-");
   initializeWorkspace(workspace, { name: "t" });
   const run = (extra, env) =>
@@ -69,13 +66,15 @@ test("the CLI refuses plan.delete in an agent session until --as-person", () => 
         },
       },
     );
-  const refused = run([], { KIRO_SESSION_ID: "s1" });
-  assert.notEqual(refused.status, 0);
-  assert.match(refused.stderr, /agent session/);
-  const typed = run(["--as-person"], { KIRO_SESSION_ID: "s1" });
-  assert.doesNotMatch(typed.stderr, /agent session/);
+  // The plan does not exist, so each run that gets past the gate fails on that.
+  const agent = run([], { KIRO_SESSION_ID: "s1" });
+  assert.match(agent.stderr, /Run from a Kiro Crew agent session \(s1\)/);
+  assert.doesNotMatch(agent.stderr, /refuse|Only a person/i);
   const terminal = run([], {});
   assert.doesNotMatch(terminal.stderr, /agent session/);
+  // The removed flag is ignored, and the next argument is not swallowed.
+  const old = run(["--as-person"], {});
+  assert.doesNotMatch(old.stderr, /agent session|Unknown/);
   const child = run(["--as-person"], { AVOOZL_CHILD: "1" });
   assert.notEqual(child.status, 0);
   assert.match(child.stderr, /supervisor started/);
@@ -97,7 +96,7 @@ test(
       const run = (env) =>
         spawnSync(
           process.execPath,
-          [cli, "verify", "allow", "t1", "--reason", "x", "--as-person"],
+          [cli, "verify", "allow", "t1", "--reason", "x"],
           {
             encoding: "utf8",
             env: { PATH: process.env.PATH, XDG_CONFIG_HOME: home, ...env },

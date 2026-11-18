@@ -34,9 +34,8 @@ Scope (2026-11-18, owner decision): Avoozl takes specs of any size, and a
 light spec with one task becomes one pull request. The epics-only scope
 statement and its one-pull-request rule of thumb (`radar-coder` RC13.1,
 RC13.2) are history; `src/work-split.mjs` holds the statement in use.
-One way to run a worker (2026-11-18, owner decision; the spec
-`.kiro/specs/worker-paths/` is still a draft until its approval is
-recorded): Crew Mode dispatch, runner mode over SSH (Requirement 84,
+One way to run a worker (2026-11-18, `.kiro/specs/worker-paths/`, approved
+by the owner's delegate): Crew Mode dispatch, runner mode over SSH (Requirement 84,
 Requirement 90.7) and placement on another Kiro Crew (Requirement 41) are
 to be removed, and Requirement 96.5's manual path stays without Crew Mode.
 That spec's task wp-5.2 marks each of these here; until its tasks land, the
@@ -1090,7 +1089,8 @@ layout, so that Kiro, Spec Builder, and Avoozl read the same files.
 
 1. Every Avoozl plan SHALL be one Kiro spec folder, `.kiro/specs/<name>/`,
    holding `requirements.md` or `bugfix.md` (exactly one), `design.md`, and
-   `tasks.md`, with `avoozl/manifest.json` beside them.
+   `tasks.md`. (Changed 2026-11-18, Requirement 111: the manifest is gone;
+   each task's facts are a `Facts:` bullet in `tasks.md`.)
 2. Bugfix specs SHALL be supported the same way as feature specs.
 3. In plans-repo mode spec folders SHALL live in the planning repository; in
    single-repo mode, in the code repository; with no GitHub mode, in the
@@ -1101,7 +1101,7 @@ layout, so that Kiro, Spec Builder, and Avoozl read the same files.
 5. Every checklist item in `tasks.md` SHALL start with a task ID. Validation
    SHALL refuse an item with no ID and any ID used twice in the namespace.
 6. Avoozl SHALL map `tasks.md` items to tasks and issues only by these IDs.
-   Edges SHALL come from the manifest. Kiro's own task waves inside
+   Edges SHALL come from the task's `Facts:` bullet (Requirement 111). Kiro's own task waves inside
    `tasks.md` SHALL NOT be Avoozl's graph.
 7. Avoozl's planner SHALL write plans into this layout.
 8. Free-form plan files with fenced task blocks (`extractPlan`) SHALL remain
@@ -4359,8 +4359,12 @@ chatty agent cannot reach my secrets or my approvals.
 #### Acceptance criteria
 
 1. WHEN the CLI is run with `KIROCREW_SPAWNED=1` or `KIRO_SESSION_ID` set
-   THEN it SHALL refuse every person-only operation unless `--as-person` is
-   given. A terminal without those variables SHALL be unaffected.
+   THEN it SHALL run a person-only operation, SHALL print that it ran in an
+   agent session, and an approval without a delegate SHALL record that in
+   its receipt's evidence. (Changed 2026-11-18, owner decision: the CLI used
+   to refuse here unless `--as-person` was given; the flag is removed and an
+   old command that passes it runs as before. The command line is a
+   person's tool, and the refusal stopped only well-behaved agents.)
 2. The docs SHALL say plainly that person-only stops MCP and app tokens, not
    code running as the user. A draft request to Kiro Crew for passing the
    proxy secret by descriptor or a 0600 file SHALL be kept in
@@ -5005,8 +5009,8 @@ restart, and its exit is never lost.
    pid and start time, and SHALL record a child it cannot find as `gone`
    (Requirement 88.4 applies).
 5. Every child SHALL get the environment variable `AVOOZL_CHILD=1` with its
-   session ID. The CLI SHALL refuse a person-only command in a child, even
-   with `--as-person`. This is a speed bump, not a guarantee: the child runs
+   session ID. The CLI SHALL refuse a person-only command in a child. This
+   is a speed bump, not a guarantee: the child runs
    as the owner and could unset the marker, write the database or call `gh`.
 6. "A child never does a person-only act" SHALL hold only through the
    sandbox: for a `process` child the workspace database, the GitHub and
@@ -6083,8 +6087,8 @@ approval does not wait on me or drag in specs nobody asked about.
    of themselves: their GitHub login when GitHub is in play, else the
    operator. The grant SHALL be stored in the workspace database, not in
    Git. Granting and revoking (`approval.delegate.revoke {identity}`)
-   SHALL be person-only: refused over MCP and from an agent session's CLI
-   without `--as-person`. `approval.delegates` SHALL list active grants
+   SHALL be person-only over MCP. From the CLI they run as Requirement 83.1
+   says. `approval.delegates` SHALL list active grants
    and the history of grants and revocations, and MAY be read by anyone.
 4. `plan.approve` and `plan.approveMany` SHALL accept `delegate`. A call
    that names a delegate SHALL pass the person-only refusal and SHALL then
@@ -6105,9 +6109,9 @@ approval does not wait on me or drag in specs nobody asked about.
 8. The CLI SHALL offer `approval delegates`, `approval delegate NAME
    [--on-behalf-of LOGIN] [--note TEXT]`, `approval revoke NAME`, and
    `plan approve ... --delegate NAME`, whose preview prints the approve
-   command with `--delegate NAME` instead of `--as-person`.
+   command with `--delegate NAME`.
 9. Tests SHALL cover: a delegate refused with no grant, over MCP and in
-   process; grant and revoke refused from an agent; a granted delegate
+   process; grant and revoke refused over MCP; a granted delegate
    approving exactly one spec whose owner stays a draft, with the receipt's
    delegation; a mismatched `approvedBy` refused; revocation refusing the
    next approval and keeping history; an approval pull request carrying the
@@ -6182,3 +6186,71 @@ once under `intake.sources`, so that I read and change intake in one place.
    Radar intake, escalations and back-links on a migrated repository.
    Screenshots of Intake sources (phone and desktop, light and dark),
    before and after, SHALL be checked outside git; no image is committed.
+
+### Requirement 111: Task facts live in tasks.md
+
+Added 2026-11-18 (owner decision). Design §4.40. Changes Requirement 30.1
+and 30.6, and the manifest rules of Requirements 59, 105 and 108. The
+owner's words, in short: remove `avoozl/manifest.json`; every per-task fact
+moves into `tasks.md`, one `Facts:` bullet per task.
+
+**User story:** As the owner, I want one file per spec to read and review
+the tasks, so that a task's title, its checks and its acceptance sit
+together and a Kiro chat, Claude Code or Codex writes them in one place.
+
+#### Acceptance criteria
+
+1. A spec folder SHALL hold `requirements.md` or `bugfix.md`, `design.md`
+   and `tasks.md`. It SHALL NOT hold `avoozl/manifest.json`. Avoozl SHALL
+   NOT read that file. A leftover one SHALL be a lint error, with its file,
+   that says to delete it. No alias, fallback or migration tool SHALL read
+   or convert it.
+2. Each `tasks.md` item SHALL carry its facts in one bullet, `Facts:`,
+   nested under the item as its first child. The bullet's children SHALL be
+   one `key: value` bullet per fact, or `key:` with nested bullets for a
+   list. Subtasks SHALL follow the `Facts:` bullet. Other plain bullets
+   under an item stay free notes.
+3. The known keys SHALL cover everything the manifest held: `kind`, `repo`
+   (the repository), `summary`, `done` (the acceptance), `completion`,
+   `checks`, `after`, `sequence`, `supports`, `manual`, `phase`, `batch`,
+   and the other task keys `validateProposal` accepts, plus `plan` and
+   `step` on an epic's rows. `after` names the tasks that must finish
+   first, each with an optional `:<completion>`. A list SHALL be written
+   inline, comma separated, or as nested bullets.
+4. `tasks.md` MAY start with front-matter that holds spec-wide values: `repo`,
+   `checks` and `completion` as defaults for every leaf; `ship`,
+   `integrationBranch`, `integrationSync`, `forwardTarget`, `publicBranch`
+   and `kind: epic` for the spec; `phase-<id>: <title>` for a named phase;
+   and `batch-<id>: <reason>` for a planner batch group, whose members
+   each write `batch: <id>`. A task's own fact SHALL win over a default. A
+   package SHALL NOT take a default.
+5. Lint SHALL refuse, with the file and line of the bullet: an unknown key
+   in `Facts:` or in front-matter; a key written twice; a value of the wrong
+   shape; more than one `Facts:` for a task; a `Facts:` that is not the
+   first child of a task item; a fact bullet outside `Facts:`; and a task
+   with no `Facts:`. Every rule the manifest had, such as acceptance on a
+   leaf, SHALL hold with the file named `tasks.md`.
+6. The revision hash SHALL cover the spec's prose and its parsed facts, not
+   their layout. A spec converted from the manifest to `Facts:` bullets,
+   with nothing else changed, SHALL have the same hash as before, so every
+   approval, issue marker and receipt that names the hash still holds and
+   the owner approves nothing again. Checkbox marks and `Status:` SHALL stay
+   outside the hash. A test SHALL prove it on a copy of every spec in this
+   repository.
+7. Avoozl SHALL parse a spec once, store its revision, and parse again only
+   when the revision changes, as it did. Ticks SHALL stay outside the hash.
+8. The spec page, the review tabs, the graph, spec pull request adoption,
+   proposed work, import and the plan-review view SHALL read facts from
+   `tasks.md`. The review tabs SHALL show no manifest tab.
+9. The planner prompt, the Spec Builder steering file and any planner skill
+   SHALL tell Kiro chats, Claude Code and Codex to write `Facts:` bullets
+   and never `avoozl/manifest.json`. Avoozl SHALL NOT write a manifest or
+   draft one from marker bullets.
+10. Every spec in this repository SHALL be converted once and its
+    `manifest.json` deleted in the same change. A test SHALL prove that the
+    tasks and proposals parsed before and after are equal. The Nupp plans
+    SHALL be converted the same way in one change in their own repository,
+    after the build merges, tested on a copy first.
+11. Tests SHALL cover: each key and each refusal in 5, the leftover manifest,
+    default and package rules, an epic folder, a batch group, the hash in 6,
+    proposed work writing a `Facts:` bullet, and the planner text.

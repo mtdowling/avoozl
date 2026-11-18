@@ -69,12 +69,8 @@ test("current revision reads exclude old findings, and MCP aliases preserve boun
     /Only a person/,
   );
   assert.match(
-    cliRefusal(
-      "plan.review.decide",
-      {},
-      { env: { KIRO_SESSION_ID: "fake-session" } },
-    ),
-    /agent session/,
+    cliRefusal("plan.review.decide", {}, { env: { AVOOZL_CHILD: "1" } }),
+    /supervisor started/,
   );
 });
 test("CLI reads current review and queues an inherited reviewer only as a person; known same model is refused", () => {
@@ -112,9 +108,9 @@ test("CLI reads current review and queues an inherited reviewer only as a person
   const read = run(["--json"]);
   assert.equal(read.status, 0, read.stderr);
   assert.equal(JSON.parse(read.stdout).revisionHash, "h");
-  const agent = run(["--start"], { KIRO_SESSION_ID: "fake-session" });
-  assert.notEqual(agent.status, 0);
-  assert.match(agent.stderr, /agent session/);
+  const child = run(["--start"], { AVOOZL_CHILD: "1" });
+  assert.notEqual(child.status, 0);
+  assert.match(child.stderr, /supervisor started/);
   const start = run(["--start", "--json"]);
   assert.equal(start.status, 0, start.stderr);
   assert.equal(JSON.parse(start.stdout).queued.unproven, true);
@@ -153,8 +149,8 @@ test("CLI reads current review and queues an inherited reviewer only as a person
     assert.equal(value.start.existing, true);
     assert.doesNotMatch(run(["--start"]).stdout, /Review queued/);
     assert.match(
-      run(["--start"], { KIRO_SESSION_ID: "fake-session" }).stderr,
-      /agent session/,
+      run(["--start"], { AVOOZL_CHILD: "1" }).stderr,
+      /supervisor started/,
     );
     const unchanged = new Store(db);
     assert.equal(unchanged.list("receipts").length, choices);

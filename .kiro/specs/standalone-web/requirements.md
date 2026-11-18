@@ -4,7 +4,7 @@ category: Planning
 
 # Requirements: a standalone web view
 
-Status: Draft
+Status: Approved
 
 ## Introduction
 
