@@ -503,7 +503,7 @@ test("a planner that writes a workspace's specs opens in the Specs folder", (t) 
   assert.equal(kirocrewConfiguration(store, answer).project, false);
   assert.equal(kirocrewConfiguration(store, worker).project, false);
   const dispatches = [planner, worker];
-  const [notice, ...rest] = kirocrewDispatches(store, dispatches, [], {
+  const [notice, ...rest] = kirocrewDispatches(store, dispatches, {
     "Avoozl/Specs": false,
   });
   assert.deepEqual(rest, []);

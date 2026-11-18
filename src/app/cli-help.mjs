@@ -222,10 +222,6 @@ export const HELP_GROUPS = Object.freeze([
         "Resume a leaf that stopped for a decision",
       ),
       entry(
-        "pick-again TASK_ID",
-        "The next attempt picks its agent and model afresh",
-      ),
-      entry(
         "verify allow TASK_ID --reason TEXT",
         "Let one held commit's protected paths land",
       ),
@@ -374,12 +370,20 @@ export const HELP_GROUPS = Object.freeze([
         "Read the matched line again from its source",
       ),
       entry(
-        "routing [view|preview]",
-        "Crews and checks, the routing prompt, providers; a dry run on ready tasks",
-      ),
-      entry(
         "andon",
         "Where the old andon gate went (rule actions and flow stop)",
+      ),
+      entry(
+        "routing",
+        "Retired with crew placement: every session runs on this machine",
+      ),
+      entry(
+        "crews",
+        "Retired with crew placement: every session runs on this machine",
+      ),
+      entry(
+        "pick-again",
+        "Retired with crew placement: every session runs on this machine",
       ),
       entry("health [--url URL]", "Ask a running app backend whether it is up"),
     ],
@@ -479,14 +483,6 @@ export const HELP_GROUPS = Object.freeze([
       entry(
         "driver set [--label LABEL] [--heartbeat MINUTES]",
         "This computer's machine label and heartbeat",
-      ),
-      entry(
-        "routing set --file ROUTING.json",
-        "This machine's routing: {enabled, prompt, model}",
-      ),
-      entry(
-        "crews set --file CREWS.json [--stale SECONDS]",
-        "This machine's crew tags, limits, and hand-back",
       ),
     ],
   },

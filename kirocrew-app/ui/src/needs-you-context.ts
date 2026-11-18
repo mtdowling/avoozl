@@ -32,8 +32,6 @@ export function askLine(item: ConflictItem): string {
       return 'A content rule blocked a write. Read the match, then allow it once or fix the text.'
     case 'content-unavailable':
       return 'Add or fix the rule set so Avoozl can check content again.'
-    case 'routing-failed':
-      return 'Ask routing again now, or turn routing off so tasks run on this machine.'
     case 'tick-failed':
       return 'Fix the error shown. Avoozl runs the tick again by itself.'
     case 'driver':
