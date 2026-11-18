@@ -7,6 +7,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { git } from "../git.mjs";
+import { bindContentRules } from "../content-rules.mjs";
+import { fixture } from "./fixtures.mjs";
 import { appendRecord, localJournal, replayJournal } from "../spec-journal.mjs";
 import {
   checkpointBranch,
@@ -548,4 +550,90 @@ test("agents never receive push credentials", () => {
     "HOME",
     "PATH",
   ]);
+});
+
+test("a push names no private plan term from the workspace's content rules", async (t) => {
+  const s = await scratch(t),
+    { store } = fixture(t),
+    ws = s.at("ws");
+  fs.mkdirSync(path.join(ws, ".avoozl", "local", "content-rules"), {
+    recursive: true,
+  });
+  fs.writeFileSync(
+    path.join(ws, ".avoozl.json"),
+    JSON.stringify({
+      contentRules: { sets: [{ id: "private-plan", boundaries: ["diff"] }] },
+    }),
+  );
+  fs.writeFileSync(
+    path.join(ws, ".avoozl", "local", "content-rules", "private-plan.txt"),
+    "plan: made-up-private-plan\n",
+  );
+  bindContentRules(store, {
+    workspaceRoot: ws,
+    configFile: s.config,
+    machine: MACHINE,
+  });
+  await git(s.driver, ["checkout", "-q", "-b", "task-one", s.base]);
+  const named = await s.commit(
+      s.driver,
+      "one.txt",
+      "fine\n",
+      "Work for made-up-private-plan",
+    ),
+    options = { since: s.base, machine: MACHINE, configFile: s.config, store };
+  await assert.rejects(
+    pushHead(
+      s.driver,
+      {
+        repository: "alice/app",
+        branch: checkpointBranch(SPEC, "t1"),
+        commit: named,
+      },
+      s.registry,
+      options,
+    ),
+    /Content rules refused this, nothing was written: private-plan rule plan/,
+  );
+  await assert.rejects(
+    pushHead(
+      s.driver,
+      {
+        repository: "alice/app",
+        branch: "made-up-private-plan/work",
+        commit: s.base,
+      },
+      s.registry,
+      options,
+    ),
+    /Content rules refused/,
+  );
+  assert.equal(
+    await git(s.root, [
+      "ls-remote",
+      "--heads",
+      s.at("alice.git"),
+      "*made-up*",
+      "avoozl/*",
+    ]),
+    "",
+  );
+  // A clean push still goes.
+  await git(s.driver, ["checkout", "-q", "-b", "task-two", s.base]);
+  const clean = await s.commit(s.driver, "two.txt", "fine\n", "Work");
+  assert.equal(
+    (
+      await pushHead(
+        s.driver,
+        {
+          repository: "alice/app",
+          branch: checkpointBranch(SPEC, "t2"),
+          commit: clean,
+        },
+        s.registry,
+        options,
+      )
+    ).pushed,
+    true,
+  );
 });
