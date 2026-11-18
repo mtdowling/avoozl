@@ -551,7 +551,7 @@ count and up to 10 links.
 
 ### 4.5 The tick
 
-**Proposed.** One operation, `workspace.tick`, exposed as MCP tool `plans_tick`
+**Proposed.** One operation, `workspace.tick`, exposed as MCP tool `plans_maintain {action: "tick"}`
 and CLI `avoozl tick`. It is idempotent and bounded (Requirement 26).
 
 Order of one tick, per workspace:
@@ -604,12 +604,12 @@ Bounds:
 
 ```text
 tick.py:run(ctx)
-  intents = ctx.call_tool("avoozl", "plans_tick", {})
+  intents = ctx.call_tool("avoozl", "plans_maintain", {"action": "tick"})
   for s in intents.observe:   status = ctx.call_tool("kirocrew-dashboard", "session_status", {"target": s.slot})
-                              ctx.call_tool("avoozl", "plans_session_status", {"slot": s.slot, "status": status})
+                              ctx.call_tool("avoozl", "plans_session", {"action": "status", "slot": s.slot, "status": status})
   for d in intents.dispatch:  folder = find_or_create(ctx, d.folder)
                               slot = ctx.open_session(d.title, folder_id=folder, agent=d.agent)
-                              ctx.call_tool("avoozl", "plans_bind_session", {"task": d.task, "slot": slot})
+                              ctx.call_tool("avoozl", "plans_session", {"action": "bind", "task": d.task, "slot": slot})
                               ctx.send_to_session(slot, d.brief)
   for m in intents.messages:  ctx.send_to_session(m.slot, m.text)
   for n in intents.notify:    ctx.notify(n.text)
@@ -618,16 +618,16 @@ tick.py:run(ctx)
 
 - Session titles are `avoozl:<task-id> <short title>`, so bindings are
   rediscoverable (§3.3).
-- `plans_bind_session` is recorded before the first message, so a crash between
+- `plans_session {action: "bind"}` is recorded before the first message, so a crash between
   open and send leaves a bound, empty session the next tick messages.
 - Whether a script cron may call the `kirocrew-dashboard` server's
   `session_status` is **Inferred**; proof P2 checks it. If it cannot, MC-2
   becomes blocking.
 
 New MCP tools (**Proposed**, `plans_` prefix kept for consistency):
-`plans_tick`, `plans_bind_session`, `plans_session_status`, `plans_report`
+`plans_maintain {action: "tick"}`, `plans_session {action: "bind"}`, `plans_session {action: "status"}`, `plans_report`
 (worker, verifier, responder reports), `plans_prepare_worktree`,
-`plans_project_preview`, `plans_post_reply`, `plans_rebuild`.
+`plans_project_preview`, `plans_post_reply`, `plans_github {action: "rebuild"}`.
 
 ### 4.7 Security and exposure
 
@@ -1562,7 +1562,7 @@ Read against Avoozl `kirocrew-native` at `6d83f83` (2026-11-12), read only.
 | F108 | **Verified (source).** An MCP request carries Kiro Crew's caller block, which names a session key, not a person; a script cron's own copy of the server has no caller at all. Person-only operations refuse a session caller or MCP with 403.                                                                                                | `src/app/app-mcp.mjs` header; `src/app/operations.mjs` `content.show`, plugin edits                                 |
 | F109 | **Verified (source).** Content-rule boundaries are `plan`, `github`, `brief`, and `diff`. Nothing screens an item when it comes in; issue text is screened later, at `brief`.                                                                                                                                                                | `src/app/content-rules.mjs` `BOUNDARIES`; `src/app/github-sync.mjs`                                                 |
 | F110 | **Verified (source).** `parseMatch` reads `label:`, `-label:`, `assignee:`, and `no:assignee` and refuses every other token by name.                                                                                                                                                                                                         | `src/app/issue-match.mjs`                                                                                           |
-| F111 | **Verified (source).** `task.capture` (`plans_capture`) records a person's request as an inbox task, idempotent by a submission ID.                                                                                                                                                                                                          | `src/capture.mjs`; `src/app/mcp.mjs`                                                                                |
+| F111 | **Verified (source).** `task.capture` (`plans_intake {action: "capture"}`) records a person's request as an inbox task, idempotent by a submission ID.                                                                                                                                                                                                          | `src/capture.mjs`; `src/app/mcp.mjs`                                                                                |
 | F112 | **Verified (source).** Each store table is its own SQLite table of `id` and JSON `body`, on an allowlist in `store.mjs`; `github_issues` is one.                                                                                                                                                                                             | `src/app/store.mjs` `get`, `list`, `put`                                                                            |
 | F113 | **Inferred.** An internal ticket tracker or code review system can answer "items changed since cursor X" for a query. A source that cannot is still usable, but its plugin must page through every open item each poll.                                                                                                                      | Not checked against any real system; proof P32 uses a fake                                                          |
 
@@ -5048,7 +5048,7 @@ subject C, using the task's own diff, not the base's: a path changed when
 `git diff <merge-base(E)> E -- <path> | git patch-id --stable` differs from
 the same for C. `fixed` needs at least one changed path, `unchanged` none. A
 defect closed `unchanged` stays open. A person retrying a stopped delivery
-(`plans_retry_delivery`) may dismiss findings by reference with a reason.
+(`plans_task {action: "retry"}`) may dismiss findings by reference with a reason.
 
 **Not run.** A checks report entry may be `{command, exitCode: null,
 notRun: "<reason>"}`. Avoozl reads `notRun`, a null exit code, 126, 127, and
@@ -5065,7 +5065,7 @@ repository's validation script as a declared check, so the checks role runs
 it on the exact commit and acceptance can only come from its pass.
 
 **Supersede by hand.** `task.supersede` (`avoozl task supersede`,
-`plans_supersede_task`) takes `{id, create}` and, in one transaction,
+`plans_task {action: "supersede"}`) takes `{id, create}` and, in one transaction,
 creates the new task, copying the old task's `requires` and `sequence`
 edges unless `create.requires` is given, sets `supersedes` and
 `supersededBy`, and sets the old task to `superseded` (a new status,
@@ -6408,7 +6408,7 @@ renders, and its buttons write and redraw it. Lessons:
 
 **Proposed** (owner decision 2026-11-12, Requirement 32). A **Set up GitHub**
 button in Settings runs one operation, `github.setup`, also exposed as CLI
-`avoozl github setup` and MCP tool `plans_github_setup`. It uses the token
+`avoozl github setup` and MCP tool `plans_github {action: "setup_preview"}`. It uses the token
 Avoozl already reads (F35) and stores no new secret.
 
 **Flow.** The wizard reads first, builds one plan of writes, shows it, and

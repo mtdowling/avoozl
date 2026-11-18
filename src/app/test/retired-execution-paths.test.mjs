@@ -71,7 +71,7 @@ function workspace(t, tasks, tracked = {}) {
   };
 }
 
-test("retired relay aliases resolve and refuse without changing state", async (t) => {
+test("the relay tool is gone and relay.forget refuses without changing state", async (t) => {
   const { root, store } = fixture(t),
     ops = new Operations(store, { workspaceRoot: root });
   store.setMeta("relay.state", {
@@ -79,14 +79,9 @@ test("retired relay aliases resolve and refuse without changing state", async (t
     queue: [{ id: "old-request" }],
   });
   const before = store.getMeta("relay.state");
-  for (const action of Object.keys(GROUPED_TOOLS.plans_relay.actions)) {
-    const call = groupedCall("plans_relay", { action });
-    assert.equal(call.operation, "relay.call");
-    await assert.rejects(
-      ops.execute(call.operation, call.input),
-      /Remote relay was removed/,
-    );
-  }
+  // plans_relay and its relay.call operation were removed (R56.3).
+  assert.equal(Object.hasOwn(GROUPED_TOOLS, "plans_relay"), false);
+  assert.equal(groupedCall("plans_relay", { action: "register" }), null);
   await assert.rejects(
     ops.execute("relay.forget", {}),
     /Remote relay was removed/,

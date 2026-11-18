@@ -25,8 +25,7 @@ const input = (properties, required = []) => ({
   additionalProperties: false,
 });
 
-// Tools that exist only to carry a view. plans_project_preview already exists
-// (mcp.mjs); it only gains the resource link.
+// Tools that exist only to carry a view.
 export const VIEW_TOOLS = {
   plans_graph: {
     operation: "graph.view",
@@ -39,6 +38,15 @@ export const VIEW_TOOLS = {
     description:
       "Show the tasks approving a plan would publish, with findings, as a small view. Input: {id}. Reads only; approval is a person's, in the Avoozl app.",
     inputSchema: input({ id: { type: "string" } }, ["id"]),
+  },
+  plans_project_preview: {
+    operation: "github.project.preview",
+    description:
+      "Show every GitHub write projecting an approved plan would make, as a small view, without making any: issue creates and updates, sub-issue links, blocked-by edges, labels, and Project fields (Release, Wave, Iteration; never Status). Input: {planId, repository?}. Repositories this machine does not write are listed in previewOnly. Reads only.",
+    inputSchema: input(
+      { planId: { type: "string" }, repository: { type: "string" } },
+      ["planId"],
+    ),
   },
   plans_decision: {
     operation: "conflicts.view",
@@ -191,7 +199,7 @@ if(p.conflicts?.length)el("div",p.conflicts.length+" conflicts; Avoozl leaves th
 if(p.previewOnly?.length)el("div","Not written by this machine: "+p.previewOnly.join(", "),"sub");
 let armed=false;const b=button("Project",async()=>{
 if(!armed){armed=true;b.textContent="Confirm: write "+p.writes.length+" changes to GitHub";return}
-const now=await call("plans_github",{action:"project_preview",input:{planId:p.planId}});
+const now=await call("plans_plan",{action:"project_preview",input:{planId:p.planId}});
 if(now.planHash!==p.planHash){draw(now);show("The plan changed after this view. Check the new list and press Project again.",true);return}
 const r=await call("plans_github",{action:"project",input:{planId:p.planId}});
 show("Projected."+(r&&r.issues?" "+r.issues.length+" issues.":""))});

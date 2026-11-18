@@ -2592,10 +2592,15 @@ nothing a person must decide can be done from a chat.
    (Changed 2026-11-13: marking a manual task done or reopening it, and
    editing, removing or showing a task's links and notes on its issue, are
    person only too, Requirement 61.13 and 61.22.)
-3. The older `plans_*` names SHALL stay listed and working, each
-   description starting with `Deprecated:` and naming its replacement.
-   They stay listed because a session's client calls only the tools it was
-   shown, although the gateway forwards a call to an unlisted name.
+3. (Changed 2026-11-18, owner decision.) The deprecated one-tool-per-operation
+   `plans_*` names that nothing Avoozl ships uses, the moved-operation stubs,
+   `plans_relay` and `plans_andon_*` SHALL NOT be listed or answered. A narrow
+   tool that a shipped agent, role prompt or brief names (such as
+   `plans_report`, `plans_get_plan` or `plans_submit_review`) SHALL stay as a
+   current tool, so no agent's allowedTools grows. Agents, prompts and briefs
+   SHALL name only registered tools, and a test SHALL fail when one names a
+   tool that is not registered or when a read-only role is given a grouped
+   tool with write actions.
 4. A session MAY archive and unarchive a plan, and the record SHALL name
    the session. This replaces Requirement 51.1.
 5. A grouped tool that keeps an old read-only name SHALL stay read only, so

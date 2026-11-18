@@ -200,7 +200,6 @@ const EXECUTE = new Set([
   "session.report",
   "session.send",
   "session.open",
-  "relay.call",
   "reply.post",
   "reviewdraft.post",
   "task.summary.request",
