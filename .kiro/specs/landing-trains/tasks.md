@@ -40,19 +40,19 @@ person.
 - [x] lt-1.1 Settings for `landing.trains` and the machine keys, with validation [LT15, LT7.3] (§D16)
   - `landing.trains` and `landing.trains.targets.<branch>` in `src/avoozl-config.schema.json`; `machine.platforms`, `machine.slots` and `lease.*` in the global configuration; `validateTrains` in `src/app/landing-config.mjs`, called from `loadLayeredConfig`; defaults and bounds as in the D16 table for the keys the first cut reads; `landing: train` with an invalid block lands nothing and opens one Needs you item.
   - Done when: Tests in `src/app/test/integrator-trains-config.test.mjs` load a valid file and get every default; refuse an unknown key, each out-of-range value, `minBranches` above `maxBranches`, a target without `policy`, a `regenerate` rule without `command`, a needed platform with neither an environment nor `ci.workflow`, and `machine.*` or `lease.*` in `.avoozl.json`, each message naming the key and file; a gated target with a CI-only platform loads with the extra-run warning; a target override replaces the `trains`-level key.
-- [ ] lt-1.2 Batch branches and queue registration, after lt-1.1 [LT1.1, LT1.2, LT1.3, LT1.4, LT1.5, LT16.1] (§D2, §D3)
+- [x] lt-1.2 Batch branches and queue registration, after lt-1.1 [LT1.1, LT1.2, LT1.3, LT1.4, LT1.5, LT16.1] (§D2, §D3)
   - The landing value `train`; after Verify the tick pushes `<prefix><task>` through the scanned push path, as a plain push, and queues an entry with `branch`, `forkPoint`, `builtOn`, `footprint` and `cheap`; `avoozl landing submit TASK --branch NAME` and its MCP twin; requeue keeps its place for a descendant head and refuses any other.
   - Done when: Tests in `src/app/test/landing-batch-branches.test.mjs`: a verified task's commit appears on the bare remote as `avoozl-batch/<task>` and in the queue with every field; a planted content-rule match blocks the push; `submit` refuses a wrong prefix, a task outside an approved plan and a failed cheap check, each naming the step; a descendant requeue keeps `seq`; a rewritten head is refused with the reason and the remote branch and entry are unchanged; a branch built on another queued branch records it in `builtOn`.
-- [ ] lt-1.3 CI guidance for repositories and setup's workflow check, after lt-1.1 [LT1.7, LT1.8] (§D17)
+- [x] lt-1.3 CI guidance for repositories and setup's workflow check, after lt-1.1 [LT1.7, LT1.8] (§D17)
   - `docs/integrator-trains.md` with the D17 snippets, the reason not to use a skip tag, the gated `workflow_dispatch` input, and the D16.1 setup for a repository whose CI does not gate merges; `avoozl setup REPO` under `landing: train` lists each workflow whose `push` trigger matches the batch prefix, with the line to add, and edits nothing.
   - Done when: A setup test with three fixture workflows (no filter, `branches: [main]`, `branches: ['**']`) lists the first and third with the right line each and not the second; the workflow files are byte-identical after the run; `node scripts/release-scan.mjs` is clean on the new doc.
 
 ## Phase 2: The landing lease and the integrator
 
-- [ ] lt-2.1 One lease module from the activity lease [LT3.2] (§D5.1)
+- [x] lt-2.1 One lease module from the activity lease [LT3.2] (§D5.1)
   - `src/lease.mjs` with `takeLease`, `renewLease`, `endLease`, `leaseState`, in seconds; `applyActivity` calls it and keeps its API and 5–240 minute bounds.
   - Done when: `src/report.test.mjs`'s activity tests pass unchanged; new tests in `src/lease.test.mjs` cover take on none and on stale, busy on active foreign, renew and end with the right and the wrong lease ID, and a 180-second lease going stale at 181 seconds.
-- [ ] lt-2.2 The landing lease: compare-and-set, heartbeat, expiry and the hung holder, after lt-2.1, lt-1.1 [LT3.1, LT3.3, LT3.4, LT3.5, LT3.9] (§D2, §D5.2)
+- [x] lt-2.2 The landing lease: compare-and-set, heartbeat, expiry and the hung holder, after lt-2.1, lt-1.1 [LT3.1, LT3.3, LT3.4, LT3.5, LT3.9] (§D2, §D5.2)
   - `landing_leases` table (added to the store's table lists); take inside one transaction; renew every `heartbeatSeconds`; expire after `missedHeartbeats`; a stale lease whose holder pid is alive on this machine with the same start time is not taken and opens one Needs you item.
   - Done when: Tests in `src/app/test/landing-lease.test.mjs`: two stores on one database file race to take the lease and exactly one wins, the other gets `busy` and writes nothing; a lease renewed on time stays; one not renewed for three heartbeats goes stale; a stale lease with a live pid is refused with one Needs you item across three loops; a stale lease with a dead pid is taken.
 - [ ] lt-2.3 The integrator process and role, after lt-2.2, lt-1.2 [LT2.1, LT2.2, LT2.3, LT2.5] (§D4, §D21)

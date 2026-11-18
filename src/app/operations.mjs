@@ -164,7 +164,9 @@ import {
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
 import { landingView } from "./landing-view.mjs";
 import { epicsView } from "./epics-view.mjs";
+import { integratorNeedsYou } from "./landing-lease.mjs";
 import { landingQueueView } from "./landing-queue-view.mjs";
+import { submitBranch } from "./integrator-trains.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
   checkIntegrationBranch,
@@ -3322,6 +3324,9 @@ export class Operations {
         mcp: context.mcp === true,
         local: context.local === true,
       });
+    // Queue a branch Avoozl did not start (landing-trains, LT1.4).
+    if (name === "landing.submit")
+      return submitBranch(store, this.workspaceRoot, input);
     if (name === "delivery.retry")
       return retryDelivery(store, input, {
         caller: context.caller,
@@ -3615,6 +3620,7 @@ export class Operations {
       view.items.push(...planReviewNeedsYou(store));
       view.items.push(...gateNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
+      view.items.push(...integratorNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
       view.items.push(...rateNeedsYou(store));
       view.items.push(...paceNeedsYou(store));
@@ -6594,12 +6600,21 @@ export class Operations {
         fail("Only a person applies repository setup.", 403);
       if (!this.github?.available?.())
         fail("Repository setup needs GitHub; run gh auth login.", 503);
-      return repositorySetup(store, this.github, input, {
-        writeProject: (project) => {
-          this.configuration?.assertWritable();
-          this.configuration?.updateExecutionProject(project);
+      return repositorySetup(
+        store,
+        this.github,
+        {
+          branchPrefix: loadLayeredConfig({ workspaceRoot: this.workspaceRoot })
+            .config.landing?.trains?.branchPrefix,
+          ...input,
         },
-      });
+        {
+          writeProject: (project) => {
+            this.configuration?.assertWritable();
+            this.configuration?.updateExecutionProject(project);
+          },
+        },
+      );
     }
     if (name === "spec.takeover") {
       if (context.caller || context.mcp)
