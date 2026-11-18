@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { RepositorySettings } from "../repository-settings.mjs";
+import { REPOSITORY_CONFIG_SCHEMA_URL } from "../config-schema.mjs";
 import { fixture, waitFor } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -145,10 +146,7 @@ test("repository settings ignore .avoozl/config.json", (t) => {
   configuration.updateConversationSettings({ autoArchiveCompleted: false });
 
   const saved = JSON.parse(fs.readFileSync(current, "utf8"));
-  assert.equal(
-    saved.$schema,
-    "https://avoozl.dev/schema/repository-config-v1.json",
-  );
+  assert.equal(saved.$schema, REPOSITORY_CONFIG_SCHEMA_URL);
   assert.equal(saved.dbPath, undefined);
   assert.equal(saved.documents, undefined);
   assert.equal(saved.projects, undefined);

@@ -6,6 +6,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { applicationRoot, workspaceConfig } from "../config.mjs";
 import { initializeWorkspace } from "../workspace.mjs";
+import { REPOSITORY_CONFIG_SCHEMA_URL } from "../config-schema.mjs";
 import { Store } from "../store.mjs";
 import { Operations } from "../operations.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -23,10 +24,7 @@ test("initialization starts empty, refuses replacement, and paths survive moving
   assert.equal(fs.existsSync(repositoryConfig), true);
   assert.equal(fs.existsSync(path.join(original, "workspace.json")), false);
   const savedConfig = JSON.parse(fs.readFileSync(repositoryConfig, "utf8"));
-  assert.equal(
-    savedConfig.$schema,
-    "https://avoozl.dev/schema/repository-config-v1.json",
-  );
+  assert.equal(savedConfig.$schema, REPOSITORY_CONFIG_SCHEMA_URL);
   assert.equal(savedConfig.dbPath, ".avoozl/local/workspace.sqlite");
   assert.equal(savedConfig.documents, "plans");
   assert.match(savedConfig.namespace, /^avz_[a-z2-7]{16}$/);

@@ -181,6 +181,15 @@ key lists, or add one test that walks every `onlyKeys` list and the schema and
 fails on a difference. Payoff: high, because it is the only full list of what a
 user can set. Risk: low.
 
+**Done (F19).** The schema now lists the keys above, and
+`src/app/test/config-schema-parity.test.mjs` fails when a validator's key
+list and the schema differ, or when a closed schema object has no list to be
+held to. The test found three keys this list missed: a rule's `match`,
+`github.project.fields.phase`, and a train platform's `suiteArgs`. Two entries
+above are not file settings: `flow.batch` is now ignored, and
+`flow.retro.instructions` is saved on each machine and refused in
+`.avoozl.json`. The dead keys of §2.2 are unchanged.
+
 ### 2.4 Pages that could merge or go
 
 | # | Kind | What | Where | Evidence | Proposal | Risk |
