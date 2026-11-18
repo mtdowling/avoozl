@@ -1,5 +1,9 @@
 # Design: Avoozl as a Kiro Crew-native, GitHub-native product
 
+Status 2026-11-18: see the status paragraph at the top of
+`requirements.md` for what later owner decisions replaced. Sections that
+describe a removed page or store carry their own status line.
+
 Owner pivot, 2026-11-16: Requirement 102 and design §4.32 govern issues,
 working heads, completion and handoff. They supersede conflicting per-task
 GitHub projection, task-issue completion, epic-only integration and snapshot
@@ -40,7 +44,7 @@ evidence baseline.
 | Content rules                        | `.avoozl.json` names which rule sets apply and the action; the banned terms live in an untracked terms file or an approved private plugin. Every write or approval boundary is checked; a match blocks and opens a decision, never redacts, and can be allowed once with a reason; findings name rule and location, never the term. Today's leak, reply, and secret screens become built-in sets (§4.9)                                                                   | Owner, 2026-11-12; Requirement 40                          |
 | Plan layout                          | Required, not a default: every plan is a Kiro spec folder `.kiro/specs/<name>/` with `requirements.md` or `bugfix.md`, `design.md`, `tasks.md`, and `avoozl/manifest.json`. Fenced plan files are a migration read path only                                                                                                                                                                                                                                              | Owner, 2026-11-11; Requirement 30                          |
 | Untriaged list                       | A read-only list of open issues and pull requests that no trigger rule, triage label, or task covers, linking out to GitHub and Issue Radar, and starting Avoozl's own code review chat; GitHub modes only; deep links wait on MC-14 (§8.5)                                                                                                                                                                                                                                                        | Owner, 2026-11-12; Requirement 49                          |
-| Crew placement                       | Remote workers push their task branches to public and private repositories alike; Avoozl never pushes (reversed 2026-11-15: Avoozl pushes and lands, §4.26). The routing prompt (since 2026-11-13; before, router instructions) is machine-local only. MC-10 is a required Kiro Crew ask, and every chat Avoozl opens, local or remote, must be attachable from In flight; until MC-10 ships remote placement is inert. Chat limits (3 local, 2 remote, per crew) and the stale limit (120 s) are configurable defaults (§4.10) | Owner, 2026-11-12; Requirement 41                          |
+| Crew placement                       | Remote workers push their task branches to public and private repositories alike; under §4.26 Avoozl pushes and lands (reversed 2026-11-15). The routing prompt and the relay were removed (#282); placement keeps pins, capacity and provider hard checks. MC-10 is a required Kiro Crew ask, and every chat Avoozl opens, local or remote, must be attachable from In flight; until MC-10 ships remote placement is inert. Chat limits (3 local, 2 remote, per crew) and the stale limit (120 s) are configurable defaults (§4.10) | Owner, 2026-11-12; Requirement 41                          |
 
 ### New verified facts used by this design
 
@@ -1041,6 +1045,8 @@ allow host: \bbuild0\.corp\.example\b
 
 ### 4.10 Crew placement
 
+**Status 2026-11-18.** The routing prompt, the routing agent chat and the remote relay were removed (#282, task 45.3). `src/app/routing.mjs` keeps manifest pins, capacity and provider hard checks. Crew reads (`crews.mjs`, `crew-reader.mjs`) stay. Text below about the prompt, Pick again and the relay is history.
+
 **Proposed**, owner request 2026-11-12 (Requirement 41). The owner runs
 several Kiro Crew instances: this machine and remote crews on other
 machines, some on other operating systems. Today every session Avoozl opens
@@ -1053,7 +1059,7 @@ session Avoozl opens itself. Code and spec keep the two words apart.
 **Owner answers, 2026-11-12.** Decided, not defaults:
 
 1. Remote workers push their task branches, to public and private
-   repositories alike. Avoozl itself never pushes. Content rules and the
+   repositories alike. Avoozl itself never pushes. (Reversed 2026-11-15; Avoozl pushes and lands.) Content rules and the
    repository's policy still apply to what is pushed. (Reversed 2026-11-15:
    the worker never pushes and Avoozl lands, §4.26.)
 2. Router instructions are machine-local only, never in a tracked
@@ -1990,6 +1996,8 @@ Added while Phase 12 was built; they change no rule above.
 
 ### 4.12 Incoming items
 
+**Status 2026-11-18.** The Intake tab is Needs you › Triage (#464). The incoming-item record is unchanged. Ideas, the one `local` kind, were removed (#228).
+
 **Proposed**, owner idea 2026-11-12 (Requirement 50). Work arrives from
 more places than GitHub: an internal ticket tracker, an internal code
 review system, a script the owner runs. Each would otherwise need its own
@@ -2352,6 +2360,8 @@ gets 403), like approval. The tick never imports. The CLI has
 
 ### 4.15 Onboard a repository
 
+**Status 2026-11-18.** There is no separate Onboard button. Settings › Repository setup has one **Add repository** entry that runs these steps as follow-up setup (#515).
+
 **Built** 2026-11-13, owner request (Requirement 58). Settings >
 Repositories gets **Onboard** beside Add repository: one stepped dialog,
 styled like Add plugin, that walks a folder to draft plans ready to approve.
@@ -2619,6 +2629,8 @@ is skipped silently, never an error.
 
 ### 4.18 Retro prompt and skill proposals, and lessons
 
+**Status 2026-11-18.** The lessons store, Lessons view, packs, healing and sharing were removed (#228). `lessons-export.mjs` moves stored lessons once into the steering rules file. Proposals stay, on the Retros nav entry (#468).
+
 **Proposed**, owner approval 2026-11-13 (Requirements 68–70). The retro of
 §4.11 can change settings and plans. Much of what slows a task is in what
 the worker is told, so it may now also propose prompt and skill diffs. What
@@ -2864,7 +2876,7 @@ When GitHub cannot be reached the commit stays on the branch and the
 result names it. Another workspace imports the file like a plugin's
 lessons pack.
 
-Settings › Flow gets a **Lessons** sub-group: Share this workspace's
+Settings › Flow gets a **Lessons** sub-group (removed with the lessons store, #228): Share this workspace's
 lessons (`flow.lessons.share`), Use lessons from other workspaces
 (`flow.lessons.read`), Untested lessons expire after (days,
 `flow.lessons.untestedDays`), Confirm within (days,
@@ -2994,6 +3006,8 @@ rel="noopener noreferrer"` through `safeHref`. A redacted row says so.
 | `key` on derived rows       | Two ticks, or two processes, record a change once                        |
 
 ### 4.20 Provider health and switching models
+
+**Status 2026-11-18.** Manual Switch model and Settings › Providers were removed (#228, #153). Health reads stay in `provider-health.mjs`. Settings › Models sets the model of Avoozl's own chats.
 
 **Proposed**, owner request 2026-11-13 (Requirement 72). A rate limit or an
 empty credit balance stalls every chat on that provider, and today a new
@@ -3247,7 +3261,7 @@ runner tick). This section makes that the only shape.
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Avoozl pushes and merges. Per repository: `landing: direct \| pr \| off`. It lands only after checks pass on the updated head. Never force push. Avoozl's own repository honors the owner-selected policy; do not restore its disabled required-check gate (R87.8) |
 | 2   | A vanished worker chat is resumed once, automatically, in the same worktree, only when Kiro Crew reports the chat gone. Never because it went quiet or its lease expired. A second vanish goes to Needs you       |
-| 3   | This Mac runs 3 lanes by default (the 50% CPU rule). More lanes come from remote hosts                                                                                                                            |
+| 3   | More lanes come from remote hosts. Changed 2026-11-18: the 50% CPU rule and the fixed three lanes are dropped as rules; `lanes.local` (default 3) still seeds `delivery.concurrency` as a setting                                                                                                                            |
 | 4   | Only runner mode skipped Kiro Crew's project folder and MCP sharing. A local worker used `leaf.project`, and `plans_report` needed MCP sharing. Phase 40 adds the CLI report and `project: false` with the worktree path in the brief |
 | 5   | Kiro Crew's push-to-main policy checks chat shell commands. The tick is not a chat. Phase 40's proof shows a tick push goes through                                                                               |
 | 6   | Nupp lands `direct` on public `core-dev` from the start, with `scripts/worktree` and `scripts/test-changed`. Plans stay in a private planning workspace. No private mirror, forwarding or leak scan for this setup; the pre-push content rule is the one leak guard. The freeze on public `core-dev` is lifted |
@@ -3313,7 +3327,7 @@ the same brief and the last report quoted as data. A quiet chat or an
 expired lease changes nothing (AGENTS.md). A second vanish for the same
 task opens a Needs you item.
 
-**Lanes, workers and ownership.** Three local lanes remain the default.
+**Lanes, workers and ownership.** `lanes.local` (default 3) seeds `delivery.concurrency`; it is a setting, not a rule (2026-11-18).
 Each spec has an issue-assigned driver, with an epic-assignee fallback only
 when unambiguous. Plan-less worker machines pull minimal offers, wait for a
 canonical claim reservation and generation acknowledgment, then publish task
@@ -3411,7 +3425,7 @@ source issue as `owner/repo#N` under the privacy scan (56.11), so GitHub shows
 its own cross-reference on the Radar issue. A public Radar issue never names a
 private spec. No Radar API, grant or shared module ties the two.
 
-Phase 44 is no longer paused. Phase 45 (Radar removal) stays paused.
+Phase 44 is no longer paused. Phase 45 (Radar removal) is no longer paused: 45.2 landed in #509.
 
 ### 4.28 Any harness runs the work; Kiro Crew stays the only UI
 
@@ -4324,7 +4338,7 @@ and Settings refuses it as any other label's name.
 to a crew. `issueRadarAdapter.handOver` (`src/app/coder-adapter.mjs`) adds no ready
 label, and the claim at approval (`src/app/approval-label.mjs`) writes no claim
 label or marker; Avoozl's executor runs those tasks. The code and the `coder`
-setting stay, because Phase 45 is paused. A ready label is not enough to keep crews
+setting stay until 45.4 (Phase 45 is no longer paused; 45.2 landed in #509). A ready label is not enough to keep crews
 off, because an empty-scope crew takes any open issue without a `crew:` label. So
 one previewed, paced, idempotent backfill adds `crew:avoozl` to each open projected
 task issue that has no `crew:` label. An issue a crew already claimed is left
@@ -5699,6 +5713,8 @@ headings).
 
 ### 6.10 Driver: one machine drives each spec
 
+**Status 2026-11-18.** The driver chat was removed (#382). The driver lock (the plan issue's assignee plus a machine claim) and the header driver chip stay.
+
 **Proposed** 2026-11-13 (Requirement 66; the lock was changed the same day
 to the plan issue's assignee). Avoozl runs on one person's machine, the
 **driver**. Run state is in that machine's SQLite. GitHub holds the spec
@@ -5941,7 +5957,7 @@ including the workspace status MCP reply. CLI: `avoozl driver status`,
 - Hand off driver sits in the spec view's left column actions. Its dialog
   is stepped: drain (running chats listed), export (folder picker),
   reassign (the issue link).
-- Settings › General › **This computer**: Machine label (optional),
+- Settings › Workspaces › **This computer**: Machine label (optional),
   Heartbeat minutes (optional, placeholder 15), and the machine ID shown
   small. The group's blurb says these stay on this machine.
 
@@ -5956,6 +5972,8 @@ including the workspace status MCP reply. CLI: `avoozl driver status`,
 | Export is a file the person moves                           | It may hold private notes; GitHub is not a place for them                                          |
 
 ### 6.11 Demo mode
+
+**Status 2026-11-18.** The demo tour was removed (#311). The sample, the fake GitHub, the badge, the bar and Exit demo stay. **Start demo** is in the empty In flight box on Home.
 
 Requirement 82. `src/app/demo.mjs` builds the sample; the app backend
 serves it; `kirocrew-app/ui/src/Demo.tsx` shows it.
@@ -6197,20 +6215,19 @@ Each has an interim that uses only supported interfaces. None is a private route
 
 ## 8. Avoozl app user experience
 
-**Proposed.** One page in Kiro Crew with nine views. Every view reads the node
-backend, which calls the same operations as CLI and MCP (Requirement 20.4).
+**Built.** One page in Kiro Crew with seven nav entries (changed 2026-11-18;
+it was nine views). Every view reads the node backend, which calls the same
+operations as CLI and MCP (Requirement 20.4).
 
-| View                   | Data shown                                                                                                                                                                                                                                                                                                                                                                             | Primary actions                                                                                                                                                                                 | Canonical source                                                                                                                                      | Links out                                                              | Must not duplicate                                                          |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| **Workspace**          | Workspaces known to this machine; selected workspace's repositories (checkout, GitHub repo, Kiro Crew folder, project-dir status); tick health (last run, lock, errors)                                                                                                                                                                                                                | Add or initialize workspace; register repository; run tick now                                                                                                                                  | Machine catalog (`catalog-store`); `.avoozl.json`; SQLite receipts                                                                                    | Kiro Crew folder; Schedule page for the tick cron                      | Kiro Crew's project or folder settings                                      |
-| **Plans**              | Kiro spec folders; manifest; critique findings; validation diagnostics; approval receipts; projection preview                                                                                                                                                                                                                                                                          | Plan a goal (draft chat); Prepare delivery; Validate; Approve revision; Preview; Apply                                                                                                          | Git files; SQLite receipts                                                                                                                            | Spec Builder spec; planner and critique sessions                       | Spec Builder's editor and phases; Kiro Crew chat                            |
-| **Graph**              | Epics, packages, leaves, edges, readiness, authority (issue link, plugin record link, or "local"), route; filters by epic, repository, status, Release                                                                                                                                                                                                                                 | Open a task; pause or resume a subtree; approve a broad issue's children                                                                                                                        | SQLite (local) and cached GitHub graph                                                                                                                | Each task's session, issue, or pull request; the GitHub Project        | GitHub issue pages and Project views                                        |
-| **Delivery**           | Running and recent leaves: worker session, verifier result, commit, PR number and merged state, required checks, completion verdict; per-repository capacity                                                                                                                                                                                                                           | Retry; nudge session; take back local; open session                                                                                                                                             | Kiro Crew sessions; GitHub; SQLite receipts                                                                                                           | Kiro Crew session; Issue Radar repository; GitHub PR | Issue Radar's pipeline and item lanes; Sage findings; Kiro Crew transcripts |
-| **Conflicts**          | Open decisions: managed-field conflicts, duplicate task IDs, stale claims, needs-human, failed critiques, quarantined snapshots, completion conflicts                                                                                                                                                                                                                                  | Accept GitHub value; reapply desired value; reassign task ID; dismiss with reason                                                                                                               | SQLite decisions; GitHub                                                                                                                              | The issue or session involved                                          | Kiro Crew's own approval prompts                                            |
-| **Settings**           | `.avoozl.json`: GitHub mode, planning repository, default authority, Project and its fields, epic issue type; per repository: rules, managed labels, actors, permission, checks, concurrency, priority, coder; required Issue Radar crew label (single-repo mode); a link to **Routing** for delivery routes and crews; plugins with kinds, version, approval state, and health (§4.8) | Edit and validate; **Set up GitHub** wizard (§8.2); check Project fields and the `project` scope; show crew setup; add, approve, disable, or remove a plugin                                    | `.avoozl.json` in Git; machine-local settings for plugin approvals and local plugin entries                                                           | Issue Radar crew setup; GitHub Project settings; Kiro Crew secrets     | Issue Radar settings; Kiro Crew settings                                    |
-| **Settings › Routing** | The routing prompt switch and prompt with examples; provider health and usage; crews with tags, trust, chat limit, readings, and check results; a read-only dry run on ready tasks (§4.10, §8.3)                                                                                                                                                                                       | Turn routing on or off, edit the prompt and insert examples, pick the routing agent's model; set Low at and per-provider limits; edit a crew's tags and chat limit and the stale limit; Preview | Machine-local settings only (the prompt, providers, crews, chat limits, the stale limit), never tracked; Kiro Crew instance list, headroom and models | Kiro Crew Connections; Kiro Crew remote dispatch settings              | Kiro Crew's instance management and its remote dispatch limits              |
-| **Flow**               | Lead time, flow efficiency, first-pass rate, and time to fix with the previous window; stacked time bar per task by stage; biggest bottleneck; retrospectives with proposals and PDCA results (§4.11, §8.4)                                                                                                                                                                            | Approve or reject a proposal; run a retro now; open a task                                                                                                                                      | SQLite `flow_spans`, line stops, and retrospectives                                                                                                   | Each task's session; the pull request and CI run in GitHub             | Issue Radar's pipeline and CI views; Kiro Crew's Usage page                 |
-| **Intake**             | Open items from every source (§4.12) that no trigger rule, triage label, or task covers, with source, kind, number or ID, title, repository, author, age, labels, comments, and a pull request's draft and checks state (§8.5)                                                                                                                                                         | Check now; open at the source; open in Issue Radar (GitHub); Code review; select several and open them in Issue Radar; Plan this and Deliver this (non-GitHub, person only)                     | Incoming items in SQLite, read from GitHub search, plugin `poll`, and `intake.submit`; `.avoozl.json` `untriaged` per repository and `intake.sources` | GitHub item; Issue Radar                             | Issue Radar's lists and item pages; Sage reviews; GitHub's issue list       |
+| Nav entry     | Pages                                                              | Holds                                                                                                         |
+| ------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| **Dashboards** | Home, Graph, Delivery, CI, Landing queue                           | Counts and In flight; the task graph; running and recent tasks with machine badges and Stop the line; CI waste; the landing queue |
+| **Specs**     | one list with status chips; spec details with tabs                 | Kiro spec folders, manifest, review, graph, links; **New spec**                                               |
+| **Needs you** | Decisions, Triage, Issue Radar                                     | Open decisions; GitHub items nothing covers yet; issues sent to Issue Radar                                   |
+| **Flow**      | one page                                                           | Lead time, flow efficiency, first-pass rate, time to fix, stacked time bars, bottlenecks                      |
+| **Retros**    | Retros, Proposals                                                  | Retrospectives, their proposals and PDCA results                                                              |
+| **Activity**  | one page                                                           | The activity log and tick health                                                                              |
+| **Settings**  | Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery | `.avoozl.json` and machine settings; the repository role, coder, labels, checks and reviews are tabs of each repository |
 
 **Choosing a repository and workspace.** A workspace is a directory with
 `.avoozl.json` and its SQLite file (existing layout). The machine catalog lists
@@ -6382,6 +6399,8 @@ over a Roadmap (2026-11-12), because tasks have no known durations.
 P24 proves the wizard.
 
 ### 8.3 Routing page
+
+**Status 2026-11-18.** Removed. There is no Routing page or Settings › Routing section (#153, #282). Old links open Repository setup.
 
 **Proposed**, owner request 2026-11-12 (Requirement 42). Changed
 2026-11-13 (owner decision): Routing is a Settings tab, and holds one
@@ -6585,6 +6604,8 @@ Proposals", read the Retros pill's Proposals page.
 
 ### 8.5 Intake tab
 
+**Status 2026-11-18.** The Intake tab is Needs you › Triage (#464). Needs you also has Decisions (the old Conflicts) and Issue Radar.
+
 Renamed from Untriaged on 2026-11-13 (R50.23). **Untriaged** is the tab's
 default filter; setting keys and the `untriaged` notification channel keep
 their names. Built: the GitHub read is SQLite now (`github` incoming items
@@ -6618,7 +6639,7 @@ Open issues and pull requests no trigger rule, triage label, or task covers.
   ◉ issue  ⇄ pull request  (◎) Open in Issue Radar  (⌕) Code review
 ```
 
-**Settings.** One **Untriaged** group under Settings › Repositories ›
+**Settings.** One **Untriaged** group under Settings › Repository setup ›
 Triggers and labels, per repository:
 
 | Field                        | Key                             | Rule                                                                                                                                                                                                                            |
@@ -6727,6 +6748,8 @@ GitHub call for it, and the seed tells the chat to post nothing.
 
 ### 8.6 New plan
 
+**Status 2026-11-18.** **New spec** is in the Specs heading and opens a centered modal (#228). Quick goal was removed; New spec starts From a goal. **Plan a goal** left the top bar (#488).
+
 **Built**, owner request 2026-11-13 (Requirement 57). The Plans page's New
 plan button opens a right drawer. Submit calls `plan.new`, a page-only
 operation (agents and MCP are refused). It checks the fields, runs content
@@ -6799,6 +6822,8 @@ allowlist. Each allowlist entry is one exact string with the reason it
 stays, so a new string fails until someone decides.
 
 ### 8.8 Ideas
+
+**Status 2026-11-18.** Removed (#228). See Requirement 63.
 
 **Proposed**, owner approval 2026-11-13 (Requirement 63). An idea is a
 rough thing to riff on before it is worth a spec. It rides the incoming
@@ -7193,6 +7218,8 @@ Detailed in `tasks.md`. **Proposed** order:
 | 56. Working branches and a spec journal | Qualified working heads and forks, durable minimal outcomes, guarded intents, held rebuild, epic lifecycle, intake/export and mirror imports; explicit dependencies in tasks.md (§4.32) |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
+
+**Status 2026-11-18.** History. Phases 0–2 ran this way. Avoozl now delivers its own phases and pushes and merges itself (§4.26); the "never push" and disjoint-files rules in the starter message below no longer apply.
 
 **Proposed.** Phases 0–2 build the delivery loop, so Avoozl cannot deliver
 them. Copying prompts between chats is the wrong experience even for a
