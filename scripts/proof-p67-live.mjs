@@ -396,11 +396,13 @@ const { git } = await import("../src/app/git.mjs");
 const { Store } = await import("../src/app/store.mjs");
 const { initializeWorkspace } = await import("../src/app/workspace.mjs");
 const { workspaceConfig } = await import("../src/app/config.mjs");
-const { bindContentRules, guardGitHub } =
-  await import("../src/app/content-rules.mjs");
+const { bindContentRules, guardGitHub } = await import(
+  "../src/app/content-rules.mjs"
+);
 const { specHash } = await import("../src/app/spec-plans.mjs");
-const { taskDefinition, taskOutcome } =
-  await import("../src/app/task-outcomes.mjs");
+const { taskDefinition, taskOutcome } = await import(
+  "../src/app/task-outcomes.mjs"
+);
 const { appendRecord, githubJournal, journalOutcomes, replayJournal } =
   await import("../src/app/spec-journal.mjs");
 const {
@@ -419,20 +421,25 @@ const {
   verifyRelationship,
   workingBranch,
 } = await import("../src/app/working-heads.mjs");
-const { effectiveOwner, headGuardedMerge, takeOver } =
-  await import("../src/app/driver-generations.mjs");
+const { effectiveOwner, headGuardedMerge, takeOver } = await import(
+  "../src/app/driver-generations.mjs"
+);
 const { runCheckAt } = await import("../src/app/flow-line.mjs");
-const { enqueueLanding, landNext, withdrawLanding } =
-  await import("../src/app/landing-queue.mjs");
+const { enqueueLanding, landNext, withdrawLanding } = await import(
+  "../src/app/landing-queue.mjs"
+);
 const { pullSteps } = await import("../src/app/landing-pulls.mjs");
-const { applyAccess, previewAccess } =
-  await import("../src/app/setup-access.mjs");
-const { rebuildSpec, resumeRebuild } =
-  await import("../src/app/spec-rebuild.mjs");
+const { applyAccess, previewAccess } = await import(
+  "../src/app/setup-access.mjs"
+);
+const { rebuildSpec, resumeRebuild } = await import(
+  "../src/app/spec-rebuild.mjs"
+);
 const { gitCopy, mirrorNeedsYou, mirrorSyncStep, trackingBranch } =
   await import("../src/app/mirror-sync.mjs");
-const { mirrorForwardStep, mirrorForwards } =
-  await import("../src/app/mirror-forward.mjs");
+const { mirrorForwardStep, mirrorForwards } = await import(
+  "../src/app/mirror-forward.mjs"
+);
 
 const mEnv = ghEnv(MAINTAINER_GH),
   cEnv = ghEnv(CONTRIBUTOR_GH);
