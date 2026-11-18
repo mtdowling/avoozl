@@ -7,7 +7,7 @@ import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
 import { readTab, tabKey, tabLink } from '../src/tabs.ts'
-import { TASK_TAB_KEYS, TASK_TAB_PARAM, tabHasData } from '../src/task-api.ts'
+import { TASK_TAB_KEYS, TASK_TAB_PARAM, tabHasData, visibleTabs } from '../src/task-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
@@ -27,7 +27,7 @@ test('the open tab is kept in the address, and arrow keys move between the tabs'
   assert.match(source('OldTraceLink.tsx'), /openTask\(task\.id, 'timeline'\)/)
 })
 
-test('one rule for an empty tab: it shows, and says so; Overview, Links and Details always have content', () => {
+test('one rule for no data: a tab or section with none is not drawn, and says nothing', () => {
   const detail = (extra = {}) => ({ steps: [], timeline: [], delivery: null, task: {}, ...extra })
   assert.equal(tabHasData('timeline', detail(), 0), false)
   assert.equal(tabHasData('timeline', detail({ timeline: [{ at: 'x', text: 'y' }] }), 0), true)
@@ -37,7 +37,15 @@ test('one rule for an empty tab: it shows, and says so; Overview, Links and Deta
   assert.equal(tabHasData('review', detail(), 2), true)
   assert.equal(tabHasData('review', detail({ task: { handSetReview: true } }), 0), true)
   for (const tab of ['overview', 'links', 'details']) assert.equal(tabHasData(tab, detail(), 0), true, tab)
-  assert.match(source('TaskDrawer.tsx'), /data-tab-empty=\{tab\}/)
+  assert.deepEqual(visibleTabs(detail(), 0).map((t) => t.key), ['overview', 'links', 'details'])
+  const drawer = source('TaskDrawer.tsx')
+  assert.match(drawer, /tabs=\{shown\}/)
+  // A hidden tab named in the address lands on Overview.
+  assert.match(drawer, /shown\.some\(\(t\) => t\.key === picked\) \? picked : 'overview'/)
+  // No empty-state line is left in the task view.
+  assert.doesNotMatch(drawer, /data-tab-empty|No description|No delivery yet|Nothing recorded|>None\.<|>Nothing\.</)
+  assert.doesNotMatch(source('TaskScmLinks.tsx'), /none<\/span>/)
+  assert.doesNotMatch(source('TaskNotes.tsx'), /No links yet/)
 })
 
 const chrome = findChrome()
@@ -62,20 +70,38 @@ const open = async (summary, width = 1280) => {
 }
 const asks = () => page.evaluate(`window.__harness.calls.filter((c) => c.operation === 'task.summary.request').map((c) => c.input)`)
 
-test('page: tabs switch by click and arrow keys, and an empty tab shows a muted line', { skip }, async () => {
+test('page: tabs switch by click and arrow keys, and a tab with no data is not in the bar', { skip }, async () => {
   await open('ready')
   assert.equal(await page.evaluate(`document.querySelector('[data-tab-panel]').dataset.tabPanel`), 'overview')
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-tabs="task-tabs"] [role=tab]')].map((t) => t.textContent.trim())`), ['Overview', 'Timeline', 'Links', 'Work', 'Review', 'Details'])
+  // The sample task has a timeline but no delivery and no review: no Work or Review tab.
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-tabs="task-tabs"] [role=tab]')].map((t) => t.textContent.trim())`), ['Overview', 'Timeline', 'Links', 'Details'])
   await page.evaluate(`document.querySelector('[data-tab="overview"]').focus()`)
   await page.key('ArrowRight', 'ArrowRight', 39)
   await page.until(`document.querySelector('[data-tab-panel]').dataset.tabPanel === 'timeline'`)
   assert.equal(await page.evaluate(`document.querySelector('[data-tab="timeline"]').getAttribute('aria-selected')`), 'true')
-  await page.evaluate(`document.querySelector('[data-tab="work"]').click()`)
-  await page.until(`document.querySelector('[data-tab-panel]').dataset.tabPanel === 'work'`)
-  assert.match(await page.evaluate(`document.querySelector('[data-tab-empty="work"]').textContent`), /No delivery yet/)
-  await page.evaluate(`document.querySelector('[data-tab="review"]').click()`)
-  await page.until(`Boolean(document.querySelector('[data-tab-empty="review"]'))`)
-  assert.equal(await page.evaluate(`document.querySelector('[data-tab-empty="timeline"]')`), null)
+  await page.key('ArrowRight', 'ArrowRight', 39)
+  await page.until(`document.querySelector('[data-tab-panel]').dataset.tabPanel === 'links'`)
+  assert.deepEqual(page.errors, [])
+})
+
+test('page: a section with no data renders nothing, with no empty line in its place', { skip }, async () => {
+  await page.open(harness.url({ modal: 'task-drawer', theme: 'light', summary: 'ready', evidence: 'none' }), { width: 1280, height: 900 })
+  await page.until(`Boolean([...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog'))`)
+  await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Open the dialog').click()`)
+  await page.until(`Boolean(document.querySelector('[data-tab="details"]'))`)
+  // Timing has no data on the sample task; Evidence has none here.
+  await page.evaluate(`document.querySelector('[data-tab="timeline"]').click()`)
+  await page.until(`Boolean(document.querySelector('[data-section-box="timeline"]'))`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-section-box="timing"]')`), null)
+  await page.evaluate(`document.querySelector('[data-tab="details"]').click()`)
+  await page.until(`Boolean(document.querySelector('[data-section-box="fields"]'))`)
+  await page.evaluate(`new Promise((r) => setTimeout(r, 300))`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-section-box="evidence"]')`), null)
+  assert.equal(await page.evaluate(`document.body.textContent.includes('No evidence yet')`), false)
+  // Overview: the task has waits-on and blocks, so Edges draws; the sample has no conflicts, so none.
+  await page.evaluate(`document.querySelector('[data-tab="overview"]').click()`)
+  await page.until(`Boolean(document.querySelector('[data-section-box="summary"]'))`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-section-box="conflicts"]')`), null)
   assert.deepEqual(page.errors, [])
 })
 

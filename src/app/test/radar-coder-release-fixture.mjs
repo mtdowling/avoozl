@@ -22,12 +22,7 @@ export const leaf = (id, extra = {}) => ({
   ...extra,
 });
 
-export async function setup(
-  t,
-  repository = {},
-  tasks = [],
-  coder = "issue-radar",
-) {
+export async function setup(t, repository = {}, tasks = []) {
   const { store } = fixture(t),
     github = new FakeGitHub(),
     root = temporaryDirectory();
@@ -41,7 +36,6 @@ export async function setup(
         repositories: {
           "example/code": {
             baseBranch: "main",
-            coder,
             managedLabels: { managed: "avoozl", ready: READY },
             ...repository,
           },

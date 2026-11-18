@@ -22,6 +22,7 @@ import { RailBlock, RailRow, RailStyle } from './NavRail.tsx'
 import { usePhone } from './list-detail.ts'
 import { useScrollPan } from './drag-pan.ts'
 import GraphView from './GraphView.tsx'
+import { EdgeList } from './EdgeList.tsx'
 import { edgePath, layoutGraph, nodeState, STATES, type Drill, type NodeState, type Spacing } from './graph-layout.ts'
 import {
   arrive,
@@ -755,6 +756,7 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
       <dd className="m-0">{value}</dd>
     </>
   )
+  const openTree = (id: string) => props.onTree({ kind: 'task', id })
   const link = (id: string) => (
     <button type="button" className="cursor-pointer underline" style={{ background: 'transparent', color: 'var(--text)' }} onClick={() => props.onTree({ kind: 'task', id })}>
       {id}
@@ -794,18 +796,8 @@ export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => 
           {row('Route', task.route)}
           {row('Done when', task.completion)}
           {task.decision && row('Decision', task.decision)}
-          {row(
-            'Waits on',
-            waitsOn.length
-              ? waitsOn.map((e, i) => (
-                  <span key={e.from} style={e.satisfied ? { textDecoration: 'line-through', color: 'var(--muted)' } : undefined}>
-                    {i > 0 && ', '}
-                    {link(e.from)}
-                  </span>
-                ))
-              : 'nothing',
-          )}
-          {row('Blocks', blocks.length ? blocks.map((e, i) => <span key={e.to}>{i > 0 && ', '}{link(e.to)}</span>) : 'nothing')}
+          {waitsOn.length > 0 && row('Waits on', <EdgeList label="Waits on" items={waitsOn.map((e) => ({ id: e.from, text: e.from, met: e.satisfied }))} onOpen={openTree} />)}
+          {blocks.length > 0 && row('Blocks', <EdgeList label="Blocks" items={blocks.map((e) => ({ id: e.to, text: e.to }))} onOpen={openTree} />)}
         </dl>
       ) : item.kind === 'spec' ? (
         <div className="flex flex-col gap-2 text-sm">

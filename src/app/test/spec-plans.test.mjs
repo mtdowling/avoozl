@@ -489,6 +489,15 @@ test("re-approval marks only the changed entry for review", async (t) => {
     "config.1.2": true,
   });
   assert.ok(ready().includes("config.1.1"));
+  // Needs you can show what changed: the task text as last reviewed is kept.
+  const tasks = ops.read().tasks;
+  const prior = tasks.find((task) => task.id === "config.1.2").reviewPrior;
+  assert.notEqual(prior.summary, "Report unknown keys and bad types.");
+  assert.ok(prior.title);
+  assert.equal(
+    tasks.find((task) => task.id === "config.1.1").reviewPrior,
+    undefined,
+  );
 });
 
 test("Kiro's checkbox marks do not change the revision", async (t) => {
@@ -1135,4 +1144,99 @@ test("an item over the title limit keeps its first clause as the title", () => {
   });
   const plain = lint(root, "plain").proposals.find((p) => p.id === "plain.1.2");
   assert.ok(plain.title.length <= 240 && plain.title.endsWith("word…"));
+});
+
+// The planner's batch groups (R108.1–R108.3, §4.37).
+const withBatches = (batches, edit = (tasks) => tasks) => {
+  const manifest = JSON.parse(specFiles()["avoozl/manifest.json"]);
+  return {
+    "avoozl/manifest.json": JSON.stringify({
+      tasks: edit(manifest.tasks),
+      ...(batches === undefined ? {} : { batches }),
+    }),
+  };
+};
+
+test("a manifest batch group lands on each member; an old size is ignored", () => {
+  const root = temporaryDirectory();
+  writeSpec(
+    root,
+    "config",
+    withBatches(
+      { pair: { tasks: ["1.1", "1.2"], reason: "Both edit config.mjs" } },
+      (tasks) => ({ ...tasks, 1.1: { ...tasks["1.1"], size: "small" } }),
+    ),
+  );
+  const result = lint(root);
+  assert.deepEqual(codes(result), []);
+  for (const id of ["config.1.1", "config.1.2"]) {
+    const proposal = result.proposals.find((p) => p.id === id);
+    assert.deepEqual(proposal.batch, {
+      id: "pair",
+      tasks: ["config.1.1", "config.1.2"],
+      reason: "Both edit config.mjs",
+    });
+    assert.equal("size" in proposal, false);
+  }
+});
+
+test("a malformed batch group is a manifest error", () => {
+  const cases = [
+    [["1.1", "1.2"], /"batches" is an object keyed by group ID/],
+    [{ "bad id": { tasks: ["1.1", "1.2"], reason: "x" } }, /needs an ID/],
+    [{ g: { tasks: ["1.1"], reason: "x" } }, /lists 2 to 5 different/],
+    [{ g: { tasks: ["1.1", "9.9"], reason: "x" } }, /names "9\.9"/],
+    [
+      { g: { tasks: ["1", "1.1"], reason: "x" } },
+      /names "1", which is not a leaf/,
+    ],
+    [{ g: { tasks: ["1.1", "1.2"], reason: "two\nlines" } }, /one line/],
+    [
+      { g: { tasks: ["1.1", "1.2"], reason: "x", max: 3 } },
+      /only "tasks" and "reason"/,
+    ],
+    [
+      {
+        g: { tasks: ["1.1", "1.2"], reason: "x" },
+        h: { tasks: ["1.2", "1.1"], reason: "y" },
+      },
+      /is in batch "g" and batch "h"/,
+    ],
+  ];
+  for (const [batches, message] of cases) {
+    const root = temporaryDirectory();
+    writeSpec(root, "config", withBatches(batches));
+    const errors = lint(root).diagnostics.filter(
+      (d) => d.code === "manifest.schema",
+    );
+    assert.ok(
+      errors.some((d) => message.test(d.message)),
+      `${JSON.stringify(batches)}: ${errors.map((d) => d.message).join("; ")}`,
+    );
+  }
+});
+
+test("approval stores the group with the approved hash; dropping it clears it", async (t) => {
+  const { root, ops } = workspace(t),
+    directory = writeSpec(
+      root,
+      "config",
+      withBatches({ pair: { tasks: ["1.1", "1.2"], reason: "Same file" } }),
+    );
+  const plan = await ops.execute("plan.create", { spec: "config" });
+  await approve(ops);
+  const task = (id) => ops.read().tasks.find((x) => x.id === id);
+  assert.deepEqual(task("config.1.2").batch, {
+    id: "pair",
+    tasks: ["config.1.1", "config.1.2"],
+    reason: "Same file",
+  });
+  assert.ok(task("config.1.2").planHash);
+  fs.writeFileSync(
+    path.join(directory, "avoozl/manifest.json"),
+    withBatches(undefined)["avoozl/manifest.json"],
+  );
+  await ops.execute("plan.save", { id: "config", expectedHash: plan.hash });
+  await approve(ops);
+  assert.equal(task("config.1.1").batch, undefined);
 });

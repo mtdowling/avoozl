@@ -1,63 +1,15 @@
-// R103.4, R103.5: until issue-binding retirement (56.5) runs, Avoozl hands no
-// task issue to an Issue Radar crew, its executor runs those tasks, and one
-// previewed, paced backfill puts crew:avoozl on old task issues. Fake GitHub
-// and isolated temporary workspaces only; nothing reaches GitHub.
+// R103.4, R103.5, R91.6: Avoozl hands no task issue to an Issue Radar crew,
+// its executor runs those tasks, and one previewed, paced backfill puts
+// crew:avoozl on old task issues. Fake GitHub and isolated temporary
+// workspaces only; nothing reaches GitHub.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { claimParent } from "../approval-label.mjs";
-import { issueRadarAdapter, RADAR_HANDOVER } from "../coder-adapter.mjs";
 import { crewLabelBackfill } from "../crew-label-backfill.mjs";
 import { isLinkedBranchLeaf } from "../github-plans-repo.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
 
 const REPO = "o/app";
-
-// Every write throws: a hand-over that tried one would fail the test.
-const noWrites = new Proxy(
-  {},
-  {
-    get: (_target, name) => () => {
-      throw Error(`unexpected GitHub call ${String(name)}`);
-    },
-  },
-);
-
-test("the hand-over is paused: no ready label goes on a task issue", async () => {
-  assert.equal(RADAR_HANDOVER.paused, true);
-  assert.equal(
-    await issueRadarAdapter.handOver({
-      github: noWrites,
-      config: REPO,
-      issue: { number: 3, labels: [] },
-      label: "avoozl:ready",
-    }),
-    false,
-  );
-});
-
-test("approval writes no Radar claim label or marker", async (t) => {
-  const { store } = fixture(t);
-  assert.equal(
-    await claimParent({
-      store,
-      github: noWrites,
-      policy: {
-        repositories: {
-          [REPO]: { crewLabels: { claim: "crew: in progress" } },
-        },
-      },
-      identity: {},
-      plan: { id: "p", hash: "h", source: { repository: REPO, number: 1 } },
-    }),
-    null,
-  );
-  assert.equal(
-    store.list("receipts").filter((r) => r.id.startsWith("approval-claim:"))
-      .length,
-    0,
-  );
-});
 
 test("Avoozl's executor runs the leaves of an Issue Radar repository", () => {
   const leaf = {

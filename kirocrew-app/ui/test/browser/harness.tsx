@@ -32,21 +32,19 @@ import ActivityView from '../../src/ActivityView.tsx'
 import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
-import { CoderPicker } from '../../src/CoderPicker.tsx'
 import { GateList } from '../../src/TrackerGates.tsx'
 import { waitingGates, type GateRow } from '../../src/release-api.ts'
 import ReleaseQueue from '../../src/ReleaseQueue.tsx'
 import GithubFlow from '../../src/GithubFlow.tsx'
-import { ReleaseModePicker } from '../../src/ReleaseMode.tsx'
 import { ProjectionModal } from '../../src/ProjectionModal.tsx'
 import { SpecChangedModal } from '../../src/SpecChangedModal.tsx'
 import { projectionClient } from '../../src/projection-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
-import { answerIntake } from './intake-fixture.ts'
+import type { EditTab } from '../../src/repo-edit-tabs.ts'
+import { answerIntake, PLUGINS } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
-import RadarValuesScreen from '../../src/RadarValues.tsx'
 import { ForwardScreen } from '../../src/ForwardScreen.tsx'
 import forwardLive from './forward-live-replies.json'
 import { CrewsRulesSettings } from '../../src/CrewsRulesSettings.tsx'
@@ -56,6 +54,7 @@ import { toForm } from '../../src/settings-api.ts'
 import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
 import { reviewFixture } from './review-fixture.ts'
+import { needsContextItems } from './needs-context-fixture.ts'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
 import AvoozlPanel from '../../src/Panel.tsx'
@@ -166,7 +165,14 @@ answer('task.summary.request', (body) => {
   if ((body.input as { retry?: boolean }).retry) return summaryAt('working')
   return summaryAt(query.get('summary') === 'failed' || summaryAsks < 2 ? 'working' : 'ready')
 })
-answer('task.detail', () => ({
+// The spec file the task came from: 40 lines, the task's own at 20–21.
+const SPEC_LINES = Array.from({ length: 40 }, (_, i) => `Spec line ${i + 1}`)
+answer('document.get', () => ({ id: '.kiro/specs/team/tasks.md', title: 'tasks.md', text: SPEC_LINES.join('\n') }))
+const baseDetail = () => ({
+  origin: {
+    kind: 'spec', label: 'Spec task', text: 'From .kiro/specs/team/tasks.md, lines 20–21.', spec: null, plan: null,
+    sources: [{ document: '.kiro/specs/team/tasks.md', title: null, lineStart: 20, lineEnd: 21, checked: null, readable: true }],
+  },
   summary: summaryAt(query.get('summary') ?? 'none'),
   revision: 1,
   task: {
@@ -209,10 +215,11 @@ answer('task.detail', () => ({
     { key: 'builds', label: 'Builds', at: '2026-11-13T09:32:00Z', state: 'done', detail: '2 builds, 2 min in all · costliest test 1.5 min', builds: [{ phase: 'build', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: 'team-review', ms: 38000, failed: false }] }, { phase: 'test', items: [{ target: 'linux-x64/node26', start: 'warm', attempt: 1, task: 'team-review', ms: 90000, failed: true }] }] },
     { key: 'integrated', label: 'Integrated', at: null, state: 'now' },
   ],
-}))
+})
+answer('task.detail', () => baseDetail())
 answer('task.evidence', () => ({
   taskId: 'team-review',
-  entries: [{ id: 'ev-1', kind: 'check', at: '2026-11-13T09:00:00Z', source: 'session:chat-1', text: 'npm run test:protocol passed' }],
+  entries: query.get('evidence') === 'none' ? [] : [{ id: 'ev-1', kind: 'check', at: '2026-11-13T09:00:00Z', source: 'session:chat-1', text: 'npm run test:protocol passed' }],
 }))
 answer('task.notes.list', () => ({
   taskId: 'team-review',
@@ -245,7 +252,7 @@ answer('template.list', () => ({
 answer('plugin.pack.preview', () => ({
   id: 'sdk-templates', version: '1.0.0', description: 'SDK rewrite settings', repositories: [], warnings: [], previewHash: 'h', imported: null,
   changes: [
-    { setting: 'flow.batch', action: 'create', to: { by: 'phase', max: 3 } },
+    { setting: 'flow.retro', action: 'create', to: { everyTasks: 10 } },
     { setting: 'flow.retro.everyTasks', action: 'change', from: 20, to: 10 },
     { setting: 'flow.localChecksFirst', action: 'keep', to: true },
   ],
@@ -538,6 +545,8 @@ if (query.get('page') === 'app') {
   // &reviewgroup=1: one review group (two tasks changed in a spec) in Needs you.
   const reviewGroup = { key: 'g1', kind: 'review', reason: 'review', taskId: null, title: 'Meal planner: sections changed', detail: 'Two tasks changed.', plan: 'meal-planner', epic: null, repository: null, since: '2026-11-14T10:00:00Z', tasks: [{ id: 'team-review', title: 'Review with team', status: 'planned' }, { id: 'cutover', title: 'Cutover', status: 'planned' }] }
   answer('conflicts.view', () => ({ revision: 1, items: [...Array.from({ length: needs }, (_, n) => item(n + 1)), ...(query.get('reviewgroup') === '1' ? [reviewGroup] : [])] }))
+  // &needsctx=1: Needs you items that carry their context (needs-context-fixture.ts).
+  if (query.get('needsctx') === '1') answer('conflicts.view', () => ({ revision: 1, items: needsContextItems }))
   if (!replyFor('delivery.view')) answer('delivery.view', () => ({ revision: 1, items: [] }))
   if (!replyFor('plan.list')) answer('plan.list', () => ({ items: [] }))
   // &slowradar=1: Radar's crews read never answers, as a slow GitHub or
@@ -565,6 +574,12 @@ if (query.get('page') === 'app') {
     ] }))
   // Add repository and Set up GitHub and import specs read a folder the same way.
   if (roles) {
+    // Save writes are recorded in __harness.calls.
+    if (!replyFor('github.settings.update'))
+      answer('github.settings.update', (body) => {
+        state.calls.push(body)
+        return replyFor('github.settings.get')!({})
+      })
     answer('repositories.detect', (body) => ({ root: (body.input as { folder: string }).folder, id: 'new-service', baseBranch: 'main', remote: 'git@github.com:acme/new-service.git', github: 'acme/new-service' }))
     answer('repositories.configure', (body) => ({ id: (body.input as { id: string }).id, name: (body.input as { id: string }).id, localCheckout: (body.input as { localCheckout: string }).localCheckout, github: 'acme/new-service', baseBranch: 'main' }))
     answer('onboarding.inspect', (body) => ({
@@ -601,7 +616,7 @@ if (query.get('page') === 'app') {
       bySource: { tick: { calls: 88, notModified: 40, cached: 0 }, crew: { calls: 41, notModified: 0, cached: 0 }, view: { calls: 17, notModified: 21, cached: 132 }, review: { calls: 5, notModified: 0, cached: 3 }, setup: { calls: 2, notModified: 0, cached: 0 } },
       writes: { perMinute: 60, perHour: 400, run: { planId: 'nupp', done: 312, total: 1740, resumeAt: new Date(Date.now() + 38 * 60000).toISOString() } },
     },
-    choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
+    choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
   }))
   // &ghfull=1: the same settings with two Issue Radar crews, their Radar
   // values and the last hour's GitHub calls by source, so Settings › GitHub
@@ -816,6 +831,31 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
     graphTasks.push(t('m4', 'Export meal plans as PDF', 'e1', 'meal-planner', 'recipe-box', { state: 'running', status: 'running' }))
     const worker = (taskId: string, n: number) => ({ host: 'dev desktop', crewId: 'crew-dev', taskId, state: 'running', chatKey: `chat-${n}`, status: 'coding', updatedAt: at, attachUrl: null, stale: false, lastOkAt: at })
     answer('remote.view', () => ({ workers: [worker('r1', 1), worker('r2', 2)] }))
+  }
+  // &batch=1: a planner batch of three running in one chat (R108.9), and a
+  // grouped task that runs alone because its group broke a rule.
+  if (query.get('batch')) {
+    const run = { id: 'batch:docs:m5+m6+m7', group: 'docs', tasks: ['m5', 'm6', 'm7'], leader: 'm5', reason: 'Three one-line fixes in the recipe card help text', state: 'running' }
+    for (const [id, title] of [['m5', 'Fix the servings tooltip'], ['m6', 'Fix the prep time label'], ['m7', 'Fix the allergen note link']]) {
+      graphTasks.push(t(id, title, 'e1', 'meal-planner', 'recipe-box', { state: 'running', status: 'running' }))
+      deliveryItems.push(item(id, title, { status: 'running', batch: run.id, batchGroup: run, sessions: id === 'm5' ? [session('chat-m5', 'worker', 'coding')] : [], deliveries: [{ state: 'running', updatedAt: at, batch: run.id }] }))
+    }
+    graphTasks.push(t('s5', 'Rename the search box label', 'e2', 'search-v2', 'search', { state: 'running', status: 'running' }))
+    deliveryItems.push(item('s5', 'Rename the search box label', { status: 'running', alone: 's6 waits on s5', batchGroup: { id: null, group: 'labels', tasks: ['s5', 's6'], leader: 's5', reason: 'Two label renames', state: null }, sessions: [session('chat-s5', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }))
+    // Each member's details name the batch and link to its leader.
+    answer('task.detail', (body) => {
+      const id = (body.input as { id: string }).id
+      const base = baseDetail(),
+        delivery = deliveryItems.find((entry) => entry.id === id) ?? null
+      return {
+        ...base,
+        summary: summaryAt('none'),
+        task: { ...base.task, id, title: delivery?.title ?? id, manual: false, completion: 'integrated', authority: 'local', route: 'local', issue: null, onGitHub: false, state: 'running', status: 'running', repository: 'recipe-box', phase: null },
+        waitsOn: [],
+        blocks: [],
+        delivery,
+      }
+    })
   }
   // The line, for the Delivery heading's Stop the line: a stop opens one,
   // Resume closes it. window.__lineCalls records both. &stopped=1 starts stopped.
@@ -1053,7 +1093,7 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
   ]
   const retros = [
     { id: 'retro-2', n: 2, state: 'done', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-16T12:00:00Z', finishedAt: '2026-11-16T12:09:00Z', model: 'claude-sonnet', chat: { slot: 'avoozl_retro_2', executor: 'kirocrew', harness: null, status: 'idle', link: '/chat?sid=avoozl_retro_2' }, bottleneck: { stage: 'ci-wait', repository: 'acme/recipe-box', evidence: 'CI wait was 58% of lead time over 8 tasks.' }, dropped: [], proposals: [
-      { id: 'p1', type: 'settings', file: 'workspace', key: 'flow.batch.max', from: 3, to: 5, metric: 'lead time', direction: 'down', evidence: 'Batches of 3 waited on CI 6 times.', status: 'open' },
+      { id: 'p1', type: 'settings', file: 'workspace', key: 'flow.retro.slowFactor', from: 3, to: 5, metric: 'lead time', direction: 'down', evidence: 'Retros fired on 6 normal tasks.', status: 'open' },
       { id: 'p2', type: 'prompt', target: 'worker', section: 'Checks', diff: '@@ -1,2 +1,2 @@\n Run the checks.\n-Run all tests.\n+Run the tests you touched first.', metric: 'first-pass rate', direction: 'up', evidence: 'Two reviews asked for narrower runs.', status: 'open' },
     ] },
     { id: 'retro-4', n: 4, state: 'failed', failure: 'no-reply', waitedMs: 11 * min, error: 'the chat started but never replied (waited 11 minutes)', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-17T09:00:00Z', finishedAt: '2026-11-17T09:11:00Z', bottleneck: null, dropped: [], proposals: [],
@@ -1181,16 +1221,6 @@ if (query.get('page') === 'release-queue') {
     ],
   }))
 }
-function ReleaseModes() {
-  const [modes, setModes] = useState(['automatic', 'step', 'hold'])
-  return (
-    <div className="flex flex-col gap-6">
-      {modes.map((mode, i) => (
-        <ReleaseModePicker key={i} id={`m${i}`} mode={mode} onMode={(value) => setModes(modes.map((m, at) => (at === i ? value : m)))} />
-      ))}
-    </div>
-  )
-}
 // ?page=github-flow: Flow from GitHub data on two finished issues.
 // &receipt=only: builds from a repository with receipts and no Radar crew,
 // so no finished issues.
@@ -1231,13 +1261,14 @@ if (query.get('page') === 'github-flow' || (query.get('page') === 'app' && query
         }
       : {}),
   }))
-// ?page=repo-mode: one repository's Edit body on its Mode and branch tab.
+// ?page=repo-mode: one repository's Edit body on its Landing tab.
 function RepoModePage() {
   const [repository, setRepository] = useState<RepositoryForm>(emptyRepository('acme/recipe-box'))
-  const choices = { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] }
+  const [tab, setTab] = useState<EditTab>('landing')
+  const choices = { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] }
   return (
     <NavHistoryProvider>
-      <RepositoryEditor index={0} repository={repository} choices={choices as never} review={undefined} mode="single-repo" workspaceId="w" planningRepository="" onChange={setRepository} />
+      <RepositoryEditor index={0} repository={repository} choices={choices as never} review={undefined} mode="single-repo" workspaceId="w" planningRepository="" tab={tab} onTab={setTab} onChange={setRepository} />
     </NavHistoryProvider>
   )
 }
@@ -1335,18 +1366,9 @@ const PAGES: Record<string, () => ReactNode> = {
   'repo-mode': () => <RepoModePage />,
   'github-flow': () => <GithubFlow workspaceId="w" />,
   'release-queue': () => <ReleaseQueue workspaceId="w" />,
-  'release-mode': () => <ReleaseModes />,
   // The two modals, open at once, for the screenshots.
   projection: () => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onCreated={() => undefined} />,
   'spec-changed': () => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onApplied={() => undefined} />,
-  // Who codes in each mode: default, a set value, and Local only.
-  coder: () => (
-    <div className="flex flex-col gap-6">
-      {[['single-repo', ''], ['plans-repo', 'remote'], ['', '']].map(([mode, value]) => (
-        <CoderPicker key={mode} id={`c-${mode || 'local'}`} mode={mode} value={value} onChange={() => {}} />
-      ))}
-    </div>
-  ),
 }
 function SettingsPage({ name }: { name: string }) {
   const render = PAGES[name]
@@ -1656,6 +1678,29 @@ if (page === 'forward') {
 }
 const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
+// &plugins=many|none: Settings > Plugins with eight plugins, or none.
+if (query.get('plugins')) {
+  const many = query.get('plugins') === 'many'
+  const rows = Array.from({ length: 8 }, (_, i) => ({ ...PLUGINS[i % 2], id: `${PLUGINS[i % 2].id}-${i + 1}` }))
+  answer('plugins.list', () => ({ supportedContracts: [1], routes: [], plugins: many ? rows : [] }))
+}
+// &rules=many|one: Settings > Content rules with fourteen rule sets, or one.
+if (query.get('rules')) {
+  const count = query.get('rules') === 'many' ? 14 : 1
+  const sets = Array.from({ length: count }, (_, i) => ({ id: i ? `codenames-${i + 1}` : 'codenames', action: i % 3 ? 'block' : 'report', source: 'file', boundaries: ['plan', 'github'], available: true, ruleCount: 2 }))
+  answer('content.rules', () => ({
+    error: null,
+    configHash: 'h1',
+    mode: 'single-repo',
+    builtins: [
+      { id: 'secrets', appliesAt: 'Every write' },
+      { id: 'private-paths', appliesAt: 'Mirror pushes' },
+    ],
+    choices: { repositories: ['recipe-box'], plugins: [] },
+    sets,
+  }))
+  answer('content.terms.get', (body) => ({ id: (body.input as { id: string }).id, file: '~/.avoozl/codenames.terms', from: 'machine', editable: true, exists: true, text: 'zebra: zebra falcon\nheron: blue heron\n' }))
+}
 
 // ?page=panel&sid=<chat>&state=full|empty: the side panel on sample reads.
 // window.__panel holds what the reads return, so a test can change it and see
@@ -1756,15 +1801,6 @@ function ForwardPage() {
     </div>
   )
 }
-function RadarValuesPage() {
-  return (
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
-      <HarnessBoundary>
-        <RadarValuesScreen workspaceId="w" repositories={['example/code']} />
-      </HarnessBoundary>
-    </div>
-  )
-}
 // ?page=crews-rules: the Crews and rules tab on one repository form.
 function CrewsRulesPage() {
   const [repository, setRepository] = useState<RepositoryForm>(emptyRepository('example/code'))
@@ -1848,5 +1884,5 @@ function PanelPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'needs' ? <NeedsPage /> : page === 'specs' ? <SpecsPage /> : page === 'tip' ? <TipPage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'needs' ? <NeedsPage /> : page === 'specs' ? <SpecsPage /> : page === 'tip' ? <TipPage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )

@@ -226,38 +226,3 @@ test("apply is refused while the new revision is a draft", async (t) => {
     /Approve the spec again/,
   );
 });
-
-test("the projection preview offers batches and honors the ones asked for", async (t) => {
-  const { ops, plan, github } = await (async () => {
-      const context = await workspace(t, {
-          mode: "single-repo",
-          coder: "issue-radar",
-        }),
-        spec = await approvedSpec(context, {
-          overrides: {
-            ...BATCH_SPEC,
-            "avoozl/manifest.json": JSON.stringify({
-              tasks: Object.fromEntries(
-                Object.entries(
-                  JSON.parse(BATCH_SPEC["avoozl/manifest.json"]).tasks,
-                ).map(([key, task]) => [
-                  key,
-                  task.kind === "leaf" ? { ...task, size: "small" } : task,
-                ]),
-              ),
-            }),
-          },
-        });
-      return { ...context, ...spec };
-    })(),
-    plain = await ops.execute("plan.issues.preview", { planId: plan.id }),
-    batched = await ops.execute("plan.issues.preview", {
-      planId: plan.id,
-      batches: [["config.1.1", "config.1.2"]],
-    }),
-    creates = (preview) =>
-      preview.writes.filter((write) => write.kind === "issue.create").length;
-  assert.ok(Array.isArray(plain.suggestedBatches));
-  assert.equal(creates(plain) - creates(batched), 1);
-  assert.equal(github.created.length, 0, "a preview writes nothing");
-});

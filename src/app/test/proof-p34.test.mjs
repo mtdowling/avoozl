@@ -16,18 +16,12 @@ import { deliveryView } from "../page-views.mjs";
 import { nextView } from "../runner.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
-import { setRadarHandoverPaused } from "../coder-adapter.mjs";
-
-// These tests cover the Radar hand-over kept while Phase 45 is paused
-// (R103.4 pauses it in the product).
-setRadarHandoverPaused(false);
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
 const PLANS = "o/plans",
   APP = "o/app",
   LIB = "o/lib",
-  RADAR = "o/radar",
   head = (n) => String(n).repeat(40).slice(0, 40);
 
 const READS = new Set([
@@ -149,7 +143,7 @@ class FeedbackGitHub {
 }
 
 // One workspace: `mode` plans-repo (o/app, allowed actor alice) or
-// single-repo (o/lib coder worker, o/radar coder issue-radar).
+// single-repo (o/lib).
 function workspace(
   t,
   { mode, delivery = {}, runner = "tick", rules = null, extra = {} },
@@ -164,16 +158,7 @@ function workspace(
             ...extra,
           }
         : {
-            [LIB]: {
-              baseBranch: "main",
-              coder: "worker",
-              allowedActors: ["alice"],
-            },
-            [RADAR]: {
-              baseBranch: "main",
-              coder: "issue-radar",
-              allowedActors: ["alice"],
-            },
+            [LIB]: { baseBranch: "main", allowedActors: ["alice"] },
           },
     config = {
       version: 1,
@@ -194,10 +179,7 @@ function workspace(
           ["a", "app", PLANS, 1, APP],
           ["b", "app", PLANS, 2, APP],
         ]
-      : [
-          ["c", "lib", LIB, 3, LIB],
-          ["d", "radar", RADAR, 4, RADAR],
-        ];
+      : [["c", "lib", LIB, 3, LIB]];
   for (const [project] of new Set(leaves.map((l) => [l[1]])))
     store.put("projects", {
       id: project,
@@ -416,10 +398,9 @@ test("P34 plans-repo: checks, reviews and strangers, each once, no writes", asyn
   assert.deepEqual(w.github.writes, []);
 });
 
-test("P34 single-repo: a gone worker gets a new attempt; Issue Radar and the off switch send nothing", async (t) => {
+test("P34 single-repo: a gone worker gets a new attempt", async (t) => {
   const w = workspace(t, { mode: "single-repo" });
-  const c = w.github.open(LIB, "avoozl/c"),
-    d = w.github.open(RADAR, "avoozl/d");
+  const c = w.github.open(LIB, "avoozl/c");
   let result = await w.step();
   assert.deepEqual(result.messages, []);
   // (3) c conflicts and its auto-merge is off; its worker session ended.
@@ -474,12 +455,6 @@ test("P34 single-repo: a gone worker gets a new attempt; Issue Radar and the off
   await w.step();
   assert.equal(w.row("c").pending, undefined);
   assert.equal(w.row("c").last.slot, "worker-c2");
-  // (6) A failed check on d, which Issue Radar codes: nothing is read or sent.
-  w.github.touch(d, { checks: [w.github.check("test", "FAILURE")] });
-  result = await w.step();
-  assert.deepEqual(result.messages, []);
-  assert.ok(w.github.reads.every(([, repository]) => repository !== RADAR));
-  assert.equal(w.row("d"), null);
   assert.deepEqual(w.github.writes, []);
 });
 

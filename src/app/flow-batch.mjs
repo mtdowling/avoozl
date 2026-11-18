@@ -1,172 +1,189 @@
-// Batching small tasks (design §4.11, Requirement 46): ready leaves the
-// plan marks `size: "small"` that share a phase (the same parent package,
-// otherwise the same plan phase; R59.11) or overlapping paths, a
-// repository, a route, review roles and local authority, with no edge
-// between them, run in one worker session and one worktree. The worker makes
-// one commit and one done report per task, in order; checks and review run
-// once on the batch head; the batch integrates as one rebase. A failing
-// batch splits, and each task retries alone at no attempt cost.
-import { readFlowPolicy } from "./flow.mjs";
+// Batches the planner decided (design §4.37, Requirement 108; the run is
+// §4.11, R46.5–R46.7). The planner groups leaves in the manifest's
+// `batches`; approval stores the group on each member as
+// `batch: {id, tasks, reason}`. The tick, with no model call, hands a group
+// off as one worker session and one worktree once every open member is
+// ready, and only while the group keeps the rules below, which live here in
+// code and never in a setting. The worker makes one commit and one done
+// report per task, in order; checks and review run once on the batch head;
+// the batch integrates as one rebase. A failing batch splits, and each task
+// retries alone at no attempt cost.
 import { EDIT_ONLY_STEP } from "./delivery.mjs";
-import { taskAuthority, taskRepository, taskRoute } from "../work-model.mjs";
-import { listSessionBindings, FINAL_STATUSES } from "./session-bindings.mjs";
+import {
+  isGate,
+  isManual,
+  taskAuthority,
+  taskCompletion,
+  taskKind,
+  taskRepository,
+  taskRoute,
+} from "../work-model.mjs";
+import { statusComplete } from "../query.mjs";
 
+// The most tasks one handoff takes, whatever the manifest says.
+export const MAX_BATCH = 5;
 const BLOCKING = new Set(["requires", "sequence"]);
-
-// Batchable at all: marked small by the plan, local route and authority, and
-// not split from a batch earlier in this delivery.
-export function batchable(store, task) {
-  if (task?.size !== "small") return false;
-  if (taskRoute(task) !== "local" || taskAuthority(task) !== "local")
-    return false;
-  return !store.get("task_deliveries", task.id)?.batchSplit;
-}
-
-// The phase key: the same parent package, otherwise the same phase of the
-// same plan. A task in no package and no phase batches with its plan's
-// other phaseless tasks.
-export const keyOf = (task, by) =>
-  by === "files"
-    ? null
-    : `${taskRepository(task)}|${task.parent ? `parent:${task.parent}` : `phase:${task.planId || ""}:${task.phase?.id ?? ""}`}`;
-
-export const overlaps = (a, b) => {
-  const left = a.paths || a.resources || [],
-    right = new Set(b.paths || b.resources || []);
-  return left.some((p) => right.has(p));
-};
-
-// Live batches: the key each one holds, so a batchable leaf that would join
-// a running batch waits for the next one instead of running alone.
-function liveKeys(store, data, by) {
-  const keys = new Set(),
-    tasks = [];
-  for (const binding of listSessionBindings(store))
-    if (
-      binding.batch &&
-      !FINAL_STATUSES.has(binding.status) &&
-      !batchFinal(binding)
-    )
-      for (const id of binding.batch.tasks) {
-        const task = data.tasks.find((t) => t.id === id);
-        if (task) {
-          tasks.push(task);
-          if (keyOf(task, by)) keys.add(keyOf(task, by));
-        }
-      }
-  return { keys, tasks };
-}
 
 export const batchFinal = (binding) =>
   binding.batch?.tasks.every((id) =>
     ["done", "blocked"].includes(binding.reports?.[id]?.kind),
   );
 
-// Fold ready leaves into batches. `leaves` are the slots readyLeaves filled
-// (each {task, project, attempt, delivery}); `candidates` every ready task
-// before capacity, so a batch may take small tasks no slot was left for.
-// Returns the leaves to dispatch, a batch leader carrying `batch`.
+// Why the group `task` belongs to may not run as one handoff, or null when
+// it may. `members` are the group's tasks still open. Pure over the store's
+// records; the tick and the views read the same answer.
+function groupProblem(store, data, task, members, approved) {
+  const group = task.batch,
+    same = (t) =>
+      t?.batch?.id === group.id &&
+      JSON.stringify(t.batch.tasks) === JSON.stringify(group.tasks);
+  const byId = new Map(data.tasks.map((t) => [t.id, t]));
+  if (!group.tasks.every((id) => same(byId.get(id))))
+    return "the group changed; it runs alone until the spec is approved again";
+  const all = group.tasks.map((id) => byId.get(id));
+  if (
+    all.some((t) => t.planId !== task.planId || t.planHash !== task.planHash) ||
+    !task.planHash ||
+    !approved(task.planId, task.planHash)
+  )
+    return "the group is not from the approved spec revision";
+  if (all.some((t) => taskRepository(t) !== taskRepository(task)))
+    return "its tasks are in different repositories";
+  if (group.tasks.length > MAX_BATCH) return `more than ${MAX_BATCH} tasks`;
+  const inside = new Set(group.tasks);
+  const edge = data.edges.find(
+    (e) => BLOCKING.has(e.kind) && inside.has(e.from) && inside.has(e.to),
+  );
+  if (edge) return `${edge.to} waits on ${edge.from}`;
+  const odd = all.find(
+    (t) =>
+      taskKind(t) !== "leaf" ||
+      isManual(t) ||
+      isGate(t) ||
+      ["person", "tracker"].includes(taskCompletion(t)) ||
+      taskRoute(t) !== "local" ||
+      taskAuthority(t) !== "local",
+  );
+  if (odd) return `${odd.id} is not a local automatic leaf`;
+  for (const t of members) {
+    const delivery = store.get("task_deliveries", t.id);
+    if (delivery?.batchSplit) return "the batch was split after it failed";
+    if (delivery?.attempts?.length) return `${t.id} already ran alone`;
+  }
+  return null;
+}
+
+// A reader over approval receipts: was plan `planId` approved at `hash`?
+export function approvals(store) {
+  let seen = null;
+  return (planId, hash) => {
+    seen ??= new Set(
+      store.list("approvals").map((r) => `${r.planId}\0${r.hash}`),
+    );
+    return seen.has(`${planId}\0${hash}`);
+  };
+}
+
+// The planner group of `task` as the tick sees it: `{group, members,
+// problem}`, where `members` are the open tasks in the group's order and
+// `problem` is the rule it breaks (it then runs alone), or null for a task
+// in no group. A group with one open task left has nothing to batch.
+export function batchRules(store, data, task, approved = approvals(store)) {
+  if (!task?.batch?.id || !Array.isArray(task.batch.tasks)) return null;
+  const byId = new Map(data.tasks.map((t) => [t.id, t])),
+    members = task.batch.tasks
+      .map((id) => byId.get(id))
+      .filter((t) => t && !statusComplete(data, t.status));
+  return {
+    group: task.batch,
+    members,
+    problem:
+      members.length > 1
+        ? groupProblem(store, data, task, members, approved)
+        : null,
+  };
+}
+
+// Fold ready leaves into the planner's batches. `leaves` are the slots
+// readyLeaves filled (each {task, project, attempt, delivery}); `candidates`
+// every ready task before capacity, so a batch takes members no slot was
+// left for. Returns the leaves to dispatch, a batch leader carrying `batch`
+// and a task that runs alone because its group broke a rule carrying
+// `alone` (the rule). `fits(leader, task)` says whether a member may run on
+// the leader's crew.
 export function planBatches(
   store,
   leaves,
   candidates,
-  { workspaceRoot = null, data = store.read(), policy, fits = null } = {},
+  { data = store.read(), fits = null } = {},
 ) {
-  const flow = readFlowPolicy(workspaceRoot),
-    edges = data.edges.filter((e) => BLOCKING.has(e.kind)),
-    linked = (a, b) =>
-      edges.some(
-        (e) =>
-          (e.from === a.id && e.to === b.id) ||
-          (e.from === b.id && e.to === a.id),
-      ),
+  const ready = new Set(candidates.map((t) => t.id)),
+    approved = approvals(store),
     taken = new Set(),
     out = [];
   for (const leaf of leaves) {
     if (taken.has(leaf.task.id)) continue;
-    const repo = leaf.project.id,
-      { batch } = flow.for(repo),
-      by = batch.by;
-    if (
-      batch.max <= 1 ||
-      !batchable(store, leaf.task) ||
-      leaf.attempt > 1 ||
-      (fits && !fits(leaf, leaf.task))
-    ) {
-      out.push(leaf);
+    const rules = batchRules(store, data, leaf.task, approved);
+    if (!rules || rules.members.length < 2 || leaf.attempt > 1) {
       taken.add(leaf.task.id);
+      out.push(leaf);
       continue;
     }
-    const live = liveKeys(store, data, by);
+    let alone = rules.problem;
+    if (!alone && fits) {
+      const misfit = rules.members.find((t) => !fits(leaf, t));
+      if (misfit) alone = `${misfit.id} cannot run on this machine`;
+    }
+    if (alone) {
+      taken.add(leaf.task.id);
+      out.push({ ...leaf, alone });
+      continue;
+    }
+    // Every open member must be ready; else the ready ones wait.
     if (
-      (by === "phase" && live.keys.has(keyOf(leaf.task, by))) ||
-      (by === "files" && live.tasks.some((t) => overlaps(t, leaf.task)))
+      !rules.members.every(
+        (t) => ready.has(t.id) && (t.id === leaf.task.id || !taken.has(t.id)),
+      )
     )
       continue;
-    const roles = JSON.stringify(
-        policy?.repositories?.[repo]?.reviewers ?? policy?.reviewers ?? null,
-      ),
-      group = [leaf.task];
-    for (const task of candidates) {
-      if (group.length >= batch.max) break;
-      if (taken.has(task.id) || group.some((g) => g.id === task.id)) continue;
-      if (!batchable(store, task) || taskRepository(task) !== repo) continue;
-      if (store.get("task_deliveries", task.id)?.attempts?.length) continue;
-      if (
-        JSON.stringify(
-          policy?.repositories?.[taskRepository(task)]?.reviewers ??
-            policy?.reviewers ??
-            null,
-        ) !== roles
-      )
-        continue;
-      if (
-        by === "phase"
-          ? keyOf(task, by) !== keyOf(leaf.task, by)
-          : !group.some((g) => overlaps(g, task))
-      )
-        continue;
-      if (group.some((g) => linked(g, task))) continue;
-      // Every task in a batch runs on the leader's crew (R46.4).
-      if (fits && !fits(leaf, task)) continue;
-      group.push(task);
-    }
-    for (const task of group) taken.add(task.id);
-    out.push(
-      group.length > 1
-        ? {
-            ...leaf,
-            batch: {
-              id: `batch:${group.map((t) => t.id).join("+")}`,
-              tasks: group.map((t) => t.id),
-              by,
-            },
-          }
-        : leaf,
-    );
+    for (const t of rules.members) taken.add(t.id);
+    // The first open member leads: its worktree and binding hold the batch.
+    const leader = rules.members[0],
+      lead =
+        leader.id === leaf.task.id
+          ? leaf
+          : {
+              ...leaf,
+              task: leader,
+              delivery: store.get("task_deliveries", leader.id),
+            };
+    out.push({
+      ...lead,
+      batch: {
+        id: `batch:${rules.group.id}:${rules.members.map((t) => t.id).join("+")}`,
+        tasks: rules.members.map((t) => t.id),
+        reason: rules.group.reason,
+        by: "planner",
+      },
+    });
   }
   return out;
 }
 
-// Batchable ready tasks that wait for a running batch of their key, so the
-// next batch takes them instead of a slot running each alone.
+// Ready tasks that wait for the rest of their planner group, so a slot is
+// not spent on one of them alone.
 export function waitingForBatch(
   store,
   candidates,
-  { workspaceRoot = null, data = store.read() } = {},
+  { data = store.read() } = {},
 ) {
-  const flow = readFlowPolicy(workspaceRoot),
+  const ready = new Set(candidates.map((t) => t.id)),
+    approved = approvals(store),
     out = new Set();
   for (const task of candidates) {
-    const { batch } = flow.for(taskRepository(task));
-    if (batch.max <= 1 || !batchable(store, task)) continue;
-    if (store.get("task_deliveries", task.id)?.attempts?.length) continue;
-    const live = liveKeys(store, data, batch.by);
-    if (
-      (batch.by === "phase" && live.keys.has(keyOf(task, batch.by))) ||
-      (batch.by === "files" && live.tasks.some((t) => overlaps(t, task)))
-    )
-      out.add(task.id);
+    const rules = batchRules(store, data, task, approved);
+    if (!rules || rules.problem || rules.members.length < 2) continue;
+    if (!rules.members.every((t) => ready.has(t.id))) out.add(task.id);
   }
   return out;
 }
@@ -177,7 +194,8 @@ export function batchBrief(store, data, leaf, brief) {
       data.tasks.find((t) => t.id === id),
     ),
     lines = [
-      `Avoozl batch ${leaf.batch.id}: ${tasks.length} small tasks in one session and one worktree.`,
+      `Avoozl batch ${leaf.batch.id}: ${tasks.length} tasks the planner grouped for one session and one worktree.`,
+      leaf.batch.reason ? `Why together: ${leaf.batch.reason}` : null,
       "",
       ...tasks.flatMap((task, i) => [
         `${i + 1}. Task ${task.id}: ${task.title || task.id}`,

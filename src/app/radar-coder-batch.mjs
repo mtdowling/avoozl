@@ -1,13 +1,13 @@
-// Batch planner for projection (RC2.5, design D4.2): a pure function over the
-// plan that groups small ready tasks into batches. Grouping keys come from
-// flow-batch.mjs, so a projected batch and a dispatched batch agree.
-import { FLOW_DEFAULTS, FLOW_KEYS } from "./flow.mjs";
-import { keyOf, overlaps } from "./flow-batch.mjs";
+// Batch planner for projection (RC2.5, design D4.2; avoozl §4.37): a pure
+// function over the plan that suggests the planner's batch groups whose
+// tasks are open and unblocked. There is no size tag and no batch setting.
 import { taskCompletion, taskKind } from "../work-model.mjs";
 import { fail } from "./store.mjs";
 
 export const BATCH_MODES = Object.freeze(["off", "suggest", "auto"]);
 const BLOCKING = new Set(["requires", "sequence"]);
+// The most tasks one batch issue holds (the same cap as dispatch, §4.37).
+const MAX_BATCH = 5;
 
 // `tasks` and `edges` are the plan's (an edge runs from blocker to blocked).
 // `complete` says whether a status counts as done. Returns the batches, the
@@ -17,14 +17,10 @@ export function planProjectionBatches({
   tasks,
   edges = [],
   mode = "suggest",
-  max = FLOW_DEFAULTS.batch.max,
-  by = FLOW_DEFAULTS.batch.by,
   complete = (status) => status === "done",
 }) {
   if (!BATCH_MODES.includes(mode))
     throw new Error(`batch mode must be one of ${BATCH_MODES.join(", ")}`);
-  const bad = FLOW_KEYS["batch.max"](max);
-  if (bad !== true) throw new Error(`flow.batch.max must be ${bad}`);
   const byId = new Map(tasks.map((task) => [task.id, task])),
     // An unknown blocker counts as open: fail closed.
     blocked = (task) =>
@@ -43,25 +39,21 @@ export function planProjectionBatches({
     open = tasks.filter((task) => !complete(task.status)),
     candidates = open.filter(
       (task) =>
-        task.size === "small" &&
+        task.batch?.id &&
         !["person", "tracker"].includes(taskCompletion(task)) &&
         task.completion !== "human" &&
         !blocked(task),
     ),
     taken = new Set(),
     batches = [];
-  if (mode !== "off" && max > 1)
+  if (mode !== "off")
     for (const lead of candidates) {
       if (taken.has(lead.id)) continue;
       const group = [lead];
       for (const task of candidates) {
-        if (group.length >= max) break;
+        if (group.length >= MAX_BATCH) break;
         if (taken.has(task.id) || group.includes(task)) continue;
-        if (
-          by === "phase"
-            ? keyOf(task, by) !== keyOf(lead, by)
-            : !group.some((g) => overlaps(g, task))
-        )
+        if (task.batch.id !== lead.batch.id || task.planId !== lead.planId)
           continue;
         if (group.some((g) => linked(g, task))) continue;
         group.push(task);
@@ -69,7 +61,8 @@ export function planProjectionBatches({
       if (group.length < 2) continue;
       for (const task of group) taken.add(task.id);
       batches.push({
-        key: keyOf(lead, by),
+        key: lead.batch.id,
+        reason: lead.batch.reason ?? null,
         tasks: group.map((task) => task.id),
       });
     }
@@ -80,8 +73,6 @@ export function planProjectionBatches({
     plain: open.filter((task) => !taken.has(task.id)).map((task) => task.id),
   };
 }
-
-const MAX_BATCH = 5;
 
 // The batches a projection writes (D4.2): those already stored on a task as
 // `github.batch` plus the `requested` ones, each a list of task IDs. Returns

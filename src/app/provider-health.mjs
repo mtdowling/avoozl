@@ -673,7 +673,7 @@ const liveChat = (b) =>
 // chat From reaches, split into the ones that switch and the ones that
 // cannot (and why), the marks Also new tasks would set, and the ready tasks
 // those marks move. Reads only. `options.tasks` maps task ID to task,
-// `options.radar(task)` says Issue Radar codes it, and `options.ready` is
+// and `options.ready` is
 // routing.preview's items (where each ready task would run now). To may be
 // `auto`, Kiro Crew's own pick. The hash covers exactly what Switch writes.
 export function switchDryRun(store, input = {}, options = {}) {
@@ -682,8 +682,7 @@ export function switchDryRun(store, input = {}, options = {}) {
   const alsoNewTasks = input.alsoNewTasks === true;
   const settings = options.settings ?? readProviders(store, options).settings,
     reviewRoles = options.reviewRoles ?? (() => []),
-    tasks = options.tasks ?? new Map(),
-    radar = options.radar ?? (() => false);
+    tasks = options.tasks ?? new Map();
   let match,
     chosen = null;
   if (typeof from.provider === "string" && from.provider)
@@ -754,9 +753,7 @@ export function switchDryRun(store, input = {}, options = {}) {
         role: null,
         model: null,
         where: null,
-        why: radar(tasks.get(id))
-          ? "Issue Radar codes this task"
-          : "no running chat",
+        why: "no running chat",
       });
   chats.sort((a, b) => a.slot.localeCompare(b.slot));
   skipped.sort((a, b) => a.taskId.localeCompare(b.taskId));

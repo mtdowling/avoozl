@@ -14,7 +14,7 @@
 // `avoozl-task` marker, or an allowed actor added the repository's
 // `acceptedLabel`. Reads only; the result is stored on the cached item.
 import { parseMarker, planningIdentity } from "./github-marker.mjs";
-import { actorAllowed, RADAR_DEFAULTS } from "./github-policy.mjs";
+import { actorAllowed } from "./github-policy.mjs";
 import { latestSkip } from "./radar-claims.mjs";
 import { fail } from "./store.mjs";
 import { hasAvoozlLabel } from "./github.mjs";
@@ -92,33 +92,17 @@ export async function trustOf(github, repository, settings, issue, options) {
   return null;
 }
 
-// Who added `name` to an issue last, and whether they pass the actor check.
-// An unreadable history is not allowed: the label does nothing.
-async function labeler(github, repository, settings, item, name, held) {
-  const events = await github.issueEvents(repository, item.number),
-    added = (Array.isArray(events) ? events : [])
-      .filter(
-        (event) =>
-          event.event === "labeled" &&
-          lower(event.label?.name || "") === lower(name),
-      )
-      .at(-1),
-    by = added?.actor?.login ?? null;
-  return { by, allowed: await allowed(github, repository, settings, by, held) };
-}
-
 // Whether a cached item is an Issue Radar escalation (R103.8): a crew's
 // needs-human label, from an author or label the trust check passes.
 export const isEscalation = (item) => Boolean(item?.planMe?.trust);
 
 // Reads what the route needs for each cached issue that carries the
-// needs-human label, and puts `planMe` on it; for each issue that carries
-// the planning label it puts `planLabel` ({by, allowed}) on it. A read that
-// fails leaves the item without `planMe`, which keeps today's route (Needs
-// you), and without `planLabel`, which plans nothing.
+// needs-human label, and puts `planMe` on it. A read that fails leaves the
+// item without `planMe`, which keeps today's route (Needs you).
 //
 // Radar runs beside any repository (R103.11), so the needs-human read runs
-// for every coder; the planning label is a Radar-coded repository's only.
+// for every repository. The planning label was a Radar-coded repository's
+// only, and none is left (R91.6).
 // With `radar.escalationDraft` on (off by default, R103.9) a trusted
 // escalation also gets `planMe.draft`, the compact bounded-fix acceptance,
 // made here from the issue text already read: local only, no GitHub write.
@@ -129,32 +113,13 @@ export async function attachHandoffs(
   items,
   { namespace = null } = {},
 ) {
-  const radarCoded = settings.coder === "issue-radar",
-    human = lower(settings.crewLabels.needsHuman),
+  const human = lower(settings.crewLabels.needsHuman),
     held = new Map();
-  const plan = lower(settings.radar?.planLabel ?? RADAR_DEFAULTS.planLabel);
   for (const item of items) {
     delete item.planMe;
     delete item.planLabel;
     // Avoozl's own issue is never handed over again (R103.3).
     if (hasAvoozlLabel(item.labels)) continue;
-    if (
-      radarCoded &&
-      item.kind === "issue" &&
-      item.labels.some((label) => lower(label) === plan)
-    )
-      try {
-        item.planLabel = await labeler(
-          github,
-          repository,
-          settings,
-          item,
-          plan,
-          held,
-        );
-      } catch {
-        // Left without `planLabel`: the next read tries again.
-      }
     if (
       item.kind !== "issue" ||
       !item.labels.some((label) => lower(label) === human)
@@ -190,10 +155,9 @@ export async function attachHandoffs(
   }
 }
 
-// Plan this on an Intake row of a Radar-coded repository (rc-1.2): the
-// New plan fields for one issue, and the source to record. Only an issue the
-// Intake list shows now can be planned, so a plain issue or a stranger's
-// planning label is refused. The issue text is data for the planner's brief.
+// Plan this on an Untriaged issue row (rc-1.2): the New plan fields for one
+// issue, and the source to record. Only an issue the list shows now can be
+// planned. The issue text is data for the planner's brief.
 export async function planThisRequest(github, policy, view, input = {}) {
   const { repository, number } = input;
   if (typeof repository !== "string" || !Number.isInteger(number))
@@ -204,8 +168,6 @@ export async function planThisRequest(github, policy, view, input = {}) {
       item.repository === repository &&
       item.number === number,
   );
-  if (policy?.repositories?.[repository]?.coder !== "issue-radar")
-    fail(`${repository} does not use Issue Radar as its coder.`, 409);
   if (!row) fail(`${repository}#${number} is not in Intake.`, 409);
   if (!github?.available?.()) fail("GitHub is not connected.", 409);
   const issue = await github.issue(repository, number);

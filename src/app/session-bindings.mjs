@@ -110,6 +110,10 @@ function batchInput(value, role, leader) {
     id: value.id,
     tasks: [...value.tasks],
     ...(typeof value.by === "string" ? { by: value.by } : {}),
+    // The planner's one-line reason (§4.37), shown on the batch's card.
+    ...(typeof value.reason === "string"
+      ? { reason: value.reason.slice(0, 200) }
+      : {}),
   };
 }
 
@@ -290,6 +294,7 @@ export function bindSession(
         id: binding.batch.id,
         tasks: binding.batch.tasks,
         by: binding.batch.by ?? null,
+        reason: binding.batch.reason ?? null,
         slot,
         state: "running",
         openedAt: binding.boundAt,

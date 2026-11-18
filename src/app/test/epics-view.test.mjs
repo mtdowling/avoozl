@@ -29,7 +29,7 @@ test("the Epics read is read only and offered to the page", () => {
   }
 });
 
-test("an epic drills to specs and phases with gate, release count and held reason", async () => {
+test("an epic drills to specs and phases with gate and handback", async () => {
   await withSample(async (demo) => {
     const view = await demo.execute("epics.view", {});
     assert.equal(view.epics.length, 1);
@@ -37,7 +37,7 @@ test("an epic drills to specs and phases with gate, release count and held reaso
     assert.equal(epic.id, "recipe-box");
     assert.equal(epic.tasks, 10);
     assert.equal(epic.merged, 2);
-    assert.equal(epic.running, 1);
+    assert.equal(epic.running, 0);
     assert.deepEqual(
       epic.plans.map((plan) => plan.id),
       ["recipe-import", "meal-planner", "shopping-list"],
@@ -47,9 +47,9 @@ test("an epic drills to specs and phases with gate, release count and held reaso
       phases.map((phase) => phase.gate),
       ["passed", "open", "open", "closed", "open", "closed"],
     );
+    // Release to crews went with Who codes (R91.6): only done tasks count.
     const two = epic.plans[0].phases[1];
-    assert.equal(two.released, 1);
-    assert.match(two.held, /Waiting on recipe-import\.2\.1/);
+    assert.equal(two.released, two.merged);
     // The handed-back phase says a person must answer first.
     assert.match(epic.plans[1].phases[0].held, /Handed back: answer issue #6/);
   });

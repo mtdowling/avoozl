@@ -49,7 +49,6 @@ const POLICY = {
   repositories: {
     "example/app": {
       baseBranch: "main",
-      coder: "worker",
       allowedActors: ["maintainer"],
       minimumPermission: "maintain",
       managedLabels: { managed: "agent:managed", ready: "agent:ready" },
@@ -239,11 +238,6 @@ const INVALID = [
     "an unknown minimum permission",
     repository({ minimumPermission: "owner" }),
     /minimumPermission must be one of/,
-  ],
-  [
-    "an unknown coder",
-    repository({ coder: "crew" }),
-    /coder must be issue-radar or worker/,
   ],
   [
     "a repository with no base branch under a mode",

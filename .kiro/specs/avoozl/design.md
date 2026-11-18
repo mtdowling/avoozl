@@ -430,7 +430,6 @@ Since 2026-11-17 `mode` and `planningRepository` are derived from each repositor
         "checkout": "../app",
         "folder": "Avoozl/example-app",
         "baseBranch": "main",
-        "coder": "worker",
         "allowedActors": ["maintainer-login"],
         "minimumPermission": "maintain",
         "requiredChecks": ["build", "test"],
@@ -470,9 +469,8 @@ Validation (deterministic, in `repository-settings.mjs`):
 
 - `mode` is `plans-repo`, `single-repo`, or absent; `plans-repo` needs
   `planningRepository`, `single-repo` forbids it (Requirement 28.1);
-- `coder` is `worker` or `issue-radar`; `issue-radar` is refused in
-  plans-repo mode, because a crew opens pull requests only in its own
-  repository (Requirement 27.14);
+- `coder` is accepted and ignored (removed 2026-11-18, §4.26,
+  Requirement 91.6): the Avoozl worker is the only coder;
 - a repository with github tasks names a `baseBranch` equal to its default
   branch, because GitHub closes issues only from merges into the default
   branch (F43, F52; Requirement 16.5, changed 2026-11-12);
@@ -1823,6 +1821,10 @@ enforced there.
 
 #### Batching
 
+**Changed 2026-11-18.** The planner decides batches in the manifest, and
+batching has no setting (§4.37, Requirement 108). The grouping rules below
+are replaced; the run, checks and split still hold.
+
 A leaf is batchable only when the plan marks it `size: "small"` in the
 manifest, because only the planner knows a task is small before it runs.
 Avoozl groups ready batchable leaves by `flow.batch.by` (`phase`, the same
@@ -1879,12 +1881,12 @@ Reply:
     {
       "type": "settings",
       "file": "repository",
-      "key": "flow.batch.max",
-      "from": 3,
-      "to": 5,
+      "key": "flow.stopTheLine.scope",
+      "from": "repo",
+      "to": "dependents",
       "metric": "lead time",
       "direction": "down",
-      "evidence": "7 of 10 tasks were size small in 2 epics"
+      "evidence": "6 of 10 tasks waited on stops in unrelated packages"
     },
     {
       "type": "plan",
@@ -1926,7 +1928,6 @@ Reply:
   "flow": {
     "stopTheLine": { "scope": "dependents" },
     "localChecksFirst": true,
-    "batch": { "max": 3, "by": "phase" },
     "retro": { "everyTasks": 10, "slowFactor": 3, "model": "auto" }
   }
 }
@@ -1956,8 +1957,7 @@ validation refuses it in a tracked file. There is no timing key.
 | Run anyway is person-only                       | Overriding a stop is the owner's call                                                                          |
 | Local checks first, default on                  | CI should confirm, not discover                                                                                |
 | Hook checks a record, not a rerun               | The checks run once                                                                                            |
-| Batch only `size: "small"`, local authority     | Only the planner knows size in advance; GitHub closing links are one per issue                                 |
-| Batch by epic by default                        | Same-parent tasks usually share context and files                                                              |
+| Planner groups, local authority (§4.37)         | Only the planner knows in advance what is cheaper in one chat; GitHub closing links are one per issue          |
 | Split a failed batch, no attempt cost           | A failing batch does not say which task broke it                                                               |
 | Tool-less retro agent                           | It can only propose, never act                                                                                 |
 | Typed proposals with evidence                   | A proposal must be checkable and reversible                                                                    |
@@ -2447,8 +2447,8 @@ a draft revision of the epic (§6.9: both sides must agree).
 `pack` or `flow`, the drawer shows the pack preview (create, change, keep,
 skip) with **Import these settings**, unticked. Ticking it and submitting
 runs the person-only pack import against the shown preview hash, exactly as
-Settings does (Requirement 55.5–55.7). The batching default works only
-because the starter and prompt mark small tasks `size: "small"` (§4.11).
+Settings does (Requirement 55.5–55.7). Batches come from the planner's
+manifest groups (§4.37), never from a template setting.
 
 #### Manual leaves
 
@@ -2565,7 +2565,7 @@ missing after a rebuild, like session bindings.
 
 | Phase          | Starter tasks                                                 | Kind                                                 |
 | -------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
-| Inventory      | List `{{sdk}}`'s operations and features; read the gap list   | leaves, `size: "small"`                              |
+| Inventory      | List `{{sdk}}`'s operations and features; read the gap list   | leaves, one planner batch group                      |
 | Codegen        | Generate the client from the models; compare with the old one | leaves                                               |
 | Runtime        | Port transport, auth, retries, paging                         | leaves                                               |
 | Protocol tests | Run the protocol test suite until it passes                   | leaf, plus proof `protocol-tests`                    |
@@ -2602,7 +2602,6 @@ missing after a rebuild, like session bindings.
     { "id": "cutover-dry-run", "title": "Cutover dry run" }
   ],
   "flow": {
-    "batch": { "by": "phase", "max": 3 },
     "stopTheLine": { "scope": "dependents" },
     "localChecksFirst": true,
     "retro": { "everyTasks": 10 }
@@ -3351,6 +3350,23 @@ request (RC3.6) stays only for a spec whose home branch is protected.
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------- |
 | Radar-only modules (about 5,900 backend, 1,300 UI, 12,000 test lines), `verify-issue`, the provenance marker, the `avoozl-crew` agent and Issue Radar grant, the remote coder, the relay, the router chat and their agents | Arming and merge code (now PR landing), release ranking, GitHub setup, build receipts | The Delivery page, Settings › Budgets, the task Files and diff view (removed in ba04389 and 70c2236). Not Routing |
 
+**Who codes is removed (owner decision, 2026-11-18; Requirement 91.6).**
+The Avoozl worker is the only coder. Settings › Models picks the harness per
+role (§4.28), so a per-repository coder has nothing left to choose.
+
+| Removed | Kept (Issue Radar as intake) |
+| ------- | ---------------------------- |
+| `CODERS` and the `coder` default by mode (`github-policy.mjs`), the schema's `coder` property, `choices.coders` | A stored `coder` key: accepted and dropped by the loader, with no warning and no migration |
+| The Who codes picker (`CoderPicker.tsx`) and its "How does this work?" coding tour, `CODER_CARDS`, `coderSource` and `defaultCoder` (`settings-api.ts`), the Who codes field and summary (`SettingsView.tsx`, `RepositoryModals.tsx`), the Workflow map's Who codes step | Settings › Issue Radar: Labels Radar uses, Handoff to Avoozl, crew review rules, conflicts, merge method |
+| Settings › Issue Radar's Radar crew card (crew scope to the ready label, release mode) and `issueRadarCrews` | GitHub intake (56.8) and its ownership label |
+| Every `coder === "issue-radar"` branch: the Radar-coded Untriaged read and its Intake rows, the planning label read, the coder adapter and coder split, ready-label release and the Release queue, the crew merge path and conflict fixes, the crew claim reconcile, the Radar source issue and its approval label, Radar flow rows, the approval pull request for a spec in a Radar repository (it stays only for a protected plans-branch home, Requirement 86.8), the plans-repo marker for a Radar repository | Radar escalations (needs-human, the plan-me trust and routing) sorted first in Untriaged with Plan this and Deliver this (56.14), their Needs you row, With Issue Radar, Send to Issue Radar |
+| | Radar back-links through intake and the journal (44.6) |
+
+Every repository reads Untriaged the same way (§4.32.11 escalations still
+sort first). Modules that only served Radar coding go with their last
+caller. The shared projection and Project sync callers stay for 45.4, less
+their coder routing.
+
 **A public repository with private plans.** For the Nupp compiler, plans
 stay in a private planning workspace and code lands `direct` on the public
 `core-dev`. Nothing private is pushed: the brief carries no plan text into
@@ -3512,6 +3528,12 @@ session's status, log tail, cost and a copyable attach command; Send
 message queues a `send`; Settings › Models picks a harness and model per
 role; a task's `session` pin may name a harness. Headless machines have
 `avoozl status` and `avoozl runner status --json` only.
+
+Proposed change, 2026-11-18 (draft, not approved): the
+`standalone-web` spec would add a second host for the same page,
+`avoozl serve`, bound to `127.0.0.1` only and signed in by a one-time owner
+link, for machines with no Kiro Crew. This paragraph stands until that spec
+is approved.
 
 **Steps and exits.**
 
@@ -4337,8 +4359,9 @@ and Settings refuses it as any other label's name.
 **Old task issues.** Until retirement (56.5) runs, nothing hands a projected task
 to a crew. `issueRadarAdapter.handOver` (`src/app/coder-adapter.mjs`) adds no ready
 label, and the claim at approval (`src/app/approval-label.mjs`) writes no claim
-label or marker; Avoozl's executor runs those tasks. The code and the `coder`
-setting stay until 45.4 (Phase 45 is no longer paused; 45.2 landed in #509). A ready label is not enough to keep crews
+label or marker; Avoozl's executor runs those tasks. The `coder` setting and
+the hand-over code are gone (45.6, §4.26); the shared projection code stays
+until 45.4. A ready label is not enough to keep crews
 off, because an empty-scope crew takes any open issue without a `crew:` label. So
 one previewed, paced, idempotent backfill adds `crew:avoozl` to each open projected
 task issue that has no `crew:` label. An issue a crew already claimed is left
@@ -4354,7 +4377,7 @@ scopes to Intake, other scopes to Needs you, untrusted left alone. Changes:
 
 | Where | What changes |
 |---|---|
-| Untriaged, or Intake for a Radar-coded repository | Trusted escalations sort first, marked "Radar asked", with Plan this and Deliver this |
+| Untriaged | Trusted escalations sort first, marked "Radar asked", with Plan this and Deliver this |
 | The escalation's Needs you row | Gains Plan this and Deliver this |
 | Plan this | Drafts a proportionate fix spec, or the compact bounded-fix acceptance above |
 | Per-repository escalation rule | Off by default. Drafts the plan when the label appears; local only, no GitHub write |
@@ -4614,7 +4637,6 @@ planning repository has no `github.repositories` entry, so no `role` key can
 sit on it: `planningRepository` stays stored and names it, and the `code`
 roles are valid because it exists. With a `planning` role on an entry,
 `planningRepository` is set from that entry.
-`coder` is a repository setting and stays beside the role.
 
 **Storage and migration.** The canonical key is
 `github.repositories["owner/name"].role`. `github.mode` and
@@ -4632,9 +4654,7 @@ The resolver runs inside the config loader, so readers of the raw
 approval batches) see the derived value and need no change. Reading writes
 nothing. The first save of Repository setup writes `role` on every row with
 a GitHub remote and the derived keys, which equal the old values for an
-untouched workspace. A second save writes nothing new. The default coder
-(`worker` in plans-repo, `issue-radar` in single-repo, §4.4) follows the
-derived mode as before.
+untouched workspace. A second save writes nothing new.
 
 **Screens.** Repository setup lists each repository with a role picker that
 saves in place (no Edit button for it; another change makes the other
@@ -4782,6 +4802,118 @@ GitHub calls on a read) with a fake GitHub that records every call;
 shortcut: one spec folder per pull request and at most 100 changed files; a
 larger or two-folder pull request stays in Triage. Upgrade if such pull
 requests are common.
+
+### 4.37 The planner decides batches
+
+Added 2026-11-18 (Requirement 108). Replaces the Batching part of §4.11
+(`size: "small"`, `flow.batch.max`, `flow.batch.by`) and the Batching box
+of Settings > Flow (§8.4). The batch run itself (one chat, one commit per
+task, checks once, split on failure) is unchanged.
+
+**Why.** The owner's decision: batching is not configurable. A size tag and
+a count were a guess made twice, once by the planner and once by a person
+in Settings. The planner already reads the code and writes the tasks, so it
+is the one place that knows which tasks are cheaper in one chat. The tick
+stays a pure planner: no model call there.
+
+**Manifest.** The planner may write one top-level object:
+
+```json
+{
+  "tasks": { "3.1": { "kind": "leaf" }, "3.2": { "kind": "leaf" } },
+  "batches": {
+    "doc-links": {
+      "tasks": ["3.1", "3.2"],
+      "reason": "Two one-line link fixes in README.md"
+    }
+  }
+}
+```
+
+`parseSpec` (`spec-plans.mjs`) checks the shape and refuses, as
+`manifest.schema`: a value that is not an object, a group ID outside
+`[A-Za-z0-9._-]{1,60}`, fewer than 2 or more than 5 tasks, a task ID with no
+leaf entry, a task in two groups, a reason that is empty, over 200
+characters or more than one line. Each member proposal gets
+`batch: {id, tasks, reason}` with full task IDs. `approvePlan` copies
+`batch` onto the task with `planHash`, as it copies the other fields, so a
+stored group always comes from an approved revision. The old `size` field
+is dropped on read with no diagnostic, like `budget`.
+
+**Dispatch (`flow-batch.mjs`, pure).** `planBatches` keeps its signature for
+`planReadyDispatches`. For each ready leaf with a `batch`:
+
+```text
+members  = the group's tasks still open
+problem  = groupProblem(store, data, members)   ─▶ null, or one line
+problem? ─▶ dispatch the leaf alone; the line is the "Runs alone" reason
+any open member not ready (blocked, held, waiting)? ─▶ the ready ones wait
+else     ─▶ one handoff: the first open member in the group leads,
+            batch {id, tasks, reason, by: "planner"}
+```
+
+`groupProblem` checks, in order, and returns the first that fails:
+
+| Rule                                                          | Reason shown                                      |
+| ------------------------------------------------------------- | ------------------------------------------------- |
+| every member exists and stores this same group                 | "the group changed; it runs alone until approved" |
+| same plan, same `planHash`, and the plan is approved at it     | "the group is not from the approved revision"     |
+| same repository (same plan means the same base branch)         | "its tasks are in different repositories"         |
+| at most `MAX_BATCH` (5, a constant)                            | "more than 5 tasks"                               |
+| no `requires` or `sequence` edge between two members           | "3.2 waits on 3.1"                                |
+| each member a local, automatic leaf (not manual, not a gate)   | "3.2 is not a local automatic leaf"               |
+| no member has an earlier attempt or was split                  | "3.1 already ran alone" / "the batch was split"   |
+
+`waitingForBatch` keeps ready members of a live or incomplete group out of
+free slots. A routed tick still requires the leader on the local crew and
+every member allowed there (R46.4 as before); a member that cannot run
+there makes the group run alone with "3.2 cannot run on this machine".
+`batchRules(store, data, task)` returns `{group, problem}` for reads, so
+the task's details and its card show the same reason the tick used, with no
+write in the tick.
+
+**Run, check, split.** Unchanged from §4.11: `batchBrief`, one commit and
+one `done` per task, checks and review on the last commit, `splitBatch` on
+failure with no attempt cost and `batchSplit` on each delivery. The
+`flow_batches` record gains `reason`. Landing trains (the `landing-trains`
+spec) do the test-once and bisect on landing; batching adds no landing
+step.
+
+**No setting.** `FLOW_DEFAULTS.batch`, `BATCH_BY` and the `batch.*` keys of
+`FLOW_KEYS` are removed. `flowSection` drops a `batch` group silently (as it
+does `lessons`), so an old `.avoozl.json`, a repository's `flow` or a pack's
+`settings.flow` with `batch` loads, saves and imports. Settings > Flow loses
+its Batching box. A retro settings proposal can no longer name a batch key,
+because it is not a Flow key; a stored one is refused at Approve as "not a
+flow setting". `delivery.investigate.mode: not-small` skips leaves with a
+`batch`. Radar coder's `planProjectionBatches` (radar-coder D4.2) suggests
+the planner's groups, open and unblocked, instead of grouping `size: "small"`
+tasks.
+
+**Show.** `deliveryView` keeps `batch` (the run's ID) and adds to each
+grouped item `batchGroup: {id, group, tasks, leader, reason, state}` (`id`
+is the run once it has one) and `alone: "<reason>"` for a grouped task that
+runs alone. The Delivery page folds a live batch into one In progress card
+keyed by the leader: the reason, then each member's ID and title, each
+opening that task's details. The task's details (Overview) show **Batch**
+with the group ID linking to the leader's details, the other members and
+the reason, and **Runs alone** with the reason when the group broke a rule.
+
+**Prompt.** `prompts/planner.md` says: group only leaves one worker should
+do in one chat, such as tiny edits to the same files; never group tasks that
+depend on each other, tasks in different repositories, or a task that needs
+its own review; at most 5; one line of reason. No group is the default.
+
+**Tests.** `src/app/test/flow-batch.test.mjs`: a planner group dispatched as
+one handoff and its members waiting for each other; each rule of the table
+dispatched alone with its reason; a failing batch split, each task alone at
+no attempt cost. `flow.test.mjs`: no batch key in `FLOW_KEYS`, and an old
+`flow.batch` ignored on load and save. `spec-plans` tests: shape errors, an
+old `size` ignored. UI tests: the batched card and the task's Batch row;
+screenshots under `docs/evidence/agent-batching/`.
+
+shortcut: a group holds tasks of one spec only; upgrade if the planner
+needs to batch across specs.
 
 ## 5. Local workflow
 
@@ -5308,7 +5440,7 @@ GitHub closes every leaf issue (Requirement 33):
 | Pull requests                       | Code repositories named by each leaf                                                | The same repository                                |
 | Link from PR to issue               | Linked branch `avoozl/<task-id>`, created by Avoozl at dispatch; no closing keyword | `Closes #N` (a linked branch is also allowed)      |
 | Who closes the leaf issue           | GitHub on merge into the default branch; Avoozl verifies                            | GitHub on merge; Avoozl verifies                   |
-| Who codes leaves                    | Avoozl worker sessions in the code repository                                       | Issue Radar (default) or worker sessions (`coder`) |
+| Who codes leaves                    | Avoozl worker sessions in the code repository                                       | Avoozl worker sessions (changed 2026-11-18, §4.26) |
 | Planning repository named in public | Never                                                                               | Not applicable                                     |
 
 **Plans-repo delivery.** The Phase 2 runner does the work: the Crew Mode
@@ -6305,7 +6437,7 @@ operations as CLI and MCP (Requirement 20.4).
 | **Flow**      | one page                                                           | Lead time, flow efficiency, first-pass rate, time to fix, stacked time bars, bottlenecks                      |
 | **Retros**    | Retros, Proposals                                                  | Retrospectives, their proposals and PDCA results                                                              |
 | **Activity**  | one page                                                           | The activity log and tick health                                                                              |
-| **Settings**  | Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery | `.avoozl.json` and machine settings; the repository role, coder, labels, checks and reviews are tabs of each repository |
+| **Settings**  | Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery | `.avoozl.json` and machine settings; the repository role, labels, checks and reviews are tabs of each repository |
 
 **Choosing a repository and workspace.** A workspace is a directory with
 `.avoozl.json` and its SQLite file (existing layout). The machine catalog lists
@@ -6596,7 +6728,7 @@ Where delivery time goes, and what the last retro proposed.
 └────────────────────────────────────────────────────────────────────────┘
 ┌ Retros ────────────────────────────────────────────────────────────────┐
 │ Retro 3 · after 10 tasks · bottleneck ci-wait                            │
-│   Raise batch max to 5 (flow.batch.max 3 → 5)   lead time ↓              │
+│   Narrow stops (flow.stopTheLine.scope repo → dependents)  lead time ↓   │
 │   evidence: 7 of 10 tasks were small in 2 epics     [Reject] [Approve]   │
 │ Retro 2 · approved: local checks first on · PDCA: CI wait −38%, helped   │
 └────────────────────────────────────────────────────────────────────────┘
@@ -6642,11 +6774,6 @@ How Avoozl measures delivery time and reacts to slow or broken work.
 ┌ Local checks first ────────────────────────────────────────────────────┐
 │ Run the checks here before any push, so CI only confirms.               │
 │ [x] Require a local pass before push (optional)   flow.localChecksFirst  │
-└────────────────────────────────────────────────────────────────────────┘
-┌ Batching ──────────────────────────────────────────────────────────────┐
-│ Run small related tasks together to pay setup and checks once.          │
-│ Most tasks per run (optional) [ 3 ]  flow.batch.max                      │
-│ Group by (optional)  ○ Same phase ○ Same files      flow.batch.by        │
 └────────────────────────────────────────────────────────────────────────┘
 ┌ Retro ─────────────────────────────────────────────────────────────────┐
 │ A review that finds the biggest slowdown and proposes one change.       │

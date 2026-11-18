@@ -51,6 +51,16 @@ export interface UntriagedItem {
   reviewChat?: ReviewChat | null
 }
 
+// Why an item is in Triage, in one plain line: what Avoozl knows, no GitHub call.
+export function triageReason(item: UntriagedItem): string {
+  if (item.escalation)
+    return `An Issue Radar crew added "${item.escalation.label}" and handed it to a person.${item.escalation.draft ? ' A bounded fix is drafted; you start it.' : ''}`
+  if (item.reason) return item.reason
+  const what = item.kind === 'pr' ? 'pull request' : item.kind === 'review' ? 'review request' : item.kind === 'ticket' ? 'ticket' : 'issue'
+  const checks = item.kind === 'pr' && item.checks === 'failing' ? ' Its checks fail.' : ''
+  return `No rule has taken this ${what} yet, so no spec or task covers it.${checks}`
+}
+
 export interface Escalation {
   label: string
   scope: string | null

@@ -14,7 +14,7 @@ import { normalizeGitHubPolicy } from '../../../src/app/github-policy.mjs'
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const github = (release) => ({
   mode: 'single-repo',
-  repositories: { 'example/app': { baseBranch: 'main', coder: 'issue-radar', ...(release ? { release } : {}) } },
+  repositories: { 'example/app': { baseBranch: 'main', ...(release ? { release } : {}) } },
 })
 
 test('release mode and capacity round-trip, and scopes pass through', () => {
@@ -91,12 +91,11 @@ test('the client reads the queue and clicks Step through the command path', asyn
   ])
 })
 
-test('the Dashboard shows the queue, Settings shows the mode only for Issue Radar, Step has one button per plan', () => {
+test('the Dashboard shows the queue, Settings has no release mode, Step has one button per plan', () => {
   assert.match(source('DashboardView.tsx'), /<ReleaseQueue workspaceId=\{workspaceId\} onOpenSettings=/)
   const settings = source('SettingsView.tsx')
-  assert.match(settings, /const radarCoder = \(repository\.coder \|\| defaultCoder\(form\.mode\)\) === 'issue-radar'/)
-  assert.match(settings, /\{radarCoder \? \(\s+<Field id=\{`\$\{id\}-release-mode`\}/)
-  assert.match(settings, /<ReleaseModePicker/)
+  // Release mode was for Issue Radar coding (R91.6).
+  assert.doesNotMatch(settings, /ReleaseModePicker|radarCoder|defaultCoder/)
   const queue = source('ReleaseQueue.tsx')
   assert.match(queue, /data-release-step/)
   assert.match(queue, /repository\.mode === 'step' \? nextSteps\(repository\) : \[\]/)

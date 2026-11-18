@@ -16,7 +16,6 @@ import { kirocrewSession } from "./executors/kirocrew.mjs";
 // from the crew; human commits are commits by another login than the pull
 // request's author. Use a commit trailer once Issue Radar writes one.
 import { recordActivity } from "./activity-log.mjs";
-import { usesMergePath } from "./coder-adapter.mjs";
 import { callerSlot } from "./delivery.mjs";
 import { linePausedTaskIds } from "./flow.mjs";
 import { git } from "./git.mjs";
@@ -519,11 +518,6 @@ export function conflictFixNeedsYou(store) {
     },
     openedAt: row.at,
   }));
-}
-
-// Pull requests with a row here, so RC5.3's plain conflict row stands aside.
-export function conflictFixAskedKeys(store) {
-  return new Set(Object.keys(store.getMeta(KEY)?.asked ?? {}));
 }
 
 // Fixes of one pull request, for Trace.

@@ -1,60 +1,45 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
-import { CODERS, normalizeGitHubPolicy } from "../github-policy.mjs";
+import { normalizeGitHubPolicy, readGitHubPolicy } from "../github-policy.mjs";
+import { isLinkedBranchLeaf } from "../github-plans-repo.mjs";
+import { temporaryDirectory } from "./temporary.mjs";
 
-// rc-14.1: `coder` is issue-radar or worker, per repository.
-const repo = (mode, repository = {}) =>
-  normalizeGitHubPolicy({
-    mode,
-    ...(mode === "plans-repo" ? { planningRepository: "example/plans" } : {}),
-    repositories: { "example/app": { baseBranch: "main", ...repository } },
-  }).repositories["example/app"];
-
-test("each remaining value validates in both GitHub modes", () => {
-  for (const mode of ["plans-repo", "single-repo"])
-    for (const coder of ["issue-radar", "worker"])
-      assert.equal(repo(mode, { coder }).coder, coder);
-});
-
-test("an unknown value is refused naming the allowed ones", () => {
-  for (const mode of ["plans-repo", "single-repo"])
-    for (const coder of ["", "Remote", "harness", 1])
-      assert.throws(
-        () => repo(mode, { coder }),
-        /coder must be issue-radar or worker/,
-      );
-});
-
-test("a missing value keeps the mode default; two-value configs still load", () => {
-  assert.equal(repo("plans-repo").coder, "worker");
-  assert.equal(repo("single-repo").coder, "issue-radar");
-  assert.equal(repo("single-repo", { coder: null }).coder, "issue-radar");
-  assert.equal(repo("plans-repo", { coder: "worker" }).coder, "worker");
-});
-
-test("repositories choose their coder separately", () => {
-  const { repositories } = normalizeGitHubPolicy({
-    mode: "single-repo",
-    repositories: {
-      "example/a": { baseBranch: "main", coder: "worker" },
-      "example/b": { baseBranch: "main", coder: "worker" },
-      "example/c": { baseBranch: "main" },
-    },
-  });
-  assert.deepEqual(
-    ["a", "b", "c"].map((n) => repositories[`example/${n}`].coder),
-    ["worker", "worker", "issue-radar"],
-  );
-});
-
-test("one list holds the remaining values", () => {
-  assert.deepEqual([...CODERS].sort(), ["issue-radar", "worker"]);
-});
-
-test("the retired remote coder is refused explicitly", () => {
-  for (const mode of ["plans-repo", "single-repo"])
-    assert.throws(
-      () => repo(mode, { coder: "remote" }),
-      /remote coder was removed/,
+// R91.6: Who codes was removed. An old file's `coder` loads, is ignored and
+// says nothing; every repository's leaves go to the Avoozl worker.
+test("an old coder setting loads silently and changes nothing", (t) => {
+  const warned = [];
+  t.mock.method(console, "warn", (...args) => warned.push(args));
+  for (const coder of ["issue-radar", "worker", "remote", "", 7]) {
+    const root = temporaryDirectory();
+    fs.writeFileSync(
+      path.join(root, ".avoozl.json"),
+      JSON.stringify({
+        version: 1,
+        github: {
+          mode: "single-repo",
+          repositories: { "example/app": { baseBranch: "main", coder } },
+        },
+      }),
     );
+    const policy = readGitHubPolicy(root),
+      entry = policy.repositories["example/app"];
+    assert.equal("coder" in entry, false, String(coder));
+    assert.deepEqual(
+      entry,
+      normalizeGitHubPolicy({
+        mode: "single-repo",
+        repositories: { "example/app": { baseBranch: "main" } },
+      }).repositories["example/app"],
+    );
+    const leaf = {
+      id: "a",
+      kind: "leaf",
+      authority: "github",
+      github: { repository: "example/app", number: 1 },
+    };
+    assert.equal(isLinkedBranchLeaf(leaf, policy), true, String(coder));
+  }
+  assert.deepEqual(warned, []);
 });

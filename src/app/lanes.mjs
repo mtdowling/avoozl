@@ -16,11 +16,3 @@ export function validateLanes(value, where = "lanes") {
     throw Error(`${where}.local must be a whole number 0–32.`);
   return { local };
 }
-
-// Lanes still free on this Mac, given how many local workers run now.
-export const freeLocalLanes = (lanes, running) =>
-  Math.max(0, validateLanes(lanes).local - running);
-
-// The ready tasks that start now, in order; the rest wait.
-export const startWithinLanes = (ready, lanes, running = 0) =>
-  ready.slice(0, freeLocalLanes(lanes, running));

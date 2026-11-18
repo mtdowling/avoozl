@@ -8,11 +8,6 @@ import { fixture, markdown } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
 import { throughClient } from "./crew-label-client.mjs";
-import { setRadarHandoverPaused } from "../coder-adapter.mjs";
-
-// These tests cover the Radar hand-over kept while Phase 45 is paused
-// (R103.4 pauses it in the product).
-setRadarHandoverPaused(false);
 
 const NAMESPACE = "avz_testtesttesttest";
 
@@ -283,21 +278,10 @@ test("approved design tasks project once, preserve human issue text, and point t
     foundationIssue.issueId,
   ]);
   assert.deepEqual(foundationIssue.managedBlockerIssueIds, []);
-  assert.equal(
-    github.labels.some(
-      ([kind, number]) => kind === "add" && number === foundationIssue.number,
-    ),
-    true,
-  );
-  assert.equal(
-    github.labels.some(
-      ([kind, number]) => kind === "add" && number === deliveryIssue.number,
-    ),
-    false,
-  );
+  // No coder takes a ready label as its hand-over (R91.6).
   assert.equal(
     github.labels.some(([kind]) => kind === "add"),
-    true,
+    false,
   );
 
   github.created[0].body += "\n\nHuman coordination note.";
@@ -516,9 +500,7 @@ test("dependency drift is a conflict that withdraws readiness and keeps the edge
     ["blockers"],
   );
   assert.equal(drifted.issues[0].state, "conflict");
-  assert.deepEqual(github.labels.slice(before), [
-    ["remove", issue.number, "avoozl:ready"],
-  ]);
+  assert.deepEqual(github.labels.slice(before), []);
   assert.deepEqual(
     (await github.listIssueBlockers({ id: "example/code" }, issue.number)).map(
       (blocker) => blocker.id,
@@ -654,10 +636,7 @@ test("projection writes marker version 2 with hash pins and applied values", asy
   assert.deepEqual(marker.applied.blockers, [base.node_id]);
   assert.deepEqual(marker.applied.labels, ["avoozl:managed"]);
   assert.match(marker.applied.title, /^[0-9a-f]{64}$/);
-  assert.deepEqual(markerOf(base).applied.labels, [
-    "avoozl:managed",
-    "avoozl:ready",
-  ]);
+  assert.deepEqual(markerOf(base).applied.labels, ["avoozl:managed"]);
   for (const issue of [base, next])
     assert.doesNotMatch(JSON.stringify(markerOf(issue)), /planId|\/tmp\//);
 
@@ -828,91 +807,6 @@ test("a package gets no issue type, sequence edges block, supports stay in the m
 function labelsOf(issue) {
   return (issue.labels || []).map((label) => label.name);
 }
-
-test("ready labels go on last and are capped by release.capacity", async (t) => {
-  const { github, ops, plan, approved } = await projectedWorkspace(
-    t,
-    [leaf("leaf-one"), leaf("leaf-two"), leaf("leaf-three")],
-    {
-      github: {
-        repositories: {
-          "example/code": {
-            release: { capacity: 2 },
-            managedLabels: { managed: "agent:managed", ready: "agent:ready" },
-          },
-        },
-      },
-    },
-  );
-  await ops.execute("github.project", { planId: plan.id });
-  const ready = approved.taskIds.filter((id) =>
-    labelsOf(issueFor(github, id)).includes("agent:ready"),
-  );
-  assert.deepEqual(ready, approved.taskIds.slice(0, 2));
-  for (const id of approved.taskIds)
-    assert.equal(
-      labelsOf(issueFor(github, id)).includes("agent:managed"),
-      true,
-    );
-  assert.equal(
-    github.labels.some(([, , label]) => label === "avoozl:ready"),
-    false,
-  );
-  const lastCreate = github.created.length,
-    firstReadyAdd = github.labels.findIndex(
-      ([kind, , label]) => kind === "add" && label === "agent:ready",
-    );
-  assert.equal(lastCreate, 3);
-  assert.ok(firstReadyAdd >= 0);
-});
-
-test("free ready slots go by priority label, then graph order, under the cap", async (t) => {
-  const { github, ops, plan, approved } = await projectedWorkspace(
-    t,
-    [leaf("leaf-one"), leaf("leaf-two"), leaf("leaf-three")],
-    {
-      github: {
-        repositories: {
-          "example/code": {
-            release: { capacity: 1 },
-            priority: ["critical", "high"],
-            managedLabels: { managed: "agent:managed", ready: "agent:ready" },
-          },
-        },
-      },
-    },
-  );
-  const [one, two, three] = approved.taskIds,
-    readyNow = () =>
-      approved.taskIds.filter((id) =>
-        labelsOf(issueFor(github, id)).includes("agent:ready"),
-      ),
-    relabel = (id, add, remove = []) => {
-      const issue = issueFor(github, id);
-      issue.labels = issue.labels.filter(({ name }) => !remove.includes(name));
-      for (const name of add) issue.labels.push({ name });
-    };
-  // No priority labels yet: graph order, one slot.
-  await ops.execute("github.project", { planId: plan.id });
-  assert.deepEqual(readyNow(), [one]);
-
-  // People label the issues. The leaf holding the slot keeps it.
-  relabel(one, ["urgent"]); // not in the list: sorts last
-  relabel(two, ["High", "critical"]); // two labels: the best one counts
-  relabel(three, ["high"]);
-  await ops.execute("github.project", { planId: plan.id });
-  assert.deepEqual(readyNow(), [one]);
-
-  // The slot frees: the critical leaf takes it, never more than the cap.
-  relabel(one, [], ["agent:ready"]);
-  await ops.execute("github.project", { planId: plan.id });
-  assert.deepEqual(readyNow(), [two]);
-
-  // Without critical, two and three tie on high: graph order decides.
-  relabel(two, [], ["agent:ready", "critical"]);
-  await ops.execute("github.project", { planId: plan.id });
-  assert.deepEqual(readyNow(), [two]);
-});
 
 test("closed issues for unfinished tasks go to the close-without-code rule", async (t) => {
   const { github, ops, plan, approved } = await projectedWorkspace(t, [

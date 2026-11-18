@@ -172,7 +172,10 @@ GitHub issues that crews can build, with nothing written before I see it.
    private one. WHILE it is off, plans-repo projection to that repository
    SHALL be refused with the reason. Content rules (Requirement 40) SHALL
    screen the name before it is written.
-5. **Batching.** Projection SHALL combine small ready tasks into one issue
+5. (Changed 2026-11-18, avoozl Requirement 108.11: the suggested batches
+   are the planner's manifest groups whose tasks are open and unblocked;
+   there is no `size: "small"` and no `flow.batch`.) **Batching.**
+   Projection SHALL combine small ready tasks into one issue
    with a checklist when ALL hold: each task has `size: "small"` in its
    manifest entry; the tasks share a phase and a repository; they share a
    file overlap when `flow.batch.by` is `files`; none has an open blocker

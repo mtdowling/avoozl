@@ -30,12 +30,6 @@
       "minLength": 1,
       "maxLength": 160
     },
-    "repository": {
-      "$ref": "#/$defs/repository"
-    },
-    "planning": {
-      "$ref": "#/$defs/planning"
-    },
     "agentInstructions": {
       "$ref": "#/$defs/agentInstructions"
     },
@@ -142,9 +136,6 @@
     "github": {
       "$ref": "#/$defs/github"
     },
-    "review": {
-      "$ref": "#/$defs/reviewPolicy"
-    },
     "models": {
       "type": "object",
       "description": "Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
@@ -157,7 +148,8 @@
           "$ref": "#/$defs/chatModel"
         },
         "driver": {
-          "$ref": "#/$defs/chatModel"
+          "deprecated": true,
+          "description": "Ignored. The driver chat was removed. Files that still set it load as before."
         },
         "retro": {
           "$ref": "#/$defs/chatModel"
@@ -615,9 +607,6 @@
         }
       }
     },
-    "safety": {
-      "$ref": "#/$defs/safetyPolicy"
-    },
     "planningRepository": {
       "$ref": "#/$defs/planningRepository"
     },
@@ -1058,48 +1047,6 @@
       },
       "description": "A path relative to the repository root. Absolute machine paths belong in ~/.config/avoozl/config.json."
     },
-    "repository": {
-      "type": "object",
-      "required": ["id"],
-      "properties": {
-        "id": {
-          "type": "string",
-          "pattern": "^[a-z][a-z0-9-]{0,60}$"
-        },
-        "roles": {
-          "type": "array",
-          "items": {
-            "enum": ["planning", "code"]
-          },
-          "uniqueItems": true
-        },
-        "baseBranch": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
-    },
-    "planning": {
-      "type": "object",
-      "properties": {
-        "documents": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/portablePath"
-          },
-          "uniqueItems": true
-        },
-        "exclude": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/portablePath"
-          },
-          "uniqueItems": true
-        }
-      },
-      "additionalProperties": false
-    },
     "agentInstructions": {
       "type": "object",
       "required": ["rules"],
@@ -1250,109 +1197,12 @@
           "description": "Archive completed child and task conversations while retaining their task and transcript links."
         },
         "driver": {
-          "type": "object",
-          "properties": {
-            "agentProfile": {
-              "type": ["string", "null"],
-              "minLength": 1,
-              "description": "OpenHands agent profile used when a new Driver conversation is created."
-            },
-            "model": {
-              "type": ["string", "null"],
-              "minLength": 1,
-              "description": "OpenHands LLM profile or ACP model override used for a new Driver conversation."
-            }
-          },
-          "additionalProperties": false
+          "deprecated": true,
+          "description": "Ignored. It configured the removed agent host's driver conversation. Files that still set it load as before."
         },
         "routing": {
-          "$ref": "#/$defs/agentRouting"
-        }
-      },
-      "additionalProperties": false
-    },
-    "agentRouting": {
-      "type": "object",
-      "description": "Deterministic agent and model selection policy. Explicit per-run choices always win.",
-      "properties": {
-        "enabled": {
-          "type": "boolean",
-          "default": false
-        },
-        "fallback": {
-          "$ref": "#/$defs/agentRouteChoice"
-        },
-        "rules": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/agentRouteRule"
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "agentRouteChoice": {
-      "type": "object",
-      "properties": {
-        "agentProfile": {
-          "type": ["string", "null"],
-          "minLength": 1
-        },
-        "model": {
-          "type": ["string", "null"],
-          "minLength": 1
-        }
-      },
-      "additionalProperties": false
-    },
-    "agentRouteRule": {
-      "type": "object",
-      "required": ["id"],
-      "properties": {
-        "id": {
-          "type": "string",
-          "pattern": "^[a-z][a-z0-9-]{1,60}$"
-        },
-        "priority": {
-          "type": "integer",
-          "minimum": -1000,
-          "maximum": 1000
-        },
-        "categories": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "uniqueItems": true
-        },
-        "scopes": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "uniqueItems": true
-        },
-        "risks": {
-          "type": "array",
-          "items": {
-            "enum": ["low", "medium", "high", "unspecified"]
-          },
-          "uniqueItems": true
-        },
-        "contextRemainingAtMost": {
-          "type": ["number", "null"],
-          "minimum": 0,
-          "maximum": 100
-        },
-        "agentProfile": {
-          "type": ["string", "null"],
-          "minLength": 1
-        },
-        "model": {
-          "type": ["string", "null"],
-          "minLength": 1
+          "deprecated": true,
+          "description": "Ignored. It configured the removed agent host's routing. Files that still set it load as before."
         }
       },
       "additionalProperties": false
@@ -1553,12 +1403,11 @@
           "description": "Must equal the repository's default branch when a mode is set."
         },
         "coder": {
-          "enum": ["issue-radar", "worker"],
-          "description": "Who codes the issues: issue-radar (Radar crew) or worker (Avoozl worker), in either GitHub mode."
+          "description": "Ignored. Who codes was removed: the Avoozl worker is the only coder, and an old value still loads."
         },
         "radar": {
           "type": "object",
-          "description": "Issue Radar coder labels. Planning, needs-human, claim, ready, conflict and approval names must all differ.",
+          "description": "Issue Radar labels. Planning, needs-human, claim, ready, conflict and approval names must all differ.",
           "properties": {
             "planLabel": {
               "type": "string",
@@ -1667,10 +1516,8 @@
           "description": "This repository's GitHub cache time in seconds, instead of github.cacheSeconds."
         },
         "concurrency": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 100,
-          "default": 1
+          "deprecated": true,
+          "description": "Ignored. It set the retired local workers; release.capacity sets how many issues are ready at once. Files that still set it load as before."
         },
         "release": {
           "description": "Ready-label capacity: N at once per repository, and per crew label scope. N defaults to 2 for Issue Radar, else to concurrency; 0 releases nothing.",
@@ -1976,230 +1823,6 @@
       "items": {
         "type": "string",
         "minLength": 1
-      }
-    },
-    "reviewPolicy": {
-      "type": "object",
-      "description": "Repository review policy. Unmatched changes use the most restrictive configured class.",
-      "properties": {
-        "requiredChecks": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "excludeAuthor": {
-          "type": "boolean",
-          "default": true
-        },
-        "excludeImplementer": {
-          "type": "boolean",
-          "default": true
-        },
-        "defaultClass": {
-          "enum": ["mechanical", "low-risk", "normal", "high-consequence"],
-          "default": "high-consequence"
-        },
-        "classes": {
-          "type": "object",
-          "properties": {
-            "mechanical": {
-              "$ref": "#/$defs/reviewClass"
-            },
-            "low-risk": {
-              "$ref": "#/$defs/reviewClass"
-            },
-            "normal": {
-              "$ref": "#/$defs/reviewClass"
-            },
-            "high-consequence": {
-              "$ref": "#/$defs/reviewClass"
-            }
-          },
-          "additionalProperties": false
-        },
-        "agentReviewer": {
-          "type": "object",
-          "properties": {
-            "mustDifferBy": {
-              "enum": ["provider", "model"]
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    "reviewClass": {
-      "type": "object",
-      "properties": {
-        "humans": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 20
-        },
-        "agents": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 20
-        },
-        "notifyHuman": {
-          "type": "boolean"
-        },
-        "agentIsAdvisory": {
-          "type": "boolean"
-        },
-        "requireHumanAcceptance": {
-          "type": "boolean"
-        },
-        "paths": {
-          "type": "array",
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/$defs/portablePath"
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "safetyPolicy": {
-      "type": "object",
-      "description": "Non-secret andon authority and optional coordinator enforcement. Authority is denied when no rule matches.",
-      "properties": {
-        "coordinator": {
-          "type": "object",
-          "properties": {
-            "mode": {
-              "enum": ["local", "optional", "strict"],
-              "default": "optional",
-              "description": "Strict mode requires exact coordinator generation and safety-epoch fencing for distributed protected operations."
-            }
-          },
-          "additionalProperties": false
-        },
-        "authority": {
-          "type": "object",
-          "properties": {
-            "rules": {
-              "type": "array",
-              "maxItems": 200,
-              "description": "Ordered policy rules. A matching deny overrides allows; no match denies.",
-              "items": {
-                "$ref": "#/$defs/safetyAuthorityRule"
-              }
-            },
-            "separationOfDuty": {
-              "$ref": "#/$defs/safetySeparationOfDuty"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    "safetyAuthorityRule": {
-      "type": "object",
-      "required": ["id", "activities", "scopes"],
-      "properties": {
-        "id": {
-          "type": "string",
-          "pattern": "^[a-z][a-z0-9-]{2,79}$"
-        },
-        "effect": {
-          "enum": ["allow", "deny"],
-          "default": "allow"
-        },
-        "activities": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "enum": [
-              "raise",
-              "diagnose",
-              "remediate",
-              "review",
-              "resolve",
-              "resume"
-            ]
-          }
-        },
-        "scopes": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "enum": ["task", "project", "workspace"]
-          }
-        },
-        "categories": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
-          "default": ["*"]
-        },
-        "identities": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 240
-          }
-        },
-        "roles": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          }
-        }
-      },
-      "anyOf": [
-        {
-          "required": ["identities"]
-        },
-        {
-          "required": ["roles"]
-        }
-      ],
-      "additionalProperties": false
-    },
-    "safetySeparationOfDuty": {
-      "type": "object",
-      "properties": {
-        "reviewerDistinctFrom": {
-          "$ref": "#/$defs/safetyDutyList"
-        },
-        "resolverDistinctFrom": {
-          "$ref": "#/$defs/safetyDutyList"
-        },
-        "resumerDistinctFrom": {
-          "$ref": "#/$defs/safetyDutyList"
-        },
-        "resolutionReviewRequired": {
-          "type": "boolean",
-          "default": false
-        }
-      },
-      "additionalProperties": false
-    },
-    "safetyDutyList": {
-      "type": "array",
-      "uniqueItems": true,
-      "items": {
-        "enum": ["raiser", "requester", "implementer", "reviewer", "resolver"]
       }
     },
     "planningRepository": {

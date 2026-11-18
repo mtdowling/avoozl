@@ -1,7 +1,6 @@
-// rc-1.2: a Radar-coded repository is never triaged. Avoozl lists only an
-// issue an allowed person labeled to be planned (or the plan-me hand-off's
-// Intake route), and Plan this starts a planner chat. No network: the fake
-// GitHub records every call.
+// rc-1.2 after Who codes was removed (R91.6): every repository is read the
+// same way, a crew's claim and the plan-me hand-off still route, and Plan this
+// starts a planner chat. No network: the fake GitHub records every call.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,7 +9,6 @@ import { Operations } from "../operations.mjs";
 import { machineIdentity } from "../github-sync.mjs";
 import { pendingNewPlans } from "../new-plan.mjs";
 import { principalAllows } from "../app-backend.mjs";
-import { searchQuery } from "../untriaged.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -106,9 +104,6 @@ function fakeGitHub(issues, { events = {}, permissions = {} } = {}) {
   };
 }
 
-const labeled = (login, label = "avoozl:plan") => [
-  { event: "labeled", label: { name: label }, actor: { login } },
-];
 const PERMISSIONS = { owner: "admin", stranger: "read" };
 
 function workspace(t, github, extra = {}, { projectId = REPO } = {}) {
@@ -124,7 +119,6 @@ function workspace(t, github, extra = {}, { projectId = REPO } = {}) {
         repositories: {
           [REPO]: {
             baseBranch: "main",
-            coder: "issue-radar",
             minimumPermission: "write",
             managedLabels: { managed: "avoozl:managed", ready: "ready" },
             ...extra,
@@ -165,131 +159,17 @@ function workspace(t, github, extra = {}, { projectId = REPO } = {}) {
   };
 }
 
-test("no list call for plain open issues is made for a Radar-coded repository", async (t) => {
-  const github = fakeGitHub(
-    [issue(1), issue(2), issue(3, { labels: ["avoozl:plan"] })],
-    { events: { 3: labeled("owner") }, permissions: PERMISSIONS },
-  );
-  const { intake } = workspace(t, github);
-  const result = await intake();
-  // Every search names labels or asks for pull requests; none asks for
-  // plain open issues.
-  assert.ok(github.calls.queries.length >= 1);
-  for (const query of github.calls.queries)
-    assert.match(query, /label:"?avoozl:plan"?|is:pr/);
-  assert.equal(github.calls.listIssues, 0);
-  assert.deepEqual(result.intake, [3]);
-  assert.deepEqual(result.withRadar, []);
-});
-
-test("a repository with the worker coder still reads every open issue", async (t) => {
+test("a repository reads every open issue", async (t) => {
   const github = fakeGitHub([issue(1), issue(2)]);
-  const { intake } = workspace(t, github, { coder: "worker" });
+  const { intake } = workspace(t, github);
   assert.deepEqual((await intake()).intake, [1, 2]);
   assert.equal(github.calls.queries[0], `repo:${REPO} is:open`);
 });
 
-test("the Radar query lists the planning, needs-human and claim labels", () => {
-  const repo = {
-    coder: "issue-radar",
-    radar: { planLabel: "plan, please" },
-    crewLabels: { needsHuman: "plan me", claim: "crew: in progress" },
-  };
-  assert.equal(
-    searchQuery("o/r", {}, Date.now(), repo),
-    'repo:o/r is:open is:issue label:"plan, please","plan me","crew: in progress"',
-  );
-  assert.equal(
-    searchQuery("o/r", {}, Date.now(), { coder: "worker" }),
-    "repo:o/r is:open",
-  );
-});
-
-test("a planning label from an allowed person goes to Intake; a stranger's does nothing", async (t) => {
-  const github = fakeGitHub(
-    [
-      issue(1, { labels: ["avoozl:plan"] }),
-      issue(2, { labels: ["avoozl:plan"] }),
-      issue(3, { labels: ["avoozl:plan"] }),
-    ],
-    {
-      events: {
-        1: labeled("owner"),
-        2: labeled("stranger"),
-        // Someone unknown to GitHub's permission read (403): not allowed.
-        3: labeled("ghost"),
-      },
-      permissions: PERMISSIONS,
-    },
-  );
-  const result = await workspace(t, github).intake();
-  assert.deepEqual(
-    [result.intake, result.withRadar, result.needsYou],
-    [[1], [], []],
-  );
-});
-
-test("the last labeler counts, and an unreadable history plans nothing", async (t) => {
-  const github = fakeGitHub(
-    [
-      issue(1, { labels: ["avoozl:plan"] }),
-      issue(2, { labels: ["avoozl:plan"] }),
-    ],
-    {
-      events: {
-        1: [...labeled("owner"), ...labeled("stranger")],
-        2: labeled("owner"),
-      },
-      permissions: PERMISSIONS,
-    },
-  );
-  github.brokenEvents.add(2);
-  assert.deepEqual((await workspace(t, github).intake()).intake, []);
-});
-
-test("allowedActors admits a named person without a permission read", async (t) => {
-  const github = fakeGitHub([issue(1, { labels: ["avoozl:plan"] })], {
-    events: { 1: labeled("friend") },
+test("a crew's claim keeps the issue under With Issue Radar, not Untriaged", async (t) => {
+  const github = fakeGitHub([issue(1, { labels: ["crew: in progress"] })], {
     permissions: PERMISSIONS,
   });
-  const { intake } = workspace(t, github, {
-    allowedActors: ["friend"],
-    minimumPermission: undefined,
-  });
-  assert.deepEqual((await intake()).intake, [1]);
-});
-
-test("the planning label name is the repository's own", async (t) => {
-  const github = fakeGitHub(
-    [issue(1, { labels: ["plan-it"] }), issue(2, { labels: ["avoozl:plan"] })],
-    {
-      events: { 1: labeled("owner", "plan-it"), 2: labeled("owner") },
-      permissions: PERMISSIONS,
-    },
-  );
-  const { intake } = workspace(t, github, { radar: { planLabel: "plan-it" } });
-  assert.deepEqual((await intake()).intake, [1]);
-});
-
-test("pull requests are still read for Code review, but never planned", async (t) => {
-  const github = fakeGitHub(
-    [
-      issue(1),
-      issue(2, { pull: true }),
-      issue(3, { labels: ["avoozl:plan"], pull: true }),
-    ],
-    { events: { 3: labeled("owner") }, permissions: PERMISSIONS },
-  );
-  const { view, intake } = await workspace(t, github).intake();
-  assert.deepEqual(intake, [2, 3]);
-  assert.ok(view.items.every((item) => item.kind === "pr" && !item.start));
-});
-
-test("a crew's claim keeps the issue under With Issue Radar, not Intake", async (t) => {
-  const github = fakeGitHub(
-    [issue(1, { labels: ["avoozl:plan", "crew: in progress"] })],
-    { events: { 1: labeled("owner") }, permissions: PERMISSIONS },
-  );
   const result = await workspace(t, github).intake();
   assert.deepEqual([result.intake, result.withRadar], [[], [1]]);
 });
@@ -306,16 +186,14 @@ test("the plan-me hand-off still routes by scope (PR 67)", async (t) => {
 });
 
 test("Plan this starts a planner chat and records the issue as the source", async (t) => {
-  const github = fakeGitHub([issue(7, { labels: ["avoozl:plan"] }), issue(8)], {
-    events: { 7: labeled("owner") },
-    permissions: PERMISSIONS,
-  });
+  const github = fakeGitHub(
+    [issue(7), issue(8, { labels: ["crew: in progress"] })],
+    {
+      permissions: PERMISSIONS,
+    },
+  );
   const { ops, store, intake } = workspace(t, github);
   await intake();
-  const row = (await ops.execute("untriaged.view", {})).items.find(
-    (item) => item.number === 7,
-  );
-  assert.deepEqual(row.start, { plan: true, deliver: false });
   const result = await ops.execute("untriaged.plan", {
     repository: REPO,
     number: 7,
@@ -327,7 +205,7 @@ test("Plan this starts a planner chat and records the issue as the source", asyn
     repository: REPO,
     number: 7,
   });
-  // A plain issue is not in Intake, so it cannot be planned from here.
+  // An issue a crew holds is not in Untriaged, so it cannot be planned here.
   await assert.rejects(
     ops.execute("untriaged.plan", { repository: REPO, number: 8 }),
     /not in Intake/,
@@ -340,10 +218,7 @@ test("Plan this starts a planner chat and records the issue as the source", asyn
 });
 
 test("Plan this names the workspace repository when its id is not owner/name", async (t) => {
-  const github = fakeGitHub([issue(7, { labels: ["avoozl:plan"] })], {
-    events: { 7: labeled("owner") },
-    permissions: PERMISSIONS,
-  });
+  const github = fakeGitHub([issue(7)], { permissions: PERMISSIONS });
   const { ops, store, intake } = workspace(t, github, {}, { projectId: "app" });
   await intake();
   await ops.execute("untriaged.plan", { repository: REPO, number: 7 });
@@ -356,10 +231,7 @@ test("Plan this names the workspace repository when its id is not owner/name", a
 });
 
 test("Plan this is a person's: an agent or MCP caller is refused", async (t) => {
-  const github = fakeGitHub([issue(7, { labels: ["avoozl:plan"] })], {
-    events: { 7: labeled("owner") },
-    permissions: PERMISSIONS,
-  });
+  const github = fakeGitHub([issue(7)], { permissions: PERMISSIONS });
   const { ops, store, intake } = workspace(t, github);
   await intake();
   for (const context of [{ mcp: true }, { caller: { sessionKey: "x" } }])
@@ -380,15 +252,5 @@ test("Plan this is a person's: an agent or MCP caller is refused", async (t) => 
   assert.equal(
     principalAllows({ kind: "agent-tool" }, "untriaged.plan"),
     false,
-  );
-});
-
-test("Plan this refuses a repository whose coder is the worker", async (t) => {
-  const github = fakeGitHub([issue(1)]);
-  const { ops, intake } = workspace(t, github, { coder: "worker" });
-  await intake();
-  await assert.rejects(
-    ops.execute("untriaged.plan", { repository: REPO, number: 1 }),
-    /does not use Issue Radar/,
   );
 });
