@@ -63,6 +63,8 @@ export function driverState(replay) {
     driver: null,
     controls: new Map(),
     intents: new Map(),
+    offers: [],
+    claims: [],
     voided: new Set(),
     outcomes: [],
     ignored: [],
@@ -83,6 +85,8 @@ export function driverState(replay) {
         state.controls.set(entry.id, entry.flag);
     else if (record.kind === "intent")
       state.intents.set(record.op, { id, ...record });
+    else if (record.kind === "offer") state.offers.push({ id, ...record });
+    else if (record.kind === "claim") state.claims.push({ id, ...record });
     else if (record.kind === "void") state.voided.add(record.voids);
     else if (record.kind === "outcome")
       for (const entry of record.outcomes) {
@@ -128,7 +132,7 @@ export const heldTasks = (state) =>
     ),
   );
 
-const openControls = (state) =>
+export const openControls = (state) =>
   [...state.controls]
     .filter(([, flag]) => STOPPING.has(flag))
     .map(([id]) => id);
