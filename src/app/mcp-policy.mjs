@@ -63,6 +63,10 @@ export const PERSON_ONLY = new Map([
     "session.send",
     person("Only a person sends a message to a process session."),
   ],
+  [
+    "session.open",
+    person("Only a person opens a session, in the Avoozl page."),
+  ],
   ["task.summary.request", person("Only a person asks for a task summary.")],
   ["task.manual.reopen", person("Only a person reopens a manual task.")],
   ["task.notes.edit", person("Only a person edits a link.")],
@@ -300,6 +304,10 @@ export const NOT_ON_MCP = new Map([
     name,
     "The app page shows and renames this install's display name; a chat has no use for it.",
   ]),
+  [
+    "session.view",
+    "The standalone page's process view of a session it opened; agents have the worker tools.",
+  ],
   [
     "panel.view",
     "The chat side panel's one read; its parts are each on MCP already.",

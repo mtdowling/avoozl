@@ -13,6 +13,7 @@ import { SectionHeading } from './ui/controls.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { MODE_TEXT, STATE_LABEL, capacityText, nextSteps, releaseClient, type QueueRepository, type QueueRow, type RowState } from './release-api.ts'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
 
 const VARIANT: Record<RowState, BadgeVariant> = { released: 'success', claimed: 'info', next: 'wave', held: 'warning' }
 
@@ -24,15 +25,15 @@ function Row({ row, held }: { row: QueueRow; held?: string }) {
         <Badge variant={VARIANT[row.state]}>{STATE_LABEL[row.state]}</Badge>
       </span>
       <span className="min-w-0 text-sm sm:w-1/3" style={{ overflowWrap: 'anywhere', flex: '1 1 220px' }}>
-        <span className="font-medium">{row.title}</span> <Hint size="xs">{row.taskId}</Hint>
+        <Box as="span" weight="medium">{row.title}</Box> <Hint size="xs">{row.taskId}</Hint>
         <span className="text-xs text-muted" style={{ display: 'block' }}>{row.phase}</span>
       </span>
       <span className="min-w-0 flex-1 text-sm text-muted" data-release-reason style={{ overflowWrap: 'anywhere', flex: '2 1 240px' }}>
         {row.reason}
         {held && (
-          <span className="block text-xs" data-sub-issue>
+          <Box as="span" block size="xs" data-sub-issue>
             {held}
-          </span>
+          </Box>
         )}
       </span>
     </li>
@@ -53,7 +54,7 @@ function Repository({ repository, onStep, busy, held }: { repository: QueueRepos
       {steps.map((step) => (
         <div key={step.planId} data-release-step className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: 8 }}>
           <span className="min-w-0 flex-1" style={{ overflowWrap: 'anywhere' }}>
-            Step is waiting for {step.spec ?? step.planId}, phase <span className="font-medium">{step.title}</span>.
+            Step is waiting for {step.spec ?? step.planId}, phase <Box as="span" weight="medium">{step.title}</Box>.
           </span>
           <Btn type="button" primary disabled={busy} onClick={() => onStep(step.planId)}>
             Release {step.title}
@@ -101,7 +102,7 @@ export default function ReleaseQueue(props: { workspaceId: string | null; onOpen
   // No repository yet: the card stays and says what to set up.
   if (value && !value.repositories.length && !error)
     return (
-      <div data-release-queue data-release-empty className="h-full">
+      <Box data-release-queue data-release-empty hFull>
         <Card className="flex h-full flex-col gap-2">
           <SectionHeading title="Release queue" className="mb-0" />
           <Hint as="p" size="sm">
@@ -115,11 +116,11 @@ export default function ReleaseQueue(props: { workspaceId: string | null; onOpen
             </div>
           )}
         </Card>
-      </div>
+      </Box>
     )
   if (!value && !error) return null
   return (
-    <div data-release-queue className="h-full">
+    <Box data-release-queue hFull>
     <Card className="flex h-full flex-col gap-3" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <SectionHeading title="Release queue" className="mb-0" />
       <Hint as="p" size="xs">In the order the tick releases them. Each held task says why.</Hint>
@@ -133,6 +134,6 @@ export default function ReleaseQueue(props: { workspaceId: string | null; onOpen
         <Repository key={repository.repository} repository={repository} onStep={(planId) => void step(planId)} busy={busy} held={value.held} />
       ))}
     </Card>
-    </div>
+    </Box>
   )
 }

@@ -15,6 +15,7 @@ import { linkHref } from './views-api.ts'
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
+import { Box } from './ui/Box'
 
 const model = (requested: string | null, served: string | null) =>
   `asked ${requested ?? 'agent default'}${served ? `, ran ${served}` : ''}`
@@ -26,7 +27,7 @@ export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => vo
   return (
     <ul className={`flex flex-col gap-1 ${props.compact ? 'text-xs' : 'text-sm'}`} data-review-runs>
       {runs.map((run) => (
-        <li key={run.key} className="flex flex-wrap items-center gap-1.5">
+        <Box key={run.key} as="li" flex flexWrap items="center" gap="1.5">
           <Badge variant={run.live ? 'info' : undefined}>{run.role}</Badge>
           <span>round {run.round}</span>
           <Hint>· {model(run.requested, run.served)}</Hint>
@@ -35,7 +36,7 @@ export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => vo
           ) : (
             <Hint>· {run.live ? 'reviewing' : (run.status ?? 'no verdict')}</Hint>
           )}
-          <span className="ml-auto flex flex-wrap items-center gap-1.5">
+          <Box as="span" ml="auto" flex flexWrap items="center" gap="1.5">
             {run.link && (
               <a
                 href={linkHref(run.link)}
@@ -47,8 +48,8 @@ export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => vo
               </a>
             )}
             {props.onInfo && <IconBtn icon={DetailsIcon} label={`Details of ${run.role} round ${run.round}`} tooltip="Open the task's details" onClick={props.onInfo} />}
-          </span>
-        </li>
+          </Box>
+        </Box>
       ))}
     </ul>
   )
@@ -97,7 +98,7 @@ export function HandSetReview(props: {
       className={`flex flex-col gap-2 rounded border p-2 ${props.compact ? 'text-xs' : 'text-sm'}`}
       style={{ borderColor: 'color-mix(in srgb, var(--warn, var(--muted)) 55%, var(--border))' }}
     >
-      <span className="font-medium">{noSessionLabel(task.noSession)}</span>
+      <Box as="span" weight="medium">{noSessionLabel(task.noSession)}</Box>
       {task.nextAction ? (
         <span>
           <Hint>Next: </Hint>
@@ -106,7 +107,7 @@ export function HandSetReview(props: {
       ) : (
         <Hint>No next action recorded.</Hint>
       )}
-      <div className="flex flex-wrap gap-1.5">
+      <Box flex flexWrap gap="1.5">
         <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat about this task. It changes nothing." onClick={() => void chat.ask({ tasks: [task.id] })}>
           Discuss
         </IconLabel>
@@ -130,7 +131,7 @@ export function HandSetReview(props: {
             Info
           </IconLabel>
         )}
-      </div>
+      </Box>
       {confirming && done && (
         <Row role="group" aria-label="Confirm mark done" gap={2} data-confirm-done>
           <span>Mark {task.title} {done}? Tasks that wait on it may start. Edit can set it back.</span>

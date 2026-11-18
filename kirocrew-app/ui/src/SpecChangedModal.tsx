@@ -10,6 +10,7 @@ import { ACTION_LABEL, ISSUE_STATE_LABEL, projectionClient, writing, type SpecCh
 import { errorMessage } from './workspace-api.ts'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 type Client = ReturnType<typeof projectionClient>
 
@@ -61,7 +62,7 @@ export function SpecChangedModal(props: { workspaceId: string; client: Client; p
         </>
       }
     >
-      <div className="flex flex-col gap-3 text-sm">
+      <Box flex flexCol gap="3" size="sm">
         {error && (
           <p role="alert" style={{ color: 'var(--danger)' }}>
             {error}
@@ -76,9 +77,9 @@ export function SpecChangedModal(props: { workspaceId: string; client: Client; p
               <Stack as="ul" gap={2} data-change-rows>
                 {change.rows.map((row) => (
                   <li key={row.taskId} className="flex flex-col gap-0.5 border-b pb-2" style={{ borderColor: 'var(--border)' }}>
-                    <span className="break-words">
+                    <Box as="span" breakWords>
                       <code>{row.taskId}</code> {row.title} <Badge>{row.change}</Badge>
-                    </span>
+                    </Box>
                     <Hint>
                       {row.number ? `#${row.number} ` : ''}
                       {ISSUE_STATE_LABEL[row.issueState]} · {ACTION_LABEL[row.action]}. {row.text}
@@ -89,7 +90,7 @@ export function SpecChangedModal(props: { workspaceId: string; client: Client; p
             )}
           </>
         )}
-      </div>
+      </Box>
     </Modal>
   )
 }

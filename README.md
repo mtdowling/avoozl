@@ -556,7 +556,11 @@ page inside Kiro Crew match when the installed Kiro Crew is the pinned release.
 or bind option; `--host`, `--bind` and `AVOOZL_HOST` refuse to start) and prints a
 one-time owner link that signs one browser in; `avoozl serve link` prints another
 for the running server. The page works with the Kiro Crew parts it was built on;
-Open chat and the "Needs Kiro Crew" states are not built yet.
+Without Kiro Crew, a button that opens a chat opens a Start a session dialog instead: Start runs the
+message as a read-only `assist` session on a harness approved on this machine, and the dialog then shows
+its log, cost, a Send message box and an attach command. Features that need Kiro Crew say "Needs Kiro Crew".
+Settings › Workspaces has a Notifications box (browser notices for new Needs you items, off until you turn
+them on).
 On a headless machine, set `serve.enabled` (and optionally a fixed `serve.port`) in the
 machine file `config.json`: the supervisor then runs the server as a child, restarts it
 on the same port, and prints no link (run `avoozl serve link` at that machine's shell).
