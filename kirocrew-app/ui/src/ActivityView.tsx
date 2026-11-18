@@ -1,3 +1,4 @@
+// Probe comment for CI timing.
 // The Activity tab (design §4.19, R71): who did what in this workspace, from
 // the page, the CLI, MCP, GitHub and plugin sync, newest first, 100 rows at a
 // time. A task row opens the drawer; a GitHub row opens GitHub in a new tab.
