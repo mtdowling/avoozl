@@ -18,7 +18,7 @@ function pageOperations() {
   return [...names].filter((name) => !name.startsWith('demo.') && !name.startsWith('workspaces.') && !/\.(tsx?|mjs|json|md)$/.test(name))
 }
 
-export async function demoReplies() {
+export async function demoReplies({ plan } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'avoozl-demo-ui-'))
   const { root } = await installDemo(path.join(tmp, 'demo'))
   const demo = demoOperations(root)
@@ -35,6 +35,11 @@ export async function demoReplies() {
     // A task's drawer, opened from the Graph.
     replies['demo.fixtures'] = await demo.fixtures()
     replies['task.detail'] = await demo.execute('task.detail', { id: 'recipe-import.2.1' })
+    // One spec's plan.get, with fields laid over it (the Links box shots).
+    if (plan) {
+      replies['plan.get'] = { ...(await demo.execute('plan.get', { id: plan.id })), ...plan.with }
+      replies['plan.preview'] = await demo.execute('plan.preview', { id: plan.id })
+    }
   } finally {
     demo.close()
     fs.rmSync(tmp, { recursive: true, force: true })
