@@ -206,7 +206,14 @@ turn on Autopilot, Avoozl's name for delivery, with the `delivery` block in
 `.avoozl.json`:
 
 ```json
-{ "delivery": { "concurrency": 1 } }
+{ "delivery": {} }
+```
+
+How many worker chats run at once is this machine's `lanes.local` (default
+3), set in `~/.config/avoozl/config.json`:
+
+```json
+{ "version": 1, "lanes": { "local": 1 } }
 ```
 
 A local worker needs nothing more: it works in the worktree its brief names

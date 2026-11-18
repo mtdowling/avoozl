@@ -340,7 +340,19 @@ limits I set, so that I do not file, start, or chase routine work.
    met its completion condition, and no conflict or human decision is open.
 2. WHEN a leaf becomes ready and capacity allows THEN Avoozl SHALL dispatch it
    without a manual step.
-3. Concurrency SHALL be bounded per workspace and per repository.
+3. Concurrency SHALL have exactly two settings: `lanes.local` in the machine
+   file (`~/.config/avoozl/config.json`), how many worker chats this machine
+   runs at once (default 3), and Release N (`release.capacity`), how many
+   issues a repository releases at once. (Changed 2026-11-18, simplification
+   audit F1 and F2: it was bounded per workspace and per repository.) Older
+   keys SHALL be read as old input only and never written:
+   `delivery.concurrency`, then `lanes.local` in `.avoozl.json`, count as this
+   machine's lanes when the machine file sets none; per-repository
+   `delivery.repositories.*.concurrency`, `github.repositories.*.concurrency`,
+   and the host and workspace `maxConcurrentRuns` SHALL be ignored. A file
+   that sets them SHALL load with no error or warning. Settings › Workspaces
+   SHALL NOT show an "Agents at once" field, and `avoozl workspace
+   concurrency` SHALL NOT exist, because nothing enforced them.
 4. WHEN a leaf needs several internal steps THEN Avoozl MAY run it through Task
    Runner, and those steps SHALL NOT become Avoozl tasks.
 5. WHEN several independent ready leaves exist and Crew Mode is enabled THEN
@@ -677,7 +689,7 @@ so that two stores never disagree.
 
 ### Requirement 20: The Avoozl app
 
-**Status 2026-11-18.** The page has seven nav entries, not six views: Dashboards (Home, Graph, Delivery, CI, Landing queue), Specs, Needs you (Decisions, Triage, Issue Radar), Flow, Retros (Retros, Proposals), Activity and Settings (Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery). Criterion 1 is read that way.
+**Status 2026-11-18.** The page has seven nav entries, not six views: Dashboards (Home, Graph, Delivery, Landing queue), Specs, Needs you (Decisions, Triage, Issue Radar), Flow, Retros (Retros, Proposals), Activity and Settings (Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery). Criterion 1 is read that way. The Dashboards › CI page is hidden until it is built (owner, 2026-11-18, simplification audit item 10); Flow shows CI, and an old CI link opens Flow.
 
 **User story:** As a developer, I want one Avoozl page in Kiro Crew with clear
 views, so that I see my graph and its delivery without leaving Kiro Crew.
@@ -898,8 +910,8 @@ it on Kiro Crew and Issue Radar and reuses no outside code, skills, or text.
    between children, show the preview, and publish them only after approval
    (or automatically when the rule allows it, per Requirement 9).
 6. Fan-out SHALL be automatic: every child whose blockers are complete SHALL
-   receive the ready label in the same tick, up to the repository's concurrency
-   limit.
+   receive the ready label in the same tick, up to the repository's Release N
+   (Requirement 6.3).
 7. WHEN slots are scarce THEN Avoozl SHALL release ready children in a
    configurable priority order by label (for example `critical`, then `high`),
    then by graph order.
@@ -912,7 +924,7 @@ it on Kiro Crew and Issue Radar and reuses no outside code, skills, or text.
 10. Concurrency on GitHub SHALL be bounded by how many leaves Avoozl labels ready
     at once and by the number of crews configured per route, since each crew
     holds at most one item in its editing phases (F24). In plans-repo mode it
-    SHALL be bounded by the repository's worker concurrency.
+    SHALL be bounded by this machine's lanes (Requirement 6.3).
 11. WHEN a crew labels an issue as needing a human THEN Avoozl SHALL show it as a
     decision and SHALL withhold readiness from that issue's dependents.
 12. The parent issue SHALL close as completed only after every required child
@@ -1406,11 +1418,12 @@ reaches the integration branch or a dependent task.
 
 #### Acceptance criteria
 
-1. One writer per repository at a time SHALL be expressed by setting that
-   repository's delivery concurrency to 1 (Requirement 6.3), because two
-   writers in one repository would conflict. Review and check sessions only
-   read, so they SHALL NOT count against that limit. Avoozl SHALL add no
-   second writer limit.
+1. Review and check sessions only read, so they SHALL NOT count against
+   this machine's lanes (Requirement 6.3). Avoozl SHALL add no separate
+   writer limit. (Changed 2026-11-18: one writer per repository was a
+   per-repository concurrency of 1. That key is now ignored, because every
+   task writes in its own worktree and landing merges one head at a time;
+   `lanes.local: 1` still gives one writer on the machine.)
 2. A repository's delivery policy MAY name review roles. Each role SHALL have
    a unique `id`, a `focus` (for example "conventions", or "correctness and
    performance"), the agent that runs it, and a `distinctFrom` rule. Two
@@ -1672,7 +1685,7 @@ public or shared repositories cannot leak what the company keeps private.
 
 ### Requirement 41: Crew placement
 
-**Status 2026-11-18.** The routing prompt, the routing agent chat and the remote relay (41.16–41.24) were removed (#282, task 45.3). Placement keeps manifest pins, capacity and provider hard checks (`src/app/routing.mjs`). `plans_relay` answers "Remote relay was removed". Treat the criteria about the prompt and the relay as history.
+**Status 2026-11-18.** Retired. The routing prompt, the routing agent chat and the remote relay (41.16–41.24) were removed first (#282, task 45.3). Crew placement itself was then retired (owner, 2026-11-18, simplification audit item 9, F20): every session Avoozl opens runs on this machine, on the executor its harness names (Requirement 98). The `avoozl routing` and `avoozl crews set` commands and the `routing.view`, `routing.preview`, `routing.update`, `routing.retry`, `routing.turnOff` and `crews.update` operations answer that routing was retired. The machine file's `crews`, `crewStaleSeconds` and `routing` keys are ignored silently. No-fit decisions, routing marks and the routing-failed Needs you item are gone. What stays: a manifest `session` pin for agent, model and harness (Requirement 53), the provider check that holds a worker whose model is out (Requirement 72), and the spec driver lock (Requirement 66). Lanes is the only cap on how many chats this machine runs. `plans_relay` answers "Remote relay was removed". Treat every criterion below as history.
 
 Added 2026-11-12 (owner request). Design §4.10. Written against the Avoozl
 branch `kirocrew-native` at `0a7ef2d` and Kiro Crew 0.12.2 (design F75–F84).
@@ -1900,7 +1913,7 @@ user-facing work never leaves this machine.
 
 ### Requirement 42: Routing page
 
-**Status 2026-11-18.** Removed. There is no Routing page and no Settings › Routing section (#153); `redirectSettings` sends an old link to Repository setup. Criterion 88.7 says the same.
+**Status 2026-11-18.** Removed. There is no Routing page and no Settings › Routing section (#153); `redirectSettings` sends an old link to Repository setup. Criterion 88.7 says the same. The CLI and operations behind it were retired with crew placement (Requirement 41 status).
 
 Added 2026-11-12 (owner request). Design §8.3. Changed 2026-11-13 (owner
 decision): Routing moves into Settings, and the rule builder, presets,
@@ -2393,6 +2406,9 @@ and the Untriaged reader onto the record without changing what they do.
    its work lands in, and optional `labelFields`, `assigneeField`,
    `allowedActors`, and `minimumPermission`. Settings SHALL warn before
    saving a source into a `.avoozl.json` in a public repository.
+   (Changed 2026-11-18, Requirement 110: GitHub repositories are declared
+   here too, as `via: "github"`, and `github.issueIntake` and
+   `github.queue` are retired into this list.)
 7. A tracker plugin MAY declare the `poll` capability and implement
    `poll({cursor, limit})`, returning `{items, cursor, more}`. The tick
    cron SHALL call it at most once per source per tick with the stored
@@ -2621,6 +2637,8 @@ crew's label or close is the owner. An app token reaches Issue Radar's `GET /cre
 
 ### Requirement 53: Agent and model per task
 
+**Status 2026-11-18.** Crew placement is retired (Requirement 41 status). The writer's agent and model come from the manifest task's `session` pin, then the repository's and the workspace's `delivery` settings, then Kiro Crew's default agent and `auto` (criterion 3 without the routing agent). A pinned model that is `out` is replaced by a person's Switch model replacement, else the task waits (Requirement 72.5). `session.crew` and `needs` are refused when a plan is written, because only this machine runs work. A retry keeps its last model only for a feedback round or an interrupted attempt, as it did with routing off. Criteria 4, 5, 8, 9's crew names, 11 and Pick again in 6 are history. The reviewer side of criterion 7 stays: a review never runs on the writer's model under `distinctFrom: model`.
+
 Added 2026-11-13 (owner request). Design §4.10 "Agent and model per
 session". Extends Requirements 41 and 42.
 
@@ -2801,7 +2819,9 @@ setting or runs until someone on that computer has seen it and approved it.
    `requiredChecks`, `priority`, `managedLabels`, and `concurrency`;
    `project` `fields` and `statusValues`; `epicIssueType`; `contentRules`
    `sets` as references only; `delivery` `reviewers` (review roles),
-   `agent`, `model`, `runner`, and `concurrency`; and `flow`. Every value
+   `agent`, `model`, `runner`, and `concurrency`; and `flow`. Both
+   `concurrency` keys SHALL be accepted so an old pack imports, and SHALL
+   write nothing (Requirement 6.3; changed 2026-11-18). Every value
    SHALL pass the validator Settings uses for that key. Any other key, a
    credential-like key, or anything that could hold a content rule SHALL
    be refused with an error naming the key, and the plugin SHALL show as
@@ -4647,8 +4667,8 @@ instead of a stuck chat.
    lease expired.
 5. More lanes SHALL come from worker machines (Requirement 90). (Changed
    2026-11-18: the owner dropped the 50% CPU rule and the fixed three lanes
-   as requirements. In code, `lanes.local`, default 3, still seeds
-   `delivery.concurrency`; it is a setting.)
+   as requirements. `lanes.local`, default 3, is a setting in the machine
+   file, Requirement 6.3.)
 6. Prepare SHALL use the approved `scripts/worktree` helper
    (`createWorktree`, `src/app/git.mjs`), which today has no caller.
    Avoozl SHALL remove a task's worktree and its local branch after the
@@ -5063,6 +5083,31 @@ Avoozl page, whatever harness runs it, so that I never need another UI.
 4. A task's `session` pin MAY name a harness.
 5. A headless machine SHALL get only the CLI: `avoozl status` and
    `avoozl runner status --json`. Avoozl SHALL host no other UI.
+
+Added 2026-11-18 (owner approval of the simplification audit, item 8 and
+F7 in `docs/simplification-audit.md`): one roles table. Today a role's
+model is picked in seven places, and the worker's is on Settings ›
+Delivery while the others are on Settings › Models.
+
+6. `.avoozl.json` SHALL hold one `roles` table with one row per role:
+   `worker`, `falsifier`, `planner`, `planReviewer`, `retro` and
+   `reviewDraft`. A row MAY set `harness` and `model`; the `worker` and
+   `falsifier` rows MAY also set `agent`. A missing key or `auto` keeps
+   that role's default.
+7. Settings › Models SHALL be the only page that picks a role's harness,
+   agent or model. Settings › Delivery SHALL keep only delivery choices.
+8. Avoozl SHALL read the older keys into the table silently, with no
+   warning: `models.<role>`, `harnesses.<role>`, `delivery.agent`,
+   `delivery.model`, `delivery.investigate.agent`,
+   `delivery.investigate.model` and `flow.retro.model`. A `roles` value
+   SHALL win over an older key.
+9. Saving Settings › Models SHALL write `roles` and remove the older keys
+   of criterion 8 from the same file.
+10. A task's `session` pin SHALL still win over its role's row. The
+    existing checks SHALL hold against the table: a named plan reviewer
+    model differs from a named planner model, and a review role with
+    `distinctFrom: model` needs a named worker model that differs from its
+    own.
 
 ### Requirement 99: Cross-model plan review
 
@@ -6067,3 +6112,73 @@ approval does not wait on me or drag in specs nobody asked about.
    delegation; a mismatched `approvedBy` refused; revocation refusing the
    next approval and keeping history; an approval pull request carrying the
    delegation through its merge; and the CLI flow from an agent session.
+
+### Requirement 110: One intake list
+
+Added 2026-11-18 (owner decision on `docs/simplification-audit.md` item 6
+and F5). Design §4.39. Changes Requirement 50.6 and the issue intake part
+of Requirement 10; keeps Requirements 49, 52 and 103.8 to 103.11.
+
+The owner's words, in short: one intake list. Five paths turn an issue into
+work today. Retire `github.issueIntake` and `github.queue` into
+`intake.sources`, so every source is one entry there.
+
+**User story:** As the owner, I want every place work comes in from listed
+once under `intake.sources`, so that I read and change intake in one place.
+
+#### Acceptance criteria
+
+1. `intake.sources` SHALL accept `via: "github"` beside `plugin:<id>` and
+   `mcp`. A GitHub source names the GitHub `repository` (owner/name) and
+   SHALL carry the keys `github.issueIntake` held: `project` (the execution
+   project), optional `workspaceRepository` when it differs from `project`,
+   `label` (default `avoozl:ready`), optional `managedLabel`, `assignee`,
+   `autoStart`, `provider`, `model`, `allowedActors` and
+   `minimumPermission` (default `write`). `labelFields` and
+   `assigneeField` SHALL be refused on a GitHub source, and the GitHub
+   keys SHALL be refused on a plugin or MCP source.
+2. A GitHub source SHALL live in `.avoozl.json`, as `github.issueIntake`
+   did. One declared in this machine's settings SHALL be listed with the
+   reason it is not used. At most one GitHub source SHALL name a GitHub
+   repository.
+3. `github configure`, `github.project.connect` and Repository setup's
+   "issues here" SHALL write a GitHub source and SHALL NOT write
+   `github.issueIntake` or `github.queue`. Removing a repository or
+   turning its issues off SHALL remove its GitHub source.
+4. An old `github.issueIntake` entry SHALL load as the GitHub source it
+   describes, with an id `github-<owner>-<name>` (lowercase; other
+   characters as `-`; a number added on a clash), and an entry with
+   `enabled: false` SHALL load as no source. An old `github.queue` SHALL be
+   accepted and ignored: it never let anyone start work, so it SHALL NOT
+   become a source that does. Neither SHALL warn, fail a load or a save, or
+   mark settings as needing apply.
+5. The first time Avoozl's settings writer (Repository setup, Settings and
+   Intake sources) writes `.avoozl.json` after loading old keys, it
+   SHALL move every `github.issueIntake` entry into `intake.sources` and
+   drop `github.issueIntake` and `github.queue`, in the same write. A
+   file Avoozl does not write SHALL keep loading as in criterion 4.
+6. A GitHub source SHALL be applied as `github.issueIntake` was: the
+   `github_repositories` record and `github sync` keep their behavior,
+   and the repository's `github.repositories` rules still replace its
+   single label (Requirements 10 to 12). GitHub items SHALL keep source
+   `github`; a rule's `source:` term SHALL still name only plugin and MCP
+   sources (Requirement 50.11).
+7. Settings › Plugins › Intake sources SHALL list each GitHub source as one
+   entry in the same box as every other source, with its repository,
+   label, assignee, who counts and whether it starts on its own, and SHALL
+   name the repository's Issue Radar escalation label when it has one. A
+   GitHub source is changed in Repository setup, so its entry SHALL link
+   there instead of offering Remove. The Add dialog SHALL stay for plugin
+   and MCP sources. The built-in GitHub box SHALL stay as the reader of
+   Triage: what no source covers.
+8. Issue Radar intake (56.8), Radar escalations in Triage (56.14) and Radar
+   back-links (44.6) SHALL keep working for a repository whose GitHub
+   source came from an old `github.issueIntake` entry and for one written
+   as a source.
+9. Tests SHALL cover: each kind's keys and refusals; an old
+   `github.issueIntake` loaded as a source with no warning and no apply
+   flag; an old `github.queue` ignored; the one-time move on the next
+   write; `github configure` and Repository setup writing a source; and
+   Radar intake, escalations and back-links on a migrated repository.
+   Screenshots of Intake sources (phone and desktop, light and dark),
+   before and after, SHALL be checked outside git; no image is committed.

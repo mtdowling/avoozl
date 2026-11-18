@@ -23,8 +23,6 @@ export const hostConfigSchemaPath = fileURLToPath(
 );
 
 const WORKSPACE_ID = /^[a-z][a-z0-9-]{0,60}$/;
-const DEFAULT_WORKSPACE_CONCURRENCY = 2;
-const DEFAULT_HOST_CONCURRENCY = 4;
 const ACTIVE_RUN_STATES = new Set([
   "queued",
   "starting",
@@ -188,12 +186,8 @@ function normalizeWorkspace(id, value, { validatePaths = false } = {}) {
     root = fs.realpathSync.native(root);
   }
   const enabled = value.enabled !== false;
-  const maxConcurrentRuns =
-    value.maxConcurrentRuns ?? DEFAULT_WORKSPACE_CONCURRENCY;
-  assertInteger(maxConcurrentRuns, `${id}.maxConcurrentRuns`, {
-    minimum: 0,
-    maximum: 64,
-  });
+  // An old `maxConcurrentRuns` is ignored and dropped: lanes in the machine
+  // file are the one limit (R6.3).
   const name = value.name || id;
   if (typeof name !== "string" || !name.trim() || name.length > 160)
     throw Error(`${id}.name must be 1–160 characters.`);
@@ -201,7 +195,6 @@ function normalizeWorkspace(id, value, { validatePaths = false } = {}) {
     root,
     name: name.trim(),
     enabled,
-    maxConcurrentRuns,
     repositories: normalizeRepositories(value.repositories, root, {
       validatePaths,
     }),
@@ -233,11 +226,6 @@ export function normalizeHostConfig(
   assertSafeConfig(value, source);
   const port = value.port ?? 9428;
   assertInteger(port, "port", { minimum: 0, maximum: 65535 });
-  const maxConcurrentRuns = value.maxConcurrentRuns ?? DEFAULT_HOST_CONCURRENCY;
-  assertInteger(maxConcurrentRuns, "maxConcurrentRuns", {
-    minimum: 1,
-    maximum: 256,
-  });
   if (value.workspaces != null && !record(value.workspaces))
     throw Error("workspaces must be an object.");
   const workspaces = Object.fromEntries(
@@ -259,13 +247,14 @@ export function normalizeHostConfig(
       Object.keys(workspaces)[0] ||
       null;
   }
+  // An old host `maxConcurrentRuns` is ignored and dropped (R6.3).
+  const { maxConcurrentRuns: _ignored, ...rest } = value;
   return {
-    ...value,
+    ...rest,
     $schema: savedSchemaUrl(value.$schema, HOST_CONFIG_SCHEMA_URL),
     version: 1,
     host: value.host || "127.0.0.1",
     port,
-    maxConcurrentRuns,
     defaultWorkspace,
     workspaces,
   };
@@ -529,7 +518,6 @@ export class WorkspaceRegistry {
     return {
       host: this.config.host,
       port: this.config.port,
-      maxConcurrentRuns: this.config.maxConcurrentRuns,
       defaultWorkspace: this.config.defaultWorkspace,
       configPath: this.configPath,
       catalogPath: this.catalogPath,
@@ -590,16 +578,7 @@ export class WorkspaceRegistry {
     return candidate;
   }
 
-  add(
-    id,
-    {
-      root,
-      name,
-      enabled = true,
-      maxConcurrentRuns = DEFAULT_WORKSPACE_CONCURRENCY,
-      repositories = {},
-    } = {},
-  ) {
+  add(id, { root, name, enabled = true, repositories = {} } = {}) {
     assertWorkspaceId(id);
     if (this.config.workspaces[id])
       throw Error(`Workspace ${id} is already registered.`);
@@ -610,7 +589,6 @@ export class WorkspaceRegistry {
         root,
         name,
         enabled,
-        maxConcurrentRuns,
         repositories,
       },
       { validatePaths: true },
@@ -650,16 +628,7 @@ export class WorkspaceRegistry {
     return { ...this.get(id), receipt: saved.receipt };
   }
 
-  adopt(
-    id,
-    {
-      root,
-      name,
-      enabled = true,
-      maxConcurrentRuns = DEFAULT_WORKSPACE_CONCURRENCY,
-      repositories = {},
-    } = {},
-  ) {
+  adopt(id, { root, name, enabled = true, repositories = {} } = {}) {
     assertWorkspaceId(id);
     if (!root) throw Error("Choose a workspace root.");
     const candidate = normalizeWorkspace(
@@ -668,7 +637,6 @@ export class WorkspaceRegistry {
           root,
           name,
           enabled,
-          maxConcurrentRuns,
           repositories,
         },
         { validatePaths: true },
@@ -759,11 +727,10 @@ export class WorkspaceRegistry {
     };
   }
 
-  // A person's edit of one workspace: its name, its folder, and how many
-  // runs it may hold. A new folder must already hold this workspace (its
+  // A person's edit of one workspace: its name and its folder. A new folder must already hold this workspace (its
   // .avoozl.json and database, as after a move), so an edit never points a
   // workspace at an empty or another workspace's folder.
-  update(id, { name, root, maxConcurrentRuns } = {}) {
+  update(id, { name, root } = {}) {
     this.get(id);
     const registered = this.config.workspaces[id],
       value = { ...registered };
@@ -772,8 +739,6 @@ export class WorkspaceRegistry {
         throw Error("Give the workspace a name.");
       value.name = name;
     }
-    if (maxConcurrentRuns !== undefined)
-      value.maxConcurrentRuns = Number(maxConcurrentRuns);
     const moved =
       root !== undefined &&
       !(fs.existsSync(root) && sameRealPath(root, registered.root));
@@ -803,7 +768,6 @@ export class WorkspaceRegistry {
     const saved = this.save(next, "update", id, {
       name: candidate.name,
       root: candidate.root,
-      maxConcurrentRuns: candidate.maxConcurrentRuns,
       ...(moved ? { previousRoot: registered.root } : {}),
     });
     return { ...this.get(id), receipt: saved.receipt };
@@ -826,20 +790,6 @@ export class WorkspaceRegistry {
     const saved = this.save(next, action, id);
     this.catalog.setState(id, enabled ? "closed" : "stopped");
     return { ...this.get(id), receipt: saved.receipt };
-  }
-
-  setConcurrency(id, limit) {
-    this.get(id);
-    limit = Number(limit);
-    assertInteger(limit, "Workspace concurrency", { minimum: 0, maximum: 64 });
-    const next = structuredClone(this.config);
-    next.workspaces[id].maxConcurrentRuns = limit;
-    const saved = this.save(next, "set-concurrency", id, { limit });
-    return {
-      ...this.get(id),
-      dispatchPaused: limit === 0,
-      receipt: saved.receipt,
-    };
   }
 
   drain(id) {

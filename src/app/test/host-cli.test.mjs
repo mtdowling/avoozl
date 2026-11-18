@@ -65,17 +65,12 @@ test("workspace CLI registers, controls, lists, and removes a workspace", () => 
     env,
   );
   assert.equal(added.id, "cli-workspace");
-  assert.equal(added.maxConcurrentRuns, 3);
-
-  const paused = invoke(
-    ["workspace", "concurrency", "cli-workspace", "0"],
-    env,
-  );
-  assert.equal(paused.dispatchPaused, true);
+  // The old flag still runs and sets nothing (R6.3).
+  assert.equal("maxConcurrentRuns" in added, false);
 
   const status = invoke(["status"], env);
   assert.equal(status.defaultWorkspace, "cli-workspace");
-  assert.equal(status.workspaces[0].maxConcurrentRuns, 0);
+  assert.equal("maxConcurrentRuns" in status.workspaces[0], false);
 
   const stopped = invoke(["workspace", "stop", "cli-workspace"], env);
   assert.equal(stopped.state, "stopped");

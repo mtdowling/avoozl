@@ -433,7 +433,6 @@ Since 2026-11-17 `mode` and `planningRepository` are derived from each repositor
         "allowedActors": ["maintainer-login"],
         "minimumPermission": "maintain",
         "requiredChecks": ["build", "test"],
-        "concurrency": 2,
         "dependencyText": false,
         "priority": ["critical", "high"],
         "managedLabels": {
@@ -1043,7 +1042,7 @@ allow host: \bbuild0\.corp\.example\b
 
 ### 4.10 Crew placement
 
-**Status 2026-11-18.** The routing prompt, the routing agent chat and the remote relay were removed (#282, task 45.3). `src/app/routing.mjs` keeps manifest pins, capacity and provider hard checks. Crew reads (`crews.mjs`, `crew-reader.mjs`) stay. Text below about the prompt, Pick again and the relay is history.
+**Status 2026-11-18.** Retired. The routing prompt, the routing agent chat and the remote relay were removed first (#282, task 45.3); crew placement followed (owner, 2026-11-18, simplification audit item 9). The tick no longer reads the machine file's `crews`, `crewStaleSeconds` or `routing` keys, and `src/app/routing.mjs` and `routing-health.mjs` are gone. Every session runs on this machine, on its harness's executor (§4.28). `src/app/placement.mjs` keeps only the manifest checks: a `session` pin of agent, model or harness, and a refusal of `session.crew` and `needs`. The worker's model passes the provider check in `delivery.mjs` (§4.20). The crew snapshot (`crews.mjs`, `crew-reader.mjs`) stays for the In flight view's unreachable-crew flag. The text below is history.
 
 **Proposed**, owner request 2026-11-12 (Requirement 41). The owner runs
 several Kiro Crew instances: this machine and remote crews on other
@@ -3301,7 +3300,7 @@ runner tick). This section makes that the only shape.
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Avoozl pushes and merges. Per repository: `landing: direct \| pr \| off`. It lands only after checks pass on the updated head. Never force push. Avoozl's own repository honors the owner-selected policy; do not restore its disabled required-check gate (R87.8) |
 | 2   | A vanished worker chat is resumed once, automatically, in the same worktree, only when Kiro Crew reports the chat gone. Never because it went quiet or its lease expired. A second vanish goes to Needs you       |
-| 3   | More lanes come from remote hosts. Changed 2026-11-18: the 50% CPU rule and the fixed three lanes are dropped as rules; `lanes.local` (default 3) still seeds `delivery.concurrency` as a setting                                                                                                                            |
+| 3   | More lanes come from remote hosts. Changed 2026-11-18: the 50% CPU rule and the fixed three lanes are dropped as rules; `lanes.local` (default 3) is a setting in the machine file (§4.26 Lanes)                                                                     |
 | 4   | Only runner mode skipped Kiro Crew's project folder and MCP sharing. A local worker used `leaf.project`, and `plans_report` needed MCP sharing. Phase 40 adds the CLI report and `project: false` with the worktree path in the brief |
 | 5   | Kiro Crew's push-to-main policy checks chat shell commands. The tick is not a chat. Phase 40's proof shows a tick push goes through                                                                               |
 | 6   | Nupp lands `direct` on public `core-dev` from the start, with `scripts/worktree` and `scripts/test-changed`. Plans stay in a private planning workspace. No private mirror, forwarding or leak scan for this setup; the pre-push content rule is the one leak guard. The freeze on public `core-dev` is lifted |
@@ -3368,7 +3367,24 @@ the same brief and the last report quoted as data. A quiet chat or an
 expired lease changes nothing (AGENTS.md). A second vanish for the same
 task opens a Needs you item.
 
-**Lanes, workers and ownership.** `lanes.local` (default 3) seeds `delivery.concurrency`; it is a setting, not a rule (2026-11-18).
+**Lanes, workers and ownership.** Two settings decide how much runs at once
+(Requirement 6.3, changed 2026-11-18). `lanes.local` (default 3, 0–32) in
+the machine file (`~/.config/avoozl/config.json`) is how many worker chats
+this machine runs; it describes the machine, so it is not shared through
+the repository. Release N (`github.repositories.*.release.capacity`) is how
+many issues a repository releases at once. `deliveryPolicy` sets
+`concurrency` from, in order: the machine file's `lanes.local`, the old
+`delivery.concurrency`, the old `.avoozl.json` `lanes.local`, then 3. The
+per-repository `delivery.repositories.*.concurrency` and
+`github.repositories.*.concurrency`, and the host and workspace
+`maxConcurrentRuns`, are accepted and ignored; nothing writes them, and an
+old file loads with no warning. The Workspaces "Agents at once" field and
+`avoozl workspace concurrency` are removed: a per-workspace field cannot hold
+one machine number, and nothing enforced them. Train `maxBranches` and the
+Radar crew `count` are batch sizes, not concurrency settings.
+shortcut: each workspace counts only its own live chats against the lanes,
+so two workspaces on one machine can run up to twice the lanes; count across
+the catalog once a machine serves several busy workspaces.
 Each spec has an issue-assigned driver, with an epic-assignee fallback only
 when unambiguous. Plan-less worker machines pull minimal offers, wait for a
 canonical claim reservation and generation acknowledgment, then publish task
@@ -3570,6 +3586,48 @@ session's status, log tail, cost and a copyable attach command; Send
 message queues a `send`; Settings › Models picks a harness and model per
 role; a task's `session` pin may name a harness. Headless machines have
 `avoozl status` and `avoozl runner status --json` only.
+
+**Roles table** (added 2026-11-18, R98.6 to R98.10). One `roles` object
+in `.avoozl.json` holds each role's harness, agent and model:
+
+```json
+{
+  "roles": {
+    "worker": { "harness": "claude-code", "agent": "avoozl-worker", "model": "<model>" },
+    "falsifier": { "model": "<other model>" },
+    "planner": { "model": "<model>" },
+    "planReviewer": { "model": "<other model>" },
+    "retro": { "harness": "kirocrew" },
+    "reviewDraft": {}
+  }
+}
+```
+
+| Older key                          | Row and field          |
+| ---------------------------------- | ---------------------- |
+| `models.<role>`                    | `roles.<role>.model`   |
+| `harnesses.<role>`                 | `roles.<role>.harness` |
+| `delivery.agent`, `delivery.model` | `roles.worker`         |
+| `delivery.investigate.agent/model` | `roles.falsifier`      |
+| `flow.retro.model`                 | `roles.retro.model`, below `models.retro` |
+
+`resolveRoles(config)` in `chat-models.mjs` builds the table: older keys
+first, then `roles` over them, per field. Every reader goes through it:
+`chatModel` and `roleHarness` for the chats, and the delivery policy's
+worker agent and model and its falsifier agent and model. The loader
+accepts the older keys with no warning, so old files keep working.
+Settings › Models reads and writes the table (`models.settings.get` and
+`models.settings.update`); a save writes `roles` and drops the older keys
+from that file. Settings › Delivery loses its Writer section, and its save
+keeps any older `delivery.agent` and `delivery.model` it finds, so nothing
+is lost before the first Models save.
+
+Not in the table: `delivery.reviewers[]` keep their own `agent` and
+`model`, because each review role is a list entry with its own id and
+focus, per repository. Issue Radar crews pick their own models
+(`radar.crew.models`). `github.issueIntake.*.model` is saved but never
+read, and item 6 of the audit retires that block. A task's `session`
+pin wins over every row.
 
 Proposed change, 2026-11-18 (draft, not approved): the
 `standalone-web` spec would add a second host for the same page,
@@ -5006,6 +5064,89 @@ is a grant to check, a record of who acted, and a revocation.
 
 **Tests.** `src/app/test/approval-delegation.test.mjs`.
 
+### 4.39 One intake list
+
+Added 2026-11-18 (Requirement 110; `docs/simplification-audit.md` item 6,
+F5). Changes §4.12's source list and the issue intake keys of §4.4.
+
+**Why.** Five paths turned an issue into work: `github.issueIntake` (a
+ready label, an assignee and `github sync`), `github.queue` (label
+behaviors), a repository's `rules`, `intake.sources` (plugin and MCP), and
+Triage. `github.queue` has only the settings diff left as a reader of the
+key: nothing writes its table and nothing ingests its items. `github.issueIntake` is the GitHub half of
+a source under another name. Rules and Triage stay: rules say what a match
+does, and Triage is what no source covers.
+
+**Shape.** A GitHub source is one more `intake.sources` entry:
+
+```json
+{
+  "intake": {
+    "sources": {
+      "github-example-app": {
+        "via": "github",
+        "repository": "example/app",
+        "project": "app",
+        "label": "avoozl:ready",
+        "assignee": "example-bot",
+        "autoStart": false,
+        "provider": null,
+        "model": null,
+        "allowedActors": [],
+        "minimumPermission": "write"
+      }
+    }
+  }
+}
+```
+
+| Kind | Keys only it takes | Where it may live | Read by |
+| --- | --- | --- | --- |
+| `github` | `project`, `workspaceRepository`, `label`, `managedLabel`, `assignee`, `autoStart`, `provider`, `model` | `.avoozl.json` | `github_repositories`, `github sync` |
+| `plugin:<id>` | `labelFields`, `assigneeField` | either | the tick's `poll` |
+| `mcp` | `labelFields`, `assigneeField` | either | `intake.submit` |
+
+All kinds take `repository`, `allowedActors` and `minimumPermission`.
+
+**Load.** `github-sources.mjs` owns the GitHub kind. `githubSources(value)`
+returns the file's GitHub sources by GitHub repository: each `via: github`
+entry, then each old `github.issueIntake` entry not already named, as the
+source it describes, with id `github-<owner>-<name>`. An `enabled: false`
+entry is no source. `github.queue` is not read. The settings diff
+(`desiredActions`, `appliedActions` in `repository-settings.mjs`) compares
+these sources with the `github_repositories` rows, so an old file and its
+moved form compare the same and neither is flagged.
+
+**Write.** `updateGitHubIssueIntake`, `updateUnifiedRepository` and the
+first write of a new file go through one `writeGitHubSource(value, entry,
+{remove})`. It first moves every old entry into `intake.sources` and
+deletes `github.issueIntake` and `github.queue`, then adds, replaces or
+removes the one source. So the move happens once, on the first write, and
+nothing writes the old keys after it.
+
+**Pipeline.** GitHub items still come from `github sync` and the Triage
+read and are stored as source `github`. `sourceMap` leaves GitHub sources
+out, so poll and `intake.submit` never see them, and `source:` still names
+a plugin or MCP source. Radar intake, Radar escalations and back-links read
+`github_repositories` and `github.repositories`, which do not change.
+
+**Settings.** Intake sources lists each GitHub source in the shared
+`SourceBox` with Comes from GitHub, Work lands in, Ready label, Assignee,
+Starts on its own, Who counts, and Issue Radar escalations (the
+repository's `crewLabels.needsHuman`, when set). Its action opens
+Repository setup. The GitHub box stays as the Triage reader. The Add dialog
+keeps plugin and MCP: adding a GitHub source makes GitHub labels, which
+Repository setup does.
+
+**Tests.** `intake.test.mjs`: GitHub keys and refusals, a machine-scope
+GitHub source listed as unused, `sourceMap` without GitHub.
+`github-sources.test.mjs`: an old entry loaded, a disabled one dropped, ids
+and clashes, the move on write. `repository-settings.test.mjs`: an old file
+and its moved file not flagged; `github configure` and Repository setup
+write a source; queue ignored. A Radar test on a migrated repository. UI
+tests for the GitHub entry; before and after screenshots checked outside
+git, not kept in it.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.
@@ -5123,7 +5264,6 @@ entry may replace the workspace's list.
 ```json
 {
   "delivery": {
-    "concurrency": 1,
     "model": "model-a",
     "reviewers": [
       {
@@ -5140,7 +5280,7 @@ entry may replace the workspace's list.
       }
     ],
     "repositories": {
-      "example-rewrite": { "concurrency": 1 }
+      "example-rewrite": { "feedbackRounds": 3 }
     }
   }
 }
@@ -5301,7 +5441,7 @@ the head moves. It is not part of the first cut (Requirement 36.13).
 | Typed integration refused where reviews or `acceptFrom` apply      | `task.update` can set `integration` or `accepted` directly (F60), which would skip every gate this section adds                                                                                                                                                                                                                         |
 | Supersede resolves on read                                         | Plan approval rebuilds plan edges (F64), so a rewritten edge would snap back on the next approval                                                                                                                                                                                                                                       |
 | Supersede only for local authority                                 | GitHub and plugin rows are caches of their tracker (Requirement 19.3)                                                                                                                                                                                                                                                                   |
-| One writer per repository is concurrency 1                         | It already exists per repository and caps both the tick and a Crew Mode conductor (F59). A second mechanism would only drift from it                                                                                                                                                                                                    |
+| No separate writer limit (changed 2026-11-18)                      | Each task writes in its own worktree and landing merges one head at a time, so the machine's lanes are the only cap (Requirement 6.3). A second mechanism would only drift from it                                                                                                                                                        |
 | GitHub pull-request reviews later                                  | GitHub already gates GitHub-route merges with required reviews; reading them into Avoozl is useful only for display and the Delivery view                                                                                                                                                                                               |
 
 ## 6. GitHub workflows
@@ -5426,7 +5566,7 @@ plans-repo leaves use §6.6.
   equal to Avoozl's `ready` label. The Settings view shows the exact value and a
   link to Issue Radar.
 - Avoozl limits how many leaves carry `ready` at once to the repository's
-  `concurrency`, so Issue Radar's random pick only ever sees allowed work, in
+  Release N (`release.capacity`), so Issue Radar's random pick only ever sees allowed work, in
   priority order.
 - Avoozl never writes Issue Radar's claim label or its needs-human label. It
   reads them as GitHub labels.
@@ -5629,7 +5769,7 @@ P18 checks them (F39).
     Projection uses the same function, so projection and the tick agree, and
     a second pass writes nothing.
   - Wave is order, not time: the earliest round a task could run. Capacity
-    (`concurrency`) may start it later. Avoozl never turns a wave into a date.
+    (lanes and Release N) may start it later. Avoozl never turns a wave into a date.
   - Validation already refuses cycles (§5), so every task has a wave.
   - Wave versus Epic:
 
@@ -6522,13 +6662,17 @@ operations as CLI and MCP (Requirement 20.4).
 
 | Nav entry     | Pages                                                              | Holds                                                                                                         |
 | ------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| **Dashboards** | Home, Graph, Delivery, CI, Landing queue                           | Counts and In flight; the task graph; running and recent tasks with machine badges and Stop the line; CI waste; the landing queue |
+| **Dashboards** | Home, Graph, Delivery, Landing queue                                | Counts and In flight; the task graph; running and recent tasks with machine badges and Stop the line; the landing queue |
 | **Specs**     | one list with status chips; spec details with tabs                 | Kiro spec folders, manifest, review, graph, links; **New spec**                                               |
 | **Needs you** | Decisions, Triage, Issue Radar                                     | Open decisions; GitHub items nothing covers yet; issues sent to Issue Radar                                   |
 | **Flow**      | one page                                                           | Lead time, flow efficiency, first-pass rate, time to fix, stacked time bars, bottlenecks                      |
 | **Retros**    | Retros, Proposals                                                  | Retrospectives, their proposals and PDCA results                                                              |
 | **Activity**  | one page                                                           | The activity log and tick health                                                                              |
 | **Settings**  | Workspaces, Repository setup, GitHub, Issue Radar, Plugins, Content rules, Flow, Models, Delivery | `.avoozl.json` and machine settings; the repository role, labels, checks and reviews are tabs of each repository |
+
+The Dashboards › CI page is hidden until it is built (owner, 2026-11-18,
+simplification audit item 10). It was a "Coming later" placeholder; Flow
+already shows CI minutes. An old `ci` link or saved view opens Flow.
 
 **Choosing a repository and workspace.** A workspace is a directory with
 `.avoozl.json` and its SQLite file (existing layout). The machine catalog lists
@@ -6701,7 +6845,7 @@ P24 proves the wizard.
 
 ### 8.3 Routing page
 
-**Status 2026-11-18.** Removed. There is no Routing page or Settings › Routing section (#153, #282). Old links open Repository setup.
+**Status 2026-11-18.** Removed. There is no Routing page or Settings › Routing section (#153, #282). Old links open Repository setup. Its CLI (`avoozl routing`, `avoozl crews set`) and operations answer that routing was retired (§4.10 status).
 
 **Proposed**, owner request 2026-11-12 (Requirement 42). Changed
 2026-11-13 (owner decision): Routing is a Settings tab, and holds one
@@ -7352,7 +7496,7 @@ and adds an `Epic` issue type if an organization admin runs it.
    approves it, and the next tick projects the issues, sub-issues,
    dependencies, and Project items, with Release set from milestones. The
    graph is read through the migration read path (§6.8) until step 11.
-9. **Turn on Autopilot.** Enable the tick for one epic with concurrency 1. Avoozl
+9. **Turn on Autopilot.** Enable the tick for one epic with one lane. Avoozl
    worker sessions code its leaves in the code repositories (§6.6), against
    each code repository's default branch, so GitHub closes each issue
    (§6.5). (Changed 2026-11-12: a recorded integration branch that is not a
