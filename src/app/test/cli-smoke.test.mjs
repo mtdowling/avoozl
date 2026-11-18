@@ -14,6 +14,8 @@ const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url)),
 const UNLISTED = new Set(["help", "register-session", "session-hook"]);
 // Processes that never exit; their own tests start and drive them.
 const LONG_RUNNING = new Set(["app-backend", "supervisor"]);
+// Command paths of the same kind: the integrator loops until stopped.
+const LONG_RUNNING_PATHS = new Set(["integrator run"]);
 // What a crash looks like, as opposed to a refusal a person can act on.
 const CRASH =
   /\n\s+at .+:\d+:\d+|TypeError|ReferenceError|SyntaxError|RangeError|is not a function|Cannot read prop|cannot be bound to SQLite|argument must be of type|fetch failed|Unhandled/;
@@ -151,7 +153,11 @@ test(
       return workspaces.get(command);
     };
     const runs = paths
-      .filter(([command]) => !LONG_RUNNING.has(command))
+      .filter(
+        (words) =>
+          !LONG_RUNNING.has(words[0]) &&
+          !LONG_RUNNING_PATHS.has(words.join(" ")),
+      )
       .map((words) => {
         const args = [...words, "--workspace", workspaceFor(words[0])];
         return async () => ({ args, ...(await run(args, env)) });
