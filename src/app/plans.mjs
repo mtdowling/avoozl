@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { digest } from "../model.mjs";
 import { COMPLETIONS, TASK_KINDS, isSource } from "../work-model.mjs";
 import { fail } from "./store.mjs";
-import { validateNeeds, validateSession } from "./placement.mjs";
+import { validateSession } from "./session-pins.mjs";
 import { frontMatterCategory } from "../front-matter.mjs";
 import { newTaskAuthority } from "./github-policy.mjs";
 import {
@@ -181,8 +181,7 @@ export function validateProposal(item) {
       item.paths.some((x) => typeof x !== "string"))
   )
     fail("paths must be a list of strings.");
-  // Placement (§4.10): labels and a type word the routing agent reads, the
-  // crew tags the work needs, and a pinned agent, model or crew (R53.1).
+  // Labels, a type word, and a pinned agent, model or harness (R53.1).
   if (
     item.labels !== undefined &&
     (!Array.isArray(item.labels) ||
@@ -198,7 +197,6 @@ export function validateProposal(item) {
   )
     fail("type must be one lowercase word, such as test.");
   if (item.session !== undefined) validateSession(item.session);
-  if (item.needs !== undefined) validateNeeds(item.needs);
   return item;
 }
 export function createPlan(
@@ -597,7 +595,6 @@ export function approvePlan(
             "session",
             "manual",
             "gate",
-            "needs",
           ].map((key) => task[key] ?? null),
           task.source?.hash ?? null,
           // Foreign edges are materialized at Store.commit, after this review
@@ -707,7 +704,6 @@ export function approvePlan(
               "paths",
               "type",
               "session",
-              "needs",
               "batch",
               "investigate",
               "ship",
@@ -831,7 +827,6 @@ export function approvePlan(
           "paths",
           "type",
           "session",
-          "needs",
           // An old `size` goes on re-approval; a dropped group leaves.
           "size",
           "batch",

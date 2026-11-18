@@ -293,7 +293,6 @@ export const RETRY_TIP = 'Starts a new attempt for this task.'
 // Settings > Delivery (R53.3, R54.8): the backend's defaults, shown as
 // placeholders (src/app/delivery.mjs DELIVERY_DEFAULTS).
 export const DELIVERY_DEFAULTS = {
-  agent: 'kirocrew-worker',
   prFeedback: true,
   feedbackRounds: 5,
   ship: 'auto-merge',
@@ -308,8 +307,6 @@ export interface DeliverySettings {
   hash: string | null
   on: boolean
   delivery: {
-    agent?: string
-    model?: string
     prFeedback?: boolean
     feedbackRounds?: number
     ship?: ShipMode
@@ -318,21 +315,17 @@ export interface DeliverySettings {
 }
 
 export interface DeliveryForm {
-  agent: string
-  model: string
   prFeedback: '' | 'on' | 'off'
   feedbackRounds: string
   ship?: ShipMode
   investigateMode?: InvestigateMode
   minConfidence?: 'medium' | 'high'
-  // Falsifier agent and model the form does not edit; kept as they are.
+  // Older falsifier agent and model keys, kept until a Settings › Models save moves them.
   investigateRest?: { agent?: string; model?: string }
 }
 
 export function toDeliveryForm(delivery: DeliverySettings['delivery'] = {}): DeliveryForm {
   return {
-    agent: delivery.agent ?? '',
-    model: delivery.model ?? '',
     prFeedback: delivery.prFeedback === undefined ? '' : delivery.prFeedback ? 'on' : 'off',
     feedbackRounds: delivery.feedbackRounds === undefined ? '' : String(delivery.feedbackRounds),
     ship: delivery.ship ?? DELIVERY_DEFAULTS.ship,
@@ -348,11 +341,6 @@ export function toDeliveryForm(delivery: DeliverySettings['delivery'] = {}): Del
 // The keys to write; a blank field is left out, so its default applies.
 export function toDeliverySection(form: DeliveryForm): { delivery?: DeliverySettings['delivery']; error?: string } {
   const delivery: DeliverySettings['delivery'] = {}
-  if (form.agent.trim()) {
-    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(form.agent.trim())) return { error: 'Agent is an agent name: letters, digits, . _ : or -.' }
-    delivery.agent = form.agent.trim()
-  }
-  if (form.model) delivery.model = form.model
   if (form.prFeedback) delivery.prFeedback = form.prFeedback === 'on'
   if (form.feedbackRounds.trim()) {
     const n = Number(form.feedbackRounds)

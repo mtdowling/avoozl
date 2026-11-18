@@ -273,7 +273,7 @@ class KiroCrewExecutor:
         }
         for key in (
             "role", "attempt", "model", "commit", "batch", "crew",
-            "placement", "sessionReason", "investigate",
+            "sessionReason", "investigate",
         ):
             if d.get(key):
                 binding[key] = d[key]

@@ -136,7 +136,7 @@ export function bindSession(
     );
   if (input.model !== undefined && !MODEL.test(input.model))
     fail("Choose a model name.");
-  // Placement (§4.10, R41.9, R53.10): the crew, agent, and why.
+  // The crew, agent, and why (R41.9, R53.10).
   if (
     input.crew !== undefined &&
     !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(input.crew)
@@ -144,13 +144,6 @@ export function bindSession(
     fail("Choose a crew id.");
   if (input.agent !== undefined && !AGENT.test(input.agent))
     fail("Choose an agent name.");
-  if (
-    input.placement !== undefined &&
-    (!input.placement ||
-      typeof input.placement !== "object" ||
-      JSON.stringify(input.placement).length > 8000)
-  )
-    fail("A placement is an object of at most 8000 characters.");
   if (
     input.sessionReason !== undefined &&
     (typeof input.sessionReason !== "string" ||
@@ -246,7 +239,6 @@ export function bindSession(
       ...(input.model ? { model: input.model } : {}),
       ...(input.agent ? { agent: input.agent } : {}),
       ...(input.crew && input.crew !== "local" ? { crew: input.crew } : {}),
-      ...(input.placement ? { placement: input.placement } : {}),
       ...(input.sessionReason ? { sessionReason: input.sessionReason } : {}),
       ...(input.commit ? { commit: input.commit } : {}),
       ...(batch ? { batch } : {}),

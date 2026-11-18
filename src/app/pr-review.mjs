@@ -1,3 +1,4 @@
+import { roleRun } from "./role-table.mjs";
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 // Code review chat (design §8.5): the Code review button on a pull request
@@ -163,7 +164,7 @@ export function requestReviewChat(
 
 // The tick's dispatch entries: one per queued request with no chat yet.
 // The chat needs no checkout, so it opens without a project folder.
-export function reviewDispatches(store) {
+export function reviewDispatches(store, { config } = {}) {
   const chats = reviewChats(store);
   return store
     .list("receipts")
@@ -177,6 +178,7 @@ export function reviewDispatches(store) {
       kirocrewRequest(store, {
         task: receipt.id,
         role: REVIEW_ROLE,
+        ...roleRun("prReview", { config }),
         attempt: receipt.attempt,
         title: `avoozl:code-review ${receipt.repository}#${receipt.number}`,
         ...kirocrewDetachedSession(),

@@ -27,8 +27,8 @@ separate acts that a person does later.
 
 - Phase 12 of `radar-coder` (retirement of worker code).
 - Anything that only runs or places Avoozl's own workers (written when
-  local workers were retired; Avoozl runs its own workers again, R86). This leaves out crew placement, the crew registry, routing
-  defaults in packs (`avoozl` tasks 11.x, 16.7, `avoozl-p29`) and the
+  local workers were retired; Avoozl runs its own workers again, R86). This leaves out the crew registry, the retired `avoozl` tasks 11.x and
+  16.7, `avoozl-p29` and the
   worker adapter proof (`rc-p14`).
 - Review drafts from a label (`rc-20.*`), merged.
 - Work an open pull request or another worker already covers: forward screen,

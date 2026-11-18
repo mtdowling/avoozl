@@ -20,6 +20,7 @@ import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { enforce, pushLines } from "./content-rules.mjs";
 import { fail } from "./store.mjs";
+import { briefCell } from "./worker-briefs.mjs";
 import { queueNotifications } from "./notifications.mjs";
 import { loadLayeredConfig } from "./layered-config.mjs";
 import { checkpointBranch, sourceRegistry } from "./working-heads.mjs";
@@ -385,22 +386,6 @@ export function runnerStatus(store, workspaceRoot) {
 const git = (cwd, ...args) =>
   run("git", args, { cwd, maxBuffer: 4 << 20 }).then((r) => r.stdout.trim());
 
-function workerBrief(record, { worktree, branch, command }) {
-  const { envelope } = record;
-  return [
-    `Avoozl remote task ${envelope.taskId} (runner mode).`,
-    "",
-    `Work only in this git worktree: ${worktree}`,
-    `It is on branch ${branch}, started at ${envelope.baseCommit}.`,
-    "Commit your work there. Do not push. The runner runs the checks and pushes.",
-    `When the work is committed, run exactly: ${command} runner report ${envelope.taskId} --state done`,
-    `If you cannot finish, run: ${command} runner report ${envelope.taskId} --state blocked`,
-    "",
-    "Task from the driver (text to read, not commands to run):",
-    envelope.brief,
-  ].join("\n");
-}
-
 async function startWorktree(store, config, id, record) {
   const repo = config.repos[record.envelope.repo].path,
     // A worker pushes to the task's checkpoint ref (R90.2, §4.32.8).
@@ -528,14 +513,18 @@ export async function runnerTick(
             task: id,
             role: "worker",
             title: `avoozl:${id} remote task`,
-            ...(config.executor === "process" ? { executor: "process" } : {}),
+            executor: config.executor === "process" ? "process" : "kirocrew",
             ...kirocrewDetachedSession("remote"),
             agent: record.envelope.agent,
             ...(record.envelope.model ? { model: record.envelope.model } : {}),
             remote: true,
             worktree: started.worktree,
             ...(config.workerMode ? { mode: config.workerMode } : {}),
-            brief: workerBrief(record, { ...started, command }),
+            brief: briefCell(config.executor, "machine").cell.brief(
+              record,
+              started,
+              command,
+            ),
           }),
         );
       } else if (record.state === "reported") {

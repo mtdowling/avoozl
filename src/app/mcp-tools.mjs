@@ -79,14 +79,6 @@ const tools = {
         "what waits to land on each base, in landing order, and why each one is held; from stored records, no GitHub call",
       ],
       flow: ["flow.view", "lead time, stages, bottlenecks"],
-      routing: [
-        "routing.view",
-        "crews and their checks, the routing prompt switch, provider health",
-      ],
-      routing_preview: [
-        "routing.preview",
-        "where ready tasks would run now; opens nothing",
-      ],
       providers: [
         "providers.view",
         "provider health marks, switches, and live chats' models",
@@ -353,15 +345,6 @@ const tools = {
         "incoming items: {source?, kind?, state?, untriaged?, offset?}",
       ],
       item: ["intake.view", "one incoming item: {source, id}"],
-      // Ideas were removed (RC30.3); kept so callers get a clear error.
-      capture_idea: [
-        "idea.capture",
-        "removed: ideas were removed from Avoozl; returns an error",
-      ],
-      add_idea_note: [
-        "idea.append",
-        "removed: ideas were removed from Avoozl; returns an error",
-      ],
       sources: [
         "intake.sources",
         "declared intake sources and their read state",

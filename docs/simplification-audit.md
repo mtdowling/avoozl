@@ -26,7 +26,7 @@ is a proposal for the owner.
 | 6 | One intake list. Five paths turn an issue into work today; retire the legacy `github.issueIntake` and `github.queue` into `intake.sources`. | High | Medium |
 | 7 | One way to run work on another machine. Runner mode over SSH, worker mode pull, the supervisor's process executor and the remote crew all do it. | High | High |
 | 8 | One `roles` table for harness, agent and model. Today the worker's model is in Delivery, the others in Models, and four more spots pick a model. | Medium | Medium |
-| 9 | Decide Routing: the page is gone, but `routing`, `crews set` and the machine files they write still steer the tick. Retire them or give them a home. | Medium | Medium |
+| 9 | Retire crew choice and the machine files that steered the tick. Done 2026-11-18: the commands, operations and keys are removed. | Medium | Medium |
 | 10 | Hide the Dashboards › CI page until it is built. It is a "Coming later" placeholder, and Flow already shows CI. | Low | Low |
 
 ## 1. Inventory
@@ -42,7 +42,7 @@ is a proposal for the owner.
 | Environment | `AVOOZL_*` (and `AICOMMANDER_*`, `NUPP_WORKSPACE_*`) | Paths, ports, AHP |
 | Command line | `--db`, `--documents`, `--port`, … | Same as environment |
 | Workspace SQLite meta | `conversationSettings`, `workspaceRepository`, … | Settings saved by operations |
-| Machine side files | crews, routing, providers (`src/app/crews.mjs` `machineFile`) | Crew tags, routing prompt, provider facts |
+| Machine side files | providers (`src/app/crews.mjs` `machineFile`) | Provider facts |
 
 Eight layers. Most users touch two (`.avoozl.json` through Settings, and the
 machine file through Workspaces).
@@ -77,9 +77,9 @@ machine file through Workspaces).
   Triggers and labels, Checks, Reviews, Workflow map), GitHub (New tasks, Sync
   pace, Project, Set up GitHub, GitHub calls), Issue Radar, Plugins, Content
   rules, Flow, Models, Delivery.
-- **Redirects kept for removed pages:** conflicts, untriaged, routing, trace,
+- **Redirects kept for removed pages:** conflicts, untriaged, trace,
   lanes, flow:retros, flow:proposals; settings issue-radar, radar-values,
-  crews, crews-rules, routing, instance (`nav-api.ts:70-102`).
+  crews, crews-rules, instance (`nav-api.ts:70-102`).
 
 ### 1.4 Concepts a user must learn
 
@@ -109,7 +109,7 @@ choice.
 `activity`, `skill`, `mcp`, `tick`, `content`, `plan`, `intake`, `plugins`,
 `next`, `flow`, `epics`, `epic`, `public-crews`, `gap-report`, `gate`,
 `review`, `checks`, `runner`, `worker`, `driver`, `claim`, `report`, `retry`,
-`verify`, `pick-again`, `routing`, `crews`, `app-backend`, `supervisor`,
+`verify`, `app-backend`, `supervisor`,
 `backup`, `export`, `import`, `generate`, `check`, `health`,
 `register-session`, `session-hook`, `help`, plus any operation name with
 `--json`.
@@ -149,7 +149,7 @@ found no reader of the value. Line numbers are at `76c940bc`.
 |---|------|------|-------|----------|----------|------|
 | D1 | dead setting | `review` (review classes, humans, agents, `agentReviewer.mustDifferBy`, `excludeImplementer`, …) | schema line 145, `$defs.reviewPolicy` 1981, `reviewClass` | `rg` for `excludeImplementer`, `defaultClass`, `mustDifferBy`, `agentIsAdvisory`, `requireHumanAcceptance` finds only the schema and an old note in `plans/`. No `config.review` reader. | **Removed from the schema.** | None: the loader never read it, and unknown top-level keys still pass. |
 | D2 | dead setting | `safety` (andon authority rules, separation of duty, coordinator mode) | schema line 618, `$defs.safetyPolicy` 2067 and three more | `src/app/moved-operations.mjs:17-18`: "The andon gate was replaced by repository rule actions". `config.mjs:89` copied it into `workspaceConfig().safety`, which nothing reads. | **Removed from the schema and `config.mjs`.** | None. |
-| D3 | dead setting | `conversations.driver`, `conversations.routing` and the `agentRouting`, `agentRouteChoice`, `agentRouteRule` defs | schema lines 1244-1330 | `src/app/repository-settings.mjs:543-546`: "`driver` and `routing` configured the removed agent host; files that set them still load, and the values are ignored." | **Schema now marks both as ignored**, so old files still validate. | None. |
+| D3 | dead setting | `conversations.driver` | schema | The removed agent host's driver conversation. | **Removed from the schema and the loader.** Unknown keys are dropped. | None. |
 | D4 | dead setting | `models.driver` | schema line 159 | `src/app/chat-models.mjs:22-25`: retired role, "accepted and dropped". | **Schema now marks it ignored.** | None. |
 | D5 | dead setting | `github.repositories.*.concurrency` (schema default 1) | schema line 1669 | `src/app/github-policy.mjs:360-361`: "still accepted and ignored". | **Schema now marks it ignored** and drops the misleading default. | None. |
 | D6 | dead setting | Top-level `repository` (`id`, `roles`, `baseBranch`) and `planning` (`documents`, `exclude`) | schema lines 33, 36, `$defs.repository` 1061, `$defs.planning` 1083 | No reader of `config.repository` or `config.planning` in the loaded `.avoozl.json`. `workspace-repository.mjs` uses its own `config.repository` from SQLite meta. Roles moved to `github.repositories.*.role`. | **Removed from the schema.** | None. |
@@ -201,18 +201,11 @@ above are not file settings: `flow.batch` is now ignored, and
 
 ### 2.5 Crew placement
 
-**F20 (proposal):** Routing has no page, but `avoozl routing set` and
-`avoozl crews set` still write machine files that the tick reads for crew
-placement and provider checks. Either retire placement (the owner scrapped
-local workers on 2026-11-14), or show the current values read-only on
-Settings › Delivery so a person can see why a task waits. Risk: medium.
-
 ### 2.6 CLI and UI mismatches
 
 | # | What | Evidence | Proposal |
 |---|------|----------|----------|
 | C1 | `workspace concurrency ID LIMIT` claims "Zero pauses new dispatch". | Nothing enforces it (F2). | Remove with F2, or wire it. |
-| C2 | `routing` and `crews set` have no page. | §2.5. | F20. |
 | C3 | `register-session` and `session-hook` run but are not in `help`. The help is one flat list of 58 commands. | `rg "^  register-session\|^  session-hook" src/app/cli.mjs` finds nothing. | **Done.** `avoozl help` is a one-screen overview by job; `avoozl help GROUP`, `help COMMAND` and `help all` give the usage lines, from one table (`src/app/cli-help.mjs`). The two hook commands are under "Agent hooks". |
 | C5 | Settings › Flow edits batching; the planner is about to decide it. | In flight (#576). | — |
 | C6 | Settings › Workspaces edits a limit that the CLI's `--max-concurrent-runs` also sets, and neither is read. | F2. | F2. |

@@ -140,8 +140,6 @@ export function setupText(item: { kind: string; id?: string }): string {
       return `Add the terms file for rule set ${item.id} in Settings › Content rules`
     case 'retro-instructions':
       return 'Write retro instructions again in Settings › Flow'
-    case 'router-instructions':
-      return 'Write the routing prompt again in Settings › Routing'
     default:
       return `Set up ${item.kind}${item.id ? ' ' + item.id : ''} again`
   }

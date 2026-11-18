@@ -142,9 +142,29 @@
     "github": {
       "$ref": "#/$defs/github"
     },
+    "roles": {
+      "type": "object",
+      "description": "One row per role: its harness, its model where it has one and, for the worker and falsifier, agent. Settings > Models edits it. A missing key or auto keeps the role's default; a task's session pin wins. Older models, harnesses, delivery agent and model keys still load into it.",
+      "additionalProperties": false,
+      "properties": {
+        "worker": { "$ref": "#/$defs/agentRole" },
+        "falsifier": { "$ref": "#/$defs/agentRole" },
+        "planner": { "$ref": "#/$defs/chatRole" },
+        "planReviewer": { "$ref": "#/$defs/chatRole" },
+        "retro": { "$ref": "#/$defs/chatRole" },
+        "reviewDraft": { "$ref": "#/$defs/chatRole" },
+        "verifier": { "$ref": "#/$defs/harnessRole" },
+        "reviewer": { "$ref": "#/$defs/harnessRole" },
+        "responder": { "$ref": "#/$defs/harnessRole" },
+        "taskSummary": { "$ref": "#/$defs/harnessRole" },
+        "issuePlanner": { "$ref": "#/$defs/harnessRole" },
+        "planAnswer": { "$ref": "#/$defs/harnessRole" },
+        "prReview": { "$ref": "#/$defs/harnessRole" }
+      }
+    },
     "models": {
       "type": "object",
-      "description": "Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
+      "description": "Older key, read into roles.<role>.model. Models for Avoozl's own chat roles. A named plan reviewer must differ from a named planner; auto leaves the reviewer unset.",
       "additionalProperties": false,
       "properties": {
         "planner": {
@@ -167,7 +187,7 @@
     },
     "harnesses": {
       "type": "object",
-      "description": "The harness each role's chat runs on: kirocrew for a Kiro Crew chat, or a harness definition's name for a supervisor child. A role left out, or auto, runs on its project's executor. A task's session.harness pin wins.",
+      "description": "Older key, read into roles.<role>.harness. The harness each role's chat runs on: kirocrew for a Kiro Crew chat, or a harness definition's name for a supervisor child. A role left out, or auto, runs on its project's executor. A task's session.harness pin wins.",
       "additionalProperties": false,
       "properties": {
         "worker": {
@@ -714,7 +734,7 @@
       }
     },
     "intake": {
-      "description": "Sources other than GitHub that bring incoming items in (design §4.12). Declare a source whose name must stay private in this machine's plugins.json instead.",
+      "description": "Every source that brings work in (design §4.12, §4.39): GitHub repositories (via github, set in Repository setup), tracker plugins and MCP callers. Declare a plugin or MCP source whose name must stay private in this machine's plugins.json instead.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -733,12 +753,42 @@
             "properties": {
               "via": {
                 "type": "string",
-                "description": "plugin:<id> for a tracker plugin with poll, or mcp for callers of intake.submit.",
-                "pattern": "^(mcp|plugin:[a-z][a-z0-9-]{0,60})$"
+                "description": "github for a GitHub repository whose issues may start work, plugin:<id> for a tracker plugin with poll, or mcp for callers of intake.submit.",
+                "pattern": "^(github|mcp|plugin:[a-z][a-z0-9-]{0,60})$"
               },
               "repository": {
                 "type": "string",
-                "description": "The registered workspace repository whose rules apply and where a delivered item's task lands."
+                "description": "For github, the owner/name GitHub repository. Otherwise the registered workspace repository whose rules apply and where a delivered item's task lands."
+              },
+              "project": {
+                "type": "string",
+                "description": "GitHub sources only: the execution project its work runs in."
+              },
+              "workspaceRepository": {
+                "type": "string",
+                "description": "GitHub sources only: the workspace repository, when it is not the project."
+              },
+              "label": {
+                "type": "string",
+                "default": "avoozl:ready",
+                "description": "GitHub sources only: the ready label used when the repository has no trigger rules."
+              },
+              "managedLabel": {
+                "type": "string",
+                "default": "avoozl:managed"
+              },
+              "assignee": {
+                "type": "string",
+                "description": "GitHub sources only: who the issue must be assigned to."
+              },
+              "autoStart": {
+                "type": "boolean"
+              },
+              "provider": {
+                "type": ["string", "null"]
+              },
+              "model": {
+                "type": ["string", "null"]
               },
               "labelFields": {
                 "type": "array",
@@ -1095,6 +1145,33 @@
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]{0,60}$"
     },
+    "chatRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "harness": { "$ref": "#/$defs/harnessName" },
+        "model": { "$ref": "#/$defs/chatModel" }
+      }
+    },
+    "harnessRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "harness": { "$ref": "#/$defs/harnessName" }
+      }
+    },
+    "agentRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "harness": { "$ref": "#/$defs/harnessName" },
+        "agent": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "model": { "$ref": "#/$defs/chatModel" }
+      }
+    },
     "runner": {
       "type": "object",
       "description": "Runner mode, off unless role is set. A runner runs tasks a driver hands it over SSH; a worker pulls its own offers from spec journals. Machine paths (repos) and a local stand-in for ssh belong in ~/.config/avoozl/config.json.",
@@ -1433,14 +1510,6 @@
           "type": "boolean",
           "default": true,
           "description": "Archive completed child and task conversations while retaining their task and transcript links."
-        },
-        "driver": {
-          "deprecated": true,
-          "description": "Ignored. It configured the removed agent host's driver conversation. Files that still set it load as before."
-        },
-        "routing": {
-          "deprecated": true,
-          "description": "Ignored. It configured the removed agent host's routing. Files that still set it load as before."
         }
       },
       "additionalProperties": false
@@ -1568,7 +1637,7 @@
     },
     "github": {
       "type": "object",
-      "description": "Desired non-secret GitHub configuration: mode, task authority, Project, and per-repository policy (design §4.4), plus the older issue intake and Queue settings. Remote setup remains an explicit action.",
+      "description": "Desired non-secret GitHub configuration: mode, task authority, Project, and per-repository policy (design §4.4), Remote setup remains an explicit action. issueIntake and queue are older keys: issueIntake is read as intake.sources GitHub sources and queue is ignored; Avoozl moves both on its next write (§4.39).",
       "properties": {
         "issueIntake": {
           "type": "object",
