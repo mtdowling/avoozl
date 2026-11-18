@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   COMMAND_PATH,
-  describeTick,
   errorMessage,
   workspaceClient,
 } from '../src/workspace-api.ts'
@@ -32,8 +31,6 @@ test('workspace client sends each operation to the backend command route', async
   await client.init({ id: 'b', root: '/b', name: 'B' })
   assert.deepEqual(await client.repositories('a'), [{ id: 'app' }])
   await client.registerRepository('a', { id: 'app', localCheckout: '/c' })
-  await client.tick('a')
-  await client.tickHealth('a')
   assert.ok(calls.every((call) => call.path === COMMAND_PATH))
   assert.equal(COMMAND_PATH, '/apps/avoozl/api/command')
   assert.deepEqual(
@@ -48,8 +45,6 @@ test('workspace client sends each operation to the backend command route', async
         input: { id: 'app', localCheckout: '/c' },
         workspaceId: 'a',
       },
-      { operation: 'workspace.tick', input: {}, workspaceId: 'a' },
-      { operation: 'workspace.tick.health', input: {}, workspaceId: 'a' },
     ],
   )
 })
@@ -61,26 +56,6 @@ test('errors show the backend sentence, else the status', () => {
   )
   assert.equal(errorMessage({ status: 502, body: '<html>' }), 'Request failed (502).')
   assert.equal(errorMessage(new Error('offline')), 'offline')
-})
-
-test('tick health reads as one line', () => {
-  const now = Date.parse('2026-11-11T12:00:00Z'),
-    at = '2026-11-11T11:59:30Z'
-  const cases = [
-    [null, 'Not loaded'],
-    [{ lastRun: null, lock: null }, 'Never run'],
-    [{ lastRun: { at, outcome: 'ok', policy: 'loaded' }, lock: null }, 'Ran 30s ago; policy loaded'],
-    [{ lastRun: { at, outcome: 'locked' }, lock: null }, 'Skipped 30s ago: another tick held the lock'],
-    [{ lastRun: { at, outcome: 'error', error: 'boom' }, lock: null }, 'Failed 30s ago: boom'],
-    [
-      { lastRun: { at, outcome: 'ok', policy: 'invalid', error: 'bad' }, lock: null },
-      'Ran 30s ago; .avoozl.json is invalid: bad',
-    ],
-    [{ lastRun: null, lock: { pid: 7, live: true } }, 'Running (pid 7)'],
-    [{ lastRun: null, lock: { pid: 7, live: false } }, 'Stale lock (pid 7)'],
-    [{ lastRun: { outcome: 'ok', at: '2026-11-11T11:50:00Z', policy: 'absent' }, lock: null }, 'Ran 10m ago; policy absent'],
-  ]
-  for (const [health, expected] of cases) assert.equal(describeTick(health, now), expected)
 })
 
 test('pickDefault keeps a live choice and falls back to the served workspace', async () => {

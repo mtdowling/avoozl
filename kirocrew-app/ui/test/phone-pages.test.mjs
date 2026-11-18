@@ -113,10 +113,10 @@ for (const dark of [false, true]) {
     await wait(400)
     assert.ok((await page.evaluate(gap)) <= 1, 'the row sticks to the top of the pane')
     assert.equal(await echo(), '1', 'the compact title shows once the big one has scrolled out')
-    // The rail stacks under the cards; the header's title is the one big title.
+    // The details are a box in the Overview; the header's title is the one big title.
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-detail-title], #avoozl-plan-title').length`), 1, 'one big title')
-    const order = await page.evaluate(`(() => { const main = document.querySelector('#avoozl-plan-main').getBoundingClientRect(), rail = document.querySelector('[data-spec-rail]').getBoundingClientRect(); return { below: rail.top >= main.bottom - 1, wide: Math.round(rail.width) >= Math.round(main.width) - 1 } })()`)
-    assert.deepEqual(order, { below: true, wide: true }, 'the rail is under the main column, as wide')
+    const inBox = await page.evaluate(`(() => { const main = document.querySelector('#avoozl-plan-main'), box = document.querySelector('[data-spec-details-box]'); return Boolean(box && main.contains(box) && box.contains(document.querySelector('[data-spec-rail]')) && box.getBoundingClientRect().width <= main.getBoundingClientRect().width + 1) })()`)
+    assert.equal(inBox, true, 'the rail is in the details box inside the main column')
     assert.equal(await has('[data-spec-menu]'), false, 'no spec hamburger')
     await back()
     assert.equal(await has('[data-plans-list]'), true, 'Back returns to the list')

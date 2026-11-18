@@ -4,7 +4,6 @@ import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import {
-  describeTick,
   editChanges,
   editDraft,
   errorMessage,
@@ -16,12 +15,10 @@ import {
   type CatalogWorkspace,
   type EditDraft,
   type Repository,
-  type TickHealth,
   type WorkspaceList,
 } from './workspace-api'
-import { TICK_LOG_LINES, chatClient, type TickLine } from './chat-api.ts'
-import { relativeTime } from './task-api.ts'
-import { SectionHeading, dangerStyle } from './controls.tsx'
+import { SectionHeading } from './controls.tsx'
+import { Button } from './Button.tsx'
 import { Modal } from './Modal.tsx'
 import { Pencil, Plus, Trash2 } from './icons.ts'
 import { FolderField } from './FolderPicker.tsx'
@@ -46,14 +43,6 @@ function Field(props: {
       />
     </label>
   )
-}
-
-// Tick log levels: errors in the danger color, warnings in plain text,
-// never the warning yellow (that means "needs you").
-const LEVEL_COLOR: Record<TickLine['level'], string> = {
-  info: 'var(--muted)',
-  warn: 'var(--text)',
-  error: 'var(--danger)',
 }
 
 function WorkspaceRow(props: {
@@ -111,11 +100,8 @@ export default function WorkspaceView(
   const { onSelect, onListChange } = props
   const api = useAppApi()
   const client = useMemo(() => workspaceClient(api), [api])
-  const chats = useMemo(() => chatClient(api), [api])
-  const [log, setLog] = useState<TickLine[] | null>(null)
   const [list, setList] = useState<WorkspaceList | null>(null)
   const [selected, setSelected] = useState<string | null>(props.selected ?? null)
-  const [health, setHealth] = useState<TickHealth | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [draft, setDraft] = useState({ id: '', root: '', name: '' })
@@ -147,28 +133,9 @@ export default function WorkspaceView(
     [attempt, client],
   )
 
-  const loadSelected = useCallback(
-    (id: string) =>
-      attempt(async () => {
-        setHealth(null)
-        setLog(null)
-        const [tick, lines] = await Promise.all([
-          client.tickHealth(id),
-          chats.tickLog(id, TICK_LOG_LINES).catch(() => []),
-        ])
-        setHealth(tick)
-        setLog(lines)
-      }),
-    [attempt, client, chats],
-  )
-
   useEffect(() => {
     void loadList()
   }, [loadList])
-
-  useEffect(() => {
-    if (selected) void loadSelected(selected)
-  }, [selected, loadSelected])
 
   useEffect(() => {
     onSelect?.(selected)
@@ -192,16 +159,6 @@ export default function WorkspaceView(
       setList(next)
       setSelected(created.id)
     })
-
-  const runTick = () => {
-    if (!selected) return
-    const workspaceId = selected
-    void attempt(async () => {
-      await client.tick(workspaceId)
-      setHealth(await client.tickHealth(workspaceId))
-      setLog(await chats.tickLog(workspaceId, TICK_LOG_LINES).catch(() => []))
-    })
-  }
 
   const current = list?.items.find((w) => w.id === selected) ?? null
   const editing = dialog && typeof dialog === 'object' && 'edit' in dialog ? dialog.edit : null
@@ -295,6 +252,7 @@ export default function WorkspaceView(
           width="36rem"
           title="Add a workspace"
           backLabel="Cancel"
+          dismissLabel="Cancel"
           describedBy="avoozl-ws-add-line"
           attrs={{ 'data-add-workspace-modal': true }}
           unsaved={Boolean(draft.id || draft.root || draft.name) && { title: 'Discard this workspace?', body: 'What you entered is lost.', action: 'Discard' }}
@@ -367,6 +325,7 @@ export default function WorkspaceView(
           width="40rem"
           title={`Edit ${current.name}`}
           backLabel="Close"
+          dismissLabel="Cancel"
           focusClose
           describedBy="avoozl-ws-edit-line"
           attrs={{ 'data-edit-workspace-modal': true }}
@@ -375,10 +334,10 @@ export default function WorkspaceView(
           footer={
             <>
               {/* Remove sits at the footer's left, red; it asks first. */}
-              <Btn type="button" data-remove-workspace onClick={() => setDialog({ remove: current.id })} disabled={busy} style={{ ...dangerStyle, marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Button type="button" variant="danger" data-remove-workspace onClick={() => setDialog({ remove: current.id })} disabled={busy} style={{ order: -1, marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <Trash2 size={14} aria-hidden="true" />
                 Remove
-              </Btn>
+              </Button>
               <Btn type="submit" form="avoozl-ws-edit-form" primary data-edit-save disabled={busy || !editCheck.change || Boolean(editCheck.error)}>
                 Save
               </Btn>
@@ -424,45 +383,6 @@ export default function WorkspaceView(
               </p>
             )}
           </form>
-          <div data-tick-panel>
-            <div className="flex flex-wrap items-center gap-2">
-              <SectionHeading title="Tick health" className="mb-0" />
-              <span className="flex-1" />
-              <Btn type="button" onClick={runTick} disabled={busy}>
-                Run tick now
-              </Btn>
-              <Btn type="button" onClick={() => selected && void loadSelected(selected)} disabled={busy}>
-                Refresh health
-              </Btn>
-            </div>
-            <p className="my-2 text-sm">{describeTick(health)}</p>
-            <h4 className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted">
-              Last {TICK_LOG_LINES} ticks, newest first
-            </h4>
-            {!log ? (
-              <p className="mt-1 text-xs text-muted">Loading…</p>
-            ) : log.length === 0 ? (
-              <p className="mt-1 text-xs text-muted">No tick has run yet.</p>
-            ) : (
-              <ol className="mt-1 mb-2 flex flex-col text-xs" data-tick-log>
-                {log.map((line, i) => (
-                  <li key={i} className="flex flex-col gap-0.5 border-t py-1 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
-                    <span className="flex items-baseline gap-2">
-                      <Tooltip text={line.at}>
-                        <span className="whitespace-nowrap tabular-nums text-muted">
-                          {line.at ? `${line.at.slice(11, 19)} · ${relativeTime(line.at)}` : 'unknown'}
-                        </span>
-                      </Tooltip>
-                      <span className="font-medium uppercase" style={{ color: LEVEL_COLOR[line.level] }}>
-                        {line.level}
-                      </span>
-                    </span>
-                    <span className="min-w-0">{line.text}</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
         </Modal>
       )}
       {removing && (
@@ -472,6 +392,7 @@ export default function WorkspaceView(
           width="32rem"
           title={`Remove ${removing.name} from Avoozl?`}
           backLabel="Cancel"
+          dismissLabel="Cancel"
           focusClose
           describedBy="avoozl-ws-remove-lines"
           attrs={{ 'data-remove-workspace-confirm': true }}
@@ -487,9 +408,9 @@ export default function WorkspaceView(
                   )}
                 </Tooltip>
               )}
-              <Btn type="button" data-danger data-remove-confirm disabled={busy} onClick={() => void removeWorkspace(removing, false)} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
+              <Button type="button" variant="danger" data-remove-confirm disabled={busy} onClick={() => void removeWorkspace(removing, false)}>
                 Remove from list
-              </Btn>
+              </Button>
             </>
           }
         >

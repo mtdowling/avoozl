@@ -5,7 +5,7 @@ import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'
 
-export type ActivitySource = 'local' | 'github' | 'plugin' | 'mcp'
+export type ActivitySource = 'local' | 'github' | 'plugin' | 'mcp' | 'tick'
 
 export interface ActivityRow {
   seq: number
@@ -49,6 +49,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   github: 'GitHub',
   plugin: 'Plugin sync',
   mcp: 'MCP or a session',
+  tick: 'Tick',
 }
 
 export const MAX_RETENTION_DAYS = 365
@@ -82,6 +83,21 @@ export function filterChoices(page: ActivityPage | null, filter: ActivityFilter)
     kinds: list(page?.kinds ?? [], filter.kind, page?.counts?.kind),
     actors: list(page?.actors ?? [], filter.actor, page?.counts?.actor),
   }
+}
+
+// A GitHub intake row ("New pr owner/repo#12 from github") names its item.
+// `text` is the owner/repo#N part; `href` is the stored link when it is an
+// https one, else built from that text. GitHub sends /issues/N for a pull
+// request to /pull/N, so a missing kind still lands on the item. No call to
+// GitHub.
+export function githubItem(row: Pick<ActivityRow, 'source' | 'kind' | 'summary' | 'link' | 'redacted'>): { before: string; text: string; after: string; href: string } | null {
+  if (row.redacted || row.source !== 'github' || row.kind !== 'intake.item') return null
+  const found = /^(New (\S+) )([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)#(\d+)( from github)$/.exec(row.summary)
+  if (!found) return null
+  const [, before, kind, repository, number, after] = found
+  const stored = safeHref(row.link)
+  const href = stored?.startsWith('https:') ? stored : `https://github.com/${repository}/${kind === 'pr' ? 'pull' : 'issues'}/${number}`
+  return { before, text: `${repository}#${number}`, after, href }
 }
 
 // Where a row's target goes: the task drawer for a task, GitHub (or any

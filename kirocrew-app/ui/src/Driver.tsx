@@ -8,7 +8,8 @@ import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Modal } from './Modal.tsx'
-import { IconLabel, dangerStyle } from './controls.tsx'
+import { IconLabel } from './controls.tsx'
+import { Button } from './Button.tsx'
 import { ExternalLink, KeyRound, Laptop, Lock, Send } from './icons.ts'
 import { Tooltip } from './Tooltip.tsx'
 import { useInstance } from './InstanceName.tsx'
@@ -96,7 +97,7 @@ export function DriverBanner(props: { workspaceId: string; spec: DriverSpec | nu
         </IconLabel>
       )}
       {action === 'force' && (
-        <IconLabel icon={KeyRound} tooltip="Assign the plan issue to you and drive the spec here. You confirm first." onClick={() => setDialog('force')} style={dangerStyle}>
+        <IconLabel icon={KeyRound} tooltip="Assign the plan issue to you and drive the spec here. You confirm first." onClick={() => setDialog('force')} variant="danger">
           Force take over
         </IconLabel>
       )}
@@ -201,13 +202,14 @@ export function TakeOverDialog(props: { workspaceId: string; spec: DriverSpec; o
   return (
     <Modal
       id="avoozl-driver-takeover"
+      dismissLabel="Cancel"
       title={`Take over ${spec.spec}`}
       onDismiss={() => props.onClose(false)}
       footer={
         <>
-          <Btn type="button" primary disabled={busy || (how === 'file' && !file.trim())} onClick={() => void go()}>
+          <Button type="button" variant="primary" disabled={busy || (how === 'file' && !file.trim())} onClick={() => void go()}>
             Take over
-          </Btn>
+          </Button>
         </>
       }
     >
@@ -267,15 +269,16 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
   return (
     <Modal
       id="avoozl-driver-force"
+      dismissLabel="Cancel"
       title={`Force take over ${spec.spec}`}
       onDismiss={() => props.onClose(false)}
       footer={
         <>
           <Tooltip text={blocker ?? undefined}>
             {(describedBy) => (
-              <Btn type="button" aria-describedby={describedBy} disabled={busy || Boolean(blocker)} onClick={() => void go()} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
+              <Button type="button" variant="danger" aria-describedby={describedBy} disabled={busy || Boolean(blocker)} onClick={() => void go()}>
                 Force take over
-              </Btn>
+              </Button>
             )}
           </Tooltip>
         </>

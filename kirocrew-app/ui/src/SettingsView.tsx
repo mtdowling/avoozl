@@ -73,7 +73,7 @@ import { AVOOZL_LABELS_LINE, AvoozlLabelFields, CREW_PART_TEXT, ConflictFields, 
 import WorkflowMap, { focusField } from './WorkflowMap.tsx'
 import { type Jump, type JumpField } from './workflow-map.ts'
 import WorkspaceView from './WorkspaceView.tsx'
-import Onboard from './Onboard.tsx'
+import SetupRepository from './Onboard.tsx'
 import { AddRepository, REPOSITORIES_LINE, RepositoryList, repositoryRows, useReveal, type AddedRole } from './RepositoriesSettings.tsx'
 import { EditRepository, ViewRepository } from './RepositoryModals.tsx'
 import { githubHref, type RepositoryRow } from './repository-rows.ts'
@@ -90,7 +90,7 @@ import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api
 import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
 import { Fold } from './controls.tsx'
 import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
-import { Plus, Trash2, type LucideIcon } from './icons.ts'
+import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
 import { redirectSettings } from './nav-api.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
@@ -992,6 +992,11 @@ function RepositoriesTab(props: {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const addBox = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState<{ kind: 'view' | 'edit'; key: string } | null>(null)
+  // Set up GitHub and import specs: the folder it is open for, and the folder
+  // just added (offered right after Add repository).
+  const [setupFolder, setSetupFolder] = useState<string | null>(null)
+  const [offer, setOffer] = useState<string | null>(null)
+  const setupBlocked = props.dirty ? 'Save or discard your settings changes first: setting up writes .avoozl.json.' : null
   const openRow = open ? rows.find((row) => row.key === open.key) : undefined
   const roleValue = (row: RepositoryRow) => (mirrorSourceOf(form, row.github) ? MIRROR_ROLE : roleOfRow(form, row))
   const roleText = (row: RepositoryRow) => {
@@ -1002,6 +1007,7 @@ function RepositoriesTab(props: {
   // checkout, its GitHub settings leave the file.
   const removeRow = async (target: RepositoryRow) => {
     setBusy(true)
+    setOffer(null)
     setMessage(null)
     try {
       if (target.checkout) {
@@ -1020,6 +1026,7 @@ function RepositoriesTab(props: {
   }
   const added = async (id: string, role: AddedRole) => {
     await Promise.all([reload(), props.onRegistryChanged()])
+    setOffer(role.folder)
     if (role.changed && role.github) {
       const failure = await props.onCommit((current) => withRepositoryEdit(current, { github: role.github, branch: role.branch, policy: -1 }, { entry: null, role: role.role, source: role.source }))
       if (failure) return setMessage({ ok: false, text: `Added ${id}, but its role was not saved. ${failure}` })
@@ -1071,6 +1078,8 @@ function RepositoriesTab(props: {
               onView={(row) => setOpen({ kind: 'view', key: row.key })}
               onEdit={(row) => setOpen({ kind: 'edit', key: row.key })}
               onRemove={(target) => void removeRow(target)}
+              onSetup={(row) => setSetupFolder(row.folder)}
+              setupBlocked={setupBlocked}
               onAdd={() => addBox.current?.querySelector('input')?.focus()}
             />
           )}
@@ -1078,6 +1087,13 @@ function RepositoriesTab(props: {
             <p role={message.ok ? 'status' : 'alert'} className={`mt-2 text-sm ${message.ok ? 'text-muted' : 'text-danger'}`}>
               {message.text}
             </p>
+          )}
+          {offer && message?.ok && (
+            <div className="mt-2" data-setup-offer>
+              <IconLabel icon={Workflow} primary disabled={Boolean(setupBlocked)} tooltip={setupBlocked ?? 'Choose its mode, set up GitHub and import its specs. Nothing is written before Set up.'} onClick={() => setSetupFolder(offer)}>
+                Set up GitHub and import specs
+              </IconLabel>
+            </div>
           )}
           {rows.length > 0 && (
             <p className="mt-2 text-sm" data-tasks-live>
@@ -1117,12 +1133,19 @@ function RepositoriesTab(props: {
           onClose={() => setOpen(null)}
         />
       )}
-      <Onboard
-        workspaceId={props.workspaceId}
-        disabled={props.dirty ? 'Save or discard your settings changes first: onboarding writes .avoozl.json.' : null}
-        onChanged={() => Promise.all([reload(), props.onRegistryChanged()])}
-        onOpenPlans={props.onOpenPlans}
-      />
+      {setupFolder && (
+        <SetupRepository
+          workspaceId={props.workspaceId}
+          folder={setupFolder}
+          onChanged={() => Promise.all([reload(), props.onRegistryChanged()])}
+          onOpenPlans={props.onOpenPlans}
+          onClose={(note) => {
+            setSetupFolder(null)
+            setOffer(null)
+            if (note) setMessage({ ok: true, text: note })
+          }}
+        />
+      )}
       <Card>
         <div ref={addBox}>
           <AddRepository
@@ -1222,8 +1245,8 @@ function WorkspaceGitHub(props: {
   const dirty = dirtyTabs(form, props.saved, GITHUB_TAB_FIELDS)
   return (
     <div className="flex min-w-0 flex-col gap-3.5" data-github-tabs>
-      <Tabs id="avoozl-github" label="GitHub settings" tabs={GITHUB_TABS.map((item) => ({ ...item, dirty: dirty.has(item.key) }))} current={tab} onPick={pick} />
-      <TabPanel id="avoozl-github" current={tab}>
+      <Tabs id="avoozl-github-tab" label="GitHub settings" tabs={GITHUB_TABS.map((item) => ({ ...item, dirty: dirty.has(item.key) }))} current={tab} onPick={pick} />
+      <TabPanel id="avoozl-github-tab" current={tab}>
         {tab === 'issues' && (
           <Card>
             <Section title="New tasks and issues" blurb="Who owns a new task, and how its GitHub issue is made. For every repository in this workspace.">

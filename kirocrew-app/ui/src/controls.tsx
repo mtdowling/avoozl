@@ -22,6 +22,7 @@ import { errorMessage } from './workspace-api.ts'
 import { moreLabel, visibleCount } from './paging.ts'
 import { Tooltip } from './Tooltip.tsx'
 import { Modal } from './Modal.tsx'
+import { Button, type ButtonVariant } from './Button.tsx'
 import { linkHref } from './views-api.ts'
 import { MoreMenu } from './MoreMenu.tsx'
 import { usePhone } from './list-detail.ts'
@@ -30,7 +31,6 @@ export const ICON = 14
 
 // Danger: the theme's danger color, readable in light and dark.
 export const dangerStyle: CSSProperties = { color: 'var(--danger)', borderColor: 'var(--danger)' }
-const dangerFill: CSSProperties = { background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }
 
 const row: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 6 }
 
@@ -43,6 +43,7 @@ export function IconLabel(props: {
   disabled?: boolean
   tooltip?: string
   primary?: boolean
+  variant?: ButtonVariant
   style?: CSSProperties
   'aria-label'?: string
 }) {
@@ -50,18 +51,18 @@ export function IconLabel(props: {
   return (
     <Tooltip text={props.tooltip}>
       {(describedBy) => (
-        <Btn
+        <Button
           type="button"
           onClick={props.onClick}
           disabled={props.disabled}
-          primary={props.primary}
+          variant={props.variant ?? (props.primary ? 'primary' : 'default')}
           aria-label={props['aria-label']}
           aria-describedby={describedBy}
           style={{ ...row, ...props.style }}
         >
           <Icon size={ICON} aria-hidden="true" />
           {props.children}
-        </Btn>
+        </Button>
       )}
     </Tooltip>
   )
@@ -175,6 +176,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           role="alertdialog"
           focusClose
           backLabel="Cancel"
+          dismissLabel="Cancel"
           width="28rem"
           title={pending.title}
           describedBy="avoozl-confirm-body"
@@ -182,9 +184,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           onDismiss={() => answer(false)}
           footer={
             <>
-              <Btn type="button" data-danger onClick={() => answer(true)} style={dangerFill}>
+              <Button type="button" variant="danger" onClick={() => answer(true)}>
                 {pending.action}
-              </Btn>
+              </Button>
             </>
           }
         >
@@ -213,18 +215,18 @@ export function DangerBtn(props: {
   return (
     <Tooltip text={props.tooltip ?? props.label}>
       {(describedBy) => (
-        <Btn
+        <Button
           type="button"
-          data-danger
+          variant="danger"
           aria-label={props.label}
           aria-describedby={props.tooltip ? describedBy : undefined}
           disabled={props.disabled}
           onClick={() => void ask(props.confirm).then((yes) => yes && props.onConfirm())}
-          style={{ ...row, ...dangerStyle }}
+          style={row}
         >
           {Icon && <Icon size={ICON} aria-hidden="true" />}
           {props.children}
-        </Btn>
+        </Button>
       )}
     </Tooltip>
   )

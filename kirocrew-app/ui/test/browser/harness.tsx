@@ -17,7 +17,7 @@ import { Tooltip } from '../../src/Tooltip.tsx'
 import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
 import GraphView from '../../src/GraphView.tsx'
 import AddPlugin from '../../src/AddPlugin.tsx'
-import Onboard from '../../src/Onboard.tsx'
+import SetupRepository from '../../src/Onboard.tsx'
 import { Modal } from '../../src/Modal.tsx'
 import { specGraph } from './spec-graph-fixture.ts'
 import { installInlineFixture } from './settings-inline-fixture.ts'
@@ -275,7 +275,7 @@ const shown = (dialog: (close: () => void) => ReactNode): Scenario => ({
 // A dialog that asks before it discards edits (Modal's `unsaved`).
 const repoEdit = (edited: boolean) =>
   shown((close) => (
-    <Modal id="avoozl-repo-edit" width="46rem" title="avoozl" unsaved={edited && { title: 'Discard your changes to avoozl?', body: 'Every edit in this dialog is lost.', action: 'Discard changes' }} onDismiss={close}>
+    <Modal id="avoozl-repo-edit" dismissLabel="Cancel" width="46rem" title="avoozl" unsaved={edited && { title: 'Discard your changes to avoozl?', body: 'Every edit in this dialog is lost.', action: 'Discard changes' }} onDismiss={close}>
       <label className="flex flex-col gap-1 text-sm">
         Base branch
         <input defaultValue="main" className="rounded border px-2 py-1" />
@@ -285,7 +285,7 @@ const repoEdit = (edited: boolean) =>
 
 export const SCENARIOS: Record<string, Scenario> = {
   'add-plugin': own('Add plugin', <AddPlugin workspaceId="w" client={idle} supported={[1]} onChanged={async () => undefined} />),
-  onboard: own('Onboard', <Onboard workspaceId="w" disabled={null} onChanged={async () => undefined} />),
+  onboard: shown((close) => <SetupRepository workspaceId="w" folder="/work/avoozl" onChanged={async () => undefined} onClose={close} />),
   'repo-edit': repoEdit(false),
   'repo-edit-unsaved': repoEdit(true),
   'setup-github': shown((close) => <SetupDialog workspaceId="w" client={idle} form={setupForm({})} set={() => undefined} first={null} onClose={close} onSaved={async () => undefined} />),
@@ -550,6 +550,24 @@ if (query.get('page') === 'app') {
       { id: 'recipe-api', name: 'recipe-api', localCheckout: '/src/recipe-api', github: 'acme/recipe-api', baseBranch: 'main' },
       { id: 'notes', name: 'notes', localCheckout: '/src/notes', github: null, baseBranch: 'main' },
     ] }))
+  // Add repository and Set up GitHub and import specs read a folder the same way.
+  if (roles) {
+    answer('repositories.detect', (body) => ({ root: (body.input as { folder: string }).folder, id: 'new-service', baseBranch: 'main', remote: 'git@github.com:acme/new-service.git', github: 'acme/new-service' }))
+    answer('repositories.configure', (body) => ({ id: (body.input as { id: string }).id, name: (body.input as { id: string }).id, localCheckout: (body.input as { localCheckout: string }).localCheckout, github: 'acme/new-service', baseBranch: 'main' }))
+    answer('onboarding.inspect', (body) => ({
+      root: (body.input as { folder: string }).folder,
+      baseBranch: 'main',
+      currentBranch: 'main',
+      remote: 'git@github.com:acme/new-service.git',
+      github: 'acme/new-service',
+      id: 'new-service',
+      settingsFile: false,
+      specs: ['search-v2'],
+      registered: { id: 'new-service', localCheckout: (body.input as { folder: string }).folder, github: 'acme/new-service', baseBranch: 'main', planning: false },
+      visibility: 'private',
+      githubError: null,
+    }))
+  }
   answer('github.settings.get', () => ({
     filename: '.avoozl.json',
     exists: true,
@@ -936,7 +954,10 @@ if (query.get('page') === 'app' && query.get('publiccrews')) {
 // ?page=app&radar=1: the Dashboard has one live Issue Radar claim.
 if (query.get('radar') === '1') {
   answer('delivery.view', () => ({ revision: 1, items: [] }))
-  answer('conflicts.view', () => ({ revision: 1, items: [] }))
+  answer('conflicts.view', () => ({
+    revision: 1,
+    items: query.get('tickfail') === '1' ? [{ kind: 'tick-failed', id: 'tick-failed', taskId: null, title: 'The tick failed 3 times in a row', detail: 'database is locked. Nothing is dispatched, merged or read from GitHub until a tick works.', failures: 3, openedAt: '2026-11-13T11:30:00Z', planArchived: null }] : [],
+  }))
   answer('plan.list', () => ({ items: [] }))
   answer('remote.view', () => ({ workers: [] }))
   const noMetrics = { tasks: 0, leadTimeMs: null, flowEfficiency: null, firstPassRate: null, changeFailureRate: null, integrationsPerDay: null, timeToFixMs: null }
@@ -1018,14 +1039,18 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
     mk('pantry.1', 'Shelf list', 'acme/pantry', 'pantry', '14', { queued: 6 * min, coding: 20 * min, review: 15 * min }),
   ]
   const retros = [
-    { id: 'retro-2', n: 2, state: 'done', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-16T12:00:00Z', finishedAt: '2026-11-16T12:09:00Z', model: 'claude-sonnet', bottleneck: { stage: 'ci-wait', repository: 'acme/recipe-box', evidence: 'CI wait was 58% of lead time over 8 tasks.' }, dropped: [], proposals: [
+    { id: 'retro-2', n: 2, state: 'done', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-16T12:00:00Z', finishedAt: '2026-11-16T12:09:00Z', model: 'claude-sonnet', chat: { slot: 'avoozl_retro_2', executor: 'kirocrew', harness: null, status: 'idle', link: '/chat?sid=avoozl_retro_2' }, bottleneck: { stage: 'ci-wait', repository: 'acme/recipe-box', evidence: 'CI wait was 58% of lead time over 8 tasks.' }, dropped: [], proposals: [
       { id: 'p1', type: 'settings', file: 'workspace', key: 'flow.batch.max', from: 3, to: 5, metric: 'lead time', direction: 'down', evidence: 'Batches of 3 waited on CI 6 times.', status: 'open' },
       { id: 'p2', type: 'prompt', target: 'worker', section: 'Checks', diff: '@@ -1,2 +1,2 @@\n Run the checks.\n-Run all tests.\n+Run the tests you touched first.', metric: 'first-pass rate', direction: 'up', evidence: 'Two reviews asked for narrower runs.', status: 'open' },
     ] },
+    { id: 'retro-4', n: 4, state: 'failed', failure: 'no-reply', waitedMs: 11 * min, error: 'the chat started but never replied (waited 11 minutes)', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-17T09:00:00Z', finishedAt: '2026-11-17T09:11:00Z', bottleneck: null, dropped: [], proposals: [],
+      chat: { slot: 'avoozl_retro_4', executor: 'process', harness: 'claude-code', status: 'closed', link: null, process: { state: 'exited', logTail: 'reading the window\nwriting the reply\nerror: the model call was cut off', attach: 'tail -n 20 -f /tmp/avoozl/retro-4.log' } } },
+    { id: 'retro-3', n: 3, state: 'failed', failure: 'lost', waitedMs: 11 * min, error: 'the chat was lost: Kiro Crew no longer lists it (waited 11 minutes)', triggers: [{ kind: 'manual', detail: 'started by hand' }], startedAt: '2026-11-16T20:00:00Z', finishedAt: '2026-11-16T20:11:00Z', bottleneck: null, dropped: [], proposals: [],
+      chat: { slot: 'avoozl_retro_3', executor: 'kirocrew', harness: null, status: 'gone', link: '/chat?sid=avoozl_retro_3' } },
     { id: 'retro-1', n: 1, state: 'done', triggers: [{ kind: 'count', detail: '10 tasks finished' }], startedAt: '2026-11-12T12:00:00Z', finishedAt: '2026-11-12T12:08:00Z', bottleneck: null, dropped: [], proposals: [
       { id: 'p1', type: 'rule', text: 'Name the spec in every commit message.', metric: 'corrections', direction: 'down', evidence: { runs: ['search.1', 'search.2'], value: 2, effect: 'corrections' }, status: 'approved' },
     ] },
-  ]
+  ].sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))
   answer('radar.flow', () => ({ readAt: null, count: 0, issues: [], skipped: [], median: null, medianLead: null, efficiency: null, bottleneck: null, errors: [], repositories: [] }))
   answer('flow.view', (body) => {
     const input = ((body as { input?: Record<string, string> }).input ?? {}) as Record<string, string>
@@ -1046,6 +1071,7 @@ if (query.get('page') === 'app' && query.get('retros') === '1') {
   }))
   answer('flow.settings.get', () => ({ filename: '.avoozl.json', exists: true, hash: 'h', flow: {}, repositories: {}, instructions: '', retroPrompt: null, ciClassGlobs: {} }))
   answer('flow.retro.decide', () => ({ ok: true }))
+  answer('flow.retro.again', () => ({ queued: true }))
 }
 // ?page=demo: the whole page, where Start demo opens the sample. Calls
 // for the sample answer from window.__DEMO (demo-replies.mjs, built from
@@ -1233,8 +1259,6 @@ if (query.get('page') === 'workspaces') {
     items = items.map((item) => (item.id === id ? { ...item, ...change } : item))
     return items.find((item) => item.id === id)
   })
-  answer('workspace.tick.health', () => ({ lastRun: null, lock: null }))
-  answer('workspace.tick.log', () => ({ items: [] }))
 }
 
 // The folder picker's reads (workspaces.browse) on every page: a small home
@@ -1351,10 +1375,26 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
   const kinds = ['dispatch', 'settings', 'github.close', 'approve', 'board.move', 'label', 'stop', 'resume', 'session.end', 'plugin.sync']
   const sources = ['local', 'github', 'mcp', 'plugin']
   const actors = ['mira', 'worker-chat', 'octo-reviewer', 'github-actions']
-  const all = Array.from({ length: 24 }, (_, at) => {
+  const base = Array.from({ length: 24 }, (_, at) => {
     const seq = 24 - at
     return { seq, at: new Date(Date.parse('2026-11-13T10:00:00Z') - at * 3600e3).toISOString(), source: sources[at % 4], actor: actors[(at * 3) % 4], kind: kinds[at % kinds.length], summary: `${kinds[at % kinds.length]} entry ${seq}`, targetId: null, link: null, redacted: false }
   })
+  // New items from GitHub: the owner/repo#N text links to the item.
+  if (query.get('ghitems') === '1') {
+    base[1] = { ...base[1], source: 'github', kind: 'intake.item', summary: 'New pr nupp-lang/foo#12 from github', link: null }
+    base[5] = { ...base[5], source: 'github', kind: 'intake.item', summary: 'New issue nupp-lang/bar#7 from github', link: 'https://github.com/nupp-lang/bar/issues/7' }
+    kinds.push('intake.item')
+  }
+  // The tick's own rows: a failure with a count, a stall and a recovery.
+  const tickRow = (seq: number, hours: number, kind: string, summary: string) => ({ seq, at: new Date(Date.parse('2026-11-13T10:00:00Z') + hours * 3600e3).toISOString(), source: 'tick', actor: 'avoozl', kind, summary, targetId: null, link: null, redacted: false })
+  const all = [
+    tickRow(27, 2, 'tick.recovered', 'Tick works again after 5 failures'),
+    tickRow(26, 1.5, 'tick.failed', 'Tick failed 5 times in a row: database is locked'),
+    tickRow(25, 0.5, 'tick.stalled', 'Tick had not run for 42 min; it is running again'),
+    ...base,
+  ]
+  sources.push('tick')
+  kinds.push('tick.failed', 'tick.recovered', 'tick.stalled')
   const count = (key: 'source' | 'kind' | 'actor') => {
     const out: Record<string, number> = {}
     for (const row of all) out[row[key]] = (out[row[key]] ?? 0) + 1

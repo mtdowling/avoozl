@@ -200,7 +200,7 @@ test('Settings has a GitHub page; Workspaces keeps only workspace things', () =>
 
 test('GitHub: every group is its own tab and bordered section, and Radar settings live on their own page', () => {
   const github = settings.slice(settings.indexOf('function WorkspaceGitHub('), settings.indexOf('function RadarSettings('))
-  const shown = github.slice(github.indexOf('<Tabs id="avoozl-github"'))
+  const shown = github.slice(github.indexOf('<Tabs id="avoozl-github-tab"'))
   for (const [tab, title] of [['issues', 'New tasks and issues'], ['sync', 'Sync pace'], ['setup', 'Set up GitHub']]) assert.match(shown, new RegExp(`\\{tab === '${tab}' && \\(\\s*<Card>\\s*<Section title="${title}"`), title)
   assert.match(shown, /\{tab === 'project' && \(\s*<Card>\s*<ProjectFields/)
   assert.doesNotMatch(github, /CrewScopes|RadarValuesScreen|level="sub"/)

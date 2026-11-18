@@ -18,6 +18,7 @@ export const ACTIVITY_SOURCES = Object.freeze([
   "github",
   "plugin",
   "mcp",
+  "tick",
 ]);
 export const REDACTED_SUMMARY = "Redacted by content rules";
 export const DEFAULT_RETENTION_DAYS = 30;
@@ -129,6 +130,15 @@ export function recordActivity(
   return result.changes
     ? { seq: Number(result.lastInsertRowid), ...row }
     : null;
+}
+
+// Drops the row saved under `key`, so a repeated event can be saved again
+// with its new count.
+export function removeActivity(store, key) {
+  if (store.readOnly || !key) return;
+  try {
+    store.db.prepare("DELETE FROM activity_log WHERE key=?").run(key);
+  } catch {}
 }
 
 // For built-in callers: a row that cannot be written never fails the action.
@@ -731,7 +741,7 @@ export function recordTickChanges(store, before, after) {
         kind: "intake.item",
         summary: `New ${item.record?.kind ?? "item"} ${item.itemId ?? item.id} from ${item.source}`,
         targetId: item.taskId ?? null,
-        link: item.source === "github" ? item.record?.url : null,
+        link: item.source === "github" ? item.record?.link : null,
         key: `intake:${item.id}`,
       });
     }

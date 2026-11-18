@@ -6,7 +6,7 @@
 // and a click outside change nothing.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
+import { Input } from '@kirocrew/app-sdk/ui'
 import { ICON, useConfirm } from './controls.tsx'
 import { Pause, Play } from './icons.ts'
 import { Picker, taskItems } from './Picker.tsx'
@@ -15,14 +15,15 @@ import { RadioFold } from './RadioFold.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { NAV_ICON, SQUARE } from './LeftNav.tsx'
 import { Modal } from './Modal.tsx'
+import { Button } from './Button.tsx'
 import { FULL_STOP_WARNING, LINE_EVENT, MAX_REASON, PULL_KINDS, PULL_SCOPES, emptyPull, flowClient, lineChanged, toPull, type LineStop, type PullForm } from './flow-api.ts'
 import { plansClient } from './plans-api.ts'
 import { viewsClient } from './views-api.ts'
 import { workspaceClient, errorMessage } from './workspace-api.ts'
 
-const FILL = { background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 6 }
+const FILL = { display: 'inline-flex', alignItems: 'center', gap: 6 }
 // Stopped: a red frame on a red tint, the text in the theme's own color.
-const STOPPED = { ...FILL, background: 'color-mix(in srgb, var(--danger) 16%, var(--card, var(--bg)))', color: 'var(--text)', borderWidth: 2 }
+const STOPPED = { ...FILL, borderColor: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 16%, var(--card, var(--bg)))', color: 'var(--text)', borderWidth: 2 }
 const FIELD = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)', maxWidth: '100%' }
 
 interface Choices {
@@ -111,8 +112,9 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
     <>
       <Tooltip text={stopped ? `The line is stopped: ${why}. Resume it from the banner on the Dashboard or Flow. Press to stop more.` : 'Stop new work in a scope, or stop all agents, with a reason'}>
         {(describedBy) => (
-          <Btn
+          <Button
             type="button"
+            variant="danger"
             data-stop-line
             data-stopped={stopped ? '' : undefined}
             aria-describedby={describedBy}
@@ -123,7 +125,7 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
           >
             <Pause size={ICON} aria-hidden="true" style={stopped ? { color: 'var(--danger)' } : undefined} />
             <span className="sr-only">{stopped ? 'Line stopped' : 'Stop the line'}</span>
-          </Btn>
+          </Button>
         )}
       </Tooltip>
       {dialog}
@@ -210,6 +212,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       id="avoozl-stop"
       width="36rem"
       backLabel="Cancel"
+      dismissLabel="Cancel"
       describedBy="avoozl-stop-line"
       boxRef={box}
       attrs={{ 'data-stop-dialog': true }}
@@ -222,10 +225,10 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       onDismiss={close}
       footer={
         <>
-          <Btn type="button" data-danger data-stop-confirm onClick={() => void pull()} disabled={busy} style={FILL}>
+          <Button type="button" variant="danger" data-stop-confirm onClick={() => void pull()} disabled={busy} style={FILL}>
             <Pause size={ICON} aria-hidden="true" />
             {form.kind === 'agents' ? 'Stop all agents' : 'Stop the line'}
-          </Btn>
+          </Button>
         </>
       }
     >

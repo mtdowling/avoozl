@@ -391,6 +391,7 @@ export function MarkDoneDialog(props: {
       id="avoozl-mark-done"
       width="34rem"
       backLabel="Cancel"
+      dismissLabel="Cancel"
       describedBy="avoozl-mark-done-line"
       attrs={{ 'data-mark-done-dialog': true }}
       unsaved={

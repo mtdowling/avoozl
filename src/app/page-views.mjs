@@ -2,6 +2,7 @@
 // Each one reads the store and writes nothing, so all three classify as
 // `observe`. Old or read-only workspaces may lack newer tables; those read as
 // empty rather than failing the view.
+import { tickFailedItems } from "./tick-activity.mjs";
 import { routingFailedItems, routingHealth } from "./routing-health.mjs";
 import { providerOutItems } from "./provider-health.mjs";
 import { investigationItems } from "./investigate.mjs";
@@ -1183,6 +1184,8 @@ export function conflictsView(store, data) {
   items.push(...providerOutItems(store));
   // Routing failed three times in a row (§4.10, R41.7).
   items.push(...routingFailedItems(store));
+  // The tick failed three times in a row.
+  items.push(...tickFailedItems(store));
   // Ready to merge under manual ship (§4.25, R80.3, R80.4): a pull request
   // a person merges on GitHub, or a local task waiting for Integrate.
   for (const row of optionalList(store, "pr_feedback")) {

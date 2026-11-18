@@ -287,6 +287,7 @@ export const APP_OPERATIONS = new Set([
   "flow.instructions.update",
   "flow.retro.decide",
   "flow.retro.start",
+  "flow.retro.again",
   "flow.proposals",
   "prompt.override.revert",
   "prompt.override.rebase",

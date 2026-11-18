@@ -127,13 +127,20 @@ export const TAB_LABEL: Record<string, string> = {
 }
 
 // Where the person is in the view; kept in the address as
-// ?view=review&plan=P&rev=H&file=F&severity=S&state=X.
+// ?view=review&plan=P&rev=H&file=F&severity=blocker,warn&state=open,accepted.
+// The two filters are toggles: any number on, none on shows everything.
 export interface ReviewPlace {
   plan: string
   rev: string | null
   file: string | null
-  severity: FindingSeverity | null
-  state: FindingState | null
+  severity: FindingSeverity[]
+  state: FindingState[]
+}
+
+// The listed values that are real, once each, in the order the page shows.
+const pick = <T extends string>(value: string | null, all: readonly T[]): T[] => {
+  const asked = new Set((value ?? '').split(','))
+  return all.filter((item) => asked.has(item))
 }
 
 export function parseReviewLink(search: string): ReviewPlace | null {
@@ -141,26 +148,42 @@ export function parseReviewLink(search: string): ReviewPlace | null {
   if (query.get('view') !== 'review') return null
   const plan = query.get('plan')
   if (!plan) return null
-  const severity = query.get('severity') as FindingSeverity | null,
-    state = query.get('state') as FindingState | null,
-    rev = query.get('rev'),
+  const rev = query.get('rev'),
     file = query.get('file')
   return {
     plan,
     rev: rev && /^[\w-]{1,128}$/.test(rev) ? rev : null,
     file: file && /^[\w./-]{1,64}$/.test(file) && !file.includes('..') ? file : null,
-    severity: severity && SEVERITIES.includes(severity) ? severity : null,
-    state: state && STATES.includes(state) ? state : null,
+    severity: pick(query.get('severity'), SEVERITIES),
+    state: pick(query.get('state'), STATES),
   }
 }
 
 export function reviewLink(place: ReviewPlace): string {
   const query = new URLSearchParams({ view: 'review', plan: place.plan })
-  for (const key of ['rev', 'file', 'severity', 'state'] as const) {
-    const value = place[key]
-    if (value) query.set(key, value)
-  }
+  for (const key of ['rev', 'file'] as const) if (place[key]) query.set(key, place[key]!)
+  for (const key of ['severity', 'state'] as const) if (place[key].length) query.set(key, place[key].join(','))
   return '?' + query.toString()
+}
+
+// The spec page's tabs in the address. Review is ?view=review&plan=P (above);
+// every other tab is the spec id plus tab=T, and the Overview is the spec id alone.
+export interface SpecPlace {
+  plan: string
+  tab: string
+}
+export function specTabLink(plan: string, tab: string): string {
+  const query = new URLSearchParams({ plan })
+  if (tab !== 'overview') query.set('tab', tab)
+  return '?' + query.toString()
+}
+export function parseSpecTab(search: string): SpecPlace | null {
+  const query = new URLSearchParams(search)
+  const plan = query.get('plan'),
+    tab = query.get('tab') ?? 'overview'
+  if (!plan || query.get('view') === 'review') return null
+  if (tab !== 'overview' && (tab === 'review' || !/^[\w./-]{1,64}$/.test(tab) || tab.includes('..'))) return null
+  return { plan, tab }
 }
 
 // An Approve dialog's Open review: the view at that revision on Kiro Crew's
@@ -168,22 +191,22 @@ export function reviewLink(place: ReviewPlace): string {
 // the view without an address.
 export function reviewHref(pathname: string, plan: string, rev: string): string | null {
   const base = urlBase(pathname)
-  return base ? base + reviewLink({ plan, rev, file: null, severity: null, state: null }) : null
+  return base ? base + reviewLink({ plan, rev, file: null, severity: [], state: [] }) : null
 }
 
 // The findings the filters show, in line order, and the counts each chip shows: a chip's
 // count applies the other filter, so the numbers add up to what shows.
 export function filterFindings(findings: ReviewFinding[], place: Pick<ReviewPlace, 'severity' | 'state'>) {
   return findings
-    .filter((f) => (!place.severity || f.severity === place.severity) && (!place.state || f.state === place.state))
+    .filter((f) => (!place.severity.length || place.severity.includes(f.severity)) && (!place.state.length || place.state.includes(f.state)))
     .sort((a, b) => a.anchor.file.localeCompare(b.anchor.file) || a.anchor.lineStart - b.anchor.lineStart)
 }
 export function chipCounts(findings: ReviewFinding[], place: Pick<ReviewPlace, 'severity' | 'state'>) {
   const severity: Record<string, number> = {},
     state: Record<string, number> = {}
   for (const f of findings) {
-    if (!place.state || f.state === place.state) severity[f.severity] = (severity[f.severity] ?? 0) + 1
-    if (!place.severity || f.severity === place.severity) state[f.state] = (state[f.state] ?? 0) + 1
+    if (!place.state.length || place.state.includes(f.state)) severity[f.severity] = (severity[f.severity] ?? 0) + 1
+    if (!place.severity.length || place.severity.includes(f.severity)) state[f.state] = (state[f.state] ?? 0) + 1
   }
   return { severity, state }
 }
@@ -229,17 +252,4 @@ export function blocksIn(lines: number[], start: number, end: number): number[] 
     if (lines[i] <= end && last >= start) out.push(i)
   }
   return out.length ? out : lines.length ? [blockFor(lines, start)] : []
-}
-
-// Each card's top in the rail: level with its block (`want`), pushed down
-// below the card above when they would overlap. In `want` order, then line.
-export function stackCards(cards: { id: string; want: number; line: number; height: number }[], gap = 8): Record<string, number> {
-  const tops: Record<string, number> = {}
-  let floor = 0
-  for (const card of [...cards].sort((a, b) => a.want - b.want || a.line - b.line)) {
-    const top = Math.max(card.want, floor)
-    tops[card.id] = top
-    floor = top + card.height + gap
-  }
-  return tops
 }

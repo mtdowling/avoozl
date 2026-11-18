@@ -1793,12 +1793,13 @@ Requirement 97.3 (design §4.28).
   - Read-only roles get the read-only class.
   - Built: a `process` project's verifier and review roles (`planVerifierDispatches`), retro (`retroStep`) and New plan planner (`newPlanStarts`) request `process`; `drainProcessRequests` adds a verdict role's detached worktree at the commit and removes it after, gives a retro a scratch folder, and gives the planner only its spec folder (`src/app/executors/process.mjs`). `processBrief` puts the role's `prompts/<role>.md` first and says how to finish without Avoozl's tools; a read class writes only its temp folder and `.avoozl/` (`harnessPermission`), and a definition's `resultAllow` lets it write the result file (Claude Code: `dontAsk` plus `Edit(.avoozl/result.json)`, checked on Claude Code 2.1.326, where `plan` refused the file). The result file's `report` carries a verdict or a retro's reply. No watch session exists: the line watch runs in the tick with no agent. The GitHub breakdown planner, plan review and pull request review chats stay on `kirocrew`. Tests in `src/app/test/process-roles.test.mjs`.
 
-- [ ] avoozl-p59 P59 Proof: each role runs on either executor, after 49.1 [R97] (§4.28)
+- [x] avoozl-p59 P59 Proof: each role runs on either executor, after 49.1 [R97] (§4.28)
   - Setup: a scratch workspace; each role pinned once to `kirocrew` and once to `process`.
   - Action: run each role once per executor.
   - Expected: the same result kinds from both; a read-only role cannot write.
   - Failure means: a role still depends on Kiro Crew.
   - Next decision: move that role's Kiro Crew detail into the executor.
+  - Proved: `docs/evidence/p59-roles-on-either-executor.md` (2026-11-18, Claude Code and the P50 test crew); fixes #499, #502, #511. The falsifier still runs on `kirocrew` only.
 
 ## Phase 50: Kiro Crew stays the only UI
 

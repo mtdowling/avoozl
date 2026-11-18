@@ -43,7 +43,7 @@ const KIND_LABEL: Record<string, string> = { ...CONFLICT_LABELS, delivery: 'Deli
 export const NEEDS_SHOWN = 6
 
 // Kinds where something failed and stopped; the rest wait on a choice.
-const FAILED_KINDS = new Set(['delivery', 'stale-session', 'budget', 'over-budget', 'provider-out', 'routing-failed'])
+const FAILED_KINDS = new Set(['delivery', 'stale-session', 'budget', 'over-budget', 'provider-out', 'routing-failed', 'tick-failed'])
 
 // One Needs you card: what waits, and the one answer that unblocks it.
 function NeedCard({ item, attach, onAnswer, onInfo, onAsk, onTitle }: { item: Attention; attach: string | null; onAnswer: () => void; onInfo: () => void; onAsk: () => void; onTitle: () => void }) {
@@ -255,7 +255,7 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
 
 // Copy a `process` session's attach command (R98.1). The command shows in
 // the tooltip, so a person reads what they copy.
-function CopyAttach({ command, title }: { command: string; title: string }) {
+export function CopyAttach({ command, title }: { command: string; title: string }) {
   const [copied, setCopied] = useState(false)
   return (
     <Tooltip text={command}>

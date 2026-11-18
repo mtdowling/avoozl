@@ -32,7 +32,7 @@ const click = (selector, text) =>
 async function openGitHub(width, extra = {}) {
   await page.open(harness.url({ page: 'app', roles: 'single', ghfull: '1', ...extra }), { width, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-shell-main]'))`)
-  if (extra.github) return page.until(`Boolean(document.querySelector('[data-tabs="avoozl-github"]'))`)
+  if (extra.github) return page.until(`Boolean(document.querySelector('[data-tabs="avoozl-github-tab"]'))`)
   const scope = width < 768 ? '[data-top-rail-list]' : '[data-left-nav]'
   if (width < 768) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   await wait(150)
@@ -41,11 +41,11 @@ async function openGitHub(width, extra = {}) {
   if (width < 768 && !(await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
   assert.ok(await page.evaluate(click(`${scope} [data-nav-item]`, 'GitHub')))
   if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-  await page.until(`Boolean(document.querySelector('[data-tabs="avoozl-github"]'))`)
+  await page.until(`Boolean(document.querySelector('[data-tabs="avoozl-github-tab"]'))`)
 }
 
 const READ = `(() => {
-  const bar = document.querySelector('[data-tabs="avoozl-github"]')
+  const bar = document.querySelector('[data-tabs="avoozl-github-tab"]')
   const tabs = [...bar.querySelectorAll('[role=tab]')]
   const panel = document.querySelector('[role=tabpanel]')
   return {
@@ -155,7 +155,7 @@ test('on a phone the bar scrolls sideways and the page does not', { skip }, asyn
   assert.ok(await page.evaluate(click('[role=tab]', 'GitHub calls')))
   await wait(50)
   // The open tab is scrolled into the bar's view.
-  const seen = await page.evaluate(`(() => { const bar = document.querySelector('[data-tabs="avoozl-github"]'), t = bar.querySelector('[aria-selected=true]').getBoundingClientRect(), b = bar.getBoundingClientRect(); return t.left >= b.left - 1 && t.right <= b.right + 1 })()`)
+  const seen = await page.evaluate(`(() => { const bar = document.querySelector('[data-tabs="avoozl-github-tab"]'), t = bar.querySelector('[aria-selected=true]').getBoundingClientRect(), b = bar.getBoundingClientRect(); return t.left >= b.left - 1 && t.right <= b.right + 1 })()`)
   assert.equal(seen, true)
 })
 

@@ -60,18 +60,6 @@ export interface DetectedCheckout {
   id: string | null
 }
 
-export interface TickRun {
-  at?: string
-  outcome: 'ok' | 'locked' | 'error' | 'unreadable'
-  policy?: string
-  error?: string
-}
-
-export interface TickHealth {
-  lastRun: TickRun | null
-  lock: { pid: number; live: boolean } | null
-}
-
 export interface NewWorkspace {
   id: string
   root: string
@@ -129,28 +117,10 @@ export function workspaceClient(api: AppApi) {
       workspaceId: string,
       input: { id: string; localCheckout: string; baseBranch?: string },
     ) => run<Repository>('repositories.configure', { ...input }, workspaceId),
-    tick: (workspaceId: string) => run<unknown>('workspace.tick', {}, workspaceId),
-    tickHealth: (workspaceId: string) => run<TickHealth>('workspace.tick.health', {}, workspaceId),
   }
 }
 
 export type WorkspaceClient = ReturnType<typeof workspaceClient>
-
-// One short line for the tick health card.
-export function describeTick(health: TickHealth | null, now = Date.now()): string {
-  if (!health) return 'Not loaded'
-  const { lastRun, lock } = health
-  if (lock) return lock.live ? `Running (pid ${lock.pid})` : `Stale lock (pid ${lock.pid})`
-  if (!lastRun) return 'Never run'
-  if (lastRun.outcome === 'unreadable') return 'Last run unreadable'
-  const seconds = lastRun.at ? Math.max(0, Math.round((now - Date.parse(lastRun.at)) / 1000)) : null
-  const ago =
-    seconds === null ? '' : seconds < 90 ? ` ${seconds}s ago` : ` ${Math.round(seconds / 60)}m ago`
-  if (lastRun.outcome === 'error') return `Failed${ago}: ${lastRun.error ?? 'unknown error'}`
-  if (lastRun.outcome === 'locked') return `Skipped${ago}: another tick held the lock`
-  if (lastRun.policy === 'invalid') return `Ran${ago}; .avoozl.json is invalid: ${lastRun.error ?? ''}`.trim()
-  return `Ran${ago}; policy ${lastRun.policy ?? 'unknown'}`
-}
 
 // The workspace to show: the current one while it still exists, else the one
 // this backend serves, else the catalog default, else the first.

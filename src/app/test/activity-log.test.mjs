@@ -459,6 +459,25 @@ test("the tick's snapshot diff records each GitHub and plugin change once", (t) 
   );
 });
 
+test("a new GitHub intake item keeps the item's own link", (t) => {
+  const { store } = setup(t);
+  const before = tickSnapshot(store);
+  store.put("incoming_items", {
+    id: "github\0nupp-lang/foo#12",
+    source: "github",
+    itemId: "nupp-lang/foo#12",
+    record: {
+      kind: "pr",
+      title: "A pull request",
+      link: "https://github.com/nupp-lang/foo/pull/12",
+    },
+  });
+  recordTickChanges(store, before, tickSnapshot(store));
+  const item = listActivity(store).items.find((i) => i.kind === "intake.item");
+  assert.equal(item.summary, "New pr nupp-lang/foo#12 from github");
+  assert.equal(item.link, "https://github.com/nupp-lang/foo/pull/12");
+});
+
 test("an older database starts from its current state; later changes are logged", (t) => {
   const root = temporaryDirectory("avoozl-activity-old-"),
     file = path.join(root, "workspace.sqlite");

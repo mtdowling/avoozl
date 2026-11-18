@@ -1,7 +1,8 @@
 // The one tab bar for a page's groups (WAI-ARIA tabs): the bar takes the
 // full width and scrolls sideways on a narrow screen, arrow keys, Home and
 // End move between tabs, and a tab with unsaved changes shows a dot. Pages
-// that want tabs use this, not their own bar.
+// that want tabs use this, not their own bar: Settings › GitHub, and the
+// spec page and Review view through DocTabs (ReviewView.tsx).
 //
 // useTabParam keeps the open tab in the page address (?<param>=<key>) on
 // Kiro Crew's /apps/<name> route, so the browser's Back and a pasted link
@@ -24,10 +25,20 @@ export interface TabItem<T extends string = string> {
   badge?: ReactNode
 }
 
-export const tabId = (id: string, key: string) => `${id}-tab-${key.replace(/\W/g, '-')}`
+// `id` prefixes the ids: <id>-<key> for a tab, <id>-panel for its panel.
+export const tabId = (id: string, key: string) => `${id}-${key.replace(/\W/g, '-')}`
 export const panelId = (id: string) => `${id}-panel`
 
-export function Tabs<T extends string>(props: { id: string; label: string; tabs: readonly TabItem<T>[]; current: T; onPick: (key: T) => void }) {
+export function Tabs<T extends string>(props: {
+  id: string
+  label: string
+  tabs: readonly TabItem<T>[]
+  current: T
+  onPick: (key: T) => void
+  // Extra data attributes: one on the bar, and one per tab set to its key.
+  barAttr?: string
+  tabAttr?: string
+}) {
   const refs = useRef(new Map<string, HTMLButtonElement>())
   const bar = useRef<HTMLDivElement>(null)
   // Keep the open tab in view, moving only the bar, never the page.
@@ -52,6 +63,7 @@ export function Tabs<T extends string>(props: { id: string; label: string; tabs:
       role="tablist"
       aria-label={props.label}
       data-tabs={props.id}
+      {...(props.barAttr ? { [props.barAttr]: '' } : {})}
       onKeyDown={key}
       style={{ display: 'flex', width: '100%', gap: 2, borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'thin', minWidth: 0 }}
     >
@@ -71,6 +83,7 @@ export function Tabs<T extends string>(props: { id: string; label: string; tabs:
             aria-controls={panelId(props.id)}
             tabIndex={on ? 0 : -1}
             data-tab={tab.key}
+            {...(props.tabAttr ? { [props.tabAttr]: tab.key } : {})}
             data-dirty={tab.dirty ? 'true' : undefined}
             onClick={() => props.onPick(tab.key)}
             style={{
@@ -85,7 +98,7 @@ export function Tabs<T extends string>(props: { id: string; label: string; tabs:
               borderRadius: 0,
               background: 'transparent',
               color: on ? 'var(--text-strong, var(--text))' : 'var(--muted)',
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: on ? 600 : 500,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
