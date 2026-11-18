@@ -1,5 +1,7 @@
 # PR and branch chips on In flight rows (task 44.4)
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 Screenshots of Home in the full app shell on fake data (harness
 `?page=app&links=1`), at 1280 and 390 px, light and dark, with Kiro Crew's
 own stylesheet. Five rows: checks pass, running, fail, for an older commit

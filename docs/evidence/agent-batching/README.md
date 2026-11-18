@@ -1,5 +1,7 @@
 # Planner batches (task 61.1, R108)
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 Made with `AVOOZL_CHROME_NO_SANDBOX=1 node kirocrew-app/ui/test/browser/agent-batching-shots.mjs docs/evidence/agent-batching`
 on the harness (`?page=app&delivery=1&batch=1`), fake data.
 

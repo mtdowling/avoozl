@@ -1,5 +1,7 @@
 # Radar-coder Proof 9, live: Make tests faster
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 Receipt for task `rc-p9`. The fake-GitHub run is
 `docs/evidence/radar-coder-proof-9-fake-github.md`.
 

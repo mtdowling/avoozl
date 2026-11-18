@@ -11,6 +11,7 @@ SQLite owns execution state; Markdown owns design prose.
 Keep application source independent of workspace paths and data. Tests use
 isolated temporary workspaces. Do not add real workspace databases, machine
 configuration, provider credentials, transcripts, or personal plans to this repo.
+Screenshots are never committed: keep them outside git and show them in chat.
 
 Use a task worktree for changes. Preserve other work and active agent sessions.
 Run `npm test` and `git diff --check` before landing. `npm run test:changed`
