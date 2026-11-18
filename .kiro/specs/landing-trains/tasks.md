@@ -97,6 +97,7 @@ person.
   - Done when: Fake-GitHub tests: a gated train with a CI-only platform dispatches exactly one run naming every CI-only platform, waits for it, counts as validated only on success, and deletes the ref; an optimistic train makes no dispatch and reads the push's run.
 - [x] lt-4.5 Avoozl's own `test.yml` accepts the validation dispatch, after lt-4.4 [LT8.8] (§D16.1)
   - `.github/workflows/test.yml` gains `workflow_dispatch` with a `platforms` input that limits the matrix legs to the named platforms (`linux-x64` to `ubuntu-latest`, `windows-x64` to `windows-latest`, `macos-arm64` to `macos-latest`); `push` stays `branches: [main]`; the job name, the matrix key and the docs-only skip are unchanged.
+  - Built against the sharded `test.yml` (plan job, lint, per-system shard jobs, required checks `test (<os>)`): the plan job's `legs` step sets an unrequested system's shards to `[]`, and its required check passes with nothing to run. The test below reads those names instead of one job `test` with a matrix.
   - Done when: A test reads `test.yml` and finds the input, `push` on `main` only, the job `test` with matrix `os` values unchanged, and the platform-to-runner mapping above; one dispatch run on a scratch branch with `platforms=linux-x64,windows-x64` runs only those two legs, linked in the pull request; the scratch branch is deleted afterward.
 
 ## Phase 5: Landing
