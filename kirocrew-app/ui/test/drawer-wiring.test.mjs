@@ -26,7 +26,7 @@ test('the task modal is the shared Modal: Esc, the X and Close close it, and foc
   assert.match(drawer, /Add task after this/)
   assert.match(drawer, /api_\.addTask\(\{ prerequisite: mode\.id \}\)/)
   assert.doesNotMatch(drawer, /aria-modal|fixed inset-0|useBackStep/)
-  const modal = source('Modal.tsx')
+  const modal = source('ui/Modal.tsx')
   assert.match(modal, /data-modal-footer-close/)
   assert.match(modal, /max-width: 767px/)
   assert.match(modal, /before\.focus\(\)/)

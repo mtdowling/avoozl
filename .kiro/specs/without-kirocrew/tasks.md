@@ -51,7 +51,7 @@ of the other specs.
 
 ## Phase 2: Roles with a small answer
 
-- [ ] nk-2.1 The falsifier as a child, after nk-1.1 [NK2.1, NK2.5] (§D2)
+- [x] nk-2.1 The falsifier as a child, after nk-1.1 [NK2.1, NK2.5] (§D2)
   - Facts:
     - summary: Phase 2 (Roles with a small answer). The falsifier as a child. See NK2.1, NK2.5; §D2.
     - done:
@@ -67,7 +67,7 @@ of the other specs.
     - after: nk-1.1
   - Their rows: the responder's reply is posted by Avoozl after today's checks; the summary is stored on the task; both read-only.
   - Done when: Tests on both executors with a fake GitHub: one reply is posted for one request and none for a blocked result; a reply that matches a content rule is held as it is for a chat; the summary is stored and shown; neither child has a credential or a network path.
-- [ ] nk-2.3 The issue planner's critique as a child, after nk-1.1 [NK2.4] (§D2)
+- [x] nk-2.3 The issue planner's critique as a child, after nk-1.1 [NK2.4] (§D2)
   - Facts:
     - summary: Phase 2 (Roles with a small answer). The issue planner's critique as a child. See NK2.4; §D2.
     - done:
@@ -177,7 +177,7 @@ of the other specs.
 
 ## Phase 7: What needs Kiro Crew
 
-- [ ] nk-7.1 The table, and no silent queue, after nk-1.1 [NK8] (§D7)
+- [x] nk-7.1 The table, and no silent queue, after nk-1.1 [NK8] (§D7)
   - Facts:
     - summary: Phase 7 (What needs Kiro Crew). The table, and no silent queue. See NK8; §D7.
     - done:

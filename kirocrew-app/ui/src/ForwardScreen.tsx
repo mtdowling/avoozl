@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react'
 import { Btn } from './ui/Btn'
 import { useAppApi } from './host.ts'
-import { Modal } from './Modal.tsx'
+import { Modal } from './ui/Modal.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { forwardClient, forwardOutcome, type ForwardAnswer, type ForwardReview } from './forward-api.ts'
 import { Hint } from './ui/Hint'
