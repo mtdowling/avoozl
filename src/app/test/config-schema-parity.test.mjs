@@ -10,10 +10,13 @@ import test from "node:test";
 import { ruleKeys, whenKeys } from "../agent-instructions.mjs";
 import { CONTENT_RULES_KEYS, RULE_SET_KEYS } from "../content-rules.mjs";
 import {
+  AGENT_ROLE_FIELDS,
   HARNESS_ROLES,
   MODEL_ROLES,
   PLAN_REVIEW_KEYS,
   RETIRED_ROLES,
+  ROLE_FIELDS,
+  ROLES,
 } from "../chat-models.mjs";
 import {
   DELIVERY_KEYS,
@@ -92,6 +95,9 @@ const flowGroup = (group) =>
 const PAIRS = [
   ["#/properties/models", [...MODEL_ROLES, ...RETIRED_ROLES]],
   ["#/properties/harnesses", HARNESS_ROLES],
+  ["#/properties/roles", ROLES],
+  ["#/$defs/chatRole", ROLE_FIELDS],
+  ["#/$defs/agentRole", AGENT_ROLE_FIELDS],
   ["#/properties/planReview", PLAN_REVIEW_KEYS],
   ["#/properties/lanes", Object.keys(DEFAULT_LANES)],
   ["#/properties/lease", Object.keys(LEASE_KEYS)],
@@ -197,6 +203,7 @@ const OPEN = new Map([
       "github",
       "models",
       "harnesses",
+      "roles",
       "planReview",
       "lanes",
       "landing",
