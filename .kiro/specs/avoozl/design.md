@@ -4995,8 +4995,8 @@ GitHub source listed as unused, `sourceMap` without GitHub.
 and clashes, the move on write. `repository-settings.test.mjs`: an old file
 and its moved file not flagged; `github configure` and Repository setup
 write a source; queue ignored. A Radar test on a migrated repository. UI
-tests for the GitHub entry; screenshots under
-`docs/evidence/simplify-intake/`.
+tests for the GitHub entry; before and after screenshots checked outside
+git, not kept in it.
 
 ## 5. Local workflow
 

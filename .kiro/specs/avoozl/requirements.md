@@ -6045,5 +6045,5 @@ once under `intake.sources`, so that I read and change intake in one place.
    flag; an old `github.queue` ignored; the one-time move on the next
    write; `github configure` and Repository setup writing a source; and
    Radar intake, escalations and back-links on a migrated repository.
-   Screenshots of Intake sources (phone and desktop, light and dark) SHALL
-   be under `docs/evidence/simplify-intake/before/` and `after/`.
+   Screenshots of Intake sources (phone and desktop, light and dark),
+   before and after, SHALL be checked outside git; no image is committed.
