@@ -1808,12 +1808,13 @@ screenshots review.
 - [x] 50.2 Send message queues a `send`, after 50.1 [R98.2] (§4.28)
 - [x] 50.3 Settings › Models picks harness and model per role; a `session` pin may name a harness, after avoozl-p57 [R98.3, R98.4] (§4.28)
 
-- [ ] avoozl-p60 P60 Proof: a process session is watched and steered from the Avoozl page, after 50.1, 50.2, 50.3 [R98] (§4.28)
+- [x] avoozl-p60 P60 Proof: a process session is watched and steered from the Avoozl page, after 50.1, 50.2, 50.3 [R98] (§4.28)
   - Setup: one `process` session on a scratch repository.
   - Action: open In flight, copy the attach command, send a message, change the role's harness.
   - Expected: status, log tail and cost show; the message reaches the child through `send`; the next task of that role uses the new harness; screenshots at 390 and 1280 px, light and dark.
   - Failure means: a process session needs another UI.
   - Next decision: approve the screenshots.
+  - Proved: `docs/evidence/p60-process-session-page.md` (2026-11-18); fixes #503, #504, #505.
 
 ## Phase 51: Headless workers
 
