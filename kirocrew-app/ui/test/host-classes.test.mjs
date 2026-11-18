@@ -56,7 +56,10 @@ test("every class the page uses is defined by the host CSS", async () => {
   );
   const known = Object.entries(
     JSON.parse(
-      readFileSync(new URL("./host-classes-known.json", import.meta.url), "utf8"),
+      readFileSync(
+        new URL("./host-classes-known.json", import.meta.url),
+        "utf8",
+      ),
     ),
   )
     .map(([token, names]) => `${token}: ${names.join(", ")}`)
