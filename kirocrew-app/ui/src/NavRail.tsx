@@ -7,6 +7,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { NAV_PILL } from './nav-style.ts'
 import { ArrowDown, ArrowUp, Search, X, type LucideIcon } from './icons.ts'
+import { Box } from './ui/Box'
 
 // Radar's sizes: 12px headers at .05em, 13px rows 8px in, 6px corners.
 const CSS = `[data-rail-head]{display:flex;align-items:center;gap:6px;margin:0 0 6px;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
@@ -85,7 +86,7 @@ export function RailSortList<K extends string>(props: { fields: RailSort<K>[]; s
               on ? (
                 <>
                   <Dir size={14} aria-hidden="true" style={{ flexShrink: 0, color: 'var(--accent)' }} />
-                  <span className="sr-only">{props.dir === 'asc' ? ', ascending' : ', descending'}</span>
+                  <Box as="span" srOnly>{props.dir === 'asc' ? ', ascending' : ', descending'}</Box>
                 </>
               ) : undefined
             }

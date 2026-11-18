@@ -13,6 +13,7 @@ import { CHECKS_TEXT, approveWhy, specPullClient, type SpecPull } from './spec-p
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
+import { Box } from './ui/Box'
 
 const DOT: Record<string, string> = { passing: 'var(--ok, #1a7f37)', failing: 'var(--danger)', pending: 'var(--muted)' }
 
@@ -67,15 +68,15 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
         <ChecksDot checks={pull.checks} />
       </div>
       <div data-spec-pull-changes className="flex flex-col" style={{ gap: 4 }}>
-        <p className="m-0 text-xs font-medium">{pull.newSpec ? 'New spec: every file is added.' : 'Changes since the approved revision'}</p>
+        <Box as="p" m0 size="xs" weight="medium">{pull.newSpec ? 'New spec: every file is added.' : 'Changes since the approved revision'}</Box>
         {pull.files.length ? (
           <ul className="m-0 flex list-none flex-col p-0" style={{ gap: 4 }}>
             {pull.files.map((file) => (
               <li key={file.file}>
                 <details>
-                  <summary className="cursor-pointer text-xs">
+                  <Box as="summary" cursorPointer size="xs">
                     <code>{file.file}</code> · {file.status} · +{file.added} −{file.removed}
-                  </summary>
+                  </Box>
                   <DiffBlock diff={file.diff} label={`Changes to ${file.file}`} />
                 </details>
               </li>
@@ -91,7 +92,7 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
         )}
       </div>
       <div className="flex flex-wrap items-center" style={{ gap: 8 }} data-spec-pull-findings>
-        <span className="text-xs font-medium">Review</span>
+        <Box as="span" size="xs" weight="medium">Review</Box>
         {pull.review.state === 'not-reviewed' ? (
           <Hint size="xs">Not reviewed yet</Hint>
         ) : openCount ? (
@@ -120,9 +121,9 @@ export function SpecPullBox(props: { pull: SpecPull; workspaceId: string; onAppr
       </div>
       {rejecting && (
         <div className="flex flex-wrap items-center" style={{ gap: 8 }} data-spec-pull-reject-row>
-          <label className="text-xs" htmlFor={`reject-${pull.id}`}>
+          <Box as="label" size="xs" htmlFor={`reject-${pull.id}`}>
             Reason
-          </label>
+          </Box>
           <input id={`reject-${pull.id}`} value={reason} onChange={(event) => setReason(event.target.value)} className="min-w-0 flex-1 rounded border px-2 py-1 text-sm" style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'inherit' }} />
           <DangerBtn
             label={`Reject ${pull.repository} #${pull.number}`}

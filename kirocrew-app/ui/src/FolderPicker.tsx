@@ -10,6 +10,7 @@ import { ArrowUp, Folder, FolderOpen } from './icons.ts'
 import Badge from './ui/Badge.tsx'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
+import { Box } from './ui/Box'
 
 export function FolderField(props: {
   id: string
@@ -60,7 +61,7 @@ export function FolderField(props: {
     void show(path)
   }
   return (
-    <div className="flex flex-col gap-1 text-sm" data-folder-field={props.id}>
+    <Box flex flexCol gap="1" size="sm" data-folder-field={props.id}>
       <label htmlFor={props.id}>{props.label}</label>
       <Row gap={2} wrap={false}>
         <Input
@@ -88,12 +89,12 @@ export function FolderField(props: {
             {listing?.workspace && <Badge variant="info">Workspace</Badge>}
           </div>
           {error && (
-            <p role="alert" className="px-2 py-1 text-xs text-danger">
+            <Box role="alert" as="p" px="2" py="1" size="xs" tone="danger">
               {error}
-            </p>
+            </Box>
           )}
           <ul className="flex flex-col overflow-y-auto py-1" style={{ maxHeight: 200, listStyle: 'none', margin: 0, paddingLeft: 0 }} aria-label="Folders" data-folder-list>
-            {listing && listing.folders.length === 0 && <li className="px-2 py-1 text-xs text-muted">No folders here.</li>}
+            {listing && listing.folders.length === 0 && <Box as="li" px="2" py="1" size="xs" tone="muted">No folders here.</Box>}
             {listing?.folders.map((folder) => (
               <li key={folder.path}>
                 <button
@@ -104,12 +105,12 @@ export function FolderField(props: {
                   style={{ background: 'none', border: 0, color: 'var(--text)', cursor: 'pointer' }}
                 >
                   <Folder size={14} aria-hidden="true" style={{ color: 'var(--muted)', flexShrink: 0 }} />
-                  <span className="min-w-0 flex-1 truncate">{folder.name}</span>
+                  <Box as="span" minW0 flex1 truncate>{folder.name}</Box>
                   {folder.workspace && <Badge variant="info">Workspace</Badge>}
                 </button>
               </li>
             ))}
-            {listing?.truncated && <li className="px-2 py-1 text-xs text-muted">Only the first 500 folders show. Type the rest of the path.</li>}
+            {listing?.truncated && <Box as="li" px="2" py="1" size="xs" tone="muted">Only the first 500 folders show. Type the rest of the path.</Box>}
           </ul>
           <div className="flex justify-end border-t px-2 py-1" style={{ borderColor: 'var(--border)' }}>
             <Btn type="button" data-folder-done onClick={() => setOpen(false)}>
@@ -118,6 +119,6 @@ export function FolderField(props: {
           </div>
         </div>
       )}
-    </div>
+    </Box>
   )
 }

@@ -278,7 +278,7 @@ person.
 
 ## Phase 8: Review pull requests
 
-- [ ] lt-8.1 Review pull requests only on request, after lt-p3 [LT1.6, LT9.1] (§D3)
+- [x] lt-8.1 Review pull requests only on request, after lt-p3 [LT1.6, LT9.1] (§D3)
   - Facts:
     - summary: Phase 8 (Review pull requests). Review pull requests only on request. See LT1.6, LT9.1; §D3.
     - done:
@@ -329,7 +329,7 @@ person.
 
 ## Phase 10: Scheduling and CI capacity
 
-- [ ] lt-10.1 Conflict-aware train composition by footprint, after lt-p3 [LT12] (§D13)
+- [x] lt-10.1 Conflict-aware train composition by footprint, after lt-p3 [LT12] (§D13)
   - Facts:
     - summary: Phase 10 (Scheduling and CI capacity). Conflict-aware train composition by footprint. See LT12; §D13.
     - done:

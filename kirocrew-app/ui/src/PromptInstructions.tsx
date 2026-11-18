@@ -7,6 +7,7 @@ import { Fold, IconLabel } from './ui/controls.tsx'
 import { Marker } from './SettingsView.tsx'
 import { Check, Copy } from './icons.ts'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
 
 const boxStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
@@ -35,7 +36,7 @@ export default function PromptInstructions(props: {
     <div className="flex min-w-0 flex-col gap-2 text-sm" style={{ maxWidth: '44rem' }} data-prompt-instructions={props.id}>
       <Fold id={`${props.id}-builtin`} title={`Built-in ${props.agent} prompt (read-only)`}>
         {props.builtIn ? (
-          <div className="flex flex-col gap-2 pb-2">
+          <Box flex flexCol gap="2" pb="2">
             <pre className="rounded border p-2 text-xs" style={{ ...boxStyle, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: '16rem', overflowY: 'auto' }}>
               {props.builtIn}
             </pre>
@@ -44,13 +45,13 @@ export default function PromptInstructions(props: {
                 {copied ? 'Copied' : 'Copy'}
               </IconLabel>
             </div>
-          </div>
+          </Box>
         ) : (
-          <p className="pb-2 text-xs text-muted">The built-in prompt could not be read.</p>
+          <Box as="p" pb="2" size="xs" tone="muted">The built-in prompt could not be read.</Box>
         )}
       </Fold>
       <label htmlFor={props.id} className="flex flex-wrap items-baseline gap-x-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 }}>
-        <span className="font-medium">Your instructions</span>
+        <Box as="span" weight="medium">Your instructions</Box>
         <Marker rule={{ required: false }} />
       </label>
       <Hint size="xs">Added after the built-in prompt.</Hint>

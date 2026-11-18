@@ -13,6 +13,7 @@ import { Pause, Play } from './icons.ts'
 import { fixturesClient, type DemoFixtures } from './demo-fixtures.ts'
 import { errorMessage } from './workspace-api.ts'
 import { TAGLINE } from '../../../src/work-split.mjs'
+import { Box } from './ui/Box'
 
 interface Demo {
   active: boolean
@@ -162,9 +163,9 @@ export function DemoBar() {
   const phone = usePhone()
   if (!demo.active)
     return demo.error ? (
-      <p role="alert" className="px-6 pb-2 text-sm text-danger">
+      <Box role="alert" as="p" px="6" pb="2" size="sm" tone="danger">
         {demo.error}
-      </p>
+      </Box>
     ) : null
   const notice = (
     <p role="status" aria-live="polite" className={phone ? 'sr-only' : 'w-full text-sm'} data-demo-notice>

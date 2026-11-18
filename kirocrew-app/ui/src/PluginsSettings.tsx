@@ -30,6 +30,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 // What a person reviews before approving (R34.4). Every value is the
 // plugin's own text, rendered as text.
@@ -54,12 +55,12 @@ export function Facts({ row }: { row: PluginRow }) {
       {facts
         .filter(([, value]) => value)
         .map(([label, value]) => (
-          <div key={label} className="contents">
+          <Box key={label} contents>
             <Hint as="dt">{label}</Hint>
-            <dd className="break-all">
+            <Box as="dd" breakAll>
               <code>{value}</code>
-            </dd>
-          </div>
+            </Box>
+          </Box>
         ))}
     </dl>
   )
@@ -70,10 +71,10 @@ export function Parts({ row }: { row: PluginRow }) {
   const parts = partsOf(row)
   if (!parts.length) return null
   return (
-    <ul className="mt-2 flex flex-col gap-1 text-xs" data-plugin-parts>
+    <Box as="ul" mt="2" flex flexCol gap="1" size="xs" data-plugin-parts>
       {parts.map((part) => (
         <li key={part}>
-          <span className="font-semibold">{PLUGIN_PARTS[part]?.title ?? part}</span>
+          <Box as="span" weight="semibold">{PLUGIN_PARTS[part]?.title ?? part}</Box>
           <Hint> {PLUGIN_PARTS[part]?.line}</Hint>
           {part === 'pack' && row.pack ? (
             <Hint block>
@@ -84,7 +85,7 @@ export function Parts({ row }: { row: PluginRow }) {
           ) : null}
         </li>
       ))}
-    </ul>
+    </Box>
   )
 }
 
@@ -113,7 +114,7 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
       <Facts row={row} />
       {props.notes.length > 0 && (
         <Stack gap={2} data-plugin-notes>
-          <span className="text-xs font-semibold">Suggested changes from retros. Copy one to the plugin's owner; Avoozl sends nothing.</span>
+          <Box as="span" size="xs" weight="semibold">Suggested changes from retros. Copy one to the plugin's owner; Avoozl sends nothing.</Box>
           {props.notes.map((n, i) => (
             <SkillNoteCard key={i} note={n} />
           ))}
@@ -146,7 +147,7 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
               Disable
             </TipBtn>
           ) : null}
-          <span className="ml-auto">
+          <Box as="span" ml="auto">
             <DangerBtn
               icon={Trash2}
               disabled={busy}
@@ -159,7 +160,7 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
             >
               Remove
             </DangerBtn>
-          </span>
+          </Box>
         </Row>
       ) : null}
     </FormSection>
