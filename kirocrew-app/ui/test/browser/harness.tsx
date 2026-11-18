@@ -543,6 +543,8 @@ if (query.get('page') === 'app') {
       calls: 0,
       notModified: 0,
       notModifiedShare: null,
+      hourCalls: 153,
+      bySource: { tick: { calls: 88, notModified: 40, cached: 0 }, crew: { calls: 41, notModified: 0, cached: 0 }, view: { calls: 17, notModified: 21, cached: 132 }, review: { calls: 5, notModified: 0, cached: 3 }, setup: { calls: 2, notModified: 0, cached: 0 } },
       writes: { perMinute: 60, perHour: 400, run: { planId: 'nupp', done: 312, total: 1740, resumeAt: new Date(Date.now() + 38 * 60000).toISOString() } },
     },
     choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
@@ -1050,9 +1052,32 @@ if (query.get('page') === 'workspaces') {
     items = items.filter((item) => item.id !== id)
     return { id, root: gone.root, removed: true, databasePreserved: true }
   })
+  answer('workspaces.update', (body) => {
+    const { id, ...change } = (body as { input: { id: string; name?: string; root?: string } }).input
+    wsWin.__wsCalls.push(`update ${id} ${JSON.stringify(change)}`)
+    if (change.root === '/bad') throw new Refusal(400, { error: 'No Avoozl workspace in /bad.' })
+    items = items.map((item) => (item.id === id ? { ...item, ...change } : item))
+    return items.find((item) => item.id === id)
+  })
   answer('workspace.tick.health', () => ({ lastRun: null, lock: null }))
   answer('workspace.tick.log', () => ({ items: [] }))
 }
+
+// The folder picker's reads (workspaces.browse) on every page: a small home
+// folder at /me with one workspace in it.
+const FOLDERS: Record<string, string[]> = { '/me': ['code', 'plans', 'notes'], '/me/plans': ['launch', 'nupp'], '/me/code': [] }
+answer('workspaces.browse', (body) => {
+  const asked = (body as { input: { path?: string } }).input.path?.replace(/^~(?=\/|$)/, '/me').replace(/\/$/, '') || '/me'
+  const at = asked in FOLDERS ? asked : '/me'
+  return {
+    path: at,
+    home: '/me',
+    parent: at === '/me' ? null : at.slice(0, at.lastIndexOf('/')),
+    workspace: at.startsWith('/me/plans/'),
+    truncated: false,
+    folders: (FOLDERS[at] ?? []).map((name) => ({ name, path: `${at}/${name}`, workspace: at === '/me/plans' })),
+  }
+})
 
 // The app shell answers too, so Settings › Models can be shot in place.
 if (query.get('page') === 'models' || query.get('page') === 'app') {
