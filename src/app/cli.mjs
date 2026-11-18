@@ -1356,17 +1356,32 @@ try {
     } else throw Error("Choose integrator run or status.");
   } else if (command === "landing") {
     const action = positionals[0];
-    if (action !== "submit") throw Error("Choose landing submit.");
-    console.log(
-      JSON.stringify(
-        await localOrRequest("landing.submit", {
-          taskId: need(positionals[1], "landing submit TASK --branch NAME"),
-          branch: need(options.branch, "landing submit TASK --branch NAME"),
-        }),
-        null,
-        2,
-      ),
-    );
+    if (action === "status") {
+      // The same read as the Landing queue page and the MCP read: store only.
+      const view = await localOrRequest("landing.queue");
+      console.log(
+        options.json
+          ? JSON.stringify(view, null, 2)
+          : view.bases
+              .map(
+                (b) =>
+                  `${b.repository ?? b.projectId} ${b.base}: ${b.items.length} waiting${b.queue?.train ? `, ${b.queue.train.id} at ${b.queue.train.step}` : ""}`,
+              )
+              .join("\n") || "Nothing waits to land.",
+      );
+    } else if (action !== "submit")
+      throw Error("Choose landing submit or status.");
+    else
+      console.log(
+        JSON.stringify(
+          await localOrRequest("landing.submit", {
+            taskId: need(positionals[1], "landing submit TASK --branch NAME"),
+            branch: need(options.branch, "landing submit TASK --branch NAME"),
+          }),
+          null,
+          2,
+        ),
+      );
   } else if (command === "mirror") {
     // Preview first; rerun with --confirm --preview-hash HASH to apply.
     const action = positionals[0];
@@ -2014,6 +2029,7 @@ try {
                                          Preview repository setup for landing; --yes applies it
   integrator run                         Run this workspace's integrator for landing: train (the supervisor starts it)
   integrator status [--json]             Per train target: lease holder, running train and its step
+  landing status [--json]                Queue depth, time in queue and the running train, from stored records
   landing submit TASK --branch NAME      Queue a pushed batch branch for the integrator (landing: train)
   spec publish SPEC [--repository OWNER/REPO]
                                          Publish the spec issue, or its local journal without GitHub

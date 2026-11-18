@@ -16,6 +16,7 @@
 //   before it.
 import { linkSets } from "./scm-links.mjs";
 import { pausedBy, taskIds } from "./landing-queue.mjs";
+import { readyEntries, runningTrain } from "./integrator-trains.mjs";
 import { taskRepository } from "../work-model.mjs";
 
 const TABLE = "landing_queue";
@@ -75,6 +76,31 @@ function queuedHold(store, entry, position, project, checks) {
   if (checks?.current && checks.state === "pending")
     return { kind: "pending", text: "Checks pending." };
   return { kind: "next", text: "Next to land." };
+}
+
+// Why an entry of an integrator train target waits (landing-trains LT14.1):
+// in a train and its step, held with the reason, or waiting for a train.
+function trainHold(store, entry, { running, held }) {
+  if (entry.state === "in-train") {
+    const step =
+      running?.id === entry.train
+        ? (running.current ?? running.steps.at(-1)?.name)
+        : null;
+    return {
+      kind: "train",
+      text: `In ${entry.train}${step ? `, step ${step}` : ""}.`,
+    };
+  }
+  const stop = pausedBy(store, entry);
+  if (stop) return stopHold(stop);
+  const reason = held.get(entry.key);
+  if (reason) return { kind: "held", text: `Held: ${reason}.` };
+  return {
+    kind: "waiting",
+    text: running
+      ? `Waiting for the next train; ${running.id} is running.`
+      : "Waiting for the next train.",
+  };
 }
 
 // Why a task that left the queue waits: back with its worker, or a person.
@@ -143,10 +169,26 @@ export function landingQueueView(store, data, { now = Date.now() } = {}) {
       ...extra,
     };
   };
+  // Per train target: the running train and why each queued entry is held.
+  const trainFor = (entry) => {
+    const key = `${entry.projectId}\0${entry.base}`;
+    if (!trainState.has(key))
+      trainState.set(key, {
+        running: runningTrain(store, entry.projectId, entry.base),
+        held: new Map(
+          readyEntries(store, {
+            projectId: entry.projectId,
+            base: entry.base,
+          }).held.map((h) => [h.key, h.reason]),
+        ),
+      });
+    return trainState.get(key);
+  };
   const entries = listOr(store, TABLE),
     queued = entries
-      .filter((e) => e.state === "queued")
+      .filter((e) => e.state === "queued" || e.state === "in-train")
       .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0)),
+    trainState = new Map(),
     positions = new Map(),
     shown = new Set();
   for (const entry of queued) {
@@ -160,13 +202,16 @@ export function landingQueueView(store, data, { now = Date.now() } = {}) {
       item(entry, ids, {
         position: position + 1,
         since: entry.queuedAt ?? null,
-        hold: queuedHold(
-          store,
-          entry,
-          position,
-          projects.get(entry.projectId),
-          first?.checks,
-        ),
+        hold:
+          projects.get(entry.projectId)?.landing === "train"
+            ? trainHold(store, entry, trainFor(entry))
+            : queuedHold(
+                store,
+                entry,
+                position,
+                projects.get(entry.projectId),
+                first?.checks,
+              ),
       }),
     );
   }
@@ -221,6 +266,23 @@ export function landingQueueView(store, data, { now = Date.now() } = {}) {
   later
     .sort((a, b) => String(a.at ?? "").localeCompare(String(b.at ?? "")))
     .forEach(({ line, row }) => line.items.push(row));
+  // A train target also reports its queue depth and the running train.
+  for (const line of groups.values()) {
+    if (line.landing !== "train") continue;
+    const running = runningTrain(store, line.projectId, line.base);
+    line.queue = {
+      depth: line.items.filter((i) => i.position != null).length,
+      train: running
+        ? {
+            id: running.id,
+            policy: running.policy,
+            step: running.current ?? running.steps.at(-1)?.name ?? "starting",
+            members: running.members.length,
+            startedAt: running.startedAt,
+          }
+        : null,
+    };
+  }
   return {
     bases: [...groups.values()].sort(
       (a, b) =>

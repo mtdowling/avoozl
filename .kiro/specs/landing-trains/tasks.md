@@ -134,7 +134,7 @@ person.
 
 ## Phase 7: Queue depth and wait
 
-- [ ] lt-7.1 Queue depth and time in queue on the Landing queue page, the CLI and MCP, after lt-3.1 [LT14.1, LT14.3] (§D15)
+- [x] lt-7.1 Queue depth and time in queue on the Landing queue page, the CLI and MCP, after lt-3.1 [LT14.1, LT14.3] (§D15)
   - Extend `src/app/landing-queue-view.mjs` with, per target, queue depth, each entry's time in queue and hold reason, and the running train and its step; `avoozl landing status [--json]` and the MCP read return the same. Branch age, behind-trunk, last trains, the 7-day numbers and the wait alert come in lt-9.2.
   - Done when: A seeded-store test checks depth, each time in queue and hold reason, and the running train's step; a counting-client test shows zero GitHub calls for the page, the CLI and the MCP read; the UI test renders the page at 390 and 1280 px; screenshots in light and dark go to the owner (R92.12).
 - [ ] lt-p4 Proof: a live train on Nupp, after lt-p3, lt-1.3, lt-4.3, lt-4.4, lt-7.1 [LT1, LT7, LT8, LT13.1, LT13.2] (§D20)

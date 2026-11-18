@@ -6,7 +6,7 @@ import { COMMAND_PATH } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'
 import type { BadgeVariant } from './Badge.tsx'
 
-export type HoldKind = 'stopped' | 'off' | 'review' | 'failing' | 'pending' | 'conflict' | 'path' | 'behind' | 'next'
+export type HoldKind = 'stopped' | 'off' | 'review' | 'failing' | 'pending' | 'conflict' | 'path' | 'behind' | 'next' | 'train' | 'held' | 'waiting'
 
 export interface LandingLink {
   kind: string
@@ -30,12 +30,19 @@ export interface LandingItem {
   hold: { kind: HoldKind; text: string }
 }
 
+// An integrator train target's queue depth and running train with its step.
+export interface TrainQueue {
+  depth: number
+  train: { id: string; policy: string; step: string; members: number; startedAt: string } | null
+}
+
 export interface LandingBase {
   key: string
   projectId: string
   repository: string | null
   base: string
   landing: string | null
+  queue?: TrainQueue
   items: LandingItem[]
 }
 
@@ -61,6 +68,8 @@ const VARIANT: Partial<Record<HoldKind, BadgeVariant>> = {
   path: 'warning',
   next: 'success',
   pending: 'info',
+  train: 'info',
+  held: 'warning',
 }
 export const holdVariant = (kind: HoldKind): BadgeVariant | undefined => VARIANT[kind]
 
@@ -75,6 +84,9 @@ const WORD: Record<HoldKind, string> = {
   path: 'Path hold',
   behind: 'Waiting',
   next: 'Next',
+  train: 'In a train',
+  held: 'Held',
+  waiting: 'Waiting',
 }
 export const holdWord = (kind: HoldKind) => WORD[kind] ?? 'Held'
 
@@ -83,7 +95,7 @@ export const baseTitle = (base: LandingBase) => `${base.repository ?? base.proje
 
 // How the group lands, for its heading's side note.
 export const landingNote = (base: LandingBase) =>
-  base.landing === 'pr' ? 'by pull request' : base.landing === 'direct' ? 'direct' : base.landing === 'off' ? 'landing off' : 'local'
+  base.landing === 'pr' ? 'by pull request' : base.landing === 'direct' ? 'direct' : base.landing === 'train' ? 'by integrator train' : base.landing === 'off' ? 'landing off' : 'local'
 
 // The item's links: only http(s), each opening a new tab.
 export function itemLinks(item: LandingItem): { key: string; label: string; href: string }[] {
@@ -96,3 +108,12 @@ export function itemLinks(item: LandingItem): { key: string; label: string; href
 }
 
 export const itemCount = (view: LandingQueue | null) => (view ? view.bases.reduce((n, b) => n + b.items.length, 0) : 0)
+
+// A train target's line under its heading: how many wait, and the running
+// train with its step. Empty for a base that does not land in trains.
+export function queueLine(base: LandingBase): string | null {
+  if (!base.queue) return null
+  const waiting = `${base.queue.depth} in the queue`
+  const train = base.queue.train
+  return train ? `${waiting}. ${train.id} (${train.policy}, ${train.members} branches) is at ${train.step}.` : `${waiting}. No train is running.`
+}
