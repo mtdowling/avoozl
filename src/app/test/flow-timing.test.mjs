@@ -73,28 +73,30 @@ const report = (ops, slot, input) =>
 
 test("flow settings: defaults, per-repository overrides, and refused keys", () => {
   const policy = flowPolicy({
-    flow: { batch: { max: 5 } },
+    flow: { retro: { everyTasks: 5 } },
     projects: { app: { root: ".", flow: { stopTheLine: { scope: "repo" } } } },
   });
-  assert.equal(policy.workspace.batch.max, 5);
+  assert.equal(policy.workspace.retro.everyTasks, 5);
   assert.equal(
-    policy.workspace.batch.by,
-    "phase",
+    policy.workspace.retro.slowFactor,
+    3,
     "a missing key is its default",
   );
-  // "epic" was the old name; it is refused naming "phase" (R59.11).
-  assert.throws(
-    () => flowPolicy({ flow: { batch: { by: "epic" } } }),
-    /"phase"/,
+  // Batching has no setting (R108.8): an old `batch` is ignored, even a
+  // value that was refused before.
+  assert.equal(
+    "batch" in
+      flowPolicy({ flow: { batch: { by: "epic", max: 0 } } }).workspace,
+    false,
   );
   assert.equal(policy.workspace.stopTheLine.scope, "dependents");
   assert.equal(policy.for("app").stopTheLine.scope, "repo");
   assert.equal(
-    policy.for("app").batch.max,
+    policy.for("app").retro.everyTasks,
     5,
     "the workspace value carries over",
   );
-  assert.equal(policy.for("other").retro.everyTasks, 10);
+  assert.equal(policy.for("other").retro.everyTasks, 5);
   // Nearby inputs: an unknown key, a bad value, timing (there is no setting),
   // and the machine-local instructions in a tracked file.
   assert.throws(
@@ -102,8 +104,8 @@ test("flow settings: defaults, per-repository overrides, and refused keys", () =
     /flow\.timing is not a flow setting/,
   );
   assert.throws(
-    () => flowPolicy({ flow: { batch: { max: 0 } } }),
-    /flow\.batch\.max must be a whole number 1–5/,
+    () => flowPolicy({ flow: { retro: { everyTasks: 0 } } }),
+    /flow\.retro\.everyTasks must be a whole number 1–1000/,
   );
   assert.throws(
     () => flowPolicy({ flow: { stopTheLine: { scope: "off" } } }),

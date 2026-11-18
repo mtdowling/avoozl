@@ -141,8 +141,13 @@ test("a starter that does not lint, or phases that do not match it, are refused"
 
 test("pack and flow pass their own validators", () => {
   let plugin = copy();
+  // Batching has no setting (R108.8): an old `flow.batch` is ignored.
   plugin.edit((t) => (t.flow = { batch: { by: "epic" } }));
-  invalid(plugin.folder, /flow\.batch\.by/);
+  assert.doesNotThrow(() => readTemplates(plugin.folder));
+
+  plugin = copy();
+  plugin.edit((t) => (t.flow = { stopTheLine: { scope: "nowhere" } }));
+  invalid(plugin.folder, /flow\.stopTheLine\.scope/);
 
   plugin = copy();
   plugin.edit((t) => (t.flow = { lessons: { share: false } }));

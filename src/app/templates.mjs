@@ -55,6 +55,7 @@ const PROOF_FIELDS = [
 // Flow habits a template may set (R61.6): batching, stop the line, local
 // checks first, and the retrospective cadence.
 const FLOW_ALLOWED = {
+  // Batching has no setting (R108.8); an old template's `batch` is ignored.
   batch: null,
   stopTheLine: null,
   localChecksFirst: null,

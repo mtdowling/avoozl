@@ -237,14 +237,10 @@ test("the projection preview offers batches and honors the ones asked for", asyn
           overrides: {
             ...BATCH_SPEC,
             "avoozl/manifest.json": JSON.stringify({
-              tasks: Object.fromEntries(
-                Object.entries(
-                  JSON.parse(BATCH_SPEC["avoozl/manifest.json"]).tasks,
-                ).map(([key, task]) => [
-                  key,
-                  task.kind === "leaf" ? { ...task, size: "small" } : task,
-                ]),
-              ),
+              ...JSON.parse(BATCH_SPEC["avoozl/manifest.json"]),
+              batches: {
+                g1: { tasks: ["1.2", "1.3"], reason: "Two small edits" },
+              },
             }),
           },
         });
@@ -257,7 +253,7 @@ test("the projection preview offers batches and honors the ones asked for", asyn
     }),
     creates = (preview) =>
       preview.writes.filter((write) => write.kind === "issue.create").length;
-  assert.ok(Array.isArray(plain.suggestedBatches));
+  assert.deepEqual(plain.suggestedBatches, [["config.1.2", "config.1.3"]]);
   assert.equal(creates(plain) - creates(batched), 1);
   assert.equal(github.created.length, 0, "a preview writes nothing");
 });

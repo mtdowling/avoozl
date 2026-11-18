@@ -3,7 +3,6 @@
     "inventory-operations": {
       "kind": "leaf",
       "repository": "{{repository}}",
-      "size": "small",
       "summary": "Write down every operation and feature the current {{sdk}} SDK has.",
       "acceptance": [
         "A list in the design names every operation and feature of the current {{sdk}} SDK"
@@ -12,7 +11,6 @@
     "inventory-gaps": {
       "kind": "leaf",
       "repository": "{{repository}}",
-      "size": "small",
       "summary": "Turn each gap in the gap list into a task.",
       "acceptance": ["Each gap in the gap list has a task in this spec"],
       "requires": ["inventory-operations"]
@@ -86,7 +84,6 @@
     "cutover-notes": {
       "kind": "leaf",
       "repository": "{{repository}}",
-      "size": "small",
       "summary": "Write the release notes for the cutover.",
       "acceptance": ["The release notes list every change callers can see"],
       "requires": ["team-review"]

@@ -28,14 +28,21 @@ const manifest = (changes = {}) => ({
       requires: ["1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7"],
       acceptance: ["All work."],
     },
-    1.1: leaf("First", { size: "small" }),
-    1.2: leaf("Second", { size: "small" }),
-    1.3: leaf("Third", { size: "small" }),
+    1.1: leaf("First"),
+    1.2: leaf("Second"),
+    1.3: leaf("Third"),
     1.4: leaf("Fourth", { requires: ["1.1"] }),
     1.5: leaf("Fifth", {}),
     1.6: leaf("Sixth", {}),
     1.7: leaf("Seventh", {}),
     ...changes,
+  },
+  // The planner grouped the three small leaves (§4.37).
+  batches: {
+    small: {
+      tasks: ["1.1", "1.2", "1.3"],
+      reason: "Three small config edits",
+    },
   },
 });
 const spec = (changes) => ({
