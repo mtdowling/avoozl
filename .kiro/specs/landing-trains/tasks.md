@@ -58,7 +58,7 @@ person.
 - [x] lt-2.3 The integrator process and role, after lt-2.2, lt-1.2 [LT2.1, LT2.2, LT2.3, LT2.5] (§D4, §D21)
   - `avoozl integrator run` as a supervisor child serving every `train` target in its workspace, in `src/app/integrator-trains.mjs`; `landDirect` skips `train` targets; `avoozl integrator status [--json]`.
   - Done when: Tests: with a `train` target, a tick that verifies a task pushes only the batch branch and never the trunk; the integrator process is the only caller that pushes the trunk (a test wraps git and records pushes by process); the supervisor restarts a killed integrator; `status --json` shows holder, train and trigger state.
-- [ ] lt-2.4 A taker cleans up a dead train, after lt-2.3, lt-3.1 [LT3.6, LT3.7] (§D5.3)
+- [x] lt-2.4 A taker cleans up a dead train, after lt-2.3, lt-3.1 [LT3.6, LT3.7] (§D5.3)
   - Remove listed worktrees, run held environments' `cleanup`, release slots, settle members: back to `queued` in order if unpushed; finish validation and failure handling first if an optimistic train had pushed. Each action is written to the dead train's steps; its outcome becomes `abandoned`.
   - Done when: Tests kill an integrator (a) mid-stack, (b) mid-full-validation under gated and (c) after an optimistic push; in each the taker leaves no landing worktree, runs the fake cleanup command once, frees the slot, and (a, b) requeues members in the same order or (c) runs full validation on the pushed head before forming a new train.
 - [ ] lt-p1 Proof: one integrator per trunk, and a dead one clears by itself, after lt-2.1, lt-2.2, lt-2.3, lt-2.4 [LT2, LT3] (§D5)
