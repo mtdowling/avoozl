@@ -15,16 +15,25 @@ on:
   pull_request:
   schedule:
     - cron: "23 5 * * *"
+  # A landing train validates platforms this machine lacks with one dispatch
+  # run on a candidate ref (landing-trains LT7.7). `platforms` names the
+  # systems to run: linux-x64, windows-x64, macos-arm64, comma separated.
+  # Empty runs all three, as a plain dispatch always did.
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: "Platforms to run, comma separated (empty runs all)"
+        required: false
+        default: ""
 jobs:
   plan:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      linux: ${{ steps.plan.outputs.linux }}
-      linux-chrome: ${{ steps.plan.outputs.linux-chrome }}
-      macos: ${{ steps.plan.outputs.macos }}
-      windows: ${{ steps.plan.outputs.windows }}
+      linux: ${{ steps.legs.outputs.linux }}
+      linux-chrome: ${{ steps.legs.outputs.linux-chrome }}
+      macos: ${{ steps.legs.outputs.macos }}
+      windows: ${{ steps.legs.outputs.windows }}
     steps:
       # A pull request checks out the merge of its head into its base, so
       # the first parent is the base and the diff against it is the change.
@@ -44,10 +53,30 @@ jobs:
           else
             node scripts/test-plan.mjs --full --github-output
           fi
+      # A dispatch that names platforms runs only those systems: the others
+      # get no shards, and their required check passes with nothing to run,
+      # like a pull request that needs no tests there.
+      - name: Limit to the requested platforms
+        id: legs
+        shell: bash
+        env:
+          PLAN_LINUX: ${{ steps.plan.outputs.linux }}
+          PLAN_LINUX_CHROME: ${{ steps.plan.outputs.linux-chrome }}
+          PLAN_MACOS: ${{ steps.plan.outputs.macos }}
+          PLAN_WINDOWS: ${{ steps.plan.outputs.windows }}
+          PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          wanted() { [ -z "$PLATFORMS" ] || printf ',%s,' "${PLATFORMS// /}" | grep -q ",$1,"; }
+          {
+            if wanted linux-x64; then echo "linux=$PLAN_LINUX"; echo "linux-chrome=$PLAN_LINUX_CHROME"; else echo "linux=[]"; echo "linux-chrome=false"; fi
+            if wanted macos-arm64; then echo "macos=$PLAN_MACOS"; else echo "macos=[]"; fi
+            if wanted windows-x64; then echo "windows=$PLAN_WINDOWS"; else echo "windows=[]"; fi
+          } >> "$GITHUB_OUTPUT"
 
   # Formatting and spec lint do not depend on the platform, so one runner
   # checks them, on every change.
   lint:
+    if: github.event_name != 'workflow_dispatch' || inputs.platforms == '' || contains(inputs.platforms, 'linux-x64')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
