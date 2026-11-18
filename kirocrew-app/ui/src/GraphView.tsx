@@ -51,6 +51,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Box } from './ui/Box'
+import { PanningStyle } from './ui/PageStyles'
 
 // Graphs larger than this open with every group collapsed to one node.
 const COLLAPSE_ABOVE = 60
@@ -249,7 +250,7 @@ function Details(props: {
             {noSessionLabel(task.noSession)}.{task.nextAction ? ` Next: ${task.nextAction}` : ''} All details has Discuss, Mark done and Back to planned.
           </Box>
         )}
-        <dl className="mt-2 grid gap-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr', columnGap: 12 }}>
+        <Box as="dl" css-grid-template-columns="max-content-1fr" css-column-gap="12" mt="2" grid gap="1" size="sm">
           {task.repository && (
             <>
               <Hint as="dt">Repository</Hint>
@@ -302,7 +303,7 @@ function Details(props: {
               </dd>
             </>
           )}
-        </dl>
+        </Box>
       </div>
     </Card>
   )
@@ -619,9 +620,9 @@ export default function GraphView({
                       </Hint>
                     </Box>
                   ))}
-                  <span className="truncate font-medium" aria-current="page" style={{ maxWidth: 'min(28rem, 60vw)' }}>
+                  <Box as="span" css-max-width="min-28rem-60vw" truncate weight="medium" aria-current="page">
                     {drillLabel(drill)}
-                  </span>
+                  </Box>
                 </Box>
               </>
             )}
@@ -661,7 +662,7 @@ export default function GraphView({
               data-panning={panning || undefined}
               style={{ cursor: panning ? 'grabbing' : 'grab', userSelect: 'none' }}
             >
-              {panning && <style>{'[data-graph-view] svg[data-panning] *{cursor:grabbing!important}'}</style>}
+              {panning && <PanningStyle />}
               <defs>
                 <marker id="avoozl-arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={7} markerHeight={7} orient="auto">
                   <path d="M0,0 L10,5 L0,10 z" style={{ fill: 'var(--muted)' }} />

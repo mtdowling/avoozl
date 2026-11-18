@@ -10,6 +10,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { WalkStyle } from './ui/PageStyles'
 
 export interface WalkStep {
   title: string
@@ -25,12 +26,11 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
   const last = props.steps.length - 1
   const go = (next: number) => setAt(Math.max(0, Math.min(last, next)))
   return (
-    <section
+    <Box
       aria-roledescription="walkthrough"
       aria-label={props.label}
       data-walkthrough={props.id}
-      className="flex flex-col gap-3 rounded-lg border p-4"
-      style={{ borderColor: 'var(--border)', background: 'var(--card)' }}
+      as="section" css-border-color="border" css-background="card" flex flexCol gap="3" rounded="lg" border="all" p="4"
       onKeyDown={(event) => {
         if (event.key === 'ArrowRight') go(at + 1)
         else if (event.key === 'ArrowLeft') go(at - 1)
@@ -39,11 +39,11 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
         event.preventDefault()
       }}
     >
-      <style>{`[data-walk-slide]{animation:avoozl-walk 220ms ease}@keyframes avoozl-walk{from{opacity:.2;transform:translateX(12px)}to{opacity:1;transform:none}}@media (prefers-reduced-motion: reduce){[data-walk-slide]{animation:none}}`}</style>
-      <div key={at} data-walk-slide className="grid items-center gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
-        <div className="rounded-md p-3" style={{ background: 'var(--bg-elevated, transparent)' }} aria-hidden="true">
+      <WalkStyle />
+      <Box key={at} data-walk-slide css-grid-template-columns="repeat-auto-fit-minmax-min-100%-260px-1fr" grid items="center" gap="4">
+        <Box css-background="bg-elevated-transparent" rounded="md" p="3" aria-hidden="true">
           {step.picture}
-        </div>
+        </Box>
         <Stack gap={2} aria-live="polite">
           <Hint as="p" size="xs">
             Step {at + 1} of {props.steps.length}
@@ -51,14 +51,14 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
           <Box as="h4" size="lg" weight="semibold">{step.title}</Box>
           <Box as="p" size="base">{step.text}</Box>
           {step.points && (
-            <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
+            <Box as="ul" css-list-style="disc" flex flexCol gap="1" pl="5" size="sm">
               {step.points.map((point) => (
                 <li key={point}>{point}</li>
               ))}
-            </ul>
+            </Box>
           )}
         </Stack>
-      </div>
+      </Box>
       <Row gap={3}>
         <Btn type="button" onClick={() => go(at - 1)} disabled={at === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <ArrowLeft size={ICON} aria-hidden="true" />
@@ -90,7 +90,7 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
           )
         )}
       </Row>
-    </section>
+    </Box>
   )
 }
 

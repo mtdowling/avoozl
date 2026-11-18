@@ -48,7 +48,7 @@ What that costs:
 - A `process` worker is given briefs that name what it cannot use.
   Investigate first is on by default (V: `src/app/investigate.mjs:24`) and
   is added to a worker's brief whatever the executor (V:
-  `src/app/delivery.mjs:2427`). Its lines say "call plans_report" with the
+  `src/app/delivery.mjs:2427`). Its lines say "call plans_session" (action report) with the
   findings and then "wait" for a message (V: `investigateLines`,
   `src/app/investigate.mjs:158`). A child has no MCP tool, and the `process`
   executor rewrites the report step only for the verifier, the reviewers,

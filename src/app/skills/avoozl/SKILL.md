@@ -90,13 +90,13 @@ Work you find mid-task has three dispositions. Normally the first applies:
 
 1. **In scope for the task you are doing.** Do it, and record the result as evidence on that task. Filing anything is the exception.
 2. **Related to the task's plan, but not this task.** Record a cited proposed
-   fact on that design through `plan.propose` / `plans_propose_work`. The
+   fact on that design through `plan.propose` / `plans_plan {action: "propose"}`. The
    proposal stays in extraction review and never rewrites the author's prose or
    becomes executable until an authorized extraction approval.
 
 3. **Needs a different design.** Draft a new plan and tell the user; a design decision is theirs.
 
-Do not use capture as a discovery channel. `task.capture` / `plans_capture` is a person's own request from the view in front of them; using it for findings manufactures inert inbox tasks with no plan, no approval and no dependencies.
+Do not use capture as a discovery channel. `task.capture` / `plans_intake {action: "capture"}` is a person's own request from the view in front of them; using it for findings manufactures inert inbox tasks with no plan, no approval and no dependencies.
 
 ## Avoid duplicate tasks
 
@@ -109,7 +109,7 @@ wording is advisory and never requires a justification to proceed.
 
 Consolidation requires reviewing scope and source contexts, choosing the current
 canonical record and supplying task hashes and a reason through `task.merge`
-/ MCP `plans_merge_tasks`. Do not merge an active worker's task. Matching names
+/ MCP `plans_task {action: "merge"}`. Do not merge an active worker's task. Matching names
 alone do not establish identity. Merges retain old IDs as aliases and keep
 original task/edge records in a receipt; read it with `task.merge.get`. Do not
 promote acceptance or rewrite frozen Markdown checkboxes during cleanup.
@@ -117,10 +117,10 @@ promote acceptance or rewrite frozen Markdown checkboxes during cleanup.
 ## Draft and approve plans
 
 Write the design as ordinary Markdown. Fenced `task` blocks remain compatible
-but are not required. Use `plan.extract` / `plans_extract` to bind a read-only
-extraction to the exact revision, `plan.extract.get` / `plans_extraction` to
+but are not required. Use `plan.extract` / `plans_review {action: "extract"}` to bind a read-only
+extraction to the exact revision, `plan.extract.get` / `plans_review {action: "extraction"}` to
 inspect rounds, cited facts, gaps and advisory coverage, and
-`plan.extraction.dispose` / `plans_dispose_fact` to reject, edit, or reuse a
+`plan.extraction.dispose` / `plans_review {action: "dispose_fact"}` to reject, edit, or reuse a
 fact. Every stated or inferred fact must cite one exact passage; missing
 decisions are gaps, not invented work.
 
@@ -136,7 +136,7 @@ After a plan edit, reconcile affected task records and design links in the same 
 
 ## Agent sessions and reconnects
 
-Agent sessions run in Kiro Crew; Avoozl starts none. The tick opens a session for a ready leaf, or ask for one with `plans_request_session`. Crew Mode conductors use `plans_next` and `plans_claim_task`. Run-era tools such as `plans_start_run`, `plans_send_message` and `plans_andon_raise` keep their names and answer with a pointer to the task's Kiro Crew session; steer, answer, or stop the work there. Do not start additional sessions merely because the tools exist.
+Agent sessions run in Kiro Crew; Avoozl starts none. The tick opens a session for a ready leaf, or ask for one with `plans_session {action: "request"}`. Crew Mode conductors use `plans_next` and `plans_claim_task`. Steer, answer, or stop the work in the task's Kiro Crew session. Do not start additional sessions merely because the tools exist.
 
 During a disconnect, continue already authorized local work and retry reads with bounded backoff. Inspect the session binding, handoff, and recorded evidence before resuming. Never launch a replacement worker because a check-in is stale.
 
@@ -149,10 +149,10 @@ For operation arguments, task-block examples, validation/integration, models and
 ```
 
 MCP exposes the same workflow through tools including `plans_query`,
-`plans_activity`, `plans_update_task`, `plans_get_plan`, `plans_extract`,
-`plans_extraction`, `plans_submit_extraction`, `plans_dispose_fact`,
-`plans_approve_plan`, `plans_handoff`, `plans_get_run`, `plans_validate_run`
-and `plans_integrate`. Inspect `tools/list` for each tool's current input
+`plans_activity`, `plans_task {action: "update"}`, `plans_get_plan`, `plans_review {action: "extract"}`,
+`plans_review {action: "extraction"}`, `plans_submit_extraction`, `plans_review {action: "dispose_fact"}`,
+`plans_approve_plan`, `plans_task {action: "handoff"}`, `plans_run {action: "get"}`, `plans_task {action: "validate"}`
+and `plans_task {action: "integrate"}`. Inspect `tools/list` for each tool's current input
 schema. Approval and integration remain subject to the user's authorization.
 
 To refresh an installed copy, print the maintained skill with `{{CLI}} skill` and replace the installed `SKILL.md` with that output.
@@ -173,8 +173,7 @@ nickname. Keep the ownership lease and transcript link separate:
 For a Claude subagent, `SESSION_UUID` is the parent session and `--agent AGENT_ID`
 selects the child's own transcript. The parent or launcher should pass these
 identities to each worker. Do not substitute a task name or start another agent
-to obtain an identity. MCP `plans_register_session` takes the same fields as
-`{taskId, leaseId, provider, providerSessionId, agentId?}`.
+to obtain an identity.
 
 Claude launchers can use `{{WORKSPACE_CLI}} session-hook --task TASK_ID --lease
 LEASE_ID` as a SessionStart/SubagentStart/PostToolUse command hook. It reads Claude's JSON
@@ -185,10 +184,10 @@ failure reports to stderr and leaves the worker running; retry registration
 through the CLI or MCP when the workspace returns. A new task claim needs a
 new registration; heartbeats preserve the existing link.
 
-`session.discover` (MCP `plans_discover_sessions`) lists local session metadata
+`session.discover` lists local session metadata
 inside the task's projects. The site also offers **Link Claude session** when a
 worker has no transcript. Choose the exact session/subagent; do not guess from
-a similar name. `task.sessions` (MCP `plans_task_sessions`) resolves the explicit
+a similar name. `task.sessions` (MCP `plans_task {action: "sessions"}`) resolves the explicit
 link first, then the exact reported provider/run ID, then active managed runs.
 External Claude attachments are read-only and update while open. Continue
 messages, interruptions and approvals in the original Claude interface. Managed

@@ -115,7 +115,7 @@ function Prerequisites(props: { graph: Graph | null; self: string; value: Prereq
 
 function PreviewBlock({ preview }: { preview: ChangePreview }) {
   return (
-    <div className="flex flex-col gap-2 rounded border p-2 text-sm" style={{ borderColor: 'var(--border)' }}>
+    <Box css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="2" size="sm">
       <p>{preview.message}</p>
       {preview.link && (
         <TextLink href={linkHref(preview.link)} target="_blank" rel="noreferrer">
@@ -127,9 +127,9 @@ function PreviewBlock({ preview }: { preview: ChangePreview }) {
           <Box weight="medium">
             {preview.folder}tasks.md line {preview.tasks.line}
           </Box>
-          <pre className="mt-1 whitespace-pre-wrap rounded border p-1" style={{ borderColor: 'var(--border)' }}>
+          <Box as="pre" css-border-color="border" mt="1" whitespace="pre-wrap" rounded="base" border="all" p="1">
             {`- ${preview.tasks.before}\n+ ${preview.tasks.after}`}
-          </pre>
+          </Box>
         </Box>
       )}
       {preview.facts && (
@@ -137,13 +137,13 @@ function PreviewBlock({ preview }: { preview: ChangePreview }) {
           <Box weight="medium">
             {preview.folder}tasks.md, Facts of task {preview.facts.key}
           </Box>
-          <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded border p-1" style={{ borderColor: 'var(--border)' }}>
+          <Box as="pre" css-border-color="border" mt="1" maxH48 overflow="auto" whitespace="pre-wrap" rounded="base" border="all" p="1">
             {JSON.stringify(preview.facts.after, null, 2)}
-          </pre>
+          </Box>
         </Box>
       )}
       <Hint as="p" size="xs">Nothing was written. Approving the changed spec stays your step.</Hint>
-    </div>
+    </Box>
   )
 }
 
@@ -204,9 +204,9 @@ export default function TaskForm(props: {
       }}
     >
       {locked ? (
-        <p className="rounded border p-2 text-sm" style={{ borderColor: 'var(--border)' }}>
+        <Box as="p" css-border-color="border" rounded="base" border="all" p="2" size="sm">
           <Badge variant="warning">Locked</Badge> {locked.message}
-        </p>
+        </Box>
       ) : !detail ? (
         <Hint as="p" size="xs">A new task starts as a draft. It waits for your review before it can start.</Hint>
       ) : (
@@ -230,7 +230,7 @@ export default function TaskForm(props: {
       <Field id="avoozl-task-summary" label="Description">
         <Area id="avoozl-task-summary" rows={4} value={form.summary} onChange={(summary) => set({ summary })} />
       </Field>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <Box grid gap="3" smGridCols2>
         <Field id="avoozl-task-repository" label="Repository">
           <SelectField
             id="avoozl-task-repository"
@@ -245,7 +245,7 @@ export default function TaskForm(props: {
             ))}
           </SelectField>
         </Field>
-      </div>
+      </Box>
       <Field id="avoozl-task-acceptance" label="Acceptance" hint="One condition per line.">
         <Area id="avoozl-task-acceptance" value={form.acceptance} onChange={(acceptance) => set({ acceptance })} />
       </Field>

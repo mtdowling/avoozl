@@ -48,7 +48,7 @@ export function PackChanges({ preview }: { preview: PackPreview }) {
           {warning}
         </ErrorText>
       ))}
-      <div style={{ overflowX: 'auto' }}>
+      <Box css-overflow-x="auto">
         <Box as="table" wFull size="xs">
           <thead>
             <Box as="tr" align="left" tone="muted">
@@ -59,7 +59,7 @@ export function PackChanges({ preview }: { preview: PackPreview }) {
           </thead>
           <tbody>
             {preview.changes.map((change) => (
-              <tr key={change.setting} className="align-top" style={{ borderTop: '1px solid var(--border)' }}>
+              <Box key={change.setting} as="tr" css-border-top="1px-solid-border" alignTop>
                 <Box as="td" py="1" pr="2" breakAll>
                   <code>{change.setting}</code>
                 </Box>
@@ -81,11 +81,11 @@ export function PackChanges({ preview }: { preview: PackPreview }) {
                     </>
                   )}
                 </Box>
-              </tr>
+              </Box>
             ))}
           </tbody>
         </Box>
-      </div>
+      </Box>
     </Box>
   )
 }

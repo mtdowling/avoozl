@@ -38,7 +38,7 @@ function ValueLine({ value, onJump }: { value: Value; onJump?: (jump: Jump) => v
           <code>{value.text}</code>
         </button>
       ) : (
-        <code style={{ overflowWrap: 'anywhere' }}>{value.text}</code>
+        <Box as="code" css-overflow-wrap="anywhere">{value.text}</Box>
       )}
       <Hint>{SOURCE_TEXT[value.source]}</Hint>
       {value.elsewhere && <Hint> (set in {value.elsewhere})</Hint>}
@@ -61,9 +61,9 @@ function Step({ card, off, onJump }: { card: StepCard; off: boolean; onJump?: (j
           {WHO_TEXT[card.who]}
         </span>
         {card.tag && (
-          <span className="rounded border px-1 text-[11px] text-muted" style={{ borderColor: 'var(--border)' }} data-status-tag>
+          <Box as="span" css-border-color="border" rounded="base" border="all" px="1" size="11" tone="muted" data-status-tag>
             {card.tag}
-          </span>
+          </Box>
         )}
       </Box>
       <Box as="span" weight="medium">{card.title}</Box>
@@ -138,7 +138,7 @@ export default function WorkflowMap(props: {
       )}
       {map.labels.length > 0 && (
         <Card>
-          <div className="overflow-x-auto" style={{ overflowX: 'auto' }} data-labels-table>
+          <Box css-overflow-x="auto" overflow="x-auto" data-labels-table>
             <Box as="table" wFull align="left" size="xs">
               <caption className="pb-1 text-left text-sm font-semibold">Labels</caption>
               <thead>
@@ -154,7 +154,7 @@ export default function WorkflowMap(props: {
                   <tr key={row.key} data-label-row={row.key}>
                     <td className="pe-2 align-top">{row.label}</td>
                     <td className="pe-2 align-top">
-                      <code style={{ overflowWrap: 'anywhere' }}>{row.name}</code>
+                      <Box as="code" css-overflow-wrap="anywhere">{row.name}</Box>
                       <Hint>{SOURCE_TEXT[row.source]}</Hint>
                     </td>
                     <td className="pe-2 align-top" style={{ color: WHO_COLOR[row.writer] }}>
@@ -173,7 +173,7 @@ export default function WorkflowMap(props: {
                 ))}
               </tbody>
             </Box>
-          </div>
+          </Box>
         </Card>
       )}
     </Stack>

@@ -1,15 +1,18 @@
 // The page's one layout and text element. A view writes what an element is
-// (`as`) and what varies on it (a gap, a size, a tone) as props from the
-// fixed scales in box.json; Box turns them into Kiro Crew's classes, so the
-// class names are written here and nowhere else (UC2.3). It takes no
-// `className` or `style`. A prop is added to box.json in the change that
-// needs it, after checking Kiro Crew's stylesheet has the class (the test in
-// ui-box.test.mjs holds that).
-import { createElement, forwardRef, type HTMLAttributes, type ReactNode, type Ref, type TdHTMLAttributes } from 'react'
+// (`as`) and what varies on it as props from the fixed tables in box.json:
+// `flags` and `scales` become Kiro Crew's classes (`flexCol`, `gap="2"`,
+// `size="xs"`), and `styles` become the one inline style the element needs
+// (`css-overflow-wrap="anywhere"`, `css-border-color="border"`), each value
+// named in the table, so class names, CSS values and theme variables are
+// written here and nowhere else (UC2.3). It takes no `className` or `style`.
+// A value is added to box.json in the change that needs it; a class must be
+// in Kiro Crew's stylesheet (ui-box.test.mjs holds that).
+import { createElement, forwardRef, type CSSProperties, type HTMLAttributes, type ReactNode, type Ref, type TdHTMLAttributes } from 'react'
 import table from './box.json'
 
 type Flags = keyof typeof table.flags
 type Scales = { [K in keyof typeof table.scales]: keyof (typeof table.scales)[K] }
+type Styles = { [K in keyof typeof table.styles as `css-${K}`]?: keyof (typeof table.styles)[K] }
 
 export type BoxTag =
   | 'div' | 'span' | 'p' | 'ul' | 'ol' | 'li' | 'section' | 'header' | 'footer' | 'nav' | 'article' | 'aside' | 'main' | 'figure'
@@ -17,13 +20,16 @@ export type BoxTag =
   | 'table' | 'thead' | 'tbody' | 'tr' | 'td' | 'th' | 'details' | 'summary' | 'fieldset' | 'legend'
 
 export type BoxProps = Omit<HTMLAttributes<HTMLElement>, 'className' | 'style'> &
-  Pick<TdHTMLAttributes<HTMLElement>, 'colSpan' | 'rowSpan' | 'scope'> & { htmlFor?: string; open?: boolean; children?: ReactNode; as?: BoxTag } & { [K in Flags]?: boolean } & { [K in keyof Scales]?: Scales[K] }
+  Pick<TdHTMLAttributes<HTMLElement>, 'colSpan' | 'rowSpan' | 'scope'> & { htmlFor?: string; open?: boolean; children?: ReactNode; as?: BoxTag } & { [K in Flags]?: boolean } & { [K in keyof Scales]?: Scales[K] } & Styles
 
 const FLAGS = table.flags as Record<string, string>
 const SCALES = table.scales as Record<string, Record<string, string>>
+const STYLES = table.styles as Record<string, Record<string, string | number>>
+const camel = (name: string) => name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
 
 export const Box = forwardRef<HTMLElement, BoxProps>(function Box({ as = 'div', ...props }, ref) {
   const classes: string[] = []
+  const style: Record<string, string | number> = {}
   const rest: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(props)) {
     if (key in FLAGS) {
@@ -31,7 +37,15 @@ export const Box = forwardRef<HTMLElement, BoxProps>(function Box({ as = 'div', 
     } else if (key in SCALES) {
       const cls = SCALES[key][String(value)]
       if (cls) classes.push(cls)
+    } else if (key.startsWith('css-') && key.slice(4) in STYLES) {
+      const css = STYLES[key.slice(4)][String(value)]
+      if (css !== undefined) style[camel(key.slice(4))] = css
     } else rest[key] = value
   }
-  return createElement(as, { ...rest, className: classes.join(' ') || undefined, ref: ref as Ref<HTMLElement> })
+  return createElement(as, {
+    ...rest,
+    className: classes.join(' ') || undefined,
+    style: Object.keys(style).length ? (style as CSSProperties) : undefined,
+    ref: ref as Ref<HTMLElement>,
+  })
 })

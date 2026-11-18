@@ -53,6 +53,7 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
+import { LaneStyle } from './ui/PageStyles'
 
 function LaneCardView(props: {
   card: LaneCard
@@ -81,7 +82,7 @@ function LaneCardView(props: {
   const done = card.item?.complete ?? false
   return (
     <li data-lane-card>
-      <div style={{ overflowWrap: 'break-word' }}>
+      <Box css-overflow-wrap="break-word">
           {/* In a narrow lane the title wraps below its icon rather than split words. */}
           <div className={`flex items-start gap-2 ${props.compact ? 'flex-wrap' : ''}`}>
             {props.phase && <StateIcon phase={props.phase} />}
@@ -106,9 +107,9 @@ function LaneCardView(props: {
             {card.planArchived && <Badge>Archived</Badge>}
           </Box>
           {card.subIssue && (
-            <p className="mt-1 text-xs" style={{ color: 'var(--warning, var(--muted))' }} data-sub-issue>
+            <Box as="p" css-color="warning-muted" mt="1" size="xs" data-sub-issue>
               {card.subIssue.reason}
-            </p>
+            </Box>
           )}
           {card.batch && (
             <Box mt="1.5" size="xs" data-batch-card={card.batch.id}>
@@ -196,7 +197,7 @@ function LaneCardView(props: {
             )}
             <IconLabel icon={DetailsIcon} tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(card.id)} {...label('Details')} />
           </Box>
-      </div>
+      </Box>
     </li>
   )
 }
@@ -243,12 +244,6 @@ export function StateIcon({ phase }: { phase: 'running' | 'reviewing' }) {
 
 const LANE_GAP = 16
 
-// The shared lane entry: no box, only a top rule in the lane's own color
-// (--lane-line, set on the lane), flush to the lane's edges.
-const LANE_CSS = `
-[data-lane-card]{list-style:none;margin:0;padding:6px 0;border:0;border-top:1px solid var(--lane-line);line-height:1.3}
-[data-lane-card] :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-`
 
 // The width a box has, kept current as it resizes.
 function useWidth<T extends HTMLElement>() {
@@ -305,7 +300,7 @@ export function DeliveryBoard(props: {
   )
   return (
     <>
-      <style>{LANE_CSS}</style>
+      <LaneStyle />
     <div
       ref={ref}
       data-lane-columns={columns}
@@ -429,7 +424,7 @@ function DeliveryFilters(props: {
               active={filter.state === state.id}
               onClick={() => set({ state: filter.state === state.id ? undefined : state.id })}
               attrs={{ 'data-rail-state': state.id }}
-              trail={<span style={{ fontSize: 12, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{states.get(state.id) ?? 0}</span>}
+              trail={<Box as="span" css-font-size="12" css-color="muted" css-font-variant-numeric="tabular-nums">{states.get(state.id) ?? 0}</Box>}
             />
           ))}
           <RailDivider />
@@ -533,9 +528,9 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
             <>
               {/* One row: Start now and its box, Refresh, then Stop the line. */}
               {startable.length > 0 && (
-                <div data-start-now-picker style={{ minWidth: '14rem' }}>
+                <Box data-start-now-picker css-min-width="14rem">
                   <Picker inline label="Start now" items={startable} value="" keep={false} onPick={start} placeholder="Find a ready task" maxWidth="24rem" />
-                </div>
+                </Box>
               )}
               <Tooltip text="Refresh">
                 <button type="button" data-delivery-refresh aria-label="Refresh" onClick={() => void reload()} disabled={busy || acting} style={{ ...NAV_ICON, color: 'var(--muted)' }}>

@@ -41,14 +41,14 @@ function AllowOnce(props: { workspaceId: string; blocked: Blocked; onDone: (text
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   return (
-    <div role="alert" className="flex flex-col gap-2 rounded border p-2 text-sm" style={{ borderColor: 'var(--danger)' }} data-notes-blocked>
+    <Box role="alert" css-border-color="danger" flex flexCol gap="2" rounded="base" border="all" p="2" size="sm" data-notes-blocked>
       <ErrorText>{props.blocked.message}</ErrorText>
       {props.blocked.decisions.length > 0 && (
         <Row gap={2} align="end">
-          <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '12rem' }}>
+          <Box as="label" css-min-width="12rem" flex flex1 flexCol gap="1" size="xs">
             <span>Why this exact text may be saved once (required)</span>
             <Input value={reason} onChange={(event: { target: { value: string } }) => setReason(event.target.value)} />
-          </label>
+          </Box>
           <DangerBtn
             icon={Check}
             disabled={busy || !reason.trim()}
@@ -77,7 +77,7 @@ function AllowOnce(props: { workspaceId: string; blocked: Blocked; onDone: (text
           </DangerBtn>
         </Row>
       )}
-    </div>
+    </Box>
   )
 }
 
@@ -96,7 +96,7 @@ function EntryView(props: {
   const problem = editing ? linkProblem(url, label) : null
   const href = safeHref(entry.url)
   return (
-    <li className="flex flex-col gap-1 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-link-entry>
+    <Box as="li" css-border-color="border" flex flexCol gap="1" border="t" py="2" firstBorderT0 data-link-entry>
       <Box flex flexWrap items="center" gap="1.5" size="xs" tone="muted">
         <span>{authorLabel(entry)}</span>
         <Tooltip text={entry.at}>
@@ -174,7 +174,7 @@ function EntryView(props: {
           )}
         </Row>
       )}
-    </li>
+    </Box>
   )
 }
 
@@ -297,14 +297,14 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
           }}
         >
           <Row gap={2} align="start">
-            <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '12rem' }}>
+            <Box as="label" css-min-width="12rem" flex flex1 flexCol gap="1" size="xs">
               URL
               <Input autoFocus value={url} placeholder="https://" onChange={(event: { target: { value: string } }) => setUrl(event.target.value)} />
-            </label>
-            <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '10rem' }}>
+            </Box>
+            <Box as="label" css-min-width="10rem" flex flex1 flexCol gap="1" size="xs">
               Label
               <Input value={label} placeholder="Review doc" onChange={(event: { target: { value: string } }) => setLabel(event.target.value)} />
-            </label>
+            </Box>
           </Row>
           {linkIssue && <ErrorText as="span" size="xs">{linkIssue}</ErrorText>}
           <Row gap={2} align="start">
@@ -464,14 +464,14 @@ export function MarkDoneDialog(props: {
         </legend>
         {links.map((link, i) => (
           <Row key={i} gap={2} align="end">
-            <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '10rem' }}>
+            <Box as="label" css-min-width="10rem" flex flex1 flexCol gap="1" size="xs">
               URL
               <Input value={link.url} placeholder="https://" onChange={(event: { target: { value: string } }) => setLink(i, { url: event.target.value })} />
-            </label>
-            <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '8rem' }}>
+            </Box>
+            <Box as="label" css-min-width="8rem" flex flex1 flexCol gap="1" size="xs">
               Label
               <Input value={link.label} onChange={(event: { target: { value: string } }) => setLink(i, { label: event.target.value })} />
-            </label>
+            </Box>
             <IconLabel icon={X} aria-label={`Drop link ${i + 1} from this form`} onClick={() => setLinks(links.filter((_, j) => j !== i))}>
               Drop
             </IconLabel>
@@ -512,7 +512,7 @@ export function ManualTask(props: {
   const [error, setError] = useState<string | null>(null)
   const done = props.task.manualDone
   return (
-    <section aria-label="Manual task" className="flex flex-col gap-2 rounded border p-3" style={{ borderColor: 'var(--accent)' }} data-manual-task>
+    <Box aria-label="Manual task" as="section" css-border-color="accent" flex flexCol gap="2" rounded="base" border="all" p="3" data-manual-task>
       <Row gap={2}>
         <Badge variant="warning">Manual</Badge>
         <Box as="span" size="sm">A person does this step. No agent works on it.</Box>
@@ -575,6 +575,6 @@ export function ManualTask(props: {
           }}
         />
       )}
-    </section>
+    </Box>
   )
 }

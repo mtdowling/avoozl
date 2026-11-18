@@ -316,7 +316,20 @@ export async function startServe({
       log(`error ${error?.code ?? error?.name ?? "unknown"}`);
     }
   });
+  // Stopping the server ends every open connection too (SW4.4: a session ends
+  // when the server stops). http.Server.close alone leaves a keep-alive
+  // connection serving the old process's sessions until the browser drops it.
+  const stop = server.close.bind(server);
+  server.close = (callback) => {
+    const closed = stop(callback);
+    server.closeAllConnections();
+    return closed;
+  };
+  let stopped = false;
   server.on("close", () => {
+    // A second close() emits again; everything below runs once.
+    if (stopped) return;
+    stopped = true;
     if (server.stateFile) fs.rmSync(server.stateFile, { force: true });
     auth?.end();
     links.close();

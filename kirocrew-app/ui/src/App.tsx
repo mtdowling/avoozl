@@ -68,15 +68,15 @@ function storage(): Storage | null {
 function NavLabel(props: { view: keyof typeof VIEW_ICONS; text: string; count?: number }) {
   const Icon = VIEW_ICONS[props.view]
   return (
-    <span data-nav-label-row style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: '100%' }}>
+    <Box data-nav-label-row as="span" css-display="flex" css-align-items="center" css-gap="6" css-min-width="0" css-max-width="100%">
       <Icon size={ICON} aria-hidden="true" style={{ flexShrink: 0 }} />
-      <span data-nav-text style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{props.text}</span>
+      <Box data-nav-text as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">{props.text}</Box>
       {props.count ? (
-        <span data-nav-count style={{ flexShrink: 0, display: 'inline-flex' }}>
+        <Box data-nav-count as="span" css-flex-shrink="0" css-display="inline-flex">
           <Badge variant="warning">{props.count}</Badge>
-        </span>
+        </Box>
       ) : null}
-    </span>
+    </Box>
   )
 }
 

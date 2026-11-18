@@ -9,6 +9,7 @@ import { DetailPane } from './ListDetail.tsx'
 import { usePhone } from './list-detail.ts'
 import { ResizeHandle } from './ResizeHandle.tsx'
 import { scrollParent } from './sticky-column.ts'
+import { Box } from './ui/Box'
 
 // The height left on screen under the node in whatever scrolls the page
 // (in Kiro Crew, the app's content pane), measured again when it resizes;
@@ -121,7 +122,7 @@ export function ListDetailLayout(props: {
           onClick={folded.onUnfold}
           style={{ flex: `0 0 ${LIST_FOLDED_WIDTH}px`, width: LIST_FOLDED_WIDTH, display: 'flex', justifyContent: 'center', padding: '10px 0', background: 'none', border: 0, borderRadius: 6, color: 'var(--muted)', cursor: 'pointer', fontSize: 12.5, fontWeight: 500 }}
         >
-          <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', whiteSpace: 'nowrap' }}>{folded.label}</span>
+          <Box as="span" css-writing-mode="vertical-rl" css-transform="rotate-180deg" css-white-space="nowrap">{folded.label}</Box>
         </button>
       )}
       <div

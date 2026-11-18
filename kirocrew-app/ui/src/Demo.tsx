@@ -175,41 +175,39 @@ export function DemoBar() {
   // A phone gets a compact box: the badge, the intro, the controls and Exit.
   if (phone)
     return (
-      <div
+      <Box
         data-demo-bar
         role="region"
         aria-label="Demo mode"
-        className="mx-4 mb-2 flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5 text-xs"
-        style={{ minHeight: 32, borderColor: 'var(--warning, #c90)', background: 'var(--card, transparent)' }}
+        css-min-height="32" css-border-color="warning-c90" css-background="card-transparent" mx="4" mb="2" flex flexWrap items="center" gap="2" rounded="md" border="all" px="2" py="1.5" size="xs"
       >
         <DemoBadge />
-        <span className="min-w-0 flex-1 text-muted" data-demo-intro style={{ minWidth: 160 }}>
+        <Box as="span" css-min-width="160" minW0 flex1 tone="muted" data-demo-intro>
           {DEMO_INTRO}
-        </span>
+        </Box>
         <DemoControls />
         <button type="button" data-demo-exit onClick={() => void demo.exit()} className="text-xs font-semibold" style={{ background: 'none', border: 0, color: 'var(--accent)', cursor: 'pointer', padding: '2px 4px' }}>
           Exit demo
         </button>
         {notice}
-      </div>
+      </Box>
     )
   return (
-    <div
+    <Box
       data-demo-bar
       role="region"
       aria-label="Demo mode"
-      className="mx-2 mb-3 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm"
-      style={{ borderColor: 'var(--warning, #c90)', background: 'var(--card, transparent)' }}
+      css-border-color="warning-c90" css-background="card-transparent" mx="2" mb="3" flex flexWrap items="center" gap="3" rounded="lg" border="all" px="3" py="2" size="sm"
     >
       <DemoBadge />
-      <span className="flex-1" style={{ minWidth: 200 }} data-demo-intro>
+      <Box as="span" css-min-width="200" flex1 data-demo-intro>
         {DEMO_INTRO}
-      </span>
+      </Box>
       <DemoControls />
       <Btn type="button" primary data-demo-exit onClick={() => void demo.exit()}>
         Exit demo
       </Btn>
       {notice}
-    </div>
+    </Box>
   )
 }

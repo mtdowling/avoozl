@@ -94,7 +94,7 @@ of the other specs.
 
 ## Phase 3: Roles with rules about who wrote what
 
-- [ ] nk-3.1 Plan review as a child, after nk-1.2 [NK3.3, NK5.1, NK5.2] (§D3, §D5)
+- [x] nk-3.1 Plan review as a child, after nk-1.2 [NK3.3, NK5.1, NK5.2] (§D3, §D5)
   - Facts:
     - summary: Phase 3 (Roles with rules about who wrote what). Plan review as a child. See NK3.3, NK5.1, NK5.2; §D3, §D5.
     - done:
@@ -121,7 +121,7 @@ of the other specs.
 
 ## Phase 4: Roles that read a pull request
 
-- [ ] nk-4.1 The pull request snapshot, after nk-1.2 [NK4.1, NK4.2, NK4.5] (§D4)
+- [x] nk-4.1 The pull request snapshot, after nk-1.2 [NK4.1, NK4.2, NK4.5] (§D4)
   - Facts:
     - summary: Phase 4 (Roles that read a pull request). The pull request snapshot. See NK4.1, NK4.2, NK4.5; §D4.
     - done:

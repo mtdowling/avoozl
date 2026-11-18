@@ -6,8 +6,6 @@ import { fail } from "./store.mjs";
 
 export const BATCH_MODES = Object.freeze(["off", "suggest", "auto"]);
 const BLOCKING = new Set(["requires", "sequence"]);
-// The most tasks one batch issue holds (the same cap as dispatch, §4.37).
-const MAX_BATCH = 5;
 
 // `tasks` and `edges` are the plan's (an edge runs from blocker to blocked).
 // `complete` says whether a status counts as done. Returns the batches, the
@@ -51,7 +49,6 @@ export function planProjectionBatches({
       if (taken.has(lead.id)) continue;
       const group = [lead];
       for (const task of candidates) {
-        if (group.length >= MAX_BATCH) break;
         if (taken.has(task.id) || group.includes(task)) continue;
         if (task.batch.id !== lead.batch.id || task.planId !== lead.planId)
           continue;
@@ -78,7 +75,7 @@ export function planProjectionBatches({
 // `github.batch` plus the `requested` ones, each a list of task IDs. Returns
 // groups of IDs in plan order, the first being the lead whose managed marker
 // the batch issue carries. A group of one stays plain and is dropped. Refuses
-// with 409 a group that is over the cap, names an unknown task, shares a task
+// with 409 a group that names an unknown task, shares a task
 // with another group, holds a task that is not an automatic leaf, joins two
 // tasks by an edge, has an open blocker outside it, or holds a task that
 // already has its own issue. Pure: reads nothing but its arguments.
@@ -88,8 +85,7 @@ export function resolveBatchGroups({
   requested = [],
   complete = (status) => status === "done",
 }) {
-  const cap = MAX_BATCH,
-    order = new Map(tasks.map((task, index) => [task.id, index])),
+  const order = new Map(tasks.map((task, index) => [task.id, index])),
     byId = new Map(tasks.map((task) => [task.id, task])),
     sorted = (ids) => [...ids].sort((a, b) => order.get(a) - order.get(b)),
     stored = new Map(),
@@ -110,7 +106,6 @@ export function resolveBatchGroups({
     if (!Array.isArray(input)) fail("Each batch must be a list of IDs.", 409);
     const ids = [...new Set(input)];
     if (ids.length < 2) continue;
-    if (ids.length > cap) fail(`A batch holds at most ${cap} tasks.`, 409);
     for (const id of ids)
       if (!byId.has(id)) fail(`Task ${id} is not in this plan.`, 409);
     const group = sorted(ids);

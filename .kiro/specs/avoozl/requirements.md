@@ -2592,10 +2592,15 @@ nothing a person must decide can be done from a chat.
    (Changed 2026-11-13: marking a manual task done or reopening it, and
    editing, removing or showing a task's links and notes on its issue, are
    person only too, Requirement 61.13 and 61.22.)
-3. The older `plans_*` names SHALL stay listed and working, each
-   description starting with `Deprecated:` and naming its replacement.
-   They stay listed because a session's client calls only the tools it was
-   shown, although the gateway forwards a call to an unlisted name.
+3. (Changed 2026-11-18, owner decision.) The deprecated one-tool-per-operation
+   `plans_*` names that nothing Avoozl ships uses, the moved-operation stubs,
+   `plans_relay` and `plans_andon_*` SHALL NOT be listed or answered. A narrow
+   tool that a shipped agent, role prompt or brief names (such as
+   `plans_report`, `plans_get_plan` or `plans_submit_review`) SHALL stay as a
+   current tool, so no agent's allowedTools grows. Agents, prompts and briefs
+   SHALL name only registered tools, and a test SHALL fail when one names a
+   tool that is not registered or when a read-only role is given a grouped
+   tool with write actions.
 4. A session MAY archive and unarchive a plan, and the record SHALL name
    the session. This replaces Requirement 51.1.
 5. A grouped tool that keeps an old read-only name SHALL stay read only, so
@@ -4085,7 +4090,9 @@ pressing merge.
 1. Each repository SHALL have one landing block,
    `github.repositories.<owner/name>.landing`, edited in one place,
    Settings › Repository setup › Edit › Landing: `mode` (`direct`, `pr`,
-   `train` or `off`), `autoMerge` (Requirement 80, default `true`) and
+   `train` or `off`; `train` is to be retired into `direct` by the
+   `merge-batches` spec, which replaced the deleted `landing-trains` spec on
+   2026-11-18), `autoMerge` (Requirement 80, default `true`) and
    `method` (`squash` or `merge`, default `squash`, RC28.7). The default
    mode SHALL be `off` until Set up (Requirement 89) writes another. Under
    `off` Avoozl SHALL push nothing and SHALL list the verified commit in
@@ -5494,12 +5501,19 @@ handoff without my tuning a batch size.
    facts say `batch: <group ID>`, and `tasks.md` front-matter gives the
    group's one-line reason as `batch-<group ID>: <reason>` (Requirement
    111.4). The
-   planner prompt (`prompts/planner.md`) SHALL say when to group (small
-   edits that share files or context, where one chat is cheaper than
-   several) and when not to (anything that needs its own review, any
-   ordering between the tasks, more than one repository).
+   planner prompt (`prompts/planner.md`) SHALL make grouping the default
+   for related leaves in the same repository and area, with no limit on
+   the number of tasks, because one medium-sized pull request of related
+   work beats many small ones (changed 2026-11-18, owner decision). It
+   SHALL split only where the parts can truly run at the same time
+   (different files or areas two workers can do without stepping on each
+   other), or for a hard reason: one task must land before another, a
+   different repository, a manual step, or a task that needs its own
+   review or investigation. It SHALL never split just to land tasks one at
+   a time. The retro prompt (`prompts/retro.md`) SHALL ask the retro to
+   flag a spec whose related tasks landed as many small pull requests.
 2. Spec lint SHALL refuse a `batches` value that is not an object of
-   entries with a group ID of letters, digits, `.`, `_` or `-`, 2 to 5
+   entries with a group ID of letters, digits, `.`, `_` or `-`, 2 or more
    task IDs that name leaves in this spec, and a reason of 1 to 200
    characters on one line, and a task listed in two groups. These SHALL be
    `facts.schema` errors in `tasks.md`, like any other facts error.
@@ -5515,7 +5529,7 @@ handoff without my tuning a batch size.
 5. Avoozl SHALL check these rules in code, never in a setting, each time it
    would dispatch a group: every member is in the same plan and the same
    repository (so the same base branch); no `requires` or `sequence` edge
-   joins two members; the group has at most 5 members; every member
+   joins two members; every member
    carries the same group from the same approved plan hash, and the plan is
    approved at that hash; every member is an automatic leaf with local
    route and authority; no member has an earlier attempt or was split from
@@ -5527,8 +5541,8 @@ handoff without my tuning a batch size.
    checks and review once on the last commit, and on failure a split in
    which each task retries alone at no attempt cost and is not batched
    again in that delivery.
-7. Batching SHALL add no landing step. Landing trains (the
-   `landing-trains` spec) test once on landing and find a culprit there;
+7. Batching SHALL add no landing step. Merge batches (the
+   `merge-batches` spec) test once on landing and find a culprit there;
    a batch's commits land through the repository's landing like any other.
 8. Batching SHALL have no setting. `flow.batch` SHALL NOT be a Flow key,
    Settings > Flow SHALL have no Batching section, the Flow settings
@@ -5547,7 +5561,8 @@ handoff without my tuning a batch size.
     groups instead of grouping `size: "small"` tasks up to `flow.batch.max`.
 12. Tests SHALL cover: a planner group dispatched as one handoff; a group
     that breaks each rule of criterion 5 dispatched as single tasks with its
-    reason; a failing batch split with each task retried alone; no batch key
+    reason; a related group of 12 tasks dispatched as one handoff; a failing
+    batch split with each task retried alone; no batch key
     in the Flow settings validator or in Settings > Flow; and an old
     `flow.batch` and an old `size` ignored on load. Screenshots of the
     batched card (phone and desktop, light and dark) SHALL be under

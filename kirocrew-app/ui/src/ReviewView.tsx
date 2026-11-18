@@ -45,20 +45,13 @@ import {
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { REVIEW_ACCENT, ReviewCss } from './ui/PageStyles'
 
 const PROSE = '72ch'
 // Below this width the text and the rail do not fit side by side.
 const WIDE = 720
 // The text never gets narrower than this when the side column is dragged wider.
 const MIN_TEXT = 320
-// Every block a finding is anchored to is tinted by its severity and can be
-// focused; the open finding's block is stronger.
-const HIT_STYLE = `[data-review-doc] [data-review-anchor]{cursor:pointer;border-radius:4px;box-shadow:-3px 0 0 var(--hit,var(--accent));background:color-mix(in srgb,var(--hit,var(--accent)) 10%,transparent)}
-${SEVERITIES.map((s) => `[data-review-doc] [data-review-anchor][data-review-sev=${s}]{--hit:${SEVERITY_INK[s]}}`).join('\n')}
-[data-review-doc] [data-review-anchor]:hover{background:color-mix(in srgb,var(--hit,var(--accent)) 16%,transparent)}
-[data-review-doc] [data-review-anchor]:focus-visible{outline:2px solid var(--hit,var(--accent));outline-offset:2px}
-[data-review-doc] [data-review-hit]{background:color-mix(in srgb,var(--hit,var(--accent)) 24%,transparent)!important}
-[data-toc-item][aria-current=location]{color:var(--text-strong,var(--text));font-weight:600;box-shadow:inset 2px 0 0 var(--accent)}`
 const SEVERITY_ORDER: Record<string, number> = { blocker: 0, warn: 1, info: 2 }
 // Smooth unless the person asked for less motion: then a jump.
 const motion = (): ScrollBehavior => (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth')
@@ -82,7 +75,7 @@ function Chip(props: { label: string; count?: number; on: boolean; onClick: () =
   return (
     <SmallBtn primary={props.on} onClick={props.onClick} attrs={{ 'aria-pressed': props.on ? 'true' : 'false', ...props.attr }}>
       {props.label}
-      {props.count !== undefined && <span style={{ marginLeft: 4, opacity: 0.8 }}>{props.count}</span>}
+      {props.count !== undefined && <Box as="span" css-margin-left="4" css-opacity="0.8">{props.count}</Box>}
     </SmallBtn>
   )
 }
@@ -98,15 +91,7 @@ const ACTION_TEXT: Record<FindingAction, string> = {
   reopen: 'Reopened',
 }
 
-// Kiro Crew's own accent for an action, as on its Needs your input cards.
-const ACCENT = 'color-mix(in srgb, var(--aim) 72%, var(--text-strong, var(--text)))'
 const SEVERITY_ICON: Record<FindingSeverity, typeof Info> = { blocker: CircleAlert, warn: MessageSquare, info: Info }
-const CARD_STYLE = `[data-finding-card] [data-card-btn]{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500;line-height:1;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;max-width:100%}
-[data-finding-card] [data-card-btn]:hover:not(:disabled){background:var(--bg-hover)}
-[data-finding-card] [data-card-btn]:disabled{opacity:.55;cursor:default}
-[data-finding-card] [data-card-btn][data-main]{color:${ACCENT};border-color:color-mix(in srgb,${ACCENT} 45%,var(--border))}
-[data-finding-card] [data-card-btn]:focus-visible{outline:2px solid ${ACCENT};outline-offset:1px}
-[data-finding-card] [data-clamp]{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}`
 
 function CardBtn(props: { main?: boolean; disabled?: boolean; onClick: () => void; attr: Record<string, string>; children: string }) {
   return (
@@ -167,7 +152,7 @@ function FindingCard(props: {
       className="text-sm"
       style={{
         ...props.style,
-        boxShadow: props.selected ? `0 0 0 2px color-mix(in srgb, ${ACCENT} 55%, transparent)` : undefined,
+        boxShadow: props.selected ? `0 0 0 2px color-mix(in srgb, ${REVIEW_ACCENT} 55%, transparent)` : undefined,
         cursor: props.onSelect ? 'pointer' : undefined,
         display: 'flex',
         flexDirection: 'column',
@@ -182,21 +167,21 @@ function FindingCard(props: {
         boxSizing: 'border-box',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+      <Box css-display="flex" css-align-items="center" css-gap="8" css-min-width="0">
         <Icon size={14} aria-hidden="true" style={{ flex: 'none', color: ink }} />
-        <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+        <Box css-flex="1-1-auto" css-min-width="0">
         <Tooltip text={finding.claim} display="block">
-          <h4 data-finding-title className="m-0" style={{ flex: '1 1 auto', minWidth: 0, margin: 0, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Box data-finding-title as="h4" css-flex="1-1-auto" css-min-width="0" css-margin="0" css-font-size="13" css-font-weight="600" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap" m0>
             {finding.claim}
-          </h4>
+          </Box>
         </Tooltip>
-        </div>
-        <span data-state-label className="text-muted" style={{ flex: 'none', fontSize: 11 }}>
+        </Box>
+        <Box data-state-label as="span" css-flex="none" css-font-size="11" tone="muted">
           {finding.state}
-        </span>
-      </div>
-      <div style={{ paddingLeft: 22, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-        <p className="m-0" style={{ margin: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px 8px', fontSize: 11 }}>
+        </Box>
+      </Box>
+      <Box css-padding-left="22" css-display="flex" css-flex-direction="column" css-gap="4" css-min-width="0">
+        <Box as="p" css-margin="0" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="2px-8px" css-font-size="11" m0>
           <span data-severity-label style={{ fontWeight: 600, color: ink }}>
             {SEVERITY_LABEL[finding.severity]}
           </span>
@@ -209,18 +194,17 @@ function FindingCard(props: {
               Moved or removed (from <code>{shortHash(finding.anchor.revisionHash)}</code>)
             </Hint>
           )}
-        </p>
-        <p
+        </Box>
+        <Box
           data-finding-body
           data-clamp={open ? undefined : 'true'}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
-          className="m-0 whitespace-pre-wrap"
-          style={{ margin: 0, fontSize: 12, color: 'color-mix(in srgb, var(--text) 85%, transparent)', cursor: 'pointer', whiteSpace: 'pre-wrap' }}
+          as="p" css-margin="0" css-font-size="12" css-color="mix-text-85%-transparent" css-cursor="pointer" css-white-space="pre-wrap" m0 whitespace="pre-wrap"
         >
           {finding.evidence}
-        </p>
-        <p className="m-0" data-planner-response style={{ margin: 0, fontSize: 12, whiteSpace: 'pre-wrap' }}>
+        </Box>
+        <Box as="p" css-margin="0" css-font-size="12" css-white-space="pre-wrap" m0 data-planner-response>
           {finding.answer ? (
             <>
               Planner:{' '}
@@ -240,20 +224,20 @@ function FindingCard(props: {
           ) : (
             <Hint>Planner has not answered.</Hint>
           )}
-        </p>
+        </Box>
         {finding.decisions.length > 0 && (
-          <ul className="m-0 text-muted" data-finding-history style={{ margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 2, listStyle: 'none', fontSize: 11 }}>
+          <Box as="ul" css-margin="0" css-padding="0" css-display="flex" css-flex-direction="column" css-gap="2" css-list-style="none" css-font-size="11" m0 tone="muted" data-finding-history>
             {finding.decisions.map((d, i) => (
               <li key={i}>
                 {ACTION_TEXT[d.action]} by {d.by} at <code>{shortHash(d.revisionHash)}</code>
                 {d.note ? ` · ${d.note}` : ''}
               </li>
             ))}
-          </ul>
+          </Box>
         )}
         {asking ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
-            <label style={{ fontSize: 12 }}>
+          <Box css-display="flex" css-flex-direction="column" css-gap="4" css-margin-top="2">
+            <Box as="label" css-font-size="12">
               {asking === 'reject' ? 'Reason (required)' : 'Note (optional)'}
               <textarea
                 data-finding-note
@@ -263,31 +247,31 @@ function FindingCard(props: {
                 className="mt-0.5 w-full rounded border p-1 text-sm"
                 style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)', boxSizing: 'border-box', width: '100%', borderRadius: 6, marginTop: 2 }}
               />
-            </label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            </Box>
+            <Box css-display="flex" css-flex-wrap="wrap" css-gap="6">
               <CardBtn main disabled={props.busy || (asking === 'reject' && !note.trim())} onClick={() => void send(asking, note.trim())} attr={{ 'data-finding-confirm': asking }}>
                 {asking === 'reject' ? 'Reject' : 'Defer'}
               </CardBtn>
               <CardBtn disabled={props.busy} onClick={() => setAsking(null)} attr={{ 'data-finding-cancel': '' }}>
                 Cancel
               </CardBtn>
-            </div>
-          </div>
+            </Box>
+          </Box>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }} data-finding-actions>
+          <Box css-display="flex" css-flex-direction="column" css-gap="4" css-margin-top="2">
+            <Box css-display="flex" css-flex-wrap="wrap" css-gap="6" data-finding-actions>
               {[actions.main, ...actions.rest].map((action) => (
                 <CardBtn key={action} main={action === actions.main} disabled={props.busy} onClick={() => act(action)} attr={{ 'data-finding-action': action }}>
                   {ACTION_LABEL[action]}
                 </CardBtn>
               ))}
-            </div>
-            <p className="m-0 text-muted" data-finding-hint style={{ margin: 0, fontSize: 11 }}>
+            </Box>
+            <Box as="p" css-margin="0" css-font-size="11" m0 tone="muted" data-finding-hint>
               {actions.hint}
-            </p>
-          </div>
+            </Box>
+          </Box>
         )}
-      </div>
+      </Box>
     </article>
   )
 }
@@ -307,25 +291,13 @@ export function DocTabs(props: {
 }) {
   const bar = props.bar ?? { label: 'Spec files', attr: 'data-review-tab', prefix: 'review-tab' }
   const count = (n: number) => (
-    <span
+    <Box
       data-tab-count={n}
       aria-label={`${n} open`}
-      style={{
-        minWidth: 18,
-        padding: '0 6px',
-        borderRadius: 999,
-        fontSize: 11,
-        lineHeight: '18px',
-        textAlign: 'center',
-        fontFamily: 'inherit',
-        fontVariantNumeric: 'tabular-nums',
-        background: n ? 'var(--bg-hover)' : 'transparent',
-        color: n ? 'var(--text)' : 'var(--muted)',
-        opacity: n ? 1 : 0.6,
-      }}
+      as="span" css-min-width="18" css-padding="0-6px" css-border-radius="999" css-font-size="11" css-line-height="18px" css-text-align="center" css-font-family="inherit" css-font-variant-numeric="tabular-nums" css-background={n ? 'bg-hover' : 'transparent'} css-color={n ? 'text' : 'muted'} css-opacity={n ? '1' : '0.6'}
     >
       {n}
-    </span>
+    </Box>
   )
   return (
     <Tabs
@@ -550,12 +522,12 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
     />
   )
   const movedGroup = moved.length > 0 && (
-    <div data-moved-group className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <h4 className="m-0 text-xs font-medium text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+    <Box data-moved-group css-display="flex" css-flex-direction="column" css-gap="8" flex flexCol gap="2">
+      <Box as="h4" css-text-transform="uppercase" css-letter-spacing="0.05em" m0 size="xs" weight="medium" tone="muted">
         Moved or removed
-      </h4>
+      </Box>
       {moved.map((f) => card(f))}
-    </div>
+    </Box>
   )
   return (
     <div
@@ -563,25 +535,25 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
       className="flex min-w-0 flex-col"
       style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 16, padding: phone ? '16px 0' : '16px 12px', ...(props.fill ? { flex: '1 1 0%', minHeight: 0 } : {}) }}
     >
-      <div className="flex flex-wrap items-center gap-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-        <h3 className="m-0 text-base font-semibold" style={{ flex: '1 1 auto' }}>
+      <Box css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="8" flex flexWrap items="center" gap="2">
+        <Box as="h3" css-flex="1-1-auto" m0 size="base" weight="semibold">
           Review
           {data && (
-            <span className="text-sm font-normal text-muted" style={{ marginLeft: 8 }}>
+            <Box as="span" css-margin-left="8" size="sm" weight="normal" tone="muted">
               at{' '}
               <Tooltip text={data.revisionHash}>
                 <code data-review-revision>{shortHash(data.revisionHash)}</code>
               </Tooltip>
               {!data.current && ' · older revision'}
-            </span>
+            </Box>
           )}
-        </h3>
+        </Box>
         {data && !data.current && (
           <SmallBtn onClick={() => set({ rev: null })} attrs={{ 'data-review-current': true }}>
             Show current revision
           </SmallBtn>
         )}
-      </div>
+      </Box>
       {error && (
         <ErrorText role="alert" size="sm" flush>
           {error}
@@ -591,14 +563,13 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
         !error && <Hint as="p" size="sm" flush>Loading…</Hint>
       ) : (
         <>
-          <div className="flex flex-col gap-1" style={{ display: 'flex', flexDirection: 'column', gap: 4 }} data-review-rounds>
+          <Box css-display="flex" css-flex-direction="column" css-gap="4" flex flexCol gap="1" data-review-rounds>
             {data.rounds.length === 0 && <Hint as="p" size="sm" flush>Not reviewed yet.</Hint>}
             {data.rounds.map((round) => (
-              <div
+              <Box
                 key={round.id}
                 data-review-round={round.id}
-                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm"
-                style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 12px' }}
+                css-display="flex" css-flex-wrap="wrap" css-align-items="baseline" css-gap="4px-12px" flex flexWrap items="baseline" gapX="3" gapY="1" size="sm"
               >
                 <Box as="span" weight="medium">
                   Round {round.round}
@@ -609,12 +580,12 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                 </Hint>
                 <Chat label="Open review chat" link={round.reviewChat} attr="data-review-chat" />
                 <Chat label="Open planner chat" link={round.plannerChat} attr="data-planner-chat" />
-              </div>
+              </Box>
             ))}
-          </div>
+          </Box>
           {tab && <DocTabs tabs={tabs} current={tab} counts={{ ...open.byFile, [ALL_TAB]: open.total }} onPick={(name) => set({ file: name })} />}
-          <div className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-review-filters>
-            <span className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} role="group" aria-label="Severity" data-severity-filters>
+          <Box css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="6" flex flexWrap items="center" gap="1.5" data-review-filters>
+            <Box as="span" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="6" flex flexWrap items="center" gap="1.5" role="group" aria-label="Severity" data-severity-filters>
               <Hint size="xs">Severity</Hint>
               {SEVERITIES.map((s) => (
                 <Chip
@@ -626,8 +597,8 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                   attr={{ 'data-severity-filter': s }}
                 />
               ))}
-            </span>
-            <span className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginLeft: phone ? 0 : 12 }} role="group" aria-label="State" data-state-filters>
+            </Box>
+            <Box as="span" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="6" css-margin-left={phone ? '0' : '12'} flex flexWrap items="center" gap="1.5" role="group" aria-label="State" data-state-filters>
               <Hint size="xs">State</Hint>
               {STATES.filter((s) => counts.state[s] || place.state.includes(s)).map((s) => (
                 <Chip
@@ -639,9 +610,9 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                   attr={{ 'data-state-filter': s }}
                 />
               ))}
-            </span>
-          </div>
-          <style>{HIT_STYLE + CARD_STYLE}</style>
+            </Box>
+          </Box>
+          <ReviewCss />
           {all ? (
             <section role="tabpanel" id="review-tab-panel" aria-labelledby="review-tab-all" data-review-all style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, maxWidth: 760, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: 'auto' } : {}) }}>
               {shown.length === 0 && (
@@ -710,7 +681,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                 bar={{ label: 'Side column', attr: 'data-review-side-tab', prefix: 'review-side', labels: { contents: 'Contents', comments: 'Comments' } }}
               />
               {side === 'contents' ? (
-                <nav id="review-side-panel" role="tabpanel" aria-labelledby="review-side-contents" aria-label="Contents" data-review-contents className="flex flex-col" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box id="review-side-panel" role="tabpanel" aria-labelledby="review-side-contents" aria-label="Contents" data-review-contents as="nav" css-display="flex" css-flex-direction="column" css-gap="2" flex flexCol>
                   {toc.length === 0 ? (
                     <Hint as="p" size="sm" flush>This file has no headings.</Hint>
                   ) : (
@@ -727,9 +698,9 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                       </button>
                     ))
                   )}
-                </nav>
+                </Box>
               ) : (
-                <div id="review-side-panel" role="tabpanel" aria-labelledby="review-side-comments" data-review-comments className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <Box id="review-side-panel" role="tabpanel" aria-labelledby="review-side-comments" data-review-comments css-display="flex" css-flex-direction="column" css-gap="8" flex flexCol gap="2">
                   {movedGroup}
                   {placed.map((f) => card(f))}
                   {inFile.length === 0 && (
@@ -737,7 +708,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                       {data.findings.length === 0 ? 'No findings.' : 'No finding in this file matches these filters.'}
                     </Hint>
                   )}
-                </div>
+                </Box>
               )}
             </aside>
           </div>

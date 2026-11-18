@@ -5,27 +5,13 @@
 // a count for one value each. No dropdowns: every choice is a button with
 // aria-pressed. Colors are Kiro Crew's theme variables only.
 import { useMemo, useState, type ReactNode } from 'react'
-import { NAV_PILL } from './nav-style.ts'
 import { ArrowDown, ArrowUp, Search, X, type LucideIcon } from './icons.ts'
 import { Box } from './ui/Box'
+import { RailCss } from './ui/PageStyles'
 
-// Radar's sizes: 12px headers at .05em, 13px rows 8px in, 6px corners.
-const CSS = `[data-rail-head]{display:flex;align-items:center;gap:6px;margin:0 0 6px;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
-[data-rail-row]{display:flex;align-items:center;gap:8px;width:100%;min-width:0;box-sizing:border-box;height:${NAV_PILL}px;padding:0 8px;border:0;border-radius:6px;background:none;color:var(--muted);font:inherit;font-size:13px;text-align:left;cursor:pointer;transition:background-color .12s,color .12s}
-[data-rail-row]:hover{background:var(--bg-hover);color:var(--text)}
-[data-rail-row][aria-pressed=true]{background:var(--accent-subtle,var(--bg-hover));color:var(--text);font-weight:500}
-[data-rail-row][aria-pressed=true]:hover{background:color-mix(in srgb,var(--accent) 18%,var(--bg-elevated))}
-[data-rail-row]:disabled{opacity:.4;cursor:default}
-[data-rail-chip]{display:inline-flex;align-items:center;gap:8px;max-width:100%;box-sizing:border-box;padding:4px 12px;border:0;border-radius:999px;color:var(--text);font:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background-color .12s}
-[data-rail-chip][aria-pressed=true]{font-weight:700}
-[data-rail-icon]{display:inline-flex;padding:2px;border:0;border-radius:4px;background:none;color:var(--muted);cursor:pointer}
-[data-rail-icon]:hover{color:var(--text);background:var(--bg-hover)}
-[data-rail-icon][aria-expanded=true]{color:var(--accent)}
-[data-rail-row]:focus-visible,[data-rail-chip]:focus-visible,[data-rail-icon]:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-[data-rail-text]{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}`
 
 export function RailStyle() {
-  return <style>{CSS}</style>
+  return <RailCss />
 }
 
 // One block: its header (icon, title, an optional control on the right),
@@ -33,14 +19,14 @@ export function RailStyle() {
 export function RailBlock(props: { icon: LucideIcon; title: string; first?: boolean; action?: ReactNode; children: ReactNode; id?: string }) {
   const Icon = props.icon
   return (
-    <div data-rail-section={props.id} style={{ paddingTop: props.first ? 0 : 20 }}>
+    <Box data-rail-section={props.id} css-padding-top={props.first ? '0' : '20'}>
       <div data-rail-head>
         <Icon size={12} aria-hidden="true" />
         <span>{props.title}</span>
-        {props.action && <span style={{ marginLeft: 'auto', display: 'inline-flex', textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>{props.action}</span>}
+        {props.action && <Box as="span" css-margin-left="auto" css-display="inline-flex" css-text-transform="none" css-letter-spacing="0" css-font-weight="400">{props.action}</Box>}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{props.children}</div>
-    </div>
+      <Box css-display="flex" css-flex-direction="column" css-gap="2">{props.children}</Box>
+    </Box>
   )
 }
 
@@ -57,7 +43,7 @@ export function RailRow(props: { label: string; active: boolean; onClick: () => 
 }
 
 export function RailDivider() {
-  return <div role="separator" style={{ margin: '4px 0', borderTop: '1px solid var(--border)' }} />
+  return <Box role="separator" css-margin="4px-0" css-border-top="1px-solid-border" />
 }
 
 export interface RailSort<K extends string> {
@@ -134,7 +120,7 @@ export function RailChips(props: { id: string; icon: LucideIcon; title: string; 
       }
     >
       {open && (
-        <div style={{ position: 'relative', marginBottom: 8 }}>
+        <Box css-position="relative" css-margin-bottom="8">
           <input
             autoFocus
             type="text"
@@ -148,9 +134,9 @@ export function RailChips(props: { id: string; icon: LucideIcon; title: string; 
           <button type="button" data-rail-icon aria-label={`Close ${props.noun} search`} onClick={close} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)' }}>
             <X size={13} aria-hidden="true" />
           </button>
-        </div>
+        </Box>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+      <Box css-display="flex" css-flex-direction="column" css-align-items="flex-start" css-gap="6">
         {shown.map((item) => {
           const at = props.items.indexOf(item)
           const picked = props.picked === item.value
@@ -164,13 +150,13 @@ export function RailChips(props: { id: string; icon: LucideIcon; title: string; 
               onClick={() => props.onPick(picked ? undefined : item.value)}
               style={{ background: tint(at, picked) }}
             >
-              <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', flexShrink: 0, opacity: picked ? 0.9 : 0.6 }}>{item.count}</span>
-              <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+              <Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-flex-shrink="0" css-opacity={picked ? '0.9' : '0.6'}>{item.count}</Box>
+              <Box as="span" css-min-width="0" css-overflow="hidden" css-text-overflow="ellipsis" css-white-space="nowrap">{item.label}</Box>
             </button>
           )
         })}
-      </div>
-      {open && shown.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)' }}>No {props.noun} matches “{query}”.</div>}
+      </Box>
+      {open && shown.length === 0 && <Box css-font-size="12" css-color="muted">No {props.noun} matches “{query}”.</Box>}
     </RailBlock>
   )
 }

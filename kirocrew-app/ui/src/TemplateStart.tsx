@@ -181,12 +181,9 @@ export function TemplateStart(props: {
       <Box as="fieldset" flex flexCol gap="1" size="sm">
         <Box as="legend" weight="medium">Template</Box>
         {props.templates.map((t) => (
-          <label
+          <Box
             key={templateKey(t)}
-            className="flex items-start gap-2 rounded border p-2"
-            style={{
-              borderColor: props.picked === templateKey(t) ? 'var(--accent)' : 'var(--border)',
-            }}
+            as="label" css-border-color={props.picked === templateKey(t) ? 'accent' : 'border'} flex items="start" gap="2" rounded="base" border="all" p="2"
           >
             <input
               type="radio"
@@ -200,7 +197,7 @@ export function TemplateStart(props: {
               <Hint size="xs">{t.description}</Hint>
               {t.phases.length > 0 && <Hint size="xs">Phases: {t.phases.map((p) => p.title).join(', ')}</Hint>}
             </Stack>
-          </label>
+          </Box>
         ))}
         {props.tried && !template && <ErrorText as="span" size="xs">Pick a template.</ErrorText>}
       </Box>
@@ -217,9 +214,8 @@ export function TemplateStart(props: {
           />
         ))}
       {template?.settings && (
-        <section
-          className="flex flex-col gap-2 rounded border p-3 text-sm"
-          style={{ borderColor: 'var(--border)' }}
+        <Box
+          as="section" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="3" size="sm"
           aria-label="Template settings"
           data-template-settings
         >
@@ -235,7 +231,7 @@ export function TemplateStart(props: {
           <Switch label="Import these settings" align="start" checked={props.importSettings} disabled={!preview} onChange={props.onImportSettings} data-import-settings>
             <span>Import these settings</span>
           </Switch>
-        </section>
+        </Box>
       )}
     </Stack>
   )

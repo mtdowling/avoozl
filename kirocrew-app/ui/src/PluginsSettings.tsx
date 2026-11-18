@@ -51,7 +51,7 @@ export function Facts({ row }: { row: PluginRow }) {
     ['Content hash', row.hash],
   ]
   return (
-    <dl className="mt-2 grid gap-x-3 gap-y-1 text-xs" style={{ gridTemplateColumns: "auto 1fr" }}>
+    <Box as="dl" css-grid-template-columns="auto-1fr" mt="2" grid gapX="3" gapY="1" size="xs">
       {facts
         .filter(([, value]) => value)
         .map(([label, value]) => (
@@ -62,7 +62,7 @@ export function Facts({ row }: { row: PluginRow }) {
             </Box>
           </Box>
         ))}
-    </dl>
+    </Box>
   )
 }
 

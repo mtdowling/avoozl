@@ -16,7 +16,8 @@ import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
 import { plansClient } from './plans-api.ts'
 import { insideWorkspace, lineText, taskClient } from './task-api.ts'
-import { CITED_STYLE, markCited } from './CitedFile.tsx'
+import { markCited } from './CitedFile.tsx'
+import { CitedStyle } from './ui/PageStyles'
 import { useReveal } from './RepositoriesSettings.tsx'
 import { errorMessage, workspaceClient } from './workspace-api.ts'
 import { Modal } from './ui/Modal.tsx'
@@ -134,7 +135,7 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
       }
     >
       {(line || note) && (
-        <div className="border-b px-5 py-2" style={{ borderColor: 'var(--border)' }}>
+        <Box css-border-color="border" border="b" px="5" py="2">
           {line && (
             <Tooltip text={`Scroll back to ${line.toLowerCase()}`}>
               {(describedBy) => (
@@ -145,11 +146,11 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
             </Tooltip>
           )}
           {note && (
-            <p role="status" className="text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
+            <Box role="status" as="p" css-overflow-wrap="anywhere" size="xs" tone="muted">
               {note}
-            </p>
+            </Box>
           )}
-        </div>
+        </Box>
       )}
       <div
         className="min-h-0 grow"
@@ -158,15 +159,15 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
       >
         {headings.length > 0 &&
           (narrow ? (
-            <details className="border-b px-4 py-2 text-sm" style={{ borderColor: 'var(--border)' }}>
+            <Box as="details" css-border-color="border" border="b" px="4" py="2" size="sm">
               <Box as="summary" cursorPointer weight="medium">Outline</Box>
               <Outline headings={headings} onJump={jump} />
-            </details>
+            </Box>
           ) : (
-            <nav aria-label="File outline" className="overflow-y-auto border-r px-3 py-3 text-sm" style={{ borderColor: 'var(--border)' }}>
+            <Box aria-label="File outline" as="nav" css-border-color="border" overflow="y-auto" borderR px="3" py="3" size="sm">
               <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Outline</Box>
               <Outline headings={headings} onJump={jump} />
-            </nav>
+            </Box>
           ))}
         <div
           ref={narrow ? undefined : body}
@@ -182,7 +183,7 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
             <Hint as="p" size="sm">Reading…</Hint>
           ) : (
             <>
-              <style>{CITED_STYLE}</style>
+              <CitedStyle />
               <Markdown text={doc.text} idPrefix={PREFIX} measure={PROSE_MEASURE} />
             </>
           )}

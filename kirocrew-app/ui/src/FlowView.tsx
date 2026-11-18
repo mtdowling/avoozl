@@ -49,7 +49,6 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 
-const BAR: CSSProperties = { display: 'flex', height: 12, borderRadius: 4, overflow: 'hidden', background: 'color-mix(in srgb, var(--muted) 15%, transparent)' }
 
 // A stacked bar by stage, scaled to `scale` ms (the longest bar shown).
 export function StageBar({ stages, scale, label }: { stages: Record<string, number>; scale: number; label: string }) {
@@ -60,11 +59,11 @@ export function StageBar({ stages, scale, label }: { stages: Record<string, numb
     <div style={{ width: `${Math.max(4, scale ? (100 * total) / scale : 100)}%` }}>
       <Tooltip text={text} display="block">
         {(describedBy) => (
-          <div role="img" aria-label={text} aria-describedby={describedBy} tabIndex={0} style={BAR}>
+          <Box role="img" aria-label={text} aria-describedby={describedBy} tabIndex={0} css-display="flex" css-height="12" css-border-radius="4" css-overflow="hidden" css-background="mix-muted-15%-transparent">
             {parts.map((p) => (
               <span key={p.stage} style={{ width: `${p.share * 100}%`, background: p.color, display: 'block', height: '100%' }} />
             ))}
-          </div>
+          </Box>
         )}
       </Tooltip>
     </div>
@@ -130,10 +129,10 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
   return (
     <Stack gap={2} data-line-banner>
       {stops.map((stop) => (
-        <div key={stop.id} role="alert" className="flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm" style={{ borderColor: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 10%, var(--card))' }}>
+        <Box key={stop.id} role="alert" css-border-color="danger" css-background="mix-danger-10%-card" flex flexWrap items="center" gap="3" rounded="lg" border="all" p="3" size="sm">
           <CircleAlert size={18} aria-hidden="true" style={{ color: 'var(--danger)', flex: 'none' }} />
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5" style={{ minWidth: '14rem' }}>
-            <span style={{ overflowWrap: 'anywhere' }}>{bannerText(stop)}</span>
+          <Box css-min-width="14rem" flex minW0 flex1 flexCol gap="0.5">
+            <Box as="span" css-overflow-wrap="anywhere">{bannerText(stop)}</Box>
             {stop.manual && (
               <Hint size="xs" data-line-pulled>
                 Pulled by {stop.by?.name ?? 'someone'}, {relativeTime(stop.openedAt, Date.now())}. Only a person can resume it.
@@ -144,7 +143,7 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
                 Run anyway by {stop.runAnyway.by}, {relativeTime(stop.runAnyway.at, Date.now())}.
               </Hint>
             )}
-          </div>
+          </Box>
           <Row gap={2} align="start">
             {stop.fixTaskId && (
               <IconLabel icon={DetailsIcon} tooltip="Open the fix task's details in the drawer" onClick={() => drawer.openTask(stop.fixTaskId!)}>
@@ -162,7 +161,7 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
               </IconLabel>
             )}
           </Row>
-        </div>
+        </Box>
       ))}
       {error && (
         <ErrorText role="alert" size="sm">
@@ -182,18 +181,18 @@ function MetricCards({ view }: { view: FlowViewModel }) {
         <Card key={card.key} className="flex flex-col gap-1" style={{ minWidth: 0 }}>
           <Tooltip text={card.tip}>
             {(describedBy) => (
-              <span aria-describedby={describedBy} tabIndex={0} className="text-xs text-muted" style={{ width: 'fit-content', overflowWrap: 'anywhere', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.75rem' }}>
+              <Box aria-describedby={describedBy} tabIndex={0} as="span" css-width="fit-content" css-overflow-wrap="anywhere" css-font-weight="700" css-text-transform="uppercase" css-font-size="0.75rem" size="xs" tone="muted">
                 {card.title}
-              </span>
+              </Box>
             )}
           </Tooltip>
           {card.empty ? (
             <Hint size="sm">{card.empty}</Hint>
           ) : (
             <>
-              <span className="text-xl font-semibold tabular-nums" style={{ overflowWrap: 'anywhere', fontSize: '1.25rem' }}>
+              <Box as="span" css-overflow-wrap="anywhere" css-font-size="1.25rem" textXl weight="semibold" tabularNums>
                 {card.value}
-              </span>
+              </Box>
               <Box as="span" size="xs" tone="muted" tabularNums>{card.was ? `was ${card.was}` : 'no earlier window'}</Box>
             </>
           )}
@@ -253,11 +252,11 @@ function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
               {bar}
             </Box>
           ) : (
-            <li key={task.taskId} className="grid items-center gap-2 text-sm" style={{ gridTemplateColumns: 'minmax(6rem, 14rem) minmax(0, 1fr) auto' }} data-flow-bar={task.taskId}>
+            <Box key={task.taskId} as="li" css-grid-template-columns="minmax-6rem-14rem-minmax-0-1fr-auto" grid items="center" gap="2" size="sm" data-flow-bar={task.taskId}>
               {name}
               {bar}
               {info}
-            </li>
+            </Box>
           )
         })}
       </Box>
@@ -392,10 +391,10 @@ export function TimingFold({
       {timing.versions && timing.versions.length > 0 && (
         <Box as="ul" flex flexCol gap="0.5" size="xs" tone="muted" data-timing-versions>
           {timing.versions.map((v) => (
-            <li key={v.attempt} style={{ overflowWrap: 'anywhere' }}>
+            <Box key={v.attempt} as="li" css-overflow-wrap="anywhere">
               Attempt {v.attempt} ran on {Object.values(v.prompts).join(', ') || 'the built-in prompts'}
               {Object.keys(v.skills).length ? `; skills ${Object.entries(v.skills).map(([target, sha]) => `${target}@${sha.slice(0, 8)}`).join(', ')}` : ''}.
-            </li>
+            </Box>
           ))}
         </Box>
       )}

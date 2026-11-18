@@ -28,10 +28,9 @@ function Row({
   cost?: Cost[string];
 }) {
   return (
-    <tr
+    <Box
       data-radar-group-row
-      className="border-t align-top"
-      style={{ borderColor: "var(--border)" }}
+      as="tr" css-border-color="border" border="t" alignTop
     >
       <Box as="td" py="1" pr="2">
         {linkHref(row.url) ? (
@@ -80,7 +79,7 @@ function Row({
           ""
         )}
       </Box>
-    </tr>
+    </Box>
   );
 }
 
@@ -88,10 +87,9 @@ function Row({
 // then crew, phase, times and PR, wrapping inside the card.
 function PhoneRow({ row, now }: { row: RadarClaim; now: number }) {
   return (
-    <li
+    <Box
       data-radar-group-row
-      className="border-t py-1.5 text-sm"
-      style={{ borderColor: "var(--border)", overflowWrap: "anywhere" }}
+      as="li" css-border-color="border" css-overflow-wrap="anywhere" border="t" py="1.5" size="sm"
     >
       {linkHref(row.url) ? (
         <TextLink href={linkHref(row.url)} target="_blank" rel="noreferrer" aria-label={`Open issue ${row.number} on GitHub`}>
@@ -106,7 +104,7 @@ function PhoneRow({ row, now }: { row: RadarClaim; now: number }) {
         {relativeTime(row.updated ?? row.issueUpdatedAt ?? null, now)}
         {row.pr ? ` · PR #${row.pr}` : ""}
       </Hint>
-    </li>
+    </Box>
   );
 }
 
