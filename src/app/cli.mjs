@@ -1866,10 +1866,7 @@ try {
         2,
       ),
     );
-  else if (
-    command === "task" &&
-    positionals[0] === "links"
-  ) {
+  else if (command === "task" && positionals[0] === "links") {
     // Task links (R61.22): list and add for anyone; edit, remove and
     // show on the issue are a person's, as the command line is.
     const taskId = need(
