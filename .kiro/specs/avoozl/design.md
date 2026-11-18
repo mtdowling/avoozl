@@ -4442,6 +4442,17 @@ in Settings. The planner already reads the code and writes the tasks, so it
 is the one place that knows which tasks are cheaper in one chat. The tick
 stays a pure planner: no model call there.
 
+**Grouping is the default** (changed 2026-11-18, owner decision). One
+medium-sized pull request of related tasks beats many small pull requests
+of the same work. The planner groups related leaves in one repository and
+area by default, with no limit on the number of tasks. It splits only where
+the parts can truly run at the same time (different files or areas two
+workers can do without stepping on each other), or for a hard reason: one
+task must land before another, a different repository, a manual step, or a
+task that needs its own review or investigation. It never splits just to
+land tasks one at a time. The retro flags a spec whose related tasks landed
+as many small pull requests.
+
 **In `tasks.md`** (changed 2026-11-18, §4.40). Each member names its group
 in a `batch` fact, and front-matter gives the group's reason once:
 
@@ -4459,7 +4470,7 @@ batch-doc-links: Two one-line link fixes in README.md
 
 `parseSpec` (`spec-plans.mjs`) reads the group's tasks from its members and
 refuses, as `facts.schema` in `tasks.md`: a group ID outside
-`[A-Za-z0-9._-]{1,60}`, fewer than 2 or more than 5 tasks, a member that is
+`[A-Za-z0-9._-]{1,60}`, fewer than 2 tasks, a member that is
 not a leaf, a group with no reason, and a reason that is empty, over 200
 characters or more than one line. Each member proposal gets
 `batch: {id, tasks, reason}` with full task IDs. `approvePlan` copies
@@ -4486,7 +4497,6 @@ else     ─▶ one handoff: the first open member in the group leads,
 | every member exists and stores this same group                 | "the group changed; it runs alone until approved" |
 | same plan, same `planHash`, and the plan is approved at it     | "the group is not from the approved revision"     |
 | same repository (same plan means the same base branch)         | "its tasks are in different repositories"         |
-| at most `MAX_BATCH` (5, a constant)                            | "more than 5 tasks"                               |
 | no `requires` or `sequence` edge between two members           | "3.2 waits on 3.1"                                |
 | each member a local, automatic leaf (not manual, not a gate)   | "3.2 is not a local automatic leaf"               |
 | no member has an earlier attempt or was split                  | "3.1 already ran alone" / "the batch was split"   |
@@ -4526,15 +4536,19 @@ opening that task's details. The task's details (Overview) show **Batch**
 with the group ID linking to the leader's details, the other members and
 the reason, and **Runs alone** with the reason when the group broke a rule.
 
-**Prompt.** `prompts/planner.md` says: group only leaves one worker should
-do in one chat, such as tiny edits to the same files; never group tasks that
-depend on each other, tasks in different repositories, or a task that needs
-its own review; at most 5; one line of reason. No group is the default.
+**Prompt.** `prompts/planner.md` says: group related leaves in the same
+repository and area by default, with no task limit; split only at a
+boundary two workers can truly work in parallel, or for a hard reason;
+never split just to land tasks one at a time; never group tasks that
+depend on each other, tasks in different repositories, a manual leaf, or a
+task that needs its own review or investigation; one line of reason.
+`prompts/retro.md` asks the retro to flag a spec whose related tasks
+landed as many small pull requests.
 
 **Tests.** `src/app/test/flow-batch.test.mjs`: a planner group dispatched as
 one handoff and its members waiting for each other; each rule of the table
-dispatched alone with its reason; a failing batch split, each task alone at
-no attempt cost. `flow.test.mjs`: no batch key in `FLOW_KEYS`, and an old
+dispatched alone with its reason; a related group of 12 tasks dispatched
+as one handoff; a failing batch split, each task alone at no attempt cost. `flow.test.mjs`: no batch key in `FLOW_KEYS`, and an old
 `flow.batch` ignored on load and save. `spec-plans` tests: shape errors, an
 old `size` ignored. UI tests: the batched card and the task's Batch row;
 screenshots under `docs/evidence/agent-batching/`.

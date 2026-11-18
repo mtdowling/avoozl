@@ -1211,10 +1211,10 @@ test("a malformed batch group is an error in tasks.md", () => {
       { 1.1: "bad id", 1.2: "bad id" },
       /needs an ID|front-matter/,
     ],
-    ["batch-g: x", { 1.1: "g" }, /lists 2 to 5 different/],
+    ["batch-g: x", { 1.1: "g" }, /lists 2 or more different/],
     ["batch-g: x", { 1: "g", 1.1: "g" }, /names "1", which is not a leaf/],
     [null, { 1.1: "g", 1.2: "g" }, /Batch "g" has no reason/],
-    ["batch-g: x", {}, /lists 2 to 5 different/],
+    ["batch-g: x", {}, /lists 2 or more different/],
   ];
   for (const [front, members, message] of cases) {
     const root = temporaryDirectory();
