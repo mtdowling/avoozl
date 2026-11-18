@@ -515,7 +515,7 @@ if (query.get('page') === 'home' || query.get('page') === 'demo') {
   answer('landing.view', () => ({ queue: [], landed: [], landedThisWeek: 0 }))
 }
 // ?page=app: Settings reads the GitHub policy. &worker=1 leaves one
-// repository on the retired Avoozl worker, which shows the Settings banner.
+// repository on the local Avoozl worker.
 if (query.get('page') === 'app') {
   const worker = query.get('worker') === '1'
   // &needs=N: N open Needs you items, so the nav shows its count. Home's

@@ -1,7 +1,7 @@
 // The nav row, and where removed pages go.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { DASHBOARD_PAGES, RETIRED_LINE, RETROS_PAGES, TABS, dashboardPage, dashboardTab, navTab, redirectSettings, redirectTab, redirectWaiting, WAITING_SECTIONS, retiredCoders, tabLabel } from '../src/nav-api.ts'
+import { DASHBOARD_PAGES, RETROS_PAGES, TABS, dashboardPage, dashboardTab, navTab, redirectSettings, redirectTab, redirectWaiting, WAITING_SECTIONS, tabLabel } from '../src/nav-api.ts'
 
 test('the nav row is Dashboards, Specs, Needs you, Flow, Retros, Activity, Settings', () => {
   assert.deepEqual(TABS.map((t) => t.label), ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Retros', 'Activity', 'Settings'])
@@ -58,16 +58,6 @@ test('a Settings section that is gone lands on Repository setup', () => {
   assert.equal(redirectSettings('flow'), 'flow')
 })
 
-test('a repository on the retired worker is named; the default counts', () => {
-  const repos = [
-    { name: 'a/one', coder: 'worker' },
-    { name: 'a/two', coder: 'issue-radar' },
-    { name: 'a/three', coder: '' },
-  ]
-  assert.deepEqual(retiredCoders(repos, 'issue-radar'), ['a/one'])
-  assert.deepEqual(retiredCoders(repos, 'worker'), ['a/one', 'a/three'])
-  assert.equal(RETIRED_LINE, 'Local workers are retired. Switch to Issue Radar.')
-})
 
 test('Needs you has three pages; old intake and untriaged links go to Triage, a saved radar view to Issue Radar', () => {
   assert.deepEqual(WAITING_SECTIONS.map((x) => [x.key, x.title]), [['decisions', 'Decisions'], ['triage', 'Triage'], ['radar', 'Issue Radar']])

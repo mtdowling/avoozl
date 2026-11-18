@@ -1,6 +1,6 @@
 // The reshaped page in a real Chrome (test/browser/harness.tsx ?page=app):
 // the nav row, Home's empty states, the Settings hub with the Mirror setup
-// buttons, the retired-worker banner, and Needs you
+// buttons, no retired-worker banner, and Needs you
 // holding what Conflicts and Intake used to. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
@@ -71,20 +71,13 @@ test('Settings lists its sections in the nav, shows only the picked one, and lis
   assert.deepEqual(page.errors, [])
 })
 
-test('a repository on the retired worker shows the Settings banner; one on Radar does not', { skip }, async () => {
+test('a repository on the local worker shows no retired banner in Settings', { skip }, async () => {
   await open({ radar: '1', worker: '1' })
-  await page.until(`Boolean(${tab('Settings')})`)
-  await click(tab('Settings'))
-  await page.until(`Boolean(document.querySelector('[data-retired-banner]'))`)
-  const banner = await page.evaluate(`document.querySelector('[data-retired-banner]').textContent`)
-  assert.ok(banner.includes('Local workers are retired. Switch to Issue Radar.'))
-  assert.ok(banner.includes('acme/recipe-box'))
-  await open({ radar: '1' })
   await page.until(`Boolean(${tab('Settings')})`)
   await click(tab('Settings'))
   await page.until(`Boolean(document.querySelector('[data-settings-section]'))`)
   await page.evaluate('new Promise((r) => setTimeout(r, 300))')
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-retired-banner]'))`), false)
+  assert.doesNotMatch(await page.evaluate('document.body.textContent'), /Local workers are retired|Switch to Issue Radar/)
 })
 
 test('Needs you holds Decisions, Triage and Issue Radar as three nav pages, one shown at a time', { skip }, async () => {
