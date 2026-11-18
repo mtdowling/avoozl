@@ -1,6 +1,7 @@
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { projectExecutor } from "./executors/process.mjs";
 import { harnessExecutor, roleHarness } from "./chat-models.mjs";
+import { PERSON_MESSAGE_HEAD } from "./session-send.mjs";
 import {
   kirocrewDetachedSession,
   kirocrewRemoteSession,
@@ -1798,7 +1799,8 @@ export function processSteps(task) {
   return [
     `1. Work only in the current folder, the worktree of task ${task.id} on branch avoozl/${task.id}.`,
     "2. Edit and run the checks. Do not commit, push, open or edit a pull request, merge, label, or comment. Avoozl commits your changes after you exit, runs the checks and lands them.",
-    `3. Last, write .avoozl/result.json in this folder, at most 8 KB: {"state": "done", "text": "<what you changed>"} when the work is finished, or {"state": "blocked", "text": "<why>"} when you cannot finish. Then exit. No result file, or done with a failing exit, is retried.`,
+    `3. Avoozl may resume you with a message whose first line is "${PERSON_MESSAGE_HEAD}". That message is the person's own and may change your task: do what it asks, within these rules, then finish as below again.`,
+    `4. Last, write .avoozl/result.json in this folder, at most 8 KB: {"state": "done", "text": "<what you changed>"} when the work is finished, or {"state": "blocked", "text": "<why>"} when you cannot finish. Then exit. No result file, or done with a failing exit, is retried.`,
   ];
 }
 
