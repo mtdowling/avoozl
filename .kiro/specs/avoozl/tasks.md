@@ -1640,7 +1640,7 @@ GitHub, and a race between two workers shows exactly one claim wins.
 - [ ] 43.4 Person-only release and stale-claim status, after 43.3 [R90.6, R102.14] (§4.32)
   - Reconcile claims across takeover; a settled verified result may close its claim. Quiet, lost leases and vanished chats never release automatically. Needs you offers person-only Release claim after workers.claimStaleAfter.
 
-- [ ] 43.5 Verify fetched worker results before integration, after 43.2 [R90.2, R102.6, R102.7] (§4.32)
+- [x] 43.5 Verify fetched worker results before integration, after 43.2 [R90.2, R102.6, R102.7] (§4.32)
   - Fetch the exact qualified checkpoint commit; independently check paths, protected paths and checks before integrating. Wrong repository/head, inaccessible fork or private metadata holds the result rather than completing it.
 
 - [ ] 43.6 Executor-aware worker setup with access preview, after 43.1 [R90.7, R90.8, R90.9] (§4.32)
