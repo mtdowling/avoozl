@@ -371,7 +371,7 @@ function NavArrow(props: { label: string; icon: 'back' | 'forward'; disabled: bo
 
 /* FRONTIER */
 
-function Frontier(props: { ready: FrontierItem[]; waiting: FrontierItem[]; onOpenTree: (id: string) => void; onOpen: (id: string) => void }) {
+export function Frontier(props: { ready: FrontierItem[]; waiting: FrontierItem[]; onOpenTree: (id: string) => void; onOpen: (id: string) => void }) {
   const { ready, waiting } = props
   return (
     <div className="flex flex-col" style={{ fontFamily: MONO }} data-frontier>
@@ -485,7 +485,7 @@ function FrontierRow(props: { item: FrontierItem; unlocked: boolean; onOpenTree:
 
 /* FOCUS TREE */
 
-function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: TreeRoot) => void; onOpen: (item: TreeRoot) => void }) {
+export function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: TreeRoot) => void; onOpen: (item: TreeRoot) => void }) {
   const { graph, root } = props
   const tree = useMemo(() => focusTree(graph, root), [graph, root])
   const layout = useMemo(() => (tree ? layoutGraph(tree.graph, new Set(), { spacing: TREE_SPACING }) : null), [tree])
@@ -729,7 +729,7 @@ function FocusTreeView(props: { graph: Graph; root: TreeRoot; onReRoot: (root: T
 
 /* The item modal: a spec, or a draft spec's task, opened without leaving the Graph. */
 
-function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => void; onTree: (root: TreeRoot) => void; onOpenSpecs?: () => void }) {
+export function ItemModal(props: { graph: Graph; item: TreeRoot; onClose: () => void; onTree: (root: TreeRoot) => void; onOpenSpecs?: () => void }) {
   const { graph, item } = props
   const byId = new Map(graph.tasks.map((t) => [t.id, t]))
   // Esc and Close put focus back on the card that opened it.

@@ -46,6 +46,13 @@ export function urlBase(pathname: string): string | null {
   return /^\/apps\/[\w.-]+\/?$/.test(pathname) ? pathname : null
 }
 
+// The Graph's deep link to a spec's tree (?tree=spec:<plan id>); only on Kiro
+// Crew's app route, the one place a link can reach the Graph.
+export const specGraphHref = (pathname: string, planId: string) => {
+  const base = urlBase(pathname)
+  return base ? base + placeLink({ tab: 'focus', root: { kind: 'spec', id: planId } }) : null
+}
+
 const done = (task: GraphTask | undefined) => !task || nodeState(task) === 'done'
 
 // An edge the tree draws: blocking ones, and sequence order shown dashed.
