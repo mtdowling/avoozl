@@ -81,7 +81,7 @@ async function assertCloses(name, opener) {
 
 const SCENARIOS = {
   'add-plugin': ['Add plugin', null],
-  onboard: ['Onboard', null],
+  onboard: ['Open the dialog', null],
   'repo-edit': ['Open the dialog', 'avoozl'],
   'setup-github': ['Open the dialog', null],
   'archive-plan': ['Open the dialog', 'Archive the spec Modal plan?'],

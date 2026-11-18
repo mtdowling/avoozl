@@ -17,7 +17,7 @@ const SIZES = [
   [768, 1024],
   [1280, 800],
 ]
-const OPENERS = { 'add-plugin': 'Add plugin', onboard: 'Onboard', confirm: 'Remove', 'stop-line': 'Stop the line': 'Switch model' }
+const OPENERS = { 'add-plugin': 'Add plugin', confirm: 'Remove', 'stop-line': 'Stop the line': 'Switch model' }
 // Not modals: what to do once open, in place of waiting for the modal.
 const PANELS = {
   'task-files': [`document.querySelector('[data-file="README.md"]')?.click() ?? false`, `Boolean(document.querySelector('[data-diff] [data-line]'))`],
