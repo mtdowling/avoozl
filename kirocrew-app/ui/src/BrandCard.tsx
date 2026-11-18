@@ -2,6 +2,7 @@
 // the logo, the instance name and the Avoozl version.
 import Logo from './Logo'
 import { InstanceBadge } from './InstanceName.tsx'
+import { Box } from './ui/Box'
 
 // Set from the root package.json by the build (vite.config.ts); absent when a
 // test loads the source directly.
@@ -15,16 +16,16 @@ export function BrandCard(props: { workspaceId: string | null; boxed?: boolean }
   return (
     <div data-brand-card data-brand-line aria-label="Avoozl" role="group" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: props.boxed ? '4px 4px' : '4px 4px 4px 8px', minWidth: 0, flexShrink: 0 }}>
       <Logo size={16} />
-      <span className="flex min-w-0 items-baseline gap-1.5" style={{ marginLeft: 'auto', whiteSpace: 'nowrap', overflow: 'hidden', lineHeight: '16px' }}>
-        <span className="min-w-0 truncate" style={{ fontSize: 12 }}>
+      <Box as="span" css-margin-left="auto" css-white-space="nowrap" css-overflow="hidden" css-line-height="16px" flex minW0 items="baseline" gap="1.5">
+        <Box as="span" css-font-size="12" minW0 truncate>
           <InstanceBadge workspaceId={props.workspaceId} className="text-muted" />
-        </span>
+        </Box>
         {AVOOZL_VERSION && (
-          <span data-avoozl-version className="shrink-0 text-muted" style={{ fontSize: 11 }}>
+          <Box data-avoozl-version as="span" css-font-size="11" shrink0 tone="muted">
             v{AVOOZL_VERSION}
-          </span>
+          </Box>
         )}
-      </span>
+      </Box>
     </div>
   )
 }

@@ -62,15 +62,15 @@ function Summary({ row }: { row: ActivityRow }) {
   const item = githubItem(row)
   if (item)
     return (
-      <span style={{ overflowWrap: 'anywhere' }}>
+      <Box as="span" css-overflow-wrap="anywhere">
         {item.before}
         <TextLink href={linkHref(item.href)} target="_blank" rel="noopener noreferrer" data-activity-item>
           {item.text}
         </TextLink>
         {item.after}
-      </span>
+      </Box>
     )
-  return <span style={{ overflowWrap: 'anywhere' }}>{row.summary}</span>
+  return <Box as="span" css-overflow-wrap="anywhere">{row.summary}</Box>
 }
 
 // The target: a button that opens the task drawer, or a link that opens
@@ -94,8 +94,8 @@ function Target({ row }: { row: ActivityRow }) {
 
 function Table({ rows, now }: { rows: ActivityRow[]; now: number }) {
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }} data-activity-table>
+    <Box css-overflow-x="auto">
+      <Box as="table" css-border-collapse="collapse" wFull size="sm" data-activity-table>
         <thead>
           <tr>
             <th style={HEAD}>When</th>
@@ -123,8 +123,8 @@ function Table({ rows, now }: { rows: ActivityRow[]; now: number }) {
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
@@ -237,7 +237,7 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
             style={{ width: '4.5rem', boxSizing: 'border-box', fontSize: 13, padding: '4px 8px', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
           />
         </Tooltip>
-        <span style={{ fontSize: 13, color: 'var(--muted)' }}>days</span>
+        <Box as="span" css-font-size="13" css-color="muted">days</Box>
         {note && !parsed.error && (
           <span role={note.ok ? 'status' : 'alert'} className={`ml-auto text-xs ${note.ok ? 'text-muted' : 'text-danger'}`}>
             {note.text}
@@ -340,7 +340,7 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
                 active={filter.source === item.value}
                 onClick={() => setField({ source: filter.source === item.value ? undefined : item.value })}
                 attrs={{ 'data-rail-source': item.value }}
-                trail={<span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', opacity: 0.7 }}>{item.count}</span>}
+                trail={<Box as="span" css-font-size="12" css-font-variant-numeric="tabular-nums" css-opacity="0.7">{item.count}</Box>}
               />
             ))}
           </RailBlock>
@@ -366,13 +366,13 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
       </Hint>
       {page && rows.length === 0 ? (
         // In a box with a background, so the empty page reads as one block.
-        <div data-activity-empty className="rounded-lg border" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated, var(--card))' }}>
+        <Box data-activity-empty css-border-color="border" css-background="bg-elevated-card" rounded="lg" border="all">
           <EmptyState
             icon={<History size={36} aria-hidden="true" />}
             title={filterActive(filter) ? 'No activity matches these filters' : 'No activity yet'}
             subtitle={filterActive(filter) ? 'Clear the filters to see every entry.' : 'Starting work, stopping the line, approving and saving settings show here, and so do the closes, board moves and labels the tick reads.'}
           />
-        </div>
+        </Box>
       ) : narrow ? (
         <Stack rows={rows} now={now} />
       ) : (

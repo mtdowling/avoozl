@@ -33,7 +33,7 @@ export default function PromptInstructions(props: {
     }
   }
   return (
-    <div className="flex min-w-0 flex-col gap-2 text-sm" style={{ maxWidth: '44rem' }} data-prompt-instructions={props.id}>
+    <Box css-max-width="44rem" flex minW0 flexCol gap="2" size="sm" data-prompt-instructions={props.id}>
       <Fold id={`${props.id}-builtin`} title={`Built-in ${props.agent} prompt (read-only)`}>
         {props.builtIn ? (
           <Box flex flexCol gap="2" pb="2">
@@ -50,10 +50,10 @@ export default function PromptInstructions(props: {
           <Box as="p" pb="2" size="xs" tone="muted">The built-in prompt could not be read.</Box>
         )}
       </Fold>
-      <label htmlFor={props.id} className="flex flex-wrap items-baseline gap-x-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 8 }}>
+      <Box htmlFor={props.id} as="label" css-display="flex" css-flex-wrap="wrap" css-align-items="baseline" css-column-gap="8" flex flexWrap items="baseline" gapX="2">
         <Box as="span" weight="medium">Your instructions</Box>
         <Marker rule={{ required: false }} />
-      </label>
+      </Box>
       <Hint size="xs">Added after the built-in prompt.</Hint>
       <textarea
         id={props.id}
@@ -66,10 +66,10 @@ export default function PromptInstructions(props: {
       />
       {props.note && <Hint size="xs">{props.note}</Hint>}
       <Tooltip text=".avoozl.json key">
-        <code className="text-[11px] text-muted" style={{ overflowWrap: 'anywhere', opacity: 0.8 }}>
+        <Box as="code" css-overflow-wrap="anywhere" css-opacity="0.8" size="11" tone="muted">
           {props.raw}
-        </code>
+        </Box>
       </Tooltip>
-    </div>
+    </Box>
   )
 }

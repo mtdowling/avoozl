@@ -73,28 +73,28 @@ function SourceFields({ form, set }: { form: PluginForm; set: (patch: Partial<Pl
       </Field>
     ),
     package: (
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(6rem, 1fr)' }}>
+      <Box css-grid-template-columns="minmax-0-2fr-minmax-6rem-1fr" grid gap="2">
         <Field label="Package name" marker="required" raw="package">
           <Input value={form.package} placeholder="@example/avoozl-tracker" onChange={(e: Change) => set({ package: e.target.value })} />
         </Field>
         <Field label="Version" marker="optional" hint="Checked against what is installed.">
           <Input value={form.version} placeholder="1.2.0" onChange={(e: Change) => set({ version: e.target.value })} />
         </Field>
-      </div>
+      </Box>
     ),
     git: (
       <Stack gap={2}>
         <Field label="Git URL or repository path" marker="required" raw="git">
           <Input value={form.git} placeholder="https://git.example.com/team/plugin.git" onChange={(e: Change) => set({ git: e.target.value })} />
         </Field>
-        <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
+        <Box css-grid-template-columns="minmax-0-1fr-minmax-0-1fr" grid gap="2">
           <Field label="Tag, branch or commit" marker="required" raw="ref">
             <Input value={form.ref} placeholder="v1.0.0" onChange={(e: Change) => set({ ref: e.target.value })} />
           </Field>
           <Field label="Folder in the repository" marker="optional" raw="subdir">
             <Input value={form.subdir} placeholder="plugin" onChange={(e: Change) => set({ subdir: e.target.value })} />
           </Field>
-        </div>
+        </Box>
         <Hint as="p" size="xs">Next finds the exact commit this names. Add fetches only that commit, with hooks off and nothing installed.</Hint>
       </Stack>
     ),
@@ -136,7 +136,7 @@ function WhatStep(props: { form: PluginForm; preview: PluginPreview; supported: 
   ]
   return (
     <Box flex flexCol gap="3" size="sm" data-plugin-what>
-      <dl className="grid gap-x-3 gap-y-1 text-xs" style={{ gridTemplateColumns: 'auto 1fr' }}>
+      <Box as="dl" css-grid-template-columns="auto-1fr" grid gapX="3" gapY="1" size="xs">
         {facts
           .filter(([, v]) => v)
           .map(([label, v]) => (
@@ -147,15 +147,15 @@ function WhatStep(props: { form: PluginForm; preview: PluginPreview; supported: 
               </Box>
             </Box>
           ))}
-      </dl>
+      </Box>
       <Field label="Id" marker="required" raw="id" hint={preview.id ? 'From the plugin’s own avoozl-plugin.json.' : 'It must match the id in the plugin’s avoozl-plugin.json. Add checks it.'}>
         <Input value={form.id} disabled={Boolean(preview.id)} placeholder="example-tracker" onChange={(e: Change) => set({ id: e.target.value })} />
       </Field>
       <Field label={CONTRACT_LABEL} marker="required" raw="contract" hint={fromManifest ? `From the plugin’s own avoozl-plugin.json. ${CONTRACT_HINT}` : CONTRACT_HINT}>
         {fromManifest ? (
-          <div style={{ maxWidth: '8rem' }}>
+          <Box css-max-width="8rem">
             <Input value={form.contract} disabled data-contract-from-manifest />
-          </div>
+          </Box>
         ) : (
           <SelectField value={form.contract} onChange={(e) => set({ contract: e.target.value })} look="field" maxWidth="8rem">
             {props.supported.map((value) => (

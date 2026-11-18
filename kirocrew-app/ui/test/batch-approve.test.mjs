@@ -43,7 +43,7 @@ test('Approve N specs sends each shown hash and uses small buttons in the shared
 })
 
 test('the approve dialog lists specs in a bordered table that scrolls on its own', () => {
-  assert.match(plans, /data-approve-list className="overflow-x-auto rounded border"/)
+  assert.match(plans, /<Box data-approve-list css-border-color="border" overflow="x-auto" rounded="base" border="all">/)
   assert.match(plans, /tableLayout: 'fixed'/)
   assert.match(plans, /<th style=\{\{ \.\.\.TH, \.\.\.NUM \}\}>Writes<\/th>/)
   // A phone shows the name and writes; the rest is in the row tooltip.

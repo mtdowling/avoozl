@@ -44,8 +44,8 @@ export function EpicPanel(props: {
           {value.progress.done} of {value.progress.total} tasks done across {value.members.length} specs
         </Hint>
       </Box>
-      <div className="mt-2 grid gap-4 text-sm" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(16rem, 1fr))' }}>
-        <div className="flex flex-col gap-2" style={{ maxWidth: '75ch' }}>
+      <Box css-grid-template-columns="repeat-auto-fit-minmax-16rem-1fr" mt="2" grid gap="4" size="sm">
+        <Box css-max-width="75ch" flex flexCol gap="2">
           {value.goal && (
             <div>
               <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Goal</Box>
@@ -70,7 +70,7 @@ export function EpicPanel(props: {
               </Box>
             </div>
           )}
-        </div>
+        </Box>
         <div>
           <Box as="h4" size="xs" weight="semibold" uppercase trackingWide tone="muted">Member specs</Box>
           <Box as="ul" mt="1" flex flexCol gap="1">
@@ -88,15 +88,15 @@ export function EpicPanel(props: {
                       {!member.confirmed && ' · not confirmed'} · {member.progress.done}/{member.progress.total}
                     </Box>
                   </Box>
-                  <span className="mt-0.5 block h-1 overflow-hidden rounded" style={{ background: 'var(--border)' }}>
+                  <Box as="span" css-background="border" mt="0.5" block h1 overflow="hidden" rounded="base">
                     <span className="block h-full" style={{ width: `${bar(member.progress.done, member.progress.total)}%`, background: 'var(--ok)' }} />
-                  </span>
+                  </Box>
                 </button>
               </li>
             ))}
           </Box>
         </div>
-      </div>
+      </Box>
     </Card>
   )
 }

@@ -112,7 +112,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
         {ROW_CSS}
       </style>
       <FormSection title="Harnesses on this machine" blurb="Harness files live in this machine’s Avoozl config. Each is approved by its file hash.">
-        <ul className="flex flex-wrap text-sm" style={{ columnGap: 24, rowGap: 8 }} data-models-harnesses>
+        <Box as="ul" css-column-gap="24" css-row-gap="8" flex flexWrap size="sm" data-models-harnesses>
           <Box as="li" flex items="center" gap="2">
             Kiro Crew chat <Badge variant="success">built in</Badge>
           </Box>
@@ -129,7 +129,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
               )}
             </Box>
           ))}
-        </ul>
+        </Box>
         {definitions.length === 0 && <Hint size="xs">No harness files here. Roles run as Kiro Crew chats or on their project’s executor.</Hint>}
       </FormSection>
       <FormSection title="Roles" blurb="Each role runs on its default until you set it here. This is the only place a role’s harness, agent or model is picked. A task’s session pin wins over its role.">
@@ -166,9 +166,9 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                     <Input id={`avoozl-agent-${role.key}`} value={row.agent ?? ''} placeholder={DEFAULT_AGENTS[role.key]} onChange={(e) => set(role.key, { agent: e.target.value })} />
                   </FieldRow>
                 ) : (
-                  <span className="text-xs text-muted" style={{ alignSelf: 'end' }} data-fixed-agent>
+                  <Box as="span" css-align-self="end" size="xs" tone="muted" data-fixed-agent>
                     Agent: Avoozl’s own.
-                  </span>
+                  </Box>
                 )}
                 <FieldRow id={`avoozl-model-${role.key}`} label="Model">
                   {modelFree || !role.model ? (
@@ -187,15 +187,15 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                     />
                   )}
                 </FieldRow>
-                <div className="flex flex-wrap items-center gap-2" style={{ alignSelf: 'end' }}>
+                <Box css-align-self="end" flex flexWrap items="center" gap="2">
                   <Badge variant={isSet ? 'info' : undefined}>{isSet ? 'set here' : 'default'}</Badge>
                   {isSet && (
                     <SmallBtn onClick={() => reset(role.key)} attrs={{ 'data-reset': role.key }}>
                       Reset
                     </SmallBtn>
                   )}
-                </div>
-                <div className="flex flex-col gap-0.5 text-xs text-muted" style={{ gridColumn: '1 / -1' }}>
+                </Box>
+                <Box css-grid-column="1-1" flex flexCol gap="0.5" size="xs" tone="muted">
                   <span>{role.line}</span>
                   {role.key === 'planReviewer' && (
                     <span data-second-model>
@@ -210,7 +210,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                   {CHAT_ONLY.has(role.key) && harness !== 'auto' && harness !== KIROCREW_HARNESS && (
                     <span data-harness-pending>Saved. On a harness this role starts but cannot hand back its answer yet. Keep it on auto or the Kiro Crew chat.</span>
                   )}
-                </div>
+                </Box>
               </Box>
             )
           })}

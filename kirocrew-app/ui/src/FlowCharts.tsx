@@ -93,10 +93,10 @@ function Bars({ rows }: { rows: UsageRow[] }) {
 
 function Chart({ title, children, empty }: { title: string; children: React.ReactNode; empty?: boolean }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-lg border p-3" style={{ borderColor: 'var(--border)' }}>
+    <Box css-border-color="border" flex minW0 flexCol gap="1" rounded="lg" border="all" p="3">
       <SectionHeading level={4} title={title} />
       {empty ? <Hint size="sm">Nothing finished in this window yet.</Hint> : children}
-    </div>
+    </Box>
   )
 }
 
@@ -105,13 +105,13 @@ export type Unit = 'day' | 'week'
 // By day or by week, for every chart over time.
 function UnitPicker({ unit, onUnit }: { unit: Unit; onUnit: (unit: Unit) => void }) {
   return (
-    <div role="radiogroup" aria-label="Group by" className="inline-flex gap-1 rounded-lg p-1" style={{ background: 'var(--bg-elevated)' }}>
+    <Box role="radiogroup" aria-label="Group by" css-background="bg-elevated" inlineFlex gap="1" rounded="lg" p="1">
       {(['day', 'week'] as const).map((u) => (
         <button key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onUnit(u)} className="rounded-md px-2.5 py-1 text-xs font-medium" style={{ background: unit === u ? 'var(--card)' : 'transparent', color: 'var(--text)', boxShadow: unit === u ? 'inset 0 0 0 1px var(--accent)' : 'none' }}>
           {u === 'day' ? 'By day' : 'By week'}
         </button>
       ))}
-    </div>
+    </Box>
   )
 }
 
@@ -121,7 +121,7 @@ export function FlowCharts({ view, unit, onUnit }: { view: FlowViewModel; unit: 
   return (
     <Card className="flex flex-col gap-3">
       <SectionHeading title="Over time" actions={<UnitPicker unit={unit} onUnit={onUnit} />} />
-      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 16rem), 1fr))' }} data-flow-charts>
+      <Box css-grid-template-columns="repeat-auto-fill-minmax-min-100%-16rem-1fr" grid gap="3" data-flow-charts>
         <Chart title="Lead time (median)" empty={none}>
           <Line points={points} value={(p) => p.leadTimeMs} format={duration} color="var(--accent)" />
         </Chart>
@@ -143,7 +143,7 @@ export function FlowCharts({ view, unit, onUnit }: { view: FlowViewModel; unit: 
         <Chart title="Stage mix" empty={none}>
           <StageMix points={points} />
         </Chart>
-      </div>
+      </Box>
       {!none && <StageLegend />}
     </Card>
   )
@@ -188,12 +188,12 @@ export function UsagePanel({ view, unit }: { view: FlowViewModel; unit: Unit }) 
               <Bars rows={rows} />
             </Box>
           )}
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 16rem), 1fr))' }}>
+          <Box css-grid-template-columns="repeat-auto-fill-minmax-min-100%-16rem-1fr" grid gap="4">
             <UsageTable title="By stage" rows={usage.byStage} />
             <UsageTable title="By model" rows={usage.byModel} />
             <UsageTable title="By spec" rows={usage.byPlan} />
             <UsageTable title="By task (top 8)" rows={usage.byTask} />
-          </div>
+          </Box>
         </>
       )}
     </Card>

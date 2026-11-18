@@ -65,9 +65,9 @@ function Fact({ label, raw, children }: { label: string; raw?: string; children:
         {label}
         {raw && <Box as="code" ml="1" size="11">{raw}</Box>}
       </Hint>
-      <dd className="m-0 min-w-0" style={{ overflowWrap: 'anywhere' }}>
+      <Box as="dd" css-overflow-wrap="anywhere" m0 minW0>
         {children}
-      </dd>
+      </Box>
     </Box>
   )
 }
@@ -91,9 +91,9 @@ function SourceBox(props: { id: string; title: string; badges: ReactNode; status
     <li>
       <article aria-labelledby={heading} className="rounded-lg border p-3" style={BOX} {...props.attrs}>
         <Row gap={2}>
-          <h4 id={heading} className="m-0 text-sm font-semibold" style={{ overflowWrap: 'anywhere' }}>
+          <Box id={heading} as="h4" css-overflow-wrap="anywhere" m0 size="sm" weight="semibold">
             {props.title}
-          </h4>
+          </Box>
           {props.badges}
         </Row>
         <Box as="p" mt="1" size="xs" tone="muted" data-intake-status>

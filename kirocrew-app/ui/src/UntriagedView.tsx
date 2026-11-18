@@ -190,7 +190,7 @@ function Actions({ item, onSend, onReview, onStart, onSpec }: { item: UntriagedI
           <IconBtn icon={Users} label={`Send ${name} to an Issue Radar crew`} tooltip="Send to an Issue Radar crew: pick a crew, check the label, then Avoozl adds it." onClick={() => onSend(item)} />
         ) : (
           // Crews work issues only; the gap keeps the columns lined up.
-          <span aria-hidden="true" style={{ display: 'inline-block', width: 28 }} />
+          <Box aria-hidden="true" as="span" css-display="inline-block" css-width="28" />
         ))}
       {item.links.issueRadar && <IconLink icon={Radar} label={`Open ${name} in Issue Radar`} tooltip={item.links.issueRadar.tooltip} href={linkHref(item.links.issueRadar.url)} />}
       {item.links.review && onReview && (
@@ -253,8 +253,8 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
   const keys = props.items.map(itemKey)
   const all = keys.length > 0 && keys.every((key) => props.selected.has(key))
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }} data-untriaged-table>
+    <Box css-overflow-x="auto">
+      <Box as="table" css-border-collapse="collapse" wFull size="sm" data-untriaged-table>
         <thead>
           <tr>
             <th style={{ ...HEAD, width: 28 }}>
@@ -271,9 +271,9 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
             <th style={HEAD}>Labels</th>
             <th style={{ ...HEAD, textAlign: 'right' }}>
               <Tooltip text="Comments">
-                <span role="img" aria-label="Comments" style={{ display: 'inline-flex' }}>
+                <Box role="img" aria-label="Comments" as="span" css-display="inline-flex">
                   <MessageSquare size={12} aria-hidden="true" />
-                </span>
+                </Box>
               </Tooltip>
             </th>
             <th style={HEAD}>
@@ -326,8 +326,8 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
@@ -434,8 +434,8 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
       </Box>
     )
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }} data-radar-list>
+    <Box css-overflow-x="auto">
+      <Box as="table" css-border-collapse="collapse" wFull size="sm" data-radar-list>
         <thead>
           <tr>
             <th style={{ ...HEAD, width: 28 }}>
@@ -474,8 +474,8 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+      </Box>
+    </Box>
   )
 }
 
@@ -672,13 +672,13 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
             ]}
           >
             <Box flex flexWrap items="start" gap="3">
-              <div className="flex min-w-0 flex-1 flex-col gap-1" style={{ minWidth: '16rem' }}>
+              <Box css-min-width="16rem" flex minW0 flex1 flexCol gap="1">
                 <Hint role="status" as="p" size="xs">
                   {shown.length === list.items.length ? `${list.items.length} untriaged` : `${shown.length} of ${list.items.length} untriaged`}
                   {chosen.length ? ` · ${chosen.length} selected` : ''}
                 </Hint>
                 <Checked list={list} now={now} onOpenSources={onOpenSources} />
-              </div>
+              </Box>
               <Tooltip text={bulk.tooltip}>
                 {(describedBy) => (
                   <a

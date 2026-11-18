@@ -25,9 +25,9 @@ function Value({ fact }: { fact: ListFact }) {
     return (
       <Box as="span" flex minW0 flexWrap gap="1" data-chips>
         {fact.chips.map((chip) => (
-          <span key={chip} className="rounded border px-1.5 text-xs" style={{ borderColor: 'var(--border)', color: 'var(--text)' }} data-chip>
+          <Box key={chip} as="span" css-border-color="border" css-color="text" rounded="base" border="all" px="1.5" size="xs" data-chip>
             {chip}
-          </span>
+          </Box>
         ))}
       </Box>
     )
@@ -51,13 +51,13 @@ export default function ListItem(props: { title: ReactNode; actions?: ReactNode;
   return (
     <li className={`flex min-w-0 flex-col gap-1 border-t py-2.5 first:border-t-0 ${props.className ?? ''}`} style={{ borderColor: 'var(--border)' }} data-list-item {...props.attrs}>
       <Box flex flexWrap items="center" gapX="3" gapY="1">
-        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1" style={{ flex: '1 1 12rem' }} data-list-title>
+        <Box as="span" css-flex="1-1-12rem" flex minW0 flexWrap items="center" gapX="2" gapY="1" data-list-title>
           {props.title}
-        </span>
+        </Box>
         {props.actions && <Box as="span" flex items="center" gap="1.5">{props.actions}</Box>}
       </Box>
       {facts.length > 0 && (
-        <dl className="m-0 grid gap-x-4 gap-y-0.5 text-xs text-muted" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 15rem), 1fr))' }} data-list-facts>
+        <Box as="dl" css-grid-template-columns="repeat-auto-fill-minmax-min-100%-15rem-1fr" m0 grid gapX="4" gapY="0.5" size="xs" tone="muted" data-list-facts>
           {facts.map((fact) => (
             <Box key={fact.label} flex minW0 items="baseline" gap="1.5" data-fact={fact.label}>
               <Box as="dt" shrink0>{fact.label}:</Box>
@@ -66,7 +66,7 @@ export default function ListItem(props: { title: ReactNode; actions?: ReactNode;
               </Box>
             </Box>
           ))}
-        </dl>
+        </Box>
       )}
     </li>
   )

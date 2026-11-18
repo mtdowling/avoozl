@@ -212,10 +212,10 @@ const roleLabel = (row: InFlight) =>
 export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: number; cost?: RadarCrewStrip['cost'][string] }) {
   return (
     <li data-radar-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
-      <span data-in-flight-role style={{ flex: '0 0 7.5rem' }}>
+      <Box data-in-flight-role as="span" css-flex="0-0-7.5rem">
         <Badge>Issue Radar</Badge>
-      </span>
-      <span className="min-w-0 flex-1" style={{ flexBasis: '12rem' }}>
+      </Box>
+      <Box as="span" css-flex-basis="12rem" minW0 flex1>
         <Box as="span" weight="medium">{row.title}</Box>{' '}
         <Hint size="xs">
           {row.repository} #{row.number}
@@ -240,8 +240,8 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
             Credits: {cost.stages.map((entry) => `${entry.stage} ${entry.credits.toFixed(1)}`).join(', ')} (total {cost.credits.toFixed(1)}, {cost.turns} turns)
           </Hint>
         )}
-      </span>
-      <span data-in-flight-actions className="flex items-center justify-end gap-3" style={{ flex: '0 0 11rem' }}>
+      </Box>
+      <Box data-in-flight-actions as="span" css-flex="0-0-11rem" flex items="center" justify="end" gap="3">
         {linkHref(row.url) && (
           <a href={linkHref(row.url)} target="_blank" rel="noopener noreferrer" className="text-sm underline" aria-label={`Open issue ${row.number} on GitHub`}>
             Issue
@@ -252,7 +252,7 @@ export function RadarFlightRow({ row, now, cost }: { row: RadarClaim; now: numbe
             PR #{row.pr}
           </a>
         )}
-      </span>
+      </Box>
     </li>
   )
 }
@@ -315,10 +315,10 @@ export function FlightChips({ links, title }: { links: TaskLinks; title: string 
   return (
     // contain: inline-size keeps the chips out of the row's min-content, so a
     // long branch name shrinks instead of widening the card on a phone.
-    <span data-in-flight-links className="mt-1 flex items-center gap-1 text-xs" style={{ minWidth: 0, contain: 'inline-size' }}>
+    <Box data-in-flight-links as="span" css-min-width="0" css-contain="inline-size" mt="1" flex items="center" gap="1" size="xs">
       {pr && links.pr && (
         // The PR chip never shrinks; the branch chip gives way.
-        <span style={{ display: 'inline-flex', flex: '0 0 auto' }}>
+        <Box as="span" css-display="inline-flex" css-flex="0-0-auto">
           <Tooltip text={dot.label}>
             <a
               data-pr-chip
@@ -333,7 +333,7 @@ export function FlightChips({ links, title }: { links: TaskLinks; title: string 
               {links.pr.state === 'merged' || links.pr.state === 'closed' ? <Hint>{links.pr.state}</Hint> : null}
             </a>
           </Tooltip>
-        </span>
+        </Box>
       )}
       {branch && links.branch && (
         <Tooltip text={links.branch.ref}>
@@ -343,7 +343,7 @@ export function FlightChips({ links, title }: { links: TaskLinks; title: string 
           </a>
         </Tooltip>
       )}
-    </span>
+    </Box>
   )
 }
 
@@ -401,10 +401,10 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
   return (
     <li data-in-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
       {/* Fixed columns, so every row's title and actions start at the same x. */}
-      <span data-in-flight-role style={{ flex: '0 0 7.5rem' }}>
+      <Box data-in-flight-role as="span" css-flex="0-0-7.5rem">
         <Badge>{roleLabel(row)}</Badge>
-      </span>
-      <span className="min-w-0 flex-1" style={{ flexBasis: '12rem' }}>
+      </Box>
+      <Box as="span" css-flex-basis="12rem" minW0 flex1>
         <TaskTitleLink id={row.taskId} title={row.title} className="font-medium" />{' '}
         <Hint size="xs">
           {row.taskId}
@@ -426,21 +426,20 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
         {row.links && <FlightChips links={row.links} title={row.title} />}
         {processRow && (
           // column-reverse keeps the newest line in view without a scroll effect.
-          <span
+          <Box
             data-process-log
-            className="mt-1 block rounded border text-xs"
+            as="span" css-border-color="border" css-max-height="7.5em" css-overflow="auto" css-display="flex" css-flex-direction="column-reverse" mt="1" block rounded="base" border="all" size="xs"
             tabIndex={0}
             aria-label={`Log tail for ${row.title}`}
-            style={{ borderColor: 'var(--border)', maxHeight: '7.5em', overflow: 'auto', display: 'flex', flexDirection: 'column-reverse' }}
           >
-            <pre className="m-0 p-1.5" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'var(--font-mono, ui-monospace, monospace)' }}>
+            <Box as="pre" css-white-space="pre-wrap" css-overflow-wrap="anywhere" css-font-family="font-mono-ui-monospace-monospace" m0 p="1.5">
               {child?.logTail || 'No output yet.'}
-            </pre>
-          </span>
+            </Box>
+          </Box>
         )}
         {processRow && writing && onSend && <SendMessage title={row.title} onSend={onSend} onClose={() => setWriting(false)} />}
-      </span>
-      <span data-in-flight-actions className="flex items-center justify-end gap-1.5" style={{ flex: '0 0 11rem' }}>
+      </Box>
+      <Box data-in-flight-actions as="span" css-flex="0-0-11rem" flex items="center" justify="end" gap="1.5">
         <IconBtn icon={DetailsIcon} label={`Details for ${row.title}`} tooltip="Open the task drawer" onClick={onInfo} />
         {processRow && onSend && (
           <IconBtn icon={MessageSquare} label={`Send message to the ${row.role} for ${row.title}`} tooltip="Send message" onClick={() => setWriting((open) => !open)} />
@@ -460,7 +459,7 @@ export function InFlightRow({ row, now, onInfo, onSend }: { row: InFlight; now: 
           Session
         </a>
         )}
-      </span>
+      </Box>
     </li>
   )
 }
@@ -771,17 +770,17 @@ export default function DashboardView(props: {
                             <Box as="span" truncate>{title}</Box>
                             <Box as="span" flex shrink0 items="center" gap="2" size="xs" tone="muted">
                               {entry.running > 0 && (
-                                <span className="inline-flex items-center gap-1" style={{ color: 'var(--tile-purple, var(--aim))' }} aria-label={`${entry.running} Avoozl chats running`}>
+                                <Box as="span" css-color="tile-purple-aim" inlineFlex items="center" gap="1" aria-label={`${entry.running} Avoozl chats running`}>
                                   <Activity size={12} aria-hidden="true" />
                                   {entry.running}
-                                </span>
+                                </Box>
                               )}
                               {entry.done} of {entry.total}
                             </Box>
                           </Box>
-                          <span role="progressbar" aria-label={`${title} progress`} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} className="mt-1 block h-1.5 overflow-hidden rounded" style={{ background: 'var(--border)' }}>
+                          <Box role="progressbar" aria-label={`${title} progress`} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} as="span" css-background="border" mt="1" block h15 overflow="hidden" rounded="base">
                             <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
-                          </span>
+                          </Box>
                         </button>
                       </Tooltip>
                     </li>

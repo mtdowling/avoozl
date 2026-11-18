@@ -1,5 +1,6 @@
 import { Tooltip } from './ui/Tooltip.tsx'
 import { SelectField } from './ui/SelectField'
+import { Box } from './ui/Box'
 
 // One labelled filter dropdown with an "All" choice, shared by the Graph and
 // Delivery filters so both look and behave the same.
@@ -44,14 +45,14 @@ export function FilterSelect(props: {
   if (props.inline)
     return (
       <label htmlFor={props.id} data-filter-line className="min-w-0 text-sm" style={{ display: 'grid', gridTemplateColumns: `${INLINE_LABEL} minmax(0, 1fr)`, alignItems: 'center', columnGap: 8 }}>
-        <span data-filter-label style={{ overflowWrap: 'anywhere' }}>{props.label}</span>
+        <Box data-filter-label as="span" css-overflow-wrap="anywhere">{props.label}</Box>
         {props.hint ? <Tooltip text={props.hint} display="block">{(describedBy) => select(describedBy)}</Tooltip> : select()}
       </label>
     )
   return (
-    <label htmlFor={props.id} className="flex min-w-0 flex-col gap-1 text-sm" style={{ maxWidth: '13rem' }}>
+    <Box htmlFor={props.id} as="label" css-max-width="13rem" flex minW0 flexCol gap="1" size="sm">
       <span>{props.label}</span>
       {props.hint ? <Tooltip text={props.hint} display="block">{(describedBy) => select(describedBy)}</Tooltip> : select()}
-    </label>
+    </Box>
   )
 }

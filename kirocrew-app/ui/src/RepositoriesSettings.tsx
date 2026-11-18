@@ -203,7 +203,7 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
         </Box>
         <Box as="p" mt="1" size="sm" tone="muted">Point at a Git checkout on this computer; Avoozl reads its branch and GitHub remote for you.</Box>
       </div>
-      <ol className="flex flex-col gap-3" style={{ maxWidth: '40rem' }}>
+      <Box as="ol" css-max-width="40rem" flex flexCol gap="3">
         <Box as="li" flex flexCol gap="1.5" data-step="folder">
           <Box as="span" size="sm" weight="medium">1. Pick the folder</Box>
           <Hint size="xs">The checkout&apos;s folder, as an absolute path. Any folder inside it works too.</Hint>
@@ -221,14 +221,14 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
           <Box as="li" flex flexCol gap="2" data-step="confirm">
             <Box as="span" size="sm" weight="medium">2. Confirm what Avoozl found</Box>
             <Hint size="xs">Tasks land on the branch below. Change it if tasks should land elsewhere.</Hint>
-            <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
+            <Box as="dl" css-grid-template-columns="max-content-1fr" grid gapX="3" gapY="1" size="sm">
               <Hint as="dt">Folder</Hint>
-              <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
+              <Box as="dd" css-overflow-wrap="anywhere" minW0>
                 {found.root}
-              </dd>
+              </Box>
               <Hint as="dt">GitHub remote</Hint>
               <dd>{found.github ?? (found.remote ? `${found.remote} is not on GitHub` : 'None: a local-only repository')}</dd>
-            </dl>
+            </Box>
             <RoleChoice
               id="avoozl-repo-add"
               name={found.root}
@@ -256,7 +256,7 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
             </Row>
           </Box>
         )}
-      </ol>
+      </Box>
       {props.disabled && <Hint as="p" size="xs">{props.disabled}</Hint>}
       {error && (
         <ErrorText role="alert" size="sm">
