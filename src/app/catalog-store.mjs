@@ -162,7 +162,10 @@ export class CatalogStore {
           workspace.enabled ? 1 : 0,
           state,
           index,
-          workspace.maxConcurrentRuns,
+          // shortcut: max_concurrent_runs is kept, NOT NULL and unread, so an
+          // older Avoozl sharing this catalog still writes; drop it in a
+          // later migration once no older version runs here.
+          0,
           null,
           null,
           null,
@@ -175,7 +178,6 @@ export class CatalogStore {
         if (!seen.has(row.id))
           this.db.prepare("DELETE FROM workspaces WHERE id=?").run(row.id);
       this.setMeta("defaultWorkspace", config.defaultWorkspace || null);
-      this.setMeta("hostMaxConcurrentRuns", config.maxConcurrentRuns);
       this.setMeta("lastRebuiltAt", stamp());
       if (audit)
         this.record(null, "catalog.rebuilt", {
@@ -201,7 +203,6 @@ export class CatalogStore {
         enabled: Boolean(row.enabled),
         state: row.state,
         displayOrder: row.display_order,
-        maxConcurrentRuns: row.max_concurrent_runs,
         instanceEpoch: row.instance_epoch,
         revision: row.revision,
         health: parsed(row.health_json),

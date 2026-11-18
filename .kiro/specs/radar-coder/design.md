@@ -1385,7 +1385,8 @@ that mark.
 
 ### D33.3 Merge method
 
-`merge.method` (`squash` default, or `merge`) is read where auto-merge is armed:
+`landing.method` (`squash` default, or `merge`; older name `merge.method`)
+is read where auto-merge is armed:
 `radar-arm.mjs` for every crew pull request and the conflict fix's finish step,
 both through one helper that passes `SQUASH` with the pull request's title
 (with its number) and body, or `MERGE`. The merge path check (RC5.1) gains a
@@ -1395,7 +1396,8 @@ counts as allowed, only `false` refuses. A refused method keeps the merge path
 not ready, so nothing is armed, and the arm step keeps one Needs you row per
 repository naming the setting until it reads allowed again. Set up shows a
 read-only `merge-method` step (Avoozl never changes the GitHub setting); Adopt
-adds one line that writes `merge.method` to match what the repository allows.
+adds one line that writes `landing.method` to match what the repository
+allows.
 
 ### D33.4 Failure modes
 

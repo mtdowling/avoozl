@@ -105,7 +105,6 @@ export function workspaceStatus({ named, from, config, catalog }) {
             default: catalog.defaultWorkspace === registration.id,
             enabled: registration.enabled,
             state: registration.state,
-            maxConcurrentRuns: registration.maxConcurrentRuns,
           },
         }
       : {}),

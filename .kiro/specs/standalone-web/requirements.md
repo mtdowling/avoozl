@@ -456,7 +456,20 @@ fork and a new Kiro Crew release is one change.
    `scripts/release-scan.mjs` SHALL fail when one is missing.
 7. Moving the pin SHALL be one change: the pin file and the package
    versions. It SHALL pass the contract test, the class check and the
-   variable test, and its screenshots of three views, light and dark, SHALL
-   go to the owner.
+   variable test, and its screenshots SHALL go to the owner as SW12.10
+   says.
 8. The pin SHALL be a release the Kiro Crew bundle also runs on: not older
-   than `minKiroCrewVersion` in `kirocrew-app/app.json`.
+   than `minKiroCrewVersion` in `kirocrew-app/app.json`. The README SHALL
+   name the pin beside the Kiro Crew version it asks for, and say that the
+   two pages match when the installed Kiro Crew is the pinned release.
+9. The class check SHALL also run against the stylesheet a person gets
+   inside Kiro Crew: built from the pin's own stylesheet source with only
+   Kiro Crew's sources scanned, without the line that adds the Avoozl page.
+   A class the page uses that this stylesheet lacks SHALL fail, naming the
+   files that use it, because inside Kiro Crew that class does nothing.
+   `.kiro/specs/ui-components/` (UC4) runs this check in CI.
+10. Each pin move SHALL put the standalone page beside the same views in a
+    running Kiro Crew at the new pin, for Home, Specs, a task drawer and
+    Settings › Models, at 390 and 1280 px, light and dark, and give those
+    screenshots to the owner before the move lands. They are never
+    committed (AGENTS.md).

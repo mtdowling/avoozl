@@ -1486,9 +1486,6 @@ try {
               : provided.enabled === undefined
                 ? true
                 : provided.enabled,
-          maxConcurrentRuns: Number(
-            options["max-concurrent-runs"] ?? provided.maxConcurrentRuns ?? 2,
-          ),
           repositories,
         };
         result =
@@ -1512,9 +1509,6 @@ try {
               : provided.enabled === undefined
                 ? true
                 : provided.enabled,
-          maxConcurrentRuns: Number(
-            options["max-concurrent-runs"] ?? provided.maxConcurrentRuns ?? 2,
-          ),
           repositories:
             provided.repositories ||
             (options.repositories ? JSON.parse(options.repositories) : {}),
@@ -1539,23 +1533,10 @@ try {
             method: "POST",
             body: { workspaceId: id },
           })) || registry.setDefault(id);
-      } else if (action === "concurrency") {
-        const id = options.id || positionals[1],
-          limit = Number(options.limit ?? positionals[2]);
-        result =
-          (await live(
-            `/api/workspaces/${encodeURIComponent(
-              id,
-            )}/operations/workspace.concurrency.configure`,
-            {
-              method: "POST",
-              body: { input: { limit } },
-            },
-          )) || registry.setConcurrency(id, limit);
       } else if (action === "rebuild") result = registry.rebuild();
       else
         throw Error(
-          "Choose workspace list, add, adopt, remove, start, drain, resume, stop, set-default, concurrency, or rebuild.",
+          "Choose workspace list, add, adopt, remove, start, drain, resume, stop, set-default, or rebuild.",
         );
       console.log(JSON.stringify(result, null, 2));
     } finally {
