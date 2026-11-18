@@ -190,19 +190,23 @@ turn on Autopilot, Avoozl's name for delivery, with the `delivery` block in
 { "delivery": { "concurrency": 1 } }
 ```
 
-Two Kiro Crew steps only you can do, once:
+A local worker needs nothing more: it works in the worktree its brief names
+and reports from the command line. Two Kiro Crew steps, each done once, are
+for the other chats:
 
-1. Let Kiro Crew tell Avoozl which chat is calling, so a worker can report.
-   Kiro Crew passes this only to MCP servers it shares. Open **MCP
-   Management**, find `avoozl:avoozl`, turn on sharing, and press **Approve
-   sharing**. Then restart the gateway (**Settings › About › Restart
-   gateway**). Without this, a worker can do the work but `plans_report`
-   refuses it. A shared server runs outside the chat sandbox, with your
-   access.
+1. Let Kiro Crew tell Avoozl which chat is calling. A worker that opens a
+   pull request, and every verifier, reviewer and investigation chat, reports
+   with `plans_report`, and Kiro Crew names the caller only to MCP servers
+   it shares. Open **MCP Management**, find `avoozl:avoozl`, turn on
+   sharing, and press **Approve sharing**. Then restart the gateway
+   (**Settings › About › Restart gateway**). Without this, such a chat can do
+   its work but `plans_report` refuses it. A shared server runs outside the
+   chat sandbox, with your access.
 
 2. After the first tick, open the chat folder **Avoozl** › _repository ID_
-   in the sidebar and set its project directory to the checkout. Only a
-   person can set it, and the tick opens no session there until it is set.
+   in the sidebar and set its project directory to the checkout. The planner,
+   responder and retro chats open there, and the tick opens none of them
+   until it is set.
 
 The Avoozl worker codes every task. It runs as a Kiro Crew chat or as a
 process harness such as Claude Code or Codex, chosen per role in **Settings >
