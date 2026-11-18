@@ -84,6 +84,16 @@ test("a role child's brief holds its prompt, the brief, and how it finishes", ()
   assert.match(verifier, /Check abc\./);
   assert.match(verifier, /Do not run git worktree add/);
   assert.match(verifier, /\.avoozl\/result\.json/);
+  assert.match(verifier, /Your shell runs no command here/);
+  assert.match(
+    processBrief("verifier", "Check abc.", {
+      allowCommands: [
+        ["node", "check.mjs"],
+        ["git", "rev-parse"],
+      ],
+    }),
+    /runs only these commands, one per call, .*`node check\.mjs`, `git rev-parse`/,
+  );
   assert.match(
     processBrief("review:security", "x"),
     /^You are an Avoozl Reviewer/,
