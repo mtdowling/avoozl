@@ -11,6 +11,8 @@ import { useTaskDrawer } from './drawer-context.ts'
 import { SectionHeading, ViewHeading } from './controls.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
 import Badge from './Badge.tsx'
+import { Tooltip } from './Tooltip.tsx'
+import { safeHref } from './views-api.ts'
 import { baseTitle, holdVariant, holdWord, itemCount, itemLinks, landingNote, landingQueueClient, type LandingItem } from './landing-queue-api.ts'
 
 const DOT: Record<string, string> = { pass: 'var(--ok)', fail: 'var(--danger)', pending: 'var(--warn, var(--accent))', stale: 'var(--muted)' }
@@ -20,15 +22,11 @@ function CheckDot(props: { checks: LandingItem['checks'] }) {
   const dot = props.checks?.dot
   if (!dot) return null
   const age = props.checks?.ageMs == null ? '' : `, read ${duration(new Date(Date.now() - props.checks.ageMs).toISOString())} ago`
+  const text = `${DOT_TEXT[dot] ?? dot}${age}`
   return (
-    <span
-      data-check-dot={dot}
-      role="img"
-      aria-label={`${DOT_TEXT[dot] ?? dot}${age}`}
-      title={`${DOT_TEXT[dot] ?? dot}${age}`}
-      className="inline-block shrink-0 rounded-full"
-      style={{ width: 8, height: 8, background: DOT[dot] ?? 'var(--muted)' }}
-    />
+    <Tooltip text={text}>
+      <span data-check-dot={dot} role="img" aria-label={text} className="inline-block shrink-0 rounded-full" style={{ width: 8, height: 8, background: DOT[dot] ?? 'var(--muted)' }} />
+    </Tooltip>
   )
 }
 
@@ -44,7 +42,7 @@ function Row(props: { item: LandingItem; now: number }) {
           {item.position ?? '—'}
         </span>
         {first ? (
-          <button type="button" className="min-w-0 flex-1 truncate text-left underline" onClick={() => drawer.openTask(first.id)} title={item.tasks.map((t) => t.title).join(', ')}>
+          <button type="button" className="min-w-0 flex-1 truncate text-left underline" onClick={() => drawer.openTask(first.id)} aria-label={item.tasks.map((t) => t.title).join(', ')}>
             {first.title}
             {item.tasks.length > 1 ? ` +${item.tasks.length - 1}` : ''}
           </button>
@@ -60,7 +58,7 @@ function Row(props: { item: LandingItem; now: number }) {
           {item.hold.text}
         </span>
         {links.map((link) => (
-          <a key={link.key} href={link.href} target="_blank" rel="noopener noreferrer" className="inline-flex min-w-0 items-center gap-1 underline" data-landing-link={link.key}>
+          <a key={link.key} href={safeHref(link.href) ?? undefined} target="_blank" rel="noopener noreferrer" className="inline-flex min-w-0 items-center gap-1 underline" data-landing-link={link.key}>
             {link.key === 'pr' && <CheckDot checks={item.checks} />}
             <span className="truncate" style={{ maxWidth: '16rem' }}>
               {link.label}

@@ -24840,18 +24840,20 @@ var ib = (e) => e ? e.bases.reduce((e, t) => e + t.items.length, 0) : 0, ab = {
 function sb(e) {
 	let t = e.checks?.dot;
 	if (!t) return null;
-	let n = e.checks?.ageMs == null ? "" : `, read ${Oa(new Date(Date.now() - e.checks.ageMs).toISOString())} ago`;
-	return /* @__PURE__ */ C("span", {
-		"data-check-dot": t,
-		role: "img",
-		"aria-label": `${ob[t] ?? t}${n}`,
-		title: `${ob[t] ?? t}${n}`,
-		className: "inline-block shrink-0 rounded-full",
-		style: {
-			width: 8,
-			height: 8,
-			background: ab[t] ?? "var(--muted)"
-		}
+	let n = e.checks?.ageMs == null ? "" : `, read ${Oa(new Date(Date.now() - e.checks.ageMs).toISOString())} ago`, r = `${ob[t] ?? t}${n}`;
+	return /* @__PURE__ */ C(Y, {
+		text: r,
+		children: /* @__PURE__ */ C("span", {
+			"data-check-dot": t,
+			role: "img",
+			"aria-label": r,
+			className: "inline-block shrink-0 rounded-full",
+			style: {
+				width: 8,
+				height: 8,
+				background: ab[t] ?? "var(--muted)"
+			}
+		})
 	});
 }
 function cb(e) {
@@ -24873,7 +24875,7 @@ function cb(e) {
 					type: "button",
 					className: "min-w-0 flex-1 truncate text-left underline",
 					onClick: () => n.openTask(i.id),
-					title: t.tasks.map((e) => e.title).join(", "),
+					"aria-label": t.tasks.map((e) => e.title).join(", "),
 					children: [i.title, t.tasks.length > 1 ? ` +${t.tasks.length - 1}` : ""]
 				}) : /* @__PURE__ */ C("span", {
 					className: "min-w-0 flex-1 truncate",
@@ -24896,7 +24898,7 @@ function cb(e) {
 					children: t.hold.text
 				}),
 				r.map((e) => /* @__PURE__ */ w("a", {
-					href: e.href,
+					href: Er(e.href) ?? void 0,
 					target: "_blank",
 					rel: "noopener noreferrer",
 					className: "inline-flex min-w-0 items-center gap-1 underline",
