@@ -47,7 +47,7 @@ import { ModelRowsStyle } from './ui/PageStyles'
 // shortcut: these roles cannot run as a harness child yet (rows of
 // src/app/role-table.mjs with process: false); drop a role here when its task
 // lands.
-const CHAT_ONLY = new Set<Role>(['reviewDraft', 'issuePlanner', 'prReview'])
+const CHAT_ONLY = new Set<Role>(['issuePlanner', 'prReview'])
 
 export default function ModelsSettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()

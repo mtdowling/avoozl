@@ -129,7 +129,7 @@ of the other specs.
     - after: nk-1.2
   - Avoozl fetches title, body, files, diffs, checks and review comments with its own GitHub client into `pull-request/`, with a size limit and a README that marks it as data; the head SHA is recorded on the session.
   - Done when: Tests with a fake GitHub: the snapshot holds each part; over the limit the largest diffs are left out and named; the fetch makes no call from the child; the GitHub call counter of RC29 (`radar-coder`, still in force) counts these reads under their own source.
-- [ ] nk-4.2 Review drafts as a child, after nk-4.1 [NK4.3] (§D4)
+- [x] nk-4.2 Review drafts as a child, after nk-4.1 [NK4.3] (§D4)
   - Facts:
     - summary: Phase 4 (Roles that read a pull request). Review drafts as a child. See NK4.3; §D4.
     - done:

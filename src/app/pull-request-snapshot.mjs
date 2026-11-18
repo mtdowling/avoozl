@@ -13,6 +13,8 @@
 //
 // Over the size limit the largest diffs are left out and named. Every read
 // counts under its own source, `pr-snapshot`, in the GitHub call counter.
+import fs from "node:fs";
+import path from "node:path";
 import { withSource } from "./github-rate.mjs";
 
 export const SNAPSHOT_SOURCE = "pr-snapshot";
@@ -41,6 +43,65 @@ const README = (omitted) =>
       : []),
     "",
   ].join("\n");
+
+// The lines a patch shows, by side: RIGHT for the new file's lines (added
+// or unchanged), LEFT for the old file's (removed or unchanged).
+export function diffLines(patch) {
+  const lines = { LEFT: new Set(), RIGHT: new Set() };
+  let left = 0,
+    right = 0;
+  for (const line of String(patch ?? "").split("\n")) {
+    const hunk = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+    if (hunk) {
+      left = Number(hunk[1]);
+      right = Number(hunk[2]);
+      continue;
+    }
+    if (!left && !right) continue;
+    if (line.startsWith("+")) lines.RIGHT.add(right++);
+    else if (line.startsWith("-")) lines.LEFT.add(left++);
+    else if (line.startsWith(" ") || line === "") {
+      lines.LEFT.add(left++);
+      lines.RIGHT.add(right++);
+    }
+  }
+  return lines;
+}
+
+// The line comments that fall inside the snapshot's diffs, and how many did
+// not: GitHub refuses a whole draft for one line outside the diff.
+export function commentsInDiff(folder, comments = []) {
+  let listed = [];
+  try {
+    listed = JSON.parse(
+      fs.readFileSync(path.join(folder, FOLDER, "files.json"), "utf8"),
+    );
+  } catch {
+    return { kept: [], dropped: comments.length };
+  }
+  const byPath = new Map();
+  for (const file of listed) {
+    if (file.omitted) continue;
+    let patch = "";
+    try {
+      patch = fs.readFileSync(
+        path.join(folder, FOLDER, "diff", `${file.n}.patch`),
+        "utf8",
+      );
+    } catch {
+      continue;
+    }
+    byPath.set(file.path, diffLines(patch));
+  }
+  const kept = comments.filter((comment) => {
+    const lines = byPath.get(comment?.path)?.[comment?.side ?? "RIGHT"];
+    return (
+      lines?.has(comment.line) &&
+      (comment.start_line === undefined || lines.has(comment.start_line))
+    );
+  });
+  return { kept, dropped: comments.length - kept.length };
+}
 
 // Read the pull request `pull` ({number, title, body, author, base, labels})
 // of `repository` and return the snapshot's files as {path: text}, with the
