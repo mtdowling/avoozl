@@ -11,9 +11,10 @@ Status: Approved
 pushes and lands the work, and the Issue Radar path is removed. Superseded
 here: the Issue Radar coder and handoff (RC1–RC6, RC10, RC14, RC15), the
 retirement of Avoozl's workers (RC11; Phase 12 is cancelled), labels and
-claims as coordination, the mirror and forward flow for a public repository
-with private plans (RC24–RC26), and the separate conflict-fix chat (RC28).
-Still in force: integration branches (RC16), the approval pull request only
+claims as coordination, and the separate conflict-fix chat (RC28).
+Still in force: the mirror and its forward pull request flow for a public
+repository with private plans (RC24–RC26, shipped as the "Private mirror"
+repository role), integration branches (RC16), the approval pull request only
 for a spec on a protected branch (RC3.6), setup (RC27), the GitHub usage
 counter (RC29), release ranking (RC31) and build receipts (RC32). This file
 is kept as the record; it is not deleted.

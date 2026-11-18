@@ -47,7 +47,7 @@ test('Who codes omits the removed remote coder', () => {
   const only = (coder) => [...CODER_CARDS.find((c) => c.coder === coder).modes]
   assert.equal(CODER_CARDS.some((c) => c.coder === 'remote'), false)
   assert.equal(coderSource('single-repo', ''), 'Not set on this repository. Using the default for Single repository (Radar crew).')
-  assert.equal(coderSource('plans-repo', ''), 'Not set on this repository. Using the default for Plans repository (Avoozl worker, retired).')
+  assert.equal(coderSource('plans-repo', ''), 'Not set on this repository. Using the default for Plans repository (Avoozl worker).')
   assert.equal(coderSource('plans-repo', 'remote'), 'Set on this repository: Remote coder, removed; choose an available coder.')
   assert.doesNotMatch(coderSource('single-repo', ''), /same as above/i)
   const picker = source('CoderPicker.tsx')
@@ -56,7 +56,7 @@ test('Who codes omits the removed remote coder', () => {
   assert.match(source('Walkthrough.tsx'), /prefers-reduced-motion: reduce/)
 })
 
-test('the worker is no card, and a repository still on it is named retired', () => {
-  assert.equal(CODER_CARDS.some((c) => c.coder === 'worker'), false)
-  assert.match(coderSource('plans-repo', 'worker'), /retired/)
+test('a repository on the worker names the Avoozl worker, not a retired one', () => {
+  assert.equal(coderSource('plans-repo', 'worker'), 'Set on this repository: Avoozl worker.')
+  assert.doesNotMatch(coderSource('plans-repo', ''), /retired/)
 })

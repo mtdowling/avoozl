@@ -4464,8 +4464,9 @@ not any file the same operating-system user can read.
 
 Added 2026-11-15 (owner decision, a change of direction). Design §4.26.
 This supersedes the Issue Radar path of the `radar-coder` spec (RC1–RC6,
-RC10, RC11, RC14, RC15, RC24–RC28) and cancels its Phase 12, the retirement
-of Avoozl's workers.
+RC10, RC11, RC14, RC15, RC28) and cancels its Phase 12, the retirement
+of Avoozl's workers. The mirror and its forward pull request flow
+(RC24–RC26) still stand as the "Private mirror" repository role.
 
 **User story:** As the owner, I want one coder that Avoozl runs end to end,
 from picking a task to landing it, so that work lands overnight without a

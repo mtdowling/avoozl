@@ -101,14 +101,6 @@ export function redirectSettings(key: string): string {
   return key === 'routing' ? 'repositories' : key === 'instance' ? 'workspaces' : key
 }
 
-// A repository still set to the retired Avoozl worker. In a mode that has a
-// default coder, a blank coder is that default.
-export const RETIRED_LINE = 'Local workers are retired. Switch to Issue Radar.'
-
-export function retiredCoders(repositories: { name: string; coder: string }[], defaultCoder: string): string[] {
-  return repositories.filter((r) => (r.coder || defaultCoder) === 'worker').map((r) => r.name)
-}
-
 // An old `?trace=owner/repo#52` link: the issue it names. Anything else is no
 // link. The page opens the details of the task that owns that issue (R106.8).
 export function parseTraceLink(search: string): { repository: string; number: number } | null {
