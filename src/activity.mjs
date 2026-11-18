@@ -1,13 +1,10 @@
-import { randomUUID } from "./task-identity.mjs";
+import { endLease, leaseState, renewLease, takeLease } from "./lease.mjs";
 export const ACTIVITY_LEASE_MINUTES = 30;
 export function activityState(task, now = Date.now()) {
   const a = task.activity;
   if (!a) return "none";
   if (a.state !== "active") return a.state;
-  return Number.isFinite(Date.parse(a.expiresAt)) &&
-    Date.parse(a.expiresAt) > now
-    ? "active"
-    : "stale";
+  return leaseState(a, now);
 }
 function conflict(message) {
   const error = Error(message);
@@ -39,39 +36,29 @@ export function applyActivity(data, input, now = Date.now()) {
   if (!Number.isInteger(minutes) || minutes < 5 || minutes > 240)
     throw Error("Lease must be 5–240 minutes");
   const old = task.activity,
-    at = new Date(now).toISOString();
+    at = new Date(now).toISOString(),
+    seconds = minutes * 60;
   let record;
   if (action === "start") {
     if (!input.owner?.trim())
       throw Error("Name the person or agent starting this task");
     if (!input.sessionId?.trim())
       throw Error("A stable worker/session ID is required");
-    if (
-      activityState(task, now) === "active" &&
-      old.sessionId !== input.sessionId
-    )
+    const taken = takeLease(old, { sessionId: input.sessionId, seconds, now });
+    if (taken.busy)
       conflict(
         "Already in flight with " + old.owner + " until " + old.expiresAt,
       );
-    if (
-      activityState(task, now) === "active" &&
-      old.sessionId === input.sessionId
-    )
-      record = { ...old };
-    else {
-      if (old)
-        task.activityHistory = [
-          { ...old, replacedAt: at },
-          ...(task.activityHistory || []),
-        ].slice(0, 20);
-      record = {
-        state: "active",
-        leaseId: randomUUID(),
-        sessionId: input.sessionId,
-        owner: input.owner.trim(),
-        startedAt: at,
-      };
+    if (taken.replaced) {
+      task.activityHistory = [
+        { ...old, replacedAt: at },
+        ...(task.activityHistory || []),
+      ].slice(0, 20);
     }
+    record =
+      "replaced" in taken
+        ? { ...taken.record, owner: input.owner.trim() }
+        : taken.record;
   } else {
     if (!old || !input.leaseId || old.leaseId !== input.leaseId)
       conflict(
@@ -79,20 +66,20 @@ export function applyActivity(data, input, now = Date.now()) {
       );
     if (old.state === "finished" && action !== "finish")
       conflict("This work session finished. Start a new one.");
-    record = { ...old };
+    const next =
+      action === "heartbeat"
+        ? renewLease(old, { leaseId: input.leaseId, seconds, now })
+        : endLease(old, {
+            leaseId: input.leaseId,
+            now,
+            state: action === "pause" ? "paused" : "finished",
+          });
+    record = next.record;
   }
   for (const key of ["branch", "worktree", "summary"])
     if (input[key] !== undefined) record[key] = input[key].trim();
-  if (action === "start" || action === "heartbeat") {
-    record.state = "active";
+  if (action === "start" || action === "heartbeat")
     record.leaseMinutes = minutes;
-    record.heartbeatAt = at;
-    record.expiresAt = new Date(now + minutes * 60000).toISOString();
-    delete record.endedAt;
-  } else {
-    record.state = action === "pause" ? "paused" : "finished";
-    record.endedAt = at;
-  }
   task.activity = record;
   // Activity does not imply implementation, acceptance, or a dependency change.
   return { task, activity: record, state: activityState(task, now) };
