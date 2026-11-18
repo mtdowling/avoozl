@@ -705,7 +705,7 @@ export async function buildDemo(
       {
         version: 1,
         name: DEMO_NAME,
-        delivery: { runner: "tick", concurrency: 2 },
+        delivery: { runner: "tick" },
         github: {
           mode: "single-repo",
           repositories: { [DEMO_REPOSITORY]: { baseBranch: "main" } },

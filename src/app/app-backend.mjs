@@ -414,8 +414,6 @@ function machineOperation(registry, config, operation, input, home) {
       const change = {};
       if (input.name !== undefined) change.name = String(input.name);
       if (input.root !== undefined) change.root = expandHome(input.root, home);
-      if (input.maxConcurrentRuns !== undefined)
-        change.maxConcurrentRuns = input.maxConcurrentRuns;
       let result = registry.update(id, change);
       if (
         input.enabled !== undefined &&

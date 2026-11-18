@@ -1,9 +1,11 @@
-// Lanes (design §4.26, R88.5): how many worker chats this Mac runs at once.
-// `lanes.local` in .avoozl.json defaults to 3; more lanes come from remote
-// hosts. A ready task beyond the free lanes waits for the next tick.
+// Lanes (design §4.26, R6.3, R88.5): how many worker chats this machine runs
+// at once. `lanes.local` in the machine file (~/.config/avoozl/config.json)
+// defaults to 3; `lanes` in .avoozl.json is still read as old input. More
+// lanes come from remote hosts. A ready task beyond the free lanes waits for
+// the next tick.
 export const DEFAULT_LANES = Object.freeze({ local: 3 });
 
-// `lanes` from .avoozl.json, validated, with defaults. Throws on a bad value.
+// `lanes`, validated, with defaults. Throws on a bad value.
 export function validateLanes(value, where = "lanes") {
   if (value === undefined) return { ...DEFAULT_LANES };
   if (!value || typeof value !== "object" || Array.isArray(value))

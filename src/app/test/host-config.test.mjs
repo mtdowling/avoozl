@@ -100,7 +100,7 @@ test("a second Kiro Crew home gets its own Avoozl config and catalog", () => {
   );
 });
 
-test("host configuration rejects secrets and invalid concurrency", () => {
+test("host configuration rejects secrets and ignores old concurrency", () => {
   assert.throws(
     () =>
       normalizeHostConfig({
@@ -109,30 +109,20 @@ test("host configuration rejects secrets and invalid concurrency", () => {
       }),
     /secret-like key githubToken/,
   );
-  assert.throws(
-    () =>
-      normalizeHostConfig({
-        version: 1,
-        maxConcurrentRuns: 0,
-      }),
-    /maxConcurrentRuns must be an integer from 1 to 256/,
-  );
-  assert.throws(
-    () =>
-      normalizeHostConfig({
-        version: 1,
-        workspaces: {
-          invalid: {
-            root: "/does/not/exist",
-            maxConcurrentRuns: 65,
-          },
-        },
-      }),
-    /invalid\.maxConcurrentRuns must be an integer from 0 to 64/,
-  );
+  // An old file's maxConcurrentRuns, even out of its old range, loads with
+  // no error and is dropped (R6.3).
+  const old = normalizeHostConfig({
+    version: 1,
+    maxConcurrentRuns: 0,
+    workspaces: {
+      old: { root: "/does/not/exist", maxConcurrentRuns: 65 },
+    },
+  });
+  assert.equal("maxConcurrentRuns" in old, false);
+  assert.equal("maxConcurrentRuns" in old.workspaces.old, false);
 });
 
-test("registry adds isolated workspaces and persists concurrency controls", () => {
+test("registry adds isolated workspaces and persists their controls", () => {
   const { env } = machineEnvironment(),
     first = initializedWorkspace("First"),
     second = initializedWorkspace("Second");
@@ -143,7 +133,7 @@ test("registry adds isolated workspaces and persists concurrency controls", () =
       maxConcurrentRuns: 2,
     });
     assert.equal(added.id, "first");
-    assert.equal(added.maxConcurrentRuns, 2);
+    assert.equal("maxConcurrentRuns" in added, false, "old input, ignored");
     assert.equal(added.state, "closed");
     assert.equal(registry.describe().defaultWorkspace, "first");
     assert.equal(
@@ -152,13 +142,8 @@ test("registry adds isolated workspaces and persists concurrency controls", () =
       "first",
     );
 
-    registry.add("second", {
-      root: second,
-      maxConcurrentRuns: 0,
-    });
-    const paused = registry.setConcurrency("first", 0);
-    assert.equal(paused.dispatchPaused, true);
-    assert.equal(paused.maxConcurrentRuns, 0);
+    registry.add("second", { root: second });
+    assert.equal(registry.setConcurrency, undefined);
     assert.equal(registry.setEnabled("second", false).state, "stopped");
     assert.equal(registry.setEnabled("second", true).state, "closed");
     assert.equal(registry.setDefault("second").default, true);
@@ -178,7 +163,7 @@ test("registry adds isolated workspaces and persists concurrency controls", () =
       registry.catalog.db
         .prepare("SELECT count(*) AS count FROM registration_receipts")
         .get().count,
-      6,
+      5,
     );
   } finally {
     registry.close();
@@ -186,7 +171,13 @@ test("registry adds isolated workspaces and persists concurrency controls", () =
 
   registry = new WorkspaceRegistry({ env, home: "/unused" });
   try {
-    assert.equal(registry.get("first").maxConcurrentRuns, 0);
+    assert.equal(
+      "maxConcurrentRuns" in
+        JSON.parse(fs.readFileSync(registry.configPath, "utf8")).workspaces
+          .first,
+      false,
+      "never written",
+    );
     assert.equal(registry.get("first").state, "draining");
     assert.equal(registry.describe().defaultWorkspace, "second");
   } finally {
@@ -510,14 +501,13 @@ test("duplicate roots, checkout bindings, symlinks, and identity mismatches fail
   }
 });
 
-test("host schema publishes workspace and concurrency contracts", () => {
+test("host schema marks the old concurrency keys deprecated", () => {
   const schema = JSON.parse(fs.readFileSync(hostConfigSchemaPath, "utf8"));
   assert.equal(schema.$id, "https://avoozl.dev/schema/host-config-v1.json");
-  assert.equal(schema.properties.maxConcurrentRuns.minimum, 1);
-  assert.equal(schema.$defs.workspace.properties.maxConcurrentRuns.minimum, 0);
+  assert.equal(schema.properties.maxConcurrentRuns.deprecated, true);
   assert.equal(
-    schema.$defs.workspace.properties.maxConcurrentRuns.description,
-    "Maximum new runs in this workspace. Zero pauses dispatch without stopping active runs.",
+    schema.$defs.workspace.properties.maxConcurrentRuns.deprecated,
+    true,
   );
 });
 

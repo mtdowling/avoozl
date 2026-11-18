@@ -13,7 +13,6 @@ export interface CatalogWorkspace {
   enabled: boolean
   state: string
   served: boolean
-  maxConcurrentRuns?: number
 }
 
 // A person's edit of one workspace (workspaces.update). Fields left out stay.
@@ -21,7 +20,6 @@ export interface WorkspaceEdit {
   id: string
   name?: string
   root?: string
-  maxConcurrentRuns?: number
   enabled?: boolean
   default?: boolean
 }
@@ -195,7 +193,6 @@ export const workspaceState = (state: string) => WORKSPACE_STATES[state] ?? { la
 export interface EditDraft {
   name: string
   root: string
-  maxConcurrentRuns: string
   enabled: boolean
   default: boolean
 }
@@ -204,7 +201,6 @@ export function editDraft(workspace: CatalogWorkspace, isDefault: boolean): Edit
   return {
     name: workspace.name,
     root: workspace.root,
-    maxConcurrentRuns: String(workspace.maxConcurrentRuns ?? 2),
     enabled: workspace.enabled,
     default: isDefault,
   }
@@ -212,18 +208,15 @@ export function editDraft(workspace: CatalogWorkspace, isDefault: boolean): Edit
 
 export function editChanges(workspace: CatalogWorkspace, isDefault: boolean, draft: EditDraft): { change: WorkspaceEdit | null; error: string | null } {
   const name = draft.name.trim(),
-    root = draft.root.trim(),
-    limit = draft.maxConcurrentRuns.trim()
+    root = draft.root.trim()
   if (!name) return { change: null, error: 'Give the workspace a name.' }
   if (name.length > 160) return { change: null, error: 'Keep the name to 160 characters.' }
   if (!root) return { change: null, error: 'Choose the workspace folder.' }
   if (!(root.startsWith('/') || root === '~' || root.startsWith('~/') || /^[A-Za-z]:[\\/]/.test(root) || root.startsWith('\\\\')))
     return { change: null, error: 'Use a full path, starting with / or ~/.' }
-  if (!/^\d+$/.test(limit) || Number(limit) > 64) return { change: null, error: 'Agents at once is a whole number from 0 to 64.' }
   const change: WorkspaceEdit = { id: workspace.id }
   if (name !== workspace.name) change.name = name
   if (root !== workspace.root) change.root = root
-  if (Number(limit) !== (workspace.maxConcurrentRuns ?? 2)) change.maxConcurrentRuns = Number(limit)
   if (draft.enabled !== workspace.enabled) change.enabled = draft.enabled
   if (draft.default && !isDefault) change.default = true
   return { change: Object.keys(change).length > 1 ? change : null, error: null }

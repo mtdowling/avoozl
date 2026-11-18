@@ -364,11 +364,6 @@ export default function WorkspaceView(
               <p className="text-xs text-muted">Change it after you move the folder. The new folder must hold this workspace.</p>
             </FormSection>
             <FormSection title="Running">
-              <label htmlFor="avoozl-ws-edit-limit" className="flex flex-col gap-1 text-sm">
-                <span>Agents at once</span>
-                <Input id="avoozl-ws-edit-limit" type="number" min={0} max={64} step={1} value={edit.maxConcurrentRuns} onChange={(event) => setEdit({ ...edit, maxConcurrentRuns: event.target.value })} style={{ maxWidth: '8rem' }} />
-                <span className="text-xs text-muted">How many tasks run here at the same time. 0 holds new work.</span>
-              </label>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" data-edit-enabled checked={edit.enabled} onChange={(event) => setEdit({ ...edit, enabled: event.target.checked })} />
                 On (ticks run and pages read it)
