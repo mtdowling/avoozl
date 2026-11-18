@@ -62,7 +62,7 @@ export function queuePortion(
   });
 }
 
-const trailers = (entry) =>
+export const trailers = (entry) =>
   entry.tasks
     .filter((t) => typeof t !== "string")
     .map((t) => `Avoozl-Task: ${t.task}@${t.definition}`);
@@ -90,7 +90,7 @@ export function journalChecks(checks = []) {
 }
 
 // Both sides of a conflicted path, appended: `git merge-file --union`.
-async function unionMerge(dir, file) {
+export async function unionMerge(dir, file) {
   const stage = async (n) => {
     try {
       return await git(dir, ["show", `:${n}:${file}`]);

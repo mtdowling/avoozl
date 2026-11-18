@@ -166,7 +166,7 @@ import { landingView } from "./landing-view.mjs";
 import { epicsView } from "./epics-view.mjs";
 import { integratorNeedsYou } from "./landing-lease.mjs";
 import { landingQueueView } from "./landing-queue-view.mjs";
-import { submitBranch } from "./integrator-trains.mjs";
+import { integratorStatus, submitBranch } from "./integrator-trains.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
   checkIntegrationBranch,
@@ -3461,6 +3461,11 @@ export class Operations {
         contentBinding(store)?.plugins.clear();
       return result;
     }
+    // The integrator's leases and running trains, from the store (LT2.5).
+    if (name === "integrator.status")
+      return integratorStatus(store, {
+        config: loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config,
+      });
     if (name === "workspace.tick.health") return tickHealth(store);
     if (name === "workspace.tick.log") return tickLog(store, input);
     if (name === "highlight.languages")

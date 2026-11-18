@@ -74,6 +74,7 @@ const OBSERVE = new Set([
   "graph.view",
   "delivery.view",
   "landing.queue",
+  "integrator.status",
   "conflicts.view",
   "panel.view",
   "untriaged.view",
