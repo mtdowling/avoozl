@@ -329,7 +329,7 @@ export function DocTabs(props: {
       data-review-tabs={props.bar ? undefined : ''}
       {...(props.bar ? { [`${bar_.attr}s`]: '' } : {})}
       onKeyDown={key}
-      style={{ position: 'relative', display: 'flex', gap: 2, borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'thin', minWidth: 0 }}
+      style={{ position: 'relative', display: 'flex', flex: 'none', gap: 2, borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'thin', minWidth: 0 }}
     >
       {props.tabs.map((tab) => {
         const on = tab === props.current,
