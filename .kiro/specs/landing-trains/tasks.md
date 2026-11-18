@@ -71,7 +71,7 @@ person.
 
 ## Phase 3: The train engine
 
-- [ ] lt-3.1 Train records and the back-to-back trigger, after lt-2.3 [LT4] (§D2, §D6)
+- [x] lt-3.1 Train records and the back-to-back trigger, after lt-2.3 [LT4] (§D2, §D6)
   - `landing_trains` table; readiness (cheap checks passed, not paused, `builtOn` satisfied); the trigger with `minBranches`, `maxWaitMinutes`, `maxBranches` and `cooldownSeconds`; trains never overlap; entries in queue order.
   - Done when: Tests with a fake clock: two ready entries with `minBranches` 3 wait until `maxWaitMinutes` and then go as a train of two; twelve ready entries make a train of ten and leave two; a train finishing starts the next only after the cooldown; a paused entry and an entry whose `builtOn` is queued outside the train are not ready, each with its hold reason; no two trains exist for one target at any step.
 - [ ] lt-3.2 Stacking with the cut rule, after lt-3.1 [LT5] (§D7, §D21)
