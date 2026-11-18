@@ -680,6 +680,7 @@ export const CONFLICT_LABELS: Record<string, string> = {
   'content-unavailable': 'Rule set unavailable',
   'provider-out': 'Provider out',
   'routing-failed': 'Routing failed',
+  'tick-failed': 'Tick failed',
   investigation: 'Findings',
   'ready-to-merge': 'Ready to merge',
   'branch-landing': 'Ready to land',

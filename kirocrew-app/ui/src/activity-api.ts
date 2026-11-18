@@ -5,7 +5,7 @@ import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'
 
-export type ActivitySource = 'local' | 'github' | 'plugin' | 'mcp'
+export type ActivitySource = 'local' | 'github' | 'plugin' | 'mcp' | 'tick'
 
 export interface ActivityRow {
   seq: number
@@ -49,6 +49,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   github: 'GitHub',
   plugin: 'Plugin sync',
   mcp: 'MCP or a session',
+  tick: 'Tick',
 }
 
 export const MAX_RETENTION_DAYS = 365

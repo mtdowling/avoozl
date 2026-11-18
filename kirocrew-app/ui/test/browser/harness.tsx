@@ -922,7 +922,10 @@ if (query.get('page') === 'app' && query.get('publiccrews')) {
 // ?page=app&radar=1: the Dashboard has one live Issue Radar claim.
 if (query.get('radar') === '1') {
   answer('delivery.view', () => ({ revision: 1, items: [] }))
-  answer('conflicts.view', () => ({ revision: 1, items: [] }))
+  answer('conflicts.view', () => ({
+    revision: 1,
+    items: query.get('tickfail') === '1' ? [{ kind: 'tick-failed', id: 'tick-failed', taskId: null, title: 'The tick failed 3 times in a row', detail: 'database is locked. Nothing is dispatched, merged or read from GitHub until a tick works.', failures: 3, openedAt: '2026-11-13T11:30:00Z', planArchived: null }] : [],
+  }))
   answer('plan.list', () => ({ items: [] }))
   answer('remote.view', () => ({ workers: [] }))
   const noMetrics = { tasks: 0, leadTimeMs: null, flowEfficiency: null, firstPassRate: null, changeFailureRate: null, integrationsPerDay: null, timeToFixMs: null }
@@ -1219,8 +1222,6 @@ if (query.get('page') === 'workspaces') {
     items = items.map((item) => (item.id === id ? { ...item, ...change } : item))
     return items.find((item) => item.id === id)
   })
-  answer('workspace.tick.health', () => ({ lastRun: null, lock: null }))
-  answer('workspace.tick.log', () => ({ items: [] }))
 }
 
 // The folder picker's reads (workspaces.browse) on every page: a small home
@@ -1337,10 +1338,20 @@ if (query.get('page') === 'activity' || query.get('activity') === '1') {
   const kinds = ['dispatch', 'settings', 'github.close', 'approve', 'board.move', 'label', 'stop', 'resume', 'session.end', 'plugin.sync']
   const sources = ['local', 'github', 'mcp', 'plugin']
   const actors = ['mira', 'worker-chat', 'octo-reviewer', 'github-actions']
-  const all = Array.from({ length: 24 }, (_, at) => {
+  const base = Array.from({ length: 24 }, (_, at) => {
     const seq = 24 - at
     return { seq, at: new Date(Date.parse('2026-11-13T10:00:00Z') - at * 3600e3).toISOString(), source: sources[at % 4], actor: actors[(at * 3) % 4], kind: kinds[at % kinds.length], summary: `${kinds[at % kinds.length]} entry ${seq}`, targetId: null, link: null, redacted: false }
   })
+  // The tick's own rows: a failure with a count, a stall and a recovery.
+  const tickRow = (seq: number, hours: number, kind: string, summary: string) => ({ seq, at: new Date(Date.parse('2026-11-13T10:00:00Z') + hours * 3600e3).toISOString(), source: 'tick', actor: 'avoozl', kind, summary, targetId: null, link: null, redacted: false })
+  const all = [
+    tickRow(27, 2, 'tick.recovered', 'Tick works again after 5 failures'),
+    tickRow(26, 1.5, 'tick.failed', 'Tick failed 5 times in a row: database is locked'),
+    tickRow(25, 0.5, 'tick.stalled', 'Tick had not run for 42 min; it is running again'),
+    ...base,
+  ]
+  sources.push('tick')
+  kinds.push('tick.failed', 'tick.recovered', 'tick.stalled')
   const count = (key: 'source' | 'kind' | 'actor') => {
     const out: Record<string, number> = {}
     for (const row of all) out[row[key]] = (out[row[key]] ?? 0) + 1
