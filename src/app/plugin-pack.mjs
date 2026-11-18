@@ -45,7 +45,7 @@ const PACK_SETTINGS = Object.freeze({
   project: ["fields", "statusValues"],
   epicIssueType: null,
   contentRules: ["sets"],
-  delivery: ["reviewers", "agent", "model", "runner", "concurrency"],
+  delivery: ["reviewers", "agent", "model", "concurrency"],
   // Issue Radar crews (radar-coder RC7.4): what Set up shows and the labels
   // and review rules a repository gets. A pack creates no crew.
   crews: ["count", "models", "labels", "reviewRules", "template"],

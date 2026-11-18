@@ -200,9 +200,8 @@ outside Git, so the list itself never lands in a repository.
   can fix the text.
 - `boundaries` narrows a set to some of `plan`, `github`, `brief` and `diff`;
   `repositories` to some registered repositories.
-- `remote` is `allow` or `forbid`: whether tasks this set covers may run on a
-  remote crew. A set that covers `diff` forbids it by default, because its
-  pre-push hook exists only on this machine.
+- `remote` (`allow` or `forbid`) is still read from older files and does
+  nothing: every session runs on this machine.
 - A set this machine does not have blocks everything it covers until you add
   its terms file. A findings message names the set, rule and line, never the
   matched text.
@@ -512,8 +511,8 @@ as early.
 - `commentSteering`: while a worker session Avoozl opened runs a GitHub
   leaf, a new comment on the leaf's issue that names `mention`, by someone
   `allowedActors` and `minimumPermission` allow, is sent to that session once,
-  quoted as data. Avoozl writes nothing to GitHub for it. Workers a Crew Mode
-  conductor started are not steered.
+  quoted as data. Avoozl writes nothing to GitHub for it. A task a person
+  claimed by hand is not steered.
 - `discussions`: each open, unanswered, unlocked discussion in one of
   `categories` whose author the policy allows gets one responder session and
   at most one reply, screened like a `respond` reply. Discussions must be

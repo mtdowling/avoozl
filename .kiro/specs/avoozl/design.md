@@ -992,6 +992,8 @@ allow host: \bbuild0\.corp\.example\b
 
 ### 4.10 Agent and model per session
 
+Replaced 2026-11-18 by the worker-paths spec (D9): every session runs on this machine.
+
 **Decided**, owner 2026-11-18: every session Avoozl opens runs on this
 machine, on the executor its harness names (§4.28). `src/app/session-pins.mjs`
 checks a task's `session` fact: `agent`, `model` or `harness`, and
@@ -4560,7 +4562,7 @@ is a grant to check, a record of who acted, and a revocation.
 
 ### 4.39 One intake list
 
-Added 2026-11-18 (Requirement 110; `docs/simplification-audit.md` item 6,
+Added 2026-11-18 (Requirement 110; `docs/research/simplification-audit.md` item 6,
 F5). Changes §4.12's source list and the issue intake keys of §4.4.
 
 **Why.** Five paths turned an issue into work: `github.issueIntake` (a
@@ -4804,6 +4806,8 @@ Notes:
   session before dispatching anything (Requirement 8.3, 26.12).
 
 ### 5.1 Crew Mode spike result (2026-11-11)
+
+Replaced 2026-11-18 by the worker-paths spec (D6, D7): the tick is the one dispatcher, and a person takes a task by hand with `avoozl claim`.
 
 **Verified.** A Crew Mode conductor delivered a four-task Avoozl graph
 (`slug`, `clamp`; `post-url` requires `slug`; `page-url` requires `post-url` and
@@ -6146,6 +6150,8 @@ shortcut: S4 is a speed bump and S7 leaves a small window between the hash and
 the child's read; upgrade S4 with the upstream request, S7 by copying first.
 
 ### 6.13 Runner mode over SSH
+
+Replaced 2026-11-18 by the worker-paths spec (D8): worker pull on the tick is the one remote route.
 
 Requirement 84. Prototype in `src/app/remote-runner.mjs`; research in
 `docs/research/runner-mode-ssh.md`.

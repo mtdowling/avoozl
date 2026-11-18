@@ -43,7 +43,7 @@ try {
       await page.evaluate(`[...document.querySelectorAll('${scope(width)} [data-nav-item]:not([data-nav-head])')].find((b) => b.textContent.trim().startsWith('Decisions'))?.click()`)
       await wait(page, 300)
       if (width < 768 && (await page.evaluate(`Boolean(document.querySelector('[data-top-rail-list]'))`))) await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
-      await page.evaluate(`[...document.querySelectorAll('[data-shell-main] *')].filter((el) => el.children.length === 0 && el.textContent.includes('Crew Mode dispatch is gone')).at(0)?.click()`)
+      await page.evaluate(`[...document.querySelectorAll('[data-shell-main] *')].filter((el) => el.children.length === 0 && el.textContent.includes('The tick does not start this workspace yet')).at(0)?.click()`)
       await wait(page, 600)
       const shot = async (name) => {
         const file = path.join(out, `${name}-${width}-${theme}.png`)
