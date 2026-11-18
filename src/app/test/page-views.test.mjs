@@ -269,3 +269,24 @@ test("the page's resolution actions are the owner's alone", () => {
       assert.equal(principalAllows({ kind }, operation), false, kind);
   }
 });
+
+test("delivery view reports this Mac's lane limit from the workspace config", async (t) => {
+  const { store } = graphFixture(t);
+  const root = temporaryDirectory("avoozl-lanes-");
+  const limit = async (config) => {
+    if (config)
+      fs.writeFileSync(path.join(root, ".avoozl.json"), JSON.stringify(config));
+    return (
+      await new Operations(store, { workspaceRoot: root }).execute(
+        "delivery.view",
+        {},
+      )
+    ).laneLimit;
+  };
+  assert.equal(await limit(null), null);
+  assert.equal(
+    await limit({ version: 1, delivery: {}, lanes: { local: 5 } }),
+    5,
+  );
+  assert.equal(await limit({ version: 1, delivery: {} }), 3);
+});

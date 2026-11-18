@@ -16,6 +16,8 @@ import {
   canStartNow,
   chipCounts,
   deliveryLanes,
+  loadLabel,
+  machineLoads,
   drawnLane,
   filterLanes,
   laneBackground,
@@ -26,7 +28,9 @@ import {
   resumeStatus,
   type DrawnLaneId,
   type LaneCard,
+  THIS_MAC,
   type LaneId,
+  type MachineLoad,
 } from './delivery-api.ts'
 import { useMedia } from './use-media.ts'
 import { HandSetReview, ReviewRuns } from './ReviewState.tsx'
@@ -59,6 +63,8 @@ function LaneCardView(props: {
   ready: boolean
   phase?: 'running' | 'reviewing'
   graph: Graph | null
+  // The machines this task's chats run on (In progress cards show them).
+  machines: string[]
   // A narrow lane: buttons show their icons alone.
   compact?: boolean
 }) {
@@ -82,6 +88,11 @@ function LaneCardView(props: {
             {card.epic && <Badge>{card.epic}</Badge>}
             {card.plan && <span>{card.plan}{card.phase ? ` · ${card.phase.title}` : ''}</span>}
             <Authority owner={{ authority: card.authority, issue: card.issue }} />
+            {props.phase && (
+              <span data-machine-badge>
+                <Badge>{props.machines.join(', ')}</Badge>
+              </span>
+            )}
             {card.attempt !== null && <Badge>attempt {card.attempt}</Badge>}
             {card.reviewRounds > 0 && <Badge>{card.reviewRounds} review rounds</Badge>}
             {card.deliveryState && <Badge variant={card.deliveryState === 'decision' ? 'warning' : undefined}>{card.deliveryState}</Badge>}
@@ -238,6 +249,8 @@ export function DeliveryBoard(props: {
   lanes: Record<LaneId, LaneCard[]>
   only?: DrawnLaneId
   narrow: boolean
+  // Chats running per machine; one line above the In progress cards.
+  machines?: MachineLoad[]
   card: (card: LaneCard, phase?: 'running' | 'reviewing', compact?: boolean) => ReactNode
   // A filter change: every lane starts over at its first page.
   reset?: string
@@ -297,14 +310,21 @@ export function DeliveryBoard(props: {
               (cards.length === 0 ? (
                 <p className="text-xs text-muted">None</p>
               ) : lane.id === 'in-progress' ? (
-                progressGroups(lanes).map((group) => (
-                  <div key={group.id} className="flex flex-col gap-2" role="group" aria-label={`${group.label}: ${group.cards.length}`}>
-                    <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
-                      {group.label} <Badge>{group.cards.length}</Badge>
-                    </h4>
-                    {list(`${lane.id}:${group.id}`, group.cards, group.id)}
-                  </div>
-                ))
+                <>
+                  {props.machines?.length ? (
+                    <p className="text-xs text-muted" data-machine-counts>
+                      {props.machines.map(loadLabel).join(' · ')}
+                    </p>
+                  ) : null}
+                  {progressGroups(lanes).map((group) => (
+                    <div key={group.id} className="flex flex-col gap-2" role="group" aria-label={`${group.label}: ${group.cards.length}`}>
+                      <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+                        {group.label} <Badge>{group.cards.length}</Badge>
+                      </h4>
+                      {list(`${lane.id}:${group.id}`, group.cards, group.id)}
+                    </div>
+                  ))}
+                </>
               ) : (
                 list(lane.id, cards)
               ))}
@@ -398,8 +418,12 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
   const chats = useMemo(() => chatClient(api), [api])
   const load = useCallback(
     async (id: string) => {
-      const [page, graph] = await Promise.all([client.deliveryPage(id), client.graph(id).catch(() => null)])
-      return { items: page.items, graph, reports: page.contentReports ?? [] }
+      const [page, graph, workers] = await Promise.all([
+        client.deliveryPage(id),
+        client.graph(id).catch(() => null),
+        client.remote(id).then((r) => r.workers, () => []),
+      ])
+      return { items: page.items, graph, reports: page.contentReports ?? [], workers, laneLimit: page.laneLimit ?? null }
     },
     [client],
   )
@@ -451,6 +475,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
     () => (all?.ready ?? []).filter(canStartNow).map((card) => ({ id: card.id, title: card.title, spec: card.spec, state: card.state })),
     [all],
   )
+  const machines = useMemo(() => (value ? machineLoads(value.items, value.workers, value.laneLimit) : null), [value])
   const members = lanes ? new Set(Object.values(lanes).flat().map((card) => card.id)) : null
   const totalCount = all ? Object.values(all).flat().length : 0
   const shownCount = members?.size ?? 0
@@ -518,6 +543,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
             lanes={lanes}
             only={laneForState(filter.state)}
             narrow={narrow}
+            machines={machines?.loads ?? []}
             reset={JSON.stringify(filter)}
             card={(card, phase, compact) => (
               <LaneCardView
@@ -536,6 +562,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
                 onSupersede={onSupersede}
                 onStart={start}
                 graph={value?.graph ?? null}
+                machines={machines?.hostsOf.get(card.id) ?? [THIS_MAC]}
               />
             )}
           />

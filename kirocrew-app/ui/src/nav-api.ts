@@ -30,23 +30,22 @@ export const WAITING_SECTIONS: { key: WaitingSection; title: string; line: strin
   { key: 'triage', title: 'Triage', line: 'New issues and pull requests nothing covers yet. You choose which become work.' },
   { key: 'radar', title: 'Issue Radar', line: 'Issues you sent to an Issue Radar crew, or that one is holding.' },
 ]
-// Dashboards' pages. Home is the 'dashboard' tab itself; Graph, Delivery, Lanes, CI
+// Dashboards' pages. Home is the 'dashboard' tab itself; Graph, Delivery, CI
 // and Landing queue are pages of their own that light Dashboards in the nav.
-export type DashboardPage = 'home' | 'graph' | 'delivery' | 'lanes' | 'ci' | 'landing'
+export type DashboardPage = 'home' | 'graph' | 'delivery' | 'ci' | 'landing'
 export const DASHBOARD_PAGES: { key: DashboardPage; label: string }[] = [
   { key: 'home', label: 'Home' },
   { key: 'graph', label: 'Graph' },
   { key: 'delivery', label: 'Delivery' },
-  { key: 'lanes', label: 'Lanes' },
   { key: 'ci', label: 'CI' },
   { key: 'landing', label: 'Landing queue' },
 ]
-export type Tab = NavTab | 'graph' | 'delivery' | 'lanes' | 'ci' | 'landing'
-const PAGES: string[] = ['graph', 'delivery', 'lanes', 'ci', 'landing']
+export type Tab = NavTab | 'graph' | 'delivery' | 'ci' | 'landing'
+const PAGES: string[] = ['graph', 'delivery', 'ci', 'landing']
 export const dashboardTab = (page: string): Tab => (PAGES.includes(page) ? (page as Tab) : 'dashboard')
 export const dashboardPage = (tab: Tab): DashboardPage | null => (tab === 'dashboard' ? 'home' : PAGES.includes(tab) ? (tab as DashboardPage) : null)
 
-const PAGE_LABEL: Record<string, string> = { graph: 'Graph', delivery: 'Delivery', lanes: 'Lanes', ci: 'CI', landing: 'Landing queue', dashboard: 'Home' }
+const PAGE_LABEL: Record<string, string> = { graph: 'Graph', delivery: 'Delivery', ci: 'CI', landing: 'Landing queue', dashboard: 'Home' }
 export const tabLabel = (key: Tab) => PAGE_LABEL[key] ?? TABS.find((t) => t.key === key)?.label ?? key
 // The nav entry that is lit for a page.
 export const navTab = (key: Tab): NavTab => (dashboardPage(key) ? 'dashboard' : (key as NavTab))
@@ -83,6 +82,8 @@ export function redirectTab(key: string): Place {
       return { tab: 'retros', open: { 'retros-page': key.slice(5) } }
     // Trace is gone (R106): its steps are the Timeline box in task details.
     case 'trace':
+    // Lanes is gone: Delivery's In progress cards name their machine.
+    case 'lanes':
       return { tab: 'delivery' }
     default:
       return { tab: TABS.some((t) => t.key === key) || dashboardPage(key as Tab) ? (key as Tab) : 'dashboard' }
