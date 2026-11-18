@@ -35,6 +35,7 @@ import {
   type TermsFile,
 } from './content-api.ts'
 import { SaveFooter } from './SaveFooter.tsx'
+import { CheckRow, FieldRow, Marker, RawKey } from './FieldRow.tsx'
 import { ChoiceCards, DangerBtn, ICON, IconBtn, IconLabel, SectionHeading } from './controls.tsx'
 import { BookOpen, Ban, Eye, Lock, MessagesSquare, Plus, ShieldCheck, Trash2, X } from './icons.ts'
 import { DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
@@ -209,15 +210,7 @@ function BuiltinDetails({ id, appliesAt, mode }: { id: string; appliesAt: string
 }
 
 function Check(props: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string; disabled?: boolean }) {
-  return (
-    <label className="flex items-start gap-2 text-sm" style={{ opacity: props.disabled ? 0.6 : 1 }}>
-      <input type="checkbox" className="mt-1" checked={props.checked} disabled={props.disabled} onChange={(e) => props.onChange(e.target.checked)} />
-      <span>
-        {props.label}
-        {props.hint && <span className="block text-xs text-muted">{props.hint}</span>}
-      </span>
-    </label>
-  )
+  return <CheckRow label={props.label} help={props.hint} checked={props.checked} disabled={props.disabled} onChange={props.onChange} />
 }
 
 const toggle = (list: string[], item: string, on: boolean) => (on ? [...new Set([...list, item])] : list.filter((x) => x !== item))
@@ -230,21 +223,15 @@ function SetFormView(props: {
   choices: { repositories: string[]; plugins: string[] }
 }) {
   const { form, set, choices } = props
+  const nameHelp = props.isNew ? 'Lowercase letters, digits, dots and dashes. It also names the terms file.' : 'The name is the terms file’s name, so it stays.'
   return (
     <div className="flex flex-col gap-3" data-set-form>
-      <label className="flex flex-col gap-1 text-sm" style={{ maxWidth: '22rem' }}>
-        <span>
-          Name <span className="text-xs text-muted">(required)</span>
-        </span>
-        <Input value={form.id} disabled={!props.isNew} placeholder="company-terms" onChange={(e: { target: { value: string } }) => set({ id: e.target.value })} />
-        <span className="text-xs text-muted">
-          {props.isNew ? 'Lowercase letters, digits, dots and dashes. It also names the terms file.' : 'The name is the terms file’s name, so it stays.'}
-        </span>
-        <code className="text-[11px] text-muted">id</code>
-      </label>
+      <FieldRow id="avoozl-set-id" label="Name" raw="id" rule={{ required: true }} width="22rem" help={nameHelp}>
+        <Input id="avoozl-set-id" aria-describedby="avoozl-set-id-help" value={form.id} disabled={!props.isNew} placeholder="company-terms" onChange={(e: { target: { value: string } }) => set({ id: e.target.value })} />
+      </FieldRow>
       <fieldset className="flex flex-col gap-1.5">
-        <legend className="mb-1 text-sm">
-          When a rule matches <code className="ml-1 text-[11px] text-muted">action</code>
+        <legend className="mb-1 flex flex-wrap items-baseline gap-x-2 text-sm">
+          <span className="font-medium">When a rule matches</span> <RawKey name="action" />
         </legend>
         <ChoiceCards
           id="avoozl-set-action"
@@ -258,8 +245,8 @@ function SetFormView(props: {
         />
       </fieldset>
       <fieldset className="flex flex-col gap-1">
-        <legend className="mb-1 text-sm">
-          Where it checks <code className="ml-1 text-[11px] text-muted">boundaries</code>
+        <legend className="mb-1 flex flex-wrap items-baseline gap-x-2 text-sm">
+          <span className="font-medium">Where it checks</span> <RawKey name="boundaries" />
         </legend>
         <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 14rem), 1fr))' }}>
           {BOUNDARIES.map((b) => (
@@ -268,8 +255,8 @@ function SetFormView(props: {
         </div>
       </fieldset>
       <fieldset className="flex flex-col gap-1">
-        <legend className="mb-1 text-sm">
-          Repositories <span className="text-xs text-muted">(optional)</span> <code className="ml-1 text-[11px] text-muted">repositories</code>
+        <legend className="mb-1 flex flex-wrap items-baseline gap-x-2 text-sm">
+          <span className="font-medium">Repositories</span> <Marker rule={{ required: false }} /> <RawKey name="repositories" />
         </legend>
         {choices.repositories.length ? (
           <div className="flex flex-wrap gap-x-4 gap-y-1">
@@ -282,11 +269,10 @@ function SetFormView(props: {
         )}
         <span className="text-xs text-muted">None checked: every repository.</span>
       </fieldset>
-      <label className="flex flex-col gap-1 text-sm" style={{ maxWidth: '22rem' }}>
-        <span>
-          Rules plugin <span className="text-xs text-muted">(optional)</span>
-        </span>
+      <FieldRow id="avoozl-set-plugin" label="Rules plugin" raw="plugin" rule={{ required: false }} width="22rem" help="A plugin of kind rules, approved under Plugins, can supply this set instead.">
         <select
+          id="avoozl-set-plugin"
+          aria-describedby="avoozl-set-plugin-help"
           value={form.plugin}
           onChange={(e) => set({ plugin: e.target.value })}
           className="rounded border px-2 py-1 text-sm"
@@ -299,9 +285,7 @@ function SetFormView(props: {
             </option>
           ))}
         </select>
-        <span className="text-xs text-muted">A plugin of kind rules, approved under Plugins, can supply this set instead.</span>
-        <code className="text-[11px] text-muted">plugin</code>
-      </label>
+      </FieldRow>
     </div>
   )
 }

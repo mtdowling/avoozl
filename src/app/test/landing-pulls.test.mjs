@@ -254,3 +254,40 @@ test("a repository with no required check is refused", async (t) => {
   const x = await setup(t, github);
   assert.equal((await landNext(x.store, Q, x.steps)).state, "failed");
 });
+
+test("a fork in the target's own organization names its head repository", async (t) => {
+  const github = fakeGithub({ reviews: [approval("r1")] }),
+    upstreamCopy = {
+      number: 3,
+      state: "open",
+      head: { sha: "f".repeat(40), repo: { full_name: "acme/app" } },
+    };
+  // The same owner and branch name in the target itself is not the fork's.
+  github.listPullRequests = async () =>
+    github.calls.created.length ? [github.pr] : [upstreamCopy];
+  const x = await setup(t, github, {
+    registry: sourceRegistry({
+      "acme/app": { url: "https://example.invalid/acme/app.git" },
+      "acme/app-fork": {
+        url: "https://example.invalid/acme/app-fork.git",
+        parent: "acme/app",
+      },
+    }),
+  });
+  x.store.put("landing_queue", {
+    ...landingQueue(x.store, Q)[0],
+    source: { repository: "acme/app-fork", branch: "avoozl/s/work" },
+  });
+  const result = await landNext(x.store, Q, x.steps);
+  assert.equal(result.state, "landed");
+  assert.equal(github.calls.created.length, 1);
+  assert.equal(github.calls.created[0].input.head, "acme:avoozl/s/work");
+  assert.equal(github.calls.created[0].input.head_repo, "app-fork");
+});
+
+test("a fork under another owner sends no head repository", async (t) => {
+  const github = fakeGithub({ reviews: [approval("r1")] }),
+    x = await setup(t, github);
+  await landNext(x.store, Q, x.steps);
+  assert.equal("head_repo" in github.calls.created[0].input, false);
+});

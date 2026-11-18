@@ -7,7 +7,8 @@
 // overlap stack in line order. A card click scrolls to and highlights its
 // lines; a click on highlighted text selects its card. Moved or removed
 // findings list first. A narrow view puts each card after its block.
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
+import { Tabs } from './Tabs.tsx'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Markdown } from './Markdown.tsx'
 import { SmallBtn } from './controls.tsx'
 import { Tooltip } from './Tooltip.tsx'
@@ -33,7 +34,6 @@ import {
   lineText,
   openCounts,
   renderText,
-  tabKey,
   type ChatLink,
   type FindingAction,
   type FindingSeverity,
@@ -302,97 +302,42 @@ export function DocTabs(props: {
   // a count only on the tabs that have one.
   bar?: { label: string; attr: string; prefix: string; labels?: Record<string, string> }
 }) {
-  const bar_ = props.bar ?? { label: 'Spec files', attr: 'data-review-tab', prefix: 'review-tab' }
-  const refs = useRef(new Map<string, HTMLButtonElement>())
-  const bar = useRef<HTMLDivElement>(null)
-  // On a narrow screen the bar scrolls sideways: keep the open tab in view,
-  // moving only the bar, never the page.
-  useEffect(() => {
-    const el = refs.current.get(props.current),
-      box = bar.current
-    if (!el || !box) return
-    if (el.offsetLeft < box.scrollLeft) box.scrollLeft = el.offsetLeft
-    else if (el.offsetLeft + el.offsetWidth > box.scrollLeft + box.clientWidth) box.scrollLeft = el.offsetLeft + el.offsetWidth - box.clientWidth
-  }, [props.current])
-  const key = (event: KeyboardEvent) => {
-    const next = tabKey(event.key, props.tabs, props.current)
-    if (!next) return
-    event.preventDefault()
-    props.onPick(next)
-    refs.current.get(next)?.focus()
-  }
-  return (
-    <div
-      ref={bar}
-      role="tablist"
-      aria-label={bar_.label}
-      data-review-tabs={props.bar ? undefined : ''}
-      {...(props.bar ? { [`${bar_.attr}s`]: '' } : {})}
-      onKeyDown={key}
-      style={{ position: 'relative', display: 'flex', flex: 'none', gap: 2, borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'thin', minWidth: 0 }}
+  const bar = props.bar ?? { label: 'Spec files', attr: 'data-review-tab', prefix: 'review-tab' }
+  const count = (n: number) => (
+    <span
+      data-tab-count={n}
+      aria-label={`${n} open`}
+      style={{
+        minWidth: 18,
+        padding: '0 6px',
+        borderRadius: 999,
+        fontSize: 11,
+        lineHeight: '18px',
+        textAlign: 'center',
+        fontFamily: 'inherit',
+        fontVariantNumeric: 'tabular-nums',
+        background: n ? 'var(--bg-hover)' : 'transparent',
+        color: n ? 'var(--text)' : 'var(--muted)',
+        opacity: n ? 1 : 0.6,
+      }}
     >
-      {props.tabs.map((tab) => {
-        const on = tab === props.current,
-          n = props.counts[tab] ?? 0
-        return (
-          <button
-            key={tab}
-            ref={(el) => {
-              if (el) refs.current.set(tab, el)
-              else refs.current.delete(tab)
-            }}
-            type="button"
-            role="tab"
-            id={`${bar_.prefix}-${tab.replace(/\W/g, '-')}`}
-            aria-selected={on}
-            aria-controls={`${bar_.prefix}-panel`}
-            tabIndex={on ? 0 : -1}
-            {...{ [bar_.attr]: tab }}
-            onClick={() => props.onPick(tab)}
-            style={{
-              flex: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 12px',
-              marginBottom: -1,
-              border: 0,
-              borderBottom: `2px solid ${on ? ACCENT : 'transparent'}`,
-              borderRadius: 0,
-              background: 'transparent',
-              color: on ? 'var(--text-strong, var(--text))' : 'var(--muted)',
-              fontSize: 13,
-              fontWeight: on ? 600 : 500,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {bar_.labels?.[tab] ?? TAB_LABEL[tab] ?? tab}
-            {(!props.bar || props.counts[tab] !== undefined) && (
-            <span
-              data-tab-count={n}
-              aria-label={`${n} open`}
-              style={{
-                minWidth: 18,
-                padding: '0 6px',
-                borderRadius: 999,
-                fontSize: 11,
-                lineHeight: '18px',
-                textAlign: 'center',
-                fontFamily: 'inherit',
-                fontVariantNumeric: 'tabular-nums',
-                background: n ? 'var(--bg-hover)' : 'transparent',
-                color: n ? 'var(--text)' : 'var(--muted)',
-                opacity: n ? 1 : 0.6,
-              }}
-            >
-              {n}
-            </span>
-            )}
-          </button>
-        )
-      })}
-    </div>
+      {n}
+    </span>
+  )
+  return (
+    <Tabs
+      id={bar.prefix}
+      label={bar.label}
+      barAttr={`${bar.attr}s`}
+      tabAttr={bar.attr}
+      current={props.current}
+      onPick={props.onPick}
+      tabs={props.tabs.map((tab) => ({
+        key: tab,
+        label: bar.labels?.[tab] ?? TAB_LABEL[tab] ?? tab,
+        badge: !props.bar || props.counts[tab] !== undefined ? count(props.counts[tab] ?? 0) : undefined,
+      }))}
+    />
   )
 }
 
