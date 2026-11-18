@@ -21,20 +21,10 @@ export const NAV_COLLAPSED_KEY = 'avoozl:nav-collapsed'
 export const NAV_COLLAPSED_WIDTH = 36
 export const LIST: Omit<ColumnSpec, 'key'> = { initial: 360, min: 240, max: 640 }
 export const listSpec = (id: string): ColumnSpec => ({ key: `avoozl:list-width:${id}`, ...LIST })
+// The Review tab's side column (Contents, Comments), dragged by its left edge.
+export const SIDE: ColumnSpec = { key: 'avoozl:review-side-width', initial: 340, min: 240, max: 640 }
 // A folded list is a thin bar, as wide as the collapsed nav.
 export const LIST_FOLDED_WIDTH = 36
-
-// The Review tab's side column (Contents and Comments), beside the spec
-// text. Its handle sits on its left edge. The text never gets narrower
-// than REVIEW_DOC_MIN; the column gives way first.
-export const REVIEW_SIDE: ColumnSpec = { key: 'avoozl:review-side-width', initial: 340, min: 240, max: 720 }
-export const REVIEW_DOC_MIN = 320
-
-// The widest the side column may be in a row this wide (the text, the
-// 8px handle and the column).
-export function sideMax(rowWidth: number): number {
-  return Math.max(REVIEW_SIDE.min, Math.min(REVIEW_SIDE.max, Math.floor(rowWidth - REVIEW_DOC_MIN - 8)))
-}
 
 export const clampWidth = (spec: ColumnSpec, width: number) =>
   Math.round(Math.min(spec.max, Math.max(spec.min, Number.isFinite(width) ? width : spec.initial)))
@@ -77,11 +67,13 @@ export function writeFlag(storage: Store, key: string, on: boolean): void {
 }
 
 // Left and Right move a focused handle 16 px; anything else is not a step.
-// A handle on a column's left edge widens it to the left, so the keys swap.
-export function stepWidth(width: number, key: string, edge: 'left' | 'right' = 'right'): number | null {
-  const wider = edge === 'right' ? 'ArrowRight' : 'ArrowLeft'
-  const narrower = edge === 'right' ? 'ArrowLeft' : 'ArrowRight'
-  return key === wider ? width + 16 : key === narrower ? width - 16 : null
+export function stepWidth(width: number, key: string): number | null {
+  return key === 'ArrowRight' ? width + 16 : key === 'ArrowLeft' ? width - 16 : null
+}
+
+// Up and Down move a focused panel divider 16 px: Up makes the panel taller.
+export function stepHeight(height: number, key: string): number | null {
+  return key === 'ArrowUp' ? height + 16 : key === 'ArrowDown' ? height - 16 : null
 }
 
 export function pageStorage(): Storage | null {

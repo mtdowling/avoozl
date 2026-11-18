@@ -12,7 +12,11 @@
     "prepack": "npm run build",
     "pretest": "npm run check:agents && npm run build",
     "workspace": "node cli.mjs",
-    "test": "node --test --test-timeout=60000 src/*.test.mjs src/app/test/*.test.mjs",
+    "test": "node scripts/run-tests.mjs",
+    "test:map": "node scripts/build-test-map.mjs",
+    "pretest:ci": "npm run check:agents && npm run build",
+    "test:ci": "node scripts/run-tests.mjs --ui",
+    "test:changed": "node scripts/run-tests.mjs --changed",
     "test:ui": "node --test --test-timeout=60000 kirocrew-app/ui/test/*.test.mjs",
     "format": "prettier --write cli.mjs src examples scripts README.md AGENTS.md package.json .github",
     "format:check": "prettier --check cli.mjs src examples scripts README.md AGENTS.md package.json .github"

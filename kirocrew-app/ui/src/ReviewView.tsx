@@ -13,11 +13,11 @@ import { SmallBtn } from './controls.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { CircleAlert, Info, MessageSquare } from './icons.ts'
 import { usePhone } from './list-detail.ts'
+import { ResizeHandle } from './ResizeHandle.tsx'
+import { SIDE, clampWidth, pageStorage, readWidth, writeWidth } from './columns.ts'
 import { shortHash } from './plans-api.ts'
 import { linkHref } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
-import { REVIEW_SIDE, clampWidth, pageStorage, readWidth, sideMax, writeWidth } from './columns.ts'
-import { ResizeHandle } from './ResizeHandle.tsx'
 import {
   ALL_TAB,
   DECIDED,
@@ -46,8 +46,8 @@ import {
 const PROSE = '72ch'
 // Below this width the text and the rail do not fit side by side.
 const WIDE = 720
-// The row's two 20px gaps around the side column's handle.
-const SIDE_GAPS = 40
+// The text never gets narrower than this when the side column is dragged wider.
+const MIN_TEXT = 320
 // Every block a finding is anchored to is tinted by its severity and can be
 // focused; the open finding's block is stronger.
 const HIT_STYLE = `[data-review-doc] [data-review-anchor]{cursor:pointer;border-radius:4px;box-shadow:-3px 0 0 var(--hit,var(--accent));background:color-mix(in srgb,var(--hit,var(--accent)) 10%,transparent)}
@@ -321,8 +321,6 @@ export function DocTabs(props: {
     props.onPick(next)
     refs.current.get(next)?.focus()
   }
-  // flex: none: in a column that scrolls (the side column) a bar that
-  // scrolls sideways would otherwise shrink to nothing.
   return (
     <div
       ref={bar}
@@ -331,7 +329,7 @@ export function DocTabs(props: {
       data-review-tabs={props.bar ? undefined : ''}
       {...(props.bar ? { [`${bar_.attr}s`]: '' } : {})}
       onKeyDown={key}
-      style={{ position: 'relative', display: 'flex', flex: 'none', gap: 2, borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'thin', minWidth: 0 }}
+      style={{ position: 'relative', display: 'flex', gap: 2, borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'thin', minWidth: 0 }}
     >
       {props.tabs.map((tab) => {
         const on = tab === props.current,
@@ -451,8 +449,19 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   const doc = useRef<HTMLDivElement>(null)
   const cardEls = useRef(new Map<string, HTMLElement>())
   const [wide, setWide] = useState(!phone)
-  const [rowWidth, setRowWidth] = useState(0)
   const [side, setSide] = useState<'contents' | 'comments'>('comments')
+  // The side column's width, kept in this browser; the text keeps at least
+  // MIN_TEXT of the row.
+  const [sideWidth, setSideWidth] = useState(() => readWidth(pageStorage(), SIDE))
+  const [rowWidth, setRowWidth] = useState(0)
+  const sideMax = Math.max(SIDE.min, Math.min(SIDE.max, rowWidth ? rowWidth - MIN_TEXT : SIDE.max))
+  const shownSide = Math.min(sideWidth, sideMax)
+  const resizeSide = useCallback((next: number) => {
+    const value = clampWidth({ ...SIDE, max: sideMax }, next)
+    setSideWidth(value)
+    writeWidth(pageStorage(), SIDE, value)
+  }, [sideMax])
+  const sideEl = useRef<HTMLElement>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const scrollTo = useRef<'text' | 'card' | null>(null)
   const blockEls = () => [...(doc.current?.querySelectorAll('[data-source-line]') ?? [])].sort((a, b) => lineOf(a) - lineOf(b)) as HTMLElement[]
@@ -460,28 +469,14 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
   useEffect(() => {
     const measure = () => {
       const width = row.current?.clientWidth ?? 0
+      setRowWidth(width)
       if (width) setWide(width >= WIDE)
-      if (width) setRowWidth(width)
     }
     measure()
     const observer = new ResizeObserver(measure)
     if (row.current) observer.observe(row.current)
     return () => observer.disconnect()
   }, [data, tab])
-  // The side column's width beside the text: its left edge drags, and the
-  // width is kept in this browser. The text never gets narrower than
-  // REVIEW_DOC_MIN; the column gives way first.
-  const [stored, setStored] = useState(() => readWidth(pageStorage(), REVIEW_SIDE))
-  const sideRoom = rowWidth ? sideMax(rowWidth - SIDE_GAPS) : REVIEW_SIDE.max
-  const sideWidth = Math.min(stored, sideRoom)
-  const resizeSide = useCallback(
-    (next: number) => {
-      const value = Math.min(clampWidth(REVIEW_SIDE, next), sideRoom)
-      setStored(value)
-      writeWidth(pageStorage(), REVIEW_SIDE, value)
-    },
-    [sideRoom],
-  )
   // The document's headings, in order, and the one the reader is in.
   const [toc, setToc] = useState<{ id: number; level: number; text: string }[]>([])
   const [current, setCurrent] = useState<number | null>(null)
@@ -701,7 +696,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               ))}
             </section>
           ) : (
-          <div ref={row} data-review-layout={wide ? 'rail' : 'inline'} style={{ display: 'flex', flexDirection: wide ? 'row' : 'column', alignItems: props.fill && wide ? 'stretch' : wide ? 'flex-start' : 'stretch', gap: 20, minWidth: 0, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: wide ? 'hidden' : 'auto' } : {}) }}>
+          <div ref={row} data-review-layout={wide ? 'rail' : 'inline'} style={{ display: 'flex', flexDirection: wide ? 'row' : 'column', alignItems: props.fill && wide ? 'stretch' : wide ? 'flex-start' : 'stretch', gap: wide ? 6 : 20, minWidth: 0, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: wide ? 'hidden' : 'auto' } : {}) }}>
             <section
               role="tabpanel"
               id="review-tab-panel"
@@ -723,13 +718,23 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               </div>
             </section>
             {wide && (
-              <ResizeHandle edge="left" label="Resize the side column" width={sideWidth} min={REVIEW_SIDE.min} max={sideRoom} onResize={resizeSide} onReset={() => resizeSide(REVIEW_SIDE.initial)} attrs={{ 'data-review-side-handle': '' }} />
+              <ResizeHandle
+                label="Resize the side column"
+                width={shownSide}
+                min={SIDE.min}
+                max={sideMax}
+                left={() => sideEl.current?.getBoundingClientRect().right ?? 0}
+                growsLeft
+                onResize={resizeSide}
+                onReset={() => resizeSide(SIDE.initial)}
+              />
             )}
             <aside
+              ref={sideEl}
               aria-label="Side column"
               data-review-rail
               className="flex min-w-0 flex-col gap-2"
-              style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, ...(wide ? (props.fill ? { flex: `0 0 ${sideWidth}px`, width: sideWidth, minHeight: 0, overflowY: 'auto' } : { flex: `0 0 ${sideWidth}px`, width: sideWidth, position: 'sticky', top: 8, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }) : { width: '100%', flex: 'none' }) }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, ...(wide ? (props.fill ? { flex: `0 0 ${shownSide}px`, width: shownSide, minHeight: 0, overflowY: 'auto' } : { flex: `0 0 ${shownSide}px`, width: shownSide, position: 'sticky', top: 8, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }) : { width: '100%', flex: 'none' }) }}
             >
               <DocTabs
                 tabs={['contents', 'comments']}

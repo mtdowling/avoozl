@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Full-app screenshots of a spec's Review tab (&review=1): the side column at
-// its default width and dragged 200 px wider at 1280x800, and a phone at
-// 390 px (no handle; the column sits under the text). Light and dark.
+// Full-app screenshots of the Review tab's side column at its default width,
+// dragged 200 px wider, and on a phone (no handle); 1400 and 390 px, light
+// and dark.
 //   node test/browser/review-side-resize-shots.mjs <out dir>
 import fs from 'node:fs'
 import path from 'node:path'
@@ -22,14 +22,17 @@ fs.mkdirSync(out, { recursive: true })
 const harness = await buildHarness({ hostCss: process.env.AVOOZL_HOST_CSS })
 const browser = await launch(chrome)
 const click = (selector) => `document.querySelector(${JSON.stringify(selector)}).click()`
+const HANDLE = `document.querySelector('[role="separator"][aria-label="Resize the side column"]')`
 try {
   const page = await browser.page()
   const settle = () => page.evaluate('new Promise((r) => setTimeout(r, 400))')
-  for (const width of [1280, 390])
+  for (const width of [1400, 390])
     for (const theme of ['light', 'dark'])
       for (const name of width > 400 ? ['default', 'wider'] : ['phone']) {
-        await page.open(harness.url({ page: 'app', radar: '1', specs: '1', review: '1', theme }), { width, height: width > 400 ? 800 : 1700, dark: theme === 'dark' })
-        await page.evaluate('localStorage.removeItem("avoozl:review-side-width")')
+        const url = harness.url({ page: 'app', radar: '1', specs: '1', review: '1', theme })
+        await page.open(url, { width, height: width > 400 ? 800 : 844, dark: theme === 'dark' })
+        await page.evaluate(`localStorage.removeItem('avoozl:review-side-width')`)
+        await page.open(url, { width, height: width > 400 ? 800 : 844, dark: theme === 'dark' })
         await page.until(`Boolean(document.querySelector('[data-top-row], [data-top-rail-bar]'))`, 30000)
         if (width < 768) {
           await page.evaluate(click('[data-top-rail-bar]'))
@@ -45,8 +48,8 @@ try {
         await page.until(`Boolean(document.querySelector('[data-finding-card]'))`, 30000)
         await settle()
         if (name === 'wider') {
-          const h = await page.evaluate(`(() => { const r = document.querySelector('[data-review-side-handle]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 80 } })()`)
-          await page.drag(h.x, h.y, h.x - 200)
+          const at = await page.evaluate(`(() => { const r = ${HANDLE}.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + 120) } })()`)
+          await page.drag(at.x, at.y, at.x - 200)
           await settle()
         }
         const file = path.join(out, `${name}-${width}-${theme}.png`)
