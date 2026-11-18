@@ -177,7 +177,7 @@ of the other specs.
 
 ## Phase 7: What needs Kiro Crew
 
-- [ ] nk-7.1 The table, and no silent queue, after nk-1.1 [NK8] (§D7)
+- [x] nk-7.1 The table, and no silent queue, after nk-1.1 [NK8] (§D7)
   - Facts:
     - summary: Phase 7 (What needs Kiro Crew). The table, and no silent queue. See NK8; §D7.
     - done:
