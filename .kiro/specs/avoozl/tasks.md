@@ -2040,7 +2040,7 @@ proof or run a real workspace to get past that wait.
   - Next decision: use validated journal recovery for the private pilot, or repair the failed invariant before authorizing that rollout.
 
 
-- [ ] avoozl-p67 P67 Proof: fork source and upstream permissions, after avoozl-p66, 42.1, 42.2, 56.9, 56.10 [R102.7, R102.8, R102.12, R102.19, R102.21] (§4.32)
+- [x] avoozl-p67 P67 Proof: fork source and upstream permissions, after avoozl-p66, 42.1, 42.2, 56.9, 56.10 [R102.7, R102.8, R102.12, R102.19, R102.21] (§4.32)
   - Setup: isolated scratch upstream and authorized fork, a contributor login without upstream push/merge rights and an authorized maintainer login, plus public and private scratch spec homes. Owner supplies needed accounts; use no real project settings.
   - Action: register a pre-PR fork head, checkpoint there, then discover a fork PR head. Rebuild from both while keeping the source branch out of upstream. Move the base and require a refreshed check/review; let the maintainer merge. Try an unregistered source and a private-plan reference on every public surface. Export twice; exercise a divergent mirror import.
   - Expected: fork branches work without upstream copies, source push rights never permit target merge, the exact checked/approved head is accepted from the maintainer merge, public/private homes remain separate, untrusted fetches and leaks are refused. Retry export creates nothing new; import is not forwarded upstream.
