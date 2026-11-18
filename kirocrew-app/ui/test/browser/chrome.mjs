@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const CANDIDATES = [
   '/usr/bin/google-chrome',
@@ -24,6 +25,18 @@ export function findChrome() {
 }
 
 const windows = process.platform === 'win32'
+
+// Screenshots are never committed. Inside this repository they may only go
+// to .avoozl-shots/ (gitignored); anywhere outside it, such as the temp
+// folder, is fine.
+const REPO = fileURLToPath(new URL('../../../../', import.meta.url))
+export function assertShotOutsideGit(file) {
+  const full = path.resolve(file)
+  const inside = path.relative(REPO, full)
+  if (inside.startsWith('..') || path.isAbsolute(inside)) return
+  if (inside.split(path.sep)[0] === '.avoozl-shots') return
+  throw Error(`Screenshots stay outside git: write ${file} under .avoozl-shots/ or the temp folder.`)
+}
 
 // Runs beside the test process. When that process dies, even by SIGKILL or
 // a test timeout, it kills the browser and its helpers and removes the
@@ -220,6 +233,7 @@ export async function launch(chrome) {
       },
       // `selector` crops to that element, past the viewport if it is taller.
       async screenshot(file, { selector } = {}) {
+        assertShotOutsideGit(file)
         const box = selector
           ? await evaluate(`(() => { const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect(); return r && { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height } })()`)
           : null

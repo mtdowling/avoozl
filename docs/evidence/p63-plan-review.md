@@ -1,5 +1,7 @@
 # P63 live: a draft is reviewed on another model and the person sees it at approval
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 Proof P63 (Requirement 99, design §4.29), run 2026-11-17 00:39–03:31 UTC
 on a Mac, with real Kiro Crew chats in a throwaway Kiro Crew 0.12.2.4
 (own home, port 5697), on Avoozl `main` plus the fixes below. Nothing was
@@ -67,10 +69,10 @@ setup cards were skipped first (nothing imported, no setting changed).
 
 | | Light | Dark |
 |---|---|---|
-| Approve one spec, desktop 1280 | ![](p63-plan-review/desktop-light-approve.png) | ![](p63-plan-review/desktop-dark-approve.png) |
-| Approve 1 spec (batch), desktop 1280 | ![](p63-plan-review/desktop-light-approve-batch.png) | ![](p63-plan-review/desktop-dark-approve-batch.png) |
-| Approve one spec, phone 390 | ![](p63-plan-review/phone-light-approve.png) | ![](p63-plan-review/phone-dark-approve.png) |
-| Approve 1 spec (batch), phone 390 | ![](p63-plan-review/phone-light-approve-batch.png) | ![](p63-plan-review/phone-dark-approve-batch.png) |
+| Approve one spec, desktop 1280 | checked, not kept in git | checked, not kept in git |
+| Approve 1 spec (batch), desktop 1280 | checked, not kept in git | checked, not kept in git |
+| Approve one spec, phone 390 | checked, not kept in git | checked, not kept in git |
+| Approve 1 spec (batch), phone 390 | checked, not kept in git | checked, not kept in git |
 
 ## Bugs found first
 
