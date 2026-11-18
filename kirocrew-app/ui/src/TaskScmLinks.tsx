@@ -8,6 +8,7 @@ import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref, safeHref } from './views-api.ts'
 import { checksLine, scmLabel, type ScmChecks, type ScmLink, type TaskScmLinks } from './task-api.ts'
 import { Hint } from './ui/Hint'
+import { Box } from './ui/Box'
 
 const DOT: Record<ScmChecks['dot'], string> = {
   pass: 'var(--ok)',
@@ -34,25 +35,25 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
       <Hint as="dt">{label}</Hint>
-      <dd className="min-w-0 break-words">{children}</dd>
+      <Box as="dd" minW0 breakWords>{children}</Box>
     </>
   )
 }
 
 export function Checks({ checks }: { checks: ScmChecks }) {
   return (
-    <span className="flex items-start gap-1.5" data-checks-dot={checks.dot}>
+    <Box as="span" flex items="start" gap="1.5" data-checks-dot={checks.dot}>
       <span
         aria-hidden="true"
         className="mt-1.5 inline-block h-2 w-2 flex-none rounded-full"
         style={checks.dot === 'stale' ? { border: `1.5px solid ${DOT.stale}` } : { background: DOT[checks.dot] }}
       />
       <Tooltip text={`Read for ${checks.head}${checks.current ? '' : '. Not the current head: run them again to see its state.'}`}>
-        <span className="min-w-0">
+        <Box as="span" minW0>
           <Out to={checks.url}>{checksLine(checks)}</Out>
-        </span>
+        </Box>
       </Tooltip>
-    </span>
+    </Box>
   )
 }
 

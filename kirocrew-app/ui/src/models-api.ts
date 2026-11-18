@@ -24,6 +24,7 @@ export const ROLES = [
   { key: 'issuePlanner', label: 'Issue planner', line: 'Breaks a labeled issue into a spec and critiques it.', agent: false, model: false },
   { key: 'planAnswer', label: 'Spec review answer', line: 'Answers a spec review’s findings in the spec folder.', agent: false, model: false },
   { key: 'prReview', label: 'Pull request review', line: 'Reviews a pull request a person asked about.', agent: false, model: false },
+  { key: 'assist', label: 'Assistant', line: 'Answers from the page’s Open chat buttons when Kiro Crew is not running. Read-only.', agent: false, model: false },
 ] as const
 export type Role = (typeof ROLES)[number]['key']
 export interface RoleRow {
@@ -34,7 +35,7 @@ export interface RoleRow {
 export type RoleTable = Partial<Record<Role, RoleRow>>
 // What each role may do to files: the worker writes code and the planner
 // writes spec files; the others only read.
-export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = { worker: 'write', falsifier: 'read', planner: 'write', planReviewer: 'read', retro: 'read', reviewDraft: 'read', verifier: 'read', reviewer: 'read', responder: 'read', taskSummary: 'read', issuePlanner: 'write', planAnswer: 'write', prReview: 'read' }
+export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = { worker: 'write', falsifier: 'read', planner: 'write', planReviewer: 'read', retro: 'read', reviewDraft: 'read', verifier: 'read', reviewer: 'read', responder: 'read', taskSummary: 'read', issuePlanner: 'write', planAnswer: 'write', prReview: 'read', assist: 'read' }
 // The Kiro Crew chat; any other harness is a supervisor child.
 export const KIROCREW_HARNESS = 'kirocrew'
 // The agent each agent role opens on when none is picked.
@@ -79,10 +80,10 @@ export function toRoles(form: RoleTable): RoleTable {
 // The harness choices: the project's default, the Kiro Crew chat, then this
 // machine's definitions. A saved name with no file here still shows.
 // A definition that cannot run a read-only role is not offered for one.
-export function harnessOptions(definitions: HarnessDefinition[], current: string, access: 'read' | 'write' = 'write') {
+export function harnessOptions(definitions: HarnessDefinition[], current: string, access: 'read' | 'write' = 'write', host?: string) {
   const options = [
     { value: 'auto', label: 'auto (project default)' },
-    { value: KIROCREW_HARNESS, label: 'Kiro Crew chat' },
+    { value: KIROCREW_HARNESS, label: host === 'standalone' ? 'Kiro Crew chat (Needs Kiro Crew)' : 'Kiro Crew chat' },
     ...definitions
       .filter((d) => d.name !== KIROCREW_HARNESS && d.name !== 'auto')
       .filter((d) => access === 'write' || !d.readRoles || d.name === current)

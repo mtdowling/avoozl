@@ -53,6 +53,7 @@ import {
   writePageState,
   type WorkspaceList,
 } from './workspace-api'
+import { Box } from './ui/Box'
 
 function storage(): Storage | null {
   try {
@@ -213,6 +214,8 @@ function AvoozlPage() {
     else if (parseReviewLink(window.location.search) || parseSpecTab(window.location.search)) go({ tab: 'plans', focus: null, drill: null })
     // ?github=<tab> opens Settings › GitHub, which opens that tab.
     else if (readTab(window.location.search, 'github', GITHUB_TABS.map((t) => t.key))) go({ tab: 'settings', settingsTab: 'github', focus: null, drill: null })
+    // ?settings=<tab> opens Settings on that tab, so a message can link to it.
+    else if (readTab(window.location.search, 'settings', SETTINGS_TABS.map((t) => t.key))) go({ tab: 'settings', settingsTab: readTab(window.location.search, 'settings', SETTINGS_TABS.map((t) => t.key)) as SettingsTab, focus: null, drill: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -310,13 +313,13 @@ function AvoozlPage() {
     <ConfirmProvider>
     <SpecLinkContext.Provider value={openSpec}>
     <TaskDrawerProvider workspaceId={active} onFocus={(id, title) => openDrill({ kind: 'focus', id, title })}>
-    <div className="flex h-full min-h-0 flex-col">
+    <Box flex hFull minH0 flexCol>
       {phone && (
         // A phone keeps one thin row: the menu button. The brand card and the
         // line controls are at the bottom of the menu it opens.
-        <header className="flex min-w-0 items-center gap-2 px-2 py-1" data-phone-header>
+        <Box as="header" flex minW0 items="center" gap="2" px="2" py="1" data-phone-header>
           <RailButton groups={groups} value={navTab(tab)} child={child} open={railOpen} onOpenChange={setRailOpen} />
-        </header>
+        </Box>
       )}
       {showRail && (
         <RailList
@@ -349,11 +352,11 @@ function AvoozlPage() {
       <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${phone ? '' : 'pb-2'}`} data-shell-main>
       <div className={`flex flex-wrap items-center gap-3 pb-2 ${phone ? 'px-4' : 'px-2'}`} data-main-top>
         {/* The workspace is the pill at the top of the nav (Radar's switcher). */}
-        <span className="flex-1" />
+        <Box as="span" flex1 />
         {/* On a desktop, Refresh as a small icon. A phone keeps it in its menu. */}
-        <span className="flex items-stretch gap-1.5" data-main-actions>
+        <Box as="span" flex items="stretch" gap="1.5" data-main-actions>
           {!phone && <PageRefreshIcon />}
-        </span>
+        </Box>
       </div>
       <DemoBar />
       {!ownBanner && !needsWorkspace && stops.length > 0 && (
@@ -384,12 +387,12 @@ function AvoozlPage() {
             }
             action={
               list?.items.length === 0 ? (
-                <div className="flex flex-wrap items-center justify-center gap-2">
+                <Box flex flexWrap items="center" justify="center" gap="2">
                   <Btn type="button" onClick={openWorkspaces}>
                     Open Settings › Workspaces
                   </Btn>
                   <StartDemoButton />
-                </div>
+                </Box>
               ) : (
                 <StartDemoButton />
               )
@@ -454,7 +457,7 @@ function AvoozlPage() {
       </div>
       </div>
       </div>
-    </div>
+    </Box>
     </TaskDrawerProvider>
     </SpecLinkContext.Provider>
     </ConfirmProvider>
