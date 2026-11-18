@@ -47,9 +47,7 @@ const WIDE = 720
 // Every block a finding is anchored to is tinted by its severity and can be
 // focused; the open finding's block is stronger.
 const HIT_STYLE = `[data-review-doc] [data-review-anchor]{cursor:pointer;border-radius:4px;box-shadow:-3px 0 0 var(--hit,var(--accent));background:color-mix(in srgb,var(--hit,var(--accent)) 10%,transparent)}
-[data-review-doc] [data-review-anchor][data-review-sev=blocker]{--hit:var(--danger)}
-[data-review-doc] [data-review-anchor][data-review-sev=warn]{--hit:var(--warn)}
-[data-review-doc] [data-review-anchor][data-review-sev=info]{--hit:var(--muted)}
+${SEVERITIES.map((s) => `[data-review-doc] [data-review-anchor][data-review-sev=${s}]{--hit:${SEVERITY_INK[s]}}`).join('\n')}
 [data-review-doc] [data-review-anchor]:hover{background:color-mix(in srgb,var(--hit,var(--accent)) 16%,transparent)}
 [data-review-doc] [data-review-anchor]:focus-visible{outline:2px solid var(--hit,var(--accent));outline-offset:2px}
 [data-review-doc] [data-review-hit]{background:color-mix(in srgb,var(--hit,var(--accent)) 24%,transparent)!important}
