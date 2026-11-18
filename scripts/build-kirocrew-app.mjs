@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { rolldown } from "rolldown";
 import { build } from "vite";
 import { buildAgents } from "../src/app/executors/kirocrew/build-agents.mjs";
+import { writeUiStamp } from "../src/app/ui-bundle.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
   app = path.join(root, "kirocrew-app"),
@@ -34,6 +35,8 @@ await build({
   configFile: path.join(ui, "vite.config.ts"),
   mode: "panel",
 });
+// The installed backend refuses a page built from other source (ui-bundle.mjs).
+writeUiStamp(ui);
 
 // Kiro Crew installs the app by copying kirocrew-app, and refuses entry points
 // that resolve outside it, so the CLI and its npm dependencies are copied in.
