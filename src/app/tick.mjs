@@ -8,11 +8,7 @@ import {
   kirocrewExplicitSession,
 } from "./executors/kirocrew.mjs";
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
-import {
-  kirocrewSession,
-  kirocrewReadiness,
-  kirocrewDispatches,
-} from "./executors/kirocrew.mjs";
+import { kirocrewSession, kirocrewDispatches } from "./executors/kirocrew.mjs";
 // workspace.tick: the one bounded, idempotent step a Kiro Crew script cron runs
 // every minute. It returns intents for the script to carry out; it never opens
 // sessions or sends messages itself. It takes the lock, loads policy, records
@@ -29,14 +25,6 @@ import fs from "node:fs";
 import { validateTrackedRouting } from "./placement.mjs";
 import { crewSnapshot, machineFile } from "./crews.mjs";
 import { validateLanes } from "./lanes.mjs";
-import {
-  closeNoFit,
-  fetchAll,
-  openNoFit,
-  routingContext,
-  routingFacts,
-} from "./routing.mjs";
-import { setRoutingMarks } from "./routing-health.mjs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { git, withWorkLock } from "./git.mjs";
@@ -166,7 +154,11 @@ import { ticksHeld } from "./task-issue-retirement.mjs";
 import { revalidateSpecs, scheduleHolds } from "./spec-scheduler.mjs";
 import { landPullRequests } from "./pr-landing.mjs";
 import { landDirect } from "./direct-landing.mjs";
-import { conflictRounds } from "./landing-config.mjs";
+import { applyLandingModes, landingSettings } from "./landing-config.mjs";
+
+// Each repository's `conflicts.maxAttempts`, older keys folded in (R87.6).
+const attemptsFor = (config) => (project) =>
+  landingSettings(config || {}, project.repository, project).maxAttempts;
 import { noteTickRun } from "./tick-activity.mjs";
 
 // The colon keeps this lock out of every configured project's namespace.
@@ -785,7 +777,6 @@ async function runTick(
     github: client,
     breakdownHooks,
     plugins,
-    placement = {},
     folders = null,
   },
 ) {
@@ -841,6 +832,9 @@ async function runTick(
         delivery = ["loaded", "invalid"].includes(policy.status)
           ? deliveryPolicy(memory.value, { machineLanes: machineLanes() })
           : null;
+      // Each repository's `landing.mode` onto its checkouts' project rows,
+      // which the landing code reads (§4.25).
+      if (memory.value) applyLandingModes(store, memory.value);
       const planned = { messages: [], notify: [] };
       if (delivery) {
         // Verdicts first, so a rejection is retried or decided below.
@@ -891,7 +885,7 @@ async function runTick(
           const landed = await landPullRequests(store, {
             github,
             workspaceRoot,
-            rounds: conflictRounds((memory.value || {}).landing),
+            rounds: attemptsFor(memory.value),
           });
           planned.notify.push(...landed.notify);
           planned.messages.push(...landed.messages);
@@ -899,7 +893,7 @@ async function runTick(
           const pushed = await landDirect(store, {
             github,
             workspaceRoot,
-            rounds: conflictRounds((memory.value || {}).landing),
+            rounds: attemptsFor(memory.value),
           });
           planned.notify.push(...pushed.notify);
           planned.messages.push(...pushed.messages);
@@ -1297,38 +1291,10 @@ async function runTick(
             text: error.message,
           });
         }
-      // Placement (§4.10): crews, rules, and readings for this tick. A
-      // broken machine settings file keeps every session local.
-      let routing = null;
-      if (delivery && !unobserved.length)
-        try {
-          routing = routingContext(store, {
-            workspaceRoot,
-            tracked: memory.value || {},
-            ...(placement.localReading
-              ? { local: placement.localReading() }
-              : {}),
-            ...(placement.now ? { now: placement.now() } : {}),
-            script,
-          });
-          await fetchAll(store, routing, { fetch: script });
-          routing.onlyOne = [];
-        } catch (error) {
-          routing = null;
-          planned.notify.push({
-            channel: "failure",
-            title: "Avoozl placed every session on this machine",
-            text: `Placement settings could not be read: ${error.message}`,
-          });
-        }
-      const waits = [],
-        fits = [],
-        placementState = { crews: new Map(), choices: new Map() };
       // No new work for a spec driven elsewhere or being handed off, and
       // none for an away task (R66.6, R66.10, R66.11).
       const held = driverHeldTaskIds(store),
         readOnly = readOnlyPlanIds(store);
-      if (routing) routing.localReadiness = kirocrewReadiness(folders);
       const requested = unobserved.length
           ? []
           : planDispatches(store, bindings).filter((d) => !held.has(d.task)),
@@ -1352,18 +1318,11 @@ async function runTick(
               // Settings › Models' worker harness (R98.3).
               harnesses: (memory.value || {}).harnesses,
               github: readGitHubPolicyOrNull(workspaceRoot),
-              routing,
-              placementState,
-              waits,
-              fits,
             }),
         verify =
           unobserved.length || !delivery
             ? []
-            : planVerifierDispatches(store, delivery, {
-                routing,
-                placementState,
-              });
+            : planVerifierDispatches(store, delivery);
       // Investigate first (§4.21): a falsifier per round of findings, and
       // the Go ahead, Investigate again or Stop each decision owes.
       const investigation =
@@ -1386,29 +1345,6 @@ async function runTick(
             (run) => !readOnly.has(run.task.planId),
           ),
         );
-      // No fit (R41.8): one decision per task; it closes when the task fits.
-      for (const id of fits) closeNoFit(store, id);
-      // Marks for tasks routing holds, shown on each task (routing-health.mjs).
-      if (routing && script)
-        setRoutingMarks(
-          store,
-          Object.fromEntries(
-            waits
-              .filter(
-                ({ result }) =>
-                  result.routingFailed ||
-                  (result.noFit && routing.config.enabled),
-              )
-              .map(({ task, result }) => [
-                task.id,
-                { why: result.why, retryAt: result.retryAt ?? null },
-              ]),
-          ),
-        );
-      for (const { task, result } of waits)
-        if (result.noFit)
-          planned.notify.push(...openNoFit(store, task, result, { script }));
-        else closeNoFit(store, task.id);
       // Timing (§4.11): queued, attempt starts, verifier and review
       // sessions, and merge. Always on; writes only what changed.
       syncSpans(store);
@@ -1531,7 +1467,7 @@ async function runTick(
       );
       const dispatched = dispatch,
         messages = planned.messages;
-      notices.push(...kirocrewDispatches(store, dispatched, waits, folders));
+      notices.push(...kirocrewDispatches(store, dispatched, folders));
       const sends = messages.map((message) => ({
         ...message,
         executor:
@@ -1578,18 +1514,6 @@ async function runTick(
       // The cron's tick queues each notice once for the app's notification
       // channels; the app backend pushes it (notifications.mjs).
       if (script) queueNotifications(store, notices);
-      // A worker the router did not judge, because one choice was left.
-      if (script)
-        for (const one of routing?.onlyOne || [])
-          if (dispatched.some((d) => d.task === one.taskId))
-            recordActivity(store, {
-              source: "local",
-              actor: "avoozl",
-              kind: "routing.only-one",
-              summary: `Only one choice for ${one.taskId}: ${one.crew}${one.model ? " on " + one.model : ""}; no router call`,
-              targetId: one.taskId,
-              key: `routing.only-one:${one.taskId}:${one.attempt}`,
-            });
       // The activity log (§4.19): what GitHub and plugin sync changed since
       // the last tick, once each, then rows past the retention go.
       recordTickActivity(store, memory.value || {});

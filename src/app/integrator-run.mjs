@@ -47,7 +47,7 @@ import {
   runCheap,
   runPlatforms,
 } from "./integrator-validation.mjs";
-import { conflictRounds } from "./landing-config.mjs";
+import { landingSettings } from "./landing-config.mjs";
 import { journalChecks, landWithIntents } from "./landing-trains.mjs";
 import { markLanded, sendFailureBack, syncBase } from "./pr-landing.mjs";
 import { releaseSlots, takeSlots } from "./resource-slots.mjs";
@@ -490,7 +490,9 @@ export async function runTrain(store, ctx) {
         ? settings.validation.cheap
         : (project.checks ?? []),
       rules = mechanicalRules(ctx.config, settings),
-      rounds = ctx.rounds ?? conflictRounds(ctx.config?.landing),
+      rounds =
+        ctx.rounds ??
+        landingSettings(ctx.config, project.repository, project).maxAttempts,
       timeoutFor = ctx.timeoutFor,
       checkOptions = {
         ...(timeoutFor ? { timeoutFor } : {}),

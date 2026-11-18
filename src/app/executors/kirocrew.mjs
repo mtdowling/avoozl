@@ -7,7 +7,6 @@ import {
 } from "../session-requests.mjs";
 import { gatewayClient } from "../gateway-client.mjs";
 // Sidebar placement and project inheritance belong to this executor alone.
-import { taskRepository } from "../../work-model.mjs";
 
 const sidebarPath = (repository) => (repository ? `Avoozl/${repository}` : "");
 
@@ -19,10 +18,6 @@ export function kirocrewDetachedSession(repository = null) {
   return { ...kirocrewSession(repository), project: false };
 }
 
-export function kirocrewRemoteSession(crew) {
-  return { crew: crew.id, project: false };
-}
-
 export function kirocrewSessionSettings(value, label, validateName) {
   return {
     folder: validateName(value.folder, `${label}.folder`, { optional: true }),
@@ -32,26 +27,10 @@ export function kirocrewSessionSettings(value, label, validateName) {
 const unset = (reading, folder) =>
   Boolean(reading && typeof reading === "object") && reading[folder] === false;
 
-export function kirocrewReadiness(reading) {
-  return (task) => ({
-    available: !unset(reading, sidebarPath(taskRepository(task))),
-    hold: {
-      wait: true,
-      noFit: false,
-      folder: true,
-      why: "its chat folder has no project directory",
-    },
-  });
-}
-
-// Keep the planner's order, including its remote-placement fallback. A local
-// dispatch with no inherited project waits and produces the same owner notice.
-export function kirocrewDispatches(store, dispatches, waits, reading) {
-  const pending = new Map(
-    waits
-      .filter(({ result }) => result.folder)
-      .map(({ task }) => [sidebarPath(taskRepository(task)), null]),
-  );
+// Keep the planner's order. A dispatch whose chat folder has no project
+// directory waits and produces one owner notice per folder.
+export function kirocrewDispatches(store, dispatches, reading) {
+  const pending = new Map();
   for (let i = dispatches.length - 1; i >= 0; i--) {
     const dispatch = dispatches[i];
     if (dispatch.executor !== "kirocrew") continue;

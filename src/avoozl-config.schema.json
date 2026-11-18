@@ -68,18 +68,24 @@
           },
           "uniqueItems": true
         }
-      ]
+      ],
+      "deprecated": true,
+      "description": "Ignored. It configured the removed VS Code extension's agent host. Files that still set it load as before."
     },
     "agentManifest": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "deprecated": true,
+      "description": "Ignored. It configured the removed VS Code extension's agent host. Files that still set it load as before."
     },
     "url": {
       "type": "string",
       "format": "uri"
     },
     "ahp": {
-      "$ref": "#/$defs/ahp"
+      "$ref": "#/$defs/ahp",
+      "deprecated": true,
+      "description": "Ignored. It configured the removed VS Code extension's agent host. Files that still set it load as before."
     },
     "conversations": {
       "$ref": "#/$defs/conversations"
@@ -213,13 +219,15 @@
     },
     "landing": {
       "type": "object",
-      "description": "How Avoozl lands finished work. conflictRounds is how many times a landing conflict goes back to the same worker chat before the task goes to Needs you.",
+      "description": "How Avoozl lands finished work. Who merges and how is each GitHub repository's own landing block.",
       "properties": {
         "conflictRounds": {
           "type": "integer",
           "minimum": 0,
           "maximum": 10,
-          "default": 2
+          "default": 2,
+          "deprecated": true,
+          "description": "Older key of each repository's conflicts.maxAttempts, read for a repository that sets none. Still loads; Avoozl does not write it."
         },
         "trains": {
           "type": "object",
@@ -839,7 +847,8 @@
           "$ref": "#/$defs/deliveryInvestigate"
         },
         "ship": {
-          "description": "Who merges a finished pull request: the writer turns on GitHub auto-merge, or a person merges it (design 4.25).",
+          "description": "Older key of each GitHub repository's landing.autoMerge (design 4.25), read for a repository that sets none. manual means false. Still loads; Avoozl does not write it.",
+          "deprecated": true,
           "enum": ["auto-merge", "manual"],
           "default": "auto-merge"
         },
@@ -872,6 +881,8 @@
                 "$ref": "#/$defs/deliveryInvestigate"
               },
               "ship": {
+                "deprecated": true,
+                "description": "Older key of the repository's landing.autoMerge. Still loads; Avoozl does not write it.",
                 "enum": ["auto-merge", "manual"]
               }
             }
@@ -882,6 +893,77 @@
     },
     "flow": {
       "$ref": "#/$defs/flow"
+    },
+    "contentRules": {
+      "description": "Content rule sets (design 4.9). The rules themselves live in a terms file outside Git or in a rules plugin, never here.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "action": {
+                "enum": ["block", "report"],
+                "default": "block"
+              },
+              "boundaries": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "enum": [
+                    "plan",
+                    "github",
+                    "brief",
+                    "diff",
+                    "intake",
+                    "proposal",
+                    "activity",
+                    "evidence",
+                    "notes"
+                  ]
+                }
+              },
+              "repositories": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "plugin": {
+                "type": "string",
+                "minLength": 1
+              },
+              "remote": {
+                "enum": ["allow", "forbid"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "workers": {
+      "description": "Worker mode claims (design 4.28).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "claimStaleAfter": {
+          "description": "When a worker's claim shows in Needs you: like \"90m\", \"24h\" or \"2d\", or a number of seconds.",
+          "type": ["string", "number"],
+          "pattern": "^\\d{1,6}[mhd]$",
+          "exclusiveMinimum": 0,
+          "default": "24h"
+        }
+      }
     },
     "ahpPort": {
       "type": "integer",
@@ -976,6 +1058,10 @@
             "minimum": 1,
             "maximum": 32
           }
+        },
+        "alias": {
+          "type": "string",
+          "description": "This machine's name."
         }
       }
     },
@@ -1074,6 +1160,18 @@
           "additionalProperties": {
             "type": "object",
             "properties": {
+              "via": {
+                "enum": ["local"],
+                "description": "Run the host's command on this machine instead of over ssh."
+              },
+              "argv": {
+                "description": "With via local: the command that stands in for ssh.",
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              },
               "ssh": {
                 "type": "string"
               },
@@ -1679,7 +1777,8 @@
           "description": "Must equal the repository's default branch when a mode is set."
         },
         "coder": {
-          "description": "Ignored. Who codes was removed: the Avoozl worker is the only coder, and an old value still loads."
+          "deprecated": true,
+          "description": "Ignored. Who codes was removed (R91.6). Files that still set it load as before."
         },
         "radar": {
           "type": "object",
@@ -1800,7 +1899,7 @@
         "conflicts": {
           "type": "object",
           "additionalProperties": false,
-          "description": "What Avoozl does with a crew's pull request that conflicts in source code: Avoozl merges the base into it with one resolver chat, or only asks a person.",
+          "description": "What Avoozl does with a conflict: merges the base in and fixes it, or only asks a person.",
           "properties": {
             "onSourceConflict": {
               "enum": ["fix", "ask"],
@@ -1808,16 +1907,38 @@
             },
             "maxAttempts": {
               "type": "integer",
-              "minimum": 1,
+              "minimum": 0,
               "maximum": 10,
-              "default": 1,
-              "description": "Resolver attempts per conflict (one pull request at one head commit) before a person is asked."
+              "default": 2,
+              "description": "Tries per conflict before a person is asked, for landing conflicts sent back to the worker chat and for crew pull requests. Unset reads landing.conflictRounds."
+            }
+          }
+        },
+        "landing": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Who merges and how, for this repository (design 4.25). Edited on Settings > Repository setup > Edit > Landing.",
+          "properties": {
+            "mode": {
+              "enum": ["direct", "pr", "train", "off"],
+              "description": "How Avoozl lands verified work. Unset reads the checkout's projects.<id>.landing, else off."
+            },
+            "autoMerge": {
+              "type": "boolean",
+              "default": true,
+              "description": "true: the writer turns on GitHub auto-merge. false: a person merges. Unset reads delivery.ship."
+            },
+            "method": {
+              "enum": ["squash", "merge"],
+              "default": "squash",
+              "description": "How a pull request merges. Unset reads merge.method."
             }
           }
         },
         "merge": {
           "type": "object",
-          "description": "How a crew pull request lands when Avoozl arms auto-merge.",
+          "deprecated": true,
+          "description": "Older key of landing.method. Still loads; Avoozl does not write it.",
           "additionalProperties": false,
           "properties": {
             "method": {

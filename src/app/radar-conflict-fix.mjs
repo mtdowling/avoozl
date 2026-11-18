@@ -21,6 +21,7 @@ import { linePausedTaskIds } from "./flow.mjs";
 import { git } from "./git.mjs";
 import { parseMarker } from "./github-marker.mjs";
 import { mergeMethodOf } from "./github-policy.mjs";
+import { DEFAULT_CONFLICT_ROUNDS } from "./landing-config.mjs";
 import { armCrewPull } from "./radar-merge-method.mjs";
 import { parseMarkers } from "./radar-claims.mjs";
 import { effectiveShip } from "./radar-merge-path.mjs";
@@ -63,10 +64,13 @@ const fixes = (store) =>
   store.list("receipts").filter((receipt) => receipt.kind === FIX_KIND);
 const OPEN = new Set(["queued", "finishing"]);
 
-// One repository's conflict handling, with its defaults.
-export const conflictSettings = (settings) => ({
+// One repository's conflict handling, with its defaults. `conflicts.maxAttempts`
+// is the one count landing also reads; `rounds` is the older
+// `landing.conflictRounds` (R87.6).
+export const conflictSettings = (settings, rounds) => ({
   onSourceConflict: settings?.conflicts?.onSourceConflict ?? "fix",
-  maxAttempts: settings?.conflicts?.maxAttempts ?? 1,
+  maxAttempts:
+    settings?.conflicts?.maxAttempts ?? rounds ?? DEFAULT_CONFLICT_ROUNDS,
 });
 // A conflict is one pull request at one head commit.
 const conflictKey = (repository, pr, head) => `${repository}#${pr}@${head}`;
@@ -110,7 +114,10 @@ async function finish(context, receipt) {
   for (const step of STEPS) {
     if (receipt.steps.includes(step)) continue;
     if (step === "arm") {
-      if (effectiveShip(delivery || {}, receipt.repository) === "auto-merge") {
+      if (
+        effectiveShip(delivery || {}, receipt.repository, settings) ===
+        "auto-merge"
+      ) {
         const pull = await github.pullRequest(config, receipt.pr);
         if (pull?.node_id)
           await armCrewPull(github, config, pull, mergeMethodOf(settings));

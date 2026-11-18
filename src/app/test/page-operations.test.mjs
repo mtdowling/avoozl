@@ -65,9 +65,6 @@ test("the owner may run every operation the app page sends", () => {
   const found = pageOperations();
   // The pages and Settings tabs this walk must reach.
   for (const operation of [
-    "routing.view",
-    "routing.update",
-    "crews.update",
     "delivery.settings.get",
     "delivery.settings.update",
     "github.settings.get",
@@ -130,7 +127,7 @@ function sign(body, kind = "owner-session") {
   return `${encoded}.${signature}`;
 }
 
-// The Routing page and Settings > Delivery showed the caller error because
+// The old Routing page and Settings > Delivery showed the caller error because
 // the installed backend was built before routing.view and delivery.settings.*
 // existed, while the page was new. An operation this backend does not offer
 // says so and names the rebuild, instead of blaming the caller.

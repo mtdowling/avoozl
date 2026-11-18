@@ -495,7 +495,7 @@ test("mirror setup reads and saves the source's entry, not a new one", async (t)
   assert.equal(saved[SOURCE].baseBranch, "main");
 });
 
-test("Adopt matches merge.method to the merge methods the repository allows", async () => {
+test("Adopt matches landing.method to the merge methods the repository allows", async () => {
   const methods = [];
   const run = async (allows, extra = {}) => {
     const github = fakeGitHub({ repos: { [MIRROR]: { allows } } }),
@@ -511,7 +511,7 @@ test("Adopt matches merge.method to the merge methods the repository allows", as
   assert.equal(line((await run({})).dry, "merge-method").status, "ok");
   // Only merge commits allowed: Adopt proposes merge and saves it on apply.
   const { d, dry } = await run({ allow_squash_merge: false });
-  assert.match(line(dry, "merge-method").detail, /merge\.method to merge/);
+  assert.match(line(dry, "merge-method").detail, /landing\.method to merge/);
   await mirrorSetup("adopt", d, confirm(dry));
   assert.deepEqual(methods, ["merge"]);
   // A repository set to merge that allows squash is switched to squash.

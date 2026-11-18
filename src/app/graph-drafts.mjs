@@ -72,7 +72,6 @@ export function draftGraph(data, folders = [], plans = []) {
         needsYou: null,
         manual: proposal.manual === true,
         manualDone: null,
-        routingFailed: null,
         noSession: null,
         handSetReview: false,
         nextAction: null,

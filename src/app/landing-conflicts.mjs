@@ -2,7 +2,7 @@
 // design §4.26 Land, task 41.4). When the merge of the base into a portion
 // conflicts (landNext state "conflict", landing-queue.mjs), the task's own
 // worker chat gets the conflicted file list to resolve, for at most
-// `landing.conflictRounds` rounds (default 2). After that the task goes to
+// `conflicts.maxAttempts` rounds (default 2). After that the task goes to
 // Needs you. There is no separate resolver chat.
 //
 // The chat is the task's newest worker binding. Its rounds are counted on the
