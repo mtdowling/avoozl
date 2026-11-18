@@ -1,4 +1,4 @@
-// The Onboard flow's reads (Settings > Repositories > Onboard). Adding a
+// The Onboard flow's reads (Settings > Repository setup > Set up GitHub and import specs). Adding a
 // repository walks: pick the folder, pick the mode, check GitHub, set up
 // GitHub, import specs, leak scan, preview issues, finish. Every write in
 // that flow is an existing operation (repositories.configure,

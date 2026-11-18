@@ -1,4 +1,4 @@
-// The Onboard flow (Settings > Repositories > Onboard): calls and pure
+// The Onboard flow (Settings > Repository setup > Set up GitHub and import specs): calls and pure
 // helpers. Adding a repository goes from a folder to plans ready to approve
 // in Plans. Every step reuses an existing operation; the flow's own reads
 // are onboarding.inspect, onboarding.scan and plan.issues.preview. Nothing
