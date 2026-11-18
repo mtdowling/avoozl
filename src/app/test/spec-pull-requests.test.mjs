@@ -462,7 +462,6 @@ test("the view shows the diff against the approved revision, and Decisions gets 
   assert.equal(view.canApprove, true);
   assert.equal(view.review.state, "not-reviewed");
   assert.deepEqual(view.files.map((file) => [file.file, file.status]).sort(), [
-    ["avoozl/manifest.json", "added"],
     ["design.md", "added"],
     ["requirements.md", "added"],
     ["tasks.md", "added"],

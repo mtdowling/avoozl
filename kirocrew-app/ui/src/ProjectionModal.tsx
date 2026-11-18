@@ -10,6 +10,7 @@ import { describeWrite, writesByRepository } from './plans-api.ts'
 import { UNDO, confirmLines, headline, preflightFailures, projectionClient, toggleBatch, type ProjectionDetail } from './projection-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Hint } from './ui/Hint'
+import { Checkbox } from './ui/Checkbox'
 
 type Client = ReturnType<typeof projectionClient>
 
@@ -124,8 +125,7 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
                 <Hint as="p">Small tasks in one wave can share one issue. Each task keeps its own ID.</Hint>
                 {preview.suggestedBatches!.map((group) => (
                   <label key={group.join()} className="flex items-start gap-2">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={batches.some((entry) => entry.join() === group.join())}
                       disabled={busy}
                       onChange={() => void load(toggleBatch(batches, group))}

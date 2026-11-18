@@ -1,7 +1,9 @@
 import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { AppApiProvider } from '@kirocrew/app-sdk'
-import { Badge, Btn, SegmentedControl } from '@kirocrew/app-sdk/ui'
+import Badge from '../ui/Badge'
+import { Btn } from '../ui/Btn'
+import { SegmentedControl } from '../ui/SegmentedControl'
 import manifest from '../../../app.json'
 import App from '../App.tsx'
 import {
@@ -45,7 +47,7 @@ function Header() {
       <div className="min-w-0 flex-1">
         {notice ? (
           <button type="button" onClick={clearNotice} aria-label="Dismiss notice">
-            <Badge variant={notice.type === 'error' ? 'err' : notice.type === 'success' ? 'ok' : 'muted'}>{notice.message}</Badge>
+            <Badge variant={notice.type === 'error' ? 'danger' : notice.type === 'success' ? 'success' : undefined}>{notice.message}</Badge>
           </button>
         ) : null}
       </div>

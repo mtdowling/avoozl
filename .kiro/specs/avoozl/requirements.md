@@ -290,10 +290,13 @@ safe pieces.
 8. No task SHALL become executable until a person approves the exact graph
    revision.
 
-### Requirement 5: Design-first manifests
+### Requirement 5: Design-first task facts
+
+(Changed 2026-11-18, Requirement 111: task facts are `Facts:` bullets in
+`tasks.md`; there is no `avoozl/manifest.json`.)
 
 **User story:** As a developer who wrote requirements and design in Spec Builder,
-I want Avoozl to derive a machine task manifest from them, so that I can
+I want Avoozl to read each task's facts beside it in `tasks.md`, so that I can
 deliver the design without retyping it.
 
 #### Acceptance criteria
@@ -301,14 +304,14 @@ deliver the design without retyping it.
 1. WHEN a Kiro spec folder (Requirement 30), including one Spec Builder wrote,
    has approved requirements (or bugfix analysis) and design THEN Avoozl SHALL
    read its files from disk and SHALL NOT call Spec Builder routes.
-2. Avoozl SHALL generate `avoozl/manifest.json` in that folder, mapping each
-   `tasks.md` task ID to repository, dependencies, completion condition, and
+2. Each `tasks.md` task SHALL carry its repository, dependencies and
+   completion condition in its `Facts:` bullet (Requirement 111), with
    source references in the prose.
-3. A critique SHALL compare the manifest with the prose and report every
+3. A critique SHALL compare the task facts with the prose and report every
    uncovered requirement and every task with no prose source.
 4. Deterministic validation SHALL check structure and references and SHALL be
    repeatable: the same inputs produce the same result.
-5. The manifest and validation result SHALL be pinned to the exact Git commit of
+5. The task facts and validation result SHALL be pinned to the exact Git commit of
    the prose they came from.
 
 ### Requirement 6: Readiness and bounded automatic local delivery
@@ -720,7 +723,7 @@ systems, so that one can be added later without changing task identity.
    second real route exists. A private code-review route, in its own private
    package, SHALL count as that second real route; a test fake SHALL NOT
    (clarified 2026-11-12).
-5. A task in the delivery manifest MAY name a `route`, which overrides the
+5. A task's facts MAY name a `route`, which overrides the
    workspace or repository route for that task only, so one graph can mix
    local and remote leaves (for example local -> remote -> local).
 6. WHEN a ready leaf's route is not local THEN dispatch SHALL call that
@@ -1031,8 +1034,8 @@ on GitHub.
     reverted; later the same day, a drag to Done became a close.)
 15. Avoozl SHALL set Release when it adds the item, from the plan's
     milestones. WHEN someone changes Release THEN Avoozl SHALL keep the
-    value and SHALL draft a manifest change for review, so the plan catches
-    up. Avoozl SHALL write Release again only when an approved manifest moves
+    value and SHALL draft a change to the task's facts for review, so the plan
+    catches up. Avoozl SHALL write Release again only when an approved revision moves
     the task and the field still holds the value Avoozl last wrote.
     (Changed 2026-11-12: the actor check no longer applies to Release.)
 16. Built-in Project workflows (`@github-project-automation`) SHALL write
@@ -1094,7 +1097,7 @@ layout, so that Kiro, Spec Builder, and Avoozl read the same files.
    front-matter at the top of the spec's `requirements.md` or `bugfix.md`
    (for a plan with no spec folder, from front-matter at the top of its own
    text, or from metadata a person set). Avoozl SHALL read it and SHALL NOT
-   write it, SHALL NOT keep it in the manifest, and SHALL NOT infer one from a
+   write it, SHALL NOT keep it in task facts, and SHALL NOT infer one from a
    title or path: a plan without one is shown as Uncategorized. Malformed
    front-matter SHALL produce a warning diagnostic with its file and line and
    SHALL NOT block approval. The Plans view SHALL group plans by category.
@@ -1360,7 +1363,7 @@ work where it already looks and Avoozl keeps the graph moving.
    hidden field or a managed description section). A plugin that cannot store
    them SHALL be refused for the kind `tracker`.
 4. WHEN the tracker has no native blocked-by links THEN the graph SHALL stay
-   in Avoozl: edges SHALL come from the approved manifest in Git and be cached
+   in Avoozl: edges SHALL come from the approved task facts in Git and be cached
    in SQLite, and the tracker SHALL hold only records. Edge changes SHALL go
    through a plan change. WHEN the plugin declares the `edges` capability THEN
    Avoozl SHALL project blocking edges as the tracker's own links, and those
@@ -1374,7 +1377,7 @@ work where it already looks and Avoozl keeps the graph moving.
 7. Rebuild SHALL hold for a workspace of plugin tasks: delete SQLite, run
    `avoozl rebuild`, then `avoozl tick`, and every task, edge, status,
    completion verdict, and managed-field baseline SHALL match, from `list`,
-   `read`, and the approved manifest alone.
+   `read`, and the approved task facts alone.
 8. The completion verdict SHALL stay Avoozl's, from the task's route
    (Requirement 7 for local, Requirement 22.8 for a route plugin). After the
    verdict, Avoozl SHALL call `close` with reason `completed`.
@@ -1581,7 +1584,7 @@ public or shared repositories cannot leak what the company keeps private.
    as unavailable.
 3. Avoozl SHALL check content at every boundary where it writes or approves
    content: the planner's drafted spec files before they are proposed; plan
-   approval (every spec file and `avoozl/manifest.json`); issue and pull
+   approval (every spec file); issue and pull
    request titles and bodies; comments and replies; Project field values;
    worker, verifier, and reviewer briefs; and each worker's diff before it
    merges, added lines only. A rule set MAY narrow the boundaries and
@@ -1825,7 +1828,8 @@ and nobody waits on CI to learn about a failure.
 Added 2026-11-12 (owner request). Design §4.11.
 
 **Changed 2026-11-18.** Criteria 1 to 4 are replaced by Requirement 108:
-the planner decides batches in the manifest, and batching has no setting.
+the planner decides batches in `tasks.md` (Requirement 111.4), and batching
+has no setting.
 Criteria 5 to 7 still hold.
 
 **User story:** As the owner, I want small related tasks to share one run,
@@ -1834,11 +1838,11 @@ once instead of once per tiny task.
 
 #### Acceptance criteria
 
-1. A leaf SHALL be batchable only when its manifest entry sets
-   `size: "small"`. Leaves without it SHALL never be batched.
+1. (Replaced by Requirement 108.) A leaf SHALL be batchable only when its
+   facts set `size: "small"`. Leaves without it SHALL never be batched.
 2. Avoozl SHALL group ready batchable leaves into one run when they share
    the key `flow.batch.by` names: `epic` (the same parent) or `files`
-   (overlapping manifest `paths`). The default SHALL be `epic`. (Changed
+   (overlapping `paths` facts). The default SHALL be `epic`. (Changed
    2026-11-13: `epic` is now named `phase`, and `epic` is refused,
    Requirement 59.11.)
 3. A batch SHALL hold at most `flow.batch.max` leaves, default 3. A value of
@@ -2363,12 +2367,12 @@ role names its own `agent` and `model` (design §5.2).
 
 #### Acceptance criteria
 
-1. A manifest task MAY carry `session`: `{agent, model, harness}`, every
+1. A task's facts MAY carry `session`: `{agent, model, harness}`, every
    field optional. Validation SHALL refuse an empty agent or model string
    and any other key.
 2. The checks role and review roles SHALL keep their own `agent` and
    `model` (design §5.2).
-3. The writer's session SHALL come from, in order: the manifest task's
+3. The writer's session SHALL come from, in order: the task's
    `session`, the repository's `delivery` settings, the workspace's
    `delivery` settings, and then Kiro Crew's default agent and `auto`.
 4. Retired.
@@ -2624,7 +2628,7 @@ without my writing a prompt.
    rule blocks. A refused request SHALL record nothing.
 3. Submit SHALL open a planner chat seeded with the fields and Avoozl's
    spec rules: the `.kiro/specs/<name>/` layout with requirements.md,
-   design.md, tasks.md and avoozl/manifest.json, the `category:`
+   design.md and tasks.md with `Facts:` bullets, the `category:`
    front-matter, unique task IDs, the folder and the repositories.
    (Changed 2026-11-13: Submit hands the request to Spec Builder,
    Requirement 65; the planner chat is the fallback.)
@@ -2684,7 +2688,8 @@ progress, and no grouping is made up from a file path.
 #### Acceptance criteria
 
 1. An epic SHALL be its own spec folder with requirements, design, tasks
-   and a versioned manifest with `kind: epic`. Each row SHALL name a member
+   whose `tasks.md` front-matter says `kind: epic` (Requirement 111.4).
+   Each row's facts SHALL name a member
    `plan`, optional `summary`, and optional `step: design | review | implement`.
    Omitted `step` SHALL mean implement. Rows SHALL have no repository,
    checks, completion rule, acceptance or scheduler edges; lifecycle progress
@@ -2706,20 +2711,20 @@ progress, and no grouping is made up from a file path.
    revision SHALL approve only its member list and prose, never a member
    plan or a task.
 5. A **phase** SHALL be a group of tasks inside one plan. A task's phase
-   SHALL come from its manifest entry's `phase` value when it has one, and
+   SHALL come from its `phase` fact when it has one, and
    otherwise from the nearest heading of level 2 or lower above its item in
-   `tasks.md`. The manifest MAY hold a `phases` object that gives each
-   phase ID a title. A task under no heading and with no `phase` value SHALL
+   `tasks.md`. The front-matter MAY name a title for each phase ID as
+   `phase-<id>: <title>`. A task under no heading and with no `phase` value SHALL
    sit under its plan as **No phase**. Phases SHALL group and filter only:
    they SHALL NOT add edges, readiness or completion.
 6. Avoozl SHALL NOT invent an epic or a phase. It SHALL NOT create
    `doc:<path>` epics or any other grouping named after a file. A task with
    no plan SHALL show under **No plan**. No view, list, filter, export or
    brief SHALL show a raw `doc:` ID or a file path as an epic or phase name.
-7. Inside a plan, the manifest `kind` values SHALL be `package` and `leaf`
+7. Inside a plan, the `kind` fact values SHALL be `package` and `leaf`
    (this replaces Requirement 4.3; Requirement 4.4 reads "packages complete
-   only from their children"). An entry with `"kind": "epic"`, a per-entry
-   `epic` value, a top-level `epics` list in a plan's manifest, and an
+   only from their children"). A task with `kind: epic`, a task `epic`
+   fact, an `epics` key in a plan's front-matter, and an
    epic entry's `memberPlan` key SHALL each be a validation error naming
    the file, the entry and the edit that fixes it. Avoozl SHALL NOT load
    any of them under another name.
@@ -2759,7 +2764,7 @@ progress, and no grouping is made up from a file path.
     run. It SHALL turn each per-plan epic into a phase of its plan with the
     same ID and title, move each task in a `doc:` epic to its `tasks.md`
     section or **No phase**, archive each task whose plan is gone with
-    `task.archive` and the reason "plan removed", rewrite each old manifest
+    `task.archive` and the reason "plan removed", rewrite each old
     form of criterion 7 into the new one, and set `flow.batch.by` to
     `phase` where it was `epic`. A second run SHALL change nothing. It
     SHALL NOT approve a plan, start or stop a session, touch GitHub or
@@ -2833,7 +2838,7 @@ the work after it, and what was decided stays with the task.
 Workflow templates
 
 1. A **workflow template** SHALL be one folder in a plugin, listed by the
-   manifest part `template` (Requirement 55.1). A plugin MAY ship only
+   plugin manifest part `template` (Requirement 55.1). A plugin MAY ship only
    templates; such a plugin SHALL have no `entry` and Avoozl SHALL start
    no process for it. A template SHALL be installed, pinned and approved
    as its plugin is (Requirement 34), and SHALL be offered only while its
@@ -2841,8 +2846,8 @@ Workflow templates
 2. A template folder SHALL hold `avoozl-template.json` with `id`, `title`,
    `description`, `inputs`, `prompt` (a Markdown file: the planner
    prompt, also used for Spec Builder once MC-16 allows it), `starter`
-   (a folder with `requirements.md`, `design.md`, `tasks.md` and
-   `avoozl/manifest.json` in the layout of Requirement 30), and MAY hold
+   (a folder with `requirements.md`, `design.md` and `tasks.md` in the
+   layout of Requirement 30), and MAY hold
    `phases`, `proofKinds`, `pack` and `flow`. Any other key SHALL make the
    template invalid, naming the key, and its plugin SHALL show as invalid.
 3. Each input SHALL have an `id`, a `label`, a `type` (`text`, `choice`
@@ -2857,8 +2862,8 @@ Workflow templates
    invalid. Starter tasks MAY include `manual` leaves (criterion 9) and
    proof tasks.
 5. `phases` SHALL list the starter's phase IDs and titles in order, and
-   SHALL match the starter's `tasks.md` headings or manifest `phase`
-   values (Requirement 59.5). `proofKinds` SHALL list named proof outlines
+   SHALL match the starter's `tasks.md` headings or `phase` facts
+   (Requirement 59.5). `proofKinds` SHALL list named proof outlines
    (title, setup, action, expected, what failure means, next decision)
    that the prompt tells the planner to fill in for this plan.
 6. `pack` SHALL be a settings pack under Requirement 55.3–55.7, and
@@ -2885,9 +2890,9 @@ Workflow templates
 
 Manual tasks
 
-9. A leaf MAY set `"manual": true` in its manifest entry: a step only a
-   person does. A manual leaf SHALL have `acceptance` (what the person
-   checks), `repository` (where its issue lives in a GitHub mode) and
+9. A leaf MAY set `manual: true` in its facts: a step only a
+   person does. A manual leaf SHALL have `done` (what the person
+   checks), `repo` (where its issue lives in a GitHub mode) and
    completion `person`, the only completion it may have. It SHALL NOT
    hold `checks`, `agent`, `model`, `size`, `paths` or `route`; lint SHALL
    refuse each, naming the key. A non-manual leaf SHALL NOT use completion
@@ -3108,10 +3113,10 @@ still gets a spec folder it can deliver.
    path.
 2. Avoozl SHALL ship a steering file, `.kiro/steering/avoozl-specs.md`,
    that states the spec layout, the `category:` and `epic:` front-matter,
-   task ID format and uniqueness, phases as `##` headings, the bullet lines
-   Avoozl reads under each task (`_Repository:_`, `_Requires:_`,
-   `_Checks:_`, `_Manual_`), and that Avoozl writes
-   `avoozl/manifest.json` itself. Spec Builder's chat runs the default
+   task ID format and uniqueness, phases as `##` headings, the `Facts:`
+   bullet under each task and the front-matter defaults (Requirement 111),
+   and that no spec folder holds `avoozl/manifest.json`. (Changed
+   2026-11-18, Requirement 111.9.) Spec Builder's chat runs the default
    agent in the spec's repository, which loads `.kiro/steering/**/*.md`.
 3. Before the hand-off, New plan SHALL check whether that file is in the
    spec's repository. When it is missing, the drawer SHALL show its full
@@ -3126,12 +3131,10 @@ still gets a spec folder it can deliver.
    outside the folder Avoozl reads SHALL be named in the notice.
 5. **Plan a goal** in the header SHALL open the same drawer on the Plans
    page.
-6. Once the prose files are there and `tasks.md` reads the same on two
-   ticks, the tick SHALL write `avoozl/manifest.json` from `tasks.md`, then
-   lint the folder and import it as a draft plan once it lints clean. A
-   changed `tasks.md` SHALL rewrite the manifest until the plan's first
-   approval. A manifest Avoozl did not write, or one a person edited since,
-   SHALL never be replaced. Nothing SHALL approve, start an agent or push.
+6. The tick SHALL lint the folder and import it as a draft plan once it
+   lints clean. Avoozl SHALL write nothing into the folder. Nothing SHALL
+   approve, start an agent or push. (Changed 2026-11-18, Requirement 111.9:
+   Avoozl no longer drafts a manifest from `tasks.md`.)
 7. WHEN Spec Builder is turned off, the grant is not yet approved, or Spec
    Builder is missing THEN the drawer SHALL say so in plain words, with how
    to turn it on or approve the grant, and SHALL offer an Avoozl planner
@@ -3624,7 +3627,7 @@ do not build on a wrong reading of the task.
    round, with the reply as data), and **Stop**. These SHALL be person only.
 5. `delivery.investigate.mode` SHALL be `all`, `not-small` (default) or
    `off`. `not-small` skips leaves in a planner batch group (Requirement
-   108.10; it skipped `size: "small"` before 2026-11-18). A manifest task
+   108.10; it skipped `size: "small"` before 2026-11-18). A task's facts
    MAY set `investigate: false` or `true` to override the mode.
 6. Investigation and the falsifier SHALL be Flow spans of their own and
    SHALL count in Flow's usage.
@@ -3719,7 +3722,7 @@ fixes, so that I can tell whether delivery is getting cleaner.
 #### Acceptance criteria
 
 1. A finished task SHALL count as fix work WHEN its spec is a bugfix spec
-   (`bugfix.md`), its manifest `type` is `fix`, it is a stop-the-line fix
+   (`bugfix.md`), its `type` fact is `fix`, it is a stop-the-line fix
    task, or its GitHub issue type is `Bug`.
 2. Flow SHALL show the fix-work share, fix tasks over finished tasks, as a
    card and in the charts by day and by week, with the same filters as the
@@ -3738,7 +3741,7 @@ step by hand when I want it.
 
 1. Who merges SHALL be `autoMerge` in the repository's landing block
    (Requirement 87.1): `true` (default, today's behavior) or `false`. A
-   spec's manifest MAY set a top-level `ship` and a manifest task its own
+   spec's `tasks.md` front-matter MAY set `ship` and a task's facts its own
    `ship`, `auto-merge` or `manual`, as a pin. The task's pin wins, then the
    spec's, then the repository's `autoMerge`. A task that came from a GitHub
    issue follows it like any other. (Changed 2026-11-18, simplification
@@ -4646,7 +4649,7 @@ and a run bound to a review may submit only for its own plan revision.
    `auto` THEN the tick SHALL open one read-only reviewer chat on the
    reviewer's model for that exact revision. The chat SHALL read the spec
    folder at that revision and a clean worktree of each repository the
-   manifest names, at the commit Avoozl records. Its only write SHALL be
+   task facts name, at the commit Avoozl records. Its only write SHALL be
    its findings for its own plan revision.
 4. The reviewer's brief SHALL hold the spec files, the other specs in the
    planning repository, and the code as data, not instructions, and SHALL
@@ -4654,7 +4657,7 @@ and a run bound to a review may submit only for its own plan revision.
    `untestable` (a criterion no check or proof can show), `wrong-reference`
    (a file, function, route or setting the code does not have, checked
    against the code), `hidden-order` (an order stated in prose with no
-   manifest edge), `too-big` (a leaf that will not fit in one pull
+   `after` fact), `too-big` (a leaf that will not fit in one pull
    request), and `conflict` (a clash with another spec). The brief SHALL
    pass content rules at the `brief` boundary.
 5. Each finding SHALL have a kind, a severity (`blocking`, `important`,
@@ -5487,9 +5490,10 @@ handoff without my tuning a batch size.
 #### Acceptance criteria
 
 1. WHEN the planner writes or revises a spec's tasks THEN it MAY group
-   leaves that one worker should do together in one chat in the manifest's
-   top-level `batches` object, keyed by a group ID, each entry
-   `{"tasks": [IDs as written in tasks.md], "reason": "<one line>"}`. The
+   leaves that one worker should do together in one chat: each member's
+   facts say `batch: <group ID>`, and `tasks.md` front-matter gives the
+   group's one-line reason as `batch-<group ID>: <reason>` (Requirement
+   111.4). The
    planner prompt (`prompts/planner.md`) SHALL say when to group (small
    edits that share files or context, where one chat is cheaper than
    several) and when not to (anything that needs its own review, any
@@ -5498,7 +5502,7 @@ handoff without my tuning a batch size.
    entries with a group ID of letters, digits, `.`, `_` or `-`, 2 to 5
    task IDs that name leaves in this spec, and a reason of 1 to 200
    characters on one line, and a task listed in two groups. These SHALL be
-   `manifest.schema` errors, like any other manifest error.
+   `facts.schema` errors in `tasks.md`, like any other facts error.
 3. Approval SHALL store the group on each member task as
    `batch: {id, tasks, reason}` with the members' task IDs, from the
    approved revision only. A later draft revision SHALL NOT change a stored
@@ -5530,8 +5534,9 @@ handoff without my tuning a batch size.
    Settings > Flow SHALL have no Batching section, the Flow settings
    validator and settings packs SHALL have no batch keys, and `size` SHALL
    NOT be a task field. An old `flow.batch` in `.avoozl.json`, in a repository's `flow`
-   or in a pack, and an old `size` in a manifest, SHALL be ignored silently
-   and SHALL never fail a load, a save, an import or lint.
+   or in a pack SHALL be ignored silently and SHALL never fail a load, a
+   save, an import or lint. (Changed 2026-11-18, Requirement 111.5: `size`
+   in a task's facts is an unknown key, which lint refuses.)
 9. Delivery's **In progress** lane SHALL show a batched handoff as one card
    that lists each task (ID and title) and the planner's reason. Each
    task's details SHALL name its batch and link to it, and show the reason.
@@ -5723,11 +5728,13 @@ together and a Kiro chat, Claude Code or Codex writes them in one place.
    leaf, SHALL hold with the file named `tasks.md`.
 6. The revision hash SHALL cover the spec's prose and its parsed facts, not
    their layout. A spec converted from the manifest to `Facts:` bullets,
-   with nothing else changed, SHALL have the same hash as before, so every
-   approval, issue marker and receipt that names the hash still holds and
-   the owner approves nothing again. Checkbox marks and `Status:` SHALL stay
-   outside the hash. A test SHALL prove it on a copy of every spec in this
-   repository.
+   with nothing else changed, SHALL NOT need a person's approval again: it
+   keeps its hash where the old manifest's text allows, and otherwise its
+   approval is carried to the new hash with `carriedFrom` recorded, no
+   approval pull request and no issue change. Any other difference SHALL
+   need a normal approval. Checkbox marks and `Status:` SHALL stay outside
+   the hash. Tests SHALL prove both on copies. (Changed 2026-11-18: owner
+   decision on the carry-over.)
 7. Avoozl SHALL parse a spec once, store its revision, and parse again only
    when the revision changes, as it did. Ticks SHALL stay outside the hash.
 8. The spec page, the review tabs, the graph, spec pull request adoption,
