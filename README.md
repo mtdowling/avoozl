@@ -565,10 +565,6 @@ On a headless machine, set `serve.enabled` (and optionally a fixed `serve.port`)
 machine file `config.json`: the supervisor then runs the server as a child, restarts it
 on the same port, and prints no link (run `avoozl serve link` at that machine's shell).
 `avoozl status` shows the server's origin. A repository's `.avoozl.json` may not set `serve`.
-Scripts can use the server's API key instead of a browser: send it in the
-`X-Api-Key` header to `POST /apps/avoozl/api/command`, never in the address. The key
-is in Settings › Workspaces on the standalone page, where Regenerate replaces it and
-stops the old one at once.
 
 ## License
 
