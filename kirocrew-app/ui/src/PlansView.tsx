@@ -578,7 +578,7 @@ function SpecDetail(props: {
                 <code>{shortHash(approval.hash)}</code> · {approval.at}
                 {approval.approvedBy ? ` · ${approval.approvedBy}` : ''}
                 {approval.carriedFrom && (
-                  <span data-approval-carried className="text-muted">
+                  <span data-approval-carried>
                     {' '}
                     · carried from <code>{shortHash(approval.carriedFrom)}</code>, same content
                   </span>
