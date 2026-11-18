@@ -19,6 +19,7 @@ import GraphView from '../../src/GraphView.tsx'
 import AddPlugin from '../../src/AddPlugin.tsx'
 import Onboard from '../../src/Onboard.tsx'
 import { Modal } from '../../src/Modal.tsx'
+import { specGraph } from './spec-graph-fixture.ts'
 import { installInlineFixture } from './settings-inline-fixture.ts'
 import { SetupDialog } from '../../src/SetupWizard.tsx'
 import PlansView, { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansView.tsx'
@@ -763,15 +764,28 @@ if (query.get('page') === 'app' && query.get('delivery') === '1') {
   const item = (id: string, title: string, extra = {}) => ({
     id, title, status: 'planned', complete: false, repository: null, authority: 'local', sessions: [], runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [], worktrees: [], issue: null, ...extra,
   })
+  const deliveryItems = [
+    item('m3', 'Sync pantry items between devices', { status: 'running', sessions: [session('chat-m3', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }),
+    item('s1', 'Index recipes by ingredient', { status: 'review', sessions: [session('chat-s1', 'reviewer', 'reading')], deliveries: [{ state: 'done', updatedAt: at }] }),
+    item('s2', 'Rank results by cooking time', { deliveries: [{ state: 'decision', updatedAt: at }] }),
+  ]
   answer('delivery.view', () => ({
     revision: 1,
-    items: [
-      item('m3', 'Sync pantry items between devices', { status: 'running', sessions: [session('chat-m3', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }),
-      item('s1', 'Index recipes by ingredient', { status: 'review', sessions: [session('chat-s1', 'reviewer', 'reading')], deliveries: [{ state: 'done', updatedAt: at }] }),
-      item('s2', 'Rank results by cooking time', { deliveries: [{ state: 'decision', updatedAt: at }] }),
-    ],
+    items: deliveryItems,
     contentReports: [],
+    // &machines=1: this Mac runs 3 chats of 3 lanes; a remote host runs 2.
+    laneLimit: query.get('machines') ? 3 : null,
   }))
+  if (query.get('machines')) {
+    for (const [id, title] of [['r1', 'Cache the pantry index'], ['r2', 'Batch the sync uploads']]) {
+      graphTasks.push(t(id, title, 'e1', 'meal-planner', 'recipe-box', { state: 'running', status: 'running' }))
+      deliveryItems.push(item(id, title, { status: 'running', deliveries: [{ state: 'running', updatedAt: at }] }))
+    }
+    deliveryItems.push(item('m4', 'Export meal plans as PDF', { status: 'running', sessions: [session('chat-m4', 'worker', 'coding')], deliveries: [{ state: 'running', updatedAt: at }] }))
+    graphTasks.push(t('m4', 'Export meal plans as PDF', 'e1', 'meal-planner', 'recipe-box', { state: 'running', status: 'running' }))
+    const worker = (taskId: string, n: number) => ({ host: 'dev desktop', crewId: 'crew-dev', taskId, state: 'running', chatKey: `chat-${n}`, status: 'coding', updatedAt: at, attachUrl: null, stale: false, lastOkAt: at })
+    answer('remote.view', () => ({ workers: [worker('r1', 1), worker('r2', 2)] }))
+  }
   // The line, for the Delivery heading's Stop the line: a stop opens one,
   // Resume closes it. window.__lineCalls records both. &stopped=1 starts stopped.
   const lineWin = window as unknown as { __lineCalls: unknown[] }
@@ -1444,6 +1458,9 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
     const moved = 'd00dfeed'.repeat(8)
     const movedFiles = { ...files, 'requirements.md': files['requirements.md'] + '\n3. A test SHALL show 255 + 1 wraps to 0.', 'tasks.md': files['tasks.md'] + '\n- [ ] 1.3 Test overflow wraps' }
     ;(window as unknown as { __moveRevision: () => void }).__moveRevision = () => { at = moved }
+    let summaryReady = false
+    ;(window as unknown as { __summaryReady: () => void }).__summaryReady = () => { summaryReady = true }
+    answer('graph.view', () => specGraph)
     const reviewOf = () => {
       const now = at === moved
       const open = fixture.data.findings.filter((f) => f.state !== 'rejected').map((f) => ({
@@ -1456,8 +1473,11 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
       // Open findings by severity, live as the person decides them.
       const openBySeverity = { blocker: 0, warn: 0, info: 0 }
       for (const f of fixture.data.findings) if (['open', 'answered', 'for you', 'accepted'].includes(f.state)) openBySeverity[f.severity]++
-      const summary = query.get('summary') === 'none' ? null : { text: 'Adds fixed-width byte types and byte strings to the runtime, with UTF-8 conversion. It covers three requirements and two tasks.', revisionHash: hash, current: !now }
-      return { state: 'done', planHash: at, reviewerModel: 'fake-reviewer', writerModel: 'fake-writer', revisionHash: hash, current: !now, found: fixture.data.findings.length, fixed: byState.fixed ?? 0, forYou: byState['for you'] ?? 0, bySeverity: fixture.data.bySeverity, openBySeverity, byState, summary, note: null, open }
+      // &summary=running: the reviewer is still writing it (the AI working
+      // box) until window.__summaryReady(); &summary=none: none, no review.
+      const running = query.get('summary') === 'running' && !summaryReady
+      const summary = query.get('summary') === 'none' || running ? null : { text: 'Adds fixed-width byte types and byte strings to the runtime, with UTF-8 conversion. It covers three requirements and two tasks.', revisionHash: hash, current: !now }
+      return { state: running ? 'running' : 'done', planHash: at, reviewerModel: 'fake-reviewer', writerModel: 'fake-writer', revisionHash: hash, current: !now, found: fixture.data.findings.length, fixed: byState.fixed ?? 0, forYou: byState['for you'] ?? 0, bySeverity: fixture.data.bySeverity, openBySeverity, byState, summary, note: null, open }
     }
     const entryHash = (id: string) => batches.flatMap((b) => b.specs).find((e) => e.id === id)?.hash
     answer('plan.reviewSummary', (body) => {

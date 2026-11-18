@@ -161,12 +161,12 @@ test('the spec Summary shows the written summary and open findings by severity',
   assert.deepEqual(await badges(), ['blocker 1 blocker', 'warn 1 warn', 'info 1 info'])
   assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[data-severity-badge="blocker"]')).color`), await color('var(--danger)'))
   assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[data-severity-badge="warn"]')).color`), await color('var(--warn)'))
-  // Without a written summary the plain line shows; a zero count shows no badge.
+  // Without a written summary the quiet line shows; a zero count shows no badge.
   await page.open(harness.url({ page: 'specs', review: '1', summary: 'none' }), { width: 1280, height: 900 })
   await page.until(`Boolean(document.querySelector('[data-plan-row="spec:byte-types"]'))`)
   await click('[data-plan-row="spec:byte-types"]')
   await page.until(`Boolean(document.querySelector('[data-spec-summary-fallback]'))`)
-  assert.match(await text('[data-spec-summary-fallback]'), /^2 tasks in requirements\.md, design\.md, tasks\.md/)
+  assert.match(await text('[data-spec-summary-fallback]'), /^Summary unavailable/)
   await click('[data-open-review]')
   await page.until(`Boolean(document.querySelector('[data-finding-card="f-blocker"]'))`)
   await click('[data-finding-card="f-blocker"] [data-finding-action="resolve"]')
