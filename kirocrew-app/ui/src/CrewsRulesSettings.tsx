@@ -50,9 +50,12 @@ export const CREW_PART_TEXT = {
 export const LANDING_MODES = ['direct', 'pr', 'train', 'off'] as const
 
 // Who merges (landing.autoMerge): one radio fold-out, the writer, Avoozl
-// and the person for each. Blank is on, or the older delivery.ship.
-export function AutoMergeFields({ id, repository, set }: Part) {
-  const value = repository.autoMerge === 'off' ? 'manual' : 'auto-merge'
+// and the person for each. Blank follows `inherited`, the older workspace
+// delivery.ship, then on. A value Avoozl does not accept says so.
+export function AutoMergeFields({ id, repository, set, inherited = null }: Part & { inherited?: string | null }) {
+  const own = repository.autoMerge === 'off' ? 'manual' : repository.autoMerge === 'on' ? 'auto-merge' : null
+  const value = own ?? (inherited === 'manual' ? 'manual' : 'auto-merge')
+  const unknown = repository.autoMerge && !own ? repository.autoMerge : null
   return (
     <div id={`${id}-auto-merge`} className="flex flex-col gap-1">
       <RadioFold
@@ -63,7 +66,7 @@ export function AutoMergeFields({ id, repository, set }: Part) {
         sections={SHIP_CHOICES.map((choice) => ({
           key: choice.key,
           title: `${choice.title} (landing.autoMerge: ${choice.key === 'manual' ? 'false' : 'true'})`,
-          line: `${choice.line}${!repository.autoMerge && choice.key === 'auto-merge' ? ' Not set on this repository; this is the default.' : ''}`,
+          line: `${choice.line}${!repository.autoMerge && choice.key === value ? ' Not set on this repository; this is the default.' : ''}`,
           description: (
             <table className="text-sm">
               <tbody>
@@ -80,7 +83,12 @@ export function AutoMergeFields({ id, repository, set }: Part) {
           ),
         }))}
       />
-      {repository.autoMerge === 'off' && <p className="text-xs text-muted">Briefs tell writers not to turn on auto-merge.</p>}
+      {value === 'manual' && <p className="text-xs text-muted">Briefs tell writers not to turn on auto-merge.</p>}
+      {unknown && (
+        <p role="alert" className="text-xs text-danger" data-ship-unknown>
+          .avoozl.json has landing.autoMerge "{unknown}", which Avoozl does not accept. Pick one above and save.
+        </p>
+      )}
     </div>
   )
 }

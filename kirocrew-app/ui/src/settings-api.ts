@@ -602,7 +602,10 @@ export function toForm(github: Policy): SettingsForm {
         onSourceConflict: str(record(entry.conflicts).onSourceConflict),
         maxAttempts: str(record(entry.conflicts).maxAttempts),
         landingMode: str(record(entry.landing).mode),
-        autoMerge: typeof record(entry.landing).autoMerge === 'boolean' ? (record(entry.landing).autoMerge ? 'on' : 'off') : '',
+        autoMerge: (() => {
+          const on = record(entry.landing).autoMerge
+          return typeof on === 'boolean' ? (on ? 'on' : 'off') : on === undefined || on === null ? '' : String(on)
+        })(),
         mergeMethod: str(record(entry.landing).method ?? record(entry.merge).method),
         reviewLabel: str(record(entry.radar).reviewLabel),
         draftedLabel: str(record(entry.radar).draftedLabel),
@@ -731,7 +734,8 @@ export function toPolicy(form: SettingsForm): Policy {
                 const landing = compact({
                   ...record(repository.rest.landing),
                   mode: blank(repository.landingMode),
-                  autoMerge: repository.autoMerge === 'on' ? true : repository.autoMerge === 'off' ? false : undefined,
+                  // A value it does not know is sent as typed, so the backend names it.
+                  autoMerge: repository.autoMerge === 'on' ? true : repository.autoMerge === 'off' ? false : blank(repository.autoMerge),
                   method: blank(repository.mergeMethod),
                 })
                 return Object.keys(landing).length ? landing : undefined

@@ -150,6 +150,12 @@ test('the merge method shows on the auto-merge card and round-trips (RC28.7)', (
   off.repositories['example/code'].landing = { autoMerge: false }
   assert.equal(merge(map(off, 'auto-merge')), undefined)
   assert.deepEqual(toPolicy(toForm(off)).repositories['example/code'].landing, { autoMerge: false })
+  // A value Avoozl does not accept stays as typed, so the page and the
+  // backend both name it.
+  const odd = structuredClone(SINGLE)
+  odd.repositories['example/code'].landing = { autoMerge: 'yes' }
+  assert.equal(toForm(odd).repositories[0].autoMerge, 'yes')
+  assert.deepEqual(toPolicy(toForm(odd)).repositories['example/code'].landing, { autoMerge: 'yes' })
   assert.equal(merge(map(SINGLE, 'manual')), undefined)
 })
 
