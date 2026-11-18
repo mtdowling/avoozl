@@ -1,20 +1,18 @@
 // Settings > Repositories, the one place repositories are managed: the list
-// of added repositories with their row actions, then Add repository in its
-// own box. A row joins the workspace's registered checkout
+// of added repositories (name, role badge, View, Edit and Remove), then Add
+// repository in its own box. A row joins the workspace's registered checkout
 // (repositories.list) with its GitHub settings in .avoozl.json
 // (github.repositories, keyed owner/name); either side may be missing.
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
-import { Tooltip } from './Tooltip.tsx'
-import { selectStyle } from './FilterSelect.tsx'
-import { ROLE_OPTIONS, roleFromMode, roleLabel } from './settings-api.ts'
-import { DangerBtn, IconBtn, IconLabel, TipBtn } from './controls.tsx'
-import { ExternalLink, FolderOpen, Plus } from './icons.ts'
-import { errorMessage, workspaceClient, type DetectedCheckout, type Repository } from './workspace-api.ts'
-import { githubHref, type RepositoryRow } from './repository-rows.ts'
-import { linkHref } from './views-api.ts'
+import { MIRROR_ROLE, mirrorSourceProblem, roleFromMode } from './settings-api.ts'
+import { DangerBtn, IconBtn, IconLabel, TipBtn, type ConfirmCopy } from './controls.tsx'
+import { Eye, Pencil, Plus, Trash2 } from './icons.ts'
+import { RoleChoice } from './RepositoryModals.tsx'
+import { errorMessage, workspaceClient, type DetectedCheckout } from './workspace-api.ts'
+import { type RepositoryRow } from './repository-rows.ts'
 export { repositoryRows, type RepositoryRow } from './repository-rows.ts'
 
 export const REPOSITORIES_LINE =
@@ -44,43 +42,14 @@ export function useReveal() {
   )
 }
 
-// The role of one repository, saved in place when it changes (R105.4). A
-// repository with no GitHub remote can only be local; the planning repository
-// with no checkout here is named by the workspace, not picked.
-function RolePicker(props: { row: RepositoryRow; role: string; onRole: (role: string) => void }) {
-  const { row } = props
-  const fixed = !row.github ? 'No GitHub remote, so its tasks stay local.' : row.githubOnly ? 'GitHub only: it has no checkout here. Add its checkout to change its role.' : null
-  const id = `avoozl-role-${row.key}`
-  return (
-    <label htmlFor={id} className="flex items-center gap-1.5 text-sm" data-role-picker={row.key} title={fixed ?? undefined}>
-      <span className="text-muted">Role</span>
-      <select
-        id={id}
-        value={props.role}
-        disabled={Boolean(fixed)}
-        onChange={(event) => props.onRole(event.target.value)}
-        aria-label={`Role of ${row.name}`}
-        className="rounded border px-2 py-1 text-sm"
-        style={selectStyle}
-      >
-        {ROLE_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
-}
-
 export function RepositoryList(props: {
   rows: RepositoryRow[]
-  roleOf: (row: RepositoryRow) => string
-  onRole: (row: RepositoryRow, role: string) => void
+  // The role badge's text; a role is changed in Edit, never in the list.
+  roleText: (row: RepositoryRow) => string
   busy: boolean
-  dirty: boolean
+  onView: (row: RepositoryRow) => void
+  onEdit: (row: RepositoryRow) => void
   onRemove: (row: RepositoryRow) => void
-  onReveal: (folder: string) => void
   onAdd: () => void
 }) {
   if (!props.rows.length)
@@ -95,99 +64,69 @@ export function RepositoryList(props: {
     )
   return (
     <ul className="flex flex-col" aria-label="Added repositories" data-repository-list>
-      {props.rows.map((row) => {
-        const href = githubHref(row.github)
-        return (
-          <li
-            key={row.key}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t py-2 first:border-t-0"
-            style={{ borderColor: 'var(--border)' }}
-            data-repository-row={row.key}
-          >
-            <div className="min-w-0" style={{ flex: '1 1 18rem' }}>
-              <span className="font-medium">{row.name}</span>
-              <span className="block truncate text-xs text-muted">
-                {row.folder ?? 'No folder on this computer'} · lands on <code>{row.branch}</code>
-                {row.github ? ` · ${row.github}` : ''}
-              </span>
-            </div>
-            <RolePicker row={row} role={props.roleOf(row)} onRole={(role) => props.onRole(row, role)} />
-            {row.githubOnly && <Badge>GitHub only</Badge>}
-            <span className="flex items-center gap-1.5">
-              {row.folder && <IconBtn icon={FolderOpen} label={`Open ${row.name} in Finder`} onClick={() => props.onReveal(row.folder!)} />}
-              {href && <GitHubLink href={linkHref(href)} name={row.name} />}
-              {!row.githubOnly && (
-              <DangerBtn
-                label={`Remove ${row.name}`}
-                tooltip={
-                  props.dirty
-                    ? 'Save or discard your changes first'
-                    : row.checkout
-                      ? 'Stop Avoozl using this checkout. The folder and GitHub stay.'
-                      : 'Drop its GitHub settings from .avoozl.json when you save'
-                }
-                disabled={props.busy || (props.dirty && Boolean(row.checkout))}
-                confirm={
-                  row.checkout
-                    ? {
-                        title: `Remove ${row.name} from this workspace?`,
-                        body: `Avoozl stops using ${row.folder ?? 'this checkout'}: tasks that name ${row.checkout.id} wait until it is added again, and its entry leaves .avoozl.json. The folder${row.github ? `, the GitHub repository ${row.github}` : ''} and your specs are not touched. Avoozl refuses while a run or lock still uses it.`,
-                        action: 'Remove',
-                      }
-                    : {
-                        title: `Remove ${row.name}'s GitHub settings?`,
-                        body: 'Its label rules, managed labels, checks and who counts leave .avoozl.json when you save. GitHub is not changed.',
-                        action: 'Remove',
-                      }
-                }
-                onConfirm={() => props.onRemove(row)}
-              >
-                Remove
+      {props.rows.map((row) => (
+        <li
+          key={row.key}
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t py-2 first:border-t-0"
+          style={{ borderColor: 'var(--border)' }}
+          data-repository-row={row.key}
+        >
+          <span className="min-w-0 truncate font-medium" style={{ flex: '1 1 12rem' }}>
+            {row.name}
+          </span>
+          <span data-role-badge>
+            <Badge>{props.roleText(row)}</Badge>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <IconBtn icon={Eye} label={`View ${row.name}`} tooltip="View details" onClick={() => props.onView(row)} />
+            <IconBtn icon={Pencil} label={`Edit ${row.name}`} tooltip={row.githubOnly ? 'GitHub only: add its checkout to edit it' : 'Edit'} disabled={row.githubOnly} onClick={() => props.onEdit(row)} />
+            {!row.githubOnly && (
+              <DangerBtn icon={Trash2} label={`Remove ${row.name}`} tooltip="Remove" disabled={props.busy} confirm={removeCopy(row)} onConfirm={() => props.onRemove(row)}>
+                {null}
               </DangerBtn>
-              )}
-            </span>
-          </li>
-        )
-      })}
+            )}
+          </span>
+        </li>
+      ))}
     </ul>
   )
 }
 
-function GitHubLink({ href, name }: { href: string | undefined; name: string }) {
-  return (
-    <TipLink href={linkHref(href)} tip="Open on GitHub">
-      <ExternalLink size={14} aria-hidden="true" />
-      <span className="sr-only">Open {name} on GitHub</span>
-    </TipLink>
-  )
+// What the Are you sure? dialog says before a row goes.
+export function removeCopy(row: RepositoryRow): ConfirmCopy {
+  return row.checkout
+    ? {
+        title: 'Are you sure?',
+        body: `Remove ${row.name} from this workspace? Avoozl stops using ${row.folder ?? 'this checkout'}: tasks that name ${row.checkout.id} wait until it is added again, and its entry leaves .avoozl.json. The folder${row.github ? `, the GitHub repository ${row.github}` : ''} and your specs are not touched. Avoozl refuses while a run or lock still uses it.`,
+        action: 'Remove',
+      }
+    : {
+        title: 'Are you sure?',
+        body: `Remove ${row.name} from this workspace? Its GitHub settings (label rules, managed labels, checks and who counts) leave .avoozl.json. GitHub itself is not changed.`,
+        action: 'Remove',
+      }
 }
-
-function TipLink(props: { href: string | undefined; tip: string; children: ReactNode }) {
-  // A link styled like the icon buttons, with the shared tooltip.
-  return (
-    <Tooltip text={props.tip}>
-      <a
-        href={linkHref(props.href)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center rounded border"
-        style={{ padding: '5px 7px', borderColor: 'var(--border)', color: 'var(--text)' }}
-      >
-        {props.children}
-      </a>
-    </Tooltip>
-  )
-}
-
 
 // Add repository: pick the folder, then confirm what Avoozl found in it.
-export function AddRepository(props: { workspaceId: string; mode: string; disabled: string | null; onAdded: (id: string) => void }) {
+// What the person chose for the new repository's role, handed to the page to save.
+export interface AddedRole {
+  github: string | null
+  branch: string
+  role: string
+  source: string
+  // False when the role is the one its mode already gives: nothing to save.
+  changed: boolean
+}
+
+export function AddRepository(props: { workspaceId: string; mode: string; disabled: string | null; onAdded: (id: string, added: AddedRole) => void }) {
   const api = useAppApi()
   const client = useMemo(() => workspaceClient(api), [api])
   const [folder, setFolder] = useState('')
   const [found, setFound] = useState<DetectedCheckout | null>(null)
   const [id, setId] = useState('')
   const [branch, setBranch] = useState('')
+  const [role, setRole] = useState('local')
+  const [source, setSource] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
@@ -202,6 +141,8 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
       setFound(next)
       setId(next.id ?? '')
       setBranch(next.baseBranch)
+      setRole(roleFromMode(props.mode, next.github, ''))
+      setSource('')
     } catch (caught) {
       setError(errorMessage(caught))
     } finally {
@@ -214,9 +155,10 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
     setError(null)
     try {
       const saved = await client.registerRepository(props.workspaceId, { id: id.trim(), localCheckout: found.root, baseBranch: branch.trim() || found.baseBranch })
+      const given = roleFromMode(props.mode, found.github, '')
       setFolder('')
       setFound(null)
-      props.onAdded(saved.id)
+      props.onAdded(saved.id, { github: found.github, branch: branch.trim() || found.baseBranch, role, source: source.trim(), changed: Boolean(found.github) && (role !== given || role === MIRROR_ROLE) })
     } catch (caught) {
       setError(errorMessage(caught))
     } finally {
@@ -256,9 +198,19 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
               </dd>
               <dt className="text-muted">GitHub remote</dt>
               <dd>{found.github ?? (found.remote ? `${found.remote} is not on GitHub` : 'None: a local-only repository')}</dd>
-              <dt className="text-muted">Role</dt>
-              <dd>{roleLabel(roleFromMode(props.mode, found.github, ''))}. Change it in the list after adding.</dd>
             </dl>
+            <RoleChoice
+              id="avoozl-repo-add"
+              name={found.root}
+              github={found.github}
+              role={role}
+              source={source}
+              fixed={found.github ? null : 'No GitHub remote, so its tasks stay local.'}
+              onChange={(nextRole, nextSource) => {
+                setRole(nextRole)
+                setSource(nextSource)
+              }}
+            />
             <span className="flex flex-wrap items-end gap-3">
               <label htmlFor="avoozl-repo-id" className="flex flex-col gap-1 text-sm">
                 <span>Short ID</span>
@@ -268,7 +220,7 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
                 <span>Branch tasks land on</span>
                 <Input id="avoozl-repo-branch" value={branch} onChange={(event) => setBranch(event.target.value)} />
               </label>
-              <Btn primary onClick={() => void add()} disabled={busy || !id.trim() || Boolean(props.disabled)}>
+              <Btn primary onClick={() => void add()} disabled={busy || !id.trim() || Boolean(props.disabled) || (role === MIRROR_ROLE && Boolean(mirrorSourceProblem(source, found.github)))}>
                 Add repository
               </Btn>
             </span>

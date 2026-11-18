@@ -159,17 +159,13 @@ test("the old Where tasks live link still opens Repository setup; GitHub is its 
   assert.equal(redirectSettings("workspaces"), "workspaces");
 });
 
-test("Repository setup shows a role per row, in place, and saves the change", () => {
+test("Repository setup shows a role badge per row; Edit changes it and writes the file", () => {
   const repos = source("RepositoriesSettings.tsx");
   const settings = source("SettingsView.tsx");
-  assert.match(repos, /function RolePicker/);
-  assert.match(repos, /<RolePicker row=\{row\} role=\{props\.roleOf\(row\)\}/);
-  assert.match(repos, /aria-label=\{`Role of \$\{row\.name\}`\}/);
-  // A role is a form edit, saved by the page's footer with every other setting.
-  assert.match(
-    settings,
-    /const changeRole = \(target: RepositoryRow, role: string\) => set\(withRole\(form, target, role\)\)/,
-  );
+  assert.match(repos, /<span data-role-badge>/);
+  assert.doesNotMatch(repos, /<select|RolePicker/);
+  assert.match(source("RepositoryModals.tsx"), /aria-label=\{`Role of \${props\.name}`\}/);
+  assert.match(settings, /withRepositoryEdit\(current, openRow, edit\)/);
   assert.match(
     settings,
     /\{tasksLiveLine\(form\.mode, form\.planningRepository\)\}/,
