@@ -31,6 +31,12 @@ test('a source is on, off, in error or waiting, with its poll and items', () => 
   assert.equal(sourceStatus(row('mcp', { items }), PLUGINS, NOW).tone, 'ok')
   const bad = sourceStatus(row('plugin:gone', { error: 'names plugin gone' }), PLUGINS, NOW)
   assert.deepEqual([bad.tone, bad.label], ['error', 'Not used'])
+  // A GitHub source (R110) shows its repository's read, never item counts.
+  const read = sourceStatus(row('github', { state: { readAt: at(4), cursor: null, error: null }, items: null }), PLUGINS, NOW)
+  assert.deepEqual([read.tone, read.facts], ['ok', ['Read 4 min ago']])
+  assert.equal(sourceStatus(row('github', { items: null }), PLUGINS, NOW).tone, 'waiting')
+  const broken = sourceStatus(row('github', { state: { readAt: at(4), cursor: null, error: '403' }, items: null }), PLUGINS, NOW)
+  assert.deepEqual([broken.tone, broken.problem], ['error', '403'])
 })
 
 test('what a source can set off, who counts, and where it comes from', () => {
@@ -43,6 +49,9 @@ test('what a source can set off, who counts, and where it comes from', () => {
   assert.match(whoCounts({ via: 'mcp' }), /Not used/)
   assert.equal(viaLabel('plugin:tracker'), 'Plugin tracker')
   assert.match(viaLabel('mcp'), /^MCP/)
+  assert.equal(sourceTriggers(row('github'), PLUGINS).level, 'Full rules')
+  assert.match(viaLabel('github'), /^GitHub/)
+  assert.equal(whoCounts({ via: 'github', minimumPermission: 'write' }), 'Anyone with write or higher')
 })
 
 test('the form saves who counts for a plugin only, and names the field to fix', () => {
@@ -92,13 +101,20 @@ const TONES = `JSON.stringify([...document.querySelectorAll('[data-intake-source
 for (const width of [375, 768, 1280])
   test(`at ${width} px each source is one box with its status, and Add a source opens the dialog`, { skip }, async () => {
     await page.open(harness.url({ page: 'intake', theme: 'light' }), { width, height: 900, dark: false })
-    await page.until(`document.querySelectorAll('[data-intake-source-row]').length === 4`)
+    await page.until(`document.querySelectorAll('[data-intake-source-row]').length === 5`)
     assert.deepEqual(JSON.parse(await page.evaluate(TONES)), [
       ['github', null],
+      ['github-example-web', 'ok'],
       ['tickets', 'error'],
       ['ops', 'off'],
       ['nightly', 'waiting'],
     ])
+    // A GitHub source is one entry in the same list, set in Repository
+    // setup: it links there and offers no Remove.
+    const githubRow = `document.querySelector('[data-intake-source-row="github-example-web"]')`
+    const text = await page.evaluate(`${githubRow}.textContent`)
+    for (const part of ['GitHub (issues in this repository)', 'avoozl:ready', 'example-bot', 'plan me', 'Open Repository setup']) assert.ok(text.includes(part), part)
+    assert.doesNotMatch(text, /Remove/)
     // Each box is titled for screen readers, and nothing runs off the page.
     assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-intake-source-row]')].every((el) => document.getElementById(el.getAttribute('aria-labelledby'))?.tagName === 'H4')`), true)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
