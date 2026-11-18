@@ -54,6 +54,7 @@ import { Hint } from './ui/Hint'
 import { TextLink } from './ui/TextLink'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 const ROW: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }
 const LINK_BUTTON: CSSProperties = {
@@ -196,10 +197,10 @@ function Actions({ item, onSend, onReview, onStart, onSpec }: { item: UntriagedI
       )}
       {item.reviewChat?.link ? (
         <Tooltip text="Open this pull request's code review chat">
-          <a href={linkHref(item.reviewChat.link)} target="_top" className="self-center text-sm underline" aria-label={`Session: the code review chat for ${name}`} data-review-attach style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <PlainLink href={linkHref(item.reviewChat.link)} target="_top" css-display="inline-flex" css-align-items="center" css-gap="4" self="center" size="sm" underline aria-label={`Session: the code review chat for ${name}`} data-review-attach>
             <CirclePlus size={14} aria-hidden="true" />
             Session
-          </a>
+          </PlainLink>
         </Tooltip>
       ) : item.reviewChat?.state === 'queued' ? (
         <Tooltip text="The next tick opens the chat, within a minute.">
@@ -235,9 +236,9 @@ function AuthorLink({ item, fallback = '' }: { item: UntriagedItem; fallback?: s
 function Title({ item }: { item: UntriagedItem }) {
   const github = sourceOf(item) === 'github'
   return (
-    <a href={linkHref(item.links.github ?? item.links.item ?? item.url)} target="_blank" rel="noopener noreferrer" className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
+    <PlainLink href={linkHref(item.links.github ?? item.links.item ?? item.url)} target="_blank" rel="noopener noreferrer" css-overflow-wrap="anywhere" minW0>
       <Box as="span" tone="muted" tabularNums>{github ? `#${item.number}` : item.id}</Box> <Box as="span" underline>{item.title}</Box>
-    </a>
+    </PlainLink>
   )
 }
 
@@ -362,9 +363,9 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
 function SourcesLink({ onOpen }: { onOpen?: () => void }) {
   if (!onOpen) return <>Settings › Plugins</>
   return (
-    <button type="button" className="underline" onClick={onOpen} data-open-intake-sources>
+    <PlainButton type="button" underline onClick={onOpen} data-open-intake-sources>
       Settings › Plugins › Intake sources
-    </button>
+    </PlainButton>
   )
 }
 
@@ -679,20 +680,19 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
               </Box>
               <Tooltip text={bulk.tooltip}>
                 {(describedBy) => (
-                  <a
+                  <PlainLink
                     href={linkHref(chosen.length ? bulk.url : undefined)}
                     target="_top"
                     role="button"
                     aria-disabled={!chosen.length || undefined}
                     aria-describedby={describedBy}
                     tabIndex={0}
-                    style={{ ...LINK_BUTTON, opacity: chosen.length ? 1 : 0.5, cursor: chosen.length ? 'pointer' : 'default' }}
-                    className="text-sm"
+                    css-display="inline-flex" css-align-items="center" css-justify-content="center" css-gap="6" css-padding="4px-6px" css-border="1px-solid-border" css-border-radius="6" css-color="text" css-background="card-transparent" css-opacity={chosen.length ? '1' : '0.5'} css-cursor={chosen.length ? 'pointer' : 'default'} size="sm"
                     data-bulk-open
                   >
                     <Radar size={ICON} aria-hidden="true" />
                     Open selected in Issue Radar
-                  </a>
+                  </PlainLink>
                 )}
               </Tooltip>
               <IconLabel icon={Users} onClick={() => setSending(chosen)} disabled={!bulkSend.ok} tooltip={bulkSend.reason}>

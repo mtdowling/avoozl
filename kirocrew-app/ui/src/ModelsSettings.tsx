@@ -29,7 +29,6 @@ import {
   provedLine,
   roleIsSet,
   roleProblem,
-  KIROCREW_HARNESS,
   harnessOptions,
   modelsClient,
   toRoles,
@@ -43,11 +42,6 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 import { ModelRowsStyle } from './ui/PageStyles'
-
-// shortcut: these roles cannot run as a harness child yet (rows of
-// src/app/role-table.mjs with process: false); drop a role here when its task
-// lands.
-const CHAT_ONLY = new Set<Role>(['reviewDraft', 'prReview'])
 
 export default function ModelsSettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()
@@ -202,9 +196,6 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                     <ErrorText role="alert" as="span" data-role-problem>
                       {problem}
                     </ErrorText>
-                  )}
-                  {CHAT_ONLY.has(role.key) && harness !== 'auto' && harness !== KIROCREW_HARNESS && (
-                    <span data-harness-pending>Saved. On a harness this role starts but cannot hand back its answer yet. Keep it on auto or the Kiro Crew chat.</span>
                   )}
                 </Box>
               </Box>

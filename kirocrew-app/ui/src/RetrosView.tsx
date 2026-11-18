@@ -24,6 +24,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { PlainButton, PlainLink } from './ui/Plain'
 
 // A retro or proposal another page linked to.
 export interface RetroTarget {
@@ -50,10 +51,10 @@ function RetroChat({ retro }: { retro: Retro }) {
     <Box as="span" flex flexCol gap="1" size="xs" data-retro-chat={chat.executor}>
       <Row as="span" gap={3}>
         {chat.link ? (
-          <a href={linkHref(chat.link)} className="underline" aria-label={`Open the chat for ${name}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <PlainLink href={linkHref(chat.link)} css-display="inline-flex" css-align-items="center" css-gap="4" underline aria-label={`Open the chat for ${name}`}>
             <CirclePlus size={14} aria-hidden="true" />
             Open chat
-          </a>
+          </PlainLink>
         ) : chat.process?.attach ? (
           <CopyAttach command={chat.process.attach} title={name} />
         ) : (
@@ -122,9 +123,9 @@ function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boo
         <Stack as="ul" gap={1} aria-label={`Proposals from ${retroName(retro)}`}>
           {retro.proposals.map((p: Proposal) => (
             <Box key={p.id} as="li" flex flexWrap items="center" gap="2" size="sm" data-retro-proposal={`${retro.id}:${p.id}`}>
-              <button type="button" className="min-w-0 text-left underline" style={{ overflowWrap: 'anywhere' }} onClick={() => onOpen(p.id)}>
+              <PlainButton type="button" css-overflow-wrap="anywhere" minW0 align="left" underline onClick={() => onOpen(p.id)}>
                 {proposalText(p)}
-              </button>
+              </PlainButton>
               <Badge variant={p.status === 'open' ? 'warning' : undefined}>{p.status}</Badge>
             </Box>
           ))}

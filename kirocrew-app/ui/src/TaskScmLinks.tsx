@@ -9,6 +9,7 @@ import { linkHref, safeHref } from './views-api.ts'
 import { checksLine, scmLabel, type ScmChecks, type ScmLink, type TaskScmLinks } from './task-api.ts'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { PlainLink } from './ui/Plain'
 
 const DOT: Record<ScmChecks['dot'], string> = {
   pass: 'var(--ok)',
@@ -21,9 +22,9 @@ function Out(props: { to: string | null | undefined; children: ReactNode }) {
   const href = safeHref(props.to ?? null)
   if (!href) return <>{props.children}</>
   return (
-    <a href={linkHref(href)} target="_blank" rel="noopener noreferrer" className="underline" style={{ overflowWrap: 'anywhere' }}>
+    <PlainLink href={linkHref(href)} target="_blank" rel="noopener noreferrer" css-overflow-wrap="anywhere" underline>
       {props.children}
-    </a>
+    </PlainLink>
   )
 }
 

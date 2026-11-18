@@ -196,6 +196,12 @@ try {
         `No Avoozl server answered at ${endpoint}. Drop --url and AVOOZL_URL to act on the workspace database directly.`,
       );
     }
+    // `avoozl serve` answers /api/command only to a signed-in browser's
+    // session cookie, so a CLI pointed at it is refused (spec standalone-web SW5.4).
+    if (response.status === 401)
+      throw Error(
+        `${endpoint} refused the request: avoozl serve accepts /api/command only with a valid browser session cookie, never from the CLI. Drop --url and AVOOZL_URL: the CLI works on the workspace database directly.`,
+      );
     const result = await response.json();
     if (!response.ok) throw Error(result.error);
     return result.result;
@@ -962,6 +968,7 @@ try {
             cwd: process.cwd(),
             text: typeof options.text === "string" ? options.text : undefined,
             file: typeof options.file === "string" ? options.file : undefined,
+            role: typeof options.role === "string" ? options.role : undefined,
           });
         } finally {
           store.close();
@@ -1911,17 +1918,21 @@ try {
     } finally {
       store.close();
     }
-  } else if (command === "show")
-    console.log(
-      JSON.stringify(
-        await localOrRequest("task.get", {
-          id: need(positionals[0], "show TASK_ID"),
-        }),
-        null,
-        2,
-      ),
-    );
-  else if (command === "query")
+  } else if (command === "show") {
+    const id = need(positionals[0], "show TASK_ID");
+    // A pull request review a `process` child wrote (NK4.4).
+    if (/^pr-review:/.test(id)) {
+      const shown = await localOrRequest("review.chat.show", { id });
+      console.log(
+        shown.review
+          ? `${shown.repository}#${shown.number} at ${shown.review.head ?? "unknown head"}\n\n${shown.review.text}`
+          : JSON.stringify(shown, null, 2),
+      );
+    } else
+      console.log(
+        JSON.stringify(await localOrRequest("task.get", { id }), null, 2),
+      );
+  } else if (command === "query")
     console.log(
       JSON.stringify(
         await localOrRequest("query", {

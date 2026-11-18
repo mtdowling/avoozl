@@ -39,6 +39,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainLink } from './ui/Plain'
 
 const FIELD = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)', maxWidth: '100%' }
 
@@ -92,9 +93,9 @@ export function DriverBanner(props: { workspaceId: string; spec: DriverSpec | nu
         {issueUrl && (
           <>
             {' '}
-            <a href={safeHref(issueUrl) ?? undefined} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline">
+            <PlainLink href={safeHref(issueUrl) ?? undefined} target="_blank" rel="noreferrer" inlineFlex items="center" gap="1" underline>
               Plan issue #{spec.issue?.number} <ExternalLink size={12} aria-hidden="true" />
-            </a>
+            </PlainLink>
           </>
         )}
       </Box>
@@ -454,9 +455,9 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
               : 'Assign the plan issue to the person who takes over. Avoozl does not reassign it. Your other machine needs no reassignment: press Take over there.'}
           </Hint>
           {step === 'reassign' && issueUrl && (
-            <a href={safeHref(issueUrl) ?? undefined} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 underline">
+            <PlainLink href={safeHref(issueUrl) ?? undefined} target="_blank" rel="noreferrer" mt="1" inlineFlex items="center" gap="1" underline>
               Reassign it on GitHub <ExternalLink size={12} aria-hidden="true" />
-            </a>
+            </PlainLink>
           )}
         </li>
         {error && (

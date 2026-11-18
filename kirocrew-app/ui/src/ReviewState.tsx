@@ -16,6 +16,7 @@ import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Box } from './ui/Box'
+import { PlainLink } from './ui/Plain'
 
 const model = (requested: string | null, served: string | null) =>
   `asked ${requested ?? 'agent default'}${served ? `, ran ${served}` : ''}`
@@ -38,14 +39,14 @@ export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => vo
           )}
           <Box as="span" ml="auto" flex flexWrap items="center" gap="1.5">
             {run.link && (
-              <a
+              <PlainLink
                 href={linkHref(run.link)}
-                className="inline-flex items-center gap-1 underline"
+                inlineFlex items="center" gap="1" underline
                 aria-label={`Session: the ${run.role} chat, round ${run.round}`}
               >
                 <CirclePlus size={12} aria-hidden="true" />
                 Session
-              </a>
+              </PlainLink>
             )}
             {props.onInfo && <IconBtn icon={DetailsIcon} label={`Details of ${run.role} round ${run.round}`} tooltip="Open the task's details" onClick={props.onInfo} />}
           </Box>

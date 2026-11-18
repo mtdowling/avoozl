@@ -20,6 +20,7 @@ import { StageLegend } from './FlowView.tsx'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
+import { PlainButton } from './ui/Plain'
 
 const W = 300,
   H = 90,
@@ -107,9 +108,9 @@ function UnitPicker({ unit, onUnit }: { unit: Unit; onUnit: (unit: Unit) => void
   return (
     <Box role="radiogroup" aria-label="Group by" css-background="bg-elevated" inlineFlex gap="1" rounded="lg" p="1">
       {(['day', 'week'] as const).map((u) => (
-        <button key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onUnit(u)} className="rounded-md px-2.5 py-1 text-xs font-medium" style={{ background: unit === u ? 'var(--card)' : 'transparent', color: 'var(--text)', boxShadow: unit === u ? 'inset 0 0 0 1px var(--accent)' : 'none' }}>
+        <PlainButton key={u} type="button" role="radio" aria-checked={unit === u} onClick={() => onUnit(u)} css-background={unit === u ? 'card' : 'transparent'} css-color="text" css-box-shadow={unit === u ? 'inset-0-0-0-1px-accent' : 'none'} rounded="md" px="2.5" py="1" size="xs" weight="medium">
           {u === 'day' ? 'By day' : 'By week'}
-        </button>
+        </PlainButton>
       ))}
     </Box>
   )

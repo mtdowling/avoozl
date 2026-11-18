@@ -43,6 +43,7 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
 import { Box } from './ui/Box'
+import { PlainInput } from './ui/Plain'
 
 const BADGE: Record<string, CSSProperties> = {
   create: { color: 'var(--ok)', borderColor: 'var(--ok)' },
@@ -118,7 +119,7 @@ function ModeStep(props: { form: OnboardForm; set: (patch: Partial<OnboardForm>)
                     ] as const
                   ).map(([value, label, hint]) => (
                     <Box key={label} as="label" flex items="start" gap="2">
-                      <input type="radio" name="avoozl-onboard-role" className="mt-1" checked={form.isPlanning === value} onChange={() => set({ isPlanning: value })} />
+                      <PlainInput type="radio" name="avoozl-onboard-role" mt="1" checked={form.isPlanning === value} onChange={() => set({ isPlanning: value })} />
                       <span>
                         {label}
                         <Hint size="xs" block>{hint}</Hint>

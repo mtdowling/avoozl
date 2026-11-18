@@ -102,7 +102,11 @@ test("a role child's brief holds its prompt, the brief, and how it finishes", ()
   );
   assert.match(processBrief("retro", "x"), /"report": <the reply object>/);
   assert.match(processBrief("planner", "x"), /skip plans_create_plan/);
-  assert.equal(processBrief("pr-review", "x"), "x", "no prompt for it here");
+  assert.equal(
+    processBrief("conflict-fix", "x"),
+    "x",
+    "no prompt for a role outside the table",
+  );
 });
 
 // A fake CLI for read roles: it prints its brief and writes only its result

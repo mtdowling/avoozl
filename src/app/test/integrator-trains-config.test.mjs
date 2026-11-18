@@ -254,6 +254,26 @@ test("a gated target with a CI-only platform loads with the extra-run warning", 
   assert.match(warnings[0], /windows-x64.*one extra CI run/);
 });
 
+test("conflicts.resolver defaults to rules, accepts chat and refuses other values", () => {
+  const load = (conflicts) =>
+    setup({
+      repo: trains(conflicts ? { conflicts } : {}),
+      global: { machine: macNative },
+    }).load();
+  assert.equal(
+    trainSettings(load().config, "main").conflicts.resolver,
+    "rules",
+  );
+  assert.equal(
+    trainSettings(load({ resolver: "chat" }).config, "main").conflicts.resolver,
+    "chat",
+  );
+  assert.throws(
+    () => load({ resolver: "agent" }),
+    /conflicts\.resolver must be one of rules, chat/,
+  );
+});
+
 test("pullRequests keys load with defaults, and a template placeholder must be known", () => {
   const ok = setup({
     repo: trains({
@@ -300,5 +320,37 @@ test("scheduling.overlap defaults to same-train and refuses other values", () =>
         global: { machine: macNative },
       }).load(),
     /scheduling\.overlap must be one of same-train, serialize/,
+  );
+});
+
+test("capacity.ci and ci.jobPlatforms load, and bad counts are refused", () => {
+  const ok = setup({
+    repo: trains({
+      ci: {
+        jobPlatforms: { "test (macos)": "macos-arm64" },
+        bisectOnRed: true,
+      },
+      capacity: { ci: { "macos-arm64": 2 } },
+    }),
+    global: { machine: macNative },
+  }).load();
+  const s = trainSettings(ok.config, "main");
+  assert.deepEqual(s.capacity.ci, { "macos-arm64": 2 });
+  assert.equal(s.ci.jobPlatforms["test (macos)"], "macos-arm64");
+  assert.equal(s.ci.bisectOnRed, true);
+  assert.deepEqual(
+    trainSettings(
+      setup({ repo: trains(), global: { machine: macNative } }).load().config,
+      "main",
+    ).capacity,
+    { ci: {} },
+  );
+  assert.throws(
+    () =>
+      setup({
+        repo: trains({ capacity: { ci: { "macos-arm64": 0 } } }),
+        global: { machine: macNative },
+      }).load(),
+    /capacity\.ci\.macos-arm64 must be a whole number 1–32/,
   );
 });

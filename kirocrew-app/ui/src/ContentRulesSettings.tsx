@@ -51,6 +51,7 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { SelectField } from './ui/SelectField'
 import { Box } from './ui/Box'
+import { PlainButton, PlainInput, PlainTextarea } from './ui/Plain'
 
 type Client = ReturnType<typeof contentClient>
 type Selection = { kind: 'set' | 'builtin'; id: string } | { kind: 'new' }
@@ -67,10 +68,10 @@ function openHelp() {
 
 function HelpLink({ children = 'How rules work' }: { children?: ReactNode }) {
   return (
-    <button type="button" className="inline-flex items-center gap-1 text-xs underline" onClick={openHelp} data-help-link>
+    <PlainButton type="button" inlineFlex items="center" gap="1" size="xs" underline onClick={openHelp} data-help-link>
       <BookOpen size={12} aria-hidden="true" />
       {children}
-    </button>
+    </PlainButton>
   )
 }
 
@@ -375,7 +376,7 @@ function RuleRow(props: { row: TermRow; rows: TermRow[]; index: number; narrow: 
       ))}
     </SelectField>
   ) : (
-    <input value={row.name} aria-label={`Rule name on line ${index + 1}`} placeholder="rule-name" onChange={(e) => props.onChange({ ...row, name: e.target.value })} style={fieldStyle} />
+    <PlainInput value={row.name} aria-label={`Rule name on line ${index + 1}`} placeholder="rule-name" onChange={(e) => props.onChange({ ...row, name: e.target.value })} css-border="1px-solid-border" css-border-radius="6" css-background="card-bg" css-color="text" css-padding="4px-8px" css-font-size="13" css-min-width="0" css-width="100%" />
   )
   const kind = (
     <SelectField value={current} aria-label={`Kind on line ${index + 1}`} onChange={(e) => switchKind(e.target.value as RowKind)} look="row">
@@ -477,13 +478,12 @@ function TryIt({ rows }: { rows: TermRow[] }) {
       <Box as="label" flex flexCol gap="1" size="sm">
         Try it
         <Hint size="xs">Paste some text. Matches light up. Nothing here is saved or sent.</Hint>
-        <textarea
+        <PlainTextarea
           value={sample}
           onChange={(e) => setSample(e.target.value)}
           rows={3}
           placeholder="Notes from the zebra falcon sync"
-          className="rounded border px-2 py-1 text-sm"
-          style={{ borderColor: 'var(--border)', background: 'var(--card, var(--bg))', color: 'var(--text)' }}
+          css-border-color="border" css-background="card-bg" css-color="text" rounded="base" border="all" px="2" py="1" size="sm"
         />
       </Box>
       {sample && (

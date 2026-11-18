@@ -5,7 +5,7 @@
 // Origin, Sec-Fetch-Site, Content-Type and CSRF header.
 //
 // Nothing here logs, returns or stores a token, cookie value, CSRF value or API
-// key in the clear: links, cookies and keys are kept as SHA-256 hashes, and
+// value in the clear: links and cookies are kept as SHA-256 hashes, and
 // compared in constant time.
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import fs from "node:fs";
@@ -16,7 +16,6 @@ export const LINK_TTL_MS = 10 * 60 * 1000;
 export const IDLE_MS = 12 * 60 * 60 * 1000;
 export const ABSOLUTE_MS = 7 * 24 * 60 * 60 * 1000;
 export const CSRF_HEADER = "x-avoozl-csrf";
-export const KEY_HEADER = "x-api-key";
 export const LINK_REFUSAL = "This link is not valid. Run avoozl serve link.";
 export const SIGN_IN_PAGE =
   "Sign in needed. Run `avoozl serve link` in a terminal on this computer and open the link it prints.";
@@ -86,39 +85,6 @@ export class LinkStore {
   }
 }
 
-// The one API key, for scripts and other programs that are not a browser. It
-// lives in the machine configuration folder, mode 0600, and is read from the
-// file on each request, so a key regenerated anywhere stops the old one at once.
-export const API_KEY_FILE = "serve-api-key.json";
-
-export function apiKeyFile(configDirectory) {
-  return path.join(configDirectory, API_KEY_FILE);
-}
-
-export function readApiKey(configDirectory) {
-  try {
-    const key = JSON.parse(
-      fs.readFileSync(apiKeyFile(configDirectory), "utf8"),
-    ).key;
-    return typeof key === "string" && key.length >= 43 ? key : null;
-  } catch {
-    return null;
-  }
-}
-
-// A new key, written before the old one stops being read: 32 random bytes.
-export function regenerateApiKey(configDirectory) {
-  privateDirectory(configDirectory);
-  const key = token();
-  writePrivate(apiKeyFile(configDirectory), JSON.stringify({ key }) + "\n");
-  return key;
-}
-
-// The key, made on first use.
-export function ensureApiKey(configDirectory) {
-  return readApiKey(configDirectory) ?? regenerateApiKey(configDirectory);
-}
-
 function cookies(header) {
   const found = new Map();
   for (const part of String(header ?? "").split(";")) {
@@ -129,10 +95,9 @@ function cookies(header) {
 }
 
 export class ServeAuth {
-  constructor({ port, links, configDirectory, now = () => Date.now() }) {
+  constructor({ port, links, now = () => Date.now() }) {
     this.port = port;
     this.links = links;
-    this.configDirectory = configDirectory;
     this.now = now;
     // cookie hash (hex) -> { csrf, started, last }. In memory only: a restart
     // ends every session, and no cookie hash reaches the disk.
@@ -187,14 +152,6 @@ export class ServeAuth {
     this.sessions.clear();
   }
 
-  // Whether the X-Api-Key header holds the current key.
-  keyOk(req) {
-    const given = req.headers[KEY_HEADER];
-    const key = readApiKey(this.configDirectory);
-    if (typeof given !== "string" || !key) return false;
-    return same(sha256(given), sha256(key));
-  }
-
   // The checks that run before any other work, in order. Returns null to go
   // on, else `{ status, message }`. `url` is the parsed request URL.
   refuse(req, url) {
@@ -205,28 +162,20 @@ export class ServeAuth {
   }
 
   // Who may do what for a request that is not /login. Returns
-  // `{ kind: "session" | "key", session? }` or `{ status, message }`.
+  // `{ kind: "session", session }` or `{ status, message }`. Only a valid
+  // session cookie counts: there is no other way in.
   authenticate(req, url) {
     const authorization = req.headers.authorization;
     if (authorization !== undefined)
       return { status: 401, message: "Bearer tokens are not accepted." };
-    // The key goes in a header only, never in the address.
-    for (const name of url.searchParams.keys())
-      if (/^(x-?)?api[-_]?key$|^key$|^token$/i.test(name))
-        return {
-          status: 401,
-          message:
-            "Send the API key in the X-Api-Key header, never in the address.",
-        };
     const session = this.session(req);
     if (session) return { kind: "session", session };
-    if (this.keyOk(req)) return { kind: "key" };
     return { status: 401, message: SIGN_IN_PAGE };
   }
 
-  // The extra checks for a write (SW4.6, SW4.7). A browser session needs the
-  // CSRF header and a same-origin Origin. A key request carries no cookie, so it
-  // has no CSRF to forge; it may send no Origin, but not a foreign one.
+  // The extra checks for a write (SW4.6, SW4.7): a same-origin Origin, a
+  // same-origin Sec-Fetch-Site when sent, a JSON content type, and the CSRF
+  // header the page read from its own HTML.
   writeProblem(req, auth) {
     const origin = req.headers.origin,
       site = req.headers["sec-fetch-site"],
@@ -234,17 +183,12 @@ export class ServeAuth {
         .split(";")[0]
         .trim()
         .toLowerCase();
-    if (auth.kind === "session") {
-      if (origin === undefined || !this.origins.has(origin)) return "origin";
-      if (site !== undefined && site !== "same-origin") return "site";
-    } else if (origin !== undefined && !this.origins.has(origin))
-      return "origin";
+    if (origin === undefined || !this.origins.has(origin)) return "origin";
+    if (site !== undefined && site !== "same-origin") return "site";
     if (type !== "application/json") return "type";
-    if (auth.kind === "session") {
-      const given = req.headers[CSRF_HEADER];
-      if (typeof given !== "string") return "csrf";
-      if (!same(sha256(given), sha256(auth.session.csrf))) return "csrf";
-    }
+    const given = req.headers[CSRF_HEADER];
+    if (typeof given !== "string") return "csrf";
+    if (!same(sha256(given), sha256(auth.session.csrf))) return "csrf";
     return null;
   }
 }
