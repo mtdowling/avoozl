@@ -841,6 +841,46 @@ if (query.get('page') === 'app' && query.get('process') === '1') {
     return { id: 'send:1', state: 'queued', slot: input.slot, taskId: 'm3' }
   })
 }
+// &links=1: Home's In flight with PR and branch chips (task 44.4): checks
+// pass, running, fail and stale, a long branch name, and a row with a branch
+// but no pull request. Repositories and numbers are made up.
+if (query.get('page') === 'app' && query.get('links') === '1') {
+  const at = new Date(Date.now() - 9 * 60000).toISOString()
+  const t = (id: string, title: string) => ({ ...task(id, 'e1'), title, planId: 'meal-planner', spec: 'meal-planner', repository: 'recipe-box', phase: null, state: 'running', status: 'running' })
+  const rows: [string, string, string, string, number | null, string | null][] = [
+    ['m3', 'Sync pantry items between devices', 'worker', 'avoozl/meal-planner/m3-sync-pantry-items-between-devices', 412, 'pass'],
+    ['s1', 'Index recipes by ingredient', 'reviewer', 'avoozl/s1', 415, 'pending'],
+    ['s3', 'Show prep time on each card', 'checks', 'avoozl/s3-prep-time', 418, 'fail'],
+    ['s4', 'Keep the shopping list in sync', 'worker', 'avoozl/s4-list-sync', 420, 'stale'],
+    ['s5', 'Add a print view for one recipe', 'worker', 'avoozl/s5-print-view', null, null],
+  ]
+  answer('graph.view', () => ({
+    revision: 1,
+    epics: [{ id: 'e1', title: 'Meal planner', count: rows.length }],
+    plans: [{ id: 'meal-planner', title: 'Meal planner' }],
+    statuses: [{ id: 'planned', label: 'Planned', complete: false }, { id: 'done', label: 'Done', complete: true }],
+    repositories: ['recipe-box'],
+    total: rows.length,
+    tasks: rows.map(([id, title]) => t(id, title)),
+    edges: [],
+  }))
+  const repo = 'https://github.com/acme/recipe-box'
+  answer('delivery.view', () => ({
+    revision: 1,
+    items: rows.map(([id, title, role, ref, pr, dot], index) => ({
+      id, title, status: 'running', complete: false, repository: 'recipe-box', authority: 'local', runs: [], evidence: [], integration: null, pullRequests: [], deliveries: [{ state: 'running', updatedAt: at }], worktrees: [], issue: null,
+      sessions: [{ slot: `chat-${id}`, role, attempt: 1, title: null, status: 'working', statusAt: new Date(Date.now() - (index + 1) * 60000).toISOString(), boundAt: at, agent: 'kirocrew-worker', model: 'claude-sonnet', crew: 'local', executor: 'kirocrew', link: `/chat?sid=chat-${id}` }],
+      links: {
+        branch: { kind: 'branch', repository: 'acme/recipe-box', ref, url: `${repo}/tree/${ref}` },
+        pr: pr ? { kind: 'pull', repository: 'acme/recipe-box', number: pr, url: `${repo}/pull/${pr}`, state: 'open' } : null,
+        checks: dot
+          ? { state: dot === 'stale' ? 'pass' : dot, dot, head: (dot === 'stale' ? 'b' : 'a').repeat(40), ageMs: (index + 2) * 60000, current: dot !== 'stale', url: `${repo}/pull/${pr}/checks` }
+          : null,
+      },
+    })),
+    contentReports: [],
+  }))
+}
 // &publiccrews=after: Intake with the Public crews card (task 39.3): one
 // repository ready to sign off, one signed off, and one with no rule set
 // (the banner) whose sign-off lapsed. &publiccrews=before: the same Intake

@@ -1653,7 +1653,7 @@ paused. Screenshot approval remains owner work.
 - [x] 44.3 Links box in the task details view and the Graph modal, after 44.1 [R92.5, R92.9, R92.10, R92.12] (§4.27)
   - Branch, PR, checks, landed commit and issue; the Graph modal reuses the same view. A worktree path shows as local text only.
 
-- [ ] 44.4 PR and branch chips on In flight rows, after 44.1 [R92.6, R92.9, R92.12] (§4.27)
+- [x] 44.4 PR and branch chips on In flight rows, after 44.1 [R92.6, R92.9, R92.12] (§4.27)
   - `PR #N` with a check dot, and the branch. Chips fit a 390 px row.
 
 - [x] 44.5 Landing queue page under Dashboards, after 44.1 [R92.7, R92.2, R92.12] (§4.27)
@@ -1823,7 +1823,7 @@ mode of Phase 43.
 - [x] 51.1 The supervisor under launchd or systemd, running the tick too, after avoozl-p57 [R95.3] (§4.28)
 - [x] 51.2 CLI only: `avoozl status` and `avoozl runner status --json`, after 51.1 [R98.5] (§4.28)
 
-- [ ] avoozl-p61 P61 Proof: a headless machine runs tasks with the CLI only, after 51.1, 51.2 [R95, R98.5] (§4.28)
+- [x] avoozl-p61 P61 Proof: a headless machine runs tasks with the CLI only, after 51.1, 51.2 [R95, R98.5] (§4.28)
   - Setup: a machine without Kiro Crew's page, the supervisor under launchd.
   - Action: run two tasks; reboot the supervisor; read status.
   - Expected: both tasks finish; the supervisor comes back and finds its state; `runner status --json` reports both.
