@@ -6,15 +6,24 @@ category: Planning
 
 Status: Draft
 
+Owner decision, 2026-11-18: the owner said to approve this spec as written
+at commit `750396e`, with the five defaults of design D10. That decision is
+not yet an approval in Avoozl. An approval is recorded by a person, or by a
+delegate a person granted (Requirement 109), against the exact revision
+hash, and no such receipt exists: no workspace holds this repository's
+specs, and the session that wrote this note held no grant. Until one does,
+the Status line stays Draft, because `Status: Approved` is the mark
+Avoozl's own approval writes.
+
 ## Introduction
 
 A ready task can reach an agent by eight routes today. This spec cuts that to
 one dispatcher, two executors, one remote route and one way to finish per
 executor, and makes every kind of task work on both executors.
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts that a person does later. Nothing in it changes code, GitHub
-repositories or settings until its tasks run.
+Approving it, creating issues and starting agents are separate acts.
+Nothing here changes code, GitHub repositories or settings until its tasks
+run.
 
 Every claim about today's code carries one label: **V**, read in the file
 cited at `deca253`; or **A**, assumed and not checked, with the reason.

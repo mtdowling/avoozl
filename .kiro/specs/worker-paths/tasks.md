@@ -21,8 +21,8 @@ phone and desktop, light and dark screenshots for owner approval before
 merge (R92.12). Screenshots are shown to the owner and never committed
 (AGENTS.md).
 
-This spec is a draft. Approving it, creating issues and starting agents are
-separate acts. Task IDs start with `wp-` so they never collide with the IDs
+Approving this spec, creating issues and starting agents are separate
+acts, and no task here has started. Task IDs start with `wp-` so they never collide with the IDs
 of the other specs.
 
 ## Phase 1: Every kind of task on both executors

@@ -186,7 +186,8 @@ model this machine does not have.
 ## D10. Decisions for the owner
 
 Each has a default that the requirements already assume. Approving the spec
-approves the defaults.
+approves the defaults. On 2026-11-18 the owner said to approve the spec
+with them; `requirements.md` says what that does and does not record.
 
 | #   | Decision                                             | Default                                                                 | The other choice                                                              |
 | --- | ---------------------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
