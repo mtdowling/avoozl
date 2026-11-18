@@ -120,6 +120,9 @@ export function harnessExecutor(harness) {
 // `flow.retro.model`. A `roles` field wins over an older key.
 export const ROLES = Object.freeze(["worker", "falsifier", ...MODEL_ROLES]);
 const AGENT_ROLES = new Set(["worker", "falsifier"]);
+// The fields a row may set: every role's, and the agent roles'.
+export const ROLE_FIELDS = Object.freeze(["harness", "model"]);
+export const AGENT_ROLE_FIELDS = Object.freeze(["harness", "agent", "model"]);
 const AGENT = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 // The table with the older keys read in: older keys first, then `roles`
@@ -194,22 +197,18 @@ export function validateRoles(config, where = "roles") {
     if (!ROLES.includes(role))
       fail(`${at} is not a role; use ${ROLES.join(", ")}.`);
     if (!record(row)) fail(`${at} must be an object.`);
+    const fields = AGENT_ROLES.has(role) ? AGENT_ROLE_FIELDS : ROLE_FIELDS;
     for (const [field, v] of Object.entries(row)) {
-      if (field === "harness") {
-        if (!isHarnessName(v))
-          fail(
-            `${at}.harness must be ${KIROCREW_HARNESS}, a harness name or "auto".`,
-          );
-      } else if (field === "model") {
-        if (typeof v !== "string" || !MODEL.test(v))
-          fail(`${at}.model must be a model name or "auto".`);
-      } else if (field === "agent" && AGENT_ROLES.has(role)) {
-        if (typeof v !== "string" || !AGENT.test(v))
-          fail(`${at}.agent must be an agent name.`);
-      } else
+      if (!fields.includes(field))
+        fail(`${at}.${field} is not a role setting; use ${fields.join(", ")}.`);
+      if (field === "harness" && !isHarnessName(v))
         fail(
-          `${at}.${field} is not a role setting; use harness, model${AGENT_ROLES.has(role) ? " or agent" : ""}.`,
+          `${at}.harness must be ${KIROCREW_HARNESS}, a harness name or "auto".`,
         );
+      if (field === "model" && (typeof v !== "string" || !MODEL.test(v)))
+        fail(`${at}.model must be a model name or "auto".`);
+      if (field === "agent" && (typeof v !== "string" || !AGENT.test(v)))
+        fail(`${at}.agent must be an agent name.`);
     }
   }
   const { planner, planReviewer } = resolveRoles(config);
