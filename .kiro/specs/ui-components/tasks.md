@@ -39,7 +39,7 @@ of the other specs.
 - [x] uc-2.2 Move the shared parts into `src/ui/`, after uc-1.1 [UC1.2, UC2.2] (§D1)
   - `Button.tsx`, `Badge.tsx`, `Tabs.tsx`, `Tooltip.tsx`, `RadioFold.tsx`, `PairedCards.tsx` and the components of `controls.tsx` move; one module per Kiro Crew part in use re-exports it.
   - Done when: No view imports `@kirocrew/app-sdk/ui` directly, checked by a source test; the page renders the same, checked by the existing page tests with assertions unchanged.
-  - Built: PR #624 (replaced by the PR of this branch).
+  - Built: PR #638.
 
 ## Phase 3: Kiro Crew's parts
 
