@@ -3,8 +3,8 @@
 // Import dialog itself. Nothing is written until Import, and Import sends the
 // exact preview the person saw.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Btn } from '@kirocrew/app-sdk/ui'
-import Badge, { type BadgeVariant } from './Badge.tsx'
+import { Btn } from './ui/Btn'
+import Badge, { type BadgeVariant } from './ui/Badge.tsx'
 import {
   importBlocked,
   importInput,
@@ -17,6 +17,8 @@ import {
 } from './plugins-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Modal } from './Modal.tsx'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -33,16 +35,16 @@ export function PackChanges({ preview }: { preview: PackPreview }) {
   const counts = packCounts(preview.changes)
   return (
     <div className="flex flex-col gap-2 text-sm" data-pack-preview>
-      {preview.description && <p className="text-xs text-muted">{preview.description}</p>}
-      <p className="text-xs text-muted">
+      {preview.description && <Hint as="p" size="xs">{preview.description}</Hint>}
+      <Hint as="p" size="xs">
         {counts.create} to create, {counts.change} to change, {counts.keep} already the same
         {counts.skip ? `, ${counts.skip} skipped` : ''}
         {preview.repositories.length ? `. Repositories: ${preview.repositories.join(', ')}.` : '.'}
-      </p>
+      </Hint>
       {preview.warnings.map((warning) => (
-        <p key={warning} role="alert" className="text-sm text-danger" data-pack-warning>
+        <ErrorText key={warning} role="alert" size="sm" data-pack-warning>
           {warning}
-        </p>
+        </ErrorText>
       ))}
       <div style={{ overflowX: 'auto' }}>
         <table className="w-full text-xs">
@@ -64,13 +66,13 @@ export function PackChanges({ preview }: { preview: PackPreview }) {
                 </td>
                 <td className="py-1 break-all">
                   {change.action === 'skip' ? (
-                    <span className="text-muted">{change.reason}</span>
+                    <Hint>{change.reason}</Hint>
                   ) : (
                     <>
                       {change.action === 'change' && (
-                        <span className="block text-muted">
+                        <Hint block>
                           was <code>{shortValue(change.from)}</code>
-                        </span>
+                        </Hint>
                       )}
                       <code>{shortValue(change.to)}</code>
                       {change.warning && <span className="block text-danger">Lowers who counts, as said above.</span>}
@@ -144,9 +146,9 @@ export function PackImportDialog(props: { row: PluginRow; workspaceId: string; c
       }
     >
       <div>
-        <p className="text-sm text-muted">Copies these settings into .avoozl.json once. Later versions offer their changes here again.</p>
+        <Hint as="p" size="sm">Copies these settings into .avoozl.json once. Later versions offer their changes here again.</Hint>
       </div>
-      {preview ? <PackChanges preview={preview} /> : !error && <p className="text-sm text-muted">Reading the pack...</p>}
+      {preview ? <PackChanges preview={preview} /> : !error && <Hint as="p" size="sm">Reading the pack...</Hint>}
       {preview && preview.warnings.length > 0 && (
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" className="mt-1" checked={acceptLowered} onChange={(e) => setAcceptLowered(e.target.checked)} />
@@ -158,15 +160,15 @@ export function PackImportDialog(props: { row: PluginRow; workspaceId: string; c
           <input type="checkbox" className="mt-1" checked={confirmPublic} onChange={(e) => setConfirmPublic(e.target.checked)} />
           <span>
             Write the plugin id into .avoozl.json
-            <span className="block text-xs text-muted">This plugin is declared on this computer only. Anyone who can read the repository sees its id and these settings.</span>
+            <Hint size="xs" block>This plugin is declared on this computer only. Anyone who can read the repository sees its id and these settings.</Hint>
           </span>
         </label>
       )}
-      {blocked && preview && !(preview.warnings.length && !acceptLowered) && <p className="text-xs text-muted">{blocked}</p>}
+      {blocked && preview && !(preview.warnings.length && !acceptLowered) && <Hint as="p" size="xs">{blocked}</Hint>}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
     </Modal>
   )

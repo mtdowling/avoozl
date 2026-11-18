@@ -3,10 +3,13 @@
 // (workspaces.browse): the page runs in Kiro Crew's iframe, which has no
 // native folder dialog. The typed path stays; a pick fills it in.
 import { useState } from 'react'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
 import { errorMessage, type FolderListing, type WorkspaceClient } from './workspace-api'
 import { ArrowUp, Folder, FolderOpen } from './icons.ts'
-import Badge from './Badge.tsx'
+import Badge from './ui/Badge.tsx'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
 
 export function FolderField(props: {
   id: string
@@ -59,7 +62,7 @@ export function FolderField(props: {
   return (
     <div className="flex flex-col gap-1 text-sm" data-folder-field={props.id}>
       <label htmlFor={props.id}>{props.label}</label>
-      <div className="flex items-center gap-2">
+      <Row gap={2} wrap={false}>
         <Input
           id={props.id}
           value={props.value}
@@ -71,8 +74,8 @@ export function FolderField(props: {
         <Btn type="button" data-folder-browse aria-expanded={open} aria-controls={`${props.id}-browser`} onClick={toggle} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <FolderOpen size={14} aria-hidden="true" /> Browse
         </Btn>
-      </div>
-      <span className="text-xs text-muted">A full path. ~/ means your home folder.</span>
+      </Row>
+      <Hint size="xs">A full path. ~/ means your home folder.</Hint>
       {open && (
         <div id={`${props.id}-browser`} data-folder-browser className="flex flex-col rounded border" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2 border-b px-2 py-1" style={{ borderColor: 'var(--border)' }}>

@@ -7,8 +7,9 @@
 // middle column, one item's details and actions on the right.
 import ConflictsView from './ConflictsView.tsx'
 import UntriagedView from './UntriagedView.tsx'
-import { ViewHeading } from './controls.tsx'
+import { ViewHeading } from './ui/controls.tsx'
 import { WAITING_SECTIONS, type WaitingSection } from './nav-api.ts'
+import { Hint } from './ui/Hint'
 
 export type { WaitingSection }
 export const SECTIONS = WAITING_SECTIONS
@@ -26,9 +27,9 @@ export default function WaitingView(props: {
       <ViewHeading id="avoozl-waiting-title" view="waiting">
         Needs you
       </ViewHeading>
-      <p className="text-sm text-muted" data-waiting-line>
+      <Hint as="p" size="sm" data-waiting-line>
         {section.line}
-      </p>
+      </Hint>
       <div className="min-h-0 flex-1" data-waiting-section={section.key} data-open="true">
         {open === 'decisions' ? (
           <ConflictsView workspaceId={props.workspaceId} embedded />

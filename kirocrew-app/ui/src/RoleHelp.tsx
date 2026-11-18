@@ -3,6 +3,8 @@
 // itself is picked in each repository's row. Theme variables only.
 import type { CSSProperties, ReactNode } from 'react'
 import { MODE_CARDS } from './settings-api.ts'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 const OPEN = 'var(--ok)'
 const MERGED = 'var(--tile-purple, var(--accent))'
@@ -68,7 +70,7 @@ function Repo({ name, locked, children }: { name: string; locked?: boolean; chil
         {locked && <Lock />}
         <span className="truncate">{name}</span>
       </div>
-      <div className="flex flex-col">{children}</div>
+      <Stack>{children}</Stack>
     </div>
   )
 }
@@ -177,7 +179,7 @@ export function RoleHelp() {
             <div key={card.mode} className="flex min-w-0 flex-col gap-2" data-role-outcome={card.mode}>
               <div>
                 <span className="font-semibold">{card.title}</span>
-                <p className="text-xs text-muted">{MAKES[card.mode]}</p>
+                <Hint as="p" size="xs">{MAKES[card.mode]}</Hint>
               </div>
               <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))' }}>
                 <div className="rounded-md p-2.5" style={{ background: 'var(--bg-elevated, transparent)' }}>
@@ -196,7 +198,7 @@ export function RoleHelp() {
                   <dl className="grid gap-x-3 gap-y-1" style={{ gridTemplateColumns: 'max-content 1fr' }}>
                     {card.facts.map(([label, text]) => (
                       <div key={label} className="contents">
-                        <dt className="text-muted">{label}</dt>
+                        <Hint as="dt">{label}</Hint>
                         <dd>{text}</dd>
                       </div>
                     ))}

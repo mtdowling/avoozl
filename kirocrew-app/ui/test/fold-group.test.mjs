@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-const controls = readFileSync(new URL('../src/controls.tsx', import.meta.url), 'utf8')
+const controls = readFileSync(new URL('../src/ui/controls.tsx', import.meta.url), 'utf8')
 
 // closeOthers is plain logic; load it without the JSX around it.
 const body = controls.match(/export function closeOthers[\s\S]*?\n}\n/)[0]

@@ -7,10 +7,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Markdown } from './Markdown.tsx'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { useMedia } from './use-media.ts'
 import { PROSE_MEASURE } from './PlansView.tsx'
-import { IconBtn, SectionHeading } from './controls.tsx'
+import { IconBtn, SectionHeading } from './ui/controls.tsx'
 import { Copy, FolderOpen } from './icons.ts'
 import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
@@ -20,6 +20,8 @@ import { CITED_STYLE, markCited } from './CitedFile.tsx'
 import { useReveal } from './RepositoriesSettings.tsx'
 import { errorMessage, workspaceClient } from './workspace-api.ts'
 import { Modal } from './Modal.tsx'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
 
 export interface ReaderTarget {
   document: string
@@ -172,11 +174,11 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
           aria-label={`Contents of ${target.document}`}
         >
           {doc.error ? (
-            <p role="alert" className="text-sm text-danger">
+            <ErrorText role="alert" size="sm">
               {doc.error}
-            </p>
+            </ErrorText>
           ) : doc.text === null ? (
-            <p className="text-sm text-muted">Reading…</p>
+            <Hint as="p" size="sm">Reading…</Hint>
           ) : (
             <>
               <style>{CITED_STYLE}</style>

@@ -5,16 +5,21 @@
 // (github.repositories, keyed owner/name); either side may be missing.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
 import { MIRROR_ROLE, mirrorSourceProblem, roleFromMode, type RepositoryForm } from './settings-api.ts'
-import { DangerBtn, IconBtn, IconLabel, TipBtn, type ConfirmCopy } from './controls.tsx'
+import { DangerBtn, IconBtn, IconLabel, TipBtn, type ConfirmCopy } from './ui/controls.tsx'
 import { Eye, Pencil, Plus, Trash2, Workflow } from './icons.ts'
 import { RoleChoice } from './RepositoryModals.tsx'
 import { errorMessage, workspaceClient, type DetectedCheckout } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
 import ListItem from './ListItem.tsx'
 import { githubHref, repositoryFacts, type RepositoryRow } from './repository-rows.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 export { repositoryRows, type RepositoryRow } from './repository-rows.ts'
 
 export const REPOSITORIES_LINE =
@@ -64,14 +69,14 @@ export function RepositoryList(props: {
     return (
       <div className="flex flex-col items-start gap-2 py-2" data-repositories-empty>
         <p className="text-sm">No repositories yet.</p>
-        <p className="text-sm text-muted">{REPOSITORIES_LINE}</p>
+        <Hint as="p" size="sm">{REPOSITORIES_LINE}</Hint>
         <IconLabel icon={Plus} primary onClick={props.onAdd}>
           Add repository
         </IconLabel>
       </div>
     )
   return (
-    <ul className="flex flex-col" aria-label="Added repositories" data-repository-list>
+    <Stack as="ul" aria-label="Added repositories" data-repository-list>
       {props.rows.map((row) => (
         <ListItem
           key={row.key}
@@ -87,9 +92,9 @@ export function RepositoryList(props: {
                   {row.github}
                 </a>
               ) : (
-                <span className="text-xs text-muted" data-github-link>
+                <Hint size="xs" data-github-link>
                   {row.github ?? 'Local only'}
-                </span>
+                </Hint>
               )}
             </>
           }
@@ -110,7 +115,7 @@ export function RepositoryList(props: {
           }
         />
       ))}
-    </ul>
+    </Stack>
   )
 }
 
@@ -190,7 +195,7 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
     }
   }
   return (
-    <section aria-labelledby="avoozl-repo-add" className="flex flex-col gap-3" data-add-repository>
+    <Stack aria-labelledby="avoozl-repo-add" as="section" gap={3} data-add-repository>
       <div>
         <h3 id="avoozl-repo-add" className="text-base font-semibold">
           Add repository
@@ -200,8 +205,8 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
       <ol className="flex flex-col gap-3" style={{ maxWidth: '40rem' }}>
         <li className="flex flex-col gap-1.5" data-step="folder">
           <span className="text-sm font-medium">1. Pick the folder</span>
-          <span className="text-xs text-muted">The checkout&apos;s folder, as an absolute path. Any folder inside it works too.</span>
-          <span className="flex flex-wrap items-end gap-2">
+          <Hint size="xs">The checkout&apos;s folder, as an absolute path. Any folder inside it works too.</Hint>
+          <Row as="span" gap={2} align="end">
             <label htmlFor="avoozl-repo-folder" className="sr-only">
               Folder
             </label>
@@ -209,18 +214,18 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
             <TipBtn tooltip="Read the folder's branch and GitHub remote. Changes nothing." onClick={() => void detect()} disabled={busy || !folder.trim() || Boolean(props.disabled)}>
               Check folder
             </TipBtn>
-          </span>
+          </Row>
         </li>
         {found && (
           <li className="flex flex-col gap-2" data-step="confirm">
             <span className="text-sm font-medium">2. Confirm what Avoozl found</span>
-            <span className="text-xs text-muted">Tasks land on the branch below. Change it if tasks should land elsewhere.</span>
+            <Hint size="xs">Tasks land on the branch below. Change it if tasks should land elsewhere.</Hint>
             <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
-              <dt className="text-muted">Folder</dt>
+              <Hint as="dt">Folder</Hint>
               <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
                 {found.root}
               </dd>
-              <dt className="text-muted">GitHub remote</dt>
+              <Hint as="dt">GitHub remote</Hint>
               <dd>{found.github ?? (found.remote ? `${found.remote} is not on GitHub` : 'None: a local-only repository')}</dd>
             </dl>
             <RoleChoice
@@ -235,7 +240,7 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
                 setSource(nextSource)
               }}
             />
-            <span className="flex flex-wrap items-end gap-3">
+            <Row as="span" gap={3} align="end">
               <label htmlFor="avoozl-repo-id" className="flex flex-col gap-1 text-sm">
                 <span>Short ID</span>
                 <Input id="avoozl-repo-id" value={id} placeholder="my-service" onChange={(event) => setId(event.target.value)} />
@@ -247,16 +252,16 @@ export function AddRepository(props: { workspaceId: string; mode: string; disabl
               <Btn primary onClick={() => void add()} disabled={busy || !id.trim() || Boolean(props.disabled) || (role === MIRROR_ROLE && Boolean(mirrorSourceProblem(source, found.github)))}>
                 Add repository
               </Btn>
-            </span>
+            </Row>
           </li>
         )}
       </ol>
-      {props.disabled && <p className="text-xs text-muted">{props.disabled}</p>}
+      {props.disabled && <Hint as="p" size="xs">{props.disabled}</Hint>}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
-    </section>
+    </Stack>
   )
 }

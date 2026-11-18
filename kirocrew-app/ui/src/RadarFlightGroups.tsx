@@ -1,7 +1,7 @@
 // Live Issue Radar claims grouped by the Avoozl that released them. The group
 // name is the Avoozl's display name; its ID is in the tooltip. Claims on an
 // issue with no Avoozl marker sit under "No Avoozl". Read from GitHub only.
-import Badge from "./Badge.tsx";
+import Badge from "./ui/Badge.tsx";
 import { usePhone } from "./list-detail.ts";
 import { relativeTime } from "./task-api.ts";
 import {
@@ -10,6 +10,8 @@ import {
   type RadarCrewStrip,
   type RadarGroup,
 } from "./views-api.ts";
+import { Hint } from './ui/Hint'
+import { TextLink } from './ui/TextLink'
 
 const HEAD = ["Issue", "Crew", "Phase", "Claimed", "Last update", "PR"];
 
@@ -32,29 +34,28 @@ function Row({
     >
       <td className="py-1 pr-2">
         {linkHref(row.url) ? (
-          <a
+          <TextLink
             href={linkHref(row.url)}
             target="_blank"
             rel="noreferrer"
-            className="underline"
             aria-label={`Open issue ${row.number} on GitHub`}
           >
             {row.title}
-          </a>
+          </TextLink>
         ) : (
           row.title
         )}{" "}
-        <span className="text-xs text-muted">
+        <Hint size="xs">
           {row.repository} #{row.number}
-        </span>{" "}
+        </Hint>{" "}
         {row.stale && <Badge variant="warning">Stale</Badge>}
       </td>
       <td className="py-1 pr-2">
         {row.crewName ?? row.crewId ?? "no crew named"}
         {cost && cost.stages.length > 0 && (
-          <span data-radar-cost className="block text-xs text-muted">
+          <Hint data-radar-cost size="xs" block>
             {cost.credits.toFixed(1)} credits, {cost.turns} turns
-          </span>
+          </Hint>
         )}
       </td>
       <td className="py-1 pr-2">
@@ -66,15 +67,14 @@ function Row({
       </td>
       <td className="py-1">
         {linkHref(row.prUrl) ? (
-          <a
+          <TextLink
             href={linkHref(row.prUrl)}
             target="_blank"
             rel="noreferrer"
-            className="underline"
             aria-label={`Open pull request ${row.pr} on GitHub`}
           >
             #{row.pr}
-          </a>
+          </TextLink>
         ) : (
           ""
         )}
@@ -93,18 +93,18 @@ function PhoneRow({ row, now }: { row: RadarClaim; now: number }) {
       style={{ borderColor: "var(--border)", overflowWrap: "anywhere" }}
     >
       {linkHref(row.url) ? (
-        <a href={linkHref(row.url)} target="_blank" rel="noreferrer" className="underline" aria-label={`Open issue ${row.number} on GitHub`}>
+        <TextLink href={linkHref(row.url)} target="_blank" rel="noreferrer" aria-label={`Open issue ${row.number} on GitHub`}>
           {row.title}
-        </a>
+        </TextLink>
       ) : (
         row.title
       )}{" "}
       {row.stale && <Badge variant="warning">Stale</Badge>}
-      <span className="block text-xs text-muted">
+      <Hint size="xs" block>
         {row.repository} #{row.number} · {row.crewName ?? row.crewId ?? "no crew named"} · {row.phase ?? "claim label, no claim comment"} · claimed {relativeTime(row.claimedAt ?? null, now)} · updated{" "}
         {relativeTime(row.updated ?? row.issueUpdatedAt ?? null, now)}
         {row.pr ? ` · PR #${row.pr}` : ""}
-      </span>
+      </Hint>
     </li>
   );
 }

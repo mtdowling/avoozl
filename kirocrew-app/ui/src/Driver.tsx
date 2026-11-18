@@ -5,13 +5,15 @@
 // Cancel, Esc and a click outside change nothing.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
+import { Btn } from './ui/Btn'
+import { Card } from './ui/Card'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
 import { Modal } from './Modal.tsx'
-import { IconLabel } from './controls.tsx'
-import { Button } from './Button.tsx'
+import { IconLabel } from './ui/controls.tsx'
+import { Button } from './ui/Button.tsx'
 import { ExternalLink, KeyRound, Laptop, Lock, Send } from './icons.ts'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { InstanceNickname, useInstance } from './InstanceName.tsx'
 import { handoffLine } from './instance-api.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -31,6 +33,10 @@ import {
   type DriverStatus,
   type TakeoverPreview,
 } from './driver-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 const FIELD = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)', maxWidth: '100%' }
 
@@ -81,7 +87,7 @@ export function DriverBanner(props: { workspaceId: string; spec: DriverSpec | nu
     >
       <Lock size={18} aria-hidden="true" style={{ color: 'var(--muted)' }} />
       <span className="min-w-0 flex-1">
-        <span className="font-medium">Read only here. {bannerTitle(spec)}.</span> <span className="text-muted">{spec.text}</span>
+        <span className="font-medium">Read only here. {bannerTitle(spec)}.</span> <Hint>{spec.text}</Hint>
         {issueUrl && (
           <>
             {' '}
@@ -132,7 +138,7 @@ export function SetupList(props: { spec: DriverSpec | null }) {
   return (
     <div data-driver-setup className="mb-3 rounded-lg border p-3 text-sm" style={{ borderColor: 'var(--border)' }}>
       <p className="font-medium">Set these up on this machine</p>
-      <p className="text-xs text-muted">They stay on each machine. Until they are back, their tasks wait and their checks block writes.</p>
+      <Hint as="p" size="xs">They stay on each machine. Until they are back, their tasks wait and their checks block writes.</Hint>
       <ul className="mt-1 list-disc pl-5">
         {items.map((item) => (
           <li key={item.kind + (item.id ?? '')}>{setupText(item)}</li>
@@ -152,7 +158,7 @@ function Loss(props: { preview: TakeoverPreview | null }) {
           <li key={line}>{line}</li>
         ))}
       </ul>
-      <p className="text-xs text-muted">The next tick raises again: {props.preview.reraised.join(', ')}.</p>
+      <Hint as="p" size="xs">The next tick raises again: {props.preview.reraised.join(', ')}.</Hint>
     </div>
   )
 }
@@ -160,7 +166,7 @@ function Loss(props: { preview: TakeoverPreview | null }) {
 function FileField(props: { id: string; value: string; onChange: (value: string) => void }) {
   return (
     <label className="flex flex-col gap-1 text-sm" htmlFor={props.id}>
-      Export file <span className="text-xs text-muted">(full path to {'<spec>'}.avoozl-driver.json)</span>
+      Export file <Hint size="xs">(full path to {'<spec>'}.avoozl-driver.json)</Hint>
       <Input id={props.id} value={props.value} onChange={(event) => props.onChange(event.target.value)} style={FIELD} placeholder="/path/to/s1.avoozl-driver.json" />
     </label>
   )
@@ -213,7 +219,7 @@ export function TakeOverDialog(props: { workspaceId: string; spec: DriverSpec; o
         </>
       }
     >
-      <div className="flex flex-col gap-3">
+      <Stack gap={3}>
         <p className="text-sm">{spec.text}</p>
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-medium">How its run state comes over</legend>
@@ -221,20 +227,20 @@ export function TakeOverDialog(props: { workspaceId: string; spec: DriverSpec; o
             <label key={option.key} className="flex items-start gap-2 text-sm">
               <input type="radio" name="avoozl-driver-how" checked={how === option.key} onChange={() => setHow(option.key)} />
               <span>
-                {option.label} <span className="block text-xs text-muted">{option.note}</span>
+                {option.label} <Hint size="xs" block>{option.note}</Hint>
               </span>
             </label>
           ))}
         </fieldset>
         {how === 'file' && <FileField id="avoozl-driver-file" value={file} onChange={setFile} />}
         {how === 'rebuild' && <Loss preview={preview} />}
-        <p className="text-xs text-muted">Avoozl waits 10 seconds and reads the plan issue again; it drives only if its claim is still there.</p>
+        <Hint as="p" size="xs">Avoozl waits 10 seconds and reads the plan issue again; it drives only if its claim is still there.</Hint>
         {error && (
-          <p role="alert" className="text-sm text-danger">
+          <ErrorText role="alert" size="sm">
             {error}
-          </p>
+          </ErrorText>
         )}
-      </div>
+      </Stack>
     </Modal>
   )
 }
@@ -286,13 +292,13 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
     >
       <div className="flex flex-col gap-3 text-sm" data-driver-force>
         <dl className="grid gap-x-3 gap-y-1" style={{ gridTemplateColumns: 'auto 1fr' }}>
-          <dt className="text-muted">Assigned to</dt>
+          <Hint as="dt">Assigned to</Hint>
           <dd>{(preview?.current.assignees ?? spec.assignees ?? []).join(', ') || 'nobody'}</dd>
-          <dt className="text-muted">Driving machine</dt>
+          <Hint as="dt">Driving machine</Hint>
           <dd>
             {old?.label || 'no label'} <code className="text-xs">{old?.machine ?? 'none'}</code>
           </dd>
-          <dt className="text-muted">Last heartbeat</dt>
+          <Hint as="dt">Last heartbeat</Hint>
           <dd>{spec.seenAt ? `${spec.seenAt} (${ago(spec.seenAt)})` : 'never'}</dd>
         </dl>
         <p>
@@ -314,9 +320,9 @@ export function ForceTakeOverDialog(props: { workspaceId: string; spec: DriverSp
           <Input id="avoozl-driver-force-name" value={typed} onChange={(event) => setTyped(event.target.value)} style={FIELD} autoComplete="off" />
         </label>
         {error && (
-          <p role="alert" className="text-danger">
+          <ErrorText role="alert">
             {error}
-          </p>
+          </ErrorText>
         )}
       </div>
     </Modal>
@@ -409,7 +415,7 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
       <ol className="flex flex-col gap-4 text-sm" data-driver-handoff>
         <li aria-current={step === 'start' || step === 'drain' ? 'step' : undefined}>
           <p className="font-medium">1. Drain</p>
-          <p className="text-muted">No new work starts for this spec. Running chats keep running and are never ended; their reports still apply.</p>
+          <Hint as="p">No new work starts for this spec. Running chats keep running and are never ended; their reports still apply.</Hint>
           {step !== 'start' && (
             <div className="mt-1">
               {running.length ? `${running.length} chat(s) still running:` : 'No chat is running.'}
@@ -417,7 +423,7 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
                 <ul className="list-disc pl-5">
                   {running.map((chat) => (
                     <li key={chat.slot}>
-                      {chat.taskId} <span className="text-muted">({chat.role}, {chat.status ?? 'unknown'})</span>
+                      {chat.taskId} <Hint>({chat.role}, {chat.status ?? 'unknown'})</Hint>
                     </li>
                   ))}
                 </ul>
@@ -427,13 +433,13 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
         </li>
         <li aria-current={step === 'drain' ? 'step' : undefined}>
           <p className="font-medium">2. Export</p>
-          <p className="text-muted">
+          <Hint as="p">
             One file, {spec.spec}.avoozl-driver.json, in a folder you pick outside the workspace repository. It may hold private notes: Avoozl never uploads,
             commits or pushes it. With a folder set, Avoozl writes it once the last chat ends.
-          </p>
+          </Hint>
           {step !== 'reassign' && (
             <label className="mt-1 flex flex-col gap-1" htmlFor="avoozl-driver-folder">
-              Folder <span className="text-xs text-muted">(full path)</span>
+              Folder <Hint size="xs">(full path)</Hint>
               <Input id="avoozl-driver-folder" value={folder} onChange={(event) => setFolder(event.target.value)} style={FIELD} placeholder="/path/to/a/folder" />
             </label>
           )}
@@ -442,11 +448,11 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
         <li aria-current={step === 'reassign' ? 'step' : undefined}>
           <p className="font-medium">3. Reassign</p>
           {handoffLine(instance) && <p data-instance-handoff>{handoffLine(instance)}</p>}
-          <p className="text-muted">
+          <Hint as="p">
             {spec.mode === 'local'
               ? 'Move the file to the other machine and press Take over there.'
               : 'Assign the plan issue to the person who takes over. Avoozl does not reassign it. Your other machine needs no reassignment: press Take over there.'}
-          </p>
+          </Hint>
           {step === 'reassign' && issueUrl && (
             <a href={safeHref(issueUrl) ?? undefined} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 underline">
               Reassign it on GitHub <ExternalLink size={12} aria-hidden="true" />
@@ -488,45 +494,45 @@ export function ThisComputer(props: { workspaceId: string | null }) {
   }
   return (
     <Card>
-      <section data-this-computer aria-labelledby="avoozl-this-computer" className="flex flex-col gap-3">
+      <Stack data-this-computer aria-labelledby="avoozl-this-computer" as="section" gap={3}>
         <h4 id="avoozl-this-computer" className="text-base font-semibold">
           This computer
         </h4>
         <InstanceNickname workspaceId={props.workspaceId} />
         {machine && (
           <>
-        <p className="text-xs text-muted">These stay on this machine. The label shows in plan issues so people can tell your machines apart.</p>
-        <div className="flex flex-wrap gap-4">
+        <Hint as="p" size="xs">These stay on this machine. The label shows in plan issues so people can tell your machines apart.</Hint>
+        <Row gap={4} align="start">
           <label className="flex flex-col gap-1 text-sm" htmlFor="avoozl-machine-label">
-            Machine label <span className="text-xs text-muted">(optional)</span>
+            Machine label <Hint size="xs">(optional)</Hint>
             <Input id="avoozl-machine-label" maxLength={LABEL_MAX} value={form.label} onChange={(event) => setForm({ ...form, label: event.target.value })} style={FIELD} placeholder="laptop" />
           </label>
           <label className="flex flex-col gap-1 text-sm" htmlFor="avoozl-machine-heartbeat">
-            Heartbeat minutes <span className="text-xs text-muted">(optional)</span>
+            Heartbeat minutes <Hint size="xs">(optional)</Hint>
             <Input id="avoozl-machine-heartbeat" inputMode="numeric" value={form.heartbeat} onChange={(event) => setForm({ ...form, heartbeat: event.target.value })} style={FIELD} placeholder={String(HEARTBEAT_PLACEHOLDER)} />
           </label>
-        </div>
-        <p className="text-xs text-muted">
+        </Row>
+        <Hint as="p" size="xs">
           Machine ID <code>{machine.id}</code>
-        </p>
-        <p className="text-xs text-muted">
+        </Hint>
+        <Hint as="p" size="xs">
           In Local only mode the driver lock guards only workspaces that open this database or a copy of it. It cannot see another machine, and there is no
           forced take-over between machines.
-        </p>
-        <div className="flex items-center gap-2">
+        </Hint>
+        <Row gap={2} wrap={false}>
           <Btn type="button" primary onClick={() => void save()}>
             Save
           </Btn>
-          {notice && <span role="status" className="text-sm text-muted">{notice}</span>}
-        </div>
+          {notice && <Hint role="status" size="sm">{notice}</Hint>}
+        </Row>
         {error && (
-          <p role="alert" className="text-sm text-danger">
+          <ErrorText role="alert" size="sm">
             {error}
-          </p>
+          </ErrorText>
         )}
           </>
         )}
-      </section>
+      </Stack>
     </Card>
   )
 }

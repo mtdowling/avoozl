@@ -5,11 +5,14 @@
 // reads a path typed into a field. The parent owns the values.
 import { useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Input } from '@kirocrew/app-sdk/ui'
+import { Input } from './ui/Input'
 import { PackChanges } from './PackImport.tsx'
 import { pluginsClient, type PackPreview } from './plugins-api.ts'
 import { errorMessage, type Repository } from './workspace-api.ts'
 import { readInputFile, type TemplateInput, type TemplateSummary } from './notes-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 const fieldStyle = {
   borderColor: 'var(--border)',
@@ -57,7 +60,7 @@ function InputField(props: {
             </label>
           )
         })}
-        {missing && <span className="text-xs text-danger">Pick at least one repository.</span>}
+        {missing && <ErrorText as="span" size="xs">Pick at least one repository.</ErrorText>}
       </fieldset>
     )
   return (
@@ -102,12 +105,12 @@ function InputField(props: {
             }}
             className="text-sm"
           />
-          <span className="text-xs text-muted">
+          <Hint size="xs">
             {file
               ? `${file.name}, ${Math.ceil(file.size / 1024)} KB, read here and sent as text.`
               : 'Read here as text, at most 200 KB. Avoozl never opens a path you type.'}
-          </span>
-          {problem && <span className="text-xs text-danger">{problem}</span>}
+          </Hint>
+          {problem && <ErrorText as="span" size="xs">{problem}</ErrorText>}
         </>
       ) : (
         <>
@@ -130,7 +133,7 @@ function InputField(props: {
           )}
         </>
       )}
-      {missing && <span className="text-xs text-danger">Fill in {input.label}.</span>}
+      {missing && <ErrorText as="span" size="xs">Fill in {input.label}.</ErrorText>}
     </div>
   )
 }
@@ -174,11 +177,11 @@ export function TemplateStart(props: {
     }
   }, [plugins, props.workspaceId, template?.plugin, template?.id, template?.settings, onPreview])
 
-  if (props.templates === null) return <p className="text-sm text-muted">Reading templates…</p>
+  if (props.templates === null) return <Hint as="p" size="sm">Reading templates…</Hint>
   if (!props.templates.length)
-    return <p className="text-sm text-muted">No templates yet. A template comes in a plugin: add and approve one in Settings › Plugins.</p>
+    return <Hint as="p" size="sm">No templates yet. A template comes in a plugin: add and approve one in Settings › Plugins.</Hint>
   return (
-    <div className="flex flex-col gap-3" data-template-start>
+    <Stack gap={3} data-template-start>
       <fieldset className="flex flex-col gap-1 text-sm">
         <legend className="font-medium">Template</legend>
         {props.templates.map((t) => (
@@ -196,14 +199,14 @@ export function TemplateStart(props: {
               checked={props.picked === templateKey(t)}
               onChange={() => props.onPick(templateKey(t))}
             />
-            <span className="flex flex-col">
+            <Stack as="span">
               <span className="font-medium">{t.title}</span>
-              <span className="text-xs text-muted">{t.description}</span>
-              {t.phases.length > 0 && <span className="text-xs text-muted">Phases: {t.phases.map((p) => p.title).join(', ')}</span>}
-            </span>
+              <Hint size="xs">{t.description}</Hint>
+              {t.phases.length > 0 && <Hint size="xs">Phases: {t.phases.map((p) => p.title).join(', ')}</Hint>}
+            </Stack>
           </label>
         ))}
-        {props.tried && !template && <span className="text-xs text-danger">Pick a template.</span>}
+        {props.tried && !template && <ErrorText as="span" size="xs">Pick a template.</ErrorText>}
       </fieldset>
       {template &&
         template.inputs.map((input) => (
@@ -225,13 +228,13 @@ export function TemplateStart(props: {
           data-template-settings
         >
           <h4 className="font-medium">Settings this template suggests</h4>
-          <p className="text-xs text-muted">Picking a template changes no setting. Tick the box to copy these into .avoozl.json when you submit.</p>
+          <Hint as="p" size="xs">Picking a template changes no setting. Tick the box to copy these into .avoozl.json when you submit.</Hint>
           {preview ? (
             <PackChanges preview={preview} />
           ) : previewError ? (
-            <p className="text-xs text-danger">{previewError}</p>
+            <ErrorText size="xs">{previewError}</ErrorText>
           ) : (
-            <p className="text-xs text-muted">Reading…</p>
+            <Hint as="p" size="xs">Reading…</Hint>
           )}
           <label className="flex items-start gap-2">
             <input
@@ -246,6 +249,6 @@ export function TemplateStart(props: {
           </label>
         </section>
       )}
-    </div>
+    </Stack>
   )
 }

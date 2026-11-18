@@ -5,13 +5,13 @@
 // caught says it was redacted.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useAppApi } from './host.ts'
-import { EmptyState } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
-import { Tooltip } from './Tooltip.tsx'
+import { EmptyState } from './ui/EmptyState'
+import Badge from './ui/Badge.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { useStoredFilter } from './FilterPanel.tsx'
 import { NavSlotFor } from './nav-slot.tsx'
 import { RailBlock, RailChips, RailRow, RailStyle } from './NavRail.tsx'
-import { ShowMore, ViewHeading } from './controls.tsx'
+import { ShowMore, ViewHeading } from './ui/controls.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
 import { relativeTime } from './task-api.ts'
@@ -34,6 +34,10 @@ import {
   type ActivityPage,
   type ActivityRow,
 } from './activity-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { TextLink } from './ui/TextLink'
 
 const HEAD: CSSProperties = { textAlign: 'left', fontWeight: 500, fontSize: 12, color: 'var(--muted)', padding: '4px 8px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
 const CELL: CSSProperties = { padding: '6px 8px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }
@@ -51,7 +55,7 @@ function Summary({ row }: { row: ActivityRow }) {
     return (
       <span className="inline-flex flex-wrap items-center gap-1.5" data-activity-redacted>
         <Badge variant="warning">Redacted</Badge>
-        <span className="text-muted">{row.summary}</span>
+        <Hint>{row.summary}</Hint>
       </span>
     )
   const item = githubItem(row)
@@ -59,9 +63,9 @@ function Summary({ row }: { row: ActivityRow }) {
     return (
       <span style={{ overflowWrap: 'anywhere' }}>
         {item.before}
-        <a href={linkHref(item.href)} target="_blank" rel="noopener noreferrer" className="underline" data-activity-item>
+        <TextLink href={linkHref(item.href)} target="_blank" rel="noopener noreferrer" data-activity-item>
           {item.text}
-        </a>
+        </TextLink>
         {item.after}
       </span>
     )
@@ -73,7 +77,7 @@ function Summary({ row }: { row: ActivityRow }) {
 function Target({ row }: { row: ActivityRow }) {
   const drawer = useTaskDrawer()
   const target = rowTarget(row)
-  if (!target) return <span className="text-muted">{row.targetId ?? ''}</span>
+  if (!target) return <Hint>{row.targetId ?? ''}</Hint>
   if (target.kind === 'task')
     return (
       <button type="button" className="underline" onClick={() => drawer.openTask(target.id)} aria-label={`View task ${target.id}`} data-activity-task>
@@ -81,9 +85,9 @@ function Target({ row }: { row: ActivityRow }) {
       </button>
     )
   return (
-    <a href={linkHref(target.href)} target="_blank" rel="noopener noreferrer" className="underline" data-activity-link>
+    <TextLink href={linkHref(target.href)} target="_blank" rel="noopener noreferrer" data-activity-link>
       {row.targetId ?? 'Open on GitHub'}
-    </a>
+    </TextLink>
   )
 }
 
@@ -110,7 +114,7 @@ function Table({ rows, now }: { rows: ActivityRow[]; now: number }) {
               <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{row.actor ?? ''}</td>
               <td style={{ ...CELL, minWidth: '16rem' }}>
                 <Summary row={row} />
-                <div className="text-xs text-muted">{row.kind}</div>
+                <Hint as="div" size="xs">{row.kind}</Hint>
               </td>
               <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
                 <Target row={row} />
@@ -130,10 +134,10 @@ function Stack({ rows, now }: { rows: ActivityRow[]; now: number }) {
       {rows.map((row) => (
         <li key={row.seq} className="flex flex-col gap-1 border-t py-2 text-sm first:border-t-0" style={{ borderColor: 'var(--border)' }} data-activity-row={row.seq}>
           <Summary row={row} />
-          <span className="text-xs text-muted">
+          <Hint size="xs">
             <When at={row.at} now={now} /> · {SOURCE_LABELS[row.source] ?? row.source}
             {row.actor ? ` · ${row.actor}` : ''} · {row.kind}
-          </span>
+          </Hint>
           <span className="text-xs">
             <Target row={row} />
           </span>
@@ -205,7 +209,7 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
     // One row under the Keep activity header, lined up with the rail's
     // search box: the days, the word, and a quiet status; errors under it.
     <div data-activity-keep data-section="Keep activity" className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
+      <Row gap={2} wrap={false}>
         <label htmlFor="avoozl-activity-keep" className="sr-only">
           Keep activity (days)
         </label>
@@ -238,11 +242,11 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
             {note.text}
           </span>
         )}
-      </div>
+      </Row>
       {parsed.error && (
-        <p id="avoozl-activity-keep-error" role="alert" className="text-xs text-danger">
+        <ErrorText id="avoozl-activity-keep-error" role="alert" size="xs">
           {parsed.error}
-        </p>
+        </ErrorText>
       )}
     </div>
   )
@@ -300,13 +304,13 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
       <ViewHeading id="avoozl-activity-title" view="activity">
         Activity
       </ViewHeading>
-      <p className="text-sm text-muted">
+      <Hint as="p" size="sm">
         What people, sessions, GitHub and plugins did in this workspace. Rows hold IDs and short summaries only; a row the content rules caught is kept as redacted.
-      </p>
+      </Hint>
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
       {/* The filters and Keep activity sit in the left nav under the open
           Activity section (nav-slot.tsx), as rows and chips like the Specs
@@ -348,7 +352,7 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
           )}
         </div>
       </NavSlotFor>
-      <p role="status" className="text-xs text-muted" data-filter-status>
+      <Hint role="status" as="p" size="xs" data-filter-status>
         {page ? `${page.total} ${page.total === 1 ? 'entry' : 'entries'}${filterActive(filter) ? ' match' : ''} · kept ${page.retentionDays} days` : busy ? 'Loading…' : 'Not loaded'}
         {filterActive(filter) && (
           <>
@@ -358,7 +362,7 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
             </button>
           </>
         )}
-      </p>
+      </Hint>
       {page && rows.length === 0 ? (
         // In a box with a background, so the empty page reads as one block.
         <div data-activity-empty className="rounded-lg border" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated, var(--card))' }}>

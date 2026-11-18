@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { Btn } from "@kirocrew/app-sdk/ui";
+import { Btn } from "./ui/Btn";
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
 
 export function PlanReviewDecision(props: {
   planId: string;
@@ -24,18 +26,18 @@ export function PlanReviewDecision(props: {
     });
   if (chosen)
     return (
-      <p data-draft-review-choice className="text-sm text-muted">
+      <Hint data-draft-review-choice as="p" size="sm">
         {chosen === "review" ? "Review queued." : "Review skipped."}
-      </p>
+      </Hint>
     );
   return (
-    <div data-draft-review-choice className="flex flex-wrap gap-2">
+    <Row data-draft-review-choice gap={2} align="start">
       <Btn primary disabled={props.busy} onClick={() => choose("review")}>
         Review
       </Btn>
       <Btn disabled={props.busy} onClick={() => choose("skip")}>
         Skip
       </Btn>
-    </div>
+    </Row>
   );
 }

@@ -8,11 +8,11 @@
 // item and offers a person Plan this and Deliver this, each asked first.
 import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useAppApi, useChatLauncher } from './host.ts'
-import { EmptyState } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
-import { Tooltip } from './Tooltip.tsx'
+import { EmptyState } from './ui/EmptyState'
+import Badge from './ui/Badge.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
-import { ICON, IconBtn, IconLabel, ShowMore, ViewHeading, useConfirm, usePages } from './controls.tsx'
+import { ICON, IconBtn, IconLabel, ShowMore, ViewHeading, useConfirm, usePages } from './ui/controls.tsx'
 import { Check, CircleDot, CirclePlus, ClipboardCheck, FileText, GitPullRequest, GitPullRequestDraft, Inbox, MessageSquare, Play, Radar, RefreshCw, ScanSearch, Users, X, type LucideIcon } from './icons.ts'
 import { PublicCrews } from './PublicCrews.tsx'
 import { SendToRadar } from './SendToRadar.tsx'
@@ -49,6 +49,9 @@ import {
   triageReason,
 } from './untriaged-api.ts'
 import { linkHref } from './views-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { TextLink } from './ui/TextLink'
 
 const HEAD: CSSProperties = { textAlign: 'left', fontWeight: 500, fontSize: 12, color: 'var(--muted)', padding: '4px 8px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
 const CELL: CSSProperties = { padding: '6px 8px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }
@@ -212,9 +215,9 @@ function Actions({ item, onSend, onReview, onStart, onSpec }: { item: UntriagedI
 // The repository and author as links to GitHub, opening in a new tab.
 function RepoLink({ item }: { item: UntriagedItem }) {
   return (
-    <a href={linkHref(repositoryHref(item))} target="_blank" rel="noopener noreferrer" className="underline" data-repository-link>
+    <TextLink href={linkHref(repositoryHref(item))} target="_blank" rel="noopener noreferrer" data-repository-link>
       {item.repository}
-    </a>
+    </TextLink>
   )
 }
 
@@ -223,9 +226,9 @@ function AuthorLink({ item, fallback = '' }: { item: UntriagedItem; fallback?: s
   const href = sourceOf(item) === 'github' ? authorHref(item) : null
   if (!href) return <>{item.author ?? fallback}</>
   return (
-    <a href={linkHref(href)} target="_blank" rel="noopener noreferrer" className="underline" data-author-link>
+    <TextLink href={linkHref(href)} target="_blank" rel="noopener noreferrer" data-author-link>
       {item.author}
-    </a>
+    </TextLink>
   )
 }
 
@@ -292,9 +295,9 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
               </td>
               <td style={{ ...CELL, minWidth: '16rem' }}>
                 <Title item={item} />
-                <p className="m-0 text-xs text-muted" data-triage-reason>
+                <Hint as="p" size="xs" flush data-triage-reason>
                   {triageReason(item)}
-                </p>
+                </Hint>
                 <div>
                   <EscalationMark item={item} />
                   <PullState item={item} />
@@ -341,13 +344,13 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
           <KindIcon item={item} />
           <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
             <Title item={item} />
-            <span className="text-xs text-muted" data-triage-reason>
+            <Hint size="xs" data-triage-reason>
               {triageReason(item)}
-            </span>
-            <span className="text-xs text-muted">
+            </Hint>
+            <Hint size="xs">
               {sourceOf(item)} · <RepoLink item={item} /> · <AuthorLink item={item} fallback="unknown" /> · {age(item.createdAt, props.now)}
               {sourceOf(item) === 'github' ? ` · ${item.comments} comment${item.comments === 1 ? '' : 's'}` : ''}
-            </span>
+            </Hint>
             <EscalationMark item={item} />
             <PullState item={item} />
             <Labels labels={item.labels} />
@@ -384,9 +387,9 @@ function Checked({ list, now, onOpenSources }: { list: UntriagedList; now: numbe
       {sources
         .filter((row) => row.error)
         .map((row) => (
-          <span key={row.id} className="text-danger" data-intake-source-state={row.id}>
+          <ErrorText key={row.id} as="span" data-intake-source-state={row.id}>
             {row.id}: {row.error}
-          </span>
+          </ErrorText>
         ))}
       {sources.length > 0 && (
         <span data-intake-sources-note>
@@ -421,9 +424,9 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
             <KindIcon item={item} />
             <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
               <Title item={item} />
-              <span className="text-xs text-muted">
+              <Hint size="xs">
                 <RepoLink item={item} /> · {sentLine(item)}
-              </span>
+              </Hint>
               <span>
                 <State item={item} />
               </span>
@@ -618,32 +621,32 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
       >
         {show === 'radar' ? 'Issue Radar' : 'Triage'}
       </ViewHeading>
-      {!embedded && <p className="text-sm text-muted">
+      {!embedded && <Hint as="p" size="sm">
         Work that comes in from GitHub and your intake sources. Untriaged shows the items no trigger rule, triage label or Avoozl task covers. Send GitHub issues to an Issue Radar crew or start a code review chat on a pull request; plan or deliver an item from another source.
-      </p>}
+      </Hint>}
       {list?.publicCrews?.length && workspaceId ? <PublicCrews rows={list.publicCrews} workspaceId={workspaceId} onChange={() => void reload()} /> : null}
       {note && (
-        <p role="status" className="text-sm text-muted" data-radar-note>
+        <Hint role="status" as="p" size="sm" data-radar-note>
           {note}
-        </p>
+        </Hint>
       )}
       {(error || checkError) && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error ?? checkError}
-        </p>
+        </ErrorText>
       )}
       {!list ? (
-        <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
+        <Hint as="p" size="sm">{busy ? 'Loading…' : 'Not loaded'}</Hint>
       ) : !list.enabled ? (
-        <p className="text-sm text-muted" data-untriaged-off>
+        <Hint as="p" size="sm" data-untriaged-off>
           Untriaged items need a GitHub mode or an intake source. Give a repository a GitHub role in Settings › Repository setup, or add a source in <SourcesLink onOpen={onOpenSources} />.
-        </p>
+        </Hint>
       ) : show === 'radar' ? (
         <div className="flex flex-col gap-2" data-radar-view>
-          <p className="text-xs text-muted">
+          <Hint as="p" size="xs">
             Issues a crew holds, or that you sent to one. Crews act with your GitHub login, so Avoozl tells their work apart by label: a close on an issue a crew claimed counts only once its pull request merges, a crew’s
             labels never start Avoozl rules, and a crew’s escalation label shows under Needs you.
-          </p>
+          </Hint>
           {radarItems.length === 0 ? (
             <EmptyState icon={<Radar size={36} aria-hidden="true" />} title="Nothing with Issue Radar" subtitle="Select issues under Triage and press Send to Issue Radar." />
           ) : (
@@ -673,10 +676,10 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
           >
             <div className="flex flex-wrap items-start gap-3">
               <div className="flex min-w-0 flex-1 flex-col gap-1" style={{ minWidth: '16rem' }}>
-                <p role="status" className="text-xs text-muted">
+                <Hint role="status" as="p" size="xs">
                   {shown.length === list.items.length ? `${list.items.length} untriaged` : `${shown.length} of ${list.items.length} untriaged`}
                   {chosen.length ? ` · ${chosen.length} selected` : ''}
-                </p>
+                </Hint>
                 <Checked list={list} now={now} onOpenSources={onOpenSources} />
               </div>
               <Tooltip text={bulk.tooltip}>
@@ -703,7 +706,7 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
             </div>
           </FilterPanel>
           {shown.length === 0 ? (
-            <p className="text-sm text-muted">No untriaged item matches these filters. Clear them to see all {list.items.length}.</p>
+            <Hint as="p" size="sm">No untriaged item matches these filters. Clear them to see all {list.items.length}.</Hint>
           ) : narrow ? (
             <Stack items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} onReview={(item) => void review(item)} onStart={(item, action) => void start(item, action)} onSpec={(item) => void adoptSpec(item)} />
           ) : (

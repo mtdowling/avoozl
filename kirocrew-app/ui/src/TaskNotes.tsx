@@ -7,17 +7,22 @@
 // with links and Done, Skipped or Refused. Tasks keep no notes.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
-import { Tooltip } from './Tooltip.tsx'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { Modal } from './Modal.tsx'
-import { RadioFold } from './RadioFold.tsx'
-import { DangerBtn, ICON, IconLabel } from './controls.tsx'
+import { RadioFold } from './ui/RadioFold.tsx'
+import { DangerBtn, ICON, IconLabel } from './ui/controls.tsx'
 import { Ban, Check, ClipboardCheck, ExternalLink, Pencil, Plus, RotateCcw, Trash2, X } from './icons.ts'
 import { safeHref, linkHref } from './views-api.ts'
 import { relativeTime } from './task-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { authorLabel, blockedDecisions, linkProblem, notesClient, type ManualDone, type NoteEntry } from './notes-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 // A save a content rule blocked: the decisions to allow, and the save to
 // run again once allowed.
@@ -35,9 +40,9 @@ function AllowOnce(props: { workspaceId: string; blocked: Blocked; onDone: (text
   const [busy, setBusy] = useState(false)
   return (
     <div role="alert" className="flex flex-col gap-2 rounded border p-2 text-sm" style={{ borderColor: 'var(--danger)' }} data-notes-blocked>
-      <p className="text-danger">{props.blocked.message}</p>
+      <ErrorText>{props.blocked.message}</ErrorText>
       {props.blocked.decisions.length > 0 && (
-        <div className="flex flex-wrap items-end gap-2">
+        <Row gap={2} align="end">
           <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '12rem' }}>
             <span>Why this exact text may be saved once (required)</span>
             <Input value={reason} onChange={(event: { target: { value: string } }) => setReason(event.target.value)} />
@@ -68,7 +73,7 @@ function AllowOnce(props: { workspaceId: string; blocked: Blocked; onDone: (text
           >
             Allow once
           </DangerBtn>
-        </div>
+        </Row>
       )}
     </div>
   )
@@ -100,7 +105,7 @@ function EntryView(props: {
         {entry.onIssue && <Badge>On the issue</Badge>}
       </div>
       {editing ? (
-        <div className="flex flex-col gap-2">
+        <Stack gap={2}>
           <label className="flex flex-col gap-1 text-xs">
             URL
             <Input value={url} onChange={(event: { target: { value: string } }) => setUrl(event.target.value)} />
@@ -109,8 +114,8 @@ function EntryView(props: {
             Label
             <Input value={label} onChange={(event: { target: { value: string } }) => setLabel(event.target.value)} />
           </label>
-          {problem && <span className="text-xs text-danger">{problem}</span>}
-          <div className="flex flex-wrap gap-2">
+          {problem && <ErrorText as="span" size="xs">{problem}</ErrorText>}
+          <Row gap={2} align="start">
             <Btn
               type="button"
               primary
@@ -122,8 +127,8 @@ function EntryView(props: {
             <Btn type="button" onClick={() => setEditing(false)}>
               Cancel
             </Btn>
-          </div>
-        </div>
+          </Row>
+        </Stack>
       ) : href ? (
         <a
           href={linkHref(href)}
@@ -139,7 +144,7 @@ function EntryView(props: {
         <span className="text-sm">{entry.label}</span>
       )}
       {!editing && (
-        <div className="flex flex-wrap items-center gap-2">
+        <Row gap={2}>
           <IconLabel icon={Pencil} disabled={props.busy} tooltip="Edit this link" onClick={() => setEditing(true)}>
             Edit
           </IconLabel>
@@ -166,7 +171,7 @@ function EntryView(props: {
               )}
             </Tooltip>
           )}
-        </div>
+        </Row>
       )}
     </li>
   )
@@ -233,11 +238,11 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
   const linkIssue = tried ? linkProblem(url, label) : null
 
   return (
-    <div className="flex flex-col gap-3" data-task-links>
+    <Stack gap={3} data-task-links>
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
       {blocked && (
         <AllowOnce
@@ -251,14 +256,14 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
         />
       )}
       {notice && (
-        <p role="status" className="text-sm text-muted">
+        <Hint role="status" as="p" size="sm">
           {notice}
-        </p>
+        </Hint>
       )}
       {entries === null ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <Hint as="p" size="sm">Loading…</Hint>
       ) : entries.length === 0 ? null : (
-        <ul className="flex flex-col" aria-label="Links, newest first">
+        <Stack as="ul" aria-label="Links, newest first">
           {entries.map((entry) => (
             <EntryView
               key={entry.id}
@@ -275,7 +280,7 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
               }
             />
           ))}
-        </ul>
+        </Stack>
       )}
       {adding ? (
         <form
@@ -290,7 +295,7 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
             void save(() => client.addLink(props.workspaceId, props.taskId, url, label), 'Link added.', closeForm)
           }}
         >
-          <div className="flex flex-wrap gap-2">
+          <Row gap={2} align="start">
             <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '12rem' }}>
               URL
               <Input autoFocus value={url} placeholder="https://" onChange={(event: { target: { value: string } }) => setUrl(event.target.value)} />
@@ -299,16 +304,16 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
               Label
               <Input value={label} placeholder="Review doc" onChange={(event: { target: { value: string } }) => setLabel(event.target.value)} />
             </label>
-          </div>
-          {linkIssue && <span className="text-xs text-danger">{linkIssue}</span>}
-          <div className="flex flex-wrap gap-2">
+          </Row>
+          {linkIssue && <ErrorText as="span" size="xs">{linkIssue}</ErrorText>}
+          <Row gap={2} align="start">
             <Btn type="submit" primary disabled={busy} data-add-link-submit>
               Add
             </Btn>
             <Btn type="button" disabled={busy} onClick={closeForm}>
               Cancel
             </Btn>
-          </div>
+          </Row>
         </form>
       ) : (
         <div>
@@ -318,7 +323,7 @@ export function TaskLinks(props: { workspaceId: string; taskId: string; onGitHub
           </Btn>
         </div>
       )}
-    </div>
+    </Stack>
   )
 }
 
@@ -422,9 +427,9 @@ export function MarkDoneDialog(props: {
       }
     >
       <div>
-        <p id="avoozl-mark-done-line" className="text-sm text-muted">
+        <Hint id="avoozl-mark-done-line" as="p" size="sm">
           {props.onIssue ? 'This closes its issue as you, on GitHub. ' : ''}The tasks that wait on it may start after Done or Skipped. Refused keeps them held.
-        </p>
+        </Hint>
       </div>
       <RadioFold<Choice>
         name="avoozl-mark-done-choice"
@@ -454,10 +459,10 @@ export function MarkDoneDialog(props: {
       />
       <fieldset className="flex flex-col gap-2 text-sm">
         <legend>
-          Links <span className="text-xs text-muted">(optional)</span>
+          Links <Hint size="xs">(optional)</Hint>
         </legend>
         {links.map((link, i) => (
-          <div key={i} className="flex flex-wrap items-end gap-2">
+          <Row key={i} gap={2} align="end">
             <label className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '10rem' }}>
               URL
               <Input value={link.url} placeholder="https://" onChange={(event: { target: { value: string } }) => setLink(i, { url: event.target.value })} />
@@ -470,7 +475,7 @@ export function MarkDoneDialog(props: {
               Drop
             </IconLabel>
             {problems[i] && link.url && <span className="w-full text-xs text-danger">{problems[i]}</span>}
-          </div>
+          </Row>
         ))}
         <div>
           <IconLabel icon={Plus} onClick={() => setLinks([...links, { url: '', label: '' }])}>
@@ -480,9 +485,9 @@ export function MarkDoneDialog(props: {
       </fieldset>
       {blocked && <AllowOnce workspaceId={props.workspaceId} blocked={blocked} onDone={() => setBlocked(null)} onError={(failed) => setError(failed)} />}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
     </Modal>
   )
@@ -507,10 +512,10 @@ export function ManualTask(props: {
   const done = props.task.manualDone
   return (
     <section aria-label="Manual task" className="flex flex-col gap-2 rounded border p-3" style={{ borderColor: 'var(--accent)' }} data-manual-task>
-      <div className="flex flex-wrap items-center gap-2">
+      <Row gap={2}>
         <Badge variant="warning">Manual</Badge>
         <span className="text-sm">A person does this step. No agent works on it.</span>
-      </div>
+      </Row>
       <div>
         <h4 className="text-sm font-semibold">What you check</h4>
         <ul className="mt-1 list-disc pl-5 text-sm">
@@ -522,10 +527,10 @@ export function ManualTask(props: {
       {done ? (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           {done.choice === 'refused' ? <Badge variant="danger">Refused</Badge> : <Badge>{done.choice === 'skipped' ? 'Skipped' : 'Done'}</Badge>}
-          <span className="text-xs text-muted">
+          <Hint size="xs">
             by {done.login ?? done.by} {relativeTime(done.at)}
             {done.via === 'github' ? ', closed on GitHub' : ''}
-          </span>
+          </Hint>
           <DangerBtn
             icon={RotateCcw}
             tooltip="Open it again. The tasks that wait on it stop starting; running chats are left alone."
@@ -552,9 +557,9 @@ export function ManualTask(props: {
         </div>
       )}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
       {open && (
         <MarkDoneDialog

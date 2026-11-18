@@ -1,12 +1,13 @@
 // The install's name on the page: the read-only header badge, and the nickname
 // field in Settings > This computer. Renaming never changes the ID.
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Input } from '@kirocrew/app-sdk/ui'
+import { Input } from './ui/Input'
 import { useAppApi } from './host.ts'
 import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
 import { NAME_RULE, instanceClient, nameFor, validName, type InstanceView } from './instance-api.ts'
 import { errorMessage } from './workspace-api.ts'
+import { Stack } from './ui/Stack'
 
 // The instance, read again after a rename anywhere on the page.
 const CHANGED = 'avoozl:instance-changed'
@@ -66,7 +67,7 @@ export function InstanceNickname(props: { workspaceId: string }) {
     }
   }
   return (
-    <div data-instance-nickname className="flex flex-col gap-2">
+    <Stack data-instance-nickname gap={2}>
       <FieldRow
         id="avoozl-instance-nickname"
         label="Nickname"
@@ -98,6 +99,6 @@ export function InstanceNickname(props: { workspaceId: string }) {
           setError(null)
         }}
       />
-    </div>
+    </Stack>
   )
 }

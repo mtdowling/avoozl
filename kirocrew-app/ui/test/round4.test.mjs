@@ -27,7 +27,7 @@ test('every list shows PAGE rows, then PAGE more a click', () => {
 })
 
 test('lists page through the one hook and button, and a filter change resets them', () => {
-  const controls = source('controls.tsx')
+  const controls = source('ui/controls.tsx')
   assert.match(controls, /export function usePages\(reset: string\)/)
   assert.match(controls, /const pages = state\.reset === reset \? state\.pages : \{\}/)
   assert.match(controls, /export function ShowMore/)
@@ -203,13 +203,13 @@ test('tooltip: above by default, flips below at the top edge, shifts inside the 
 })
 
 test('tooltip renders in a fixed layer, is described, honors reduced motion, and replaces title=', () => {
-  const tooltip = source('Tooltip.tsx')
+  const tooltip = source('ui/Tooltip.tsx')
   assert.match(tooltip, /createPortal\(/)
   assert.match(tooltip, /position: 'fixed'/)
   assert.match(tooltip, /role="tooltip" hidden/)
   assert.match(tooltip, /prefers-reduced-motion: reduce/)
   assert.doesNotMatch(tooltip, /--warn|yellow|amber/i)
-  const controls = source('controls.tsx')
+  const controls = source('ui/controls.tsx')
   assert.match(controls, /aria-describedby=\{describedBy\}/)
   // No native title tooltip is left on a page element. Component props named
   // title (cards, sections, folds) are not HTML attributes.
@@ -238,7 +238,7 @@ test('each view heading and its nav tab show the same icon, hidden from readers'
     assert.match(source(file), new RegExp(`<ViewHeading\\s+id="avoozl-${view}-title"\\s+view="${view}"[\\s>]`), file)
   assert.match(source('App.tsx'), /<NavLabel view=\{t\.key\} text=\{t\.label\}/)
   assert.match(source('App.tsx'), /const Icon = VIEW_ICONS\[props\.view\][\s\S]*?<Icon size=\{ICON\} aria-hidden="true"/)
-  const controls = source('controls.tsx')
+  const controls = source('ui/controls.tsx')
   assert.match(controls, /<Icon size=\{level === 2 \? 18 : 16\} aria-hidden="true"/)
   assert.match(controls, /<Icon size=\{ICON\} aria-hidden="true"/)
   assert.doesNotMatch(controls.slice(controls.indexOf('export function ViewHeading')), /warn|yellow/)

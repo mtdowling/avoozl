@@ -2,8 +2,10 @@
 // when something changed (or a save just failed or finished), sticks to the
 // bottom of the page's scroll area, and holds Save and Discard. Each page
 // owns its own values; this only draws the bar.
-import { Btn } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
 import { LAYER } from './layers.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
 
 const SURFACE = 'var(--bg-accent, var(--bg-elevated))'
 
@@ -44,19 +46,19 @@ export function SaveFooter(props: {
         {props.note ?? ''}
       </span>
       {props.problem && props.dirty && (
-        <span role="alert" className="text-sm text-danger" data-save-problem>
+        <ErrorText role="alert" as="span" size="sm" data-save-problem>
           {props.problem}
-        </span>
+        </ErrorText>
       )}
       {props.error && (
-        <span role="alert" className="text-sm text-danger" data-save-error>
+        <ErrorText role="alert" as="span" size="sm" data-save-error>
           {props.error}
-        </span>
+        </ErrorText>
       )}
       {props.ok && !props.dirty && (
-        <span role="status" className="text-sm text-muted" data-save-ok>
+        <Hint role="status" size="sm" data-save-ok>
           {props.ok}
-        </span>
+        </Hint>
       )}
       {props.dirty && (
         <span className="flex gap-2" style={{ flexShrink: 0 }}>

@@ -6,10 +6,10 @@
 // each proposal links back. Writes are the same ones Flow had: Run a retro
 // now, and the decisions. The retro's settings stay in Settings > Flow.
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { Card } from '@kirocrew/app-sdk/ui'
+import { Card } from './ui/Card'
 import { useAppApi } from './host.ts'
-import Badge from './Badge.tsx'
-import { IconLabel, SectionHeading, ViewHeading } from './controls.tsx'
+import Badge from './ui/Badge.tsx'
+import { IconLabel, SectionHeading, ViewHeading } from './ui/controls.tsx'
 import { CirclePlus, Play } from './icons.ts'
 import { CopyAttach } from './DashboardView.tsx'
 import { ProposalsView, useScrollTo } from './FlowMemory.tsx'
@@ -19,6 +19,10 @@ import { relativeTime } from './task-api.ts'
 import { linkHref } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 // A retro or proposal another page linked to.
 export interface RetroTarget {
@@ -39,11 +43,11 @@ const STATE_BADGE = { running: 'info', done: undefined, failed: 'danger' } as co
 // and the attach command (50.1). A retro with no recorded chat says so.
 function RetroChat({ retro }: { retro: Retro }) {
   const chat = retro.chat
-  if (!chat) return <span className="text-xs text-muted" data-retro-chat="none">No chat was recorded for this retro.</span>
+  if (!chat) return <Hint size="xs" data-retro-chat="none">No chat was recorded for this retro.</Hint>
   const name = retroName(retro)
   return (
     <span className="flex flex-col gap-1 text-xs" data-retro-chat={chat.executor}>
-      <span className="flex flex-wrap items-center gap-3">
+      <Row as="span" gap={3}>
         {chat.link ? (
           <a href={linkHref(chat.link)} className="underline" aria-label={`Open the chat for ${name}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             <CirclePlus size={14} aria-hidden="true" />
@@ -52,13 +56,13 @@ function RetroChat({ retro }: { retro: Retro }) {
         ) : chat.process?.attach ? (
           <CopyAttach command={chat.process.attach} title={name} />
         ) : (
-          <span className="text-muted">No attach command</span>
+          <Hint>No attach command</Hint>
         )}
-        <span className="text-muted">
+        <Hint>
           {chat.executor === 'process' ? `process${chat.harness ? ` · ${chat.harness}` : ''}` : 'Kiro Crew chat'}
           {chat.status ? ` · ${chat.status}` : ''}
-        </span>
-      </span>
+        </Hint>
+      </Row>
       {chat.executor === 'process' && (
         <pre
           data-retro-log
@@ -104,8 +108,8 @@ function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boo
           <dd style={{ margin: 0, color: 'var(--text)' }}>{retro.model ?? 'not recorded'}</dd>
         </div>
       </dl>
-      {retro.triggers.length > 0 && <span className="text-xs text-muted">Started by {retro.triggers.map((t) => t.detail).join('; ')}.</span>}
-      {retro.state === 'running' && <span className="text-sm text-muted">Running since {relativeTime(retro.startedAt, Date.now())}.</span>}
+      {retro.triggers.length > 0 && <Hint size="xs">Started by {retro.triggers.map((t) => t.detail).join('; ')}.</Hint>}
+      {retro.state === 'running' && <Hint size="sm">Running since {relativeTime(retro.startedAt, Date.now())}.</Hint>}
       {retro.state === 'failed' && (
         <span className="flex flex-wrap items-center gap-3 text-sm text-danger" data-retro-failed={retro.failure ?? 'unknown'}>
           Failed: {retro.error}
@@ -113,9 +117,9 @@ function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boo
         </span>
       )}
       <RetroChat retro={retro} />
-      {retro.bottleneck && <span className="text-xs text-muted">{retro.bottleneck.evidence}</span>}
+      {retro.bottleneck && <Hint size="xs">{retro.bottleneck.evidence}</Hint>}
       {retro.proposals.length > 0 ? (
-        <ul className="flex flex-col gap-1" aria-label={`Proposals from ${retroName(retro)}`}>
+        <Stack as="ul" gap={1} aria-label={`Proposals from ${retroName(retro)}`}>
           {retro.proposals.map((p: Proposal) => (
             <li key={p.id} className="flex flex-wrap items-center gap-2 text-sm" data-retro-proposal={`${retro.id}:${p.id}`}>
               <button type="button" className="min-w-0 text-left underline" style={{ overflowWrap: 'anywhere' }} onClick={() => onOpen(p.id)}>
@@ -124,12 +128,12 @@ function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boo
               <Badge variant={p.status === 'open' ? 'warning' : undefined}>{p.status}</Badge>
             </li>
           ))}
-        </ul>
+        </Stack>
       ) : (
-        retro.state === 'done' && <span className="text-xs text-muted">No proposals.</span>
+        retro.state === 'done' && <Hint size="xs">No proposals.</Hint>
       )}
       {retro.dropped?.length > 0 && (
-        <span className="text-xs text-muted">Dropped: {retro.dropped.map((d) => `${d.key ?? `proposal ${d.index + 1}`} (${d.reason})`).join('; ')}</span>
+        <Hint size="xs">Dropped: {retro.dropped.map((d) => `${d.key ?? `proposal ${d.index + 1}`} (${d.reason})`).join('; ')}</Hint>
       )}
     </li>
   )
@@ -176,16 +180,16 @@ function RetrosList({ workspaceId, target, onOpen, onSeen }: { workspaceId: stri
         }
       />
       {(error || startError) && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error ?? startError}
-        </p>
+        </ErrorText>
       )}
       {!view ? (
-        <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
+        <Hint as="p" size="sm">{busy ? 'Loading…' : 'Not loaded'}</Hint>
       ) : !retros.length ? (
-        <p className="text-sm text-muted">A retro runs after 10 finished tasks.</p>
+        <Hint as="p" size="sm">A retro runs after 10 finished tasks.</Hint>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <Stack as="ul" gap={3}>
           {retros.map((retro) => (
             <RetroCard key={retro.id} retro={retro} linked={target?.retro === retro.id} onOpen={(proposal) => onOpen({ page: 'proposals', retro: retro.id, proposal })}
               again={
@@ -195,7 +199,7 @@ function RetrosList({ workspaceId, target, onOpen, onSeen }: { workspaceId: stri
               }
             />
           ))}
-        </ul>
+        </Stack>
       )}
     </Card>
   )
@@ -210,9 +214,9 @@ export function RetrosView({ workspaceId, page, target, onOpen }: { workspaceId:
       <ViewHeading id="avoozl-retros-title" view="retros">
         {page === 'proposals' ? 'Proposals' : 'Retros'}
       </ViewHeading>
-      <p className="text-sm text-muted">
+      <Hint as="p" size="sm">
         {page === 'proposals' ? 'What retros proposed to change. Nothing changes until you approve it.' : 'A review that finds the biggest slowdown and proposes changes. Newest first.'}
-      </p>
+      </Hint>
       {page === 'proposals' ? (
         <ProposalsView
           workspaceId={workspaceId}

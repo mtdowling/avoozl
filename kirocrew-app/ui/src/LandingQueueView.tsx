@@ -3,17 +3,18 @@
 // held. Reads landing.queue, which comes from Avoozl's store only, so
 // Refresh redraws without a GitHub call. Rows take the full width at 390 px.
 import { useCallback, useMemo } from 'react'
-import { Card } from '@kirocrew/app-sdk/ui'
+import { Card } from './ui/Card'
 import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'
 import { duration } from './task-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
-import { SectionHeading, ViewHeading } from './controls.tsx'
+import { SectionHeading, ViewHeading } from './ui/controls.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
-import Badge from './Badge.tsx'
-import { Tooltip } from './Tooltip.tsx'
+import Badge from './ui/Badge.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { safeHref } from './views-api.ts'
 import { baseTitle, holdVariant, holdWord, itemCount, itemLinks, landingNote, landingQueueClient, queueLine, type LandingItem } from './landing-queue-api.ts'
+import { Hint } from './ui/Hint'
 
 const DOT: Record<string, string> = { pass: 'var(--ok)', fail: 'var(--danger)', pending: 'var(--warn, var(--accent))', stale: 'var(--muted)' }
 const DOT_TEXT: Record<string, string> = { pass: 'Checks passed', fail: 'Checks failed', pending: 'Checks running', stale: 'Checks are for an older head' }
@@ -88,19 +89,19 @@ export default function LandingQueueView(props: { workspaceId: string | null }) 
       >
         Landing queue
       </ViewHeading>
-      <p className="text-xs text-muted">What waits to land on each base, in landing order, and why. Read from Avoozl's own records; Refresh does not call GitHub.</p>
+      <Hint as="p" size="xs">What waits to land on each base, in landing order, and why. Read from Avoozl's own records; Refresh does not call GitHub.</Hint>
       {error && (
         <p role="alert" className="text-sm" style={{ color: 'var(--danger)' }}>
           {error}
         </p>
       )}
       {!value ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <Hint as="p" size="sm">Loading…</Hint>
       ) : value.bases.length === 0 ? (
         <Card>
-          <p className="text-sm text-muted" data-landing-empty>
+          <Hint as="p" size="sm" data-landing-empty>
             Nothing waits to land.
-          </p>
+          </Hint>
         </Card>
       ) : (
         value.bases.map((base) => (

@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
-import { DangerBtn, TipBtn } from './controls.tsx'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
+import { DangerBtn, TipBtn } from './ui/controls.tsx'
 import {
   canSupersede,
   githubReviewLabel,
@@ -17,6 +18,10 @@ import {
 } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { TextLink } from './ui/TextLink'
 
 // A delivery's record, shared by the Delivery cards and the task drawer:
 // runs, integration, pull requests, reviews, evidence, Project notes, and
@@ -24,9 +29,9 @@ import { linkHref } from './views-api.ts'
 function Link({ text }: { text: string }) {
   const href = safeHref(text)
   return href ? (
-    <a href={linkHref(href)} target="_blank" rel="noreferrer" className="underline">
+    <TextLink href={linkHref(href)} target="_blank" rel="noreferrer">
       {text}
-    </a>
+    </TextLink>
   ) : (
     <code className="break-all">{text}</code>
   )
@@ -39,11 +44,11 @@ function Records({ label, records }: { label: string; records: Record<string, un
       <span className="font-medium">{label}</span>
       <ul className="mt-1 flex flex-col gap-1">
         {records.map((record, i) => (
-          <li key={i} className="text-muted">
+          <Hint key={i} as="li">
             {scalarFields(record)
               .map(([key, value]) => `${key}: ${value}`)
               .join(' · ')}
-          </li>
+          </Hint>
         ))}
       </ul>
     </div>
@@ -65,20 +70,20 @@ function Rounds({ rounds }: { rounds: ReviewRound[] }) {
               {round.verdicts.map((verdict) => (
                 <li key={`${verdict.role}-${verdict.attempt}`}>
                   {verdict.link ? (
-                    <a href={linkHref(verdict.link)} className="underline">
+                    <TextLink href={linkHref(verdict.link)}>
                       {verdictLabel(verdict)}
-                    </a>
+                    </TextLink>
                   ) : (
                     verdictLabel(verdict)
                   )}
-                  {verdict.cause && <span className="text-muted"> · {verdict.cause}</span>}
+                  {verdict.cause && <Hint> · {verdict.cause}</Hint>}
                   {verdict.findings.length > 0 && (
                     <ul className="ml-3 mt-1 flex flex-col gap-1">
                       {verdict.findings.map((finding) => (
                         <li key={finding.ref}>
                           <Badge variant={finding.state === 'open' ? 'danger' : 'success'}>{finding.state}</Badge>{' '}
                           <code>{finding.ref}</code> {finding.kind} · {finding.paths.join(', ')}:{' '}
-                          <span className="text-muted">{finding.text}</span>
+                          <Hint>{finding.text}</Hint>
                         </li>
                       ))}
                     </ul>
@@ -107,13 +112,13 @@ function GitHubReviewsBlock({ reviews }: { reviews: GitHubReviews }) {
       {reviews.approvals} of {reviews.needed} approvals on <code>{reviews.headSha?.slice(0, 12) ?? 'unknown head'}</code>
       {' · '}
       {href ? (
-        <a href={linkHref(href)} target="_blank" rel="noreferrer" className="underline">
+        <TextLink href={linkHref(href)} target="_blank" rel="noreferrer">
           {name}
-        </a>
+        </TextLink>
       ) : (
         name
       )}
-      {reviews.held && <span className="text-danger"> · holding dependents</span>}
+      {reviews.held && <ErrorText as="span"> · holding dependents</ErrorText>}
       {reviews.reviews.length > 0 && (
         <ul className="ml-3 mt-1 flex flex-col gap-1">
           {reviews.reviews.map((review) => (
@@ -134,18 +139,18 @@ function PrFeedbackBlock({ feedback }: { feedback: PrFeedback }) {
   return (
     <div className="mt-2 text-xs">
       <span className="font-medium">PR feedback</span> {prFeedbackLine(feedback)}
-      {feedback.session && <span className="text-muted"> · {feedback.session}</span>}
+      {feedback.session && <Hint> · {feedback.session}</Hint>}
       {href && (
         <>
           {' · '}
-          <a href={linkHref(href)} target="_blank" rel="noreferrer" className="underline">
+          <TextLink href={linkHref(href)} target="_blank" rel="noreferrer">
             PR
-          </a>
+          </TextLink>
         </>
       )}
-      {feedback.error && <p className="text-danger">Last read failed: {feedback.error}</p>}
+      {feedback.error && <ErrorText>Last read failed: {feedback.error}</ErrorText>}
       {feedback.notRelayed > 0 && (
-        <p className="text-muted">
+        <Hint as="p">
           {feedback.notRelayed} not sent, from people the policy does not allow:{' '}
           {feedback.notRelayedLinks.map((entry, i) => {
             const link = safeHref(entry.url)
@@ -153,16 +158,16 @@ function PrFeedbackBlock({ feedback }: { feedback: PrFeedback }) {
               <span key={i}>
                 {i > 0 && ', '}
                 {link ? (
-                  <a href={linkHref(link)} target="_blank" rel="noreferrer" className="underline">
+                  <TextLink href={linkHref(link)} target="_blank" rel="noreferrer">
                     {entry.login}
-                  </a>
+                  </TextLink>
                 ) : (
                   entry.login
                 )}
               </span>
             )
           })}
-        </p>
+        </Hint>
       )}
     </div>
   )
@@ -213,16 +218,16 @@ export function SupersedeForm({ item, onSupersede }: { item: DeliveryItem; onSup
           onChange={(event) => setForm({ ...form, title: event.target.value })}
         />
       </label>
-      <p className="text-xs text-muted">
+      <Hint as="p" size="xs">
         {item.id} becomes superseded. Tasks that wait on it wait on the new task. Its history stays, and a running
         session is left alone.
-      </p>
+      </Hint>
       {error && (
-        <p role="alert" className="text-danger">
+        <ErrorText role="alert">
           {error}
-        </p>
+        </ErrorText>
       )}
-      <div className="flex gap-2">
+      <Row gap={2} wrap={false} align="start">
         <DangerBtn
           disabled={busy}
           confirm={{
@@ -237,7 +242,7 @@ export function SupersedeForm({ item, onSupersede }: { item: DeliveryItem; onSup
         <Btn onClick={() => setOpen(false)} disabled={busy}>
           Cancel
         </Btn>
-      </div>
+      </Row>
     </div>
   )
 }
@@ -272,7 +277,7 @@ export function RetryForm({ item, busy, onRetry }: { item: DeliveryItem; busy: b
             }}
           />
           <span>
-            <code>{finding.ref}</code> {finding.kind}: <span className="text-muted">{finding.text}</span>
+            <code>{finding.ref}</code> {finding.kind}: <Hint>{finding.text}</Hint>
           </span>
         </label>
       ))}
@@ -327,9 +332,9 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
             return (
               <li key={i}>
                 {href ? (
-                  <a href={linkHref(href)} target="_blank" rel="noreferrer" className="underline">
+                  <TextLink href={linkHref(href)} target="_blank" rel="noreferrer">
                     {label}
-                  </a>
+                  </TextLink>
                 ) : (
                   label
                 )}
@@ -348,9 +353,9 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
               <li key={entry.id ?? i}>
                 {entry.text ? <Link text={entry.text} /> : (entry.kind ?? 'record')}
                 {entry.exitCode !== undefined && entry.exitCode !== null && (
-                  <span className="text-muted"> · exit {entry.exitCode}</span>
+                  <Hint> · exit {entry.exitCode}</Hint>
                 )}
-                {entry.commit && <span className="text-muted"> · {entry.commit.slice(0, 12)}</span>}
+                {entry.commit && <Hint> · {entry.commit.slice(0, 12)}</Hint>}
               </li>
             ))}
           </ul>
@@ -359,7 +364,7 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
       {item.project && (
         <div className="mt-2 text-xs">
           <span className="font-medium">Project</span>
-          <p className="text-muted">
+          <Hint as="p">
             {[
               item.project.status && `Status ${item.project.status}`,
               item.project.release && `Release ${item.project.release}`,
@@ -367,7 +372,7 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
             ]
               .filter(Boolean)
               .join(' · ')}
-          </p>
+          </Hint>
           {item.project.notes.map((note, i) => (
             <p key={i}>{note}</p>
           ))}

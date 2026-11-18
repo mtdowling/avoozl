@@ -3,6 +3,7 @@
 // the wait since the step before. This file only draws what task.detail gives.
 import { afterPrevious, clock, type TaskStep } from './task-api.ts'
 import { buildMedian } from './radar-flow-api.ts'
+import { Hint } from './ui/Hint'
 
 const DOT: Record<TaskStep['state'], { border: string; background: string }> = {
   done: { border: 'var(--ok)', background: 'var(--ok)' },
@@ -26,9 +27,9 @@ function Step({ steps, index }: { steps: TaskStep[]; index: number }) {
           <span className="font-medium" style={step.state === 'later' || step.state === 'skipped' ? { color: 'var(--muted)' } : step.failed ? { color: 'var(--danger)' } : undefined}>
             {step.label}
           </span>
-          <span data-step-time className="text-xs text-muted">
+          <Hint data-step-time size="xs">
             {step.at ? clock(step.at) : step.state === 'skipped' ? 'Skipped' : step.state === 'now' ? 'In progress' : ''}
-          </span>
+          </Hint>
         </span>
         <span className="block break-words text-xs text-muted">{[step.by && `by ${step.by}`, wait, step.detail].filter(Boolean).join(' · ')}</span>
         {step.builds && (
