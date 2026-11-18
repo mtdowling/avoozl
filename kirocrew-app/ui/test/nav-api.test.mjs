@@ -27,7 +27,6 @@ test('removed pages go to the page that took over, never nowhere', () => {
   assert.equal(redirectTab('conflicts').tab, 'waiting')
   assert.equal(redirectTab('untriaged').tab, 'waiting')
   assert.equal(redirectTab('untriaged').open['waiting-section'], 'triage')
-  assert.deepEqual(redirectTab('routing'), { tab: 'settings' })
   assert.deepEqual(redirectTab('nonsense'), { tab: 'dashboard' })
   for (const t of TABS) assert.deepEqual(redirectTab(t.key), { tab: t.key })
 })
@@ -56,8 +55,8 @@ test('Dashboards holds Home, Graph, Delivery and Landing queue; an old Home link
   assert.equal(tabLabel('dashboard'), 'Home')
 })
 
-test('a Settings section that is gone lands on Repository setup', () => {
-  assert.equal(redirectSettings('routing'), 'repositories')
+test('a Settings section that is gone lands on the one that took over', () => {
+  assert.equal(redirectSettings('instance'), 'workspaces')
   assert.equal(redirectSettings('flow'), 'flow')
 })
 

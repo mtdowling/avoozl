@@ -291,8 +291,6 @@ const SETTINGS = {
   "github.settings.update": "GitHub",
   "flow.settings.update": "Flow",
   "flow.instructions.update": "retro instructions",
-  "routing.update": "routing",
-  "crews.update": "crews",
   "relay.forget": "relay chat",
   "conversations.settings.update": "conversation",
   "content.sets.update": "content rule set",
@@ -430,12 +428,6 @@ function operationRow(name, input, result) {
       summary: `${{ go: "Go ahead", again: "Investigate again", stop: "Stop" }[input?.action] || "Decided"} on ${id}'s findings`,
       targetId: id,
     };
-  if (name === "delivery.pickAgain")
-    return {
-      kind: "model.switch",
-      summary: `Pick again: ${id}'s next attempt chooses its agent and model`,
-      targetId: id,
-    };
   // Switch model (§4.20): the queue and the undo; each chat's switch is
   // logged by provider-health.mjs when the backend applies it.
   if (name === "provider.switch") {
@@ -445,13 +437,6 @@ function operationRow(name, input, result) {
       summary: `Switch model: queued ${Number(result?.queued) || 0} running chats to ${to}${input?.alsoNewTasks === true ? ", and new tasks" : ""}`,
     };
   }
-  if (name === "routing.retry")
-    return { kind: "routing.retry", summary: "Retry routing now" };
-  if (name === "routing.turnOff")
-    return {
-      kind: "routing.off",
-      summary: "Routing turned off after failures: tasks run on this machine",
-    };
   if (name === "provider.health.clear")
     return {
       kind: "model.switch",

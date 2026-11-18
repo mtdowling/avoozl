@@ -1438,14 +1438,6 @@
           "type": "boolean",
           "default": true,
           "description": "Archive completed child and task conversations while retaining their task and transcript links."
-        },
-        "driver": {
-          "deprecated": true,
-          "description": "Ignored. It configured the removed agent host's driver conversation. Files that still set it load as before."
-        },
-        "routing": {
-          "deprecated": true,
-          "description": "Ignored. It configured the removed agent host's routing. Files that still set it load as before."
         }
       },
       "additionalProperties": false

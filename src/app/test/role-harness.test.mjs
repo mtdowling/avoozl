@@ -16,7 +16,7 @@ import {
 } from "../harness-definitions.mjs";
 import { Operations } from "../operations.mjs";
 import { newPlanStarts } from "../new-plan.mjs";
-import { validateSession } from "../placement.mjs";
+import { validateSession } from "../session-pins.mjs";
 import { Store } from "../store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";

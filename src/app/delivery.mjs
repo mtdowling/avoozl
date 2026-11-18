@@ -2022,15 +2022,7 @@ function stackedBlockers(store, github, extra) {
 export function readyLeaves(
   store,
   policy,
-  {
-    skip = new Set(),
-    github = null,
-    unbranched = false,
-    stack = null,
-    // Placement (§4.10): returns false when the leaf waits this tick, so it
-    // takes no slot and the next candidate is tried.
-    place = null,
-  } = {},
+  { skip = new Set(), github = null, unbranched = false, stack = null } = {},
 ) {
   const data = store.read(),
     projects = new Map(store.list("projects").map((p) => [p.id, p])),
@@ -2060,7 +2052,6 @@ export function readyLeaves(
       attempt: Math.max(0, ...own.map((b) => b.attempt)) + 1,
       delivery: store.get("task_deliveries", task.id),
     };
-    if (place && !place(leaf)) continue;
     leaves.push(leaf);
     free -= 1;
   }

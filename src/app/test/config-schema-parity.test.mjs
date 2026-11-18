@@ -279,8 +279,6 @@ const IGNORED = new Map([
     `#/properties/models/properties/${role}`,
     "chat-models.mjs drops retired roles",
   ]),
-  ["#/$defs/conversations/properties/driver", "repository-settings.mjs"],
-  ["#/$defs/conversations/properties/routing", "repository-settings.mjs"],
   [`${REPOSITORY}/coder`, "Who codes was removed (R91.6)"],
   [`${REPOSITORY}/concurrency`, "github-policy.mjs releaseInput"],
   ["#/$defs/flow/properties/lessons", "flowSection drops it"],

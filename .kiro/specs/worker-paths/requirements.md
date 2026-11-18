@@ -75,12 +75,8 @@ What that costs:
   the `worker.pull` and `worker.claim` operations, which the commands of
   the same names call (V: `src/app/operations.mjs:3180` and `:3188`).
   `src/app/worker-results.mjs` is imported only by its own test (V).
-- Remote Kiro Crew placement is still wired into the tick, delivery, plans
-  and settings (`crews.mjs`, `placement.mjs`, `routing.mjs`,
-  `routing-health.mjs` and `handback.mjs`, 1,717 lines; V: `wc -l`), though
-  its page is gone and nothing records a crew that can
-  take work (A: `src/app/crew-reader.mjs`, the only writer of a remote crew's
-  reading, has no importer but its test).
+- Work on another Kiro Crew instance was wired into the tick, delivery, plans
+  and settings. Nothing records a crew that can take work.
 - A finished worker's report depends on which route it took: an MCP tool, a
   command with a token, a command with no token, a relay through a
   conductor, or a result file.
@@ -263,7 +259,7 @@ that there is one set of rules about what that machine is trusted to do.
    run its own workspace. Requirement 90.7 is retired (WP9).
 6. Proof P53 of the avoozl spec SHALL stay the live proof of worker pull.
 
-### Requirement WP6: No placement on another Kiro Crew
+### Requirement WP6: Every session runs on this machine
 
 **User story:** As the owner, I want every session Avoozl starts to run on
 the machine that started it, so that "where is this running" has one
@@ -273,22 +269,16 @@ answer.
 
 1. Avoozl SHALL start a session only on its own machine. No setting, pin,
    command or operation SHALL name another Kiro Crew instance.
-2. The remote crew registry, the crew snapshot, `avoozl crews set`, the
-   `crew` argument of the `kirocrew` executor, the remote steps and the
-   hand-back over SSH SHALL be removed.
-3. What placement still does SHALL stay, in one module with no word
-   "routing" or "crew" in its interface: the agent, model and harness pins
-   of a task's `session` (Requirement 53), this machine's lane limit, and
-   the provider checks (Requirement 72).
-4. `avoozl routing set` SHALL be removed. `avoozl routing` SHALL answer with
-   one line naming Dashboards › Delivery, which SHALL show the lane limit and
-   each provider check that holds a task.
-5. A manifest `session.crew` other than `local` SHALL be a lint error on a
-   draft. On a revision approved before this change, the task SHALL wait
-   with one Needs you item that offers **Run here**. Only a person SHALL be
-   able to choose it. The task SHALL NOT start anywhere until then.
-6. Machine files that hold `crews`, `crewStaleSeconds` or `routing` SHALL
-   load, and those keys SHALL be ignored.
+2. The remote steps, the `crew` argument of the `kirocrew` executor and the
+   hand-back over SSH SHALL be removed. The crew snapshot stays for the In
+   flight view's unreachable-crew flag.
+3. The agent, model and harness pins of a task's `session` (Requirement 53),
+   this machine's lane limit, and the provider checks (Requirement 72) SHALL
+   stay.
+4. Retired.
+5. Retired.
+6. Unknown keys in a machine file SHALL be dropped, and SHALL NOT stop a
+   workspace from loading.
 
 ### Requirement WP7: Old names answer, and say where the work went
 
@@ -325,7 +315,7 @@ which one a sentence means.
 2. "Runner" SHALL NOT name a mode or a machine. `avoozl runner report` and
    `runner.role: "worker"` keep their names as compatibility interfaces.
 3. A test over the page's strings, the help table and those documents SHALL
-   fail on "Crew Mode", "runner mode", "remote crew", "routing prompt" and
+   fail on "Crew Mode", "runner mode", "remote crew" and
    "conductor". Dated records under `docs/research/`, `docs/evidence/` and
    `docs/proposals/` are not checked.
 

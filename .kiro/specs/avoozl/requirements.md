@@ -23,7 +23,7 @@ in place (#456) and GitHub and Issue Radar have their own pages (#475,
 Plan a goal and Stop the line left the top bar (#488); the Lanes page is
 gone and Delivery shows machines (#508); the driver chat is gone (#382) and
 the spec driver lock stays; Ideas, the lessons store, Switch model, Quick
-goal, the Routing page, the relay and the demo tour were removed (#228,
+goal, the relay and the demo tour were removed (#228,
 #282, #311). Avoozl itself pushes and merges (R87), so older "never pushes"
 and "never merges" text is history. The built page is no longer in git
 (#490), and CI selects tests by changed files (#521). Who codes is gone
@@ -37,7 +37,7 @@ RC13.2) are history; `src/work-split.mjs` holds the statement in use.
 One way to run a worker (2026-11-18, owner decision; the spec
 `.kiro/specs/worker-paths/` is still a draft until its approval is
 recorded): Crew Mode dispatch, runner mode over SSH (Requirement 84,
-Requirement 90.7) and placement on another Kiro Crew (Requirement 41) are
+Requirement 90.7) and Requirement 41 are
 to be removed, and Requirement 96.5's manual path stays without Crew Mode.
 That spec's task wp-5.2 marks each of these here; until its tasks land, the
 code still has them.
@@ -1683,288 +1683,17 @@ public or shared repositories cannot leak what the company keeps private.
     content rules. The pre-push hook checks the diff, and quoted outside
     text in briefs (Requirement 10.6, 10.11) narrows what can steer it.
 
-### Requirement 41: Crew placement
+### Requirement 41: Retired
 
-**Status 2026-11-18.** Retired. The routing prompt, the routing agent chat and the remote relay (41.16–41.24) were removed first (#282, task 45.3). Crew placement itself was then retired (owner, 2026-11-18, simplification audit item 9, F20): every session Avoozl opens runs on this machine, on the executor its harness names (Requirement 98). The `avoozl routing` and `avoozl crews set` commands and the `routing.view`, `routing.preview`, `routing.update`, `routing.retry`, `routing.turnOff` and `crews.update` operations answer that routing was retired. The machine file's `crews`, `crewStaleSeconds` and `routing` keys are ignored silently. No-fit decisions, routing marks and the routing-failed Needs you item are gone. What stays: a manifest `session` pin for agent, model and harness (Requirement 53), the provider check that holds a worker whose model is out (Requirement 72), and the spec driver lock (Requirement 66). Lanes is the only cap on how many chats this machine runs. `plans_relay` answers "Remote relay was removed". Treat every criterion below as history.
+Retired 2026-11-18 (owner decision). Nothing here exists. Every session
+Avoozl opens runs on this machine, on the executor its harness names
+(Requirement 98). The number stays so that other requirements keep their
+references.
 
-Added 2026-11-12 (owner request). Design §4.10. Written against the Avoozl
-branch `kirocrew-native` at `0a7ef2d` and Kiro Crew 0.12.2 (design F75–F84).
-"Placement" is the choice of which crew runs a session. It is separate from
-the route (Requirement 22), which chooses what does the work.
+### Requirement 42: Retired
 
-Changed 2026-11-12 (owner answers): remote workers push their task branches
-to public and private repositories alike (criterion 5); router instructions
-are machine-local only (criterion 7); Kiro Crew's MC-10 is a required
-upstream ask, and every chat Avoozl opens must be attachable (criterion 14);
-chat limits and the stale limit are configurable defaults (criteria 1 and 6).
-These are decided, not defaults.
-
-Changed 2026-11-13 (owner decision: routing went overboard). The rule
-builder, presets, scorer and smart pick are removed. Routing is one opt-in
-routing prompt: when it is on, one routing agent call per tick picks a crew
-and a model for every ready worker, among the options that passed hard
-checks (criteria 2, 4, 6, 7). Off, every session runs on `local` as before.
-Providers fold into the same settings (Requirement 72).
-
-Changed 2026-11-14 (owner rule: no fallback). With routing on, a failed
-router never runs a task on this machine: the task waits, marked, and is
-retried with a backoff; after 3 failures in a row a person decides
-(criterion 7a). Only routing off runs tasks locally.
-
-**User story:** As an owner who runs several Kiro Crew instances (this
-machine plus remote crews on other machines and operating systems), I want
-Avoozl to run each task's sessions on the right crew, so that work spreads
-by load, tests run on the operating system they need, and compliance and
-user-facing work never leaves this machine.
-
-#### Acceptance criteria
-
-1. Avoozl SHALL keep a crew registry. Each crew SHALL have an id, a display
-   name, tags (`os`, `arch`, `tools`, `trust` of `local` or `remote`, and
-   the git hosts it can reach), and a chat limit. The list of crews SHALL
-   come from Kiro Crew's connected instances plus this machine; tags, limits,
-   and git hosts SHALL come from machine-local settings and SHALL NOT be
-   written to any tracked file. This machine SHALL always be the crew
-   `local` with trust `local`. The chat limit SHALL be configurable per
-   crew; when a crew sets none, it SHALL default to 3 for `local` and 2 for
-   each remote crew.
-2. Routing SHALL be off by default and SHALL be turned on in this
-   machine's settings only (`routing.enabled` and `routing.prompt` in
-   `~/.config/avoozl/config.json`). A manifest task MAY declare `needs`,
-   the crew tags its work requires (such as `os:windows` or
-   `tools:docker`), and MAY pin `session.crew`, `session.model` or
-   `session.agent`. A pin SHALL win over the routing prompt.
-3. WHILE routing is off THEN every session SHALL run on `local`, as before;
-   only a pin or `needs` in a manifest, or a local chat limit, changes
-   that. WHILE Kiro Crew's remote dispatch switch is off THEN no remote
-   crew SHALL be eligible. Installing or upgrading Avoozl SHALL NOT change
-   where any session runs.
-4. Hard checks SHALL run before any choice and SHALL only remove options:
-   a crew SHALL be online (a fresh reading, reachable, under its chat
-   limit), ready (it approves tools on its own, so a chat would not stall
-   on an approval; a crew that does not say so SHALL NOT be offered), able
-   to reach the repository (criterion 5, remote dispatch on, content rules
-   allow it, and MC-10 or the Remote relay can open it), and SHALL have
-   every tag the task `needs`; a model whose provider or itself is `out`
-   (Requirement 72) SHALL NOT be offered. The routing prompt SHALL NOT be
-   able to add an option the checks removed.
-5. A session SHALL be placed on a remote crew only when its base commit and
-   its task branch can be fetched by that crew: the repository's remote is a
-   git host the crew lists, and the base commit is on that remote. A task
-   whose base exists only on this machine SHALL stay local. (Changed
-   2026-11-15: Avoozl now pushes and lands, Requirement 87; crew placement
-   is replaced by worker machines, Requirement 90.) Code MAY come from any git host, GitHub or a
-   private git host. A remote worker SHALL push its own task branch to that
-   remote, and this SHALL be allowed on public and private repositories
-   alike. Repository visibility SHALL NOT change placement or the push. What
-   gets pushed SHALL still pass the content rules (criterion 11,
-   Requirement 40) and the repository's policy (Requirement 10).
-6. Each crew's readings SHALL name their source and time; a reading older
-   than the stale limit, or missing, SHALL make that crew not online. The
-   stale limit SHALL be one machine-local setting, 120 seconds when unset.
-   Minimum free memory and disk SHALL be read from Kiro Crew's own remote
-   dispatch settings, not duplicated in Avoozl.
-7. WHEN routing is on THEN, each tick, ONE routing agent call (the
-   tool-less `avoozl-router` agent) SHALL rank every ready worker that has
-   more than one option, and SHALL pick a crew and a model for each. Its
-   brief SHALL hold the person's prompt, the facts Avoozl checked that tick
-   (each crew's load and check results, each provider's health and usage,
-   such as "claude: 85% used, low"), and each task with its own options.
-   Task text in the brief SHALL be marked and fenced as untrusted data. The
-   reply SHALL be validated against each task's options. An answer SHALL be
-   used in the one tick that reads it, after the checks run again on that
-   tick's facts, and SHALL NOT be cached across ticks. A bad, missing or
-   late reply (90 seconds), or a pick outside a task's options, SHALL be a
-   routing failure (criterion 7a). The prompt SHALL live
-   only in machine-local settings; validation SHALL refuse it, and the old
-   `routing.rules`, `routing.pick` and `routing.router` keys, in a tracked
-   `.avoozl.json`. A task with one option SHALL take it without a call, and
-   Avoozl SHALL record "only one choice" in the Activity log; a tick whose
-   ready tasks all have one option SHALL make no routing call.
-   7a. WHILE routing is on, WHEN the router fails (its session errors or
-   ends without a reply, no reply in time, a bad reply, a pick outside the
-   options or no pick, a content rule holds its brief, its model is out,
-   or it has no folder to open in) THEN the task SHALL NOT run on `local`
-   or any crew in its place. It SHALL stay Ready, marked "routing failed"
-   with the reason. The next call SHALL wait 1, 2, 4, then 8 minutes, then
-   every 15 minutes, after each failure in a row. After 3 failures in a
-   row, Needs you SHALL show one item with **Retry now** and **Turn routing
-   off**, both person-only. Settings › Routing SHALL show the last success,
-   the last error, and the failures in a row. Each failure and each
-   recovery SHALL be one Activity row. Only routing off SHALL run tasks
-   on `local` without the router.
-8. WHEN no crew can ever pass a task's hard checks THEN the task SHALL wait
-   and Avoozl SHALL open one decision naming the check that ruled each crew
-   out. WHEN crews pass but none has room THEN the task SHALL wait without
-   a decision. Avoozl SHALL NOT run a session on a crew that failed the
-   checks, in either case.
-9. Every placement SHALL be recorded on the session binding: crew id, the
-   reason (pinned, the only option, the routing agent's reason, or routing
-   off), the reading, the crews and models ruled out with why,
-   and the time. The Delivery view SHALL show the crew for each running
-   session.
-10. WHEN a crew becomes unreachable while one of its sessions runs THEN
-    Avoozl SHALL treat the session as a lost worker under Requirement 8: it
-    SHALL keep the binding, SHALL NOT place the task elsewhere only because
-    a lease or timeout expired, and SHALL reconcile with that crew's session
-    state when it returns. Moving the task to another crew SHALL need a
-    person's retry or the bounded retry policy after a reported failure.
-11. Briefs sent to any crew SHALL pass the content rules (Requirement 40)
-    and the plans-repo leak screen (Requirement 28.7) before they are sent.
-    A content-rule set MAY forbid remote crews; a set that covers the `diff`
-    boundary SHALL forbid remote crews unless the set allows them, because
-    the pre-push hook Avoozl installs (Requirement 40, task 10.4) cannot be
-    installed on another machine.
-12. Planner, critic, and responder sessions, and any session that waits on
-    the owner in chat, SHALL stay local. Placement SHALL apply to worker,
-    checks, and reviewer sessions only.
-13. A remote session's work SHALL come back the way a local one does: the
-    worker reports `done` with a commit on its task branch, Avoozl fetches
-    that branch into the local checkout, and verification, review, and
-    integration run as for a local worker. Public tests SHALL use only fake
-    crews.
-14. The owner SHALL be able to attach to every chat Avoozl opens, local or
-    remote: open it and type into it from the app's **In flight** card.
-    Opening remote sessions from Avoozl's tick and app SHALL require Kiro
-    Crew's MC-10 (design §7.1), a required upstream ask. Until MC-10 ships,
-    remote crews SHALL fail the reach check, every session runs on `local`,
-    and Settings › Routing SHALL say that remote crews wait on Kiro Crew.
-    Avoozl SHALL NOT work around Kiro Crew's owner-only check. The Remote
-    relay (criteria 16–24) is the one opt-in exception: it lets a worker
-    pass the reach check, and it does not work around the owner-only check,
-    because every remote call it makes runs in a chat the owner opened,
-    during a turn the owner sent.
-15. (Added 2026-11-13, owner decision.) Each remote crew SHALL have a
-    machine-local `delivery` of `handback` (the default) or `push`. Under
-    `handback` the remote worker SHALL commit on its task branch in a folder
-    under the crew's `worktreeRoot` and SHALL make no GitHub write; this
-    machine SHALL fetch that branch over SSH from the crew's `sshHost`,
-    SHALL pin the host key on first use, and SHALL refuse a fetch whose host
-    key changed. Content rules, local checks, verification, review, and
-    integration SHALL then run on this machine as for a local worker, and a
-    local Kiro Crew chat SHALL push. The Avoozl process itself SHALL never
-    push. Under `push` the worker SHALL push its task branch as criterion 5
-    says. Public tests SHALL use a fake SSH command and SHALL never connect
-    to a real host.
-16. (Added 2026-11-13, owner decision. Design §4.10 Remote relay.) Each
-    workspace SHALL have one setting `routing.remoteRelay`, `off` or `on`,
-    default `off`, in its tracked `.avoozl.json` only. Validation SHALL
-    refuse it in a repository's settings, in machine-local settings, and
-    with any other value. Settings › Routing SHALL label it a stopgap
-    until MC-10. With it off, nothing SHALL change from criterion 14.
-17. WHILE the relay is on and MC-10 is missing, a worker session whose
-    placement picks a remote crew SHALL NOT fall back to `local`. The tick
-    SHALL queue one relay request per task and attempt (crew, task id,
-    title, agent, model, and the brief), SHALL open nothing for it, and
-    SHALL NOT queue the same request twice. A queued request SHALL count
-    against its crew's chat limit, and its task SHALL NOT be placed again
-    while it is queued. Checks, reviewer, planner, critic, router, and
-    responder sessions SHALL be placed as without the relay.
-18. The relay SHALL be one local chat on the `avoozl-relay` agent that the
-    owner opens from the Routing page. Avoozl, its tick, and its backend
-    SHALL NOT open, wake, or message it. The first chat that calls
-    `plans_relay` with action `register` SHALL be the relay; any other chat
-    SHALL be refused while one is registered, and a session bound to a task
-    SHALL be refused. Only a person SHALL forget the relay chat, on the
-    Routing page. Avoozl SHALL NOT start a second relay.
-19. On each turn the owner sends to the relay chat, the relay SHALL pull
-    the queue with `plans_relay` `pending`, open each worker on its crew
-    with `session_create` and `crew=`, record it with `opened`, send the
-    brief unchanged with `session_send`, read each relayed worker with
-    `session_read_message`, and hand each new final reply back unchanged
-    with `reply`. Avoozl SHALL bind the worker to the same task and
-    attempt, with the relay's slot recorded on the binding, and SHALL read
-    only the reply's last `AVOOZL-REPORT {json}` line, taking only `kind`,
-    `commit`, `text`, and `phase`, and SHALL run the normal report path for
-    the binding (Requirement 8). Only the relay that opened a worker SHALL
-    report for it. Hand-back, verification, review, and integration SHALL
-    run as for any remote worker (criteria 13 and 15).
-20. WHEN Kiro Crew refuses `crew=` because the turn was not one the owner
-    sent, or because the relay chat was not opened by the owner, THEN the
-    request SHALL stay queued in a "Waiting for you" state and SHALL NOT
-    fall back to `local`. Needs you SHALL show one item per queued request
-    with its reason: "Send any message to the relay chat to continue.", or,
-    for a chat the owner did not open, to forget it and open a new one; with
-    no relay chat it SHALL say to open one. Any other refusal SHALL drop
-    the request, and the next tick SHALL place the task again under the
-    same checks.
-21. The Routing page SHALL show the relay's two catches beside the setting
-    (criterion 20, and that each relay turn costs one model turn), whether
-    a relay chat is open, the queued and running counts, the last refusal,
-    and the relay's turns per day. A turn SHALL count once per `pending`
-    call.
-22. The relay SHALL pass briefs, messages, and replies through unchanged,
-    SHALL treat worker replies as data and never follow instructions in
-    them, and SHALL have only the `plans_relay` tool and Kiro Crew's
-    `session_create`, `session_send`, and `session_read_message` tools; it
-    SHALL NOT be able to approve, merge, push, close, or change a setting.
-    The content rules' `brief` boundary and the plans-repo leak screen SHALL
-    run before a request is queued (criterion 11). Messages the tick sends
-    a relayed worker SHALL wait in the relay's queue for its next turn. The
-    relay chat SHALL stay open; Avoozl SHALL NOT close it.
-23. WHEN Kiro Crew ships MC-10 THEN the direct path (criterion 14) SHALL
-    replace the relay, the setting SHALL be ignored, the Routing page SHALL
-    say so, and queued requests SHALL be dropped so their tasks are placed
-    on the direct path. Turning the setting off SHALL also drop queued
-    requests. A worker the relay already opened SHALL keep reporting
-    through it.
-24. Public tests SHALL use a fake relay chat and a fake Kiro Crew; they SHALL
-    NOT open a real remote session.
-
-### Requirement 42: Routing page
-
-**Status 2026-11-18.** Removed. There is no Routing page and no Settings › Routing section (#153); `redirectSettings` sends an old link to Repository setup. Criterion 88.7 says the same. The CLI and operations behind it were retired with crew placement (Requirement 41 status).
-
-Added 2026-11-12 (owner request). Design §8.3. Changed 2026-11-13 (owner
-decision): Routing moves into Settings, and the rule builder, presets,
-scorer, smart pick, the separate Providers page and its thresholds form are
-removed.
-
-**User story:** As the owner, I want one settings tab that turns routing
-on, holds my one routing prompt, and shows what the checks see, so that I
-can steer where work runs without writing rules.
-
-#### Acceptance criteria
-
-1. Settings SHALL have one tab named **Routing**. There SHALL be no
-   top-level Routing page and no Settings › Providers tab.
-2. The tab SHALL have four sections in this order: **Routing prompt**,
-   **Providers**, **Crews**, and **Preview**. Each section SHALL have a
-   heading and one short line under it, and an empty section SHALL say what
-   to do.
-3. **Routing prompt** SHALL hold the on/off switch (off by default), the
-   prompt box (saved on this machine only, at most 4000 characters), the
-   routing agent's model, and canned examples the person inserts and
-   edits: at least "Tests go remote", "Private repos stay local", "Spread
-   the load", "Prefer Kiro models when Claude is low", and "70% Claude, 30%
-   Kiro". It SHALL show the last call's outcome, the last success, the
-   last error, and the failures in a row (Requirement 41.7a). An older
-   backend whose reply lacks what the page reads SHALL make the page say
-   the backend is out of date, never crash it.
-4. **Providers** SHALL show each provider's health, its usage in the last
-   5 hours (percent of its limit when one is set), an optional credits
-   limit per provider, and one **Low at** setting (80% when unset, shown as
-   a placeholder).
-5. **Crews** SHALL list each crew with tags, trust, chats, load, free
-   memory, and each check's result (online, ready, reaches repos) with why.
-   Each crew's chat limit and tags SHALL be editable in a side form, and
-   the section SHALL hold one stale limit field; both SHALL show their
-   default (3 for `local`, 2 for a remote crew, 120 seconds) as a
-   placeholder. While MC-10 is missing, the section SHALL say remote crews
-   wait on Kiro Crew. Crews SHALL also hold the Remote relay block
-   (Requirement 41.16–41.23): the setting, its two catches, its status
-   lines, and **Open relay chat** or **Go to relay chat** and a confirmed
-   **Forget relay chat**.
-6. **Preview** SHALL be a dry run on the current ready tasks: each task's
-   options, what ruled the rest out, what would happen, and the brief one
-   routing call would get. Preview SHALL be read-only: it SHALL NOT open
-   sessions, call an agent, or write state.
-7. Removing a crew's settings SHALL ask for confirmation first. Yellow SHALL
-   mark only things that need the owner, such as a task with no fitting
-   crew or a provider that is out.
-8. Edits SHALL go through the same validated operations as the CLI and MCP
-   tools (Requirement 20.4), with the machine file's hash, and SHALL be
-   person-only.
+Retired 2026-11-18 (owner decision). The number stays so that other
+requirements keep their references.
 
 ### Requirement 43: Flow timing
 
@@ -2200,7 +1929,7 @@ process improves without my asking and without changing on its own.
    any other.
 8. The retrospective instructions (`flow.retro.instructions`, free text)
    SHALL live only in machine-local settings. Validation SHALL refuse them
-   in `.avoozl.json`, as with the routing prompt (Requirement 41.7).
+   in `.avoozl.json`.
 9. A retrospective that fails, times out (default 10 minutes), or replies
    with nothing valid SHALL be recorded as failed with its reason and SHALL
    NOT stop the tick or delivery.
@@ -2637,71 +2366,49 @@ crew's label or close is the owner. An app token reaches Issue Radar's `GET /cre
 
 ### Requirement 53: Agent and model per task
 
-**Status 2026-11-18.** Crew placement is retired (Requirement 41 status). The writer's agent and model come from the manifest task's `session` pin, then the repository's and the workspace's `delivery` settings, then Kiro Crew's default agent and `auto` (criterion 3 without the routing agent). A pinned model that is `out` is replaced by a person's Switch model replacement, else the task waits (Requirement 72.5). `session.crew` and `needs` are refused when a plan is written, because only this machine runs work. A retry keeps its last model only for a feedback round or an interrupted attempt, as it did with routing off. Criteria 4, 5, 8, 9's crew names, 11 and Pick again in 6 are history. The reviewer side of criterion 7 stays: a review never runs on the writer's model under `distinctFrom: model`.
-
 Added 2026-11-13 (owner request). Design §4.10 "Agent and model per
-session". Extends Requirements 41 and 42.
+session".
 
 **User story:** As the owner, I want to choose which Kiro Crew agent and
-model write each task, and to spread tasks across several, so that hard
-work gets a strong model, routine work gets a cheap one, and no single
-model's quota stalls delivery.
+model write each task, so that hard work gets a strong model and routine
+work gets a cheap one.
 
-Facts (2026-11-13): the tick already opens every session with
-`open_session(title, folder_id=, agent=, model=)` (design F75). Today one
-writer model is set per workspace or repository (`delivery.model`), and
-each review role names its own `agent` and `model` (design §5.2). Routing
-rules (Requirement 41.2) choose only a crew.
-
-Changed 2026-11-13 (owner decision): rules and weighted `choices` are
-removed. The routing prompt (Requirement 41.7) picks the model; a manifest
-may still pin one.
+Facts (2026-11-13): the tick opens every session with
+`open_session(title, folder_id=, agent=, model=)` (design F75). One writer
+model is set per workspace or repository (`delivery.model`), and each review
+role names its own `agent` and `model` (design §5.2).
 
 #### Acceptance criteria
 
-1. A manifest task MAY carry `session`: `{agent, model, crew}`, every field
-   optional. A pinned field SHALL win over the routing prompt. Validation
-   SHALL refuse `choices`, an empty agent or model string, and any other
-   key.
+1. A manifest task MAY carry `session`: `{agent, model, harness}`, every
+   field optional. Validation SHALL refuse an empty agent or model string
+   and any other key.
 2. The checks role and review roles SHALL keep their own `agent` and
-   `model` (design §5.2) and SHALL run on `local`.
+   `model` (design §5.2).
 3. The writer's session SHALL come from, in order: the manifest task's
-   `session`, the routing agent's pick (when routing is on), the
-   repository's `delivery` settings, the workspace's `delivery` settings,
-   and then Kiro Crew's default agent and `auto`.
-4. WHEN routing is on THEN the models offered SHALL be the default model
-   and the models Kiro Crew lists (`GET /api/models`, read on every backend
-   pass), minus every `out` model and every model criterion 7 removes. A
-   person's Switch model replacement for an `out` model (Requirement 72.13)
-   SHALL be offered in its place.
-5. The routing prompt MAY ask for a split across models ("70% Claude, 30%
-   Kiro"); the routing agent reads the running chats' models as facts. It
-   SHALL NOT pick a model outside a task's options.
+   `session`, the repository's `delivery` settings, the workspace's
+   `delivery` settings, and then Kiro Crew's default agent and `auto`.
+4. Retired.
+5. Retired.
 6. A retry or resume of the same task SHALL keep the model of its last
    attempt unless that model is `out`, so that one task's work stays on one
-   model. A person MAY press **Pick again**, and the next attempt SHALL be
-   picked afresh.
+   model.
 7. For a review role with `distinctFrom: model` (Requirement 36), Avoozl
-   SHALL NOT offer the writer that role's model. IF no model is left THEN
+   SHALL NOT give the writer that role's model. IF no model is left THEN
    the task SHALL wait and Avoozl SHALL open one decision. Avoozl SHALL
    never run a review on the writer's model under `distinctFrom: model`.
-8. WHEN a named agent is not installed in a crew THEN that crew SHALL fail
-   its checks with the reason "agent not installed".
-9. Agent, model and crew names MAY appear in a manifest, because a crew id
-   is the owner's own and a task pin is a deliberate choice. The routing
-   prompt stays machine-local (Requirement 41.7).
+8. Retired.
+9. Retired.
 10. Every session binding SHALL record the agent and the model asked for,
-    how they were chosen (pinned, kept, the only option, the routing
-    agent's reason, or routing off), and the model Kiro Crew reports it
-    ran on, when Kiro Crew reports one (design F65).
-11. Preview (Requirement 42.6) SHALL show each ready task's crew and model
-    options. The Delivery view SHALL show the agent and model of each
-    running session.
+    how they were chosen (pinned, kept, or the default), and the model Kiro
+    Crew reports it ran on, when Kiro Crew reports one (design F65).
+11. The Delivery view SHALL show the agent and model of each running
+    session.
 12. A leaf on the Issue Radar route or a `plugin:<id>` route SHALL ignore
     `session`, because Avoozl opens no session for it.
-13. WHEN routing is off and no `session` is set anywhere THEN every session
-    SHALL open as it does today. Installing or upgrading Avoozl SHALL NOT
-    change which agent or model any session uses.
+13. With no `session` set anywhere, every session SHALL open as it does
+    today. Installing or upgrading Avoozl SHALL NOT change which agent or
+    model any session uses.
 
 ### Requirement 54: Pull request feedback goes back to its writer
 
@@ -3635,7 +3342,7 @@ going away.
 handoff`, `avoozl driver takeover --file <path>` or `--rebuild`, and
     `--force`, which also needs `--confirm <spec>`.
 16. Machine-local items SHALL never move with the driver: plugin
-    approvals, the private content-rule terms file, the routing prompt,
+    approvals, the private content-rule terms file,
     retro instructions, the crew registry and SSH host keys. After a
     take-over the page SHALL list what to re-approve or re-add, from the
     export's list or, after a rebuild, from the plugins and rule sets named
@@ -3942,9 +3649,7 @@ of Requirement 43 (`flow_usage`), the session tool-row read (design §4.11),
 the agent and model choices of Requirement 53, and Kiro Crew's per-chat
 model change (design F126).
 
-Changed 2026-11-13 (owner decision): providers fold into Settings › Routing.
-Out is a hard check; low is a fact the routing prompt weighs for new tasks
-only. The thresholds form, groups, fallback list, cooldown and window
+Changed 2026-11-13 (owner decision): out is a hard check. The thresholds form, groups, fallback list, cooldown and window
 settings are removed (criteria 1, 2, 4, 5, 9, 17).
 
 **User story:** As the owner, I want Avoozl to notice when a model provider
@@ -3980,17 +3685,14 @@ hand.
    after the mark) or 30 minutes after its last error. A mark a person set SHALL clear only when a person
    undoes it.
 5. A new task's worker SHALL never be offered an `out` model: it is a hard
-   check (Requirement 41.4). A `low` model SHALL stay an option, and its
-   level and usage SHALL be a fact in the routing brief (for example
-   "claude: 85% used, low"), so the routing prompt decides. For a model a
+   check. A `low` model SHALL stay an option. For a model a
    person marked out, the model the person switched it to SHALL be offered
    instead. With no model left the task SHALL wait and say why; it SHALL
    NOT open on an `out` model. A writer SHALL never be given a review
    role's model this way (Requirement 53.7).
 6. A retry SHALL keep its last model unless that model is `out`; then it
    SHALL pick as a new task does and say that the kept model is out.
-7. Routing Preview SHALL show the same options and what ruled the rest out,
-   and SHALL write nothing.
+7. Retired.
 8. WHEN a running chat Avoozl opened is on an `out` model THEN Avoozl SHALL
    switch that chat to a healthy model through Kiro Crew's per-chat model
    change, in the same session, so the chat keeps its branch, worktree and
@@ -4037,15 +3739,12 @@ hand.
     it with the reason, how many chats were switched and to what, and any
     chat left on it because no model qualified. The item SHALL go away when
     the mark clears.
-17. Settings › Routing (Requirement 42.4) SHALL show provider health and
-    usage, and SHALL edit this machine's `providers` settings
+17. Avoozl SHALL read this machine's `providers` settings
     (`~/.config/avoozl/config.json`): `lowPercent` and a credits `limits`
     entry per provider. Validation SHALL refuse a `providers` key in
-    `.avoozl.json`, and the removed `cooldownMinutes`, `windowHours`,
-    `groups` and `fallback` keys. The Switch model dialog SHALL list current
-    marks with Undo for a person's marks.
+    `.avoozl.json`. Any other `providers` key SHALL be dropped.
 18. With no `providers` settings, no error rows and no manual marks,
-    routing and dispatch SHALL behave exactly as before.
+    dispatch SHALL behave exactly as before.
 
 ### Requirement 73: Searchable task and spec pickers
 
@@ -4199,8 +3898,8 @@ become a written rule, so that I do not give it a third time.
 #### Acceptance criteria
 
 1. Avoozl SHALL record a **correction** when a person requests changes on
-   an agent's pull request, answers a decision by sending work back, reverts
-   an integrated agent commit, or presses **Pick again** with a reason. It
+   an agent's pull request, answers a decision by sending work back, or reverts
+   an integrated agent commit. It
    SHALL store the person, the task, the time and a summary of at most 300
    characters, after the content rules.
 2. The retro SHALL receive the corrections since the last retro. WHEN it
@@ -4674,8 +4373,7 @@ instead of a stuck chat.
    Avoozl SHALL remove a task's worktree and its local branch after the
    task lands, and SHALL keep them for a task that did not land.
 7. The Delivery page, Settings › Budgets (removed again 2026-11-17) and the task drawer's Files and diff
-   view SHALL be restored (the Delivery page and Files and diff exist; Budgets and the Routing page do not) (they were removed in ba04389 and 70c2236). The
-   Routing page SHALL NOT be restored.
+   view SHALL be restored (the Delivery page and Files and diff exist; Budgets do not) (they were removed in ba04389 and 70c2236).
 
 ### Requirement 89: One setup command
 
@@ -4818,7 +4516,7 @@ removed, so that the app has one way to deliver work.
      method. A test SHALL show that a repository whose file still says
      `coder: issue-radar` feeds Triage and its Radar escalations.
    - The shared task projection and synchronization callers SHALL stay
-     for 45.4 (criterion 2), less their coder routing.
+     for 45.4 (criterion 2), less their coder handling.
 
 ### Requirement 92: Links to related GitHub items, and the landing queue
 
@@ -5608,7 +5306,7 @@ skip is a rule in the crew's prompt, not code.
    SHALL refuse an issue that carries `crew:avoozl`.
 8. A crew punts an issue to Avoozl with the repository's needs-human label
    (`crewLabels.needsHuman`), the only escalation it can write. Avoozl
-   SHALL keep the plan-me routing: the trust check, scope-gate skips to
+   SHALL keep the plan-me path: the trust check, scope-gate skips to
    Intake, other scopes to Needs you, untrusted issues left alone. It SHALL
    list trusted escalations first in Untriaged with **Plan this** and
    **Deliver this**,

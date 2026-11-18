@@ -59,7 +59,7 @@ Every claim carries one label:
 - `docs/research/radar-spec-tasks.md` sections 1-10 (live crew results).
 - `docs/research/radar-setup-from-avoozl.md` (Radar is read-only for apps;
   every write is owner-only; an app-shipped agent works as a crew agent).
-- `docs/research/radar-handoff-and-crew-list.md` (the `plan me` routing and
+- `docs/research/radar-handoff-and-crew-list.md` (the `plan me` path and
   the cross-machine crew list, built in PR 67).
 - `docs/research/runner-mode-ssh.md`, `machine-conductors-2026-11-13.md` and
   `kirocrew-bot-heartbeats-2026-11-13.md` (what Avoozl's own relay, foreman
@@ -132,7 +132,7 @@ and no stranger's issue reaches a plan.
    the marker path, or `acceptedLabel` added by an allowed person. A
    `new-feature`, `architecture` or `needs-design` skip SHALL go to Intake. Any
    other scope, or no scope found, SHALL go to Needs you. An untrusted issue
-   SHALL be left alone. This spec SHALL NOT change that routing.
+   SHALL be left alone. This spec SHALL NOT change that path.
 6. WHEN a planned issue is the source of a spec, the source issue SHALL become
    the parent of the projected issues (sub-issue link) and SHALL carry no ready
    label, so a crew with an empty label scope does not take it. The Set up
@@ -446,8 +446,6 @@ machine, and what to change, without opening a crew's chat.
    - Conflicts and Intake SHALL leave the nav and fold into Needs you
      (Radar handbacks, planning-label items, conflicts). Radar repos get no
      separate Intake page.
-   - Routing SHALL leave the nav. Its code is removed by the retirement
-     epic (RC11) after proof rc-p11.
    - Delivery SHALL be removed entirely, with no local-workers variant. Its
      lanes map to Release queue (Ready), On the line and Radar's Pipeline
      lanes or crew page (In progress), Needs you, Release queue held reasons
@@ -570,7 +568,7 @@ that other tools call removed by accident.
    proof. The code removals below wait for rc-p11. They SHALL keep every name
    of item 4 (`plans_*`, environment aliases) working. It SHALL list, as
    removals: Avoozl's own
-   worker dispatch, crew routing and placement (Requirements 41, 42), runner
+   worker dispatch, Requirements 41 and 42, runner
    mode (Requirement 84), the remote relay (Phase 32), per-task budgets for
    workers (Requirement 67, removed entirely 2026-11-17), and the workers' Files and diff fold (Requirement 81). The machine
    foreman (one conductor per machine on a shared queue,
@@ -580,7 +578,7 @@ that other tools call removed by accident.
    and the tests it removes and SHALL pass `npm test`.
 3. `coder: worker` is retired (owner decision 2026-11-14). The retirement
    epic SHALL remove it fully: dispatch, verification, the reviewer and
-   responder roles, integration by a worker, routing, runner mode, the relay,
+   responder roles, integration by a worker, runner mode, the relay,
    worker budgets and the Files and diff fold. The UI goes now (RC8.1,
    RC14.1); the code goes only after proof rc-p11. Local-only mode SHALL be
    SQLite plans that are not projected; they cannot be coded until a GitHub

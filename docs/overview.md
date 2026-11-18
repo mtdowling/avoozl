@@ -75,7 +75,7 @@ Old links to a removed page open the page that took over its job
 
 | Item                                                    | Replaced by                                                         | PR            |
 | ------------------------------------------------------- | ------------------------------------------------------------------- | ------------- |
-| Routing page, routing agent, remote relay               | Nothing; pins and hard checks stay                                  | #153, #282    |
+| Crew choice, the remote relay                           | Nothing; pins and hard checks stay                                  | #153, #282    |
 | Ideas, Quick goal, the lessons store, Switch model      | New spec From a goal; steering rules file; Settings › Models        | #228          |
 | Demo tour                                               | The demo itself stays                                               | #311          |
 | Driver chat                                             | The spec driver lock stays                                          | #382          |

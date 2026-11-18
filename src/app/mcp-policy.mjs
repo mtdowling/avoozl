@@ -164,11 +164,7 @@ export const PERSON_ONLY = new Map([
     "activity.settings.update",
     person("Only a person changes how long activity is kept."),
   ],
-  ["routing.update", person("Only a person changes the routing prompt.")],
-  ["crews.update", person("Only a person changes crew settings.")],
   ["relay.forget", person("Only a person forgets the relay chat.")],
-  ["routing.retry", person("Only a person retries routing now.")],
-  ["routing.turnOff", person("Only a person turns routing off.")],
   ["provider.switch", person("Only a person switches models.")],
   [
     "provider.switch.dryRun",
@@ -179,7 +175,6 @@ export const PERSON_ONLY = new Map([
     "providers.settings.update",
     person("Only a person changes provider settings."),
   ],
-  ["delivery.pickAgain", person("Only a person presses Pick again.")],
   [
     "delivery.integrate",
     person("Only a person presses Integrate on a Ready to merge task."),
@@ -338,7 +333,6 @@ export const NOT_ON_MCP = new Map([
     "driver.context",
     "driver.list",
     "concurrency.status",
-    "conversations.routing.preview",
     "openhands.profiles",
     "openhands.models",
     "server.restart.status",

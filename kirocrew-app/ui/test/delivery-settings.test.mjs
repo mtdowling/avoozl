@@ -1,6 +1,5 @@
 // Settings > Delivery: who merges (read for Radar pull requests too), and the
-// writer settings; and how sessions label their crew. Kept from the retired
-// Routing page's tests, which also covered these.
+// writer settings; and how sessions label their crew.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
@@ -17,7 +16,6 @@ test('Settings > Delivery holds PR feedback, who merges and the writer model, wi
   const page = source('DeliverySettings.tsx')
   for (const raw of ['delivery.prFeedback', 'delivery.feedbackRounds', 'delivery.model', 'delivery.agent']) assert.ok(page.includes(raw), raw)
   assert.match(page, /placeholder=\{String\(DELIVERY_DEFAULTS\.feedbackRounds\)\}/)
-  assert.doesNotMatch(page, /Routing/)
   assert.match(source('SettingsView.tsx'), /key: 'delivery', label: 'Delivery'/)
   // Ship mode and investigate first (§4.25, §4.21): defaults stay unset.
   const form = toDeliveryForm({ ship: 'manual', investigate: { mode: 'off', agent: 'alt' } })

@@ -152,7 +152,7 @@ function AvoozlPage() {
     if (place.tab !== undefined) setTab(place.tab)
   }
   // `open` deep-links into the new place's inner views (changePage).
-  // A removed page (Delivery, Conflicts, Intake, Routing) goes to the page
+  // A removed page (Delivery, Conflicts, Intake) goes to the page
   // that took over its job (redirectTab).
   const go = (next: Partial<typeof here>, open?: Record<string, unknown>) => {
     const place = next.tab === undefined ? null : redirectTab(next.tab)

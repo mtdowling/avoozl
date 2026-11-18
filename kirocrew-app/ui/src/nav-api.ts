@@ -72,8 +72,6 @@ export function redirectTab(key: string): Place {
       return { tab: 'waiting', open: { 'waiting-section': 'decisions' } }
     case 'untriaged':
       return { tab: 'waiting', open: { 'waiting-section': 'triage' } }
-    case 'routing':
-      return { tab: 'settings' }
     // Flow's own Retros and Proposals tabs moved to the Retros pill (owner
     // note 2026-11-17); an older link or Back step that names one lands there.
     case 'flow:retros':
@@ -84,7 +82,8 @@ export function redirectTab(key: string): Place {
     // Lanes is gone: Delivery's In progress cards name their machine.
     case 'lanes':
       return { tab: 'delivery' }
-    // Dashboards › CI is hidden until it is built; Flow shows CI.
+    // The CI page is deleted; an old link or saved view to it opens Flow,
+    // which shows CI.
     case 'ci':
       return { tab: 'flow' }
     default:
@@ -93,14 +92,12 @@ export function redirectTab(key: string): Place {
 }
 
 // A Settings section that no longer exists lands on the section that took
-// over: Routing's job (crews and placement) is gone with local workers, and
-// the instance name is edited in Settings > Workspaces > This computer, and Where tasks live is a
-// role per repository in Repository setup (R105.6). Older names for the
-// Radar values screen open Settings › Issue Radar.
+// over: the instance name is edited in Settings > Workspaces > This computer.
+// Older names for the Radar values screen open Settings › Issue Radar.
 export function redirectSettings(key: string): string {
   // Crews and rules, a tab of each repository, moved there too.
   if (key === 'issue-radar' || key === 'radar-values' || key === 'crews' || key === 'crews-rules') return 'radar'
-  return key === 'routing' ? 'repositories' : key === 'instance' ? 'workspaces' : key
+  return key === 'instance' ? 'workspaces' : key
 }
 
 // An old `?trace=owner/repo#52` link: the issue it names. Anything else is no
