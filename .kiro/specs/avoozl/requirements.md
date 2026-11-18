@@ -6018,7 +6018,8 @@ once under `intake.sources`, so that I read and change intake in one place.
    accepted and ignored: it never let anyone start work, so it SHALL NOT
    become a source that does. Neither SHALL warn, fail a load or a save, or
    mark settings as needing apply.
-5. The first time Avoozl writes `.avoozl.json` after loading old keys, it
+5. The first time Avoozl's settings writer (Repository setup, Settings and
+   Intake sources) writes `.avoozl.json` after loading old keys, it
    SHALL move every `github.issueIntake` entry into `intake.sources` and
    drop `github.issueIntake` and `github.queue`, in the same write. A
    file Avoozl does not write SHALL keep loading as in criterion 4.
