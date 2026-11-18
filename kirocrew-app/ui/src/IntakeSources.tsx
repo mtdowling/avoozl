@@ -40,6 +40,8 @@ import { relativeTime } from './task-api.ts'
 import { useMedia } from './use-media.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage, workspaceClient } from './workspace-api.ts'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
 
 const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)', maxWidth: '100%' }
 const BOX = { borderColor: 'var(--border)' }
@@ -55,10 +57,10 @@ type Change = { target: { value: string } }
 function Fact({ label, raw, children }: { label: string; raw?: string; children: ReactNode }) {
   return (
     <div className="contents">
-      <dt className="text-muted">
+      <Hint as="dt">
         {label}
         {raw && <code className="ml-1 text-[11px]">{raw}</code>}
-      </dt>
+      </Hint>
       <dd className="m-0 min-w-0" style={{ overflowWrap: 'anywhere' }}>
         {children}
       </dd>
@@ -84,12 +86,12 @@ function SourceBox(props: { id: string; title: string; badges: ReactNode; status
   return (
     <li>
       <article aria-labelledby={heading} className="rounded-lg border p-3" style={BOX} {...props.attrs}>
-        <div className="flex flex-wrap items-center gap-2">
+        <Row gap={2}>
           <h4 id={heading} className="m-0 text-sm font-semibold" style={{ overflowWrap: 'anywhere' }}>
             {props.title}
           </h4>
           {props.badges}
-        </div>
+        </Row>
         <p className="mt-1 text-xs text-muted" data-intake-status>
           {props.status}
         </p>
@@ -270,9 +272,9 @@ function Field(props: { id: string; label: string; marker: 'required' | 'optiona
       </div>
       {props.children(described)}
       {props.hint && (
-        <span id={`${props.id}-hint`} className="text-xs text-muted">
+        <Hint id={`${props.id}-hint`} size="xs">
           {props.hint}
-        </span>
+        </Hint>
       )}
     </div>
   )
@@ -387,7 +389,7 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
         </Group>
         <Group legend="Comes from (required)">
           <RadioFold name="intake-via" label="Comes from" value={form.via} onChange={(value) => set({ via: value })} sections={via} />
-          {!pollers.length && <p className="m-0 text-xs text-muted">No plugin with poll is installed. Add one above to poll a tracker.</p>}
+          {!pollers.length && <Hint as="p" size="xs" flush>No plugin with poll is installed. Add one above to poll a tracker.</Hint>}
         </Group>
         <Group legend="Item fields">
           <Field id="intake-labelFields" label="Fields as labels" marker="optional" raw="labelFields" hint="Comma list. Each adds a field:value label before rules match.">

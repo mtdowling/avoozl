@@ -26,6 +26,8 @@ import { Button, type ButtonVariant } from './Button.tsx'
 import { linkHref } from './views-api.ts'
 import { MoreMenu } from './MoreMenu.tsx'
 import { usePhone } from './list-detail.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
 
 export const ICON = 14
 
@@ -190,9 +192,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             </>
           }
         >
-          <p id="avoozl-confirm-body" className="text-sm text-muted">
+          <Hint id="avoozl-confirm-body" as="p" size="sm">
             {pending.body}
-          </p>
+          </Hint>
         </Modal>
       )}
     </ConfirmContext.Provider>
@@ -358,8 +360,8 @@ export function ChoiceCards<K extends string>(props: {
               {card.title}
             </span>
             <span className="text-xs">{card.line}</span>
-            {card.when && <span className="text-xs text-muted">Use it when {card.when}</span>}
-            {card.disabled && <span className="text-xs text-muted">{card.disabled}</span>}
+            {card.when && <Hint size="xs">Use it when {card.when}</Hint>}
+            {card.disabled && <Hint size="xs">{card.disabled}</Hint>}
           </div>
         )
       })}
@@ -415,9 +417,9 @@ export function AskForHelp(props: { workspaceId: string | null; help: HelpSeed; 
         )}
       </Tooltip>
       {chat.error && (
-        <span role="alert" className="text-xs text-danger">
+        <ErrorText role="alert" as="span" size="xs">
           {chat.error}
-        </span>
+        </ErrorText>
       )}
     </span>
   )

@@ -7,6 +7,8 @@ import { useAppApi } from './host.ts'
 import { Modal } from './Modal.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { forwardClient, forwardOutcome, type ForwardAnswer, type ForwardReview } from './forward-api.ts'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 export function ForwardScreen(props: { workspaceId: string; forwardId: string; title: string; onClose: (forwarded: boolean) => void }) {
   const { workspaceId, forwardId } = props
@@ -69,18 +71,18 @@ export function ForwardScreen(props: { workspaceId: string; forwardId: string; t
         </>
       }
     >
-      <div className="flex flex-col gap-3">
+      <Stack gap={3}>
         {note && (
           <p className="text-sm" role="status" data-forward-note>
             {note}
           </p>
         )}
-        {busy && !review && <p className="text-sm text-muted">Preparing the public change…</p>}
+        {busy && !review && <Hint as="p" size="sm">Preparing the public change…</Hint>}
         {review && (
           <>
-            <p className="text-sm text-muted">
+            <Hint as="p" size="sm">
               This is exactly what is pushed to {review.target.split(':')[0]} as {review.person}, on branch {review.branch}. Nothing is pushed until you press Forward, and only if it still matches.
-            </p>
+            </Hint>
             <section>
               <h3 className="text-sm font-medium">Title</h3>
               <p className="whitespace-pre-wrap break-words text-sm" data-forward-title>{review.title}</p>
@@ -99,7 +101,7 @@ export function ForwardScreen(props: { workspaceId: string; forwardId: string; t
             </section>
           </>
         )}
-      </div>
+      </Stack>
     </Modal>
   )
 }

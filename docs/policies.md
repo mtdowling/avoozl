@@ -404,11 +404,7 @@ dependent's brief carries each blocker's outcome links. Nothing goes to
 GitHub unless you tick **Show on the issue** on it; then it is listed in
 the issue's managed section under "Links", and a rebuild from GitHub
 brings it back. From the command line: `avoozl task links TASK
-[add|edit|remove|show]` (`task notes` is the old name and still works).
-
-Tasks keep no free-text notes. They were removed on 2026-11-17; notes
-saved before then are ignored, and `kind: "note"` or a Mark done `note` is
-refused.
+[add|edit|remove|show]`.
 
 This is tested with a fake GitHub (proof P37); it has not run live yet.
 
@@ -525,7 +521,7 @@ six things about it:
   client. An answer it holds is reused with no call for `github.cacheSeconds`
   seconds (default 60, 0 turns it off). A repository may set its own under
   `github.repositories.<owner/name>.cacheSeconds`. Both are in Settings >
-  Where tasks live and in `.avoozl.json`. A write (a comment, a label, a
+  GitHub and in `.avoozl.json`. A write (a comment, a label, a
   merge) makes the answers for its repository stale, not gone, so the next
   read asks with the `ETag` and a 304 is free. While the rate limit holds, a
   stored answer is served at any age. GraphQL queries are kept the same way,
@@ -548,7 +544,7 @@ six things about it:
   one. `addSubIssue` is only for issues that already exist. Each mutation
   counts as one write against the limits; Avoozl does not batch mutations into
   one request. The preview shows the write
-  count and how long it takes at this pace. Settings > Where tasks live and
+  count and how long it takes at this pace. Settings > GitHub and
   Needs you show `312 of 1,740 writes, resumes at 14:00`.
 - **Conditional reads.** Every REST GET stores GitHub's `ETag` and
   `Last-Modified` and the body in the workspace database, and sends them back
@@ -569,7 +565,7 @@ six things about it:
   shows its countdown, `[↻ 32s]`, and reads again at 0. It pauses while the
   page is hidden. While limited it shows the time to the reset, `[↻ 18:51]`.
   Details are in its tooltip.
-- **Numbers.** Settings > Where tasks live shows the last remaining and reset
+- **Numbers.** Settings > GitHub shows the last remaining and reset
   numbers and the share of calls GitHub answered with 304.
 
 GraphQL cannot use ETags. Each tick, per repository, the pull-request

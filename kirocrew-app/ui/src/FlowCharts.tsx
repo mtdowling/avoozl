@@ -17,6 +17,8 @@ import {
   type UsageRow,
 } from './flow-api.ts'
 import { StageLegend } from './FlowView.tsx'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 const W = 300,
   H = 90,
@@ -39,7 +41,7 @@ function Line({ points, value, format, color }: { points: SeriesPoint[]; value: 
     .filter((run) => run.length)
   const last = known.at(-1)
   return (
-    <div className="flex flex-col gap-1">
+    <Stack gap={1}>
       <span className="text-lg font-semibold tabular-nums">{last === undefined ? '–' : format(last)}</span>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={points.map((p, i) => `${p.key}: ${values[i] === null ? 'none' : format(values[i]!)}`).join(', ')} preserveAspectRatio="none">
         <line x1={0} x2={W} y1={H - PAD} y2={H - PAD} stroke="var(--border)" strokeWidth={1} />
@@ -48,14 +50,14 @@ function Line({ points, value, format, color }: { points: SeriesPoint[]; value: 
         ))}
         {values.map((v, i) => (v === null ? null : <circle key={i} cx={x(i)} cy={y(v)} r={2.5} fill={color} />))}
       </svg>
-    </div>
+    </Stack>
   )
 }
 
 // Stacked bars per bucket: each stage's share of that bucket's time.
 function StageMix({ points }: { points: SeriesPoint[] }) {
   return (
-    <div className="flex flex-col gap-1">
+    <Stack gap={1}>
       <div className="flex items-end gap-1" style={{ height: H }} role="img" aria-label="Stage mix per period">
         {points.map((p) => {
           const total = STAGES.reduce((sum, s) => sum + p.stages[s], 0)
@@ -72,7 +74,7 @@ function StageMix({ points }: { points: SeriesPoint[] }) {
           )
         })}
       </div>
-    </div>
+    </Stack>
   )
 }
 
@@ -92,7 +94,7 @@ function Chart({ title, children, empty }: { title: string; children: React.Reac
   return (
     <div className="flex min-w-0 flex-col gap-1 rounded-lg border p-3" style={{ borderColor: 'var(--border)' }}>
       <SectionHeading level={4} title={title} />
-      {empty ? <span className="text-sm text-muted">Nothing finished in this window yet.</span> : children}
+      {empty ? <Hint size="sm">Nothing finished in this window yet.</Hint> : children}
     </div>
   )
 }
@@ -149,7 +151,7 @@ export function FlowCharts({ view, unit, onUnit }: { view: FlowViewModel; unit: 
 function UsageTable({ title, rows }: { title: string; rows: UsageRow[] }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
-      <span className="text-xs text-muted">{title}</span>
+      <Hint size="xs">{title}</Hint>
       <ul className="flex flex-col gap-0.5 text-sm">
         {rows.slice(0, 8).map((r) => (
           <li key={r.key} className="flex flex-wrap justify-between gap-x-3">
@@ -173,7 +175,7 @@ export function UsagePanel({ view, unit }: { view: FlowViewModel; unit: Unit }) 
     <Card className="flex flex-col gap-3" data-usage-card>
       <SectionHeading title="Tokens and credits" />
       {message || !usage ? (
-        <p className="text-sm text-muted">{message}</p>
+        <Hint as="p" size="sm">{message}</Hint>
       ) : (
         <>
           <p className="text-sm">
@@ -181,7 +183,7 @@ export function UsagePanel({ view, unit }: { view: FlowViewModel; unit: Unit }) 
           </p>
           {rows.length > 0 && (
             <div className="flex min-w-0 flex-col gap-1">
-              <span className="text-xs text-muted">{unit === 'day' ? 'By day' : 'By week'}</span>
+              <Hint size="xs">{unit === 'day' ? 'By day' : 'By week'}</Hint>
               <Bars rows={rows} />
             </div>
           )}
