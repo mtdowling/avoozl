@@ -139,3 +139,64 @@ export async function validateByCi({
     }).catch(() => {});
   }
 }
+
+// Reads the one CI run of each pushed train's trunk head and records it on the
+// train (LT8.6): the run ID, its status and, when it finished, its conclusion.
+// One read of the workflow's runs per call, through the client's pacer, and no
+// more often than `everyMs` for a train. A train whose run is not found yet is
+// tried again on the next call.
+export async function readTrainCi(
+  store,
+  {
+    github,
+    repository,
+    projectId,
+    target,
+    workflow,
+    everyMs = 30_000,
+    now = Date.now(),
+  },
+) {
+  if (!github || !workflow) return [];
+  const open = store
+    .list("landing_trains")
+    .filter(
+      (t) =>
+        t.projectId === projectId &&
+        t.target === target &&
+        t.pushed &&
+        !t.ci?.conclusion &&
+        now - (Date.parse(t.ci?.readAt) || 0) >= everyMs,
+    );
+  if (!open.length) return [];
+  const since = new Date(
+    Math.min(...open.map((t) => Date.parse(t.startedAt))) - 60_000,
+  ).toISOString();
+  const runs = await github.workflowRuns(repository, since),
+    out = [];
+  for (const train of open) {
+    const run = runs
+      .filter(
+        (r) =>
+          r.headSha === train.pushed &&
+          r.event === "push" &&
+          sameWorkflow(r, workflow),
+      )
+      .sort((a, b) => b.id - a.id)[0];
+    out.push(
+      store.transaction(() =>
+        store.put("landing_trains", {
+          ...store.get("landing_trains", train.id),
+          ci: {
+            ...(train.ci ?? {}),
+            ...(run
+              ? { run: run.id, status: run.status, conclusion: run.conclusion }
+              : {}),
+            readAt: new Date(now).toISOString(),
+          },
+        }),
+      ),
+    );
+  }
+  return out;
+}

@@ -19,6 +19,8 @@ import {
 } from "./landing-lease.mjs";
 import { leaseState } from "../lease.mjs";
 import { queueNotifications } from "./notifications.mjs";
+import { listSessionBindings } from "./session-bindings.mjs";
+import { enqueueSessionRequests } from "./session-requests.mjs";
 import { randomUUID } from "node:crypto";
 import { driverIdOf } from "./spec-scheduler.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
@@ -394,9 +396,18 @@ export async function integratorPass(
       if (taken.dead)
         await run?.cleanup?.(store, { ...where, dead: taken.dead, project });
     }
-    const result = { ...where, state: "holding", lease, settings };
-    if (run?.train)
-      Object.assign(result, await run.train(store, result, { now }));
+    const result = { ...where, project, state: "holding", lease, settings };
+    if (run?.train) {
+      const trained = await run.train(store, { ...result, config }, { now });
+      notify.push(...(trained.notify ?? []));
+      if (trained.messages?.length) sendToChats(store, trained.messages);
+      Object.assign(result, {
+        train: trained.train ?? null,
+        trained: trained.state ?? null,
+      });
+    }
+    // Read the one CI run of each pushed train (LT8.6).
+    if (run?.ci) await run.ci(store, { ...result, config });
     out.push(result);
   }
   return { targets: out, notify };
@@ -457,9 +468,34 @@ export async function runIntegrator(
     sessionId = `integrator-${process.pid}-${randomUUID().slice(0, 8)}`,
     run,
     onPass,
+    heartbeatMs,
   },
 ) {
+  // A train can run for many minutes inside one pass; the lease is renewed
+  // on a timer so it does not expire while its holder works.
+  const beat = () => {
+    try {
+      const { heartbeatSeconds, missedHeartbeats } =
+        leaseSettings(loadConfig());
+      for (const { project, target } of trainTargets(store)) {
+        const held = landingLease(store, project.id, target);
+        if (held?.sessionId === sessionId && leaseState(held) === "active")
+          renewLandingLease(store, {
+            projectId: project.id,
+            target,
+            leaseId: held.leaseId,
+            seconds: heartbeatSeconds * missedHeartbeats,
+          });
+      }
+    } catch {}
+  };
+  const heartbeat = setInterval(
+    beat,
+    heartbeatMs ?? leaseSettings(loadConfig()).heartbeatSeconds * 1000,
+  );
+  heartbeat.unref?.();
   const finish = () => {
+    clearInterval(heartbeat);
     for (const { project, target } of trainTargets(store)) {
       const held = landingLease(store, project.id, target);
       if (held?.sessionId === sessionId && leaseState(held) === "active")
@@ -600,6 +636,25 @@ export function planTrain(
       lastTrainEnd(store, projectId, target) + trigger.cooldownSeconds * 1000;
   if (now < cooled)
     return { state: "cooldown", until: new Date(cooled).toISOString() };
+  // `ci.waitForLastTrain`: the next train waits for the last pushed train's CI
+  // conclusion, for at most an hour (shortcut: a run that is never read must
+  // not stop landing; upgrade with a setting if that is too long).
+  if (settings.ci.waitForLastTrain && settings.ci.workflow) {
+    const last = trainsOf(store, projectId, target)
+      .filter((t) => t.pushed && t.endedAt)
+      .sort((x, y) => y.endedAt.localeCompare(x.endedAt))[0];
+    if (
+      last &&
+      !last.ci?.conclusion &&
+      now - Date.parse(last.endedAt) < 60 * 60000
+    )
+      return {
+        state: "wait",
+        why: `waiting for the CI run of ${last.id}`,
+        ready: 0,
+        held: [],
+      };
+  }
   const { ready, held } = readyEntries(store, { projectId, base: target });
   if (!ready.length)
     return { state: "wait", why: "nothing is ready", ready: 0, held };
@@ -707,3 +762,22 @@ const triggerSummary = (plan) => ({
   ...plan,
   ...(plan.members ? { members: plan.members.map((e) => e.key) } : {}),
 });
+
+// Messages for worker chats (a conflict or failure sent back) go out as
+// session requests, the way the tick sends them.
+function sendToChats(store, messages) {
+  const bindings = listSessionBindings(store);
+  enqueueSessionRequests(
+    store,
+    {
+      sends: messages.map((message) => ({
+        ...message,
+        executor:
+          message.executor ??
+          bindings.find((b) => b.slot === message.slot)?.executor ??
+          "kirocrew",
+      })),
+    },
+    { source: "integrator" },
+  );
+}
