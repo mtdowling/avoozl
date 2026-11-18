@@ -44,7 +44,7 @@ Phase 4 proofs:  an-4.1, an-4.2, an-4.3, an-4.4   (independent)
 ```
 
 Outside the graph: `an-2.2` edits the forward path that `rc-25.4` to
-`rc-25.7` also edit. A manifest edge cannot name a task outside this spec, so
+`rc-25.7` also edit. This spec's `after` facts name only its own tasks, so
 start `an-2.2` after those pull requests merge. Phases 1, 3 and 4 do not wait.
 
 ## Owner steps
