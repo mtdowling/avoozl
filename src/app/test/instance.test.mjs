@@ -6,7 +6,6 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { workspaceConfig } from "../config.mjs";
-import { approvalMarker } from "../approval-label.mjs";
 import {
   INSTANCE_NAMES,
   assertNoInstance,
@@ -120,24 +119,6 @@ test("one instance is quiet; another one seen in a marker turns the name on", (t
   recordSeenInstance(store, "not an id");
   assert.equal(instanceView(store).shared, true);
   assert.deepEqual(instanceView(store).others, ["inst-aaaaaaaaaaaa"]);
-});
-
-test("the approval marker carries the ID, never the name", (t) => {
-  const { store } = setup(t);
-  const { id, name } = instanceIdentity(store);
-  const marker = approvalMarker({
-    approver: "me",
-    spec: "s",
-    commit: "c",
-    at: "t",
-    instance: id,
-  });
-  assert.match(marker, new RegExp(` instance=${id} -->$`));
-  assert.ok(!marker.includes(name));
-  assert.equal(
-    approvalMarker({ approver: "me", spec: "s", commit: "c", at: "t" }),
-    "<!-- avoozl-approval v=1 approver=me spec=.kiro/specs/s commit=c at=t -->",
-  );
 });
 
 test("the mirror guard strips the ID, the name and their markers from outgoing text", (t) => {

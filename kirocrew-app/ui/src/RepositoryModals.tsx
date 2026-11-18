@@ -94,7 +94,6 @@ export function ViewRepository(props: { row: RepositoryRow; roleText: string; en
   const facts: [string, ReactNode][] = []
   if (entry) {
     facts.push(
-      ['Who codes', entry.coder || 'Workspace default'],
       ['Label rules', String(entry.rules.length)],
       ['Required checks', entry.requiredChecks || 'None named'],
       ['Who may start work', entry.allowedActors || (entry.minimumPermission ? `Permission ${entry.minimumPermission} or higher` : 'Default: write')],

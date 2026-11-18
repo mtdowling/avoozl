@@ -4,7 +4,6 @@
 // repository's name out of everything the code repository shows.
 import { taskKind, taskRepository, taskRoute } from "../work-model.mjs";
 import { findPlanningLeak } from "./content-rules.mjs";
-import { RADAR_HANDOVER } from "./coder-adapter.mjs";
 
 // One record per leaf whose linked branch the tick created or reused:
 // {id: taskId, taskId, repository, name, baseBranch, linkedBranchId} or,
@@ -17,8 +16,7 @@ const lower = (value) => String(value || "").toLowerCase();
 
 // A GitHub leaf an Avoozl worker codes on a linked branch (§6.6): a leaf
 // whose issue lives in the planning repository, or in single-repo mode a
-// leaf in a repository whose `coder` is `worker`. Issue Radar codes the rest,
-// unless its hand-over is paused (R103.4): then Avoozl's executor runs them.
+// leaf in a registered repository. The worker is the only coder (R91.6).
 export function isLinkedBranchLeaf(task, github) {
   if (
     taskKind(task) !== "leaf" ||
@@ -33,13 +31,8 @@ export function isLinkedBranchLeaf(task, github) {
       repository === lower(github.planningRepository)
     );
   if (github?.mode !== "single-repo") return false;
-  const entry = Object.entries(github.repositories || {}).find(
-    ([id]) => lower(id) === repository,
-  );
-  // single-repo's default coder is issue-radar (github-policy.mjs).
-  const coder = entry ? (entry[1].coder ?? "issue-radar") : null;
-  return (
-    coder === "worker" || (RADAR_HANDOVER.paused && coder === "issue-radar")
+  return Object.keys(github.repositories || {}).some(
+    (id) => lower(id) === repository,
   );
 }
 

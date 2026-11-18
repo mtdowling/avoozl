@@ -1553,12 +1553,11 @@
           "description": "Must equal the repository's default branch when a mode is set."
         },
         "coder": {
-          "enum": ["issue-radar", "worker"],
-          "description": "Who codes the issues: issue-radar (Radar crew) or worker (Avoozl worker), in either GitHub mode."
+          "description": "Ignored. Who codes was removed: the Avoozl worker is the only coder, and an old value still loads."
         },
         "radar": {
           "type": "object",
-          "description": "Issue Radar coder labels. Planning, needs-human, claim, ready, conflict and approval names must all differ.",
+          "description": "Issue Radar labels. Planning, needs-human, claim, ready, conflict and approval names must all differ.",
           "properties": {
             "planLabel": {
               "type": "string",

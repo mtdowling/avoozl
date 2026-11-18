@@ -29,41 +29,26 @@ import {
 import { blockerNotes, closeWithoutCode } from "./github-close.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
 import { ensurePlanIssue } from "./driver.mjs";
-import { SUPERSEDED_STATUS } from "./supersede.mjs";
 import { graphOrder } from "./delivery.mjs";
-import { publicHold } from "./public-signoff.mjs";
-import { linePausedTaskIds, openStops, stopScope } from "./flow.mjs";
-import {
-  CREW_LABEL_DEFAULTS,
-  DEFAULT_PERMISSION,
-  actorAllowed,
-  priorityRank,
-} from "./github-policy.mjs";
+import { CREW_LABEL_DEFAULTS, priorityRank } from "./github-policy.mjs";
 import {
   capacityOf,
-  isRadarRepository,
   orderReceiptId,
-  phaseHolds,
   planRelease,
   releaseFor,
-  STOP_NOTICE,
   scopeLabelOf,
   stepReceiptId,
 } from "./radar-coder-release.mjs";
 import { rankEligible } from "./release-ranking-step.mjs";
-import { adapterFor, coderForTask, RADAR_HANDOVER } from "./coder-adapter.mjs";
 import {
   assertPlanningLink,
-  radarIssueRepository,
   isParentMarker,
   renderMarker,
   requireNamespace,
 } from "./github-marker.mjs";
 import { instanceIdentity, peekInstanceId } from "./instance.mjs";
 import { epicOfPlan } from "./epics.mjs";
-import { crewAgentInstructions } from "./agent-instructions.mjs";
 import { resolveBatchGroups } from "./radar-coder-batch.mjs";
-import { finishSource, planSource, sourceParent } from "./radar-source.mjs";
 import {
   issueRecordId,
   machineIdentity,
@@ -97,11 +82,6 @@ export const PRIVATE_WAIT_LINE = "Waits on a private task.";
 // a heading, and the body still passes the content-rule write guard.
 export const AGENT_RULES_LINE =
   "Follow these Avoozl workspace rules for this task:";
-export const BUILD_RECEIPT_RULE = {
-  title: "Build receipts",
-  instruction:
-    "Run build and test commands through bin/build-receipt, for example `bin/build-receipt -- npm test`. It passes the output and exit code through and leaves the commands unchanged.",
-};
 export const agentRuleLine = (rule) =>
   `- ${rule.title}: ${String(rule.instruction).replace(/\s+/g, " ").trim()}`.replace(
     /<!--/g,
@@ -497,13 +477,7 @@ async function projectPlanParents({
   epicType,
   notes,
 }) {
-  if (
-    !plan.spec ||
-    plan.epicFolder ||
-    plan.context?.issue ||
-    plan.extractionId ||
-    planSource(plan, identity)
-  )
+  if (!plan.spec || plan.epicFolder || plan.context?.issue || plan.extractionId)
     return null;
   const first =
     items.find((item) => item.issue) ||
@@ -791,96 +765,6 @@ function graphReady(store, data, tasks, held = new Set()) {
   );
 }
 
-// Whether the person who last added the ready label may give orders under the
-// repository's policy (RC4.6). An unreadable history or permission is not an
-// order.
-async function labeledByAllowedActor(github, item, identity) {
-  try {
-    const events = await github.issueEvents(item.config, item.current.number),
-      by = (Array.isArray(events) ? events : [])
-        .filter(
-          (event) =>
-            event.event === "labeled" &&
-            event.label?.name === item.labels.ready,
-        )
-        .at(-1)?.actor?.login;
-    if (!by) return false;
-    const raw = identity.repositories?.[item.config.id] ?? {},
-      actors = raw.allowedActors ?? item.config.allowedActors ?? [],
-      rules = {
-        allowedActors: actors,
-        minimumPermission:
-          raw.minimumPermission ??
-          item.config.minimumPermission ??
-          (actors.length ? null : DEFAULT_PERMISSION),
-      };
-    let permission = null;
-    if (rules.minimumPermission)
-      permission =
-        (await github.permission(item.config, by))?.permission || "none";
-    return actorAllowed(rules, by, permission).allowed;
-  } catch {
-    return false;
-  }
-}
-
-// Tasks of Issue Radar repositories that wait for the previous phase of their
-// spec to merge (RC4.4): a Map of task ID to the hold. A task closed by order
-// does not count as merged; a manual task counts when it is complete.
-export function phaseHeldTasks(data, identity, tasks, repositoryOf) {
-  const out = new Map(),
-    complete = (status) => statusComplete(data, status);
-  for (const planId of new Set(tasks.map((task) => task.planId))) {
-    if (!planId) continue;
-    const holds = phaseHolds(
-      data.tasks.filter(
-        (task) => task.planId === planId && task.authority !== "local",
-      ),
-      {
-        counts: (task) =>
-          taskKind(task) === "leaf" && task.status !== SUPERSEDED_STATUS.id,
-        merged: (task) =>
-          isManual(task) || isGate(task)
-            ? isGate(task)
-              ? completionReached(task, null, complete)
-              : complete(task.status)
-            : task.githubVerdict
-              ? task.githubVerdict.state === "verified"
-              : complete(task.status),
-      },
-    );
-    for (const task of tasks)
-      if (
-        holds.has(task.id) &&
-        isRadarRepository(
-          identity.repositories?.[repositoryOf(task)],
-          identity.mode,
-        )
-      )
-        out.set(task.id, holds.get(task.id));
-  }
-  return out;
-}
-
-// Tasks of Issue Radar repositories that an open stop pauses (RC4.3): they
-// are not released, and an unclaimed ready label on them is taken away.
-// `repositoryOf` names a task's repository.
-export function stoppedTasks(store, data, identity, tasks, repositoryOf) {
-  const stopped = linePausedTaskIds(store, data);
-  return new Set(
-    tasks
-      .filter(
-        (task) =>
-          stopped.has(task.id) &&
-          isRadarRepository(
-            identity.repositories?.[repositoryOf(task)],
-            identity.mode,
-          ),
-      )
-      .map((task) => task.id),
-  );
-}
-
 // The tick's projection step (§4.5 step 10): project again each approved
 // plan whose graph readiness changed since its last projection, so a leaf
 // whose blocker completed gets the ready label (and a linked-branch leaf its
@@ -914,16 +798,7 @@ export async function refreshProjectedReadiness(
         .map((config) => config.id),
     ),
     projected = designed.filter((task) => writers.has(task.github.repository)),
-    onGithub = (task) => task.github.repository,
-    ready = graphReady(
-      store,
-      data,
-      projected,
-      new Set([
-        ...stoppedTasks(store, data, identity, projected, onGithub),
-        ...phaseHeldTasks(data, identity, projected, onGithub).keys(),
-      ]),
-    ),
+    ready = graphReady(store, data, projected),
     plans = new Set(
       projected
         .filter(
@@ -957,7 +832,7 @@ export async function refreshProjectedReadiness(
         repository:
           due?.planId === planId && due.repository
             ? due.repository
-            : issueRepository(identity, designed, planId),
+            : issueRepository(identity),
       });
       result.projected.push(planId);
     } catch (error) {
@@ -972,16 +847,9 @@ export async function refreshProjectedReadiness(
   return result;
 }
 
-// Plans-repo mode keeps every task issue in the planning repository, except
-// a plan whose issues sit in an `issue-radar` code repository.
-function issueRepository(identity, tasks, planId) {
-  const radar = tasks.some(
-    (task) =>
-      task.planId === planId &&
-      task.github?.number &&
-      radarIssueRepository(identity, task.github.repository),
-  );
-  return identity.mode === "plans-repo" && identity.planningRepository && !radar
+// Plans-repo mode keeps every task issue in the planning repository.
+function issueRepository(identity) {
+  return identity.mode === "plans-repo" && identity.planningRepository
     ? identity.planningRepository
     : undefined;
 }
@@ -1005,8 +873,8 @@ function plansAwaitingLinks(data, except) {
 }
 
 // The policy entries also answer to a mirror's own ID, because the write
-// target of a mirrored repository is the mirror (RC24.3): its labels, coder
-// and release rules are the source's.
+// target of a mirrored repository is the mirror (RC24.3): its labels and
+// release rules are the source's.
 function withMirrorEntries(identity) {
   const extra = {};
   for (const entry of Object.values(identity.repositories || {}))
@@ -1111,25 +979,7 @@ async function project(
     tasks = data.tasks.filter(
       (task) => task.planId === plan.id && task.authority !== "local",
     ),
-    held = stoppedTasks(
-      store,
-      data,
-      identity,
-      tasks,
-      (task) => configFor(task)?.id,
-    ),
-    phaseHeld = phaseHeldTasks(
-      data,
-      identity,
-      tasks,
-      (task) => configFor(task)?.id,
-    ),
-    queueReady = graphReady(
-      store,
-      data,
-      tasks,
-      new Set([...held, ...phaseHeld.keys()]),
-    ),
+    queueReady = graphReady(store, data, tasks),
     machine = machineIdentity(store).id,
     managedByRepository = new Map(),
     issueTypes = new Map(),
@@ -1156,8 +1006,12 @@ async function project(
       previewOnly.add(config.id);
     }
     const lead = leadOf.get(task.id);
-    if (lead && identity?.repositories?.[config.id]?.coder !== "issue-radar")
-      fail(`Batches are for issue-radar repositories, not ${config.id}.`, 409);
+    // Batches were for Issue Radar coding, removed with Who codes (R91.6).
+    if (lead)
+      fail(
+        `Batches were for Issue Radar coding, which Avoozl no longer uses; project each task of ${config.id} on its own.`,
+        409,
+      );
     // A batch member has no issue of its own; the lead's carries it.
     if (lead && lead !== task.id) {
       memberConfig.set(task.id, config.id);
@@ -1328,17 +1182,7 @@ async function project(
           ),
           shownNotes(store, member.id),
           blocking(member).some((edge) => hidden.has(edge.from)),
-          isRadarRepository(
-            identity.repositories?.[item.config.id],
-            identity.mode,
-          )
-            ? [
-                ...crewAgentInstructions(data, member),
-                ...(identity.repositories?.[item.config.id]?.buildReceipts
-                  ? [BUILD_RECEIPT_RULE]
-                  : []),
-              ]
-            : [],
+          [],
           member.parent && !hidden.has(member.parent)
             ? issueRef(item.config, member.parent)
             : null,
@@ -1570,8 +1414,7 @@ async function project(
         identity.repositories?.[item.config.id]?.priority,
         labelNames(item.current),
       ),
-    release = (item) =>
-      releaseFor(identity.repositories?.[item.config.id], identity.mode),
+    release = (item) => releaseFor(identity.repositories?.[item.config.id]),
     // Slots are per repository and per ready label, so each crew label scope
     // has its own N (RC4.2).
     scopeKey = (item) => item.config.id + "\n" + item.labels.ready,
@@ -1623,40 +1466,15 @@ async function project(
   for (const item of items) {
     if (!item.current) continue;
     const id = orderReceiptId(item.config.id, item.current.number);
-    if (!holds(item)) {
-      if (store.get("receipts", id)) store.remove("receipts", id);
-      continue;
-    }
-    if (
-      !isRadarRepository(identity.repositories?.[item.config.id], identity.mode)
-    )
-      continue;
-    if (store.get("receipts", id)) ordered.add(item.task.id);
-    else if (
-      !isClaimed(item, identity) &&
-      !item.marker?.applied?.labels?.includes(item.labels.ready) &&
-      (await labeledByAllowedActor(github, item, identity))
-    ) {
-      store.put("receipts", {
-        id,
-        taskId: item.task.id,
-        repository: item.config.id,
-        number: item.current.number,
-        at: new Date().toISOString(),
-      });
-      ordered.add(item.task.id);
-    }
+    // A person's ready label was an order only on a Radar-coded repository,
+    // and none is left (R91.6); an old receipt goes once its label does.
+    if (!holds(item) && store.get("receipts", id)) store.remove("receipts", id);
   }
   // Release mode (RC4.5): Hold labels nothing new; Step labels a phase only
   // after its click.
   const blocked = (item) => {
     const mode = release(item).mode;
     return (
-      (isRadarRepository(
-        identity.repositories?.[item.config.id],
-        identity.mode,
-      ) &&
-        Boolean(publicHold(store, item.config.id))) ||
       mode === "hold" ||
       (mode === "step" &&
         !store.get("receipts", stepReceiptId(plan.id, item.task)))
@@ -1717,55 +1535,6 @@ async function project(
     }
   }
 
-  // 4b. One comment on each claimed issue the stop, or a blocker that is open
-  // again, surrounds (RC4.3). A claimed issue keeps every label.
-  if (!dryRun) {
-    const stops = openStops(store)
-        .filter((stop) => !stop.runAnyway)
-        .map((stop) => ({ id: stop.id, ids: stopScope(store, data, stop) })),
-      causeOf = (task) => {
-        if (held.has(task.id))
-          return stops.find((stop) => stop.ids.has(task.id))?.id ?? null;
-        if (queueReady.has(task.id)) return null;
-        const open = data.edges.find(
-          (edge) =>
-            edge.to === task.id &&
-            ["requires", "sequence"].includes(edge.kind) &&
-            !complete(data.tasks.find((t) => t.id === edge.from)?.status),
-        );
-        return open ? "blocker:" + open.from : null;
-      };
-    for (const item of items) {
-      if (
-        !isClaimed(item, identity) ||
-        item.current.state !== "open" ||
-        previewOnly.has(item.config.id) ||
-        !isRadarRepository(
-          identity.repositories?.[item.config.id],
-          identity.mode,
-        )
-      )
-        continue;
-      const cause = causeOf(item.task);
-      if (!cause) continue;
-      const id = `release-notice:${item.config.id}#${item.current.number}:${cause}`;
-      if (store.get("receipts", id)) continue;
-      await github.createIssueComment(
-        item.config,
-        item.current.number,
-        STOP_NOTICE,
-      );
-      store.put("receipts", {
-        id,
-        taskId: item.task.id,
-        repository: item.config.id,
-        number: item.current.number,
-        cause,
-        at: new Date().toISOString(),
-      });
-    }
-  }
-
   // 5. Create or update issues; epics get the owner's epic issue type.
   const epicType = async (config) => {
     const name = identity.epicIssueType;
@@ -1798,7 +1567,7 @@ async function project(
       managedByRepository,
       epicType,
       notes,
-    })) ?? (await sourceParent({ store, github, plan, identity, notes }));
+    })) ?? null;
 
   if (!dryRun)
     noteRemaining(store, {
@@ -1846,18 +1615,9 @@ async function project(
       // after it: the body links the blockers and parent made before this
       // issue (the order guarantees they exist), the marker records the
       // blockers it is about to link, and a ready leaf has its ready label.
-      // Only for the coders whose hand-over is that label (no-op if set).
+      // No coder takes the ready label as a hand-over (R91.6).
       item.section = buildSection(item);
-      const withReady =
-          !RADAR_HANDOVER.paused &&
-          ready.has(task.id) &&
-          ["issue-radar", "remote"].includes(
-            identity.repositories?.[config.id]?.coder ??
-              (identity.mode === "single-repo" ? "issue-radar" : "worker"),
-          ),
-        labelSet = withReady
-          ? [labels.managed, labels.ready]
-          : [labels.managed],
+      const labelSet = [labels.managed],
         applied = {
           title: digest(item.title),
           body: digest(item.section),
@@ -2063,11 +1823,6 @@ async function project(
     item.blockerIds = after.map(issueDatabaseId);
   }
 
-  // The source issue of a Radar-coded plan: remembered, and its planning
-  // label removed when the repository asks. A preview writes nothing.
-  if (!dryRun && planParent?.source)
-    await finishSource({ store, github, plan, identity, parent: planParent });
-
   // 7. Re-read, add ready labels last, then record what was applied.
   const results = [],
     conflicts = [];
@@ -2088,45 +1843,12 @@ async function project(
         409,
       );
     const isReady = ready.has(task.id);
-    // A task already handed over keeps its coder while its issue is open
-    // (RC14.5); the split is shown once per new coder.
-    const current =
-        identity.repositories?.[config.id]?.coder ??
-        (identity.mode === "single-repo" ? "issue-radar" : "worker"),
-      route = coderForTask({
-        held: item.record?.coder,
-        current,
-        open: issue.state !== "closed",
-      }),
-      splitId = `coder-split:${config.id}:${current}`;
-    if (route.kept && !store.get("receipts", splitId)) {
-      store.put("receipts", {
-        id: splitId,
-        kind: "coder-split",
-        repository: config.id,
-        coder: current,
-        observedAt: new Date().toISOString(),
-      });
-      notes.add(
-        `${config.id} now uses ${current}. Tasks already handed over (such as ${task.id}) stay with ${route.coder}; new tasks go to ${current}.`,
-      );
-    }
-    if (isReady)
-      await adapterFor(route.coder).handOver({
-        github,
-        config,
-        issue,
-        label: labels.ready,
-      });
     const plans = item.plans,
       labelBaseline = plans.labels.conflict
         ? item.appliedLabels
         : plans.labels.kept
           ? item.currentLabels
-          : [
-              labels.managed,
-              ...(isReady && !RADAR_HANDOVER.paused ? [labels.ready] : []),
-            ],
+          : [labels.managed],
       blockerBaseline = plans.blockers.conflict
         ? item.arrays.blockers[plans.blockers.baseline]
         : item.blockerNodes,
@@ -2194,10 +1916,6 @@ async function project(
         projectedPlanId: plan.id,
         projectedPlanHash: plan.hash,
         observedAt: new Date().toISOString(),
-        // The coder the task was handed to, kept while the issue is open.
-        ...(isReady || route.held
-          ? { coder: route.held ? route.coder : current }
-          : {}),
       };
     store.put("github_issues", record);
     const batch = item.memberTasks
@@ -2363,7 +2081,7 @@ async function project(
         await project(store, github, {
           planId: other,
           identity,
-          repository: issueRepository(identity, store.read().tasks, other),
+          repository: issueRepository(identity),
           followUp: false,
         });
         relinked.push(other);

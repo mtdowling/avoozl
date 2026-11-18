@@ -14,11 +14,6 @@ import { FakeGitHub } from "./fake-github.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
-import { setRadarHandoverPaused } from "../coder-adapter.mjs";
-
-// These tests cover the Radar hand-over kept while Phase 45 is paused
-// (R103.4 pauses it in the product).
-setRadarHandoverPaused(false);
 
 // No machine-wide Avoozl configuration leaks into these workspaces.
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
@@ -49,6 +44,7 @@ function fakeGitHub() {
     items = [];
   github.items = items;
   github.closingPullRequests = async () => [];
+  github.branchPullRequests = async () => [];
   github.projectV2 = async () => ({
     id: 7,
     node_id: "PVT_rebuild",
@@ -228,8 +224,8 @@ function graphState(store, { verdicts = "all" } = {}) {
         projectId: task.projectId,
         milestone: task.milestone ?? null,
         github: task.github,
-        // A done task's ready flag is never read again.
-        ready: complete(task) ? null : (task.dispatch?.ready ?? false),
+        // Readiness is not read from GitHub: no ready label goes on a task
+        // issue (R91.6), and the next tick works it out again.
         // Open verdicts are the tick's to judge after a rebuild.
         verdict: (verdicts === "all" ||
           task.githubVerdict?.state === "order") &&

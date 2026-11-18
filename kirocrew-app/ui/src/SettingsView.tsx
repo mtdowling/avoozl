@@ -7,7 +7,6 @@ import { Btn, Card, EmptyState, Input, SegmentedControl } from '@kirocrew/app-sd
 import Badge from './Badge.tsx'
 import { RoleHelp } from './RoleHelp.tsx'
 import {
-  type CrewScope,
   MANAGED_LABEL_TEXT,
   PROJECT_DEFAULTS,
   PROJECT_FIELD_RULES,
@@ -52,7 +51,6 @@ import {
   type UsageKey,
   type UsageSort,
   type RateView,
-  defaultCoder,
   modeKey,
   MIRROR_ROLE,
   mirrorSourceOf,
@@ -65,10 +63,7 @@ import {
   SETTINGS_HOME,
   settingsTitle,
 } from './settings-api.ts'
-import { CoderPicker } from './CoderPicker.tsx'
-import { ReleaseModePicker } from './ReleaseMode.tsx'
 import SetupWizard from './SetupWizard.tsx'
-import RadarValuesScreen from './RadarValues.tsx'
 import { AVOOZL_LABELS_LINE, AvoozlLabelFields, CREW_PART_TEXT, ConflictFields, MergeMethodFields, ReviewRulesFields } from './CrewsRulesSettings.tsx'
 import WorkflowMap, { focusField } from './WorkflowMap.tsx'
 import { type Jump, type JumpField } from './workflow-map.ts'
@@ -104,16 +99,16 @@ const grid = (min = 220): CSSProperties => ({
   alignItems: 'start',
 })
 
-// Release N (release.capacity): how many issues get the ready label at once.
+// Release N (release.capacity): how many ready tasks are released at once.
 // The old `concurrency` field is not shown here.
-export const RELEASE_N_HELP = 'How many issues get the ready label at once. Crews pick from these.'
+export const RELEASE_N_HELP = 'How many ready tasks are released at once.'
 
 export const SETTINGS_TABS = [
   { key: 'workspaces', label: 'Workspaces' },
-  // Coder, Labels, Crews and rules and the Workflow map are tabs of each repository's editor.
+  // Labels, Crews and rules and the Workflow map are tabs of each repository's editor.
   { key: 'repositories', label: 'Repository setup' },
   { key: 'github', label: 'GitHub' },
-  // Everything Avoozl and Issue Radar crews share. Phase 45 removes only Radar coding; intake, Triage asks and back-links stay.
+  // Everything Avoozl and Issue Radar crews share. Radar is an intake source only (R91.6).
   { key: 'radar', label: 'Issue Radar' },
   { key: 'plugins', label: 'Plugins' },
   { key: 'content', label: 'Content rules' },
@@ -132,9 +127,9 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   github:
     'The GitHub settings of the selected workspace, for every repository in it. Each tab is one group; one Save writes them all to .avoozl.json.',
   radar:
-    'How Avoozl hands work to Issue Radar crews and reads their labels, one repository at a time. Who codes is set per repository in Repository setup. Save only writes .avoozl.json.',
+    'The labels Avoozl reads from Issue Radar crews and the handoff they use to pass issues to Avoozl, one repository at a time. Save only writes .avoozl.json.',
   repositories:
-    "Each repository's role says where its tasks live. Its coder, labels, Workflow map, checks and reviews are tabs under its name. Issue Radar settings have their own page. Save only writes .avoozl.json.",
+    "Each repository's role says where its tasks live. Its labels, Workflow map, checks and reviews are tabs under its name. Issue Radar settings have their own page. Save only writes .avoozl.json.",
   plugins:
     'A plugin can bring a team’s settings pack, content rules, a tracker, an intake source or a delivery route. Each one runs or imports only after you approve it on this machine.',
   content:
@@ -797,11 +792,8 @@ export function RepositoryEditor(props: {
                 <Text id={`${id}-base`} label="Default branch" raw="baseBranch" rule={REPOSITORY_FIELD_RULES.baseBranch} placeholder="main" width="md" value={repository.baseBranch} onChange={(value) => set({ baseBranch: value })} />
                 <Text id={`${id}-cache`} label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={REPOSITORY_FIELD_RULES.cacheSeconds} placeholder="workspace value" type="number" width="sm" value={repository.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
               </div>
-              <Field id={`${id}-coder-worker`} label="Who codes" raw="coder" rule={REPOSITORY_FIELD_RULES.coder}>
-                <CoderPicker id={`${id}-coder`} mode={props.mode} value={repository.coder} onChange={(value) => set({ coder: value })} />
-              </Field>
               <div style={grid()}>
-                <Text id={`${id}-release-capacity`} label="Release N" raw="release.capacity" rule={REPOSITORY_FIELD_RULES.releaseCapacity} help={RELEASE_N_HELP} placeholder="2" type="number" width="sm" value={repository.releaseCapacity} onChange={(value) => set({ releaseCapacity: value })} />
+                <Text id={`${id}-release-capacity`} label="Release N" raw="release.capacity" rule={REPOSITORY_FIELD_RULES.releaseCapacity} help={RELEASE_N_HELP} placeholder="no limit" type="number" width="sm" value={repository.releaseCapacity} onChange={(value) => set({ releaseCapacity: value })} />
               </div>
             </FormSection>
             <MirrorBox id={`${id}-mirror`} mirror={repository.mirror} onChange={(mirror) => set({ mirror })} />
@@ -945,26 +937,6 @@ export function RepositoryEditor(props: {
 }
 
 const MODE_TITLES: Record<string, string> = { local: 'Local only', 'plans-repo': 'Plans repository', 'single-repo': 'Single repository' }
-
-// The label an Issue Radar crew must scope to, from the saved policy, and
-// a link to Issue Radar, where the user sets it (R17.4). Nothing else.
-function CrewScope({ crew }: { crew: CrewScope | undefined }) {
-  if (!crew)
-    return (
-      <p className="text-sm" data-radar-none>
-        No Issue Radar crew codes this repository. Who codes is set for each repository in Repository setup.
-      </p>
-    )
-  return (
-    <p className="text-sm" data-crew-scope={crew.repository}>
-      Scope its crew to {crew.label ? <code>{crew.label}</code> : <span className="text-danger">no ready label yet; name one under Handoff to Avoozl</span>} in{' '}
-      <a href={linkHref(crew.link)} target="_top" className="underline">
-        Issue Radar
-      </a>
-      .
-    </p>
-  )
-}
 
 function RepositoriesTab(props: {
   form: SettingsForm
@@ -1175,8 +1147,6 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
             <dd>
               <code>{row.branch}</code>
             </dd>
-            <dt className="text-muted">Who codes</dt>
-            <dd>Avoozl worker chats</dd>
           </dl>
           <p className="text-sm" data-local-checks>
             Avoozl runs each task&apos;s own checks from the spec manifest, or this repository&apos;s checks when a task names none.
@@ -1343,16 +1313,13 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
   if (!isGitHubMode(form.mode) || !repository)
     return (
       <Card>
-        <Section title="Issue Radar" blurb="Issue Radar crews code GitHub issues. These settings apply once a repository has a GitHub role in Repository setup.">
+        <Section title="Issue Radar" blurb="Issue Radar crews work GitHub issues and can hand one to Avoozl. These settings apply once a repository has a GitHub role in Repository setup.">
           {null}
         </Section>
       </Card>
     )
   const setRepository = (change: Partial<RepositoryForm>) => set({ repositories: form.repositories.map((entry, at) => (at === index ? { ...entry, ...change } : entry)) })
   const part = { id, repository, set: setRepository }
-  const radarCoder = (repository.coder || defaultCoder(form.mode)) === 'issue-radar'
-  const crews = visibleSettings(form.mode).has('issueRadarCrews') ? (settings.crews ?? []) : []
-  const crew = crews.find((entry) => entry.repository === repository.name.trim())
   return (
     <div className="flex flex-col gap-3.5" data-radar-settings>
       {names.length > 1 && (
@@ -1371,21 +1338,6 @@ function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; wo
           </Section>
         </Card>
       )}
-      <Card>
-        <Section title="Radar crew" blurb="The Issue Radar crew that codes this repository, and how Avoozl releases issues to it.">
-          <div className="flex flex-col gap-3">
-            <CrewScope crew={crew} />
-            {radarCoder ? (
-              <Field id={`${id}-release-mode`} label="Release mode" raw="release.mode">
-                <ReleaseModePicker id={`${id}-release-mode`} mode={repository.releaseMode} onMode={(value) => setRepository({ releaseMode: value })} />
-              </Field>
-            ) : (
-              <p className="text-xs text-muted">Release mode applies only when Issue Radar codes this repository.</p>
-            )}
-          </div>
-        </Section>
-      </Card>
-      {crew && <RadarValuesScreen key={crew.repository} workspaceId={props.workspaceId} repositories={[crew.repository]} />}
       <Card>
         <Section title="Handoff to Avoozl" blurb={`${AVOOZL_LABELS_LINE} ${OLD_LABEL_NOTE}`}>
           <AvoozlLabelFields {...part} note={false} />

@@ -113,7 +113,6 @@ const POLICY = (extra = {}) => ({
   repositories: {
     [REPO]: {
       baseBranch: "main",
-      coder: "worker",
       minimumPermission: "write",
       managedLabels: { managed: "avoozl:managed", ready: "ready" },
       crewLabels: { needsHuman: NEEDS_HUMAN, claim: CLAIM },
@@ -184,13 +183,29 @@ test("a trusted escalation lists first in Untriaged with Plan this and Deliver t
   assert.deepEqual(github.writes, [], "reading writes nothing");
 });
 
-test("for a Radar-coded repository the escalation is an Intake row with both buttons", async (t) => {
-  const github = fakeGitHub([recorded(12)]),
+// R91.6: Who codes is gone, so a file that still says `coder: issue-radar`
+// reads Untriaged like any other repository, and Radar's asks still arrive.
+test("a repository still set to coder issue-radar feeds Triage and Radar asks", async (t) => {
+  const github = fakeGitHub([
+      recorded(2, { createdAt: "2026-11-15T05:00:00Z" }),
+      recorded(12),
+      recorded(14),
+    ]),
     { read } = workspace(t, github, POLICY({ coder: "issue-radar" }));
-  const { intake } = await read();
-  assert.equal(intake.items.length, 1);
-  assert.equal(intake.items[0].number, 12);
+  const { intake, needsYou } = await read();
+  // The plain issue is listed too: there is no Radar-only read.
+  assert.deepEqual(
+    intake.items.map((item) => item.number),
+    [12, 2],
+  );
   assert.deepEqual(intake.items[0].start, { plan: true, deliver: true });
+  assert.equal(intake.items[0].escalation.scope, "new-feature");
+  assert.deepEqual(
+    needsYou.map((row) => row.issue.number),
+    [14],
+  );
+  assert.deepEqual(needsYou[0].start, { plan: true, deliver: true });
+  assert.deepEqual(github.writes, [], "reading writes nothing");
 });
 
 test("a trusted escalation's Needs you row offers the same two buttons; an untrusted one gets none", async (t) => {

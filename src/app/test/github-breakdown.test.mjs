@@ -14,11 +14,6 @@ import { FakeGitHub } from "./fake-github.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
-import { setRadarHandoverPaused } from "../coder-adapter.mjs";
-
-// These tests cover the Radar hand-over kept while Phase 45 is paused
-// (R103.4 pauses it in the product).
-setRadarHandoverPaused(false);
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
@@ -498,10 +493,14 @@ test("the tick alone takes in, publishes, and readies children as blockers merge
   sourceIssue(github, "Load and validate config.json.");
   const SHA = "c".repeat(40),
     tick = () => ops.execute("workspace.tick", { sessions: [] }),
-    ready = (issue) => labels(issue).includes("agent:ready");
+    // Readiness is the task's own: no ready label goes on GitHub (R91.6).
+    ready = (issue) =>
+      store.read().tasks.find((task) => task.github?.number === issue.number)
+        ?.dispatch?.ready === true;
   github.closing = new Map();
   github.closingPullRequests = async (_repo, number) =>
     structuredClone(github.closing.get(number) || []);
+  github.branchPullRequests = async () => [];
   github.checkRuns = async () => [];
   github.commitStatus = async () => ({ statuses: [] });
   // A merged pull request closes the issue, as GitHub does on `Closes #N`.

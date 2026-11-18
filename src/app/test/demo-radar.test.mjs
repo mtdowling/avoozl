@@ -47,20 +47,6 @@ test("crew claims show on several machines through the real radar.crews read", a
   });
 });
 
-test("the release queue shows released, claimed, next-or-held rows and a held reason", async () => {
-  await withDemo(async (demo) => {
-    const queue = await demo.execute("radar.releasequeue", {}),
-      rows = queue.repositories.flatMap((entry) => entry.rows),
-      states = new Set(rows.map((row) => row.state));
-    for (const state of ["released", "claimed", "held"])
-      assert.ok(states.has(state), state);
-    assert.ok(
-      rows.filter((row) => row.state === "held").every((row) => row.reason),
-    );
-    assert.ok(rows.some((row) => /Waiting on/.test(row.reason)));
-  });
-});
-
 test("a Radar handback waits on you, with the crew's question", async () => {
   await withDemo(async (demo) => {
     const conflicts = await demo.execute("conflicts.view", {}),

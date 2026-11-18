@@ -1,7 +1,7 @@
 // The Workflow map (radar-coder RC22, design D27): how work flows through one
 // repository, as lanes of step cards built from its settings. Pure: the page
 // draws what this returns, and no card holds text the settings do not give.
-import { defaultCoder, isGitHubMode, modeKey, type RepositoryForm } from './settings-api.ts'
+import { isGitHubMode, modeKey, type RepositoryForm } from './settings-api.ts'
 
 export type Who = 'you' | 'radar' | 'avoozl' | 'github'
 export const WHO_TEXT: Record<Who, string> = { you: 'You', radar: 'Radar crew', avoozl: 'Avoozl', github: 'GitHub' }
@@ -23,9 +23,7 @@ export const WORKFLOW_STATUS: Record<string, StepTag> = {
   'epic-draft': 'fake-tested',
   'epic-approve': 'fake-tested',
   'epic-claim': 'fake-tested',
-  'epic-release': 'fake-tested',
   'epic-start': 'fake-tested',
-  'epic-build-radar': 'not proven live',
   'epic-merge': 'fake-tested',
   'review-chat': 'not built',
   'review-find': 'not built',
@@ -35,9 +33,6 @@ export const WORKFLOW_STATUS: Record<string, StepTag> = {
 // Where a value is set. `tab` is a repository dialog sub-tab; `field` names the
 // input the page focuses.
 export type JumpField =
-  | 'coder'
-  | 'capacity'
-  | 'releaseMode'
   | 'plan'
   | 'conflict'
   | 'onSourceConflict'
@@ -55,9 +50,6 @@ export interface Jump {
   field: JumpField
 }
 const TAB: Record<JumpField, Jump['tab']> = {
-  coder: 'mode',
-  capacity: 'mode',
-  releaseMode: 'radar',
   plan: 'radar',
   conflict: 'radar',
   onSourceConflict: 'radar',
@@ -158,19 +150,11 @@ const tag = (key: string): { tag?: StepTag } => (WORKFLOW_STATUS[key] ? { tag: W
 export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
   const { repository, mode } = input
   const github = isGitHubMode(mode)
-  const coder = repository.coder || defaultCoder(mode)
-  const radar = coder === 'issue-radar'
 
   const ready = named(repository.managedLabels.ready ?? '', DEFAULTS.ready, 'Ready label', 'ready')
   const plan = named(repository.planLabel, DEFAULTS.plan, 'Planning label', 'plan')
   const approval = named(repository.approvalLabel, DEFAULTS.approval, 'Approval label', 'approval')
   const conflict = named(repository.conflictLabel, DEFAULTS.conflict, 'Conflict label', 'conflict')
-  const onConflict: Value = {
-    label: 'On a source conflict',
-    text: `${repository.onSourceConflict.trim() || 'fix'}${repository.maxAttempts.trim() ? ` (up to ${repository.maxAttempts.trim()})` : ''}`,
-    source: repository.onSourceConflict.trim() || repository.maxAttempts.trim() ? 'set' : 'default',
-    jump: jump('onSourceConflict'),
-  }
   const mergeMethod: Value = {
     label: 'Merge method',
     text: repository.mergeMethod.trim() || 'squash',
@@ -190,24 +174,6 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
         source: repository.minimumPermission.trim() ? 'set' : 'default',
         jump: jump('permission'),
       }
-  const coderValue: Value = {
-    label: 'Who codes',
-    text: { 'issue-radar': 'Issue Radar crew', worker: 'Avoozl worker chats' }[coder] ?? coder,
-    source: repository.coder ? 'set' : 'default',
-    jump: jump('coder'),
-  }
-  const capacity: Value = {
-    label: 'Release N',
-    text: repository.releaseCapacity.trim() || '2',
-    source: repository.releaseCapacity.trim() ? 'set' : 'default',
-    jump: jump('capacity'),
-  }
-  const releaseMode: Value = {
-    label: 'Release mode',
-    text: repository.releaseMode.trim() || 'automatic',
-    source: repository.releaseMode.trim() ? 'set' : 'default',
-    jump: jump('releaseMode'),
-  }
   const ship: Value = {
     label: 'Merge',
     text: input.ship === 'manual' ? 'you merge' : 'auto-merge',
@@ -256,7 +222,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
   const maintenance: Lane = {
     key: 'maintenance',
     title: 'Maintenance',
-    muted: radar ? undefined : `Needs the Issue Radar coder; this repository's coder is ${coderValue.text}.`,
+    muted: 'Issue Radar crews keep maintenance of issues Avoozl did not create. Avoozl hands them no work.',
     cards: [
       { key: 'maint-issue', who: 'github', title: 'An issue comes in', text: 'Someone opens an issue. Avoozl is not involved.', values: [] },
       { key: 'maint-label', who: 'you', title: 'You add the crew label', text: "The label in the crew's scope (set in Issue Radar). Avoozl's ready label is the same name.", values: [ready] },
@@ -265,26 +231,15 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     ],
   }
 
-  const buildCard: Card = radar
-    ? { key: 'epic-build-radar', who: 'radar', title: 'Crews build', text: 'Each crew takes one ready sub-issue and opens a pull request.', values: [coderValue], ...tag('epic-build-radar') }
-    : { key: 'epic-build-worker', who: 'avoozl', title: 'Worker chats build', text: 'Each worker chat codes one task on its own branch and opens a pull request.', values: [coderValue] }
-  const releaseCard: Card = radar
-    ? {
-        key: 'epic-release',
-        who: 'avoozl',
-        title: 'Avoozl adds the ready label in graph order',
-        text: 'Only for tasks whose blockers are done, at most N at a time.',
-        values: [ready, capacity, releaseMode],
-        ...tag('epic-release'),
-      }
-    : {
-        key: 'epic-start',
-        who: 'avoozl',
-        title: 'The tick starts ready tasks in graph order',
-        text: 'A task starts when its blockers are done.',
-        values: [],
-        ...tag('epic-start'),
-      }
+  const buildCard: Card = { key: 'epic-build-worker', who: 'avoozl', title: 'Worker chats build', text: 'Each worker chat codes one task on its own branch and opens a pull request.', values: [] }
+  const releaseCard: Card = {
+    key: 'epic-start',
+    who: 'avoozl',
+    title: 'The tick starts ready tasks in graph order',
+    text: 'A task starts when its blockers are done.',
+    values: [],
+    ...tag('epic-start'),
+  }
   const mergeCard: Card = {
     key: 'epic-merge',
     who: input.ship === 'manual' ? 'you' : 'avoozl',
@@ -293,27 +248,18 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     values: input.ship === 'manual' ? [ship] : [ship, mergeMethod],
     ...tag('epic-merge'),
   }
-  const fixCard: Card = {
-    key: 'epic-conflict-fix',
-    who: 'avoozl',
-    title: 'Avoozl fixes a source conflict',
-    text: 'Crews never resolve source conflicts. One resolver chat merges the base into the branch, checks no line from either side was dropped, and pushes one merge commit. If it cannot keep both sides, it asks you.',
-    values: [onConflict, conflict],
-    ...(radar ? {} : { muted: 'Only for Issue Radar crews.' }),
-  }
   const epic: Lane = {
     key: 'epic',
     title: 'Epic',
     cards: [
       { key: 'epic-request', who: 'you', title: 'A feature request comes in', text: 'An issue that is too big for one crew.', values: [] },
-      { key: 'epic-punt', who: 'radar', title: 'The crew punts', text: 'It adds its needs-human label and stops.', values: [needsHuman], ...tag('epic-punt'), ...(radar ? {} : { muted: 'Only an Issue Radar crew punts; you can add the planning label yourself.' }) },
+      { key: 'epic-punt', who: 'radar', title: 'The crew punts', text: 'It adds its needs-human label and stops.', values: [needsHuman], ...tag('epic-punt') },
       { key: 'epic-plan-label', who: 'you', title: 'You add the planning label', text: 'Only people the repository allows count.', values: [plan, actors], ...tag('epic-plan-label') },
       { key: 'epic-draft', who: 'avoozl', title: 'Avoozl drafts the spec', text: 'A spec with tasks and their order.', values: [], ...tag('epic-draft') },
       { key: 'epic-approve', who: 'you', title: 'You approve', text: 'Add the approval label, or approve in Avoozl or a chat.', values: [approval], ...tag('epic-approve') },
       { key: 'epic-claim', who: 'avoozl', title: 'Avoozl claims the parent and writes the sub-issues', text: 'It adds blocked-by links, so the order lives on GitHub.', values: [claim], ...tag('epic-claim') },
       releaseCard,
       buildCard,
-      ...(radar ? [fixCard] : []),
       mergeCard,
     ],
   }
@@ -328,7 +274,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
       { key: 'review-chat', who: 'avoozl', title: 'A review chat reads the pull request', text: 'Read only. It posts one pending review under your login and swaps the label.', values: [drafted], ...tag('review-chat') },
       { key: 'review-find', who: 'you', title: 'You find the draft', text: 'In Needs you here, or on GitHub with a search for the drafted label.', values: [drafted], ...tag('review-find') },
       { key: 'review-submit', who: 'you', title: 'You edit and submit it', text: 'Avoozl never submits a review.', values: [] },
-      { key: 'review-answer', who: 'radar', title: 'The crew answers on its pull request', text: 'Only when a crew opened it.', values: [], ...tag('review-answer'), ...(radar ? {} : { muted: 'Only an Issue Radar crew answers a review itself.' }) },
+      { key: 'review-answer', who: 'radar', title: 'The crew answers on its pull request', text: 'Only when a crew opened it.', values: [], ...tag('review-answer') },
     ],
   }
 
@@ -339,9 +285,6 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
 // start with `id`. Selectors list the input first and its container second.
 export const fieldSelector = (id: string, field: JumpField): string =>
   ({
-    coder: `[id^="${id}-coder-"][aria-checked="true"], [id^="${id}-coder-"]`,
-    capacity: `#${id}-release-capacity`,
-    releaseMode: '[data-release-mode] input:checked, [data-release-mode] input',
     plan: '#' + id + '-label-planLabel',
     conflict: `#${id}-label-conflictLabel`,
     onSourceConflict: `#${id}-on-source-conflict input:checked, #${id}-on-source-conflict`,

@@ -8,7 +8,6 @@ import { previewProjection } from "./github-preview.mjs";
 import { approvePlan } from "./plans.mjs";
 import { planReviewSummary } from "./plan-review-summary.mjs";
 import {
-  approvalState,
   openBatchApproval,
   approvalChangedAtMerge,
   approvalEvidence,
@@ -308,19 +307,7 @@ export async function approveMany(ops, input = {}) {
       approvalPullRequests: await openGatePullRequests(ops, gated),
     };
   }
-  const result = approveSet(store, prepared, options);
-  if (!result.ok) return result;
-  // One approval record each; each issue hears of it once (RC18.4).
-  for (const receipt of result.approved) {
-    if (receipt.existing) continue;
-    const entry = prepared.find((p) => p.plan.id === receipt.planId);
-    await ops.afterApproval(entry.plan, {
-      approver: entry.approver,
-      commit: approvalState(store, entry.plan.id, entry.plan.hash)?.commit,
-      viaLabel: false,
-    });
-  }
-  return result;
+  return approveSet(store, prepared, options);
 }
 
 // One approval pull request per target for the specs waiting on one. A spec

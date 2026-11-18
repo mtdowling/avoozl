@@ -305,7 +305,7 @@ export function SectionBox(props: { id: string; title: ReactNode; open?: boolean
 }
 
 // A row of picture-less radio cards: a title, one line, and optional "Use
-// it when" text. Arrow keys move the choice, as in the Who codes picker.
+// it when" text. Arrow keys move the choice.
 export function ChoiceCards<K extends string>(props: {
   id: string
   label: string

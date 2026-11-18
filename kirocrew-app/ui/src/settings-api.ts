@@ -11,20 +11,12 @@ export type Policy = Record<string, unknown>
 export interface SettingsChoices {
   modes: string[]
   authorities: string[]
-  coders: string[]
   permissions: string[]
   actions: string[]
   fields: string[]
   statusValues: string[]
   managedLabels: string[]
   crewLabels: string[]
-}
-
-// An Issue Radar crew the user must configure: scope it to `label` (R17.4).
-export interface CrewScope {
-  repository: string
-  label: string | null
-  link: string
 }
 
 export interface ReviewRole {
@@ -120,7 +112,6 @@ export interface GitHubSettings {
   github: Policy
   effective: Policy | null
   error: string | null
-  crews: CrewScope[]
   rate?: RateView
   review?: ReviewSettings
   choices: SettingsChoices
@@ -321,7 +312,6 @@ export interface RepositoryForm {
   baseBranch: string
   // local, code, planning or both (design §4.34); blank until chosen.
   role: string
-  coder: string
   allowedActors: string
   minimumPermission: string
   requiredChecks: string
@@ -503,7 +493,6 @@ function count(text: string): number | string | undefined {
 const SHOWN = new Set([
   'role',
   'baseBranch',
-  'coder',
   'allowedActors',
   'minimumPermission',
   'requiredChecks',
@@ -534,7 +523,6 @@ export function emptyRepository(name = ''): RepositoryForm {
     name,
     baseBranch: 'main',
     role: '',
-    coder: '',
     allowedActors: '',
     minimumPermission: '',
     requiredChecks: '',
@@ -590,7 +578,6 @@ export function toForm(github: Policy): SettingsForm {
         name,
         baseBranch: str(entry.baseBranch),
         role: str(entry.role),
-        coder: str(entry.coder),
         allowedActors: joined(entry.allowedActors),
         minimumPermission: str(entry.minimumPermission),
         requiredChecks: joined(entry.requiredChecks),
@@ -697,7 +684,6 @@ export function toPolicy(form: SettingsForm): Policy {
               ...repository.rest,
               baseBranch: blank(repository.baseBranch),
               role: blank(repository.role),
-              coder: blank(repository.coder),
               allowedActors: splitList(repository.allowedActors),
               minimumPermission: blank(repository.minimumPermission),
               requiredChecks: splitList(repository.requiredChecks),
@@ -794,9 +780,8 @@ export const PROJECT_DEFAULTS: Record<string, string> = {
 export const REPOSITORY_FIELD_RULES: Record<string, FieldRule> = {
   name: { required: true },
   baseBranch: { required: true, when: 'with a GitHub mode' },
-  coder: { required: false, blank: 'blank: Issue Radar in single-repo mode, worker sessions otherwise' },
   cacheSeconds: { required: false, blank: 'blank: the workspace value' },
-  releaseCapacity: { required: false, blank: 'blank: 2 at a time' },
+  releaseCapacity: { required: false, blank: 'blank: no limit' },
   allowedActors: { required: false, blank: 'blank: anyone with the minimum permission' },
   minimumPermission: { required: false, blank: 'blank: write, unless actors are named' },
   managed: { required: true, when: 'to create issues' },
@@ -938,8 +923,8 @@ export function reviewRuleText(inspect: RepositoryInspect | null): string {
 
 // The three modes, as the mode panes explain them, in the order they show.
 // Each claim matches the code and design: github-policy.mjs (`local` is no
-// GitHub mode and keeps the stored GitHub settings unused; default coder;
-// issue-radar refused in plans-repo; planning repository required),
+// GitHub mode and keeps the stored GitHub settings unused; planning
+// repository required),
 // github-linked-branches.mjs (the linked branch closes the planning issue),
 // delivery.mjs (local delivery merges verified work into the landing
 // branch; no closing keyword in plans-repo pull requests), and design §6.6.
@@ -952,7 +937,6 @@ export const MODE_CARDS = [
     facts: [
       ['Who closes tasks', 'Avoozl, once checks and reviewer chats pass and the work merges into the landing branch'],
       ['Pull request text', 'None: work lands on the branch in your checkout'],
-      ['Default coder', 'Avoozl worker'],
       ['Limit', 'No issues, labels, Project board or GitHub checks'],
     ],
   },
@@ -964,8 +948,7 @@ export const MODE_CARDS = [
     facts: [
       ['Who closes issues', 'GitHub, when the pull request from the linked branch Avoozl made merges'],
       ['Pull request text', 'The task only; never the planning repository'],
-      ['Default coder', 'Avoozl worker'],
-      ['Limit', 'A Radar crew opens pull requests only in its own repository'],
+      ['Limit', 'Issues and sub-issues live only in the planning repository'],
     ],
   },
   {
@@ -976,7 +959,6 @@ export const MODE_CARDS = [
     facts: [
       ['Who closes issues', 'GitHub, from "Closes #N" when the pull request merges'],
       ['Pull request text', 'Names its issue with Closes #N'],
-      ['Default coder', 'Radar crew (Avoozl worker also allowed)'],
       ['Limit', 'Issues and plans are visible to everyone who can see the repository'],
     ],
   },
@@ -1127,8 +1109,6 @@ export type SettingKey =
   | 'subIssueCap'
   | 'projectFields'
   | 'setupGitHub'
-  | 'issueRadarCrews'
-  | 'coder'
   | 'triggers'
   | 'requiredChecks'
   | 'pullRequestReviews'
@@ -1141,9 +1121,9 @@ export function visibleSettings(mode: string): Set<SettingKey> {
   const key = modeKey(mode)
   const always: SettingKey[] = ['reviewerChats', 'landingBranch', 'workerChats']
   if (key === 'local') return new Set([...always, 'localChecks'])
-  const github: SettingKey[] = ['defaultAuthority', 'epicIssueType', 'subIssueCap', 'projectFields', 'setupGitHub', 'coder', 'triggers', 'requiredChecks', 'pullRequestReviews']
+  const github: SettingKey[] = ['defaultAuthority', 'epicIssueType', 'subIssueCap', 'projectFields', 'setupGitHub', 'triggers', 'requiredChecks', 'pullRequestReviews']
   if (key === 'plans-repo') return new Set([...always, ...github, 'planningRepository'])
-  return new Set([...always, ...github, 'issueRadarCrews'])
+  return new Set([...always, ...github])
 }
 
 // The one line under the sub-issue cap (R59.15).
@@ -1198,33 +1178,6 @@ export function setupState(result: SetupResult | null, error: string | null, at:
   if (result.writes.length || result.settings.changed) return { kind: 'changes', count: result.writes.length + (result.settings.changed ? 1 : 0), at }
   return { kind: 'set-up', at }
 }
-
-
-// Who codes (CoderPicker.tsx). The Avoozl worker, the default in a plans
-// repository, has no card yet; coderSource names it.
-export const CODER_CARDS = [
-  {
-    coder: 'issue-radar',
-    title: 'Radar crew',
-    line: 'You label a GitHub issue and Issue Radar takes it.',
-    flow: ['Ready label', 'Issue Radar crew', 'Pull request', 'GitHub checks', 'Merged'],
-    useWhen: ['One open repository', 'Your crew already codes issues', 'Pull requests can say Closes #N'],
-    reviews: "GitHub's branch review rule and the required checks on the pull request.",
-    modes: ['plans-repo', 'single-repo'],
-  },
-] as const
-
-// Where the shown coder comes from and what it is, never "same as above".
-export const coderSource = (mode: string, value: string) => {
-  const name = (coder: string) => (coder === 'remote' ? 'Remote coder, removed; choose an available coder' : coder === 'worker' ? 'Avoozl worker' : (CODER_CARDS.find((card) => card.coder === coder)?.title ?? coder))
-  const fallback = defaultCoder(mode)
-  return value
-    ? `Set on this repository: ${name(value)}.`
-    : `Not set on this repository. Using the default for ${MODE_CARDS.find((card) => card.mode === modeKey(mode))?.title ?? mode} (${name(fallback)}).`
-}
-
-// The default coder in a mode, as github-policy.mjs sets it.
-export const defaultCoder = (mode: string) => (modeKey(mode) === 'single-repo' ? 'issue-radar' : 'worker')
 
 
 // Settings opens on Workspaces. The inner tab is kept only while the person

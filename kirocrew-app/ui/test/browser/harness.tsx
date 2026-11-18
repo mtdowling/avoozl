@@ -32,12 +32,10 @@ import ActivityView from '../../src/ActivityView.tsx'
 import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
-import { CoderPicker } from '../../src/CoderPicker.tsx'
 import { GateList } from '../../src/TrackerGates.tsx'
 import { waitingGates, type GateRow } from '../../src/release-api.ts'
 import ReleaseQueue from '../../src/ReleaseQueue.tsx'
 import GithubFlow from '../../src/GithubFlow.tsx'
-import { ReleaseModePicker } from '../../src/ReleaseMode.tsx'
 import { ProjectionModal } from '../../src/ProjectionModal.tsx'
 import { SpecChangedModal } from '../../src/SpecChangedModal.tsx'
 import { projectionClient } from '../../src/projection-api.ts'
@@ -46,7 +44,6 @@ import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsVie
 import { answerIntake } from './intake-fixture.ts'
 import { chainsGraph, draftsGraph } from './graph-chains.ts'
 import { landingFixture } from './landing-fixture.ts'
-import RadarValuesScreen from '../../src/RadarValues.tsx'
 import { ForwardScreen } from '../../src/ForwardScreen.tsx'
 import forwardLive from './forward-live-replies.json'
 import { CrewsRulesSettings } from '../../src/CrewsRulesSettings.tsx'
@@ -588,7 +585,7 @@ if (query.get('page') === 'app') {
       bySource: { tick: { calls: 88, notModified: 40, cached: 0 }, crew: { calls: 41, notModified: 0, cached: 0 }, view: { calls: 17, notModified: 21, cached: 132 }, review: { calls: 5, notModified: 0, cached: 3 }, setup: { calls: 2, notModified: 0, cached: 0 } },
       writes: { perMinute: 60, perHour: 400, run: { planId: 'nupp', done: 312, total: 1740, resumeAt: new Date(Date.now() + 38 * 60000).toISOString() } },
     },
-    choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
+    choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
   }))
   // &ghfull=1: the same settings with two Issue Radar crews, their Radar
   // values and the last hour's GitHub calls by source, so Settings › GitHub
@@ -1168,16 +1165,6 @@ if (query.get('page') === 'release-queue') {
     ],
   }))
 }
-function ReleaseModes() {
-  const [modes, setModes] = useState(['automatic', 'step', 'hold'])
-  return (
-    <div className="flex flex-col gap-6">
-      {modes.map((mode, i) => (
-        <ReleaseModePicker key={i} id={`m${i}`} mode={mode} onMode={(value) => setModes(modes.map((m, at) => (at === i ? value : m)))} />
-      ))}
-    </div>
-  )
-}
 // ?page=github-flow: Flow from GitHub data on two finished issues.
 // &receipt=only: builds from a repository with receipts and no Radar crew,
 // so no finished issues.
@@ -1221,7 +1208,7 @@ if (query.get('page') === 'github-flow' || (query.get('page') === 'app' && query
 // ?page=repo-mode: one repository's Edit body on its Mode and branch tab.
 function RepoModePage() {
   const [repository, setRepository] = useState<RepositoryForm>(emptyRepository('acme/recipe-box'))
-  const choices = { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] }
+  const choices = { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] }
   return (
     <NavHistoryProvider>
       <RepositoryEditor index={0} repository={repository} choices={choices as never} review={undefined} mode="single-repo" workspaceId="w" planningRepository="" onChange={setRepository} />
@@ -1322,18 +1309,9 @@ const PAGES: Record<string, () => ReactNode> = {
   'repo-mode': () => <RepoModePage />,
   'github-flow': () => <GithubFlow workspaceId="w" />,
   'release-queue': () => <ReleaseQueue workspaceId="w" />,
-  'release-mode': () => <ReleaseModes />,
   // The two modals, open at once, for the screenshots.
   projection: () => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onCreated={() => undefined} />,
   'spec-changed': () => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onApplied={() => undefined} />,
-  // Who codes in each mode: default, a set value, and Local only.
-  coder: () => (
-    <div className="flex flex-col gap-6">
-      {[['single-repo', ''], ['plans-repo', 'remote'], ['', '']].map(([mode, value]) => (
-        <CoderPicker key={mode} id={`c-${mode || 'local'}`} mode={mode} value={value} onChange={() => {}} />
-      ))}
-    </div>
-  ),
 }
 function SettingsPage({ name }: { name: string }) {
   const render = PAGES[name]
@@ -1743,15 +1721,6 @@ function ForwardPage() {
     </div>
   )
 }
-function RadarValuesPage() {
-  return (
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
-      <HarnessBoundary>
-        <RadarValuesScreen workspaceId="w" repositories={['example/code']} />
-      </HarnessBoundary>
-    </div>
-  )
-}
 // ?page=crews-rules: the Crews and rules tab on one repository form.
 function CrewsRulesPage() {
   const [repository, setRepository] = useState<RepositoryForm>(emptyRepository('example/code'))
@@ -1835,5 +1804,5 @@ function PanelPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'needs' ? <NeedsPage /> : page === 'specs' ? <SpecsPage /> : page === 'tip' ? <TipPage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'needs' ? <NeedsPage /> : page === 'specs' ? <SpecsPage /> : page === 'tip' ? <TipPage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )
