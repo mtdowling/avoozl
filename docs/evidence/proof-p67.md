@@ -294,3 +294,7 @@ Guard stops recorded in that first pass: 2 (pushes to the local fork copy only).
 ```
 
 Next decision: enable fork heads in ordinary worker pulls. Source resolution and permissions held in this run.
+
+## Follow-up
+
+- The one "no" row: after the base merged into the head, GitHub kept the first approval and now shows it against the refreshed head `af626908`, although the ruleset dismisses stale approvals. Avoozl was not misled (it required a new check and counted no review it could not verify), but a driver with permission to read roles would count that carried-over approval. Follow-up: decide whether Avoozl should require an approval submitted on or after the exact landing head, rather than trusting GitHub's carried-over review.
