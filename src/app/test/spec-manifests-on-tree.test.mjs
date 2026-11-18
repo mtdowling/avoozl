@@ -1,6 +1,6 @@
-// Every avoozl/manifest.json under .kiro/specs must be a non-empty, parsing
-// object, and the repository's own spec must lint with no errors. PR #52
-// once committed a 0-byte manifest that blocked approving the spec.
+// The repository's own spec must lint with no errors. PR #52 once committed
+// a 0-byte manifest that blocked approving the spec; facts now live in
+// tasks.md (spec-conversion.test.mjs checks no manifest is left).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -15,20 +15,6 @@ const names = fs.existsSync(specs)
       .readdirSync(specs)
       .filter((name) => fs.statSync(path.join(specs, name)).isDirectory())
   : [];
-
-for (const name of names) {
-  const file = path.join(specs, name, "avoozl", "manifest.json");
-  if (!fs.existsSync(file)) continue;
-  test(`.kiro/specs/${name}/avoozl/manifest.json is not empty and parses`, () => {
-    const text = fs.readFileSync(file, "utf8");
-    assert.ok(text.trim().length > 0, "the manifest is empty");
-    const parsed = JSON.parse(text);
-    assert.ok(
-      parsed && typeof parsed === "object" && !Array.isArray(parsed),
-      "the manifest is not a JSON object",
-    );
-  });
-}
 
 test("the repository's own spec lints with no errors", () => {
   const spec = readSpecFolder(root, "avoozl");

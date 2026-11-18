@@ -23,6 +23,88 @@ wants other rules. Avoozl never overwrites a changed copy.
 
 - Write \`.kiro/specs/<name>/requirements.md\` (or \`bugfix.md\` for a bug fix,
   never both), \`design.md\` and \`tasks.md\`.
+- Never write \`avoozl/manifest.json\`. Avoozl refuses a folder that has one.
+- When you are given a category, start \`requirements.md\` (or \`bugfix.md\`)
+  with this front-matter. Add the \`epic:\` line only when you are given an
+  epic. Keep the block exactly as written; never add or change it otherwise.
+
+  \`\`\`markdown
+  ---
+  category: <category>
+  epic: <epic>
+  ---
+  \`\`\`
+
+## Task IDs
+
+- Every checklist item in \`tasks.md\` starts with its task ID, then its
+  title: \`- [ ] 1. Read the config file\` or \`- [ ] 1.2 Validate config\`.
+- Use Kiro's numbers (\`1\`, \`1.1\`, \`1.2\`; a trailing period is fine), or a
+  lowercase named ID with a hyphen or period in it, such as
+  \`cache-invalidation\`.
+- Each ID appears once. Never reuse an ID for other work, and never
+  renumber an item that exists.
+- Group phases under \`##\` headings.
+
+## Tasks
+
+- Every item has one \`Facts:\` bullet as its first child. Under it, write
+  one \`key: value\` bullet per fact. A list is \`key: a, b\` or \`key:\` with
+  nested bullets. Sub-items come after \`Facts:\`. Other bullets are notes.
+- An item with sub-items is a group: its facts say \`kind: package\` and
+  \`after:\` its sub-items. It is done when its sub-items are.
+- Every other item is one task for one agent session in one repository.
+  Its facts:
+  - \`repo: <id>\`: the one repository it changes.
+  - \`after: 1.1, 2\`: task IDs that must finish first.
+  - \`checks: npm test\`: commands that prove it.
+  - \`completion: integrated\`.
+  - \`done:\`, then one nested bullet per result someone can check.
+- Put values most tasks share in front-matter at the top of \`tasks.md\`,
+  such as \`repo: app\` and \`checks: npm test\`. A task's own fact wins.
+- A step only a person does is a manual task: \`manual: true\`,
+  \`completion: person\`, what the person checks under \`done:\`, and no
+  checks.
+- Kiro's \`_Requirements: 1.2_\` line is a note. Keep it.
+
+  \`\`\`markdown
+  ---
+  repo: app
+  checks: npm test
+  completion: integrated
+  ---
+  - [ ] 1.2 Validate config
+    - Facts:
+      - after: 1.1
+      - done:
+        - An unknown key is reported with its path
+    - _Requirements: 1.2_
+  \`\`\`
+
+## Stop after tasks
+
+Avoozl delivers this spec. Do not run its tasks or start a build from Spec
+Builder. Avoozl imports the spec as a draft plan; a person approves it in
+Avoozl.
+`;
+
+// Texts Avoozl shipped before, so a repository's unchanged copy is offered
+// the current one (the old text taught marker bullets, Requirement 111).
+export const OLDER_STEERING_TEXTS = [
+  `---
+inclusion: always
+---
+
+# Avoozl spec rules
+
+Avoozl delivers the specs in \`.kiro/specs/\`. Follow these rules whenever you
+write or change a spec there. Avoozl wrote this file; edit it if your team
+wants other rules. Avoozl never overwrites a changed copy.
+
+## Files
+
+- Write \`.kiro/specs/<name>/requirements.md\` (or \`bugfix.md\` for a bug fix,
+  never both), \`design.md\` and \`tasks.md\`.
 - Do not write \`avoozl/manifest.json\`. Avoozl writes it from \`tasks.md\`.
 - When you are given a category, start \`requirements.md\` (or \`bugfix.md\`)
   with this front-matter. Add the \`epic:\` line only when you are given an
@@ -66,7 +148,8 @@ wants other rules. Avoozl never overwrites a changed copy.
 Avoozl delivers this spec. Do not run its tasks or start a build from Spec
 Builder. Avoozl imports the spec as a draft plan; a person approves it in
 Avoozl.
-`;
+`,
+];
 
 // Where the steering file lives in `root`, and whether it is missing, the
 // current text, an `older` text Avoozl wrote before (offered again), or a
@@ -90,7 +173,11 @@ export function steeringStatus(
   return {
     path: file,
     state:
-      text === current ? "current" : older.includes(text) ? "older" : "changed",
+      text === current
+        ? "current"
+        : older.includes(text) || OLDER_STEERING_TEXTS.includes(text)
+          ? "older"
+          : "changed",
   };
 }
 
