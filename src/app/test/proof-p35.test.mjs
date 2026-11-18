@@ -198,7 +198,7 @@ test("P35: the sdk-team plugin installs, previews, imports, approves and polls",
   );
   assert.equal(byName.get("github.project.fields.status").action, "create");
   assert.equal(byName.get("contentRules.sets.team-terms").action, "create");
-  assert.equal(byName.get("flow.batch.max").to, 2);
+  assert.equal(byName.get("flow.retro.everyTasks").to, 20);
   assert.deepEqual(preview.warnings, []);
   assert.equal(
     fs.readFileSync(path.join(env.root, ".avoozl.json"), "utf8"),

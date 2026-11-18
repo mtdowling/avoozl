@@ -529,17 +529,15 @@ test("P36: one epic over two member plans, and old forms refused", async (t) => 
   for (const name of ["old", "old-epic"])
     await assert.rejects(approve(ops, name), /Resolve plan diagnostic spec\./);
 
-  // (7) The batch key "epic" is refused naming "phase".
-  assert.throws(
-    () => flowPolicy({ flow: { batch: { by: "epic" } } }),
-    /"phase"/,
+  // (7) Changed 2026-11-18 (R108.8): batching has no setting, so the old
+  // batch key "epic" is ignored and a save that carries it still works.
+  assert.equal(
+    "batch" in flowPolicy({ flow: { batch: { by: "epic" } } }).workspace,
+    false,
   );
   const settings = await ops.execute("flow.settings.get", {});
-  await assert.rejects(
-    ops.execute("flow.settings.update", {
-      flow: { batch: { by: "epic" } },
-      expectedHash: settings.hash,
-    }),
-    /"phase"/,
-  );
+  await ops.execute("flow.settings.update", {
+    flow: { batch: { by: "epic" } },
+    expectedHash: settings.hash,
+  });
 });

@@ -43,7 +43,6 @@
     }
   ],
   "flow": {
-    "batch": { "by": "phase", "max": 3 },
     "stopTheLine": { "scope": "dependents" },
     "localChecksFirst": true,
     "retro": { "everyTasks": 10 }

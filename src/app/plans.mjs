@@ -160,9 +160,9 @@ export function validateProposal(item) {
   ])
     if (item[field] !== undefined && typeof item[field] !== "string")
       fail(field + " must be text.");
-  // Batching (§4.11): only the planner knows a task is small in advance.
-  if (item.size !== undefined && item.size !== "small")
-    fail('size may only be "small".');
+  // An old `size` tag is ignored: the planner groups batches in the
+  // manifest's `batches` instead (§4.37, R108.8).
+  delete item.size;
   // Investigate first (§4.21) and ship mode (§4.25), per task; a spec's
   // ship mode and type come from its folder.
   if (item.investigate !== undefined && typeof item.investigate !== "boolean")
@@ -692,7 +692,7 @@ export function approvePlan(
               "type",
               "session",
               "needs",
-              "size",
+              "batch",
               "investigate",
               "ship",
               "specShip",
@@ -757,6 +757,12 @@ export function approvePlan(
       // A spec plan names parents by nesting in tasks.md (spec-plans.mjs);
       // the parent is in the same plan, so it is in mapping.
       if (spec && proposal.parent) design.parent = mapping[proposal.parent];
+      // A planner batch group names its members by mapped ID (§4.37).
+      if (design.batch)
+        design.batch = {
+          ...design.batch,
+          tasks: design.batch.tasks.map((ref) => mapping[ref] || ref),
+        };
       // With a GitHub mode a task defaults to github and shows as pending
       // projection until its issue exists; local stays opt-in (R28.2–R28.3).
       const authority = newTaskAuthority(githubPolicy, proposal.authority);
@@ -810,7 +816,9 @@ export function approvePlan(
           "type",
           "session",
           "needs",
+          // An old `size` goes on re-approval; a dropped group leaves.
           "size",
+          "batch",
           "investigate",
           "ship",
           "specShip",

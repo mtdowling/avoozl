@@ -2109,5 +2109,5 @@ Owner decision 2026-11-18 (Requirement 108, design §4.37). One build task.
 Landing trains are being built on `task/lt-*` and touch `delivery.mjs`;
 merge main often and keep to `flow-batch.mjs` and the call sites.
 
-- [ ] 61.1 Planner batch groups replace `size: "small"` and `flow.batch`, after 12.8 [R108.1, R108.2, R108.3, R108.4, R108.5, R108.6, R108.7, R108.8, R108.9, R108.10, R108.11, R108.12] (§4.37)
+- [x] 61.1 Planner batch groups replace `size: "small"` and `flow.batch`, after 12.8 [R108.1, R108.2, R108.3, R108.4, R108.5, R108.6, R108.7, R108.8, R108.9, R108.10, R108.11, R108.12] (§4.37)
   - `parseSpec` reads `batches` and approval stores `batch` on each member; `flow-batch.mjs` dispatches a planner group as one handoff when every open member is ready, checks the rules in code and runs a rule-breaking group alone with its reason; split on failure as before. `flow.batch`, `size`, the Batching box and `BATCH_BY` are removed, and old values are ignored. Delivery shows a batched handoff as one In progress card; task details link to the batch. The planner prompt says when to group. Tests and screenshots under `docs/evidence/agent-batching/`.

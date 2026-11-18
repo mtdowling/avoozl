@@ -42,6 +42,12 @@ const leaf = (id, extra = {}) => ({
   ...extra,
 });
 const CHECK = "node test/check.mjs";
+// A planner batch group as approval stores it (§4.37).
+const planned = (id, tasks) => ({
+  planId: "p1",
+  planHash: "h1",
+  batch: { id, tasks, reason: "Small edits in one area" },
+});
 
 function workspace(t) {
   const root = temporaryDirectory("avoozl-p30-"),
@@ -72,9 +78,13 @@ if (fs.existsSync("breaks-main") && path.basename(process.cwd()).startsWith("avo
   );
   const tasks = [
     leaf("e1", { kind: "package", acceptance: undefined }),
-    ...["a1", "a2", "a3", "a4"].map((id) =>
-      leaf(id, { parent: "e1", size: "small" }),
+    // The planner grouped a1–a3 (R108); a4 is grouped with a5, which is
+    // deferred, so a4 waits for it.
+    ...["a1", "a2", "a3"].map((id) =>
+      leaf(id, { parent: "e1", ...planned("g1", ["a1", "a2", "a3"]) }),
     ),
+    leaf("a4", { parent: "e1", ...planned("g2", ["a4", "a5"]) }),
+    leaf("a5", { status: "deferred", ...planned("g2", ["a4", "a5"]) }),
     leaf("b1"),
     leaf("c1"),
     leaf("c2"),
@@ -93,6 +103,7 @@ if (fs.existsSync("breaks-main") && path.basename(process.cwd()).startsWith("avo
     tasks,
     edges: [{ from: "a1", to: "d1", kind: "requires" }],
   });
+  store.put("approvals", { id: "approval-p1", planId: "p1", hash: "h1" });
   store.put("projects", {
     id: "app",
     root: fs.realpathSync.native(checkout),
@@ -102,7 +113,7 @@ if (fs.existsSync("breaks-main") && path.basename(process.cwd()).startsWith("avo
   const config = {
     version: 1,
     delivery: { concurrency: 3, retries: 2 },
-    flow: { batch: { max: 3 } },
+    flow: { ci: { minPullRequests: 5 } },
   };
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
@@ -293,7 +304,8 @@ test(
       "b1 integrated; main is green from here",
     );
 
-    // (3) a1–a4 ready, flow.batch.max 3: one batch by epic, a4 waits.
+    // (3) a1–a4 ready: the planner's group a1–a3 runs as one batch; a4
+    // waits for a5, the rest of its group.
     clockTo(21);
     const third = await tick(),
       batch = third.dispatch.find((d) => d.batch);
@@ -614,9 +626,9 @@ test(
           {
             type: "settings",
             file: "workspace",
-            key: "flow.batch.max",
-            from: 3,
-            to: 5,
+            key: "flow.ci.minPullRequests",
+            from: 5,
+            to: 3,
             metric: "lead time",
             direction: "down",
             evidence: "most tasks were small in one epic",
@@ -648,13 +660,13 @@ test(
     const after = JSON.parse(
       fs.readFileSync(path.join(w.root, ".avoozl.json"), "utf8"),
     );
-    assert.equal(after.flow.batch.max, 5);
+    assert.equal(after.flow.ci.minPullRequests, 3);
     assert.deepEqual(
       { ...after, flow: undefined, $schema: undefined },
       { ...JSON.parse(before), flow: undefined, $schema: undefined },
       "nothing else changes",
     );
-    w.config.flow.batch.max = 5;
+    w.config.flow.ci.minPullRequests = 3;
 
     // (11) ten more with lead time unchanged: PDCA says it did not help, and
     // the next retro carries the revert.
@@ -676,7 +688,7 @@ test(
     ).retro;
     assert.deepEqual(
       revert.proposals.map((p) => [p.key, p.from, p.to]),
-      [["flow.batch.max", 5, 3]],
+      [["flow.ci.minPullRequests", 3, 5]],
     );
 
     // (12) a backend restart with a span open: it closes at its next ending
