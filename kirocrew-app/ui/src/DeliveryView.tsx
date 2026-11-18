@@ -105,6 +105,26 @@ function LaneCardView(props: {
               {card.subIssue.reason}
             </p>
           )}
+          {card.batch && (
+            <div className="mt-1.5 text-xs" data-batch-card={card.batch.id}>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge>Batch of {card.batch.members.length}</Badge>
+                {card.batch.reason && <span className="text-muted">{card.batch.reason}</span>}
+              </div>
+              <ul className="mt-1 flex flex-col gap-0.5" aria-label="Tasks in this batch">
+                {card.batch.members.map((member) => (
+                  <li key={member.id} data-batch-member={member.id}>
+                    <TaskTitleLink id={member.id} title={`${member.id} ${member.title}`} className="text-xs" />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {card.alone && (
+            <p className="mt-1 text-xs text-muted" data-runs-alone>
+              Runs alone: {card.alone}
+            </p>
+          )}
           {card.item && (
             <div className="mt-1.5">
               <ReviewRuns item={card.item} compact onInfo={() => drawer.openTask(card.id)} />

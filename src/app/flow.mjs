@@ -50,7 +50,6 @@ export const PHASES = Object.freeze(["coding", "tests", "commands", "ci-wait"]);
 export const FLOW_DEFAULTS = Object.freeze({
   stopTheLine: Object.freeze({ scope: "dependents" }),
   localChecksFirst: true,
-  batch: Object.freeze({ max: 3, by: "phase" }),
   retro: Object.freeze({ everyTasks: 10, slowFactor: 3, model: "auto" }),
   // Steady CI waste (§4.30, R100.3). `ci.classes` is checked on its own.
   ci: Object.freeze({
@@ -77,7 +76,6 @@ export const CI_CLASSES = Object.freeze([
   "other",
 ]);
 export const SCOPES = Object.freeze(["dependents", "repo", "all"]);
-export const BATCH_BY = Object.freeze(["phase", "files"]);
 const MODEL = /^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$/;
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -88,15 +86,6 @@ export const FLOW_KEYS = Object.freeze({
   "stopTheLine.scope": (v) =>
     SCOPES.includes(v) || `one of ${SCOPES.join(", ")}`,
   localChecksFirst: (v) => typeof v === "boolean" || "true or false",
-  "batch.max": (v) =>
-    (Number.isInteger(v) && v >= 1 && v <= 5) || "a whole number 1–5",
-  // "epic" was the old name of "phase"; it is refused, never read as it
-  // (Requirement 59.11).
-  "batch.by": (v) =>
-    BATCH_BY.includes(v) ||
-    (v === "epic"
-      ? '"phase": an epic spans plans, so tasks batch by phase'
-      : `one of ${BATCH_BY.join(", ")}`),
   "retro.everyTasks": (v) =>
     (Number.isInteger(v) && v >= 1 && v <= 1000) || "a whole number 1–1000",
   "retro.slowFactor": (v) =>
@@ -161,11 +150,12 @@ function classesProblem(value) {
 export function flowSection(value, where = "flow") {
   if (value === undefined) return {};
   if (!record(value)) throw Error(`${where} must be an object.`);
-  const groups = { stopTheLine: 1, batch: 1, retro: 1, ci: 1, verify: 1 };
-  // The lessons store was removed (RC30.4); an old `flow.lessons` is read
-  // as nothing, so a saved file keeps working.
-  if (record(value) && "lessons" in value) {
-    const { lessons: _lessons, ...rest } = value;
+  const groups = { stopTheLine: 1, retro: 1, ci: 1, verify: 1 };
+  // The lessons store was removed (RC30.4), and batching has no setting:
+  // the planner decides batches (§4.37, R108.8). An old `flow.lessons` or
+  // `flow.batch` is read as nothing, so a saved file keeps working.
+  if ("lessons" in value || "batch" in value) {
+    const { lessons: _lessons, batch: _batch, ...rest } = value;
     value = rest;
   }
   for (const key of Object.keys(value)) {

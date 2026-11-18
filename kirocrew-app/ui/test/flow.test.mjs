@@ -47,19 +47,22 @@ test('the banner names the check, branch, culprit, fix task and paused count', (
 })
 
 test('proposals and PDCA results read as one line each', () => {
-  const p = { id: 'p1', type: 'settings', file: 'workspace', key: 'flow.batch.max', from: 3, to: 5, metric: 'lead time', direction: 'down', evidence: 'e', status: 'approved', pdca: { before: 60 * 60_000, after: 61 * 60_000, result: 'no change', window: 10 } }
-  assert.equal(proposalText(p), 'flow.batch.max 3 → 5')
+  const p = { id: 'p1', type: 'settings', file: 'workspace', key: 'flow.retro.slowFactor', from: 3, to: 5, metric: 'lead time', direction: 'down', evidence: 'e', status: 'approved', pdca: { before: 60 * 60_000, after: 61 * 60_000, result: 'no change', window: 10 } }
+  assert.equal(proposalText(p), 'flow.retro.slowFactor 3 → 5')
   assert.equal(pdcaText(p), 'PDCA: lead time 1 h → 1 h 1 m, did not help.')
   assert.equal(pdcaText({ ...p, status: 'open' }), null)
 })
 
 test('Settings > Flow leaves blank fields to their defaults and refuses bad values before saving', () => {
   assert.deepEqual(toFlowSection(toFlowForm({})), { flow: {} })
-  const form = { ...toFlowForm({}), max: '5', scope: 'repo', localChecksFirst: 'off', slowFactor: '2.5' }
-  assert.deepEqual(toFlowSection(form).flow, { stopTheLine: { scope: 'repo' }, localChecksFirst: false, batch: { max: 5 }, retro: { slowFactor: 2.5 } })
-  assert.match(toFlowSection({ ...form, max: '0' }).error, /1–10/)
+  const form = { ...toFlowForm({}), scope: 'repo', localChecksFirst: 'off', slowFactor: '2.5' }
+  assert.deepEqual(toFlowSection(form).flow, { stopTheLine: { scope: 'repo' }, localChecksFirst: false, retro: { slowFactor: 2.5 } })
+  assert.match(toFlowSection({ ...form, everyTasks: '0' }).error, /1–1000/)
   assert.match(toFlowSection({ ...form, slowFactor: '1' }).error, /1\.1–20/)
-  assert.deepEqual(toFlowForm({ batch: { max: 4 } }).max, '4')
+  // Batching has no setting (R108.8): an old `batch` is not a field and is
+  // not saved back.
+  assert.equal('max' in toFlowForm({ batch: { max: 4 } }), false)
+  assert.deepEqual(toFlowSection(toFlowForm({ batch: { max: 4 } })), { flow: {} })
 })
 
 test('the page wires the Flow tab, its icon, the banner, the Timing fold and Settings > Flow', () => {
@@ -77,10 +80,11 @@ test('the page wires the Flow tab, its icon, the banner, the Timing fold and Set
     firstSection = dashboard.indexOf('<Tiles')
   assert.ok(banner > 0 && banner < firstSection)
   assert.ok(drawer.includes('<SectionBox id="timing"'))
-  for (const key of ['flow.stopTheLine.scope', 'flow.localChecksFirst', 'flow.batch.max', 'flow.batch.by', 'flow.retro.everyTasks', 'flow.retro.slowFactor', 'flow.retro.instructions'])
+  for (const key of ['flow.stopTheLine.scope', 'flow.localChecksFirst', 'flow.retro.everyTasks', 'flow.retro.slowFactor', 'flow.retro.instructions'])
     assert.ok(settings.includes(`"${key}"`), key)
   assert.match(settings, /Saved on this machine only\./)
-  for (const title of ['Timing', 'Pause on a broken check', 'Local checks first', 'Batching', 'Retro']) assert.match(settings, new RegExp(`<Section title="${title}"`))
+  for (const title of ['Timing', 'Pause on a broken check', 'Local checks first', 'Retro']) assert.match(settings, new RegExp(`<Section title="${title}"`))
+  assert.doesNotMatch(settings, /Batching|flow\.batch/, 'batching has no setting')
   // Approve is not red; Run anyway asks first.
   assert.match(source('FlowMemory.tsx'), /<Btn type="button" primary disabled=\{busy\} onClick=\{\(\) => onDecide\(proposal, 'approve'\)\}>/)
   assert.match(flow, /title: 'Run anyway\?'/)

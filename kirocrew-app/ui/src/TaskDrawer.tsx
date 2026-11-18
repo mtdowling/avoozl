@@ -3,8 +3,8 @@ import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
-import { TaskDrawerContext, type TaskDrawerApi } from './drawer-context.ts'
-import { modelLabel, safeHref, viewsClient, canSupersede, type ConflictItem, type Graph } from './views-api.ts'
+import { TaskDrawerContext, useTaskDrawer, type TaskDrawerApi } from './drawer-context.ts'
+import { modelLabel, safeHref, viewsClient, canSupersede, type ConflictItem, type DeliveryItem, type Graph } from './views-api.ts'
 import { duration, linkParts, relativeTime, sessionHref, sourceExcerpt, sourceLine, taskClient, visibleTabs, TASK_TAB_KEYS, TASK_TAB_PARAM, type OriginSource, type TaskDetail, type TaskLink, type TaskOrigin, type TaskTab } from './task-api.ts'
 import { Tabs, TabPanel, useTabParam } from './Tabs.tsx'
 import { TaskSummaryBox } from './TaskSummaryBox.tsx'
@@ -187,6 +187,35 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
         ))}
       {full && <DocumentReader workspaceId={props.workspaceId} target={full} onClose={closeFull} />}
     </div>
+  )
+}
+
+// The planner batch a task belongs to (§4.37, R108.9): its reason and every
+// task in it, each opening that task's details; the leader's details stand
+// for the batch's one In progress card. When the group broke a rule, why the
+// task runs alone.
+function BatchBox(props: { batch: NonNullable<DeliveryItem['batchGroup']>; alone: string | null; self: string }) {
+  const drawer = useTaskDrawer()
+  const { batch } = props
+  return (
+    <SectionBox id="batch" title="Batch">
+      <div className="flex flex-col gap-1 text-sm" data-task-batch={batch.id ?? batch.group ?? ''}>
+        <p className="m-0">
+          {batch.id ? 'Ran in batch ' : 'Planned batch '}
+          {batch.leader === props.self ? <span className="font-medium">{batch.group ?? batch.id}</span> : <button type="button" className="underline" onClick={() => drawer.openTask(batch.leader)} data-batch-link={batch.leader}>{batch.group ?? batch.id}</button>}
+          {batch.reason ? <span className="text-muted"> · {batch.reason}</span> : null}
+        </p>
+        <ul className="m-0 flex flex-col gap-0.5 pl-4 text-xs">
+          {batch.tasks.map((id) => (
+            <li key={id}>
+              {id === props.self ? <span>{id} (this task)</span> : <button type="button" className="underline" onClick={() => drawer.openTask(id)}>{id}</button>}
+              {id === batch.leader ? <span className="text-muted"> · leads</span> : null}
+            </li>
+          ))}
+        </ul>
+        {props.alone && <p className="m-0 text-xs text-muted" data-runs-alone>Runs alone: {props.alone}</p>}
+      </div>
+    </SectionBox>
   )
 }
 
@@ -500,6 +529,7 @@ function TaskPanel(props: {
             <TaskFiles workspaceId={workspaceId} taskId={task.id} active box={{ id: 'files', title: 'Files' }} />
           </>
         )}
+        {tab === 'overview' && delivery?.batchGroup && <BatchBox batch={delivery.batchGroup} alone={delivery.alone ?? null} self={task.id} />}
         {tab === 'work' && delivery && (
           <>
             <SectionBox id="delivery" title="Delivery">

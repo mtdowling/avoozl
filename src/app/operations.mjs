@@ -6435,7 +6435,7 @@ export class Operations {
           claimed: claimedTaskIds(target),
           batches: input.batches,
         });
-      // Batches the planner would group, for the preview's batch edit.
+      // The planner's batch groups (§4.37), for the preview's batch edit.
       const grouped = (target) =>
           planProjectionBatches({
             tasks: target
@@ -6443,7 +6443,6 @@ export class Operations {
               .tasks.filter((task) => task.planId === plan.id),
             edges: target.read().edges,
             mode: "suggest",
-            max: this.settingsFile().readFlowSettings().flow.batch?.max,
             complete: (status) => statusComplete(target.read(), status),
           }),
         suggested = (target) =>

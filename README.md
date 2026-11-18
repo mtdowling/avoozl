@@ -305,10 +305,13 @@ Proposals are pages of the **Retros** entry in the nav.
   when a person presses **Run anyway**.
 - **Local checks first** (`localChecksFirst`, default `true`): a session that
   pushes runs the declared checks in its worktree before each push.
-- **Batching** (`batch.max`, default `3`; `batch.by`, `epic` or `files`):
-  ready leaves the plan marks `size: "small"` that share an epic (or files)
-  run in one session and one worktree, one commit per task. A failing batch
-  splits. `1` turns it off.
+- **Batching** has no setting. The planner groups small related leaves in
+  the manifest's `batches`, each with a one-line reason. A group runs in one
+  session and one worktree, one commit per task, once every task in it is
+  ready. Avoozl checks the rules in code (one plan and repository, no edge
+  between members, at most 5, an approved revision); a group that breaks one
+  runs as single tasks and says why. A failing batch splits. An old
+  `batch` key here is ignored.
 - **Retro** (`retro.everyTasks`, default `10`; `retro.slowFactor`, default
   `3`): a tool-less `avoozl-retro` session names the biggest slowdown and
   proposes up to three changes. You approve or reject each, and an approved
