@@ -57,6 +57,8 @@ export function Tabs<T extends string>(props: {
     props.onPick(next)
     refs.current.get(next)?.focus()
   }
+  // flex: none: in a column that scrolls (the Review side column) a bar
+  // that scrolls sideways would otherwise shrink to nothing.
   return (
     <div
       ref={bar}
@@ -65,7 +67,7 @@ export function Tabs<T extends string>(props: {
       data-tabs={props.id}
       {...(props.barAttr ? { [props.barAttr]: '' } : {})}
       onKeyDown={key}
-      style={{ display: 'flex', width: '100%', gap: 2, borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'thin', minWidth: 0 }}
+      style={{ display: 'flex', flex: 'none', width: '100%', gap: 2, borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'thin', minWidth: 0 }}
     >
       {props.tabs.map((tab) => {
         const on = tab.key === props.current
