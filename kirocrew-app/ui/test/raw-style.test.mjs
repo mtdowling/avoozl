@@ -10,16 +10,19 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { parseSync } from "rolldown/utils";
 
 const src = new URL("../src/", import.meta.url);
+const srcDir = fileURLToPath(src);
+const uiDir = path.join(srcDir, "ui");
 const allowUrl = new URL("./raw-style-allow.json", import.meta.url);
 
 function walk(dir, found = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (!(dir === src.pathname && entry.name === "ui")) walk(full, found);
+      if (full !== uiDir) walk(full, found);
     } else if (/\.tsx?$/.test(entry.name) && !entry.name.endsWith(".d.ts"))
       found.push(full);
   }
@@ -72,9 +75,9 @@ const total = (found) => Object.values(found).reduce((a, b) => a + b, 0);
 
 function viewCounts() {
   const counts = {};
-  for (const file of walk(src.pathname)) {
+  for (const file of walk(srcDir)) {
     const n = total(rawStyleCount(file, readFileSync(file, "utf8")));
-    if (n) counts[path.relative(src.pathname, file)] = n;
+    if (n) counts[path.relative(srcDir, file).split(path.sep).join("/")] = n;
   }
   return Object.fromEntries(
     Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)),
