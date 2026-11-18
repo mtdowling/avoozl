@@ -9,7 +9,11 @@ import {
   validatePlanReview,
 } from "./chat-models.mjs";
 import { validateLanes } from "./lanes.mjs";
-import { conflictRounds } from "./landing-config.mjs";
+import {
+  assertNoMachineKeys,
+  conflictRounds,
+  validateTrains,
+} from "./landing-config.mjs";
 import { deriveGitHubKeys } from "./repository-roles.mjs";
 
 export const avoozlConfigSchemaPath = fileURLToPath(
@@ -382,6 +386,13 @@ export function loadLayeredConfig({
   validatePlanReview(config.planReview);
   validateLanes(config.lanes);
   conflictRounds(config.landing);
+  for (const layer of fileLayers)
+    if (layer.filename === files.repository)
+      assertNoMachineKeys(layer.value, layer.filename, files.global);
+  const { warnings } = validateTrains(config, {
+    repository: files.repository,
+    global: files.global,
+  });
   validateReportSetting(config.receipts?.report);
   return {
     config,
@@ -389,6 +400,7 @@ export function loadLayeredConfig({
       layers.filter(({ filename }) => filename !== files.repository),
     ),
     files,
+    warnings,
     sources: layers.map(({ label, filename }) => ({ label, filename })),
     localConfigured: fileLayers.some(
       ({ filename }) => filename !== files.global,
