@@ -1542,7 +1542,7 @@ foundation tasks without that dependency may proceed while the live proof waits.
   - Only Kiro Crew's "gone" answer resumes; quiet and an expired lease do nothing; a second vanish opens Needs you.
   - Built: `reconcileDeliveries` in `src/app/delivery.mjs` ends the first gone attempt since the last person retry as `vanished` (outside the retry count) and marks its binding lost, so the next tick opens attempt 2 in the same worktree with the last report quoted; a second vanish, or a gone batch, opens the decision. Test: `src/app/test/stock-kirocrew.test.mjs`.
 - [x] 40.7 Lanes: 3 on this Mac by default, after avoozl-p56 [R88.5] (§4.26)
-  - Changed 2026-11-17 (#508): there is no Lanes page. Delivery shows a machine badge and counts. In code, `lanes.local` (default 3) still seeds `delivery.concurrency` (`delivery.mjs`); the owner dropped the 3-lane and 50% CPU rules as requirements, so this default is a setting, not a rule.
+  - Changed 2026-11-17 (#508): there is no Lanes page. Delivery shows a machine badge and counts. In code, `lanes.local` (default 3) sets `delivery.concurrency` (`delivery.mjs`) and lives in the machine file since 2026-11-18 (Requirement 6.3); the owner dropped the 3-lane and 50% CPU rules as requirements, so this default is a setting, not a rule.
   - `lanes.local` default 3; a fourth ready task waits.
 
 - [x] avoozl-p50 P50 Proof: a three-task chain survives a gateway restart unattended, after 40.1, 40.2, 40.3, 40.4, 40.5, 40.6, 40.7, 41.1, 41.2, 41.3, 41.5, 41.9 [R86, R87.10, R88] (§4.26)

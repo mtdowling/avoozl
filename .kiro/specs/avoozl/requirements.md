@@ -340,7 +340,19 @@ limits I set, so that I do not file, start, or chase routine work.
    met its completion condition, and no conflict or human decision is open.
 2. WHEN a leaf becomes ready and capacity allows THEN Avoozl SHALL dispatch it
    without a manual step.
-3. Concurrency SHALL be bounded per workspace and per repository.
+3. Concurrency SHALL have exactly two settings: `lanes.local` in the machine
+   file (`~/.config/avoozl/config.json`), how many worker chats this machine
+   runs at once (default 3), and Release N (`release.capacity`), how many
+   issues a repository releases at once. (Changed 2026-11-18, simplification
+   audit F1 and F2: it was bounded per workspace and per repository.) Older
+   keys SHALL be read as old input only and never written:
+   `delivery.concurrency`, then `lanes.local` in `.avoozl.json`, count as this
+   machine's lanes when the machine file sets none; per-repository
+   `delivery.repositories.*.concurrency`, `github.repositories.*.concurrency`,
+   and the host and workspace `maxConcurrentRuns` SHALL be ignored. A file
+   that sets them SHALL load with no error or warning. Settings › Workspaces
+   SHALL NOT show an "Agents at once" field, and `avoozl workspace
+   concurrency` SHALL NOT exist, because nothing enforced them.
 4. WHEN a leaf needs several internal steps THEN Avoozl MAY run it through Task
    Runner, and those steps SHALL NOT become Avoozl tasks.
 5. WHEN several independent ready leaves exist and Crew Mode is enabled THEN
@@ -898,8 +910,8 @@ it on Kiro Crew and Issue Radar and reuses no outside code, skills, or text.
    between children, show the preview, and publish them only after approval
    (or automatically when the rule allows it, per Requirement 9).
 6. Fan-out SHALL be automatic: every child whose blockers are complete SHALL
-   receive the ready label in the same tick, up to the repository's concurrency
-   limit.
+   receive the ready label in the same tick, up to the repository's Release N
+   (Requirement 6.3).
 7. WHEN slots are scarce THEN Avoozl SHALL release ready children in a
    configurable priority order by label (for example `critical`, then `high`),
    then by graph order.
@@ -912,7 +924,7 @@ it on Kiro Crew and Issue Radar and reuses no outside code, skills, or text.
 10. Concurrency on GitHub SHALL be bounded by how many leaves Avoozl labels ready
     at once and by the number of crews configured per route, since each crew
     holds at most one item in its editing phases (F24). In plans-repo mode it
-    SHALL be bounded by the repository's worker concurrency.
+    SHALL be bounded by this machine's lanes (Requirement 6.3).
 11. WHEN a crew labels an issue as needing a human THEN Avoozl SHALL show it as a
     decision and SHALL withhold readiness from that issue's dependents.
 12. The parent issue SHALL close as completed only after every required child
@@ -1406,11 +1418,12 @@ reaches the integration branch or a dependent task.
 
 #### Acceptance criteria
 
-1. One writer per repository at a time SHALL be expressed by setting that
-   repository's delivery concurrency to 1 (Requirement 6.3), because two
-   writers in one repository would conflict. Review and check sessions only
-   read, so they SHALL NOT count against that limit. Avoozl SHALL add no
-   second writer limit.
+1. Review and check sessions only read, so they SHALL NOT count against
+   this machine's lanes (Requirement 6.3). Avoozl SHALL add no separate
+   writer limit. (Changed 2026-11-18: one writer per repository was a
+   per-repository concurrency of 1. That key is now ignored, because every
+   task writes in its own worktree and landing merges one head at a time;
+   `lanes.local: 1` still gives one writer on the machine.)
 2. A repository's delivery policy MAY name review roles. Each role SHALL have
    a unique `id`, a `focus` (for example "conventions", or "correctness and
    performance"), the agent that runs it, and a `distinctFrom` rule. Two
@@ -2804,7 +2817,9 @@ setting or runs until someone on that computer has seen it and approved it.
    `requiredChecks`, `priority`, `managedLabels`, and `concurrency`;
    `project` `fields` and `statusValues`; `epicIssueType`; `contentRules`
    `sets` as references only; `delivery` `reviewers` (review roles),
-   `agent`, `model`, `runner`, and `concurrency`; and `flow`. Every value
+   `agent`, `model`, `runner`, and `concurrency`; and `flow`. Both
+   `concurrency` keys SHALL be accepted so an old pack imports, and SHALL
+   write nothing (Requirement 6.3; changed 2026-11-18). Every value
    SHALL pass the validator Settings uses for that key. Any other key, a
    credential-like key, or anything that could hold a content rule SHALL
    be refused with an error naming the key, and the plugin SHALL show as
@@ -4629,8 +4644,8 @@ instead of a stuck chat.
    lease expired.
 5. More lanes SHALL come from worker machines (Requirement 90). (Changed
    2026-11-18: the owner dropped the 50% CPU rule and the fixed three lanes
-   as requirements. In code, `lanes.local`, default 3, still seeds
-   `delivery.concurrency`; it is a setting.)
+   as requirements. `lanes.local`, default 3, is a setting in the machine
+   file, Requirement 6.3.)
 6. Prepare SHALL use the approved `scripts/worktree` helper
    (`createWorktree`, `src/app/git.mjs`), which today has no caller.
    Avoozl SHALL remove a task's worktree and its local branch after the
