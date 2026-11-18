@@ -199,20 +199,7 @@ above are not file settings: `flow.batch` is now ignored, and
 | P3 | page that could merge | Settings › Issue Radar and the per-repository Triggers and labels tab | `SettingsView.tsx:117`, `:150` | Both edit labels per repository. The blurb says Radar settings "have their own page". | Put each repository's Radar labels in its Triggers and labels tab; keep the Radar page for the copy-into-Radar values only. | Low. |
 | P4 | page that could merge | Activity page and task Timeline | `App.tsx:456`; design §4.35 | Trace moved into task details; Activity is the same events across tasks. | Keep both, but make Activity a filter of the same timeline component so the two do not drift. | Low. |
 
-### 2.5 Leftovers of removed features
-
-| Feature | Status at `76c940bc` |
-|---------|----------------------|
-| Budgets | Gone from settings and nav. `budget` now means GitHub read budgets and `--max-budget-usd` only. PR #463 (`task/settings-inline-edit-budgets`) is still open; close it if Budgets is fully gone. |
-| Lanes page | Gone; `lanes` redirects to Delivery (`nav-api.ts:86-88`). The setting stays (F1, F15). |
-| Trace | Gone (R106). `OldTraceLink.tsx` and `parseTraceLink` keep old links working. Keep for now. |
-| Routing page | Gone, but the `routing` and `crews` CLI commands, the `routing.*` and `crews.update` operations and their machine files still feed placement in the tick (`src/app/tick.mjs:33-41`, `src/app/routing.mjs:1-2`). See F20. |
-| Driver chat | Gone. `models.driver` and `conversations.driver` are ignored (D3, D4). The spec driver (one machine per spec) is a different thing and stays. |
-| Remote coder | Gone. `coder: "remote"` fails with a clear line (`github-policy.mjs:482-485`). Good as is. |
-| Onboard | Still live (`Onboard.tsx`, `onboarding.mjs`). Not a leftover. |
-| Batching settings | `flow.batch.max` and `flow.batch.by` are still on Settings › Flow (`FlowSettings.tsx:142-157`). In flight: PR #576. |
-| Who codes | Still on each repository (`coder`). In flight: PR #575. |
-| VS Code extension and agent host | `ahp.*`, `canvasOrigins`, `agentManifest` (D8). |
+### 2.5 Crew placement
 
 **F20 (proposal):** Routing has no page, but `avoozl routing set` and
 `avoozl crews set` still write machine files that the tick reads for crew
@@ -227,7 +214,6 @@ Settings › Delivery so a person can see why a task waits. Risk: medium.
 | C1 | `workspace concurrency ID LIMIT` claims "Zero pauses new dispatch". | Nothing enforces it (F2). | Remove with F2, or wire it. |
 | C2 | `routing` and `crews set` have no page. | §2.5. | F20. |
 | C3 | `register-session` and `session-hook` run but are not in `help`. The help is one flat list of 58 commands. | `rg "^  register-session\|^  session-hook" src/app/cli.mjs` finds nothing. | **Done.** `avoozl help` is a one-screen overview by job; `avoozl help GROUP`, `help COMMAND` and `help all` give the usage lines, from one table (`src/app/cli-help.mjs`). The two hook commands are under "Agent hooks". |
-| C4 | `andon` prints where the old gate went. | `cli.mjs:1568-1572`. | Remove after one more release; `flow stop` is the command. |
 | C5 | Settings › Flow edits batching; the planner is about to decide it. | In flight (#576). | — |
 | C6 | Settings › Workspaces edits a limit that the CLI's `--max-concurrent-runs` also sets, and neither is read. | F2. | F2. |
 

@@ -100,7 +100,6 @@ const grid = (min = 220): CSSProperties => ({
 })
 
 // Release N (release.capacity): how many issues get the ready label at once.
-// The old `concurrency` field is not shown here.
 export const RELEASE_N_HELP = 'How many ready tasks are released at once.'
 
 export const SETTINGS_TABS = [
