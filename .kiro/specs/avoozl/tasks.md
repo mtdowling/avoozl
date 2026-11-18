@@ -1678,8 +1678,9 @@ files. Remaining shared edits wait until Phases 40–44 are proved.
 
 - [x] 45.1 Audit Radar-only leaf modules and delete any already unreferenced modules and their tests [R91.1, R91.3] (§4.26)
   - Remove only modules with no active production importers; preserve setup and PR landing code. Record retained modules and their importers for 45.4, including when no module can yet be deleted; `npm test` passes.
-- [ ] 45.2 Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant, after avoozl-p52 [R91.1] (§4.26)
+- [x] 45.2 Delete `verify-issue`, the provenance marker, the `avoozl-crew` agent and the Issue Radar grant, after avoozl-p52 [R91.1] (§4.26)
   - Retire provenance-based landing gates only after replacement PR landing is proved; keep compatibility names resolving.
+  - Left for 45.4 (shared, not Radar-only): `radar-arm.mjs` keeps only the armed list, Disarm and merge-method rows, and nothing arms any more; `radar-conflict-fix.mjs` finishes and reports fixes already queued but starts none; `showPlansRepo` stays in policy but no marker uses it; `public-signoff.mjs` still defaults its agent name to `avoozl-crew`; `scripts/live-harness` still names the agent; `radar-handoff.mjs` and `permissions.api` keep the Issue Radar route that Settings › Issue Radar and Triage use.
 - [x] 45.3 Delete the remote coder, the relay and the router chat with their agents [R86.1, R91.1] (§4.26)
 - [ ] 45.4 Retire shared task projection and synchronization callers, after 45.1, 45.2, 45.3, avoozl-p53, avoozl-p54, 56.5, 56.9, avoozl-p66 [R86.1, R91.2, R91.3, R102.20] (§4.32)
   - Remove per-task projection, Project sync, issue close/completion/rebuild and old driver markers after binding retirement and replacement proofs. Keep spec issue publication, epic links, journals, explicit export, ranking, setup, receipts and the executor seam. No task-issue reconciliation remains.
@@ -1808,12 +1809,13 @@ screenshots review.
 - [x] 50.2 Send message queues a `send`, after 50.1 [R98.2] (§4.28)
 - [x] 50.3 Settings › Models picks harness and model per role; a `session` pin may name a harness, after avoozl-p57 [R98.3, R98.4] (§4.28)
 
-- [ ] avoozl-p60 P60 Proof: a process session is watched and steered from the Avoozl page, after 50.1, 50.2, 50.3 [R98] (§4.28)
+- [x] avoozl-p60 P60 Proof: a process session is watched and steered from the Avoozl page, after 50.1, 50.2, 50.3 [R98] (§4.28)
   - Setup: one `process` session on a scratch repository.
   - Action: open In flight, copy the attach command, send a message, change the role's harness.
   - Expected: status, log tail and cost show; the message reaches the child through `send`; the next task of that role uses the new harness; screenshots at 390 and 1280 px, light and dark.
   - Failure means: a process session needs another UI.
   - Next decision: approve the screenshots.
+  - Proved: `docs/evidence/p60-process-session-page.md` (2026-11-18); fixes #503, #504, #505.
 
 ## Phase 51: Headless workers
 

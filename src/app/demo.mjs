@@ -198,7 +198,7 @@ export function demoGitHubData(now = Date.now()) {
         DONE.has(taskId) ? "closed" : "open",
         {
           parent: 1,
-          body: `Made-up issue for the Avoozl demo.\n\n${overlay.provenance(taskId.split(".")[0], taskId)}`,
+          body: `Made-up issue for the Avoozl demo.`,
         },
       ),
     ),

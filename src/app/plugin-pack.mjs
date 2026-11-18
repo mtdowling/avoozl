@@ -19,7 +19,6 @@ import {
   PERMISSIONS,
 } from "./github-policy.mjs";
 import { assertSafeConfig } from "./layered-config.mjs";
-import { CREW_PROMPT } from "./radar-crew-prompt.mjs";
 import { fail } from "./store.mjs";
 
 export const PACK_FILE = "avoozl-pack.json";
@@ -50,15 +49,7 @@ export const PACK_SETTINGS = Object.freeze({
   delivery: ["reviewers", "agent", "model", "runner", "concurrency"],
   // Issue Radar crews (radar-coder RC7.4): what Set up shows and the labels
   // and review rules a repository gets. A pack creates no crew.
-  crews: [
-    "count",
-    "agent",
-    "models",
-    "labels",
-    "prompt",
-    "reviewRules",
-    "template",
-  ],
+  crews: ["count", "models", "labels", "reviewRules", "template"],
   flow: null,
 });
 
@@ -75,7 +66,7 @@ function crewSettings(crews) {
   if (crews.reviewRules !== undefined)
     list.push({ path: ["radar", "reviewRules"], value: crews.reviewRules });
   const crew = Object.fromEntries(
-    ["count", "agent", "models", "template"]
+    ["count", "models", "template"]
       .filter((key) => crews[key] !== undefined)
       .map((key) => [key, crews[key]]),
   );
@@ -90,10 +81,6 @@ function validateCrews(crews) {
     ["plan", "ready", "conflict"],
     "settings.crews.labels",
   );
-  if (crews.prompt !== undefined && crews.prompt !== CREW_PROMPT)
-    fail(
-      "Pack settings.crews.prompt must be the one-line crew prompt Avoozl ships, word for word.",
-    );
   const entry = {};
   for (const { path: where, value } of crewSettings(crews)) {
     const group = (entry[where[0]] ??= {});

@@ -1,10 +1,8 @@
 // The review-rules pull request of Radar's Set up (RC7.1, design D9): one pull
-// request that adds a marked section to `AGENTS.md` holding the review rules
-// and the one-line crew prompt (D5.4). Crews re-read `AGENTS.md` for every
-// issue, so the rules and the prompt reach them there. Avoozl never writes to
+// request that adds a marked section to `AGENTS.md` holding the review rules.
+// Crews re-read `AGENTS.md` for every issue, so the rules reach them there. Avoozl never writes to
 // the default branch: the change is a branch and a pull request a person
 // merges. Read, check and write calls only; no network of its own.
-import { CREW_PROMPT } from "./radar-crew-prompt.mjs";
 import { parseRepository } from "./github.mjs";
 import { fail } from "./store.mjs";
 
@@ -13,14 +11,13 @@ const START = "<!-- avoozl:review-rules -->",
   END = "<!-- /avoozl:review-rules -->";
 
 export const DEFAULT_REVIEW_RULES = [
-  "- Build only from an issue that came from an approved spec. If the check below fails, skip the issue.",
   "- Open one pull request per issue, and name the issue in it with `Closes #N`.",
   "- Leave merging to auto-merge once the required checks pass.",
   "- Say what you skipped or did not check.",
 ].join("\n");
 
 export const rulesBlock = (settings = {}) =>
-  `${START}\n## Review rules\n\n${(settings.radar?.reviewRules ?? DEFAULT_REVIEW_RULES).trim()}\n\n${CREW_PROMPT}\n${END}\n`;
+  `${START}\n## Review rules\n\n${(settings.radar?.reviewRules ?? DEFAULT_REVIEW_RULES).trim()}\n${END}\n`;
 
 // `AGENTS.md` with the block added or replaced; the rest is kept as read.
 export function withRulesBlock(text, block) {

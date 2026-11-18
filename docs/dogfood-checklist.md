@@ -84,12 +84,10 @@ none of them. These are the values it shows for the mirror:
 | ------------------------ | -------------------------------------------------------------------------------------------------------------- |
 | Repository to connect    | `mtdowling/avoozl-mirror`                                                                                      |
 | Crew name                | `avoozl-avoozl-mirror` (any name works)                                                                        |
-| Agent                    | `avoozl-crew`                                                                                                  |
 | Model                    | `auto` (pick the one you use)                                                                                  |
 | Label scope              | `avoozl:ready`                                                                                                 |
 | Needs-human label        | `crew: needs human`                                                                                            |
 | Claim time limit (hours) | `48`                                                                                                           |
-| Additional prompt        | Copy the one line Avoozl shows. It tells the crew to run `avoozl verify-issue` on each issue before it builds. |
 
 Tick each item as you finish it. The crew's label scope must match the ready
 label.
@@ -113,8 +111,8 @@ Expected: one crew, on the mirror only. Do not connect a crew to
 **Changed:**
 
 - Leave **Operator** as it is only if it already shows your GitHub login. The
-  approval marker names the operator, and `verify-issue` refuses an approver
-  that is not a GitHub login (Proof 24). There is no field for it in the app.
+  approval marker names the operator, and an approver that is not a GitHub
+  login is refused (Proof 24). There is no field for it in the app.
   If the approval comment shows your computer's user name, stop and tell the
   agent.
 - A public spec names no private task in its manifest or branch names. Proof 24
@@ -122,7 +120,7 @@ Expected: one crew, on the mirror only. Do not connect a crew to
   Keep the first plan public-only.
 - Merge the source's `main` into the mirror before the first crew task is
   checked. An approval merged on the source does not reach the mirror by
-  itself, and `verify-issue` fails until it does (Proof 24).
+  itself (Proof 24).
 
 Expected: issues appear in the mirror with `avoozl:plan` and the first ready
 ones carry `avoozl:ready`. The crew takes only issues with that label.

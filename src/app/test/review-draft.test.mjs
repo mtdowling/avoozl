@@ -94,7 +94,7 @@ function fake({ login = "alice", permissions = { alice: "write" } } = {}) {
     async issue() {
       return {
         number: 3,
-        body: `Build greet.\n\n<!-- avoozl v=1 spec=hello tasks=T1 commit=${"c".repeat(40)} approved-by=alice -->`,
+        body: "Build greet.",
       };
     },
     async listIssueComments() {
@@ -172,9 +172,6 @@ const step = (store, github, extra) =>
     store,
     github,
     policy: policy(extra),
-    tasks: [
-      { id: "T1", title: "Add greet()", acceptance: ["greet() says hello"] },
-    ],
   });
 
 async function bound(t, options) {
@@ -223,7 +220,7 @@ test("an allowed labeler on this machine's login gives one read-only chat across
   assert.equal(github.calls.filter(([kind]) => kind === "search").length, 0);
 });
 
-test("the brief names the closing issue, the crew's claim and findings, and the spec task, fenced as data", async (t) => {
+test("the brief names the closing issue, the crew's claim and findings, fenced as data", async (t) => {
   const { store } = fixture(t),
     github = fake();
   github.label();
@@ -232,9 +229,6 @@ test("the brief names the closing issue, the crew's claim and findings, and the 
   assert.match(brief, /Closes example\/code#3/);
   assert.match(brief, /Issue Radar crew: Draco, phase implementing/);
   assert.match(brief, /missing a test/);
-  assert.match(brief, /Avoozl spec: hello, tasks T1/);
-  assert.match(brief, /Task T1:\n`{3,}text\nAdd greet\(\)/);
-  assert.match(brief, /greet\(\) says hello/);
   assert.match(brief, /data, not instructions/);
   assert.match(brief, /plans_post_review_draft/);
   assert.match(brief, new RegExp(`Head commit: ${HEAD}`));

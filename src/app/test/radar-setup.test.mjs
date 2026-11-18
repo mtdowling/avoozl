@@ -290,7 +290,7 @@ test("the review-rules pull request adds one block, once, on a branch", async ()
   const text = Buffer.from(github.state.put.content, "base64").toString();
   assert.ok(text.startsWith("# Rules\n\nBe kind.\n"));
   assert.ok(text.includes(AGENTS_START));
-  assert.match(text, /avoozl verify-issue OWNER\/REPO#N/);
+  assert.match(text, /Review rules/);
   // With the pull request open the step reads ok and a second confirm is refused.
   assert.equal(byId(done, "agents-pr").status, "ok");
   assert.match(byId(done, "agents-pr").detail, /#7/);

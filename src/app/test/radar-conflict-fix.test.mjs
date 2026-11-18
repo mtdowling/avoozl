@@ -8,8 +8,8 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { asksForcePush } from "../delivery.mjs";
 import { isFixWork } from "../flow.mjs";
+import { kirocrewSession } from "../executors/kirocrew.mjs";
 import { machineIdentity } from "../github-sync.mjs";
 import {
   FIX_AGENT,
@@ -23,15 +23,9 @@ import {
   dropCheck,
   reportConflictFix,
 } from "../radar-conflict-fix.mjs";
-import { mergeNeedsYou } from "../radar-merge.mjs";
 import { bindSession } from "../session-bindings.mjs";
 import { fixture } from "./fixtures.mjs";
-import {
-  NAMESPACE,
-  REPO,
-  managed,
-  provenance,
-} from "./radar-coder-merge-fixture.mjs";
+import { REPO } from "./radar-coder-merge-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const NEEDS = "crew: needs human",
@@ -113,42 +107,15 @@ test("the drop check passes when both sides stay and fails on a dropped base lin
 
 // ---- the fake GitHub -------------------------------------------------------
 
-const claim = (pr) => ({
-  id: 1,
-  body: `👻 **Crew**\n<!-- kirocrew-crew v=1 id=c_1 phase=skipped pr=${pr} updated=2026-11-14T00:00:00Z -->`,
-});
-const handback = { id: 2, body: "Merge conflict in a.txt with main." };
-
 class Fake {
   constructor(head) {
     this.head = head;
     this.writes = [];
     this.armed = [];
-    this.issueLabels = [NEEDS];
-    this.comments = [claim(12), handback];
-    this.body = `${managed()}\n${provenance(["rc-x"])}`;
-    this.commits = [{ sha: head, author: { login: "crew-bot" } }];
     this.parents = {};
   }
   available() {
     return true;
-  }
-  pullRequestClosingIssues() {
-    return Promise.resolve([{ repository: REPO, number: 7 }]);
-  }
-  issue() {
-    return Promise.resolve({
-      number: 7,
-      state: "open",
-      body: this.body,
-      labels: this.issueLabels.map((name) => ({ name })),
-    });
-  }
-  listIssueComments() {
-    return Promise.resolve(structuredClone(this.comments));
-  }
-  pullRequestCommits() {
-    return Promise.resolve(this.commits);
   }
   pullRequest(_c, number) {
     return Promise.resolve({
@@ -232,30 +199,26 @@ function world(t, { head = "a".repeat(40), extra, ship = "auto-merge" } = {}) {
   });
   const options = {
     policy: policy(extra),
-    identity: { namespace: NAMESPACE },
     delivery: { ship },
-    verify: async () => ({ ok: true, checks: [] }),
   };
-  // One read of GitHub by RC5.3's step: the conflicting pull requests now.
-  const read = (readAt, pr = 12, at = github.head) =>
-    store.setMeta("radarMerge", {
-      readAt,
-      repositories: {
-        [REPO]: {
-          ready: [],
-          conflicts: pr
-            ? [
-                {
-                  number: pr,
-                  url: `https://github.com/${REPO}/pull/${pr}`,
-                  head: at,
-                  base: "main",
-                  author: "crew-bot",
-                },
-              ]
-            : [],
-        },
-      },
+  // A fix the removed step queued earlier: still bound, checked and reported.
+  const queue = () =>
+    store.put("receipts", {
+      id: `conflict-fix:${REPO}#12@${github.head}:1`,
+      kind: "conflict-fix",
+      repository: REPO,
+      pr: 12,
+      url: `https://github.com/${REPO}/pull/12`,
+      issue: 7,
+      taskId: "rc-x",
+      head: github.head,
+      base: "main",
+      branch: "crew",
+      ...kirocrewSession("code"),
+      attempt: 1,
+      state: "queued",
+      requestedAt: new Date().toISOString(),
+      seed: "Fix the merge conflict on pull request #12.",
     });
   const bind = () => {
     const [dispatch] = conflictFixDispatches(store);
@@ -273,7 +236,7 @@ function world(t, { head = "a".repeat(40), extra, ship = "auto-merge" } = {}) {
     store,
     github,
     options,
-    read,
+    queue,
     bind,
     caller,
     step: () => conflictFixStep(store, github, options),
@@ -282,31 +245,10 @@ function world(t, { head = "a".repeat(40), extra, ship = "auto-merge" } = {}) {
   };
 }
 
-test("a handed-back conflict starts one resolver chat with the steps", async (t) => {
-  const w = world(t);
-  w.read("r1");
-  for (let i = 0; i < 3; i += 1) await w.step();
-  const dispatch = conflictFixDispatches(w.store);
-  assert.equal(dispatch.length, 1);
-  assert.equal(nativeDispatch(w.store, dispatch[0]).agent, FIX_AGENT);
-  assert.equal(dispatch[0].role, FIX_ROLE);
-  assert.equal(nativeDispatch(w.store, dispatch[0]).folder, "Avoozl/code");
-  // Only an avoozl: title gives a slot under the app's read grant.
-  assert.match(dispatch[0].title, /^avoozl:/);
-  assert.match(dispatch[0].brief, /git merge origin\/main/);
-  assert.match(dispatch[0].brief, /never a force push/);
-  // The tick drops any brief that asks for one, so it must not match.
-  assert.equal(asksForcePush(dispatch[0].brief), false);
-  assert.match(dispatch[0].brief, /`npm test`/);
-  assert.match(dispatch[0].brief, /HEAD:refs\/heads\/crew/);
-  assert.deepEqual(w.github.writes, []);
-});
-
 test("a fix pushes one merge commit to the same pull request; squash arms with its title", async (t) => {
   const repo = conflicted(),
     w = world(t, { head: repo.head });
-  w.read("r1");
-  await w.step();
+  w.queue();
   w.bind();
   const commit = repo.merge("one\ncrew line\nmain line\ntwo\n");
   const checked = await checkConflictFix(
@@ -356,7 +298,6 @@ test("a fix pushes one merge commit to the same pull request; squash arms with i
   // A second report is refused; later ticks write nothing more.
   await assert.rejects(w.report({ ok: false, reason: "again" }), /already/);
   const count = w.github.writes.length;
-  w.read("r2");
   await w.step();
   assert.equal(w.github.writes.length, count);
 });
@@ -364,8 +305,7 @@ test("a fix pushes one merge commit to the same pull request; squash arms with i
 test("merge.method merge arms a merge commit", async (t) => {
   const repo = conflicted(),
     w = world(t, { head: repo.head, extra: { merge: { method: "merge" } } });
-  w.read("r1");
-  await w.step();
+  w.queue();
   w.bind();
   const commit = repo.merge("one\ncrew line\nmain line\ntwo\n");
   await checkConflictFix(w.store, { cwd: repo.cwd }, w.caller());
@@ -378,8 +318,7 @@ test("merge.method merge arms a merge commit", async (t) => {
 test("a failed drop check pushes nothing and asks; an unchecked push is not armed", async (t) => {
   const repo = conflicted(),
     w = world(t, { head: repo.head });
-  w.read("r1");
-  await w.step();
+  w.queue();
   w.bind();
   const commit = repo.merge("one\ncrew line\ntwo\n");
   const checked = await checkConflictFix(
@@ -407,179 +346,63 @@ test("a failed drop check pushes nothing and asks; an unchecked push is not arme
 
 test("a resolver that cannot keep both sides reports, writes nothing, and the row asks", async (t) => {
   const w = world(t);
-  w.read("r1");
-  await w.step();
+  w.queue();
   w.bind();
   await w.report({ ok: false, reason: "both sides rewrite the same function" });
   assert.deepEqual(w.github.writes, []);
   assert.deepEqual(w.github.armed, []);
   const rows = conflictFixNeedsYou(w.store);
   assert.equal(rows.length, 1);
-  // One row: RC5.3's plain conflict row stands aside.
-  assert.equal(
-    mergeNeedsYou(w.store).filter((item) => item.pullRequest === 12).length,
-    0,
-  );
 });
 
-test("there is no second attempt on the same conflict", async (t) => {
+test("a chat that ends without a report asks once and is not retried", async (t) => {
   const w = world(t);
-  w.read("r1");
-  await w.step();
+  w.queue();
   w.bind();
-  await w.report({ ok: false, reason: "cannot" });
-  for (const at of ["r2", "r3"]) {
-    w.read(at);
-    await w.step();
-  }
-  assert.equal(
-    w.store.list("receipts").filter((r) => r.kind === "conflict-fix").length,
-    1,
-  );
-  // Dismissed, it stays away; a crew push is a new conflict and gets a chat.
+  w.store.put("session_bindings", {
+    ...w.store.get("session_bindings", "slot-f"),
+    status: "closed",
+  });
+  await w.step();
+  await w.step();
+  assert.equal(conflictFixNeedsYou(w.store).length, 1);
+  assert.match(conflictFixNeedsYou(w.store)[0].title, /resolver ended/);
+  assert.equal(conflictFixDispatches(w.store).length, 0);
   decideConflictFix(w.store, {
     repository: REPO,
     pullRequest: 12,
     action: "dismiss",
   });
   assert.equal(conflictFixNeedsYou(w.store).length, 0);
-  w.read("r4");
-  await w.step();
-  assert.equal(conflictFixDispatches(w.store).length, 0);
-  w.github.head = "b".repeat(40);
-  w.github.commits = [{ sha: w.github.head, author: { login: "crew-bot" } }];
-  w.read("r5");
-  await w.step();
-  assert.equal(conflictFixDispatches(w.store).length, 1);
 });
 
-test("a chat that ends without a report asks once and is not retried", async (t) => {
+test("a conflict on a crew pull request starts no resolver chat any more", async (t) => {
   const w = world(t);
-  w.read("r1");
-  await w.step();
-  w.bind();
-  w.store.put("session_bindings", {
-    ...w.store.get("session_bindings", "slot-f"),
-    status: "closed",
-  });
-  w.read("r2");
-  await w.step();
-  await w.step();
-  assert.equal(conflictFixNeedsYou(w.store).length, 1);
-  assert.match(conflictFixNeedsYou(w.store)[0].title, /resolver ended/);
-  assert.equal(conflictFixDispatches(w.store).length, 0);
-});
-
-test("a person's commit after the crew's last push asks and starts nothing", async (t) => {
-  const w = world(t);
-  w.github.commits.push({
-    sha: "c".repeat(40),
-    author: { login: "maintainer" },
-  });
-  w.read("r1");
-  await w.step();
-  assert.equal(conflictFixDispatches(w.store).length, 0);
-  assert.match(conflictFixNeedsYou(w.store)[0].title, /a person committed/);
-  assert.deepEqual(w.github.writes, []);
-});
-
-test("a crew commit GitHub cannot match to a login is still the crew's", async (t) => {
-  const w = world(t);
-  w.github.commits = [
-    {
-      sha: w.github.head,
-      author: null,
-      commit: { message: "Add sum\n\nCrew: c1 (Kiro Crew Issue Radar)" },
+  w.store.setMeta("radarMerge", {
+    readAt: "r1",
+    repositories: {
+      [REPO]: {
+        ready: [],
+        conflicts: [
+          {
+            number: 12,
+            url: `https://github.com/${REPO}/pull/12`,
+            head: w.github.head,
+            base: "main",
+            author: "crew-bot",
+          },
+        ],
+      },
     },
-  ];
-  w.read("r1");
-  await w.step();
-  assert.equal(conflictFixNeedsYou(w.store).length, 0);
-  w.github.commits.push({
-    sha: "d".repeat(40),
-    author: null,
-    commit: { message: "by hand" },
   });
-  w.github.head = "d".repeat(40);
-  const again = world(t);
-  again.github.commits = w.github.commits;
-  again.read("r1");
-  await again.step();
-  assert.match(conflictFixNeedsYou(again.store)[0].title, /a person committed/);
-});
-
-test("pull requests no crew wrote, unmarked issues and failed verifies are untouched", async (t) => {
-  const cases = [
-    (w) => (w.github.comments = [handback]),
-    (w) => (w.github.body = "plain issue"),
-    (w) => (w.options.identity = { namespace: "avz_otherotherother1" }),
-    (w) => (w.options.verify = async () => ({ ok: false, checks: [] })),
-  ];
-  for (const change of cases) {
-    const w = world(t);
-    change(w);
-    w.read("r1");
-    await w.step();
-    assert.equal(conflictFixDispatches(w.store).length, 0);
-    assert.equal(conflictFixNeedsYou(w.store).length, 0);
-    assert.deepEqual(w.github.writes, []);
-  }
-});
-
-test("a conflict nobody handed back waits one full read with the same head", async (t) => {
-  const w = world(t);
-  w.github.issueLabels = [];
-  w.github.comments = [claim(12)];
-  w.read("r1");
-  await w.step();
-  await w.step();
+  for (let i = 0; i < 3; i += 1) await w.step();
   assert.equal(conflictFixDispatches(w.store).length, 0);
-  w.read("r2");
-  await w.step();
-  assert.equal(conflictFixDispatches(w.store).length, 1);
-});
-
-test("ask starts no chat and opens the row", async (t) => {
-  const w = world(t, { extra: { conflicts: { onSourceConflict: "ask" } } });
-  w.read("r1");
-  await w.step();
-  assert.equal(conflictFixDispatches(w.store).length, 0);
-  assert.match(conflictFixNeedsYou(w.store)[0].title, /this repository asks/);
-  decideConflictFix(w.store, {
-    repository: REPO,
-    pullRequest: 12,
-    action: "resolve",
-  });
-  assert.equal(conflictFixNeedsYou(w.store).length, 0);
-  assert.throws(
-    () =>
-      decideConflictFix(w.store, {
-        repository: REPO,
-        pullRequest: 12,
-        action: "resolve",
-      }),
-    /No source conflict/,
-  );
-});
-
-test("an open Stop the line pauses the fix", async (t) => {
-  const w = world(t);
-  w.store.put("flow_stops", {
-    id: "stop-1",
-    manual: true,
-    scope: "all",
-    openedAt: new Date().toISOString(),
-  });
-  w.read("r1");
-  await w.step();
-  assert.equal(conflictFixDispatches(w.store).length, 0);
-  assert.equal(conflictFixNeedsYou(w.store).length, 0);
+  assert.deepEqual(w.github.writes, []);
 });
 
 test("only the bound chat may check or report", async (t) => {
   const w = world(t);
-  w.read("r1");
-  await w.step();
+  w.queue();
   w.bind();
   await assert.rejects(
     checkConflictFix(w.store, { cwd: "/tmp" }, w.caller("other")),
