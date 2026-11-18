@@ -1288,7 +1288,7 @@ try {
           "A supervisor child may not run the integrator. Start it at this machine's command line or let the supervisor do it.",
         );
       await import("./integrator-main.mjs");
-    } else throw Error("Choose integrator run or integrator status [--json].");
+    } else throw Error("Choose integrator run or status.");
   } else if (command === "landing") {
     const action = positionals[0];
     if (action !== "submit") throw Error("Choose landing submit.");
