@@ -962,6 +962,7 @@ try {
             cwd: process.cwd(),
             text: typeof options.text === "string" ? options.text : undefined,
             file: typeof options.file === "string" ? options.file : undefined,
+            role: typeof options.role === "string" ? options.role : undefined,
           });
         } finally {
           store.close();
