@@ -5778,3 +5778,83 @@ GitHub issue.
    entry; and zero GitHub calls. Screenshots of task details in the full app
    shell (phone and desktop, light and dark) SHALL be under
    `docs/evidence/trace-into-task/`. The owner needs no review of them.
+
+### Requirement 107: Spec pull requests are adopted into their spec
+
+Added 2026-11-18 (owner decision). Design §4.36. Extends Requirements 30
+(spec folders), 49 (Triage), 99 and 104 (second-model review and findings)
+and 102 (approval as a commit).
+
+The owner's words, in short: a draft spec pull request must not sit in
+Triage, where no button fits it. Avoozl adopts it into its spec itself, with
+no Issue Radar, and there is a real place to see it and act on it.
+
+**User story:** As the owner, I want a pull request that only changes a spec
+to show up on that spec, reviewed and ready to approve, so that approving
+the spec and merging its pull request is one decision.
+
+#### Acceptance criteria
+
+1. A pull request SHALL count as a spec pull request WHEN it is open, its
+   repository has the role `planning` or `both`, and every changed file is
+   under `.kiro/specs/` and under exactly one spec folder. The folder name
+   SHALL be the spec: an existing spec gets a proposed change, a new folder
+   gets a new draft spec. A pull request that also changes any other file,
+   changes two spec folders, or lists more files than were read SHALL stay
+   in Triage.
+2. A spec pull request SHALL be linked to its spec with no click WHEN its
+   head branch is the spec's working branch (R102) or its author is the
+   owner's GitHub login. An author who is neither SHALL be linked only WHEN
+   the same allowed-actor and minimum-permission check that trigger labels
+   use (`actorAllowed`) allows that author. Otherwise the pull request SHALL
+   stay in Triage with one new button, **Review as spec**, which only a
+   person can press and which links it the same way.
+3. Adopting SHALL import the pull request head's spec files as a draft
+   revision of the spec, with no approval, and SHALL record the pull
+   request, its head commit and that revision's hash. The second-model
+   review (R99, R104) SHALL run on that revision as for any draft, and its
+   AI summary SHALL be stored with the review round. A new head commit SHALL
+   import as the next draft revision; an unchanged head SHALL write nothing.
+   A planner chat answering a finding SHALL NOT write the local folder for
+   such a revision.
+4. The spec's **Overview** tab SHALL show a **Proposed change** box while a
+   spec pull request is open: the pull request link and number, its author,
+   draft or ready, a checks dot (passing, failing, pending), the diff of the
+   spec documents against the approved revision (or "New spec"), the counts
+   of the review's findings by severity, and the buttons of criterion 6.
+5. The Specs list SHALL mark a spec that has an open spec pull request with
+   a **PR** chip. Needs you › Decisions SHALL hold one item per adopted spec
+   pull request that waits for the person, showing the same evidence inline
+   (author, draft or ready, checks, findings counts, a short diff summary)
+   and the same buttons. An adopted spec pull request SHALL NOT appear in
+   Triage.
+6. **Approve** (a person's click, as for any spec) SHALL approve exactly the
+   adopted revision: the one hash and head commit the person saw. WHEN the
+   head moved since, Approve SHALL refuse and say to reload. A draft pull
+   request MAY be reviewed but SHALL NOT be approved until it is marked
+   ready. After Approve, Avoozl SHALL merge the pull request WHEN its checks
+   on that exact head pass, with the repository's merge method, guarded by
+   the head commit, and SHALL never force push. WHEN the merged spec's hash
+   differs from the approved hash, nothing SHALL be approved (R102.13).
+   **Reject** SHALL, after the person confirms and names a reason, close the
+   pull request with a comment that names the reason. **Request changes**
+   SHALL post the review's open findings as one comment on the pull request
+   and nothing else. All three SHALL be refused for an agent or MCP caller.
+7. WHEN the pull request merges or closes, the spec SHALL read from its
+   merged home again, the box and chip SHALL go, and the Decisions item SHALL
+   clear. A closed pull request SHALL leave the draft revision in place.
+8. Detection SHALL add no GitHub call. It SHALL read the Triage search
+   result, which gains the pull request's changed file paths, branch names
+   and the review state, and SHALL NOT poll. GitHub SHALL be called only to
+   read the head's spec files once per new head commit, to check a
+   non-owner author's permission once per author, and for the person's
+   Approve, merge, Reject and Request changes.
+9. Tests SHALL cover: detection (spec-only, code mixed in, two folders,
+   wrong role, truncated file list, new folder); the author check (own
+   branch, owner, allowed, not allowed, permission unreadable); adoption
+   (new head, same head, review started); Triage exclusion (an adopted spec
+   pull request never shows in Triage); Approve then merge (head moved,
+   draft, checks failing, merged hash differs); Reject; Request changes;
+   and the chip, box and Decisions item. Screenshots in the full app shell
+   (phone and desktop, light and dark) SHALL be under
+   `docs/evidence/spec-pr-adoption/`.

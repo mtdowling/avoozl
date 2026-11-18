@@ -8512,6 +8512,25 @@
       "requires": [
         "55.4"
       ]
+    },
+    "60.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 60 (Spec pull requests are adopted into their spec). See R107; §4.36.",
+      "acceptance": [
+        "Adopt spec-only pull requests into their spec, out of Triage, with a Proposed change box, a PR chip and a Decisions item, after 58.1, 57.6",
+        "An open pull request that changes only one spec folder in a planning or both repository is linked to its spec (own branch, owner login, or an allowed author; otherwise Review as spec in Triage), imported as a draft revision and reviewed; the Overview shows a Proposed change box, the Specs list a PR chip and Decisions one item; Approve approves exactly that head and merges after checks with the repository's merge method, Reject closes with a named reason, Request changes posts the findings as one comment; an adopted spec pull request never shows in Triage; no new GitHub polling; tests cover detection, author check, adoption, Triage exclusion, approve then merge and reject, and screenshots in the full app shell are under docs/evidence/spec-pr-adoption/."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "npm run test:ui",
+        "git diff --check"
+      ],
+      "requires": [
+        "58.1",
+        "57.6"
+      ]
     }
   }
 }
