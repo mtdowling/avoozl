@@ -1,3 +1,4 @@
+import { roleRun } from "./role-table.mjs";
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewSession } from "./executors/kirocrew.mjs";
 // The respond action (R27.2, R27.3; design §4.7, §6.2). For each frozen
@@ -281,7 +282,7 @@ export async function respondStep(
   store,
   github,
   workspaceRoot,
-  { open = true } = {},
+  { open = true, config = {} } = {},
 ) {
   const policy = readGitHubPolicy(workspaceRoot),
     bindings = listSessionBindings(store),
@@ -351,6 +352,7 @@ export async function respondStep(
       kirocrewRequest(store, {
         task: response.id,
         role: "responder",
+        ...roleRun("responder", { config }),
         attempt: 1,
         title:
           `avoozl:${response.id} respond ${response.repository}#${response.number}`.slice(

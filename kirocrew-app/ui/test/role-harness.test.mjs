@@ -1,5 +1,5 @@
-// Settings › Models picks a harness per role (R98.3): the worker has a
-// harness and no model, and a save sends `harnesses` beside `models`.
+// Settings › Models picks a harness per role (R98.3) in the one roles table
+// (R98.6): the worker has harness, agent and model, and a save sends `roles`.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
@@ -25,13 +25,19 @@ const pick = (id, text) => `(() => {
 })()`
 
 for (const width of [390, 1280]) {
-  test(`each role picks a harness and the worker's saves at ${width}px`, { skip }, async () => {
+  test(`each role picks a harness and the worker's row saves at ${width}px`, { skip }, async () => {
     await page.open(harness.url({ page: 'models' }), { width, height: 900 })
     await page.until(`Boolean(document.querySelector('#avoozl-harness-worker'))`)
-    for (const role of ['worker', 'planner', 'planReviewer', 'retro', 'reviewDraft'])
+    for (const role of ['worker', 'falsifier', 'planner', 'planReviewer', 'retro', 'reviewDraft']) {
       assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-harness-${role}'))`), true, role)
-    assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-model-worker'))`), false)
-    assert.match(await page.evaluate(`document.querySelector('[data-model-role="worker"]').textContent`), /set in Delivery/)
+      assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-model-${role}'))`), true, role)
+      assert.equal(await page.evaluate(`Boolean(document.querySelector('#avoozl-agent-${role}'))`), role === 'worker' || role === 'falsifier', role)
+    }
+    assert.equal(await page.evaluate(`document.querySelector('#avoozl-agent-worker').placeholder`), 'kirocrew-worker')
+    await page.evaluate(`(() => { const el = document.querySelector('#avoozl-agent-worker'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, 'alt-worker'); el.dispatchEvent(new Event('input', { bubbles: true })) })()`)
+    await page.evaluate(`document.querySelector('#avoozl-model-worker').focus()`)
+    await page.until(`document.querySelector('#avoozl-model-worker').getAttribute('aria-expanded') === 'true'`)
+    await page.evaluate(pick('avoozl-model-worker', 'fake-reviewer'))
     assert.equal(await page.evaluate(`document.querySelector('#avoozl-harness-worker').value`), 'auto (project default)')
     await page.evaluate(`document.querySelector('#avoozl-harness-worker').focus()`)
     await page.until(`document.querySelector('#avoozl-harness-worker').getAttribute('aria-expanded') === 'true'`)
@@ -54,8 +60,12 @@ for (const width of [390, 1280]) {
     await page.until(`document.querySelector('[data-models-settings]').textContent.includes('Saved to .avoozl.json.')`)
     const calls = await page.evaluate(`window.__harness.calls.filter((call) => call.operation === 'models.settings.update').map((call) => call.input)`)
     assert.deepEqual(calls.at(-1), {
-      models: { planner: 'fake-writer' },
-      harnesses: { worker: 'claude-code', retro: 'claude-code', reviewDraft: 'claude-code' },
+      roles: {
+        planner: { model: 'fake-writer' },
+        worker: { agent: 'alt-worker', model: 'fake-reviewer', harness: 'claude-code' },
+        retro: { harness: 'claude-code' },
+        reviewDraft: { harness: 'claude-code' },
+      },
       expectedHash: 'models-before',
     })
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)

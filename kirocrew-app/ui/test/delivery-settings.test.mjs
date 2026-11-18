@@ -9,12 +9,13 @@ import { attachHref } from '../src/task-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
-test('Settings > Delivery holds PR feedback, who merges and the writer model, with defaults as placeholders', () => {
+test('Settings > Delivery holds PR feedback and who merges, with defaults as placeholders; the writer model is in Models', () => {
   assert.deepEqual(toDeliverySection(toDeliveryForm({})), { delivery: {} })
-  assert.deepEqual(toDeliverySection({ agent: '', model: 'model-a', prFeedback: 'off', feedbackRounds: '3' }), { delivery: { model: 'model-a', prFeedback: false, feedbackRounds: 3 } })
-  assert.match(toDeliverySection({ agent: '', model: '', prFeedback: '', feedbackRounds: '21' }).error, /1–20/)
+  assert.deepEqual(toDeliverySection({ prFeedback: 'off', feedbackRounds: '3' }), { delivery: { prFeedback: false, feedbackRounds: 3 } })
+  assert.match(toDeliverySection({ prFeedback: '', feedbackRounds: '21' }).error, /1–20/)
   const page = source('DeliverySettings.tsx')
-  for (const raw of ['delivery.prFeedback', 'delivery.feedbackRounds', 'delivery.model', 'delivery.agent']) assert.ok(page.includes(raw), raw)
+  for (const raw of ['delivery.prFeedback', 'delivery.feedbackRounds']) assert.ok(page.includes(raw), raw)
+  for (const raw of ['delivery.model', 'delivery.agent']) assert.ok(!page.includes(raw), raw)
   assert.match(page, /placeholder=\{String\(DELIVERY_DEFAULTS\.feedbackRounds\)\}/)
   assert.match(source('SettingsView.tsx'), /key: 'delivery', label: 'Delivery'/)
   // Ship mode and investigate first (§4.25, §4.21): defaults stay unset.
