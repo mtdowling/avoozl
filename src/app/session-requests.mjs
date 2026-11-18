@@ -24,7 +24,7 @@ export function startRequest(input) {
       (["worker", "planner", "plan-answer"].includes(role) ? "write" : "read");
   if (!["read", "write"].includes(permissionClass))
     fail("permissionClass must be read or write.", 422);
-  for (const field of ["worktree", "model"])
+  for (const field of ["worktree", "model", "harness"])
     if (input[field] != null) text(input[field], field);
   if (
     input.attempt !== undefined &&
