@@ -3294,15 +3294,11 @@ machine claim in its marker.
   - Next decision: put the claim in a comment instead of the marker, or drop the epic default.
   - Passed against fakes only: src/app/test/proof-p40.test.mjs, one fake GitHub, three temporary workspaces, fake time and rosters. Actions 5 and 6 need A1 to drive, so A1 takes the role back with Take over after action 4. Not run against real GitHub.
 
-## Phase 27: Budgets and receipts
+## Phase 27: Retired (budgets and receipts)
 
-Removed 2026-11-17 (owner): budgets. A budget only caps Kiro Crew chats; Avoozl cannot see Claude Code or Codex spend. Ticked tasks stay ticked as history; their code is removed by task/remove-budgets.
+Task IDs stay so they are never reused.
 
-Owner decisions 2026-11-13 (Requirement 67, design §4.17). Numbered after
-Phase 26 because task IDs never move. It prices the turns `flow_usage`
-already holds (12.11) and caps each task in dollars.
-
-- [x] 27.1 Price table and budget levels, after 12.12 [R67.1–R67.5] (§4.17)
+- [x] 27.1 Retired
   - Facts:
     - summary: Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.1–R67.5; §4.17.
     - done:
@@ -3310,10 +3306,7 @@ already holds (12.11) and caps each task in dollars.
       - A machine-local, versioned price table with no shipped prices, refused in tracked files, packs and manifests; budget usd, tokens and credits at workspace, repository, spec and task, most specific key winning; fallback caps of 2,000,000 tokens and 200 credits; the driver export leaves prices out.
     - checks: npm test, git diff --check
     - after: 12.12
-  - Machine-local `prices` with `version`, `creditUsd` and per-model `inputPerMTokUsd` and `outputPerMTokUsd`, empty by default; person-only `prices.save` bumps the version, hashes the canonical JSON and writes `price_versions`; validation refuses `prices` in `.avoozl.json`, packs and manifests; `budget {usd, tokens, credits}` at workspace, `projects.<id>`, manifest top level and leaf, most specific key wins; fallback defaults 2,000,000 tokens and 200 credits; the driver export leaves prices out.
-  - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (`src/app/budget.mjs`; caps in Settings › Budgets, not the repository Edit modal; the driver export is not built yet, so it is not wired).
-  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
-- [x] 27.2 Spend and receipts, after 27.1 and 12.9 [R67.4, R67.7, R67.11–R67.14] (§4.17)
+- [x] 27.2 Retired
   - Facts:
     - summary: Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.4, R67.7, R67.11–R67.14; §4.17.
     - done:
@@ -3321,10 +3314,7 @@ already holds (12.11) and caps each task in dollars.
       - Turns are priced on read from raw counts; budget.receipt gives totals by stage, model and attempt with priced flags, cap and level, raises, stops, price version and hash, and missing reasons; the CLI, plans_view action receipt and the retro payload carry it; no prompt or text is held.
     - checks: npm test, git diff --check
     - after: 27.1, 12.9
-  - Price each `flow_usage` turn on read (credits first, then tokens); `budget.view` and `budget.receipt` with totals by stage, model and attempt, priced flags, cap and level, raises, stops, price version and hash, `complete` and `missing` reasons for Crew Mode, remote, Issue Radar and failed reads; batch turns shared evenly and marked; `avoozl budget receipt TASK [--json]`; `plans_view` action `receipt`; the retro payload's `receipts`; no prompts or text.
-  - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (`budget.view`, `budget.receipt`, `avoozl budget receipt TASK --json`, `plans_view` action `receipt`, retro `receipts`).
-  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
-- [x] 27.3 Stop at the cap, Raise budget and Stop, after 27.2, 12.8 and 15.4 [R67.6–R67.9, R67.14–R67.18, R67.21] (§4.17)
+- [x] 27.3 Retired
   - Facts:
     - summary: Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.6–R67.9, R67.14, R67.15; §4.17.
     - done:
@@ -3332,10 +3322,7 @@ already holds (12.11) and caps each task in dollars.
       - At a cap nothing new is dispatched for the task, each live session gets one stop message and budget_reached on its Avoozl calls, and no session is stopped, interrupted or closed; Raise budget and Stop are person only and cost no attempt; unpriced turns use the token and credit caps; unknown spend warns and never stops; no gate reads the budget.
     - checks: npm test, git diff --check
     - after: 27.2, 12.8, 15.4
-  - Check after each usage read and before each dispatch for the task (attempts, verifier, review roles, responders, batch); at a cap record a `budget` stop, dispatch nothing for the task, queue one stop message per live bound session, and answer its Avoozl MCP calls except `plans_report` with `budget_reached`; never stop, interrupt or close a session; one Needs you decision with person-only `budget.raise` (writes `budget_raises`, messages a live session) and `budget.stop` (the Deferred pause); 403 for other callers; no attempt cost; unpriced turns warn once per task and model; unknown spend warns once and never stops; no gate reads the budget.
-  - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (stop and warn modes, 80% warning, `budget_holds`, `budget.raise|stop|acknowledge|switchToStop`); 1112e0e Name the task when a budget call has none.
-  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
-- [x] 27.4 Spend on the page, after 27.3 and 12.11 [R67.2, R67.10, R67.11, R67.19, R67.20] (§4.17)
+- [x] 27.4 Retired
   - Facts:
     - summary: Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). See R67.2, R67.10, R67.11; §4.17.
     - done:
@@ -3343,11 +3330,7 @@ already holds (12.11) and caps each task in dollars.
       - The drawer Budget fold with Export JSON, the spend chip on the Delivery and In flight cards, and the budget fields work at 375 and 1280 px in light and dark. Settings › Prices was removed 2026-11-14 (owner).
     - checks: npm test, git diff --check
     - after: 27.3, 12.11
-  - The drawer's Budget fold after Timing with spend against cap, receipt tables and Export JSON; the `$spent / $cap` chip on the Delivery and In flight cards (muted, red at the cap, "spend unknown"); Settings › Prices marked this computer only, with models from `GET /api/models` and `flow_usage`, the credit price, the version and the unpriced-model notes; budget fields in Settings › General and the repository Edit modal; checked by drawing the page at 375 and 1280 px in light and dark.
-  - Built: dbdad6c Add per-task budgets, usage receipts and Settings Prices (Budget fold, spend chip, Dashboard over-budget count, Flow marks, Settings › Budgets and › Prices; drawn at 375 and 1280 px, light and dark, in a screenshot harness).
-  - Removed 2026-11-14 (owner): Settings › Prices, the user price list, the credit price, `prices.get`, `prices.save` and the version table's writes. Cost estimates use only the built-in dated list; a saved `prices` key is ignored, not an error. Receipts show the list's date.
-
-- [x] avoozl-p41 P41 Proof: budgets and receipts [R67] (§4.17)
+- [x] avoozl-p41 Retired
   - Facts:
     - summary: Removed 2026-11-17 (owner). Phase 27 (Budgets and receipts). Proof. See R67; §4.17.
     - done:
@@ -3355,13 +3338,6 @@ already holds (12.11) and caps each task in dollars.
       - Expected: caps resolve by level; a capped task gets no new session and a stop message only after its running turn, with no session stopped; retries, verifier and review rounds share one cap; a batch shares the sum of its caps; unpriced turns stop at the token or credit cap; Raise budget and Stop are person only; a price change recomputes the receipt and keeps the stop's old dollars; unknown spend warns without stopping; export, CLI and MCP agree with no text; no budget opens a gate.
     - checks: npm test, git diff --check
     - after: 27.1, 27.2, 27.3, 27.4
-  - Setup: an isolated temporary workspace with repositories `r1` and `r2`; `.avoozl.json` `budget.usd` 10 and `projects.r2.budget.usd` 4; an approved spec `s1` with manifest `budget.usd` 6, leaves `a1` (leaf `budget.usd` 2), `a2`, `a3`, `a4` and `a5` in `r1`, `b1` in `r2`, `c1` and `c2` (`size: "small"`, leaf `budget.usd` 4 each, one batch), and `d1` (requires `a1`); a machine-local price table version 1 pricing `model-a` at $1 and $2 per million input and output tokens and credits at $0.01; fake workers and a fake usage feed that serves scripted turn rows per slot; a fake Kiro Crew that queues a message sent to a busy session until its turn ends.
-  - Action: (1) tick; read the caps of `a1`, `a2` and `b1`; (2) feed `a1` turns on `model-a` worth $1.50, then a turn worth $0.80 while a tool call is running; tick; (3) from the `a1` session call `plans_run_checks` and `plans_report`; (4) call Raise budget and Stop from an agent session, MCP and the app token; then as the owner press Raise budget to $4; (5) fail `a2` twice so it retries, run its verifier and two review rounds, all on one $6 cap that the second review round crosses; (6) feed `a3` turns from `model-z`, which has no price, past 2,000,000 tokens; feed `a4` credit turns past 200 credits; (7) run `c1` and `c2` as one batch whose turns total $9; (8) bind `a5` to a Crew Mode session and make one usage read for `b1` fail; tick; (9) read the receipt of `a1`, which names the built-in price list's date; (10) export `a1`'s receipt as JSON and from the CLI, and read `plans_view` action `receipt`; run a retro; (11) on `a2` press Stop; (12) put an old `prices` key in `.avoozl.json` (ignored); give `b1` a $100 budget with a content-rule block on its brief and an unpassed proof; (13) give `w1` a $2 cap in `warn` mode and feed $2.50.
-  - Expected: (1) caps are $2, $6 and $4 with their levels; (2) after the read `a1` gets no new session, its session gets one stop message delivered only after the running turn, no stop, interrupt or close call is made, and the receipt shows $2.30 and an overrun of $0.30; (3) `plans_run_checks` answers `budget_reached` and `plans_report` is accepted; `a1` is in Needs you with Raise budget and Stop and has not lost an attempt; (4) the three callers get 403; the owner's raise is recorded with who, from, to and the price version, `a1`'s live session gets one go-on message, and `d1` waits for `a1` as before; (5) the retries, verifier and reviews add up on one receipt, and no third review round is dispatched; (6) `a3` and `a4` each warn once, stop at their token or credit cap, and show unpriced lines; (7) the batch stops at its $8 sum cap and each task's receipt shows half of the shared turns; (8) `a5` and `b1` show spend unknown with their reasons, keep running, and `b1` keeps its last known spend with its time; (9) the receipt shows dollars from the newest version and names it, and the stop and raise keep their version-1 dollars; (10) the export, CLI and MCP give the same object, it holds no prompt or transcript text, and the retro payload has `a1`'s totals by stage and model; (11) `a2` pauses like Deferred, its session and worktree are untouched, and its dependents wait; (12) validation refuses the file and names the key, and `b1`'s budget does not open its content gate or skip its proof; (13) `w1` is never stopped or messaged, shows Over budget $2.50 of $2.00 on its card and one Needs you item, appears on Flow as over budget, and counts on the Dashboard.
-  - Failure means: a task can spend past its cap without a person, a stop ends a running turn, or a budget opens a gate.
-  - Next decision: stop by closing the session instead of by message, or cap by tokens instead of dollars.
-  - Built: dbdad6c `src/app/test/proof-p41.test.mjs` passes (steps 1-12 plus 13, warn mode).
-  - Removed 2026-11-17 (owner): budgets. See Requirement 67.
 
 ## Phase 28: Retro prompt and skill proposals, and lessons
 
@@ -3410,7 +3386,7 @@ retro model.
     - after: 28.3, 12.10
   - Attempts record `prompts` and `skills` (tool calls first, then the report's optional `skills`); receipt and Timing fold show them; PDCA per version with the "mixed" mark; revert proposals for prompt and skill changes.
   - Built: `a0a0771` (prompt version stamped at bind, skills from `plans_report` `skills`; Timing fold `versions`). Skills from tool-call reads are not wired: only report-listed skills are recorded.
-- [x] 28.5 Lessons store, write and read, after 28.2 and 12.10 [R69.1–R69.6, R69.9, R70.1] (§4.18)
+- [x] 28.5 Retired (lessons store)
   - Facts:
     - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R69.1–R69.6, R69.9, R70.1; §4.18.
     - done:
@@ -3418,10 +3394,7 @@ retro model.
       - One lessons SQLite file on this Mac with pattern, finding, change, outcome, evidence, context and source; summary-only validation and the `lesson` boundary on write and use; ranked matching lessons and a did-not-work list in the brief; share and read switches; untested expiry.
     - checks: npm test, git diff --check
     - after: 28.2, 12.10
-  - Removed 2026-11-15 (#228): the lessons store. `src/app/lessons.mjs` and `lessons-share.mjs` are deleted. `src/app/lessons-export.mjs` appends a workspace's stored lessons once to its steering rules file and drops the tables. The lessons parts of 28.6–28.9 (packs, healing, the Lessons view, sharing) went with it; the `lessons` plugin part now does nothing; Proposals stay.
-  - `~/.config/avoozl/lessons.sqlite` with the fields and `context`; written on approve as `untested`, updated by PDCA; summary-only validation and the `lesson` boundary on write and use; fixed trait list; the brief's 10 ranked lessons and the "did not work" list; cited IDs checked; `flow.lessons.share` and `read` per workspace; untested expiry; the raw store never in a repository or GitHub.
-  - Built: `a0a0771` (`src/app/lessons.mjs`, `~/.config/avoozl/lessons.sqlite`).
-- [x] 28.6 Lessons packs and export, after 28.5 and 16.3 [R69.7, R69.8, R70.6] (§4.18, §4.14)
+- [x] 28.6 Retired (lessons store)
   - Facts:
     - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R69.7, R69.8, R70.6; §4.18.
     - done:
@@ -3429,9 +3402,7 @@ retro model.
       - A bundle's lessons pack imports read-only after a preview by a person; a new pack version re-checks changed lessons and retires removed ones; export is person-only and passes the content rules.
     - checks: npm test, git diff --check
     - after: 28.5, 16.3
-  - Bundle part `lessons` with `avoozl-lessons.json`; `plugin.lessons.preview` and person-only `plugin.lessons.import {previewHash}`; read-only imported lessons named by plugin and version; a new pack version marks changed lessons and retires removed ones; person-only `lessons.export` through the content rules.
-  - Built: `a0a0771` (bundle part `lessons`, `plugin.lessons.preview`, `plugin.lessons.import`, `lessons.export`).
-- [x] 28.7 Healing, after 28.5 and 28.4 [R70.2–R70.5] (§4.18)
+- [x] 28.7 Retired (lessons store)
   - Facts:
     - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R70.2–R70.5; §4.18.
     - done:
@@ -3439,9 +3410,7 @@ retro model.
       - Drift checks mark lessons stale or needs re-check with reasons and clear on confirmation, all recorded; marked lessons are not citable; a lessons review proposes rewrite, merge and retire for a person; nothing is deleted; a changed built-in under an override shows a three-way diff and a rebase proposal while the override stays in use, and locked sections use the new text.
     - checks: npm test, git diff --check
     - after: 28.5, 28.4
-  - Drift checks at each retro and on read; confidence steps; `stale` and `needs re-check` marks that clear on confirmation, all in `history`; marked lessons left out of the citable list; the lessons review every `reviewEvery` retros with `lessonEdits` for a person; no delete; override drift at backend start with the three-way diff, a merged rebase proposal, the override kept with a warning, and locked sections always from the new text.
-  - Built: `a0a0771` (`healLessons`, `confirmLesson`, lessons review, override drift computed on read with `merge3`). The model list comes from the `kirocrew.models` cache, which nothing fills yet, so the model trigger is tested against fakes only.
-- [x] 28.8 Proposals and Lessons views and Settings, after 28.7, 28.6, 12.11 and 12.12 [R68.14, R69.10, R70.7] (§4.18, §8.4)
+- [x] 28.8 Retired (lessons store)
   - Facts:
     - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R68.14, R69.10, R70.7; §4.18.
     - done:
@@ -3449,11 +3418,8 @@ retro model.
       - Flow has Overview, Proposals and Lessons views with diffs, evidence, Approve, Reject, Revert, filters, confidence, last confirmed, stale reason and history; Settings › Flow › Lessons has the switches and ages; drawn at 375 and 1280 px in light and dark.
     - checks: npm test, git diff --check
     - after: 28.7, 28.6, 12.11, 12.12
-  - Moved 2026-11-17 (#468): Retros and Proposals are pages of the Retros nav pill, no longer tabs of Flow. The Lessons view is removed (28.5).
-  - Flow views Overview, Proposals (diffs, evidence, cited lessons, Approve and Reject, prompt versions with Revert, the three-way diff) and Lessons (filters for pattern, outcome, source and state; confidence, last confirmed, stale reason, History); Settings › Flow › Lessons with the two switches and three numbers; checked by drawing the page at 375 and 1280 px in light and dark.
-  - Built: `b6ea704`, `a66ce80` (`FlowMemory.tsx`, Settings › Flow › Lessons, plugin card pack and notes); drawn at 375 and 1280 px, light and dark, in a harness with fake data.
 
-- [x] 28.9 Share chosen lessons, after 28.8 [R69.1, R69.11–R69.15] (§4.18)
+- [x] 28.9 Retired (lessons store)
   - Facts:
     - summary: Phase 28 (Retro prompt and skill proposals, and lessons). See R69.1, R69.11–R69.15; §4.18.
     - done:
@@ -3461,10 +3427,8 @@ retro model.
       - The Lessons view ranks share candidates; a person previews and shares chosen kept lessons as summaries by pull request to the plans repository or code repository after content rules; Local only shares nowhere; lessons.export {raw: true} exists for the driver export.
     - checks: npm test, git diff --check
     - after: 28.8
-  - Share candidates in the Lessons view (kept, unmarked, own; evidence, fit, confidence) with why; person-only `lessons.share.preview` and `lessons.share {ids, previewHash}`; summaries-only pack file `.avoozl/lessons.json` merged by ID, content rules at `lesson` and `github`; a branch, commit and pull request to the plans repository (plans-repo) or code repository (single-repo), a commit only when GitHub cannot be reached; Local only shares nowhere; `lessons.export {raw: true}` for the driver export of 26.2.
-  - Built: `fefae29`, PR #17 (`src/app/lessons-share.mjs`, `lessons.share.preview`, `lessons.share`; `src/app/test/lessons-share.test.mjs`).
 
-- [ ] avoozl-p42 P42 Proof: prompt and skill proposals, and lessons [R68, R69, R70] (§4.18)
+- [ ] avoozl-p42 P42 Proof: prompt and skill proposals [R68] (§4.18)
   - Facts:
     - summary: Phase 28 (Retro prompt and skill proposals, and lessons). Proof. See R68, R69, R70; §4.18.
     - done:
@@ -4162,7 +4126,7 @@ the scratch safety proof, with owner minutes, credits and wall-clock per task.
     - after: 41.3
   - Generalize RC16 from epic-only integration; Prepare and qualified-ref resolution agree on the exact spec base. Merge the landed target back with a merge commit; preserve verified but unlanded portions and unfinished task refs.
 
-- [x] 41.6 Restore the Delivery page, Settings › Budgets and the Files and diff view, after 41.3 [R88.7] (§4.26)
+- [x] 41.6 Restore the Delivery page and the Files and diff view, after 41.3 [R88.7] (§4.26)
   - Facts:
     - summary: Phase 41 (Scheduler and direct landing). See R88.7; §4.26.
     - done:
@@ -4170,8 +4134,7 @@ the scratch safety proof, with owner minutes, credits and wall-clock per task.
       - From ba04389 and 70c2236, updated to the new loop; screenshots for the owner.
     - checks: npm test, git diff --check
     - after: 41.3
-  - From ba04389 and 70c2236, updated to the new loop; screenshots for the owner.
-  - Removed 2026-11-17 (owner): Settings › Budgets.
+  - From ba04389 and 70c2236, updated to the new loop; not Routing; screenshots for the owner.
 - [ ] 41.8 Nupp AGENTS.md clause for Avoozl-run work, after 41.3 [R91.5, R94.4a] (§4.26)
   - Facts:
     - checks: npm test, git diff --check
@@ -4664,7 +4627,7 @@ recovers, and a backend restart mid-run.
       - Unattended children run the project's build and test commands without a prompt; adding git push is refused.
     - after: 47.2
   - Built: `src/app/harness-allow.mjs` (`sandboxAllowCommands`, `harnessAllow`); tests in `src/app/test/harness-allow.test.mjs`.
-- [x] 47.9 Spend cap from the task budget and the plan-quota stop, after 47.4 [R94.6, R94.6a] (§4.28)
+- [x] 47.9 Plan-quota stop, after 47.4 [R94.6a] (§4.28)
   - Facts:
     - checks: npm test, git diff --check
     - summary: Phase 47 (Supervisor and the process executor). See R94.6, R94.6a; §4.28.
@@ -4672,8 +4635,7 @@ recovers, and a backend restart mid-run.
       - Spend cap from the task budget and the plan-quota stop
       - No new session starts on a harness whose plan quota reads low.
     - after: 47.4
-  - Built: `spendCapUsd` in `src/app/budget.mjs` (dollars left on a stop-mode cap, null for warn mode and uncapped roles) fills `{budget_usd}`, and the supervisor appends the definition's `spendCap`; `planQuotaHold` in `src/app/executors/process.mjs` holds a new `process` session when its model or harness provider reads `low` or `out`, and a spent budget holds it too; tests in `src/app/test/process-executor.test.mjs`. Whether `--max-budget-usd` binds on a plan login is checked by `src/app/test/claude-plan-budget.test.mjs`, which runs only with `AVOOZL_LIVE_CLAUDE_PLAN=1` on a plan login and refuses an API or cloud login; it has not been run on one yet.
-  - Removed 2026-11-17 (owner): `spendCapUsd`, `{budget_usd}`, `spendCap` and the spent-budget hold. The plan-quota stop (`planQuotaHold`) stays; it moves out of the budget code.
+  - Built: `planQuotaHold` stops new sessions when plan quota runs low.
 - [x] 47.10 Sandbox keeps the database, credentials and Kiro Crew home out of reach, network off or restricted, after 47.2 [R95.6, R95.7] (§4.28)
   - Facts:
     - checks: npm test, git diff --check

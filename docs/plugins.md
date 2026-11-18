@@ -376,12 +376,12 @@ What a pack may set, and where each lands in `.avoozl.json`:
 
 | Pack key                     | Sets                                                                                                                                                                                                                    |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `settings.repositories`      | For each repository you pick at import: `rules` (trigger `match` lines), `untriaged`, `allowedActors`, `minimumPermission`, `requiredChecks`, `priority`, `managedLabels`. An old `concurrency` is accepted and ignored |
+| `settings.repositories`      | For each repository you pick at import: `rules` (trigger `match` lines), `untriaged`, `allowedActors`, `minimumPermission`, `requiredChecks`, `priority`, `managedLabels`. |
 | `settings.project`           | `github.project.fields` and `statusValues`, when a GitHub Project is set                                                                                                                                                |
 | `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                                                  |
 | `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                                               |
-| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`. An old `concurrency` is accepted and ignored                                                                                                                            |
-| `settings.flow`              | Flow settings, such as `retro.everyTasks`; an old `batch` key is ignored                                                                                                                                                |
+| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`.                                                                                                                            |
+| `settings.flow`              | Flow settings, such as `retro.everyTasks`                                                                                                                                                |
 
 - Every key is checked with the same rules Settings uses. Any other key is
   refused by name, such as `Pack key settings.repositories.autoMerge is not

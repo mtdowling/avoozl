@@ -7,6 +7,7 @@ import { FieldRow, fieldDescribedBy } from './FieldRow.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
 import { NAME_RULE, instanceClient, nameFor, validName, type InstanceView } from './instance-api.ts'
 import { errorMessage } from './workspace-api.ts'
+import { Stack } from './ui/Stack'
 
 // The instance, read again after a rename anywhere on the page.
 const CHANGED = 'avoozl:instance-changed'
@@ -66,7 +67,7 @@ export function InstanceNickname(props: { workspaceId: string }) {
     }
   }
   return (
-    <div data-instance-nickname className="flex flex-col gap-2">
+    <Stack data-instance-nickname gap={2}>
       <FieldRow
         id="avoozl-instance-nickname"
         label="Nickname"
@@ -98,6 +99,6 @@ export function InstanceNickname(props: { workspaceId: string }) {
           setError(null)
         }}
       />
-    </div>
+    </Stack>
   )
 }

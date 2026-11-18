@@ -20,6 +20,11 @@ import type { Graph } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
 import { Picker, taskItems } from './Picker.tsx'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
+import { TextLink } from './ui/TextLink'
 
 const fieldStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
@@ -28,7 +33,7 @@ function Field({ id, label, children, hint }: { id: string; label: string; child
     <label htmlFor={id} className="flex flex-col gap-1 text-sm">
       <span>{label}</span>
       {children}
-      {hint && <span className="text-xs text-muted">{hint}</span>}
+      {hint && <Hint size="xs">{hint}</Hint>}
     </label>
   )
 }
@@ -60,12 +65,12 @@ function Prerequisites(props: { graph: Graph | null; self: string; value: Prereq
   return (
     <div className="flex flex-col gap-2 text-sm">
       <span>Prerequisites</span>
-      {props.value.length === 0 && <span className="text-xs text-muted">None. It can start once reviewed.</span>}
+      {props.value.length === 0 && <Hint size="xs">None. It can start once reviewed.</Hint>}
       <ul className="flex flex-col gap-1.5">
         {props.value.map((p, i) => (
           <li key={p.id} className="flex flex-wrap items-center gap-2">
             <span className="min-w-0 flex-1 truncate">
-              {titles.get(p.id) ?? p.id} <span className="text-xs text-muted">{p.id}</span>
+              {titles.get(p.id) ?? p.id} <Hint size="xs">{p.id}</Hint>
             </span>
             <select
               aria-label={`Link kind for ${p.id}`}
@@ -114,9 +119,9 @@ function PreviewBlock({ preview }: { preview: ChangePreview }) {
     <div className="flex flex-col gap-2 rounded border p-2 text-sm" style={{ borderColor: 'var(--border)' }}>
       <p>{preview.message}</p>
       {preview.link && (
-        <a href={linkHref(preview.link)} target="_blank" rel="noreferrer" className="underline">
+        <TextLink href={linkHref(preview.link)} target="_blank" rel="noreferrer">
           Open the issue
-        </a>
+        </TextLink>
       )}
       {preview.tasks && (
         <div className="text-xs">
@@ -138,7 +143,7 @@ function PreviewBlock({ preview }: { preview: ChangePreview }) {
           </pre>
         </div>
       )}
-      <p className="text-xs text-muted">Nothing was written. Approving the changed spec stays your step.</p>
+      <Hint as="p" size="xs">Nothing was written. Approving the changed spec stays your step.</Hint>
     </div>
   )
 }
@@ -192,8 +197,8 @@ export default function TaskForm(props: {
   }
 
   return (
-    <form
-      className="flex flex-col gap-3"
+    <Stack
+      as="form" gap={3}
       onSubmit={(event) => {
         event.preventDefault()
         void submit()
@@ -204,9 +209,9 @@ export default function TaskForm(props: {
           <Badge variant="warning">Locked</Badge> {locked.message}
         </p>
       ) : !detail ? (
-        <p className="text-xs text-muted">A new task starts as a draft. It waits for your review before it can start.</p>
+        <Hint as="p" size="xs">A new task starts as a draft. It waits for your review before it can start.</Hint>
       ) : (
-        <p className="text-xs text-muted">Changing the text marks this task for review again. Other tasks are not touched.</p>
+        <Hint as="p" size="xs">Changing the text marks this task for review again. Other tasks are not touched.</Hint>
       )}
       <Field id="avoozl-task-title" label="Title">
         <Input id="avoozl-task-title" value={form.title} onChange={(event) => set({ title: event.target.value })} required />
@@ -252,17 +257,17 @@ export default function TaskForm(props: {
       </Field>
       <Prerequisites graph={graph} self={id} value={form.prerequisites} onChange={(prerequisites) => set({ prerequisites })} />
       {cycle && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           That makes a cycle: {cycle.join(' → ')}. Remove one of these prerequisites.
-        </p>
+        </ErrorText>
       )}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
       {preview && <PreviewBlock preview={preview} />}
-      <div className="flex flex-wrap gap-2">
+      <Row gap={2} align="start">
         <Btn type="submit" primary disabled={busy || !valid}>
           {locked ? 'Draft the spec change' : detail ? 'Save changes' : 'Add draft task'}
         </Btn>
@@ -271,7 +276,7 @@ export default function TaskForm(props: {
             Cancel
           </Btn>
         )}
-      </div>
-    </form>
+      </Row>
+    </Stack>
   )
 }

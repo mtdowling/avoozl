@@ -1,3 +1,4 @@
+import { Hint } from './ui/Hint'
 // A task's Waits on or Blocks list: a bulleted list, one task per item, each
 // task a link that opens it. The one list part for task details, the Graph's
 // side panel and the Graph's item modal. An empty list draws nothing.
@@ -25,7 +26,7 @@ export function EdgeList(props: { label: string; items: EdgeItem[]; onOpen: (id:
           >
             {item.text}
           </button>
-          {item.note && <span className="text-xs text-muted"> {item.note}</span>}
+          {item.note && <Hint size="xs"> {item.note}</Hint>}
         </li>
       ))}
     </ul>

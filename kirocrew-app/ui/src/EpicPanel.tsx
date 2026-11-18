@@ -9,6 +9,8 @@ import Badge from './Badge.tsx'
 import { useRead } from './useRead.ts'
 import type { Drill } from './graph-layout.ts'
 import type { EpicView, viewsClient } from './views-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
 
 const bar = (done: number, total: number) => (total ? Math.round((done / total) * 100) : 0)
 
@@ -21,7 +23,7 @@ export function EpicPanel(props: {
 }) {
   const load = useCallback((workspace: string) => props.client.epic(workspace, props.id), [props.client, props.id])
   const { value, error } = useRead<EpicView>(props.workspaceId, load)
-  if (error) return <p role="alert" className="text-sm text-danger">{error}</p>
+  if (error) return <ErrorText role="alert" size="sm">{error}</ErrorText>
   if (!value) return null
   return (
     <Card data-epic-panel>
@@ -37,9 +39,9 @@ export function EpicPanel(props: {
       />
       <div className="mt-1 flex flex-wrap items-center gap-2">
         <Badge>{value.complete ? 'done' : value.approved ? 'approved' : 'draft'}</Badge>
-        <span className="text-xs text-muted">
+        <Hint size="xs">
           {value.progress.done} of {value.progress.total} tasks done across {value.members.length} specs
-        </span>
+        </Hint>
       </div>
       <div className="mt-2 grid gap-4 text-sm" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(16rem, 1fr))' }}>
         <div className="flex flex-col gap-2" style={{ maxWidth: '75ch' }}>

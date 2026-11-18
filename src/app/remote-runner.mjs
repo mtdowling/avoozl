@@ -520,11 +520,10 @@ export async function runnerTick(
             remote: true,
             worktree: started.worktree,
             ...(config.workerMode ? { mode: config.workerMode } : {}),
-            brief: briefCell(config.executor, "machine").cell.brief(
-              record,
-              started,
-              command,
-            ),
+            brief: briefCell(
+              config.executor === "process" ? "process" : "kirocrew",
+              "machine",
+            ).cell.brief(record, started, command),
           }),
         );
       } else if (record.state === "reported") {

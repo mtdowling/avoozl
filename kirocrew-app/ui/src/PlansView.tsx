@@ -98,6 +98,11 @@ import {
   type SpecPlan,
   type SpecSummary,
 } from './plans-api'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
+import { TextLink } from './ui/TextLink'
 
 // Where a row's Graph button goes; the filter is the tabs'
 // shared one, set to this plan.
@@ -205,19 +210,19 @@ function Documents({ docs, error }: { docs: SpecDocuments | null; error: string 
   if (error)
     return (
       <SpecCard title="Documents">
-        <p className="text-sm text-danger">{error}</p>
+        <ErrorText size="sm">{error}</ErrorText>
       </SpecCard>
     )
   if (!docs)
     return (
       <SpecCard title="Documents">
-        <p className="text-sm text-muted">Loading…</p>
+        <Hint as="p" size="sm">Loading…</Hint>
       </SpecCard>
     )
   if (!tabs.length)
     return (
       <SpecCard title="Documents">
-        <p className="text-sm text-muted">This folder has no requirements, design or tasks file yet.</p>
+        <Hint as="p" size="sm">This folder has no requirements, design or tasks file yet.</Hint>
       </SpecCard>
     )
   return (
@@ -262,11 +267,11 @@ function DocumentTab({ docs, error, file }: { docs: SpecDocuments | null; error:
   return (
     <SpecCard title={file} id={`avoozl-doc-${file}`} actions={docs ? <span className="min-w-0 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{docs.folder}{file}</span> : undefined}>
       {error ? (
-        <p className="text-sm text-danger">{error}</p>
+        <ErrorText size="sm">{error}</ErrorText>
       ) : !docs ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <Hint as="p" size="sm">Loading…</Hint>
       ) : typeof text !== 'string' ? (
-        <p className="text-sm text-muted">This folder has no {file}.</p>
+        <Hint as="p" size="sm">This folder has no {file}.</Hint>
       ) : (
         <Markdown text={renderText(file, text)} idPrefix={docPrefix(file)} measure={PROSE_MEASURE} />
       )}
@@ -308,7 +313,7 @@ function GitHubPreview(props: { projection: ProjectionPreview | null; busy: bool
     <SpecCard
         title="GitHub preview"
         actions={
-          <div className="flex flex-wrap gap-2">
+          <Row gap={2} align="start">
             <TipBtn style={COMPACT_BTN} tooltip="List every GitHub write this spec would make. Makes none." onClick={props.onPreview} disabled={busy}>
               {projection ? 'Preview again' : 'Preview GitHub writes'}
             </TipBtn>
@@ -318,10 +323,10 @@ function GitHubPreview(props: { projection: ProjectionPreview | null; busy: bool
             <TipBtn style={COMPACT_BTN} tooltip="What an edited spec would do to each issue. Writes nothing until you apply it." onClick={props.onChanged} disabled={busy}>
               Spec changed…
             </TipBtn>
-          </div>
+          </Row>
         }
       >
-      <p className="text-sm text-muted">Lists every write a projection would make. Nothing is written.</p>
+      <Hint as="p" size="sm">Lists every write a projection would make. Nothing is written.</Hint>
       {projection && (
         <div className="mt-3 flex flex-col gap-2 text-sm">
           {projection.previewOnly.length > 0 && (
@@ -330,7 +335,7 @@ function GitHubPreview(props: { projection: ProjectionPreview | null; busy: bool
             </p>
           )}
           {projection.writes.length === 0 ? (
-            <p className="text-muted">GitHub already matches this revision.</p>
+            <Hint as="p">GitHub already matches this revision.</Hint>
           ) : (
             writesByRepository(projection.writes).map(([repository, writes]) => (
               <div key={repository}>
@@ -351,14 +356,14 @@ function GitHubPreview(props: { projection: ProjectionPreview | null; busy: bool
             </p>
           ))}
           {[...projection.notes, ...(projection.project.problems ?? [])].map((note) => (
-            <p key={note} className="text-muted">
+            <Hint key={note} as="p">
               {note}
-            </p>
+            </Hint>
           ))}
           {projection.project.status === 'unavailable' && (
-            <p className="text-muted">
+            <Hint as="p">
               Project fields not previewed: {projection.project.reason} Fix: <code>{projection.project.fix}</code>
-            </p>
+            </Hint>
           )}
         </div>
       )}
@@ -377,28 +382,28 @@ function SpecAiSummary(props: { plan: SpecPlan; spec: SpecSummary; onRetry?: () 
   const written = review?.summary ?? null
   const pending = review?.state === 'running' && !written?.current
   return (
-    <div data-spec-summary className="flex flex-col gap-2">
+    <Stack data-spec-summary gap={2}>
       {pending ? (
         <ReviewWorking model={review?.reviewerModel ?? null} title="AI working" label="Writing a short summary of this spec…" />
       ) : written ? (
         <p className="text-sm" data-spec-summary-text style={{ margin: 0, maxWidth: PROSE_MEASURE }}>
           {written.text}
           {!written.current && (
-            <span className="text-xs text-muted" data-spec-summary-older>
+            <Hint size="xs" data-spec-summary-older>
               {' '}
               (written for <code>{shortHash(written.revisionHash)}</code>)
-            </span>
+            </Hint>
           )}
         </p>
       ) : (
-        <p className="m-0 text-sm text-muted" data-spec-summary-fallback>
+        <Hint as="p" size="sm" flush data-spec-summary-fallback>
           Summary unavailable{' '}
           {props.onRetry && (
             <button type="button" className="underline underline-offset-2" style={{ background: 'none', border: 0, padding: 0, color: 'var(--accent)', cursor: 'pointer' }} data-spec-summary-retry onClick={props.onRetry}>
               Retry
             </button>
           )}
-        </p>
+        </Hint>
       )}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted" data-spec-summary-data>
         <span>
@@ -409,7 +414,7 @@ function SpecAiSummary(props: { plan: SpecPlan; spec: SpecSummary; onRetry?: () 
         </span>
         <SeverityBadges counts={review?.openBySeverity} label="Open review findings" />
       </div>
-    </div>
+    </Stack>
   )
 }
 
@@ -510,11 +515,11 @@ function SpecDetail(props: {
       {overview && (<>
       <SpecCard title="Diagnostics">
         {!plan ? (
-          <p className="text-sm text-muted">
+          <Hint as="p" size="sm">
             {spec.counts.error} errors, {spec.counts.warning} warnings in the folder on disk.
-          </p>
+          </Hint>
         ) : diagnostics.length === 0 ? (
-          <p className="text-sm text-muted">No diagnostics.</p>
+          <Hint as="p" size="sm">No diagnostics.</Hint>
         ) : (
           <ul className="flex flex-col gap-1 text-sm">
             {diagnostics.map((d) => (
@@ -529,7 +534,7 @@ function SpecDetail(props: {
 
       <SpecCard title="Critique">
         {!critique ? (
-          <p className="text-sm text-muted">No avoozl/critique.md yet.</p>
+          <Hint as="p" size="sm">No avoozl/critique.md yet.</Hint>
         ) : (
           <>
             <p className="text-sm">
@@ -552,7 +557,7 @@ function SpecDetail(props: {
 
       {preview && (
         <SpecCard title="Manifest">
-          {preview.baseline?.text && <p className="text-sm text-muted">{preview.baseline.text}.</p>}
+          {preview.baseline?.text && <Hint as="p" size="sm">{preview.baseline.text}.</Hint>}
           <ul className="mt-1 flex flex-col gap-1 text-sm">
             {preview.tasks.map((task) => {
               const requires = preview.dependencies.filter((edge) => edge.to === task.taskId && edge.kind === 'requires').map((edge) => edge.from)
@@ -560,7 +565,7 @@ function SpecDetail(props: {
                 <li key={task.taskId}>
                   <code>{task.taskId}</code> {task.title} <Authority owner={task} />
                   {preview.baseline?.taskIds.includes(task.taskId) && <Badge>done</Badge>}
-                  {requires.length > 0 && <span className="text-muted"> · requires {requires.join(', ')}</span>}
+                  {requires.length > 0 && <Hint> · requires {requires.join(', ')}</Hint>}
                 </li>
               )
             })}
@@ -619,11 +624,11 @@ function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => vo
     <SpecCard title="Tasks by phase">
       {fold(<>
       {!props.graph ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <Hint as="p" size="sm">Loading…</Hint>
       ) : list.length === 0 ? (
-        <p className="text-sm text-muted">No task yet.</p>
+        <Hint as="p" size="sm">No task yet.</Hint>
       ) : (
-        <div className="flex flex-col gap-3" data-phase-tasks>
+        <Stack gap={3} data-phase-tasks>
           {list.map(([id, group]) => (
             <div key={id ?? '(none)'}>
               <h4 className="text-sm font-medium">
@@ -641,7 +646,7 @@ function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => vo
               </ul>
             </div>
           ))}
-        </div>
+        </Stack>
       )}
       </>)}
     </SpecCard>
@@ -664,7 +669,7 @@ export function ProgressBar({ tasks }: { tasks: { total: number; done: number } 
     const frame = requestAnimationFrame(() => setShown(percent))
     return () => cancelAnimationFrame(frame)
   }, [percent, still])
-  if (percent === null) return <span className="text-xs text-muted">no tasks</span>
+  if (percent === null) return <Hint size="xs">no tasks</Hint>
   const fill: CSSProperties = {
     width: `${shown}%`,
     height: '100%',
@@ -734,7 +739,7 @@ function Now({ now }: { now: PlanRow['now'] }) {
     ) : null,
     now.ready ? <Badge key="ready">{now.ready} ready</Badge> : null,
   ].filter(Boolean)
-  return parts.length ? <span className="inline-flex flex-wrap gap-1">{parts}</span> : <span className="text-xs text-muted">—</span>
+  return parts.length ? <span className="inline-flex flex-wrap gap-1">{parts}</span> : <Hint size="xs">—</Hint>
 }
 
 const cell: CSSProperties = { padding: '8px 10px', borderTop: '1px solid var(--border)', verticalAlign: 'middle' }
@@ -1016,10 +1021,10 @@ function RadarGraphLink() {
   return (
     <p data-radar-graph className="m-0 text-sm">
       Issues on GitHub and their graph:{' '}
-      <a href={linkHref(RADAR_GRAPH_URL)} target="_top" className="underline">
+      <TextLink href={linkHref(RADAR_GRAPH_URL)} target="_top">
         Open the Issue Radar graph →
-      </a>{' '}
-      <span className="text-xs text-muted">Choose the Graph view there, then the issue.</span>
+      </TextLink>{' '}
+      <Hint size="xs">Choose the Graph view there, then the issue.</Hint>
     </p>
   )
 }
@@ -1339,7 +1344,7 @@ function SpecRail(props: {
         {phaseList.length === 0 ? (
           <span style={{ color: muted }}>{graph ? 'No phase yet' : '…'}</span>
         ) : (
-          <ul className="flex flex-col gap-1">
+          <Stack as="ul" gap={1}>
             {phaseList.map(([id, phase]) => {
               const percent = phase.total ? Math.round((phase.done / phase.total) * 100) : 0
               return (
@@ -1360,7 +1365,7 @@ function SpecRail(props: {
                 </li>
               )
             })}
-          </ul>
+          </Stack>
         )}
       </RailSection>
       <RailSection title="Progress">
@@ -1399,7 +1404,7 @@ function SpecRail(props: {
         {decisions.length === 0 ? (
           <span style={{ color: muted }}>None.</span>
         ) : (
-          <ul className="flex flex-col gap-1">
+          <Stack as="ul" gap={1}>
             {decisions.map((task) => (
               <li key={task.id}>
                 <button type="button" className="text-left underline" onClick={() => props.onOpenTask(task.id)}>
@@ -1408,19 +1413,19 @@ function SpecRail(props: {
                 <span className="block" style={{ color: muted }}>{task.decision}</span>
               </li>
             ))}
-          </ul>
+          </Stack>
         )}
       </RailSection>
       {tabs.length > 0 && (
         <RailSection title="Outline">
           <nav aria-label="Spec outline">
-            <ul className="flex flex-col gap-1">
+            <Stack as="ul" gap={1}>
               {tabs.map((tab) => (
                 <li key={tab.file}>
                   <button type="button" className="font-medium hover:underline" onClick={() => jump(`avoozl-doc-${tab.file}`)}>
                     {tab.label}
                   </button>
-                  <ul className="flex flex-col">
+                  <Stack as="ul">
                     {outline(tab.text, docPrefix(tab.file), 2)
                       .filter((h) => h.level === 2)
                       .map((h) => (
@@ -1430,10 +1435,10 @@ function SpecRail(props: {
                           </button>
                         </li>
                       ))}
-                  </ul>
+                  </Stack>
                 </li>
               ))}
-            </ul>
+            </Stack>
           </nav>
         </RailSection>
       )}
@@ -1500,7 +1505,7 @@ export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; cl
           <li key={line}>{line}</li>
         ))}
       </ul>
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      {error && <ErrorText role="alert" size="sm">{error}</ErrorText>}
     </Modal>
   )
 }
@@ -1519,10 +1524,10 @@ function ArchivedBanner(props: { row: PlanRow; busy: boolean; onUnarchive: () =>
       <Archive size={18} aria-hidden="true" style={{ color: 'var(--muted)' }} />
       <span className="min-w-0 flex-1">
         <span className="font-medium">This spec is archived.</span>{' '}
-        <span className="text-muted">
+        <Hint>
           {archived.by ? `${archived.by} archived it` : 'Archived'} <Tooltip text={archived.at}><span>{relativeTime(archived.at)}</span></Tooltip>. Its tasks
           do not start, and it is hidden unless Show archived is on.
-        </span>
+        </Hint>
       </span>
       <IconLabel style={COMPACT_BTN} icon={ArchiveRestore} primary disabled={props.busy} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive}>
         Unarchive
@@ -1581,7 +1586,7 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
         </>
       }
     >
-      {!preview && !error && <p className="text-sm text-muted">Counting its tasks…</p>}
+      {!preview && !error && <Hint as="p" size="sm">Counting its tasks…</Hint>}
       {preview && (
         <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
           {deleteLines(preview).map((line) => (
@@ -1591,16 +1596,16 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
       )}
       {preview?.folder?.exists && (
         <label className="flex flex-col gap-1 text-sm">
-          <span className="flex items-center gap-2">
+          <Row as="span" gap={2} wrap={false}>
             <input type="checkbox" checked={folder} onChange={(event) => setFolder(event.target.checked)} />
             Also delete the spec folder (.kiro/specs/{preview.spec}/) from the repo.
-          </span>
+          </Row>
           <code className="pl-6 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{preview.folder.path}</code>
           <span className="pl-6 text-xs text-muted">Only the working tree. Avoozl never commits or pushes this.</span>
           {folder && preview.folder.dirty && <span role="alert" className="pl-6 text-xs text-danger">{preview.folder.reason}</span>}
         </label>
       )}
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      {error && <ErrorText role="alert" size="sm">{error}</ErrorText>}
     </Modal>
   )
 }
@@ -1732,7 +1737,7 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
       </>
     }>
       <div className="flex flex-col gap-3 text-sm">
-        <p className="m-0 text-muted">
+        <Hint as="p" flush>
           Approve exactly revision{' '}
           {base ? (
             <Tooltip text={`Show changes since ${base.approved ? 'the approved' : 'the previous'} revision ${shortHash(base.hash)}`}>
@@ -1740,23 +1745,23 @@ export function ApproveSpecDialog(props: { workspaceId: string; plan: SpecPlan; 
             </Tooltip>
           ) : <Tooltip text={plan.hash}><code>{shortHash(plan.hash)}</code></Tooltip>}
           . Review findings are evidence for your decision; they do not block approval.
-        </p>
+        </Hint>
         {change && <RevisionChanged change={change} />}
         {showDiff && base && (
-          <section data-revision-diff className="flex flex-col gap-2">
-            <p className="m-0 text-xs text-muted">Changes since {base.approved ? 'approved' : 'previous'} revision <code>{shortHash(base.hash)}</code></p>
+          <Stack data-revision-diff as="section" gap={2}>
+            <Hint as="p" size="xs" flush>Changes since {base.approved ? 'approved' : 'previous'} revision <code>{shortHash(base.hash)}</code></Hint>
             {diffs.length ? diffs.map((entry) => (
-              <div key={entry.file} className="flex flex-col gap-1">
+              <Stack key={entry.file} gap={1}>
                 <p className="m-0 text-xs font-medium"><code>{entry.file}</code></p>
                 <DiffBlock diff={entry.diff} label={`Changes to ${entry.file}`} />
-              </div>
-            )) : <p className="m-0 text-muted">No file changed.</p>}
-          </section>
+              </Stack>
+            )) : <Hint as="p" flush>No file changed.</Hint>}
+          </Stack>
         )}
         <PlanReviewSummary key={`${workspaceId}:${plan.id}:${plan.hash}`} review={review} onStart={() => client.reviewAnyway(workspaceId, plan.id, plan.hash)} reviewHref={reviewHref(window.location.pathname, plan.id, plan.hash)} onOpenReview={props.onOpenReview && (() => props.onOpenReview!(plan.id, plan.hash))} />
-        {error && <p role="alert" className="m-0 text-danger">{error}</p>}
-        {pending?.adopted && <p role="status" className="m-0" data-spec-pull-approved>Approved for merge. Avoozl merges <a className="underline" href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">{pending.repository}#{pending.number}</a> when its checks pass, then records the approval.</p>}
-        {pending && !pending.adopted && <p role="status" className="m-0">Nothing approved yet. Merge <a className="underline" href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">{pending.repository}#{pending.number}</a>, then approve again.</p>}
+        {error && <ErrorText role="alert" flush>{error}</ErrorText>}
+        {pending?.adopted && <p role="status" className="m-0" data-spec-pull-approved>Approved for merge. Avoozl merges <TextLink href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">{pending.repository}#{pending.number}</TextLink> when its checks pass, then records the approval.</p>}
+        {pending && !pending.adopted && <p role="status" className="m-0">Nothing approved yet. Merge <TextLink href={safeHref(`https://github.com/${pending.repository}/pull/${pending.number}`) ?? undefined} target="_blank" rel="noreferrer">{pending.repository}#{pending.number}</TextLink>, then approve again.</p>}
       </div>
     </Modal>
   )
@@ -1872,32 +1877,32 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
       }
     >
       <div className="flex flex-col gap-3 text-sm">
-        <p className="m-0 text-muted">
+        <Hint as="p" flush>
           {entries.length} {entries.length === 1 ? 'spec' : 'specs'}, {tasks} {tasks === 1 ? 'task' : 'tasks'}. Each revision below is approved exactly as shown, or none are.
-        </p>
+        </Hint>
         {missing.length > 0 && (
           <p role="note" data-approve-missing className="m-0" style={{ color: 'var(--warning, var(--text))' }}>
             These need specs from an earlier batch that are still drafts: {missing.join(', ')}.
           </p>
         )}
         {error && (
-          <p role="alert" className="m-0 text-danger">
+          <ErrorText role="alert" flush>
             {error}
-          </p>
+          </ErrorText>
         )}
         {result?.pending && (
-          <div role="status" className="flex flex-col gap-1">
+          <Stack role="status" gap={1}>
             <p className="m-0">Nothing approved yet. These specs are approved through a pull request. Merge it, then approve again:</p>
             {result.approvalPullRequests?.map((pull) => (
-              <a key={pull.number} href={safeHref(`https://github.com/${pull.repository}/pull/${pull.number}`) ?? undefined} target="_blank" rel="noreferrer" className="underline">
+              <TextLink key={pull.number} href={safeHref(`https://github.com/${pull.repository}/pull/${pull.number}`) ?? undefined} target="_blank" rel="noreferrer">
                 {pull.repository}#{pull.number} ({pull.specs.length} specs)
-              </a>
+              </TextLink>
             ))}
-          </div>
+          </Stack>
         )}
         {result && !result.pending && (
-          <div role="alert" className="flex flex-col gap-1">
-            <p className="m-0 text-danger">Nothing approved. These specs failed:</p>
+          <Stack role="alert" gap={1}>
+            <ErrorText flush>Nothing approved. These specs failed:</ErrorText>
             <ul className="m-0 flex flex-col gap-1 pl-5" style={{ listStyle: 'disc' }}>
               {result.failures.map((failure) => (
                 <li key={failure.id}>
@@ -1905,10 +1910,10 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
                 </li>
               ))}
             </ul>
-          </div>
+          </Stack>
         )}
         <ApproveTable entries={entries} selection={selection} phone={phone} />
-        <p className="m-0 text-muted">Review findings are evidence for your decision; they do not block approval.</p>
+        <Hint as="p" flush>Review findings are evidence for your decision; they do not block approval.</Hint>
         {entries.map((entry) => (
           <section key={entry.id} data-approve-review={entry.id} className="flex min-w-0 flex-col gap-2 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
             <h3 className="m-0 text-sm font-medium">{entry.spec}</h3>
@@ -2290,7 +2295,7 @@ export default function PlansView(props: {
   ) : null
   // The specs list column.
   const specList = (
-    <div className="flex flex-col gap-3" data-plans-list-pane>
+    <Stack gap={3} data-plans-list-pane>
       <ViewHeading
         id="avoozl-plans-title"
         view="plans"
@@ -2303,9 +2308,9 @@ export default function PlansView(props: {
       </ViewHeading>
       {table && table.items.length > 0 && (
         <PlanFilters filter={filter} rows={table.items} batches={batches?.batches.length ?? 0} order={order} onOrder={setOrder} onChange={setFilter}>
-          <span className="text-xs text-muted" role="status">
+          <Hint size="xs" role="status">
             {rows.length} of {table.items.length} specs
-          </span>
+          </Hint>
         </PlanFilters>
       )}
       {pickable.length > 0 && (
@@ -2337,13 +2342,13 @@ export default function PlansView(props: {
           </SmallBtn>
         </div>
       )}
-      <div className="flex flex-col gap-2" data-plans-list>
+      <Stack gap={2} data-plans-list>
         {table === null ? (
-          <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
+          <Hint as="p" size="sm">{busy ? 'Loading…' : 'Not loaded'}</Hint>
         ) : table.items.length === 0 ? (
-          <p className="text-sm text-muted">
+          <Hint as="p" size="sm">
             No specs yet{table.root ? ` in ${table.root}/.kiro/specs` : ''}. Use New spec to start one.
-          </p>
+          </Hint>
         ) : rows.length ? (
           <SpecList
             rows={rows}
@@ -2363,11 +2368,11 @@ export default function PlansView(props: {
             }
           />
         ) : (
-          <p className="text-sm text-muted">No spec matches these filters.</p>
+          <Hint as="p" size="sm">No spec matches these filters.</Hint>
         )}
         {table?.problem && <p className="mt-2 text-xs text-muted">Spec folders: {table.problem}</p>}
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   )
   const specRail = row ? (
     <SpecRail
@@ -2392,9 +2397,9 @@ export default function PlansView(props: {
           {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
           <SetupList spec={driver.spec} />
           {row.categoryProblem && (
-            <p className="text-sm text-muted">
+            <Hint as="p" size="sm">
               <Badge variant="warning">front-matter</Badge> {row.categoryProblem}
-            </p>
+            </Hint>
           )}
           {spec ? (
             <SpecDetail
@@ -2423,18 +2428,18 @@ export default function PlansView(props: {
           ) : (
             <>
               <SpecCard title="Summary">
-                <p className="text-xs text-muted">
+                <Hint as="p" size="xs">
                   <code>{row.planId}</code> · written before the spec layout, so it has no folder. Its tasks show in the spec graph.
-                </p>
+                </Hint>
                 <div className="mt-2">
                   {!text ? (
-                    <p className="text-sm text-muted">Loading…</p>
+                    <Hint as="p" size="sm">Loading…</Hint>
                   ) : text.error ? (
-                    <p className="text-sm text-danger">{text.error}</p>
+                    <ErrorText size="sm">{text.error}</ErrorText>
                   ) : text.text ? (
                     <Markdown text={text.text} measure={PROSE_MEASURE} />
                   ) : (
-                    <p className="text-sm text-muted">This spec has no text.</p>
+                    <Hint as="p" size="sm">This spec has no text.</Hint>
                   )}
                 </div>
               </SpecCard>
@@ -2515,17 +2520,17 @@ export default function PlansView(props: {
           }}
         />
       )}
-      {notice && <p role="status" className="text-sm text-muted">{notice}</p>}
+      {notice && <Hint role="status" as="p" size="sm">{notice}</Hint>}
       {(error || chat.error) && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error ?? chat.error}
-        </p>
+        </ErrorText>
       )}
       <p role="status" className="sr-only">
         {busy ? 'Working…' : ''}
       </p>
       {!workspace ? (
-        <p className="text-sm text-muted">Choose a workspace in the header.</p>
+        <Hint as="p" size="sm">Choose a workspace in the header.</Hint>
       ) : (
         <ListDetailLayout
           id="specs"

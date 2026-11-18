@@ -1,9 +1,9 @@
 {
   "avoozl": {
-    "files": "338ab5bdfef22137a66aa15c187d47349471e106d294ff83862b697698d787c5",
-    "proposals": "6a3003f4e5a70af2f896ab0f8877d4d807fab0784e41f757c7b59db5660bd75b",
+    "files": "f9606f932f22720f3573a9746e4427e0911e0517233784bb721920c4d4eb356e",
+    "proposals": "e820f36a5ea12be47860abaf5b175f22743ed2a5d50dcc3ffa1b0054c5299f91",
     "count": 433,
-    "hashBefore": "fde0c51cf7152179b9f0f076409bd58685e42bf35ef2186cd0f4c307b2332aa7"
+    "hashBefore": "18fa5c1ff2e880e9ac42bf0aad08615c9e64d9de11fb3a9f4dbec7f1890a4f1b"
   },
   "avoozl-next": {
     "files": "d70bc8c98bd308e17215e867e22ce38cf0b393a8e23d41284ad59a89ad5f1f13",
@@ -30,10 +30,10 @@
     "hashBefore": "a51145d1714ebe24ce4bb8f76d8484c389d6e85f70131f977f56bee530927c2c"
   },
   "ui-components": {
-    "files": "e1e5a68ada9284dbc2ef087b6ceab47dfb20a7f6383f252eea980292da915e57",
+    "files": "43bce1abba71705a649eeb89a3e210a9b50c9830284cd50fd58f4fb866ac8edc",
     "proposals": "10a551988d6900cb83ad3c6a1fa6bc3059b37ee113e5dc03d9dacf34b7149a92",
     "count": 11,
-    "hashBefore": "29ae364f2679ce8b957189cb98677554c39ac4ebfb732965d1cbd26e84e2c5d6"
+    "hashBefore": "350db658fe540813b263de38655d5f67a67abebf1a6e82755663591fa2ae0060"
   },
   "without-kirocrew": {
     "files": "dc5d8d275540f5290538930e4433b65c4746d72676e71693fbeabf654c125b28",

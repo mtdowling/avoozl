@@ -2,6 +2,7 @@
 // is the title, so a screen reader names the group. Used by Settings ›
 // Providers.
 import type { ReactNode } from 'react'
+import { Hint } from './ui/Hint'
 
 export function FieldBox(props: { title: string; blurb?: string; children: ReactNode }) {
   return (
@@ -9,7 +10,7 @@ export function FieldBox(props: { title: string; blurb?: string; children: React
       <legend className="text-sm font-semibold" style={{ padding: '0 4px' }}>
         {props.title}
       </legend>
-      {props.blurb && <p className="text-xs text-muted">{props.blurb}</p>}
+      {props.blurb && <Hint as="p" size="xs">{props.blurb}</Hint>}
       {props.children}
     </fieldset>
   )

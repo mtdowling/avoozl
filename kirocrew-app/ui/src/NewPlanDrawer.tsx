@@ -30,6 +30,10 @@ import {
   type NewPlanPreview,
 } from './new-plan-api.ts'
 import { openSpecBuilder, specBuilderClient, specBuilderProblem } from './spec-builder-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 // Spec Builder resolves symlinks (/tmp is /private/tmp on macOS).
 const samePath = (left: string, right: string) => {
@@ -47,11 +51,11 @@ function Field(props: { id: string; label: string; need: 'required' | 'optional'
       </label>
       {props.children}
       {props.problem ? (
-        <span id={`${props.id}-problem`} className="text-xs text-danger">
+        <ErrorText id={`${props.id}-problem`} as="span" size="xs">
           {props.problem}
-        </span>
+        </ErrorText>
       ) : (
-        props.hint && <span className="text-xs text-muted">{props.hint}</span>
+        props.hint && <Hint size="xs">{props.hint}</Hint>
       )}
     </div>
   )
@@ -245,9 +249,9 @@ export default function NewPlanDrawer(props: {
               Repositories <span className="font-normal text-muted">(required)</span>
             </legend>
             {repositories === null ? (
-              <span className="text-xs text-muted">Loading…</span>
+              <Hint size="xs">Loading…</Hint>
             ) : repositories.length === 0 ? (
-              <span className="text-xs text-muted">No repositories yet. Add one in Settings › Repositories, then come back.</span>
+              <Hint size="xs">No repositories yet. Add one in Settings › Repositories, then come back.</Hint>
             ) : (
               repositories.map((repo) => (
                 <label key={repo.id} className="flex items-center gap-2">
@@ -259,12 +263,12 @@ export default function NewPlanDrawer(props: {
                     }
                   />
                   <span>{repo.name || repo.id}</span>
-                  {repo.github && <span className="text-xs text-muted">{repo.github}</span>}
+                  {repo.github && <Hint size="xs">{repo.github}</Hint>}
                 </label>
               ))
             )}
             {tried && repositories && repositories.length > 0 && !form.repositories.length && (
-              <span className="text-xs text-danger">Pick at least one repository.</span>
+              <ErrorText as="span" size="xs">Pick at least one repository.</ErrorText>
             )}
           </fieldset>
           <Field id="avoozl-new-plan-goal" need="required" label="What you want" hint="The planner's first prompt: the goal, who it is for, and what done looks like." problem={tried && !form.goal.trim() ? 'Say what you want.' : null}>
@@ -318,15 +322,15 @@ export default function NewPlanDrawer(props: {
         </>
       }
     >
-        <form
+        <Stack
           id="avoozl-new-plan-form"
-          className="flex flex-col gap-3"
+          as="form" gap={3}
           onSubmit={(event) => {
             event.preventDefault()
             void submit()
           }}
         >
-          <p className="text-xs text-muted">
+          <Hint as="p" size="xs">
             {start === 'template'
               ? 'An Avoozl planner chat drafts the spec from the template and what you fill in. It shows in Specs as a draft. Nothing is approved or started.'
               : start === 'goal'
@@ -334,7 +338,7 @@ export default function NewPlanDrawer(props: {
                 : start === 'blank'
                 ? "Kiro Crew's Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. The spec shows in Specs as a draft once it lints clean. Nothing is approved or started."
                 : 'Name it, then pick how to start: Blank, From template or From a goal. It shows in Specs as a draft. Nothing is approved or started.'}
-          </p>
+          </Hint>
           <Field id="avoozl-new-plan-name" need="required" label="Name" hint="Becomes the spec folder name: lowercase letters, digits and hyphens." problem={nameIssue}>
             <Input
               id="avoozl-new-plan-name"
@@ -406,7 +410,7 @@ export default function NewPlanDrawer(props: {
                 line: "Kiro Crew's Spec Builder writes the spec with you from what you want: requirements, then design, then tasks, each for you to review. Use it for new work with no set shape.",
                 icon: FileText,
                 fields: (
-                  <div className="flex flex-col gap-3">
+                  <Stack gap={3}>
           <Field id="avoozl-new-plan-phases" need="optional" label="Phases" hint="One per line; each becomes a heading in tasks.md. Left blank, the planner picks them.">
             <textarea
               id="avoozl-new-plan-phases"
@@ -418,7 +422,7 @@ export default function NewPlanDrawer(props: {
             />
           </Field>
           {sharedFields}
-                  </div>
+                  </Stack>
                 ),
               },
               {
@@ -451,7 +455,7 @@ export default function NewPlanDrawer(props: {
                 title: 'From a goal',
                 line: 'Type the goal. An Avoozl planner chat writes the draft spec, requirements, design and tasks, and you approve it like any spec. Use it when you know the outcome but not the steps.',
                 icon: Crosshair,
-                fields: <div className="flex flex-col gap-3">{sharedFields}</div>,
+                fields: <Stack gap={3}>{sharedFields}</Stack>,
               },
             ]}
           />
@@ -460,26 +464,26 @@ export default function NewPlanDrawer(props: {
               <h4 id="avoozl-new-plan-steering" className="font-medium">
                 Add Avoozl&apos;s spec rules to this repository?
               </h4>
-              <p className="text-xs text-muted">
+              <Hint as="p" size="xs">
                 Spec Builder&apos;s chat reads steering files from the repository. This writes <code>{steering.path}</code>, which you commit. Skip it, and the rules go with this one spec instead.
-              </p>
+              </Hint>
               <pre className="max-h-64 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)', whiteSpace: 'pre-wrap' }} data-steering-text>
                 {steering.text}
               </pre>
-              <div className="flex flex-wrap gap-2">
+              <Row gap={2} align="start">
                 <Btn type="button" primary disabled={busy} onClick={() => void handOff(true)}>
                   Add the file and open Spec Builder
                 </Btn>
                 <Btn type="button" disabled={busy} onClick={() => void handOff(false)}>
                   Skip the file
                 </Btn>
-              </div>
+              </Row>
             </section>
           )}
           {error && (
-            <p role="alert" className="text-sm text-danger">
+            <ErrorText role="alert" size="sm">
               {error}
-            </p>
+            </ErrorText>
           )}
           {fallback && (
             <div>
@@ -489,7 +493,7 @@ export default function NewPlanDrawer(props: {
               </Btn>
             </div>
           )}
-        </form>
+        </Stack>
     </Modal>
   )
 }

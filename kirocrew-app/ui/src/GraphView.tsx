@@ -46,6 +46,9 @@ import { RefreshButton } from './RefreshButton.tsx'
 import { ArrowLeft, ExternalLink, Plus } from './icons.ts'
 import { useNav, useRemembered } from './NavHistory.tsx'
 import { linkHref } from './views-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
 
 // Graphs larger than this open with every group collapsed to one node.
 const COLLAPSE_ABOVE = 60
@@ -228,7 +231,7 @@ function Details(props: {
           }
         />
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
-          <span className="text-xs text-muted">{task.id}</span>
+          <Hint size="xs">{task.id}</Hint>
           <Badge>{task.kind}</Badge>
           <Authority owner={task} />
           <Badge variant={task.complete ? 'success' : undefined}>{task.status ?? 'no status'}</Badge>
@@ -247,23 +250,23 @@ function Details(props: {
         <dl className="mt-2 grid gap-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr', columnGap: 12 }}>
           {task.repository && (
             <>
-              <dt className="text-muted">Repository</dt>
+              <Hint as="dt">Repository</Hint>
               <dd>{task.repository}</dd>
             </>
           )}
-          <dt className="text-muted">Route</dt>
+          <Hint as="dt">Route</Hint>
           <dd>{task.route}</dd>
-          <dt className="text-muted">Done when</dt>
+          <Hint as="dt">Done when</Hint>
           <dd>{task.completion}</dd>
           {task.decision && (
             <>
-              <dt className="text-muted">Decision</dt>
+              <Hint as="dt">Decision</Hint>
               <dd>{task.decision}</dd>
             </>
           )}
           {batch && (
             <>
-              <dt className="text-muted">Batch</dt>
+              <Hint as="dt">Batch</Hint>
               <dd data-batch-members={batch.members.join(',')}>
                 {safeHref(batch.url) ? <a href={safeHref(batch.url) ?? undefined}>#{batch.number}</a> : `#${batch.number}`} closes{' '}
                 {batch.members.map((id, i) => (
@@ -283,7 +286,7 @@ function Details(props: {
           )}
           {waitsOn.length > 0 && (
             <>
-              <dt className="text-muted">Waits on</dt>
+              <Hint as="dt">Waits on</Hint>
               <dd>
                 <EdgeList label="Waits on" items={waitsOn.map((item) => ({ id: item.id, text: item.id, note: item.satisfied ? 'met' : 'waiting' }))} onOpen={props.onSelect} />
               </dd>
@@ -291,7 +294,7 @@ function Details(props: {
           )}
           {blocks.length > 0 && (
             <>
-              <dt className="text-muted">Blocks</dt>
+              <Hint as="dt">Blocks</Hint>
               <dd>
                 <EdgeList label="Blocks" items={blocks.map((item) => ({ id: item.id, text: item.id }))} onOpen={props.onSelect} />
               </dd>
@@ -567,18 +570,18 @@ export default function GraphView({
         </ViewHeading>
       )}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
       {!workspaceId ? (
-        <p className="text-sm text-muted">Choose a workspace in the header.</p>
+        <Hint as="p" size="sm">Choose a workspace in the header.</Hint>
       ) : (
         <FilterBar id="avoozl-graph" filter={filter} choices={choices} onChange={changeFilter}>
           {!bare && (
-            <div className="flex flex-wrap gap-2">
+            <Row gap={2} align="start">
               <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy} />
-            </div>
+            </Row>
           )}
           <p role="status" className="mt-2 text-sm text-muted">
             {busy
@@ -593,11 +596,11 @@ export default function GraphView({
         <EpicPanel workspaceId={workspaceId} id={drill.id} client={client} onDrill={(next) => onDrill?.(next)} />
       )}
       {graph && graph.total === 0 && (
-        <p className="text-sm text-muted">No tasks yet. Store and approve a spec in the Specs tab to fill the graph.</p>
+        <Hint as="p" size="sm">No tasks yet. Store and approve a spec in the Specs tab to fill the graph.</Hint>
       )}
       {layout && layout.nodes.length > 0 && (
         <Card>
-          <div className="flex flex-wrap items-center gap-2">
+          <Row gap={2}>
             {stack.length > 0 && (
               <>
                 <IconLabel icon={ArrowLeft} tooltip={backLabel(stack) ?? undefined} onClick={() => back()} aria-label={backLabel(stack) ?? 'Back'}>
@@ -609,9 +612,9 @@ export default function GraphView({
                       <button type="button" className="truncate underline" style={{ maxWidth: '14rem' }} onClick={() => back(at)}>
                         {label}
                       </button>
-                      <span aria-hidden="true" className="text-muted">
+                      <Hint aria-hidden="true">
                         ›
-                      </span>
+                      </Hint>
                     </span>
                   ))}
                   <span className="truncate font-medium" aria-current="page" style={{ maxWidth: 'min(28rem, 60vw)' }}>
@@ -626,14 +629,14 @@ export default function GraphView({
             <TipBtn tooltip="Zoom out" onClick={() => zoom(1 / 1.25)} aria-label="Zoom out">
               −
             </TipBtn>
-            <span className="text-xs text-muted" aria-live="polite">
+            <Hint size="xs" aria-live="polite">
               {Math.round(view.scale * 100)}%
-            </span>
+            </Hint>
             <TipBtn tooltip="Zoom in" onClick={() => zoom(1.25)} aria-label="Zoom in">
               +
             </TipBtn>
             <TipBtn tooltip="Fit the whole graph in view" onClick={fit}>Fit</TipBtn>
-          </div>
+          </Row>
           <div className="mt-2">
             <Legend />
           </div>

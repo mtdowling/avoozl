@@ -47,12 +47,13 @@ of the other specs.
 
 ## Phase 2: The parts that remove the most strings
 
-- [ ] uc-2.1 `Hint`, `ErrorText`, `Stack`, `Row` and `TextLink`, after uc-1.1 [UC2.1, UC2.3, UC2.4] (§D2)
+- [x] uc-2.1 `Hint`, `ErrorText`, `Stack`, `Row` and `TextLink`, after uc-1.1 [UC2.1, UC2.3, UC2.4] (§D2)
   - Facts:
     - summary: Phase 2 (The parts that remove the most strings). `Hint`, `ErrorText`, `Stack`, `Row` and `TextLink`. See UC2.1, UC2.3, UC2.4; §D2.
     - done:
       - The five render tests pass; the raw-style count across views drops by at least 600; the page tests pass with assertions unchanged; screenshots go to the owner.
     - after: uc-1.1
+  - Built: PR #620.
   - The five parts in `src/ui/`, each with a light and dark render test; the views that use the strings of D2 most move first, and the allow-list drops by what they removed.
   - Done when: The five render tests pass; the raw-style count across views drops by at least 600; the page tests pass with assertions unchanged; screenshots go to the owner.
 - [ ] uc-2.2 Move the shared parts into `src/ui/`, after uc-1.1 [UC1.2, UC2.2] (§D1)
