@@ -4359,8 +4359,12 @@ chatty agent cannot reach my secrets or my approvals.
 #### Acceptance criteria
 
 1. WHEN the CLI is run with `KIROCREW_SPAWNED=1` or `KIRO_SESSION_ID` set
-   THEN it SHALL refuse every person-only operation unless `--as-person` is
-   given. A terminal without those variables SHALL be unaffected.
+   THEN it SHALL run a person-only operation, SHALL print that it ran in an
+   agent session, and an approval without a delegate SHALL record that in
+   its receipt's evidence. (Changed 2026-11-18, owner decision: the CLI used
+   to refuse here unless `--as-person` was given; the flag is removed and an
+   old command that passes it runs as before. The command line is a
+   person's tool, and the refusal stopped only well-behaved agents.)
 2. The docs SHALL say plainly that person-only stops MCP and app tokens, not
    code running as the user. A draft request to Kiro Crew for passing the
    proxy secret by descriptor or a 0600 file SHALL be kept in
@@ -5005,8 +5009,8 @@ restart, and its exit is never lost.
    pid and start time, and SHALL record a child it cannot find as `gone`
    (Requirement 88.4 applies).
 5. Every child SHALL get the environment variable `AVOOZL_CHILD=1` with its
-   session ID. The CLI SHALL refuse a person-only command in a child, even
-   with `--as-person`. This is a speed bump, not a guarantee: the child runs
+   session ID. The CLI SHALL refuse a person-only command in a child. This
+   is a speed bump, not a guarantee: the child runs
    as the owner and could unset the marker, write the database or call `gh`.
 6. "A child never does a person-only act" SHALL hold only through the
    sandbox: for a `process` child the workspace database, the GitHub and
@@ -6083,8 +6087,8 @@ approval does not wait on me or drag in specs nobody asked about.
    of themselves: their GitHub login when GitHub is in play, else the
    operator. The grant SHALL be stored in the workspace database, not in
    Git. Granting and revoking (`approval.delegate.revoke {identity}`)
-   SHALL be person-only: refused over MCP and from an agent session's CLI
-   without `--as-person`. `approval.delegates` SHALL list active grants
+   SHALL be person-only over MCP. From the CLI they run as Requirement 83.1
+   says. `approval.delegates` SHALL list active grants
    and the history of grants and revocations, and MAY be read by anyone.
 4. `plan.approve` and `plan.approveMany` SHALL accept `delegate`. A call
    that names a delegate SHALL pass the person-only refusal and SHALL then
@@ -6105,9 +6109,9 @@ approval does not wait on me or drag in specs nobody asked about.
 8. The CLI SHALL offer `approval delegates`, `approval delegate NAME
    [--on-behalf-of LOGIN] [--note TEXT]`, `approval revoke NAME`, and
    `plan approve ... --delegate NAME`, whose preview prints the approve
-   command with `--delegate NAME` instead of `--as-person`.
+   command with `--delegate NAME`.
 9. Tests SHALL cover: a delegate refused with no grant, over MCP and in
-   process; grant and revoke refused from an agent; a granted delegate
+   process; grant and revoke refused over MCP; a granted delegate
    approving exactly one spec whose owner stays a draft, with the receipt's
    delegation; a mismatched `approvedBy` refused; revocation refusing the
    next approval and keeping history; an approval pull request carrying the

@@ -491,7 +491,6 @@ async function setup() {
     "main",
     "--workspace",
     WS,
-    "--as-person",
   );
   avoozl(
     "github",
@@ -507,7 +506,6 @@ async function setup() {
     OWNER_LOGIN,
     "--workspace",
     WS,
-    "--as-person",
   );
   step("setup", {
     code: CODE,
