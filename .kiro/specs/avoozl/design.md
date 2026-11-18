@@ -4714,7 +4714,7 @@ as a commit) and §4.33 (review findings).
 
 **Detect (`src/app/spec-pull-requests.mjs`, pure).** The Triage search
 (`untriaged.mjs`) already returns each pull request. Its GraphQL node gains
-`headRefName`, `reviewDecision` and `files(first: 100) { totalCount nodes
+`headRefName`, `baseRefName` and `files(first: 20) { totalCount nodes
 { path } }`. `specPullOf(entry, repo)` returns `{ spec }` only for an open
 pull request in a `planning` or `both` repository whose file list is complete
 (`nodes.length === totalCount`) and whose paths all start with
@@ -4779,7 +4779,7 @@ Triage exclusion, approve then merge, reject, request changes, zero extra
 GitHub calls on a read) with a fake GitHub that records every call;
 `kirocrew-app/ui/test` cases for the chip, the box and the Decisions item.
 
-shortcut: one spec folder per pull request and at most 100 changed files; a
+shortcut: one spec folder per pull request and at most 20 changed files; a
 larger or two-folder pull request stays in Triage. Upgrade if such pull
 requests are common.
 

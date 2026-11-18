@@ -247,6 +247,8 @@ export interface PlanRow {
   categoryProblem: string | null
   // Where the spec lives when a private mirror is set (RC25.2).
   home?: 'main' | 'plansBranch'
+  // An open pull request proposes a change to it (R107.5); the PR chip.
+  pull?: { number: number; draft: boolean }
   errors: number
   status: string
   tasks: { total: number; done: number }
@@ -431,7 +433,7 @@ export interface ApproveOneResult {
   id: string
   hash: string
   pending?: boolean
-  approvalPullRequest?: { repository: string; number: number; branch: string }
+  approvalPullRequest?: { repository: string; number: number; branch: string; adopted?: boolean }
 }
 export interface ApprovalBatches {
   batches: { batch: number; specs: BatchEntry[] }[]

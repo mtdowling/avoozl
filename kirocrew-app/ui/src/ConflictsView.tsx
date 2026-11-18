@@ -4,6 +4,7 @@ import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { ConflictFixActions } from './ConflictFixActions.tsx'
+import { SpecPullDecision } from './SpecPullDecision.tsx'
 import { CONFLICT_LABELS, safeHref, viewsClient, type ConflictItem, type Graph } from './views-api.ts'
 import { relativeTime, taskClient, type SettleAction, type SettleResult, type TaskDetail } from './task-api.ts'
 import {
@@ -55,6 +56,7 @@ const LABELS: Record<string, string> = {
   ...CONFLICT_LABELS,
   'github-conflict': 'GitHub edit',
   'tracker-conflict': 'Tracker edit',
+  'spec-pull': 'Spec pull request',
 }
 
 const FIELD_NAMES: Record<string, string> = {
@@ -97,6 +99,8 @@ export function ConflictActions(props: {
   busy: boolean
   run: (call: () => Promise<{ ok: boolean; text: string }>) => void
   onSettled: (action: SettleAction, result: SettleResult) => void
+  // Reads the list again (an action that settles outside the task graph).
+  onReload?: () => void
 }) {
   const { item, workspaceId, revision, busy, run } = props
   const api = useAppApi()
@@ -118,6 +122,9 @@ export function ConflictActions(props: {
         <PlanReviewDecision key={`${workspaceId}:${item.planReview.planId}:${item.planReview.revisionHash}`} {...item.planReview} busy={busy} run={run} onDecide={(action) =>
           views.decidePlanReview(workspaceId, item.planReview!.planId, item.planReview!.revisionHash, action)
         } />
+      )}
+      {item.kind === 'spec-pull' && item.specPull && (
+        <SpecPullDecision key={item.specPull.id} pull={item.specPull} workspaceId={workspaceId} onChanged={() => props.onReload?.()} />
       )}
       {item.kind === 'investigation' && item.taskId && <InvestigationActions item={item} busy={busy} onDecide={(action, text) => run(async () => {
         await views.decideInvestigation(workspaceId, item.taskId!, action)
@@ -600,7 +607,7 @@ function ConflictListRow(props: { item: ConflictItem; focused: boolean; selectab
           style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }}
         >
           <span className="flex min-w-0 items-center gap-2">
-            <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable'].includes(item.kind) ? 'warning' : 'danger'}>
+            <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable', 'spec-pull'].includes(item.kind) ? 'warning' : 'danger'}>
               {LABELS[item.kind] ?? item.kind}
             </Badge>
             <span className="min-w-0 flex-1 truncate text-sm font-medium">{item.title}</span>
@@ -629,6 +636,7 @@ function ConflictDetail(props: {
   onSettled: (action: SettleAction, result: SettleResult) => void
   onAsk: () => void
   onReviewed: () => void
+  onReload?: () => void
 }) {
   const { item } = props
   const drawer = useTaskDrawer()
@@ -643,7 +651,7 @@ function ConflictDetail(props: {
           {LABELS[item.kind] ?? item.kind}
         </Badge>
         {item.field && <Badge>{FIELD_NAMES[item.field] ?? item.field}</Badge>}
-        <Authority owner={item} />
+        {item.kind !== 'spec-pull' && <Authority owner={item} />}
         {item.taskId && <span className="text-xs text-muted">{item.taskId}</span>}
         {props.plan && <span className="text-xs text-muted">· spec {props.plan}</span>}
         {time && (
@@ -685,7 +693,7 @@ function ConflictDetail(props: {
       </div>
       <Card>
         <h4 className="m-0 mb-2 text-sm font-semibold">Resolve</h4>
-        <ConflictActions item={item} workspaceId={props.workspaceId} revision={props.revision} busy={props.busy} run={props.run} onSettled={props.onSettled} />
+        <ConflictActions item={item} workspaceId={props.workspaceId} revision={props.revision} busy={props.busy} run={props.run} onSettled={props.onSettled} onReload={props.onReload} />
       </Card>
       {history && <ItemHistory item={item} workspaceId={props.workspaceId} />}
     </div>
@@ -938,6 +946,7 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                 busy={acting}
                 run={run}
                 onSettled={onSettled}
+                onReload={() => void reload()}
                 onAsk={() => void chat.ask({ items: [itemRef(current)] })}
               />
             ) : null

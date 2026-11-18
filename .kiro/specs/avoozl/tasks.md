@@ -2097,5 +2097,5 @@ Owner decision 2026-11-18 (Requirement 107, design §4.36). One build task.
 Another change adds context to the Needs you items; merge main often and put
 the spec pull request item through the same list, not a second one.
 
-- [ ] 60.1 Adopt spec-only pull requests into their spec, out of Triage, with a Proposed change box, a PR chip and a Decisions item, after 58.1, 57.6 [R107.1, R107.2, R107.3, R107.4, R107.5, R107.6, R107.7, R107.8, R107.9] (§4.36)
+- [x] 60.1 Adopt spec-only pull requests into their spec, out of Triage, with a Proposed change box, a PR chip and a Decisions item, after 58.1, 57.6 [R107.1, R107.2, R107.3, R107.4, R107.5, R107.6, R107.7, R107.8, R107.9] (§4.36)
   - `spec-pull-requests.mjs` detects, links and adopts; the Triage read gains changed file paths; Approve records the revision, merges after checks, and Reject and Request changes act on the pull request. Tests and screenshots under `docs/evidence/spec-pr-adoption/`.

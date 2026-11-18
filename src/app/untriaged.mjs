@@ -15,6 +15,7 @@ import { attachHandoffs, isEscalation } from "./radar-plan-me.mjs";
 import { SOURCE_KIND } from "./radar-source.mjs";
 import { parseMatch } from "./issue-match.mjs";
 import { hasAvoozlLabel } from "./github.mjs";
+import { roleOf, specPullOf } from "./spec-pull-requests.mjs";
 import {
   CREW_LABEL_DEFAULTS,
   ISSUE_RADAR_PATH,
@@ -123,7 +124,8 @@ const SEARCH = `query($q: String!, $first: Int!, $after: String) {
         comments { totalCount }
       }
       ... on PullRequest {
-        number title url createdAt isDraft headRefOid
+        number title url createdAt isDraft headRefOid headRefName baseRefName
+        files(first: 20) { totalCount nodes { path } }
         author { login }
         labels(first: 30) { nodes { name } }
         assignees(first: 10) { nodes { login } }
@@ -164,6 +166,14 @@ function item(node) {
       ? {
           draft: node.isDraft === true,
           headSha: typeof node.headRefOid === "string" ? node.headRefOid : null,
+          branch: node.headRefName ?? null,
+          base: node.baseRefName ?? null,
+          // The changed files, so a spec-only pull request is seen with no
+          // further call (R107.8).
+          files: {
+            total: node.files?.totalCount ?? 0,
+            paths: (node.files?.nodes || []).map((file) => file.path),
+          },
           checks: CHECKS[rollup] ?? null,
           closes: (node.closingIssuesReferences?.nodes || []).map((ref) => ({
             repository: ref.repository?.nameWithOwner ?? null,
@@ -218,10 +228,15 @@ const githubKey = (repository, number) =>
 export function readCache(store) {
   const cache = structuredClone(EMPTY);
   cache.sources = new Set();
+  // Adopted spec pull requests (spec-pull-requests.mjs) are not untriaged.
+  cache.specPulls = new Set();
   try {
-    for (const receipt of store.list("receipts"))
+    for (const receipt of store.list("receipts")) {
       if (receipt.kind === SOURCE_KIND)
         cache.sources.add(key(receipt.repository, receipt.number));
+      if (receipt.kind === "spec-pr" && receipt.state === "open")
+        cache.specPulls.add(key(receipt.repository, receipt.number));
+    }
     cache.notice = store.getMeta(NOTICE_META) ?? null;
     const rows = new Map(itemRows(store).map((row) => [row.id, row]));
     for (const row of store.list("intake_sources")) {
@@ -600,6 +615,8 @@ export function untriagedView(
           });
         continue;
       }
+      // An adopted spec pull request is shown on its spec (R107.5).
+      if (cache.specPulls?.has(key(repository, candidate.number))) continue;
       const crew = withRadar(candidate, repository, settings, linked, handoffs);
       if (crew) {
         sent += 1;
@@ -655,6 +672,15 @@ export function untriagedView(
             isRadarCoded(settings) && candidate.kind === "issue"
             ? { start: { plan: true, deliver: false } }
             : {}),
+        // A spec-only pull request nobody adopted yet: one button, Review as
+        // spec, and no other spec button fits (R107.2).
+        ...(specPullOf(candidate, roleOf(policy, repository))
+          ? {
+              specPull: {
+                spec: specPullOf(candidate, roleOf(policy, repository)).spec,
+              },
+            }
+          : {}),
         ...(candidate.kind === "pr"
           ? {
               reviewChat:

@@ -1528,6 +1528,46 @@ if (query.get('page') === 'specs' || query.get('specs') === '1') {
       return {}
     })
   }
+  // &specpr=1 (or =draft): an open pull request proposes a change to
+  // byte-types, adopted into it (R107): the PR chip, the Proposed change
+  // box, a Decisions item, and a second pull request waiting in Triage.
+  if (query.get('specpr')) {
+    const fixture = reviewFixture()
+    const draft = query.get('specpr') === 'draft'
+    const diff = (lines: string[]) => lines.join('\n')
+    const pull = {
+      id: 'spec-pr:acme/plans#12', spec: 'byte-types', planId: 'byte-types', title: 'Add overflow wrapping to byte types', repository: 'acme/plans', number: 12,
+      url: 'https://github.com/acme/plans/pull/12', author: 'mira', draft, checks: draft ? 'pending' : 'passing', head: 'a1b2c3d4'.repeat(5), hash: fixture.data.revisionHash, link: 'own', newSpec: false,
+      files: [
+        { file: 'requirements.md', status: 'changed', added: 2, removed: 1, diff: diff(['@@ -4,3 +4,4 @@', ' 2. A byte SHALL hold 0 to 255.', '-3. Arithmetic SHALL not overflow.', '+3. Arithmetic SHALL wrap modulo 256.', '+4. A test SHALL show 255 + 1 wraps to 0.']) },
+        { file: 'tasks.md', status: 'changed', added: 1, removed: 0, diff: diff(['@@ -6,2 +6,3 @@', ' - [ ] 1.2 Add byte strings', '+- [ ] 1.3 Test overflow wraps']) },
+      ],
+      tasks: [{ taskId: '1.3', title: 'Test overflow wraps', change: 'added' }],
+      review: { state: 'done', current: true, found: 4, bySeverity: { blocker: 1, warn: 2, info: 1 }, openBySeverity: { blocker: 1, warn: 2, info: 0 }, summary: 'Makes byte arithmetic wrap and adds one test task.' },
+      approved: false, merging: false, canApprove: !draft,
+    }
+    items[0] = { ...items[0], pull: { number: 12, draft } }
+    answer('specpr.view', () => ({ items: [pull] }))
+    answer('plan.approve', () => ({ id: 'byte-types', hash: pull.hash, pending: true, approvalPullRequest: { repository: 'acme/plans', number: 12, branch: 'spec/byte-types', adopted: true } }))
+    answer('specpr.reject', () => ({ closed: true }))
+    answer('specpr.requestChanges', () => ({ posted: 3 }))
+    answer('conflicts.view', () => ({
+      revision: 1,
+      items: [{ id: 'spec-pull:spec-pr:acme/plans#12', kind: 'spec-pull', taskId: null, plan: 'byte-types', title: 'Proposed change to byte-types: Add overflow wrapping to byte types', detail: draft ? 'A draft pull request. Read it now; approving waits until it is marked ready.' : 'Read the change and the review, then approve, request changes or reject.', link: pull.url, specPull: pull }],
+    }))
+    const link = { url: '/issue-radar', exact: false, tooltip: 'Opens Issue Radar.' }
+    const row = (number: number, title: string, extra = {}) => ({
+      kind: 'pr', number, title, url: `https://github.com/acme/plans/pull/${number}`, repository: 'acme/plans', author: 'dave', createdAt: '2026-11-17T09:00:00Z', labels: [], comments: 0, draft: true, checks: 'passing',
+      source: 'github', id: `acme/plans#${number}`, links: { github: `https://github.com/acme/plans/pull/${number}`, issueRadar: link, review: { tooltip: 'Opens a Kiro Crew chat that reviews it.' } }, ...extra,
+    })
+    answer('untriaged.view', () => ({
+      enabled: true, mode: 'plans-repo', total: 2,
+      repositories: [{ repository: 'acme/plans', checkedAt: '2026-11-17T09:00:00Z', error: null, searched: 2, read: 3, truncated: false, count: 2, query: null, filter: null, defaultFilter: '', notify: false }],
+      items: [row(14, 'Draft the export spec', { specPull: { spec: 'export-formats' } }), row(15, 'Fix the build script', { draft: false })],
+      withRadar: [],
+    }))
+    answer('specpr.adopt', () => ({ id: 'spec-pr:acme/plans#14', spec: 'export-formats' }))
+  }
   const writes: Record<string, number> = { 'byte-types': 14, compression: 21, 'nupp-native-runtime-winddown-2026-11-11': 268 }
   answer('plan.approvalBatches', (body) => {
     const ids = (body.input as { ids?: string[] } | undefined)?.ids
