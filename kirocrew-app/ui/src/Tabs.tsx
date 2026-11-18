@@ -19,7 +19,8 @@ import { readTab, tabKey, tabLink } from './tabs.ts'
 // share the row equally, the open one filled with the theme's accent, the
 // rest muted until hovered; no divider line under them. A tab never shrinks
 // below its label, so on a narrow screen the bar scrolls sideways instead.
-// Counts and the unsaved dot take the tab's own color on the filled tab.
+// Counts and the unsaved dot take the tab's own color on the filled tab; a
+// problem dot stays red, ringed there.
 export const TABS_CSS = `[data-tabs]{display:flex;flex:none;width:100%;min-width:0;box-sizing:border-box;gap:4px;overflow-x:auto;scrollbar-width:thin}
 [data-tabs]>[role=tab]{flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;box-sizing:border-box;padding:6px 12px;margin:0;border:0;border-radius:var(--radius-md,8px);background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:600;line-height:20px;white-space:nowrap;cursor:pointer;transition:background-color .15s,color .15s}
 [data-tabs]>[role=tab]:hover{background:var(--bg-elevated);color:var(--text)}
@@ -29,6 +30,8 @@ export const TABS_CSS = `[data-tabs]{display:flex;flex:none;width:100%;min-width
 [data-tabs]>[role=tab][aria-selected=true] [data-tab-count]{background:color-mix(in srgb,currentColor 22%,transparent)!important;color:inherit!important;opacity:1!important}
 [data-tab-dot]{width:7px;height:7px;border-radius:999px;background:var(--accent);flex-shrink:0}
 [data-tabs]>[role=tab][aria-selected=true] [data-tab-dot]{background:currentColor}
+[data-tab-error]{width:7px;height:7px;border-radius:999px;background:var(--danger);flex-shrink:0}
+[data-tabs]>[role=tab][aria-selected=true] [data-tab-error]{box-shadow:0 0 0 1.5px var(--accent-fg,#fff)}
 @media (prefers-reduced-motion:reduce){[data-tabs]>[role=tab]{transition:none}}`
 
 export interface TabItem<T extends string = string> {
@@ -36,6 +39,8 @@ export interface TabItem<T extends string = string> {
   label: string
   // Unsaved changes on this tab: a dot after the label.
   dirty?: boolean
+  // A problem on this tab: a red dot, before any unsaved-changes dot.
+  error?: boolean
   // Anything else after the label, such as a count.
   badge?: ReactNode
 }
@@ -102,10 +107,12 @@ export function Tabs<T extends string>(props: {
             data-tab={tab.key}
             {...(props.tabAttr ? { [props.tabAttr]: tab.key } : {})}
             data-dirty={tab.dirty ? 'true' : undefined}
+            data-error={tab.error ? 'true' : undefined}
             onClick={() => props.onPick(tab.key)}
           >
             {tab.label}
-            {tab.dirty && <span data-tab-dot aria-label="unsaved changes" role="img" />}
+            {tab.error && <span data-tab-error aria-label="has a problem" role="img" />}
+            {tab.dirty && !tab.error && <span data-tab-dot aria-label="unsaved changes" role="img" />}
             {tab.badge}
           </button>
         )
