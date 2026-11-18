@@ -164,6 +164,9 @@ export function validateRecord(
       // The worker an offer or a claim acknowledgment names, by the opaque
       // id of its login (worker-offers.mjs); never the login itself.
       worker: matches(OPAQUE),
+      // A claim record that ends the claim: the driver settled it after a
+      // verified result, or a person released it (R90.6).
+      released: (value) => ["settled", "person"].includes(value),
       // An intent's check evidence; a void names the intent it voids.
       checks,
       voids: matches(OPERATION),
@@ -442,6 +445,8 @@ export async function replayJournal(
     result.records.push({
       id: entry.id,
       author: login,
+      // When the comment was written, where the journal knows it.
+      at: entry.at ?? null,
       record: decodeRecord(record, { visibility }, readable),
       // As written, for comparing a retried write.
       stored: record,
@@ -599,6 +604,7 @@ export function githubJournal(github, repository, number) {
         id: Number(comment.id),
         body: comment.body,
         author: comment.user?.login ?? null,
+        at: comment.created_at ?? null,
         edited: Boolean(
           comment.updated_at &&
             comment.created_at &&

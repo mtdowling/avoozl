@@ -582,7 +582,14 @@ import { publishSpec } from "./spec-publication.mjs";
 import { specLinks } from "./scm-links.mjs";
 import { specAuthority, takeOverSpec } from "./spec-takeover.mjs";
 import { publishOffer, reserveClaims } from "./worker-claims.mjs";
-import { driverIdOf } from "./spec-scheduler.mjs";
+import {
+  checkStaleClaims,
+  claimStaleMs,
+  claimStatus,
+  reconcileClaims,
+  releaseClaim,
+} from "./worker-release.mjs";
+import { driverIdOf, journalOf } from "./spec-scheduler.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
 import { repositorySetup } from "./repository-setup.mjs";
 import { reanchorSpec, resumeSpec } from "./spec-reanchor.mjs";
@@ -3352,6 +3359,29 @@ export class Operations {
       if (remote) return remote;
       await this.refreshPrivateSpecs();
       if (input.cron === true) await driverTick(store, this.workspaceRoot);
+      // Stale worker claims reach Needs you; nothing releases them (R90.6).
+      if (input.cron === true)
+        await checkStaleClaims(store, {
+          workspaceRoot: this.workspaceRoot,
+          driving: Object.keys(store.getMeta("specDrivers") ?? {}),
+          journalFor: async (planId) => {
+            const journal = journalOf(
+              store,
+              { github: this.github, workspaceRoot: this.workspaceRoot },
+              planId,
+            );
+            return journal && !journal.unreadable
+              ? {
+                  journal,
+                  options: {
+                    visibility: await journal.visibility(),
+                    publicRepositories: journal.publicRepositories ?? [],
+                    names: journal.names,
+                  },
+                }
+              : null;
+          },
+        }).catch(() => 0);
       const result = await tick(store, {
         workspaceRoot: this.workspaceRoot,
         memory: this.tickPolicy,
@@ -6630,7 +6660,14 @@ export class Operations {
     // The driver's side of worker claims (R90.4): offer a task to a worker
     // login, and reserve and acknowledge the requests. A person's own act at
     // this machine; no session or MCP caller.
-    if (name === "spec.offer" || name === "spec.claims") {
+    if (
+      [
+        "spec.offer",
+        "spec.claims",
+        "spec.claims.release",
+        "spec.claims.status",
+      ].includes(name)
+    ) {
       if (context.caller || context.mcp)
         fail("Only a person drives worker offers and claims.", 403);
       const authority = await specAuthority(
@@ -6650,16 +6687,38 @@ export class Operations {
         login: authority.login,
         spec: input.planId,
       };
-      if (name === "spec.claims")
-        return reserveClaims({
-          ...driving,
-          github: this.github,
-          journal: authority.journal,
-          options: authority.options,
-          claims: input.claims,
-          base: input.base,
-          ...(input.cap ? { cap: input.cap } : {}),
+      const held = {
+        ...driving,
+        github: this.github,
+        journal: authority.journal,
+        options: authority.options,
+        claims: input.claims,
+      };
+      if (name === "spec.claims.status")
+        return claimStatus(authority.journal, authority.options, {
+          staleAfter: claimStaleMs(
+            loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config
+              ?.workers?.claimStaleAfter,
+          ),
         });
+      if (name === "spec.claims.release")
+        return releaseClaim({
+          ...held,
+          task: input.task,
+          by: { kind: "person" },
+        });
+      if (name === "spec.claims") {
+        // Carry or settle what exists first, then answer new requests.
+        const reconciled = await reconcileClaims(held);
+        return {
+          reconciled,
+          ...(await reserveClaims({
+            ...held,
+            base: input.base,
+            ...(input.cap ? { cap: input.cap } : {}),
+          })),
+        };
+      }
       const task = store.read().tasks.find((t) => t.id === input.task);
       if (!task) fail("Task not found.", 404);
       return publishOffer(
