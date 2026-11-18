@@ -60,9 +60,9 @@ export function logTail(file) {
 
 // The session's cost in USD from its definition's `cost` (R94.1), or null.
 // `output`: each JSON line of the log holding the field as a number, summed
-// over the session's runs. `file`: the named file holds a JSON number.
-// shortcut: summing assumes a CLI reports each run's own cost, not a running
-// total; P60 checks Claude Code's on a resume.
+// over the session's runs, or with `per: "session"` the last one, since that
+// CLI reports the session's running total. `file`: the named file holds a
+// JSON number.
 export function sessionCost(row, definition) {
   const cost = definition?.cost;
   if (!cost) return null;
@@ -88,7 +88,8 @@ export function sessionCost(row, definition) {
     } catch {
       continue;
     }
-    if (Number.isFinite(value) && value >= 0) total = (total ?? 0) + value;
+    if (Number.isFinite(value) && value >= 0)
+      total = cost.per === "session" ? value : (total ?? 0) + value;
   }
   return total;
 }

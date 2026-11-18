@@ -1823,7 +1823,7 @@ mode of Phase 43.
 - [x] 51.1 The supervisor under launchd or systemd, running the tick too, after avoozl-p57 [R95.3] (§4.28)
 - [x] 51.2 CLI only: `avoozl status` and `avoozl runner status --json`, after 51.1 [R98.5] (§4.28)
 
-- [ ] avoozl-p61 P61 Proof: a headless machine runs tasks with the CLI only, after 51.1, 51.2 [R95, R98.5] (§4.28)
+- [x] avoozl-p61 P61 Proof: a headless machine runs tasks with the CLI only, after 51.1, 51.2 [R95, R98.5] (§4.28)
   - Setup: a machine without Kiro Crew's page, the supervisor under launchd.
   - Action: run two tasks; reboot the supervisor; read status.
   - Expected: both tasks finish; the supervisor comes back and finds its state; `runner status --json` reports both.

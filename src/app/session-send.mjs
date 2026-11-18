@@ -6,6 +6,12 @@ import { fail } from "./store.mjs";
 import { enqueueSessionRequests } from "./session-requests.mjs";
 
 export const SEND_MAX_CHARS = 8000;
+// The resume turn's first line, so the child tells the person's message from
+// relayed text; the process brief names it (processSteps). Only a person
+// queues a send (session.send is person-only), so the line is Avoozl's own.
+export const PERSON_MESSAGE_HEAD =
+  "From the person who runs this task, sent with Send message on the Avoozl page:";
+export const personMessage = (text) => `${PERSON_MESSAGE_HEAD}\n\n${text}`;
 const FINISHED = new Set(["closed", "lost", "gone"]);
 
 // session.send: {slot, text}. Returns the queued request's id and state.
@@ -33,7 +39,7 @@ export function queueSessionSend(store, input = {}) {
           slot,
           task: binding.taskId,
           role: binding.role,
-          text,
+          text: personMessage(text),
         },
       ],
     },
