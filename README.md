@@ -364,18 +364,23 @@ Proposals are pages of the **Retros** entry in the nav.
   proposes up to three changes. You approve or reject each, and an approved
   change is measured afterward.
 
-**Settings > Models** picks the model of each of Avoozl's own chats: the
-planner, the retro and review drafts. It is saved as `models` in
-`.avoozl.json`, for example `{"models": {"retro": "<model>"}}`; a role left
-out, or `auto`, runs on its agent's own model. Avoozl moves no running chat to another model.
+**Settings > Models** is the one place that picks each role's harness,
+agent and model: the worker, the falsifier (investigate first), the
+planner, the plan reviewer, the retro and review drafts. It is saved as
+one `roles` table in `.avoozl.json`, for example
+`{"roles": {"worker": {"harness": "claude-code", "model": "<model>"}, "retro": {"model": "<model>"}}}`.
+A row's `harness` is `kirocrew` for a Kiro Crew chat, or the name of a
+harness definition in this machine's config; only the worker and the
+falsifier take an `agent`. A field left out, or `auto`, keeps the role's
+default: its agent's own model and its project's executor. A task's
+`session` pin wins over its role's row. The worker, planner and retro
+follow the harness; the falsifier, plan reviewer and review drafts still
+run as Kiro Crew chats. Avoozl moves no running chat to another model.
 
-The same page picks the **harness** each role runs on, saved as `harnesses`,
-for example `{"harnesses": {"worker": "claude-code"}}`: `kirocrew` is a Kiro
-Crew chat, and any other value names a harness definition in this machine's
-config. A role left out, or `auto`, runs on its project's executor. A
-task's `session.harness` pin wins over both. The worker, planner and retro
-follow it; the plan reviewer and review drafts still run as Kiro Crew
-chats.
+Older files still load: `models`, `harnesses`, `delivery.agent`,
+`delivery.model`, `delivery.investigate.agent` and `.model`, and
+`flow.retro.model` are read into the table, and a `roles` value wins. The
+next save on Settings > Models writes `roles` and removes them.
 
 The red **Stop the line** pause icon, in the heading of **Dashboards >
 Delivery**, is the Andon cord: a

@@ -1,3 +1,4 @@
+import { roleRun } from "./role-table.mjs";
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 // Investigate before coding (design §4.21, Requirement 75, task 34.1).
@@ -410,6 +411,7 @@ export function investigationStep(
     script = false,
     briefAllowed = () => true,
     writerModel = () => null,
+    config = {},
     now = Date.now(),
   } = {},
 ) {
@@ -532,6 +534,7 @@ export function investigationStep(
       kirocrewRequest(store, {
         task: task.id,
         role: "falsifier",
+        ...roleRun("falsifier", { config, task, project }),
         attempt,
         // Kiro Crew keys a chat by its title, so a later worker attempt's
         // round 1 gets its own name (P50: it reused attempt 1's chat).

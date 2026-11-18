@@ -2,7 +2,8 @@ import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { briefCell } from "./worker-briefs.mjs";
 import { cliCommand } from "./report-command.mjs";
 import { projectExecutor } from "./executors/process.mjs";
-import { harnessExecutor, roleHarness } from "./chat-models.mjs";
+import { resolveRoles } from "./chat-models.mjs";
+import { roleRun } from "./role-table.mjs";
 import { PERSON_MESSAGE_HEAD } from "./session-send.mjs";
 import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
@@ -213,11 +214,11 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
     throw Error("delivery.repositories must be an object.");
   if (delivery.model !== undefined && !MODEL.test(delivery.model))
     throw Error("delivery.model must be a model name.");
-  const reviewers = reviewerList(
-      delivery.reviewers,
-      "delivery",
-      delivery.model,
-    ),
+  // The worker's and falsifier's agent and model come from the roles
+  // table (R98.6), which reads the older delivery keys in.
+  const { worker = {}, falsifier = {} } = resolveRoles(value),
+    writer = worker.model;
+  const reviewers = reviewerList(delivery.reviewers, "delivery", writer),
     normalized = {};
   for (const [id, entry] of Object.entries(repositories)) {
     if (
@@ -252,13 +253,24 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
             reviewers: reviewerList(
               entry.reviewers,
               `delivery.repositories.${id}`,
-              delivery.model,
+              writer,
             ),
           };
   }
   return {
     ...DELIVERY_DEFAULTS,
     ...delivery,
+    agent: worker.agent ?? DELIVERY_DEFAULTS.agent,
+    model: writer,
+    ...(falsifier.agent || falsifier.model || delivery.investigate
+      ? {
+          investigate: {
+            ...(delivery.investigate || {}),
+            ...(falsifier.agent ? { agent: falsifier.agent } : {}),
+            ...(falsifier.model ? { model: falsifier.model } : {}),
+          },
+        }
+      : {}),
     concurrency:
       machineLanes ?? delivery.concurrency ?? validateLanes(value.lanes).local,
     reviewers,
@@ -345,7 +357,7 @@ function reviewerList(value, where, writer) {
         );
       if (unknownModel(writer))
         throw Error(
-          `delivery.model must name the writer's model, not auto, because ${at} has distinctFrom model.`,
+          `roles.worker.model (Settings › Models) must name the writer's model, not auto, because ${at} has distinctFrom model.`,
         );
       if (role.model === writer)
         throw Error(
@@ -2162,11 +2174,8 @@ export function leafBrief(store, data, leaf, options = {}) {
 // The executor a worker runs on: its task's `session.harness` pin (R98.4),
 // else the worker harness saved in Settings › Models (R98.3), else its
 // project's executor (R93.5). Returns {executor, harness?}.
-export function workerExecutor(task, project, harnesses) {
-  const named = task.session?.harness ?? roleHarness({ harnesses }, "worker");
-  return named
-    ? harnessExecutor(named)
-    : { executor: projectExecutor(project) };
+export function workerExecutor(task, project, config) {
+  return roleRun("worker", { config, task, project });
 }
 
 function composeLeafBrief(
@@ -2285,18 +2294,18 @@ export function planReadyDispatches(store, policy, options = {}) {
     waiting = waitingForBatch(store, candidates, {
       workspaceRoot,
       data,
-      harnesses: options.harnesses,
+      config: options.config,
     }),
     skip = new Set([...(options.skip || []), ...waiting]),
     leaves = planBatches(
       store,
       readyLeaves(store, policy, { ...options, skip }),
       candidates.filter((task) => !skip.has(task.id)),
-      { workspaceRoot, data, policy, fits: null, harnesses: options.harnesses },
+      { workspaceRoot, data, policy, fits: null, config: options.config },
     );
   let health = null;
   return leaves.flatMap((leaf) => {
-    const run = workerExecutor(leaf.task, leaf.project, options.harnesses),
+    const run = workerExecutor(leaf.task, leaf.project, options.config),
       pin = leaf.task.session || {};
     // Investigate first (R75.5): never for a batch, whose brief is one
     // stretch of small tasks, and never where the pair table declines it.
@@ -2885,7 +2894,7 @@ export function holdUnprovenReviews(
         slot: next.attempts.at(-1)?.slot,
         title: `Avoozl will not review ${task.id}`,
         text: `Commit ${next.commit.slice(0, 12)}: ${blocked}.`,
-        resume: `Name distinct models in .avoozl.json (delivery.model and the review role's model), or open the writer on a named model, then ask Avoozl to retry ${task.id} (plans_retry_delivery).`,
+        resume: `Name distinct models (the worker's in Settings › Models and the review role's), or open the writer on a named model, then ask Avoozl to retry ${task.id} (plans_retry_delivery).`,
       });
     store.transaction(() => store.put("task_deliveries", next));
   }
@@ -3136,7 +3145,12 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
       )
         continue;
       const label = role.id === "checks" ? "verify" : "review-" + role.id,
-        processRun = projectExecutor(project) === "process";
+        run = roleRun(role.id === "checks" ? "verifier" : "reviewer", {
+          config: options.config,
+          task,
+          project,
+        }),
+        processRun = run.executor === "process";
       dispatch.push(
         kirocrewRequest(store, {
           task: task.id,
@@ -3150,11 +3164,9 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
           // Its brief names a detached worktree (R88.2, as for the worker).
           // A `process` child cannot add it, so the request names it and
           // Avoozl adds it before the child starts (R97.3).
+          ...run,
           ...(processRun
-            ? {
-                executor: "process",
-                worktree: detachedWorktree(project, task, label, attempt),
-              }
+            ? { worktree: detachedWorktree(project, task, label, attempt) }
             : kirocrewDetachedSession(project.id)),
           ...(processRun ? {} : { agent: role.agent }),
           ...(role.model ? { model: role.model } : {}),

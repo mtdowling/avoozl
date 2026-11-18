@@ -220,6 +220,20 @@ test("an allowed labeler on this machine's login gives one read-only chat across
   assert.equal(github.calls.filter(([kind]) => kind === "search").length, 0);
 });
 
+test("a harness saved for review drafts is the one its request names", async (t) => {
+  const { store } = fixture(t),
+    github = fake();
+  github.label();
+  await step(store, github);
+  const [chat] = reviewDraftDispatches(store);
+  assert.equal(chat.executor, "kirocrew");
+  const [child] = reviewDraftDispatches(store, {
+    config: { roles: { reviewDraft: { harness: "codex" } } },
+  });
+  assert.equal(child.executor, "process");
+  assert.equal(child.harness, "codex");
+});
+
 test("the brief names the closing issue, the crew's claim and findings, fenced as data", async (t) => {
   const { store } = fixture(t),
     github = fake();
