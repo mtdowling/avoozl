@@ -26,6 +26,7 @@ import {
   ROLES,
   ROLE_ACCESS,
   harnessTakesModel,
+  provedLine,
   roleIsSet,
   roleProblem,
   KIROCREW_HARNESS,
@@ -117,6 +118,14 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
           {definitions.map((d) => (
             <li key={d.name} className="flex items-center gap-2" data-harness-definition={d.name}>
               {d.name} <Badge variant={d.approved ? 'success' : 'warning'}>{d.approved ? 'hash approved' : 'not approved'}</Badge>
+              <Hint size="xs" data-harness-proved>
+                {provedLine(d)}
+              </Hint>
+              {d.readRoles && (
+                <Hint size="xs" data-harness-read-roles>
+                  Not offered for read-only roles: {d.readRoles}
+                </Hint>
+              )}
             </li>
           ))}
         </ul>
@@ -143,7 +152,7 @@ export default function ModelsSettings({ workspaceId }: { workspaceId: string })
                   <Picker
                     id={`avoozl-harness-${role.key}`}
                     label={<span style={HIDDEN}>{role.label} harness</span>}
-                    items={optionItems(harnessOptions(definitions, row.harness ?? '', host))}
+                    items={optionItems(harnessOptions(definitions, row.harness ?? '', ROLE_ACCESS[role.key], host))}
                     value={harness}
                     onPick={(next) => pickHarness(role.key, next)}
                     placeholder="Type to find a harness, or auto"

@@ -12,6 +12,7 @@ import {
   harnessDefinitionHash,
   harnessPermission,
   parseHarnessDefinition,
+  readRoleProblem,
 } from "../harness-definitions.mjs";
 import { harnessAllow } from "../harness-allow.mjs";
 import {
@@ -933,5 +934,139 @@ test("a child cannot write into its snapshot, and no write root holds a git dire
         tmp: path.join(folder, "tmp"),
       }),
     /holds a git directory/,
+  );
+});
+
+// nk-5.1 (NK6): a definition with no way to write its result runs no
+// read-only role, says why, and still runs a write role.
+test("a definition with no resultAllow is refused for a read role and runs a write role", async (t) => {
+  const { stateDirectory, worktree, supervisor } = machine(t);
+  const executor = processExecutor({
+    stateDirectory,
+    projectFor: () => ({ harness: "fake-cli" }),
+  });
+  const run = async (role, permissionClass) => {
+    const id = await executor.start(
+      role,
+      "1.1",
+      worktree,
+      'RESULT:{"state": "done", "text": "ok"}',
+      null,
+      permissionClass,
+    );
+    await until(async () => {
+      supervisor.pass();
+      return (await executor.status(id)) !== "working";
+    });
+    const db = openSupervisorDatabase(stateDirectory);
+    try {
+      return childRecord(db, id);
+    } finally {
+      db.close();
+    }
+  };
+  const read = await run("verifier", "read");
+  assert.equal(read.exit_code, -1);
+  assert.match(read.error, /fake-cli names no resultAllow/);
+  const write = await run("worker", "write");
+  assert.equal(write.exit_code, 0);
+  assert.equal(write.error, null);
+});
+
+test("each shipped definition says which role classes a proof ran it in", () => {
+  for (const [name, proved, readRoles] of [
+    ["claude-code", ["read", "write"], null],
+    ["codex", ["write"], /codex names no resultAllow/],
+  ]) {
+    const definition = parseHarnessDefinition(
+      JSON.parse(
+        fs.readFileSync(
+          new URL(`../../../examples/harnesses/${name}.json`, import.meta.url),
+          "utf8",
+        ),
+      ),
+    );
+    assert.deepEqual(definition.proved, proved, name);
+    if (readRoles) assert.match(readRoleProblem(definition), readRoles);
+    else assert.equal(readRoleProblem(definition), null, name);
+  }
+  assert.throws(
+    () =>
+      parseHarnessDefinition({
+        name: "x",
+        start: ["x"],
+        resume: ["x"],
+        promptFrom: "stdin",
+        permission: { write: "w", read: "r" },
+        proved: ["read", "read"],
+      }),
+    /proved lists role classes/,
+  );
+});
+
+// nk-5.1 (NK6): a definition with no way to write its result runs no
+// read-only role, says why, and still runs a write role.
+test("a definition with no resultAllow is refused for a read role and runs a write role", async (t) => {
+  const { stateDirectory, worktree, supervisor } = machine(t);
+  const executor = processExecutor({
+    stateDirectory,
+    projectFor: () => ({ harness: "fake-cli" }),
+  });
+  const run = async (role, permissionClass) => {
+    const id = await executor.start(
+      role,
+      "1.1",
+      worktree,
+      'RESULT:{"state": "done", "text": "ok"}',
+      null,
+      permissionClass,
+    );
+    await until(async () => {
+      supervisor.pass();
+      return (await executor.status(id)) !== "working";
+    });
+    const db = openSupervisorDatabase(stateDirectory);
+    try {
+      return childRecord(db, id);
+    } finally {
+      db.close();
+    }
+  };
+  const read = await run("verifier", "read");
+  assert.equal(read.exit_code, -1);
+  assert.match(read.error, /fake-cli names no resultAllow/);
+  const write = await run("worker", "write");
+  assert.equal(write.exit_code, 0);
+  assert.equal(write.error, null);
+});
+
+test("each shipped definition says which role classes a proof ran it in", () => {
+  for (const [name, proved, readRoles] of [
+    ["claude-code", ["read", "write"], null],
+    ["codex", ["write"], /codex names no resultAllow/],
+  ]) {
+    const definition = parseHarnessDefinition(
+      JSON.parse(
+        fs.readFileSync(
+          new URL(`../../../examples/harnesses/${name}.json`, import.meta.url),
+          "utf8",
+        ),
+      ),
+    );
+    assert.deepEqual(definition.proved, proved, name);
+    if (readRoles) assert.match(readRoleProblem(definition), readRoles);
+    else assert.equal(readRoleProblem(definition), null, name);
+  }
+  assert.throws(
+    () =>
+      parseHarnessDefinition({
+        name: "x",
+        start: ["x"],
+        resume: ["x"],
+        promptFrom: "stdin",
+        permission: { write: "w", read: "r" },
+        proved: ["read", "read"],
+      }),
+    /proved lists role classes/,
   );
 });
