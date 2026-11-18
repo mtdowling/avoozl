@@ -118,7 +118,7 @@ const PAIRS = [
   ["#/$defs/conversations", [...CONVERSATION_KEYS]],
   // `flow` is the repository's own flow settings: Settings > Flow writes it
   // and flowPolicy in flow.mjs reads it, beside the keys projectInput lists.
-  ["#/$defs/project", [...PROJECT_KEYS, "flow"]],
+  ["#/$defs/project", PROJECT_KEYS],
   ["#/$defs/project/properties/sandbox", SANDBOX_KEYS],
   ["#/$defs/planningRepository", PLANNING_REPOSITORY_KEYS],
   ["#/$defs/github", [...LEGACY_KEYS, ...POLICY_KEYS]],
