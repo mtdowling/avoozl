@@ -111,6 +111,8 @@ export const SETTINGS_TABS = [
   // Coder, Labels, Crews and rules and the Workflow map are tabs of each repository's editor.
   { key: 'repositories', label: 'Repository setup' },
   { key: 'github', label: 'GitHub' },
+  // Read only: the crews and the values only the person enters in Radar.
+  { key: 'radar', label: 'Issue Radar' },
   { key: 'plugins', label: 'Plugins' },
   { key: 'content', label: 'Content rules' },
   { key: 'flow', label: 'Flow' },
@@ -126,7 +128,9 @@ export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   workspaces: 'The Avoozl workspaces on this machine, each a folder with its own task database, and the settings that stay on this computer.',
   github:
-    "The GitHub settings of the selected workspace, for every repository in it: new-task authority, the Project board and Set up GitHub, which creates what's missing after showing each change.",
+    "The GitHub settings of the selected workspace, for every repository in it: new tasks and issues, sync pace, the Project board, Set up GitHub, which creates what's missing after showing each change, and the GitHub calls Avoozl made.",
+  radar:
+    'The Issue Radar crews that code this workspace’s repositories, and the values only you can enter in Issue Radar. Who codes is set per repository in Repository setup.',
   repositories:
     "Each repository's role says where its tasks live. Its coder, labels, Crews and rules, Workflow map, checks and reviews are tabs under its name. Save only writes .avoozl.json.",
   plugins:
@@ -1250,7 +1254,6 @@ function WorkspaceGitHub(props: {
   choices: SettingsChoices
   set: (change: Partial<SettingsForm>) => void
   setup: ReactNode
-  crews: ReactNode
 }) {
   const { form, choices, set } = props
   const shown = visibleSettings(form.mode)
@@ -1270,9 +1273,9 @@ function WorkspaceGitHub(props: {
       </Card>
     )
   return (
-    <Card>
-      <Section title="GitHub settings" blurb="For every repository in this workspace. Save only writes .avoozl.json.">
-        <div className="flex flex-col gap-4">
+    <>
+      <Card>
+        <Section title="New tasks and issues" blurb="Who owns a new task, and how its GitHub issue is made. For every repository in this workspace.">
           <div style={grid()}>
             <Choice
               id="avoozl-settings-authority"
@@ -1286,9 +1289,6 @@ function WorkspaceGitHub(props: {
               onChange={(value) => set({ defaultAuthority: value })}
             />
             <Text id="avoozl-settings-epic" label="Epic issue type" raw="epicIssueType" rule={{ required: false, blank: 'blank: epics get no issue type' }} placeholder="Epic" width="md" value={form.epicIssueType} onChange={(value) => set({ epicIssueType: value })} />
-            <Text id="avoozl-settings-cache" label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={{ required: false, blank: 'blank: 60. 0 turns the cache off' }} placeholder="60" type="number" width="sm" value={form.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
-            <Text id="avoozl-settings-writes-minute" label="GitHub writes a minute" raw="writesPerMinute" rule={{ required: false, blank: 'blank: 60. At most 80' }} placeholder="60" type="number" width="sm" value={form.writesPerMinute} onChange={(value) => set({ writesPerMinute: value })} />
-            <Text id="avoozl-settings-writes-hour" label="GitHub writes an hour" raw="writesPerHour" rule={{ required: false, blank: 'blank: 400. At most 500' }} placeholder="400" type="number" width="sm" value={form.writesPerHour} onChange={(value) => set({ writesPerHour: value })} />
             {shown.has('subIssueCap') && (
               <Text id="avoozl-settings-sub-issues" label="Sub-issues per parent" raw="subIssues.maxPerParent" rule={{ required: false, blank: SUB_ISSUE_LINE }} placeholder="100" type="number" width="sm" value={form.maxPerParent} onChange={(value) => set({ maxPerParent: value })} />
             )}
@@ -1297,14 +1297,49 @@ function WorkspaceGitHub(props: {
             <input type="checkbox" checked={form.includeDone} onChange={(event) => set({ includeDone: event.target.checked })} />
             Make issues for tasks already done when a spec is approved <span className="text-xs text-muted">issues.includeDone</span>
           </label>
-          <ProjectFields form={form} choices={choices} set={set} />
-          <Section level="sub" title="Set up GitHub" blurb="Creates the labels, Project and fields the settings above name. It reads GitHub first and shows every write before making one.">
-            {props.setup}
-          </Section>
-          {props.crews}
-        </div>
-      </Section>
-    </Card>
+        </Section>
+      </Card>
+      <Card>
+        <Section title="Sync pace" blurb="How long Avoozl keeps GitHub's answers, and how fast it writes. Every write from the app, CLI and tick shares these limits.">
+          <div style={grid()}>
+            <Text id="avoozl-settings-cache" label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={{ required: false, blank: 'blank: 60. 0 turns the cache off' }} placeholder="60" type="number" width="sm" value={form.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
+            <Text id="avoozl-settings-writes-minute" label="GitHub writes a minute" raw="writesPerMinute" rule={{ required: false, blank: 'blank: 60. At most 80' }} placeholder="60" type="number" width="sm" value={form.writesPerMinute} onChange={(value) => set({ writesPerMinute: value })} />
+            <Text id="avoozl-settings-writes-hour" label="GitHub writes an hour" raw="writesPerHour" rule={{ required: false, blank: 'blank: 400. At most 500' }} placeholder="400" type="number" width="sm" value={form.writesPerHour} onChange={(value) => set({ writesPerHour: value })} />
+          </div>
+        </Section>
+      </Card>
+      <Card>
+        <ProjectFields form={form} choices={choices} set={set} />
+      </Card>
+      <Card>
+        <Section title="Set up GitHub" blurb="Creates the labels, Project and fields the settings above name. It reads GitHub first and shows every write before making one.">
+          {props.setup}
+        </Section>
+      </Card>
+    </>
+  )
+}
+
+// Settings › Issue Radar: the crews that code this workspace's repositories
+// and the values only the person can enter in Radar. Read here, written
+// nowhere: who codes is a repository setting.
+function RadarSettings(props: { form: SettingsForm; settings: GitHubSettings; workspaceId: string }) {
+  const crews = visibleSettings(props.form.mode).has('issueRadarCrews') ? (props.settings.crews ?? []) : []
+  if (!crews.length)
+    return (
+      <Card>
+        <Section title="Issue Radar crews" blurb="Crews code a repository whose coder is Issue Radar, in Single repository mode.">
+          <p className="text-sm" data-radar-none>
+            No repository here is coded by an Issue Radar crew. Who codes is set for each repository in Repository setup.
+          </p>
+        </Section>
+      </Card>
+    )
+  return (
+    <>
+      <CrewScopes crews={crews} />
+      <RadarValuesScreen workspaceId={props.workspaceId} repositories={crews.map((crew) => crew.repository)} />
+    </>
   )
 }
 
@@ -1314,7 +1349,6 @@ export function ProjectFields({ form, choices, set }: { form: SettingsForm; choi
   return (
     <div>
       <Section
-        level="sub"
         title="Project fields"
         blurb="The GitHub Project board Avoozl adds managed issues to and fills with Release, Wave and Avoozl state. People move Status; Avoozl never writes it. Leave every field blank to turn Project sync off."
       >
@@ -1452,20 +1486,14 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
           onOpenPlans={props.onOpenPlans}
           rolesNote={settings.rolesNote}
         />
+      ) : tab === 'radar' ? (
+        <RadarSettings form={form} settings={settings} workspaceId={workspaceId} />
       ) : (
         <WorkspaceGitHub
           form={form}
           choices={choices}
           set={set}
           setup={<SetupWizard workspaceId={workspaceId} client={client} settings={settings} shared={sharedSetup(form)} onSaved={reload} />}
-          crews={
-            visibleSettings(form.mode).has('issueRadarCrews') ? (
-              <>
-                <CrewScopes crews={settings.crews ?? []} />
-                <RadarValuesScreen workspaceId={workspaceId} repositories={(settings.crews ?? []).map((crew) => crew.repository)} />
-              </>
-            ) : null
-          }
         />
       )}
       {tab === 'github' && <RateBlock rate={settings.rate} />}
@@ -1528,28 +1556,30 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   )
 }
 
-// The last GitHub rate-limit numbers, then the calls of the last hour by source.
+// The last GitHub rate-limit numbers, then the calls of the last hour by
+// source, all in one bordered section.
 export function RateBlock({ rate }: { rate: RateView | undefined }) {
   const lines = rateLines(rate),
     rows = usageRows(rate)
+  if (!lines.length && !rows.length) return null
   return (
-    <>
-      {lines.length > 0 && (
-        <div className="text-xs text-muted" data-github-rate>
-          <p className="font-medium">GitHub calls, last known</p>
-          {lines.map((line) => (
-            <p key={line}>{line}</p>
-          ))}
-        </div>
-      )}
-      {rows.length > 0 && (
-        <Card>
-          <Section title="GitHub calls in the last hour" blurb={`${rate?.hourCalls ?? 0} calls by source. Calls count against the limit; 304s and cached answers do not. Click a heading to sort.`}>
+    <Card>
+      <Section title="GitHub calls" blurb="The last rate-limit numbers GitHub sent, and the calls of the last hour by source. Calls count against the limit; 304s and cached answers do not.">
+        {lines.length > 0 && (
+          <div className="flex flex-col gap-1 text-xs text-muted" data-github-rate>
+            {lines.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+        )}
+        {rows.length > 0 && (
+          <>
+            <p className="text-xs text-muted">{rate?.hourCalls ?? 0} calls in the last hour. Click a heading to sort.</p>
             <UsageTable rows={rows} />
-          </Section>
-        </Card>
-      )}
-    </>
+          </>
+        )}
+      </Section>
+    </Card>
   )
 }
 

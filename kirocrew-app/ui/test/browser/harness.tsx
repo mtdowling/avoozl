@@ -554,6 +554,33 @@ if (query.get('page') === 'app') {
     },
     choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
   }))
+  // &ghfull=1: the same settings with two Issue Radar crews, their Radar
+  // values and the last hour's GitHub calls by source, so Settings › GitHub
+  // and Settings › Issue Radar show every section.
+  if (query.get('ghfull') === '1') {
+    const base = replyFor('github.settings.get')!({}) as Record<string, unknown>
+    answer('github.settings.get', () => ({
+      ...base,
+      crews: [
+        { repository: 'acme/recipe-box', label: 'ready', link: '/issue-radar' },
+        { repository: 'acme/recipe-api', label: null, link: '/issue-radar' },
+      ],
+      rate: {
+        ...(base.rate as object),
+        resources: { core: { limit: 5000, remaining: 1078, resetAt: new Date(Date.now() + 22 * 60000).toISOString() } },
+        calls: 214,
+        notModified: 61,
+        notModifiedShare: 61 / 214,
+        hourCalls: 153,
+        bySource: { tick: { calls: 88, notModified: 40, cached: 0 }, crew: { calls: 41, notModified: 0, cached: 0 }, view: { calls: 17, notModified: 21, cached: 132 }, review: { calls: 5, notModified: 0, cached: 3 }, setup: { calls: 2, notModified: 0, cached: 0 } },
+      },
+    }))
+    answer('radar.values', (body) => {
+      const repository = (body as { input: { repository: string } }).input.repository
+      const item = (id: string, label: string, value: string) => ({ id, label, value, controls: `What ${label} controls.`, status: 'cannot-verify', note: 'Tick it yourself.' })
+      return { repository, grant: false, link: '/issue-radar', items: [item('repository', 'Repository to connect', repository), item('agent', 'Agent', 'avoozl-crew'), item('scope', 'Label scope', 'ready')] }
+    })
+  }
 }
 // ?page=app&home=1: a busy Home (task home-radar-layout shots): tasks in
 // every state, four Needs you items, two chats (one quiet), a landing
