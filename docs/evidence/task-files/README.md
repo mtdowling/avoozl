@@ -1,5 +1,7 @@
 # Task drawer Files fold (2026-11-13)
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 The task drawer's Files fold (Requirement 75, design §8.10) on the harness
 page (`kirocrew-app/ui/test/browser/harness.tsx`), with the host's
 stylesheet, on Linux with headless Chromium. The fold's reads are answered

@@ -135,7 +135,7 @@ for (const [width, height] of [
         assert.equal(got.icon, true, 'it is an icon')
         assert.match(got.label, /^Stop the line example: /)
         assert.doesNotMatch(got.bar, /Issue Radar/, 'the demo bar names no Radar')
-        assert.match(got.bar, /Avoozl’s workers code the ready ones/)
+        assert.match(got.bar, /Avoozl runs it with coding agents, checks each commit itself/)
         assert.deepEqual(await page.evaluate(VISIBLE_STOP), [], `no visible Stop the line text (${example})`)
         await page.evaluate(`document.querySelector('[data-demo-bar] [data-demo-stop-example]').click()`)
         await settle()

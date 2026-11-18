@@ -90,7 +90,7 @@ export const TRAIN_DEFAULTS = Object.freeze({
   ci: Object.freeze({ waitForLastTrain: false }),
 });
 
-const TRAIN_KEYS = {
+export const TRAIN_KEYS = {
   branchPrefix: leaf({ prefix: true }),
   trigger: {
     minBranches: int(1, 32),
@@ -117,9 +117,14 @@ const TRAIN_KEYS = {
     waitForLastTrain: leaf({ bool: true }),
   },
 };
-const TARGET_KEYS = { policy: leaf({ oneOf: ["optimistic", "gated"] }) };
+export const TARGET_KEYS = { policy: leaf({ oneOf: ["optimistic", "gated"] }) };
 const MACHINE_KEYS = ["platforms", "slots"];
-const LEASE_KEYS = {
+// One platform's command under `validation.full`, one mechanical conflict
+// rule, and one `machine.platforms` entry.
+export const PLATFORM_COMMAND_KEYS = ["command", "results", "suiteArgs"];
+export const MECHANICAL_KEYS = ["paths", "strategy", "command", "verify"];
+export const MACHINE_PLATFORM_KEYS = ["kind", "wrapper", "cleanup", "slot"];
+export const LEASE_KEYS = {
   heartbeatSeconds: int(10, 600),
   missedHeartbeats: int(2, 10),
 };
@@ -162,7 +167,7 @@ function checkValue(spec, value, at, fail) {
       const here = `${at}.${name}`;
       if (!isRecord(entry)) fail(`${here} must be an object.`);
       for (const key of Object.keys(entry))
-        if (!["command", "results", "suiteArgs"].includes(key))
+        if (!PLATFORM_COMMAND_KEYS.includes(key))
           fail(`${here}.${key} is not a known setting.`);
       checkArgv(entry.command, `${here}.command`, fail);
       if (entry.results !== undefined && typeof entry.results !== "string")
@@ -190,7 +195,7 @@ function checkValue(spec, value, at, fail) {
       const here = `${at}.${i}`;
       if (!isRecord(rule)) fail(`${here} must be an object.`);
       for (const key of Object.keys(rule))
-        if (!["paths", "strategy", "command", "verify"].includes(key))
+        if (!MECHANICAL_KEYS.includes(key))
           fail(`${here}.${key} is not a known setting.`);
       if (
         !Array.isArray(rule.paths) ||
@@ -316,7 +321,7 @@ export function validateTrains(config, files = {}) {
       const at = `machine.platforms.${name}`;
       if (!isRecord(env)) fail(`${at} must be an object.`);
       for (const key of Object.keys(env))
-        if (!["kind", "wrapper", "cleanup", "slot"].includes(key))
+        if (!MACHINE_PLATFORM_KEYS.includes(key))
           fail(`${at}.${key} is not a known setting.`);
       if (!["native", "container", "vm"].includes(env.kind))
         fail(`${at}.kind must be native, container or vm.`);

@@ -35,6 +35,7 @@ export interface LaneItem {
 }
 
 export const AVOOZL_STATES: readonly (readonly [AvoozlState, string])[];
+export const NODE_STATES: readonly (readonly [LaneNodeState, string])[];
 export function nodeState(task: LaneTask): LaneNodeState;
 export function laneOf(task: LaneTask | null, item: LaneItem | null): LaneId;
 export function avoozlState(

@@ -18,6 +18,8 @@ import { startAppBackend } from "./app-backend.mjs";
 import { contentHook } from "./public-crews.mjs";
 import { runSupervisor } from "./supervisor.mjs";
 import { machineStatus } from "./machine-status.mjs";
+import { workspaceStatus } from "./workspace-status.mjs";
+import { PROGRAM, helpCommands, helpPointer, helpText } from "./cli-help.mjs";
 import {
   supervisorUnit,
   unitKindFor,
@@ -43,7 +45,8 @@ function generate(config) {
     stats = { added: 0, changed: 0, removed: 0, newTasks: 0 };
   try {
     for (const file of new Set([
-      ...planFiles(config.plansRoot),
+      // No plans root yet means no Markdown plan files.
+      ...(fs.existsSync(config.plansRoot) ? planFiles(config.plansRoot) : []),
       ...Object.keys(store.read().documents).filter(
         (id) => !store.read().documents[id].managed,
       ),
@@ -64,7 +67,8 @@ let command = "help",
   hasCommand = false;
 try {
   for (let i = 0; i < args.length; i++) {
-    if (args[i].startsWith("--")) {
+    if (args[i] === "-h") options.help = true;
+    else if (args[i].startsWith("--")) {
       const key = args[i].slice(2);
       if (
         [
@@ -99,6 +103,7 @@ try {
           "retire",
           "delete-spec-folder",
           "write",
+          "help",
         ].includes(key) &&
         // `driver takeover --force --confirm SPEC` names the spec (R66.15).
         !(key === "confirm" && command === "driver")
@@ -126,12 +131,23 @@ try {
       hasCommand = true;
     } else positionals.push(args[i]);
   }
+  // `avoozl COMMAND --help` and `avoozl --help` are `avoozl help [COMMAND]`.
+  if (options.help && command !== "help") {
+    positionals.unshift(...(hasCommand ? [command] : []));
+    command = "help";
+  }
   const env = options.env || process.env;
   const requestedWorkspace =
     options.workspace ||
     env.AVOOZL_WORKSPACE ||
     env.AICOMMANDER_WORKSPACE ||
     env.NUPP_WORKSPACE;
+  // Where the workspace was named, for `status` to say so.
+  const requestedFrom = options.workspace
+    ? "--workspace"
+    : ["AVOOZL_WORKSPACE", "AICOMMANDER_WORKSPACE", "NUPP_WORKSPACE"].find(
+        (name) => env[name],
+      );
   let registeredWorkspaceId = null,
     configOptions = options;
   if (
@@ -753,7 +769,7 @@ try {
     const action = positionals[0];
     if (!["preview", "accept"].includes(action))
       throw Error(
-        "Usage: gap-report preview|accept PARENT_SPEC (--path FILE | --issue OWNER/REPO#N)",
+        "Usage: avoozl gap-report preview|accept PARENT_SPEC (--path FILE | --issue OWNER/REPO#N)",
       );
     const input = {
       parent: need(positionals[1], "gap-report " + action + " PARENT_SPEC"),
@@ -1094,8 +1110,9 @@ try {
   else if (command === "seed")
     console.log(
       JSON.stringify(
+        // No name installs the default pack (`examples` says which).
         await localOrRequest("workspace.seed", {
-          example: options.example || positionals[0] || "product-launch",
+          example: options.example || positionals[0],
         }),
         null,
         2,
@@ -1463,18 +1480,40 @@ try {
     };
     try {
       let result;
-      if (action === "list" || action === "status")
-        result = {
-          ...((await live("/api/workspaces")) || registry.describe()),
-          ...(command === "status"
-            ? {
-                machine: machineStatus({
-                  stateDirectory: machineStateDirectory(),
-                }),
-              }
-            : {}),
-        };
-      else if (action === "add") {
+      if (action === "list" || action === "status") {
+        result = (await live("/api/workspaces")) || registry.describe();
+        if (command === "status") {
+          // A workspace named on the command line or in the environment is
+          // reported first, whether or not this machine's catalog lists it.
+          // A registered ID names its root in the catalog this command reads.
+          const named =
+              typeof requestedWorkspace === "string"
+                ? requestedWorkspace
+                : null,
+            registered = named ? registry.config.workspaces[named] : null;
+          result = {
+            ...(named
+              ? {
+                  workspace: workspaceStatus({
+                    named,
+                    from: requestedFrom,
+                    config: registered
+                      ? workspaceConfig({
+                          ...options,
+                          workspace: registered.root,
+                        })
+                      : config,
+                    catalog: result,
+                  }),
+                }
+              : {}),
+            ...result,
+            machine: machineStatus({
+              stateDirectory: machineStateDirectory(),
+            }),
+          };
+        }
+      } else if (action === "add") {
         const provided = input();
         const repositories =
           provided.repositories ||
@@ -1660,7 +1699,7 @@ try {
     }
   } else if (command === "plan" && positionals[0] === "approve") {
     const usage =
-        "plan approve PLAN... [--batch N] [--yes --expect HASHES] --as-person",
+        "plan approve PLAN... [--batch N] [--yes --expect HASHES] [--delegate NAME] --as-person",
       names = positionals.slice(1);
     if (!names.length && options.batch === undefined) need(undefined, usage);
     const listed = await localOrRequest("plan.approvalBatches", {}),
@@ -1697,7 +1736,7 @@ try {
         );
       if (selection.missing.length)
         console.log(
-          `Warning: these need specs left out of the selection: ${selection.missing.join(", ")}.`,
+          `${selection.waiting} ${selection.waiting === 1 ? "task waits" : "tasks wait"} on draft specs left out of the selection, and ${selection.waiting === 1 ? "starts" : "start"} only once they are approved: ${selection.missing.join(", ")}. Approving the selection does not need them.`,
         );
       for (const failure of selection.failures)
         console.log(
@@ -1706,9 +1745,13 @@ try {
       const workspace = options.workspace
         ? ` --workspace ${JSON.stringify(options.workspace)}`
         : "";
+      const delegate =
+        typeof options.delegate === "string"
+          ? ` --delegate ${options.delegate}`
+          : " --as-person";
       console.log("To approve exactly these revisions, run:");
       console.log(
-        `  avoozl plan approve ${options.batch !== undefined ? `--batch ${options.batch} ` : ""}${names.join(" ")}${names.length ? " " : ""}--yes --expect ${chosen.map(short).join(",")}${workspace} --as-person`,
+        `  avoozl plan approve ${options.batch !== undefined ? `--batch ${options.batch} ` : ""}${names.join(" ")}${names.length ? " " : ""}--yes --expect ${chosen.map(short).join(",")}${workspace}${delegate}`,
       );
       if (!selection.ok) process.exitCode = 1;
     } else {
@@ -1734,6 +1777,9 @@ try {
           id: entry.id,
           expectedHash: entry.hash,
         })),
+        ...(typeof options.delegate === "string"
+          ? { delegate: options.delegate }
+          : {}),
       });
       if (result.pending) {
         console.log(
@@ -1744,7 +1790,10 @@ try {
             `  https://github.com/${pull.repository}/pull/${pull.number}  (${pull.specs.length} specs)`,
           );
       } else if (result.ok) {
-        console.log(`Approved ${result.approved.length} specs:`);
+        const by = result.approved[0]?.delegation;
+        console.log(
+          `Approved ${result.approved.length} specs${by ? ` as delegate ${by.delegate} on behalf of ${by.onBehalfOf}` : ""}:`,
+        );
         for (const entry of chosen)
           console.log(`  ${entry.spec}  ${short(entry)}  ${entry.tasks} tasks`);
       } else {
@@ -1754,6 +1803,41 @@ try {
         process.exitCode = 1;
       }
     }
+  } else if (command === "approval") {
+    // Approval delegation (R109): who may approve on a person's behalf.
+    const usage =
+      "approval delegates | approval delegate NAME [--on-behalf-of LOGIN] [--note TEXT] | approval revoke NAME";
+    if (positionals[0] === "delegates") {
+      const found = await localOrRequest("approval.delegates", {});
+      if (options.json) console.log(JSON.stringify(found, null, 2));
+      else if (!found.delegates.length)
+        console.log("No approval delegates. Only a person approves.");
+      else
+        for (const entry of found.delegates)
+          console.log(
+            `${entry.identity} approves on behalf of ${entry.onBehalfOf} since ${entry.grantedAt}${entry.note ? ` (${entry.note})` : ""}`,
+          );
+    } else if (positionals[0] === "delegate") {
+      const granted = await localOrRequest("approval.delegate.grant", {
+        identity: need(positionals[1], usage),
+        ...(typeof options["on-behalf-of"] === "string"
+          ? { onBehalfOf: options["on-behalf-of"] }
+          : {}),
+        ...(typeof options.note === "string" ? { note: options.note } : {}),
+      });
+      console.log(
+        `${granted.identity} may approve specs on behalf of ${granted.onBehalfOf}. Revoke with: avoozl approval revoke ${granted.identity}`,
+      );
+    } else if (positionals[0] === "revoke") {
+      const revoked = await localOrRequest("approval.delegate.revoke", {
+        identity: need(positionals[1], usage),
+      });
+      console.log(`${revoked.identity} may no longer approve specs.`);
+      for (const pull of revoked.openApprovalPullRequests)
+        console.log(
+          `  Still open, opened by it: https://github.com/${pull.repository}/pull/${pull.number}`,
+        );
+    } else need(undefined, usage);
   } else if (command === "plan" && positionals[0] === "delete") {
     const id = need(
         positionals[1],
@@ -2000,152 +2084,17 @@ try {
     });
     if (command !== "session-hook")
       console.log(JSON.stringify(result, null, 2));
-  } else if (command === "help")
-    console.log(`Avoozl — plans, tasks, and agents in one local workspace.
-  init PATH [--name NAME] [--port 9428]   Create an empty workspace
-  seed --workspace PATH [--example product-launch]
-  examples --workspace PATH             List available example packs
-  status                                Show the machine host, workspaces, supervisor and its children
-  workspace list
-  workspace add ID --root PATH [--max-concurrent-runs 2]
-  workspace adopt ID --root PATH         Adopt an existing stopped workspace in place
-  workspace remove|start|drain|resume|stop|set-default ID
-  workspace concurrency ID LIMIT        Zero pauses new dispatch
-  workspace rebuild                     Rebuild the catalog from configuration
-  project configure ID --root PATH [--branch main] [--worktrees PATH] [--json CONFIG]
-  github configure OWNER/REPO --project ID [--assignee LOGIN] [--allowed-actors LOGINS]
-  github sync [--repository OWNER/REPO]  Import assigned ready issues
-  github project PLAN_ID --repository OWNER/REPO
-  github preview PLAN_ID                 List projection writes, making none
-  github status                          Show repository and machine registration
-  rebuild [--repository OWNER/REPO]      Rebuild GitHub tasks from their issues and tracker plugin tasks from their records
-  github setup --mode plans-repo|single-repo [--planning-repository OWNER/REPO]
-      [--repositories A,B] [--project-owner LOGIN] [--project-number N | --project-title T]
-      [--releases A,B] [--iteration] [--table-by-wave] [--no-epic]
-                                         Preview the GitHub setup; add --confirm --preview-hash HASH to apply
-  mirror adopt|create OWNER/MIRROR --source OWNER/REPO [--ticked IDS]
-                                         Dry run of the mirror setup; add --confirm --preview-hash HASH to apply
-  setup OWNER/REPO --project ID --checks NAME[,NAME] [--base BRANCH]
-      [--methods merge,squash,rebase] [--landing pr|direct|train|off] [--yes]
-                                         Preview repository setup for landing; --yes applies it
-  integrator run                         Run this workspace's integrator for landing: train (the supervisor starts it)
-  integrator status [--json]             Per train target: lease holder, running train and its step
-  landing status [--json]                Queue depth, time in queue and the running train, from stored records
-  landing submit TASK --branch NAME      Queue a pushed batch branch for the integrator (landing: train)
-  spec publish SPEC [--repository OWNER/REPO]
-                                         Publish the spec issue, or its local journal without GitHub
-  spec takeover SPEC                     Take over a published spec: write the next driver generation
-  spec journal reanchor SPEC --held ID,... --tail ID [--yes]
-                                         Preview, then with --yes restore a held journal; the spec stays held
-  spec journal resume SPEC --tail ID     Resume a spec after its journal was reanchored
-  spec export-issues SPEC [--repository OWNER/REPO] [--confirm]
-                                         Preview, then with --confirm create the spec's unfinished task issues and stop driving it
-  workspace-repo configure PATH [--branch avoozl-workspace] [--directory .avoozl]
-  workspace-repo publish [--dry-run]     Safely publish portable planning state
-  workspace-repo sync                    Hydrate from the configured private repo
-  workspace-repo status                  Show portable repository revisions
-  andon                                 Where the old andon gate went (rule actions and flow stop)
-  planning publish PLAN_ID               Open a private planning pull request
-  planning reconcile                     Project tasks from merged planning PRs
-  query [--q QUERY] | show TASK_ID | update TASK_ID --status STATUS
-  task links TASK_ID [list]             A task's links, newest first
-  task links TASK_ID add --link URL --label LABEL
-  task links TASK_ID edit LINK_ID --link URL --label LABEL  (a person only)
-  task links TASK_ID remove LINK_ID     Remove a link; it stays in the activity history (a person only)
-  task links TASK_ID show LINK_ID [--off]  Show it on the task's issue, or stop (a person only)
-  task done TASK_ID [--skipped|--refused] [--link URL --label LABEL]
-                                         Mark a manual task done, skipped or refused (a person only;
-                                         refused is a no-go and keeps its dependents held)
-  task reopen TASK_ID                   Reopen a manual task; its dependents wait again (a person only)
-  task supersede TASK_ID [--id NEW_ID] [--title TITLE] [--requires A,B] [--reason TEXT]
-                                         Replace a local task; its dependents wait on the new one
-  activity TASK_ID --action start|heartbeat|pause|finish ...
-  skill --workspace PATH                Print the portable workflow skill
-  mcp --workspace PATH                  Stdio MCP server for the workspace database
-  mcp --url URL                         Stdio bridge to a running server
-  mcp --kirocrew                        Kiro Crew app server: workspace per caller
-  tick --workspace PATH                 Run one workspace tick and print its intents
-  content [list]                        Content rule sets, open decisions and report findings
-  content allow DECISION_ID --reason TEXT Allow one blocked write once (a person only)
-  content hook                          A PreToolUse hook: refuse a crew write that matches a rule
-  content show DECISION_ID              Read the matched line again from its source
-  content check --push --task TASK_ID   The pre-push hook: refuse a push whose added lines match
-  plan batches [--writes]               Draft specs in approval order: batch 1 needs no unapproved spec; a loop shares a batch
-  plan review SPEC [--start] [--json]    A spec's review findings: severity, state and anchor
-  plan finding ID accept|reject|defer|resolve|reopen [--note TEXT] [--revision HASH]
-                                        Decide one review finding; reject needs --note (a person only)
-  plan approve PLAN... [--batch N] [--yes --expect HASHES]
-                                        Preview approving specs together; --yes approves all or none (a person only)
-  plan delete PLAN_OR_SPEC [--yes] [--retire] [--delete-spec-folder]
-                                        Preview a plan delete; --yes deletes (a person only). --retire is for an approved plan
-  plan restore PLAN_ID                  Bring a deleted plan back (a person only)
-  intake [list] [--source ID] [--kind KIND] [--state open|closed] [--untriaged]  Incoming items
-  intake view SOURCE ID                 One incoming item, its route and history
-  intake submit --source ID --file ITEMS.json  Send 1-100 items to an mcp intake source
-  intake sources                        Declared intake sources and their read state
-  intake deliver|plan SOURCE ID         Deliver this or Plan this on an item (a person only)
-  intake confirm SOURCE ID --hash H     Confirm an item's changed text, H from intake view (a person only)
-  plugins [list]                        Declared plugins, their approval and health
-  plugins add ID --path DIR|--package NAME|--git URL --ref REF [--subdir DIR] [--contract 1] [--config JSON] [--repository [--confirm-public]]
-  plugins update ID                     Resolve a git plugin's ref again and fetch that commit
-  plugins approve ID --hash HASH [--commit SHA] Approve the exact version, hash and commit \`plugins list\` shows
-  plugins disable|enable|remove ID      Stop, restart, or remove a plugin; its tasks park as needs you
-  plugins pack-preview ID [--repo OWNER/REPO]  What importing a plugin's pack would create, change, or keep
-  plugins pack-import ID --preview HASH [--repo OWNER/REPO] [--accept-lowered] [--confirm-public]  Import the exact preview
-  next [--hook]                         Crew Mode buckets: ready, running, waiting, needsYou, done
-  flow [--repository ID] [--epic ID] [--plan ID [--phase ID]] [--window N] [--stage STAGE] Where delivery time goes (§4.11)
-  epics                                 Epics across plans, each with member plans and computed progress
-  epic ID                               One epic: goal, what done means, member plans, open decisions
-  flow run-anyway STOP_ID --confirm     Resume dispatch while a line stop stays open (a person only)
-  flow stop --scope all|repo|spec|task [--repository ID] [--spec ID] [--task ID] --reason TEXT
-                                        Pull the Andon cord: stop new work in a scope
-  flow stop --full --reason TEXT        Stop all agents: also stop every running chat Avoozl opened (needs the app backend)
-  public-crews stop                     Stop public crews: pull the cord on every public repository and list the crews to pause
-  gap-report preview|accept SPEC (--path FILE | --issue OWNER/REPO#N)  Turn a gap report into proposed tasks in the sub-specs of a parent spec
-  gate list [--json]                    Tracker gates: state, last and next check, and what each holds
-  gate clear TASK --reason TEXT         Clear a tracker gate as an order (the GitHub login of this machine must be allowed)
-  review drafts [--repository OWNER/REPO] [--state STATE] [--json]  Review drafts made from the review label, and the GitHub search for them
-  flow resume STOP_ID                   Resume a pulled stop (a person only)
-  checks run --task TASK_ID             Run the declared checks in this worktree and record the pass
-  runner accept FILE|-                  Runner mode: take one task envelope (a runner's ssh calls this)
-  runner status --json                  This runner's tasks and workers; elsewhere the supervisor and its children
-  runner handoff ENVELOPE.json --host H Runner mode: hand a task to host H over ssh
-  runner pull --host H                  Runner mode: read host H's status
-  worker pull                           Worker mode: read this worker's offers from spec journals
-  worker claim                          Worker mode: ask for pulled offers, start the acknowledged ones
-  worker setup                          Worker mode: preview login, access, claims and executor
-  driver status [SPEC]                  Which machine drives each spec, and why one reads only here
-  driver handoff SPEC [--folder DIR [--unfinished]] [--cancel]
-                                        Stop new work for SPEC; with --folder write the export (a person only)
-  driver takeover SPEC [--file EXPORT.json | --rebuild [--yes]]
-                                        Drive SPEC here once its plan issue names you (a person only)
-  driver takeover SPEC --force --confirm SPEC [--file EXPORT.json | --yes]
-                                        Assign the plan issue to you and take over by force (a person only)
-  driver set [--label LABEL] [--heartbeat MINUTES]  This computer's machine label and heartbeat
-  claim TASK_ID --slot SESSION [--model MODEL] Claim a ready leaf for a Crew Mode worker session
-  report TASK_ID --slot SESSION --kind done|blocked|question|progress [--commit SHA] [--text TEXT]
-  retry TASK_ID [--dismiss FINDING --reason TEXT] Resume a leaf that stopped for a decision
-  verify allow TASK_ID --reason TEXT  Let one held commit's protected paths land
-  pick-again TASK_ID                    The next attempt picks its agent and model afresh
-  routing [view|preview]                Crews and checks, the routing prompt, providers; a dry run on ready tasks
-  routing set --file ROUTING.json       This machine's routing: {enabled, prompt, model}
-  crews set --file CREWS.json [--stale SECONDS]  This machine's crew tags, limits, and hand-back
-  app-backend --workspace PATH          Kiro Crew app backend on 127.0.0.1 ($PORT)
-  supervisor [--tick-seconds N]         This machine's owner of process children (one per machine); --tick-seconds runs the tick too (headless)
-  supervisor unit [launchd|systemd] [--write [--force]]  Print or write the unit that runs the supervisor and tick at login
-  backup --workspace PATH --output FILE  Local-only; registered IDs are refused
-  export --workspace PATH [--output FILE] Local-only; registered IDs are refused
-  import SNAPSHOT.json --workspace PATH [--dry-run] Local-only; registered IDs are refused
-  generate | check --workspace PATH    Reindex Markdown; validate the task graph
-  health [--url URL]                    Ask a running app backend whether it is up
-  OPERATION --json JSON [--revision N] [--as-person] --workspace PATH
-  OPERATION --input FILE --workspace PATH
-
-Use --workspace PATH or AVOOZL_WORKSPACE to choose data independently
-of the application checkout. --db, --documents, --port, --operator and --url
-override workspace configuration. A person-only operation run inside an agent
-session needs --as-person. UI, CLI and MCP share application operations.`);
-  else if (["task", "checks", "crews"].includes(command))
+  } else if (command === "help") {
+    // `avoozl help`, `avoozl help GROUP`, `avoozl help COMMAND` and
+    // `avoozl help all`, all rendered from the one table in cli-help.mjs.
+    // `avoozl OPERATION --help` has no page of its own and gets the overview.
+    const text = helpText(positionals[0]) ?? (options.help ? helpText() : null);
+    if (text === null)
+      throw Error(
+        `There is no help for ${positionals[0]}. ${PROGRAM} help lists every command by job.`,
+      );
+    console.log(text);
+  } else if (["task", "checks", "crews"].includes(command))
     throw Error(
       {
         task: "Choose task supersede.",
@@ -2156,7 +2105,7 @@ session needs --as-person. UI, CLI and MCP share application operations.`);
   else {
     if (!useServer() && !fs.existsSync(dbPath))
       throw Error(
-        `${command} is not a command; run avoozl help. Operations need a workspace: avoozl init PATH, then use --workspace PATH.`,
+        `${command} is not a command. ${helpPointer(command)} Operations need a workspace: avoozl init PATH, then use --workspace PATH.`,
       );
     try {
       console.log(
@@ -2173,12 +2122,19 @@ session needs --as-person. UI, CLI and MCP share application operations.`);
     } catch (error) {
       if (!/^Unknown operation /.test(error.message)) throw error;
       throw Error(
-        `Unknown command or operation ${command}. Run avoozl help for commands.`,
+        `Unknown command or operation ${command}. ${helpPointer(command)}`,
       );
     }
   }
 } catch (error) {
   console.error(error.message);
+  // A refusal over how a command was written names that command's help.
+  if (
+    (error.message.startsWith(`Choose ${command} `) ||
+      /^(Usage: |Missing value for --)/.test(error.message)) &&
+    helpCommands().includes(command)
+  )
+    console.error(helpPointer(command));
   process.exitCode =
     command === "session-hook" || (command === "next" && options.hook) ? 0 : 1;
 }

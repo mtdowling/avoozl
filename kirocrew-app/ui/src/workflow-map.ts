@@ -164,7 +164,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     jump: jump('mergeMethod'),
   }
   const claim = named(repository.crewLabels.claim ?? '', DEFAULTS.claim, 'Claim label', 'claim')
-  const needsHuman = named(repository.crewLabels.needsHuman ?? '', DEFAULTS.needsHuman, 'Needs-human label', 'needsHuman')
+  const needsHuman = named(repository.crewLabels.needsHuman ?? '', DEFAULTS.needsHuman, 'Escalation label', 'needsHuman')
   const review = placeholderLabel(repository, 'reviewLabel', DEFAULTS.review, 'Review label')
   const drafted = placeholderLabel(repository, 'draftedLabel', DEFAULTS.drafted, 'Drafted label')
 
@@ -188,7 +188,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
 
   const labels: LabelRow[] = [
     { key: 'plan', label: 'Planning', name: plan.text, source: plan.source, writer: 'you', jump: plan.jump },
-    { key: 'needsHuman', label: 'Needs-human', name: needsHuman.text, source: needsHuman.source, writer: 'radar', jump: needsHuman.jump },
+    { key: 'needsHuman', label: 'Escalation', name: needsHuman.text, source: needsHuman.source, writer: 'radar', jump: needsHuman.jump },
     { key: 'claim', label: 'Claim', name: claim.text, source: claim.source, writer: 'radar', jump: claim.jump },
     { key: 'ready', label: 'Ready', name: ready.text, source: ready.source, writer: 'avoozl', jump: ready.jump },
     { key: 'approval', label: 'Approval', name: approval.text, source: approval.source, writer: 'you', jump: approval.jump },
@@ -257,7 +257,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     title: 'Epic',
     cards: [
       { key: 'epic-request', who: 'you', title: 'A feature request comes in', text: 'An issue that is too big for one crew.', values: [] },
-      { key: 'epic-punt', who: 'radar', title: 'The crew punts', text: 'It adds its needs-human label and stops.', values: [needsHuman], ...tag('epic-punt') },
+      { key: 'epic-punt', who: 'radar', title: 'The crew punts', text: 'It adds its escalation label and stops.', values: [needsHuman], ...tag('epic-punt') },
       { key: 'epic-plan-label', who: 'you', title: 'You add the planning label', text: 'Only people the repository allows count.', values: [plan, actors], ...tag('epic-plan-label') },
       { key: 'epic-draft', who: 'avoozl', title: 'Avoozl drafts the spec', text: 'A spec with tasks and their order.', values: [], ...tag('epic-draft') },
       { key: 'epic-approve', who: 'you', title: 'You approve', text: 'Add the approval label, or approve in Avoozl or a chat.', values: [approval], ...tag('epic-approve') },

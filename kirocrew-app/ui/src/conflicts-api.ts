@@ -110,6 +110,7 @@ export function noActionReason(item: ConflictItem): string | null {
     return 'Check the public repository, then resume the stop from the banner. Avoozl forwards nothing until you do.'
   // A source conflict Avoozl asked about carries its own buttons (ConflictFixActions.tsx).
   if (item.kind === 'needs-human' && item.reason === 'conflict-fix') return null
+  if (item.kind === 'spec-pull') return null
   // A merge method the repository refuses (RC28.7) is fixed in GitHub's settings.
   if (item.kind === 'needs-human' && item.reason === 'merge-method')
     return 'Change the GitHub setting it names, or change the merge method on the Landing tab in Repository setup. The row clears on the next check.'

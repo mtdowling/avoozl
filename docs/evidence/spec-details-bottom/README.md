@@ -1,5 +1,7 @@
 # Spec view: details in a bottom panel (2026-11-17)
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 The spec's details (Epic, Category, Repositories, Phases, Progress, Dates,
 Open decisions, Outline, Activity) moved from the right-hand column into a
 panel under the spec, like an IDE's bottom panel. The sections sit in a

@@ -13,7 +13,7 @@ import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { ICON, IconBtn, IconLabel, ShowMore, ViewHeading, useConfirm, usePages } from './controls.tsx'
-import { Check, CircleDot, CirclePlus, FileText, GitPullRequest, GitPullRequestDraft, Inbox, MessageSquare, Play, Radar, RefreshCw, ScanSearch, Users, X, type LucideIcon } from './icons.ts'
+import { Check, CircleDot, CirclePlus, ClipboardCheck, FileText, GitPullRequest, GitPullRequestDraft, Inbox, MessageSquare, Play, Radar, RefreshCw, ScanSearch, Users, X, type LucideIcon } from './icons.ts'
 import { PublicCrews } from './PublicCrews.tsx'
 import { SendToRadar } from './SendToRadar.tsx'
 import { useMedia } from './use-media.ts'
@@ -144,8 +144,16 @@ function Labels({ labels }: { labels: string[] }) {
 
 type Start = (item: UntriagedItem, action: 'deliver' | 'plan') => void
 
-function Actions({ item, onSend, onReview, onStart }: { item: UntriagedItem; onSend?: (item: UntriagedItem) => void; onReview?: (item: UntriagedItem) => void; onStart?: Start }) {
+function Actions({ item, onSend, onReview, onStart, onSpec }: { item: UntriagedItem; onSend?: (item: UntriagedItem) => void; onReview?: (item: UntriagedItem) => void; onStart?: Start; onSpec?: (item: UntriagedItem) => void }) {
   const name = itemName(item)
+  // A pull request that only changes a spec (R107.2): none of the other
+  // buttons fit it. Review as spec adopts it into that spec.
+  if (item.specPull && onSpec)
+    return (
+      <span className="inline-flex gap-1.5">
+        <IconBtn icon={ClipboardCheck} label={`Review as spec: ${name}`} tooltip={`Review as spec: reads this pull request as a proposed change to the spec ${item.specPull.spec}. Nothing is approved or merged.`} onClick={() => onSpec(item)} />
+      </span>
+    )
   // An item from another source: a person's Plan this and Deliver this.
   // Issue Radar works GitHub only.
   if (sourceOf(item) !== 'github')
@@ -241,7 +249,7 @@ function Select(props: { item: UntriagedItem; checked: boolean; onChange: (on: b
   )
 }
 
-function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void; onReview: (item: UntriagedItem) => void; onStart: Start }) {
+function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void; onReview: (item: UntriagedItem) => void; onStart: Start; onSpec: (item: UntriagedItem) => void }) {
   const keys = props.items.map(itemKey)
   const all = keys.length > 0 && keys.every((key) => props.selected.has(key))
   return (
@@ -313,7 +321,7 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
                 {sourceOf(item) === 'github' ? item.comments : ''}
               </td>
               <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
-                <Actions item={item} onSend={props.onSend} onReview={props.onReview} onStart={props.onStart} />
+                <Actions item={item} onSend={props.onSend} onReview={props.onReview} onStart={props.onStart} onSpec={props.onSpec} />
               </td>
             </tr>
           ))}
@@ -324,7 +332,7 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
 }
 
 // Narrow screens: one stacked row per item, same parts.
-function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void; onReview: (item: UntriagedItem) => void; onStart: Start }) {
+function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void; onReview: (item: UntriagedItem) => void; onStart: Start; onSpec: (item: UntriagedItem) => void }) {
   return (
     <ul className="flex flex-col" data-untriaged-stack>
       {props.items.map((item) => (
@@ -344,7 +352,7 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
             <PullState item={item} />
             <Labels labels={item.labels} />
           </div>
-          <Actions item={item} onSend={props.onSend} onReview={props.onReview} onStart={props.onStart} />
+          <Actions item={item} onSend={props.onSend} onReview={props.onReview} onStart={props.onStart} onSpec={props.onSpec} />
         </li>
       ))}
     </ul>
@@ -523,6 +531,18 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
       setCheckError(errorMessage(caught))
     }
   }
+  // Review as spec (R107.2): a person links a spec-only pull request to its spec.
+  const adoptSpec = async (item: UntriagedItem) => {
+    if (!workspaceId) return
+    setCheckError(null)
+    try {
+      const made = await client.adoptSpec(workspaceId, item)
+      setNote(`${itemName(item)} is now a proposed change to the spec ${made.spec}. Open it under Specs.`)
+      await reload()
+    } catch (caught) {
+      setCheckError(errorMessage(caught))
+    }
+  }
   // Plan this and Deliver this (R50.15), asked first with the item's name.
   const start = async (item: UntriagedItem, action: 'deliver' | 'plan') => {
     if (!workspaceId) return
@@ -622,7 +642,7 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
         <div className="flex flex-col gap-2" data-radar-view>
           <p className="text-xs text-muted">
             Issues a crew holds, or that you sent to one. Crews act with your GitHub login, so Avoozl tells their work apart by label: a close on an issue a crew claimed counts only once its pull request merges, a crew’s
-            labels never start Avoozl rules, and a crew’s “needs human” label shows under Needs you.
+            labels never start Avoozl rules, and a crew’s escalation label shows under Needs you.
           </p>
           {radarItems.length === 0 ? (
             <EmptyState icon={<Radar size={36} aria-hidden="true" />} title="Nothing with Issue Radar" subtitle="Select issues under Triage and press Send to Issue Radar." />
@@ -685,9 +705,9 @@ export default function UntriagedView({ workspaceId, onOpenSources, embedded, sh
           {shown.length === 0 ? (
             <p className="text-sm text-muted">No untriaged item matches these filters. Clear them to see all {list.items.length}.</p>
           ) : narrow ? (
-            <Stack items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} onReview={(item) => void review(item)} onStart={(item, action) => void start(item, action)} />
+            <Stack items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} onReview={(item) => void review(item)} onStart={(item, action) => void start(item, action)} onSpec={(item) => void adoptSpec(item)} />
           ) : (
-            <Table items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} onReview={(item) => void review(item)} onStart={(item, action) => void start(item, action)} />
+            <Table items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} onReview={(item) => void review(item)} onStart={(item, action) => void start(item, action)} onSpec={(item) => void adoptSpec(item)} />
           )}
           <ShowMore {...pages.more('untriaged', shown.length)} />
         </>

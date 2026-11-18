@@ -2,8 +2,8 @@
 
 Status: Draft
 
-Requirements are in `requirements.md` (SW1 to SW11). Section numbers here
-(D1 to D10) are this file's; `§` numbers refer to
+Requirements are in `requirements.md` (SW1 to SW12). Section numbers here
+(D1 to D11) are this file's; `§` numbers refer to
 `.kiro/specs/avoozl/design.md`.
 
 ## D1. Shape
@@ -24,16 +24,17 @@ Kiro Crew gateway ── signed principal ──┐     avoozl serve  (serve-ser
 ```
 
 The views do not change. The page is built twice: once against the host SDK
-as externals (today), once against the SDK stand-in with React and the icons
-bundled (D2, D3). The new server checks its own owner session and hands the
+as externals (today), once with Kiro Crew's own parts at the pin, React and
+the icons bundled (D2, D3, D11). The new server checks its own owner session and hands the
 same request to the same dispatch the app backend uses (D4).
 
 | Part                                     | New or changed | Job                                                    |
 | ---------------------------------------- | -------------- | ------------------------------------------------------ |
-| `kirocrew-app/ui/src/standalone/sdk.ts`   | New            | `useAppApi`, `useNavigate`, `useChatLauncher` stand-ins |
-| `kirocrew-app/ui/src/standalone/sdk-ui.tsx` | New          | `PageHeader`, `Card`, `Btn`, … stand-ins                |
-| `kirocrew-app/ui/src/standalone/main.tsx` | New            | Entry: mounts `App`, header, theme control              |
-| `kirocrew-app/ui/src/standalone/theme.css` | New           | Light and dark variables, utilities (D6)                |
+| `kirocrew-app/ui/src/standalone/main.tsx` | New            | Entry: Kiro Crew's provider, the page, the header       |
+| `kirocrew-app/ui/src/standalone/host.ts`  | New            | The host shim: navigate, notify, CSRF header, theme     |
+| `kirocrew-app/ui/src/standalone/app.css`  | New            | Imports Kiro Crew's stylesheet; adds the page to its scan |
+| `kirocrew-app/ui/kirocrew-pin.json`       | New            | The pin: tag, commit, digest (D11)                      |
+| `scripts/fetch-kirocrew-ui.mjs`           | New            | Fetches the pinned source to a cache and checks it      |
 | `kirocrew-app/ui/vite.config.ts`          | Changed        | `--mode standalone` with aliases and no externals       |
 | `scripts/build-kirocrew-app.mjs`          | Changed        | Runs the third build                                   |
 | `src/app/command-dispatch.mjs`            | New            | The body of today's `/api/command` handler              |
@@ -43,51 +44,73 @@ same request to the same dispatch the app backend uses (D4).
 | `src/app/cli.mjs`                         | Changed        | `serve`, `serve link`                                   |
 | `src/app/supervisor.mjs`                  | Changed        | Optional server child (D8)                              |
 
-## D2. The SDK stand-in
+## D2. The host shim
 
-The standalone Vite mode aliases `@kirocrew/app-sdk` to
-`src/standalone/sdk.ts` and `@kirocrew/app-sdk/ui` to
-`src/standalone/sdk-ui.tsx`. `host.ts` keeps importing the host names, so
-no view changes (SW1.2).
+Inside Kiro Crew, the host gives the page two modules and a stylesheet. The
+standalone build gives it the same two modules from Kiro Crew's own source
+(D11) and writes only what the host does around them.
 
-- `useAppApi()` returns one object for the page's life with `request`,
-  `get`, `post`, `put` and `del` over `fetch`, `credentials: "same-origin"`,
-  and the `X-Avoozl-CSRF` header read once from
-  `<meta name="avoozl-csrf">`. A non-2xx rejects with `{ status, body }`
-  (SW1.3). `shareReads` and the Demo guard in `host.ts` wrap it as they wrap
-  the host's.
-- `useNavigate()` pushes a path under `/apps/avoozl` with
-  `history.pushState` and dispatches `popstate`, so the page's router sees
-  it. Any other path logs one line and does nothing (SW1.4). The page's own
-  in-page Back history stays as it is.
-- `useChatLauncher()` returns `openChat`, which opens the Start a session
-  dialog (D7).
-- The UI parts are small components with the declared props, styled only
-  with the theme variables. `SegmentedControl` honors `compact`, `collapse`
-  and `wrap` as the declaration describes, without the host's animated pill.
+- **The provider.** `main.tsx` mounts `App` inside Kiro Crew's
+  `AppApiProvider` with `appName`, `appDisplayName`, `appVersion`,
+  `allowedApiPaths` from `app.json`, `navigateFn`, `notifyFn` and a
+  session key (S: the props the spike passed). The provider brings its own
+  query client and identity context (S). Kiro Crew's i18n is started once,
+  as its Storybook does.
+- **Requests.** The provider's client has no setting for a base address or a
+  fetch function (S). It calls `fetch` with a relative path, so
+  `/apps/avoozl/api/command` reaches `avoozl serve` as it is. The entry
+  wraps `fetch` once to add `X-Avoozl-CSRF`, read from
+  `<meta name="avoozl-csrf">`, to requests for the server origin (SW1.4).
+  `shareReads` and the Demo guard in `host.ts` wrap the client as they do
+  in Kiro Crew.
+- **Navigation.** `navigateFn` pushes a path under `/apps/avoozl` with
+  `history.pushState` and dispatches `popstate`. The SDK's chat launcher
+  sets a launch record and navigates to `/chat…` (S); the shim reads that
+  record and opens the Start a session dialog (D7). The page's own in-page
+  Back history stays as it is. The page accepts only a path under
+  `/apps/<name>` as its base (S), which is where `avoozl serve` serves it.
+- **Gateway routes.** The page also calls a few of Kiro Crew's own routes
+  (models, reveal, chat slots, Spec Builder). `avoozl serve` answers each
+  from the table of what needs Kiro Crew (D9): with Avoozl's own data where
+  it has it, such as the harness list for models, and with "Needs Kiro
+  Crew" otherwise.
 
-A type test compiles a file that assigns each stand-in export to the
-declared type in `kirocrew-app-sdk.d.ts`, so a drift fails `tsc` (SW1.5).
+Nothing here draws a button, a card or an input. The build test of SW1.7
+fails if a file under `standalone/` exports one of the SDK's names.
 
 ## D3. The second bundle
 
 `vite build --mode standalone` builds `src/standalone/main.tsx` with no
-`rollupOptions.external`, into `dist/standalone/` as `index.html`,
-`app.js` and `app.css`, with `emptyOutDir: false` like the panel build.
-`main.tsx` imports only the `lucide-react` icons `src/icons.ts` names, so
-tree shaking drops the rest. `react`, `react-dom` and `lucide-react` are
-already installed for the type checks and tests; this adds no runtime
-dependency.
+`rollupOptions.external`, into `dist/standalone/`, with `emptyOutDir:
+false` like the panel build. Its aliases point the two SDK specifiers, and
+the `@/` alias Kiro Crew's files use among themselves, into the fetched
+source (D11).
 
-The page today has no stylesheet: its utility classes come from Kiro Crew's
-CSS. The standalone build needs its own. It uses Tailwind CSS v4 through
-`@tailwindcss/vite`, scanning `kirocrew-app/ui/src`, as a dev dependency of
-the UI package only. A hand-written generator was the other option; the page
-uses about 2,300 class attributes with arbitrary values such as
-`md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]`, and a generator would have to
-reimplement that syntax. The class check in `host-classes.test.mjs` then
-runs against `dist/standalone/app.css` with no skip (SW2.3), and keeps
-running against the host's CSS when `KIROCREW_HOST_CSS` is set.
+**Only what the page reaches.** Kiro Crew's SDK entry file also re-exports
+its chat panel, and that import reaches the whole dashboard: built whole,
+the script was 27.7 MB (S). The build config answers those six chat
+re-exports with an empty module, takes the UI parts from the two files that
+define them, and loads English only. That left 32 Kiro Crew modules and a
+script of 2.7 MB, 0.8 MB compressed, with a stylesheet of 0.4 MB (S). The
+list of what is left out is one table in the build config, with the reason
+for each line (SW12.3). The budget of SW2.6 is set from the first real
+build and grows only in a change that says why.
+
+**The stylesheet.** `app.css` is two lines: an import of Kiro Crew's
+stylesheet entry, and one more source folder for it to scan, Avoozl's page.
+Kiro Crew's own Tailwind then generates every class the page uses, with
+Kiro Crew's tokens (S: no unstyled area in the views captured). Avoozl
+writes no rule. `host-classes.test.mjs` runs against the built file with
+no skip (SW2.3), and keeps running against a host's CSS when
+`KIROCREW_HOST_CSS` is set.
+
+**React.** One copy serves the page and Kiro Crew's parts. Both React
+18.3.1, which Kiro Crew uses, and 19.3.1, which Avoozl's tests use, built
+and rendered the same views (S). The standalone build takes the version the
+pin's lockfile resolves, so it matches what the page runs on inside Kiro
+Crew. Two views use a React 19 form of `<style>`; on React 18 the element
+stays where it is written and the rule still applies (S), which is also
+what happens inside Kiro Crew today.
 
 The build test for SW2.2 records the sorted import specifiers of
 `dist/index.mjs` and `dist/panel.mjs` in a fixture and requires the built
@@ -151,8 +174,12 @@ header (SW4.7, SW4.8). The `Host` check stops DNS rebinding: a rebinding
 page sends its own host name.
 
 **Headers.** Every response gets the SW4.8 headers. React sets `style`
-through the DOM, which `style-src 'self'` allows; the page has no inline
-`<script>` or `<style>` (SW2.5). The proof checks the browser console for
+through the DOM, which `style-src 'self'` allows. The page has no inline
+`<script>`. It renders `<style>` elements, each holding a constant text, so
+the build lists those texts and the server sends one hash for each
+(SW2.5, SW4.8); a view that builds a style text at run time fails the build.
+Whether Kiro Crew's parts need anything more under this policy was not
+checked in the spike (D11). The proof checks the browser console for
 CSP reports.
 
 **Logs.** The server logs method, path without query, status and time.
@@ -160,21 +187,24 @@ CSP reports.
 
 ## D6. Themes
 
-`theme.css` defines every variable the views read, under `:root` (light)
-and `:root[data-theme="dark"]`, plus a `@media (prefers-color-scheme: dark)`
-block for `data-theme="system"`. The values are Avoozl's own: a neutral gray
-scale for `--bg`, `--bg-elevated`, `--bg-hover`, `--card`, `--border`,
-`--border-strong`, `--text`, `--text-strong`, `--muted`, `--muted-strong`;
-one blue `--accent` with `--accent-subtle`; `--ok`/`--success`, `--warning`/
-`--warn`, `--danger`, `--info`, `--aim`, `--hit`; the `--tile-*` colors; and
-`--mono`/`--font-mono` as the system monospace stack. The variable list is
-taken from the source by the SW6.3 test, so a new variable in a view fails
-until both themes define it.
+There is no Avoozl theme. Kiro Crew's stylesheet defines every variable the
+views read, for each of its palettes in light and dark, and selects one by
+two attributes on `<html>` (S: `data-theme="<palette>-<mode>"` and
+`data-mode`). The entry sets them: Kiro Crew's default palette, and the
+mode from `prefers-color-scheme` or the person's choice. The spike set the
+attributes by hand and did not use Kiro Crew's own theme hook; the build
+task uses the hook if it stands alone and the same two attributes if it
+does not.
+
+The fonts are Kiro Crew's and come out of its stylesheet as bundle files
+(S: eight font files, 129 kB). `avoozl serve` serves them, and `font-src
+'self'` allows them.
 
 The theme control sits in a thin standalone header with the Avoozl name,
-the workspace picker the page already has, Sign out (`POST /logout`) and
-the theme switch. Kiro Crew's left navigation has no stand-in; the page's
-own tabs are its navigation.
+the workspace picker the page already has, Sign out (`POST /logout`), the
+notice area and the theme switch. The header is drawn with Kiro Crew's
+parts. Kiro Crew's sidebar, top bar and chat are not here: the page's own
+tabs are its navigation, as they are inside Kiro Crew.
 
 ## D7. Open chat on the standalone page
 
@@ -272,3 +302,53 @@ None of it leaves the machine through this server.
 **Checks before landing each build task.** Search the repository for
 `0.0.0.0`, `::`, `listen(`, `--host` and `Access-Control-Allow`; every hit
 is loopback, a test, or explained in the pull request.
+
+## D11. The pin, and what the spike showed
+
+**Why this is not a fork.** A fork is Kiro Crew's code copied into Avoozl
+and changed there. Here no Kiro Crew file is in this repository and none is
+edited: the build reads the files of one named release, checks them against
+a digest, and compiles them into the standalone bundle beside the page. It
+is how a program uses a library. The difference from a usual library is
+that Kiro Crew publishes no package for these parts (V: its `website/`
+package is private and its docs say apps do not install the SDK), so the
+build takes them from the source of a release, and the paths it relies on
+are not a promised interface. SW12.4's contract test is the answer to that:
+when a release moves one, the pin does not move until the build
+configuration follows.
+
+**What is fetched.** `kirocrew-pin.json` names the tag, the commit and a
+digest. `scripts/fetch-kirocrew-ui.mjs` downloads that commit's archive
+from the public repository into the machine's cache folder, keeps
+`website/src`, the fonts under `website/public/fonts` with their license
+files, the lockfile and Kiro Crew's `LICENSE` and `NOTICE`, and checks the
+digest. The packages those files import are development
+dependencies of `kirocrew-app/ui`, at the lockfile's versions (SW12.5), so
+Kiro Crew's whole front end is not installed to build 32 of its modules.
+
+**The spike, 2026-11-18.** One day, on a scratch copy outside git, against
+Kiro Crew v0.12.2 and Avoozl at `750396e`.
+
+| Question                                          | Seen                                                                                         |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Does the page render on Kiro Crew's real parts?   | Yes: Home, Settings › Workspaces and Settings › Models, light and dark, with demo data       |
+| Was a Kiro Crew file edited?                      | No. A recursive compare of the copy with the release was clean                               |
+| Was an Avoozl view edited?                        | No                                                                                           |
+| React 18 or 19?                                   | Both built and rendered; see D3                                                              |
+| What else came along?                             | An animation library, a class-merge helper, a query client, i18n, the icons; listed in D3    |
+| Console errors in the built page?                 | None in the views captured                                                                   |
+| Against the stand-in harness this repo has today? | The one visible difference was the badge, which the stand-in draws differently               |
+
+**Not checked by the spike.** The task that builds this checks each one.
+
+- The same views in a running Kiro Crew, side by side. The spike compared
+  with this repository's stand-in harness, not with Kiro Crew's own page.
+- Every view other than the three above, and the 390 and 768 px widths.
+- Modals, navigation, the chat launcher and notices in use.
+- The content security policy of SW4.8, with the style hashes.
+- Kiro Crew's own theme hook, and three small stylesheets its entry file
+  also loads.
+- A build that installs only the needed packages; the spike installed Kiro
+  Crew's whole front end.
+- The font licenses: Kiro Crew's third-party notice file does not name its
+  two bundled fonts, so SW12.6 reads their license files from the source.
