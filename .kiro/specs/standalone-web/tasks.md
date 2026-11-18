@@ -23,7 +23,7 @@ SW11.2 is a spec edit made when the owner approves it.
 
 ## Phase 1: The page without Kiro Crew
 
-- [ ] sw-1.1 One command dispatch for both servers [SW5.1, SW5.2, SW10.2, SW10.3] (§D4, §D9)
+- [x] sw-1.1 One command dispatch for both servers [SW5.1, SW5.2, SW10.2, SW10.3] (§D4, §D9)
   - Move the body of the app backend's `/api/command` handler into `src/app/command-dispatch.mjs`; the app backend calls it after `verifyPrincipal`; each Kiro Crew reader is optional in its `context`, and every operation that uses an absent one returns "Needs Kiro Crew"; `instance.view` reports `host`.
   - Done when: The app backend's existing tests pass unchanged; a new test runs one write and one observe operation through the app backend and straight through `dispatchCommand` with an `owner-session` claim and gets the same results; an unoffered operation gets the same 403 message from both; each reader-using operation, run with its reader absent, returns a "Needs Kiro Crew" result and throws nothing; `instance.view` returns `host: "kirocrew"` from the app backend.
 - [x] sw-1.2 Kiro Crew's own parts at a pin, the host shim and the second bundle [SW1, SW2, SW6, SW12] (§D2, §D3, §D6, §D11)
