@@ -8,7 +8,7 @@ import path from "node:path";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { Store } from "../store.mjs";
-import { pickAgain, retryDelivery, shipMode } from "../delivery.mjs";
+import { retryDelivery, shipMode } from "../delivery.mjs";
 import { revertCorrections, recordCorrection } from "../corrections.mjs";
 import {
   addEvidence,
@@ -65,7 +65,7 @@ function workspace(t) {
   return { root, checkout: fs.realpathSync.native(checkout), store, ops };
 }
 
-test("Pick again and Send back with a reason, and a revert, are corrections", async (t) => {
+test("Send back with a reason, and a revert, are corrections", async (t) => {
   const w = workspace(t);
   w.store.put("session_bindings", {
     id: "s1",
@@ -76,13 +76,6 @@ test("Pick again and Send back with a reason, and a revert, are corrections", as
     source: "tick",
     boundAt: new Date().toISOString(),
   });
-  pickAgain(w.store, { taskId: "a" });
-  assert.equal(w.store.list("corrections").length, 0, "no reason, none");
-  pickAgain(w.store, { taskId: "a", reason: "Wrong model for UI work." });
-  pickAgain(w.store, { taskId: "a", reason: "Wrong model for UI work." });
-  assert.throws(() =>
-    pickAgain(w.store, { taskId: "a", reason: "x".repeat(301) }),
-  );
   w.store.put("task_deliveries", {
     id: "b",
     taskId: "b",
@@ -120,7 +113,6 @@ test("Pick again and Send back with a reason, and a revert, are corrections", as
     .map((c) => [c.taskId, c.kind, c.by])
     .sort();
   assert.deepEqual(rows, [
-    ["a", "pick-again", null],
     ["a", "reverted", "Pat"],
     ["b", "sent-back", "dashboard"],
   ]);

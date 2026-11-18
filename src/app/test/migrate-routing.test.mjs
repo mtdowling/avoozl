@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { migrate } from "../../../scripts/migrate-routing.mjs";
-import { validateRouting, validateTrackedRouting } from "../placement.mjs";
+import { validateTrackedRouting } from "../placement.mjs";
 import { providersInput } from "../provider-health.mjs";
 
 const OLD = {
@@ -43,7 +43,6 @@ test("a machine file's old routing becomes one prompt it can load", () => {
   assert.ok(dropped.includes("providers.groups"));
   assert.deepEqual(value.providers, { lowPercent: 70 });
   assert.deepEqual(value.crews, OLD.crews);
-  validateRouting(value.routing, { tracked: false });
   providersInput(value.providers);
   assert.equal(migrate(value, { tracked: false }).changed, false, "idempotent");
 });

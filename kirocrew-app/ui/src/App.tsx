@@ -35,7 +35,7 @@ import { readTab } from './tabs.ts'
 import { SETTINGS_HOME, settingsTabOnEnter } from './settings-api.ts'
 import { TaskDrawerProvider } from './TaskDrawer'
 import Badge from './Badge.tsx'
-import { ConfirmProvider, ICON, ViewHeading } from './controls.tsx'
+import { ConfirmProvider, ICON } from './controls.tsx'
 import { setSharedFilter } from './FilterBar.tsx'
 import type { TaskFilter } from './filters.ts'
 import type { Drill } from './graph-layout.ts'
@@ -75,18 +75,6 @@ function NavLabel(props: { view: keyof typeof VIEW_ICONS; text: string; count?: 
         </span>
       ) : null}
     </span>
-  )
-}
-
-// A page that is planned and not built yet: its heading and one line.
-function Placeholder(props: { view: keyof typeof VIEW_ICONS; title: string; line: string }) {
-  return (
-    <section aria-labelledby={`avoozl-${props.view}-title`} className="flex flex-col gap-3.5" data-placeholder={props.view}>
-      <ViewHeading id={`avoozl-${props.view}-title`} view={props.view}>
-        {props.title}
-      </ViewHeading>
-      <p className="text-sm text-muted">{props.line}</p>
-    </section>
   )
 }
 
@@ -466,8 +454,6 @@ function AvoozlPage() {
           />
         ) : tab === 'delivery' ? (
           <DeliveryView workspaceId={active} />
-        ) : tab === 'ci' ? (
-          <Placeholder view="ci" title="CI" line="Coming later: each open pull request's checks and CI wait. Avoozl caches its one batched pull-request read, but no page reads it yet." />
         ) : tab === 'landing' ? (
           <LandingQueueView workspaceId={active} />
         ) : tab === 'activity' ? (

@@ -2,10 +2,7 @@ import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { projectExecutor } from "./executors/process.mjs";
 import { harnessExecutor, resolveRoles, roleHarness } from "./chat-models.mjs";
 import { PERSON_MESSAGE_HEAD } from "./session-send.mjs";
-import {
-  kirocrewDetachedSession,
-  kirocrewRemoteSession,
-} from "./executors/kirocrew.mjs";
+import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
 // Local delivery (design §4.5, §5): each leaf's worktree, its worker's reports,
 // and what the tick does with them. The tick plans; the script cron opens and
@@ -62,14 +59,6 @@ import { queryTasks, statusComplete } from "../query.mjs";
 import { unblockCounts } from "./release-ranking.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
-import { LOCAL } from "./crews.mjs";
-import {
-  crewAllowed,
-  machineRouting,
-  placeOne,
-  routingOn,
-} from "./routing.mjs";
-import { handbackFetch, pushedFetch } from "./handback.mjs";
 import { recordCorrection } from "./corrections.mjs";
 import { addEvidence, attachEvidence, evidenceInput } from "./evidence.mjs";
 import {
@@ -278,24 +267,36 @@ export function deliveryPolicy(value, { machineLanes } = {}) {
       machineLanes ?? delivery.concurrency ?? validateLanes(value.lanes).local,
     reviewers,
     repositories: normalized,
+    // Who merges, from each GitHub repository's landing block (§4.25).
+    autoMerge: Object.fromEntries(
+      Object.entries(value.github?.repositories ?? {})
+        .filter(([, entry]) => typeof entry?.landing?.autoMerge === "boolean")
+        .map(([name, entry]) => [name, entry.landing.autoMerge]),
+    ),
   };
 }
 
 // Ship mode (R80): who merges a finished pull request. `auto-merge` (the
 // default) has the writer turn on GitHub auto-merge; `manual` leaves it off
-// and waits for a person.
+// and waits for a person. The setting is `landing.autoMerge` in the GitHub
+// repository's landing block; `delivery.ship` is its older key.
 export const SHIP_MODES = Object.freeze(["auto-merge", "manual"]);
 function shipSetting(value, where) {
   if (value !== undefined && !SHIP_MODES.includes(value))
     throw Error(`${where} must be "auto-merge" or "manual".`);
 }
 
-// The ship mode for one task (R80.1): the task's manifest value, then its
-// spec's, then the repository's, then the workspace's.
-export function shipMode(policy, task) {
+// The ship mode for one task (R80.1): the task's manifest pin, then its
+// spec's, then its GitHub repository's `landing.autoMerge`, then the older
+// `delivery.ship` of the repository and of the workspace. `store` finds the
+// task's GitHub repository from its project row.
+export function shipMode(policy, task, store = null) {
+  const github = store?.get("projects", taskRepository(task) || "")?.repository,
+    on = github ? policy?.autoMerge?.[github] : undefined;
   return (
     task?.ship ??
     task?.specShip ??
+    (typeof on === "boolean" ? (on ? "auto-merge" : "manual") : undefined) ??
     policy?.repositories?.[taskRepository(task)]?.ship ??
     policy?.ship ??
     "auto-merge"
@@ -873,7 +874,7 @@ export async function reportSession(
   store,
   input = {},
   caller = null,
-  { local = false, flow = null, placement = {}, policy = null } = {},
+  { local = false, flow = null, policy = null } = {},
 ) {
   const own = callerSlot(caller),
     relay =
@@ -1031,10 +1032,6 @@ export async function reportSession(
     );
   if (kind === "done" && !falsifier) {
     const project = taskProject(store, task);
-    // A remote worker's commit is fetched first and must be the branch tip
-    // it reported (§4.10, R41.13); then it is checked here like any other.
-    if (binding.role === "worker" && binding.crew)
-      await fetchBack(store, project, task, binding, commit, placement);
     try {
       await git(project.root, ["cat-file", "-e", commit + "^{commit}"]);
     } catch {
@@ -1195,53 +1192,6 @@ function reportEvidence(store, task, binding, report, attached) {
     );
   if (attached?.length)
     attachEvidence(store, task.id, attached, { source, repository });
-}
-
-// Fetch a remote attempt's branch and move this machine's task branch to it.
-async function fetchBack(store, project, task, binding, commit, hooks) {
-  const back = binding.placement?.back || {},
-    branch = "avoozl/" + task.id,
-    ref = `refs/avoozl/remote/${task.id}`,
-    configFile = contentBinding(store)?.configFile;
-  let fetched;
-  if (back.delivery === "push")
-    fetched = await pushedFetch({
-      root: project.root,
-      remote: back.remote || "origin",
-      branch,
-      ref,
-    });
-  else {
-    const crew = {
-      id: binding.crew,
-      ...(configFile ? machineRouting(configFile).crews[binding.crew] : {}),
-    };
-    fetched = await handbackFetch({
-      root: project.root,
-      crew,
-      folder: back.folder,
-      branch,
-      ref,
-      knownHosts:
-        hooks.knownHosts ||
-        path.join(path.dirname(configFile || "."), "known_hosts"),
-      ssh: hooks.sshCommand || "ssh",
-    });
-  }
-  if (fetched.commit !== commit)
-    fail(
-      `You reported ${commit}, but ${branch} on crew ${binding.crew} is at ${fetched.commit}. Report the branch tip.`,
-      409,
-    );
-  const worktree = await prepareWorktree(store, { taskId: task.id });
-  try {
-    await git(worktree.path, ["merge", "--ff-only", commit]);
-  } catch {
-    fail(
-      `${commit} does not follow ${branch} on this machine; it cannot be fast-forwarded.`,
-      409,
-    );
-  }
 }
 
 // Worker bindings the delivery pipeline follows, newest attempt per task: the
@@ -2229,7 +2179,6 @@ function composeLeafBrief(
   leaf,
   {
     relay = false,
-    remote = null,
     investigate = false,
     ship = null,
     executor = projectExecutor(leaf.project),
@@ -2271,14 +2220,6 @@ function composeLeafBrief(
         : { baseBranch: branch?.baseBranch }),
     });
   }
-  if (remote)
-    return workerBrief(task, project, {
-      ...options,
-      repositoryLine: `Repository: ${project.id}, clone ${remote.url}, base commit ${remote.base}.`,
-      steps: remoteSteps(task, remote, {
-        attempt,
-      }),
-    });
   const token = issueReportToken(store, { taskId: task.id, attempt });
   // A supervisor child (R96.1): no database, no commit, no CLI report; its
   // brief ends with the result file.
@@ -2303,29 +2244,6 @@ function composeLeafBrief(
           }
         : {}),
   });
-}
-
-// A remote worker's steps (§4.10): it clones, works on the task branch,
-// and either pushes that branch (`push`) or leaves the commit in its own
-// folder for this machine to fetch over SSH (`handback`). It never sees a
-// path on this machine.
-export function remoteSteps(task, remote, { attempt = 1 } = {}) {
-  const branch = `avoozl/${task.id}`,
-    report = `{"input": {"taskId": "${task.id}", "kind": "done", "commit": "<full SHA>"}}`,
-    reportStep = (n) =>
-      `${n}. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text.`;
-  if (remote.delivery === "push")
-    return [
-      `1. Clone ${remote.url} into your own workspace, or reuse your clone. ${attempt > 1 ? `Fetch ${branch} from origin and check it out; it holds the earlier attempt.` : `Check out a new branch ${branch} at commit ${remote.base}.`}`,
-      "2. Commit your change on that branch.",
-      `3. Push it before you report: \`git push origin HEAD:${branch}\`. Push no other branch.`,
-      reportStep(4),
-    ];
-  return [
-    `1. Work in ${remote.folder}. If it does not exist, clone ${remote.url} there and check out a new branch ${branch} at commit ${remote.base}. If it exists, keep working on ${branch} there.`,
-    `2. Commit your change on that branch. ${EDIT_ONLY_STEP} This machine fetches the branch from that folder.`,
-    reportStep(3),
-  ];
 }
 
 // Pull request feedback a new attempt carries (§4.13, R54.7), or null.
@@ -2367,68 +2285,20 @@ export function planReadyDispatches(store, policy, options = {}) {
     }),
     waiting = waitingForBatch(store, candidates, { workspaceRoot, data }),
     skip = new Set([...(options.skip || []), ...waiting]),
-    routing =
-      options.routing && routingOn(options.routing, data)
-        ? options.routing
-        : null,
-    state = options.placementState || { crews: new Map(), choices: new Map() },
-    placed = new Map(),
-    place = routing
-      ? (leaf) => {
-          const result = placeOne(store, data, routing, state, {
-            task: leaf.task,
-            role: "worker",
-            project: leaf.project,
-            attempt: leaf.attempt,
-            delivery: leaf.delivery,
-            policy,
-            kept: keptSession(store, leaf.task.id),
-            skipModels: reviewRoles(policy, leaf.project.id)
-              .filter((r) => r.distinctFrom === "model" && r.model)
-              .map((r) => r.model),
-          });
-          if (result.wait) {
-            options.waits?.push({ task: leaf.task, result });
-            return false;
-          }
-          options.fits?.push(leaf.task.id);
-          placed.set(leaf.task.id, result);
-          return true;
-        }
-      : null,
-    // A batch runs in its leader's local session (the batch brief is local
-    // only), so the leader must be placed on local and every member's pin
-    // and needs must allow local (R46.4).
-    batchFits = (leader, task) =>
-      placed.get(leader.task.id)?.crew === LOCAL &&
-      crewAllowed(routing, task, LOCAL),
     leaves = planBatches(
       store,
-      readyLeaves(store, policy, { ...options, skip, place }),
+      readyLeaves(store, policy, { ...options, skip }),
       candidates.filter((task) => !skip.has(task.id)),
-      { workspaceRoot, data, policy, fits: routing ? batchFits : null },
+      { workspaceRoot, data, policy, fits: null },
     );
   let health = null;
   return leaves.flatMap((leaf) => {
-    const where = placed.get(leaf.task.id),
-      remote = where && where.crew !== LOCAL ? where.crewInfo : null,
-      target = remote && {
-        ...remoteTarget(routing, leaf, remote),
-      };
-    const run = remote
-      ? { executor: "kirocrew" }
-      : workerExecutor(leaf.task, leaf.project, options.config);
-    // How the work comes back (handback.mjs), read again at `done`.
-    if (target)
-      where.placement.back = {
-        delivery: target.delivery,
-        remote: target.remoteName ?? null,
-        folder: target.folder,
-      };
+    const run = workerExecutor(leaf.task, leaf.project, options.config),
+      pin = leaf.task.session || {};
     // Investigate first (R75.5): never for a batch, whose brief is one
     // stretch of small tasks.
     const investigate = !leaf.batch && investigates(policy, leaf.task),
-      ship = shipMode(policy, leaf.task),
+      ship = shipMode(policy, leaf.task, store),
       brief = leaf.batch
         ? batchBrief(
             store,
@@ -2437,7 +2307,6 @@ export function planReadyDispatches(store, policy, options = {}) {
             leafBrief(store, data, leaf, { ship, executor: run.executor }),
           )
         : leafBrief(store, data, leaf, {
-            remote: target,
             investigate,
             ship,
             executor: run.executor,
@@ -2456,11 +2325,11 @@ export function planReadyDispatches(store, policy, options = {}) {
       })
     )
       return [];
-    let model = where ? where.model : keptModel(store, leaf.task.id, policy);
-    // Without placement the delivery model is the one choice: an out model
-    // is never offered (R72.5). A person's replacement for it is taken;
-    // else the task waits, and Needs you says the provider is out.
-    if (!where && model) {
+    // The manifest's pin wins (R53.3), then the kept or delivery model. An
+    // out model is never offered (R72.5): a person's replacement for it is
+    // taken, else the task waits and Needs you says the provider is out.
+    let model = pin.model ?? keptModel(store, leaf.task.id, policy);
+    if (model) {
       health ??= healthContext(store);
       if (health.level(model) === "out") {
         const to = health.replacement(model);
@@ -2468,9 +2337,7 @@ export function planReadyDispatches(store, policy, options = {}) {
         model = to;
       }
     }
-    const agent = where
-      ? where.agent || policy.agent
-      : keptAgent(store, leaf.task.id, policy);
+    const agent = pin.agent ?? keptAgent(store, leaf.task.id, policy);
     return [
       kirocrewRequest(store, {
         task: leaf.task.id,
@@ -2491,86 +2358,15 @@ export function planReadyDispatches(store, policy, options = {}) {
         ...run,
         // A local worker opens with `project: false` (R88.2, §4.26 Work): its
         // brief names the worktree, so the sidebar folder needs no project
-        // directory. shortcut: with the routing prompt on, routing.mjs still
-        // holds the leaf on that folder; upgrade with the routing readiness.
+        // directory.
         ...kirocrewDetachedSession(leaf.project.id),
         agent,
         ...(model ? { model } : {}),
-        ...(where
-          ? {
-              ...(remote ? kirocrewRemoteSession(remote) : {}),
-              placement: where.placement,
-              sessionReason: where.sessionReason,
-            }
-          : {}),
         checkout: leaf.project.root,
         brief,
       }),
     ];
   });
-}
-
-// Pick again (R53.6): the next attempt chooses its agent and model afresh.
-// Kept in meta, not on the delivery, so it can be pressed while the attempt
-// still runs and no delivery record exists yet.
-const PICK_AGAIN = "session.pickAgain";
-export function pickAgain(store, input = {}) {
-  const task = findTask(store, input.taskId);
-  const last = Math.max(
-    0,
-    ...listSessionBindings(store)
-      .filter((b) => b.taskId === task.id && b.role === "worker")
-      .map((b) => b.attempt),
-  );
-  if (!last) fail(`${task.id} has no attempt to pick again after.`, 409);
-  if (input.reason !== undefined && !printable(input.reason, 300))
-    fail("Say why in at most 300 characters.");
-  store.transaction(() =>
-    store.setMeta(PICK_AGAIN, {
-      ...(store.getMeta(PICK_AGAIN) || {}),
-      [task.id]: last,
-    }),
-  );
-  // Pick again with a reason is a correction (§4.24, R78.1).
-  if (input.reason)
-    recordCorrection(store, {
-      key: `pick-again:${task.id}:${last}`,
-      taskId: task.id,
-      by: input.by ?? null,
-      kind: "pick-again",
-      summary: input.reason,
-    });
-  return { taskId: task.id, pickAgainAfter: last };
-}
-
-// The agent and model a retry keeps (R53.6): the last worker attempt's,
-// unless a person pressed Pick again after it.
-export function keptSession(store, taskId) {
-  const last = listSessionBindings(store)
-    .filter((b) => b.taskId === taskId && b.role === "worker")
-    .sort((a, b) => b.attempt - a.attempt)[0];
-  if (!last || last.attempt <= (store.getMeta(PICK_AGAIN)?.[taskId] || 0))
-    return null;
-  return { agent: last.agent ?? null, model: last.model ?? null };
-}
-
-// Where a remote worker gets and returns its work (§4.10 Fetchable work).
-function remoteTarget(routing, leaf, crew) {
-  const info = routing.fetch.get(leaf.project.id),
-    remote = info?.remotes.find(
-      (r) =>
-        r.host && crew.gitHosts.map((h) => h.toLowerCase()).includes(r.host),
-    );
-  return {
-    crew: crew.id,
-    delivery: crew.delivery,
-    url: remote?.url,
-    remoteName: remote?.name,
-    base: info?.base,
-    folder: crew.worktreeRoot
-      ? `${crew.worktreeRoot.replace(/\/+$/, "")}/${leaf.project.id}-${leaf.task.id}`
-      : null,
-  };
 }
 
 // The verifier spec's declared `name`. Kiro Crew lists app agents as
@@ -3271,11 +3067,6 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
   const data = store.read(),
     bindings = listSessionBindings(store),
     retries = policy?.retries ?? DELIVERY_DEFAULTS.retries,
-    routing =
-      options.routing && routingOn(options.routing, data)
-        ? options.routing
-        : null,
-    state = options.placementState || { crews: new Map(), choices: new Map() },
     dispatch = [];
   for (const { delivery, task, project } of judgeable(store, data)) {
     const writer = writerModel(store, delivery),
@@ -3288,26 +3079,7 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
       if (base.id === "checks" && !needsJudgment(task, project)) continue;
       if (approvedOn(delivery, base.id, delivery.commit)) continue;
       if (roleFailures(delivery, base.id, delivery.commit) > retries) continue;
-      // Placement (§4.10): checks and review sessions run where the commit
-      // is, so on this machine; a rule naming their role may set their
-      // agent and model (R53.2).
-      let role = base,
-        where = null;
-      if (routing) {
-        where = placeOne(store, data, routing, state, {
-          task,
-          role: base.role,
-          project,
-          policy,
-          reviewRole: base,
-        });
-        if (where.wait) continue;
-        role = {
-          ...base,
-          agent: where.agent || base.agent,
-          ...(where.model ? { model: where.model } : {}),
-        };
-      }
+      const role = base;
       if (role.id !== "checks" && distinctCause(role, writer)) continue;
       const own = roleBindings(bindings, task.id, role.role);
       // A quiet session stays open, but once its attempt is recorded failed
@@ -3370,9 +3142,6 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
             : kirocrewDetachedSession(project.id)),
           ...(processRun ? {} : { agent: role.agent }),
           ...(role.model ? { model: role.model } : {}),
-          ...(where
-            ? { placement: where.placement, sessionReason: where.sessionReason }
-            : {}),
           commit: delivery.commit,
           checkout: project.root,
           brief,
@@ -3444,7 +3213,7 @@ export async function integrateVerified(
       if (
         task &&
         taskRoute(task) !== "github" &&
-        shipMode(policy, task) === "manual" &&
+        shipMode(policy, task, store) === "manual" &&
         delivery.integrateApproved?.commit !== delivery.commit
       ) {
         if (delivery.awaitingIntegrate !== delivery.commit) {

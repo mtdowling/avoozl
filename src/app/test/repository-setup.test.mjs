@@ -92,11 +92,15 @@ test("setup previews without writing, applies on yes, then has nothing to change
   assert.deepEqual(github.writes, []);
   assert.equal(store.get("projects", "app").landing, undefined);
 
+  const landings = [];
   const applied = await repositorySetup(
     store,
     github,
     { ...input, confirm: true },
-    { writeProject: (p) => written.push(p) },
+    {
+      writeProject: (p) => written.push(p),
+      writeLanding: (repository, mode) => landings.push([repository, mode]),
+    },
   );
   assert.equal(applied.applied, true);
   assert.deepEqual(github.writes, [
@@ -105,7 +109,9 @@ test("setup previews without writing, applies on yes, then has nothing to change
     "setRepoVariable",
   ]);
   assert.equal(store.get("projects", "app").landing, "pr");
-  assert.equal(written.length, 1);
+  // The mode goes to the repository's landing block, not the project file.
+  assert.deepEqual(landings, [[input.repository, "pr"]]);
+  assert.equal(written.length, 0);
 
   const again = await repositorySetup(store, github, {
     ...input,

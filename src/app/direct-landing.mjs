@@ -11,7 +11,7 @@
 // - Landed: the task is integrated at the candidate, the local base is
 //   fast-forwarded from origin, and the task's worktree and local branch
 //   are removed. Failed checks go back to the worker chat; a conflict uses
-//   `sendConflictBack`; each for `landing.conflictRounds` rounds.
+//   `sendConflictBack`; each for the repository's `conflicts.maxAttempts` rounds.
 // - A queued task whose base moved is withdrawn by integrateVerified
 //   (`stillQueued`, pr-landing.mjs), merged with the base and verified again.
 //
@@ -80,7 +80,9 @@ export async function landDirect(
     messages = [],
     at = new Date(now).toISOString();
   for (const project of store.list("projects").filter(isDirectLanding)) {
-    const base = project.baseBranch || "main",
+    // `rounds` is a count or, per repository, a function of the project.
+    const tries = typeof rounds === "function" ? rounds(project) : rounds,
+      base = project.baseBranch || "main",
       queue = landingQueue(store, { projectId: project.id, base });
     if (!queue.length) continue;
     const head = queue[0];
@@ -142,14 +144,14 @@ export async function landDirect(
         }
       } else if (result.state === "failed") {
         const sent = sendFailureBack(store, result, {
-          rounds,
+          rounds: tries,
           now,
           where: `the landing candidate on ${base}`,
         });
         messages.push(...sent.messages);
         notify.push(...sent.notify);
       } else if (result.state === "conflict") {
-        const sent = sendConflictBack(store, result, { rounds, now });
+        const sent = sendConflictBack(store, result, { rounds: tries, now });
         messages.push(...sent.messages);
         notify.push(...sent.notify);
       }

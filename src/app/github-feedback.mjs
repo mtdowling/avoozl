@@ -354,7 +354,7 @@ export async function feedbackStep(
       branch: branch.name || linkedBranchName(task.id),
       stacked: Boolean(branch.stackedOn),
       finalBase: branch.finalBase || null,
-      ship: shipMode(delivery, task),
+      ship: shipMode(delivery, task, store),
     });
   }
   const at = new Date(now).toISOString(),
