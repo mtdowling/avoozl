@@ -34,9 +34,8 @@ Scope (2026-11-18, owner decision): Avoozl takes specs of any size, and a
 light spec with one task becomes one pull request. The epics-only scope
 statement and its one-pull-request rule of thumb (`radar-coder` RC13.1,
 RC13.2) are history; `src/work-split.mjs` holds the statement in use.
-One way to run a worker (2026-11-18, owner decision; the spec
-`.kiro/specs/worker-paths/` is still a draft until its approval is
-recorded): Crew Mode dispatch, runner mode over SSH (Requirement 84,
+One way to run a worker (2026-11-18, `.kiro/specs/worker-paths/`, approved
+by the owner's delegate): Crew Mode dispatch, runner mode over SSH (Requirement 84,
 Requirement 90.7) and placement on another Kiro Crew (Requirement 41) are
 to be removed, and Requirement 96.5's manual path stays without Crew Mode.
 That spec's task wp-5.2 marks each of these here; until its tasks land, the
