@@ -5,7 +5,7 @@
 // of JSX so node can test it directly.
 import type { StoredPlanPage } from './plans-api.ts'
 import { nodeState, waves, type NodeState } from './graph-layout.ts'
-import { modelLabel, safeHref, type RadarClaim, type RadarGroup, type RadarCrews, type RadarCrewStrip, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask, type ProcessDetails, type RemoteWorker } from './views-api.ts'
+import { modelLabel, safeHref, type RadarClaim, type RadarGroup, type RadarCrews, type RadarCrewStrip, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask, type ProcessDetails, type RemoteWorker, type TaskLinks } from './views-api.ts'
 
 // Session statuses after which a session will not move again.
 const ENDED = new Set(['closed', 'lost'])
@@ -66,6 +66,34 @@ export interface InFlight {
   session: DeliverySession
   // Set for a worker on a runner's crew (R84); Session opens its dashboard.
   remote?: RemoteWorker
+  // The task's branch, pull request and checks (R92.6); null when the
+  // backend sent none.
+  links: TaskLinks | null
+}
+
+// How long ago a stored read was, from its age in ms.
+function ago(ms: number | null): string {
+  if (ms === null || !Number.isFinite(ms)) return 'read time unknown'
+  const minutes = Math.round(ms / 60000)
+  if (minutes < 1) return 'read just now'
+  if (minutes < 60) return `read ${minutes} min ago`
+  if (minutes < 60 * 24) return `read ${Math.round(minutes / 60)} h ago`
+  return `read ${Math.round(minutes / 60 / 24)} d ago`
+}
+
+const DOT: Record<string, { color: string; words: string }> = {
+  pass: { color: 'var(--ok)', words: 'Checks pass' },
+  fail: { color: 'var(--danger)', words: 'Checks fail' },
+  pending: { color: 'var(--warn)', words: 'Checks running' },
+}
+
+// The check dot on a `PR #N` chip (R92.3, R92.6): its theme color and what
+// it says. State for an older head is grey and says so, never its old state.
+export function checkDot(checks: TaskLinks['checks']): { dot: string; color: string; label: string } {
+  if (!checks) return { dot: 'none', color: 'var(--border)', label: 'No check result stored' }
+  if (checks.dot === 'stale' || !DOT[checks.dot])
+    return { dot: 'stale', color: 'var(--muted)', label: `Checks are for an older commit ${checks.head.slice(0, 7)}, not the current one · ${ago(checks.ageMs)}` }
+  return { dot: checks.dot, color: DOT[checks.dot].color, label: `${DOT[checks.dot].words} on ${checks.head.slice(0, 7)} · ${ago(checks.ageMs)}` }
 }
 
 // A `process` session's status words for In flight (R98.1): the harness,
@@ -128,7 +156,7 @@ function deliveryTrouble(item: DeliveryItem): string | null {
 
 // A remote worker as an In flight row. The chat lives on the runner's crew,
 // so only that crew's own dashboard link opens it.
-function remoteRow(worker: RemoteWorker): InFlight {
+function remoteRow(worker: RemoteWorker, links: TaskLinks | null): InFlight {
   return {
     slot: `remote:${worker.host}:${worker.chatKey}`,
     role: 'worker',
@@ -143,6 +171,7 @@ function remoteRow(worker: RemoteWorker): InFlight {
     status: worker.status,
     session: { slot: worker.chatKey, role: 'worker', attempt: 1, title: null, status: worker.status, statusAt: worker.updatedAt || null, boundAt: null, link: worker.attachUrl, crew: worker.crewId, crewUnreachable: worker.stale },
     remote: worker,
+    links,
   }
 }
 
@@ -216,6 +245,7 @@ export function summarize(input: {
 
   const tasks = new Map((graph?.tasks ?? []).map((t) => [t.id, t]))
   const epicTitles = new Map((graph?.epics ?? []).map((e) => [e.id, e.title]))
+  const linksOf = new Map((allDelivery ?? []).map((item) => [item.id, item.links ?? null]))
   const inFlight: InFlight[] = running
     .flatMap((item) =>
       item.sessions.map((session) => {
@@ -233,10 +263,11 @@ export function summarize(input: {
           lastAt: session.statusAt ?? session.boundAt,
           status: session.status,
           session,
+          links: linksOf.get(item.id) ?? null,
         }
       }),
     )
-    .concat((input.remote ?? []).map(remoteRow))
+    .concat((input.remote ?? []).map((worker) => remoteRow(worker, linksOf.get(worker.taskId) ?? null)))
     .sort((a, b) => (b.lastAt ?? '').localeCompare(a.lastAt ?? ''))
 
   const wave = graph ? waves(graph) : new Map<string, number>()

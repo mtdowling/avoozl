@@ -265,6 +265,17 @@ export function prFeedbackLine(feedback: PrFeedback): string {
   return parts.join(' · ')
 }
 
+// One task's link set from src/app/scm-links.mjs (R92.1-R92.3). URLs are
+// built by the backend from validated fields; the page still passes each
+// through safeHref.
+export interface TaskLinks {
+  branch: { ref: string; url: string } | null
+  pr: { number: number; url: string; state: 'open' | 'closed' | 'merged' | 'unknown' } | null
+  // `dot` is the state only when `head` is the task's current commit;
+  // otherwise it is 'stale' (R92.3).
+  checks: { state: 'pass' | 'fail' | 'pending'; dot: 'pass' | 'fail' | 'pending' | 'stale'; head: string; ageMs: number | null; current: boolean; url: string | null } | null
+}
+
 export interface DeliveryItem extends TaskOwner {
   id: string
   title: string
@@ -297,6 +308,9 @@ export interface DeliveryItem extends TaskOwner {
   githubReviews?: GitHubReviews | null
   prFeedback?: PrFeedback | null
   worktrees: Record<string, unknown>[]
+  // Branch, pull request, checks and landed commit from stored records
+  // (R92.1-R92.3); older backends omit it.
+  links?: TaskLinks | null
   // The GitHub Project card, when the task is on the board.
   project?: { status: string | null; release: string | null; wave: number | null; notes: string[] } | null
   // What a person must do before a remote leaf moves (route or plugin).
