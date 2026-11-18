@@ -49,6 +49,7 @@ const { values, positionals } = parseArgs({
     executor: { type: "string" },
     agent: { type: "string", default: "claude" },
     "crew-home": { type: "string" },
+    tag: { type: "string" },
     "backend-for": { type: "string" },
   },
 });
@@ -64,7 +65,9 @@ const AGENT = EXECUTOR === "process" ? values.agent : "kirocrew";
 if (EXECUTOR === "process" && !["claude", "fake"].includes(AGENT))
   throw Error("--agent is claude or fake");
 // Names differ per run: Kiro Crew keys a chat by its title.
-const TAG = EXECUTOR === "process" ? "p59p" : "p59k";
+const TAG = values.tag ?? (EXECUTOR === "process" ? "p59p" : "p59k");
+if (!/^p59[a-z0-9]{1,6}$/.test(TAG))
+  throw Error("--tag is p59 and 1-6 letters or digits.");
 const TASK = `${TAG}-one`;
 const PLAN = `${TAG}-plan`;
 const NEW_PLAN = `${TAG}-notes-two`;
@@ -500,14 +503,12 @@ async function snapshotState() {
             }
           : null,
       })),
-      requests: store
-        .list("session_requests")
-        .map((r) => ({
-          task: r.task,
-          role: r.role,
-          executor: r.executor,
-          state: r.state,
-        })),
+      requests: store.list("session_requests").map((r) => ({
+        task: r.task,
+        role: r.role,
+        executor: r.executor,
+        state: r.state,
+      })),
       retros: store.list("flow_retros").map((r) => ({
         id: r.id,
         state: r.state,
@@ -720,8 +721,81 @@ async function proveProcess() {
   }
 }
 
+// The test crew's approval cards for this run's chats, answered as the
+// person at the dashboard would (kirocrew only): every tool call is
+// approved except a write the read-only test asked for, which is refused.
+// Reads the harness's saved sign-in cookie; mints no token.
+async function approver() {
+  const port = Number(process.env.P59_CREW_PORT || 5698);
+  const cookies = path.join(
+    path.dirname(process.env.KIROCREW_HOME),
+    "cookies.txt",
+  );
+  if (!fs.existsSync(cookies)) throw Error(`No sign-in cookie at ${cookies}.`);
+  const api = (method, route, body) => {
+    const out = execFileSync(
+      "curl",
+      [
+        "-sS",
+        "-X",
+        method,
+        "-b",
+        cookies,
+        "-c",
+        cookies,
+        "-H",
+        `Origin: http://localhost:${port}`,
+        "-H",
+        "Content-Type: application/json",
+        `http://localhost:${port}${route}`,
+        ...(body ? ["-d", JSON.stringify(body)] : []),
+      ],
+      { encoding: "utf8" },
+    );
+    try {
+      return JSON.parse(out);
+    } catch {
+      return { raw: out.slice(0, 300) };
+    }
+  };
+  const ours = (key) =>
+    key.includes(TAG) || /^avoozl_retro-\d+_retro/.test(key);
+  const seen = new Set();
+  while (!fs.existsSync(path.join(ROOT, "stop-approver"))) {
+    for (const slot of api("GET", "/api/chat/slots")) {
+      const pending = slot.pending_approval_info;
+      if (!pending || pending.origin !== "native" || !ours(slot.key)) continue;
+      const id = `${slot.key}#${pending.request_mid}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const asked = `${pending.tool} ${pending.tool_input}`;
+      const write = /P59-RO-PROBE|ro-outside/.test(asked);
+      const action = write ? "rejected" : "approved";
+      const reply = api(
+        "POST",
+        `/api/chat/slots/${encodeURIComponent(slot.key)}/approve`,
+        {
+          action,
+          origin: "native",
+          request_id: pending.request_id,
+          request_mid: pending.request_mid,
+        },
+      );
+      event("approver", {
+        slot: slot.key,
+        action,
+        tool: pending.tool.slice(0, 200),
+        input: String(pending.tool_input).slice(0, 300),
+        reply: JSON.stringify(reply).slice(0, 200),
+      });
+    }
+    await sleep(3000);
+  }
+}
+
 const command = positionals[0] ?? (EXECUTOR === "process" ? "prove" : null);
 if (command === "backend") await backend(Number(values["backend-for"] || 600));
+else if (command === "approver" && EXECUTOR === "kirocrew") await approver();
 else if (command === "setup") await setup();
 else if (command === "evaluate")
   console.log(JSON.stringify(await evaluate(), null, 2));
