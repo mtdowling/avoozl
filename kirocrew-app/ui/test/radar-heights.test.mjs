@@ -59,7 +59,7 @@ for (const theme of ['light', 'dark']) {
     await click('[data-nav-group="settings"]')
     await page.until(`Boolean(document.querySelector('[data-nav-children="settings"]'))`)
     let got = await read()
-    assert.equal(got.cards, 6)
+    assert.equal(got.cards, 7)
     assert.deepEqual(got.cardRadius, [RADAR.sectionRadius])
     assert.deepEqual(got.cardBorder, [1])
     assert.deepEqual(got.heads, [RADAR.row])
@@ -69,7 +69,7 @@ for (const theme of ['light', 'dark']) {
     assert.deepEqual(got.itemRadius, [RADAR.rowRadius])
     assert.deepEqual(got.itemFont, [RADAR.rowFont])
     assert.deepEqual(got.open, ['settings'])
-    assert.equal(got.chevrons, 6, 'a chevron on each section that opens (pages or filters)')
+    assert.equal(got.chevrons, 7, 'a chevron on each section that opens (pages or filters)')
     assert.deepEqual(got.order, ['nav', 'brand'], 'the line controls left the nav for the top line')
     // Opening Needs you shuts the others.
     await click('[data-nav-group="waiting"]')

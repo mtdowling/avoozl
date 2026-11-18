@@ -35,6 +35,6 @@ function WorkspaceSettings() {
 }
 createRoot(document.getElementById('root')!).render(
   <div {...{ [APP_ATTR]: '' }} data-ci-screenshot style={{ padding: 16, maxWidth: 1080, margin: '0 auto', minHeight: '100vh', boxSizing: 'border-box', background: 'var(--bg)', color: 'var(--text)' }}>
-    <NavHistoryProvider><ConfirmProvider><TaskDrawerProvider workspaceId="fixture" onFocus={() => undefined}>{query.get('screen') === 'settings-workspace' ? <WorkspaceSettings /> : query.get('screen') === 'settings' ? <FlowSettings workspaceId="fixture" /> : <FlowView workspaceId="fixture" tab="overview" />}</TaskDrawerProvider></ConfirmProvider></NavHistoryProvider>
+    <NavHistoryProvider><ConfirmProvider><TaskDrawerProvider workspaceId="fixture" onFocus={() => undefined}>{query.get('screen') === 'settings-workspace' ? <WorkspaceSettings /> : query.get('screen') === 'settings' ? <FlowSettings workspaceId="fixture" /> : <FlowView workspaceId="fixture" />}</TaskDrawerProvider></ConfirmProvider></NavHistoryProvider>
   </div>,
 )
