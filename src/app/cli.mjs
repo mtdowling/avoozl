@@ -470,6 +470,7 @@ try {
     const server = startAppBackend({
       config,
       port: Number(options.port ?? process.env.PORT ?? 0),
+      uiDir: options["ui-dir"] ?? null,
     });
     server.once("listening", () =>
       console.log(
