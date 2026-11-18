@@ -79,14 +79,6 @@ const tools = {
         "what waits to land on each base, in landing order, and why each one is held; from stored records, no GitHub call",
       ],
       flow: ["flow.view", "lead time, stages, bottlenecks"],
-      routing: [
-        "routing.view",
-        "crews and their checks, the routing prompt switch, provider health",
-      ],
-      routing_preview: [
-        "routing.preview",
-        "where ready tasks would run now; opens nothing",
-      ],
       providers: [
         "providers.view",
         "provider health marks, switches, and live chats' models",

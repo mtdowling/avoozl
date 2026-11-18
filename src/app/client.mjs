@@ -38,7 +38,6 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "queue.design.triage",
   "conversations.settings.get",
   "conversations.settings.update",
-  "conversations.routing.preview",
   "task.get",
   "task.update",
   "task.archive",
@@ -307,9 +306,6 @@ export class WorkspaceClient {
   }
   updateConversationSettings(input) {
     return this.call("conversations.settings.update", input);
-  }
-  previewConversationRouting(input = {}) {
-    return this.call("conversations.routing.preview", input);
   }
   updateTask(input, expectedRevision) {
     return this.call("task.update", input, expectedRevision);

@@ -19,7 +19,7 @@
       "repository": "avoozl",
       "summary": "Plan only the planning label, Untriaged off for Radar-coded repositories. See RC1.2, RC1.5, RC1.8; \u00a7D3.",
       "acceptance": [
-        "No list call for plain open issues is made for a Radar-coded repository (checked with a fake GitHub that records calls); a planning label added by a disallowed account does nothing; the plan-me routing tests of PR 67 still pass unchanged."
+        "No list call for plain open issues is made for a Radar-coded repository (checked with a fake GitHub that records calls); a planning label added by a disallowed account does nothing; the plan-me tests of PR 67 still pass unchanged."
       ],
       "completion": "integrated",
       "checks": [
@@ -1015,9 +1015,9 @@
     "rc-12.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Cancelled 2026-11-15 (avoozl R86, \u00a74.26). Retire crew routing and placement for Radar-coded repositories. See RC11.2; \u00a7D13.",
+      "summary": "Retired 2026-11-18.",
       "acceptance": [
-        "No routing call is made for a Radar-coded repository; the Routing section is hidden only when no repository needs it."
+        "Retired 2026-11-18. Nothing to do."
       ],
       "completion": "integrated",
       "checks": [

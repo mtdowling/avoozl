@@ -417,7 +417,7 @@ Avoozl never asks for a force push, and drops any brief or message that does.
   **Integrate** for a local task. A repository, spec manifest (`ship`) or
   task may set its own. Landing (above) is how Avoozl itself merges.
 - **Rules from corrections**: changes requested, work sent back with a
-  reason, a revert of an agent's commit, and Pick again with a reason are
+  reason, and a revert of an agent's commit are
   recorded. When the retro sees the same correction on two tasks it may
   propose a rule; once you approve it, it lands as one task that edits
   `.kiro/steering/avoozl-rules.md` in that repository and makes `AGENTS.md`
@@ -466,7 +466,7 @@ Some actions belong to a person and are refused over MCP under any tool name,
 old or new: approving or starting a spec, deletes, plugin changes, Allow
 once and content-rule terms, choosing a conflict winner, GitHub setup writes
 and settings (including Who counts), adding or removing repositories or
-intake sources, workspace, flow, delivery, and routing settings, Pick again,
+intake sources, workspace, flow, and delivery settings,
 Run anyway, resuming a pulled stop, starting or deciding a retro, Deliver
 this and Plan this on an incoming item, sending issues to Issue Radar, and
 opening a code review chat. Do these in the Avoozl app. An agent may pull

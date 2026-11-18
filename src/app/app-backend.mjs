@@ -274,20 +274,13 @@ export const APP_OPERATIONS = new Set([
   "driver.takeover",
   "driver.forceTakeover",
   "driver.away.decide",
-  "routing.view",
-  "routing.preview",
-  "routing.update",
-  "crews.update",
   "relay.forget",
-  "routing.retry",
-  "routing.turnOff",
   "providers.view",
   "provider.switch.preview",
   "provider.switch.dryRun",
   "provider.switch",
   "provider.health.clear",
   "providers.settings.update",
-  "delivery.pickAgain",
   "investigation.decide",
   "delivery.integrate",
   "delivery.settings.get",
@@ -492,7 +485,7 @@ export function startAppBackend({
   // Changes a running chat's model (provider-health.mjs, F126).
   modelSwitcher = gatewayModelSwitcher(gatewayClient(process.env)),
   // Lists the models Kiro Crew offers (GET /api/models, F128), read on each
-  // pass so routing never works from an old list.
+  // pass so a model list is never stale.
   modelReader = gatewayModelList(gatewayClient(process.env)),
   // Reads Issue Radar's crews for Send to Issue Radar (radar-handoff.mjs).
   crewReader = issueRadarReader(process.env),
