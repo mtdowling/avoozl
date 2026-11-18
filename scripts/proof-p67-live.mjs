@@ -396,13 +396,11 @@ const { git } = await import("../src/app/git.mjs");
 const { Store } = await import("../src/app/store.mjs");
 const { initializeWorkspace } = await import("../src/app/workspace.mjs");
 const { workspaceConfig } = await import("../src/app/config.mjs");
-const { bindContentRules, enforce, guardGitHub, pushLines } = await import(
-  "../src/app/content-rules.mjs"
-);
+const { bindContentRules, guardGitHub } =
+  await import("../src/app/content-rules.mjs");
 const { specHash } = await import("../src/app/spec-plans.mjs");
-const { taskDefinition, taskOutcome } = await import(
-  "../src/app/task-outcomes.mjs"
-);
+const { taskDefinition, taskOutcome } =
+  await import("../src/app/task-outcomes.mjs");
 const { appendRecord, githubJournal, journalOutcomes, replayJournal } =
   await import("../src/app/spec-journal.mjs");
 const {
@@ -414,7 +412,6 @@ const {
   integrateVerified,
   landingRights,
   opaqueId,
-  privacyScan,
   pushHead,
   qualifiedRef,
   retainVerified,
@@ -422,25 +419,20 @@ const {
   verifyRelationship,
   workingBranch,
 } = await import("../src/app/working-heads.mjs");
-const { effectiveOwner, headGuardedMerge, takeOver } = await import(
-  "../src/app/driver-generations.mjs"
-);
+const { effectiveOwner, headGuardedMerge, takeOver } =
+  await import("../src/app/driver-generations.mjs");
 const { runCheckAt } = await import("../src/app/flow-line.mjs");
-const { enqueueLanding, landNext, withdrawLanding } = await import(
-  "../src/app/landing-queue.mjs"
-);
+const { enqueueLanding, landNext, withdrawLanding } =
+  await import("../src/app/landing-queue.mjs");
 const { pullSteps } = await import("../src/app/landing-pulls.mjs");
-const { applyAccess, previewAccess } = await import(
-  "../src/app/setup-access.mjs"
-);
-const { rebuildSpec, resumeRebuild } = await import(
-  "../src/app/spec-rebuild.mjs"
-);
+const { applyAccess, previewAccess } =
+  await import("../src/app/setup-access.mjs");
+const { rebuildSpec, resumeRebuild } =
+  await import("../src/app/spec-rebuild.mjs");
 const { gitCopy, mirrorNeedsYou, mirrorSyncStep, trackingBranch } =
   await import("../src/app/mirror-sync.mjs");
-const { mirrorForwardStep, mirrorForwards } = await import(
-  "../src/app/mirror-forward.mjs"
-);
+const { mirrorForwardStep, mirrorForwards } =
+  await import("../src/app/mirror-forward.mjs");
 
 const mEnv = ghEnv(MAINTAINER_GH),
   cEnv = ghEnv(CONTRIBUTOR_GH);
@@ -638,6 +630,7 @@ const pubOptions = {
     since: S.base1,
     env: cEnv,
     configFile: CONFIG_FILE,
+    store: X.cWs.store,
   });
 const X = {
   get cWs() {
@@ -688,6 +681,7 @@ const X = {
       intent: X.intent,
       env: cEnv,
       configFile: CONFIG_FILE,
+      store: X.cWs.store,
     });
   },
 };
@@ -1803,9 +1797,17 @@ const STAGES = [
           description: `Checked ${PRIV_SPEC}`,
         }),
       );
-      // Pushes: Avoozl's own push scan, and whether content rules would refuse.
-      const probeDir = path.join(ROOT, "probe-push");
+      // Pushes: Avoozl's own checks before a push. The probe pushes go to a
+      // local copy of the fork registered under the fork's name, so a push
+      // Avoozl lets through reaches no GitHub repository.
+      const probeDir = path.join(ROOT, "probe-push"),
+        trap = path.join(ROOT, "probe-trap.git");
       await git(P.code, ["worktree", "add", "-q", "--detach", probeDir, S.H2]);
+      run("git", ["clone", "-q", "--bare", url(FORK), trap], { env: cEnv });
+      const trapRegistry = sourceRegistry({
+        [UP]: { url: url(UP) },
+        [FORK]: { url: trap, parent: UP },
+      });
       const pushProbe = async (name, branch, message) => {
         gitIn(probeDir, ["checkout", "-q", "--detach", S.H2]);
         const commit = commitIn(
@@ -1813,36 +1815,21 @@ const STAGES = [
           { [`probe/${name}.txt`]: "probe\n" },
           message,
         );
-        const rules = enforce(
-          X.cWs.store,
-          {
-            boundary: "diff",
-            repository: UP,
-            target: `diff:p67-${name}`,
-            added: pushLines(P.code, S.H2, commit, [branch]),
-          },
-          { mode: "decide" },
-        );
         const pushed = await outcomeOf(
-          pushHead(P.code, { repository: FORK, branch, commit }, X.registry, {
+          pushHead(P.code, { repository: FORK, branch, commit }, trapRegistry, {
             since: S.H2,
             env: cEnv,
             configFile: CONFIG_FILE,
-            scan: async (root, options) => {
-              const hits = await privacyScan(root, options);
-              if (!hits.length) {
-                report.stopped.push({ who: "contributor", push: name });
-                const error = Error(
-                  "P67 guard stopped a push that names a private term; Avoozl's push scan did not refuse it.",
-                );
-                error.p67Stopped = true;
-                throw error;
-              }
-              return hits;
-            },
+            store: X.cWs.store,
           }),
         );
-        return { ...pushed, contentRulesWouldRefuse: !rules.ok };
+        if (!pushed.refused)
+          report.stopped.push({
+            who: "contributor",
+            push: name,
+            to: "local copy",
+          });
+        return pushed;
       };
       probes.commitMessage = await pushProbe(
         "message",
