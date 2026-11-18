@@ -4,6 +4,8 @@
 // written down once. A test fails when the CLI dispatches a command this
 // table does not hold.
 
+import { TAGLINE } from "../work-split.mjs";
+
 // The one name the help and error text use for the program.
 export const PROGRAM = "avoozl";
 
@@ -544,7 +546,7 @@ function overview() {
     width = Math.max(...first.map((e) => e.usage.length)) + 2,
     pad = Math.max(...HELP_GROUPS.map((group) => group.id.length)) + 2;
   return [
-    `Avoozl — plans, tasks, and agents in one local workspace.`,
+    TAGLINE,
     "",
     `Usage: ${PROGRAM} COMMAND [ARGUMENTS] [--workspace PATH]`,
     "",
@@ -579,7 +581,7 @@ export function helpText(topic) {
   if (topic === undefined || topic === null || topic === "") return overview();
   if (topic === "all")
     return [
-      `Avoozl — plans, tasks, and agents in one local workspace.`,
+      TAGLINE,
       "",
       ...HELP_GROUPS.flatMap((group) => [groupPage(group), ""]),
       OPTIONS,

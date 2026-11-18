@@ -68,13 +68,15 @@ A workspace is a directory you own, separate from this checkout:
 my-plans/
   .avoozl.json                     portable, reviewable policy
   .avoozl/local/workspace.sqlite   execution state (not committed)
-  .kiro/specs/<name>/              plans
+  .kiro/specs/<name>/              specs
 ```
 
 A new workspace has no tasks, no repositories, and no trigger rules. To add a
-fictional example, run
-`node cli.mjs seed --workspace ~/plans --example product-launch`. Loading
-examples never approves a plan, starts a session, or configures a repository.
+made-up example, run `node cli.mjs seed --workspace ~/plans`. It writes the
+Recipe Box epic and its three specs to `.kiro/specs/` as drafts.
+`node cli.mjs plan batches --workspace ~/plans` lists them in approval order,
+and `node cli.mjs epics --workspace ~/plans` shows the epic. Loading examples
+never approves a plan, starts a session, or configures a repository.
 
 ## Demo mode
 
@@ -422,7 +424,9 @@ server. Any other stdio MCP client can run it directly:
 ```
 
 The page, the CLI, and MCP call the same operations, so each one sees the
-same state. `node cli.mjs help` lists the commands.
+same state. `node cli.mjs help` shows the commands by job; `help GROUP`,
+`help COMMAND` and `help all` give the usage lines. Help and error text
+call the program `avoozl`; in a checkout that is `node cli.mjs`.
 
 ### MCP tools
 
@@ -450,7 +454,11 @@ node cli.mjs show TASK_ID --workspace ~/plans
 node cli.mjs tick --workspace ~/plans
 ```
 
-Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`.
+Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`;
+`node cli.mjs status --workspace ~/plans` reports on it. Each task shows its
+stored `status` and the state the page shows (`stateLabel`: Ready, Running,
+Waiting, Needs you, Done or Deferred). The example's tasks name repository
+`app` and read Waiting until a checkout is registered under that ID.
 
 ## Configuration and secrets
 
