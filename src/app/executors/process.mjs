@@ -1,3 +1,4 @@
+// Probe comment for CI timing.
 // The `process` executor (R93.2, design §4.28): runs an agent CLI as a child
 // of this machine's supervisor, in the task worktree, with an approved
 // harness definition. It only writes requests to and reads records from the
