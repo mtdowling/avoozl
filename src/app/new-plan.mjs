@@ -410,13 +410,20 @@ export function newPlanStarts(
         ),
     )
     .map((entry) => {
-      const chosen =
-        named?.executor ??
-        executor ??
-        projectExecutor(sessionProject(store, { worktree: entry.root }));
+      const holder = sessionProject(store, { worktree: entry.root });
+      const chosen = named?.executor ?? executor ?? projectExecutor(holder);
+      // A `process` planner's sandbox and network come from the project
+      // whose checkout holds the folder, else the plan's first repository,
+      // as when a local workspace's own folder holds its specs.
+      // shortcut: the first repository only; choose per repository if
+      // plans across repositories with different sandboxes become common.
+      const first = entry.repositories?.[0],
+        project =
+          holder ?? (first ? store.get("projects", first.id ?? first) : null);
       return {
         executor: chosen,
         ...(named?.harness ? { harness: named.harness } : {}),
+        ...(chosen === "process" && project ? { repository: project.id } : {}),
         role: "planner",
         task: newPlanTask(entry.name),
         // A `process` child writes only its spec folder: a write root over
