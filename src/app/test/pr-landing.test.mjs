@@ -15,6 +15,7 @@ import {
 } from "../delivery.mjs";
 import { landingQueue } from "../landing-queue.mjs";
 import { landPullRequests } from "../pr-landing.mjs";
+import { taskLinks } from "../scm-links.mjs";
 import { takeOverSpec } from "../spec-takeover.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -228,6 +229,48 @@ test("a verified task is pushed, waits for its check on the exact head, then mer
   );
   // The local base follows the merged remote base.
   assert.equal(git(w.checkout, "rev-parse", "main"), commit);
+});
+
+test("a private plan's task goes by an opaque name on a public repository", async (t) => {
+  const w = await workspace(t),
+    github = fakeGithub(w),
+    created = [];
+  const create = github.createPullRequest;
+  github.createPullRequest = async (repo, input) => {
+    created.push(input);
+    return create(repo, input);
+  };
+  // The spec's issue lives in a private home; the target is public.
+  w.store.put("receipts", {
+    id: "github-parent:plan:s",
+    kind: "github-parent",
+    level: "plan",
+    parentId: "s",
+    repository: "acme/plans",
+    number: 4,
+  });
+  w.store.put("github_repositories", { id: "acme/plans", private: true });
+  w.store.put("github_repositories", { id: "acme/app", private: false });
+  const commit = verified(w, "t1");
+  await integrateVerified(w.store);
+  const [entry] = landingQueue(w.store, { projectId: "app", base: "main" }),
+    named = entry.tasks[0].public;
+  assert.match(named, /^t-[0-9a-f]{24}$/);
+  assert.equal(entry.source.branch, `avoozl/${named}`);
+  assert.equal(git(w.origin, "rev-parse", `avoozl/${named}`), commit);
+  // The readable task branch never reaches the public remote.
+  assert.equal(git(w.origin, "branch", "--list", "avoozl/t1"), "");
+  await step(w, github);
+  assert.equal(created.length, 1);
+  assert.equal(created[0].head, `avoozl/${named}`);
+  for (const text of [created[0].title, created[0].body])
+    assert.ok(!/\bt1\b|\bs\b/.test(text.replace(named, "")), text);
+  assert.match(created[0].body, new RegExp(`^Avoozl-Task: ${named}@`));
+  // The task's branch link is the branch that was pushed.
+  assert.equal(
+    taskLinks(w.store, "t1").branch.url,
+    `https://github.com/acme/app/tree/avoozl/${named}`,
+  );
 });
 
 test("a failed check sends the task back to its chat", async (t) => {

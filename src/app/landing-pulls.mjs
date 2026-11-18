@@ -140,7 +140,10 @@ export function pullSteps({
             spec: entry.spec,
             candidate,
             base,
-            tasks: entry.tasks,
+            tasks: entry.tasks.map(({ task, definition }) => ({
+              task,
+              definition,
+            })),
           },
         },
       ];
@@ -250,14 +253,14 @@ export function pullSteps({
           sameOwner =
             fork && lower(sourceOwner) === lower(target.split("/")[0]);
         pull = await github.createPullRequest(target, {
-          title: `Land ${entry.key}`,
+          title: `Land ${entry.tasks.length === 1 && entry.tasks[0].public ? entry.tasks[0].public : entry.key}`,
           head: fork
             ? `${sourceOwner}:${ref.source.branch}`
             : ref.source.branch,
           ...(sameOwner ? { head_repo: sourceName } : {}),
           base: entry.base,
           body: entry.tasks
-            .map((t) => `Avoozl-Task: ${t.task}@${t.definition}`)
+            .map((t) => `Avoozl-Task: ${t.public ?? t.task}@${t.definition}`)
             .join("\n"),
         });
       }

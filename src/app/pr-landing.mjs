@@ -34,7 +34,7 @@ import {
   sendConflictBack,
 } from "./landing-conflicts.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
-import { driverIdOf } from "./spec-scheduler.mjs";
+import { driverIdOf, publicTaskName } from "./spec-scheduler.mjs";
 import { specAuthority } from "./spec-takeover.mjs";
 import { taskDefinition } from "./task-outcomes.mjs";
 import { pushHead, sourceRegistry } from "./working-heads.mjs";
@@ -112,7 +112,17 @@ export async function stillQueued(store, { delivery, project }) {
 // with the queued commit recorded.
 export async function queuePullRequest(
   store,
-  { delivery, project, worktree, task, at, env, machine, configFile },
+  {
+    delivery,
+    project,
+    worktree,
+    task,
+    at,
+    env,
+    machine,
+    configFile,
+    workspaceRoot,
+  },
 ) {
   const planId = task?.planId,
     driver = planId ? driverIdOf(store, planId) : null;
@@ -124,7 +134,18 @@ export async function queuePullRequest(
   const registry = await registryOf(project),
     base = project.baseBranch || "main",
     since = await git(project.root, ["rev-parse", `refs/heads/${base}`]),
-    source = { repository: project.repository, branch: worktree.branch };
+    // A private plan's task goes by an opaque name on a public repository:
+    // its remote branch, pull request title and trailer.
+    named = publicTaskName(store, {
+      workspaceRoot,
+      planId,
+      taskId: delivery.taskId,
+      repository: project.repository,
+    }),
+    source = {
+      repository: project.repository,
+      branch: named ? `avoozl/${named}` : worktree.branch,
+    };
   await pushHead(
     project.root,
     { ...source, commit: delivery.commit },
@@ -146,6 +167,7 @@ export async function queuePullRequest(
           title: task.title,
           acceptance: task.acceptance ?? null,
         }),
+        ...(named ? { public: named } : {}),
       },
     ],
     source,
