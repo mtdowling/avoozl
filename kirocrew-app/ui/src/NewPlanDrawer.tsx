@@ -299,6 +299,7 @@ export default function NewPlanDrawer(props: {
       title="New spec"
       kind="drawer"
       backLabel="Close New spec"
+      dismissLabel="Cancel"
       attrs={{ 'data-new-plan-drawer': true }}
       unsaved={dirty && { title: 'Discard this new spec?', body: 'What you typed is not saved anywhere.', action: 'Discard' }}
       onDismiss={() => {
@@ -307,7 +308,7 @@ export default function NewPlanDrawer(props: {
       footer={
         <>
           {tried && start === null && (
-            <span role="alert" className="mr-auto text-xs text-danger" data-start-problem>
+            <span role="alert" className="mr-auto text-xs text-danger" style={{ order: -1 }} data-start-problem>
               Pick Blank, From template or From a goal.
             </span>
           )}

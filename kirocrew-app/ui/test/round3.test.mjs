@@ -51,10 +51,11 @@ test('every destructive button asks first through a red confirm', () => {
   // Bulk resolve asks before it settles anything.
   assert.match(source('ConflictsView.tsx'), /if \(!\(await ask\(confirmSettle\(action, settleCount\(picked\)\)\)\)\) return/)
   // DangerBtn runs onConfirm only on yes; the dialog's confirm is red and
-  // focus starts on the footer's Close.
+  // focus starts on the footer's Cancel.
   const controls = source('controls.tsx')
   assert.match(controls, /ask\(props\.confirm\)\.then\(\(yes\) => yes && props\.onConfirm\(\)\)/)
-  assert.match(controls, /background: 'var\(--danger\)'/)
+  assert.match(controls, /<Button type="button" variant="danger" onClick=\{\(\) => answer\(true\)\}>/)
+  assert.match(source('Button.tsx'), /background:var\(--danger\)/)
   assert.match(controls, /<Modal\s+id="avoozl-confirm"[\s\S]*?focusClose/)
   assert.match(source('App.tsx'), /<ConfirmProvider>/)
   // Removing a workspace is not offered on this page, so it needs no step.

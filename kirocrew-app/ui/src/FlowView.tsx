@@ -12,7 +12,7 @@ import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useStoredFilter } from './FilterPanel.tsx'
 import { FlowRail } from './FlowRail.tsx'
-import { ICON, IconLabel, SectionHeading, ShowMore, ViewHeading, dangerStyle, useConfirm, usePages } from './controls.tsx'
+import { ICON, IconLabel, SectionHeading, ShowMore, ViewHeading, useConfirm, usePages } from './controls.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
 import { CircleAlert, DetailsIcon, Gauge, Play } from './icons.ts'
@@ -151,7 +151,7 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
               </IconLabel>
             )}
             {!stop.manual && !stop.runAnyway && (
-              <IconLabel icon={Play} tooltip="Resume new work while the check still fails; asks first" onClick={() => void runAnyway(stop)} style={dangerStyle}>
+              <IconLabel icon={Play} tooltip="Resume new work while the check still fails; asks first" onClick={() => void runAnyway(stop)} variant="danger">
                 Run anyway
               </IconLabel>
             )}
