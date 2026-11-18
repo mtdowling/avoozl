@@ -4871,14 +4871,14 @@ flow setting". `delivery.investigate.mode: not-small` skips leaves with a
 the planner's groups, open and unblocked, instead of grouping `size: "small"`
 tasks.
 
-**Show.** `deliveryView` adds to each item `batch: {id, tasks, reason,
-leader}` for a live batch, and `alone: "<reason>"` for a grouped task that
+**Show.** `deliveryView` keeps `batch` (the run's ID) and adds to each
+grouped item `batchGroup: {id, group, tasks, leader, reason, state}` (`id`
+is the run once it has one) and `alone: "<reason>"` for a grouped task that
 runs alone. The Delivery page folds a live batch into one In progress card
 keyed by the leader: the reason, then each member's ID and title, each
-opening that task's details. The task's details show **Batch** with the
-group ID linking to the leader's card (the Delivery page with that task
-selected), the other members and the reason, or **Runs alone** with the
-reason.
+opening that task's details. The task's details (Overview) show **Batch**
+with the group ID linking to the leader's details, the other members and
+the reason, and **Runs alone** with the reason when the group broke a rule.
 
 **Prompt.** `prompts/planner.md` says: group only leaves one worker should
 do in one chat, such as tiny edits to the same files; never group tasks that
