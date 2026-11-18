@@ -1,17 +1,11 @@
 // rc-10.1 and rc-2.6: a public repository, or one whose visibility was not
-// read, releases and arms nothing until its public sign-off is complete.
+// read, is held until its public sign-off is complete.
 // Fake GitHub only.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { PUBLIC_HELD, publicHold } from "../public-signoff.mjs";
 import { signedOff } from "./public-signoff-fixture.mjs";
 import { fixture } from "./fixtures.mjs";
-import { leaf, setup as release } from "./radar-coder-release-fixture.mjs";
-import { setRadarHandoverPaused } from "../coder-adapter.mjs";
-
-// These tests cover the Radar hand-over kept while Phase 45 is paused
-// (R103.4 pauses it in the product).
-setRadarHandoverPaused(false);
 
 const REPO = "example/code";
 const setup = (t, record) => {
@@ -37,29 +31,4 @@ test("a complete sign-off releases the hold, an incomplete one does not", (t) =>
   signedOff(store, REPO);
   assert.equal(publicHold(store, REPO), null);
   assert.equal(publicHold(store, "example/other"), PUBLIC_HELD);
-});
-
-const flip = (w, value) =>
-  w.store.put("github_repositories", {
-    ...w.store.get("github_repositories", REPO),
-    private: value,
-  });
-
-test("a public repository releases nothing and the queue says why, until the sign-off is complete", async (t) => {
-  const w = await release(t, { release: { capacity: 2 } }, [
-    leaf("leaf-a"),
-    leaf("leaf-b"),
-  ]);
-  flip(w, false);
-  await w.tick();
-  await w.tick();
-  assert.deepEqual(w.readyIds(), []);
-  const { repositories } = await w.ops.execute("radar.releasequeue", {});
-  assert.deepEqual(
-    repositories[0].rows.map((row) => row.reason),
-    [PUBLIC_HELD, PUBLIC_HELD],
-  );
-  signedOff(w.store, REPO);
-  await w.tick();
-  assert.equal(w.readyIds().length, 2);
 });

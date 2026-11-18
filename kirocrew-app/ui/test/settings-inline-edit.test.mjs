@@ -77,17 +77,17 @@ for (const width of [1280, 390]) {
 
   test(`Flow edits in place at ${width} px and Save persists`, { skip }, async () => {
     await openPage('Flow', width)
-    await page.until(`Boolean(document.getElementById('avoozl-flow-max'))`)
+    await page.until(`Boolean(document.getElementById('avoozl-flow-every'))`)
     assert.equal(await footer(), false)
-    await set('#avoozl-flow-max', 'x')
+    await set('#avoozl-flow-every', 'x')
     await page.until(`Boolean(document.querySelector('[data-save-problem]'))`)
-    await set('#avoozl-flow-max', '3')
+    await set('#avoozl-flow-every', '12')
     await page.until(`Boolean(document.querySelector('[data-save-footer] [data-save]:not([disabled])'))`)
     await press('Save')
     await page.until(`window.__writes.length === 1`)
     const [call] = await writes()
     assert.equal(call.operation, 'flow.settings.update')
-    assert.equal(call.input.flow.batch.max, 3)
+    assert.equal(call.input.flow.retro.everyTasks, 12)
     assert.equal(call.input.expectedHash, 'h1')
     assert.deepEqual(page.errors, [])
   })
@@ -119,6 +119,9 @@ for (const width of [1280, 390]) {
     await page.until(`Boolean(document.querySelector('[data-repository-list]'))`)
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-repository-list] input, [data-repository-list] select').length`), 0, 'no fields in the list')
     assert.ok(await page.evaluate(`(() => { const b = document.querySelector('[data-repository-list] button[aria-label="Edit recipe-box"]'); if (b) b.click(); return Boolean(b) })()`))
+    // The default branch is on the dialog's Landing tab.
+    await page.until(`Boolean(document.querySelector('dialog[data-repository-edit] [role=tab][data-tab="landing"]'))`)
+    await page.evaluate(`document.querySelector('dialog[data-repository-edit] [role=tab][data-tab="landing"]').click()`)
     await page.until(`Boolean(document.getElementById('avoozl-settings-repo-0-base'))`)
     const save = `[...document.querySelectorAll('dialog[data-repository-edit] [data-modal-footer] button')].find((b) => b.textContent.trim() === 'Save')`
     await set('#avoozl-settings-repo-0-base', 'develop')

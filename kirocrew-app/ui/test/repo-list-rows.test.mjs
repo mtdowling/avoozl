@@ -14,29 +14,30 @@ const form = toForm({
   mode: 'plans-repo',
   planningRepository: 'o/plans',
   repositories: {
-    'o/api': { baseBranch: 'main', role: 'code', coder: 'issue-radar', requiredChecks: ['ci'], merge: { method: 'squash' }, rules: [{ id: 'r', action: 'plan', match: 'label:ready -label:blocked' }], untriaged: { triageLabels: ['triage'] } },
+    'o/api': { baseBranch: 'main', role: 'code', requiredChecks: ['ci'], merge: { method: 'squash' }, rules: [{ id: 'r', action: 'plan', match: 'label:ready -label:blocked' }], untriaged: { triageLabels: ['triage'] } },
     'o/bare': { baseBranch: 'main', role: 'code' },
   },
 })
 const rowFor = (github, extra = {}) => ({ key: github, name: github, checkout: { id: 'x', name: 'x', localCheckout: '/w/x', github, baseBranch: 'main', ...extra }, policy: form.repositories.findIndex((e) => e.name === github), github, folder: '/w/x', branch: 'main' })
 const shown = (facts) => Object.fromEntries(facts.filter((f) => f.value?.trim() || f.chips?.length).map((f) => [f.label, f.chips ?? f.value]))
 
-test('a row has the folder, landing, coder, labels, merge method and checks', () => {
+test('a row has the folder, landing, labels, merge method and checks', () => {
   const row = rowFor('o/api', { landing: 'train' })
   const facts = shown(repositoryFacts(row, form.repositories[row.policy]))
   assert.equal(facts.Folder, '/w/x')
   assert.equal(facts['Tasks land on'], 'main (train)')
-  assert.equal(facts['Who codes'], 'Radar crew')
+  // Who codes was removed (R91.6).
+  assert.equal(facts['Who codes'], undefined)
   assert.deepEqual(facts['Trigger labels'], ['ready'])
   assert.deepEqual(facts['Triage labels'], ['triage'])
   assert.equal(facts.Merge, 'squash')
   assert.equal(facts.Checks, 'ci')
 })
 
-test('a mirror row names its source and the harness joins the coder', () => {
+test('a mirror row names its source, and the harness shows', () => {
   const row = rowFor('o/bare', { harness: 'kiro' })
   assert.equal(shown(repositoryFacts(row, form.repositories[row.policy], 'o/pub'))['Mirror of'], 'o/pub')
-  assert.equal(shown(repositoryFacts({ ...row, policy: 0 }, { ...form.repositories[0], coder: 'worker' }))['Who codes'], 'Avoozl worker, harness kiro')
+  assert.equal(shown(repositoryFacts({ ...row, policy: 0 }, form.repositories[0])).Harness, 'kiro')
 })
 
 test('empty facts are hidden', () => {
@@ -93,7 +94,8 @@ test('rows draw only a top border and show the facts in a real page', { skip }, 
     assert.equal(seen.github, 'acme/recipe-box')
     assert.match(seen.box, /\/src\/recipe-box/)
     assert.match(seen.box, /main \(pr\)/)
-    assert.match(seen.box, /Avoozl worker, harness kiro/)
+    assert.match(seen.box, /Harness:kiro/)
+    assert.doesNotMatch(seen.box, /Who codes/)
     assert.deepEqual(seen.chips, ['ready', 'needs-triage'])
     assert.deepEqual(seen.notesFacts, ['Folder', 'Tasks land on'])
     assert.equal(seen.sideways, false, `no sideways scroll at ${width}`)

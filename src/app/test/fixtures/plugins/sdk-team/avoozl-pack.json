@@ -65,6 +65,6 @@
         }
       ]
     },
-    "flow": { "batch": { "max": 2 } }
+    "flow": { "retro": { "everyTasks": 20 } }
   }
 }

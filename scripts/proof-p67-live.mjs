@@ -53,6 +53,7 @@ import {
   assertClean,
   assertWritable,
   claimRun,
+  recoverRun,
   guardedFetch,
   outputProblems,
   poller,
@@ -73,7 +74,10 @@ const { values, positionals } = parseArgs({
   },
 });
 const MODE = positionals[0] ?? "";
-if (!values.root || !["preflight", "run", "owner", "continue"].includes(MODE)) {
+if (
+  !values.root ||
+  !["preflight", "run", "owner", "continue", "recover"].includes(MODE)
+) {
   console.error(
     "Usage: node scripts/proof-p67-live.mjs --root DIR [--contributor-gh-config DIR] preflight|run|continue|owner STAGE",
   );
@@ -386,6 +390,21 @@ if (MODE === "run") {
     console.error("The logins changed since this run started.");
     process.exit(1);
   }
+  if (MODE === "recover") {
+    // A person's or the conductor's decision after a crash of the script
+    // itself: clear the crash, rerun one stage, and say so in the receipt.
+    try {
+      recoverRun(S, positionals[1], new Date().toISOString());
+    } catch (error) {
+      console.error(error.message);
+      process.exit(1);
+    }
+    fs.writeFileSync(STATE_FILE, JSON.stringify(S, null, 2));
+    console.log(
+      `Recovered: stage ${positionals[1]} reruns on the next continue.`,
+    );
+    process.exit(0);
+  }
   if (S.finished) {
     console.error("This P67 run already finished; each proof runs once.");
     process.exit(1);
@@ -528,14 +547,22 @@ const upstreamAvoozl = () =>
     .map((h) => h.branch);
 
 // --- Workspaces ----------------------------------------------------------
-// `publicRepositories`: the content rule set naming the private plan covers
-// GitHub writes and pushes for these (registered here) and nothing else, so
-// the private home's own journal may name its plan.
+// The contributor's public repositories: the content rule set naming the
+// private plan covers GitHub writes and pushes for these, the fork
+// included, and nothing else, so the private home's own journal may name
+// its plan.
+const PUBLIC_SET = () => [UP, FORK, PUB];
 function createWorkspace(name, { publicRepositories = [] } = {}) {
   const dir = path.join(ROOT, name);
   initializeWorkspace(dir, { name: `P67 ${name}` });
-  if (!publicRepositories.length) return;
-  const policyFile = path.join(dir, ".avoozl.json"),
+  if (publicRepositories.length) applyRules(name, publicRepositories);
+}
+// Writes the rule set, its terms file and the repositories it names
+// (registered, so the set is available; an unknown name fails closed).
+// Safe to repeat.
+function applyRules(name, publicRepositories) {
+  const dir = path.join(ROOT, name),
+    policyFile = path.join(dir, ".avoozl.json"),
     policy = fs.existsSync(policyFile)
       ? JSON.parse(fs.readFileSync(policyFile, "utf8"))
       : {};
@@ -564,7 +591,6 @@ function createWorkspace(name, { publicRepositories = [] } = {}) {
         `private-${i + 1}: ${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
     ).join("\n") + "\n",
   );
-  // Registered, so the set is available (an unknown name fails closed).
   const store = openWorkspace(name).store;
   for (const repository of publicRepositories)
     store.put("github_repositories", {
@@ -1006,7 +1032,7 @@ const STAGES = [
         [PRIV]: await invite(PRIV, "push"),
       };
       createWorkspace("contributor-workspace", {
-        publicRepositories: [UP, PUB],
+        publicRepositories: PUBLIC_SET(),
       });
       createWorkspace("maintainer-workspace");
       step("setup", {
@@ -1763,6 +1789,8 @@ const STAGES = [
     "private-references",
     false,
     async () => {
+      // A run made before the fork joined the set gets it here.
+      applyRules("contributor-workspace", PUBLIC_SET());
       const jPub = X.jPub,
         gh = X.cGithub,
         probes = {};
@@ -1819,8 +1847,17 @@ const STAGES = [
       // Avoozl lets through reaches no GitHub repository.
       const probeDir = path.join(ROOT, "probe-push"),
         trap = path.join(ROOT, "probe-trap.git");
-      await git(P.code, ["worktree", "add", "-q", "--detach", probeDir, S.H2]);
-      run("git", ["clone", "-q", "--bare", url(FORK), trap], { env: cEnv });
+      if (!fs.existsSync(probeDir))
+        await git(P.code, [
+          "worktree",
+          "add",
+          "-q",
+          "--detach",
+          probeDir,
+          S.H2,
+        ]);
+      if (!fs.existsSync(trap))
+        run("git", ["clone", "-q", "--bare", url(FORK), trap], { env: cEnv });
       const trapRegistry = sourceRegistry({
         [UP]: { url: url(UP) },
         [FORK]: { url: trap, parent: UP },
@@ -1900,9 +1937,10 @@ const STAGES = [
     },
   ],
 
-  // Export issues: seed the workspace and preview through the CLI.
+  // Export issues: seed the workspace. The CLI's export, preview included,
+  // is a person's act, so it runs only in export-first and export-retry.
   [
-    "export-preview",
+    "export-seed",
     false,
     async () => {
       const store = X.cWs.store;
@@ -1921,6 +1959,8 @@ const STAGES = [
         number: S.pubIssue,
       });
       store.mutate("Seed P67 tasks", (data) => {
+        // Safe to repeat: run 3 seeded these before it crashed.
+        if (data.tasks.some((task) => task.planId === PUBLIC_SPEC)) return;
         for (const [id, entry] of Object.entries(manifest.tasks))
           data.tasks.push({
             id,
@@ -1948,24 +1988,12 @@ const STAGES = [
           kind: "requires",
         });
       });
-      const preview = cli(
-        "spec",
-        "export-issues",
-        PUBLIC_SPEC,
-        "--repository",
-        PUB,
-      );
-      for (const item of preview.create ?? []) assertWritable(item.repository);
-      step("export-preview", {
-        create: (preview.create ?? []).length,
-        reuse: (preview.reuse ?? []).length,
-        links: (preview.links ?? []).length,
-      });
+      step("export-seed", { tasks: Object.keys(manifest.tasks).length });
     },
   ],
 
   // Export issues, then the retry: each a person's act through the CLI.
-  ["export-first", true, async () => exportOnce("first")],
+  ["export-first", true, async () => exportOnce("first", { preview: true })],
   ["export-retry", true, async () => exportOnce("retry")],
 
   [
@@ -2106,8 +2134,13 @@ const guardedCopy = async (args) => {
   assertWritable(args.mirror);
   return gitCopy(args);
 };
-// One `avoozl spec export-issues --confirm`, as the contributor.
-function exportOnce(which) {
+// One `avoozl spec export-issues --confirm`, as the contributor; the first
+// previews before it confirms.
+function exportOnce(which, { preview: first = false } = {}) {
+  const preview = first
+    ? cli("spec", "export-issues", PUBLIC_SPEC, "--repository", PUB)
+    : null;
+  for (const item of preview?.create ?? []) assertWritable(item.repository);
   const result = cli(
     "spec",
     "export-issues",
@@ -2117,6 +2150,15 @@ function exportOnce(which) {
     "--confirm",
   );
   step(`export-${which}`, {
+    ...(preview
+      ? {
+          preview: {
+            create: (preview.create ?? []).length,
+            reuse: (preview.reuse ?? []).length,
+            links: (preview.links ?? []).length,
+          },
+        }
+      : {}),
     created: result.created,
     linked: result.linked,
     state: result.state,
@@ -2270,6 +2312,23 @@ function receipt(failure) {
     "",
     `Verdict: **${verdict}**`,
     ...(failure ? ["", `Stopped at: ${failure}`] : []),
+    ...(S.recoveries?.length
+      ? [
+          "",
+          "## Recoveries",
+          "",
+          "The script crashed and the run was resumed on the same root:",
+          "",
+          ...S.recoveries.map(
+            (r) =>
+              `- ${r.at}: crashed with "${r.crash}". Stage ${r.rerun} was rerun; its earlier result and ${r.stopped.length} guard stop(s) are kept below.`,
+          ),
+          "",
+          "```json",
+          JSON.stringify(S.recoveries, null, 2),
+          "```",
+        ]
+      : []),
     "",
     "| Expected | Result |",
     "|---|---|",

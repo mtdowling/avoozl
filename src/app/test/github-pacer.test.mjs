@@ -23,11 +23,6 @@ import { Store } from "../store.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
-import { setRadarHandoverPaused } from "../coder-adapter.mjs";
-
-// These tests cover the Radar hand-over kept while Phase 45 is paused
-// (R103.4 pauses it in the product).
-setRadarHandoverPaused(false);
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -393,8 +388,8 @@ test("a run cut off is picked up again, and the preview counts what the run writ
   // The preview names every write the run makes, plus none it does not.
   assert.equal(written, preview.writes.length);
   assert.equal(written / issues, 1, "one create call per ready leaf");
-  // The ready label rides in the create call: no separate label write.
-  assert.ok(fake.created.some((issue) => issue.labels.length === 2));
+  // Labels ride in the create call; no ready label goes on (R91.6).
+  assert.ok(fake.created.every((issue) => issue.labels.length === 1));
   assert.equal(pacer.history().length, written);
 });
 

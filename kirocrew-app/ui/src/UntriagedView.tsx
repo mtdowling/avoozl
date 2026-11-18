@@ -46,6 +46,7 @@ import {
   type UntriagedFilter,
   type UntriagedItem,
   type UntriagedList,
+  triageReason,
 } from './untriaged-api.ts'
 import { linkHref } from './views-api.ts'
 
@@ -283,6 +284,9 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
               </td>
               <td style={{ ...CELL, minWidth: '16rem' }}>
                 <Title item={item} />
+                <p className="m-0 text-xs text-muted" data-triage-reason>
+                  {triageReason(item)}
+                </p>
                 <div>
                   <EscalationMark item={item} />
                   <PullState item={item} />
@@ -329,6 +333,9 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
           <KindIcon item={item} />
           <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
             <Title item={item} />
+            <span className="text-xs text-muted" data-triage-reason>
+              {triageReason(item)}
+            </span>
             <span className="text-xs text-muted">
               {sourceOf(item)} · <RepoLink item={item} /> · <AuthorLink item={item} fallback="unknown" /> · {age(item.createdAt, props.now)}
               {sourceOf(item) === 'github' ? ` · ${item.comments} comment${item.comments === 1 ? '' : 's'}` : ''}

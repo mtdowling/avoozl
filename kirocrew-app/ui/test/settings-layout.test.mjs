@@ -29,7 +29,7 @@ test('every Settings group and repository tab renders its blurb', () => {
   for (const tab of ['workspaces', 'repositories', 'github', 'plugins', 'content'])
     assert.match(settings, new RegExp(`\\n  ${tab}:\\s*\\n?\\s*['"]`), tab)
   assert.match(settings, /data-blurb=\{section\.key\}>\s*\{SETTINGS_BLURBS\[section\.key\]\}/)
-  for (const tab of ['mode', 'triggers', 'checks', 'reviews'])
+  for (const tab of ['general', 'landing', 'github', 'checks', 'reviews', 'map'])
     assert.match(settings, new RegExp(`blurb=\\{REPOSITORY_BLURBS\\.${tab}\\}`), tab)
   // Managed labels say what they are, and that hand edits are conflicts.
   assert.match(settings, /Labels Avoozl itself adds and removes on issues to show their state\. Don't edit them by hand: a hand edit shows as a conflict\./)
@@ -81,10 +81,10 @@ test('the radio fold-out is real radios with motion off under reduced motion, an
   assert.deepEqual(MODE_CARDS.map((card) => card.mode), ['local', 'plans-repo', 'single-repo'])
   for (const card of MODE_CARDS) {
     assert.ok(card.useWhen.length >= 3)
-    assert.equal(card.facts.length, 4)
+    assert.equal(card.facts.length, 3)
   }
   assert.equal(MODE_CARDS[1].line, 'Specs and their related issues live in a private planning repository; code and pull requests live in the code repositories.')
-  assert.match(MODE_CARDS[1].facts[3][1], /Radar crew opens pull requests only in its own repository/)
+  assert.match(MODE_CARDS[1].facts[2][1], /only in the planning repository/)
   assert.match(MODE_CARDS[2].facts[0][1], /Closes #N/)
   // One radiogroup of real radio inputs; the whole header is the label.
   assert.match(fold, /role="radiogroup"/)
@@ -114,12 +114,12 @@ test('no mode is Local only', () => {
 
 test('each mode shows only the settings it reads, and Local only keeps the rest', () => {
   const local = visibleSettings('local')
-  for (const key of ['triggers', 'requiredChecks', 'pullRequestReviews', 'projectFields', 'setupGitHub', 'coder', 'planningRepository', 'issueRadarCrews'])
+  for (const key of ['triggers', 'requiredChecks', 'pullRequestReviews', 'projectFields', 'setupGitHub', 'planningRepository'])
     assert.ok(!local.has(key), key)
   for (const key of ['landingBranch', 'workerChats', 'reviewerChats', 'localChecks']) assert.ok(local.has(key), key)
   const single = visibleSettings('single-repo')
   assert.ok(!single.has('planningRepository'))
-  assert.ok(single.has('issueRadarCrews') && single.has('setupGitHub'))
+  assert.ok(single.has('setupGitHub'))
   const plans = visibleSettings('plans-repo')
   assert.ok(plans.has('planningRepository') && !plans.has('issueRadarCrews'))
   assert.equal(LOCAL_HIDDEN_LINE, 'Labels, checks, reviews and the Project board only apply to GitHub modes.')
@@ -130,7 +130,7 @@ test('each mode shows only the settings it reads, and Local only keeps the rest'
   assert.deepEqual(unusedInLocal(form), ['planning repository', 'Project board', '1 repository GitHub setting'])
   // Local only needs no base branch or Project number.
   assert.equal(missingRequired({ ...form, projectNumber: '' }), null)
-  assert.match(settings, /!isGitHubMode\(form\.mode\) \? \(\s*<LocalRepository/)
+  assert.match(settings, /if \(!isGitHubMode\(form\.mode\)\)\s*return \{ tabs: LOCAL_TABS, body: <LocalRepository/)
   assert.match(settings, /<p>\{LOCAL_HIDDEN_LINE\}<\/p>/)
 })
 
@@ -172,9 +172,9 @@ test('markers read (required) or (optional) in plain muted text, never red or bo
   assert.doesNotMatch(marker, /--danger|font-medium|font-semibold|font-bold/)
 })
 
-test('who counts is one row on the Triggers tab, with write as the default; no separate tab', () => {
+test('who counts is one row on the GitHub tab, with write as the default; no separate tab', () => {
   assert.doesNotMatch(settings, /key: 'people'/)
-  const triggers = settings.slice(settings.indexOf("{tab === 'triggers' && ("), settings.indexOf("{tab === 'checks' && ("))
+  const triggers = settings.slice(settings.indexOf("{tab === 'github' && ("), settings.indexOf("{tab === 'mirror' && <MirrorBox"))
   assert.match(triggers, /title="Who counts"/)
   assert.match(triggers, /raw="minimumPermission"/)
   assert.match(triggers, /raw="allowedActors"/)
@@ -207,11 +207,10 @@ test('GitHub: every group is its own tab and bordered section, and Radar setting
   // GitHub calls is a bordered section of its own.
   assert.match(settings, /<Card>\s*<Section title="GitHub calls"/)
   const radar = settings.slice(settings.indexOf('function RadarSettings('), settings.indexOf('export function ProjectFields'))
-  assert.match(radar, /<CrewScope crew=\{crew\} \/>/)
-  assert.match(radar, /<RadarValuesScreen key=\{crew\.repository\}/)
+  // The crew scope and Radar values were Radar coding (R91.6).
+  assert.doesNotMatch(radar, /CrewScope|RadarValuesScreen|ReleaseModePicker/)
   assert.match(settings, /tab === 'radar' \? \(\s*<RadarSettings/)
   assert.match(settings, /\n  radar:\s*\n?\s*['"]/)
-  assert.doesNotMatch(source('RadarValues.tsx'), /FieldBox/)
   assert.equal(redirectSettings('issue-radar'), 'radar')
   assert.equal(redirectSettings('radar-values'), 'radar')
   assert.equal(redirectSettings('github'), 'github')
@@ -220,9 +219,9 @@ test('GitHub: every group is its own tab and bordered section, and Radar setting
 test('Plugins puts Add plugin on the left and the installed list on the right, stacked when narrow', () => {
   const plugins = source('PluginsSettings.tsx')
   const layout = plugins.slice(plugins.indexOf('data-plugins-layout'))
-  assert.ok(layout.indexOf('<AddPlugin') < layout.indexOf('aria-label="Installed plugins"'))
+  assert.ok(layout.indexOf('<AddPlugin') < layout.indexOf('title="Installed plugins"'))
   assert.match(plugins, /useMedia\('\(min-width: 1024px\)'\)/)
-  assert.match(plugins, /flexDirection: 'column'/)
+  assert.match(source('PairedCards.tsx'), /flexDirection: 'column'/)
 })
 
 const SETTINGS_TAB_KEYS = () => [...settings.slice(settings.indexOf('export const SETTINGS_TABS'), settings.indexOf('] as const')).matchAll(/key: '(\w+)'/g)].map((m) => m[1])
@@ -297,16 +296,16 @@ const body = (start) => {
   return settings.slice(at, settings.indexOf('\n}\n', at))
 }
 
-test('Settings › Issue Radar holds every Radar setting, each in its own section box with one line', () => {
+test('Settings › Issue Radar holds every Radar intake setting, each in its own section box with one line', () => {
   const page = body('function RadarSettings(')
   const titles = [...page.matchAll(/<Section title=\{?["']?([^"'}]+)/g)].map((m) => m[1])
-  assert.deepEqual(titles, ['Issue Radar', 'Repository', 'Radar crew', 'Handoff to Avoozl', 'Labels Radar uses', 'Crew review rules', 'Crew pull-request conflicts', 'CREW_PART_TEXT.merge.title'])
+  assert.deepEqual(titles, ['Issue Radar', 'Repository', 'Handoff to Avoozl', 'Labels Radar uses', 'Crew review rules', 'Crew pull-request conflicts', 'CREW_PART_TEXT.merge.title'])
   assert.equal((page.match(/<Section title=/g) ?? []).length, (page.match(/<Section title=[^>]*blurb=/g) ?? []).length)
-  for (const part of ['<CrewScope ', '<ReleaseModePicker', '<RadarValuesScreen', '<AvoozlLabelFields', 'crewLabels.${key}', '<ReviewRulesFields', '<ConflictFields', '<MergeMethodFields'])
+  for (const part of ['<AvoozlLabelFields', 'crewLabels.${key}', '<ReviewRulesFields', '<ConflictFields', '<MergeMethodFields'])
     assert.ok(page.includes(part), part)
   // Each section box is a Card around one Section; nothing loose between them.
   const tops = [...page.slice(page.indexOf('data-radar-settings')).matchAll(/\n {6}(<\w+|\{\w+)/g)].map((m) => m[1])
-  assert.deepEqual(tops, ['{names', '<Card', '{crew', '<Card', '<Card', '<Card', '<Card', '<Card'])
+  assert.deepEqual(tops, ['{names', '<Card', '<Card', '<Card', '<Card', '<Card'])
   // The repository editor keeps no Radar field and no Crews and rules tab.
   const editor = body('export function RepositoryEditor(')
   assert.doesNotMatch(editor, /CrewsRulesSettings|ReleaseModePicker|crewLabels|Issue Radar labels|tab === 'crews'/)

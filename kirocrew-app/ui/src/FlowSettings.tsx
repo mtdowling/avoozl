@@ -1,10 +1,10 @@
 // Settings > Flow (design §8.4, R48.6–R48.8): stop the line, local checks
-// first, batching and retros for this workspace. Saves write `flow` in
+// first, CI and retros for this workspace. Saves write `flow` in
 // .avoozl.json through flow.settings.update with the file's hash; the retro
 // instructions are saved on this machine only (flow.instructions.update).
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Card, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
+import { Card, Input } from '@kirocrew/app-sdk/ui'
 import { ChoiceCards, SectionHeading } from './controls.tsx'
 import { Section } from './SettingsView.tsx'
 import { CheckRow, FieldGrid as SharedGrid, FieldRow, Marker, RawKey } from './FieldRow.tsx'
@@ -136,28 +136,6 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
       <Box>
         <Section title="Local checks first" blurb="Run the checks here before any push, so CI only confirms. It matters only when sessions push.">
           <CheckRow label="Require a local pass before push" raw="flow.localChecksFirst" checked={local} onChange={(on) => set({ localChecksFirst: on ? 'on' : 'off' })} />
-        </Section>
-      </Box>
-      <Box>
-        <Section title="Batching" blurb="Run small related tasks together to pay setup and checks once. 1 turns it off.">
-          <FieldGrid group="batch">
-            <Labeled id="avoozl-flow-max" label="Most tasks per run" raw="flow.batch.max">
-              <Input id="avoozl-flow-max" inputMode="numeric" value={form.max} placeholder={String(FLOW_DEFAULTS.max)} onChange={(event) => set({ max: event.target.value })} />
-            </Labeled>
-            <Labeled id="avoozl-flow-by" label="Group by" raw="flow.batch.by" note="Same phase is the default.">
-              <SegmentedControl
-                collapse={false}
-                layoutId="avoozl-flow-by"
-                ariaLabel="Group by"
-                segments={[
-                  { key: 'phase', label: 'Same phase' },
-                  { key: 'files', label: 'Same files' },
-                ]}
-                value={form.by || FLOW_DEFAULTS.by}
-                onChange={(key) => set({ by: key as FlowForm['by'] })}
-              />
-            </Labeled>
-          </FieldGrid>
         </Section>
       </Box>
       <Box>

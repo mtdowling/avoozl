@@ -1,4 +1,4 @@
-// Settings > a repository > Mode and branch: Release N is the one concurrency
+// Settings > a repository > Landing: Release N is the one concurrency
 // knob, with its help line shown (it works on touch) and wired to the input;
 // the retired Tasks at once field is gone. Real Chrome on the harness page
 // ?page=repo-mode, at 1280 and 390 px. Skipped when no Chrome is found.
@@ -22,7 +22,7 @@ after(async () => {
 })
 
 for (const width of [1280, 390])
-  test(`Mode and branch at ${width} px: Release N with its help line, and no Tasks at once`, { skip }, async () => {
+  test(`Landing at ${width} px: Release N with its help line, and no Tasks at once`, { skip }, async () => {
     await page.open(harness.url({ page: 'repo-mode', theme: 'light' }), { width, height: 900 })
     await page.until(`Boolean(document.querySelector('input[id$="-release-capacity"]'))`)
     const field = await page.evaluate(`(() => {
@@ -35,7 +35,7 @@ for (const width of [1280, 390])
     })()`)
     assert.match(field.label, /^Release N/)
     assert.equal(field.named, true, 'the input names its help line')
-    assert.equal(field.help, 'How many issues get the ready label at once. Crews pick from these.')
+    assert.equal(field.help, 'How many ready tasks are released at once.')
     assert.equal(field.shown, true)
     const text = await page.evaluate(`document.body.innerText`)
     assert.doesNotMatch(text, /Tasks at once/)

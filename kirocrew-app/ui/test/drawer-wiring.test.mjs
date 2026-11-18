@@ -52,7 +52,7 @@ test('the drawer shows every section, and a linked task opens in it', () => {
   // Focus shows the task's chain in the Graph; Ask in a chat seeds a chat.
   assert.match(drawer, /props\.onFocus!\(task\.id, task\.title\)/)
   assert.match(drawer, /chat\.ask\(\{ tasks: \[task\.id\] \}\)/)
-  assert.match(drawer, /onClick=\{\(\) => open\(link\.id\)\}/)
+  assert.match(drawer, /<EdgeList label=\{title\} items=\{items\} onOpen=\{open\} \/>/)
   for (const action of ['Retry', 'Defer', 'Resume', 'SupersedeForm', 'ConflictActions', 'TaskForm'])
     assert.match(drawer, new RegExp(action))
 })
@@ -114,7 +114,7 @@ test('a review group opens in the drawer with its tasks and a confirmed Mark rev
   const drawer = source('TaskDrawer.tsx')
   assert.match(drawer, /openReview: \(group, onReviewed\) =>/)
   assert.match(drawer, /<ReviewPanel/)
-  assert.match(drawer, /onClick=\{\(\) => props\.open\(task\.id\)\}/)
+  assert.match(source('NeedsYouContext.tsx'), /onClick=\{\(\) => drawer\.openTask\(task\.id\)\}/)
   assert.match(source('ConflictsView.tsx'), /ask\(confirmSettle\('reviewed', count/)
   for (const name of ['ConflictsView.tsx', 'DashboardView.tsx']) assert.match(source(name), /drawer\.openReview\(/, name)
   assert.match(source('GraphView.tsx'), /task\.review && <Badge>review<\/Badge>/)

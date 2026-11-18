@@ -223,3 +223,34 @@ test("a semantic conflict drops that member and stacking goes on", async (t) => 
   });
   assert.deepEqual(result.log.reverse(), ["Writer|A edits", "Writer|C adds"]);
 });
+
+test("a branch whose writer merged the trunk and settled a conflict stacks as one net commit", async (t) => {
+  const r = repo(t);
+  fs.writeFileSync(path.join(r.root, "s.txt"), "one\ntwo\nthree\n");
+  git(r.root, "add", ".");
+  git(r.root, "commit", "-qm", "Shared");
+  const fork = git(r.root, "rev-parse", "HEAD");
+  // The trunk edits line two; the branch edits it too, then merges the trunk
+  // and settles the conflict by hand.
+  git(r.root, "checkout", "-q", "-b", "b", fork);
+  fs.writeFileSync(path.join(r.root, "s.txt"), "one\nB\nthree\n");
+  git(r.root, "commit", "-qam", "B edits");
+  git(r.root, "checkout", "-q", "main");
+  fs.writeFileSync(path.join(r.root, "s.txt"), "one\nTRUNK\nthree\n");
+  git(r.root, "commit", "-qam", "Trunk edits");
+  const trunk = git(r.root, "rev-parse", "HEAD");
+  git(r.root, "checkout", "-q", "b");
+  try {
+    git(r.root, "merge", "main");
+  } catch {}
+  fs.writeFileSync(path.join(r.root, "s.txt"), "one\nB+TRUNK\nthree\n");
+  git(r.root, "add", ".");
+  git(r.root, "commit", "-qm", "Merge main");
+  const head = git(r.root, "rev-parse", "HEAD");
+  git(r.root, "checkout", "-q", "main");
+  const entry = r.entry("b", head, git(r.root, "merge-base", head, trunk));
+  const out = await stack(r, trunk, [entry]);
+  assert.equal(out.members[0].state, "stacked");
+  assert.equal(out.log.length, 1);
+  assert.match(out.trailers[0], /^b@/);
+});

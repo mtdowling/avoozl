@@ -26,7 +26,10 @@ the spec driver lock stays; Ideas, the lessons store, Switch model, Quick
 goal, the Routing page, the relay and the demo tour were removed (#228,
 #282, #311). Avoozl itself pushes and merges (R87), so older "never pushes"
 and "never merges" text is history. The built page is no longer in git
-(#490), and CI selects tests by changed files (#521).
+(#490), and CI selects tests by changed files (#521). Who codes is gone
+(2026-11-18, Requirement 91.6): the Avoozl worker is the only coder, and
+Issue Radar is an intake source only, so older text about a repository's
+`coder`, a Radar-coded repository or Radar's release queue is history.
 
 ## Introduction
 
@@ -2085,6 +2088,10 @@ and nobody waits on CI to learn about a failure.
 
 Added 2026-11-12 (owner request). Design §4.11.
 
+**Changed 2026-11-18.** Criteria 1 to 4 are replaced by Requirement 108:
+the planner decides batches in the manifest, and batching has no setting.
+Criteria 5 to 7 still hold.
+
 **User story:** As the owner, I want small related tasks to share one run,
 so that the fixed cost of a session, a worktree, checks, and review is paid
 once instead of once per tiny task.
@@ -2201,7 +2208,8 @@ and what to change, and one settings group for the flow rules.
    above every other section while a stop is open.
 6. Settings SHALL have one **Flow** group with sub-groups **Timing**
    (read-only explanation, no fields), **Stop the line** (scope), **Local
-   checks first** (on or off), **Batching** (max, by), and **Retro**
+   checks first** (on or off), ~~**Batching** (max, by),~~ (removed
+   2026-11-18, Requirement 108) and **Retro**
    (every N tasks, slow factor, model, instructions). Each SHALL have a
    heading and one short line, plain labels with the raw key shown small,
    "(required)" or "(optional)" in plain text, and defaults as placeholders.
@@ -3015,7 +3023,8 @@ progress, and no grouping is made up from a file path.
     a link and its phases with progress. An **epic page** (or Graph
     drill-in) SHALL show the epic's goal, what done means, each member
     plan with its status and progress, and open decisions.
-11. Flow batching (Requirement 46.2) SHALL name the grouping `phase`: the
+11. (Superseded 2026-11-18 by Requirement 108: there is no
+    `flow.batch.by`.) Flow batching (Requirement 46.2) SHALL name the grouping `phase`: the
     same parent package, otherwise the same phase. The value `epic` SHALL
     be refused by the Settings validator, naming `phase`. The New plan drawer (Requirement
     57.1) SHALL offer **Epic** (pick an existing epic, optional) and
@@ -3133,7 +3142,7 @@ Workflow templates
    that the prompt tells the planner to fill in for this plan.
 6. `pack` SHALL be a settings pack under Requirement 55.3–55.7, and
    `flow` SHALL set only `flow` keys that pass the Flow settings
-   validator: batching small tasks, stop the line, local checks first,
+   validator: stop the line, local checks first,
    and the retrospective cadence. Neither SHALL be applied by picking the
    template. The New plan drawer SHALL show them as the pack preview of
    Requirement 55.5 with an **Import these settings** checkbox, off by
@@ -3252,8 +3261,8 @@ Example
     SDK name, target repository and an optional gap list; phases
     inventory, codegen, runtime, protocol tests, review and cutover; a
     manual **Review with team** leaf that cutover requires; proof kinds
-    for protocol tests and a cutover dry run; and flow defaults that batch
-    small tasks, stop the line, run local checks first and hold a
+    for protocol tests and a cutover dry run; and flow defaults that
+    stop the line, run local checks first and hold a
     retrospective every 10 tasks. The plugin guide and the planner skill
     SHALL describe templates, manual tasks and Links ~~and notes~~.
 
@@ -4089,7 +4098,8 @@ do not build on a wrong reading of the task.
    falsifier's reply, offering **Go ahead**, **Investigate again** (one new
    round, with the reply as data), and **Stop**. These SHALL be person only.
 5. `delivery.investigate.mode` SHALL be `all`, `not-small` (default) or
-   `off`. `not-small` skips leaves marked `size: "small"`. A manifest task
+   `off`. `not-small` skips leaves in a planner batch group (Requirement
+   108.10; it skipped `size: "small"` before 2026-11-18). A manifest task
    MAY set `investigate: false` or `true` to override the mode.
 6. Investigation and the falsifier SHALL be Flow spans of their own and
    SHALL count in Flow's usage (budgets were removed 2026-11-17).
@@ -4476,7 +4486,7 @@ second system deciding what to claim, push or merge.
 
 1. Avoozl SHALL have one coder: its own worker chat. The `coder` setting,
    `issue-radar`, the remote coder, the remote relay and the router chat
-   SHALL be removed (Requirement 91).
+   SHALL be removed (Requirement 91; the `coder` setting by 91.6).
 2. Avoozl SHALL run one loop per task, in this order, and each step SHALL
    have one owner:
 
@@ -4734,6 +4744,29 @@ removed, so that the app has one way to deliver work.
    RC24–RC26 SHALL NOT be used for this setup; the pre-push content rule
    (Requirement 87.9) SHALL be its one leak guard. The freeze on public
    `core-dev` is lifted.
+6. Who codes SHALL be removed (owner decision, 2026-11-18). The Avoozl
+   worker SHALL be the only coder; the harness each role runs on (a Kiro
+   Crew chat, Claude Code or Codex) is chosen in Settings › Models
+   (Requirement 97). The repository `coder` setting, its default by mode,
+   the Who codes picker and summary, the Radar coding tour, the Workflow
+   map's Who codes step and every path that routes a task to an Issue
+   Radar crew (the ready-label release and its queue, the crew's merge
+   path and conflict fixes, the crew claim reconcile, the Radar source
+   issue and its approval label, Radar flow rows) SHALL be removed.
+   - A stored `coder` key SHALL be ignored silently: no warning, no
+     migration, and the file SHALL still load. A test SHALL load a file
+     that sets `coder: issue-radar`.
+   - Every repository SHALL use the same Untriaged read; there SHALL be
+     no Radar-coded read that lists only Radar labels.
+   - Issue Radar SHALL stay an intake source only: GitHub intake (56.8),
+     Radar escalations in Triage with Plan this and Deliver this (56.14),
+     Radar back-links (44.6), With Issue Radar and Send to Issue Radar
+     (Requirement 52), and Settings › Issue Radar with the labels Avoozl
+     reads, the handoff labels, crew review rules, conflicts and merge
+     method. A test SHALL show that a repository whose file still says
+     `coder: issue-radar` feeds Triage and its Radar escalations.
+   - The shared task projection and synchronization callers SHALL stay
+     for 45.4 (criterion 2), less their coder routing.
 
 ### Requirement 92: Links to related GitHub items, and the landing queue
 
@@ -4979,6 +5012,12 @@ harness can read, so that a role behaves the same on every executor.
 ### Requirement 98: Kiro Crew stays the only UI
 
 Added 2026-11-15. Design §4.28.
+
+Proposed change, 2026-11-18 (draft, not approved):
+`.kiro/specs/standalone-web/` would let `avoozl serve` host this same page on
+`127.0.0.1` only, for a machine with no Kiro Crew (SW1 to SW11 there). Kiro
+Crew's page stays as it is. Until that spec is approved, criterion 5 stands
+as written; on approval it changes as SW11.2 says.
 
 **User story:** As the owner, I want to watch and steer every session in the
 Avoozl page, whatever harness runs it, so that I never need another UI.
@@ -5229,7 +5268,7 @@ budgets (removed 2026-11-17).
    SHALL be remembered as having none. Each call SHALL count under `receipt`
    in the GitHub usage counter.
 6. **Not tied to Issue Radar.** Receipts SHALL be read in the tick's CI step
-   for every repository with `buildReceipts` on, whatever its coder, so the
+   for every repository with `buildReceipts` on, so the
    reader survives the removal of Phase 45.
 7. **Report format.** Avoozl SHALL define a documented, versioned build
    report, `avoozl.build-report` version 1, with: `workload`, `engine`,
@@ -5474,9 +5513,9 @@ skip is a rule in the crew's prompt, not code.
    claim, needs-human, a trigger rule's label or a Send to Issue Radar label.
 4. Until issue-binding retirement (56.5) has run, Avoozl SHALL add no Radar
    ready or scope label to any task issue it projected, and SHALL write no
-   Radar claim label or claim marker at approval, in any repository,
-   including one whose coder is `issue-radar`. Avoozl's executor SHALL run
-   those tasks as it does elsewhere. Radar code and settings SHALL stay.
+   Radar claim label or claim marker at approval, in any repository.
+   Avoozl's executor SHALL run those tasks as it does elsewhere. Radar
+   intake code and settings SHALL stay (Requirement 91.6).
 5. Because an empty-scope crew takes any open issue without a `crew:`
    label, Avoozl SHALL add `crew:avoozl` once to each open task issue it
    projected that carries no `crew:` label, after a preview a person
@@ -5494,8 +5533,8 @@ skip is a rule in the crew's prompt, not code.
    (`crewLabels.needsHuman`), the only escalation it can write. Avoozl
    SHALL keep the plan-me routing: the trust check, scope-gate skips to
    Intake, other scopes to Needs you, untrusted issues left alone. It SHALL
-   list trusted escalations first in Untriaged (for a Radar-coded
-   repository, its Intake rows) with **Plan this** and **Deliver this**,
+   list trusted escalations first in Untriaged with **Plan this** and
+   **Deliver this**,
    and the Needs you row for one SHALL offer the same two buttons. Plan this
    SHALL draft a proportionate fix spec or the compact bounded-fix
    acceptance of Requirement 102.19.
@@ -5858,3 +5897,81 @@ the spec and merging its pull request is one decision.
    and the chip, box and Decisions item. Screenshots in the full app shell
    (phone and desktop, light and dark) SHALL be under
    `docs/evidence/spec-pr-adoption/`.
+
+### Requirement 108: The planner decides batches; batching has no setting
+
+Added 2026-11-18 (owner decision). Design §4.37. Replaces Requirement 46.1
+to 46.4 and the Batching settings of Requirement 48.6; keeps
+46.5 to 46.7.
+
+The owner's words, in short: batching is not configurable. Tasks are handed
+off in batches based on what an agent decides is most efficient, with no
+setting for it.
+
+**User story:** As the owner, I want the planner to decide which tasks one
+worker does together in one chat, so that tiny related edits share one
+handoff without my tuning a batch size.
+
+#### Acceptance criteria
+
+1. WHEN the planner writes or revises a spec's tasks THEN it MAY group
+   leaves that one worker should do together in one chat in the manifest's
+   top-level `batches` object, keyed by a group ID, each entry
+   `{"tasks": [IDs as written in tasks.md], "reason": "<one line>"}`. The
+   planner prompt (`prompts/planner.md`) SHALL say when to group (small
+   edits that share files or context, where one chat is cheaper than
+   several) and when not to (anything that needs its own review, any
+   ordering between the tasks, more than one repository).
+2. Spec lint SHALL refuse a `batches` value that is not an object of
+   entries with a group ID of letters, digits, `.`, `_` or `-`, 2 to 5
+   task IDs that name leaves in this spec, and a reason of 1 to 200
+   characters on one line, and a task listed in two groups. These SHALL be
+   `manifest.schema` errors, like any other manifest error.
+3. Approval SHALL store the group on each member task as
+   `batch: {id, tasks, reason}` with the members' task IDs, from the
+   approved revision only. A later draft revision SHALL NOT change a stored
+   group until it is approved.
+4. The tick SHALL stay a pure planner with no model call. It SHALL
+   dispatch a group as one handoff WHEN every open member is ready. Members
+   already complete SHALL be left out. Ready members SHALL wait while
+   another open member of their group is not ready, unless the group breaks
+   a rule of criterion 5 or was split.
+5. Avoozl SHALL check these rules in code, never in a setting, each time it
+   would dispatch a group: every member is in the same plan and the same
+   repository (so the same base branch); no `requires` or `sequence` edge
+   joins two members; the group has at most 5 members; every member
+   carries the same group from the same approved plan hash, and the plan is
+   approved at that hash; every member is an automatic leaf with local
+   route and authority; no member has an earlier attempt or was split from
+   a batch. A group that breaks a rule SHALL be dispatched as single tasks,
+   and the task's details and its Delivery card SHALL show **Runs alone**
+   with the rule it broke.
+6. A batched handoff SHALL keep Requirement 46.5 to 46.7: one worker
+   session and one worktree, one commit and one `done` per task in order,
+   checks and review once on the last commit, and on failure a split in
+   which each task retries alone at no attempt cost and is not batched
+   again in that delivery.
+7. Batching SHALL add no landing step. Landing trains (the
+   `landing-trains` spec) test once on landing and find a culprit there;
+   a batch's commits land through the repository's landing like any other.
+8. Batching SHALL have no setting. `flow.batch` SHALL NOT be a Flow key,
+   Settings > Flow SHALL have no Batching section, the Flow settings
+   validator and settings packs SHALL have no batch keys, and `size` SHALL
+   NOT be a task field. An old `flow.batch` in `.avoozl.json`, in a repository's `flow`
+   or in a pack, and an old `size` in a manifest, SHALL be ignored silently
+   and SHALL never fail a load, a save, an import or lint.
+9. Delivery's **In progress** lane SHALL show a batched handoff as one card
+   that lists each task (ID and title) and the planner's reason. Each
+   task's details SHALL name its batch and link to it, and show the reason.
+10. `delivery.investigate.mode: not-small` SHALL skip leaves in a planner
+    group instead of leaves marked `size: "small"`. The value keeps its
+    name so saved settings still load.
+11. Radar coder projection (radar-coder RC2.5) SHALL suggest the planner's
+    groups instead of grouping `size: "small"` tasks up to `flow.batch.max`.
+12. Tests SHALL cover: a planner group dispatched as one handoff; a group
+    that breaks each rule of criterion 5 dispatched as single tasks with its
+    reason; a failing batch split with each task retried alone; no batch key
+    in the Flow settings validator or in Settings > Flow; and an old
+    `flow.batch` and an old `size` ignored on load. Screenshots of the
+    batched card (phone and desktop, light and dark) SHALL be under
+    `docs/evidence/agent-batching/`.

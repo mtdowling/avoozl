@@ -867,10 +867,13 @@ export function parseSpec({
       const local = (reference) => byKey.get(reference)?.id ?? reference;
       try {
         const title = shortTitle(item.title),
-          // A leaf's old `budget` key is ignored (budgets removed 2026-11-17).
+          // A leaf's old `budget` key is ignored (budgets removed 2026-11-17),
+          // and so is `size`: the planner's `batches` replaced it (R108.8).
           {
             phase: phaseValue,
             budget: _budget,
+            size: _size,
+            batch: _batch,
             ...rest
           } = structuredClone(entry),
           fields = {
@@ -933,7 +936,103 @@ export function parseSpec({
       }
     }
   }
+  if (entries && manifest && manifest.batches !== undefined)
+    planBatchGroups(manifest.batches, {
+      byKey,
+      entries,
+      proposals,
+      diagnostics,
+      text,
+    });
   return { type, kind: "plan", items, diagnostics, proposals };
+}
+
+// The planner's batch groups (§4.37, R108.2): `batches` is an object of
+// group ID to {tasks: [IDs as in tasks.md], reason}. A malformed group is a
+// manifest error; a valid one is stamped on each member proposal as
+// `batch: {id, tasks, reason}` with full task IDs. Whether a group may run
+// as one handoff is checked again at dispatch (flow-batch.mjs).
+function planBatchGroups(
+  batches,
+  { byKey, entries, proposals, diagnostics, text },
+) {
+  const problem = (line, message) =>
+    diagnostics.push(diagnostic("manifest.schema", MANIFEST, line, message));
+  if (!batches || typeof batches !== "object" || Array.isArray(batches)) {
+    problem(
+      manifestLine(text, "batches"),
+      '"batches" is an object keyed by group ID, such as {"doc-links": {"tasks": ["3.1", "3.2"], "reason": "Two link fixes in README.md"}}.',
+    );
+    return;
+  }
+  const owner = new Map(),
+    byId = new Map(proposals.map((p) => [p.specKey, p]));
+  for (const [id, group] of Object.entries(batches)) {
+    const line = manifestLine(text, id),
+      tasks = group?.tasks,
+      reason = group?.reason;
+    if (!PHASE_ID.test(id)) {
+      problem(
+        line,
+        `Batch "${id}" needs an ID of letters, digits, ".", "_" or "-", up to 60 characters.`,
+      );
+      continue;
+    }
+    if (
+      !group ||
+      typeof group !== "object" ||
+      Array.isArray(group) ||
+      Object.keys(group).some((key) => !["tasks", "reason"].includes(key))
+    ) {
+      problem(line, `Batch "${id}" holds only "tasks" and "reason".`);
+      continue;
+    }
+    if (
+      !Array.isArray(tasks) ||
+      tasks.length < 2 ||
+      tasks.length > 5 ||
+      tasks.some((key) => typeof key !== "string") ||
+      new Set(tasks).size !== tasks.length
+    ) {
+      problem(line, `Batch "${id}" lists 2 to 5 different task IDs.`);
+      continue;
+    }
+    if (
+      typeof reason !== "string" ||
+      !reason.trim() ||
+      reason.length > 200 ||
+      /[\r\n]/.test(reason)
+    ) {
+      problem(
+        line,
+        `Batch "${id}" needs a reason of 1–200 characters on one line.`,
+      );
+      continue;
+    }
+    const bad = tasks.find(
+      (key) =>
+        !byKey.has(key) || entries[key]?.kind === "package" || !byId.has(key),
+    );
+    if (bad !== undefined) {
+      problem(line, `Batch "${id}" names "${bad}", which is not a leaf here.`);
+      continue;
+    }
+    const twice = tasks.find((key) => owner.has(key));
+    if (twice !== undefined) {
+      problem(
+        line,
+        `Task "${twice}" is in batch "${owner.get(twice)}" and batch "${id}". A task belongs to at most one batch.`,
+      );
+      continue;
+    }
+    for (const key of tasks) owner.set(key, id);
+    const stamp = {
+      id,
+      tasks: tasks.map((key) => byKey.get(key).id),
+      reason: reason.trim(),
+    };
+    for (const key of tasks) byId.get(key).batch = structuredClone(stamp);
+  }
 }
 
 // Spec structure plus lintPlan's graph and boundedness checks. Any error

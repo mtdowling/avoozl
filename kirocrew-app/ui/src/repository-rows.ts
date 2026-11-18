@@ -1,6 +1,6 @@
 // Settings > Repositories rows, kept free of JSX so node can test them.
 import type { Repository } from './workspace-api.ts'
-import { CODER_CARDS, type RepositoryForm } from './settings-api.ts'
+import type { RepositoryForm } from './settings-api.ts'
 import type { ListFact } from './ListItem.tsx'
 
 export interface RepositoryRow {
@@ -55,8 +55,6 @@ export function repositoryRows(checkouts: Repository[], policies: RepositoryForm
 
 export const githubHref = (github: string | null) => (github && /^[\w.-]+\/[\w.-]+$/.test(github) ? `https://github.com/${github}` : null)
 
-const CODER_NAMES: Record<string, string> = { worker: 'Avoozl worker', ...Object.fromEntries(CODER_CARDS.map((card) => [card.coder, card.title])) }
-
 // The labels a rule's search line asks for (label:a, label:"b c", label:x,y);
 // a -label: term excludes, so it is not a trigger.
 export function ruleLabels(match: string): string[] {
@@ -70,12 +68,11 @@ export function ruleLabels(match: string): string[] {
 // the list's order. A fact with no value is left blank and not rendered.
 export function repositoryFacts(row: RepositoryRow, entry: RepositoryForm | null, mirrorSource = ''): ListFact[] {
   const harness = row.checkout?.harness
-  const coder = entry?.coder ? (CODER_NAMES[entry.coder] ?? entry.coder) : ''
   const landing = row.checkout?.landing
   return [
     { label: 'Folder', value: row.folder, mono: true, truncate: true },
     { label: 'Tasks land on', value: row.checkout || entry ? `${row.branch}${landing ? ` (${landing})` : ''}` : '', mono: true },
-    { label: 'Who codes', value: [coder, harness ? `harness ${harness}` : ''].filter(Boolean).join(', ') },
+    { label: 'Harness', value: harness },
     { label: 'Trigger labels', chips: (entry?.rules ?? []).flatMap((rule) => ruleLabels(rule.match)).filter((label, at, all) => all.indexOf(label) === at) },
     { label: 'Triage labels', chips: entry?.untriaged.triageLabels },
     { label: 'Merge', value: entry?.mergeMethod },

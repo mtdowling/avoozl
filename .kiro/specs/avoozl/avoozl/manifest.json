@@ -7060,6 +7060,21 @@
         "avoozl-p66"
       ]
     },
+    "45.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 45 (Remove the Issue Radar path). Remove Who codes; the Avoozl worker is the only coder. See R86.1, R91.6; §4.26.",
+      "acceptance": [
+        "Remove Who codes; the Avoozl worker is the only coder",
+        "A stored `coder` loads and is ignored with no warning; a `coder: issue-radar` repository still feeds Triage and its Radar escalations; Radar intake (56.8), Triage escalations (56.14), back-links (44.6) and Settings › Issue Radar stay."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "npm run test:ui",
+        "git diff --check"
+      ]
+    },
     "45.5": {
       "kind": "leaf",
       "repository": "avoozl",
@@ -7074,7 +7089,8 @@
         "git diff --check"
       ],
       "requires": [
-        "45.4"
+        "45.4",
+        "45.6"
       ]
     },
     "avoozl-p55": {
@@ -7095,7 +7111,8 @@
         "45.2",
         "45.3",
         "45.4",
-        "45.5"
+        "45.5",
+        "45.6"
       ]
     },
     "44.6": {
@@ -8530,6 +8547,24 @@
       "requires": [
         "58.1",
         "57.6"
+      ]
+    },
+    "61.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 61 (The planner decides batches). See R108; §4.37.",
+      "acceptance": [
+        "Planner batch groups replace `size: \"small\"` and `flow.batch`, after 12.8",
+        "A manifest `batches` group is linted, stored on its member tasks at approval, and dispatched by the tick as one handoff when every open member is ready; a group that breaks a code rule (plan, approved hash, repository, at most 5, no edge, local automatic leaf, no earlier attempt or split) runs as single tasks with the reason on the task; a failing batch splits and each task retries alone; `flow.batch`, `size` and the Batching box are gone and old values load silently; Delivery shows one In progress card per batch with its tasks and reason and each task links to its batch; tests cover each case, and screenshots are under docs/evidence/agent-batching/."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "npm run test:ui",
+        "git diff --check"
+      ],
+      "requires": [
+        "12.8"
       ]
     }
   }

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { adapterFor } from "../coder-adapter.mjs";
 import { groupedCall, GROUPED_TOOLS } from "../mcp-tools.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
@@ -29,7 +28,6 @@ test("retired relay aliases resolve and refuse without changing state", async (t
     /Remote relay was removed/,
   );
   assert.deepEqual(store.getMeta("routing.relay"), before);
-  assert.throws(() => adapterFor("remote"), /remote coder was removed/);
 });
 
 test("legacy relay configuration is readable but cannot be enabled again", async (t) => {

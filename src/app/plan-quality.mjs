@@ -67,7 +67,7 @@ const MANUAL_REFUSED = [
   "agent",
   "model",
   "session",
-  "size",
+  "batch",
   "paths",
   "route",
 ];

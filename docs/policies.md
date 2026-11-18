@@ -69,7 +69,6 @@ One repository, issues delivered as pull requests in that repository.
     "repositories": {
       "example-org/app": {
         "baseBranch": "main",
-        "coder": "worker",
         "allowedActors": ["your-login"],
         "managedLabels": { "ready": "agent:ready" },
         "rules": [
@@ -277,9 +276,8 @@ can't, the dialog says why and you type the label the crew watches.
 **Rules for working side by side.** Avoozl tells a crew's work apart from
 yours by label, not by login:
 
-- For a repository whose `coder` is `issue-radar`, the crew watches the
-  ready label (`avoozl:ready` unless you set `managedLabels.ready`). Avoozl adds it only to a ready leaf and takes it off when
-  the leaf is blocked again, for example when its blocker is reopened.
+- Avoozl hands no task to a crew: its own worker codes every task, and
+  every issue Avoozl creates carries `crew:avoozl`, so crews skip it.
 - A close on an issue that carries `crew: in progress` counts as done only
   when a closing pull request merged. Otherwise Avoozl holds the dependents
   and opens a decision, even when the closer is allowed. Any other allowed
@@ -292,8 +290,8 @@ yours by label, not by login:
 Labels a crew watches are set in Issue Radar. Labels it writes are set under
 `crewLabels` (`claim`, `needsHuman`) when yours differ from the defaults.
 
-Where a skipped issue goes (the needs-human label, for example `plan me`) in
-an `issue-radar` repository depends on who may ask for work:
+Where a skipped issue goes (the needs-human label, for example `plan me`)
+depends on who may ask for work:
 
 - Not trusted: left alone. It is in neither Intake nor Needs you.
 - Trusted, and the crew's skip scope is `new-feature`, `architecture` or
@@ -495,8 +493,7 @@ as early.
 }
 ```
 
-- `stackedPullRequests` (plans-repo leaves and single-repo `coder: worker`
-  leaves): a leaf whose only unfinished blocker is another such leaf with an
+- `stackedPullRequests` (plans-repo and single-repo leaves): a leaf whose only unfinished blocker is another such leaf with an
   open pull request starts early. Its branch is cut from the blocker's
   branch, its pull request targets that branch, and its worker moves it to
   `baseBranch` and turns on auto-merge only after the blocker merged. Labels

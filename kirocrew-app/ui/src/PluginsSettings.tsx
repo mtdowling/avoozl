@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import AddPlugin from './AddPlugin.tsx'
 import IntakeSources from './IntakeSources.tsx'
 import { useAppApi, useChatLauncher } from './host.ts'
-import { Card, EmptyState } from '@kirocrew/app-sdk/ui'
+import { EmptyState } from '@kirocrew/app-sdk/ui'
+import { FormSection } from './FormSection.tsx'
+import { PairedCard, PairedCards } from './PairedCards.tsx'
 import Badge from './Badge.tsx'
 import {
   CONTRACT_LABEL,
@@ -15,7 +17,7 @@ import {
 } from './plugins-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
-import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn } from './controls.tsx'
+import { AskForHelp, DangerBtn, IconLabel, TipBtn } from './controls.tsx'
 import { PackImportDialog } from './PackImport.tsx'
 import { SkillNoteCard } from './FlowMemory.tsx'
 import { flowClient, type SkillNote } from './flow-api.ts'
@@ -87,24 +89,26 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
   const status = stateLabel(row)
   const id = row.id ?? ''
   return (
-    <Card>
-      <SectionHeading
-        title={row.id ?? 'Unnamed entry'}
-        meta={
-          <>
-            <Badge variant={status.attention ? 'warning' : undefined}>{status.label}</Badge>
-            {row.health?.state === 'ok' ? <Badge>Healthy</Badge> : null}
-          </>
-        }
-      />
-      {row.reason ? <p className="mt-1 text-xs text-muted">{row.reason}</p> : null}
-      {row.health?.state === 'unavailable' && row.health.reason !== row.reason ? (
-        <p className="mt-1 text-xs text-muted">Last tick: {row.health.reason}</p>
+    <FormSection
+      level={4}
+      title={row.id ?? 'Unnamed entry'}
+      meta={
+        <>
+          <Badge variant={status.attention ? 'warning' : undefined}>{status.label}</Badge>
+          {row.health?.state === 'ok' ? <Badge>Healthy</Badge> : null}
+        </>
+      }
+    >
+      {row.reason || (row.health?.state === 'unavailable' && row.health.reason !== row.reason) ? (
+        <div>
+          {row.reason ? <p className="text-xs text-muted">{row.reason}</p> : null}
+          {row.health?.state === 'unavailable' && row.health.reason !== row.reason ? <p className="text-xs text-muted">Last tick: {row.health.reason}</p> : null}
+        </div>
       ) : null}
       <Parts row={row} />
       <Facts row={row} />
       {props.notes.length > 0 && (
-        <div className="mt-2 flex flex-col gap-2" data-plugin-notes>
+        <div className="flex flex-col gap-2" data-plugin-notes>
           <span className="text-xs font-semibold">Suggested changes from retros. Copy one to the plugin's owner; Avoozl sends nothing.</span>
           {props.notes.map((n, i) => (
             <SkillNoteCard key={i} note={n} />
@@ -112,7 +116,7 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
         </div>
       )}
       {row.id ? (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           {row.pack ? (
             <TipBtn tooltip="See what each pack setting would create, change or keep, then import it" primary={row.pack.offer && row.state === 'approved'} disabled={busy} onClick={() => props.onImport(row)}>
               {row.pack.imported && row.pack.offer ? `Preview version ${row.version}` : row.pack.imported ? 'Preview pack' : 'Preview and import pack'}
@@ -154,7 +158,7 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
           </span>
         </div>
       ) : null}
-    </Card>
+    </FormSection>
   )
 }
 
@@ -235,19 +239,11 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub }: { workspa
           }}
         />
       ) : null}
-      <div
-        data-plugins-layout
-        style={
-          wide
-            ? { display: 'grid', gridTemplateColumns: 'minmax(18rem, 2fr) minmax(0, 3fr)', gap: 14, alignItems: 'start' }
-            : { display: 'flex', flexDirection: 'column', gap: 14 }
-        }
-      >
+      <PairedCards paired={wide} attrs={{ 'data-plugins-layout': '' }}>
         <AddPlugin workspaceId={workspaceId} client={client} supported={value?.supportedContracts ?? []} onChanged={reload} />
-        <div className="flex min-w-0 flex-col gap-3" aria-label="Installed plugins">
+        <PairedCard title="Installed plugins" label="Installed plugins" meta={value?.plugins.length ? <Badge>{value.plugins.length}</Badge> : null} grow={3}>
           {value && !value.plugins.length ? (
-            <Card>
-              <EmptyState
+            <EmptyState
                 title="No plugins"
                 subtitle="Nothing loads until a plugin is declared and approved. Add one on the left."
                 action={
@@ -263,13 +259,14 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub }: { workspa
                   />
                 }
               />
-            </Card>
           ) : null}
-          {value?.plugins.map((row, i) => (
-            <PluginCard key={`${row.id}-${row.source}-${i}`} row={row} busy={acting || busy} act={act} client={client} workspaceId={workspaceId} onImport={setImporting} notes={notes.filter((n) => n.plugin === row.id)} />
-          ))}
-        </div>
-      </div>
+          <div className="flex flex-col gap-4">
+            {value?.plugins.map((row, i) => (
+              <PluginCard key={`${row.id}-${row.source}-${i}`} row={row} busy={acting || busy} act={act} client={client} workspaceId={workspaceId} onImport={setImporting} notes={notes.filter((n) => n.plugin === row.id)} />
+            ))}
+          </div>
+        </PairedCard>
+      </PairedCards>
       <IntakeSources workspaceId={workspaceId} plugins={value?.plugins ?? []} onOpenGitHub={onOpenGitHub} />
     </div>
   )

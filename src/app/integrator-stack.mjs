@@ -117,6 +117,41 @@ async function commitWithTrailers(dir, commit, entry) {
   }
 }
 
+// The net change of a member since its fork point as one commit on the stack.
+// False when the range has no merge commit or the patch does not apply.
+async function squashMember(root, dir, stack, from, member) {
+  const merges = await git(root, [
+    "rev-list",
+    "--merges",
+    "-n",
+    "1",
+    `${from}..${member.commit}`,
+  ]);
+  if (!merges) return false;
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-squash-")),
+    patch = path.join(tmp, "p.patch");
+  try {
+    await landGit(dir, ["reset", "--quiet", "--hard", stack]);
+    await git(root, [
+      "diff",
+      "--binary",
+      `--output=${patch}`,
+      from,
+      member.commit,
+    ]);
+    if (!fs.statSync(patch).size) return false;
+    await landGit(dir, ["apply", "--3way", "--index", patch]);
+    if (!(await git(dir, ["diff", "--cached", "--name-only"]))) return false;
+    await commitWithTrailers(dir, member.commit, member);
+    return true;
+  } catch {
+    await landGit(dir, ["reset", "--quiet", "--hard", stack]).catch(() => {});
+    return false;
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 const conflicted = async (dir) =>
   (await git(dir, ["diff", "--name-only", "--diff-filter=U"]))
     .split("\n")
@@ -187,6 +222,15 @@ export async function stackMembers({
       if (!(await git(dir, ["diff", "--cached", "--name-only"]))) continue;
       await commitWithTrailers(dir, commit, member);
       applied += 1;
+    }
+    // A branch whose writer merged the trunk in and settled a conflict there
+    // cannot replay commit by commit: its first commits conflict again. Its net
+    // change since the fork point is one commit instead (LT5.5 keeps the
+    // trailer and the author of its newest commit). A conflict that survives
+    // this is a real one.
+    if (lost && (await squashMember(root, dir, stack, from, member))) {
+      lost = null;
+      applied = 1;
     }
     if (lost) {
       await landGit(dir, ["reset", "--quiet", "--hard", stack]);

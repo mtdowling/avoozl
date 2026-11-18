@@ -83,7 +83,6 @@ test("lint refuses each agent field on a manual leaf, by name, and person on any
     ["session", { agent: "coder" }],
     ["agent", "coder"],
     ["model", "auto"],
-    ["size", "small"],
     ["paths", ["src/**"]],
     ["route", "local"],
   ]) {

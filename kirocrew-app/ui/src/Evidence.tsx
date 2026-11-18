@@ -4,6 +4,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import Badge from './Badge.tsx'
+import { SectionBox } from './controls.tsx'
 import { relativeTime } from './task-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -48,7 +49,9 @@ function Attachment({ workspaceId, taskId, entry }: { workspaceId: string; taskI
   )
 }
 
-export function EvidenceFold({ workspaceId, taskId }: { workspaceId: string; taskId: string }) {
+// With `box`, the section draws only when there is evidence: nothing while it
+// loads and nothing when there is none.
+export function EvidenceFold({ workspaceId, taskId, box }: { workspaceId: string; taskId: string; box?: { id: string; title: string } }) {
   const api = useAppApi()
   const client = useMemo(() => evidenceClient(api), [api])
   const load = useCallback(() => client.list(workspaceId, taskId), [client, workspaceId, taskId])
@@ -59,9 +62,10 @@ export function EvidenceFold({ workspaceId, taskId }: { workspaceId: string; tas
         {error}
       </p>
     )
+  if (box && !value?.length) return null
   if (!value) return <p className="text-sm text-muted">Loading…</p>
   if (!value.length) return <p className="text-sm text-muted">No evidence yet.</p>
-  return (
+  const list = (
     <ol className="flex flex-col gap-2" data-evidence={taskId}>
       {value.map((entry) => (
         <li key={entry.id} className="rounded border p-2" style={{ borderColor: 'var(--border)' }}>
@@ -77,4 +81,5 @@ export function EvidenceFold({ workspaceId, taskId }: { workspaceId: string; tas
       ))}
     </ol>
   )
+  return box ? <SectionBox id={box.id} title={box.title}>{list}</SectionBox> : list
 }

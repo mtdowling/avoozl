@@ -47,7 +47,7 @@ const leaf = (id, extra = {}) => ({
   ...extra,
 });
 
-// A local workspace with a real checkout `app`, leaves a1, a2 (small), a3,
+// A local workspace with a real checkout `app`, leaves a1, a2 (in a planner batch group), a3,
 // and a bugfix spec's f1.
 function local(t, delivery = {}) {
   const root = temporaryDirectory("avoozl-p45-"),
@@ -65,7 +65,7 @@ function local(t, delivery = {}) {
     ...snapshot(),
     tasks: [
       leaf("a1"),
-      leaf("a2", { size: "small" }),
+      leaf("a2", { batch: { id: "g", tasks: ["a2"], reason: "Small edit" } }),
       leaf("a3"),
       leaf("f1", { specType: "bugfix" }),
     ],
