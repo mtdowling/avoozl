@@ -154,3 +154,5 @@ are still refused, and inside an agent session the CLI needs `--as-person`.
 | Experience proposal | [`docs/proposals/avoozl-experience.md`](proposals/avoozl-experience.md) |
 | Clickable mockups   | [`docs/proposals/experience/`](proposals/experience/)                   |
 | Research            | [`docs/research/`](research/)                                           |
+
+Probe line for CI timing.
