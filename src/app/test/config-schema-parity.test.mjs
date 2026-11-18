@@ -11,6 +11,7 @@ import { ruleKeys, whenKeys } from "../agent-instructions.mjs";
 import { CONTENT_RULES_KEYS, RULE_SET_KEYS } from "../content-rules.mjs";
 import {
   AGENT_ROLE_FIELDS,
+  HARNESS_ROLE_FIELDS,
   HARNESS_ROLES,
   MODEL_ROLES,
   PLAN_REVIEW_KEYS,
@@ -98,6 +99,7 @@ const PAIRS = [
   ["#/properties/roles", ROLES],
   ["#/$defs/chatRole", ROLE_FIELDS],
   ["#/$defs/agentRole", AGENT_ROLE_FIELDS],
+  ["#/$defs/harnessRole", HARNESS_ROLE_FIELDS],
   ["#/properties/planReview", PLAN_REVIEW_KEYS],
   ["#/properties/lanes", Object.keys(DEFAULT_LANES)],
   ["#/properties/lease", Object.keys(LEASE_KEYS)],

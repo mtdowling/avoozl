@@ -8,14 +8,22 @@ import { COMMAND_PATH } from './workspace-api.ts'
 import { parseModels } from './flow-api.ts'
 
 // Every role, in page order. `agent` marks the roles whose agent is picked
-// here too.
+// here too, and `model` the roles whose model is.
 export const ROLES = [
-  { key: 'worker', label: 'Worker', line: 'Codes each ready task. A task’s manifest may pin another.', agent: true },
-  { key: 'falsifier', label: 'Falsifier', line: 'Tries to prove a worker’s findings wrong before coding. A model equal to the worker’s is skipped.', agent: true },
-  { key: 'planner', label: 'Planner', line: 'Drafts specs from a GitHub planning label.', agent: false },
-  { key: 'planReviewer', label: 'Plan reviewer', line: 'Reviews draft specs on a different model. Auto skips review until a model is picked.', agent: false },
-  { key: 'retro', label: 'Retro', line: 'Finds the slowest step and proposes one change.', agent: false },
-  { key: 'reviewDraft', label: 'Review drafts', line: 'Drafts a pending review on a labeled pull request.', agent: false },
+  { key: 'worker', label: 'Worker', line: 'Codes each ready task. A task’s manifest may pin another.', agent: true, model: true },
+  { key: 'falsifier', label: 'Falsifier', line: 'Tries to prove a worker’s findings wrong before coding. A model equal to the worker’s is skipped.', agent: true, model: true },
+  { key: 'planner', label: 'Planner', line: 'Drafts specs from a GitHub planning label.', agent: false, model: true },
+  { key: 'planReviewer', label: 'Plan reviewer', line: 'Reviews draft specs on a different model. Auto skips review until a model is picked.', agent: false, model: true },
+  { key: 'retro', label: 'Retro', line: 'Finds the slowest step and proposes one change.', agent: false, model: true },
+  { key: 'reviewDraft', label: 'Review drafts', line: 'Drafts a pending review on a labeled pull request.', agent: false, model: true },
+  // These pick only a harness and run on its agent's own model.
+  { key: 'verifier', label: 'Verifier', line: 'Checks each commit and reports a verdict.', agent: false, model: false },
+  { key: 'reviewer', label: 'Reviewers', line: 'Each review role a spec adds reads the commit and reports a verdict.', agent: false, model: false },
+  { key: 'responder', label: 'Responder', line: 'Answers a labeled GitHub issue or discussion.', agent: false, model: false },
+  { key: 'taskSummary', label: 'Task summary', line: 'Writes the summary on a task’s Overview.', agent: false, model: false },
+  { key: 'issuePlanner', label: 'Issue planner', line: 'Breaks a labeled issue into a spec and critiques it.', agent: false, model: false },
+  { key: 'planAnswer', label: 'Spec review answer', line: 'Answers a spec review’s findings in the spec folder.', agent: false, model: false },
+  { key: 'prReview', label: 'Pull request review', line: 'Reviews a pull request a person asked about.', agent: false, model: false },
 ] as const
 export type Role = (typeof ROLES)[number]['key']
 export interface RoleRow {
@@ -26,7 +34,7 @@ export interface RoleRow {
 export type RoleTable = Partial<Record<Role, RoleRow>>
 // What each role may do to files: the worker writes code and the planner
 // writes spec files; the others only read.
-export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = { worker: 'write', falsifier: 'read', planner: 'write', planReviewer: 'read', retro: 'read', reviewDraft: 'read' }
+export const ROLE_ACCESS: Record<Role, 'write' | 'read'> = { worker: 'write', falsifier: 'read', planner: 'write', planReviewer: 'read', retro: 'read', reviewDraft: 'read', verifier: 'read', reviewer: 'read', responder: 'read', taskSummary: 'read', issuePlanner: 'write', planAnswer: 'write', prReview: 'read' }
 // The Kiro Crew chat; any other harness is a supervisor child.
 export const KIROCREW_HARNESS = 'kirocrew'
 // The agent each agent role opens on when none is picked.

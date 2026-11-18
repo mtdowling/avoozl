@@ -1,6 +1,7 @@
 import { kirocrewRequest } from "./executors/kirocrew.mjs";
 import { projectExecutor } from "./executors/process.mjs";
-import { harnessExecutor, resolveRoles, roleHarness } from "./chat-models.mjs";
+import { resolveRoles } from "./chat-models.mjs";
+import { roleRun } from "./role-table.mjs";
 import { PERSON_MESSAGE_HEAD } from "./session-send.mjs";
 import { kirocrewDetachedSession } from "./executors/kirocrew.mjs";
 import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
@@ -2158,10 +2159,7 @@ export function leafBrief(store, data, leaf, options = {}) {
 // else the worker harness saved in Settings › Models (R98.3), else its
 // project's executor (R93.5). Returns {executor, harness?}.
 export function workerExecutor(task, project, config) {
-  const named = task.session?.harness ?? roleHarness(config, "worker");
-  return named
-    ? harnessExecutor(named)
-    : { executor: projectExecutor(project) };
+  return roleRun("worker", { config, task, project });
 }
 
 function composeLeafBrief(
@@ -3111,7 +3109,12 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
       )
         continue;
       const label = role.id === "checks" ? "verify" : "review-" + role.id,
-        processRun = projectExecutor(project) === "process";
+        run = roleRun(role.id === "checks" ? "verifier" : "reviewer", {
+          config: options.config,
+          task,
+          project,
+        }),
+        processRun = run.executor === "process";
       dispatch.push(
         kirocrewRequest(store, {
           task: task.id,
@@ -3125,11 +3128,9 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
           // Its brief names a detached worktree (R88.2, as for the worker).
           // A `process` child cannot add it, so the request names it and
           // Avoozl adds it before the child starts (R97.3).
+          ...run,
           ...(processRun
-            ? {
-                executor: "process",
-                worktree: detachedWorktree(project, task, label, attempt),
-              }
+            ? { worktree: detachedWorktree(project, task, label, attempt) }
             : kirocrewDetachedSession(project.id)),
           ...(processRun ? {} : { agent: role.agent }),
           ...(role.model ? { model: role.model } : {}),
