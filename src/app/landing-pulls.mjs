@@ -146,18 +146,67 @@ export function pullSteps({
       ];
     };
   let current = null; // the pull request the last prepare settled on
+  // Every required check at `candidate`: its result, whether it is still
+  // pending, and whether it failed.
+  const headChecks = async (candidate, branch) => {
+    const required = await requiredChecks(github, target, branch, declared);
+    if (!required.length) return { required, results: [] };
+    const [runs, status] = await Promise.all([
+      github.checkRuns(target, candidate),
+      github.commitStatus(target, candidate),
+    ]);
+    return {
+      required,
+      results: required.map((name) => {
+        const run = runs.find((r) => r.name === name),
+          state = status.statuses.find((s) => s.context === name);
+        if (run)
+          return {
+            command: name,
+            conclusion: run.conclusion ?? "pending",
+            pending: run.status !== "completed",
+          };
+        if (state)
+          return {
+            command: name,
+            conclusion: state.state,
+            pending: state.state === "pending",
+          };
+        return { command: name, conclusion: "missing", pending: true };
+      }),
+    };
+  };
+  const passing = (r) =>
+    !r.pending && (PASS.has(r.conclusion) || r.conclusion === "success");
   return {
     log,
     async readBase() {
       return (await github.branchHead(target, base)).oid;
     },
     // Someone else merged exactly this head: record their landing once.
+    // The evidence is the required checks GitHub shows on that head, read
+    // here, so a later tick with fresh steps records it too. A head whose
+    // required checks did not all pass is recorded without evidence.
     async observe(entry) {
       const pull = await findPull(github, target, entry, entry.base);
       if (!pull?.merged_at || pull.head?.sha !== entry.commit) return null;
-      const ref = { ...refOf(entry, entry.base), pr: pull.number },
+      const { results } = await headChecks(entry.commit, entry.base),
+        passed =
+          results.length && results.every(passing)
+            ? results.map((r) => ({
+                name: r.command,
+                conclusion: r.conclusion,
+              }))
+            : [],
+        ref = { ...refOf(entry, entry.base), pr: pull.number },
         { pushed } = await landWithIntents(
-          intents(entry, entry.commit, pull.base?.sha ?? entry.commit, ref),
+          intents(
+            entry,
+            entry.commit,
+            pull.base?.sha ?? entry.commit,
+            ref,
+            passed,
+          ),
           async () => true,
         );
       if (!pushed) return null;
@@ -229,34 +278,13 @@ export function pullSteps({
     },
     async check(candidate, [entry]) {
       const { pull } = current,
-        required = await requiredChecks(github, target, entry.base, declared);
+        { required, results } = await headChecks(candidate, entry.base);
       if (!required.length)
         return {
           ok: false,
           checks: [{ command: "no required check", exitCode: 1 }],
         };
-      const [runs, status] = await Promise.all([
-          github.checkRuns(target, candidate),
-          github.commitStatus(target, candidate),
-        ]),
-        results = required.map((name) => {
-          const run = runs.find((r) => r.name === name),
-            state = status.statuses.find((s) => s.context === name);
-          if (run)
-            return {
-              command: name,
-              conclusion: run.conclusion ?? "pending",
-              pending: run.status !== "completed",
-            };
-          if (state)
-            return {
-              command: name,
-              conclusion: state.state,
-              pending: state.state === "pending",
-            };
-          return { command: name, conclusion: "missing", pending: true };
-        }),
-        shown = results.map(({ command, conclusion }) => ({
+      const shown = results.map(({ command, conclusion }) => ({
           command,
           conclusion,
           exitCode: PASS.has(conclusion) || conclusion === "success" ? 0 : 1,
