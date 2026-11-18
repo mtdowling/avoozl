@@ -24,6 +24,7 @@ import { Hint } from './ui/Hint'
 import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Switch } from './ui/Switch'
+import { Box } from './ui/Box'
 
 // A save a content rule blocked: the decisions to allow, and the save to
 // run again once allowed.
@@ -96,7 +97,7 @@ function EntryView(props: {
   const href = safeHref(entry.url)
   return (
     <li className="flex flex-col gap-1 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-link-entry>
-      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
+      <Box flex flexWrap items="center" gap="1.5" size="xs" tone="muted">
         <span>{authorLabel(entry)}</span>
         <Tooltip text={entry.at}>
           <span>{relativeTime(entry.at)}</span>
@@ -104,17 +105,17 @@ function EntryView(props: {
         {entry.editedAt && <span>· edited</span>}
         {entry.outcome && <Badge>Outcome</Badge>}
         {entry.onIssue && <Badge>On the issue</Badge>}
-      </div>
+      </Box>
       {editing ? (
         <Stack gap={2}>
-          <label className="flex flex-col gap-1 text-xs">
+          <Box as="label" flex flexCol gap="1" size="xs">
             URL
             <Input value={url} onChange={(event: { target: { value: string } }) => setUrl(event.target.value)} />
-          </label>
-          <label className="flex flex-col gap-1 text-xs">
+          </Box>
+          <Box as="label" flex flexCol gap="1" size="xs">
             Label
             <Input value={label} onChange={(event: { target: { value: string } }) => setLabel(event.target.value)} />
-          </label>
+          </Box>
           {problem && <ErrorText as="span" size="xs">{problem}</ErrorText>}
           <Row gap={2} align="start">
             <Btn
@@ -142,7 +143,7 @@ function EntryView(props: {
           {entry.label}
         </a>
       ) : (
-        <span className="text-sm">{entry.label}</span>
+        <Box as="span" size="sm">{entry.label}</Box>
       )}
       {!editing && (
         <Row gap={2}>
@@ -405,9 +406,9 @@ export function MarkDoneDialog(props: {
         }
       }
       title={
-        <span className="inline-flex items-center gap-1.5">
+        <Box as="span" inlineFlex items="center" gap="1.5">
           <ClipboardCheck size={ICON} aria-hidden="true" /> Mark done: {props.title}
-        </span>
+        </Box>
       }
       onDismiss={props.onClose}
       footer={
@@ -457,7 +458,7 @@ export function MarkDoneDialog(props: {
           },
         ]}
       />
-      <fieldset className="flex flex-col gap-2 text-sm">
+      <Box as="fieldset" flex flexCol gap="2" size="sm">
         <legend>
           Links <Hint size="xs">(optional)</Hint>
         </legend>
@@ -474,7 +475,7 @@ export function MarkDoneDialog(props: {
             <IconLabel icon={X} aria-label={`Drop link ${i + 1} from this form`} onClick={() => setLinks(links.filter((_, j) => j !== i))}>
               Drop
             </IconLabel>
-            {problems[i] && link.url && <span className="w-full text-xs text-danger">{problems[i]}</span>}
+            {problems[i] && link.url && <Box as="span" wFull size="xs" tone="danger">{problems[i]}</Box>}
           </Row>
         ))}
         <div>
@@ -482,7 +483,7 @@ export function MarkDoneDialog(props: {
             Add a link
           </IconLabel>
         </div>
-      </fieldset>
+      </Box>
       {blocked && <AllowOnce workspaceId={props.workspaceId} blocked={blocked} onDone={() => setBlocked(null)} onError={(failed) => setError(failed)} />}
       {error && (
         <ErrorText role="alert" size="sm">
@@ -514,18 +515,18 @@ export function ManualTask(props: {
     <section aria-label="Manual task" className="flex flex-col gap-2 rounded border p-3" style={{ borderColor: 'var(--accent)' }} data-manual-task>
       <Row gap={2}>
         <Badge variant="warning">Manual</Badge>
-        <span className="text-sm">A person does this step. No agent works on it.</span>
+        <Box as="span" size="sm">A person does this step. No agent works on it.</Box>
       </Row>
       <div>
-        <h4 className="text-sm font-semibold">What you check</h4>
-        <ul className="mt-1 list-disc pl-5 text-sm">
+        <Box as="h4" size="sm" weight="semibold">What you check</Box>
+        <Box as="ul" mt="1" listDisc pl="5" size="sm">
           {props.task.acceptance.map((line, i) => (
             <li key={i}>{line}</li>
           ))}
-        </ul>
+        </Box>
       </div>
       {done ? (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Box flex flexWrap items="center" gap="2" size="sm">
           {done.choice === 'refused' ? <Badge variant="danger">Refused</Badge> : <Badge>{done.choice === 'skipped' ? 'Skipped' : 'Done'}</Badge>}
           <Hint size="xs">
             by {done.login ?? done.by} {relativeTime(done.at)}
@@ -548,7 +549,7 @@ export function ManualTask(props: {
           >
             Reopen
           </DangerBtn>
-        </div>
+        </Box>
       ) : (
         <div>
           <IconLabel icon={ClipboardCheck} primary tooltip="Record that the step happened" onClick={() => setOpen(true)}>

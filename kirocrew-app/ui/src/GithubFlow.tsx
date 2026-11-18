@@ -13,6 +13,7 @@ import { buildMedian, buildsLine, costliestLine, flowRows, githubFlowClient, spa
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
+import { Box } from './ui/Box'
 
 export default function GithubFlow({ workspaceId }: { workspaceId: string | null }) {
   const api = useAppApi()
@@ -33,9 +34,9 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
       <Stack data-github-flow gap={2}>
         <SectionHeading title="From GitHub" />
         {issues && <Hint as="p" size="sm">{summaryLine(view)}. Times are GitHub's.</Hint>}
-        <ul className="m-0 flex list-none flex-col gap-1.5 p-0" hidden={!issues}>
+        <Box as="ul" m0 flex listNone flexCol gap="1.5" p="0" hidden={!issues}>
           {rows.map((row, index) => (
-            <li key={row.name} data-flow-stage={row.name} className="flex flex-wrap items-center gap-2 text-sm">
+            <Box key={row.name} data-flow-stage={row.name} as="li" flex flexWrap items="center" gap="2" size="sm">
               <span style={{ flex: '0 0 9rem' }}>{row.name}</span>
               <span
                 aria-hidden="true"
@@ -56,20 +57,20 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
                   }}
                 />
               </span>
-              <span className="tabular-nums">{row.median}</span>
+              <Box as="span" tabularNums>{row.median}</Box>
               {row.slowest && <Badge variant="warning">Slowest</Badge>}
-            </li>
+            </Box>
           ))}
-        </ul>
+        </Box>
         {view.builds && view.builds.count > 0 && (
           <Stack data-flow-builds gap={1}>
-            <h3 className="m-0 text-sm font-semibold">Builds</h3>
+            <Box as="h3" m0 size="sm" weight="semibold">Builds</Box>
             <Hint as="p" size="xs">{buildsLine(view.builds)}. From every build record of each merged pull request.</Hint>
             <ul className="m-0 flex list-none flex-col gap-1 p-0" data-flow-build-prs style={{ margin: 0, padding: 0, listStyle: 'none' }}>
               {view.builds.recent.map((row) => (
                 <li key={`${row.repository}-${row.pr}`} data-flow-build-pr={row.pr} className="flex flex-wrap items-center gap-x-3 text-sm" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', overflowWrap: 'anywhere' }}>
                   <span>{row.repository ? `${row.repository} ` : ''}#{row.pr}</span>
-                  <span className="tabular-nums">{buildMedian(row.totalMs)}</span>
+                  <Box as="span" tabularNums>{buildMedian(row.totalMs)}</Box>
                   <Hint data-flow-costliest>
                     costliest {costliestLine(row)}
                   </Hint>
@@ -84,7 +85,7 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
                   <span>{row.phase}</span>
                   <span>{row.target}</span>
                   <Hint>{row.start}</Hint>
-                  <span className="tabular-nums">{buildMedian(row.medianMs)}</span>
+                  <Box as="span" tabularNums>{buildMedian(row.medianMs)}</Box>
                   <Hint>{row.count} {row.count === 1 ? 'build' : 'builds'}</Hint>
                 </li>
               ))}
@@ -100,7 +101,7 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
                     ) : (
                       <span>No instance</span>
                     )}
-                    <span className="tabular-nums">{buildMedian(row.medianMs)}</span>
+                    <Box as="span" tabularNums>{buildMedian(row.medianMs)}</Box>
                     <Hint>{row.count} {row.count === 1 ? 'pull request' : 'pull requests'}, {span(row.totalMs)} in all</Hint>
                   </li>
                 ))}
@@ -114,12 +115,12 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
             {text}
           </ErrorText>
         ))}
-        <p className="flex items-center gap-2 text-xs text-muted">
+        <Box as="p" flex items="center" gap="2" size="xs" tone="muted">
           {view.readAt ? `Read ${span(Date.now() - Date.parse(view.readAt))} ago.` : ''}
           <Btn type="button" disabled={busy} onClick={() => setPresses((n) => n + 1)}>
             {busy ? 'Reading…' : 'Read again'}
           </Btn>
-        </p>
+        </Box>
       </Stack>
     </Card>
   )

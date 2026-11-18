@@ -27,16 +27,17 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { SelectField } from './ui/SelectField'
+import { Box } from './ui/Box'
 
 const fieldStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
 function Field({ id, label, children, hint }: { id: string; label: string; children: ReactNode; hint?: string }) {
   return (
-    <label htmlFor={id} className="flex flex-col gap-1 text-sm">
+    <Box htmlFor={id} as="label" flex flexCol gap="1" size="sm">
       <span>{label}</span>
       {children}
       {hint && <Hint size="xs">{hint}</Hint>}
-    </label>
+    </Box>
   )
 }
 
@@ -65,15 +66,15 @@ function Prerequisites(props: { graph: Graph | null; self: string; value: Prereq
   const update = (at: number, change: Partial<Prerequisite>) =>
     props.onChange(props.value.map((p, i) => (i === at ? { ...p, ...change } : p)))
   return (
-    <div className="flex flex-col gap-2 text-sm">
+    <Box flex flexCol gap="2" size="sm">
       <span>Prerequisites</span>
       {props.value.length === 0 && <Hint size="xs">None. It can start once reviewed.</Hint>}
-      <ul className="flex flex-col gap-1.5">
+      <Box as="ul" flex flexCol gap="1.5">
         {props.value.map((p, i) => (
-          <li key={p.id} className="flex flex-wrap items-center gap-2">
-            <span className="min-w-0 flex-1 truncate">
+          <Box key={p.id} as="li" flex flexWrap items="center" gap="2">
+            <Box as="span" minW0 flex1 truncate>
               {titles.get(p.id) ?? p.id} <Hint size="xs">{p.id}</Hint>
-            </span>
+            </Box>
             <SelectField
               aria-label={`Link kind for ${p.id}`}
               value={p.kind}
@@ -97,9 +98,9 @@ function Prerequisites(props: { graph: Graph | null; self: string; value: Prereq
               </SelectField>
             )}
             <Btn onClick={() => props.onChange(props.value.filter((_, at) => at !== i))}>Remove</Btn>
-          </li>
+          </Box>
         ))}
-      </ul>
+      </Box>
       <Picker
         label="Add a prerequisite"
         placeholder="Search tasks by title or ID"
@@ -108,7 +109,7 @@ function Prerequisites(props: { graph: Graph | null; self: string; value: Prereq
         keep={false}
         onPick={(id) => props.onChange([...props.value, { id, kind: 'requires', condition: '' }])}
       />
-    </div>
+    </Box>
   )
 }
 
@@ -122,24 +123,24 @@ function PreviewBlock({ preview }: { preview: ChangePreview }) {
         </TextLink>
       )}
       {preview.tasks && (
-        <div className="text-xs">
-          <div className="font-medium">
+        <Box size="xs">
+          <Box weight="medium">
             {preview.folder}tasks.md line {preview.tasks.line}
-          </div>
+          </Box>
           <pre className="mt-1 whitespace-pre-wrap rounded border p-1" style={{ borderColor: 'var(--border)' }}>
             {`- ${preview.tasks.before}\n+ ${preview.tasks.after}`}
           </pre>
-        </div>
+        </Box>
       )}
       {preview.facts && (
-        <div className="text-xs">
-          <div className="font-medium">
+        <Box size="xs">
+          <Box weight="medium">
             {preview.folder}tasks.md, Facts of task {preview.facts.key}
-          </div>
+          </Box>
           <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded border p-1" style={{ borderColor: 'var(--border)' }}>
             {JSON.stringify(preview.facts.after, null, 2)}
           </pre>
-        </div>
+        </Box>
       )}
       <Hint as="p" size="xs">Nothing was written. Approving the changed spec stays your step.</Hint>
     </div>

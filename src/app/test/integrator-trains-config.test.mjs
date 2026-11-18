@@ -287,6 +287,22 @@ test("pullRequests keys load with defaults, and a template placeholder must be k
   );
 });
 
+test("scheduling.overlap defaults to same-train and refuses other values", () => {
+  const ok = setup({ repo: trains(), global: { machine: macNative } }).load();
+  assert.equal(
+    trainSettings(ok.config, "main").scheduling.overlap,
+    "same-train",
+  );
+  assert.throws(
+    () =>
+      setup({
+        repo: trains({ scheduling: { overlap: "never" } }),
+        global: { machine: macNative },
+      }).load(),
+    /scheduling\.overlap must be one of same-train, serialize/,
+  );
+});
+
 test("capacity.ci and ci.jobPlatforms load, and bad counts are refused", () => {
   const ok = setup({
     repo: trains({
