@@ -120,6 +120,11 @@ async function setup(t, github, extra = {}) {
     tasks: [{ task: "t1", definition: DEF }],
     source: { repository: "me/app", branch: "avoozl/s/work" },
   });
+  const intentOf = () => ({
+    journal,
+    options,
+    input: { driver, owner, login: "owner", revision: REVISION },
+  });
   const steps = pullSteps({
     github,
     registry,
@@ -139,6 +144,9 @@ async function setup(t, github, extra = {}) {
       },
     }),
     ...extra,
+    ...(extra.intent === undefined && "intent" in extra
+      ? { intent: intentOf }
+      : {}),
   });
   const state = async () =>
     driverState(
@@ -147,7 +155,7 @@ async function setup(t, github, extra = {}) {
         visibility: "private",
       }),
     );
-  return { store, steps, state };
+  return { store, steps, state, intentOf };
 }
 
 const approval = (login, commit = COMMIT) => ({
@@ -253,4 +261,43 @@ test("a repository with no required check is refused", async (t) => {
   github.branchRules = async () => [];
   const x = await setup(t, github);
   assert.equal((await landNext(x.store, Q, x.steps)).state, "failed");
+});
+
+test("a later tick with fresh steps records the maintainer's merge with its checks", async (t) => {
+  const github = fakeGithub({
+      reviews: [approval("r1")],
+      roles: { "acme/app": "read", "me/app": "write" },
+    }),
+    x = await setup(t, github, {
+      // As pr-landing builds it: the intent carries no checks of its own.
+      intent: undefined,
+    });
+  assert.equal((await landNext(x.store, Q, x.steps)).state, "not-landed");
+  Object.assign(github.pr, {
+    merged_at: "2026-11-17T01:00:00Z",
+    merged_by: { login: "maintainer" },
+    merge_commit_sha: "c".repeat(40),
+  });
+  // The queue and journal of the first setup; only the steps are new.
+  const steps = pullSteps({
+    github,
+    registry: sourceRegistry({
+      "acme/app": { url: "https://example.invalid/acme/app.git" },
+      "me/app": {
+        url: "https://example.invalid/me/app.git",
+        parent: "acme/app",
+      },
+    }),
+    root: "/nonexistent",
+    target: "acme/app",
+    base: "main",
+    login: "ci-bot",
+    intent: x.intentOf,
+  });
+  const seen = await landNext(x.store, Q, steps);
+  assert.equal(seen.state, "landed");
+  const [outcome] = (await x.state()).outcomes;
+  assert.deepEqual(outcome.evidence?.checks ?? outcome.checks, [
+    { name: "build", conclusion: "success" },
+  ]);
 });
