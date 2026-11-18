@@ -7,6 +7,7 @@ import { Checkbox } from '../../src/ui/Checkbox.tsx'
 import { Row } from '../../src/ui/Row.tsx'
 import { SelectField } from '../../src/ui/SelectField.tsx'
 import { Stack } from '../../src/ui/Stack.tsx'
+import { StatTile, StatTileStyle } from '../../src/ui/StatTile.tsx'
 import { Switch } from '../../src/ui/Switch.tsx'
 import { TextLink } from '../../src/ui/TextLink.tsx'
 
@@ -51,6 +52,9 @@ createRoot(document.getElementById('root')!).render(
     <label>
       <Checkbox data-part="checkbox" aria-describedby="part-help" defaultChecked={false} /> Confirm
     </label>
+    <StatTileStyle />
+    <StatTile data-part="tile" name="Needs you: 3" value={3} label="Needs you" sub="2 decisions" warm />
+    <StatTile data-part="tile-cool" name="Flow: 1" value={1} label="Flow" sub="" />
     <SwitchDemo />
     <TextLink data-part="link" href="#x">
       A link
