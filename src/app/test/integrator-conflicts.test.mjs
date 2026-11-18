@@ -164,7 +164,7 @@ test("a rule whose verify fails leaves the file unstaged and the conflict semant
   assert.deepEqual(out.members[1].files, ["pkg.lock"]);
   assert.equal(out.staged, "");
   assert.equal(
-    out.files["pkg.lock"],
+    out.files["pkg.lock"].replace(/\r\n/g, "\n"),
     "x=1\n",
     "the dropped member left nothing behind",
   );
