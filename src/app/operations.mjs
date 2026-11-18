@@ -319,8 +319,10 @@ import {
   decideProposal,
   retroPrompt,
   retroInstructions,
+  runRetroAgain,
   setRetroInstructions,
 } from "./flow-retro.mjs";
+import { withRetroChats } from "./retro-chat.mjs";
 import {
   lineBanner,
   pullCord,
@@ -3656,6 +3658,7 @@ export class Operations {
         filtered = input.repository || input.epic || input.plan || input.phase;
       return {
         ...view,
+        retros: withRetroChats(store, view.retros),
         repositories: [
           ...new Set([
             ...view.repositories,
@@ -3705,6 +3708,7 @@ export class Operations {
         "flow.instructions.update",
         "flow.retro.decide",
         "flow.retro.start",
+        "flow.retro.again",
       ].includes(name) &&
       (context.caller || context.mcp)
     )
@@ -3783,6 +3787,7 @@ export class Operations {
         });
       return { queued: true };
     }
+    if (name === "flow.retro.again") return runRetroAgain(store, input.id);
     if (name === "flow.retro.decide") {
       const settings = this.settingsFile(),
         config = readFlowConfig(this.workspaceRoot);

@@ -5,16 +5,18 @@
 // rebase (FlowMemory.tsx). Each retro links to each of its proposals, and
 // each proposal links back. Writes are the same ones Flow had: Run a retro
 // now, and the decisions. The retro's settings stay in Settings > Flow.
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { Card } from '@kirocrew/app-sdk/ui'
 import { useAppApi } from './host.ts'
 import Badge from './Badge.tsx'
 import { IconLabel, SectionHeading, ViewHeading } from './controls.tsx'
-import { Play } from './icons.ts'
+import { CirclePlus, Play } from './icons.ts'
+import { CopyAttach } from './DashboardView.tsx'
 import { ProposalsView, useScrollTo } from './FlowMemory.tsx'
 import { STAGE_LABELS, flowClient, proposalText, type Proposal, type Retro } from './flow-api.ts'
 import type { RetrosPage } from './nav-api.ts'
 import { relativeTime } from './task-api.ts'
+import { linkHref } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 
@@ -33,7 +35,46 @@ export const retroScope = (retro: Retro) => retro.bottleneck?.repository ?? 'All
 
 const STATE_BADGE = { running: 'info', done: undefined, failed: 'danger' } as const
 
-function RetroCard({ retro, linked, onOpen }: { retro: Retro; linked: boolean; onOpen: (proposal: string) => void }) {
+// The retro's chat: a Kiro Crew link, or for a `process` session the log tail
+// and the attach command (50.1). A retro with no recorded chat says so.
+function RetroChat({ retro }: { retro: Retro }) {
+  const chat = retro.chat
+  if (!chat) return <span className="text-xs text-muted" data-retro-chat="none">No chat was recorded for this retro.</span>
+  const name = retroName(retro)
+  return (
+    <span className="flex flex-col gap-1 text-xs" data-retro-chat={chat.executor}>
+      <span className="flex flex-wrap items-center gap-3">
+        {chat.link ? (
+          <a href={linkHref(chat.link)} className="underline" aria-label={`Open the chat for ${name}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <CirclePlus size={14} aria-hidden="true" />
+            Open chat
+          </a>
+        ) : chat.process?.attach ? (
+          <CopyAttach command={chat.process.attach} title={name} />
+        ) : (
+          <span className="text-muted">No attach command</span>
+        )}
+        <span className="text-muted">
+          {chat.executor === 'process' ? `process${chat.harness ? ` · ${chat.harness}` : ''}` : 'Kiro Crew chat'}
+          {chat.status ? ` · ${chat.status}` : ''}
+        </span>
+      </span>
+      {chat.executor === 'process' && (
+        <pre
+          data-retro-log
+          className="m-0 rounded border p-1.5"
+          tabIndex={0}
+          aria-label={`Log tail for ${name}`}
+          style={{ borderColor: 'var(--border)', maxHeight: '7.5em', overflow: 'auto', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'var(--font-mono, ui-monospace, monospace)' }}
+        >
+          {chat.process?.logTail || 'No output yet.'}
+        </pre>
+      )}
+    </span>
+  )
+}
+
+function RetroCard({ retro, linked, onOpen, again }: { retro: Retro; linked: boolean; onOpen: (proposal: string) => void; again: ReactNode }) {
   const bottleneck = retro.bottleneck ? STAGE_LABELS[retro.bottleneck.stage as keyof typeof STAGE_LABELS] ?? retro.bottleneck.stage : null
   return (
     <li
@@ -65,7 +106,13 @@ function RetroCard({ retro, linked, onOpen }: { retro: Retro; linked: boolean; o
       </dl>
       {retro.triggers.length > 0 && <span className="text-xs text-muted">Started by {retro.triggers.map((t) => t.detail).join('; ')}.</span>}
       {retro.state === 'running' && <span className="text-sm text-muted">Running since {relativeTime(retro.startedAt, Date.now())}.</span>}
-      {retro.state === 'failed' && <span className="text-sm text-danger">Failed: {retro.error}</span>}
+      {retro.state === 'failed' && (
+        <span className="flex flex-wrap items-center gap-3 text-sm text-danger" data-retro-failed={retro.failure ?? 'unknown'}>
+          Failed: {retro.error}
+          {again}
+        </span>
+      )}
+      <RetroChat retro={retro} />
       {retro.bottleneck && <span className="text-xs text-muted">{retro.bottleneck.evidence}</span>}
       {retro.proposals.length > 0 ? (
         <ul className="flex flex-col gap-1" aria-label={`Proposals from ${retroName(retro)}`}>
@@ -106,6 +153,16 @@ function RetrosList({ workspaceId, target, onOpen, onSeen }: { workspaceId: stri
       setStartError(errorMessage(caught))
     }
   }
+  const again = async (id: string) => {
+    if (!workspaceId) return
+    try {
+      await client.runRetroAgain(workspaceId, id)
+      setQueued(true)
+      void reload()
+    } catch (caught) {
+      setStartError(errorMessage(caught))
+    }
+  }
   const retros = view?.retros ?? []
   const running = retros.some((r) => r.state === 'running')
   return (
@@ -130,7 +187,13 @@ function RetrosList({ workspaceId, target, onOpen, onSeen }: { workspaceId: stri
       ) : (
         <ul className="flex flex-col gap-3">
           {retros.map((retro) => (
-            <RetroCard key={retro.id} retro={retro} linked={target?.retro === retro.id} onOpen={(proposal) => onOpen({ page: 'proposals', retro: retro.id, proposal })} />
+            <RetroCard key={retro.id} retro={retro} linked={target?.retro === retro.id} onOpen={(proposal) => onOpen({ page: 'proposals', retro: retro.id, proposal })}
+              again={
+                <IconLabel icon={Play} disabled={running || queued} tooltip="Queue the same triggers again; a new retro starts at the next tick" onClick={() => void again(retro.id)}>
+                  Run again
+                </IconLabel>
+              }
+            />
           ))}
         </ul>
       )}

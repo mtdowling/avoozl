@@ -260,6 +260,24 @@ export function bindSession(
         consumer,
       });
     store.put("session_bindings", binding);
+    // A retro keeps its chat on its own record, so the Retros page can link
+    // it, and a failure can say what became of it.
+    if (role === "retro") {
+      const retro = store.get("flow_retros", taskId),
+        harness = input.requestId
+          ? store.get("session_requests", input.requestId)?.request?.harness
+          : undefined;
+      if (retro)
+        store.put("flow_retros", {
+          ...retro,
+          session: {
+            slot,
+            executor: binding.executor ?? "kirocrew",
+            ...(harness ? { harness } : {}),
+            boundAt: binding.boundAt,
+          },
+        });
+    }
     store.ensureReportSecret();
     // A batch (§4.11): one record per batch, for the Flow tab and the views.
     if (binding.batch)
