@@ -1394,8 +1394,8 @@ const STAGES = [
         manual = await cRaw.request("POST", `/repos/${UP}/pulls`, {
           body: {
             title: `Land ${key}`,
-            head: `${ORG}:${source.branch}`,
-            head_repo: FORK.split("/")[1],
+            head: source.branch,
+            head_repo: FORK,
             base: "main",
             body: TASKS1.map(
               (t) => `Avoozl-Task: ${t.task}@${t.definition}`,
@@ -1801,8 +1801,8 @@ const STAGES = [
       probes.pullRequestCreate = await outcomeOf(
         gh.createPullRequest(UP, {
           title: `Land ${PRIV_SPEC}`,
-          head: `${ORG}:${source.branch}`,
-          head_repo: FORK.split("/")[1],
+          head: source.branch,
+          head_repo: FORK,
           base: "main",
           body: "P67 probe.",
         }),

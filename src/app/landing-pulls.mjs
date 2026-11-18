@@ -39,23 +39,30 @@ const lower = (value) => String(value).toLowerCase();
 const PASS = new Set(["success", "neutral", "skipped"]);
 
 // The pull request for an entry: by number, else the open one for its head
-// branch and base. A fork's head is `owner:branch`; a fork in the target's
-// own organization shares that owner, so only a pull request whose head
-// repository is the source counts.
+// branch and base. A fork's head is `owner:branch`. A fork in the target's
+// own organization shares that owner, and GitHub's head filter then names
+// the target's own branch (checked live 2026-11-18), so those are listed by
+// base and matched by head repository and branch.
+// shortcut: that listing reads every pull request on the base; keep the
+// number on the queue entry when a busy repository lands from such forks.
 async function findPull(github, target, entry, base) {
   if (entry.pr) return github.pullRequest(target, entry.pr);
   const { repository, branch } = entry.source,
-    head = `${repository.split("/")[0]}:${branch}`,
+    owner = repository.split("/")[0],
+    sameOwner =
+      lower(repository) !== lower(target) &&
+      lower(owner) === lower(target.split("/")[0]),
     found = (
       await github.listPullRequests(target, {
         state: "all",
-        head,
+        ...(sameOwner ? {} : { head: `${owner}:${branch}` }),
         base,
       })
     ).filter(
       (pull) =>
-        !pull.head?.repo?.full_name ||
-        lower(pull.head.repo.full_name) === lower(repository),
+        (!pull.head?.repo?.full_name ||
+          lower(pull.head.repo.full_name) === lower(repository)) &&
+        (!sameOwner || pull.head?.ref === branch),
     );
   // Newest first: an open one wins, else the newest merged one.
   const open = found.find((pull) => pull.state === "open");
@@ -245,16 +252,20 @@ export function pullSteps({
       if (!pull) {
         const fork = lower(ref.source.repository) !== lower(target),
           [sourceOwner, sourceName] = ref.source.repository.split("/"),
-          // GitHub needs head_repo when the fork and the target have the
-          // same owner (a fork inside the target's organization).
+          // A fork inside the target's own organization is named by
+          // head_repo, its full owner/name, with the bare branch as head;
+          // `owner:branch` would name the target's own branch (checked live
+          // 2026-11-18: owner:branch with head_repo set to the name alone
+          // is refused as an invalid head).
           sameOwner =
             fork && lower(sourceOwner) === lower(target.split("/")[0]);
         pull = await github.createPullRequest(target, {
           title: `Land ${entry.key}`,
-          head: fork
-            ? `${sourceOwner}:${ref.source.branch}`
-            : ref.source.branch,
-          ...(sameOwner ? { head_repo: sourceName } : {}),
+          head:
+            fork && !sameOwner
+              ? `${sourceOwner}:${ref.source.branch}`
+              : ref.source.branch,
+          ...(sameOwner ? { head_repo: `${sourceOwner}/${sourceName}` } : {}),
           base: entry.base,
           body: entry.tasks
             .map((t) => `Avoozl-Task: ${t.task}@${t.definition}`)
