@@ -138,7 +138,7 @@ export default function MirrorSetup(props: { workspaceId: string; onApplied: () 
               ))}
             </ul>
           )}
-          {result.next === 'radar-values' && <p className="text-sm">Next: enter the Radar values on the Radar values screen.</p>}
+          {result.next === 'radar-values' && <p className="text-sm">Next: enter the Radar values on Settings › Issue Radar.</p>}
           {!result.applied && (
             <div className="flex flex-wrap gap-2">
               <Btn type="button" disabled={busy || !chosen.length} onClick={() => void apply()} data-mirror-confirm>

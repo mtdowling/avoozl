@@ -83,6 +83,25 @@ export function usageRows(rate: RateView | undefined | null) {
     .sort((a, b) => b.calls - a.calls || a.source.localeCompare(b.source))
 }
 
+// The GitHub calls table's sort: one column, either way. A number column
+// starts with the largest first, Source starts A to Z; a second click flips.
+export type UsageRow = ReturnType<typeof usageRows>[number]
+export type UsageKey = 'source' | 'calls' | 'notModified' | 'cached'
+export interface UsageSort {
+  key: UsageKey
+  dir: 'asc' | 'desc'
+}
+export const USAGE_SORT: UsageSort = { key: 'calls', dir: 'desc' }
+export const nextUsageSort = (sort: UsageSort, key: UsageKey): UsageSort =>
+  sort.key === key ? { key, dir: sort.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'source' ? 'asc' : 'desc' }
+export function sortUsageRows(rows: UsageRow[], sort: UsageSort): UsageRow[] {
+  const sign = sort.dir === 'asc' ? 1 : -1
+  return [...rows].sort((a, b) => {
+    const by = sort.key === 'source' ? a.source.localeCompare(b.source) : a[sort.key] - b[sort.key]
+    return sign * by || a.source.localeCompare(b.source)
+  })
+}
+
 // One short line per resource, then the share of calls GitHub answered with
 // a free 304. Empty before Avoozl has made a call.
 export function rateLines(rate: RateView | undefined | null): string[] {

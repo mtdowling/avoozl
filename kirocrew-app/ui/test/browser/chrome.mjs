@@ -116,8 +116,9 @@ export async function launch(chrome) {
           await new Promise((resolve) => setTimeout(resolve, 25))
         }
       },
-      async key(key, code = key, keyCode = 27) {
-        await call('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: keyCode })
+      // `text` is what the key types; Enter and Space need it to press a button.
+      async key(key, code = key, keyCode = 27, text) {
+        await call('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: keyCode, ...(text ? { text } : {}) })
         await call('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: keyCode })
       },
       async hover(x, y) {

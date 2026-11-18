@@ -19,7 +19,11 @@ import {
   reviewRuleText,
   toForm,
   toggleCheck,
+  sortUsageRows,
+  nextUsageSort,
+  USAGE_SORT,
 } from '../src/settings-api.ts'
+import { redirectSettings } from '../src/nav-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const settings = source('SettingsView.tsx')
@@ -178,7 +182,7 @@ test('who counts is one row on the Triggers tab, with write as the default; no s
 })
 
 test('Settings has a GitHub page; Workspaces keeps only workspace things', () => {
-  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
+  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'radar', 'plugins', 'content', 'flow', 'models', 'delivery', 'budgets'])
   assert.doesNotMatch(settings, /Where tasks live' \}/)
   assert.match(settings, /setup=\{<SetupWizard/)
   const workspaces = settings.slice(settings.indexOf("if (tab === 'workspaces')"), settings.indexOf("if (!workspaceId)"))
@@ -190,6 +194,47 @@ test('Settings has a GitHub page; Workspaces keeps only workspace things', () =>
   assert.match(settings, /<PolicyEditor key=\{version\} workspaceId=\{workspaceId\} tab=\{tab\}/)
   assert.match(settings, /\{tab === 'github' && <RateBlock rate=\{settings\.rate\} \/>\}/)
   assert.match(settings, /<SaveFooter[\s\S]*note="Writes \.avoozl\.json\."/)
+})
+
+test('GitHub: every group is its own bordered section, and Radar settings live on their own page', () => {
+  const github = settings.slice(settings.indexOf('function WorkspaceGitHub('), settings.indexOf('function RadarSettings('))
+  const shown = github.slice(github.indexOf('return (\n    <>'))
+  for (const title of ['New tasks and issues', 'Sync pace', 'Set up GitHub']) assert.match(shown, new RegExp(`<Card>\\s*<Section title="${title}"`), title)
+  assert.match(shown, /<Card>\s*<ProjectFields/)
+  assert.doesNotMatch(github, /CrewScopes|RadarValuesScreen|level="sub"/)
+  // GitHub calls is a bordered section of its own.
+  assert.match(settings, /<Card>\s*<Section title="GitHub calls"/)
+  const radar = settings.slice(settings.indexOf('function RadarSettings('), settings.indexOf('export function ProjectFields'))
+  assert.match(radar, /<CrewScopes crews=\{crews\} \/>/)
+  assert.match(radar, /<RadarValuesScreen/)
+  assert.match(settings, /tab === 'radar' \? \(\s*<RadarSettings/)
+  assert.match(settings, /\n  radar:\s*\n?\s*['"]/)
+  assert.doesNotMatch(source('RadarValues.tsx'), /FieldBox/)
+  assert.equal(redirectSettings('issue-radar'), 'radar')
+  assert.equal(redirectSettings('radar-values'), 'radar')
+  assert.equal(redirectSettings('github'), 'github')
+})
+
+test('GitHub calls sort by any column either way, most calls first by default', () => {
+  const rows = [
+    { source: 'view', calls: 17, notModified: 21, cached: 132 },
+    { source: 'tick', calls: 88, notModified: 40, cached: 0 },
+    { source: 'crew', calls: 41, notModified: 0, cached: 0 },
+    { source: 'setup', calls: 41, notModified: 0, cached: 0 },
+  ]
+  const order = (sort) => sortUsageRows(rows, sort).map((row) => row.source)
+  assert.deepEqual(USAGE_SORT, { key: 'calls', dir: 'desc' })
+  assert.deepEqual(order(USAGE_SORT), ['tick', 'crew', 'setup', 'view'])
+  assert.deepEqual(order({ key: 'calls', dir: 'asc' }), ['view', 'crew', 'setup', 'tick'])
+  assert.deepEqual(order({ key: 'cached', dir: 'desc' }), ['view', 'crew', 'setup', 'tick'])
+  assert.deepEqual(order({ key: 'source', dir: 'asc' }), ['crew', 'setup', 'tick', 'view'])
+  assert.deepEqual(order({ key: 'source', dir: 'desc' }), ['view', 'tick', 'setup', 'crew'])
+  // A new number column starts largest first, Source A to Z; a second click flips.
+  assert.deepEqual(nextUsageSort(USAGE_SORT, 'calls'), { key: 'calls', dir: 'asc' })
+  assert.deepEqual(nextUsageSort(USAGE_SORT, 'notModified'), { key: 'notModified', dir: 'desc' })
+  assert.deepEqual(nextUsageSort(USAGE_SORT, 'source'), { key: 'source', dir: 'asc' })
+  assert.deepEqual(rows.map((row) => row.source), ['view', 'tick', 'crew', 'setup'], 'the input is not reordered')
+  assert.match(settings, /aria-sort=\{on \? \(sort\.dir === 'asc' \? 'ascending' : 'descending'\) : 'none'\}/)
 })
 
 test('Plugins puts Add plugin on the left and the installed list on the right, stacked when narrow', () => {
