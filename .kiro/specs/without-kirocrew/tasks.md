@@ -148,7 +148,7 @@ of the other specs.
 
 ## Phase 5: Definitions
 
-- [ ] nk-5.1 Read-only roles on each shipped definition, after nk-1.2 [NK6] (§D3)
+- [x] nk-5.1 Read-only roles on each shipped definition, after nk-1.2 [NK6] (§D3)
   - Facts:
     - summary: Phase 5 (Definitions). Read-only roles on each shipped definition. See NK6; §D3.
     - done:
