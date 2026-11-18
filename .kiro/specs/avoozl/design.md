@@ -1823,6 +1823,10 @@ enforced there.
 
 #### Batching
 
+**Changed 2026-11-18.** The planner decides batches in the manifest, and
+batching has no setting (§4.37, Requirement 108). The grouping rules below
+are replaced; the run, checks and split still hold.
+
 A leaf is batchable only when the plan marks it `size: "small"` in the
 manifest, because only the planner knows a task is small before it runs.
 Avoozl groups ready batchable leaves by `flow.batch.by` (`phase`, the same
@@ -1879,12 +1883,12 @@ Reply:
     {
       "type": "settings",
       "file": "repository",
-      "key": "flow.batch.max",
-      "from": 3,
-      "to": 5,
+      "key": "flow.stopTheLine.scope",
+      "from": "repo",
+      "to": "dependents",
       "metric": "lead time",
       "direction": "down",
-      "evidence": "7 of 10 tasks were size small in 2 epics"
+      "evidence": "6 of 10 tasks waited on stops in unrelated packages"
     },
     {
       "type": "plan",
@@ -1926,7 +1930,6 @@ Reply:
   "flow": {
     "stopTheLine": { "scope": "dependents" },
     "localChecksFirst": true,
-    "batch": { "max": 3, "by": "phase" },
     "retro": { "everyTasks": 10, "slowFactor": 3, "model": "auto" }
   }
 }
@@ -1956,8 +1959,7 @@ validation refuses it in a tracked file. There is no timing key.
 | Run anyway is person-only                       | Overriding a stop is the owner's call                                                                          |
 | Local checks first, default on                  | CI should confirm, not discover                                                                                |
 | Hook checks a record, not a rerun               | The checks run once                                                                                            |
-| Batch only `size: "small"`, local authority     | Only the planner knows size in advance; GitHub closing links are one per issue                                 |
-| Batch by epic by default                        | Same-parent tasks usually share context and files                                                              |
+| Planner groups, local authority (§4.37)         | Only the planner knows in advance what is cheaper in one chat; GitHub closing links are one per issue          |
 | Split a failed batch, no attempt cost           | A failing batch does not say which task broke it                                                               |
 | Tool-less retro agent                           | It can only propose, never act                                                                                 |
 | Typed proposals with evidence                   | A proposal must be checkable and reversible                                                                    |
@@ -2447,8 +2449,8 @@ a draft revision of the epic (§6.9: both sides must agree).
 `pack` or `flow`, the drawer shows the pack preview (create, change, keep,
 skip) with **Import these settings**, unticked. Ticking it and submitting
 runs the person-only pack import against the shown preview hash, exactly as
-Settings does (Requirement 55.5–55.7). The batching default works only
-because the starter and prompt mark small tasks `size: "small"` (§4.11).
+Settings does (Requirement 55.5–55.7). Batches come from the planner's
+manifest groups (§4.37), never from a template setting.
 
 #### Manual leaves
 
@@ -2565,7 +2567,7 @@ missing after a rebuild, like session bindings.
 
 | Phase          | Starter tasks                                                 | Kind                                                 |
 | -------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
-| Inventory      | List `{{sdk}}`'s operations and features; read the gap list   | leaves, `size: "small"`                              |
+| Inventory      | List `{{sdk}}`'s operations and features; read the gap list   | leaves, one planner batch group                      |
 | Codegen        | Generate the client from the models; compare with the old one | leaves                                               |
 | Runtime        | Port transport, auth, retries, paging                         | leaves                                               |
 | Protocol tests | Run the protocol test suite until it passes                   | leaf, plus proof `protocol-tests`                    |
@@ -2602,7 +2604,6 @@ missing after a rebuild, like session bindings.
     { "id": "cutover-dry-run", "title": "Cutover dry run" }
   ],
   "flow": {
-    "batch": { "by": "phase", "max": 3 },
     "stopTheLine": { "scope": "dependents" },
     "localChecksFirst": true,
     "retro": { "everyTasks": 10 }
@@ -4783,6 +4784,118 @@ shortcut: one spec folder per pull request and at most 100 changed files; a
 larger or two-folder pull request stays in Triage. Upgrade if such pull
 requests are common.
 
+### 4.37 The planner decides batches
+
+Added 2026-11-18 (Requirement 108). Replaces the Batching part of §4.11
+(`size: "small"`, `flow.batch.max`, `flow.batch.by`) and the Batching box
+of Settings > Flow (§8.4). The batch run itself (one chat, one commit per
+task, checks once, split on failure) is unchanged.
+
+**Why.** The owner's decision: batching is not configurable. A size tag and
+a count were a guess made twice, once by the planner and once by a person
+in Settings. The planner already reads the code and writes the tasks, so it
+is the one place that knows which tasks are cheaper in one chat. The tick
+stays a pure planner: no model call there.
+
+**Manifest.** The planner may write one top-level object:
+
+```json
+{
+  "tasks": { "3.1": { "kind": "leaf" }, "3.2": { "kind": "leaf" } },
+  "batches": {
+    "doc-links": {
+      "tasks": ["3.1", "3.2"],
+      "reason": "Two one-line link fixes in README.md"
+    }
+  }
+}
+```
+
+`parseSpec` (`spec-plans.mjs`) checks the shape and refuses, as
+`manifest.schema`: a value that is not an object, a group ID outside
+`[A-Za-z0-9._-]{1,60}`, fewer than 2 or more than 5 tasks, a task ID with no
+leaf entry, a task in two groups, a reason that is empty, over 200
+characters or more than one line. Each member proposal gets
+`batch: {id, tasks, reason}` with full task IDs. `approvePlan` copies
+`batch` onto the task with `planHash`, as it copies the other fields, so a
+stored group always comes from an approved revision. The old `size` field
+is dropped on read with no diagnostic, like `budget`.
+
+**Dispatch (`flow-batch.mjs`, pure).** `planBatches` keeps its signature for
+`planReadyDispatches`. For each ready leaf with a `batch`:
+
+```text
+members  = the group's tasks still open
+problem  = groupProblem(store, data, members)   ─▶ null, or one line
+problem? ─▶ dispatch the leaf alone; the line is the "Runs alone" reason
+any open member not ready (blocked, held, waiting)? ─▶ the ready ones wait
+else     ─▶ one handoff: the first open member in the group leads,
+            batch {id, tasks, reason, by: "planner"}
+```
+
+`groupProblem` checks, in order, and returns the first that fails:
+
+| Rule                                                          | Reason shown                                      |
+| ------------------------------------------------------------- | ------------------------------------------------- |
+| every member exists and stores this same group                 | "the group changed; it runs alone until approved" |
+| same plan, same `planHash`, and the plan is approved at it     | "the group is not from the approved revision"     |
+| same repository (same plan means the same base branch)         | "its tasks are in different repositories"         |
+| at most `MAX_BATCH` (5, a constant)                            | "more than 5 tasks"                               |
+| no `requires` or `sequence` edge between two members           | "3.2 waits on 3.1"                                |
+| each member a local, automatic leaf (not manual, not a gate)   | "3.2 is not a local automatic leaf"               |
+| no member has an earlier attempt or was split                  | "3.1 already ran alone" / "the batch was split"   |
+
+`waitingForBatch` keeps ready members of a live or incomplete group out of
+free slots. A routed tick still requires the leader on the local crew and
+every member allowed there (R46.4 as before); a member that cannot run
+there makes the group run alone with "3.2 cannot run on this machine".
+`batchRules(store, data, task)` returns `{group, problem}` for reads, so
+the task's details and its card show the same reason the tick used, with no
+write in the tick.
+
+**Run, check, split.** Unchanged from §4.11: `batchBrief`, one commit and
+one `done` per task, checks and review on the last commit, `splitBatch` on
+failure with no attempt cost and `batchSplit` on each delivery. The
+`flow_batches` record gains `reason`. Landing trains (the `landing-trains`
+spec) do the test-once and bisect on landing; batching adds no landing
+step.
+
+**No setting.** `FLOW_DEFAULTS.batch`, `BATCH_BY` and the `batch.*` keys of
+`FLOW_KEYS` are removed. `flowSection` drops a `batch` group silently (as it
+does `lessons`), so an old `.avoozl.json`, a repository's `flow` or a pack's
+`settings.flow` with `batch` loads, saves and imports. Settings > Flow loses
+its Batching box. A retro settings proposal can no longer name a batch key,
+because it is not a Flow key; a stored one is refused at Approve as "not a
+flow setting". `delivery.investigate.mode: not-small` skips leaves with a
+`batch`. Radar coder's `planProjectionBatches` (radar-coder D4.2) suggests
+the planner's groups, open and unblocked, instead of grouping `size: "small"`
+tasks.
+
+**Show.** `deliveryView` adds to each item `batch: {id, tasks, reason,
+leader}` for a live batch, and `alone: "<reason>"` for a grouped task that
+runs alone. The Delivery page folds a live batch into one In progress card
+keyed by the leader: the reason, then each member's ID and title, each
+opening that task's details. The task's details show **Batch** with the
+group ID linking to the leader's card (the Delivery page with that task
+selected), the other members and the reason, or **Runs alone** with the
+reason.
+
+**Prompt.** `prompts/planner.md` says: group only leaves one worker should
+do in one chat, such as tiny edits to the same files; never group tasks that
+depend on each other, tasks in different repositories, or a task that needs
+its own review; at most 5; one line of reason. No group is the default.
+
+**Tests.** `src/app/test/flow-batch.test.mjs`: a planner group dispatched as
+one handoff and its members waiting for each other; each rule of the table
+dispatched alone with its reason; a failing batch split, each task alone at
+no attempt cost. `flow.test.mjs`: no batch key in `FLOW_KEYS`, and an old
+`flow.batch` ignored on load and save. `spec-plans` tests: shape errors, an
+old `size` ignored. UI tests: the batched card and the task's Batch row;
+screenshots under `docs/evidence/agent-batching/`.
+
+shortcut: a group holds tasks of one spec only; upgrade if the planner
+needs to batch across specs.
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.
@@ -6596,7 +6709,7 @@ Where delivery time goes, and what the last retro proposed.
 └────────────────────────────────────────────────────────────────────────┘
 ┌ Retros ────────────────────────────────────────────────────────────────┐
 │ Retro 3 · after 10 tasks · bottleneck ci-wait                            │
-│   Raise batch max to 5 (flow.batch.max 3 → 5)   lead time ↓              │
+│   Narrow stops (flow.stopTheLine.scope repo → dependents)  lead time ↓   │
 │   evidence: 7 of 10 tasks were small in 2 epics     [Reject] [Approve]   │
 │ Retro 2 · approved: local checks first on · PDCA: CI wait −38%, helped   │
 └────────────────────────────────────────────────────────────────────────┘
@@ -6642,11 +6755,6 @@ How Avoozl measures delivery time and reacts to slow or broken work.
 ┌ Local checks first ────────────────────────────────────────────────────┐
 │ Run the checks here before any push, so CI only confirms.               │
 │ [x] Require a local pass before push (optional)   flow.localChecksFirst  │
-└────────────────────────────────────────────────────────────────────────┘
-┌ Batching ──────────────────────────────────────────────────────────────┐
-│ Run small related tasks together to pay setup and checks once.          │
-│ Most tasks per run (optional) [ 3 ]  flow.batch.max                      │
-│ Group by (optional)  ○ Same phase ○ Same files      flow.batch.by        │
 └────────────────────────────────────────────────────────────────────────┘
 ┌ Retro ─────────────────────────────────────────────────────────────────┐
 │ A review that finds the biggest slowdown and proposes one change.       │

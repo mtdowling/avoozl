@@ -8531,6 +8531,24 @@
         "58.1",
         "57.6"
       ]
+    },
+    "61.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 61 (The planner decides batches). See R108; §4.37.",
+      "acceptance": [
+        "Planner batch groups replace `size: \"small\"` and `flow.batch`, after 12.8",
+        "A manifest `batches` group is linted, stored on its member tasks at approval, and dispatched by the tick as one handoff when every open member is ready; a group that breaks a code rule (plan, approved hash, repository, at most 5, no edge, local automatic leaf, no earlier attempt or split) runs as single tasks with the reason on the task; a failing batch splits and each task retries alone; `flow.batch`, `size` and the Batching box are gone and old values load silently; Delivery shows one In progress card per batch with its tasks and reason and each task links to its batch; tests cover each case, and screenshots are under docs/evidence/agent-batching/."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "npm run test:ui",
+        "git diff --check"
+      ],
+      "requires": [
+        "12.8"
+      ]
     }
   }
 }

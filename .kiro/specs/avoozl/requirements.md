@@ -2085,6 +2085,10 @@ and nobody waits on CI to learn about a failure.
 
 Added 2026-11-12 (owner request). Design §4.11.
 
+**Changed 2026-11-18.** Criteria 1 to 4 are replaced by Requirement 108:
+the planner decides batches in the manifest, and batching has no setting.
+Criteria 5 to 7 still hold.
+
 **User story:** As the owner, I want small related tasks to share one run,
 so that the fixed cost of a session, a worktree, checks, and review is paid
 once instead of once per tiny task.
@@ -2201,7 +2205,8 @@ and what to change, and one settings group for the flow rules.
    above every other section while a stop is open.
 6. Settings SHALL have one **Flow** group with sub-groups **Timing**
    (read-only explanation, no fields), **Stop the line** (scope), **Local
-   checks first** (on or off), **Batching** (max, by), and **Retro**
+   checks first** (on or off), ~~**Batching** (max, by),~~ (removed
+   2026-11-18, Requirement 108) and **Retro**
    (every N tasks, slow factor, model, instructions). Each SHALL have a
    heading and one short line, plain labels with the raw key shown small,
    "(required)" or "(optional)" in plain text, and defaults as placeholders.
@@ -3015,7 +3020,8 @@ progress, and no grouping is made up from a file path.
     a link and its phases with progress. An **epic page** (or Graph
     drill-in) SHALL show the epic's goal, what done means, each member
     plan with its status and progress, and open decisions.
-11. Flow batching (Requirement 46.2) SHALL name the grouping `phase`: the
+11. (Superseded 2026-11-18 by Requirement 108: there is no
+    `flow.batch.by`.) Flow batching (Requirement 46.2) SHALL name the grouping `phase`: the
     same parent package, otherwise the same phase. The value `epic` SHALL
     be refused by the Settings validator, naming `phase`. The New plan drawer (Requirement
     57.1) SHALL offer **Epic** (pick an existing epic, optional) and
@@ -3133,7 +3139,7 @@ Workflow templates
    that the prompt tells the planner to fill in for this plan.
 6. `pack` SHALL be a settings pack under Requirement 55.3–55.7, and
    `flow` SHALL set only `flow` keys that pass the Flow settings
-   validator: batching small tasks, stop the line, local checks first,
+   validator: stop the line, local checks first,
    and the retrospective cadence. Neither SHALL be applied by picking the
    template. The New plan drawer SHALL show them as the pack preview of
    Requirement 55.5 with an **Import these settings** checkbox, off by
@@ -3252,8 +3258,8 @@ Example
     SDK name, target repository and an optional gap list; phases
     inventory, codegen, runtime, protocol tests, review and cutover; a
     manual **Review with team** leaf that cutover requires; proof kinds
-    for protocol tests and a cutover dry run; and flow defaults that batch
-    small tasks, stop the line, run local checks first and hold a
+    for protocol tests and a cutover dry run; and flow defaults that
+    stop the line, run local checks first and hold a
     retrospective every 10 tasks. The plugin guide and the planner skill
     SHALL describe templates, manual tasks and Links ~~and notes~~.
 
@@ -4089,7 +4095,8 @@ do not build on a wrong reading of the task.
    falsifier's reply, offering **Go ahead**, **Investigate again** (one new
    round, with the reply as data), and **Stop**. These SHALL be person only.
 5. `delivery.investigate.mode` SHALL be `all`, `not-small` (default) or
-   `off`. `not-small` skips leaves marked `size: "small"`. A manifest task
+   `off`. `not-small` skips leaves in a planner batch group (Requirement
+   108.10; it skipped `size: "small"` before 2026-11-18). A manifest task
    MAY set `investigate: false` or `true` to override the mode.
 6. Investigation and the falsifier SHALL be Flow spans of their own and
    SHALL count in Flow's usage (budgets were removed 2026-11-17).
@@ -5858,3 +5865,81 @@ the spec and merging its pull request is one decision.
    and the chip, box and Decisions item. Screenshots in the full app shell
    (phone and desktop, light and dark) SHALL be under
    `docs/evidence/spec-pr-adoption/`.
+
+### Requirement 108: The planner decides batches; batching has no setting
+
+Added 2026-11-18 (owner decision). Design §4.37. Replaces Requirement 46.1
+to 46.4 and the Batching settings of Requirement 48.6; keeps
+46.5 to 46.7.
+
+The owner's words, in short: batching is not configurable. Tasks are handed
+off in batches based on what an agent decides is most efficient, with no
+setting for it.
+
+**User story:** As the owner, I want the planner to decide which tasks one
+worker does together in one chat, so that tiny related edits share one
+handoff without my tuning a batch size.
+
+#### Acceptance criteria
+
+1. WHEN the planner writes or revises a spec's tasks THEN it MAY group
+   leaves that one worker should do together in one chat in the manifest's
+   top-level `batches` object, keyed by a group ID, each entry
+   `{"tasks": [IDs as written in tasks.md], "reason": "<one line>"}`. The
+   planner prompt (`prompts/planner.md`) SHALL say when to group (small
+   edits that share files or context, where one chat is cheaper than
+   several) and when not to (anything that needs its own review, any
+   ordering between the tasks, more than one repository).
+2. Spec lint SHALL refuse a `batches` value that is not an object of
+   entries with a group ID of letters, digits, `.`, `_` or `-`, 2 to 5
+   task IDs that name leaves in this spec, and a reason of 1 to 200
+   characters on one line, and a task listed in two groups. These SHALL be
+   `manifest.schema` errors, like any other manifest error.
+3. Approval SHALL store the group on each member task as
+   `batch: {id, tasks, reason}` with the members' task IDs, from the
+   approved revision only. A later draft revision SHALL NOT change a stored
+   group until it is approved.
+4. The tick SHALL stay a pure planner with no model call. It SHALL
+   dispatch a group as one handoff WHEN every open member is ready. Members
+   already complete SHALL be left out. Ready members SHALL wait while
+   another open member of their group is not ready, unless the group breaks
+   a rule of criterion 5 or was split.
+5. Avoozl SHALL check these rules in code, never in a setting, each time it
+   would dispatch a group: every member is in the same plan and the same
+   repository (so the same base branch); no `requires` or `sequence` edge
+   joins two members; the group has at most 5 members; every member
+   carries the same group from the same approved plan hash, and the plan is
+   approved at that hash; every member is an automatic leaf with local
+   route and authority; no member has an earlier attempt or was split from
+   a batch. A group that breaks a rule SHALL be dispatched as single tasks,
+   and the task's details and its Delivery card SHALL show **Runs alone**
+   with the rule it broke.
+6. A batched handoff SHALL keep Requirement 46.5 to 46.7: one worker
+   session and one worktree, one commit and one `done` per task in order,
+   checks and review once on the last commit, and on failure a split in
+   which each task retries alone at no attempt cost and is not batched
+   again in that delivery.
+7. Batching SHALL add no landing step. Landing trains (the
+   `landing-trains` spec) test once on landing and find a culprit there;
+   a batch's commits land through the repository's landing like any other.
+8. Batching SHALL have no setting. `flow.batch` SHALL NOT be a Flow key,
+   Settings > Flow SHALL have no Batching section, the Flow settings
+   validator and settings packs SHALL have no batch keys, and `size` SHALL
+   NOT be a task field. An old `flow.batch` in `.avoozl.json`, in a repository's `flow`
+   or in a pack, and an old `size` in a manifest, SHALL be ignored silently
+   and SHALL never fail a load, a save, an import or lint.
+9. Delivery's **In progress** lane SHALL show a batched handoff as one card
+   that lists each task (ID and title) and the planner's reason. Each
+   task's details SHALL name its batch and link to it, and show the reason.
+10. `delivery.investigate.mode: not-small` SHALL skip leaves in a planner
+    group instead of leaves marked `size: "small"`. The value keeps its
+    name so saved settings still load.
+11. Radar coder projection (radar-coder RC2.5) SHALL suggest the planner's
+    groups instead of grouping `size: "small"` tasks up to `flow.batch.max`.
+12. Tests SHALL cover: a planner group dispatched as one handoff; a group
+    that breaks each rule of criterion 5 dispatched as single tasks with its
+    reason; a failing batch split with each task retried alone; no batch key
+    in the Flow settings validator or in Settings > Flow; and an old
+    `flow.batch` and an old `size` ignored on load. Screenshots of the
+    batched card (phone and desktop, light and dark) SHALL be under
+    `docs/evidence/agent-batching/`.
