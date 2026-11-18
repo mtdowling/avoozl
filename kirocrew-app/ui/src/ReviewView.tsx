@@ -45,20 +45,13 @@ import {
 import { ErrorText } from './ui/ErrorText'
 import { Hint } from './ui/Hint'
 import { Box } from './ui/Box'
+import { REVIEW_ACCENT, ReviewCss } from './ui/PageStyles'
 
 const PROSE = '72ch'
 // Below this width the text and the rail do not fit side by side.
 const WIDE = 720
 // The text never gets narrower than this when the side column is dragged wider.
 const MIN_TEXT = 320
-// Every block a finding is anchored to is tinted by its severity and can be
-// focused; the open finding's block is stronger.
-const HIT_STYLE = `[data-review-doc] [data-review-anchor]{cursor:pointer;border-radius:4px;box-shadow:-3px 0 0 var(--hit,var(--accent));background:color-mix(in srgb,var(--hit,var(--accent)) 10%,transparent)}
-${SEVERITIES.map((s) => `[data-review-doc] [data-review-anchor][data-review-sev=${s}]{--hit:${SEVERITY_INK[s]}}`).join('\n')}
-[data-review-doc] [data-review-anchor]:hover{background:color-mix(in srgb,var(--hit,var(--accent)) 16%,transparent)}
-[data-review-doc] [data-review-anchor]:focus-visible{outline:2px solid var(--hit,var(--accent));outline-offset:2px}
-[data-review-doc] [data-review-hit]{background:color-mix(in srgb,var(--hit,var(--accent)) 24%,transparent)!important}
-[data-toc-item][aria-current=location]{color:var(--text-strong,var(--text));font-weight:600;box-shadow:inset 2px 0 0 var(--accent)}`
 const SEVERITY_ORDER: Record<string, number> = { blocker: 0, warn: 1, info: 2 }
 // Smooth unless the person asked for less motion: then a jump.
 const motion = (): ScrollBehavior => (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth')
@@ -98,15 +91,7 @@ const ACTION_TEXT: Record<FindingAction, string> = {
   reopen: 'Reopened',
 }
 
-// Kiro Crew's own accent for an action, as on its Needs your input cards.
-const ACCENT = 'color-mix(in srgb, var(--aim) 72%, var(--text-strong, var(--text)))'
 const SEVERITY_ICON: Record<FindingSeverity, typeof Info> = { blocker: CircleAlert, warn: MessageSquare, info: Info }
-const CARD_STYLE = `[data-finding-card] [data-card-btn]{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500;line-height:1;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;max-width:100%}
-[data-finding-card] [data-card-btn]:hover:not(:disabled){background:var(--bg-hover)}
-[data-finding-card] [data-card-btn]:disabled{opacity:.55;cursor:default}
-[data-finding-card] [data-card-btn][data-main]{color:${ACCENT};border-color:color-mix(in srgb,${ACCENT} 45%,var(--border))}
-[data-finding-card] [data-card-btn]:focus-visible{outline:2px solid ${ACCENT};outline-offset:1px}
-[data-finding-card] [data-clamp]{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}`
 
 function CardBtn(props: { main?: boolean; disabled?: boolean; onClick: () => void; attr: Record<string, string>; children: string }) {
   return (
@@ -167,7 +152,7 @@ function FindingCard(props: {
       className="text-sm"
       style={{
         ...props.style,
-        boxShadow: props.selected ? `0 0 0 2px color-mix(in srgb, ${ACCENT} 55%, transparent)` : undefined,
+        boxShadow: props.selected ? `0 0 0 2px color-mix(in srgb, ${REVIEW_ACCENT} 55%, transparent)` : undefined,
         cursor: props.onSelect ? 'pointer' : undefined,
         display: 'flex',
         flexDirection: 'column',
@@ -627,7 +612,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               ))}
             </Box>
           </Box>
-          <style>{HIT_STYLE + CARD_STYLE}</style>
+          <ReviewCss />
           {all ? (
             <section role="tabpanel" id="review-tab-panel" aria-labelledby="review-tab-all" data-review-all style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, maxWidth: 760, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: 'auto' } : {}) }}>
               {shown.length === 0 && (

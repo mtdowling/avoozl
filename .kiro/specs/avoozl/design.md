@@ -551,7 +551,7 @@ count and up to 10 links.
 
 ### 4.5 The tick
 
-**Proposed.** One operation, `workspace.tick`, exposed as MCP tool `plans_tick`
+**Proposed.** One operation, `workspace.tick`, exposed as MCP tool `plans_maintain {action: "tick"}`
 and CLI `avoozl tick`. It is idempotent and bounded (Requirement 26).
 
 Order of one tick, per workspace:
@@ -604,12 +604,12 @@ Bounds:
 
 ```text
 tick.py:run(ctx)
-  intents = ctx.call_tool("avoozl", "plans_tick", {})
+  intents = ctx.call_tool("avoozl", "plans_maintain", {"action": "tick"})
   for s in intents.observe:   status = ctx.call_tool("kirocrew-dashboard", "session_status", {"target": s.slot})
-                              ctx.call_tool("avoozl", "plans_session_status", {"slot": s.slot, "status": status})
+                              ctx.call_tool("avoozl", "plans_session", {"action": "status", "slot": s.slot, "status": status})
   for d in intents.dispatch:  folder = find_or_create(ctx, d.folder)
                               slot = ctx.open_session(d.title, folder_id=folder, agent=d.agent)
-                              ctx.call_tool("avoozl", "plans_bind_session", {"task": d.task, "slot": slot})
+                              ctx.call_tool("avoozl", "plans_session", {"action": "bind", "task": d.task, "slot": slot})
                               ctx.send_to_session(slot, d.brief)
   for m in intents.messages:  ctx.send_to_session(m.slot, m.text)
   for n in intents.notify:    ctx.notify(n.text)
@@ -618,16 +618,16 @@ tick.py:run(ctx)
 
 - Session titles are `avoozl:<task-id> <short title>`, so bindings are
   rediscoverable (§3.3).
-- `plans_bind_session` is recorded before the first message, so a crash between
+- `plans_session {action: "bind"}` is recorded before the first message, so a crash between
   open and send leaves a bound, empty session the next tick messages.
 - Whether a script cron may call the `kirocrew-dashboard` server's
   `session_status` is **Inferred**; proof P2 checks it. If it cannot, MC-2
   becomes blocking.
 
 New MCP tools (**Proposed**, `plans_` prefix kept for consistency):
-`plans_tick`, `plans_bind_session`, `plans_session_status`, `plans_report`
+`plans_maintain {action: "tick"}`, `plans_session {action: "bind"}`, `plans_session {action: "status"}`, `plans_report`
 (worker, verifier, responder reports), `plans_prepare_worktree`,
-`plans_project_preview`, `plans_post_reply`, `plans_rebuild`.
+`plans_project_preview`, `plans_post_reply`, `plans_github {action: "rebuild"}`.
 
 ### 4.7 Security and exposure
 
@@ -1562,7 +1562,7 @@ Read against Avoozl `kirocrew-native` at `6d83f83` (2026-11-12), read only.
 | F108 | **Verified (source).** An MCP request carries Kiro Crew's caller block, which names a session key, not a person; a script cron's own copy of the server has no caller at all. Person-only operations refuse a session caller or MCP with 403.                                                                                                | `src/app/app-mcp.mjs` header; `src/app/operations.mjs` `content.show`, plugin edits                                 |
 | F109 | **Verified (source).** Content-rule boundaries are `plan`, `github`, `brief`, and `diff`. Nothing screens an item when it comes in; issue text is screened later, at `brief`.                                                                                                                                                                | `src/app/content-rules.mjs` `BOUNDARIES`; `src/app/github-sync.mjs`                                                 |
 | F110 | **Verified (source).** `parseMatch` reads `label:`, `-label:`, `assignee:`, and `no:assignee` and refuses every other token by name.                                                                                                                                                                                                         | `src/app/issue-match.mjs`                                                                                           |
-| F111 | **Verified (source).** `task.capture` (`plans_capture`) records a person's request as an inbox task, idempotent by a submission ID.                                                                                                                                                                                                          | `src/capture.mjs`; `src/app/mcp.mjs`                                                                                |
+| F111 | **Verified (source).** `task.capture` (`plans_intake {action: "capture"}`) records a person's request as an inbox task, idempotent by a submission ID.                                                                                                                                                                                                          | `src/capture.mjs`; `src/app/mcp.mjs`                                                                                |
 | F112 | **Verified (source).** Each store table is its own SQLite table of `id` and JSON `body`, on an allowlist in `store.mjs`; `github_issues` is one.                                                                                                                                                                                             | `src/app/store.mjs` `get`, `list`, `put`                                                                            |
 | F113 | **Inferred.** An internal ticket tracker or code review system can answer "items changed since cursor X" for a query. A source that cannot is still usable, but its plugin must page through every open item each poll.                                                                                                                      | Not checked against any real system; proof P32 uses a fake                                                          |
 
@@ -4442,6 +4442,17 @@ in Settings. The planner already reads the code and writes the tasks, so it
 is the one place that knows which tasks are cheaper in one chat. The tick
 stays a pure planner: no model call there.
 
+**Grouping is the default** (changed 2026-11-18, owner decision). One
+medium-sized pull request of related tasks beats many small pull requests
+of the same work. The planner groups related leaves in one repository and
+area by default, with no limit on the number of tasks. It splits only where
+the parts can truly run at the same time (different files or areas two
+workers can do without stepping on each other), or for a hard reason: one
+task must land before another, a different repository, a manual step, or a
+task that needs its own review or investigation. It never splits just to
+land tasks one at a time. The retro flags a spec whose related tasks landed
+as many small pull requests.
+
 **In `tasks.md`** (changed 2026-11-18, §4.40). Each member names its group
 in a `batch` fact, and front-matter gives the group's reason once:
 
@@ -4459,7 +4470,7 @@ batch-doc-links: Two one-line link fixes in README.md
 
 `parseSpec` (`spec-plans.mjs`) reads the group's tasks from its members and
 refuses, as `facts.schema` in `tasks.md`: a group ID outside
-`[A-Za-z0-9._-]{1,60}`, fewer than 2 or more than 5 tasks, a member that is
+`[A-Za-z0-9._-]{1,60}`, fewer than 2 tasks, a member that is
 not a leaf, a group with no reason, and a reason that is empty, over 200
 characters or more than one line. Each member proposal gets
 `batch: {id, tasks, reason}` with full task IDs. `approvePlan` copies
@@ -4486,7 +4497,6 @@ else     ─▶ one handoff: the first open member in the group leads,
 | every member exists and stores this same group                 | "the group changed; it runs alone until approved" |
 | same plan, same `planHash`, and the plan is approved at it     | "the group is not from the approved revision"     |
 | same repository (same plan means the same base branch)         | "its tasks are in different repositories"         |
-| at most `MAX_BATCH` (5, a constant)                            | "more than 5 tasks"                               |
 | no `requires` or `sequence` edge between two members           | "3.2 waits on 3.1"                                |
 | each member a local, automatic leaf (not manual, not a gate)   | "3.2 is not a local automatic leaf"               |
 | no member has an earlier attempt or was split                  | "3.1 already ran alone" / "the batch was split"   |
@@ -4526,15 +4536,19 @@ opening that task's details. The task's details (Overview) show **Batch**
 with the group ID linking to the leader's details, the other members and
 the reason, and **Runs alone** with the reason when the group broke a rule.
 
-**Prompt.** `prompts/planner.md` says: group only leaves one worker should
-do in one chat, such as tiny edits to the same files; never group tasks that
-depend on each other, tasks in different repositories, or a task that needs
-its own review; at most 5; one line of reason. No group is the default.
+**Prompt.** `prompts/planner.md` says: group related leaves in the same
+repository and area by default, with no task limit; split only at a
+boundary two workers can truly work in parallel, or for a hard reason;
+never split just to land tasks one at a time; never group tasks that
+depend on each other, tasks in different repositories, a manual leaf, or a
+task that needs its own review or investigation; one line of reason.
+`prompts/retro.md` asks the retro to flag a spec whose related tasks
+landed as many small pull requests.
 
 **Tests.** `src/app/test/flow-batch.test.mjs`: a planner group dispatched as
 one handoff and its members waiting for each other; each rule of the table
-dispatched alone with its reason; a failing batch split, each task alone at
-no attempt cost. `flow.test.mjs`: no batch key in `FLOW_KEYS`, and an old
+dispatched alone with its reason; a related group of 12 tasks dispatched
+as one handoff; a failing batch split, each task alone at no attempt cost. `flow.test.mjs`: no batch key in `FLOW_KEYS`, and an old
 `flow.batch` ignored on load and save. `spec-plans` tests: shape errors, an
 old `size` ignored. UI tests: the batched card and the task's Batch row;
 screenshots under `docs/evidence/agent-batching/`.
@@ -5034,7 +5048,7 @@ subject C, using the task's own diff, not the base's: a path changed when
 `git diff <merge-base(E)> E -- <path> | git patch-id --stable` differs from
 the same for C. `fixed` needs at least one changed path, `unchanged` none. A
 defect closed `unchanged` stays open. A person retrying a stopped delivery
-(`plans_retry_delivery`) may dismiss findings by reference with a reason.
+(`plans_task {action: "retry"}`) may dismiss findings by reference with a reason.
 
 **Not run.** A checks report entry may be `{command, exitCode: null,
 notRun: "<reason>"}`. Avoozl reads `notRun`, a null exit code, 126, 127, and
@@ -5051,7 +5065,7 @@ repository's validation script as a declared check, so the checks role runs
 it on the exact commit and acceptance can only come from its pass.
 
 **Supersede by hand.** `task.supersede` (`avoozl task supersede`,
-`plans_supersede_task`) takes `{id, create}` and, in one transaction,
+`plans_task {action: "supersede"}`) takes `{id, create}` and, in one transaction,
 creates the new task, copying the old task's `requires` and `sequence`
 edges unless `create.requires` is given, sets `supersedes` and
 `supersededBy`, and sets the old task to `superseded` (a new status,
@@ -6394,7 +6408,7 @@ renders, and its buttons write and redraw it. Lessons:
 
 **Proposed** (owner decision 2026-11-12, Requirement 32). A **Set up GitHub**
 button in Settings runs one operation, `github.setup`, also exposed as CLI
-`avoozl github setup` and MCP tool `plans_github_setup`. It uses the token
+`avoozl github setup` and MCP tool `plans_github {action: "setup_preview"}`. It uses the token
 Avoozl already reads (F35) and stores no new secret.
 
 **Flow.** The wizard reads first, builds one plan of writes, shows it, and

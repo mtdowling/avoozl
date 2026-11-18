@@ -122,12 +122,18 @@ export function seeded(context) {
   return template.file;
 }
 
+// name is "tool.action" for a grouped tool.
 export const mcpLine = (id, name, input) =>
   JSON.stringify({
     jsonrpc: "2.0",
     id,
     method: "tools/call",
-    params: { name, arguments: { input } },
+    params: {
+      name: name.split(".")[0],
+      arguments: name.includes(".")
+        ? { action: name.split(".")[1], input }
+        : { input },
+    },
   });
 
 function sign(body) {

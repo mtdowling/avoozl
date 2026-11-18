@@ -7,30 +7,15 @@
 import type { ReactNode } from 'react'
 import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref } from './views-api.ts'
+import { StatusCellsStyle } from './ui/PageStyles'
 
 export type CellTone = 'ok' | 'warn' | 'danger' | 'muted'
 
-const CSS = `
-[data-sc-row]{container-type:inline-size}
-[data-sc-grid]{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}
-@container (max-width:420px){[data-sc-grid]{grid-template-columns:minmax(0,1fr)}}
-[data-sc]{display:flex;flex-wrap:nowrap;align-items:center;align-content:flex-start;gap:0 8px;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:18px;color:var(--text)}
-[data-sc-title]{flex:0 1 auto;display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;font-weight:600;color:var(--text-strong,var(--text));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-[data-sc-dot]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted)}
-[data-sc-dot][data-tone=ok]{background:var(--ok)}
-[data-sc-dot][data-tone=warn]{background:var(--warning,#b7791f)}
-[data-sc-dot][data-tone=danger]{background:var(--danger)}
-[data-sc-actions]{flex:none;display:inline-flex;flex-wrap:nowrap;align-items:center;gap:4px;margin-left:auto}
-[data-sc-act]{display:inline-flex;align-items:center;justify-content:center;width:24px;height:22px;padding:0;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--muted);font:inherit;text-decoration:none;cursor:pointer;transition:background-color .12s,color .12s}
-[data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}
-[data-sc-act][data-primary]{color:var(--accent)}
-[data-sc-act]:disabled{opacity:.6;cursor:default}
-`
 
 export function StatusRow(props: { children: ReactNode }) {
   return (
     <div data-sc-row>
-      <style>{CSS}</style>
+      <StatusCellsStyle />
       <div data-sc-grid>{props.children}</div>
     </div>
   )

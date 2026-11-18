@@ -11,70 +11,52 @@ import { Store } from "../store.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
-// Every plans_* name the MCP server listed before the agent host was removed
-// (Requirement 24.5). A name may change what it does, never disappear.
-const NAMES = [
-  ...MCP_TOOLS.map((tool) => tool.name),
-  ...`plans_examples plans_seed_example plans_workspace plans_metrics
-plans_usage plans_models plans_prompt_search plans_prompt_search_result
-plans_duplicates plans_merge_tasks plans_merge_receipt plans_capture
-plans_update_task plans_archive_task plans_create_plan plans_save_plan
-plans_propose_work plans_specs plans_get_plan plans_lint_plan
-plans_project_preview plans_submit_review plans_extract plans_triage_design
-plans_extraction plans_submit_extraction plans_dispose_fact plans_approve_plan
-plans_start_run plans_send_message plans_interrupt_run plans_resume_run
-plans_set_run_approvals plans_answer_request plans_task_sessions
-plans_discover_sessions plans_register_session plans_bind_session
-plans_rediscover_sessions plans_request_session plans_session_status
-plans_tick plans_classify_issue plans_draft_children plans_advance_breakdowns
-plans_rebuild plans_github_setup plans_prepare_worktree plans_report
-plans_post_reply plans_next plans_claim_task plans_retry_delivery
-plans_archive_run plans_unarchive_run plans_list_runs plans_get_run
-plans_run_context plans_ready_queue plans_targets plans_target_status
-plans_jobs plans_review_queue plans_checkpoints plans_checkpoint_publish
-plans_primary_state plans_start_batch plans_control_batch plans_handoff
-plans_validate_run plans_integrate plans_accept_task plans_andon_status
-plans_andon_raise plans_andon_note plans_andon_propose_remediation
-plans_andon_review`.split(/\s+/),
-];
+// Names removed on 2026-11-18 (R56.3): the old one-tool-per-operation names,
+// the moved-operation stubs, plans_relay and plans_andon_*. A sample, with a
+// name of each kind.
+const REMOVED = `plans_update_task plans_bind_session plans_tick plans_flow
+plans_start_run plans_send_message plans_metrics plans_targets plans_relay
+plans_andon_status plans_andon_raise`.split(/\s+/);
 
-// The tools whose work moved to Kiro Crew; each answers with a pointer.
-const MOVED_TOOLS = `plans_metrics plans_usage plans_models plans_prompt_search
-plans_send_message plans_interrupt_run plans_resume_run plans_set_run_approvals
-plans_answer_request plans_discover_sessions plans_register_session
-plans_run_context plans_targets plans_target_status plans_jobs
-plans_review_queue plans_checkpoints plans_checkpoint_publish
-plans_primary_state plans_start_batch plans_control_batch plans_andon_status
-plans_andon_raise plans_andon_note plans_andon_propose_remediation
-plans_andon_review`.split(/\s+/);
+// Operations whose work moved to Kiro Crew; each answers with a pointer.
+const MOVED = `metrics usage.limits models search.prompt run.send run.interrupt
+run.resume run.approvals run.answer session.discover session.register
+run.context targets.list targets.status jobs.status review.queue
+checkpoint.reconcile checkpoint.publish primary.liveState batch.start
+batch.control safety.status safety.raise safety.note
+safety.remediation.request safety.review`.split(/\s+/);
 
-const call = (ops, name, input = {}) =>
+const call = (ops, name, action, input = {}) =>
   handleMcp(
     {
       jsonrpc: "2.0",
       id: 1,
       method: "tools/call",
-      params: { name, arguments: { input } },
+      params: { name, arguments: { action, input } },
     },
     ops,
   ).then((response) => response.body.result);
 
-test("every plans_* name still lists, and each moved tool answers with a pointer", async (t) => {
+test("the removed plans_* names are gone, and each moved operation answers with a pointer", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
   const listed = (
     await handleMcp({ jsonrpc: "2.0", id: 1, method: "tools/list" }, ops)
   ).body.result.tools.map((tool) => tool.name);
+  for (const tool of MCP_TOOLS) assert.ok(listed.includes(tool.name));
   assert.deepEqual(
-    NAMES.filter((name) => !listed.includes(name)),
+    REMOVED.filter((name) => listed.includes(name)),
     [],
   );
   const before = store.read().revision;
-  for (const name of MOVED_TOOLS) {
-    const result = await call(ops, name, { taskId: "sample-task" });
-    assert.equal(result.isError, undefined, name);
-    assert.equal(result.structuredContent.moved, true, name);
-    assert.match(result.structuredContent.message, /\S/, name);
+  for (const name of REMOVED) {
+    const result = await call(ops, name, undefined, { taskId: "sample-task" });
+    assert.equal(result?.isError ?? true, true, name);
+  }
+  for (const name of MOVED) {
+    const result = await ops.execute(name, { taskId: "sample-task" });
+    assert.equal(result.moved, true, name);
+    assert.match(result.message, /\S/, name);
   }
   assert.equal(store.read().revision, before, "a pointer writes nothing");
   assert.equal(store.list("runs").length, 0);
@@ -111,7 +93,7 @@ test("a moved run tool names the task's Kiro Crew sessions", async (t) => {
   );
 });
 
-test("plans_start_run with a repository and agent is a dispatch request", async (t) => {
+test("plans_session start with a repository and agent is a dispatch request", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
   store.put("projects", {
@@ -119,9 +101,11 @@ test("plans_start_run with a repository and agent is a dispatch request", async 
     root: "/checkout/app",
     baseBranch: "main",
   });
-  const pointer = await call(ops, "plans_start_run", { taskId: "sample-task" });
+  const pointer = await call(ops, "plans_session", "start", {
+    taskId: "sample-task",
+  });
   assert.equal(pointer.structuredContent.moved, true);
-  const dispatched = await call(ops, "plans_start_run", {
+  const dispatched = await call(ops, "plans_session", "start", {
     taskId: "sample-task",
     repository: "app",
     agent: "worker-agent",
@@ -129,7 +113,7 @@ test("plans_start_run with a repository and agent is a dispatch request", async 
   assert.equal(dispatched.isError, undefined);
   assert.equal(dispatched.structuredContent.changed, true);
   assert.equal(store.list("session_requests").length, 1);
-  const refused = await call(ops, "plans_start_run", {
+  const refused = await call(ops, "plans_session", "start", {
     taskId: "sample-task",
     repository: "missing",
     agent: "worker-agent",

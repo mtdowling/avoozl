@@ -53,6 +53,7 @@ import { Hint } from './ui/Hint'
 import { Stack } from './ui/Stack'
 import { TextLink } from './ui/TextLink'
 import { Box } from './ui/Box'
+import { LaneStyle } from './ui/PageStyles'
 
 function LaneCardView(props: {
   card: LaneCard
@@ -243,12 +244,6 @@ export function StateIcon({ phase }: { phase: 'running' | 'reviewing' }) {
 
 const LANE_GAP = 16
 
-// The shared lane entry: no box, only a top rule in the lane's own color
-// (--lane-line, set on the lane), flush to the lane's edges.
-const LANE_CSS = `
-[data-lane-card]{list-style:none;margin:0;padding:6px 0;border:0;border-top:1px solid var(--lane-line);line-height:1.3}
-[data-lane-card] :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-`
 
 // The width a box has, kept current as it resizes.
 function useWidth<T extends HTMLElement>() {
@@ -305,7 +300,7 @@ export function DeliveryBoard(props: {
   )
   return (
     <>
-      <style>{LANE_CSS}</style>
+      <LaneStyle />
     <div
       ref={ref}
       data-lane-columns={columns}

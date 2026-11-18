@@ -1,5 +1,5 @@
 // Which operations MCP may not reach, and why (R56). Every operation either
-// has an MCP route (a grouped tool's action or an old plans_* name, mcp.mjs)
+// has an MCP route (a tool action, or a single-operation tool in mcp.mjs)
 // or a reason here; src/app/test/mcp-tools.test.mjs enforces that.
 //
 // PERSON_ONLY operations are refused whenever a call comes through MCP, under
@@ -281,7 +281,7 @@ export const PERSON_ONLY = new Map([
 
 // Operations no MCP tool routes to, for a reason other than a person's
 // authority. Nothing refuses these by name; no route reaches them.
-const moved = "Moved to Kiro Crew with no old plans_* name; nothing to offer.";
+const moved = "Moved to Kiro Crew; no MCP tool offers it.";
 const proposalsPage =
   "The Flow tab's Proposals view; proposals are a person's to decide.";
 const removed = "Removed; the operation has no handler.";
@@ -317,7 +317,10 @@ export const NOT_ON_MCP = new Map([
     "models.settings.get",
     "Settings › Models reads the chat models; a chat has no use for them.",
   ],
-  ["legacy.mcp", "The MCP server's own fallback for the legacy plans_* tools."],
+  [
+    "legacy.mcp",
+    "The MCP server's own fallback for plans_query and the other read tools in src/mcp.mjs.",
+  ],
   [
     "state",
     "Whole-database read; plans_view and plans_task read what a session needs.",
@@ -338,6 +341,32 @@ export const NOT_ON_MCP = new Map([
   // The spec page's Proposed change box; plans_view shows the same spec.
   ["specpr.view", page],
   ...[
+    "metrics",
+    "usage.limits",
+    "models",
+    "search.prompt",
+    "run.send",
+    "run.interrupt",
+    "run.resume",
+    "run.approvals",
+    "run.answer",
+    "run.context",
+    "session.discover",
+    "session.register",
+    "targets.list",
+    "targets.status",
+    "jobs.status",
+    "review.queue",
+    "checkpoint.reconcile",
+    "checkpoint.publish",
+    "primary.liveState",
+    "batch.start",
+    "batch.control",
+    "safety.status",
+    "safety.raise",
+    "safety.note",
+    "safety.remediation.request",
+    "safety.review",
     "run.model",
     "run.unsend",
     "run.queue",
