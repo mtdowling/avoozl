@@ -276,6 +276,9 @@ import {
 } from "./plugins.mjs";
 import { pluginHealth } from "./plugin-session.mjs";
 import { queueSessionSend } from "./session-send.mjs";
+import { openSession, viewOpened } from "./session-open.mjs";
+import { kirocrewPinNeedsYou } from "./kirocrew-pin.mjs";
+import { machineAvoozlPaths } from "./host-config.mjs";
 import { rebuiltRows } from "./trackers.mjs";
 import { SUPPORTED_CONTRACTS } from "./plugin-contract.mjs";
 import {
@@ -1033,6 +1036,8 @@ export class Operations {
       // Stops one Kiro Crew session by slot (session-observer.mjs
       // gatewaySessionStopper); only the app backend has one.
       sessionStopper = null,
+      // True on the standalone page: no Kiro Crew runs beside this server.
+      kirocrewAbsent = false,
       // {now} for the code review chat (pr-review.mjs); tests fix the clock.
       reviewOptions = {},
       // Tests can delay isolated review-view preparation without opening chats.
@@ -1075,6 +1080,7 @@ export class Operations {
     this.crewReader = crewReader;
     this.sessionsReader = sessionsReader;
     this.sessionStopper = sessionStopper;
+    this.kirocrewAbsent = kirocrewAbsent;
     this.reviewOptions = reviewOptions;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
@@ -3132,6 +3138,22 @@ export class Operations {
         );
       return queueSessionSend(store, input);
     }
+    // Open chat on the standalone page (SW7): a person starts a read-only
+    // `process` session from a message; `session.view` reads it back.
+    if (name === "session.open") {
+      if (context.caller || context.mcp)
+        fail("Only a person opens a session, in the Avoozl page.", 403);
+      return openSession(store, input, {
+        config: loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config,
+        configDirectory: this.configDirectory,
+        workspaceRoot: this.workspaceRoot,
+      });
+    }
+    if (name === "session.view")
+      return viewOpened(store, input, {
+        ...machineAvoozlPaths(),
+        configDirectory: this.configDirectory,
+      });
     if (name === "reply.post")
       return postReply(store, this.github, input, context.caller, {
         roots: machineRoots(store, this.workspaceRoot),
@@ -3700,6 +3722,7 @@ export class Operations {
       view.items.push(...planReviewNeedsYou(store));
       view.items.push(...specPullNeedsYou(store));
       view.items.push(...gateNeedsYou(store));
+      if (this.kirocrewAbsent) view.items.push(...kirocrewPinNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
       view.items.push(...integratorNeedsYou(store));
       view.items.push(...syncNeedsYou(store));

@@ -756,3 +756,37 @@ test("the placeholder in the real built page is the one the server fills (SW4.6)
   const html = fs.readFileSync(built, "utf8");
   assert.match(html, /<meta name="avoozl-csrf" content=""\s*\/?>/);
 });
+
+test("the Kiro Crew gateway routes the page calls answer 'Needs Kiro Crew' or empty, for a session only (D2, D9)", async (t) => {
+  const s = await serve(t);
+  assert.equal((await s.call("/api/models")).status, 401);
+  const a = await s.signIn();
+  const get = (p) => s.call(p, { headers: { Cookie: a.cookie } });
+  assert.deepEqual(JSON.parse((await get("/api/models")).text).models, []);
+  assert.deepEqual(JSON.parse((await get("/api/chat/slots")).text), []);
+  const radar = await get("/api/apps/issue-radar/crews");
+  assert.equal(radar.status, 409);
+  assert.match(radar.text, /Needs Kiro Crew/);
+  const builder = await s.call("/api/apps/spec-builder/specs", {
+    method: "POST",
+    headers: {
+      Cookie: a.cookie,
+      Origin: s.origin,
+      "Content-Type": "application/json",
+      "X-Avoozl-CSRF": a.csrf,
+    },
+    body: "{}",
+  });
+  assert.equal(builder.status, 409);
+  assert.match(builder.text, /Needs Kiro Crew: Spec Builder/);
+  const bare = await s.call("/api/apps/spec-builder/specs", {
+    method: "POST",
+    headers: {
+      Cookie: a.cookie,
+      Origin: s.origin,
+      "Content-Type": "application/json",
+    },
+    body: "{}",
+  });
+  assert.equal(bare.status, 403, "a write still needs the CSRF header");
+});
