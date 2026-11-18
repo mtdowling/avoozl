@@ -533,6 +533,14 @@ does the same. The built page is not committed: `npm run build` makes it. Tests 
 agent calls. `node scripts/release-scan.mjs` checks what the npm and app
 packages would contain.
 
+`npm run build` also builds a standalone copy of the page into
+`kirocrew-app/ui/dist/standalone/`, from Kiro Crew's own source at a pinned
+release: v0.12.2 (`kirocrew-app/ui/kirocrew-pin.json`), the same release as the
+Kiro Crew version this app asks for. The build fetches that source into a cache
+outside git, checks its digest, and edits none of it. The standalone page and the
+page inside Kiro Crew match when the installed Kiro Crew is the pinned release.
+Nothing serves the standalone page yet.
+
 ## License
 
 MIT. Bundled third-party code and its licenses are listed in

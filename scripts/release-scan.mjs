@@ -69,7 +69,15 @@ export const EXCLUDED = [
 const APP_SHIPS = /^kirocrew-app\/ui\/test\//;
 
 // Findings a package may hold, each with its reason.
-export const ALLOWED = [];
+export const ALLOWED = [
+  ...["macos-home", "linux-home"].map((rule) => ({
+    rule,
+    filePattern:
+      /^kirocrew-app\/ui\/dist\/standalone\/assets\/index-[^/]+\.js$/,
+    reason:
+      "Kiro Crew's own placeholder text (example folders such as /Users/you/code), bundled unedited. The standalone test checks that no build machine path is in the bundle.",
+  })),
+];
 
 // Every rule that matches one line of text. A private-term finding carries
 // no text: terminal output gets pasted into chats and CI logs (R40.13).
@@ -123,6 +131,26 @@ function appFiles() {
   return files;
 }
 
+// A package that ships the standalone page ships Kiro Crew's notices with it
+// (SW12.6): its LICENSE and NOTICE, its third-party notices, the licenses of
+// its fonts, and this repository's list of what is bundled.
+const STANDALONE = "kirocrew-app/ui/dist/standalone/";
+export const STANDALONE_NOTICES = [
+  "LICENSE",
+  "NOTICE",
+  "THIRD-PARTY-NOTICES",
+  "THIRD_PARTY_NOTICES.md",
+  "fonts/jetbrains-mono/OFL.txt",
+  "fonts/opendyslexic/OFL.txt",
+  "fonts/space-grotesk/OFL.txt",
+];
+export function missingNotices(files) {
+  if (!files.includes(`${STANDALONE}index.html`)) return [];
+  return STANDALONE_NOTICES.map((name) => STANDALONE + name).filter(
+    (name) => !files.includes(name),
+  );
+}
+
 const binary = (buffer) => buffer.subarray(0, 8000).includes(0);
 
 function scanFiles(files) {
@@ -140,7 +168,8 @@ const allowed = (finding) =>
   ALLOWED.find(
     (entry) =>
       entry.rule === finding.rule &&
-      (entry.file === finding.file ||
+      (entry.filePattern?.test(finding.file) ||
+        entry.file === finding.file ||
         entry.file === finding.file.replace(/^kirocrew-app\/bin\/lib\//, "")),
   );
 
@@ -156,6 +185,7 @@ export function scanPackages() {
           EXCLUDED.some((pattern) => pattern.test(file)) &&
           !(name === "app" && APP_SHIPS.test(file)),
       ),
+      missingNotices: missingNotices(files),
       findings: findings.filter((finding) => !allowed(finding)),
       allowed: findings
         .filter(allowed)
@@ -279,7 +309,10 @@ if (
   const failed =
     report.plugins.findings.length > 0 ||
     Object.values(report.packages).some(
-      (entry) => entry.excluded.length || entry.findings.length,
+      (entry) =>
+        entry.excluded.length ||
+        entry.findings.length ||
+        entry.missingNotices.length,
     );
   if (args.has("--json")) console.log(JSON.stringify(report, null, 2));
   else {
@@ -289,6 +322,8 @@ if (
       );
       for (const file of entry.excluded)
         console.log(`  excluded file: ${file}`);
+      for (const file of entry.missingNotices)
+        console.log(`  missing notice: ${file}`);
       for (const finding of entry.findings)
         console.log(
           `  ${finding.file}:${finding.line} ${finding.rule}` +
