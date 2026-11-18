@@ -9,7 +9,7 @@ import { workspace, MACHINE } from "./fixtures/crews/workspace.mjs";
 
 const mcp = [undefined, { mcp: true }];
 
-test("Settings > Delivery writes PR feedback and the writer model, validated", async (t) => {
+test("Settings > Delivery writes PR feedback, validated; the writer model is set in Models", async (t) => {
   const env = await workspace(t, { ids: ["w1"] }),
     { ops } = env;
   const before = await ops.execute("delivery.settings.get", {});
@@ -37,12 +37,19 @@ test("Settings > Delivery writes PR feedback and the writer model, validated", a
     }),
     /delivery\.concurrency is not set here/,
   );
+  // The worker's model is in the roles table (R98.7).
+  await assert.rejects(
+    ops.execute("delivery.settings.update", {
+      delivery: { model: "model-w" },
+      expectedHash: before.hash,
+    }),
+    /delivery\.model is not set here/,
+  );
   const after = await ops.execute("delivery.settings.update", {
-    delivery: { prFeedback: false, feedbackRounds: 3, model: "model-w" },
+    delivery: { prFeedback: false, feedbackRounds: 3 },
     expectedHash: before.hash,
   });
   assert.deepEqual(after.delivery, {
-    model: "model-w",
     prFeedback: false,
     feedbackRounds: 3,
   });
