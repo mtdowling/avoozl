@@ -149,6 +149,7 @@ test("ten finished tasks start one retro; its proposals are typed, bounded and n
   );
   assert.equal(retro.state, "done");
   assert.equal(retro.bottleneck.stage, "queued");
+  assert.equal(retro.model, "auto", "the retro records the model it ran on");
   assert.deepEqual(
     retro.proposals.map((p) => p.key || p.change),
     ["flow.batch.max", "Split t3 in two"],

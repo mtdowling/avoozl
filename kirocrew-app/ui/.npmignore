@@ -1,0 +1,3 @@
+# Overrides .gitignore for npm: the npm package ships the built dist/, which
+# `npm pack` writes through the prepack build. Without it the page is missing.
+node_modules/

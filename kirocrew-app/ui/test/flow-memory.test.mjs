@@ -30,12 +30,12 @@ test('Settings > Flow has no Lessons group and saves no flow.lessons', () => {
   assert.match(settings, /data-override-warning/)
 })
 
-test('the Flow tab has Overview, Retros and Proposals, and every write asks a person', () => {
+test('Retros has Retros and Proposals pages, Flow keeps its charts, and every write asks a person', () => {
   const view = source('FlowView.tsx'),
     memory = source('FlowMemory.tsx')
-  assert.match(source('nav-api.ts'), /FLOW_TABS[\s\S]*?'overview'[\s\S]*?'retros'[\s\S]*?'proposals'/)
-  assert.doesNotMatch(view, /SegmentedControl/)
-  assert.match(view, /<ProposalsView/)
+  assert.match(source('nav-api.ts'), /RETROS_PAGES[\s\S]*?'retros'[\s\S]*?'proposals'/)
+  assert.doesNotMatch(view, /SegmentedControl|<ProposalsView|<Retros /)
+  assert.match(source('RetrosView.tsx'), /<ProposalsView/)
   assert.doesNotMatch(view, /LessonsView|'lessons'/)
   assert.match(view, /data-timing-versions/)
   // Revert asks first (a confirm dialog naming the item).

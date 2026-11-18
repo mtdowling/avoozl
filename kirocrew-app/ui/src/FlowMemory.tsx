@@ -1,9 +1,10 @@
-// The Flow tab's Proposals view (design §4.18, R68.14): every retro
-// proposal with its diff and evidence, the prompt versions in use with
-// Revert, and each override an update changed, as a three-way diff with its
-// rebase. Every write here is a person's: Approve, Reject, Revert and
-// Approve rebase. The Lessons view went with the lessons store (RC30.4).
-import { useCallback, useMemo, useState } from 'react'
+// The Retros pill's Proposals page (design §4.18, R68.14; moved from Flow
+// 2026-11-17): every retro proposal with its diff and evidence and a link
+// back to the retro that made it, the prompt versions in use with Revert,
+// and each override an update changed, as a three-way diff with its rebase.
+// Every write here is a person's: Approve, Reject, Revert and Approve
+// rebase. The Lessons view went with the lessons store (RC30.4).
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
@@ -45,15 +46,18 @@ export function DiffBlock({ diff, label }: { diff: string | undefined; label: st
   )
 }
 
-function ProposalCard({ proposal, busy, onDecide }: { proposal: Proposal & { retro: string }; busy: boolean; onDecide: (p: Proposal & { retro: string }, d: 'approve' | 'reject') => void }) {
+function ProposalCard({ proposal, busy, linked, onDecide, onOpenRetro }: { proposal: Proposal & { retro: string }; busy: boolean; linked: boolean; onDecide: (p: Proposal & { retro: string }, d: 'approve' | 'reject') => void; onOpenRetro: () => void }) {
   const pdca = pdcaText(proposal)
   return (
-    <li className="flex flex-col gap-1.5 border-t pt-2 first:border-t-0 first:pt-0 text-sm" style={{ borderColor: 'var(--border)' }} data-proposal={`${proposal.retro}:${proposal.id}`}>
+    <li className="flex flex-col gap-1.5 border-t pt-2 first:border-t-0 first:pt-0 text-sm" data-proposal={`${proposal.retro}:${proposal.id}`} data-linked={linked || undefined} style={{ borderColor: 'var(--border)', ...(linked ? { boxShadow: 'inset 0 0 0 2px var(--accent)', borderRadius: 6, padding: 8 } : {}) }}>
       <span className="flex flex-wrap items-center gap-2" style={{ overflowWrap: 'anywhere' }}>
         <Badge>{proposal.type}</Badge>
         <code className="text-xs">{proposalText(proposal)}</code>
         <span className="text-muted">{directionText(proposal)}</span>
-        <span className="text-xs text-muted">{proposal.retro}</span>
+        <button type="button" className="text-xs underline" data-proposal-retro={proposal.retro} onClick={onOpenRetro}>
+          From {proposal.retro}
+        </button>
+        {proposal.removesCheck && <Badge variant="warning">removes a check</Badge>}
         {proposal.revertOf && <Badge>revert</Badge>}
         {proposal.pdca?.mixed && <Badge variant="warning">mixed window</Badge>}
       </span>
@@ -142,7 +146,7 @@ function PromptVersions({ prompts, busy, onRevert, onRebase }: { prompts: Prompt
   )
 }
 
-export function ProposalsView({ workspaceId }: { workspaceId: string | null }) {
+export function ProposalsView({ workspaceId, target, onOpenRetro, onSeen }: { workspaceId: string | null; target?: { retro: string; proposal?: string } | null; onOpenRetro?: (retro: string) => void; onSeen?: () => void }) {
   const api = useAppApi()
   const client = useMemo(() => flowClient(api), [api])
   const confirm = useConfirm()
@@ -162,6 +166,8 @@ export function ProposalsView({ workspaceId }: { workspaceId: string | null }) {
       setBusy(false)
     }
   }
+  const proposals = value?.proposals
+  useScrollTo(target ? `[data-proposal="${target.retro}:${target.proposal ?? ''}"]` : null, Boolean(proposals), onSeen)
   if (error)
     return (
       <p role="alert" className="text-sm text-danger">
@@ -169,7 +175,18 @@ export function ProposalsView({ workspaceId }: { workspaceId: string | null }) {
       </p>
     )
   if (!value || !workspaceId) return <p className="text-sm text-muted">Loading…</p>
-  const changes = value.proposals.filter((p) => ['prompt', 'skill'].includes(p.type))
+  const changes = value.proposals
+  const decide = (p: Proposal & { retro: string }, decision: 'approve' | 'reject') =>
+    act(async () => {
+      let confirmRemoval = false
+      if (decision === 'approve' && p.removesCheck) {
+        confirmRemoval = await confirm({ title: 'Approve removing a check?', body: `${proposalText(p)} removes a review role or a declared check, so fewer things are checked before work lands.`, action: 'Remove the check' })
+        if (!confirmRemoval) return
+      }
+      // Only a settings change is checked against the file's hash.
+      const expectedHash = p.type === 'settings' ? (await client.settings(workspaceId)).hash : undefined
+      await client.decide(workspaceId, { retroId: p.retro, proposalId: p.id, decision, ...(expectedHash ? { expectedHash } : {}), ...(confirmRemoval ? { confirmRemoval: true } : {}) })
+    })
   return (
     <div className="flex flex-col gap-3" data-flow-proposals>
       {message && (
@@ -188,7 +205,7 @@ export function ProposalsView({ workspaceId }: { workspaceId: string | null }) {
           <AskForHelp
             workspaceId={workspaceId}
             help={{
-              page: 'Flow › Proposals',
+              page: 'Retros › Proposals',
               section: 'Prompt overrides are off',
               says: 'This Avoozl process has no settings folder, so prompt overrides are off.',
               settings: [{ key: 'settings folder', value: 'none for this process' }],
@@ -198,10 +215,10 @@ export function ProposalsView({ workspaceId }: { workspaceId: string | null }) {
         </p>
       )}
       <Card className="flex flex-col gap-2">
-        <SectionHeading title="Prompt and skill proposals" />
-        <p className="text-xs text-muted">A retro may propose a change to what agents are told. Nothing changes until you approve it.</p>
+        <SectionHeading title="Proposals" />
+        <p className="text-xs text-muted">A retro may propose a change to settings, specs, rules, or what agents are told. Nothing changes until you approve it.</p>
         {!changes.length ? (
-          <p className="text-sm text-muted">No prompt or skill proposals yet. Settings, spec and rule proposals are under Overview.</p>
+          <p className="text-sm text-muted">No proposals yet. A retro runs after 10 finished tasks.</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {changes.map((p) => (
@@ -209,16 +226,16 @@ export function ProposalsView({ workspaceId }: { workspaceId: string | null }) {
                 key={`${p.retro}:${p.id}`}
                 proposal={p}
                 busy={busy}
-                onDecide={(q, decision) =>
-                  void act(() => client.decide(workspaceId, { retroId: q.retro, proposalId: q.id, decision }))
-                }
+                linked={Boolean(target && target.retro === p.retro && target.proposal === p.id)}
+                onDecide={(q, decision) => void decide(q, decision)}
+                onOpenRetro={() => onOpenRetro?.(p.retro)}
               />
             ))}
           </ul>
         )}
-        {value.dropped.some((d) => d.type) && (
+        {value.dropped.length > 0 && (
           <span className="text-xs text-muted">
-            Dropped: {value.dropped.filter((d) => d.type).map((d) => `${d.retro} ${d.key ?? d.index} (${d.reason})`).join('; ')}
+            Dropped: {value.dropped.map((d) => `${d.retro} ${d.key ?? d.index} (${d.reason})`).join('; ')}
           </span>
         )}
       </Card>
@@ -273,4 +290,15 @@ export function SkillNoteCard({ note }: { note: { file: string; diff: string; su
       </div>
     </div>
   )
+}
+
+// Scroll to the element a link named once the page has its data, then let go
+// of the target after a moment so the mark fades.
+export function useScrollTo(selector: string | null, ready: boolean, onSeen?: () => void) {
+  useEffect(() => {
+    if (!selector || !ready) return
+    document.querySelector(selector)?.scrollIntoView?.({ block: 'center' })
+    const timer = setTimeout(() => onSeen?.(), 3000)
+    return () => clearTimeout(timer)
+  }, [selector, ready]) // eslint-disable-line react-hooks/exhaustive-deps
 }

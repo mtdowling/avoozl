@@ -3,8 +3,8 @@
 // a re-read ticks what Radar shows. Without it, each item is a checkbox the
 // person ticks, marked "Cannot verify". Avoozl writes nothing here.
 import { useCallback, useEffect, useState } from 'react'
-import { Btn } from '@kirocrew/app-sdk/ui'
-import { FieldBox } from './FieldBox.tsx'
+import { Btn, Card } from '@kirocrew/app-sdk/ui'
+import { SectionHeading } from './controls.tsx'
 import { Check, Copy } from './icons.ts'
 import { useAppApi } from './host.ts'
 import { progressLine, radarValuesClient, rowState, type RadarItem, type RadarValues } from './radar-values-api.ts'
@@ -82,7 +82,9 @@ export default function RadarValuesScreen(props: { workspaceId: string; reposito
   }, [read])
   if (!props.repositories.length) return null
   return (
-    <FieldBox title="Set up Issue Radar" blurb="Only you can enter these in Issue Radar. Copy each one there. Avoozl writes none of them.">
+    <Card>
+      <div className="flex min-w-0 flex-col gap-2.5" data-section="Set up Issue Radar">
+      <SectionHeading level={3} title="Set up Issue Radar" blurb="Only you can enter these in Issue Radar. Copy each one there. Avoozl writes none of them." />
       {props.repositories.length > 1 && (
         <label className="flex flex-wrap items-center gap-2 text-sm">
           Repository
@@ -139,6 +141,7 @@ export default function RadarValuesScreen(props: { workspaceId: string; reposito
           </div>
         </>
       )}
-    </FieldBox>
+      </div>
+    </Card>
   )
 }

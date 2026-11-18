@@ -2,7 +2,10 @@
 // unallowed secret, private name, or machine path. Private names come from
 // a local terms file; without one only the public rules run.
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   RULES,
   npmFiles,
@@ -12,6 +15,11 @@ import {
   scanPlugins,
   scanText,
 } from "../../../scripts/release-scan.mjs";
+
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../..",
+);
 
 test("the scanner flags each kind of leak and passes plain text", () => {
   const rules = [
@@ -71,14 +79,24 @@ test("the npm and app packages pass the release scan", () => {
   }
 });
 
-test("the npm package ships the app launcher's built lib", () => {
+test("the npm package ships the app launcher's built lib and page", () => {
   const files = npmFiles();
   for (const file of [
     "kirocrew-app/bin/avoozl.mjs",
     "kirocrew-app/bin/lib/cli.mjs",
     "kirocrew-app/bin/lib/src/app/app-backend.mjs",
+    "kirocrew-app/ui/dist/index.mjs",
+    "kirocrew-app/ui/dist/panel.mjs",
   ])
     assert.ok(files.includes(file), file);
+});
+
+test("the built page is not committed, so pull requests cannot conflict on it", () => {
+  const tracked = execFileSync("git", ["ls-files", "kirocrew-app/ui/dist"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  assert.equal(tracked, "");
 });
 
 test("plugin docs and the fake plugins pass the scan", () => {

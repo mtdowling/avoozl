@@ -258,7 +258,7 @@ test('Delivery is a Dashboards page with nav rail filters and no Routing part', 
   assert.doesNotMatch(view, /<select|FilterBar id=|routing|Pick again|Radar|driver/i)
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
   assert.match(app, /tab === 'delivery' \? \(\s*<DeliveryView workspaceId=\{active\} \/>/)
-  assert.match(app, /t\.key === 'dashboard',/)
+  assert.match(app, /t\.key === 'dashboard'/)
 })
 
 test('chip counts keep only values a card has, in the choices order', async () => {

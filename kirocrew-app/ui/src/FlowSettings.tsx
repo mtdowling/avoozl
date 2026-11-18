@@ -236,7 +236,7 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
           />
           {drifted > 0 && (
             <p role="status" className="text-sm" style={{ color: 'var(--warning, var(--text))' }} data-override-warning>
-              {drifted === 1 ? 'A prompt override is' : `${drifted} prompt overrides are`} based on an older built-in text. Review the rebase in Flow › Proposals.
+              {drifted === 1 ? 'A prompt override is' : `${drifted} prompt overrides are`} based on an older built-in text. Review the rebase in Retros › Proposals.
             </p>
           )}
         </Section>
