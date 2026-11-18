@@ -134,6 +134,8 @@ async function workspace(t, { process: onProcess = false } = {}) {
     promptFrom: "stdin",
     permission: { write: "workspace-write", read: "read-only" },
     writeRoots: ["{worktree}", "{tmp}"],
+    // How a read-only child writes its result (NK6.1); the fake ignores it.
+    resultAllow: ["--result-file"],
   });
   fs.writeFileSync(
     path.join(configDirectory, "harnesses", "fake-cli.json"),
