@@ -452,6 +452,20 @@
                 }
               }
             },
+            "pullRequests": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "mode": {
+                  "enum": ["review-only"],
+                  "default": "review-only"
+                },
+                "commentTemplate": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
             "targets": {
               "type": "object",
               "additionalProperties": {
@@ -654,6 +668,20 @@
                       "waitForLastTrain": {
                         "type": "boolean",
                         "default": false
+                      }
+                    }
+                  },
+                  "pullRequests": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "mode": {
+                        "enum": ["review-only"],
+                        "default": "review-only"
+                      },
+                      "commentTemplate": {
+                        "type": "string",
+                        "minLength": 1
                       }
                     }
                   },
