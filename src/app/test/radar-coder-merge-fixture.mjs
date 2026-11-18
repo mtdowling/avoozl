@@ -2,34 +2,13 @@
 // GitHub that records every arm and disarm.
 import fs from "node:fs";
 import path from "node:path";
-import { renderMarker } from "../github-marker.mjs";
-import { renderProvenance } from "../github-provenance.mjs";
 import { machineIdentity } from "../github-sync.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 export const NAMESPACE = "avz_mergemergemerge1",
-  REPO = "example/code",
-  hash = "c".repeat(64),
-  COMMIT = "0123456789abcdef0123456789abcdef01234567";
-
-export const managed = (namespace = NAMESPACE) =>
-  renderMarker({
-    version: 2,
-    taskId: "rc-x",
-    namespace,
-    kind: "leaf",
-    source: { commit: null, manifest: hash },
-    applied: { title: hash, body: hash, labels: [], blockers: [] },
-  });
-export const provenance = (tasks = ["rc-x"]) =>
-  renderProvenance({
-    spec: "demo",
-    tasks,
-    commit: COMMIT,
-    approvedBy: "maintainer",
-  });
+  REPO = "example/code";
 
 export class MergeGitHub {
   constructor() {
@@ -155,9 +134,7 @@ export function setup(
   { ship = "auto-merge", github = new MergeGitHub(), repository = {} } = {},
 ) {
   const { store } = fixture(t),
-    root = temporaryDirectory(),
-    verified = [],
-    verdicts = new Map();
+    root = temporaryDirectory();
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({
@@ -194,22 +171,13 @@ export function setup(
     activeMachine: machineIdentity(store).id,
     private: true,
   });
-  const issueVerifier = (reference) => {
-    verified.push(reference);
-    return Promise.resolve(
-      verdicts.get(reference) || { ok: true, couldNotRun: false, checks: [] },
-    );
-  };
   const ops = new Operations(store, {
     github,
     workspaceRoot: root,
-    issueVerifier,
   });
   return {
     store,
     github,
-    verified,
-    verdicts,
     tick: () => ops.execute("workspace.tick", { sessions: [] }),
   };
 }

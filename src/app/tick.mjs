@@ -130,7 +130,6 @@ import { mirrorForwardAuditStep } from "./forward-audit.mjs";
 import { publicBranchesOf } from "./forward-epics.mjs";
 import { mirrorBatchStep, publicBranchStep } from "./mirror-forward-batch.mjs";
 import { mirrorPublicPollStep } from "./mirror-forward-poll.mjs";
-import { armStep } from "./radar-arm.mjs";
 import { headStep } from "./integration-head.mjs";
 import { namespaceOf } from "./radar-plan-me.mjs";
 import { pluginHealth, recordHealth } from "./plugin-session.mjs";
@@ -776,7 +775,6 @@ async function runTick(
     plugins,
     placement = {},
     folders = null,
-    issueVerify,
   },
 ) {
   const at = new Date().toISOString();
@@ -1049,15 +1047,12 @@ async function runTick(
             text: error.message,
           });
         }
-      // Crew pull requests that conflict in source code get one resolver chat
-      // (RC28): it merges the base into the branch and keeps both sides.
+      // A resolver chat that is already running is finished (RC28).
       if (script && github)
         try {
           const step = await conflictFixStep(store, github, {
             policy: readGitHubPolicyOrNull(workspaceRoot),
-            identity: planningIdentity(workspaceRoot),
             delivery: delivery || {},
-            ...(issueVerify ? { verify: issueVerify } : {}),
           });
           planned.notify.push(...step.notify);
           for (const text of step.errors)
@@ -1086,7 +1081,6 @@ async function runTick(
             store,
             github,
             policy: readGitHubPolicyOrNull(workspaceRoot),
-            tasks: store.read().tasks,
           });
           planned.notify.push(...step.notify);
         } catch (error) {
@@ -1095,22 +1089,6 @@ async function runTick(
             title: "Avoozl could not check review drafts",
             text: error.message,
           });
-        }
-      // Arm auto-merge on crew pull requests (RC5.2, RC5.8).
-      if (script && github && delivery)
-        try {
-          planned.notify.push(
-            ...(
-              await armStep(store, github, {
-                policy: readGitHubPolicy(workspaceRoot),
-                delivery,
-                identity: planningIdentity(workspaceRoot),
-                ...(issueVerify ? { verify: issueVerify } : {}),
-              })
-            ).notify,
-          );
-        } catch {
-          // An unreadable policy is reported by the steps above.
         }
       // Main into each epic's integration branch (RC16.6): one merge commit
       // per schedule, from the machine that holds the repository.

@@ -581,8 +581,7 @@ discussions (only when turned on). They go through the cache above, so they repe
 
 Chats that wait on CI are told to read `gh pr checks <number>` every 2 to 3
 minutes, not `gh pr checks --watch`. Avoozl cannot enforce that for chats it
-does not start. The `issue.verify` command calls `gh api`, so it is outside
-the cache and the pause.
+does not start.
 
 ## What runs on its own, and who can stop it
 

@@ -5,7 +5,6 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
-import { CREW_PROMPT } from "../radar-crew-prompt.mjs";
 import { radarReread, radarValues } from "../radar-values.mjs";
 import { fixture } from "./fixtures.mjs";
 
@@ -17,22 +16,11 @@ test("every value has a name, a value and what it controls", () => {
   const list = values();
   assert.deepEqual(
     list.map((item) => item.id),
-    [
-      "repository",
-      "crew-name",
-      "agent",
-      "model",
-      "scope",
-      "needs-human",
-      "claim-limit",
-      "prompt",
-    ],
+    ["repository", "crew-name", "model", "scope", "needs-human", "claim-limit"],
   );
   for (const item of list) {
     assert.ok(item.label && item.value && item.controls, item.id);
   }
-  assert.equal(list.find((item) => item.id === "prompt").value, CREW_PROMPT);
-  assert.equal(list.find((item) => item.id === "agent").value, "avoozl-crew");
   assert.equal(list.find((item) => item.id === "scope").value, "avoozl:ready");
 });
 
@@ -64,16 +52,13 @@ test("with the grant a fake Radar's items tick, and a wrong one is named", () =>
   const read = {
     connected: [REPO],
     needsHumanLabel: "crew: needs human",
-    agents: ["avoozl-crew"],
     crews: [
       {
         id: "c1",
         name: "avoozl-code",
-        agent: "avoozl-crew",
         labels: ["avoozl:ready"],
         model: "anything",
         claimTtlHours: 48,
-        prompt: CREW_PROMPT,
       },
     ],
   };
@@ -82,21 +67,18 @@ test("with the grant a fake Radar's items tick, and a wrong one is named", () =>
   for (const id of [
     "repository",
     "crew-name",
-    "agent",
     "scope",
     "needs-human",
     "claim-limit",
-    "prompt",
   ])
     assert.equal(byId(result, id).status, "ok", id);
   // "auto" means any model, so it cannot be ticked.
   assert.equal(byId(result, "model").status, "cannot-verify");
   const wrong = radarReread(values(), {
     ...read,
-    crews: [{ ...read.crews[0], labels: ["other"], prompt: "old" }],
+    crews: [{ ...read.crews[0], labels: ["other"] }],
   });
   assert.equal(byId(wrong, "scope").status, "differs");
-  assert.equal(byId(wrong, "prompt").status, "differs");
   assert.equal(byId(wrong, "repository").status, "ok");
 });
 
@@ -107,7 +89,7 @@ test("a read that lacks a field leaves that item unverified", () => {
   });
   assert.equal(byId(result, "repository").status, "ok");
   assert.equal(byId(result, "crew-name").status, "ok");
-  for (const id of ["scope", "needs-human", "claim-limit", "prompt"])
+  for (const id of ["scope", "needs-human", "claim-limit"])
     assert.equal(byId(result, id).status, "cannot-verify", id);
   const none = radarReread(values(), { connected: [], crews: [] });
   assert.equal(byId(none, "repository").status, "differs");
