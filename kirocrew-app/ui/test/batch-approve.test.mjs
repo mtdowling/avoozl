@@ -52,10 +52,10 @@ test('the approve dialog lists specs in a bordered table that scrolls on its own
 })
 
 test('every Specs page button uses the compact host style, one primary per group', () => {
-  assert.doesNotMatch(plans, /<IconLabel (?!style=\{COMPACT_BTN\})/)
-  for (const line of plans.split('\n').filter((l) => l.includes('<Btn '))) assert.match(line, /COMPACT_BTN/, line)
+  assert.doesNotMatch(plans, /<IconLabel (?!look=\{COMPACT\})/)
+  for (const line of plans.split('\n').filter((l) => l.includes('<Btn '))) assert.match(line, /\{\.\.\.COMPACT\}/, line)
   // A spec's Approve is the header's one primary button (data-spec-primary).
   assert.match(plans, /approve: \{ label: 'Approve', icon: ClipboardCheck/)
   assert.match(plans, /<Btn\s+type="button"\s+primary\s+data-spec-primary=\{primary\}/)
-  assert.match(plans, /<TipBtn primary style=\{COMPACT_BTN\}/)
+  assert.match(plans, /<TipBtn primary \{\.\.\.COMPACT\}/)
 })

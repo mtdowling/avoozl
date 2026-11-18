@@ -179,7 +179,7 @@ function MetricCards({ view }: { view: FlowViewModel }) {
   return (
     <Box css-display="grid" css-width="100%" css-gap="0.75rem" css-grid-template-columns={`repeat(${phone ? 2 : 6}, minmax(0, 1fr))`} data-flow-cards>
       {metricCards(view).map((card) => (
-        <Card key={card.key} className="flex flex-col gap-1" style={{ minWidth: 0 }}>
+        <Card key={card.key} css-min-width="0" flex flexCol gap="1">
           <Tooltip text={card.tip}>
             {(describedBy) => (
               <Box aria-describedby={describedBy} tabIndex={0} as="span" css-width="fit-content" css-overflow-wrap="anywhere" css-font-weight="700" css-text-transform="uppercase" css-font-size="0.75rem" size="xs" tone="muted">
@@ -210,7 +210,7 @@ function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
   const scale = Math.max(0, ...tasks.map((t) => STAGES.reduce((sum, s) => sum + (t.stages[s] || 0), 0)))
   const shown = pages.take('flow-bars', tasks)
   return (
-    <Card className="flex flex-col gap-2">
+    <Card flex flexCol gap="2">
       <SectionHeading title="Time per task" />
       <StageLegend />
       <Box as="ul" flex flexCol gap="1.5">
@@ -270,7 +270,7 @@ function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
 function Records({ view }: { view: FlowViewModel }) {
   if (!view.flaky.length && !view.ciOnly.length) return null
   return (
-    <Card className="flex flex-col gap-1 text-sm">
+    <Card flex flexCol gap="1" size="sm">
       <SectionHeading title="Checks that disagree" />
       {view.ciOnly.slice(0, 10).map((r) => (
         <span key={r.id}>
@@ -330,7 +330,7 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
           <GithubFlow workspaceId={workspaceId} />
           <MetricCards view={view} />
           {view.bottleneck && (
-            <Card className="flex items-start gap-2 text-sm">
+            <Card flex items="start" gap="2" size="sm">
               <Gauge size={18} aria-hidden="true" style={{ color: STAGE_COLORS[view.bottleneck.stage], flex: 'none' }} />
               <span>
                 <Box as="span" weight="semibold">Biggest bottleneck: {STAGE_LABELS[view.bottleneck.stage]}</Box>, {Math.round(view.bottleneck.share * 100)}% of lead time

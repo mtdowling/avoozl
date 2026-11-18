@@ -11,7 +11,7 @@ const percent = (value: number) => `${number(value * 100)}%`
 
 function RepositoryCard({ row }: { row: RepositoryCi }) {
   const max = Math.max(1, ...Object.values(row.byClass).map((entry) => entry.task.minutes + entry.other.minutes))
-  return <Card className="flex min-w-0 flex-col gap-3">
+  return <Card flex minW0 flexCol gap="3">
     <Box data-ci-repository={row.repository} css-overflow-wrap="anywhere" flex minW0 flexCol gap="3">
       <div><SectionHeading title="CI" /><Box as="h3" m0 size="sm" weight="medium">{row.repository}</Box></div>
       <Hint as="p" size="xs" flush>Last {row.windowDays} days · all pull requests, including work outside Avoozl tasks.</Hint>

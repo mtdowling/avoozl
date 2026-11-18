@@ -269,7 +269,7 @@ export function CopyAttach({ command, title }: { command: string; title: string 
           aria-label={`Copy the attach command for ${title}`}
           aria-describedby={describedBy}
           data-copy-attach
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 6px', minHeight: 0 }}
+          css-display="inline-flex" css-align-items="center" css-gap="4" css-padding="3px-6px" css-min-height="0"
           onClick={() =>
             void navigator.clipboard?.writeText(command).then(
               () => {

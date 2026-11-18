@@ -30,7 +30,7 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
   const rows = flowRows(view),
     widest = Math.max(1, ...(view.median ?? [0]))
   return (
-    <Card className="flex flex-col gap-2">
+    <Card flex flexCol gap="2">
       <Stack data-github-flow gap={2}>
         <SectionHeading title="From GitHub" />
         {issues && <Hint as="p" size="sm">{summaryLine(view)}. Times are GitHub's.</Hint>}
