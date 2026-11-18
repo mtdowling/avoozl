@@ -70,6 +70,10 @@ const tools = {
     actions: {
       graph: ["graph.view", "the dependency graph, optionally one plan"],
       delivery: ["delivery.view", "delivery columns"],
+      landing_holds: [
+        "landing.queue",
+        "what waits to land on each base, in landing order, and why each one is held; from stored records, no GitHub call",
+      ],
       flow: ["flow.view", "lead time, stages, bottlenecks"],
       routing: [
         "routing.view",
@@ -412,6 +416,10 @@ const tools = {
       gap_report: [
         "gap.preview",
         "read a gap report from an issue: a repository by requirement table and one proposed task per failing cell; accepting is a person's",
+      ],
+      landing_queue: [
+        "landing.view",
+        "what waits to land on each base branch, in order and why, and what landed lately",
       ],
       integration_branches: [
         "integration.view",

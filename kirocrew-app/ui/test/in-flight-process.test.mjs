@@ -48,3 +48,24 @@ test('a process row shows its log tail and cost, and Attach copies the command',
   await page.until(`${row}.querySelector('[data-copy-attach]').textContent.includes('Copied')`, 5000)
   assert.deepEqual(page.errors, [])
 })
+
+test('Send message on a process row queues session.send; a chat row has none', { skip }, async () => {
+  await page.open(harness.url({ page: 'app', process: '1' }), { width: 1280, height: 900 })
+  await page.until(`document.querySelectorAll('[data-in-flight-row]').length === 2`, 30000)
+  const row = `[...document.querySelectorAll('[data-in-flight-row]')].find((r) => r.querySelector('[data-process-status]'))`
+  assert.equal(await page.evaluate(`document.querySelectorAll('button[aria-label^="Send message"]').length`), 1)
+  await page.evaluate(`${row}.querySelector('button[aria-label^="Send message"]').click()`)
+  await page.until(`Boolean(${row}.querySelector('[data-send-message] textarea'))`, 5000)
+  assert.equal(await page.evaluate(`${row}.querySelector('[data-send-submit]').disabled`), true, 'empty: no send')
+  await page.evaluate(`(() => {
+    const area = ${row}.querySelector('[data-send-message] textarea')
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(area, 'Also cover the empty pantry.')
+    area.dispatchEvent(new Event('input', { bubbles: true }))
+  })()`)
+  await page.until(`!${row}.querySelector('[data-send-submit]').disabled`, 5000)
+  await page.evaluate(`${row}.querySelector('[data-send-submit]').click()`)
+  await page.until(`${row}.querySelector('[data-send-state]').dataset.sendState === 'queued'`, 5000)
+  assert.deepEqual(await page.evaluate('window.__sent'), [{ slot: 'process-6f1c2b9e-4d7a-4c1e-9b0a-2f5e8d3c7a41', text: 'Also cover the empty pantry.' }])
+  assert.equal(await page.evaluate(`${row}.querySelector('[data-send-message] textarea').value`), '')
+  assert.deepEqual(page.errors, [])
+})

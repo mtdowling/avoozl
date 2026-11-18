@@ -29,7 +29,7 @@ test('headings with buttons pass them as the heading actions', () => {
   const flow = source('FlowView.tsx'),
     charts = source('FlowCharts.tsx')
   assert.match(charts, /<SectionHeading title="Over time" actions=\{<UnitPicker/)
-  assert.match(flow, /<SectionHeading\s+title="Retros"\s+actions=\{/)
+  assert.match(source('RetrosView.tsx'), /<SectionHeading\s+title="All retros"\s+actions=\{/)
   for (const [file, view] of [
     ['ConflictsView.tsx', 'conflicts'],
     ['UntriagedView.tsx', 'untriaged'],

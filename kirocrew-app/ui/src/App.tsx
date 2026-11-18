@@ -14,16 +14,18 @@ import GraphPage from './FocusTree.tsx'
 import { parseGraphLink } from './focus-tree.ts'
 import { parseReviewLink } from './review-view.ts'
 import WaitingView from './WaitingView.tsx'
-import FlowView from './FlowView.tsx'
+import FlowView, { LineBanner } from './FlowView.tsx'
+import { RetrosView, type RetroTarget } from './RetrosView.tsx'
 import OldTraceLink from './OldTraceLink.tsx'
-import { DASHBOARD_PAGES, FLOW_TABS, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, parseTraceLink, redirectSettings, redirectTab, redirectWaiting, tabLabel, type FlowTab, type Tab, type WaitingSection } from './nav-api.ts'
+import { DASHBOARD_PAGES, RETROS_PAGES, TABS, WAITING_SECTIONS, dashboardPage, dashboardTab, navTab, parseTraceLink, redirectSettings, redirectTab, redirectWaiting, tabLabel, type RetrosPage, type Tab, type WaitingSection } from './nav-api.ts'
 import { WorkspacePill } from './WorkspacePill.tsx'
 import { NavSlotProvider } from './nav-slot.tsx'
 import LanesView from './LanesView.tsx'
+import LandingQueueView from './LandingQueueView.tsx'
 import DeliveryView from './DeliveryView.tsx'
 import { VIEW_ICONS } from './icons.ts'
 import ActivityView from './ActivityView.tsx'
-import { StopLineButton } from './StopLine.tsx'
+import { useOpenStops } from './StopLine.tsx'
 import { untriagedClient } from './untriaged-api.ts'
 import type { NewPlanForm } from './new-plan-api.ts'
 import SettingsView, { SETTINGS_TABS, type SettingsTab } from './SettingsView'
@@ -109,7 +111,9 @@ function AvoozlPage() {
   // Settings starts on Workspaces each visit (settingsTabOnEnter).
   const [settingsTab, setSettingsTab] = useState<SettingsTab>(SETTINGS_HOME)
   // The sub-pages the nav shows for Flow and Needs you.
-  const [flowTab, setFlowTab] = useState<FlowTab>('overview')
+  const [retrosPage, setRetrosPage] = useState<RetrosPage>('retros')
+  // A retro or proposal another page linked to: scrolled to and marked.
+  const [retroTarget, setRetroTarget] = useState<RetroTarget | null>(null)
   const [waitingSection, setWaitingSection] = useState<WaitingSection>('decisions')
   const [focus, setFocus] = useState<string | null>(null)
   // The Graph's drill-in: one epic's sub-graph or one task's chain.
@@ -147,12 +151,12 @@ function AvoozlPage() {
 
   // Every change of tab or Settings section is a Back step that keeps
   // where the page was (changePage).
-  const here = { tab, settingsTab, flowTab, waitingSection, focus, drill }
+  const here = { tab, settingsTab, retrosPage, waitingSection, focus, drill }
   const apply = (place: Partial<typeof here>) => {
     if (place.focus !== undefined) setFocus(place.focus)
     if (place.drill !== undefined) setDrill(place.drill)
     if (place.settingsTab !== undefined) setSettingsTab(place.settingsTab)
-    if (place.flowTab !== undefined) setFlowTab(place.flowTab)
+    if (place.retrosPage !== undefined) setRetrosPage(place.retrosPage)
     if (place.waitingSection !== undefined) setWaitingSection(place.waitingSection)
     if (place.tab !== undefined) setTab(place.tab)
   }
@@ -163,7 +167,8 @@ function AvoozlPage() {
     const place = next.tab === undefined ? null : redirectTab(next.tab)
     // A removed page's Needs you section is now a field of the place.
     // A saved 'radar' view of the old Triage page is Issue Radar.
-    const { 'waiting-section': oldSection, ...inner } = place?.open ?? {}
+    const retros = place?.open?.['retros-page'] as RetrosPage | undefined
+    const { 'waiting-section': oldSection, 'retros-page': _retros, ...inner } = place?.open ?? {}
     const section = redirectWaiting(oldSection as string | undefined, open?.['untriaged-show'])
     const { 'untriaged-show': _show, ...rest } = open ?? {}
     const deep = section ? rest : open
@@ -171,7 +176,7 @@ function AvoozlPage() {
     changePage(
       nav,
       here,
-      { ...next, ...settings, ...(place ? { tab: place.tab } : {}), ...(section ? { waitingSection: section } : {}) },
+      { ...next, ...settings, ...(place ? { tab: place.tab } : {}), ...(section ? { waitingSection: section } : {}), ...(retros ? { retrosPage: retros } : {}) },
       apply,
       (before, newTab) => (newTab ? `Back to ${tabLabel(before.tab)}` : 'Back to the previous section'),
       { ...inner, ...deep },
@@ -267,38 +272,42 @@ function AvoozlPage() {
   // The phone's top rail takes the whole page while it is open.
   const [railOpen, setRailOpen] = useState(false)
   const showRail = phone && railOpen
-  // Stop the line and Refresh on a phone: icons only, in their own small
-  // section at the bottom of the menu. A desktop has them on the top line.
-  const lineControls = (active || hasRefresh) && (
+  // Refresh on a phone: an icon in its own small section at the bottom of
+  // the menu. A desktop has it on the top line. Stop the line is on
+  // Dashboards › Delivery.
+  const lineControls = hasRefresh && (
     <NavLine>
-      {active && <StopLineButton nav workspaceId={active} />}
       <PageRefreshIcon />
     </NavLine>
   )
+  // A stopped line shows its banner on every page: Home and Flow draw their
+  // own, the shell draws it everywhere else.
+  const stops = useOpenStops(active)
+  const ownBanner = tab === 'dashboard' || tab === 'flow'
   // Radar's nav model: Dashboards, Needs you, Flow and Settings open in the
   // nav to their sub-pages; Specs, Activity and Dashboards › Delivery open
   // to their filters (a slot the page fills); the other pages are plain entries.
   const kids: Partial<Record<Tab, { key: string; label: string }[]>> = {
     dashboard: DASHBOARD_PAGES,
     waiting: WAITING_SECTIONS.map((x) => ({ key: x.key, label: x.title, count: x.key === 'decisions' ? conflicts : x.key === 'triage' ? (untriaged ?? 0) : radarCount })),
-    flow: FLOW_TABS,
+    retros: RETROS_PAGES,
     settings: SETTINGS_TABS.map((x) => ({ key: x.key, label: x.label })),
   }
   const groups: NavGroup[] = TABS.map((t) => ({
     key: t.key,
     text: t.label,
     children: kids[t.key],
-    slot: t.key === 'plans' || t.key === 'activity' || t.key === 'dashboard',
+    slot: t.key === 'plans' || t.key === 'activity' || t.key === 'dashboard' || t.key === 'flow',
     aria: t.key === 'waiting' && waitingCount > 0 ? `Needs you, ${waitingCount} items` : undefined,
     label: <NavLabel view={t.key} text={t.label} count={t.key === 'waiting' ? waitingCount : 0} />,
   }))
-  const child = tab === 'settings' ? settingsTab : tab === 'flow' ? flowTab : tab === 'waiting' ? waitingSection : dashboardPage(tab)
+  const child = tab === 'settings' ? settingsTab : tab === 'retros' ? retrosPage : tab === 'waiting' ? waitingSection : dashboardPage(tab)
   // A header or sub-page pick: the page, and its sub-page when it has one.
   const pickNav = (key: string, sub?: string) => {
     if (sub === undefined) return chooseTab(key as Tab)
     if (key === 'dashboard') go({ tab: dashboardTab(sub), focus: null, drill: null })
     else if (key === 'settings') go({ tab: 'settings', settingsTab: sub as SettingsTab, focus: null, drill: null })
-    else if (key === 'flow') go({ tab: 'flow', flowTab: sub as FlowTab, focus: null, drill: null })
+    else if (key === 'retros') go({ tab: 'retros', retrosPage: sub as RetrosPage, focus: null, drill: null })
     else go({ tab: 'waiting', waitingSection: sub as WaitingSection, focus: null, drill: null })
   }
   // The workspace pill, first in the nav and in the phone's menu. In the demo
@@ -353,17 +362,17 @@ function AvoozlPage() {
       <div className={`flex flex-wrap items-center gap-3 pb-2 ${phone ? 'px-4' : 'px-2'}`} data-main-top>
         {/* The workspace is the pill at the top of the nav (Radar's switcher). */}
         <span className="flex-1" />
-        {/* Plan a goal, then on a desktop Stop the line and Refresh as small
-            icons as tall as it. A phone keeps them in its menu. */}
+        {/* On a desktop, Refresh as a small icon. A phone keeps it in its menu. */}
         <span className="flex items-stretch gap-1.5" data-main-actions>
-          <Btn type="button" primary onClick={planEpic}>
-            Plan a goal
-          </Btn>
-          {!phone && active && <StopLineButton square workspaceId={active} />}
-          {!phone && <PageRefreshIcon look="square" />}
+          {!phone && <PageRefreshIcon />}
         </span>
       </div>
       <DemoBar />
+      {!ownBanner && !needsWorkspace && stops.length > 0 && (
+        <div className={`pb-2 ${phone ? 'px-4' : 'px-2'}`} data-shell-line-banner>
+          <LineBanner stops={stops} workspaceId={active} />
+        </div>
+      )}
       {error && (
         <p role="alert" className={`pb-2 text-sm text-danger ${phone ? 'px-4' : 'px-2'}`}>
           {error}
@@ -418,7 +427,17 @@ function AvoozlPage() {
             onOpenSpecs={() => chooseTab('plans')}
           />
         ) : tab === 'flow' ? (
-          <FlowView workspaceId={active} tab={flowTab} />
+          <FlowView workspaceId={active} />
+        ) : tab === 'retros' ? (
+          <RetrosView
+            workspaceId={active}
+            page={retrosPage}
+            target={retroTarget}
+            onOpen={(target) => {
+              setRetroTarget(target)
+              if (target) go({ tab: 'retros', retrosPage: target.page, focus: null, drill: null })
+            }}
+          />
         ) : tab === 'waiting' ? (
           <WaitingView
             workspaceId={active}
@@ -431,6 +450,8 @@ function AvoozlPage() {
           <LanesView workspaceId={active} />
         ) : tab === 'ci' ? (
           <Placeholder view="ci" title="CI" line="Coming later: each open pull request's checks and CI wait. Avoozl caches its one batched pull-request read, but no page reads it yet." />
+        ) : tab === 'landing' ? (
+          <LandingQueueView workspaceId={active} />
         ) : tab === 'activity' ? (
           <ActivityView workspaceId={active} />
         ) : (

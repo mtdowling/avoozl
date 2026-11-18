@@ -14,6 +14,7 @@ import {
   takeOver,
 } from "./driver-generations.mjs";
 import { replayJournal } from "./spec-journal.mjs";
+import { journalSources } from "./radar-backlinks.mjs";
 import { driverIdOf, journalOf, rememberDriver } from "./spec-scheduler.mjs";
 import { fail } from "./store.mjs";
 
@@ -80,7 +81,17 @@ export async function takeOverSpec(
     };
   const result = await takeOver(
     journal,
-    { by: { kind: "person", login }, owner, spec: planId },
+    {
+      by: { kind: "person", login },
+      owner,
+      spec: planId,
+      // A GitHub journal names its Radar sources so GitHub links back.
+      sources: journal.local
+        ? []
+        : journalSources(store, planId, {
+            specPrivate: options.visibility === "private",
+          }),
+    },
     options,
   );
   if (!result.ok)

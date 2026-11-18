@@ -20,6 +20,7 @@ import {
   toForm,
   toggleCheck,
 } from '../src/settings-api.ts'
+import { redirectSettings } from '../src/nav-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const settings = source('SettingsView.tsx')
@@ -32,7 +33,7 @@ test('every Settings group and repository tab renders its blurb', () => {
     assert.match(settings, new RegExp(`blurb=\\{REPOSITORY_BLURBS\\.${tab}\\}`), tab)
   // Managed labels say what they are, and that hand edits are conflicts.
   assert.match(settings, /Labels Avoozl itself adds and removes on issues to show their state\. Don't edit them by hand: a hand edit shows as a conflict\./)
-  for (const title of ['Managed labels', 'Issue Radar labels', 'Who counts', 'Priority', 'Project fields', 'Set up GitHub'])
+  for (const title of ['Managed labels', 'Who counts', 'Priority', 'Project fields', 'Set up GitHub'])
     assert.match(settings, new RegExp(`title="${title}"\\s+blurb=`), title)
 })
 
@@ -179,7 +180,7 @@ test('who counts is one row on the Triggers tab, with write as the default; no s
 })
 
 test('Settings has a GitHub page; Workspaces keeps only workspace things', () => {
-  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'models', 'delivery'])
+  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'radar', 'plugins', 'content', 'flow', 'models', 'delivery'])
   assert.doesNotMatch(settings, /Where tasks live' \}/)
   assert.match(settings, /setup=\{<SetupWizard/)
   const workspaces = settings.slice(settings.indexOf("if (tab === 'workspaces')"), settings.indexOf("if (!workspaceId)"))
@@ -191,6 +192,25 @@ test('Settings has a GitHub page; Workspaces keeps only workspace things', () =>
   assert.match(settings, /<PolicyEditor workspaceId=\{workspaceId\} tab=\{tab\}/)
   assert.match(settings, /\{tab === 'github' && <RateBlock rate=\{settings\.rate\} \/>\}/)
   assert.match(settings, /<SaveFooter[\s\S]*note="Writes \.avoozl\.json\."/)
+})
+
+test('GitHub: every group is its own bordered section, and Radar settings live on their own page', () => {
+  const github = settings.slice(settings.indexOf('function WorkspaceGitHub('), settings.indexOf('function RadarSettings('))
+  const shown = github.slice(github.indexOf('return (\n    <>'))
+  for (const title of ['New tasks and issues', 'Sync pace', 'Set up GitHub']) assert.match(shown, new RegExp(`<Card>\\s*<Section title="${title}"`), title)
+  assert.match(shown, /<Card>\s*<ProjectFields/)
+  assert.doesNotMatch(github, /CrewScopes|RadarValuesScreen|level="sub"/)
+  // GitHub calls is a bordered section of its own.
+  assert.match(settings, /<Card>\s*<Section title="GitHub calls"/)
+  const radar = settings.slice(settings.indexOf('function RadarSettings('), settings.indexOf('export function ProjectFields'))
+  assert.match(radar, /<CrewScope crew=\{crew\} \/>/)
+  assert.match(radar, /<RadarValuesScreen key=\{crew\.repository\}/)
+  assert.match(settings, /tab === 'radar' \? \(\s*<RadarSettings/)
+  assert.match(settings, /\n  radar:\s*\n?\s*['"]/)
+  assert.doesNotMatch(source('RadarValues.tsx'), /FieldBox/)
+  assert.equal(redirectSettings('issue-radar'), 'radar')
+  assert.equal(redirectSettings('radar-values'), 'radar')
+  assert.equal(redirectSettings('github'), 'github')
 })
 
 test('Plugins puts Add plugin on the left and the installed list on the right, stacked when narrow', () => {
@@ -261,8 +281,41 @@ test('the Reviews tab states the branch rule it found, or that reviewer chats ar
 })
 
 test('the GitHub calls breakdown is its own section with a sortable real table', () => {
-  assert.match(settings, /<Section title="GitHub calls in the last hour"/)
+  assert.match(settings, /<Section title="GitHub calls"/)
   assert.match(settings, /<th key=\{col\.key\} scope="col" aria-sort=/)
   assert.match(settings, /<button type="button" data-sort=\{col\.key\}/)
   assert.match(settings, /textAlign: 'right', fontVariantNumeric: 'tabular-nums'/)
+})
+
+// The body of one function in SettingsView.tsx, by its first line.
+const body = (start) => {
+  const at = settings.indexOf(start)
+  return settings.slice(at, settings.indexOf('\n}\n', at))
+}
+
+test('Settings › Issue Radar holds every Radar setting, each in its own section box with one line', () => {
+  const page = body('function RadarSettings(')
+  const titles = [...page.matchAll(/<Section title=\{?["']?([^"'}]+)/g)].map((m) => m[1])
+  assert.deepEqual(titles, ['Issue Radar', 'Repository', 'Radar crew', 'Handoff to Avoozl', 'Labels Radar uses', 'Crew review rules', 'Crew pull-request conflicts', 'CREW_PART_TEXT.merge.title'])
+  assert.equal((page.match(/<Section title=/g) ?? []).length, (page.match(/<Section title=[^>]*blurb=/g) ?? []).length)
+  for (const part of ['<CrewScope ', '<ReleaseModePicker', '<RadarValuesScreen', '<AvoozlLabelFields', 'crewLabels.${key}', '<ReviewRulesFields', '<ConflictFields', '<MergeMethodFields'])
+    assert.ok(page.includes(part), part)
+  // Each section box is a Card around one Section; nothing loose between them.
+  const tops = [...page.slice(page.indexOf('data-radar-settings')).matchAll(/\n {6}(<\w+|\{\w+)/g)].map((m) => m[1])
+  assert.deepEqual(tops, ['{names', '<Card', '{crew', '<Card', '<Card', '<Card', '<Card', '<Card'])
+  // The repository editor keeps no Radar field and no Crews and rules tab.
+  const editor = body('export function RepositoryEditor(')
+  assert.doesNotMatch(editor, /CrewsRulesSettings|ReleaseModePicker|crewLabels|Issue Radar labels|tab === 'crews'/)
+  assert.doesNotMatch(settings.slice(settings.indexOf('const REPOSITORY_TABS'), settings.indexOf('type RepositoryTab')), /crews/)
+  // It edits the shared form, so the one Save bar writes it.
+  assert.match(settings, /tab === 'radar' \? \(\s+<RadarSettings form=\{form\} settings=\{settings\} workspaceId=\{workspaceId\} set=\{set\} \/>/)
+  // Old Crews and rules links open it.
+  for (const old of ['crews', 'crews-rules', 'issue-radar', 'radar-values']) assert.equal(redirectSettings(old), 'radar', old)
+})
+
+test('a Workflow map value on the Issue Radar page opens that page at the field', () => {
+  assert.match(settings, /if \(jump\.tab === 'radar'\) return props\.onOpenRadar\?\.\(\{ repository: name, field: jump\.field \}\)/)
+  assert.match(settings, /radarJump = jump\s+props\.onTab\?\.\('radar'\)/)
+  assert.match(body('function RadarSettings('), /focusField\(id, jump\)/)
+  assert.match(settings, /<PolicyEditor workspaceId=\{workspaceId\} tab=\{tab\} onOpenPlans=\{props\.onOpenPlans\} onTab=\{props\.onTab\} \/>/)
 })

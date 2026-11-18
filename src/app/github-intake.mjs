@@ -7,9 +7,10 @@
 // - Plan this: an inbox task for the planner, which writes a proportionate
 //   spec (or an epic, for several separately owned areas).
 // - Initial writes: at most two, each skipped when already there: the
-//   crew:avoozl label and one status comment. The comment is fixed text, so
-//   it names no spec, repository, path or machine, and it carries no Radar
-//   claim marker.
+//   crew:avoozl label and one status comment. The comment is fixed text
+//   plus, where visibility permits, the spec issue the input already feeds
+//   (radar-backlinks.mjs). It names no path or machine, and it carries no
+//   Radar claim marker.
 // - Closing the input issue withdraws the request. It never completes the
 //   task (watchInputs).
 //
@@ -22,6 +23,7 @@ import { enforce } from "./content-rules.mjs";
 import { AVOOZL_CREW_LABEL, hasAvoozlLabel } from "./github.mjs";
 import { CREW_LABEL_DEFAULTS } from "./github-policy.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
+import { intakeSpecIssue, reference } from "./radar-backlinks.mjs";
 import {
   itemKey,
   patchTask,
@@ -60,13 +62,15 @@ export function boundedFix({ repository, number, title, body }) {
   return { ...fields, definition: digest(canonical(fields)) };
 }
 
-// The one status comment. Fixed text: it names no spec, so a private plan
-// is never named on a public issue.
-export function statusComment(action) {
+// The one status comment. Fixed text, plus `spec` ({repository, number}),
+// the spec issue, only when the caller found that visibility permits it
+// (intakeSpecIssue), so a private plan is never named on a public issue.
+export function statusComment(action, spec = null) {
   return [
     action === "deliver"
       ? "Avoozl is working on this issue as a bounded fix."
       : "Avoozl is planning this issue.",
+    ...(spec ? ["", `Spec: ${reference(spec)}`] : []),
     "",
     "Closing this issue withdraws the request.",
     "",
@@ -108,14 +112,14 @@ const hasStatus = (comments, login) =>
   );
 
 // At most two writes, each skipped when it is already there, so a retry
-// writes nothing. `comments` is the issue's comment list and `login` the
-// signed-in login.
+// writes nothing. `comments` is the issue's comment list, `login` the
+// signed-in login and `spec` the spec issue the comment may name.
 export async function initialWrites(
   github,
   repository,
   issue,
   action,
-  { comments, login },
+  { comments, login, spec = null },
 ) {
   const writes = [];
   if (!hasAvoozlLabel(labelNames(issue))) {
@@ -126,7 +130,7 @@ export async function initialWrites(
     await github.createIssueComment(
       repository,
       issue.number,
-      statusComment(action),
+      statusComment(action, spec),
     );
     writes.push("comment");
   }
@@ -176,7 +180,11 @@ export async function startGitHubItem(store, github, policy, input = {}) {
     github.listIssueComments(name, number),
     github.currentUser(),
   ]);
-  const seen = { comments, login: user?.login ?? null };
+  const seen = {
+    comments,
+    login: user?.login ?? null,
+    spec: intakeSpecIssue(store, { repository: name, number }),
+  };
   // An issue Avoozl owns already, unless an earlier start stopped after
   // its GitHub writes: that one finishes.
   if (hasAvoozlLabel(labelNames(issue)) && !hasStatus(comments, seen.login))
@@ -232,7 +240,7 @@ export async function startGitHubItem(store, github, policy, input = {}) {
       boundary: "github",
       repository: name,
       target: `intake:github/${id}:status`,
-      text: `${AVOOZL_CREW_LABEL}\n${statusComment(action)}`,
+      text: `${AVOOZL_CREW_LABEL}\n${statusComment(action, seen.spec)}`,
     },
     { mode: "refuse", source: { kind: "intake", source: "github", id } },
   );

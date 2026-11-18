@@ -1,10 +1,17 @@
 // The nav row, and where removed pages go.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { DASHBOARD_PAGES, RETIRED_LINE, TABS, dashboardPage, dashboardTab, navTab, redirectSettings, redirectTab, redirectWaiting, WAITING_SECTIONS, retiredCoders, tabLabel } from '../src/nav-api.ts'
+import { DASHBOARD_PAGES, RETIRED_LINE, RETROS_PAGES, TABS, dashboardPage, dashboardTab, navTab, redirectSettings, redirectTab, redirectWaiting, WAITING_SECTIONS, retiredCoders, tabLabel } from '../src/nav-api.ts'
 
-test('the nav row is Dashboards, Specs, Needs you, Flow, Activity, Settings', () => {
-  assert.deepEqual(TABS.map((t) => t.label), ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Activity', 'Settings'])
+test('the nav row is Dashboards, Specs, Needs you, Flow, Retros, Activity, Settings', () => {
+  assert.deepEqual(TABS.map((t) => t.label), ['Dashboards', 'Specs', 'Needs you', 'Flow', 'Retros', 'Activity', 'Settings'])
+})
+
+test('Retros lists two pages, and an old Flow retros or proposals link opens them', () => {
+  assert.deepEqual(RETROS_PAGES.map((p) => p.label), ['Retros', 'Proposals'])
+  assert.deepEqual(redirectTab('flow:retros'), { tab: 'retros', open: { 'retros-page': 'retros' } })
+  assert.deepEqual(redirectTab('flow:proposals'), { tab: 'retros', open: { 'retros-page': 'proposals' } })
+  assert.equal(tabLabel('retros'), 'Retros')
 })
 
 test('the nav has no Issues or Pull requests pill, and old links open Dashboards > Home', () => {
@@ -25,11 +32,11 @@ test('removed pages go to the page that took over, never nowhere', () => {
   for (const t of TABS) assert.deepEqual(redirectTab(t.key), { tab: t.key })
 })
 
-test('Dashboards holds Home, Graph, Lanes and CI; an old Home link lands on Dashboards > Home', () => {
-  assert.deepEqual(DASHBOARD_PAGES.map((p) => p.label), ['Home', 'Graph', 'Delivery', 'Lanes', 'CI'])
+test('Dashboards holds Home, Graph, Lanes, CI and Landing queue; an old Home link lands on Dashboards > Home', () => {
+  assert.deepEqual(DASHBOARD_PAGES.map((p) => p.label), ['Home', 'Graph', 'Delivery', 'Lanes', 'CI', 'Landing queue'])
   assert.deepEqual(redirectTab('dashboard'), { tab: 'dashboard' })
   assert.equal(dashboardPage('dashboard'), 'home')
-  for (const page of ['graph', 'delivery', 'lanes', 'ci']) {
+  for (const page of ['graph', 'delivery', 'lanes', 'ci', 'landing']) {
     assert.equal(redirectTab(page).tab, page)
     assert.equal(navTab(page), 'dashboard')
     assert.equal(dashboardPage(page), page)
@@ -37,6 +44,9 @@ test('Dashboards holds Home, Graph, Lanes and CI; an old Home link lands on Dash
   }
   assert.equal(dashboardTab('home'), 'dashboard')
   assert.equal(tabLabel('graph'), 'Graph')
+  assert.equal(tabLabel('landing'), 'Landing queue')
+  // A Dashboards page, not its own nav pill.
+  assert.ok(!TABS.some((t) => t.key === 'landing'))
   assert.equal(tabLabel('dashboard'), 'Home')
 })
 

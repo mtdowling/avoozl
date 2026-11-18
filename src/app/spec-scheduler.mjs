@@ -212,7 +212,15 @@ export function journalOf(store, { github, workspaceRoot, actor }, planId) {
       (await github.repository(config).catch(() => null))?.private === true
         ? "private"
         : "public",
-    publicRepositories: [id],
+    // The home, and every repository stored as public: a public record may
+    // name those (its Radar sources, radar-backlinks.mjs).
+    publicRepositories: [
+      id,
+      ...store
+        .list("github_repositories")
+        .filter((entry) => entry.private === false && entry.id !== id)
+        .map((entry) => entry.id),
+    ],
     issue: { repository: id, number: issue.number },
   };
 }

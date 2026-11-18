@@ -689,7 +689,7 @@ export function retroStep(
     store.put(
       "flow_retros",
       allowed
-        ? { ...retro, briefLength: brief.length }
+        ? { ...retro, briefLength: brief.length, model: model || "auto" }
         : {
             ...retro,
             state: "failed",
