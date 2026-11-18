@@ -137,12 +137,6 @@ function approvalPart(
               JSON.stringify({ approves: hash }) + "\n",
           }
         : {}),
-      ...(ref !== undefined && files["avoozl/manifest.json"] !== undefined
-        ? {
-            [`.kiro/specs/${spec}/avoozl/manifest.json`]:
-              files["avoozl/manifest.json"],
-          }
-        : {}),
     },
   });
   if (

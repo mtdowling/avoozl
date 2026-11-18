@@ -4,17 +4,13 @@
 // text it hands over, records the request, and returns it; the page makes
 // the Spec Builder create call, and the tick opens the planner chat
 // (`newPlanStarts`) so Avoozl knows the model it ran on. `importNewPlans` (each
-// tick) writes avoozl/manifest.json for a Spec Builder folder once its
-// tasks.md holds still, and stores a requested folder as a draft plan once
-// it lints clean. Nothing here approves a plan, starts delivery, or pushes.
+// tick) stores a requested folder as a draft plan once it lints clean. Nothing here approves a plan, starts delivery, or pushes.
 import path from "node:path";
 import { fail } from "./store.mjs";
-import { digest } from "../model.mjs";
 import { contentBinding, enforce } from "./content-rules.mjs";
 import {
   createSpecPlan,
   isEpicFolder,
-  MANIFEST,
   SPECS_DIRECTORY,
   specName,
 } from "./spec-plans.mjs";
@@ -22,7 +18,6 @@ import { PLANNER_AGENT } from "./github-planner.mjs";
 import { projectExecutor, sessionProject } from "./executors/process.mjs";
 import { harnessExecutor } from "./chat-models.mjs";
 import { recordPlanReviewWriter } from "./plan-review-authorship.mjs";
-import { draftManifest } from "./spec-manifest.mjs";
 import { steeringOptions, withSeed } from "./retro-memory.mjs";
 import { checkInputs, templateSeed } from "./templates.mjs";
 import {
@@ -96,7 +91,7 @@ export function newPlanBrief(request) {
     }.`,
     `Repositories: ${repositories.map((repo) => repo.id).join(", ")}. Every leaf's \`repository\` is one of these.`,
     "",
-    "Write the four files your prompt's draft rules name: requirements.md (bugfix.md for a bug fix), design.md, tasks.md and avoozl/manifest.json. Give every tasks.md item a unique task ID, and key the manifest by those IDs.",
+    "Write the three files your prompt's draft rules name: requirements.md (bugfix.md for a bug fix), design.md and tasks.md. Give every tasks.md item a unique task ID and a Facts: bullet as its first child. Never write avoozl/manifest.json.",
     category || request.epic
       ? `Start requirements.md (or bugfix.md) with this front-matter, exactly:\n---\n${[
           category && `category: ${category}`,
@@ -353,32 +348,6 @@ export function requestNewPlan(store, input = {}, deps, source = null) {
   };
 }
 
-// Spec Builder writes no manifest, so Avoozl writes one from tasks.md: once
-// the prose files are there and tasks.md read the same on two ticks in a
-// row (Spec Builder may still be writing), and again when tasks.md changes
-// before the plan's first approval. A manifest Avoozl did not write, or one
-// a person edited since, is never replaced. Returns the entry to keep, or
-// the same entry when nothing changed.
-function buildManifest(entry, spec, deps) {
-  const tasks = spec.files["tasks.md"],
-    manifest = spec.files[MANIFEST];
-  const prose =
-    spec.files["design.md"] !== undefined &&
-    (spec.files["requirements.md"] !== undefined ||
-      spec.files["bugfix.md"] !== undefined);
-  if (tasks === undefined || !prose) return entry;
-  if (manifest !== undefined && digest(manifest) !== entry.manifestHash)
-    return entry;
-  const tasksHash = digest(tasks);
-  if (tasksHash === entry.builtFrom) return entry;
-  if (entry.seenTasks !== tasksHash) return { ...entry, seenTasks: tasksHash };
-  const text = draftManifest(entry.name, tasks, {
-    repositories: entry.repositories,
-  });
-  deps.writeManifest(entry.name, text);
-  return { ...entry, builtFrom: tasksHash, manifestHash: digest(text) };
-}
-
 // The planner chat's task key for a requested plan; no task has it.
 export const newPlanTask = (name) => "new-plan:" + name;
 
@@ -457,7 +426,7 @@ function newPlanWriter(store, entry) {
 }
 
 // Store each requested folder that lints clean as a draft plan.
-// `deps`: {readSpec(name), lint(spec), writeManifest(name, text)} where lint
+// `deps`: {readSpec(name), lint(spec)} where lint
 // returns {canApprove}, content rule matches included, so a blocked folder
 // stays pending. Returns the names imported this call.
 // shortcut: a request whose folder never lints clean stays pending until
@@ -474,15 +443,7 @@ export function importNewPlans(store, deps) {
     const plan = store.get("plans", entry.name),
       builder = entry.handoff === "spec-builder";
     // Imported by hand, or another plan took the name: nothing left to do.
-    // A Spec Builder plan this tick imported keeps its manifest in step
-    // with tasks.md until it is first approved.
-    const following =
-      plan &&
-      builder &&
-      entry.imported &&
-      !plan.deletedAt &&
-      !store.list("approvals").some((a) => a.planId === plan.id);
-    if (plan && !following) {
+    if (plan) {
       changed = true;
       continue;
     }
@@ -498,19 +459,6 @@ export function importNewPlans(store, deps) {
       continue;
     }
     try {
-      if (builder) {
-        const next = buildManifest(entry, spec, deps);
-        if (next !== entry) {
-          changed = true;
-          if (next.builtFrom !== entry.builtFrom)
-            spec = deps.readSpec(entry.name);
-          entry = next;
-        }
-      }
-      if (following) {
-        keep.push(entry);
-        continue;
-      }
       const quality = deps.lint(spec);
       if (!quality.canApprove) {
         const lastError = builder
@@ -547,7 +495,6 @@ export function importNewPlans(store, deps) {
       // comes back as its own draft revision (R61.8).
       if (entry.epic && deps.saveEpic) deps.saveEpic(entry.epic);
       changed = true;
-      if (builder) keep.push({ ...entry, imported: true, lastError: null });
     } catch (error) {
       if (entry.lastError !== error.message) changed = true;
       keep.push({ ...entry, lastError: error.message });

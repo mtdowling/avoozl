@@ -14,7 +14,6 @@ const TABS = [
   "bugfix.md",
   "design.md",
   "tasks.md",
-  "avoozl/manifest.json",
 ];
 
 // A link to a chat that exists, `closed` when its session is gone, or null

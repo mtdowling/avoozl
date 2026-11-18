@@ -11,26 +11,30 @@ Read the code in the named repositories first, so tasks match what exists. Write
 - `requirements.md` for a feature: a `# Title`, the goal in your own words, and numbered requirements with acceptance criteria. For a bug fix write `bugfix.md` instead: current behavior, expected behavior, and behavior that must not change. Never write both. If the file starts with YAML front-matter between `---` lines (such as `category: Runtime` or `epic: rewrite`), keep that block exactly as it is when you edit the file. Never add or change a `category` yourself: the person writes it. Write `epic: <epic>` only when your brief names the epic this plan belongs to.
 - `design.md`: scope, decisions, and risks.
 - `tasks.md`: a checklist under `## ` headings, one heading per phase when your brief names phases (a phase is a group of tasks inside this plan, such as `## Phase 1: Loader`). Every item starts with its task ID, then its title: `- [ ] 1.2 Validate loaded config`. Use Kiro's numbering (`1`, `1.1`, `1.2`); Avoozl reads `1.2` in spec `<name>` as task `<name>.1.2`. A named ID needs a separator, such as `cache-invalidation`. Never reuse an ID for different work, and never renumber an existing item.
-- `avoozl/manifest.json`: `{"tasks": {...}}`, plus optional `phases` and `batches` objects, and nothing else at the top level, with exactly one entry per `tasks.md` ID, keyed by the ID as written in `tasks.md`. Edges come only from these entries. Nesting in `tasks.md` names parents: an item indented under a `package` item is its child, and becomes its sub-issue. Never nest an item under a leaf, and never put `parent` in the manifest.
+- Never write `avoozl/manifest.json`. Avoozl refuses a folder that has one. Each task's facts live in `tasks.md`.
 
-Each entry:
+Every `tasks.md` item has exactly one `Facts:` bullet, nested under it as its first child. Under `Facts:` write one `key: value` bullet per fact; a list is `key: a, b` or `key:` with one nested bullet per item. Subtasks come after the `Facts:` bullet. Any other bullet under an item is a free note. Avoozl refuses an unknown key, a key written twice, a second `Facts:`, a `Facts:` that is not the item's first child, and a fact bullet outside `Facts:`. Edges come only from facts. Nesting in `tasks.md` names parents: an item indented under a `package` item is its child, and becomes its sub-issue. Never nest an item under a leaf.
 
-- `kind`: `package` (a group of leaves) or `leaf` (one bounded piece of work). Never write `kind: "epic"`, an `epic` value or an `epics` list: Avoozl refuses them. To place a task in a phase other than its heading's, give it `phase` with an ID and name the titles in a top-level `phases` object, such as `"phases": {"w1": {"title": "W1: core"}}`.
-- `requires`: IDs that must finish first. A parent requires its children, so it completes from them. Use `sequence` for ordering without a hard dependency, and `supports` for advisory links.
+Front-matter at the top of `tasks.md` holds values for the whole spec: `repo`, `checks` and `completion` are defaults for every leaf, and a leaf's own fact wins. A package takes no default. `phase-<id>: <title>` names a phase, and `batch-<id>: <reason>` a batch group.
+
+Facts of every item:
+
+- `kind`: `package` (a group of leaves) or `leaf` (one bounded piece of work, the default). Never write `kind: epic` on a task, or `epic`: Avoozl refuses them. To place a task in a phase other than its heading's, give it `phase: <id>` and name the title in front-matter, such as `phase-w1: W1: core`.
+- `after`: IDs that must finish first, each with an optional `:<completion>`. A parent is after its children, so it completes from them. Use `sequence` for ordering without a hard dependency, and `supports` for advisory links.
 - `summary`: what the task delivers, in one or two sentences.
 
 A leaf is bounded. It also has:
 
-- `repository`: exactly one registered repository ID.
-- `acceptance`: observable statements a verifier can check.
-- `checks`: the commands that prove it, such as `"npm test"`.
+- `repo`: exactly one registered repository ID.
+- `done`: observable statements a verifier can check, one nested bullet each.
+- `checks`: the commands that prove it, such as `npm test`.
 - `completion`: `integrated` for local work, `merged-pr` for GitHub work.
 
-A step only a person does, such as a team review, is a manual leaf: `"manual": true`, its `repository` (where its issue lives), `acceptance` (what the person checks) and `completion` `person`, with no `checks`, `session`, `paths` or `route`, and in no batch group. No agent ever runs it; a person marks it done, and the tasks that require it wait. Never give `person` to any other leaf. A seed from a workflow template carries a starter folder: start from it, keep its phases, task IDs and manual leaves, and fill in what its prompt asks.
+A step only a person does, such as a team review, is a manual leaf: `manual: true`, its `repo` (where its issue lives), `done` (what the person checks) and `completion: person`, with no `checks`, `session`, `paths` or `route`, and in no batch group. A manual leaf takes no `checks` default. No agent ever runs it; a person marks it done, and the tasks that require it wait. Never give `person` to any other leaf. A seed from a workflow template carries a starter folder: start from it, keep its phases, task IDs and manual leaves, and fill in what its prompt asks.
 
 A leaf delivers one coherent, independently verifiable change within one repository and a reasonable worker-session and review scope. Include the implementation, tests, fixtures and documentation needed to establish that result. Split when parts can be implemented, verified and landed independently, enable useful parallel work, or exceed that scope. Keep dependent implementation steps together when neither produces a useful accepted result alone. Multiple acceptance conditions, an "and", or changes to several files do not by themselves justify splitting. Preserve independent platform bring-ups, risky implementation boundaries, person decisions and whole-system acceptance. Do not set `authority`; projection owns it.
 
-Batches are yours to decide; there is no setting for them. When two to five leaves are cheaper for one worker to do in one chat, such as tiny edits to the same files or the same small area, list them in a top-level `batches` object: `"batches": {"doc-links": {"tasks": ["3.1", "3.2"], "reason": "Two one-line link fixes in README.md"}}`. The key is a group ID of letters, digits, `.`, `_` or `-`; `tasks` are IDs as written in `tasks.md`; `reason` is one line of at most 200 characters saying why one chat is cheaper. Never group leaves where one requires or follows another, leaves in different repositories, a manual leaf, or a leaf that needs its own review or investigation. A task belongs to at most one group. No group is the default: leave `batches` out unless grouping clearly saves a handoff. Avoozl checks these rules again before it hands a group off and runs a group that breaks one as single tasks. Never write `size`; Avoozl ignores it.
+Batches are yours to decide; there is no setting for them. When two to five leaves are cheaper for one worker to do in one chat, such as tiny edits to the same files or the same small area, give each one the fact `batch: <group>` and write the group's reason once in front-matter: `batch-doc-links: Two one-line link fixes in README.md`. The group ID is letters, digits, `.`, `_` or `-`; the reason is one line of at most 200 characters saying why one chat is cheaper. Never group leaves where one requires or follows another, leaves in different repositories, a manual leaf, or a leaf that needs its own review or investigation. A task belongs to at most one group. No group is the default: write no `batch` unless grouping clearly saves a handoff. Avoozl checks these rules again before it hands a group off and runs a group that breaks one as single tasks. Never write `size`; Avoozl ignores it.
 
 Example, one fence per file:
 
@@ -48,31 +52,36 @@ A loader parses the file; a validator checks the parsed value.
 ````
 
 ````markdown tasks.md
+---
+repo: sample
+checks: npm test
+completion: integrated
+---
 # Tasks
 
 ## Phase 1: Configuration
 
 - [ ] 1 Load and validate configuration
-````
-
-````json avoozl/manifest.json
-{
-  "tasks": {
-    "1": {
-      "kind": "leaf",
-      "summary": "Read config.json from the working directory and report invalid configuration.",
-      "repository": "sample",
-      "acceptance": ["A missing file yields defaults.", "Invalid JSON names the file and line.", "An unknown key is reported with its path."],
-      "checks": ["npm test"],
-      "completion": "integrated"
-    }
-  }
-}
+  - Facts:
+    - kind: package
+    - summary: Read config.json and report invalid configuration.
+    - after: 1.1, 1.2
+  - [ ] 1.1 Read the config file
+    - Facts:
+      - summary: Read config.json from the working directory.
+      - done:
+        - A missing file yields defaults.
+        - Invalid JSON names the file and line.
+  - [ ] 1.2 Report unknown keys
+    - Facts:
+      - after: 1.1
+      - done:
+        - An unknown key is reported with its path.
 ````
 
 # Draft an epic folder
 
-When your brief asks for an epic (a goal across plans), write its own spec folder with the same four files. `requirements.md` states the goal and what done means, `design.md` how the member plans fit and in what order, and `tasks.md` one item per member plan, such as `- [ ] 1 Native runtime`. The manifest is `{"kind": "epic", "tasks": {"1": {"plan": "native-runtime", "summary": "..."}}}`: each entry holds only `plan` (the member's spec folder name) and `summary`. Each member plan's front-matter must say `epic: <this folder>`. An epic never lists an epic.
+When your brief asks for an epic (a goal across plans), write its own spec folder with the same three files. `requirements.md` states the goal and what done means, `design.md` how the member plans fit and in what order, and `tasks.md` one item per member plan, such as `- [ ] 1 Native runtime`. Its `tasks.md` starts with front-matter `kind: epic`, and each item's `Facts:` holds only `plan` (the member's spec folder name), `summary` and `step` (`design`, `review` or `implement`, the default). Each member plan's front-matter must say `epic: <this folder>`. An epic never lists an epic.
 
 # Break down a GitHub issue
 

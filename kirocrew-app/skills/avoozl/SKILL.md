@@ -84,11 +84,11 @@ Steps 1 to 4 of local delivery. The chat you are in runs these steps. Two
   characters, not already in `plans_specs`. The name is also the plan ID and
   the prefix of the spec's numbered task IDs.
 - Epics and phases are two things. An epic is a goal across plans: its own
-  spec folder whose manifest says `"kind": "epic"` and lists member plans in
-  `plan` entries; each member's front-matter says `epic: <epic>`. A phase is a
-  group of tasks inside one plan: a `## ` heading in `tasks.md`, or a
-  manifest `phase` value. Read them with `plans_plan` `epics` and `epic`.
-  Never write `kind: "epic"` inside a plan, an `epic` value on a task, or an
+  spec folder whose `tasks.md` front-matter says `kind: epic` and lists member
+  plans in `plan` facts; each member's front-matter says `epic: <epic>`. A
+  phase is a group of tasks inside one plan: a `## ` heading in `tasks.md`, or
+  a `phase` fact. Read them with `plans_plan` `epics` and `epic`.
+  Never write `kind: epic` on a task inside a plan, an `epic` value on a task, or an
   `epics` list: Avoozl refuses them.
 
 ### 2. Draft in a planner session
@@ -96,8 +96,9 @@ Steps 1 to 4 of local delivery. The chat you are in runs these steps. Two
 Open a new Kiro Crew session on the `avoozl/avoozl-planner` agent, for example
 with `spawn_run` and `include_memory: false`, in the planning repository. Send
 the draft brief below. Wait for it to finish. It writes `requirements.md` (or
-`bugfix.md`), `design.md`, `tasks.md`, and `avoozl/manifest.json` in the spec
-folder.
+`bugfix.md`), `design.md` and `tasks.md` in the spec folder, with each task's
+facts in a `Facts:` bullet under it. A spec folder never holds
+`avoozl/manifest.json`.
 
 Store the revision: `plans_create_plan` with `spec` (the name) and `prompt`
 (the goal); for a spec that is already stored, `plans_save_plan` with its `id`
@@ -230,7 +231,7 @@ preview and becomes a blocked-by edge only after that approval.
 ## Planner
 
 Planner sessions cannot load this skill. The `avoozl-planner` agent's own
-prompt carries the spec file formats, the manifest fields, and the critique
+prompt carries the spec file formats, the `Facts:` keys, and the critique
 format, so a brief only names the mode, the folder, and the goal.
 
 ## Waiting on CI

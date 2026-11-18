@@ -2,11 +2,11 @@
 //
 //   <planning root>/.kiro/specs/<name>/
 //     requirements.md or bugfix.md, design.md, tasks.md
-//     avoozl/manifest.json   one entry per tasks.md ID: kind, repository,
-//                            edges, checks, completion, acceptance
+//                            each task's facts are a `Facts:` bullet in
+//                            tasks.md (spec-facts.mjs, Requirement 111)
 //     avoozl/critique.md     planner critique, outside the revision hash
 //
-// The reader turns tasks.md plus the manifest into the proposals lintPlan and
+// The reader turns tasks.md and its Facts bullets into the proposals lintPlan and
 // approvePlan already check. Validation is deterministic: the same files give
 // the same diagnostics, each with its file and line.
 import fs from "node:fs";
@@ -16,12 +16,19 @@ import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
 import { validateProposal, writeRevision } from "./plans.mjs";
 import { lintPlan } from "./plan-quality.mjs";
+import {
+  factsLines,
+  factsText,
+  readFacts,
+  withoutFacts,
+} from "./spec-facts.mjs";
 import { frontMatter, withoutFrontMatter } from "../front-matter.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 import { integrationOf } from "./integration-branch.mjs";
 import { checkForwardTarget } from "./mirror-policy.mjs";
 
 export const SPECS_DIRECTORY = path.join(".kiro", "specs");
+// The old facts file. Nothing reads it; a leftover one is a lint error.
 export const MANIFEST = "avoozl/manifest.json";
 export const CRITIQUE = "avoozl/critique.md";
 // The files a revision hash covers. The critique is about a revision, so it
@@ -31,7 +38,6 @@ export const REVISION_FILES = [
   "bugfix.md",
   "design.md",
   "tasks.md",
-  MANIFEST,
 ];
 const NAME = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const MAX_FILE_BYTES = 1000000;
@@ -103,20 +109,33 @@ export function withStatus(text, status) {
   return lines.join("\n");
 }
 
+// The hash covers each prose file without its Status line, tasks.md without
+// checkbox marks, Facts bullets and front-matter, and the parsed facts as
+// `factsText` writes them. Layout is outside it, content is inside it
+// (Requirement 111.6): a spec converted from the old manifest keeps its hash.
 export function specHash(files) {
   return digest(
-    REVISION_FILES.filter((file) => files[file] !== undefined)
-      .map((file) => {
-        // Checkbox marks and the Status line are not part of a revision.
-        const text =
-          file === MANIFEST
-            ? files[file]
-            : withoutStatus(
-                file === "tasks.md" ? withoutMarks(files[file]) : files[file],
-              );
-        return `${file}\0${text}\0`;
-      })
-      .join(""),
+    [
+      ...REVISION_FILES.filter((file) => files[file] !== undefined).map(
+        (file) => {
+          const raw = files[file],
+            text = withoutStatus(
+              file === "tasks.md"
+                ? withoutMarks(withoutFacts(raw, specItems("x", raw)))
+                : raw,
+            );
+          return `${file}\0${text}\0`;
+        },
+      ),
+      ...(files["tasks.md"] === undefined
+        ? []
+        : [
+            `${MANIFEST}\0${factsText(
+              readFacts(files["tasks.md"], specItems("x", files["tasks.md"]))
+                .manifest,
+            )}\0`,
+          ]),
+    ].join(""),
   );
 }
 
@@ -200,6 +219,9 @@ export function readSpecFolder(root, name) {
     const text = read(file);
     if (text !== undefined) files[file] = text;
   }
+  // Not a revision file and not hashed: kept so lint can say to delete it.
+  const left = read(MANIFEST);
+  if (left !== undefined) files[MANIFEST] = left;
   return {
     name,
     folder,
@@ -372,23 +394,6 @@ export function shortTitle(text) {
   return (space > 0 ? cut.slice(0, space) : cut).trimEnd() + "…";
 }
 
-// The manifest line that names a key, for diagnostics.
-function manifestLine(text, key) {
-  const quoted = JSON.stringify(key).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-    at = text.search(new RegExp(quoted + "\\s*:"));
-  return at < 0 ? 1 : text.slice(0, at).split("\n").length;
-}
-
-// shortcut: the line comes from the runtime's error message, which names a
-// position for most errors but not all; otherwise this reports line 1. Add a
-// scanner if authors need exact lines for every JSON error.
-function jsonErrorLine(text, error) {
-  const line = /line (\d+)/.exec(error.message)?.[1];
-  if (line) return Number(line);
-  const position = /position (\d+)/.exec(error.message)?.[1];
-  return position ? text.slice(0, Number(position)).split("\n").length : 1;
-}
-
 // The clauses under bugfix.md's "Unchanged Behavior" heading, Kiro's
 // regression-prevention list, without their numbering or list markers.
 export function unchangedClauses(text) {
@@ -420,6 +425,7 @@ export function parseSpec({
   folder = `.kiro/specs/${name}/`,
   exists,
   files,
+  leftover = false,
 }) {
   const diagnostics = [],
     proposals = [];
@@ -466,11 +472,22 @@ export function parseSpec({
         }),
       );
   }
-  for (const file of ["design.md", "tasks.md", MANIFEST])
+  for (const file of ["design.md", "tasks.md"])
     if (files[file] === undefined)
       diagnostics.push(
         diagnostic("spec.missing-file", file, 1, `Add ${folder}${file}.`),
       );
+  // The manifest is gone (Requirement 111.1): a leftover file is an error
+  // and nothing reads it.
+  if (leftover || files[MANIFEST] !== undefined)
+    diagnostics.push(
+      diagnostic(
+        "spec.manifest-left",
+        MANIFEST,
+        1,
+        `Delete ${folder}${MANIFEST}. Task facts are Facts: bullets in tasks.md now.`,
+      ),
+    );
 
   const items = specItems(name, files["tasks.md"] || ""),
     byKey = new Map();
@@ -512,113 +529,55 @@ export function parseSpec({
       );
   }
 
-  const text = files[MANIFEST];
-  let entries = null,
-    specShip,
-    manifest = null;
-  if (text !== undefined) {
-    try {
-      manifest = JSON.parse(text);
-      if (
-        !manifest ||
-        typeof manifest !== "object" ||
-        !manifest.tasks ||
-        typeof manifest.tasks !== "object" ||
-        Array.isArray(manifest.tasks)
-      )
-        diagnostics.push(
-          diagnostic(
-            "manifest.schema",
-            MANIFEST,
-            1,
-            'The manifest is one JSON object with a "tasks" object keyed by tasks.md ID.',
-          ),
-        );
-      else {
-        entries = manifest.tasks;
-        try {
-          specShip = manifest.ship;
-          if (
-            specShip !== undefined &&
-            !["auto-merge", "manual"].includes(specShip)
-          ) {
-            specShip = undefined;
-            throw Error('ship must be "auto-merge" or "manual".');
-          }
-        } catch (error) {
-          diagnostics.push(
-            diagnostic(
-              "manifest.schema",
-              MANIFEST,
-              manifestLine(text, "ship"),
-              error.message,
-            ),
-          );
-        }
-        // An integration branch (RC16.1); a manifest without it is as before.
-        try {
-          integrationOf(manifest);
-        } catch (error) {
-          diagnostics.push(
-            diagnostic(
-              "manifest.schema",
-              MANIFEST,
-              manifestLine(
-                text,
-                manifest.integrationBranch === undefined
-                  ? "integrationSync"
-                  : "integrationBranch",
-              ),
-              error.message,
-            ),
-          );
-        }
-        // An epic's forward target (RC26.2).
-        try {
-          checkForwardTarget(manifest, "manifest");
-        } catch (error) {
-          diagnostics.push(
-            diagnostic(
-              "manifest.schema",
-              MANIFEST,
-              manifestLine(
-                text,
-                manifest.forwardTarget === undefined ||
-                  /publicBranch/.test(error.message)
-                  ? "publicBranch"
-                  : "forwardTarget",
-              ),
-              error.message,
-            ),
-          );
-        }
-      }
-    } catch (error) {
-      diagnostics.push(
-        diagnostic(
-          "manifest.json",
-          MANIFEST,
-          jsonErrorLine(text, error),
-          `The manifest is not valid JSON: ${error.message}`,
-        ),
-      );
-    }
+  const facts = readFacts(files["tasks.md"] || "", items),
+    manifest = facts.manifest,
+    entries = manifest.tasks,
+    problem = (code, line, message, extra) =>
+      diagnostics.push(diagnostic(code, "tasks.md", line, message, extra));
+  for (const found of facts.problems)
+    problem(found.code, found.line, found.message);
+  let specShip = manifest.ship;
+  if (specShip !== undefined && !["auto-merge", "manual"].includes(specShip)) {
+    specShip = undefined;
+    problem(
+      "facts.schema",
+      facts.frontLine("ship"),
+      'ship must be "auto-merge" or "manual".',
+    );
   }
-  if (entries)
-    for (const key of Object.keys(entries))
-      if (!byKey.has(key))
-        diagnostics.push(
-          diagnostic(
-            "manifest.unknown-task",
-            MANIFEST,
-            manifestLine(text, key),
-            `Manifest entry "${key}" has no tasks.md item.`,
-          ),
-        );
+  // An integration branch (RC16.1); a spec without it is as before.
+  try {
+    integrationOf(manifest);
+  } catch (error) {
+    problem(
+      "facts.schema",
+      facts.frontLine(
+        manifest.integrationBranch === undefined
+          ? "integrationSync"
+          : "integrationBranch",
+      ),
+      error.message,
+    );
+  }
+  // An epic's forward target (RC26.2).
+  try {
+    checkForwardTarget(manifest, "front-matter");
+  } catch (error) {
+    problem(
+      "facts.schema",
+      facts.frontLine(
+        manifest.forwardTarget === undefined ||
+          /publicBranch/.test(error.message)
+          ? "publicBranch"
+          : "forwardTarget",
+      ),
+      error.message,
+    );
+  }
   const type =
     bugfix && !feature ? "bugfix" : feature && !bugfix ? "feature" : null;
   // An epic folder lists member plans, not tasks (Requirement 59.1).
-  if (manifest?.kind === "epic") {
+  if (facts.isEpic) {
     if (bugfix)
       diagnostics.push(
         diagnostic(
@@ -631,66 +590,51 @@ export function parseSpec({
     const members = [],
       named = new Map();
     for (const item of byKey.values()) {
-      const entry = entries?.[item.key];
-      if (entries && entry === undefined) {
+      const entry = entries[item.key];
+      if (entry === undefined) {
         diagnostics.push(
           diagnostic(
-            "manifest.missing-entry",
+            "facts.missing",
             "tasks.md",
             item.line,
-            `Item "${item.key}" has no entry in ${MANIFEST}. Name its member plan in "plan".`,
+            `Item "${item.key}" has no Facts: bullet. Name its member plan in "plan".`,
             { taskId: item.id },
           ),
         );
         continue;
       }
-      if (!entry) continue;
-      const line = manifestLine(text, item.key),
-        extra =
-          entry && typeof entry === "object" && !Array.isArray(entry)
-            ? Object.keys(entry).filter(
-                (key) => !["plan", "summary", "step"].includes(key),
-              )
-            : [];
+      const line = facts.lineOf(item.key),
+        extra = Object.keys(entry).filter(
+          (key) => !["plan", "summary", "step"].includes(key),
+        );
       if (extra.length)
         diagnostics.push(
           diagnostic(
             "spec.epic-task-fields",
-            MANIFEST,
+            "tasks.md",
             line,
-            `Epic entry "${item.key}" holds ${extra.map((key) => `"${key}"`).join(", ")}. An epic entry holds only "plan", "summary" and "step"${extra.includes("memberPlan") ? '; rename "memberPlan" to "plan"' : ""}.`,
+            `Epic entry "${item.key}" holds ${extra.map((key) => `"${key}"`).join(", ")}. An epic entry holds only "plan", "summary" and "step".`,
             { entry: item.key },
           ),
         );
-      if (typeof entry?.plan !== "string" || !NAME.test(entry.plan)) {
-        if (!extra.includes("memberPlan"))
-          diagnostics.push(
-            diagnostic(
-              "manifest.schema",
-              MANIFEST,
-              line,
-              `Epic entry "${item.key}" needs "plan": the member plan's spec folder name.`,
-              { entry: item.key },
-            ),
-          );
-        continue;
-      }
-      if (entry.summary !== undefined && typeof entry.summary !== "string")
+      if (typeof entry.plan !== "string" || !NAME.test(entry.plan)) {
         diagnostics.push(
           diagnostic(
-            "manifest.schema",
-            MANIFEST,
+            "facts.schema",
+            "tasks.md",
             line,
-            `Epic entry "${item.key}": summary must be text.`,
+            `Epic entry "${item.key}" needs "plan": the member plan's spec folder name.`,
             { entry: item.key },
           ),
         );
+        continue;
+      }
       // A row's lifecycle step (R59.1); a row without one is implement.
       if (entry.step !== undefined && !EPIC_STEPS.includes(entry.step)) {
         diagnostics.push(
           diagnostic(
-            "manifest.schema",
-            MANIFEST,
+            "facts.schema",
+            "tasks.md",
             line,
             `Epic entry "${item.key}": step must be ${EPIC_STEPS.join(", ")}.`,
             { entry: item.key },
@@ -704,7 +648,7 @@ export function parseSpec({
         diagnostics.push(
           diagnostic(
             "spec.epic-member-twice",
-            MANIFEST,
+            "tasks.md",
             line,
             `Epic entry "${item.key}" names plan ${entry.plan} for step ${step}, which entry "${named.get(pair)}" already names. Keep one.`,
             { entry: item.key },
@@ -724,251 +668,173 @@ export function parseSpec({
     }
     return { type, kind: "epic", items, diagnostics, proposals, members };
   }
-  // The old plan forms are errors, never loaded under another name
-  // (Requirement 59.7).
-  if (manifest && Object.hasOwn(manifest, "epics"))
-    diagnostics.push(
-      diagnostic(
-        "spec.entry-epic",
-        MANIFEST,
-        manifestLine(text, "epics"),
-        'The manifest has a top-level "epics" list. Rename it "phases", an object keyed by phase ID, such as {"w1": {"title": "W1"}}.',
-      ),
-    );
   const phaseTitles = new Map();
-  if (manifest && manifest.phases !== undefined) {
-    const phases = manifest.phases;
-    if (!phases || typeof phases !== "object" || Array.isArray(phases))
-      diagnostics.push(
-        diagnostic(
-          "manifest.schema",
-          MANIFEST,
-          manifestLine(text, "phases"),
-          '"phases" is an object keyed by phase ID, such as {"w1": {"title": "W1"}}.',
-        ),
+  for (const [phase, value] of Object.entries(manifest.phases ?? {}))
+    if (
+      !PHASE_ID.test(phase) ||
+      !value.title.trim() ||
+      value.title.length > TITLE_LIMIT
+    )
+      problem(
+        "facts.schema",
+        facts.frontLine(`phase-${phase}`),
+        `Phase "${phase}" needs an ID of letters, digits, ".", "_" or "-" and a title of 1–${TITLE_LIMIT} characters.`,
       );
-    else
-      for (const [phase, value] of Object.entries(phases)) {
-        if (
-          !PHASE_ID.test(phase) ||
-          !value ||
-          typeof value !== "object" ||
-          typeof value.title !== "string" ||
-          !value.title.trim() ||
-          value.title.length > TITLE_LIMIT ||
-          Object.keys(value).some((key) => key !== "title")
-        )
-          diagnostics.push(
-            diagnostic(
-              "manifest.schema",
-              MANIFEST,
-              manifestLine(text, phase),
-              `Phase "${phase}" needs an ID of letters, digits, ".", "_" or "-" and only a "title" of 1–${TITLE_LIMIT} characters.`,
-            ),
-          );
-        else phaseTitles.set(phase, value.title.trim());
-      }
-  }
+    else phaseTitles.set(phase, value.title.trim());
   const headings = headingPhases(files["tasks.md"] || "");
   // A bugfix spec's unchanged behavior is acceptance on every fix leaf
   // (design §6.8), so a regression fails the leaf, not only Kiro's tests.
   const unchanged =
     bugfix && !feature ? unchangedClauses(files["bugfix.md"]) : [];
-  if (entries) {
-    const oldKind = new Set();
-    for (const item of byKey.values()) {
-      const entry = entries[item.key];
-      if (entry?.kind === "epic") oldKind.add(item.key);
+  for (const item of byKey.values()) {
+    const entry = entries[item.key];
+    if (entry === undefined) {
+      diagnostics.push(
+        diagnostic(
+          "facts.missing",
+          "tasks.md",
+          item.line,
+          `Task "${item.key}" has no Facts: bullet. Add one as its first child.`,
+          { taskId: item.id },
+        ),
+      );
+      continue;
     }
-    for (const item of byKey.values()) {
-      const entry = entries[item.key];
-      if (entry === undefined) {
-        diagnostics.push(
-          diagnostic(
-            "manifest.missing-entry",
-            "tasks.md",
-            item.line,
-            `Task "${item.key}" has no entry in ${MANIFEST}.`,
-            { taskId: item.id },
-          ),
+    if (!item.title) continue;
+    const line = facts.lineOf(item.key);
+    let old = false;
+    if (entry.kind === "epic") {
+      old = true;
+      diagnostics.push(
+        diagnostic(
+          "spec.kind-epic",
+          "tasks.md",
+          line,
+          `Task "${item.key}" has "kind: epic". Inside a plan a parent is a package: write "kind: package". An epic is its own spec folder that lists plans.`,
+          { taskId: item.id, entry: item.key },
+        ),
+      );
+    }
+    // A nested item is a child of the item above it (R13.7), which must be a
+    // package: only those project as parent issues.
+    const parentKey = item.parent?.key,
+      parentOk = parentKey && entries[parentKey]?.kind === "package";
+    if (parentKey && !parentOk && entries[parentKey]?.kind !== "epic")
+      diagnostics.push(
+        diagnostic(
+          "task.parent-kind",
+          "tasks.md",
+          item.line,
+          `Task "${item.key}" is nested under "${parentKey}", which is not a package. Write "kind: package" in the Facts of "${parentKey}", or stop nesting this item.`,
+          { taskId: item.id },
+        ),
+      );
+    if (old) continue;
+    if (
+      entry.phase !== undefined &&
+      (typeof entry.phase !== "string" || !PHASE_ID.test(entry.phase))
+    ) {
+      diagnostics.push(
+        diagnostic(
+          "facts.schema",
+          "tasks.md",
+          facts.lineOfFact(item.key, "phase"),
+          `Task "${item.key}": phase is an ID of letters, digits, ".", "_" or "-", up to 60 characters.`,
+          { taskId: item.id },
+        ),
+      );
+      continue;
+    }
+    const local = (reference) => byKey.get(reference)?.id ?? reference;
+    try {
+      const title = shortTitle(item.title),
+        // The batch fact only names a group; the group is stamped below.
+        { phase: phaseValue, batch: _batch, ...rest } = structuredClone(entry),
+        fields = {
+          ...rest,
+          title,
+          // The spec's ship mode and a bugfix spec's type reach each leaf
+          // (§4.25, §4.11).
+          ...(specShip && entry.kind !== "package" ? { specShip } : {}),
+          ...(bugfix && !feature && entry.kind !== "package"
+            ? { specType: "bugfix" }
+            : {}),
+        };
+      if (title !== item.title)
+        fields.summary = [item.title, entry.summary]
+          .filter((text) => typeof text === "string" && text.trim())
+          .join("\n\n");
+      const proposal = validateProposal(fields);
+      for (const field of ["requires", "sequence", "supports"])
+        if (proposal[field]) proposal[field] = proposal[field].map(local);
+      if (proposal.conditions)
+        proposal.conditions = Object.fromEntries(
+          Object.entries(proposal.conditions).map(([key, value]) => [
+            local(key),
+            value,
+          ]),
         );
-        continue;
-      }
-      if (!item.title) continue;
-      const line = manifestLine(text, item.key);
-      let old = false;
-      if (oldKind.has(item.key)) {
-        old = true;
-        diagnostics.push(
-          diagnostic(
-            "spec.kind-epic",
-            MANIFEST,
-            line,
-            `Manifest entry "${item.key}" has "kind": "epic". Inside a plan a parent is a package: write "kind": "package". An epic is its own spec folder that lists plans.`,
-            { taskId: item.id, entry: item.key },
-          ),
-        );
-      }
-      if (entry && typeof entry === "object" && Object.hasOwn(entry, "epic")) {
-        old = true;
-        diagnostics.push(
-          diagnostic(
-            "spec.entry-epic",
-            MANIFEST,
-            line,
-            `Manifest entry "${item.key}" has "epic". Rename it "phase"; name phase titles in a top-level "phases" object.`,
-            { taskId: item.id, entry: item.key },
-          ),
-        );
-      }
-      // A nested item is a child of the item above it (R13.7), which must
-      // be a package: only those project as parent issues. Nesting is the
-      // only way to name a parent, so the manifest never holds one.
-      if (entry && typeof entry === "object" && "parent" in entry)
-        diagnostics.push(
-          diagnostic(
-            "manifest.schema",
-            MANIFEST,
-            line,
-            `Manifest entry "${item.key}" names a parent. Nest the item under its parent in tasks.md instead.`,
-            { taskId: item.id },
-          ),
-        );
-      const parentKey = item.parent?.key,
-        parentOk = parentKey && entries[parentKey]?.kind === "package";
-      if (parentKey && !parentOk && !oldKind.has(parentKey))
-        diagnostics.push(
-          diagnostic(
-            "task.parent-kind",
-            "tasks.md",
-            item.line,
-            `Task "${item.key}" is nested under "${parentKey}", which is not a package. Mark "${parentKey}" as a package in ${MANIFEST}, or stop nesting this item.`,
-            { taskId: item.id },
-          ),
-        );
-      if (old) continue;
-      if (
-        entry &&
-        typeof entry === "object" &&
-        entry.phase !== undefined &&
-        (typeof entry.phase !== "string" || !PHASE_ID.test(entry.phase))
-      ) {
-        diagnostics.push(
-          diagnostic(
-            "manifest.schema",
-            MANIFEST,
-            line,
-            `Manifest entry "${item.key}": phase is an ID of letters, digits, ".", "_" or "-", up to 60 characters.`,
-            { taskId: item.id },
-          ),
-        );
-        continue;
-      }
-      const local = (reference) => byKey.get(reference)?.id ?? reference;
-      try {
-        const title = shortTitle(item.title),
-          // A leaf's old `budget` key is ignored (budgets removed 2026-11-17),
-          // and so is `size`: the planner's `batches` replaced it (R108.8).
-          {
-            phase: phaseValue,
-            budget: _budget,
-            size: _size,
-            batch: _batch,
-            ...rest
-          } = structuredClone(entry),
-          fields = {
-            ...rest,
-            title,
-            // The spec's ship mode and a bugfix spec's type reach each leaf
-            // (§4.25, §4.11).
-            ...(specShip && entry?.kind !== "package" ? { specShip } : {}),
-            ...(bugfix && !feature && entry?.kind !== "package"
-              ? { specType: "bugfix" }
-              : {}),
-          };
-        if (title !== item.title)
-          fields.summary = [item.title, entry?.summary]
-            .filter((text) => typeof text === "string" && text.trim())
-            .join("\n\n");
-        delete fields.parent;
-        const proposal = validateProposal(fields);
-        for (const field of ["requires", "sequence", "supports"])
-          if (proposal[field]) proposal[field] = proposal[field].map(local);
-        if (proposal.conditions)
-          proposal.conditions = Object.fromEntries(
-            Object.entries(proposal.conditions).map(([key, value]) => [
-              local(key),
-              value,
-            ]),
-          );
-        if (unchanged.length && proposal.kind !== "package")
-          proposal.acceptance = [
-            ...new Set([...(proposal.acceptance || []), ...unchanged]),
-          ];
-        // Its phase: the manifest value, else the heading above it, else
-        // No phase (Requirement 59.5).
-        const phase =
-          phaseValue !== undefined
-            ? {
-                id: phaseValue,
-                title: phaseTitles.get(phaseValue) ?? phaseValue,
-              }
-            : (headings.get(item.line) ?? null);
-        proposals.push({
-          ...proposal,
-          id: item.id,
-          specKey: item.key,
-          phase,
-          ...(parentOk ? { parent: item.parent.id } : {}),
-          lineStart: item.line,
-          lineEnd: item.line,
-        });
-      } catch (error) {
-        diagnostics.push(
-          diagnostic(
-            "manifest.schema",
-            MANIFEST,
-            line,
-            `Manifest entry "${item.key}": ${error.message}`,
-            { taskId: item.id },
-          ),
-        );
-      }
+      if (unchanged.length && proposal.kind !== "package")
+        proposal.acceptance = [
+          ...new Set([...(proposal.acceptance || []), ...unchanged]),
+        ];
+      // Its phase: the fact, else the heading above it, else No phase
+      // (Requirement 59.5).
+      const phase =
+        phaseValue !== undefined
+          ? {
+              id: phaseValue,
+              title: phaseTitles.get(phaseValue) ?? phaseValue,
+            }
+          : (headings.get(item.line) ?? null);
+      proposals.push({
+        ...proposal,
+        id: item.id,
+        specKey: item.key,
+        phase,
+        ...(parentOk ? { parent: item.parent.id } : {}),
+        lineStart: item.line,
+        lineEnd: item.line,
+      });
+    } catch (error) {
+      diagnostics.push(
+        diagnostic(
+          "facts.schema",
+          "tasks.md",
+          line,
+          `Task "${item.key}": ${error.message}`,
+          { taskId: item.id },
+        ),
+      );
     }
   }
-  if (entries && manifest && manifest.batches !== undefined)
+  if (manifest.batches !== undefined)
     planBatchGroups(manifest.batches, {
       byKey,
       entries,
       proposals,
       diagnostics,
-      text,
+      lineOf: facts.batchLine,
     });
   return { type, kind: "plan", items, diagnostics, proposals };
 }
 
 // The planner's batch groups (§4.37, R108.2): `batches` is an object of
-// group ID to {tasks: [IDs as in tasks.md], reason}. A malformed group is a
-// manifest error; a valid one is stamped on each member proposal as
+// group ID to {tasks: [IDs as in tasks.md], reason}, read from the members'
+// `batch` facts and the front-matter `batch-<id>` reasons. A malformed group
+// is a facts error; a valid one is stamped on each member proposal as
 // `batch: {id, tasks, reason}` with full task IDs. Whether a group may run
 // as one handoff is checked again at dispatch (flow-batch.mjs).
 function planBatchGroups(
   batches,
-  { byKey, entries, proposals, diagnostics, text },
+  { byKey, entries, proposals, diagnostics, lineOf },
 ) {
   const problem = (line, message) =>
-    diagnostics.push(diagnostic("manifest.schema", MANIFEST, line, message));
-  if (!batches || typeof batches !== "object" || Array.isArray(batches)) {
-    problem(
-      manifestLine(text, "batches"),
-      '"batches" is an object keyed by group ID, such as {"doc-links": {"tasks": ["3.1", "3.2"], "reason": "Two link fixes in README.md"}}.',
-    );
-    return;
-  }
+    diagnostics.push(diagnostic("facts.schema", "tasks.md", line, message));
   const owner = new Map(),
     byId = new Map(proposals.map((p) => [p.specKey, p]));
   for (const [id, group] of Object.entries(batches)) {
-    const line = manifestLine(text, id),
+    const line = lineOf(id),
       tasks = group?.tasks,
       reason = group?.reason;
     if (!PHASE_ID.test(id)) {
@@ -1139,13 +1005,18 @@ export function lintSpec({
   };
 }
 
-// Whether a folder's manifest marks it an epic folder (Requirement 59.1).
+// The facts of a folder's tasks.md, keyed as the manifest was: {tasks,
+// phases, batches, ship, ...}. Diagnostics are lintSpec's.
+export function specFacts(files = {}) {
+  const text = files["tasks.md"] ?? "";
+  return readFacts(text, specItems("x", text)).manifest;
+}
+
+// Whether a folder's tasks.md front-matter says `kind: epic` (Requirement
+// 59.1, 111.4).
 export function isEpicFolder(files = {}) {
-  try {
-    return JSON.parse(files[MANIFEST] ?? "null")?.kind === "epic";
-  } catch {
-    return false;
-  }
+  const text = files["tasks.md"];
+  return typeof text === "string" && readFacts(text, []).isEpic;
 }
 
 // The epic a plan's front-matter names, or null (Requirement 59.2).
@@ -1194,7 +1065,7 @@ function epicDiagnostics(spec, parsed, namespace) {
         out.push(
           diagnostic(
             "spec.epic-member-missing",
-            MANIFEST,
+            "tasks.md",
             member.line,
             `Epic entry "${member.key}" names plan ${member.plan}, which has no spec folder .kiro/specs/${member.plan}/. Create it or remove the entry.`,
             { entry: member.key },
@@ -1204,7 +1075,7 @@ function epicDiagnostics(spec, parsed, namespace) {
         out.push(
           diagnostic(
             "spec.epic-nested",
-            MANIFEST,
+            "tasks.md",
             member.line,
             `Epic entry "${member.key}" names ${member.plan}, which is an epic. An epic lists plans only.`,
             { entry: member.key },
@@ -1215,7 +1086,7 @@ function epicDiagnostics(spec, parsed, namespace) {
         out.push(
           diagnostic(
             "spec.epic-member-unconfirmed",
-            MANIFEST,
+            "tasks.md",
             member.line,
             named
               ? `Epic entry "${member.key}" lists plan ${member.plan}, whose front-matter names epic ${named}. Change its "epic:" to ${spec.name}, or remove the entry.`
@@ -1248,7 +1119,7 @@ function epicDiagnostics(spec, parsed, namespace) {
         front.epicLine ?? 1,
         !epic || !isEpicFolder(epic.files)
           ? `Front-matter names epic ${front.epic}, which is not an epic folder. This plan shows under No epic.`
-          : `Front-matter names epic ${front.epic}, which does not list this plan. Add it to the epic's manifest, or this plan shows under No epic.`,
+          : `Front-matter names epic ${front.epic}, which does not list this plan. Add it to the epic's tasks.md, or this plan shows under No epic.`,
         { severity: "warning" },
       ),
     );
@@ -1482,7 +1353,7 @@ function writeAtomically(target, text) {
 }
 
 // Adjacent work found while implementing: one new tasks.md item and its
-// manifest entry, then the folder is stored as the next draft revision. This
+// Facts bullet, then the folder is stored as the next draft revision. This
 // is a proposal: nothing is approved or dispatched.
 export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
   if (!proposal || typeof proposal !== "object" || Array.isArray(proposal))
@@ -1511,34 +1382,24 @@ export function proposeSpecWork(store, { id, proposal, expectedHash }, read) {
         "The spec folder changed on disk. Reload it before proposing work.",
         409,
       );
-    const tasks = spec.files["tasks.md"],
-      manifestText = spec.files[MANIFEST];
-    if (tasks === undefined || manifestText === undefined)
-      fail("Add tasks.md and avoozl/manifest.json before proposing work.", 409);
-    let manifest;
-    try {
-      manifest = JSON.parse(manifestText);
-    } catch {
-      fail("Fix avoozl/manifest.json before proposing work.", 409);
-    }
-    if (!manifest?.tasks || typeof manifest.tasks !== "object")
-      fail("Fix avoozl/manifest.json before proposing work.", 409);
-    if (
-      manifest.tasks[key] !== undefined ||
-      specItems(plan.spec, tasks).some((item) => item.key === key)
-    )
+    const tasks = spec.files["tasks.md"];
+    if (tasks === undefined) fail("Add tasks.md before proposing work.", 409);
+    if (specItems(plan.spec, tasks).some((item) => item.key === key))
       fail("Repeated local task ID " + key);
-    manifest.tasks[key] = entry;
     const directory = path.join(spec.root, SPECS_DIRECTORY, plan.spec),
-      eol = tasks.includes("\r\n") ? "\r\n" : "\n",
-      nextTasks =
-        tasks +
-        (tasks && !tasks.endsWith("\n") ? eol : "") +
-        `- [ ] ${key} ${title}${eol}`;
-    writeAtomically(path.join(directory, "tasks.md"), nextTasks);
+      eol = tasks.includes("\r\n") ? "\r\n" : "\n";
+    let facts;
+    try {
+      facts = factsLines(entry);
+    } catch (error) {
+      fail(error.message);
+    }
     writeAtomically(
-      path.join(directory, MANIFEST),
-      JSON.stringify(manifest, null, 2) + "\n",
+      path.join(directory, "tasks.md"),
+      tasks +
+        (tasks && !tasks.endsWith("\n") ? eol : "") +
+        `- [ ] ${key} ${title}${eol}` +
+        facts.map((line) => line + eol).join(""),
     );
     const next = read(plan.spec),
       written = writeRevision(

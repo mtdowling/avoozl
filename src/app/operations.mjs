@@ -462,7 +462,6 @@ import {
 import { startGitHubItem } from "./github-intake.mjs";
 import { highlightLanguages } from "./highlight-languages.mjs";
 import { importNewPlans, newPlanStarts, requestNewPlan } from "./new-plan.mjs";
-import { writeSpecManifest } from "./spec-manifest.mjs";
 import { decideInvestigation } from "./investigate.mjs";
 import { taskEvidence } from "./evidence.mjs";
 import { instanceView, renameInstance } from "./instance.mjs";
@@ -580,6 +579,7 @@ import {
   epicMembers,
   findSpecFolder,
   lintSpec,
+  specFacts,
   linkSpecPlan,
   listSpecFolders,
   parseSpec,
@@ -2112,10 +2112,7 @@ export class Operations {
       try {
         repositories = [
           ...new Set(
-            Object.values(
-              JSON.parse(folder.files["avoozl/manifest.json"] ?? "{}").tasks ??
-                {},
-            )
+            Object.values(specFacts(folder.files).tasks)
               .map((entry) => entry?.repository)
               .filter((value) => typeof value === "string"),
           ),
@@ -2276,13 +2273,7 @@ export class Operations {
         (entry) =>
           entry.id === task.id || (task.specKey && entry.key === task.specKey),
       );
-    let manifest = {};
-    try {
-      manifest = JSON.parse(spec.files["avoozl/manifest.json"] ?? "{}");
-    } catch {
-      manifest = {};
-    }
-    const entry = item?.key ? (manifest.tasks?.[item.key] ?? {}) : {},
+    const entry = item?.key ? (specFacts(spec.files).tasks[item.key] ?? {}) : {},
       { title, ...fields } = change,
       before = item ? lines[item.line - 1].replace(/\r$/, "") : null;
     return {
@@ -2303,7 +2294,7 @@ export class Operations {
                 (_, head) => head + title,
               ),
       },
-      manifest: item?.key
+      facts: item?.key
         ? { key: item.key, before: entry, after: { ...entry, ...fields } }
         : null,
       change,
@@ -3454,8 +3445,6 @@ export class Operations {
                 );
             },
             readSpec: (spec) => this.readSpec(spec),
-            writeManifest: (spec, text) =>
-              writeSpecManifest(this.readSpec(spec), text),
             lint: (spec) =>
               this.withContentDiagnostics(
                 lintSpec({
