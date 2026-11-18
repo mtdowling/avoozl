@@ -466,7 +466,7 @@ export const SOURCE_TEXT = {
   events: 'from events',
 } as const
 
-// "flow.batch.max 3 → 5" or the plan change in words.
+// "flow.retro.everyTasks 10 → 5" or the plan change in words.
 export function proposalText(p: Proposal): string {
   if (p.type === 'plan') return `${p.change} (spec ${p.spec})`
   if (p.type === 'prompt') return `${p.revert ? 'Revert ' : ''}${p.target}${p.section ? ` § ${p.section}` : ''}`
@@ -644,7 +644,6 @@ export function flowChoices(base: Pick<FlowViewModel, 'tasks' | 'repositories' |
 export interface FlowSection {
   stopTheLine?: { scope?: 'dependents' | 'repo' | 'all' }
   localChecksFirst?: boolean
-  batch?: { max?: number; by?: 'phase' | 'files' }
   retro?: { everyTasks?: number; slowFactor?: number; model?: string }
   ci?: { windowDays?: number; docsOnlyMinutes?: number; waitShare?: number; minPullRequests?: number; classes?: Record<string, string[]> }
 }
@@ -674,8 +673,6 @@ export interface FlowSettings {
 export const FLOW_DEFAULTS = {
   scope: 'dependents',
   localChecksFirst: true,
-  max: 3,
-  by: 'phase',
   everyTasks: 10,
   slowFactor: 3,
   model: 'auto',
@@ -688,8 +685,6 @@ export const FLOW_DEFAULTS = {
 export interface FlowForm {
   scope: '' | 'dependents' | 'repo' | 'all'
   localChecksFirst: '' | 'on' | 'off'
-  max: string
-  by: '' | 'phase' | 'files'
   everyTasks: string
   slowFactor: string
   model: string
@@ -704,8 +699,6 @@ export function toFlowForm(section: FlowSection = {}): FlowForm {
   return {
     scope: section.stopTheLine?.scope ?? '',
     localChecksFirst: section.localChecksFirst === undefined ? '' : section.localChecksFirst ? 'on' : 'off',
-    max: section.batch?.max === undefined ? '' : String(section.batch.max),
-    by: section.batch?.by ?? '',
     everyTasks: section.retro?.everyTasks === undefined ? '' : String(section.retro.everyTasks),
     slowFactor: section.retro?.slowFactor === undefined ? '' : String(section.retro.slowFactor),
     model: section.retro?.model ?? '',
@@ -723,14 +716,6 @@ export function toFlowSection(form: FlowForm): { flow?: FlowSection; error?: str
   const flow: FlowSection = {}
   if (form.scope) flow.stopTheLine = { scope: form.scope }
   if (form.localChecksFirst) flow.localChecksFirst = form.localChecksFirst === 'on'
-  const batch: FlowSection['batch'] = {}
-  if (form.max.trim()) {
-    const n = Number(form.max)
-    if (!Number.isInteger(n) || n < 1 || n > 10) return { error: 'Most tasks per run must be a whole number 1–10.' }
-    batch.max = n
-  }
-  if (form.by) batch.by = form.by
-  if (Object.keys(batch).length) flow.batch = batch
   const retro: FlowSection['retro'] = {}
   if (form.everyTasks.trim()) {
     const n = Number(form.everyTasks)

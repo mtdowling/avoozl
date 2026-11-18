@@ -28,7 +28,7 @@ const PAGES = {
   content: { label: 'Content rules', ready: null, wait: `Boolean(document.querySelector('[data-rule-details]'))`, edit: `(() => { const l = [...document.querySelectorAll('[data-rule-details] label')].find((x) => x.textContent.includes('Incoming items')); l.querySelector('input').click(); return true })()` },
   plugins: { label: 'Plugins', ready: null, wait: `Boolean(document.querySelector('[data-plugins-layout] button'))`, edit: null },
   repositories: { label: 'Repository setup', ready: 'avoozl-settings-repo-0-base', edit: set('#avoozl-settings-repo-0-base', 'develop') },
-  flow: { label: 'Flow', ready: 'avoozl-flow-max', edit: set('#avoozl-flow-max', '3') },
+  flow: { label: 'Flow', ready: 'avoozl-flow-every', edit: set('#avoozl-flow-every', '12') },
 }
 const names = asked.length ? asked : Object.keys(PAGES)
 fs.mkdirSync(out, { recursive: true })

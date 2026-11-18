@@ -1,17 +1,17 @@
-// rc-2.3: the batch planner for small ready tasks (RC2.5, design D4.2).
+// rc-2.3, changed by avoozl 61.1 (R108.11): projection suggests the
+// planner's batch groups whose tasks are open and unblocked (RC2.5, D4.2).
 import assert from "node:assert/strict";
 import test from "node:test";
 import { planProjectionBatches } from "../radar-coder-batch.mjs";
-import { flowPolicy } from "../flow.mjs";
 
 const t = (id, extra = {}) => ({
   id,
   kind: "leaf",
   status: "planned",
-  size: "small",
   repository: "app",
   planId: "p",
   phase: { id: "1" },
+  batch: { id: "g", tasks: [], reason: "Small edits" },
   ...extra,
 });
 const many = (n, extra = {}) =>
@@ -43,30 +43,27 @@ test("blocked tasks never batch", () => {
   assert.deepEqual(ids(unknown), []);
 });
 
-test("the cap is 3 by default and 5 at most; above 5 is refused", () => {
-  assert.deepEqual(ids(planProjectionBatches({ tasks: many(7) })), [
-    ["t1", "t2", "t3"],
-    ["t4", "t5", "t6"],
-  ]);
-  const five = planProjectionBatches({ tasks: many(11), max: 5 });
+test("the planner's groups are the batches, with their reason, at most 5", () => {
+  const plan = planProjectionBatches({
+    tasks: [
+      t("a", { batch: { id: "g1", tasks: [], reason: "Docs" } }),
+      t("b", { batch: { id: "g2", tasks: [], reason: "Tests" } }),
+      t("c", { batch: { id: "g1", tasks: [], reason: "Docs" } }),
+      t("d", { batch: { id: "g2", tasks: [], reason: "Tests" } }),
+    ],
+  });
   assert.deepEqual(
-    ids(five).map((b) => b.length),
-    [5, 5],
+    plan.batches.map((b) => [b.key, b.reason, b.tasks]),
+    [
+      ["g1", "Docs", ["a", "c"]],
+      ["g2", "Tests", ["b", "d"]],
+    ],
   );
-  assert.deepEqual(five.plain, ["t11"]);
-  assert.throws(
-    () => planProjectionBatches({ tasks: many(7), max: 6 }),
-    /flow\.batch\.max must be a whole number 1–5/,
-  );
-  assert.throws(
-    () => flowPolicy({ flow: { batch: { max: 6 } } }),
-    /flow\.batch\.max must be a whole number 1–5/,
-  );
-  assert.throws(() => planProjectionBatches({ tasks: many(3), max: 0 }));
-  assert.equal(
-    ids(planProjectionBatches({ tasks: many(3), max: 1 })).length,
-    0,
-  );
+  const seven = planProjectionBatches({ tasks: many(7) });
+  assert.deepEqual(ids(seven), [
+    ["t1", "t2", "t3", "t4", "t5"],
+    ["t6", "t7"],
+  ]);
 });
 
 test("an edge between two tasks splits them", () => {
@@ -82,10 +79,6 @@ test("a batch of one stays plain", () => {
   const plan = planProjectionBatches({ tasks: many(1) });
   assert.deepEqual(plan.batches, []);
   assert.deepEqual(plan.plain, ["t1"]);
-  // cap + 1 leaves a single leftover, which stays plain.
-  const four = planProjectionBatches({ tasks: many(4) });
-  assert.deepEqual(ids(four), [["t1", "t2", "t3"]]);
-  assert.deepEqual(four.plain, ["t4"]);
 });
 
 test("modes: Off proposes nothing, Suggest proposes, Auto applies", () => {
@@ -101,43 +94,35 @@ test("modes: Off proposes nothing, Suggest proposes, Auto applies", () => {
   assert.throws(() => planProjectionBatches({ tasks: [], mode: "maybe" }));
 });
 
-test("nearby inputs: empty, mixed phases and repositories, human, size, done", () => {
+test("nearby inputs: empty, other plans, human, ungrouped, old size, done", () => {
   assert.deepEqual(planProjectionBatches({ tasks: [] }).batches, []);
   const mixed = planProjectionBatches({
-    tasks: [
-      t("a"),
-      t("b", { phase: { id: "2" } }),
-      t("c", { repository: "other" }),
-      t("d"),
-    ],
+    tasks: [t("a"), t("b", { planId: "q" }), t("d")],
   });
   assert.deepEqual(ids(mixed), [["a", "d"]]);
-  assert.deepEqual(mixed.plain, ["b", "c"]);
+  assert.deepEqual(mixed.plain, ["b"]);
   const human = planProjectionBatches({
     tasks: [
       t("a"),
       t("b", { completion: "person" }),
-      t("c", { manual: true }),
+      t("c", { completion: "human" }),
       t("d"),
     ],
   });
   assert.deepEqual(ids(human), [["a", "d"]]);
-  const sizes = planProjectionBatches({
-    tasks: [t("a"), t("b", { size: "large" }), t("c", { size: undefined })],
+  // Only the planner groups: an ungrouped task, or one with an old `size`
+  // tag, never batches.
+  const ungrouped = planProjectionBatches({
+    tasks: [
+      t("a", { batch: undefined }),
+      t("b", { batch: undefined, size: "small" }),
+      t("c", { batch: undefined, size: "small" }),
+    ],
   });
-  assert.deepEqual(sizes.batches, []);
+  assert.deepEqual(ungrouped.batches, []);
   const finished = planProjectionBatches({
     tasks: [t("a", { status: "done" }), t("b"), t("c")],
   });
   assert.deepEqual(ids(finished), [["b", "c"]]);
   assert.ok(!finished.plain.includes("a"));
-  const files = planProjectionBatches({
-    tasks: [
-      t("a", { paths: ["x.js"] }),
-      t("b", { paths: ["y.js"] }),
-      t("c", { paths: ["x.js", "z.js"] }),
-    ],
-    by: "files",
-  });
-  assert.deepEqual(ids(files), [["a", "c"]]);
 });

@@ -91,7 +91,7 @@ const reply = JSON.stringify({
     {
       type: "settings",
       file: "workspace",
-      key: "flow.batch.max",
+      key: "flow.retro.slowFactor",
       from: 3,
       to: 5,
       metric: "lead time",
@@ -152,7 +152,7 @@ test("ten finished tasks start one retro; its proposals are typed, bounded and n
   assert.equal(retro.model, "auto", "the retro records the model it ran on");
   assert.deepEqual(
     retro.proposals.map((p) => p.key || p.change),
-    ["flow.batch.max", "Split t3 in two"],
+    ["flow.retro.slowFactor", "Split t3 in two"],
   );
   assert.match(retro.dropped[0].reason, /guards safety/);
   assert.equal(
@@ -190,7 +190,7 @@ test("ten finished tasks start one retro; its proposals are typed, bounded and n
   const file = JSON.parse(
     fs.readFileSync(path.join(s.root, ".avoozl.json"), "utf8"),
   );
-  assert.deepEqual(file.flow, { batch: { max: 5 } });
+  assert.deepEqual(file.flow, { retro: { slowFactor: 5 } });
   const decided = s.store.get("flow_retros", "retro-1").proposals[0];
   assert.equal(decided.status, "approved");
   assert.equal(decided.pdca.before, 40 * 60_000, "lead time over the last 10");
@@ -205,7 +205,7 @@ test("ten finished tasks start one retro; its proposals are typed, bounded and n
   const later = s.finish(s.ids.slice(10, 20)) + 2 * 3600_000;
   const second = retroStep(
     s.store,
-    { flow: { batch: { max: 5 } } },
+    { flow: { retro: { slowFactor: 5 } } },
     { now: later, repository: "app" },
   );
   assert.equal(
@@ -223,7 +223,7 @@ test("ten finished tasks start one retro; its proposals are typed, bounded and n
   ).retro;
   assert.deepEqual(
     next.proposals.map((p) => [p.key, p.from, p.to, p.revertOf]),
-    [["flow.batch.max", 5, 3, "retro-1:p1"]],
+    [["flow.retro.slowFactor", 5, 3, "retro-1:p1"]],
   );
 });
 
@@ -322,7 +322,7 @@ test("PDCA measures every approved proposal of one retro in the same tick, once"
       approved("p1", {
         type: "settings",
         file: "workspace",
-        key: "flow.batch.max",
+        key: "flow.retro.slowFactor",
         from: 3,
         to: 5,
       }),
@@ -425,7 +425,7 @@ test("a retro keeps at most 3 of its own proposals, plus the reverts it owes", a
   const revert = {
     type: "settings",
     file: "workspace",
-    key: "flow.batch.max",
+    key: "flow.retro.slowFactor",
     from: 5,
     to: 3,
     metric: "lead time",

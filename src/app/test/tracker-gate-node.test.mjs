@@ -193,7 +193,7 @@ test("a gate is never batched, never ready, and its issue says what it waits on"
     small = (id, completion) => ({
       id,
       kind: "leaf",
-      size: "small",
+      batch: { id: "g1", tasks: ["a", "g", "c"], reason: "Small edits" },
       completion,
       status: "ready",
     }),
