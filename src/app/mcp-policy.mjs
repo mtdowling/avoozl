@@ -15,6 +15,10 @@ export const PERSON_ONLY = new Map([
   ["plan.delete", person("Only a person deletes a plan.")],
   ["spec.publish", person("Only a person publishes a spec issue.")],
   ["spec.takeover", person("Only a person takes over a spec.")],
+  ["spec.offer", person("Only a person offers a task to a worker.")],
+  ["spec.claims", person("Only a person reserves worker claims.")],
+  ["spec.claims.release", person("Only a person releases a worker claim.")],
+  ["spec.claims.status", person("Only a person reads worker claims.")],
   [
     "repository.setup",
     person("Only a person applies repository setup.", (input) =>
@@ -267,6 +271,8 @@ export const NOT_ON_MCP = new Map([
     "remote.pull",
     "remote.view",
     "worker.pull",
+    "worker.claim",
+    "worker.setup",
   ].map((name) => [name, remote]),
   ...["instance.view", "instance.rename"].map((name) => [
     name,

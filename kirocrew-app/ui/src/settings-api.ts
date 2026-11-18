@@ -1200,8 +1200,8 @@ export function setupState(result: SetupResult | null, error: string | null, at:
 }
 
 
-// Who codes (CoderPicker.tsx). The Avoozl worker is retired: it is not a
-// choice, and a repository still set to it shows a banner (nav-api.ts).
+// Who codes (CoderPicker.tsx). The Avoozl worker, the default in a plans
+// repository, has no card yet; coderSource names it.
 export const CODER_CARDS = [
   {
     coder: 'issue-radar',
@@ -1216,7 +1216,7 @@ export const CODER_CARDS = [
 
 // Where the shown coder comes from and what it is, never "same as above".
 export const coderSource = (mode: string, value: string) => {
-  const name = (coder: string) => (coder === 'remote' ? 'Remote coder, removed; choose an available coder' : coder === 'worker' ? 'Avoozl worker, retired' : (CODER_CARDS.find((card) => card.coder === coder)?.title ?? coder))
+  const name = (coder: string) => (coder === 'remote' ? 'Remote coder, removed; choose an available coder' : coder === 'worker' ? 'Avoozl worker' : (CODER_CARDS.find((card) => card.coder === coder)?.title ?? coder))
   const fallback = defaultCoder(mode)
   return value
     ? `Set on this repository: ${name(value)}.`

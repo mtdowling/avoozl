@@ -484,12 +484,15 @@ import {
   driverTick,
   handoff,
   pullStatus,
+  claimWork,
   pullWork,
   remoteView,
+  readRunnerConfig,
   reportDone,
   runnerStatus,
   runnerTick,
 } from "./remote-runner.mjs";
+import { previewWorker } from "./worker-setup.mjs";
 import { supersedeTask } from "./supersede.mjs";
 
 // Claimed leaves for a readiness query. A read-only database from before the
@@ -577,7 +580,17 @@ import {
 } from "./spec-plans.mjs";
 import { publishSpec } from "./spec-publication.mjs";
 import { specLinks } from "./scm-links.mjs";
-import { takeOverSpec } from "./spec-takeover.mjs";
+import { specAuthority, takeOverSpec } from "./spec-takeover.mjs";
+import { publishOffer, reserveClaims } from "./worker-claims.mjs";
+import {
+  checkStaleClaims,
+  claimStaleMs,
+  claimStatus,
+  reconcileClaims,
+  releaseClaim,
+} from "./worker-release.mjs";
+import { driverIdOf, journalOf } from "./spec-scheduler.mjs";
+import { taskDefinition } from "./task-outcomes.mjs";
 import { repositorySetup } from "./repository-setup.mjs";
 import { reanchorSpec, resumeSpec } from "./spec-reanchor.mjs";
 import {
@@ -3149,6 +3162,14 @@ export class Operations {
       return handoff(store, this.workspaceRoot, input);
     if (name === "remote.pull")
       return pullStatus(store, this.workspaceRoot, input);
+    if (name === "worker.claim")
+      return claimWork(store, this.workspaceRoot, this.github);
+    if (name === "worker.setup") {
+      const config = readRunnerConfig(this.workspaceRoot);
+      if (config?.role !== "worker")
+        fail('This workspace is not a worker (runner.role "worker").');
+      return previewWorker({ config, github: this.github });
+    }
     if (name === "worker.pull")
       return pullWork(store, this.workspaceRoot, this.github);
     if (name === "remote.view") return remoteView(store, this.workspaceRoot);
@@ -3338,6 +3359,29 @@ export class Operations {
       if (remote) return remote;
       await this.refreshPrivateSpecs();
       if (input.cron === true) await driverTick(store, this.workspaceRoot);
+      // Stale worker claims reach Needs you; nothing releases them (R90.6).
+      if (input.cron === true)
+        await checkStaleClaims(store, {
+          workspaceRoot: this.workspaceRoot,
+          driving: Object.keys(store.getMeta("specDrivers") ?? {}),
+          journalFor: async (planId) => {
+            const journal = journalOf(
+              store,
+              { github: this.github, workspaceRoot: this.workspaceRoot },
+              planId,
+            );
+            return journal && !journal.unreadable
+              ? {
+                  journal,
+                  options: {
+                    visibility: await journal.visibility(),
+                    publicRepositories: journal.publicRepositories ?? [],
+                    names: journal.names,
+                  },
+                }
+              : null;
+          },
+        }).catch(() => 0);
       const result = await tick(store, {
         workspaceRoot: this.workspaceRoot,
         memory: this.tickPolicy,
@@ -6611,6 +6655,91 @@ export class Operations {
             this.configuration?.updateExecutionProject(project);
           },
         },
+      );
+    }
+    // The driver's side of worker claims (R90.4): offer a task to a worker
+    // login, and reserve and acknowledge the requests. A person's own act at
+    // this machine; no session or MCP caller.
+    if (
+      [
+        "spec.offer",
+        "spec.claims",
+        "spec.claims.release",
+        "spec.claims.status",
+      ].includes(name)
+    ) {
+      if (context.caller || context.mcp)
+        fail("Only a person drives worker offers and claims.", 403);
+      const authority = await specAuthority(
+          store,
+          {
+            github: this.github,
+            workspaceRoot: this.workspaceRoot,
+            actor: this.operator,
+          },
+          input.planId,
+        ),
+        driver = driverIdOf(store, input.planId);
+      if (!driver) fail("Take over the spec first.", 409);
+      const driving = {
+        driver,
+        owner: authority.owner,
+        login: authority.login,
+        spec: input.planId,
+      };
+      const held = {
+        ...driving,
+        github: this.github,
+        journal: authority.journal,
+        options: authority.options,
+        claims: input.claims,
+      };
+      if (name === "spec.claims.status")
+        return claimStatus(authority.journal, authority.options, {
+          staleAfter: claimStaleMs(
+            loadLayeredConfig({ workspaceRoot: this.workspaceRoot }).config
+              ?.workers?.claimStaleAfter,
+          ),
+        });
+      if (name === "spec.claims.release")
+        return releaseClaim({
+          ...held,
+          task: input.task,
+          by: { kind: "person" },
+        });
+      if (name === "spec.claims") {
+        // Carry or settle what exists first, then answer new requests.
+        const reconciled = await reconcileClaims(held);
+        return {
+          reconciled,
+          ...(await reserveClaims({
+            ...held,
+            base: input.base,
+            ...(input.cap ? { cap: input.cap } : {}),
+          })),
+        };
+      }
+      const task = store.read().tasks.find((t) => t.id === input.task);
+      if (!task) fail("Task not found.", 404);
+      return publishOffer(
+        authority.journal,
+        {
+          ...driving,
+          task: task.id,
+          definition: taskDefinition({
+            id: task.id,
+            title: task.title,
+            acceptance: task.acceptance ?? null,
+          }),
+          worker: input.worker,
+          ref: {
+            repository: input.repository,
+            branch: input.branch,
+            commit: input.commit,
+          },
+          base: input.base,
+        },
+        authority.options,
       );
     }
     if (name === "spec.takeover") {

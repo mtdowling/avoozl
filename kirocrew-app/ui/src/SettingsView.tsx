@@ -82,7 +82,6 @@ import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
 import ModelsSettings from './ModelsSettings.tsx'
-import { RetiredBanner } from './SettingsSlots.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
 import { SaveFooter } from './SaveFooter.tsx'
 import { useSteppedState } from './NavHistory.tsx'
@@ -105,8 +104,8 @@ const grid = (min = 220): CSSProperties => ({
   alignItems: 'start',
 })
 
-// Release N (release.capacity) is the one concurrency knob: Radar crews set
-// their own, and Avoozl's local workers (the old `concurrency`) are retired.
+// Release N (release.capacity): how many issues get the ready label at once.
+// The old `concurrency` field is not shown here.
 export const RELEASE_N_HELP = 'How many issues get the ready label at once. Crews pick from these.'
 
 export const SETTINGS_TABS = [
@@ -114,7 +113,7 @@ export const SETTINGS_TABS = [
   // Coder, Labels, Crews and rules and the Workflow map are tabs of each repository's editor.
   { key: 'repositories', label: 'Repository setup' },
   { key: 'github', label: 'GitHub' },
-  // Everything Avoozl and Issue Radar crews share. Phase 45 is paused, so it stays whole.
+  // Everything Avoozl and Issue Radar crews share. Phase 45 removes only Radar coding; intake, Triage asks and back-links stay.
   { key: 'radar', label: 'Issue Radar' },
   { key: 'plugins', label: 'Plugins' },
   { key: 'content', label: 'Content rules' },
@@ -400,7 +399,7 @@ function MatchIssues({ preview, untriaged = false }: { preview: MatchPreview; un
 }
 
 // Settings › Repositories › Triggers and labels › Untriaged (design §8.5):
-// what the Intake tab's Untriaged filter leaves out here, and its notice.
+// what the Untriaged filter for Needs you › Triage leaves out here, and its notice.
 function UntriagedSettings(props: { id: string; value: UntriagedForm; repository: string; workspaceId: string; onChange: (value: UntriagedForm) => void }) {
   const api = useAppApi()
   const readLabels = useMemo(() => labelsClient(api), [api])
@@ -427,7 +426,7 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
     <FormSection
       level={4}
       title="Untriaged"
-      blurb="What the Intake tab's Untriaged filter lists for this repository: open issues and pull requests no rule, triage label or task covers."
+      blurb="What Needs you › Triage lists for this repository: open issues and pull requests no rule, triage label or task covers."
     >
       <MatchField
         id={`${id}-untriaged-filter`}
@@ -1763,7 +1762,6 @@ export default function SettingsView(props: {
       <ViewHeading id="avoozl-settings-title" view="settings">
         Settings
       </ViewHeading>
-      <RetiredBanner workspaceId={workspaceId} onOpen={() => pick('repositories')} />
       <section data-settings-section={current.key} data-open="true" className="flex flex-col gap-2">
         <h3 className="text-base font-semibold break-words" data-settings-title>
           {settingsTitle(current.key, current.label, props.workspaceName)}
