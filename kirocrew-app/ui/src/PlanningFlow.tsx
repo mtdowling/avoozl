@@ -1,11 +1,13 @@
-import { Card } from '@kirocrew/app-sdk/ui'
+import { Card } from './ui/Card'
 import { duration, type PlanningTiming } from './flow-api.ts'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 export function PlanningFlow({ groups }: { groups: PlanningTiming[] }) {
   if (!groups.length) return null
-  return <section data-planning-flow className="flex flex-col gap-3">
+  return <Stack data-planning-flow as="section" gap={3}>
     <h2 className="m-0 text-base font-semibold">Planning</h2>
-    <p className="m-0 text-sm text-muted">Review and answer sessions by spec. Task flow is separate.</p>
+    <Hint as="p" size="sm" flush>Review and answer sessions by spec. Task flow is separate.</Hint>
     {groups.map((group) => <Card key={group.planId} data-planning-spec={group.spec}>
       <h3 className="m-0 text-sm font-semibold">{group.spec}</h3>
       <p className="my-1 text-sm">{duration(group.durationMs)} of session time</p>
@@ -16,5 +18,5 @@ export function PlanningFlow({ groups }: { groups: PlanningTiming[] }) {
         </div>)}
       </div>
     </Card>)}
-  </section>
+  </Stack>
 }

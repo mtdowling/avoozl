@@ -7,11 +7,12 @@
 // first, and the flow never approves a plan, starts an agent or pushes.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
-import { useConfirm } from './controls.tsx'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
+import { useConfirm } from './ui/controls.tsx'
 import { Check, GitBranch, Laptop, Lock } from './icons.ts'
-import { RadioFold } from './RadioFold.tsx'
+import { RadioFold } from './ui/RadioFold.tsx'
 import { MODE_CARDS, groupWrites, writeBadge, type GitHubSettings, type SetupResult } from './settings-api.ts'
 import type { SpecList } from './plans-api.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -37,6 +38,9 @@ import {
   type ScanResult,
   type StepKey,
 } from './onboarding-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 const BADGE: Record<string, CSSProperties> = {
   create: { color: 'var(--ok)', borderColor: 'var(--ok)' },
@@ -59,7 +63,7 @@ function Facts({ rows }: { rows: [string, ReactNode][] }) {
     <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content minmax(0, 1fr)' }}>
       {rows.map(([label, value]) => (
         <div key={label} className="contents">
-          <dt className="text-muted">{label}</dt>
+          <Hint as="dt">{label}</Hint>
           <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
             {value}
           </dd>
@@ -96,13 +100,13 @@ function ModeStep(props: { form: OnboardForm; set: (patch: Partial<OnboardForm>)
           disabled: card.mode === 'local' ? null : noGitHub,
           description: (
             <div className="flex flex-col gap-1 text-sm">
-              <p className="text-xs text-muted">Use it when: {card.useWhen.join('; ')}.</p>
+              <Hint as="p" size="xs">Use it when: {card.useWhen.join('; ')}.</Hint>
               <Facts rows={card.facts.map(([k, v]) => [k, v] as [string, ReactNode])} />
             </div>
           ),
           fields:
             card.mode === 'plans-repo' ? (
-              <div className="flex flex-col gap-2">
+              <Stack gap={2}>
                 <fieldset className="flex flex-col gap-1">
                   <legend className="text-sm">This folder is</legend>
                   {(
@@ -115,7 +119,7 @@ function ModeStep(props: { form: OnboardForm; set: (patch: Partial<OnboardForm>)
                       <input type="radio" name="avoozl-onboard-role" className="mt-1" checked={form.isPlanning === value} onChange={() => set({ isPlanning: value })} />
                       <span>
                         {label}
-                        <span className="block text-xs text-muted">{hint}</span>
+                        <Hint size="xs" block>{hint}</Hint>
                       </span>
                     </label>
                   ))}
@@ -123,41 +127,41 @@ function ModeStep(props: { form: OnboardForm; set: (patch: Partial<OnboardForm>)
                 {!form.isPlanning && (
                   <label className="flex flex-col gap-1" style={{ maxWidth: '22rem' }}>
                     <span>
-                      Planning repository <span className="text-xs text-muted">(required)</span>
+                      Planning repository <Hint size="xs">(required)</Hint>
                     </span>
                     <Input value={form.planningRepository} placeholder="acme/plans" onChange={(e: Change) => set({ planningRepository: e.target.value })} />
                     <code className="text-[11px] text-muted">github.planningRepository</code>
                   </label>
                 )}
-              </div>
+              </Stack>
             ) : undefined,
         }))}
       />
       <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(12rem, 15rem))' }}>
         <label className="flex flex-col gap-1">
           <span>
-            Short ID <span className="text-xs text-muted">(required)</span>
+            Short ID <Hint size="xs">(required)</Hint>
           </span>
           <Input value={form.id} placeholder="my-service" disabled={Boolean(found.registered)} onChange={(e: Change) => set({ id: e.target.value })} />
         </label>
         <label className="flex flex-col gap-1">
           <span>
-            Branch tasks land on <span className="text-xs text-muted">(required)</span>
+            Branch tasks land on <Hint size="xs">(required)</Hint>
           </span>
           <Input value={form.baseBranch} placeholder={found.baseBranch} disabled={Boolean(found.registered)} onChange={(e: Change) => set({ baseBranch: e.target.value })} />
         </label>
       </div>
       {props.problem && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {props.problem}
-        </p>
+        </ErrorText>
       )}
     </div>
   )
 }
 
 function CheckStep({ result }: { result: SetupResult | null }) {
-  if (!result) return <p className="text-sm text-muted">Reading GitHub…</p>
+  if (!result) return <Hint as="p" size="sm">Reading GitHub…</Hint>
   const groups = groupWrites(result.writes)
   const kept = result.steps.filter((s) => !result.writes.some((w) => w.step === s.id) && s.status !== 'failed')
   const failed = result.steps.filter((s) => s.status === 'failed')
@@ -196,7 +200,7 @@ function CheckStep({ result }: { result: SetupResult | null }) {
         </section>
       )}
       {failed.map((step) => (
-        <p key={step.id} role="alert" className="text-sm text-danger">
+        <ErrorText key={step.id} role="alert" size="sm">
           {step.title}: {step.reason}
           {step.fix ? (
             <>
@@ -204,7 +208,7 @@ function CheckStep({ result }: { result: SetupResult | null }) {
               Fix: <code>{step.fix}</code>
             </>
           ) : null}
-        </p>
+        </ErrorText>
       ))}
       {result.settings.changed && (
         <details>
@@ -462,11 +466,11 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
         ))}
       </ol>
       <div>
-        <p id="avoozl-onboard-line" className="text-sm text-muted">
+        <Hint id="avoozl-onboard-line" as="p" size="sm">
           {text.line}
-        </p>
+        </Hint>
       </div>
-      {!form && !error && <p className="text-sm text-muted">Reading the folder…</p>}
+      {!form && !error && <Hint as="p" size="sm">Reading the folder…</Hint>}
       {step === 'mode' && form && found && <ModeStep form={form} set={set} found={found} problem={problem} />}
       {step === 'check' && <CheckStep result={check} />}
       {step === 'setup' && (
@@ -480,7 +484,7 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
                   {write.title}
                   {write.confirm && !write.done && !setupDone && <Badge variant="warning">asks first</Badge>}
                 </span>
-                <span className="block text-xs text-muted">{write.detail}</span>
+                <Hint size="xs" block>{write.detail}</Hint>
               </span>
             </li>
           ))}
@@ -488,7 +492,7 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
       )}
       {step === 'import' && (
         <div className="flex flex-col gap-2 text-sm" data-onboard-import>
-          {shown.length === 0 && <p className="text-muted">No spec folders here for this mode. Write one with Plan a goal, or add one under .kiro/specs/ and come back.</p>}
+          {shown.length === 0 && <Hint as="p">No spec folders here for this mode. Write one with Plan a goal, or add one under .kiro/specs/ and come back.</Hint>}
           {shown.length > 0 && shown.every(imported) && <Done>Every spec here is imported.</Done>}
           <ul className="flex flex-col gap-1.5">
             {shown.map((spec) => (
@@ -506,7 +510,7 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
                   }}
                 />
                 <code>{spec.name}</code>
-                <span className="text-xs text-muted">{spec.taskCount} tasks</span>
+                <Hint size="xs">{spec.taskCount} tasks</Hint>
                 {spec.counts.error > 0 ? (
                   <Badge variant="warning">
                     {spec.counts.error} lint error{spec.counts.error === 1 ? '' : 's'}
@@ -518,44 +522,44 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
               </li>
             ))}
           </ul>
-          {shown.some((s) => s.counts.error > 0) && <p className="text-xs text-muted">A draft with lint errors imports, but Specs won&apos;t approve it until they are fixed.</p>}
+          {shown.some((s) => s.counts.error > 0) && <Hint as="p" size="xs">A draft with lint errors imports, but Specs won&apos;t approve it until they are fixed.</Hint>}
         </div>
       )}
       {step === 'scan' && (
         <div className="flex flex-col gap-2 text-sm" data-onboard-scan>
-          {!scan && <p className="text-muted">Scanning…</p>}
+          {!scan && <Hint as="p">Scanning…</Hint>}
           {scan && findings.length === 0 && <Done>No secrets, local paths or content-rule matches in {scan.items.length} spec{scan.items.length === 1 ? '' : 's'}.</Done>}
           {findings.length > 0 && (
             <>
-              <p role="alert" className="text-danger">
+              <ErrorText role="alert">
                 {findings.length} finding{findings.length === 1 ? '' : 's'}. Fix each line, then scan again. The next step waits until none are left.
-              </p>
-              <ul className="flex flex-col gap-1">
+              </ErrorText>
+              <Stack as="ul" gap={1}>
                 {findings.map((f, i) => (
                   <li key={i} className="text-xs">
                     <code>
                       {f.spec}/{f.file}:{f.line}
                     </code>{' '}
-                    <span className="text-muted">
+                    <Hint>
                       {f.set} {f.rule ?? ''}
-                    </span>
+                    </Hint>
                     <span className="block">{f.message}</span>
                   </li>
                 ))}
-              </ul>
+              </Stack>
             </>
           )}
         </div>
       )}
       {step === 'issues' && (
         <div className="flex flex-col gap-3 text-sm" data-onboard-issues>
-          {shown.filter((s) => s.plan && !s.plan.approved).length === 0 && <p className="text-muted">No draft specs to preview. Import a spec first.</p>}
+          {shown.filter((s) => s.plan && !s.plan.approved).length === 0 && <Hint as="p">No draft specs to preview. Import a spec first.</Hint>}
           {Object.entries(previews).map(([name, preview]) => {
             if ('error' in preview)
               return (
-                <p key={name} role="alert" className="text-sm text-danger">
+                <ErrorText key={name} role="alert" size="sm">
                   {name}: {preview.error}
-                </p>
+                </ErrorText>
               )
             const sum = issueSummary(preview)
             return (
@@ -564,21 +568,21 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
                   <code>{name}</code>
                 </h4>
                 {preview.blocked?.length ? (
-                  <p className="text-xs text-muted">Not previewed until lint passes: {preview.blocked[0].message}</p>
+                  <Hint as="p" size="xs">Not previewed until lint passes: {preview.blocked[0].message}</Hint>
                 ) : (
                   <>
-                    <p className="text-xs text-muted">
+                    <Hint as="p" size="xs">
                       Approving would create {sum.create.length} issue{sum.create.length === 1 ? '' : 's'}
                       {sum.update.length ? `, update ${sum.update.length}` : ''}
                       {sum.other ? `, and make ${sum.other} label, link or board changes` : ''}.
-                    </p>
+                    </Hint>
                     <ul className="mt-1 flex flex-col gap-0.5 text-xs">
                       {sum.create.slice(0, 8).map((w, i) => (
                         <li key={i}>
-                          <Pill kind="create" /> {w.title} <span className="text-muted">in {w.repository}</span>
+                          <Pill kind="create" /> {w.title} <Hint>in {w.repository}</Hint>
                         </li>
                       ))}
-                      {sum.create.length > 8 && <li className="text-muted">and {sum.create.length - 8} more</li>}
+                      {sum.create.length > 8 && <Hint as="li">and {sum.create.length - 8} more</Hint>}
                     </ul>
                   </>
                 )}
@@ -596,15 +600,15 @@ function OnboardDialog(props: { workspaceId: string; folder: string; client: Onb
               ))}
             </ul>
           ) : (
-            <p className="text-muted">Nothing needed changing.</p>
+            <Hint as="p">Nothing needed changing.</Hint>
           )}
-          <p className="text-xs text-muted">Nothing was approved, no agent was started and nothing was pushed. Approve each draft in Specs when you are ready.</p>
+          <Hint as="p" size="xs">Nothing was approved, no agent was started and nothing was pushed. Approve each draft in Specs when you are ready.</Hint>
         </div>
       )}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
     </Modal>
   )

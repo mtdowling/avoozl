@@ -5,9 +5,10 @@
 // no policy logic. A private mirror is one of the role choices, its public
 // repository named on the Mirror tab.
 import { useState, type ReactNode } from 'react'
-import { Tabs, TabPanel } from './Tabs.tsx'
+import { Tabs, TabPanel } from './ui/Tabs.tsx'
 import { EDIT_TABS, dirtyTabs, errorTabs, type EditTab } from './repo-edit-tabs.ts'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
 import { Modal } from './Modal.tsx'
 import { FormSection } from './FormSection.tsx'
 import MirrorSetup from './MirrorSetup.tsx'
@@ -15,6 +16,9 @@ import { selectStyle } from './FilterSelect.tsx'
 import { MIRROR_ROLE, MIRROR_ROLE_LABEL, MIRROR_ROLE_LINE, ROLE_OPTIONS, mirrorSourceProblem, type RepositoryEdit, type RepositoryForm } from './settings-api.ts'
 import type { RepositoryRow } from './repository-rows.ts'
 import { linkHref } from './views-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { TextLink } from './ui/TextLink'
 
 // The role select, with the public repository's field under it for a mirror.
 export function RoleChoice(props: {
@@ -57,15 +61,15 @@ export function RoleChoice(props: {
           </option>
         </select>
       </label>
-      {(props.fixed || line) && <span className="text-xs text-muted">{props.fixed || line}</span>}
+      {(props.fixed || line) && <Hint size="xs">{props.fixed || line}</Hint>}
       {role === MIRROR_ROLE && props.withSource !== false && (
         <label htmlFor={`${props.id}-source`} className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Public repository</span>
           <Input id={`${props.id}-source`} value={source} placeholder="owner/name" aria-label="Public repository" onChange={(event) => props.onChange(role, event.target.value)} style={{ maxWidth: '24rem' }} />
           {problem && (
-            <span role="alert" className="text-xs text-danger">
+            <ErrorText role="alert" as="span" size="xs">
               {problem}
-            </span>
+            </ErrorText>
           )}
         </label>
       )}
@@ -78,7 +82,7 @@ function Facts({ facts }: { facts: [string, ReactNode][] }) {
     <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
       {facts.map(([label, value]) => (
         <div key={label} style={{ display: 'contents' }}>
-          <dt className="text-muted">{label}</dt>
+          <Hint as="dt">{label}</Hint>
           <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
             {value}
           </dd>
@@ -94,7 +98,7 @@ export function ViewRepository(props: { row: RepositoryRow; roleText: string; en
     ['Role', props.roleText],
     ['Folder', row.folder ?? 'No folder on this computer'],
     ['Tasks land on', <code key="b">{row.branch}</code>],
-    ['GitHub', row.github ? (props.githubUrl ? <a href={linkHref(props.githubUrl)} target="_blank" rel="noopener noreferrer" className="underline">{row.github}</a> : row.github) : 'No GitHub remote'],
+    ['GitHub', row.github ? (props.githubUrl ? <TextLink href={linkHref(props.githubUrl)} target="_blank" rel="noopener noreferrer">{row.github}</TextLink> : row.github) : 'No GitHub remote'],
   ]
   const facts: [string, ReactNode][] = []
   if (entry) {
@@ -225,7 +229,7 @@ export function EditRepository(props: {
               </p>
             )}
             <dl className="grid gap-x-3 gap-y-1 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }} data-repository-folder>
-              <dt className="text-muted">Folder</dt>
+              <Hint as="dt">Folder</Hint>
               <dd className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
                 {row.folder ? <code>{row.folder}</code> : 'No folder on this computer'}
               </dd>
@@ -239,9 +243,9 @@ export function EditRepository(props: {
                 <span className="sr-only">Public repository</span>
                 <Input id={`${id}-source`} value={source} placeholder="owner/name" aria-label="Public repository" onChange={(event) => setSource(event.target.value)} style={{ maxWidth: '24rem' }} />
                 {problem && (
-                  <span role="alert" className="text-xs text-danger">
+                  <ErrorText role="alert" as="span" size="xs">
                     {problem}
-                  </span>
+                  </ErrorText>
                 )}
               </label>
               {row.github && !problem && <MirrorSetup workspaceId={props.workspaceId} repository={row.github} source={source} onApplied={props.onApplied} />}

@@ -6,8 +6,9 @@
 // aria-describedby (fieldDescribedBy). A width limits the control only, so a
 // narrow number box never squeezes its label or help into a thin column.
 import type { ReactNode } from 'react'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import type { FieldRule } from './settings-api.ts'
+import { Hint } from './ui/Hint'
 
 export const FIELD_WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 export type FieldWidth = keyof typeof FIELD_WIDTH
@@ -18,13 +19,13 @@ export type FieldWidth = keyof typeof FIELD_WIDTH
 export function Marker({ rule }: { rule?: FieldRule }) {
   if (!rule) return null
   return rule.required ? (
-    <span className="text-xs text-muted" data-marker="required">
+    <Hint size="xs" data-marker="required">
       (required{rule.when ? ` ${rule.when}` : ''})
-    </span>
+    </Hint>
   ) : (
-    <span className="text-xs text-muted" data-marker="optional">
+    <Hint size="xs" data-marker="optional">
       (optional)
-    </span>
+    </Hint>
   )
 }
 
@@ -52,9 +53,9 @@ export function RawKey({ name }: { name: string }) {
 // One muted help line, with the id a control names in aria-describedby.
 export function FieldHelp({ id, children, kind = 'help' }: { id?: string; children: ReactNode; kind?: 'help' | 'default' }) {
   return (
-    <span id={id} className="text-xs text-muted" data-field-help={kind === 'help' ? '' : undefined} data-field-default={kind === 'default' ? '' : undefined}>
+    <Hint id={id} size="xs" data-field-help={kind === 'help' ? '' : undefined} data-field-default={kind === 'default' ? '' : undefined}>
       {children}
-    </span>
+    </Hint>
   )
 }
 

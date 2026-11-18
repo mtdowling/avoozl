@@ -3,12 +3,16 @@
 // draws them. Hidden until a Radar repository has been read once.
 import { useCallback, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, Card } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
-import { SectionHeading } from './controls.tsx'
-import { Tooltip } from './Tooltip.tsx'
+import { Btn } from './ui/Btn'
+import { Card } from './ui/Card'
+import Badge from './ui/Badge.tsx'
+import { SectionHeading } from './ui/controls.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { useRead } from './useRead.ts'
 import { buildMedian, buildsLine, costliestLine, flowRows, githubFlowClient, span, summaryLine } from './radar-flow-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 export default function GithubFlow({ workspaceId }: { workspaceId: string | null }) {
   const api = useAppApi()
@@ -26,9 +30,9 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
     widest = Math.max(1, ...(view.median ?? [0]))
   return (
     <Card className="flex flex-col gap-2">
-      <div data-github-flow className="flex flex-col gap-2">
+      <Stack data-github-flow gap={2}>
         <SectionHeading title="From GitHub" />
-        {issues && <p className="text-sm text-muted">{summaryLine(view)}. Times are GitHub's.</p>}
+        {issues && <Hint as="p" size="sm">{summaryLine(view)}. Times are GitHub's.</Hint>}
         <ul className="m-0 flex list-none flex-col gap-1.5 p-0" hidden={!issues}>
           {rows.map((row, index) => (
             <li key={row.name} data-flow-stage={row.name} className="flex flex-wrap items-center gap-2 text-sm">
@@ -58,30 +62,30 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
           ))}
         </ul>
         {view.builds && view.builds.count > 0 && (
-          <div data-flow-builds className="flex flex-col gap-1">
+          <Stack data-flow-builds gap={1}>
             <h3 className="m-0 text-sm font-semibold">Builds</h3>
-            <p className="text-xs text-muted">{buildsLine(view.builds)}. From every build record of each merged pull request.</p>
+            <Hint as="p" size="xs">{buildsLine(view.builds)}. From every build record of each merged pull request.</Hint>
             <ul className="m-0 flex list-none flex-col gap-1 p-0" data-flow-build-prs style={{ margin: 0, padding: 0, listStyle: 'none' }}>
               {view.builds.recent.map((row) => (
                 <li key={`${row.repository}-${row.pr}`} data-flow-build-pr={row.pr} className="flex flex-wrap items-center gap-x-3 text-sm" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', overflowWrap: 'anywhere' }}>
                   <span>{row.repository ? `${row.repository} ` : ''}#{row.pr}</span>
                   <span className="tabular-nums">{buildMedian(row.totalMs)}</span>
-                  <span data-flow-costliest className="text-muted">
+                  <Hint data-flow-costliest>
                     costliest {costliestLine(row)}
-                  </span>
+                  </Hint>
                   {row.failedMs > 0 && <Badge variant="danger">{buildMedian(row.failedMs)} failed</Badge>}
                 </li>
               ))}
             </ul>
-            <p className="m-0 text-xs text-muted">Median per phase, target and start, without failed attempts.</p>
+            <Hint as="p" size="xs" flush>Median per phase, target and start, without failed attempts.</Hint>
             <ul className="m-0 flex list-none flex-col gap-1 p-0" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
               {view.builds.byPhase.map((row) => (
                 <li key={`${row.phase}-${row.target}-${row.start}`} data-flow-build={row.phase} className="flex flex-wrap gap-x-3 text-sm" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', overflowWrap: 'anywhere' }}>
                   <span>{row.phase}</span>
                   <span>{row.target}</span>
-                  <span className="text-muted">{row.start}</span>
+                  <Hint>{row.start}</Hint>
                   <span className="tabular-nums">{buildMedian(row.medianMs)}</span>
-                  <span className="text-muted">{row.count} {row.count === 1 ? 'build' : 'builds'}</span>
+                  <Hint>{row.count} {row.count === 1 ? 'build' : 'builds'}</Hint>
                 </li>
               ))}
             </ul>
@@ -97,18 +101,18 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
                       <span>No instance</span>
                     )}
                     <span className="tabular-nums">{buildMedian(row.medianMs)}</span>
-                    <span className="text-muted">{row.count} {row.count === 1 ? 'pull request' : 'pull requests'}, {span(row.totalMs)} in all</span>
+                    <Hint>{row.count} {row.count === 1 ? 'pull request' : 'pull requests'}, {span(row.totalMs)} in all</Hint>
                   </li>
                 ))}
               </ul>
             )}
-          </div>
+          </Stack>
         )}
-        {view.skipped.length > 0 && <p className="text-xs text-muted">Left out for a missing or unordered time: {view.skipped.map((s) => `#${s.number}`).join(', ')}.</p>}
+        {view.skipped.length > 0 && <Hint as="p" size="xs">Left out for a missing or unordered time: {view.skipped.map((s) => `#${s.number}`).join(', ')}.</Hint>}
         {[...view.errors.map((e) => `${e.repository}: ${e.error}`), ...(error ? [error] : [])].map((text) => (
-          <p key={text} role="alert" className="text-xs text-danger">
+          <ErrorText key={text} role="alert" size="xs">
             {text}
-          </p>
+          </ErrorText>
         ))}
         <p className="flex items-center gap-2 text-xs text-muted">
           {view.readAt ? `Read ${span(Date.now() - Date.parse(view.readAt))} ago.` : ''}
@@ -116,7 +120,7 @@ export default function GithubFlow({ workspaceId }: { workspaceId: string | null
             {busy ? 'Reading…' : 'Read again'}
           </Btn>
         </p>
-      </div>
+      </Stack>
     </Card>
   )
 }

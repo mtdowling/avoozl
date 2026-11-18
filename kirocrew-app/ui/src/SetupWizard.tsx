@@ -8,9 +8,10 @@
 // step; before Apply nothing is written, and during Apply the backend stops
 // before its next write (github.setup.cancel) and reports what was done.
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import { Tooltip } from './Tooltip.tsx'
-import { IconBtn, IconLabel, ICON } from './controls.tsx'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
+import { Tooltip } from './ui/Tooltip.tsx'
+import { IconBtn, IconLabel, ICON } from './ui/controls.tsx'
 import { CircleCheck, RefreshCw, Workflow, X } from './icons.ts'
 import { groupWrites, setupForm, setupInput, setupState, writeBadge, type GitHubSettings, type SetupForm, type SetupResult, settingsClient } from './settings-api.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -18,6 +19,11 @@ import { relativeTime } from './task-api.ts'
 import { Modal } from './Modal.tsx'
 import { linkHref } from './views-api.ts'
 import { SCOPE_RULE, SCOPE_STATEMENT } from '../../../src/work-split.mjs'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
+import { TextLink } from './ui/TextLink'
 
 type Client = ReturnType<typeof settingsClient>
 
@@ -151,28 +157,28 @@ export function SetupDialog(props: {
         ))}
       </ol>
       <div>
-        <p id="avoozl-setup-line" className="text-sm text-muted">
+        <Hint id="avoozl-setup-line" as="p" size="sm">
           {STEP_TEXT[step][1]}
-        </p>
+        </Hint>
       </div>
       {step === 0 && (
         <div className="flex flex-col gap-2 text-sm">
-          <p className="text-xs text-muted" data-setup-shared>
+          <Hint as="p" size="xs" data-setup-shared>
             Mode {form.mode}
             {form.mode === 'plans-repo' ? `, planning repository ${form.planningRepository || 'not set'}` : ''}, repositories {form.repositories || 'none yet'}, Project{' '}
             {form.projectOwner ? `${form.projectOwner}/${form.projectNumber || 'new'}` : 'not set'}.
-          </p>
+          </Hint>
           {!/^\d+$/.test(form.projectNumber.trim()) && (
             <label className="flex flex-col gap-1">
-              New Project title <span className="text-xs text-muted">(optional)</span>
+              New Project title <Hint size="xs">(optional)</Hint>
               <Input id="avoozl-setup-title-field" value={form.projectTitle} placeholder="Avoozl" onChange={(e: { target: { value: string } }) => props.set({ projectTitle: e.target.value })} />
             </label>
           )}
           <label className="flex flex-col gap-1">
-            Releases, if no spec names one <span className="text-xs text-muted">(optional)</span>
+            Releases, if no spec names one <Hint size="xs">(optional)</Hint>
             <Input id="avoozl-setup-releases" value={form.releases} placeholder="v1, v2" onChange={(e: { target: { value: string } }) => props.set({ releases: e.target.value })} />
           </label>
-          <div className="flex flex-wrap gap-3">
+          <Row gap={3} align="start">
             {(
               [
                 ['iteration', 'Iteration field'],
@@ -185,7 +191,7 @@ export function SetupDialog(props: {
                 {label}
               </label>
             ))}
-          </div>
+          </Row>
         </div>
       )}
       {step === 1 && result && (
@@ -217,9 +223,9 @@ export function SetupDialog(props: {
                 {result.checklist.map((item) => (
                   <li key={item.id}>
                     {item.link ? (
-                      <a href={linkHref(item.link)} target="_blank" rel="noopener noreferrer" className="underline">
+                      <TextLink href={linkHref(item.link)} target="_blank" rel="noopener noreferrer">
                         {item.text}
-                      </a>
+                      </TextLink>
                     ) : (
                       item.text
                     )}
@@ -248,17 +254,17 @@ export function SetupDialog(props: {
           )}
           {result.settings.changed ? (
             <>
-              {result.settings.error && <p role="alert" className="text-danger">{result.settings.error}</p>}
+              {result.settings.error && <ErrorText role="alert">{result.settings.error}</ErrorText>}
               <pre className="overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
                 {result.settings.diff}
               </pre>
             </>
           ) : (
-            <p className="text-muted">.avoozl.json already matches.</p>
+            <Hint as="p">.avoozl.json already matches.</Hint>
           )}
         </div>
       )}
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      {error && <ErrorText role="alert" size="sm">{error}</ErrorText>}
     </Modal>
   )
 }
@@ -295,17 +301,17 @@ export default function SetupWizard(props: {
   }, [check])
   const state = setupState(result, error, at)
   return (
-    <div className="flex flex-col gap-2" data-setup-state={state.kind}>
-      <p className="text-xs text-muted" data-scope-statement="">
+    <Stack gap={2} data-setup-state={state.kind}>
+      <Hint as="p" size="xs" data-scope-statement="">
         {SCOPE_STATEMENT} {SCOPE_RULE}
-      </p>
-      {state.kind === 'checking' && <p className="text-sm text-muted">Checking GitHub…</p>}
+      </Hint>
+      {state.kind === 'checking' && <Hint as="p" size="sm">Checking GitHub…</Hint>}
       {state.kind === 'set-up' && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <CircleCheck size={ICON + 2} aria-hidden="true" style={{ color: 'var(--ok)' }} />
           <span>GitHub is set up.</span>
           <Tooltip text={new Date(state.at).toLocaleString()}>
-            <span className="text-xs text-muted">Checked {relativeTime(state.at, Date.now())}</span>
+            <Hint size="xs">Checked {relativeTime(state.at, Date.now())}</Hint>
           </Tooltip>
           <IconBtn icon={RefreshCw} label="Recheck" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
         </div>
@@ -337,7 +343,7 @@ export default function SetupWizard(props: {
           </span>
         </div>
       )}
-      {note && <p className="text-xs text-muted" role="status">{note}</p>}
+      {note && <Hint as="p" size="xs" role="status">{note}</Hint>}
       {open && (
         <SetupDialog
           workspaceId={workspaceId}
@@ -353,6 +359,6 @@ export default function SetupWizard(props: {
           }}
         />
       )}
-    </div>
+    </Stack>
   )
 }

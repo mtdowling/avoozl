@@ -4,9 +4,10 @@
 // link opens in a new tab; the worktree path is local text, never a link.
 // The Graph opens the same task details, so it shows the same box.
 import type { ReactNode } from 'react'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref, safeHref } from './views-api.ts'
 import { checksLine, scmLabel, type ScmChecks, type ScmLink, type TaskScmLinks } from './task-api.ts'
+import { Hint } from './ui/Hint'
 
 const DOT: Record<ScmChecks['dot'], string> = {
   pass: 'var(--ok)',
@@ -32,7 +33,7 @@ function Item({ link }: { link: ScmLink }) {
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
-      <dt className="text-muted">{label}</dt>
+      <Hint as="dt">{label}</Hint>
       <dd className="min-w-0 break-words">{children}</dd>
     </>
   )
@@ -71,14 +72,14 @@ export function TaskScmLinks({ links }: { links: TaskScmLinks | null | undefined
           <code className="text-xs" style={{ overflowWrap: 'anywhere' }} data-worktree-path>
             {set.worktree.path}
           </code>{' '}
-          <span className="text-xs text-muted">on this machine</span>
+          <Hint size="xs">on this machine</Hint>
         </Row>
       )}
       {set.pr && (
         <Row label="Pull request">
           <span>
             <Out to={set.pr.url}>{scmLabel(set.pr)}</Out>
-            {set.pr.state !== 'unknown' && <span className="text-xs text-muted"> · {set.pr.state}</span>}
+            {set.pr.state !== 'unknown' && <Hint size="xs"> · {set.pr.state}</Hint>}
           </span>
         </Row>
       )}

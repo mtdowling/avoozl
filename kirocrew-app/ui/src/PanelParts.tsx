@@ -16,7 +16,7 @@
 // variables only. Kept free of data reads: callers pass what to show.
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, type LucideIcon } from './icons.ts'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { linkHref } from './views-api.ts'
 
 export type Tone = 'ok' | 'warn' | 'danger' | 'info' | 'muted'

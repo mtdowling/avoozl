@@ -10,7 +10,7 @@ const source = (name) => readFileSync(new URL(name, src), 'utf8')
 const views = readdirSync(src).filter((name) => name.endsWith('.tsx'))
 
 test('one section heading: title and buttons on one centered row, buttons right and wrapping', () => {
-  const controls = source('controls.tsx')
+  const controls = source('ui/controls.tsx')
   const part = controls.slice(controls.indexOf('export function SectionHeading'), controls.indexOf('export function ViewHeading'))
   // On a phone a heading with `phoneMenu` keeps one row and puts its buttons in More.
   assert.match(part, /<div className=\{`flex items-center gap-x-3 gap-y-2 \$\{menu \? 'flex-nowrap' : 'flex-wrap'\}`\}>/)
@@ -70,7 +70,7 @@ test('Flow shows Tokens and credits once, with one message when there is nothing
   assert.match(usageMessage(undefined), /^Not available:/)
   assert.equal(usageMessage({ available: true, total: { turns: 0 } }), 'No turns recorded for these tasks yet.')
   assert.equal(usageMessage({ available: true, total: { turns: 3 } }), null)
-  assert.match(charts, /\{message \|\| !usage \? \(\s*<p className="text-sm text-muted">\{message\}<\/p>/)
+  assert.match(charts, /\{message \|\| !usage \? \(\s*<Hint as="p" size="sm">\{message\}<\/Hint>/)
 })
 
 test('a Needs you title opens what it is about', () => {

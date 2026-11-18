@@ -2,15 +2,19 @@
 // Conflicts. Each tab passes its fields as data, so the look, the layout,
 // the Clear button and the narrow fold are the same everywhere.
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { Btn, Card } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
+import { Card } from './ui/Card'
 import { FilterSelect, selectStyle } from './FilterSelect.tsx'
 import { Picker } from './Picker.tsx'
 import type { PickItem } from './picker.ts'
 import { ListFilter, X } from './icons.ts'
 import { MoreMenu } from './MoreMenu.tsx'
-import { ICON, IconBtn, TipBtn } from './controls.tsx'
+import { ICON, IconBtn, TipBtn } from './ui/controls.tsx'
 import { useMedia } from './use-media.ts'
 import type { Option } from './filters.ts'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 export type FilterField = (
   | { kind: 'search'; key: string; label: string; value: string; placeholder: string; onChange: (value: string) => void }
@@ -71,7 +75,7 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
   return (
     <fieldset className="flex flex-col gap-1 text-sm">
       <legend className="mb-1">{field.label}</legend>
-      <span className="flex items-center gap-1">
+      <Row as="span" gap={1} wrap={false}>
         <input
           aria-label={`${field.label} from`}
           type="number"
@@ -83,7 +87,7 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
           className="rounded border px-2 py-1 text-sm"
           style={numberStyle}
         />
-        <span className="text-muted">to</span>
+        <Hint>to</Hint>
         <input
           aria-label={`${field.label} to`}
           type="number"
@@ -95,7 +99,7 @@ function Field({ id, field, inline }: { id: string; field: FilterField; inline?:
           className="rounded border px-2 py-1 text-sm"
           style={numberStyle}
         />
-      </span>
+      </Row>
     </fieldset>
   )
 }
@@ -131,7 +135,7 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
   const narrow = useMedia('(max-width: 767px)') || Boolean(props.folded)
   const [open, setOpen] = useState(false)
   const fields = (
-    <div className="flex flex-wrap items-end gap-3" data-filter-bar>
+    <Row gap={3} align="end" data-filter-bar>
       {props.fields.map((field) => (
         <Field key={field.key} id={props.id} field={field} />
       ))}
@@ -139,7 +143,7 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
         <X size={ICON} aria-hidden="true" />
         Clear
       </TipBtn>
-    </div>
+    </Row>
   )
   if (props.folded) {
     const marked = props.fields.some((f) => f.primary)
@@ -155,11 +159,11 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
         ))}
         {rest.length > 0 && (
           <MoreMenu label={`More filters${props.active ? ' (on)' : ''}`} icon={ListFilter} on={props.active} attrs={{ 'data-filter-more': '' }}>
-            <div className="flex flex-col gap-2" data-keep-menu>
+            <Stack gap={2} data-keep-menu>
               {rest.map((field) => (
                 <Field key={field.key} id={props.id} field={field} />
               ))}
-            </div>
+            </Stack>
           </MoreMenu>
         )}
         {props.active && <IconBtn icon={X} label="Clear every filter" tooltip="Clear every filter on this tab" onClick={props.onClear} />}
@@ -175,12 +179,12 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
     <Card>
       <div role="search" aria-label={props.label} data-filter-panel={props.id}>
         {narrow ? (
-          <div className="flex flex-col gap-2">
+          <Stack gap={2}>
             <Btn onClick={() => setOpen(!open)} aria-expanded={open}>
               Filters{props.active ? ' (on)' : ''}
             </Btn>
             {open && fields}
-          </div>
+          </Stack>
         ) : props.aside ? (
           <div className="flex flex-wrap items-end justify-between gap-3">
             {fields}
@@ -204,7 +208,7 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
 // line, labels in one column and dropdowns in the next.
 export function NavFilters(props: { id: string; label: string; fields: FilterField[]; active: boolean; onClear: () => void; extra?: ReactNode; inline?: boolean }) {
   return (
-    <div role="search" aria-label={props.label} data-nav-filters={props.id} data-filter-panel={props.id} className="flex flex-col gap-2">
+    <Stack role="search" aria-label={props.label} data-nav-filters={props.id} data-filter-panel={props.id} gap={2}>
       {props.fields.map((field) => (
         <Field key={field.key} id={props.id} field={field} inline={props.inline} />
       ))}
@@ -215,7 +219,7 @@ export function NavFilters(props: { id: string; label: string; fields: FilterFie
         </TipBtn>
       </span>
       {props.extra}
-    </div>
+    </Stack>
   )
 }
 

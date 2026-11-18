@@ -3,14 +3,16 @@
 // one Release button per spec in Step mode. Read only except that click, which
 // a person makes. Rows stack on a narrow page and sit in columns on a wide one.
 import { useCallback, useMemo, useState } from 'react'
-import { Btn, Card } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
+import { Card } from './ui/Card'
 import { viewsClient } from './views-api.ts'
-import Badge, { type BadgeVariant } from './Badge.tsx'
+import Badge, { type BadgeVariant } from './ui/Badge.tsx'
 import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'
-import { SectionHeading } from './controls.tsx'
+import { SectionHeading } from './ui/controls.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { MODE_TEXT, STATE_LABEL, capacityText, nextSteps, releaseClient, type QueueRepository, type QueueRow, type RowState } from './release-api.ts'
+import { Hint } from './ui/Hint'
 
 const VARIANT: Record<RowState, BadgeVariant> = { released: 'success', claimed: 'info', next: 'wave', held: 'warning' }
 
@@ -22,7 +24,7 @@ function Row({ row, held }: { row: QueueRow; held?: string }) {
         <Badge variant={VARIANT[row.state]}>{STATE_LABEL[row.state]}</Badge>
       </span>
       <span className="min-w-0 text-sm sm:w-1/3" style={{ overflowWrap: 'anywhere', flex: '1 1 220px' }}>
-        <span className="font-medium">{row.title}</span> <span className="text-xs text-muted">{row.taskId}</span>
+        <span className="font-medium">{row.title}</span> <Hint size="xs">{row.taskId}</Hint>
         <span className="text-xs text-muted" style={{ display: 'block' }}>{row.phase}</span>
       </span>
       <span className="min-w-0 flex-1 text-sm text-muted" data-release-reason style={{ overflowWrap: 'anywhere', flex: '2 1 240px' }}>
@@ -46,7 +48,7 @@ function Repository({ repository, onStep, busy, held }: { repository: QueueRepos
           {repository.repository}
         </h4>
         <Badge variant="info">{MODE_TEXT[repository.mode].title}</Badge>
-        <span className="text-xs text-muted">{capacityText(repository.capacity)}</span>
+        <Hint size="xs">{capacityText(repository.capacity)}</Hint>
       </div>
       {steps.map((step) => (
         <div key={step.planId} data-release-step className="flex flex-wrap items-center gap-2 rounded-md border p-2 text-sm" style={{ borderColor: 'var(--border)', border: '1px solid var(--border)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: 8 }}>
@@ -102,9 +104,9 @@ export default function ReleaseQueue(props: { workspaceId: string | null; onOpen
       <div data-release-queue data-release-empty className="h-full">
         <Card className="flex h-full flex-col gap-2">
           <SectionHeading title="Release queue" className="mb-0" />
-          <p className="text-sm text-muted">
+          <Hint as="p" size="sm">
             Nothing is queued. The queue lists each task of an approved epic in the order Avoozl releases it, with the reason each one waits. It needs a repository and an approved spec.
-          </p>
+          </Hint>
           {props.onOpenSettings && (
             <div>
               <Btn type="button" onClick={props.onOpenSettings}>
@@ -120,8 +122,8 @@ export default function ReleaseQueue(props: { workspaceId: string | null; onOpen
     <div data-release-queue className="h-full">
     <Card className="flex h-full flex-col gap-3" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <SectionHeading title="Release queue" className="mb-0" />
-      <p className="text-xs text-muted">In the order the tick releases them. Each held task says why.</p>
-      {error && <p className="text-sm text-muted">The queue could not be read: {error}</p>}
+      <Hint as="p" size="xs">In the order the tick releases them. Each held task says why.</Hint>
+      {error && <Hint as="p" size="sm">The queue could not be read: {error}</Hint>}
       {failure && (
         <p role="alert" className="text-sm" style={{ color: 'var(--danger)' }}>
           {failure}

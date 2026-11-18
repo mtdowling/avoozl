@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import AddPlugin from './AddPlugin.tsx'
 import IntakeSources from './IntakeSources.tsx'
 import { useAppApi, useChatLauncher } from './host.ts'
-import { EmptyState } from '@kirocrew/app-sdk/ui'
+import { EmptyState } from './ui/EmptyState'
 import { FormSection } from './FormSection.tsx'
-import { PairedCard, PairedCards } from './PairedCards.tsx'
-import Badge from './Badge.tsx'
+import { PairedCard, PairedCards } from './ui/PairedCards.tsx'
+import Badge from './ui/Badge.tsx'
 import {
   CONTRACT_LABEL,
   canApprove,
@@ -17,7 +17,7 @@ import {
 } from './plugins-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
-import { AskForHelp, DangerBtn, IconLabel, TipBtn } from './controls.tsx'
+import { AskForHelp, DangerBtn, IconLabel, TipBtn } from './ui/controls.tsx'
 import { PackImportDialog } from './PackImport.tsx'
 import { SkillNoteCard } from './FlowMemory.tsx'
 import { flowClient, type SkillNote } from './flow-api.ts'
@@ -26,6 +26,10 @@ import { useMedia } from './use-media.ts'
 import { DocumentReader } from './DocumentReader.tsx'
 import { DESIGN_PLUGIN_TIP, PLUGIN_GUIDE, PLUGIN_GUIDE_TIP, pluginDesignMessage } from './design-chat.ts'
 import pluginGuide from '../../../docs/plugins.md?raw'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 // What a person reviews before approving (R34.4). Every value is the
 // plugin's own text, rendered as text.
@@ -51,7 +55,7 @@ export function Facts({ row }: { row: PluginRow }) {
         .filter(([, value]) => value)
         .map(([label, value]) => (
           <div key={label} className="contents">
-            <dt className="text-muted">{label}</dt>
+            <Hint as="dt">{label}</Hint>
             <dd className="break-all">
               <code>{value}</code>
             </dd>
@@ -70,13 +74,13 @@ export function Parts({ row }: { row: PluginRow }) {
       {parts.map((part) => (
         <li key={part}>
           <span className="font-semibold">{PLUGIN_PARTS[part]?.title ?? part}</span>
-          <span className="text-muted"> {PLUGIN_PARTS[part]?.line}</span>
+          <Hint> {PLUGIN_PARTS[part]?.line}</Hint>
           {part === 'pack' && row.pack ? (
-            <span className="block text-muted">
+            <Hint block>
               {row.pack.imported
                 ? `Imported version ${row.pack.imported.version}: ${row.pack.imported.settings.length} settings.${row.pack.offer ? ` Version ${row.version} is not imported yet.` : ''}`
                 : 'Not imported yet.'}
-            </span>
+            </Hint>
           ) : null}
         </li>
       ))}
@@ -101,22 +105,22 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
     >
       {row.reason || (row.health?.state === 'unavailable' && row.health.reason !== row.reason) ? (
         <div>
-          {row.reason ? <p className="text-xs text-muted">{row.reason}</p> : null}
-          {row.health?.state === 'unavailable' && row.health.reason !== row.reason ? <p className="text-xs text-muted">Last tick: {row.health.reason}</p> : null}
+          {row.reason ? <Hint as="p" size="xs">{row.reason}</Hint> : null}
+          {row.health?.state === 'unavailable' && row.health.reason !== row.reason ? <Hint as="p" size="xs">Last tick: {row.health.reason}</Hint> : null}
         </div>
       ) : null}
       <Parts row={row} />
       <Facts row={row} />
       {props.notes.length > 0 && (
-        <div className="flex flex-col gap-2" data-plugin-notes>
+        <Stack gap={2} data-plugin-notes>
           <span className="text-xs font-semibold">Suggested changes from retros. Copy one to the plugin's owner; Avoozl sends nothing.</span>
           {props.notes.map((n, i) => (
             <SkillNoteCard key={i} note={n} />
           ))}
-        </div>
+        </Stack>
       )}
       {row.id ? (
-        <div className="flex flex-wrap gap-2">
+        <Row gap={2} align="start">
           {row.pack ? (
             <TipBtn tooltip="See what each pack setting would create, change or keep, then import it" primary={row.pack.offer && row.state === 'approved'} disabled={busy} onClick={() => props.onImport(row)}>
               {row.pack.imported && row.pack.offer ? `Preview version ${row.version}` : row.pack.imported ? 'Preview pack' : 'Preview and import pack'}
@@ -156,7 +160,7 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
               Remove
             </DangerBtn>
           </span>
-        </div>
+        </Row>
       ) : null}
     </FormSection>
   )
@@ -208,24 +212,24 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
     }
   }, [api2, workspaceId])
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap gap-2" data-plugin-help>
+    <Stack gap={3}>
+      <Row gap={2} align="start" data-plugin-help>
         <IconLabel icon={MessagesSquare} tooltip={DESIGN_PLUGIN_TIP} onClick={design}>
           Design a plugin
         </IconLabel>
         <IconLabel icon={BookOpen} tooltip={PLUGIN_GUIDE_TIP} onClick={() => setGuide(true)}>
           Plugin guide
         </IconLabel>
-      </div>
+      </Row>
       {guide ? (
         <DocumentReader workspaceId={workspaceId} target={{ document: PLUGIN_GUIDE, lineStart: null, lineEnd: null }} text={pluginGuide} onClose={() => setGuide(false)} />
       ) : null}
-      {error ? <p className="text-xs text-danger">{error}</p> : null}
-      {actionError ? <p className="text-xs text-danger">{actionError}</p> : null}
+      {error ? <ErrorText size="xs">{error}</ErrorText> : null}
+      {actionError ? <ErrorText size="xs">{actionError}</ErrorText> : null}
       {note ? (
-        <p className="text-xs text-muted" role="status">
+        <Hint as="p" size="xs" role="status">
           {note}
-        </p>
+        </Hint>
       ) : null}
       {importing ? (
         <PackImportDialog
@@ -260,14 +264,14 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub, onOpenRepos
                 }
               />
           ) : null}
-          <div className="flex flex-col gap-4">
+          <Stack gap={4}>
             {value?.plugins.map((row, i) => (
               <PluginCard key={`${row.id}-${row.source}-${i}`} row={row} busy={acting || busy} act={act} client={client} workspaceId={workspaceId} onImport={setImporting} notes={notes.filter((n) => n.plugin === row.id)} />
             ))}
-          </div>
+          </Stack>
         </PairedCard>
       </PairedCards>
       <IntakeSources workspaceId={workspaceId} plugins={value?.plugins ?? []} onOpenGitHub={onOpenGitHub} onOpenRepositories={onOpenRepositories} />
-    </div>
+    </Stack>
   )
 }

@@ -6,7 +6,7 @@ import { RefreshCw } from './icons.ts'
 import { countdownText, limitedFor, refreshColor, refreshPeriod, refreshTip } from './refresh-api.ts'
 import { type RateView, settingsClient } from './settings-api.ts'
 import { useAppApi } from './host.ts'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { NAV_ICON, SQUARE } from './LeftNav.tsx'
 
 export interface RefreshState {

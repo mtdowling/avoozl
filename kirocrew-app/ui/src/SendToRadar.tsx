@@ -3,13 +3,17 @@
 // before the last step's button. Cancel, Esc and a click outside close it
 // on every step before then.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
 import { Check, CircleAlert, Radar, X } from './icons.ts'
-import { ICON } from './controls.tsx'
+import { ICON } from './ui/controls.tsx'
 import { crewLine, radarClient, type CrewList, type HandOffInput, type HandOffReply, type UntriagedItem } from './untriaged-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { Modal } from './Modal.tsx'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { TextLink } from './ui/TextLink'
 
 type Client = ReturnType<typeof radarClient>
 
@@ -132,25 +136,25 @@ export function SendToRadar(props: {
         ))}
       </ol>
       <div>
-        <p id="avoozl-radar-line" className="text-sm text-muted">
+        <Hint id="avoozl-radar-line" as="p" size="sm">
           {STEPS[step][1]}
-        </p>
+        </Hint>
       </div>
 
       {step === 0 && (
         <div className="flex flex-col gap-2 text-sm">
-          <p className="text-xs text-muted">
+          <Hint as="p" size="xs">
             {items.length === 1 ? `#${items[0].number} ${items[0].title}` : `${items.length} issues`} in {repository}
-          </p>
+          </Hint>
           {!crews ? (
-            <p className="text-muted">{error ? '' : 'Reading the crews from Issue Radar…'}</p>
+            <Hint as="p">{error ? '' : 'Reading the crews from Issue Radar…'}</Hint>
           ) : crews.available ? (
             crews.crews.length === 0 ? (
               <p data-radar-no-crews>
                 {repository} has no crew in Issue Radar.{' '}
-                <a href="/issue-radar" target="_top" className="underline">
+                <TextLink href="/issue-radar" target="_top">
                   Add one in Issue Radar
-                </a>
+                </TextLink>
                 , then come back.
               </p>
             ) : (
@@ -173,7 +177,7 @@ export function SendToRadar(props: {
                           </Badge>
                         ))}
                       </span>
-                      <span className="text-xs text-muted">{crewLine(entry)}</span>
+                      <Hint size="xs">{crewLine(entry)}</Hint>
                     </span>
                   </label>
                 ))}
@@ -181,13 +185,13 @@ export function SendToRadar(props: {
             )
           ) : (
             <div className="flex flex-col gap-1.5" data-radar-typed>
-              <p className="text-xs text-muted">{crews.reason}</p>
+              <Hint as="p" size="xs">{crews.reason}</Hint>
               <label className="flex flex-col gap-1">
                 <span>
-                  Label the crew watches <span className="text-xs text-muted">(required)</span>
+                  Label the crew watches <Hint size="xs">(required)</Hint>
                 </span>
                 <Input value={typed} placeholder="radar" onChange={(e: { target: { value: string } }) => setTyped(e.target.value)} />
-                <span className="text-xs text-muted">Find it in Issue Radar under the crew’s Labels. A crew with no labels takes every open issue, so it needs none.</span>
+                <Hint size="xs">Find it in Issue Radar under the crew’s Labels. A crew with no labels takes every open issue, so it needs none.</Hint>
               </label>
             </div>
           )}
@@ -222,7 +226,7 @@ export function SendToRadar(props: {
               {warning}
             </p>
           ))}
-          <p className="text-xs text-muted">To undo, remove the label on GitHub before a crew claims the issue.</p>
+          <Hint as="p" size="xs">To undo, remove the label on GitHub before a crew claims the issue.</Hint>
         </div>
       )}
 
@@ -240,9 +244,9 @@ export function SendToRadar(props: {
       )}
 
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
     </Modal>
   )

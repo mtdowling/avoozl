@@ -4,8 +4,9 @@
 // instructions are saved on this machine only (flow.instructions.update).
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Card, Input } from '@kirocrew/app-sdk/ui'
-import { ChoiceCards, SectionHeading } from './controls.tsx'
+import { Card } from './ui/Card'
+import { Input } from './ui/Input'
+import { ChoiceCards, SectionHeading } from './ui/controls.tsx'
 import { Section } from './SettingsView.tsx'
 import { CheckRow, FieldGrid as SharedGrid, FieldRow, Marker, RawKey } from './FieldRow.tsx'
 import { useRead } from './useRead.ts'
@@ -14,6 +15,9 @@ import { Pause } from './icons.ts'
 import { SaveFooter } from './SaveFooter.tsx'
 import PromptInstructions from './PromptInstructions.tsx'
 import { FLOW_DEFAULTS, flowClient, toFlowForm, toFlowSection, type FlowForm, type FlowSettings as Settings } from './flow-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 const OPTIONAL = { required: false } as const
 // A label and its "(optional)" marker, spaced inline so no stylesheet can
@@ -108,16 +112,16 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
   }
   if (error)
     return (
-      <p role="alert" className="text-sm text-danger">
+      <ErrorText role="alert" size="sm">
         {error}
-      </p>
+      </ErrorText>
     )
-  if (!value) return <p className="text-sm text-muted">Loading…</p>
+  if (!value) return <Hint as="p" size="sm">Loading…</Hint>
   const scope = form.scope || FLOW_DEFAULTS.scope
   const local = form.localChecksFirst ? form.localChecksFirst === 'on' : FLOW_DEFAULTS.localChecksFirst
   const ciDefaults = value.ciEffective ?? FLOW_DEFAULTS
   return (
-    <div className="flex flex-col gap-3" data-flow-settings>
+    <Stack gap={3} data-flow-settings>
       <Box>
         <Section title="Timing" blurb="Always on. Avoozl records where each task's time goes; nothing to set." />
       </Box>
@@ -140,7 +144,7 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
       </Box>
       <Box>
         <Section title="CI" blurb="Review steady CI costs across every pull request. These limits trigger a retrospective proposal; you decide what changes.">
-          <div data-ci-settings className="flex flex-col gap-4">
+          <Stack data-ci-settings gap={4}>
             <FieldGrid group="ci">
               <Labeled id="avoozl-flow-ci-window" label="Window (days)" raw="flow.ci.windowDays" note="Whole number 1–90.">
                 <Input id="avoozl-flow-ci-window" inputMode="numeric" value={form.windowDays} placeholder={String(ciDefaults.windowDays)} onChange={(event) => set({ windowDays: event.target.value })} />
@@ -155,14 +159,14 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
                 <Input id="avoozl-flow-ci-min" inputMode="numeric" value={form.minPullRequests} placeholder={String(ciDefaults.minPullRequests)} onChange={(event) => set({ minPullRequests: event.target.value })} />
               </Labeled>
             </FieldGrid>
-            <div className="flex flex-col gap-2" data-ci-globs>
+            <Stack gap={2} data-ci-globs>
               <h4 className="m-0 text-sm font-semibold">File classes (read-only)</h4>
-              <p className="m-0 text-xs text-muted">First matching class wins in the order below. A repository can override these lists in its configuration.</p>
+              <Hint as="p" size="xs" flush>First matching class wins in the order below. A repository can override these lists in its configuration.</Hint>
               {Object.entries(value.ciClassGlobs ?? {}).map(([name, globs]) => <div key={name} className="flex min-w-0 flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}><span className="text-sm font-medium">{name}</span><code className="text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{globs.join(', ') || 'No matching paths'}</code></div>)}
-              <div className="flex flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}><span className="text-sm font-medium">code</span><span className="text-xs text-muted">Anything that does not match a class above.</span></div>
+              <div className="flex flex-col gap-1 border-t pt-2" style={{ borderColor: 'var(--border)' }}><span className="text-sm font-medium">code</span><Hint size="xs">Anything that does not match a class above.</Hint></div>
               <RawKey name="flow.ci.classes" />
-            </div>
-          </div>
+            </Stack>
+          </Stack>
         </Section>
       </Box>
       <Box>
@@ -209,6 +213,6 @@ function WorkspaceFlowSettings({ workspaceId }: { workspaceId: string }) {
           setInstructions(value.instructions ?? '')
         }}
       />
-    </div>
+    </Stack>
   )
 }

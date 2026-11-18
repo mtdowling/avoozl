@@ -7,6 +7,7 @@ import { SpecPullBox } from './SpecPullBox.tsx'
 import { plansClient, type SpecPlan } from './plans-api.ts'
 import type { SpecPull } from './spec-pr-api.ts'
 import { errorMessage } from './workspace-api.ts'
+import { ErrorText } from './ui/ErrorText'
 
 export function SpecPullDecision(props: { pull: SpecPull; workspaceId: string; onChanged: () => void }) {
   const { pull, workspaceId } = props
@@ -26,9 +27,9 @@ export function SpecPullDecision(props: { pull: SpecPull; workspaceId: string; o
     <>
       <SpecPullBox pull={pull} workspaceId={workspaceId} onApprove={() => void open()} onChanged={props.onChanged} />
       {error && (
-        <p role="alert" className="m-0 text-danger">
+        <ErrorText role="alert" flush>
           {error}
-        </p>
+        </ErrorText>
       )}
       {plan && (
         <ApproveSpecDialog

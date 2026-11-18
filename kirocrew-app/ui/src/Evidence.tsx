@@ -3,12 +3,15 @@
 // loads only when a person asks for it.
 import { useCallback, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import Badge from './Badge.tsx'
-import { SectionBox } from './controls.tsx'
+import Badge from './ui/Badge.tsx'
+import { SectionBox } from './ui/controls.tsx'
 import { relativeTime } from './task-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { EVIDENCE_LABELS, evidenceClient, mediaUrl, sizeText, type EvidenceEntry } from './evidence-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 function Attachment({ workspaceId, taskId, entry }: { workspaceId: string; taskId: string; entry: EvidenceEntry }) {
   const api = useAppApi()
@@ -41,9 +44,9 @@ function Attachment({ workspaceId, taskId, entry }: { workspaceId: string; taskI
         Show {file.type.startsWith('video/') ? 'video' : 'image'}
       </button>
       {error && (
-        <span role="alert" className="text-danger">
+        <ErrorText role="alert" as="span">
           {error}
-        </span>
+        </ErrorText>
       )}
     </div>
   )
@@ -58,15 +61,15 @@ export function EvidenceFold({ workspaceId, taskId, box }: { workspaceId: string
   const { value, error } = useRead<EvidenceEntry[]>(`${workspaceId}:${taskId}`, load)
   if (error)
     return (
-      <p role="alert" className="text-sm text-danger">
+      <ErrorText role="alert" size="sm">
         {error}
-      </p>
+      </ErrorText>
     )
   if (box && !value?.length) return null
-  if (!value) return <p className="text-sm text-muted">Loading…</p>
-  if (!value.length) return <p className="text-sm text-muted">No evidence yet.</p>
+  if (!value) return <Hint as="p" size="sm">Loading…</Hint>
+  if (!value.length) return <Hint as="p" size="sm">No evidence yet.</Hint>
   const list = (
-    <ol className="flex flex-col gap-2" data-evidence={taskId}>
+    <Stack as="ol" gap={2} data-evidence={taskId}>
       {value.map((entry) => (
         <li key={entry.id} className="rounded border p-2" style={{ borderColor: 'var(--border)' }}>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
@@ -79,7 +82,7 @@ export function EvidenceFold({ workspaceId, taskId, box }: { workspaceId: string
           {entry.file && <Attachment workspaceId={workspaceId} taskId={taskId} entry={entry} />}
         </li>
       ))}
-    </ol>
+    </Stack>
   )
   return box ? <SectionBox id={box.id} title={box.title}>{list}</SectionBox> : list
 }

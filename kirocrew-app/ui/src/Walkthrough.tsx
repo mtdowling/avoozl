@@ -3,9 +3,12 @@
 // steps as data. The step change is announced to screen readers, and the
 // slide is dropped under reduced motion.
 import { useState, type ReactNode } from 'react'
-import { Btn } from '@kirocrew/app-sdk/ui'
+import { Btn } from './ui/Btn'
 import { ArrowLeft, ArrowRight } from './icons.ts'
-import { ICON } from './controls.tsx'
+import { ICON } from './ui/controls.tsx'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 export interface WalkStep {
   title: string
@@ -40,10 +43,10 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
         <div className="rounded-md p-3" style={{ background: 'var(--bg-elevated, transparent)' }} aria-hidden="true">
           {step.picture}
         </div>
-        <div className="flex flex-col gap-2" aria-live="polite">
-          <p className="text-xs text-muted">
+        <Stack gap={2} aria-live="polite">
+          <Hint as="p" size="xs">
             Step {at + 1} of {props.steps.length}
-          </p>
+          </Hint>
           <h4 className="text-lg font-semibold">{step.title}</h4>
           <p className="text-base">{step.text}</p>
           {step.points && (
@@ -53,9 +56,9 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
               ))}
             </ul>
           )}
-        </div>
+        </Stack>
       </div>
-      <div className="flex flex-wrap items-center gap-3">
+      <Row gap={3}>
         <Btn type="button" onClick={() => go(at - 1)} disabled={at === 0} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <ArrowLeft size={ICON} aria-hidden="true" />
           Back
@@ -85,7 +88,7 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
             </Btn>
           )
         )}
-      </div>
+      </Row>
     </section>
   )
 }
@@ -94,7 +97,7 @@ export function Walkthrough(props: { id: string; label: string; steps: WalkStep[
 // `on` box is the one the step is about.
 export function Flow(props: { boxes: string[]; on?: number; note?: string }) {
   return (
-    <div className="flex flex-col gap-2">
+    <Stack gap={2}>
       <div className="flex flex-wrap items-center gap-1.5">
         {props.boxes.map((box, i) => (
           <span key={box} className="inline-flex items-center gap-1.5">
@@ -113,6 +116,6 @@ export function Flow(props: { boxes: string[]; on?: number; note?: string }) {
         ))}
       </div>
       {props.note && <span className="text-[11px] text-muted">{props.note}</span>}
-    </div>
+    </Stack>
   )
 }

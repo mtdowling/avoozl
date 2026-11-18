@@ -6,13 +6,14 @@ import CiFlow from './CiFlow.tsx'
 // stay in Issue Radar and GitHub; this tab shows graph and delivery timing only.
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAppApi } from './host.ts'
-import { Card, EmptyState } from '@kirocrew/app-sdk/ui'
+import { Card } from './ui/Card'
+import { EmptyState } from './ui/EmptyState'
 import GithubFlow from './GithubFlow.tsx'
-import Badge from './Badge.tsx'
-import { Tooltip } from './Tooltip.tsx'
+import Badge from './ui/Badge.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { useStoredFilter } from './FilterPanel.tsx'
 import { FlowRail } from './FlowRail.tsx'
-import { ICON, IconLabel, SectionHeading, ShowMore, ViewHeading, useConfirm, usePages } from './controls.tsx'
+import { ICON, IconLabel, SectionHeading, ShowMore, ViewHeading, useConfirm, usePages } from './ui/controls.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
 import { CircleAlert, DetailsIcon, Gauge, Play } from './icons.ts'
@@ -42,6 +43,10 @@ import {
   type LineStop,
   type TaskTiming,
 } from './flow-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 const BAR: CSSProperties = { display: 'flex', height: 12, borderRadius: 4, overflow: 'hidden', background: 'color-mix(in srgb, var(--muted) 15%, transparent)' }
 
@@ -122,24 +127,24 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
     }
   }
   return (
-    <div className="flex flex-col gap-2" data-line-banner>
+    <Stack gap={2} data-line-banner>
       {stops.map((stop) => (
         <div key={stop.id} role="alert" className="flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm" style={{ borderColor: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 10%, var(--card))' }}>
           <CircleAlert size={18} aria-hidden="true" style={{ color: 'var(--danger)', flex: 'none' }} />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5" style={{ minWidth: '14rem' }}>
             <span style={{ overflowWrap: 'anywhere' }}>{bannerText(stop)}</span>
             {stop.manual && (
-              <span className="text-xs text-muted" data-line-pulled>
+              <Hint size="xs" data-line-pulled>
                 Pulled by {stop.by?.name ?? 'someone'}, {relativeTime(stop.openedAt, Date.now())}. Only a person can resume it.
-              </span>
+              </Hint>
             )}
             {stop.runAnyway && (
-              <span className="text-xs text-muted">
+              <Hint size="xs">
                 Run anyway by {stop.runAnyway.by}, {relativeTime(stop.runAnyway.at, Date.now())}.
-              </span>
+              </Hint>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <Row gap={2} align="start">
             {stop.fixTaskId && (
               <IconLabel icon={DetailsIcon} tooltip="Open the fix task's details in the drawer" onClick={() => drawer.openTask(stop.fixTaskId!)}>
                 Open fix task
@@ -155,15 +160,15 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
                 Run anyway
               </IconLabel>
             )}
-          </div>
+          </Row>
         </div>
       ))}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
-    </div>
+    </Stack>
   )
 }
 
@@ -182,7 +187,7 @@ function MetricCards({ view }: { view: FlowViewModel }) {
             )}
           </Tooltip>
           {card.empty ? (
-            <span className="text-sm text-muted">{card.empty}</span>
+            <Hint size="sm">{card.empty}</Hint>
           ) : (
             <>
               <span className="text-xl font-semibold tabular-nums" style={{ overflowWrap: 'anywhere', fontSize: '1.25rem' }}>
@@ -211,7 +216,7 @@ function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
         {shown.map((task) => {
           const name = (
             <span className="min-w-0 truncate">
-              <span className="tabular-nums">{task.taskId}</span> <span className="text-muted">{task.title}</span>
+              <span className="tabular-nums">{task.taskId}</span> <Hint>{task.title}</Hint>
             </span>
           )
           const bar = <StageBar stages={task.stages} scale={scale} label={task.taskId} />
@@ -220,9 +225,9 @@ function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
               {task.coarse && (
                 <Tooltip text="Built from phase markers or events, not from tool calls">
                   {(describedBy) => (
-                    <span aria-describedby={describedBy} tabIndex={0} className="text-xs text-muted">
+                    <Hint aria-describedby={describedBy} tabIndex={0} size="xs">
                       (coarse)
-                    </span>
+                    </Hint>
                   )}
                 </Tooltip>
               )}
@@ -256,7 +261,7 @@ function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
         })}
       </ul>
       <ShowMore {...pages.more('flow-bars', tasks.length)} />
-      <p className="text-xs text-muted">(coarse) marks bars built from reports, not tool calls.</p>
+      <Hint as="p" size="xs">(coarse) marks bars built from reports, not tool calls.</Hint>
     </Card>
   )
 }
@@ -308,16 +313,16 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
       <ViewHeading id="avoozl-flow-title" view="flow">
         Flow
       </ViewHeading>
-      <p className="text-sm text-muted">Where delivery time goes. Retros and their proposals are under Retros.</p>
+      <Hint as="p" size="sm">Where delivery time goes. Retros and their proposals are under Retros.</Hint>
       {/* The sort and filters sit in the left nav under the open Flow section (nav-slot.tsx). */}
       {choices && <FlowRail filter={filter} onFilter={setFilter} order={order} onOrder={setOrder} choices={choices} />}
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
       {!view ? (
-        <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
+        <Hint as="p" size="sm">{busy ? 'Loading…' : 'Not loaded'}</Hint>
       ) : (
         <>
           <LineBanner stops={view.line} workspaceId={workspaceId} onChanged={() => void reload()} />
@@ -362,16 +367,16 @@ export function TimingFold({
       })
     | null
 }) {
-  if (!timing) return <p className="text-sm text-muted">No timing yet: Avoozl records it from the task's first dispatch.</p>
+  if (!timing) return <Hint as="p" size="sm">No timing yet: Avoozl records it from the task's first dispatch.</Hint>
   return (
     <div className="flex flex-col gap-2 text-sm" data-timing-fold>
-      <div className="flex items-center gap-2">
+      <Row gap={2} wrap={false}>
         <div className="min-w-0 flex-1">
           <StageBar stages={timing.stages} scale={0} label={timing.taskId} />
         </div>
         <span className="tabular-nums">{duration(timing.leadMs)}</span>
-      </div>
-      {timing.batch && <span className="text-xs text-muted">Ran in {timing.batch}.</span>}
+      </Row>
+      {timing.batch && <Hint size="xs">Ran in {timing.batch}.</Hint>}
       <ul className="flex flex-col gap-0.5">
         {timing.spans.map((span) => (
           <li key={span.id} className="flex items-center gap-2">
@@ -379,7 +384,7 @@ export function TimingFold({
             <span>{STAGE_LABELS[span.stage as keyof typeof STAGE_LABELS] ?? span.stage}</span>
             {span.detail && <code className="text-xs">{span.detail}</code>}
             <span className="tabular-nums">{duration(span.lengthMs)}</span>
-            <span className="text-xs text-muted">{SOURCE_TEXT[span.source]}</span>
+            <Hint size="xs">{SOURCE_TEXT[span.source]}</Hint>
           </li>
         ))}
       </ul>

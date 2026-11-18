@@ -7,11 +7,11 @@
 // overlap stack in line order. A card click scrolls to and highlights its
 // lines; a click on highlighted text selects its card. Moved or removed
 // findings list first. A narrow view puts each card after its block.
-import { Tabs } from './Tabs.tsx'
+import { Tabs } from './ui/Tabs.tsx'
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Markdown } from './Markdown.tsx'
-import { SmallBtn } from './controls.tsx'
-import { Tooltip } from './Tooltip.tsx'
+import { SmallBtn } from './ui/controls.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { CircleAlert, Info, MessageSquare } from './icons.ts'
 import { usePhone } from './list-detail.ts'
 import { ResizeHandle } from './ResizeHandle.tsx'
@@ -42,6 +42,8 @@ import {
   type ReviewPlace,
   type ReviewViewData,
 } from './review-view.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
 
 const PROSE = '72ch'
 // Below this width the text and the rail do not fit side by side.
@@ -69,9 +71,9 @@ function Chat(props: { label: string; link: ChatLink | null; attr: string }) {
       {props.label}
     </a>
   ) : (
-    <span className="text-xs text-muted" {...{ [props.attr]: 'closed' }}>
+    <Hint size="xs" {...{ [props.attr]: 'closed' }}>
       {props.label.replace(/^Open (\w)/, (_, c: string) => c.toUpperCase())}: Chat closed
-    </span>
+    </Hint>
   )
 }
 
@@ -197,14 +199,14 @@ function FindingCard(props: {
           <span data-severity-label style={{ fontWeight: 600, color: ink }}>
             {SEVERITY_LABEL[finding.severity]}
           </span>
-          <span className="text-muted">{finding.category}</span>
+          <Hint>{finding.category}</Hint>
           <code className="text-muted" data-finding-lines={props.showFile ? 'file' : undefined}>
             {lineText(finding.anchor)}
           </code>
           {finding.anchor.moved && (
-            <span data-moved className="text-muted">
+            <Hint data-moved>
               Moved or removed (from <code>{shortHash(finding.anchor.revisionHash)}</code>)
-            </span>
+            </Hint>
           )}
         </p>
         <p
@@ -235,7 +237,7 @@ function FindingCard(props: {
               {finding.answer.text}
             </>
           ) : (
-            <span className="text-muted">Planner has not answered.</span>
+            <Hint>Planner has not answered.</Hint>
           )}
         </p>
         {finding.decisions.length > 0 && (
@@ -580,16 +582,16 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
         )}
       </div>
       {error && (
-        <p role="alert" className="m-0 text-sm text-danger">
+        <ErrorText role="alert" size="sm" flush>
           {error}
-        </p>
+        </ErrorText>
       )}
       {!data ? (
-        !error && <p className="m-0 text-sm text-muted">Loading…</p>
+        !error && <Hint as="p" size="sm" flush>Loading…</Hint>
       ) : (
         <>
           <div className="flex flex-col gap-1" style={{ display: 'flex', flexDirection: 'column', gap: 4 }} data-review-rounds>
-            {data.rounds.length === 0 && <p className="m-0 text-sm text-muted">Not reviewed yet.</p>}
+            {data.rounds.length === 0 && <Hint as="p" size="sm" flush>Not reviewed yet.</Hint>}
             {data.rounds.map((round) => (
               <div
                 key={round.id}
@@ -601,9 +603,9 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                   Round {round.round}
                   {data.rounds.some((r) => r.pass !== round.pass) ? ` of pass ${round.pass}` : ''}
                 </span>
-                <span className="text-muted">
+                <Hint>
                   {round.state} · {round.reviewerModel ?? 'reviewer not set'} at <code>{shortHash(round.revisionHash)}</code>
-                </span>
+                </Hint>
                 <Chat label="Open review chat" link={round.reviewChat} attr="data-review-chat" />
                 <Chat label="Open planner chat" link={round.plannerChat} attr="data-planner-chat" />
               </div>
@@ -612,7 +614,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
           {tab && <DocTabs tabs={tabs} current={tab} counts={{ ...open.byFile, [ALL_TAB]: open.total }} onPick={(name) => set({ file: name })} />}
           <div className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-review-filters>
             <span className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} role="group" aria-label="Severity" data-severity-filters>
-              <span className="text-xs text-muted">Severity</span>
+              <Hint size="xs">Severity</Hint>
               {SEVERITIES.map((s) => (
                 <Chip
                   key={s}
@@ -625,7 +627,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               ))}
             </span>
             <span className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginLeft: phone ? 0 : 12 }} role="group" aria-label="State" data-state-filters>
-              <span className="text-xs text-muted">State</span>
+              <Hint size="xs">State</Hint>
               {STATES.filter((s) => counts.state[s] || place.state.includes(s)).map((s) => (
                 <Chip
                   key={s}
@@ -642,9 +644,9 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
           {all ? (
             <section role="tabpanel" id="review-tab-panel" aria-labelledby="review-tab-all" data-review-all style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, maxWidth: 760, ...(props.fill ? { flex: '1 1 0%', minHeight: 0, overflowY: 'auto' } : {}) }}>
               {shown.length === 0 && (
-                <p className="m-0 text-sm text-muted" data-review-empty>
+                <Hint as="p" size="sm" flush data-review-empty>
                   {data.findings.length === 0 ? 'No findings.' : 'No finding matches these filters.'}
-                </p>
+                </Hint>
               )}
               {shown.map((f) => (
                 <FindingCard
@@ -677,7 +679,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                   if (openAnchor(event.target)) event.preventDefault()
                 }}
               >
-                {file ? <Markdown text={text} measure={PROSE} /> : <p className="m-0 text-sm text-muted">This revision has no spec files.</p>}
+                {file ? <Markdown text={text} measure={PROSE} /> : <Hint as="p" size="sm" flush>This revision has no spec files.</Hint>}
               </div>
             </section>
             {wide && (
@@ -709,7 +711,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
               {side === 'contents' ? (
                 <nav id="review-side-panel" role="tabpanel" aria-labelledby="review-side-contents" aria-label="Contents" data-review-contents className="flex flex-col" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {toc.length === 0 ? (
-                    <p className="m-0 text-sm text-muted">This file has no headings.</p>
+                    <Hint as="p" size="sm" flush>This file has no headings.</Hint>
                   ) : (
                     toc.map((h) => (
                       <button
@@ -730,9 +732,9 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                   {movedGroup}
                   {placed.map((f) => card(f))}
                   {inFile.length === 0 && (
-                    <p className="m-0 text-sm text-muted" data-review-empty>
+                    <Hint as="p" size="sm" flush data-review-empty>
                       {data.findings.length === 0 ? 'No findings.' : 'No finding in this file matches these filters.'}
-                    </p>
+                    </Hint>
                   )}
                 </div>
               )}

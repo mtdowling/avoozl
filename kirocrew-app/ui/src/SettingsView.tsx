@@ -1,10 +1,13 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { CheckRow, FieldRow, Marker, RawKey, fieldDescribedBy, type FieldWidth } from './FieldRow.tsx'
-import { Tabs, TabPanel, useTabParam } from './Tabs.tsx'
+import { Tabs, TabPanel, useTabParam } from './ui/Tabs.tsx'
 import { dirtyTabs } from './tabs.ts'
 import { useAppApi } from './host.ts'
-import { Btn, Card, EmptyState, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
+import { Btn } from './ui/Btn'
+import { Card } from './ui/Card'
+import { EmptyState } from './ui/EmptyState'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
 import { RoleHelp } from './RoleHelp.tsx'
 import {
   MANAGED_LABEL_TEXT,
@@ -84,11 +87,15 @@ import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
 import { COMMAND_PATH, errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
 import type { DeliverySettings as DeliveryRead } from './delivery-api.ts'
-import { Fold } from './controls.tsx'
-import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
+import { Fold } from './ui/controls.tsx'
+import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './ui/controls.tsx'
 import { Plus, Trash2, Workflow, type LucideIcon } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
+import { ErrorText } from './ui/ErrorText'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
+import { TextLink } from './ui/TextLink'
 
 const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 // Fields share a row and wrap; each keeps a readable width.
@@ -333,23 +340,23 @@ function MatchField(props: {
             : 'Type a line such as label:agent:go to see what it matches.'}
         </span>
       )}
-      {failed && <span className="text-xs text-danger">The line could not be checked: {failed}</span>}
+      {failed && <ErrorText as="span" size="xs">The line could not be checked: {failed}</ErrorText>}
       {current?.error && (
-        <span id={errorId} role="alert" className="text-xs text-danger">
+        <ErrorText id={errorId} role="alert" as="span" size="xs">
           {current.error.replace(/ Same syntax as GitHub's issue search\..*$/, '').replace(/^match cannot use /, "Can't use ")}
-        </span>
+        </ErrorText>
       )}
       {current?.parsed && (
         <div className="flex flex-wrap items-center gap-1.5" data-match-chips>
           {matchChips(current.parsed).map((group) => (
-            <span key={group.kind} className="flex flex-wrap items-center gap-1">
+            <Row key={group.kind} as="span" gap={1}>
               <span className="text-xs text-muted">{CHIP_TEXT[group.kind]}</span>
               {group.values.map((value) => (
                 <Badge key={value} variant={group.kind === 'none' ? undefined : 'info'}>
                   {value}
                 </Badge>
               ))}
-            </span>
+            </Row>
           ))}
         </div>
       )}
@@ -378,9 +385,9 @@ function MatchIssues({ preview, untriaged = false }: { preview: MatchPreview; un
       <ul className="mt-1 flex flex-col gap-0.5">
         {preview.issues.map((issue) => (
           <li key={issue.number} className="min-w-0 truncate">
-            <a href={linkHref(issue.url)} target="_blank" rel="noopener noreferrer" className="underline">
+            <TextLink href={linkHref(issue.url)} target="_blank" rel="noopener noreferrer">
               #{issue.number}
-            </a>{' '}
+            </TextLink>{' '}
             <span>{issue.title}</span>
           </li>
         ))}
@@ -456,7 +463,7 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
         {labels?.labels && rows.length === 0 && <span className="text-xs text-muted">{repository} has no labels yet.</span>}
         <RawKey name="untriaged.triageLabels" />
       </fieldset>
-      <div className="flex flex-wrap items-end gap-3">
+      <Row gap={3} align="end">
         <Text
           id={`${id}-untriaged-days`}
           label="Ignore older than, in days"
@@ -475,7 +482,7 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
           checked={value.notify}
           onChange={(notify) => set({ notify })}
         />
-      </div>
+      </Row>
     </FormSection>
   )
 }
@@ -499,7 +506,7 @@ function RuleEditor(props: {
         <Text id={`${id}-author`} label="Opened by" raw="author" placeholder="anyone" value={rule.author} onChange={(value) => set({ author: value })} />
       </div>
       <MatchField id={`${id}-match`} value={rule.match} repository={props.repository} workspaceId={props.workspaceId} onChange={(value) => set({ match: value })} />
-      <div className="flex flex-wrap items-center gap-3">
+      <Row gap={3}>
         <CheckRow label="Publish a clean breakdown's sub-issues without a re-label" raw="autoPublishChildren" checked={rule.autoPublishChildren} onChange={(autoPublishChildren) => set({ autoPublishChildren })} />
         <span className="ml-auto">
           <DangerBtn
@@ -514,7 +521,7 @@ function RuleEditor(props: {
             Remove rule
           </DangerBtn>
         </span>
-      </div>
+      </Row>
     </div>
   )
 }
@@ -548,7 +555,7 @@ function ReviewRoles({ review, repository }: { review: ReviewSettings | undefine
       blurb="Fresh chats that review each local delivery's exact commit before it merges. Edit them under delivery.reviewers in .avoozl.json."
     >
       {review.error ? (
-        <p className="text-sm text-danger">The delivery block is invalid: {review.error}</p>
+        <ErrorText size="sm">The delivery block is invalid: {review.error}</ErrorText>
       ) : roles.length === 0 ? (
         <p className="text-sm text-muted">No reviewer roles. Checks alone verify a delivery.</p>
       ) : (
@@ -586,7 +593,7 @@ function ChecksEditor(props: {
   // GitHub can't be read: the names go in by hand, and the line says why.
   if (!named || (props.inspect && !checks))
     return (
-      <div className="flex flex-col gap-2" data-checks="typed">
+      <Stack gap={2} data-checks="typed">
         <p className="text-xs text-muted" data-checks-why>
           {!named
             ? 'Name the repository as owner/name under Mode, and Avoozl lists the checks GitHub runs there.'
@@ -594,28 +601,28 @@ function ChecksEditor(props: {
           Names are exact and case-sensitive, separated by commas.
         </p>
         <Text id={`${props.id}-checks`} label="Required checks" raw="requiredChecks" rule={{ required: false, blank: 'blank: no check is required' }} placeholder="build, lint" width="lg" value={props.value} onChange={props.onChange} />
-      </div>
+      </Stack>
     )
   if (!props.inspect)
     return (
-      <div className="flex flex-col gap-2" data-checks="reading">
+      <Stack gap={2} data-checks="reading">
         <p className="text-xs text-muted">Reading the checks GitHub runs on {props.repository}…</p>
-      </div>
+      </Stack>
     )
   const url = checks?.url ?? `https://github.com/${props.repository}/settings/rules`
   return (
-    <div className="flex flex-col gap-3" data-checks="listed">
+    <Stack gap={3} data-checks="listed">
       <p className="text-xs text-muted">
         Seen on {checks!.branch}&apos;s recent commits and open pull requests. Checks the branch rule requires stay on; Avoozl&apos;s list adds to
         them.{' '}
-        <a href={linkHref(url)} target="_blank" rel="noopener noreferrer" className="underline">
+        <TextLink href={linkHref(url)} target="_blank" rel="noopener noreferrer">
           Change the branch rule on GitHub
-        </a>
+        </TextLink>
       </p>
       {rows.length === 0 ? (
         <p className="text-sm text-muted">GitHub shows no checks on {checks!.branch} or its open pull requests yet. Add a name below.</p>
       ) : (
-        <ul className="flex flex-col gap-2" aria-label="Checks">
+        <Stack as="ul" gap={2} aria-label="Checks">
           {rows.map((row) => (
             <li key={row.name} className="flex flex-col text-sm" data-check-row={row.name}>
               <label className="flex items-center gap-1.5">
@@ -633,15 +640,15 @@ function ChecksEditor(props: {
               </span>
             </li>
           ))}
-        </ul>
+        </Stack>
       )}
-      <div className="flex flex-wrap items-end gap-2">
+      <Row gap={2} align="end">
         <Text id={`${props.id}-check-extra`} label="Add another name" placeholder="a check not run yet" width="md" value={extra} onChange={setExtra} />
         <TipBtn tooltip="Add this exact, case-sensitive check name to the list" onClick={add} disabled={!extra.trim()}>
           Add
         </TipBtn>
-      </div>
-    </div>
+      </Row>
+    </Stack>
   )
 }
 
@@ -905,7 +912,7 @@ export function RepositoryEditor(props: {
             title="Who counts"
             blurb="GitHub still decides who has access. This sets how much GitHub permission a person needs for a label, a board drag or a close to count."
           >
-            <div className="flex flex-wrap items-end gap-3">
+            <Row gap={3} align="end">
               <Choice
                 id={`${id}-permission`}
                 label="Minimum permission"
@@ -927,7 +934,7 @@ export function RepositoryEditor(props: {
                 value={repository.allowedActors}
                 onChange={(value) => set({ allowedActors: value })}
               />
-            </div>
+            </Row>
           </FormSection>
           <FormSection title="Priority" blurb="Ready tasks carrying a higher label here start first.">
             <Text id={`${id}-priority`} label="Priority labels, highest first" raw="priority" rule={{ required: false, blank: 'blank: graph order only' }} placeholder="p0, p1, p2" width="lg" value={repository.priority} onChange={(value) => set({ priority: value })} />
@@ -1541,9 +1548,9 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
   const choices = settings?.choices
   if (error)
     return (
-      <p role="alert" className="text-sm text-danger">
+      <ErrorText role="alert" size="sm">
         {error}
-      </p>
+      </ErrorText>
     )
   if (!settings || !form || !choices) return <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
   const dirty = JSON.stringify(toPolicy(form)) !== JSON.stringify(toPolicy(toForm(settings.github)))
@@ -1551,9 +1558,9 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
   return (
     <div className="flex flex-col gap-3.5">
       {settings.error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           The saved settings are invalid: {settings.error}
-        </p>
+        </ErrorText>
       )}
       {tab === 'repositories' ? (
         <RepositoriesTab
@@ -1606,9 +1613,9 @@ class TabBoundary extends Component<{ label: string; children: ReactNode }, { er
   render() {
     if (!this.state.error) return this.props.children
     return (
-      <p role="alert" className="text-sm text-danger" data-error-boundary>
+      <ErrorText role="alert" size="sm" data-error-boundary>
         Settings › {this.props.label} could not be drawn: {this.state.error}. Reload the page. If it happens again, update Avoozl.
-      </p>
+      </ErrorText>
     )
   }
 }
@@ -1752,12 +1759,12 @@ export default function SettingsView(props: {
       <ViewHeading id="avoozl-settings-title" view="settings">
         Settings
       </ViewHeading>
-      <section data-settings-section={current.key} data-open="true" className="flex flex-col gap-2">
+      <Stack data-settings-section={current.key} data-open="true" as="section" gap={2}>
         <h3 className="text-base font-semibold break-words" data-settings-title>
           {settingsTitle(current.key, current.label, props.workspaceName)}
         </h3>
         {renderBody(current)}
-      </section>
+      </Stack>
     </section>
   )
 }

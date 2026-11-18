@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PlanReviewDecision } from './PlanReviewDecision.tsx'
 import { useAppApi } from './host.ts'
-import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
+import { Btn } from './ui/Btn'
+import { Card } from './ui/Card'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
 import { ConflictFixActions } from './ConflictFixActions.tsx'
 import { SpecPullDecision } from './SpecPullDecision.tsx'
 import { CONFLICT_LABELS, safeHref, viewsClient, type ConflictItem, type Graph } from './views-api.ts'
@@ -35,10 +37,10 @@ import { useRead } from './useRead.ts'
 import { Authority } from './Authority.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
-import { DangerBtn, IconBtn, IconLabel, ShowMore, TipBtn, ViewHeading, useAskChat, useConfirm, usePages } from './controls.tsx'
+import { DangerBtn, IconBtn, IconLabel, ShowMore, TipBtn, ViewHeading, useAskChat, useConfirm, usePages } from './ui/controls.tsx'
 import { ListDetailLayout } from './ListDetailLayout.tsx'
 import { usePhone } from './list-detail.ts'
-import { Tooltip } from './Tooltip.tsx'
+import { Tooltip } from './ui/Tooltip.tsx'
 import { ForwardScreen } from './ForwardScreen.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
@@ -50,6 +52,10 @@ import { optionItems } from './picker.ts'
 import { ItemContextBlock, SpecLink } from './NeedsYouContext.tsx'
 import { specOfItem } from './needs-you-context.ts'
 import { releaseClient } from './release-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Row } from './ui/Row'
+import { Stack } from './ui/Stack'
 
 const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter, write: writeConflictFilter, empty: {} as ConflictFilter }
 
@@ -97,7 +103,7 @@ export function ConflictActions(props: {
     })
   const why = noActionReason(item)
   return (
-    <div className="flex flex-col gap-2">
+    <Stack gap={2}>
       {item.kind === 'plan-review' && item.planReview && (
         <PlanReviewDecision key={`${workspaceId}:${item.planReview.planId}:${item.planReview.revisionHash}`} {...item.planReview} busy={busy} run={run} onDecide={(action) =>
           views.decidePlanReview(workspaceId, item.planReview!.planId, item.planReview!.revisionHash, action)
@@ -139,7 +145,7 @@ export function ConflictActions(props: {
         <ContentActions id={item.id} readable={item.readable === true} workspaceId={workspaceId} busy={busy} run={run} />
       )}
       {item.kind === 'github-conflict' && (item.choices?.length ?? 0) > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
+        <Row gap={2}>
           <DangerBtn
             icon={RotateCcw}
             tooltip="Next tick writes Avoozl's value over the GitHub edit"
@@ -171,11 +177,11 @@ export function ConflictActions(props: {
           >
             Keep GitHub’s value
           </IconLabel>
-          {item.resolution && <span className="text-xs text-muted">Chosen; applied on the next tick.</span>}
-        </div>
+          {item.resolution && <Hint size="xs">Chosen; applied on the next tick.</Hint>}
+        </Row>
       )}
       {action === 'settle' && (
-        <div className="flex flex-wrap items-end gap-2">
+        <Row gap={2} align="end">
           <label htmlFor={`answer-${itemKey(item)}`} className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '16rem' }}>
             <span>Your answer to “{item.detail}”</span>
             <Input id={`answer-${itemKey(item)}`} value={answer} onChange={(event) => setAnswer(event.target.value)} />
@@ -189,9 +195,9 @@ export function ConflictActions(props: {
           >
             Settle
           </DangerBtn>
-        </div>
+        </Row>
       )}
-      <div className="flex flex-wrap items-center gap-2">
+      <Row gap={2}>
         {action === 'dismiss' && (
           <DangerBtn icon={X} tooltip={ACTION_TIPS.dismiss} disabled={busy} confirm={confirmSettle('dismiss', 1, item.title)} onConfirm={() => settle('dismiss')}>
             Dismiss
@@ -221,7 +227,7 @@ export function ConflictActions(props: {
           </IconLabel>
         )}
         {item.kind === 'stale-session' && item.deliveryState !== 'decision' && (
-          <span className="text-xs text-muted">Avoozl starts a new attempt on its own; dismiss this once you have read it.</span>
+          <Hint size="xs">Avoozl starts a new attempt on its own; dismiss this once you have read it.</Hint>
         )}
         {item.kind === 'tracker-conflict' && safeHref(item.link ?? null) && (
           <a href={safeHref(item.link ?? null)!} target="_blank" rel="noreferrer" className="text-sm underline">
@@ -233,9 +239,9 @@ export function ConflictActions(props: {
             {item.kind === 'needs-human' && item.reason === 'review-draft' ? `Open pull request${item.pullRequest ? ` #${item.pullRequest}` : ''}` : 'Open the issue'}
           </a>
         )}
-      </div>
-      {why && <p className="text-xs text-muted">{why}</p>}
-    </div>
+      </Row>
+      {why && <Hint as="p" size="xs">{why}</Hint>}
+    </Stack>
   )
 }
 
@@ -248,8 +254,8 @@ export function InvestigationActions(props: {
 }) {
   const { item, busy } = props
   return (
-    <div className="flex flex-col gap-2" data-investigation={item.taskId}>
-      <div className="flex flex-wrap items-center gap-2">
+    <Stack gap={2} data-investigation={item.taskId}>
+      <Row gap={2}>
         <IconLabel icon={Check} tooltip="The worker codes the change it planned" disabled={busy} onClick={() => props.onDecide('go', `Go ahead sent to ${item.taskId}.`)}>
           Go ahead
         </IconLabel>
@@ -265,8 +271,8 @@ export function InvestigationActions(props: {
         >
           Stop
         </DangerBtn>
-      </div>
-    </div>
+      </Row>
+    </Stack>
   )
 }
 
@@ -274,7 +280,7 @@ export function InvestigationActions(props: {
 export function ForwardButton(props: { item: ConflictItem; workspaceId: string; onDone: () => void }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="flex flex-wrap items-center gap-2" data-forward-row={props.item.forwardId}>
+    <Row gap={2} data-forward-row={props.item.forwardId}>
       <IconLabel icon={DetailsIcon} tooltip="Shows the exact public diff, title and body before anything is pushed." onClick={() => setOpen(true)}>
         Review and forward
       </IconLabel>
@@ -289,7 +295,7 @@ export function ForwardButton(props: { item: ConflictItem; workspaceId: string; 
           }}
         />
       )}
-    </div>
+    </Row>
   )
 }
 
@@ -299,7 +305,7 @@ export function LandBranch(props: { item: ConflictItem; busy: boolean; onLand: (
   const { item, busy } = props
   const link = safeHref(item.link ?? null)
   return (
-    <div className="flex flex-wrap items-center gap-2" data-branch-landing={item.branch}>
+    <Row gap={2} data-branch-landing={item.branch}>
       {link && (
         <a href={linkHref(link)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm underline">
           <ExternalLink size={14} aria-hidden="true" />
@@ -315,7 +321,7 @@ export function LandBranch(props: { item: ConflictItem; busy: boolean; onLand: (
       >
         Approve landing
       </DangerBtn>
-    </div>
+    </Row>
   )
 }
 
@@ -325,7 +331,7 @@ export function ReadyToMerge(props: { item: ConflictItem; busy: boolean; onInteg
   const { item, busy } = props
   const link = safeHref(item.link ?? null)
   return (
-    <div className="flex flex-wrap items-center gap-2" data-ready-to-merge={item.taskId}>
+    <Row gap={2} data-ready-to-merge={item.taskId}>
       {link && (
         <a href={linkHref(link)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm underline">
           <ExternalLink size={14} aria-hidden="true" />
@@ -343,7 +349,7 @@ export function ReadyToMerge(props: { item: ConflictItem; busy: boolean; onInteg
           Integrate
         </DangerBtn>
       )}
-    </div>
+    </Row>
   )
 }
 
@@ -355,7 +361,7 @@ function EscalationStart({ item, busy, onStart }: { item: ConflictItem; busy: bo
   const title = item.title.replace(/^.*? needs a person: /, '')
   const press = (action: 'deliver' | 'plan') => void ask(escalationAsk(name, title, item.escalation!, action)).then((yes) => yes && onStart(action))
   return (
-    <div className="flex flex-wrap items-center gap-2" data-escalation-start>
+    <Row gap={2} data-escalation-start>
       {item.start?.plan && (
         <IconLabel icon={FileText} tooltip="A planner drafts a fix spec from this issue. Avoozl adds crew:avoozl so crews skip it." disabled={busy} onClick={() => press('plan')}>
           Plan this
@@ -366,7 +372,7 @@ function EscalationStart({ item, busy, onStart }: { item: ConflictItem; busy: bo
           Deliver this
         </IconLabel>
       )}
-    </div>
+    </Row>
   )
 }
 
@@ -401,9 +407,9 @@ function ContentActions(props: {
   const [reason, setReason] = useState('')
   const [line, setLine] = useState<string | null>(null)
   return (
-    <div className="flex flex-col gap-2">
+    <Stack gap={2}>
       {readable && (
-        <div className="flex flex-wrap items-center gap-2">
+        <Row gap={2}>
           <IconLabel
             icon={Eye}
             tooltip="Read the matched line again from its source. Not stored."
@@ -420,14 +426,14 @@ function ContentActions(props: {
           >
             Show the matched line
           </IconLabel>
-        </div>
+        </Row>
       )}
       {line !== null && (
         <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
           {line}
         </pre>
       )}
-      <div className="flex flex-wrap items-end gap-2">
+      <Row gap={2} align="end">
         <label htmlFor={`allow-${id}`} className="flex flex-1 flex-col gap-1 text-xs" style={{ minWidth: '16rem' }}>
           <span>Why this exact content may go out once (required)</span>
           <Input id={`allow-${id}`} value={reason} onChange={(event) => setReason(event.target.value)} />
@@ -450,8 +456,8 @@ function ContentActions(props: {
         >
           Allow once
         </DangerBtn>
-      </div>
-    </div>
+      </Row>
+    </Stack>
   )
 }
 
@@ -468,13 +474,13 @@ function ItemHistory({ item, workspaceId }: { item: ConflictItem; workspaceId: s
   }, [tasks, workspaceId, item.taskId])
   return (
     <div className="mt-2 flex flex-col gap-2 rounded border p-2 text-sm" style={{ borderColor: 'var(--border)' }} data-history>
-      {error && <p className="text-xs text-danger">{error}</p>}
+      {error && <ErrorText size="xs">{error}</ErrorText>}
       {detail && (
         <>
-          <p className="text-xs text-muted">
+          <Hint as="p" size="xs">
             Spec: {detail.plan ? `${detail.plan.title} (${detail.plan.approved ? 'approved' : (detail.plan.state ?? 'draft')})` : 'none'}
             {detail.task.epicTitle ? ` · Epic: ${detail.task.epicTitle}` : ''} · State: {detail.task.state ?? 'unknown'}
-          </p>
+          </Hint>
           {detail.timeline.length ? (
             <ol className="flex flex-col gap-0.5 text-xs">
               {detail.timeline.slice(0, 12).map((entry, i) => (
@@ -487,11 +493,11 @@ function ItemHistory({ item, workspaceId }: { item: ConflictItem; workspaceId: s
               ))}
             </ol>
           ) : (
-            <p className="text-xs text-muted">Nothing recorded yet.</p>
+            <Hint as="p" size="xs">Nothing recorded yet.</Hint>
           )}
         </>
       )}
-      {!item.taskId && <p className="text-xs text-muted">This item belongs to the workspace, not one task.</p>}
+      {!item.taskId && <Hint as="p" size="xs">This item belongs to the workspace, not one task.</Hint>}
     </div>
   )
 }
@@ -574,17 +580,17 @@ function ConflictDetail(props: {
   const phone = usePhone()
   const time = itemTime(item as ConflictItem & { openedAt?: string | null })
   return (
-    <div className="flex flex-col gap-3" data-conflict-detail={itemKey(item)}>
+    <Stack gap={3} data-conflict-detail={itemKey(item)}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <Badge variant={['decision', 'needs-human', 'review', 'content-match', 'content-unavailable'].includes(item.kind) ? 'warning' : 'danger'}>
           {LABELS[item.kind] ?? item.kind}
         </Badge>
         {item.field && <Badge>{FIELD_NAMES[item.field] ?? item.field}</Badge>}
         {item.kind !== 'spec-pull' && <Authority owner={item} />}
-        {item.taskId && <span className="text-xs text-muted">{item.taskId}</span>}
+        {item.taskId && <Hint size="xs">{item.taskId}</Hint>}
         {time && (
           <Tooltip text={time}>
-            <span className="text-xs text-muted">· {relativeTime(time)}</span>
+            <Hint size="xs">· {relativeTime(time)}</Hint>
           </Tooltip>
         )}
       </div>
@@ -624,7 +630,7 @@ function ConflictDetail(props: {
         <ConflictActions item={item} workspaceId={props.workspaceId} revision={props.revision} busy={props.busy} run={props.run} onSettled={props.onSettled} onReload={props.onReload} />
       </Card>
       {history && <ItemHistory item={item} workspaceId={props.workspaceId} />}
-    </div>
+    </Stack>
   )
 }
 
@@ -741,9 +747,9 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
         </ViewHeading>
       )}
       {(error || chat.error) && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error ?? chat.error}
-        </p>
+        </ErrorText>
       )}
       {message && (
         <p role={message.ok ? 'status' : 'alert'} className={`text-sm ${message.ok ? 'text-muted' : 'text-danger'}`}>
@@ -751,11 +757,11 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
         </p>
       )}
       {!workspaceId ? (
-        <p className="text-sm text-muted">Choose a workspace in the header.</p>
+        <Hint as="p" size="sm">Choose a workspace in the header.</Hint>
       ) : items === null ? (
-        <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
+        <Hint as="p" size="sm">{busy ? 'Loading…' : 'Not loaded'}</Hint>
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted">No open conflicts or decisions.</p>
+        <Hint as="p" size="sm">No open conflicts or decisions.</Hint>
       ) : (
         <ListDetailLayout
           id="needs-you"
@@ -763,7 +769,7 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
           detailTitle={current?.title ?? ''}
           onBack={() => setFocus(null)}
           list={
-            <div className="flex flex-col gap-2" data-conflict-list-pane>
+            <Stack gap={2} data-conflict-list-pane>
           <FilterPanel
                   folded
                   id="avoozl-conflicts"
@@ -795,9 +801,9 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                   ]}
                 >
                   {/* The count once, on the Filters row, with Refresh. */}
-                  <span role="status" className="text-xs text-muted" data-conflict-count>
+                  <Hint role="status" size="xs" data-conflict-count>
                     {matching.length} of {items.length}
-                  </span>
+                  </Hint>
                   <span className="ml-auto">{workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy || acting} />}</span>
                 </FilterPanel>
                 <div className="flex flex-wrap items-center gap-2 text-sm" data-bulk-bar>
@@ -819,14 +825,14 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                       Select all {matching.length} matching
                     </TipBtn>
                   )}
-                  <span role="status" className="text-xs text-muted" data-selection>
+                  <Hint role="status" size="xs" data-selection>
                     {picked.length
                       ? `${picked.length} selected${allMatching ? `: all ${matching.length} matching` : allShown && picked.length === shown.length ? `: the ${shown.length} shown` : ''}. Bulk acts on these ${picked.length}. · `
                       : ''}
                     {/* Only when a page holds back some of the matching items. */}
                     {shown.length < matching.length ? `${shown.length} shown of ${matching.length}` : ''}
                     {acting ? ' · Working…' : ''}
-                  </span>
+                  </Hint>
                   {picked.length > 0 && (
                     <>
                       <IconLabel icon={MessageSquare} tooltip="Start a Kiro Crew chat seeded with the selected items" onClick={() => void chat.ask({ items: picked.map(itemRef) })}>
@@ -837,7 +843,7 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                           {ACTION_LABELS[action]} {picked.length}
                         </TipBtn>
                       ) : (
-                        <span className="text-xs text-muted">Bulk resolve needs items of one kind.</span>
+                        <Hint size="xs">Bulk resolve needs items of one kind.</Hint>
                       )}
                       <Btn onClick={() => setSelected(new Set())} disabled={acting}>
                         Clear selection
@@ -859,8 +865,8 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                   ))}
                 </ul>
                 <ShowMore {...pages.more('conflicts', matching.length)} />
-                {matching.length === 0 && <p className="text-sm text-muted">No item matches these filters.</p>}
-            </div>
+                {matching.length === 0 && <Hint as="p" size="sm">No item matches these filters.</Hint>}
+            </Stack>
           }
           detail={
             current ? (

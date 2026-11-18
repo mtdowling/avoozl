@@ -4,13 +4,17 @@
 // person signs off here; the backend checks every item again, records who
 // and when, and lapses the sign-off when any item changes.
 import { useMemo, useState } from 'react'
-import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
-import { ICON, SectionBox, useConfirm } from './controls.tsx'
+import { Btn } from './ui/Btn'
+import { Input } from './ui/Input'
+import Badge from './ui/Badge.tsx'
+import { ICON, SectionBox, useConfirm } from './ui/controls.tsx'
 import { useAppApi } from './host.ts'
 import { CircleAlert, CircleCheck } from './icons.ts'
 import { publicCrewsClient, signoffBadge, signoffLine, type PublicCrew } from './untriaged-api.ts'
 import { errorMessage } from './workspace-api.ts'
+import { ErrorText } from './ui/ErrorText'
+import { Hint } from './ui/Hint'
+import { Stack } from './ui/Stack'
 
 export const HOME_NOTE =
   'A separate crew home removes injected context only. The crew can still read every file your operating-system user can read and use its credentials. A crew that must not read them runs as another user, in a container, or on another machine.'
@@ -53,15 +57,15 @@ function Row(props: { row: PublicCrew; workspaceId: string; onChange: () => void
           {row.repository}
         </span>
         <Badge variant={badge.variant}>{badge.text}</Badge>
-        {row.visibility === 'unknown' && <span className="text-xs text-muted">Visibility not read, so it counts as public.</span>}
+        {row.visibility === 'unknown' && <Hint size="xs">Visibility not read, so it counts as public.</Hint>}
       </div>
-      <p className="text-xs text-muted" data-signoff-line>
+      <Hint as="p" size="xs" data-signoff-line>
         {signoffLine(row)}
-      </p>
+      </Hint>
       {row.banner && (
-        <p role="alert" className="text-sm text-danger" data-public-banner>
+        <ErrorText role="alert" size="sm" data-public-banner>
           {row.banner}
-        </p>
+        </ErrorText>
       )}
       <ul className="m-0 flex list-none flex-col gap-1 p-0" aria-label={`Checklist for ${row.repository}`}>
         {row.items.map((item) => (
@@ -72,7 +76,7 @@ function Row(props: { row: PublicCrew; workspaceId: string; onChange: () => void
             <span className="min-w-0">
               <span className="font-medium">{item.label}</span>
               <span className="sr-only">{item.ok ? ': met' : ': not met'}</span>
-              <span className="text-muted"> · {item.line}</span>
+              <Hint> · {item.line}</Hint>
             </span>
           </li>
         ))}
@@ -102,9 +106,9 @@ function Row(props: { row: PublicCrew; workspaceId: string; onChange: () => void
         </div>
       </div>
       {error && (
-        <p role="alert" className="text-sm text-danger">
+        <ErrorText role="alert" size="sm">
           {error}
-        </p>
+        </ErrorText>
       )}
     </div>
   )
@@ -116,15 +120,15 @@ export function PublicCrews(props: { rows: PublicCrew[]; workspaceId: string; on
   return (
     <div data-public-crews>
       <SectionBox id="public-crews" title={<span>Public crews{held ? ` · ${held} held` : ''}</span>} open={held > 0}>
-        <div className="flex flex-col gap-2">
-          <p className="text-xs text-muted">Issue Radar crews write to these public repositories with your GitHub login. Sign off each checklist before Avoozl sends a crew any issue.</p>
-          <p className="text-xs text-muted" data-home-note>
+        <Stack gap={2}>
+          <Hint as="p" size="xs">Issue Radar crews write to these public repositories with your GitHub login. Sign off each checklist before Avoozl sends a crew any issue.</Hint>
+          <Hint as="p" size="xs" data-home-note>
             {HOME_NOTE}
-          </p>
+          </Hint>
           {props.rows.map((row) => (
             <Row key={`${row.repository}:${row.home ?? ''}:${row.agent}`} row={row} workspaceId={props.workspaceId} onChange={props.onChange} />
           ))}
-        </div>
+        </Stack>
       </SectionBox>
     </div>
   )
