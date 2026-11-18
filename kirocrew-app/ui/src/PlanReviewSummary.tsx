@@ -48,11 +48,6 @@ export function ReviewWorking(props: { model: string | null; title?: string; lab
   )
 }
 
-// The dialog's boxes: a bordered section, the reviewer facts as a two-column
-// table, and a tinted note for each caveat.
-const BOX = { borderColor: 'var(--border)' }
-const ROW_TH = { textAlign: 'left' as const, fontWeight: 600, padding: '2px 12px 2px 0', color: 'var(--text-muted, var(--muted))', whiteSpace: 'nowrap' as const, verticalAlign: 'top' as const }
-const ROW_TD = { padding: '2px 0' }
 function Note(props: { children: ReactNode }) {
   return (
     <Box role="note" data-review-note as="p" css-border-color="mix-info-accent-40%-transparent" css-background="mix-info-accent-8%-transparent" m0 rounded="base" border="all" px="3" py="2">
@@ -83,13 +78,13 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
   return (
     <Box data-plan-review css-overflow-wrap="anywhere" flex minW0 flexCol gap="2" size="sm">
       {(review?.revisionHash || review?.note || review?.unproven || (review?.canReviewAnyway && props.onStart)) && (
-        <section data-review-reviewer className="flex flex-col gap-2 rounded border p-3" style={BOX}>
+        <Box data-review-reviewer as="section" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="3">
           {review?.revisionHash && (
             <Box as="table" css-border-collapse="collapse" size="sm">
               <tbody>
-                <tr><th scope="row" style={ROW_TH}>Reviewer</th><td style={ROW_TD}>{review.reviewerModel ?? 'not set'}</td></tr>
-                <tr><th scope="row" style={ROW_TH}>Revision</th><td style={ROW_TD}><Tooltip text={review.revisionHash}><code>{shortHash(review.revisionHash)}</code></Tooltip>{!review.current && <Hint> · older revision</Hint>}</td></tr>
-                <tr><th scope="row" style={ROW_TH}>Writer</th><td style={ROW_TD}>{review.writerModel ?? 'unknown'}</td></tr>
+                <tr><Box scope="row" as="th" css-text-align="left" css-font-weight="600" css-padding="2px-12px-2px-0" css-color="text-muted-muted" css-white-space="nowrap" css-vertical-align="top">Reviewer</Box><Box as="td" css-padding="2px-0">{review.reviewerModel ?? 'not set'}</Box></tr>
+                <tr><Box scope="row" as="th" css-text-align="left" css-font-weight="600" css-padding="2px-12px-2px-0" css-color="text-muted-muted" css-white-space="nowrap" css-vertical-align="top">Revision</Box><Box as="td" css-padding="2px-0"><Tooltip text={review.revisionHash}><code>{shortHash(review.revisionHash)}</code></Tooltip>{!review.current && <Hint> · older revision</Hint>}</Box></tr>
+                <tr><Box scope="row" as="th" css-text-align="left" css-font-weight="600" css-padding="2px-12px-2px-0" css-color="text-muted-muted" css-white-space="nowrap" css-vertical-align="top">Writer</Box><Box as="td" css-padding="2px-0">{review.writerModel ?? 'unknown'}</Box></tr>
               </tbody>
             </Box>
           )}
@@ -103,9 +98,9 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
               </Box>
             </Note>
           )}
-        </section>
+        </Box>
       )}
-      <section data-review-status className="flex flex-col gap-2 rounded border p-3" style={BOX}>
+      <Box data-review-status as="section" css-border-color="border" flex flexCol gap="2" rounded="base" border="all" p="3">
         {review?.state === 'running' ? <ReviewWorking model={review.reviewerModel} /> : <Box as="p" m0 weight="medium" data-plan-review-state>{reviewStateLabel(review)}</Box>}
         {queued && <Box role="status" as="p" m0>Review queued for this revision.</Box>}
         <Box as="p" m0 data-review-counts>{reviewCounts(review)}</Box>
@@ -114,7 +109,7 @@ export function PlanReviewSummary(props: { review?: Summary | null; onStart?: ()
             ? <a href={linkHref(href)} className="self-start underline" data-open-review onClick={(event) => { if (!props.onOpenReview) return; event.preventDefault(); props.onOpenReview() }}>Open review</a>
             : <button type="button" className="self-start underline" style={{ background: 'none', border: 0, padding: 0, color: 'inherit', cursor: 'pointer' }} data-open-review onClick={props.onOpenReview}>Open review</button>
         )}
-      </section>
+      </Box>
       {error && <ErrorText role="alert" flush>{error}</ErrorText>}
     </Box>
   )

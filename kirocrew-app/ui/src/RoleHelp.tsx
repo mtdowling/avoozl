@@ -52,18 +52,11 @@ function PullIcon({ color }: { color: string }) {
   )
 }
 
-const box: CSSProperties = {
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  background: 'var(--card)',
-  minWidth: 0,
-  overflow: 'hidden',
-}
 
 // One repository in GitHub's look: a header with owner/name, then rows.
 function Repo({ name, locked, children }: { name: string; locked?: boolean; children: ReactNode }) {
   return (
-    <div style={box} className="flex-1 text-[11px] leading-4">
+    <Box css-border="1px-solid-border" css-border-radius="6" css-background="card" css-min-width="0" css-overflow="hidden" flex1 size="11" leading4>
       <Box
         css-background="bg-elevated-transparent" css-border-bottom="1px-solid-border" css-color="text" flex items="center" gap="1" px="2" py="1" weight="semibold"
       >
@@ -71,7 +64,7 @@ function Repo({ name, locked, children }: { name: string; locked?: boolean; chil
         <Box as="span" truncate>{name}</Box>
       </Box>
       <Stack>{children}</Stack>
-    </div>
+    </Box>
   )
 }
 

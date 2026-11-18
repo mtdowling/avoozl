@@ -306,25 +306,13 @@ export function DocTabs(props: {
 }) {
   const bar = props.bar ?? { label: 'Spec files', attr: 'data-review-tab', prefix: 'review-tab' }
   const count = (n: number) => (
-    <span
+    <Box
       data-tab-count={n}
       aria-label={`${n} open`}
-      style={{
-        minWidth: 18,
-        padding: '0 6px',
-        borderRadius: 999,
-        fontSize: 11,
-        lineHeight: '18px',
-        textAlign: 'center',
-        fontFamily: 'inherit',
-        fontVariantNumeric: 'tabular-nums',
-        background: n ? 'var(--bg-hover)' : 'transparent',
-        color: n ? 'var(--text)' : 'var(--muted)',
-        opacity: n ? 1 : 0.6,
-      }}
+      as="span" css-min-width="18" css-padding="0-6px" css-border-radius="999" css-font-size="11" css-line-height="18px" css-text-align="center" css-font-family="inherit" css-font-variant-numeric="tabular-nums" css-background={n ? 'bg-hover' : 'transparent'} css-color={n ? 'text' : 'muted'} css-opacity={n ? '1' : '0.6'}
     >
       {n}
-    </span>
+    </Box>
   )
   return (
     <Tabs
@@ -625,7 +613,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                 />
               ))}
             </Box>
-            <span className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginLeft: phone ? 0 : 12 }} role="group" aria-label="State" data-state-filters>
+            <Box as="span" css-display="flex" css-flex-wrap="wrap" css-align-items="center" css-gap="6" css-margin-left={phone ? '0' : '12'} flex flexWrap items="center" gap="1.5" role="group" aria-label="State" data-state-filters>
               <Hint size="xs">State</Hint>
               {STATES.filter((s) => counts.state[s] || place.state.includes(s)).map((s) => (
                 <Chip
@@ -637,7 +625,7 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
                   attr={{ 'data-state-filter': s }}
                 />
               ))}
-            </span>
+            </Box>
           </Box>
           <style>{HIT_STYLE + CARD_STYLE}</style>
           {all ? (

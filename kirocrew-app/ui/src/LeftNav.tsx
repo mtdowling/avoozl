@@ -28,9 +28,9 @@ export const SQUARE = { display: 'inline-flex', alignItems: 'center', justifyCon
 // when there is something to put in it.
 export function NavLine(props: { children: ReactNode }) {
   return (
-    <div data-nav-line style={{ ...NAV_CARD, display: 'flex', alignItems: 'center', gap: 6, padding: 4 }}>
+    <Box data-nav-line css-border="1px-solid-border" css-border-radius="12" css-background="bg-elevated" css-box-shadow="0-1px-2px-rgba-0-0-0-0.05" css-display="flex" css-align-items="center" css-gap="6" css-padding="4">
       {props.children}
-    </div>
+    </Box>
   )
 }
 

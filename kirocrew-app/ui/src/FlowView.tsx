@@ -49,7 +49,6 @@ import { Row } from './ui/Row'
 import { Stack } from './ui/Stack'
 import { Box } from './ui/Box'
 
-const BAR: CSSProperties = { display: 'flex', height: 12, borderRadius: 4, overflow: 'hidden', background: 'color-mix(in srgb, var(--muted) 15%, transparent)' }
 
 // A stacked bar by stage, scaled to `scale` ms (the longest bar shown).
 export function StageBar({ stages, scale, label }: { stages: Record<string, number>; scale: number; label: string }) {
@@ -60,11 +59,11 @@ export function StageBar({ stages, scale, label }: { stages: Record<string, numb
     <div style={{ width: `${Math.max(4, scale ? (100 * total) / scale : 100)}%` }}>
       <Tooltip text={text} display="block">
         {(describedBy) => (
-          <div role="img" aria-label={text} aria-describedby={describedBy} tabIndex={0} style={BAR}>
+          <Box role="img" aria-label={text} aria-describedby={describedBy} tabIndex={0} css-display="flex" css-height="12" css-border-radius="4" css-overflow="hidden" css-background="mix-muted-15%-transparent">
             {parts.map((p) => (
               <span key={p.stage} style={{ width: `${p.share * 100}%`, background: p.color, display: 'block', height: '100%' }} />
             ))}
-          </div>
+          </Box>
         )}
       </Tooltip>
     </div>
