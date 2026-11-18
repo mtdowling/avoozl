@@ -16,6 +16,8 @@ import { WorkspaceRegistry } from "./host-config.mjs";
 import { prepareWorktree } from "./delivery.mjs";
 import { drainProcessRequests } from "./executors/process.mjs";
 import { drainCheckRuns } from "./check-runs.mjs";
+import { machineFile } from "./crews.mjs";
+import { sinkPushers, validateNotifications } from "./notification-sinks.mjs";
 
 // The enabled workspace roots in the machine catalog, synced from the
 // machine config first so a hand edit counts.
@@ -86,12 +88,32 @@ export async function tickWorkspace(
   }
 }
 
+// This machine's sinks, from `notifications.sinks` in the machine file
+// (NK7.2). A bad value sends nothing and says why.
+export function machineSinks(file) {
+  return sinkPushers(
+    validateNotifications(machineFile(file).value.notifications).sinks,
+  );
+}
+
 // Every enabled workspace in turn; one failure never stops the rest.
 export async function tickCatalog(paths) {
   const results = [];
+  let sinks = paths.sinks;
+  if (!sinks)
+    try {
+      sinks = machineSinks(
+        paths.configDirectory
+          ? path.join(path.resolve(paths.configDirectory), "config.json")
+          : undefined,
+      );
+    } catch (error) {
+      sinks = [];
+      results.push({ notifications: error.message });
+    }
   for (const root of catalogTickRoots(paths))
     try {
-      results.push(await tickWorkspace(root, paths));
+      results.push(await tickWorkspace(root, { ...paths, sinks }));
     } catch (error) {
       results.push({ root, error: error.message });
     }
