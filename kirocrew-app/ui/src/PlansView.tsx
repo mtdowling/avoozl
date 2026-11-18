@@ -35,15 +35,14 @@ import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './Modal.tsx'
 import { PlanReviewSummary, REVIEW_POLL_MS, ReviewWorking, RevisionChanged } from './PlanReviewSummary.tsx'
 import { SpecGraph } from './SpecGraph.tsx'
-import { ReviewView } from './ReviewView.tsx'
-import { parseReviewLink, reviewClient, reviewHref, reviewLink, type ReviewPlace } from './review-view.ts'
+import { DocTabs, ReviewView } from './ReviewView.tsx'
+import { parseReviewLink, parseSpecTab, renderText, reviewClient, reviewHref, reviewLink, specTabLink, type ReviewPlace } from './review-view.ts'
 import { SeverityBadges } from './SeverityBadges.tsx'
 import { urlBase } from './focus-tree.ts'
 import { DiffBlock } from './FlowMemory.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
 import { SpecChangedModal } from './SpecChangedModal.tsx'
 import { projectionClient } from './projection-api.ts'
-import { SpecDetailsPanel } from './SpecDetailsPanel.tsx'
 import {
   UNCATEGORIZED,
   approveBlocker,
@@ -140,9 +139,11 @@ function RailSection(props: { title: string; edit?: { label: string; onClick: ()
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
         <h4 style={{ margin: 0, fontSize: 11, fontWeight: 500, lineHeight: '17px', letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--muted)' }}>{props.title}</h4>
         {props.edit && (
-          <button type="button" data-rail-edit aria-label={props.edit.label} onClick={props.edit.onClick}>
-            Edit
-          </button>
+          <Tooltip text="Edit">
+            <button type="button" data-rail-edit aria-label={props.edit.label} onClick={props.edit.onClick} style={{ display: 'inline-flex', padding: 2 }}>
+              <Pencil size={13} aria-hidden="true" />
+            </button>
+          </Tooltip>
         )}
       </div>
       {props.children}
@@ -233,6 +234,63 @@ function Documents({ docs, error }: { docs: SpecDocuments | null; error: string 
         </SpecCard>
       ))}
     </>
+  )
+}
+
+// The spec's details in one compact bordered box on the Overview: the rail's
+// small labeled sections as a label/value grid, scrolling inside the box.
+const DETAILS_CSS = `[data-spec-details-box] [data-spec-rail]{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));column-gap:20px;row-gap:14px;align-items:start}
+[data-spec-details-box] [data-rail-section]{border-bottom:0!important;margin-bottom:0!important;padding-bottom:0!important;min-width:0}`
+function SpecDetailsBox({ children }: { children: ReactNode }) {
+  return (
+    <SpecCard title="Spec details" id="avoozl-spec-details">
+      <style>{DETAILS_CSS}</style>
+      <div data-spec-details-box tabIndex={0} style={{ maxHeight: 260, overflowY: 'auto', overscrollBehavior: 'contain', fontSize: 12.5 }}>
+        {children}
+      </div>
+    </SpecCard>
+  )
+}
+
+// One spec document, rendered, under its tab (the Review view's file tabs).
+function DocumentTab({ docs, error, file }: { docs: SpecDocuments | null; error: string | null; file: string }) {
+  const text = docs?.documents?.[file]
+  return (
+    <SpecCard title={file} id={`avoozl-doc-${file}`} actions={docs ? <span className="min-w-0 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{docs.folder}{file}</span> : undefined}>
+      {error ? (
+        <p className="text-sm text-danger">{error}</p>
+      ) : !docs ? (
+        <p className="text-sm text-muted">Loading…</p>
+      ) : typeof text !== 'string' ? (
+        <p className="text-sm text-muted">This folder has no {file}.</p>
+      ) : (
+        <Markdown text={renderText(file, text)} idPrefix={docPrefix(file)} measure={PROSE_MEASURE} />
+      )}
+    </SpecCard>
+  )
+}
+
+// The tabs a spec page has: Overview, Tasks, one per document in the spec
+// folder, and Review. The files come from the folder, in reading order.
+export function specTabNames(docs: SpecDocuments | null, hasPlan: boolean): string[] {
+  if (!hasPlan) return []
+  const files = Object.keys(docs?.documents ?? {})
+  const first = documentTabs(docs).map((t) => t.file)
+  return ['overview', 'tasks', ...first, ...files.filter((f) => !first.includes(f)).sort(), 'review']
+}
+const TAB_NAME: Record<string, string> = { overview: 'Overview', tasks: 'Tasks', review: 'Review' }
+const OPEN = new Set(['open', 'answered', 'for you', 'accepted'])
+
+function SpecTabs(props: { tabs: string[]; current: string; plan: SpecPlan | null; onPick: (tab: string) => void }) {
+  const counts: Record<string, number> = {}
+  for (const finding of props.plan?.review?.open ?? []) if (OPEN.has(finding.state ?? 'open')) counts[finding.file] = (counts[finding.file] ?? 0) + 1
+  const files = props.tabs.filter((tab) => !TAB_NAME[tab])
+  const shown: Record<string, number> = Object.fromEntries(files.map((file) => [file, counts[file] ?? 0]))
+  shown.review = Object.values(counts).reduce((a, b) => a + b, 0)
+  return (
+    <div data-spec-tabs-wrap style={{ padding: '0 12px', minWidth: 0 }}>
+      <DocTabs tabs={props.tabs} current={props.current} counts={shown} onPick={props.onPick} bar={{ label: 'Spec views', attr: 'data-spec-tab', prefix: 'spec-tab', labels: TAB_NAME }} />
+    </div>
   )
 }
 
@@ -365,13 +423,19 @@ function SpecDetail(props: {
   // Retry for a summary that is not there: the page reads the plan again, and
   // runs a review when one can run.
   onRetrySummary?: () => void
+  // The open tab (SpecTabs) and, for the Overview, the spec details box.
+  tab: string
+  details: ReactNode
+  onTasks: () => void
 }) {
-  const { spec, plan, preview, busy } = props
+  const { spec, plan, preview, busy, tab } = props
+  const overview = tab === 'overview' || !plan
   const blocker = approveBlocker(plan)
   const critique = plan?.disk.critique ?? spec.critique
   const diagnostics = plan?.quality.diagnostics ?? []
   return (
-    <div className="flex min-w-0 flex-col" style={{ gap: 20 }}>
+    <div className="flex min-w-0 flex-col" style={{ gap: 20 }} role="tabpanel" id="spec-tab-panel">
+      {overview && (<>
       <SpecCard
         title="Summary"
         actions={
@@ -399,16 +463,34 @@ function SpecDetail(props: {
         </p>
       </SpecCard>
 
+      {props.details}
+
       {plan && (
         <SpecCard title="Task graph">
-          <SpecGraph key={plan.id} graph={props.graph} planId={plan.id} />
+          <SpecGraph key={plan.id} graph={props.graph} planId={plan.id} only="frontier" onTasks={props.onTasks} />
         </SpecCard>
       )}
+      </>)}
 
-      <Documents key={spec.name} docs={props.docs} error={props.docsError} />
+      {plan && tab === 'tasks' && (
+        <>
+          <SpecCard title="Task tree">
+            <SpecGraph key={plan.id} graph={props.graph} planId={plan.id} only="tree" />
+          </SpecCard>
+          <PhaseTasks graph={props.graph} onOpenTask={props.onOpenTask} />
+        </>
+      )}
 
-      <PhaseTasks graph={props.graph} onOpenTask={props.onOpenTask} fold={Boolean(plan)} />
+      {plan && tab !== 'overview' && tab !== 'tasks' && <DocumentTab key={tab} docs={props.docs} error={props.docsError} file={tab} />}
 
+      {!plan && (
+        <>
+          <Documents key={spec.name} docs={props.docs} error={props.docsError} />
+          <PhaseTasks graph={props.graph} onOpenTask={props.onOpenTask} />
+        </>
+      )}
+
+      {overview && (<>
       <SpecCard title="Diagnostics">
         {!plan ? (
           <p className="text-sm text-muted">
@@ -483,6 +565,7 @@ function SpecDetail(props: {
           </ul>
         </SpecCard>
       )}
+      </>)}
     </div>
   )
 }
@@ -1906,34 +1989,76 @@ export default function PlansView(props: {
   // The open spec's Review view (R104.9), kept in the page address on
   // Kiro Crew's route. A pasted ?view=review&plan=P link opens it once.
   const [review, setReview] = useState<ReviewPlace | null>(null)
+  // The other tabs: Overview, Tasks and one per spec document, in the address
+  // as the spec id plus tab=T. Review has its own link. Back and Forward walk them.
+  const [specAt, setSpecAt] = useState<{ plan: string; tab: string }>({ plan: '', tab: 'overview' })
   const reviewLinkRead = useRef(false)
+  const readAddress = useCallback(() => {
+    const link = parseReviewLink(window.location.search)
+    if (link) {
+      setReview(link)
+      return link.plan
+    }
+    const at = parseSpecTab(window.location.search)
+    setReview(null)
+    setSpecAt(at ?? { plan: '', tab: 'overview' })
+    return at?.plan ?? null
+  }, [])
   useEffect(() => {
     if (!table || reviewLinkRead.current) return
     reviewLinkRead.current = true
-    const link = parseReviewLink(window.location.search),
-      found = link && table.items.find((item) => item.planId === link.plan)
-    if (!link || !found) return
-    setSelected(found.key)
-    setReview(link)
+    const plan = readAddress(),
+      found = plan && table.items.find((item) => item.planId === plan)
+    if (found) setSelected(found.key)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table])
-  const placeReview = (next: ReviewPlace | null) => {
-    setReview(next)
+  useEffect(() => {
+    const onPop = () => {
+      const plan = readAddress()
+      const found = plan && table?.items.find((item) => item.planId === plan)
+      if (found) setSelected(found.key)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table, readAddress])
+  const goAddress = (link: string) => {
     const base = urlBase(window.location.pathname)
     if (!base) return
     try {
-      navigate(base + (next ? reviewLink(next) : ''))
+      navigate(base + link)
     } catch {
       // The address is a convenience; the view still changes.
     }
   }
+  const placeReview = (next: ReviewPlace | null) => {
+    setReview(next)
+    if (next) goAddress(reviewLink(next))
+  }
   const reviewing = review && row?.planId === review.plan ? review : null
+  // A new spec opens on its Overview.
+  useEffect(() => {
+    if (review && row?.planId !== review.plan) setReview(null)
+  }, [row?.planId, review])
+  const specTab = specAt.plan === row?.planId ? specAt.tab : 'overview'
+  const pickTab = (next: string) => {
+    const id = row?.planId
+    if (!id || !workspace) return
+    if (next === 'review') return placeReview({ plan: id, rev: null, file: null, severity: [], state: [] })
+    if (reviewing) {
+      // Decisions change the Summary's open counts: re-read the plan in place.
+      plans.get(workspace, id).then((fresh) => setPlan((shown) => (shown?.id === id ? fresh : shown)), () => undefined)
+    }
+    setReview(null)
+    setSpecAt({ plan: id, tab: next })
+    goAddress(specTabLink(id, next))
+  }
   // An Approve dialog's Open review: the spec's Review view at the revision
   // the dialog showed. The caller closes the dialog.
   const openReview = (planId: string, rev: string) => {
     const found = table?.items.find((item) => item.planId === planId)
     if (found) setSelected(found.key)
-    placeReview({ plan: planId, rev, file: null, severity: null, state: null })
+    placeReview({ plan: planId, rev, file: null, severity: [], state: [] })
   }
   // The Review view folds the specs list so the text and its rail sit side
   // by side; the bar brings the list back until the view is opened again.
@@ -2069,6 +2194,12 @@ export default function PlansView(props: {
     }
   }
 
+  const tabNames = specTabNames(docs, Boolean(plan))
+  const shownTab = reviewing ? 'review' : specTab
+  const specTabs =
+    plan && row?.planId ? (
+      <SpecTabs tabs={tabNames.includes(shownTab) ? tabNames : [...tabNames.slice(0, -1), shownTab, 'review']} current={shownTab} plan={plan} onPick={pickTab} />
+    ) : null
   const specHeader = row ? (
     <SpecHeader
       row={row}
@@ -2080,8 +2211,7 @@ export default function PlansView(props: {
       actions={specActions(row)}
     />
   ) : null
-  // The specs list column. On a desktop the open spec's details sit in a
-  // panel at its bottom; a phone stacks them under the spec instead.
+  // The specs list column.
   const specList = (
     <div className="flex flex-col gap-3" data-plans-list-pane>
       <ViewHeading
@@ -2162,9 +2292,22 @@ export default function PlansView(props: {
       </div>
     </div>
   )
+  const specRail = row ? (
+    <SpecRail
+      row={row}
+      plan={plan}
+      graph={planGraph}
+      docs={docs}
+      onEdit={() => change(row)}
+      onRepositories={props.onOpenSettings ? () => props.onOpenSettings!('repositories') : undefined}
+      onDrill={(drill) => props.onDrill?.(drill)}
+      onOpenTask={(id) => drawer.openTask(id)}
+    />
+  ) : null
   const specContent = row ? (
     <>
       {specHeader}
+      {specTabs}
       <div data-spec-body style={{ padding: phone ? '20px 0' : '20px 12px 20px 12px' }}>
         <div id="avoozl-plan-main" className="flex min-w-0 flex-col" style={{ gap: 20, scrollMarginTop: 48 }}>
           <RadarGraphLink />
@@ -2191,7 +2334,10 @@ export default function PlansView(props: {
               onChanged={() => setDialog('changed')}
               onOpenTask={(id) => drawer.openTask(id)}
               onRetrySummary={retrySummary}
-              onReview={row.planId ? () => placeReview({ plan: row.planId!, rev: null, file: null, severity: null, state: null }) : undefined}
+              onReview={row.planId ? () => pickTab('review') : undefined}
+              tab={specTab}
+              details={<SpecDetailsBox>{specRail}</SpecDetailsBox>}
+              onTasks={() => pickTab('tasks')}
             />
           ) : (
             <>
@@ -2211,24 +2357,13 @@ export default function PlansView(props: {
                   )}
                 </div>
               </SpecCard>
+              <SpecDetailsBox>{specRail}</SpecDetailsBox>
               <PhaseTasks graph={planGraph} onOpenTask={(id) => drawer.openTask(id)} />
             </>
           )}
         </div>
       </div>
     </>
-  ) : null
-  const specRail = row ? (
-    <SpecRail
-      row={row}
-      plan={plan}
-      graph={planGraph}
-      docs={docs}
-      onEdit={() => change(row)}
-      onRepositories={props.onOpenSettings ? () => props.onOpenSettings!('repositories') : undefined}
-      onDrill={(drill) => props.onDrill?.(drill)}
-      onOpenTask={(id) => drawer.openTask(id)}
-    />
   ) : null
   return (
     <section aria-labelledby="avoozl-plans-title" className="flex flex-col gap-3.5">
@@ -2320,13 +2455,7 @@ export default function PlansView(props: {
           detailOwnTitle
           onBack={() => openPlan(null)}
           list={
-            phone ? (
-              specList
-            ) : (
-              <SpecDetailsPanel phone={false} content={specList}>
-                {row && !reviewing ? specRail : null}
-              </SpecDetailsPanel>
-            )
+            specList
           }
           detail={
             !row ? null : (
@@ -2334,21 +2463,11 @@ export default function PlansView(props: {
                 {reviewing && workspace ? (
                   <>
                     {specHeader}
-                    <ReviewView key={`${workspace}:${reviewing.plan}`} workspaceId={workspace} client={reviews} place={reviewing} onPlace={placeReview} onClose={() => {
-                        placeReview(null)
-                        // Decisions change the Summary's open counts: re-read the plan in place.
-                        const id = row.planId
-                        if (id) plans.get(workspace, id).then((fresh) => setPlan((shown) => (shown?.id === id ? fresh : shown)), () => undefined)
-                      }} />
+                    {specTabs}
+                    <ReviewView key={`${workspace}:${reviewing.plan}`} workspaceId={workspace} client={reviews} place={reviewing} onPlace={placeReview} />
                   </>
                 ) : (
-                phone ? (
-                  <SpecDetailsPanel phone content={specContent}>
-                    {specRail}
-                  </SpecDetailsPanel>
-                ) : (
                   specContent
-                )
                 )}
               </div>
             )

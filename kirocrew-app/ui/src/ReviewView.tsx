@@ -74,6 +74,9 @@ function Chip(props: { label: string; count?: number; on: boolean; onClick: () =
   )
 }
 
+// A toggle: the value in or out of the list, kept in the page's own order.
+const toggle = <T extends string>(list: T[], value: T, order: readonly T[]): T[] => order.filter((item) => (item === value ? !list.includes(item) : list.includes(item)))
+
 const ACTION_TEXT: Record<FindingAction, string> = {
   accept: 'Accepted',
   reject: 'Rejected',
@@ -278,7 +281,18 @@ function FindingCard(props: {
 
 // The tab bar: one tab per spec file with its open-finding count, then All
 // findings. Arrow keys, Home and End move between tabs (WAI-ARIA tabs).
-function DocTabs(props: { tabs: string[]; current: string; counts: Record<string, number>; onPick: (tab: string) => void }) {
+// The spec page's tab bar reuses it (SpecTabs), with its own labels and
+// attributes, so the two bars look and move the same.
+export function DocTabs(props: {
+  tabs: string[]
+  current: string
+  counts: Record<string, number>
+  onPick: (tab: string) => void
+  // The spec page's bar: its own accessible name, data attribute and ids, and
+  // a count only on the tabs that have one.
+  bar?: { label: string; attr: string; prefix: string; labels?: Record<string, string> }
+}) {
+  const bar_ = props.bar ?? { label: 'Spec files', attr: 'data-review-tab', prefix: 'review-tab' }
   const refs = useRef(new Map<string, HTMLButtonElement>())
   const bar = useRef<HTMLDivElement>(null)
   // On a narrow screen the bar scrolls sideways: keep the open tab in view,
@@ -301,8 +315,9 @@ function DocTabs(props: { tabs: string[]; current: string; counts: Record<string
     <div
       ref={bar}
       role="tablist"
-      aria-label="Spec files"
-      data-review-tabs
+      aria-label={bar_.label}
+      data-review-tabs={props.bar ? undefined : ''}
+      {...(props.bar ? { [`${bar_.attr}s`]: '' } : {})}
       onKeyDown={key}
       style={{ position: 'relative', display: 'flex', gap: 2, borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'thin', minWidth: 0 }}
     >
@@ -318,11 +333,11 @@ function DocTabs(props: { tabs: string[]; current: string; counts: Record<string
             }}
             type="button"
             role="tab"
-            id={`review-tab-${tab.replace(/\W/g, '-')}`}
+            id={`${bar_.prefix}-${tab.replace(/\W/g, '-')}`}
             aria-selected={on}
-            aria-controls="review-tab-panel"
+            aria-controls={`${bar_.prefix}-panel`}
             tabIndex={on ? 0 : -1}
-            data-review-tab={tab}
+            {...{ [bar_.attr]: tab }}
             onClick={() => props.onPick(tab)}
             style={{
               flex: 'none',
@@ -342,7 +357,8 @@ function DocTabs(props: { tabs: string[]; current: string; counts: Record<string
               whiteSpace: 'nowrap',
             }}
           >
-            {TAB_LABEL[tab] ?? tab}
+            {bar_.labels?.[tab] ?? TAB_LABEL[tab] ?? tab}
+            {(!props.bar || props.counts[tab] !== undefined) && (
             <span
               data-tab-count={n}
               aria-label={`${n} open`}
@@ -362,6 +378,7 @@ function DocTabs(props: { tabs: string[]; current: string; counts: Record<string
             >
               {n}
             </span>
+            )}
           </button>
         )
       })}
@@ -369,7 +386,7 @@ function DocTabs(props: { tabs: string[]; current: string; counts: Record<string
   )
 }
 
-export function ReviewView(props: { workspaceId: string; client: ReviewClient; place: ReviewPlace; onPlace: (place: ReviewPlace) => void; onClose: () => void }) {
+export function ReviewView(props: { workspaceId: string; client: ReviewClient; place: ReviewPlace; onPlace: (place: ReviewPlace) => void }) {
   const { place } = props
   const phone = usePhone()
   const [data, setData] = useState<ReviewViewData | null>(null)
@@ -547,9 +564,6 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
             Show current revision
           </SmallBtn>
         )}
-        <SmallBtn onClick={props.onClose} attrs={{ 'data-review-close': true }}>
-          Back to spec
-        </SmallBtn>
       </div>
       {error && (
         <p role="alert" className="m-0 text-sm text-danger">
@@ -582,39 +596,33 @@ export function ReviewView(props: { workspaceId: string; client: ReviewClient; p
             ))}
           </div>
           {tab && <DocTabs tabs={tabs} current={tab} counts={{ ...open.byFile, [ALL_TAB]: open.total }} onPick={(name) => set({ file: name })} />}
-          <div className="flex flex-col gap-1.5" style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-review-filters>
-            <div className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-severity-filters>
-              <span className="text-xs text-muted" style={{ width: 52 }}>
-                Severity
-              </span>
-              <Chip label="All" on={!place.severity} onClick={() => set({ severity: null })} attr={{ 'data-severity-filter': 'all' }} />
+          <div className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-review-filters>
+            <span className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} role="group" aria-label="Severity" data-severity-filters>
+              <span className="text-xs text-muted">Severity</span>
               {SEVERITIES.map((s) => (
                 <Chip
                   key={s}
                   label={SEVERITY_LABEL[s]}
                   count={counts.severity[s] ?? 0}
-                  on={place.severity === s}
-                  onClick={() => set({ severity: place.severity === s ? null : s })}
+                  on={place.severity.includes(s)}
+                  onClick={() => set({ severity: toggle(place.severity, s, SEVERITIES) })}
                   attr={{ 'data-severity-filter': s }}
                 />
               ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-state-filters>
-              <span className="text-xs text-muted" style={{ width: 52 }}>
-                State
-              </span>
-              <Chip label="All" on={!place.state} onClick={() => set({ state: null })} attr={{ 'data-state-filter': 'all' }} />
-              {STATES.filter((s) => counts.state[s] || place.state === s).map((s) => (
+            </span>
+            <span className="flex flex-wrap items-center gap-1.5" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginLeft: phone ? 0 : 12 }} role="group" aria-label="State" data-state-filters>
+              <span className="text-xs text-muted">State</span>
+              {STATES.filter((s) => counts.state[s] || place.state.includes(s)).map((s) => (
                 <Chip
                   key={s}
                   label={s}
                   count={counts.state[s] ?? 0}
-                  on={place.state === s}
-                  onClick={() => set({ state: place.state === s ? null : s })}
+                  on={place.state.includes(s)}
+                  onClick={() => set({ state: toggle(place.state, s, STATES) })}
                   attr={{ 'data-state-filter': s }}
                 />
               ))}
-            </div>
+            </span>
           </div>
           <style>{HIT_STYLE + CARD_STYLE}</style>
           {all ? (

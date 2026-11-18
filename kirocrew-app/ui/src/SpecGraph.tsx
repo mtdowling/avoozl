@@ -10,9 +10,12 @@ import { linkHref, type Graph } from './views-api.ts'
 
 type Mode = 'frontier' | 'tree'
 
-export function SpecGraph(props: { graph: Graph | null; planId: string }) {
+// `only` fixes the view (Overview shows the Frontier, Tasks the whole tree) and
+// hides the toggle; `onTasks` is where a Frontier's "open tree" goes then.
+export function SpecGraph(props: { graph: Graph | null; planId: string; only?: Mode; onTasks?: () => void }) {
   const { graph, planId } = props
-  const [mode, setMode] = useState<Mode>('frontier')
+  const [chosen, setMode] = useState<Mode>('frontier')
+  const mode = props.only ?? chosen
   const [root, setRoot] = useState<TreeRoot>({ kind: 'spec', id: planId })
   const [modal, setModal] = useState<TreeRoot | null>(null)
   const drawer = useTaskDrawer()
@@ -25,6 +28,7 @@ export function SpecGraph(props: { graph: Graph | null; planId: string }) {
     else setModal(item)
   }
   const drill = (next: TreeRoot) => {
+    if (props.only === 'frontier') return props.onTasks?.()
     setRoot(next)
     setMode('tree')
   }
@@ -52,10 +56,12 @@ export function SpecGraph(props: { graph: Graph | null; planId: string }) {
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">
-            <div role="tablist" aria-label="Spec graph views" className="flex items-center gap-1">
-              {tab('frontier', 'Frontier')}
-              {tab('tree', 'Focus tree')}
-            </div>
+            {!props.only && (
+              <div role="tablist" aria-label="Spec graph views" className="flex items-center gap-1">
+                {tab('frontier', 'Frontier')}
+                {tab('tree', 'Focus tree')}
+              </div>
+            )}
             {href && (
               <a href={linkHref(href)} className="ml-auto text-xs underline underline-offset-2" style={{ color: 'var(--accent)' }} data-spec-graph-open>
                 Open in Graph →

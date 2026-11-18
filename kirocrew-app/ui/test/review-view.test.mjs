@@ -60,7 +60,7 @@ for (const [width, dark] of [
     await page.until(`document.querySelectorAll('[data-finding-card]').length === 1`)
     assert.deepEqual(await cards(), ['f-blocker'])
     assert.match(await text('[data-state-filter="for you"]'), /for you\s*1/)
-    await click('[data-severity-filter="all"]')
+    await click('[data-severity-filter="blocker"]')
     // Design: a rejected finding offers Reopen and shows its history; a
     // moved one says so.
     await click('[data-review-tab="design.md"]')
@@ -144,8 +144,8 @@ test('Reject needs a reason, and each action records the revision on screen', { 
     { id: 'f-blocker', action: 'reject', revisionHash: hash, note: 'Covered by the fuzz job.' },
     { id: 'f-moved', action: 'accept', revisionHash: hash },
   ])
-  // Back to spec leaves the view.
-  await click('[data-review-close]')
+  // The Overview tab leaves the view.
+  await click('[data-spec-tab="overview"]')
   await page.until(`Boolean(document.querySelector('[data-spec-body]')) && !document.querySelector('[data-review-view]')`)
 })
 
@@ -171,7 +171,7 @@ test('the spec Summary shows the written summary and open findings by severity',
   await page.until(`Boolean(document.querySelector('[data-finding-card="f-blocker"]'))`)
   await click('[data-finding-card="f-blocker"] [data-finding-action="resolve"]')
   await page.until(`document.querySelector('[data-finding-card="f-blocker"]')?.dataset.findingState === 'resolved'`)
-  await click('[data-review-close]')
+  await click('[data-spec-tab="overview"]')
   await page.until(`Boolean(document.querySelector('[data-spec-summary] [data-severity-badges]'))`)
   assert.deepEqual(await badges(), ['warn 1 warn', 'info 1 info'])
   assert.deepEqual(page.errors, [])
@@ -208,6 +208,35 @@ test('the tab bar moves with arrow keys, Home and End, and counts open findings 
   assert.deepEqual(page.errors, [])
 })
 
+test('the severity and state buttons are toggles on one line: several on at once, none on shows all', { skip }, async () => {
+  await openReview(1280, false)
+  await click('[data-review-tab="all"]')
+  await page.until(`Boolean(document.querySelector('[data-review-all] [data-finding-card]'))`)
+  const pressed = () => page.evaluate(`[...document.querySelectorAll('[data-severity-filter]')].filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.dataset.severityFilter)`)
+  assert.deepEqual(await pressed(), [])
+  assert.deepEqual(await cards(), ['f-info', 'f-moved', 'f-warn', 'f-blocker', 'f-later'])
+  // Blocker and Warn on: both kinds show, Info hides.
+  await click('[data-severity-filter="blocker"]')
+  await click('[data-severity-filter="warn"]')
+  await page.until(`document.querySelectorAll('[data-finding-card]').length === 3`)
+  assert.deepEqual(await cards(), ['f-moved', 'f-warn', 'f-blocker'])
+  assert.deepEqual(await pressed(), ['blocker', 'warn'])
+  // Blocker off again: only Warn shows.
+  await click('[data-severity-filter="blocker"]')
+  await page.until(`document.querySelectorAll('[data-finding-card]').length === 2`)
+  assert.deepEqual(await cards(), ['f-moved', 'f-warn'])
+  // The state buttons toggle too, and both groups share one line on a desktop.
+  await click('[data-severity-filter="warn"]')
+  await click('[data-state-filter="for you"]')
+  await click('[data-state-filter="fixed"]')
+  await page.until(`document.querySelectorAll('[data-finding-card]').length === 4`)
+  assert.deepEqual(await cards(), ['f-moved', 'f-warn', 'f-blocker', 'f-later'])
+  const tops = await page.evaluate(`[...document.querySelectorAll('[data-severity-filters], [data-state-filters]')].map((g) => Math.round(g.getBoundingClientRect().top))`)
+  assert.equal(tops.length, 2)
+  assert.ok(Math.abs(tops[0] - tops[1]) < 8, 'severity and state share a line')
+  assert.deepEqual(page.errors, [])
+})
+
 test('All findings lists every file, filters, and a click opens the finding at its lines', { skip }, async () => {
   await openReview(1280, false)
   await click('[data-review-tab="all"]')
@@ -216,7 +245,7 @@ test('All findings lists every file, filters, and a click opens the finding at i
   await click('[data-severity-filter="info"]')
   await page.until(`document.querySelectorAll('[data-finding-card]').length === 2`)
   assert.deepEqual(await cards(), ['f-info', 'f-later'])
-  await click('[data-severity-filter="all"]')
+  await click('[data-severity-filter="info"]')
   await page.until(`document.querySelectorAll('[data-finding-card]').length === 5`)
   // A button on the card acts without leaving the tab.
   await click('[data-finding-card="f-later"] [data-finding-action="reject"]')
@@ -266,10 +295,11 @@ test('an Approve dialog links to the Review view at its revision on the app rout
 })
 
 test('the address keeps the review place, and a bad value is dropped', () => {
-  const place = { plan: 'byte-types', rev: 'abc123', file: 'design.md', severity: 'warn', state: 'for you' }
-  assert.equal(reviewLink(place), '?view=review&plan=byte-types&rev=abc123&file=design.md&severity=warn&state=for+you')
+  const place = { plan: 'byte-types', rev: 'abc123', file: 'design.md', severity: ['blocker', 'warn'], state: ['for you', 'open'] }
+  assert.equal(reviewLink(place), '?view=review&plan=byte-types&rev=abc123&file=design.md&severity=blocker%2Cwarn&state=for+you%2Copen')
   assert.deepEqual(parseReviewLink(reviewLink(place)), place)
-  assert.deepEqual(parseReviewLink('?view=review&plan=p&severity=loud&state=x&file=../x'), { plan: 'p', rev: null, file: null, severity: null, state: null })
+  assert.deepEqual(parseReviewLink('?view=review&plan=p&severity=loud&state=x&file=../x'), { plan: 'p', rev: null, file: null, severity: [], state: [] })
+  assert.deepEqual(parseReviewLink('?view=review&plan=p&severity=warn,loud,blocker').severity, ['blocker', 'warn'])
   assert.equal(parseReviewLink('?view=graph&plan=p'), null)
   assert.equal(parseReviewLink('?view=review'), null)
 })
@@ -278,10 +308,11 @@ test('each chip counts what would show with the other filter applied', () => {
   const f = (id, severity, state, line) => ({ id, severity, state, anchor: { file: 'a.md', lineStart: line, lineEnd: line } })
   const all = [f('b', 'warn', 'fixed', 9), f('a', 'blocker', 'for you', 2), f('c', 'warn', 'for you', 5)]
   assert.deepEqual(
-    filterFindings(all, { severity: null, state: 'for you' }).map((x) => x.id),
+    filterFindings(all, { severity: [], state: ['for you'] }).map((x) => x.id),
     ['a', 'c'],
   )
-  assert.deepEqual(chipCounts(all, { severity: 'warn', state: null }), { severity: { warn: 2, blocker: 1 }, state: { fixed: 1, 'for you': 1 } })
+  assert.deepEqual(filterFindings(all, { severity: ['blocker', 'warn'], state: [] }).map((x) => x.id), ['a', 'c', 'b'])
+  assert.deepEqual(chipCounts(all, { severity: ['warn'], state: [] }), { severity: { warn: 2, blocker: 1 }, state: { fixed: 1, 'for you': 1 } })
 })
 
 const { openCounts, tabKey } = await import('../src/review-view.ts')

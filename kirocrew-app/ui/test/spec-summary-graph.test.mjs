@@ -76,21 +76,19 @@ for (const [width, height] of [
   [1280, 900],
   [390, 844],
 ])
-  test(`the Task graph shows this spec's tasks and edges at ${width}, and the list stays reachable`, { skip }, async () => {
+  test(`the Overview shows the Frontier and the Tasks tab the whole tree and the list at ${width}`, { skip }, async () => {
     await openSpec({}, { width, height })
     await page.until(`Boolean(document.querySelector('[data-spec-graph] [data-frontier]'))`)
     // Frontier: 1.2 just unlocked (its blocker is done); 1.3 and 1.4 wait.
     assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-spec-graph] [data-frontier-row]')].map((r) => r.dataset.frontierRow)`), ['1.2', '1.3', '1.4'])
-    // The whole Focus tree of the spec: its four tasks and its live edges.
-    await click('[data-spec-graph-tab="tree"]')
+    assert.equal(await exists('[data-spec-graph-tab]'), false)
+    assert.equal(await exists('[data-focus-tree]'), false)
+    // Tasks: the spec's whole tree, its four tasks and its live edges, then the list.
+    await click('[data-spec-tab="tasks"]')
     await page.until(`Boolean(document.querySelector('[data-spec-graph] [data-focus-tree="spec:byte-types"]'))`)
     assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-spec-graph] [data-tree-node]')].map((n) => n.dataset.treeNode).sort()`), ['1.1', '1.2', '1.3', '1.4'])
     assert.match(await text('[data-spec-graph] [data-tree-stat]'), /4 nodes · 2 live edges/)
-    // The scroll box holds the drawing, so a phone scrolls inside it.
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= window.innerWidth`), true)
-    // The plain list is folded, with all four tasks inside.
-    assert.equal(await page.evaluate(`document.querySelector('[data-phase-tasks-fold]').open`), false)
-    await click('[data-phase-tasks-fold] summary')
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-phase-tasks] li').length`), 4)
     assert.deepEqual(page.errors, [])
   })
