@@ -157,9 +157,13 @@ export async function launch(chrome) {
     await call('Page.enable')
     await call('Runtime.enable')
     const errors = []
+    // console.error and console.warn calls, for a page that must log none.
+    const consoleErrors = []
     listeners.add((message) => {
       if (message.sessionId !== sessionId) return
       if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails.exception?.description ?? message.params.exceptionDetails.text)
+      if (message.method === 'Runtime.consoleAPICalled' && ['error', 'warning'].includes(message.params.type))
+        consoleErrors.push(message.params.args.map((arg) => arg.value ?? arg.description ?? '').join(' '))
     })
     const evaluate = async (expression) => {
       const reply = await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true })
@@ -168,6 +172,10 @@ export async function launch(chrome) {
     }
     return {
       errors,
+      consoleErrors,
+      // Runs `source` in every document before its own scripts, from the next
+      // navigation on (a listener that must see the page's first events).
+      onNewDocument: (source) => call('Page.addScriptToEvaluateOnNewDocument', { source }),
       async open(url, { width, height, dark }) {
         await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false })
         await call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }, { name: 'prefers-reduced-motion', value: 'reduce' }] })
