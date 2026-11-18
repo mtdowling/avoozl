@@ -554,8 +554,11 @@ export async function planReviewStep(
     const folder = readSpec(plan.spec),
       planningRoot = folder?.root;
     if (!planningRoot) continue;
+    // A spec pull request's revision is read only: its answers become
+    // findings, never edits to the checkout (R107.3).
     const permissionClass =
       plan.state === "draft" &&
+      !folder.pull &&
       (person || plan.hash === round.revisionHash) &&
       folder.hash === plan.hash
         ? "write"

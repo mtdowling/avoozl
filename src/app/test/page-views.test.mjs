@@ -116,6 +116,53 @@ test("graph view shows kind, authority, status, blocking edges and ready leaves"
   assert.deepEqual(rows(store), before);
 });
 
+test("query and task.get say the state the Graph draws, beside the status", async (t) => {
+  const { store, ops } = graphFixture(t);
+  store.mutate("Defer one", (data) => {
+    data.tasks.find((task) => task.id === "c").status = "deferred";
+  });
+  const before = rows(store),
+    graph = await ops.execute("graph.view", {}),
+    drawn = new Map(graph.tasks.map((task) => [task.id, task.state])),
+    listed = await ops.execute("query");
+  assert.equal(listed.length, graph.tasks.length);
+  for (const row of listed) assert.equal(row.state, drawn.get(row.id), row.id);
+  assert.deepEqual(
+    Object.fromEntries(
+      listed.map((row) => [row.id, [row.status, row.stateLabel]]),
+    ),
+    {
+      root: ["planned", "Waiting"],
+      a: ["accepted", "Done"],
+      b: ["planned", "Ready"],
+      c: ["deferred", "Deferred"],
+      d: ["planned", "Needs you"],
+      e: ["blocked", "Needs you"],
+      g: ["planned", "Ready"],
+    },
+  );
+  // The state sits right after the status it explains.
+  const keys = Object.keys(listed.find((row) => row.id === "d"));
+  assert.deepEqual(
+    keys.slice(keys.indexOf("status"), keys.indexOf("status") + 3),
+    ["status", "state", "stateLabel"],
+  );
+  // A filter still reads stored fields; the rows it returns carry the state.
+  assert.deepEqual(
+    (await ops.execute("query", { q: "status:blocked" })).map((row) => [
+      row.id,
+      row.state,
+    ]),
+    [["e", "needs-you"]],
+  );
+  const shown = await ops.execute("task.get", { id: "d" });
+  assert.deepEqual(
+    [shown.status, shown.state, shown.stateLabel, shown.decision],
+    ["planned", "needs-you", "Needs you", "choose-format"],
+  );
+  assert.deepEqual(rows(store), before);
+});
+
 test("graph view filters by epic and status and keeps edges inside the set", async (t) => {
   const { ops } = graphFixture(t);
   const other = await ops.execute("graph.view", { epic: "other" });

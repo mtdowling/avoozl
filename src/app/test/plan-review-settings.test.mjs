@@ -11,6 +11,7 @@ import {
 import { loadLayeredConfig } from "../layered-config.mjs";
 import { Operations } from "../operations.mjs";
 import { RepositorySettings } from "../repository-settings.mjs";
+import { REPOSITORY_CONFIG_SCHEMA_URL } from "../config-schema.mjs";
 import { Store } from "../store.mjs";
 import { readDeliveryPolicy } from "../tick.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -79,7 +80,7 @@ test("Settings saves the reviewer, preserves review settings and refuses equal m
   assert.deepEqual(saved.models, models);
   assert.deepEqual(JSON.parse(fs.readFileSync(filename, "utf8")), {
     version: 1,
-    $schema: "https://avoozl.dev/schema/repository-config-v1.json",
+    $schema: REPOSITORY_CONFIG_SCHEMA_URL,
     models,
     planReview: { mode: "ask", rounds: 2 },
   });

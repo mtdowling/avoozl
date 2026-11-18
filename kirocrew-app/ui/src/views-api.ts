@@ -3,6 +3,7 @@
 // runtime imports so node can test it directly.
 import type { Escalation } from './untriaged-api.ts'
 import type { AppApi } from '@kirocrew/app-sdk'
+import type { SpecPull } from './spec-pr-api.ts'
 import { COMMAND_PATH } from './workspace-api.ts'
 
 // A task's owner as every view reports it (R28.5).
@@ -368,6 +369,8 @@ export interface ReviewTask extends TaskOwner {
 export interface ConflictItem extends TaskOwner {
   context?: ItemContext
   planReview?: { planId: string; revisionHash: string }
+  // A spec pull request adopted into its spec (R107.5).
+  specPull?: SpecPull
   kind: 'decision' | 'needs-human' | 'review' | 'stale-session' | 'resource' | 'github-conflict' | 'tracker-conflict' | string
   // Null for a review group, which stands for many tasks.
   taskId: string | null

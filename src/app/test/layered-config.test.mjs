@@ -8,6 +8,7 @@ import {
   globalAvoozlConfigPath,
   loadLayeredConfig,
 } from "../layered-config.mjs";
+import { REPOSITORY_CONFIG_SCHEMA_URL } from "../config-schema.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 function writeJson(filename, value) {
@@ -217,10 +218,7 @@ test("secret-like keys are rejected recursively", () => {
 test("the shipped JSON Schema describes versioned non-secret config", () => {
   const schema = JSON.parse(fs.readFileSync(avoozlConfigSchemaPath, "utf8"));
   assert.equal(schema.$schema, "https://json-schema.org/draft/2020-12/schema");
-  assert.equal(
-    schema.$id,
-    "https://avoozl.dev/schema/repository-config-v1.json",
-  );
+  assert.equal(schema.$id, REPOSITORY_CONFIG_SCHEMA_URL);
   assert.deepEqual(schema.required, ["version"]);
   assert.equal(schema.properties.version.const, 1);
   assert.deepEqual(schema.$defs.agentInstructionRule.required, [

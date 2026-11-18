@@ -102,7 +102,7 @@ export const RADAR_DEFAULTS = Object.freeze({
   clearPlanLabel: false,
 });
 export const READY_LABEL_DEFAULT = "avoozl:ready";
-const LEGACY_KEYS = ["issueIntake", "queue"];
+export const LEGACY_KEYS = Object.freeze(["issueIntake", "queue"]);
 // The `github` keys the Settings view edits; the legacy keys stay as written.
 export const POLICY_KEYS = Object.freeze([
   "mode",
@@ -118,6 +118,68 @@ export const POLICY_KEYS = Object.freeze([
   "specReviewers",
   "repositories",
 ]);
+// The keys each block under `github` accepts, by place. The validators below
+// read them, and a test holds src/avoozl-config.schema.json to the same lists.
+export const GITHUB_BLOCK_KEYS = Object.freeze({
+  subIssues: ["maxPerParent"],
+  issues: ["includeDone"],
+  project: ["owner", "number", "fields", "statusValues"],
+  rule: [
+    "id",
+    "action",
+    "match",
+    "labelsAll",
+    "labelsAny",
+    "labelsNone",
+    "assignee",
+    "author",
+    "autoPublishChildren",
+  ],
+  pullRequestReviews: ["approvals"],
+  commentSteering: ["mention"],
+  discussions: ["categories"],
+  release: ["capacity", "mode", "scopes", "ranking"],
+  ranking: ["enabled", "agingHours"],
+  scope: ["label", "capacity"],
+  repository: [
+    "checkout",
+    "folder",
+    "baseBranch",
+    "role",
+    // Who codes was removed (R91.6): an old file's `coder` is ignored.
+    "coder",
+    "allowedActors",
+    "minimumPermission",
+    "requiredChecks",
+    "pullRequestReviews",
+    "concurrency",
+    "release",
+    "dependencyText",
+    "priority",
+    "priorityLabels",
+    "waitingLabels",
+    "managedLabels",
+    "crewLabels",
+    "radar",
+    "approval",
+    "acceptedLabel",
+    "rules",
+    "buildReceipts",
+    "stackedPullRequests",
+    "commentSteering",
+    "discussions",
+    "untriaged",
+    "mirror",
+    "conflicts",
+    "merge",
+    "cacheSeconds",
+  ],
+  crew: ["count", "models", "template"],
+  approval: ["decisionRecord"],
+  conflicts: ["onSourceConflict", "maxAttempts"],
+  merge: ["method"],
+  untriaged: ["filter", "triageLabels", "ignoreOlderThanDays", "notify"],
+});
 // Who may give Avoozl orders when a repository names nobody.
 export const DEFAULT_PERMISSION = "write";
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -170,7 +232,7 @@ function permission(value, label) {
 function subIssuesInput(value) {
   if (value === undefined || value === null)
     return { maxPerParent: SUB_ISSUE_CAP };
-  onlyKeys(value, ["maxPerParent"], "github.subIssues");
+  onlyKeys(value, GITHUB_BLOCK_KEYS.subIssues, "github.subIssues");
   const cap = value.maxPerParent ?? SUB_ISSUE_CAP;
   if (!Number.isSafeInteger(cap) || cap < 1)
     fail("github.subIssues.maxPerParent must be a whole number of at least 1.");
@@ -209,7 +271,7 @@ function specReviewersInput(value) {
 // spec is approved gets an issue. Off by default: only open tasks do.
 function issuesInput(value) {
   if (value === undefined || value === null) return { includeDone: false };
-  onlyKeys(value, ["includeDone"], "github.issues");
+  onlyKeys(value, GITHUB_BLOCK_KEYS.issues, "github.issues");
   if (value.includeDone !== undefined && typeof value.includeDone !== "boolean")
     fail("github.issues.includeDone must be true or false.");
   return { includeDone: value.includeDone === true };
@@ -217,11 +279,7 @@ function issuesInput(value) {
 
 function projectInput(value) {
   if (value === undefined || value === null) return null;
-  onlyKeys(
-    value,
-    ["owner", "number", "fields", "statusValues"],
-    "github.project",
-  );
+  onlyKeys(value, GITHUB_BLOCK_KEYS.project, "github.project");
   if (!Number.isSafeInteger(value.number) || value.number < 1)
     fail("github.project.number must be a positive whole number.");
   const fields = onlyKeys(
@@ -255,21 +313,7 @@ function projectInput(value) {
 }
 
 function ruleInput(value, label) {
-  onlyKeys(
-    value,
-    [
-      "id",
-      "action",
-      "match",
-      "labelsAll",
-      "labelsAny",
-      "labelsNone",
-      "assignee",
-      "author",
-      "autoPublishChildren",
-    ],
-    label,
-  );
+  onlyKeys(value, GITHUB_BLOCK_KEYS.rule, label);
   if (typeof value.id !== "string" || !RULE_ID.test(value.id))
     fail(`${label}.id must be a lowercase rule ID.`);
   if (!RULE_ACTIONS.includes(value.action))
@@ -319,7 +363,7 @@ function ruleInput(value, label) {
 // head commit needs.
 function reviewsInput(value, label) {
   if (value === undefined || value === null) return null;
-  onlyKeys(value, ["approvals"], label);
+  onlyKeys(value, GITHUB_BLOCK_KEYS.pullRequestReviews, label);
   const approvals = value.approvals ?? 1;
   if (!Number.isSafeInteger(approvals) || approvals < 1 || approvals > 10)
     fail(`${label}.approvals must be a whole number from 1 to 10.`);
@@ -333,7 +377,7 @@ const MENTION =
   /^@[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(?:\/[A-Za-z0-9._-]{1,100})?$/;
 function steeringInput(value, label) {
   if (value === undefined || value === null) return null;
-  onlyKeys(value, ["mention"], label);
+  onlyKeys(value, GITHUB_BLOCK_KEYS.commentSteering, label);
   if (typeof value.mention !== "string" || !MENTION.test(value.mention))
     fail(`${label}.mention must be a GitHub @name or @org/team.`);
   return { mention: value.mention };
@@ -343,7 +387,7 @@ function steeringInput(value, label) {
 // discussions in `categories` whose author the policy allows get one reply.
 function discussionsInput(value, label) {
   if (value === undefined || value === null) return null;
-  onlyKeys(value, ["categories"], label);
+  onlyKeys(value, GITHUB_BLOCK_KEYS.discussions, label);
   const categories = names(value.categories, `${label}.categories`);
   if (!categories.length)
     fail(`${label}.categories must name at least one category.`);
@@ -359,14 +403,10 @@ export const RELEASE_MODES = Object.freeze(["automatic", "step", "hold"]);
 function releaseInput(value, label) {
   const input = value.release ?? {};
   if (!record(input)) fail(`${label}.release must be an object.`);
-  onlyKeys(
-    input,
-    ["capacity", "mode", "scopes", "ranking"],
-    `${label}.release`,
-  );
+  onlyKeys(input, GITHUB_BLOCK_KEYS.release, `${label}.release`);
   const rankIn = input.ranking ?? {};
   if (!record(rankIn)) fail(`${label}.release.ranking must be an object.`);
-  onlyKeys(rankIn, ["enabled", "agingHours"], `${label}.release.ranking`);
+  onlyKeys(rankIn, GITHUB_BLOCK_KEYS.ranking, `${label}.release.ranking`);
   if (rankIn.enabled !== undefined && typeof rankIn.enabled !== "boolean")
     fail(`${label}.release.ranking.enabled must be true or false.`);
   if (
@@ -391,7 +431,7 @@ function releaseInput(value, label) {
     scopes = (input.scopes ?? []).map((entry, index) => {
       const at = `${label}.release.scopes[${index}]`;
       if (!record(entry)) fail(`${at} must be an object.`);
-      onlyKeys(entry, ["label", "capacity"], at);
+      onlyKeys(entry, GITHUB_BLOCK_KEYS.scope, at);
       const scope = name(entry.label, `${at}.label`);
       if (seen.has(lower(scope)))
         fail(`${label}.release.scopes repeats ${scope}.`);
@@ -432,43 +472,7 @@ function writesInput(value, label, max) {
 
 function repositoryInput(value, id, mode) {
   const label = `github.repositories.${id}`;
-  onlyKeys(
-    value,
-    [
-      "checkout",
-      "folder",
-      "baseBranch",
-      "role",
-      // Who codes was removed (R91.6): an old file's `coder` is ignored.
-      "coder",
-      "allowedActors",
-      "minimumPermission",
-      "requiredChecks",
-      "pullRequestReviews",
-      "concurrency",
-      "release",
-      "dependencyText",
-      "priority",
-      "priorityLabels",
-      "waitingLabels",
-      "managedLabels",
-      "crewLabels",
-      "radar",
-      "approval",
-      "acceptedLabel",
-      "rules",
-      "buildReceipts",
-      "stackedPullRequests",
-      "commentSteering",
-      "discussions",
-      "untriaged",
-      "mirror",
-      "conflicts",
-      "merge",
-      "cacheSeconds",
-    ],
-    label,
-  );
+  onlyKeys(value, GITHUB_BLOCK_KEYS.repository, label);
   if (
     value.stackedPullRequests !== undefined &&
     typeof value.stackedPullRequests !== "boolean"
@@ -577,7 +581,7 @@ function repositoryInput(value, id, mode) {
   if (radarInput.crew !== undefined) {
     const crew = onlyKeys(
         radarInput.crew,
-        ["count", "models", "template"],
+        GITHUB_BLOCK_KEYS.crew,
         `${label}.radar.crew`,
       ),
       { models, count } = crew;
@@ -621,7 +625,7 @@ function repositoryInput(value, id, mode) {
   // The approval pull request (RC3.8): the decision record is off unless set.
   const approvalInput = onlyKeys(
     value.approval ?? {},
-    ["decisionRecord"],
+    GITHUB_BLOCK_KEYS.approval,
     `${label}.approval`,
   );
   if (
@@ -783,11 +787,7 @@ export const CONFLICT_DEFAULTS = Object.freeze({
   maxAttempts: 1,
 });
 function conflictsInput(value, label) {
-  const input = onlyKeys(
-    value ?? {},
-    ["onSourceConflict", "maxAttempts"],
-    label,
-  );
+  const input = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.conflicts, label);
   const action = input.onSourceConflict ?? CONFLICT_DEFAULTS.onSourceConflict,
     count = input.maxAttempts ?? CONFLICT_DEFAULTS.maxAttempts;
   if (!CONFLICT_ACTIONS.includes(action))
@@ -809,7 +809,7 @@ export const MERGE_METHOD_SETTING = Object.freeze({
   merge: { key: "allow_merge_commit", name: "Allow merge commits" },
 });
 function mergeInput(value, label) {
-  const input = onlyKeys(value ?? {}, ["method"], label),
+  const input = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.merge, label),
     method = input.method ?? MERGE_METHOD_DEFAULT;
   if (!MERGE_METHODS.includes(method))
     fail(`${label}.method must be squash or merge.`);
@@ -824,11 +824,7 @@ export const mergeMethodOf = (settings) =>
 // The Untriaged list's settings (design §8.5, R49.3-R49.5), each optional.
 export const UNTRIAGED_MAX_DAYS = 3650;
 function untriagedInput(value, label, managedNames) {
-  const input = onlyKeys(
-    value ?? {},
-    ["filter", "triageLabels", "ignoreOlderThanDays", "notify"],
-    label,
-  );
+  const input = onlyKeys(value ?? {}, GITHUB_BLOCK_KEYS.untriaged, label);
   let filter = null;
   if (input.filter !== undefined && input.filter !== null) {
     if (typeof input.filter !== "string")

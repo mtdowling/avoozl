@@ -1,5 +1,7 @@
 # Home's Landing queue tile opens the Landing queue page
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 Home's Landing queue tile (PR #472) opened Delivery. It now opens Dashboards ›
 Landing queue (PR #495). `kirocrew-app/ui/test/home-landing-tile.test.mjs`
 clicks the tile in Chrome and checks the page that opens.

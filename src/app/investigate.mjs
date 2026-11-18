@@ -37,13 +37,20 @@ const rank = (value) => CONFIDENCE.indexOf(value);
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
+export const INVESTIGATE_KEYS = Object.freeze([
+  "mode",
+  "minConfidence",
+  "agent",
+  "model",
+]);
+
 // `delivery.investigate` or `delivery.repositories.<id>.investigate`.
 // Throws naming the key, so the tick keeps its last valid policy.
 export function investigateSettings(value, where = "delivery.investigate") {
   if (value === undefined) return undefined;
   if (!record(value)) throw Error(`${where} must be an object.`);
   for (const key of Object.keys(value))
-    if (!["mode", "minConfidence", "agent", "model"].includes(key))
+    if (!INVESTIGATE_KEYS.includes(key))
       throw Error(`${where}.${key} is not an investigate setting.`);
   if (value.mode !== undefined && !INVESTIGATE_MODES.includes(value.mode))
     throw Error(`${where}.mode must be ${INVESTIGATE_MODES.join(", ")}.`);

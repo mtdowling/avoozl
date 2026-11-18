@@ -1,5 +1,7 @@
 # Top bar and Delivery heading
 
+> Screenshots for this receipt were checked and are not kept in git.
+
 Dashboards › Delivery in the full app shell, at 390 and 1280 px, light and
 dark, with Kiro Crew's own stylesheet.
 

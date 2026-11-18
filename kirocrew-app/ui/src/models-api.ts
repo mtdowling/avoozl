@@ -21,6 +21,9 @@ export const HARNESS_ROLES = [
   { key: 'worker', label: 'Worker', line: 'Codes each ready task. Its model is set in Delivery.' },
   ...MODEL_ROLES,
 ] as const
+// What each role may do to files: the worker writes code and the planner
+// writes spec files; the others only read.
+export const ROLE_ACCESS: Record<HarnessRole, 'write' | 'read'> = { worker: 'write', planner: 'write', planReviewer: 'read', retro: 'read', reviewDraft: 'read' }
 export type HarnessRole = (typeof HARNESS_ROLES)[number]['key']
 export type RoleHarnesses = Partial<Record<HarnessRole, string>>
 // The Kiro Crew chat; any other harness is a supervisor child.
@@ -29,6 +32,8 @@ export const KIROCREW_HARNESS = 'kirocrew'
 export interface HarnessDefinition {
   name: string
   approved: boolean
+  // The file sets `model`, so a session can name one.
+  model?: boolean
 }
 
 export interface ModelSettings {
@@ -74,4 +79,28 @@ export function modelsClient(api: AppApi) {
       run<ModelSettings>(workspaceId, 'models.settings.update', { models: toModels(models), harnesses: toHarnesses(harnesses), expectedHash }),
     list: () => api.get<unknown>('/api/models').then(parseModels),
   }
+}
+
+const isSet = (value?: string) => Boolean(value) && value !== 'auto'
+
+// A role runs on the default until a harness or model is set for it here.
+export function roleIsSet(role: HarnessRole, models: ChatModels, harnesses: RoleHarnesses): boolean {
+  return isSet(harnesses[role]) || (role !== 'worker' && isSet(models[role as ModelRole]))
+}
+
+// Whether a harness can take a model: auto, the Kiro Crew chat and any
+// harness that is not on this machine are given the benefit of the doubt.
+export function harnessTakesModel(harness: string | undefined, definitions: HarnessDefinition[]): boolean {
+  if (!isSet(harness) || harness === KIROCREW_HARNESS) return true
+  const found = definitions.find((d) => d.name === harness)
+  return found ? Boolean(found.model) : true
+}
+
+// Why a role's choice cannot be saved, or null.
+export function roleProblem(role: HarnessRole, models: ChatModels, harnesses: RoleHarnesses, definitions: HarnessDefinition[]): string | null {
+  if (role === 'worker') return null
+  const model = models[role as ModelRole]
+  if (isSet(model) && !harnessTakesModel(harnesses[role], definitions)) return `${harnesses[role]} takes no model. Set the model to auto.`
+  if (role === 'planReviewer' && isSet(model) && model === models.planner) return 'The reviewer must use a different model than the planner.'
+  return null
 }

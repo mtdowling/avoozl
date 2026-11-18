@@ -39,7 +39,7 @@ export const KEEP_CLOSED_MS = 30 * 24 * 60 * 60 * 1000;
 export const WAITING_REASON = "Waiting on the author";
 const SOURCE_ID = /^[a-z][a-z0-9-]{0,60}$/;
 const PLUGIN_ID = /^[a-z][a-z0-9-]{0,60}$/;
-const SOURCE_KEYS = [
+export const SOURCE_KEYS = [
   "via",
   "repository",
   "labelFields",

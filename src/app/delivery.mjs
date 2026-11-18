@@ -131,6 +131,43 @@ const RUNNERS = new Set(["tick", "crew-mode"]);
 const bounded = (value, min, max) =>
   Number.isInteger(value) && value >= min && value <= max;
 
+// The whole-number `delivery` settings and their bounds, then every key
+// `delivery`, one of its repositories and one review role accept. A test
+// holds src/avoozl-config.schema.json to these lists.
+const DELIVERY_LIMITS = Object.freeze({
+  concurrency: [0, 32],
+  retries: [0, 10],
+  quietMinutes: [1, 1440],
+  nudges: [0, 10],
+  feedbackRounds: [1, 20],
+});
+export const DELIVERY_KEYS = Object.freeze([
+  ...Object.keys(DELIVERY_LIMITS),
+  "agent",
+  "repositories",
+  "runner",
+  "model",
+  "reviewers",
+  "prFeedback",
+  "investigate",
+  "ship",
+]);
+export const DELIVERY_REPOSITORY_KEYS = Object.freeze([
+  "concurrency",
+  "reviewers",
+  "prFeedback",
+  "feedbackRounds",
+  "investigate",
+  "ship",
+]);
+export const REVIEWER_KEYS = Object.freeze([
+  "id",
+  "focus",
+  "agent",
+  "model",
+  "distinctFrom",
+]);
+
 // `.avoozl.json` `delivery`: present turns on readiness dispatch. Throws on an
 // invalid value so the tick keeps the last valid policy (§4.5 step 2).
 export function deliveryPolicy(value) {
@@ -138,31 +175,12 @@ export function deliveryPolicy(value) {
   if (delivery === undefined) return null;
   if (!delivery || typeof delivery !== "object" || Array.isArray(delivery))
     throw Error("delivery must be an object.");
-  const limits = {
-    concurrency: [0, 32],
-    retries: [0, 10],
-    quietMinutes: [1, 1440],
-    nudges: [0, 10],
-    feedbackRounds: [1, 20],
-  };
   for (const key of Object.keys(delivery))
-    if (
-      !(key in limits) &&
-      ![
-        "agent",
-        "repositories",
-        "runner",
-        "model",
-        "reviewers",
-        "prFeedback",
-        "investigate",
-        "ship",
-      ].includes(key)
-    )
+    if (!DELIVERY_KEYS.includes(key))
       throw Error(`delivery.${key} is not a delivery setting.`);
   investigateSettings(delivery.investigate);
   shipSetting(delivery.ship, "delivery.ship");
-  for (const [key, [min, max]] of Object.entries(limits))
+  for (const [key, [min, max]] of Object.entries(DELIVERY_LIMITS))
     if (delivery[key] !== undefined && !bounded(delivery[key], min, max))
       throw Error(`delivery.${key} must be a whole number ${min}–${max}.`);
   if (
@@ -194,15 +212,7 @@ export function deliveryPolicy(value) {
       !entry ||
       typeof entry !== "object" ||
       Object.keys(entry).some(
-        (key) =>
-          ![
-            "concurrency",
-            "reviewers",
-            "prFeedback",
-            "feedbackRounds",
-            "investigate",
-            "ship",
-          ].includes(key),
+        (key) => !DELIVERY_REPOSITORY_KEYS.includes(key),
       ) ||
       (entry.concurrency !== undefined && !bounded(entry.concurrency, 0, 32))
     )
@@ -286,7 +296,7 @@ function reviewerList(value, where, writer) {
     if (!role || typeof role !== "object" || Array.isArray(role))
       throw Error(`${at} must be an object.`);
     for (const key of Object.keys(role))
-      if (!["id", "focus", "agent", "model", "distinctFrom"].includes(key))
+      if (!REVIEWER_KEYS.includes(key))
         throw Error(`${at}.${key} is not a review role setting.`);
     if (!ROLE_ID.test(role.id ?? "") || role.id === "checks")
       throw Error(

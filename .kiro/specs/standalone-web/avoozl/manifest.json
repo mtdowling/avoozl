@@ -17,9 +17,9 @@
     "sw-1.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 1 (The page without Kiro Crew). The SDK stand-in, the second bundle and Avoozl's themes. See SW1, SW2, SW6; §D2, §D3, §D6.",
+      "summary": "Phase 1 (The page without Kiro Crew). Kiro Crew's own parts at a pin, the host shim and the second bundle. See SW1, SW2, SW6, SW12; §D2, §D3, §D6, §D11.",
       "acceptance": [
-        "The type test fails on a changed stand-in signature and passes as built; the source test fails on a view importing `@kirocrew/app-sdk` or the stand-in directly; the import-specifier fixture for `dist/index.mjs` and `dist/panel.mjs` matches; `host-classes.test.mjs` runs against `dist/standalone/app.css` with no skip and passes; the variable test finds every `var(--…)` name in both themes; the contrast test passes in both; the path scan finds no home folder or worktree path in `dist/standalone/`; screenshots of Home, Plans and Settings at 390 and 1280 px, light and dark, go to the owner."
+        "The fetch refuses a tree whose digest differs, and the Kiro Crew bundle still builds with no source to fetch; no Kiro Crew file is in git and a compare of the cache with the release is clean; the contract test fails naming a moved path or export; the version test fails on a package that differs from the pin's lockfile; the build test fails on a file under `standalone/` that exports an SDK name, and the source test on a view importing a Kiro Crew file by path; the import-specifier fixture for `dist/index.mjs` and `dist/panel.mjs` matches; `host-classes.test.mjs` runs against the built stylesheet with no skip and passes; the variable test finds every `var(--…)` name for the default palette in both modes; the script is within its budget and holds no dashboard module; the build lists every `<style>` text and fails on one built at run time; the release scan fails with a notice removed; the path scan finds no home folder or worktree path in `dist/standalone/`; screenshots of Home, Specs and Settings at 390 and 1280 px, light and dark, beside the same views in a running Kiro Crew at the pinned release, go to the owner."
       ],
       "completion": "integrated",
       "checks": [
@@ -83,7 +83,7 @@
       "repository": "avoozl",
       "summary": "Phase 1 (The page without Kiro Crew). Proof: Avoozl runs a task end to end with no Kiro Crew, from its own page. See SW1 to SW10; §D1, §D5, §D7.",
       "acceptance": [
-        "Expected: (1) the page loads with no console error and no CSP report, in light and dark; (2) the task lands and the message reaches the child; (3) a read-only `assist` session starts and its view shows its log; (4) every attempt is refused and changes nothing; (5) the server comes back on the same port, the old session is gone and a new link signs in; `lsof` or `ss` shows only `127.0.0.1:<port>` listening for the server.",
+        "Expected: (1) the page loads with no console error and no CSP report, in light and dark, and its buttons, cards, inputs and badges are Kiro Crew's own, with Kiro Crew's fonts and colors; (2) the task lands and the message reaches the child; (3) a read-only `assist` session starts and its view shows its log; (4) every attempt is refused and changes nothing; (5) the server comes back on the same port, the old session is gone and a new link signs in; `lsof` or `ss` shows only `127.0.0.1:<port>` listening for the server.",
         "Expected result observed; receipt under `docs/evidence/`."
       ],
       "completion": "integrated",
