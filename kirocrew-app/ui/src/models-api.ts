@@ -101,6 +101,6 @@ export function roleProblem(role: HarnessRole, models: ChatModels, harnesses: Ro
   if (role === 'worker') return null
   const model = models[role as ModelRole]
   if (isSet(model) && !harnessTakesModel(harnesses[role], definitions)) return `${harnesses[role]} takes no model. Set the model to auto.`
-  if (role === 'planReviewer' && isSet(model) && model === models.planner) return 'The plan reviewer must use a different model than the planner.'
+  if (role === 'planReviewer' && isSet(model) && model === models.planner) return 'The reviewer must use a different model than the planner.'
   return null
 }
