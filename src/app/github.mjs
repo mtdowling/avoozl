@@ -97,6 +97,19 @@ const ARTIFACTS_PROJECTION = {
 const MAX_PAGES = 20;
 // GitHub's built-in repository roles (github-policy.mjs PERMISSIONS).
 const ROLES = new Set(["read", "triage", "write", "maintain", "admin"]);
+// The highest role in a repository's `permissions` flags, or none.
+const roleFromPermissions = (granted = {}) =>
+  granted?.admin
+    ? "admin"
+    : granted?.maintain
+      ? "maintain"
+      : granted?.push
+        ? "write"
+        : granted?.triage
+          ? "triage"
+          : granted?.pull
+            ? "read"
+            : "none";
 
 // Avoozl's ownership label (R103). Issue Radar crews skip any issue with a
 // `crew:` label, so every issue Avoozl creates carries this one from the
@@ -687,6 +700,11 @@ export class GitHubClient {
   // real role. A custom role's name is not a built-in role, so its base
   // `permission` counts, which can only rank it lower (checked live
   // 2026-11-13: smithy-java answered permission write, role_name maintain).
+  //
+  // GitHub shows that endpoint only to logins with push access. Refused
+  // (403), the signed-in login's own role comes from the repository's
+  // `permissions`, which any reader sees; another login's role is unknown
+  // and reads as none, so a read-only login never grants anyone rights.
   permission(value, actor) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
@@ -698,10 +716,23 @@ export class GitHubClient {
         ROLES.has(result?.role_name)
           ? { ...result, permission: result.role_name }
           : result,
-      (error) => {
+      async (error) => {
         if (error.status === 404)
           return { permission: "none", user: { login: actor } };
-        throw error;
+        if (error.status !== 403) throw error;
+        const me = await this.currentUser().catch(() => null);
+        if (
+          me?.login &&
+          String(me.login).toLowerCase() === String(actor).toLowerCase()
+        ) {
+          const granted = (await this.repository({ owner, repo }))?.permissions;
+          return {
+            permission: roleFromPermissions(granted),
+            user: { login: actor },
+            source: "repository",
+          };
+        }
+        return { permission: "none", user: { login: actor }, unknown: true };
       },
     );
   }
