@@ -50,7 +50,7 @@ of the other specs.
 
 ## Phase 2: The manual path without Crew Mode
 
-- [ ] wp-2.1 A person claims a task with the tick on [WP2.1, WP2.2, WP2.3, WP2.4, WP2.5, WP2.7] (§D6)
+- [x] wp-2.1 A person claims a task with the tick on [WP2.1, WP2.2, WP2.3, WP2.4, WP2.5, WP2.7] (§D6)
   - `src/app/manual-claim.mjs` from `claimTask`, with no Crew Mode test and no conductor branch; a test that the ready query's existing rule keeps the tick off a claimed task; `avoozl claim TASK --release` and `--discard`.
   - Done when: Tests with the tick on: a claimed task stays unstarted across three ticks; `runner report` from its worktree with no token finishes it and Avoozl runs the checks; a claim is refused for a task that is not ready, has a running session or is held by Stop the line, each with its reason; a claim over MCP and from a child of the supervisor is refused; release refuses a dirty worktree without `--discard`.
 - [ ] wp-2.2 Remove Crew Mode dispatch, and hold the workspaces that used it, after wp-2.1, wp-p1 [WP1.1, WP1.2, WP1.3, WP1.4, WP2.6, WP7.4, WP7.5] (§D7)

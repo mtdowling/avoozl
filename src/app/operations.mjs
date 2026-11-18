@@ -487,6 +487,7 @@ import {
   updateProviders,
 } from "./provider-health.mjs";
 import { claimTask, nextView } from "./runner.mjs";
+import { manualClaim } from "./manual-claim.mjs";
 import {
   acceptEnvelope,
   driverTick,
@@ -3210,16 +3211,36 @@ export class Operations {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
       });
-    if (name === "runner.claim")
+    if (name === "runner.claim") {
+      const policy = readDeliveryPolicy(this.workspaceRoot),
+        github = readGitHubPolicyOrNull(this.workspaceRoot);
+      // A manual claim is the person's at this machine's command line.
+      if (context.local === true)
+        return stampPrompts(
+          store,
+          await manualClaim(
+            store,
+            { ...input, workspaceRoot: this.workspaceRoot },
+            { github },
+          ),
+        );
+      // shortcut: a Crew Mode conductor's claim stays until wp-2.2 removes
+      // Crew Mode; nothing else may claim.
+      if (policy.delivery?.runner !== "crew-mode")
+        fail(
+          "A claim is a person's: run avoozl claim TASK from the command line.",
+          403,
+        );
       return stampPrompts(
         store,
         await claimTask(store, input, {
           caller: context.caller,
-          local: context.local === true,
-          policy: readDeliveryPolicy(this.workspaceRoot),
-          github: readGitHubPolicyOrNull(this.workspaceRoot),
+          local: false,
+          policy,
+          github,
         }),
       );
+    }
     // Retired tool names remain resolvable for existing clients.
     if (name === "relay.call" || name === "relay.forget")
       fail(

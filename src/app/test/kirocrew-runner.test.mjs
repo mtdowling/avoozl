@@ -205,16 +205,25 @@ test("a claimed task never appears ready twice and cannot be claimed twice", asy
       (error) => error.status === status,
       JSON.stringify(input),
     );
+  // With the tick as dispatcher a person's claim works and a conductor's
+  // does not (worker-paths WP2.1).
   const tick = setup(t, { delivery: { runner: "tick" } });
   await assert.rejects(
     tick.ops.execute(
       "runner.claim",
       { taskId: "a", slot: "w" },
       undefined,
-      local,
+      as("conductor"),
     ),
-    (error) => error.status === 409 && /crew-mode/.test(error.message),
+    (error) => error.status === 403 && /person's/.test(error.message),
   );
+  const mine = await tick.ops.execute(
+    "runner.claim",
+    { taskId: "a", slot: "w" },
+    undefined,
+    local,
+  );
+  assert.equal(mine.binding.conductor, "cli");
 });
 
 test("the tick leaves ready leaves to a Crew Mode conductor and still verifies its work", async (t) => {
