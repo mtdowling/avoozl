@@ -199,6 +199,7 @@ const EXECUTE = new Set([
   "executor.kirocrew.complete",
   "session.status",
   "session.report",
+  "session.send",
   "relay.call",
   "reply.post",
   "reviewdraft.post",

@@ -437,6 +437,9 @@ export function viewsClient(api: AppApi) {
     return reply.result
   }
   return {
+    // Send message on a `process` session (R98.2): queued for the supervisor.
+    sendSession: (workspaceId: string, slot: string, text: string) =>
+      run<{ id: string; state: 'queued'; slot: string; taskId: string }>('session.send', { slot, text }, workspaceId),
     decidePlanReview: (workspaceId: string, planId: string, revisionHash: string, action: 'review' | 'skip') =>
       run<unknown>('plan.review.decide', { planId, revisionHash, action }, workspaceId),
     graph: (workspaceId: string, filter: GraphFilter = {}) => {
